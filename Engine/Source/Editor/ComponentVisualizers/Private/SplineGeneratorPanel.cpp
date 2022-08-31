@@ -180,7 +180,7 @@ double CalcTangentMultiplier(const float InRadius, const float InRotInc)
 	// Calculate the difference between the actual interpolated midpoint and expected interpolated midpoint
 	const FVector ActualVal = FMath::CubicInterp(P0, T0, P1, T1, A);
 	const FVector ExpectedVal = P0.RotateAngleAxis(InRotInc * A, FVector::UpVector);
-	const float Diff = (ActualVal.X - ExpectedVal.X);
+	const double Diff = (ActualVal.X - ExpectedVal.X);
 
 	// Do a partial calculation of the cubic interpolation equation
 	static constexpr double C1 = (A3 - (2 * A2) + A), C2 = (A3 - A2);
@@ -420,13 +420,13 @@ void ULineSplineGenerator::BuildCurve()
 	SelectedSplineComponent->SplineCurves = CachedSplineCurves;
 
 	const bool bPrepend = !(ShapeAddMode & (EShapeAddMode::AppendAfter | EShapeAddMode::InsertAfter));
-	const float LengthFlip = bPrepend ? -1.f : 1.f;
+	const double LengthFlip = bPrepend ? -1.f : 1.f;
 
 	// Find starting features
 	const FVector StartPoint = SelectedSplineComponent->GetLocationAtSplinePoint(GetAddIndex(-1), ESplineCoordinateSpace::Local);
 	const FQuat StartQuat = SelectedSplineComponent->GetQuaternionAtSplinePoint(GetAddIndex(-1), ESplineCoordinateSpace::Local);
 
-	float LineInc = 0.0f;
+	double LineInc = 0.0f;
 	FVector LineDir = FVector::ZeroVector;
 	
 	bEnableUpToNextPoint = false;
@@ -446,18 +446,18 @@ void ULineSplineGenerator::BuildCurve()
 		const FVector Diff = NextPoint - StartPoint;
 		Length = Diff.Size();
 		LineDir = Diff.GetSafeNormal();
-		LineInc = Diff.Size() / float(NumberOfPoints + 1);
+		LineInc = Diff.Size() / double(NumberOfPoints + 1);
 	}
 	else
 	{
-		LineInc = Length / float(NumberOfPoints);
+		LineInc = Length / double(NumberOfPoints);
 		LineDir = StartQuat.GetForwardVector() * LengthFlip;
 	}
 
 	for (int32 Index = 0; Index < NumberOfPoints; Index++)
 	{
 		const int32 AddIdx = GetAddIndex(Index);
-		const FVector NewPoint = StartPoint + (LineInc * float(Index + 1)) * LineDir;
+		const FVector NewPoint = StartPoint + (LineInc * double(Index + 1)) * LineDir;
 		SelectedSplineComponent->AddSplinePointAtIndex(NewPoint, AddIdx, ESplineCoordinateSpace::Local);
 	}
 }

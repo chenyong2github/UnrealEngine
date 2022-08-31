@@ -72,8 +72,8 @@ public:
 
 						if (ShapeDetails.Falloff > 0.f || ShapeDetails.Extents.Z > 0.f)
 						{
-							float ConeRadius = ShapeDetails.Extents.X + ShapeDetails.Falloff + ShapeDetails.ConeOffset;
-							float ConeAngle = ShapeDetails.Extents.Y + ShapeDetails.Extents.Z;
+							double ConeRadius = ShapeDetails.Extents.X + ShapeDetails.Falloff + ShapeDetails.ConeOffset;
+							double ConeAngle = ShapeDetails.Extents.Y + ShapeDetails.Extents.Z;
 							DrawWireSphereCappedCone(PDI, Origin, ConeRadius, ConeAngle, 16, 4, 10, OuterRadiusColor, SDPG_World);
 
 							ConeRadius = ShapeDetails.Extents.X + ShapeDetails.ConeOffset;
@@ -82,8 +82,8 @@ public:
 						}
 						else
 						{
-							const float ConeRadius = ShapeDetails.Extents.X + ShapeDetails.ConeOffset;
-							const float ConeAngle = ShapeDetails.Extents.Y;
+							const double ConeRadius = ShapeDetails.Extents.X + ShapeDetails.ConeOffset;
+							const double ConeAngle = ShapeDetails.Extents.Y;
 							DrawWireSphereCappedCone(PDI, Origin, ConeRadius, ConeAngle, 16, 4, 10, OuterRadiusColor, SDPG_World );
 						}
 

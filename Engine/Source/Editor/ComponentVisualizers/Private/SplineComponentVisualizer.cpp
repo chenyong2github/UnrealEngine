@@ -465,12 +465,12 @@ void FSplineComponentVisualizer::AddReferencedObjects(FReferenceCollector& Colle
 	}
 }
 
-static float GetDashSize(const FSceneView* View, const FVector& Start, const FVector& End, float Scale)
+static double GetDashSize(const FSceneView* View, const FVector& Start, const FVector& End, float Scale)
 {
-	const float StartW = View->WorldToScreen(Start).W;
-	const float EndW = View->WorldToScreen(End).W;
+	const double StartW = View->WorldToScreen(Start).W;
+	const double EndW = View->WorldToScreen(End).W;
 
-	const float WLimit = 10.0f;
+	const double WLimit = 10.0f;
 	if (StartW > WLimit || EndW > WLimit)
 	{
 		return FMath::Max(StartW, EndW) * Scale;
@@ -622,7 +622,7 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 				// For constant interpolation - don't draw ticks - just draw dotted line.
 				if (SplineInfo.Points[KeyIdx - 1].InterpMode == CIM_Constant)
 				{
-					const float DashSize = GetDashSize(View, OldKeyPos, NewKeyPos, 0.03f);
+					const double DashSize = GetDashSize(View, OldKeyPos, NewKeyPos, 0.03f);
 					if (DashSize > 0.0f)
 					{
 						DrawDashedLine(PDI, OldKeyPos, NewKeyPos, LineColor, DashSize, SDPG_World);
@@ -648,7 +648,7 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 					// Then draw a line for each substep.
 					constexpr int32 NumSteps = 20;
 					constexpr float PartialGradientProportion = 0.75f;
-					constexpr int32 PartialNumSteps = NumSteps * PartialGradientProportion;
+					constexpr int32 PartialNumSteps = (int32)(NumSteps * PartialGradientProportion);
 					const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineLineThicknessAdjustment;
 
 					for (int32 StepIdx = 1; StepIdx <= NumSteps; StepIdx++)
@@ -924,7 +924,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 				float SubsegmentStartKey = static_cast<float>(SelectedSegmentIndex);
 				FVector SubsegmentStart = SplineComp->GetLocationAtSplineInputKey(SubsegmentStartKey, ESplineCoordinateSpace::World);
 
-				float ClosestDistance = TNumericLimits<float>::Max();
+				double ClosestDistance = TNumericLimits<double>::Max();
 				FVector BestLocation = SubsegmentStart;
 
 				for (int32 Step = 1; Step < NumSubdivisions; Step++)
@@ -936,7 +936,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 					FVector RayClosest;
 					FMath::SegmentDistToSegmentSafe(SubsegmentStart, SubsegmentEnd, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * 50000.0f, SplineClosest, RayClosest);
 
-					const float Distance = FVector::DistSquared(SplineClosest, RayClosest);
+					const double Distance = FVector::DistSquared(SplineClosest, RayClosest);
 					if (Distance < ClosestDistance)
 					{
 						ClosestDistance = Distance;
@@ -1661,7 +1661,7 @@ bool FSplineComponentVisualizer::HandleSnapTo(const bool bInAlign, const bool bI
 						EditedPoint.InterpMode = CIM_CurveUser;
 
 						// Get delta rotation between up vector and hit normal
-						FVector WorldUpVector = SplineComp->GetUpVectorAtSplineInputKey(KeyIdx, ESplineCoordinateSpace::World);
+						FVector WorldUpVector = SplineComp->GetUpVectorAtSplineInputKey((float)KeyIdx, ESplineCoordinateSpace::World);
 						FQuat DeltaRotate = FQuat::FindBetweenNormals(WorldUpVector, Hit.Normal);
 
 						// Rotate tangent according to delta rotation
@@ -1725,17 +1725,17 @@ void FSplineComponentVisualizer::OnSnapKeyToNearestSplinePoint(ESplineComponentS
 	FInterpCurvePoint<FVector>& EditedPosition = SplineComp->GetSplinePointsPosition().Points[LastKeyIndexSelected];
 	const FVector WorldPos = SplineComp->GetComponentTransform().TransformPosition(EditedPosition.OutVal); // convert local-space position to world-space
 
-	float NearestDistanceSquared = 0.0f;
+	double NearestDistanceSquared = 0.0f;
 	USplineComponent* NearestSplineComp = nullptr;
 	int32 NearestKeyIndex = INDEX_NONE;
 
-	static const float SnapTol = 5000.0f;
-	float SnapTolSquared = SnapTol * SnapTol;
+	static const double SnapTol = 5000.0f;
+	double SnapTolSquared = SnapTol * SnapTol;
 
 	auto UpdateNearestKey = [WorldPos, SnapTolSquared, &NearestDistanceSquared, &NearestSplineComp, &NearestKeyIndex](USplineComponent* InSplineComp, int InKeyIdx)
 	{
 		const FVector TestKeyWorldPos = InSplineComp->GetLocationAtSplinePoint(InKeyIdx, ESplineCoordinateSpace::World);
-		float TestDistanceSquared = FVector::DistSquared(TestKeyWorldPos, WorldPos);
+		double TestDistanceSquared = FVector::DistSquared(TestKeyWorldPos, WorldPos);
 
 		if (TestDistanceSquared < SnapTolSquared && (NearestKeyIndex == INDEX_NONE || TestDistanceSquared < NearestDistanceSquared))
 		{
@@ -1916,15 +1916,15 @@ void FSplineComponentVisualizer::SnapKeyToTransform(const ESplineComponentSnapMo
 		if (InSnapMode == ESplineComponentSnapMode::AlignPerpendicularToTangent)
 		{
 			// Rotate tangent by 90 degrees
-			const FQuat DeltaRotate(WorldUpVector, HALF_PI);
+			const FQuat DeltaRotate(WorldUpVector, UE_HALF_PI);
 			NewTangent = DeltaRotate.RotateVector(NewTangent);
 		}
 
 		const FVector Tangent = SplineComp->GetComponentTransform().GetRotation().RotateVector(EditedPosition.ArriveTangent); // convert local-space tangent vectors to world-space
 
 		// Swap the tangents if they are not pointing in the same general direction
-		float CurrentAngle = FMath::Acos(FVector::DotProduct(Tangent, NewTangent) / Tangent.Size());
-		if (CurrentAngle > HALF_PI)
+		double CurrentAngle = FMath::Acos(FVector::DotProduct(Tangent, NewTangent) / Tangent.Size());
+		if (CurrentAngle > UE_HALF_PI)
 		{
 			NewTangent = SplineComp->GetComponentTransform().GetRotation().Inverse().RotateVector(NewTangent * -1.0f) * Tangent.Size(); // convert world-space tangent vectors into local-space
 		}
@@ -2266,7 +2266,7 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 
 	// When dragging from end point, maximum angle is 60 degrees from attached segment
 	// to determine whether to split existing segment or create a new point
-	static const float Angle60 = 1.0472;
+	static const double Angle60 = 1.0472;
 
 	// Insert duplicates into the list, highest index first, so that the lower indices remain the same
 	FInterpCurveVector& SplinePosition = SplineComp->GetSplinePointsPosition();
@@ -2277,7 +2277,7 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 
 	// Determine direction to insert new point				
 	bool bHasPrevKey = SplineComp->IsClosedLoop() || CurrentIndex > 0;
-	float PrevAngle = 0.0f;
+	double PrevAngle = 0.0f;
 	if (bHasPrevKey)
 	{
 		// Wrap index around for closed-looped splines
@@ -2295,7 +2295,7 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 	}
 
 	bool bHasNextKey = SplineComp->IsClosedLoop() || CurrentIndex + 1 < NumPoints;
-	float NextAngle = 0.0f;
+	double NextAngle = 0.0f;
 	if (bHasNextKey)
 	{
 		// Wrap index around for closed-looped splines
@@ -2452,21 +2452,21 @@ void FSplineComponentVisualizer::SplitSegment(const FVector& InWorldPos, int32 I
 	int32 SourceIndex = bCopyFromSegmentBeginIndex ? SegmentBeginIndex : SegmentEndIndex;
 
 	FInterpCurvePoint<FVector> NewPoint(
-		SegmentSplitIndex,
+		(float)SegmentSplitIndex,
 		SplinePos,
 		FVector::ZeroVector,
 		FVector::ZeroVector,
 		SplinePosition.Points[SourceIndex].InterpMode);
 
 	FInterpCurvePoint<FQuat> NewRotPoint(
-		SegmentSplitIndex,
+		(float)SegmentSplitIndex,
 		NewRot,
 		FQuat::Identity,
 		FQuat::Identity,
 		CIM_CurveAuto);
 
 	FInterpCurvePoint<FVector> NewScalePoint(
-		SegmentSplitIndex,
+		(float)SegmentSplitIndex,
 		NewScale,
 		FVector::ZeroVector,
 		FVector::ZeroVector,
@@ -2642,21 +2642,21 @@ void FSplineComponentVisualizer::AddSegment(const FVector& InWorldPos, bool bApp
 	FVector LocalPos = SplineComp->GetComponentTransform().InverseTransformPosition(InWorldPos);
 
 	FInterpCurvePoint<FVector> NewPoint(
-		NewKeyIdx,
+		(float)NewKeyIdx,
 		LocalPos,
 		FVector::ZeroVector,
 		FVector::ZeroVector,
 		SplinePosition.Points[KeyIdx].InterpMode);
 
 	FInterpCurvePoint<FQuat> NewRotPoint(
-		NewKeyIdx,
+		(float)NewKeyIdx,
 		SplineRotation.Points[KeyIdx].OutVal,
 		FQuat::Identity,
 		FQuat::Identity,
 		CIM_CurveAuto);
 
 	FInterpCurvePoint<FVector> NewScalePoint(
-		NewKeyIdx,
+		(float)NewKeyIdx,
 		SplineScale.Points[KeyIdx].OutVal,
 		FVector::ZeroVector,
 		FVector::ZeroVector,

@@ -254,7 +254,7 @@ public:
 	int32 NumberOfPoints;
 
 	UPROPERTY(Transient, EditAnywhere, Category = ShapeParameters, Meta = (ClampMin = "0", EditCondition = "!bUpToNextPoint"))
-	float Length;
+	double Length;
 
 	UPROPERTY()
 	bool bEnableUpToNextPoint;
