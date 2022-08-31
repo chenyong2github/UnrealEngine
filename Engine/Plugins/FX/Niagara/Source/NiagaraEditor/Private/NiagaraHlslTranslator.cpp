@@ -8853,10 +8853,21 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 
 	TArray<int32> SelectorValues;
 	Options.GenerateKeyArray(SelectorValues);
-	
+
+	const bool bIsBoolSelector = FNiagaraTypeDefinition::GetBoolDef().IsSameBaseDefinition(SelectNode->SelectorPinType);
+
 	for (int32 SelectorValueIndex = 0; SelectorValueIndex < SelectorValues.Num(); SelectorValueIndex++)
 	{
-		FString Definition = FString(TEXT("if({0} == ")) + FString::FromInt(SelectorValues[SelectorValueIndex]) + TEXT(")\n\t{ ");
+		FString Definition;
+		if (bIsBoolSelector)
+		{
+			Definition = SelectorValues[SelectorValueIndex] == 0 ? TEXT("if({0} == 0)\n\t{ ") : TEXT("if({0} != 0)\n\t{ ");
+		}
+		else
+		{
+			Definition = FString::Printf(TEXT("if({0} == %d)\n\t{ "), SelectorValues[SelectorValueIndex]);
+		}
+
 		TArray<int32> SourceChunks = { Selector };
 		
 		AddBodyChunk(TEXT(""), Definition, FNiagaraTypeDefinition::GetFloatDef(), SourceChunks, false, false);
