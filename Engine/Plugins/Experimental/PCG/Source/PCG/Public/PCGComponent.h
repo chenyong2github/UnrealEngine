@@ -99,7 +99,10 @@ public:
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
 	void SetGraph(UPCGGraph* InGraph);
 
+	/** Registers some managed resource to the current component */
+	UFUNCTION(BlueprintCallable, Category = PCG)
 	void AddToManagedResources(UPCGManagedResource* InResource);
+
 	void ForEachManagedResource(TFunctionRef<void(UPCGManagedResource*)> InFunction);
 
 	/** Transactionable methods to be called from details UI */
