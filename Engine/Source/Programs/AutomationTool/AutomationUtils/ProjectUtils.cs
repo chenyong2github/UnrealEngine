@@ -11,6 +11,7 @@ using EpicGames.Core;
 using System.Reflection;
 using UnrealBuildBase;
 using System.Runtime.Serialization;
+using System.Collections;
 
 namespace AutomationTool
 {
@@ -82,7 +83,7 @@ namespace AutomationTool
 		/// DetectProjectProperties may return different answers, e.g. Some platforms require a 
 		///  codebased project for targets
 		/// </summary>
-		struct PropertyCacheKey
+		struct PropertyCacheKey : IEquatable<PropertyCacheKey>
 		{
 			string ProjectName;
 
@@ -95,6 +96,36 @@ namespace AutomationTool
 				ProjectName = InProjectName.ToLower();
 				TargetPlatforms = InTargetPlatforms != null ? InTargetPlatforms.ToArray() : new UnrealTargetPlatform[0];
 				TargetConfigurations = InTargetConfigurations != null ? InTargetConfigurations.ToArray() : new UnrealTargetConfiguration[0];
+			}
+
+			public bool Equals(PropertyCacheKey Other)
+			{
+				return ProjectName == Other.ProjectName &&
+						StructuralComparisons.StructuralEqualityComparer.Equals(TargetPlatforms, Other.TargetPlatforms) &&
+						StructuralComparisons.StructuralEqualityComparer.Equals(TargetConfigurations, Other.TargetConfigurations);
+			}
+
+			public override bool Equals(object Other)
+			{
+				return Other is PropertyCacheKey OtherKey && Equals(OtherKey);
+			}
+
+			public override int GetHashCode()
+			{
+				return HashCode.Combine(
+					ProjectName.GetHashCode(),
+					StructuralComparisons.StructuralEqualityComparer.GetHashCode(TargetPlatforms),
+					StructuralComparisons.StructuralEqualityComparer.GetHashCode(TargetConfigurations));
+			}
+
+			public static bool operator==(PropertyCacheKey A, PropertyCacheKey B)
+			{
+				return A.Equals(B);
+			}
+
+			public static bool operator!=(PropertyCacheKey A, PropertyCacheKey B)
+			{
+				return !(A == B);
 			}
 		}
 
