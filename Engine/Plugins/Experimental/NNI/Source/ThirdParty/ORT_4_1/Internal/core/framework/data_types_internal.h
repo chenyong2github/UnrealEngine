@@ -25,6 +25,8 @@
 #include "onnx/onnx-operators_pb.h"
 #endif
 
+#include "CoreTypes.h" // WITH_UE
+UE_PUSH_MACRO("check") // WITH_UE
 #undef check // WITH_UE
 
 namespace onnxruntime {
@@ -630,3 +632,5 @@ bool IsOpaqueType(MLDataType ml_type, const char* domain, const char* name);
 
 }  // namespace utils
 }  // namespace onnxruntime
+
+UE_POP_MACRO("check") // WITH_UE
