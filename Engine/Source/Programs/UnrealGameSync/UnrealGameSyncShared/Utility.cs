@@ -439,7 +439,7 @@ namespace UnrealGameSync
 				DirectoryReference.CreateDirectory(cacheFolder);
 
 				FileReference tempFile = new FileReference(String.Format("{0}.{1}.temp", cacheFile.FullName, Guid.NewGuid()));
-				PerforceResponse<PrintRecord> response = await perforce.TryPrintAsync(tempFile.FullName, depotPath, cancellationToken);
+				PerforceResponseList<PrintRecord> response = await perforce.TryPrintAsync(tempFile.FullName, depotPath, cancellationToken);
 				if (!response.Succeeded)
 				{
 					return null;

@@ -925,7 +925,7 @@ namespace UnrealGameSync
 			_logControl = inLogControl;
 		}
 
-		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
 			string message = formatter(state, exception);
 			_logControl.AppendLine(message);

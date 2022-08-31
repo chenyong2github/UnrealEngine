@@ -28,7 +28,7 @@ namespace UnrealGameSync
 
 		public bool IsEnabled(LogLevel logLevel) => _inner.IsEnabled(logLevel);
 
-		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
 			_inner.Log(logLevel, eventId, state, exception, (state, exception) => _prefix + formatter(state, exception));
 		}

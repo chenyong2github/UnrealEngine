@@ -402,7 +402,7 @@ namespace UnrealGameSync
 			{
 				FileReference zipFile = FileReference.Combine(nextToolZipsDir, String.Format("{0}.{1}.zip", toolName, idx));
 
-				PerforceResponse<PrintRecord> response = await perforce.TryPrintAsync(zipFile.FullName, $"{records[idx].DepotFile}#{records[idx].HeadRevision}", cancellationToken);
+				PerforceResponseList<PrintRecord> response = await perforce.TryPrintAsync(zipFile.FullName, $"{records[idx].DepotFile}#{records[idx].HeadRevision}", cancellationToken);
 				if(!response.Succeeded || !FileReference.Exists(zipFile))
 				{
 					logger.LogError("Unable to print {0}", records[idx].DepotFile);
