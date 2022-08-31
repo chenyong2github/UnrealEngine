@@ -227,6 +227,7 @@ ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCard(co
 		{
 			NewLightCard->bIsUVLightCard = true;
 			NewLightCard->Scale /= 4;
+			NewLightCard->Feathering = 0.05; // Just enough to avoid jagged look on UV lightcards.
 		}
 	}
 
