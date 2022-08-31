@@ -1643,9 +1643,6 @@ bool UWorldPartitionRuntimeSpatialHash::ContainsRuntimeHash(const FString& Name)
 
 TArray<const FSpatialHashStreamingGrid*> UWorldPartitionRuntimeSpatialHash::GetFilteredStreamingGrids() const
 {
-	URuntimeSpatialHashExternalStreamingObject* ExternalStreamingObject = NewObject<URuntimeSpatialHashExternalStreamingObject>(const_cast<UWorldPartitionRuntimeSpatialHash*>(this), TEXT("test"));
-	const_cast<UWorldPartitionRuntimeSpatialHash*>(this)->InjectExternalStreamingObject(ExternalStreamingObject);
-
 	TArray<const FSpatialHashStreamingGrid*> FilteredStreamingGrids;
 	FilteredStreamingGrids.Reserve(GetNumGrids());
 	ForEachStreamingGrid([&FilteredStreamingGrids](const FSpatialHashStreamingGrid& StreamingGrid)
