@@ -138,7 +138,7 @@ void FConcurrentControlFlows::HandleConcurrentFlowCompleted(int32 FlowIndex)
 		{
 			if (AreAllSubFlowsCompletedOrCancelled())
 			{
-				OnAllCompleted();
+				OnConcurrencyCompleted.ExecuteIfBound();
 			}
 			else
 			{
