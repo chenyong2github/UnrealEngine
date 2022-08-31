@@ -1064,13 +1064,21 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		FName MaterialSlotName = *SlotMaterialDependency.Key;
 
 		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(SlotMaterialDependency.Value));
-		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid() || !MaterialFactoryNode->IsEnabled())
+		if (!MaterialFactoryNode || !MaterialFactoryNode->IsEnabled())
 		{
 			UpdateOrAddSkeletalMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
 			continue;
 		}
 
-		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+		FSoftObjectPath MaterialFactoryNodeReferenceObject;
+		MaterialFactoryNode->GetCustomReferenceObject(MaterialFactoryNodeReferenceObject);
+		if (!MaterialFactoryNodeReferenceObject.IsValid())
+		{
+			UpdateOrAddSkeletalMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			continue;
+		}
+
+		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNodeReferenceObject.ResolveObject());
 		UpdateOrAddSkeletalMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface));
 	}
 
@@ -1104,6 +1112,8 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 			continue;
 		}
+		FSoftObjectPath SkeletonNodeReferenceObject;
+		SkeletonNode->GetCustomReferenceObject(SkeletonNodeReferenceObject);
 
 		FSoftObjectPath SpecifiedSkeleton;
 		SkeletalMeshFactoryNode->GetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
@@ -1116,9 +1126,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 			{
 				SkeletonObject = SpecifiedSkeleton.TryLoad();
 			}
-			else if (SkeletonNode->ReferenceObject.IsValid())
+			else if (SkeletonNodeReferenceObject.IsValid())
 			{
-				SkeletonObject = SkeletonNode->ReferenceObject.TryLoad();
+				SkeletonObject = SkeletonNodeReferenceObject.TryLoad();
 			}
 
 			if (SkeletonObject)

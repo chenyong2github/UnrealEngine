@@ -24,7 +24,9 @@ AActor* UE::Interchange::ActorHelper::GetSpawnedParentActor(const UInterchangeBa
 
 	if (const UInterchangeFactoryBaseNode* ParentFactoryNode = NodeContainer->GetFactoryNode(FactoryNode->GetParentUid()))
 	{
-		ParentActor = Cast<AActor>(ParentFactoryNode->ReferenceObject.TryLoad());
+		FSoftObjectPath ReferenceObject;
+		ParentFactoryNode->GetCustomReferenceObject(ReferenceObject);
+		ParentActor = Cast<AActor>(ReferenceObject.TryLoad());
 	}
 
 	return  ParentActor;
@@ -158,13 +160,19 @@ void UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(const UIntercha
 	for (TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
 	{
 		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(NodeContainer.GetNode(SlotMaterialDependency.Value));
-		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid() || !MaterialFactoryNode->IsEnabled())
+		if (!MaterialFactoryNode || !MaterialFactoryNode->IsEnabled())
+		{
+			continue;
+		}
+		FSoftObjectPath ReferenceObject;
+		MaterialFactoryNode->GetCustomReferenceObject(ReferenceObject);
+		if (!ReferenceObject.IsValid())
 		{
 			continue;
 		}
 
 		FName MaterialSlotName = *SlotMaterialDependency.Key;
-		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(ReferenceObject.TryLoad());
 		if (!MaterialInterface)
 		{
 			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);

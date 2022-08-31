@@ -21,6 +21,7 @@ namespace UE
 		{
 			UInterchangeAssetImportData* BeginSetupAssetData(FFactoryCommon::FUpdateImportAssetDataParameters& Parameters)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::Private::ImportCommon::BeginSetupAssetData")
 				if (!ensure(IsInGameThread()))
 				{
 					return nullptr;
@@ -42,13 +43,35 @@ namespace UE
 				return AssetImportData;
 			}
 
+			void RecursivelyDuplicateFactoryNodeDependencies(UInterchangeBaseNodeContainer* SourceContainer, UInterchangeBaseNodeContainer* DestinationContainer, TArray<FString>& FactoryDependencies)
+			{
+				for (const FString& DependencyUid : FactoryDependencies)
+				{
+					if (UInterchangeFactoryBaseNode* FactoryNode = Cast<UInterchangeFactoryBaseNode>(SourceContainer->GetFactoryNode(DependencyUid)))
+					{
+						FObjectDuplicationParameters DupParam(FactoryNode, DestinationContainer);
+						DestinationContainer->AddNode(CastChecked<UInterchangeBaseNode>(StaticDuplicateObjectEx(DupParam)));
+
+						TArray<FString> ChildFactoryDependencies;
+						FactoryNode->GetFactoryDependencies(ChildFactoryDependencies);
+						RecursivelyDuplicateFactoryNodeDependencies(SourceContainer, DestinationContainer, ChildFactoryDependencies);
+					}
+				}
+			}
 
 			void EndSetupAssetData(FFactoryCommon::FUpdateImportAssetDataParameters& Parameters, UInterchangeAssetImportData* AssetImportData)
 			{
-				//Set the interchange node graph data
-				AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
-				FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
-				AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
+				TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::Private::ImportCommon::EndSetupAssetData")
+				AssetImportData->NodeContainer = NewObject<UInterchangeBaseNodeContainer>(AssetImportData);
+				//We copy only the factory node dependencies, we use this only 
+				if (UInterchangeFactoryBaseNode* FactoryNode = Cast<UInterchangeFactoryBaseNode>(Parameters.NodeContainer->GetFactoryNode(Parameters.NodeUniqueID)))
+				{
+					//Set the interchange node graph data
+					AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
+					TArray<FString> FactoryDependencies;
+					FactoryDependencies.Add(AssetImportData->NodeUniqueID);
+					RecursivelyDuplicateFactoryNodeDependencies(Parameters.NodeContainer, AssetImportData->NodeContainer, FactoryDependencies);
+				}
 				AssetImportData->Pipelines.Reset();
 				for (const UObject* Pipeline : Parameters.Pipelines)
 				{
@@ -82,6 +105,7 @@ namespace UE
 
 		UAssetImportData* FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::UpdateImportAssetData")
 			return UpdateImportAssetData(Parameters, [&Parameters](UInterchangeAssetImportData* AssetImportData)
 				{
 #if WITH_EDITORONLY_DATA
@@ -97,6 +121,7 @@ namespace UE
 
 		UAssetImportData* FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters, TFunctionRef<void(UInterchangeAssetImportData*)> CustomFileSourceUpdate)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::UpdateImportAssetData2")
 #if WITH_EDITORONLY_DATA
 			if (!ensure(IsInGameThread()))
 			{
@@ -150,6 +175,7 @@ namespace UE
 
 		UAssetImportData* FFactoryCommon::SetImportAssetData(FSetImportAssetDataParameters& Parameters)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::SetImportAssetData")
 			UInterchangeAssetImportData* AssetImportData = Private::ImportCommon::BeginSetupAssetData(Parameters);
 
 			// Update the source files
@@ -185,6 +211,7 @@ namespace UE
 
 		bool FFactoryCommon::GetSourceFilenames(const UAssetImportData* AssetImportData, TArray<FString>& OutSourceFilenames)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::GetSourceFilenames")
 			if (Cast<UInterchangeAssetImportData>(AssetImportData) != nullptr)
 			{
 				AssetImportData->ExtractFilenames(OutSourceFilenames);
@@ -195,6 +222,7 @@ namespace UE
 
 		bool FFactoryCommon::SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex, const FString& SourceLabel)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::SetSourceFilename")
 			if (AssetImportData)
 			{
 				const int32 SafeSourceIndex = SourceIndex == INDEX_NONE ? 0 : SourceIndex;				
@@ -215,6 +243,7 @@ namespace UE
 		
 		bool FFactoryCommon::SetReimportSourceIndex(const UObject* Object, UAssetImportData* AssetImportData, int32 SourceIndex)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::SetReimportSourceIndex")
 			UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(AssetImportData);
 			if (!InterchangeAssetImportData)
 			{
@@ -247,6 +276,7 @@ namespace UE
 										  , UInterchangeFactoryBaseNode* CurrentAssetNode
 										  , UInterchangeFactoryBaseNode* PipelineAssetNode)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset")
 			if (!ensure(PreviousAssetNode) || !ensure(PipelineAssetNode) || !ensure(CurrentAssetNode))
 			{
 				return;

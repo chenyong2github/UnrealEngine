@@ -271,13 +271,26 @@ namespace UE::Interchange::Private
 
 		const FString TrackSetFactoryNodeUid = TEXT("Factory_") + TrackSetNodeUid;
 		const UInterchangeAnimationTrackSetFactoryNode* InstanceFactoryNode = Cast<UInterchangeAnimationTrackSetFactoryNode>(NodeContainer.GetNode(TrackSetFactoryNodeUid));
-		if (!InstanceFactoryNode || !InstanceFactoryNode->ReferenceObject.IsValid())
+		
+		FString InstanceNodeDisplayLabel = InstanceNode.GetDisplayLabel();
+		auto LogMissingTrackError = [&InstanceNodeDisplayLabel]()
 		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Cannot find factory of animation track set referenced by animation track %s."), *InstanceNode.GetDisplayLabel());
+			UE_LOG(LogInterchangeImport, Error, TEXT("Cannot find factory of animation track set referenced by animation track %s."), *InstanceNodeDisplayLabel);
+		};
+
+		if (!InstanceFactoryNode)
+		{
+			LogMissingTrackError();
 			return;
 		}
-
-		UMovieSceneSequence* TargetMovieSceneSequence = CastChecked<UMovieSceneSequence>(InstanceFactoryNode->ReferenceObject.TryLoad());
+		FSoftObjectPath ReferenceObject;
+		InstanceFactoryNode->GetCustomReferenceObject(ReferenceObject);
+		if (!ReferenceObject.IsValid())
+		{
+			LogMissingTrackError();
+			return;
+		}
+		UMovieSceneSequence* TargetMovieSceneSequence = CastChecked<UMovieSceneSequence>(ReferenceObject.TryLoad());
 
 		// Create SubTrack
 		UMovieSceneSubTrack* SubTrack = MovieScene->FindMasterTrack<UMovieSceneSubTrack>();
@@ -442,9 +455,14 @@ namespace UE::Interchange::Private
 			const FString ActorFactoryNodeUid = TEXT("Factory_") + ActorNodeUid;
 			const UInterchangeFactoryBaseNode* ActorFactoryNode = Cast<UInterchangeFactoryBaseNode>(NodeContainer.GetNode(ActorFactoryNodeUid));
 
-			if (ActorFactoryNode && ActorFactoryNode->ReferenceObject.IsValid())
+			if (ActorFactoryNode)
 			{
-				Actor = Cast<AActor>(ActorFactoryNode->ReferenceObject.TryLoad());
+				FSoftObjectPath ReferenceObject;
+				ActorFactoryNode->GetCustomReferenceObject(ReferenceObject);
+				if (ReferenceObject.IsValid())
+				{
+					Actor = Cast<AActor>(ReferenceObject.TryLoad());
+				}
 			}
 		}
 

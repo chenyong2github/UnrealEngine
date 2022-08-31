@@ -48,7 +48,9 @@ void UInterchangeStaticMeshActorFactory::SetupStaticMeshActor(const UInterchange
 
 		if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
 		{
-			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshNode->ReferenceObject.TryLoad()))
+			FSoftObjectPath ReferenceObject;
+			MeshNode->GetCustomReferenceObject(ReferenceObject);
+			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ReferenceObject.TryLoad()))
 			{
 				StaticMeshComponent->SetStaticMesh(StaticMesh);
 

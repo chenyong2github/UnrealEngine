@@ -143,6 +143,16 @@ bool UInterchangeFactoryBaseNode::RemoveFactoryDependencyUid(const FString& Depe
 	return FactoryDependencies.RemoveItem(DependencyUid);
 }
 
+bool UInterchangeFactoryBaseNode::GetCustomReferenceObject(FSoftObjectPath& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ReferenceObject, FSoftObjectPath)
+}
+
+bool UInterchangeFactoryBaseNode::SetCustomReferenceObject(const FSoftObjectPath& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ReferenceObject, FSoftObjectPath)
+}
+
 FString UInterchangeFactoryBaseNode::BuildFactoryNodeUid(const FString& TranslatedNodeUid)
 {
 	return TEXT("Factory_") + TranslatedNodeUid;

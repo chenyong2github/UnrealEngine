@@ -25,7 +25,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 		return nullptr;
 	}
 
-	const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.AssetNode);
+	UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.AssetNode);
 	if (SkeletonNode == nullptr)
 	{
 		return nullptr;
@@ -50,7 +50,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Skeleton asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
-	SkeletonNode->ReferenceObject = Skeleton;
+	SkeletonNode->SetCustomReferenceObject(FSoftObjectPath(Skeleton));
 
 	Skeleton->PreEditChange(nullptr);
 #endif //WITH_EDITORONLY_DATA
@@ -71,7 +71,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 		return nullptr;
 	}
 
-	const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.AssetNode);
+	UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.AssetNode);
 	if (SkeletonNode == nullptr)
 	{
 		return nullptr;
@@ -134,7 +134,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 			}
 		}
 		//The joint will be added by the skeletalmesh factory since we need a valid skeletalmesh to add joint to a skeleton
-		SkeletonNode->ReferenceObject = Skeleton;
+		SkeletonNode->SetCustomReferenceObject(FSoftObjectPath(Skeleton));
 		
 		//Getting the file Hash will cache it into the source data
 		Arguments.SourceData->GetFileContentHash();

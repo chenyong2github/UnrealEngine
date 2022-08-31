@@ -309,7 +309,7 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeleton
 	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton)
 	{
 		SkeletonFactoryNode->SetEnabled(false);
-		SkeletonFactoryNode->ReferenceObject = CommonSkeletalMeshesAndAnimationsProperties->Skeleton;
+		SkeletonFactoryNode->SetCustomReferenceObject(FSoftObjectPath(CommonSkeletalMeshesAndAnimationsProperties->Skeleton));
 	}
 #if WITH_EDITOR
 	//Iterate all joints to set the meta data value in the skeleton node
@@ -648,9 +648,11 @@ void UInterchangeGenericMeshPipeline::PostImportPhysicsAssetImport(UObject* Crea
 		{
 			if (const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<const UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletalMeshFactoryNodeUid)))
 			{
-				if (SkeletalMeshFactoryNode->ReferenceObject.IsValid())
+				FSoftObjectPath ReferenceObject;
+				SkeletalMeshFactoryNode->GetCustomReferenceObject(ReferenceObject);
+				if (ReferenceObject.IsValid())
 				{
-					if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkeletalMeshFactoryNode->ReferenceObject.TryLoad()))
+					if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReferenceObject.TryLoad()))
 					{
 						auto CreateFromSkeletalMeshLambda = [CreatedPhysicsAsset, SkeletalMesh]()
 						{

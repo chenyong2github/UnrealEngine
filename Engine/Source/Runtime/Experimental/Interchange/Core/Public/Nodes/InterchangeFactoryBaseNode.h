@@ -193,9 +193,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool RemoveFactoryDependencyUid(const FString& DependencyUid);
 
+	/**
+	 * Return the custom ReferenceObject. The UObject this factory node has created.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetCustomReferenceObject(FSoftObjectPath& AttributeValue) const;
 
-	UPROPERTY()
-	mutable FSoftObjectPath ReferenceObject;
+	/**
+	 * Set the custom ReferenceObject. The UObject this factory node has created.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool SetCustomReferenceObject(const FSoftObjectPath& AttributeValue);
 
 	static FString BuildFactoryNodeUid(const FString& TranslatedNodeUid);
 
@@ -253,7 +261,7 @@ protected:
 private:
 
 	const UE::Interchange::FAttributeKey Macro_CustomSubPathKey = UE::Interchange::FAttributeKey(TEXT("SubPath"));
-
+	const UE::Interchange::FAttributeKey Macro_CustomReferenceObjectKey = UE::Interchange::FAttributeKey(TEXT("ReferenceObject"));
 };
 
 template<typename AttributeType>

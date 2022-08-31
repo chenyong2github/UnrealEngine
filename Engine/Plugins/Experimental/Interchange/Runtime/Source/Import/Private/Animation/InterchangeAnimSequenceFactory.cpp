@@ -805,6 +805,8 @@ UObject* UInterchangeAnimSequenceFactory::CreateAsset(const FCreateAssetParams& 
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid skeleton factory node, the skeleton factory node is obligatory to import this animsequence [%s]!"), *Arguments.AssetName);
 		return nullptr;
 	}
+	FSoftObjectPath SkeletonFactoryNodeReferenceObject;
+	SkeletonFactoryNode->GetCustomReferenceObject(SkeletonFactoryNodeReferenceObject);
 
 	USkeleton* Skeleton = nullptr;
 
@@ -818,9 +820,9 @@ UObject* UInterchangeAnimSequenceFactory::CreateAsset(const FCreateAssetParams& 
 		{
 			SkeletonObject = SpecifiedSkeleton.TryLoad();
 		}
-		else if (SkeletonFactoryNode->ReferenceObject.IsValid())
+		else if (SkeletonFactoryNodeReferenceObject.IsValid())
 		{
-			SkeletonObject = SkeletonFactoryNode->ReferenceObject.TryLoad();
+			SkeletonObject = SkeletonFactoryNodeReferenceObject.TryLoad();
 		}
 
 		if (SkeletonObject)

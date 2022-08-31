@@ -37,7 +37,9 @@ UObject* UInterchangeLightActorFactory::CreateSceneObject(const UInterchangeFact
 				IESTexture = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(IESTexture);
 				if(const UInterchangeTextureLightProfileFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureLightProfileFactoryNode>(CreateSceneObjectsParams.NodeContainer->GetNode(IESTexture)))
 				{
-					if(UTextureLightProfile* Texture = Cast<UTextureLightProfile>(TextureFactoryNode->ReferenceObject.TryLoad()))
+					FSoftObjectPath ReferenceObject;
+					TextureFactoryNode->GetCustomReferenceObject(ReferenceObject);
+					if(UTextureLightProfile* Texture = Cast<UTextureLightProfile>(ReferenceObject.TryLoad()))
 					{
 						LightComponent->SetIESTexture(Texture);
 					}

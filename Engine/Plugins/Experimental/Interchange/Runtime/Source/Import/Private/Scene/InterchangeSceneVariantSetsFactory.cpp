@@ -216,7 +216,9 @@ namespace UE::Interchange::Private
 			{
 				if (const UInterchangeBaseMaterialFactoryNode* TargetFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(NodeContainer.GetNode(TargetFactoryNodeUid)))
 				{
-					if (const UMaterialInterface* TargetMaterial = Cast<UMaterialInterface>(TargetFactoryNode->ReferenceObject.TryLoad()))
+					FSoftObjectPath ReferenceObject;
+					TargetFactoryNode->GetCustomReferenceObject(ReferenceObject);
+					if (const UMaterialInterface* TargetMaterial = Cast<UMaterialInterface>(ReferenceObject.TryLoad()))
 					{
 						// FVariantManager::CreateMaterialPropertyCaptures returns an array of the newly found properties
 						// Therefore, if a mesh actor has more than 1 material and a binding has more than 1 material variant
@@ -275,9 +277,11 @@ namespace UE::Interchange::Private
 		const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
 		const UInterchangeFactoryBaseNode* ActorFactoryNode = Cast<UInterchangeFactoryBaseNode>(NodeContainer.GetNode(ActorFactoryNodeUid));
 
-		if (ActorFactoryNode && ActorFactoryNode->ReferenceObject.IsValid())
+		if (ActorFactoryNode )
 		{
-			return Cast<AActor>(ActorFactoryNode->ReferenceObject.TryLoad());
+			FSoftObjectPath ReferenceObject;
+			ActorFactoryNode->GetCustomReferenceObject(ReferenceObject);
+			return ReferenceObject.IsValid() ? Cast<AActor>(ReferenceObject.TryLoad()) : nullptr;
 		}
 
 		return nullptr;

@@ -52,7 +52,9 @@ void UInterchangeSkeletalMeshActorFactory::PostImportPreCompletedCallback(const 
 		{
 			if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(Arguments.NodeContainer, Arguments.FactoryNode))
 			{
-				if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshNode->ReferenceObject.TryLoad()))
+				FSoftObjectPath ReferenceObject;
+				MeshNode->GetCustomReferenceObject(ReferenceObject);
+				if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReferenceObject.TryLoad()))
 				{
 					SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
 

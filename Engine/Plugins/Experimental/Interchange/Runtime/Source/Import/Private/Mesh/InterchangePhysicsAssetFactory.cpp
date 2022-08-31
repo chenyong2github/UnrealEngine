@@ -24,7 +24,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetPar
 		return nullptr;
 	}
 
-	const UInterchangePhysicsAssetFactoryNode* PhysicsAssetNode = Cast<UInterchangePhysicsAssetFactoryNode>(Arguments.AssetNode);
+	UInterchangePhysicsAssetFactoryNode* PhysicsAssetNode = Cast<UInterchangePhysicsAssetFactoryNode>(Arguments.AssetNode);
 	if (PhysicsAssetNode == nullptr)
 	{
 		return nullptr;
@@ -49,7 +49,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetPar
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create PhysicsAsset asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
-	PhysicsAssetNode->ReferenceObject = PhysicsAsset;
+	PhysicsAssetNode->SetCustomReferenceObject(FSoftObjectPath(PhysicsAsset));
 
 	PhysicsAsset->PreEditChange(nullptr);
 #endif //WITH_EDITORONLY_DATA
@@ -70,7 +70,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-	const UInterchangePhysicsAssetFactoryNode* PhysicsAssetNode = Cast<UInterchangePhysicsAssetFactoryNode>(Arguments.AssetNode);
+	UInterchangePhysicsAssetFactoryNode* PhysicsAssetNode = Cast<UInterchangePhysicsAssetFactoryNode>(Arguments.AssetNode);
 	if (PhysicsAssetNode == nullptr)
 	{
 		return nullptr;
@@ -116,7 +116,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& 
 				return nullptr;
 			}
 			
-			PhysicsAssetNode->ReferenceObject = PhysicsAsset;
+			PhysicsAssetNode->SetCustomReferenceObject(FSoftObjectPath(PhysicsAsset));
 		}
 		
 		//Getting the file Hash will cache it into the source data

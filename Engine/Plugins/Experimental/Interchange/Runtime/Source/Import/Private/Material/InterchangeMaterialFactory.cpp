@@ -121,7 +121,9 @@ namespace UE
 
 						if (const UInterchangeMaterialFunctionFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFunctionFactoryNode>(Arguments.NodeContainer->GetNode(MaterialFactoryNodeUid)))
 						{
-							if (UMaterialFunctionInterface* MaterialFunction = Cast<UMaterialFunctionInterface>(MaterialFactoryNode->ReferenceObject.TryLoad()))
+							FSoftObjectPath ReferenceObject;
+							MaterialFactoryNode->GetCustomReferenceObject(ReferenceObject);
+							if (UMaterialFunctionInterface* MaterialFunction = Cast<UMaterialFunctionInterface>(ReferenceObject.TryLoad()))
 							{
 								MaterialFunction->UpdateFromFunctionResource();
 								FunctionCallExpression->SetMaterialFunction(MaterialFunction);
@@ -141,7 +143,9 @@ namespace UE
 
 					if (const UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(Arguments.NodeContainer->GetNode(TextureFactoryNodeUid)))
 					{
-						if (UTexture* Texture = Cast<UTexture>(TextureFactoryNode->ReferenceObject.TryLoad()))
+						FSoftObjectPath ReferenceObject;
+						TextureFactoryNode->GetCustomReferenceObject(ReferenceObject);
+						if (UTexture* Texture = Cast<UTexture>(ReferenceObject.TryLoad()))
 						{
 							TextureExpression->Texture = Texture;
 						}
@@ -1041,7 +1045,9 @@ void UInterchangeMaterialFactory::SetupMaterialInstance(UMaterialInstance* Mater
 					{
 						if (const UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(NodeContainer->GetNode(InputValue)))
 						{
-							if (UTexture* InputTexture = Cast<UTexture>(TextureFactoryNode->ReferenceObject.TryLoad()))
+							FSoftObjectPath ReferenceObject;
+							TextureFactoryNode->GetCustomReferenceObject(ReferenceObject);
+							if (UTexture* InputTexture = Cast<UTexture>(ReferenceObject.TryLoad()))
 							{
 								if ( InputTexture != InstanceValue )
 								{
