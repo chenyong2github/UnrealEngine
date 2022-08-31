@@ -488,7 +488,7 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 
 							// Generate the mesh data for this sample
 							const bool bVisible = PolyMesh->GetVisibility(FrameIndex);
-							const float FrameTime = PolyMesh->GetTimeForFrameIndex(FrameIndex)- InAbcFile->GetImportTimeOffset();
+							const float FrameTime = PolyMesh->GetTimeForFrameIndex(FrameIndex) - InAbcFile->GetImportTimeOffset();
 							if (bVisible)
 							{
 								const bool bUseVelocitiesAsMotionVectors = ( ImportSettings->GeometryCacheSettings.MotionVectors == EAbcGeometryCacheMotionVectorsImport::ImportAbcVelocitiesAsMotionVectors );
@@ -518,8 +518,11 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 				MatTimes.Add(AbcFile->GetImportLength() + AbcFile->GetImportTimeOffset());
 				Track->SetMatrixSamples(Mats, MatTimes);
 
-				Track->EndCoding();
-				GeometryCache->AddTrack(Track);
+				// Some tracks might not have any mesh samples because they are invisible (can happen with bFlattenTracks=false), so skip them
+				if (Track->EndCoding())
+				{
+					GeometryCache->AddTrack(Track);
+				}
 			}
 		}
 

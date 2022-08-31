@@ -182,7 +182,7 @@ void UGeometryCacheTrackStreamable::BeginCoding(UGeometryCacheCodecBase* InCodec
 	VisibilitySamples.Empty();
 }
 
-void UGeometryCacheTrackStreamable::EndCoding()
+bool UGeometryCacheTrackStreamable::EndCoding()
 {
 	// This needs to be deleted first so it flushes any buffered frames before
 	// we call EndCoding on the codec
@@ -192,7 +192,10 @@ void UGeometryCacheTrackStreamable::EndCoding()
 	Codec->EndCoding();
 	InitializeRenderResources();
 
-	StartSampleTime = FMath::Min(Samples[0].SampleTime, 0.0f);
+	if (Samples.Num() > 0)
+	{
+		StartSampleTime = FMath::Min(Samples[0].SampleTime, 0.0f);
+	}
 
 	if (ImportVisibilitySamples.Num())
 	{
@@ -229,7 +232,7 @@ void UGeometryCacheTrackStreamable::EndCoding()
 	}
 	else
 	{
-		TRange<float> VisibilityRange(StartSampleTime, Samples.Last().SampleTime);
+		TRange<float> VisibilityRange(StartSampleTime, Samples.Num() > 0 ? Samples.Last().SampleTime : 0.0f);
 		FVisibilitySample Sample(true);
 		Sample.Range = VisibilityRange;
 
@@ -241,6 +244,8 @@ void UGeometryCacheTrackStreamable::EndCoding()
 	{
 		Duration = Samples.Last().SampleTime - Samples[0].SampleTime;
 	}
+
+	return Samples.Num() > 0;
 }
 
 void UGeometryCacheTrackStreamable::AddMeshSample(const FGeometryCacheMeshData& MeshData, const float SampleTime, bool bSameTopologyAsPrevious)

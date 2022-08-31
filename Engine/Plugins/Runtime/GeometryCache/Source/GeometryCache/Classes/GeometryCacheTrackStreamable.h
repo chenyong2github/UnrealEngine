@@ -137,9 +137,9 @@ class GEOMETRYCACHE_API UGeometryCacheTrackStreamable : public UGeometryCacheTra
 	void AddVisibilitySample(const bool bVisible, const float SampleTime);
 
 	/**
-		Finish up coding
+		Finish up coding. Return true if the track has samples
 	*/
-	void EndCoding();
+	bool EndCoding();
 #endif
 
 	/** Codec for this track */
