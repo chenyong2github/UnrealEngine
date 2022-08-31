@@ -147,8 +147,8 @@
 
 #include "SNiagaraDebugger.h"
 
+#include "NiagaraDebugVis.h"
 #include "NiagaraPerfBaseline.h"
-
 #include "NiagaraGraphDataCache.h"
 #include "Misc/ScopedSlowTask.h"
 
@@ -178,6 +178,13 @@ static FAutoConsoleVariableRef CVarPreloadSelectablePluginAssetsOnDemand(
 
 // this is required for gpu script compilation ticks
 static FNiagaraShaderQueueTickable NiagaraShaderQueueProcessor;
+
+#if !IS_MONOLITHIC
+namespace NiagaraDebugVisHelper
+{
+	const FNiagaraTypeRegistry*& GTypeRegistrySingletonPtr = GCoreTypeRegistrySingletonPtr;
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
