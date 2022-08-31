@@ -82,6 +82,8 @@ static TAutoConsoleVariable<int32> CVarStrataAsyncClassification(
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");
 
+extern bool IsStrataAdvancedVisualizationShadersEnabled();
+
 void FStrataViewData::Reset()
 {
 	*this = FStrataViewData();
@@ -360,7 +362,8 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 	FIntPoint SceneTextureExtent = IsStrataEnabled() ? SceneRenderer.GetActiveSceneTexturesConfig().Extent : FIntPoint(2, 2);
 
 	const uint32 SliceCountSSS = STRATA_SSS_DATA_UINT_COUNT;
-	const uint32 SliceCount = FMath::DivideAndRoundUp(Out.MaxBytesPerPixel, 4u) + SliceCountSSS;
+	const uint32 SliceCountAdvDebug = IsStrataAdvancedVisualizationShadersEnabled() ? 1 : 0;
+	const uint32 SliceCount = FMath::DivideAndRoundUp(Out.MaxBytesPerPixel, 4u) + SliceCountSSS + SliceCountAdvDebug;
 	const FRDGTextureDesc MaterialTextureDesc = FRDGTextureDesc::Create2DArray(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Transparent,
 		TexCreate_TargetArraySlicesIndependently | TexCreate_DisableDCC | TexCreate_NoFastClear | TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, SliceCount, 1, 1);
 	Out.MaterialTextureArray = GraphBuilder.CreateTexture(MaterialTextureDesc, TEXT("Strata.Material"));
@@ -368,7 +371,7 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 	Out.MaterialTextureArrayUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Out.MaterialTextureArray, 0));
 
 	// See AppendStrataMRTs
-	check(STRATA_BASE_PASS_MRT_OUTPUT_COUNT <= (SliceCount - SliceCountSSS)); // We want enough slice for MRTs but also do not want the SSSData to be a MRT.
+	check(STRATA_BASE_PASS_MRT_OUTPUT_COUNT <= (SliceCount - SliceCountSSS - SliceCountAdvDebug)); // We want enough slice for MRTs but also do not want the SSSData to be a MRT.
 	Out.MaterialTextureArrayUAVWithoutRTs = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Out.MaterialTextureArray, 0, PF_Unknown, STRATA_BASE_PASS_MRT_OUTPUT_COUNT, SliceCount - STRATA_BASE_PASS_MRT_OUTPUT_COUNT));
 
 	// Rough diffuse model
@@ -376,11 +379,12 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 
 	Out.PeelLayersAboveDepth = FMath::Max(CVarStrataDebugPeelLayersAboveDepth.GetValueOnRenderThread(), 0);
 
-	// STRATA_TODO allocate a slice for StoringDebugStrata only if STRATA_ADVANCED_DEBUG_ENABLED is enabled
-	Out.SliceStoringDebugStrataTree = SliceCount - 1 - STRATA_BASE_PASS_MRT_OUTPUT_COUNT - SliceCountSSS;		// The UAV skips the first slices set as render target and other utility re
+	// STRATA_TODO allocate a slice for StoringDebugStrata only if STRATA_ADVANCED_DEBUG_ENABLED is enabled 
+	Out.SliceStoringDebugStrataTreeData				= SliceCount - SliceCountAdvDebug;										// When we read, there is no slices excluded
+	Out.SliceStoringDebugStrataTreeDataWithoutMRT	= SliceCount - SliceCountAdvDebug - STRATA_BASE_PASS_MRT_OUTPUT_COUNT;	// The UAV skips the first slices set as render target
 
-	Out.FirstSliceStoringStrataSSSData = SliceCount - SliceCountSSS;						// When we read, there is no slices excluded
-	Out.FirstSliceStoringStrataSSSDataWithoutMRT = SliceCount - SliceCountSSS - STRATA_BASE_PASS_MRT_OUTPUT_COUNT;	// The UAV skips the first slices set as render target
+	Out.FirstSliceStoringStrataSSSData				= SliceCount - SliceCountSSS - SliceCountAdvDebug;										// When we read, there is no slices excluded
+	Out.FirstSliceStoringStrataSSSDataWithoutMRT	= SliceCount - SliceCountSSS - SliceCountAdvDebug - STRATA_BASE_PASS_MRT_OUTPUT_COUNT;	// The UAV skips the first slices set as render target
 
 	// Initialized view data
 	for (int32 ViewIndex = 0; ViewIndex < SceneRenderer.Views.Num(); ViewIndex++)
@@ -397,7 +401,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewI
 		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.PeelLayersAboveDepth = StrataSceneData->PeelLayersAboveDepth;
-		OutStrataUniformParameters.SliceStoringDebugStrataTree = StrataSceneData->SliceStoringDebugStrataTree;
+		OutStrataUniformParameters.SliceStoringDebugStrataTreeDataWithoutMRT = StrataSceneData->SliceStoringDebugStrataTreeDataWithoutMRT;
 		OutStrataUniformParameters.FirstSliceStoringStrataSSSDataWithoutMRT = StrataSceneData->FirstSliceStoringStrataSSSDataWithoutMRT;
 		OutStrataUniformParameters.MaterialTextureArrayUAVWithoutRTs = StrataSceneData->MaterialTextureArrayUAVWithoutRTs;
 		OutStrataUniformParameters.OpaqueRoughRefractionTextureUAV = StrataSceneData->OpaqueRoughRefractionTextureUAV;
@@ -414,7 +418,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, const FViewI
 		OutStrataUniformParameters.bRoughDiffuse = 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.PeelLayersAboveDepth = 0;
-		OutStrataUniformParameters.SliceStoringDebugStrataTree = -1;
+		OutStrataUniformParameters.SliceStoringDebugStrataTreeDataWithoutMRT = -1;
 		OutStrataUniformParameters.FirstSliceStoringStrataSSSDataWithoutMRT = -1;
 		OutStrataUniformParameters.MaterialTextureArrayUAVWithoutRTs = DummyWritableTextureArrayUAV;
 		OutStrataUniformParameters.OpaqueRoughRefractionTextureUAV = DummyWritableRefracTextureUAV;
@@ -429,7 +433,7 @@ static void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrata
 		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.PeelLayersAboveDepth = StrataSceneData->PeelLayersAboveDepth;
-		OutStrataUniformParameters.SliceStoringDebugStrataTree = StrataSceneData->SliceStoringDebugStrataTree;
+		OutStrataUniformParameters.SliceStoringDebugStrataTreeData = StrataSceneData->SliceStoringDebugStrataTreeData;
 		OutStrataUniformParameters.FirstSliceStoringStrataSSSData = StrataSceneData->FirstSliceStoringStrataSSSData;
 		OutStrataUniformParameters.TileSize = STRATA_TILE_SIZE;
 		OutStrataUniformParameters.TileSizeLog2 = STRATA_TILE_SIZE_DIV_AS_SHIFT;
@@ -461,7 +465,7 @@ static void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrata
 		OutStrataUniformParameters.bRoughDiffuse = 0;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.PeelLayersAboveDepth = 0;
-		OutStrataUniformParameters.SliceStoringDebugStrataTree = -1;
+		OutStrataUniformParameters.SliceStoringDebugStrataTreeData = -1;
 		OutStrataUniformParameters.FirstSliceStoringStrataSSSData = -1;
 		OutStrataUniformParameters.TileSize = 0;
 		OutStrataUniformParameters.TileSizeLog2 = 0;

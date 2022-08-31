@@ -28,6 +28,11 @@ static TAutoConsoleVariable<int32> CVarStrataDebugAdvancedVisualizationShaders(
 	TEXT("Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+bool IsStrataAdvancedVisualizationShadersEnabled()
+{
+	return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnRenderThread() > 0;
+}
+
 namespace Strata
 {
 // Forward declarations
@@ -38,11 +43,6 @@ void AddStrataInternalClassificationTilePass(
 	const FRDGTextureRef* ColorTexture,
 	EStrataTileType TileMaterialType,
 	const bool bDebug);
-
-bool IsStrataAdvancedVisualizationShadersEnabled()
-{
-	return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnRenderThread() > 0;
-}
 
 static bool StrataDebugVisualizationCanRunOnPlatform(EShaderPlatform Platform)
 {

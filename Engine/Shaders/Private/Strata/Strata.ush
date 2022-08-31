@@ -1055,11 +1055,11 @@ void StrataPackOutStrataTree(
 	RWTexture2DArray<uint> ExtraMaterialDataUAV,
 	in uint RootOperatorIndex,
 	in FStrataTree StrataTree,
-	in int SliceStoringDebugStrataTree)
+	in int SliceStoringDebugStrataTreeData)
 {
-#define WRITE_INT(Data) ExtraMaterialDataUAV[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTree)] = asuint(Data);
-#define WRITE_UINT(Data) ExtraMaterialDataUAV[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTree)] = Data;
-#define WRITE_FLOAT(Data) ExtraMaterialDataUAV[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTree)] = asuint(Data);
+#define WRITE_INT(Data) ExtraMaterialDataUAV[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTreeData)] = asuint(Data);
+#define WRITE_UINT(Data) ExtraMaterialDataUAV[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTreeData)] = Data;
+#define WRITE_FLOAT(Data) ExtraMaterialDataUAV[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTreeData)] = asuint(Data);
 #define WRITE_FLOAT3(Data) WRITE_FLOAT(Data.x);WRITE_FLOAT(Data.y);WRITE_FLOAT(Data.z);
 #define WRITE_FLOAT4(Data) WRITE_FLOAT(Data.x);WRITE_FLOAT(Data.y);WRITE_FLOAT(Data.z);;WRITE_FLOAT(Data.w);
 
@@ -1148,16 +1148,16 @@ struct FStrataTreeHeader
 	uint RootOperatorIndex;
 };
 
-#define READ_INT(Data) Data = asint(StrataMaterialData[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTree)]);
-#define READ_UINT(Data) Data = StrataMaterialData[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTree)];
-#define READ_FLOAT(Data) Data = asfloat(StrataMaterialData[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTree)]);
+#define READ_INT(Data) Data = asint(StrataMaterialData[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTreeData)]);
+#define READ_UINT(Data) Data = StrataMaterialData[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTreeData)];
+#define READ_FLOAT(Data) Data = asfloat(StrataMaterialData[uint3(OutCoord++, OutCoordY, SliceStoringDebugStrataTreeData)]);
 #define READ_FLOAT3(Data) READ_FLOAT(Data.x);READ_FLOAT(Data.y);READ_FLOAT(Data.z);
 #define READ_FLOAT4(Data) READ_FLOAT(Data.x);READ_FLOAT(Data.y);READ_FLOAT(Data.z);READ_FLOAT(Data.w);
 
 void StrataUnpackInStrataTreeHeader(
 	Texture2DArray<uint> StrataMaterialData,
 	inout FStrataTreeHeader StrataTreeHeader,
-	in int SliceStoringDebugStrataTree)
+	in int SliceStoringDebugStrataTreeData)
 {
 	StrataTreeHeader = (FStrataTreeHeader)0;
 
@@ -1174,7 +1174,7 @@ FStrataBSDF StrataUnpackInStrataTreeBSDF(
 	uint BSDFIndex,
 	Texture2DArray<uint> StrataMaterialData,
 	inout FStrataTreeHeader StrataTreeHeader,
-	in int SliceStoringDebugStrataTree)
+	in int SliceStoringDebugStrataTreeData)
 {
 	int OutCoord = BSDFIndex * (STRATA_INLINE_SHADING ? 42 : 33);		// Skip BSDFs
 	int OutCoordY= 1;
@@ -1214,7 +1214,7 @@ FStrataOperator StrataUnpackInStrataTreeOperator(
 	uint OperatorIndex,
 	Texture2DArray<uint> StrataMaterialData,
 	inout FStrataTreeHeader StrataTreeHeader,
-	in int SliceStoringDebugStrataTree)
+	in int SliceStoringDebugStrataTreeData)
 {
 	int OutCoord = OperatorIndex * 8;	// Skip Operators
 	int OutCoordY = 2;
@@ -3392,7 +3392,7 @@ struct FStrataIntegrationSettings
 	bool bRoughDiffuseEnabled;
 
 	// Embbeded debug settings
-	int  SliceStoringDebugStrataTree;
+	int  SliceStoringDebugStrataTreeData;
 	int  PeelLayersAboveDepth;
 };
 
@@ -3403,7 +3403,7 @@ FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, 
 	Out.bRoughDiffuseEnabled = bRoughDiffuseEnabled;
 
 	Out.PeelLayersAboveDepth = PeelLayersAboveDepth;
-	Out.SliceStoringDebugStrataTree = -1;
+	Out.SliceStoringDebugStrataTreeData = -1;
 	return Out;
 }
 

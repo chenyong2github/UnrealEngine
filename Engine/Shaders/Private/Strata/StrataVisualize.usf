@@ -639,13 +639,13 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	if (Header.BSDFCount > 0)
 	{
-		const int SliceStoringDebugStrataTree = Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT;
+		const int SliceStoringDebugStrataTreeData = Strata.SliceStoringDebugStrataTreeData;
 
 		FStrataTreeHeader StrataTreeHeader = (FStrataTreeHeader)0;
 		StrataUnpackInStrataTreeHeader(
 			Strata.MaterialTextureArray,
 			StrataTreeHeader,
-			SliceStoringDebugStrataTree);
+			SliceStoringDebugStrataTreeData);
 
 		FShaderPrintContext Context;
 		Context = InitShaderPrintContext(true, uint2(50, 50));
@@ -685,7 +685,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					i,
 					Strata.MaterialTextureArray,
 					StrataTreeHeader,
-					SliceStoringDebugStrataTree);
+					SliceStoringDebugStrataTreeData);
 
 				Print(Context, TEXT("OperatorIndex = "), FontCyan);
 				Print(Context, i, FontCyan, 2, 0);
@@ -770,7 +770,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					i,
 					Strata.MaterialTextureArray,
 					StrataTreeHeader,
-					SliceStoringDebugStrataTree);
+					SliceStoringDebugStrataTreeData);
 
 				const bool bActive = any(BSDF.LuminanceWeightV > 0.0);
 				FFontColor BSDFFont = FontDarkRed;
@@ -841,7 +841,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				OperatorIndex,
 				Strata.MaterialTextureArray,
 				StrataTreeHeader,
-				SliceStoringDebugStrataTree);
+				SliceStoringDebugStrataTreeData);
 
 			Context = InitShaderPrintContext(true, uint2(PrintPosStack[StackPtr]));
 			if (Op.Type == STRATA_OPERATOR_WEIGHT)
@@ -1269,13 +1269,13 @@ void MaterialDebugStrataTreePS(
 			OutColor = float4(1.0f, 1.0f, 1.0f, 0.5f);							// Operator/BSDF separator
 		}
 
-		const int SliceStoringDebugStrataTree = Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT;
+		const int SliceStoringDebugStrataTreeData = Strata.SliceStoringDebugStrataTreeData;
 
 		FStrataTreeHeader StrataTreeHeader = (FStrataTreeHeader)0;
 		StrataUnpackInStrataTreeHeader(
 			Strata.MaterialTextureArray,
 			StrataTreeHeader,
-			SliceStoringDebugStrataTree);
+			SliceStoringDebugStrataTreeData);
 
 
 		float2 Pos = float2(BSDF_ELEMENT_STARTX, BSDF_ELEMENT_STARTY);
@@ -1295,7 +1295,7 @@ void MaterialDebugStrataTreePS(
 					i,
 					Strata.MaterialTextureArray,
 					StrataTreeHeader,
-					SliceStoringDebugStrataTree);
+					SliceStoringDebugStrataTreeData);
 
 				//if (BSDF.Coverage > 0.0f)
 				{
@@ -1344,13 +1344,13 @@ void MaterialDebugStrataTreePS(
 					i,
 					Strata.MaterialTextureArray,
 					StrataTreeHeader,
-					SliceStoringDebugStrataTree);
+					SliceStoringDebugStrataTreeData);
 
 				FStrataOperator Op = StrataUnpackInStrataTreeOperator(
 					BSDF.OperatorIndex,
 					Strata.MaterialTextureArray,
 					StrataTreeHeader,
-					SliceStoringDebugStrataTree);
+					SliceStoringDebugStrataTreeData);
 
 				const uint LayerDepth = Op.LayerDepth;
 

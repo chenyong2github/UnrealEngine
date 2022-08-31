@@ -21,7 +21,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
-	SHADER_PARAMETER(int32,  SliceStoringDebugStrataTree)
+	SHADER_PARAMETER(int32, SliceStoringDebugStrataTreeDataWithoutMRT)
 	SHADER_PARAMETER(int32, FirstSliceStoringStrataSSSDataWithoutMRT)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAVWithoutRTs)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OpaqueRoughRefractionTextureUAV)
@@ -46,7 +46,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
-	SHADER_PARAMETER(int32,  SliceStoringDebugStrataTree)
+	SHADER_PARAMETER(int32,  SliceStoringDebugStrataTreeData)
 	SHADER_PARAMETER(int32,  FirstSliceStoringStrataSSSData)
 	SHADER_PARAMETER(uint32, TileSize)
 	SHADER_PARAMETER(uint32, TileSizeLog2)
@@ -81,7 +81,8 @@ struct FStrataSceneData
 	bool bRoughDiffuse;
 	int32 PeelLayersAboveDepth;
 
-	int32 SliceStoringDebugStrataTree;
+	int32 SliceStoringDebugStrataTreeDataWithoutMRT;
+	int32 SliceStoringDebugStrataTreeData;
 	int32 FirstSliceStoringStrataSSSDataWithoutMRT;
 	int32 FirstSliceStoringStrataSSSData;
 
