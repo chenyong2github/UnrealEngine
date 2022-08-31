@@ -301,5 +301,9 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 
 bool FIOSPlatformApplicationMisc::RequiresVirtualKeyboard()
 {
-    return PLATFORM_HAS_TOUCH_MAIN_SCREEN || PLATFORM_TVOS;
+#if !PLATFORM_TVOS
+    return PLATFORM_HAS_TOUCH_MAIN_SCREEN
+#else
+    return true;
+#endif
 }

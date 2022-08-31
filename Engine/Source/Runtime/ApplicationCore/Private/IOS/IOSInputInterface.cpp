@@ -477,8 +477,8 @@ void FIOSInputInterface::SendControllerEvents()
 #if !PLATFORM_TVOS
     // on ios, touches always go go player 0
     ProcessTouchesAndKeys(0, LocalTouchInputStack, LocalKeyInputStack);
-    ProcessDeferredEvents();
 #endif
+    ProcessDeferredEvents();
 
     
 #if !PLATFORM_TVOS // @todo tvos: This needs to come from the Microcontroller rotation
