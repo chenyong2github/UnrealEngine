@@ -114,15 +114,17 @@ public:
 	 * Moves files to a Controlled Changelist.
 	 * @param 	InUncontrolledFileStates 	The files to move.
 	 * @param 	InChangelist 				The Controlled Changelist where to move the files.
+	 * @param 	InOpenConflictDialog 		A callback to be used by the method when file conflicts are detected. The callback should display the files and ask the user if they should proceed.
 	 */
-	void MoveFilesToControlledChangelist(const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FSourceControlChangelistPtr& InChangelist);
+	void MoveFilesToControlledChangelist(const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FSourceControlChangelistPtr& InChangelist, TFunctionRef<bool(const TArray<FSourceControlStateRef>&)> InOpenConflictDialog);
 	
 	/**
 	 * Moves files to a Controlled Changelist.
 	 * @param 	InUncontrolledFiles 	The files to move.
 	 * @param 	InChangelist 			The Controlled Changelist where to move the files.
+	 * @param 	InOpenConflictDialog 	A callback to be used by the method when file conflicts are detected. The callback should display the files and ask the user if they should proceed.
 	 */
-	void MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist);
+	void MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist, TFunctionRef<bool(const TArray<FSourceControlStateRef>&)> InOpenConflictDialog);
 
 private:
 	/**
@@ -156,13 +158,6 @@ private:
 	 * @return 	A String containing the filepath of the package.
 	 */
 	FString GetUObjectPackageFullpath(const UObject* InObject) const;
-
-	/**
-	 * Displays a Package Dialog warning the user about conflicting packages. 
-	 * @param 	InPackageConflicts 	The conflicting packages to display.
-	 * @return 	True if the user decided to proceed. False if they cancelled.
-	 */
-	bool ShowConflictDialog(TArray<UPackage*> InPackageConflicts);
 
 	/** Called when a state changed either in the module or an Uncontrolled Changelist. */
 	void OnStateChanged();

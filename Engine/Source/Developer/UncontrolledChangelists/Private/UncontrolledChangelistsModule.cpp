@@ -411,7 +411,7 @@ void FUncontrolledChangelistsModule::MoveFilesToUncontrolledChangelist(const TAr
 	}
 }
 
-void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FSourceControlChangelistPtr& InChangelist)
+void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FSourceControlChangelistPtr& InChangelist, TFunctionRef<bool(const TArray<FSourceControlStateRef>&)> InOpenConflictDialog)
 {
 	if (!IsEnabled())
 	{
@@ -421,10 +421,10 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 	TArray<FString> UncontrolledFilenames;
 	
 	Algo::Transform(InUncontrolledFileStates, UncontrolledFilenames, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
-	MoveFilesToControlledChangelist(UncontrolledFilenames, InChangelist);
+	MoveFilesToControlledChangelist(UncontrolledFilenames, InChangelist, InOpenConflictDialog);
 }
 
-void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist)
+void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist, TFunctionRef<bool(const TArray<FSourceControlStateRef>&)> InOpenConflictDialog)
 {
 	if (!IsEnabled())
 	{
@@ -437,7 +437,7 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 	// Get updated filestates to check Checkout capabilities.
 	SourceControlProvider.GetState(InUncontrolledFiles, UpdatedFilestates, EStateCacheUsage::ForceUpdate);
 
-	TArray<UPackage*> PackageConflicts;
+	TArray<FSourceControlStateRef> FilesConflicts;
 	TArray<FString> FilesToAdd;
 	TArray<FString> FilesToCheckout;
 	TArray<FString> FilesToDelete;
@@ -445,26 +445,33 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 	// Check if we can Checkout files or mark for add
 	for (const FSourceControlStateRef& Filestate : UpdatedFilestates)
 	{
+		const FString& Filename = Filestate->GetFilename();
+
 		if (!Filestate->IsSourceControlled())
 		{
-			FilesToAdd.Add(Filestate->GetFilename());
+			FilesToAdd.Add(Filename);
 		}
-		else if (!IFileManager::Get().FileExists(*Filestate->GetFilename()))
+		else if (!IFileManager::Get().FileExists(*Filename))
 		{
-			FilesToDelete.Add(Filestate->GetFilename());
+			FilesToDelete.Add(Filename);
 		}
 		else if (Filestate->CanCheckout())
 		{
-			FilesToCheckout.Add(Filestate->GetFilename());
+			FilesToCheckout.Add(Filename);
+		}
+		else
+		{
+			FilesConflicts.Add(Filestate);
+			FilesToCheckout.Add(Filename);
 		}
 	}
 
 	bool bCanProceed = true;
 
 	// If we detected conflict, asking user if we should proceed.
-	if (!PackageConflicts.IsEmpty())
+	if (!FilesConflicts.IsEmpty())
 	{
-		bCanProceed = ShowConflictDialog(PackageConflicts);
+		bCanProceed = InOpenConflictDialog(FilesConflicts);
 	}
 
 	if (bCanProceed)
@@ -487,29 +494,6 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 		// UpdateStatus so UncontrolledChangelists can remove files from their cache if they were present before checkout.
 		UpdateStatus();
 	}
-}
-
-bool FUncontrolledChangelistsModule::ShowConflictDialog(TArray<UPackage*> InPackageConflicts)
-{
-	FPackagesDialogModule& CheckoutPackagesDialogModule = FModuleManager::LoadModuleChecked<FPackagesDialogModule>(TEXT("PackagesDialog"));
-
-	CheckoutPackagesDialogModule.CreatePackagesDialog(LOCTEXT("CheckoutPackagesDialogTitle", "Check Out Assets"),
-													  LOCTEXT("CheckoutPackagesDialogMessage", "Conflict detected in the following assets:"),
-													  true);
-
-	CheckoutPackagesDialogModule.AddButton(DRT_CheckOut, LOCTEXT("Dlg_CheckOutButton", "Check Out"), LOCTEXT("Dlg_CheckOutTooltip", "Attempt to Check Out Assets"));
-	CheckoutPackagesDialogModule.AddButton(DRT_Cancel, LOCTEXT("Dlg_Cancel", "Cancel"), LOCTEXT("Dlg_CancelTooltip", "Cancel Request"));
-
-	CheckoutPackagesDialogModule.SetWarning(LOCTEXT("CheckoutPackagesWarnMessage", "Warning: These assets are locked or not at the head revision. You may lose your changes if you continue, as you will be unable to submit them to source control."));
-
-	for (UPackage* Conflict : InPackageConflicts)
-	{
-		CheckoutPackagesDialogModule.AddPackageItem(Conflict, ECheckBoxState::Undetermined);
-	}
-
-	EDialogReturnType UserResponse = CheckoutPackagesDialogModule.ShowPackagesDialog();
-
-	return UserResponse == DRT_CheckOut;
 }
 
 void FUncontrolledChangelistsModule::OnStateChanged()
