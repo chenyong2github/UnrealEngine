@@ -163,6 +163,17 @@ private:
 	TRefCountPtr<IPooledRenderTarget> DistantSkyLightLutTexture;
 };
 
+enum class ESkyAtmospherePassLocation : uint32
+{
+	// Renders just before the Occlusion queries. Good for wave occuppency when SkyAtmosphere is async
+	BeforeOcclusion,
+
+	// Renders just before the BasePass.
+	BeforeBasePass
+};
+
+// Returns the location in the frame where SkyAtmosphere is rendered.
+extern ESkyAtmospherePassLocation GetSkyAtmospherePassLocation();
 
 
 bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
