@@ -378,7 +378,8 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	bAllowMultiplePIEWorlds = true;
 	bIsEndingPlay = false;
 	DefaultWorldFeatureLevel = GMaxRHIFeatureLevel;
-	PreviewPlatform = FPreviewPlatformInfo(DefaultWorldFeatureLevel);
+	PreviewPlatform = FPreviewPlatformInfo(DefaultWorldFeatureLevel, GMaxRHIShaderPlatform);
+	CachedEditorShaderPlatform = GMaxRHIShaderPlatform;
 
 	FCoreDelegates::OnFeatureLevelDisabled.AddLambda([this](int RHIType, const FName& PreviewPlatformName)
 		{
@@ -391,7 +392,7 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 					return;
 				}
 				
-				SetPreviewPlatform(FPreviewPlatformInfo(GMaxRHIFeatureLevel), false);
+				SetPreviewPlatform(FPreviewPlatformInfo(GMaxRHIFeatureLevel, GMaxRHIShaderPlatform), false);
 			}
 		});
 
@@ -7655,14 +7656,13 @@ void UEditorEngine::OnSceneMaterialsModified()
 
 void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPlatform, bool bSaveSettings)
 {
-	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
-	EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName);
+	// Get the requested preview platform, make sure it is valid.
+	EShaderPlatform ShaderPlatform = NewPreviewPlatform.ShaderPlatform;
+	check(FDataDrivenShaderPlatformInfo::IsValid(ShaderPlatform));
 	ERHIFeatureLevel::Type MaxFeatureLevel = NewPreviewPlatform.PreviewShaderFormatName != NAME_None ? (ERHIFeatureLevel::Type)GetMaxSupportedFeatureLevel(ShaderPlatform) : ERHIFeatureLevel::SM5;
 	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || MaxFeatureLevel == NewPreviewPlatform.PreviewFeatureLevel);
 
-	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.PreviewShaderFormatName != PreviewPlatform.PreviewShaderFormatName;
-	const bool bChangedFeatureLevel = NewPreviewPlatform.PreviewFeatureLevel != PreviewPlatform.PreviewFeatureLevel ||
-		NewPreviewPlatform.bPreviewFeatureLevelActive != PreviewPlatform.bPreviewFeatureLevelActive;
+	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.ShaderPlatform != PreviewPlatform.ShaderPlatform;
 	const ERHIFeatureLevel::Type EffectiveFeatureLevel = NewPreviewPlatform.GetEffectivePreviewFeatureLevel();
 
 	if (NewPreviewPlatform.PreviewShaderFormatName != NAME_None)
@@ -7686,8 +7686,8 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 	constexpr bool bUpdateProgressDialog = true;
 	constexpr bool bCacheAllRemainingShaders = false;
 
-	if (bChangedFeatureLevel)
 	{
+		// Set the correct SP preview for the FeatureLevel that is being previewed
 		FScopedSlowTask SlowTask(100.f, NSLOCTEXT("Engine", "ChangingPreviewPlatform", "Changing Preview Platform"), true);
 		SlowTask.Visibility = ESlowTaskVisibility::ForceVisible;
 		SlowTask.MakeDialog();
@@ -7708,6 +7708,8 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 			UMaterialInterface::SetGlobalRequiredFeatureLevel(FeatureLevel, FeatureLevel == PreviewPlatform.PreviewFeatureLevel || FeatureLevel == GMaxRHIFeatureLevel);
 		}
 
+		GShaderPlatformForFeatureLevel[PreviewPlatform.PreviewFeatureLevel] = ShaderPlatform;
+
 		SlowTask.EnterProgressFrame(35.0f);
 		UMaterial::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
 
@@ -7721,15 +7723,6 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		GShaderCompilingManager->ProcessAsyncResults(false, true);
 
 		DefaultWorldFeatureLevel = EffectiveFeatureLevel;
-		PreviewFeatureLevelChanged.Broadcast(EffectiveFeatureLevel);
-	}
-	else if (bChangedPreviewShaderPlatform)
-	{
-		// Rebuild materials if we have the same feature level but a different 'material quality platform'
-		FGlobalComponentRecreateRenderStateContext Recreate;
-		FlushRenderingCommands();
-		UMaterial::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
-		UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(bUpdateProgressDialog, bCacheAllRemainingShaders);
 		PreviewFeatureLevelChanged.Broadcast(EffectiveFeatureLevel);
 	}
 
@@ -7769,6 +7762,8 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 
 	if (PreviewPlatform.bPreviewFeatureLevelActive)
 	{
+		GShaderPlatformForFeatureLevel[PreviewPlatform.PreviewFeatureLevel] = PreviewPlatform.ShaderPlatform;
+
 		if (PreviewPlatform.DeviceProfileName != NAME_None)
 		{
 			if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
@@ -7783,6 +7778,11 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	}
 	else
 	{
+		// If the Preview FeatureLevel is the same as the Editor, restore the SP
+		if (PreviewPlatform.PreviewFeatureLevel == GMaxRHIFeatureLevel)
+		{
+			GShaderPlatformForFeatureLevel[PreviewPlatform.PreviewFeatureLevel] = CachedEditorShaderPlatform;
+		}
 		UDeviceProfileManager::Get().RestorePreviewDeviceProfile();
 	}
 
@@ -7797,7 +7797,7 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 
 bool UEditorEngine::IsFeatureLevelPreviewEnabled() const
 {
-	return PreviewPlatform.PreviewFeatureLevel != GMaxRHIFeatureLevel || PreviewPlatform.PreviewShaderFormatName != NAME_None;
+	return PreviewPlatform.PreviewFeatureLevel != GMaxRHIFeatureLevel || PreviewPlatform.PreviewShaderFormatName != NAME_None || PreviewPlatform.ShaderPlatformPreview != NAME_None;
 }
 
 bool UEditorEngine::IsFeatureLevelPreviewActive() const
@@ -7813,7 +7813,7 @@ ERHIFeatureLevel::Type UEditorEngine::GetActiveFeatureLevelPreviewType() const
 void UEditorEngine::LoadEditorFeatureLevel()
 {
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
-	if (Settings->PreviewFeatureLevel >= 0 && Settings->PreviewFeatureLevel < (int32)ERHIFeatureLevel::Num)
+	if (Settings->PreviewFeatureLevel >= 0 && Settings->PreviewFeatureLevel < (int32)ERHIFeatureLevel::Num && Settings->PreviewShaderPlatform < (int32)EShaderPlatform::SP_NumPlatforms)
 	{
 		// Try to map a saved ShaderFormatName to the PreviewPlatformName using ITargetPlatform if we don't have one. 
 		// We now store the PreviewPlatformName explicitly to support preview for platforms we don't have an ITargetPlatform of.
@@ -7826,7 +7826,13 @@ void UEditorEngine::LoadEditorFeatureLevel()
 			}
 		}
 
-		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewPlatformName, Settings->PreviewShaderFormatName, Settings->PreviewDeviceProfileName, Settings->bPreviewFeatureLevelActive), false);
+		FName PreviewShaderPlatformName = Settings->PreviewShaderPlatformName;
+		// If we have an old .ini file in Saved we just will use what is the SP of the current FeatureLevel
+		if (Settings->PreviewShaderPlatformName == NAME_None)
+		{
+			PreviewShaderPlatformName = *(LexToString(GShaderPlatformForFeatureLevel[Settings->PreviewFeatureLevel]));
+		}
+		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, (EShaderPlatform)Settings->PreviewShaderPlatform, Settings->PreviewPlatformName, Settings->PreviewShaderFormatName, Settings->PreviewDeviceProfileName, Settings->bPreviewFeatureLevelActive, PreviewShaderPlatformName), false);
 	}
 }
 
@@ -7834,11 +7840,13 @@ void UEditorEngine::SaveEditorFeatureLevel()
 {
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 	Settings->PreviewFeatureLevel = (int32)PreviewPlatform.PreviewFeatureLevel;
+	Settings->PreviewShaderPlatform = (int32)PreviewPlatform.ShaderPlatform;
 	Settings->PreviewPlatformName = PreviewPlatform.PreviewPlatformName;
 	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderFormatName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->bPreviewFeatureLevelWasDefault = (PreviewPlatform.PreviewFeatureLevel == GMaxRHIFeatureLevel);
 	Settings->PreviewDeviceProfileName = PreviewPlatform.DeviceProfileName;
+	Settings->PreviewShaderPlatformName = PreviewPlatform.ShaderPlatformPreview;
 	Settings->PostEditChange();
 }
 

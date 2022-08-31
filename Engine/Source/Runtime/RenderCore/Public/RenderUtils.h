@@ -540,9 +540,18 @@ struct RENDERCORE_API FShaderPlatformCachedIniValue
 
 	Type Get(EShaderPlatform ShaderPlatform)
 	{
+		EShaderPlatform ActualShaderPlatform = ShaderPlatform;
 		Type Value{};
 
-		FName IniPlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
+		if (GIsEditor)
+		{
+			if (FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ActualShaderPlatform))
+			{
+				ActualShaderPlatform = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ActualShaderPlatform);
+			}
+		}
+
+		FName IniPlatformName = ShaderPlatformToPlatformName(ActualShaderPlatform);
 		// find the cvar if needed
 		if (CVar == nullptr)
 		{
@@ -552,7 +561,7 @@ struct RENDERCORE_API FShaderPlatformCachedIniValue
 		// if we are looking up our own platform, just use the current value, however
 		// ShaderPlatformToPlatformName can return the wrong platform than expected - for instance, Linux Vulkan will return Windows
 		// so instead of hitting an asser below, we detect that the request SP is the current SP, and use the CVar value that is set currently
-		if (IniPlatformName == FPlatformProperties::IniPlatformName() || ShaderPlatform == GMaxRHIShaderPlatform)
+		if (IniPlatformName == FPlatformProperties::IniPlatformName() || ActualShaderPlatform == GMaxRHIShaderPlatform)
 		{
 			checkf(CVar != nullptr, TEXT("Failed to find CVar %s when getting current value for FShaderPlatformCachedIniValue"));
 
@@ -594,8 +603,8 @@ private:
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */
 inline bool IsForwardShadingEnabled(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint64 GForwardShadingPlatformMask;
-	return !!(GForwardShadingPlatformMask & (1ull << Platform))
+	extern RENDERCORE_API ShaderPlatformMaskType GForwardShadingPlatformMask;
+	return (GForwardShadingPlatformMask[(int)Platform])
 		// Culling uses compute shader
 		&& GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5;
 }
@@ -619,15 +628,15 @@ RENDERCORE_API bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform
 /** Returns whether the base pass should use selective outputs for a given shader platform */
 inline bool IsUsingSelectiveBasePassOutputs(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask;
-	return !!(GSelectiveBasePassOutputsPlatformMask & (1ull << Platform));
+	extern RENDERCORE_API ShaderPlatformMaskType GSelectiveBasePassOutputsPlatformMask;
+	return (GSelectiveBasePassOutputsPlatformMask[(int)Platform]);
 }
 
 /** Returns whether distance fields are enabled for a given shader platform */
 inline bool IsUsingDistanceFields(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint64 GDistanceFieldsPlatformMask;
-	return !!(GDistanceFieldsPlatformMask & (1ull << Platform));
+	extern RENDERCORE_API ShaderPlatformMaskType GDistanceFieldsPlatformMask;
+	return (GDistanceFieldsPlatformMask[(int)Platform]);
 }
 
 /** Returns if water should render distance field shadow a second time for the water surface. This is for a platofrm so can be used at cook time. */
@@ -664,14 +673,14 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform)
 
 inline bool ForceSimpleSkyDiffuse(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint64 GSimpleSkyDiffusePlatformMask;
-	return !!(GSimpleSkyDiffusePlatformMask & (1ull << Platform));
+	extern RENDERCORE_API ShaderPlatformMaskType GSimpleSkyDiffusePlatformMask;
+	return (GSimpleSkyDiffusePlatformMask[(int)Platform]);
 }
 
 inline bool VelocityEncodeDepth(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask;
-	return !!(GVelocityEncodeDepthPlatformMask & (1ull << Platform));
+	extern RENDERCORE_API ShaderPlatformMaskType GVelocityEncodeDepthPlatformMask;
+	return (GVelocityEncodeDepthPlatformMask[(int)Platform]);
 }
 
 /** Unit cube vertex buffer (VertexDeclarationFVector4) */

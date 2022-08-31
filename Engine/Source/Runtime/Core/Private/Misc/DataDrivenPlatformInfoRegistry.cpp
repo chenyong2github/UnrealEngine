@@ -284,6 +284,7 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile)
 			Item.InactiveIconPath = GetSectionString(Section.Value, FName("InactiveIconPath"));
 			Item.InactiveIconName = *GetSectionString(Section.Value, FName("InactiveIconName"));
 			Item.DeviceProfileName = *GetSectionString(Section.Value, FName("DeviceProfileName"));
+			Item.ShaderPlatformPreview = *(GetSectionString(Section.Value, FName("ShaderPlatform")) + TEXT("_PREVIEW"));
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuText")), Item.MenuText);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);

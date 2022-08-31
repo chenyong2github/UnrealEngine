@@ -2543,10 +2543,11 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 					ShaderMapCondition = TEXT("Missing");
 				}
 #if WITH_EDITOR
+				FString ShaderPlatformName = FGenericDataDrivenShaderPlatformInfo::GetName(Platform).ToString();
 				UE_LOG(LogMaterial, Display, TEXT("%s cached shadermap for %s in %s, %s, %s (DDC key hash: %s), compiling. %s"),
 					ShaderMapCondition,
 					*GetAssetName(),
-					*LexToString(Platform),
+					*ShaderPlatformName,
 					*LexToString(ShaderMapId.QualityLevel),
 					*LexToString(ShaderMapId.FeatureLevel),
 					*DDCKeyHash,

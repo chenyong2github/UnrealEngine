@@ -27,6 +27,8 @@
 #include "RenderingThread.h"
 #include "Serialization/MemoryLayout.h"
 
+typedef TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>>	ShaderPlatformMaskType;
+
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
 
@@ -653,8 +655,8 @@ FORCEINLINE bool IsRayTracingEnabledForProject(EShaderPlatform ShaderPlatform)
 {
 	if (RHISupportsRayTracing(ShaderPlatform))
 	{
-		extern RENDERCORE_API uint64 GRayTracingPlaformMask;
-		return !!(GRayTracingPlaformMask & (1ull << ShaderPlatform));
+		extern RENDERCORE_API TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>> GRayTracingPlaformMask;
+		return (GRayTracingPlaformMask[(int)ShaderPlatform]);
 	}
 	else
 	{

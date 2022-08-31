@@ -113,6 +113,9 @@ inline TStatId GetMemoryStatType(EShaderFrequency ShaderFrequency)
 /** Initializes shader hash cache from IShaderFormatModules. This must be called before reading any shader include. */
 extern RENDERCORE_API void InitializeShaderHashCache();
 
+/** Updates the PreviewPlatform's IncludeDirectory to match that of the Parent Platform*/
+extern RENDERCORE_API void UpdateIncludeDirectoryForPreviewPlatform(EShaderPlatform PreviewPlatform, EShaderPlatform ActualPlatform);
+
 /** Checks if shader include isn't skipped by a shader hash cache. */
 extern RENDERCORE_API void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform);
 

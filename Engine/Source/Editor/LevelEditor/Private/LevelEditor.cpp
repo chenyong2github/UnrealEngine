@@ -1795,7 +1795,22 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		const bool IsDefaultActive = ShaderPlatform == GMaxRHIShaderPlatform;
 		const bool AllowPreview = !IsDefaultActive;
 
-		FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, IsDefaultActive ? NAME_None : Item.PlatformName, IsDefaultActive ? NAME_None : Item.ShaderFormat, IsDefaultActive ? NAME_None : Item.DeviceProfileName, AllowPreview);
+		EShaderPlatform InShaderPlatform = EShaderPlatform::SP_NumPlatforms;
+		for (uint32 j = 0; j < SP_NumPlatforms; ++j)
+		{
+			InShaderPlatform = (EShaderPlatform)j;
+			if (!FDataDrivenShaderPlatformInfo::IsValid(InShaderPlatform))
+			{
+				continue;
+			}
+
+			FName ShaderPlatformTest = FDataDrivenShaderPlatformInfo::GetName(InShaderPlatform);
+			if (Item.ShaderPlatformPreview == ShaderPlatformTest)
+			{
+				break;
+			}
+		}
+		FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, (EShaderPlatform)InShaderPlatform, IsDefaultActive ? NAME_None : Item.PlatformName, IsDefaultActive ? NAME_None : Item.ShaderFormat, IsDefaultActive ? NAME_None : Item.DeviceProfileName, AllowPreview, Item.ShaderPlatformPreview);
 
 		ActionList.MapAction(
 			Commands.PreviewPlatformOverrides[Index],

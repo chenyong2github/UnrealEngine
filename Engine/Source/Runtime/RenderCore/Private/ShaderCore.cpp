@@ -161,6 +161,11 @@ public:
 		bInitialized = true;
 	}
 
+	void UpdateIncludeDirectoryForPreviewPlatform(EShaderPlatform PreviewShaderPlatform, EShaderPlatform ParentShaderPlatform)
+	{
+		Platforms[PreviewShaderPlatform].IncludeDirectory = Platforms[ParentShaderPlatform].IncludeDirectory;
+	}
+
 	FSHAHash* FindHash(EShaderPlatform ShaderPlatform, const FString& VirtualFilePath)
 	{
 		check(ShaderPlatform < UE_ARRAY_COUNT(Platforms));
@@ -1398,6 +1403,12 @@ void InitializeShaderHashCache()
 {
 	FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
 	GShaderHashCache.Initialize();
+}
+
+void UpdateIncludeDirectoryForPreviewPlatform(EShaderPlatform PreviewPlatform, EShaderPlatform ActualPlatform)
+{
+	FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
+	GShaderHashCache.UpdateIncludeDirectoryForPreviewPlatform(PreviewPlatform, ActualPlatform);
 }
 
 void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform)

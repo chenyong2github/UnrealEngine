@@ -99,6 +99,7 @@ struct FPreviewPlatformMenuItem
 {
 	FName PlatformName;
 	FName ShaderFormat;
+	FName ShaderPlatformPreview;
 	FString ActiveIconPath;
 	FName ActiveIconName;
 	FString InactiveIconPath;

@@ -2198,7 +2198,7 @@ void FMaterialShaderMap::Compile(
 	FString WorkingDebugDescription = FString::Printf(
 		TEXT("Compiling %s: Platform=%s, Usage=%s"),
 		*NewContent->FriendlyName,
-		*LegacyShaderPlatformToShaderFormat(InPlatform).ToString(),
+		*FDataDrivenShaderPlatformInfo::GetName(InPlatform).ToString(),
 		*MaterialUsage
 	);
 	for (int32 StaticSwitchIndex = 0; StaticSwitchIndex < ShaderMapId.GetStaticSwitchParameters().Num(); ++StaticSwitchIndex)

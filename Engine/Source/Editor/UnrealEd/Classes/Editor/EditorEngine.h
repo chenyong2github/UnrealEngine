@@ -209,26 +209,33 @@ struct FPreviewPlatformInfo
 {
 	FPreviewPlatformInfo()
 	:	PreviewFeatureLevel(ERHIFeatureLevel::SM5)
+	,	ShaderPlatform(EShaderPlatform::SP_NumPlatforms)
 	,	PreviewPlatformName(NAME_None)
 	,	PreviewShaderFormatName(NAME_None)
 	,	bPreviewFeatureLevelActive(false)
+	,	ShaderPlatformPreview(NAME_None)
 	{}
 
-	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, FName InDeviceProfileName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform = EShaderPlatform::SP_NumPlatforms, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, FName InDeviceProfileName = NAME_None, bool InbPreviewFeatureLevelActive = false, FName InShaderPlatformName = NAME_None)
 	:	PreviewFeatureLevel(InFeatureLevel)
+	,	ShaderPlatform(InShaderPlatform)
 	,	PreviewPlatformName(InPreviewPlatformName)
 	,	PreviewShaderFormatName(InPreviewShaderFormatName)
 	,	DeviceProfileName(InDeviceProfileName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
+	,	ShaderPlatformPreview(InShaderPlatformName)
 	{}
 
 	/** The feature level we should use when loading or creating a new world */
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 
+	/** The ShaderPlatform to be used when in preview */
+	EShaderPlatform ShaderPlatform;
+
 	/** The the platform to preview, or NAME_None if there is no preview platform */
 	FName PreviewPlatformName;
 
-	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
+	/** The shader Format to preview, or NAME_None if there is no shader preview format */
 	FName PreviewShaderFormatName;
 
 	/** The device profile to preview. */
@@ -236,11 +243,14 @@ struct FPreviewPlatformInfo
 
 	/** Is feature level preview currently active */
 	bool bPreviewFeatureLevelActive;
+	
+	/** The shader platform to preview*/
+	FName ShaderPlatformPreview;
 
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName && DeviceProfileName == Other.DeviceProfileName;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && ShaderPlatform == Other.ShaderPlatform && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName && DeviceProfileName == Other.DeviceProfileName && ShaderPlatformPreview == Other.ShaderPlatformPreview;
 	}
 
 	/** Return platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
@@ -532,6 +542,9 @@ public:
 	/** The feature level and platform we should use when loading or creating a new world */
 	FPreviewPlatformInfo PreviewPlatform;
 	
+	/** Cached ShaderPlatform so the editor can go back to after previewing */
+	EShaderPlatform CachedEditorShaderPlatform;
+
 	/** A delegate that is called when the preview feature level changes. Primarily used to switch a viewport's feature level. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreviewFeatureLevelChanged, ERHIFeatureLevel::Type);
 	FPreviewFeatureLevelChanged PreviewFeatureLevelChanged;

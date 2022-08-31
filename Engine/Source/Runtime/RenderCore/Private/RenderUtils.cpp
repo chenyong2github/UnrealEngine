@@ -1127,12 +1127,11 @@ RENDERCORE_API uint32 GetPlatformShadingModelsMask(const FStaticShaderPlatform P
 	return 0xFFFFFFFF;
 }
 
-RENDERCORE_API uint64 GMobileAmbientOcclusionPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GMobileAmbientOcclusionPlatformMask) * 8, "GMobileAmbientOcclusionPlatformMask must be large enough to support all shader platforms");
+RENDERCORE_API ShaderPlatformMaskType GMobileAmbientOcclusionPlatformMask;
 
 RENDERCORE_API bool IsMobileAmbientOcclusionEnabled(const FStaticShaderPlatform Platform)
 {
-	return (IsMobilePlatform(Platform) && !!(GMobileAmbientOcclusionPlatformMask & (1ull << Platform)));
+	return IsMobilePlatform(Platform) && GMobileAmbientOcclusionPlatformMask[(int)Platform];
 }
 
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
@@ -1241,29 +1240,17 @@ static TAutoConsoleVariable<int32> CVarDistanceFields(
 	); 
 
 
-RENDERCORE_API uint64 GForwardShadingPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GForwardShadingPlatformMask) * 8, "GForwardShadingPlatformMask must be large enough to support all shader platforms");
-
-RENDERCORE_API uint64 GDBufferPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlatformMask must be large enough to support all shader platforms");
-
-RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GVelocityEncodeDepthPlatformMask) * 8, "GVelocityEncodeDepthPlatformMask must be large enough to support all shader platforms");
-
-RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
-
-RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
-
-RENDERCORE_API uint64 GSimpleSkyDiffusePlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GSimpleSkyDiffusePlatformMask) * 8, "GSimpleSkyDiffusePlatformMask must be large enough to support all shader platforms");
+RENDERCORE_API ShaderPlatformMaskType GForwardShadingPlatformMask;
+RENDERCORE_API ShaderPlatformMaskType GDBufferPlatformMask;
+RENDERCORE_API ShaderPlatformMaskType GVelocityEncodeDepthPlatformMask;
+RENDERCORE_API ShaderPlatformMaskType GSelectiveBasePassOutputsPlatformMask;
+RENDERCORE_API ShaderPlatformMaskType GDistanceFieldsPlatformMask;
+RENDERCORE_API ShaderPlatformMaskType GSimpleSkyDiffusePlatformMask;
 
 // Specifies whether ray tracing *can* be enabled on a particular platform.
 // This takes into account whether RT is globally enabled for the project and specifically enabled on a target platform.
 // Safe to use to make cook-time decisions, such as whether to compile ray tracing shaders.
-RENDERCORE_API uint64 GRayTracingPlaformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GRayTracingPlaformMask) * 8, "GRayTracingPlaformMask must be large enough to support all shader platforms");
+RENDERCORE_API ShaderPlatformMaskType GRayTracingPlaformMask;
 
 // Specifies whether ray tracing *is* enabled on the current running system (in current game or editor process).
 // This takes into account additional factors, such as concrete current GPU/OS/Driver capability, user-set game graphics options, etc.
@@ -1271,40 +1258,46 @@ static_assert(SP_NumPlatforms <= sizeof(GRayTracingPlaformMask) * 8, "GRayTracin
 // Value may be queried using IsRayTracingEnabled().
 RENDERCORE_API bool GUseRayTracing = false;
 
+void GetAllPossiblePreviewPlatformsForMainShaderPlatform(TArray<EShaderPlatform>& OutPreviewPlatforms, FName ShaderPlatformName)
+{
+	FName PreviewPlatformName = FName(ShaderPlatformName.ToString() + TEXT("_PREVIEW"));
+	for (int i = 0; i < EShaderPlatform::SP_NumPlatforms; ++i)
+	{
+		EShaderPlatform ShaderPlatform = EShaderPlatform(i);
+		if (FDataDrivenShaderPlatformInfo::IsValid(ShaderPlatform))
+		{
+			bool bIsPreviewPlatform = FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ShaderPlatform) && (FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform) == PreviewPlatformName);
+			if (bIsPreviewPlatform)
+			{
+				OutPreviewPlatforms.Add(ShaderPlatform);
+			}
+		}
+	}
+}
+
 RENDERCORE_API void RenderUtilsInit()
 {
 	checkf(GIsRHIInitialized, TEXT("RenderUtilsInit() may only be called once RHI is initialized."));
 
-	if (GUseForwardShading)
-	{
-		GForwardShadingPlatformMask = ~0ull;
-	}
+	GForwardShadingPlatformMask.Init(GUseForwardShading == 1, EShaderPlatform::SP_NumPlatforms);
 
 	static IConsoleVariable* DBufferVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
-	if (DBufferVar && DBufferVar->GetInt())
-	{
-		GDBufferPlatformMask = ~0ull;
-	}
+	GDBufferPlatformMask.Init(DBufferVar && DBufferVar->GetInt(), EShaderPlatform::SP_NumPlatforms);
 
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
-	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
-	{
-		GSelectiveBasePassOutputsPlatformMask = ~0ull;
-	}
+	GSelectiveBasePassOutputsPlatformMask.Init(SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt(), EShaderPlatform::SP_NumPlatforms);
 
 	static IConsoleVariable* DistanceFieldsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFields")); 
-	if (DistanceFieldsCVar && DistanceFieldsCVar->GetInt())
-	{
-		GDistanceFieldsPlatformMask = ~0ull;
-	}
+	GDistanceFieldsPlatformMask.Init(DistanceFieldsCVar && DistanceFieldsCVar->GetInt(), EShaderPlatform::SP_NumPlatforms);
 
 	static IConsoleVariable* RayTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
 
+	GSimpleSkyDiffusePlatformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
+	GVelocityEncodeDepthPlatformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
+	GRayTracingPlaformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
+
 	static IConsoleVariable* MobileAmbientOcclusionCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.AmbientOcclusion"));
-	if (MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt())
-	{
-		GMobileAmbientOcclusionPlatformMask = ~0ull;
-	}
+	GMobileAmbientOcclusionPlatformMask.Init(MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt(), EShaderPlatform::SP_NumPlatforms);
 
 #if WITH_EDITOR
 	ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager();
@@ -1318,71 +1311,34 @@ RENDERCORE_API void RenderUtilsInit()
 			for (FName Format : PlaformPossibleShaderFormats)
 			{
 				EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Format);
-				uint32 ShaderPlatformIndex = static_cast<uint32>(ShaderPlatform);
+				TArray<EShaderPlatform> PossiblePreviewPlatformsAndMainPlatform;
+				GetAllPossiblePreviewPlatformsForMainShaderPlatform(PossiblePreviewPlatformsAndMainPlatform, FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform));
+				PossiblePreviewPlatformsAndMainPlatform.Add(ShaderPlatform);
 
-				uint64 Mask = 1ull << ShaderPlatformIndex;
+				for (EShaderPlatform ShaderPlatformToEdit : PossiblePreviewPlatformsAndMainPlatform)
+				{
+					uint32 ShaderPlatformIndex = static_cast<uint32>(ShaderPlatformToEdit);
 
-				if (TargetPlatform->UsesForwardShading())
-				{
-					GForwardShadingPlatformMask |= Mask;
-				}
-				else
-				{
-					GForwardShadingPlatformMask &= ~Mask;
-				}
+					uint64 Mask = 1ull << ShaderPlatformToEdit;
 
-				if (TargetPlatform->UsesDBuffer() && !IsMobilePlatform(ShaderPlatform))
-				{
-					GDBufferPlatformMask |= Mask;
-				}
-				else
-				{
-					GDBufferPlatformMask &= ~Mask;
-				}
+					if (!FDataDrivenShaderPlatformInfo::IsValid(ShaderPlatformToEdit))
+					{
+						continue;
+					}
 
-				if (TargetPlatform->UsesSelectiveBasePassOutputs())
-				{
-					GSelectiveBasePassOutputsPlatformMask |= Mask;
-				}
-				else
-				{
-					GSelectiveBasePassOutputsPlatformMask &= ~Mask;
-				}
+					GForwardShadingPlatformMask[ShaderPlatformIndex] = TargetPlatform->UsesForwardShading();
 
-				if (TargetPlatform->UsesDistanceFields())
-				{
-					GDistanceFieldsPlatformMask |= Mask;
-				}
-				else
-				{
-					GDistanceFieldsPlatformMask &= ~Mask;
-				}
+					GDBufferPlatformMask[ShaderPlatformIndex] = TargetPlatform->UsesDBuffer() && !IsMobilePlatform(ShaderPlatformToEdit);
 
-				if (TargetPlatform->ForcesSimpleSkyDiffuse())
-				{
-					GSimpleSkyDiffusePlatformMask |= Mask;
-				}
-				else
-				{
-					GSimpleSkyDiffusePlatformMask &= ~Mask;
-				}
+					GSelectiveBasePassOutputsPlatformMask[ShaderPlatformIndex] = TargetPlatform->UsesSelectiveBasePassOutputs();
 
-				if (TargetPlatform->VelocityEncodeDepth())
-				{
-					GVelocityEncodeDepthPlatformMask |= Mask;
-				}
-				else
-				{
-					GVelocityEncodeDepthPlatformMask &= ~Mask;
-				}
+					GDistanceFieldsPlatformMask[ShaderPlatformIndex] = TargetPlatform->UsesDistanceFields();
 
-				if (TargetPlatform->UsesMobileAmbientOcclusion())
-				{
-					GMobileAmbientOcclusionPlatformMask |= Mask;
-				}
-				else
-				{
-					GMobileAmbientOcclusionPlatformMask &= ~Mask;
+					GSimpleSkyDiffusePlatformMask[ShaderPlatformIndex] = TargetPlatform->ForcesSimpleSkyDiffuse();
+
+					GVelocityEncodeDepthPlatformMask[ShaderPlatformIndex] = TargetPlatform->VelocityEncodeDepth();
+
+					GMobileAmbientOcclusionPlatformMask[ShaderPlatformIndex] = TargetPlatform->UsesMobileAmbientOcclusion();
 				}
 			}
 
@@ -1397,9 +1353,7 @@ RENDERCORE_API void RenderUtilsInit()
 					EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Format);
 					uint32 ShaderPlatformIndex = static_cast<uint32>(ShaderPlatform);
 
-					uint64 Mask = 1ull << ShaderPlatformIndex;
-
-					GRayTracingPlaformMask |= Mask;
+					GRayTracingPlaformMask[ShaderPlatformIndex] = true;
 				}
 			}
 		}
@@ -1409,12 +1363,12 @@ RENDERCORE_API void RenderUtilsInit()
 
 	if (IsMobilePlatform(GMaxRHIShaderPlatform))
 	{
-		GDBufferPlatformMask = 0;
+		GDBufferPlatformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
 	}
 
 	if (RayTracingCVar && RayTracingCVar->GetInt() && GRHISupportsRayTracing)
 	{
-		GRayTracingPlaformMask = ~0ull;
+		GRayTracingPlaformMask.Init(true, EShaderPlatform::SP_NumPlatforms);
 	}
 
 	// Load runtime values from and *.ini file used by a current platform
@@ -1431,13 +1385,13 @@ RENDERCORE_API void RenderUtilsInit()
 			bool bDistanceFields = false;
 			if (PlatformIniFile.GetBool(*CategoryName, TEXT("bEnableDistanceFields"), bDistanceFields) && !bDistanceFields)
 			{
-				GDistanceFieldsPlatformMask = 0;
+				GDistanceFieldsPlatformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
 			}
 
 			bool bRayTracing = false;
 			if (PlatformIniFile.GetBool(*CategoryName, TEXT("bEnableRayTracing"), bRayTracing) && !bRayTracing)
 			{
-				GRayTracingPlaformMask = 0;
+				GRayTracingPlaformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
 			}
 		}
 	}
@@ -1456,7 +1410,7 @@ RENDERCORE_API void RenderUtilsInit()
 
 	if (RayTracingCVar && RayTracingCVar->GetBool())
 	{
-		const bool bRayTracingAllowedOnCurrentPlatform = !!(GRayTracingPlaformMask & (1ull << GMaxRHIShaderPlatform));
+		const bool bRayTracingAllowedOnCurrentPlatform = (GRayTracingPlaformMask[(int)GMaxRHIShaderPlatform]);
 		if (GRHISupportsRayTracing && bRayTracingAllowedOnCurrentPlatform)
 		{
 			if (GIsEditor)
@@ -1755,8 +1709,8 @@ RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCh
 /** Returns whether DBuffer decals are enabled for a given shader platform */
 RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API uint64 GDBufferPlatformMask;
-	return !!(GDBufferPlatformMask & (1ull << Platform));
+	extern RENDERCORE_API ShaderPlatformMaskType GDBufferPlatformMask;
+	return (GDBufferPlatformMask[(int)Platform]);
 }
 
 RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform)

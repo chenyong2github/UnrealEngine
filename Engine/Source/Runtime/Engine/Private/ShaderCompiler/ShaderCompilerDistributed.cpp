@@ -106,8 +106,8 @@ TArray<FString> FShaderCompileDistributedThreadRunnable_Interface::GetDependency
 	TArray<FShaderCommonCompileJobPtr>& Jobs)
 {
 	TArray<FString> Dependencies;
-	uint64 ShaderPlatformMask = 0;
-	static_assert(EShaderPlatform::SP_NumPlatforms <= sizeof(ShaderPlatformMask) * 8, "Insufficient bits in ShaderPlatformMask.");
+	TBitArray<> ShaderPlatformMask;
+	ShaderPlatformMask.Init(false, EShaderPlatform::SP_NumPlatforms);
 	for (const FShaderCommonCompileJobPtr& Job : Jobs)
 	{
 		EShaderPlatform ShaderPlatform = EShaderPlatform::SP_PCD3D_SM5;
@@ -139,9 +139,9 @@ TArray<FString> FShaderCompileDistributedThreadRunnable_Interface::GetDependency
 			}
 		}
 		// Add base dependencies for the platform only once.
-		if (!(ShaderPlatformMask & (static_cast<uint64>(1) << ShaderPlatform)))
+		if (!(ShaderPlatformMask[(int)ShaderPlatform]))
 		{
-			ShaderPlatformMask |= (static_cast<uint64>(1) << ShaderPlatform);
+			ShaderPlatformMask[(int)ShaderPlatform] = true;
 			TArray<FString>& ShaderPlatformCacheEntry = PlatformShaderInputFilesCache.FindOrAdd(ShaderPlatform);
 			if (!ShaderPlatformCacheEntry.Num())
 			{

@@ -81,11 +81,12 @@ static void D3D11FilterShaderCompileWarnings(const FString& CompileWarnings, TAr
 }
 
 // @return 0 if not recognized
-static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
+static const TCHAR* GetShaderProfileName(ELanguage Language, uint32 Frequency, bool bForceSM6)
 {
-	if (Target.Platform == SP_PCD3D_SM6)
+
+	if (Language == ELanguage::SM6)
 	{
-		switch (Target.Frequency)
+		switch (Frequency)
 		{
 		default:
 			checkfSlow(false, TEXT("Unexpected shader frequency"));
@@ -109,10 +110,10 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return USE_SHADER_MODEL_6_6 ? TEXT("lib_6_6") : TEXT("lib_6_5");
 		}
 	}
-	else if(Target.Platform == SP_PCD3D_SM5)
+	else if(Language == ELanguage::SM5)
 	{
 		//set defines and profiles for the appropriate shader paths
-		switch(Target.Frequency)
+		switch(Frequency)
 		{
 		default:
 			checkfSlow(false, TEXT("Unexpected shader frequency"));
@@ -132,15 +133,15 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return TEXT("lib_6_5");
 		}
 	}
-	else if ((Target.Platform == SP_PCD3D_ES3_1) || (Target.Platform == SP_D3D_ES3_1_HOLOLENS))
+	else if (Language == ELanguage::ES3_1)
 	{
-		checkSlow(Target.Frequency == SF_Vertex ||
-			Target.Frequency == SF_Pixel ||
-			Target.Frequency == SF_Geometry ||
-			Target.Frequency == SF_Compute);
+		checkSlow(Frequency == SF_Vertex ||
+			Frequency == SF_Pixel ||
+			Frequency == SF_Geometry ||
+			Frequency == SF_Compute);
 
 		//set defines and profiles for the appropriate shader paths
-		switch(Target.Frequency)
+		switch(Frequency)
 		{
 		case SF_Pixel:
 			return TEXT("ps_5_0");
@@ -1193,7 +1194,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC)
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing);
-	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseDXC);
+	const TCHAR* ShaderProfile = GetShaderProfileName(Language, Input.Target.Frequency, bUseDXC);
 
 	if(!ShaderProfile)
 	{
@@ -1421,17 +1422,14 @@ void CompileShader_Windows(const FShaderCompilerInput& Input,FShaderCompilerOutp
 	FShaderCompilerDefinitions AdditionalDefines;
 	if (Language == ELanguage::SM6)
 	{
-		check(Input.Target.Platform == SP_PCD3D_SM6);
 		AdditionalDefines.SetDefine(TEXT("SM6_PROFILE"), 1);
 	}
 	else if (Language == ELanguage::SM5)
 	{
-		check(Input.Target.Platform == SP_PCD3D_SM5);
 		AdditionalDefines.SetDefine(TEXT("SM5_PROFILE"), 1);
 	}
 	else if (Language == ELanguage::ES3_1)
 	{
-		check((Input.Target.Platform == SP_PCD3D_ES3_1) || (Input.Target.Platform == SP_D3D_ES3_1_HOLOLENS));
 		AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 	}
 	else

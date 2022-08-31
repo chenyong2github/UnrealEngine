@@ -611,6 +611,14 @@ private:
 				InputFile << CompilerInput;
 				CompilerInput.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
+				// SCW doesn't run DDPI, GShaderHasCache Initialize is run  at start with no knowledge of the CustomPlatforms
+				// CustomPlatforms are known when we parse the WorkerInput so we populate the Directory here
+				if (IsCustomPlatform((EShaderPlatform)CompilerInput.Target.Platform))
+				{
+					const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(CompilerInput.ShaderFormat);
+					UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)CompilerInput.Target.Platform, ShaderPlatform);
+				}
+
 				if (IsValidRef(CompilerInput.SharedEnvironment))
 				{
 					// Merge the shared environment into the per-shader environment before calling into the compile function
@@ -656,6 +664,14 @@ private:
 					// Deserialize the job's inputs.
 					InputFile << CompilerInputs[StageIndex];
 					CompilerInputs[StageIndex].DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
+
+					// SCW doesn't run DDPI, GShaderHasCache Initialize is run  at start with no knowledge of the CustomPlatforms
+					// CustomPlatforms are known when we parse the WorkerInput so we populate the Directory here
+					if (IsCustomPlatform((EShaderPlatform)CompilerInputs[StageIndex].Target.Platform))
+					{
+						const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(CompilerInputs[StageIndex].ShaderFormat);
+						UpdateIncludeDirectoryForPreviewPlatform((EShaderPlatform)CompilerInputs[StageIndex].Target.Platform, ShaderPlatform);
+					}
 
 					if (IsValidRef(CompilerInputs[StageIndex].SharedEnvironment))
 					{

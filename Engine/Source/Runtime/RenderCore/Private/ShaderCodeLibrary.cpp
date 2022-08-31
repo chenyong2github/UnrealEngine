@@ -1880,7 +1880,7 @@ class FShaderLibrariesCollection
 	// At cook time, shader code collection for each shader platform
 	FEditorShaderStableInfo* EditorShaderStableInfo[EShaderPlatform::SP_NumPlatforms];
 	// Cached bit field for shader formats that require stable keys
-	uint64_t bShaderFormatsThatNeedStableKeys = 0;
+	TBitArray<> ShaderFormatsThatNeedStableKeys;
 	// At cook time, shader stats for each shader platform
 	FShaderCodeStats EditorShaderCodeStats[EShaderPlatform::SP_NumPlatforms];
 	// At cook time, whether the shader archive supports pipelines (only OpenGL should)
@@ -1913,6 +1913,7 @@ public:
 		, bNativeFormat(bInNativeFormat)
 	{
 #if WITH_EDITOR
+		ShaderFormatsThatNeedStableKeys.Init(false, EShaderPlatform::SP_NumPlatforms);
 		FMemory::Memzero(EditorShaderCodeArchive);
 		FMemory::Memzero(EditorShaderStableInfo);
 		FMemory::Memzero(EditorShaderCodeStats);
@@ -2371,8 +2372,7 @@ public:
 			{
 				StableArchive = new FEditorShaderStableInfo(PossiblyAdjustedFormat);
 				EditorShaderStableInfo[Platform] = StableArchive;
-				bShaderFormatsThatNeedStableKeys |= (uint64_t(1u) << (uint32_t)Platform);
-				static_assert(SP_NumPlatforms < 64u, "ShaderPlatform will no longer fit into bitfield.");
+				ShaderFormatsThatNeedStableKeys[(int)Platform] = true;
 			}
 		}
 	}
@@ -2381,9 +2381,9 @@ public:
 	{
 		if (Platform == EShaderPlatform::SP_NumPlatforms)
 		{
-			return bShaderFormatsThatNeedStableKeys != 0;
+			return ShaderFormatsThatNeedStableKeys.Find(true) != INDEX_NONE;
 		}
-		return (bShaderFormatsThatNeedStableKeys & (uint64_t(1u) << (uint32_t) Platform)) != 0;
+		return (ShaderFormatsThatNeedStableKeys[(int)Platform]) != 0;
 	}
 
 	void AddShaderCode(EShaderPlatform Platform, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets)

@@ -119,8 +119,11 @@ enum EShaderPlatform
 	SP_PCD3D_SM6,
 	SP_D3D_ES3_1_HOLOLENS,
 
+	SP_CUSTOM_PLATFORM_FIRST,
+	SP_CUSTOM_PLATFORM_LAST = (SP_CUSTOM_PLATFORM_FIRST + 100),
+
 	SP_NumPlatforms,
-	SP_NumBits						= 7,
+	SP_NumBits						= 16,
 };
 static_assert(SP_NumPlatforms <= (1 << SP_NumBits), "SP_NumPlatforms will not fit on SP_NumBits");
 
@@ -336,6 +339,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	FName Language;
 	ERHIFeatureLevel::Type MaxFeatureLevel;
 	FName ShaderFormat;
+	EShaderPlatform PreviewShaderPlatformParent;
 	uint32 ShaderPropertiesHash;
 	uint32 bIsMobile: 1;
 	uint32 bIsMetalMRT: 1;
@@ -421,6 +425,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsRealTypes : int32(ERHIFeatureSupport::NumBits);
 	uint32 EnablesHLSL2021ByDefault : 2; // 0: disabled, 1: global shaders only, 2: all shaders
 	uint32 bSupportsSceneDataCompressedTransforms : 1;
+	uint32 bIsPreviewPlatform : 1;
 		
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -440,6 +445,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 
 public:
 	static void Initialize();
+	static void UpdatePreviewPlatforms();
 	static void ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info);
 
 	static FORCEINLINE_DEBUGGABLE const FName GetName(const FStaticShaderPlatform Platform)
@@ -452,6 +458,12 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].ShaderFormat;
+	}
+	
+	static FORCEINLINE_DEBUGGABLE const EShaderPlatform GetPreviewShaderPlatformParent(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].PreviewShaderPlatformParent;
 	}
 
 	static FORCEINLINE_DEBUGGABLE uint32 GetShaderPlatformPropertiesHash(const FStaticShaderPlatform Platform)
@@ -996,6 +1008,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsOIT(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsOIT;
+	}
+	
+	static FORCEINLINE_DEBUGGABLE const bool GetIsPreviewPlatform(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bIsPreviewPlatform;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const ERHIFeatureSupport GetSupportsRealTypes(const FStaticShaderPlatform Platform)
@@ -2088,6 +2105,11 @@ inline bool IsMobilePlatform(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1;
 }
 
+inline bool IsCustomPlatform(const FStaticShaderPlatform Platform)
+{
+	return (Platform >= EShaderPlatform::SP_CUSTOM_PLATFORM_FIRST) && (Platform < EShaderPlatform::SP_CUSTOM_PLATFORM_LAST);
+}
+
 inline bool IsOpenGLPlatform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetIsLanguageOpenGL(Platform);
@@ -2186,35 +2208,14 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 /* Returns true if the shader platform Platform is used to simulate a mobile feature level on a PC platform. */
 inline bool IsSimulatedPlatform(const FStaticShaderPlatform Platform)
 {
-	switch (Platform)
-	{
-		case SP_PCD3D_ES3_1:
-		case SP_OPENGL_PCES3_1:
-		case SP_METAL_MACES3_1:
-		case SP_VULKAN_PCES3_1:
-			return true;
-		break;
-
-		default:
-			return false;
-		break;
-	}
-
-	return false;
+	return FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(Platform);
 }
 
 inline EShaderPlatform GetSimulatedPlatform(FStaticShaderPlatform Platform)
 {
-	switch (Platform)
+	if (IsSimulatedPlatform(Platform))
 	{
-		case SP_PCD3D_ES3_1:
-		case SP_OPENGL_PCES3_1:
-			return SP_OPENGL_ES3_1_ANDROID;
-		break;
-
-		default:
-			return Platform;
-		break;
+		return FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(Platform);
 	}
 
 	return Platform;

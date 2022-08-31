@@ -1770,7 +1770,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 
 FName LegacyShaderPlatformToShaderFormat(EShaderPlatform Platform)
 {
-	return ShaderPlatformToShaderFormatName(Platform);
+	return  FDataDrivenShaderPlatformInfo::GetShaderFormat(Platform);
 }
 
 EShaderPlatform ShaderFormatToLegacyShaderPlatform(FName ShaderFormat)
@@ -2299,7 +2299,7 @@ void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 {
 	Value = EShaderPlatform::SP_NumPlatforms;
 
-	for (uint8 i = 0; i < (uint8)EShaderPlatform::SP_NumPlatforms; ++i)
+	for (int i = 0; i < (int)EShaderPlatform::SP_NumPlatforms; ++i)
 	{
 		if (LexToString((EShaderPlatform)i, false).Equals(String, ESearchCase::IgnoreCase))
 		{
@@ -2437,6 +2437,7 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsAsyncPipelineCompilation = true;
 	bSupportsManualVertexFetch = true;
 	bSupportsVolumeTextureAtomics = true;
+	PreviewShaderPlatformParent = EShaderPlatform::SP_NumPlatforms;
 }
 
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
@@ -2571,6 +2572,15 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 
 	// look for the standard DataDriven ini files
 	int32 NumDDInfoFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
+	int32 CustomShaderPlatform = EShaderPlatform::SP_CUSTOM_PLATFORM_FIRST;
+
+	struct PlatformInfoAndPlatformEnum
+	{
+		FGenericDataDrivenShaderPlatformInfo Info;
+		EShaderPlatform ShaderPlatform;
+	};
+
+	TMap<FName, PlatformInfoAndPlatformEnum> ShaderPlatformNameToConfigSection;
 	for (int32 Index = 0; Index < NumDDInfoFiles; Index++)
 	{
 		FConfigFile IniFile;
@@ -2603,11 +2613,89 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 				Infos[ShaderPlatform].Name = *SectionName.Mid(15);
 				ParseDataDrivenShaderInfo(Section.Value, Infos[ShaderPlatform]);	
 				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
+
+				PlatformInfoAndPlatformEnum ItemToAdd;
+				ItemToAdd.Info = Infos[ShaderPlatform];
+				ItemToAdd.ShaderPlatform = ShaderPlatform;
+
+				ShaderPlatformNameToConfigSection.Add(Infos[ShaderPlatform].Name, ItemToAdd);
+			}
+		}
+	}
+
+	if (GIsEditor)
+	{
+		for (int32 Index = 0; Index < NumDDInfoFiles; Index++)
+		{
+			// find all PreviewPlatform sections for all platforms
+			// copy the [PreeviewPlatform]ShaderPlatform= customshaderplatform to a new customshaderplatform with name (orignal)_PREVIEW including its featurelevel.
+			// replace shader format with current editor's shader format.
+
+			FConfigFile IniFile;
+			FString PlatformName;
+
+			FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformName);
+
+			for (auto Section : IniFile)
+			{
+				if (Section.Key.StartsWith(TEXT("PreviewPlatform ")))
+				{
+					const FString& SectionName = Section.Key;
+					EShaderPlatform ShaderPlatform = EShaderPlatform(CustomShaderPlatform++);
+					// get enum value for the string name
+					//LexFromString(ShaderPlatform, *SectionName.Mid(15));
+					if (ShaderPlatform == EShaderPlatform::SP_NumPlatforms)
+					{
+						UE_LOG(LogRHI, Warning, TEXT("Found an unknown shader platform %s in a DataDriven ini file"), *SectionName.Mid(15));
+						continue;
+					}
+
+					// at this point, we can start pulling information out
+					/*Infos[ShaderPlatform].Name*/ 
+					FName ShaderPlatformName = *GetSectionString(Section.Value, FName("ShaderPlatform"));
+					FMemory::Memcpy(&Infos[ShaderPlatform], &ShaderPlatformNameToConfigSection[ShaderPlatformName].Info, sizeof(FGenericDataDrivenShaderPlatformInfo));
+
+					Infos[ShaderPlatform].Name = *(ShaderPlatformName.ToString() + TEXT("_PREVIEW"));
+					Infos[ShaderPlatform].PreviewShaderPlatformParent = ShaderPlatformNameToConfigSection[ShaderPlatformName].ShaderPlatform;
+
+					//set previewable to true, bContainsValidPlatformInfo is set in the update
+					Infos[ShaderPlatform].bIsPreviewPlatform = true;
+				}
 			}
 		}
 	}
 
 	bInitialized = true;
+}
+
+void FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms()
+{
+	for (int i = 0; i < EShaderPlatform::SP_NumPlatforms; ++i)
+	{
+		EShaderPlatform ShaderPlatform = EShaderPlatform(i);
+		if (IsValid(ShaderPlatform))
+		{
+			if (Infos[ShaderPlatform].bIsPreviewPlatform)
+			{
+				Infos[ShaderPlatform].ShaderFormat = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].ShaderFormat;
+				Infos[ShaderPlatform].Language = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].Language;
+				Infos[ShaderPlatform].bIsHlslcc = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bIsHlslcc;
+				Infos[ShaderPlatform].bSupportsDxc = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bSupportsDxc;
+				Infos[ShaderPlatform].bSupportsGPUScene = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bSupportsGPUScene;
+				Infos[ShaderPlatform].bIsPC = true;
+				Infos[ShaderPlatform].bIsConsole = false;
+				Infos[ShaderPlatform].bSupportsSceneDataCompressedTransforms = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bSupportsSceneDataCompressedTransforms;
+				Infos[ShaderPlatform].bSupportsNanite = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bSupportsNanite;
+				Infos[ShaderPlatform].bSupportsUInt64ImageAtomics = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bSupportsUInt64ImageAtomics;
+				Infos[ShaderPlatform].bSupportsGen5TemporalAA = Infos[GShaderPlatformForFeatureLevel[Infos[ShaderPlatform].MaxFeatureLevel]].bSupportsGen5TemporalAA;
+				Infos[ShaderPlatform].bSupportsRenderTargetWriteMask = false;
+				Infos[ShaderPlatform].bSupportsIntrinsicWaveOnce = false;
+				Infos[ShaderPlatform].bSupportsDOFHybridScattering = false;
+				Infos[ShaderPlatform].bSupports4ComponentUAVReadWrite = false;
+				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
+			}
+		}
+	}
 }
 
 //

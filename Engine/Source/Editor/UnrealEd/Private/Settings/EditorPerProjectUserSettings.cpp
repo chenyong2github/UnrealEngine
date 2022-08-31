@@ -28,10 +28,12 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	SwarmMaxUploadChunkSizeInMB = 100;
 	SwarmIntermediateFolder = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("Simplygon/"));
 	PreviewFeatureLevel = GMaxRHIFeatureLevel;
+	PreviewPlatformName = NAME_None;
 	PreviewShaderFormatName = NAME_None;
 	bPreviewFeatureLevelActive = false;
 	bPreviewFeatureLevelWasDefault = true;
 	PreviewDeviceProfileName = NAME_None;
+	PreviewShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 }
 
 void UEditorPerProjectUserSettings::PostInitProperties()
