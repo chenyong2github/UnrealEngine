@@ -7,7 +7,7 @@ uint DI_LOCAL(InputStreamStart);
 
 Buffer<float> DI_LOCAL(MorphBuffer);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }

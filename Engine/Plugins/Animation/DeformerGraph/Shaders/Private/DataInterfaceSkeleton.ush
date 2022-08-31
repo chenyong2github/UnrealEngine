@@ -18,7 +18,7 @@ Buffer<float4> DI_LOCAL(BoneMatrices);
 Buffer<uint> DI_LOCAL(InputWeightStream);
 Buffer<uint> DI_LOCAL(InputWeightLookupStream);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }

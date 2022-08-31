@@ -7,7 +7,7 @@ uint DI_LOCAL(InputStreamStart);
 uint DI_LOCAL(MaxConnectedVertexCount);
 Buffer<uint> DI_LOCAL(ConnectivityBuffer);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }

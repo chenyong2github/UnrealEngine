@@ -12,7 +12,7 @@ uint DI_LOCAL(GroundTruthBufferSize);
 StructuredBuffer<float3> DI_LOCAL(PositionGroundTruthBuffer);
 Buffer<uint> DI_LOCAL(VertexMapBuffer);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }
@@ -27,17 +27,17 @@ DI_IMPL_READ(ReadPositionGroundTruth, float3, uint VertexIndex)
 	return DI_LOCAL(PositionGroundTruthBuffer)[BufferIndex];
 }
 
-DI_IMPL_READ(ReadHeatMapMode, uint, void)
+DI_IMPL_READ(ReadHeatMapMode, uint, )
 {
 	return DI_LOCAL(HeatMapMode);
 }
 
-DI_IMPL_READ(ReadHeatMapMax, float, void)
+DI_IMPL_READ(ReadHeatMapMax, float, )
 {
 	return DI_LOCAL(HeatMapMax);
 }
 
-DI_IMPL_READ(ReadGroundTruthLerp, float, void)
+DI_IMPL_READ(ReadGroundTruthLerp, float, )
 {
 	return DI_LOCAL(GroundTruthLerp);
 }

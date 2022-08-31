@@ -53,7 +53,7 @@ struct FDebugDraw
 	}
 };
 
-DI_IMPL_READ(ReadDebugDraw, FDebugDraw, void)
+DI_IMPL_READ(ReadDebugDraw, FDebugDraw, )
 {
 	FDebugDraw DebugDraw;
 	DebugDraw.LocalToWorld = DI_LOCAL(LocalToWorld);

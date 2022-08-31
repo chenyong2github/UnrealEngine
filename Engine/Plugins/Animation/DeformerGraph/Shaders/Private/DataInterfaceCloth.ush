@@ -11,12 +11,12 @@ float4x4 DI_LOCAL(ClothToLocal);
 Buffer<float4> DI_LOCAL(ClothBuffer);
 Buffer<float2> DI_LOCAL(ClothPositionsAndNormalsBuffer);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }
 
-DI_IMPL_READ(ReadClothToLocal, float4x4, void)
+DI_IMPL_READ(ReadClothToLocal, float4x4, )
 {
 #if ENABLE_DEFORMER_CLOTH
 	return DI_LOCAL(ClothToLocal);

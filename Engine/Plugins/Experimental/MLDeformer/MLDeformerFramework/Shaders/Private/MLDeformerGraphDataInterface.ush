@@ -9,7 +9,7 @@ float DI_LOCAL(Weight);
 Buffer<float> DI_LOCAL(PositionDeltaBuffer);
 Buffer<uint> DI_LOCAL(VertexMapBuffer);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }

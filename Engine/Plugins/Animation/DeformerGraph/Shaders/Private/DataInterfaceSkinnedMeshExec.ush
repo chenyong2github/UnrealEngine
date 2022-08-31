@@ -4,7 +4,7 @@
 
 int3 DI_LOCAL(NumThreads);
 
-DI_IMPL_READ(ReadNumThreads, int3, void)
+DI_IMPL_READ(ReadNumThreads, int3, )
 {
 	return DI_LOCAL(NumThreads);
 }

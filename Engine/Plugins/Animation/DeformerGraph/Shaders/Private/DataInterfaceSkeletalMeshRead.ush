@@ -30,12 +30,12 @@ Buffer<uint> DI_LOCAL(InputWeightLookupStream);
 Buffer<uint> DI_LOCAL(DuplicatedIndicesIndices);
 Buffer<uint> DI_LOCAL(DuplicatedIndices);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }
 
-DI_IMPL_READ(ReadNumTriangles, uint, void)
+DI_IMPL_READ(ReadNumTriangles, uint, )
 {
 	return DI_LOCAL(NumTriangles);
 }

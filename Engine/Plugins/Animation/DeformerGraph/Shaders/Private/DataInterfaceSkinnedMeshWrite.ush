@@ -10,7 +10,7 @@ RWBuffer<float> DI_LOCAL(PositionBufferUAV);
 RWBuffer<TANGENT_RWBUFFER_FORMAT> DI_LOCAL(TangentBufferUAV);
 RWBuffer<UNORM float4> DI_LOCAL(ColorBufferUAV);
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }

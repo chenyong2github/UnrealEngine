@@ -10,7 +10,7 @@ StructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferSRV);
 #endif
 RWStructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferUAV);
 
-DI_IMPL_READ(ReadNumValues, uint, void)
+DI_IMPL_READ(ReadNumValues, uint, )
 {
 	return DI_LOCAL(BufferSize);
 }

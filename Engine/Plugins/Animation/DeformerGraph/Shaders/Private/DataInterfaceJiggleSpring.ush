@@ -11,7 +11,7 @@ Buffer<float> DI_LOCAL(StiffnessWeightsBuffer);
 Buffer<float> DI_LOCAL(DampingWeightsBuffer);
 
 
-DI_IMPL_READ(ReadNumVertices, uint, void)
+DI_IMPL_READ(ReadNumVertices, uint, )
 {
 	return DI_LOCAL(NumVertices);
 }
