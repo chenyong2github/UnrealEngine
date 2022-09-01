@@ -152,6 +152,20 @@ public:
 	virtual void UpdateCachedNumVertices();
 
 	/**
+	 * Update the cached number of vertices in the base mesh. 
+	 * The number of vertices should be the number of DCC vertices, so not the number of render vertices.
+	 * This just updates the NumBaseMeshVerts property.
+	 */ 
+	virtual void UpdateNumBaseMeshVertices();
+
+	/**
+	 * Update the cached number of target mesh vertices. Every model needs to implement this.
+	 * The number of vertices should be the number of DCC vertices, so not the number of render vertices.
+	 * This just updates the NumTargetMeshVerts property.
+	 */ 
+	virtual void UpdateNumTargetMeshVertices() PURE_VIRTUAL(UMLDeformerModel::GetNumTargetMeshVertices; mTargetMeshVerts = 0;);
+
+	/**
 	 * Update all editor only assets with the editor only flag.
 	 * This prevents certain assets that are only used during training to be included in a packaged build.
 	 * Examples of these are a training geometry cache object, and the ground truth geometry cache of a test animation in the visualization settings.
@@ -370,20 +384,6 @@ protected:
 	 * @param OutVectorArray The array that will contain the vectors instead of floats.
 	 */
 	void FloatArrayToVector3Array(const TArray<float>& FloatArray, TArray<FVector3f>& OutVectorArray);
-
-	/**
-	 * Update the cached number of vertices in the base mesh. 
-	 * The number of vertices should be the number of DCC vertices, so not the number of render vertices.
-	 * This just updates the NumBaseMeshVerts property.
-	 */ 
-	virtual void UpdateNumBaseMeshVertices();
-
-	/**
-	 * Update the cached number of target mesh vertices. Every model needs to implement this.
-	 * The number of vertices should be the number of DCC vertices, so not the number of render vertices.
-	 * This just updates the NumTargetMeshVerts property.
-	 */ 
-	virtual void UpdateNumTargetMeshVertices() PURE_VIRTUAL(UMLDeformerModel::GetNumTargetMeshVertices; mTargetMeshVerts = 0;);
 
 public:
 	/** Cached number of skeletal mesh vertices. */
