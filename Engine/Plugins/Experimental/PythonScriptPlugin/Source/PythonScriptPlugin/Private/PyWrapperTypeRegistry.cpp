@@ -2710,6 +2710,9 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 			PythonScript.WriteLine(TEXT("_ElemType = TypeVar('_ElemType')"));   // For Array, FixedArray, Set classes along with casting operations.
 			PythonScript.WriteLine(TEXT("_KeyType = TypeVar('_KeyType')"));     // For Mapping[KV, KT] used by Map class.
 			PythonScript.WriteLine(TEXT("_ValueType = TypeVar('_ValueType')")); // For Mapping[KV, KT] used by Map class.
+			PythonScript.WriteLine(TEXT("_ValueType = TypeVar('_ValueType')")); // For Mapping[KV, KT] used by Map class.
+			PythonScript.WriteLine(TEXT("_EngineSubsystemTypeVar = TypeVar('_EngineSubsystemTypeVar', bound=EngineSubsystem)"));
+			PythonScript.WriteLine(TEXT("_EditorSubsystemTypeVar  = TypeVar('_EditorSubsystemTypeVar', bound=EditorSubsystem)"));
 			PythonScript.WriteNewLine();
 		}
 	}
