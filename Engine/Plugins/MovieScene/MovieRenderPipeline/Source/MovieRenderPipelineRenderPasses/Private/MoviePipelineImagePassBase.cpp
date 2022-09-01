@@ -13,6 +13,7 @@
 #include "MoviePipelineQueue.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "MoviePipelineMasterConfig.h"
+#include "MoviePipelineGameOverrideSetting.h"
 #include "EngineModule.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/RendererSettings.h"
@@ -86,7 +87,6 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	OutViewFamily->bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	OutViewFamily->ViewMode = ViewModeIndex;
 	OutViewFamily->bOverrideVirtualTextureThrottle = true;
-	// OutViewFamily->VirtualTextureFeedbackFactor = 1;
 
 	const bool bIsPerspective = true;
 	ApplyViewMode(OutViewFamily->ViewMode, bIsPerspective, OutViewFamily->EngineShowFlags);
@@ -94,7 +94,15 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	EngineShowFlagOverride(ESFIM_Game, OutViewFamily->ViewMode, OutViewFamily->EngineShowFlags, false);
 	
 	const UMoviePipelineExecutorShot* Shot = GetPipeline()->GetActiveShotList()[InOutSampleState.OutputState.ShotIndex];
-	
+
+	for (UMoviePipelineGameOverrideSetting* OverrideSetting : GetPipeline()->FindSettingsForShot<UMoviePipelineGameOverrideSetting>(Shot))
+	{
+		if (OverrideSetting->bOverrideVirtualTextureFeedbackFactor)
+		{
+			OutViewFamily->VirtualTextureFeedbackFactor = OverrideSetting->VirtualTextureFeedbackFactor;
+		}
+	}
+
 	// No need to do anything if screen percentage is not supported. 
 	if (IsScreenPercentageSupported())
 	{

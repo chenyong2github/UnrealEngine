@@ -37,6 +37,8 @@ public:
 		, ViewDistanceScale(50)
 		, bFlushGrassStreaming(true)
 		, bFlushStreamingManagers(true)
+		, bOverrideVirtualTextureFeedbackFactor(true)
+		, VirtualTextureFeedbackFactor(1)
 		, bDisableGPUTimeout(true)
 	{
 	}
@@ -104,6 +106,14 @@ public:
 	/** Experimental. If true flush the streaming managers (Texture Streaming) each frame. Allows Texture Streaming to not have visible pop-in in final frames. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool bFlushStreamingManagers;
+
+	/** If true then override the virtual texture feedback resolution factor. Otherwise the value from the project renderer settings will be used. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (InlineEditConditionToggle))
+	bool bOverrideVirtualTextureFeedbackFactor;
+
+	/** The virtual texture feedback resolution factor. A lower factor will increase virtual texture feedback resolution. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (editcondition = "bOverrideVirtualTextureFeedbackFactor"))
+	int32 VirtualTextureFeedbackFactor;
 
 	/** Should we disable the GPU Timeout? Currently only applicable when using D3D12 renderer. */
 	bool bDisableGPUTimeout;
