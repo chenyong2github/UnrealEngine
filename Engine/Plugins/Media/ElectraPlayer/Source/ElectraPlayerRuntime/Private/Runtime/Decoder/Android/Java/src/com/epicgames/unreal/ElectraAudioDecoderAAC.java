@@ -281,9 +281,34 @@ public class ElectraAudioDecoderAAC
 
 	public FOutputFormatInfo GetOutputFormatInfo(int InOutputBufferIndex)
 	{
-		//FOutputFormatInfo OutputFormatInfo = new FOutputFormatInfo();
-		//return OutputFormatInfo;
-		return CurrentOutputFormatInfo;
+		if (bIsInitialized)
+		{
+			if (InOutputBufferIndex < 0)
+			{
+				return CurrentOutputFormatInfo;
+			}
+			else
+			{
+				MediaFormat Format = DecoderHandle.getOutputFormat(InOutputBufferIndex);
+				if (Format != null)
+				{
+					FOutputFormatInfo NewFormatInfo = new FOutputFormatInfo();
+					NewFormatInfo.SampleRate	 = Format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+					NewFormatInfo.NumChannels    = Format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+					NewFormatInfo.BytesPerSample = 2;
+					if (Format.containsKey(MediaFormat.KEY_PCM_ENCODING))
+					{
+						boolean bIsFloat = Format.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT;
+						if (bIsFloat)
+						{
+							NewFormatInfo.BytesPerSample = 4;
+						}
+					}
+					return NewFormatInfo;
+				}
+			}
+		}
+		return null;
 	}
 
 
@@ -312,7 +337,7 @@ public class ElectraAudioDecoderAAC
 				else if (OutputBufferInfo.BufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED)			// -2
 				{
 					MediaFormat Format = DecoderHandle.getOutputFormat();
-					//GameActivity.Log.debug("Android Audio Decoder: New format " + Format);
+					GameActivity.Log.debug("Android Audio Decoder: New format " + Format);
 
 					// Mwahahaaa... this only works from API level 29 onward...
 					//		boolean bIsFloat = Format.getInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_16BIT) == AudioFormat.ENCODING_PCM_FLOAT;
