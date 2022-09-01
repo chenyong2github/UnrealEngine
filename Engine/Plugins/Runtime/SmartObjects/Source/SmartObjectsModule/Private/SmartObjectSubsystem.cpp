@@ -553,6 +553,18 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Ha
 	return FSmartObjectClaimHandle::InvalidHandle;
 }
 
+bool USmartObjectSubsystem::CanBeClaimed(FSmartObjectSlotHandle SlotHandle) const
+{
+	if (!IsSlotValidVerbose(SlotHandle, ANSI_TO_TCHAR(__FUNCTION__)))
+	{
+		return false;
+	}
+
+	// Call to IsSlotValid should guarantee availability of the slot state.
+	const FSmartObjectSlotClaimState& SlotState = RuntimeSlotStates.FindChecked(SlotHandle);
+	return SlotState.CanBeClaimed();
+}
+
 bool USmartObjectSubsystem::IsSmartObjectValid(const FSmartObjectHandle SmartObjectHandle) const
 {
 	return SmartObjectHandle.IsValid() && RuntimeSmartObjects.Find(SmartObjectHandle) != nullptr;
@@ -693,6 +705,14 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 	}
 
 	return Transform;
+}
+
+const FTransform& USmartObjectSubsystem::GetSlotTransformChecked(const FSmartObjectSlotHandle SlotHandle) const
+{
+	check(EntityManager);
+	const FSmartObjectSlotView View(*EntityManager.Get(), SlotHandle);
+	const FSmartObjectSlotTransform& SlotTransform = View.GetStateData<FSmartObjectSlotTransform>();
+	return SlotTransform.GetTransform();
 }
 
 FSmartObjectRuntime* USmartObjectSubsystem::GetValidatedMutableRuntime(const FSmartObjectHandle Handle, const TCHAR* Context)

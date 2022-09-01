@@ -261,6 +261,12 @@ public:
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	/**
+	 * Checks whether given slot is free and can be claimed
+	 * @return true if the indicated slot can be claimed, false otherwise
+	 */
+	UE_NODISCARD bool CanBeClaimed(const FSmartObjectSlotHandle SlotHandle) const;
+
+	/**
 	 * Start using a claimed smart object slot.
 	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
 	 * @return The requested behavior definition class pointer associated to the slot
@@ -377,6 +383,14 @@ public:
 	 * @return Transform (in world space) of the slot associated to SlotHandle.
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectSlotHandle SlotHandle) const;
+
+	/**
+	 * Similarly to GetSlotTransform fetches the transform (in world space) of the indicated slot, but assumes the slot 
+	 * handle is valid and that the EntityManager is known. The burden of ensuring that's the case is on the caller. 
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @return Transform (in world space) of the slot associated to SlotHandle.
+	 */
+	const FTransform& GetSlotTransformChecked(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
 	 * Returns the list of tags associated to the smart object instance represented by the provided handle.

@@ -124,6 +124,8 @@ public:
 
 	ESmartObjectSlotState GetState() const { return State; }
 
+	bool CanBeClaimed() const { return State == ESmartObjectSlotState::Free; }
+
 protected:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
