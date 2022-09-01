@@ -78,6 +78,22 @@ namespace UE::Interchange::Gltf::Private
 		}
 	}
 
+	EInterchangeTextureFilterMode ConvertFilter(GLTF::FSampler::EFilter Filter)
+	{
+		switch (Filter)
+		{
+			case GLTF::FSampler::EFilter::Nearest:
+				return EInterchangeTextureFilterMode::Nearest;
+			case GLTF::FSampler::EFilter::LinearMipmapNearest:
+				return EInterchangeTextureFilterMode::Bilinear;
+			case GLTF::FSampler::EFilter::LinearMipmapLinear:
+				return EInterchangeTextureFilterMode::Trilinear;
+				// Other glTF filter values have no direct correlation to Unreal
+			default:
+				return EInterchangeTextureFilterMode::Default;
+		}
+	}
+
 	bool CheckForVariants(const GLTF::FMesh& Mesh, int32 VariantCount, int32 MaterialCount)
 	{
 		for (const GLTF::FPrimitive& Primitive : Mesh.Primitives)
@@ -853,6 +869,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			const FString TextureName = GltfTexture.Name;
 
 			UInterchangeTexture2DNode* TextureNode = UInterchangeTexture2DNode::Create( &NodeContainer, TextureName );
+			TextureNode->SetCustomFilter(ConvertFilter(GltfTexture.Sampler.MinFilter));
 			TextureNode->SetPayLoadKey( LexToString( TextureIndex++ ) );
 
 			TextureNode->SetCustomWrapU( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapS ) );

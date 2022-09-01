@@ -24,6 +24,7 @@
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
+#include "Engine/Texture.h"
 
 #if WITH_EDITOR
 #include "NormalMapIdentification.h"
@@ -290,6 +291,21 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextur
 	if (bool bFlipGreenChannel; TextureNode->GetCustombFlipGreenChannel(bFlipGreenChannel))
 	{
 		TextureFactoryNode->SetCustombFlipGreenChannel(bFlipGreenChannel);
+	}
+
+	using FInterchangeTextureFilterMode = std::underlying_type_t<EInterchangeTextureFilterMode>;
+	using FTextureFilter = std::underlying_type_t<TextureFilter>;
+	using FCommonTextureFilterModes = std::common_type_t<FInterchangeTextureFilterMode, FTextureFilter>;
+
+	static_assert(FCommonTextureFilterModes(EInterchangeTextureFilterMode::Nearest) == FCommonTextureFilterModes(TextureFilter::TF_Nearest), "EInterchangeTextureFilterMode::Nearest differs from TextureFilter::TF_Nearest");
+	static_assert(FCommonTextureFilterModes(EInterchangeTextureFilterMode::Bilinear) == FCommonTextureFilterModes(TextureFilter::TF_Bilinear), "EInterchangeTextureFilterMode::Bilinear differs from TextureFilter::TF_Bilinear");
+	static_assert(FCommonTextureFilterModes(EInterchangeTextureFilterMode::Trilinear) == FCommonTextureFilterModes(TextureFilter::TF_Trilinear), "EInterchangeTextureFilterMode::Trilinear differs from TextureFilter::TF_Trilinear");
+	static_assert(FCommonTextureFilterModes(EInterchangeTextureFilterMode::Default) == FCommonTextureFilterModes(TextureFilter::TF_Default), "EInterchangeTextureFilterMode::Default differs from TextureFilter::TF_Default");
+
+	if (EInterchangeTextureFilterMode TextureFilter; TextureNode->GetCustomFilter(TextureFilter))
+	{
+
+		TextureFactoryNode->SetCustomFilter(uint8(TextureFilter));
 	}
 
 #if WITH_EDITORONLY_DATA

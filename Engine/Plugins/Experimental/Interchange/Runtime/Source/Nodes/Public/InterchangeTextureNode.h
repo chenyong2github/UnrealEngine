@@ -31,6 +31,16 @@ enum class EInterchangeTextureWrapMode : uint8
 	Mirror
 };
 
+UENUM(BlueprintType)
+enum class EInterchangeTextureFilterMode : uint8
+{
+	Nearest,
+	Bilinear,
+	Trilinear,
+	/** Use setting from the Texture Group. */
+	Default
+};
+
 UCLASS(BlueprintType, Abstract, Experimental)
 class INTERCHANGENODES_API UInterchangeTextureNode : public UInterchangeBaseNode
 {
@@ -125,8 +135,21 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(bFlipGreenChannel, bool)
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomFilter(EInterchangeTextureFilterMode& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(Filter, EInterchangeTextureFilterMode);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool SetCustomFilter(const EInterchangeTextureFilterMode& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(Filter, EInterchangeTextureFilterMode)
+	}
+
 private:
 
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(SRGB)
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(bFlipGreenChannel)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(Filter)
 };
