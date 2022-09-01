@@ -52,10 +52,10 @@ void Main(
 	const float4 SVPos = Input.Position;
 	uint2 TextureCoordinates = floor(SVPos.xy);
 	
+	const FWaterColorPassResult WaterInfo = MakeWaterColorPassResult(ColorTexture.Load(int3(TextureCoordinates, 0)));
 	const float GroundDeviceDepth = DecodeFloatRGB(DepthTexture.Load(int3(TextureCoordinates, 0)).rgb);
 	const float GroundSceneDepth = ConvertFromDeviceZ(GroundDeviceDepth);
-	const FWaterColorPassResult WaterInfo = MakeWaterColorPassResult(ColorTexture.Load(int3(TextureCoordinates, 0)));
-
+	
 	const float WaterSceneDepth = WaterInfo.SceneDepth;
 	const float WaterZ = CaptureZ - WaterSceneDepth;
 
