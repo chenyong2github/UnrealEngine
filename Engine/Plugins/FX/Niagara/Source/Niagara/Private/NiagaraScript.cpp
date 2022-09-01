@@ -2035,6 +2035,7 @@ void UNiagaraScript::PostLoad()
 		}
 	}
 
+	VersionedScriptAdapters.Reserve(VersionData.Num());
 	for (FVersionedNiagaraScriptData& Data : VersionData)
 	{
 		UNiagaraScriptSourceBase* Source = Data.Source;
@@ -2964,9 +2965,9 @@ void UNiagaraScript::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	if (!HasAnyFlags(RF_ClassDefaultObject) && ScriptResource)
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (!ScriptResource->QueueForRelease(ReleasedByRT))
+		if (ScriptResource == nullptr || !ScriptResource->QueueForRelease(ReleasedByRT))
 		{
 			// if there was nothing to release, then we don't need to wait for anything
 			ReleasedByRT = true;

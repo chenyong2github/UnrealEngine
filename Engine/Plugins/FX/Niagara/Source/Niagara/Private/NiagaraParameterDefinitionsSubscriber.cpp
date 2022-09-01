@@ -12,6 +12,11 @@
 
 #if WITH_EDITORONLY_DATA
 
+INiagaraParameterDefinitionsSubscriber::~INiagaraParameterDefinitionsSubscriber()
+{
+	check(OnDeferredSyncAllNameMatchParametersHandle.IsValid() == false);
+}
+
 void INiagaraParameterDefinitionsSubscriber::PostLoadDefinitionsSubscriptions()
 {
 	// First remove any subscriptions that are pointing to null parameter definitions assets. 
@@ -46,6 +51,7 @@ void INiagaraParameterDefinitionsSubscriber::PostLoadDefinitionsSubscriptions()
 	if (bAllParameterDefinitionsDiscovered == false)
 	{
 		SynchronizeWithParameterDefinitions();
+		check(OnDeferredSyncAllNameMatchParametersHandle.IsValid() == false);
 		OnDeferredSyncAllNameMatchParametersHandle = AssetRegistryModule.Get().OnFilesLoaded().AddLambda(SyncAllNameMatchParameters);
 	}
 	// Else the asset registry has discovered all parameter definitions assets;
@@ -66,6 +72,7 @@ void INiagaraParameterDefinitionsSubscriber::CleanupDefinitionsSubscriptions()
 			if (AssetRegistry)
 			{
 				AssetRegistry->OnFilesLoaded().Remove(OnDeferredSyncAllNameMatchParametersHandle);
+				OnDeferredSyncAllNameMatchParametersHandle.Reset();
 			}
 		}
 	}

@@ -43,7 +43,7 @@ class NIAGARA_API INiagaraParameterDefinitionsSubscriber
 {
 #if WITH_EDITORONLY_DATA
 public:
-	virtual ~INiagaraParameterDefinitionsSubscriber() = default;
+	virtual ~INiagaraParameterDefinitionsSubscriber();
 
 	void PostLoadDefinitionsSubscriptions();
 	void CleanupDefinitionsSubscriptions();
