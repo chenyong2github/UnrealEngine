@@ -491,10 +491,16 @@ void AGameModeBase::ProcessServerTravel(const FString& URL, bool bAbsolute)
 		World->SeamlessTravel(World->NextURL, bAbsolute);
 		World->NextURL = TEXT("");
 	}
-	// Switch immediately if not networking.
-	else if (NetMode != NM_DedicatedServer && NetMode != NM_ListenServer)
+	else
 	{
-		World->NextSwitchCountdown = 0.0f;
+		// Switch immediately if not networking.
+		if (NetMode != NM_DedicatedServer && NetMode != NM_ListenServer)
+		{
+			World->NextSwitchCountdown = 0.0f;
+		}
+
+		GEngine->IncrementGlobalNetTravelCount();
+		GEngine->SaveConfig();
 	}
 #endif // WITH_SERVER_CODE
 }

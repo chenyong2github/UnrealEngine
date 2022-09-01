@@ -37,8 +37,16 @@ namespace UE::Net
 		Randomized		= 1,	// The version of the handshake protocol with randomization, versioning and debug/diagnostic tweaks
 		NetCLVersion	= 2,	// Added Network CL version, for optional extra-early client rejection
 
-		Latest			= NetCLVersion
+		/** Net compatibility break */
+
+		SessionClientId	= 3,	// Added SessionId (index of server game session) and ClientId (clientside index of NetConnection)
+
+		Latest			= SessionClientId
 	};
+
+	/** List of EHandshakeVersion's which break net compatibility (sorted from earliest to latest) */
+	static constexpr EHandshakeVersion HandshakeCompatibilityBreaks[] = { EHandshakeVersion::SessionClientId };
+
 
 	/**
 	 * The different handshake packet types
@@ -98,8 +106,10 @@ private:
 	 * @param ClientAddress						The address of the client to send the challenge to.
 	 * @param HandshakeVersion					The handshake format version to use when sending
 	 * @param ClientSentHandshakePacketCount	The number of handshake packets the client has sent (for debugging/packet-analysis)
+	 * @param InClientID						The client-specified connection id
 	 */
-	void SendConnectChallenge(TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion, uint8 ClientSentHandshakePacketCount);
+	void SendConnectChallenge(TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion,
+								uint8 ClientSentHandshakePacketCount, uint32 InClientID);
 
 	/**
 	 * Constructs and sends the handshake challenge response packet, from the client to the server
@@ -114,21 +124,24 @@ private:
 	/**
 	 * Constructs and sends the server ack to a successful challenge response, from the server to the client.
 	 *
-	 * @param ClientAddress		The address of the client to send the ack to.
-	 * @param HandshakeVersion	The handshake format version to use when sending
+	 * @param ClientAddress						The address of the client to send the ack to.
+	 * @param HandshakeVersion					The handshake format version to use when sending
 	 * @param ClientSentHandshakePacketCount	The number of handshake packets the client has sent (for debugging/packet-analysis)
-	 * @param InCookie			The cookie value to send
+	 * @param InClientID						The client-specified connection id
+	 * @param InCookie							The cookie value to send
 	 */
 	void SendChallengeAck(TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion, uint8 ClientSentHandshakePacketCount,
-							uint8 InCookie[COOKIE_BYTE_SIZE]);
+							uint32 InClientID, uint8 InCookie[COOKIE_BYTE_SIZE]);
 
 	/**
 	 * Constructs and sends a request to resend the cookie, from the server to the client.
 	 *
 	 * @param ClientAddress		The address of the client to send the request to.
 	 * @param HandshakeVersion	The handshake format version to use when sending
+	 * @param InClientID		The client-specified connection id
 	 */
-	void SendRestartHandshakeRequest(const TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion);
+	void SendRestartHandshakeRequest(const TSharedPtr<const FInternetAddr> ClientAddress, EHandshakeVersion HandshakeVersion,
+										uint32 InClientID);
 
 
 	/**
@@ -290,9 +303,18 @@ private:
 	 * @param OutResult		The parsed handshake data, if successful
 	 * @return				Whether or not the handshake packet was parsed successfully
 	 */
-	bool ParseHandshakePacket(FBitReader& Packet, FParsedHandshakeData& OutResult);
+	bool ParseHandshakePacket(FBitReader& Packet, FParsedHandshakeData& OutResult) const;
 
-	bool ParseHandshakePacketOriginal(FBitReader& Packet, FParsedHandshakeData& OutResult);
+	bool ParseHandshakePacketOriginal(FBitReader& Packet, FParsedHandshakeData& OutResult) const;
+
+	/**
+	 * Checks the handshake protocol version and Network CL version for incoming handshake packets, serverside
+	 *
+	 * @param HandshakeData		The packet handshake data
+	 * @param OutTargetVersion	The target handshake protocol version to use, for the new connection
+	 * @return					Whether or not the checks successfully validated that the version is correct, and that communication can continue
+	 */
+	bool CheckVersion(const FParsedHandshakeData& HandshakeData, EHandshakeVersion& OutTargetVersion) const;
 
 	/**
 	 * Takes the client address plus server timestamp, and outputs a deterministic cookie value
@@ -302,7 +324,7 @@ private:
 	 * @param TimeStamp			The serverside timestamp
 	 * @param OutCookie			Outputs the generated cookie value.
 	 */
-	void GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, double Timestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE]);
+	void GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, double Timestamp, uint8 (&OutCookie)[COOKIE_BYTE_SIZE]) const;
 
 	/**
 	 * Generates a new HandshakeSecret value
@@ -312,10 +334,16 @@ private:
 	/**
 	 * Calculate the adjusted predefined packet size, based on MagicHeader
 	 */
-	FORCEINLINE int32 GetAdjustedSizeBits(int32 InSizeBits)
-	{
-		return MagicHeader.Num() + InSizeBits;
-	}
+	int32 GetAdjustedSizeBits(int32 InSizeBits, EHandshakeVersion HandshakeVersion) const;
+
+#if !UE_BUILD_SHIPPING
+	/**
+	 * Tracks logs for invalid Session ID's or Connection ID's, and limits the number of these logs
+	 *
+	 * @return		Whether or not logging is currently allowed
+	 */
+	bool TrackSessionConnIDLogs();
+#endif
 
 
 private:
@@ -348,6 +376,14 @@ private:
 
 	/** The minimum supported client version, for all connections - for setting minimum bounds for the restart handshake (not aware of version) */
 	EHandshakeVersion MinClientHandshakeVersion;
+
+#if !UE_BUILD_SHIPPING
+	/** The last time an 'invalid session/connection id' log period began */
+	double LastSessionConnIDLogPeriodStart = 0.0;
+
+	/** The number of 'invalid session/connection id' logs in the current log period (for logspam limiting) */
+	uint32 SessionConnIDLogCounter = 0;
+#endif
 
 
 	/** Clientside variables */
@@ -388,5 +424,17 @@ private:
 
 	/** The last remote handshake version sent by the client/server */
 	EHandshakeVersion LastRemoteHandshakeVersion;
+
+	/** Cached version of the serverside UEngine.GlobalNetTravelCount value, for writing session id's */
+	uint32 CachedGlobalNetTravelCount = 0;
+
+	/** Cached version of the clientside per-NetDriverDefinition 'ClientID' value, for writing client connection id's */
+	uint32 CachedClientID = 0;
+
+	/** The size of the session id in packets (WARNING: Adjusting this is a net compatibility break) */
+	static constexpr uint32 SessionIDSizeBits = 2;
+
+	/** The size of the connection id in packets (WARNING: Adjusting this is a net compatibility break) */
+	static constexpr uint32 ClientIDSizeBits = 3;
 };
 

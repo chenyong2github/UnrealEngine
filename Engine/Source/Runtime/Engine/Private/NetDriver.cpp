@@ -1400,6 +1400,8 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 		InitDestroyedStartupActors();
 	}
 
+	CachedGlobalNetTravelCount = GEngine->GetGlobalNetTravelCount();
+
 	return bSuccess;
 }
 

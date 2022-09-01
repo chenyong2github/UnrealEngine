@@ -432,7 +432,7 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 	InitHandler();
 
 
-	FaultRecovery.InitDefaults((Driver != nullptr ? Driver->NetDriverName.ToString() : TEXT("")), this);
+	FaultRecovery.InitDefaults((Driver != nullptr ? Driver->GetNetDriverDefinition().ToString() : TEXT("")), this);
 
 	if (CVarLogUnhandledFaults.GetValueOnAnyThread() != 0)
 	{
@@ -488,7 +488,7 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 
 	if (bIsServer && !bIsReplay)
 	{
-		RPCDoS.Init(Driver->NetDriverName, AnalyticsAggregator,
+		RPCDoS.Init(Driver->GetNetDriverDefinition(), AnalyticsAggregator,
 			[WorldPtr = TWeakObjectPtr<UWorld>(InDriver->GetWorld())]() -> UWorld*
 			{
 				return WorldPtr.IsValid() ? WorldPtr.Get() : nullptr;
@@ -602,7 +602,7 @@ void UNetConnection::InitHandler()
 											MoveTemp(NotifyAddHandler));
 
 			Handler->NotifyAnalyticsProvider(Driver->AnalyticsProvider, Driver->AnalyticsAggregator);
-			Handler->Initialize(Mode, MaxPacket * 8, false, nullptr, nullptr, Driver->NetDriverName);
+			Handler->Initialize(Mode, MaxPacket * 8, false, nullptr, nullptr, Driver->GetNetDriverDefinition());
 
 
 			// Add handling for the stateless connect handshake, for connectionless packets, as the outermost layer

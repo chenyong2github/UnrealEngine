@@ -903,11 +903,15 @@ public:
 	/** Set the NetDriver's NetDriverDefintion. */
 	void SetNetDriverDefinition(FName NewNetDriverDefinition);
 
+	UE_DEPRECATED(5.1, "Use GetNetDriverDefinition instead.")
+	FName GetNetDriverDefintion() const { return NetDriverDefinition; }
+
+	/** Get the NetDriver's NetDriverDefintion. */
+	FName GetNetDriverDefinition() const { return NetDriverDefinition; }
+
 	/** Callback after the engine created the NetDriver and set our name for the first time */
 	void PostCreation(bool bInitializeWithIris);
 
-	/** Get the NetDriver's NetDriverDefintion. */
-	FName GetNetDriverDefintion() const { return NetDriverDefinition; }
 
 	void InitPacketSimulationSettings();
 
@@ -1906,6 +1910,11 @@ public:
 		TotalOutOfOrderPacketsDuplicate += Count;
 	}
 
+	uint32 GetCachedGlobalNetTravelCount() const
+	{
+		return CachedGlobalNetTravelCount;
+	}
+
 	bool DidHitchLastFrame() const;
 
 	static bool IsDormInitialStartupActor(AActor* Actor);
@@ -2001,4 +2010,8 @@ private:
 
 	/** Stat tracking for the total number of out of order packets that were duplicates */
 	int32 TotalOutOfOrderPacketsDuplicate = 0;
+
+
+	/** Cached value for UEngine.GlobalNetTravelCount, at the time of NetDriver initialization */
+	uint32 CachedGlobalNetTravelCount = 0;
 };

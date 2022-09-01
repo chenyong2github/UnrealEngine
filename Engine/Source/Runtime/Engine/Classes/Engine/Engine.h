@@ -2976,6 +2976,20 @@ private:
 	FScreenSaverInhibitor*  ScreenSaverInhibitorRunnable;
 
 
+	/** Increments every time a non-seamless travel happens on a server, to generate net session id's. Written to config to preserve id upon crash. */
+	UPROPERTY(Config)
+	uint32 GlobalNetTravelCount = 0;
+
+public:
+	void IncrementGlobalNetTravelCount()
+	{
+		GlobalNetTravelCount++;
+	}
+
+	uint32 GetGlobalNetTravelCount() const
+	{
+		return GlobalNetTravelCount;
+	}
 public:
 
 	/** A list of named UNetDriver definitions */
