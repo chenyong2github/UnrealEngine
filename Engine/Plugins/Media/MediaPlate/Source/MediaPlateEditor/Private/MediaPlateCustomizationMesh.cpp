@@ -14,7 +14,8 @@
 
 TMap<UStaticMesh*, int32> FMediaPlateCustomizationMesh::MeshRefCount;
 
-void FMediaPlateCustomizationMesh::SetPlaneMesh(UMediaPlateComponent* MediaPlate)
+void FMediaPlateCustomizationMesh::SetCustomMesh(UMediaPlateComponent* MediaPlate,
+	UStaticMesh* StaticMesh)
 {
 	// Get static mesh component.
 	UStaticMeshComponent* StaticMeshComponent = nullptr;
@@ -30,13 +31,19 @@ void FMediaPlateCustomizationMesh::SetPlaneMesh(UMediaPlateComponent* MediaPlate
 
 	if (StaticMeshComponent != nullptr)
 	{
-		// Get plane mesh.
-		UStaticMesh* Mesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL,
-			TEXT("/MediaPlate/SM_MediaPlateScreen")));
-
 		// Apply this mesh.
-		SetMesh(StaticMeshComponent, Mesh);
+		SetMesh(StaticMeshComponent, StaticMesh);
 	}
+}
+
+void FMediaPlateCustomizationMesh::SetPlaneMesh(UMediaPlateComponent* MediaPlate)
+{
+	// Get plane mesh.
+	UStaticMesh* Mesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL,
+		TEXT("/MediaPlate/SM_MediaPlateScreen")));
+
+	// Apply this mesh.
+	SetCustomMesh(MediaPlate, Mesh);
 }
 
 void FMediaPlateCustomizationMesh::SetSphereMesh(UMediaPlateComponent* MediaPlate)

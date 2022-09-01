@@ -65,6 +65,11 @@ private:
 	void AddMeshCustomization(IDetailCategoryBuilder& MediaPlateCategory);
 
 	/**
+	 * Controls visibility for widgets for custom meshes.
+	 */
+	EVisibility ShouldShowMeshCustomWidgets() const;
+
+	/**
 	 * Controls visibility for widgets for plane meshes.
 	 */
 	EVisibility ShouldShowMeshPlaneWidgets() const;
@@ -153,6 +158,16 @@ private:
 	 * Call this to set the range of the mesh.
 	 */
 	void SetMeshRange(FVector2D Range);
+
+	/**
+	 * Gets the object path for the static mesh.
+	 */
+	FString GetStaticMeshPath() const;
+
+	/**
+	 * Called when the static mesh changes.
+	 */
+	void OnStaticMeshChanged(const FAssetData& AssetData);
 
 	/**
 	 * Updates bIsMediaSourceAsset depending on the current playlist.

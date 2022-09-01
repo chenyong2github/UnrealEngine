@@ -17,6 +17,11 @@ class FMediaPlateCustomizationMesh
 {
 public:
 	/**
+	 * Call this to use a custom mesh on a media plate.
+	 */
+	void SetCustomMesh(UMediaPlateComponent* MediaPlate, UStaticMesh* StaticMesh);
+
+	/**
 	 * Call this to use a plane mesh on a media plate.
 	 */
 	void SetPlaneMesh(UMediaPlateComponent* MediaPlate);

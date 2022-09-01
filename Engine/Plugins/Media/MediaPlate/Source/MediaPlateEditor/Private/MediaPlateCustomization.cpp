@@ -17,6 +17,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
@@ -58,6 +59,10 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	{
 		Style = &FAppStyle::Get();
 	}
+
+	// Hide the static mesh.
+	IDetailCategoryBuilder& StaticMeshCategory = DetailBuilder.EditCategory("StaticMesh");
+	StaticMeshCategory.SetCategoryVisibility(false);
 
 	IDetailCategoryBuilder& MediaPlateCategory = DetailBuilder.EditCategory("MediaPlate");
 
@@ -489,6 +494,7 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 		];
 
 	// Visibility attributes.
+	TAttribute<EVisibility> MeshCustomVisibility(this, &FMediaPlateCustomization::ShouldShowMeshCustomWidgets);
 	TAttribute<EVisibility> MeshPlaneVisibility(this, &FMediaPlateCustomization::ShouldShowMeshPlaneWidgets);
 	TAttribute<EVisibility> MeshSphereVisibility(this, &FMediaPlateCustomization::ShouldShowMeshSphereWidgets);
 
@@ -628,7 +634,31 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				.Value(this, &FMediaPlateCustomization::GetMeshVerticalRange)
 				.OnValueChanged(this, &FMediaPlateCustomization::SetMeshVerticalRange)
 		];
+
+	// Add static mesh.
+	DetailGroup.AddWidgetRow()
+		.Visibility(MeshCustomVisibility)
+		.NameContent()
+		[
+			SNew(STextBlock)
+				.Text(LOCTEXT("StaticMesh", "Static Mesh"))
+				.ToolTipText(LOCTEXT("StaticMesh_Tooltip", "The static mesh to use."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SObjectPropertyEntryBox)
+				.AllowedClass(UStaticMesh::StaticClass())
+				.ThumbnailPool(UThumbnailManager::Get().GetSharedThumbnailPool())
+				.ObjectPath(this, &FMediaPlateCustomization::GetStaticMeshPath)
+				.OnObjectChanged(this, &FMediaPlateCustomization::OnStaticMeshChanged)
+		];
 	
+}
+
+EVisibility FMediaPlateCustomization::ShouldShowMeshCustomWidgets() const
+{
+	return (MeshMode == EMediaTextureVisibleMipsTiles::None) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 EVisibility FMediaPlateCustomization::ShouldShowMeshPlaneWidgets() const
@@ -892,6 +922,46 @@ void FMediaPlateCustomization::SetMeshRange(FVector2D Range)
 				MediaPlate->SetMeshRange(Range);
 				SetSphereMesh(MediaPlate);
 			}
+		}
+	}
+}
+
+
+FString FMediaPlateCustomization::GetStaticMeshPath() const
+{
+	FString Path;
+
+	// Get the first media plate.
+	if (MediaPlatesList.Num() > 0)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatesList[0].Get();
+		if (MediaPlate != nullptr)
+		{
+			UStaticMeshComponent* StaticMeshComponent = MediaPlate->StaticMeshComponent;
+			if (StaticMeshComponent != nullptr)
+			{
+				UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+				if (StaticMesh != nullptr)
+				{
+					Path = StaticMesh->GetPathName();
+				}
+			}
+		}
+	}
+
+	return Path;
+}
+
+void FMediaPlateCustomization::OnStaticMeshChanged(const FAssetData& AssetData)
+{
+	// Update the static mesh.
+	UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetData.GetAsset());
+	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			MeshCustomization.SetCustomMesh(MediaPlate, StaticMesh);
 		}
 	}
 }
