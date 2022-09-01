@@ -1041,6 +1041,12 @@ const TCHAR* FMacPlatformProcess::BaseDir()
 					BasePath = [BasePath stringByDeletingLastPathComponent];
 				}
 			}
+#ifdef UE_RELATIVE_BASE_DIR
+			else
+			{
+				BasePath = [BasePath stringByAppendingPathComponent : @UE_RELATIVE_BASE_DIR];
+			}
+#endif
 
 			FCString::Strcpy(Result, MAC_MAX_PATH, *FString(BasePath));
 			FCString::Strcat(Result, TEXT("/"));
