@@ -33,6 +33,9 @@ private:
 	void HandleOpenSolutionChanged(ECheckBoxState InCheck);
 	ECheckBoxState HandleGetOpenSolutionChecked() const;
 
+	void HandleSyncCompiledEditor(ECheckBoxState InCheck);
+	ECheckBoxState HandleGetSyncCompiledEditor() const;
+
 	FReply OnOkClicked();
 	FReply OnCancelClicked();
 

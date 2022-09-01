@@ -130,6 +130,31 @@ void SSettingsWindow::Construct(const FArguments& InArgs)
 							.Text(LOCTEXT("Other Settings", "Other Settings"))
 						]
 					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.VAlign(VAlign_Top)
+					.HAlign(HAlign_Center)
+					.Padding(0.0f, 10.0f)
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						[
+							SNew(SCheckBox)
+							.ForegroundColor(FSlateColor::UseForeground())
+							.IsChecked(this, &SSettingsWindow::HandleGetSyncCompiledEditor)
+							.OnCheckStateChanged(this, &SSettingsWindow::HandleSyncCompiledEditor)
+							[
+								SNew(SBox)
+								.VAlign(VAlign_Center)
+								.HAlign(HAlign_Center)
+								.Padding(FMargin(4.0, 2.0))
+								[
+									SNew(STextBlock)
+									.Text(LOCTEXT("EnableSyncPrecompiledEditor", "Sync Precompiled Editor"))
+								]
+							]
+						]
+					]
 				]
 			]
 		]
@@ -209,6 +234,22 @@ void SSettingsWindow::HandleOpenSolutionChanged(ECheckBoxState InCheck)
 ECheckBoxState SSettingsWindow::HandleGetOpenSolutionChecked() const
 {
 	return UserSettings->bOpenSolutionAfterSync ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SSettingsWindow::HandleSyncCompiledEditor(ECheckBoxState InCheck)
+{
+	bool bNewValue = InCheck == ECheckBoxState::Checked;
+
+	if (UserSettings->bSyncPrecompiledEditor != bNewValue)
+	{
+		UserSettings->bSyncPrecompiledEditor = bNewValue;
+		UserSettings->Save();
+	}
+}
+
+ECheckBoxState SSettingsWindow::HandleGetSyncCompiledEditor() const
+{
+	return UserSettings->bSyncPrecompiledEditor ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 FReply SSettingsWindow::OnOkClicked()
