@@ -837,6 +837,17 @@ void SConstraintsEditionWidget::OnActorSelectionChanged(const TArray<UObject*>& 
 	// NOTE we use this delegate to trigger an tree update, however, control actors are not selected as they are 
 	// Temporary Editor Actors so NewSelection won't contain the controls
 	InvalidateConstraintList();
+
+	// NOTE: this is a hack to disable the picker if the selection changes. The picker should trigger the escape key
+	// but this is an editor wide change 
+	if (NewSelection.IsEmpty())
+	{
+		static const FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
+		if (ActorPickerMode.IsInActorPickingMode())
+		{
+			ActorPickerMode.EndActorPickingMode();
+		}
+	}
 }
 
 TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()

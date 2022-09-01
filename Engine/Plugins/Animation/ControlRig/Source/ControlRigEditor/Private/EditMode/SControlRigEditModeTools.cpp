@@ -327,7 +327,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SAssignNew(PickerExpander, SExpandableArea)
+				SAssignNew(ConstraintPickerExpander, SExpandableArea)
 				.InitiallyCollapsed(true)
 				.AreaTitle(LOCTEXT("ConstraintsWidget", "Constraints"))
 				.AreaTitleFont(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
@@ -982,14 +982,20 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 
 FReply SControlRigEditModeTools::HandleAddConstraintClicked()
 {
+	// magic number to auto expand the widget when creating a new constraint. We keep that number below a reasonable
+	// threshold to avoid automatically creating a large number of items (this can be style done by the user) 
+	static constexpr int32 NumAutoExpand = 20;
+
 	const TSharedPtr<SConstraintsCreationWidget> Widget =
 		SNew(SConstraintsCreationWidget)
 		.OnConstraintCreated_Lambda( [this]()
 		{
-			if (ConstraintsEditionWidget)
+			const int32 NumItems = ConstraintsEditionWidget ? ConstraintsEditionWidget->RefreshConstraintList() : 0;
+			
+			if (ConstraintPickerExpander && NumItems < NumAutoExpand)
 			{
-				ConstraintsEditionWidget->RefreshConstraintList();
-			}		
+				ConstraintPickerExpander->SetExpanded(true);
+			}
 		});
 	
 	FMenuBuilder MenuBuilder(true, nullptr);

@@ -93,6 +93,7 @@ private:
 	TArray<TWeakObjectPtr<UControlRig>> ControlRigs;
 
 	/** Constraint edition widget. */
+	TSharedPtr<SExpandableArea> ConstraintPickerExpander = nullptr;
 	TSharedPtr<SConstraintsEditionWidget> ConstraintsEditionWidget = nullptr; 
 
 	/** Display or edit set up for property */
