@@ -4365,7 +4365,7 @@ static FORCEINLINE_DEBUGGABLE bool ShouldActorGoDormant( AActor* Actor, const TA
 	return true;
 }
 
-int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, const TArray<FNetworkObjectInfo*> ConsiderList, const bool bCPUSaturated, FActorPriority*& OutPriorityList, FActorPriority**& OutPriorityActors )
+int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, const TArray<FNetworkObjectInfo*>& ConsiderList, const bool bCPUSaturated, FActorPriority*& OutPriorityList, FActorPriority**& OutPriorityActors )
 {
 	SCOPE_CYCLE_COUNTER( STAT_NetPrioritizeActorsTime );
 
