@@ -76,6 +76,9 @@ struct FMassEntityHandle
 		return !operator==(Other);
 	}
 
+	/** Has meaning only for sorting purposes */
+	bool operator<(const FMassEntityHandle Other) const { return Index < Other.Index; }
+
 	/** Note that this function is merely checking if Index and SerialNumber are set. There's no way to validate if 
 	 *  these indicate a valid entity in an EntitySubsystem without asking the system. */
 	bool IsSet() const

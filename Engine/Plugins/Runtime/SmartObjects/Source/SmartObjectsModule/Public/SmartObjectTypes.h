@@ -139,6 +139,8 @@ public:
 
 	bool operator==(const FSmartObjectSlotHandle Other) const { return EntityHandle == Other.EntityHandle; }
 	bool operator!=(const FSmartObjectSlotHandle Other) const { return !(*this == Other); }
+	/** Has meaning only for sorting purposes */
+	bool operator<(const FSmartObjectSlotHandle Other) const { return EntityHandle < Other.EntityHandle; }
 
 	friend uint32 GetTypeHash(const FSmartObjectSlotHandle SlotHandle)
 	{
