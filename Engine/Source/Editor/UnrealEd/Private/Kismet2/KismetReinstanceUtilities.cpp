@@ -261,7 +261,6 @@ FReplaceInstancesOfClassParameters::FReplaceInstancesOfClassParameters(UClass* I
 /////////////////////////////////////////////////////////////////////////////////
 // FBlueprintCompileReinstancer
 
-TSet<TWeakObjectPtr<UBlueprint>> FBlueprintCompileReinstancer::DependentBlueprintsToRefresh = TSet<TWeakObjectPtr<UBlueprint>>();
 TSet<TWeakObjectPtr<UBlueprint>> FBlueprintCompileReinstancer::CompiledBlueprintsToSave = TSet<TWeakObjectPtr<UBlueprint>>();
 
 UClass* FBlueprintCompileReinstancer::HotReloadedOldClass = nullptr;
@@ -728,24 +727,12 @@ TSharedPtr<FReinstanceFinalizer> FBlueprintCompileReinstancer::ReinstanceInner(b
 	return Finalizer;
 }
 
-void FBlueprintCompileReinstancer::ListDependentBlueprintsToRefresh(const TArray<UBlueprint*>& DependentBPs)
-{
-	for (UBlueprint* Element : DependentBPs)
-	{
-		DependentBlueprintsToRefresh.Add(Element);
-	}
-}
-
 void FBlueprintCompileReinstancer::EnlistDependentBlueprintToRecompile(UBlueprint* BP, bool bBytecodeOnly)
 {
 }
 
 void FBlueprintCompileReinstancer::BlueprintWasRecompiled(UBlueprint* BP, bool bBytecodeOnly)
 {
-	if (IsValid(BP))
-	{
-		DependentBlueprintsToRefresh.Remove(BP);
-	}
 }
 
 extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
@@ -817,18 +804,6 @@ void FBlueprintCompileReinstancer::ReinstanceObjects(bool bForceAlwaysReinstance
 						}
 					}
 
-					{
-						BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_RefreshDependentBlueprintsInReinstancer);
-						for (TWeakObjectPtr<UBlueprint>& BPPtr : DependentBlueprintsToRefresh)
-						{
-							if (BPPtr.IsValid())
-							{
-								BPPtr->BroadcastChanged();
-							}
-						}
-						DependentBlueprintsToRefresh.Empty();
-					}
-
 					if (GEditor)
 					{
 						GEditor->BroadcastBlueprintCompiled();
@@ -837,7 +812,6 @@ void FBlueprintCompileReinstancer::ReinstanceObjects(bool bForceAlwaysReinstance
 				else
 				{
 					QueueToReinstance.Empty();
-					DependentBlueprintsToRefresh.Empty();
 				}
 			}
 		}
@@ -1070,11 +1044,6 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 
 				bBPWasChanged = true;
 				UE_LOG(LogBlueprint, Log, TEXT("UpdateBytecodeReferences: %d references from %s was replaced in BP %s"), ReplaceInBPAr.GetCount(), *GetPathNameSafe(ClassToReinstance), *GetPathNameSafe(DependentBP));
-			}
-
-			if (bBPWasChanged && CompiledBlueprint && !CompiledBlueprint->bIsRegeneratingOnLoad)
-			{
-				DependentBlueprintsToRefresh.Add(DependentBP);
 			}
 		}
 
