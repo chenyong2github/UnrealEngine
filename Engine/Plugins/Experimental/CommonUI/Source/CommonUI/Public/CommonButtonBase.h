@@ -454,6 +454,9 @@ public:
 	FOnIsSelectedChanged& OnIsSelectedChanged() const { return OnIsSelectedChangedEvent; }
 
 protected:
+	bool IsPersistentBinding() const { return bIsPersistentBinding; }
+	ECommonInputMode GetInputModeOverride() const { return InputModeOverride; }
+	
 	virtual UCommonButtonInternalBase* ConstructInternalButton();
 
 	virtual void OnWidgetRebuilt();
