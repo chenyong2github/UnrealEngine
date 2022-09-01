@@ -10,7 +10,7 @@ class UMLDeformerModel;
 
 /**
  * The machine learning deformer asset class.
- * This class contains a Model property, through which all the magic happens.
+ * This class contains a Model property, through which most functionality happens.
  */
 UCLASS(BlueprintType, hidecategories=Object)
 class MLDEFORMERFRAMEWORK_API UMLDeformerAsset 

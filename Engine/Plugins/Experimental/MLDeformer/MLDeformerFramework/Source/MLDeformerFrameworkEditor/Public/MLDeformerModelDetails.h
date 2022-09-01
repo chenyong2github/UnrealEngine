@@ -55,6 +55,6 @@ namespace UE::MLDeformer
 		IDetailCategoryBuilder* BaseMeshCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* TargetMeshCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* InputOutputCategoryBuilder = nullptr;
-		IDetailCategoryBuilder* SettingsCategoryBuilder = nullptr;
+		IDetailCategoryBuilder* TrainingSettingsCategoryBuilder = nullptr;
 	};
 }	// namespace UE::MLDeformer

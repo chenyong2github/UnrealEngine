@@ -98,7 +98,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Training Meshes", meta = (ClampMin = "0"))
 	uint32 TrainingFrameNumber = 0;
 
-	/** Draw the text labels above each actor? */
+	/** Specifies whether we should draw the labels, such as "Linear Skinned" and "ML Deformed" or not. */
 	UPROPERTY(EditAnywhere, Category = "Shared Settings")
 	bool bDrawLabels = true;
 
@@ -118,31 +118,41 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0"))
 	uint32 TestingFrameNumber = 0;
 
-	/** Show the heat map? This will visualize the active areas of the deformer. */
+	/** Specify whether the heatmap is enabled or not. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bShowHeatMap = false;
 
-	/** What should the heatmap visualize? */
+	/** Specifies what the heatmap colors should represent. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "bShowHeatMap"))
 	EMLDeformerHeatMapMode HeatMapMode = EMLDeformerHeatMapMode::Activations;
 
-	/** How many centimeters does the most intense color of the heatmap represent? */
+	/**
+	 * Specifies how many centimeters the most intense color of the heatmap represents.
+	 * For example when set to 3, it means that everything that is red, is 3 cm or more.
+	 * In Activations heat map mode this means that everything is red for all vertices with a delta longer than 3 cm, so with a corrective delta longer than 3 cm.
+	 * In Ground Truth heat map mode this means that everything is red for all vertices where the difference between the ground truth and the ML Deformed
+	 * model is larger than 3 cm.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "bShowHeatMap", ClampMin = "0.001", ForceUnits="cm"))
 	float HeatMapMax = 1.0f;
 
-	/** Lerp from ML deformed model to ground truth model when in heat map mode. */
+	/**
+	 * The Lerp factor from ML deformed model to ground truth model when in heat map mode. 
+	 * A value of 0 means that we look exactly the same as the ML Deformed output, while a value of 1 means
+	 * the output is exactly the same as the ground truth. This is the blend factor between those two.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "HeatMapMode==EMLDeformerHeatMapMode::GroundTruth && bShowHeatMap", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float GroundTruthLerp = 0.0f;
 
-	/** Draw the linear skinned actor? */
+	/** Specifies whether we draw the linear skinned model or not. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bDrawLinearSkinnedActor = true;
 
-	/** Draw the ML Deformed actor? */
+	/** Specifies whether we draw the ML Deformed model or not. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", DisplayName = "Draw ML Deformed Actor")
 	bool bDrawMLDeformedActor = true;
 
-	/** Draw the ground truth actor? */
+	/** Specifies whether we draw the ground truth model or not. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bDrawGroundTruthActor = true;
 
@@ -150,11 +160,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float Weight = 1.0f;
 
-	/** Draw the vertex deltas? */
+	/** Specifiy whether we want to draw the vertex deltas or not. */
 	UPROPERTY(EditAnywhere, Category = "Training Meshes")
 	bool bDrawDeltas = true;
 
-	/** Enable this to draw the deltas in xray mode? */
+	/** Specify whether the vertex deltas are rendered, even if they are behind the current mesh. */
 	UPROPERTY(EditAnywhere, Category = "Training Meshes", meta = (EditCondition = "bDrawDeltas"))
 	bool bXRayDeltas = true;
 #endif

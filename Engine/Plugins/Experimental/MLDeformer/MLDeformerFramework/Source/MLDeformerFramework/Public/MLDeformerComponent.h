@@ -32,9 +32,35 @@ public:
 	void Deactivate() override;
 	// ~END UActorComponent overrides.
 
-	/** Setup the ML Deformer, by picking the deformer asset and skeletal mesh component. */
+	/** 
+	 * Setup the ML Deformer, by picking the deformer asset and skeletal mesh component. 
+	 * Call this when you want to assign a specific ML Deformer to a specific skeletal mesh component.
+	 * This is used in case there are multiple skeletal mesh components on your actor.
+	 * On default the first skeletal mesh component it finds will be used. This function allows you to change that behavior.
+	 * Keep in mind that the ML Deformer asset has to be trained using the same Skeletal Mesh as used by the skeletal mesh component you pick.
+	 * @param InDeformerAsset The ML Deformer asset to apply to the specified skeletal mesh component.	 
+	 * @param InSkelMeshComponent The skeletal mesh component to apply the specified deformer to.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
 	void SetupComponent(UMLDeformerAsset* InDeformerAsset, USkeletalMeshComponent* InSkelMeshComponent);
+
+	/** 
+	 * Get the current ML Deformer weight. A value of 0 means it is fully disabled, while 1 means fully active.
+	 * Values can be anything between 0 and 1.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
+	float GetWeight() const { return Weight; }
+
+	/**
+	 * Set the ML Deformer weight. This determines how active the deformer is. You can see it as a blend weight.
+	 * A value of 0 means it is inactive. Certain calculations will be skipped in that case.
+	 * A value of 1 means it is fully active.
+	 * Values between 0 and 1 blend between the two states.
+	 * Call this after you call SetupComponent.
+	 * @param NormalizedWeightValue The weight value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
+	void SetWeight(float NormalizedWeightValue) { Weight = FMath::Clamp<float>(NormalizedWeightValue, 0.0f, 1.0f);  }
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -42,8 +68,6 @@ public:
 
 	UMLDeformerAsset* GetDeformerAsset() { return DeformerAsset; }
 	void SetDeformerAsset(UMLDeformerAsset* InDeformerAsset) { DeformerAsset = InDeformerAsset; }
-	float GetWeight() const { return Weight; }
-	void SetWeight(float NormalizedWeightValue) { Weight = NormalizedWeightValue;  }
 	UMLDeformerModelInstance* GetModelInstance() const { return ModelInstance; }
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkelMeshComponent.Get(); }
 
@@ -52,6 +76,12 @@ protected:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	// ~END AActorComponent overrides.
 
+	/** 
+	 * Initialize the component. 
+	 * This releases any existing deformer instance that is active, and creates a new one.
+	 * It then also calls PostMLDeformerComponentInit.
+	 * This method is called automatically by SetupComponent.
+	 */
 	void Init();
 
 	/** Bind to the MLDeformerModel's NeuralNetworkModifyDelegate. */

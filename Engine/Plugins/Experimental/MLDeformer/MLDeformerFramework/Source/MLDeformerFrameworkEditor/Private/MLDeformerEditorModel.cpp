@@ -44,7 +44,7 @@ namespace UE::MLDeformer
 			Model->OnPostEditChangeProperty().Remove(PostEditPropertyDelegateHandle);
 		}
 
-		DeleteEditorActors();
+		ClearWorld();
 
 		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		EditorModule.GetModelRegistry().RemoveEditorModelInstance(this);
@@ -70,6 +70,11 @@ namespace UE::MLDeformer
 		PlaybackRange = TRange<double>(0.0, 100.0);
 
 		PostEditPropertyDelegateHandle = Model->OnPostEditChangeProperty().AddRaw(this, &FMLDeformerEditorModel::OnPostEditChangeProperty);
+	}
+
+	void FMLDeformerEditorModel::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObject(EditorInputInfo);
 	}
 
 	void FMLDeformerEditorModel::UpdateEditorInputInfo()
@@ -224,8 +229,6 @@ namespace UE::MLDeformer
 				EditorActor->SetMeshOffsetFactor(EditorActor->IsTestActor() ? 2.0f : 1.0f);
 			}
 		}
-
-		OnPostCreateActors();
 	}
 
 	void FMLDeformerEditorModel::ClearWorld()
@@ -581,7 +584,7 @@ namespace UE::MLDeformer
 		}
 	}
 
-	void FMLDeformerEditorModel::HandleDefaultPropertyChanges(FPropertyChangedEvent& PropertyChangedEvent)
+	void FMLDeformerEditorModel::OnPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		const FProperty* Property = PropertyChangedEvent.Property;
 		if (Property == nullptr)
@@ -669,40 +672,49 @@ namespace UE::MLDeformer
 			UpdateDeformerGraph();
 			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
 		}
+		else
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength) ||
+			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform))
+		{
+			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+			{
+				SetResamplingInputOutputsNeeded(true);
+				SampleDeltas();
+			}
+		}
 	}
 
 	FMLDeformerEditorActor* FMLDeformerEditorModel::GetVisualizationModeBaseActor() const
 	{
-		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		const bool bTestData = VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData;
-		FMLDeformerEditorActor* BaseActor = nullptr;
-		if (bTestData)
-		{
-			BaseActor = FindEditorActor(ActorID_Test_Base);
-		}
-		else
-		{
-			BaseActor = FindEditorActor(ActorID_Train_Base);
-		}
-		return BaseActor;
+		const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		const bool bTestMode = VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData;
+		return bTestMode ? FindEditorActor(ActorID_Test_Base) : FindEditorActor(ActorID_Train_Base);
 	}
 
 	void FMLDeformerEditorModel::OnPlayPressed()
 	{
 		// The play button shouldn't do anything in training mode.
-		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+		const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+		const FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
+		const bool bMustPause = (BaseActor && BaseActor->IsPlaying());
+		const bool bTestMode = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData);
+
+		// Update the current frame numbers.
+		if (bMustPause)
 		{
-			return;
+			if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+			{
+				SetTrainingFrame(GetTrainingFrameAtTime(CalcTimelinePosition()));
+			}
+			else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+			{
+				SetTestFrame(GetTestFrameAtTime(CalcTimelinePosition()));
+			}
 		}
 
-		FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
-		const bool bMustPause = (BaseActor && BaseActor->GetSkeletalMeshComponent()) ? !BaseActor->GetSkeletalMeshComponent()->bPauseAnims : false;
-
-		const bool bTestData = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData);
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
-			if (EditorActor && ((EditorActor->IsTestActor() && bTestData) || (EditorActor->IsTrainingActor() && !bTestData)))
+			if (EditorActor && ((EditorActor->IsTestActor() && bTestMode) || (EditorActor->IsTrainingActor() && !bTestMode)))
 			{
 				EditorActor->SetPlaySpeed(VizSettings->AnimPlaySpeed);
 				EditorActor->Pause(bMustPause);
@@ -712,8 +724,7 @@ namespace UE::MLDeformer
 
 	bool FMLDeformerEditorModel::IsPlayingAnim() const
 	{
-		FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
-
+		const FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
 		if (BaseActor)
 		{
 			UDebugSkelMeshComponent* SkeletalMeshComponent = BaseActor->GetSkeletalMeshComponent();
@@ -728,7 +739,6 @@ namespace UE::MLDeformer
 	bool FMLDeformerEditorModel::IsPlayingForward() const
 	{
 		FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
-
 		if (BaseActor)
 		{
 			return BaseActor->GetPlaySpeed() > 0.0f;
@@ -1237,10 +1247,19 @@ namespace UE::MLDeformer
 		const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 		{
-			// Draw the deltas for the current frame.
 			const TArray<float>& VertexDeltas = Sampler->GetVertexDeltas();
 			const TArray<FVector3f>& LinearSkinnedPositions = Sampler->GetSkinnedVertexPositions();
-			if (VizSettings->GetDrawVertexDeltas() && (VertexDeltas.Num() / 3) == LinearSkinnedPositions.Num())
+			bool bDrawDeltas = (VizSettings->GetDrawVertexDeltas() && (VertexDeltas.Num() / 3) == LinearSkinnedPositions.Num());
+
+			// Disable drawing deltas when we're playing the training anim sequence, as that can get too slow.
+			const FMLDeformerEditorActor* BaseActor = FindEditorActor(ActorID_Train_Base);
+			if (BaseActor)
+			{
+				bDrawDeltas &= !BaseActor->IsPlaying();
+			}
+
+			// Draw the deltas for the current frame.
+			if (bDrawDeltas)
 			{
 				const FLinearColor DeltasColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.Deltas.Color");
 				const FLinearColor DebugVectorsColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.DebugVectors.Color");
@@ -1432,7 +1451,7 @@ namespace UE::MLDeformer
 
 			if (SkelMeshComponent)
 			{
-				UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
+				const UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 				UMeshDeformer* MeshDeformer = IsTrained() ? VizSettings->GetDeformerGraph() : nullptr;	
 				const bool bUseHeatMapDeformer = VizSettings->GetShowHeatMap();
 				SkelMeshComponent->SetMeshDeformer(bUseHeatMapDeformer ? HeatMapDeformerGraph.Get() : MeshDeformer);
@@ -1547,13 +1566,13 @@ namespace UE::MLDeformer
 		return (Model->GetNeuralNetwork() != nullptr);
 	}
 
-	void FMLDeformerEditorModel::TriggerInputAssetChanged(bool RefreshVizSettings)
+	void FMLDeformerEditorModel::TriggerInputAssetChanged(bool bRefreshVizSettings)
 	{
 		OnInputAssetsChanged();
 		OnPostInputAssetChanged();
 		Model->SetAssetEditorOnlyFlags();
 		GetEditor()->GetModelDetailsView()->ForceRefresh();
-		if (RefreshVizSettings)
+		if (bRefreshVizSettings)
 		{
 			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
 		}
@@ -1737,11 +1756,6 @@ namespace UE::MLDeformer
 		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel.DG_MLDeformerModel"));
 	}
 
-	FString FMLDeformerEditorModel::GetTrainedNetworkOnnxFile() const
-	{
-		return FString(FPaths::ProjectIntermediateDir() + TEXT("MLDeformerNetwork.onnx"));
-	}
-
 	const UAnimSequence* FMLDeformerEditorModel::GetAnimSequence() const
 	{
 		if (GetModel())
@@ -1823,7 +1837,7 @@ namespace UE::MLDeformer
 
 	FFrameNumber FMLDeformerEditorModel::GetTickResScrubPosition() const
 	{
-		double Resolution = GetTickResolution();
+		const double Resolution = GetTickResolution();
 		const UMLDeformerVizSettings* VizSettings = GetModel()->GetVizSettings();
 		double TrainingFrameNumber = 0.0;
 		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
@@ -1845,28 +1859,43 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::SetScrubPosition(FFrameTime NewScrubPostion)
 	{
-		double FrameNumber = NewScrubPostion.AsDecimal() * (double)GetFrameRate() / (double)GetTickResolution();
+		const double FrameNumber = NewScrubPostion.AsDecimal() * (double)GetFrameRate() / (double)GetTickResolution();
 		ScrubPosition.FrameNumber = (int32)FrameNumber;
-	
-		SetTrainingFrame(ScrubPosition.FrameNumber.Value);
-		SetTestFrame(ScrubPosition.FrameNumber.Value);
+
+		const UMLDeformerVizSettings* VizSettings = GetModel()->GetVizSettings();
+		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+		{
+			SetTrainingFrame(ScrubPosition.FrameNumber.Value);
+		}
+		else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+		{
+			SetTestFrame(ScrubPosition.FrameNumber.Value);
+		}
 	}
 
 	void FMLDeformerEditorModel::SetScrubPosition(FFrameNumber NewScrubPostion)
 	{
-		double Resolution = GetTickResolution();
-		double ClampedValue = FMath::Clamp((double)NewScrubPostion.Value, PlaybackRange.GetLowerBoundValue() * Resolution, PlaybackRange.GetUpperBoundValue() * Resolution);
-		int32 FrameValue = ClampedValue * (double)GetFrameRate() / Resolution;
-		SetTrainingFrame(FrameValue);
-		SetTestFrame(FrameValue);
+		const double Resolution = GetTickResolution();
+		const double ClampedValue = FMath::Clamp((double)NewScrubPostion.Value, PlaybackRange.GetLowerBoundValue() * Resolution, PlaybackRange.GetUpperBoundValue() * Resolution);
+		const int32 FrameValue = ClampedValue * (double)GetFrameRate() / Resolution;
+
+		const UMLDeformerVizSettings* VizSettings = GetModel()->GetVizSettings();
+		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+		{
+			SetTrainingFrame(FrameValue);
+		}
+		else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+		{
+			SetTestFrame(FrameValue);
+		}
 	}
 
-	void  FMLDeformerEditorModel::SetDisplayFrames(bool bInDisplayFrames)
+	void FMLDeformerEditorModel::SetDisplayFrames(bool bInDisplayFrames)
 	{
 		bDisplayFrames = bInDisplayFrames;
 	}
 
-	bool  FMLDeformerEditorModel::IsDisplayingFrames() const
+	bool FMLDeformerEditorModel::IsDisplayingFrames() const
 	{
 		return bDisplayFrames;
 	}
@@ -1911,6 +1940,26 @@ namespace UE::MLDeformer
 	int32 FMLDeformerEditorModel::GetTickResolution() const
 	{
 		return FMath::RoundToInt32((double)GetTicksPerFrame() * GetFrameRate());
+	}
+
+	void FMLDeformerEditorModel::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		const FProperty* Property = PropertyChangedEvent.Property;
+		if (Property == nullptr)
+		{
+			return;
+		}
+
+		OnPropertyChanged(PropertyChangedEvent);
+	}
+
+	FString FMLDeformerEditorModel::GetTrainedNetworkOnnxFile() const
+	{
+		const FString ClassName = Model->GetClass()->GetFName().ToString();
+
+		// This returns something like:
+		// "<intermediatedir>/YourModel/YourModel.onnx"
+		return FString::Printf(TEXT("%s%s/%s.onnx"), *FPaths::ProjectIntermediateDir(), *ClassName, *ClassName);
 	}
 
 }	// namespace UE::MLDeformer

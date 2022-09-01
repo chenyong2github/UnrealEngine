@@ -1,32 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralMorphModelDetails.h"
-#include "NeuralMorphEditorModel.h"
 #include "NeuralMorphModel.h"
-#include "MLDeformerModule.h"
-#include "MLDeformerAsset.h"
-#include "MLDeformerModel.h"
-#include "MLDeformerEditorModel.h"
-#include "MLDeformerEditorModule.h"
-#include "MLDeformerGeomCacheHelpers.h"
-#include "NeuralNetwork.h"
-#include "GeometryCache.h"
-#include "GeometryCacheTrack.h"
-#include "Animation/AnimSequence.h"
-#include "Engine/SkeletalMesh.h"
-#include "PropertyCustomizationHelpers.h"
-#include "AssetRegistry/AssetData.h"
-#include "Modules/ModuleManager.h"
-#include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailsView.h"
-#include "IDetailGroup.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SButton.h"
-#include "DetailLayoutBuilder.h"
-#include "SWarningOrErrorBox.h"
 
 #define LOCTEXT_NAMESPACE "NeuralMorphModelDetails"
 
@@ -39,99 +16,36 @@ namespace UE::NeuralMorphModel
 		return MakeShareable(new FNeuralMorphModelDetails());
 	}
 
-	bool FNeuralMorphModelDetails::UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects)
-	{
-		if (!FMLDeformerModelDetails::UpdateMemberPointers(Objects))
-		{
-			return false;
-		}
-
-		NeuralMorphModel = Cast<UNeuralMorphModel>(Model);
-		check(NeuralMorphModel);
-		NeuralMorphEditorModel = static_cast<FNeuralMorphEditorModel*>(EditorModel);
-
-		return (NeuralMorphModel != nullptr && NeuralMorphEditorModel != nullptr);
-	}
-
 	void FNeuralMorphModelDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	{
 		// Create all the detail categories and add the properties of the base class.
-		FMLDeformerModelDetails::CustomizeDetails(DetailBuilder);
+		FMLDeformerMorphModelDetails::CustomizeDetails(DetailBuilder);
 
-		// Training settings.
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, Mode));
+		UNeuralMorphModel* NeuralMorphModel = Cast<UNeuralMorphModel>(Model);
+		check(NeuralMorphModel);
 
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LocalNumMorphTargetsPerBone))
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, Mode), UNeuralMorphModel::StaticClass());
+
+		// Local mode settings.
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LocalNumMorphTargetsPerBone), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Local ? EVisibility::Visible : EVisibility::Collapsed);
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LocalNumHiddenLayers))
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LocalNumHiddenLayers), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Local ? EVisibility::Visible : EVisibility::Collapsed);
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LocalNumNeuronsPerLayer))
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LocalNumNeuronsPerLayer), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Local ? EVisibility::Visible : EVisibility::Collapsed);
 
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GlobalNumMorphTargets))
+		// Global mode settings.
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GlobalNumMorphTargets), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Global ? EVisibility::Visible : EVisibility::Collapsed);
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GlobalNumHiddenLayers))
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GlobalNumHiddenLayers), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Global ? EVisibility::Visible : EVisibility::Collapsed);
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GlobalNumNeuronsPerLayer))
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GlobalNumNeuronsPerLayer), UNeuralMorphModel::StaticClass())
 			.Visibility(NeuralMorphModel->Mode == ENeuralMorphMode::Global ? EVisibility::Visible : EVisibility::Collapsed);
 
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, NumIterations));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, BatchSize));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LearningRate));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, RegularizationFactor));
-		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, MorphTargetErrorTolerance));
-	}
-	
-	void FNeuralMorphModelDetails::AddAnimSequenceErrors()
-	{
-		const FText WarningText = GetGeomCacheAnimSequenceErrorText(NeuralMorphModel->GetGeometryCache(), Model->GetAnimSequence());
-		BaseMeshCategoryBuilder->AddCustomRow(FText::FromString("AnimSeqWarning"))
-			.Visibility(!WarningText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Warning)
-					.Message(WarningText)
-				]
-			];
-	}
-
-	void FNeuralMorphModelDetails::AddTargetMesh()
-	{
-		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, GeometryCache));
-
-		const FText TargetMeshErrorText = GetGeomCacheErrorText(NeuralMorphModel->GetSkeletalMesh(), NeuralMorphModel->GetGeometryCache());
-		TargetMeshCategoryBuilder->AddCustomRow(FText::FromString("TargetMeshError"))
-			.Visibility(!TargetMeshErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Error)
-					.Message(TargetMeshErrorText)
-				]
-			];
-
-		const FText ChangedErrorText = EditorModel->GetTargetAssetChangedErrorText();
-		TargetMeshCategoryBuilder->AddCustomRow(FText::FromString("TargetMeshChangedError"))
-			.Visibility(!ChangedErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Error)
-					.Message(ChangedErrorText)
-				]
-			];
-
-		AddGeomCacheMeshMappingWarnings(TargetMeshCategoryBuilder, Model->GetSkeletalMesh(), NeuralMorphModel->GetGeometryCache());
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, NumIterations), UNeuralMorphModel::StaticClass());
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, BatchSize), UNeuralMorphModel::StaticClass());
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, LearningRate), UNeuralMorphModel::StaticClass());
+		TrainingSettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, RegularizationFactor), UNeuralMorphModel::StaticClass());
 	}
 }	// namespace UE::NeuralMorphModel
 

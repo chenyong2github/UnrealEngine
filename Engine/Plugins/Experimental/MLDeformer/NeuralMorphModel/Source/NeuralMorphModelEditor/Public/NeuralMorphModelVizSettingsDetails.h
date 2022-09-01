@@ -3,35 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MLDeformerVizSettingsDetails.h"
-#include "IDetailCustomization.h"
-#include "AssetRegistry/AssetData.h"
-#include "PropertyHandle.h"
-
-class IDetailLayoutBuilder;
-class USkeleton;
-class UNeuralMorphModel;
-class UNeuralMorphModelVizSettings;
+#include "MLDeformerMorphModelVizSettingsDetails.h"
 
 namespace UE::NeuralMorphModel
 {
+	/**
+	 * The neural morph model visualization settings detail customization.
+	 * This is inherited from the Morph Model detail customization.
+	 * We do not have to do anything else. We still need this class in order to do our
+	 * detail customization correctly. Just using the Morph Model directly would cause issues.
+	 */
 	class NEURALMORPHMODELEDITOR_API FNeuralMorphModelVizSettingsDetails
-		: public UE::MLDeformer::FMLDeformerVizSettingsDetails
+		: public UE::MLDeformer::FMLDeformerMorphModelVizSettingsDetails
 	{
 	public:
-		/** Makes a new instance of this detail layout class for a specific detail view requesting it. */
-		static TSharedRef<IDetailCustomization> MakeInstance();
-
-		// FMLDeformerVizSettingsDetails overrides.
-		bool UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects) override;
-		void AddGroundTruth() override;
-		void AddAdditionalSettings() override;
-		// ~END FMLDeformerVizSettingsDetails overrides.
-
-	protected:
-		bool IsMorphTargetsEnabled() const;
-
-		TObjectPtr<UNeuralMorphModel> NeuralMorphModel = nullptr;
-		TObjectPtr<UNeuralMorphModelVizSettings> NeuralMorphVizSettings = nullptr;
+		static TSharedRef<IDetailCustomization> MakeInstance()
+		{
+			return MakeShareable(new FNeuralMorphModelVizSettingsDetails());
+		}
 	};
 }	// namespace UE::NeuralMorphModel

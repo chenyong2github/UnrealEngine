@@ -66,7 +66,6 @@ class USkeletalMeshComponent;
 		return Provider; \
 	}
 
-
 #define MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS_WITH_PROXY(InterfaceClassName, DataProviderClassName, DataProviderProxyClassName, ParameterStructType, HLSLText, DisplayName) \
 	MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS(InterfaceClassName, DataProviderClassName, ParameterStructType, HLSLText, DisplayName) \
 	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \

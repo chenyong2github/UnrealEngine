@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "MLDeformerCurveReference.generated.h"
 
+/** A reference to a curve implemented as a name. */
 USTRUCT()
 struct MLDEFORMERFRAMEWORK_API FMLDeformerCurveReference
 {
@@ -38,7 +39,7 @@ struct MLDEFORMERFRAMEWORK_API FMLDeformerCurveReference
 		return true;
 	}
 
-	/** Name of curve. */
+	/** The name of the curve. */
 	UPROPERTY(EditAnywhere, Category = AnimCurveReference)
 	FName CurveName;
 };

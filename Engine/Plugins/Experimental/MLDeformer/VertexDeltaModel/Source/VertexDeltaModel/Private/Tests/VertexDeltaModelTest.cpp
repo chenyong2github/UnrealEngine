@@ -5,7 +5,6 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-#include "VertexDeltaModelModule.h"
 #include "VertexDeltaModel.h"
 #include "VertexDeltaModelVizSettings.h"
 #include "MLDeformerAsset.h"
@@ -27,7 +26,6 @@ namespace UE::VertexDeltaModelTests
 	bool FVertexDeltaModelMainTest::RunTest(const FString& Parameters)
 	{
 		using namespace UE::MLDeformer;
-		using namespace UE::VertexDeltaModel;
 
 		UMLDeformerAsset* DeformerAsset = LoadObject<UMLDeformerAsset>(nullptr, TEXT("MLDeformerAsset'/VertexDeltaModel/Tests/Biceps/biceps_mld.biceps_mld'"));
 		UTEST_NOT_NULL(TEXT("MLDeformerAsset load"), DeformerAsset);

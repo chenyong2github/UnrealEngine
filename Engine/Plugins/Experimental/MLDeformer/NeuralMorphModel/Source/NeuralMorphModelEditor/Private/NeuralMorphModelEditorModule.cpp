@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralMorphModelEditorModule.h"
 #include "NeuralMorphModelVizSettingsDetails.h"
 #include "NeuralMorphModelDetails.h"
 #include "NeuralMorphEditorModel.h"
@@ -11,11 +10,24 @@
 
 #define LOCTEXT_NAMESPACE "NeuralMorphModelEditorModule"
 
+namespace UE::NeuralMorphModel
+{
+	class FNeuralMorphModelEditorModule
+		: public IModuleInterface
+	{
+	public:
+		// IModuleInterface overrides.
+		void StartupModule() override;
+		void ShutdownModule() override;
+		// ~END IModuleInterface overrides.
+	};
+}
 IMPLEMENT_MODULE(UE::NeuralMorphModel::FNeuralMorphModelEditorModule, NeuralMorphModelEditor)
 
 namespace UE::NeuralMorphModel
 {
 	using namespace UE::MLDeformer;
+
 
 	void FNeuralMorphModelEditorModule::StartupModule()
 	{
@@ -50,7 +62,6 @@ namespace UE::NeuralMorphModel
 			PropertyModule.NotifyCustomizationModuleChanged();
 		}
 	}
-
 }	// namespace UE::NeuralMorphModel
 
 #undef LOCTEXT_NAMESPACE

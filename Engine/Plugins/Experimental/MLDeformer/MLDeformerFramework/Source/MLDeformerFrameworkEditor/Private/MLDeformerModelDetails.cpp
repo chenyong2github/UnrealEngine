@@ -54,7 +54,7 @@ namespace UE::MLDeformer
 		BaseMeshCategoryBuilder = &DetailLayoutBuilder->EditCategory("Base Mesh", FText::GetEmpty(), ECategoryPriority::Important);
 		TargetMeshCategoryBuilder = &DetailLayoutBuilder->EditCategory("Target Mesh", FText::GetEmpty(), ECategoryPriority::Important);
 		InputOutputCategoryBuilder = &DetailLayoutBuilder->EditCategory("Inputs and Output", FText::GetEmpty(), ECategoryPriority::Important);
-		SettingsCategoryBuilder = &DetailLayoutBuilder->EditCategory("Training Settings", FText::GetEmpty(), ECategoryPriority::Important);
+		TrainingSettingsCategoryBuilder = &DetailLayoutBuilder->EditCategory("Training Settings", FText::GetEmpty(), ECategoryPriority::Important);
 	}
 
 	void FMLDeformerModelDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -309,7 +309,7 @@ namespace UE::MLDeformer
 		// Show a warning when no neural network has been set.
 		{		
 			UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
-			FDetailWidgetRow& NeuralNetErrorRow = SettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetError"))
+			FDetailWidgetRow& NeuralNetErrorRow = TrainingSettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetError"))
 				.Visibility((NeuralNetwork == nullptr) ? EVisibility::Visible : EVisibility::Collapsed)
 				.WholeRowContent()
 				[
@@ -325,7 +325,7 @@ namespace UE::MLDeformer
 			// Check if our network is compatible with the skeletal mesh.
 			if (Model->GetSkeletalMesh() && NeuralNetwork)
 			{
-				FDetailWidgetRow& NeuralNetIncompatibleErrorRow = SettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetIncompatibleError"))
+				FDetailWidgetRow& NeuralNetIncompatibleErrorRow = TrainingSettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetIncompatibleError"))
 					.Visibility(!Model->GetInputInfo()->IsCompatible(Model->GetSkeletalMesh()) ? EVisibility::Visible : EVisibility::Collapsed)
 					.WholeRowContent()
 					[

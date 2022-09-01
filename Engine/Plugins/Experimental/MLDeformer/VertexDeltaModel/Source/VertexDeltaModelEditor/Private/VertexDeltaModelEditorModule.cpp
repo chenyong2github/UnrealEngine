@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VertexDeltaModelEditorModule.h"
 #include "MLDeformerEditorModule.h"
 #include "VertexDeltaModelVizSettingsDetails.h"
 #include "VertexDeltaModelDetails.h"
@@ -10,6 +9,19 @@
 #include "EditorModeRegistry.h"
 
 #define LOCTEXT_NAMESPACE "VertexDeltaModelEditorModule"
+
+namespace UE::VertexDeltaModel
+{
+	class VERTEXDELTAMODELEDITOR_API FVertexDeltaModelEditorModule
+		: public IModuleInterface
+	{
+	public:
+		// IModuleInterface overrides.
+		void StartupModule() override;
+		void ShutdownModule() override;
+		// ~END IModuleInterface overrides.
+	};
+}	// namespace UE::VertexDeltaModel
 
 IMPLEMENT_MODULE(UE::VertexDeltaModel::FVertexDeltaModelEditorModule, VertexDeltaModelEditor)
 

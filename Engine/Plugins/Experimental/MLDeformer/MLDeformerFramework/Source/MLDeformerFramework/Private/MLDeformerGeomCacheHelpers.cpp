@@ -2,17 +2,13 @@
 
 #include "MLDeformerGeomCacheHelpers.h"
 #include "MLDeformerModel.h"
-
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
-
 #include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
-
-#include "NeuralNetwork.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerGeomCacheHelpers"
 
@@ -236,9 +232,9 @@ namespace UE::MLDeformer
 		int32 InLODIndex,
 		float InSampleTime,
 		const TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping>& InMeshMappings,
-		const USkeletalMesh* SkelMesh,
+		const USkeletalMesh* InSkelMesh,
 		const UGeometryCache* InGeometryCache,
-		const FTransform& AlignmentTransform,
+		const FTransform& InAlignmentTransform,
 		TArray<FVector3f>& OutPositions)
 	{
 		if (InGeometryCache == nullptr)
@@ -246,12 +242,12 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		if (!ensure(SkelMesh != nullptr))
+		if (!ensure(InSkelMesh != nullptr))
 		{
 			return;
 		}
 
-		const FSkeletalMeshModel* ImportedModel = SkelMesh->GetImportedModel();
+		const FSkeletalMeshModel* ImportedModel = InSkelMesh->GetImportedModel();
 		if (!ensure(ImportedModel != nullptr))
 		{
 			return;
@@ -283,7 +279,7 @@ namespace UE::MLDeformer
 				const int32 GeomCacheVertexIndex = MeshMapping.SkelMeshToTrackVertexMap[VertexIndex];
 				if (GeomCacheVertexIndex != INDEX_NONE && GeomCacheMeshData.Positions.IsValidIndex(GeomCacheVertexIndex))
 				{
-					const FVector3f GeomCacheVertexPos = (FVector3f)AlignmentTransform.TransformPosition((FVector)GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
+					const FVector3f GeomCacheVertexPos = (FVector3f)InAlignmentTransform.TransformPosition((FVector)GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
 					OutPositions[SkinnedVertexIndex] = GeomCacheVertexPos;
 				}
 			}

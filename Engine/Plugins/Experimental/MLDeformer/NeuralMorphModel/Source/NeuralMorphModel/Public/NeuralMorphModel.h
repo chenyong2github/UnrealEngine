@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MLDeformerModel.h"
+#include "MLDeformerMorphModel.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerGeomCacheHelpers.h"
@@ -19,11 +19,21 @@ class USkeleton;
 class IPropertyHandle;
 struct FExternalMorphSet;
 
+NEURALMORPHMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogNeuralMorphModel, Log, All);
+
+/** 
+ * The mode of the model, either local or global. 
+ * In local mode the network contains a super simple neural network for each bone, while in 
+ * global mode all bones and curves are input to one larger fully connected network.
+ * The local mode has faster performance, while global mode can result in higher quality deformation.
+ * This model runs its neural network on the CPU, but uses comrpessed GPU based morph targets, which require shader model 5.
+ */
 UENUM()
 enum class ENeuralMorphMode : uint8
 {
 	/**
 	 * Each bone creates a set of morph targets and has its own small neural network.
+	 * The local mode can also create more localized morph targets and tends to use slightly less memory.
 	 * This mode is faster to process on the CPU side.
 	 */
 	Local,
@@ -31,14 +41,15 @@ enum class ENeuralMorphMode : uint8
 	/** 
 	 * There is one fully connected neural network that generates a set of morph targets.
 	 * This has a slightly higher CPU overhead, but could result in higher quality.
+	 * The Global mode is basically the same as the Vertex Delta Model, but runs the neural network on the CPU
+	 * and uses GPU compressed morph targets.
 	 */
 	Global
 };
 
-
 UCLASS()
 class NEURALMORPHMODEL_API UNeuralMorphModel 
-	: public UMLDeformerModel
+	: public UMLDeformerMorphModel
 {
 	GENERATED_BODY()
 
@@ -47,27 +58,9 @@ public:
 
 	// UMLDeformerModel overrides.
 	virtual FString GetDisplayName() const override { return "Neural Morph Model"; }
-	virtual void Serialize(FArchive& Archive) override;
-	virtual void PostMLDeformerComponentInit(UMLDeformerModelInstance* ModelInstance) override;
-	virtual bool IsNeuralNetworkOnGPU() const override { return false; }	// CPU neural network.
-	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
-#if WITH_EDITORONLY_DATA
-	virtual bool HasTrainingGroundTruth() const override { return (GeometryCache.Get() != nullptr); }
-	virtual void SampleGroundTruthPositions(float SampleTime, TArray<FVector3f>& OutPositions) override;
-#endif
-#if WITH_EDITOR
-	virtual void UpdateNumTargetMeshVertices() override;
-	virtual void SetAssetEditorOnlyFlags() override;
-#endif
 	// ~END UMLDeformerModel overrides.
 
-	// UObject overrides.
-	void BeginDestroy() override;
-	// ~END UObject overrides.
-
 #if WITH_EDITORONLY_DATA
-	const UGeometryCache* GetGeometryCache() const { return GeometryCache; }
-	UGeometryCache* GetGeometryCache() { return GeometryCache; }
 	int32 GetLocalNumHiddenLayers() const { return LocalNumHiddenLayers; }
 	int32 GetLocalNumNeuronsPerLayer() const { return LocalNumNeuronsPerLayer; }
 	int32 GetGlobalNumHiddenLayers() const { return GlobalNumHiddenLayers; }
@@ -76,59 +69,53 @@ public:
 	int32 GetBatchSize() const { return BatchSize; }
 	float GetLearningRate() const { return LearningRate; }
 	float GetRegularizationFactor() const { return RegularizationFactor;  }
-	float GetMorphTargetDeltaThreshold() const { return MorphTargetDeltaThreshold; }
-	TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping>& GetGeomCacheMeshMappings() { return MeshMappings; }
-	const TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping>& GetGeomCacheMeshMappings() const { return MeshMappings; }
-#endif
-
-	UFUNCTION(BlueprintCallable, Category = "NeuralMorphModel")
-	void SetMorphTargetDeltas(const TArray<float>& Deltas);
-
-	const TArray<FVector3f>& GetMorphTargetDeltas() const { return MorphTargetDeltas; }
-	int32 GetMorphTargetDeltaStartIndex(int32 MorphTargetIndex) const;
 
 public:
-	/** The compressed morph target data, ready for the GPU. */
-	TSharedPtr<FExternalMorphSet> MorphTargetSet;
-
-	/** The morph target set ID that is passed to FSkeletalMeshLODRenderData::AddExternalMorphBuffer(...). */
-	static int32 NeuralMorphsExternalMorphSetID;
-
-	/** 
-	 * The entire set of morph target deltas, 3 per vertex, for each morph target, as one flattened buffer. 
-	 * So the size of this buffer is: (NumVertsPerMorphTarget * 3 * NumMorphTargets).
+	/**
+	 * The mode that the neural network will operate in. 
+	 * Local mode means there is one tiny network per bone, while global mode has one network for all bones together.
+	 * The advantage of local mode is that it has higher performance, while global mode might result in better deformations.
 	 */
-	TArray<FVector3f> MorphTargetDeltas;
-
-#if WITH_EDITORONLY_DATA
-	TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping> MeshMappings;
-
-	/** The geometry cache that represents the complex mesh deformations. */
-	UPROPERTY(EditAnywhere, Category = "Target Mesh")
-	TObjectPtr<UGeometryCache> GeometryCache = nullptr;
-
-	/** The number of morph targets to generate per bone. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings")
 	ENeuralMorphMode Mode = ENeuralMorphMode::Local;
 
-	/** The number of morph targets to generate per bone. */
+	/** 
+	 * The number of morph targets to generate per bone.
+	 * Higher numbers result in better approximation of the target deformation, but also result in a higher memory footprint and slower performance.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName = "Num Morph Targets Per Bone", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "1000"))
 	int32 LocalNumMorphTargetsPerBone = 6;
 
-	/** The number of morph targets to generate. */
+	/** 
+	 * The number of morph targets to generate in total. 
+	 * Higher numbers result in better approximation of the target deformation, but also result in a higher memory footprint and slower performance.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName = "Num Morph Targets", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "1000"))
 	int32 GlobalNumMorphTargets = 128;
 
-	/** The number of iterations to train the model for. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "500000"))
+	/** 
+	 * The number of iterations to train the model for. 
+	 * If you are quickly iterating then around 1000 to 3000 iterations should be enough.
+	 * If you want to generate final assets you might want to use a higher number of iterations, like 10k to 100k.
+	 * Once the loss doesn't go down anymore, you know that more iterations most likely won't help much.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "1000000"))
 	int32 NumIterations = 2000;
 
-	/** The number of hidden layers that the neural network model will have.\nHigher numbers will slow down performance but can deal with more complex deformations. */
+	/** 
+	 * The number of hidden layers that the neural network model will have.
+	 * Higher numbers will slow down performance but can deal with more complex deformations. 
+	 * For the local model you most likely want to stick with a value of one or two.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Hidden Layers", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "5"))
 	int32 LocalNumHiddenLayers = 1;
 
-	/** The number of units/neurons per hidden layer. Higher numbers will slow down performance but allow for more complex mesh deformations. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Neurons Per Layer", Category = "Training Settings", meta = (ClampMin = "1"))
+	/** 
+	 * The number of units/neurons per hidden layer. 
+	 * Higher numbers will slow down performance but allow for more complex mesh deformations. 
+	 * For the local mode you probably want to keep this around the same value as the number of morph targets per bone.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Neurons Per Layer", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "100"))
 	int32 LocalNumNeuronsPerLayer = 6;
 
 	/** The number of hidden layers that the neural network model will have.\nHigher numbers will slow down performance but can deal with more complex deformations. */
@@ -136,7 +123,7 @@ public:
 	int32 GlobalNumHiddenLayers = 2;
 
 	/** The number of units/neurons per hidden layer. Higher numbers will slow down performance but allow for more complex mesh deformations. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Neurons Per Layer", Category = "Training Settings", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Neurons Per Layer", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "4096"))
 	int32 GlobalNumNeuronsPerLayer = 128;
 
 	/** The number of frames per batch when training the model. */
@@ -151,19 +138,7 @@ public:
 	 * The regularization factor. Higher values can help generate more sparse morph targets, but can also lead to visual artifacts. 
 	 * A value of 0 disables the regularization, and gives the highest quality, at the cost of higher runtime memory usage.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "10.0"))
 	float RegularizationFactor = 1.0f;
-
-	/** 
-	 * Morph target delta values that are smaller than or equal to this threshold will be zeroed out.
-	 * This essentially removes small deltas from morph targets, which will lower the memory usage at runtime, however when set too high it can also introduce visual artifacts.
-	 * A value of 0 will result in the highest quality morph targets, at the cost of higher runtime memory usage.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float MorphTargetDeltaThreshold = 0.0025f;
-
-	/** The morph target error tolerance. Higher values result in larger compression, but could result in visual artifacts. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.01", ClampMax = "1000"))
-	float MorphTargetErrorTolerance = 50.0f;
 #endif // WITH_EDITORONLY_DATA
 };

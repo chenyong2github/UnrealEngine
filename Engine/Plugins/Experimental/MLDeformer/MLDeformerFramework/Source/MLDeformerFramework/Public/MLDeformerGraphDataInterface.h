@@ -19,6 +19,7 @@ class UNeuralNetwork;
 class USkeletalMeshComponent;
 class UMLDeformerModel;
 
+/** Defines the default base ML Deformer shader parameters. */
 #define MLDEFORMER_SHADER_PARAMETERS() \
 	SHADER_PARAMETER(uint32, NumVertices) \
 	SHADER_PARAMETER(uint32, InputStreamStart) \
@@ -108,6 +109,7 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerGraphDataProvider
 	GENERATED_BODY()
 
 public:
+	/** The deformer component that this data provider works on. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
 	TObjectPtr<UMLDeformerComponent> DeformerComponent = nullptr;
 
@@ -132,13 +134,13 @@ namespace UE::MLDeformer
 		// ~END FComputeDataProviderRenderProxy overrides.
 
 	protected:
-		FSkeletalMeshObject* SkeletalMeshObject;
+		FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 		TObjectPtr<UNeuralNetwork> NeuralNetwork = nullptr;
 		FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
 		FRDGBuffer* Buffer = nullptr;
 		FRDGBufferSRV* BufferSRV = nullptr;
-		float Weight = 1.0f;
 		int32 NeuralNetworkInferenceHandle = -1;
+		float Weight = 1.0f;
 		bool bCanRunNeuralNet = false;
 	};
 }	// namespace UE::MLDeformer

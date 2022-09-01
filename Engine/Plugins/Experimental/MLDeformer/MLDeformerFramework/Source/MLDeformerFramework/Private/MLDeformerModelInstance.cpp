@@ -78,7 +78,6 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 	{
 		ErrorText += InputInfo->GenerateCompatibilityErrorString(SkelMesh);
 		ErrorText += "\n";
-		check(!ErrorText.IsEmpty());
 		if (LogIssues)
 		{
 			UE_LOG(LogMLDeformer, Error, TEXT("ML Deformer '%s' isn't compatible with Skeletal Mesh '%s'.\nReason(s):\n%s"), 
@@ -183,7 +182,10 @@ int64 UMLDeformerModelInstance::SetBoneTransforms(float* OutputBuffer, int64 Out
 	const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
 	const int32 AssetNumBones = InputInfo->GetNumBones();
 	int64 Index = StartIndex;
-	check((Index + AssetNumBones * 6) <= OutputBufferSize); // Make sure we don't write past the OutputBuffer. (6 because of two columns of the 3x3 rotation matrix)
+
+	// Make sure we don't write past the OutputBuffer. (6 because of two columns of the 3x3 rotation matrix)
+	checkf((Index + AssetNumBones * 6) <= OutputBufferSize, TEXT("Writing bones past the end of the input buffer."));
+
 	for (int32 BoneIndex = 0; BoneIndex < AssetNumBones; ++BoneIndex)
 	{
 		const FMatrix RotationMatrix = TrainingBoneTransforms[BoneIndex].GetRotation().ToMatrix();
@@ -206,8 +208,8 @@ int64 UMLDeformerModelInstance::SetCurveValues(float* OutputBuffer, int64 Output
 
 	// Write the weights into the output buffer.
 	int64 Index = StartIndex;
-	const int32 AssetNumCurves = InputInfo->GetNumCurves();
-	check((Index + AssetNumCurves) <= OutputBufferSize); // Make sure we don't write past the OutputBuffer.
+	const int32 AssetNumCurves = InputInfo->GetNumCurves();	
+	checkf((Index + AssetNumCurves) <= OutputBufferSize, TEXT("Writing curves past the end of the input buffer"));
 
 	// Write the curve weights to the output buffer.
 	UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();

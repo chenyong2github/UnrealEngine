@@ -31,11 +31,6 @@
 
 namespace UE::MLDeformer
 {
-	TSharedRef<IDetailCustomization> FMLDeformerVizSettingsDetails::MakeInstance()
-	{
-		return MakeShareable(new FMLDeformerVizSettingsDetails());
-	}
-
 	bool FMLDeformerVizSettingsDetails::UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects)
 	{
 		Model = nullptr;

@@ -8,7 +8,6 @@
 
 class USkeletalMesh;
 class USkeletalMeshComponent;
-class UMLDeformerModel;
 
 /**
  * The neural network input information.
@@ -99,9 +98,28 @@ public:
 	 */
 	int32 GetNumCurves() const { return CurveNames.Num(); }
 
+	/**
+	 * Get the list of bone names that should be included as training inputs.
+	 * @return An array of strings, one for each bone name.
+	 */
 	TArray<FString>& GetBoneNameStrings() { return BoneNameStrings; }
+
+	/**
+	 * Get the list of curve names that should be included as training inputs.
+	 * @return An array of strings, one for each curve name.
+	 */
 	TArray<FString>& GetCurveNameStrings() { return CurveNameStrings; }
+
+	/**
+	 * Get the list of bone names that should be included as training inputs.
+	 * @return An array of FName objects, one for each bone.
+	 */
 	TArray<FName>& GetBoneNames() { return BoneNames; }
+
+	/**
+	 * Get the list of curve names that should be included as training inputs.
+	 * @return An array of FName objects, one for each curve.
+	 */
 	TArray<FName>& GetCurveNames() { return CurveNames; }
 
 	/**
@@ -135,19 +153,30 @@ public:
 	void ExtractBoneRotations(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutRotations) const;
 
 	/**
-	 * Get the number of imported vertices in the base mesh.
+	 * Get the number of imported vertices in the base mesh, which is the linear skinned skeletal mesh.
 	 * @return The number of imported vertices in the base mesh.
 	 */
 	int32 GetNumBaseMeshVertices() const { return NumBaseMeshVertices; }
 
+	/**
+	 * Set the number of vertices of our base mesh, which is the linear skinned skeletal mesh.
+	 * The vertex count must be the same as in the DCC, so not the render mesh vertex count.
+	 * @param NumVerts The number of vertices of our base mesh.
+	 */
 	void SetNumBaseVertices(int32 NumVerts) { NumBaseMeshVertices = NumVerts; }
 
 	/**
-	 * Get the number of imported vertices in the target mesh.
+	 * Get the number of imported vertices in the target mesh, which is our training target/ground truth mesh.
+	 * The number of vertices is the vertex count as in the DCC.
 	 * @return The number of imported vertices in the target mesh.
 	 */
 	int32 GetNumTargetMeshVertices() const { return NumTargetMeshVertices; }
 
+	/**
+	 * Set the number of target mesh vertices. The target mesh is our training target/ground truth mesh.
+	 * The vertex count must be the same as in the DCC, so not the render mesh vertex count.
+	 * @param NumVerts The number of vertices in the target mesh.
+	 */
 	void SetNumTargetVertices(int32 NumVerts) { NumTargetMeshVertices = NumVerts; }
 
 protected:
