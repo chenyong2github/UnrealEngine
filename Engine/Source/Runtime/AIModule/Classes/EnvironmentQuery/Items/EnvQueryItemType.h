@@ -39,17 +39,17 @@ public:
 	/** describe item */
 	virtual FString GetDescription(const uint8* RawData) const;
 
+	/** helper function for reading typed data from memory block */
+	template<typename T>
+	static const T& GetValueFromMemory(const uint8* MemoryBlock)
+	{
+		return *((T*)MemoryBlock);
+	}
+
 protected:
 
 	/** size of value for this type */
 	uint16 ValueSize;
-
-	/** helper function for reading typed data from memory block */
-	template<typename T>
-	static T GetValueFromMemory(const uint8* MemoryBlock)
-	{
-		return *((T*)MemoryBlock);
-	}
 
 	/** helper function for writing typed data to memory block */
 	template<typename T>
