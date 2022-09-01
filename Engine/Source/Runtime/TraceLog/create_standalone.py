@@ -40,7 +40,6 @@ def _exclude_line(line):
 
 #-------------------------------------------------------------------------------
 def _collect_source(src_dir, predicate=None):
-	_spam_header("Gathering source files")
 	files  = [x for x in src_dir.glob("Public/**/*")]
 	files += [x for x in src_dir.glob("Private/**/*")]
 	files  = [x for x in files if x.suffix in (".h", ".cpp", ".inl")]
@@ -50,12 +49,14 @@ def _collect_source(src_dir, predicate=None):
 		files = [x for x in files if predicate(x)]
 		_spam("Filtered down to %d files" % len(files))
 
-	# Collect lines of each source file, filtering local includes
-	source_files = []
-	for file in files:
-		source_file = _SourceFile(file)
-		source_files.append(source_file)
+	return [_SourceFile(x) for x in files]
 
+#-------------------------------------------------------------------------------
+def _finalize_source(source_files, include_dirs):
+	# Collect lines of each source file, filtering local includes
+	_spam("Loading code")
+	for source_file in source_files:
+		file = source_file.path
 		for line in file.open("rt"):
 			include = _parse_include(line)
 			if not include:
@@ -65,7 +66,7 @@ def _collect_source(src_dir, predicate=None):
 
 			is_local = False
 
-			for include_dir in (file.parent, src_dir / "Public"):
+			for include_dir in (file.parent, *include_dirs):
 				candidate = include_dir / include
 				if candidate.is_file():
 					is_local = True
@@ -73,8 +74,6 @@ def _collect_source(src_dir, predicate=None):
 
 			if is_local:
 				source_file.deps.append(candidate)
-
-	_spam_header("Topological sort")
 
 	# Hook up dependencies
 	_spam("Resolving include dependencies")
@@ -108,21 +107,51 @@ def _collect_source(src_dir, predicate=None):
 	ext_key = lambda x: 1 if x.path.suffix == ".cpp" else 0
 	source_files = sorted(topo_sorted, key=ext_key)
 
-	# Exclude LZ4
-	source_files = [x for x in source_files if "lz4" not in x.path.name]
-
 	return source_files
 
 #-------------------------------------------------------------------------------
-def _main(src_dir, dest_dir, thin):
+def _main_trace(src_dir, dest_dir, thin, analysis):
 	dest_dir = dest_dir.resolve()
 	src_dir = Path(__file__).parent
 
-	_spam_header("Trace")
 	_spam("Source dir:", src_dir)
 	_spam("Dest dir:", dest_dir)
 
-	source_files = _collect_source(src_dir)
+	# Collect and sort source files.
+	def predicate(path):
+		if path.stem.startswith("lz4"): return False
+		return True
+	source_files = _collect_source(src_dir, predicate)
+
+	analysis_dir = None
+	if analysis:
+		analysis_dir = Path(__file__).parent
+		analysis_dir = analysis_dir.parent.parent / "Developer/TraceAnalysis"
+		_spam("Analysis dir:", analysis_dir)
+
+		def predicate(path):
+			if	 path.parent.name == "Store":		 return False
+			elif path.parent.name == "Asio":		 return False
+			elif path.name.startswith("Store"):		 return False
+			elif path.name.startswith("Control"):	 return False
+			excludes = (
+				"Analysis.h",
+				"Context.cpp",
+				"DataStream.h",
+				"DataStream.cpp",
+				"EventToCbor.cpp",
+				"Processor.cpp",
+				"Processor.h",
+				"TraceAnalysisModule.cpp",
+			)
+			return path.name not in excludes
+		source_files += _collect_source(analysis_dir, predicate)
+
+	_spam_header("Topological sort")
+	include_dirs = (src_dir / "Public",)
+	if analysis_dir:
+		include_dirs = (*include_dirs, analysis_dir / "Public")
+	source_files = _finalize_source(source_files, include_dirs)
 
 	# Add prologue and epilogue files
 	prologue = _SourceFile(src_dir / "standalone_prologue.h")
@@ -183,8 +212,10 @@ def main():
 	parser = argparse.ArgumentParser(description=desc)
 	parser.add_argument("outdir", help="Directory to write output file(s) to")
 	parser.add_argument("--thin", action="store_true", help="#include standalone_ instead of blitting")
+	parser.add_argument("--analysis", action="store_true", help="Amalgamate TraceAnalysis too")
 	args = parser.parse_args()
-	return _main(Path(__file__).parent, Path(args.outdir), args.thin)
+
+	_main_trace(Path(__file__).parent, Path(args.outdir), args.thin, args.analysis)
 
 if __name__ == "__main__":
 	raise SystemExit(main())
