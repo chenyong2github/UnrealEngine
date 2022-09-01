@@ -226,26 +226,30 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 					Actor->CopyPasteId = INDEX_NONE;
 				}
 
-				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-				TArray<FAssetRenameData> RenameData;
-
-				for (TTuple<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
+				// Only do Asset Rename on Move (Copy should not affect existing references)
+				if (bMoveActors)
 				{
-					if (Pair.Value.IsValid())
-					{
-						RenameData.Add(FAssetRenameData(Pair.Key, Pair.Value, true));
-					}
-				}
+					FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+					TArray<FAssetRenameData> RenameData;
 
-				if (RenameData.Num() > 0)
-				{
-					if (bWarnAboutRenaming)
+					for (TTuple<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
 					{
-						AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
+						if (Pair.Value.IsValid())
+						{
+							RenameData.Add(FAssetRenameData(Pair.Key, Pair.Value, true));
+						}
 					}
-					else
+
+					if (RenameData.Num() > 0)
 					{
-						AssetToolsModule.Get().RenameAssets(RenameData);
+						if (bWarnAboutRenaming)
+						{
+							AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
+						}
+						else
+						{
+							AssetToolsModule.Get().RenameAssets(RenameData);
+						}
 					}
 				}
 

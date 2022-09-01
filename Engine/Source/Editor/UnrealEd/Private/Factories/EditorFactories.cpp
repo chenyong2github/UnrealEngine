@@ -848,13 +848,7 @@ UObject* ULevelFactory::FactoryCreateText
 				FName ActorSourceName(NAME_None);
 				FParse::Value( Str, TEXT("NAME="), ActorSourceName );
 				ActorUniqueName = ActorSourceName;
-
-				AActor* Found=nullptr;
-				if( ActorUniqueName!=NAME_None )
-				{
-					// look in the current level for the same named actor
-					Found = FindObject<AActor>( World->GetCurrentLevel(), *ActorUniqueName.ToString() );
-				}
+				AActor* Found = nullptr;
 
 				// Make sure this name is unique. We need to do this upfront because we also want to potentially create the Associated BP class using the same name.
 				bool bNeedGloballyUniqueName = World->GetCurrentLevel()->IsUsingExternalActors() && CastChecked<AActor>(TempClass->GetDefaultObject())->SupportsExternalPackaging();
@@ -989,6 +983,30 @@ UObject* ULevelFactory::FactoryCreateText
 								{
 									check(CopyPasteId != INDEX_NONE);
 									NewActor->CopyPasteId = CopyPasteId;
+
+									// Use ActorSourceName + CopyPasteId to find matching source actor
+									if (ActorSourceName != NAME_None)
+									{
+										for (ULevel* Level : World->GetLevels())
+										{
+											if (Level && IsValid(Level))
+											{
+												if (AActor* Potential = FindObject<AActor>(Level, *ActorSourceName.ToString()))
+												{
+													if (Potential->CopyPasteId == CopyPasteId)
+													{
+														Found = Potential;
+														break;
+													}
+												}
+											}
+										}
+									}
+								}
+								else if(ActorSourceName != NAME_None)
+								{
+									// look in the current level for the same named actor
+									Found = FindObject<AActor>(World->GetCurrentLevel(), *ActorSourceName.ToString());
 								}
 
 								// Does the group exist?
