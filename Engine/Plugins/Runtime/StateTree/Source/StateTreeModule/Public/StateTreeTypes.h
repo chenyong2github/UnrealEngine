@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "InstancedStruct.h"
+#include "StructView.h"
 #include "PropertyBag.h"
+#include "GameplayTagContainer.h"
 #include "StateTreeTypes.generated.h"
 
 STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
@@ -16,56 +17,92 @@ STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
 UENUM()
 enum class EStateTreeRunStatus : uint8
 {
-	Running,			/// Tree is still running.
-	Failed,				/// Tree execution has stopped on failure.
-	Succeeded,			/// Tree execution has stopped on success.
-	Unset,				/// Status not set.
+	/** Tree is still running. */
+	Running,
+	
+	/** Tree execution has stopped on failure. */
+	Failed,
+	
+	/** Tree execution has stopped on success. */
+	Succeeded,
+	
+	/** Status not set. */
+	Unset,
 };
 
-/**  Evaluator evaluation type. */
+/** Evaluator evaluation type. */
 UENUM()
 enum class EStateTreeEvaluationType : uint8
 {
-	PreSelect,			/// Called during selection process on states that have not been visited yet.
-    Tick,				/// Called during tick on active states.
+	/** Called during selection process on states that have not been visited yet. */
+	PreSelect,
+	
+	/** Called during tick on active states. */
+    Tick,
 };
 
-/**  State change type. Passed to EnterState() and ExitState() to indicate how the state change affects the state and Evaluator or Task is on. */
+/** State change type. Passed to EnterState() and ExitState() to indicate how the state change affects the state and Evaluator or Task is on. */
 UENUM()
 enum class EStateTreeStateChangeType : uint8
 {
-	None,				/// Not an activation
-	Changed,			/// The state became activated or deactivated.
-    Sustained,			/// The state is parent of new active state and sustained previous active state.
+	/** Not an activation */
+	None,
+	
+	/** The state became activated or deactivated. */
+	Changed,
+	
+	/** The state is parent of new active state and sustained previous active state. */
+    Sustained,
 };
 
 /** Transitions behavior. */
 UENUM()
 enum class EStateTreeTransitionType : uint8
 {
-	Succeeded,			/// Signal StateTree execution succeeded.
-	Failed,				/// Signal StateTree execution failed.
-	GotoState,			/// Transition to specified state.
-	NotSet,				/// No transition.
-	NextState,			/// Goto next sibling state.
+	/** Stop StateTree and mark execution succeeded. */
+	Succeeded,
+	
+	/** Stop StateTree and mark execution failed. */
+	Failed,
+	
+	/** Transition to specified state. */
+	GotoState,
+	
+	/** No transition. */
+	NotSet,
+	
+	/** Goto next sibling state. */
+	NextState,
 };
 
 /** Operand between conditions */
 UENUM()
 enum class EStateTreeConditionOperand : uint8
 {
-	Copy UMETA(Hidden),	/// Copy result
-	And,				/// Combine results with AND.
-	Or,					/// Combine results with OR.
+	/** Copy result */
+	Copy UMETA(Hidden),
+	
+	/** Combine results with AND. */
+	And,
+	
+	/** Combine results with OR. */
+	Or,
 };
 
 UENUM()
 enum class EStateTreeStateType : uint8
 {
-	State,		// A State containing tasks and evaluators.
-	Group,		// A State containing just sub states.
-	Linked,		// A State that is linked to another state in the tree (the execution continues on the linked state).
-	Subtree,	// A subtree that can be linked to.
+	/** A State containing tasks and evaluators. */
+	State,
+	
+	/** A State containing just sub states. */
+	Group,
+	
+	/** A State that is linked to another state in the tree (the execution continues on the linked state). */
+	Linked,
+	
+	/** A subtree that can be linked to. */
+	Subtree,
 };
 
 namespace UE::StateTree
@@ -77,17 +114,30 @@ namespace UE::StateTree
 
 
 
-/** Transitions event. */
+/** Transitions trigger. */
 UENUM()
-enum class EStateTreeTransitionEvent : uint8
+enum class EStateTreeTransitionTrigger : uint8
 {
 	None = 0 UMETA(Hidden),
-	OnCompleted = 0x1 | 0x2,
-    OnSucceeded = 0x1,
-    OnFailed = 0x2,
-    OnCondition = 0x4,
+
+	/** Try trigger transition when a state succeeded or failed. */
+	OnStateCompleted = 0x1 | 0x2,
+
+	/** Try trigger transition when a state succeeded. */
+    OnStateSucceeded = 0x1,
+
+	/** Try trigger transition when a state failed. */
+    OnStateFailed = 0x2,
+
+	/** Try trigger transition each StateTree tick. */
+    OnTick = 0x4,
+	
+	/** Try trigger transition on specific event. */
+	OnEvent = 0x8,
+
+	MAX
 };
-ENUM_CLASS_FLAGS(EStateTreeTransitionEvent)
+ENUM_CLASS_FLAGS(EStateTreeTransitionTrigger)
 
 /** Handle to a StateTree state */
 USTRUCT(BlueprintType)
@@ -116,7 +166,7 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 		switch (Index)
 		{
 		case InvalidIndex:		return TEXT("Invalid Item");
-		case SucceededIndex: 	return TEXT("Succeeded Item");
+		case SucceededIndex:	return TEXT("Succeeded Item");
 		case FailedIndex: 		return TEXT("Failed Item");
 		default: 				return FString::Printf(TEXT("%d"), Index);
 		}
@@ -167,6 +217,7 @@ protected:
 };
 	
 
+/** uint8 index that can be invalid. */
 USTRUCT(BlueprintType)
 struct STATETREEMODULE_API FStateTreeIndex8
 {
@@ -403,18 +454,33 @@ struct STATETREEMODULE_API FCompactStateTransition
 {
 	GENERATED_BODY()
 
+	/** Transition event tag, used when trigger type is event. */
 	UPROPERTY()
-	uint16 ConditionsBegin = 0;							// Index to first condition to test
+	FGameplayTag EventTag;
+
+	/** Index to first condition to test */
 	UPROPERTY()
-	FStateTreeStateHandle State = FStateTreeStateHandle::Invalid;	// Target state of the transition
+	uint16 ConditionsBegin = 0;
+
+	/** Target state of the transition */
 	UPROPERTY()
-	EStateTreeTransitionType Type = EStateTreeTransitionType::NotSet;	// Type of the transition.
+	FStateTreeStateHandle State = FStateTreeStateHandle::Invalid;
+
+	/** Type of the transition. */
 	UPROPERTY()
-	EStateTreeTransitionEvent Event = EStateTreeTransitionEvent::None;	// Type of the transition event.
+	EStateTreeTransitionType Type = EStateTreeTransitionType::NotSet;
+ 
+	/* Type of the transition trigger. */
 	UPROPERTY()
-	uint8 GateDelay = 0;								// The time the conditions need to hold true for the transition to become active, in tenths of a seconds.
+	EStateTreeTransitionTrigger Trigger = EStateTreeTransitionTrigger::None;
+
+	/** The time the conditions need to hold true for the transition to become active, in tenths of a seconds. */
 	UPROPERTY()
-	uint8 ConditionsNum = 0;							// Number of conditions to test.
+	uint8 GateDelay = 0;
+
+	/** Number of conditions to test. */
+	UPROPERTY()
+	uint8 ConditionsNum = 0;
 };
 
 /**

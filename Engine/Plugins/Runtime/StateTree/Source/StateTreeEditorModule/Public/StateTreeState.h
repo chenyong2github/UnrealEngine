@@ -21,7 +21,7 @@ struct STATETREEEDITORMODULE_API FStateTreeStateLink
 	GENERATED_BODY()
 
 	FStateTreeStateLink() = default;
-	FStateTreeStateLink(EStateTreeTransitionType InType) : Type(InType) {}
+	FStateTreeStateLink(const EStateTreeTransitionType InType) : Type(InType) {}
 
 	void Set(const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
 	void Set(const UStateTreeState* InState) { Set(EStateTreeTransitionType::GotoState, InState); }
@@ -47,7 +47,8 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	GENERATED_BODY()
 
 	FStateTreeTransition() = default;
-	FStateTreeTransition(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
+	FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
+	FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
 
 	template<typename T, typename... TArgs>
 	TStateTreeEditorNode<T>& AddCondition(TArgs&&... InArgs)
@@ -64,9 +65,12 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	}
 
 	UPROPERTY(EditDefaultsOnly, Category = Transition)
-	EStateTreeTransitionEvent Event = EStateTreeTransitionEvent::OnCompleted;
+	EStateTreeTransitionTrigger Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
 
 	UPROPERTY(EditDefaultsOnly, Category = Transition)
+	FGameplayTag EventTag;
+
+	UPROPERTY(EditDefaultsOnly, Category = Transition, meta=(DisplayName="Transition To"))
 	FStateTreeStateLink State;
 
 	// Gate delay in seconds.
@@ -171,10 +175,16 @@ public:
 	 * Adds Transition.
 	 * @return reference to the new Transition. 
 	 */
-	FStateTreeTransition& AddTransition(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
+	FStateTreeTransition& AddTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
 	{
-		return Transitions.Emplace_GetRef(InEvent, InType, InState);
+		return Transitions.Emplace_GetRef(InTrigger, InType, InState);
 	}
+
+	FStateTreeTransition& AddTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
+	{
+		return Transitions.Emplace_GetRef(InTrigger, InEventTag, InType, InState);
+	}
+
  
 	// ~StateTree Builder API
 
@@ -196,9 +206,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeConditionBase", BaseClass = "/Script/StateTreeModule.StateTreeConditionBlueprintBase"))
 	TArray<FStateTreeEditorNode> EnterConditions;
 
+#if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "Evaluators are moved into UStateTreeEditorData. This property will be removed for 5.1.")
 	UPROPERTY(meta = (DeprecatedProperty, BaseStruct = "/Script/StateTreeModule.StateTreeEvaluatorBase", BaseClass = "/Script/StateTreeModule.StateTreeEvaluatorBlueprintBase"))
 	TArray<FStateTreeEditorNode> Evaluators_DEPRECATED;
+#endif
 
 	UPROPERTY(EditDefaultsOnly, Category = "Tasks", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeTaskBase", BaseClass = "/Script/StateTreeModule.StateTreeTaskBlueprintBase"))
 	TArray<FStateTreeEditorNode> Tasks;

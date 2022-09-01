@@ -11,6 +11,7 @@
 struct FStateTreeEvaluatorBase;
 struct FStateTreeTaskBase;
 struct FStateTreeConditionBase;
+struct FStateTreeEvent;
 
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeExecutionState
@@ -101,6 +102,53 @@ public:
 	/** Tick the state tree logic. */
 	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeInstanceData* ExternalInstanceData = nullptr);
 
+	
+	/** @return the status of the last tick function */
+	EStateTreeRunStatus GetLastTickStatus(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
+	/** @return reference to the list of currently active states. */
+	const FStateTreeActiveStates& GetActiveStates(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
+#if WITH_GAMEPLAY_DEBUGGER
+	/** @return Debug string describing the current state of the execution */
+	FString GetDebugInfoString(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+#endif // WITH_GAMEPLAY_DEBUGGER
+
+#if WITH_STATETREE_DEBUG
+	int32 GetStateChangeCount(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
+	void DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData = nullptr);
+#endif
+
+	/** @return the name of the active state. */
+	FString GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+	
+	/** @return the names of all the active state. */
+	TArray<FName> GetActiveStateNames(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+
+	/** Sends event for the StateTree. */
+	void SendExternalEvent(const FStateTreeEvent& Event, FStateTreeInstanceData* ExternalInstanceData = nullptr);
+
+	/** Sends event for the StateTree. Can only be used during StateTree tick. */
+	void SendEvent(const FStateTreeEvent& Event);
+
+	/** Iterates over all events. Can only be used during StateTree tick. Expects a lambda which takes const FStateTreeEvent& Event, and returns EStateTreeLoopEvents. */
+	template<typename TFunc>
+	void ForEachEvent(TFunc&& Function) const
+	{
+		for (const FStateTreeEvent& Event : EventsToProcess)
+		{
+			if (Function(Event) == EStateTreeLoopEvents::Break)
+			{
+				break;
+			}
+		}
+	}
+
+	/** @return events to process this tick. */
+	TConstArrayView<FStateTreeEvent> GetEventsToProcess() const { return EventsToProcess; }
+
+	
 	/** @return Pointer to a State or null if state not found */ 
 	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
 	{
@@ -122,47 +170,7 @@ public:
 	}
 
 	/** @return True if all required external data pointers are set. */ 
-	bool AreExternalDataViewsValid() const
-	{
-		check(StateTree);
-		bool bResult = true;
-		for (const FStateTreeExternalDataDesc& DataDesc : StateTree->ExternalDataDescs)
-		{
-			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex.Get()];
-			
-			if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
-			{
-				// Required items must have valid pointer of the expected type.  
-				if (!DataView.IsValid() || !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
-				{
-					bResult = false;
-					break;
-				}
-			}
-			else
-			{
-				// Optional items must have same type if they are set.
-				if (DataView.IsValid() && !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
-				{
-					bResult = false;
-					break;
-				}
-			}
-		}
-
-		for (const FStateTreeExternalDataDesc& DataDesc : StateTree->GetNamedExternalDataDescs())
-		{
-			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex.Get()];
-
-			// Items must have valid pointer of the expected type.  
-			if (!DataView.IsValid() || !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
-			{
-				bResult = false;
-				break;
-			}
-		}
-		return bResult;
-	}
+	bool AreExternalDataViewsValid() const;
 
 	/** @return Handle to external data of type InStruct, or invalid handle if struct not found. */ 
 	FStateTreeExternalDataHandle GetExternalDataHandleByStruct(const UStruct* InStruct) const
@@ -241,22 +249,6 @@ public:
 		return Handle.IsValid() ? (typename T::DataType*)(DataViews[Handle.DataViewIndex.Get()].GetMemory() + Handle.PropertyOffset) : nullptr;
 	}
 
-	/**
-	 * Used internally by the Blueprint wrappers to get wrapped instance objects. 
-	 * @param DataViewIndex Index to a data view
-	 * @return Pointer to an instance object based.
-	 */
-	template <typename T>
-	T* GetInstanceObjectInternal(const FStateTreeIndex16 DataViewIndex) const
-	{
-		const UStruct* Struct = DataViews[DataViewIndex.Get()].GetStruct();
-		if (Struct != nullptr && Struct->IsChildOf<T>())
-		{
-			return DataViews[DataViewIndex.Get()].template GetMutablePtr<T>();
-		}
-		return nullptr;
-	}
-
 	/** @returns pointer to the instance data of specified node. */
 	template <typename T>
 	T* GetInstanceDataPtr(const FStateTreeNodeBase& Node) const
@@ -270,26 +262,6 @@ public:
 	{
 		return DataViews[Node.DataViewIndex.Get()].template GetMutable<T>();
 	}
-
-	/** @return the status of the last tick function */
-	EStateTreeRunStatus GetLastTickStatus(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-
-	/** @return reference to the list of currently active states. */
-	const FStateTreeActiveStates& GetActiveStates(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-
-#if WITH_GAMEPLAY_DEBUGGER
-	/** @return Debug string describing the current state of the execution */
-	FString GetDebugInfoString(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-#endif // WITH_GAMEPLAY_DEBUGGER
-
-#if WITH_STATETREE_DEBUG
-	int32 GetStateChangeCount(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-
-	void DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData = nullptr);
-#endif
-
-	FString GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-	TArray<FName> GetActiveStateNames(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
 protected:
 
@@ -409,6 +381,23 @@ protected:
 	/** @return String describing full path of an activate state for logging and debug. */
 	FString DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, int32 ActiveStateIndex) const;
 
+	// Helper to set and clear CurrentInstanceData.
+	struct FScopedCurrentInstanceData
+	{
+		FScopedCurrentInstanceData(FStateTreeExecutionContext& InContext, FStateTreeInstanceData& InstanceData)
+			: Context(InContext)
+		{
+			Context.CurrentInstanceData = &InstanceData;
+		}
+
+		~FScopedCurrentInstanceData()
+		{
+			Context.CurrentInstanceData = nullptr;
+		}
+
+		FStateTreeExecutionContext& Context;
+	};
+	
 	/** The StateTree asset the context is initialized for */
 	UPROPERTY(Transient)
 	TObjectPtr<const UStateTree> StateTree = nullptr;
@@ -420,9 +409,15 @@ protected:
 	UPROPERTY(Transient)
 	FStateTreeInstanceData InternalInstanceData;
 
+	/** Instance data used during current tick. */
+	FStateTreeInstanceData* CurrentInstanceData = nullptr;
+
 	/** Array of data pointers (external data, tasks, evaluators, conditions), used during evaluation. Initialized to match the number of items in the asset. */
 	TArray<FStateTreeDataView> DataViews;
 
 	/** Storage type of the context */
 	EStateTreeStorage StorageType = EStateTreeStorage::Internal;
+
+	/** Events to process in current tick. */
+	TArray<FStateTreeEvent> EventsToProcess;
 };

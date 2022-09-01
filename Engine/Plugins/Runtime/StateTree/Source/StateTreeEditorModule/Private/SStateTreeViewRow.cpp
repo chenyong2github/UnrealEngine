@@ -29,18 +29,6 @@
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
-namespace UE { namespace StateTreeEditor {
-
-static void AddUnique(TArray<FText>& Array, const FText& NewItem)
-{
-	if (!Array.FindByPredicate([&NewItem](const FText& Item) { return Item.IdenticalTo(NewItem); }))
-	{
-		Array.Add(NewItem);
-	}
-}
-	
-}} // UE::StateTreeEditor
-
 void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, UStateTreeState* InState, const TSharedPtr<SScrollBox>& ViewBox, TSharedRef<FStateTreeViewModel> InStateTreeViewModel)
 {
 	StateTreeViewModel = InStateTreeViewModel;
@@ -132,11 +120,14 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 						[
 							SAssignNew(NameTextBlock, SInlineEditableTextBlock)
 							.Style(FStateTreeEditorStyle::Get(), "StateTree.State.TitleInlineEditableText")
-							.OnVerifyTextChanged(this, &SStateTreeViewRow::VerifyNodeTextChanged)
+							.OnVerifyTextChanged_Lambda([](const FText& NewLabel, FText& OutErrorMessage)
+							{
+								return !NewLabel.IsEmptyOrWhitespace();
+							})
 							.OnTextCommitted(this, &SStateTreeViewRow::HandleNodeLabelTextCommitted)
 							.Text(this, &SStateTreeViewRow::GetStateDesc)
 							.Clipping(EWidgetClipping::ClipToBounds)
-							.IsSelected(this, &SStateTreeViewRow::IsSelected)
+							.IsSelected(this, &SStateTreeViewRow::IsStateSelected)
 						]
 					]
 				]
@@ -370,7 +361,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 	];
 }
 
-void SStateTreeViewRow::RequestRename()
+void SStateTreeViewRow::RequestRename() const
 {
 	if (NameTextBlock)
 	{
@@ -518,25 +509,26 @@ FText SStateTreeViewRow::GetLinkedStateDesc() const
 	return FText::GetEmpty();
 }
 
-bool SStateTreeViewRow::HasParentTransitionForEvent(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
+bool SStateTreeViewRow::HasParentTransitionForTrigger(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const
 {
-	EStateTreeTransitionEvent CombinedEvents = EStateTreeTransitionEvent::None;
+	EStateTreeTransitionTrigger CombinedTrigger = EStateTreeTransitionTrigger::None;
 	for (const UStateTreeState* ParentState = State.Parent; ParentState != nullptr; ParentState = ParentState->Parent)
 	{
 		for (const FStateTreeTransition& Transition : ParentState->Transitions)
 		{
-			CombinedEvents |= Transition.Event;
+			CombinedTrigger |= Transition.Trigger;
 		}
 	}
-	return EnumHasAllFlags(CombinedEvents, Event);
+	return EnumHasAllFlags(CombinedTrigger, Trigger);
 }
 
-FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
+FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask) const
 {
 	TArray<FText> DescItems;
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
-		if (Transition.Event == Event)
+		const bool bMatch = bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
+		if (bMatch)
 		{
 			switch (Transition.State.Type)
 			{
@@ -565,9 +557,9 @@ FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const 
 	if (State.Children.Num() == 0
 		&& State.Type == EStateTreeStateType::State
 		&& DescItems.Num() == 0
-		&& Event != EStateTreeTransitionEvent::OnCondition)
+		&& EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
 	{
-		if (HasParentTransitionForEvent(State, Event))
+		if (HasParentTransitionForTrigger(State, Trigger))
 		{
 			DescItems.Add(LOCTEXT("TransitionActionHandleInParentStyled", "[Parent]"));
 		}
@@ -580,7 +572,7 @@ FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const 
 	return FText::Join(FText::FromString(TEXT(", ")), DescItems);
 }
 
-FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
+FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask) const
 {
 	enum EIconType
 	{
@@ -595,7 +587,8 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
 		// The icons here depict "transition direction", not the type specifically.
-		if (Transition.Event == Event)
+		const bool bMatch = bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
+		if (bMatch)
 		{
 			switch (Transition.State.Type)
 			{
@@ -630,9 +623,9 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	if (State.Children.Num() == 0
 		&& State.Type == EStateTreeStateType::State
         && IconType == IconNone
-        && Event != EStateTreeTransitionEvent::OnCondition)
+        && EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
 	{
-		if (HasParentTransitionForEvent(State, Event))
+		if (HasParentTransitionForTrigger(State, Trigger))
 		{
 			IconType = IconLevelUp;
 		}
@@ -659,38 +652,47 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	return FText::GetEmpty();
 }
 
-EVisibility SStateTreeViewRow::GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const
+EVisibility SStateTreeViewRow::GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const
 {
-	TStaticArray<int32, 5> Counts;
+	if (!EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+	{
+		for (const FStateTreeTransition& Transition : State.Transitions)
+		{
+			if (EnumHasAnyFlags(Trigger, Transition.Trigger))
+			{
+				return EVisibility::Visible;
+			}
+		}
+		return EVisibility::Collapsed;
+	}
+	
+	EStateTreeTransitionTrigger HandledTriggers = EStateTreeTransitionTrigger::None;
+	TStaticArray<int32, static_cast<uint32>(EStateTreeTransitionTrigger::MAX)> Counts;
 	Algo::ForEach(Counts, [](int32& Count) { Count = 0; }); 
 
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
-		Counts[static_cast<uint8>(Transition.Event)]++;
+		HandledTriggers |= Transition.Trigger;
+		Counts[static_cast<uint8>(Transition.Trigger)]++;
 	}
 
+	// Assume that leaf states should have completion transitions.
 	if (State.Children.Num() == 0
-	    && Counts[static_cast<uint8>(Event)] == 0
-	    && Event != EStateTreeTransitionEvent::OnCondition)
+	    && Counts[static_cast<uint8>(Trigger)] == 0)
 	{
 		// Find the missing transition type, note: Completed = Succeeded|Failed.
-		EStateTreeTransitionEvent HandledEvents = EStateTreeTransitionEvent::None;
-		HandledEvents |= Counts[static_cast<uint8>(EStateTreeTransitionEvent::OnCompleted)] > 0 ? EStateTreeTransitionEvent::OnCompleted : EStateTreeTransitionEvent::None;
-		HandledEvents |= Counts[static_cast<uint8>(EStateTreeTransitionEvent::OnSucceeded)] > 0 ? EStateTreeTransitionEvent::OnSucceeded : EStateTreeTransitionEvent::None;
-		HandledEvents |= Counts[static_cast<uint8>(EStateTreeTransitionEvent::OnFailed)] > 0 ? EStateTreeTransitionEvent::OnFailed : EStateTreeTransitionEvent::None;
-		const EStateTreeTransitionEvent MissingEvent = HandledEvents ^ EStateTreeTransitionEvent::OnCompleted;
-		
-		return MissingEvent == Event ? EVisibility::Visible : EVisibility::Collapsed;
+		const EStateTreeTransitionTrigger MissingTriggers = HandledTriggers ^ EStateTreeTransitionTrigger::OnStateCompleted;
+		return MissingTriggers == Trigger ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 	
-	return Counts[static_cast<uint8>(Event)] > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+	return Counts[static_cast<uint8>(Trigger)] > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SStateTreeViewRow::GetCompletedTransitionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnCompleted);
+		return GetTransitionsVisibility(*State, EStateTreeTransitionTrigger::OnStateCompleted);
 	}
 	return EVisibility::Visible;
 }
@@ -699,7 +701,7 @@ FText SStateTreeViewRow::GetCompletedTransitionsDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnCompleted);
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateCompleted);
 	}
 	return LOCTEXT("Invalid", "Invalid");
 }
@@ -708,7 +710,7 @@ FText SStateTreeViewRow::GetCompletedTransitionsIcon() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnCompleted);
+		return GetTransitionsIcon(*State, EStateTreeTransitionTrigger::OnStateCompleted);
 	}
 	return FText::GetEmpty();
 }
@@ -717,7 +719,7 @@ EVisibility SStateTreeViewRow::GetSucceededTransitionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnSucceeded);
+		return GetTransitionsVisibility(*State, EStateTreeTransitionTrigger::OnStateSucceeded);
 	}
 	return EVisibility::Collapsed;
 }
@@ -726,7 +728,7 @@ FText SStateTreeViewRow::GetSucceededTransitionDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnSucceeded);
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateSucceeded);
 	}
 	return FText::GetEmpty();
 }
@@ -735,7 +737,7 @@ FText SStateTreeViewRow::GetSucceededTransitionIcon() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnSucceeded);
+		return GetTransitionsIcon(*State, EStateTreeTransitionTrigger::OnStateSucceeded);
 	}
 	return FText::GetEmpty();
 }
@@ -744,7 +746,7 @@ EVisibility SStateTreeViewRow::GetFailedTransitionVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnFailed);
+		return GetTransitionsVisibility(*State, EStateTreeTransitionTrigger::OnStateFailed);
 	}
 	return EVisibility::Collapsed;
 }
@@ -753,7 +755,7 @@ FText SStateTreeViewRow::GetFailedTransitionDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnFailed);
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateFailed);
 	}
 	return LOCTEXT("Invalid", "Invalid");
 }
@@ -762,7 +764,7 @@ FText SStateTreeViewRow::GetFailedTransitionIcon() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsIcon(*State, EStateTreeTransitionEvent::OnFailed);
+		return GetTransitionsIcon(*State, EStateTreeTransitionTrigger::OnStateFailed);
 	}
 	return FEditorFontGlyphs::Ban;
 }
@@ -771,19 +773,18 @@ EVisibility SStateTreeViewRow::GetConditionalTransitionsVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsVisibility(*State, EStateTreeTransitionEvent::OnCondition);
+		return GetTransitionsVisibility(*State, EStateTreeTransitionTrigger::OnTick | EStateTreeTransitionTrigger::OnEvent);
 	}
 	return EVisibility::Collapsed;
 }
 
 FText SStateTreeViewRow::GetConditionalTransitionsDesc() const
 {
-	TArray<FText> DescItems;
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsDesc(*State, EStateTreeTransitionEvent::OnCondition);
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnTick | EStateTreeTransitionTrigger::OnEvent, /*bUseMask*/true);
 	}
-	return FText::Join(FText::FromString(TEXT(", ")), DescItems);
+	return FText::GetEmpty();
 }
 
 bool SStateTreeViewRow::IsRootState() const
@@ -793,7 +794,7 @@ bool SStateTreeViewRow::IsRootState() const
 	return State ? State->Parent == nullptr : false;
 }
 
-bool SStateTreeViewRow::IsSelected() const
+bool SStateTreeViewRow::IsStateSelected() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
@@ -805,13 +806,7 @@ bool SStateTreeViewRow::IsSelected() const
 	return false;
 }
 
-
-bool SStateTreeViewRow::VerifyNodeTextChanged(const FText& NewLabel, FText& OutErrorMessage)
-{
-	return !NewLabel.IsEmptyOrWhitespace();
-}
-
-void SStateTreeViewRow::HandleNodeLabelTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType)
+void SStateTreeViewRow::HandleNodeLabelTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType) const
 {
 	if (StateTreeViewModel)
 	{
@@ -822,15 +817,14 @@ void SStateTreeViewRow::HandleNodeLabelTextCommitted(const FText& NewLabel, ETex
 	}
 }
 
-
-FReply SStateTreeViewRow::HandleDragDetected(const FGeometry&, const FPointerEvent&)
+FReply SStateTreeViewRow::HandleDragDetected(const FGeometry&, const FPointerEvent&) const
 {
 	return FReply::Handled().BeginDragDrop(FActionTreeViewDragDrop::New(WeakState.Get()));
 }
 
-TOptional<EItemDropZone> SStateTreeViewRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState)
+TOptional<EItemDropZone> SStateTreeViewRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState) const
 {
-	TSharedPtr<FActionTreeViewDragDrop> DragDropOperation = DragDropEvent.GetOperationAs<FActionTreeViewDragDrop>();
+	const TSharedPtr<FActionTreeViewDragDrop> DragDropOperation = DragDropEvent.GetOperationAs<FActionTreeViewDragDrop>();
 	if (DragDropOperation.IsValid())
 	{
 		// Cannot drop on selection or child of selection.
@@ -845,9 +839,9 @@ TOptional<EItemDropZone> SStateTreeViewRow::HandleCanAcceptDrop(const FDragDropE
 	return TOptional<EItemDropZone>();
 }
 
-FReply SStateTreeViewRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState)
+FReply SStateTreeViewRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState) const
 {
-	TSharedPtr<FActionTreeViewDragDrop> DragDropOperation = DragDropEvent.GetOperationAs<FActionTreeViewDragDrop>();
+	const TSharedPtr<FActionTreeViewDragDrop> DragDropOperation = DragDropEvent.GetOperationAs<FActionTreeViewDragDrop>();
 	if (DragDropOperation.IsValid())
 	{
 		if (StateTreeViewModel)

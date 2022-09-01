@@ -6,8 +6,8 @@
 #include "Templates/SubclassOf.h"
 #include "StateTreeTypes.h"
 #include "StateTreeTaskBase.h"
-#include "StateTreePropertyBindings.h"
-#include "StateTreeItemBlueprintBase.h"
+#include "StateTreeEvents.h"
+#include "StateTreeNodeBlueprintBase.h"
 #include "StateTreeTaskBlueprintBase.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -16,7 +16,7 @@ struct FStateTreeExecutionContext;
  * Base class for Blueprint based Tasks. 
  */
 UCLASS(Abstract, Blueprintable)
-class STATETREEMODULE_API UStateTreeTaskBlueprintBase : public UStateTreeItemBlueprintBase
+class STATETREEMODULE_API UStateTreeTaskBlueprintBase : public UStateTreeNodeBlueprintBase
 {
 	GENERATED_BODY()
 public:

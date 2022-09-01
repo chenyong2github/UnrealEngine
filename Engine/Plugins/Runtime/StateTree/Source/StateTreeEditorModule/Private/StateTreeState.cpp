@@ -28,9 +28,16 @@ void FStateTreeStateLink::Set(const EStateTreeTransitionType InType, const UStat
 //////////////////////////////////////////////////////////////////////////
 // FStateTreeTransition
 
-FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionEvent InEvent, const EStateTreeTransitionType InType, const UStateTreeState* InState)
+FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState)
+	: Trigger(InTrigger)
 {
-	Event = InEvent;
+	State.Set(InType, InState);
+}
+
+FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState)
+	: Trigger(InTrigger)
+	, EventTag(InEventTag)
+{
 	State.Set(InType, InState);
 }
 
@@ -167,8 +174,9 @@ void UStateTreeState::PostLoad()
 		SetFlags(RF_Transactional);
 	}
 
-	// Move deprecated evaluators to editor data.
+#if WITH_EDITORONLY_DATA
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Move deprecated evaluators to editor data.
 	if (Evaluators_DEPRECATED.Num() > 0)
 	{
 		if (UStateTreeEditorData* TreeData = GetTypedOuter<UStateTreeEditorData>())
@@ -178,6 +186,7 @@ void UStateTreeState::PostLoad()
 		}		
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 void UStateTreeState::UpdateParametersFromLinkedState()

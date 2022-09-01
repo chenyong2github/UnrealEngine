@@ -24,7 +24,8 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 	StructProperty = StructPropertyHandle;
 	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
 
-	EventProperty = StructProperty->GetChildHandle(TEXT("Event"));
+	TriggerProperty = StructProperty->GetChildHandle(TEXT("Trigger"));
+	EventTagProperty = StructProperty->GetChildHandle(TEXT("EventTag"));
 	StateProperty = StructProperty->GetChildHandle(TEXT("State"));
 	GateDelayProperty = StructProperty->GetChildHandle(TEXT("GateDelay"));
 	ConditionsProperty = StructProperty->GetChildHandle(TEXT("Conditions"));
@@ -53,11 +54,25 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 
 void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	if (EventProperty)
+	if (TriggerProperty)
 	{
-		StructBuilder.AddProperty(EventProperty.ToSharedRef());
+		StructBuilder.AddProperty(TriggerProperty.ToSharedRef());
 	}
 
+	if (EventTagProperty)
+	{
+		IDetailPropertyRow& EventTagRow = StructBuilder.AddProperty(EventTagProperty.ToSharedRef());
+		EventTagRow.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]()
+		{
+			uint8 TriggerValue = 0; 
+			if (TriggerProperty.IsValid())
+			{
+				TriggerProperty->GetValue(TriggerValue);
+			}
+			return TriggerValue == (uint8)EStateTreeTransitionTrigger::OnEvent ? EVisibility::Visible : EVisibility::Collapsed;
+		})));
+	}
+	
 	if (GateDelayProperty)
 	{
 		StructBuilder.AddProperty(GateDelayProperty.ToSharedRef());

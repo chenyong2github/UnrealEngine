@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Blueprint/StateTreeItemBlueprintBase.h"
+#include "Blueprint/StateTreeNodeBlueprintBase.h"
 #include "AIController.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
+#include "VisualLogger/VisualLogger.h"
 
-UWorld* UStateTreeItemBlueprintBase::GetWorld() const
+UWorld* UStateTreeNodeBlueprintBase::GetWorld() const
 {
 	// The items are duplicated as the StateTreeExecution context as outer, so this should be essentially the same as GetWorld() on StateTree context.
 	// The CDO is used by the BP editor to check for certain functionality, make it return nullptr so that the GetWorld() passes as overridden. 
@@ -20,7 +21,7 @@ UWorld* UStateTreeItemBlueprintBase::GetWorld() const
 	return nullptr;
 }
 
-AActor* UStateTreeItemBlueprintBase::GetOwnerActor(const FStateTreeExecutionContext& Context) const
+AActor* UStateTreeNodeBlueprintBase::GetOwnerActor(const FStateTreeExecutionContext& Context) const
 {
 	if (const AAIController* Controller = Cast<AAIController>(Context.GetOwner()))
 	{
@@ -31,7 +32,7 @@ AActor* UStateTreeItemBlueprintBase::GetOwnerActor(const FStateTreeExecutionCont
 }
 
 #if WITH_EDITOR
-void UStateTreeItemBlueprintBase::PostCDOCompiled(const FPostCDOCompiledContext& Context)
+void UStateTreeNodeBlueprintBase::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 {
 	if (Context.bIsSkeletonOnly)
 	{
@@ -66,7 +67,7 @@ void UStateTreeItemBlueprintBase::PostCDOCompiled(const FPostCDOCompiledContext&
 }
 #endif
 
-void UStateTreeItemBlueprintBase::LinkExternalData(FStateTreeLinker& Linker, TArray<FStateTreeBlueprintExternalDataHandle>& OutExternalDataHandles) const
+void UStateTreeNodeBlueprintBase::LinkExternalData(FStateTreeLinker& Linker, TArray<FStateTreeBlueprintExternalDataHandle>& OutExternalDataHandles) const
 {
 	const UClass* Class = GetClass();
 
@@ -92,7 +93,7 @@ void UStateTreeItemBlueprintBase::LinkExternalData(FStateTreeLinker& Linker, TAr
 	}
 }
 
-void UStateTreeItemBlueprintBase::CopyExternalData(FStateTreeExecutionContext& Context, TConstArrayView<FStateTreeBlueprintExternalDataHandle> ExternalDataHandles)
+void UStateTreeNodeBlueprintBase::CopyExternalData(FStateTreeExecutionContext& Context, TConstArrayView<FStateTreeBlueprintExternalDataHandle> ExternalDataHandles)
 {
 	for (const FStateTreeBlueprintExternalDataHandle& ExtData : ExternalDataHandles)
 	{
@@ -115,4 +116,14 @@ void UStateTreeItemBlueprintBase::CopyExternalData(FStateTreeExecutionContext& C
 			}
 		}
 	}
+}
+
+void UStateTreeNodeBlueprintBase::SendEvent(const FStateTreeEvent& Event)
+{
+	if (CurrentContext == nullptr)
+	{
+		UE_VLOG_UELOG(this, LogStateTree, Error, TEXT("Trying to call SendEvent() outside StateTree tick. Use SendEvent() on UStateTreeComponent instead for sending signals externally."));
+		return;
+	}
+	CurrentContext->SendEvent(Event);
 }

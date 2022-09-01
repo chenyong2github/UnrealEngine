@@ -7,7 +7,7 @@
 #include "StateTreeTypes.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreePropertyBindings.h"
-#include "StateTreeItemBlueprintBase.h"
+#include "StateTreeNodeBlueprintBase.h"
 #include "StateTreeConditionBlueprintBase.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -16,7 +16,7 @@ struct FStateTreeExecutionContext;
  * Base class for Blueprint based Conditions. 
  */
 UCLASS(Abstract, Blueprintable)
-class STATETREEMODULE_API UStateTreeConditionBlueprintBase : public UStateTreeItemBlueprintBase
+class STATETREEMODULE_API UStateTreeConditionBlueprintBase : public UStateTreeNodeBlueprintBase
 {
 	GENERATED_BODY()
 public:

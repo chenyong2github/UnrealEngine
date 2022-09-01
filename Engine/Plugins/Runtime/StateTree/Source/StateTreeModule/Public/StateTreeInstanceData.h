@@ -4,6 +4,7 @@
 
 #include "InstancedStructArray.h"
 #include "StructView.h"
+#include "StateTreeEvents.h"
 #include "StateTreeInstanceData.generated.h"
 
 /**
@@ -58,6 +59,9 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return const pointer to an instance object   */
 	const UObject* GetObject(const int32 Index) const { return InstanceObjects[Index]; }
 
+	/** @return array to store unprocessed events. */
+	TArray<FStateTreeEvent>& GetEvents() { return Events; }
+	
 	int32 GetEstimatedMemoryUsage() const;
 	int32 GetNumItems() const;
 	
@@ -73,6 +77,10 @@ private:
 	/** Object instances. */
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> InstanceObjects;
+
+	/** Events */
+	UPROPERTY()
+	TArray<FStateTreeEvent> Events;
 };
 
 template<>

@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
-#include "CoreMinimal.h"
 #include "StateTreeExecutionContext.h"
 
 //----------------------------------------------------------------------//
@@ -10,6 +9,7 @@
 
 void UStateTreeEvaluatorBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ReceiveEnterState(OwnerActor, ChangeType, Transition);
@@ -18,6 +18,7 @@ void UStateTreeEvaluatorBlueprintBase::EnterState(FStateTreeExecutionContext& Co
 
 void UStateTreeEvaluatorBlueprintBase::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ReceiveExitState(OwnerActor, ChangeType, Transition);
@@ -26,6 +27,7 @@ void UStateTreeEvaluatorBlueprintBase::ExitState(FStateTreeExecutionContext& Con
 
 void UStateTreeEvaluatorBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedActiveStates);
@@ -34,18 +36,21 @@ void UStateTreeEvaluatorBlueprintBase::StateCompleted(FStateTreeExecutionContext
 
 void UStateTreeEvaluatorBlueprintBase::TreeStart(FStateTreeExecutionContext& Context)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	ReceiveTreeStart(OwnerActor);
 }
 
 void UStateTreeEvaluatorBlueprintBase::TreeStop(FStateTreeExecutionContext& Context)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	ReceiveTreeStop(OwnerActor);
 }
 
 void UStateTreeEvaluatorBlueprintBase::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ReceiveEvaluate(OwnerActor, EStateTreeEvaluationType::Tick, DeltaTime);
@@ -70,7 +75,7 @@ bool FStateTreeBlueprintEvaluatorWrapper::Link(FStateTreeLinker& Linker)
 
 void FStateTreeBlueprintEvaluatorWrapper::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
+	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeEvaluatorBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -81,7 +86,7 @@ void FStateTreeBlueprintEvaluatorWrapper::EnterState(FStateTreeExecutionContext&
 
 void FStateTreeBlueprintEvaluatorWrapper::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
+	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeEvaluatorBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -92,7 +97,7 @@ void FStateTreeBlueprintEvaluatorWrapper::ExitState(FStateTreeExecutionContext& 
 
 void FStateTreeBlueprintEvaluatorWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
-	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
+	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeEvaluatorBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -103,7 +108,7 @@ void FStateTreeBlueprintEvaluatorWrapper::StateCompleted(FStateTreeExecutionCont
 
 void FStateTreeBlueprintEvaluatorWrapper::TreeStart(FStateTreeExecutionContext& Context) const
 {
-	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
+	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeEvaluatorBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -112,7 +117,7 @@ void FStateTreeBlueprintEvaluatorWrapper::TreeStart(FStateTreeExecutionContext& 
 
 void FStateTreeBlueprintEvaluatorWrapper::TreeStop(FStateTreeExecutionContext& Context) const
 {
-	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
+	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeEvaluatorBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -121,7 +126,7 @@ void FStateTreeBlueprintEvaluatorWrapper::TreeStop(FStateTreeExecutionContext& C
 
 void FStateTreeBlueprintEvaluatorWrapper::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeEvaluatorBlueprintBase>(DataViewIndex);
+	UStateTreeEvaluatorBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeEvaluatorBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);

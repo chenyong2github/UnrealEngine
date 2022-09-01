@@ -27,6 +27,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		InstanceDataArrays,
 		// Added index types.
 		IndexTypes,
+		// Added events.
+		AddedEvents,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

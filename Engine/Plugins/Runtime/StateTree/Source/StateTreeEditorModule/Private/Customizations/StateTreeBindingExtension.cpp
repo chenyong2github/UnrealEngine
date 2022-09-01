@@ -13,7 +13,7 @@
 #include "StateTreeAnyEnum.h"
 #include "StateTreePropertyBindingCompiler.h"
 #include "StateTreeCompiler.h"
-#include "Blueprint/StateTreeItemBlueprintBase.h"
+#include "Blueprint/StateTreeNodeBlueprintBase.h"
 #include "PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
@@ -264,7 +264,7 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			// Do not allow to bind directly StateTree nodes
 			if (InStruct != nullptr)
 			{
-				if (InStruct->IsChildOf(UStateTreeItemBlueprintBase::StaticClass())
+				if (InStruct->IsChildOf(UStateTreeNodeBlueprintBase::StaticClass())
 					|| InStruct->IsChildOf(FStateTreeNodeBase::StaticStruct()))
 				{
 					return false;

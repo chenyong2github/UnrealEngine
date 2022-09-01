@@ -53,7 +53,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(IntCond.ID, TEXT("Left")));
 
-		StateA.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &StateB);
+		StateA.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &StateB);
 
 		// State B
 		auto& TaskB2 = StateB.AddTask<FTestTask_B>();
@@ -64,7 +64,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		TransFloatCond.GetInstance().Right = 13.0f;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("FloatA")), FStateTreeEditorPropertyPath(TransFloatCond.ID, TEXT("Left")));
 
-		StateB.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
+		StateB.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
 
 		FStateTreeCompilerLog Log;
 		FStateTreeCompiler Compiler(Log);
@@ -224,10 +224,10 @@ struct FStateTreeTest_Sequence : FAITestBase
 		UStateTreeState& State2 = Root.AddChildState(FName(TEXT("State2")));
 
 		auto& Task1 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
-		State1.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::NextState);
+		State1.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 
 		auto& Task2 = State2.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
-		State2.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::Succeeded);
+		State2.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
 
 		FStateTreeCompilerLog Log;
 		FStateTreeCompiler Compiler(Log);
@@ -290,7 +290,7 @@ struct FStateTreeTest_Select : FAITestBase
 
 		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
 		Task1A.GetItem().TicksToCompletion = 2;
-		State1A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State1);
+		State1A.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State1);
 
 		FStateTreeCompilerLog Log;
 		FStateTreeCompiler Compiler(Log);
@@ -362,7 +362,7 @@ struct FStateTreeTest_FailEnterState : FAITestBase
 		auto& Task3 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task3")));
 
 		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
-		State1A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State1);
+		State1A.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State1);
 
 		FStateTreeCompilerLog Log;
 		FStateTreeCompiler Compiler(Log);
@@ -422,7 +422,7 @@ struct FStateTreeTest_SubTree : FAITestBase
 		auto& Task2 = State2.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
 
 		auto& Task3A = State3A.AddTask<FTestTask_Stand>(FName(TEXT("Task3A")));
-		State3A.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &State3B);
+		State3A.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State3B);
 
 		auto& Task3B = State3B.AddTask<FTestTask_Stand>(FName(TEXT("Task3B")));
 

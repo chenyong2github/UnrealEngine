@@ -510,7 +510,8 @@ bool FStateTreeCompiler::CreateStateTransitions()
 		for (FStateTreeTransition& Transition : SourceState->Transitions)
 		{
 			FCompactStateTransition& CompactTransition = StateTree->Transitions.AddDefaulted_GetRef();
-			CompactTransition.Event = Transition.Event;
+			CompactTransition.Trigger = Transition.Trigger;
+			CompactTransition.EventTag = Transition.EventTag;
 			CompactTransition.Type = Transition.State.Type;
 			CompactTransition.GateDelay = (uint8)FMath::Clamp(FMath::CeilToInt(Transition.GateDelay * 10.0f), 0, 255);
 			CompactTransition.State = FStateTreeStateHandle::Invalid;

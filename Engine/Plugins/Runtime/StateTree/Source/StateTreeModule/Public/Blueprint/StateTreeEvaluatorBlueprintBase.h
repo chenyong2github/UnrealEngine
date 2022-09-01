@@ -6,8 +6,8 @@
 #include "Templates/SubclassOf.h"
 #include "StateTreeTypes.h"
 #include "StateTreeEvaluatorBase.h"
-#include "StateTreePropertyBindings.h"
-#include "StateTreeItemBlueprintBase.h"
+#include "StateTreeEvents.h"
+#include "StateTreeNodeBlueprintBase.h"
 #include "StateTreeEvaluatorBlueprintBase.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -16,7 +16,7 @@ struct FStateTreeExecutionContext;
  * Base class for Blueprint based evaluators. 
  */
 UCLASS(Abstract, Blueprintable)
-class STATETREEMODULE_API UStateTreeEvaluatorBlueprintBase : public UStateTreeItemBlueprintBase
+class STATETREEMODULE_API UStateTreeEvaluatorBlueprintBase : public UStateTreeNodeBlueprintBase
 {
 	GENERATED_BODY()
 public:
@@ -45,7 +45,7 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Tick"))
 	void ReceiveTick(AActor* OwnerActor, const float DeltaTime);
-	
+
 	UE_DEPRECATED(5.1, "This function will be removed for 5.1.")
 	virtual void EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
 	UE_DEPRECATED(5.1, "This function will be removed for 5.1.")

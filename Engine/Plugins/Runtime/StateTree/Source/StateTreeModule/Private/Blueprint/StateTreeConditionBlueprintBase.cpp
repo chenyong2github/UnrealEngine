@@ -11,6 +11,7 @@
 
 bool UStateTreeConditionBlueprintBase::TestCondition(FStateTreeExecutionContext& Context) const
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	return ReceiveTestCondition(OwnerActor);
 }
@@ -32,7 +33,7 @@ bool FStateTreeBlueprintConditionWrapper::Link(FStateTreeLinker& Linker)
 
 bool FStateTreeBlueprintConditionWrapper::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	if (UStateTreeConditionBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeConditionBlueprintBase>(DataViewIndex))
+	if (UStateTreeConditionBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeConditionBlueprintBase>(*this))
 	{
 		Instance->CopyExternalData(Context, ExternalDataHandles);
 		return Instance->TestCondition(Context);

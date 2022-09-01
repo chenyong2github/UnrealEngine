@@ -15,24 +15,28 @@ EStateTreeRunStatus UStateTreeTaskBlueprintBase::ReceiveEnterState_Implementatio
 
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	return ReceiveEnterState(OwnerActor, ChangeType, Transition);
 }
 
 void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	ReceiveExitState(OwnerActor, ChangeType, Transition);
 }
 
 void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedActiveStates);
 }
 
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
 {
+	FScopedCurrentContext(*this, Context);
 	AActor* OwnerActor = GetOwnerActor(Context);
 	return ReceiveTick(OwnerActor, DeltaTime);
 }
@@ -54,7 +58,7 @@ bool FStateTreeBlueprintTaskWrapper::Link(FStateTreeLinker& Linker)
 
 EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeTaskBlueprintBase>(DataViewIndex);
+	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -63,7 +67,7 @@ EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::EnterState(FStateTreeExecuti
 
 void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
-	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeTaskBlueprintBase>(DataViewIndex);
+	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -72,7 +76,7 @@ void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Conte
 
 void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const
 {
-	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeTaskBlueprintBase>(DataViewIndex);
+	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);
@@ -81,7 +85,7 @@ void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& 
 
 EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceObjectInternal<UStateTreeTaskBlueprintBase>(DataViewIndex);
+	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
 	
 	Instance->CopyExternalData(Context, ExternalDataHandles);

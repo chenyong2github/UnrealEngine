@@ -22,7 +22,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, UStateTreeState* InState, const TSharedPtr<SScrollBox>& ViewBox, TSharedRef<FStateTreeViewModel> InStateTreeViewModel);
-	void RequestRename();
+	void RequestRename() const;
 
 private:
 
@@ -54,21 +54,20 @@ private:
 	EVisibility GetConditionalTransitionsVisibility() const;
 	FText GetConditionalTransitionsDesc() const;
 
-	FText GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const;
-	FText GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const;
-	EVisibility GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const;
+	FText GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask = false) const;
+	FText GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask = false) const;
+	EVisibility GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const;
 
-	bool HasParentTransitionForEvent(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const;
+	bool HasParentTransitionForTrigger(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const;
 
 	bool IsRootState() const;
-	bool IsSelected() const;
+	bool IsStateSelected() const;
 
-	bool VerifyNodeTextChanged(const FText& NewLabel, FText& OutErrorMessage);
-	void HandleNodeLabelTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
+	void HandleNodeLabelTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType) const;
 
-	FReply HandleDragDetected(const FGeometry&, const FPointerEvent&);
-	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState);
-	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState);
+	FReply HandleDragDetected(const FGeometry&, const FPointerEvent&) const;
+	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState) const;
+	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, UStateTreeState* TargetState) const;
 	
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 	TWeakObjectPtr<UStateTreeState> WeakState;

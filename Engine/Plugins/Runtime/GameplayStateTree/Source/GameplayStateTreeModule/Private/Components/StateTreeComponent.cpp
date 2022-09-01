@@ -319,6 +319,18 @@ void UStateTreeComponent::OnGameplayTaskInitialized(UGameplayTask& Task)
 	}
 }
 
+void UStateTreeComponent::SendStateTreeEvent(const FStateTreeEvent& Event)
+{
+	if (!bIsRunning)
+	{
+		STATETREE_LOG(Warning, TEXT("%s: Trying to send even to a StateTree that is not started yet."), ANSI_TO_TCHAR(__FUNCTION__));
+		return;
+	}
+
+	StateTreeContext.SendExternalEvent(Event);
+}
+
+
 #if WITH_GAMEPLAY_DEBUGGER
 FString UStateTreeComponent::GetDebugInfoString() const
 {

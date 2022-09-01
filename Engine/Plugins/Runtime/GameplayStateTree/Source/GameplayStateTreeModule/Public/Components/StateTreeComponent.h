@@ -45,6 +45,10 @@ public:
 	virtual void OnGameplayTaskInitialized(UGameplayTask& Task) override;
 	// END IGameplayTaskOwnerInterface
 
+	/** Sends event to the running StateTree. */
+	UFUNCTION(BlueprintCallable, Category = "Gameplay|StateTree")
+	void SendStateTreeEvent(const FStateTreeEvent& Event);
+	
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual FString GetDebugInfoString() const override;
 #endif // WITH_GAMEPLAY_DEBUGGER

@@ -3,7 +3,8 @@
 #pragma once
 
 #include "StateTreeTypes.h"
-#include "StateTreeItemBlueprintBase.generated.h"
+#include "StateTreeEvents.h"
+#include "StateTreeNodeBlueprintBase.generated.h"
 
 struct FStateTreeLinker;
 struct FStateTreeExecutionContext;
@@ -46,7 +47,7 @@ struct STATETREEMODULE_API FStateTreeBlueprintExternalDataHandle
 
 
 UCLASS(Abstract)
-class STATETREEMODULE_API UStateTreeItemBlueprintBase : public UObject
+class STATETREEMODULE_API UStateTreeNodeBlueprintBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -56,6 +57,10 @@ public:
 	/** Called before call to logic functions to copy data from */
 	void CopyExternalData(FStateTreeExecutionContext& Context, TConstArrayView<FStateTreeBlueprintExternalDataHandle> ExternalDataHandles);
 
+	/** Sends event to the StateTree */
+	UFUNCTION(BlueprintCallable, Category = "StateTree", meta = (HideSelfPin = "true", DisplayName = "StateTree Send Event"))
+	void SendEvent(const FStateTreeEvent& Event);
+	
 protected:
 	virtual UWorld* GetWorld() const override;
 	AActor* GetOwnerActor(const FStateTreeExecutionContext& Context) const;
@@ -64,6 +69,24 @@ protected:
 	virtual void PostCDOCompiled(const FPostCDOCompiledContext& Context) override;
 #endif
 
+	struct FScopedCurrentContext
+	{
+		FScopedCurrentContext(const UStateTreeNodeBlueprintBase& InNode, FStateTreeExecutionContext& Context) :
+			Node(InNode)
+		{
+			Node.CurrentContext = &Context;
+		}
+
+		~FScopedCurrentContext()
+		{
+			Node.CurrentContext = nullptr;
+		}
+		const UStateTreeNodeBlueprintBase& Node;
+	};
+	
+	/** Cached execution context during Tick() and other functions. */
+	mutable FStateTreeExecutionContext* CurrentContext = nullptr;
+	
 	/** Metadata for properties */
 	UPROPERTY()
 	TArray<FStateTreeBlueprintPropertyInfo> PropertyInfos;
