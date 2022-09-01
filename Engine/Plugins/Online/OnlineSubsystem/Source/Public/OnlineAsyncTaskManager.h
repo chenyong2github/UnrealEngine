@@ -304,16 +304,41 @@ class ONLINESUBSYSTEM_API FOnlineAsyncTaskManager : public FRunnable, FSingleThr
 private:
 	
 	/** The current active task processed serially by the async task manager */
-	FOnlineAsyncTask* ActiveTask;
-	/** Critical section for modifying the active task */
-	FCriticalSection ActiveTaskLock;
+	FOnlineAsyncTask* ActiveSerialTask = nullptr;
+	/** Critical section for modifying the active serial task */
+	FCriticalSection ActiveSerialTaskLock;
+	/** When the active serial task was started on the game thread */
+	double ActiveSerialTaskStartTime = 0.0;
+	/** Has a breach been reported for the active task */
+	bool bActiveSerialTaskBreachReported = false;
+
+	struct FOnlineThreadTickInfo
+	{
+		/* Is the online thread currently ticking */
+		bool bIsTicking = false;
+		/* Time the online thread began this tick */
+		double TickStartTime = 0.0;
+		/* Task the online thread is currently ticking */
+		FOnlineAsyncTask* CurrentTask = nullptr;
+		/* */
+		bool bBreachReported = false;
+	};
+	/** Info on what the online thread is currently doing */
+	FOnlineThreadTickInfo OnlineThreadTickInfo;
+	/** Critical section for modifying this tick info */
+	FCriticalSection OnlineThreadTickInfoLock;
+
+	/** Should we report a breach or not */
+	bool bEnableReportBreach = false;
+	/** Time to allow a serial task / the online thread tick to run before reporting */
+	float ConfigBreachTimeSeconds = 60.0;
 
 protected:
 
 	/** Game thread async tasks are queued up here for processing on the online thread */
-	TArray<FOnlineAsyncTask*> InQueue;
+	TArray<FOnlineAsyncTask*> QueuedSerialTasks;
 	/** Critical section for thread safe operation of the event in queue */
-	FCriticalSection InQueueLock;
+	FCriticalSection QueuedSerialTasksLock;
 
 	/** Number of tasks that can run in parallel */
 	int32 MaxParallelTasks;
