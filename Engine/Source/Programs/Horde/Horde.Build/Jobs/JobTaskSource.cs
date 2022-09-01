@@ -765,8 +765,10 @@ namespace Horde.Build.Jobs
 			// The next time to try assigning to another agent
 			DateTime backOffTime = DateTime.UtcNow + TimeSpan.FromMinutes(1.0);
 
+			// Allocate a log ID but hold off creating the actual log file until the lease has been accepted
+			LogId logId = LogId.GenerateNewId();
+			
 			// Try to update the job with this agent id
-			LogId logId = (await _logFileService.CreateLogFileAsync(job.Id, agent.SessionId, LogType.Json)).Id;
 			IJob? newJob = await _jobs.TryAssignLeaseAsync(item._job, item._batchIdx, item._poolId, agent.Id, agent.SessionId!.Value, leaseId, logId);
 			if (newJob != null)
 			{
@@ -798,6 +800,7 @@ namespace Horde.Build.Jobs
 					if (waiter.LeaseSource.TrySetResult(lease))
 					{
 						_logger.LogDebug("Assigned lease {LeaseId} to agent {AgentId}", leaseId, agent.Id);
+						await _logFileService.CreateLogFileAsync(job.Id, agent.SessionId, LogType.Json, logId);
 						return lease;
 					}
 				}

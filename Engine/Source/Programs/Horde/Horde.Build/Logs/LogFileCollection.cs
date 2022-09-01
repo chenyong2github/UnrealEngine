@@ -79,9 +79,9 @@ namespace Horde.Build.Logs
 			{
 			}
 
-			public LogFileDocument(JobId jobId, SessionId? sessionId, LogType type)
+			public LogFileDocument(JobId jobId, SessionId? sessionId, LogType type, LogId? logId)
 			{
-				Id = LogId.GenerateNewId();
+				Id = logId ?? LogId.GenerateNewId();
 				JobId = jobId;
 				SessionId = sessionId;
 				Type = type;
@@ -117,9 +117,9 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type)
+		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId)
 		{
-			LogFileDocument newLogFile = new LogFileDocument(jobId, sessionId, type);
+			LogFileDocument newLogFile = new (jobId, sessionId, type, logId);
 			await _logFiles.InsertOneAsync(newLogFile);
 			return newLogFile;
 		}
