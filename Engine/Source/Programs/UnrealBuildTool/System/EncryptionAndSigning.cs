@@ -186,7 +186,7 @@ namespace UnrealBuildTool
 			public void Save(FileReference InFile)
 			{
 				DirectoryReference.CreateDirectory(InFile.Directory);
-				FileReference.WriteAllText(InFile, JsonSerializer.Serialize(this));
+				FileReference.WriteAllTextIfDifferent(InFile, JsonSerializer.Serialize(this));
 			}
 		}
 
