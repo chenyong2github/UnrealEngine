@@ -2571,6 +2571,11 @@ FString FHLSLMaterialTranslator::GetParameterCodeRaw(int32 Index, const TCHAR* D
 }
 
 // Public interface for restrictive mode.
+bool GetHLSLMaterialTranslatorRestrictiveMode()
+{
+	return FHLSLMaterialTranslator::InRestrictiveMode();
+}
+
 void SetHLSLMaterialTranslatorRestrictiveMode(bool bRestrictiveMode)
 {
 	FHLSLMaterialTranslator::SetRestrictiveMode(bRestrictiveMode);
