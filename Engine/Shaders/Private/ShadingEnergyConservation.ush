@@ -111,7 +111,11 @@ FBxDFEnergyTerms ComputeFresnelEnergyTerms(float2 E, float3 F0, float3 F90)
 	FBxDFEnergyTerms Result;
 	// [2] Eq 16: this restores the missing energy of the bsdf, while also accounting for the fact that the fresnel term causes some energy to be absorbed
 	// NOTE: using F0 here is an approximation, but for schlick fresnel Favg is almost exactly equal to F0
+#if USE_DEVELOPMENT_SHADERS
 	Result.W = View.bShadingEnergyConservation ? (1.0 + F0 * ((1 - E.x) / E.x)) : 1.0f;
+#else
+	Result.W = 1.0 + F0 * ((1 - E.x) / E.x);
+#endif
 	// Now estimate the amount of energy reflected off this specular lobe so that we can remove it from underlying BxDF layers (like diffuse)
 	// This relies on the split-sum approximation as in [3] Sec 4.
 	// This term can also be useful to compute the probability of choosing among lobes
@@ -184,7 +188,11 @@ float3 ComputeEnergyPreservation(FBxDFEnergyTerms EnergyTerms)
 {
 #if USE_ENERGY_CONSERVATION > 0
 	// Use the directional albedo luminance to avoid color-shift due to metallic specular (for which the energy should be absorbed, not transmitted)
+	#if USE_DEVELOPMENT_SHADERS
 	return View.bShadingEnergyPreservation ? (1 - Luminance(EnergyTerms.E)) : 1.0f;
+	#else
+	return 1 - Luminance(EnergyTerms.E);
+	#endif
 #else
 	return 1.0f;
 #endif
