@@ -2798,7 +2798,7 @@ void UNiagaraGraph::NotifyGraphDataInterfaceChanged()
 	OnDataInterfaceChangedDelegate.Broadcast();
 }
 
-FNiagaraTypeDefinition UNiagaraGraph::GetCachedNumericConversion(class UEdGraphPin* InPin)
+FNiagaraTypeDefinition UNiagaraGraph::GetCachedNumericConversion(const class UEdGraphPin* InPin)
 {
 	if (bNeedNumericCacheRebuilt)
 	{

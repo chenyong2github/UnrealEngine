@@ -29,6 +29,13 @@ void UNiagaraNodeWithDynamicPins::PinConnectionListChanged(UEdGraphPin* Pin)
 	if (Pin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryMisc && Pin->PinType.PinSubCategory == AddPinSubCategory && Pin->LinkedTo.Num() > 0)
 	{
 		FNiagaraTypeDefinition LinkedPinType = Schema->PinToTypeDefinition(Pin->LinkedTo[0]);
+
+		// Handle converting numerics to their inferred type in the case where preserving the numeric isn't a valid option, like Parameter Map Get Nodes
+		if (LinkedPinType == FNiagaraTypeDefinition::GetGenericNumericDef() && Pin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryMisc && 
+			Pin->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory && !AllowNiagaraTypeForAddPin(LinkedPinType))
+		{
+			LinkedPinType = GetNiagaraGraph()->GetCachedNumericConversion(Pin->LinkedTo[0]);
+		}
 		Pin->PinType = Schema->TypeDefinitionToPinType(LinkedPinType);
 
 		FName NewPinName;

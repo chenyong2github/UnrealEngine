@@ -1115,29 +1115,55 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 			UNiagaraNodeWithDynamicPins* NodeA = Cast<UNiagaraNodeWithDynamicPins>(PinA->GetOwningNode());
 			UNiagaraNodeWithDynamicPins* NodeB = Cast<UNiagaraNodeWithDynamicPins>(PinB->GetOwningNode());
 			
-			// TODO: This shouldn't be handled explicitly here.
-			bool bPinAIsAddAndAcceptsPinB =
-				PinA->PinType.PinCategory == PinCategoryMisc && PinA->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
-				(
-					PinB->PinType.PinCategory == PinCategoryType &&
-					NodeA && PinToTypeDefinition(PinB) == FNiagaraTypeDefinition::GetGenericNumericDef() ?
-					NodeA->AllowNiagaraTypeForAddPin(PinToTypeDefinition(PinB)) : PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetGenericNumericDef()
-				)
-				&& PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetParameterMapDef();
+			// Handle Direct connection or Inferred connection between numerics
+			FNiagaraTypeDefinition PinAType = PinToTypeDefinition(PinA);
+			FNiagaraTypeDefinition PinBType = PinToTypeDefinition(PinB);
+			FNiagaraTypeDefinition PinATypeAlt = PinAType;
+			FNiagaraTypeDefinition PinBTypeAlt = PinBType;
 
-			bool bPinBIsAddAndAcceptsPinA =
-				PinB->PinType.PinCategory == PinCategoryMisc && PinB->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
-				(
-                    PinA->PinType.PinCategory == PinCategoryType &&
-                    NodeB && PinToTypeDefinition(PinA) == FNiagaraTypeDefinition::GetGenericNumericDef() ?
-                    NodeB->AllowNiagaraTypeForAddPin(PinToTypeDefinition(PinA)) : PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetGenericNumericDef()
-                )
-				&& PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetParameterMapDef();
+			if (PinA->GetOwningNode())
+			{
+				UNiagaraGraph* Graph = Cast< UNiagaraGraph>(PinA->GetOwningNode()->GetGraph());
+				if (Graph)
+				{
+					PinATypeAlt = Graph->GetCachedNumericConversion(PinA);
+				}
+			}
 
-			if (bPinAIsAddAndAcceptsPinB == false && bPinBIsAddAndAcceptsPinA == false)
+			if (PinB->GetOwningNode())
+			{
+				UNiagaraGraph* Graph = Cast< UNiagaraGraph>(PinB->GetOwningNode()->GetGraph());
+				if (Graph)
+				{
+					PinBTypeAlt = Graph->GetCachedNumericConversion(PinB);
+				}
+			}
+
+
+			auto CanConnect = [](const UEdGraphPin* SrcPin, const UEdGraphPin* DestPin, const FNiagaraTypeDefinition& DestPinType, UNiagaraNodeWithDynamicPins* SrcNode)->bool{
+				return SrcPin->PinType.PinCategory == PinCategoryMisc && SrcPin->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
+					(
+						DestPin->PinType.PinCategory == PinCategoryType &&
+						SrcNode && DestPinType == FNiagaraTypeDefinition::GetGenericNumericDef() ?
+						SrcNode->AllowNiagaraTypeForAddPin(DestPinType) : DestPinType != FNiagaraTypeDefinition::GetGenericNumericDef()
+						)
+					&& PinToTypeDefinition(DestPin) != FNiagaraTypeDefinition::GetParameterMapDef();
+			};
+
+			bool bPinAIsAddAndAcceptsPinB = CanConnect(PinA, PinB, PinBType, NodeA);
+			bool bPinAIsAddAndAcceptsPinBAlt = CanConnect(PinA, PinB, PinBTypeAlt, NodeA);
+
+			bool bPinBIsAddAndAcceptsPinA = CanConnect(PinB, PinA, PinAType, NodeB);
+			bool bPinBIsAddAndAcceptsPinAAlt = CanConnect(PinB, PinA, PinATypeAlt, NodeB);
+
+			// Disallow only if both paths are invalid. I.e. a Numeric that doesn't have an inferred type doesn't match, 
+			// but one that does have an inferred type can match.
+			if (bPinAIsAddAndAcceptsPinB == false && bPinBIsAddAndAcceptsPinA == false && 
+				bPinAIsAddAndAcceptsPinBAlt == false && bPinBIsAddAndAcceptsPinAAlt == false)
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TypesAreNotCompatibleText);
 			}
+
 		}
 		else
 		{

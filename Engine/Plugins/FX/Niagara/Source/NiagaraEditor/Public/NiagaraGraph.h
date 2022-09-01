@@ -337,7 +337,7 @@ class UNiagaraGraph : public UEdGraph
 	/** Remove a listener for OnGraphNeedsRecompile events */
 	void RemoveOnGraphNeedsRecompileHandler(FDelegateHandle Handle);
 
-	FNiagaraTypeDefinition GetCachedNumericConversion(class UEdGraphPin* InPin);
+	FNiagaraTypeDefinition GetCachedNumericConversion(const class UEdGraphPin* InPin);
 
 	const class UEdGraphSchema_Niagara* GetNiagaraSchema() const;
 
