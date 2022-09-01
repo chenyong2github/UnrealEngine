@@ -2,7 +2,8 @@
 
 #include "OptimusDataInterfaceDebugDraw.h"
 
-#include "Components/PrimitiveComponent.h"
+// #include "Components/PrimitiveComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
 #include "OptimusDataTypeRegistry.h"
@@ -30,7 +31,8 @@ TArray<FOptimusCDIPinDefinition> UOptimusDebugDrawDataInterface::GetPinDefinitio
 
 TSubclassOf<UActorComponent> UOptimusDebugDrawDataInterface::GetRequiredComponentClass() const
 {
-	return UPrimitiveComponent::StaticClass();
+	// return UPrimitiveComponent::StaticClass();
+	return USkinnedMeshComponent::StaticClass();
 }
 
 void UOptimusDebugDrawDataInterface::RegisterTypes() 

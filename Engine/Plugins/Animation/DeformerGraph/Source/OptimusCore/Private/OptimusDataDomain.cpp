@@ -3,6 +3,7 @@
 #include "OptimusDataDomain.h"
 
 #include "OptimusExpressionEvaluator.h"
+#include "OptimusObjectVersion.h"
 
 
 namespace Optimus::DomainName
@@ -73,7 +74,8 @@ bool FOptimusDataDomain::operator==(const FOptimusDataDomain& InOtherDomain) con
 
 void FOptimusDataDomain::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.IsLoading())
+	if (Ar.IsLoading() &&
+		Ar.CustomVer(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::DataDomainExpansion)
 	{
 		BackCompFixupLevels();
 	}

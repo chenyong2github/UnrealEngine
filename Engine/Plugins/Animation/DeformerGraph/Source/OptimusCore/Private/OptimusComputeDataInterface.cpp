@@ -19,10 +19,10 @@ TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueNestedContexts() cons
 	TSet<TArray<FName>> UniqueContextNames;
 	for (const FOptimusCDIPinDefinition& PinDef: GetPinDefinitions())
 	{
-		if (!PinDef.Contexts.IsEmpty())
+		if (!PinDef.DataDimensions.IsEmpty())
 		{
 			TArray<FName> ContextNames;
-			for (const FOptimusCDIPinDefinition::FContextInfo& ContextInfo: PinDef.Contexts)
+			for (const FOptimusCDIPinDefinition::FDimensionInfo& ContextInfo: PinDef.DataDimensions)
 			{
 				ContextNames.Add(ContextInfo.ContextName);
 			}

@@ -8,6 +8,7 @@
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+#include "OptimusObjectVersion.h"
 
 #include "Containers/Queue.h"
 #include "Misc/DefaultValueHelper.h"
@@ -508,11 +509,11 @@ void UOptimusNodePin::PostLoad()
 {
 	UObject::PostLoad();
 
-	if (!DataType.TypeName.IsNone() && DataType.TypeObject == nullptr)
+	// If the storage was marked as a value, the domain should now be a singleton.
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::DataDomainExpansion)
 	{
-		// If the storage was marked as a value, the domain should now be a singleton.
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		DataDomain.BackCompFixupLevels();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (StorageType_DEPRECATED == EOptimusNodePinStorageType::Value)
 		{
 			DataDomain = FOptimusDataDomain();

@@ -14,7 +14,7 @@ class UActorComponent;
 
 struct FOptimusCDIPinDefinition
 {
-	struct FContextInfo;
+	struct FDimensionInfo;
 	
 	// Singleton value read/write. The context name is implied as Optimus::ContextName::Singleton.
 	FOptimusCDIPinDefinition(
@@ -34,20 +34,33 @@ struct FOptimusCDIPinDefinition
 		) :
 		PinName(InPinName),
 		DataFunctionName(InDataFunctionName),
-		Contexts{{InContextName, InCountFunctionName}}
+		DataDimensions{{InContextName, InCountFunctionName}}
 	{ }
 
 	FOptimusCDIPinDefinition(
 		const FName InPinName,
 		const FString InDataFunctionName,
-		const std::initializer_list<FContextInfo> InContexts
+		const FName InContextName,
+		const int32 InMultiplier,
+		const FString InCountFunctionName
+		) :
+		PinName(InPinName),
+		DataFunctionName(InDataFunctionName),
+		DataDimensions{{InContextName, InCountFunctionName}},
+		DomainMultiplier(FMath::Max(1, InMultiplier))
+	{ }
+	
+	FOptimusCDIPinDefinition(
+		const FName InPinName,
+		const FString InDataFunctionName,
+		const std::initializer_list<FDimensionInfo> InContexts
 		) :
 		PinName(InPinName),
 		DataFunctionName(InDataFunctionName)
 	{
-		for (FContextInfo ContextInfo: InContexts)
+		for (FDimensionInfo ContextInfo: InContexts)
 		{
-			Contexts.Add(ContextInfo);
+			DataDimensions.Add(ContextInfo);
 		}
 	}
 
@@ -74,7 +87,7 @@ struct FOptimusCDIPinDefinition
 	//    0 <= BoneIndex < GetVertexBoneCount(VertexIndex);
 	FString DataFunctionName;
 
-	struct FContextInfo
+	struct FDimensionInfo
 	{
 		// The data context for a given context level. For pins to be connectable they need to
 		// have identical set of contexts, in order.
@@ -93,7 +106,10 @@ struct FOptimusCDIPinDefinition
 	};
 
 	// List of nested data contexts.
-	TArray<FContextInfo> Contexts;
+	TArray<FDimensionInfo> DataDimensions;
+
+	// For single-level domains, how many values per element of that dimension's range. 
+	int32 DomainMultiplier = 1;
 };
 
 

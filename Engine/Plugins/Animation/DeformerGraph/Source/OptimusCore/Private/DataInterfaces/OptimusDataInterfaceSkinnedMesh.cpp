@@ -2,8 +2,10 @@
 
 #include "OptimusDataInterfaceSkinnedMesh.h"
 
-#include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
+#include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
+
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "ShaderParameterMetadataBuilder.h"
@@ -17,16 +19,19 @@ FString UOptimusSkinnedMeshDataInterface::GetDisplayName() const
 
 TArray<FOptimusCDIPinDefinition> UOptimusSkinnedMeshDataInterface::GetPinDefinitions() const
 {
+	FName Vertex(UOptimusSkinnedMeshComponentSource::Domains::Vertex);
+	FName Triangle(UOptimusSkinnedMeshComponentSource::Domains::Triangle);
+	
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"NumVertices", "ReadNumVertices"});
-	Defs.Add({"Position", "ReadPosition", Optimus::DomainName::Vertex, "ReadNumVertices"});
-	Defs.Add({"TangentX", "ReadTangentX", Optimus::DomainName::Vertex, "ReadNumVertices"});
-	Defs.Add({"TangentZ", "ReadTangentZ", Optimus::DomainName::Vertex, "ReadNumVertices"});
+	Defs.Add({"Position", "ReadPosition", Vertex, "ReadNumVertices"});
+	Defs.Add({"TangentX", "ReadTangentX", Vertex, "ReadNumVertices"});
+	Defs.Add({"TangentZ", "ReadTangentZ", Vertex, "ReadNumVertices"});
 	Defs.Add({"NumUVChannels", "ReadNumUVChannels"});
-	Defs.Add({"UV", "ReadUV", {{Optimus::DomainName::Vertex, "ReadNumVertices"}, {Optimus::DomainName::UVChannel, "ReadNumUVChannels"}}});
-	Defs.Add({"Color", "ReadColor", Optimus::DomainName::Vertex, "ReadColor" });
+	Defs.Add({"UV", "ReadUV", {{Vertex, "ReadNumVertices"}, {Optimus::DomainName::UVChannel, "ReadNumUVChannels"}}});
+	Defs.Add({"Color", "ReadColor", Vertex, "ReadColor" });
 	Defs.Add({"NumTriangles", "ReadNumTriangles" });
-	Defs.Add({"IndexBuffer", "ReadIndexBuffer", Optimus::DomainName::Triangle, "ReadNumTriangles"});
+	Defs.Add({"IndexBuffer", "ReadIndexBuffer", Triangle, 3, "ReadNumTriangles"});
 	return Defs;
 }
 
