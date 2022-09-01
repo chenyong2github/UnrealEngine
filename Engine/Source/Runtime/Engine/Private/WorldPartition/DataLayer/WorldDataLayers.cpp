@@ -853,9 +853,9 @@ bool AWorldDataLayers::IsRuntimeRelevant() const
 
 bool AWorldDataLayers::IsSubWorldDataLayers() const
 {
-	check(GetWorld());
+	UWorld* ActorWorld = GetWorld();
 	UWorld* OuterWorld = GetTypedOuter<UWorld>();
-	return OuterWorld != nullptr && OuterWorld->GetFName() != GetWorld()->GetFName();
+	return ActorWorld != nullptr && OuterWorld != nullptr && OuterWorld->GetFName() != ActorWorld->GetFName();
 }
 
 bool AWorldDataLayers::IsTheMainWorldDataLayers() const
