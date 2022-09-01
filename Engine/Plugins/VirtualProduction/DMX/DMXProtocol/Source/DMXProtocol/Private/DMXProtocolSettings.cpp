@@ -16,10 +16,6 @@
 UDMXProtocolSettings::UDMXProtocolSettings()
 	: SendingRefreshRate(DMX_RATE)
 	, ReceivingRefreshRate_DEPRECATED(DMX_RATE)
-	, bDefaultSendDMXEnabled(true)
-	, bDefaultReceiveDMXEnabled(true)
-	, bOverrideSendDMXEnabled(true)	
-	, bOverrideReceiveDMXEnabled(true)
 {
 	FixtureCategories =
 	{
