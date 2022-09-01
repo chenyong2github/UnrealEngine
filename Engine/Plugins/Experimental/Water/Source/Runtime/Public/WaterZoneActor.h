@@ -77,6 +77,7 @@ private:
 	bool UpdateWaterInfoTexture();
 
 	void OnExtentChanged();
+	void UpdateOverlappingWaterBodies();
 
 #if WITH_EDITOR
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
@@ -85,6 +86,8 @@ private:
 	void ForceUpdateWaterInfoTexture();
 
 	virtual void PostEditMove(bool bFinished) override;
+	virtual void PostEditUndo() override;
+	virtual void PostEditImport() override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 

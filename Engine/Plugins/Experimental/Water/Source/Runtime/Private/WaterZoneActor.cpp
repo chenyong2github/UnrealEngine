@@ -179,7 +179,26 @@ void AWaterZone::PostEditMove(bool bFinished)
 	{
 		RebuildFlags |= EWaterZoneRebuildFlags::UpdateWaterBodyLODSections;
 	}
+
+	UpdateOverlappingWaterBodies();
+
 	MarkForRebuild(RebuildFlags);
+}
+
+void AWaterZone::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	UpdateOverlappingWaterBodies();
+	MarkForRebuild(EWaterZoneRebuildFlags::All);
+}
+
+void AWaterZone::PostEditImport()
+{
+	Super::PostEditImport();
+
+	UpdateOverlappingWaterBodies();
+	MarkForRebuild(EWaterZoneRebuildFlags::All);
 }
 
 void AWaterZone::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -258,7 +277,19 @@ void AWaterZone::OnExtentChanged()
 	BoundsComponent->SetBoxExtent(FVector(ZoneHalfExtent, 8192.f));
 #endif // WITH_EDITOR
 
+	UpdateOverlappingWaterBodies();
+
 	MarkForRebuild(EWaterZoneRebuildFlags::All);
+}
+
+void AWaterZone::UpdateOverlappingWaterBodies()
+{
+	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [](UWaterBodyComponent* WaterBodyComponent)
+		{
+			WaterBodyComponent->UpdateWaterZones();
+			return true;
+		});
+
 }
 
 

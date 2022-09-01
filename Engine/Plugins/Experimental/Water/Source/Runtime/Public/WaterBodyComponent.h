@@ -363,6 +363,9 @@ public:
 	/** Gets the water zone to which this component belongs */
 	AWaterZone* GetWaterZone() const { return OwningWaterZone; }
 
+	/** Registers or this water body with corresponding overlapping water zones and unregisters it from any old zones if they are no longer overlapping. */
+	void UpdateWaterZones();
+
 	void UpdateWaterBodyRenderData();
 	void UpdateNonTessellatedMeshSections();
 
@@ -445,7 +448,6 @@ protected:
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;
 	void UpdateSplineComponent();
 	void UpdateExclusionVolumes();
-	void UpdateWaterZones();
 	AWaterZone* FindWaterZone() const;
 	bool UpdateWaterHeight();
 	virtual void CreateOrUpdateWaterMID();
