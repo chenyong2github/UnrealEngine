@@ -261,10 +261,11 @@ struct FSquare2DGridHelper
 #if WITH_EDITOR
 		struct FGridCellDataChunk
 		{
-			FGridCellDataChunk(const TArray<const UDataLayerInstance*>& InDataLayers)
+			FGridCellDataChunk(const TArray<const UDataLayerInstance*>& InDataLayers, const FGuid& InContentBundleID)
 			{
 				Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayerInstance* DataLayer) { return DataLayer->IsRuntime(); }, [](const UDataLayerInstance* DataLayer) { return DataLayer; });
 				DataLayersID = FDataLayersID(DataLayers);
+				ContentBundleID = InContentBundleID;
 			}
 
 			void AddActorSetInstance(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance) { ActorSetInstances.Add(ActorSetInstance); }
@@ -272,6 +273,7 @@ struct FSquare2DGridHelper
 			bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 			const TArray<const UDataLayerInstance*>& GetDataLayers() const { return DataLayers; }
 			const FDataLayersID& GetDataLayersID() const { return DataLayersID; }
+			FGuid GetContentBundleID() const { return ContentBundleID; }
 			bool operator==(const FGridCellDataChunk& InGridCellDataChunk) const { return DataLayersID == InGridCellDataChunk.DataLayersID;}
 			friend uint32 GetTypeHash(const FGridCellDataChunk& InGridCellDataChunk) { return GetTypeHash(InGridCellDataChunk.DataLayersID);}
 
@@ -279,6 +281,7 @@ struct FSquare2DGridHelper
 			TArray<const IStreamingGenerationContext::FActorSetInstance*> ActorSetInstances;
 			TArray<const UDataLayerInstance*> DataLayers;
 			FDataLayersID DataLayersID;
+			FGuid ContentBundleID;
 		};
 
 		struct FGridCell
@@ -290,7 +293,7 @@ struct FSquare2DGridHelper
 			void AddActorSetInstance(const IStreamingGenerationContext::FActorSetInstance* ActorSetInstance)
 			{
 				const FDataLayersID DataLayersID = FDataLayersID(ActorSetInstance->DataLayers);
-				FGridCellDataChunk& ActorDataChunk = DataChunks.FindOrAddByHash(DataLayersID.GetHash(), FGridCellDataChunk(ActorSetInstance->DataLayers));
+				FGridCellDataChunk& ActorDataChunk = DataChunks.FindOrAddByHash(DataLayersID.GetHash(), FGridCellDataChunk(ActorSetInstance->DataLayers, ActorSetInstance->ContentBundleID));
 				ActorDataChunk.AddActorSetInstance(ActorSetInstance);
 			}
 

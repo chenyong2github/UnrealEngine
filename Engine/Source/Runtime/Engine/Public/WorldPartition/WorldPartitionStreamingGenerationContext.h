@@ -29,6 +29,7 @@ public:
 		FName RuntimeGrid;
 		bool bIsSpatiallyLoaded;
 		TArray<const UDataLayerInstance*> DataLayers;
+		FGuid ContentBundleID;
 		const FActorSetContainer* ContainerInstance;
 		FActorContainerID ContainerID;
 		FTransform Transform;

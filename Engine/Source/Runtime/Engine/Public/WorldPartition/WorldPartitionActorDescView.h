@@ -48,6 +48,8 @@ public:
 	FName GetActorName() const;
 	const FGuid& GetFolderGuid() const;
 
+	FGuid GetContentBundleUID() const;
+
 	bool IsContainerInstance() const;
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 

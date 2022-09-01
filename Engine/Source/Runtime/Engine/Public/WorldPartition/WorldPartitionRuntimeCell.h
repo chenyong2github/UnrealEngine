@@ -174,6 +174,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual bool IsDebugShown() const;
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
 	virtual FName GetGridName() const { return DebugInfo.GridName; }
+	virtual FGuid const& GetContentBundleID() const { return ContentBundleID; }
 	/** Caches information on streaming source that will be used later on to sort cell. Returns true if cache was reset, else returns false. */
 	virtual bool CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const;
 
@@ -202,6 +203,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 
 	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
+	void SetContentBundleUID(const FGuid& InContentBundleID) { ContentBundleID = InContentBundleID; }
 	void SetMinMaxZ(const FVector2D& InMinMaxZ);
 	void SetDebugInfo(int64 InCoordX, int64 InCoordY, int64 InCoordZ, FName InGridName);
 	void SetGridName(FName InGridName);
@@ -258,6 +260,9 @@ private:
 
 	UPROPERTY()
 	bool bBlockOnSlowLoading;
+
+	UPROPERTY()
+	FGuid ContentBundleID;
 
 protected:
 	// Source Priority

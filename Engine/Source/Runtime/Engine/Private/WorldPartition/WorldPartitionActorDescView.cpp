@@ -140,6 +140,11 @@ const FGuid& FWorldPartitionActorDescView::GetFolderGuid() const
 	return ActorDesc->GetFolderGuid();
 }
 
+FGuid FWorldPartitionActorDescView::GetContentBundleUID() const
+{
+	return ActorDesc->GetContentBundleUID();
+}
+
 bool FWorldPartitionActorDescView::IsContainerInstance() const
 {
 	return ActorDesc->IsContainerInstance();

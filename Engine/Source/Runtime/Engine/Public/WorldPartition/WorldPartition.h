@@ -155,6 +155,9 @@ public:
 	bool GenerateContainerStreaming(const UActorDescContainer* ActorDescContainer, TArray<FString>* OutPackagesToGenerate = nullptr);
 	void FlushStreaming();
 
+	DECLARE_MULTICAST_DELEGATE(FWorldPartitionGenerateStreamingDelegate);
+	FWorldPartitionGenerateStreamingDelegate OnPreGenerateStreaming;
+
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
 	// Cooking

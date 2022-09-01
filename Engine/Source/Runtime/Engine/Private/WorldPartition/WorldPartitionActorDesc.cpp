@@ -454,6 +454,26 @@ FName FWorldPartitionActorDesc::GetDisplayClassName() const
 	return BaseClass.IsNone() ? GetCleanClassName(NativeClass) : GetCleanClassName(BaseClass);
 }
 
+FGuid FWorldPartitionActorDesc::GetContentBundleUID() const
+{
+	constexpr TCHAR ContentBundleFolder[] = TEXT("/ContentBundle/");
+	FString ActorPackageString = ActorPackage.ToString();
+	int FoundIdx = ActorPackageString.Find(ContentBundleFolder, ESearchCase::IgnoreCase);
+	if (FoundIdx != INDEX_NONE)
+	{
+		uint32 StartUIDIdx = FoundIdx + FCString::Strlen(ContentBundleFolder);
+		uint32 EndUIDIdx = ActorPackageString.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, StartUIDIdx);
+		ActorPackageString.MidInline(StartUIDIdx, EndUIDIdx - StartUIDIdx);
+		
+		FGuid ContentBundleUID;
+		FGuid::Parse(ActorPackageString, ContentBundleUID);
+
+		return ContentBundleUID;
+	}
+
+	return FGuid();
+}
+
 void FWorldPartitionActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const
 {
 	if (IsResaveNeeded())

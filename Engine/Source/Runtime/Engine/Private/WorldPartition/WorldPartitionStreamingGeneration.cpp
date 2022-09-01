@@ -117,6 +117,7 @@ class FWorldPartitionStreamingGenerator
 					ActorSetInstance.ActorSet = &ActorSet;
 					ActorSetInstance.ContainerID = ContainerInstanceDescriptor.ID;
 					ActorSetInstance.Transform = ContainerInstanceDescriptor.Transform;
+					ActorSetInstance.ContentBundleID = ReferenceActorDescView.GetContentBundleUID();
 
 					if (ContainerInstanceDescriptor.ID.IsMainContainer())
 					{
@@ -863,6 +864,8 @@ private:
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 {
+	OnPreGenerateStreaming.Broadcast();
+
 	return GenerateContainerStreaming(ActorDescContainer, OutPackagesToGenerate);
 }
 
