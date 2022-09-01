@@ -23,9 +23,10 @@ void UMVVMView::ConstructView(const UMVVMViewClass* InClassExtension)
 }
 
 
-void UMVVMView::Initialize()
+void UMVVMView::Construct()
 {
 	check(ClassExtension);
+	check(bConstructed == false);
 
 	// Init ViewModel instances
 	for (const FMVVMViewClass_SourceCreator& Item : ClassExtension->GetViewModelCreators())
@@ -42,11 +43,16 @@ void UMVVMView::Initialize()
 			EnableLibraryBinding(Binding, Index);
 		}
 	}
+
+	bConstructed = true;
 }
 
 
 void UMVVMView::Destruct()
 {
+	check(bConstructed == true);
+	bConstructed = false;
+
 	for (FRegisteredSource& Source : AllSources)
 	{
 		UObject* SourceObject = Source.Source.Get();

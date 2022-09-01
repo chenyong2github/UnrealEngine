@@ -74,6 +74,7 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 	, bHasScriptImplementedTick(true)
 	, bHasScriptImplementedPaint(true)
 	, bInitialized(false)
+	, bAreExtensionsConstructed(false)
 	, bStoppingAllAnimations(false)
 	, TickFrequency(EWidgetTickFrequency::Auto)
 {
@@ -1407,12 +1408,27 @@ void UUserWidget::NativePreConstruct()
 void UUserWidget::NativeConstruct()
 {
 	LLM_SCOPE_BYTAG(UI_UMG);
+
 	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
 		BPClass->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
 			{
 				Extension->Construct(this);
 			});
+	}
+
+	// Extension can add other extensions.
+	check(bAreExtensionsConstructed == false);
+	bAreExtensionsConstructed = true;
+	if (Extensions.Num() > 0)
+	{
+		TArray<UUserWidgetExtension*, TInlineAllocator<32>> LocalExtensions;
+		LocalExtensions.Append(Extensions);
+		for (UUserWidgetExtension* Extension : LocalExtensions)
+		{
+			check(Extension);
+			Extension->Construct();
+		}
 	}
 
 	Construct();
@@ -1424,15 +1440,15 @@ void UUserWidget::NativeDestruct()
 	StopListeningForAllInputActions();
 	Destruct();
 
-	if (bInitialized)
+	// Extension can remove other extensions.
+	bAreExtensionsConstructed = false; // To prevent calling Destruct on the same extension if it's removed by another extension.
+	if (Extensions.Num() > 0)
 	{
-		// Extension can remove other extensions.
-		while (Extensions.Num() > 0)
+		TArray<UUserWidgetExtension*, TInlineAllocator<32>> LocalExtensions;
+		LocalExtensions.Append(Extensions);
+		for (UUserWidgetExtension* Extension : LocalExtensions)
 		{
-			int32 Index = Extensions.Num() - 1;
-			UUserWidgetExtension* Extension = Extensions[Index];
 			check(Extension);
-			Extensions.RemoveAtSwap(Index);
 			Extension->Destruct();
 		}
 	}
@@ -1692,7 +1708,7 @@ void UUserWidget::UpdateCanTick()
 			bCanTick |= World->GetLatentActionManager().GetNumActionsForObject(this) != 0;
 			bCanTick |= ActiveSequencePlayers.Num() > 0;
 
-			if (!bCanTick)
+			if (!bCanTick && bAreExtensionsConstructed)
 			{
 				for(UUserWidgetExtension* Extension : Extensions)
 				{
@@ -2156,6 +2172,14 @@ UUserWidgetExtension* UUserWidget::AddExtension(TSubclassOf<UUserWidgetExtension
 	{
 		Extension->Initialize();
 	}
+	if (bAreExtensionsConstructed)
+	{
+		Extension->Construct();
+		if (Extension->RequiresTick())
+		{
+			UpdateCanTick();
+		}
+	}
 	return Extension;
 }
 
@@ -2165,10 +2189,45 @@ void UUserWidget::RemoveExtension(UUserWidgetExtension* InExtension)
 	{
 		if (Extensions.RemoveSingleSwap(InExtension))
 		{
-			if (bInitialized)
+			if (bAreExtensionsConstructed)
 			{
+				bool bUpdateTick = InExtension->RequiresTick();
 				InExtension->Destruct();
+				if (bUpdateTick)
+				{
+					UpdateCanTick();
+				}
 			}
+		}
+	}
+}
+
+void UUserWidget::RemoveExtensions(TSubclassOf<UUserWidgetExtension> InExtensionType)
+{
+
+	TArray<UUserWidgetExtension*, TInlineAllocator<32>> LocalExtensions;
+	for (int32 Index = Extensions.Num() - 1; Index >= 0; --Index)
+	{
+		UUserWidgetExtension* Extension = Extensions[Index];
+		if (Extension->IsA(InExtensionType))
+		{
+			LocalExtensions.Add(Extension);
+			Extensions.RemoveAtSwap(Index);
+
+		}
+	}
+
+	if (bAreExtensionsConstructed)
+	{
+		bool bUpdateTick = false;
+		for (UUserWidgetExtension* Extension : LocalExtensions)
+		{
+			bUpdateTick = bUpdateTick || Extension->RequiresTick();
+			Extension->Destruct();
+		}
+		if (bUpdateTick)
+		{
+			UpdateCanTick();
 		}
 	}
 }

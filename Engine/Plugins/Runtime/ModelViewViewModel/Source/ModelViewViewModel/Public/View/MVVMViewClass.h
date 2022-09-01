@@ -193,7 +193,10 @@ class MODELVIEWVIEWMODEL_API UMVVMViewClass : public UWidgetBlueprintGeneratedCl
 	friend UE::MVVM::Private::FMVVMViewBlueprintCompiler;
 
 public:
-	virtual void Initialize(UUserWidget* UserWidget) override;
+	//~ Begin UWidgetBlueprintGeneratedClassExtension
+	virtual void Construct(UUserWidget* UserWidget) override;
+	virtual void Destruct(UUserWidget* UserWidget) override;
+	//~ End UWidgetBlueprintGeneratedClassExtension
 
 public:
 	/** Get the list of the needed ViewModel. */

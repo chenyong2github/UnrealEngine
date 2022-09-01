@@ -1096,6 +1096,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
 	void RemoveExtension(UUserWidgetExtension* InExtension);
 
+	/** Remove all extensions of the requested type. */
+	template<typename ExtensionType>
+	void RemoveExtensions()
+	{
+		return RemoveExtensions(ExtensionType::StaticClass());
+	}
+
+	/** Remove all extensions of the requested type. */
+	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
+	void RemoveExtensions(TSubclassOf<UUserWidgetExtension> InExtensionType);
+
 	/**
 	 * Plays a sound through the UI
 	 *
@@ -1262,6 +1273,9 @@ private:
 
 	/** Has this widget been initialized by its class yet? */
 	uint8 bInitialized : 1;
+
+	/** Has this widget been constructed and we need to call Construct on new extension. */
+	uint8 bAreExtensionsConstructed : 1;
 
 	/** If we're stopping all animations, don't allow new animations to be created as side-effects. */
 	uint8 bStoppingAllAnimations : 1;

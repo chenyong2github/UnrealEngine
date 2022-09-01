@@ -26,6 +26,11 @@ public:
 	{
 	}
 
+	/** Extend the UUserWidget::Construct function */
+	virtual void Construct()
+	{
+	}
+
 	/** Extend the UUserWidget::Destruct function */
 	virtual void Destruct()
 	{

@@ -31,7 +31,7 @@ public:
 	void ConstructView(const UMVVMViewClass* ClassExtension);
 
 	//~ Begin UUserWidgetExtension implementation
-	virtual void Initialize() override;
+	virtual void Construct() override;
 	virtual void Destruct() override;
 
 // todo needed when we will support different type of update
@@ -84,6 +84,9 @@ private:
 	/** The binding that are enabled for the instance. */
 	TBitArray<> EnabledLibraryBindings;
 
-	/** Should log when a binding is executed */
+	/** Should log when a binding is executed. */
 	bool bLogBinding = false;
+
+	/** Is the Construct method was called. */
+	bool bConstructed = false;
 };
