@@ -7,12 +7,12 @@
 #include "Widgets/SWorkspaceWindow.h"
 
 #include "UGSCore/Workspace.h"
+#include "UGSCore/UserSettings.h"
 
 namespace UGSCore
 {
 	struct FUserWorkspaceSettings;
 	struct FUserProjectSettings;
-	struct FUserSettings;
 	class FDetectProjectSettingsTask;
 	class FPerforceMonitor;
 	class FEventMonitor;
@@ -80,6 +80,11 @@ private:
 		TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
 		UGSCore::EWorkspaceUpdateResult SyncResult,
 		const FString& StatusMessage);
+
+	TMap<FString, FString> GetWorkspaceVariables() const;
+	UGSCore::EBuildConfig GetEditorBuildConfig() const;
+	bool ShouldSyncPrecompiledEditor() const;
+	TMap<FGuid, UGSCore::FCustomConfigObject> GetDefaultBuildStepObjects(const FString& EditorTargetName);
 
 	// Allows the queuing of functions from threads to be run on the main thread
 	void QueueMessageForMainThread(TFunction<void()> Function);
