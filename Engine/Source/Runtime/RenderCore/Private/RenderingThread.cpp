@@ -321,7 +321,10 @@ public:
 #endif
 
 		FMemory::SetupTLSCachesOnCurrentThread();
-		FPlatformProcess::SetupRHIThread();
+		{
+			FTaskTagScope Scope(ETaskTag::ERhiThread);
+			FPlatformProcess::SetupRHIThread();
+		}
 		FTaskGraphInterface::Get().AttachToThread(ENamedThreads::RHIThread);
 		FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(ENamedThreads::RHIThread);
 		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
