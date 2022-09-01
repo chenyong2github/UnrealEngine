@@ -561,9 +561,13 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	}
 
 #if WITH_EDITOR
-	if (bIsSnapshot && GUnrealEd)
+	if (GUnrealEd)
 	{
-		GUnrealEd->UpdatePivotLocationForSelection();
+		if (bIsSnapshot)
+		{
+			GUnrealEd->UpdatePivotLocationForSelection();
+		}
+		GUnrealEd->RedrawLevelEditingViewports();
 	}
 #endif
 }
