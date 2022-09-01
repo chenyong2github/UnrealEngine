@@ -29,6 +29,12 @@ class FEditorViewportClient;
 struct FDisplayClusterLightCardEditorHelper
 {
 public:
+	enum class ECoordinateSystem : uint8
+	{
+		Cartesian,
+		Spherical
+	};
+
 	struct FSphericalCoordinates
 	{
 	public:
@@ -190,12 +196,13 @@ public:
 	 * @param LightCards The light cards that we are moving
 	 * @param PixelPos The screen pixel position of the widget
 	 * @param SceneView The scene view used to convert from pixel position to 3D position
+	 * @param CoordinateSystem The coordinate system to use when computing drag constraints
 	 * @param DragWidgetOffset The offset between the actual cursor position and the position of the widget when the drag action started
 	 * @param DragAxis The axis along which the widget is being dragged
 	 * @param PrimaryLightCard The light card used to calculate the translation/rotation delta. If not provided, the last entry in LightCards will be used.
 	 */
 	DISPLAYCLUSTERSCENEPREVIEW_API void DragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& SceneView,
-		const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard = nullptr);
+		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard = nullptr);
 
 	/** Ensures that the light card root component is at the same location as the projection/view origin */
 	DISPLAYCLUSTERSCENEPREVIEW_API void VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor& LightCard);
@@ -267,19 +274,19 @@ private:
 	FVector GetProjectionOrigin() const;
 
 	/** Determines the appropriate delta rotation needed to move the specified light card to the given position within the view. */
-	FRotator GetLightCardRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard, EAxisList::Type CurrentAxis,
-		const FVector& DragWidgetOffset);
+	FRotator GetLightCardRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard,
+		ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
 
 	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the given position within the view. */
 	FSphericalCoordinates GetLightCardTranslationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard,
-		EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
+		ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset);
 
 	/** Moves specified card to desired coordinates immediately using the current normal maps. Requires valid normal maps. */
 	void InternalMoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& Position, bool bIsFinalChange) const;
 
 	/** Moves specified cards to a coordinate in viewport space as if dragged by a widget. Requires valid normal maps. */
 	void InternalDragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& View,
-		const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard);
+		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard);
 
 	/** Gets the scene view init options to use when rendering the normal map cache */
 	void GetNormalMapSceneViewInitOptions(const FVector& ViewDirection, FSceneViewInitOptions& OutViewInitOptions);

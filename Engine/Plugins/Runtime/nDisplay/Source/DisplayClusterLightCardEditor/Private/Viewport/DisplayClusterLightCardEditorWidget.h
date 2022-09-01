@@ -28,7 +28,7 @@ public:
 	constexpr static float AxisCapSize = 15.f;
 
 	/** The size of the axes origin */
-	constexpr static float OriginSize = 35.f;
+	constexpr static float OriginSize = 10.0f;
 
 	/** The size of the rotation circle, in pixels */
 	constexpr static float CirlceRadius = 100.0f;
@@ -50,7 +50,9 @@ public:
 		WM_Max
 	};
 
-	void Draw(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI);
+	FDisplayClusterLightCardEditorWidget();
+
+	void Draw(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI, bool bDrawZAxis);
 
 	EWidgetMode GetWidgetMode() const { return WidgetMode; }
 	void SetWidgetMode(EWidgetMode NewWidgetMode) { WidgetMode = NewWidgetMode; }
@@ -82,6 +84,12 @@ private:
 	float GetSizeScreenScalar(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient) const;
 
 private:
+	/** Texture to use to render the translation widget origin */
+	UTexture2D* TranslateOriginTexture;
+
+	/** Texture to use to render the scale widget origin */
+	UTexture2D* ScaleOriginTexture;
+
 	/** The current mode the widget is in */
 	EWidgetMode WidgetMode = WM_Translate;
 

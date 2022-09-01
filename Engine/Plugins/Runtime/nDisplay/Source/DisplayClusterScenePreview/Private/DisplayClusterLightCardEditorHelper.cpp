@@ -509,7 +509,7 @@ void FDisplayClusterLightCardEditorHelper::MoveLightCardsTo(
 }
 
 void FDisplayClusterLightCardEditorHelper::DragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& SceneView,
-	const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard)
+	ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard)
 {
 	if (LightCards.IsEmpty())
 	{
@@ -528,7 +528,7 @@ void FDisplayClusterLightCardEditorHelper::DragLightCards(const TArray<TWeakObje
 	}
 
 	// Maps are already ready, so we can move immediately
-	InternalDragLightCards(LightCards, PixelPos, SceneView, DragWidgetOffset, DragAxis, PrimaryLightCard);
+	InternalDragLightCards(LightCards, PixelPos, SceneView, CoordinateSystem, DragWidgetOffset, DragAxis, PrimaryLightCard);
 }
 
 void FDisplayClusterLightCardEditorHelper::VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor& LightCard)
@@ -932,9 +932,9 @@ FVector FDisplayClusterLightCardEditorHelper::GetProjectionOrigin() const
 }
 
 FRotator FDisplayClusterLightCardEditorHelper::GetLightCardRotationDelta(const FIntPoint& PixelPos, const FSceneView& View, ADisplayClusterLightCardActor& LightCard,
-	EAxisList::Type DragAxis, const FVector& DragWidgetOffset)
+	ECoordinateSystem CoordinateSystem, EAxisList::Type DragAxis, const FVector& DragWidgetOffset)
 {
-	const FSphericalCoordinates DeltaCoords = GetLightCardTranslationDelta(PixelPos, View, LightCard, DragAxis, DragWidgetOffset);
+	const FSphericalCoordinates DeltaCoords = GetLightCardTranslationDelta(PixelPos, View, LightCard, CoordinateSystem, DragAxis, DragWidgetOffset);
 	const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
 	const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
 
@@ -958,6 +958,7 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 	const FIntPoint& PixelPos,
 	const FSceneView& View,
 	ADisplayClusterLightCardActor& LightCard,
+	ECoordinateSystem CoordinateSystem,
 	EAxisList::Type DragAxis,
 	const FVector& DragWidgetOffset)
 {
@@ -972,43 +973,85 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 
 	const FVector LocalDirection = LightCard.GetActorRotation().RotateVector(Direction);
 	const FVector LightCardLocation = LightCard.GetLightCardTransform().GetTranslation() - Origin;
+	const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
 
-	FVector Normal;
-	float Distance;
+	FSphericalCoordinates DeltaCoords;
 
-	// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
-	if (LightCardLocation.Z < 0.0f)
+	// If we are in a cartesian coordinate system and are constraining to an axis, perform the constraint calculations in
+	// cartesian coordinates, then convert to spherical coordinates at the end. Otherwise, perform all calculations in spherical coodinates
+	if (CoordinateSystem == ECoordinateSystem::Cartesian && DragAxis != EAxisList::Type::XYZ)
 	{
-		SouthNormalMap.GetNormalAndDistanceAtPosition(LightCard.GetLightCardTransform().GetTranslation(), Normal, Distance);
+		// For consistency, project the cursor direction vector onto the sphere the light card is currently on. Gives a good balance of approximating
+		// the true projection plane (one that works with all view projections) and the general stage normal map
+		const FVector RequestedLocation = LocalDirection * LightCardLocation.Size();
+
+		// Compute the axis to constrain the translation to based on the axis that was dragged. Axis must be rotated into the light card's local space
+		FVector Axis = FVector::ZeroVector;
+		if (DragAxis == EAxisList::Type::X)
+		{
+			Axis = FVector::XAxisVector;
+		}
+		else if (DragAxis == EAxisList::Type::Y)
+		{
+			Axis = FVector::YAxisVector;
+		}
+		else if (DragAxis == EAxisList::Type::Z)
+		{
+			Axis = FVector::ZAxisVector;
+		}
+
+		const FVector LocalAxis = LightCard.GetActorRotation().RotateVector(Axis);
+
+		// Compute the offset between the requested location and the light card's current location, and project that
+		// offset onto the constraint axis
+		const FVector DeltaLocation = ((RequestedLocation - LightCardLocation) | LocalAxis) * LocalAxis;
+
+		const FVector ConstrainedLocation = LightCardLocation + DeltaLocation;
+
+		const FSphericalCoordinates ConstrainedCoords(ConstrainedLocation);
+		DeltaCoords = ConstrainedCoords - LightCardCoords;
 	}
 	else
 	{
-		NorthNormalMap.GetNormalAndDistanceAtPosition(LightCard.GetLightCardTransform().GetTranslation(), Normal, Distance);
-	}
+		FVector Normal;
+		float Distance;
 
-	const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard);
-	const FSphericalCoordinates RequestedCoords(LocalDirection * Distance);
+		// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
+		if (LightCardLocation.Z < 0.0f)
+		{
+			SouthNormalMap.GetNormalAndDistanceAtPosition(LightCard.GetLightCardTransform().GetTranslation(), Normal, Distance);
+		}
+		else
+		{
+			NorthNormalMap.GetNormalAndDistanceAtPosition(LightCard.GetLightCardTransform().GetTranslation(), Normal, Distance);
+		}
 
-	FSphericalCoordinates DeltaCoords = RequestedCoords - LightCardCoords;
+		const FSphericalCoordinates RequestedCoords(LocalDirection * Distance);
 
-	if (DragAxis == EAxisList::Type::X)
-	{
-		DeltaCoords.Inclination = 0;
-	}
-	else if (DragAxis == EAxisList::Type::Y)
-	{
-		// Convert the inclination to Cartesian coordinates, project it to the x-z plane, and convert back to spherical coordinates. This ensures that the motion in the inclination
-		// plane always lines up with the mouse's projected location along that plane
-		const double FixedInclination = FMath::Abs(FMath::Atan2(
-			FMath::Cos(DeltaCoords.Azimuth) * FMath::Sin(RequestedCoords.Inclination),
-			FMath::Cos(RequestedCoords.Inclination))
-		);
+		DeltaCoords = RequestedCoords - LightCardCoords;
 
-		// When translating along the inclination axis, the azimuth delta can only be intervals of pi
-		const double FixedAzimuth = FMath::RoundToInt(DeltaCoords.Azimuth / PI) * PI;
+		if (CoordinateSystem == ECoordinateSystem::Spherical)
+		{
+			if (DragAxis == EAxisList::Type::X)
+			{
+				DeltaCoords.Inclination = 0;
+			}
+			else if (DragAxis == EAxisList::Type::Y)
+			{
+				// Convert the inclination to Cartesian coordinates, project it to the x-z plane, and convert back to spherical coordinates. This ensures that the motion in the inclination
+				// plane always lines up with the mouse's projected location along that plane
+				const double FixedInclination = FMath::Abs(FMath::Atan2(
+					FMath::Cos(DeltaCoords.Azimuth) * FMath::Sin(RequestedCoords.Inclination),
+					FMath::Cos(RequestedCoords.Inclination))
+				);
 
-		DeltaCoords.Azimuth = FixedAzimuth;
-		DeltaCoords.Inclination = FixedInclination - LightCardCoords.Inclination;
+				// When translating along the inclination axis, the azimuth delta can only be intervals of pi
+				const double FixedAzimuth = FMath::RoundToInt(DeltaCoords.Azimuth / PI) * PI;
+
+				DeltaCoords.Azimuth = FixedAzimuth;
+				DeltaCoords.Inclination = FixedInclination - LightCardCoords.Inclination;
+			}
+		}
 	}
 
 	return DeltaCoords;
@@ -1061,7 +1104,7 @@ void FDisplayClusterLightCardEditorHelper::InternalMoveLightCardTo(
 }
 
 void FDisplayClusterLightCardEditorHelper::InternalDragLightCards(const TArray<TWeakObjectPtr<ADisplayClusterLightCardActor>>& LightCards, const FIntPoint& PixelPos, const FSceneView& View,
-	const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard)
+	ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, ADisplayClusterLightCardActor* PrimaryLightCard)
 {
 	if (LightCards.IsEmpty() || !ensure(!bNormalMapInvalid) || !UpdateRootActor())
 	{
@@ -1075,17 +1118,17 @@ void FDisplayClusterLightCardEditorHelper::InternalDragLightCards(const TArray<T
 
 	if (PrimaryLightCard && !PrimaryLightCard->bIsUVLightCard)
 	{
-		const bool bUseDeltaRotation = (DragAxis == EAxisList::Type::XYZ) || (DragAxis == EAxisList::Type::Y);
+		const bool bUseDeltaRotation = (DragAxis == EAxisList::Type::XYZ) || (DragAxis == EAxisList::Type::Y) || (CoordinateSystem == ECoordinateSystem::Cartesian);
 
 		const FRotator DeltaRotation =
 			bUseDeltaRotation ?
-			GetLightCardRotationDelta(PixelPos, View, *PrimaryLightCard, DragAxis, DragWidgetOffset)
+			GetLightCardRotationDelta(PixelPos, View, *PrimaryLightCard, CoordinateSystem, DragAxis, DragWidgetOffset)
 			: FRotator::ZeroRotator;
 
 		const FSphericalCoordinates DeltaCoords =
 			bUseDeltaRotation ?
 			FSphericalCoordinates()
-			: GetLightCardTranslationDelta(PixelPos, View, *PrimaryLightCard, DragAxis, DragWidgetOffset);
+			: GetLightCardTranslationDelta(PixelPos, View, *PrimaryLightCard, CoordinateSystem, DragAxis, DragWidgetOffset);
 
 		for (const TWeakObjectPtr<ADisplayClusterLightCardActor> LightCard : LightCards)
 		{
@@ -1101,7 +1144,7 @@ void FDisplayClusterLightCardEditorHelper::InternalDragLightCards(const TArray<T
 
 			// We will adjust the spin (to maintain the apparent spin) when using center of gizmo
 			// or dragging longitudinally (this seems to provide an intuitive behavior)
-			if (DragAxis == EAxisList::Type::XYZ || DragAxis == EAxisList::Type::Y) // Dragging center of gizmo
+			if (bUseDeltaRotation) // Dragging center of gizmo
 			{
 				// We might need this to put back the LightCard exactly as it was
 				const ADisplayClusterLightCardActor::PositionalParams OriginalPositionalParams = LightCard->GetPositionalParams();

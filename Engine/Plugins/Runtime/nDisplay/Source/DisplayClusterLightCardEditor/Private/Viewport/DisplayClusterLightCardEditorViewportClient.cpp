@@ -455,10 +455,12 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 		// Project the editor widget's world position into projection space so that it renders at the appropriate screen location.
 		// This needs to be computed on the render thread using the render thread's scene view, which will be behind the game thread's scene view
 		// by at least one frame
+		const bool bDrawZAxis = EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate &&
+			EditorWidgetCoordinateSystem == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian;
 
 		EditorWidget->SetTransform(CachedEditorWidgetWorldTransform);
 		EditorWidget->SetProjectionTransform(FDisplayClusterMeshProjectionTransform(ProjectionMode, View->ViewMatrices.GetViewMatrix()));
-		EditorWidget->Draw(View, this, PDI);
+		EditorWidget->Draw(View, this, PDI, bDrawZAxis);
 	}
 
 	// Draw polygonal lightcard in progress
@@ -1493,6 +1495,17 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray
 	}
 }
 
+void FDisplayClusterLightCardEditorViewportClient::SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode)
+{
+	// Force the coordinate system back to spherical if the widget mode is set to anything besides translate
+	if (InWidgetMode != FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
+	{
+		EditorWidgetCoordinateSystem = FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical;
+	}
+
+	EditorWidget->SetWidgetMode(InWidgetMode);
+}
+
 void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType)
 {
 	ProjectionMode = InProjectionMode;
@@ -1577,6 +1590,27 @@ void FDisplayClusterLightCardEditorViewportClient::ResetCamera(bool bLocationOnl
 	SetProjectionMode(GetProjectionMode(), GetRenderViewportType());
 
 	ResetFOVs();
+}
+
+void FDisplayClusterLightCardEditorViewportClient::CycleCoordinateSystem()
+{
+	if (EditorWidgetCoordinateSystem == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian)
+	{
+		SetCoordinateSystem(FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical);
+	}
+	else
+	{
+		SetCoordinateSystem(FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian);
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::SetCoordinateSystem(FDisplayClusterLightCardEditorHelper::ECoordinateSystem NewCoordinateSystem)
+{
+	// The only widget mode that supports multiple coordinate systems at the moment is translation
+	if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
+	{
+		EditorWidgetCoordinateSystem = NewCoordinateSystem;
+	}
 }
 
 void FDisplayClusterLightCardEditorViewportClient::MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FDisplayClusterLightCardEditorHelper::FSphericalCoordinates& SphericalCoords) const
@@ -1900,7 +1934,7 @@ void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCards(FViewp
 	InViewport->GetMousePos(MousePos);
 
 	// Move the light cards
-	ProjectionHelper->DragLightCards(SelectedLightCards, MousePos, *View, DragWidgetOffset, CurrentAxis, LastSelectedLightCard.Get());
+	ProjectionHelper->DragLightCards(SelectedLightCards, MousePos, *View, EditorWidgetCoordinateSystem, DragWidgetOffset, CurrentAxis, LastSelectedLightCard.Get());
 
 	// Update the level instances
 	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
@@ -2282,13 +2316,20 @@ bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTr
 		}
 		else
 		{
-			// The translation widget should be oriented to show the x axis pointing in the longitudinal direction and the y axis pointing in the latitudinal direction
-			const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
-			const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
-			const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
-			const FVector InclinationVector = RadialVector ^ AzimuthalVector;
+			if (EditorWidgetCoordinateSystem == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical)
+			{
+				// The translation widget should be oriented to show the x axis pointing in the longitudinal direction and the y axis pointing in the latitudinal direction
+				const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
+				const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
+				const FVector AzimuthalVector = (FVector::ZAxisVector ^ RadialVector).GetSafeNormal();
+				const FVector InclinationVector = RadialVector ^ AzimuthalVector;
 
-			WidgetOrientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).ToQuat();
+				WidgetOrientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).ToQuat();
+			}
+			else if (EditorWidgetCoordinateSystem == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian)
+			{
+				WidgetOrientation = FMatrix(FVector::XAxisVector, FVector::YAxisVector, FVector::ZAxisVector, FVector::ZeroVector).ToQuat();
+			}
 		}
 	}
 	else

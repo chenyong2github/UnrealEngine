@@ -239,8 +239,33 @@ public:
 		}
 
 		ToolbarBuilder.EndSection();
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.AddToolBarButton(FDisplayClusterLightCardEditorCommands::Get().CycleEditorWidgetCoordinateSystem,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(this, &SDisplayClusterLightCardEditorViewportToolBar::GetLocalToWorldIcon),
+			FName(TEXT("CycleTransformGizmoCoordSystem")),
+
+			FNewMenuDelegate::CreateLambda([](FMenuBuilder& InMenuBuilder)
+			{
+				InMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().SphericalCoordinateSystem);
+				InMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().CartesianCoordinateSystem);
+			}
+		));
 
 		return ToolbarBuilder.MakeWidget();
+	}
+
+	FSlateIcon GetLocalToWorldIcon() const
+	{
+		if (EditorViewport.IsValid() && EditorViewport.Pin()->GetLightCardEditorViewportClient()->GetCoordinateSystem() == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian)
+		{
+			return FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("EditorViewport.RelativeCoordinateSystem_World"));
+		}
+
+		return FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("Icons.Transform"));
 	}
 
 	TSharedRef<SWidget> MakeDrawingToolBar()
@@ -472,6 +497,23 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 		CommandList->MapAction(
 			Commands.ResetCamera,
 			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera, false));
+
+		CommandList->MapAction(
+			Commands.CycleEditorWidgetCoordinateSystem,
+			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::CycleCoordinateSystem));
+
+		CommandList->MapAction(
+			Commands.SphericalCoordinateSystem,
+			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::SetCoordinateSystem, FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return ViewportClient->GetCoordinateSystem() == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical; }));
+
+		CommandList->MapAction(
+			Commands.CartesianCoordinateSystem,
+			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::SetCoordinateSystem, FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return ViewportClient->GetCoordinateSystem() == FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Cartesian; }));
+
 
 		CommandList->MapAction(
 			FDisplayClusterLightCardEditorCommands::Get().DrawLightCard,

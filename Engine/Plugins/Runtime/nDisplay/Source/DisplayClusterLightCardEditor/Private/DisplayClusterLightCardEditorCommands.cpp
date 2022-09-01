@@ -21,6 +21,15 @@ void FDisplayClusterLightCardEditorCommands::RegisterCommands()
 	UI_COMMAND(ViewOrientationFront, "Front", "Orient the view to look at the front of the stage", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewOrientationBack, "Back", "Orient the view to look at the back of the stage", EUserInterfaceActionType::Button, FInputChord());
 
+#if PLATFORM_MAC
+	UI_COMMAND(CycleEditorWidgetCoordinateSystem, "Cycle Transform Coordinate System", "Cycles the transform gizmo coordinate systems between cartesian and spherical coordinates", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Command, EKeys::Tilde));
+#else
+	UI_COMMAND(CycleEditorWidgetCoordinateSystem, "Cycle Transform Coordinate System", "Cycles the transform gizmo coordinate systems between cartesian and spherical coordinates", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Tilde));
+#endif
+
+	UI_COMMAND(SphericalCoordinateSystem, "Spherical Coordinate System", "Move objects using latitude and longitude", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(CartesianCoordinateSystem, "Cartesian Coordinate System", "Move objects using X, Y, and Z axes", EUserInterfaceActionType::RadioButton, FInputChord());
+
 	UI_COMMAND(AddNewLightCard, "Add New Light Card", "Add and assign a new Light Card to the actor", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddNewFlag, "Add Flag", "Add and assign a new light control flag", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(AddExistingLightCard, "Add Existing Light Card", "Add an existing Light Card to the actor", EUserInterfaceActionType::Button, FInputChord());

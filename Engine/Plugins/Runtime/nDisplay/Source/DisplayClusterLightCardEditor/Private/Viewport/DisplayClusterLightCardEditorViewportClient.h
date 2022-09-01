@@ -93,7 +93,7 @@ public:
 	void SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
 
 	FDisplayClusterLightCardEditorWidget::EWidgetMode GetEditorWidgetMode() const { return EditorWidget->GetWidgetMode(); }
-	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) { EditorWidget->SetWidgetMode(InWidgetMode); }
+	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode);
 
 	/** Gets the current projection mode of the editor viewport */
 	EDisplayClusterMeshProjectionType GetProjectionMode() const { return ProjectionMode; }
@@ -112,6 +112,15 @@ public:
 
 	/** Resets the camera to the initial rotation / position */
 	void ResetCamera(bool bLocationOnly = false);
+
+	/** Cycles the editor widget's coordinate system between cartesian and spherical */
+	void CycleCoordinateSystem();
+
+	/** Gets the editor widget's current coordinate system */
+	FDisplayClusterLightCardEditorHelper::ECoordinateSystem GetCoordinateSystem() const { return EditorWidgetCoordinateSystem; }
+
+	/** Sets the editor widget's coordinate system to the specified coordinate system */
+	void SetCoordinateSystem(FDisplayClusterLightCardEditorHelper::ECoordinateSystem NewCoordinateSystem);
 
 	/** Moves specified card to desired coordinates. Actual radius will be based on flush constraint and LightCard's RadialOffset.
 	 *
@@ -273,6 +282,9 @@ private:
 
 	/** The cached editor widget transform in unprojected world space */
 	FTransform CachedEditorWidgetWorldTransform;
+
+	/** The current coordinate system of the editor widget */
+	FDisplayClusterLightCardEditorHelper::ECoordinateSystem EditorWidgetCoordinateSystem = FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical;
 
 	/** The offset between the widget's origin and the place it was clicked when a drag action was started */
 	FVector DragWidgetOffset;

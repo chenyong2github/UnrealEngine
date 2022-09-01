@@ -4,10 +4,17 @@
 
 #include "DisplayClusterLightCardEditorViewportClient.h"
 
+#include "Engine/Texture2D.h"
 #include "SceneManagement.h"
 #include "UnrealWidget.h"
 
-void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI)
+FDisplayClusterLightCardEditorWidget::FDisplayClusterLightCardEditorWidget()
+	: TranslateOriginTexture(LoadObject<UTexture2D>(nullptr, TEXT("/nDisplay/Icons/S_LightCardEditorWidgetTranslate")))
+	, ScaleOriginTexture(LoadObject<UTexture2D>(nullptr, TEXT("/nDisplay/Icons/S_LightCardEditorWidgetScale")))
+{
+}
+
+void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FDisplayClusterLightCardEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* PDI, bool bDrawZAxis)
 {
 	const bool bIsOrthographic = ViewportClient->GetRenderViewportType() != LVT_Perspective;
 
@@ -25,7 +32,15 @@ void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FD
 	{
 		DrawAxis(PDI, EAxisList::Type::X, SizeScalar, LengthScalar, OrthoScalar);
 		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar, OrthoScalar);
-		DrawOrigin(PDI, SizeScalar, OrthoScalar);
+
+		if (bDrawZAxis)
+		{
+			DrawAxis(PDI, EAxisList::Type::Z, SizeScalar, LengthScalar, OrthoScalar);
+		}
+
+		// When drawing with sprites, the length scalar is needed instead of the size scalar. Orthographic scaling is already factored into the length scalar,
+		// so the ortho scalar here can be 1.0
+		DrawOrigin(PDI, LengthScalar, 1.0f);
 	}
 }
 
@@ -55,11 +70,23 @@ void FDisplayClusterLightCardEditorWidget::DrawAxis(FPrimitiveDrawInterface* PDI
 void FDisplayClusterLightCardEditorWidget::DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar, float OrthoScalar)
 {
 	const FVector Origin = ProjectionTransform.ProjectPosition(Transform.GetTranslation());
-	const FLinearColor Color = HighlightedAxis == EAxisList::Type::XYZ ? HighlightColor : FLinearColor::Black;
-
-	PDI->SetHitProxy(new HWidgetAxis(EAxisList::Type::XYZ));
-	PDI->DrawPoint(Origin, Color, OriginSize * SizeScalar * OrthoScalar, ESceneDepthPriorityGroup::SDPG_Foreground);
-	PDI->SetHitProxy(nullptr);
+	const FLinearColor Color = HighlightedAxis == EAxisList::Type::XYZ ? HighlightColor : FLinearColor::White;
+	const float SpriteSize = OriginSize * SizeScalar * OrthoScalar;
+	
+	UTexture* OriginTexture = WidgetMode == EWidgetMode::WM_Scale ? ScaleOriginTexture : TranslateOriginTexture;
+	if (FTextureResource* Texture = OriginTexture->GetResource())
+	{
+		PDI->SetHitProxy(new HWidgetAxis(EAxisList::Type::XYZ));
+		PDI->DrawSprite(Origin,
+			SpriteSize, SpriteSize,
+			Texture,
+			Color,
+			ESceneDepthPriorityGroup::SDPG_Foreground,
+			0, Texture->GetSizeX(),
+			0, Texture->GetSizeY(),
+			SE_BLEND_Masked);
+		PDI->SetHitProxy(nullptr);
+	}
 }
 
 void FDisplayClusterLightCardEditorWidget::DrawCircle(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar)

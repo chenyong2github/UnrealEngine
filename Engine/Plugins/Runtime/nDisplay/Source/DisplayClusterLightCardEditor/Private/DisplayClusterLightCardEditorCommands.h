@@ -37,6 +37,10 @@ public:
 	TSharedPtr<FUICommandInfo> ViewOrientationFront;
 	TSharedPtr<FUICommandInfo> ViewOrientationBack;
 
+	TSharedPtr<FUICommandInfo> CycleEditorWidgetCoordinateSystem;
+	TSharedPtr<FUICommandInfo> CartesianCoordinateSystem;
+	TSharedPtr<FUICommandInfo> SphericalCoordinateSystem;
+
 	TSharedPtr<FUICommandInfo> AddNewLightCard;
 	TSharedPtr<FUICommandInfo> AddNewFlag;
 	TSharedPtr<FUICommandInfo> AddExistingLightCard;

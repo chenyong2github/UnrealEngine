@@ -723,6 +723,7 @@ void FStageAppRouteHandler::DragLightCards(FPerRendererData& PerRendererData, FV
 		PerRendererData.DraggedLightCards,
 		PixelPos,
 		View,
+		FDisplayClusterLightCardEditorHelper::ECoordinateSystem::Spherical,
 		DragWidgetOffset,
 		EAxisList::Type::XYZ,
 		PerRendererData.PrimaryLightCard.Get()
