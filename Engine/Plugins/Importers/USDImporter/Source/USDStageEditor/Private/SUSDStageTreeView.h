@@ -80,7 +80,7 @@ private:
 	bool CanPastePrim() const;
 	bool DoesPrimExistOnStage() const;
 	bool DoesPrimExistOnEditTarget() const;
-	bool CanDuplicateAllLocalLayerSpecs() const;
+	bool DoesPrimHaveSpecOnLocalLayerStack() const;
 
 	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
 	void RestoreExpansionStates();
