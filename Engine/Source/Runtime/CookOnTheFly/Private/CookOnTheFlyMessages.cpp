@@ -15,18 +15,7 @@ FArchive& operator<<(FArchive& Ar, FCompletedPackages& CompletedPackages)
 
 FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request)
 {
-	Ar << Request.PackageId;
-
-	return Ar;
-}
-
-FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response)
-{
-	Ar << Response.Status;
-	if (Response.Status == EPackageStoreEntryStatus::Ok)
-	{
-		Ar << Response.CookedEntry;
-	}
+	Ar << Request.PackageIds;
 
 	return Ar;
 }

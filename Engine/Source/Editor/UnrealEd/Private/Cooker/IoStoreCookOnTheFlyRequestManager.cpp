@@ -25,6 +25,36 @@
 #include "Templates/Function.h"
 #include "UObject/SavePackage.h"
 
+class FPackageRegistry
+{
+public:
+	void Add(TArrayView<FAssetData> Assets)
+	{
+		FScopeLock _(&CriticalSection);
+
+		for (const FAssetData& Asset : Assets)
+		{
+			PackageIdToName.Add(FPackageId::FromName(Asset.PackageName), Asset.PackageName);
+		}
+	}
+
+	void Add(FName PackageName)
+	{
+		FScopeLock _(&CriticalSection);
+		PackageIdToName.Add(FPackageId::FromName(PackageName), PackageName);
+	}
+
+	FName Get(FPackageId PackageId)
+	{
+		FScopeLock _(&CriticalSection);
+		return PackageIdToName.FindRef(PackageId);
+	}
+
+private:
+	TMap<FPackageId, FName> PackageIdToName;
+	FCriticalSection CriticalSection;
+};
+
 class FIoStoreCookOnTheFlyRequestManager final
 	: public UE::Cook::ICookOnTheFlyRequestManager
 {
@@ -45,10 +75,7 @@ public:
 		MessageEndpoint = FMessageEndpoint::Builder("FCookOnTheFly");
 		TArray<FAssetData> AllAssets;
 		AssetRegistry->GetAllAssets(AllAssets, true);
-		for (const FAssetData& AssetData : AllAssets)
-		{
-			AllKnownPackagesMap.Add(FPackageId::FromName(AssetData.PackageName), AssetData.PackageName);
-		}
+		PackageRegistry.Add(AllAssets);
 	}
 
 private:
@@ -69,9 +96,10 @@ private:
 			FPackageStoreEntryResource Entry;
 		};
 
-		FPlatformContext(FName InPlatformName, IPackageStoreWriter* InPackageWriter)
+		FPlatformContext(FName InPlatformName, IPackageStoreWriter* InPackageWriter, FPackageRegistry& InPackageRegistry)
 			: PlatformName(InPlatformName)
 			, PackageWriter(InPackageWriter)
+			, PackageRegistry(InPackageRegistry)
 		{
 		}
 
@@ -104,7 +132,7 @@ private:
 			}
 		}
 
-		EPackageStoreEntryStatus RequestCook(UE::Cook::ICookOnTheFlyServer& InCookOnTheFlyServer, const FPackageId& PackageId, TFunctionRef<FName()> GetPackageName, FPackageStoreEntryResource& OutEntry)
+		EPackageStoreEntryStatus RequestCook(UE::Cook::ICookOnTheFlyServer& InCookOnTheFlyServer, const FPackageId& PackageId, FPackageStoreEntryResource& OutEntry)
 		{
 			FPackage& Package = GetPackage(PackageId);
 			if (Package.Status == EPackageStatus::Cooked)
@@ -123,7 +151,7 @@ private:
 				UE_LOG(LogCookOnTheFly, Verbose, TEXT("0x%llX was already cooking"), PackageId.ValueForDebugging());
 				return EPackageStoreEntryStatus::Pending;
 			}
-			FName PackageName = GetPackageName();
+			FName PackageName = PackageRegistry.Get(PackageId);
 			if (PackageName.IsNone())
 			{
 				UE_LOG(LogCookOnTheFly, Warning, TEXT("Received cook request for unknown package 0x%llX"), PackageId.ValueForDebugging());
@@ -255,6 +283,7 @@ private:
 		FName PlatformName;
 		TMap<FPackageId, TUniquePtr<FPackage>> Packages;
 		IPackageStoreWriter* PackageWriter = nullptr;
+		FPackageRegistry& PackageRegistry;
 		int32 SingleThreadedClientsCount = 0;
 		FEvent* PackageCookedEvent = nullptr;
 	};
@@ -282,9 +311,7 @@ private:
 	{
 		FPackageId PackageId = FPackageId::FromName(PackageName);
 		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Package 0x%llX '%s' generated"), PackageId.ValueForDebugging(), *PackageName.ToString());
-
-		FScopeLock _(&AllKnownPackagesCriticalSection);
-		AllKnownPackagesMap.Add(PackageId, PackageName);
+		PackageRegistry.Add(PackageName);
 	}
 
 	void TickRecookPackages()
@@ -307,7 +334,7 @@ private:
 
 		for (FPackageId PackageId : PackageIds)
 		{
-			FName PackageName = AllKnownPackagesMap.FindRef(PackageId);
+			FName PackageName = PackageRegistry.Get(PackageId);
 			if (!PackageName.IsNone())
 			{
 				PackageNames.Add(PackageName);
@@ -369,7 +396,7 @@ private:
 			FScopeLock _(&ContextsCriticalSection);
 			if (!PlatformContexts.Contains(PlatformName))
 			{
-				TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(PlatformName, MakeUnique<FPlatformContext>(PlatformName, PackageWriter));
+				TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(PlatformName, MakeUnique<FPlatformContext>(PlatformName, PackageWriter, PackageRegistry));
 
 				PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries,
 					TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
@@ -492,22 +519,20 @@ private:
 
 		if (PlatformName.IsNone())
 		{
-			UE_LOG(LogCookOnTheFly, Warning, TEXT("CookPackageRequest from editor client"));
+			UE_LOG(LogCookOnTheFly, Warning, TEXT("Received cook package request for unknown platform '%s'"), *PlatformName.ToString());
 			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
 			return true;
 		}
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::HandleCookPackageRequest);
 
-		FCookPackageRequest CookRequest = Request.GetBodyAs<FCookPackageRequest>();
-		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Received cook request 0x%llX"), CookRequest.PackageId.ValueForDebugging());
 		FPlatformContext& Context = GetContext(PlatformName);
+		FCookPackageRequest CookRequest = Request.GetBodyAs<FCookPackageRequest>();
+		FCookPackageResponse CookResponse;
+
+		for (const FPackageId& PackageId : CookRequest.PackageIds)
 		{
-			auto GetPackageNameFunc = [this, &CookRequest]()
-			{
-				FScopeLock _(&AllKnownPackagesCriticalSection);
-				return AllKnownPackagesMap.FindRef(CookRequest.PackageId);
-			};
+			UE_LOG(LogCookOnTheFly, Verbose, TEXT("Received cook request 0x%llX"), PackageId.ValueForDebugging());
 
 			FPackageStoreEntryResource Entry;
 			EPackageStoreEntryStatus PackageStatus = EPackageStoreEntryStatus::Pending;
@@ -517,7 +542,7 @@ private:
 				{
 					{
 						FScopeLock _(&Context.GetLock());
-						PackageStatus = Context.RequestCook(CookOnTheFlyServer, CookRequest.PackageId, GetPackageNameFunc, Entry);
+						PackageStatus = Context.RequestCook(CookOnTheFlyServer, PackageId, Entry);
 					}
 					if (PackageStatus != EPackageStoreEntryStatus::Pending)
 					{
@@ -529,11 +554,20 @@ private:
 			else
 			{
 				FScopeLock _(&Context.GetLock());
-				PackageStatus = Context.RequestCook(CookOnTheFlyServer, CookRequest.PackageId, GetPackageNameFunc, Entry);
+				PackageStatus = Context.RequestCook(CookOnTheFlyServer, PackageId, Entry);
 			}
 
-			Response.SetBodyTo(FCookPackageResponse{ PackageStatus, MoveTemp(Entry) });
+			if (PackageStatus == EPackageStoreEntryStatus::Ok)
+			{
+				CookResponse.CookedPackages.Add(MoveTemp(Entry));
+			}
+			else if (PackageStatus == EPackageStoreEntryStatus::Missing)
+			{
+				CookResponse.FailedPackages.Add(PackageId);
+			}
 		}
+
+		Response.SetBodyTo(MoveTemp(CookResponse));
 		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
 
 		return true;
@@ -604,12 +638,7 @@ private:
 		for (const FPackageId& ImportedPackageId : EventArgs.Entry.ImportedPackageIds)
 		{
 			FPackageStoreEntryResource DummyEntry;
-			auto GetPackageNameFunc = [this, &ImportedPackageId]()
-			{
-				FScopeLock _(&AllKnownPackagesCriticalSection);
-				return AllKnownPackagesMap.FindRef(ImportedPackageId);
-			};
-			EPackageStoreEntryStatus PackageStatus = Context.RequestCook(CookOnTheFlyServer, ImportedPackageId, GetPackageNameFunc, DummyEntry);
+			EPackageStoreEntryStatus PackageStatus = Context.RequestCook(CookOnTheFlyServer, ImportedPackageId, DummyEntry);
 		}
 	}
 
@@ -730,8 +759,7 @@ private:
 	const FString ServiceId;
 	FCriticalSection ContextsCriticalSection;
 	TMap<FName, TUniquePtr<FPlatformContext>> PlatformContexts;
-	FCriticalSection AllKnownPackagesCriticalSection;
-	TMap<FPackageId, FName> AllKnownPackagesMap;
+	FPackageRegistry PackageRegistry;
 	FCriticalSection PackagesToRecookCritical;
 	TSet<FPackageId> PackagesToRecook;
 };

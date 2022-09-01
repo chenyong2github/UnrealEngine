@@ -47,82 +47,78 @@ FCookOnTheFlyPackageStoreBackend::FCookOnTheFlyPackageStoreBackend(UE::Cook::ICo
 	});
 }
 
+void FCookOnTheFlyPackageStoreBackend::BeginRead()
+{
+	EntriesLock.ReadLock();
+}
+
+void FCookOnTheFlyPackageStoreBackend::EndRead()
+{
+	TArray<FPackageId> PackageIds = MoveTemp(RequestedPackageIds);
+	EntriesLock.ReadUnlock();
+
+	if (PackageIds.Num() > 0)
+	{
+		SendCookRequest(MoveTemp(PackageIds));
+	}
+}
+
 bool FCookOnTheFlyPackageStoreBackend::DoesPackageExist(FPackageId PackageId)
 {
-	FScopeLock _(&CriticalSection);
+	FReadScopeLock ReadLock(EntriesLock);
 	FEntryInfo EntryInfo = PackageIdToEntryInfo.FindRef(PackageId);
 	return EntryInfo.Status != EPackageStoreEntryStatus::Missing;
 }
 
 EPackageStoreEntryStatus FCookOnTheFlyPackageStoreBackend::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
 {
+	FEntryInfo& EntryInfo = PackageIdToEntryInfo.FindOrAdd(PackageId, FEntryInfo());
+
+	if (EntryInfo.Status == EPackageStoreEntryStatus::Ok)
+	{
+		check(EntryInfo.EntryIndex != INDEX_NONE);
+		return CreatePackageStoreEntry(EntryInfo, OutPackageStoreEntry);
+	}
+	else if (EntryInfo.Status == EPackageStoreEntryStatus::None)
+	{
+		EntryInfo.Status = EPackageStoreEntryStatus::Pending;
+		RequestedPackageIds.Add(PackageId);
+	}
+
+	return EntryInfo.Status; 
+}
+
+void FCookOnTheFlyPackageStoreBackend::SendCookRequest(TArray<FPackageId> PackageIds)
+{
 	using namespace UE::Cook;
 	using namespace UE::ZenCookOnTheFly::Messaging;
 
-	EPackageStoreEntryStatus OriginalStatus;
-	{
-		FScopeLock _(&CriticalSection);
-		FEntryInfo& EntryInfo = PackageIdToEntryInfo.FindOrAdd(PackageId, FEntryInfo());
-
-		if (EntryInfo.Status == EPackageStoreEntryStatus::Ok)
-		{
-			check(EntryInfo.EntryIndex != INDEX_NONE);
-			return CreatePackageStoreEntry(EntryInfo, OutPackageStoreEntry);
-		}
-			
-		if (EntryInfo.Status == EPackageStoreEntryStatus::Missing)
-		{
-			return EPackageStoreEntryStatus::Missing;
-		}
-
-		if (EntryInfo.Status == EPackageStoreEntryStatus::Pending)
-		{
-			CheckActivity();
-			return EPackageStoreEntryStatus::Pending;
-		}
-
-		// The package hasn't been requested, set the status to pending.
-		EntryInfo.Status = EPackageStoreEntryStatus::Pending;
-
-		OriginalStatus = EntryInfo.Status;
-	}
-
 	LastClientActivtyTime = FPlatformTime::Seconds();
-	UE_LOG(LogCookOnTheFly, Verbose, TEXT("Requesting package 0x%llX"), PackageId.ValueForDebugging());
-
+	
 	FCookOnTheFlyRequest Request(ECookOnTheFlyMessage::CookPackage);
-	Request.SetBodyTo(FCookPackageRequest { PackageId });
+	Request.SetBodyTo(FCookPackageRequest { PackageIds });
+
 	FCookOnTheFlyResponse Response = CookOnTheFlyServerConnection.SendRequest(Request).Get();
+	FCookPackageResponse CookResponse = Response.GetBodyAs<FCookPackageResponse>();
 
-	if (!Response.IsOk())
+	if (Response.IsOk())
 	{
-		UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send 'CookPackage' request"));
-		FScopeLock _(&CriticalSection);
-		FEntryInfo& EntryInfo = PackageIdToEntryInfo.FindChecked(PackageId);
-		EntryInfo.Status = EPackageStoreEntryStatus::Missing;
-		return EPackageStoreEntryStatus::Missing;
+		AddPackages(MoveTemp(CookResponse.CookedPackages), MoveTemp(CookResponse.FailedPackages));
 	}
-
-	FCookPackageResponse CookPackageResponse = Response.GetBodyAs<FCookPackageResponse>();
+	else
 	{
-		FScopeLock _(&CriticalSection);
+		UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send cook package(s) request"));
 
-		FEntryInfo& EntryInfo = PackageIdToEntryInfo.FindChecked(PackageId);
+		FWriteScopeLock WriteLock(EntriesLock);
 
-		// We might have received a PackagesCooked message while processing the request and in that case the response could be outdated so ignore it
-		if (EntryInfo.Status == OriginalStatus)
+		for (const FPackageId& PackageId : PackageIds)
 		{
-			EntryInfo.Status = CookPackageResponse.Status;
-			if (EntryInfo.Status == EPackageStoreEntryStatus::Ok)
+			FEntryInfo& EntryInfo = PackageIdToEntryInfo.FindChecked(PackageId);
+			if (EntryInfo.Status == EPackageStoreEntryStatus::Pending)
 			{
-				if (EntryInfo.EntryIndex == INDEX_NONE)
-				{
-					EntryInfo.EntryIndex = PackageEntries.Add();
-				}
-				PackageEntries[EntryInfo.EntryIndex] = MoveTemp(CookPackageResponse.CookedEntry);
+				EntryInfo.Status = EPackageStoreEntryStatus::Missing;
 			}
 		}
-		return CreatePackageStoreEntry(EntryInfo, OutPackageStoreEntry);
 	}
 }
 
@@ -143,7 +139,7 @@ EPackageStoreEntryStatus FCookOnTheFlyPackageStoreBackend::CreatePackageStoreEnt
 
 void FCookOnTheFlyPackageStoreBackend::AddPackages(TArray<FPackageStoreEntryResource> Entries, TArray<FPackageId> FailedPackageIds)
 {
-	FScopeLock _(&CriticalSection);
+	FWriteScopeLock WriteLock(EntriesLock);
 		
 	for (FPackageId FailedPackageId : FailedPackageIds)
 	{
@@ -152,8 +148,6 @@ void FCookOnTheFlyPackageStoreBackend::AddPackages(TArray<FPackageStoreEntryReso
 		EntryInfo.Status = EPackageStoreEntryStatus::Missing;
 		PackageStats.Failed++;
 	}
-
-	const int32 NumPackageEntries = PackageEntries.Num();
 
 	for (FPackageStoreEntryResource& Entry : Entries)
 	{
@@ -220,7 +214,7 @@ void FCookOnTheFlyPackageStoreBackend::CheckActivity()
 
 		UE_LOG(LogCookOnTheFly, Log, TEXT("=== Pending Packages ==="));
 		{
-			FScopeLock _(&CriticalSection);
+			FReadScopeLock ReadLock(EntriesLock);
 			for (const auto& KeyValue : PackageIdToEntryInfo)
 			{
 				const FEntryInfo& EntryInfo = KeyValue.Value;

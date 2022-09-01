@@ -18,18 +18,12 @@ struct FCompletedPackages
 
 struct FCookPackageRequest
 {
-	FPackageId PackageId;
+	TArray<FPackageId> PackageIds;
 	
 	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request);
 };
 
-struct FCookPackageResponse
-{
-	EPackageStoreEntryStatus Status;
-	FPackageStoreEntryResource CookedEntry;
-
-	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response);
-};
+using FCookPackageResponse = FCompletedPackages;
 
 struct FRecookPackagesRequest
 {

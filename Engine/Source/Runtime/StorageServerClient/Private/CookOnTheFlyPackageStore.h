@@ -8,6 +8,7 @@
 
 #include "IO/PackageStore.h"
 #include "CookOnTheFly.h"
+#include "Misc/ScopeRWLock.h"
 
 class FCookOnTheFlyPackageStoreBackend final
 	: public IPackageStoreBackend
@@ -32,13 +33,9 @@ public:
 		Context = InContext;
 	}
 
-	virtual void BeginRead() override
-	{
-	}
+	virtual void BeginRead() override;
 
-	virtual void EndRead() override
-	{
-	}
+	virtual void EndRead() override;
 
 	bool DoesPackageExist(FPackageId PackageId);
 	virtual EPackageStoreEntryStatus GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry) override;
@@ -49,6 +46,7 @@ public:
 	}
 	
 private:
+	void SendCookRequest(TArray<FPackageId> PackageIds);
 	EPackageStoreEntryStatus CreatePackageStoreEntry(const FEntryInfo& EntryInfo, FPackageStoreEntry& OutPackageStoreEntry);
 	void AddPackages(TArray<FPackageStoreEntryResource> Entries, TArray<FPackageId> FailedPackageIds);
 	void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message);
@@ -56,9 +54,10 @@ private:
 
 	UE::Cook::ICookOnTheFlyServerConnection& CookOnTheFlyServerConnection;
 	TSharedPtr<const FPackageStoreBackendContext> Context;
-	FCriticalSection CriticalSection;
+	FRWLock EntriesLock;
 	TMap<FPackageId, FEntryInfo> PackageIdToEntryInfo;
 	TChunkedArray<FPackageStoreEntryResource> PackageEntries;
+	TArray<FPackageId> RequestedPackageIds;
 	FPackageStats PackageStats;
 
 	const double MaxInactivityTime = 20;
