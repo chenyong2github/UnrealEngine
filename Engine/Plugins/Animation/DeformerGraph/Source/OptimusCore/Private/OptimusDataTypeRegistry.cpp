@@ -799,9 +799,12 @@ bool FOptimusDataTypeRegistry::RegisterStructType(UScriptStruct* InStructType)
 void FOptimusDataTypeRegistry::RefreshStructType(UUserDefinedStruct* InStructType)
 {
 	FName TypeName = Optimus::GetTypeName(InStructType);
-	UnregisterType(TypeName);
-	RegisterStructType(InStructType);
-	OnDataTypeChanged.Broadcast(TypeName);
+	if (RegisteredTypes.Contains(TypeName))
+	{
+		UnregisterType(TypeName);
+		RegisterStructType(InStructType);
+		OnDataTypeChanged.Broadcast(TypeName);
+	}
 }
 
 bool FOptimusDataTypeRegistry::RegisterType(
@@ -1427,33 +1430,4 @@ void FOptimusDataTypeRegistry::UnregisterType(FName InTypeName)
 {
 	RegisteredTypes.Remove(InTypeName);
 	RegistrationOrder.Remove(InTypeName);
-}
-
-
-void FOptimusDataTypeRegistry::RefreshRegistry()
-{
-	// Checks for new user defined structs that have been added
-	
-	TArray<FAssetData> StructAssets;
-
-	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), StructAssets);
-
-	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
-
-	for (const FAssetData& StructAsset : StructAssets)
-	{
-		UObject* Struct = StructAsset.GetAsset();
-		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
-		
-		if (ensure(ScriptStruct))
-		{
-			FOptimusDataTypeHandle DataType = FindType(Optimus::GetTypeName(ScriptStruct));
-
-			if (!DataType.IsValid())
-			{
-				RegisterStructType(ScriptStruct);
-			}
-		}
-	}
 }

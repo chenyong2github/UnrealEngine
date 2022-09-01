@@ -126,9 +126,6 @@ public:
 		UUserDefinedStruct *InStructType
 		);
 
-	// Check for new user defined structs and register them
-	OPTIMUSCORE_API void RefreshRegistry();
-
 	// Unregister a type
 	OPTIMUSCORE_API void UnregisterType(FName InTypeName);
 

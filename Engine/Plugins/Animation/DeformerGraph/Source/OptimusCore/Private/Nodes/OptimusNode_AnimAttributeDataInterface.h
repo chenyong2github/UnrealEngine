@@ -30,7 +30,7 @@ private:
 	void UpdatePinTypes();
 	void UpdatePinNames();
 
-	void ClearPins();
+	void ClearOutputPins();
 
-	void RefreshPins();
+	void RefreshOutputPins();
 };

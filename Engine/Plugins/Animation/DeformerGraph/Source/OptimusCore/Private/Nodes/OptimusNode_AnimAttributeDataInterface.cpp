@@ -74,14 +74,14 @@ void UOptimusNode_AnimAttributeDataInterface::PostEditChangeChainProperty(FPrope
 	{
 		if (PropertyChangedEvent.PropertyChain.GetTail()->GetValue()->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray))
 		{
-			RefreshPins();
+			RefreshOutputPins();
 		}
 	}
 	else if(PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
 	{
 		if (PropertyChangedEvent.PropertyChain.GetTail()->GetValue()->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray))
 		{
-			ClearPins();
+			ClearOutputPins();
 		}
 	}
 }
@@ -112,13 +112,25 @@ void UOptimusNode_AnimAttributeDataInterface::UpdatePinTypes()
 	// Let's try and figure out which pin got changed.
 	TArrayView<UOptimusNodePin* const> NodePins = GetPins();
 	
-	if (ensure(NumAttributes == NodePins.Num()))
-	{
-		for (int32 Index = 0; Index < NodePins.Num(); Index++)
+	const TArray<UOptimusNodePin*> OutputPins = NodePins.FilterByPredicate(
+		[](UOptimusNodePin* const InPin)
 		{
-			if (NodePins[Index]->GetDataType() != Interface->AttributeArray[Index].DataType.Resolve())
+			if (InPin->GetDirection() == EOptimusNodePinDirection::Output)
 			{
-				SetPinDataType(NodePins[Index], Interface->AttributeArray[Index].DataType);
+				return true;
+			}
+			
+			return false;
+		}
+	);	
+	
+	if (ensure(NumAttributes == OutputPins.Num()))
+	{
+		for (int32 Index = 0; Index < OutputPins.Num(); Index++)
+		{
+			if (OutputPins[Index]->GetDataType() != Interface->AttributeArray[Index].DataType.Resolve())
+			{
+				SetPinDataType(OutputPins[Index], Interface->AttributeArray[Index].DataType);
 			}
 		}
 	}
@@ -134,38 +146,56 @@ void UOptimusNode_AnimAttributeDataInterface::UpdatePinNames()
 	// Let's try and figure out which pin got changed.
 	TArrayView<UOptimusNodePin* const> NodePins = GetPins();
 
-	if (ensure(PinDefinitions.Num() == NodePins.Num()))
-	{
-		for (int32 Index = 0; Index < NodePins.Num(); Index++)
+	const TArray<UOptimusNodePin*> OutputPins = NodePins.FilterByPredicate(
+		[](UOptimusNodePin* const InPin)
 		{
-			if (NodePins[Index]->GetFName() != PinDefinitions[Index].PinName)
+			if (InPin->GetDirection() == EOptimusNodePinDirection::Output)
 			{
-				SetPinName(NodePins[Index], PinDefinitions[Index].PinName);
+				return true;
+			}
+			
+			return false;
+		}
+	);
+	
+	if (ensure(PinDefinitions.Num() == OutputPins.Num()))
+	{
+		for (int32 Index = 0; Index < OutputPins.Num(); Index++)
+		{
+			if (OutputPins[Index]->GetFName() != PinDefinitions[Index].PinName)
+			{
+				SetPinName(OutputPins[Index], PinDefinitions[Index].PinName);
 			}
 		}
 	}
 }
 
 
-void UOptimusNode_AnimAttributeDataInterface::ClearPins()
+void UOptimusNode_AnimAttributeDataInterface::ClearOutputPins()
 {
 	for (UOptimusNodePin* Pin : GetPins())
 	{
-		RemovePin(Pin);
+		if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+		{
+			RemovePin(Pin);
+		}
 	}
 }
 
-void UOptimusNode_AnimAttributeDataInterface::RefreshPins()
+void UOptimusNode_AnimAttributeDataInterface::RefreshOutputPins()
 {
 	// Save the links and readd them later when new pins are created
 	TMap<FName, TArray<UOptimusNodePin*>> ConnectedPinsMap;
 
 	for (const UOptimusNodePin* Pin : GetPins())
 	{
-		ConnectedPinsMap.Add(Pin->GetFName()) = Pin->GetConnectedPins();
+		if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+		{
+			ConnectedPinsMap.Add(Pin->GetFName()) = Pin->GetConnectedPins();
+		}
 	}	
 
-	ClearPins();
+	ClearOutputPins();
 
 	UOptimusAnimAttributeDataInterface* Interface = Cast<UOptimusAnimAttributeDataInterface>(DataInterfaceData);
 	for (const FOptimusAnimAttributeDescription& Attribute : Interface->AttributeArray)
@@ -175,12 +205,15 @@ void UOptimusNode_AnimAttributeDataInterface::RefreshPins()
 
 	for (UOptimusNodePin* AddedPin : GetPins())
 	{
-		if (TArray<UOptimusNodePin*>* ConnectedPins = ConnectedPinsMap.Find(AddedPin->GetFName()))
+		if (AddedPin->GetDirection() == EOptimusNodePinDirection::Output)
 		{
-			for (UOptimusNodePin* ConnectedPin : *ConnectedPins)
+			if (TArray<UOptimusNodePin*>* ConnectedPins = ConnectedPinsMap.Find(AddedPin->GetFName()))
 			{
-				GetOwningGraph()->AddLink(AddedPin, ConnectedPin);
-			}
+				for (UOptimusNodePin* ConnectedPin : *ConnectedPins)
+				{
+					GetOwningGraph()->AddLink(AddedPin, ConnectedPin);
+				}
+			}	
 		}
 	}
 }

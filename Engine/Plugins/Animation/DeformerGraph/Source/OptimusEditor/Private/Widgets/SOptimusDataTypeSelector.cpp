@@ -173,16 +173,17 @@ FText SOptimusDataTypeSelector::GetTypeTooltip() const
 
 TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 {
-	FOptimusDataTypeRegistry::Get().RefreshRegistry();
-
 	AllDataTypeItems.Reset();
 	FOptimusDataTypeHandle SelectedItem;
 	for (FOptimusDataTypeHandle DataType : FOptimusDataTypeRegistry::Get().GetAllTypes())
 	{
-		AllDataTypeItems.Add(DataType);
-		if (DataType == CurrentDataType.Get())
+		if ( !UsageMask.IsSet() || UsageMask.Get() == EOptimusDataTypeUsageFlags::None || EnumHasAnyFlags(DataType->UsageFlags, UsageMask.Get()))
 		{
-			SelectedItem = AllDataTypeItems.Last();
+			AllDataTypeItems.Add(DataType);
+			if (DataType == CurrentDataType.Get())
+			{
+				SelectedItem = AllDataTypeItems.Last();
+			}
 		}
 	}
 
