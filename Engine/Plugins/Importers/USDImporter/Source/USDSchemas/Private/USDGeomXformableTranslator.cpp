@@ -573,7 +573,8 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 				StaticMeshComponent->SetStaticMesh( PrimStaticMesh );
 
-				StaticMeshComponent->RegisterComponent();
+				// We can't register yet, as UsdToUnreal::ConvertXformable below us may want to move the component.
+				// We'll always re-register when needed below, though.
 			}
 		}
 
