@@ -81,6 +81,7 @@ void FDMXMVRFixtureListItem::SetFixturePatchName(const FString& InDesiredName, F
 	{
 		if (FixturePatch->Name == InDesiredName)
 		{
+			OutNewName = InDesiredName;
 			return;
 		}
 
