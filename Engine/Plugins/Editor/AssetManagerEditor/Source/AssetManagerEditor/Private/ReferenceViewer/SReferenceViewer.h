@@ -52,6 +52,7 @@ public:
 	/**SWidget interface **/
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
 private:
 
@@ -253,6 +254,8 @@ private:
 
 	/** A recursion check so as to avoid the rebuild of the graph if we are currently rebuilding the filters */
 	bool bRebuildingFilters;
+
+	bool bNeedsGraphRebuild;
 
 	/** Handle to know if dirty */
 	FDelegateHandle AssetRefreshHandle;
