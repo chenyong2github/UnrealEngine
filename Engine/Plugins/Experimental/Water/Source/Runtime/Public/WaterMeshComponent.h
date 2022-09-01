@@ -15,7 +15,7 @@
  * Water Mesh Component responsible for generating and rendering a continuous water mesh on top of all the existing water body actors in the world
  * The component contains a quadtree which defines where there are water tiles. A function for traversing the quadtree and outputing a list of instance data for each tile to be rendered from a point of view is included
  */
-UCLASS(ClassGroup = (Rendering, Water), hidecategories = (Object, Activation, "Components|Activation"), editinlinenew)
+UCLASS(ClassGroup = (Rendering, Water), hidecategories = (Object, Activation, "Components|Activation", Collision, Lighting, HLOD, Navigation, Replication, Input, MaterialParameters, TextureStreaming), editinlinenew)
 class WATER_API UWaterMeshComponent : public UMeshComponent
 {
 	GENERATED_BODY()

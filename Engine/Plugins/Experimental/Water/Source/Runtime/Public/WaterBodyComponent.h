@@ -106,7 +106,7 @@ public:
 
 // ----------------------------------------------------------------------------------
 
-UCLASS(Abstract, HideCategories = (Tags, Activation, Cooking, Replication, Input, AssetUserData, Mesh))
+UCLASS(Abstract, HideCategories = (Tags, Activation, Cooking, Physics, Replication, Input, AssetUserData, Mesh))
 class WATER_API UWaterBodyComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -574,7 +574,7 @@ protected:
 	 * When this is set to true, the water mesh will always generate tiles for this water body. 
 	 * For example, this can be useful to generate water tiles even when the water material is invalid, for the case where "empty" water tiles are actually desirable.
 	 */
-	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
 	bool bAlwaysGenerateWaterMeshTiles = false;
 
 	/** Higher number is higher priority. If two water bodies overlap and they don't have a transition material specified, this will be used to determine which water body to use the material from. Valid range is -8192 to 8191 */

@@ -23,7 +23,7 @@ enum class EWaterZoneRebuildFlags
 };
 ENUM_CLASS_FLAGS(EWaterZoneRebuildFlags);
 
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, HideCategories=(Physics, Replication, Input, Collision))
 class WATER_API AWaterZone : public AActor
 {
 	GENERATED_UCLASS_BODY()
@@ -55,7 +55,7 @@ public:
 	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }
 	float GetGroundZMin() const { return GroundZMin; }
 
-	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Texture)
+	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	TObjectPtr<UTextureRenderTarget2D> WaterInfoTexture;
 
 	FVector GetTessellatedWaterMeshCenter() const;
@@ -92,10 +92,12 @@ private:
 	void OnBoundsComponentModified();
 #endif // WITH_EDITOR
 
+private:
+
 	UPROPERTY(Transient, Category = Water, VisibleAnywhere)
 	TArray<TWeakObjectPtr<UWaterBodyComponent>> OwnedWaterBodies;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Texture, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Water, meta = (AllowPrivateAccess = "true"))
 	FIntPoint RenderTargetResolution;
 
 	/** The water mesh component */
@@ -103,19 +105,19 @@ private:
 	TObjectPtr<UWaterMeshComponent> WaterMesh;
 
 	/** Width of the zone bounding box */
-	UPROPERTY(Category = Shape, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	FVector2D ZoneExtent;
 
 	/** Offsets the height above the water zone at which the WaterInfoTexture is rendered. This is applied after computing the maximum Z of all the water bodies within the zone. */
-	UPROPERTY(Category = Shape, EditAnywhere, AdvancedDisplay, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay, meta = (AllowPrivateAccess = "true"))
 	float CaptureZOffset = 64.f;
 
 	/** Determines if the WaterInfoTexture should be 16 or 32 bits per channel */
-	UPROPERTY(Category = Texture, EditAnywhere, AdvancedDisplay, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay, meta = (AllowPrivateAccess = "true"))
 	bool bHalfPrecisionTexture = true;
 
 	/** Radius of the velocity blur in the finalize water info pass */
-	UPROPERTY(Category = Texture, EditAnywhere, AdvancedDisplay)
+	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay)
 	int32 VelocityBlurRadius = 1;
 
 	/** Area around the camera covered by the tessellated water mesh when LOD is enabled. */
