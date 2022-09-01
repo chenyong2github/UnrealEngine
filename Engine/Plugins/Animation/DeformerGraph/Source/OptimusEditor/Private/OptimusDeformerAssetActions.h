@@ -11,43 +11,23 @@ class FOptimusDeformerAssetActions
 	: public FAssetTypeActions_Base
 {
 public:
+	FOptimusDeformerAssetActions(EAssetTypeCategories::Type InAssetCategoryBit = EAssetTypeCategories::Animation);
+	
+protected:
 	// IAssetTypeActions overrides
-	FText GetName() const override 
-	{ 
-		return NSLOCTEXT("AssetTypeActions", "OptimusDeformerActions", "Deformer Graph"); 
-	}
-
-	FColor GetTypeColor() const override 
-	{ 
-		return FColor::Blue;
-	}
-
-	UClass* GetSupportedClass() const override 
-	{ 
-		return UOptimusDeformer::StaticClass(); 
-	}
-
+	FText GetName() const override;
+	FColor GetTypeColor() const override;
+	UClass* GetSupportedClass() const override;
 	void OpenAssetEditor(
 		const TArray<UObject*>& InObjects, 
 		TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()
 	) override;
-
-	uint32 GetCategories() override 
-	{ 
-		return EAssetTypeCategories::Misc;
-	}
-
-	const TArray<FText>& GetSubMenus() const override
-	{
-		static const TArray<FText> SubMenus
-		{
-			NSLOCTEXT("FOptimusDeformerAssetActions", "AnimDeformersSubMenu", "Deformers")
-		};
-		return SubMenus;
-	}
-
+	uint32 GetCategories() override;
+	const TArray<FText>& GetSubMenus() const override;
 	TSharedPtr<SWidget> GetThumbnailOverlay(
 		const FAssetData& AssetData
 	) const override;
 
+private:
+	EAssetTypeCategories::Type AssetCategoryBit;
 };

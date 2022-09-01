@@ -11,6 +11,30 @@
 #include "Widgets/Images/SImage.h"
 
 
+FOptimusDeformerAssetActions::FOptimusDeformerAssetActions(EAssetTypeCategories::Type InAssetCategoryBit) :
+	AssetCategoryBit(InAssetCategoryBit)
+{
+}
+
+
+FText FOptimusDeformerAssetActions::GetName() const
+{ 
+	return NSLOCTEXT("AssetTypeActions", "OptimusDeformerActions", "Deformer Graph"); 
+}
+
+
+FColor FOptimusDeformerAssetActions::GetTypeColor() const
+{ 
+	return FColor::Blue;
+}
+
+
+UClass* FOptimusDeformerAssetActions::GetSupportedClass() const
+{ 
+	return UOptimusDeformer::StaticClass(); 
+}
+
+
 void FOptimusDeformerAssetActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>() */)
 {
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
@@ -31,6 +55,22 @@ void FOptimusDeformerAssetActions::OpenAssetEditor(const TArray<UObject*>& InObj
 			}
 		}
 	}
+}
+
+
+uint32 FOptimusDeformerAssetActions::GetCategories()
+{ 
+	return AssetCategoryBit;
+}
+
+
+const TArray<FText>& FOptimusDeformerAssetActions::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("FOptimusDeformerAssetActions", "AnimDeformersSubMenu", "Deformers")
+	};
+	return SubMenus;
 }
 
 
