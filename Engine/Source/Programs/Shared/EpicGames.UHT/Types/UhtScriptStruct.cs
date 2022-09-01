@@ -775,7 +775,44 @@ namespace EpicGames.UHT.Types
 				this.LogError("virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;");
 			}
 
+			ValidateProperties();
+
 			return options |= UhtValidationOptions.Shadowing;
+		}
+
+		void ValidateProperties()
+		{
+			bool hasTestedStruct = false;
+			foreach (UhtType child in Children)
+			{
+				if (child is UhtProperty property)
+				{
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible))
+					{
+						if (!property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAssignable | EPropertyFlags.BlueprintCallable) && property is not UhtMulticastDelegateProperty)
+						{
+							if (!hasTestedStruct)
+							{
+								hasTestedStruct = true;
+								if (!MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
+								{
+									property.LogError($"Cannot expose property to blueprints in a struct that is not a BlueprintType. Struct: {SourceName} Property: {property.SourceName}");
+								}
+							}
+
+							if (property.IsStaticArray)
+							{
+								property.LogError($"Static array cannot be exposed to blueprint Class: {SourceName} Property: {property.SourceName}");
+							}
+
+							if (!property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsMemberSupportedByBlueprint))
+							{
+								property.LogError($"Type '{property.GetUserFacingDecl()}' is not supported by blueprint. Struct: {SourceName} Property: {property.SourceName}");
+							}
+						}
+					}
+				}
+			}
 		}
 		#endregion
 

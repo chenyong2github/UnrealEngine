@@ -47,18 +47,8 @@ namespace EpicGames.UHT.Types
 			ScriptStruct = scriptStruct;
 			HeaderFile.AddReferencedHeader(scriptStruct);
 			PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
-			if (ScriptStruct.HasNoOpConstructor)
-			{
-				PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
-			}
-			if (ScriptStruct.MetaData.GetBoolean(UhtNames.BlueprintType))
-			{
-				PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
-			}
-			else if (ScriptStruct.MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
-			{
-				PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
-			}
+
+			UpdateCaps();
 		}
 
 		/// <inheritdoc/>
@@ -72,9 +62,32 @@ namespace EpicGames.UHT.Types
 					{
 						PropertyFlags |= EPropertyFlags.ContainsInstancedReference;
 					}
+					UpdateCaps();
 					break;
 			}
 			return results;
+		}
+
+		private void UpdateCaps()
+		{
+			if (ScriptStruct.HasNoOpConstructor)
+			{
+				PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
+			}
+
+			// There is a good chance Blueprint type was set during property resolve phase.  Check this flag again.
+			const UhtPropertyCaps BlueprintCaps = UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			if (!PropertyCaps.HasExactFlags(BlueprintCaps, BlueprintCaps))
+			{
+				if (ScriptStruct.MetaData.GetBoolean(UhtNames.BlueprintType))
+				{
+					PropertyCaps |= BlueprintCaps;
+				}
+				else if (ScriptStruct.MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
+				{
+					PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+				}
+			}
 		}
 
 		/// <inheritdoc/>

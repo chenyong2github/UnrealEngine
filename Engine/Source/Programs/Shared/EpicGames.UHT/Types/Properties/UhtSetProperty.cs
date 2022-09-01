@@ -38,12 +38,12 @@ namespace EpicGames.UHT.Types
 		public UhtSetProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings, value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
-			PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
+			PropertyFlags |= ValueProperty.PropertyFlags & EPropertyFlags.UObjectWrapper;
 
 			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
 			PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
-			PropertyCaps = (PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) |
-				(ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
+			UpdateCaps();
+
 			ValueProperty.SourceName = SourceName;
 			ValueProperty.EngineName = EngineName;
 			ValueProperty.PropertyFlags = PropertyFlags & EPropertyFlags.PropagateToSetElement;
@@ -62,10 +62,21 @@ namespace EpicGames.UHT.Types
 					MetaData.Add(ValueProperty.MetaData);
 					ValueProperty.MetaData.Clear();
 					ValueProperty.PropertyFlags = PropertyFlags & EPropertyFlags.PropagateToSetElement;
+					UpdateCaps();
 					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, MetaData, ValueProperty);
 					break;
 			}
 			return results;
+		}
+
+		private void UpdateCaps()
+		{
+			PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn);
+			PropertyCaps |= ValueProperty.PropertyCaps & UhtPropertyCaps.CanExposeOnSpawn;
+			if (ValueProperty.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsParameterSupportedByBlueprint))
+			{
+				PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			}
 		}
 
 		/// <inheritdoc/>

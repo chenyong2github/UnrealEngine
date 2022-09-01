@@ -1796,6 +1796,19 @@ namespace EpicGames.UHT.Types
 								ValidateBlueprintPopertySetter(property, setter, (UhtFunction?)FindType(UhtFindOptions.EngineName | UhtFindOptions.Function, setter));
 							}
 						}
+
+						if (!property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAssignable | EPropertyFlags.BlueprintCallable) && property is not UhtMulticastDelegateProperty)
+						{
+							if (property.IsStaticArray)
+							{
+								property.LogError($"Static array cannot be exposed to blueprint Class: {SourceName} Property: {property.SourceName}");
+							}
+
+							if (!property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsMemberSupportedByBlueprint))
+							{
+								property.LogError($"Type '{property.GetUserFacingDecl()}' is not supported by blueprint. Class: {SourceName} Property: {property.SourceName}");
+							}
+						}
 					}
 
 					// Validate if we are using editor only data in a class or struct definition
