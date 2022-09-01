@@ -74,17 +74,27 @@ public:
 
 public:
 	// input settings
+	FRandomStream RotationRandomStream;
+	FRandomStream ScaleRandomStream;
+	FRandomStream TranslationRandomStream;
+	
 	FQuaterniond StartRotation = FQuaterniond::Identity();
 	FQuaterniond EndRotation = FQuaterniond::Identity();
-	bool bInterpolateRotation = false;			// if false, only StartRotation is used
-
+	FRotator RotationJitterRange = FRotator::ZeroRotator;	// using an FRotator so that the sampling can be done about 3 axes individually and converted to a quat when needed
+	bool bInterpolateRotation = false;						// if false, only StartRotation is used
+	bool bJitterRotation = false;
+	
 	FVector3d StartTranslation = FVector3d::Zero();
 	FVector3d EndTranslation = FVector3d::Zero();
-	bool bInterpolateTranslation = false;		// if false, only StartTranslation is used
+	FVector3d TranslationJitterRange = FVector3d::Zero();
+	bool bInterpolateTranslation = false;					// if false, only StartTranslation is used
+	bool bJitterTranslation = false;
 
 	FVector3d StartScale = FVector3d::One();
 	FVector3d EndScale = FVector3d::One();
-	bool bInterpolateScale = false;				// if false, only StartScale is used
+	FVector3d ScaleJitterRange = FVector3d::Zero();
+	bool bInterpolateScale = false;							// if false, only StartScale is used
+	bool bJitterScale = false;
 
 	FAxisAlignedBox3d Dimensions = FAxisAlignedBox3d(FVector3d::Zero(), 10.0);
 
@@ -134,6 +144,46 @@ public:
 		else
 		{
 			Transform.SetTranslation( Transform.GetTranslation() + StartTranslation );
+		}
+		
+		// Lerp operations are performed on a vector-component basis because each component should be able to independently
+		// vary without respect for the other two components. This is true for rotation, scale, and translation.
+		if (bJitterRotation)
+		{
+			FRotator RotationJitter;
+
+			// TODO: maybe RotationJitterRange should have user-definable lower and upper bound like scale.
+			RotationJitter.Pitch = FMath::Lerp(-RotationJitterRange.Pitch, RotationJitterRange.Pitch, RotationRandomStream.GetFraction());
+			RotationJitter.Roll  = FMath::Lerp(-RotationJitterRange.Roll,  RotationJitterRange.Roll,  RotationRandomStream.GetFraction());
+			RotationJitter.Yaw   = FMath::Lerp(-RotationJitterRange.Yaw,   RotationJitterRange.Yaw,   RotationRandomStream.GetFraction());
+
+			Transform.SetRotation(Transform.GetRotation() * FQuaterniond(RotationJitter));
+		}
+
+		if (bJitterScale)
+		{
+			FVector3d ScaleJitter;
+			FVector3d TransformScale = Transform.GetScale();
+
+			constexpr double MIN_SCALE = 0.001f;
+			ScaleJitter.X = FMath::Max(MIN_SCALE, TransformScale.X + FMath::Lerp(-ScaleJitterRange.X, ScaleJitterRange.X, ScaleRandomStream.GetFraction()));
+			ScaleJitter.Y = FMath::Max(MIN_SCALE, TransformScale.Y + FMath::Lerp(-ScaleJitterRange.Y, ScaleJitterRange.Y, ScaleRandomStream.GetFraction()));
+			ScaleJitter.Z = FMath::Max(MIN_SCALE, TransformScale.Z + FMath::Lerp(-ScaleJitterRange.Z, ScaleJitterRange.Z, ScaleRandomStream.GetFraction()));
+				
+			Transform.SetScale( ScaleJitter );
+		}
+
+
+		if (bJitterTranslation)
+		{
+			FVector3d TranslationJitter;
+
+			// TODO: maybe TranslationJitterRange should have user-definable lower and upper bound like scale.
+			TranslationJitter.X = FMath::Lerp(-TranslationJitterRange.X, TranslationJitterRange.X, TranslationRandomStream.GetFraction());
+			TranslationJitter.Y = FMath::Lerp(-TranslationJitterRange.Y, TranslationJitterRange.Y, TranslationRandomStream.GetFraction());
+			TranslationJitter.Z = FMath::Lerp(-TranslationJitterRange.Z, TranslationJitterRange.Z, TranslationRandomStream.GetFraction());
+			
+			Transform.SetTranslation( Transform.GetTranslation() + TranslationJitter);
 		}
 	}
 
@@ -457,6 +507,7 @@ void UPatternTool::Setup()
 	Settings->WatchProperty(Settings->SingleAxis, [this](EPatternToolSingleAxis) { OnParametersUpdated(); } );
 	Settings->WatchProperty(Settings->SinglePlane, [this](EPatternToolSinglePlane) { OnParametersUpdated(); } );
 	Settings->WatchProperty(Settings->bHideSources, [this](bool bNewValue) { OnSourceVisibilityToggled(!bNewValue); } );
+	Settings->WatchProperty(Settings->Seed, [this](int32 NewSeed) { MarkPatternDirty(); } );
 
 	LinearSettings = NewObject<UPatternTool_LinearSettings>();
 	AddToolPropertySource(LinearSettings);
@@ -729,7 +780,15 @@ void UPatternTool::ResetPreviews()
 
 static void InitializeGenerator(FPatternGenerator& Generator, UPatternTool* Tool)
 {
+	// The way this is seeded is kind of arbitrary but is reliable for the purpose of deterministically
+	// providing each type of jitter a random stream independent of the others given a single input seed.
+	Generator.RotationRandomStream.Initialize(Tool->Settings->Seed);
+	Generator.ScaleRandomStream.Initialize(Generator.RotationRandomStream.GetUnsignedInt());
+	Generator.TranslationRandomStream.Initialize(Generator.RotationRandomStream.GetUnsignedInt());
+	
 	Generator.bInterpolateRotation = Tool->RotationSettings->bInterpolate;
+	Generator.bJitterRotation = Tool->RotationSettings->bJitter;
+	Generator.RotationJitterRange = Tool->RotationSettings->RotationJitterRange;
 	if (Generator.bInterpolateRotation)
 	{
 		Generator.StartRotation = FQuaterniond(Tool->RotationSettings->StartRotation);
@@ -741,6 +800,8 @@ static void InitializeGenerator(FPatternGenerator& Generator, UPatternTool* Tool
 	}
 
 	Generator.bInterpolateTranslation = Tool->TranslationSettings->bInterpolate;
+	Generator.bJitterTranslation = Tool->TranslationSettings->bJitter;
+	Generator.TranslationJitterRange = Tool->TranslationSettings->TranslationJitterRange;
 	if (Generator.bInterpolateTranslation)
 	{
 		Generator.StartTranslation = Tool->TranslationSettings->StartTranslation;
@@ -752,6 +813,8 @@ static void InitializeGenerator(FPatternGenerator& Generator, UPatternTool* Tool
 	}
 
 	Generator.bInterpolateScale = Tool->ScaleSettings->bInterpolate;
+	Generator.bJitterScale = Tool->ScaleSettings->bJitter;
+	Generator.ScaleJitterRange = (Tool->ScaleSettings->bUniform) ? (FVector3d::One()*Tool->ScaleSettings->ScaleJitterRange) : Tool->ScaleSettings->ScaleJitterRangeNonUniform;
 	if (Generator.bInterpolateScale)
 	{
 		Generator.StartScale = (Tool->ScaleSettings->bUniform) ? (FVector3d::One()*Tool->ScaleSettings->StartScale) : Tool->ScaleSettings->StartScaleNonUniform;
@@ -880,7 +943,7 @@ void UPatternTool::GetPatternTransforms_Radial(TArray<UE::Geometry::FTransformSR
 void UPatternTool::UpdatePattern()
 {
 	TArray<FTransformSRT3d> Pattern;
-
+	
 	if (Settings->Shape == EPatternToolShape::Line)
 	{
 		GetPatternTransforms_Linear(Pattern);
@@ -893,7 +956,7 @@ void UPatternTool::UpdatePattern()
 	{
 		GetPatternTransforms_Radial(Pattern);
 	}
-
+	
 	// Return all current preview components in use to the preview component pool
 	ResetPreviews();
 
@@ -1028,7 +1091,7 @@ UDynamicMeshComponent* UPatternTool::GetPreviewDynamicMesh(FPatternElement& Elem
 
 	FDynamicMesh3 ElementMeshCopy(Element.SourceDynamicMesh->GetMeshRef());
 	DynamicMeshComp->SetMesh(MoveTemp(ElementMeshCopy));
-
+	
 	AllComponents.Add(DynamicMeshComp);
 
 	return DynamicMeshComp;
