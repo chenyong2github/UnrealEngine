@@ -10,7 +10,17 @@
 
 #if WITH_EDITOR
 #include "Serialization/BulkDataRegistry.h"
+#include "PoseSearch/PoseSearchDerivedDataKey.h"
 #endif // WITH_EDITOR
+
+#if UE_BUILD_DEBUG && WITH_EDITOR
+#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING 1
+#endif
+
+#ifndef UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING 0
+#endif
+
 
 #if WITH_EDITOR
 namespace UE::PoseSearch
@@ -188,16 +198,25 @@ namespace UE::PoseSearch
 		Reader << DerivedData.SearchIndex;
 	}
 
-	FIoHash FPoseSearchDatabaseAsyncCacheTask::CreateKey(const UPoseSearchDatabase& Database)
+	FIoHash FPoseSearchDatabaseAsyncCacheTask::CreateKey(UPoseSearchDatabase& Database)
 	{
-		FBlake3 Writer;
+		using UE::PoseSearch::FDerivedDataKeyBuilder;
 
-		const FGuid VersionGuid =  FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
-		Writer.Update(MakeMemoryView(VersionGuid.ToString()));
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		const double StartTime = FPlatformTime::Seconds();
+#endif
+		FDerivedDataKeyBuilder KeyBuilder;
+		FGuid VersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
+		KeyBuilder << VersionGuid;
+		Database.BuildDerivedDataKey(KeyBuilder);
+		FDerivedDataKeyBuilder::HashDigestType Hash = KeyBuilder.Finalize();
 
-		Database.GenerateDDCKey(Writer);
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		const double TotalTime = FPlatformTime::Seconds() - StartTime;
+		UE_LOG(LogPoseSearch, Log, TEXT("DDC key for '%s': %s (%.0f µs)"), *Database.GetName(), *WriteToString<48>(Hash), TotalTime * 1e6);
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
 
-		return Writer.Finalize();
+		return Hash;
 	}
 
 #endif // WITH_EDITOR

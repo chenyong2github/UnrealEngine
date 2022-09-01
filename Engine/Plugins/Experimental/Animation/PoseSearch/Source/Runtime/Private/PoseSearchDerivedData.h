@@ -92,7 +92,7 @@ namespace UE::PoseSearch
 		static const UE::DerivedData::FCacheBucket Bucket;
 
 	public:
-		static FIoHash CreateKey(const UPoseSearchDatabase& Database);
+		static FIoHash CreateKey(UPoseSearchDatabase& Database);
 	};
 #endif // WITH_EDITOR
 

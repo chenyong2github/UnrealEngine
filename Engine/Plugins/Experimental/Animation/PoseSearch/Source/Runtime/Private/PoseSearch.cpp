@@ -4,7 +4,7 @@
 #include "PoseSearch/PoseSearchAnimNotifies.h"
 
 #if WITH_EDITORONLY_DATA
-// @todo: deleted this include after deleting the *_DEPRECATED properies
+// @todo: deleted this include after deleting the *_DEPRECATED properties
 #include "PoseSearch/PoseSearchFeatureChannels.h"
 #endif // WITH_EDITORONLY_DATA
 
@@ -41,6 +41,7 @@
 #if WITH_EDITOR
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/ARFilter.h"
+#include "PoseSearch/PoseSearchDerivedDataKey.h"
 #endif // WITH_EDITOR
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
@@ -498,29 +499,6 @@ void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	SchemaCardinality = -1;
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-void UPoseSearchSchema::GenerateDDCKey(FBlake3& InOutKeyHasher) const
-{
-	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
-	{
-		if (Channel)
-		{
-			const FBlake3Hash& ChannelClassHash = Channel->GetClass()->GetSchemaHash(false);
-			InOutKeyHasher.Update(MakeMemoryView(ChannelClassHash.GetBytes()));
-			Channel->GenerateDDCKey(InOutKeyHasher);
-		}
-	}
-
-	InOutKeyHasher.Update(&DataPreprocessor, sizeof(DataPreprocessor));
-	InOutKeyHasher.Update(&EffectiveDataPreprocessor, sizeof(EffectiveDataPreprocessor));
-	InOutKeyHasher.Update(&SamplingInterval, sizeof(SamplingInterval));
-	InOutKeyHasher.Update(MakeMemoryView(BoneIndicesWithParents));
-	InOutKeyHasher.Update(&ContinuingPoseCostBias, sizeof(ContinuingPoseCostBias));
-	InOutKeyHasher.Update(&BaseCostBias, sizeof(BaseCostBias));
-	InOutKeyHasher.Update(&MirrorMismatchCostBias, sizeof(MirrorMismatchCostBias));
-
-	// @todo: add schema version if POSESEARCHDB_DERIVEDDATA_VER is not enought
 }
 #endif
 
@@ -1129,69 +1107,20 @@ int32 UPoseSearchDatabase::GetNumberOfPrincipalComponents() const
 }
 
 #if WITH_EDITOR
-void UPoseSearchDatabase::AddDbSequenceToWriter(const FPoseSearchDatabaseSequence& DbSequence, FBlake3& InOutWriter)
-{
-	// Main Sequence
-	AddRawSequenceToWriter(DbSequence.Sequence, InOutWriter);
-	InOutWriter.Update(&DbSequence.SamplingRange, sizeof(DbSequence.SamplingRange));
-	if (DbSequence.Sequence)
-	{
-		InOutWriter.Update(&DbSequence.Sequence->bLoop, sizeof(DbSequence.Sequence->bLoop));
-	}
-	InOutWriter.Update(&DbSequence.MirrorOption, sizeof(DbSequence.MirrorOption));
 
-	// Lead in sequence
-	AddRawSequenceToWriter(DbSequence.LeadInSequence, InOutWriter);
-	if (DbSequence.LeadInSequence)
-	{
-		InOutWriter.Update(&DbSequence.LeadInSequence->bLoop, sizeof(DbSequence.LeadInSequence->bLoop));
-	}
-
-	// Follow up sequence
-	AddRawSequenceToWriter(DbSequence.FollowUpSequence, InOutWriter);
-	if (DbSequence.FollowUpSequence)
-	{
-		InOutWriter.Update(&DbSequence.FollowUpSequence->bLoop, sizeof(DbSequence.FollowUpSequence->bLoop));
-	}
-
-	// Tags
-	InOutWriter.Update(&DbSequence.GroupTags, sizeof(DbSequence.GroupTags));
-
-	// Notifies
-	AddPoseSearchNotifiesToWriter(DbSequence.Sequence, InOutWriter);
-}
-
-void UPoseSearchDatabase::AddRawSequenceToWriter(const UAnimSequence* Sequence,	FBlake3& InOutWriter)
+void UPoseSearchDatabase::AddRawSequenceToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
 {
 	if (Sequence)
 	{
-		InOutWriter.Update(MakeMemoryView(Sequence->GetName()));
-		InOutWriter.Update(MakeMemoryView(Sequence->GetRawDataGuid().ToString()));
+		FName SequenceName = Sequence->GetFName();
+		FGuid SequenceGuid = Sequence->GetRawDataGuid();
+		KeyBuilder << SequenceName;
+		KeyBuilder << SequenceGuid;
+		KeyBuilder << Sequence->bLoop;
 	}
 }
 
-void UPoseSearchDatabase::AddDbBlendSpaceToWriter(const FPoseSearchDatabaseBlendSpace& DbBlendSpace, FBlake3& InOutWriter)
-{
-	if (IsValid(DbBlendSpace.BlendSpace))
-	{
-		const TArray<FBlendSample>& BlendSpaceSamples = DbBlendSpace.BlendSpace->GetBlendSamples();
-		for (const FBlendSample& Sample : BlendSpaceSamples)
-		{
-			AddRawSequenceToWriter(Sample.Animation, InOutWriter);
-			InOutWriter.Update(&Sample.SampleValue, sizeof(Sample.SampleValue));
-			InOutWriter.Update(&Sample.RateScale, sizeof(Sample.RateScale));
-		}
-
-		InOutWriter.Update(&DbBlendSpace.BlendSpace->bLoop, sizeof(DbBlendSpace.BlendSpace->bLoop));
-		InOutWriter.Update(&DbBlendSpace.MirrorOption, sizeof(DbBlendSpace.MirrorOption));
-		InOutWriter.Update(&DbBlendSpace.bUseGridForSampling, sizeof(DbBlendSpace.bUseGridForSampling));
-		InOutWriter.Update(&DbBlendSpace.NumberOfHorizontalSamples, sizeof(DbBlendSpace.NumberOfHorizontalSamples));
-		InOutWriter.Update(&DbBlendSpace.NumberOfVerticalSamples, sizeof(DbBlendSpace.NumberOfVerticalSamples));
-		InOutWriter.Update(&DbBlendSpace.GroupTags, sizeof(DbBlendSpace.GroupTags));
-	}
-}
-
-void UPoseSearchDatabase::AddPoseSearchNotifiesToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter)
+void UPoseSearchDatabase::AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
 {
 	if (!Sequence)
 	{
@@ -1211,41 +1140,60 @@ void UPoseSearchDatabase::AddPoseSearchNotifiesToWriter(const UAnimSequence* Seq
 
 		if (NotifyEvent->NotifyStateClass->IsA<UAnimNotifyState_PoseSearchBase>())
 		{
-			const float StartTime = NotifyEvent->GetTriggerTime();
-			const float EndTime = NotifyEvent->GetEndTriggerTime();
-			InOutWriter.Update(&StartTime, sizeof(float));
-			InOutWriter.Update(&EndTime, sizeof(float));
-
-			if (const auto ModifyCostNotifyState =
-				Cast<const UAnimNotifyState_PoseSearchModifyCost>(NotifyEvent->NotifyStateClass))
-			{
-				InOutWriter.Update(&ModifyCostNotifyState->CostAddend, sizeof(float));
-			}
+			float StartTime = NotifyEvent->GetTriggerTime();
+			float EndTime = NotifyEvent->GetEndTriggerTime();
+			KeyBuilder << StartTime;
+			KeyBuilder << EndTime;
+			KeyBuilder.Update(NotifyEvent->NotifyStateClass);
 		}
 	}
 }
 
-void UPoseSearchDatabase::GenerateDDCKey(FBlake3& InOutKeyHasher) const
+void UPoseSearchDatabase::AddDbSequenceToWriter(FPoseSearchDatabaseSequence& DbSequence, UE::PoseSearch::FDerivedDataKeyBuilder& InOutWriter)
 {
-	if (IsValid(Schema))
+	AddRawSequenceToWriter(DbSequence.Sequence, InOutWriter);
+	AddRawSequenceToWriter(DbSequence.LeadInSequence, InOutWriter);
+	AddRawSequenceToWriter(DbSequence.FollowUpSequence, InOutWriter);
+
+	AddPoseSearchNotifiesToWriter(DbSequence.Sequence, InOutWriter);
+}
+
+void UPoseSearchDatabase::AddDbBlendSpaceToWriter(FPoseSearchDatabaseBlendSpace& DbBlendSpace, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+{
+	if (IsValid(DbBlendSpace.BlendSpace))
 	{
-		Schema->GenerateDDCKey(InOutKeyHasher);
+		const TArray<FBlendSample>& BlendSpaceSamples = DbBlendSpace.BlendSpace->GetBlendSamples();
+		for (const FBlendSample& Sample : BlendSpaceSamples)
+		{
+			AddRawSequenceToWriter(Sample.Animation, KeyBuilder);
+			FVector SampleValue = Sample.SampleValue;
+			float RateScale = Sample.RateScale;
+ 			KeyBuilder << SampleValue;
+ 			KeyBuilder << RateScale;
+		}
+
+		KeyBuilder << DbBlendSpace.BlendSpace->bLoop;
+	}
+}
+
+void UPoseSearchDatabase::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+{
+	KeyBuilder.Update(this);
+
+	if (Schema)
+	{
+		KeyBuilder.Update(Schema.Get());
 	}
 
-	for (int32 i = 0; i < Sequences.Num(); ++i)
+	for (FPoseSearchDatabaseSequence& DbSequence : Sequences)
 	{
-		AddDbSequenceToWriter(Sequences[i], InOutKeyHasher);
+		AddDbSequenceToWriter(DbSequence, KeyBuilder);
 	}
 
-	for (int32 i = 0; i < BlendSpaces.Num(); ++i)
+	for (FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
 	{
-		AddDbBlendSpaceToWriter(BlendSpaces[i], InOutKeyHasher);
+		AddDbBlendSpaceToWriter(DbBlendSpace, KeyBuilder);
 	}
-
-	InOutKeyHasher.Update(&NumberOfPrincipalComponents, sizeof(NumberOfPrincipalComponents));
-	InOutKeyHasher.Update(&KDTreeMaxLeafSize, sizeof(KDTreeMaxLeafSize));
-	InOutKeyHasher.Update(&KDTreeQueryNumNeighbors, sizeof(KDTreeQueryNumNeighbors));
-	InOutKeyHasher.Update(&PoseSearchMode, sizeof(PoseSearchMode));
 
 	// @todo: add database version if POSESEARCHDB_DERIVEDDATA_VER is not enough
 }

@@ -20,6 +20,7 @@
 #include "GameplayTagContainer.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "PoseSearch/KDTree.h"
+#include "PoseSearch/PoseSearchDerivedDataKey.h"
 #include "ObjectTrace.h"
 #include "PoseSearch.generated.h"
 
@@ -228,9 +229,10 @@ struct POSESEARCH_API FPoseSearchBone
 	UPROPERTY(EditAnywhere, Category = Config)
 	float Weight = 1.f;
 
-	UPROPERTY(EditAnywhere, Category = Config)
+	UPROPERTY(EditAnywhere, Category = Config, meta=(ExcludeFromHash))
 	int32 ColorPresetIndex = 0;
 };
+
 
 //////////////////////////////////////////////////////////////////////////
 // Asset sampling and indexing
@@ -378,9 +380,6 @@ public:
 
 	// Called at database build time to calculate normalization values
 	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const;
-
-	// Hash channel properties to produce a key for database derived data
-	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GenerateDDCKey, );
 
 	// Called at runtime to add this channel's data to the query pose vector
 	virtual bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
@@ -553,7 +552,6 @@ public: // IBoneReferenceSkeletonProvider
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	void GenerateDDCKey(FBlake3& InOutKeyHasher) const;
 #endif
 
 private:
@@ -1092,7 +1090,7 @@ struct FPoseCostDetails
 	TArray<float> CostVector;
 };
 
-}
+} // namespace UE::PoseSearch
 
 
 /** A data asset for indexing a collection of animation sequences. */
@@ -1178,12 +1176,12 @@ public:
 	int32 GetNumberOfPrincipalComponents() const;
 	
 #if WITH_EDITOR
-	void GenerateDDCKey(FBlake3& InOutKeyHasher) const;
+	void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
 private:
-	static void AddDbSequenceToWriter(const FPoseSearchDatabaseSequence& DbSequence, FBlake3& InOutWriter);
-	static void AddRawSequenceToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter);
-	static void AddPoseSearchNotifiesToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter);
-	static void AddDbBlendSpaceToWriter(const FPoseSearchDatabaseBlendSpace& DbBlendSpace, FBlake3& InOutWriter);
+	static void AddRawSequenceToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
+	static void AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
+	static void AddDbSequenceToWriter(FPoseSearchDatabaseSequence& DbSequence, UE::PoseSearch::FDerivedDataKeyBuilder& InOutWriter);
+	static void AddDbBlendSpaceToWriter(FPoseSearchDatabaseBlendSpace& DbBlendSpace, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
 #endif // WITH_EDITOR
 
 public: // UObject
@@ -1195,7 +1193,7 @@ public: // UObject
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
-#endif
+#endif // WITH_EDITOR
 
 private:
 	void CollectSimpleSequences();

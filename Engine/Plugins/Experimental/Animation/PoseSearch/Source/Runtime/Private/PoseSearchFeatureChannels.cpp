@@ -298,6 +298,7 @@ static void CalculatePhasesFromLocalMinMax(const TArray<LocalMinMax>& MinMax, TA
 
 } // namespace UE::PoseSearch
 
+
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel
 class USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
@@ -349,16 +350,6 @@ void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexe
 		int32 DataOffset = ChannelDataOffset;
 		FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, BoneTransformsPresent.GetTranslation());
 	}
-}
-
-void UPoseSearchFeatureChannel_Position::GenerateDDCKey(FBlake3& InOutKeyHasher) const
-{
-	InOutKeyHasher.Update(&Bone, sizeof(Bone));
-	InOutKeyHasher.Update(&Weight, sizeof(Weight));
-	InOutKeyHasher.Update(&SampleTimeOffset, sizeof(SampleTimeOffset));
-	InOutKeyHasher.Update(&bUseFeaturesFromContinuingPose, sizeof(bUseFeaturesFromContinuingPose));
-	InOutKeyHasher.Update(&bUseSampleTimeOffsetRootBone, sizeof(bUseSampleTimeOffsetRootBone));
-	InOutKeyHasher.Update(&MinimumMeanDeviation, sizeof(MinimumMeanDeviation));
 }
 
 bool UPoseSearchFeatureChannel_Position::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
@@ -483,17 +474,6 @@ void UPoseSearchFeatureChannel_Heading::IndexAsset(UE::PoseSearch::IAssetIndexer
 		FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, GetAxis(BoneTransformsPresent.GetRotation()));
 		check(DataOffset == ChannelDataOffset + ChannelCardinality);
 	}
-}
-
-void UPoseSearchFeatureChannel_Heading::GenerateDDCKey(FBlake3& InOutKeyHasher) const
-{
-	InOutKeyHasher.Update(&Bone, sizeof(Bone));
-	InOutKeyHasher.Update(&Weight, sizeof(Weight));
-	InOutKeyHasher.Update(&SampleTimeOffset, sizeof(SampleTimeOffset));
-	InOutKeyHasher.Update(&HeadingAxis, sizeof(HeadingAxis));
-	InOutKeyHasher.Update(&bUseFeaturesFromContinuingPose, sizeof(bUseFeaturesFromContinuingPose));
-	InOutKeyHasher.Update(&bUseSampleTimeOffsetRootBone, sizeof(bUseSampleTimeOffsetRootBone));
-	InOutKeyHasher.Update(&MinimumMeanDeviation, sizeof(MinimumMeanDeviation));
 }
 
 bool UPoseSearchFeatureChannel_Heading::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
@@ -887,15 +867,6 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::IAssetIndex
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
-void UPoseSearchFeatureChannel_Pose::GenerateDDCKey(FBlake3& InOutKeyHasher) const
-{
-	InOutKeyHasher.Update(&Weight, sizeof(Weight));
-	InOutKeyHasher.Update(MakeMemoryView(SampledBones));
-	InOutKeyHasher.Update(MakeMemoryView(SampleTimes));
-	InOutKeyHasher.Update(&bUseFeaturesFromContinuingPose, sizeof(bUseFeaturesFromContinuingPose));
-	InOutKeyHasher.Update(&MinimumMeanDeviation, sizeof(MinimumMeanDeviation));
-}
-
 bool UPoseSearchFeatureChannel_Pose::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
@@ -1206,6 +1177,7 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
+
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Trajectory
 void UPoseSearchFeatureChannel_Trajectory::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -1448,14 +1420,6 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 		}
 	}
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
-}
-
-void UPoseSearchFeatureChannel_Trajectory::GenerateDDCKey(FBlake3& InOutKeyHasher) const
-{
-	InOutKeyHasher.Update(&Domain, sizeof(Domain));
-	InOutKeyHasher.Update(MakeMemoryView(Samples));
-	InOutKeyHasher.Update(&Weight, sizeof(Weight));
-	InOutKeyHasher.Update(&MinimumMeanDeviation, sizeof(MinimumMeanDeviation));
 }
 
 bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
