@@ -1039,6 +1039,11 @@ public:
 		return ExportedScene.GetDatasmithScene().ToSharedRef();
 	}
 
+	virtual const TCHAR* GetAssetsOutputPath() override
+	{
+		return ExportedScene.GetSceneExporter().GetAssetsOutputPath();
+	}
+
 	bool bParseXRefScenes = true;
 	bool bIncludeXRefWhileParsing = false; // note - this should not be set when bParseXRefScenes if disabled
 
@@ -1648,6 +1653,8 @@ public:
 			};
 			PROGRESS_STAGE_COUNTER(ActualMaterialToUpdate.Num());
 
+			MaterialsCollectionTracker.TexmapConverters.Reset();
+
 			for (Mtl* ActualMaterial: ActualMaterialToUpdate)
 			{
 				ProgressCounter.Next();
@@ -1655,7 +1662,6 @@ public:
 				{
 					break;	
 				}
-
 
 				MaterialsCollectionTracker.ConvertMaterial(ActualMaterial, ExportedScene.GetDatasmithScene().ToSharedRef(), ExportedScene.GetSceneExporter().GetAssetsOutputPath(), ActualTexmapsToUpdate);
 			}
@@ -1684,10 +1690,7 @@ public:
 				}
 				SCENE_UPDATE_STAT_INC(UpdateTextures, Total);
 
-				TArray<TSharedPtr<IDatasmithTextureElement>> TextureElements;
-				FDatasmithMaxMatExport::GetXMLTexture(ExportedScene.GetDatasmithScene().ToSharedRef(), Texture, ExportedScene.GetSceneExporter().GetAssetsOutputPath(), &TextureElements);
-
-				MaterialsCollectionTracker.UsedTextureToDatasmithElement.FindOrAdd(Texture).Append(TextureElements);
+				MaterialsCollectionTracker.UpdateTexmap(Texture);
 			}
 		}
 
@@ -1776,9 +1779,47 @@ public:
 		return FString::Printf(TEXT("Materials: %d updated, %d converted, %d skipped as already converted"), SCENE_UPDATE_STAT_GET(UpdateMaterials, Total), SCENE_UPDATE_STAT_GET(UpdateMaterials, Converted), SCENE_UPDATE_STAT_GET(UpdateMaterials, SkippedAsAlreadyConverted));
 	}
 
+	FString FormatPixelCountApproximately(int64 Value)
+	{
+		if (Value < 2*1024 )
+		{
+			return FString::Printf(TEXT("%lld pixels"), Value);
+		}
+
+		Value /= 1024; // Kilo
+
+		if (Value  < 2*1024 )
+		{
+			return FString::Printf(TEXT("%lldK pixels"), Value);
+		}
+
+		Value /= 1024; // Mega
+
+		if (Value  < 2*1024 )
+		{
+			return FString::Printf(TEXT("%lld Megapixels"), Value);
+		}
+
+		Value /= 1024; // Giga
+
+		return FString::Printf(TEXT("%lld Gigapixels"), Value);
+	}
+
 	FString FormatStatsUpdateTextures()
 	{
-		return FString::Printf(TEXT("Texmaps: %d updated"), SCENE_UPDATE_STAT_GET(UpdateTextures, Total));
+		if (SCENE_UPDATE_STAT_GET(UpdateTextures, Baked) > 0)
+		{
+			return FString::Printf(TEXT("Texmaps: %d updated, baked %d, %s baked total(%s per textmap on average)"), 
+				SCENE_UPDATE_STAT_GET(UpdateTextures, Total),
+				SCENE_UPDATE_STAT_GET(UpdateTextures, Baked),
+				*FormatPixelCountApproximately(SCENE_UPDATE_STAT_GET(UpdateTextures, BakedPixels)),
+				*FormatPixelCountApproximately(SCENE_UPDATE_STAT_GET(UpdateTextures, BakedPixels) / SCENE_UPDATE_STAT_GET(UpdateTextures, Baked)
+				));
+		}
+		else
+		{
+			return FString::Printf(TEXT("Texmaps: %d updated"), SCENE_UPDATE_STAT_GET(UpdateTextures, Total));
+		}
 	}
 
 	bool ExportAnimations(FUpdateProgress::FStage& MainStage)

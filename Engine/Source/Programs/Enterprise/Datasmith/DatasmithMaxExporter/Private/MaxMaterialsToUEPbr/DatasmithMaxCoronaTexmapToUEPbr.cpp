@@ -10,6 +10,7 @@
 #include "MaxMaterialsToUEPbr/DatasmithMaxTexmapToUEPbr.h"
 
 #include "DatasmithMaterialsUtils.h"
+#include "DatasmithSceneFactory.h"
 
 #include "Misc/Paths.h"
 
@@ -216,6 +217,59 @@ bool FDatasmithMaxCoronalBitmapToUEPbr::IsSupported( const FDatasmithMaxMaterial
 	return ( InTexmap && InTexmap->ClassID() == CORONABITMAPCLASS );
 }
 
+float GetCoronaTexmapGamma(BitmapTex* InBitmapTex);
+
+class FCoronaBitmapToTextureElementConverter: public DatasmithMaxDirectLink::ITexmapToTextureElementConverter
+{
+public:
+	virtual TSharedPtr<IDatasmithTextureElement> Convert(DatasmithMaxDirectLink::FMaterialsCollectionTracker& MaterialsTracker, const FString& ActualBitmapName) override
+	{
+		FString Path = TEXT("");
+
+		int NumParamBlocks = Tex->NumParamBlocks();
+		
+		for (int j = 0; j < NumParamBlocks; j++)
+		{
+			IParamBlock2* ParamBlock2 = Tex->GetParamBlockByID((short)j);
+			// The the descriptor to 'decode'
+			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+			// Loop through all the defined parameters therein
+			for (int i = 0; i < ParamBlockDesc->count; i++)
+			{
+				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
+
+				if (FCString::Stricmp(ParamDefinition.int_name, TEXT("filename")) == 0)
+				{
+					Path = FDatasmithMaxSceneExporter::GetActualPath(ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime()));
+					continue;
+				}
+			}
+			ParamBlock2->ReleaseDesc();
+		}
+
+		if (Path.IsEmpty())
+		{
+			return {};
+		}
+
+		float Gamma = GetCoronaTexmapGamma(Tex);
+
+		TSharedPtr< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture(*ActualBitmapName);
+		if (gammaMgr.IsEnabled())
+		{
+			TextureElement->SetRGBCurve(Gamma / 2.2f);
+		}
+		TextureElement->SetFile(*Path);
+
+		return TextureElement;
+	}
+	BitmapTex* Tex;
+
+	bool bIsSRGB;
+};
+
+
+
 IDatasmithMaterialExpression* FDatasmithMaxCoronalBitmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	DatasmithMaxTexmapParser::FCoronaBitmapParameters CoronaBitmapParameters = DatasmithMaxTexmapParser::ParseCoronaBitmap( InTexmap );
@@ -225,6 +279,13 @@ IDatasmithMaterialExpression* FDatasmithMaxCoronalBitmapToUEPbr::Convert( FDatas
 
 	const bool bIsSRGB = false;
 	const bool bUseAlphaAsMono = false;
+
+	TSharedRef<FCoronaBitmapToTextureElementConverter> Converter = MakeShared<FCoronaBitmapToTextureElementConverter>();
+	Converter->Tex = (BitmapTex*)InTexmap;
+	Converter->bIsSRGB = bIsSRGB;
+
+	MaxMaterialToUEPbr->AddTexmap(InTexmap, ActualBitmapName, Converter);
+
 	return FDatasmithMaxTexmapToUEPbrUtils::ConvertBitMap(MaxMaterialToUEPbr, InTexmap, ActualBitmapName, bUseAlphaAsMono, bIsSRGB);
 }
 

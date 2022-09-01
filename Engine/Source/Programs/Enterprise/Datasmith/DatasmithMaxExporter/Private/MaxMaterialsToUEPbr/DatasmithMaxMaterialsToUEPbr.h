@@ -31,12 +31,12 @@ namespace DatasmithMaxDirectLink
 
 	struct FMaterialConversionContext
 	{
-		// Used to record texmaps that were asked for conversion whil ematerial conversion is performed
-		// recordking also datasmith elements created for those maps.
-		// Baked texmaps currently create datasmith elements during material convertion
-		TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>>& TexmapsConverted;
+		// Records texmaps that were asked for conversion while material conversion is performed
+		TSet<Texmap*>& TexmapsConverted;
 		FMaterialsCollectionTracker& MaterialsCollectionTracker;
 	};
+
+	class ITexmapToTextureElementConverter;
 }
 
 
@@ -65,6 +65,15 @@ public:
 	 */
 	IDatasmithMaterialExpression* ConvertTexmap( const DatasmithMaxTexmapParser::FMapParameter& MapParameter );
 
+	// Texmap which needs to have a datasmith texture element created for
+	void AddTexmap(Texmap* Texmap, const FString& DesiredTextureElementName, const TSharedPtr<DatasmithMaxDirectLink::ITexmapToTextureElementConverter>& Converter)
+	{
+		if (Context)
+		{
+			Context->MaterialsCollectionTracker.AddTexmapForConversion(Texmap, DesiredTextureElementName, Converter);
+		}
+	}
+
 	struct FConvertState
 	{
 		TSharedPtr< IDatasmithScene > DatasmithScene;
@@ -80,14 +89,6 @@ public:
 	} ConvertState;
 
 	void AddConvertedMap(const DatasmithMaxTexmapParser::FMapParameter& MapParameter);
-
-	void AddConvertedMapDatasmithElement(Texmap* InTexmap, TSharedPtr<IDatasmithTextureElement> TextureElement)
-	{
-		if (Context)
-		{
-			Context->TexmapsConverted.FindOrAdd(InTexmap).Add(TextureElement);
-		}
-	}
 
 	const TCHAR* GetMaterialName(Mtl* Material) const
 	{

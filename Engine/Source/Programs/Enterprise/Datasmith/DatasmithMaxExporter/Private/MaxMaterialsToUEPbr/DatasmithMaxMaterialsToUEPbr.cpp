@@ -196,7 +196,7 @@ void FDatasmithMaxMaterialsToUEPbr::AddConvertedMap(const DatasmithMaxTexmapPars
 {
 	if (Context)
 	{
-		Context->TexmapsConverted.FindOrAdd(MapParameter.Map);
+		Context->TexmapsConverted.Add(MapParameter.Map);
 	}
 }
 

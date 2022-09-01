@@ -43,6 +43,7 @@ namespace DatasmithMaxDirectLink
 
 class ISceneTracker;
 class FLayerTracker;
+class FMaterialsCollectionTracker;
 
 
 // Global export options, stored in preferences
@@ -353,6 +354,8 @@ struct FSceneUpdateStats
 	int32 CheckTimeSliderInvalidated = 0;
 	int32 ConvertNodesConverted = 0;
 	int32 UpdateInstancesGeometryUpdated = 0;
+	int32 UpdateTexturesBaked = 0;
+	int64 UpdateTexturesBakedPixels = 0;
 };
 
 #define SCENE_UPDATE_STAT_INC(Category, Name) {Stats.##Category##Name++;}
@@ -410,6 +413,7 @@ public:
 	virtual void ReleaseIesTexture(const FString& IesFilePath) = 0;
 
 	virtual TSharedRef<IDatasmithScene> GetDatasmithSceneRef() = 0;
+	virtual const TCHAR* GetAssetsOutputPath() = 0;
 
 	// Utility
 	virtual FNodeTracker* GetNodeTrackerByNodeName(const TCHAR* Name) = 0;
@@ -574,6 +578,17 @@ private:
 	}
 };
 
+// Converts texmap to texture element
+// This is different from IDatasmithMaxTexmapToUEPbr which performs texmap conversion to full MaterialExpression which is used in material graph
+// IDatasmithMaxTexmapToUEPbr uses ToTextureElementConverter when it needs a texture element
+class ITexmapToTextureElementConverter
+{
+public:
+	virtual ~ITexmapToTextureElementConverter(){}
+	virtual TSharedPtr<IDatasmithTextureElement> Convert(FMaterialsCollectionTracker& MaterialsTracker, const FString& ActualBitmapName) = 0;
+
+	FString TextureElementName;
+};
 
 class FMaterialsCollectionTracker
 {
@@ -615,6 +630,14 @@ public:
 		return InvalidatedMaterialTrackers;
 	}
 
+	void UpdateTexmap(Texmap* Texmap);
+
+	// Adds a texmap that need to be converted to texture element
+	void AddTexmapForConversion(Texmap* Texmap, const FString& DesiredTextureElementName, const TSharedPtr<ITexmapToTextureElementConverter>& Converter);
+
+	void AddTextureElement(const TSharedPtr<IDatasmithTextureElement>& );
+	void RemoveTextureElement(const TSharedPtr<IDatasmithTextureElement>& TextureElement);
+
 	ISceneTracker& SceneTracker;
 
 	TMap<FMaterialKey, FMaterialTrackerHandle> MaterialTrackers; // Tracks all assigned materials
@@ -632,7 +655,14 @@ public:
 
 	TMap<Texmap*, TSet<FMaterialTracker*>> UsedTextureToMaterialTracker; // Materials uses by nodes keep set of assigned textures they are used for
 	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> UsedTextureToDatasmithElement; // Keep track of Datasmith Element created for texmap to simplify update/removal(no need to search DatasmithScene)
-	// note: each texmap can create multiple texture elements
+	TMap<TSharedPtr<IDatasmithTextureElement>, TSet<Texmap*>> TextureElementToTexmap; // Back reference - which texture elements correspond to which texmaps(different texmaps can make same element)
+
+	TMap<Texmap*, TSharedPtr<ITexmapToTextureElementConverter>> TexmapConverters;
+
+	// Bitmap textures using the same file become same texture element
+	TMap<FString, TSharedPtr<IDatasmithTextureElement>>  BitmapTextureElements;
+
+	TSet<TSharedPtr<IDatasmithTextureElement>> TextureElementsAddedToScene;
 
 	FSceneUpdateStats& Stats;
 

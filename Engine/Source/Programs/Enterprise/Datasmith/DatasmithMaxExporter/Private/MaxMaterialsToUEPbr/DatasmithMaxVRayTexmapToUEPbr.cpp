@@ -9,6 +9,7 @@
 #include "DatasmithMaxWriter.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxTexmapToUEPbr.h"
 
+#include "DatasmithSceneFactory.h"
 #include "Misc/Paths.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -160,6 +161,54 @@ bool FDatasmithMaxVRayHDRITexmapToUEPbr::IsSupported( const FDatasmithMaxMateria
 	return InTexmap ? (bool)( InTexmap->ClassID() == VRAYHDRICLASS ) : false;
 }
 
+class FVRayHDRIToTextureElementConverter: public DatasmithMaxDirectLink::ITexmapToTextureElementConverter
+{
+public:
+	virtual TSharedPtr<IDatasmithTextureElement> Convert(DatasmithMaxDirectLink::FMaterialsCollectionTracker& MaterialsTracker, const FString& ActualBitmapName) override
+	{
+		FString Path = TEXT("");
+
+		int NumParamBlocks = Tex->NumParamBlocks();
+
+		for (int j = 0; j < NumParamBlocks; j++)
+		{
+			IParamBlock2* ParamBlock2 = Tex->GetParamBlockByID((short)j);
+			// The the descriptor to 'decode'
+			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+			// Loop through all the defined parameters therein
+			for (int i = 0; i < ParamBlockDesc->count; i++)
+			{
+				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
+
+				if (FCString::Stricmp(ParamDefinition.int_name, TEXT("HDRIMapName")) == 0)
+				{
+					Path = FDatasmithMaxSceneExporter::GetActualPath(ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime()));
+				}
+			}
+			ParamBlock2->ReleaseDesc();
+		}
+
+
+		if (Path.IsEmpty())
+		{
+			return {};
+		}
+
+		float Gamma =  FDatasmithMaxMatHelper::GetVrayHdriGamma(Tex);
+
+		TSharedPtr< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture(*ActualBitmapName);
+		if (gammaMgr.IsEnabled())
+		{
+			TextureElement->SetRGBCurve(Gamma / 2.2f);
+		}
+		TextureElement->SetFile(*Path);
+		return TextureElement;
+	}
+	BitmapTex* Tex;
+};
+
+
+
 IDatasmithMaterialExpression* FDatasmithMaxVRayHDRITexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	FString TexturePath;
@@ -190,6 +239,11 @@ IDatasmithMaterialExpression* FDatasmithMaxVRayHDRITexmapToUEPbr::Convert( FData
 
 	IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Texture ) );
 	FString ActualBitmapName = FDatasmithMaxMatWriter::GetActualVRayBitmapName( (BitmapTex*)InTexmap );
+
+	TSharedRef<FVRayHDRIToTextureElementConverter> Converter = MakeShared<FVRayHDRIToTextureElementConverter>();
+	Converter->Tex = (BitmapTex*)InTexmap;
+
+	MaxMaterialToUEPbr->AddTexmap(InTexmap, ActualBitmapName, Converter);
 
 	TextureExpression->SetTexturePathName( *ActualBitmapName );
 	FDatasmithMaxTexmapToUEPbrUtils::SetupTextureCoordinates( MaxMaterialToUEPbr, TextureExpression->GetInputCoordinate(), InTexmap );

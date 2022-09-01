@@ -444,60 +444,6 @@ bool FDatasmithMaxMatHelper::IsSRGB(Bitmap& InBitmap)
 	return true;
 }
 
-// todo: need wa wya to return created texture element(if there was one), maybe use 'last' in DatasmithScene(check that count changed)
-//   verify that only one texture created!
-void FDatasmithMaxMatExport::GetXMLTexture(TSharedRef< IDatasmithScene > DatasmithScene, Texmap* InTexMap, const TCHAR* AssetsPath, TArray<TSharedPtr< IDatasmithTextureElement >>* OutTextureElements)
-{
-	switch (FDatasmithMaxMatHelper::GetTextureClass(InTexMap))
-	{
-	case EDSBitmapType::NotSupported:
-		break;
-	case EDSBitmapType::RegularBitmap:
-		FDatasmithMaxMatWriter::GetRegularTexmap(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
-		break;
-	case EDSBitmapType::AutodeskBitmap:
-		FDatasmithMaxMatWriter::GetAutodeskTexmap(DatasmithScene, InTexMap, OutTextureElements);
-		break; 
-	case EDSBitmapType::TheaBitmap:
-		FDatasmithMaxMatWriter::GetTheaTexmap(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
-		break;
-	case EDSBitmapType::CoronaBitmap:
-		FDatasmithMaxMatWriter::GetCoronaTexmap(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
-		break;
-	case EDSBitmapType::VRayHRDI:
-		FDatasmithMaxMatWriter::GetVrayHdri(DatasmithScene, (BitmapTex*)InTexMap, OutTextureElements);
-		break;
-	case EDSBitmapType::ColorCorrector:
-		GetXMLTexture(DatasmithScene, InTexMap->GetSubTexmap(0), AssetsPath, OutTextureElements);
-		break;
-	case EDSBitmapType::BakeableMap:
-		{
-			TSharedPtr<IDatasmithTextureElement> TextureElement = FDatasmithMaxMatWriter::AddBakeable(DatasmithScene, (BitmapTex*)InTexMap, AssetsPath);
-			if (OutTextureElements)
-			{
-				OutTextureElements->Add(TextureElement);
-			}
-		}
-		break;
-	case EDSBitmapType::NormalMap:
-	case EDSBitmapType::FallOff:
-	case EDSBitmapType::Gradient:
-	case EDSBitmapType::GradientRamp:
-	case EDSBitmapType::Checker:
-	case EDSBitmapType::Cellular:
-	case EDSBitmapType::Mix:
-	case EDSBitmapType::Noise:
-	case EDSBitmapType::CompositeTex:
-		for (int i = 0; i < InTexMap->NumSubTexmaps(); i++)
-		{
-			GetXMLTexture(DatasmithScene, InTexMap->GetSubTexmap(i), AssetsPath, OutTextureElements);
-		}
-		break;
-	default:
-		break;
-	}
-}
-
 bool FDatasmithMaxMatExport::UseFirstSubMapOnly(EDSMaterialType MaterialType, Mtl* Material)
 {
 	switch (MaterialType)

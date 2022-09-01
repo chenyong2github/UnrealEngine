@@ -12,6 +12,9 @@
 
 
 #include "DatasmithSceneFactory.h"
+#include "DatasmithExportOptions.h"
+
+#include "Misc/Paths.h"
 
 
 #include "Logging/LogMacros.h"
@@ -241,6 +244,9 @@ void FMaterialsCollectionTracker::Reset()
 
 	UsedTextureToMaterialTracker.Reset();
 	UsedTextureToDatasmithElement.Reset();
+	TextureElementToTexmap.Reset();
+
+	TextureElementsAddedToScene.Reset();
 }
 
 void FMaterialsCollectionTracker::UpdateMaterial(FMaterialTracker* MaterialTracker)
@@ -271,7 +277,7 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 
 	SCENE_UPDATE_STAT_INC(UpdateMaterials, Total);
 
-	TMap<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> TexmapsUsedByMaterial;
+	TSet<Texmap*> TexmapsUsedByMaterial;
 	FMaterialConversionContext MaterialConversionContext = {TexmapsUsedByMaterial, *this};
 	TGuardValue MaterialConversionContextGuard(FDatasmithMaxMaterialsToUEPbrManager::Context, &MaterialConversionContext);
 
@@ -285,17 +291,13 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 	}
 
 	// Tie texture used by an actual material to tracked material
-	for (TPair<Texmap*, TSet<TSharedPtr<IDatasmithTextureElement>>> TexmapAndDatasmithElements : TexmapsUsedByMaterial)
+	for (Texmap* Tex : TexmapsUsedByMaterial)
 	{
-		Texmap* Tex = TexmapAndDatasmithElements.Key;
 		for (FMaterialTracker* MaterialTracker : UsedMaterialToMaterialTracker[Material])
 		{
 			MaterialTracker->AddActualTexture(Tex);
 			UsedTextureToMaterialTracker.FindOrAdd(Tex).Add(MaterialTracker);
 		}
-
-		// Some material converters create texture elements during material conversion(like bakeable) - record created texture elements
-		UsedTextureToDatasmithElement.FindOrAdd(Tex).Append(TexmapAndDatasmithElements.Value);
 
 		TexmapsConverted.Add(Tex);
 	}
@@ -333,24 +335,84 @@ void FMaterialsCollectionTracker::RemoveConvertedMaterial(FMaterialTracker& Mate
 		}
 	}
 
-	for (Texmap* Texture: MaterialTracker.GetActualTexmaps())
+	for (Texmap* Tex: MaterialTracker.GetActualTexmaps())
 	{
-		TSet<FMaterialTracker*>& MaterialTrackersForTexture = UsedTextureToMaterialTracker[Texture];
+		TSet<FMaterialTracker*>& MaterialTrackersForTexture = UsedTextureToMaterialTracker[Tex];
 		MaterialTrackersForTexture.Remove(&MaterialTracker);
 
 		if (!MaterialTrackersForTexture.Num()) // No tracked materials are using this texture anymore
 		{
-			UsedTextureToMaterialTracker.Remove(Texture);
+			UsedTextureToMaterialTracker.Remove(Tex);
 
-			for (const TSharedPtr<IDatasmithTextureElement>& TextureElement: UsedTextureToDatasmithElement[Texture])
+			for (const TSharedPtr<IDatasmithTextureElement>& TextureElement: UsedTextureToDatasmithElement[Tex])
 			{
-				SceneTracker.RemoveTexture(TextureElement);
+				TSet<Texmap*>& Texmaps = TextureElementToTexmap[TextureElement];
+				Texmaps.Remove(Tex);
+
+				if (Texmaps.IsEmpty())  // This was the last texmap that produced this element
+				{
+					RemoveTextureElement(TextureElement);
+					TextureElementToTexmap.Remove(TextureElement);
+				}
 			}
-			UsedTextureToDatasmithElement.Remove(Texture);
+			UsedTextureToDatasmithElement.Remove(Tex);
 		}
 	}
 
 	MaterialTracker.ResetActualMaterialAndTextures();
+}
+
+void FMaterialsCollectionTracker::UpdateTexmap(Texmap* Texmap)
+{
+	if (UsedTextureToDatasmithElement.Contains(Texmap))
+	{
+		// Don't update texmap that wasn't released - this means that it doesn't need update
+		// Texmap is released when every material that uses it is invalidated or removed
+		// When Texmap wasn't released means that some materials using it weren't invalidated which implies texmap is up to date(or material would have received a change event)
+		return;
+	}
+
+	TArray<TSharedPtr<IDatasmithTextureElement>> TextureElements;
+	if (TSharedPtr<ITexmapToTextureElementConverter>* Found = TexmapConverters.Find(Texmap))
+	{
+		TSharedPtr<ITexmapToTextureElementConverter> Converter = *Found;
+		TSharedPtr<IDatasmithTextureElement> TextureElement = Converter->Convert(*this, Converter->TextureElementName);
+		if (TextureElement)
+		{
+			TextureElements.Add(TextureElement);
+			AddTextureElement(TextureElement);
+		}
+	}
+
+	UsedTextureToDatasmithElement.FindOrAdd(Texmap).Append(TextureElements);
+
+	for (TSharedPtr<IDatasmithTextureElement> TextureElement : TextureElements)
+	{
+		TextureElementToTexmap.FindOrAdd(TextureElement).Add(Texmap);
+	}
+}
+
+void FMaterialsCollectionTracker::AddTextureElement(const TSharedPtr<IDatasmithTextureElement>& TextureElement)
+{
+	if (TextureElementsAddedToScene.Contains(TextureElement))
+	{
+		return;
+	}
+
+	SceneTracker.GetDatasmithSceneRef()->AddTexture(TextureElement);
+	TextureElementsAddedToScene.Add(TextureElement);
+}
+
+void FMaterialsCollectionTracker::RemoveTextureElement(const TSharedPtr<IDatasmithTextureElement>& TextureElement)
+{
+	TextureElementsAddedToScene.Remove(TextureElement);
+	SceneTracker.RemoveTexture(TextureElement);
+}
+
+void FMaterialsCollectionTracker::AddTexmapForConversion(Texmap* Texmap, const FString& DesiredTextureElementName, const TSharedPtr<ITexmapToTextureElementConverter>& Converter)
+{
+	Converter->TextureElementName = DesiredTextureElementName;
+	TexmapConverters.Add(Texmap, Converter);
 }
 
 FMaterialTracker* FMaterialsCollectionTracker::AddMaterial(Mtl* Material)
