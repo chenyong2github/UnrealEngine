@@ -51,7 +51,7 @@ public:
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
 	virtual FText GetActiveToolMessage() const override { return ActiveToolMessage; }
 
-	virtual void EnableShowRealtimeWarning(bool bEnable);
+	virtual void ShowRealtimeAndModeWarnings(bool bShowRealtimeWarning);
 
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
@@ -91,8 +91,7 @@ private:
 
 	TSharedPtr<SWidget> MakeAssetConfigPanel();
 
-	bool bShowRealtimeWarning = false;
-	void UpdateShowWarnings();
+	FText ActiveWarning{};
 
 	TArray<TSharedPtr<FString>> AssetLocationModes;
 	TArray<TSharedPtr<FString>> AssetSaveModes;

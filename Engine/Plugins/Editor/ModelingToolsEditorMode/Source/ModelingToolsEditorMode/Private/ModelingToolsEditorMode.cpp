@@ -241,7 +241,7 @@ void UModelingToolsEditorMode::Tick(FEditorViewportClient* ViewportClient, float
 	if (Toolkit.IsValid())
 	{
 		FModelingToolsEditorModeToolkit* ModelingToolkit = (FModelingToolsEditorModeToolkit*)Toolkit.Get();
-		ModelingToolkit->EnableShowRealtimeWarning(ViewportClient->IsRealtime() == false);
+		ModelingToolkit->ShowRealtimeAndModeWarnings(ViewportClient->IsRealtime() == false);
 	}
 }
 

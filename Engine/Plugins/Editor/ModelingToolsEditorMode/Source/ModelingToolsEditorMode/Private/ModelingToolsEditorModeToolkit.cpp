@@ -992,12 +992,26 @@ void FModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName)
 
 
 
-void FModelingToolsEditorModeToolkit::EnableShowRealtimeWarning(bool bEnable)
+void FModelingToolsEditorModeToolkit::ShowRealtimeAndModeWarnings(bool bShowRealtimeWarning)
 {
-	if (bShowRealtimeWarning != bEnable)
+	FText WarningText{};
+	if (GEditor->bIsSimulatingInEditor)
 	{
-		bShowRealtimeWarning = bEnable;
-		UpdateShowWarnings();
+		WarningText = LOCTEXT("ModelingModeToolkitSimulatingWarning", "Cannot use Modeling Tools while simulating.");
+	}
+	else if (GEditor->PlayWorld != NULL)
+	{
+		WarningText = LOCTEXT("ModelingModeToolkitSimulatingWarning", "Cannot use Modeling Tools in PIE.");
+	}
+	else if (bShowRealtimeWarning)
+	{
+		WarningText = LOCTEXT("ModelingModeToolkitRealtimeWarning", "Realtime Mode is required for Modeling Tools to work correctly. Please enable Realtime Mode in the Viewport Options or with the Ctrl+r hotkey.");
+	}
+	if (!WarningText.IdenticalTo(ActiveWarning))
+	{
+		ActiveWarning = WarningText;
+		ModeWarningArea->SetVisibility(ActiveWarning.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible);
+		ModeWarningArea->SetText(ActiveWarning);
 	}
 }
 
@@ -1067,23 +1081,7 @@ void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetV
 	}
 }
 
-void FModelingToolsEditorModeToolkit::UpdateShowWarnings()
-{
-	if (bShowRealtimeWarning )
-	{
-		if (ModeWarningArea->GetVisibility() == EVisibility::Collapsed)
-		{
-			ModeWarningArea->SetText(LOCTEXT("ModelingModeToolkitRealtimeWarning", "Realtime Mode is required for Modeling Tools to work correctly. Please enable Realtime Mode in the Viewport Options or with the Ctrl+r hotkey."));
-			ModeWarningArea->SetVisibility(EVisibility::Visible);
-		}
-	}
-	else
-	{
-		ModeWarningArea->SetText(FText());
-		ModeWarningArea->SetVisibility(EVisibility::Collapsed);
-	}
 
-}
 
 
 void FModelingToolsEditorModeToolkit::UpdateAssetLocationMode(TSharedPtr<FString> NewString)
