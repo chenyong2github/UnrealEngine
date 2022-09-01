@@ -726,7 +726,7 @@ bool FPerforceConnection::FindFileChanges(const FString& FilePath, int MaxResult
 
 bool FPerforceConnection::TryParseFileChangeSummary(const TArray<FString>& Lines, int& LineIdx, FPerforceFileChangeSummary& OutChange) const
 {
-	TArray<FString> Tokens = Split(Lines[LineIdx], TEXT(" "), true);
+	TArray<FString> Tokens = Split(Lines[LineIdx].TrimStartAndEnd(), TEXT(" "), true);
 	if(Tokens.Num() != 10 || !Tokens[0].StartsWith(TEXT("#")) || Tokens[1] != TEXT("change") || Tokens[4] != TEXT("on") || Tokens[7] != TEXT("by"))
 	{
 		return false;
@@ -741,7 +741,7 @@ bool FPerforceConnection::TryParseFileChangeSummary(const TArray<FString>& Lines
 	}
 
 	int UserClientIdx;
-	if(Tokens[8].FindChar('@', UserClientIdx))
+	if(!Tokens[8].FindChar('@', UserClientIdx))
 	{
 		return false;
 	}

@@ -489,7 +489,7 @@ bool FPerforceMonitor::UpdateZippedBinaries()
 					int OriginalChangeNumber;
 					if(FUtility::TryParse(*Tokens[1].Mid(0, Tokens[1].Len() - 1), OriginalChangeNumber) && !NewChangeNumberToZippedBinaries.Contains(OriginalChangeNumber))
 					{
-						NewChangeNumberToZippedBinaries[OriginalChangeNumber] = FString::Printf(TEXT("%s#%d"), *ZippedBinariesPath, ZipChange.Revision);
+						NewChangeNumberToZippedBinaries.Add(OriginalChangeNumber, FString::Printf(TEXT("%s#%d"), *ZippedBinariesPath, ZipChange.Revision));
 					}
 				}
 			}
