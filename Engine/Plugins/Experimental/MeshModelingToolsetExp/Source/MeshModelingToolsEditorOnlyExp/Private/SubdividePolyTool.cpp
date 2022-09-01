@@ -211,7 +211,10 @@ void USubdividePolyTool::Setup()
 		return;
 	}
 
-	check(Properties->SubdivisionLevel >= 1);	// Should be enforced by UPROPERTY meta tags
+	if (!ensure(Properties->SubdivisionLevel >= 1)) // Should be enforced by UPROPERTY meta tags
+	{
+		Properties->SubdivisionLevel = 1;
+	}
 	
 	CapSubdivisionLevel(Properties->SubdivisionScheme, Properties->SubdivisionLevel);
 	PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
