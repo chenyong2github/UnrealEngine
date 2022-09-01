@@ -3,7 +3,7 @@
   <Name>SoundTouchZ</Name>
   <Location>/Engine/Source/ThirdParty/SoundTouchZ</Location>
   <Function>To provide audio speed changes without affecting pitch</Function>
-  <Eula>https://www.surina.net/soundtouch/license.html</Eula>
+  <Eula>custom license</Eula>
   <RedistributeTo>
     <EndUserGroup>Licensees</EndUserGroup>
     <EndUserGroup>Git</EndUserGroup>
