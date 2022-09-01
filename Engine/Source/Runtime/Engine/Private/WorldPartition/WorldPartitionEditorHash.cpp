@@ -7,6 +7,11 @@ UWorldPartitionEditorHash::UWorldPartitionEditorHash(const FObjectInitializer& O
 {}
 
 #if WITH_EDITOR
+UWorldPartitionEditorHash::FForEachIntersectingActorParams::FForEachIntersectingActorParams()
+	: bIncludeSpatiallyLoadedActors(true)
+	, bIncludeNonSpatiallyLoadedActors(true)
+{}
+
 int32 UWorldPartitionEditorHash::ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors, bool bIncludeNonSpatiallyLoadedActors)
 {
 	UWorldPartitionEditorHash::FForEachIntersectingActorParams ForEachIntersectingActorParams;

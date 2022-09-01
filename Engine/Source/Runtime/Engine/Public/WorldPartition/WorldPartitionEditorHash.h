@@ -31,11 +31,13 @@ public:
 	/* Struct of optional parameters passed to ForEachIntersectingActor. */
 	struct ENGINE_API FForEachIntersectingActorParams
 	{
+		FForEachIntersectingActorParams();
+
 		/** Should we include spatially loaded actors in the query? */
-		bool bIncludeSpatiallyLoadedActors = true;
+		bool bIncludeSpatiallyLoadedActors;
 
 		/** Should we include non-spatially loaded actors in the query? */
-		bool bIncludeNonSpatiallyLoadedActors = true;
+		bool bIncludeNonSpatiallyLoadedActors;
 
 		/** Optional minimum box to stop searching for actors */
 		TOptional<FBox> MinimumBox;
