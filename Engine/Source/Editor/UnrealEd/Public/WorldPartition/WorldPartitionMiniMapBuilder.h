@@ -36,4 +36,6 @@ private:
 	int32 MinimapImageSizeY;
 
 	uint8* MiniMapSourcePtr;
+
+	bool bDebugCapture;
 };
