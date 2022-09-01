@@ -127,7 +127,7 @@ public:
 	 * The delay before we take the screenshot (measured in number of frames). Both this frame delay and the time delay must be met before the screenshot is taken.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screenshot")
-	uint32 FrameDelay;
+	int32 FrameDelay;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool bOverride_OverrideTimeTo;

@@ -54,7 +54,7 @@ bool AScreenshotFunctionalTestBase::IsReady_Implementation()
 {
 	if ((GetWorld()->GetTimeSeconds() - RunTime) > ScreenshotOptions.Delay)
 	{
-		return (GFrameNumber - RunFrame) > ScreenshotOptions.FrameDelay;
+		return int32(GFrameNumber - RunFrame) > ScreenshotOptions.FrameDelay;
 	}
 
 	return false;
