@@ -598,3 +598,34 @@ bool UDisplayClusterMoviePipelineViewportPassBase::CalculateDisplayClusterViewpo
 
 	return false;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// UDisplayClusterMoviePipelineViewportPass_PathTracer
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#if WITH_EDITOR
+FText UDisplayClusterMoviePipelineViewportPass_PathTracer::GetFooterText(UMoviePipelineExecutorJob* InJob) const {
+	return NSLOCTEXT(
+		"MovieRenderPipeline",
+		"DCViewportBasePassSetting_FooterText_PathTracer",
+		"Sampling for the nDisplay Path Tracer is controlled by the Anti-Aliasing settings and the Reference Motion Blur setting.\n"
+		"All other Path Tracer settings are taken from the Post Process settings.");
+}
+#endif
+
+void UDisplayClusterMoviePipelineViewportPass_PathTracer::ValidateStateImpl()
+{
+	Super::ValidateStateImpl();
+	PathTracerValidationImpl();
+}
+
+void UDisplayClusterMoviePipelineViewportPass_PathTracer::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+{
+	if (!CheckIfPathTracerIsSupported())
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Cannot render a nDisplay Path Tracer pass, Path Tracer is not enabled by this project."));
+		GetPipeline()->Shutdown(true);
+		return;
+	}
+
+	Super::SetupImpl(InPassInitSettings);
+}

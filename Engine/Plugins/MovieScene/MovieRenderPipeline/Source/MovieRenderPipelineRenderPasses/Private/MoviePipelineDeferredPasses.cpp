@@ -996,31 +996,25 @@ FText UMoviePipelineDeferredPass_PathTracer::GetFooterText(UMoviePipelineExecuto
 		"All other Path Tracer settings are taken from the Post Process settings.");
 }
 #endif
-namespace UE
-{
-namespace MoviePipeline
-{
-	bool CheckIfPathTracerIsSupported()
-	{
-		bool bSupportsPathTracing = false;
-		if (IsRayTracingEnabled())
-		{
-			IConsoleVariable* PathTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing"));
-			if (PathTracingCVar)
-			{
-				bSupportsPathTracing = PathTracingCVar->GetInt() != 0;
-			}
-		}
-		return bSupportsPathTracing;
-	}
-}
-}
-void UMoviePipelineDeferredPass_PathTracer::ValidateStateImpl()
-{
-	Super::ValidateStateImpl();
 
-	bool bSupportsPathTracing = UE::MoviePipeline::CheckIfPathTracerIsSupported();
-	
+bool UMoviePipelineDeferredPassBase::CheckIfPathTracerIsSupported() const
+{
+	bool bSupportsPathTracing = false;
+	if (IsRayTracingEnabled())
+	{
+		IConsoleVariable* PathTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing"));
+		if (PathTracingCVar)
+		{
+			bSupportsPathTracing = PathTracingCVar->GetInt() != 0;
+		}
+	}
+	return bSupportsPathTracing;
+}
+
+void UMoviePipelineDeferredPassBase::PathTracerValidationImpl()
+{
+	const bool bSupportsPathTracing = CheckIfPathTracerIsSupported();
+
 	if (!bSupportsPathTracing)
 	{
 		const FText ValidationWarning = NSLOCTEXT("MovieRenderPipeline", "PathTracerValidation_Unsupported", "Path Tracing is currently not enabled for this project and this render pass will not work.");
@@ -1029,9 +1023,15 @@ void UMoviePipelineDeferredPass_PathTracer::ValidateStateImpl()
 	}
 }
 
+void UMoviePipelineDeferredPass_PathTracer::ValidateStateImpl()
+{
+	Super::ValidateStateImpl();
+	PathTracerValidationImpl();
+}
+
 void UMoviePipelineDeferredPass_PathTracer::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
-	if (!UE::MoviePipeline::CheckIfPathTracerIsSupported())
+	if (!CheckIfPathTracerIsSupported())
 	{
 		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Cannot render a Path Tracer pass, Path Tracer is not enabled by this project."));
 		GetPipeline()->Shutdown(true);

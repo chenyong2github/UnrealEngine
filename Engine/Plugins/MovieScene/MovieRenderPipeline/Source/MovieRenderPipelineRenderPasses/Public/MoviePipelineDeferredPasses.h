@@ -77,6 +77,9 @@ protected:
 	bool IsActorInAnyStencilLayer(AActor* InActor) const;
 	FSoftObjectPath GetValidDataLayerByIndex(const int32 InIndex) const;
 
+	bool CheckIfPathTracerIsSupported() const;
+	void PathTracerValidationImpl();
+
 public:
 	/**
 	* Should multiple temporal/spatial samples accumulate the alpha channel? This requires r.PostProcessing.PropagateAlpha

@@ -190,3 +190,39 @@ public:
 	}
 	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
 };
+
+/**
+ * nDisplay viewport render pass (PathTracer)
+ */
+UCLASS(BlueprintType)
+class UDisplayClusterMoviePipelineViewportPass_PathTracer : public UDisplayClusterMoviePipelineViewportPassBase
+{
+	GENERATED_BODY()
+
+public:
+	UDisplayClusterMoviePipelineViewportPass_PathTracer() : UDisplayClusterMoviePipelineViewportPassBase(TEXT("nDisplayPathTracer"))
+	{ }
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DCViewportBasePassSetting_DisplayName_PathTracer", "nDisplay Path Tracer"); }
+	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
+#endif
+	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
+	{
+		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
+		OutShowFlag.SetPathTracing(true);
+		OutShowFlag.SetMotionBlur(!bReferenceMotionBlur);
+		OutViewModeIndex = EViewModeIndex::VMI_PathTracing;
+	}
+	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
+
+	virtual bool IsAntiAliasingSupported() const { return false; }
+	virtual void ValidateStateImpl() override;
+	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+
+	/** When enabled, the path tracer will blend all spatial and temporal samples prior to the denoising and will disable post-processed motion blur.
+	 *  In this mode it is possible to use higher temporal sample counts to improve the motion blur quality.
+	 *  When this option is disabled, the path tracer will accumulate spatial samples, but denoise them prior to accumulation of temporal samples.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reference Motion Blur")
+	bool bReferenceMotionBlur;
+};
