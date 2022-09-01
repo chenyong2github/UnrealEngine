@@ -271,7 +271,7 @@ public:
 	 */
 	TVector<RealType> InverseTransformNormal(const UE::Math::TVector<RealType>& Normal) const
 	{
-		return InverseTransformVectorNoScale( Normalized(Scale3D*Normal) );
+		return Normalized( Scale3D * InverseTransformVectorNoScale(Normal) );
 	}
 
 
