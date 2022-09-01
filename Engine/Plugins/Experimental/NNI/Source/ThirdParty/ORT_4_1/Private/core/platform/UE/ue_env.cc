@@ -73,9 +73,9 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 #undef Yield
 
+#include "Containers/StringConv.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "CoreMinimal.h"
 #include "Misc/AssertionMacros.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
