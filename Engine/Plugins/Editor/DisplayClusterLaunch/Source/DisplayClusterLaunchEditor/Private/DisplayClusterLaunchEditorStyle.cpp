@@ -43,12 +43,6 @@ const FName& FDisplayClusterLaunchEditorStyle::GetStyleSetName() const
 	return DisplayClusterLaunchStyleSetName;
 }
 
-FString GetConcertContent(const FString& RelativePath, const ANSICHAR* Extension)
-{
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("ConcertSyncClient"))->GetContentDir();
-	return (ContentDir / RelativePath) + Extension;
-}
-
 const FSlateBrush* FDisplayClusterLaunchEditorStyle::GetBrush(const FName PropertyName, const ANSICHAR* Specifier, const ISlateStyle* RequestingStyle) const
 {
 	return StyleInstance->GetBrush(PropertyName, Specifier);
