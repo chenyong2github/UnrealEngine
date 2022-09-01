@@ -106,7 +106,7 @@ FRigUnit_SetShapeTransform_Execute()
 				}
 
 				FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(CachedControlIndex);
-				Hierarchy->SetControlShapeTransform(ControlElement, Transform, ERigTransformType::CurrentLocal);
+				Hierarchy->SetControlShapeTransform(ControlElement, Transform, ERigTransformType::InitialLocal);
 				break;
 			}
 			default:
