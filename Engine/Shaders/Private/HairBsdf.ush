@@ -374,9 +374,9 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	{
 		const float sa = sin(Alpha[0]);
 		const float ca = cos(Alpha[0]);
-		float Shift = 2 * sa * (ca * CosHalfPhi * sqrt(1 - SinThetaV * SinThetaV) + sa * SinThetaV);
+		float ShiftR = 2 * sa * (ca * CosHalfPhi * sqrt(1 - SinThetaV * SinThetaV) + sa * SinThetaV);
 		float BScale = HairTransmittance.bUseSeparableR ? sqrt(2.0) * CosHalfPhi : 1;
-		float Mp = Hair_g(B[0] * BScale, SinThetaL + SinThetaV - Shift);
+		float Mp = Hair_g(B[0] * BScale, SinThetaL + SinThetaV - ShiftR);
 		float Np = 0.25 * CosHalfPhi;
 		float Fp = Hair_F(sqrt(saturate(0.5 + 0.5 * VoL)));
 		S += Mp * Np * Fp * (GBuffer.Specular * 2) * lerp(1, Backlit, saturate(-VoL));

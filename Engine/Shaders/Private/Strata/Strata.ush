@@ -2593,12 +2593,12 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 // Return 0 if v is zero, 1 otherwise
 float IsNonZeroFast(float v)
 {
-	return min(asuint(v) & 0x7FFFFFFF, 1u);
+	return float(min(asuint(v) & 0x7FFFFFFF, 1u));
 }
 
 float3 IsNonZeroFast(float3 v)
 {
-	return min(asuint(v) & 0x7FFFFFFF, 1u.xxx);
+	return float3(min(asuint(v) & 0x7FFFFFFF, 1u.xxx));
 }
 
 // This is used to respect artistic desire, e.g. shutdown diffuse or specular.
@@ -3056,7 +3056,7 @@ uint PackR7(float Value, float Dither)
 	const float CenteredDither = Dither - 0.5f;
 	const float Dither7bits = CenteredDither * 1.0f / 127.0f;
 	const float DitheredValue = DitherIfNonBlack(saturate(Value), Dither7bits);
-	return DitheredValue * 127.0f;
+	return uint(DitheredValue * 127.0f);
 }
 
 float UnpackR7(uint Value)

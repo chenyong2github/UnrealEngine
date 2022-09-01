@@ -601,7 +601,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 			D2 = D_GGX(a2, BottomContext.NoH);
 #endif
 		}
-		half3 F = F_Schlick(GBuffer.SpecularColor, BottomContext.VoH);
+		half3 F_Bot = F_Schlick(GBuffer.SpecularColor, BottomContext.VoH);
 		half3 F_DefaultLit = F_Schlick(GBuffer.SpecularColor, Context.VoH);
 		
 		float Energy = 0;
@@ -626,7 +626,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		// Note: reusing D and V from refracted context to save computation when ClearCoat < 1
 		float3 CommonSpecular = (Energy * Falloff * NoL * D2 * Vis2) * AreaLight.FalloffColor;
 		float3 DefaultSpecular = F_DefaultLit;
-		float3 RefractedSpecular = FresnelCoeff * Transmission * F;
+		float3 RefractedSpecular = FresnelCoeff * Transmission * F_Bot;
 		Lighting.Specular += CommonSpecular * lerp(DefaultSpecular, RefractedSpecular, ClearCoat);
 	}
 
