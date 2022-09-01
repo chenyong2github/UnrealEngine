@@ -4726,7 +4726,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				return;
 			}
 		}
-//$${gameActivityOnActivityResultIapStoreHelperHandler}$$
 		else
 		{
 			super.onActivityResult(requestCode, resultCode, data);
@@ -4785,22 +4784,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Log.debug("[JAVA] - Store Helper is invalid");
 		}
 		return bTriggeredQuery;
-	}
-
-	public boolean AndroidThunkJava_IapRestorePurchases(String[] InProductIDs, boolean[] bConsumable)
-	{
-		Log.debug("[JAVA] - AndroidThunkJava_IapRestorePurchases");
-		boolean bTriggeredRestore = false;
-		if( IapStoreHelper != null )
-		{
-			Log.debug("[JAVA] - AndroidThunkJava_IapRestorePurchases - Kick off logic here!");
-			bTriggeredRestore = IapStoreHelper.RestorePurchases(InProductIDs, bConsumable);
-		}
-		else
-		{
-			Log.debug("[JAVA] - Store Helper is invalid");
-		}
-		return bTriggeredRestore;
 	}
 
 	public void AndroidThunkJava_DismissSplashScreen()

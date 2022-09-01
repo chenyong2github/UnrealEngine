@@ -118,42 +118,6 @@ PACKAGE_SCOPE:
 	 */
 	bool IsInAppPurchasingEnabled();
 
-	/**
-	 * Delegate fired internally when the Java query for available in app purchases has completed, notifying any GooglePlay OSS listeners
-	 * Not meant for external use
-	 *
-	 * @param InResponseCode response from the GooglePlay backend
-	 * @param ProvidedProductInformation information returned from the backend about the queried offers
-	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FProvidedProductInformation>& /*ProvidedProductInformation*/);
-
-	/**
-	 * Delegate fired internally when the Java in app purchase has completed, notifying any GooglePlay OSS listeners
-	 * Not meant for external use
-	 *
-	 * @param InResponseCode response from the GooglePlay backend
-	 * @param InTransactionData transaction information for the purchase
-	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayProcessPurchaseComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const FGoogleTransactionData& /*InTransactionData*/);
-
-	/**
-	 * Delegate fired internally when the Java query for existing purchases has completed, notifying any GooglePlay OSS listeners
-	 * Not meant for external use
-	 *
-	 * @param InResponseCode response from the GooglePlay backend
-	 * @param InExistingPurchases known purchases for the user (non consumed or permanent)
-	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayQueryExistingPurchasesComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FGoogleTransactionData>& /*InExistingPurchases*/);
-
-	/**
-	 * Delegate fired internally when the Java query for restoring purchases has completed, notifying any GooglePlay OSS listeners
-	 * Not meant for external use
-	 *
-	 * @param InResponseCode response from the GooglePlay backend
-	 * @param InRestoredPurchases restored for the user (non consumed or permanent)
-	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayRestorePurchasesComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FGoogleTransactionData>& /*InRestoredPurchases*/);
-
 	/** Returns true if there are any async login tasks currently being tracked. */
 	bool AreAnyAsyncLoginTasksRunning() const { return CurrentLoginTask != nullptr || CurrentShowLoginUITask != nullptr; }
 

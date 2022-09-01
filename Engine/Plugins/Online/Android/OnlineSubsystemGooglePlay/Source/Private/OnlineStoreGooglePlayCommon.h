@@ -7,9 +7,16 @@
 
 struct FGoogleTransactionData;
 
-/** Possible responses returned from the Java GooglePlay billing interface */
-enum class EGooglePlayBillingResponseCode : uint8
+/** Possible responses returned from the Java GooglePlay billing interface.
+ *  CustomLogicError is a custom Unreal Engine error to represent logic errors 
+ *  on the Java side
+ */
+enum class EGooglePlayBillingResponseCode : int8
 {
+	CustomLogicError = -127, // Custom value. Should match with GooglePlayStoreHelper.CustomLogicErrorResponse on GooglePlayStoreHelper.java
+	ServiceTimeout = -3,
+	FeatureNotSupported = -2,
+	ServiceDisconnected = -1,
 	Ok = 0,
 	UserCancelled = 1,
 	ServiceUnavailable = 2,
@@ -21,10 +28,26 @@ enum class EGooglePlayBillingResponseCode : uint8
 	ItemNotOwned = 8,
 };
 
-inline const TCHAR* const ToString(EGooglePlayBillingResponseCode InResponseCode)
+/* Possible transaction states returned from the Java GooglePlay billing interface.*/
+enum class EGooglePlayPurchaseState : uint8
+{
+	UnspecifiedState = 0,
+	Purchased = 1,
+	Pending = 2,
+};
+
+inline const TCHAR* const LexToString(EGooglePlayBillingResponseCode InResponseCode)
 {
 	switch (InResponseCode)
 	{
+		case EGooglePlayBillingResponseCode::CustomLogicError:
+			return TEXT("CustomLogicError");
+		case EGooglePlayBillingResponseCode::ServiceTimeout:
+			return TEXT("ServiceTimeout");
+		case EGooglePlayBillingResponseCode::FeatureNotSupported:
+			return TEXT("FeatureNotSupported");
+		case EGooglePlayBillingResponseCode::ServiceDisconnected:
+			return TEXT("ServiceDisconnected");
 		case EGooglePlayBillingResponseCode::Ok:
 			return TEXT("Ok");
 		case EGooglePlayBillingResponseCode::UserCancelled:
@@ -48,6 +71,21 @@ inline const TCHAR* const ToString(EGooglePlayBillingResponseCode InResponseCode
 	}
 }
 
+inline const TCHAR* const LexToString(EGooglePlayPurchaseState InTransactionState)
+{
+	switch (InTransactionState)
+	{
+		case EGooglePlayPurchaseState::UnspecifiedState:
+			return TEXT("UnspecifiedState");
+		case EGooglePlayPurchaseState::Purchased:
+			return TEXT("Purchased");
+		case EGooglePlayPurchaseState::Pending:
+			return TEXT("Pending");
+		default:
+			return TEXT("UnknownState");
+	}
+}
+
 inline EInAppPurchaseState::Type ConvertGPResponseCodeToIAPState(const EGooglePlayBillingResponseCode InResponseCode)
 {
 	switch (InResponseCode)
@@ -60,6 +98,10 @@ inline EInAppPurchaseState::Type ConvertGPResponseCodeToIAPState(const EGooglePl
 			return EInAppPurchaseState::AlreadyOwned;
 		case EGooglePlayBillingResponseCode::ItemNotOwned:
 			return EInAppPurchaseState::NotAllowed;
+		case EGooglePlayBillingResponseCode::CustomLogicError:
+		case EGooglePlayBillingResponseCode::ServiceTimeout:
+		case EGooglePlayBillingResponseCode::FeatureNotSupported:
+		case EGooglePlayBillingResponseCode::ServiceDisconnected:
 		case EGooglePlayBillingResponseCode::ServiceUnavailable:
 		case EGooglePlayBillingResponseCode::BillingUnavailable:
 		case EGooglePlayBillingResponseCode::ItemUnavailable:
@@ -70,19 +112,36 @@ inline EInAppPurchaseState::Type ConvertGPResponseCodeToIAPState(const EGooglePl
 	}
 }
 
-inline EPurchaseTransactionState ConvertGPResponseCodeToPurchaseTransactionState(const EGooglePlayBillingResponseCode InResponseCode)
+inline EPurchaseTransactionState ConvertGPPurchaseStateToPurchaseTransactionState(const EGooglePlayPurchaseState InTransactionState)
+{
+	switch(InTransactionState)
+	{
+		case EGooglePlayPurchaseState::Purchased:
+			return EPurchaseTransactionState::Purchased;
+		case EGooglePlayPurchaseState::Pending:
+			return EPurchaseTransactionState::Deferred;
+		default:
+			return EPurchaseTransactionState::Invalid;
+	}
+}
+
+inline EPurchaseTransactionState ConvertGPResponseToPurchaseTransactionState(const EGooglePlayBillingResponseCode InResponseCode, const EGooglePlayPurchaseState InPurchaseState)
 {
 	switch (InResponseCode)
 	{
 		case EGooglePlayBillingResponseCode::Ok:
-			return EPurchaseTransactionState::Purchased;
+			return ConvertGPPurchaseStateToPurchaseTransactionState(InPurchaseState);
 		case EGooglePlayBillingResponseCode::UserCancelled:
 			return EPurchaseTransactionState::Canceled;
 		case EGooglePlayBillingResponseCode::ItemAlreadyOwned:
-			// Non consumable purchased again?
+			// Non consumable purchased again or consumable purchased again before consuming
 			return EPurchaseTransactionState::Invalid;
 		case EGooglePlayBillingResponseCode::ItemNotOwned:
 			return EPurchaseTransactionState::Invalid;
+		case EGooglePlayBillingResponseCode::CustomLogicError:
+		case EGooglePlayBillingResponseCode::ServiceTimeout:
+		case EGooglePlayBillingResponseCode::FeatureNotSupported:
+		case EGooglePlayBillingResponseCode::ServiceDisconnected:
 		case EGooglePlayBillingResponseCode::ServiceUnavailable:
 		case EGooglePlayBillingResponseCode::BillingUnavailable:
 		case EGooglePlayBillingResponseCode::ItemUnavailable:
@@ -92,17 +151,6 @@ inline EPurchaseTransactionState ConvertGPResponseCodeToPurchaseTransactionState
 			return EPurchaseTransactionState::Failed;
 	}
 }
-
-/**
- * The resulting state of an iap transaction
- */
-enum class EInAppPurchaseResult : uint8
-{
-	Succeeded = 0,
-	RestoredFromServer,
-	Failed,
-	Cancelled,
-};
 
 typedef FOnlineStoreOffer FProvidedProductInformation;
 
@@ -125,7 +173,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGooglePlayProcessPurchaseComplete, EGoog
 typedef FOnGooglePlayProcessPurchaseComplete::FDelegate FOnGooglePlayProcessPurchaseCompleteDelegate;
 
 /**
- * Delegate fired internally an existing purchases query has completed
+ * Delegate fired internally when an existing purchases query has completed
  *
  * @param InResponseCode response from the GooglePlay backend
  * @param InExistingPurchases known purchases for the user (non consumed or permanent)
@@ -134,10 +182,10 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGooglePlayQueryExistingPurchasesComplete
 typedef FOnGooglePlayQueryExistingPurchasesComplete::FDelegate FOnGooglePlayQueryExistingPurchasesCompleteDelegate;
 
 /**
- * Delegate fired internally when existing purchases have been restored (StoreV1 only)
+ * Delegate fired internally when a consume purchase query has completed
  *
  * @param InResponseCode response from the GooglePlay backend
- * @param InRestoredPurchases restored for the user (non consumed or permanent)
+ * @param InPurchaseToken purchase token for consumed purchase
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGooglePlayRestorePurchasesComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FGoogleTransactionData>& /*InRestoredPurchases*/);
-typedef FOnGooglePlayRestorePurchasesComplete::FDelegate FOnGooglePlayRestorePurchasesCompleteDelegate;
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGooglePlayConsumePurchaseComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const FString& /*InPurchaseToken*/);
+typedef FOnGooglePlayConsumePurchaseComplete::FDelegate FOnGooglePlayConsumePurchaseCompleteDelegate;

@@ -176,6 +176,11 @@ public:
 		ReceiptOffers.Add(ReceiptOffer);
 	}
 
+	void AddReceiptOffer(FReceiptOfferEntry&& ReceiptOffer)
+	{
+		ReceiptOffers.Add(MoveTemp(ReceiptOffer));
+	}
+
 	BEGIN_ONLINE_JSON_SERIALIZER
 		ONLINE_JSON_SERIALIZE("transactionId", TransactionId);
 		ONLINE_JSON_SERIALIZE_ARRAY_SERIALIZABLE("receiptList", ReceiptOffers, FReceiptOfferEntry);

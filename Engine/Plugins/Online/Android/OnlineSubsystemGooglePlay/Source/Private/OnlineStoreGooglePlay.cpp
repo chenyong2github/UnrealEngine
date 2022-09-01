@@ -2,7 +2,6 @@
 
 #include "OnlineStoreGooglePlay.h"
 #include "OnlineSubsystemGooglePlay.h"
-#include "OnlineAsyncTaskGooglePlayQueryInAppPurchases.h"
 
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
@@ -10,7 +9,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include <jni.h>
 #include "Android/AndroidJavaEnv.h"
-#include "Async/TaskGraphInterfaces.h"
 
 FOnlineStoreGooglePlayV2::FOnlineStoreGooglePlayV2(FOnlineSubsystemGooglePlay* InSubsystem)
 	: bIsQueryInFlight(false)
@@ -28,18 +26,11 @@ FOnlineStoreGooglePlayV2::FOnlineStoreGooglePlayV2()
 
 FOnlineStoreGooglePlayV2::~FOnlineStoreGooglePlayV2()
 {
-	if (Subsystem)
-	{
-		Subsystem->ClearOnGooglePlayAvailableIAPQueryCompleteDelegate_Handle(AvailableIAPQueryDelegateHandle);
-	}
 }
 
 void FOnlineStoreGooglePlayV2::Init()
 {
 	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("FOnlineStoreGooglePlayV2::Init"));
-
-	FOnGooglePlayAvailableIAPQueryCompleteDelegate Delegate = FOnGooglePlayAvailableIAPQueryCompleteDelegate::CreateThreadSafeSP(this, &FOnlineStoreGooglePlayV2::OnGooglePlayAvailableIAPQueryComplete);
-	AvailableIAPQueryDelegateHandle = Subsystem->AddOnGooglePlayAvailableIAPQueryCompleteDelegate_Handle(Delegate);
 
 	FString GooglePlayLicenseKey;
 	if (!GConfig->GetString(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("GooglePlayLicenseKey"), GooglePlayLicenseKey, GEngineIni) || GooglePlayLicenseKey.IsEmpty())
@@ -58,35 +49,42 @@ TSharedRef<FOnlineStoreOffer> ConvertProductToStoreOffer(const FOnlineStoreOffer
 
 void FOnlineStoreGooglePlayV2::OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FProvidedProductInformation>& InProvidedProductInformation)
 { 
+	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("OnGooglePlayAvailableIAPQueryComplete Response: %s NumProucts: %d"), LexToString(InResponseCode), InProvidedProductInformation.Num());
+
+	bool bSuccess = (InResponseCode == EGooglePlayBillingResponseCode::Ok);
 	TArray<FUniqueOfferId> OfferIds;
-	for (const FProvidedProductInformation& Product : InProvidedProductInformation)
+	FString ErrorStr;
+	
+	if(!bIsQueryInFlight)
 	{
-		TSharedRef<FOnlineStoreOffer> NewProductOffer = ConvertProductToStoreOffer(Product);
-
-		AddOffer(NewProductOffer);
-		OfferIds.Add(NewProductOffer->OfferId);
-
-		UE_LOG_ONLINE_STOREV2(Log, TEXT("Product Identifier: %s, Name: %s, Desc: %s, Long Desc: %s, Price: %s IntPrice: %d"),
-			*NewProductOffer->OfferId,
-			*NewProductOffer->Title.ToString(),
-			*NewProductOffer->Description.ToString(),
-			*NewProductOffer->LongDescription.ToString(),
-			*NewProductOffer->PriceText.ToString(),
-			NewProductOffer->NumericPrice);
+		UE_LOG_ONLINE_STOREV2(Log, TEXT("OnGooglePlayAvailableIAPQueryComplete: No IAP query in flight"));
 	}
 
-	if (CurrentQueryTask)
+	if (bSuccess)
 	{
-		CurrentQueryTask->ProcessQueryAvailablePurchasesResults(InResponseCode);
+		for (const FProvidedProductInformation& Product : InProvidedProductInformation)
+		{
+			TSharedRef<FOnlineStoreOffer> NewProductOffer = ConvertProductToStoreOffer(Product);
 
-		// clear the pointer, it will be destroyed by the async task manager
-		CurrentQueryTask = nullptr;
+			AddOffer(NewProductOffer);
+			OfferIds.Add(NewProductOffer->OfferId);
+
+			UE_LOG_ONLINE_STOREV2(Log, TEXT("Product Identifier: %s, Name: %s, Desc: %s, Long Desc: %s, Price: %s IntPrice: %d"),
+				*NewProductOffer->OfferId,
+				*NewProductOffer->Title.ToString(),
+				*NewProductOffer->Description.ToString(),
+				*NewProductOffer->LongDescription.ToString(),
+				*NewProductOffer->PriceText.ToString(),
+				NewProductOffer->NumericPrice);
+		}
 	}
 	else
 	{
-		UE_LOG_ONLINE_STOREV2(Log, TEXT("OnGooglePlayAvailableIAPQueryComplete: No IAP query task in flight"));
+		ErrorStr = LexToString(InResponseCode);
 	}
-
+	
+	QueryOnlineStoreOffersCompleteDelegate.ExecuteIfBound(bSuccess, OfferIds, ErrorStr);
+	QueryOnlineStoreOffersCompleteDelegate.Unbind();
 	bIsQueryInFlight = false;
 }
 
@@ -119,13 +117,10 @@ void FOnlineStoreGooglePlayV2::QueryOffersById(const FUniqueNetId& UserId, const
 	}
 	else
 	{
-	CurrentQueryTask = new FOnlineAsyncTaskGooglePlayQueryInAppPurchasesV2(
-		Subsystem,
-		OfferIds,
-		Delegate);
-	Subsystem->QueueAsyncTask(CurrentQueryTask);
-
 		bIsQueryInFlight = true;
+		QueryOnlineStoreOffersCompleteDelegate = Delegate;
+		extern bool AndroidThunkCpp_Iap_QueryInAppPurchases(const TArray<FString>&);
+		AndroidThunkCpp_Iap_QueryInAppPurchases(OfferIds);
 	}
 }
 
@@ -165,46 +160,43 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreGooglePlayV2::GetOffer(const FUniqueOf
 	return Result;
 }
 
-JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_nativeQueryComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray productIDs, jobjectArray titles, jobjectArray descriptions, jobjectArray prices, jfloatArray pricesRaw, jobjectArray currencyCodes, jobjectArray originalJson)
+JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_NativeQueryComplete(JNIEnv* jenv, jobject /*Thiz*/, jint ResponseCode, jobjectArray ProductIDs, jobjectArray Titles, jobjectArray Descriptions, jobjectArray Prices, jfloatArray PriceValuesRaw, jobjectArray CurrencyCodes)
 {
 	TArray<FOnlineStoreOffer> ProvidedProductInformation;
-	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)ResponseCode;
 	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
 
 	if (jenv && bWasSuccessful)
 	{
-		jsize NumProducts = jenv->GetArrayLength(productIDs);
-		jsize NumTitles = jenv->GetArrayLength(titles);
-		jsize NumDescriptions = jenv->GetArrayLength(descriptions);
-		jsize NumPrices = jenv->GetArrayLength(prices);
-		jsize NumPricesRaw = jenv->GetArrayLength(pricesRaw);
-		jsize NumCurrencyCodes = jenv->GetArrayLength(currencyCodes);
-		jsize NumJsonStrings = jenv->GetArrayLength(originalJson);
+		jsize NumProducts = jenv->GetArrayLength(ProductIDs);
+		jsize NumTitles = jenv->GetArrayLength(Titles);
+		jsize NumDescriptions = jenv->GetArrayLength(Descriptions);
+		jsize NumPrices = jenv->GetArrayLength(Prices);
+		jsize NumPricesRaw = jenv->GetArrayLength(PriceValuesRaw);
+		jsize NumCurrencyCodes = jenv->GetArrayLength(CurrencyCodes);
 
-		ensure((NumProducts == NumTitles) && (NumProducts == NumDescriptions) && (NumProducts == NumPrices) && (NumProducts == NumPricesRaw) && (NumProducts == NumCurrencyCodes) && (NumProducts == NumJsonStrings));
+		ensure((NumProducts == NumTitles) && (NumProducts == NumDescriptions) && (NumProducts == NumPrices) && (NumProducts == NumPricesRaw) && (NumProducts == NumCurrencyCodes));
 
-		jfloat* PricesRaw = jenv->GetFloatArrayElements(pricesRaw, 0);
+		jfloat* PriceValues = jenv->GetFloatArrayElements(PriceValuesRaw, 0);
 
 		for (jsize Idx = 0; Idx < NumProducts; Idx++)
 		{
-			// Build the product information strings.
-
 			FOnlineStoreOffer NewProductInfo;
 
-			NewProductInfo.OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(productIDs, Idx));
+			NewProductInfo.OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
 
 			int32 OpenParenIdx = -1;
 			int32 CloseParenIdx = -1;
-			FString Title = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(titles, Idx));
+			FString Title = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Titles, Idx));
 			if (Title.FindLastChar(TEXT(')'), CloseParenIdx) && Title.FindLastChar(TEXT('('), OpenParenIdx) && (OpenParenIdx < CloseParenIdx))
 			{
 				Title = Title.Left(OpenParenIdx).TrimEnd();
 			}
 			NewProductInfo.Title = FText::FromString(Title);
 
-			NewProductInfo.Description = FText::FromString(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(descriptions, Idx)));
-			NewProductInfo.PriceText = FText::FromString(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(prices, Idx)));
-			NewProductInfo.CurrencyCode = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(currencyCodes, Idx));
+			NewProductInfo.Description = FText::FromString(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Descriptions, Idx)));
+			NewProductInfo.PriceText = FText::FromString(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Prices, Idx)));
+			NewProductInfo.CurrencyCode = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(CurrencyCodes, Idx));
 
 			// Convert the backend stated price into its base units
 			FInternationalization& I18N = FInternationalization::Get();
@@ -212,21 +204,9 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_nativeQueryCompl
 
 			const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(NewProductInfo.CurrencyCode);
 			const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-			double Val = static_cast<double>(PricesRaw[Idx])* static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
+			double Val = static_cast<double>(PriceValues[Idx]) * static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
 
 			NewProductInfo.NumericPrice = FMath::TruncToInt(Val + 0.5);
-
-			//Loop through original json data and populate dynamic map.
-			TSharedPtr<FJsonObject> JsonObject;
-			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(originalJson, Idx)));
-			if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
-			{
-				for (TPair<FString, TSharedPtr<FJsonValue>> JsonValue : JsonObject->Values)
-				{
-					NewProductInfo.DynamicFields.Add(JsonValue.Key, JsonValue.Value->AsString());
-				}
-			}
-
 			NewProductInfo.ReleaseDate = FDateTime::MinValue();
 			NewProductInfo.ExpirationDate = FDateTime::MaxValue();
 
@@ -240,28 +220,17 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_nativeQueryCompl
 				NewProductInfo.NumericPrice,
 				*NewProductInfo.CurrencyCode);
 		}
+		jenv->ReleaseFloatArrayElements(PriceValuesRaw, PriceValues, JNI_ABORT);
 	}
 
-	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessQueryIapResult"), STAT_FSimpleDelegateGraphTask_ProcessQueryIapResult, STATGROUP_TaskGraphTasks);
+	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("QueryOffersById result Success: %d Response: %s"), bWasSuccessful, LexToString(EGPResponse));
 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Adding task Success: %d Response: %s"), bWasSuccessful, ToString(EGPResponse));
-
-	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	if (auto OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM)))
 	{
-		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		OnlineSubGP->ExecuteNextTick([OnlineSubGP, EGPResponse, Response = MoveTemp(ProvidedProductInformation)]()
 		{
-			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
-			if (OnlineSubGP)
-			{
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("TriggerOnGooglePlayAvailableIAPQueryCompleteDelegates %s Size: %d"), ToString(EGPResponse), ProvidedProductInformation.Num());
-				OnlineSubGP->TriggerOnGooglePlayAvailableIAPQueryCompleteDelegates(EGPResponse, ProvidedProductInformation);
-			}
-		}
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("In-App Purchase query was completed  %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
-	}),
-		GET_STATID(STAT_FSimpleDelegateGraphTask_ProcessQueryIapResult),
-		nullptr,
-		ENamedThreads::GameThread
-		);
+			TSharedPtr<FOnlineStoreGooglePlayV2> StoreInt = StaticCastSharedPtr<FOnlineStoreGooglePlayV2>(OnlineSubGP->GetStoreV2Interface());
+			StoreInt->OnGooglePlayAvailableIAPQueryComplete(EGPResponse, Response);
+		});
+	}
 }

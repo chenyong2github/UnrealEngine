@@ -115,7 +115,6 @@ public:
 	static jmethodID AndroidThunkJava_IapQueryInAppPurchases;
 	static jmethodID AndroidThunkJava_IapBeginPurchase;
 	static jmethodID AndroidThunkJava_IapIsAllowedToMakePurchases;
-	static jmethodID AndroidThunkJava_IapRestorePurchases;
 	static jmethodID AndroidThunkJava_IapQueryExistingPurchases;
 	static jmethodID AndroidThunkJava_IapConsumePurchase;
 

@@ -6,37 +6,32 @@
 #include "Serialization/JsonSerializerMacros.h"
 #include "OnlineIdentityInterfaceGooglePlay.h"
 
-enum class EGooglePlayBillingResponseCode : uint8;
+enum class EGooglePlayBillingResponseCode : int8;
+enum class EGooglePlayPurchaseState : uint8;
 
 /**
  * Holds in a common format the data that comes out of a Google purchase transaction
  */
 struct FGoogleTransactionData
 {
-	FGoogleTransactionData(const FString& InOfferId, const FString& InProductToken, const FString& InReceiptData, const FString& InSignature);
+	FGoogleTransactionData(const FString& InOfferId, const FString& InPurchaseToken, const FString& InReceiptData, const FString& InSignature, EGooglePlayPurchaseState InPurchaseState);
 
 	/** @return a string that prints useful debug information about this transaction */
-	FString ToDebugString() const
-	{
-		return FString::Printf(TEXT("OfferId: %s TransactionId: %s ReceiptData: %s%s"),
-			*OfferId,
-			*TransactionIdentifier,
-			*CombinedTransactionData.ToJson(),
-			ErrorStr.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" Error: %s"), *ErrorStr));
-	}
-
+	FString ToDebugString() const;
 	/** @return offer id for this transaction */
 	const FString& GetOfferId() const { return OfferId; }
 	/** @return receipt data for this transaction */
-	const FString GetCombinedReceiptData() const { return CombinedTransactionData.ToJson(); }
+	FString GetCombinedReceiptData() const { return CombinedTransactionData.ToJson(); }
 	/** @return receipt data for this transaction */
 	const FString& GetReceiptData() const { return CombinedTransactionData.ReceiptData; }
 	/** @return signature for this transaction */
 	const FString& GetSignature() const { return CombinedTransactionData.Signature; }
 	/** @return error string for this transaction, if applicable */
 	const FString& GetErrorStr() const { return ErrorStr; }
-	/** @return the transaction id */
-	const FString& GetTransactionIdentifier() const	{ return TransactionIdentifier; }
+	/** @return the purchase transaction id */
+	const FString& GetTransactionIdentifier() const	{ return PurchaseToken; }
+	/** @return the purchase state */
+	EGooglePlayPurchaseState GetPurchaseState() const { return PurchaseState; }
 
 private:
 
@@ -66,54 +61,14 @@ private:
 
 	/** GooglePlay offer id */
 	FString OfferId;
-	/** Unique transaction id (purchaseToken) */
-	FString TransactionIdentifier;
+	/** PurchaseToken for the transaction */
+	FString PurchaseToken;
 	/** Error on the transaction, if applicable */
 	FString ErrorStr;
 	/** Combined receipt with signature in JSON */
 	FJsonReceiptData CombinedTransactionData;
-};
-
-/**
- * Info used to cache and track orders in progress.
- */
-class FOnlinePurchasePendingTransactionGooglePlay
-{
-public:
-	FOnlinePurchasePendingTransactionGooglePlay(
-		const FPurchaseCheckoutRequest& InCheckoutRequest,
-		const FUniqueNetId& InUserId,
-		const EPurchaseTransactionState InPendingTransactionState = EPurchaseTransactionState::NotStarted,
-		const FOnPurchaseCheckoutComplete& InCheckoutCompleteDelegate = FOnPurchaseCheckoutComplete()
-		)
-		: CheckoutRequest(InCheckoutRequest)
-		, UserId(FUniqueNetIdGooglePlay::Cast(InUserId.AsShared()))
-		, CheckoutCompleteDelegate(InCheckoutCompleteDelegate)
-	{
-		PendingPurchaseInfo.TransactionState = InPendingTransactionState;
-	}
-	
-	/**
-	 * Generate a final receipt for all purchases made in this single transaction
-	 */
-	TSharedRef<FPurchaseReceipt> GenerateReceipt();
-	
-	/** Generate one off receipts for transactions initiated outside the current run of the application */
-	static TSharedRef<FPurchaseReceipt> GenerateReceipt(const FGoogleTransactionData& Transaction);
-	
-	/** Add the single completed transaction to this transaction */
-	bool AddCompletedOffer(EPurchaseTransactionState Result, const FGoogleTransactionData& Transaction);
-
-public:
-	
-	/** Checkout info for the pending order */
-	const FPurchaseCheckoutRequest CheckoutRequest;
-	/** User for the pending order */
-	const FUniqueNetIdGooglePlayRef UserId;
-	/** Delegate to call on completion */
-	const FOnPurchaseCheckoutComplete CheckoutCompleteDelegate;
-	/** Tracks the current state of the order */
-	FPurchaseReceipt PendingPurchaseInfo;
+	/** Reported GooglePlay transaction state */
+	EGooglePlayPurchaseState PurchaseState;
 };
 
 /**
@@ -147,11 +102,6 @@ public:
 	FOnlinePurchaseGooglePlay(class FOnlineSubsystemGooglePlay* InSubsystem);
 
 	/**
-	 * Constructor
-	 */
-	FOnlinePurchaseGooglePlay();
-
-	/**
 	 * Destructor
 	 */
 	virtual ~FOnlinePurchaseGooglePlay();
@@ -159,53 +109,40 @@ public:
 	/** Initialize the interface */
 	void Init();
 
+	/** Handle Java side transaction completed notification */
+	void OnTransactionCompleteResponse(EGooglePlayBillingResponseCode InResponseCode, const FGoogleTransactionData& InTransactionData);
+
+	/** Handle Java side query purchases completed notification */
+	void OnQueryExistingPurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InExistingPurchases);
+
+	/** Handle Java side consume purchase completed notification */
+	void OnConsumePurchaseComplete(EGooglePlayBillingResponseCode InResponseCode, const FString& InPurchaseToken);
 private:
 	
-	/** Mapping from user id to pending transaction */
-	typedef TMap<FString, TSharedRef<FOnlinePurchasePendingTransactionGooglePlay> > FOnlinePurchasePendingTransactionMap;
+	/**
+	 * Info used to cache and track orders in progress.
+	 */
+	class FOnlinePurchaseInProgressTransaction;
 
-	/** Mapping from user id to complete transactions */
-	typedef TMap<FString, TArray< TSharedRef<FPurchaseReceipt> > > FOnlinePurchaseCompleteTransactionsMap;
-	
-	/** Array of transactions completion indirectly (previous run, etc) */
-	typedef TArray< TSharedRef<FPurchaseReceipt> > FOnlineCompletedTransactions;
+	/** Complete transactions */
+	using FOnlinePurchasePurchasedTransactions = TArray< TSharedRef<FPurchaseReceipt> >;
 	
 private:
 	
 	/** Are receipts being queried */
 	bool bQueryingReceipts;
+	
 	/** Transient delegate to fire when query receipts has completed */
 	FOnQueryReceiptsComplete QueryReceiptsComplete;
 
 	/** Keeps track of pending user transactions */
-	FOnlinePurchasePendingTransactionMap PendingTransactions;
+	TSharedPtr<FOnlinePurchaseInProgressTransaction> InProgressTransaction;
 	
-	/** Cache of completed transactions */
-	FOnlinePurchaseCompleteTransactionsMap CompletedTransactions;
-	
-	/** Cache of purchases completed outside the running instance */
-	FOnlineCompletedTransactions OfflineTransactions;
+	/** Cache of known transactions */
+	FOnlinePurchasePurchasedTransactions KnownTransactions;
 	
 	/** Reference to the parent subsystem */
 	FOnlineSubsystemGooglePlay* Subsystem;
-
-	/**
-	 * Delegate fired when a purchase has completed
-	 *
-	 * @param InResponseCode response from the GooglePlay backend
-	 * @param InTransactionData transaction data for the completed purchase
-	 */
-	void OnTransactionCompleteResponse(EGooglePlayBillingResponseCode InResponseCode, const FGoogleTransactionData& InTransactionData);
-	FDelegateHandle ProcessPurchaseResultDelegateHandle;
-
-	/**
-	 * Delegate fired when a query for existing purchase has completed
-	 *
-	 * @param InResponseCode response from the GooglePlay backend
-	 * @param InExistingPurchases known purchases for the user (non consumed or permanent)
-	 */
-	void OnQueryExistingPurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InExistingPurchases);
-	FDelegateHandle QueryExistingPurchasesCompleteDelegateHandle;
 };
 
 typedef TSharedPtr<FOnlinePurchaseGooglePlay, ESPMode::ThreadSafe> FOnlinePurchaseGooglePlayPtr;

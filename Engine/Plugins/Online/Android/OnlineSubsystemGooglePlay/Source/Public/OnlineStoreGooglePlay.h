@@ -7,7 +7,6 @@
 
 class FOnlineSubsystemGooglePlay;
 class FOnlineAsyncTaskGooglePlayQueryInAppPurchasesV2;
-enum class EPurchaseTransactionState : uint8;
 
 /**
  * Implementation for online store via GooglePlay services
@@ -49,6 +48,9 @@ public:
 	/** Initialize the interface */
 	void Init();
 	
+	/** Handle Java side query available iap completed notification */
+	void OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponse, const TArray<FProvidedProductInformation>& InProvidedProductInformation);
+
 private:
 	
 	void AddOffer(const TSharedRef<FOnlineStoreOffer>& NewOffer);
@@ -61,17 +63,14 @@ private:
 	/** Mapping of all queried offers to their product information */
 	FOnlineOfferDescriptionMap CachedOffers;
 
-	/** The current query for iap async task */
-	FOnlineAsyncTaskGooglePlayQueryInAppPurchasesV2* CurrentQueryTask;
+	/** The delegate to call for current query */
+	FOnQueryOnlineStoreOffersComplete QueryOnlineStoreOffersCompleteDelegate;
 
 	/** Is a query already in flight */
 	bool bIsQueryInFlight;
 	
 	/** Reference to the parent subsystem */
 	FOnlineSubsystemGooglePlay* Subsystem;
-
-	void OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponse, const TArray<FProvidedProductInformation>& InProvidedProductInformation);
-	FDelegateHandle AvailableIAPQueryDelegateHandle;
 
 	/** Delegate fired when a query for purchases has completed, whether successful or unsuccessful */
 	FOnQueryForAvailablePurchasesComplete OnQueryForAvailablePurchasesCompleteDelegate;

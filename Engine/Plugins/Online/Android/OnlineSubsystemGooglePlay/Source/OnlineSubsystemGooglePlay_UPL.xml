@@ -15,7 +15,7 @@
 	<buildGradleAdditions>
 		<insert>
 			dependencies {
-			implementation 'com.android.billingclient:billing:3.0.0'
+			implementation 'com.android.billingclient:billing:5.0.0'
 			}
 		</insert>
 	</buildGradleAdditions>
@@ -71,24 +71,11 @@ import java.security.NoSuchAlgorithmException;
 		</insert>
 	</gameActivityImportAdditions>
 
-	<!-- optional additions to GameActivity class in GameActivity.java -->
-	<gameActivityClassAdditions>
-		<insert>
-	/** Implement this if app wants to handle IAB activity launch. **/
-	GooglePlayStoreHelper.PurchaseLaunchCallback purchaseLaunchCallback = null;
-
-	public GooglePlayStoreHelper.PurchaseLaunchCallback getPurchaseLaunchCallback()
-	{
-		return purchaseLaunchCallback;
-	}
-		</insert>
-	</gameActivityClassAdditions>
-
 	<gameActivityIapSetupServiceAdditions>
 		<insert>
 		if (getPackageManager().checkPermission("com.android.vending.BILLING", getPackageName()) == getPackageManager().PERMISSION_GRANTED)
 		{
-			IapStoreHelper = new GooglePlayStoreHelper(InProductKey, this, Log);
+			IapStoreHelper = new GooglePlayStoreHelper(this, Log);
 			if (IapStoreHelper != null)
 			{
 				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Setup started");
