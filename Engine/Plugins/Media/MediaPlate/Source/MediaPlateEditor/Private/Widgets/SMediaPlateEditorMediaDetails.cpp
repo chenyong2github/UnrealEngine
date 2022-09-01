@@ -15,7 +15,8 @@
 /* SMediaPlateEditorMediaDetails interface
  *****************************************************************************/
 
-void SMediaPlateEditorMediaDetails::Construct(const FArguments& InArgs, UMediaPlateComponent& InMediaPlate, const TSharedRef<ISlateStyle>& InStyle)
+void SMediaPlateEditorMediaDetails::Construct(const FArguments& InArgs,
+	UMediaPlateComponent& InMediaPlate)
 {
 	MediaPlate = &InMediaPlate;
 

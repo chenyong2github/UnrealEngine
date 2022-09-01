@@ -397,7 +397,7 @@ TSharedRef<SDockTab> FMediaPlateEditorToolkit::HandleTabManagerSpawnTab(const FS
 	}
 	else if (TabIdentifier == MediaPlateEditorToolkit::MediaDetailsTabId)
 	{
-		TabWidget = SNew(SMediaPlateEditorMediaDetails, *MediaPlate, Style);
+		TabWidget = SNew(SMediaPlateEditorMediaDetails, *MediaPlate);
 	}
 	else if (TabIdentifier == MediaPlateEditorToolkit::PlaylistTabId)
 	{

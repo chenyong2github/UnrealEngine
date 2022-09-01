@@ -28,9 +28,8 @@ public:
 	 *
 	 * @param InArgs		The declaration data for this widget.
 	 * @param InMediaPlate	The MediaPlate to show the details for.
-	 * @param InStyleSet	The style set to use.
 	 */
-	void Construct(const FArguments& InArgs, UMediaPlateComponent& InMediaPlate, const TSharedRef<ISlateStyle>& InStyle);
+	void Construct(const FArguments& InArgs, UMediaPlateComponent& InMediaPlate);
 
 	//~ SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
