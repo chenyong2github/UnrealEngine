@@ -180,6 +180,13 @@ FAutoConsoleVariableRef CVarFlushAudioRenderThreadOnGC(
 	TEXT("When set to 1, every time the GC runs, we flush all pending audio render thread commands.\n"),
 	ECVF_Default);
 
+static float MaxWorldDistanceCVar = UE_OLD_WORLD_MAX;
+FAutoConsoleVariableRef CVarSetAudioMaxDistance(
+	TEXT("au.MaxWorldDistance"),
+	MaxWorldDistanceCVar,
+	TEXT("Maximum world distance used in audio-related calculations (eg. attenuation).\n"),
+	ECVF_Default);
+
 static FAutoConsoleCommandWithWorld GListAvailableSpatialPluginsCommand(
 	TEXT("au.spatialization.ListAvailableSpatialPlugins"),
 	TEXT("This will output a list of currently availible/active spatialization plugins"),
@@ -5789,6 +5796,11 @@ bool FAudioDevice::GetDistanceSquaredToNearestListener(const FVector& Location, 
 
 	OutSqDistance = DistSquared;
 	return true;
+}
+
+float FAudioDevice::GetMaxWorldDistance()
+{
+	return MaxWorldDistanceCVar;
 }
 
 bool FAudioDevice::GetListenerPosition(int32 ListenerIndex, FVector& OutPosition, bool bAllowOverride) const

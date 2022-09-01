@@ -63,7 +63,7 @@ float USoundBase::GetMaxDistance() const
 		}
 	}
 
-	return WORLD_MAX;
+	return FAudioDevice::GetMaxWorldDistance();
 }
 
 float USoundBase::GetDuration() const

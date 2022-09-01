@@ -2,6 +2,7 @@
 
 #include "Engine/Attenuation.h"
 
+#include "AudioDevice.h"
 #include "DSP/Dsp.h"
 #include "EngineDefines.h"
 
@@ -52,12 +53,12 @@ float FBaseAttenuationSettings::GetMaxDimension() const
 		check(false);
 	}
 
-	return FMath::Clamp(MaxDimension, 0.0f, static_cast<float>(WORLD_MAX));
+	return FMath::Clamp(MaxDimension, 0.0f, static_cast<float>(FAudioDevice::GetMaxWorldDistance()));
 }
 
 float FBaseAttenuationSettings::GetMaxFalloffDistance() const
 {
-	static const float WorldMax = static_cast<float>(WORLD_MAX);
+	static const float WorldMax = static_cast<float>(FAudioDevice::GetMaxWorldDistance());
 	if (FalloffDistance > WorldMax)
 	{
 		return WorldMax;

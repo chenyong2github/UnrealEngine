@@ -19,7 +19,7 @@ void FSoundAttenuationSettings::PostSerialize(const FArchive& Ar)
 	if (Ar.UEVer() < VER_UE4_ATTENUATION_SHAPES)
 	{
 		FalloffDistance = RadiusMax_DEPRECATED - RadiusMin_DEPRECATED;
-
+		const float MaxDistance = FAudioDevice::GetMaxWorldDistance();
 		switch(DistanceType_DEPRECATED)
 		{
 		case SOUNDDISTANCE_Normal:
@@ -29,17 +29,17 @@ void FSoundAttenuationSettings::PostSerialize(const FArchive& Ar)
 
 		case SOUNDDISTANCE_InfiniteXYPlane:
 			AttenuationShape = EAttenuationShape::Box;
-			AttenuationShapeExtents = FVector(WORLD_MAX, WORLD_MAX, RadiusMin_DEPRECATED);
+			AttenuationShapeExtents = FVector(MaxDistance, MaxDistance, RadiusMin_DEPRECATED);
 			break;
 
 		case SOUNDDISTANCE_InfiniteXZPlane:
 			AttenuationShape = EAttenuationShape::Box;
-			AttenuationShapeExtents = FVector(WORLD_MAX, RadiusMin_DEPRECATED, WORLD_MAX);
+			AttenuationShapeExtents = FVector(MaxDistance, RadiusMin_DEPRECATED, MaxDistance);
 			break;
 
 		case SOUNDDISTANCE_InfiniteYZPlane:
 			AttenuationShape = EAttenuationShape::Box;
-			AttenuationShapeExtents = FVector(RadiusMin_DEPRECATED, WORLD_MAX, WORLD_MAX);
+			AttenuationShapeExtents = FVector(RadiusMin_DEPRECATED, MaxDistance, MaxDistance);
 			break;
 		}
 	}

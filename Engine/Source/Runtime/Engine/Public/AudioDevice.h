@@ -1039,6 +1039,11 @@ public:
 	bool GetDistanceSquaredToNearestListener(const FVector& Location, float& OutSqDistance) const;
 		
 	/**
+	* Returns the global maximum distance used in the audio engine.
+	*/
+	static float GetMaxWorldDistance();
+
+	/**
 	* Returns a position from the appropriate listener representation, depending on calling thread.
 	*
 	* @param	ListenerIndex	index of the listener or proxy

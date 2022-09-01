@@ -17,7 +17,7 @@ USoundNodeAttenuation::USoundNodeAttenuation(const FObjectInitializer& ObjectIni
 
 float USoundNodeAttenuation::GetMaxDistance() const 
 { 
-	float MaxDistance = WORLD_MAX;
+	float MaxDistance = FAudioDevice::GetMaxWorldDistance();
 	const FSoundAttenuationSettings* Settings = GetAttenuationSettingsToApply();
 	if (Settings)
 	{

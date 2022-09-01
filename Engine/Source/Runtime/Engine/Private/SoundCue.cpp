@@ -21,6 +21,7 @@
 #include "Sound/SoundNodeWavePlayer.h"
 #include "GameFramework/GameUserSettings.h"
 #include "AudioCompressionSettingsUtils.h"
+#include "AudioDevice.h"
 #include "AudioThread.h"
 #include "DSP/Dsp.h"
 #if WITH_EDITOR
@@ -345,7 +346,7 @@ float USoundCue::FindMaxDistanceInternal() const
 	{
 		if (!Settings->bAttenuate)
 		{
-			return WORLD_MAX;
+			return FAudioDevice::GetMaxWorldDistance();
 		}
 
 		OutMaxDistance = FMath::Max(OutMaxDistance, Settings->GetMaxDimension());
