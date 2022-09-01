@@ -12,8 +12,7 @@ class UPackage;
 class USDSTAGEEDITORVIEWMODELS_API FUsdStageViewModel
 {
 public:
-	/** Can pass nullptr to create an in-memory stage */
-	void NewStage( const TCHAR* FilePath );
+	void NewStage();
 	void OpenStage( const TCHAR* FilePath );
 	void ReloadStage();
 	void ResetStage();

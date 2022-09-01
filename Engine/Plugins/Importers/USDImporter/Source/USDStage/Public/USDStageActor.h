@@ -197,6 +197,9 @@ public:
 public:
 	AUsdStageActor();
 
+	// Creates a brand new, memory-only USD stage and opens it
+	USDSTAGE_API void NewStage();
+
 	USDSTAGE_API void IsolateLayer( const UE::FSdfLayer& Layer );
 
 	USDSTAGE_API void Reset() override;

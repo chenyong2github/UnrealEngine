@@ -172,6 +172,15 @@ namespace UsdUtils
 	USDUTILITIES_API EUsdDefaultKind GetDefaultKind( const pxr::UsdPrim& Prim );
 
 	/**
+	 * Sets the prim kind for Prim to the provided NewKind.
+	 * Differs from IUsdPrim::SetKind in that we don't have to provide the USD token.
+	 * @param NewKind - New kind to set. Must be a single flag, and not a combination of multiple plags
+	 * @param Prim - Prim to receive the new Kind
+	 * @return Whether we managed to set the kind or not.
+	 */
+	USDUTILITIES_API bool SetDefaultKind( pxr::UsdPrim& Prim, EUsdDefaultKind NewKind );
+
+	/**
 	 * Returns all prims of type SchemaType (or a descendant type) in the subtree of prims rooted at StartPrim.
 	 * Stops going down the subtrees when it hits a schema type to exclude.
 	 */

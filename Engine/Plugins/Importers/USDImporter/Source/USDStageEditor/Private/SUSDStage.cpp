@@ -194,9 +194,10 @@ void SUsdStage::Construct( const FArguments& InArgs )
 
 	UE::FUsdStage UsdStage;
 
-	if ( ViewModel.UsdStageActor.IsValid() )
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( StageActor )
 	{
-		UsdStage = ViewModel.UsdStageActor->GetOrLoadUsdStage();
+		UsdStage = static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage();
 	}
 
 	ChildSlot
@@ -1585,7 +1586,7 @@ void SUsdStage::FillNaniteThresholdSubMenu( FMenuBuilder& MenuBuilder )
 
 void SUsdStage::OnNew()
 {
-	ViewModel.NewStage( nullptr );
+	ViewModel.NewStage();
 }
 
 void SUsdStage::OnOpen()
@@ -1600,28 +1601,31 @@ void SUsdStage::OnOpen()
 
 void SUsdStage::OnSave()
 {
-	UE::FUsdStage UsdStage;
-	if ( ViewModel.UsdStageActor.IsValid() )
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( !StageActor )
 	{
-		UsdStage = ViewModel.UsdStageActor->GetOrLoadUsdStage();
+		return;
 	}
 
-	if ( UsdStage )
+	UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage();
+	if ( !UsdStage )
 	{
-		if ( UE::FSdfLayer RootLayer = UsdStage.GetRootLayer() )
+		return;
+	}
+
+	if ( UE::FSdfLayer RootLayer = UsdStage.GetRootLayer() )
+	{
+		FString RealPath = RootLayer.GetRealPath();
+		if ( FPaths::FileExists( RealPath ) )
 		{
-			FString RealPath = RootLayer.GetRealPath();
-			if ( FPaths::FileExists( RealPath ) )
+			ViewModel.SaveStage();
+		}
+		else
+		{
+			TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
+			if ( UsdFilePath )
 			{
-				ViewModel.SaveStage();
-			}
-			else
-			{
-				TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
-				if ( UsdFilePath )
-				{
-					ViewModel.SaveStageAs( *UsdFilePath.GetValue() );
-				}
+				ViewModel.SaveStageAs( *UsdFilePath.GetValue() );
 			}
 		}
 	}
@@ -1879,7 +1883,7 @@ void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 
 	if ( UsdPrimInfoWidget )
 	{
-		UE::FUsdStage UsdStage = StageActor->GetOrLoadUsdStage();
+		UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage();
 
 		SelectedPrimPath = PrimPaths.Num() == 1 ? PrimPaths[ 0 ] : TEXT( "" );
 		UsdPrimInfoWidget->SetPrimPath( UsdStage, *SelectedPrimPath );
@@ -1934,7 +1938,7 @@ void SUsdStage::SetActor( AUsdStageActor* InUsdStageActor )
 
 	if( InUsdStageActor )
 	{
-		UE::FUsdStage UsdStage = InUsdStageActor->GetOrLoadUsdStage();
+		UE::FUsdStage UsdStage = static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage();
 
 		if ( this->UsdPrimInfoWidget && InUsdStageActor )
 		{
@@ -1963,7 +1967,9 @@ void SUsdStage::Refresh()
 
 	if ( UsdStageTreeView )
 	{
-		UE::FUsdStageWeak CurrentStage = StageActor ? StageActor->GetOrLoadUsdStage() : UE::FUsdStage{};
+		UE::FUsdStageWeak CurrentStage = StageActor
+			? static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage()
+			: UE::FUsdStage{};
 
 		UsdStageTreeView->Refresh( CurrentStage );
 

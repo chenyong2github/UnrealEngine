@@ -981,6 +981,60 @@ EUsdDefaultKind UsdUtils::GetDefaultKind( const pxr::UsdPrim& Prim )
 	return Result;
 }
 
+bool UsdUtils::SetDefaultKind( pxr::UsdPrim& Prim, EUsdDefaultKind NewKind )
+{
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	const int32 NewKindInt = static_cast< int32 >( NewKind );
+	const bool bSingleFlagSet = NewKindInt != 0 && ( NewKindInt & ( NewKindInt - 1 ) ) == 0;
+	if ( !bSingleFlagSet )
+	{
+		return false;
+	}
+
+	pxr::TfToken NewKindToken;
+	switch ( NewKind )
+	{
+		default:
+		case EUsdDefaultKind::Model:
+		{
+			NewKindToken = pxr::KindTokens->model;
+			break;
+		}
+		case EUsdDefaultKind::Component:
+		{
+			NewKindToken = pxr::KindTokens->component;
+			break;
+		}
+		case EUsdDefaultKind::Group:
+		{
+			NewKindToken = pxr::KindTokens->group;
+			break;
+		}
+		case EUsdDefaultKind::Assembly:
+		{
+			NewKindToken = pxr::KindTokens->assembly;
+			break;
+		}
+		case EUsdDefaultKind::Subcomponent:
+		{
+			NewKindToken = pxr::KindTokens->subcomponent;
+			break;
+		}
+	}
+	if ( NewKindToken.IsEmpty() )
+	{
+		return false;
+	}
+
+	return IUsdPrim::SetKind( Prim, NewKindToken );
+}
+
 TArray< TUsdStore< pxr::UsdPrim > > UsdUtils::GetAllPrimsOfType( const pxr::UsdPrim& StartPrim, const pxr::TfType& SchemaType, const TArray< TUsdStore< pxr::TfType > >& ExcludeSchemaTypes )
 {
     return GetAllPrimsOfType( StartPrim, SchemaType, []( const pxr::UsdPrim& ) { return false; }, ExcludeSchemaTypes );

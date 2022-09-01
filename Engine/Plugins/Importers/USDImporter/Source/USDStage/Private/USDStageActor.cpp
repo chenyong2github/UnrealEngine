@@ -767,6 +767,33 @@ AUsdStageActor::AUsdStageActor()
 	}
 }
 
+void AUsdStageActor::NewStage()
+{
+#if USE_USD_SDK
+	UE::FUsdStage NewStage = UnrealUSDWrapper::NewStage();
+	if ( !NewStage )
+	{
+		return;
+	}
+
+	// We'll create an in-memory stage, and so the "RootLayer" path we'll use will be a
+	// magic path that is guaranteed to never exist in a filesystem due to invalid characters.
+	UE::FSdfLayer Layer = NewStage.GetRootLayer();
+	if ( !Layer )
+	{
+		return;
+	}
+	FString	StagePath = FString( UnrealIdentifiers::IdentifierPrefix ) + Layer.GetIdentifier();
+
+	UE::FUsdPrim RootPrim = NewStage.DefinePrim( UE::FSdfPath{ TEXT( "/Root" ) }, TEXT( "Xform" ) );
+	ensure( UsdUtils::SetDefaultKind( RootPrim, EUsdDefaultKind::Assembly ) );
+
+	NewStage.SetDefaultPrim( RootPrim );
+
+	SetRootLayer( StagePath );
+#endif // USE_USD_SDK
+}
+
 void AUsdStageActor::IsolateLayer( const UE::FSdfLayer& Layer )
 {
 	if ( IsolatedStage && IsolatedStage.GetRootLayer() == Layer )

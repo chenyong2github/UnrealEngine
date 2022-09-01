@@ -55,51 +55,29 @@ namespace UsdViewModelImpl
 }
 #endif // #if USE_USD_SDK
 
-void FUsdStageViewModel::NewStage( const TCHAR* FilePath )
+void FUsdStageViewModel::NewStage()
 {
-	FScopedTransaction Transaction( FText::Format(
-		LOCTEXT("NewStageTransaction", "Created new USD stage '{0}'"),
-		FText::FromString( FilePath )
-	));
+	FScopedTransaction Transaction( LOCTEXT( "NewStageTransaction", "Created new USD stage" ) );
 
-	UE::FUsdStage UsdStage = FilePath ? UnrealUSDWrapper::NewStage( FilePath ) : UnrealUSDWrapper::NewStage();
-	if ( !UsdStage )
+	UsdUtils::StartMonitoringErrors();
+
+	if ( !UsdStageActor.IsValid() )
 	{
-		return;
+		IUsdStageModule& UsdStageModule = FModuleManager::GetModuleChecked< IUsdStageModule >( TEXT( "USDStage" ) );
+		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
 	}
 
-	// If we pass in nullptr, we'll create an in-memory stage, and so the "RootLayer" path we'll send down to the
-	// stage actor will be a magic path that is guaranteed to never exist in a filesystem due to invalid characters.
-	// The stage actor will interpret that, and try to load the stage from the stage cache
-	FString StagePath = FilePath;
-	if ( FilePath == nullptr )
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
 	{
-		UE::FSdfLayer Layer = UsdStage.GetRootLayer();
-		if ( Layer )
-		{
-			StagePath = FString( UnrealIdentifiers::IdentifierPrefix ) + Layer.GetIdentifier();
-		}
+		StageActor->Modify();
+		StageActor->NewStage();
 	}
 
-#if USE_USD_SDK
-	{
-		FScopedUsdAllocs UsdAllocs;
-
-		// Create default prim
-		pxr::UsdGeomXform RootPrim = pxr::UsdGeomXform::Define( UsdStage, UnrealToUsd::ConvertPath( TEXT("/Root") ).Get() );
-		pxr::UsdModelAPI( RootPrim ).SetKind( pxr::KindTokens->assembly );
-
-		// Set default prim
-		( (pxr::UsdStageRefPtr&)UsdStage )->SetDefaultPrim( RootPrim.GetPrim() );
-	}
-#endif // #if USE_USD_SDK
-
-	OpenStage( *StagePath );
+	UsdUtils::ShowErrorsAndStopMonitoring();
 }
 
 void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 {
-
 	UsdUtils::StartMonitoringErrors();
 
 	if ( !UsdStageActor.IsValid() )
@@ -117,6 +95,8 @@ void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 	{
 		UE_LOG(LogUsd, Error, TEXT("Failed to find a AUsdStageActor that could open stage '%s'!"), FilePath);
 	}
+
+	UsdUtils::ShowErrorsAndStopMonitoring();
 }
 
 void FUsdStageViewModel::ReloadStage()
