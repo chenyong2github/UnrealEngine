@@ -12,6 +12,7 @@ static FString GSavedCommandLine;
 
 @interface UE5AppDelegate : NSObject<NSApplicationDelegate, NSFileManagerDelegate>
 {
+	bool bHasFinishedLaunching;
 }
 
 @end
@@ -28,6 +29,45 @@ static FString GSavedCommandLine;
 - (IBAction)requestQuit:(id)Sender
 {
 	RequestEngineExit(TEXT("requestQuit"));
+}
+
+- (void)awakeFromNib
+{
+	bHasFinishedLaunching = false;
+}
+
+- (BOOL)application : (NSApplication*)theApplication openFile : (NSString*)filename
+{
+	FString StringFilename(filename);
+	if(!StringFilename.EndsWith(TEXT(".utrace")))
+	{
+		return NO;
+	}
+	if (!bHasFinishedLaunching)
+	{
+		if ([[NSFileManager defaultManager]fileExistsAtPath:filename] )
+		{
+			GSavedCommandLine = GSavedCommandLine + TEXT(" ") + StringFilename;
+			return YES;
+		}
+		return NO;
+	}
+	else if ([[NSFileManager defaultManager]fileExistsAtPath:filename] )
+	{
+		NSURL* BundleURL = [[NSRunningApplication currentApplication]bundleURL];
+
+		NSDictionary* Configuration = [NSDictionary dictionaryWithObject : [NSArray arrayWithObject : filename] forKey : NSWorkspaceLaunchConfigurationArguments];
+
+		NSError* Error = nil;
+
+		NSRunningApplication* NewInstance = [[NSWorkspace sharedWorkspace]launchApplicationAtURL:BundleURL options : (NSWorkspaceLaunchOptions)(NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance) configuration : Configuration error : &Error];
+
+		return (NewInstance != nil);
+	}
+	else
+	{
+		return NO;
+	}
 }
 
 - (void) runGameThread:(id)Arg
@@ -85,6 +125,8 @@ static FString GSavedCommandLine;
 	//install the custom quit event handler
 	NSAppleEventManager* appleEventManager = [NSAppleEventManager sharedAppleEventManager];
 	[appleEventManager setEventHandler:self andSelector:@selector(handleQuitEvent:withReplyEvent:) forEventClass:kCoreEventClass andEventID:kAEQuitApplication];
+
+	bHasFinishedLaunching = true;
 
 	RunGameThread(self, @selector(runGameThread:));
 }
