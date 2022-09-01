@@ -10,17 +10,31 @@
 class FPerforceSourceControlProvider;
 
 /** A map containing result of running Perforce command */
-class FP4Record : public TMap<FString, FString >
+class FP4Record : public TMap<FString, FString>
 {
 public:
-
 	virtual ~FP4Record() {}
 
-	FString operator () (const FString& Key) const
+	const FString& operator()(const FString& Key) const
 	{
-		const FString* Found = Find(Key);
-		return Found ? *Found : TEXT("");
+		if (const FString* Found = Find(Key))
+		{
+			return *Found;
+		}
+		return EmptyStr;
 	}
+
+	const FString& operator()(const TCHAR* Key) const
+	{
+		if (const FString* Found = FindByHash(GetTypeHash(Key), Key))
+		{
+			return *Found;
+		}
+		return EmptyStr;
+	}
+
+private:
+	static const FString EmptyStr;
 };
 
 typedef TArray<FP4Record> FP4RecordSet;

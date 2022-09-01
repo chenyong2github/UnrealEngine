@@ -72,7 +72,10 @@ ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperati
 ECommandResult::Type ISourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, const FString& InFile, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
 {
 	TArray<FString> FileArray;
-	FileArray.Add(InFile);
+	if (!InFile.IsEmpty())
+	{
+		FileArray.Add(InFile);
+	}
 	return Execute(InOperation, FileArray, InConcurrency, InOperationCompleteDelegate);
 }
 

@@ -32,6 +32,9 @@ namespace
 	ENUM_CLASS_FLAGS(EP4ClientUserFlags);
 }
 
+const FString FP4Record::EmptyStr;
+
+
 /** Custom ClientUser class for handling results and errors from Perforce commands */
 class FP4ClientUser : public ClientUser
 {
@@ -63,7 +66,7 @@ public:
 		// time.
 		if (IsCollectingData() && DataBuffer.GetAllocatedSize() == 0)
 		{
-			const FString SizeAsString = Record(TEXT("fileSize"));
+			const FString& SizeAsString = Record(TEXT("fileSize"));
 			if (!SizeAsString.IsEmpty())
 			{
 				const int64 Size = FCString::Atoi64(*SizeAsString);
@@ -743,12 +746,11 @@ bool FPerforceConnection::GetWorkspaceList(const FPerforceConnectionInfo& InConn
 				LocalHostName = LocalHostName.ToLower();
 			}
 
-			for (int32 Index = 0; Index < Records.Num(); ++Index)
+			for (const FP4Record& ClientRecord : Records)
 			{
-				const FP4Record& ClientRecord = Records[Index];
-				FString ClientName = ClientRecord("client");
-				FString HostName = ClientRecord("Host");
-				FString ClientRootPath = ClientRecord("Root").ToLower();
+				const FString& ClientName = ClientRecord(TEXT("client"));
+				const FString& HostName = ClientRecord(TEXT("Host"));
+				FString ClientRootPath = ClientRecord(TEXT("Root")).ToLower();
 
 				//this clientspec has to be meant for this machine ( "" hostnames mean any host can use ths clientspec in p4 land)
 				bool bHostNameMatches = (LocalHostName == HostName.ToLower());

@@ -583,13 +583,12 @@ void FPerforceSourceControlProvider::Tick()
 static void ParseGetLabelsResults(FPerforceSourceControlProvider& InSourceControlProvider, const FP4RecordSet& InRecords, TArray< TSharedRef<ISourceControlLabel> >& OutLabels)
 {
 	// Iterate over each record found as a result of the command, parsing it for relevant information
-	for (int32 Index = 0; Index < InRecords.Num(); ++Index)
+	for (const FP4Record& ClientRecord : InRecords)
 	{
-		const FP4Record& ClientRecord = InRecords[Index];
-		FString LabelName = ClientRecord(TEXT("label"));
+		const FString& LabelName = ClientRecord(TEXT("label"));
 		if(LabelName.Len() > 0)
 		{
-			OutLabels.Add(MakeShareable( new FPerforceSourceControlLabel(InSourceControlProvider, LabelName) ) );
+			OutLabels.Add(MakeShared<FPerforceSourceControlLabel>(InSourceControlProvider, LabelName));
 		}
 	}
 }

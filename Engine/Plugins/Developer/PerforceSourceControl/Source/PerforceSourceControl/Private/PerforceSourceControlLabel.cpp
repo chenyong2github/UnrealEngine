@@ -19,19 +19,18 @@ const FString& FPerforceSourceControlLabel::GetName() const
 static void ParseFilesResults(FPerforceSourceControlProvider& SCCProvider, const FP4RecordSet& InRecords, const FString& InClientRoot, TArray< TSharedRef<ISourceControlRevision, ESPMode::ThreadSafe> >& OutRevisions)
 {
 	// Iterate over each record found as a result of the command, parsing it for relevant information
-	for (int32 Index = 0; Index < InRecords.Num(); ++Index)
+	for (const FP4Record& ClientRecord : InRecords)
 	{
-		const FP4Record& ClientRecord = InRecords[Index];
-		FString DepotFile = ClientRecord(TEXT("depotFile"));
-		FString RevisionNumber = ClientRecord(TEXT("rev"));
-		FString Date = ClientRecord(TEXT("time"));
-		FString ChangelistNumber = ClientRecord(TEXT("change"));
-		FString Action = ClientRecord(TEXT("action"));
+		const FString& DepotFile = ClientRecord(TEXT("depotFile"));
+		const FString& RevisionNumber = ClientRecord(TEXT("rev"));
+		const FString& Date = ClientRecord(TEXT("time"));
+		const FString& ChangelistNumber = ClientRecord(TEXT("change"));
+		const FString& Action = ClientRecord(TEXT("action"));
 		check(RevisionNumber.Len() != 0);
 
 		// @todo: this revision is incomplete, but is sufficient for now given the usage of labels to get files, rather
 		// than review revision histories.
-		TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShareable(new FPerforceSourceControlRevision(SCCProvider));
+		TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShared<FPerforceSourceControlRevision>(SCCProvider);
 		Revision->FileName = DepotFile;
 		Revision->RevisionNumber = FCString::Atoi(*RevisionNumber);
 		Revision->ChangelistNumber = FCString::Atoi(*ChangelistNumber);

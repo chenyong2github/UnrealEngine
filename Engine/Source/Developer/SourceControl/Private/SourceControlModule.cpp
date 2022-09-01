@@ -238,8 +238,8 @@ void FSourceControlModule::GetProviderNames(TArray<FName>& OutProviderNames)
 }
 
 void FSourceControlModule::Tick()
-{	
-	if( CurrentSourceControlProvider != nullptr )
+{
+	if (CurrentSourceControlProvider != nullptr)
 	{
 		ISourceControlProvider& Provider = GetProvider();
 
@@ -249,23 +249,24 @@ void FSourceControlModule::Tick()
 		AssetDataCache.Tick();
 
 		// don't allow background status updates when temporarily disabled for login
-		if(!bTemporarilyDisabled)
+		if (!bTemporarilyDisabled)
 		{
 			// check for any pending dispatches
-			if(PendingStatusUpdateFiles.Num() > 0)
+			if (PendingStatusUpdateFiles.Num() > 0)
 			{
 				// grab a batch of files
 				TArray<FString> FilesToDispatch;
-				for(auto Iter(PendingStatusUpdateFiles.CreateConstIterator()); Iter; Iter++)
+				FilesToDispatch.Reserve(SourceControlConstants::MaxStatusDispatchesPerTick);
+				for (const FString& Filename : PendingStatusUpdateFiles)
 				{
 					if(FilesToDispatch.Num() >= SourceControlConstants::MaxStatusDispatchesPerTick)
 					{
 						break;
 					}
-					FilesToDispatch.Add(*Iter);
+					FilesToDispatch.Add(Filename);
 				}
 
-				if(FilesToDispatch.Num() > 0)
+				if (FilesToDispatch.Num() > 0)
 				{
 					// remove the files we are dispatching so we don't try again
 					PendingStatusUpdateFiles.RemoveAt(0, FilesToDispatch.Num());
@@ -280,29 +281,29 @@ void FSourceControlModule::Tick()
 
 void FSourceControlModule::QueueStatusUpdate(const TArray<UPackage*>& InPackages)
 {
-	if(IsEnabled())
+	if (IsEnabled())
 	{
-		for(auto It(InPackages.CreateConstIterator()); It; It++)
+		for (UPackage* Package: InPackages)
 		{
-			QueueStatusUpdate(*It);
+			QueueStatusUpdate(Package);
 		}
 	}
 }
 
 void FSourceControlModule::QueueStatusUpdate(const TArray<FString>& InFilenames)
 {
-	if(IsEnabled())
+	if (IsEnabled())
 	{
-		for(auto It(InFilenames.CreateConstIterator()); It; It++)
+		for (const FString& Filename : InFilenames)
 		{
-			QueueStatusUpdate(*It);
+			QueueStatusUpdate(Filename);
 		}
 	}
 }
 
 void FSourceControlModule::QueueStatusUpdate(UPackage* InPackage)
 {
-	if(IsEnabled())
+	if (IsEnabled())
 	{
 		QueueStatusUpdate(SourceControlHelpers::PackageFilename(InPackage));
 	}
@@ -310,13 +311,13 @@ void FSourceControlModule::QueueStatusUpdate(UPackage* InPackage)
 
 void FSourceControlModule::QueueStatusUpdate(const FString& InFilename)
 {
-	if(IsEnabled())
+	if (IsEnabled())
 	{
 		TSharedPtr<ISourceControlState, ESPMode::ThreadSafe> SourceControlState = GetProvider().GetState(InFilename, EStateCacheUsage::Use);
-		if(SourceControlState.IsValid())
+		if (SourceControlState.IsValid())
 		{
 			FTimespan TimeSinceLastUpdate = FDateTime::Now() - SourceControlState->GetTimeStamp();
-			if(TimeSinceLastUpdate > SourceControlConstants::StateRefreshInterval)
+			if (TimeSinceLastUpdate > SourceControlConstants::StateRefreshInterval)
 			{
 				PendingStatusUpdateFiles.AddUnique(InFilename);
 			}
