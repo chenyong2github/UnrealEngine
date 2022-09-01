@@ -1,6 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveformTransformationTrimFade.h"
+#include "Sound/SoundWave.h"
+
+namespace WaveformTransformationTrimFadeNames
+{
+	static FLazyName StartTimeName(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, StartTime));
+	static FLazyName EndTimeName(GET_MEMBER_NAME_CHECKED(UWaveformTransformationTrimFade, EndTime));
+}
 
 static void ApplyFadeIn(Audio::FAlignedFloatBuffer& InputAudio, const float FadeLength, const float FadeCurve, const int32 NumChannels, const float SampleRate)
 {
@@ -126,4 +133,58 @@ void FWaveTransformationTrimFade::ProcessAudio(Audio::FWaveformTransformationWav
 Audio::FTransformationPtr UWaveformTransformationTrimFade::CreateTransformation() const
 {
 	return MakeUnique<FWaveTransformationTrimFade>(StartTime, EndTime, StartFadeTime, StartFadeCurve, EndFadeTime, EndFadeCurve);
+}
+
+void UWaveformTransformationTrimFade::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	if (PropertyChangedEvent.GetPropertyName() == WaveformTransformationTrimFadeNames::StartTimeName 
+		|| PropertyChangedEvent.GetPropertyName() == WaveformTransformationTrimFadeNames::EndTimeName)
+	{
+		if (AvailableWaveformDuration < 0.f)
+		{
+			UpdateAvailableWaveformDuration();
+		}
+
+		StartTime = FMath::Clamp(StartTime, 0.f, AvailableWaveformDuration - UE_KINDA_SMALL_NUMBER);
+		EndTime = FMath::Clamp(EndTime, StartTime + UE_KINDA_SMALL_NUMBER, AvailableWaveformDuration);
+	}
+}
+
+void UWaveformTransformationTrimFade::PostInitProperties()
+{
+	Super::PostInitProperties();
+	
+	if (EndTime < 0.f)
+	{
+		UpdateAvailableWaveformDuration();
+		EndTime = AvailableWaveformDuration;
+	}
+}
+
+void UWaveformTransformationTrimFade::UpdateAvailableWaveformDuration()
+{
+	const USoundWave* ParentSoundWave = this->GetTypedOuter<USoundWave>();
+
+	if (!ParentSoundWave)
+	{
+		return;
+	}
+
+	AvailableWaveformDuration = ParentSoundWave->Duration;
+	
+	for (TObjectPtr<UWaveformTransformationBase> Transformation : ParentSoundWave->Transformations)
+	{
+		if (Transformation && Transformation->IsA(UWaveformTransformationTrimFade::StaticClass()))
+		{
+			if (Transformation == this)
+			{
+				return;
+			}
+
+			TObjectPtr<UWaveformTransformationTrimFade> TrimFadeTransformPtr = Cast<UWaveformTransformationTrimFade>(Transformation);
+			AvailableWaveformDuration = TrimFadeTransformPtr->EndTime - TrimFadeTransformPtr->StartTime;
+		}
+	}
 }

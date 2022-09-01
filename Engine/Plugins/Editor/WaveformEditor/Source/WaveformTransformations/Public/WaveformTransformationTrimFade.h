@@ -30,7 +30,6 @@ UCLASS()
 class WAVEFORMTRANSFORMATIONS_API UWaveformTransformationTrimFade : public UWaveformTransformationBase
 {
 	GENERATED_BODY()
-
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Trim", meta=(ClampMin = 0.0))
@@ -51,9 +50,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Fade", meta=(ClampMin = 0.0, ClampMax = 10.0, DisplayName = "Fade-Out Curve"))
 	float EndFadeCurve = 1.f;
 
-	
-public:
 	virtual Audio::FTransformationPtr CreateTransformation() const override;
+
+	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	void PostInitProperties() override;
+
+	
+
+private: 
+	void UpdateAvailableWaveformDuration();
+	float AvailableWaveformDuration = - 1.f;
+
 };
 
 // class UBaseClass;
