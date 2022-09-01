@@ -16,6 +16,10 @@ void ILoaderAdapterSpatial::ForEachActor(TFunctionRef<void(const FWorldPartition
 {
 	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
+		UWorldPartitionEditorHash::FForEachIntersectingActorParams ForEachIntersectingActorParams;
+		ForEachIntersectingActorParams.bIncludeSpatiallyLoadedActors = bIncludeSpatiallyLoadedActors;
+		ForEachIntersectingActorParams.bIncludeNonSpatiallyLoadedActors = bIncludeNonSpatiallyLoadedActors;
+
 		WorldPartition->EditorHash->ForEachIntersectingActor(*GetBoundingBox(), [this, WorldPartition, &InOperation](FWorldPartitionActorDesc* ActorDesc)
 		{
 			if (Intersect(ActorDesc->GetBounds()))
@@ -23,7 +27,7 @@ void ILoaderAdapterSpatial::ForEachActor(TFunctionRef<void(const FWorldPartition
 				FWorldPartitionHandle ActorHandle(WorldPartition, ActorDesc->GetGuid());
 				InOperation(ActorHandle);
 			}
-		}, bIncludeSpatiallyLoadedActors, bIncludeNonSpatiallyLoadedActors);
+		}, ForEachIntersectingActorParams);
 	}
 }
 #endif

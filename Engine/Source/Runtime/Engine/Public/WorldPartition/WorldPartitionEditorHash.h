@@ -25,6 +25,22 @@ public:
 	virtual void HashActor(FWorldPartitionHandle& InActorHandle) PURE_VIRTUAL(UWorldPartitionEditorHash::HashActor, ;);
 	virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) PURE_VIRTUAL(UWorldPartitionEditorHash::UnhashActor, ;);
 
-	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors = true, bool bIncludeNonSpatiallyLoadedActors = true) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachIntersectingActor, return 0;);
+	UE_DEPRECATED(5.1, "Use version that takes FForEachIntersectingActorParams instead.")	
+	int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors, bool bIncludeNonSpatiallyLoadedActors);
+
+	/* Struct of optional parameters passed to ForEachIntersectingActor. */
+	struct ENGINE_API FForEachIntersectingActorParams
+	{
+		/** Should we include spatially loaded actors in the query? */
+		bool bIncludeSpatiallyLoadedActors = true;
+
+		/** Should we include non-spatially loaded actors in the query? */
+		bool bIncludeNonSpatiallyLoadedActors = true;
+
+		/** Optional minimum box to stop searching for actors */
+		TOptional<FBox> MinimumBox;
+	};
+
+	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, const FForEachIntersectingActorParams& Params = FForEachIntersectingActorParams()) PURE_VIRTUAL(UWorldPartitionEditorHash::ForEachIntersectingActor, return 0;);
 #endif
 };

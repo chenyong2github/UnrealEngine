@@ -80,7 +80,7 @@ int32 SWorldPartitionEditorGridSpatialHash::GetSelectionSnap() const
 	for (const UWorldPartitionEditorSpatialHash::FCellNodeHashLevel& HashLevel : EditorSpatialHash->HashLevels)
 	{
 		const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EffectiveCellSize, EffectiveCellSize));
-		if (CellScreenSize.X > 32)
+		if (CellScreenSize.X > 64)
 		{
 			break;
 		}
