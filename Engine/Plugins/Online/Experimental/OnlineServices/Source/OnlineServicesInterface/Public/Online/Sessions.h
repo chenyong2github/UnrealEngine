@@ -22,6 +22,8 @@ struct FFindSessionsSearchFilter
 	FSchemaVariant Value;
 };
 
+// Custom Session Settings
+
 struct FCustomSessionSetting
 {
 	/** Setting value */
@@ -45,15 +47,10 @@ struct FCustomSessionSettingUpdate
 
 using FCustomSessionSettingUpdateMap = TMap<FName, FCustomSessionSettingUpdate>;
 
-/** A member is a player that is part of the session, and it stops being a member when they leave it */
-struct FSessionMember
-{
-	FCustomSessionSettingsMap MemberSettings;
-};
+// Session Member Settings
 
-using FSessionMembersMap = TMap<FAccountId, FSessionMember>;
-
-struct FSessionMemberUpdate
+/** Contains new values for a SessionMember's attributes. Taken as a parameter by the FUpdateSessionMember method */
+struct ONLINESERVICESINTERFACE_API FSessionMemberUpdate
 {
 	FCustomSessionSettingsMap UpdatedMemberSettings;
 	TArray<FSchemaAttributeId> RemovedMemberSettings;
@@ -62,6 +59,32 @@ struct FSessionMemberUpdate
 };
 
 using FSessionMemberUpdatesMap = TMap<FAccountId, FSessionMemberUpdate>;
+
+/** Contains updated data for any modifiable attributes of FSessionMember. Member of FSessionUpdated event */
+struct FSessionMemberChanges
+{
+	/** New custom settings, with their values */
+	FCustomSessionSettingsMap AddedMemberSettings;
+
+	/** Existing custom settings that changed value, including new and old values */
+	FCustomSessionSettingUpdateMap ChangedMemberSettings;
+
+	/** Keys for removed custom settings */
+	TArray<FName> RemovedMemberSettings;
+};
+
+using FSessionMemberChangesMap = TMap<FAccountId, FSessionMemberChanges>;
+
+/** A member is a player that is part of the session, and they stop being a member when they leave it */
+struct ONLINESERVICESINTERFACE_API FSessionMember
+{
+	/* Map of user-defined settings to be passed to the platform APIs as additional information for the session member */
+	FCustomSessionSettingsMap MemberSettings;
+
+	FSessionMember& operator+=(const FSessionMemberChanges& Changes);
+};
+
+using FSessionMembersMap = TMap<FAccountId, FSessionMember>;
 
 enum class ESessionJoinPolicy : uint8
 {
@@ -73,7 +96,7 @@ ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionJoinPolicy Value);
 ONLINESERVICESINTERFACE_API void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr);
 
 /** Contains new values for an FSessions modifiable settings. Taken as a parameter by FUpdateSessions method */
-struct FSessionSettingsUpdate
+struct ONLINESERVICESINTERFACE_API FSessionSettingsUpdate
 {
 	/** Set with an updated value if the SchemaName field will be changed in the update operation */
 	TOptional<FSchemaId> SchemaName;
@@ -88,11 +111,6 @@ struct FSessionSettingsUpdate
 	FCustomSessionSettingsMap UpdatedCustomSettings;
 	/** Names of custom settings to be removed in the update operation*/
 	TArray<FSchemaAttributeId> RemovedCustomSettings;
-
-	/** Updated values for session member info to change in the update operation*/
-	FSessionMemberUpdatesMap UpdatedSessionMembers;
-	/** Id handles for session members to be removed in the update operation*/
-	TArray<FAccountId> RemovedSessionMembers;
 
 	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
 };
@@ -117,19 +135,6 @@ struct FSessionSettingsChanges
 
 	/** Keys for removed custom settings */
 	TArray<FName> RemovedCustomSettings;
-};
-
-/** Contains updated data for any modifiable members of FSessionMember. Member of FSessionUpdated event */
-struct FSessionMemberChanges
-{
-	/** New custom settings, with their values */
-	FCustomSessionSettingsMap AddedMemberSettings;
-
-	/** Existing custom settings that changed value, including new and old values */
-	FCustomSessionSettingUpdateMap ChangedMemberSettings;
-
-	/** Keys for removed custom settings */
-	TArray<FName> RemovedMemberSettings;
 };
 
 /** Set of all of an FSession's defining properties that can be updated by the session owner during its lifetime */
@@ -365,9 +370,9 @@ struct FCreateSession
 	};
 };
 
-struct FUpdateSession
+struct FUpdateSessionSettings
 {
-	static constexpr TCHAR Name[] = TEXT("UpdateSession");
+	static constexpr TCHAR Name[] = TEXT("UpdateSessionSettings");
 
 	struct Params
 	{
@@ -379,6 +384,28 @@ struct FUpdateSession
 
 		/** Changes to current session settings */
 		FSessionSettingsUpdate Mutations;
+	};
+
+	struct Result
+	{
+
+	};
+};
+
+struct FUpdateSessionMember
+{
+	static constexpr TCHAR Name[] = TEXT("UpdateSessionMember");
+
+	struct Params
+	{
+		/** The local user agent which will perform the action. */
+		FAccountId LocalAccountId;
+
+		/** The local name for the session */
+		FName SessionName;
+
+		/** Changes to current session settings */
+		FSessionMemberUpdate Mutations;
 	};
 
 	struct Result
@@ -602,8 +629,6 @@ struct FSessionLeft
 	FAccountId LocalAccountId;
 };
 
-using FSessionMemberChangesMap = TMap<FAccountId, FSessionMemberChanges>;
-
 /** Contains updated data for any modifiable members of ISession */
 struct ONLINESERVICESINTERFACE_API FSessionUpdate
 {
@@ -738,12 +763,20 @@ public:
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) = 0;
 
 	/**
-	 * Update a given session's settings.
+	 * Update a given session's settings. Can only be called by the session owner.
 	 *
-	 * @param Parameters for the UpdateSession call
+	 * @param Parameters for the UpdateSessionSettings call
 	 * @return
 	 */
-	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) = 0;
+	virtual TOnlineAsyncOpHandle<FUpdateSessionSettings> UpdateSessionSettings(FUpdateSessionSettings::Params&& Params) = 0;
+
+	/**
+	 * Update a given session member's information. Can be called by any session member to change only their own information.
+	 *
+	 * @param Parameters for the UpdateSessionMember call
+	 * @return
+	 */
+	virtual TOnlineAsyncOpHandle<FUpdateSessionMember> UpdateSessionMember(FUpdateSessionMember::Params&& Params) = 0;
 
 	/**
 	 * Leave and optionally destroy a given session.
@@ -915,9 +948,7 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, JoinPolicy),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowNewMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedCustomSettings),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedCustomSettings),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedSessionMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedSessionMembers)
+	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedCustomSettings)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionInvite)
@@ -1000,13 +1031,22 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCreateSession::Result)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FUpdateSession::Params)
-	ONLINE_STRUCT_FIELD(FUpdateSession::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FUpdateSession::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FUpdateSession::Params, Mutations)
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionSettings::Params)
+	ONLINE_STRUCT_FIELD(FUpdateSessionSettings::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FUpdateSessionSettings::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FUpdateSessionSettings::Params, Mutations)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FUpdateSession::Result)
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionSettings::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionMember::Params)
+	ONLINE_STRUCT_FIELD(FUpdateSessionMember::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FUpdateSessionMember::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FUpdateSessionMember::Params, Mutations)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionMember::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLeaveSession::Params)

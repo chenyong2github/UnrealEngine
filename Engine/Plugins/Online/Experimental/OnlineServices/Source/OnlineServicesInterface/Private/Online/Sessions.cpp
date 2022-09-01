@@ -36,53 +36,40 @@ void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr)
 	}
 }
 
-#define COPY_TOPTIONAL_VALUE_IF_SET(Value) \
-	if (SettingsChanges.Value.IsSet()) \
-	{ \
-		Value = SettingsChanges.Value.GetValue(); \
-	} \
-
-FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsChanges& SettingsChanges)
-{
-	COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
-	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxConnections)
-	COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
-	COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
-		
-	for (const FName& Key : SettingsChanges.RemovedCustomSettings)
-	{
-		CustomSettings.Remove(Key);
-	}
-
-	CustomSettings.Append(SettingsChanges.AddedCustomSettings);
-
-	for (const TPair<FName, FCustomSessionSettingUpdate>& SettingEntry : SettingsChanges.ChangedCustomSettings)
-	{
-		if (FCustomSessionSetting* CustomSetting = CustomSettings.Find(SettingEntry.Key))
-		{
-			(*CustomSetting) = SettingEntry.Value.NewValue;
-		}
-	}
-
-	return *this;
-}
-
-#undef COPY_TOPTIONAL_VALUE_IF_SET
-
 FSessionMemberUpdate& FSessionMemberUpdate::operator+=(FSessionMemberUpdate&& UpdatedValue)
 {
-	for (const TPair<FName, FCustomSessionSetting>& UpdatedMemberSetting : UpdatedValue.UpdatedMemberSettings)
+	for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& UpdatedMemberSetting : UpdatedValue.UpdatedMemberSettings)
 	{
 		// If an update adds a modification to a setting that had previously been marked for removal, we'll keep the latest change
 		RemovedMemberSettings.Remove(UpdatedMemberSetting.Key);
 	}
 	UpdatedMemberSettings.Append(MoveTemp(UpdatedValue.UpdatedMemberSettings));
 
-	for (FName& Key : UpdatedValue.RemovedMemberSettings)
+	for (FSchemaAttributeId& Key : UpdatedValue.RemovedMemberSettings)
 	{
 		// If an update removes a setting that had previously been modified, we'll keep the latest change
 		UpdatedMemberSettings.Remove(Key);
 		RemovedMemberSettings.AddUnique(MoveTemp(Key));
+	}
+
+	return *this;
+}
+
+FSessionMember& FSessionMember::operator+=(const FSessionMemberChanges& MemberChanges)
+{
+	for (const FName& Key : MemberChanges.RemovedMemberSettings)
+	{
+		MemberSettings.Remove(Key);
+	}
+
+	MemberSettings.Append(MemberChanges.AddedMemberSettings);
+
+	for (const TPair<FName, FCustomSessionSettingUpdate>& SettingEntry : MemberChanges.ChangedMemberSettings)
+	{
+		if (FCustomSessionSetting* CustomSetting = MemberSettings.Find(SettingEntry.Key))
+		{
+			(*CustomSetting) = SettingEntry.Value.NewValue;
+		}
 	}
 
 	return *this;
@@ -101,40 +88,58 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 	MOVE_TOPTIONAL_IF_SET(JoinPolicy)
 	MOVE_TOPTIONAL_IF_SET(bAllowNewMembers)
 
-	for (const TPair<FName, FCustomSessionSetting>& UpdatedCustomSetting : UpdatedValue.UpdatedCustomSettings)
+	for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& UpdatedCustomSetting : UpdatedValue.UpdatedCustomSettings)
 	{
 		// If an update adds a modification to a setting that had previously been marked for removal, we'll keep the latest change
 		RemovedCustomSettings.Remove(UpdatedCustomSetting.Key);
 	}
+
 	UpdatedCustomSettings.Append(MoveTemp(UpdatedValue.UpdatedCustomSettings));
 
-	for (FName& Key : UpdatedValue.RemovedCustomSettings)
+	for (FSchemaAttributeId& Key : UpdatedValue.RemovedCustomSettings)
 	{
 		// If an update removes a setting that had previously been modified, we'll keep the latest change
 		UpdatedCustomSettings.Remove(Key);
 		RemovedCustomSettings.AddUnique(MoveTemp(Key));
 	}
 
-	for (TPair<FAccountId, FSessionMemberUpdate>& UpdatedSessionMember : UpdatedValue.UpdatedSessionMembers)
-	{
-		// If an update adds a modification to a member that had previously been marked for removal, we'll keep the latest change
-		RemovedSessionMembers.Remove(UpdatedSessionMember.Key);
+	return *this;
+}
 
-		FSessionMemberUpdate MemberUpdate = UpdatedSessionMembers.FindOrAdd(MoveTemp(UpdatedSessionMember.Key));
-		MemberUpdate += MoveTemp(UpdatedSessionMember.Value);
+#undef MOVE_TOPTIONAL_IF_SET
+
+#define COPY_TOPTIONAL_VALUE_IF_SET(Value) \
+	if (SettingsChanges.Value.IsSet()) \
+	{ \
+		Value = SettingsChanges.Value.GetValue(); \
+	} \
+
+FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsChanges& SettingsChanges)
+{
+	COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
+	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxConnections)
+	COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
+	COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
+
+	for (const FSchemaAttributeId& Key : SettingsChanges.RemovedCustomSettings)
+	{
+		CustomSettings.Remove(Key);
 	}
 
-	for (FAccountId& Key : UpdatedValue.RemovedSessionMembers)
+	CustomSettings.Append(SettingsChanges.AddedCustomSettings);
+
+	for (const TPair<FSchemaAttributeId, FCustomSessionSettingUpdate>& SettingEntry : SettingsChanges.ChangedCustomSettings)
 	{
-		// If an update removes a member that had previously been modified, we'll keep the latest change
-		UpdatedSessionMembers.Remove(Key);
-		RemovedSessionMembers.AddUnique(MoveTemp(Key));
+		if (FCustomSessionSetting* CustomSetting = CustomSettings.Find(SettingEntry.Key))
+		{
+			(*CustomSetting) = SettingEntry.Value.NewValue;
+		}
 	}
 
 	return *this;
 }
 
-#undef MOVE_TOPTIONAL_IF_SET
+#undef COPY_TOPTIONAL_VALUE_IF_SET
 
 const FString ToLogString(const ISession& Session)
 {

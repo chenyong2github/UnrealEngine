@@ -198,6 +198,39 @@ struct FGetMutableSessionById
 	};
 };
 
+struct FCombinedSessionUpdate
+{
+	/** Changes to current session settings */
+	FSessionSettingsUpdate UpdatedSessionSettings;
+
+	/** Map of changes to current member settings */
+	FSessionMemberUpdatesMap UpdatedSessionMembers;
+
+	FCombinedSessionUpdate& operator+=(FCombinedSessionUpdate&& UpdatedValue);
+};
+
+struct FUpdateSessionImpl
+{
+	static constexpr TCHAR Name[] = TEXT("UpdateSessionImpl");
+
+	struct Params
+	{
+		/** The local user agent which will perform the action. */
+		FAccountId LocalAccountId;
+
+		/** The local name for the session */
+		FName SessionName;
+
+		/** Combined data for a session update */
+		FCombinedSessionUpdate Mutations;
+	};
+
+	struct Result
+	{
+
+	};
+};
+
 class ONLINESERVICESCOMMON_API FSessionsCommon : public TOnlineComponent<ISessions>
 {
 public:
@@ -218,7 +251,8 @@ public:
 	virtual TOnlineResult<FSetPresenceSession> SetPresenceSession(FSetPresenceSession::Params&& Params) override;
 	virtual TOnlineResult<FClearPresenceSession> ClearPresenceSession(FClearPresenceSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FUpdateSessionSettings> UpdateSessionSettings(FUpdateSessionSettings::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FUpdateSessionMember> UpdateSessionMember(FUpdateSessionMember::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FStartMatchmaking> StartMatchmaking(FStartMatchmaking::Params&& Params) override;
@@ -247,13 +281,21 @@ protected:
 	void ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionId SessionId);
 	void ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId);
 
+	FSessionSettingsChanges BuildSessionSettingsChanges(const TSharedRef<FSessionCommon>& Session, const FSessionSettingsUpdate& UpdatedValues) const;
+	FSessionUpdate BuildSessionUpdate(const TSharedRef<FSessionCommon>& Session, const FCombinedSessionUpdate& UpdatedValues) const;
+
+	virtual TOnlineAsyncOpHandle<FUpdateSessionImpl> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
 	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
 	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
 
 	FOnlineError CheckCreateSessionParams(const FCreateSession::Params& Params);
 	FOnlineError CheckCreateSessionState(const FCreateSession::Params& Params);
 
-	FOnlineError CheckUpdateSessionState(const FUpdateSession::Params& Params);
+	FOnlineError CheckUpdateSessionSettingsParams(const FUpdateSessionSettings::Params& Params);
+	FOnlineError CheckUpdateSessionSettingsState(const FUpdateSessionSettings::Params& Params);
+
+	FOnlineError CheckUpdateSessionMemberParams(const FUpdateSessionMember::Params& Params);
+	FOnlineError CheckUpdateSessionMemberState(const FUpdateSessionMember::Params& Params);
 
 	FOnlineError CheckFindSessionsParams(const FFindSessions::Params& Params);
 	FOnlineError CheckFindSessionsState(const FFindSessions::Params& Params);
@@ -329,6 +371,20 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetMutableSessionById::Result)
 	ONLINE_STRUCT_FIELD(FGetMutableSessionById::Result, Session)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FCombinedSessionUpdate)
+	ONLINE_STRUCT_FIELD(FCombinedSessionUpdate, UpdatedSessionSettings),
+	ONLINE_STRUCT_FIELD(FCombinedSessionUpdate, UpdatedSessionMembers)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Params)
+	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Params, Mutations)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Result)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

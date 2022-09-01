@@ -54,6 +54,16 @@ namespace UE::Online {
 		return *this;
 	}
 
+	/** FCombinedSessionUpdate */
+	FCombinedSessionUpdate& FCombinedSessionUpdate::operator+=(FCombinedSessionUpdate&& UpdatedValues)
+	{
+		UpdatedSessionSettings += MoveTemp(UpdatedValues.UpdatedSessionSettings);
+
+		UpdatedSessionMembers.Append(MoveTemp(UpdatedValues.UpdatedSessionMembers));
+
+		return *this;
+	}
+
 	/** FSessionsCommon */
 	FSessionsCommon::FSessionsCommon(FOnlineServicesCommon& InServices)
 		: TOnlineComponent(TEXT("Sessions"), InServices)
@@ -73,7 +83,8 @@ namespace UE::Online {
 		RegisterCommand(&FSessionsCommon::GetSessionByName);
 		RegisterCommand(&FSessionsCommon::GetSessionById);
 		RegisterCommand(&FSessionsCommon::CreateSession);
-		RegisterCommand(&FSessionsCommon::UpdateSession);
+		RegisterCommand(&FSessionsCommon::UpdateSessionSettings);
+		RegisterCommand(&FSessionsCommon::UpdateSessionMember);
 		RegisterCommand(&FSessionsCommon::LeaveSession);
 		RegisterCommand(&FSessionsCommon::FindSessions);
 		RegisterCommand(&FSessionsCommon::StartMatchmaking);
@@ -176,11 +187,96 @@ namespace UE::Online {
 		return Operation->GetHandle();
 	}
 
-	TOnlineAsyncOpHandle<FUpdateSession> FSessionsCommon::UpdateSession(FUpdateSession::Params&& Params)
+	TOnlineAsyncOpHandle<FUpdateSessionSettings> FSessionsCommon::UpdateSessionSettings(FUpdateSessionSettings::Params&& Params)
 	{
-		TOnlineAsyncOpRef<FUpdateSession> Operation = GetOp<FUpdateSession>(MoveTemp(Params));
-		Operation->SetError(Errors::NotImplemented());
-		return Operation->GetHandle();
+		TOnlineAsyncOpRef<FUpdateSessionSettings> Op = GetOp<FUpdateSessionSettings>(MoveTemp(Params));
+		const FUpdateSessionSettings::Params& OpParams = Op->GetParams();
+
+		FOnlineError ParamsCheck = CheckUpdateSessionSettingsParams(OpParams);
+		if (ParamsCheck != Errors::Success())
+		{
+			Op->SetError(MoveTemp(ParamsCheck));
+			return Op->GetHandle();
+		}
+
+		Op->Then([this](TOnlineAsyncOp<FUpdateSessionSettings>& Op) mutable
+		{
+			const FUpdateSessionSettings::Params& OpParams = Op.GetParams();
+
+			FOnlineError StateCheck = CheckUpdateSessionSettingsState(OpParams);
+			if (StateCheck != Errors::Success())
+			{
+				Op.SetError(MoveTemp(StateCheck));
+				return;
+			}
+
+			UpdateSessionImpl({ OpParams.LocalAccountId, OpParams.SessionName, { OpParams.Mutations, {} } })
+			.OnComplete([this, WeakOp = Op.AsWeak()](const TOnlineResult<FUpdateSessionImpl>& Result)
+			{
+				if (TOnlineAsyncOpPtr<FUpdateSessionSettings> StrongOp = WeakOp.Pin())
+				{
+					if (Result.IsOk())
+					{
+						StrongOp->SetResult({ });
+					}
+					else
+					{
+						FOnlineError ErrorValue = Result.GetErrorValue();
+						StrongOp->SetError(MoveTemp(ErrorValue));
+					}
+				}
+			});			
+		})
+		.Enqueue(GetSerialQueue());
+
+		return Op->GetHandle();
+	}
+
+	TOnlineAsyncOpHandle<FUpdateSessionMember> FSessionsCommon::UpdateSessionMember(FUpdateSessionMember::Params&& Params)
+	{
+		// TODO: check if session members can update their own settings across all APIs or if they need the owner to do it
+
+		TOnlineAsyncOpRef<FUpdateSessionMember> Op = GetOp<FUpdateSessionMember>(MoveTemp(Params));
+		const FUpdateSessionMember::Params& OpParams = Op->GetParams();
+
+		FOnlineError ParamsCheck = CheckUpdateSessionMemberParams(OpParams);
+		if (ParamsCheck != Errors::Success())
+		{
+			Op->SetError(MoveTemp(ParamsCheck));
+			return Op->GetHandle();
+		}
+
+		Op->Then([this](TOnlineAsyncOp<FUpdateSessionMember>& Op) mutable
+		{
+			const FUpdateSessionMember::Params& OpParams = Op.GetParams();
+
+			FOnlineError StateCheck = CheckUpdateSessionMemberState(OpParams);
+			if (StateCheck != Errors::Success())
+			{
+				Op.SetError(MoveTemp(StateCheck));
+				return;
+			}
+
+			UpdateSessionImpl({ OpParams.LocalAccountId, OpParams.SessionName, { FSessionSettingsUpdate() , { { OpParams.LocalAccountId, OpParams.Mutations } } } })
+			.OnComplete([this, WeakOp = Op.AsWeak()](const TOnlineResult<FUpdateSessionImpl>& Result)
+			{
+				if (TOnlineAsyncOpPtr<FUpdateSessionMember> StrongOp = WeakOp.Pin())
+				{
+					if (Result.IsOk())
+					{
+						StrongOp->SetResult({ });
+					}
+					else
+					{
+						FOnlineError ErrorValue = Result.GetErrorValue();
+						StrongOp->SetError(MoveTemp(ErrorValue));
+					}
+				}
+			});
+		})
+		.Enqueue(GetSerialQueue());
+
+		return Op->GetHandle();
 	}
 
 	TOnlineAsyncOpHandle<FLeaveSession> FSessionsCommon::LeaveSession(FLeaveSession::Params&& Params)
@@ -476,6 +572,84 @@ namespace UE::Online {
 		AllSessionsById.Remove(SessionId);
 	}
 
+#define COPY_TOPTIONAL_VALUE_IF_SET(Value) \
+	if (UpdatedValues.Value.IsSet()) \
+	{ \
+		Result.Value = UpdatedValues.Value.GetValue(); \
+	} \
+
+	FSessionSettingsChanges FSessionsCommon::BuildSessionSettingsChanges(const TSharedRef<FSessionCommon>& Session, const FSessionSettingsUpdate& UpdatedValues) const
+	{
+		FSessionSettingsChanges Result;
+
+		COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
+		COPY_TOPTIONAL_VALUE_IF_SET(NumMaxConnections)
+		COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
+		COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
+
+		Result.RemovedCustomSettings.Append(UpdatedValues.RemovedCustomSettings);
+
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : UpdatedValues.UpdatedCustomSettings)
+		{
+			if (const FCustomSessionSetting* CustomSetting = Session->GetSessionSettings().CustomSettings.Find(Entry.Key))
+			{
+				FCustomSessionSettingUpdate SettingUpdate = { *CustomSetting, Entry.Value };
+
+				Result.ChangedCustomSettings.Emplace(Entry.Key, SettingUpdate);
+			}
+			else
+			{
+				Result.AddedCustomSettings.Add(Entry);
+			}
+		}
+
+		return Result;
+	}
+
+#undef COPY_TOPTIONAL_VALUE_IF_SET
+
+	FSessionUpdate FSessionsCommon::BuildSessionUpdate(const TSharedRef<FSessionCommon>& Session, const FCombinedSessionUpdate& UpdatedValues) const
+	{
+		FSessionUpdate Result;
+
+		Result.SessionSettingsChanges = BuildSessionSettingsChanges(Session, UpdatedValues.UpdatedSessionSettings);
+
+		for (const TPair<FAccountId, FSessionMemberUpdate>& SessionMemberEntry : UpdatedValues.UpdatedSessionMembers)
+		{
+			if (const FSessionMember* SessionMember = Session->GetSessionMembers().Find(SessionMemberEntry.Key))
+			{
+				FSessionMemberChanges SessionMemberChanges;
+
+				SessionMemberChanges.RemovedMemberSettings.Append(SessionMemberEntry.Value.RemovedMemberSettings);
+
+				for (const TPair <FSchemaAttributeId, FCustomSessionSetting>& SettingEntry : SessionMemberEntry.Value.UpdatedMemberSettings)
+				{
+					if (const FCustomSessionSetting* MemberSetting = SessionMember->MemberSettings.Find(SettingEntry.Key))
+					{
+						FCustomSessionSettingUpdate SettingUpdate = { *MemberSetting, SettingEntry.Value };
+
+						SessionMemberChanges.ChangedMemberSettings.Emplace(SettingEntry.Key, SettingUpdate);
+					}
+					else
+					{
+						SessionMemberChanges.AddedMemberSettings.Add(SettingEntry);
+					}
+				}
+
+				Result.SessionMembersChanges.Emplace(SessionMemberEntry.Key, SessionMemberChanges);
+			}
+		}
+
+		return Result;
+	}
+
+	TOnlineAsyncOpHandle<FUpdateSessionImpl> FSessionsCommon::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
+	{
+		TOnlineAsyncOpRef<FUpdateSessionImpl> Operation = GetOp<FUpdateSessionImpl>(MoveTemp(Params));
+		Operation->SetError(Errors::NotImplemented());
+		return Operation->GetHandle();
+	}
+
 	TOnlineResult<FAddSessionMember> FSessionsCommon::AddSessionMemberImpl(const FAddSessionMember::Params& Params)
 	{
 		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
@@ -580,28 +754,91 @@ namespace UE::Online {
 		return Errors::Success();
 	}
 
-	FOnlineError FSessionsCommon::CheckUpdateSessionState(const FUpdateSession::Params& Params)
+	FOnlineError FSessionsCommon::CheckUpdateSessionSettingsParams(const FUpdateSessionSettings::Params& Params)
 	{
-		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
-		if (GetSessionByNameResult.IsOk())
+		if (!Params.LocalAccountId.IsValid())
 		{
-			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+			return Errors::InvalidUser();
+		}
 
-			if (!FoundSession->GetSessionInfo().bIsDedicatedServerSession)
+		if (Params.SessionName.IsNone())
+		{
+			return Errors::InvalidParams();
+		}
+
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : Params.Mutations.UpdatedCustomSettings)
+		{
+			if (Entry.Key.IsNone())
 			{
-				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalAccountId))
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsNull::CheckUpdateSessionState] Could not update session with user [%s] not logged in"), *ToLogString(Params.LocalAccountId));
-
-					return Errors::InvalidUser();
-				}
+				return Errors::InvalidParams();
 			}
 		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionState] Could not update session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
-			return GetSessionByNameResult.GetErrorValue();
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckUpdateSessionSettingsState(const FUpdateSessionSettings::Params& Params)
+	{
+		// User login check
+		IAuthPtr Auth = Services.GetAuthInterface();
+		if (!Auth->IsLoggedIn(Params.LocalAccountId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionSettingsState] User [%s] not logged in"), *ToLogString(Params.LocalAccountId));
+
+			return Errors::InvalidUser();
+		}
+
+		// Session name check
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalAccountId, Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionSettingsState] Session with name [%s] not found."), *Params.SessionName.ToString());
+
+			return Result.GetValue();
+		}
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckUpdateSessionMemberParams(const FUpdateSessionMember::Params& Params)
+	{
+		if (!Params.LocalAccountId.IsValid())
+		{
+			return Errors::InvalidUser();
+		}
+
+		if (Params.SessionName.IsNone())
+		{
+			return Errors::InvalidParams();
+		}
+
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : Params.Mutations.UpdatedMemberSettings)
+		{
+			if (Entry.Key.IsNone())
+			{
+				return Errors::InvalidParams();
+			}
+		}
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckUpdateSessionMemberState(const FUpdateSessionMember::Params& Params)
+	{
+		// User login check
+		IAuthPtr Auth = Services.GetAuthInterface();
+		if (!Auth->IsLoggedIn(Params.LocalAccountId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionMemberState] User [%s] not logged in"), *ToLogString(Params.LocalAccountId));
+
+			return Errors::InvalidUser();
+		}
+
+		// Session name check
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalAccountId, Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionMemberState] Session with name [%s] not found."), *Params.SessionName.ToString());
+
+			return Result.GetValue();
 		}
 
 		return Errors::Success();

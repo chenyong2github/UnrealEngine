@@ -114,9 +114,9 @@ struct FUpdateSessionJoinabilityImpl
 
 typedef FUpdateSessionJoinabilityImpl::Params FUpdateSessionJoinabilityParams;
 
-struct FUpdateSessionImpl
+struct FUpdateSessionImplEOSGS
 {
-	static constexpr TCHAR Name[] = TEXT("UpdateSessionImpl");
+	static constexpr TCHAR Name[] = TEXT("UpdateSessionImplEOSGS");
 
 	struct Params
 	{
@@ -191,7 +191,7 @@ public:
 
 	// ISessions
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FUpdateSessionImpl> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
@@ -226,9 +226,14 @@ protected:
 	void WriteCreateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FCreateSession::Params& Params);
 
 	/**
-	 * Writes only the new values for all updated settings to the SessionModificationHandle
+	 * Writes only the new values for all updated session settings to the SessionModificationHandle
 	 */
-	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FName& SessionName, const FSessionSettingsUpdate& NewSettings);
+	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FSessionSettingsUpdate& NewSettings);
+
+	/**
+	 * Writes only the new values for all updated member settings to the SessionModificationHandle
+	 */
+	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FAccountId& LocalAccountId, const FSessionMemberUpdate& MemberUpdate);
 
 	/**
 	 * Writes all relevant values set in the FindSessions parameters into the SessionSearchHandle
@@ -238,7 +243,7 @@ protected:
 	/**
 	 * Internal method used by both CreateSession and UpdateSession to process a session update at the API level
 	 */
-	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
+	TFuture<TDefaultErrorResult<FUpdateSessionImplEOSGS>> UpdateSessionImplEOSGS(FUpdateSessionImplEOSGS::Params&& Params);
 
 	/**
 	 * Internal method called after UpdateSessionImpl to update joinability options for a session
@@ -293,12 +298,12 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FUpdateSessionJoinabilityImpl::Result)
 END_ONLINE_STRUCT_META()		
 		
-BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Params)
-	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Params, SessionModificationHandle)
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionImplEOSGS::Params)
+	ONLINE_STRUCT_FIELD(FUpdateSessionImplEOSGS::Params, SessionModificationHandle)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Result)
-	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Result, NewSessionId)
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionImplEOSGS::Result)
+	ONLINE_STRUCT_FIELD(FUpdateSessionImplEOSGS::Result, NewSessionId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSingleSessionInviteImpl::Params)

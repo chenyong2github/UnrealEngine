@@ -505,26 +505,19 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateS
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FUpdateSession> FSessionsOSSAdapter::UpdateSession(FUpdateSession::Params&& Params)
+TOnlineAsyncOpHandle<FUpdateSessionImpl> FSessionsOSSAdapter::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
 {
-	TOnlineAsyncOpRef<FUpdateSession> Op = GetOp<FUpdateSession>(MoveTemp(Params));
-	const FUpdateSession::Params& OpParams = Op->GetParams();
+	TOnlineAsyncOpRef<FUpdateSessionImpl> Op = GetOp<FUpdateSessionImpl>(MoveTemp(Params));
+	const FUpdateSessionImpl::Params& OpParams = Op->GetParams();
 
-	Op->Then([this](TOnlineAsyncOp<FUpdateSession>& Op)
+	Op->Then([this](TOnlineAsyncOp<FUpdateSessionImpl>& Op)
 	{
-		const FUpdateSession::Params& OpParams = Op.GetParams();
-
-		FOnlineError StateCheck = CheckUpdateSessionState(OpParams);
-		if (StateCheck != Errors::Success())
-		{
-			Op.SetError(MoveTemp(StateCheck));
-			return;
-		}
+		const FUpdateSessionImpl::Params& OpParams = Op.GetParams();
 
 		MakeMulticastAdapter(this, SessionsInterface->OnUpdateSessionCompleteDelegates,
 		[this, WeakOp = Op.AsWeak()](FName SessionName, const bool bWasSuccessful)
 		{
-			if (TOnlineAsyncOpPtr<FUpdateSession> Op = WeakOp.Pin())
+			if (TOnlineAsyncOpPtr<FUpdateSessionImpl> Op = WeakOp.Pin())
 			{
 				if (!bWasSuccessful)
 				{
@@ -532,23 +525,23 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsOSSAdapter::UpdateSession(FUpdateS
 					return;
 				}
 
-				const FUpdateSession::Params& OpParams = Op->GetParams();
+				const FUpdateSessionImpl::Params& OpParams = Op->GetParams();
 
-				const TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ SessionName });
+				TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ SessionName });
 				if (GetMutableSessionByNameResult.IsOk())
 				{
-					const TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+					// We update our local session
+					TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
-					FSessionSettings& UpdatedV2Settings = FoundSession->SessionSettings;
-					//UpdatedV2Settings += OpParams.Mutations;
+					FSessionUpdate SessionUpdateData = BuildSessionUpdate(FoundSession, OpParams.Mutations);
 
+					(*FoundSession) += SessionUpdateData;
+
+					// We set the result and fire the event
 					Op->SetResult({ });
 
-					//FSessionUpdated Event { SessionName, OpParams.Mutations };
-
-					//SessionEvents.OnSessionUpdated.Broadcast(Event);
-
-					// TODO: Will be refactored as part of the UpdateSession split
+					FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, SessionUpdateData };
+					SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
 				}
 				else
 				{
