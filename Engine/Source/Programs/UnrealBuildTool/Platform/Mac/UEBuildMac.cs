@@ -141,16 +141,6 @@ namespace UnrealBuildTool
 			{
 				Target.DisablePlugins.AddRange(new string[]
 				{
-					// EOSSDK
-					"EOSManager",
-					"EOSShared",
-					"EOSVoiceChat",
-					"EOSReservedHooks",
-					"OnlineServicesEOS",
-					"OnlineServicesEOSGS",
-					"OnlineSubsystemEOS",
-					"SocketSubsystemEOS",
-
 					// Melange
 					"DatasmithC4DImporter",
 				});
