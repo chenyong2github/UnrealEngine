@@ -29,6 +29,13 @@ static_assert(1 + NANITE_NUM_CULLING_FLAG_BITS + NANITE_MAX_INSTANCES_BITS <= 32
 static_assert(1 + NANITE_MAX_NODES_PER_PRIMITIVE_BITS + NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits");
 static_assert(1 + NANITE_MAX_BVH_NODES_PER_GROUP <= 32, "FCandidateNode.z fields don't fit in 32bits");
 
+int32 GNaniteShowDrawEvents = 0;
+static FAutoConsoleVariableRef CVarNaniteShowDrawEvents(
+	TEXT("r.Nanite.ShowMeshDrawEvents"),
+	GNaniteShowDrawEvents,
+	TEXT("")
+);
+
 int32 GNaniteAsyncRasterization = 1;
 static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("r.Nanite.AsyncRasterization"),
@@ -2491,7 +2498,7 @@ FBinningData AddPass_Rasterize(
 		{
 #if WANTS_DRAW_MESH_EVENTS
 			const FMaterialRenderProxy* RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial;
-			SCOPED_DRAW_EVENTF(RHICmdList, HWRaster, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
+			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, HWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
 #endif
 
 			Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
@@ -2565,7 +2572,7 @@ FBinningData AddPass_Rasterize(
 			{
 #if WANTS_DRAW_MESH_EVENTS
 				const FMaterialRenderProxy* RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial;
-				SCOPED_DRAW_EVENTF(RHICmdList, SWRaster, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
+				SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, SWRaster, GNaniteShowDrawEvents != 0, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
 #endif
 
 				Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
