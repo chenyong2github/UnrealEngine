@@ -915,6 +915,27 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			UInterchangeCameraNode* CameraNode = NewObject< UInterchangeCameraNode >( &NodeContainer );
 			FString CameraNodeUid = TEXT("\\Camera\\") + GltfCamera.Name;
 			CameraNode->InitializeNode( CameraNodeUid, GltfCamera.Name, EInterchangeNodeContainerType::TranslatedAsset );
+
+			float       AspectRatio;
+			float       FocalLength;
+			const float SensorWidth = 36.f;  // mm
+			CameraNode->SetCustomSensorWidth(SensorWidth);
+			if (GltfCamera.bIsPerspective)
+			{
+				AspectRatio = GltfCamera.Perspective.AspectRatio;
+				FocalLength = (SensorWidth / GltfCamera.Perspective.AspectRatio) / (2.0 * tan(GltfCamera.Perspective.Fov / 2.0));
+			}
+			else
+			{
+				AspectRatio = GltfCamera.Orthographic.XMagnification / GltfCamera.Orthographic.YMagnification;
+				FocalLength = (SensorWidth / AspectRatio) / (AspectRatio * tan(AspectRatio / 4.0));  // can only approximate Fov
+			}
+
+			CameraNode->SetCustomSensorHeight(SensorWidth / AspectRatio);
+			CameraNode->SetCustomFocalLength(FocalLength);
+			CameraNode->SetCustomEnableDepthOfField(false);
+			// ignoring znear and zfar
+
 			NodeContainer.AddNode( CameraNode );
 			++CameraIndex;
 		}

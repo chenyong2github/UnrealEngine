@@ -360,6 +360,13 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 			{
 				CineCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
 			}
+
+			bool bEnableDepthOfField;
+			if (CameraNode->GetCustomEnableDepthOfField(bEnableDepthOfField))
+			{
+				CineCameraFactoryNode->SetCustomFocusMethod(bEnableDepthOfField ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride);
+			}
+			
 		}
 	}
 }
