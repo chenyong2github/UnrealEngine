@@ -165,6 +165,7 @@ namespace Audio
 		, NumSourceWorkers(4)
 		, bInitialized(false)
 		, bUsingSpatializationPlugin(false)
+		, bUsingSourceDataOverridePlugin(false)
 	{
 		// Get a manual resetable event
 		const bool bIsManualReset = true;
@@ -342,6 +343,12 @@ namespace Audio
 		if (SpatialInterfaceInfo.SpatializationPlugin.IsValid())
 		{
 			bUsingSpatializationPlugin = true;
+		}
+		// Cache the source data override plugin
+		SourceDataOverridePlugin = MixerDevice->SourceDataOverridePluginInterface;
+		if (SourceDataOverridePlugin.IsValid())
+		{
+			bUsingSourceDataOverridePlugin = true;
 		}
 
 		// Spam command queue with nops.
@@ -2909,6 +2916,14 @@ namespace Audio
 			AUDIO_MIXER_CHECK(SpatialInterfaceInfo.SpatializationPlugin.IsValid());
 			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 			SpatialInterfaceInfo.SpatializationPlugin->OnAllSourcesProcessed();
+		}
+
+		// Let the plugin know we finished processing all sources
+		if (bUsingSourceDataOverridePlugin)
+		{
+			AUDIO_MIXER_CHECK(SourceDataOverridePlugin.IsValid());
+			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
+			SourceDataOverridePlugin->OnAllSourcesProcessed();
 		}
 
 		// Update the game thread copy of source doneness

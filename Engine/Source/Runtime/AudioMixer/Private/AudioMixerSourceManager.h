@@ -327,8 +327,11 @@ namespace Audio
 
 		FMixerDevice* MixerDevice;
 
-		// Cached ptr to an optional spatialization plugin
+		// Info about spatialization plugin
 		FAudioDevice::FAudioSpatializationInterfaceInfo SpatialInterfaceInfo;
+		
+		// Cached ptr to an optional source data override plugin
+		TAudioSourceDataOverridePtr SourceDataOverridePlugin;
 
 		// Array of pointers to game thread audio source objects
 		TArray<FMixerSourceVoice*> MixerSources;
@@ -548,6 +551,7 @@ namespace Audio
 
 		uint8 bInitialized : 1;
 		uint8 bUsingSpatializationPlugin : 1;
+		uint8 bUsingSourceDataOverridePlugin : 1;
 
 		// Set to true when the audio source manager should pump the command queue
 		FThreadSafeBool bPumpQueue;
