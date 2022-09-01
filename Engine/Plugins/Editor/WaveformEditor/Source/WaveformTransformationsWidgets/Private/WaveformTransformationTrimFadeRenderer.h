@@ -62,4 +62,5 @@ private:
 	} TrimFadeInteractionType = ETrimFadeInteractionType::None;
 
 	ETrimFadeInteractionType GetInteractionTypeFromCursorPosition(const FVector2D& InLocalCursorPosition, const FGeometry& WidgetGeometry) const;
+	void SetPropertyValueDependingOnInteractionType(const FPointerEvent& MouseEvent, const FGeometry& WidgetGeometry, const EPropertyChangeType::Type DesiredChangeType);
 };

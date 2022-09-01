@@ -63,7 +63,7 @@ protected:
 		FProperty* Property = EditedTransformation->GetClass()->FindPropertyByName(PropertyName);
 		check(Property);
 
-		const USoundWave* ParentSoundWave = EditedTransformation->GetTypedOuter<USoundWave>();
+		USoundWave* ParentSoundWave = EditedTransformation->GetTypedOuter<USoundWave>();
 		check(ParentSoundWave)
 
 		FProperty* TransformationsProperty = ParentSoundWave->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USoundWave, Transformations));
@@ -75,8 +75,10 @@ protected:
 		EditChain.SetActivePropertyNode(Property);
 
 		FPropertyChangedEvent PropertyEvent(Property, InChangeType);
+		FPropertyChangedEvent TransformationsPropertyEvent(TransformationsProperty, InChangeType);
 
 		EditedTransformation->PostEditChangeProperty(PropertyEvent);
+		ParentSoundWave->PostEditChangeProperty(TransformationsPropertyEvent);
 
 		TransformationChangeNotifier(PropertyEvent, &EditChain);
 	}
