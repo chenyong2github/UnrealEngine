@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
+#include "InstancedStruct.h"
 #include "StateTreeEvents.generated.h"
 
 /** Enum used for flow control during event iteration. */
