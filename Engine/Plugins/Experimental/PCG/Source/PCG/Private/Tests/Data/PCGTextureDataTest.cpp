@@ -22,7 +22,7 @@ bool FPCGTextureDataOffsetTilingRotation::RunTest(const FString& Parameters)
 	Pixels.Init(FColor::Black, TextureSize * TextureSize);
 	Pixels[WhitePixelY * TextureSize + WhitePixelX] = FColor::White;
 
-	UTexture2D* Texture2D = UTexture2D::CreateTransient(TextureSize, TextureSize, EPixelFormat::PF_R8G8B8A8);
+	UTexture2D* Texture2D = UTexture2D::CreateTransient(TextureSize, TextureSize, EPixelFormat::PF_B8G8R8A8);
 	Texture2D->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
 	Texture2D->SRGB = 0;
 	Texture2D->MipGenSettings = TMGS_NoMipmaps;
