@@ -160,6 +160,8 @@ namespace UE::UsdStageEditorModule::Private
 				: bShouldSave
 					? EUsdSaveDialogBehavior::AlwaysSave
 					: EUsdSaveDialogBehavior::NeverSave;
+
+			Settings->SaveConfig();
 		}
 
 		for ( const FUsdSaveDialogRowData& ReturnedRow : Rows )

@@ -263,6 +263,7 @@ void UsdUtils::NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute )
 					{
 						// This is flipped because the default checkbox message is "Don't prompt again"
 						Settings->bShowOverriddenOpinionsWarning = NewState == ECheckBoxState::Unchecked;
+						Settings->SaveConfig();
 					}
 				});
 

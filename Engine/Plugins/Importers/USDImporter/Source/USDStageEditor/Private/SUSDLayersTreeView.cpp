@@ -1253,6 +1253,7 @@ void SUsdLayersTreeView::OnClearSelectedLayers()
 
 				UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>();
 				Settings->bShowConfirmationWhenClearingLayers = false;
+				Settings->SaveConfig();
 
 				ClearSelectedLayersInner();
 			}

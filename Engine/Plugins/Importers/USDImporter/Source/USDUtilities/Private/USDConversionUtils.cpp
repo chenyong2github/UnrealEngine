@@ -286,6 +286,7 @@ namespace USDConversionUtilsImpl
 				{
 					// This is flipped because the default checkbox message is "Don't prompt again"
 					Settings->bShowWarningOnIncompleteDuplication = NewState == ECheckBoxState::Unchecked;
+					Settings->SaveConfig();
 				}
 			} );
 

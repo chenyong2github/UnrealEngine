@@ -1173,6 +1173,7 @@ void SUsdStage::FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder )
 					if ( UUsdProjectSettings* ProjectSettings = GetMutableDefault<UUsdProjectSettings>() )
 					{
 						ProjectSettings->AdditionalMaterialPurposes.AddUnique( NewPurpose );
+						ProjectSettings->SaveConfig();
 					}
 				}
 
