@@ -622,7 +622,8 @@ protected:
 	FFrame3d LockedTransfomerFrame;
 	bool bInGizmoDrag = false;
 
-	UE::Geometry::FTransformSRT3d WorldTransform;
+	UE::Geometry::FTransformSRT3d BakedTransform; // We bake the scale part of the Target -> World transform
+	UE::Geometry::FTransformSRT3d WorldTransform; // Transform from Baked to World
 
 	FFrame3d InitialGizmoFrame;
 	FVector3d InitialGizmoScale;

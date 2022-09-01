@@ -232,6 +232,12 @@ void UEditMeshPolygonsTool::Setup()
 	int32 MaxEdges = CVarEdgeLimit.GetValueOnGameThread();
 
 	CurrentMesh = MakeShared<FDynamicMesh3>(UE::ToolTarget::GetDynamicMeshCopy(Target));
+	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	FVector ScaleToBake = WorldTransform.GetScale();
+	BakedTransform = FTransformSRT3d(FQuaterniond::Identity(), FVector::Zero(), ScaleToBake);
+	WorldTransform.SetScale(FVector::One());
+	MeshTransforms::ApplyTransform(*CurrentMesh, BakedTransform, true);
+
 	if (bTriangleMode)
 	{
 		bToolDisabled = CurrentMesh->EdgeCount() > MaxEdges;
@@ -408,7 +414,6 @@ void UEditMeshPolygonsTool::Setup()
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>();
 	Preview->Setup(TargetWorld);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Target); 
-	WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	Preview->PreviewMesh->SetTransform((FTransform)WorldTransform);
 
 	// We'll use the spatial inside preview mesh mainly for the convenience of having it update automatically.
@@ -709,6 +714,7 @@ void UEditMeshPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 
 			// Bake CurrentMesh back to target inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshPolygonsToolTransactionName", "Deform Mesh"));
+			MeshTransforms::ApplyTransformInverse(*CurrentMesh, BakedTransform, true);
 			UE::ToolTarget::CommitDynamicMeshUpdate(Target, *CurrentMesh, bModifiedTriangleTopology);
 
 			UE::Geometry::SetToolOutputSelection(this, OutputSelection);
