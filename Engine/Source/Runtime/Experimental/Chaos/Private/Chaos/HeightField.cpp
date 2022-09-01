@@ -1257,10 +1257,9 @@ namespace Chaos
 			for (int Axis = 0; Axis < 2; ++Axis)
 			{
 				CellIdx[Axis] += (Times[Axis] <= BestTime) ? ((Dir[Axis] * ScaleSign[Axis]) > 0 ? LowResInc : -LowResInc) : 0;
-				if (CellIdx[Axis] < 0 || CellIdx[Axis] >= FlatGrid.Counts()[Axis])
-				{
-					return false;
-				}
+				// Make sure CellIdx doesn't go beyond the grid
+				CellIdx[Axis] = FMath::Min<int32>(CellIdx[Axis], FlatGrid.Counts()[Axis] - 1);
+				CellIdx[Axis] = FMath::Max<int32>(CellIdx[Axis], 0);
 			}
 
 			if (PrevIdx == CellIdx)
