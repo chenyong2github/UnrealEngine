@@ -239,6 +239,12 @@ void UTransformableControlHandle::RegisterDelegates()
 	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UTransformableControlHandle::OnObjectsReplaced);
 #endif
 
+	// make sure the CR is loaded so that we can register delegates
+	if (ControlRig.IsPending())
+	{
+		ControlRig.LoadSynchronous();
+	}
+	
 	if (ControlRig.IsValid())
 	{
 		if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
