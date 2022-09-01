@@ -111,6 +111,14 @@ void SImgMediaProcessEXR::Construct(const FArguments& InArgs)
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
+void SImgMediaProcessEXR::SetInputPath(const FString& Path)
+{
+	if (Options.IsValid())
+	{
+		Options->InputPath.FilePath = Path;
+	}
+}
+
 void SImgMediaProcessEXR::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);

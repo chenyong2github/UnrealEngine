@@ -30,6 +30,11 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	/**
+	 * Call this to set what the input path should be.
+	 */
+	void SetInputPath(const FString& Path);
+
 	/** SWidget interface */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 

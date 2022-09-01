@@ -181,11 +181,22 @@ protected:
 
 	static TSharedRef<SDockTab> SpawnProcessEXRTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
-		return SNew(SDockTab)
+		// Create tab.
+		TSharedPtr< SImgMediaProcessEXR> ProcessEXR;
+		TSharedRef <SDockTab> Tab = SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
 			[
-				SNew(SImgMediaProcessEXR)
+				SAssignNew(ProcessEXR, SImgMediaProcessEXR)
 			];
+
+		// Override input path if desired.
+		if (ProcessEXRInputPath.IsEmpty() == false)
+		{
+			ProcessEXR->SetInputPath(ProcessEXRInputPath);
+			ProcessEXRInputPath.Empty();
+		}
+
+		return Tab;
 	}
 
 	void ExtendContentMenu()
@@ -206,11 +217,25 @@ protected:
 						// Add menu entry.
 						if (UImgMediaSource* WorldAsset = Cast<UImgMediaSource>(AssetMenuContext->SelectedObjects[0].Get()))
 						{
+							// Get path from media source.
+							// Make sure it ends with / so it opens the directory.
+							FString InputPath = WorldAsset->GetSequencePath();
+							if (InputPath.EndsWith(TEXT("/")) == false)
+							{
+								InputPath += TEXT("/");
+							}
+
 							const TAttribute<FText> Label = LOCTEXT("ProcessEXR", "Process EXRs");
 							const TAttribute<FText> ToolTip = LOCTEXT("ProcessEXR_Tooltip", "Open a tab to allow adding tiles and mips to an EXR sequence.");
-							const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports");
+							const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(),
+								"LevelEditor.Tabs.Viewports");
 							const FToolMenuExecuteAction UIAction =
-								FToolMenuExecuteAction::CreateStatic(&FImgMediaEditorModule::OpenProcesEXRTab);
+								FToolMenuExecuteAction::CreateLambda([InputPath]
+								(const FToolMenuContext& InContext)
+							{
+								ProcessEXRInputPath = InputPath;
+								OpenProcesEXRTab();
+							});
 						
 							const FName SectionName = TEXT("ImgMedia");
 							FToolMenuSection* Section = ToolMenu->FindSection(SectionName);
@@ -230,7 +255,7 @@ protected:
 	/**
 	 * Call this to open the tab to process EXRs.
 	 */
-	static void OpenProcesEXRTab(const FToolMenuContext& MenuContext)
+	static void OpenProcesEXRTab()
 	{
 		FTabId TabID(ImgMediaProcessEXRTabName);
 		FGlobalTabmanager::Get()->TryInvokeTab(TabID);
@@ -268,6 +293,9 @@ private:
 	/** Names for tabs. */
 	static FLazyName ImgMediaProcessEXRTabName;
 
+	/** This will be passed to ProceessEXR and then cleared. */
+	static FString ProcessEXRInputPath;
+
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 
@@ -276,6 +304,7 @@ private:
 };
 
 FLazyName FImgMediaEditorModule::ImgMediaProcessEXRTabName(TEXT("ImgMediaProcessEXR"));
+FString FImgMediaEditorModule::ProcessEXRInputPath;
 
 IMPLEMENT_MODULE(FImgMediaEditorModule, ImgMediaEditor);
 
