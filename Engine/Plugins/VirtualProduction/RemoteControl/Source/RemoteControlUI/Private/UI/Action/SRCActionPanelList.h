@@ -93,6 +93,8 @@ public:
 				Behaviour->ActionContainer->OnActionsListModified.AddSP(this, &SRCActionPanelList::OnActionsListModified);
 			}
 		}
+
+		Reset();
 	}
 
 	void OnActionsListModified()
