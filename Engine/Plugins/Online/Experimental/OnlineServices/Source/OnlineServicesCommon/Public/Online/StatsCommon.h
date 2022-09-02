@@ -31,8 +31,8 @@ enum class EStatUsageFlags : uint8
 
 ENUM_CLASS_FLAGS(EStatUsageFlags);
 
-const TCHAR* LexToString(EStatUsageFlags Value);
-void LexFromString(EStatUsageFlags& OutValue, const TCHAR* InStr);
+const FString LexToString(EStatUsageFlags Value);
+void LexFromString(EStatUsageFlags& OutValue, const FString& InStr);
 
 struct FStatDefinition
 {
@@ -40,13 +40,31 @@ struct FStatDefinition
 	FString Name;
 	/* Corresponding stat id on the platform if needed */
 	int32 Id = 0;
-
-	/* What is this stat used for, in array format split by ",", for example: "Achievement,Leaderboard" */
-	int32 UsageFlags = 0;
-
+	/* What is this stat used for */
+	EStatUsageFlags UsageFlags = EStatUsageFlags::None;
 	/* How the stat will be modified, only useful when EStatUsageFlags::Achievement is set in UsageFlags */
 	EStatModifyMethod ModifyMethod = EStatModifyMethod::Set;
 };
+
+struct FStatsCommonConfig
+{
+	TArray<FStatDefinition> StatDefinitions;
+};
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FStatDefinition)
+	ONLINE_STRUCT_FIELD(FStatDefinition, Name),
+	ONLINE_STRUCT_FIELD(FStatDefinition, Id),
+	ONLINE_STRUCT_FIELD(FStatDefinition, UsageFlags),
+	ONLINE_STRUCT_FIELD(FStatDefinition, ModifyMethod)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FStatsCommonConfig)
+	ONLINE_STRUCT_FIELD(FStatsCommonConfig, StatDefinitions)
+END_ONLINE_STRUCT_META()
+
+/* Meta */ }
 
 struct FFindUserStatsByAccountId
 {

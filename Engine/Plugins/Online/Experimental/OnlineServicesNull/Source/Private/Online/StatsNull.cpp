@@ -36,7 +36,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 			TMap<FString, FStatValue>& UserStats = ExistingUserStats->Stats;
 			for (const auto& UpdateUserStatPair : UpdateUserStats.Stats)
 			{
-				if (FStatDefinition* StatDefinition = StatDefinitions.Find(UpdateUserStatPair.Key))
+				if (const FStatDefinition* StatDefinition = GetStatDefinition(UpdateUserStatPair.Key))
 				{
 					if (FStatValue* StatValue = UserStats.Find(UpdateUserStatPair.Key))
 					{
@@ -82,7 +82,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 						UserStats.Emplace(UpdateUserStatPair.Key, UpdateUserStatPair.Value);
 					}
 
-					if (StatDefinition->UsageFlags & (uint32)EStatUsageFlags::Leaderboard)
+					if (EnumHasAnyFlags(StatDefinition->UsageFlags, EStatUsageFlags::Leaderboard))
 					{
 						// TODO: Call LeaderboardsNull to update
 					}

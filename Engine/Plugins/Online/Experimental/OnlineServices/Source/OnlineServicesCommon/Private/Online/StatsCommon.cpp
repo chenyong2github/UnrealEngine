@@ -48,38 +48,47 @@ void LexFromString(EStatModifyMethod& OutValue, const TCHAR* InStr)
 	}
 }
 
-const TCHAR* LexToString(EStatUsageFlags Value)
+const FString LexToString(EStatUsageFlags Value)
 {
-	switch (Value)
+	if (Value == EStatUsageFlags::None)
 	{
-	case EStatUsageFlags::Achievement:
-		return TEXT("Achievement");
-	case EStatUsageFlags::Leaderboard:
-		return TEXT("Leaderboard");
-	default: checkNoEntry(); // Intentional fallthrough
-	case EStatUsageFlags::None:
 		return TEXT("None");
 	}
+
+	TArray<FString> SetFlags;
+	if (EnumHasAllFlags(Value, EStatUsageFlags::Achievement))
+	{
+		SetFlags.Emplace(TEXT("Achievement"));
+	}
+	if (EnumHasAllFlags(Value, EStatUsageFlags::Leaderboard))
+	{
+		SetFlags.Emplace(TEXT("Leaderboard"));
+	}
+	return FString::Join(SetFlags, TEXT("+"));
 }
 
-void LexFromString(EStatUsageFlags& OutValue, const TCHAR* InStr)
+void LexFromString(EStatUsageFlags& OutValue, const FString& InStr)
 {
-	if (FCString::Stricmp(InStr, TEXT("None")) == 0)
+	OutValue = EStatUsageFlags::None;
+	if (InStr != TEXT("None"))
 	{
-		OutValue = EStatUsageFlags::None;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Achievement")) == 0)
-	{
-		OutValue = EStatUsageFlags::Achievement;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Leaderboard")) == 0)
-	{
-		OutValue = EStatUsageFlags::Leaderboard;
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("Can't convert %s to EStatusageFlags"), InStr);
-		OutValue = EStatUsageFlags::None;
+		TArray<FString> SplitStrings;
+		InStr.ParseIntoArray(SplitStrings, TEXT("+"));
+		for (const FString& SplitString : SplitStrings)
+		{
+			if (SplitString == TEXT("Achievement"))
+			{
+				OutValue |= EStatUsageFlags::Achievement;
+			}
+			else if (SplitString == TEXT("Leaderboard"))
+			{
+				OutValue |= EStatUsageFlags::Leaderboard;
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Can't convert %s to EStatUsageFlags"), *SplitString);
+			}
+		}
 	}
 }
 
@@ -90,40 +99,13 @@ FStatsCommon::FStatsCommon(FOnlineServicesCommon& InServices)
 
 void FStatsCommon::UpdateConfig()
 {
-	const TCHAR* ConfigSection = TEXT("OnlineServices.Stats");
+	FStatsCommonConfig Config;
+	TOnlineComponent::LoadConfig(Config);
 
-	for (int StatIdx = 0;; StatIdx++)
+	for (FStatDefinition& StatDefinition : Config.StatDefinitions)
 	{
-		FString StatName;
-		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("StatDef_%d_Name"), StatIdx), StatName, GEngineIni);
-		if (StatName.IsEmpty())
-		{
-			break;
-		}
-
-		FStatDefinition& StatDefinition = StatDefinitions.Emplace(StatName);
-		StatDefinition.Name = MoveTemp(StatName);
-
-		GConfig->GetInt(ConfigSection, *FString::Printf(TEXT("StatDef_%d_Id"), StatIdx), StatDefinition.Id, GEngineIni);
-
-		FText StatUsageFlagsStr;
-		GConfig->GetText(ConfigSection, *FString::Printf(TEXT("StatDef_%d_UsageFlags"), StatIdx), StatUsageFlagsStr, GEngineIni);
-		TArray<FString> StatUsageFlagStrArray;
-		bool CullEmpty = true;
-		StatUsageFlagsStr.ToString().ParseIntoArray(StatUsageFlagStrArray, TEXT(","), CullEmpty);
-		for (const FString& StatUsageFlagStr : StatUsageFlagStrArray)
-		{
-			EStatUsageFlags StatUsageFlag = EStatUsageFlags::None;
-			LexFromString(StatUsageFlag, *StatUsageFlagStr);
-			StatDefinition.UsageFlags |= (uint32)StatUsageFlag;
-		}
-
-		FText StatModifyMethod;
-		GConfig->GetText(ConfigSection, *FString::Printf(TEXT("StatDef_%d_ModifyMethod"), StatIdx), StatModifyMethod, GEngineIni);
-		if (!StatModifyMethod.IsEmpty())
-		{
-			LexFromString(StatDefinition.ModifyMethod, *StatModifyMethod.ToString());
-		}
+		FString StatName = StatDefinition.Name;
+		StatDefinitions.Emplace(MoveTemp(StatName), MoveTemp(StatDefinition));
 	}
 }
 
