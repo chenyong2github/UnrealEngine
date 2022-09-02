@@ -297,6 +297,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 			[PreprocessorMacros addEntriesFromDictionary: @{ @"MTLSL_ENABLE_DEBUG_INFO" : @(1)}];
 #endif
 			CompileOptions.SetPreprocessorMacros(PreprocessorMacros);
+			[PreprocessorMacros release];
 #endif
 
 			mtlpp::LanguageVersion MetalVersion;
