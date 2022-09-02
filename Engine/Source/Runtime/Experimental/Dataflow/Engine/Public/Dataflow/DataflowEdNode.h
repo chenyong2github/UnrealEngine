@@ -21,7 +21,6 @@ class UObject;
 namespace Dataflow { class FGraph; }
 
 
-
 UCLASS()
 class DATAFLOWENGINE_API UDataflowEdNode : public UEdGraphNode
 {
@@ -30,7 +29,6 @@ class DATAFLOWENGINE_API UDataflowEdNode : public UEdGraphNode
 	FGuid DataflowNodeGuid;
 	TSharedPtr<Dataflow::FGraph> DataflowGraph;
 public:
-
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins();
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
@@ -46,6 +44,11 @@ public:
 
 	FGuid GetDataflowNodeGuid() const { return DataflowNodeGuid; }
 	void SetDataflowNodeGuid(FGuid InGuid) { DataflowNodeGuid = InGuid; }
+
+#if WITH_EDITOR
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FLinearColor GetNodeBodyTintColor() const override;
+#endif
 
 	// UObject interface
 	void Serialize(FArchive& Ar);

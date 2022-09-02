@@ -19,6 +19,7 @@ void UDataflowEdNode::AllocateDefaultPins()
 {
 	UE_LOG(DATAFLOWNODE_LOG, Verbose, TEXT("UDataflowEdNode::AllocateDefaultPins()"));
 	// called on node creation from UI. 
+
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (DataflowGraph)
 	{
@@ -107,6 +108,7 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 
 	Super::PinConnectionListChanged(Pin);
 }
+
 #endif // WITH_EDITOR && !UE_BUILD_SHIPPING
 
 void UDataflowEdNode::Serialize(FArchive& Ar)
@@ -115,6 +117,39 @@ void UDataflowEdNode::Serialize(FArchive& Ar)
 	Ar << DataflowNodeGuid;
 }
 
+#if WITH_EDITOR
+
+FLinearColor UDataflowEdNode::GetNodeTitleColor() const
+{
+	if (DataflowGraph)
+	{
+		if (DataflowNodeGuid.IsValid())
+		{
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			{
+				return Dataflow::FNodeColorsFactory::Get().GetNodeTitleColor(DataflowNode->GetCategory());
+			}
+		}
+	}
+	return FLinearColor(0.f, 0.f, 0.f);
+}
+
+FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
+{
+	if (DataflowGraph)
+	{
+		if (DataflowNodeGuid.IsValid())
+		{
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			{
+				return Dataflow::FNodeColorsFactory::Get().GetNodeBodyTintColor(DataflowNode->GetCategory());
+			}
+		}
+	}
+	return FLinearColor(0.f, 0.f, 0.f);
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE
 

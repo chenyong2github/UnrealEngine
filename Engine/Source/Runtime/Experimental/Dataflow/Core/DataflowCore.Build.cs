@@ -12,8 +12,10 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Chaos",
+					"DeveloperSettings",
+					"InputCore",
 				}
-				);
+			);
 		}
 	}
 }

@@ -7,6 +7,7 @@
 #include "Dataflow/DataflowConnection.h"
 #include "Dataflow/DataflowNodeParameters.h"
 #include "UObject/StructOnScope.h"
+#include "Dataflow/DataflowSettings.h"
 
 #include "DataflowNode.generated.h"
 
@@ -218,6 +219,10 @@ public:																				\
 	TYPE() {}																		\
 private:
 
+#define DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY(A, C1, C2)	\
+{																					\
+	FNodeColorsFactory::Get().RegisterNodeColors(A, {C1, C2});						\
+}																					\
 
 }
 

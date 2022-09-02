@@ -7,8 +7,26 @@
 
 #include "DataflowSettings.generated.h"
 
-UCLASS(config = Dataflow, defaultconfig, meta = (DisplayName = "Dataflow"))
-class DATAFLOWEDITOR_API UDataflowSettings : public UDeveloperSettings
+static const FLinearColor CManagedArrayCollectionPinTypeColor = FLinearColor(0.353393f, 0.454175f, 1.0f, 1.0f);
+static const FLinearColor CArrayPinTypeColor = FLinearColor(1.0f, 0.172585f, 0.0f, 1.0f);
+static const FLinearColor CBoxPinTypeColor = FLinearColor(0.013575f, 0.770000f, 0.429609f, 1.0f);
+
+typedef TMap<FName, FNodeColors> FNodeColorsMap;
+
+USTRUCT()
+struct FNodeColors
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Colors)
+	FLinearColor NodeTitleColor = FLinearColor(0.f, 0.f, 0.f);
+
+	UPROPERTY(EditAnywhere, Category = Colors)
+	FLinearColor NodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f);
+};
+
+UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Dataflow"))
+class DATAFLOWCORE_API UDataflowSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,16 +42,16 @@ class DATAFLOWEDITOR_API UDataflowSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = PinColors)
 	FLinearColor BoxPinTypeColor;
 
-	/** GeometryCollection category NodeTitle color. */
 	UPROPERTY(config, EditAnywhere, Category = NodeColors)
-	FLinearColor GeometryCollectionCategoryNodeTitleColor;
-
-	/** GeometryCollection category NodeBodyTint color. */
-	UPROPERTY(config, EditAnywhere, Category = NodeColors)
-	FLinearColor GeometryCollectionCategoryNodeBodyTintColor;
+	TMap<FName, FNodeColors> NodeColorsMap;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
+
+	FNodeColors RegisterColors(const FName& Category, const FNodeColors& Colors);
+
+	const TMap<FName, FNodeColors>& GetNodeColorsMap() { return NodeColorsMap; }
+
 #if WITH_EDITOR
 	virtual FText GetSectionText() const override;
 #endif
@@ -41,15 +59,16 @@ class DATAFLOWEDITOR_API UDataflowSettings : public UDeveloperSettings
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataflowSettingsChanged, const FName&, const UDataflowSettings*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataflowSettingsChanged, const FNodeColorsMap&);
 
 	/** Gets a multicast delegate which is called whenever one of the parameters in this settings object changes. */
-	static FOnDataflowSettingsChanged& OnSettingsChanged();
+	FOnDataflowSettingsChanged& GetOnDataflowSettingsChangedDelegate() { return OnDataflowSettingsChangedDelegate; }
 
 protected:
-	static FOnDataflowSettingsChanged SettingsChangedDelegate;
+	FOnDataflowSettingsChanged OnDataflowSettingsChangedDelegate;
 
-#endif
 };
+
