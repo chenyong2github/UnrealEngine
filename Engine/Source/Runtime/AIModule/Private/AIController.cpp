@@ -921,6 +921,7 @@ bool AAIController::RunBehaviorTree(UBehaviorTree* BTAsset)
 
 			BTComp = NewObject<UBehaviorTreeComponent>(this, TEXT("BTComponent"));
 			BTComp->RegisterComponent();
+			REDIRECT_OBJECT_TO_VLOG(BTComp, this);
 		}
 		
 		// make sure BrainComponent points at the newly created BT component
