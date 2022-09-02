@@ -1263,6 +1263,13 @@ public:
 				UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test failed. \"%s\""), *TestName);
 				return false;
 			}
+
+			// Put the staging textures back into CopyDest for the next iteration of the loop.
+			RHICmdList.Transition({
+				FRHITransitionInfo(SingleLockStagingTexture, ERHIAccess::CPURead, ERHIAccess::CopyDest),
+				FRHITransitionInfo(MultiLockStagingTexture, ERHIAccess::CPURead, ERHIAccess::CopyDest)
+			});
+
 		}
 		
 		UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test passed. \"%s\""), *TestName);

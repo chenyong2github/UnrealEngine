@@ -398,7 +398,7 @@ public:
 			const int32 BufferSize = Align(Random % 65536, 16);
 			const int32 BufferStride = 4;
 
-			EBufferUsageFlags Usage = EBufferUsageFlags::VertexBuffer;
+			EBufferUsageFlags Usage = EBufferUsageFlags::VertexBuffer | EBufferUsageFlags::SourceCopy;
 
 			switch (Random % 3)
 			{
@@ -415,7 +415,7 @@ public:
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("Buffer"));
 
-			TRefCountPtr<FRHIBuffer> Buffer = InRHICmdList.CreateBuffer(BufferSize, Usage, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+			TRefCountPtr<FRHIBuffer> Buffer = InRHICmdList.CreateBuffer(BufferSize, Usage, 0, ERHIAccess::CopySrc, CreateInfo);
 
 			uint32* Data = (uint32*)InRHICmdList.LockBuffer(Buffer, 0, Buffer->GetSize(), RLM_WriteOnly);
 
