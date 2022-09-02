@@ -144,15 +144,23 @@ FMacCursor::FMacCursor()
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Get the IOHIDSystem so we can disable mouse acceleration
-	mach_port_t MasterPort;
-	kern_return_t KernResult = IOMasterPort(MACH_PORT_NULL, &MasterPort);
+	mach_port_t MainPort;
+    kern_return_t KernResult;
+    if (@available(macOS 12.0, iOS 15.0, *))
+    {
+        KernResult = IOMainPort(MACH_PORT_NULL, &MainPort);
+    }
+    else
+    {
+        KernResult = IOMasterPort(MACH_PORT_NULL, &MainPort);
+    }
 	if (KERN_SUCCESS == KernResult)
 	{
 		CFMutableDictionaryRef ClassesToMatch = IOServiceMatching("IOHIDSystem");
 		if (ClassesToMatch)
 		{
 			io_iterator_t MatchingServices;
-			KernResult = IOServiceGetMatchingServices(MasterPort, ClassesToMatch, &MatchingServices);
+			KernResult = IOServiceGetMatchingServices(MainPort, ClassesToMatch, &MatchingServices);
 			if (KERN_SUCCESS == KernResult)
 			{
 				io_object_t IntfService;

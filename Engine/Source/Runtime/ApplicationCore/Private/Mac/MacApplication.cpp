@@ -2294,7 +2294,16 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 
 			// Monitor's name can only be obtained from IOKit
 			io_iterator_t IOIterator;
-			kern_return_t Result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IODisplayConnect"), &IOIterator);
+            mach_port_t mainPortDefault;
+            if (@available(macOS 12.0, iOS 15.0, *))
+            {
+                mainPortDefault = kIOMainPortDefault;
+            }
+            else
+            {
+                mainPortDefault = kIOMasterPortDefault;
+            }
+			kern_return_t Result = IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IODisplayConnect"), &IOIterator);
 			if (Result == kIOReturnSuccess)
 			{
 				io_object_t Device;

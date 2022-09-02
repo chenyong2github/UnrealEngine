@@ -257,7 +257,7 @@ void HIDInputInterface::FHIDDeviceInfo::SetupMappings()
 	}
 	else
 	{
-		// Array generated from https://github.com/d235j/360Controller/blob/master/360Controller/Info.plist (with additions)
+		// Array generated from https://github.com/d235j/360Controller-n/blob/c83340e55be337e28a149a2930657006d3a3fef8/360Controller/Info.plist (with additions)
 		static const FXBox360ControllerID XBox360Controllers[] =
 		{
 			{ 0x0E6F, 0x0113 }, 	// AfterglowGamepadforXbox360
