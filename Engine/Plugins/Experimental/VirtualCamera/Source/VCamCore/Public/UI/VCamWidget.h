@@ -64,5 +64,6 @@ public:
 	/*
 	 * Iterate all VCam Connections within the widget and attempt to connect them using the provided VCam Component
 	 */
+	UFUNCTION(BlueprintCallable, Category="VCam Connections")
 	void InitializeConnections(UVCamComponent* VCam);
 };
