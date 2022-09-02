@@ -62,4 +62,7 @@ public:
 	static bool RayTracePointClouds(const FLidarPointCloudRay& Ray, float RadiusMulti, FVector3f& OutHitLocation);
 
 	static bool IsPolygonSelfIntersecting(const TArray<FVector2D>& Points, bool bAllowLooping);
+
+	static bool AreLidarActorsSelected();
+	static bool AreLidarPointsSelected();
 };

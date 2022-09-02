@@ -614,17 +614,17 @@ void ULidarPointCloud::InvertSelection()
 	Octree.InvertSelection();
 }
 
-int64 ULidarPointCloud::NumSelectedPoints()
+int64 ULidarPointCloud::NumSelectedPoints() const
 {
 	return Octree.NumSelectedPoints();
 }
 
-bool ULidarPointCloud::HasSelectedPoints()
+bool ULidarPointCloud::HasSelectedPoints() const
 {
 	return Octree.HasSelectedPoints();
 }
 
-void ULidarPointCloud::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform)
+void ULidarPointCloud::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform) const
 {
 	Transform.AddToTranslation(LocationOffset);
 	Octree.GetSelectedPointsAsCopies(SelectedPoints, Transform);

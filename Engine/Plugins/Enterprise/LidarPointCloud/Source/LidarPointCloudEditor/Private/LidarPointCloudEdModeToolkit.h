@@ -22,12 +22,14 @@ public:
 public:
 	void Construct(const FArguments& InArgs);
 
-	bool IsActorSelection() const { return bActorSelection; }
-	bool IsPointSelection() const { return !bActorSelection; }
+	bool IsActorSelection() const;
+	bool IsPointSelection() const;
+	bool IsAnySelection() const { return IsActorSelection() || IsPointSelection(); }
 	bool IsBrushVisible() const { return BrushTool != nullptr; }
 
-	EVisibility GetActorVisibility() const { return bActorSelection ? EVisibility::Visible : EVisibility::Collapsed; }
-	EVisibility GetPointVisibility() const { return bActorSelection ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility GetActorVisibility() const { return IsActorSelection() ? EVisibility::Visible : EVisibility::Collapsed; }
+	EVisibility GetPointVisibility() const { return IsPointSelection() ? EVisibility::Visible : EVisibility::Collapsed; }
+	EVisibility GetAnyVisibility() const { return IsAnySelection() ? EVisibility::Visible : EVisibility::Collapsed; }
 	EVisibility GetBrushVisibility() const { return IsBrushVisible() ? EVisibility::Visible : EVisibility::Collapsed; }
 
 private:	

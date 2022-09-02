@@ -808,6 +808,38 @@ bool FLidarPointCloudEditorHelper::IsPolygonSelfIntersecting(const TArray<FVecto
 	return false;
 }
 
+bool FLidarPointCloudEditorHelper::AreLidarActorsSelected()
+{
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		if(Cast<ALidarPointCloudActor>(*It))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FLidarPointCloudEditorHelper::AreLidarPointsSelected()
+{
+	for (TObjectIterator<ALidarPointCloudActor> It; It; ++It)
+	{
+		if(const ALidarPointCloudActor* Actor = Cast<ALidarPointCloudActor>(*It))
+		{
+			if(const ULidarPointCloud* PointCloud = Actor->GetPointCloud())
+			{
+				if(PointCloud->HasSelectedPoints())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void FLidarPointCloudEditorHelper::SelectPointsByConvexVolume(const FConvexVolume& ConvexVolume, ELidarPointCloudSelectionMode SelectionMode)
 {
 	ProcessAll([ConvexVolume, SelectionMode](ALidarPointCloudActor* Actor)

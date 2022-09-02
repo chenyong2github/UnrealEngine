@@ -34,6 +34,7 @@ void SLidarEditorWidget::Construct(const FArguments& InArgs)
 #define HEADEREX(ContText, Category) +SVerticalBox::Slot().AutoHeight().Padding(FMargin(0.0f, 5.0f))[SNew(SHeaderRow)+SHeaderRow::Column(ContText).HAlignCell(HAlign_Left).FillWidth(1).HeaderContentPadding(HeaderPadding)[SNew(STextBlock).Text(LOCTEXT(Category, ContText)).Font(HeaderFont)]]
 #define HEADER(ContText) HEADEREX(ContText, ContText"Header")
 #define BUTTON(Category, ConText, Action) +SHorizontalBox::Slot().Padding(StandardPadding).FillWidth(0.5f)[SNew(SButton).HAlign(HAlign_Center).Text(LOCTEXT(Category,ConText)).OnClicked_Lambda([this]{ Action return FReply::Handled(); })]
+#define BUTTON_ANY(Category, ConText, Action) +SHorizontalBox::Slot().Padding(StandardPadding).FillWidth(0.5f)[SNew(SButton).HAlign(HAlign_Center).Text(LOCTEXT(Category,ConText)).OnClicked_Lambda([this]{ Action return FReply::Handled(); }).IsEnabled(this, &SLidarEditorWidget::IsAnySelection)]
 #define BUTTON_POINTS(Category, ConText, Action) +SHorizontalBox::Slot().Padding(StandardPadding).FillWidth(0.5f)[SNew(SButton).HAlign(HAlign_Center).Text(LOCTEXT(Category,ConText)).OnClicked_Lambda([this]{ Action return FReply::Handled(); }).IsEnabled(this, &SLidarEditorWidget::IsPointSelection)]
 #define BUTTON_ACTORS(Category, ConText, Action) +SHorizontalBox::Slot().Padding(StandardPadding).FillWidth(0.5f)[SNew(SButton).HAlign(HAlign_Center).Text(LOCTEXT(Category,ConText)).OnClicked_Lambda([this]{ Action return FReply::Handled(); }).IsEnabled(this, &SLidarEditorWidget::IsActorSelection)]
 
@@ -44,7 +45,7 @@ void SLidarEditorWidget::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
-			BUTTON("SelectionClear", "Clear",
+			BUTTON_ANY("SelectionClear", "Clear",
 			{
 				if(IsActorSelection())
 				{
@@ -249,7 +250,7 @@ void SLidarEditorWidget::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
-			BUTTON("NormalsCalculate", "Calculate Normals",
+			BUTTON_ANY("NormalsCalculate", "Calculate Normals",
 			{
 				FLidarPointCloudEditorHelper::SetNormalsQuality(NormalsQuality, NormalsNoiseTolerance);
 				if(IsActorSelection())
@@ -337,7 +338,7 @@ void SLidarEditorWidget::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
-			BUTTON("MeshingBuild", "Create Static Mesh", {FLidarPointCloudEditorHelper::MeshSelected(IsPointSelection(), MaxMeshingError, bMergeMeshes, !bMergeMeshes && bRetainTransform);})
+			BUTTON_ANY("MeshingBuild", "Create Static Mesh", {FLidarPointCloudEditorHelper::MeshSelected(IsPointSelection(), MaxMeshingError, bMergeMeshes, !bMergeMeshes && bRetainTransform);})
 		]
 		HEADER("Alignment")
 		+ SVerticalBox::Slot()
@@ -383,6 +384,16 @@ void SLidarEditorWidget::Construct(const FArguments& InArgs)
 #undef HEADEREX
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+bool SLidarEditorWidget::IsActorSelection() const
+{
+	return bActorSelection && FLidarPointCloudEditorHelper::AreLidarActorsSelected();
+}
+
+bool SLidarEditorWidget::IsPointSelection() const
+{
+	return !bActorSelection && FLidarPointCloudEditorHelper::AreLidarPointsSelected();
+}
 
 FLidarPointCloudEdModeToolkit::~FLidarPointCloudEdModeToolkit()
 {

@@ -425,9 +425,9 @@ public:
 	void HideSelected();
 	void DeleteSelected();
 	void InvertSelection();
-	int64 NumSelectedPoints();
-	bool HasSelectedPoints();
-	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform);
+	int64 NumSelectedPoints() const;
+	bool HasSelectedPoints() const;
+	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform) const;
 	void CalculateNormalsForSelection();
 	void ClearSelection();
 	void BuildStaticMeshBuffersForSelection(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform);

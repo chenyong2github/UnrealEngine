@@ -1915,20 +1915,20 @@ void FLidarPointCloudOctree::InvertSelection()
 	}, true);
 }
 
-int64 FLidarPointCloudOctree::NumSelectedPoints()
+int64 FLidarPointCloudOctree::NumSelectedPoints() const
 {
 	int64 Count = 0;
 	ITERATE_SELECTED({ ++Count; }, {});
 	return Count;
 }
 
-bool FLidarPointCloudOctree::HasSelectedPoints()
+bool FLidarPointCloudOctree::HasSelectedPoints() const
 {
 	ITERATE_SELECTED({ return true; }, {});
 	return false;
 }
 
-void FLidarPointCloudOctree::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform)
+void FLidarPointCloudOctree::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform) const
 {
 	const FTransform3f Transform3F = (FTransform3f)Transform;
 
