@@ -144,7 +144,9 @@ int32 UWorldPartitionLandscapeSplineMeshesBuilder::HashStaticMeshComponent(const
 	// Hash the owning actor's tags
 	if (const AActor* Owner = InComponent->GetOwner())
 	{
-		for (const FName& ActorTag : Owner->Tags)
+		TArray<FName> SortedTags = Owner->Tags;
+		SortedTags.Sort(FNameLexicalLess());
+		for (const FName& ActorTag : SortedTags)
 		{
 			if (!ActorTag.IsEqual(CreatedFromBuilderTag))
 			{
