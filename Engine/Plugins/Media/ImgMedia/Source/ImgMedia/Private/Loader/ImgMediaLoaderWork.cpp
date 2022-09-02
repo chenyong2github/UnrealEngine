@@ -39,6 +39,9 @@ void FImgMediaLoaderWork::Initialize(int32 InFrameNumber,
 	FrameNumber = InFrameNumber;
 	MipTiles = MoveTemp(InMipTiles);
 	ExistingFrame = InExistingFrame;
+
+	// Ensure that we start from mip0 when iterating the map for consistency
+	MipTiles.KeySort(TLess<int32>());
 }
 
 

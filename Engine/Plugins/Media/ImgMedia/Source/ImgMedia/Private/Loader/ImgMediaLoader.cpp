@@ -681,12 +681,22 @@ IQueuedWork* FImgMediaLoader::GetWork()
 {
 	FScopeLock Lock(&CriticalSection);
 
-	if (PendingFrameNumbers.Num() == 0)
+	TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
+	int32 FrameNumber = INDEX_NONE;
+
+	// Find a visible pending frame.
+	while (!PendingFrameNumbers.IsEmpty() && DesiredMipsAndTiles.IsEmpty())
+	{
+		FrameNumber = PendingFrameNumbers.Pop(false);
+		GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
+	}
+
+	// No selection is visible (or pending frames was empty), so we don't queue any work.
+	if (DesiredMipsAndTiles.IsEmpty())
 	{
 		return nullptr;
 	}
 
-	int32 FrameNumber = PendingFrameNumbers.Pop(false);
 	FImgMediaLoaderWork* Work = (WorkPool.Num() > 0) ? WorkPool.Pop() : new FImgMediaLoaderWork(AsShared(), Reader.ToSharedRef());
 	
 	// Get the existing frame so we can add the mip level to it.
@@ -706,9 +716,6 @@ IQueuedWork* FImgMediaLoader::GetWork()
 	{
 		ExistingFrame = *ExistingFramePtr;
 	}
-
-	TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
-	GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
 	
 	// Set up work.
 	Work->Initialize(FrameNumber, DesiredMipsAndTiles, ExistingFrame);
@@ -1367,6 +1374,8 @@ void FImgMediaLoader::AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMe
 
 void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMediaTileSelection>& OutMipsAndTiles)
 {
+	// note: While currently unused, FrameIndex could become useful for recorded frames.
+
 	if(MipMapInfo.IsValid() && MipMapInfo->HasObjects())
 	{
 		OutMipsAndTiles = MipMapInfo->GetVisibleTiles();
