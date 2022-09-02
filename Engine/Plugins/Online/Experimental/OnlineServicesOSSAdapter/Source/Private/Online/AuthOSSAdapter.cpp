@@ -2,6 +2,7 @@
 
 #include "Online/AuthOSSAdapter.h"
 
+#include "Misc/ScopeRWLock.h"
 #include "Online/AuthErrors.h"
 #include "Online/OnlineServicesOSSAdapter.h"
 #include "Online/OnlineIdOSSAdapter.h"
@@ -107,6 +108,7 @@ TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FAccount
 
 void FAccountInfoRegistryOSSAdapter::Register(const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoNULL)
 {
+	FWriteScopeLock Lock(IndexLock);
 	DoRegister(AccountInfoNULL);
 }
 
@@ -114,6 +116,7 @@ void FAccountInfoRegistryOSSAdapter::Unregister(FAccountId AccountId)
 {
 	if (TSharedPtr<FAccountInfoOSSAdapter> AccountInfoNULL = Find(AccountId))
 	{
+		FWriteScopeLock Lock(IndexLock);
 		DoUnregister(AccountInfoNULL.ToSharedRef());
 	}
 	else

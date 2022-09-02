@@ -6,6 +6,7 @@
 #include "Algo/Transform.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/ScopeRWLock.h"
 #include "Online/OnlineServicesNull.h"
 #include "Online/OnlineServicesNullTypes.h"
 #include "Online/AuthErrors.h"
@@ -76,7 +77,7 @@ TSharedRef<FAccountInfoNull> CreateAccountInfo(const FAuthNullConfig& Config, FP
 {
 	const FString DisplayId = GenerateRandomUserId(Config, PlatformUserId);
 	return MakeShared<FAccountInfoNull>(FAccountInfoNull{ {
-		FOnlineAccountIdRegistryNull::Get().Create(DisplayId, PlatformUserId),
+		FOnlineAccountIdRegistryNull::Get().FindOrAddAccountId(DisplayId),
 		PlatformUserId,
 		ELoginStatus::LoggedIn,
 		{ { AccountAttributeData::DisplayName, DisplayId } }
@@ -97,6 +98,7 @@ TSharedPtr<FAccountInfoNull> FAccountInfoRegistryNULL::Find(FAccountId AccountId
 
 void FAccountInfoRegistryNULL::Register(const TSharedRef<FAccountInfoNull>& AccountInfoNULL)
 {
+	FWriteScopeLock Lock(IndexLock);
 	DoRegister(AccountInfoNULL);
 }
 
@@ -104,6 +106,7 @@ void FAccountInfoRegistryNULL::Unregister(FAccountId AccountId)
 {
 	if (TSharedPtr<FAccountInfoNull> AccountInfoNULL = Find(AccountId))
 	{
+		FWriteScopeLock Lock(IndexLock);
 		DoUnregister(AccountInfoNULL.ToSharedRef());
 	}
 	else
@@ -177,37 +180,14 @@ FOnlineAccountIdRegistryNull& FOnlineAccountIdRegistryNull::Get()
 	return Instance;
 }
 
-FAccountId FOnlineAccountIdRegistryNull::Find(FString AccountId) const
+FAccountId FOnlineAccountIdRegistryNull::Find(const FString& AccountId) const
 {
-	const FOnlineAccountIdString* Entry = StringToId.Find(AccountId);
-	if(Entry)
-	{
-		return Entry->AccountId;
-	}
-	return FAccountId();
+	const FReadScopeLock ReadLock(Lock);
+	const FOnlineAccountIdString* Entry = FindNoLock(AccountId);
+	return Entry ? Entry->AccountId : FAccountId();
 }
 
-FAccountId FOnlineAccountIdRegistryNull::Find(FPlatformUserId UserId) const
-{
-	const FOnlineAccountIdString* Entry = LocalUserMap.Find(UserId);
-	if (Entry)
-	{
-		return Entry->AccountId;
-	}
-	return FAccountId();
-}
-
-FAccountId FOnlineAccountIdRegistryNull::Find(int32 UserIndex) const
-{
-	const FOnlineAccountIdString* Entry = LocalUserMap.Find(FPlatformMisc::GetPlatformUserForUserIndex(UserIndex));
-	if (Entry)
-	{
-		return Entry->AccountId;
-	}
-	return FAccountId();
-}
-
-const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::GetInternal(const FAccountId& AccountId) const
+const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::FindNoLock(const FAccountId& AccountId) const
 {
 	if(AccountId.IsValid() && AccountId.GetOnlineServicesType() == EOnlineServices::Null && AccountId.GetHandle() <= (uint32)Ids.Num())
 	{
@@ -216,35 +196,45 @@ const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::GetInternal(const FA
 	return nullptr;
 }
 
-FAccountId FOnlineAccountIdRegistryNull::Create(FString AccountId, FPlatformUserId PlatformUserId/* = PLATFORMUSERID_NONE*/)
+const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::FindNoLock(const FString& AccountId) const
 {
-	FAccountId ExistingAccountId = Find(AccountId);
-	if(ExistingAccountId.IsValid())
+	FOnlineAccountIdString* const* Entry = StringToIdIndex.Find(AccountId);
+	return Entry ? *Entry : nullptr;
+}
+
+FAccountId FOnlineAccountIdRegistryNull::FindOrAddAccountId(const FString& AccountId)
+{
+	// Check for existing entry under read lock.
 	{
-		UE_LOG(LogOnlineServices, Error, TEXT("[FOnlineAccountIdRegistryNull::Create] Found a duplicate ID for local user %d."), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId));
-		return ExistingAccountId;
+		const FReadScopeLock ReadLock(Lock);
+		if (const FOnlineAccountIdString* ExistingAccountId = FindNoLock(AccountId))
+		{
+			return ExistingAccountId->AccountId;
+		}
 	}
 
-	if (!PlatformUserId.IsValid())
+	// Check for existing entry again under write lock before adding entry.
 	{
-		UE_LOG(LogOnlineServices, Warning, TEXT("[FOnlineAccountIdRegistryNull::Create] Unable to create id: PlatformUserId is invalid."));
-		return FAccountId();
+		const FWriteScopeLock WriteLock(Lock);
+		if (const FOnlineAccountIdString* ExistingAccountId = FindNoLock(AccountId))
+		{
+			return ExistingAccountId->AccountId;
+		}
+
+		FOnlineAccountIdString& Id = Ids.Emplace_GetRef();
+		Id.AccountIndex = Ids.Num();
+		Id.Data = AccountId;
+		Id.AccountId = FAccountId(EOnlineServices::Null, Id.AccountIndex);
+
+		StringToIdIndex.Add(AccountId, &Id);
+		return Id.AccountId;
 	}
-
-	FOnlineAccountIdString& Id = Ids.Emplace_GetRef();
-	Id.AccountIndex = Ids.Num();
-	Id.Data = AccountId;
-	Id.AccountId = FAccountId(EOnlineServices::Null, Id.AccountIndex);
-	
-	StringToId.Add(AccountId, Id);
-	LocalUserMap.Add(PlatformUserId, Id);
-
-	return Id.AccountId;
 }
 
 FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& AccountId) const
 {
-	if(const FOnlineAccountIdString* Id = GetInternal(AccountId))
+	const FReadScopeLock ReadLock(Lock);
+	if(const FOnlineAccountIdString* Id = FindNoLock(AccountId))
 	{
 		return Id->Data;
 	}
@@ -255,7 +245,8 @@ FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& AccountId) c
 
 TArray<uint8> FOnlineAccountIdRegistryNull::ToReplicationData(const FAccountId& AccountId) const
 {
-	if (const FOnlineAccountIdString* Id = GetInternal(AccountId))
+	const FReadScopeLock ReadLock(Lock);
+	if (const FOnlineAccountIdString* Id = FindNoLock(AccountId))
 	{
 		TArray<uint8> ReplicationData;
 		ReplicationData.SetNumUninitialized(Id->Data.Len());
@@ -272,7 +263,7 @@ FAccountId FOnlineAccountIdRegistryNull::FromReplicationData(const TArray<uint8>
 	FString Result = BytesToString(ReplicationData.GetData(), ReplicationData.Num());
 	if(Result.Len() > 0)
 	{
-		return Create(Result);
+		return FindOrAddAccountId(Result);
 	}
 	return FAccountId();
 }

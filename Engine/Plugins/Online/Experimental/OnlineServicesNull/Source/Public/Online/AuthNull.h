@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
 #include "Online/AuthCommon.h"
 
 namespace UE::Online {
@@ -22,11 +23,8 @@ class FOnlineAccountIdRegistryNull : public IOnlineAccountIdRegistry
 public:
 	static FOnlineAccountIdRegistryNull& Get();
 
-	FAccountId Find(FString AccountId) const;
-	FAccountId Find(FPlatformUserId UserId) const;
-	FAccountId Find(int32 UserIndex) const;
-
-	FAccountId Create(FString AccountId, FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE);
+	FAccountId Find(const FString& AccountId) const;
+	FAccountId FindOrAddAccountId(const FString& AccountId);
 
 	// Begin IOnlineAccountIdRegistry
 	virtual FString ToLogString(const FAccountId& AccountId) const override;
@@ -37,12 +35,13 @@ public:
 	virtual ~FOnlineAccountIdRegistryNull() = default;
 
 private:
-	const FOnlineAccountIdString* GetInternal(const FAccountId& AccountId) const;
+	// Retrieve an entry with no lock. For internal use only.
+	const FOnlineAccountIdString* FindNoLock(const FAccountId& AccountId) const;
+	const FOnlineAccountIdString* FindNoLock(const FString& AccountId) const;
 
-	// how much of these are actually necessary?
+	mutable FRWLock Lock;
 	TArray<FOnlineAccountIdString> Ids;
-	TMap<FString, FOnlineAccountIdString> StringToId;
-	TMap<FPlatformUserId, FOnlineAccountIdString> LocalUserMap;
+	TMap<FString, FOnlineAccountIdString*> StringToIdIndex;
 
 };
 
