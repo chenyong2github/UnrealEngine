@@ -61,7 +61,7 @@ private:
 	TMap<FPackageId, const FFilePackageStoreEntry*> StoreEntriesMap;
 	TMap<FPackageId, TTuple<FName, FPackageId>> RedirectsPackageMap;
 	TMap<FPackageId, FName> LocalizedPackages;
-	bool bNeedsUpdate = false;
+	bool bNeedsContainerUpdate = false;
 
 #if WITH_EDITOR
 	FDelegateHandle OnContentPathMountedDelegateHandle;
@@ -71,6 +71,7 @@ private:
 	TSet<FString> PendingRemoveUncookedPackageRoots;
 	TMap<FPackageId, FUncookedPackage> UncookedPackagesMap;
 	TMap<FPackageId, const FFilePackageStoreEntry*> OptionalSegmentStoreEntriesMap;
+	bool bNeedsUncookedPackagesUpdate = false;
 #endif //if WITH_EDITOR
 
 };
