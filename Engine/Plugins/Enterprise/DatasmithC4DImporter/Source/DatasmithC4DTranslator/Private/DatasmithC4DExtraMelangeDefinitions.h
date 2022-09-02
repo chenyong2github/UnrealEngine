@@ -2,9 +2,9 @@
 
 #pragma once
 
-// For some reason some symbols are not actually defined within melange, and are
+// For some reason some symbols are not actually defined within cineware, and are
 // passed around just as raw int32 ids.
-// Here we either define or inject them into the melange namespace like the others
+// Here we either define or inject them into the cineware namespace like the others
 
 #define Ocloner 1018544
 #define Ofracture 1018791
@@ -12,10 +12,10 @@
 #define REFLECTION_LAYER_MAIN_OPACITY REFLECTION_LAYER_TRANS_BRIGHTNESS
 #define REFLECTION_LAYER_NAME 0x0015
 
-namespace melange
+namespace cineware
 {
 	// We use C-style enums here instead of defines so that they are contained
-	// within the melange namespace and behave like the other enums
+	// within the cineware namespace and behave like the other enums
 
     enum // Tcrane attributes
     {

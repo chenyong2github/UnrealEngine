@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 		public DatasmithC4DTranslator(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bLegalToDistributeObjectCode = true;
+			bUseUnity = false;
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

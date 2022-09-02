@@ -29,7 +29,7 @@ public:
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 
 	/** Event for when a C4D document is about to be opened for translation */
-	/*DECLARE_EVENT_TwoParams(FDatasmithC4DTranslator, FPreTranslateEvent, melange::BaseDocument*, const FString&)
+	/*DECLARE_EVENT_TwoParams(FDatasmithC4DTranslator, FPreTranslateEvent, cineware::BaseDocument*, const FString&)
 	static FPreTranslateEvent& OnPreTranslate() { return PreTranslateEvent; }*/
 	
 private:

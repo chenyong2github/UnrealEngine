@@ -9,7 +9,7 @@
 #include "default_alien_overloads.h"
 #include "DatasmithC4DMelangeSDKLeaveGuard.h"
 
-namespace melange
+namespace cineware
 {
 #pragma pack (push, 8)
 
@@ -55,7 +55,7 @@ namespace melange
 }
 
 // overload this function and fill in your own unique data
-void GetWriterInfo(melange::Int32 &id, melange::String &appname)
+void GetWriterInfo(cineware::Int32 &id, cineware::String &appname)
 {
 	// register your own pluginid once for your exporter and enter it here under id
 	// this id must be used for your own unique ids
