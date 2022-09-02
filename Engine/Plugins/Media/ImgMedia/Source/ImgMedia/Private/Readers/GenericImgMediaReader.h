@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
 #include "IImgMediaReader.h"
 
 class FImgMediaLoader;
 class FRgbaInputFile;
+class IImageWrapper;
 class IImageWrapperModule;
 
 
@@ -36,6 +38,8 @@ public:
 	virtual void CancelFrame(int32 FrameNumber) override {};
 
 private:
+
+	TSharedPtr<IImageWrapper> LoadFrameImage(const FString& ImagePath, TArray64<uint8>& OutBuffer, FImgMediaFrameInfo& OutInfo, bool bUseLoaderFirstFrame);
 
 	/** The image wrapper module. */
 	IImageWrapperModule& ImageWrapperModule;
