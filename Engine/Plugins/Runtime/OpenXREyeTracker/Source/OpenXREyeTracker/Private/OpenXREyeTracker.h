@@ -35,10 +35,12 @@ public:
 		return FString(TEXT("OpenXREyeTracker"));
 	}
 	virtual bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
+	virtual void PostCreateInstance(XrInstance InInstance) override;
 	virtual bool GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics) override;
-	virtual void AddActions(XrInstance Instance, TFunction<XrAction(XrActionType InActionType, const FName& InName, const TArray<XrPath>& InSubactionPaths)> AddAction) override;
-
+	virtual void AttachActionSets(TSet<XrActionSet>& OutActionSets) override;
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext) override;
+	virtual void OnDestroySession(XrSession InSession) override;
+	virtual void GetActiveActionSetsForSync(TArray<XrActiveActionSet>& OutActiveSets) override;
 	virtual void PostSyncActions(XrSession InSession) override;
 	virtual void UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace) override;
 
@@ -46,11 +48,12 @@ public:
 
 private:
 	class IXRTrackingSystem* XRTrackingSystem = nullptr;
-
+	XrInstance Instance = XR_NULL_HANDLE;
 	bool bSessionStarted = false;
 	XrActionsSyncInfo SyncInfo{ XR_TYPE_ACTIONS_SYNC_INFO };
-	XrAction EyeTrackerAction;
-	XrSpace GazeActionSpace;
+	XrAction EyeTrackerAction = XR_NULL_HANDLE;
+	XrActionSet EyeTrackerActionSet = XR_NULL_HANDLE;
+	XrSpace GazeActionSpace = XR_NULL_HANDLE;
 	XrActionStatePose ActionStatePose{ XR_TYPE_ACTION_STATE_POSE };
 
 	// EyeTracker cached data
