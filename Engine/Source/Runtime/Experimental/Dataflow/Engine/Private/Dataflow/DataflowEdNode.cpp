@@ -127,7 +127,7 @@ FLinearColor UDataflowEdNode::GetNodeTitleColor() const
 		{
 			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
 			{
-				return Dataflow::FNodeColorsFactory::Get().GetNodeTitleColor(DataflowNode->GetCategory());
+				return Dataflow::FNodeColorsRegistry::Get().GetNodeTitleColor(DataflowNode->GetCategory());
 			}
 		}
 	}
@@ -142,7 +142,7 @@ FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
 		{
 			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
 			{
-				return Dataflow::FNodeColorsFactory::Get().GetNodeBodyTintColor(DataflowNode->GetCategory());
+				return Dataflow::FNodeColorsRegistry::Get().GetNodeBodyTintColor(DataflowNode->GetCategory());
 			}
 		}
 	}

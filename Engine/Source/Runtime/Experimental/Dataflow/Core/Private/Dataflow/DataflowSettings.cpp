@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dataflow/DataflowSettings.h"
-#include "Dataflow/DataflowNodeColorsFactory.h"
 
 UDataflowSettings::UDataflowSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)

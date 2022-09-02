@@ -17,10 +17,10 @@ namespace Dataflow
 	//
 	//
 	//
-	class DATAFLOWCORE_API FNodeColorsFactory
+	class DATAFLOWCORE_API FNodeColorsRegistry
 	{
 	public:
-		static FNodeColorsFactory& Get();
+		static FNodeColorsRegistry& Get();
 		static void TearDown();
 
 		void RegisterNodeColors(const FName& Category, const FNodeColors& NodeColors);
@@ -29,8 +29,8 @@ namespace Dataflow
 		void NodeColorsChangedInSettings(const FNodeColorsMap& NodeColorsMap);
 
 	private:
-		FNodeColorsFactory();
-		~FNodeColorsFactory();
+		FNodeColorsRegistry();
+		~FNodeColorsRegistry();
 
 		TMap<FName, FNodeColors > ColorsMap;					// [Category] -> Colors
 		FDelegateHandle DataflowSettingsChangedDelegateHandle;

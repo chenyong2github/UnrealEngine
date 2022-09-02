@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Dataflow/DataflowNodeColorsFactory.h"
+#include "Dataflow/DataflowNodeColorsRegistry.h"
 
 #include "Dataflow/DataflowNode.h"
 //#include "Misc/MessageDialog.h"
@@ -8,10 +8,10 @@
 
 namespace Dataflow
 {
-	FNodeColorsFactory::FNodeColorsFactory()
+	FNodeColorsRegistry::FNodeColorsRegistry()
 	{
 		DataflowSettings = GetMutableDefault<UDataflowSettings>();
-		DataflowSettingsChangedDelegateHandle = DataflowSettings->GetOnDataflowSettingsChangedDelegate().AddRaw(this, &FNodeColorsFactory::NodeColorsChangedInSettings);
+		DataflowSettingsChangedDelegateHandle = DataflowSettings->GetOnDataflowSettingsChangedDelegate().AddRaw(this, &FNodeColorsRegistry::NodeColorsChangedInSettings);
 
 		const FNodeColorsMap NodeColorsMap = DataflowSettings->GetNodeColorsMap();
 
@@ -28,22 +28,22 @@ namespace Dataflow
 		}
 	}
 
-	FNodeColorsFactory::~FNodeColorsFactory()
+	FNodeColorsRegistry::~FNodeColorsRegistry()
 	{
 		DataflowSettings->GetOnDataflowSettingsChangedDelegate().Remove(DataflowSettingsChangedDelegateHandle);
 	}
 
-	FNodeColorsFactory& FNodeColorsFactory::Get()
+	FNodeColorsRegistry& FNodeColorsRegistry::Get()
 	{
-		return TLazySingleton<FNodeColorsFactory>::Get();
+		return TLazySingleton<FNodeColorsRegistry>::Get();
 	}
 
-	void FNodeColorsFactory::TearDown()
+	void FNodeColorsRegistry::TearDown()
 	{
-		return TLazySingleton<FNodeColorsFactory>::TearDown();
+		return TLazySingleton<FNodeColorsRegistry>::TearDown();
 	}
 
-	void FNodeColorsFactory::RegisterNodeColors(const FName& Category, const FNodeColors& NodeColors)
+	void FNodeColorsRegistry::RegisterNodeColors(const FName& Category, const FNodeColors& NodeColors)
 	{
 		if (!ColorsMap.Contains(Category))
 		{
@@ -54,7 +54,7 @@ namespace Dataflow
 		GetMutableDefault<UDataflowSettings>()->RegisterColors(Category, NodeColors);
 	}
 
-	FLinearColor FNodeColorsFactory::GetNodeTitleColor(const FName& Category)
+	FLinearColor FNodeColorsRegistry::GetNodeTitleColor(const FName& Category)
 	{
 		if (ColorsMap.Contains(Category))
 		{
@@ -83,7 +83,7 @@ namespace Dataflow
 		return FNodeColors().NodeTitleColor;
 	}
 
-	FLinearColor FNodeColorsFactory::GetNodeBodyTintColor(const FName& Category)
+	FLinearColor FNodeColorsRegistry::GetNodeBodyTintColor(const FName& Category)
 	{
 		if (ColorsMap.Contains(Category))
 		{
@@ -112,7 +112,7 @@ namespace Dataflow
 		return FNodeColors().NodeBodyTintColor;
 	}
 
-	void FNodeColorsFactory::NodeColorsChangedInSettings(const FNodeColorsMap& NodeColorsMap)
+	void FNodeColorsRegistry::NodeColorsChangedInSettings(const FNodeColorsMap& NodeColorsMap)
 	{
 		for (auto& Elem : NodeColorsMap)
 		{
