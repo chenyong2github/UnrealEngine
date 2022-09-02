@@ -314,6 +314,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override void GetCompileArguments_Analyze(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_Analyze(CompileEnvironment, Arguments);
+
+			// Disable all clang tidy checks
+			Arguments.Add($"-Xclang -analyzer-tidy-checker=-*");
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
