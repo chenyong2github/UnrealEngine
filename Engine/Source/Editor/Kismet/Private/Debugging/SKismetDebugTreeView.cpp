@@ -1203,7 +1203,7 @@ protected:
 
 	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren, const FString& InSearchString, bool bRespectSearch) override
 	{
-		for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : Data->Children)
+		for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : Data->GetChildren())
 		{
 			EnsureChildIsAdded(OutChildren, FWatchChildLineItem(ChildData.ToSharedRef(), AsShared()), InSearchString, bRespectSearch);
 		}
@@ -1419,7 +1419,7 @@ protected:
 		TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = GetPropertyInfo();
 		if (ThisDebugInfo.IsValid())
 		{
-			for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : ThisDebugInfo->Children)
+			for (const TSharedPtr<FPropertyInstanceInfo>& ChildData : ThisDebugInfo->GetChildren())
 			{
 				EnsureChildIsAdded(OutChildren, FWatchChildLineItem(ChildData.ToSharedRef(), AsShared()), InSearchString, bRespectSearch);
 			}

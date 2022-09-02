@@ -2137,15 +2137,35 @@ TSharedPtr<FPropertyInstanceInfo> FPropertyInstanceInfo::FindOrMake(FPropertyIns
 	{
 		return *Found;
 	}
-	
+
 	// wait to populate children until after inserting into VisitedNodes.
 	// this way we will catch circular references
-	TSharedPtr<FPropertyInstanceInfo> DebugInfo = VisitedNodes.Add(
+	TSharedPtr<FPropertyInstanceInfo> DebugInfo = MakeShared<FPropertyInstanceInfo>(PropertyInstance);
+
+	bool bFoundObject = false;
+	if (DebugInfo->Object.IsValid())
+	{
+		for (const TPair<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>>& VisitedNode : VisitedNodes)
+		{
+			if (VisitedNode.Value->Object == DebugInfo->Object)
+			{
+				bFoundObject = true;
+				DebugInfo->ReferencedObject = VisitedNode.Value;
+				break;
+			}
+		}
+	}
+	
+	VisitedNodes.Add(
 		PropertyInstance,
-		MakeShared<FPropertyInstanceInfo>(PropertyInstance)
+		DebugInfo
 	);
 
-	DebugInfo->PopulateChildren(PropertyInstance, VisitedNodes);
+	if (!bFoundObject)
+	{
+		DebugInfo->PopulateChildren(PropertyInstance, VisitedNodes);
+	}
+
 	return DebugInfo;
 }
 
@@ -2343,9 +2363,22 @@ FString FPropertyInstanceInfo::GetWatchText() const
 
 			return WatchText;
 		}
+
+
 	}
 
 	return Value.ToString();
+}
+
+const TArray<TSharedPtr<FPropertyInstanceInfo>>& FPropertyInstanceInfo::GetChildren() const
+{
+	// If this node represents an object that was already added elsewhere in the tree, return its children instead
+	if (ReferencedObject.IsValid())
+	{
+		return ReferencedObject->GetChildren();
+	}
+
+	return Children;
 }
 
 FText FKismetDebugUtilities::GetAndClearLastExceptionMessage()

@@ -96,7 +96,7 @@ namespace
 			UPackage* Package = Cast<UPackage>(BP.IsValid() ? BP->GetOuter() : nullptr);
 			BlueprintPackageName = Package ? Package->GetFName() : FName();
 
-			for (const TSharedPtr<FPropertyInstanceInfo>& ChildInfo : Info.Children)
+			for (const TSharedPtr<FPropertyInstanceInfo>& ChildInfo : Info.GetChildren())
 			{
 				Children.Add(MakeShared<FWatchRow>(InBP, InNode, InPin, InObjectBeingDebugged, BlueprintName, GraphName, NodeName, MoveTemp(*ChildInfo)));
 			}

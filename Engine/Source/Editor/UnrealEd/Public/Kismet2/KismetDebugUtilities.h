@@ -84,14 +84,25 @@ struct FPropertyInstanceInfo
 	/** Returns the watch text for info popup bubbles on the graph */
 	UNREALED_API FString GetWatchText() const;
 	
+	UNREALED_API const TArray<TSharedPtr<FPropertyInstanceInfo>>& GetChildren() const;
+
 	FText Name;
 	FText DisplayName;
 	FText Value;
 	FText Type;
 	TWeakObjectPtr<UObject> Object = nullptr; // only filled if property is a UObject
 	TFieldPath<const FProperty> Property;
-	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
 	bool bIsInContainer = false;
+
+private:
+	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
+
+	/** 
+	 * Only populated when this is an object and was already seen in the debug tree
+	 * used to avoid circular references in cases where the same object may be referenced by multiple properties  
+	 */
+	TSharedPtr<FPropertyInstanceInfo> ReferencedObject; 
+
 };
 
 inline uint32 GetTypeHash(const FPropertyInstanceInfo::FPropertyInstance& PropertyInstance)
