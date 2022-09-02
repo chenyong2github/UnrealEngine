@@ -77,6 +77,10 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 			.Font(StructCustomizationUtils.GetRegularFont())
 			.AllowClear(!StructPropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_NoClear))
 		    .FilterBlueprintBindable(false)
+		    .IsEnabled_Lambda([this]() -> bool
+		    {
+		    	return bEnableKeySelector;
+		    })
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
@@ -86,11 +90,30 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 		[
 			Button
 		]
+		+ SHorizontalBox::Slot()
+		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SImage)
+			.Visibility_Lambda([this]() {
+				return bDisplayIcon ? EVisibility::Visible : EVisibility::Hidden;
+			})
+			.Image(FAppStyle::GetBrush("Icons.Info"))
+			.ToolTipText(LOCTEXT("ComboTriggerKeyWarningText", "This Key is NOT part of the Combo. This action will be triggered when the actions in the Combo Actions array are completed."))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+        ]
 	];
 }
 
 TOptional<FKey> FKeyStructCustomization::GetCurrentKey() const
 {
+	if (!bEnableKeySelector)
+	{
+		PropertyHandle->SetValueFromFormattedString(TEXT("None"));
+	}
+	
 	TArray<void*> StructPtrs;
 	PropertyHandle->AccessRawData(StructPtrs);
 

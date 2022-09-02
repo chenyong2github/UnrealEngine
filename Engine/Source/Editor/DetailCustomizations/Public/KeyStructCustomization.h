@@ -30,7 +30,8 @@ public:
 	// Helper variant that generates the key struct in the header and appends a single button at the end
 	// TODO: Is there a better way?
 	void CustomizeHeaderOnlyWithButton(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils, TSharedRef<SWidget> Button);
-
+	bool bDisplayIcon = false;
+	bool bEnableKeySelector = true;
 public:
 
 	/**

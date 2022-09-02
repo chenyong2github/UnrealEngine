@@ -6,6 +6,7 @@
 #include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IPropertyTypeCustomization.h"
+#include "KeyStructCustomization.h"
 
 class IDetailLayoutBuilder;
 
@@ -31,12 +32,16 @@ public:
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 
+	/** Searches the trigger array of an input action - returns true if any combo input triggers are present */
+	bool DoesTriggerArrayContainCombo() const;
 private:
 
 	void RemoveMappingButton_OnClick() const;
+	void OnTriggersChanged() const;
 
 	TSharedPtr<IPropertyTypeCustomization> KeyStructInstance;
 	TSharedPtr<IPropertyHandle> MappingPropertyHandle;
+	TSharedPtr<FKeyStructCustomization> KeyStructCustomization;
 };
 
 /**

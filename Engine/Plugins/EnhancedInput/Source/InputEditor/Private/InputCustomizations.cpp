@@ -8,7 +8,6 @@
 #include "EnhancedActionKeyMapping.h"
 #include "IDetailChildrenBuilder.h"
 #include "InputMappingContext.h"
-#include "KeyStructCustomization.h"
 #include "PropertyCustomizationHelpers.h"
 #include "EnhancedInputDeveloperSettings.h"
 #include "InputEditorModule.h"
@@ -46,6 +45,9 @@ void FEnhancedActionMappingCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 
 	// Grab the FKey property
 	TSharedPtr<IPropertyHandle> KeyHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Key));
+	TSharedPtr<IPropertyHandle> TriggersHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Triggers));
+
+	TriggersHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FEnhancedActionMappingCustomization::OnTriggersChanged));
 
 	TSharedRef<SWidget> RemoveButton = PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateSP(this, &FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick),
 		LOCTEXT("RemoveMappingToolTip", "Remove Mapping"));
@@ -56,7 +58,11 @@ void FEnhancedActionMappingCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	// TODO: Use FDetailArrayBuilder?
 
 	// Pass our header row into the key struct customizeheader method so it populates our row with the key struct header
-	StaticCastSharedPtr<FKeyStructCustomization>(KeyStructInstance)->CustomizeHeaderOnlyWithButton(KeyHandle.ToSharedRef(), HeaderRow, CustomizationUtils, RemoveButton);
+	KeyStructCustomization = StaticCastSharedPtr<FKeyStructCustomization>(KeyStructInstance);
+	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
+	KeyStructCustomization->bDisplayIcon = bContainsComboTrigger;
+	KeyStructCustomization->bEnableKeySelector = !bContainsComboTrigger;
+	KeyStructCustomization->CustomizeHeaderOnlyWithButton(KeyHandle.ToSharedRef(), HeaderRow, CustomizationUtils, RemoveButton);
 }
 
 void FEnhancedActionMappingCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -82,6 +88,46 @@ void FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick() const
 
 		ParentArrayHandle->DeleteItem(MappingPropertyHandle->GetIndexInArray());
 	}
+}
+
+void FEnhancedActionMappingCustomization::OnTriggersChanged() const
+{
+	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
+	KeyStructCustomization->bDisplayIcon = bContainsComboTrigger;
+	KeyStructCustomization->bEnableKeySelector = !bContainsComboTrigger;
+}
+
+bool FEnhancedActionMappingCustomization::DoesTriggerArrayContainCombo() const
+{
+	if (MappingPropertyHandle)
+	{
+		if (TSharedPtr<IPropertyHandle> TriggersHandle = MappingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FEnhancedActionKeyMapping, Triggers)))
+		{
+			// getting data for the trigger array
+			void* Data = nullptr;
+			TriggersHandle->GetValueData(Data);
+			if (Data)
+			{
+				FProperty* TriggersProperty = TriggersHandle->GetProperty();
+				FArrayProperty* TriggersArrayProperty = CastField<FArrayProperty>(TriggersProperty);
+				FScriptArrayHelper ArrayHelper(TriggersArrayProperty, Data);
+	
+				for (int32 i = 0; i < ArrayHelper.Num(); i++)
+				{
+					// Make sure we can cast this to a input trigger and if it's a combo we can return true
+					if (UInputTrigger** InputComboTrigger = reinterpret_cast<UInputTrigger**>(ArrayHelper.GetRawPtr(i)))
+					{
+						if ((*InputComboTrigger) && (*InputComboTrigger)->IsA(UInputTriggerComboAction::StaticClass()))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return false;
 }
 
 //////////////////////////////////////////////////////////
