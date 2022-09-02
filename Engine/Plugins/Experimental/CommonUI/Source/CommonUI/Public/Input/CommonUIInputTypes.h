@@ -5,19 +5,8 @@
 #include "UIActionBindingHandle.h"
 #include "UITag.h"
 #include "Misc/EnumRange.h"
-#include "CommonInputMode.h"
+#include "CommonInputModeTypes.h"
 #include "InputCoreTypes.h"
-
-inline const TCHAR* LexToString(ECommonInputMode Value)
-{
-	switch (Value)
-	{
-	case ECommonInputMode::Menu: return TEXT("Menu"); break;
-	case ECommonInputMode::Game: return TEXT("Game"); break;
-	case ECommonInputMode::All: return TEXT("All"); break;
-	}
-	return TEXT("Unknown");
-}
 
 struct COMMONUI_API FBindUIActionArgs
 {

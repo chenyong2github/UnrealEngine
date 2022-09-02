@@ -7,7 +7,7 @@
 #include "Components/Button.h"
 #include "Misc/Optional.h"
 #include "Types/ISlateMetaData.h"
-#include "Input/CommonInputMode.h"
+#include "CommonInputModeTypes.h"
 #include "CommonButtonBase.generated.h"
 
 class UCommonTextStyle;

@@ -4,6 +4,7 @@
 
 #include "Engine/DataAsset.h"
 #include "Types/ISlateMetaData.h"
+#include "CommonInputModeTypes.h"
 
 #include "CommonInputActionDomain.generated.h"
 

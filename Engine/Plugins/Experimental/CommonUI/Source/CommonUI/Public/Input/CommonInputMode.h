@@ -2,16 +2,10 @@
 
 #pragma once
 
-#include "Misc/EnumRange.h"
+#ifdef _MSC_VER
+#pragma message(__FILE__"(8): warning: use CommonInputModeTypes.h from CommonInput module instead of Input/CommonInputMode.h from CommonUI module")
+#else
+#pragma message("#include CommonInputModeTypes.h from CommonInput module instead of Input/CommonInputMode.h from CommonUI module")
+#endif
 
-#include "CommonInputMode.generated.h"
-
-UENUM(BlueprintType)
-enum class ECommonInputMode : uint8
-{
-	Menu	UMETA(Tooltip="Input is received by the UI only"),
-	Game	UMETA(Tooltip="Input is received by the Game only"),
-	All		UMETA(Tooltip="Input is received by UI and the Game"),
-	
-	MAX UMETA(Hidden)
-};
+#include "CommonInputModeTypes.h"
