@@ -39,12 +39,6 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Engine/ScopedMovementUpdate.h"
 
-// Enabling this will validate cached dependent Blueprints against the full set of loaded Blueprints when updating bytecode references.
-// Note: Enabling this may potentially increase editor/Blueprint load time and/or decrease performance related to Blueprint compilation.
-#ifndef VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
-#define VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE 0
-#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
-
 DECLARE_CYCLE_STAT(TEXT("Replace Instances"), EKismetReinstancerStats_ReplaceInstancesOfClass, STATGROUP_KismetReinstancer );
 DECLARE_CYCLE_STAT(TEXT("Find Referencers"), EKismetReinstancerStats_FindReferencers, STATGROUP_KismetReinstancer );
 DECLARE_CYCLE_STAT(TEXT("Replace References"), EKismetReinstancerStats_ReplaceReferences, STATGROUP_KismetReinstancer );
@@ -957,7 +951,9 @@ protected:
 	const TMap<FFieldVariant, FFieldVariant>& ReplacementMap;
 };
 
-void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
+void FBlueprintCompileReinstancer::UpdateBytecodeReferences(
+	TSet<UBlueprint*>& OutDependentBlueprints,
+	TMap<FFieldVariant, FFieldVariant>& OutFieldMapping)
 {
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetReinstancerStats_UpdateBytecodeReferences);
 
@@ -970,6 +966,7 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 	{
 		TMap<FFieldVariant, FFieldVariant> FieldMappings;
 		GenerateFieldMappings(FieldMappings);
+		OutFieldMapping.Append(FieldMappings);
 
 		// Note: This API returns a cached set of blueprints that's updated at compile time.
 		TArray<UBlueprint*> CachedDependentBPs;
@@ -978,12 +975,7 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 		// Determine whether or not we will be updating references for an Animation Blueprint class.
 		const bool bIsAnimBlueprintClass = !!Cast<UAnimBlueprint>(ClassToReinstance->ClassGeneratedBy);
 
-#if VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
-		TArray<UBlueprint*> ActualDependentBPs;
-		for (TObjectIterator<UBlueprint> BpIt; BpIt; ++BpIt)
-#else
 		for (auto BpIt = CachedDependentBPs.CreateIterator(); BpIt; ++BpIt)
-#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
 		{
 			UBlueprint* DependentBP = *BpIt;
 			UClass* BPClass = DependentBP->GeneratedClass;
@@ -1008,13 +1000,11 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 				BPClass->StaticLink(true);
 			}
 
-			bool bBPWasChanged = false;
 			// For each function defined in this blueprint, run through the bytecode, and update any refs from the old properties to the new
 			for( TFieldIterator<UFunction> FuncIter(BPClass, EFieldIteratorFlags::ExcludeSuper); FuncIter; ++FuncIter )
 			{
 				UFunction* CurrentFunction = *FuncIter;
 				FArchiveReplaceFieldReferences ReplaceAr(CurrentFunction, FieldMappings);
-				bBPWasChanged |= (0 != ReplaceAr.GetCount());
 			}
 
 			// Update any refs in called functions array, as the bytecode was just similarly updated:
@@ -1035,38 +1025,25 @@ void FBlueprintCompileReinstancer::UpdateBytecodeReferences()
 				}
 			}
 
-			FArchiveReplaceFieldReferences ReplaceInBPAr(DependentBP, FieldMappings);
-			if (ReplaceInBPAr.GetCount())
-			{
-#if VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
-				ActualDependentBPs.Add(DependentBP);
-#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
-
-				bBPWasChanged = true;
-				UE_LOG(LogBlueprint, Log, TEXT("UpdateBytecodeReferences: %d references from %s was replaced in BP %s"), ReplaceInBPAr.GetCount(), *GetPathNameSafe(ClassToReinstance), *GetPathNameSafe(DependentBP));
-			}
+			OutDependentBlueprints.Add(DependentBP);
 		}
+	}
+}
 
-#if VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
-		bool bHasMissingDependents = false;
-		for (UBlueprint* ChangedBP : ActualDependentBPs)
+void FBlueprintCompileReinstancer::FinishUpdateBytecodeReferences(
+	const TSet<UBlueprint*>& DependentBPs,
+	const TMap<FFieldVariant, FFieldVariant>& FieldMappings)
+{
+	for (UBlueprint* DependentBP : DependentBPs)
+	{
+		FArchiveReplaceFieldReferences ReplaceInBPAr(DependentBP, FieldMappings);
+
+		if (ReplaceInBPAr.GetCount())
 		{
-			if (!CachedDependentBPs.Contains(ChangedBP))
-			{
-				UE_LOG(LogBlueprint, Error, TEXT("While updating %s, we needed to update %s but it wasn't cached as a dependent"), *ClassToReinstance->GetName(), *ChangedBP->GetName());
-				bHasMissingDependents = true;
-			}
+			UE_LOG(LogBlueprint, Log, 
+				TEXT("UpdateBytecodeReferences: %d references were replaced in BP %s"), 
+				ReplaceInBPAr.GetCount(), *GetPathNameSafe(DependentBP));
 		}
-
-		if (bHasMissingDependents)
-		{
-			UE_LOG(LogBlueprint, Error, TEXT("Class: %s, CachedDeps: [%s], ActualDeps: [%s]"),
-				*ClassToReinstance->GetName(),
-				*FString::JoinBy(CachedDependentBPs, TEXT(","), [](UBlueprint* Blueprint) { return Blueprint->GetName(); }),
-				*FString::JoinBy(ActualDependentBPs, TEXT(","), [](UBlueprint* Blueprint) { return Blueprint->GetName(); })
-			);
-		}
-#endif // VALIDATE_BYTECODE_REFERENCE_DEPENDENCY_CACHE
 	}
 }
 

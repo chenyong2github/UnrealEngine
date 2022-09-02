@@ -166,7 +166,10 @@ public:
 	void ReinstanceObjects(bool bForceAlwaysReinstance = false);
 
 	/** Updates references to properties and functions of the class that has in the bytecode of dependent blueprints */
-	void UpdateBytecodeReferences();
+	void UpdateBytecodeReferences( TSet<UBlueprint*>& OutDependentBlueprints, TMap<FFieldVariant, FFieldVariant>& OutFieldMapping);
+
+	/** Consumes the set and map populated by calls to UpdateBytecodeReferences */
+	static void FinishUpdateBytecodeReferences( const TSet<UBlueprint*>& DependentBPs, const TMap<FFieldVariant, FFieldVariant>& FieldMappings);
 
 	/** Worker function to replace all instances of OldClass with a new instance of NewClass */
 	static void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, UObject* OriginalCDO = nullptr, TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true);

@@ -2176,18 +2176,24 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 	}
 
 	// run UpdateBytecodeReferences:
-	for (const FReinstancingJob& ReinstancingJob : Reinstancers)
 	{
-		if (ReinstancingJob.OldToNew.Key)
+		TSet<UBlueprint*> DependentBPs;
+		TMap<FFieldVariant, FFieldVariant> FieldMappings;
+		for (const FReinstancingJob& ReinstancingJob : Reinstancers)
 		{
-			InOutOldToNewClassMap.Add(ReinstancingJob.OldToNew.Key, ReinstancingJob.OldToNew.Value);
+			if (ReinstancingJob.OldToNew.Key)
+			{
+				InOutOldToNewClassMap.Add(ReinstancingJob.OldToNew.Key, ReinstancingJob.OldToNew.Value);
+			}
+
+			if (ReinstancingJob.Reinstancer.IsValid())
+			{
+				UBlueprint* CompiledBlueprint = UBlueprint::GetBlueprintFromClass(ReinstancingJob.OldToNew.Value);
+				ReinstancingJob.Reinstancer->UpdateBytecodeReferences(DependentBPs, FieldMappings);
+			}
 		}
-			
-		if(ReinstancingJob.Reinstancer.IsValid())
-		{
-			UBlueprint* CompiledBlueprint = UBlueprint::GetBlueprintFromClass(ReinstancingJob.OldToNew.Value);
-			ReinstancingJob.Reinstancer->UpdateBytecodeReferences();
-		}
+
+		FBlueprintCompileReinstancer::FinishUpdateBytecodeReferences(DependentBPs, FieldMappings);
 	}
 	
 	// Now we can update templates and archetypes - note that we don't look for direct references to archetypes - doing
