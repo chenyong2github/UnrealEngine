@@ -125,7 +125,7 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 	}
 }
 
-void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate)
+void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate) const
 {
 	for (const TWeakObjectPtr<UWaterBodyComponent>& WaterBodyComponent : OwnedWaterBodies)
 	{
@@ -139,11 +139,13 @@ void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent
 void AWaterZone::AddWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent)
 {
 	OwnedWaterBodies.AddUnique(WaterBodyComponent);
+	MarkForRebuild(EWaterZoneRebuildFlags::All);
 }
 
 void AWaterZone::RemoveWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent)
 {
 	OwnedWaterBodies.RemoveSwap(WaterBodyComponent);
+	MarkForRebuild(EWaterZoneRebuildFlags::All);
 }
 
 void AWaterZone::Update()

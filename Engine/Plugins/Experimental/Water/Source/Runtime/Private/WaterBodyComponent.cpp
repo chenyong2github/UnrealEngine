@@ -754,6 +754,11 @@ void UWaterBodyComponent::OnUnregister()
 	RegisterOnChangeWaterSplineData(/*bRegister = */false);
 #endif // WITH_EDITOR
 
+	if (AWaterZone* WaterZone = GetWaterZone(); IsValid(WaterZone))
+	{
+		WaterZone->RemoveWaterBodyComponent(this);
+	}
+
 	Super::OnUnregister();
 }
 

@@ -35,7 +35,7 @@ public:
 	void Update();
 		
 	/** Execute a predicate function on each valid water body within the water zone. Predicate should return false for early exit. */
-	void ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate);
+	void ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate) const;
 
 	void AddWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent);
 	void RemoveWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent);
