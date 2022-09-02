@@ -1262,7 +1262,6 @@ void UGameEngine::FinishDestroy()
 	CmdExec.Reset();
 }
 
-//@todo: unify this and the driver version
 bool UGameEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading /*= true*/)
 {
 	if (Connection == nullptr)
@@ -1311,104 +1310,6 @@ bool UGameEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, boo
 
 	// Try to find the level script objects and remap them for when demos are being replayed.
 	if (Connection->IsInternalAck() && World->RemapCompiledScriptActor(Str))
-	{
-		return true;
-	}
-
-	// If the game has created multiple worlds, some of them may have prefixed package names,
-	// so we need to remap the world package and streaming levels for replay playback to work correctly.
-	FWorldContext& Context = GetWorldContextFromWorldChecked(World);
-	if (Context.PIEInstance == INDEX_NONE)
-	{
-		if (WorldList.Num() > 1)
-		{
-			// If this is not a PIE instance but sender is PIE, we need to strip the PIE prefix
-			const FString Stripped = UWorld::RemovePIEPrefix(Str);
-			if (!Stripped.Equals(Str, ESearchCase::CaseSensitive))
-			{
-				Str = Stripped;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	// If the prefixed path matches the world package name or the name of a streaming level,
-	// return the prefixed name.
-	FString PackageNameOnly = Str;
-	FPackageName::TryConvertFilenameToLongPackageName(PackageNameOnly, PackageNameOnly);
-
-	const FString PrefixedFullName = UWorld::ConvertToPIEPackageName(Str, Context.PIEInstance);
-	const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName(PackageNameOnly, Context.PIEInstance);
-	const FString WorldPackageName = World->GetOutermost()->GetName();
-
-	if (WorldPackageName == PrefixedPackageName)
-	{
-		Str = PrefixedFullName;
-		return true;
-	}
-
-	for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
-	{
-		if (StreamingLevel != nullptr)
-		{
-			const FString StreamingLevelName = StreamingLevel->GetWorldAsset().GetLongPackageName();
-			if (StreamingLevelName == PrefixedPackageName)
-			{
-				Str = PrefixedFullName;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-bool UGameEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading /*= true*/)
-{
-	if (Driver == nullptr)
-	{
-		return false;
-	}
-
-	UWorld* const World = Driver->GetWorld();
-
-	if (World == nullptr)
-	{
-		return false;
-	}
-
-	// If the driver is using a duplicate level ID, find the level collection using the driver
-	// and see if any of its levels match the prefixed name. If so, remap Str to that level's
-	// prefixed name.
-	if (Driver->GetDuplicateLevelID() != INDEX_NONE && bReading)
-	{
-		const FName PrefixedName = *UWorld::ConvertToPIEPackageName(Str, Driver->GetDuplicateLevelID());
-
-		for (const FLevelCollection& Collection : World->GetLevelCollections())
-		{
-			if (Collection.GetNetDriver() == Driver || Collection.GetDemoNetDriver() == Driver)
-			{
-				for (const ULevel* Level : Collection.GetLevels())
-				{
-					const UPackage* const CachedOutermost = Level ? Level->GetOutermost() : nullptr;
-					if (CachedOutermost && CachedOutermost->GetFName() == PrefixedName)
-					{
-						Str = PrefixedName.ToString();
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	if (!bReading)
-	{
-		return false;
-	}
-
-	// Try to find the level script objects and remap them for when demos are being replayed.
-	if (World->GetDemoNetDriver() == Driver && World->RemapCompiledScriptActor(Str))
 	{
 		return true;
 	}

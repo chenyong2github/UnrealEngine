@@ -292,10 +292,11 @@ public:
 	UPROPERTY()
 	int32	MaxPacket;						// Maximum packet size.
 
-	UE_DEPRECATED(4.25, "Please use IsInternalAck/SetInternalAck instead")
+private:
 	UPROPERTY()
 	uint32 InternalAck:1;					// Internally ack all packets, for 100% reliable connections.
 
+public:
 	bool IsInternalAck() const { return bInternalAck; }
 	void SetInternalAck(bool bValue) 
 	{ 
@@ -427,16 +428,7 @@ public:
 	int32			TickCount;				// Count of ticks.
 	uint32			LastProcessedFrame;   // The last frame where we gathered and processed actors for this connection
 
-	/** The last time an ack was received */
-	UE_DEPRECATED(4.25, "Please use GetLastRecvAckTime() instead.")
-	float			LastRecvAckTime;
-
 	double GetLastRecvAckTime() const { return LastRecvAckTimestamp; }
-
-	/** Time when connection request was first initiated */
-	UE_DEPRECATED(4.25, "Please use GetConnectTime() instead.")
-	float			ConnectTime;
-
 	double GetConnectTime() const { return ConnectTimestamp; }
 
 private:
@@ -567,8 +559,6 @@ public:
 	double			OutLagTime[256];				// For lag measuring.
 	int32			OutLagPacketId[256];			// For lag measuring.
 	uint8			OutBytesPerSecondHistory[256];	// For saturation measuring.
-	UE_DEPRECATED(4.25, "RemoteSaturation is not calculated anymore and is now deprecated")
-	float			RemoteSaturation;
 	int32			InPacketId;						// Full incoming packet index.
 	int32			OutPacketId;					// Most recently sent packet.
 	int32 			OutAckPacketId;					// Most recently acked outgoing packet.
@@ -934,10 +924,6 @@ public:
 	ENGINE_API virtual void FlushNet(bool bIgnoreSimulation = false);
 
 	/** Poll the connection. If it is timed out, close it. */
-	UE_DEPRECATED(4.26, "Now takes DeltaSeconds")
-	ENGINE_API virtual void Tick() { Tick(0.0f); }
-
-	/** Poll the connection. If it is timed out, close it. */
 	ENGINE_API virtual void Tick(float DeltaSeconds);
 
 	/** Return whether this channel is ready for sending. */
@@ -1067,32 +1053,14 @@ public:
 	ENGINE_API virtual void NotifyAnalyticsProvider();
 
 	/**
-	 * Sets the encryption key and enables encryption.
-	 */
-	UE_DEPRECATED(4.24, "Use SetEncryptionData instead.")
-	ENGINE_API void EnableEncryptionWithKey(TArrayView<const uint8> Key);
-	
-	/**
 	 * Sets the encryption data and enables encryption.
 	 */
 	ENGINE_API void EnableEncryption(const FEncryptionData& EncryptionData);
 
 	/**
-	 * Sets the encryption key, enables encryption, and sends the encryption ack to the client.
-	 */
-	UE_DEPRECATED(4.24, "Use SetEncryptionData instead.")
-	ENGINE_API void EnableEncryptionWithKeyServer(TArrayView<const uint8> Key);
-
-	/**
 	 * Sets the encryption data, enables encryption, and sends the encryption ack to the client.
 	 */
 	ENGINE_API void EnableEncryptionServer(const FEncryptionData& EncryptionData);
-
-	/**
-	 * Sets the key for the underlying encryption packet handler component, but doesn't modify encryption enabled state.
-	 */
-	UE_DEPRECATED(4.24, "Use SetEncryptionData instead.")
-	ENGINE_API void SetEncryptionKey(TArrayView<const uint8> Key);
 
 	/**
 	 * Sets the data for the underlying encryption packet handler component, but doesn't modify encryption enabled state.
@@ -1272,13 +1240,6 @@ public:
 	/** Returns the online platform name for the player on this connection. Only valid for client connections on servers. */
 	ENGINE_API FName GetPlayerOnlinePlatformName() const { return PlayerOnlinePlatformName; }
 	
-	/**
-	 * Sets whether or not we should ignore bunches that would attempt to open channels that are already open.
-	 * Should only be used with InternalAck.
-	 */
-	UE_DEPRECATED(4.26, "Please call SetAllowExistingChannelIndex instead.")
-	void SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedChannels) { SetAllowExistingChannelIndex(bInIgnoreAlreadyOpenedChannels); }
-
 	/** Sets whether we handle opening channels with an index that already exists, used by replays to fast forward the packet stream */
 	void SetAllowExistingChannelIndex(bool bAllow);
 

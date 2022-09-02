@@ -2198,10 +2198,7 @@ bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriori
 
 				FScopedRepContext LevelContext(Params.Connection, DestructionInfo->Level.Get());
 
-				// Send a close bunch on the new channel
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Channel->SetChannelActorForDestroy(DestructionInfo);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				SendDestructionInfo(Params.Connection, DestructionInfo);
 
 				// Remove from connection's to-be-destroyed list (close bunch is reliable, so it will make it there)
 				Params.Connection->RemoveDestructionInfo(DestructionInfo);

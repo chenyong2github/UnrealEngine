@@ -392,10 +392,6 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 	LastTime				= 0.0;
 	LastSendTime			= DriverElapsedTime;
 	LastTickTime			= DriverElapsedTime;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	LastRecvAckTime			= DriverElapsedTime;
-	ConnectTime				= DriverElapsedTime;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	LastRecvAckTimestamp	= DriverElapsedTime;
 	ConnectTimestamp		= DriverElapsedTime;
 
@@ -680,14 +676,6 @@ void UNetConnection::NotifyConnectionUpdated()
 	}
 }
 
-void UNetConnection::EnableEncryptionWithKey(TArrayView<const uint8> Key)
-{
-	FEncryptionData EncryptionData;
-	EncryptionData.Key.Append(Key.GetData(), Key.Num());
-
-	EnableEncryption(EncryptionData);
-}
-
 void UNetConnection::EnableEncryption(const FEncryptionData& EncryptionData)
 {
 	if (Handler.IsValid())
@@ -705,14 +693,6 @@ void UNetConnection::EnableEncryption(const FEncryptionData& EncryptionData)
 			UE_LOG(LogNet, Warning, TEXT("UNetConnection::EnableEncryption, encryption component not found!"));
 		}
 	}
-}
-
-void UNetConnection::EnableEncryptionWithKeyServer(TArrayView<const uint8> Key)
-{
-	FEncryptionData EncryptionData;
-	EncryptionData.Key.Append(Key.GetData(), Key.Num());
-
-	EnableEncryptionServer(EncryptionData);
 }
 
 void UNetConnection::EnableEncryptionServer(const FEncryptionData& EncryptionData)
@@ -739,14 +719,6 @@ void UNetConnection::SendClientEncryptionAck()
 	{
 		UE_LOG(LogNet, Log, TEXT("UNetConnection::SendClientEncryptionAck, connection in invalid state. %s"), *Describe());
 	}
-}
-
-void UNetConnection::SetEncryptionKey(TArrayView<const uint8> Key)
-{
-	FEncryptionData EncryptionData;
-	EncryptionData.Key.Append(Key.GetData(), Key.Num());
-
-	SetEncryptionData(EncryptionData);
 }
 
 void UNetConnection::SetEncryptionData(const FEncryptionData& EncryptionData)
@@ -2226,9 +2198,6 @@ void UNetConnection::ReceivedAck(int32 AckPacketId, FChannelsToClose& OutChannel
 	OutAckPacketId = AckPacketId;
 
 	// Process the bunch.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	LastRecvAckTime = Driver->GetElapsedTime();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	LastRecvAckTimestamp = Driver->GetElapsedTime();
 
 	PacketAnalytics.TrackAck(AckPacketId);
@@ -5142,21 +5111,7 @@ void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& R
 	{
 		if (Response.Response == EEncryptionResponse::Success)
 		{
-			// handle deprecated path where only the key is set
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if ((Response.EncryptionKey.Num() > 0) && (Response.EncryptionData.Key.Num() == 0))
-			{
-				FEncryptionData ResponseData = Response.EncryptionData;
-				ResponseData.Key = Response.EncryptionKey;
-
-				EnableEncryptionServer(ResponseData);
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			else
-			{
-				EnableEncryptionServer(Response.EncryptionData);
-			}
-
+			EnableEncryptionServer(Response.EncryptionData);
 			SendChallengeControlMessage();
 		}
 		else

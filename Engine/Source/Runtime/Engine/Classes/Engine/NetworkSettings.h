@@ -45,22 +45,6 @@ class ENGINE_API UNetworkSettings : public UDeveloperSettings
 		ToolTip="If true, origin rebasing is enabled in multiplayer games, meaning that servers and clients can have different local world origins."))
 	uint32 bEnableMultiplayerWorldOriginRebasing : 1;
 
-	//! Maximum allowable size for replicated dynamic arrays (in number of elements)
-	UE_DEPRECATED(4.26, "This property is no longer used.")
-	UPROPERTY(config, EditAnywhere, Category = replication, meta = (
-		DisplayName = "Max Array Size",
-		ToolTip = "Maximum allowable size for replicated dynamic arrays (in number of elements). Must be between 1 and 65535.",
-		ClampMin = "1", ClampMax = "65535", UIMin = "1", UIMax = "65535"))
-	int32 MaxRepArraySize = DefaultMaxRepArraySize;
-
-	//! Maximum allowable size for replicated dynamic arrays (in bytes)
-	UE_DEPRECATED(4.26, "This property is no longer used.")
-	UPROPERTY(config, EditAnywhere, Category = replication, meta = (
-		DisplayName = "Max Array Memory",
-		ToolTip = "Maximum allowable size for replicated dynamic arrays (in bytes).  Must be between 1 and 65535.",
-		ClampMin = "1", ClampMax = "65535", UIMin = "1", UIMax = "65535"))
-	int32 MaxRepArrayMemory = DefaultMaxRepArrayMemory;
-
 	/** This lists the common network emulation profiles that will be selectable in PIE settings */
 	UPROPERTY(config)
 	TArray<FNetworkEmulationProfileDescription> NetworkEmulationProfiles;

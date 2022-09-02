@@ -805,11 +805,6 @@ public:
 	{
 	}
 
-	UE_DEPRECATED(4.26, "Remove this function (no longer pure virtual, same with OutgoingConnectionless), or use the version which takes FReceivedPacketView.")
-	virtual void IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet)
-	{
-	}
-
 	/**
 	 * Handles incoming packets not associated with a UNetConnection
 	 *

@@ -182,9 +182,6 @@ public:
 
 	virtual void NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch);
 
-	UE_DEPRECATED(4.26, "Use UNetworkDriver::SendDestructionInfo instead.")
-	int64 SetChannelActorForDestroy( struct FActorDestructionInfo *DestructInfo );
-
 	/** Append any export bunches */
 	virtual void AppendExportBunches( TArray< FOutBunch* >& OutExportBunches ) override;
 

@@ -5753,43 +5753,6 @@ float AActor::GetGameTimeSinceCreation() const
 	}
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void AActor::SetNetUpdateTime( float NewUpdateTime )
-{
-	if ( FNetworkObjectInfo* NetActor = FindNetworkObjectInfo() )
-	{
-		// Only allow the next update to be sooner than the current one
-		NetActor->NextUpdateTime = FMath::Min( NetActor->NextUpdateTime, (double)NewUpdateTime );
-	}			
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-FNetworkObjectInfo* AActor::FindOrAddNetworkObjectInfo()
-{
-	if ( UWorld* World = GetWorld() )
-	{
-		if ( UNetDriver* NetDriver = World->GetNetDriver() )
-		{
-			return NetDriver->FindOrAddNetworkObjectInfo( this );
-		}
-	}
-
-	return nullptr;
-}
-
-FNetworkObjectInfo* AActor::FindNetworkObjectInfo()
-{
-	if ( UWorld* World = GetWorld() )
-	{
-		if ( UNetDriver* NetDriver = World->GetNetDriver() )
-		{
-			return NetDriver->FindNetworkObjectInfo(this);
-		}
-	}
-
-	return nullptr;
-}
-
 void AActor::PostRename(UObject* OldOuter, const FName OldName)
 {
 	Super::PostRename(OldOuter, OldName);

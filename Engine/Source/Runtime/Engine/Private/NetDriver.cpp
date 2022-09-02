@@ -4745,9 +4745,31 @@ int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestruct
 		if (Channel)
 		{
 			// Send a close bunch on the new channel
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			NumBits = Channel->SetChannelActorForDestroy(DestructionInfo);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			if(!Channel->Closing && (Connection->GetConnectionState() == USOCK_Open || Connection->GetConnectionState() == USOCK_Pending))
+			{
+				// Outer must be valid to call PackageMap->WriteObject. In the case of streaming out levels, this can go null out of from underneath us. In that case, just skip the destruct info.
+				// We assume that if server unloads a level that clients will to and this will implicitly destroy all actors in it, so not worried about leaking actors client side here.
+				if (UObject* ObjOuter = DestructionInfo->ObjOuter.Get())
+				{
+					// Send a close notify, and wait for ack.
+					FOutBunch CloseBunch(Channel, true);
+					check(!CloseBunch.IsError());
+					check(CloseBunch.bClose);
+					CloseBunch.bReliable = 1;
+					CloseBunch.CloseReason = DestructionInfo->Reason;
+
+					// Serialize DestructInfo
+					NET_CHECKSUM(CloseBunch); // This is to mirror the Checksum in UPackageMapClient::SerializeNewActor
+					Connection->PackageMap->WriteObject(CloseBunch, ObjOuter, DestructionInfo->NetGUID, DestructionInfo->PathName);
+
+					UE_LOG(LogNetTraffic, Log, TEXT("SendDestructionInfo: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), Channel->ChIndex, *DestructionInfo->NetGUID.ToString(), *DestructionInfo->PathName, CloseBunch.GetNumBits());
+					UE_LOG(LogNetDormancy, Verbose, TEXT("SendDestructionInfo: Channel %d. NetGUID <%s> Path: %s. Bits: %d"), Channel->ChIndex, *DestructionInfo->NetGUID.ToString(), *DestructionInfo->PathName, CloseBunch.GetNumBits());
+
+					Channel->SendBunch(&CloseBunch, false);
+
+					NumBits = CloseBunch.GetNumBits();
+				}
+			}
 		}
 	}
 

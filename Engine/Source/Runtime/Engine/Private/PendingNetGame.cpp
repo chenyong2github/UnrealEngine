@@ -391,20 +391,7 @@ void UPendingNetGame::FinalizeEncryptedConnection(const FEncryptionKeyResponse& 
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
-				// handle deprecated path where only the key is set
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				if ((Response.EncryptionKey.Num() > 0) && (Response.EncryptionData.Key.Num() == 0))
-				{
-					FEncryptionData ResponseData = Response.EncryptionData;
-					ResponseData.Key = Response.EncryptionKey;
-
-					Connection->EnableEncryption(ResponseData);
-				}
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				else
-				{
-					Connection->EnableEncryption(Response.EncryptionData);
-				}
+				Connection->EnableEncryption(Response.EncryptionData);
 			}
 			else
 			{

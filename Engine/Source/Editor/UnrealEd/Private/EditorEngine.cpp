@@ -7144,19 +7144,6 @@ bool UEditorEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, b
 	return NetworkRemapPath_local(Context, Str, bReading, Connection->IsReplay());
 }
 
-bool UEditorEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading)
-{
-	if (Driver == nullptr)
-	{
-		return false;
-	}
-
-	// Pretty sure there's no case where you can't have a world by this point.
-	const bool bIsReplay = Driver->GetWorld() ? (Driver->GetWorld()->GetDemoNetDriver() != nullptr) : false;
-	FWorldContext& Context = GetWorldContextFromWorldChecked(Driver->GetWorld());
-	return NetworkRemapPath_local(Context, Str, bReading, bIsReplay);
-}
-
 bool UEditorEngine::NetworkRemapPath( UPendingNetGame *PendingNetGame, FString& Str, bool bReading)
 {
 	FWorldContext& Context = GetWorldContextFromPendingNetGameChecked(PendingNetGame);
