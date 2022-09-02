@@ -338,7 +338,7 @@ namespace UnrealBuildTool
 		}
 	}
 
-	class PVSToolChain : UEToolChain
+	class PVSToolChain : ISPCToolChain
 	{
 		ReadOnlyTargetRules Target;
 		ReadOnlyPVSTargetSettings Settings;
