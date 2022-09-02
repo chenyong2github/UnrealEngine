@@ -1763,6 +1763,19 @@ void UNiagaraComponent::OnUnregister()
 	}
 }
 
+void UNiagaraComponent::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
+{
+	Super::ApplyWorldOffset(InOffset, bWorldShift);
+
+	// If this system is already active, assume that we want to dump the existing data and reset 
+	if (IsActive())
+	{
+	
+		Activate(true);
+	}
+}
+
+
 void UNiagaraComponent::BeginDestroy()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::BeginDestroy(): %p - %d - %s\n"), this, ScalabilityManagerHandle, *GetAsset()->GetFullName());

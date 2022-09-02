@@ -141,7 +141,8 @@ private:
 	//~ Begin UActorComponent Interface.
 protected:
 	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	virtual void OnUnregister() override; 
+	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	virtual void OnEndOfFrameUpdateDuringTick() override;
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
