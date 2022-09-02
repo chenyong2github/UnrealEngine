@@ -99,6 +99,8 @@ void FGizmoElementMeshRenderStateAttributes::Update(FGizmoElementMeshRenderState
 	HoverMaterial.UpdateState(InChildAttributes.HoverMaterial);
 	InteractMaterial.UpdateState(InChildAttributes.InteractMaterial);
 	VertexColor.UpdateState(InChildAttributes.VertexColor);
+	HoverVertexColor.UpdateState(InChildAttributes.HoverVertexColor);
+	InteractVertexColor.UpdateState(InChildAttributes.InteractVertexColor);
 }
 
 FLinearColor FGizmoElementLineRenderStateAttributes::GetLineColor(EGizmoElementInteractionState InteractionState)
