@@ -100,6 +100,15 @@ public:
 	}
 };
 
+// Note: We may refactor to put OpenXRInput into the OpenXRHMD module so we can get rid of this interface.
+class IOpenXRInputModule
+{
+public:
+	virtual ~IOpenXRInputModule() {}
+
+	virtual void OnBeginSession() = 0;
+	virtual void OnDestroySession() = 0;
+};
 
 class IOpenXRExtensionPlugin : public IModularFeature
 {

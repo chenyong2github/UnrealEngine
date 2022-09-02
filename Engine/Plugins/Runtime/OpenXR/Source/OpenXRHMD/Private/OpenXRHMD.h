@@ -23,6 +23,7 @@ class FSceneView;
 class FSceneViewFamily;
 class UCanvas;
 class FOpenXRRenderBridge;
+class IOpenXRInputModule;
 
 /**
  * Simple Head Mounted Display
@@ -328,6 +329,11 @@ public:
 	/** Constructor */
 	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<class IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport);
 
+	void SetInputModule(IOpenXRInputModule* InInputModule)
+	{
+		InputModule = InInputModule;
+	}
+
 	/** Destructor */
 	virtual ~FOpenXRHMD();
 
@@ -377,6 +383,7 @@ private:
 	FRWLock					SessionHandleMutex;
 
 	TArray<const char*>		EnabledExtensions;
+	IOpenXRInputModule*		InputModule;
 	TArray<class IOpenXRExtensionPlugin*> ExtensionPlugins;
 	XrInstance				Instance;
 	XrSystemId				System;
@@ -397,7 +404,7 @@ private:
 	FPipelinedLayerState	PipelinedLayerStateRendering;
 	FPipelinedLayerState	PipelinedLayerStateRHI;
 
-	FRWLock					DeviceMutex;
+	mutable FRWLock			DeviceMutex;
 	TArray<FDeviceSpace>	DeviceSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;

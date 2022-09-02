@@ -5,6 +5,7 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "XRMotionControllerBase.h"
 #include "IOpenXRInputPlugin.h"
+#include "IOpenXRExtensionPlugin.h"
 #include "IInputDevice.h"
 #include "IHapticDevice.h"
 #include "UObject/ObjectPtr.h"
@@ -100,14 +101,18 @@ public:
 		FInteractionProfile(XrPath InProfile, bool InHasHaptics);
 	};
 
-	class FOpenXRInput : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice, public TSharedFromThis<FOpenXRInput>
+	class FOpenXRInput : public IOpenXRInputModule, public IInputDevice, public FXRMotionControllerBase, public IHapticDevice, public TSharedFromThis<FOpenXRInput>
 	{
 	public:
 		FOpenXRInput(FOpenXRHMD* HMD);
 		virtual ~FOpenXRInput();
 
+		// IOpenXRAdditionalModule overrides
+		virtual void OnBeginSession() override;
+		virtual void OnDestroySession() override;
+
 		// IInputDevice overrides
-		virtual void Tick(float DeltaTime) override;
+		virtual void Tick(float DeltaTime) override {};
 		virtual void SendControllerEvents() override;
 		virtual void SetMessageHandler(const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler) override;
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;

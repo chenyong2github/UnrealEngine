@@ -279,6 +279,8 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 		// Generate a list of the sub-action paths so we can query the left/right hand individually
 		SubactionPaths.Add(GetPath(Instance, "/user/hand/left"));
 		SubactionPaths.Add(GetPath(Instance, "/user/hand/right"));
+
+		OpenXRHMD->SetInputModule(this);
 	}
 }
 
@@ -715,13 +717,9 @@ bool FOpenXRInputPlugin::FOpenXRInput::SuggestBindingForKey(TMap<FString, FInter
 	return SuggestBindingForKey(Profiles, Action, InFKey, Modifiers, Triggers);
 }
 
-void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
+void FOpenXRInputPlugin::FOpenXRInput::OnBeginSession()
 {
-	if (OpenXRHMD == nullptr)
-	{
-		// In the editor, when we are not actually running OpenXR, but the IInputDevice exists so it can enumerate its motion sources.
-		return;
-	}
+	check(OpenXRHMD); // If there is no hmd this function should not be called.
 
 	XrSession Session = OpenXRHMD->GetSession();
 	if (Session != XR_NULL_HANDLE)
@@ -730,10 +728,12 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 		{
 			BuildActions(Session);
 		}
-
-		SyncActions(Session);
 	}
-	else if (bActionsAttached)
+}
+
+void FOpenXRInputPlugin::FOpenXRInput::OnDestroySession()
+{
+	if (bActionsAttached)
 	{
 		// If the session shut down, clean up.
 		bActionsAttached = false;
@@ -830,6 +830,11 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 	}
 
 	XrSession Session = OpenXRHMD->GetSession();
+
+	if (Session != XR_NULL_HANDLE)
+	{
+		SyncActions(Session);
+	}
 
 	IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
 	for (FOpenXRAction& Action : LegacyActions)
