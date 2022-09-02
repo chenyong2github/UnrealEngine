@@ -34,12 +34,34 @@ struct FLeaderboardDefinition
 	FString Name;
 	/* Corresponding leaderboard id on the platform if needed */
 	int32 Id = 0;
-
 	/* How the leaderboard score will be updated */
-	ELeaderboardUpdateMethod LeaderboardUpdateMethod = ELeaderboardUpdateMethod::Force;
+	ELeaderboardUpdateMethod UpdateMethod = ELeaderboardUpdateMethod::Force;
 	/* How the leaderboard score will be ordered */
-	ELeaderboardOrderMethod LeaderboardOrderMethod = ELeaderboardOrderMethod::Descending;
+	ELeaderboardOrderMethod OrderMethod = ELeaderboardOrderMethod::Descending;
 };
+
+struct FLeaderboardsCommonConfig
+{
+	bool bIsTitleManaged = false;
+	TArray<FLeaderboardDefinition> LeaderboardDefinitions;
+};
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FLeaderboardDefinition)
+	ONLINE_STRUCT_FIELD(FLeaderboardDefinition, Name),
+	ONLINE_STRUCT_FIELD(FLeaderboardDefinition, Id),
+	ONLINE_STRUCT_FIELD(FLeaderboardDefinition, UpdateMethod),
+	ONLINE_STRUCT_FIELD(FLeaderboardDefinition, OrderMethod)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLeaderboardsCommonConfig)
+	ONLINE_STRUCT_FIELD(FLeaderboardsCommonConfig, bIsTitleManaged),
+	ONLINE_STRUCT_FIELD(FLeaderboardsCommonConfig, LeaderboardDefinitions)
+END_ONLINE_STRUCT_META()
+
+
+/* Meta */ }
 
 struct FWriteLeaderboardScores
 {

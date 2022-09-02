@@ -32,10 +32,10 @@ namespace Private
 
 uint64 GetUpdatedScoreByLeaderboardDefinition(FLeaderboardDefinition* LeaderboardDefinition, uint64 OldScore, uint64 NewScore)
 {
-	switch (LeaderboardDefinition->LeaderboardUpdateMethod)
+	switch (LeaderboardDefinition->UpdateMethod)
 	{
 	case ELeaderboardUpdateMethod::KeepBest:
-		switch (LeaderboardDefinition->LeaderboardOrderMethod)
+		switch (LeaderboardDefinition->OrderMethod)
 		{
 		case ELeaderboardOrderMethod::Descending:
 			return FMath::Max(NewScore, OldScore);
@@ -110,7 +110,7 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsNull::WriteLeaderboar
 			const FUserScoreNull& UserScore = CurrentNode->GetValue();
 
 			bool ShouldInsert = false;
-			switch (LeaderboardDefinition->LeaderboardOrderMethod)
+			switch (LeaderboardDefinition->OrderMethod)
 			{
 			case ELeaderboardOrderMethod::Descending:
 				ShouldInsert = UpdatedScore > UserScore.Score;

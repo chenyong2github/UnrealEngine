@@ -82,36 +82,15 @@ void FLeaderboardsCommon::UpdateConfig()
 {
 	Super::UpdateConfig();
 
-	const TCHAR* ConfigSection = TEXT("OnlineServices.Leaderboards");
-	GConfig->GetBool(ConfigSection, TEXT("LeaderboardDef_IsTitleManaged"), bIsTitleManaged, GEngineIni);
+	FLeaderboardsCommonConfig Config;
+	TOnlineComponent::LoadConfig(Config);
 
-	for (int StatIdx = 0;; StatIdx++)
+	bIsTitleManaged = Config.bIsTitleManaged;
+
+	for (FLeaderboardDefinition& LeaderboardDefinition : Config.LeaderboardDefinitions)
 	{
-		FString LeaderboardName;
-		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("LeaderboardDef_%d_Name"), StatIdx), LeaderboardName, GEngineIni);
-		if (LeaderboardName.IsEmpty())
-		{
-			break;
-		}
-
-		FLeaderboardDefinition& LeaderboardDefinition = LeaderboardDefinitions.Emplace(LeaderboardName);
-		LeaderboardDefinition.Name = MoveTemp(LeaderboardName);
-
-		GConfig->GetInt(ConfigSection, *FString::Printf(TEXT("LeaderboardDef_%d_Id"), StatIdx), LeaderboardDefinition.Id, GEngineIni);
-
-		FString LeaderboardUpdateMethod;
-		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("LeaderboardDef_%d_UpdateMethod"), StatIdx), LeaderboardUpdateMethod, GEngineIni);
-		if (!LeaderboardUpdateMethod.IsEmpty())
-		{
-			LexFromString(LeaderboardDefinition.LeaderboardUpdateMethod, *LeaderboardUpdateMethod);
-		}
-
-		FString LeaderboardOrderMethod;
-		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("LeaderboardDef_%d_OrderMethod"), StatIdx), LeaderboardOrderMethod, GEngineIni);
-		if (!LeaderboardOrderMethod.IsEmpty())
-		{
-			LexFromString(LeaderboardDefinition.LeaderboardOrderMethod, *LeaderboardOrderMethod);
-		}
+		FString LeaderboardName = LeaderboardDefinition.Name;
+		LeaderboardDefinitions.Emplace(MoveTemp(LeaderboardName), MoveTemp(LeaderboardDefinition));
 	}
 }
 
