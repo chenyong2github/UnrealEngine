@@ -1816,6 +1816,14 @@ public:
 		return false;
 	}
 
+	static void DisableScreenTimeout()
+	{
+	}
+
+	static void EnableScreenTimeout()
+	{
+	}
+
 protected:
 	/** Whether the user should be prompted to allow for a remote debugger to be attached */
 	static bool bShouldPromptForRemoteDebugging;
