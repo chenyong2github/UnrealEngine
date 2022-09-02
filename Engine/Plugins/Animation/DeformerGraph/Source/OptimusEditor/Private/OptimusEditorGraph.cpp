@@ -104,7 +104,9 @@ void UOptimusEditorGraph::RefreshVisualNode(UOptimusEditorGraphNode* InGraphNode
 }
 
 
-const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph)
+const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon(
+	const UOptimusNodeGraph* InModelGraph
+	)
 {
 	switch(InModelGraph->GetGraphType())
 	{

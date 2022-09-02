@@ -36,7 +36,7 @@ public:
 	void RefreshVisualNode(UOptimusEditorGraphNode *InGraphNode);
 
 	///
-	static const FSlateBrush* GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph);
+	static const FSlateBrush* GetGraphTypeIcon(const UOptimusNodeGraph* InModelGraph);
 
 protected:
 	friend class FOptimusEditor;
@@ -59,7 +59,7 @@ private:
 
 	UOptimusEditorGraphNode* AddGraphNodeFromModelNode(UOptimusNode* InModelNode);
 
-	UOptimusNodeGraph* NodeGraph;
+	TObjectPtr<UOptimusNodeGraph> NodeGraph;
 
 	TSet<UOptimusEditorGraphNode*> SelectedNodes;
 };
