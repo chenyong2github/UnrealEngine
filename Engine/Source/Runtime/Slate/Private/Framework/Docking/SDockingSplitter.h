@@ -124,6 +124,12 @@ protected:
 	
 	/** The DockNode children. All these children are kept in sync with the SSplitter's children via the use of the public interface for adding, removing and replacing children. */
 	TArray< TSharedRef<class SDockingNode> > Children;
+
+	/**
+	 *   As the Dock area is updating after clean up of any added, removed, or newly shown Dock areas or tabs,
+	 *   the tabs/tab well may need adjusting. Use this for post clean up docked tab adjustments.
+	 */
+	void AdjustDockedTabsIfNeeded();
 };
 
 

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Docking/SDockingSplitter.h"
+
+#include "SDockingArea.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/SDockingTabStack.h"
 
@@ -83,6 +85,44 @@ bool SDockingSplitter::DoesDirectionMatchOrientation( SDockingNode::RelativeDire
 SDockingNode::ECleanupRetVal SDockingSplitter::MostResponsibility( SDockingNode::ECleanupRetVal A, SDockingNode::ECleanupRetVal B )
 {
 	return FMath::Min(A, B);
+}
+
+void SDockingSplitter::AdjustDockedTabsIfNeeded()
+{
+	TSharedPtr<SDockingArea> DockingArea = nullptr;
+
+	if (ParentNodePtr != nullptr && ParentNodePtr.IsValid())
+	{
+		DockingArea = ParentNodePtr.Pin()->GetDockArea().ToSharedRef();
+	}
+	else if (GetNodeType() == DockArea)
+	{
+		DockingArea = StaticCastSharedRef<SDockingArea>(AsShared());
+	}
+
+	// if is in floating window, set the first docking tab stack to have it's tab well unhidden.
+	if (DockingArea != nullptr && DockingArea->GetParentWindow().IsValid())
+	{
+		for (const TSharedRef<SDockingNode>& ChildNode : Children)
+		{
+			/*
+			 * if the node type is a tab stack AND it is visible, this must be the first tab stack and we should not
+			 * hide the tabwell. Unhide it and break out of the method, no need to go further
+			 */
+			if (ChildNode->GetNodeType() == DockTabStack && ChildNode->GetVisibility() == EVisibility::Visible)
+			{
+				TSharedRef<SDockingTabStack> TabStack = StaticCastSharedRef<SDockingTabStack>(ChildNode);
+				TabStack->SetTabWellHidden(false);
+				break;
+			}
+			// else if  node type is splitter, the first tab stack might be in there... check its children to see
+			else if (ChildNode->GetNodeType() == DockSplitter)
+			{
+				TSharedRef<SDockingSplitter> ChildSplitter = StaticCastSharedRef<SDockingSplitter>(ChildNode);
+				ChildSplitter->AdjustDockedTabsIfNeeded();
+			}
+		}
+	}
 }
 
 SDockingNode::ECleanupRetVal SDockingSplitter::CleanUpNodes()

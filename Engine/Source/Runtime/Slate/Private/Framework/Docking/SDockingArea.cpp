@@ -660,6 +660,8 @@ void SDockingArea::UpdateWindowChromeAndSidebar()
 			}
 		}
 
+		AdjustDockedTabsIfNeeded();
+
 		// Call the delegate for when the window is activated, to update the global menu bar without the user having to click on it
 		OnOwningWindowActivated();
 	}
