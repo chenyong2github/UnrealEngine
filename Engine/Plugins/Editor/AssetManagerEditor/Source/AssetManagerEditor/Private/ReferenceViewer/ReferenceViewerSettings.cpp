@@ -150,10 +150,13 @@ int32 UReferenceViewerSettings::GetSearchDependencyDepthLimit() const
 	return MaxSearchDependencyDepth;
 }
 
-void UReferenceViewerSettings::SetSearchDependencyDepthLimit(int32 NewDepthLimit)
+void UReferenceViewerSettings::SetSearchDependencyDepthLimit(int32 NewDepthLimit, bool bSaveConfig)
 {
 	MaxSearchDependencyDepth = FMath::Max(NewDepthLimit, 0);
-	SaveConfig();
+	if (bSaveConfig)
+	{
+		SaveConfig();
+	}
 }
 
 int32 UReferenceViewerSettings::GetSearchReferencerDepthLimit() const
@@ -161,10 +164,13 @@ int32 UReferenceViewerSettings::GetSearchReferencerDepthLimit() const
 	return MaxSearchReferencerDepth;
 }
 
-void UReferenceViewerSettings::SetSearchReferencerDepthLimit(int32 NewDepthLimit)
+void UReferenceViewerSettings::SetSearchReferencerDepthLimit(int32 NewDepthLimit, bool bSaveConfig)
 {
 	MaxSearchReferencerDepth = FMath::Max(NewDepthLimit, 0);
-	SaveConfig();
+	if (bSaveConfig)
+	{
+		SaveConfig();
+	}
 }
 
 int32 UReferenceViewerSettings::GetSearchBreadthLimit() const

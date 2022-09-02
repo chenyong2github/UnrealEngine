@@ -255,7 +255,10 @@ private:
 	/** A recursion check so as to avoid the rebuild of the graph if we are currently rebuilding the filters */
 	bool bRebuildingFilters;
 
+	/** Used to delay graph rebuilding during spinbox slider interaction */
 	bool bNeedsGraphRebuild;
+	double SliderDelayLastMovedTime = 0.0;
+	double GraphRebuildSliderDelay = 0.25;
 
 	/** Handle to know if dirty */
 	FDelegateHandle AssetRefreshHandle;

@@ -45,13 +45,13 @@ public:
 	void SetShowReferencers(const bool bShouldShowReferencers);
 
 	int32 GetSearchReferencerDepthLimit() const;
-	void SetSearchReferencerDepthLimit(int32 NewDepthLimit);
+	void SetSearchReferencerDepthLimit(int32 NewDepthLimit, bool bSaveConfig = true);
 
 	bool IsShowDependencies() const;
 	void SetShowDependencies(const bool bShouldShowDependencies);
 
 	int32 GetSearchDependencyDepthLimit() const;
-	void SetSearchDependencyDepthLimit(int32 NewDepthLimit);
+	void SetSearchDependencyDepthLimit(int32 NewDepthLimit, bool bSaveConfig = true);
 
 	bool IsSearchBreadthLimited() const;
 	void SetSearchBreadthLimitEnabled(bool newEnabled);

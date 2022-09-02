@@ -194,6 +194,16 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			]
 
 			+SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Brushes.Recessed"))
+				.ColorAndOpacity_Lambda( [this] () { return bNeedsGraphRebuild ? FLinearColor(1.0, 1.0, 1.0, 0.25) : FLinearColor::Transparent; } )
+				.Visibility(EVisibility::HitTestInvisible)
+			]
+
+			+SOverlay::Slot()
 			.VAlign(VAlign_Top)
 			.HAlign(HAlign_Fill)
 			.Padding(8)
@@ -249,8 +259,32 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 							[
 								SAssignNew(ReferencerCountBox, SSpinBox<int32>)
 								.Value(this, &SReferenceViewer::GetSearchReferencerDepthCount)
-								.OnValueChanged(this, &SReferenceViewer::OnSearchReferencerDepthCommitted)
-								.OnValueCommitted_Lambda([this] (int32 NewValue, ETextCommit::Type CommitType) { FSlateApplication::Get().SetKeyboardFocus(GraphEditorPtr, EFocusCause::SetDirectly); } )
+								.OnValueChanged_Lambda([this] (int32 NewValue)
+									{
+										if (NewValue != Settings->GetSearchReferencerDepthLimit())
+										{
+											Settings->SetSearchReferencerDepthLimit(NewValue, false);
+											bNeedsGraphRebuild = true;
+
+											SliderDelayLastMovedTime = FSlateApplication::Get().GetCurrentTime();
+										}
+									}
+								)
+								.OnValueCommitted_Lambda([this] (int32 NewValue, ETextCommit::Type CommitType) 
+									{ 
+										FSlateApplication::Get().SetKeyboardFocus(GraphEditorPtr, EFocusCause::SetDirectly); 
+
+										if (NewValue != Settings->GetSearchReferencerDepthLimit() || bNeedsGraphRebuild)
+										{
+											Settings->SetSearchReferencerDepthLimit(NewValue, false); 
+											bNeedsGraphRebuild = false;
+											RebuildGraph();
+										}
+
+										// Always save the config since we explicitly did not save during slider movement to preserve interactivity
+										Settings->SaveConfig();
+									} 
+								)
 								.MinValue(0)
 								.MaxValue(50)
 								.MaxSliderValue(10)
@@ -286,8 +320,32 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 							[
 								SAssignNew(DependencyCountBox, SSpinBox<int32>)
 								.Value(this, &SReferenceViewer::GetSearchDependencyDepthCount)
-								.OnValueChanged(this, &SReferenceViewer::OnSearchDependencyDepthCommitted)
-								.OnValueCommitted_Lambda([this] (int32 NewValue, ETextCommit::Type CommitType) { FSlateApplication::Get().SetKeyboardFocus(GraphEditorPtr, EFocusCause::SetDirectly); } )
+								.OnValueChanged_Lambda([this] (int32 NewValue)
+									{	
+										if (NewValue != Settings->GetSearchDependencyDepthLimit())
+										{
+											Settings->SetSearchDependencyDepthLimit(NewValue, false);
+											bNeedsGraphRebuild = true;
+
+											SliderDelayLastMovedTime = FSlateApplication::Get().GetCurrentTime();
+										}
+									}
+								)
+								.OnValueCommitted_Lambda([this] (int32 NewValue, ETextCommit::Type CommitType) 
+									{ 
+										FSlateApplication::Get().SetKeyboardFocus(GraphEditorPtr, EFocusCause::SetDirectly); 
+
+										if (NewValue != Settings->GetSearchDependencyDepthLimit() || bNeedsGraphRebuild)
+										{
+											Settings->SetSearchDependencyDepthLimit(NewValue, false);
+											bNeedsGraphRebuild = false;
+											RebuildGraph();
+										}
+
+										// Always save the config since we explicitly did not save during slider movement to preserve interactivity
+										Settings->SaveConfig();
+									}
+								)
 								.MinValue(0)
 								.MaxValue(50)
 								.MaxSliderValue(10)
@@ -446,7 +504,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 
 void SReferenceViewer::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	if (bNeedsGraphRebuild)
+	if (bNeedsGraphRebuild && (InCurrentTime - SliderDelayLastMovedTime > GraphRebuildSliderDelay))
 	{
 		bNeedsGraphRebuild = false;
 		RebuildGraph();
@@ -845,9 +903,7 @@ void SReferenceViewer::OnSearchDependencyDepthCommitted(int32 NewValue)
 	if (NewValue != Settings->GetSearchDependencyDepthLimit())
 	{
 		Settings->SetSearchDependencyDepthLimit(NewValue);
-
-		// Push the rebuild to Tick() in order to keep the slider as responsive as possible
-		bNeedsGraphRebuild = true;
+		RebuildGraph();
 	}
 }
 
@@ -856,9 +912,7 @@ void SReferenceViewer::OnSearchReferencerDepthCommitted(int32 NewValue)
 	if (NewValue != Settings->GetSearchReferencerDepthLimit())
 	{
 		Settings->SetSearchReferencerDepthLimit(NewValue);
-
-		// Push the rebuild to Tick() in order to keep the slider as responsive as possible
-		bNeedsGraphRebuild = true;
+		RebuildGraph();
 	}
 }
 
