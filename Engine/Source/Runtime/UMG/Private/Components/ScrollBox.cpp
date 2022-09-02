@@ -115,7 +115,7 @@ void UScrollBox::OnSlotRemoved(UPanelSlot* InSlot)
 	// Remove the widget from the live slot if it exists.
 	if ( MyScrollBox.IsValid() && InSlot->Content)
 	{
-		TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
+		const TSharedPtr<SWidget> Widget = InSlot->Content->GetCachedWidget();
 		if ( Widget.IsValid() )
 		{
 			MyScrollBox->RemoveSlot(Widget.ToSharedRef());
@@ -184,6 +184,16 @@ float UScrollBox::GetScrollOffsetOfEnd() const
 	if (MyScrollBox.IsValid())
 	{
 		return MyScrollBox->GetScrollOffsetOfEnd();
+	}
+
+	return 0;
+}
+
+float UScrollBox::GetViewFraction() const
+{
+	if ( MyScrollBox.IsValid() )
+	{
+		return MyScrollBox->GetViewFraction();
 	}
 
 	return 0;

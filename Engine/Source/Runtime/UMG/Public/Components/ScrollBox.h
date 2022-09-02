@@ -159,6 +159,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	float GetScrollOffsetOfEnd() const;
 
+	/** Gets the fraction currently visible in the scrollbox */
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	float GetViewFraction() const;
+
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	float GetViewOffsetFraction() const;
 
