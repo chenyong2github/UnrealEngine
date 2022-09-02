@@ -1877,7 +1877,7 @@ bool FTabManager::IsValidTabForSpawning( const FTab& SomeTab ) const
 
 	// Nomad tabs being restored from layouts should not be spawned if the nomad tab is already spawned.
 	TSharedRef<FTabSpawnerEntry>* NomadSpawner = NomadTabSpawner->Find( SomeTab.TabId.TabType );
-	return ( !NomadSpawner || !NomadSpawner->Get().IsSoleTabInstanceSpawned() );
+	return ( !NomadSpawner || !NomadSpawner->Get().IsSoleTabInstanceSpawned() || NomadSpawner->Get().OnFindTabToReuse.IsBound() );
 }
 
 bool FTabManager::IsAllowedTab(const FTabId& TabId) const
