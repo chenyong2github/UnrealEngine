@@ -38,7 +38,7 @@ public:
 			Pilot = ViewportPtr->GetLevelViewportClient().GetActiveActorLock().Get();
 		}
 		
-		return Pilot ? FText::Format(LOCTEXT("ActiveText", "[ Pilot Active - {0} ]"), FText::FromString(Pilot->GetActorLabel())) : FText();
+		return Pilot ? FText::Format(LOCTEXT("ActiveText", "Pilot Actor: {0} "), FText::FromString(Pilot->GetActorLabel())) : FText();
 	}
 
 	EVisibility GetLockedTextVisibility() const
@@ -61,38 +61,35 @@ public:
 
 		auto& ViewportCommands = FLevelViewportCommands::Get();
 
-		FToolBarBuilder ToolbarBuilder(InArgs._Viewport->GetCommandList(), FMultiBoxCustomization::None);
+		FSlimHorizontalToolBarBuilder ToolbarBuilder(InArgs._Viewport->GetCommandList(), FMultiBoxCustomization::None);
 
 		// Use a custom style
-		FName ToolBarStyle = "LegacyViewportMenu";
-		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
+		FName ToolBarStyle = "EditorViewportToolBar";
 		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
-
+		
 		ToolbarBuilder.BeginSection("ActorPilot");
-		ToolbarBuilder.BeginBlockGroup();
 		{
-			static FName EjectActorPilotName = FName(TEXT("EjectActorPilot"));
-			ToolbarBuilder.AddToolBarButton(ViewportCommands.EjectActorPilot, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), EjectActorPilotName);
+			ToolbarBuilder.BeginBlockGroup();
 
-			static FName ToggleActorPilotCameraViewName = FName(TEXT("ToggleActorPilotCameraView"));
-			ToolbarBuilder.AddToolBarButton(ViewportCommands.ToggleActorPilotCameraView, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), ToggleActorPilotCameraViewName);
-		}
-		ToolbarBuilder.EndBlockGroup();
-		ToolbarBuilder.EndSection();
-
-		ToolbarBuilder.BeginSection("ActorPilot_Label");
-		ToolbarBuilder.AddWidget(
-			SNew(SBox)
-			// Nasty hack to make this VAlign_center properly. The parent Box is set to VAlign_Bottom, so we can't fill properly.
-			.HeightOverride(24.f)
+			ToolbarBuilder.AddWidget(
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.StartToolbarImage"))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(5.0f, 0.0f)
+				[
+						SNew(SImage)
+						.Image(FAppStyle::Get()
+						.GetBrush("LevelViewport.PilotSelectedActor"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "LevelViewport.ActorPilotText")
 					.Text(this, &SActorPilotViewportToolbar::GetActiveText)
 				]
 				+ SHorizontalBox::Slot()
@@ -101,14 +98,20 @@ public:
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "LevelViewport.ActorPilotText")
-					.ColorAndOpacity(FLinearColor::Red)
 					.Text(LOCTEXT("ActorLockedText", "(Locked)"))
 					.ToolTipText(LOCTEXT("ActorLockedToolTipText", "This actor has locked movement so it will not be updated based on camera position"))
 					.Visibility(this, &SActorPilotViewportToolbar::GetLockedTextVisibility)
 				]
 			]
 		);
+			
+			static const FName EjectActorPilotName = "EjectActorPilot";
+			ToolbarBuilder.AddToolBarButton(ViewportCommands.EjectActorPilot, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), EjectActorPilotName);
+			
+			static FName ToggleActorPilotCameraViewName = "ToggleActorPilotCameraView";
+			ToolbarBuilder.AddToolBarButton(ViewportCommands.ToggleActorPilotCameraView, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), ToggleActorPilotCameraViewName);
+			ToolbarBuilder.EndBlockGroup();
+		}
 		ToolbarBuilder.EndSection();
 
 		ChildSlot
