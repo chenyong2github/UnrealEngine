@@ -963,6 +963,19 @@ FRHICOMMAND_MACRO(FRHICommandTransferResources)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandTransferResourceSignal)
+{
+	TArray<FTransferResourceFenceData*, TInlineAllocator<1>> FenceDatas;
+	FRHIGPUMask SrcGPUMask;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferResourceSignal(TArrayView<FTransferResourceFenceData* const> InFenceDatas, FRHIGPUMask InSrcGPUMask)
+		: FenceDatas(InFenceDatas), SrcGPUMask(InSrcGPUMask)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandTransferResourceWait)
 {
 	TArray<FTransferResourceFenceData*, TInlineAllocator<4>> FenceDatas;
@@ -3005,6 +3018,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		else
 		{
 			ALLOC_COMMAND(FRHICommandTransferResources)(Params);
+		}
+#endif // WITH_MGPU
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask)
+	{
+#if WITH_MGPU
+		if (Bypass())
+		{
+			GetComputeContext().RHITransferResourceSignal(FenceDatas, SrcGPUMask);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandTransferResourceSignal)(FenceDatas, SrcGPUMask);
 		}
 #endif // WITH_MGPU
 	}

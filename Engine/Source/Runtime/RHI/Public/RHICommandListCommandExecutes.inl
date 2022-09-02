@@ -115,6 +115,12 @@ void FRHICommandTransferResources::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHITransferResources)(Params);
 }
 
+void FRHICommandTransferResourceSignal::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(TransferResourceSignal);
+	INTERNAL_DECORATOR_COMPUTE(RHITransferResourceSignal)(FenceDatas, SrcGPUMask);
+}
+
 void FRHICommandTransferResourceWait::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(TransferResourceWait);

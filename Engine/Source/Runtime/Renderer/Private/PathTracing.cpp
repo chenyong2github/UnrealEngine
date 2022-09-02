@@ -216,7 +216,14 @@ TAutoConsoleVariable<int32> CVarPathTracingMultiGPU(
 	TEXT("Using this functionality in the editor requires r.AllowMultiGPUInEditor=1"),
 	ECVF_RenderThreadSafe
 );
-#endif
+
+TAutoConsoleVariable<bool> CVarPathTracingAdjustMultiGPUPasses(
+	TEXT("r.PathTracing.AdjustMultiGPUPasses"),
+	true,
+	TEXT("Run extra passes per frame when multiple GPUs are active, to improve perf scaling as GPUs are added (default = true)\n"),
+	ECVF_RenderThreadSafe
+);
+#endif  // WITH_MGPU
 
 TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 	TEXT("r.PathTracing.WiperMode"),
@@ -2101,20 +2108,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		View.ViewState->PathTracingInvalidate();
 	}
 
-	// Setup temporal seed _after_ invalidation in case we got reset
-	if (Config.LockedSamplingPattern)
-	{
-		// Count samples from 0 for deterministic results
-		Config.PathTracingData.TemporalSeed = PathTracingState->SampleIndex;
-	}
-	else
-	{
-		// Count samples from an ever-increasing counter to avoid screen-door effect
-		Config.PathTracingData.TemporalSeed = PathTracingState->FrameIndex;
-	}
-	Config.PathTracingData.Iteration = PathTracingState->SampleIndex;
-	Config.PathTracingData.BlendFactor = 1.0f / (Config.PathTracingData.Iteration + 1);
-
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
 	FRDGTexture* AlbedoTexture = nullptr;
@@ -2138,7 +2131,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		AlbedoTexture   = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.Albedo")  , ERDGTextureFlags::MultiFrame);
 		NormalTexture   = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.Normal")  , ERDGTextureFlags::MultiFrame);
 	}
-	const bool bNeedsMoreRays = Config.PathTracingData.Iteration < MaxSPP;
 
 	// should we use multiple GPUs to render the image?
 	const FRHIGPUMask GPUMask = Config.UseMultiGPU ? FRHIGPUMask::All() : View.GPUMask;
@@ -2147,210 +2139,281 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	const int32 DispatchResY = View.ViewRect.Size().Y;
 	const int32 DispatchSize = FMath::Max(CVarPathTracingDispatchSize.GetValueOnRenderThread(), 64);
 
-	if (bNeedsMoreRays)
-	{
-		// should we use path compaction?
-		const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
-		const bool bUseIndirectDispatch = GRHISupportsRayTracingDispatchIndirect && CVarPathTracingIndirectDispatch.GetValueOnRenderThread() != 0;
-		const int FlushRenderingCommands = CVarPathTracingFlushDispatch.GetValueOnRenderThread();
-		
-		FRDGBuffer* ActivePaths[2] = {};
-		FRDGBuffer* NumActivePaths[2] = {};
-		FRDGBuffer* PathStateData = nullptr;
-		if (CompactionType == 1)
-		{
-			const int32 NumPaths = FMath::Min(
-				DispatchSize * FMath::DivideAndRoundUp(DispatchSize, NumGPUs),
-				DispatchResX * FMath::DivideAndRoundUp(DispatchResY, NumGPUs)
-			);
-			ActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), NumPaths), TEXT("PathTracer.ActivePaths0"));
-			ActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), NumPaths), TEXT("PathTracer.ActivePaths1"));
-			if (bUseIndirectDispatch)
-			{
-				NumActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<int32>(3), TEXT("PathTracer.NumActivePaths0"));
-				NumActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<int32>(3), TEXT("PathTracer.NumActivePaths1"));
-			}
-			else
-			{
-				NumActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 3), TEXT("PathTracer.NumActivePaths"));
-			}
-			PathStateData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPathTracingPackedPathState), NumPaths), TEXT("PathTracer.PathStateData"));
-		}
-		FPathTracingRG::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
-		TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap, PermutationVector);
-		FPathTracingRG::FParameters* PreviousPassParameters = nullptr;
-		// Divide each tile among all the active GPUs (interleaving scanlines)
-		// The assumption is that the tiles are as big as possible, hopefully covering the entire screen
-		// so rather than dividing tiles among GPUs, we divide each tile among all GPUs
-		int32 CurrentGPU = 0; // keep our own counter so that we don't assume the assigned GPUs in the view mask are sequential
-		for (int32 GPUIndex : GPUMask)
-		{
-			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GPUIndex));
+	// When running with multiple GPUs, do that number of passes per frame, to keep the GPU work done per frame consistent
+	// (given that each GPU processes a fraction of the pixels), but get the job done in fewer frames.
 #if WITH_MGPU
-			RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing GPU%d", GPUIndex);
-			RDG_GPU_STAT_SCOPE(GraphBuilder, Stat_GPU_PathTracing);
+	const int32 FramePassCount = !View.bIsOfflineRender && CVarPathTracingAdjustMultiGPUPasses.GetValueOnRenderThread() ? NumGPUs : 1;
+#else
+	const int32 FramePassCount = 1;
 #endif
-			for (int32 TileY = 0; TileY < DispatchResY; TileY += DispatchSize)
+
+	bool bNeedsMoreRays = false;
+	bool bNeedsTextureExtract = false;
+
+	for (int32 FramePassIndex = 0; FramePassIndex < FramePassCount; FramePassIndex++)
+	{
+		// Setup temporal seed _after_ invalidation in case we got reset
+		if (Config.LockedSamplingPattern)
+		{
+			// Count samples from 0 for deterministic results
+			Config.PathTracingData.TemporalSeed = PathTracingState->SampleIndex;
+		}
+		else
+		{
+			// Count samples from an ever-increasing counter to avoid screen-door effect
+			Config.PathTracingData.TemporalSeed = PathTracingState->FrameIndex;
+		}
+		Config.PathTracingData.Iteration = PathTracingState->SampleIndex;
+		Config.PathTracingData.BlendFactor = 1.0f / (Config.PathTracingData.Iteration + 1);
+
+		bNeedsMoreRays = Config.PathTracingData.Iteration < MaxSPP;
+
+		if (bNeedsMoreRays)
+		{
+			// We are writing to the texture, we'll need to extract it...
+			bNeedsTextureExtract = true;
+
+			// should we use path compaction?
+			const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
+			const bool bUseIndirectDispatch = GRHISupportsRayTracingDispatchIndirect && CVarPathTracingIndirectDispatch.GetValueOnRenderThread() != 0;
+			const int FlushRenderingCommands = CVarPathTracingFlushDispatch.GetValueOnRenderThread();
+
+			FRDGBuffer* ActivePaths[2] = {};
+			FRDGBuffer* NumActivePaths[2] = {};
+			FRDGBuffer* PathStateData = nullptr;
+			if (CompactionType == 1)
 			{
-				for (int32 TileX = 0; TileX < DispatchResX; TileX += DispatchSize)
+				const int32 NumPaths = FMath::Min(
+					DispatchSize * FMath::DivideAndRoundUp(DispatchSize, NumGPUs),
+					DispatchResX * FMath::DivideAndRoundUp(DispatchResY, NumGPUs)
+				);
+				ActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), NumPaths), TEXT("PathTracer.ActivePaths0"));
+				ActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), NumPaths), TEXT("PathTracer.ActivePaths1"));
+				if (bUseIndirectDispatch)
 				{
-					const int32 DispatchSizeX = FMath::Min(DispatchSize, DispatchResX - TileX);
-					const int32 DispatchSizeY = FMath::Min(DispatchSize, DispatchResY - TileY);
-
-					const int32 DispatchSizeYSplit = FMath::DivideAndRoundUp(DispatchSizeY, NumGPUs);
-
-					// Compute the dispatch size for just this set of scanlines
-					const int32 DispatchSizeYLocal = FMath::Min(DispatchSizeYSplit, DispatchSizeY - CurrentGPU * DispatchSizeYSplit);
-					if (CompactionType == 1)
+					NumActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<int32>(3), TEXT("PathTracer.NumActivePaths0"));
+					NumActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<int32>(3), TEXT("PathTracer.NumActivePaths1"));
+				}
+				else
+				{
+					NumActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 3), TEXT("PathTracer.NumActivePaths"));
+				}
+				PathStateData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPathTracingPackedPathState), NumPaths), TEXT("PathTracer.PathStateData"));
+			}
+			FPathTracingRG::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
+			TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap, PermutationVector);
+			FPathTracingRG::FParameters* PreviousPassParameters = nullptr;
+			// Divide each tile among all the active GPUs (interleaving scanlines)
+			// The assumption is that the tiles are as big as possible, hopefully covering the entire screen
+			// so rather than dividing tiles among GPUs, we divide each tile among all GPUs
+			int32 CurrentGPU = 0; // keep our own counter so that we don't assume the assigned GPUs in the view mask are sequential
+			for (int32 GPUIndex : GPUMask)
+			{
+				RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GPUIndex));
+#if WITH_MGPU
+				RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing GPU%d", GPUIndex);
+				RDG_GPU_STAT_SCOPE(GraphBuilder, Stat_GPU_PathTracing);
+#endif
+				for (int32 TileY = 0; TileY < DispatchResY; TileY += DispatchSize)
+				{
+					for (int32 TileX = 0; TileX < DispatchResX; TileX += DispatchSize)
 					{
-						AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ActivePaths[0], PF_R32_UINT), 0);
-					}
-					// When using path compaction, we need to run the path tracer once per bounce
-					// otherwise, the path tracer is the one doing the bounces
-					for (int Bounce = 0, MaxBounces = CompactionType == 1 ? Config.PathTracingData.MaxBounces : 0; Bounce <= MaxBounces; Bounce++)
-					{
-						FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
-						PassParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
-						PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-						PassParameters->PathTracingData = Config.PathTracingData;
-						if (PreviousPassParameters == nullptr)
-						{
-							// upload sky/lights data
-							RDG_GPU_MASK_SCOPE(GraphBuilder, GPUMask); // make sure this happens on all GPUs we will be rendering on
-							SetLightParameters(GraphBuilder, PassParameters, Scene, View, Config.UseMISCompensation);
-						}
-						else
-						{
-							// re-use from last iteration
-							PassParameters->IESTexture = PreviousPassParameters->IESTexture;
-							PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
-							PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
-							PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
-							PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;
-							PassParameters->SceneLights = PreviousPassParameters->SceneLights;
-							PassParameters->SkylightParameters = PreviousPassParameters->SkylightParameters;
-						}
-						if (Config.PathTracingData.EnableDirectLighting == 0)
-						{
-							PassParameters->SceneVisibleLightCount = 0;
-						}
+						const int32 DispatchSizeX = FMath::Min(DispatchSize, DispatchResX - TileX);
+						const int32 DispatchSizeY = FMath::Min(DispatchSize, DispatchResY - TileY);
 
-						PassParameters->DecalParameters = View.RayTracingDecalUniformBuffer;
+						const int32 DispatchSizeYSplit = FMath::DivideAndRoundUp(DispatchSizeY, NumGPUs);
 
-						PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
-						PassParameters->AlbedoTexture = GraphBuilder.CreateUAV(AlbedoTexture);
-						PassParameters->NormalTexture = GraphBuilder.CreateUAV(NormalTexture);
-
-						if (PreviousPassParameters != nullptr)
-						{
-							PassParameters->Atmosphere = PreviousPassParameters->Atmosphere;
-							PassParameters->PlanetCenterTranslatedWorldHi = PreviousPassParameters->PlanetCenterTranslatedWorldHi;
-							PassParameters->PlanetCenterTranslatedWorldLo = PreviousPassParameters->PlanetCenterTranslatedWorldLo;
-						}
-						else if (Config.PathTracingData.EnableAtmosphere)
-						{
-							PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
-							FVector PlanetCenterTranslatedWorld = Scene->GetSkyAtmosphereSceneInfo()->GetSkyAtmosphereSceneProxy().GetAtmosphereSetup().PlanetCenterKm * double(FAtmosphereSetup::SkyUnitToCm) + View.ViewMatrices.GetPreViewTranslation();
-							SplitDouble(PlanetCenterTranslatedWorld.X, &PassParameters->PlanetCenterTranslatedWorldHi.X, &PassParameters->PlanetCenterTranslatedWorldLo.X);
-							SplitDouble(PlanetCenterTranslatedWorld.Y, &PassParameters->PlanetCenterTranslatedWorldHi.Y, &PassParameters->PlanetCenterTranslatedWorldLo.Y);
-							SplitDouble(PlanetCenterTranslatedWorld.Z, &PassParameters->PlanetCenterTranslatedWorldHi.Z, &PassParameters->PlanetCenterTranslatedWorldLo.Z);
-						}
-						else
-						{
-							FAtmosphereUniformShaderParameters AtmosphereParams = {};
-							PassParameters->Atmosphere = CreateUniformBufferImmediate(AtmosphereParams, EUniformBufferUsage::UniformBuffer_SingleFrame);
-							PassParameters->PlanetCenterTranslatedWorldHi = FVector3f(0);
-							PassParameters->PlanetCenterTranslatedWorldLo = FVector3f(0);
-						}
-						PassParameters->AtmosphereOpticalDepthLUT = AtmosphereOpticalDepthLUT;
-						PassParameters->AtmosphereOpticalDepthLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-						if (Config.PathTracingData.EnableFog)
-						{
-							PassParameters->FogParameters = PrepareFogParameters(View, Scene->ExponentialFogs[0]);
-						}
-						else
-						{
-							PassParameters->FogParameters = {};
-						}
-
-						PassParameters->TilePixelOffset.X = TileX;
-						PassParameters->TilePixelOffset.Y = TileY + CurrentGPU;
-						PassParameters->TileTextureOffset.X = TileX;
-						PassParameters->TileTextureOffset.Y = TileY + CurrentGPU * DispatchSizeYSplit;
-						PassParameters->ScanlineStride = NumGPUs;
-						PassParameters->ScanlineWidth = DispatchSizeX;
-
-						PassParameters->Bounce = Bounce;
+						// Compute the dispatch size for just this set of scanlines
+						const int32 DispatchSizeYLocal = FMath::Min(DispatchSizeYSplit, DispatchSizeY - CurrentGPU * DispatchSizeYSplit);
 						if (CompactionType == 1)
 						{
-							PassParameters->ActivePaths = GraphBuilder.CreateSRV(ActivePaths[Bounce & 1], PF_R32_SINT);
-							PassParameters->NextActivePaths = GraphBuilder.CreateUAV(ActivePaths[(Bounce & 1) ^ 1], PF_R32_SINT);
-							PassParameters->PathStateData = GraphBuilder.CreateUAV(PathStateData);
-							if (bUseIndirectDispatch)
+							AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ActivePaths[0], PF_R32_UINT), 0);
+						}
+						// When using path compaction, we need to run the path tracer once per bounce
+						// otherwise, the path tracer is the one doing the bounces
+						for (int Bounce = 0, MaxBounces = CompactionType == 1 ? Config.PathTracingData.MaxBounces : 0; Bounce <= MaxBounces; Bounce++)
+						{
+							FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
+							PassParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
+							PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+							PassParameters->PathTracingData = Config.PathTracingData;
+							if (PreviousPassParameters == nullptr)
 							{
-								PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths[Bounce & 1], PF_R32_UINT);
-								PassParameters->PathTracingIndirectArgs = NumActivePaths[(Bounce & 1) ^ 1];
+								// upload sky/lights data
+								RDG_GPU_MASK_SCOPE(GraphBuilder, GPUMask); // make sure this happens on all GPUs we will be rendering on
+								SetLightParameters(GraphBuilder, PassParameters, Scene, View, Config.UseMISCompensation);
 							}
 							else
 							{
-								PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths[0], PF_R32_UINT);
-								AddClearUAVPass(GraphBuilder, PassParameters->NextActivePaths, -1); // make sure everything is initialized to -1 since paths that go inactive don't write anything
+								// re-use from last iteration
+								PassParameters->IESTexture = PreviousPassParameters->IESTexture;
+								PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
+								PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
+								PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
+								PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;
+								PassParameters->SceneLights = PreviousPassParameters->SceneLights;
+								PassParameters->SkylightParameters = PreviousPassParameters->SkylightParameters;
 							}
-							AddClearUAVPass(GraphBuilder, PassParameters->NumPathStates, 0);
-						}
-						ClearUnusedGraphResources(RayGenShader, PassParameters);
-						const bool bFlushRenderingCommands = FlushRenderingCommands == 1 || (FlushRenderingCommands == 2 && Bounce == MaxBounces);
-						GraphBuilder.AddPass(
-							CompactionType == 1
-							? RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Tile=(%d,%d - %dx%d) Sample=%d/%d NumLights=%d (Bounce=%d%s)", DispatchResX, DispatchResY, TileX, TileY, DispatchSizeX, DispatchSizeYLocal, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount, Bounce, bUseIndirectDispatch && Bounce > 0 ? TEXT(" indirect") : TEXT(""))
-							: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Tile=(%d,%d - %dx%d) Sample=%d/%d NumLights=%d", DispatchResX, DispatchResY, TileX, TileY, DispatchSizeX, DispatchSizeYLocal, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount),
-							PassParameters,
-							ERDGPassFlags::Compute,
-							[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeYLocal, bUseIndirectDispatch, bFlushRenderingCommands, GPUIndex, &View](FRHIRayTracingCommandList& RHICmdList)
+							if (Config.PathTracingData.EnableDirectLighting == 0)
 							{
-								FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+								PassParameters->SceneVisibleLightCount = 0;
+							}
 
-								FRayTracingShaderBindingsWriter GlobalResources;
-								SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
-								if (bUseIndirectDispatch && PassParameters->Bounce > 0)
+							PassParameters->DecalParameters = View.RayTracingDecalUniformBuffer;
+
+							PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
+							PassParameters->AlbedoTexture = GraphBuilder.CreateUAV(AlbedoTexture);
+							PassParameters->NormalTexture = GraphBuilder.CreateUAV(NormalTexture);
+
+							if (PreviousPassParameters != nullptr)
+							{
+								PassParameters->Atmosphere = PreviousPassParameters->Atmosphere;
+								PassParameters->PlanetCenterTranslatedWorldHi = PreviousPassParameters->PlanetCenterTranslatedWorldHi;
+								PassParameters->PlanetCenterTranslatedWorldLo = PreviousPassParameters->PlanetCenterTranslatedWorldLo;
+							}
+							else if (Config.PathTracingData.EnableAtmosphere)
+							{
+								PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
+								FVector PlanetCenterTranslatedWorld = Scene->GetSkyAtmosphereSceneInfo()->GetSkyAtmosphereSceneProxy().GetAtmosphereSetup().PlanetCenterKm * double(FAtmosphereSetup::SkyUnitToCm) + View.ViewMatrices.GetPreViewTranslation();
+								SplitDouble(PlanetCenterTranslatedWorld.X, &PassParameters->PlanetCenterTranslatedWorldHi.X, &PassParameters->PlanetCenterTranslatedWorldLo.X);
+								SplitDouble(PlanetCenterTranslatedWorld.Y, &PassParameters->PlanetCenterTranslatedWorldHi.Y, &PassParameters->PlanetCenterTranslatedWorldLo.Y);
+								SplitDouble(PlanetCenterTranslatedWorld.Z, &PassParameters->PlanetCenterTranslatedWorldHi.Z, &PassParameters->PlanetCenterTranslatedWorldLo.Z);
+							}
+							else
+							{
+								FAtmosphereUniformShaderParameters AtmosphereParams = {};
+								PassParameters->Atmosphere = CreateUniformBufferImmediate(AtmosphereParams, EUniformBufferUsage::UniformBuffer_SingleFrame);
+								PassParameters->PlanetCenterTranslatedWorldHi = FVector3f(0);
+								PassParameters->PlanetCenterTranslatedWorldLo = FVector3f(0);
+							}
+							PassParameters->AtmosphereOpticalDepthLUT = AtmosphereOpticalDepthLUT;
+							PassParameters->AtmosphereOpticalDepthLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+							if (Config.PathTracingData.EnableFog)
+							{
+								PassParameters->FogParameters = PrepareFogParameters(View, Scene->ExponentialFogs[0]);
+							}
+							else
+							{
+								PassParameters->FogParameters = {};
+							}
+
+							PassParameters->TilePixelOffset.X = TileX;
+							PassParameters->TilePixelOffset.Y = TileY + CurrentGPU;
+							PassParameters->TileTextureOffset.X = TileX;
+							PassParameters->TileTextureOffset.Y = TileY + CurrentGPU * DispatchSizeYSplit;
+							PassParameters->ScanlineStride = NumGPUs;
+							PassParameters->ScanlineWidth = DispatchSizeX;
+
+							PassParameters->Bounce = Bounce;
+							if (CompactionType == 1)
+							{
+								PassParameters->ActivePaths = GraphBuilder.CreateSRV(ActivePaths[Bounce & 1], PF_R32_SINT);
+								PassParameters->NextActivePaths = GraphBuilder.CreateUAV(ActivePaths[(Bounce & 1) ^ 1], PF_R32_SINT);
+								PassParameters->PathStateData = GraphBuilder.CreateUAV(PathStateData);
+								if (bUseIndirectDispatch)
 								{
-									PassParameters->PathTracingIndirectArgs->MarkResourceAsUsed();
-									RHICmdList.RayTraceDispatchIndirect(
-										View.RayTracingMaterialPipeline,
-										RayGenShader.GetRayTracingShader(),
-										RayTracingSceneRHI, GlobalResources,
-										PassParameters->PathTracingIndirectArgs->GetIndirectRHICallBuffer(), 0
-									);
+									PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths[Bounce & 1], PF_R32_UINT);
+									PassParameters->PathTracingIndirectArgs = NumActivePaths[(Bounce & 1) ^ 1];
 								}
 								else
 								{
-									RHICmdList.RayTraceDispatch(
-										View.RayTracingMaterialPipeline,
-										RayGenShader.GetRayTracingShader(),
-										RayTracingSceneRHI, GlobalResources,
-										DispatchSizeX, DispatchSizeYLocal
-									);
+									PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths[0], PF_R32_UINT);
+									AddClearUAVPass(GraphBuilder, PassParameters->NextActivePaths, -1); // make sure everything is initialized to -1 since paths that go inactive don't write anything
 								}
-								if (bFlushRenderingCommands)
+								AddClearUAVPass(GraphBuilder, PassParameters->NumPathStates, 0);
+							}
+							ClearUnusedGraphResources(RayGenShader, PassParameters);
+							const bool bFlushRenderingCommands = FlushRenderingCommands == 1 || (FlushRenderingCommands == 2 && Bounce == MaxBounces);
+							GraphBuilder.AddPass(
+								CompactionType == 1
+								? RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Tile=(%d,%d - %dx%d) Sample=%d/%d NumLights=%d (Bounce=%d%s)", DispatchResX, DispatchResY, TileX, TileY, DispatchSizeX, DispatchSizeYLocal, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount, Bounce, bUseIndirectDispatch && Bounce > 0 ? TEXT(" indirect") : TEXT(""))
+								: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Tile=(%d,%d - %dx%d) Sample=%d/%d NumLights=%d", DispatchResX, DispatchResY, TileX, TileY, DispatchSizeX, DispatchSizeYLocal, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount),
+								PassParameters,
+								ERDGPassFlags::Compute,
+								[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeYLocal, bUseIndirectDispatch, bFlushRenderingCommands, GPUIndex, &View](FRHIRayTracingCommandList& RHICmdList)
 								{
-									RHICmdList.SubmitCommandsHint();
-								}
-							});
-						if (PreviousPassParameters == nullptr)
-						{
-							PreviousPassParameters = PassParameters;
+									FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+
+									FRayTracingShaderBindingsWriter GlobalResources;
+									SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
+									if (bUseIndirectDispatch && PassParameters->Bounce > 0)
+									{
+										PassParameters->PathTracingIndirectArgs->MarkResourceAsUsed();
+										RHICmdList.RayTraceDispatchIndirect(
+											View.RayTracingMaterialPipeline,
+											RayGenShader.GetRayTracingShader(),
+											RayTracingSceneRHI, GlobalResources,
+											PassParameters->PathTracingIndirectArgs->GetIndirectRHICallBuffer(), 0
+										);
+									}
+									else
+									{
+										RHICmdList.RayTraceDispatch(
+											View.RayTracingMaterialPipeline,
+											RayGenShader.GetRayTracingShader(),
+											RayTracingSceneRHI, GlobalResources,
+											DispatchSizeX, DispatchSizeYLocal
+										);
+									}
+									if (bFlushRenderingCommands)
+									{
+										RHICmdList.SubmitCommandsHint();
+									}
+								});
+							if (PreviousPassParameters == nullptr)
+							{
+								PreviousPassParameters = PassParameters;
+							}
 						}
 					}
 				}
+				++CurrentGPU;
 			}
-			++CurrentGPU;
-		}
 
+			// Bump counters for next frame pass
+			++PathTracingState->SampleIndex;
+			++PathTracingState->FrameIndex;
+		}
+	}
+
+	if (bNeedsTextureExtract)
+	{
 #if WITH_MGPU
 		if (NumGPUs > 1)
 		{
+			// Need fences to prevent cross GPU copies from overlapping with rendering to the same buffers
+			TArray<FTransferResourceFenceData*> CopyFenceDatas;
+			CopyFenceDatas.AddUninitialized(NumGPUs - 1);
+			for (int32 FenceIndex = 0; FenceIndex < NumGPUs - 1; FenceIndex++)
+			{
+				CopyFenceDatas[FenceIndex] = RHICreateTransferResourceFenceData();
+			}
+
+			{
+				// Signal that the first GPU is done rendering, and other GPUs can copy to the buffer now.  Get all the GPUs
+				// besides the first GPU into a mask.  These are the source GPUs for copies to the first GPU.
+				FRHIGPUMask SrcGPUMask = FRHIGPUMask::FromIndex(GPUMask.GetLastIndex());
+				for (uint32 SrcGPUIndex : GPUMask)
+				{
+					if (SrcGPUIndex != GPUMask.GetFirstIndex())
+					{
+						SrcGPUMask |= FRHIGPUMask::FromIndex(SrcGPUIndex);
+					}
+				}
+
+				// Signal goes from first GPU (destination of copy), to remaining GPUs (sources of copy).
+				RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GPUMask.GetFirstIndex()));
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("Path Tracer Cross-GPU Signal (%d GPUs)", NumGPUs),
+					ERDGPassFlags::None,
+					[this, LocalCopyFenceDatas = CopyTemp(CopyFenceDatas), SrcGPUMask](FRHICommandListImmediate& RHICmdList)
+				{
+					RHICmdList.TransferResourceSignal(LocalCopyFenceDatas, SrcGPUMask);
+				});
+			}
+
 			// Treat the cross GPU copy as occurring on all GPUs, for profiling purposes.  Internally, the cross GPU transfer doesn't
 			// pay attention to the mask, so it has no effect on behavior.  Technically the work of the copy is done on the second GPU,
 			// and the first GPU stalls waiting on that, so it's useful to show this interval on both GPUs.
@@ -2362,7 +2425,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			Parameters->InputAlbedo = AlbedoTexture;
 			Parameters->InputNormal = NormalTexture;
 			GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Cross-GPU Transfer (%d GPUs)", NumGPUs), Parameters, ERDGPassFlags::Readback,
-				[Parameters, DispatchResX, DispatchResY, DispatchSize, GPUMask, MainGPUMask = View.GPUMask](FRHICommandListImmediate& RHICmdList)
+				[Parameters, DispatchResX, DispatchResY, DispatchSize, GPUMask, MainGPUMask = View.GPUMask, LocalCopyFenceDatas = MoveTemp(CopyFenceDatas)](FRHICommandListImmediate& RHICmdList)
 				{
 					const int32 FirstGPUIndex = MainGPUMask.GetFirstIndex();
 					const int32 NumGPUs = GPUMask.GetNumActive();
@@ -2400,6 +2463,14 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 							}
 						}
 					}
+
+					// Include the fences we need to wait on in our list of transfers
+					check(TransferParams.Num() >= LocalCopyFenceDatas.Num());
+					for (int32 FenceIndex = 0; FenceIndex < LocalCopyFenceDatas.Num(); FenceIndex++)
+					{
+						TransferParams[FenceIndex].PreTransferFence = LocalCopyFenceDatas[FenceIndex];
+					}
+
 					RHICmdList.TransferResources(TransferParams);
 				}
 			);
@@ -2409,10 +2480,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		GraphBuilder.QueueTextureExtraction(RadianceTexture, &PathTracingState->RadianceRT);
 		GraphBuilder.QueueTextureExtraction(AlbedoTexture, &PathTracingState->AlbedoRT);
 		GraphBuilder.QueueTextureExtraction(NormalTexture, &PathTracingState->NormalRT);
-
-		// Bump counters for next frame
-		++PathTracingState->SampleIndex;
-		++PathTracingState->FrameIndex;
 	}
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);

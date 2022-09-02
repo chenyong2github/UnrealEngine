@@ -1159,8 +1159,24 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 	// Note that this redirect to all GPUs from the context redirector.
 	RHISubmitCommandsHint();
 
-	// Submit the fence on all GPUs
+	// Wait on any pre-transfer fences first
 	FD3D12Fence* GPUFence = GetParentAdapter()->GetStagingFence();
+	for (const FTransferResourceParams& Param : Params)
+	{
+		if (Param.PreTransferFence)
+		{
+			FTransferResourceFenceData* FenceData = Param.PreTransferFence;
+
+			// It's possible to allocate fence data, but not actually signal the fence, in which case we treat this fence data as a nop.
+			if (FenceData->DeviceGPUIndex != INDEX_NONE)
+			{
+				GPUFence->GpuWait(FenceData->DeviceGPUIndex, ED3D12CommandQueueType::Direct, FenceData->LastSignal, FenceData->FenceGPUIndex);
+			}
+			delete FenceData;
+		}
+	}
+
+	// Submit the fence on all GPUs
 	if (SrcAndDestMask != FRHIGPUMask())
 	{
 		RHIMultiGPULockstep(SrcAndDestMask);
@@ -1263,6 +1279,29 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 		}
 	}
 #endif // WITH_MGPU
+}
+
+void FD3D12CommandContextRedirector::RHITransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask)
+{
+	check(FenceDatas.Num() == SrcGPUMask.GetNumActive());
+
+	// Make sure to Submit any pending work before signaling the fence.
+	RHISubmitCommandsHint();
+
+	uint64 LastSignal = GetParentAdapter()->GetStagingFence()->Signal(ED3D12CommandQueueType::Direct);
+
+	uint32 FenceIndex = 0;
+	for (uint32 SrcGPUIndex : SrcGPUMask)
+	{
+		FTransferResourceFenceData* FenceData = FenceDatas[FenceIndex++];
+
+		check(!GPUMask.Contains(SrcGPUIndex));
+		check(FenceData && FenceData->DeviceGPUIndex == INDEX_NONE);
+
+		FenceData->LastSignal = LastSignal;
+		FenceData->DeviceGPUIndex = SrcGPUIndex;
+		FenceData->FenceGPUIndex = GPUMask.GetFirstIndex();
+	}
 }
 
 void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)

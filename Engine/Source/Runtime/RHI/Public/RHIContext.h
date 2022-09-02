@@ -180,6 +180,13 @@ struct FTransferResourceParams
 	  * about whether it occurred or not, but need to reserve the possibility.
 	  */
 	FTransferResourceFenceData* DelayedFence = nullptr;
+	/**
+	 * Optional pointer to a fence to wait on before starting the transfer.  Useful if a resource may be in use on the destination
+	 * GPU, and you need to wait until it's no longer in use before copying to it from the current GPU.  Fences are created via
+	 * "RHICreateTransferResourceFenceData", then signaled via "TransferResourceSignal" command, before being added to one of the
+	 * transfers in a batch that's dependent on the signal.
+	 */
+	FTransferResourceFenceData* PreTransferFence = nullptr;
 };
 
 /** Context that is capable of doing Compute work.  Can be async or compute on the gfx pipe. */
@@ -349,6 +356,23 @@ public:
 	virtual void RHITransferResources(const TArrayView<const FTransferResourceParams> Params)
 	{
 		/* empty default implementation */
+	}
+
+	/*
+	 * Signal where a cross GPU resource transfer can start.  Useful when the destination resource of a copy may still be in use, and
+	 * the copy from the source GPUs needs to wait until the destination is finished with it.  SrcGPUMask must not overlap the current
+	 * GPU mask of the context (which specifies the destination GPUs), and the number of items in the "FenceDatas" array MUST match the
+	 * number of bits set in SrcGPUMask.
+	 */
+	virtual void RHITransferResourceSignal(const TArrayView<FTransferResourceFenceData* const> FenceDatas, FRHIGPUMask SrcGPUMask)
+	{
+		/* default noop implementation */
+#if WITH_MGPU
+		for (FTransferResourceFenceData* FenceData : FenceDatas)
+		{
+			delete FenceData;
+		}
+#endif
 	}
 
 	virtual void RHITransferResourceWait(const TArrayView<FTransferResourceFenceData* const> FenceDatas)
