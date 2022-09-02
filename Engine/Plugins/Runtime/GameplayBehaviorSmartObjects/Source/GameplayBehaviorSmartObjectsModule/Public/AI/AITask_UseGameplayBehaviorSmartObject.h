@@ -48,7 +48,13 @@ protected:
 
 protected:
 	UPROPERTY(BlueprintAssignable)
-	FGenericGameplayTaskDelegate OnFinished;
+	FGenericGameplayTaskDelegate OnSucceeded;
+
+	UPROPERTY(BlueprintAssignable)
+	FGenericGameplayTaskDelegate OnFailed;
+
+	UPROPERTY(BlueprintAssignable)
+	FGenericGameplayTaskDelegate OnMoveToFailed;
 
 	UPROPERTY()
 	TObjectPtr<UAITask_MoveTo> MoveToTask;

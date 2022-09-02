@@ -167,6 +167,7 @@ void UAITask_UseGameplayBehaviorSmartObject::Activate()
 
 	FAIMoveRequest MoveReq(GoalLocation.GetValue());
 	MoveReq.SetUsePathfinding(true);
+	MoveReq.SetAllowPartialPath(false);
 
 	MoveToTask = UAITask::NewAITask<UAITask_MoveTo>(*OwnerController, *this, EAITaskPriority::High, TEXT("SmartObject"));
 	MoveToTask->SetUp(OwnerController, MoveReq);
@@ -177,7 +178,6 @@ void UAITask_UseGameplayBehaviorSmartObject::Activate()
 
 void UAITask_UseGameplayBehaviorSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 {
-	UAITask::NewAITask<UAITask_MoveTo>(*OwnerController, *this, EAITaskPriority::High, TEXT("SmartObject"));
 	check(OwnerController);
 	check(OwnerController->GetPawn());
 
@@ -185,28 +185,37 @@ void UAITask_UseGameplayBehaviorSmartObject::OnGameplayTaskDeactivated(UGameplay
 	{
 		bool bBehaviorActive = false;
 
-		if (Task.IsFinished())
+		if (MoveToTask->IsFinished())
 		{
-			UWorld* World = OwnerController->GetWorld();
-			MoveToTask = nullptr;
-			USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(World);
-			if (ensure(SmartObjectSubsystem))
+			if (MoveToTask->WasMoveSuccessful())
 			{
-				const UGameplayBehaviorSmartObjectBehaviorDefinition* SmartObjectGameplayBehaviorDefinition = SmartObjectSubsystem->Use<UGameplayBehaviorSmartObjectBehaviorDefinition>(ClaimedHandle);
-				const UGameplayBehaviorConfig* GameplayBehaviorConfig = SmartObjectGameplayBehaviorDefinition != nullptr ? SmartObjectGameplayBehaviorDefinition->GameplayBehaviorConfig : nullptr;
-				GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
-				if (GameplayBehavior != nullptr)
+				UWorld* World = OwnerController->GetWorld();
+				// Manually resetting MoveToTask ptr here in case the behavior coming after that is long running. 
+				// We don't need it anymore so if GC happens in the mean time it can clean it up.
+				MoveToTask = nullptr;
+				USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(World);
+				if (ensure(SmartObjectSubsystem))
 				{
-					const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
-					AActor& InteractorActor = *OwnerController->GetPawn();
-					AActor* InteracteeActor = SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr;
-					bBehaviorActive = UGameplayBehaviorSubsystem::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
-					// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
-					if (bBehaviorActive)
+					const UGameplayBehaviorSmartObjectBehaviorDefinition* SmartObjectGameplayBehaviorDefinition = SmartObjectSubsystem->Use<UGameplayBehaviorSmartObjectBehaviorDefinition>(ClaimedHandle);
+					const UGameplayBehaviorConfig* GameplayBehaviorConfig = SmartObjectGameplayBehaviorDefinition != nullptr ? SmartObjectGameplayBehaviorDefinition->GameplayBehaviorConfig : nullptr;
+					GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
+					if (GameplayBehavior != nullptr)
 					{
-						OnBehaviorFinishedNotifyHandle = GameplayBehavior->GetOnBehaviorFinishedDelegate().AddUObject(this, &UAITask_UseGameplayBehaviorSmartObject::OnSmartObjectBehaviorFinished);
+						const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
+						AActor& InteractorActor = *OwnerController->GetPawn();
+						AActor* InteracteeActor = SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr;
+						bBehaviorActive = UGameplayBehaviorSubsystem::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
+						// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
+						if (bBehaviorActive)
+						{
+							OnBehaviorFinishedNotifyHandle = GameplayBehavior->GetOnBehaviorFinishedDelegate().AddUObject(this, &UAITask_UseGameplayBehaviorSmartObject::OnSmartObjectBehaviorFinished);
+						}
 					}
 				}
+			}
+			else
+			{
+				OnMoveToFailed.Broadcast();
 			}
 		}
 
@@ -234,7 +243,14 @@ void UAITask_UseGameplayBehaviorSmartObject::OnDestroy(const bool bInOwnerFinish
 
 	if (TaskState != EGameplayTaskState::Finished)
 	{
-		OnFinished.Broadcast();
+		if (GameplayBehavior)
+		{
+			OnSucceeded.Broadcast();
+		}
+		else
+		{
+			OnFailed.Broadcast();
+		}
 
 		Super::OnDestroy(bInOwnerFinished);
 	}
