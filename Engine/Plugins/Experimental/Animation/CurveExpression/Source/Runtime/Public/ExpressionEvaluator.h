@@ -25,8 +25,9 @@ struct FParseError
 
 struct FExpressionObject
 {
+	FString ToString() const;
 private:
-	enum class EOperator
+	enum class EOperator : int32
 	{
 		Negate,				// Negation operator.
 		Add,				// Add last two values on stack and add the result to the stack.
@@ -37,9 +38,15 @@ private:
 		Power,				// Raise to power
 		FloorDivide,    	// Divide and round the result down
 	};
+
+	struct FFunctionRef
+	{
+		FFunctionRef(int32 InIndex) : Index(InIndex) {}
+		int32 Index;
+	};
 	
 	friend class FEngine;
-	using OpElement = TVariant<EOperator, /* Constant Ref */ FName, /* Value */ float>;
+	using OpElement = TVariant<EOperator, FName /* Constant */, FFunctionRef, /* Value */ float>;
 	TArray<OpElement, TInlineAllocator<8>> Expression;
 };
 
@@ -141,6 +148,7 @@ private:
 		FloorDivide,    	// '//'
 		ParenOpen,			// '('
 		ParenClose,			// ')'
+		Comma,				// ','
 	};
 	using FToken = TVariant<EOperatorToken, /* Identifier */ FName, /* Value */ float>;
 	
@@ -184,9 +192,20 @@ private:
 	
 	/** The list of constants, stored using the FName key since the expression object refers
 	 *  to it directly */
-	// FUTURE: Add support for variables by allowing TFunction{Ref} objects along with direct
+	// TBD: Add support for variables by allowing TFunction{Ref} objects along with direct
 	// constants.
 	TMap<FName, float> Constants;
+
+	/** For now we just have built-in functions */
+	friend struct FInitializeBuiltinFunctions;
+	using FunctionType = TFunction<float(TArrayView<const float>)>;
+	struct FFunctionInfo
+	{
+		int32 ArgumentCount;
+		FunctionType FunctionPtr;
+	};
+	static TMap<FName, int32> FunctionNameIndex;
+	static TArray<FFunctionInfo> Functions;
 
 	/** The parse flags for this engine. Only set once */
 	EParseFlags ParseFlags = EParseFlags::Default;
