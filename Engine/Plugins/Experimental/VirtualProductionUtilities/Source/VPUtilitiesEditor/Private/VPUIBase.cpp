@@ -13,11 +13,14 @@
 #include "Editor/EditorEngine.h"
 #include "GameFramework/Actor.h"
 
+LLM_DEFINE_TAG(VirtualProductionUtilities_VPUIBase);
 #define LOCTEXT_NAMESPACE "VPUIBase"
 
 
 bool UVPUIBase::Initialize()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPUIBase);
+
 	const bool SuperInitialized = Super::Initialize();
 
 	if (SuperInitialized && !HasAnyFlags(RF_ClassDefaultObject))
@@ -43,6 +46,8 @@ bool UVPUIBase::Initialize()
 
 void UVPUIBase::BeginDestroy()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPUIBase);
+
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		USelection::SelectObjectEvent.RemoveAll(this);

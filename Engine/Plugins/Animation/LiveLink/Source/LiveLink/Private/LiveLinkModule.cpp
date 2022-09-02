@@ -10,6 +10,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Styling/SlateStyleRegistry.h"
 
+LLM_DEFINE_TAG(LiveLink);
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
 FLiveLinkClient* FLiveLinkModule::LiveLinkClient_AnyThread = nullptr;
@@ -27,6 +28,7 @@ FLiveLinkModule::FLiveLinkModule()
 
 void FLiveLinkModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(LiveLink);
 	FLiveLinkLogInstance::CreateInstance();
 	CreateStyle();
 
@@ -40,6 +42,7 @@ void FLiveLinkModule::StartupModule()
 
 void FLiveLinkModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(LiveLink);
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	HeartbeatEmitter->Exit();

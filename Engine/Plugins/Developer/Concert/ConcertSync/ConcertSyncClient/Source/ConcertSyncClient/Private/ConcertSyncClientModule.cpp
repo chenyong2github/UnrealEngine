@@ -10,6 +10,8 @@
 
 #include "Framework/Notifications/NotificationManager.h"
 
+LLM_DEFINE_TAG(Concert_ConcertSyncClient);
+
 /**
  * Implements the Concert Sync module for Event synchronization
  */
@@ -21,18 +23,22 @@ public:
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Concert_ConcertSyncClient);
 		PackageBridge = MakeUnique<FConcertClientPackageBridge>();
 		TransactionBridge = MakeUnique<FConcertClientTransactionBridge>();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(Concert_ConcertSyncClient);
 		PackageBridge.Reset();
 		TransactionBridge.Reset();
 	}
 
 	virtual UConcertClientConfig* ParseClientSettings(const TCHAR* CommandLine) override
 	{
+		LLM_SCOPE_BYTAG(Concert_ConcertSyncClient);
+
 		UConcertClientConfig* ClientConfig = NewObject<UConcertClientConfig>();
 
 		if (ClientConfig)
@@ -101,6 +107,8 @@ public:
 
 	virtual TSharedRef<IConcertSyncClient> CreateClient(const FString& InRole) override
 	{
+		LLM_SCOPE_BYTAG(Concert_ConcertSyncClient);
+
 		// Remove dead clients.
 		Clients.RemoveAll([](TWeakPtr<IConcertSyncClient> WeakClient) { return !WeakClient.IsValid(); });
 

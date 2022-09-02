@@ -25,7 +25,7 @@
 #include "LevelEditorViewport.h"
 #include "Widgets/SCompElementPreviewDialog.h"
 
-LLM_DEFINE_TAG(Compositing_ComposureLayersEditor);
+LLM_DEFINE_TAG(Composure_ComposureLayersEditor);
 
 namespace CompElementEditor_Impl
 {
@@ -92,7 +92,8 @@ private:
 //------------------------------------------------------------------------------
 void FCompElementEditorModule::StartupModule() 
 {
-	LLM_SCOPE_BYTAG(Compositing_ComposureLayersEditor);
+	LLM_SCOPE_BYTAG(Composure_ComposureLayersEditor);
+
 	FComposureEditorStyle::Get();
 	FCompElementEditorCommands::Register();
 
@@ -121,6 +122,8 @@ void FCompElementEditorModule::StartupModule()
 //------------------------------------------------------------------------------
 void FCompElementEditorModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(Composure_ComposureLayersEditor);
+
 	IModularFeatures::Get().UnregisterModularFeature(ICompositingEditor::GetModularFeatureName(), this);
 
 	if (FSlateApplication::IsInitialized())
@@ -275,7 +278,7 @@ void FCompElementEditorModule::RegisterEditorTab()
 
 	LevelEditorTabManagerChangedHandle = LevelEditorModule.OnTabManagerChanged().AddLambda([]()
 	{
-		LLM_SCOPE_BYTAG(Compositing_ComposureLayersEditor);
+		LLM_SCOPE_BYTAG(Composure_ComposureLayersEditor);
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(CompElementEditor_Impl::LevelEditorModuleName);
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 

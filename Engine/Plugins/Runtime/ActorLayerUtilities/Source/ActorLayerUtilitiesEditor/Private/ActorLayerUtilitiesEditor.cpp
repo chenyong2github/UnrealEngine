@@ -5,6 +5,7 @@
 #include "ActorLayerUtilities.h"
 #include "ActorLayerPropertyTypeCustomization.h"
 
+LLM_DEFINE_TAG(ActionLayerUtilities_ActorLayerUtilitiesEditor);
 
 class FActorLayerUtilitiesEditorModule : public IModuleInterface
 {
@@ -17,6 +18,8 @@ class FActorLayerUtilitiesEditorModule : public IModuleInterface
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(ActionLayerUtilities_ActorLayerUtilitiesEditor);
+
 		ActorLayerTypeName = FActorLayer::StaticStruct()->GetFName();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -25,6 +28,8 @@ class FActorLayerUtilitiesEditorModule : public IModuleInterface
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(ActionLayerUtilities_ActorLayerUtilitiesEditor);
+
 		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 
 		if (PropertyModule && ActorLayerTypeName != NAME_None)

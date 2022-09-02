@@ -21,6 +21,7 @@ class FConcertTransportModule : public IConcertTransportModule
 public:
 	virtual TSharedPtr<IConcertEndpointProvider> CreateEndpointProvider() const override
 	{
+		LLM_SCOPE_BYNAME(TEXT("Concert/ConcertTransport"));
 		return MakeShared<FConcertEndpointProvider>();
 	}
 };

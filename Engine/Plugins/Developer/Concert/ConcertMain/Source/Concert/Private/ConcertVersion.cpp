@@ -7,6 +7,7 @@
 #include "Modules/BuildVersion.h"
 #include "Serialization/CustomVersion.h"
 
+LLM_DEFINE_TAG(Concert_ConcertVersion);
 #define LOCTEXT_NAMESPACE "ConcertVersion"
 
 namespace ConcertVersionUtil
@@ -97,6 +98,8 @@ bool FConcertCustomVersionInfo::Validate(const FConcertCustomVersionInfo& InOthe
 
 void FConcertSessionVersionInfo::Initialize(bool bSupportMixedBuildTypes)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertVersion);
+
 	FileVersion.Initialize();
 	EngineVersion.Initialize(FEngineVersion::Current());
 

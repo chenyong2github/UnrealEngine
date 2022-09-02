@@ -26,6 +26,7 @@
 	#include "LevelEditor.h"
 #endif
 
+LLM_DEFINE_TAG(Concert_ConcertClientPackageBridge);
 #define LOCTEXT_NAMESPACE "ConcertClientPackageBridge"
 
 namespace ConcertClientPackageBridgeUtil
@@ -54,6 +55,7 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 	: bIgnoreLocalSave(false)
 	, bIgnoreLocalDiscard(false)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClientPackageBridge);
 #if WITH_EDITOR
 	// Previously these event handlers were wrapped in the GIsEditor below.  We moved them out to support take recording
 	// on nodes running in -game mode. This is a very focused use case and it is not safe to rely on these working

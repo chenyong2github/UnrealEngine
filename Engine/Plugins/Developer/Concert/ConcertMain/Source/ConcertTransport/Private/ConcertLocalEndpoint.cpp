@@ -554,6 +554,7 @@ void FConcertLocalEndpoint::ProcessKeepAliveMessage(const TSharedPtr<IMessageCon
 
 void FConcertLocalEndpoint::InternalHandleMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertLocalEndpoint);
 	SCOPED_CONCERT_TRACE(FConcertLocalEndpoint_InternalHandleMessage);
 	const UScriptStruct* MessageTypeInfo = Context->GetMessageTypeInfo().Get();
 

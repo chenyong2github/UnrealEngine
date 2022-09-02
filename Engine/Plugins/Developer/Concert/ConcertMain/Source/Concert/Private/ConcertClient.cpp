@@ -674,6 +674,7 @@ const FString& FConcertClient::GetRole() const
 void FConcertClient::Configure(const UConcertClientConfig* InSettings)
 {
 	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	ClientInfo.Initialize();
 	check(InSettings != nullptr);
 	Settings = TStrongObjectPtr<const UConcertClientConfig>(InSettings);
@@ -881,6 +882,8 @@ EConcertConnectionStatus FConcertClient::GetSessionConnectionStatus() const
 
 TFuture<EConcertResponseCode> FConcertClient::CreateSession(const FGuid& ServerAdminEndpointId, const FConcertCreateSessionArgs& CreateSessionArgs)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	// We don't want the client to get automatically reconnected to it's default session if something wrong happens
 	AutoConnection.Reset();
 	return InternalCreateSession(ServerAdminEndpointId, CreateSessionArgs);
@@ -888,6 +891,8 @@ TFuture<EConcertResponseCode> FConcertClient::CreateSession(const FGuid& ServerA
 
 TFuture<EConcertResponseCode> FConcertClient::JoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	// We don't want the client to get automatically reconnected to it's default session if something wrong happens
 	AutoConnection.Reset();
 	return InternalJoinSession(ServerAdminEndpointId, SessionId);
@@ -895,6 +900,8 @@ TFuture<EConcertResponseCode> FConcertClient::JoinSession(const FGuid& ServerAdm
 
 TFuture<EConcertResponseCode> FConcertClient::RestoreSession(const FGuid& ServerAdminEndpointId, const FConcertCopySessionArgs& RestoreSessionArgs)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	// We don't want the client to get automatically reconnected to the default session if something wrong happens
 	if (RestoreSessionArgs.bAutoConnect)
 	{
@@ -905,6 +912,8 @@ TFuture<EConcertResponseCode> FConcertClient::RestoreSession(const FGuid& Server
 
 TFuture<EConcertResponseCode> FConcertClient::CopySession(const FGuid& ServerAdminEndpointId, const FConcertCopySessionArgs& CopySessionArgs)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+	
 	// We don't want the client to get automatically reconnected to the default session if the copy/connect fails.
 	if (CopySessionArgs.bAutoConnect)
 	{
@@ -1101,6 +1110,8 @@ TSharedPtr<IConcertClientSession> FConcertClient::GetCurrentSession() const
 
 TFuture<FConcertAdmin_MountSessionRepositoryResponse> FConcertClient::MountSessionRepository(const FGuid& ServerAdminEndpointId, const FString& RepositoryRootDir, const FGuid& RepositoryId, bool bCreateIfNotExist, bool bAsDefault) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_MountSessionRepositoryRequest MountRepositoryRequest;
 	MountRepositoryRequest.RepositoryId = RepositoryId;
 	MountRepositoryRequest.RepositoryRootDir = RepositoryRootDir;
@@ -1111,12 +1122,16 @@ TFuture<FConcertAdmin_MountSessionRepositoryResponse> FConcertClient::MountSessi
 
 TFuture<FConcertAdmin_GetSessionRepositoriesResponse> FConcertClient::GetSessionRepositories(const FGuid& ServerAdminEndpointId) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_GetSessionRepositoriesRequest GetRepositoryRequest;
 	return ClientAdminEndpoint->SendRequest<FConcertAdmin_GetSessionRepositoriesRequest, FConcertAdmin_GetSessionRepositoriesResponse>(GetRepositoryRequest, ServerAdminEndpointId);
 }
 
 TFuture<FConcertAdmin_DropSessionRepositoriesResponse> FConcertClient::DropSessionRepositories(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& RepositoryIds) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_DropSessionRepositoriesRequest DropRepositoryRequest;
 	DropRepositoryRequest.RepositoryIds = RepositoryIds;
 	return ClientAdminEndpoint->SendRequest<FConcertAdmin_DropSessionRepositoriesRequest, FConcertAdmin_DropSessionRepositoriesResponse>(DropRepositoryRequest, ServerAdminEndpointId);
@@ -1124,24 +1139,32 @@ TFuture<FConcertAdmin_DropSessionRepositoriesResponse> FConcertClient::DropSessi
 
 TFuture<FConcertAdmin_GetAllSessionsResponse> FConcertClient::GetServerSessions(const FGuid& ServerAdminEndpointId) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_GetAllSessionsRequest GetSessionsRequest = FConcertAdmin_GetAllSessionsRequest();
 	return ClientAdminEndpoint->SendRequest<FConcertAdmin_GetAllSessionsRequest, FConcertAdmin_GetAllSessionsResponse>(GetSessionsRequest, ServerAdminEndpointId);
 }
 
 TFuture<FConcertAdmin_GetSessionsResponse> FConcertClient::GetLiveSessions(const FGuid& ServerAdminEndpointId) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_GetLiveSessionsRequest GetLiveSessionsRequest;
 	return ClientAdminEndpoint->SendRequest<FConcertAdmin_GetLiveSessionsRequest, FConcertAdmin_GetSessionsResponse>(GetLiveSessionsRequest, ServerAdminEndpointId);
 }
 
 TFuture<FConcertAdmin_GetSessionsResponse> FConcertClient::GetArchivedSessions(const FGuid& ServerAdminEndpointId) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_GetArchivedSessionsRequest GetArchivedSessionsRequest;
 	return ClientAdminEndpoint->SendRequest<FConcertAdmin_GetArchivedSessionsRequest, FConcertAdmin_GetSessionsResponse>(GetArchivedSessionsRequest, ServerAdminEndpointId);
 }
 
 TFuture<FConcertAdmin_GetSessionClientsResponse> FConcertClient::GetSessionClients(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_GetSessionClientsRequest GetSessionClientsRequest;
 	GetSessionClientsRequest.SessionId = SessionId;
 	return ClientAdminEndpoint->SendRequest<FConcertAdmin_GetSessionClientsRequest, FConcertAdmin_GetSessionClientsResponse>(GetSessionClientsRequest, ServerAdminEndpointId);
@@ -1149,6 +1172,8 @@ TFuture<FConcertAdmin_GetSessionClientsResponse> FConcertClient::GetSessionClien
 
 TFuture<FConcertAdmin_GetSessionActivitiesResponse> FConcertClient::GetSessionActivities(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, bool bIncludeDetails) const
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
+
 	FConcertAdmin_GetSessionActivitiesRequest GetSessionActivitiesRequest;
 	GetSessionActivitiesRequest.SessionId = SessionId;
 	GetSessionActivitiesRequest.FromActivityId = FromActivityId;

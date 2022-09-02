@@ -73,6 +73,7 @@ void SRemoteSessionStream::RegisterNomadTabSpawner()
 {
 	auto RegisterTabSpawner = []()
 	{
+		LLM_SCOPE_BYNAME(TEXT("RemoteSession/RemoteSessionStream"));
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(RemoteSessionStream::LevelEditorModuleName);
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 

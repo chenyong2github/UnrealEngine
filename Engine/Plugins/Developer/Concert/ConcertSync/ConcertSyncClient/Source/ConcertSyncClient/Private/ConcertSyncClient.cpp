@@ -11,8 +11,8 @@
 #include "ConcertClientPresenceManager.h"
 #include "ConcertSourceControlProxy.h"
 
+LLM_DECLARE_TAG(Concert_ConcertSyncClient);
 #define LOCTEXT_NAMESPACE "ConcertSyncClient"
-LLM_DEFINE_TAG(Concert_ConcertSyncClient);
 
 FConcertSyncClient::FConcertSyncClient(const FString& InRole, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge)
 	: ConcertClient(IConcertModule::Get().CreateClient(InRole))

@@ -20,7 +20,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
-
+LLM_DEFINE_TAG(VirtualProductionUtilities_TimecodeProviderTab);
 #define LOCTEXT_NAMESPACE "TimecodeProviderTab"
 
 namespace TimecodeProviderTab
@@ -40,8 +40,11 @@ namespace TimecodeProviderTab
 
 void STimecodeProviderTab::RegisterNomadTabSpawner()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_TimecodeProviderTab);
+
 	auto RegisterTabSpawner = []()
 	{
+		LLM_SCOPE_BYTAG(VirtualProductionUtilities_TimecodeProviderTab);
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 

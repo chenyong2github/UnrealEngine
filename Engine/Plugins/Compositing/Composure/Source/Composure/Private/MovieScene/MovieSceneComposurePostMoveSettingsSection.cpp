@@ -5,6 +5,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "ComposurePostMoves.h"
 
+LLM_DEFINE_TAG(Composure_MovieSceneComposurePostMoveSettingsSection);
+
 #if WITH_EDITOR
 
 struct FPostMoveSettingsChannelEditorData
@@ -87,7 +89,9 @@ struct FPostMoveSettingsChannelEditorData
 
 UMovieSceneComposurePostMoveSettingsSection::UMovieSceneComposurePostMoveSettingsSection( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
-{ 
+{
+	LLM_SCOPE_BYTAG(Composure_MovieSceneComposurePostMoveSettingsSection);
+
 	EvalOptions.EnableAndSetCompletionMode
 		(GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::WhenFinishedDefaultsToProjectDefault ? 
 			EMovieSceneCompletionMode::RestoreState : 

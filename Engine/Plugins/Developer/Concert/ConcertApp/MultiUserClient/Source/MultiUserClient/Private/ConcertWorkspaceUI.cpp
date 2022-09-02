@@ -45,6 +45,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+LLM_DEFINE_TAG(Concert_ConcertWorkspaceUI);
 #define LOCTEXT_NAMESPACE "ConcertFrontend"
 
 static const FName ConcertHistoryTabName(TEXT("ConcertHistory"));
@@ -1005,24 +1006,29 @@ void FConcertWorkspaceUI::GenerateConcertAssetContextMenu(FMenuBuilder& MenuBuil
 }
 
 TSharedRef<SWidget> FConcertWorkspaceUI::OnGenerateAssetViewLockStateIcons(const FAssetData& AssetData)
-{	return SNew(SConcertWorkspaceLockStateIndicator, AsShared())
+{	
+	LLM_SCOPE_BYTAG(Concert_ConcertWorkspaceUI);
+	return SNew(SConcertWorkspaceLockStateIndicator, AsShared())
 		.AssetPath(AssetData.PackageName);
 }
 
 TSharedRef<SWidget> FConcertWorkspaceUI::OnGenerateAssetViewLockStateTooltip(const FAssetData& AssetData)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertWorkspaceUI);
 	return SNew(SConcertWorkspaceLockStateTooltip, AsShared())
 		.AssetPath(AssetData.PackageName);
 }
 
 TSharedRef<SWidget> FConcertWorkspaceUI::OnGenerateAssetViewModifiedByOtherIcon(const FAssetData& AssetData)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertWorkspaceUI);
 	return SNew(SConcertWorkspaceModifiedByOtherIndicator, AsShared())
 		.AssetPath(AssetData.PackageName);
 }
 
 TSharedRef<SWidget> FConcertWorkspaceUI::OnGenerateAssetViewModifiedByOtherTooltip(const FAssetData& AssetData)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertWorkspaceUI);
 	return SNew(SConcertWorkspaceModifiedByOtherTooltip, AsShared())
 		.AssetPath(AssetData.PackageName);
 }

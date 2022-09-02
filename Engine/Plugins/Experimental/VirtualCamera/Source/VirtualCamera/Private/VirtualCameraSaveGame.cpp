@@ -8,6 +8,7 @@ int32 FVirtualCameraScreenshot::NextIndex = 1;
 
 UVirtualCameraSaveGame::UVirtualCameraSaveGame(const FObjectInitializer& ObjectInitializer)
 {
+	LLM_SCOPE_BYNAME("VirtualCamera/VirtualCameraSaveGame");
 	SaveSlotName = "SavedVirtualCameraSettings";
 	UserIndex = 0;
 }

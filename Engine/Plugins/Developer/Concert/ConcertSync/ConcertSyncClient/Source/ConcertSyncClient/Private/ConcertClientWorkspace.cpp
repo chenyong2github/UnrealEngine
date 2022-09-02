@@ -63,6 +63,7 @@
 	#include "GameMapsSettings.h"
 #endif
 
+LLM_DEFINE_TAG(Concert_ConcertClientWorkspace);
 #define LOCTEXT_NAMESPACE "ConcertClientWorkspace"
 
 /** Provides a workaround for scoped slow tasks that are push/pop out of order by Concert. Concert doesn't use FScopedSlowTask as designed when syncing
@@ -817,6 +818,7 @@ void FConcertClientWorkspace::HandleEndPIE(const bool InIsSimulating)
 
 void FConcertClientWorkspace::OnEndFrame()
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClientWorkspace);
 	SCOPED_CONCERT_TRACE(FConcertClientWorkspace_OnEndFrame);
 
 	if (CanFinalize())

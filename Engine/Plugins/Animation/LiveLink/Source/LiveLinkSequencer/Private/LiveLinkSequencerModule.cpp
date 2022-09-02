@@ -24,7 +24,7 @@
 #include "Templates/SubclassOf.h"
 #include "Widgets/Docking/SDockTab.h"
 
-
+LLM_DEFINE_TAG(LiveLink_LiveLinkSequencer);
 DEFINE_LOG_CATEGORY(LogLiveLinkSequencer);
 
 
@@ -63,6 +63,8 @@ public:
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(LiveLink_LiveLinkSequencer);
+
 		static FName LiveLinkSequencerStyle(TEXT("LiveLinkSequencerStyle"));
 		StyleSet = MakeShared<FSlateStyleSet>(LiveLinkSequencerStyle);
 
@@ -100,6 +102,8 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(LiveLink_LiveLinkSequencer);
+
 		UnregisterTakeRecorderSourceMenuExtender();
 
 		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);

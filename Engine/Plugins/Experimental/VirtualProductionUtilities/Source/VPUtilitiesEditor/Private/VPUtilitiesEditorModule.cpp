@@ -26,7 +26,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
-
+LLM_DEFINE_TAG(VirtualProductionUtilities_VPUtilitiesEditor);
 #define LOCTEXT_NAMESPACE "VPUtilitiesEditor"
 
 DEFINE_LOG_CATEGORY(LogVPUtilitiesEditor);
@@ -36,6 +36,8 @@ const FName FVPUtilitiesEditorModule::PlacementModeCategoryHandle = TEXT("Virtua
 
 void FVPUtilitiesEditorModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPUtilitiesEditor);
+
 	FVPUtilitiesEditorStyle::Register();
 
 	CustomUIHandler.Reset(NewObject<UVPCustomUIHandler>());
@@ -54,6 +56,8 @@ void FVPUtilitiesEditorModule::StartupModule()
 
 void FVPUtilitiesEditorModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPUtilitiesEditor);
+
 	UnregisterSettings();
 	STimecodeProviderTab::UnregisterNomadTabSpawner();
 	SGenlockProviderTab::UnregisterNomadTabSpawner();

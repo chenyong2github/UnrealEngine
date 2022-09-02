@@ -132,6 +132,8 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(Concert_DisasterRecoveryClient);
+
 		FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 		// Unhook AppPreExit and call it
@@ -349,6 +351,8 @@ private:
 	/** Starts or restarts the recovery service. */
 	void StartDisasterRecoveryService()
 	{
+		LLM_SCOPE_BYTAG(Concert_DisasterRecoveryClient);
+
 		// Started for the first time (not restarted)? Always create the manager (and start the service) even if disaster recovery is disabled (in the settings). This allows the user to import sessions for crash analysis.
 		if (!SessionManager)
 		{

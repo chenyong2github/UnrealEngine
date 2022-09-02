@@ -23,7 +23,7 @@
 #include "ToolMenus.h"
 #include "Widgets/SOpenColorIODisplay.h"
 
-LLM_DEFINE_TAG(Compositing_OpenColorIOEditor);
+LLM_DEFINE_TAG(OpenColorIO_OpenColorIOEditor);
 DEFINE_LOG_CATEGORY(LogOpenColorIOEditor);
 
 #define LOCTEXT_NAMESPACE "OpenColorIOEditorModule"
@@ -31,7 +31,8 @@ DEFINE_LOG_CATEGORY(LogOpenColorIOEditor);
 
 void FOpenColorIOEditorModule::StartupModule()
 {
-	LLM_SCOPE_BYTAG(Compositing_OpenColorIOEditor);
+	LLM_SCOPE_BYTAG(OpenColorIO_OpenColorIOEditor);
+
 	FWorldDelegates::OnPreWorldInitialization.AddRaw(this, &FOpenColorIOEditorModule::OnWorldInit);
 
 	// Register asset type actions for OpenColorIOConfiguration class
@@ -49,6 +50,8 @@ void FOpenColorIOEditorModule::StartupModule()
 
 void FOpenColorIOEditorModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(OpenColorIO_OpenColorIOEditor);
+
 	UnregisterViewMenuExtension();
 	UnregisterStyle();
 	UnregisterCustomizations();
@@ -92,6 +95,7 @@ void FOpenColorIOEditorModule::UnregisterCustomizations()
 
 void FOpenColorIOEditorModule::OnWorldInit(UWorld* InWorld, const UWorld::InitializationValues InInitializationValues)
 {
+	LLM_SCOPE_BYTAG(OpenColorIO_OpenColorIOEditor);
 	if (InWorld && InWorld->WorldType == EWorldType::Editor)
 	{
 		CleanFeatureLevelDelegate();
@@ -252,6 +256,7 @@ void FOpenColorIOEditorModule::OnLevelViewportClientListChanged()
 
 void FOpenColorIOEditorModule::OnEngineLoopInitComplete()
 {
+	LLM_SCOPE_BYTAG(OpenColorIO_OpenColorIOEditor);
 	// Register for Viewport updates to be able to track them
 	GEditor->OnLevelViewportClientListChanged().AddRaw(this, &FOpenColorIOEditorModule::OnLevelViewportClientListChanged);
 }

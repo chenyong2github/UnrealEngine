@@ -10,6 +10,7 @@
 #include "MessageEndpointBuilder.h"
 #include "Misc/ScopeLock.h"
 
+LLM_DEFINE_TAG(LiveLink_LiveLinkMessageBusDiscoveryManager);
 
 #define LL_HEARTBEAT_SLEEP_TIME 1.0f
 
@@ -17,6 +18,8 @@ FLiveLinkMessageBusDiscoveryManager::FLiveLinkMessageBusDiscoveryManager()
 	: bRunning(true)
 	, Thread(nullptr)
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkMessageBusDiscoveryManager);
+
 	PingRequestCounter = 0;
 	PingRequestFrequency = GetDefault<ULiveLinkSettings>()->GetMessageBusPingRequestFrequency();
 

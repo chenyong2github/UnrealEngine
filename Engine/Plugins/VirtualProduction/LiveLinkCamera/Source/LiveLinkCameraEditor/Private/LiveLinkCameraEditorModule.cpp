@@ -6,6 +6,8 @@
 #include "LiveLinkCameraControllerCustomization.h"
 #include "PropertyEditorModule.h"
 
+LLM_DEFINE_TAG(LiveLink_LiveLinkCameraEditor);
+
 void FLiveLinkCameraEditorModule::StartupModule()
 {
 	RegisterCustomizations();
@@ -18,12 +20,16 @@ void FLiveLinkCameraEditorModule::ShutdownModule()
 
 void FLiveLinkCameraEditorModule::RegisterCustomizations()
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkCameraEditor);
+
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyEditorModule.RegisterCustomClassLayout(ULiveLinkCameraController::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FLiveLinkCameraControllerCustomization::MakeInstance));
 }
 
 void FLiveLinkCameraEditorModule::UnregisterCustomizations()
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkCameraEditor);
+
 	if (UObjectInitialized() && !IsEngineExitRequested())
 	{
 		FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");

@@ -303,6 +303,8 @@ UTexture* UMultiPassChromaKeyer::ApplyTransform_Implementation(UTexture* Input, 
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
 
+LLM_DEFINE_TAG(Composure_MultiPassDespill);
+
 namespace MultiPassDespill_Impl
 {
 	static const FName ColorPlateKeyName(TEXT("ColorPlateParamName"));
@@ -312,6 +314,8 @@ namespace MultiPassDespill_Impl
 
 UMultiPassDespill::UMultiPassDespill()
 {
+	LLM_SCOPE_BYTAG(Composure_MultiPassDespill);
+
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> GKeyerMaterial(TEXT("/Composure/Materials/ChromaKeying/M_SinglePassDespill"));
 	KeyerMaterial.Material = Cast<UMaterialInterface>(GKeyerMaterial.Object);
 
@@ -331,6 +335,8 @@ UMultiPassDespill::UMultiPassDespill()
 
 UTexture* UMultiPassDespill::ApplyTransform_Implementation(UTexture* Input, UComposurePostProcessingPassProxy* PostProcessProxy, ACameraActor* /*TargetCamera*/)
 {
+	LLM_SCOPE_BYTAG(Composure_MultiPassDespill);
+
 	FCompositingTargetSwapChain SwapChain = FCompositingTargetSwapChain(SharedTargetPool, /*RenderScale =*/1.f);
 
 	UTexture* Result = Input;

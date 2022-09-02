@@ -9,10 +9,14 @@
 
 #include "Modules/ModuleManager.h"
 
+LLM_DEFINE_TAG(Takes_TakesCore);
+
 class FTakesCoreModule : public IModuleInterface
 {
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Takes_TakesCore);
+
 		// Ensure the level sequence module is loaded
 		FModuleManager::Get().LoadModuleChecked("LevelSequence");
 
@@ -30,6 +34,8 @@ class FTakesCoreModule : public IModuleInterface
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(Takes_TakesCore);
+
 		if (ULevelSequence* CDO = LevelSequenceCDO.Get())
 		{
 			CDO->RemoveMetaData<UTakeMetaData>();

@@ -46,7 +46,7 @@
  * Implements the LiveLinkEditor module.
  */
 
-
+LLM_DEFINE_TAG(LiveLink_LiveLinkEditor);
 DEFINE_LOG_CATEGORY(LogLiveLinkEditor);
 
 
@@ -79,6 +79,8 @@ public:
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(LiveLink_LiveLinkEditor);
+
 		static FName LiveLinkStyle(TEXT("LiveLinkStyle"));
 		StyleSet = MakeShared<FSlateStyleSet>(LiveLinkStyle);
 
@@ -160,6 +162,8 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(LiveLink_LiveLinkEditor);
+
 		UnregisterCustomizations();
 
 		UnregisterTabSpawner();

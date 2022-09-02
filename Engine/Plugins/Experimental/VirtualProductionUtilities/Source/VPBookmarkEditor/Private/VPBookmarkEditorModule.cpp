@@ -7,11 +7,14 @@
 #include "Bookmarks/IBookmarkTypeTools.h"
 
 
+LLM_DEFINE_TAG(VirtualProduction_VPBookmarkEditor);
 DEFINE_LOG_CATEGORY(LogVPBookmarkEditor);
 
 
 void FVPBookmarkEditorModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(VirtualProduction_VPBookmarkEditor);
+
 	BookmarkTypeActions = MakeShared<FVPBookmarkTypeActions>();
 	IBookmarkTypeTools::Get().RegisterBookmarkTypeActions(BookmarkTypeActions.ToSharedRef());
 }
@@ -19,6 +22,8 @@ void FVPBookmarkEditorModule::StartupModule()
 
 void FVPBookmarkEditorModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(VirtualProduction_VPBookmarkEditor);
+
 	IBookmarkTypeTools::Get().UnregisterBookmarkTypeActions(BookmarkTypeActions.ToSharedRef());
 	BookmarkTypeActions.Reset();
 }

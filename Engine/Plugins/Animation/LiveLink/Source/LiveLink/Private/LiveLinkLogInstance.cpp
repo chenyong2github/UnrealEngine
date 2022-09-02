@@ -15,7 +15,7 @@
 #include "Modules/ModuleManager.h"
 #endif
 
-
+LLM_DEFINE_TAG(LiveLink_LiveLinkLogInstance);
 #define LOCTEXT_NAMESPACE "LiveLinkLogInstance"
 
 
@@ -90,6 +90,7 @@ namespace LiveLinkLogDetail
 
 void FLiveLinkLogInstance::CreateInstance()
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkLogInstance);
 	ensure(FLiveLinkLog::Instance == nullptr);
 	if (FLiveLinkLog::Instance)
 	{
@@ -102,6 +103,7 @@ void FLiveLinkLogInstance::CreateInstance()
 
 void FLiveLinkLogInstance::DestroyInstance()
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkLogInstance);
 	ensure(FLiveLinkLog::Instance);
 	FLiveLinkLog::Instance.Reset();
 	FLiveLinkLog::Instance = nullptr;

@@ -5,12 +5,15 @@
 #include "UnrealEngine.h"
 #include "Kismet/GameplayStatics.h"
 
+LLM_DEFINE_TAG(VirtualCamera_VirtualCameraPawnBase);
+
 int32 AVirtualCameraPawnBase::PresetIndex = 1;
 int32 AVirtualCameraPawnBase::WaypointIndex = 1;
 int32 AVirtualCameraPawnBase::ScreenshotIndex = 1;
 
 AVirtualCameraPawnBase::AVirtualCameraPawnBase(const FObjectInitializer& ObjectInitializer)
 {
+	LLM_SCOPE_BYTAG(VirtualCamera_VirtualCameraPawnBase);
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 

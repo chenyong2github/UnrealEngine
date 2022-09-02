@@ -48,12 +48,15 @@ POSSIBILITY OF SUCH DAMAGE.
 
 static const FName SteamVREditorTabName("SteamVREditor");
 
+LLM_DEFINE_TAG(SteamVR_SteamVREditor);
 #define LOCTEXT_NAMESPACE "FSteamVREditorModule"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 void FSteamVREditorModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(SteamVR_SteamVREditor);
+
 	RegisterSettings();
 
 	FSteamVREditorStyle::Initialize();
@@ -138,6 +141,8 @@ bool FSteamVREditorModule::ShowSteamVRInputToolbarDropdown()
 
 void FSteamVREditorModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(SteamVR_SteamVREditor);
+
 	FSteamVREditorStyle::Shutdown();
 
 	FSteamVREditorCommands::Unregister();

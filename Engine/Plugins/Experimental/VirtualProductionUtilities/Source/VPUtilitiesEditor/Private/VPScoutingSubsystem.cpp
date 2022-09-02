@@ -18,6 +18,8 @@
 #include "VPUtilitiesEditorSettings.h"
 #include "LevelEditorActions.h"
 
+LLM_DEFINE_TAG(VirtualProductionUtilities_VPScoutingSubsystem);
+
 /* UVPScoutingSubsystem name
  *****************************************************************************/
 const FName UVPScoutingSubsystem::VProdPanelID = FName(TEXT("VirtualProductionPanel"));
@@ -33,6 +35,8 @@ const FName UVPScoutingSubsystem::VProdPanelGafferID = FName(TEXT("VirtualProduc
  *****************************************************************************/
 UVPScoutingSubsystemGestureManagerBase::UVPScoutingSubsystemGestureManagerBase()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPScoutingSubsystem);
+
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
 		IVREditorModule::Get().OnVREditingModeEnter().AddUObject(this, &UVPScoutingSubsystemGestureManagerBase::OnVREditingModeEnterCallback);
@@ -42,6 +46,8 @@ UVPScoutingSubsystemGestureManagerBase::UVPScoutingSubsystemGestureManagerBase()
 
 void UVPScoutingSubsystemGestureManagerBase::BeginDestroy()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPScoutingSubsystem);
+
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
 		IVREditorModule::Get().OnVREditingModeEnter().RemoveAll(this);
@@ -132,6 +138,8 @@ void UVPScoutingSubsystem::Deinitialize()
 
 void UVPScoutingSubsystem::OnEngineInitComplete()
 {
+	LLM_SCOPE_BYTAG(VirtualProductionUtilities_VPScoutingSubsystem);
+
 	FCoreDelegates::OnFEngineLoopInitComplete.Remove(EngineInitCompleteDelegate);
 	EngineInitCompleteDelegate.Reset();
 

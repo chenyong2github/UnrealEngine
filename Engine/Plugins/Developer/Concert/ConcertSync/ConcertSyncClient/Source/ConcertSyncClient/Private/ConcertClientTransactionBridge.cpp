@@ -24,7 +24,7 @@
 	#include "Elements/Framework/TypedElementSelectionSet.h"
 #endif
 
-
+LLM_DEFINE_TAG(Concert_ConcertClientTransactionBridge);
 #define LOCTEXT_NAMESPACE "ConcertClientTransactionBridge"
 
 namespace ConcertClientTransactionBridgeUtil
@@ -726,6 +726,7 @@ void FConcertClientTransactionBridge::HandleTransactionStateChanged(const FTrans
 
 void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionEvent)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClientTransactionBridge);
 	SCOPED_CONCERT_TRACE(FConcertClientTransactionBridge_HandleObjectTransacted);
 
 	if (bIgnoreLocalTransactions)
@@ -933,6 +934,8 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 
 void FConcertClientTransactionBridge::ConditionalBindUnderlyingLocalTransactionEvents()
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClientTransactionBridge);
+
 	if (bHasBoundUnderlyingLocalTransactionEvents)
 	{
 		return;
@@ -998,6 +1001,8 @@ void FConcertClientTransactionBridge::OnEndFrame()
 
 void FConcertClientTransactionBridge::RegisterTransactionFilter(FName FilterName, FTransactionFilterDelegate FilterHandle)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClientTransactionBridge);
+
 	check(TransactionFilters.Find(FilterName) == nullptr);
 
 	TransactionFilters.Add(FilterName) = MoveTemp(FilterHandle);

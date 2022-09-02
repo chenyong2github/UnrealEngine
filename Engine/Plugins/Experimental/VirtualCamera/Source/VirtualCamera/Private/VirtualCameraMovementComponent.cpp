@@ -5,6 +5,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
+LLM_DEFINE_TAG(VirtualCamera_VirtualCameraMovementComponent);
+
 namespace
 {
 	float ClampStabilizationScale(float StabilizationScale)
@@ -25,6 +27,8 @@ namespace
 
 UVirtualCameraMovementComponent::UVirtualCameraMovementComponent(const FObjectInitializer& ObjectInitializer)
 {
+	LLM_SCOPE_BYTAG(VirtualCamera_VirtualCameraMovementComponent);
+
 	// Initialize Axis Settings Map
 	AxisSettings.Add(EVirtualCameraAxis::LocationX);
 	AxisSettings.Add(EVirtualCameraAxis::LocationY);

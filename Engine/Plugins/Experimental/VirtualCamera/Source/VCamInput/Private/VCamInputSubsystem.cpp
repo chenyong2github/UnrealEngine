@@ -5,10 +5,13 @@
 
 #include "Framework/Application/SlateApplication.h"
 
+LLM_DEFINE_TAG(VirtualCamera_CamInputSubsystem);
 DEFINE_LOG_CATEGORY(LogVCamInput);
 
 UVCamInputSubsystem::UVCamInputSubsystem()
 {
+	LLM_SCOPE_BYTAG(VirtualCamera_CamInputSubsystem);
+
 	// Registering the input processor is only valid in the actual subsystem and not the CDO
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{

@@ -16,6 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
+LLM_DEFINE_TAG(CameraCalibrationCore_CameraCalibrationCoreEditor);
 #define LOCTEXT_NAMESPACE "CameraCalibrationCoreEditor"
 
 DEFINE_LOG_CATEGORY(LogCameraCalibrationCoreEditor);
@@ -23,6 +24,8 @@ DEFINE_LOG_CATEGORY(LogCameraCalibrationCoreEditor);
 
 void FCameraCalibrationCoreEditorModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(CameraCalibrationCore_CameraCalibrationCoreEditor);
+
 	FCameraCalibrationCoreEditorStyle::Get();
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -37,6 +40,8 @@ void FCameraCalibrationCoreEditorModule::StartupModule()
 
 void FCameraCalibrationCoreEditorModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(CameraCalibrationCore_CameraCalibrationCoreEditor);
+
 	if (!IsEngineExitRequested() && GEditor && UObjectInitialized())
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -93,6 +98,7 @@ void FCameraCalibrationCoreEditorModule::RegisterPlacementModeItems()
 {
 	auto RegisterPlaceActors = [&]() -> void
 	{
+		LLM_SCOPE_BYTAG(CameraCalibrationCore_CameraCalibrationCoreEditor)
 		if (!GEditor)
 		{
 			return;

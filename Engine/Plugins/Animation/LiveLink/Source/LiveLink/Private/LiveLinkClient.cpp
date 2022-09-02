@@ -40,6 +40,7 @@
 #include "VirtualSubjects/LiveLinkBlueprintVirtualSubject.h"
 #endif
 
+LLM_DEFINE_TAG(LiveLink_LiveLinkClient);
 
 /**
  * Declare stats to see what takes up time in LiveLink
@@ -66,6 +67,8 @@ static TAutoConsoleVariable<int32> CVarMaxNewFrameDataPerUpdate(
 
 FLiveLinkClient::FLiveLinkClient()
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkClient);
+
 #if WITH_EDITOR
 	CachedEngineTime = 0.0;
 #endif
@@ -201,6 +204,8 @@ void FLiveLinkClient::CacheValues()
 
 void FLiveLinkClient::Shutdown()
 {
+	LLM_SCOPE_BYTAG(LiveLink_LiveLinkClient);
+
 	/*if(IMediaModule* MediaModule = FModuleManager::GetModulePtr<IMediaModule>("Media"))
 	{
 		MediaModule->GetOnTickPreEngineCompleted().RemoveAll(this);

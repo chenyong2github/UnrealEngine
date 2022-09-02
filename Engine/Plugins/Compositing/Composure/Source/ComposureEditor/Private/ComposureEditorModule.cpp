@@ -6,14 +6,15 @@
 #include "Sequencer/ComposurePostMoveSettingsPropertyTrackEditor.h"
 #include "Sequencer/ComposureExportTrackEditor.h"
 
-LLM_DEFINE_TAG(Compositing_ComposureEditor);
+LLM_DEFINE_TAG(Composure_ComposureEditor);
 DEFINE_LOG_CATEGORY(LogComposureEditor);
 
 class FComposureEditorModule : public IModuleInterface
 {
 	virtual void StartupModule() override
 	{
-		LLM_SCOPE_BYTAG(Compositing_ComposureEditor);
+		LLM_SCOPE_BYTAG(Composure_ComposureEditor);
+
 		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
 		CreatePostMoveSettingsPropertyTrackEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FComposurePostMoveSettingsPropertyTrackEditor>();
 		ComposureExportTrackEditorHandle               = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateLambda([](TSharedRef<ISequencer> In){ return MakeShared<FComposureExportTrackEditor>(In); }));
@@ -21,6 +22,8 @@ class FComposureEditorModule : public IModuleInterface
 
 	virtual void ShutdownModule() override
 	{
+		LLM_SCOPE_BYTAG(Composure_ComposureEditor);
+
 		ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
 		if (SequencerModule != nullptr)
 		{
