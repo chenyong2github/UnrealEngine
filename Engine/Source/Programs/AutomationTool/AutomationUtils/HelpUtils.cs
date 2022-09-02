@@ -89,6 +89,11 @@ namespace AutomationTool
 		{
 		}
 
+		public ParamHelpAttribute() : this("", "")
+		{
+			// Needed for de-serialization
+		}
+
 		public ParamHelpAttribute(string Name, string Description) : base(Name, Description)
 		{
 			ParamName = Name.TrimStart('-');
@@ -109,12 +114,19 @@ namespace AutomationTool
 		public string ParamName
 		{
 			get;
+			set;
 		}
 		
+		private string _ParamDescription = string.Empty;
 		public string ParamDescription
 		{
 			get
 			{
+				if (!string.IsNullOrEmpty(_ParamDescription))
+				{
+					return _ParamDescription;
+				}
+
 				string RequiredStr = Required ? ". Required" : ". Optional";
 				string ChoicesStr = "";
 				var ValidChoices = Choices as IEnumerable<object>;
@@ -134,6 +146,10 @@ namespace AutomationTool
 						DefaultStr,
 						ChoicesStr
 					);
+			}
+			set
+			{
+				_ParamDescription = value;
 			}
 		}
 
@@ -189,7 +205,7 @@ namespace AutomationTool
 			set;
 		}
 
-		public string Help
+		public bool IsArgument
 		{
 			get;
 			set;
@@ -214,7 +230,7 @@ namespace AutomationTool
 			{
 				if (_Flag == null)
 				{
-					return ParamName;
+					return "-" + ParamName;
 				}
 				return _Flag;
 			}
@@ -222,7 +238,7 @@ namespace AutomationTool
 			{
 				if (!string.IsNullOrEmpty(value))
 				{
-					_Flag = value.TrimStart('-');
+					_Flag = value;
 				}
 			}
 		}
