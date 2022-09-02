@@ -918,6 +918,7 @@ namespace Horde.Build.Notifications.Sinks
 					await SendOrUpdateMessageAsync(triageChannel, state.Ts, $"{eventId}_buttons", null, message);
 				}
 
+				bool notifyTriageAlias = false;
 				if (isNew)
 				{
 					// If it has an owner, show that
@@ -938,7 +939,6 @@ namespace Horde.Build.Notifications.Sinks
 					else
 					{
 						IGrouping<UserId, IIssueSuspect>[] suspectGroups = suspects.GroupBy(x => x.AuthorId).ToArray();
-
 						if (suspectGroups.Length > 0 && suspectGroups.Length <= workflow.MaxMentions)
 						{
 							List<string> suspectList = new List<string>();
@@ -952,6 +952,10 @@ namespace Horde.Build.Notifications.Sinks
 
 							string suspectMessage = $"Possibly {StringUtils.FormatList(suspectList, "or")}.";
 							await _slackClient.PostMessageAsync(triageChannel, state.Ts, suspectMessage);
+						}
+						else
+						{
+							notifyTriageAlias = true;
 						}
 					}
 
@@ -970,7 +974,7 @@ namespace Horde.Build.Notifications.Sinks
 					}
 				}
 
-				if (workflow.TriageAlias != null && issue.OwnerId == null && suspects.All(x => x.DeclinedAt != null))
+				if (workflow.TriageAlias != null && issue.OwnerId == null && (suspects.All(x => x.DeclinedAt != null) || notifyTriageAlias))
 				{
 					string triageMessage = $"(cc {FormatUserOrGroupMention(workflow.TriageAlias)} for triage).";
 					await SendOrUpdateMessageAsync(triageChannel, state.Ts, eventId + "_triage", null, triageMessage);
