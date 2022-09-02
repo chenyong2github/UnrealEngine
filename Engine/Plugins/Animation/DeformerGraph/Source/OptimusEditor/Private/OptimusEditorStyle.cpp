@@ -13,10 +13,17 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 {
 	static const FVector2D IconSize10x10(10.0f, 10.0f);
 	static const FVector2D IconSize16x12(16.0f, 12.0f);
+	static const FVector2D IconSize16x16(16.0f, 16.0f);
+	static const FVector2D IconSize20x20(20.0f, 20.0f);
 
 	static const FSlateColor DefaultForeground(FLinearColor(0.72f, 0.72f, 0.72f, 1.f));
 
 	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Animation/DeformerGraph/Resources"));
+
+	// Asset icons
+	{
+		Set("ClassIcon.OptimusDeformer", new IMAGE_BRUSH_SVG("Icons/DeformerGraph_16", IconSize16x16, DefaultForeground));
+	}
 
 	// Text editor styles
 	{
@@ -63,6 +70,13 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 		SearchBoxStyle.SetLeftAlignSearchResultButtons(false);
 		Set("TextEditor.SearchBoxStyle", SearchBoxStyle);
 
+	}
+
+	// Graph type icons
+	{
+		Set("GraphType.Setup", new IMAGE_BRUSH_SVG("Icons/Graph_Setup", IconSize20x20, DefaultForeground));
+		Set("GraphType.Trigger", new IMAGE_BRUSH_SVG("Icons/Graph_Trigger", IconSize20x20, DefaultForeground));
+		Set("GraphType.Update", new IMAGE_BRUSH_SVG("Icons/Graph_Update", IconSize20x20, DefaultForeground));
 	}
 
 	// Graph styles

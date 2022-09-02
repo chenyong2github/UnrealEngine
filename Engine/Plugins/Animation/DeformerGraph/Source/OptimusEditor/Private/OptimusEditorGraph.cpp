@@ -12,6 +12,8 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Styling/AppStyle.h"
 #include "GraphEditAction.h"
+#include "OptimusEditorStyle.h"
+
 
 UOptimusEditorGraph::UOptimusEditorGraph()
 {
@@ -104,8 +106,19 @@ void UOptimusEditorGraph::RefreshVisualNode(UOptimusEditorGraphNode* InGraphNode
 
 const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph)
 {
-	// FIXME: Need icon types.
-	return FAppStyle::GetBrush(TEXT("GraphEditor.Animation_24x"));
+	switch(InModelGraph->GetGraphType())
+	{
+	case EOptimusNodeGraphType::Setup:
+			return FOptimusEditorStyle::Get().GetBrush(TEXT("GraphType.Setup"));
+	case EOptimusNodeGraphType::Update:
+			return FOptimusEditorStyle::Get().GetBrush(TEXT("GraphType.Trigger"));
+	case EOptimusNodeGraphType::ExternalTrigger:
+			return FOptimusEditorStyle::Get().GetBrush(TEXT("GraphType.Update"));
+	default:
+		checkNoEntry();
+		break;
+	}
+	return nullptr;
 }
 
 

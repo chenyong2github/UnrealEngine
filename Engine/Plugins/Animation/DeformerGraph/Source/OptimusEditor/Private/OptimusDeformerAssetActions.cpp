@@ -76,7 +76,7 @@ const TArray<FText>& FOptimusDeformerAssetActions::GetSubMenus() const
 
 TSharedPtr<SWidget> FOptimusDeformerAssetActions::GetThumbnailOverlay(const FAssetData& AssetData) const
 {
-	const FSlateBrush* Icon = FSlateIconFinder::FindIconBrushForClass(UOptimusDeformer::StaticClass());
+	const FSlateBrush* Icon = FSlateIconFinder::FindIconBrushForClass(UOptimusDeformer::StaticClass());;
 
 	return SNew(SBorder)
 		.BorderImage(FAppStyle::GetNoBrush())
