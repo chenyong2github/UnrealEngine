@@ -56,7 +56,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		PackedNaniteFlags)
 	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
 	SHADER_PARAMETER(int32,			PersistentPrimitiveIndex)
-	SHADER_PARAMETER(FVector2f,		ObjectDrawDistanceMinMaxSquared)
 	SHADER_PARAMETER(FVector2f,		InstanceDrawDistanceMinMaxSquared)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -144,9 +143,6 @@ public:
 		Parameters.NumInstanceSceneDataEntries		= 0;
 		Parameters.InstancePayloadDataOffset		= INDEX_NONE;
 		Parameters.InstancePayloadDataStride		= 0;
-
-		// Primitive draw distance
-		Parameters.ObjectDrawDistanceMinMaxSquared = FVector2f(0.0f, FLT_MAX);
 
 		LightingChannels = GetDefaultLightingChannelMask();
 
@@ -307,14 +303,6 @@ public:
 		check(FilterFlags < (1u << NANITE_FILTER_FLAGS_NUM_BITS));
 		Parameters.PackedNaniteFlags = (FilterFlags << NANITE_IMPOSTER_INDEX_NUM_BITS) | (Parameters.PackedNaniteFlags & NANITE_IMPOSTER_INDEX_MASK);
 
-		return *this;
-	}
-
-	inline FPrimitiveUniformShaderParametersBuilder& ObjectDrawDistance(FVector2f DistanceMinMax)
-	{
-		// Only scale the far distance by scalability parameters
-		DistanceMinMax.Y *= GetCachedScalabilityCVars().ViewDistanceScale;
-		Parameters.ObjectDrawDistanceMinMaxSquared = FMath::Square(DistanceMinMax);
 		return *this;
 	}
 

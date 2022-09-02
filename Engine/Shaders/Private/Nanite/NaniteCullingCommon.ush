@@ -69,20 +69,6 @@ void DrawDistanceCull(
 	bool bSkipCamPerPrimDistanceCull,
 	inout bool bVisible)
 {
-	// Check to cull the entire primitive based on distance from the center of the primitive bounds to the view point
-	// TODO: This check is currently happening per instance (not per primitive) and it would be nice if we could reduce its frequency
-	BRANCH
-	if (bVisible && !bSkipCamPerPrimDistanceCull)
-	{
-		// TODO: This needs to be from a different reference point for view-dependent shadows
-		const float3 PrimitiveOffset = LWCToFloat(LWCSubtract(PrimitiveData.ObjectWorldPosition, NaniteView.WorldCameraOrigin));
-		const float PrimitiveDistSq = dot(PrimitiveOffset, PrimitiveOffset);
-		const float MinDistanceSq = PrimitiveData.ObjectDrawDistanceMinMaxSquared.x;
-		const float MaxDistanceSq = PrimitiveData.ObjectDrawDistanceMinMaxSquared.y;
-
-		bVisible = PrimitiveDistSq >= MinDistanceSq && PrimitiveDistSq <= MaxDistanceSq;
-	}
-
 	BRANCH
 	if (bVisible)
 	{

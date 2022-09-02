@@ -159,7 +159,6 @@ struct FPrimitiveSceneData
 	float3		WireframeColor; // TODO: Should refactor out all editor data into a separate buffer
 	float3		LevelColor; // TODO: Should refactor out all editor data into a separate buffer
 	uint		PackedNaniteFlags;
-	float2 		ObjectDrawDistanceMinMaxSquared;
 	float2 		InstanceDrawDistanceMinMaxSquared;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
@@ -203,7 +202,6 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.WireframeColor					= Primitive.WireframeColor;
 	PrimitiveData.LevelColor						= Primitive.LevelColor;
 	PrimitiveData.PackedNaniteFlags					= Primitive.PackedNaniteFlags;
-	PrimitiveData.ObjectDrawDistanceMinMaxSquared	= Primitive.ObjectDrawDistanceMinMaxSquared;
 	PrimitiveData.InstanceDrawDistanceMinMaxSquared	= Primitive.InstanceDrawDistanceMinMaxSquared;
 	PrimitiveData.PersistentPrimitiveIndex			= Primitive.PersistentPrimitiveIndex;
 	UNROLL
@@ -317,8 +315,8 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.PackedNaniteFlags				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
 	PrimitiveData.LevelColor					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
 	PrimitiveData.PersistentPrimitiveIndex		= asint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
-	PrimitiveData.ObjectDrawDistanceMinMaxSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).xy;
-	PrimitiveData.InstanceDrawDistanceMinMaxSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).zw;
+	PrimitiveData.InstanceDrawDistanceMinMaxSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).xy;
+	// 31.zw are unused
 
 	// NOTE: Please make sure GetPrimitiveDataFromUniformBuffer() gets updated as well when adding new members here
 

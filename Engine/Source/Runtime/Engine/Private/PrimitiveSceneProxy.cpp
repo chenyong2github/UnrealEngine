@@ -492,7 +492,6 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.LocalBounds(LocalBounds)
 				.InstanceLocalBounds(GetInstanceLocalBounds(0))
 				.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
-				//.ObjectDrawDistance(FVector2f(GetMinDrawDistance(), GetMaxDrawDistance())) // TODO
 				.ReceivesDecals(bReceivesDecals)
 				.CacheShadowAsStatic(PrimitiveSceneInfo ? PrimitiveSceneInfo->ShouldCacheShadowAsStatic() : false)
 				.OutputVelocity(bOutputVelocity)
