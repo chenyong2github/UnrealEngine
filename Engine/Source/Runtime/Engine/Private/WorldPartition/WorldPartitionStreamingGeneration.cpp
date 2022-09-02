@@ -920,6 +920,7 @@ void UWorldPartition::FlushStreaming()
 {
 	RuntimeHash->FlushStreaming();
 	StreamingPolicy = nullptr;
+	GeneratedStreamingPackageNames.Empty();
 }
 
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)

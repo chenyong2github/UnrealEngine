@@ -43,6 +43,17 @@ public:
 	 */
 	static ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const TCHAR* PackageName);
 
+	/**
+	 * Returns whether the given package is referenced by one of the world streaming levels or not.
+	 *
+	 * @param		InWorld			World to look in for the streaming level
+	 * @param		InPackageName	Name of the package containing the ULevel to query
+	 * @return						True if the given package is referenced by one of
+	 *								the world streaming levels, else False.
+	 */
+	static bool IsValidStreamingLevel(UWorld* InWorld, const TCHAR* InPackageName);
+
+
 	///////////////////////////////////////////////////////////////////////////
 	// Locking/unlocking levels for edit.
 

@@ -159,6 +159,7 @@ public:
 	FWorldPartitionGenerateStreamingDelegate OnPreGenerateStreaming;
 
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
+	bool IsValidPackageName(const FString& InPackageName);
 
 	// Cooking
 	bool PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages);
@@ -291,6 +292,8 @@ private:
 	TArray<FWorldPartitionReference> LoadedSubobjects;
 
 	TMap<FWorldPartitionReference, AActor*> DirtyActors;
+
+	TSet<FString> GeneratedStreamingPackageNames;
 #endif
 
 	EWorldPartitionInitState InitState;

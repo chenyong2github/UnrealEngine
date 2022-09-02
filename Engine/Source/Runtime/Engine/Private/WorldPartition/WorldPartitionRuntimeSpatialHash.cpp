@@ -995,6 +995,12 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateStreamingGrid);
 
+	if (IsRunningCookCommandlet() && !OutPackagesToGenerate)
+	{
+		UE_LOG(LogWorldPartition, Error, TEXT("Error creating runtime streaming cells for cook, OutPackagesToGenerate is null."));
+		return false;
+	}
+
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	UWorld* World = WorldPartition->GetWorld();
 	const bool bIsMainWorldPartition = (World == WorldPartition->GetTypedOuter<UWorld>());
@@ -1161,25 +1167,18 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				}
 				StreamingCell->SetMinMaxZ(CellMinMaxZ);
 
-				if (IsRunningCookCommandlet())
+				// Always loaded cell actors are transfered to World's Persistent Level (see UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook)
+				if (StreamingCell->GetActorCount() && !StreamingCell->IsAlwaysLoaded())
 				{
-					UE_LOG(LogWorldPartition, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
-
-					if (StreamingCell->GetActorCount())
+					if (OutPackagesToGenerate)
 					{
-						// Always loaded cell actors are transfered to World's Persistent Level (see UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook)
-						if (!StreamingCell->IsAlwaysLoaded())
+						const FString PackageRelativePath = StreamingCell->GetPackageNameToCreate();
+						check(!PackageRelativePath.IsEmpty());
+						OutPackagesToGenerate->Add(PackageRelativePath);
+
+						if (IsRunningCookCommandlet())
 						{
-							if (!OutPackagesToGenerate)
-							{
-								UE_LOG(LogWorldPartition, Error, TEXT("Error creating runtime streaming cells for cook, OutPackagesToGenerate is null."));
-								return false;
-							}
-
-							const FString PackageRelativePath = StreamingCell->GetPackageNameToCreate();
-							check(!PackageRelativePath.IsEmpty());
-							OutPackagesToGenerate->Add(PackageRelativePath);
-
+							UE_LOG(LogWorldPartition, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
 							// Map relative package to StreamingCell for PopulateGeneratedPackageForCook/PopulateGeneratorPackageForCook
 							PackagesToGenerateForCook.Add(PackageRelativePath, StreamingCell);
 						}

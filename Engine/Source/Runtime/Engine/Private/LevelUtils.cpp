@@ -15,6 +15,7 @@
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
+#include "WorldPartition/WorldPartition.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "LevelUtils"
@@ -75,6 +76,23 @@ ULevelStreaming* FLevelUtils::FindStreamingLevel(UWorld* InWorld, const FName Pa
 ULevelStreaming* FLevelUtils::FindStreamingLevel(UWorld* InWorld, const TCHAR* InPackageName)
 {
 	return FindStreamingLevel(InWorld, FName(InPackageName));
+}
+
+bool FLevelUtils::IsValidStreamingLevel(UWorld* InWorld, const TCHAR* InPackageName)
+{
+	if (FindStreamingLevel(InWorld, InPackageName))
+	{
+		return true;
+	}
+
+#if WITH_EDITOR
+	if (UWorldPartition* WorldPartition = InWorld ? InWorld->GetWorldPartition() : nullptr)
+	{
+		return WorldPartition->IsValidPackageName(InPackageName);
+	}
+#endif
+
+	return false;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

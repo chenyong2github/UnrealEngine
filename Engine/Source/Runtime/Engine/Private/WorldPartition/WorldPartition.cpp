@@ -299,6 +299,20 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 	}
 }
 
+// Returns whether the memory package is part of the known/valid package names
+// used by World Partition for PIE/-game streaming.
+bool UWorldPartition::IsValidPackageName(const FString& InPackageName)
+{
+	if (FPackageName::IsMemoryPackage(InPackageName))
+	{
+		// Remove PIE prefix
+		FString PackageName = UWorld::RemovePIEPrefix(InPackageName);
+		// Test if package is a valid world partition PIE package
+		return GeneratedStreamingPackageNames.Contains(PackageName);
+	}
+	return false;
+}
+
 void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
 	check(!bIsPIE);
@@ -315,7 +329,18 @@ void UWorldPartition::OnPrePIEEnded(bool bWasSimulatingInEditor)
 
 void UWorldPartition::OnBeginPlay()
 {
-	GenerateStreaming();
+	TArray<FString> OutGeneratedStreamingPackageNames;
+	GenerateStreaming((bIsPIE || IsRunningGame()) ? &OutGeneratedStreamingPackageNames : nullptr);
+
+	// Prepare GeneratedStreamingPackages
+	check(GeneratedStreamingPackageNames.IsEmpty());
+	for (const FString& PackageName : OutGeneratedStreamingPackageNames)
+	{
+		// Set as memory package to avoid wasting time in UWorldPartition::IsValidPackageName (GenerateStreaming for PIE runs on the editor world)
+		FString Package = FPaths::RemoveDuplicateSlashes(FPackageName::IsMemoryPackage(PackageName) ? PackageName : TEXT("/Memory/") + PackageName);
+		GeneratedStreamingPackageNames.Add(Package);
+	}
+
 	RuntimeHash->OnBeginPlay();
 }
 
@@ -1035,6 +1060,9 @@ void UWorldPartition::Serialize(FArchive& Ar)
 	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
 	{
 		Ar << StreamingPolicy;
+#if WITH_EDITORONLY_DATA
+		Ar << GeneratedStreamingPackageNames;
+#endif
 
 #if WITH_EDITOR
 		if (Ar.IsLoading())

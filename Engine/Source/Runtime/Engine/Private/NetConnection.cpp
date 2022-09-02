@@ -138,8 +138,17 @@ namespace UE_NetConnectionPrivate
 		Result.Linker = FLinkerLoad::FindExistingLinkerForPackage(Result.Package);
 
 		Result.StreamingLevel = FLevelUtils::FindStreamingLevel(World, LevelVisibility.PackageName);
-		Result.bLevelExists = Result.Linker || Result.StreamingLevel != nullptr ||
-			(!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString()));
+		Result.bLevelExists = (Result.Linker != nullptr) || (Result.StreamingLevel != nullptr);
+
+		if (!Result.bLevelExists)
+		{
+			Result.bLevelExists = FLevelUtils::IsValidStreamingLevel(World, *PackageNameStr);
+			
+			if (!Result.bLevelExists)
+			{
+				Result.bLevelExists = (!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString()));
+			}
+		}
 
 		return Result;
 	}
