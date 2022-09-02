@@ -480,6 +480,11 @@ void FControlRigParameterTrackEditor::UnbindAllControlRigs()
 			ControlRig->ControlModified().RemoveAll(this);
 			ControlRig->OnInitialized_AnyThread().RemoveAll(this);
 			ControlRig->ControlSelected().RemoveAll(this);
+			if (const TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+			{
+				Binding->OnControlRigBind().RemoveAll(this);
+			}
+			ControlRig->ControlRigBound().RemoveAll(this);
 		}
 	}
 	BoundControlRigs.SetNum(0);
