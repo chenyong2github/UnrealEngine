@@ -58,11 +58,13 @@ public:
 	const FDataLayerInstanceDesc* GetDataLayerInstanceFromAssetPath(FName InDataLayerAssetPath) const;
 
 protected:
+	//~ Begin FWorldPartitionActorDesc Interface.
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool IsResaveNeeded() const override { return !IsValid(); }
-	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const;
+	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const override;
+	//~ End FWorldPartitionActorDesc Interface.
 
 private:
 	TArray<FDataLayerInstanceDesc> DataLayerInstances;
