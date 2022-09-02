@@ -63,6 +63,14 @@ public:
 	EInputActionValueType ValueType = EInputActionValueType::Boolean;
 	
 	/**
+	* Trigger qualifiers. If any trigger qualifiers exist the action will not trigger unless:
+	* At least one Explicit trigger in this list has been met.
+	* All Implicit triggers in this list are met.
+	*/
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action)
+	TArray<TObjectPtr<UInputTrigger>> Triggers;
+
+	/**
 	* Modifiers are applied to the final action value.
 	* These are applied sequentially in array order.
 	* They are applied on top of any FEnhancedActionKeyMapping modifiers that drove the initial input
