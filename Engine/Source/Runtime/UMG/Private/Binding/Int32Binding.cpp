@@ -31,7 +31,7 @@ int32 UInt32Binding::GetValue() const
 		}
 	}
 
-	return false;
+	return 0;
 }
 
 #undef LOCTEXT_NAMESPACE
