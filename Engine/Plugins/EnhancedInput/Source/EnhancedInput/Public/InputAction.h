@@ -59,7 +59,7 @@ public:
 	bool bReserveAllMappings = false;	// TODO: Need something more complex than this?
 
 	// The type that this action returns from a GetActionValue query or action event
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action, AssetRegistrySearchable)
 	EInputActionValueType ValueType = EInputActionValueType::Boolean;
 	
 	/**
