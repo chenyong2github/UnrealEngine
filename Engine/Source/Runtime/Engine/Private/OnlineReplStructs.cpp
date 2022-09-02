@@ -233,7 +233,7 @@ void FUniqueNetIdRepl::MakeReplicationDataV2()
 	TArray<uint8> ReplicationData = UE::Online::FOnlineIdRegistryRegistry::Get().ToReplicationData(AccountId);
 	check(!ReplicationData.IsEmpty());
 
-	const int32 TotalBytes = sizeof(EncodingFlags) + sizeof(OnlineServicesType) + sizeof(ReplicationData.Num()) + ReplicationData.Num();
+	const int32 TotalBytes = sizeof(EncodingFlags) + sizeof(OnlineServicesType) + sizeof(TArray<uint8>::SizeType) + ReplicationData.Num();
 	ReplicationBytes.Empty(TotalBytes);
 	FMemoryWriter Writer(ReplicationBytes);
 	Writer << EncodingFlags;
