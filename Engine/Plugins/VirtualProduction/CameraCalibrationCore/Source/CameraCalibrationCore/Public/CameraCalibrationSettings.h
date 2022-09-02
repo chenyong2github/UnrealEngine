@@ -175,6 +175,15 @@ struct FLensDataCategoryEditorColor
 	FColor NodalOffset = FColor::Purple;
 };
 
+/** Units used to display/interpret Focal Length and Image Center */
+UENUM()
+enum class ELensDisplayUnit : uint8
+{
+	Millimeters,
+	Pixels,
+	Normalized
+};
+
 /**
  * Settings for the camera calibration when in editor and standalone.
  * @note Cooked games don't use this setting.
@@ -216,6 +225,12 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Settings", Meta = (ToolTip = "Enable or Disable Time input driven by Live Link."))
 	bool bEnableTimeSlider = true;
+
+	/** 
+	 * Units used to display/interpret Focal Length and Image Center 
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	ELensDisplayUnit DefaultDisplayUnit = ELensDisplayUnit::Millimeters;
 
 private:
 

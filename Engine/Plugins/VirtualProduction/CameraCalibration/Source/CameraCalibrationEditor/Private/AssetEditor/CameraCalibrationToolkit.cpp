@@ -114,7 +114,9 @@ TSharedPtr<SWindow> FCameraCalibrationToolkit::OpenPopupWindow(const FText& InTi
 			.HasCloseButton(true)
 			.SupportsMaximize(false)
 			.SupportsMinimize(false)
-			.ClientSize(FVector2D(480, 360));
+			.ClientSize(FVector2D(480, 720))
+			.MinWidth(480)
+			.MinHeight(720);
 
 		FSlateApplication::Get().AddWindow(PopupWindowPin.ToSharedRef());
 	}

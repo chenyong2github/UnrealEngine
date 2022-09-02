@@ -73,6 +73,18 @@ private:
 	/** Called when ready to add data to LensFile */
 	void AddDataToLensFile() const;
 
+	/** Called when the display units are changed */
+	void OnUnitsChanged();
+
+	/** Returns the default value to display for focal length based on the display units of the LensFile */
+	FVector2D GetDefaultFocalLengthValue() const;
+
+	/** Returns the default value to display for image center based on the display units of the LensFile */
+	FVector2D GetDefaultImageCenterValue() const;
+
+	/** Normalize the input value based on the display units of the LensFile */
+	void NormalizeValue(FVector2D& InputValue) const;
+
 private:
 
 	/**
