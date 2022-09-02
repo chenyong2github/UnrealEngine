@@ -141,8 +141,7 @@ namespace UnrealBuildTool
 			{
 				Target.DisablePlugins.AddRange(new string[]
 				{
-					// Melange
-					"DatasmithC4DImporter",
+					// Currently none need to be disabled, but add names of plugins here that are incompatible with arm64
 				});
 			}
 
