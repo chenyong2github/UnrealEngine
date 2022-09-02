@@ -12489,7 +12489,7 @@ URigVMIfNode* URigVMController::AddIfNodeFromStruct(UScriptStruct* InScriptStruc
 		return nullptr;
 	}
 
-	return AddIfNode(InScriptStruct->GetStructCPPName(), FName(InScriptStruct->GetPathName()), InPosition, InNodeName, bSetupUndoRedo);
+	return AddIfNode(RigVMTypeUtils::GetUniqueStructTypeName(InScriptStruct), FName(InScriptStruct->GetPathName()), InPosition, InNodeName, bSetupUndoRedo);
 }
 
 URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -12611,7 +12611,7 @@ URigVMSelectNode* URigVMController::AddSelectNodeFromStruct(UScriptStruct* InScr
 		return nullptr;
 	}
 
-	return AddSelectNode(InScriptStruct->GetStructCPPName(), FName(InScriptStruct->GetPathName()), InPosition, InNodeName, bSetupUndoRedo);
+	return AddSelectNode(RigVMTypeUtils::GetUniqueStructTypeName(InScriptStruct), FName(InScriptStruct->GetPathName()), InPosition, InNodeName, bSetupUndoRedo);
 }
 
 URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -14620,6 +14620,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	URigVMIfNode* IfNode = Cast<URigVMIfNode>(InNode);
 	URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InNode);
 	URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InNode);
+	URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(InNode);
 
 	TGuardValue<bool> EventuallySuspendNotifs(bSuspendNotifications, !bNotify);
 	FScopeLock Lock(&PinPathCoreRedirectorsLock);
@@ -14688,6 +14689,52 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		FString ExportedDefaultValue;
 		CreateDefaultValueForStructIfRequired(ScriptStruct, ExportedDefaultValue);
 		AddPinsForStruct(ScriptStruct, UnitNode, nullptr, ERigVMPinDirection::Invalid, ExportedDefaultValue, false, bNotify);
+	}
+	else if (DispatchNode)
+	{
+		TMap<FString, TRigVMTypeIndex> PinTypeMap;
+		for (const URigVMPin* Pin : DispatchNode->Pins)
+		{
+			PinTypeMap.Add(Pin->GetPinPath(), Pin->GetTypeIndex());
+		}
+		
+		RemovePinsDuringRepopulate(DispatchNode, DispatchNode->Pins, bNotify, bSetupOrphanedPins);
+
+		const FRigVMTemplate* Template = DispatchNode->GetTemplate();
+		
+		for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
+		{
+			const FRigVMTemplateArgument* Arg = Template->GetArgument(ArgIndex);
+
+			URigVMPin* Pin = NewObject<URigVMPin>(DispatchNode, Arg->GetName());
+			const TRigVMTypeIndex& TypeIndex = PinTypeMap.FindChecked(Pin->GetPinPath());
+			const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(TypeIndex);
+			Pin->CPPType = Type.CPPType.ToString();
+			Pin->CPPTypeObject = Type.CPPTypeObject;
+			if (Pin->CPPTypeObject)
+			{
+				Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+			}
+			Pin->Direction = Arg->GetDirection();
+
+			AddNodePin(DispatchNode, Pin);
+
+			if(!Pin->IsWildCard())
+			{
+				// any serialize default values will be applied later with ApplyPinStates(...)
+				const FString DefaultValue = DispatchNode->GetInitialDefaultValueForPin(Pin->GetFName());
+				if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Pin->CPPTypeObject))
+				{
+					AddPinsForStruct(ScriptStruct, Pin->GetNode(), Pin, Pin->Direction, DefaultValue, false, false);
+				}
+				else if(!DefaultValue.IsEmpty())
+				{
+					SetPinDefaultValue(Pin, DefaultValue, true, false, false, false);
+				}
+			}
+		}
+		
+		ResolveTemplateNodeMetaData(DispatchNode, false);
 	}
 	else if ((RerouteNode != nullptr) || (VariableNode != nullptr))
 	{
@@ -16629,8 +16676,12 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 			for (const int32& Permutation : ResolvedPermutations)
 			{
 				if (const FRigVMTemplateArgument* Argument = Template->FindArgument(Pin->GetFName()))
-				{
-					Types.AddUnique(Argument->TypeIndices[Permutation]);
+				{	
+					// INDEX_NONE indicates invalid permutation
+					if (Argument->TypeIndices[Permutation] != INDEX_NONE)
+					{
+						Types.AddUnique(Argument->TypeIndices[Permutation]);
+					}
 				}
 			}
 			

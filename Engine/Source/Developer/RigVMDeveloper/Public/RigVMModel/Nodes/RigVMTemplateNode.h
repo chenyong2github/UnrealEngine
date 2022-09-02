@@ -140,7 +140,7 @@ public:
 
 	// Tries to reduce the input types to a single type, if all are compatible
 	// Will prioritize the InPreferredType if available
-	bool TryReduceTypesToSingle(TArray<TRigVMTypeIndex>& InOutTypes, const TRigVMTypeIndex InPreferredType = TRigVMTypeIndex()) const;
+	bool TryReduceTypesToSingle(TArray<TRigVMTypeIndex>& InOutTypes, const TRigVMTypeIndex InPreferredType = INDEX_NONE) const;	
 
 	// returns true if updating pin filters with InTypes would result in different filters 
 	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);

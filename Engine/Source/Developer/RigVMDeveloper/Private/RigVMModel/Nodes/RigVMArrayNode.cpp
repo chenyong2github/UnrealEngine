@@ -293,7 +293,7 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 			static const TArray<FRigVMTemplateArgument::ETypeCategory> ArrayCategory = {FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue};
 
 			UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
-			const FRigVMTemplateArgumentType ExecuteType(*ExecuteStruct->GetStructCPPName(), ExecuteStruct);
+			const FRigVMTemplateArgumentType ExecuteType(*RigVMTypeUtils::GetUniqueStructTypeName(ExecuteStruct), ExecuteStruct);
 			const int32 ExecuteTypeIndex = FRigVMRegistry::Get().FindOrAddType(ExecuteType);
 			
 			switch(OpCode)

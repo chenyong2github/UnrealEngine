@@ -5631,7 +5631,7 @@ void FControlRigEditor::CreateRigHierarchyToGraphDragAndDropMenu() const
 										{
 											Controller->OpenUndoBracket(TEXT("Create Item Array From Selection"));
 
-											static const FString ItemArrayCPPType = FString::Printf(TEXT("TArray<%s>"), *FRigElementKey::StaticStruct()->GetStructCPPName());
+											static const FString ItemArrayCPPType = FString::Printf(TEXT("TArray<%s>"), *RigVMTypeUtils::GetUniqueStructTypeName(FRigElementKey::StaticStruct()));
 											static const FString ItemArrayObjectPath = FRigElementKey::StaticStruct()->GetPathName();
 							
 											if (URigVMNode* ItemsNode = Controller->AddFreeRerouteNode(true, ItemArrayCPPType, *ItemArrayObjectPath, false, NAME_None, FString(), NodePosition))
@@ -5830,7 +5830,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 						}
 
 						UScriptStruct* ValueStruct = TBaseStructure<FVector2D>::Get();
-						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const FRigVMTemplateArgumentType TypeForStruct(*RigVMTypeUtils::GetUniqueStructTypeName(ValueStruct), ValueStruct);
 						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
 						PinsToResolve.Add(ValueName, TypeIndex);
 						break;
@@ -5847,7 +5847,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 							StructTemplate = FRigUnit_SetVectorAnimationChannel::StaticStruct();
 						}
 						UScriptStruct* ValueStruct = TBaseStructure<FVector>::Get();
-						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const FRigVMTemplateArgumentType TypeForStruct(*RigVMTypeUtils::GetUniqueStructTypeName(ValueStruct), ValueStruct);
 						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
 						PinsToResolve.Add(ValueName, TypeIndex);
 						break;
@@ -5881,7 +5881,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 							StructTemplate = FRigUnit_SetTransformAnimationChannel::StaticStruct();
 						}
 						UScriptStruct* ValueStruct = TBaseStructure<FTransform>::Get();
-						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const FRigVMTemplateArgumentType TypeForStruct(*RigVMTypeUtils::GetUniqueStructTypeName(ValueStruct), ValueStruct);
 						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
 						PinsToResolve.Add(ValueName, TypeIndex);
 						break;

@@ -6,6 +6,7 @@
 #include "RigVMCore/RigVMTypeIndex.h"
 #include "RigVMCore/RigVMUnknownType.h"
 #include "UObject/Interface.h"
+#include "Engine/UserDefinedStruct.h"
 
 namespace RigVMTypeUtils
 {
@@ -84,6 +85,16 @@ namespace RigVMTypeUtils
 		return InCPPType.RightChop(7).LeftChop(1).TrimStartAndEnd();
 	}
 
+	FORCEINLINE_DEBUGGABLE FString GetUniqueStructTypeName(const UScriptStruct* InScriptStruct)
+	{
+		if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InScriptStruct))
+		{
+			return FString::Printf(TEXT("FUserDefinedStruct_%s"), *UserDefinedStruct->GetCustomGuid().ToString());
+		}
+
+		return InScriptStruct->GetStructCPPName();
+	}
+
 	FORCEINLINE FString CPPTypeFromEnum(UEnum* InEnum)
 	{
 		check(InEnum);
@@ -114,7 +125,7 @@ namespace RigVMTypeUtils
 
 	static const FString& GetWildCardCPPType()
 	{
-		static const FString WildCardCPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName(); 
+		static const FString WildCardCPPType = GetUniqueStructTypeName(FRigVMUnknownType::StaticStruct()); 
 		return WildCardCPPType;
 	}
 
@@ -136,6 +147,8 @@ namespace RigVMTypeUtils
 		return WildCardArrayCPPTypeName;
 	}
 
+
+
 	FORCEINLINE FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
 	{
 		FString CPPType = InCPPType;
@@ -153,7 +166,7 @@ namespace RigVMTypeUtils
 		}
 		else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 		{
-			CPPType = ScriptStruct->GetStructCPPName();
+			CPPType = GetUniqueStructTypeName(ScriptStruct);
 		}
 		else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
 		{

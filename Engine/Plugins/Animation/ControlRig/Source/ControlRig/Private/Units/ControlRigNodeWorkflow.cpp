@@ -28,7 +28,7 @@ TArray<FRigVMUserWorkflow> UControlRigTransformWorkflowOptions::ProvideWorkflows
 	{
 		if(!Pin->IsArray())
 		{
-			if(Pin->GetCPPType() == TBaseStructure<FTransform>::Get()->GetStructCPPName())
+			if(Pin->GetCPPType() == RigVMTypeUtils::GetUniqueStructTypeName(TBaseStructure<FTransform>::Get()))
 			{
 				Workflows.Emplace(
 					TEXT("Set from hierarchy"),

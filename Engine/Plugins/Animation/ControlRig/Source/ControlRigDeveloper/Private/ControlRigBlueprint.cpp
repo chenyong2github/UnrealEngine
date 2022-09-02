@@ -1038,6 +1038,11 @@ void UControlRigBlueprint::PostLoad()
 		HandlePackageDone();
 	}
 #endif
+
+	// RigVMRegistry changes can be triggered when new user defined types(structs/enums) are added/removed
+	// in which case we have to refresh the model
+	FRigVMRegistry::Get().OnRigVMRegistryChanged().RemoveAll(this);
+	FRigVMRegistry::Get().OnRigVMRegistryChanged().AddUObject(this, &UControlRigBlueprint::OnRigVMRegistryChanged);
 }
 
 #if WITH_EDITOR
@@ -1580,6 +1585,14 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 
 		Controller->SuspendNotifications(false);
 	}
+}
+
+void UControlRigBlueprint::OnRigVMRegistryChanged()
+{
+	RefreshAllModels();
+	RebuildGraphFromModel();
+	// avoids slate crash
+	FControlRigBlueprintUtils::HandleRefreshAllNodes(this);
 }
 
 void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
@@ -2833,7 +2846,7 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 	}
 	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
 	{
-		Variable.TypeName = *ScriptStruct->GetStructCPPName();
+		Variable.TypeName = *RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct);
 		Variable.TypeObject = ScriptStruct;
 		Variable.Size = ScriptStruct->GetStructureSize();
 	}

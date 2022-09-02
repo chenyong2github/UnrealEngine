@@ -214,7 +214,13 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 					for(int32 PermutationIndex = 0; PermutationIndex < Template->NumPermutations(); PermutationIndex++)
 					{
 						TRigVMTypeIndex ArgumentTypeIndex = AllArgumentTypes[PermutationIndex];
-					
+
+						if (ArgumentTypeIndex == INDEX_NONE)
+						{
+							// skip invalid permutations
+							continue;
+						}
+
 						bool bIsFilteredOut = false;
 						if(!FilteredArgumentTypes.Contains(ArgumentTypeIndex))
 						{
@@ -326,7 +332,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 				if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
 				{
-					const FRigVMTemplateArgumentType MathType(*ScriptStruct->GetStructCPPName(), ScriptStruct);
+					const FRigVMTemplateArgumentType MathType(*RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct), ScriptStruct);
 					const TRigVMTypeIndex MathTypeIndex = FRigVMRegistry::Get().GetTypeIndex(MathType);
 					
 					if(!FRigVMRegistry::Get().GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue).Contains(MathTypeIndex))

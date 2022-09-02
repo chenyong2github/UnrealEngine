@@ -9,12 +9,16 @@
 class RIGVM_API TRigVMTypeIndex
 {
 public:
-	
-	TRigVMTypeIndex()
-		: Name(NAME_None)
-		, Index(INDEX_NONE)
-	{}
 
+	// default constructor provided just to avoid compilation error
+	// in your code if you need to represent an invalid type, use INDEX_NONE instead of TRigVMTypeIndex()
+	// the reason being that because we typedef int32 to TRigVMTypeIndex,
+	// default constructor of TRigVMTypeIndex should be the same as int32, which defaults to 0 and is not an invalid type
+	TRigVMTypeIndex()
+	: Name(NAME_None)
+	, Index(0)
+	{}
+	
 	TRigVMTypeIndex(int32 InIndex)
 		: Name(NAME_None)
 		, Index(InIndex)

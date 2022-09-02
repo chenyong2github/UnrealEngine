@@ -118,7 +118,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 	{
 		if (UScriptStruct* Struct = Cast<UScriptStruct>(InPinType.PinSubCategoryObject))
 		{
-			ExternalVariable.TypeName = *Struct->GetStructCPPName();
+			ExternalVariable.TypeName = *RigVMTypeUtils::GetUniqueStructTypeName(Struct);
 			ExternalVariable.TypeObject = Struct;
 			ExternalVariable.Size = Struct->GetStructureSize();
 		}
@@ -178,7 +178,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPTypePath(const FNa
 	}
 	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPTypePath))
 	{
-		Variable.TypeName = *ScriptStruct->GetStructCPPName();
+		Variable.TypeName = *RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct);
 		Variable.TypeObject = ScriptStruct;
 		Variable.Size = ScriptStruct->GetStructureSize();
 	}
@@ -247,7 +247,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	}
 	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
 	{
-		Variable.TypeName = *ScriptStruct->GetStructCPPName();
+		Variable.TypeName = *RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct);
 		Variable.TypeObject = ScriptStruct;
 		Variable.Size = ScriptStruct->GetStructureSize();
 	}
@@ -637,7 +637,7 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 			OutCPPTypeObjectPath = *CPPTypeObject->GetPathName();
 			if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
 			{
-				FString StructName = ScriptStruct->GetStructCPPName();
+				FString StructName = GetUniqueStructTypeName(ScriptStruct);
 				while (IsArrayType(OutCPPType))
 				{
 					OutCPPType = BaseTypeFromArrayType(OutCPPType);
@@ -707,7 +707,7 @@ bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& I
 	}
 	else if (UScriptStruct* Struct = Cast<UScriptStruct>(InExternalVariable.TypeObject))
 	{
-		OutCPPType = Prefix + *Struct->GetStructCPPName() + Suffix;
+		OutCPPType = Prefix + *GetUniqueStructTypeName(Struct) + Suffix;
 		*OutCPPTypeObject = Struct;	
 	}
 	else if (UEnum* Enum = Cast<UEnum>(InExternalVariable.TypeObject))

@@ -4,9 +4,12 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMTypeUtils.h"
 #include "RigVMModule.h"
+#include "Animation/AttributeTypes.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/UserDefinedEnum.h"
+#include "Engine/UserDefinedStruct.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/CoreDelegates.h"
-#include "Engine/UserDefinedStruct.h"
 
 FRigVMRegistry FRigVMRegistry::s_RigVMRegistry;
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
@@ -124,11 +127,25 @@ void FRigVMRegistry::InitializeIfNeeded()
 	FCoreDelegates::OnExit.AddLambda([]()
 	{
 		s_RigVMRegistry.Reset();
+
+		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+		{
+			if (AssetRegistryModule->TryGet())
+			{
+				AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&s_RigVMRegistry);
+			}
+		}
 	});
+	
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FRigVMRegistry::OnAssetRemoved);
 }
 
 void FRigVMRegistry::Refresh()
 {
+	// refresh only tries to register all loaded types
+	// trying to load all types is very slow for large projects so we don't want to do that
+	
 	// add all user defined structs
 	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
 	{
@@ -138,7 +155,6 @@ void FRigVMRegistry::Refresh()
 			// if this is a C++ type - skip it
 			if(ScriptStruct->IsA<UUserDefinedStruct>() || ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 			{
-				const FString CPPType = ScriptStruct->GetStructCPPName();
 				FindOrAddType(FRigVMTemplateArgumentType(ScriptStruct));
 			}
 		}
@@ -172,6 +188,32 @@ void FRigVMRegistry::Refresh()
 		{
 			RegisterFactory(ScriptStruct);
 		}
+	}
+}
+
+void FRigVMRegistry::OnAssetRemoved(const FAssetData& InAssetData)
+{
+	UObject* Asset = InAssetData.GetAsset();
+
+	if (UObjectRedirector* RedirectedStruct = Cast<UObjectRedirector>(Asset))
+	{
+		Asset = RedirectedStruct->DestinationObject;
+	}
+
+	bool bTypeRemoved = false;
+	
+	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Asset))
+	{
+		bTypeRemoved = RemoveType(ScriptStruct);
+	}
+	else if (UEnum* Enum = Cast<UEnum>(Asset))
+	{
+		bTypeRemoved = RemoveType(Enum);
+	}
+
+	if (bTypeRemoved)
+	{
+		OnRigVMRegistryChangedDelegate.Broadcast();
 	}
 }
 
@@ -460,6 +502,120 @@ void FRigVMRegistry::RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategor
 	}
 }
 
+bool FRigVMRegistry::RemoveType(const FRigVMTemplateArgumentType& InType)
+{
+	check(!InType.IsArray())
+	
+	TRigVMTypeIndex Index = GetTypeIndex(InType);
+	
+	if(Index == INDEX_NONE)
+	{
+		return false;
+	}
+
+	TArray<TRigVMTypeIndex> Indices;
+	Indices.Init(INDEX_NONE, 3);
+	Indices[0] = Index;
+	Indices[1] = GetArrayTypeFromBaseTypeIndex(Indices[0]);
+
+	// any type that can be removed should have 3 entries in the registry
+	if (ensure(Indices[1] != INDEX_NONE))
+	{
+		Indices[2] = GetArrayTypeFromBaseTypeIndex(Indices[1]);
+	}
+	
+	const UObject* CPPTypeObject = InType.CPPTypeObject;
+
+	for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
+	{
+		Index = Indices[ArrayDimension];
+		
+		if (Index == INDEX_NONE)
+		{
+			break;
+		}
+		
+		if(const UUserDefinedEnum* Enum = Cast<UUserDefinedEnum>(CPPTypeObject))
+		{
+			switch(ArrayDimension)
+			{
+			default:
+			case 0:
+				{
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleEnumValue, Index);
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
+					break;
+				}
+			case 1:
+				{
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayEnumValue, Index);
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
+					break;
+				}
+			case 2:
+				{
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayEnumValue, Index);
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
+					break;
+				}
+			}
+		}
+		else if(const UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(CPPTypeObject))
+		{
+			switch(ArrayDimension)
+			{
+			default:
+			case 0:
+				{
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, Index);
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
+					break;
+				}
+			case 1:
+				{
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, Index);
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
+					break;
+				}
+			case 2:
+				{
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, Index);
+					RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
+					break;
+				}
+			}
+		}
+
+		// remove the type from the registry entirely
+		TypeToIndex.Remove(GetType(Index));
+		Types[Index] = FTypeInfo();
+	}
+
+	return true;
+}
+
+void FRigVMRegistry::RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, TRigVMTypeIndex InTypeIndex)
+{
+	check(InCategory != FRigVMTemplateArgument::ETypeCategory_Invalid);
+
+	TypesPerCategory.FindChecked(InCategory).Remove(InTypeIndex);
+
+	const TArray<TPair<int32,int32>>& ArgumentsToUseType = ArgumentsPerCategory.FindChecked(InCategory);
+
+	TSet<int32> TemplatesToUseType;
+	
+	for(const TPair<int32,int32>& Pair : ArgumentsToUseType)
+	{
+		TemplatesToUseType.Add(Pair.Key);
+	}
+	
+	for (const int32 TemplateIndex : TemplatesToUseType)
+	{
+		FRigVMTemplate& Template = Templates[TemplateIndex];
+		Template.HandleTypeRemoval(InTypeIndex);
+	}
+}
+
 TRigVMTypeIndex FRigVMRegistry::GetTypeIndex(const FRigVMTemplateArgumentType& InType) const
 {
 	if(const TRigVMTypeIndex* Index = TypeToIndex.Find(InType))
@@ -725,6 +881,13 @@ bool FRigVMRegistry::IsAllowedType(const UStruct* InStruct)
 	{
 		return false;
 	}
+
+	// allow all user defined structs since they can always be changed to be compliant with RigVM restrictions
+	if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InStruct))
+	{
+		return true;
+	}
+
 	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
 		if(!IsAllowedType(*It))
@@ -875,20 +1038,7 @@ const FRigVMFunction* FRigVMRegistry::FindFunction(const TCHAR* InName) const
 		FString FactoryName, ArgumentsString;
 		if(NameString.Split(TEXT("::"), &FactoryName, &ArgumentsString))
 		{
-			// if the factory has never been registered - we should try to look it up
-			if(FindDispatchFactory(*FactoryName) == nullptr)
-			{
-				if(FactoryName.StartsWith(FRigVMDispatchFactory::DispatchPrefix))
-				{
-					const FString ScriptStructName = FactoryName.Mid(FRigVMDispatchFactory::DispatchPrefix.Len());
-					if(UScriptStruct* FactoryStruct = FindFirstObject<UScriptStruct>(*ScriptStructName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous))
-					{
-						FRigVMRegistry* MutableThis = (FRigVMRegistry*)this;
-						MutableThis->RegisterFactory(FactoryStruct);
-					}
-				}
-			}
-
+			// if the factory has never been registered - FindDispatchFactory will try to look it up and register
 			if(const FRigVMDispatchFactory* Factory = FindDispatchFactory(*FactoryName))
 			{
 				if(const FRigVMTemplate* Template = Factory->GetTemplate())
@@ -937,23 +1087,20 @@ const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation, bool
 		return &Templates[*TemplateIndexPtr];
 	}
 
-	if(Factories.Num() > 0)
+	static bool IsDispatchingFunction = false;
+	if(IsDispatchingFunction)
 	{
-		static bool IsDispatchingFunction = false;
-		if(IsDispatchingFunction)
+		return nullptr;
+	}
+	
+	const FString NotationString(InNotation.ToString());
+	FString FactoryName, ArgumentsString;
+	if(NotationString.Split(TEXT("("), &FactoryName, &ArgumentsString))
+	{
+		if(const FRigVMDispatchFactory* Factory = FindDispatchFactory(*FactoryName))
 		{
-			return nullptr;
-		}
-		
-		const FString NotationString(InNotation.ToString());
-		FString FactoryName, ArgumentsString;
-		if(NotationString.Split(TEXT("("), &FactoryName, &ArgumentsString))
-		{
-			if(const FRigVMDispatchFactory* Factory = FindDispatchFactory(*FactoryName))
-			{
-				TGuardValue<bool> ReEntryGuard(IsDispatchingFunction, true);
-				return Factory->GetTemplate();
-			}
+			TGuardValue<bool> ReEntryGuard(IsDispatchingFunction, true);
+			return Factory->GetTemplate();
 		}
 	}
 
@@ -1074,6 +1221,20 @@ FRigVMDispatchFactory* FRigVMRegistry::FindDispatchFactory(const FName& InFactor
 	{
 		return *FactoryPtr;
 	}
+
+	FString FactoryName = InFactoryName.ToString();
+	
+	// if the factory has never been registered - we should try to look it up	
+	if(FactoryName.StartsWith(FRigVMDispatchFactory::DispatchPrefix))
+	{
+		const FString ScriptStructName = FactoryName.Mid(FRigVMDispatchFactory::DispatchPrefix.Len());
+		if(UScriptStruct* FactoryStruct = FindFirstObject<UScriptStruct>(*ScriptStructName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous))
+		{
+			FRigVMRegistry* MutableThis = (FRigVMRegistry*)this;
+			return (FRigVMDispatchFactory*)MutableThis->RegisterFactory(FactoryStruct);
+		}
+	}	
+	
 	return nullptr;
 }
 

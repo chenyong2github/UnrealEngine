@@ -625,9 +625,15 @@ TRigVMTypeIndex URigVMPin::GetTypeIndex() const
 	if(LastKnownTypeIndex == INDEX_NONE)
 	{
 		LastKnownCPPType = GetCPPType();
-		const FRigVMTemplateArgumentType Type(*LastKnownCPPType, GetCPPTypeObject());
-		LastKnownTypeIndex = FRigVMRegistry::Get().FindOrAddType(Type);
-		ensure(LastKnownTypeIndex != INDEX_NONE);
+		// cpp type can be empty if it is an unsupported type such as a UObject type
+		if (!LastKnownCPPType.IsEmpty())
+		{
+			const FRigVMTemplateArgumentType Type(*LastKnownCPPType, GetCPPTypeObject());
+			LastKnownTypeIndex = FRigVMRegistry::Get().FindOrAddType(Type);
+			// in rare cases LastKnowTypeIndex can still be NONE here because
+			// we have nodes that has constant pin that references struct type like FRuntimeFloatCurve
+			// which contains a object ptr member and is thus not registered in the registry
+		}
 	}
 	return LastKnownTypeIndex;
 }

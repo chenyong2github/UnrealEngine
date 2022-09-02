@@ -65,11 +65,16 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		: CPPType(InCPPType)
 		, CPPTypeObject(InCPPTypeObject)
 	{
+		// InCppType is unreliable because not all caller knows that
+		// we use generated unique names for user defined structs
+		// so here we override the CppType name with the actual name used in the registry
+		CPPType = *RigVMTypeUtils::PostProcessCPPType(CPPType.ToString(), CPPTypeObject);
+		
 		check(!CPPType.IsNone());
 	}
 
 	FRigVMTemplateArgumentType(UScriptStruct* InScriptStruct)
-	: CPPType(*InScriptStruct->GetStructCPPName())
+	: CPPType(*RigVMTypeUtils::GetUniqueStructTypeName(InScriptStruct))
 	, CPPTypeObject(InScriptStruct)
 	{
 	}
@@ -149,6 +154,8 @@ struct RIGVM_API FRigVMTemplateArgumentType
  */
 struct RIGVM_API FRigVMTemplateArgument
 {
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FTypeFilter, const TRigVMTypeIndex&);
+	
 	enum EArrayType
 	{
 		EArrayType_SingleValue,
@@ -187,7 +194,7 @@ struct RIGVM_API FRigVMTemplateArgument
 
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, TRigVMTypeIndex InType);
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<TRigVMTypeIndex>& InTypeIndices);
-	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories);
+	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories, const FTypeFilter& InTypeFilter = {});
 
 	// Serialize
 	void Serialize(FArchive& Ar);
@@ -364,6 +371,9 @@ public:
 	// template factory how to deal with the new type.
 	bool AddTypeForArgument(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex);
 
+	// Invalidates template permutations whenever a type such as a user defined struct is removed
+	void HandleTypeRemoval(TRigVMTypeIndex InTypeIndex);
+	
 	// Returns the delegate to be able to react to type changes dynamically
 	FRigVMTemplate_NewArgumentTypeDelegate& OnNewArgumentType() { return Delegates.NewArgumentTypeDelegate; }
 

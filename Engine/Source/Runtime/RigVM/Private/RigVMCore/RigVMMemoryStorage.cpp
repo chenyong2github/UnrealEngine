@@ -218,8 +218,8 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 	// sanity check the CPPType matches the provided struct
 	if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
 	{
-		checkf(TailCPPType == ScriptStruct->GetStructCPPName(), TEXT("CPPType '%s' doesn't match provided Struct '%s'"),
-			*TailCPPType, *ScriptStruct->GetStructCPPName());
+		checkf(TailCPPType == RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct), TEXT("CPPType '%s' doesn't match provided Struct '%s'"),
+			*TailCPPType, *RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct));
 	}
 }
 
@@ -785,7 +785,7 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 
 				for(UScriptStruct* BaseStructure : BaseStructures)
 				{
-					if(BaseStructure->GetStructCPPName() == BaseCPPType)
+					if(RigVMTypeUtils::GetUniqueStructTypeName(BaseStructure) == BaseCPPType)
 					{
 						FStructProperty* StructProperty = new FStructProperty(PropertyOwner, InProperty.Name, RF_Public);
 						StructProperty->Struct = BaseStructure;

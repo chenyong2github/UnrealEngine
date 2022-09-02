@@ -37,6 +37,8 @@ struct RIGVM_API FRigVMRegistry
 {
 public:
 
+	DECLARE_MULTICAST_DELEGATE(FOnRigVMRegistryChanged);
+	
 	~FRigVMRegistry();
 	
 	// Returns the singleton registry
@@ -56,6 +58,9 @@ public:
 	// Refreshes the list and finds the function pointers
 	// based on the names.
 	void Refresh();
+	
+	// Update the registry when old types are removed
+    void OnAssetRemoved(const FAssetData& InAssetData);
 
 	// Clear the registry
 	void Reset();
@@ -66,6 +71,10 @@ public:
 	{
 		return FindOrAddType_Internal(InType, false);
 	}
+
+	// Removes a type from the registry, and updates all dependent templates
+	// which also creates invalid permutations in templates that we should ignore
+	bool RemoveType(const FRigVMTemplateArgumentType& InType);
 
 	// Returns the type index given a type
 	TRigVMTypeIndex GetTypeIndex(const FRigVMTemplateArgumentType& InType) const;
@@ -210,6 +219,9 @@ public:
 
 	static const TArray<UScriptStruct*>& GetMathTypes();
 
+	// Notifies other system that types have been added/removed, and template permutations have been updated
+	FOnRigVMRegistryChanged& OnRigVMRegistryChanged() { return OnRigVMRegistryChangedDelegate; }
+
 private:
 
 	static const FName TemplateNameMetaName;
@@ -256,6 +268,8 @@ private:
 	static bool IsAllowedType(const UClass* InClass);
 
 	void RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, TRigVMTypeIndex InTypeIndex);
+	
+	void RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, TRigVMTypeIndex InTypeIndex);
 
 	// memory for all (known) types
 	TArray<FTypeInfo> Types;
@@ -289,6 +303,9 @@ private:
 	// Lookup per type category to know which argument to keep in sync
 	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<TPair<int32,int32>>> ArgumentsPerCategory;
 
+	// Notifies other system that types have been added/removed, and template permutations have been updated
+	FOnRigVMRegistryChanged OnRigVMRegistryChangedDelegate;
+	
 	static FRigVMRegistry s_RigVMRegistry;
 	friend struct FRigVMStruct;
 	friend struct FRigVMTemplate;

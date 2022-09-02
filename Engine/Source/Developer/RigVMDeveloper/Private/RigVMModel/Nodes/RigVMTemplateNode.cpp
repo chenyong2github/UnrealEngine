@@ -59,6 +59,18 @@ void URigVMTemplateNode::PostLoad()
 {
 	Super::PostLoad();
 
+	for (URigVMPin* Pin : GetPins())
+	{
+		// GetTypeIndex ensures that the pin type is registered
+		// Only need to register for visible pins
+		if (Pin->GetDirection() == ERigVMPinDirection::IO ||
+			Pin->GetDirection() == ERigVMPinDirection::Input ||
+			Pin->GetDirection() == ERigVMPinDirection::Output)
+		{
+			Pin->GetTypeIndex();
+		}
+	}
+	
 	// if there are brackets in the notation remove them
 	const FString OriginalNotation = TemplateNotation.ToString();
 	const FString SanitizedNotation = OriginalNotation.Replace(TEXT("[]"), TEXT(""));
@@ -603,6 +615,12 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 
 			const TRigVMTypeIndex TypeIndex = Argument->GetTypeIndices()[PermutationIndex];
 
+			// INDEX_NONE indicates deleted permutation
+			if (TypeIndex == INDEX_NONE)
+			{
+				continue;
+			}
+			
 			if(Factory)
 			{
 				NewDefaultValue = Factory->GetArgumentDefaultValue(Argument->GetName(), TypeIndex);

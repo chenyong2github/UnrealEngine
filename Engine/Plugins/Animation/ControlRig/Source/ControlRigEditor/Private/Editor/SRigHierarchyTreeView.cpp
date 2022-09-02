@@ -839,20 +839,20 @@ FLinearColor SRigHierarchyItem::GetColorForControlType(ERigControlType InControl
 		case ERigControlType::Vector2D:
 		{
 			UScriptStruct* Struct = TBaseStructure<FVector2D>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*RigVMTypeUtils::GetUniqueStructTypeName(Struct), Struct);
 			break;
 		}
 		case ERigControlType::Position:
 		case ERigControlType::Scale:
 		{
 			UScriptStruct* Struct = TBaseStructure<FVector>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*RigVMTypeUtils::GetUniqueStructTypeName(Struct), Struct);
 			break;
 		}
 		case ERigControlType::Rotator:
 		{
 			UScriptStruct* Struct = TBaseStructure<FRotator>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*RigVMTypeUtils::GetUniqueStructTypeName(Struct), Struct);
 			break;
 		}
 		case ERigControlType::Transform:
@@ -861,7 +861,7 @@ FLinearColor SRigHierarchyItem::GetColorForControlType(ERigControlType InControl
 		default:
 		{
 			UScriptStruct* Struct = TBaseStructure<FTransform>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*RigVMTypeUtils::GetUniqueStructTypeName(Struct), Struct);
 			break;
 		}
 	}

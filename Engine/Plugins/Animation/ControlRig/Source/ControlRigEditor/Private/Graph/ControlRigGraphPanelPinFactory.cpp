@@ -138,7 +138,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 										break;
 									}
 
-									if(Pin->GetCPPType() == FRigElementKey::StaticStruct()->GetStructCPPName())
+									if(Pin->GetCPPType() == RigVMTypeUtils::GetUniqueStructTypeName(FRigElementKey::StaticStruct()))
 									{
 										const FString DefaultValue = Pin->GetDefaultValue();
 										if(!DefaultValue.IsEmpty())

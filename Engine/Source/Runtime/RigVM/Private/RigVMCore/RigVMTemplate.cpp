@@ -78,15 +78,27 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 	UpdateTypeToPermutations();
 }
 
-FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories)
+FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories, const FTypeFilter& InTypeFilter)
 : Index(INDEX_NONE)
 , Name(InName)
 , Direction(InDirection)
 , TypeCategories(InTypeCategories)
 {
+	TSet<TRigVMTypeIndex> AllTypes;
 	for(ETypeCategory TypeCategory : TypeCategories)
 	{
-		TypeIndices.Append(FRigVMRegistry::Get().GetTypesForCategory(TypeCategory));
+		AllTypes.Append(FRigVMRegistry::Get().GetTypesForCategory(TypeCategory));
+	}
+	
+	TypeIndices.Reserve(AllTypes.Num());
+	for (const TRigVMTypeIndex& Type : AllTypes)
+	{
+		if (InTypeFilter.IsBound() && !InTypeFilter.Execute(Type))
+		{
+			continue;
+		}
+		
+		TypeIndices.Add(Type);
 	}
 
 	EnsureValidExecuteType();
@@ -285,6 +297,12 @@ FRigVMTemplateArgument::EArrayType FRigVMTemplateArgument::GetArrayType() const
 
 		for(int32 PermutationIndex=1;PermutationIndex<TypeIndices.Num();PermutationIndex++)
 		{
+			// INDEX_NONE indicates deleted permutation
+			if (TypeIndices[PermutationIndex] == INDEX_NONE)
+			{
+				continue;
+			}
+			
 			const EArrayType OtherArrayType = Registry.IsArrayType(TypeIndices[PermutationIndex]) ? EArrayType::EArrayType_ArrayValue : EArrayType::EArrayType_SingleValue;
 			if(OtherArrayType != ArrayType)
 			{
@@ -310,14 +328,22 @@ TArray<TRigVMTypeIndex> FRigVMTemplateArgument::GetSupportedTypeIndices(const TA
 	{
 		for (const TRigVMTypeIndex& TypeIndex : TypeIndices)
 		{
-			SupportedTypes.AddUnique(TypeIndex);
+			// INDEX_NONE indicates deleted permutation
+			if (TypeIndex != INDEX_NONE)
+			{
+				SupportedTypes.AddUnique(TypeIndex);
+			}
 		}
 	}
 	else
 	{
 		for(const int32 PermutationIndex : InPermutationIndices)
 		{
-			SupportedTypes.AddUnique(TypeIndices[PermutationIndex]);
+			// INDEX_NONE indicates deleted permutation
+			if (TypeIndices[PermutationIndex] != INDEX_NONE)
+			{
+				SupportedTypes.AddUnique(TypeIndices[PermutationIndex]);
+			}
 		}
 	}
 	return SupportedTypes;
@@ -332,8 +358,12 @@ TArray<FString> FRigVMTemplateArgument::GetSupportedTypeStrings(const TArray<int
 	{
 		for (const TRigVMTypeIndex& TypeIndex : TypeIndices)
 		{
-			const FString TypeString = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
-			SupportedTypes.AddUnique(TypeString);
+			// INDEX_NONE indicates deleted permutation
+			if (TypeIndex != INDEX_NONE)
+			{
+				const FString TypeString = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
+				SupportedTypes.AddUnique(TypeString);
+			}
 		}
 	}
 	else
@@ -341,8 +371,12 @@ TArray<FString> FRigVMTemplateArgument::GetSupportedTypeStrings(const TArray<int
 		for(const int32 PermutationIndex : InPermutationIndices)
 		{
 			const TRigVMTypeIndex TypeIndex = TypeIndices[PermutationIndex];
-			const FString TypeString = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
-			SupportedTypes.AddUnique(TypeString);
+			// INDEX_NONE indicates deleted permutation
+			if (TypeIndex != INDEX_NONE)
+			{
+				const FString TypeString = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
+				SupportedTypes.AddUnique(TypeString);
+			}
 		}
 	}
 	return SupportedTypes;
@@ -1146,14 +1180,20 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 			TRigVMTypeIndex MatchedType = *InputType;
 			bool bFoundMatch = false;
 			bool bFoundPerfectMatch = false;
+
+			// Using a map to collect all permutations that we can keep/remove
+			// instead of removing them one by one, which can be costly
+			TMap<int32, bool> PermutationsToKeep;
+			
 			for (int32 PermutationIndex = 0; PermutationIndex < Argument.TypeIndices.Num(); PermutationIndex++)
 			{
 				if(!Registry.CanMatchTypes(Argument.TypeIndices[PermutationIndex], *InputType, bAllowFloatingPointCasts))
 				{
-					OutPermutationIndices.Remove(PermutationIndex);
+					PermutationsToKeep.FindOrAdd(PermutationIndex) = false;
 				}
 				else
 				{
+					PermutationsToKeep.FindOrAdd(PermutationIndex) = true;
 					bFoundMatch = true;
 
 					// if the type matches - but it's not the exact same
@@ -1169,6 +1209,11 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 					}
 				}
 			}
+
+			OutPermutationIndices = OutPermutationIndices.FilterByPredicate([PermutationsToKeep](int32 PermutationIndex) -> bool
+			{
+				return PermutationsToKeep[PermutationIndex];
+			});
 			
 			if(bFoundMatch)
 			{
@@ -1477,3 +1522,39 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeI
 	}
 	return false;
 }
+
+void FRigVMTemplate::HandleTypeRemoval(TRigVMTypeIndex InTypeIndex)
+{
+	TArray<int32> PermutationsToRemove;
+	for (int32 PermutationIndex = 0; PermutationIndex < NumPermutations(); PermutationIndex++)
+	{
+		FRigVMTemplateTypeMap TypeMap = GetTypesForPermutation(PermutationIndex);
+
+		TArray<TRigVMTypeIndex> Types;
+		TypeMap.GenerateValueArray(Types);
+
+		if (Types.Contains(InTypeIndex))
+		{
+			PermutationsToRemove.Add(PermutationIndex);
+		}
+	}
+
+	for (FRigVMTemplateArgument& Argument : Arguments)
+	{
+		TArray<TRigVMTypeIndex> NewTypeIndices; 
+		for (int32 PermutationIndex = 0; PermutationIndex < Argument.TypeIndices.Num(); PermutationIndex++)
+		{
+			if (PermutationsToRemove.Contains(PermutationIndex))
+			{
+				// invalidate the type index for this permutation
+				Argument.TypeIndices[PermutationIndex] = INDEX_NONE;
+			}
+		}
+	}
+	
+	for (FRigVMTemplateArgument& Argument : Arguments)
+	{
+		Argument.TypeToPermutations.Remove(InTypeIndex);
+	}
+}
+
