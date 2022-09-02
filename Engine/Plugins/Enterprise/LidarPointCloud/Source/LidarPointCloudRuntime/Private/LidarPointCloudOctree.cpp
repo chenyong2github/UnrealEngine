@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
- 
+
 #include "LidarPointCloudOctree.h"
 #include "LidarPointCloudOctreeMacros.h"
 #include "LidarPointCloud.h"
@@ -256,17 +256,17 @@ bool FLidarPointCloudOctreeNode::BuildDataCache(bool bUseStaticBuffers, bool bUs
 
 		if (bRenderDataDirty)
 		{
-			if (DataCache.IsValid() && !DataCache->IsInitialized())
+			if (DataCache.IsValid())
 			{
 				DataCache->Initialize(GetData(), GetNumVisiblePoints());
 			}
 
-			if (VertexFactory.IsValid() && !VertexFactory->IsInitialized())
+			if (VertexFactory.IsValid())
 			{
 				VertexFactory->Initialize(GetData(), GetNumVisiblePoints());
 			}
 
-			if(RayTracingGeometry.IsValid() && !RayTracingGeometry->IsInitialized())
+			if(RayTracingGeometry.IsValid())
 			{
 				RayTracingGeometry->Initialize(GetNumVisiblePoints());
 			}

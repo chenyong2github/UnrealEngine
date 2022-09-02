@@ -136,6 +136,11 @@ void FLidarPointCloudRenderBuffer::Initialize(FLidarPointCloudPoint* Data, int32
 void FLidarPointCloudRayTracingGeometry::Initialize(int32 NumPoints)
 {
 #if RHI_RAYTRACING
+	if (IsInitialized())
+	{
+		ReleaseResource();
+	}
+	
 	NumPrimitives = NumPoints * 2;
 	NumVertices = NumPoints * 4;
 	
