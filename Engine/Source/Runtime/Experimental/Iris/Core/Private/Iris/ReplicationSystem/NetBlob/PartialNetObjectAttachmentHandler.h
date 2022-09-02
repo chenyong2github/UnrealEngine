@@ -45,5 +45,10 @@ public:
 	/** Splits a RawDataNetBlob. The blob must have been created by a registered NetBlobHandler in order to be reconstructed on the receiving side. */
 	bool SplitRawDataNetBlob(const TRefCountPtr<UE::Net::FRawDataNetBlob>& Blob, TArray<TRefCountPtr<FNetBlob>>& OutPartialBlobs, const UE::Net::FNetDebugName* InDebugName) const;
 
-	const UPartialNetObjectAttachmentHandlerConfig* GetConfig() const { return static_cast<const UPartialNetObjectAttachmentHandlerConfig*>(Super::GetConfig()); }
+	const UPartialNetObjectAttachmentHandlerConfig* GetConfig() const;
 };
+
+inline const UPartialNetObjectAttachmentHandlerConfig* UPartialNetObjectAttachmentHandler::GetConfig() const
+{
+	return CastChecked<const UPartialNetObjectAttachmentHandlerConfig>(Super::GetConfig(), ECastCheckedType::NullAllowed);
+}

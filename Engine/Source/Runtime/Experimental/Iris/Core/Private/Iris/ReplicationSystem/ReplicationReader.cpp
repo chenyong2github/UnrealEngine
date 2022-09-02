@@ -149,9 +149,11 @@ void FReplicationReader::Init(const FReplicationParameters& InParameters)
 	ReplicationBridge = Parameters.ReplicationSystem->GetReplicationBridge();
 
 	// Find out if there's a PartialNetObjectAttachmentHandler so we can re-assemble split blobs
-	if (const UNetBlobHandler* Handler = ReplicationSystemInternal->GetNetBlobManager().GetPartialNetObjectAttachmentHandler())
+	if (const UPartialNetObjectAttachmentHandler* Handler = ReplicationSystemInternal->GetNetBlobManager().GetPartialNetObjectAttachmentHandler())
 	{
-		Attachments.SetPartialNetBlobType(Handler->GetNetBlobType());
+		FNetObjectAttachmentsReaderInitParams InitParams;
+		InitParams.PartialNetObjectAttachmentHandler = Handler;
+		Attachments.Init(InitParams);
 	}
 
 	if (const UNetBlobHandler* Handler = ReplicationSystemInternal->GetNetBlobManager().GetNetObjectBlobHandler())

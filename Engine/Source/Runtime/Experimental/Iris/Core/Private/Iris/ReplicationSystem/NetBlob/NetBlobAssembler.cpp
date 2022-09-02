@@ -2,6 +2,7 @@
 #include "Iris/ReplicationSystem/NetBlob/NetBlobAssembler.h"
 #include "Iris/ReplicationSystem/NetBlob/NetBlobHandler.h"
 #include "Iris/ReplicationSystem/NetBlob/RawDataNetBlob.h"
+#include "Iris/ReplicationSystem/NetBlob/SequentialPartialNetBlobHandler.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetSerializationContext.h"
 
@@ -11,23 +12,31 @@ namespace UE::Net
 static const FName NetError_PartialNetBlobSequenceError("Out of order PartialNetBlob.");
 
 FNetBlobAssembler::FNetBlobAssembler()
-: NetBlobCreationInfo({})
-, NextPartIndex(0)
-, PartCount(0)
-, MaxByteCountPerPart(0)
 {
+}
+
+void FNetBlobAssembler::Init(const FNetBlobAssemblerInitParams& InitParams)
+{
+	PartialNetBlobHandlerConfig = InitParams.PartialNetBlobHandlerConfig;
+	ensureMsgf(PartialNetBlobHandlerConfig != nullptr, TEXT("NetBlobAssembler requires a PartialNetBlobHandlerConfig"));
 }
 
 void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNetHandle InNetHandle, const TRefCountPtr<FPartialNetBlob>& PartialNetBlob)
 {
+	bIsReadyToAssemble = false;
+
+	if (!ensureMsgf(PartialNetBlobHandlerConfig != nullptr, TEXT("NetBlobAssembler requires a PartialNetBlobHandlerConfig")))
+	{
+		Context.SetError(GNetError_InvalidValue);
+		return;
+	}
+
 	const uint32 PartIndex = PartialNetBlob->GetPartIndex();
 	if (PartIndex != NextPartIndex)
 	{
 		Context.SetError(NetError_PartialNetBlobSequenceError);
 		return;
 	}
-
-	++NextPartIndex;
 
 	if (PartIndex == 0U)
 	{
@@ -38,15 +47,29 @@ void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNe
 			return;
 		}
 
+		if (PartCount > PartialNetBlobHandlerConfig->GetMaxPartCount())
+		{
+			Context.SetError(GNetError_InvalidValue);
+			return;
+		}
+
+		const uint32 PayloadBitCount = PartialNetBlob->GetPayloadBitCount();
+		// We allow part sizes to be lower than the config value in case it was hotfixed.
+		if (PayloadBitCount > PartialNetBlobHandlerConfig->GetMaxPartBitCount())
+		{
+			Context.SetError(GNetError_InvalidValue);
+			return;
+		}
+
 		NetHandle = InNetHandle;
 
 		NetBlobCreationInfo = PartialNetBlob->GetOriginalCreationInfo();
 
 		// The first part must be greater or equal to any subsequent parts or we will report an error.
-		const uint32 PayloadBitCount = PartialNetBlob->GetPayloadBitCount();
-		MaxByteCountPerPart = (PayloadBitCount + 7U)/8U;
+		FirstPayloadBitCount = PayloadBitCount;
 
 		// Prepare a bitstream that can hold the full blob.
+		const uint32 MaxByteCountPerPart = (PayloadBitCount + 7U)/8U;
 		Payload.SetNumUninitialized((MaxByteCountPerPart*PartCount + 3U)/4U);
 		BitWriter.InitBytes(Payload.GetData(), Payload.Num()*4U);
 
@@ -63,7 +86,8 @@ void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNe
 
 		const uint32 PayloadBitCount = PartialNetBlob->GetPayloadBitCount();
 		const uint32 PayloadByteCount = (PayloadBitCount + 7U)/8U;
-		if (PayloadByteCount > MaxByteCountPerPart)
+		// All parts except the last one is expected to match the first part. The last part may be smaller.
+		if (((PayloadBitCount != FirstPayloadBitCount) && ((PartIndex + 1U) < PartCount)) || (PayloadBitCount > FirstPayloadBitCount))
 		{
 			Context.SetError(GNetError_InvalidValue);
 			return;
@@ -72,10 +96,19 @@ void FNetBlobAssembler::AddPartialNetBlob(FNetSerializationContext& Context, FNe
 		// Store partial payload.
 		BitWriter.WriteBitStream(PartialNetBlob->GetPayload(), 0, PayloadBitCount);
 	}
+
+	++NextPartIndex;
+	if (NextPartIndex == PartCount)
+	{
+		bIsReadyToAssemble = true;
+		NextPartIndex = 0;
+	}
 }
 
 TRefCountPtr<FNetBlob> FNetBlobAssembler::Assemble(FNetSerializationContext& Context)
 {
+	bIsReadyToAssemble = false;
+
 	INetBlobReceiver* BlobHandler = Context.GetNetBlobReceiver();
 	checkSlow(BlobHandler != nullptr);
 

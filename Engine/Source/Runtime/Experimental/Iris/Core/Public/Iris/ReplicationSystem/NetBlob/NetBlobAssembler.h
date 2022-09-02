@@ -4,8 +4,15 @@
 #include "Iris/ReplicationSystem/NetBlob/PartialNetBlob.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
 
+class USequentialPartialNetBlobHandlerConfig;
+
 namespace UE::Net
 {
+
+struct FNetBlobAssemblerInitParams
+{
+	const USequentialPartialNetBlobHandlerConfig* PartialNetBlobHandlerConfig = nullptr;
+};
 
 /**
  * Utility class to reassemble split blobs.
@@ -16,6 +23,9 @@ class FNetBlobAssembler
 public:
 	IRISCORE_API FNetBlobAssembler();
 
+	/** Initialize the NetBlobAssembler. */
+	IRISCORE_API void Init(const FNetBlobAssemblerInitParams& InitParams);
+
 	/**
 	 * Add the next expected part of the split blob. If it's the first part of a blob the effects of prior calls to this function are discarded.
 	 * @param Context FNetSerializationContext for error reporting. Call HasError() on it afterwards to check whether something went wrong.
@@ -24,7 +34,7 @@ public:
 	IRISCORE_API void AddPartialNetBlob(FNetSerializationContext& Context, FNetHandle NetHandle, const TRefCountPtr<FPartialNetBlob>& PartialNetBlob);
 
 	/** Returns true if all parts of the split blob have been added and is ready to be assembled. */
-	bool IsReadyToAssemble() const { return PartCount > 0 && NextPartIndex == PartCount; }
+	bool IsReadyToAssemble() const { return bIsReadyToAssemble; }
 
 	/**
 	 * Assemble all parts of the split blob.
@@ -40,9 +50,11 @@ private:
 	TArray<uint32> Payload;
 	FNetBitStreamWriter BitWriter;
 	FNetHandle NetHandle;
-	uint32 NextPartIndex;
-	uint32 PartCount;
-	uint32 MaxByteCountPerPart;
+	uint32 NextPartIndex = 0;
+	uint32 PartCount = 0;
+	uint32 FirstPayloadBitCount = 0;
+	bool bIsReadyToAssemble = false;
+	const USequentialPartialNetBlobHandlerConfig* PartialNetBlobHandlerConfig = nullptr;
 };
 
 }

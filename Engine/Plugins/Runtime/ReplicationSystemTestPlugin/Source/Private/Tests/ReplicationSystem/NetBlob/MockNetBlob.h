@@ -81,6 +81,8 @@ public:
 
 	void Init(const FSequentialPartialNetBlobHandlerInitParams& InitParams);
 
+	const USequentialPartialNetBlobHandlerConfig* GetConfig() const;
+
 	const FCallCounts& GetFunctionCallCounts() const { return CallCounts; }
 	void ResetFunctionCallCounts() { CallCounts = FCallCounts({}); }
 
@@ -91,3 +93,8 @@ private:
 	UE::Net::FNetBlobAssembler Assembler;
 	mutable FCallCounts CallCounts;
 };
+
+inline const USequentialPartialNetBlobHandlerConfig* UMockSequentialPartialNetBlobHandler::GetConfig() const
+{
+	return CastChecked<const USequentialPartialNetBlobHandlerConfig>(Super::GetConfig(), ECastCheckedType::NullAllowed);
+}

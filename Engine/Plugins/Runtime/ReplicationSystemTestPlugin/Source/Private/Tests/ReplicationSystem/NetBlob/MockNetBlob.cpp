@@ -148,6 +148,9 @@ UMockSequentialPartialNetBlobHandler::~UMockSequentialPartialNetBlobHandler()
 void UMockSequentialPartialNetBlobHandler::Init(const FSequentialPartialNetBlobHandlerInitParams& InitParams)
 {
 	Super::Init(InitParams);
+	UE::Net::FNetBlobAssemblerInitParams AssemblerInitParams;
+	AssemblerInitParams.PartialNetBlobHandlerConfig = GetConfig();
+	Assembler.Init(AssemblerInitParams);
 }
 
 TRefCountPtr<UE::Net::FNetBlob> UMockSequentialPartialNetBlobHandler::CreateNetBlob(const FNetBlobCreationInfo& CreationInfo) const
