@@ -7,6 +7,7 @@
 #include "DMXRuntimeUtils.h"
 
 #include "XmlNode.h"
+#include "Misc/Paths.h"
 
 
 namespace UE::DMXRuntime::DMXMVRFixture::Private
@@ -60,6 +61,13 @@ namespace UE::DMXRuntime::DMXMVRFixture::Private
 		if (GDTFSpecNode)
 		{
 			OutGDTFSpec = GDTFSpecNode->GetContent();
+
+			// Append the gdtf extension if it's missing.
+			if (FPaths::GetExtension(OutGDTFSpec) != TEXT(".gdtf"))
+			{
+				OutGDTFSpec += TEXT(".gdtf");
+			}
+
 			return true;
 		}
 
