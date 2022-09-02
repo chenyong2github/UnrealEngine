@@ -1416,7 +1416,7 @@ bool UWorldPartitionRuntimeSpatialHash::RemoveExternalStreamingObject(URuntimeHa
 	else
 	{
 		UE_LOG(LogWorldPartition, Error, TEXT("Incompatible external streaming object to remove. Hash Type: %s. Streaming Object Type: %s."),
-			*UWorldPartitionRuntimeSpatialHash::StaticClass()->GetName(), *SpatialHashStreamingObject->GetClass()->GetName());
+			*UWorldPartitionRuntimeSpatialHash::StaticClass()->GetName(), *ExternalStreamingObject->GetClass()->GetName());
 	}
 	
 	return false;
