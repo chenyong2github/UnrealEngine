@@ -214,7 +214,7 @@ void FSequenceModel::PerformDrop(const FViewModelPtr& TargetModel, const FDragDr
 		return;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("MoveItems", "Move to root."));
+	const FScopedTransaction Transaction(LOCTEXT("MoveItems", "Move to Root"));
 
 	MovieScene->SetFlags(RF_Transactional);
 	MovieScene->Modify();
@@ -253,7 +253,7 @@ void FSequenceModel::PerformDrop(const FViewModelPtr& TargetModel, const FDragDr
 
 			bool bSuccess = false;
 
-			// Handle dropoping a folder into another folder
+			// Handle dropping a folder into another folder
 			// @todo: if we ever support folders within object bindings this will need to have better validation
 			if (TSharedPtr<FFolderModel> DraggedFolderModel = DraggedModel.ImplicitCast())
 			{
@@ -267,7 +267,11 @@ void FSequenceModel::PerformDrop(const FViewModelPtr& TargetModel, const FDragDr
 					}
 
 					// Give this folder a unique name inside its new parent if necessary
-					FName FolderName = UMovieSceneFolder::MakeUniqueChildFolderName(DraggedFolder->GetFolderName(), MovieScene->GetRootFolders());
+					TArray<UMovieSceneFolder*> ExistingFolders;
+					MovieScene->GetRootFolders(ExistingFolders);
+					ExistingFolders.Remove(DraggedFolder);
+
+					FName FolderName = UMovieSceneFolder::MakeUniqueChildFolderName(DraggedFolder->GetFolderName(), ExistingFolders);
 					if (FolderName != DraggedFolder->GetFolderName())
 					{
 						DraggedFolder->SetFlags(RF_Transactional);

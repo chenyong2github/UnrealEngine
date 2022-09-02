@@ -534,7 +534,7 @@ void FFolderModel::PerformDrop(const FViewModelPtr& TargetModel, const FDragDrop
 		return;
 	}
 
-	const FScopedTransaction Transaction(FText::Format(LOCTEXT("MoveItems", "Move into {0}."), FText::FromName(Folder->GetFolderName())));
+	const FScopedTransaction Transaction(FText::Format(LOCTEXT("MoveItems", "Move into {0}"), FText::FromName(Folder->GetFolderName())));
 
 	Folder->SetFlags(RF_Transactional);
 	Folder->Modify();
