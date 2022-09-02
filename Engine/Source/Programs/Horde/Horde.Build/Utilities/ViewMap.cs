@@ -9,8 +9,6 @@ using EpicGames.Core;
 
 namespace Horde.Build.Utilities
 {
-	using P4 = global::Perforce.P4;
-
 	/// <summary>
 	/// Stores a mapping from one set of paths to another
 	/// </summary>
@@ -36,19 +34,6 @@ namespace Horde.Build.Utilities
 		public ViewMap(ViewMap other)
 		{
 			Entries = new List<ViewMapEntry>(other.Entries);
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="viewMap">Peforce viewmap definition</param>
-		public ViewMap(P4.ViewMap viewMap)
-			: this()
-		{
-			foreach (P4.MapEntry entry in viewMap)
-			{
-				Entries.Add(new ViewMapEntry(entry));
-			}
 		}
 
 		/// <summary>
@@ -257,15 +242,6 @@ namespace Horde.Build.Utilities
 			SourceSuffix = sourceSuffix;
 			TargetPrefix = targetPrefix;
 			TargetSuffix = targetSuffix;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="entry"></param>
-		public ViewMapEntry(P4.MapEntry entry)
-			: this(entry.Type == P4.MapType.Include, entry.Left.Path, entry.Right.Path)
-		{
 		}
 
 		/// <summary>

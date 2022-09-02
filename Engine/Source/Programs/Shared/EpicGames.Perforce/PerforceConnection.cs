@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -719,13 +720,13 @@ namespace EpicGames.Perforce
 				throw new PerforceException("Unexpected info response from change command: {0}", response);
 			}
 
-			string[] tokens = info.Data.Split(' ');
-			if (tokens.Length != 3)
+			Match match = Regex.Match(info.Data, @"^Change (\d+) created");
+			if (!match.Success)
 			{
 				throw new PerforceException("Unexpected info response from change command: {0}", response);
 			}
 
-			record.Number = Int32.Parse(tokens[1]);
+			record.Number = Int32.Parse(match.Groups[1].Value);
 			return new PerforceResponse<ChangeRecord>(record);
 		}
 
@@ -1026,8 +1027,11 @@ namespace EpicGames.Perforce
 			{
 				arguments.Add($"-u{userName}");
 			}
-			arguments.AddRange(fileSpecs.List);
-
+			if (fileSpecs != FileSpecList.Any) // Queries are slower with a path specification
+			{
+				arguments.AddRange(fileSpecs.List);
+			}
+	
 			return CommandAsync<ChangesRecord>(connection, "changes", arguments, null, cancellationToken);
 		}
 
@@ -1570,6 +1574,40 @@ namespace EpicGames.Perforce
 		public static async Task<PerforceResponse<DescribeRecord>> TryDescribeAsync(this IPerforceConnection connection, int changeNumber, CancellationToken cancellationToken = default)
 		{
 			PerforceResponseList<DescribeRecord> records = await TryDescribeAsync(connection, new int[] { changeNumber }, cancellationToken);
+			if (records.Count != 1)
+			{
+				throw new PerforceException("Expected only one record returned from p4 describe command, got {0}", records.Count);
+			}
+			return records[0];
+		}
+
+		/// <summary>
+		/// Describes a single changelist
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxNumFiles">Maximum number of files to return</param>
+		/// <param name="changeNumber">The changelist number to retrieve description for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a describe record or error code</returns>
+		public static async Task<DescribeRecord> DescribeAsync(this IPerforceConnection connection, DescribeOptions options, int maxNumFiles, int changeNumber, CancellationToken cancellationToken = default)
+		{
+			PerforceResponse<DescribeRecord> response = await TryDescribeAsync(connection, options, maxNumFiles, changeNumber, cancellationToken);
+			return response.Data;
+		}
+
+		/// <summary>
+		/// Describes a single changelist
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="maxNumFiles">Maximum number of files to return</param>
+		/// <param name="changeNumber">The changelist number to retrieve description for</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server; either a describe record or error code</returns>
+		public static async Task<PerforceResponse<DescribeRecord>> TryDescribeAsync(this IPerforceConnection connection, DescribeOptions options, int maxNumFiles, int changeNumber, CancellationToken cancellationToken = default)
+		{
+			PerforceResponseList<DescribeRecord> records = await TryDescribeAsync(connection, options, maxNumFiles, new int[] { changeNumber }, cancellationToken);
 			if (records.Count != 1)
 			{
 				throw new PerforceException("Expected only one record returned from p4 describe command, got {0}", records.Count);
@@ -2305,14 +2343,51 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Attempts to log in to the server
 		/// </summary>
-		/// <param name="connection"></param>
+		/// <param name="connection">Connection to use</param>
 		/// <param name="password"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<PerforceResponse<LoginRecord>> TryLoginAsync(this IPerforceConnection connection, string password, CancellationToken cancellationToken = default)
+		public static Task<PerforceResponse<LoginRecord>> TryLoginAsync(this IPerforceConnection connection, string? password, CancellationToken cancellationToken = default)
 		{
+			return TryLoginAsync(connection, LoginOptions.None, null, password, null, cancellationToken);
+		}
+
+		/// <summary>
+		/// Attempts to log in to the server
+		/// </summary>
+		/// <param name="connection">Connection to use</param>
+		/// <param name="options">Options for the command</param>
+		/// <param name="user">User to login as</param>
+		/// <param name="password">Password for the user</param>
+		/// <param name="host">Host for the ticket</param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task<PerforceResponse<LoginRecord>> TryLoginAsync(this IPerforceConnection connection, LoginOptions options, string? user, string? password, string? host, CancellationToken cancellationToken = default)
+		{
+			List<string> arguments = new List<string>();
+			if((options & LoginOptions.AllHosts) != 0)
+			{
+				arguments.Add("-a");
+			}
+			if ((options & LoginOptions.PrintTicket) != 0)
+			{
+				arguments.Add("-p");
+			}
+			if ((options & LoginOptions.Status) != 0)
+			{
+				arguments.Add("-s");
+			}
+			if (host != null)
+			{
+				arguments.Add($"-h{host}");
+			}
+			if (user != null)
+			{
+				arguments.Add(user);
+			}
+
 			List<PerforceResponse> parsedResponses;
-			await using (IPerforceOutput response = connection.Command("login", Array.Empty<string>(), null, null, password, false))
+			await using (IPerforceOutput response = connection.Command("login", arguments, null, null, password, false))
 			{
 				for (; ; )
 				{
@@ -2331,14 +2406,44 @@ namespace EpicGames.Perforce
 				// not DisposeAsync()ing here will cause a deadlock when calling `TryGetLoginStateAsync()` below
 			}
 
-			PerforceResponse firstResponse = parsedResponses.First();
-			if (firstResponse.Info != null)
+			PerforceResponse? error = parsedResponses.FirstOrDefault(x => !x.Succeeded);
+			if (error != null)
 			{
-				// Older versions of P4.EXE do not return a login record for succesful login, instread just returning a string. Call p4 login -s to get the login state instead.
-				return await TryGetLoginStateAsync(connection, cancellationToken);
+				return new PerforceResponse<LoginRecord>(error);
 			}
 
-			return new PerforceResponse<LoginRecord>(firstResponse);
+			string? ticket = null;
+			if ((options & LoginOptions.PrintTicket) != 0)
+			{
+				if (parsedResponses.Count != 2)
+				{
+					throw new PerforceException("Unable to parse login response; expected two records, one with ticket id");
+				}
+
+				PerforceInfo? info = parsedResponses[0].Info;
+				if (info == null)
+				{
+					throw new PerforceException("Unable to parse login response; expected two records, one with ticket id");
+				}
+
+				ticket = info.Data;
+				parsedResponses.RemoveAt(0);
+			}
+
+			LoginRecord? loginRecord = parsedResponses.First().Data as LoginRecord;
+			if (loginRecord == null)
+			{
+				// Older versions of P4.EXE do not return a login record for succesful login, instread just returning a string. Call p4 login -s to get the login state instead.
+				PerforceResponse<LoginRecord> legacyResponse = await TryGetLoginStateAsync(connection, cancellationToken);
+				if (!legacyResponse.Succeeded)
+				{
+					return legacyResponse;
+				}
+				loginRecord = legacyResponse.Data;
+			}
+
+			loginRecord.Ticket = ticket;
+			return new PerforceResponse<LoginRecord>(loginRecord);
 		}
 
 		static void DiscardPasswordPrompt(IPerforceOutput output)
@@ -2623,7 +2728,14 @@ namespace EpicGames.Perforce
 			}
 			finally
 			{
-				File.Delete(tempFile);
+				try
+				{
+					File.SetAttributes(tempFile, FileAttributes.Normal);
+					File.Delete(tempFile);
+				}
+				catch
+				{
+				}
 			}
 		}
 
@@ -2990,6 +3102,38 @@ namespace EpicGames.Perforce
 
 		#endregion
 
+		#region p4 server
+
+		/// <summary>
+		/// Gets information about the specified server
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="serverId">The server identifier</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns></returns>
+		public static async Task<ServerRecord> GetServerAsync(this IPerforceConnection connection, string serverId, CancellationToken cancellationToken = default)
+		{
+			PerforceResponse<ServerRecord> response = await TryGetServerAsync(connection, serverId, cancellationToken);
+			return response.Data;
+		}
+
+		/// <summary>
+		/// Gets information about the specified server
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="serverId">The server identifier</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns></returns>
+		public static Task<PerforceResponse<ServerRecord>> TryGetServerAsync(this IPerforceConnection connection, string serverId, CancellationToken cancellationToken = default)
+		{
+			List<string> arguments = new List<string>();
+			arguments.Add("-o");
+			arguments.Add(serverId);
+			return SingleResponseCommandAsync<ServerRecord>(connection, "server", arguments, null, cancellationToken);
+		}
+
+		#endregion
+
 		#region p4 shelve
 
 		/// <summary>
@@ -3224,6 +3368,22 @@ namespace EpicGames.Perforce
 			{
 				arguments.Add("-r");
 			}
+			if ((options & SubmitOptions.SubmitUnchanged) != 0)
+			{
+				arguments.Add("-f");
+				arguments.Add("submitunchanged");
+			}
+			if ((options & SubmitOptions.RevertUnchanged) != 0)
+			{
+				arguments.Add("-f");
+				arguments.Add("revertunchanged");
+			}
+			if ((options & SubmitOptions.LeaveUnchanged) != 0)
+			{
+				arguments.Add("-f");
+				arguments.Add("leaveunchanged");
+			}
+
 			arguments.Add($"-c{changeNumber}");
 
 			return (await CommandAsync<SubmitRecord>(connection, "submit", arguments, null, cancellationToken))[0];

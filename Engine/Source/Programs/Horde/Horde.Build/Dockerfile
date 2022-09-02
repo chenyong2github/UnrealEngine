@@ -38,7 +38,6 @@ COPY Source/Programs/Shared/EpicGames.Serialization.Tests/*.csproj ./Source/Prog
 COPY Source/Programs/Horde/Horde.Agent/*.csproj ./Source/Programs/Horde/Horde.Agent/
 COPY Source/Programs/Horde/Horde.Build/*.csproj ./Source/Programs/Horde/Horde.Build/
 COPY Source/Programs/Horde/Horde.Build.Tests/*.csproj ./Source/Programs/Horde/Horde.Build.Tests/
-COPY Source/ThirdParty/Perforce/P4Api.Net/ ./Source/ThirdParty/Perforce/P4Api.Net/
 RUN dotnet restore Source/Programs/Horde/Horde.Build/Horde.Build.csproj -p:WithHordeStorage=false
 
 # Build the server

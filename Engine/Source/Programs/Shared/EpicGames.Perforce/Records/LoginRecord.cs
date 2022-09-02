@@ -14,6 +14,11 @@ namespace EpicGames.Perforce
 		public string? User { get; set; }
 
 		/// <summary>
+		/// The ticket created for the user. Set only if <see cref="LoginOptions.PrintTicket"/> is set.
+		/// </summary>
+		public string? Ticket { get; set; }
+
+		/// <summary>
 		/// Time at which the current ticket expires
 		/// </summary>
 		[PerforceTag("TicketExpiration", Optional = true)]

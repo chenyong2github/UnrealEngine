@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Perforce;
 using Horde.Build.Jobs.Templates;
@@ -49,19 +50,22 @@ namespace Horde.Build.Perforce
 	public interface IPerforceService
 	{
 		/// <summary>
+		/// Connect to the given Perforce cluster
+		/// </summary>
+		/// <param name="clusterName">Name of the cluster</param>
+		/// <param name="userName">Name of the user to connect as. Uses the service account if null.</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Connection information</returns>
+		public Task<IPerforceConnection> ConnectAsync(string clusterName, string? userName = null, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Finds or adds a user from the given Perforce server, adding the user (and populating their profile with Perforce data) if they do not currently exist
 		/// </summary>
 		/// <param name="clusterName"></param>
 		/// <param name="userName"></param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName);
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="clusterName"></param>
-		/// <returns></returns>
-		public Task<IPerforceConnection?> GetServiceUserConnection(string? clusterName);
+		public ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Create a new changelist by submitting the given file
@@ -70,8 +74,9 @@ namespace Horde.Build.Perforce
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="path">Path for the file to submit</param>
 		/// <param name="description">Description for the changelist</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>New changelist number</returns>
-		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description);
+		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the code change corresponding to an actual change submitted to a stream
@@ -79,8 +84,9 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="streamName"></param>
 		/// <param name="change">The changelist number to query</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Code change for the latest change</returns>
-		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change);
+		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Finds changes submitted to a depot Gets the latest change for a particular stream
@@ -88,9 +94,10 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="minChange">The minimum changelist number</param>
 		/// <param name="maxChange">The maximum changelist number</param>
-		/// <param name="maxResults"></param>
+		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Changelist information</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults);
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
@@ -100,9 +107,10 @@ namespace Horde.Build.Perforce
 		/// <param name="minChange">The minimum changelist number</param>
 		/// <param name="maxChange">The maximum changelist number</param>
 		/// <param name="results">Number of results to return</param>
-		/// <param name="impersonateUser">Name of the user to impersonate</param>
+		/// <param name="impersonateUser">User to impersonate for the query</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Latest changelist number</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int results, string? impersonateUser);
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int results, string? impersonateUser, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Checks a shelf is valid for the given stream
@@ -111,8 +119,9 @@ namespace Horde.Build.Perforce
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumber">Shelved changelist number</param>
 		/// <param name="impersonateUser">Name of the user to impersonate</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Whether the shelf is valid, plus the description for it</returns>
-		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser);
+		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
@@ -120,8 +129,9 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumber">Change numbers to query</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Commit details</returns>
-		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber);
+		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
@@ -130,49 +140,55 @@ namespace Horde.Build.Perforce
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumbers">Change numbers to query</param>
 		/// <param name="impersonateUser">Name of the user to impersonate</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Commit details</returns>
-		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser);
+		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the latest changes for a set of depot paths
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="paths"></param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths);
+		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the contents of a file in the depot
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="path">Path to read</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Data for the file</returns>
-		public Task<byte[]> PrintAsync(string clusterName, string path);
+		public Task<byte[]> PrintAsync(string clusterName, string path, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Duplicates a shelved changelist
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="shelvedChange">The shelved changelist</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The duplicated changelist</returns>
-		public Task<int> DuplicateShelvedChangeAsync(string clusterName, int shelvedChange);
+		public Task<int> DuplicateShelvedChangeAsync(string clusterName, int shelvedChange, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Submit a shelved changelist
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="shelvedChange">The shelved changelist number, created by <see cref="DuplicateShelvedChangeAsync(String,Int32)"/></param>
+		/// <param name="shelvedChange">The shelved changelist number, created by <see cref="DuplicateShelvedChangeAsync(String,Int32,CancellationToken)"/></param>
 		/// <param name="originalChange">The original changelist number</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Tuple consisting of the submitted changelist number and message</returns>
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange);
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Deletes a changelist containing shelved files.
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="shelvedChange">The changelist containing shelved files</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async tasy</returns>
-		public Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange);
+		public Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Updates a changelist description
@@ -180,8 +196,9 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="change">The change to update</param>
 		/// <param name="description">The new description</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
-		public Task UpdateChangelistDescription(string clusterName, int change, string description);
+		public Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>

@@ -265,7 +265,7 @@ namespace Horde.Build.Perforce
 			_logger.LogInformation("Replicating metadata for cluster {Name}", clusterName);
 
 			// Create a connection to the server
-			using IPerforceConnection? connection = await _perforceService.GetServiceUserConnection(clusterName);
+			using IPerforceConnection? connection = await _perforceService.ConnectAsync(clusterName);
 			if (connection == null)
 			{
 				throw new PerforceException($"Unable to create cluster connection for {clusterName}");

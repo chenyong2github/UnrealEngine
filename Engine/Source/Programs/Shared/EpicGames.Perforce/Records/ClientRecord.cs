@@ -47,6 +47,12 @@ namespace EpicGames.Perforce
 		public string? Description { get; set; }
 
 		/// <summary>
+		/// Name of the server containing this change.
+		/// </summary>
+		[PerforceTag("ServerID", Optional = true)]
+		public string? ServerId { get; set; }
+
+		/// <summary>
 		/// The directory (on the local host) relative to which all the files in the View: are specified. 
 		/// </summary>
 		[PerforceTag("Root")]

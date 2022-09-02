@@ -1022,7 +1022,7 @@ namespace Horde.Build.Perforce
 			ReplicationClient? clientInfo = await FindReplicationClientAsync(stream);
 			if (clientInfo == null)
 			{
-				using IPerforceConnection? perforce = await _perforceService.GetServiceUserConnection(stream.ClusterName);
+				using IPerforceConnection? perforce = await _perforceService.ConnectAsync(stream.ClusterName);
 				if (perforce == null)
 				{
 					throw new PerforceException($"Unable to create connection to Perforce server");

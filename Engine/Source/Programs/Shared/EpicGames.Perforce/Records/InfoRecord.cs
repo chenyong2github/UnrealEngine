@@ -84,5 +84,11 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("ServerID", Optional = true)]
 		public string? ServerId { get; set; }
+
+		/// <summary>
+		/// Timezone offset from UTC, in seconds
+		/// </summary>
+		[PerforceTag("tzoffset", Optional = true)]
+		public int TimeZoneOffsetSecs { get; set; }
 	}
 }

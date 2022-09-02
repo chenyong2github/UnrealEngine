@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Perforce;
 using Horde.Build.Perforce;
@@ -60,12 +61,12 @@ namespace Horde.Build.Tests.Stubs.Services
 			_userCollection = userCollection;
 		}
 
-		public Task<IPerforceConnection?> GetServiceUserConnection(string? clusterName)
+		public Task<IPerforceConnection> ConnectAsync(string? clusterName, string? userName, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public async ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName)
+		public async ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName, CancellationToken cancellationToken)
 		{
 			return await _userCollection.FindOrAddUserByLoginAsync(userName);
 		}
@@ -81,7 +82,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			streamChanges.Add(number, new ChangeDetails(number, author, null!, description, files.Select(x => PerforceExtensions.CreateChangeFile(x)).ToList(), DateTime.Now));
 		}
 
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int numResults, string? impersonateUser)
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int numResults, string? impersonateUser, CancellationToken cancellationToken)
 		{
 			List<ChangeSummary> results = new List<ChangeSummary>();
 
@@ -108,12 +109,12 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.FromResult(results);
 		}
 
-		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser)
+		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser)
+		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser, CancellationToken cancellationToken)
 		{
 			List<ChangeDetails> results = new List<ChangeDetails>();
 			foreach (int changeNumber in changeNumbers)
@@ -128,7 +129,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.FromResult("bogus-ticket");
 		}
 
-		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change)
+		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change, CancellationToken cancellationToken)
 		{
 			int codeChange = 0;
 
@@ -148,59 +149,54 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.FromResult(codeChange);
 		}
 
-		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description)
+		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description, CancellationToken cancellationToken)
 		{
 			ChangeDetails newChange = new ChangeDetails(Changes[streamName].First().Key + 1, _testUser, null!, description, new List<ChangeFile> { PerforceExtensions.CreateChangeFile(path) }, DateTime.Now);
 			Changes[streamName].Add(newChange.Number, newChange);
 			return Task.FromResult(newChange.Number);
 		}
 
-		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths)
+		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<byte[]> PrintAsync(string clusterName, string path)
+		public Task<byte[]> PrintAsync(string clusterName, string path, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange)
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<int> DuplicateShelvedChangeAsync(string clusterName, int shelvedChange)
+		public Task<int> DuplicateShelvedChangeAsync(string clusterName, int shelvedChange, CancellationToken cancellationToken)
 		{
 			return Task.FromResult(shelvedChange);
 		}
 
-		public Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange)
+		public Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange, CancellationToken cancellationToken)
 		{
 			return Task.CompletedTask;
 		}
 
-		public Task UpdateChangelistDescription(string clusterName, int change, string description)
+		public Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken)
 		{
 			return Task.CompletedTask;
 		}
 
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults)
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, int changeNumber)
+		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, int changeNumber, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<List<ChangeFile>> GetStreamSnapshotAsync(string clusterName, string streamName, int change)
-		{
-			throw new NotImplementedException();
-		}
-
-		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber)
+		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken)
 		{
 			return Task.FromResult(Changes[streamName][changeNumber]);
 		}

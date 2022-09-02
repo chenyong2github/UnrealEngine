@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace EpicGames.Perforce
 {
 	/// <summary>
 	/// Wrapper for a list of filespecs. Allows implicit conversion from string (a single entry) or list.
 	/// </summary>
-	public struct FileSpecList
+	public struct FileSpecList : IEquatable<FileSpecList>
 	{
 		/// <summary>
 		/// Empty filespec list
@@ -32,6 +34,33 @@ namespace EpicGames.Perforce
 		{
 			List = fileSpecList;
 		}
+
+		/// <inheritdoc/>
+		public override bool Equals(object? obj) => obj is FileSpecList other && Equals(other);
+
+		/// <inheritdoc/>
+		public override int GetHashCode()
+		{
+			HashCode code = new HashCode();
+			foreach (string item in List)
+			{
+				code.Add(item);
+			}
+			return code.ToHashCode();
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(FileSpecList other) => List.SequenceEqual(other.List, StringComparer.Ordinal);
+
+		/// <summary>
+		/// Test two filespecs for equality
+		/// </summary>
+		public static bool operator ==(FileSpecList a, FileSpecList b) => a.Equals(b);
+
+		/// <summary>
+		/// Test two filespecs for inequality
+		/// </summary>
+		public static bool operator !=(FileSpecList a, FileSpecList b) => !a.Equals(b);
 
 		/// <summary>
 		/// Implicit conversion operator from a list of filespecs
