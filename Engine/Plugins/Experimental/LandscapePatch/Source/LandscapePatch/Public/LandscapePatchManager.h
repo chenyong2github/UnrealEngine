@@ -68,9 +68,11 @@ public:
 #if WITH_EDITOR
 	// ALandscapeBlueprintBrushBase
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const override;
+	virtual void SetOwningLandscape(class ALandscape* InOwningLandscape) override;
 
 	// UObject
 	virtual void PostEditUndo() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	virtual bool IsEditorOnly() const override { return true; }
 	virtual bool NeedsLoadForClient() const override { return false; }
@@ -84,4 +86,12 @@ protected:
 	UPROPERTY()
 	FTransform HeightmapCoordsToWorld;
 
+#if WITH_EDITORONLY_DATA
+	//~ This is transient because SetOwningLandscape is called in ALandscape::PostLoad.
+	/**
+	 * The owning landscape.
+	 */
+	UPROPERTY(EditAnywhere, Category = Landscape, Transient, meta = (DisplayName = "Landscape"))
+	TObjectPtr<ALandscape> DetailPanelLandscape = nullptr;
+#endif
 };

@@ -154,6 +154,7 @@ public:
 #if WITH_EDITOR
 	// UObject
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 #endif // WITH_EDITOR
 
 protected:
@@ -220,6 +221,7 @@ public:
 
 	// ULandscapePatchComponent
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const override;
+	virtual bool IsEnabled() const override;
 
 	// UObject
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

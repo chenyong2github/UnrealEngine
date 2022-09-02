@@ -39,6 +39,7 @@ void ULandscapeTextureBackedRenderTargetBase::PreSave(FObjectPreSaveContext Save
 	}
 }
 
+// This gets called not just when loading, but also after duplication.
 void ULandscapeTextureBackedRenderTargetBase::PostLoad()
 {
 	Super::PostLoad();
@@ -56,6 +57,7 @@ void ULandscapeTextureBackedRenderTargetBase::PostLoad()
 	}
 }
 
+// PreDuplicate is called not just when objects are copied in editor, but also when they are serialized for undo/redo.
 void ULandscapeTextureBackedRenderTargetBase::PreDuplicate(FObjectDuplicationParameters& DupParams)
 {
 	Super::PreDuplicate(DupParams);
@@ -77,6 +79,7 @@ void ULandscapeTextureBackedRenderTargetBase::ExportCustomProperties(FOutputDevi
 	}
 }
 
+// Called after pasting
 void ULandscapeTextureBackedRenderTargetBase::PostEditImport()
 {
 	Super::PostEditImport();
@@ -491,6 +494,8 @@ bool ULandscapeTextureBackedRenderTargetBase::IsCopyingBackAndForthAllowed()
 {
 	UWorld* World = GetWorld();
 	return IsValid(this) && !IsTemplate()
-		&& IsValid(World) && World->WorldType == EWorldType::Editor
+		// Note that having a null world is ok because we get that temporarily while rerunning construction
+		// scripts. However if we do have a world, it should be the normal editor one.
+		&& (!World || (IsValid(World) && World->WorldType == EWorldType::Editor))
 		&& FApp::CanEverRender();
 }

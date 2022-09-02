@@ -173,7 +173,10 @@ void ULandscapePatchComponent::OnRegister()
 	// variety of changes this way, so we'll need to see if we can get rid of other invalidations.
 	// Also, we should make the invalidation conditional on whether we actually modify any relevant
 	// properties by having a virtual method that compares and updates a stored hash of them.
-	RequestLandscapeUpdate();
+	if (IsEnabled())
+	{
+		RequestLandscapeUpdate();
+	}
 }
 
 void ULandscapePatchComponent::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const
@@ -198,6 +201,12 @@ FLandscapePatchComponentInstanceData::FLandscapePatchComponentInstanceData(const
 	if (PatchManager)
 	{
 		IndexInManager = PatchManager->GetIndexOfPatch(Patch);
+
+#if WITH_EDITOR
+		bGaveMissingPatchManagerWarning = Patch->bGaveMissingPatchManagerWarning;
+		bGaveNotInPatchManagerWarning = Patch->bGaveNotInPatchManagerWarning;
+		bGaveMissingLandscapeWarning = Patch->bGaveMissingLandscapeWarning;
+#endif
 	}
 }
 
@@ -205,14 +214,15 @@ void ULandscapePatchComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTra
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
 
-	RequestLandscapeUpdate();
+	if (IsEnabled())
+	{
+		RequestLandscapeUpdate();
+	}
 }
 
 void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	using namespace LandscapePatchComponentLocals;
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	// Do a bunch of checks to make sure that we don't try to do anything when the editing is happening inside the blueprint editor.
 	UWorld* World = GetWorld();
@@ -234,7 +244,17 @@ void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		SetPatchManager(PatchManager.Get());
 	}
 
-	RequestLandscapeUpdate();
+	if (IsEnabled() || (PropertyChangedEvent.Property
+		&& (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapePatchComponent, bIsEnabled))))
+	{
+		RequestLandscapeUpdate();
+	}
+
+	// It is important that this super call happen after the above, because inside a blueprint actor, the call triggers a
+	// rerun of the construction scripts, which will destroy the component and mess with our ability to do the above adjustments
+	// properly (IsValid(this) returns false, the patch manager has the patch removed so it complains when we try to trigger
+	// the update, etc).
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
 
@@ -246,6 +266,12 @@ void ULandscapePatchComponent::ApplyComponentInstanceData(FLandscapePatchCompone
 	{
 		PatchManager->MovePatchToIndex(this, ComponentInstanceData->IndexInManager);
 	}
+
+#if WITH_EDITOR
+	bGaveMissingPatchManagerWarning = ComponentInstanceData->bGaveMissingPatchManagerWarning;
+	bGaveNotInPatchManagerWarning = ComponentInstanceData->bGaveNotInPatchManagerWarning;
+	bGaveMissingLandscapeWarning = ComponentInstanceData->bGaveMissingLandscapeWarning;
+#endif
 }
 
 void ULandscapePatchComponent::SetLandscape(ALandscape* NewLandscape)
@@ -254,10 +280,8 @@ void ULandscapePatchComponent::SetLandscape(ALandscape* NewLandscape)
 
 	using namespace LandscapePatchComponentLocals;
 
-	// Uncertain whether we want this early-out here. Perhaps, like SetPatchManager, we want 
-	// to be able to use this function to reorder patches. On the other hand, it seems inconvenient
-	// to accidentally swap patch managers if there are multiple in the same landscape, and we kept
-	// landscape the same. It's hard to know the ideal behavior, but for now we'll keep it.
+	// We early out here if the landscape stays the same and we have a patch manager because it is inconvenient to accidentally swap patch
+	// managers if there are multiple in the same landscape.
 	if (Landscape.Get() == NewLandscape && (
 		(Landscape.IsNull() && PatchManager.IsNull()) || (Landscape.IsValid() && PatchManager.IsValid() && PatchManager->GetOwningLandscape() == Landscape.Get())))
 	{
@@ -309,6 +333,7 @@ void ULandscapePatchComponent::SetPatchManager(ALandscapePatchManager* NewPatchM
 	{
 		return;
 	}
+	ResetWarnings();
 
 	if (PreviousPatchManager.IsValid())
 	{
@@ -347,17 +372,65 @@ void ULandscapePatchComponent::MoveToTop()
 		PatchManager->Modify();
 		PatchManager->RemovePatch(this);
 		PatchManager->AddPatch(this);
-		PatchManager->RequestLandscapeUpdate();
+		if (IsEnabled())
+		{
+			PatchManager->RequestLandscapeUpdate();
+		}
 	}
 }
 
 void ULandscapePatchComponent::RequestLandscapeUpdate()
 {
-	if(PatchManager.IsValid())
+#if WITH_EDITOR
+	if (!PatchManager.IsValid())
 	{
+		if (!bGaveMissingPatchManagerWarning)
+		{
+			UE_LOG(LogLandscapePatch, Warning, TEXT("Patch does not have a valid patch manager. "
+				"Set the landscape or patch manager on the patch."));
+			bGaveMissingPatchManagerWarning = true;
+		}
+		return;
+	}
+
+	bool bRequestUpdate = true;
+	if (!PatchManager->ContainsPatch(this))
+	{
+		if (!bGaveNotInPatchManagerWarning)
+		{
+			UE_LOG(LogLandscapePatch, Warning, TEXT("Patch's patch manager does not contain this patch. "
+				"Perhaps the manager was not saved? Reset the patch manager on the patch."));
+			bGaveNotInPatchManagerWarning = true;
+		}
+		bRequestUpdate = false;
+	}
+	if (!IsValid(PatchManager->GetOwningLandscape()))
+	{
+		if (!bGaveMissingLandscapeWarning)
+		{
+			UE_LOG(LogLandscapePatch, Warning, TEXT("Patch's patch manager does not have a valid owning "
+				"landscape. Perhaps the landscape was not saved? Reset the landscape on the manager."));
+			bGaveMissingLandscapeWarning = true;
+		}
+		bRequestUpdate = false;
+	}
+
+	if(bRequestUpdate)
+	{
+		ResetWarnings();
 		PatchManager->RequestLandscapeUpdate();
 	}
+#endif
 }
+
+#if WITH_EDITOR
+void ULandscapePatchComponent::ResetWarnings()
+{
+	bGaveMissingPatchManagerWarning = false;
+	bGaveNotInPatchManagerWarning = false;
+	bGaveMissingLandscapeWarning = false;
+}
+#endif
 
 FTransform ULandscapePatchComponent::GetLandscapeHeightmapCoordsToWorld() const
 {

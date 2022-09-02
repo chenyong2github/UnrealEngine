@@ -49,7 +49,7 @@ public:
 	 * @return false if the patch is marked as disabled and therefore can't affect the landscape.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
-	bool IsEnabled() const { return bIsEnabled; }
+	virtual bool IsEnabled() const { return bIsEnabled; }
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	FTransform GetLandscapeHeightmapCoordsToWorld() const;
@@ -90,18 +90,24 @@ public:
 	virtual bool NeedsLoadForServer() const override { return false; }
 
 protected:
+	/**
+	 * Move the patch to be the last processed patch in the current patch manager. This is a way to
+	 * reorder patches relative to each other.
+	 */
+	UFUNCTION(CallInEditor, Category = Initialization)
+	void MoveToTop();
+
 	UPROPERTY(EditAnywhere, Category = Settings)
 	TSoftObjectPtr<ALandscape> Landscape = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
 	TSoftObjectPtr<ALandscapePatchManager> PatchManager = nullptr;
 
-	/** 
-	 * Move the patch to be the last processed patch in the current patch manager. This is a way to 
-	 * reorder patches relative to each other. 
+	/**
+	 * When false, patch does not affect the landscape. Useful for temporarily disabling the patch.
 	 */
-	UFUNCTION(CallInEditor, Category = Initialization)
-	void MoveToTop();
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bIsEnabled = true;
 
 	// Determines whether the height patch was made by copying a different height patch.
 	bool bWasCopy = false;
@@ -110,12 +116,6 @@ protected:
 	// the first OnRegister call. It remains false from the first OnRegiter call onward, even
 	// if the component is unregistered.
 	bool bLoadedButNotYetRegistered = false;
-
-	/** 
-	 * When false, patch does not affect the landscape. Useful for temporarily disabling the patch. 
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bIsEnabled = true;
 private:
 	// Starts as false and gets set to true in construction, so gets used to set bWasCopy
 	// by checking the indicator value at the start of construction.
@@ -125,6 +125,16 @@ private:
 	// Used to properly transition to a different manager when editing it via the detail panel.
 	UPROPERTY()
 	TSoftObjectPtr<ALandscapePatchManager> PreviousPatchManager = nullptr;
+
+#if WITH_EDITOR
+	// Used to avoid spamming warning messages
+	bool bGaveMissingPatchManagerWarning = false;
+	bool bGaveNotInPatchManagerWarning = false;
+	bool bGaveMissingLandscapeWarning = false;
+	void ResetWarnings();
+#endif
+
+	friend struct FLandscapePatchComponentInstanceData;
 };
 
 /** Used to store some extra data during RerunConstructionScripts, namely the component's position in the patch manager. */
@@ -151,4 +161,16 @@ struct FLandscapePatchComponentInstanceData : public FSceneComponentInstanceData
 
 	UPROPERTY()
 	int32 IndexInManager = -1;
+
+#if WITH_EDITORONLY_DATA
+
+	// Used so that we don't spam warning messages while rerunning construction scripts on a patch
+	// that triggers one of the warnings.
+	UPROPERTY()
+	bool bGaveMissingPatchManagerWarning = false;
+	UPROPERTY()
+	bool bGaveNotInPatchManagerWarning = false;
+	UPROPERTY()
+	bool bGaveMissingLandscapeWarning = false;
+#endif
 };

@@ -145,7 +145,17 @@ void ALandscapePatchManager::SetTargetLandscape(ALandscape* InTargetLandscape)
 			ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
 			int32 PatchLayerIndex = LandscapeModule.GetLandscapeEditorServices()->GetOrCreateEditLayer(PatchLayerName, InTargetLandscape);
 			
+			// Among other things, this will call SetOwningLandscape on us.
 			InTargetLandscape->AddBrushToLayer(PatchLayerIndex, this);
+
+			// It's not clear whether this is really necessary, but we do it for consistency because Landscape does this in its
+			// PostLoad for all its brushes (through FLandscapeLayerBrush::SetOwner). One would think that it would be done 
+			// in AddBrushToLayer if it were at all important, but it currently isn't...
+			if (this->GetTypedOuter<ULevel>() != InTargetLandscape->GetTypedOuter<ULevel>())
+			{
+				// Change owner to be that level
+				this->Rename(nullptr, InTargetLandscape->GetTypedOuter<ULevel>());
+			}
 		}
 	}
 #endif
@@ -162,7 +172,13 @@ void ALandscapePatchManager::AddPatch(TObjectPtr<ULandscapePatchComponent> Patch
 	{
 		Modify();
 		PatchComponents.AddUnique(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get()));
-		RequestLandscapeUpdate();
+
+		// No need to update if the patch is disabled. Important to avoid needlessly updating while dragging a blueprint with
+		// a disabled patch (since construction scripts constantly add and remove).
+		if (Patch->IsEnabled())
+		{
+			RequestLandscapeUpdate();
+		}
 	}
 }
 
@@ -174,7 +190,10 @@ bool ALandscapePatchManager::RemovePatch(TObjectPtr<ULandscapePatchComponent> Pa
 	{
 		Modify();
 		bRemoved = PatchComponents.Remove(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get())) > 0;
-		if (bRemoved)
+
+		// No need to update if the patch was already disabled.Important to avoid needlessly updating while dragging 
+		// a blueprint with a disabled patch (since construction scripts constantly add and remove).
+		if (bRemoved && Patch->IsEnabled())
 		{
 			RequestLandscapeUpdate();
 		}
@@ -190,7 +209,7 @@ int32 ALandscapePatchManager::GetIndexOfPatch(TObjectPtr<const ULandscapePatchCo
 
 void ALandscapePatchManager::MovePatchToIndex(TObjectPtr<ULandscapePatchComponent> Patch, int32 Index)
 {
-	if (!Patch)
+	if (!Patch || Index < 0 || GetIndexOfPatch(Patch) == Index)
 	{
 		return;
 	}
@@ -203,7 +222,10 @@ void ALandscapePatchManager::MovePatchToIndex(TObjectPtr<ULandscapePatchComponen
 	Index = FMath::Clamp(Index, 0, PatchComponents.Num());
 	PatchComponents.Insert(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get()), Index);
 
-	RequestLandscapeUpdate();
+	if (Patch->IsEnabled())
+	{
+		RequestLandscapeUpdate();
+	}
 }
 
 #if WITH_EDITOR
@@ -228,6 +250,32 @@ bool ALandscapePatchManager::IsAffectingWeightmapLayer(const FName& InLayerName)
 void ALandscapePatchManager::PostEditUndo()
 {
 	RequestLandscapeUpdate();
+}
+
+void ALandscapePatchManager::SetOwningLandscape(ALandscape* InOwningLandscape)
+{
+	Super::SetOwningLandscape(InOwningLandscape);
+
+	DetailPanelLandscape = OwningLandscape;
+}
+
+// We override PostEditChange to allow the users to change the owning landscape via a property displayed in the detail panel.
+void ALandscapePatchManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// Do a bunch of checks to make sure that we don't try to do anything when the editing is happening inside the blueprint editor.
+	UWorld* World = GetWorld();
+	if (IsTemplate() || !IsValid(this) || !IsValid(World) || World->WorldType != EWorldType::Editor)
+	{
+		return;
+	}
+
+	if (PropertyChangedEvent.Property
+		&& (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ALandscapePatchManager, DetailPanelLandscape)))
+	{
+		SetTargetLandscape(DetailPanelLandscape.Get());
+	}
 }
 #endif
 

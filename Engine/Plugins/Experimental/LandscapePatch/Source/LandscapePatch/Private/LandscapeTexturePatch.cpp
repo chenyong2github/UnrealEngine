@@ -494,6 +494,12 @@ FLandscapeHeightPatchConvertToNativeParams ULandscapeTexturePatch::GetHeightConv
 void ULandscapeTexturePatch::ReinitializeHeight()
 {
 #if WITH_EDITOR
+	if (!Super::IsEnabled())
+	{
+		UE_LOG(LogLandscapePatch, Warning, TEXT("ULandscapeTexturePatch::Reinitialize: Cannot reinitialize while disabled."));
+		return;
+	}
+
 	if (!Landscape.IsValid() || !PatchManager.IsValid())
 	{
 		UE_LOG(LogLandscapePatch, Warning, TEXT("ULandscapeTexturePatch::Reinitialize: No associated landscape to initialize from."));
@@ -516,6 +522,12 @@ void ULandscapeTexturePatch::ReinitializeHeight()
 void ULandscapeTexturePatch::ReinitializeWeights()
 {
 #if WITH_EDITOR
+	if (!Super::IsEnabled())
+	{
+		UE_LOG(LogLandscapePatch, Warning, TEXT("ULandscapeTexturePatch::Reinitialize: Cannot reinitialize while disabled."));
+		return;
+	}
+
 	if (!Landscape.IsValid() || !PatchManager.IsValid())
 	{
 		UE_LOG(LogLandscapePatch, Warning, TEXT("ULandscapeTexturePatch::Reinitialize: No associated landscape to initialize from."));
@@ -675,11 +687,15 @@ void ULandscapeTexturePatch::ReinitializeHeight(UTextureRenderTarget2D* InCombin
 		GraphBuilder.Execute();
 	});
 
+	// The Modify() calls currently don't really help because we don't transact inside Render_Native. Maybe someday
+	// we'll add that ability (though it sounds messy).
+	HeightInternalData->GetInternalTexture()->Modify();
 	TemporaryNativeHeightCopy->UpdateTexture2D(HeightInternalData->GetInternalTexture(), ETextureSourceFormat::TSF_BGRA8);
 	HeightInternalData->GetInternalTexture()->UpdateResource();
 
 	if (IsValid(HeightInternalData->GetRenderTarget()))
 	{
+		HeightInternalData->GetRenderTarget()->Modify();
 		HeightInternalData->CopyBackFromInternalTexture();
 	}
 }
@@ -791,6 +807,29 @@ bool ULandscapeTexturePatch::IsAffectingWeightmapLayer(const FName& InLayerName)
 			return true;
 		}
 	}
+	return false;
+}
+
+// We override IsEnabled to make the patch not request updates when all the source modes are "none"
+// (unless we need the update for reinitialization).
+bool ULandscapeTexturePatch::IsEnabled() const
+{
+	if (!Super::IsEnabled())
+	{
+		return false;
+	}
+	if (HeightSourceMode != ELandscapeTexturePatchSourceMode::None || bReinitializeHeightOnNextRender)
+	{
+		return true;
+	}
+	for (TObjectPtr<ULandscapeWeightPatchTextureInfo> WeightPatch : WeightPatches)
+	{
+		if (WeightPatch->SourceMode != ELandscapeTexturePatchSourceMode::None || WeightPatch->bReinitializeOnNextRender)
+		{
+			return true;
+		}
+	}
+	// If we got to here, we are enabled, but all of the contained data had a source mode of "None"
 	return false;
 }
 #endif // WITH_EDITOR
@@ -915,7 +954,7 @@ void ULandscapeTexturePatch::SetResolution(FVector2D ResolutionIn)
 		{
 			return;
 		}
-		else
+		else if (ensure(IsValid(InternalData)))
 		{
 			InternalData->SetResolution(DesiredX, DesiredY);
 		}
@@ -924,7 +963,10 @@ void ULandscapeTexturePatch::SetResolution(FVector2D ResolutionIn)
 	ResizePatch(HeightSourceMode, HeightInternalData);
 	for (TObjectPtr<ULandscapeWeightPatchTextureInfo> WeightPatch : WeightPatches)
 	{
-		ResizePatch(WeightPatch->SourceMode, WeightPatch->InternalData);
+		if (ensure(IsValid(WeightPatch)))
+		{
+			ResizePatch(WeightPatch->SourceMode, WeightPatch->InternalData);
+		}
 	}
 }
 
@@ -1035,6 +1077,20 @@ void ULandscapeWeightPatchTextureInfo::PostEditChangeProperty(FPropertyChangedEv
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void ULandscapeWeightPatchTextureInfo::PreDuplicate(FObjectDuplicationParameters& DupParams)
+{
+	// TODO: It seems like this whole overload shouldn't be necessary, because we should get PreDuplicate calls
+	// on InternalData. However for reasons that I have yet to undertand, those calls are not made. It seems like
+	// there is different behavior for an array of instanced classes containing instanced properties...
+
+	Super::PreDuplicate(DupParams);
+
+	if (SourceMode == ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget)
+	{
+		InternalData->CopyToInternalTexture();
+	}
 }
 #endif // WITH_EDITOR
 
