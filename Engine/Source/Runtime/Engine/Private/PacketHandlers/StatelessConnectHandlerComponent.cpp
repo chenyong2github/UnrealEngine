@@ -11,6 +11,7 @@
 #include "Misc/StringBuilder.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include <limits>
 
 DEFINE_LOG_CATEGORY(LogHandshake);
 
