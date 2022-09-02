@@ -1873,7 +1873,6 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 							.Padding(2.0f,0.0f, 0.0f, 2.0f)
 							[
 								SAssignNew(ClassTextWidget, STextBlock)
-								.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
 								.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
 								.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 								.Text(this, &SAssetTileItem::GetAssetClassText)
