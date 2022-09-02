@@ -107,10 +107,9 @@ namespace Horde.Build.Perforce
 		/// <param name="minChange">The minimum changelist number</param>
 		/// <param name="maxChange">The maximum changelist number</param>
 		/// <param name="results">Number of results to return</param>
-		/// <param name="impersonateUser">User to impersonate for the query</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Latest changelist number</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int results, string? impersonateUser, CancellationToken cancellationToken = default);
+		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int results, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Checks a shelf is valid for the given stream
@@ -118,10 +117,9 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumber">Shelved changelist number</param>
-		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Whether the shelf is valid, plus the description for it</returns>
-		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser, CancellationToken cancellationToken = default);
+		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream
@@ -139,10 +137,9 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumbers">Change numbers to query</param>
-		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Commit details</returns>
-		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser, CancellationToken cancellationToken = default);
+		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Gets the latest changes for a set of depot paths
@@ -235,11 +232,10 @@ namespace Horde.Build.Perforce
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="streamName">The stream to query</param>
 		/// <param name="changeNumber">Change number to query</param>
-		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Commit details</returns>
-		public static async Task<ChangeDetails> GetChangeDetailsAsync(this IPerforceService perforce, string clusterName, string streamName, int changeNumber, string? impersonateUser)
+		public static async Task<ChangeDetails> GetChangeDetailsAsync(this IPerforceService perforce, string clusterName, string streamName, int changeNumber)
 		{
-			List<ChangeDetails> results = await perforce.GetChangeDetailsAsync(clusterName, streamName, new[] { changeNumber }, impersonateUser);
+			List<ChangeDetails> results = await perforce.GetChangeDetailsAsync(clusterName, streamName, new[] { changeNumber });
 			return results[0];
 		}
 
@@ -252,12 +248,11 @@ namespace Horde.Build.Perforce
 		/// <param name="minChange">The minimum changelist number</param>
 		/// <param name="maxChange">The maximum changelist number</param>
 		/// <param name="results">Number of results to return</param>
-		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Commit details</returns>
-		public static async Task<List<ChangeDetails>> GetChangeDetailsAsync(this IPerforceService perforce, string clusterName, string streamName, int? minChange, int? maxChange, int results, string? impersonateUser)
+		public static async Task<List<ChangeDetails>> GetChangeDetailsAsync(this IPerforceService perforce, string clusterName, string streamName, int? minChange, int? maxChange, int results)
 		{
-			List<ChangeSummary> changes = await perforce.GetChangesAsync(clusterName, streamName, minChange, maxChange, results, impersonateUser);
-			return await perforce.GetChangeDetailsAsync(clusterName, streamName, changes.ConvertAll(x => x.Number), impersonateUser);
+			List<ChangeSummary> changes = await perforce.GetChangesAsync(clusterName, streamName, minChange, maxChange, results);
+			return await perforce.GetChangeDetailsAsync(clusterName, streamName, changes.ConvertAll(x => x.Number));
 		}
 
 		/// <summary>
@@ -266,11 +261,10 @@ namespace Horde.Build.Perforce
 		/// <param name="perforce">The perforce implementation</param>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="streamName">The stream to query</param>
-		/// <param name="impersonateUser">Name of the user to impersonate</param>
 		/// <returns>Latest changelist number</returns>
-		public static async Task<int> GetLatestChangeAsync(this IPerforceService perforce, string clusterName, string streamName, string? impersonateUser)
+		public static async Task<int> GetLatestChangeAsync(this IPerforceService perforce, string clusterName, string streamName)
 		{
-			List<ChangeSummary> changes = await perforce.GetChangesAsync(clusterName, streamName, null, null, 1, impersonateUser);
+			List<ChangeSummary> changes = await perforce.GetChangesAsync(clusterName, streamName, null, null, 1);
 			if (changes.Count == 0)
 			{
 				throw new Exception($"No changes have been submitted to stream {streamName}");

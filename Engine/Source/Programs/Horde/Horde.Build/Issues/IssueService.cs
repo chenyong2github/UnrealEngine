@@ -1090,7 +1090,7 @@ namespace Horde.Build.Issues
 				if (stream != null)
 				{
 					_logger.LogInformation("Querying fix changelist {FixChange} in {StreamId}", fixChange, streamId);
-					List<ChangeSummary> changes = await _perforce.GetChangesAsync(stream.ClusterName, stream.Name, fixChange, fixChange, 1, null);
+					List<ChangeSummary> changes = await _perforce.GetChangesAsync(stream.ClusterName, stream.Name, fixChange, fixChange, 1);
 					bContainsFixChange = changes.Count > 0;
 				}
 				cachedContainsFixChange[(streamId, fixChange)] = bContainsFixChange;
@@ -1114,7 +1114,7 @@ namespace Horde.Build.Issues
 				_logger.LogDebug("Querying for changes in {StreamName} between {MinChange} and {MaxChange}", stream.Name, minChange, maxChange);
 
 				// Get the submitted changes before this job
-				List<ChangeDetails> changes = await PerforceServiceExtensions.GetChangeDetailsAsync(_perforce, stream.ClusterName, stream.Name, minChange, maxChange, MaxChanges, null);
+				List<ChangeDetails> changes = await PerforceServiceExtensions.GetChangeDetailsAsync(_perforce, stream.ClusterName, stream.Name, minChange, maxChange, MaxChanges);
 				_logger.LogDebug("Found {NumResults} changes", changes.Count);
 
 				// Get the handler to rank them

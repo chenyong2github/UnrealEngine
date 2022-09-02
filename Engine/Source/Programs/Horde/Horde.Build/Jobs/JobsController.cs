@@ -149,7 +149,7 @@ namespace Horde.Build.Jobs
 			}
 			else
 			{
-				change = await _perforce.GetLatestChangeAsync(stream.ClusterName, stream.Name, null);
+				change = await _perforce.GetLatestChangeAsync(stream.ClusterName, stream.Name);
 			}
 
 			// And get the matching code changelist
@@ -162,7 +162,7 @@ namespace Horde.Build.Jobs
 			string? preflightDescription = null;
 			if (create.PreflightChange != null)
 			{
-				(CheckShelfResult result, preflightDescription) = await _perforce.CheckShelfAsync(stream.ClusterName, stream.Name, create.PreflightChange.Value, null);
+				(CheckShelfResult result, preflightDescription) = await _perforce.CheckShelfAsync(stream.ClusterName, stream.Name, create.PreflightChange.Value);
 				switch (result)
 				{
 					case CheckShelfResult.Ok:
@@ -210,7 +210,7 @@ namespace Horde.Build.Jobs
 			if (jobs.Count == 0)
 			{
 				_logger.LogInformation("Unable to find successful build of {TemplateId} target {Target}. Using latest change instead", templateId, target);
-				return await _perforce.GetLatestChangeAsync(stream.ClusterName, stream.Name, null);
+				return await _perforce.GetLatestChangeAsync(stream.ClusterName, stream.Name);
 			}
 			else
 			{

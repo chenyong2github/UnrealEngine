@@ -589,19 +589,18 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int maxResults, string? impersonateUser, CancellationToken cancellationToken)
+		public async Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
 			scope.Span.SetTag("MinChange", minChange ?? -1);
 			scope.Span.SetTag("MaxChange", maxChange ?? -1);
 			scope.Span.SetTag("MaxResults", maxResults);
-			scope.Span.SetTag("ImpersonateUser", impersonateUser);
 			
 			PerforceCluster cluster = await GetClusterAsync(clusterName);
 
 			List<ChangeSummary> results = new List<ChangeSummary>();
-			using (IPerforceConnection perforce = await ConnectWithStreamClientAsync(cluster, impersonateUser, streamName, cancellationToken))
+			using (IPerforceConnection perforce = await ConnectWithStreamClientAsync(cluster, null, streamName, cancellationToken))
 			{
 				string filter = GetFilter($"//{perforce.Settings.ClientName}/...", minChange, maxChange);
 
@@ -649,18 +648,17 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, string? impersonateUser, CancellationToken cancellationToken)
+		public async Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CheckPreflightAsync").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
 			scope.Span.SetTag("StreamName", streamName);
 			scope.Span.SetTag("ChangeNumber", changeNumber);
-			scope.Span.SetTag("ImpersonateUser", impersonateUser);
 
 			PerforceCluster cluster = await GetClusterAsync(clusterName);
 			IPerforceServer server = await GetServerAsync(cluster);
 
-			using (IPerforceConnection perforce = await ConnectAsync(cluster, impersonateUser, cancellationToken))
+			using (IPerforceConnection perforce = await ConnectAsync(cluster, null, cancellationToken))
 			{
 				PerforceResponse<DescribeRecord> response = await perforce.TryDescribeAsync(DescribeOptions.Shelved, -1, changeNumber, cancellationToken);
 				if(response.Error != null)
@@ -708,18 +706,17 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser, CancellationToken cancellationToken)
+		public async Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
 			scope.Span.SetTag("StreamName", streamName);
 			scope.Span.SetTag("ChangeNumbers.Count", changeNumbers.Count);
-			scope.Span.SetTag("ImpersonateUser", impersonateUser);
 			
 			PerforceCluster cluster = await GetClusterAsync(clusterName);
 
 			List<ChangeDetails> results = new List<ChangeDetails>();
-			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(cluster, impersonateUser, streamName, cancellationToken))
+			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(cluster, null, streamName, cancellationToken))
 			{
 				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
@@ -1050,7 +1047,7 @@ namespace Horde.Build.Perforce
 			for (; ; )
 			{
 				// Query for the changes before this point
-				List<ChangeSummary> changes = await GetChangesAsync(clusterName, streamName, null, maxChange, 10, null, cancellationToken);
+				List<ChangeSummary> changes = await GetChangesAsync(clusterName, streamName, null, maxChange, 10, cancellationToken);
 				_logger.LogInformation("Finding last code change in {Stream} before {MaxChange}: {NumResults}", streamName, maxChange, changes.Count);
 				if (changes.Count == 0)
 				{
@@ -1058,7 +1055,7 @@ namespace Horde.Build.Perforce
 				}
 
 				// Get the details for them
-				List<ChangeDetails> detailsList = await GetChangeDetailsAsync(clusterName, streamName, changes.ConvertAll(x => x.Number), null, cancellationToken);
+				List<ChangeDetails> detailsList = await GetChangeDetailsAsync(clusterName, streamName, changes.ConvertAll(x => x.Number), cancellationToken);
 				foreach (ChangeDetails details in detailsList.OrderByDescending(x => x.Number))
 				{
 					ChangeContentFlags contentFlags = details.GetContentFlags();

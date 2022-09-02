@@ -82,7 +82,7 @@ namespace Horde.Build.Jobs.Schedules
 			{
 				while (index >= _changes.Count)
 				{
-					List<ChangeSummary> newChanges = await _perforce.GetChangesAsync(_clusterName, _streamName, null, null, _maxResults, null);
+					List<ChangeSummary> newChanges = await _perforce.GetChangesAsync(_clusterName, _streamName, null, null, _maxResults);
 
 					int numResults = newChanges.Count;
 					if (_changes.Count > 0)
@@ -95,7 +95,7 @@ namespace Horde.Build.Jobs.Schedules
 					}
 					if(newChanges.Count > 0)
 					{
-						_changes.AddRange((await _perforce.GetChangeDetailsAsync(_clusterName, _streamName, newChanges.ConvertAll(x => x.Number), null)).OrderByDescending(x => x.Number));
+						_changes.AddRange((await _perforce.GetChangeDetailsAsync(_clusterName, _streamName, newChanges.ConvertAll(x => x.Number))).OrderByDescending(x => x.Number));
 					}
 					_maxResults += 10;
 				}

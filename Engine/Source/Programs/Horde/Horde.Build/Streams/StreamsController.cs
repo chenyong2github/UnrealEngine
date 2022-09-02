@@ -188,13 +188,7 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			string? perforceUser = User.GetPerforceUser();
-			if(perforceUser == null)
-			{
-				return BadRequest("Current user does not have an associated Perforce user");
-			}
-
-			List<ChangeSummary> commits = await _perforceService.GetChangesAsync(stream.ClusterName, stream.Name, min, max, results, perforceUser);
+			List<ChangeSummary> commits = await _perforceService.GetChangesAsync(stream.ClusterName, stream.Name, min, max, results);
 
 			List<GetChangeSummaryResponse> responses = new List<GetChangeSummaryResponse>();
 			foreach (ChangeSummary commit in commits)
@@ -226,13 +220,7 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			string? perforceUser = User.GetPerforceUser();
-			if(perforceUser == null)
-			{
-				return BadRequest("Current user does not have an associated Perforce user");
-			}
-
-			ChangeDetails? changeDetails = await _perforceService.GetChangeDetailsAsync(stream.ClusterName, stream.Name, changeNumber, perforceUser);
+			ChangeDetails? changeDetails = await _perforceService.GetChangeDetailsAsync(stream.ClusterName, stream.Name, changeNumber);
 			if(changeDetails == null)
 			{
 				return NotFound("CL {Change} not found in stream {StreamId}", changeNumber, streamId);
