@@ -59,7 +59,9 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#if WITH_IOSTORE_IN_EDITOR
 #include "IO/IoDispatcher.h"
+#endif
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTracking.h"
@@ -1457,10 +1459,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		}
 
 		GSyncLoadUsingAsyncLoaderCount++;
-		constexpr EPackageFlags PackageFlags = PKG_None;
-		constexpr int32 PIEInstanceID = INDEX_NONE;
-		constexpr int32 Priority = INT32_MAX;
-		int32 RequestID = LoadPackageAsync(PackagePath, PackageName, FLoadPackageAsyncDelegate(), PackageFlags, PIEInstanceID, Priority, InstancingContext);
+		int32 RequestID = LoadPackageAsync(PackagePath, PackageName);
 
 		if (RequestID != INDEX_NONE)
 		{
