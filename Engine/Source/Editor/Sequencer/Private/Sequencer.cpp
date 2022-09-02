@@ -10427,6 +10427,14 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP(this, &FSequencer::TogglePlay));
 
 	SequencerCommandBindings->MapAction(
+		Commands.JumpToStartViewport,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToStart));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToEndViewport,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
+
+	SequencerCommandBindings->MapAction(
 		Commands.StepToNextKey,
 		FExecuteAction::CreateSP( this, &FSequencer::StepToNextKey) );
 
@@ -11143,14 +11151,6 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.JumpToEnd,
-		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToStartViewport,
-		FExecuteAction::CreateSP(this, &FSequencer::JumpToStart));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToEndViewport,
 		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
 
 	SequencerCommandBindings->MapAction(
