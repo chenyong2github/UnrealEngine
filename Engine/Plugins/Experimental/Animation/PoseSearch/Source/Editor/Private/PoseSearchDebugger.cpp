@@ -218,16 +218,16 @@ public:
 	
 	float GetChannelCost(int32 ChannelIdx) const
 	{
-		return PoseCostDetails.ChannelCosts.IsValidIndex(ChannelIdx)
-			? PoseCostDetails.ChannelCosts[ChannelIdx]
+		return PoseCost.ChannelCosts.IsValidIndex(ChannelIdx)
+			? PoseCost.ChannelCosts[ChannelIdx]
 			: 0.0f;
 	}
 	
-	float GetAddendsCost() const { return PoseCostDetails.NotifyCostAddend + PoseCostDetails.MirrorMismatchCostAddend; }
+	float GetAddendsCost() const { return PoseCost.GetCostAddend(); }
 
 	void CalculateColors(FChannelCostRange TotalCostRange, TArrayView<const FChannelCostRange> ChannelCostRanges)
 	{
-		const float CostColorBlend = (PoseCostDetails.PoseCost.GetTotalCost() - TotalCostRange.Min) / TotalCostRange.Delta;
+		const float CostColorBlend = (PoseCost.GetTotalCost() - TotalCostRange.Min) / TotalCostRange.Delta;
 		CostColor = UE::PoseSearch::LinearColorBlend(FLinearColor::Green, FLinearColor::Red, CostColorBlend);
 
 		ChannelCostColors.SetNum(ChannelCostRanges.Num());
@@ -259,7 +259,7 @@ public:
 	bool bMirrored = false;
 	bool bLooping = false;
 	FVector BlendParameters = FVector::Zero();
-	FPoseCostDetails PoseCostDetails;
+	FPoseSearchCost PoseCost;
 	FLinearColor CostColor = FLinearColor::White;
 	TArray<FLinearColor> ChannelCostColors;
 };
@@ -475,14 +475,14 @@ namespace DebuggerDatabaseColumns
 		
 		virtual FSortPredicate GetSortPredicate() const override
 		{
-			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostDetails.PoseCost < Row1->PoseCostDetails.PoseCost; };
+			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCost < Row1->PoseCost; };
 		}
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			if (Row->PoseCostDetails.PoseCost.IsValid())
+			if (Row->PoseCost.IsValid())
 			{
-				return FText::AsNumber(Row->PoseCostDetails.PoseCost.GetTotalCost());
+				return FText::AsNumber(Row->PoseCost.GetTotalCost());
 			}
 			else
 			{
@@ -519,7 +519,7 @@ namespace DebuggerDatabaseColumns
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			if (Row->PoseCostDetails.ChannelCosts.IsValidIndex(ChannelIdx))
+			if (Row->PoseCost.ChannelCosts.IsValidIndex(ChannelIdx))
 			{
 				return FText::AsNumber(Row->GetChannelCost(ChannelIdx));
 			}
@@ -932,7 +932,7 @@ void SDebuggerDatabaseView::CreateRows(const FTraceMotionMatchingStateMessage& S
 					Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
 					Row->AssetTime = Time;
 					Row->bMirrored = SearchIndexAsset->bMirrored;
-					Row->PoseCostDetails.PoseCost.Set(PoseEntry.Cost, 0.0f);
+					Row->PoseCost = PoseEntry.Cost;
 
 					if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
 					{
@@ -983,11 +983,11 @@ void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
 	TArray<FChannelCostRange> ChannelCostRanges;
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : FilteredDatabaseView.Rows)
 	{
-		const float Cost = Row->PoseCostDetails.PoseCost.GetTotalCost();
+		const float Cost = Row->PoseCost.GetTotalCost();
 		CostRange.Min = FMath::Min(CostRange.Min, Cost);
 		CostRange.Max = FMath::Max(CostRange.Max, Cost);
 
-		const int32 NumChannels = Row->PoseCostDetails.ChannelCosts.Num();
+		const int32 NumChannels = Row->PoseCost.ChannelCosts.Num();
 		if (ChannelCostRanges.Num() < NumChannels)
 		{
 			ChannelCostRanges.SetNum(NumChannels);
@@ -995,8 +995,8 @@ void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
 
 		for (int32 ChannelIdx = 0; ChannelIdx != NumChannels; ++ChannelIdx)
 		{
-			ChannelCostRanges[ChannelIdx].Min = FMath::Min(ChannelCostRanges[ChannelIdx].Min, Row->PoseCostDetails.ChannelCosts[ChannelIdx]);
-			ChannelCostRanges[ChannelIdx].Max = FMath::Max(ChannelCostRanges[ChannelIdx].Max, Row->PoseCostDetails.ChannelCosts[ChannelIdx]);
+			ChannelCostRanges[ChannelIdx].Min = FMath::Min(ChannelCostRanges[ChannelIdx].Min, Row->PoseCost.ChannelCosts[ChannelIdx]);
+			ChannelCostRanges[ChannelIdx].Max = FMath::Max(ChannelCostRanges[ChannelIdx].Max, Row->PoseCost.ChannelCosts[ChannelIdx]);
 		}
 	}
 
@@ -1072,23 +1072,23 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	auto CostColumn = MakeShared<FCost>(ColumnIdx++);
 	AddColumn(CostColumn);
 
-// 	int32 ChannelIdx = 0;
-// 	FChannelCostColumn::FParams ChannelCostParams;
-// 	ChannelCostParams.ChannelIdx = ChannelIdx++;
-// 	ChannelCostParams.SortIndex = ColumnIdx++;
-// 	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
-// 
-// 	ChannelCostParams.ChannelIdx = ChannelIdx++;
-// 	ChannelCostParams.SortIndex = ColumnIdx++;
-// 	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
-// 
-// 	ChannelCostParams.ChannelIdx = ChannelIdx++;
-// 	ChannelCostParams.SortIndex = ColumnIdx++;
-// 	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
-// 
-// 	ChannelCostParams.ChannelIdx = ChannelIdx++;
-// 	ChannelCostParams.SortIndex = ColumnIdx++;
-// 	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+	int32 ChannelIdx = 0;
+	FChannelCostColumn::FParams ChannelCostParams;
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
 
 
 	AddColumn(MakeShared<FCostModifier>(ColumnIdx++));
@@ -1485,20 +1485,15 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 				}
 			}
 
-			Reflection->CostVector = Selected->PoseCostDetails.CostVector;
-// 
-// 			TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DebuggerView->GetSelectedDatabaseRows();
-// 
-// 
-// 			State.DatabaseEntries[State.CurrentDbEntryIdx]
-// 
-// 			const TSharedRef<FDebuggerDatabaseRowData>& ActiveRow = DebuggerView->GetPoseIdxDatabaseRow(CurrentDbPoseIdx);
-// 
-// 			Reflection->CostVectorDifference = Reflection->CostVector;
-// 			for (int i = 0; i < Reflection->CostVectorDifference.Num(); ++i)
-// 			{
-// 				Reflection->CostVectorDifference[i] -= ActiveRow->PoseCostDetails.CostVector[i];
-// 			}
+			Reflection->CostVector = Selected->PoseCost.CostVector;
+
+			const FTraceMotionMatchingStatePoseEntry* ActivePoseEntry = State.GetCurrentPoseEntry();
+
+			Reflection->CostVectorDifference = Reflection->CostVector;
+			for (int i = 0; i < Reflection->CostVectorDifference.Num(); ++i)
+			{
+				Reflection->CostVectorDifference[i] -= ActivePoseEntry->Cost.CostVector[i];
+			}
 		}
 	}
 }

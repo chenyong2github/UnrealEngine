@@ -1860,40 +1860,6 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 
 FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, int32 GroupIdx, const TArrayView<const float>& QueryValues) const
 {
-	using namespace UE::PoseSearch;
-
-	FPoseSearchCost Result;
-
-	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	check(SearchIndex);
-
-	TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
-	check(PoseValues.Num() == QueryValues.Num());
-
-	if (GroupIdx == INDEX_NONE)
-	{
-		const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
-		check(SearchIndexAsset)
-		GroupIdx = SearchIndexAsset->SourceGroupIdx;
-	}
-
-	Result.SetDissimilarity(CompareFeatureVectors(
-		PoseValues.Num(),
-		PoseValues.GetData(),
-		QueryValues.GetData(),
-		SearchIndex->FindGroup(GroupIdx)->Weights.GetData()));
-
-	const float MirrorMismatchAddend = SearchIndex->ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
-	const float NotifyAddend = SearchIndex->ComputeNotifyAddend(PoseIdx);
-	const float ContinuingPoseCostAddend = SearchIndex->ComputeContinuingPoseCostAddend(PoseIdx, PoseComparisonFlags);
-
-	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend + ContinuingPoseCostAddend);
-
-	return Result;
-}
-
-FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const
-{
 	using namespace Eigen;
 	using namespace UE::PoseSearch;
 
@@ -1906,22 +1872,20 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 	const int32 Dims = PoseValues.Num();
 	check(Dims == QueryValues.Num());
 
-	OutPoseCostDetails.CostVector.SetNum(Dims);
+	if (GroupIdx == INDEX_NONE)
+	{
+		const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
+		check(SearchIndexAsset)
+		GroupIdx = SearchIndexAsset->SourceGroupIdx;
+	}
 
-	// Setup Eigen views onto our vectors
-	auto OutCostVector = Map<ArrayXf>(OutPoseCostDetails.CostVector.GetData(), Dims);
-	auto PoseVector = Map<const ArrayXf>(PoseValues.GetData(), Dims);
-	auto QueryVector = Map<const ArrayXf>(QueryValues.GetData(), Dims);
+	TArrayView<const float> Weights = SearchIndex->FindGroup(GroupIdx)->Weights;
 
-	// Compute weighted squared difference vector
-	const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex->FindAssetForPose(PoseIdx);
-	const TArray<float>& Weights = SearchIndex->FindGroup(SearchIndexAsset->SourceGroupIdx)->Weights;
-
-	check(Weights.Num() == Dims);
-	auto WeightsVector = Map<const ArrayXf>(Weights.GetData(), Dims);
-
-	OutCostVector = WeightsVector * (PoseVector - QueryVector).square();
-	Result.SetDissimilarity(OutCostVector.sum());
+	Result.SetDissimilarity(CompareFeatureVectors(
+		PoseValues.Num(),
+		PoseValues.GetData(),
+		QueryValues.GetData(),
+		Weights.GetData()));
 
 	const float MirrorMismatchAddend = SearchIndex->ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
 	const float NotifyAddend = SearchIndex->ComputeNotifyAddend(PoseIdx);
@@ -1929,33 +1893,32 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 
 	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend + ContinuingPoseCostAddend);
 
-	// Output cost details
-	OutPoseCostDetails.NotifyCostAddend = NotifyAddend + ContinuingPoseCostAddend;
-	OutPoseCostDetails.MirrorMismatchCostAddend = MirrorMismatchAddend;
-	OutPoseCostDetails.PoseCost = Result;
-	CalcChannelCosts(
-		SearchIndex->Schema,
-		OutPoseCostDetails.CostVector,
-		OutPoseCostDetails.ChannelCosts);
-
-#if DO_GUARD_SLOW
+#if UE_POSE_SEARCH_TRACE_ENABLED && WITH_EDITORONLY_DATA
+	if (SearchContext.bIsTracing)
 	{
-		// Verify details pose comparator agrees with runtime pose comparator
-		FPoseSearchCost RuntimeComparatorCost = ComparePoses(
-			SearchContext, 
-			PoseIdx, 
-			PoseComparisonFlags,
-			SearchIndexAsset->SourceGroupIdx,
-			QueryValues);
-		checkSlow(FMath::IsNearlyEqual(Result.GetTotalCost(), RuntimeComparatorCost.GetTotalCost(), 1e-3f));
+		// Setup Eigen views onto our vectors
+		Result.CostVector.SetNum(Dims);
+		auto OutCostVector = Map<ArrayXf>(Result.CostVector.GetData(), Dims);
+		auto PoseVector = Map<const ArrayXf>(PoseValues.GetData(), Dims);
+		auto QueryVector = Map<const ArrayXf>(QueryValues.GetData(), Dims);
+		auto WeightsVector = Map<const ArrayXf>(Weights.GetData(), Dims);
+		
+		// Compute weighted squared difference vector
+		OutCostVector = WeightsVector * (PoseVector - QueryVector).square();
 
-		// Verify channel cost decomposition agrees with runtime pose comparator
-		auto OutChannelCosts = Map<const ArrayXf>(
-			OutPoseCostDetails.ChannelCosts.GetData(), 
-			OutPoseCostDetails.ChannelCosts.Num());
-		checkSlow(FMath::IsNearlyEqual(OutChannelCosts.sum(), RuntimeComparatorCost.GetDissimilarity(), 1e-3f));
+		// Output cost details
+		CalcChannelCosts(SearchIndex->Schema, Result.CostVector, Result.ChannelCosts);
+		Result.MirrorMismatchCostAddend = MirrorMismatchAddend;
+		Result.NotifyCostAddend = NotifyAddend;
+		Result.ContinuingPoseCostAddend = ContinuingPoseCostAddend;
+
+		// Verify channel cost decomposition for tracing agrees with runtime pose comparator
+		auto ChannelCostsVector = Map<const ArrayXf>(
+			Result.ChannelCosts.GetData(),
+			Result.ChannelCosts.Num());
+		checkSlow(FMath::IsNearlyEqual(ChannelCostsVector.sum(), Result.GetDissimilarity(), 1e-3f));
 	}
-#endif
+#endif // UE_POSE_SEARCH_TRACE_ENABLED && WITH_EDITORONLY_DATA
 
 	return Result;
 }
@@ -2161,7 +2124,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 				}
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-				SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
+				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this);
 #endif
 			}
 		}
@@ -2283,7 +2246,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 #if UE_POSE_SEARCH_TRACE_ENABLED
 				if (PoseSearchMode == EPoseSearchMode::BruteForce)
 				{
-					SearchContext.BestCandidates.Add(PoseCost.GetTotalCost(), PoseIdx, this);
+					SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this);
 				}
 #endif
 			}

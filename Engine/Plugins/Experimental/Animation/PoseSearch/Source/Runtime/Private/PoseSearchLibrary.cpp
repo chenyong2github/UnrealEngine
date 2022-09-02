@@ -222,6 +222,11 @@ static void TraceMotionMatchingState(
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	using namespace UE::PoseSearch;
 
+	if (!IsTracing(UpdateContext))
+	{
+		return;
+	}
+
 	if (!MotionMatchingState.CurrentSearchResult.IsValid())
 	{
 		return;
@@ -275,7 +280,7 @@ static void TraceMotionMatchingState(
 		int32 LastResultPoseEntryIdx = DbEntry.PoseEntries.AddUnique({LastResult.PoseIdx});
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[LastResultPoseEntryIdx];
 
-		PoseEntry.Cost = LastResult.PoseCost.GetTotalCost();
+		PoseEntry.Cost = LastResult.PoseCost;
 		PoseEntry.Flags |= FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose;
 		bContinuingPoseTraced = true;
 	}
@@ -291,7 +296,7 @@ static void TraceMotionMatchingState(
 		int32 PoseEntryIdx = DbEntry.PoseEntries.AddUnique({MotionMatchingState.CurrentSearchResult.PoseIdx});
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[PoseEntryIdx];
 
-		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.PoseCost.GetTotalCost();
+		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.PoseCost;
 		PoseEntry.Flags |= FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose;
 		bCurrentPoseTraced = true;
 	}
@@ -429,6 +434,7 @@ void UpdateMotionMatchingState(
 		SearchContext.Trajectory = &Trajectory;
 		SearchContext.OwningComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
 		SearchContext.BoneContainer = &Context.AnimInstanceProxy->GetRequiredBones();
+		SearchContext.bIsTracing = IsTracing(Context);
 		SearchContext.bForceInterrupt = bForceInterrupt;
 		SearchContext.bCanAdvance = bCanAdvance;
 		SearchContext.CurrentResult = InOutMotionMatchingState.CurrentSearchResult;

@@ -17,8 +17,9 @@ namespace UE { namespace PoseSearch {
 const FName FTraceLogger::Name("PoseSearch");
 const FName FTraceMotionMatchingState::Name("MotionMatchingState");
 
-static bool ShouldTrace(const FAnimationBaseContext& InContext)
+bool IsTracing(const FAnimationBaseContext& InContext)
 {
+#if UE_POSE_SEARCH_TRACE_ENABLED
 	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(PoseSearchChannel);
 	if (!bChannelEnabled)
 	{
@@ -32,6 +33,9 @@ static bool ShouldTrace(const FAnimationBaseContext& InContext)
 
 	check(InContext.AnimInstanceProxy);
 	return !CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent());
+#else
+	return false;
+#endif
 }
 
 FArchive& operator<<(FArchive& Ar, FTraceMessage& State)
@@ -47,7 +51,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMessage& State)
 FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry)
 {
 	Ar << Entry.DbPoseIdx;
-	Ar << Entry.Cost;
+	FPoseSearchCost::StaticStruct()->SerializeItem(Ar, &Entry.Cost, nullptr);
 	Ar << Entry.Flags;
 	return Ar;
 }
@@ -84,7 +88,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext)
 {
 #if OBJECT_TRACE_ENABLED
-	if (!ShouldTrace(InContext))
+	if (!IsTracing(InContext))
 	{
 		return;
 	}
@@ -125,14 +129,19 @@ const UPoseSearchDatabase* FTraceMotionMatchingState::GetCurrentDatabase() const
 
 int32 FTraceMotionMatchingState::GetCurrentDatabasePoseIndex() const
 {
+	const FTraceMotionMatchingStatePoseEntry* PoseEntry = GetCurrentPoseEntry();
+	return PoseEntry ? PoseEntry->DbPoseIdx : INDEX_NONE;
+}
+
+const FTraceMotionMatchingStatePoseEntry* FTraceMotionMatchingState::GetCurrentPoseEntry() const
+{
 	if ((CurrentDbEntryIdx == INDEX_NONE) || (CurrentPoseEntryIdx == INDEX_NONE))
 	{
-		return INDEX_NONE;
+		return nullptr;
 	}
 
 	const FTraceMotionMatchingStateDatabaseEntry& DbEntry = DatabaseEntries[CurrentDbEntryIdx];
-	const FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[CurrentPoseEntryIdx];
-	return PoseEntry.DbPoseIdx;
+	return &DbEntry.PoseEntries[CurrentPoseEntryIdx];
 }
 
 }}

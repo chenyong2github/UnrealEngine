@@ -8,6 +8,8 @@ UE_TRACE_CHANNEL_EXTERN(PoseSearchChannel, POSESEARCH_API);
 
 namespace UE { namespace PoseSearch {
 
+bool IsTracing(const FAnimationBaseContext& InContext);
+
 struct POSESEARCH_API FTraceLogger
 {
 	/** Used for reading trace data */
@@ -42,10 +44,9 @@ struct POSESEARCH_API FTraceMotionMatchingStatePoseEntry
 		ContinuingPose	= 1 << 0,
 		CurrentPose		= 1 << 1,
 	};
-
 	int32 DbPoseIdx = INDEX_NONE;
-	float Cost = 0.f;
 	EFlags Flags = EFlags::None;
+	FPoseSearchCost Cost;
 
 	bool operator==(const FTraceMotionMatchingStatePoseEntry& Other) const { return DbPoseIdx == Other.DbPoseIdx; }
 };
@@ -124,6 +125,7 @@ struct POSESEARCH_API FTraceMotionMatchingState
 
 	const UPoseSearchDatabase* GetCurrentDatabase() const;
 	int32 GetCurrentDatabasePoseIndex() const;
+	const FTraceMotionMatchingStatePoseEntry* GetCurrentPoseEntry() const;
 
 	template<typename T>
 	static const T* GetObjectFromId(uint64 ObjectId)

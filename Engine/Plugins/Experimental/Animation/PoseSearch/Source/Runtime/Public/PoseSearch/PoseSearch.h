@@ -867,11 +867,10 @@ public:
 	FGameplayTag Tag;
 };
 
-USTRUCT(BlueprintType)
-struct FPoseSearchCost
+USTRUCT()
+struct POSESEARCH_API FPoseSearchCost
 {
 	GENERATED_BODY()
-
 public:
 	FPoseSearchCost() = default;
 	FPoseSearchCost(float InDissimilarity, float InCostAddend)
@@ -926,7 +925,31 @@ protected:
 
 	UPROPERTY()
 	float TotalCost = MAX_flt;
+
+#if WITH_EDITORONLY_DATA
+public:
+	// Contribution from ModifyCost anim notify
+	UPROPERTY()
+	float NotifyCostAddend = 0.0f;
+
+	// Contribution from mirroring cost
+	UPROPERTY()
+	float MirrorMismatchCostAddend = 0.0f;
+
+	UPROPERTY()
+	float ContinuingPoseCostAddend = 0.0f;
+
+	// Cost breakdown per channel (e.g. pose cost, time-based trajectory cost, distance-based trajectory cost, etc.)
+	UPROPERTY()
+	TArray<float> ChannelCosts;
+
+	// Difference vector computed as W*((P-Q)^2) without the cost modifier applied
+	// Where P is the pose vector, Q is the query vector, W is the weights vector, and multiplication/exponentiation are element-wise operations
+	UPROPERTY()
+	TArray<float> CostVector;
+#endif // WITH_EDITORONLY_DATA
 };
+
 
 /**
 * Helper object for writing features into a float buffer according to a feature vector layout.
@@ -1031,7 +1054,6 @@ public:
 	virtual FPoseHistory& GetPoseHistory() = 0;
 };
 
-
 struct FSearchResult
 {
 	FPoseSearchCost PoseCost;
@@ -1067,27 +1089,6 @@ struct FSearchResult
 	bool IsValid() const;
 
 	void Reset();
-};
-
-/**
- * Cost details for pose analysis in the rewind debugger
- */
-struct FPoseCostDetails
-{
-	FPoseSearchCost PoseCost;
-
-	// Contribution from ModifyCost anim notify
-	float NotifyCostAddend = 0.0f;
-
-	// Contribution from mirroring cost
-	float MirrorMismatchCostAddend = 0.0f;
-
-	// Cost breakdown per channel (e.g. pose cost, time-based trajectory cost, distance-based trajectory cost, etc.)
-	TArray<float> ChannelCosts;
-
-	// Difference vector computed as W*((P-Q)^2) without the cost modifier applied
-	// Where P is the pose vector, Q is the query vector, W is the weights vector, and multiplication/exponentiation are element-wise operations
-	TArray<float> CostVector;
 };
 
 } // namespace UE::PoseSearch
@@ -1250,7 +1251,6 @@ public:
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
 	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, int32 GroupIdx, const TArrayView<const float>& QueryValues) const;
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues, UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;
 
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1403,6 +1403,7 @@ struct POSESEARCH_API FSearchContext
 	const FBoneContainer* BoneContainer = nullptr;
 	const FGameplayTagContainer* ActiveTagsContainer = nullptr;
 	float PoseJumpThresholdTime = 0.f;
+	bool bIsTracing = false;
 	bool bForceInterrupt = false;
 	// can the continuing pose advance? (if not we skip evaluating it)
 	bool bCanAdvance = true;
@@ -1456,11 +1457,11 @@ private:
 public:
 	struct FPoseCandidate
 	{
-		float Cost = 0.f;
+		FPoseSearchCost Cost;
 		int32 PoseIdx = 0;
 		const UPoseSearchDatabase* Database = nullptr;
 
-		bool operator<(const FPoseCandidate& Other) const { return Cost > Other.Cost; }
+		bool operator<(const FPoseCandidate& Other) const { return Cost < Other.Cost; }
 		bool operator==(const FSearchResult& SearchResult) const { return (PoseIdx == SearchResult.PoseIdx) && (Database == SearchResult.Database.Get()); }
 	};
 
@@ -1471,7 +1472,7 @@ public:
 
 		int32 MaxPoseCandidates = 100;
 
-		void Add(float Cost, int32 PoseIdx, const UPoseSearchDatabase* Database)
+		void Add(const FPoseSearchCost& Cost, int32 PoseIdx, const UPoseSearchDatabase* Database)
 		{
 			if (Num() < MaxPoseCandidates || Cost < HeapTop().Cost)
 			{
