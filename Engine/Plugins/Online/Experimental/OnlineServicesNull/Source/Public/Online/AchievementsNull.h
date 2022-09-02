@@ -9,6 +9,19 @@ namespace UE::Online {
 
 class FOnlineServicesNull;
 
+struct FAchievementsNullConfig
+{
+	TArray<FAchievementDefinition> AchievementDefinitions;
+};
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FAchievementsNullConfig)
+	ONLINE_STRUCT_FIELD(FAchievementsNullConfig, AchievementDefinitions)
+END_ONLINE_STRUCT_META()
+
+/* Meta */ }
+
 class ONLINESERVICESNULL_API FAchievementsNull : public FAchievementsCommon
 {
 public:
@@ -16,7 +29,10 @@ public:
 
 	FAchievementsNull(FOnlineServicesNull& InOwningSubsystem);
 
-	//IAchievements
+	// IOnlineComponent
+	virtual void UpdateConfig() override;
+
+	// IAchievements
 	virtual TOnlineAsyncOpHandle<FQueryAchievementDefinitions> QueryAchievementDefinitions(FQueryAchievementDefinitions::Params&& Params) override;
 	virtual TOnlineResult<FGetAchievementIds> GetAchievementIds(FGetAchievementIds::Params&& Params) override;
 	virtual TOnlineResult<FGetAchievementDefinition> GetAchievementDefinition(FGetAchievementDefinition::Params&& Params) override;
@@ -29,8 +45,12 @@ protected:
 	using FAchievementDefinitionMap = TMap<FString, FAchievementDefinition>;
 	using FAchievementStateMap = TMap<FString, FAchievementState>;
 
-	TOptional<FAchievementDefinitionMap> AchievementDefinitions;
+	bool bAchievementDefinitionsQueried = false;
 	TMap<FAccountId, FAchievementStateMap> AchievementStates;
+
+	FAchievementsNullConfig Config;
+
+	const FAchievementDefinition* FindAchievementDefinition(const FString& AchievementId) const;
 };
 
 /* UE::Online */ }
