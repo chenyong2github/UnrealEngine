@@ -11,6 +11,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Pools;
@@ -31,7 +32,6 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Configuration
 {
-	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 
@@ -56,7 +56,6 @@ namespace Horde.Build.Configuration
 		readonly IPerforceService _perforceService;
 		readonly INotificationService _notificationService;
 		readonly AgentService _agentService;
-		readonly PoolService _poolService;
 		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly ITicker _ticker;
 		readonly ILogger _logger;
@@ -64,7 +63,7 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigUpdateService(MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
+		public ConfigUpdateService(MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
 		{
 			_mongoService = mongoService;
 			_configCollection = configCollection;
@@ -73,9 +72,9 @@ namespace Horde.Build.Configuration
 			_projectService = projectService;
 			_streamService = streamService;
 			_notificationService = notificationService;
-			_poolService = poolService;
 			_agentService = agentService;
 			_settings = settings;
+
 			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
@@ -84,6 +83,7 @@ namespace Horde.Build.Configuration
 			{
 				_ticker = clock.AddSharedTicker<ConfigUpdateService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, logger);
 			}
+
 			_logger = logger;
 		}
 
@@ -101,13 +101,13 @@ namespace Horde.Build.Configuration
 		Dictionary<ProjectId, (ProjectConfig Config, string Revision)> _cachedProjectConfigs = new Dictionary<ProjectId, (ProjectConfig, string)>();
 		readonly Dictionary<ProjectId, string?> _cachedLogoRevisions = new Dictionary<ProjectId, string?>();
 
-		async Task UpdateConfigAsync(Uri configPath)
+		async Task UpdateConfigAsync(Uri configPath, CancellationToken cancellationToken)
 		{
 			// Update the globals singleton
 			GlobalConfig globalConfig;
 			for (; ; )
 			{
-				Dictionary<Uri, string> globalRevisions = await FindRevisionsAsync(new[] { configPath });
+				Dictionary<Uri, string> globalRevisions = await FindRevisionsAsync(new[] { configPath }, cancellationToken);
 				if (globalRevisions.Count == 0)
 				{
 					throw new Exception($"Invalid config path: {configPath}");
@@ -119,12 +119,12 @@ namespace Horde.Build.Configuration
 					_logger.LogInformation("Caching global config from {Revision}", revision);
 					try
 					{
-						_cachedGlobalConfig = await ReadDataAsync<GlobalConfig>(revision, configPath);
+						_cachedGlobalConfig = await ReadDataAsync<GlobalConfig>(revision, configPath, cancellationToken);
 						_cachedGlobalConfigRevision = revision;
 					}
 					catch (Exception ex)
 					{
-						await SendFailureNotificationAsync(ex, configPath);
+						await SendFailureNotificationAsync(ex, configPath, cancellationToken);
 						return;
 					}
 				}
@@ -174,7 +174,7 @@ namespace Horde.Build.Configuration
 			HashSet<ProjectId> skipProjectIds = new HashSet<ProjectId>();
 
 			// Update any existing projects
-			Dictionary<Uri, string> projectRevisions = await FindRevisionsAsync(projectConfigs.Select(x => x.Path));
+			Dictionary<Uri, string> projectRevisions = await FindRevisionsAsync(projectConfigs.Select(x => x.Path), cancellationToken);
 			for (int idx = 0; idx < projectConfigs.Count; idx++)
 			{
 				// Make sure we were able to fetch metadata for 
@@ -199,7 +199,7 @@ namespace Horde.Build.Configuration
 					_logger.LogInformation("Caching configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
 					try
 					{
-						projectConfig = await ReadDataAsync<ProjectConfig>(revision, projectPath);
+						projectConfig = await ReadDataAsync<ProjectConfig>(revision, projectPath, cancellationToken);
 						if (update)
 						{
 							_logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
@@ -208,7 +208,7 @@ namespace Horde.Build.Configuration
 					}
 					catch (Exception ex)
 					{
-						await SendFailureNotificationAsync(ex, projectPath);
+						await SendFailureNotificationAsync(ex, projectPath, cancellationToken);
 						skipProjectIds.Add(projectRef.Id);
 						continue;
 					}
@@ -224,7 +224,7 @@ namespace Horde.Build.Configuration
 			}
 
 			// Get the logo revisions
-			Dictionary<Uri, string> logoRevisions = await FindRevisionsAsync(projectLogos.Select(x => x.Path));
+			Dictionary<Uri, string> logoRevisions = await FindRevisionsAsync(projectLogos.Select(x => x.Path), cancellationToken);
 			for (int idx = 0; idx < projectLogos.Count; idx++)
 			{
 				(ProjectId projectId, Uri path) = projectLogos[idx];
@@ -241,12 +241,12 @@ namespace Horde.Build.Configuration
 						_logger.LogInformation("Updating logo for project {ProjectId} ({Revision})", projectId, revision);
 						try
 						{
-							await _projectService.Collection.SetLogoAsync(projectId, path.ToString(), revision, GetMimeTypeFromPath(path), await ReadDataAsync(path));
+							await _projectService.Collection.SetLogoAsync(projectId, path.ToString(), revision, GetMimeTypeFromPath(path), await ReadDataAsync(path, cancellationToken));
 							_cachedLogoRevisions[projectId] = revision;
 						}
 						catch (Exception ex)
 						{
-							await SendFailureNotificationAsync(ex, path);
+							await SendFailureNotificationAsync(ex, path, cancellationToken);
 							continue;
 						}
 					}
@@ -257,7 +257,7 @@ namespace Horde.Build.Configuration
 			List<IStream> streams = await _streamService.GetStreamsAsync();
 
 			// Get the revisions for all the stream documents
-			Dictionary<Uri, string> streamRevisions = await FindRevisionsAsync(streamConfigs.Select(x => x.Path));
+			Dictionary<Uri, string> streamRevisions = await FindRevisionsAsync(streamConfigs.Select(x => x.Path), cancellationToken);
 			for (int idx = 0; idx < streamConfigs.Count; idx++)
 			{
 				(ProjectId projectId, StreamConfigRef streamRef, Uri streamPath) = streamConfigs[idx];
@@ -269,12 +269,12 @@ namespace Horde.Build.Configuration
 						_logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", streamRef.Id, revision);
 						try
 						{
-							StreamConfig streamConfig = await ReadDataAsync<StreamConfig>(revision, streamPath);
+							StreamConfig streamConfig = await ReadDataAsync<StreamConfig>(revision, streamPath, cancellationToken);
 							stream = await _streamService.StreamCollection.CreateOrReplaceAsync(streamRef.Id, stream, revision, projectId);
 						}
 						catch (Exception ex)
 						{
-							await SendFailureNotificationAsync(ex, streamPath);
+							await SendFailureNotificationAsync(ex, streamPath, cancellationToken);
 							continue;
 						}
 					}
@@ -330,7 +330,7 @@ namespace Horde.Build.Configuration
 			return new Uri(baseUri, path);
 		}
 
-		async Task<Dictionary<Uri, string>> FindRevisionsAsync(IEnumerable<Uri> paths)
+		async Task<Dictionary<Uri, string>> FindRevisionsAsync(IEnumerable<Uri> paths, CancellationToken cancellationToken)
 		{
 			Dictionary<Uri, string> revisions = new Dictionary<Uri, string>();
 
@@ -355,17 +355,21 @@ namespace Horde.Build.Configuration
 			// Query all the Perforce revisions
 			foreach (IGrouping<string, Uri> perforcePath in perforcePaths.GroupBy(x => x.Host, StringComparer.OrdinalIgnoreCase))
 			{
-				List<FileSummary> files = await _perforceService.FindFilesAsync(perforcePath.Key, perforcePath.Select(x => x.AbsolutePath));
-				foreach (FileSummary file in files)
+				string[] absolutePaths = perforcePath.Select(x => x.AbsolutePath).ToArray();
+				using (IPerforceConnection perforce = await _perforceService.ConnectAsync(perforcePath.Key, null, cancellationToken))
 				{
-					Uri fileUri = new Uri($"{PerforceScheme}://{perforcePath.Key}{file.DepotPath}");
-					if (file.Error == null)
+					List<FStatRecord> files = await perforce.FStatAsync(FStatOptions.ShortenOutput, absolutePaths, cancellationToken).ToListAsync(cancellationToken);
+					foreach (string absolutePath in absolutePaths)
 					{
-						revisions[fileUri] = $"ver={Version},chg={file.Change},path={fileUri}";
-					}
-					else
-					{
-						_notificationService.NotifyConfigUpdateFailure(file.Error, file.DepotPath);
+						FStatRecord? file = files.FirstOrDefault(x => String.Equals(x.DepotFile, absolutePath, StringComparison.OrdinalIgnoreCase));
+						if (file == null || file.HeadAction == FileAction.Delete || file.HeadAction == FileAction.MoveDelete)
+						{
+							_notificationService.NotifyConfigUpdateFailure($"Unable to find '{absolutePath}'", absolutePath);
+							continue;
+						}
+
+						Uri fileUri = new Uri($"{PerforceScheme}://{perforcePath.Key}{file.DepotFile}");
+						revisions[fileUri] = $"ver={Version},chg={file.ChangeNumber},path={fileUri}";
 					}
 				}
 			}
@@ -373,27 +377,32 @@ namespace Horde.Build.Configuration
 			return revisions;
 		}
 
-		async Task<T> ReadDataAsync<T>(string revision, Uri configPath) where T : class
+		async Task<T> ReadDataAsync<T>(string revision, Uri configPath, CancellationToken cancellationToken) where T : class
 		{
-			byte[] data = await ReadDataAsync(configPath);
+			byte[] data = await ReadDataAsync(configPath, cancellationToken);
 			await _configCollection.AddConfigDataAsync(revision, data);
 			return await _configCollection.GetConfigAsync<T>(revision);
 		}
 
-		Task<byte[]> ReadDataAsync(Uri configPath)
+		async Task<byte[]> ReadDataAsync(Uri configPath, CancellationToken cancellationToken)
 		{
 			switch (configPath.Scheme)
 			{
 				case FileScheme:
-					return File.ReadAllBytesAsync(configPath.LocalPath);
+					return await File.ReadAllBytesAsync(configPath.LocalPath, cancellationToken);
 				case PerforceScheme:
-					return _perforceService.PrintAsync(configPath.Host, configPath.AbsolutePath);
+					using (IPerforceConnection perforce = await _perforceService.ConnectAsync(configPath.Host, null, cancellationToken))
+					{
+						PerforceResponse<PrintRecord<byte[]>> response = await perforce.TryPrintDataAsync(configPath.AbsolutePath, cancellationToken);
+						response.EnsureSuccess();
+						return response.Data.Contents!;
+					}
 				default:
 					throw new Exception($"Invalid config path: {configPath}");
 			}
 		}
 
-		async Task SendFailureNotificationAsync(Exception ex, Uri configPath)
+		async Task SendFailureNotificationAsync(Exception ex, Uri configPath, CancellationToken cancellationToken)
 		{
 			_logger.LogError(ex, "Unable to read data from {ConfigPath}: {Message}", configPath, ex.Message);
 
@@ -404,20 +413,22 @@ namespace Horde.Build.Configuration
 
 			if (configPath.Scheme == PerforceScheme)
 			{
-				try
+				using (IPerforceConnection perforce = await _perforceService.ConnectAsync(configPath.Host, null, cancellationToken))
 				{
-					List<FileSummary> files = await _perforceService.FindFilesAsync(configPath.Host, new[] { fileName });
-					change = files[0].Change;
-
-					List<ChangeSummary> changes = await _perforceService.GetChangesAsync(configPath.Host, change, change, 1);
-					if (changes.Count > 0 && changes[0].Number == change)
+					try
 					{
-						(author, description) = (changes[0].Author, changes[0].Description);
+						List<FStatRecord> records = await perforce.FStatAsync(FStatOptions.ShortenOutput, fileName, cancellationToken).ToListAsync(cancellationToken);
+						if (records.Count > 0)
+						{
+							DescribeRecord describeRecord = await perforce.DescribeAsync(records[0].HeadChange, cancellationToken);
+							author = await _perforceService.FindOrAddUserAsync(configPath.Host, describeRecord.User, cancellationToken);
+							description = describeRecord.Description;
+						}
 					}
-				}
-				catch (Exception ex2)
-				{
-					_logger.LogError(ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", configPath);
+					catch (Exception ex2)
+					{
+						_logger.LogError(ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", configPath);
+					}
 				}
 			}
 
@@ -427,7 +438,6 @@ namespace Horde.Build.Configuration
 		/// <inheritdoc/>
 		async ValueTask TickLeaderAsync(CancellationToken stoppingToken)
 		{
-
 			Uri? configUri = null;
 
 			if (Path.IsPathRooted(_settings.CurrentValue.ConfigPath) && !_settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
@@ -443,7 +453,7 @@ namespace Horde.Build.Configuration
 
 			if (configUri != null)
 			{
-				await UpdateConfigAsync(configUri);
+				await UpdateConfigAsync(configUri, stoppingToken);
 			}
 		}
 	}

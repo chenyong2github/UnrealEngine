@@ -156,16 +156,6 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.FromResult(newChange.Number);
 		}
 
-		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths, CancellationToken cancellationToken)
-		{
-			throw new NotImplementedException();
-		}
-
-		public Task<byte[]> PrintAsync(string clusterName, string path, CancellationToken cancellationToken)
-		{
-			throw new NotImplementedException();
-		}
-
 		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int shelvedChange, int originalChange, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
@@ -184,11 +174,6 @@ namespace Horde.Build.Tests.Stubs.Services
 		public Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken)
 		{
 			return Task.CompletedTask;
-		}
-
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
-		{
-			throw new NotImplementedException();
 		}
 
 		public Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, int changeNumber, CancellationToken cancellationToken)

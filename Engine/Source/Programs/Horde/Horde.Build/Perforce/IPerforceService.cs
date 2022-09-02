@@ -89,17 +89,6 @@ namespace Horde.Build.Perforce
 		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Finds changes submitted to a depot Gets the latest change for a particular stream
-		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="minChange">The minimum changelist number</param>
-		/// <param name="maxChange">The maximum changelist number</param>
-		/// <param name="maxResults">Maximum number of results to return</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Changelist information</returns>
-		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
@@ -140,24 +129,6 @@ namespace Horde.Build.Perforce
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Commit details</returns>
 		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the latest changes for a set of depot paths
-		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="paths"></param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the contents of a file in the depot
-		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="path">Path to read</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Data for the file</returns>
-		public Task<byte[]> PrintAsync(string clusterName, string path, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Duplicates a shelved changelist

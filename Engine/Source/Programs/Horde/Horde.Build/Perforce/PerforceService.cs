@@ -566,29 +566,6 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("MinChange", minChange ?? -1);
-			scope.Span.SetTag("MaxResults", maxResults);
-
-			List<ChangeSummary> results = new List<ChangeSummary>();
-			using (IPerforceConnection perforce = await ConnectAsync(clusterName, null, cancellationToken))
-			{
-				string filter = GetFilter("//...", minChange, maxChange);
-				List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, maxResults, ChangeStatus.Submitted, filter, cancellationToken);
-
-				foreach (ChangesRecord change in changes)
-				{
-					IUser user = await FindOrAddUserAsync(clusterName, change.User, cancellationToken);
-					results.Add(new ChangeSummary(change.Number, user, change.Path ?? String.Empty, change.Description));
-				}
-			}
-			return results;
-		}
-
-		/// <inheritdoc/>
 		public async Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
@@ -740,56 +717,6 @@ namespace Horde.Build.Perforce
 				}
 			}
 			return results;
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<FileSummary>> FindFilesAsync(string clusterName, IEnumerable<string> paths, CancellationToken cancellationToken)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.FindFilesAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
-
-			List<FileSummary> results = new List<FileSummary>();
-			using (IPerforceConnection perforce = await ConnectAsync(cluster, null, cancellationToken))
-			{
-				List<FStatRecord> records = await perforce.FStatAsync(FStatOptions.ShortenOutput, paths.ToArray(), cancellationToken).ToListAsync(cancellationToken);
-				foreach (string path in paths)
-				{
-					// TODO: use server case
-					FStatRecord? record = records.FirstOrDefault(x => x.DepotFile == path);
-					if (record == null)
-					{
-						results.Add(new FileSummary(path, false, 0));
-					}
-					else
-					{
-						results.Add(new FileSummary(path, record.HeadAction != FileAction.Delete && record.HeadAction != FileAction.MoveDelete, record.HeadChange));
-					}
-				}
-				return results;
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task<byte[]> PrintAsync(string clusterName, string depotPath, CancellationToken cancellationToken)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.PrintAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("DepotPath", depotPath);
-			
-			if (depotPath.EndsWith("...", StringComparison.OrdinalIgnoreCase) || depotPath.EndsWith("*", StringComparison.OrdinalIgnoreCase))
-			{
-				throw new Exception("PrintAsync requires exactly one file to be specified");
-			}
-
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
-
-			using (IPerforceConnection perforce = await ConnectAsync(cluster, null, cancellationToken))
-			{
-				PerforceResponse<PrintRecord<byte[]>> response = await perforce.TryPrintDataAsync(depotPath, cancellationToken);
-				return response.Data.Contents!;
-			}
 		}
 
 		/// <inheritdoc/>

@@ -1797,44 +1797,6 @@ namespace Horde.Build.Notifications.Sinks
 
 		#endregion
 
-		#region Stream update (file)
-
-		/// <inheritdoc/>
-		public async Task NotifyStreamUpdateFailedAsync(FileSummary file)
-		{
-			_logger.LogDebug("Sending stream update failure notification for {File}", file.DepotPath);
-			if (_settings.UpdateStreamsNotificationChannel != null)
-			{
-				await SendStreamUpdateFailureMessage($"#{_settings.UpdateStreamsNotificationChannel}", file);
-			}
-		}
-
-		/// <summary>
-		/// Creates a stream update failure message in relation to a file
-		/// </summary>
-		/// <param name="recipient"></param>
-		/// <param name="file">The file</param>
-		/// <returns></returns>
-		async Task SendStreamUpdateFailureMessage(string recipient, FileSummary file)
-		{
-			string outcomeColor = ErrorColor;
-			SlackAttachment attachment = new SlackAttachment();
-			attachment.Color = outcomeColor;
-			attachment.FallbackText = $"{file.DepotPath} - Update Failure";
-
-			attachment.AddHeader($"Stream Update Failure :rip:", true);
-
-			attachment.AddSection($"<!here> Horde was unable to update {file.DepotPath}");
-			if (file.Error != null)
-			{
-				attachment.AddSection(QuoteText(file.Error));
-			}
-
-			await SendMessageAsync(recipient, attachment);
-		}
-
-		#endregion
-
 		#region Device notifications
 
 		/// <inheritdoc/>
