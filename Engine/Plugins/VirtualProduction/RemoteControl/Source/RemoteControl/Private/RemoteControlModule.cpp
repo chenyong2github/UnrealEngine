@@ -2292,6 +2292,9 @@ bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectRefer
 		return false;
 	}
 
+	// The offset between the container we're modifying and the object it belongs to
+	const ptrdiff_t ContainerFromBaseOffset = ((const uint8*)ObjectAccess.ContainerAdress) - ((const uint8*)ObjectAccess.Object.Get());
+
 	// Apply delta operation to each property that was changed (where possible)
 	for (const FPropertyMapStructDeserializerBackendWrapper::FReadPropertyData& ReadProperty : BackendWrapper.GetReadProperties())
 	{
@@ -2299,10 +2302,10 @@ bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectRefer
 		void* OutPropertyValue = ReadProperty.Data;
 
 		// Offset from start of OutData struct to the property that was changed
-		ptrdiff_t Offset = ((const uint8*)OutPropertyValue) - ((const uint8*)OutContainerAddress);
+		const ptrdiff_t Offset = ((const uint8*)OutPropertyValue) - ((const uint8*)OutContainerAddress);
 
 		// Pointer to the equivalent property in the original object
-		const void* BasePropertyValue = ((uint8*)ObjectAccess.Object.Get()) + Offset;
+		const void* BasePropertyValue = ((uint8*)ObjectAccess.Object.Get()) + ContainerFromBaseOffset + Offset;
 
 		if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(ReadProperty.Property))
 		{

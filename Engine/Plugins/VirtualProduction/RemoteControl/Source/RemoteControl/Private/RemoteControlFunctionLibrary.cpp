@@ -63,11 +63,59 @@ bool URemoteControlFunctionLibrary::ApplyColorWheelDelta(UObject* TargetObject, 
 		return false;
 	}
 
-	FProperty* Property = TargetObject->GetClass()->FindPropertyByName(FName(*PropertyName));
+	// Split the property name up on dots so we can find nested struct properties
+	TArray<FString> PropertyPathNames;
+	PropertyName.ParseIntoArray(PropertyPathNames, TEXT("."));
+
+	if (PropertyPathNames.IsEmpty())
+	{
+		return false;
+	}
+
+	void* Container = TargetObject;
+	UStruct* ContainerClass = TargetObject->GetClass();
+	if (!ContainerClass)
+	{
+		return false;
+	}
+
+	FProperty* Property = ContainerClass->FindPropertyByName(FName(*PropertyPathNames[0]));
+	if (!Property)
+	{
+		return false;
+	}
+
+	// Walk through the chain of structs until we reach the end (or run out of matching struct properties)
+	for (int32 PathIndex = 1; PathIndex < PropertyPathNames.Num(); ++PathIndex)
+	{
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			ContainerClass = StructProperty->Struct;
+			if (ContainerClass == nullptr)
+			{
+				return false;
+			}
+
+			Property = ContainerClass->FindPropertyByName(FName(*PropertyPathNames[PathIndex]));
+			if (Property == nullptr)
+			{
+				return false;
+			}
+
+			Container = StructProperty->ContainerPtrToValuePtr<void>(Container);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	ensure(Container && Property);
+
 	if (const FStructProperty* ColorProperty = CastField<FStructProperty>(Property))
 	{
 		FLinearColor Color;
-		ColorProperty->GetValue_InContainer(TargetObject, &Color);
+		ColorProperty->GetValue_InContainer(Container, &Color);
 
 		// Convert to HSV
 		Color = Color.LinearRGBToHSV();
@@ -105,7 +153,7 @@ bool URemoteControlFunctionLibrary::ApplyColorWheelDelta(UObject* TargetObject, 
 		TargetObject->Modify();
 #endif
 
-		ColorProperty->SetValue_InContainer(TargetObject, &Color);
+		ColorProperty->SetValue_InContainer(Container, &Color);
 
 #if WITH_EDITOR
 		FPropertyChangedEvent ChangeEvent(Property, bIsInteractive ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet);
