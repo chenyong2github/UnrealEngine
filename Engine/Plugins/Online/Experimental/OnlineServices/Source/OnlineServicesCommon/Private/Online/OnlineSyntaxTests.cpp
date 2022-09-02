@@ -403,21 +403,74 @@ inline void TestAsyncOpCacheSyntax(FOnlineServicesCommon& Services, Test::FTestI
 
 #if TEST_CONFIG_SYNTAX
 
+enum class EConfigTestEnum
+{
+	A,
+	B
+};
+void LexFromString(EConfigTestEnum& OutEnum, const TCHAR* InStr)
+{
+	if (FCString::Strcmp(InStr, TEXT("A")) == 0)
+	{
+		OutEnum = EConfigTestEnum::A;
+	}
+	else if (FCString::Strcmp(InStr, TEXT("B")) == 0)
+	{
+		OutEnum = EConfigTestEnum::B;
+	}
+}
+
+struct FTestConfigInnerInner
+{
+	float Float;
+};
+
+struct FTestConfigInner
+{
+	float Float;
+	FTestConfigInnerInner Object;
+	TArray<FTestConfigInnerInner> ObjectArray;
+	EConfigTestEnum Enum;
+	TArray<EConfigTestEnum> EnumArray;
+	TArray<FString> StringArray;
+};
+
 struct FTestConfig
 {
 	float Float;
 	int Int;
 	FString String;
 	TArray<int> IntArray;
+	FTestConfigInner Object;
+	TArray<FTestConfigInner> ObjectArray;
+	EConfigTestEnum Enum;
+	TArray<EConfigTestEnum> EnumArray;
 };
 
 namespace UE::Online::Meta {
+
+BEGIN_ONLINE_STRUCT_META(FTestConfigInnerInner)
+	ONLINE_STRUCT_FIELD(FTestConfigInnerInner, Float)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FTestConfigInner)
+	ONLINE_STRUCT_FIELD(FTestConfigInner, Float),
+	ONLINE_STRUCT_FIELD(FTestConfigInner, Object),
+	ONLINE_STRUCT_FIELD(FTestConfigInner, ObjectArray),
+	ONLINE_STRUCT_FIELD(FTestConfigInner, Enum),
+	ONLINE_STRUCT_FIELD(FTestConfigInner, EnumArray),
+	ONLINE_STRUCT_FIELD(FTestConfigInner, StringArray)
+END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FTestConfig)
 	ONLINE_STRUCT_FIELD(FTestConfig, Float),
 	ONLINE_STRUCT_FIELD(FTestConfig, Int),
 	ONLINE_STRUCT_FIELD(FTestConfig, String),
-	ONLINE_STRUCT_FIELD(FTestConfig, IntArray)
+	ONLINE_STRUCT_FIELD(FTestConfig, IntArray),
+	ONLINE_STRUCT_FIELD(FTestConfig, Object),
+	ONLINE_STRUCT_FIELD(FTestConfig, ObjectArray),
+	ONLINE_STRUCT_FIELD(FTestConfig, Enum),
+	ONLINE_STRUCT_FIELD(FTestConfig, EnumArray)
 END_ONLINE_STRUCT_META()
 
 /* UE::Online::Meta*/ }
@@ -425,7 +478,10 @@ END_ONLINE_STRUCT_META()
 void TestLoadConfigSyntax(UE::Online::IOnlineConfigProvider& ConfigProvider)
 {
 	FTestConfig TestConfig;
+	// Test loading from a section (each field maps to a key in that section)
 	UE::Online::LoadConfig(ConfigProvider, TEXT("Test"), TestConfig);
+	// Test loading from a specific key in a section (the config value is in object syntax, each field maps to a key in that object)
+	UE::Online::LoadConfig(ConfigProvider, TEXT("Test"), TEXT("Test"), TestConfig);
 }
 
 #endif // TEST_CONFIG_SYNTAX

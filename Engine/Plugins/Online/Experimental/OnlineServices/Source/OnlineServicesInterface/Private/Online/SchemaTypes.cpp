@@ -394,7 +394,32 @@ const FString LexToString(const FLexToStringAdaptor<FSchemaVariant>& Adaptor)
 
 void LexFromString(FSchemaVariant& OutSchemaVariant, const TCHAR* InStr)
 {
-	// todo
+	if (const TCHAR* ValueStr = FCString::Strchr(InStr, ':'))
+	{
+		const int32 TypeLen = UE_PTRDIFF_TO_INT32(ValueStr - InStr);
+		const FString TypeStr(TypeLen, InStr);
+		ValueStr++;
+
+		LexFromString(OutSchemaVariant.VariantType, *TypeStr);
+		switch (OutSchemaVariant.VariantType)
+		{
+		case ESchemaAttributeType::None:
+			OutSchemaVariant.VariantData = FSchemaVariant::FVariantType();
+			break;
+		case ESchemaAttributeType::Bool:
+			OutSchemaVariant.VariantData.Emplace<bool>(FCString::ToBool(ValueStr));
+			break;
+		case ESchemaAttributeType::Int64:
+			OutSchemaVariant.VariantData.Emplace<int64>(FCString::Strtoi64(ValueStr, nullptr, 10));
+			break;
+		case ESchemaAttributeType::Double:
+			OutSchemaVariant.VariantData.Emplace<double>(FCString::Atod(ValueStr));
+			break;
+		case ESchemaAttributeType::String:
+			OutSchemaVariant.VariantData.Emplace<FString>(ValueStr);
+			break;
+		}
+	}
 }
 
 /* UE::Online */ }
