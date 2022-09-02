@@ -848,7 +848,7 @@ namespace UnrealBuildTool
 			Result += " -Wl,-soname,libUnreal.so";
 
 			// exclude exported symbols from all static libs
-			Result += " -Wl,--exclude-libs,ALL";
+			//Result += " -Wl,--exclude-libs,ALL";
 
 			string VersionScriptFile = GetVersionScriptFilename(LinkEnvironment);
 			using (StreamWriter Writer = File.CreateText(VersionScriptFile))
