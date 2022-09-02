@@ -820,6 +820,21 @@ void FLevelEditorActionCallbacks::BuildPathsOnly_Execute()
 	FEditorBuildUtils::EditorBuild( GetWorld(), FBuildOptions::BuildAIPaths );
 }
 
+bool FLevelEditorActionCallbacks::IsWorldPartitionEnabled()
+{
+	return UWorld::IsPartitionedWorld(GetWorld());
+}
+
+bool FLevelEditorActionCallbacks::IsWorldPartitionStreamingEnabled()
+{
+	if (!IsWorldPartitionEnabled())
+	{
+		return false;
+	}
+
+	return GetWorld()->GetWorldPartition()->IsStreamingEnabled();
+}
+
 void FLevelEditorActionCallbacks::BuildHLODs_Execute()
 {
 	// Build HLOD

@@ -751,6 +751,8 @@ public:
 	static void BuildGeometryOnly_Execute();
 	static void BuildGeometryOnly_OnlyCurrentLevel_Execute();
 	static void BuildPathsOnly_Execute();
+	static bool IsWorldPartitionEnabled();
+	static bool IsWorldPartitionStreamingEnabled();
 	static void BuildHLODs_Execute();
 	static void BuildMinimap_Execute();
 	static void BuildLandscapeSplineMeshes_Execute();
