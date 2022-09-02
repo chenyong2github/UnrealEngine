@@ -284,7 +284,7 @@ struct FSchemaServiceDescriptor
 	/**
 	  * Service attribute descriptions.
 	  */
-	TArray<FSchemaServiceAttributeDescriptor> Attributes;
+	TArray<FSchemaServiceAttributeId> AttributeIds;
 };
 
 /**
@@ -338,10 +338,25 @@ struct FSchemaCategoryDescriptor
 	  * May only be set by base parent schema.
 	  */
 	FSchemaServiceDescriptorId ServiceDescriptorId;
+};
+
+/**
+  * Adds a set of attributes to a given category in a given schema.
+  */
+struct FSchemaCategoryAttributesDescriptor
+{
 	/**
-	  * Attribute descriptors.
-	  */
-	TArray<FSchemaAttributeDescriptor> Attributes;
+	 * The schema to add attributes to.
+	 */
+	FSchemaId SchemaId;
+	/**
+	 * The category to add attributes to.
+	 */
+	FSchemaCategoryId CategoryId;
+	/**
+	 * The attributes to add.
+	 */
+	TArray<FSchemaAttributeId> AttributeIds;
 };
 
 /**
@@ -362,7 +377,7 @@ struct FSchemaDescriptor
 	  * Categories of data within the schema. Each category is handled differently within the
 	  * service so will have different configuration of attributes and service attributes.
 	  */
-	TArray<FSchemaCategoryDescriptor> Categories;
+	TArray<FSchemaCategoryId> CategoryIds;
 };
 
 /**
@@ -371,13 +386,30 @@ struct FSchemaDescriptor
 struct FSchemaRegistryDescriptorConfig
 {
 	/**
-	  * List of all supported schema.
-	  */
+	 * List of all supported schema.
+	 */
 	TArray<FSchemaDescriptor> SchemaDescriptors;
 	/**
-	  * List of all service descriptors.
-	  */
+	 * List of all schema categories
+	 */
+	TArray<FSchemaCategoryDescriptor> SchemaCategoryDescriptors;
+	/**
+	 * List of all schema attributes
+	 */
+	TArray<FSchemaAttributeDescriptor> SchemaAttributeDescriptors;
+	/**
+	 * List of additional attributes to add to the given category for the given schema.
+	 */
+	TArray<FSchemaCategoryAttributesDescriptor> SchemaCategoryAttributeDescriptors;
+
+	/**
+	 * List of all service descriptors.
+	 */
 	TArray<FSchemaServiceDescriptor> ServiceDescriptors;
+	/**
+	 * List of all service attributes
+	 */
+	TArray<FSchemaServiceAttributeDescriptor> ServiceAttributeDescriptors;
 };
 
 /**
@@ -635,7 +667,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSchemaServiceDescriptor)
 	ONLINE_STRUCT_FIELD(FSchemaServiceDescriptor, Id),
-	ONLINE_STRUCT_FIELD(FSchemaServiceDescriptor, Attributes)
+	ONLINE_STRUCT_FIELD(FSchemaServiceDescriptor, AttributeIds)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSchemaAttributeDescriptor)
@@ -648,19 +680,28 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSchemaCategoryDescriptor)
 	ONLINE_STRUCT_FIELD(FSchemaCategoryDescriptor, Id),
-	ONLINE_STRUCT_FIELD(FSchemaCategoryDescriptor, ServiceDescriptorId),
-	ONLINE_STRUCT_FIELD(FSchemaCategoryDescriptor, Attributes)
+	ONLINE_STRUCT_FIELD(FSchemaCategoryDescriptor, ServiceDescriptorId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSchemaDescriptor)
 	ONLINE_STRUCT_FIELD(FSchemaDescriptor, Id),
 	ONLINE_STRUCT_FIELD(FSchemaDescriptor, ParentId),
-	ONLINE_STRUCT_FIELD(FSchemaDescriptor, Categories)
+	ONLINE_STRUCT_FIELD(FSchemaDescriptor, CategoryIds)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSchemaCategoryAttributesDescriptor)
+	ONLINE_STRUCT_FIELD(FSchemaCategoryAttributesDescriptor, SchemaId),
+	ONLINE_STRUCT_FIELD(FSchemaCategoryAttributesDescriptor, CategoryId),
+	ONLINE_STRUCT_FIELD(FSchemaCategoryAttributesDescriptor, AttributeIds)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSchemaRegistryDescriptorConfig)
 	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, SchemaDescriptors),
-	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, ServiceDescriptors)
+	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, SchemaCategoryDescriptors),
+	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, SchemaAttributeDescriptors),
+	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, SchemaCategoryAttributeDescriptors),
+	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, ServiceDescriptors),
+	ONLINE_STRUCT_FIELD(FSchemaRegistryDescriptorConfig, ServiceAttributeDescriptors)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

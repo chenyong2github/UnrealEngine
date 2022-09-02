@@ -193,6 +193,7 @@ public:
 	 * Load a config struct for an interface + operation
 	 * Will load values from the following sections:
 	 *   OnlineServices
+	 *   OnlineServices.<InterfaceName> (if InterfaceName is set)
 	 *   OnlineServices.<ServiceProvider>
 	 *   OnlineServices.<ServiceProvider>.<InterfaceName> (if InterfaceName is set)
 	 *   OnlineServices.<ServiceProvider>.<InterfaceName>.<OperationName> (if OperationName is set)
@@ -209,6 +210,10 @@ public:
 		TArray<FString> SectionHeiarchy;
 		FString SectionName = TEXT("OnlineServices");
 		SectionHeiarchy.Add(SectionName);
+		if (!InterfaceName.IsEmpty())
+		{
+			SectionHeiarchy.Add(SectionName + TEXT(".") + InterfaceName);
+		}
 		SectionName += TEXT(".") + GetConfigName();
 		SectionHeiarchy.Add(SectionName);
 		if (!InterfaceName.IsEmpty())

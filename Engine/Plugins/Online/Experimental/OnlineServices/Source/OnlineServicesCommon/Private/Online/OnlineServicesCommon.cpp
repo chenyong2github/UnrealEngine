@@ -24,9 +24,9 @@ FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName, FName 
 void FOnlineServicesCommon::Init()
 {
 	OpCache.SetLoadConfigFn(
-		[this](FOperationConfig& OperationConfig, const TArray<FString>& SectionHeiarchy)
+		[this](FOperationConfig& OperationConfig, const TArray<FString>& SectionHeirarchy)
 		{
-			return LoadConfig(OperationConfig, SectionHeiarchy);
+			return LoadConfig(OperationConfig, SectionHeirarchy);
 		});
 
 	RegisterComponents();
