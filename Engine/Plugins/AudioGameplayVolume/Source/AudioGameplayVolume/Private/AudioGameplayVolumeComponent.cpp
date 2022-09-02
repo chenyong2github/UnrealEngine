@@ -130,3 +130,9 @@ UAudioGameplayVolumeSubsystem* UAudioGameplayVolumeComponent::GetSubsystem() con
 
 	return nullptr;
 }
+
+UAudioGameplayVolumeComponentBase::UAudioGameplayVolumeComponentBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	bAutoActivate = true;
+}
