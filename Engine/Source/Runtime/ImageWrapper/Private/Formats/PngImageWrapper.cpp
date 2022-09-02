@@ -378,6 +378,8 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 				png_set_palette_to_rgb(png_ptr);
 			}
 
+			// really we should just call png_expand() here and remove all these conditionals
+
 			if (((ColorType & PNG_COLOR_MASK_COLOR) == 0) && BitDepth < 8)
 			{
 				png_set_expand_gray_1_2_4_to_8(png_ptr);
@@ -387,14 +389,10 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 			if ((ColorType & PNG_COLOR_MASK_ALPHA) == 0 && (InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::RGBA))
 			{
 				// png images don't set PNG_COLOR_MASK_ALPHA if they have alpha from a tRNS chunk, but png_set_add_alpha seems to be safe regardless
-				if ((ColorType & PNG_COLOR_MASK_COLOR) == 0)
-				{
-					png_set_tRNS_to_alpha(png_ptr);
-				}
-				else if (ColorType == PNG_COLOR_TYPE_PALETTE)
-				{
-					png_set_tRNS_to_alpha(png_ptr);
-				}
+				png_set_tRNS_to_alpha(png_ptr);
+
+				// note: png_set_tRNS_to_alpha is just an alias for png_expand
+
 				if (InBitDepth == 8)
 				{
 					png_set_add_alpha(png_ptr, 0xff , PNG_FILLER_AFTER);
