@@ -20,7 +20,7 @@ struct FScopedHLSLMaterialTranslatorRestrictiveModeChange
 		SetHLSLMaterialTranslatorRestrictiveMode(bRestrictiveMode);
 	}
 	
-	FORCEINLINE FScopedHLSLMaterialTranslatorRestrictiveModeChange()
+	FORCEINLINE ~FScopedHLSLMaterialTranslatorRestrictiveModeChange()
 	{
 		SetHLSLMaterialTranslatorRestrictiveMode(bRestoreRestrictiveMode);
 	}
