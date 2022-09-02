@@ -200,7 +200,6 @@ public:
 		{
 			return nullptr;
 		}
-
 		// unique name (we may want to use another approach here to manage uniqueness)
 		const FName Name = MakeUniqueObjectName(Manager, TConstraint::StaticClass(), InBaseName);
 

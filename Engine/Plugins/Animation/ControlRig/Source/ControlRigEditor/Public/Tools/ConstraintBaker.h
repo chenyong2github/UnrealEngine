@@ -8,13 +8,15 @@
 class UTransformableHandle;
 class UTickableTransformConstraint;
 class ISequencer;
+class UWorld;
+struct FFrameNumber;
 enum class EMovieSceneTransformChannel : uint32;
 
 struct FConstraintBaker
 {
 public:
-	/** @todo documentation. (subject to changes to handle start / stop as parameters) */
-	static void DoIt(UTickableTransformConstraint* InConstraint);
+	/** Bake constraint over specified frames, frames must be in order*/
+	static void Bake(UWorld* InWorld, UTickableTransformConstraint* InConstraint, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
 
 	/** Stores InHandle local (or global) transforms at InFrames. */
 	static void GetHandleTransforms(

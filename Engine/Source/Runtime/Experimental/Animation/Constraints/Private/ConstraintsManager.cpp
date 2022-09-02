@@ -377,7 +377,8 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 		return false;
 	}
 
-	// TODO handle transaction
+	Manager->Modify();
+
 	Manager->Constraints.Emplace(InConstraint);
 
 	InConstraint->ConstraintTick.RegisterFunction(InConstraint->GetFunction());
@@ -426,6 +427,8 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 		return false;
 	}
 
+	Manager->Modify();
+
 	const FName ConstraintName = Manager->Constraints[InConstraintIndex]->GetFName();
 	UTickableConstraint* Constraint = Manager->Constraints[InConstraintIndex];
 	
@@ -433,7 +436,6 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	ConstraintRemoved.Broadcast(ConstraintName);
 	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint);
 
-	// TODO handle transaction
 	Manager->Constraints[InConstraintIndex]->ConstraintTick.UnRegisterTickFunction();
 	Manager->Constraints.RemoveAt(InConstraintIndex);
 

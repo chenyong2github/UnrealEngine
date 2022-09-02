@@ -52,6 +52,7 @@ namespace
 	IndexRange GetRange(const TArrayView<const bool>& Values, const int32 Offset) 
 	{
 		IndexRange Range;
+		Range = Range.Empty();
 			
 		int32 FirstActive = INDEX_NONE;
 		for (int32 Index = Offset; Index < Values.Num(); ++Index)

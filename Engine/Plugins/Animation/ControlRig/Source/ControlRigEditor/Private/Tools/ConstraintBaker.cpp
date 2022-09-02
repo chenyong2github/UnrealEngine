@@ -14,8 +14,12 @@
 #include "TransformableHandle.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Constraints/ControlRigTransformableHandle.h"
-#include "Tools/BakingHelper.h"
+#include "MovieSceneConstraintChannelHelper.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
+#include "ConstraintChannelHelper.h"
+#include "ConstraintChannel.h"
+#include "ConstraintChannelHelper.inl"
 
 #define LOCTEXT_NAMESPACE "ConstraintBaker"
 
@@ -64,7 +68,6 @@ namespace
 		{
 			return;
 		}
-		TransformSection->Modify();
 		const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 		InComponentHandle->AddTransformKeys(InFrames, InTransforms, InChannels, MovieScene->GetTickResolution(), TransformSection, true);
 
@@ -89,50 +92,6 @@ namespace
 		InControlHandle->AddTransformKeys(InFrames, InLocalTransforms, InChannels, MovieScene->GetTickResolution(), Section, true);
 
 	}
-}
-void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
-{
-	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
-	if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
-	{
-		return;
-	}
-	const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	const UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-	if (!MovieScene)
-	{
-		return;
-	}
-
-	// compute frames
-	const FFrameNumber StartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
-	const FFrameNumber EndFrame = MovieScene->GetPlaybackRange().GetUpperBoundValue();
-	TArray<FFrameNumber> Frames;
-	MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
-
-	if (Frames.IsEmpty())
-	{
-		return;
-	}
-
-	// compute transforms
-	TArray<FTransform> Transforms;
-	GetHandleTransforms(Sequencer, InConstraint->ChildTRSHandle, {InConstraint}, Frames, true, Transforms);
-	
-	if (Frames.Num() != Transforms.Num())
-	{
-		return;
-	}
-
-	// bake to channel curves
-	const EMovieSceneTransformChannel Channels = InConstraint->GetChannelsToKey();
-	AddTransformKeys(Sequencer, InConstraint->ChildTRSHandle, Frames, Transforms, Channels);
-
-	// disable constraint
-	InConstraint->SetActive(false);
-	
-	// notify
-	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
 void FConstraintBaker::GetHandleTransforms(
@@ -217,6 +176,101 @@ void FConstraintBaker::AddTransformKeys(
 	{
 		return BakeControl(InSequencer, ControlHandle, InFrames, InTransforms, InChannels); 
 	}
+}
+
+
+void FConstraintBaker::Bake(UWorld* InWorld, 
+	UTickableTransformConstraint* InConstraint,
+	const TSharedPtr<ISequencer>& InSequencer, 
+	const TArray<FFrameNumber>& InFrames)
+{
+	if (InFrames.Num() == 0 || InConstraint == nullptr || InConstraint->ChildTRSHandle == nullptr)
+	{
+		return;
+	}
+	
+	// compute transforms
+	TArray<FTransform> Transforms;
+	GetHandleTransforms(InSequencer, InConstraint->ChildTRSHandle, { InConstraint }, InFrames, true, Transforms);
+
+	if (InFrames.Num() != Transforms.Num())
+	{
+		return;
+	}
+	//get the section to be used later to delete the extra transform keys at the frame -1 times, abort if not there for some reason
+	UMovieSceneSection* Section = nullptr;
+	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
+	{
+		Section = FConstraintChannelHelper::GetControlSection(ControlHandle, InSequencer);
+	}
+	else if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InConstraint->ChildTRSHandle))
+	{ 
+		//todo move to function also used by SmartConstraintKey
+		AActor* Actor = ComponentHandle->Component->GetOwner();
+		if (!Actor)
+		{
+			return;
+		}
+
+		const FTransform LocalTransform = ComponentHandle->GetLocalTransform();
+		const FGuid Guid = InSequencer->GetHandleToObject(Actor, true);
+		if (!Guid.IsValid())
+		{
+			return;
+		}
+		Section = MovieSceneToolHelpers::GetTransformSection(InSequencer.Get(), Guid, LocalTransform);
+	}
+	if (Section == nullptr)
+	{
+		return;
+	}
+	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(Section);
+	if (ConstrainedSection == nullptr)
+	{
+		return;
+	}
+	FConstraintAndActiveChannel* ActiveChannel = ConstrainedSection->GetConstraintChannel(InConstraint->GetFName());
+	if (ActiveChannel == nullptr)
+	{
+		return;
+	}
+
+	Section->Modify();
+
+	// disable constraint and delete extra transform keys
+	TMovieSceneChannelData<bool> ConstraintChannelData = ActiveChannel->ActiveChannel.GetData();
+	TArrayView<const FFrameNumber> ConstraintFrames = ConstraintChannelData.GetTimes();
+
+	// get transform channels
+	const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = InConstraint->ChildTRSHandle->GetFloatChannels(Section);
+	const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = InConstraint->ChildTRSHandle->GetDoubleChannels(Section);
+
+	for (int32 Index = 0; Index < ConstraintFrames.Num(); ++Index)
+	{
+		const FFrameNumber Frame = ConstraintFrames[Index];
+		//todo we need to add a key at the begin/end if there is no frame there
+		if (Frame >= InFrames[0] && Frame <= InFrames[InFrames.Num() - 1])
+		{
+			ConstraintChannelData.UpdateOrAddKey(Frame, false);
+			//delete minus one frames
+			const FFrameNumber FrameMinusOne = Frame - 1;
+
+			if (FloatTransformChannels.Num() > 0)
+			{
+				FMovieSceneConstraintChannelHelper::DeleteTransformKeys(FloatTransformChannels, FrameMinusOne);
+			}
+			else if (DoubleTransformChannels.Num() > 0)
+			{
+				FMovieSceneConstraintChannelHelper::DeleteTransformKeys(DoubleTransformChannels, FrameMinusOne);
+			}
+		}
+	}
+	// now bake to channel curves
+	const EMovieSceneTransformChannel Channels = InConstraint->GetChannelsToKey();
+	AddTransformKeys(InSequencer, InConstraint->ChildTRSHandle, InFrames, Transforms, Channels);
+
+	// notify
+	InSequencer->RequestEvaluate();
 }
 
 #undef LOCTEXT_NAMESPACE

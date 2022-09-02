@@ -22,6 +22,9 @@
 #include "DetailsViewArgs.h"
 #include "Tools/ConstraintBaker.h"
 #include "ScopedTransaction.h"
+#include "ISequencer.h"
+#include "Tools/BakingHelper.h"
+#include "MovieSceneToolHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SConstraintsWidget"
 
@@ -912,10 +915,37 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 			LOCTEXT("BakeConstraintLabel", "Bake"),
 			FText::Format(LOCTEXT("BakeConstraintDoItTooltip", "Bake {0} transforms."), ConstraintLabel),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
-			{
-				FConstraintBaker::DoIt(TransformConstraint);
-			})),
+			FUIAction(FExecuteAction::CreateLambda([Constraint, World]()
+				{
+					if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+					{
+						const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
+						if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
+						{
+							return;
+						}
+						const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+						const UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+						if (!MovieScene)
+						{
+							return;
+						}
+
+						// compute frames
+						const FFrameNumber StartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
+						const FFrameNumber EndFrame = MovieScene->GetPlaybackRange().GetUpperBoundValue();
+						TArray<FFrameNumber> Frames;
+						MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
+
+						if (Frames.IsEmpty())
+						{
+							return;
+						}
+						FScopedTransaction Transaction(LOCTEXT("BakeConstraint", "Bake Constraint"));
+						FConstraintBaker::Bake(World, TransformConstraint, WeakSequencer.Pin(), Frames);
+
+					}
+				})),
 			NAME_None,
 			EUserInterfaceActionType::Button);
 		}

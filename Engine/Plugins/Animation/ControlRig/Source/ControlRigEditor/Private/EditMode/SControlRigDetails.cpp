@@ -426,6 +426,10 @@ void SControlRigDetails::UpdateProxies()
 				const TArray<UControlRigControlsProxy*>& Proxies = ControlProxy->GetSelectedProxies();
 				for (UControlRigControlsProxy* Proxy : Proxies)
 				{
+					if (Proxy == nullptr)
+					{
+						continue;
+					}
 					if (Proxy->GetClass() == UControlRigTransformControlProxy::StaticClass())
 					{
 						if (Proxy->bIsIndividual)

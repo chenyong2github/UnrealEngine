@@ -44,9 +44,11 @@ public:
 		const UMovieSceneControlRigParameterSection* Section,
 		const TOptional<FFrameNumber>& OptionalTime);
 
+	/** @todo documentation. */
+	static UMovieSceneControlRigParameterSection* GetControlSection(
+		const UTransformableControlHandle* InHandle,
+		const TSharedPtr<ISequencer>& InSequencer);
 
-
-	
 private:
 
 	/** BEGIN CONTROL RIG SECTION */
@@ -54,11 +56,6 @@ private:
 	/** @todo documentation. */
 	static void SmartControlConstraintKey(
 		UTickableTransformConstraint* InConstraint,
-		const TSharedPtr<ISequencer>& InSequencer);
-
-	/** @todo documentation. */
-	static UMovieSceneControlRigParameterSection* GetControlSection(
-		const UTransformableControlHandle* InHandle,
 		const TSharedPtr<ISequencer>& InSequencer);
 	
 	/** END CONTROL RIG SECTION */
