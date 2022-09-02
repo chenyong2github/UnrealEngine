@@ -63,7 +63,7 @@ namespace UE::DMXRuntime::DMXMVRFixture::Private
 			OutGDTFSpec = GDTFSpecNode->GetContent();
 
 			// Append the gdtf extension if it's missing.
-			if (FPaths::GetExtension(OutGDTFSpec) != TEXT(".gdtf"))
+			if (FPaths::GetExtension(OutGDTFSpec) != TEXT("gdtf"))
 			{
 				OutGDTFSpec += TEXT(".gdtf");
 			}
