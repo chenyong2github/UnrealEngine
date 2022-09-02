@@ -75,4 +75,10 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
 	static bool CaptureNiagaraSimCacheImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent);
+
+	/**
+	Captures the simulation cache object that can be captured into using the various API calls.
+	*/
+	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(WorldContext="WorldContextObject"))
+	static UNiagaraSimCache* CreateNiagaraSimCache(UObject* WorldContextObject);
 };
