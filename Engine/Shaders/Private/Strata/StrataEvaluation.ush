@@ -332,9 +332,9 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 			// Primary highlight
 			float PDF = 0;
-			float3 DirectionalAlbedo_SpecularTransmission = 1.0f;
+			float DirectionalAlbedo_SpecularTransmission = 1.0f;
 			{
-				float3 MSScale = 1.0f;
+				FBxDFEnergyType MSScale = 1.0f;
 				{
 					FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, F0, F90);
 					DirectionalAlbedo_SpecularTransmission = ComputeEnergyPreservation(EnergyTerms);
@@ -408,12 +408,12 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 				if (bIsRectLight)
 				{
-					Sample.SpecularPathValue = SpecularMicroOcclusion * RectLightSpec * MSScale;
+					Sample.SpecularPathValue = (SpecularMicroOcclusion * MSScale) * RectLightSpec;
 				}
 				else
 				{
 					const float3 FresnelTerm = F_Schlick(F0, F90, BSDFContext.Context.VoH);
-					Sample.SpecularPathValue = (SpecularMicroOcclusion * D * Vis) * FresnelTerm * MSScale;
+					Sample.SpecularPathValue = ((SpecularMicroOcclusion * D * Vis) * MSScale) * FresnelTerm;
 				}
 
 				Sample.SpecularPathProbability     = 1.0f;
@@ -442,7 +442,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				}
 
 				FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(HazeSafeRoughness, BSDFContext.Context.NoV, HazeF0, HazeF90);
-				float3 HazeMSScale = ComputeEnergyConservation(EnergyTerms);
+				FBxDFEnergyType HazeMSScale = ComputeEnergyConservation(EnergyTerms);
 
 				float HazeD = 0;
 				float HazeVis = 0;
@@ -500,11 +500,11 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				const float3 HazeFresnelTerm = F_Schlick(HazeF0, HazeF90, BSDFContext.Context.VoH);
 				if (bIsRectLight)
 				{					
-					Sample.SpecularHazePathValue = RectLightSpecHaze * HazeMSScale * HazeSpecularMicroOcclusion;
+					Sample.SpecularHazePathValue = RectLightSpecHaze * (HazeMSScale * HazeSpecularMicroOcclusion);
 				}
 				else
 				{
-					Sample.SpecularHazePathValue = (HazeD * HazeVis * HazeSpecularMicroOcclusion) * HazeFresnelTerm * HazeMSScale;
+					Sample.SpecularHazePathValue = ((HazeD * HazeVis * HazeSpecularMicroOcclusion) * HazeMSScale) * HazeFresnelTerm;
 				}
 
 				// Reminder: 
@@ -731,7 +731,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 				// Shading point <-> View throughput
 				const float3 SlabTransmittanceV = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, BSDFContext.Context.NoV);
-				const float3 SpecularTransmissionV = DirectionalAlbedo_SpecularTransmission;
+				const float SpecularTransmissionV = DirectionalAlbedo_SpecularTransmission;
 
 				// Shading point <-> Light throughput
 				// Compute the transmittance at normal incidence (instead of BSDFContext.Context.NoL), and will compute the final value during evaluation 
@@ -840,8 +840,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			// Apply energy conservation on the diffuse component
 			// If the specular layer is anisotropic, the energy term is computed onto the 'main' roughness [Kulla 2019]
 			//
-			float3 MSScale = 1;
-			float3 DirectionalAlbedo_SpecularTransmission = 1.0f;
+			FBxDFEnergyType MSScale = 1;
+			float DirectionalAlbedo_SpecularTransmission = 1.0f;
 			{
 				FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, F0, F90);
 				DirectionalAlbedo_SpecularTransmission = ComputeEnergyPreservation(EnergyTerms);
@@ -901,12 +901,12 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 			if (bIsRectLight)
 			{
-				Sample.SpecularPathValue       = RectLightSpec * MSScale * SpecularMicroOcclusion;
+				Sample.SpecularPathValue       = RectLightSpec * (MSScale * SpecularMicroOcclusion);
 				Sample.IntegratedSpecularValue = (ShadowTerms.SurfaceShadow * /* AreaLightContext.NoL and falloff is part of the LTC integration already */ Sample.SpecularPathProbability) * Sample.SpecularPathValue;
 			}
 			else
 			{
-				Sample.SpecularPathValue        = (D * Vis) * FresnelTerm * MSScale;
+				Sample.SpecularPathValue        = ((D * Vis) * MSScale) * FresnelTerm;
 				Sample.IntegratedSpecularValue += (ShadowTerms.SurfaceShadow * AreaLightContext.NoL * AreaLightContext.Falloff) * AreaLightContext.AreaLight.FalloffColor * Sample.SpecularPathValue * Sample.SpecularPathProbability;
 			}
 
@@ -1268,10 +1268,10 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDFContext.BSDF));
 
 			float3 EvalEnvBRDF = 0;
-			float3 DirectionalAlbedo_SpecularTransmission = 0;
+			float DirectionalAlbedo_SpecularTransmission = 0;
 			{
-				FBxDFEnergyTerms SpecularEnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, F0, F90);
-				FBxDFEnergyTerms DiffuseEnergyTerms  = ComputeDiffuseEnergyTerms(SafeRoughness, BSDFContext.Context.NoV);
+				FBxDFEnergyTermsRGB SpecularEnergyTerms = ComputeGGXSpecEnergyTermsRGB(SafeRoughness, BSDFContext.Context.NoV, F0, F90);
+				FBxDFEnergyTermsRGB DiffuseEnergyTerms  = ComputeDiffuseEnergyTermsRGB(SafeRoughness, BSDFContext.Context.NoV);
 				EvalEnvBRDF									= SpecularEnergyTerms.E;
 				DirectionalAlbedo_SpecularTransmission		= ComputeEnergyPreservation(SpecularEnergyTerms);
 				StrataEnvLightResult.DiffuseWeight			= DiffuseColor * DiffuseEnergyTerms.E * DirectionalAlbedo_SpecularTransmission;
@@ -1364,7 +1364,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 						const float HazeF0 = 0.04f;
 						const float HazeF90= 1.0f;
 						const float HazeSpecularMicroOcclusion = F0RGBToMicroOcclusion(HazeF0);
-						FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(HazeSafeRoughness, BSDFContext.Context.NoV, HazeF0, HazeF90);
+						FBxDFEnergyTermsRGB EnergyTerms = ComputeGGXSpecEnergyTermsRGB(HazeSafeRoughness, BSDFContext.Context.NoV, HazeF0, HazeF90);
 						const float3 EvalEnvBRDFHaze = EnergyTerms.E;
 						const float3 TopLayerSpecularTransmittionApprox = saturate(1.0f - EvalEnvBRDFHaze); // Simple and do not use extra LUT for now
 
@@ -1391,7 +1391,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 						StrataEnvLightResult.SSRSpecularWeight *= BlendFactor;
 
 						// Compute the directional albedo for hazy specular
-						FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(HazeSafeRoughness, BSDFContext.Context.NoV, F0, F90);
+						FBxDFEnergyTermsRGB EnergyTerms = ComputeGGXSpecEnergyTermsRGB(HazeSafeRoughness, BSDFContext.Context.NoV, F0, F90);
 						const float3 EvalEnvBRDFHaze = EnergyTerms.E;
 						StrataEnvLightResult.SpecularHazeWeight = (lerp(0.0f, HazeWeight, HazinessFadeIn) * SpecularMicroOcclusion) * EvalEnvBRDFHaze;
 						StrataEnvLightResult.SpecularHazeSafeRoughness = HazeSafeRoughness;
@@ -1432,10 +1432,10 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				const float3 FuzzF0 = SLAB_FUZZ_COLOR(BSDFContext.BSDF);
 
 				const float ClothF90 = 1.0f;
-				FBxDFEnergyTerms ClothEnergyTerms = ComputeClothEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, FuzzF0, ClothF90);
+				const FBxDFEnergyTermsRGB ClothEnergyTerms = ComputeClothEnergyTermsRGB(SafeRoughness, BSDFContext.Context.NoV, FuzzF0, ClothF90);
 
 				// The specular and diffuse components below the fuzz are only attenuated linearly according to the amount of fuzz.
-				const float3 Cloth_DirectionalAlbedo_SpecularTransmission = lerp(1.0, ComputeEnergyPreservation(ClothEnergyTerms), FuzzAmount);
+				const float Cloth_DirectionalAlbedo_SpecularTransmission = lerp(1.0, ComputeEnergyPreservation(ClothEnergyTerms), FuzzAmount);
 
 				StrataEnvLightResult.DiffuseColor		*= Cloth_DirectionalAlbedo_SpecularTransmission;
 				StrataEnvLightResult.DiffuseWeight		*= Cloth_DirectionalAlbedo_SpecularTransmission;
@@ -1504,7 +1504,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			float3 EvalEnvBRDF = 0;
 			float3 DirectionalAlbedo_SpecularTransmission = 0;
 			{
-				FBxDFEnergyTerms SpecularEnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, F0, F90);
+				FBxDFEnergyTermsRGB SpecularEnergyTerms = ComputeGGXSpecEnergyTermsRGB(SafeRoughness, BSDFContext.Context.NoV, F0, F90);
 				const float DiffuseDirectionalAlbedo = 1.0f;
 				EvalEnvBRDF									= SpecularEnergyTerms.E;
 				DirectionalAlbedo_SpecularTransmission		= ComputeEnergyPreservation(SpecularEnergyTerms);

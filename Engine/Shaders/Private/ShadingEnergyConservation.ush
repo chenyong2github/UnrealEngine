@@ -20,7 +20,7 @@
 //   https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
 // [2] "Practical multiple scattering compensation for microfacet models" - Emmanuel Turquin
 //   https://blog.selfshadow.com/publications/turquin/ms_comp_final.pdf
-// [3] "A Multiple-Scattering Microfacet Model for Real-Time Image Based Lighting" - Carmelo J. Fdez-Agüera
+// [3] "A Multiple-Scattering Microfacet Model for Real-Time Image Based Lighting" - Carmelo J. Fdez-Aguera
 //   http://jcgt.org/published/0008/01/03/
 // 
 // We follow the terminology from [1]:
@@ -35,6 +35,9 @@
 //    0: disable conservation, all bsdfs are assumed to already have unit albedo from all viewing angles
 //    1: use a small baked texture to store the directional albedo (and fresnel weighted albedo)
 //    2: use an analytic approximation to directional albedo (doesn't require any textures to be bound and can be faster -- WIP)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// LUT Lookups
 
 float2 GGXEnergyLookup(float Roughness, float NoV)
 {
@@ -99,107 +102,55 @@ float DiffuseEnergyLookup(float Roughness, float NoV)
 #endif
 }
 
-struct FBxDFEnergyTerms {
-	float3 W; // overall weight to scale the lobe BxDF by to ensure energy conservation
-	float3 E; // Directional albedo of the lobe for energy preservation and lobe picking
-};
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// BxDFs Energy terms & Energy Preservation/Conservation utils
 
-// Given a split-sum approximation of directional albedo for a BxDF, compute multiple scattering weight and multiple scattering directional albedo
-// while taking into account the fresnel term (assumed to be F_Schlick)
-FBxDFEnergyTerms ComputeFresnelEnergyTerms(float2 E, float3 F0, float3 F90) 
-{
-	FBxDFEnergyTerms Result;
-	// [2] Eq 16: this restores the missing energy of the bsdf, while also accounting for the fact that the fresnel term causes some energy to be absorbed
-	// NOTE: using F0 here is an approximation, but for schlick fresnel Favg is almost exactly equal to F0
-#if USE_DEVELOPMENT_SHADERS
-	Result.W = View.bShadingEnergyConservation ? (1.0 + F0 * ((1 - E.x) / E.x)) : 1.0f;
-#else
-	Result.W = 1.0 + F0 * ((1 - E.x) / E.x);
+// Note:
+// * For performance reason, we maintain both a *chromatic* and an *achromatic* version of the energy terms.
+// * Chromatic and achromatic version are respectively accessible with xxxRGB or xxxA suffix. 
+// * USE_ACHROMATIC_BXDF_ENERGY determines which version should be used by default
+
+// Chromatic version
+#define BXDF_ENERGY_TYPE float3
+#define BXDF_ENERGY_SUFFIX(N) N##RGB
+#define IS_BXDF_ENERGY_TYPE_ACHROMATIC 0
+#include "ShadingEnergyConservationTemplate.ush"
+#undef BXDF_ENERGY_TYPE
+#undef BXDF_ENERGY_TYPE_SUFFIX
+#undef IS_BXDF_ENERGY_TYPE_ACHROMATIC
+
+// Achromatic version
+#define BXDF_ENERGY_TYPE float
+#define BXDF_ENERGY_SUFFIX(N) N##A
+#define IS_BXDF_ENERGY_TYPE_ACHROMATIC 1
+#include "ShadingEnergyConservationTemplate.ush"
+#undef BXDF_ENERGY_TYPE
+#undef BXDF_ENERGY_TYPE_SUFFIX
+#undef IS_BXDF_ENERGY_TYPE_ACHROMATIC
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Default implementation
+
+#ifndef USE_ACHROMATIC_BXDF_ENERGY
+#define USE_ACHROMATIC_BXDF_ENERGY 0
 #endif
-	// Now estimate the amount of energy reflected off this specular lobe so that we can remove it from underlying BxDF layers (like diffuse)
-	// This relies on the split-sum approximation as in [3] Sec 4.
-	// This term can also be useful to compute the probability of choosing among lobes
-	Result.E = Result.W * (E.x * F0 + E.y * (F90 - F0));
-	return Result;
-}
 
-FBxDFEnergyTerms ComputeGGXSpecEnergyTerms(float Roughness, float NoV, float3 F0, float3 F90)
-{
-	FBxDFEnergyTerms Out;
-#if USE_ENERGY_CONSERVATION > 0
-	{
-		Out = ComputeFresnelEnergyTerms(GGXEnergyLookup(Roughness, NoV), F0, F90);
-	}
+#if USE_ACHROMATIC_BXDF_ENERGY
+#define FBxDFEnergyType  float 	
+#define FBxDFEnergyTerms FBxDFEnergyTermsA
+#define ComputeFresnelEnergyTerms ComputeFresnelEnergyTermsA
+#define ComputeGGXSpecEnergyTerms ComputeGGXSpecEnergyTermsA
+#define ComputeGGXSpecEnergyTerms ComputeGGXSpecEnergyTermsA
+#define ComputeClothEnergyTerms   ComputeClothEnergyTermsA
+#define ComputeClothEnergyTerms   ComputeClothEnergyTermsA
+#define ComputeDiffuseEnergyTerms ComputeDiffuseEnergyTermsA
 #else
-	{
-		Out.W = 1.0f;
-		Out.E = F0;
-	}
+#define FBxDFEnergyType float3 
+#define FBxDFEnergyTerms FBxDFEnergyTermsRGB
+#define ComputeFresnelEnergyTerms ComputeFresnelEnergyTermsRGB
+#define ComputeGGXSpecEnergyTerms ComputeGGXSpecEnergyTermsRGB
+#define ComputeGGXSpecEnergyTerms ComputeGGXSpecEnergyTermsRGB
+#define ComputeClothEnergyTerms   ComputeClothEnergyTermsRGB
+#define ComputeClothEnergyTerms   ComputeClothEnergyTermsRGB
+#define ComputeDiffuseEnergyTerms ComputeDiffuseEnergyTermsRGB
 #endif
-	return Out;
-}
-
-FBxDFEnergyTerms ComputeGGXSpecEnergyTerms(float Roughness, float NoV, float3 F0)
-{
-	const float F90 = saturate(50.0 * F0.g); // See F_Schlick implementation
-	return ComputeGGXSpecEnergyTerms(Roughness, NoV, F0, F90);
-}
-
-FBxDFEnergyTerms ComputeClothEnergyTerms(float Roughness, float NoV, float3 F0, float3 F90)
-{
-	FBxDFEnergyTerms Out;
-#if USE_ENERGY_CONSERVATION > 0
-	{
-		Out = ComputeFresnelEnergyTerms(ClothEnergyLookup(Roughness, NoV), F0, F90);
-	}
-#else
-	{
-		Out.W = 1.0f;
-		Out.E = F0;
-	}
-#endif
-	return Out;
-}
-
-FBxDFEnergyTerms ComputeClothEnergyTerms(float Roughness, float NoV, float3 F0)
-{
-	const float F90 = saturate(50.0 * F0.g); // See F_Schlick implementation
-	return ComputeClothEnergyTerms(Roughness, NoV, F0, F90);
-}
-
-FBxDFEnergyTerms ComputeDiffuseEnergyTerms(float Roughness, float NoV)
-{
-	FBxDFEnergyTerms Out;
-#if USE_ENERGY_CONSERVATION > 0
-	{
-		Out.E = DiffuseEnergyLookup(Roughness, NoV);
-	}
-#else
-	{
-		Out.E = 1.0f;
-	}
-#endif
-	Out.W = 1.0f;
-	return Out;
-}
-
-// Return the energy absorbed by upper layer (e.g., for the specular layer attenuation onto diffuse)
-float3 ComputeEnergyPreservation(FBxDFEnergyTerms EnergyTerms)
-{
-#if USE_ENERGY_CONSERVATION > 0
-	// Use the directional albedo luminance to avoid color-shift due to metallic specular (for which the energy should be absorbed, not transmitted)
-	#if USE_DEVELOPMENT_SHADERS
-	return View.bShadingEnergyPreservation ? (1 - Luminance(EnergyTerms.E)) : 1.0f;
-	#else
-	return 1 - Luminance(EnergyTerms.E);
-	#endif
-#else
-	return 1.0f;
-#endif
-}
-
-// Return the energy conservation weight factor for account energy loss in the BSDF model (i.e. due to micro-facet multiple scattering)
-float3 ComputeEnergyConservation(FBxDFEnergyTerms EnergyTerms)
-{
-	return EnergyTerms.W;
-}
