@@ -756,7 +756,7 @@ protected:
 	void ProcessCustomLinkPendingRegistration();
 
 	/** used to apply updates of nav volumes in navigation system's tick */
-	void PerformNavigationBoundsUpdate(const TArray<FNavigationBoundsUpdateRequest>& UpdateRequests);
+	virtual void PerformNavigationBoundsUpdate(const TArray<FNavigationBoundsUpdateRequest>& UpdateRequests);
 	
 	/** adds data to RegisteredNavBounds */
 	void AddNavigationBounds(const FNavigationBounds& NewBounds);
