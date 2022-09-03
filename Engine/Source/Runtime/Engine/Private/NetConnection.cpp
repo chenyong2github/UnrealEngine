@@ -2056,7 +2056,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		
 		++OutPacketId; 
 
-		if (!IsInternalAck())
+		if (!IsReplay())
 		{
 			int32 NewQueuedBits = 0;
 			const bool bWouldOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(QueuedBits, PacketBytes * 8, NewQueuedBits);
@@ -2176,7 +2176,7 @@ bool UNetConnection::ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) co
 
 int32 UNetConnection::IsNetReady(bool Saturate)
 {
-	if (IsInternalAck())
+	if (IsReplay())
 	{
 		return 1;
 	}
@@ -4404,7 +4404,7 @@ void UNetConnection::Tick(float DeltaSeconds)
 
 	SaturationAnalytics.TrackFrame(!IsNetReady(false));
 
-	if (!IsInternalAck())
+	if (!IsReplay())
 	{
 		// Clamp DeltaTime for bandwidth limiting so that if there is a hitch, we don't try to send
 		// a large burst on the next frame, which can cause another hitch if a lot of additional replication occurs.
