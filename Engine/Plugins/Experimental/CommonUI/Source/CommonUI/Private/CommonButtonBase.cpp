@@ -734,8 +734,6 @@ void UCommonButtonBase::SetIsLocked(bool bInIsLocked)
 {
 	bLocked = bInIsLocked;
 
-	SetButtonStyle();
-
 	BP_OnLockedChanged(bLocked);
 }
 
@@ -1112,8 +1110,6 @@ FReply UCommonButtonBase::NativeOnFocusReceived(const FGeometry& InGeometry, con
 void UCommonButtonBase::NativeOnFocusLost(const FFocusEvent& InFocusEvent)
 {
 	Super::NativeOnFocusLost(InFocusEvent);
-
-	HandleFocusLost();
 }
 
 void UCommonButtonBase::NativeOnSelected(bool bBroadcast)
@@ -1144,12 +1140,6 @@ void UCommonButtonBase::NativeOnHovered()
 {
 	BP_OnHovered();
 	OnHovered().Broadcast();
-
-	if (bShouldFocusOnHover && bIsFocusable && RootButton->IsFocusable)
-	{
-		RootButton->SetFocus();
-	}
-	
 	if (OnButtonBaseHovered.IsBound())
 	{
 		OnButtonBaseHovered.Broadcast(this);
@@ -1165,7 +1155,6 @@ void UCommonButtonBase::NativeOnUnhovered()
 {
 	BP_OnUnhovered();
 	OnUnhovered().Broadcast();
-	
 	if (OnButtonBaseUnhovered.IsBound())
 	{
 		OnButtonBaseUnhovered.Broadcast(this);
@@ -1179,7 +1168,7 @@ void UCommonButtonBase::NativeOnUnhovered()
 
 void UCommonButtonBase::NativeOnClicked()
 {
-	if (!GetLocked())
+	if(!GetLocked())
 	{
 		BP_OnClicked();
 		OnClicked().Broadcast();
@@ -1209,7 +1198,7 @@ void UCommonButtonBase::NativeOnClicked()
 
 void UCommonButtonBase::NativeOnDoubleClicked()
 {
-	if (!GetLocked())
+	if(!GetLocked())
 	{
 		BP_OnDoubleClicked();
 		OnDoubleClicked().Broadcast();
@@ -1301,8 +1290,6 @@ void UCommonButtonBase::BuildStyles()
 		NormalStyle.Disabled = CommonButtonStyle->bSingleMaterial ? DynamicSingleMaterialBrush : DisabledBrush;
 		NormalStyle.NormalPadding = ButtonPadding;
 		NormalStyle.PressedPadding = ButtonPadding;
-
-		// Sets the sound overrides for the Normal state
 		NormalStyle.PressedSlateSound = bHasPressedSlateSoundOverride ? PressedSlateSoundOverride : CommonButtonStyle->PressedSlateSound;
 		NormalStyle.HoveredSlateSound = bHasHoveredSlateSoundOverride ? HoveredSlateSoundOverride : CommonButtonStyle->HoveredSlateSound;
 
@@ -1312,48 +1299,24 @@ void UCommonButtonBase::BuildStyles()
 		SelectedStyle.Disabled = CommonButtonStyle->bSingleMaterial ? DynamicSingleMaterialBrush : DisabledBrush;
 		SelectedStyle.NormalPadding = ButtonPadding;
 		SelectedStyle.PressedPadding = ButtonPadding;
-
-		
-		 // Selected State Sound overrides
-		if (SelectedPressedSlateSoundOverride.GetResourceObject())
-		{
-			SelectedStyle.PressedSlateSound = SelectedPressedSlateSoundOverride;
-		}
-		else
-		{
-			SelectedStyle.PressedSlateSound =
+		SelectedStyle.PressedSlateSound =
 			bHasPressedSlateSoundOverride || !CommonButtonStyle->SelectedPressedSlateSound
 			? NormalStyle.PressedSlateSound
 			: CommonButtonStyle->SelectedPressedSlateSound.Sound;
-		}
-		
-		if (SelectedHoveredSlateSoundOverride.GetResourceObject())
-		{
-			SelectedStyle.HoveredSlateSound = SelectedHoveredSlateSoundOverride;
-		}
-		else
-		{
-			SelectedStyle.HoveredSlateSound =
+
+		SelectedStyle.HoveredSlateSound =
 			bHasHoveredSlateSoundOverride || !CommonButtonStyle->SelectedHoveredSlateSound
 			? NormalStyle.HoveredSlateSound
 			: CommonButtonStyle->SelectedHoveredSlateSound.Sound;
-		}
 
-		// Locked State Sound overrides
-		LockedStyle = NormalStyle;
-		if (CommonButtonStyle->LockedPressedSlateSound || LockedPressedSlateSoundOverride.GetResourceObject())
+		DisabledStyle = NormalStyle;
+		if (!bHasPressedSlateSoundOverride && CommonButtonStyle->DisabledPressedSlateSound)
 		{
-			LockedStyle.PressedSlateSound =
-			LockedPressedSlateSoundOverride.GetResourceObject()
-			? LockedPressedSlateSoundOverride
-			: CommonButtonStyle->LockedPressedSlateSound.Sound;
+			DisabledStyle.PressedSlateSound = CommonButtonStyle->DisabledPressedSlateSound.Sound;
 		}
-		if (CommonButtonStyle->LockedHoveredSlateSound || LockedHoveredSlateSoundOverride.GetResourceObject())
+		if (!bHasHoveredSlateSoundOverride && CommonButtonStyle->DisabledHoveredSlateSound)
 		{
-			LockedStyle.HoveredSlateSound =
-			LockedHoveredSlateSoundOverride.GetResourceObject()
-			? LockedHoveredSlateSoundOverride
-			: CommonButtonStyle->LockedHoveredSlateSound.Sound;
+			DisabledStyle.HoveredSlateSound = CommonButtonStyle->DisabledHoveredSlateSound.Sound;
 		}
 
 		SetButtonStyle();
@@ -1367,11 +1330,7 @@ void UCommonButtonBase::SetButtonStyle()
 	if (UButton* ButtonPtr = RootButton.Get())
 	{
 		const FButtonStyle* UseStyle;
-		if (bLocked)
-		{
-			UseStyle = &LockedStyle;
-		}
-		else if (bSelected)
+		if (bSelected)
 		{
 			UseStyle = &SelectedStyle;
 		}
@@ -1410,42 +1369,6 @@ void UCommonButtonBase::SetHoveredSoundOverride(USoundBase* Sound)
 	if (HoveredSlateSoundOverride.GetResourceObject() != Sound)
 	{
 		HoveredSlateSoundOverride.SetResourceObject(Sound);
-		BuildStyles();
-	}
-}
-
-void UCommonButtonBase::SetSelectedPressedSoundOverride(USoundBase* Sound)
-{
-	if (SelectedPressedSlateSoundOverride.GetResourceObject() != Sound)
-	{
-		SelectedPressedSlateSoundOverride.SetResourceObject(Sound);
-		BuildStyles();
-	}
-}
-
-void UCommonButtonBase::SetSelectedHoveredSoundOverride(USoundBase* Sound)
-{
-	if (SelectedHoveredSlateSoundOverride.GetResourceObject() != Sound)
-	{
-		SelectedHoveredSlateSoundOverride.SetResourceObject(Sound);
-		BuildStyles();
-	}
-}
-
-void UCommonButtonBase::SetLockedPressedSoundOverride(USoundBase* Sound)
-{
-	if (LockedPressedSlateSoundOverride.GetResourceObject() != Sound)
-	{
-		LockedPressedSlateSoundOverride.SetResourceObject(Sound);
-		BuildStyles();
-	}
-}
-
-void UCommonButtonBase::SetLockedHoveredSoundOverride(USoundBase* Sound)
-{
-	if (LockedHoveredSlateSoundOverride.GetResourceObject() != Sound)
-	{
-		LockedHoveredSlateSoundOverride.SetResourceObject(Sound);
 		BuildStyles();
 	}
 }
