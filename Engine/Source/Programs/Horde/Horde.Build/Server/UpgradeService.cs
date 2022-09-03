@@ -3,7 +3,6 @@
 using System;
 using System.Threading.Tasks;
 using Horde.Build.Jobs;
-using Horde.Build.Server;
 using Horde.Build.Users;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

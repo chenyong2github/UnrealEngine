@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using EpicGames.Core;
@@ -22,7 +21,7 @@ namespace Horde.Build.Issues.Handlers
 		const string NodeName = "Node";
 		const string EventIdName = "EventId";
 
-		static readonly string DuplicateEventIdMetadata = $"{EventIdName}={KnownLogEvents.Linker_DuplicateSymbol.Id}";
+		static readonly string s_duplicateEventIdMetadata = $"{EventIdName}={KnownLogEvents.Linker_DuplicateSymbol.Id}";
 
 		/// <inheritdoc/>
 		public override string Type => "Symbol";
@@ -105,7 +104,7 @@ namespace Horde.Build.Issues.Handlers
 			}
 			else
 			{
-				string problemType = fingerprint.HasMetadataValue(DuplicateEventIdMetadata) ? "Duplicate" : "Undefined";
+				string problemType = fingerprint.HasMetadataValue(s_duplicateEventIdMetadata) ? "Duplicate" : "Undefined";
 				if (symbols.Count == 1)
 				{
 					return $"{problemType} symbol '{symbols.First()}'";

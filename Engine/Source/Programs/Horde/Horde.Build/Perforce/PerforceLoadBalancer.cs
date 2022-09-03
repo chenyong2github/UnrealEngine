@@ -256,7 +256,7 @@ namespace Horde.Build.Perforce
 			}
 			if (properties == null)
 			{
-				throw new ArgumentException(nameof(properties));
+				throw new ArgumentException("Properties argument to EvaluateCondition may not be null", nameof(properties));
 			}
 			return condition.Evaluate(x => GetPropertyValues(properties, x));
 		}

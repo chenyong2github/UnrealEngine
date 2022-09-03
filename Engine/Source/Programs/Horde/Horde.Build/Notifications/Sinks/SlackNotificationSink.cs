@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
@@ -19,14 +18,12 @@ using EpicGames.Redis;
 using EpicGames.Slack;
 using EpicGames.Slack.Blocks;
 using EpicGames.Slack.Elements;
-using Horde.Build.Configuration;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
 using Horde.Build.Issues.External;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
-using Horde.Build.Perforce;
 using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
@@ -55,7 +52,7 @@ namespace Horde.Build.Notifications.Sinks
 	/// </summary>
 	public sealed class SlackNotificationSink : BackgroundService, INotificationSink, IAvatarService
 	{
-		const bool defaultAllowMentions = true;
+		const bool DefaultAllowMentions = true;
 
 		const int MaxLineLength = 2048;
 
@@ -739,7 +736,7 @@ namespace Horde.Build.Notifications.Sinks
 			{
 				foreach (string channel in channels)
 				{
-					await SendIssueMessageAsync(channel, issue, details, null, defaultAllowMentions);
+					await SendIssueMessageAsync(channel, issue, details, null, DefaultAllowMentions);
 				}
 			}
 
@@ -1086,7 +1083,7 @@ namespace Horde.Build.Notifications.Sinks
 				return;
 			}
 
-			await SendIssueMessageAsync(slackUserId, issue, details, user.Id, defaultAllowMentions);
+			await SendIssueMessageAsync(slackUserId, issue, details, user.Id, DefaultAllowMentions);
 		}
 
 		Uri GetJobUrl(JobId jobId)
@@ -2312,6 +2309,8 @@ namespace Horde.Build.Notifications.Sinks
 		/// </summary>
 		private async Task<object?> HandleInteractionMessage(EventPayload payload, CancellationToken cancellationToken)
 		{
+			_ = cancellationToken;
+
 			if (payload.User != null && payload.User.Id != null)
 			{
 				if (String.Equals(payload.Type, "block_actions", StringComparison.Ordinal))
@@ -2359,7 +2358,7 @@ namespace Horde.Build.Notifications.Sinks
 								{
 									Dictionary<string, string> errors = new Dictionary<string, string>();
 									errors.Add("fix_cl", $"'{fixChangeStr}' is not a valid fix changelist.");
-									return new { response_action = "errors", errors = errors };
+									return new { response_action = "errors", errors };
 								}
 
 								await _issueService.UpdateIssueAsync(issueId, fixChange: fixChange, resolvedById: userId);
@@ -2420,7 +2419,7 @@ namespace Horde.Build.Notifications.Sinks
 					if (recipient != null)
 					{
 						IIssueDetails details = await _issueService.GetIssueDetailsAsync(newIssue);
-						await SendIssueMessageAsync(recipient, newIssue, details, userId, defaultAllowMentions);
+						await SendIssueMessageAsync(recipient, newIssue, details, userId, DefaultAllowMentions);
 					}
 				}
 			}

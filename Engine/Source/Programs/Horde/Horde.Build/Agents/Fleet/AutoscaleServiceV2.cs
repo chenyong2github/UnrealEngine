@@ -36,7 +36,6 @@ namespace Horde.Build.Agents.Fleet
 		private readonly IClock _clock;
 		private readonly ITicker _ticker;
 		private readonly ITicker _tickerHighFrequency;
-		private readonly ServerSettings _settings;
 		private readonly TimeSpan _defaultScaleOutCooldown;
 		private readonly TimeSpan _defaultScaleInCooldown;
 		private readonly ILogger<AutoscaleServiceV2> _logger;
@@ -68,7 +67,6 @@ namespace Horde.Build.Agents.Fleet
 			_clock = clock;
 			_ticker = clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, logger);
 			_tickerHighFrequency = clock.AddSharedTicker("AutoscaleServiceV2.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, logger);
-			_settings = settings.Value;
 			_logger = logger;
 			_defaultScaleOutCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleOutCooldownSeconds);
 			_defaultScaleInCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleInCooldownSeconds);

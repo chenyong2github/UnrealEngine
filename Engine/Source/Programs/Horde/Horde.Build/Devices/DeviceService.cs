@@ -22,7 +22,6 @@ using MongoDB.Bson;
 using OpenTracing;
 using OpenTracing.Util;
 
-
 namespace Horde.Build.Devices
 {
 	using DeviceId = StringId<IDevice>;
@@ -216,7 +215,6 @@ namespace Horde.Build.Devices
 					_logger.LogError(ex, "Exception while expiring reservations: {Message}", ex.Message);
 				}
 
-
 				// expire shared devices and notifications
 				try
 				{
@@ -253,7 +251,6 @@ namespace Horde.Build.Devices
 			await TickAsync(CancellationToken.None);
 			await TickTelemetryAsync(CancellationToken.None);
 		}
-
 
 		/// <summary>
 		/// Create a new device platform
@@ -342,7 +339,6 @@ namespace Horde.Build.Devices
 		{
 			return _devices.FindPoolTelemetryAsync(minCreateTime, maxCreateTime, index, count);
 		}
-
 
 		/// <summary>
 		/// Get a specific device

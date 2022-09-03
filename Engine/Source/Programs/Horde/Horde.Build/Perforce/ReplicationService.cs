@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -19,13 +16,9 @@ using EpicGames.Horde.Storage.Git;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Perforce;
 using EpicGames.Redis;
-using EpicGames.Serialization;
 using Horde.Build.Server;
 using Horde.Build.Streams;
-using Horde.Build.Users;
 using Horde.Build.Utilities;
-using HordeCommon;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -33,7 +26,6 @@ using StackExchange.Redis;
 
 namespace Horde.Build.Perforce
 {
-	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -192,7 +184,7 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReplicationService(RedisService redisService, CommitService commitService, IStreamCollection streamCollection, IPerforceService perforceService, ITreeStore<ReplicationService> treeStore, IClock clock, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
+		public ReplicationService(RedisService redisService, CommitService commitService, IStreamCollection streamCollection, IPerforceService perforceService, ITreeStore<ReplicationService> treeStore, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
 		{
 			Options = options.Value;
 
@@ -527,14 +519,14 @@ namespace Horde.Build.Perforce
 		[DebuggerDisplay("{_path}")]
 		class DirectoryToSync
 		{
-			public readonly Utf8String _path;
-			public readonly Dictionary<Utf8String, long> _fileNameToSize;
+			public readonly Utf8String Path;
+			public readonly Dictionary<Utf8String, long> FileNameToSize;
 			public long _size;
 
 			public DirectoryToSync(Utf8String path, Utf8StringComparer comparer)
 			{
-				_path = path;
-				_fileNameToSize = new Dictionary<Utf8String, long>(comparer);
+				Path = path;
+				FileNameToSize = new Dictionary<Utf8String, long>(comparer);
 			}
 		}
 
@@ -692,12 +684,12 @@ namespace Horde.Build.Perforce
 					Utf8String directoryPath = path.Slice(clientRoot.Length, fileIdx - clientRoot.Length);
 
 					DirectoryToSync directory = FindOrAddDirectoryTree(pathToDirectory, directoryPath, clientInfo.ServerInfo.Utf8PathComparer);
-					directory._fileNameToSize.Add(path.Slice(fileIdx).Clone(), response.Data.FileSize);
+					directory.FileNameToSize.Add(path.Slice(fileIdx).Clone(), response.Data.FileSize);
 					directory._size += response.Data.FileSize;
 				}
 
 				// Sort the directories by name
-				List<DirectoryToSync> directories = pathToDirectory.Values.OrderBy(x => x._path, clientInfo.ServerInfo.Utf8PathComparer).ToList();
+				List<DirectoryToSync> directories = pathToDirectory.Values.OrderBy(x => x.Path, clientInfo.ServerInfo.Utf8PathComparer).ToList();
 
 				// Output some stats for the sync
 				long totalSize = directories.Sum(x => x._size);
@@ -740,17 +732,17 @@ namespace Horde.Build.Perforce
 					List<string> syncPaths = new List<string>();
 					for (int idx = dirIdx; idx < directories.Count; idx++)
 					{
-						Utf8String basePath = directories[idx]._path;
+						Utf8String basePath = directories[idx].Path;
 						syncPaths.Add($"//{clientInfo.Client.Name}/{basePath}...@{change}");
 
 						long dirSize = directories[idx]._size;
-						while (idx + 1 < directories.Count && directories[idx + 1]._path.StartsWith(basePath, clientInfo.ServerInfo.Utf8PathComparer))
+						while (idx + 1 < directories.Count && directories[idx + 1].Path.StartsWith(basePath, clientInfo.ServerInfo.Utf8PathComparer))
 						{
 							dirSize += directories[idx + 1]._size;
 							idx++;
 						}
 
-						_logger.LogInformation("  {Directory} ({Size:n1}mb)", directories[idx]._path + "...", dirSize / (1024.0 * 1024.0));
+						_logger.LogInformation("  {Directory} ({Size:n1}mb)", directories[idx].Path + "...", dirSize / (1024.0 * 1024.0));
 					}
 
 					Stopwatch syncTimer = Stopwatch.StartNew();
@@ -790,7 +782,7 @@ namespace Horde.Build.Perforce
 									{
 										throw new ReplicationException($"Unable to find directory for {file}");
 									}
-									if (!directory._fileNameToSize.TryGetValue(file.Substring(offset), out fileSize))
+									if (!directory.FileNameToSize.TryGetValue(file.Substring(offset), out fileSize))
 									{
 										throw new ReplicationException($"Unable to find file entry for {file}");
 									}
@@ -846,7 +838,7 @@ namespace Horde.Build.Perforce
 					// Combine all the existing sync paths together with a new wildcard.
 					while (directories.Count > dirIdx)
 					{
-						Utf8String nextPath = directories[^1]._path;
+						Utf8String nextPath = directories[^1].Path;
 						if (syncNode.Paths.Count > 0)
 						{
 							Utf8String lastPath = syncNode.Paths[^1];

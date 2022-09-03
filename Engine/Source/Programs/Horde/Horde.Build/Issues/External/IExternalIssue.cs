@@ -1,18 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.	
 
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Polly;
-using Polly.Extensions.Http;
-
 namespace Horde.Build.Issues.External
 {
 	/// <summary>
@@ -59,8 +46,6 @@ namespace Horde.Build.Issues.External
 		/// The current assignee's email address
 		/// </summary>
 		public string? AssigneeEmailAddress { get; set; }
-
 	}
-
 }
 

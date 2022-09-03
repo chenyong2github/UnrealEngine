@@ -231,9 +231,12 @@ namespace Horde.Build.Agents.Fleet.Providers
 		/// <param name="agentCollection">Instance of the AgentCollection</param>
 		/// <param name="pool">Pool to resize</param>
 		/// <param name="agents">Current list of agents in the pool</param>
-		/// <param name="count">Number of agents to remove</param>		/// <param name="cancellationToken">Cancellation token for the call</param>
+		/// <param name="count">Number of agents to remove</param>
+		/// <param name="cancellationToken"></param>
 		public static async Task ShrinkPoolViaAgentShutdownRequestAsync(IAgentCollection agentCollection, IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
+			_ = cancellationToken;
+
 			using IScope scope = GlobalTracer.Instance.BuildSpan("ShrinkPool").StartActive();
 			scope.Span.SetTag("poolName", pool.Name);
 			scope.Span.SetTag("count", count);
@@ -273,7 +276,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 			describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
 			describeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { pool.Name }));
 
-			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest);
+			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest, cancellationToken);
 			return describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Distinct().Count();
 		}
 	}

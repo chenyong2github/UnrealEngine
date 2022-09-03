@@ -31,14 +31,5 @@ namespace Horde.Build.Server
 		/// Help slack channel that users can use for issues
 		/// </summary>
 		public string? HelpSlackChannel { get; set; }
-
-		/// <summary>
-		/// Response constructor
-		/// </summary>
-		public GetDashboardConfigResponse()
-		{
-		}
-
 	}
 }
-

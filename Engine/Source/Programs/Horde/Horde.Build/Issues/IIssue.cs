@@ -168,7 +168,6 @@ namespace Horde.Build.Issues
 		/// The UTC time when the issue was quarantined
 		/// </summary>
 		public DateTime? QuarantineTimeUtc { get; set; }
-
 	}
 
 	/// <summary>

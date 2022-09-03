@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Horde.Build.Issues;
-using Horde.Build.Server;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Jobs.Graphs

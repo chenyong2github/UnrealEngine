@@ -227,7 +227,6 @@ namespace Horde.Build.Devices
 			[BsonIgnoreIfNull]
 			public string? Notes { get; set; }
 
-
 			/// <summary>
 			/// [DEPRECATED]
 			/// </summary>
@@ -352,7 +351,6 @@ namespace Horde.Build.Devices
 				JobName = jobName;
 				StepName = stepName;
 			}
-
 		}
 
 		class DeviceReservationPoolTelemetryDocument : IDevicePoolReservationTelemetry
@@ -386,7 +384,6 @@ namespace Horde.Build.Devices
 				JobName = jobName;
 				StepName = stepName;
 			}
-
 		}
 
 		class DevicePlatformTelemetryDocument : IDevicePlatformTelemetry
@@ -487,7 +484,6 @@ namespace Horde.Build.Devices
 				Pools = pools;
 			}
 		}
-
 
 		readonly IMongoCollection<DevicePlatformDocument> _platforms;
 
@@ -903,10 +899,7 @@ namespace Horde.Build.Devices
 
 				List<DeviceUtilizationTelemetry>? utilization = device.Utilization;
 
-				if (utilization == null)
-				{
-					utilization = new List<DeviceUtilizationTelemetry>();
-				}
+				utilization ??= new List<DeviceUtilizationTelemetry>();
 
 				// keep up to 100, maintaining order
 				if (utilization.Count > 99)
@@ -1108,11 +1101,11 @@ namespace Horde.Build.Devices
 
 		struct DevicePoolTelemetryHelper
 		{
-			public List<DeviceId> available = new List<DeviceId>();
-			public List<DeviceId> problem = new List<DeviceId>();
-			public List<DeviceId> maintenance = new List<DeviceId>();
-			public List<DeviceId> disabled = new List<DeviceId>();
-			public Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>> reserved = new Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>>();
+			public List<DeviceId> _available = new List<DeviceId>();
+			public List<DeviceId> _problem = new List<DeviceId>();
+			public List<DeviceId> _maintenance = new List<DeviceId>();
+			public List<DeviceId> _disabled = new List<DeviceId>();
+			public Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>> _reserved = new Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>>();
 
 			public DevicePoolTelemetryHelper() { }
 		}
@@ -1168,10 +1161,10 @@ namespace Horde.Build.Devices
 						{
 							StreamId streamId = new StreamId(reservation.StreamId);
 							List<DeviceReservationPoolTelemetryDocument>? rdevices;
-							if (!helper.reserved.TryGetValue(streamId, out rdevices))
+							if (!helper._reserved.TryGetValue(streamId, out rdevices))
 							{
 								rdevices = new List<DeviceReservationPoolTelemetryDocument>();
-								helper.reserved[streamId] = rdevices;
+								helper._reserved[streamId] = rdevices;
 							}
 							rdevices.Add(new DeviceReservationPoolTelemetryDocument(device.Id, reservation.JobId, reservation.StepId, reservation.JobName, reservation.StepName));
 						}
@@ -1180,33 +1173,32 @@ namespace Horde.Build.Devices
 
 					if (problemDevices.Contains(device))
 					{
-						helper.problem.Add(device.Id);
+						helper._problem.Add(device.Id);
 						continue;
 					}
 
 					if (maintenanceDevices.Contains(device))
 					{
-						helper.maintenance.Add(device.Id);
+						helper._maintenance.Add(device.Id);
 						continue;
 					}
 
 					if (disabledDevices.Contains(device))
 					{
-						helper.disabled.Add(device.Id);
+						helper._disabled.Add(device.Id);
 						continue;
 					}
 
-					helper.available.Add(device.Id);
+					helper._available.Add(device.Id);
 				}
 
 				List<DevicePlatformTelemetryDocument> platformTelemtry = new List<DevicePlatformTelemetryDocument>();
-
 
 				foreach (KeyValuePair<DevicePlatformId, DevicePoolTelemetryHelper> platform in helpers)
 				{
 					DevicePoolTelemetryHelper helper = platform.Value;
 
-					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled));
+					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper._available, helper._reserved, helper._maintenance, helper._problem, helper._disabled));
 				}
 
 				poolTelemetry[pool.Id] = platformTelemtry;
@@ -1234,7 +1226,5 @@ namespace Horde.Build.Devices
 			List<DevicePoolTelemetryDocument> results = await _poolTelemetry.Find(filter).Range(index, count).ToListAsync();
 			return results.ConvertAll<IDevicePoolTelemetry>(x => x);
 		}
-
-
 	}
 }

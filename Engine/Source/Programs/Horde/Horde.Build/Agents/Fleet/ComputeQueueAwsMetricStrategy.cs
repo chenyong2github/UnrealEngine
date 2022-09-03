@@ -8,17 +8,13 @@ using System.Threading.Tasks;
 using Amazon.CloudWatch;
 using Amazon.CloudWatch.Model;
 using EpicGames.Horde.Compute;
-using Horde.Build.Agents.Pools;
 using Horde.Build.Compute;
-using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
 
 namespace Horde.Build.Agents.Fleet
 {
-	using PoolId = StringId<IPool>;
-
 	/// <summary>
 	/// Settings for <see cref="ComputeQueueAwsMetricStrategy" />
 	/// </summary>

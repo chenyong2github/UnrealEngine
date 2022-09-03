@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Horde.Build.Notifications;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;

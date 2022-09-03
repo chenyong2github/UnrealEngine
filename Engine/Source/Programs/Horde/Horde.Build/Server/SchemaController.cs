@@ -71,10 +71,7 @@ namespace Horde.Build.Server
 				host = hosts.FirstOrDefault();
 			}
 
-			if (host == null)
-			{
-				host = Dns.GetHostName();
-			}
+			host ??= Dns.GetHostName();
 
 			CatalogRoot root = new CatalogRoot();
 			foreach (Type schemaType in ConfigSchemas)

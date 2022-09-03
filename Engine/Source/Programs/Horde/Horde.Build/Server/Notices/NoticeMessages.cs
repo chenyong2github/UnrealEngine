@@ -109,14 +109,5 @@ namespace Horde.Build.Server.Notices
 		/// User id who created the notice, otherwise null if a system message
 		/// </summary>
 		public GetThinUserInfoResponse? CreatedByUser { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public GetNoticeResponse()
-		{
-
-		}
-
 	}
 }

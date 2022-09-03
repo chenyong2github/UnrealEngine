@@ -93,7 +93,7 @@ namespace Horde.Build.Agents.Telemetry
 				{
 					if (pool.EnableAutoscaling)
 					{
-						int numStoppedInstances = await _fleetManager.GetNumStoppedInstancesAsync(pool);
+						int numStoppedInstances = await _fleetManager.GetNumStoppedInstancesAsync(pool, stoppingToken);
 						telemetry.NumAgents += numStoppedInstances;
 
 						NewPoolUtilizationTelemetry poolTelemetry = telemetry.FindOrAddPool(pool.Id);

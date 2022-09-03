@@ -88,7 +88,7 @@ namespace Horde.Build.Tools
 		public AclV2? Acl
 		{
 			get => _acl;
-			set => _acl = (value is AclV2 && !value.IsDefault()) ? value : null;
+			set => _acl = (value is not null && !value.IsDefault()) ? value : null;
 		}
 
 		private AclV2? _acl;

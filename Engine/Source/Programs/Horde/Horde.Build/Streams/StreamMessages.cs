@@ -7,7 +7,6 @@ using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Templates;
-using Horde.Build.Server;
 using Horde.Build.Jobs.Schedules;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
@@ -278,20 +277,16 @@ namespace Horde.Build.Streams
 		public string? PausedByUserId { get; set; }
 	}
 
-
 	/// <summary>
 	/// Updates an existing stream template ref
 	/// </summary>
 	public class UpdateTemplateRefRequest
 	{
-		
 		/// <summary>
 		/// Step states to update
 		/// </summary>
 		public List<UpdateStepStateRequest>? StepStates { get; set; }
-
 	}
-
 
 	/// <summary>
 	/// Mapping from a BuildGraph agent type to a set of machines on the farm
@@ -472,9 +467,7 @@ namespace Horde.Build.Streams
 			PauseTimeUtc = state.PauseTimeUtc;
 			PausedByUserInfo = pausedByUserInfo;
 		}
-
 	}
-
 
 	/// <summary>
 	/// Information about a template in this stream

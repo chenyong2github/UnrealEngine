@@ -57,10 +57,7 @@ namespace Horde.Build.Logs.Data
 		/// </summary>
 		public ILogText InflateText()
 		{
-			if (_textInternal == null)
-			{
-				_textInternal = new ReadOnlyLogText(_compressedTextInternal.DecompressBzip2());
-			}
+			_textInternal ??= new ReadOnlyLogText(_compressedTextInternal.DecompressBzip2());
 			return _textInternal;
 		}
 

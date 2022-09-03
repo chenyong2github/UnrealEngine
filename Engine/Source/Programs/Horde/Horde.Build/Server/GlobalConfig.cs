@@ -3,23 +3,17 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Serialization;
 using Horde.Build.Acls;
-using Horde.Build.Jobs.Graphs;
 using Horde.Build.Projects;
-using Horde.Build.Streams;
 using Horde.Build.Tools;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Server
 {
 	using ProjectId = StringId<IProject>;
-	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
 	
 	/// <summary>
 	/// Global configuration

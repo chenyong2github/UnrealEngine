@@ -883,15 +883,15 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Helper method for catching exceptions in <see cref="LogText.ConvertToPlainText(ReadOnlySpan{Byte}, Byte[], Int32)"/>
 		/// </summary>
-		public static int GuardedConvertToPlainText(ReadOnlySpan<byte> input, byte[] output, int outputOffset, ILogger Logger)
+		public static int GuardedConvertToPlainText(ReadOnlySpan<byte> input, byte[] output, int outputOffset, ILogger logger)
 		{
 			try
 			{
 				return LogText.ConvertToPlainText(input, output, outputOffset);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogWarning(Ex, "Unable to convert log line to plain text: {Line}", Encoding.UTF8.GetString(input));
+				logger.LogWarning(ex, "Unable to convert log line to plain text: {Line}", Encoding.UTF8.GetString(input));
 				output[outputOffset] = (byte)'\n';
 				return outputOffset + 1;
 			}
@@ -1326,10 +1326,7 @@ namespace Horde.Build.Logs
 				}
 
 				// Otherwise go directly to the log storage
-				if (chunkData == null)
-				{
-					chunkData = await _storage.ReadChunkAsync(logFile.Id, chunk.Offset, chunk.LineIndex);
-				}
+				chunkData ??= await _storage.ReadChunkAsync(logFile.Id, chunk.Offset, chunk.LineIndex);
 			}
 			catch (Exception ex)
 			{
@@ -1348,9 +1345,9 @@ namespace Horde.Build.Logs
 				{
 					chunkData = await RepairChunkDataAsync(logFile, chunkIdx, chunkData, chunk.Length, logFile.MaxLineIndex.Value - chunk.LineIndex);
 				}
-				else if(chunkData == null)
+				else
 				{
-					chunkData = await RepairChunkDataAsync(logFile, chunkIdx, chunkData, 1024, 1);
+					chunkData ??= await RepairChunkDataAsync(logFile, chunkIdx, chunkData, 1024, 1);
 				}
 			}
 

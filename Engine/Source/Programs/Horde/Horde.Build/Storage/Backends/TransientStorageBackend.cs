@@ -36,7 +36,7 @@ namespace Horde.Build.Storage.Backends
 		{
 			using (MemoryStream buffer = new MemoryStream())
 			{
-				await stream.CopyToAsync(buffer);
+				await stream.CopyToAsync(buffer, cancellationToken);
 				_pathToData[path] = buffer.ToArray();
 			}
 		}

@@ -1,29 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Bundles;
 using EpicGames.Horde.Storage.Nodes;
-using Horde.Build.Agents.Leases;
-using Horde.Build.Configuration;
-using Horde.Build.Jobs.Templates;
 using Horde.Build.Perforce;
-using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
-using HordeCommon;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Build.Commands.Bundles
 {
@@ -59,8 +49,8 @@ namespace Horde.Build.Commands.Bundles
 		[CommandLine]
 		public DirectoryReference? OutputDir { get; set; }
 
-		protected readonly IConfiguration _configuration;
-		protected readonly ILoggerProvider _loggerProvider;
+		readonly IConfiguration _configuration;
+		readonly ILoggerProvider _loggerProvider;
 
 		public PerforceCommand(IConfiguration configuration, ILoggerProvider loggerProvider)
 		{

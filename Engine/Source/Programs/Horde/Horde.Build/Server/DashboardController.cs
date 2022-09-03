@@ -28,7 +28,6 @@ namespace Horde.Build.Server
 		/// </summary>
 		private readonly ServerSettings _settings;
 
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -130,6 +129,5 @@ namespace Horde.Build.Server
 
 			return dashboardConfigResponse;
 		}
-
 	}
 }

@@ -6,13 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Streams;
 using Horde.Build.Users;
-using Horde.Build.Utilities;
 using Microsoft.Extensions.Hosting;
 
 namespace Horde.Build.Issues.External
 {
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// External issue tracking project
 	/// </summary>
@@ -77,14 +74,12 @@ namespace Horde.Build.Issues.External
 		/// <param name="hordeIssueLink"></param>
 		Task<(string? key, string? url)> CreateIssueAsync(IUser user, string? externalIssueUser, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink);
 
-
 		/// <summary>
 		///  Get projects for provided keys
 		/// </summary>
 		/// <param name="stream"></param>
 		/// <returns></returns>;
 		Task<List<IExternalIssueProject>> GetProjects(IStream stream);
-
 	}
 
 	/// <summary>
@@ -125,5 +120,4 @@ namespace Horde.Build.Issues.External
 		/// <inheritdoc/>
 		public Task StopAsync(CancellationToken token) => Task.CompletedTask;
 	}
-
 }

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
-using Horde.Build.Logs;
 using Horde.Build.Logs.Data;
 
 namespace Horde.Build.Logs

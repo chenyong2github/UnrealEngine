@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Horde.Build.Acls;
-using Horde.Build.Jobs.Schedules;
 using Horde.Build.Perforce;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;

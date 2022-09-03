@@ -260,7 +260,5 @@ namespace Horde.Build.Devices
 		/// <param name="count"></param>
 		/// <returns></returns>
 		public Task<List<IDevicePoolTelemetry>> FindPoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, int? index = null, int? count = null);
-
-
 	}
 }

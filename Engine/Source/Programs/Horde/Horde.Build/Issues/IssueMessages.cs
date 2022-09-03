@@ -4,9 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Issues;
 using Horde.Build.Issues.External;
-using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
@@ -531,7 +529,6 @@ namespace Horde.Build.Issues
 		/// </summary>
 		public DateTime? QuarantineTimeUtc { get; set; }
 
-
 		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
@@ -885,9 +882,7 @@ namespace Horde.Build.Issues
 		/// Id of user quarantining issue
 		/// </summary>
 		public string? QuarantinedById { get; set; }
-
 	}
-
 
 	/// <summary>
 	/// External issue project information
@@ -997,7 +992,6 @@ namespace Horde.Build.Issues
 		/// Optional link to issue on Horde
 		/// </summary>
 		public string? HordeIssueLink { get; set; }
-
 	}
 
 	/// <summary>
@@ -1025,7 +1019,6 @@ namespace Horde.Build.Issues
 			Key = key;
 			Link = link;
 		}
-
 	}
 
 	/// <summary>
@@ -1087,8 +1080,5 @@ namespace Horde.Build.Issues
 			AssigneeDisplayName = issue.AssigneeDisplayName;
 			AssigneeEmailAddress = issue.AssigneeEmailAddress;
 		}
-
-
 	}
-
 }

@@ -41,14 +41,8 @@ namespace Horde.Build.Logs
 			for (int shift = (sizeof(ulong) * 8) - 4; shift >= 0; shift -= 4)
 			{
 				int index = (int)(value >> shift) & 15;
-				if (leaf._children == null)
-				{
-					leaf._children = new Node[16];
-				}
-				if (leaf._children[index] == null)
-				{
-					leaf._children[index] = new Node();
-				}
+				leaf._children ??= new Node[16];
+				leaf._children[index] ??= new Node();
 				leaf = leaf._children[index]!;
 			}
 		}

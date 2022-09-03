@@ -43,7 +43,7 @@ namespace Horde.Build.Agents.Pools
 			public TimeSpan? ScaleOutCooldown { get; set; }
 			public TimeSpan? ScaleInCooldown { get; set; }
 			public PoolSizeStrategy? SizeStrategy { get; set; }
-			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? defaultStrategy!.Value;
+			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? s_defaultStrategy!.Value;
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
 			public JobQueueSettings? JobQueueSettings { get; set; }
 			public ComputeQueueAwsMetricSettings? ComputeQueueAwsMetricSettings { get; set; }
@@ -86,7 +86,7 @@ namespace Horde.Build.Agents.Pools
 		/// </summary>
 		readonly IMongoCollection<PoolDocument> _pools;
 
-		static PoolSizeStrategy? defaultStrategy;
+		static PoolSizeStrategy? s_defaultStrategy;
 
 		/// <summary>
 		/// Constructor
@@ -96,7 +96,7 @@ namespace Horde.Build.Agents.Pools
 		public PoolCollection(MongoService mongoService, IOptions<ServerSettings> serverSettings)
 		{
 			_pools = mongoService.GetCollection<PoolDocument>("Pools");
-			defaultStrategy = serverSettings.Value.DefaultAgentPoolSizeStrategy;
+			s_defaultStrategy = serverSettings.Value.DefaultAgentPoolSizeStrategy;
 		}
 
 		/// <inheritdoc/>

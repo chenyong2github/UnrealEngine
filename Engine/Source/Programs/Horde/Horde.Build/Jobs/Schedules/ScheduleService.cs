@@ -512,7 +512,7 @@ namespace Horde.Build.Jobs.Schedules
 			if (template.SubmitNewChange != null)
 			{
 				int newChange = await _perforce.CreateNewChangeForTemplateAsync(stream, template);
-				int newCodeChange = await _perforce.GetCodeChangeAsync(stream.ClusterName, stream.Name, newChange);
+				int newCodeChange = await _perforce.GetCodeChangeAsync(stream.ClusterName, stream.Name, newChange, cancellationToken);
 				triggerChanges = new List<(int, int)> { (newChange, newCodeChange) };
 			}
 
@@ -587,7 +587,7 @@ namespace Horde.Build.Jobs.Schedules
 						JobStepOutcome outcome = state.Value.Item2;
 						if (outcome == JobStepOutcome.Success || outcome == JobStepOutcome.Warnings)
 						{
-							return await _perforce.GetChangeDetailsAsync(stream.ClusterName, stream.Name, job.Change);
+							return await _perforce.GetChangeDetailsAsync(stream.ClusterName, stream.Name, job.Change, cancellationToken);
 						}
 						_logger.LogInformation("Skipping trigger of {StreamName} template {TemplateId} - last {OtherTemplateRefId} job ({JobId}) ended with errors", stream.Id, templateRefId, gate.TemplateRefId, job.Id);
 					}

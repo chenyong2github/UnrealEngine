@@ -180,7 +180,6 @@ namespace Horde.Build.Issues
 							quarantinedBy = await _userCollection.GetCachedUserAsync(issue.QuarantinedByUserId.Value);
 						}
 
-
 						FindIssueResponse response = new FindIssueResponse(issue, owner, nominatedBy, resolvedBy, quarantinedBy, streamSeverity, spanResponses, openWorkflowIds.ToList());
 						responses.Add(PropertyFilter.Apply(response, filter));
 					}
@@ -607,7 +606,6 @@ namespace Horde.Build.Issues
 				newQuarantinedById = request.QuarantinedById.Length > 0 ? new UserId(request.QuarantinedById) : UserId.Empty;
 			}
 
-
 			List<ObjectId>? addSpans = null;
 			if (request.AddSpans != null && request.AddSpans.Count > 0)
 			{
@@ -741,7 +739,5 @@ namespace Horde.Build.Issues
 
 			return response;
 		}
-
-
 	}
 }

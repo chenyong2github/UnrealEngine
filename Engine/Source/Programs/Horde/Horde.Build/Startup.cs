@@ -81,7 +81,6 @@ using OpenTracing.Contrib.Grpc.Interceptors;
 using OpenTracing.Util;
 using Serilog;
 using Serilog.Events;
-using StackExchange.Redis;
 using StatsdClient;
 using Status = Grpc.Core.Status;
 using Horde.Build.Users;
@@ -325,7 +324,7 @@ namespace Horde.Build
 			RedisService redisService = new RedisService(settings);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 			services.AddSingleton<RedisService>(sp => redisService);
-			services.AddDataProtection().PersistKeysToStackExchangeRedis(() => redisService.Database, "aspnet-data-protection");
+			services.AddDataProtection().PersistKeysToStackExchangeRedis(() => redisService.DatabaseSingleton, "aspnet-data-protection");
 
 			if (settings.CorsEnabled)
 			{

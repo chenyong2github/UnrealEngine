@@ -137,6 +137,5 @@ namespace Horde.Build.Utilities
 			}
 			return claim.Value;
 		}
-
 	}
 }

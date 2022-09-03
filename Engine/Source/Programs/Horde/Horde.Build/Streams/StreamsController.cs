@@ -144,14 +144,8 @@ namespace Horde.Build.Streams
 
 								stepStates ??= new List<GetTemplateStepStateResponse>();
 
-								GetThinUserInfoResponse? pausedByUserInfo = null;
-								if (state.PausedByUserId != null)
-								{
-									pausedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(state.PausedByUserId));
-								}
-
+								GetThinUserInfoResponse? pausedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(state.PausedByUserId));
 								stepStates.Add(new GetTemplateStepStateResponse(state, pausedByUserInfo));
-
 							}
 						}
 
@@ -347,8 +341,6 @@ namespace Horde.Build.Streams
 			await _streamService.TryUpdateTemplateRefAsync(stream, templateRefId, update.StepStates);
 
 			return Ok();
-
 		}
-
 	}
 }

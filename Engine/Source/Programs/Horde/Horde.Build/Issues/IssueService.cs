@@ -10,13 +10,11 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Horde.Build.Configuration;
 using Horde.Build.Issues.Handlers;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
 using Horde.Build.Perforce;
-using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
@@ -31,7 +29,6 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Issues
 {
-	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
@@ -110,7 +107,6 @@ namespace Horde.Build.Issues
 			ExternalIssueKey = externalIssueKey; 
 			_showDesktopAlerts = showDesktopAlerts;
 
-
 			if (issue.OwnerId == null)
 			{
 				_notifyUsers = new HashSet<UserId>(suspects.Select(x => x.AuthorId));
@@ -151,7 +147,6 @@ namespace Horde.Build.Issues
 		/// </summary>
 		const int MaxChanges = 250;
 
-		readonly ConfigCollection _configCollection;
 		readonly IJobStepRefCollection _jobStepRefs;
 		readonly IIssueCollection _issueCollection;
 		readonly StreamService _streams;
@@ -209,7 +204,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueService(ConfigCollection configCollection, IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, IPerforceService perforce, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
+		public IssueService(IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, IPerforceService perforce, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
 		{
 			Type[] issueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type issueType in issueTypes)
@@ -218,7 +213,6 @@ namespace Horde.Build.Issues
 			}
 
 			// Get all the collections
-			_configCollection = configCollection;
 			_issueCollection = issueCollection;
 			_jobStepRefs = jobStepRefs;
 			_streams = streams;
@@ -365,6 +359,8 @@ namespace Horde.Build.Issues
 		/// <inheritdoc/>
 		public bool ShowDesktopAlertsForIssue(IIssue issue, IReadOnlyList<IIssueSpan> spans)
 		{
+			_ = issue;
+
 			bool bShowDesktopAlerts = false;
 
 			HashSet<(StreamId, TemplateRefId)> checkedTemplates = new HashSet<(StreamId, TemplateRefId)>();
@@ -1002,10 +998,9 @@ namespace Horde.Build.Issues
 						{
 							newStream.ContainsFix = stream.ContainsFix;
 						}
-						if (newStream.ContainsFix == null)
-						{
-							newStream.ContainsFix = await ContainsFixChange(newStream.StreamId, issue.FixChange.Value, fixChangeCache);
-						}
+
+						newStream.ContainsFix ??= await ContainsFixChange(newStream.StreamId, issue.FixChange.Value, fixChangeCache);
+
 						if (spans.Any(x => x.StreamId == newStream.StreamId && x.LastFailure.Change > issue.FixChange.Value))
 						{
 							newStream.FixFailed = true;

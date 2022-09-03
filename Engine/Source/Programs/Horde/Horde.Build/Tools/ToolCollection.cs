@@ -164,7 +164,7 @@ namespace Horde.Build.Tools
 		/// </summary>
 		/// <param name="id">The tool to remove</param>
 		/// <returns>True if a tool with the given identifier was deleted</returns>
-		private async Task<bool> DeleteAsync(ToolId id)
+		public async Task<bool> DeleteAsync(ToolId id)
 		{
 			bool deleted = await _tools.DeleteAsync(id);
 			if (deleted)

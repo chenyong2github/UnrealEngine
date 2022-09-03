@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Redis;
-using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
@@ -46,7 +45,7 @@ namespace Horde.Build.Server
 		/// The database interface.
 		/// If possible, use ConnectionPool instead. 
 		/// </summary>
-		public IDatabase Database { get; }
+		public IDatabase DatabaseSingleton { get; }
 
 		/// <summary>
 		/// Connection pool
@@ -108,7 +107,7 @@ namespace Horde.Build.Server
 			}
 
 			_multiplexer = ConnectionMultiplexer.Connect(connectionString);
-			Database = _multiplexer.GetDatabase(dbNum);
+			DatabaseSingleton = _multiplexer.GetDatabase(dbNum);
 			ConnectionPool = new RedisConnectionPool(20, connectionString, dbNum);
 		}
 

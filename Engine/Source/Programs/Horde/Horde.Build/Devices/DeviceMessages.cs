@@ -623,7 +623,6 @@ namespace Horde.Build.Devices
 			ReservationFinishUtc = data.ReservationFinishUtc;
 			ProblemTimeUtc = data.ProblemTimeUtc;
 		}
-
 	}
 
 	/// <summary>
@@ -654,7 +653,6 @@ namespace Horde.Build.Devices
 			Telemetry = telemetry;
 		}
 	}
-
 
 	/// <summary>
 	/// Stream device telemetry for pool snapshot
@@ -702,7 +700,6 @@ namespace Horde.Build.Devices
 			JobName = jobName;
 			StepName = stepName;
 		}
-
 	}
 
 	/// <summary>
@@ -801,9 +798,7 @@ namespace Horde.Build.Devices
 			CreateTimeUtc = createTimeUtc;
 			Telemetry = telemetry;
 		}
-
 	}
-
 
 	// Legacy clients
 

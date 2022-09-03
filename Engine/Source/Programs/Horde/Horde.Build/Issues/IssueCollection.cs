@@ -9,7 +9,6 @@ using EpicGames.Redis.Utility;
 using Horde.Build.Auditing;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
-using Horde.Build.Issues;
 using Horde.Build.Logs;
 using Horde.Build.Server;
 using Horde.Build.Streams;
@@ -122,7 +121,6 @@ namespace Horde.Build.Issues
 
 			[BsonIgnoreIfNull]
 			public DateTime? QuarantineTimeUtc { get; set; }
-
 
 			[BsonConstructor]
 			private Issue()
@@ -606,7 +604,6 @@ namespace Horde.Build.Issues
 				}
 			}
 
-
 			if (newIssue.ExternalIssueKey != oldIssue.ExternalIssueKey)
 			{
 				if (newIssue.ExternalIssueKey != null)
@@ -630,7 +627,6 @@ namespace Horde.Build.Issues
 					issueLogger.LogInformation("Quarantine cleared");
 				}
 			}
-
 
 			string oldFingerprints = oldIssue.FingerprintsDesc;
 			string newFingerprints = newIssue.FingerprintsDesc;

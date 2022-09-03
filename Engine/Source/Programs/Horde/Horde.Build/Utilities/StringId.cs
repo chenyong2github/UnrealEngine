@@ -198,6 +198,26 @@ namespace Horde.Build.Utilities
 		{
 			return !left.Equals(right);
 		}
+
+		/// <summary>
+		/// Compares two stringids
+		/// </summary>
+		public static bool operator <(StringId<T> left, StringId<T> right) => left.CompareTo(right) < 0;
+
+		/// <summary>
+		/// Compares two stringids
+		/// </summary>
+		public static bool operator <=(StringId<T> left, StringId<T> right) => left.CompareTo(right) <= 0;
+
+		/// <summary>
+		/// Compares two stringids
+		/// </summary>
+		public static bool operator >(StringId<T> left, StringId<T> right) => left.CompareTo(right) > 0;
+
+		/// <summary>
+		/// Compares two stringids
+		/// </summary>
+		public static bool operator >=(StringId<T> left, StringId<T> right) => left.CompareTo(right) >= 0;
 	}
 
 	/// <summary>

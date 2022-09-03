@@ -56,10 +56,7 @@ namespace Horde.Build.Logs.Data
 		/// </summary>
 		public ILogText InflatePlainText()
 		{
-			if (CachedPlainText == null)
-			{
-				CachedPlainText = new ReadOnlyLogText(CompressedPlainText.DecompressBzip2());
-			}
+			CachedPlainText ??= new ReadOnlyLogText(CompressedPlainText.DecompressBzip2());
 			return CachedPlainText;
 		}
 	}

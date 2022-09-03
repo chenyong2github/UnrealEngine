@@ -126,7 +126,7 @@ namespace Horde.Build.Auditing
 			await bodyWriter.WriteAsync(Encoding.UTF8.GetBytes(prefix));
 
 			string separator = "";
-			await foreach (IAuditLogMessage<T> message in channel.FindAsync(minTime, maxTime, index, count))
+			await foreach (IAuditLogMessage message in channel.FindAsync(minTime, maxTime, index, count))
 			{
 				string line = $"{separator}\n\t\t{message.Data}";
 				await bodyWriter.WriteAsync(Encoding.UTF8.GetBytes(line));

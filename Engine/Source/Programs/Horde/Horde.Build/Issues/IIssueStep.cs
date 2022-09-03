@@ -4,7 +4,6 @@ using System;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
-using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
@@ -12,7 +11,6 @@ namespace Horde.Build.Issues
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
-	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Identifies a particular changelist and job that contributes to a span

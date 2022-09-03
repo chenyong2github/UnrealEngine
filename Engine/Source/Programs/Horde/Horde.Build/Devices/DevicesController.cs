@@ -539,8 +539,7 @@ namespace Horde.Build.Devices
 			return response;
 		}
 
-
-		// RESERVATIONS
+		#region Reservations
 
 		/// <summary>
 		/// Create a new device reservation
@@ -717,6 +716,8 @@ namespace Horde.Build.Devices
 
 			return Ok();
 		}
+
+		#endregion
 
 		/// <summary>
 		/// Get device telemetry

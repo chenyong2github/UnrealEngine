@@ -12,7 +12,6 @@ using Horde.Build.Agents.Pools;
 using Horde.Build.Jobs.Schedules;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Projects;
-using Horde.Build.Server;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -310,7 +309,6 @@ namespace Horde.Build.Streams
 		/// </summary>
 		public DateTime? PauseTimeUtc { get; set; }
 
-
 		/// <summary>
 		/// Default constructor for serialization
 		/// </summary>
@@ -327,9 +325,7 @@ namespace Horde.Build.Streams
 			PausedByUserId = pausedByUserId;
 			PauseTimeUtc = pauseTimeUtc;
 		}
-
 	}
-
 
 	/// <summary>
 	/// Reference to a template

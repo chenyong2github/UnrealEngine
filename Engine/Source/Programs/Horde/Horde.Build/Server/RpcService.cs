@@ -252,12 +252,22 @@ namespace Horde.Build.Server
 			properties = new List<string>();
 			resources = new Dictionary<string, int>();
 
-			if (capabilities == null) return;
+			if (capabilities == null)
+			{
+				return;
+			}
 			properties.AddRange(capabilities.Properties);
 
-			if (capabilities.Devices.Count <= 0) return;
+			if (capabilities.Devices.Count <= 0)
+			{
+				return;
+			}
+
 			RpcDeviceCapabilities device = capabilities.Devices[0];
-			if (device.Properties == null) return;
+			if (device.Properties == null)
+			{
+				return;
+			}
 
 			properties.AddRange(device.Properties);
 			CopyPropertyToResource(KnownPropertyNames.LogicalCores, properties, resources);
@@ -585,10 +595,7 @@ namespace Horde.Build.Server
 			}
 
 			// Create a log file if necessary
-			if (log.Value == null)
-			{
-				log.Value = await _logFileService.CreateLogFileAsync(job.Id, batch.SessionId, LogType.Json);
-			}
+			log.Value ??= await _logFileService.CreateLogFileAsync(job.Id, batch.SessionId, LogType.Json);
 
 			// Get the node for this step
 			IGraph graph = await _jobService.GetGraphAsync(job);

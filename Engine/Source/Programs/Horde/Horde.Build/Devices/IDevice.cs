@@ -270,9 +270,7 @@ namespace Horde.Build.Devices
 		/// If the device reported a problem
 		/// </summary>
 		public DateTime? ProblemTimeUtc { get; }
-
 	}
-
 
 	/// <summary>
 	/// A physical device
@@ -386,7 +384,6 @@ namespace Horde.Build.Devices
 		public string? StepName { get; }
 	}
 
-
 	/// <summary>
 	/// Platform telemetry for a device pool
 	/// </summary>
@@ -421,7 +418,6 @@ namespace Horde.Build.Devices
 		/// Number of reserved devices of this platform 
 		/// </summary>
 		public IReadOnlyDictionary<StreamId, IReadOnlyList<IDevicePoolReservationTelemetry>>? Reserved { get; }
-
 	}
 
 	/// <summary>
@@ -438,7 +434,5 @@ namespace Horde.Build.Devices
 		/// Pool platform telemetry
 		/// </summary>
 		public IReadOnlyDictionary<DevicePoolId, IReadOnlyList<IDevicePlatformTelemetry>> Pools { get; }
-
 	}
-
 }

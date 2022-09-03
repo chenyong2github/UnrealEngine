@@ -62,7 +62,7 @@ namespace Horde.Build.Storage.Services
 		{
 			string path = GetFullBlobPath(namespaceId, hash);
 
-			Stream? stream = await _storageBackend.ReadAsync(path);
+			Stream? stream = await _storageBackend.ReadAsync(path, cancellationToken);
 			if(stream == null)
 			{
 				throw new BlobNotFoundException(namespaceId, hash);
@@ -94,7 +94,7 @@ namespace Horde.Build.Storage.Services
 			}
 
 			string path = GetFullBlobPath(namespaceId, hash);
-			await _storageBackend.WriteBytesAsync(path, data);
+			await _storageBackend.WriteBytesAsync(path, data, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -110,7 +110,7 @@ namespace Horde.Build.Storage.Services
 			IoHash dataHash = IoHash.Compute(data);
 
 			string path = GetFullBlobPath(namespaceId, dataHash);
-			await _storageBackend.WriteBytesAsync(path, data);
+			await _storageBackend.WriteBytesAsync(path, data, cancellationToken);
 
 			return dataHash;
 		}
@@ -130,7 +130,7 @@ namespace Horde.Build.Storage.Services
 		/// <inheritdoc/>
 		public async Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
 		{
-			return await _storageBackend.ExistsAsync(GetFullBlobPath(namespaceId, hash));
+			return await _storageBackend.ExistsAsync(GetFullBlobPath(namespaceId, hash), cancellationToken);
 		}
 
 		/// <inheritdoc/>

@@ -10,7 +10,6 @@ using System.Net.Mime;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
-using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Server;
 using Horde.Build.Utilities;

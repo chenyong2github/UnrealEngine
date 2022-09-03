@@ -3,7 +3,6 @@
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Health.V1;
-using Horde.Build.Server;
 using static Grpc.Health.V1.HealthCheckResponse.Types;
 
 namespace Horde.Build.Server

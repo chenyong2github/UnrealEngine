@@ -291,10 +291,7 @@ namespace Horde.Build.Users
 		public async Task<IUserClaims> GetClaimsAsync(UserId userId)
 		{
 			IUserClaims? claims = await _userClaims.Find(x => x.Id == userId).FirstOrDefaultAsync();
-			if(claims == null)
-			{
-				claims = new UserClaimsDocument(userId);
-			}
+			claims ??= new UserClaimsDocument(userId);
 			return claims;
 		}
 
@@ -310,10 +307,7 @@ namespace Horde.Build.Users
 		public async Task<IUserSettings> GetSettingsAsync(UserId userId)
 		{
 			IUserSettings? settings = await _userSettings.Find(x => x.Id == userId).FirstOrDefaultAsync();
-			if (settings == null)
-			{
-				settings = new UserSettingsDocument(userId);
-			}
+			settings ??= new UserSettingsDocument(userId);
 			return settings;
 		}
 

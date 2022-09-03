@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
-using Horde.Build.Jobs.Artifacts;
 
 namespace Horde.Build.Jobs.Artifacts
 {

@@ -18,7 +18,6 @@ using Microsoft.Extensions.Hosting;
 using HordeCommon;
 using System.Threading;
 using System.Linq;
-using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 
@@ -125,13 +124,11 @@ namespace Horde.Build.Issues.External
 		/// </summary>
 		readonly ConfigCollection _configCollection;
 
-		readonly IClock _clock;
 		readonly ITicker _ticker;
 
 		readonly Uri _jiraUrl;
 
-		Dictionary<string, JiraProject> _cachedJiraProjects = new Dictionary<string, JiraProject>();
-
+		readonly Dictionary<string, JiraProject> _cachedJiraProjects = new Dictionary<string, JiraProject>();
 
 		/// <summary>
 		/// Jira service constructor
@@ -144,13 +141,11 @@ namespace Horde.Build.Issues.External
 		/// <param name="logger"></param>
 		public JiraService(IOptions<ServerSettings> settings, StreamService streamService, IssueService issueService, ConfigCollection configCollection, IClock clock, ILogger<JiraService> logger)
 		{
-
 			_settings = settings.Value;
 			_logger = logger;
 			_streamService = streamService;
 			_issueService = issueService;
 			_configCollection = configCollection;
-			_clock = clock;
 			_ticker = clock.AddTicker<JiraService>(TimeSpan.FromMinutes(2.0), TickAsync, logger);
 			_jiraUrl = _settings.JiraUrl!;
 
@@ -206,7 +201,6 @@ namespace Horde.Build.Issues.External
 				{
 					projectKeys.Add(workflow.ExternalIssues.ProjectKey);
 				}				
-
 			});
 
 			foreach (string key in projectKeys)
@@ -274,9 +268,7 @@ namespace Horde.Build.Issues.External
 						}
 
 						jiraProject.IssueTypes[issueType.GetProperty("id").GetString()!] = name;
-
 					}
-
 				}
 
 				// Components
@@ -328,10 +320,9 @@ namespace Horde.Build.Issues.External
 			HashSet<string> jiraProjectKeys = new HashSet<string>();
 
 			List<IStream> cachedStreams = await _streamService.StreamCollection.FindAllAsync();
-			StreamConfig? config = null;
 			foreach (IStream cachedStream in cachedStreams)
 			{
-				config = null;
+				StreamConfig? config = null;
 				try
 				{
 					config = await _configCollection.GetConfigAsync<StreamConfig>(cachedStream.ConfigRevision);
@@ -393,7 +384,6 @@ namespace Horde.Build.Issues.External
 				issueDesc = $"\n{issueDesc}\n\nJira Issue created by {user.Name} from Horde\n\n";
 			}
 
-
 			Uri uri = new Uri(_jiraUrl, $"/rest/api/2/issue");
 
 			string bodyJson = JsonSerializer.Serialize(new
@@ -408,7 +398,7 @@ namespace Horde.Build.Issues.External
 					{
 						id = issueType
 					},
-					summary = summary,
+					summary,
 					description = issueDesc,
 					components = new object[]
 					{
@@ -449,7 +439,6 @@ namespace Horde.Build.Issues.External
 				{
 					_logger.LogError(ex, "Unable to add {ExternalUser} as watcher to issue {IssueKey}", externalIssueUser, jiraResponse.Key);
 				}
-				
 			}
 
 			return (jiraResponse.Key, $"{_jiraUrl}browse/{jiraResponse.Key}");

@@ -8,7 +8,6 @@ using System.Security.Cryptography;
 using EpicGames.Horde.Common;
 using EpicGames.Perforce;
 using Horde.Build.Acls;
-using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;

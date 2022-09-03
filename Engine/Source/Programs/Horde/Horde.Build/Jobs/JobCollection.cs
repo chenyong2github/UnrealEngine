@@ -892,10 +892,7 @@ namespace Horde.Build.Jobs
 							// Apply any property updates
 							if (newProperties != null)
 							{
-								if (step.Properties == null)
-								{
-									step.Properties = new Dictionary<string, string>(StringComparer.Ordinal);
-								}
+								step.Properties ??= new Dictionary<string, string>(StringComparer.Ordinal);
 
 								foreach (KeyValuePair<string, string?> pair in newProperties)
 								{

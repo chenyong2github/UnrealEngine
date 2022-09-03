@@ -3,7 +3,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Horde.Build.Acls;
-using Horde.Build.Projects;
 
 namespace Horde.Build.Projects
 {

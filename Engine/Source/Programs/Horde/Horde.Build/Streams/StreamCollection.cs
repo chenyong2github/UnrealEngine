@@ -231,7 +231,6 @@ namespace Horde.Build.Streams
 					{
 						newTemplateRef.StepStates = new List<TemplateStepState>(oldTemplateRef.StepStates);
 					}
-
 				}
 				newTemplateRefs.Add(newTemplateRefId, newTemplateRef);
 			}
@@ -292,7 +291,6 @@ namespace Horde.Build.Streams
 				{
 					updates.Add(updateBuilder.Set(x => x.Templates, newTemplates));
 				}
-				
 			}
 			else if (stepStates != null)
 			{
@@ -306,21 +304,21 @@ namespace Horde.Build.Streams
 				{
 					TemplateStepState? newState = newStepStates.Where(x => x.Name == updateState.Name).FirstOrDefault();
 
-					UserId? PausedByUserId = updateState.PausedByUserId != null ? new UserId(updateState.PausedByUserId) : null;
+					UserId? pausedByUserId = updateState.PausedByUserId != null ? new UserId(updateState.PausedByUserId) : null;
 
 					if (newState == null)
 					{
 						// if this is a new state without anything set, ignore it
-						if (PausedByUserId == null)
+						if (pausedByUserId == null)
 						{
 							continue;
 						}
 
-						newStepStates.Add(new TemplateStepState(updateState.Name, PausedByUserId, PausedByUserId != null ? DateTime.UtcNow : null));
+						newStepStates.Add(new TemplateStepState(updateState.Name, pausedByUserId, DateTime.UtcNow));
 					}
 					else
 					{
-						if (PausedByUserId == null)
+						if (pausedByUserId == null)
 						{
 							newState.PauseTimeUtc = null;
 						}
@@ -329,7 +327,7 @@ namespace Horde.Build.Streams
 							newState.PauseTimeUtc = DateTime.UtcNow;
 						}
 
-						newState.PausedByUserId = PausedByUserId;						
+						newState.PausedByUserId = pausedByUserId;						
 					}
 				}
 

@@ -6,7 +6,6 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Bundles;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Agents.Fleet;
-using Horde.Build.Storage;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Utilities;
 using TimeZoneConverter;
@@ -584,10 +583,7 @@ namespace Horde.Build
 		{
 			get
 			{
-				if (_cachedTimeZoneInfo == null)
-				{
-					_cachedTimeZoneInfo = (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
-				}
+				_cachedTimeZoneInfo ??= (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
 				return _cachedTimeZoneInfo;
 			}
 		}

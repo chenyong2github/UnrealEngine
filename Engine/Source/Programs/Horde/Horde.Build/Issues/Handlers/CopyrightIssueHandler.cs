@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
-using Horde.Build.Logs;
-using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
-using MongoDB.Driver;
 
 namespace Horde.Build.Issues.Handlers
 {

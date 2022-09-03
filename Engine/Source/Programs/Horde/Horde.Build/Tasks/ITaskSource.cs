@@ -233,6 +233,7 @@ namespace Horde.Build.Tasks
         /// <returns>Lease task</returns>
         protected static Task<AgentLease?> Skip(CancellationToken token)
         {
+			_ = token;
             return Task.FromResult<AgentLease?>(null);
         }
 

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Horde.Build.Acls;
-using Horde.Build.Agents;
 using EpicGames.Core;
 using HordeCommon;
 using Horde.Build.Agents.Leases;

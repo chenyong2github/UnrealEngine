@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Horde.Build.Jobs;
 using Horde.Build.Server;
 using Horde.Build.Storage;
 using Horde.Build.Utilities;

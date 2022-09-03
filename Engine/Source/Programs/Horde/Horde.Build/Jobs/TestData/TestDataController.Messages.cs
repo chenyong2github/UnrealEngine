@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Horde.Build.Jobs.TestData;
 using MongoDB.Bson.Serialization;
 
 namespace Horde.Build.Jobs.TestData

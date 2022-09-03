@@ -65,7 +65,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 				describeRequest.Filters = new List<Filter>();
 				describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
 				describeRequest.Filters.Add(new Filter("tag:" + AwsFleetManager.PoolTagName, new List<string> { pool.Name }));
-				describeResponse = await _client.DescribeInstancesAsync(describeRequest);
+				describeResponse = await _client.DescribeInstancesAsync(describeRequest, cancellationToken);
 				describeScope.Span.SetTag("res.statusCode", (int)describeResponse.HttpStatusCode);
 				describeScope.Span.SetTag("res.numReservations", describeResponse.Reservations.Count);
 			}
@@ -79,7 +79,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 				startScope.Span.SetTag("req.instanceIds", String.Join(",", startRequest.InstanceIds));
 				if (startRequest.InstanceIds.Count > 0)
 				{
-					StartInstancesResponse startResponse = await _client.StartInstancesAsync(startRequest);
+					StartInstancesResponse startResponse = await _client.StartInstancesAsync(startRequest, cancellationToken);
 					startScope.Span.SetTag("res.statusCode", (int)startResponse.HttpStatusCode);
 					startScope.Span.SetTag("res.numInstances", startResponse.StartingInstances.Count);
 					if ((int)startResponse.HttpStatusCode >= 200 && (int)startResponse.HttpStatusCode <= 299)
@@ -114,7 +114,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 			describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
 			describeRequest.Filters.Add(new Filter("tag:" + AwsFleetManager.PoolTagName, new List<string> { pool.Name }));
 
-			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest);
+			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest, cancellationToken);
 			return describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Distinct().Count();
 		}
 	}

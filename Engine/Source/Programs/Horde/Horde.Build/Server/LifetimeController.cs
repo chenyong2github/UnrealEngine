@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Threading.Tasks;
-using Horde.Build.Server;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Horde.Build.Server
