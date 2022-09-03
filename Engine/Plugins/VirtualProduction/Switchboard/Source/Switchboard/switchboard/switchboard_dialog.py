@@ -21,6 +21,7 @@ from PySide2.QtWidgets import QWidgetAction, QMenu
 from switchboard import config
 from switchboard import config_osc as osc
 from switchboard import p4_utils
+from switchboard import ugs_utils
 from switchboard import recording
 from switchboard import resources  # noqa
 from switchboard import switchboard_application
@@ -1762,9 +1763,20 @@ class SwitchboardDialog(QtCore.QObject):
     def p4_refresh_project_cl(self):
         if not CONFIG.P4_ENABLED.get_value():
             return
-        LOGGER.info("Refreshing p4 project changelists")
-        working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
-        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PROJECT_PATH.get_value(), working_dir)
+
+        changelists = None
+        # If we're syncing 'Precompiled Binaries', then that implies that we should be using UGS:
+        if CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Sync_PCBs.value:
+            LOGGER.info("Using UnrealGameSync to refresh project changelists.")
+            changelists = ugs_utils.latest_chagelists(Path(CONFIG.UPROJECT_PATH.get_value()), client=CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
+            if not changelists:
+                LOGGER.error("UnrealGameSync failed to get the project's latest changelists. Falling back to using p4 commands directly.")
+
+        if not changelists:
+            LOGGER.info("Refreshing p4 project changelists")
+            working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+            changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PROJECT_PATH.get_value(), working_dir)
+            
         self.window.project_cl_combo_box.clear()
 
         if changelists:
