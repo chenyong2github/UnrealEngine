@@ -99,8 +99,12 @@ void AAudioGameplayVolume::PostRegisterAllComponents()
 
 	if (AGVComponent)
 	{
-		UAGVPrimitiveComponentProxy* PrimitiveComponentProxy = NewObject<UAGVPrimitiveComponentProxy>(AGVComponent);
-		AGVComponent->SetProxy(PrimitiveComponentProxy);
+		UAGVPrimitiveComponentProxy* PrimitiveComponentProxy = Cast<UAGVPrimitiveComponentProxy>(AGVComponent->GetProxy());
+		if (!PrimitiveComponentProxy)
+		{
+			AGVComponent->SetProxy(NewObject<UAGVPrimitiveComponentProxy>(AGVComponent));
+		}
+
 		AGVComponent->bAutoActivate = false;
 	}
 }

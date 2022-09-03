@@ -19,7 +19,7 @@ class UAudioGameplayVolumeSubsystem;
 
    NOTE: Will only impact audio sources that have "apply ambient volumes" set on their sound class.
  */
-UCLASS(Blueprintable, hidecategories = (Advanced, Attachment, Collision, Volume))
+UCLASS(hidecategories = (Advanced, Attachment, Collision, Volume))
 class AUDIOGAMEPLAYVOLUME_API AAudioGameplayVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
@@ -27,7 +27,7 @@ class AUDIOGAMEPLAYVOLUME_API AAudioGameplayVolume : public AVolume
 private:
 
 	// A representation of this volume for the audio thread
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TObjectPtr<UAudioGameplayVolumeComponent> AGVComponent = nullptr;
 
 	// Whether this volume is currently enabled.  Disabled volumes will not have a volume proxy, 

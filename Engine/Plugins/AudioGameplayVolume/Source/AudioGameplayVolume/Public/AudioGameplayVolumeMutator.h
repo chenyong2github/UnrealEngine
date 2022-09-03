@@ -94,7 +94,7 @@ protected:
  *		Currently, components inheriting this base can affect interior settings as well as active sounds or the audio listener(s) inside the volume.
  *		See also: FilterVolumeComponent, AttenuationVolumeComponent, SubmixSendComponent, SubmixOverrideVolumeComponent, and ReverbVolumeComponent
  */
-UCLASS(Abstract, HideDropdown)
+UCLASS(Abstract, HideDropdown, meta = (IsBlueprintBase = false))
 class AUDIOGAMEPLAYVOLUME_API UAudioGameplayVolumeMutator : public UAudioGameplayComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -113,6 +113,10 @@ public:
 
 protected:
 
+	//~ Begin UAudioGameplayComponent interface 
+	virtual void Enable() override;
+	//~ End UAudioGameplayComponent interface
+	
 	/** Create this component's type of mutator */
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const;
 

@@ -152,6 +152,12 @@ TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeMutator::CreateMutator() con
 	return ProxyMutator;
 }
 
+void UAudioGameplayVolumeMutator::Enable()
+{
+	Super::Enable();
+	NotifyDataChanged();
+}
+
 TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeMutator::FactoryMutator() const
 {
 	return TSharedPtr<FProxyVolumeMutator>();
