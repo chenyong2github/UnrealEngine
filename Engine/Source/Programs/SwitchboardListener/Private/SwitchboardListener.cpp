@@ -2059,10 +2059,23 @@ bool FSwitchboardListener::Task_FreeListenerBinary(const FSwitchboardFreeListene
 	
 	const FString MovedListenerPath = FPaths::EngineIntermediateDir() / TEXT("Switchboard") / TEXT("old_") + ThisExeFilename;
 
+	//
+	// Weird hackery to get around Windows locking down an executable file on disk whilst running.
+	// We move the (locked) file (which is allowed), and then make a copy (which is no longer linked to the running process)
+
 	if (!IFileManager::Get().Move(*MovedListenerPath, *OriginalThisExePath, true))
 	{
 		const uint32 LastError = FPlatformMisc::GetLastError();
 		const FString ErrorMsg = FString::Printf(TEXT("Unable to move listener exe to \"%s\" (error code %u)"), *MovedListenerPath, LastError);
+		UE_LOG(LogSwitchboard, Error, TEXT("Free listener binary: %s"), *ErrorMsg);
+		SendMessage(CreateTaskDeclinedMessage(InFreeListenerBinaryTask, ErrorMsg, {}), InFreeListenerBinaryTask.Recipient);
+		return false;
+	}
+
+	if (IFileManager::Get().Copy(*OriginalThisExePath, *MovedListenerPath, true, true) != ECopyResult::COPY_OK)
+	{
+		const uint32 LastError = FPlatformMisc::GetLastError();
+		const FString ErrorMsg = FString::Printf(TEXT("Unable to copy listener exe back to \"%s\" (error code %u)"), *OriginalThisExePath, LastError);
 		UE_LOG(LogSwitchboard, Error, TEXT("Free listener binary: %s"), *ErrorMsg);
 		SendMessage(CreateTaskDeclinedMessage(InFreeListenerBinaryTask, ErrorMsg, {}), InFreeListenerBinaryTask.Recipient);
 		return false;
