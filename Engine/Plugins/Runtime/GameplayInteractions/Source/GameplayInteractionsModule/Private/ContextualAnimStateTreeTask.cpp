@@ -45,7 +45,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 	}
 	
 	// Create task which will also be simulated on the clients
-	UE_TRANSITIONAL_OBJECT_PTR(UGameplayTask_PlayContextualAnim)& Task = InstanceData.Task;
+	TObjectPtr<UGameplayTask_PlayContextualAnim>& Task = InstanceData.Task;
 
 	Task = UGameplayTask_PlayContextualAnim::PlayContextualAnim(
 		&Interactor,
@@ -85,7 +85,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::Tick(FStateTreeExecutionContex
 	}
 	else
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UGameplayTask_PlayContextualAnim)& Task = InstanceData.Task;
+		TObjectPtr<UGameplayTask_PlayContextualAnim>& Task = InstanceData.Task;
 		if (Task == nullptr)
 		{
 			return EStateTreeRunStatus::Running;
@@ -110,7 +110,7 @@ void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context
 	}
 
 	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
-	UE_TRANSITIONAL_OBJECT_PTR(UGameplayTask_PlayContextualAnim)& Task = InstanceData.Task;
+	TObjectPtr<UGameplayTask_PlayContextualAnim>& Task = InstanceData.Task;
 	if (Task == nullptr)
 	{
 		ST_ANIM_TASK_LOG(Error, TEXT("Unable to access gameplay task."));

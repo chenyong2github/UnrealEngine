@@ -205,7 +205,7 @@ UDMXEntity* UDMXLibrary::GetOrCreateEntityObject(const FString& InName, TSubclas
 
 UDMXEntity* UDMXLibrary::FindEntity(const FString& InSearchName) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UDMXEntity) const* Entity = Entities.FindByPredicate([&InSearchName](const UDMXEntity* InEntity)->bool
+	TObjectPtr<UDMXEntity> const* Entity = Entities.FindByPredicate([&InSearchName](const UDMXEntity* InEntity)->bool
 		{
 			return InEntity && InEntity->GetDisplayName().Equals(InSearchName);
 		});

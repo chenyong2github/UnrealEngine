@@ -1316,7 +1316,7 @@ const UScriptStruct* URemoteControlPreset::GetExposedEntityType(const FGuid& Exp
 	return Registry->GetExposedEntityType(ExposedEntityId);
 }
 
-const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UScriptStruct)& URemoteControlPreset::GetExposedEntityTypes() const
+const TSet<TObjectPtr<UScriptStruct>>& URemoteControlPreset::GetExposedEntityTypes() const
 {
 	return Registry->GetExposedEntityTypes();
 }

@@ -17,7 +17,7 @@
 
 USocialChatRoom* USocialChatManager::GetChatRoom(const FChatRoomId& ChannelId) const
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)const* FoundChannel = ChatRoomsById.Find(ChannelId))
+	if (TObjectPtr<USocialChatRoom>const* FoundChannel = ChatRoomsById.Find(ChannelId))
 	{
 		return *FoundChannel;
 	}
@@ -286,7 +286,7 @@ IOnlineChatPtr USocialChatManager::GetOnlineChatInterface(ESocialSubsystem InSoc
 
 USocialChatRoom& USocialChatManager::FindOrCreateRoom(const FChatRoomId& RoomId)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)* Channel = ChatRoomsById.Find(RoomId))
+	if (TObjectPtr<USocialChatRoom>* Channel = ChatRoomsById.Find(RoomId))
 	{
 		return **Channel;
 	}
@@ -309,7 +309,7 @@ USocialChatRoom& USocialChatManager::FindOrCreateRoom(const FChatRoomId& RoomId)
 
 USocialChatChannel& USocialChatManager::FindOrCreateChannel(USocialUser& SocialUser)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(USocialPrivateMessageChannel)* Channel = DirectChannelsByTargetUser.Find(&SocialUser))
+	if (TObjectPtr<USocialPrivateMessageChannel>* Channel = DirectChannelsByTargetUser.Find(&SocialUser))
 	{
 		return **Channel;
 	}
@@ -329,7 +329,7 @@ USocialChatChannel& USocialChatManager::FindOrCreateChannel(USocialUser& SocialU
 
 USocialChatChannel& USocialChatManager::FindOrCreateChannel(const FText& DisplayName)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(USocialReadOnlyChatChannel)* Channel = ReadOnlyChannelsByDisplayName.Find(DisplayName.ToString()))
+	if (TObjectPtr<USocialReadOnlyChatChannel>* Channel = ReadOnlyChannelsByDisplayName.Find(DisplayName.ToString()))
 	{
 		return **Channel;
 	}
@@ -413,7 +413,7 @@ void USocialChatManager::HandleChatRoomExit(const FUniqueNetId& LocalUserId, con
 	{
 		if (bWasSuccessful)
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)* Room = ChatRoomsById.Find(RoomId);
+			TObjectPtr<USocialChatRoom>* Room = ChatRoomsById.Find(RoomId);
 			if (ensure(Room))
 			{
 				ChatRoomsById.Remove(RoomId);
@@ -435,7 +435,7 @@ void USocialChatManager::HandleChatRoomMemberJoin(const FUniqueNetId& LocalUserI
 		GetOwningToolkit().QueueUserDependentAction(MemberId.AsShared(),
 			[this, RoomId](USocialUser& User)
 		{
-			if (UE_TRANSITIONAL_OBJECT_PTR(USocialChatRoom)* Channel = ChatRoomsById.Find(RoomId))
+			if (TObjectPtr<USocialChatRoom>* Channel = ChatRoomsById.Find(RoomId))
 			{
 				(*Channel)->NotifyUserJoinedChannel(User);
 			}

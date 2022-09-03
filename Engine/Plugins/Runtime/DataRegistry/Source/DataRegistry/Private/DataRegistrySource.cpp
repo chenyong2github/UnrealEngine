@@ -243,7 +243,7 @@ void UMetaDataRegistrySource::RefreshRuntimeSources()
 
 	for (FName SourceName : RuntimeNames)
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UDataRegistrySource)* FoundSource = RuntimeChildren.Find(SourceName);
+		TObjectPtr<UDataRegistrySource>* FoundSource = RuntimeChildren.Find(SourceName);
 		if (FoundSource && *FoundSource)
 		{
 			SetDataForChild(SourceName, *FoundSource);
@@ -286,7 +286,7 @@ void UMetaDataRegistrySource::AddRuntimeSources(TArray<UDataRegistrySource*>& Ou
 	{
 		for (FName SourceName : RuntimeNames)
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(UDataRegistrySource)* FoundSource = RuntimeChildren.Find(SourceName);
+			TObjectPtr<UDataRegistrySource>* FoundSource = RuntimeChildren.Find(SourceName);
 			if (FoundSource && *FoundSource)
 			{
 				OutRuntimeSources.Add(*FoundSource);

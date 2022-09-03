@@ -156,7 +156,7 @@ UMQTTSubscriptionObject* UMQTTClientObject::Subscribe(const FString& InTopic, EM
 	if (const TSharedPtr<IMQTTClient, ESPMode::ThreadSafe> MQTTClient = MqttClientPtr)
 	{
 		UMQTTSubscriptionObject* SubscriptionObject = NewObject<UMQTTSubscriptionObject>(this);
-		UE_TRANSITIONAL_OBJECT_PTR(UMQTTSubscriptionObject)& SubscriptionObjectRef = this->Subscriptions.Add_GetRef(SubscriptionObject);
+		TObjectPtr<UMQTTSubscriptionObject>& SubscriptionObjectRef = this->Subscriptions.Add_GetRef(SubscriptionObject);
 
 		MQTTClient->Subscribe({MakeTuple(InTopic, InQoS)})
 		.Next([&](TArray<FMQTTSubscribeResult> InSubscribeResults)

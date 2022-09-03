@@ -221,7 +221,7 @@ void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<F
 {
 	check(IsInGameThread());
 
-	for(const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterPreviewComponent)& PreviewComponentIt : PreviewComponents)
+	for(const TPair<FString, TObjectPtr<UDisplayClusterPreviewComponent>>& PreviewComponentIt : PreviewComponents)
 	{
 		if (PreviewComponentIt.Value)
 		{
@@ -358,7 +358,7 @@ bool ADisplayClusterRootActor::ImplUpdatePreviewRenderFrame_Editor(const FString
 		if (ImplUpdatePreviewConfiguration_Editor(InClusterNodeId))
 		{
 			// Update all preview components resources before render
-			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterPreviewComponent)& PreviewComponentIt : PreviewComponents)
+			for (const TTuple<FString, TObjectPtr<UDisplayClusterPreviewComponent>>& PreviewComponentIt : PreviewComponents)
 			{
 				if (PreviewComponentIt.Value && PreviewComponentIt.Value->GetClusterNodeId() == InClusterNodeId)
 				{
@@ -512,7 +512,7 @@ void ADisplayClusterRootActor::ImplRenderPreviewFrustums_Editor()
 	// frustum preview viewports
 	TArray<IDisplayClusterViewport*> FrustumPreviewViewports;
 
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& Node : CurrentConfigData->Cluster->Nodes)
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& Node : CurrentConfigData->Cluster->Nodes)
 	{
 		if (Node.Value == nullptr)
 		{
@@ -520,7 +520,7 @@ void ADisplayClusterRootActor::ImplRenderPreviewFrustums_Editor()
 		}
 
 		// collect node viewports
-		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportConfig : Node.Value->Viewports)
+		for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportConfig : Node.Value->Viewports)
 		{
 			if (ViewportConfig.Value->bAllowPreviewFrustumRendering == false || ViewportConfig.Value->bIsVisible == false || ViewportConfig.Value == nullptr)
 			{
@@ -824,14 +824,14 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 	
 	if (CurrentConfigData != nullptr && IsPreviewEnabled())
 	{
-		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& Node : CurrentConfigData->Cluster->Nodes)
+		for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& Node : CurrentConfigData->Cluster->Nodes)
 		{
 			if (Node.Value == nullptr)
 			{
 				continue;
 			}
 
-			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& Viewport : Node.Value->Viewports)
+			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& Viewport : Node.Value->Viewports)
 			{
 				const FString PreviewCompId = GeneratePreviewComponentName_Editor(Node.Key, Viewport.Key);
 				UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
@@ -880,7 +880,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 
 void ADisplayClusterRootActor::ReleasePreviewComponents()
 {
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterPreviewComponent)& CompPair : PreviewComponents)
+	for (const TPair<FString, TObjectPtr<UDisplayClusterPreviewComponent>>& CompPair : PreviewComponents)
 	{
 		if (CompPair.Value)
 		{

@@ -117,8 +117,8 @@ public:
 	/** Get the Controller this agent is controlling. */
 	const AController* GetController() const { return Controller; }
 	
-	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE_SUFFIXED(TArray, UMLAdapterSensor, ::TConstIterator) GetSensorsConstIterator() const { return Sensors.CreateConstIterator(); }
-	UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE_SUFFIXED(TArray, UMLAdapterActuator, ::TConstIterator) GetActuatorsConstIterator() const { return Actuators.CreateConstIterator(); }
+	TArray<TObjectPtr<UMLAdapterSensor>>::TConstIterator GetSensorsConstIterator() const { return Sensors.CreateConstIterator(); }
+	TArray<TObjectPtr<UMLAdapterActuator>>::TConstIterator GetActuatorsConstIterator() const { return Actuators.CreateConstIterator(); }
 	
 	/** If the avatar is a controller, then get the current score from the controller's player state. */
 	virtual float GetReward() const;
@@ -129,7 +129,7 @@ public:
 	/** Get the actuator with the given ID if this agent has it. */
 	UMLAdapterActuator* GetActuator(const uint32 ActuatorID) 
 	{ 
-		UE_TRANSITIONAL_OBJECT_PTR(UMLAdapterActuator)* FoundActuator = Actuators.FindByPredicate([ActuatorID](const UMLAdapterActuator* Actuator) { return (Actuator->GetElementID() == ActuatorID); });
+		TObjectPtr<UMLAdapterActuator>* FoundActuator = Actuators.FindByPredicate([ActuatorID](const UMLAdapterActuator* Actuator) { return (Actuator->GetElementID() == ActuatorID); });
 		return FoundActuator ? *FoundActuator : nullptr;
 	}
 

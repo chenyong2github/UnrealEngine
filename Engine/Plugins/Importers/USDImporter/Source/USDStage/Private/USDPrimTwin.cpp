@@ -17,7 +17,7 @@ UUsdPrimTwin& UUsdPrimTwin::AddChild( const FString& InPrimPath )
 
 	Modify();
 
-	UE_TRANSITIONAL_OBJECT_PTR(UUsdPrimTwin)& ChildPrim = Children.Add( ChildPrimName );
+	TObjectPtr<UUsdPrimTwin>& ChildPrim = Children.Add( ChildPrimName );
 
 	// Needs public because this will mostly live on the transient package (c.f. AUsdStageActor::GetRootPrimTwin())
 	ChildPrim = NewObject<UUsdPrimTwin>( this, NAME_None, RF_Transient | RF_Transactional | RF_Public );
@@ -34,7 +34,7 @@ void UUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
 
 	Modify();
 
-	for (UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2_SUFFIXED(TMap, FString, UUsdPrimTwin, ::TIterator) ChildIt = Children.CreateIterator(); ChildIt; ++ChildIt )
+	for (TMap<FString, TObjectPtr<UUsdPrimTwin>>::TIterator ChildIt = Children.CreateIterator(); ChildIt; ++ChildIt )
 	{
 		if ( ChildIt->Value->PrimPath == InPrimPath )
 		{
@@ -53,7 +53,7 @@ void UUsdPrimTwin::Clear()
 
 	Modify();
 
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UUsdPrimTwin)& Pair : Children)
+	for (const TPair<FString, TObjectPtr<UUsdPrimTwin>>& Pair : Children)
 	{
 		// Apparently when changing levels it is possible for these objects to already be nullptr by the time we try clearing them,
 		// so its safer to check
@@ -160,7 +160,7 @@ UUsdPrimTwin* UUsdPrimTwin::Find( const USceneComponent* InSceneComponent )
 		return this;
 	}
 
-	for ( const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UUsdPrimTwin)& Child : Children )
+	for ( const TPair<FString, TObjectPtr<UUsdPrimTwin>>& Child : Children )
 	{
 		UUsdPrimTwin* FoundPrimTwin = Child.Value->Find( InSceneComponent );
 		if ( FoundPrimTwin )

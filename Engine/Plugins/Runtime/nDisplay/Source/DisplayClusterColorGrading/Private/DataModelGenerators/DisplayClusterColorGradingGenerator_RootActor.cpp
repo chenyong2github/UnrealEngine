@@ -450,7 +450,7 @@ FText FDisplayClusterColorGradingGenerator_RootActor::GetViewportComboBoxText(in
 				}
 				else
 				{
-					for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationClusterNode)& Node : ConfigData->Cluster->Nodes)
+					for (const TTuple<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& Node : ConfigData->Cluster->Nodes)
 					{
 						if (Node.Value)
 						{
@@ -486,11 +486,11 @@ TSharedRef<SWidget> FDisplayClusterColorGradingGenerator_RootActor::GetViewportC
 				// Extract all viewport names from the configuration data, so they can be sorted alphabetically
 				TArray<FString> ViewportNames;
 
-				for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationClusterNode)& Node : ConfigData->Cluster->Nodes)
+				for (const TTuple<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& Node : ConfigData->Cluster->Nodes)
 				{
 					if (Node.Value)
 					{
-						for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationViewport)& Viewport : Node.Value->Viewports)
+						for (const TTuple<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& Viewport : Node.Value->Viewports)
 						{
 							ViewportNames.Add(Viewport.Key);
 						}

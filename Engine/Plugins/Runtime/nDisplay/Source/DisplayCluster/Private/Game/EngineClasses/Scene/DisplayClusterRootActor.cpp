@@ -205,7 +205,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 
 		for (auto NewNodeIt = ConfigData->Cluster->Nodes.CreateConstIterator(); NewNodeIt; ++NewNodeIt)
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationClusterNode)* CurrentNodePtr = CurrentConfigData->Cluster->Nodes.Find(NewNodeIt->Key);
+			TObjectPtr<UDisplayClusterConfigurationClusterNode>* CurrentNodePtr = CurrentConfigData->Cluster->Nodes.Find(NewNodeIt->Key);
 
 			// Add the node if it doesn't exist
 			if (!CurrentNodePtr)
@@ -247,7 +247,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 				// Go over viewport and override the current ones (or add new ones that didn't exist)
 				for (auto NewViewportIt = NewNode->Viewports.CreateConstIterator(); NewViewportIt; ++NewViewportIt)
 				{
-					UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport)* CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
+					TObjectPtr<UDisplayClusterConfigurationViewport>* CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
 
 					// Add the viewport if it doesn't exist
 					if (!CurrentViewportPtr)
@@ -1011,7 +1011,7 @@ static void PropagateDataFromDefaultConfig(UDisplayClusterConfigurationData* InD
 	
 	PropagateDefaultMapToInstancedMap(ClusterNodesMapProperty, InDefaultConfigData->Cluster, InInstanceConfigData->Cluster);
 	
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationClusterNode)& ClusterKeyVal : InDefaultConfigData->Cluster->Nodes)
+	for (const TTuple<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& ClusterKeyVal : InDefaultConfigData->Cluster->Nodes)
 	{
 		UDisplayClusterConfigurationClusterNode* DestinationValue = InInstanceConfigData->Cluster->Nodes.FindChecked(
 			ClusterKeyVal.Key);
@@ -1057,14 +1057,14 @@ USceneComponent* ADisplayClusterRootActor::GetCommonViewPoint() const
 			TMap<FString, int32> ViewPointCounts;
 
 			// Get all the camera names used by viewports in this cluster
-			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodePair : ConfigData->Cluster->Nodes)
+			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& NodePair : ConfigData->Cluster->Nodes)
 			{
 				if (!NodePair.Value)
 				{
 					continue;
 				}
 
-				for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportPair : NodePair.Value->Viewports)
+				for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportPair : NodePair.Value->Viewports)
 				{
 					if (!ViewportPair.Value)
 					{
@@ -1151,7 +1151,7 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 	{
 		check(Node != nullptr);
 
-		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportItem : Node->Viewports)
+		for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportItem : Node->Viewports)
 		{
 			if (ViewportItem.Value)
 			{
@@ -1159,14 +1159,14 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			}
 		}
 
-		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodeItem : ConfigData->Cluster->Nodes)
+		for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& NodeItem : ConfigData->Cluster->Nodes)
 		{
 			if (!NodeItem.Value)
 			{
 				continue;
 			}
 
-			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportItem : NodeItem.Value->Viewports)
+			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportItem : NodeItem.Value->Viewports)
 			{
 				if (ViewportItem.Value)
 				{

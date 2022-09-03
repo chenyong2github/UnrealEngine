@@ -649,7 +649,7 @@ void UMassReplicationSubsystem::AddClient(FMassViewerHandle ViewerHandle, APlaye
 		}
 		else
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(AMassClientBubbleInfoBase)& BubbleUpdate = InfoData.Bubbles[ClientHandle.GetIndex()];
+			TObjectPtr<AMassClientBubbleInfoBase>& BubbleUpdate = InfoData.Bubbles[ClientHandle.GetIndex()];
 			checkf(BubbleUpdate == nullptr, TEXT("ClientBubble being replaced must be nullptr it should have been removed first!"));
 
 			BubbleUpdate = ClientBubbleInfo;
@@ -689,7 +689,7 @@ void UMassReplicationSubsystem::RemoveClient(FMassClientHandle ClientHandle)
 	for (FMassClientBubbleInfoData& InfoData : BubbleInfoArray)
 	{
 		checkf(InfoData.Bubbles.IsValidIndex(ClientHandle.GetIndex()), TEXT("ClientHandle is out of sync with Bubbles!"));
-		UE_TRANSITIONAL_OBJECT_PTR(AMassClientBubbleInfoBase)& BubbleInfoItem = InfoData.Bubbles[ClientHandle.GetIndex()];
+		TObjectPtr<AMassClientBubbleInfoBase>& BubbleInfoItem = InfoData.Bubbles[ClientHandle.GetIndex()];
 
 		if ((World != nullptr) && (BubbleInfoItem != nullptr))
 		{

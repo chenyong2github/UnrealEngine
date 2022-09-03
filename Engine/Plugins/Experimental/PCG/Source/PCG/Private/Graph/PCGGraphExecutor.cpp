@@ -772,8 +772,8 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultExcludedActorsLabel))
 	{
-		UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TArray, UPCGData) ExclusionsPCGData = Component->GetPCGExclusionData();
-		for (UE_TRANSITIONAL_OBJECT_PTR(UPCGData) ExclusionPCGData : ExclusionsPCGData)
+		TArray<UPCGData*> ExclusionsPCGData = Component->GetPCGExclusionData();
+		for (UPCGData* ExclusionPCGData : ExclusionsPCGData)
 		{
 			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
 			TaggedData.Data = ExclusionPCGData;

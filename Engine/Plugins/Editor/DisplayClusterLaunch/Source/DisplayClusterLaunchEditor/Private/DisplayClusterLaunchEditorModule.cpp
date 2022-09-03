@@ -469,7 +469,7 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 		FString ConcatenatedDPCvars;
 		FString ConcatenatedLogCommands;
 		// Fullscreen/Windowed
-		if (UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationClusterNode)* NodePtrPtr = ConfigDataToUse->Cluster->Nodes.Find(Node))
+		if (TObjectPtr<UDisplayClusterConfigurationClusterNode>* NodePtrPtr = ConfigDataToUse->Cluster->Nodes.Find(Node))
 		{
 			if (const UDisplayClusterConfigurationClusterNode* NodePtr = *NodePtrPtr)
 			{
@@ -872,7 +872,7 @@ void FDisplayClusterLaunchEditorModule::ApplyDisplayClusterConfigOverrides(UDisp
 	for (int32 NodeIndex = 0; NodeIndex < SelectedDisplayClusterConfigActorNodes.Num(); NodeIndex++)
 	{
 		FString NodeId = SelectedDisplayClusterConfigActorNodes[NodeIndex];
-		if (UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationClusterNode)* Node = NodesInConfig.Find(NodeId))
+		if (TObjectPtr<UDisplayClusterConfigurationClusterNode>* Node = NodesInConfig.Find(NodeId))
 		{
 			ActiveNodes.Add(NodeId, *Node);
 			(*Node)->Host = "127.0.0.1";

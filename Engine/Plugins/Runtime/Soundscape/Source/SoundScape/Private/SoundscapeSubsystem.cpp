@@ -67,7 +67,7 @@ void USoundscapeColorPointHashMap::ClearHash()
 int32 USoundscapeColorPointHashMap::NumColorPointsInCell(const FVector& Location, const FGameplayTag ColorPoint)
 {
 	// Determine if the Hash Map contains the Color Point Density Table Pointer
-	if (UE_TRANSITIONAL_OBJECT_PTR(USoundscapeColorPointHashCellDensity)* ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
+	if (TObjectPtr<USoundscapeColorPointHashCellDensity>* ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
 	{
 		// Validate the double pointer
 		if (USoundscapeColorPointHashCellDensity* ColorPointHashCell = *ColorPointHashCellPtr)
@@ -260,7 +260,7 @@ TMap<FGameplayTag, int32> USoundscapeColorPointHashMap::GetHashMapColorPointDens
 
 USoundscapeColorPointHashCellDensity* USoundscapeColorPointHashMap::GetColorPointDensityMap(FGameplayTag ColorPoint)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(USoundscapeColorPointHashCellDensity)* ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
+	if (TObjectPtr<USoundscapeColorPointHashCellDensity>* ColorPointHashCellPtr = ColorPointHashMap.Find(ColorPoint))
 	{
 		// Get Color Point Hash Cell Pointer
 		return *ColorPointHashCellPtr;

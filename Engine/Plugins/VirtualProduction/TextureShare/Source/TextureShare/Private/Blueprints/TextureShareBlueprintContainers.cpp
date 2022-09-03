@@ -71,7 +71,7 @@ TSet<FString> UTextureShare::GetTextureShareObjectNames() const
 
 UTextureShareObject* UTextureShare::GetTextureShareObject(const FString& InShareName) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UTextureShareObject) const* ExistObject = TextureShareObjects.FindByPredicate([InShareName](const UTextureShareObject* TextureShareObjectIt)
+	TObjectPtr<UTextureShareObject> const* ExistObject = TextureShareObjects.FindByPredicate([InShareName](const UTextureShareObject* TextureShareObjectIt)
 	{
 		if (TextureShareObjectIt && TextureShareObjectIt->bEnable)
 		{

@@ -77,7 +77,7 @@ void UUsdAssetCache::DiscardAsset( const FString& Hash )
 {
 	FScopeLock Lock( &CriticalSection );
 
-	UE_TRANSITIONAL_OBJECT_PTR(UObject)* FoundObject = TransientStorage.Find( Hash );
+	TObjectPtr<UObject>* FoundObject = TransientStorage.Find( Hash );
 
 	if ( !FoundObject )
 	{
@@ -110,7 +110,7 @@ UObject* UUsdAssetCache::GetCachedAsset( const FString& Hash ) const
 {
 	FScopeLock Lock( &CriticalSection );
 
-	UE_TRANSITIONAL_OBJECT_PTR(UObject) const* FoundObject = TransientStorage.Find( Hash );
+	TObjectPtr<UObject> const* FoundObject = TransientStorage.Find( Hash );
 
 	if ( !FoundObject )
 	{

@@ -569,7 +569,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		{
 			FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
 			TexturesAndMaterials.Add((UObject**)&LayerComponentData.HeightmapData.Texture);
-			for (UE_TRANSITIONAL_OBJECT_PTR(UTexture2D)& WeightmapTexture : LayerComponentData.WeightmapData.Textures)
+			for (TObjectPtr<UTexture2D>& WeightmapTexture : LayerComponentData.WeightmapData.Textures)
 			{
 				TexturesAndMaterials.Add((UObject**)&static_cast<UTexture2D*&>(WeightmapTexture));
 			}

@@ -50,7 +50,7 @@ UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewp
 	UDisplayClusterConfigurationClusterNode* Node = Cluster->GetNode(NodeId);
 	if (Node)
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport)* Viewport = Node->Viewports.Find(ViewportId);
+		TObjectPtr<UDisplayClusterConfigurationViewport>* Viewport = Node->Viewports.Find(ViewportId);
 		if (Viewport)
 		{
 			return *Viewport;
@@ -387,13 +387,13 @@ void UDisplayClusterConfigurationClusterNode::GetViewportIds(TArray<FString>& Ou
 
 UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationClusterNode::GetViewport(const FString& ViewportId) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport) const* Viewport = Viewports.Find(ViewportId);
+	TObjectPtr<UDisplayClusterConfigurationViewport> const* Viewport = Viewports.Find(ViewportId);
 	return Viewport ? *Viewport : nullptr;
 }
 
 void UDisplayClusterConfigurationClusterNode::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& It : Viewports)
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& It : Viewports)
 	{
 		if (It.Value == nullptr)
 		{
@@ -411,13 +411,13 @@ void UDisplayClusterConfigurationCluster::GetNodeIds(TArray<FString>& OutNodeIds
 
 UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationCluster::GetNode(const FString& NodeId) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UDisplayClusterConfigurationViewport) const* Node = Nodes.Find(NodeId);
+	TObjectPtr<UDisplayClusterConfigurationClusterNode> const* Node = Nodes.Find(NodeId);
 	return Node ? *Node : nullptr;
 }
 
 void UDisplayClusterConfigurationCluster::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& It : Nodes)
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& It : Nodes)
 	{
 		if (It.Value == nullptr)
 		{

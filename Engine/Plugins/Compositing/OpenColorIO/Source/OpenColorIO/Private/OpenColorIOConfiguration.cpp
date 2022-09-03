@@ -56,7 +56,7 @@ void UOpenColorIOConfiguration::BeginDestroy()
 
 bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, TArray<FTextureResource*>& OutTextureResources)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
+	TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
 	{
 		return InTransform->SourceColorSpace == InSourceColorSpace && InTransform->DestinationColorSpace == InDestinationColorSpace;
 	});
@@ -88,7 +88,7 @@ bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type 
 
 bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
+	TObjectPtr<UOpenColorIOColorTransform>* TransformData = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransformData)
 	{
 		return InTransformData->IsTransform(InSourceColorSpace, InDestinationColorSpace);
 	});

@@ -690,7 +690,7 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 	if (ensure(MemberId.IsValid()))
 	{
 		const FUniqueNetIdRepl MemberIdRepl(MemberId.AsShared());
-		if (UE_TRANSITIONAL_OBJECT_PTR(UPartyMember)* ExistingMember = PartyMembersById.Find(MemberIdRepl))
+		if (TObjectPtr<UPartyMember>* ExistingMember = PartyMembersById.Find(MemberIdRepl))
 		{
 			PartyMember = *ExistingMember;
 		}
@@ -1160,7 +1160,7 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 {
 	if (PartyId == GetPartyId())
 	{
-		if (UE_TRANSITIONAL_OBJECT_PTR(UPartyMember)* FoundPartyMember = PartyMembersById.Find(MemberId.AsShared()))
+		if (TObjectPtr<UPartyMember>* FoundPartyMember = PartyMembersById.Find(MemberId.AsShared()))
 		{
 			if (LocalUserId == MemberId)
 			{
@@ -1361,7 +1361,7 @@ void USocialParty::UpdatePartyConfig(bool bResetAccessKey)
 
 UPartyMember* USocialParty::GetMemberInternal(const FUniqueNetIdRepl& MemberId) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UPartyMember) const* Member = PartyMembersById.Find(MemberId);
+	TObjectPtr<UPartyMember> const* Member = PartyMembersById.Find(MemberId);
 	return Member ? *Member : nullptr;
 }
 

@@ -1300,7 +1300,7 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginSta
 
 UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(const FString& PluginURL) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UGameFeaturePluginStateMachine) const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
+	TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
 	if (ExistingStateMachine)
 	{
 		return *ExistingStateMachine;
@@ -1589,7 +1589,7 @@ TSet<FString> UGameFeaturesSubsystem::GetActivePluginNames() const
 {
 	TSet<FString> ActivePluginNames;
 
-	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FGameFeaturePluginIdentifier, UGameFeaturePluginStateMachine)& Pair : GameFeaturePluginStateMachines)
+	for (const TPair<FGameFeaturePluginIdentifier, TObjectPtr<UGameFeaturePluginStateMachine>>& Pair : GameFeaturePluginStateMachines)
 	{
 		UGameFeaturePluginStateMachine* StateMachine = Pair.Value;
 		if (StateMachine->GetCurrentState() == EGameFeaturePluginState::Active &&

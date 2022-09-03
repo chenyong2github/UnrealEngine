@@ -1083,7 +1083,7 @@ bool UPCGComponent::UpdateExcludedActor(AActor* InActor)
 	// Dirty data in all cases - the tag or positional changes will be picked up in the test later
 	if (CachedExcludedActors.Contains(InActor))
 	{
-		if (UE_TRANSITIONAL_OBJECT_PTR(UPCGData)* ExclusionData = CachedExclusionData.Find(InActor))
+		if (TObjectPtr<UPCGData>* ExclusionData = CachedExclusionData.Find(InActor))
 		{
 			*ExclusionData = nullptr;
 		}
@@ -1576,7 +1576,7 @@ void UPCGComponent::UpdatePCGExclusionData()
 
 		AActor* ExcludedActor = ExcludedActorWeakPtr.Get();
 
-		UE_TRANSITIONAL_OBJECT_PTR(UPCGData)* PreviousExclusionData = CachedExclusionData.Find(ExcludedActor);
+		TObjectPtr<UPCGData>* PreviousExclusionData = CachedExclusionData.Find(ExcludedActor);
 
 		if (PreviousExclusionData && *PreviousExclusionData)
 		{
