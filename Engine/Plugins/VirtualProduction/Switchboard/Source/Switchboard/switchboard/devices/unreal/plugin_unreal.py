@@ -1093,6 +1093,11 @@ class DeviceUnreal(Device):
             if self.unrealgamesync_lib_dir_setting:
                 sync_args += f' --ugs-lib-dir={self.unrealgamesync_lib_dir_setting}'
 
+            # If we're syncing 'Precompiled Binaries' one of those binaries may be the SwitchboardListener executable
+            # which means (on Windows atleast) we need to move the executable to make way for the new one
+            _, msg = message_protocol.create_free_listener_bin_message()
+            self.unreal_client.send_message(msg)
+
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool,
             prog_args=sync_args,

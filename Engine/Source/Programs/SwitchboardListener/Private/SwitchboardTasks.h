@@ -22,6 +22,7 @@ enum class ESwitchboardTaskType : uint8
 	RefreshMosaics,
 	MinimizeWindows,
 	SetInactiveTimeout,
+	FreeListenerBinary
 };
 
 
@@ -248,5 +249,12 @@ struct FSwitchboardSetInactiveTimeoutTask : public FSwitchboardTask
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(TimeoutSeconds));
 	}
 	//~ End FSwitchboardTask interface
+};
+
+struct FSwitchboardFreeListenerBinaryTask : public FSwitchboardTask
+{
+	FSwitchboardFreeListenerBinaryTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint)
+		: FSwitchboardTask{ ESwitchboardTaskType::FreeListenerBinary, TEXT("frees (moves) the listener binary file on disk so that it can be overwritten"), InTaskID, InEndpoint }
+	{}
 };
 

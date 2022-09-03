@@ -25,6 +25,7 @@ struct FSwitchboardRedeployListenerTask;
 struct FSwitchboardFixExeFlagsTask;
 struct FSwitchboardMinimizeWindowsTask;
 struct FSwitchboardSetInactiveTimeoutTask;
+struct FSwitchboardFreeListenerBinaryTask;
 
 class FInternetAddr;
 class FSocket;
@@ -128,6 +129,7 @@ private:
 	bool Task_FixExeFlags(const FSwitchboardFixExeFlagsTask& InFixExeFlagsTask);
 	bool Task_MinimizeWindows(const FSwitchboardMinimizeWindowsTask& InRefreshMosaicsTask);
 	bool Task_SetInactiveTimeout(const FSwitchboardSetInactiveTimeoutTask& InTimeoutTask);
+	bool Task_FreeListenerBinary(const FSwitchboardFreeListenerBinaryTask& InRenameProcessTask);
 
 	bool KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout = 0.0f);
 	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);

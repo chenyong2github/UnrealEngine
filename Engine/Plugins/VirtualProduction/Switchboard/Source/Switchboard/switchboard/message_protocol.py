@@ -105,6 +105,13 @@ def create_redeploy_listener_message(base64listener: str, sha1digest: str):
     message = json.dumps(redeploy_cmd).encode() + b'\x00'
     return (cmd_id, message)
 
+def create_free_listener_bin_message():
+    ''' Sends a command to the listener to move its executable. '''
+    cmd_id = uuid.uuid4()
+    rename_proc_cmd = {'command': 'free binary', 'id': str(cmd_id)}
+    message = json.dumps(rename_proc_cmd).encode() + b'\x00'
+    return (cmd_id, message)
+
 def create_fixExeFlags_message(puuid):
     cmd_id = uuid.uuid4()
     cmd = {'command': 'fixExeFlags', 'id': str(cmd_id), 'uuid': str(puuid)}

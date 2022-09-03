@@ -252,7 +252,7 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		}
 	}
 	else if (CommandName == TEXT("redeploy listener"))
-	{
+	{		
 		TSharedPtr<FJsonValue> Sha1Field = TryGetCommandRequiredField(JsonData, TEXT("sha1"));
 		TSharedPtr<FJsonValue> FileContentField = TryGetCommandRequiredField(JsonData, TEXT("content"));
 
@@ -261,6 +261,11 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			OutTask = MakeUnique<FSwitchboardRedeployListenerTask>(MessageID, InEndpoint, Sha1Field->AsString(), FileContentField->AsString());
 			return true;
 		}
+	}
+	else if (CommandName == TEXT("free binary"))
+	{
+		OutTask = MakeUnique<FSwitchboardFreeListenerBinaryTask>(MessageID, InEndpoint);
+		return true;
 	}
 	else if (CommandName == TEXT("fixExeFlags"))
 	{

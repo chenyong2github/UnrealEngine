@@ -494,6 +494,11 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 			const FSwitchboardSetInactiveTimeoutTask& Task = static_cast<const FSwitchboardSetInactiveTimeoutTask&>(InTask);
 			return Task_SetInactiveTimeout(Task);
 		}
+		case ESwitchboardTaskType::FreeListenerBinary:
+		{
+			const FSwitchboardFreeListenerBinaryTask& Task = static_cast<const FSwitchboardFreeListenerBinaryTask&>(InTask);
+			return Task_FreeListenerBinary(Task);
+		}
 		default:
 		{
 			static const FString Response = TEXT("Unknown Command detected");
@@ -2036,6 +2041,31 @@ bool FSwitchboardListener::Task_SetInactiveTimeout(const FSwitchboardSetInactive
 		UE_LOG(LogSwitchboard, Display, TEXT("Changing client %s inactive timeout from %.0f to %.0f seconds"),
 			*Client.ToString(), ClientTimeout, RequestedTimeout);
 		ClientTimeout = RequestedTimeout;
+	}
+
+	return true;
+}
+
+bool FSwitchboardListener::Task_FreeListenerBinary(const FSwitchboardFreeListenerBinaryTask& InFreeListenerBinaryTask)
+{
+	SWITCHBOARD_TRACE_CPUPROFILER_EVENT_SCOPE(FSwitchboardListener::Task_FreeListenerBinary);
+
+	const uint32 CurrentPid = FPlatformProcess::GetCurrentProcessId();
+
+	// NOTE: FPlatformProcess::ExecutablePath() is stale if we were moved while running.
+	const FString OriginalThisExePath = FPlatformProcess::GetApplicationName(CurrentPid);
+	const FString ThisExeDir = FPaths::GetPath(OriginalThisExePath);
+	const FString ThisExeFilename = FPaths::GetCleanFilename(OriginalThisExePath);
+	
+	const FString MovedListenerPath = FPaths::EngineIntermediateDir() / TEXT("Switchboard") / TEXT("old_") + ThisExeFilename;
+
+	if (!IFileManager::Get().Move(*MovedListenerPath, *OriginalThisExePath, true))
+	{
+		const uint32 LastError = FPlatformMisc::GetLastError();
+		const FString ErrorMsg = FString::Printf(TEXT("Unable to move listener exe to \"%s\" (error code %u)"), *MovedListenerPath, LastError);
+		UE_LOG(LogSwitchboard, Error, TEXT("Free listener binary: %s"), *ErrorMsg);
+		SendMessage(CreateTaskDeclinedMessage(InFreeListenerBinaryTask, ErrorMsg, {}), InFreeListenerBinaryTask.Recipient);
+		return false;
 	}
 
 	return true;
