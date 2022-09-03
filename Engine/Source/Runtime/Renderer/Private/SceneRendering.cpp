@@ -2910,10 +2910,13 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 	// Notify StereoRenderingDevice about new ViewRects
 	if (GEngine->StereoRenderingDevice.IsValid())
 	{
-		for (int32 i = 0; i < Views.Num(); i++)
+		for (const FViewInfo& View : Views)
 		{
-			FViewInfo& View = Views[i];
-			GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoViewIndex, View.ViewRect);
+			// if we have an upscale pass, the final rect is _unscaled_ for the compositor
+			const FIntRect OutputViewRect =
+				(View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput) ? View.ViewRect : View.UnscaledViewRect;
+
+			GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoViewIndex, OutputViewRect);
 		}
 	}
 }

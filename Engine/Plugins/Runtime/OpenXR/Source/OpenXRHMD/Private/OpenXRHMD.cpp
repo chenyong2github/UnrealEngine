@@ -1053,10 +1053,6 @@ void FOpenXRHMD::SetupViewFamily(FSceneViewFamily& InViewFamily)
 	InViewFamily.EngineShowFlags.HMDDistortion = false;
 	InViewFamily.EngineShowFlags.StereoRendering = IsStereoEnabled();
 
-	// TODO: Handle dynamic resolution in the driver, so the runtime
-	// can take advantage of the extra resolution in the distortion process.
-	InViewFamily.EngineShowFlags.ScreenPercentage = 0;
-
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
 	if (FrameState.Views.Num() > 2)
 	{
