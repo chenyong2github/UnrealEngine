@@ -11,6 +11,7 @@ import logging
 import marshal
 import os
 import pathlib
+from platform import platform
 from queue import Empty, Queue
 import subprocess
 import sys
@@ -18,6 +19,8 @@ import threading
 import tempfile
 import traceback
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from shutil import which
+import re
 
 
 MAX_PARALLEL_WORKERS = 8  # Consistent with UGS, ushell, etc.
@@ -613,6 +616,142 @@ def dispatch_sync_workers(
 
     return 0
 
+def setup_ugs_dependencies(
+    engine_dir: pathlib.Path
+) -> int:
+    logging.info('Verifying UnrealGameSync dependencies.')
+    
+    if sys.platform.startswith('win'):
+        script_name = 'GetDotnetPath.bat'
+        dotnet_setup_script = os.path.join(engine_dir, 'Build', 'BatchFiles', script_name)
+        dotnet_setup_args = [dotnet_setup_script]
+    else:
+        platform_dirname = 'Mac' if sys.platform.startswith('darwin') else 'Linux'
+        platform_scripts_dir = os.path.join(engine_dir, 'Build', 'BatchFiles', f'{platform_dirname}')
+
+        script_name = 'SetupEnvironment.sh'
+        dotnet_setup_script = os.path.join(platform_scripts_dir, script_name)
+        dotnet_setup_args = [dotnet_setup_script, '-dotnet', f'{platform_scripts_dir}']
+
+    try:
+        with subprocess.Popen(dotnet_setup_args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE) as proc:
+            for line in proc.stdout:
+                logging.debug(f'{script_name}> {line.decode().rstrip()}')
+    except Exception as exc:
+        logging.error(f'setup_ugs_dependencies(): exception running Popen: {dotnet_setup_args}', exc_info=exc)
+
+    if proc.returncode != 0:
+        logging.error('Unable to find a install of Dotnet SDK. Please make sure you have it installed and that `dotnet` is a globally available command.')
+    
+    return proc.returncode
+
+def ugs_sync(
+    ugs_bin_path: pathlib.Path,
+    uproj_path: pathlib.Path,
+    engine_dir: pathlib.Path,
+    sync_cl: Optional[int] = None,
+    user: Optional[str] = None,
+    client: Optional[str] = None,
+    sync_pcbs: Optional[bool] = False
+) -> Optional[int]:
+
+    ## 
+    # Assumption: the current working directory is already set to the sync target
+
+    # Make sure the needed dependencies (dotnet, etc.) are installed/setup
+    deps_result = setup_ugs_dependencies(engine_dir)
+    if deps_result != 0:
+        logging.error('Failed to setup UnrealGameSync dependencies. Aborting sync.')
+        return deps_result
+
+    logging.info("Capturing UnrealGameSync's current state.")
+
+    # Capture the current stat of UGS so we can restore it once done
+    ugs_state_to_restore = {}
+    try:
+        status_args = ['dotnet', ugs_bin_path, 'status']
+        with subprocess.Popen(status_args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE) as status_proc:
+            for staus_line in status_proc.stdout:
+                staus_line_str =  staus_line.decode().rstrip()
+                logging.debug(f'ugs> {staus_line_str}')
+                if 'Project:' in staus_line_str:
+                        match = re.match("Project:\s*//(\S+?)/(\S+)", staus_line_str)
+                        if match:
+                            ugs_state_to_restore['client'] = match.group(1)
+                            ugs_state_to_restore['project'] = match.group(2)
+                if 'User:' in staus_line_str:
+                        match = re.match("User:\s*(\S+)", staus_line_str)
+                        if match:
+                            ugs_state_to_restore['user'] = match.group(1)
+    except Exception as exc:
+        logging.error(f'ugs_sync(): exception running Popen: {status_args}', exc_info=exc)
+        return -1
+
+    logging.info('Initializing UnrealGameSync...')
+
+    try:
+        # UGS expects a project path relative to the repo's root
+        relative_proj_path = os.path.relpath(uproj_path, engine_dir.parent)
+        # UGS only accepts paths with delimited by forward-slashes
+        norm_proj_path = relative_proj_path.replace('\\','/')
+
+        # Initialize UGS to the project/workspace we want to sync
+        init_args = ['dotnet', ugs_bin_path, 'init', f'-project={norm_proj_path}']
+        if client:
+            init_args.append(f'-client={client}')
+        if user:
+            init_args.append(f'-user={user}')
+
+        with subprocess.Popen(init_args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE) as init_proc:
+            for init_line in init_proc.stdout:
+                logging.info(f'ugs> {init_line.decode().rstrip()}')
+    except Exception as exc:
+        logging.error(f'ugs_sync(): exception running Popen: {init_args}', exc_info=exc)
+        return -1
+            
+    logging.info('Syncing via UnrealGameSync...')
+    try:
+        # Initialize UGS to the project/workspace we want to sync
+        sync_args = ['dotnet', ugs_bin_path, 'sync']
+        if sync_cl:
+            sync_args.append(f'{sync_cl}')
+        else:
+            sync_args.append('latest')
+
+        if sync_pcbs:
+            sync_args.append('-binaries')
+
+        with subprocess.Popen(sync_args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE) as sync_proc:
+            for sync_line in sync_proc.stdout:
+                sync_str = sync_line.decode().rstrip()
+                
+                # 'Invalid argument' errors are reported via stdout
+                if sync_pcbs and 'Invalid argument: -binaries' in sync_str:
+                    logging.error(f'ugs> {sync_str}')
+                    logging.error('Your version of UnrealGameSync does not support syncing precompiled binaries via commandline. Please make sure UGS is up to date.')
+                    sync_proc.terminate()
+                else:
+                    logging.info(f'ugs> {sync_str}')      
+    except Exception as exc:
+        logging.error(f'ugs_sync(): exception running Popen: {sync_args}', exc_info=exc)
+        return -1
+
+    if ugs_state_to_restore:
+        logging.info('Restoring UnrealGameSync state.')
+        try:
+            restore_args = ['dotnet', ugs_bin_path, 'init']
+            for key,val in ugs_state_to_restore.items():
+                restore_args.append(f'-{key}={val}')
+
+            with subprocess.Popen(restore_args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE) as restore_proc:
+                for restore_line in restore_proc.stdout:
+                    logging.debug(f'ugs> {restore_line.decode().rstrip()}')
+        except Exception as exc:
+            logging.error(f'ugs_sync(): exception running Popen: {restore_args}', exc_info=exc)
+            return -1
+
+    return sync_proc.returncode
+
 
 def path_is_relative_to(
     root: Union[str, os.PathLike[str]],
@@ -677,6 +816,12 @@ class SbListenerHelper:
         sync_parser.add_argument(
             '--generate', action='store_true',
             help='Run GenerateProjectFiles after syncing')
+        sync_parser.add_argument(
+            '--use-pcbs', action='store_true',
+            help="Specifies that precompiled binaries should be sync'd along with the project (requires syncing via UnrealGameSync).")
+        sync_parser.add_argument(
+            '--ugs-lib-dir', type=pathlib.Path,
+            help='Directory path specifying where to find the UnrealGameSync library (ugs.dll).')
         sync_parser.add_argument(
             '--clobber-engine', action='store_true',
             help='Override noclobber for engine files')
@@ -767,16 +912,29 @@ class SbListenerHelper:
                                   f'clobber file: {depot_path}')
                     continue
 
-        sync_result = p4_sync(
-            pathspecs,
-            sync_filter_fn=sync_filter,
-            clobber_filter_fn=clobber_filter,
-            progress_fn=self.on_sync_progress,
-            dry_run=self.dry_run,
-            user=self.p4user,
-            client=self.p4client,
-            write_workload_file=options.dump_sync,
-        )
+        sync_result = None
+        if self.use_ugs:
+            logging.info('Syncing via UGS.')
+            sync_result = ugs_sync(
+                self.ugs_bin_path,
+                self.uproj_path,
+                self.find_engine_dir(options),
+                sync_cl=self.sync_project_cl,
+                user=self.p4user,
+                client=self.p4client,
+                sync_pcbs=self.sync_pcbs
+            )
+        else:
+            sync_result = p4_sync(
+                pathspecs,
+                sync_filter_fn=sync_filter,
+                clobber_filter_fn=clobber_filter,
+                progress_fn=self.on_sync_progress,
+                dry_run=self.dry_run,
+                user=self.p4user,
+                client=self.p4client,
+                write_workload_file=options.dump_sync,
+            )
 
         if sync_result is None:
             return 0  # Nothing was synced
@@ -939,6 +1097,7 @@ class SbListenerHelper:
         self.p4client = options.p4client
         self.clobber_engine = options.clobber_engine
         self.clobber_project = options.clobber_project
+        self.ugs_bin_path = self.find_unreal_game_sync_bin(options)
 
         if options.project is None:
             if options.project_cl is not None:
@@ -954,6 +1113,21 @@ class SbListenerHelper:
         self.sync_engine_cl = options.engine_cl
         self.sync_project_cl = options.project_cl
         self.generate_after_sync = options.generate
+        self.sync_pcbs = options.use_pcbs
+        
+        if self.sync_pcbs:
+            if self.sync_engine_cl:
+                self.parser.error('`--use-pcbs` was specified along with `--engine-cl`; these arguments are mutally exclusive and should not be used together.')
+
+            if not self.ugs_bin_path:
+                self.parser.error("Failed to find the UnrealGameSync library (ugs.dll), which `--use-pcbs` requires." 
+                                  "Make sure UGS is installed and either `ugs` is a globally available command, or specify the library's path via the `--ugs-lib-dir` arg.")
+            elif not os.path.exists(self.ugs_bin_path):
+                self.parser.error(f"Failed to find '{self.ugs_bin_path}', which `--use-pcbs` requires." 
+                                  "Make sure UGS is installed and either `ugs` is a globally available command, or specify the library's path via the `--ugs-lib-dir` arg.")
+            else:
+                logging.debug(f'Found UnrealGameSync: {self.ugs_bin_path}')
+        self.use_ugs = self.sync_pcbs
 
         if options.project:
             try:
@@ -1001,6 +1175,27 @@ class SbListenerHelper:
         # TODO: Consider looking for Engine dir as ancestor of this script?
 
         return None
+
+    def find_unreal_game_sync_bin(
+        self,
+        options: argparse.Namespace
+    ) -> Optional[pathlib.Path]:
+        if options.ugs_lib_dir:
+            return os.path.join(os.path.expandvars(options.ugs_lib_dir), 'ugs.dll')
+
+        ugs_env_path = which('ugs')
+        if ugs_env_path:
+            # Since we run via the 'dotnet' command (more platform agnostic), we need the .dll not the executable
+            ugs_path_obj = pathlib.Path(ugs_env_path)
+            return os.path.join(ugs_path_obj.parent, 'ugs.dll')
+
+        if sys.platform.startswith('win'):
+            default_ugs_install_path = os.path.join('${LOCALAPPDATA}', 'UnrealGameSync', 'Latest', 'ugs.dll')
+            return os.path.expandvars(default_ugs_install_path)
+        #elif: for other platforms we don't have a default install location (the dll is usually installed from perforce, which could go anywhere)
+
+        return None
+
 
     def generate_project_files(self) -> int:
         '''

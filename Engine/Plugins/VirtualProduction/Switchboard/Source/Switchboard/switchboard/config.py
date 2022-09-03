@@ -10,6 +10,7 @@ import socket
 import sys
 import typing
 from typing import Type
+from enum import Enum
 
 from PySide2 import QtCore
 from PySide2 import QtGui
@@ -1867,6 +1868,10 @@ class ConfigPathValidator(QtGui.QValidator):
 
         return QtGui.QValidator.Acceptable
 
+class EngineSyncMethod(Enum):
+    Use_Existing = "Use Existing (do not sync/build)"
+    Build_Engine = "Build Engine"
+    Sync_PCBs = "Sync Precompiled Binaries (requires UnrealGameSync)"
 
 class Config(object):
 
@@ -2043,11 +2048,11 @@ class Config(object):
                 data.get('engine_dir', ''),
                 tool_tip="Path to UE 'Engine' directory"
             ),
-            "build_engine": BoolSetting(
-                "build_engine",
-                "Build Engine",
-                data.get('build_engine', False),
-                tool_tip="Is Engine built from source?"
+            'engine_sync_method': OptionSetting(
+                "engine_sync_method",
+                "Engine Sync Method",
+                EngineSyncMethod.Use_Existing.value,
+                possible_values=[p.value for p in EngineSyncMethod],
             ),
             "maps_path": StringSetting(
                 "maps_path",
@@ -2072,10 +2077,17 @@ class Config(object):
             ),
         }
 
+        # Done here outside of the setting's initializor so that values different from the default are flagged in the UI (with a 'reset' option) 
+        if 'engine_sync_method' in data:
+            self.basic_project_settings["engine_sync_method"].update_value(data.get('engine_sync_method'))
+        # To support backwards compatibility, we check the old 'build_engine' option (from before we had a 'PCB' option)
+        elif data.get('build_engine', False):
+            self.basic_project_settings["engine_sync_method"].update_value(EngineSyncMethod.Build_Engine.value)
+
         self.PROJECT_NAME = self.basic_project_settings["project_name"]
         self.UPROJECT_PATH = self.basic_project_settings["uproject"]
         self.ENGINE_DIR = self.basic_project_settings["engine_dir"]
-        self.BUILD_ENGINE = self.basic_project_settings["build_engine"]
+        self.ENGINE_SYNC_METHOD = self.basic_project_settings["engine_sync_method"]
         self.MAPS_PATH = self.basic_project_settings["maps_path"]
         self.MAPS_FILTER = self.basic_project_settings["maps_filter"]
         self.MAPS_PLUGIN_FILTERS = self.basic_project_settings["maps_plugin_filters"]
@@ -2357,7 +2369,7 @@ class Config(object):
         data['project_name'] = self.PROJECT_NAME.get_value()
         data['uproject'] = self.UPROJECT_PATH.get_value()
         data['engine_dir'] = self.ENGINE_DIR.get_value()
-        data['build_engine'] = self.BUILD_ENGINE.get_value()
+        data['engine_sync_method'] = self.ENGINE_SYNC_METHOD.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
         data["maps_plugin_filters"] = self.MAPS_PLUGIN_FILTERS.get_value()

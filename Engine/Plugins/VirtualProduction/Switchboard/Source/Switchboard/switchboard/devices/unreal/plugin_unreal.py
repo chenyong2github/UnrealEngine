@@ -27,7 +27,8 @@ from switchboard import switchboard_application
 from switchboard import switchboard_utils as sb_utils
 from switchboard.config import CONFIG, BoolSetting, DirectoryPathSetting, \
     FilePathSetting, IntSetting, MultiOptionSetting, OptionSetting, StringSetting, \
-    SETTINGS, DEFAULT_MAP_TEXT, StringListSetting, migrate_comma_separated_string_to_list
+    SETTINGS, DEFAULT_MAP_TEXT, StringListSetting, migrate_comma_separated_string_to_list, \
+    EngineSyncMethod
 from switchboard.devices.device_base import Device, DeviceStatus, \
     PluginHeaderWidgets
 from switchboard.devices.device_widget_base import DeviceWidget, DeviceAutoJoinMUServerUI
@@ -413,6 +414,16 @@ class DeviceUnreal(Device):
                 'between network messages before considering the connection '
                 'to Switchboard lost and closing it with a timeout error.')
         ),
+        'unrealgamesync_lib_dir': DirectoryPathSetting(
+            attr_name='unrealgamesync_lib_dir',
+            nice_name='UnrealGameSync Dll Dir',
+            value="",
+            tool_tip=(
+                "Expects an absolute path to the device directory containing the ugs.dll library file. \n"
+                "If left blank, switchboard will attempt to find UGS by searching the system PATH and default install locations. \n"
+                "On Windows, the default install location is '${LOCALAPPDATA}/UnrealGameSync/Latest/'.")
+        )
+        
     }
 
     unreal_started_signal = QtCore.Signal()
@@ -554,8 +565,8 @@ class DeviceUnreal(Device):
             self.on_setting_address_changed)
         DeviceUnreal.csettings['port'].signal_setting_changed.connect(
             self.on_setting_port_changed)
-        CONFIG.BUILD_ENGINE.signal_setting_changed.connect(
-            self.on_build_engine_changed)
+        CONFIG.ENGINE_SYNC_METHOD.signal_setting_changed.connect(
+            self.on_engine_sync_method_changed)
 
         self.auto_connect = False
 
@@ -749,6 +760,7 @@ class DeviceUnreal(Device):
             DeviceUnreal.csettings['auto_decline_package_recovery'],
             DeviceUnreal.csettings['udpmessaging_unicast_endpoint'],
             DeviceUnreal.csettings['udpmessaging_extra_static_endpoints'],
+            DeviceUnreal.csettings['unrealgamesync_lib_dir'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
@@ -836,8 +848,8 @@ class DeviceUnreal(Device):
             LOGGER.info(f"Updating port for ListenerClient to {new_port}")
             self.unreal_client.port = new_port
 
-    def on_build_engine_changed(self, _, build_engine):
-        if build_engine:
+    def on_engine_sync_method_changed(self, _, engine_sync_method):
+        if engine_sync_method == EngineSyncMethod.Build_Engine.value:
             self.widget.engine_changelist_label.show()
             if not self.is_disconnected:
                 self._request_engine_changelist_number()
@@ -1033,7 +1045,8 @@ class DeviceUnreal(Device):
         project_path = CONFIG.UPROJECT_PATH.get_value(self.name)
         engine_dir = CONFIG.ENGINE_DIR.get_value(self.name)
         workspace = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
-        build_engine = CONFIG.BUILD_ENGINE.get_value()
+        build_engine = CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value
+        sync_precompiled_bins = CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Sync_PCBs.value
 
         project_name = os.path.basename(os.path.dirname(project_path))
         LOGGER.info(
@@ -1074,6 +1087,11 @@ class DeviceUnreal(Device):
 
         if build_engine:
             sync_args += ' --generate'
+
+        if sync_precompiled_bins:
+            sync_args += ' --use-pcbs'
+            if self.unrealgamesync_lib_dir_setting:
+                sync_args += f' --ugs-lib-dir={self.unrealgamesync_lib_dir_setting}'
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool,
@@ -1136,7 +1154,7 @@ class DeviceUnreal(Device):
         # TODO: Corner case if multiple local devices, and we build on a single
         # local device other than chosen. Guarantee on any local single build?
         if (self.is_designated_local_builder() and
-                CONFIG.BUILD_ENGINE.get_value()):
+                CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value):
             # Build multi-user server
             if CONFIG.MUSERVER_AUTO_BUILD.get_value():
                 if DeviceUnreal.mu_server.is_running():
@@ -1301,6 +1319,11 @@ class DeviceUnreal(Device):
     def udpmessaging_extra_static_endpoints_setting(self) -> str:
         return DeviceUnreal.csettings[
             'udpmessaging_extra_static_endpoints'].get_value(self.name)
+
+    @property
+    def unrealgamesync_lib_dir_setting(self) -> str:
+        return DeviceUnreal.csettings[
+            'unrealgamesync_lib_dir'].get_value(self.name)
 
     def generate_unreal_exe_path(self):
         return CONFIG.engine_exe_path(
@@ -1703,7 +1726,7 @@ class DeviceUnreal(Device):
                 self.device_qt_handler.signal_device_sync_failed.emit(self)
 
             # If you build and sync the engine, update its CL
-            if CONFIG.BUILD_ENGINE.get_value():
+            if CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value:
                 self.engine_changelist = (
                     self.inflight_engine_cl
                     if self.inflight_engine_cl is not None
@@ -1738,7 +1761,7 @@ class DeviceUnreal(Device):
                 self._request_project_changelist_number()
                 # Forces an update to the changelist field (to hide the
                 # Building state).
-                if CONFIG.BUILD_ENGINE.get_value():
+                if CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value:
                     self._request_engine_changelist_number()
                     self._request_unreal_editor_version_file()
 
@@ -1946,7 +1969,7 @@ class DeviceUnreal(Device):
         self._request_roles_file()
         self._request_project_changelist_number()
 
-        if CONFIG.BUILD_ENGINE.get_value():
+        if CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value:
             self._request_engine_changelist_number()
             self._request_unreal_editor_version_file()
 
@@ -2453,7 +2476,7 @@ class DeviceWidgetUnreal(DeviceWidget):
         self.project_changelist_label.show()
 
     def update_engine_changelist(self, required_cl: str, synched_cl: str, built__cl: str):
-        if not CONFIG.BUILD_ENGINE.get_value():
+        if not CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value:
             return
         
         self.engine_changelist_label.setText(f'E: {synched_cl}')
@@ -2486,7 +2509,7 @@ class DeviceWidgetUnreal(DeviceWidget):
         sb_widgets.set_qt_property(self.sync_button, 'not_synched', needs_resync)
             
     def update_build_info(self, synched_cl: str, built_cl: str):
-        if built_cl is not None and synched_cl is not None and CONFIG.BUILD_ENGINE.get_value():
+        if built_cl is not None and synched_cl is not None and CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value:
             try:
                 earlier_cl = min(int(built_cl), int(synched_cl))
                 later_cl = max(int(built_cl), int(synched_cl))
