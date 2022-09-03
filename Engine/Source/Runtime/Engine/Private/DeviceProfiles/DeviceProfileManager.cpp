@@ -51,6 +51,10 @@ TArray<FSelectedFragmentProperties> UDeviceProfileManager::PlatformFragmentsSele
 
 UDeviceProfileManager* UDeviceProfileManager::DeviceProfileManagerSingleton = nullptr;
 
+// when objects are ready, we can create the singleton properly, this makes it as early as possible, just in case other Object creation
+// didnt't create it along the way
+FDelayedAutoRegisterHelper GDPManagerSingletonHelper(EDelayedRegisterRunPhase::ObjectSystemReady, [] { UDeviceProfileManager::Get(); });
+
 UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 {
 	if (DeviceProfileManagerSingleton == nullptr)
@@ -93,6 +97,9 @@ UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 #if ALLOW_OTHER_PLATFORM_CONFIG
 		FCoreDelegates::GatherDeviceProfileCVars.BindLambda([](const FString& DeviceProfileName) { return UDeviceProfileManager::Get().GatherDeviceProfileCVars(DeviceProfileName, EDeviceProfileMode::DPM_CacheValues); });
 #endif
+
+		// let any other code that needs the DPManager to run now
+		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::DeviceProfileManagerReady);
 	}
 	return *DeviceProfileManagerSingleton;
 }
@@ -663,8 +670,10 @@ UDeviceProfile* UDeviceProfileManager::CreateProfile(const FString& ProfileName,
 			// if the config needs to come from a platform, set it now, then reload the config
 			DeviceProfile->ConfigPlatform = ConfigPlatform;
 			DeviceProfile->LoadConfig();
-			DeviceProfile->ValidateProfile();
 		}
+
+		// make sure the DP has all the LODGroups it needs
+		DeviceProfile->ValidateProfile();
 
 		// if the config didn't specify a DeviceType, use the passed in one
 		if (DeviceProfile->DeviceType.IsEmpty())
@@ -1358,6 +1367,16 @@ public:
 				for (const auto& Pair : DeviceProfile->GetAllExpandedCVars())
 				{
 					Ar.Logf(TEXT("%s = %s"), *Pair.Key, *Pair.Value);
+				}
+
+				// log out the LODGroups fully
+				FArrayProperty* LODGroupsProperty = FindFProperty<FArrayProperty>(UDeviceProfile::StaticClass(), GET_MEMBER_NAME_CHECKED(UTextureLODSettings, TextureLODGroups));
+				FScriptArrayHelper_InContainer ArrayHelper(LODGroupsProperty, DeviceProfile);
+				for (int32 Index = 0; Index < ArrayHelper.Num(); Index++)
+				{
+					FString	Buffer;
+					LODGroupsProperty->Inner->ExportTextItem_Direct(Buffer, ArrayHelper.GetRawPtr(Index), ArrayHelper.GetRawPtr(Index), DeviceProfile, 0);
+					Ar.Logf(TEXT("LODGroup[%d]=%s"), Index, *Buffer);
 				}
 			}
 		}

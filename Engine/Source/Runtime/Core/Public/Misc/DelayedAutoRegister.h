@@ -16,6 +16,7 @@ enum class EDelayedRegisterRunPhase : uint8
 	ShaderTypesReady,
 	PreObjectSystemReady,
 	ObjectSystemReady,
+	DeviceProfileManagerReady,
 	EndOfEngineInit,
 
 	NumPhases,

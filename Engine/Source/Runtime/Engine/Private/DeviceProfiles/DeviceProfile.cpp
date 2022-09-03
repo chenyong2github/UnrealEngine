@@ -97,12 +97,6 @@ UDeviceProfile* UDeviceProfile::GetParentProfile(bool bIncludeDefaultObject) con
 	return ParentProfile;
 }
 
-void UDeviceProfile::PostInitProperties()
-{
-	Super::PostInitProperties();
-	ValidateTextureLODGroups();
-}
-
 void UDeviceProfile::BeginDestroy()
 {
 	UE_LOG(LogDeviceProfile, Verbose, TEXT("Device profile begin destroy: [%p] %s"), this, *GetName());

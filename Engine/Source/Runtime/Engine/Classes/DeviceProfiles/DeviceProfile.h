@@ -121,7 +121,6 @@ public:
 	void ValidateProfile();
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
