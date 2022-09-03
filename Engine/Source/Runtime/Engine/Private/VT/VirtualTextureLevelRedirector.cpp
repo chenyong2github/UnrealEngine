@@ -41,3 +41,19 @@ IVirtualTextureFinalizer* FVirtualTextureLevelRedirector::ProducePageData(
 	int32 vLevelOffset = vLevel < TransitionLevel ? 0 : TransitionLevel;
 	return VirtualTextures[VirtualTextureIndex]->ProducePageData(RHICmdList, FeatureLevel, Flags, ProducerHandle, LayerMask, vLevel - vLevelOffset, vAddress, RequestHandle, TargetLayers);
 }
+
+void FVirtualTextureLevelRedirector::GatherProducePageDataTasks(
+	FVirtualTextureProducerHandle const& ProducerHandle, 
+	FGraphEventArray& InOutTasks) const
+{
+	VirtualTextures[0]->GatherProducePageDataTasks(ProducerHandle, InOutTasks);
+	VirtualTextures[1]->GatherProducePageDataTasks(ProducerHandle, InOutTasks);
+}
+
+void FVirtualTextureLevelRedirector::GatherProducePageDataTasks(
+	uint64 RequestHandle,
+	FGraphEventArray& InOutTasks) const
+{
+	VirtualTextures[0]->GatherProducePageDataTasks(RequestHandle, InOutTasks);
+	VirtualTextures[1]->GatherProducePageDataTasks(RequestHandle, InOutTasks);
+}
