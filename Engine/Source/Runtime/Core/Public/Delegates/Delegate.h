@@ -406,7 +406,7 @@ class DynamicMulticastDelegateClassName : public TBaseDynamicMulticastDelegate<T
 
 #else
 
-	#define STATIC_FUNCTION_FNAME(str) UE4Delegates_Private::GetTrimmedMemberFunctionName(str)
+	#define STATIC_FUNCTION_FNAME(str) UE::Delegates::Private::GetTrimmedMemberFunctionName(str)
 
 #endif
 
@@ -452,7 +452,7 @@ class DynamicMulticastDelegateClassName : public TBaseDynamicMulticastDelegate<T
 #define IsAlreadyBound( UserObject, FuncName ) __Internal_IsAlreadyBound( UserObject, FuncName, STATIC_FUNCTION_FNAME( TEXT( #FuncName ) ) )
 
 
-namespace UE4Delegates_Private
+namespace UE::Delegates::Private
 {
 	/**
 	 * Returns the root function name from a string representing a member function pointer.
