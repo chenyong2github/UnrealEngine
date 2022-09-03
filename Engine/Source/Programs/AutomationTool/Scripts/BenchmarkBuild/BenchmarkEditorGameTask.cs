@@ -12,7 +12,14 @@ namespace AutomationTool.Benchmark
 		public BenchmarkEditorGameTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
 			: base(InTargetInfo, InOptions, InSkipBuild)
 		{
-			TaskName = string.Format("{0} EditorGame", ProjectName, BuildHostPlatform.Current.Platform);
+		}
+
+		public override string TaskName
+		{
+			get
+			{
+				return "EditorGame";
+			}
 		}
 
 		protected override string GetEditorTaskArgs()

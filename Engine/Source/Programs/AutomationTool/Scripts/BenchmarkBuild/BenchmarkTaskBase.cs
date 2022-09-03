@@ -105,20 +105,87 @@ namespace AutomationTool.Benchmark
 		/// <summary>
 		/// Perform the actual task that is measured
 		/// </summary>
-		protected abstract bool PerformTask();
+		protected abstract bool PerformTask();	
+		
+		/// <summary>
+		/// Path to the project file we're using. May be null for Unreal editor, client etc
+		/// </summary>
+		public FileReference ProjectFile { get; private set; }
+
 
 		/// <summary>
-		/// Return a name for this task for reporting
+		/// Return the name of the module this is being performed on
 		/// </summary>
 		/// <returns></returns>
-		public string TaskName { get; set; }
+		public string ProjectName { get { return ProjectFile == null ? "Unreal" : ProjectFile.GetFileNameWithoutAnyExtensions(); } }
+
+		/// <summary>
+		/// Return the name of this task
+		/// </summary>
+		/// <returns></returns>
+		public abstract string TaskName { get;  }
+
+		private readonly List<string> InternalModifiers = new List<string>();
 
 		/// <summary>
 		/// A list of modifiers that can be considered when
 		/// </summary>
 		protected List<string> TaskModifiers { get { return InternalModifiers; }  }
 
-		private readonly List<string> InternalModifiers = new List<string>();
+		/// <summary>
+		/// Return the full name of this task for reporting
+		/// </summary>
+		/// <returns></returns>
+		public string ModifierString 
+		{ 
+			get
+			{
+				string Str = String.Empty;
+
+				if (TaskModifiers.Count > 0)
+				{
+					Str = string.Join(" ", TaskModifiers);
+				}
+
+				return Str;
+			} 
+		}
+
+		/// <summary>
+		/// Returns a full name to use in reporting and logging
+		/// </summary>
+		/// <returns></returns>
+		public string TaskNameWithModifiers
+		{
+			get
+			{
+				string Name = TaskName;
+
+				if (TaskModifiers.Count > 0)
+				{
+					Name = string.Format("{0} ({1})", Name, ModifierString);
+				}
+
+				return Name;
+			}
+		}
+
+
+
+		/// <summary>
+		/// Return the full name of this task for reporting
+		/// </summary>
+		/// <returns></returns>
+		public string FullName { get { return String.Format("{0} {1}", ProjectName, TaskNameWithModifiers); } }		
+
+		/// <summary>
+		/// Simple constructor
+		/// </summary>
+		/// <param name="InProjectFile"></param>
+		public BenchmarkTaskBase(FileReference InProjectFile)
+		{
+			ProjectFile = InProjectFile;
+		}
 
 		/// <summary>
 		/// Run the task. Performs any prerequisites, then the actual task itself
@@ -157,7 +224,7 @@ namespace AutomationTool.Benchmark
 			
 			if (Failed)
 			{
-				Log.TraceError("{0} failed. {1}", GetFullTaskName(), FailureString);
+				Log.TraceError("{0} failed. {1}", FullName, FailureString);
 			}
 
 			try
@@ -166,7 +233,7 @@ namespace AutomationTool.Benchmark
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceError("Cleanup of {0} failed. {1}", GetFullTaskName(), Ex);
+				Log.TraceError("Cleanup of {0} failed. {1}", FullName, Ex);
 			}
 		}
 
@@ -177,33 +244,17 @@ namespace AutomationTool.Benchmark
 		{
 			if (!Failed)
 			{
-				Log.TraceInformation("Task {0}:\t\t\t\t{1}", GetFullTaskName(), TaskTime.ToString(@"hh\:mm\:ss"));
+				Log.TraceInformation("Task {0}:\t\t\t\t{1}", FullName, TaskTime.ToString(@"hh\:mm\:ss"));
 			}
 			else
 			{
-				Log.TraceInformation("Task {0}::\t\t\t\t{1} Failed. {2}", GetFullTaskName(), TaskTime.ToString(@"hh\:mm\:ss"), FailureString);
+				Log.TraceInformation("Task {0}::\t\t\t\t{1} Failed. {2}", FullName, TaskTime.ToString(@"hh\:mm\:ss"), FailureString);
 			}
-		}
-
-		/// <summary>
-		/// Returns a full name to use in reporting and logging
-		/// </summary>
-		/// <returns></returns>
-		public string GetFullTaskName()
-		{
-			string Name = TaskName;
-
-			if (TaskModifiers.Count > 0)
-			{
-				Name = string.Format("{0} ({1})", Name, string.Join(" ", TaskModifiers));
-			}
-
-			return Name;
 		}
 
 		public override string ToString()
 		{
-			return GetFullTaskName();
+			return FullName;
 		}
 	}
 }

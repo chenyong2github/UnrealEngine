@@ -20,7 +20,13 @@ namespace AutomationTool.Benchmark
 		string				CookArgs;
 
 		bool				CookAsClient;
-
+		public override string TaskName
+		{
+			get
+			{
+				return string.Format("Cook {0}", CookPlatformName);
+			}
+		}
 		public BenchmarkCookTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
 			: base(InTargetInfo, InOptions, InSkipBuild)
 		{
@@ -40,8 +46,6 @@ namespace AutomationTool.Benchmark
 			{
 				CookPlatformName = PlatformToCookPlatform[InTargetInfo.TargetPlatform];
 			}
-
-			TaskName = string.Format("{0} Cook {1}", ProjectName, CookPlatformName);			
 		}
 
 		protected override string GetEditorTaskArgs()
@@ -78,7 +82,14 @@ namespace AutomationTool.Benchmark
 		public BenchmarkIterativeCookTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
 			: base(InTargetInfo, InOptions, InSkipBuild)
 		{
-			TaskName = string.Format("{0} Iterative Cook {1}", ProjectName, CookPlatformName);
+		}
+
+		public override string TaskName
+		{
+			get
+			{
+				return string.Format("Iterative Cook {0}", CookPlatformName);
+			}
 		}
 
 		protected override bool PerformPrequisites()

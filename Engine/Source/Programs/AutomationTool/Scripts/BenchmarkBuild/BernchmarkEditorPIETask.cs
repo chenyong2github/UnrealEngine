@@ -12,7 +12,13 @@ namespace AutomationTool.Benchmark
 		public BenchmarPIEEditorTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
 			: base(InTargetInfo, InOptions, InSkipBuild)
 		{
-			TaskName = string.Format("{0} Start PIE", ProjectName, BuildHostPlatform.Current.Platform);
+		}
+		public override string TaskName
+		{
+			get
+			{
+				return "Start PIE";
+			}
 		}
 
 		protected override string GetEditorTaskArgs()

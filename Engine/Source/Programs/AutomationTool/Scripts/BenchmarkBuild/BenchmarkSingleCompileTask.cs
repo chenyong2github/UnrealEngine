@@ -17,12 +17,20 @@ namespace AutomationTool.Benchmark
 	{
 		FileReference SourceFile = null;
 
+		private string _TaskName;
+		public override string TaskName
+		{
+			get
+			{
+				return _TaskName;
+			}
+		}
 		public BenchmarkSingleCompileTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, XGETaskOptions InXgeOption)
 			: base(InProjectFile, InTarget, InPlatform, InXgeOption, "", 0)
 		{
 			string ModuleName = InProjectFile == null ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
 
-			TaskName = string.Format("{0} Incremental {1} {2}", ModuleName, InTarget, InPlatform);
+			_TaskName = string.Format("Incr {0} {1}", InTarget, InPlatform);
 
 			string ProjectName = null;
 

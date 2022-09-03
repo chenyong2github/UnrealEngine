@@ -51,14 +51,6 @@ namespace AutomationTool.Benchmark
 
 		protected bool SkipBuild = false;
 
-		protected string ProjectName
-		{
-			get
-			{
-				return ProjectTarget.ProjectFile == null ? "Unreal" : ProjectTarget.ProjectFile.GetFileNameWithoutAnyExtensions();
-			}
-		}
-
 		protected static string MakeValidTaskFileName(string name)
 		{
 			string invalidChars = System.Text.RegularExpressions.Regex.Escape(new string(System.IO.Path.GetInvalidFileNameChars()));
@@ -68,6 +60,7 @@ namespace AutomationTool.Benchmark
 		}
 
 		protected BenchmarkEditorTaskBase(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
+			: base(InTargetInfo.ProjectFile)
 		{
 			ProjectTarget = InTargetInfo;
 			TaskOptions = InOptions;
@@ -138,7 +131,7 @@ namespace AutomationTool.Benchmark
 		{
 			string ProjectArg = ProjectTarget.ProjectFile != null ? ProjectTarget.ProjectFile.ToString() : "";
 			string MapArg = string.IsNullOrEmpty(TaskOptions.Map) ? "" : TaskOptions.Map;
-			string LogArg = string.Format("-log={0}.log", MakeValidTaskFileName(GetFullTaskName()).Replace(" ", "_"));
+			string LogArg = string.Format("-log={0}.log", MakeValidTaskFileName(FullName).Replace(" ", "_"));
 			string Arguments = string.Format("{0} {1} {2} -benchmark -stdout -FullStdOutLogOutput -unattended {3}", ProjectArg, MapArg, TaskOptions.Args, LogArg);
 
 			if (!bIsWarming && TaskOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))

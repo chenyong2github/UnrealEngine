@@ -20,7 +20,6 @@ namespace AutomationTool.Benchmark
 	{
 		private BuildTarget				Command;
 		private UBTBuildOptions			BuildOptions;
-		private FileReference			ProjectFile;
 		private UnrealTargetPlatform	TargetPlatform;
 
 		public static bool SupportsAcceleration
@@ -51,16 +50,24 @@ namespace AutomationTool.Benchmark
 			}
 		}
 
+		private string _TaskName;
+		public override string TaskName
+		{
+			get
+			{
+				return _TaskName;
+			}
+		}
 		public BenchmarkBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, XGETaskOptions InXgeOption, string InUBTArgs="", int CoreCount=0, UBTBuildOptions InOptions = UBTBuildOptions.None)
+			: base(InProjectFile)
 		{
 			bool IsVanillaUnreal = InProjectFile == null;
 
 			string ModuleName = IsVanillaUnreal ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
 
-			TaskName = string.Format("{0} Build {1} {2}", ModuleName, InTarget, InPlatform);
+			_TaskName = string.Format("Build {0} {1}", InTarget, InPlatform);
 
 			BuildOptions = InOptions;
-			ProjectFile = InProjectFile;
 			TargetPlatform = InPlatform;
 
 			Command = new BuildTarget();
@@ -136,11 +143,21 @@ namespace AutomationTool.Benchmark
 
 	class BenchmarkCleanBuildTask : BenchmarkBuildTask
 	{
+		string _TaskName;
+
 		public BenchmarkCleanBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform)
 			: base(InProjectFile, InTarget, InPlatform, XGETaskOptions.None, "", 0, UBTBuildOptions.None)
 		{
 			string ModuleName = InProjectFile == null ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
-			TaskName = string.Format("{0} Clean {1} {2}", ModuleName, InTarget, InPlatform);
+			_TaskName = string.Format("Clean {0} {1}", InTarget, InPlatform);
+		}
+
+		public override string TaskName
+		{
+			get
+			{
+				return _TaskName;
+			}
 		}
 
 		protected override bool PerformTask()

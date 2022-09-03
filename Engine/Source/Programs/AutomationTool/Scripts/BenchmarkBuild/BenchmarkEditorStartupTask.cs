@@ -17,7 +17,13 @@ namespace AutomationTool.Benchmark
 		public BenchmarkEditorStartupTask(ProjectTargetInfo InTargetInfo, ProjectTaskOptions InOptions, bool InSkipBuild)
 			: base(InTargetInfo, InOptions, InSkipBuild)
 		{
-			TaskName = string.Format("{0} Start Editor", ProjectName, BuildHostPlatform.Current.Platform);
+		}
+		public override string TaskName
+		{
+			get
+			{
+				return "Start Editor";
+			}
 		}
 
 		protected override string GetEditorTaskArgs()
