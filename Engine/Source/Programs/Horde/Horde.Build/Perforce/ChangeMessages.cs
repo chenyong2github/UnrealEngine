@@ -33,13 +33,14 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="changeSummary">The commit to construct from</param>
-		public GetChangeSummaryResponse(ChangeSummary changeSummary)
+		/// <param name="commit">The commit to construct from</param>
+		/// <param name="author">Author of the commit</param>
+		public GetChangeSummaryResponse(ICommit commit, IUser author)
 		{
-			Number = changeSummary.Number;
-			Author = changeSummary.Author.Name;
-			AuthorInfo = new GetThinUserInfoResponse(changeSummary.Author);
-			Description = changeSummary.Description;
+			Number = commit.Number;
+			Author = author.Name;
+			AuthorInfo = new GetThinUserInfoResponse(author);
+			Description = commit.Description;
 		}
 	}
 
@@ -76,14 +77,16 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="changeDetails">The commit to construct from</param>
-		public GetChangeDetailsResponse(ChangeDetails changeDetails)
+		/// <param name="commit">The commit to construct from</param>
+		/// <param name="author">Author of the change</param>
+		/// <param name="files">Files modified by the commit</param>
+		public GetChangeDetailsResponse(ICommit commit, IUser author, IReadOnlyList<string> files)
 		{
-			Number = changeDetails.Number;
-			Author = changeDetails.Author.Name;
-			AuthorInfo = new GetThinUserInfoResponse(changeDetails.Author);
-			Description = changeDetails.Description;
-			Files = changeDetails.Files.ConvertAll(x => x.Path);
+			Number = commit.Number;
+			Author = author.Name;
+			AuthorInfo = new GetThinUserInfoResponse(author);
+			Description = commit.Description;
+			Files = new List<string>(files);
 		}
 	}
 }

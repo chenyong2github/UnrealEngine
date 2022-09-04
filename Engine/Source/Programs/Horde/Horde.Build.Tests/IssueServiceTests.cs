@@ -153,18 +153,19 @@ namespace Horde.Build.Tests
 			IUser bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
 			IUser jerry = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result;
 			IUser chris = UserCollection.FindOrAddUserByLoginAsync("Chris").Result;
+			IUser tim = UserCollection.FindOrAddUserByLoginAsync("Tim").Result;
 
-			_timId = UserCollection.FindOrAddUserByLoginAsync("Tim").Result.Id;
+			_timId = tim.Id;
 			_jerryId = UserCollection.FindOrAddUserByLoginAsync("Jerry").Result.Id;
 			_bobId = UserCollection.FindOrAddUserByLoginAsync("Bob").Result.Id;
 
 			_perforce = PerforceService;
-			_perforce.AddChange(MainStreamName, 100, bill, "Description", new string[] { "a/b.cpp" });
-			_perforce.AddChange(MainStreamName, 105, anne, "Description", new string[] { "a/c.cpp" });
-			_perforce.AddChange(MainStreamName, 110, bob, "Description", new string[] { "a/d.cpp" });
-			_perforce.AddChange(MainStreamName, 115, jerry, "Description\n#ROBOMERGE-SOURCE: CL 75 in //UE4/Release/...", new string[] { "a/e.cpp", "a/foo.cpp" });
-			_perforce.AddChange(MainStreamName, 120, chris, "Description\n#ROBOMERGE-OWNER: Tim", new string[] { "a/f.cpp" });
-			_perforce.AddChange(MainStreamName, 125, chris, "Description", new string[] { "a/g.cpp" });
+			_perforce.AddChange(_mainStreamId, 100, bill, "Description", new string[] { "a/b.cpp" });
+			_perforce.AddChange(_mainStreamId, 105, anne, "Description", new string[] { "a/c.cpp" });
+			_perforce.AddChange(_mainStreamId, 110, bob, "Description", new string[] { "a/d.cpp" });
+			_perforce.AddChange(_mainStreamId, 115, 75, jerry, jerry, "Description\n#ROBOMERGE-SOURCE: CL 75 in //UE4/Release/...", new string[] { "a/e.cpp", "a/foo.cpp" });
+			_perforce.AddChange(_mainStreamId, 120, 120, chris, tim, "Description\n#ROBOMERGE-OWNER: Tim", new string[] { "a/f.cpp" });
+			_perforce.AddChange(_mainStreamId, 125, chris, "Description", new string[] { "a/g.cpp" });
 
 			List<INode> nodes = new List<INode>();
 			nodes.Add(MockNode("Update Version Files", NodeAnnotations.Empty));
@@ -485,10 +486,10 @@ namespace Horde.Build.Tests
 			// Expected: Creates issue, identifies source file correctly
 			{
 				IUser chris = await UserCollection.FindOrAddUserByLoginAsync("Chris");
-				_perforce.AddChange(MainStreamName, 150, chris, "Description", new string[] { "Engine/Foo/Bar.txt" });
+				_perforce.AddChange(_mainStreamId, 150, chris, "Description", new string[] { "Engine/Foo/Bar.txt" });
 
 				IUser john = await UserCollection.FindOrAddUserByLoginAsync("John");
-				_perforce.AddChange(MainStreamName, 160, john, "Description", new string[] { "Engine/Foo/Baz.txt" });
+				_perforce.AddChange(_mainStreamId, 160, john, "Description", new string[] { "Engine/Foo/Baz.txt" });
 
 				IJob job = CreateJob(_mainStreamId, 170, "Test Build", _graph);
 				await using (TestJsonLogger logger = CreateLogger(job, 0, 0))
@@ -501,7 +502,7 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(1, issues.Count);
 				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
 				Assert.AreEqual("PerforceCase", issues[0].Fingerprints[0].Type);
-				Assert.AreEqual("//UE5/Main/Engine/Foo/Bar.txt", issues[0].Fingerprints[0].Keys.First());
+				Assert.AreEqual("Bar.txt", issues[0].Fingerprints[0].Keys.First());
 				Assert.AreEqual(chris.Id, issues[0].OwnerId);
 
 				Assert.AreEqual("Inconsistent case for Bar.txt", issues[0].Summary);
@@ -538,10 +539,10 @@ namespace Horde.Build.Tests
 				};
 
 				IUser chris = await UserCollection.FindOrAddUserByLoginAsync("Chris");
-				_perforce.AddChange(MainStreamName, 150, chris, "Description", new string[] { "Engine/Foo/LumenScreenProbeTracing.usf" });
+				_perforce.AddChange(_mainStreamId, 150, chris, "Description", new string[] { "Engine/Foo/LumenScreenProbeTracing.usf" });
 
 				IUser john = await UserCollection.FindOrAddUserByLoginAsync("John");
-				_perforce.AddChange(MainStreamName, 160, john, "Description", new string[] { "Engine/Foo/Baz.txt" });
+				_perforce.AddChange(_mainStreamId, 160, john, "Description", new string[] { "Engine/Foo/Baz.txt" });
 
 				IJob job = CreateJob(_mainStreamId, 170, "Test Build", _graph);
 				await ParseEventsAsync(job, 0, 0, lines);
@@ -790,9 +791,9 @@ namespace Horde.Build.Tests
 					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[_mainStreamId][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][120].Files.Add("/Engine/Source/Foo.cpp");
 
 				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
 				await ParseEventsAsync(job, 0, 0, lines);
@@ -852,9 +853,9 @@ namespace Horde.Build.Tests
 					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[_mainStreamId][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][120].Files.Add("/Engine/Source/Foo.cpp");
 
 				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph, promoteByDefault: false);
 				await ParseEventsAsync(job, 0, 0, lines);
@@ -895,9 +896,9 @@ namespace Horde.Build.Tests
 					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[_mainStreamId][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][120].Files.Add("/Engine/Source/Foo.cpp");
 
 				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph, promoteByDefault: true);
 				await ParseEventsAsync(job, 0, 0, lines);
@@ -1092,9 +1093,9 @@ namespace Horde.Build.Tests
 					FileReference.Combine(_workspaceDir, "Deprecater.h").FullName + @"(16): note: see declaration of 'USimpleWheeledVehicleMovementComponent'"
 				};
 
-				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Deprecater.h");
-				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[_mainStreamId][115].Files.Add("/Engine/Source/Deprecater.h");
+				_perforce.Changes[_mainStreamId][120].Files.Add("/Engine/Source/Foo.cpp");
 
 				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
 				await ParseEventsAsync(job, 0, 0, lines);
@@ -1134,9 +1135,9 @@ namespace Horde.Build.Tests
 					FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(78): error C2664: 'FDelegateHandle TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject&lt;AFortVehicleManager,&gt;(const UserClass *,void (__cdecl AFortVehicleManager::* )(FChaosScene *) const)': cannot convert argument 2 from 'void (__cdecl AFortVehicleManager::* )(FPhysScene *)' to 'void (__cdecl AFortVehicleManager::* )(FChaosScene *)'",
 				};
 
-				_perforce.Changes[MainStreamName][110].Files.Add("/Engine/Source/Boo.cpp");
-				_perforce.Changes[MainStreamName][115].Files.Add("/Engine/Source/Foo.cpp");
-				_perforce.Changes[MainStreamName][120].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][110].Files.Add("/Engine/Source/Boo.cpp");
+				_perforce.Changes[_mainStreamId][115].Files.Add("/Engine/Source/Foo.cpp");
+				_perforce.Changes[_mainStreamId][120].Files.Add("/Engine/Source/Foo.cpp");
 
 				IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
 				await ParseEventsAsync(job, 0, 0, lines);

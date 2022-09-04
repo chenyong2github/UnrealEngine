@@ -236,7 +236,7 @@ namespace Horde.Build.Perforce
 			await foreach (NewCommit newCommit in FindCommitsForClusterAsync(clusterName, streamToNextChange))
 			{
 				ICommit commit = await _commitCollection.AddOrReplaceAsync(newCommit);
-				_logger.LogInformation("Replicated CL {Change}: {Description} as {CommitId}", commit.Change, StringUtils.Truncate(commit.Description, 40), commit.Id);
+				_logger.LogInformation("Replicated CL {Change}: {Description}", commit.Number, StringUtils.Truncate(commit.Description, 40));
 
 				await NotifyListenersAsync(commit);
 

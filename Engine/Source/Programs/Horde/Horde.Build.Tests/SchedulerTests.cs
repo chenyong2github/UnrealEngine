@@ -49,9 +49,9 @@ namespace Horde.Build.Tests
 			_initialJobIds = new HashSet<JobId>(JobCollection.FindAsync().Result.Select(x => x.Id));
 
 			PerforceService.Changes.Clear();
-			PerforceService.AddChange("//UE5/Main", 100, bob, "", new[] { "code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 101, bob, "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 102, bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange(StreamId, 100, bob, "", new[] { "code.cpp" });
+			PerforceService.AddChange(StreamId, 101, bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange(StreamId, 102, bob, "", new[] { "content.uasset" });
 		}
 
 		async Task<IStream> SetScheduleAsync(CreateScheduleRequest schedule)
@@ -73,13 +73,13 @@ namespace Horde.Build.Tests
 			IUser bob = await UserCollection.FindOrAddUserByLoginAsync("Bob", "Bob");
 
 			PerforceService.Changes.Clear();
-			PerforceService.AddChange("//UE5/Main", 100, bob, "", new[] { "code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 101, bob, "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 102, bob, "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 103, bob, "", new[] { "foo/code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 104, bob, "", new[] { "bar/code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 105, bob, "", new[] { "foo/bar/content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 106, bob, "", new[] { "bar/foo/content.uasset" });
+			PerforceService.AddChange(StreamId, 100, bob, "", new[] { "code.cpp" });
+			PerforceService.AddChange(StreamId, 101, bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange(StreamId, 102, bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange(StreamId, 103, bob, "", new[] { "foo/code.cpp" });
+			PerforceService.AddChange(StreamId, 104, bob, "", new[] { "bar/code.cpp" });
+			PerforceService.AddChange(StreamId, 105, bob, "", new[] { "foo/bar/content.uasset" });
+			PerforceService.AddChange(StreamId, 106, bob, "", new[] { "bar/foo/content.uasset" });
 
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
@@ -281,10 +281,10 @@ namespace Horde.Build.Tests
 
 			// Trigger some jobs
 			IUser bob = await UserCollection.FindOrAddUserByLoginAsync("Bob");
-			PerforceService.AddChange("//UE5/Main", 103, bob, "", new string[] { "foo.cpp" });
-			PerforceService.AddChange("//UE5/Main", 104, bob, "", new string[] { "foo.cpp" });
-			PerforceService.AddChange("//UE5/Main", 105, bob, "", new string[] { "foo.uasset" });
-			PerforceService.AddChange("//UE5/Main", 106, bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange(StreamId, 103, bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange(StreamId, 104, bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange(StreamId, 105, bob, "", new string[] { "foo.uasset" });
+			PerforceService.AddChange(StreamId, 106, bob, "", new string[] { "foo.cpp" });
 
 			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
@@ -318,10 +318,10 @@ namespace Horde.Build.Tests
 
 			// Trigger some jobs
 			IUser bob = await UserCollection.FindOrAddUserByLoginAsync("Bob");
-			PerforceService.AddChange("//UE5/Main", 103, bob, "", new string[] { "foo.cpp" });
-			PerforceService.AddChange("//UE5/Main", 104, bob, "Don't build this change!\n#skipci", new string[] { "foo.cpp" });
-			PerforceService.AddChange("//UE5/Main", 105, bob, "", new string[] { "foo.uasset" });
-			PerforceService.AddChange("//UE5/Main", 106, bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange(StreamId, 103, bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange(StreamId, 104, bob, "Don't build this change!\n#skipci", new string[] { "foo.cpp" });
+			PerforceService.AddChange(StreamId, 105, bob, "", new string[] { "foo.uasset" });
+			PerforceService.AddChange(StreamId, 106, bob, "", new string[] { "foo.cpp" });
 
 			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
@@ -482,10 +482,10 @@ namespace Horde.Build.Tests
 			Clock.UtcNow = startTime;
 
 			PerforceService.Changes.Clear();
-			PerforceService.AddChange("//UE5/Main", 1230, bob, "", new[] { "code.cpp" });
-			PerforceService.AddChange("//UE5/Main", 1231, bob, "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 1232, bob, "", new[] { "content.uasset" });
-			PerforceService.AddChange("//UE5/Main", 1233, bob, "", new[] { "code.cpp" });
+			PerforceService.AddChange(StreamId, 1230, bob, "", new[] { "code.cpp" });
+			PerforceService.AddChange(StreamId, 1231, bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange(StreamId, 1232, bob, "", new[] { "content.uasset" });
+			PerforceService.AddChange(StreamId, 1233, bob, "", new[] { "code.cpp" });
 
 			// Create two templates, the second dependent on the first
 			TemplateRefId newTemplateRefId1 = new TemplateRefId("new-template-1");

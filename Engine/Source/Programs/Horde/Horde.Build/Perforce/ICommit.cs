@@ -1,13 +1,17 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using EpicGames.Perforce;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Perforce
 {
-	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
@@ -17,101 +21,85 @@ namespace Horde.Build.Perforce
 	public interface ICommit
 	{
 		/// <summary>
-		/// Unique id for this document
+		/// Stream containing the commit
 		/// </summary>
-		public CommitId Id { get; }
-
-		/// <summary>
-		/// The stream id
-		/// </summary>
-		public StreamId StreamId { get; }
+		StreamId StreamId { get; }
 
 		/// <summary>
 		/// The changelist number
 		/// </summary>
-		public int Change { get; }
+		int Number { get; }
 
 		/// <summary>
 		/// The change that this commit originates from
 		/// </summary>
-		public int OriginalChange { get; }
+		int OriginalChange { get; }
 
 		/// <summary>
 		/// The author user id
 		/// </summary>
-		public UserId AuthorId { get; }
+		UserId AuthorId { get; }
 
 		/// <summary>
 		/// The owner of this change, if different from the author (due to Robomerge)
 		/// </summary>
-		public UserId OwnerId { get; }
+		UserId OwnerId { get; }
 
 		/// <summary>
 		/// Changelist description
 		/// </summary>
-		public string Description { get; }
+		string Description { get; }
 
 		/// <summary>
 		/// Base path for all files in the change
 		/// </summary>
-		public string BasePath { get; }
+		string BasePath { get; }
 
 		/// <summary>
 		/// Date/time that change was committed
 		/// </summary>
-		public DateTime DateUtc { get; }
+		DateTime DateUtc { get; }
+
+		/// <summary>
+		/// Gets the files for this change, relative to the root of the stream
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of files modified by this commit</returns>
+		ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken);
 	}
 
 	/// <summary>
-	/// New commit object
+	/// Extension methods for commits
 	/// </summary>
-	public class NewCommit
+	public static class CommitExtensions
 	{
-		/// <inheritdoc cref="ICommit.StreamId"/>
-		public StreamId StreamId { get; set; }
-
-		/// <inheritdoc cref="ICommit.Change"/>
-		public int Change { get; set; }
-
-		/// <inheritdoc cref="ICommit.OriginalChange"/>
-		public int OriginalChange { get; set; }
-
-		/// <inheritdoc cref="ICommit.AuthorId"/>
-		public UserId AuthorId { get; set; }
-
-		/// <inheritdoc cref="ICommit.OwnerId"/>
-		public UserId? OwnerId { get; set; }
-
-		/// <inheritdoc cref="ICommit.Description"/>
-		public string Description { get; set; }
-
-		/// <inheritdoc cref="ICommit.BasePath"/>
-		public string BasePath { get; set; }
-
-		/// <inheritdoc cref="ICommit.DateUtc"/>
-		public DateTime DateUtc { get; set; }
-
 		/// <summary>
-		/// Constructor
+		/// Determines if this change is a code change
 		/// </summary>
-		public NewCommit(ICommit commit)
-			: this(commit.StreamId, commit.Change, commit.OriginalChange, commit.AuthorId, commit.OwnerId, commit.Description, commit.BasePath, commit.DateUtc)
+		/// <returns>True if this change is a code change</returns>
+		public static async ValueTask<ChangeContentFlags> GetContentFlagsAsync(this ICommit commit, CancellationToken cancellationToken)
 		{
-		}
+			ChangeContentFlags scope = 0;
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public NewCommit(StreamId streamId, int change, int originalChange, UserId authorId, UserId ownerId, string description, string basePath, DateTime dateUtc)
-		{
-			StreamId = streamId;
-			Change = change;
-			OriginalChange = originalChange;
-			AuthorId = authorId;
-			OwnerId = ownerId;
-			Description = description;
-			BasePath = basePath;
-			DateUtc = dateUtc;
+			// Check whether the files are code or content
+			IReadOnlyList<string> files = await commit.GetFilesAsync(cancellationToken);
+			foreach (string file in files)
+			{
+				if (PerforceUtils.CodeExtensions.Any(extension => file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+				{
+					scope |= ChangeContentFlags.ContainsCode;
+				}
+				else
+				{
+					scope |= ChangeContentFlags.ContainsContent;
+				}
+
+				if (scope == (ChangeContentFlags.ContainsCode | ChangeContentFlags.ContainsContent))
+				{
+					break;
+				}
+			}
+			return scope;
 		}
 	}
 }

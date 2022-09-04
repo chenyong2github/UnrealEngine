@@ -242,7 +242,7 @@ namespace Horde.Build.Perforce
 		{
 			// Post the new commit key
 			RedisList<int> streamCommitsKey = RedisStreamChanges(commit.StreamId);
-			await streamCommitsKey.RightPushAsync(commit.Change);
+			await streamCommitsKey.RightPushAsync(commit.Number);
 
 			// Signal to any listeners that we have new data to process
 			await _redisDirtyStreams.AddAsync(commit.StreamId);

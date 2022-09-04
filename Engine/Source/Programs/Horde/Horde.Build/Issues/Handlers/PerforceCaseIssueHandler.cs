@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using EpicGames.Core;
+using EpicGames.Perforce;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Logs;
@@ -37,9 +39,13 @@ namespace Horde.Build.Issues.Handlers
 		{
 			foreach (SuspectChange change in changes)
 			{
-				if(change.Details.Files.Any(x => fingerprint.Keys.Contains(x.DepotPath)))
+				foreach(string file in change.Files)
 				{
-					change.Rank += 30;
+					string fileName = GetFileName(file);
+					if(fingerprint.Keys.Contains(fileName))
+					{
+						change.Rank += 30;
+					}
 				}
 			}
 		}
@@ -54,17 +60,28 @@ namespace Horde.Build.Issues.Handlers
 		/// Extracts a list of source files from an event
 		/// </summary>
 		/// <param name="logEventData">The event data</param>
-		/// <param name="depotFiles">List of source files</param>
-		static void GetSourceFiles(ILogEventData logEventData, HashSet<string> depotFiles)
+		/// <param name="fileNames">List of source files</param>
+		static void GetSourceFiles(ILogEventData logEventData, HashSet<string> fileNames)
 		{
 			foreach (JsonProperty property in logEventData.FindPropertiesOfType(LogValueType.DepotPath))
 			{
 				JsonElement value;
 				if (property.Value.TryGetProperty(LogEventPropertyName.Text.Span, out value) && value.ValueKind == JsonValueKind.String)
 				{
-					depotFiles.Add(value.GetString()!);
+					string fileName = GetFileName(value.GetString() ?? String.Empty);
+					fileNames.Add(fileName);
 				}
 			}
+		}
+
+		/// <summary>
+		/// Extracts the name part of a depot file
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns></returns>
+		static string GetFileName(string path)
+		{
+			return path.Substring(path.LastIndexOf('/') + 1);
 		}
 
 		/// <inheritdoc/>

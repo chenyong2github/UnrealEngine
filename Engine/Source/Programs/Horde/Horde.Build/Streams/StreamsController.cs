@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Jobs;
@@ -182,12 +183,13 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			List<ChangeSummary> commits = await _perforceService.GetChangesAsync(stream.ClusterName, stream.Name, min, max, results);
+			List<ICommit> commits = await _perforceService.GetChangesAsync(stream, min, max, results);
 
 			List<GetChangeSummaryResponse> responses = new List<GetChangeSummaryResponse>();
-			foreach (ChangeSummary commit in commits)
+			foreach (ICommit commit in commits)
 			{
-				responses.Add(new GetChangeSummaryResponse(commit));
+				IUser? author = await _userCollection.GetCachedUserAsync(commit.AuthorId);
+				responses.Add(new GetChangeSummaryResponse(commit, author!));
 			}
 			return responses.ConvertAll(x => PropertyFilter.Apply(x, filter));
 		}
@@ -214,13 +216,16 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			ChangeDetails? changeDetails = await _perforceService.GetChangeDetailsAsync(stream.ClusterName, stream.Name, changeNumber);
+			ICommit? changeDetails = await _perforceService.GetChangeDetailsAsync(stream, changeNumber);
 			if(changeDetails == null)
 			{
 				return NotFound("CL {Change} not found in stream {StreamId}", changeNumber, streamId);
 			}
 
-			return PropertyFilter.Apply(new GetChangeDetailsResponse(changeDetails), filter);
+			IUser? author = await _userCollection.GetCachedUserAsync(changeDetails.AuthorId);
+			IReadOnlyList<string> files = await changeDetails.GetFilesAsync(CancellationToken.None);
+
+			return PropertyFilter.Apply(new GetChangeDetailsResponse(changeDetails, author!, files), filter);
 		}
 
 		/// <summary>

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Server;
 using Horde.Build.Streams;
@@ -52,6 +53,7 @@ namespace Horde.Build.Perforce
 			[BsonElement("t")]
 			public DateTime DateUtc { get; set; }
 
+			int ICommit.Number => Change;
 			int ICommit.OriginalChange => OriginalChange ?? Change;
 			UserId ICommit.OwnerId => OwnerId ?? AuthorId;
 
@@ -75,6 +77,11 @@ namespace Horde.Build.Perforce
 				Description = newCommit.Description;
 				BasePath = newCommit.BasePath;
 				DateUtc = newCommit.DateUtc;
+			}
+
+			public ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
+			{
+				throw new NotImplementedException();
 			}
 		}
 

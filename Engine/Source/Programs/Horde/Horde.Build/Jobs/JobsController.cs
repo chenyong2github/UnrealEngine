@@ -148,11 +148,11 @@ namespace Horde.Build.Jobs
 			}
 			else
 			{
-				change = await _perforce.GetLatestChangeAsync(stream.ClusterName, stream.Name);
+				change = await _perforce.GetLatestChangeAsync(stream);
 			}
 
 			// And get the matching code changelist
-			int codeChange = await _perforce.GetCodeChangeAsync(stream.ClusterName, stream.Name, change);
+			int codeChange = await _perforce.GetCodeChangeAsync(stream, change);
 
 			// New properties for the job
 			List<string> arguments = create.Arguments ?? template.GetDefaultArguments();
@@ -209,7 +209,7 @@ namespace Horde.Build.Jobs
 			if (jobs.Count == 0)
 			{
 				_logger.LogInformation("Unable to find successful build of {TemplateId} target {Target}. Using latest change instead", templateId, target);
-				return await _perforce.GetLatestChangeAsync(stream.ClusterName, stream.Name);
+				return await _perforce.GetLatestChangeAsync(stream);
 			}
 			else
 			{

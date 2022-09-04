@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Caching.Memory;
@@ -25,6 +26,9 @@ using OpenTracing.Util;
 
 namespace Horde.Build.Perforce
 {
+	using StreamId = StringId<IStream>;
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>
@@ -117,6 +121,58 @@ namespace Horde.Build.Perforce
 				UserName = userName;
 				Password = password;
 				ExpiresAt = expiresAt;
+			}
+		}
+
+		class Commit : ICommit
+		{
+			readonly PerforceService _owner;
+			readonly string _clusterName;
+			readonly string _streamName;
+
+			public StreamId StreamId { get; }
+			public int Number { get; }
+			public int OriginalChange { get; }
+			public UserId AuthorId { get; }
+			public UserId OwnerId { get; }
+			public string Description { get; }
+			public string BasePath { get; }
+			public DateTime DateUtc { get; }
+
+			IReadOnlyList<string>? _files;
+
+			public Commit(PerforceService owner, string clusterName, string streamName, StreamId streamId, int number, int originalChange, UserId authorId, UserId ownerId, string description, string basePath, DateTime dateUtc)
+			{
+				_owner = owner;
+				_clusterName = clusterName;
+				_streamName = streamName;
+	
+				StreamId = streamId;
+				Number = number;
+				OriginalChange = originalChange;
+				AuthorId = authorId;
+				OwnerId = ownerId;
+				Description = description;
+				BasePath = basePath;
+				DateUtc = dateUtc;
+			}
+
+			public void SetFiles(IReadOnlyList<string> files)
+			{
+				_files = files;
+			}
+
+			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
+			{
+				if (_files == null)
+				{
+					using (IPerforceConnection perforce = await _owner.ConnectAsync(_clusterName, null, cancellationToken))
+					{
+						DescribeRecord describeRecord = await perforce.DescribeAsync(Number, cancellationToken);
+						_files = GetStreamFiles(describeRecord, _streamName);
+					}
+				}
+				throw new NotImplementedException();
 			}
 		}
 
@@ -374,8 +430,10 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		async Task<PooledConnectionHandle> ConnectWithStreamClientAsync(PerforceCluster cluster, string? userName, string streamName, CancellationToken cancellationToken)
+		async Task<PooledConnectionHandle> ConnectWithStreamClientAsync(string clusterName, string? userName, string streamName, CancellationToken cancellationToken)
 		{
+			PerforceCluster cluster = await GetClusterAsync(clusterName);
+
 			PooledConnectionHandle? handle = GetPooledConnectionForStream(cluster, userName, streamName);
 			if (handle != null)
 			{
@@ -395,6 +453,11 @@ namespace Horde.Build.Perforce
 
 				return await CreatePooledConnectionAsync(perforce.Settings.ServerAndPort, perforce.Credentials, client, cancellationToken);
 			}
+		}
+
+		Task<PooledConnectionHandle> ConnectWithStreamClientAsync(IStream stream, string? userName, CancellationToken cancellationToken)
+		{
+			return ConnectWithStreamClientAsync(stream.ClusterName, userName, stream.Name, cancellationToken);
 		}
 
 		async Task<Credentials> GetTicketAsync(PerforceCluster cluster, string userName, CancellationToken cancellationToken)
@@ -531,72 +594,115 @@ namespace Horde.Build.Perforce
 			return clientName;
 		}
 
-		static int GetSyncRevision(string path, FileAction headAction, int headRev)
-		{
-			switch (headAction)
-			{
-				case FileAction.None:
-				case FileAction.Add:
-				case FileAction.Branch:
-				case FileAction.MoveAdd:
-				case FileAction.Edit:
-				case FileAction.Integrate:
-					return headRev;
-				case FileAction.Delete:
-				case FileAction.MoveDelete:
-				case FileAction.Purge:
-					return -1;
-				default:
-					throw new Exception($"Unrecognized P4 file change type '{headAction}' for file {path}#{headRev}");
-			}
-		}
-
-		static ChangeFile CreateChangeFile(string relativePath, DescribeFileRecord metaData)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CreateChangeFile (FileMetaData)").StartActive();
-			scope.Span.SetTag("RelativePath", relativePath);
-			
-			int revision = GetSyncRevision(metaData.DepotFile, metaData.Action, metaData.Revision);
-			Md5Hash? digest = String.IsNullOrEmpty(metaData.Digest) ? (Md5Hash?)null : Md5Hash.Parse(metaData.Digest);
-			return new ChangeFile(relativePath, metaData.DepotFile, revision, metaData.FileSize, digest, metaData.Type);
-		}
-
 		/// <inheritdoc/>
-		public async Task<List<ChangeSummary>> GetChangesAsync(string clusterName, string streamName, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
+		public async Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
+			scope.Span.SetTag("ClusterName", stream.ClusterName);
 			scope.Span.SetTag("MinChange", minChange ?? -1);
 			scope.Span.SetTag("MaxChange", maxChange ?? -1);
 			scope.Span.SetTag("MaxResults", maxResults);
-			
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
 
-			List<ChangeSummary> results = new List<ChangeSummary>();
-			using (IPerforceConnection perforce = await ConnectWithStreamClientAsync(cluster, null, streamName, cancellationToken))
+			List<ICommit> results = new List<ICommit>();
+			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(stream, null, cancellationToken))
 			{
 				string filter = GetFilter($"//{perforce.Settings.ClientName}/...", minChange, maxChange);
+
+				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
 				List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, maxResults, ChangeStatus.Submitted, filter, cancellationToken);
 
 				foreach (ChangesRecord change in changes)
 				{
-					IUser user = await FindOrAddUserAsync(clusterName, change.User, cancellationToken);
-					results.Add(new ChangeSummary(change.Number, user, change.Path ?? String.Empty, change.Description));
+					ICommit commit = await CreateCommitAsync(stream, change, info, cancellationToken);
+					results.Add(commit);
 				}
 			}
 			return results;
 		}
 
+		async ValueTask<Commit> CreateCommitInternalAsync(IStream stream, int number, string author, string description, string? basePath, DateTime dateUtc, CancellationToken cancellationToken)
+		{
+			IUser authorUser = await FindOrAddUserAsync(stream.ClusterName, author, cancellationToken);
+			IUser ownerUser = authorUser;
+
+			int originalChange = ParseRobomergeSource(description) ?? number;
+
+			string? owner = ParseRobomergeOwner(description);
+			if (owner != null)
+			{
+				ownerUser = await FindOrAddUserAsync(stream.ClusterName, owner, cancellationToken);
+			}
+
+			return new Commit(this, stream.ClusterName, stream.Name, stream.Id, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
+		}
+
+		async ValueTask<Commit> CreateCommitAsync(IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
+		{
+			DateTime timeUtc = new DateTime(describeRecord.Time.Ticks - serverInfo.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
+
+			Commit commit = await CreateCommitInternalAsync(stream, describeRecord.Number, describeRecord.User, describeRecord.Description, describeRecord.Path, timeUtc, cancellationToken);
+			commit.SetFiles(GetStreamFiles(describeRecord, stream.Name));
+
+			return commit;
+		}
+
+		async ValueTask<Commit> CreateCommitAsync(IStream stream, ChangesRecord changesRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
+		{
+			DateTime timeUtc = new DateTime(changesRecord.Time.Ticks - serverInfo.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
+
+			Commit commit = await CreateCommitInternalAsync(stream, changesRecord.Number, changesRecord.User, changesRecord.Description, changesRecord.Path, timeUtc, cancellationToken);
+
+			return commit;
+		}
+
+		/// <summary>
+		/// Attempts to parse the Robomerge source from this commit information
+		/// </summary>
+		/// <param name="description">Description text to parse</param>
+		/// <returns>The parsed source changelist, or null if no #ROBOMERGE-SOURCE tag was present</returns>
+		static int? ParseRobomergeSource(string description)
+		{
+			// #ROBOMERGE-SOURCE: CL 13232051 in //Fortnite/Release-12.60/... via CL 13232062 via CL 13242953
+			Match match = Regex.Match(description, @"^#ROBOMERGE-SOURCE: CL (\d+)", RegexOptions.Multiline);
+			if (match.Success)
+			{
+				return Int32.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// Attempts to parse the Robomerge owner from this commit information
+		/// </summary>
+		/// <param name="description">Description text to parse</param>
+		/// <returns>The Robomerge owner, or null if no #ROBOMERGE-OWNER tag was present</returns>
+		static string? ParseRobomergeOwner(string description)
+		{
+			// #ROBOMERGE-OWNER: ben.marsh
+			Match match = Regex.Match(description, @"^#ROBOMERGE-OWNER:\s*([^\s]+)", RegexOptions.Multiline);
+			if (match.Success)
+			{
+				return match.Groups[1].Value;
+			}
+			else
+			{
+				return null;
+			}
+		}
+
 		/// <inheritdoc/>
-		public async Task<ChangeDetails> GetChangeDetailsAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken)
+		public async Task<ICommit> GetChangeDetailsAsync(IStream stream, int changeNumber, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("StreamName", streamName);
+			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("ChangeNumber", changeNumber);
-			
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
+
+			PerforceCluster cluster = await GetClusterAsync(stream.ClusterName);
 
 			using (PooledConnectionHandle perforce = await ConnectAsync(cluster, null, cancellationToken))
 			{
@@ -604,19 +710,10 @@ namespace Horde.Build.Perforce
 
 				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
-				List<ChangeFile> files = new List<ChangeFile>();
-				foreach (DescribeFileRecord describeFile in record.Files)
-				{
-					string? relativePath;
-					if (TryGetStreamRelativePath(describeFile.DepotFile, streamName, out relativePath))
-					{
-						files.Add(CreateChangeFile(relativePath, describeFile));
-					}
-				}
-
-				IUser user = await FindOrAddUserAsync(cluster, record.User, cancellationToken);
 				DateTime timeUtc = new DateTime(record.Time.Ticks - info.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
-				return new ChangeDetails(changeNumber, user, record.Path ?? String.Empty, record.Description, files, timeUtc);
+
+				Commit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
+				return commit;
 			}
 		}
 
@@ -679,37 +776,23 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
+		public async Task<List<ICommit>> GetChangeDetailsAsync(IStream stream, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("StreamName", streamName);
+			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("ChangeNumbers.Count", changeNumbers.Count);
-			
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
 
-			List<ChangeDetails> results = new List<ChangeDetails>();
-			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(cluster, null, streamName, cancellationToken))
+			List<ICommit> results = new List<ICommit>();
+			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(stream, null, cancellationToken))
 			{
 				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
 				List<DescribeRecord> records = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, changeNumbers.ToArray(), cancellationToken);
 				foreach (DescribeRecord record in records)
 				{
-					List<ChangeFile> files = new List<ChangeFile>();
-					foreach (DescribeFileRecord describeFile in record.Files)
-					{
-						string? relativePath;
-						if (TryGetStreamRelativePath(describeFile.DepotFile, streamName, out relativePath))
-						{
-							files.Add(CreateChangeFile(relativePath, describeFile));
-						}
-					}
-
-					IUser user = await FindOrAddUserAsync(cluster, record.User, cancellationToken);
-					DateTime timeUtc = new DateTime(record.Time.Ticks - info.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
-
-					results.Add(new ChangeDetails(record.Number, user, record.Path ?? String.Empty, record.Description, files, timeUtc));
+					Commit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
+					results.Add(commit);
 				}
 			}
 			return results;
@@ -780,9 +863,7 @@ namespace Horde.Build.Perforce
 			scope.Span.SetTag("StreamName", streamName);
 			scope.Span.SetTag("FilePath", filePath);
 			
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
-
-			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(cluster, null, streamName, cancellationToken))
+			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(clusterName, null, streamName, cancellationToken))
 			{
 				string workspaceFilePath = $"//{perforce.Client!.Name}/{filePath.TrimStart('/')}";
 				string diskFilePath = $"{perforce.Client!.Root + filePath.TrimStart('/')}";
@@ -959,31 +1040,31 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change, CancellationToken cancellationToken)
+		public async Task<int> GetCodeChangeAsync(IStream stream, int change, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetCodeChangeAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("StreamName", streamName);
+			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("Change", change);
 			
 			int maxChange = change;
 			for (; ; )
 			{
 				// Query for the changes before this point
-				List<ChangeSummary> changes = await GetChangesAsync(clusterName, streamName, null, maxChange, 10, cancellationToken);
-				_logger.LogInformation("Finding last code change in {Stream} before {MaxChange}: {NumResults}", streamName, maxChange, changes.Count);
+				List<ICommit> changes = await GetChangesAsync(stream, null, maxChange, 10, cancellationToken);
+				_logger.LogInformation("Finding last code change in {Stream} before {MaxChange}: {NumResults}", stream.Name, maxChange, changes.Count);
 				if (changes.Count == 0)
 				{
 					return 0;
 				}
 
 				// Get the details for them
-				List<ChangeDetails> detailsList = await GetChangeDetailsAsync(clusterName, streamName, changes.ConvertAll(x => x.Number), cancellationToken);
-				foreach (ChangeDetails details in detailsList.OrderByDescending(x => x.Number))
+				List<ICommit> detailsList = await GetChangeDetailsAsync(stream, changes.ConvertAll(x => x.Number), cancellationToken);
+				foreach (ICommit details in detailsList.OrderByDescending(x => x.Number))
 				{
-					ChangeContentFlags contentFlags = details.GetContentFlags();
+					ChangeContentFlags contentFlags = await details.GetContentFlagsAsync(cancellationToken);
 					_logger.LogInformation("Change {Change} = {Flags}", details.Number, contentFlags.ToString());
-					if ((details.GetContentFlags() & ChangeContentFlags.ContainsCode) != 0)
+					if ((contentFlags & ChangeContentFlags.ContainsCode) != 0)
 					{
 						return details.Number;
 					}
@@ -1017,6 +1098,20 @@ namespace Horde.Build.Perforce
 				filter.Append(CultureInfo.InvariantCulture, $"@<={maxChange}");
 			}
 			return filter.ToString();
+		}
+
+		static List<string> GetStreamFiles(DescribeRecord describeRecord, string streamName)
+		{
+			List<string> files = new List<string>();
+			foreach (DescribeFileRecord describeFile in describeRecord.Files)
+			{
+				string? relativePath;
+				if (TryGetStreamRelativePath(describeFile.DepotFile, streamName, out relativePath))
+				{
+					files.Add(relativePath);
+				}
+			}
+			return files;
 		}
 
 		/// <summary>

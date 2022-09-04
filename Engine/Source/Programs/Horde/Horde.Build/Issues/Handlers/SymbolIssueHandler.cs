@@ -79,7 +79,7 @@ namespace Horde.Build.Issues.Handlers
 			{
 				if (change.ContainsCode)
 				{
-					int matches = names.Count(x => change.Details.Files.Any(y => y.Path.Contains(x, StringComparison.OrdinalIgnoreCase)));
+					int matches = names.Count(x => change.Files.Any(y => y.Contains(x, StringComparison.OrdinalIgnoreCase)));
 					change.Rank += 10 + (10 * matches);
 				}
 			}

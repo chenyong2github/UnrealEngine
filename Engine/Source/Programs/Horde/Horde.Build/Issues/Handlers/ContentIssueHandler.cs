@@ -102,7 +102,7 @@ namespace Horde.Build.Issues.Handlers
 			{
 				if (suspect.ContainsContent)
 				{
-					if (suspect.Details.Files.Any(x => fingerprint.Keys.Any(y => x.Path.Contains(y, StringComparison.OrdinalIgnoreCase))))
+					if (suspect.Files.Any(x => fingerprint.Keys.Any(y => x.Contains(y, StringComparison.OrdinalIgnoreCase))))
 					{
 						suspect.Rank += 20;
 					}

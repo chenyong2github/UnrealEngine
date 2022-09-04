@@ -1085,7 +1085,7 @@ namespace Horde.Build.Issues
 				if (stream != null)
 				{
 					_logger.LogInformation("Querying fix changelist {FixChange} in {StreamId}", fixChange, streamId);
-					List<ChangeSummary> changes = await _perforce.GetChangesAsync(stream.ClusterName, stream.Name, fixChange, fixChange, 1);
+					List<ICommit> changes = await _perforce.GetChangesAsync(stream, fixChange, fixChange, 1);
 					bContainsFixChange = changes.Count > 0;
 				}
 				cachedContainsFixChange[(streamId, fixChange)] = bContainsFixChange;
@@ -1109,11 +1109,16 @@ namespace Horde.Build.Issues
 				_logger.LogDebug("Querying for changes in {StreamName} between {MinChange} and {MaxChange}", stream.Name, minChange, maxChange);
 
 				// Get the submitted changes before this job
-				List<ChangeDetails> changes = await PerforceServiceExtensions.GetChangeDetailsAsync(_perforce, stream.ClusterName, stream.Name, minChange, maxChange, MaxChanges);
+				List<ICommit> changes = await PerforceServiceExtensions.GetChangeDetailsAsync(_perforce, stream, minChange, maxChange, MaxChanges);
 				_logger.LogDebug("Found {NumResults} changes", changes.Count);
 
 				// Get the handler to rank them
-				List<SuspectChange> suspectChanges = changes.ConvertAll(x => new SuspectChange(x));
+				List<SuspectChange> suspectChanges = new List<SuspectChange>(changes.Count);
+				foreach (ICommit commit in changes)
+				{
+					IReadOnlyList<string> files = await commit.GetFilesAsync(CancellationToken.None);
+					suspectChanges.Add(new SuspectChange(commit, files));
+				}
 				handler.RankSuspects(fingerprint, suspectChanges);
 
 				// Output the rankings
@@ -1122,20 +1127,11 @@ namespace Horde.Build.Issues
 					int maxRank = suspectChanges.Max(x => x.Rank);
 					foreach (SuspectChange suspectChange in suspectChanges)
 					{
-						_logger.LogDebug("Suspect CL: {Change}, Author: {Author}, Rank: {Rank}, MaxRank: {MaxRank}", suspectChange.Details.Number, suspectChange.Details.Author, suspectChange.Rank, maxRank);
+						_logger.LogDebug("Suspect CL: {Change}, Author: {UserId}, Rank: {Rank}, MaxRank: {MaxRank}", suspectChange.Details.Number, suspectChange.Details.AuthorId, suspectChange.Rank, maxRank);
 						if (suspectChange.Rank == maxRank)
 						{
-							IUser? owner = suspectChange.Details.Author;
-
-							string? roboOwnerName = ParseRobomergeOwner(suspectChange.Details.Description);
-							if (roboOwnerName != null)
-							{
-								owner = await _perforce.FindOrAddUserAsync(stream.ClusterName, roboOwnerName);
-							}
-
-							NewIssueSpanSuspectData suspect = new NewIssueSpanSuspectData(suspectChange.Details.Number, owner.Id);
-							suspect.OriginatingChange = ParseRobomergeSource(suspectChange.Details.Description);
-
+							NewIssueSpanSuspectData suspect = new NewIssueSpanSuspectData(suspectChange.Details.Number, suspectChange.Details.OwnerId);
+							suspect.OriginatingChange = suspectChange.Details.OriginalChange;
 							suspects.Add(suspect);
 						}
 					}
