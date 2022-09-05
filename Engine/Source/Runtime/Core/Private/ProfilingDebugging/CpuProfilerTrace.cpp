@@ -61,7 +61,12 @@ struct FCpuProfilerTraceInternal
 
 		static FORCEINLINE uint32 GetKeyHash(const CharType* Key)
 		{
-			return FCrc::Strihash_DEPRECATED(Key);
+			uint32 Hash = 0;
+			for (const CharType* P = Key; *P; ++P)
+			{
+				Hash = ((Hash << 13) | (Hash >> 19)) ^ uint32(*P);
+			}
+			return Hash;
 		}
 
 		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
