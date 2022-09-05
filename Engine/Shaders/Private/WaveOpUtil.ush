@@ -9,7 +9,7 @@ uint CountBits( uint2 Bits )
 
 /*
 ===============================================================================
-Below are a series of WaveInterlockedAdd macros used for aggregated atomics.
+Below are a series of WaveInterlockedAdd (and WaveInterlockedMin/Max) macros used for aggregated atomics.
 
 There is a varying and scalar version of each type, scalar being faster. Scalar refers to Value. I can't check if the scalar version
 is actually called with a scalar since HLSL doesn't allow that so be careful.
@@ -97,6 +97,20 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 	OriginalValue = WaveReadLaneFirst( OriginalValue ) + LocalOffset; \
 }
 
+#define WaveInterlockedMin( Dest, Value ) \
+{ \
+	uint MinValue = WaveActiveMin( Value ); \
+	if( WaveIsFirstLane() ) \
+		InterlockedMin( Dest, MinValue ); \
+}
+
+#define WaveInterlockedMax( Dest, Value ) \
+{ \
+	uint MaxValue = WaveActiveMax( Value ); \
+	if( WaveIsFirstLane() ) \
+		InterlockedMax( Dest, MaxValue ); \
+}
+
 #else
 
 #define WaveInterlockedAddScalar( Dest, Value )					InterlockedAdd( Dest, Value )
@@ -115,5 +129,8 @@ that's to be written to as a parameter on all platforms. Also unfortunate is tha
 	InterlockedAdd( Dest, Value, OriginalValue ); \
 	InterlockedMax( DestGroups, ( OriginalValue + Value + GroupsOf - 1 ) / GroupsOf ); \
 }
+
+#define WaveInterlockedMin( Dest, Value ) { InterlockedMin(Dest, Value); }
+#define WaveInterlockedMax( Dest, Value ) { InterlockedMax(Dest, Value); }
 
 #endif // PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS

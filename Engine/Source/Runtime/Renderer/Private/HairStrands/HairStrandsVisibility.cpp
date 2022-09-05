@@ -33,6 +33,11 @@ static float GHairVisibilityMSAA_MeanSamplePerPixel = 0.75f;
 static FAutoConsoleVariableRef CVarHairVisibilityMSAA_MaxSamplePerPixel(TEXT("r.HairStrands.Visibility.MSAA.SamplePerPixel"), GHairVisibilityMSAA_MaxSamplePerPixel, TEXT("Hair strands visibility sample count (2, 4, or 8)"), ECVF_Scalability | ECVF_RenderThreadSafe);
 static FAutoConsoleVariableRef CVarHairVisibilityMSAA_MeanSamplePerPixel(TEXT("r.HairStrands.Visibility.MSAA.MeanSamplePerPixel"), GHairVisibilityMSAA_MeanSamplePerPixel, TEXT("Scale the numer of sampler per pixel for limiting memory allocation (0..1, default 0.5f)"));
 
+static int32 GHairVisibilityCompute_MaxSamplePerPixel = 1;
+static float GHairVisibilityCompute_MeanSamplePerPixel = 0.75f;
+static FAutoConsoleVariableRef CVarHairVisibilityCompute_MaxSamplePerPixel(TEXT("r.HairStrands.Visibility.Compute.SamplePerPixel"), GHairVisibilityCompute_MaxSamplePerPixel, TEXT("Hair strands visibility sample count (2, 4, or 8)"), ECVF_Scalability | ECVF_RenderThreadSafe);
+static FAutoConsoleVariableRef CVarHairVisibilityCompute_MeanSamplePerPixel(TEXT("r.HairStrands.Visibility.Compute.MeanSamplePerPixel"), GHairVisibilityCompute_MeanSamplePerPixel, TEXT("Scale the numer of sampler per pixel for limiting memory allocation (0..1, default 0.5f)"));
+
 static int32 GHairClearVisibilityBuffer = 0;
 static FAutoConsoleVariableRef CVarHairClearVisibilityBuffer(TEXT("r.HairStrands.Visibility.Clear"), GHairClearVisibilityBuffer, TEXT("Clear hair strands visibility buffer"));
 
@@ -182,7 +187,22 @@ static uint32 GetMaxSamplePerPixel()
 	{
 		case HairVisibilityRenderMode_ComputeRaster:
 		{
-			return 1; //TODO: enable multi-sample compute raster
+			if (GHairVisibilityCompute_MaxSamplePerPixel <= 1)
+			{
+				return 1;
+			}
+			else if (GHairVisibilityCompute_MaxSamplePerPixel == 2)
+			{
+				return 2;
+			}
+			else if (GHairVisibilityCompute_MaxSamplePerPixel <= 4)
+			{
+				return 4;
+			}
+			else
+			{
+				return 8;
+			}
 		}
 		case HairVisibilityRenderMode_MSAA_Visibility:
 		{
@@ -234,7 +254,7 @@ inline uint32 GetMeanSamplePerPixel()
 	switch (GetHairVisibilityRenderMode())
 	{
 	case HairVisibilityRenderMode_ComputeRaster:
-		return 1; //TODO: enable multi-sample compute raster
+		return FMath::Max(1, FMath::FloorToInt(SamplePerPixel * FMath::Clamp(GHairVisibilityCompute_MeanSamplePerPixel, 0.f, 1.f)));
 	case HairVisibilityRenderMode_MSAA_Visibility:
 		return FMath::Max(1, FMath::FloorToInt(SamplePerPixel * FMath::Clamp(GHairVisibilityMSAA_MeanSamplePerPixel, 0.f, 1.f)));
 	case HairVisibilityRenderMode_PPLL:
@@ -253,9 +273,7 @@ uint32 GetHairStrandsMeanSamplePerPixel()
 
 struct FRasterComputeOutput
 {
-	FIntPoint BaseResolution;
-	FIntPoint SuperResolution;
-	uint32 ResolutionMultiplier = 1;
+	FIntPoint Resolution;
 
 	FRDGTextureRef HairCountTexture = nullptr;
 	FRDGTextureRef DepthTexture = nullptr;
@@ -1757,13 +1775,15 @@ class FHairVisibilityCompactionComputeRasterCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityCompactionComputeRasterCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUPSIZE", 32, 64);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize>;
+	class FSampleCount : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_MULTI_SAMPLE_COUNT", 1, 2, 4, 8);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FSampleCount>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, OutputResolution)
 		SHADER_PARAMETER(uint32, MaxNodeCount)
 		SHADER_PARAMETER(uint32, SamplerPerPixel)
 		SHADER_PARAMETER(float, CoverageThreshold)
+		SHADER_PARAMETER(uint32, bSortSampleByDepth)
 
 		SHADER_PARAMETER(FIntPoint, TileCountXY)
 		SHADER_PARAMETER(uint32, TileSize)
@@ -1805,7 +1825,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const uint32 NodeGroupSize,
-	const uint32 SamplerPerPixel,
+	const uint32 SamplesPerPixel,
 	const FRasterComputeOutput& RasterComputeData,
 	const FHairStrandsTiles& TileData,
 	FRDGTextureRef& OutCompactCounter,
@@ -1854,10 +1874,11 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	PassParameters->DepthCovTexture = RasterComputeData.DepthCovTexture;
 	PassParameters->PrimMatTexture = RasterComputeData.PrimMatTexture;
 
-	PassParameters->SamplerPerPixel			= SamplerPerPixel;
+	PassParameters->SamplerPerPixel			= SamplesPerPixel;
 	PassParameters->OutputResolution		= Resolution;
 	PassParameters->MaxNodeCount			= MaxRenderNodeCount;
 	PassParameters->CoverageThreshold		= GetHairStrandsFullCoverageThreshold();
+	PassParameters->bSortSampleByDepth		= GHairStrandsSortHairSampleByDepth > 0 ? 1 : 0;
 	PassParameters->ViewUniformBuffer		= View.ViewUniformBuffer;
 //	PassParameters->SceneTexturesStruct		= CreateSceneTextureUniformBuffer(GraphBuilder, View.GetSceneTexturesChecked(), View.FeatureLevel);
 	PassParameters->OutCompactNodeCounter	= GraphBuilder.CreateUAV(OutCompactCounter);
@@ -1874,6 +1895,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	const FIntPoint GroupSize = GetVendorOptimalGroupSize2D();
 	FHairVisibilityCompactionComputeRasterCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairVisibilityCompactionComputeRasterCS::FGroupSize>(FHairStrandsTiles::GroupSize);
+	PermutationVector.Set<FHairVisibilityCompactionComputeRasterCS::FSampleCount>(SamplesPerPixel);
 	TShaderMapRef<FHairVisibilityCompactionComputeRasterCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -2736,6 +2758,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRasterComputeCommonParameters, )
 	SHADER_PARAMETER(float, RcpTileSize)
 	SHADER_PARAMETER(uint32, TileSizeAsShift)
 	SHADER_PARAMETER(uint32, SqrTileSize)
+	SHADER_PARAMETER(uint32, HalfTileSize)
+	SHADER_PARAMETER(float, RcpHalfTileSize)
+	SHADER_PARAMETER(uint32, SqrHalfTileSize)
 	SHADER_PARAMETER(uint32, NumRasterizers)
 	SHADER_PARAMETER(float, RcpNumRasterizers)
 	SHADER_PARAMETER(FIntPoint, TileRes)
@@ -2755,6 +2780,7 @@ class FVisiblityRasterComputePrepareDepthGridCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutVisTileDepthGrid)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutDepthCovTexture)
+		SHADER_PARAMETER(uint32, NumSamples)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -2971,6 +2997,45 @@ IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeRasterizeCS, "/Engine/Private/Hai
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
+class FVisiblityRasterComputeRasterizeMultiSampleCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeRasterizeMultiSampleCS);
+	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeRasterizeMultiSampleCS, FGlobalShader);
+
+	class FSampleCount : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_MULTI_SAMPLE_COUNT", 1, 2, 4, 8);
+	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FSampleCount>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeCommonParameters, Common)
+		SHADER_PARAMETER(uint32, MacroGroupId)
+		SHADER_PARAMETER(uint32, DispatchCountX)
+		SHADER_PARAMETER(uint32, HairMaterialId)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+		SHADER_PARAMETER(float, SampleWeight)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTilePrims)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, VisTileArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisTileData)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutHairCountTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutDepthCovTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutPrimMatTexture)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_RASTERCOMPUTE_RASTER_MULTI_SAMPLE"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeRasterizeMultiSampleCS, "/Engine/Private/HairStrands/HairStrandsVisibilityRasterCompute.usf", "RasterMultiSampleCS", SF_Compute);
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
 class FVisiblityRasterComputeDebugCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeDebugCS);
@@ -3126,13 +3191,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	check(DoesSupportRasterCompute());
 
 	FRasterComputeOutput Out;
+	Out.Resolution = InResolution;
 
-	Out.ResolutionMultiplier = 1;
-	Out.BaseResolution		 = InResolution;
-	Out.SuperResolution		 = InResolution * Out.ResolutionMultiplier;
-
-	FRDGTextureDesc DescCount = FRDGTextureDesc::Create2D(Out.SuperResolution, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable);
-	FRDGTextureDesc DescVis = FRDGTextureDesc::Create2D(Out.SuperResolution, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable);
+	FRDGTextureDesc DescCount = FRDGTextureDesc::Create2D(Out.Resolution, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable);
+	FRDGTextureDesc DescVis = FRDGTextureDesc::Create2DArray(Out.Resolution, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable, SamplePerPixelCount);
 
 	Out.HairCountTexture = GraphBuilder.CreateTexture(DescCount, TEXT("Hair.HairCountTexture"));
 	Out.DepthCovTexture = GraphBuilder.CreateTexture(DescVis, TEXT("Hair.DepthCovTexture"));
@@ -3143,7 +3205,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	FRDGTextureUAVRef PrimMatTextureUAV = GraphBuilder.CreateUAV(Out.PrimMatTexture);
 
 	uint32 ClearValues[4] = { 0,0,0,0 };
-	AddClearUAVPass(GraphBuilder, PrimMatTextureUAV, ClearValues);
 	AddClearUAVPass(GraphBuilder, DepthCovTextureUAV, ClearValues);
 	AddClearUAVPass(GraphBuilder, HairCountTextureUAV, ClearValues);
 
@@ -3171,10 +3232,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 				continue;
 			}
 
-			const FHairGroupPublicData *HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData *>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
+			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
 			check(HairGroupPublicData);
 
-			const FHairGroupPublicData::FVertexFactoryInput &VFInput = HairGroupPublicData->VFInput;
+			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 
 			uint32 VertexCount = VFInput.Strands.VertexCount;
 			const bool bCullingPossible = bSupportCulling && GHairVisibilityComputeRaster_Culling;
@@ -3191,10 +3252,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 		}
 	}
 
-	FRDGBufferRef VisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTiles*1024), TEXT("Hair.VisTilePrims"));
+	FRDGBufferRef VisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTiles * 1024), TEXT("Hair.VisTilePrims"));
 	FRDGBufferSRVRef VisTilePrimsSRV = GraphBuilder.CreateSRV(VisTilePrims, PF_R32_UINT);
 	
-	FRDGBufferRef CompactedVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTiles*1024), TEXT("Hair.CompactedVisTilePrims"));
+	FRDGBufferRef CompactedVisTilePrims = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxTiles * 1024), TEXT("Hair.CompactedVisTilePrims"));
 
 	FRDGTextureDesc DescBinningGrid = FRDGTextureDesc::Create2DArray(TileGridRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource, NumBinners * 3);
 	FRDGTextureRef VisTileBinningGrid = GraphBuilder.CreateTexture(DescBinningGrid, TEXT("Hair.VisTileBinningGrid"));
@@ -3203,11 +3264,12 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	FRDGTextureDesc DescDepthGrid = FRDGTextureDesc::Create2D(TileGridRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
 	FRDGTextureRef VisTileDepthGrid = GraphBuilder.CreateTexture(DescDepthGrid, TEXT("Hair.VisTileDepthGrid"));
 
-	FRDGBufferRef VisTileArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 4+16+(((TileGridRes.X*TileGridRes.Y)+31)/32) ), TEXT("Hair.VisTileArgs"));
+	FRDGBufferDesc VisTileArgsDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 4 + 16 + (((TileGridRes.X * TileGridRes.Y) + 31) / 32));
+	FRDGBufferRef VisTileArgs = GraphBuilder.CreateBuffer(VisTileArgsDesc, TEXT("Hair.VisTileArgs"));
 	FRDGBufferUAVRef VisTileArgsUAV = GraphBuilder.CreateUAV(VisTileArgs, PF_R32_UINT);
 	FRDGBufferSRVRef VisTileArgsSRV = GraphBuilder.CreateSRV(VisTileArgs, PF_R32_UINT);
 	
-	FRDGBufferRef CompactedVisTileArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 4+16+(((TileGridRes.X*TileGridRes.Y)+31)/32) ), TEXT("Hair.CompactedVisTileArgs"));
+	FRDGBufferRef CompactedVisTileArgs = GraphBuilder.CreateBuffer(VisTileArgsDesc, TEXT("Hair.CompactedVisTileArgs"));
 
 	FRDGBufferDesc DescTileData = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxTiles * 4 * 2);
 	DescTileData.Usage = EBufferUsageFlags(DescTileData.Usage | BUF_ByteAddressBuffer);
@@ -3232,10 +3294,11 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	SetUpViewHairRenderInfo(ViewInfo, bEnableMSAA, ViewInfo.CachedViewUniformShaderParameters->HairRenderInfo, ViewInfo.CachedViewUniformShaderParameters->HairRenderInfoBits, ViewInfo.CachedViewUniformShaderParameters->HairComponents);
 	ViewUniformShaderParameters = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
-	const bool bClassification = GHairStrandsHWSWClassifaction != 0;
-	const bool bUseHWRaster = GHairStrandsUseHWRaster != 0;
-	const bool bUseNaiveSWRaster = GHairStrandsUseNaiveSWRaster != 0;
+	const bool bClassification = GHairStrandsHWSWClassifaction != 0 && SamplePerPixelCount <= 1;
+	const bool bUseHWRaster = GHairStrandsUseHWRaster != 0 && SamplePerPixelCount <= 1;
+	const bool bUseNaiveSWRaster = GHairStrandsUseNaiveSWRaster != 0 && SamplePerPixelCount <= 1;
 	const bool bTileCompactionPass = GHairStrandsTileCompaction != 0;
+	const bool bMultiSampleSWRaster = SamplePerPixelCount > 1;
 
 	const uint32 GroupSize = GetVendorOptimalGroupSize1D();
 
@@ -3264,6 +3327,11 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	RasterPermutationVector.Set<FVisiblityRasterComputeRasterizeCS::FGroupSize>(GroupSize);
 	TShaderMapRef<FVisiblityRasterComputeRasterizeCS> ComputeShaderRaster(ViewInfo.ShaderMap, RasterPermutationVector);
 
+	FVisiblityRasterComputeRasterizeMultiSampleCS::FPermutationDomain RasterMultiSamplePermutationVector;
+	RasterMultiSamplePermutationVector.Set<FVisiblityRasterComputeRasterizeMultiSampleCS::FGroupSize>(GroupSize);
+	RasterMultiSamplePermutationVector.Set<FVisiblityRasterComputeRasterizeMultiSampleCS::FSampleCount>(SamplePerPixelCount);
+	TShaderMapRef<FVisiblityRasterComputeRasterizeMultiSampleCS> ComputeShaderRasterMultiSample(ViewInfo.ShaderMap, RasterMultiSamplePermutationVector);
+
 	FVisiblityRasterHWVS::FPermutationDomain VSRasterPermutationVector_CullingOff;
 	VSRasterPermutationVector_CullingOff.Set<FVisiblityRasterHWVS::FDrawIndirect>(bClassification);
 	VSRasterPermutationVector_CullingOff.Set<FVisiblityRasterHWVS::FCulling>(false);
@@ -3289,15 +3357,18 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	// Common parameters
 	FRasterComputeCommonParameters Common;
 	{		
-		Common.MaxRasterCount = TileSize; //TODO: implement tile clipping in raster pass to avoid exisiting edge case
+		Common.MaxRasterCount = TileSize;
 		Common.FrameIdMod8 =
-		Common.ResolutionMultiplier = Out.ResolutionMultiplier;
-		Common.OutputResolution = Out.SuperResolution;
-		Common.OutputResolutionf = FVector2f(Out.SuperResolution.X, Out.SuperResolution.Y);
+		Common.ResolutionMultiplier = 1;
+		Common.OutputResolution = Out.Resolution;
+		Common.OutputResolutionf = FVector2f(Out.Resolution.X, Out.Resolution.Y);
 		Common.TileSize = TileSize;
 		Common.TileSizeAsShift = uint32(FMath::Log2(float(TileSize)));
 		Common.RcpTileSize = 1.0 / TileSize;
 		Common.SqrTileSize = TileSize * TileSize;
+		Common.HalfTileSize = TileSize / 2;
+		Common.RcpHalfTileSize = 1.0f / Common.HalfTileSize;
+		Common.SqrHalfTileSize = Common.HalfTileSize * Common.HalfTileSize;
 		Common.NumRasterizers = NumRasterizers;
 		Common.RcpNumRasterizers = 1.0 / NumRasterizers;
 		Common.TileRes = TileGridRes;
@@ -3315,7 +3386,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 		PrepDepthGridParameters->SceneDepthTexture = SceneDepthTexture;
 		PrepDepthGridParameters->OutVisTileDepthGrid = GraphBuilder.CreateUAV(VisTileDepthGrid);
 		PrepDepthGridParameters->OutDepthCovTexture = DepthCovTextureUAV;
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterPrepDepthGrid"), ComputeShaderPrepareDepthGrid, PrepDepthGridParameters, FIntVector(TileGridRes.X* TileGridRes.Y, 1, 1));
+		PrepDepthGridParameters->NumSamples = SamplePerPixelCount;
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterPrepDepthGrid"), ComputeShaderPrepareDepthGrid, PrepDepthGridParameters, FIntVector(TileGridRes.X, TileGridRes.Y, 1));
 	}
 
 	const bool bDebugEnabled = GHairVisibilityComputeRaster_Debug > 0;
@@ -3458,7 +3530,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					});
 			}
 
-			if (bClassification || !bUseHWRaster)
+			if (bMultiSampleSWRaster || bClassification || !bUseHWRaster)
 			{
 				if (bUseNaiveSWRaster)
 				{
@@ -3494,6 +3566,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 						uint32 IndexGridClearValues[4] = { 0x0,0x0,0x0,0x0 };
 						AddClearUAVPass(GraphBuilder, VisTileBinningGridUAV, IndexGridClearValues);
 						AddClearUAVPass(GraphBuilder, VisTileArgsUAV, 0u);
+						if (bTileCompactionPass)
+						{
+							AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedVisTileArgs, PF_R32_UINT), 0u);
+						}
 					}
 
 					// Binning pass
@@ -3541,6 +3617,26 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 					}
 
 					// Raster pass
+					if (bMultiSampleSWRaster)
+					{
+						FVisiblityRasterComputeRasterizeMultiSampleCS::FParameters* RasterParameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeRasterizeMultiSampleCS::FParameters>();
+						RasterParameters->Common = Common;
+						RasterParameters->MacroGroupId = MacroGroup.MacroGroupId;
+						RasterParameters->HairMaterialId = PrimitiveInfo.MaterialId;
+						RasterParameters->ViewUniformBuffer = ViewUniformShaderParameters;
+						RasterParameters->SceneDepthTexture = SceneDepthTexture;
+						RasterParameters->OutHairCountTexture = HairCountTextureUAV;
+						RasterParameters->OutDepthCovTexture = DepthCovTextureUAV;
+						RasterParameters->OutPrimMatTexture = PrimMatTextureUAV;
+						RasterParameters->SampleWeight = SampleWeight;
+						RasterParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnableInRasterizers, bForceRegister);
+						RasterParameters->VisTilePrims = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTilePrims, PF_R32_UINT) : VisTilePrimsSRV;
+						RasterParameters->VisTileArgs = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTileArgs, PF_R32_UINT) : VisTileArgsSRV;
+						RasterParameters->VisTileData = bTileCompactionPass ? GraphBuilder.CreateSRV(CompactedVisTileData) : VisTileDataSRV;
+
+						FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterRaster(tiled)"), ComputeShaderRasterMultiSample, RasterParameters, FIntVector(NumRasterizers, 1, 1));
+					}
+					else
 					{
 						FVisiblityRasterComputeRasterizeCS::FParameters* RasterParameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeRasterizeCS::FParameters>();
 						RasterParameters->Common = Common;

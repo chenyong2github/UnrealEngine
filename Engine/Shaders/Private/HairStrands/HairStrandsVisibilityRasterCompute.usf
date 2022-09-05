@@ -3,6 +3,7 @@
 #define HAIR_STRANDS_PARAMETERS 1
 
 #include "../Common.ush"
+#include "../WaveOpUtil.ush"
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
@@ -14,6 +15,9 @@ uint	TileSizeAsShift;
 uint	TileSize;
 float	RcpTileSize;
 uint	SqrTileSize;
+uint	HalfTileSize;
+float	RcpHalfTileSize;
+uint	SqrHalfTileSize;
 int2	TileRes;
 
 uint	NumBinners;
@@ -29,7 +33,7 @@ float2	OutputResolutionf;
 
 ///////////////////////////////////////////////////////////////////////////
 
-#if SHADER_RASTERCOMPUTE_BINNING || SHADER_RASTERCOMPUTE_COMPACTION || SHADER_RASTERCOMPUTE_RASTER || SHADER_RASTERCOMPUTE_DEPTH_GRID
+#if SHADER_RASTERCOMPUTE_BINNING || SHADER_RASTERCOMPUTE_COMPACTION || SHADER_RASTERCOMPUTE_RASTER || SHADER_RASTERCOMPUTE_RASTER_MULTI_SAMPLE || SHADER_RASTERCOMPUTE_DEPTH_GRID
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -93,7 +97,7 @@ void CalcHomogenousPos(in uint4 PB, in float3 PBO, out float4 HP, out uint Type)
 	Type = CP.Type;
 }
 
-void CalcHomogenousPosAndRad(in uint4 PB, in float3 PBO, out float4 HP, out float Rad)
+void CalcHomogenousPosAndRad(in uint4 PB, in float3 PBO, out float4 HP, out float Rad, out uint Type)
 {
 	const FHairControlPoint CP = UnpackHairControlPoint(
 		PB,
@@ -105,6 +109,31 @@ void CalcHomogenousPosAndRad(in uint4 PB, in float3 PBO, out float4 HP, out floa
 	const float3 WP = mul(float4(CP.Position, 1.0f), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
 	HP = mul(float4(WP, 1.0f), LWCHackToFloat(PrimaryView.WorldToClip));
 	Rad = CP.WorldRadius * 2000.0; // OutputResolutionf.x; //TODO: figure this out correctly?
+	Type = CP.Type;
+}
+
+float ComputeLerpAlpha(int2 Coord, float2 P0, float2 P1, float SegmentLenSqRcp)
+{
+	// Project P onto line segment and compute the lerp alpha between P0 and P1
+	// Simplification of:
+	// A = P - P0
+	// B = P1 - P0
+	// Alpha = dot(A, B) / dot(B, B)
+	const float2 P = Coord + 0.5f;
+	const float Alpha = saturate(dot(P - P0, P1 - P0) * SegmentLenSqRcp);
+	return Alpha;
+}
+
+float ComputePerspectiveCorrectRadius(float Rad0, float Rad1, float Alpha, float RcpW0, float RcpW1)
+{
+	// Alpha value for perspective correct interpolation. We store the reciprocal of w in the w component of P0 and P1,
+	// so this is a simplification of:
+	// (Alpha / w1) / ((1 - Alpha) / w0 + Alpha / w1)
+	const float LerpedRcpW = lerp(RcpW0, RcpW1, Alpha);
+	const float PerspectiveAlpha = (Alpha * RcpW1) / LerpedRcpW;
+	// Divide by W to make thickness dependent on screen space depth? This division was kept from the previous line rasterization algorithm.
+	const float Rad = lerp(Rad0, Rad1, PerspectiveAlpha) * LerpedRcpW;
+	return Rad;
 }
 
 // Line clipping based on "CLIPPING USING HOMOGENEOUS COORDINATES" by Blinn et al.
@@ -154,8 +183,10 @@ bool BlinnLineClipping(inout float4 P0, inout float4 P1)
 	return !bIsRemoved;
 }
 
-bool ClipRaySegment(float2 AABBMin, float2 AABBMax, inout float4 P0, inout float4 P1)
+bool ClipRaySegment(float2 AABBMin, float2 AABBMax, float4 P0, float4 P1, out float2 T, out bool2 bClipped)
 {
+	bClipped = false;
+	T = float2(0.0f, 1.0f);
 	const bool bP0Outside = any(P0.xy < AABBMin) || any(P0.xy > AABBMax);
 	const bool bP1Outside = any(P1.xy < AABBMin) || any(P1.xy > AABBMax);
 	if (!bP0Outside && !bP1Outside)
@@ -170,35 +201,61 @@ bool ClipRaySegment(float2 AABBMin, float2 AABBMax, inout float4 P0, inout float
 	const float2 T0 = (AABBMin - Origin) * RcpDir;
 	const float2 T1 = (AABBMax - Origin) * RcpDir;
 
-	const float TMin = max(min(T0.x, T1.x), min(T0.y, T1.y));
-	const float TMax = min(max(T0.x, T1.x), max(T0.y, T1.y));
+	T.x = max(min(T0.x, T1.x), min(T0.y, T1.y));
+	T.y = min(max(T0.x, T1.x), max(T0.y, T1.y));
 
-	// Ray intersects the AABB but the segment is completely outside.
-	if (TMax < 0.0f)
+	// Ray intersects the AABB but the segment is completely outside or no intersection at all.
+	if (T.y < 0.0f || T.x > T.y)
 	{
+		bClipped = true;
 		return false;
 	}
 
-	// No intersection
-	if (TMin > TMax)
+	if (bP0Outside && T.x > 0.0f && T.x < 1.0f)
 	{
-		return false;
+		bClipped.x = true;
 	}
-
-	float4 P0New = P0;
-	float4 P1New = P1;
-	if (bP0Outside && TMin > 0.0f && TMin < 1.0f)
+	if (bP1Outside && T.y > 0.0f && T.y < 1.0f)
 	{
-		P0New = lerp(P0, P1, TMin);
+		bClipped.y = true;
 	}
-	if (bP1Outside && TMax > 0.0f && TMax < 1.0f)
-	{
-		P1New = lerp(P0, P1, TMax);
-	}
-	P0 = P0New;
-	P1 = P1New;
 
 	return true;
+}
+
+bool ClipRaySegment(float2 AABBMin, float2 AABBMax, inout float4 P0, inout float4 P1, inout float Rad0, inout float Rad1, out bool2 bClipped)
+{
+	float2 T;
+	bool bIsValid = ClipRaySegment(AABBMin, AABBMax, P0, P1, T, bClipped);
+	
+	if (bIsValid)
+	{
+		const bool bP0Outside = any(P0.xy < AABBMin) || any(P0.xy > AABBMax);
+		const bool bP1Outside = any(P1.xy < AABBMin) || any(P1.xy > AABBMax);
+
+		float4 P0New = P0;
+		float4 P1New = P1;
+		float Rad0New = Rad0;
+		float Rad1New = Rad1;
+		if (bP0Outside && T.x > 0.0f && T.x < 1.0f)
+		{
+			P0New = lerp(P0, P1, T.x);
+			Rad0New = lerp(Rad0, Rad1, T.x);
+			bClipped.x = true;
+		}
+		if (bP1Outside && T.y > 0.0f && T.y < 1.0f)
+		{
+			P1New = lerp(P0, P1, T.y);
+			Rad1New = lerp(Rad0, Rad1, T.y);
+			bClipped.y = true;
+		}
+		P0 = P0New;
+		P1 = P1New;
+		Rad0 = Rad0New;
+		Rad1 = Rad1New;
+	}
+
+	return bIsValid;
 }
 
 #endif // Common rasetrizer helper function & parameters
@@ -207,50 +264,54 @@ bool ClipRaySegment(float2 AABBMin, float2 AABBMax, inout float4 P0, inout float
 
 #if SHADER_RASTERCOMPUTE_DEPTH_GRID
 
-RWTexture2D<uint>	OutVisTileDepthGrid;
-RWTexture2D<uint>	OutDepthCovTexture;
+RWTexture2D<uint>			OutVisTileDepthGrid;
+RWTexture2DArray<uint>		OutDepthCovTexture;
+uint						NumSamples;
 
 groupshared uint group_FurthestDepth; // (4 bytes)
 
 [numthreads(1024, 1, 1)]
-void PrepareDepthGridCS(uint dId : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID)
+void PrepareDepthGridCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID, uint2 GroupID : SV_GroupID)
 {
-	uint tw = TileRes.x;
-	uint th = TileRes.y;
-
-	if (GroupThreadID == 0) group_FurthestDepth = 0xffffffff;
+	if (GroupThreadID == 0)
+	{
+		group_FurthestDepth = 0xFFFFFFFF;
+	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint t = dId / 1024;
-
-	uint ty = uint((float(t)+0.5) / float(tw));
-	uint tx = t - (ty*tw);
-
-	for (uint p = GroupThreadID; p < SqrTileSize; p += 1024)
+	// Assumes a workgroup size of 1024 threads to cover a maximum tile size of 32x32.
+	if (GroupThreadID < SqrTileSize)
 	{
-		if (p < SqrTileSize)
+		uint2 Coord;
+
+		Coord.y = (GroupThreadID + 0.5f) * RcpTileSize;
+		Coord.x = GroupThreadID - (Coord.y * TileSize);
+
+		Coord += GroupID * TileSize;
+
+		if (all(Coord < (uint2)OutputResolution))
 		{
-			uint py = (float(p)+0.5) * RcpTileSize;
-			uint px = p - (py*TileSize);
+			const float Depth = SceneDepthTexture.Load(uint3(Coord, 0));
+			const uint PackedDepth = PackHairVisDepthCoverage(Depth, 1.0);
 
-			uint2 Coord = uint2(tx * TileSize + px, ty * TileSize + py);
+			// Compute furthest depth inside this tile
+			WaveInterlockedMin(group_FurthestDepth, PackedDepth);
 
-			if (Coord.x < uint(OutputResolution.x) && Coord.y < uint(OutputResolution.y))
+			// Copy scene depth to (multisampled) hair depth output texture
+			for (uint SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
 			{
-				float Depth = SceneDepthTexture.Load(uint3(Coord, 0));
-				uint packedDepth = PackHairVisDepthCoverage(Depth, 1.0);
-
-				InterlockedMin(group_FurthestDepth, packedDepth);
-
-				InterlockedMax(OutDepthCovTexture[Coord], packedDepth);
+				InterlockedMax(OutDepthCovTexture[uint3(Coord, SampleIdx)], PackedDepth);
 			}
 		}
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	OutVisTileDepthGrid[uint2(tx, ty)] = group_FurthestDepth;
+	if (GroupThreadID == 0)
+	{
+		OutVisTileDepthGrid[GroupID] = group_FurthestDepth;
+	}
 }
 
 #endif //SHADER_RASTERCOMPUTE_DEPTH_GRID
@@ -501,7 +562,7 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 			const uint TotalOldWriteCount = OutVisTileBinningGrid[uint3(TileCoord, TmpSegmentCountLayerIdx)];
 
 			uint NewTile;
-			InterlockedAdd(OutVisTileArgs[0], 1, NewTile);
+			WaveInterlockedAddScalar_(OutVisTileArgs[0], 1, NewTile);
 
 			StoreOutVisTileData(NewTile, VT_Coord, PackedTileCoord);
 			// Round down the count to the start of the tile and later compare against this to decide which tile to write to.
@@ -593,6 +654,7 @@ groupshared uint group_TotalPrimCount;
 groupshared uint group_PrimWriteOffset;
 groupshared uint group_NumTiles;
 groupshared uint group_TilesToCompact[1024];
+groupshared uint group_MaxLDSTileIdx;
 
 [numthreads(1024, 1, 1)]
 void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID, uint2 GroupID : SV_GroupID)
@@ -601,6 +663,7 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 	{
 		group_TotalPrimCount = 0;
 		group_NumTiles = 0;
+		group_MaxLDSTileIdx = 0;
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -619,10 +682,11 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 				LocalPrimCount += LoadVisTileData(TileIdx, VT_PrimCount);
 				
 				uint WritePos;
-				InterlockedAdd(group_NumTiles, 1, WritePos);
+				WaveInterlockedAddScalar_(group_NumTiles, 1, WritePos);
 				if (WritePos < 1024)
 				{
 					group_TilesToCompact[WritePos] = TileIdx;
+					WaveInterlockedMax(group_MaxLDSTileIdx, TileIdx);
 				}
 			}
 		}
@@ -632,7 +696,7 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 
 	if (LocalPrimCount > 0)
 	{
-		InterlockedAdd(group_TotalPrimCount, LocalPrimCount);
+		WaveInterlockedAdd(group_TotalPrimCount, LocalPrimCount);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -659,7 +723,7 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 		{
 			const uint CompactedTile = FirstCompactedTile + TileIdx;
 
-			const uint PrimCount = ((TileIdx * 1024) < TotalPrimCount) ? 1024 : (TotalPrimCount - (TileIdx * 1024));
+			const uint PrimCount = min(TotalPrimCount - TileIdx * 1024, 1024);
 			StoreCompactedVisTileData(CompactedTile, VT_PrimCount, PrimCount);
 			StoreCompactedVisTileData(CompactedTile, VT_Coord, PackedCoord);
 		}
@@ -691,7 +755,7 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 		// Check any remaning tiles
 		if (group_NumTiles > 1024)
 		{
-			for (uint TileIdx = group_TilesToCompact[1023] + 1; TileIdx < NumTiles; ++TileIdx)
+			for (uint TileIdx = group_MaxLDSTileIdx + 1; TileIdx < NumTiles; ++TileIdx)
 			{
 				const uint TilePackedCoord = LoadVisTileData(TileIdx, VT_Coord);
 				if (PackedCoord == TilePackedCoord)
@@ -740,9 +804,9 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 Buffer<uint> 				VisTilePrims;
 Buffer<uint> 				VisTileArgs;
 ByteAddressBuffer			VisTileData;
-RWTexture2D<uint>			OutHairCountTexture;
-RWTexture2D<uint>			OutDepthCovTexture;
-RWTexture2D<uint>			OutPrimMatTexture;
+RWTexture2DArray<uint>		OutHairCountTexture;
+RWTexture2DArray<uint>		OutDepthCovTexture;
+RWTexture2DArray<uint>		OutPrimMatTexture;
 
 uint LoadVisTileData(uint index, uint offset)
 {
@@ -775,13 +839,7 @@ void PlotInternal(int2 Coords, float AntiAliasingFactor, float4 P0, float4 P1, f
 
 	if (all(IntraTileCoord >= 0) && all(IntraTileCoord < TileSize))
 	{
-		// Project P onto line segment and compute the lerp alpha between P0 and P1
-		// Simplification of:
-		// A = P - P0
-		// B = P1 - P0
-		// Alpha = dot(A, B) / dot(B, B)
-		const float2 P = Coords + 0.5f;
-		const float Alpha = saturate(dot(P - P0.xy, P1.xy - P0.xy) * SegmentLenSqRcp);
+		const float Alpha = ComputeLerpAlpha(Coords, P0.xy, P1.xy, SegmentLenSqRcp);
 		const float Depth = lerp(P0.z, P1.z, Alpha);
 		const uint PackedDepthCov = PackHairVisDepthCoverage(Depth, 1.0f);
 		const uint LinearIndex = IntraTileCoord.x + IntraTileCoord.y * TileSize;
@@ -797,14 +855,7 @@ void PlotInternal(int2 Coords, float AntiAliasingFactor, float4 P0, float4 P1, f
 		// Add hair count if depth test against scene depth is passed
 		if (PackedDepthCov > group_SubTile[LinearIndex].w)
 		{
-			// Alpha value for perspective correct interpolation. We store the reciprocal of w in the w compoennt,
-			// so this is a simplification of:
-			// (Alpha / w1) / ((1 - Alpha) / w0 + Alpha / w1)
-			const float LerpedRcpW = lerp(P0.w, P1.w, Alpha);
-			const float PerspectiveAlpha = (Alpha * P1.w) / LerpedRcpW;
-			// Divide by W to make thickness dependent on screen space depth? This division was kept from the previous line rasterization algorithm.
-			const float Rad = lerp(Rad0, Rad1, PerspectiveAlpha) * LerpedRcpW;
-
+			const float Rad = ComputePerspectiveCorrectRadius(Rad0, Rad1, Alpha, P0.w, P1.w);
 			InterlockedAdd(group_SubTile[LinearIndex].z, min(Rad, 0.5f) * 2.0f * 1000.0f * SampleWeight * AntiAliasingFactor);
 		}
 	}
@@ -912,8 +963,9 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 
 			group_PrimMatID[Prim] = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
 
-			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, group_SP0[Prim], group_Rad0[Prim]);
-			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID+1], group_PositionOffset, group_SP1[Prim], group_Rad1[Prim]);
+			uint TypeDummy;
+			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, group_SP0[Prim], group_Rad0[Prim], TypeDummy);
+			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID+1], group_PositionOffset, group_SP1[Prim], group_Rad1[Prim], TypeDummy);
 		}
 
 		if (bWaveThreadValid)
@@ -927,8 +979,8 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 
 				Coord += uint2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
 
-				group_SubTile[LinearIndex].x = OutDepthCovTexture[Coord];
-				group_SubTile[LinearIndex].y = 0;
+				group_SubTile[LinearIndex].x = OutDepthCovTexture[uint3(Coord, 0)];
+				group_SubTile[LinearIndex].y = GetInvalidHairPrimitiveId();
 				group_SubTile[LinearIndex].z = 0;
 				group_SubTile[LinearIndex].w = PackHairVisDepthCoverage(SceneDepthTexture.Load(uint3(Coord, 0)), 1.0f);
 			}
@@ -960,8 +1012,9 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 				uint PrimID = VisTilePrims[PrimOffset + Prim];
 				PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
 
-				CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, SP0, Rad0);
-				CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID + 1], group_PositionOffset, SP1, Rad1);
+				uint TypeDummy;
+				CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, SP0, Rad0, TypeDummy);
+				CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID + 1], group_PositionOffset, SP1, Rad1, TypeDummy);
 			}
 
 			// Clipping
@@ -972,23 +1025,24 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 				// Clip against tile
 				const float2 TileMin = float2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
 				const float2 TileMax = TileMin + TileSize;
-				// Clip against a slightly smaller bounding box so that the clipped endpoints are safely inside the tile.
-				ClipRaySegment(TileMin + 0.25f, TileMax - 0.25f, SP0, SP1);
+				bool2 bClipped = false;
+				ClipRaySegment(TileMin - 0.5f, TileMax + 0.5f, SP0, SP1, Rad0, Rad1, bClipped);
 			}
 
 			const float SegmentLenSqRcp = 1.0f / dot(SP1.xy - SP0.xy, SP1.xy - SP0.xy);
 
 #if RASTER_ALGO == RASTER_LINEAR
 
-			const float2 DeltaAbs = abs(SP1.xy - SP0.xy);
-			const uint NumSteps = min((uint)ceil(max(DeltaAbs.x, DeltaAbs.y)) + 1, TileSize + (ENABLE_RASTER_LINEAR_AA ? 1 : 0));
-			const float RcpNumSteps = NumSteps > 1 ? (1.0f / (NumSteps - 1)) : 1.0f;
-			const bool bIsSteep = DeltaAbs.y > DeltaAbs.x;
+			const bool bIsSteep = abs(SP1.x - SP0.x) < abs(SP1.y - SP0.y);
+			const float X0 = bIsSteep ? min(SP0.y, SP1.y) : min(SP0.x, SP1.x);
+			const float X1 = bIsSteep ? max(SP0.y, SP1.y) : max(SP0.x, SP1.x);
+			const int NumSteps = (int)(ceil(X1) - floor(X0));
+			const float RcpNumSteps = 1.0f / (X1 - X0);
 
 			LOOP
 			for (int J = PModTPS; J < NumSteps; J += group_ThreadsPerSeg)
 			{
-				const float Alpha = J * RcpNumSteps;
+				const float Alpha = saturate(J * RcpNumSteps);
 				const float4 SP = lerp(SP0, SP1, Alpha);
 
 				const float AntiAliasingFactor = 1.0f;
@@ -1090,16 +1144,16 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 
 				Coord += uint2(((PackedTileMin >> 0) & 0xffff), ((PackedTileMin >> 16) & 0xffff));
 
-				if (group_SubTile[LinearIndex].y != 0)
+				if (group_SubTile[LinearIndex].y != GetInvalidHairPrimitiveId())
 				{
 					uint oldValue;
-					InterlockedMax(OutDepthCovTexture[Coord], group_SubTile[LinearIndex].x, oldValue);
+					InterlockedMax(OutDepthCovTexture[uint3(Coord, 0)], group_SubTile[LinearIndex].x, oldValue);
 					if (group_SubTile[LinearIndex].x > oldValue)
 					{
-						OutPrimMatTexture[Coord] = group_SubTile[LinearIndex].y;
+						OutPrimMatTexture[uint3(Coord, 0)] = group_SubTile[LinearIndex].y;
 					}
 				}
-				InterlockedAdd(OutHairCountTexture[Coord], group_SubTile[LinearIndex].z);
+				InterlockedAdd(OutHairCountTexture[uint3(Coord, 0)], group_SubTile[LinearIndex].z);
 			}
 		}
 
@@ -1108,6 +1162,316 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 }
 
 #endif //SHADER_RASTERCOMPUTE_RASTER
+
+///////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RASTERCOMPUTE_RASTER_MULTI_SAMPLE
+
+#ifndef PERMUTATION_MULTI_SAMPLE_COUNT
+#define PERMUTATION_MULTI_SAMPLE_COUNT 1
+#endif
+
+// Wave size
+#if PERMUTATION_GROUP_SIZE == 64
+#define WAVE_SIZE 32
+#elif PERMUTATION_GROUP_SIZE == 32
+#define WAVE_SIZE 32
+#else
+#error Unknown group size	
+#endif
+
+Buffer<uint> 				VisTilePrims;
+Buffer<uint> 				VisTileArgs;
+ByteAddressBuffer			VisTileData;
+RWTexture2D<uint>			OutHairCountTexture;
+RWTexture2DArray<uint>		OutDepthCovTexture;
+RWTexture2DArray<uint>		OutPrimMatTexture;
+
+uint LoadVisTileData(uint index, uint offset)
+{
+	return VisTileData.Load((((index)) * VT_SIZE * 4) + ((offset) * 4));
+}
+
+groupshared uint group_SubTileSceneDepth[256]; // (16 x 16 x 4 bytes = 1k bytes)
+groupshared uint group_SubTileHairCount[256]; // (16 x 16 x 4 bytes = 1k bytes)
+groupshared uint group_SubTileHairDepth[PERMUTATION_MULTI_SAMPLE_COUNT][256]; // (16 x 16 x 4 bytes = 1k bytes) per sample
+groupshared uint group_SubTilePrimMatID[PERMUTATION_MULTI_SAMPLE_COUNT][256]; // (16 x 16 x 4 bytes = 1k bytes) per sample
+
+groupshared float3 group_PositionOffset;
+
+groupshared uint group_LoopNum;
+groupshared uint group_TileNum;
+
+float GetDistanceToLine(float2 P1, float2 P2, float2 P3, float RcpLineSegLength)
+{
+	// We can compute the distance of P1 to the line defined by P2 and P3 as the height of the triangle spanned by these points.
+	// Area of triangle: A = 0.5 * h * b where h is the triangle height and b is the length of the base side.
+	// Solving for h gives: h = (2 * A) / b
+	// We can compute A using the determinant: A = 0.5 * abs(det(P1, P2, P3))
+	// After some simplification, this results in the following:
+	float A = abs(P1.x * (P2.y - P3.y) + P2.x * (P3.y - P1.y) + P3.x * (P1.y - P2.y));
+	return A * RcpLineSegLength;
+}
+
+uint GetCoverageMask(int2 PixelCoord, float2 P0, float2 P1)
+{
+	const float LineThickness = 1.0f / PERMUTATION_MULTI_SAMPLE_COUNT; // In pixel units 
+	uint Mask = 0;
+
+	// Set origin to PixelCoord
+	P0 -= PixelCoord;
+	P1 -= PixelCoord;
+
+	const float RcpLineSegLength = 1.0f / distance(P0, P1);
+
+#if PERMUTATION_MULTI_SAMPLE_COUNT == 1
+	Mask |= (GetDistanceToLine(float2(0.5f, 0.5f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 0u) : 0;
+#elif PERMUTATION_MULTI_SAMPLE_COUNT == 2
+	Mask |= (GetDistanceToLine(float2(0.75f, 0.75f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 0u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.25f, 0.25f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 1u) : 0;
+#elif PERMUTATION_MULTI_SAMPLE_COUNT == 4
+	Mask |= (GetDistanceToLine(float2(0.375f, 0.125f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 0u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.875f, 0.375f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 1u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.125f, 0.625f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 2u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.625f, 0.875f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 3u) : 0;
+#elif PERMUTATION_MULTI_SAMPLE_COUNT == 8
+	Mask |= (GetDistanceToLine(float2(0.5625f, 0.3125f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 0u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.4375f, 0.6875f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 1u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.8125f, 0.5625f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 2u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.3125f, 0.1875f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 3u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.1875f, 0.8125f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 4u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.0625f, 0.4375f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 5u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.6875f, 0.9375f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 6u) : 0;
+	Mask |= (GetDistanceToLine(float2(0.9375f, 0.0625f), P0, P1, RcpLineSegLength) <= LineThickness) ? (1u << 7u) : 0;
+#else
+#error Unsupported PERMUTATION_MULTI_SAMPLE_COUNT! Must be 1, 2, 4 or 8!
+#endif
+
+	return Mask;
+}
+
+void Plot(int2 Coord, float4 P0, float4 P1, float Rad0, float Rad1, float SegmentLenSqRcp, uint PackedHalfTileMin, uint PrimMatID)
+{
+	const int2 IntraTileCoord = Coord - int2(((PackedHalfTileMin >> 0) & 0xffff), ((PackedHalfTileMin >> 16) & 0xffff));
+
+	if (all(IntraTileCoord >= 0) && all(IntraTileCoord < HalfTileSize))
+	{
+		const float Alpha = ComputeLerpAlpha(Coord, P0.xy, P1.xy, SegmentLenSqRcp);
+		const float Depth = lerp(P0.z, P1.z, Alpha);
+		const uint PackedDepthCov = PackHairVisDepthCoverage(Depth, 1.0f);
+		const uint LinearIndex = IntraTileCoord.x + IntraTileCoord.y * HalfTileSize;
+
+		// Test against scene depth
+		if (PackedDepthCov > group_SubTileSceneDepth[LinearIndex])
+		{
+			const float Rad = ComputePerspectiveCorrectRadius(Rad0, Rad1, Alpha, P0.w, P1.w);
+			const uint HairCount = min(Rad, 0.5f) * 2.0f * 1000.0f * SampleWeight;
+
+			const uint CoverageMask = GetCoverageMask(Coord, P0.xy, P1.xy);
+
+			// Accumulate hair count
+			if (CoverageMask)
+			{
+				InterlockedAdd(group_SubTileHairCount[LinearIndex], HairCount);
+			}
+
+			UNROLL for (uint SampleIdx = 0; SampleIdx < PERMUTATION_MULTI_SAMPLE_COUNT; ++SampleIdx)
+			{
+				if (CoverageMask & (1u << SampleIdx))
+				{
+					// Write Depth + PrimMatID if depth test against hair depths is passed
+					uint OldValue;
+					InterlockedMax(group_SubTileHairDepth[SampleIdx][LinearIndex], PackedDepthCov, OldValue);
+					if (PackedDepthCov > OldValue)
+					{
+						group_SubTilePrimMatID[SampleIdx][LinearIndex] = PrimMatID;
+					}
+				}
+			}
+		}
+	}
+}
+
+[numthreads(1024, 1, 1)]
+void RasterMultiSampleCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID, uint GroupID : SV_GroupID)
+{
+	ResolvedView = ResolveView();
+
+	if (GroupThreadID == 0)
+	{
+		group_TileNum = VisTileArgs[0];
+		group_LoopNum = (float(group_TileNum) + float(NumRasterizers - 1)) * RcpNumRasterizers;
+
+		group_PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	LOOP for (uint LoopIndex = 0; LoopIndex < group_LoopNum; LoopIndex++)
+	{
+		const uint TileIndex = LoopIndex + (GroupID * group_LoopNum);
+
+		if (TileIndex >= group_TileNum)
+		{
+			return;
+		}
+
+		const uint PrimOffset = TileIndex * 1024;
+		const uint PrimCount = LoadVisTileData(TileIndex, VT_PrimCount);
+
+		const uint PackedCoord = LoadVisTileData(TileIndex, VT_Coord);
+		const uint2 TileMin = UnpackVisTileCoord(PackedCoord) * TileSize;
+
+		const uint PackedTileMin = ((TileMin.x & 0xffff) << 0) | ((TileMin.y & 0xffff) << 16);
+
+		uint ThreadsPerSeg = 1;
+
+		if (PrimCount <= 512)
+			ThreadsPerSeg = 2;
+		if (PrimCount <= 341)
+			ThreadsPerSeg = 3;
+		if (PrimCount <= 256)
+			ThreadsPerSeg = 4;
+		if (PrimCount <= 204)
+			ThreadsPerSeg = 5;
+		if (PrimCount <= 170)
+			ThreadsPerSeg = 6;
+		if (PrimCount <= 146)
+			ThreadsPerSeg = 7;
+		if (PrimCount <= 128)
+			ThreadsPerSeg = 8;
+		if (PrimCount <= 64)
+			ThreadsPerSeg = 16;
+		if (PrimCount <= 32)
+			ThreadsPerSeg = 32;
+
+		const bool bThreadValid = (GroupThreadID < (PrimCount * ThreadsPerSeg));
+		const uint Prim = uint((float(GroupThreadID) + 0.5f) / float(ThreadsPerSeg));
+		const uint PModTPS = GroupThreadID - (Prim * ThreadsPerSeg);
+
+		float4 SP0;
+		float4 SP1;
+		float Rad0;
+		float Rad1;
+		bool bIsEndPoint;
+		uint PrimMatID;
+
+		if (bThreadValid)
+		{
+			const uint PrimID = VisTilePrims[PrimOffset + Prim];
+			PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+
+			uint Type;
+			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID], group_PositionOffset, SP0, Rad0, Type);
+			CalcHomogenousPosAndRad(HairStrandsVF_PositionBuffer[PrimID + 1], group_PositionOffset, SP1, Rad1, Type);
+			bIsEndPoint = (Type == HAIR_CONTROLPOINT_END);
+
+			SP0 = float4(NDCToPixelCoord(SP0), 1.0f / SP0.w);
+			SP1 = float4(NDCToPixelCoord(SP1), 1.0f / SP1.w);
+		}
+
+		// Split 32x32 tile into 4 16x16 tiles that are processed one after another. 
+		// This is to reduce LDS memory pressure.
+		UNROLL for (uint SubTileIdx = 0; SubTileIdx < 4; ++SubTileIdx)
+		{
+			const uint2 SubTileMin = TileMin + uint2((SubTileIdx == 0 || SubTileIdx == 2) ? 0 : HalfTileSize, SubTileIdx < 2 ? 0 : HalfTileSize);
+			const uint2 SubTileMax = SubTileMin + HalfTileSize;
+			const uint PackedSubTileMin = ((SubTileMin.x & 0xFFFF) << 0u) | ((SubTileMin.y & 0xFFFF) << 16u);
+
+			// Initialize LDS
+			if (GroupThreadID < SqrHalfTileSize)
+			{
+				uint2 Coord;
+				Coord.y = (float(GroupThreadID) + 0.5f) * RcpHalfTileSize;
+				Coord.x = GroupThreadID - (Coord.y * HalfTileSize);
+				Coord += uint2(((PackedSubTileMin >> 0u) & 0xFFFF), ((PackedSubTileMin >> 16u) & 0xFFFF));
+
+				group_SubTileSceneDepth[GroupThreadID] = PackHairVisDepthCoverage(SceneDepthTexture.Load(uint3(Coord, 0)), 1.0f);
+				group_SubTileHairCount[GroupThreadID] = 0;
+
+				UNROLL for (uint SampleIdx = 0; SampleIdx < PERMUTATION_MULTI_SAMPLE_COUNT; ++SampleIdx)
+				{
+					const uint HairDepth = OutDepthCovTexture.Load(uint3(Coord, SampleIdx));
+					group_SubTileHairDepth[SampleIdx][GroupThreadID] = HairDepth;
+					group_SubTilePrimMatID[SampleIdx][GroupThreadID] = GetInvalidHairPrimitiveId();
+				}
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+
+			// Rasterize to LDS
+			if (bThreadValid)
+			{
+				const uint2 SubTileMin = uint2(((PackedSubTileMin >> 0u) & 0xFFFF), ((PackedSubTileMin >> 16u) & 0xFFFF));
+				const uint2 SubTileMax = SubTileMin + HalfTileSize;
+				bool2 bClipped;
+				float2 T;
+				const bool bVisible = ClipRaySegment(SubTileMin - 0.5f, SubTileMax + 0.5f, SP0, SP1, T, bClipped);
+				T = saturate(T);
+				
+				if (bVisible)
+				{
+					const float2 SP0Clipped = lerp(SP0, SP1, T.x);
+					const float2 SP1Clipped = lerp(SP0, SP1, T.y);
+					const bool bIsSteep = abs(SP1.x - SP0.x) < abs(SP1.y - SP0.y);
+					const float X0 = bIsSteep ? min(SP0Clipped.y, SP1Clipped.y) : min(SP0Clipped.x, SP1Clipped.x);
+					const float X1 = bIsSteep ? max(SP0Clipped.y, SP1Clipped.y) : max(SP0Clipped.x, SP1Clipped.x);
+					const int NumSteps = (int)(ceil(X1) - floor(X0));
+					const float RcpNumSteps = 1.0f / (X1 - X0);
+
+					const float SegmentLenSqRcp = 1.0f / dot(SP1.xy - SP0.xy, SP1.xy - SP0.xy);
+
+					const int End = !bClipped.y && !bIsEndPoint ? (NumSteps - 1) : NumSteps;
+					LOOP for (int J = PModTPS; J < End; J += ThreadsPerSeg)
+					{
+						const float Alpha = lerp(T.x, T.y, saturate(J * RcpNumSteps));
+						const float2 SP = lerp(SP0.xy, SP1.xy, Alpha);
+						Plot(SP, SP0, SP1, Rad0, Rad1, SegmentLenSqRcp, PackedSubTileMin, PrimMatID);
+					}
+				}
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+
+			// Write out to global memory
+			if (GroupThreadID < SqrHalfTileSize)
+			{
+				uint2 Coord;
+				Coord.y = (float(GroupThreadID) + 0.5f) * RcpHalfTileSize;
+				Coord.x = GroupThreadID - (Coord.y * HalfTileSize);
+				Coord += uint2(((PackedSubTileMin >> 0u) & 0xFFFF), ((PackedSubTileMin >> 16u) & 0xFFFF));
+
+				const uint HairCount = group_SubTileHairCount[GroupThreadID];
+				if (HairCount != 0)
+				{
+					InterlockedAdd(OutHairCountTexture[Coord], HairCount);
+				}
+
+				UNROLL for (uint SampleIdx = 0; SampleIdx < PERMUTATION_MULTI_SAMPLE_COUNT; ++SampleIdx)
+				{
+					const uint3 SampleCoord = uint3(Coord, SampleIdx);
+					
+					const uint PrimMatID = group_SubTilePrimMatID[SampleIdx][GroupThreadID];
+					if (PrimMatID != GetInvalidHairPrimitiveId())
+					{
+						const uint HairDepth = group_SubTileHairDepth[SampleIdx][GroupThreadID];
+
+						uint OldValue;
+						InterlockedMax(OutDepthCovTexture[SampleCoord], HairDepth, OldValue);
+						if (HairDepth > OldValue)
+						{
+							OutPrimMatTexture[SampleCoord] = PrimMatID;
+						}
+					}
+				}
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+		}
+	}
+}
+
+#endif //SHADER_RASTERCOMPUTE_RASTER_MULTI_SAMPLE
 
 ///////////////////////////////////////////////////////////////////////////
 
