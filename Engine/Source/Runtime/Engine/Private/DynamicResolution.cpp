@@ -417,7 +417,7 @@ void FDynamicResolutionHeuristicProxy::RefreshCurentFrameResolutionFraction_Rend
 		NewFrameResolutionFraction = FMath::Clamp(
 			NewFrameResolutionFraction,
 			CVarDynamicResMinSP.GetValueOnRenderThread() / 100.0f,
-			CurrentFrameMaxResolutionFractions[GDynamicPrimaryResolutionFraction]);
+			GDynamicPrimaryResolutionFraction.GetSettings().MaxResolutionFraction);
 	}
 
 	// Update the current frame's resolution fraction.
