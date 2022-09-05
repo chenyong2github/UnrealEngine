@@ -1477,7 +1477,10 @@ public:
 		 * @param Priority		The I/O priority.
 		 * @param Dst			An empty or preallocated I/O buffer.	
 		 */
-		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst);
+		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst)
+		{
+			return Read(BulkData, Offset, Size, Priority, Dst, nullptr);
+		}
 		/**
 		 * Read the bulk data from the specified offset and size and copy the result into the destination buffer.
 		 * @param BulkData		The bulk data instance.
@@ -1487,7 +1490,11 @@ public:
 		 * @param Dst			An empty or preallocated I/O buffer.	
 		 * @param OutRequest	A handle to the read request.	
 		 */
-		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst, FBulkDataBatchReadRequest& OutRequest);
+		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst, FBulkDataBatchReadRequest& OutRequest)
+		{
+			return Read(BulkData, Offset, Size, Priority, Dst, &OutRequest);
+		}
+
 		/**
 		 * Issue the batch.
 		 * @param OutRequest	A handle to the batch request.
@@ -1501,6 +1508,9 @@ public:
 		 * @note Assumes one or more handle(s) has been passed into any of the read operations.
 		 */
 		[[nodiscard]] EStatus Issue();
+
+	private:
+		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst, FBulkDataBatchReadRequest* OutRequest);
 	};
 
 	/** Reads one or more bulk data and copies the result into a single I/O buffer. */
@@ -1530,7 +1540,7 @@ public:
 			uint64 Size					= MAX_uint64;
 		};
 
-		TArray<FRequest> Requests;
+		TArray<FRequest, TInlineAllocator<8>> Requests;
 	};
 
 	/** Returns a request builder that dispatches one or more I/O requests in a single batch. */

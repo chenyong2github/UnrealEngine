@@ -1084,16 +1084,8 @@ public:
 	{
 		const FIoChunkId ChunkId	= CreateBulkDataIoChunkId(BulkMeta, BulkChunkId.GetPackageId());
 		const int32 IoPriority		= ConvertToIoDispatcherPriority(Priority);
-		const uint64 BulkOffset		= uint64(BulkMeta.GetOffset());
-		const uint64 BulkSize		= uint64(BulkMeta.GetSize());
-		const uint64 BytesToRead	= FMath::Min(BulkSize, Options.GetSize());
 
-		FIoRequest IoRequest = IoBatch.ReadWithCallback(
-			ChunkId,
-			FIoReadOptions(BulkOffset + Options.GetOffset(), BytesToRead, Options.GetTargetVa()),
-			IoPriority,
-			MoveTemp(Callback));
-
+		FIoRequest IoRequest = IoBatch.ReadWithCallback(ChunkId, Options, IoPriority, MoveTemp(Callback));
 		FChunkBatchReadRequest* Request = new (Requests) FChunkBatchReadRequest(this, MoveTemp(IoRequest));
 
 		if (OutRequest)
@@ -1240,20 +1232,9 @@ public:
 		FIoReadCallback&& Callback,
 		FBulkDataBatchReadRequest* OutRequest) override
 	{
-		const uint64 BulkOffset		= uint64(BulkMeta.GetOffset());
-		const uint64 BulkSize		= uint64(BulkMeta.GetSize());
-		const uint64 BytesToRead	= FMath::Min(BulkSize, Options.GetSize());
-		
 		FFileSystemBatchReadRequest* Request = new (Requests) FFileSystemBatchReadRequest(this, MoveTemp(Callback));
 
-		RequestParams.Add(FRequestParams
-		{
-			Request,
-			BulkChunkId.GetPackagePath(),
-			FIoReadOptions(BulkOffset + Options.GetOffset(), BytesToRead, Options.GetTargetVa()),
-			BulkMeta,
-			Priority
-		});
+		RequestParams.Add(FRequestParams {Request, BulkChunkId.GetPackagePath(), Options, BulkMeta, Priority});
 
 		if (OutRequest)
 		{
@@ -1546,7 +1527,7 @@ FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read
 	GetBatch(BulkData).Read(
 		BulkData.BulkMeta,
 		BulkData.BulkChunkId,
-		FIoReadOptions(0, BulkData.GetBulkDataSize()),
+		FIoReadOptions(BulkData.GetBulkDataOffsetInFile(), BulkData.GetBulkDataSize()),
 		Priority,
 		[BulkData = &BulkData](TIoStatusOr<FIoBuffer> Status)
 		{
@@ -1571,56 +1552,29 @@ FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read
 	uint64 Offset,
 	uint64 Size,
 	EAsyncIOPriorityAndFlags Priority,
-	FIoBuffer& Dst)
-{
-	const uint64 BytesToRead = FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
-
-	check(BatchMax == -1 || BatchCount < BatchMax);
-	check(Dst.GetSize() == 0 || Dst.GetSize() == BytesToRead);
-
-	if (Dst.GetSize() == 0)
-	{
-		Dst = FIoBuffer(BytesToRead);
-	}
-
-	GetBatch(BulkData).Read(
-		BulkData.BulkMeta,
-		BulkData.BulkChunkId,
-		FIoReadOptions(Offset, Dst.GetSize(), Dst.GetData()),
-		Priority,
-		FIoReadCallback(),
-		nullptr);
-
-	++BatchCount;
-
-	return *this;
-}
-
-FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read(
-	const FBulkData& BulkData,
-	uint64 Offset,
-	uint64 Size,
-	EAsyncIOPriorityAndFlags Priority,
 	FIoBuffer& Dst, 
-	FBulkDataBatchReadRequest& OutRequest)
+	FBulkDataBatchReadRequest* OutRequest)
 {
-	const uint64 BytesToRead = FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
+	check(Size == MAX_uint64 || Size <= uint64(BulkData.GetBulkDataSize()));
+
+	const uint64 ReadOffset = BulkData.GetBulkDataOffsetInFile() + Offset;
+	const uint64 ReadSize	= FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
 
 	check(BatchMax == -1 || BatchCount < BatchMax);
-	check(Dst.GetSize() == 0 || Dst.GetSize() == BytesToRead);
+	check(Dst.GetSize() == 0 || Dst.GetSize() == ReadSize);
 
 	if (Dst.GetSize() == 0)
 	{
-		Dst = FIoBuffer(BytesToRead);
+		Dst = FIoBuffer(ReadSize);
 	}
 
 	GetBatch(BulkData).Read(
 		BulkData.BulkMeta,
 		BulkData.BulkChunkId,
-		FIoReadOptions(Offset, Dst.GetSize(), Dst.GetData()),
+		FIoReadOptions(ReadOffset, ReadSize, Dst.GetData()),
 		Priority,
 		FIoReadCallback(),
-		&OutRequest);
+		OutRequest);
 	
 	++BatchCount;
 	
@@ -1653,51 +1607,51 @@ FBulkDataRequest::EStatus FBulkDataBatchRequest::FBatchBuilder::Issue()
 FBulkDataBatchRequest::FScatterGatherBuilder::FScatterGatherBuilder(int32 MaxCount)
 	: FBuilder(MaxCount)
 {
+	if (MaxCount > 0)
+	{
+		Requests.Reserve(MaxCount);
+	}
 }
 
 FBulkDataBatchRequest::FScatterGatherBuilder& FBulkDataBatchRequest::FScatterGatherBuilder::Read(const FBulkData& BulkData, uint64 Offset, uint64 Size)
 {
-	if (Requests.Num() > 0 && Offset == 0)
+	check(Size == MAX_uint64 || Size <= uint64(BulkData.GetBulkDataSize()));
+
+	const uint64 ReadOffset = BulkData.GetBulkDataOffsetInFile() + Offset;
+	const uint64 ReadSize	= FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
+
+	if (Requests.Num() > 0)
 	{
 		FRequest& Last = Requests.Last();
 
-		const bool bContiguous = 
-			Last.Offset + Last.Size == BulkData.GetBulkDataOffsetInFile() &&
+		const bool bContiguous =
+			Last.Offset + Last.Size == ReadOffset &&
 			Last.BulkData->GetBulkDataFlags() == BulkData.GetBulkDataFlags() &&
 			Last.BulkData->BulkChunkId == BulkData.BulkChunkId;
 
 		if (bContiguous)
 		{
-			Last.Size += FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
+			Last.Size += ReadSize; 
+			return *this;
 		}
-
-		return *this;
 	}
 
-	Requests.Add(FRequest
-	{
-		&BulkData,
-		Offset,
-		FMath::Min(uint64(BulkData.GetBulkDataSize()), Size)
-	});
+	Requests.Add(FRequest {&BulkData, ReadOffset, ReadSize});
 
 	return *this;
 }
 
 FBulkDataRequest::EStatus FBulkDataBatchRequest::FScatterGatherBuilder::Issue(FIoBuffer& Dst, EAsyncIOPriorityAndFlags Priority, FCompletionCallback&& Callback, FBulkDataBatchRequest& OutRequest)
 {
-	if (Requests.IsEmpty())
-	{
-		check(false);
-		OutRequest = FBulkDataBatchRequest(new FHandleBase(EStatus::Error));
-		return EStatus::Error;
-	}
+	check(Requests.IsEmpty() == false);
 
 	uint64 TotalSize = 0;
 	for (const FRequest& Request : Requests)
 	{
 		TotalSize += Request.Size;
 	}
+
+	check(Dst.GetSize() == 0 || Dst.GetSize() == TotalSize);
 
 	if (Dst.GetSize() != TotalSize)
 	{
