@@ -855,28 +855,6 @@ void UAnimSequenceBase::RefreshParentAssetData()
 
 	UAnimSequenceBase* ParentSeqBase = CastChecked<UAnimSequenceBase>(ParentAsset);
 
-	// should do deep copy because notify contains outer
-	Notifies = ParentSeqBase->Notifies;
-
-	// update notify
-	for (int32 NotifyIdx = 0; NotifyIdx < Notifies.Num(); ++NotifyIdx)
-	{
-		FAnimNotifyEvent& NotifyEvent = Notifies[NotifyIdx];
-		if (NotifyEvent.Notify)
-		{
-			class UAnimNotify* NewNotifyClass = DuplicateObject(NotifyEvent.Notify, this);
-			NotifyEvent.Notify = NewNotifyClass;
-		}
-		if (NotifyEvent.NotifyStateClass)
-		{
-			class UAnimNotifyState* NewNotifyStateClass = DuplicateObject(NotifyEvent.NotifyStateClass, this);
-			NotifyEvent.NotifyStateClass = (NewNotifyStateClass);
-		}
-
-		NotifyEvent.Link(this, NotifyEvent.GetTime(), NotifyEvent.GetSlotIndex());
-		NotifyEvent.EndLink.Link(this, NotifyEvent.GetTime() + NotifyEvent.Duration, NotifyEvent.GetSlotIndex());
-	}
-
 	RateScale = ParentSeqBase->RateScale;
 
 	ValidateModel();
@@ -912,6 +890,26 @@ void UAnimSequenceBase::RefreshParentAssetData()
 	}
 	Controller->CloseBracket();
 
+	// should do deep copy because notify contains outer
+	Notifies = ParentSeqBase->Notifies;
+	// update notify
+	for (int32 NotifyIdx = 0; NotifyIdx < Notifies.Num(); ++NotifyIdx)
+	{
+		FAnimNotifyEvent& NotifyEvent = Notifies[NotifyIdx];
+		if (NotifyEvent.Notify)
+		{
+			class UAnimNotify* NewNotifyClass = DuplicateObject(NotifyEvent.Notify, this);
+			NotifyEvent.Notify = NewNotifyClass;
+		}
+		if (NotifyEvent.NotifyStateClass)
+		{
+			class UAnimNotifyState* NewNotifyStateClass = DuplicateObject(NotifyEvent.NotifyStateClass, this);
+			NotifyEvent.NotifyStateClass = (NewNotifyStateClass);
+		}
+
+		NotifyEvent.Link(this, NotifyEvent.GetTime(), NotifyEvent.GetSlotIndex());
+		NotifyEvent.EndLink.Link(this, NotifyEvent.GetTime() + NotifyEvent.Duration, NotifyEvent.GetSlotIndex());
+	}
 #if WITH_EDITORONLY_DATA
 	// if you change Notifies array, this will need to be rebuilt
 	AnimNotifyTracks = ParentSeqBase->AnimNotifyTracks;
