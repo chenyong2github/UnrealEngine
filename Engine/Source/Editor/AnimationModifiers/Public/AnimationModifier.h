@@ -61,6 +61,14 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	// End UObject Overrides
+
+	/** If this is set to true then the animation modifier will call it's reapply function after any change made to the owning asset. */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bReapplyPostOwnerChange = false;
+
+	/** Whether or not this modifier is in the process of being applied to an Animation Asset */
+	bool IsCurrentlyApplyingModifier() const { return CurrentAnimSequence != nullptr || CurrentSkeleton != nullptr; };
+
 protected:
 	// Derived class accessors to skeleton and anim sequence 
 	const UAnimSequence* GetAnimationSequence();

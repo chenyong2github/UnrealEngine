@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationModifiersAssetUserData.h"
+#include "AnimationModifier.h"
+#include "UObject/UObjectThreadContext.h"
 
 #include "HAL/PlatformCrt.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 #include "UObject/ObjectPtr.h"
+#include "Animation/AnimSequence.h"
 
 void UAnimationModifiersAssetUserData::AddAnimationModifier(UAnimationModifier* Instance)
 {
@@ -39,6 +42,35 @@ void UAnimationModifiersAssetUserData::PostEditChangeProperty(struct FPropertyCh
 	RemoveInvalidModifiers();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+#if WITH_EDITOR
+void UAnimationModifiersAssetUserData::PostEditChangeOwner()
+{
+	Super::PostEditChangeOwner();
+
+	// We cant call blueprint implemented functions while routing post load
+	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		return;
+	}
+
+	UAnimSequence* ModifiedAnimSequence = Cast<UAnimSequence>(GetOuter());
+	if (!ModifiedAnimSequence)
+	{
+		return;
+	}
+
+	for (UAnimationModifier* Modifier : AnimationModifierInstances)
+	{
+		if (!Modifier->bReapplyPostOwnerChange || Modifier->IsCurrentlyApplyingModifier())
+		{
+			continue;
+		}
+
+		Modifier->ApplyToAnimationSequence(ModifiedAnimSequence);
+	}
+}
+#endif // WITH_EDITOR
 
 void UAnimationModifiersAssetUserData::Serialize(FArchive& Ar)
 {

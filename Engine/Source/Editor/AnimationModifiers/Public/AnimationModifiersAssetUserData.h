@@ -32,6 +32,9 @@ protected:
 	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
 	virtual void Serialize(FArchive& Ar) override;
+#if WITH_EDITOR
+	virtual void PostEditChangeOwner() override;
+#endif // WITH_EDITOR
 	/** End UAssetUserData overrides */
 
 	void AddAnimationModifier(UAnimationModifier* Instance);
