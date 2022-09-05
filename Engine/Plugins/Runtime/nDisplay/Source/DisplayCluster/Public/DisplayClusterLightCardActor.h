@@ -8,6 +8,7 @@
 #include "DisplayClusterLightCardActor.generated.h"
 
 class ADisplayClusterRootActor;
+class UActorComponent;
 class UDisplayClusterLabelComponent;
 class USceneComponent;
 class USpringArmComponent;
@@ -21,6 +22,7 @@ enum class EDisplayClusterLightCardMask : uint8
 	Square,
 	UseTextureAlpha,
 	Polygon,
+	MAX	UMETA(Hidden)
 };
 
 USTRUCT(Blueprintable)
@@ -76,6 +78,7 @@ public:
 public:
 	ADisplayClusterLightCardActor(const FObjectInitializer& ObjectInitializer);
 
+	virtual void PostLoad() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -221,7 +224,18 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture> PolygonMask = nullptr;
 
+	static FName GetExtenderNameToComponentMapMemberName()
+	{
+		return GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, ExtenderNameToComponentMap);
+	}
+
 protected:
+	/** Creates components for IDisplayClusterLightCardActorExtender */
+	void CreateComponentsForExtenders();
+
+	/** Removes components that were added by IDisplayClusterLightCardActorExtender */
+	void CleanUpComponentsForExtenders();
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<USceneComponent> DefaultSceneRootComponent;
 
@@ -233,7 +247,11 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UStaticMeshComponent> LightCardComponent;
-	
+
+	/** Components added by the IDisplayLightCardActorExtender */
+	UPROPERTY(VisibleAnywhere, Category = "Default")
+	TMap<FName, TObjectPtr<UActorComponent>> ExtenderNameToComponentMap;
+
 	UPROPERTY(VisibleAnywhere, transient, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<UDisplayClusterLabelComponent> LabelComponent;
 

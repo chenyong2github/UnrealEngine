@@ -18,6 +18,7 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"DisplayCluster",
 				"DisplayClusterConfiguration",
 				"DisplayClusterOperator",
+				"DisplayClusterLightCardExtender",
 				"DisplayClusterLightCardEditorShaders",
 				"DisplayClusterScenePreview",
 				"EditorStyle",

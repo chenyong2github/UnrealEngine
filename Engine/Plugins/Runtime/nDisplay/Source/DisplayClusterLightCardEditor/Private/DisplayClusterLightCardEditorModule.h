@@ -24,4 +24,7 @@ private:
 
 	void RegisterSettings();
 	void UnregisterSettings();
+
+	void RegisterDetailCustomizations();
+	void UnregisterDetailCustomizations();
 };

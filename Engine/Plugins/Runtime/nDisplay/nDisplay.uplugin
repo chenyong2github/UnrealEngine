@@ -197,6 +197,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "nDisplayModularFeatures",
+			"Enabled": true
+		},
+		{
 			"Name": "OpenCV",
 			"Enabled": true
 		},

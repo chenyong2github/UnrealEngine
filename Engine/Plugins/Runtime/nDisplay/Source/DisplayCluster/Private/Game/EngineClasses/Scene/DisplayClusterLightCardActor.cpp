@@ -2,6 +2,7 @@
 
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
+#include "IDisplayClusterLightCardActorExtender.h"
 
 #include "Components/DisplayClusterLabelComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -76,6 +77,15 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 
 	LabelComponent = CreateOptionalDefaultSubobject<UDisplayClusterLabelComponent>(TEXT("Label"), true);
 	LabelComponent->AttachToComponent(LightCardComponent, FAttachmentTransformRules::KeepRelativeTransform);
+
+	CreateComponentsForExtenders();
+}
+
+void ADisplayClusterLightCardActor::PostLoad()
+{
+	Super::PostLoad();
+
+	CleanUpComponentsForExtenders();
 }
 
 void ADisplayClusterLightCardActor::OnConstruction(const FTransform& Transform)
@@ -485,4 +495,52 @@ void ADisplayClusterLightCardActor::SetPositionalParams(const PositionalParams& 
 	Spin = Params.Spin;
 	Yaw = Params.Yaw;
 	RadialOffset = Params.RadialOffset;
+}
+
+void ADisplayClusterLightCardActor::CreateComponentsForExtenders()
+{
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	const TArray<IDisplayClusterLightCardActorExtender*> Extenders = ModularFeatures.GetModularFeatureImplementations<IDisplayClusterLightCardActorExtender>(IDisplayClusterLightCardActorExtender::ModularFeatureName);
+	for (IDisplayClusterLightCardActorExtender* Extender : Extenders)
+	{
+		UClass* ExtenderComponentClass = Extender->GetAdditionalSubobjectClass().Get();
+		const FName ExtenderName = Extender->GetExtenderName();
+		if (!ensureAlwaysMsgf(ExtenderComponentClass, TEXT("Cannot apply display cluster Extender. Invalid component class.")))
+		{
+			continue;
+		}
+		else if (!ensureAlwaysMsgf(!ExtenderName.IsNone(), TEXT("Cannot apply display cluster Extender. Extender name cannot be empty.")))
+		{
+			continue;
+		}
+		else if (!ensureAlwaysMsgf(!ExtenderNameToComponentMap.Contains(ExtenderName), TEXT("Cannot apply display cluster Extender. Extender name already in use.")))
+		{
+			continue;
+		}
+
+		const FName ObjectName = MakeUniqueObjectName(this, ExtenderComponentClass, ExtenderName);
+		constexpr bool bIsRequired = false;
+		constexpr bool bIsTransient = false;
+		UObject* Component = CreateDefaultSubobject(ObjectName, UActorComponent::StaticClass(), ExtenderComponentClass, bIsRequired, bIsTransient);
+		ExtenderNameToComponentMap.Add(ExtenderName, CastChecked<UActorComponent>(Component));
+	}
+}
+
+void ADisplayClusterLightCardActor::CleanUpComponentsForExtenders()
+{
+	TArray<FName> AvailableExtenders;
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	const TArray<IDisplayClusterLightCardActorExtender*> Extenders = ModularFeatures.GetModularFeatureImplementations<IDisplayClusterLightCardActorExtender>(IDisplayClusterLightCardActorExtender::ModularFeatureName);
+	for (IDisplayClusterLightCardActorExtender* Extender : Extenders)
+	{
+		AvailableExtenders.Add(Extender->GetExtenderName());
+	}
+	const TMap<FName, TObjectPtr<UActorComponent>> CachedExtenderNameToComponentMap(ExtenderNameToComponentMap);
+	for (const TTuple<FName, TObjectPtr<UActorComponent>>& ExtenderNameToComponentPair : CachedExtenderNameToComponentMap)
+	{
+		if (!AvailableExtenders.Contains(ExtenderNameToComponentPair.Key))
+		{
+			ExtenderNameToComponentMap.Remove(ExtenderNameToComponentPair.Key);
+		}
+	}
 }

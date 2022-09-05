@@ -20,6 +20,7 @@ public class DisplayCluster : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DisplayClusterConfiguration",
+				"DisplayClusterLightCardExtender",
 				"Engine"
 			});
 
