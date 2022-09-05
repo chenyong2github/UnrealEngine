@@ -1970,14 +1970,14 @@ FStrataData StrataWeight(FStrataData A, float Weight, inout FStrataTree StrataTr
 	FStrataData StrataData = GetInitialisedStrataData();
 	StrataData.OperatorIndex = OperatorIndex;
 #if USE_DEVELOPMENT_SHADERS
-	StrataData.PreviewColor = A.PreviewColor * Weight;
+	StrataData.PreviewColor = A.PreviewColor * SafeWeight;
 #endif
 
 	StrataTree.OperatorCount++;
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_WEIGHT;
-	StrataTree.Operators[OperatorIndex].Weight					= Weight;
+	StrataTree.Operators[OperatorIndex].Weight					= SafeWeight;
 	StrataTree.Operators[OperatorIndex].LeftIndex				= A.OperatorIndex;
 
 	StrataTree.Operators[A.OperatorIndex].ParentIndex			= OperatorIndex;
