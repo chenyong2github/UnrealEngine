@@ -235,6 +235,9 @@ namespace FControlRigShapeHelper
 			ShapeActor->ShapeName = CreationParam.ShapeName;
 			ShapeActor->SetSelectable(CreationParam.bSelectable);
 			ShapeActor->SetActorTransform(CreationParam.SpawnTransform);
+#if WITH_EDITOR
+			ShapeActor->SetActorLabel(CreationParam.ControlName.ToString(), false);
+#endif // WITH_EDITOR
 
 			UStaticMeshComponent* MeshComponent = ShapeActor->StaticMeshComponent;
 
