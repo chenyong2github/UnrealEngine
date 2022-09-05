@@ -78,28 +78,13 @@ void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
 	NSString* ExecutableFolder = [[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent];
 	void* Handle = nullptr;
 
-	// On 11.0.0+, system-provided dynamic libraries do not exist on the
-	// filesystem, only in a built-in dynamic linker cache.
-	if (FPlatformMisc::MacOSXVersionCompare(10,16,0) >= 0)
-	{
-		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
-		if (!Handle)
-		{
-			// If it's not a absolute or relative path, try to find the file in the app bundle
-			DylibPath = [ExecutableFolder stringByAppendingPathComponent:DylibPath];
-			Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
-		}
-	}
-	else
-	{
-		NSFileManager* FileManager = [NSFileManager defaultManager];
-		if (![FileManager fileExistsAtPath:DylibPath])
-		{
-			// If it's not a absolute or relative path, try to find the file in the app bundle
-			DylibPath = [ExecutableFolder stringByAppendingPathComponent:DylibPath];
-		}
-		Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
-	}
+    Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
+    if (!Handle)
+    {
+        // If it's not a absolute or relative path, try to find the file in the app bundle
+        DylibPath = [ExecutableFolder stringByAppendingPathComponent:DylibPath];
+        Handle = GetDllHandleImpl(DylibPath, ExecutableFolder);
+    }
 	return Handle;
 }
 

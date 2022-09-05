@@ -282,15 +282,10 @@ void FMetalRHIRenderQuery::End(FMetalContext* Context)
 			{
 				Result = 0;
 				
-#if PLATFORM_MAC
-				if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0)
-#endif
-				{
-					// If there are no commands in the command buffer then this can be zero
-					// In this case GPU start time is also not correct - we need to fall back standard behaviour
-					// Only seen empty command buffers at the very end of a frame
-					Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
-				}
+                // If there are no commands in the command buffer then this can be zero
+                // In this case GPU start time is also not correct - we need to fall back standard behaviour
+                // Only seen empty command buffers at the very end of a frame
+                Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
 				
 				if(Result == 0)
 				{

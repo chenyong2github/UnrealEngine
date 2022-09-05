@@ -326,32 +326,30 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	bool bSupportsSM5 = true;
 	bool bIsIntelHaswell = false;
 	
-	// All should work on Catalina+ using GPU end time
-	GSupportsTimestampRenderQueries = FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0;
+	GSupportsTimestampRenderQueries = true;
 	
 	if(GRHIAdapterName.Contains("Nvidia"))
 	{
 		bSupportsPointLights = true;
 		GRHIVendorId = 0x10DE;
 		bSupportsTiledReflections = true;
-		bSupportsDistanceFields = (FPlatformMisc::MacOSXVersionCompare(10,11,4) >= 0);
-
+		bSupportsDistanceFields = true;
 		GRHISupportsWaveOperations = false;
 	}
 	else if(GRHIAdapterName.Contains("ATi") || GRHIAdapterName.Contains("AMD"))
 	{
 		bSupportsPointLights = true;
 		GRHIVendorId = 0x1002;
-		if((FPlatformMisc::MacOSXVersionCompare(10,12,0) < 0) && GPUDesc.GPUVendorId == GRHIVendorId)
+		if(GPUDesc.GPUVendorId == GRHIVendorId)
 		{
 			GRHIAdapterName = FString(GPUDesc.GPUName);
 		}
 		bSupportsTiledReflections = true;
-		bSupportsDistanceFields = (FPlatformMisc::MacOSXVersionCompare(10,11,4) >= 0);
+		bSupportsDistanceFields = true;
 		
 		// On AMD can also use completion handler time stamp if macOS < Catalina
 		GSupportsTimestampRenderQueries = true;
-
+		
 		// Only tested on Vega.
 		GRHISupportsWaveOperations = GRHIAdapterName.Contains(TEXT("Vega"));
 		if (GRHISupportsWaveOperations)
@@ -363,11 +361,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	else if(GRHIAdapterName.Contains("Intel"))
 	{
 		bSupportsTiledReflections = false;
-		bSupportsPointLights = (FPlatformMisc::MacOSXVersionCompare(10,14,6) > 0);
+		bSupportsPointLights = true;
 		GRHIVendorId = 0x8086;
-		bSupportsDistanceFields = (FPlatformMisc::MacOSXVersionCompare(10,12,2) >= 0);
+		bSupportsDistanceFields = true;
 		bIsIntelHaswell = (GRHIAdapterName == TEXT("Intel HD Graphics 5000") || GRHIAdapterName == TEXT("Intel Iris Graphics") || GRHIAdapterName == TEXT("Intel Iris Pro Graphics"));
-
 		GRHISupportsWaveOperations = false;
 	}
 	else if(GRHIAdapterName.Contains("Apple"))
@@ -377,7 +374,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		bSupportsTiledReflections = true;
 		bSupportsDistanceFields = true;
 		GSupportsTimestampRenderQueries = true;
-
+		
 		GRHISupportsWaveOperations = true;
 		GRHIMinimumWaveSize = 32;
 		GRHIMaximumWaveSize = 32;
@@ -467,13 +464,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	
 #endif
 		
-	if(
-	   #if PLATFORM_MAC
-	   (Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3) && FPlatformMisc::MacOSXVersionCompare(10,13,0) >= 0)
-	   #elif PLATFORM_IOS || PLATFORM_TVOS
-	   FPlatformMisc::IOSVersionCompare(10,3,0)
-	   #endif
-	   )
+#if PLATFORM_MAC
+    if (Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3))
+#endif
 	{
 		GRHISupportsDynamicResolution = true;
 		GRHISupportsFrameCyclesBubblesRemoval = true;
@@ -557,14 +550,11 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 
 #if PLATFORM_MAC
-	if (IsRHIDeviceIntel() && FPlatformMisc::MacOSXVersionCompare(10,13,5) < 0)
-	{
-		static auto CVarSGShadowQuality = IConsoleManager::Get().FindConsoleVariable((TEXT("sg.ShadowQuality")));
-		if (CVarSGShadowQuality && CVarSGShadowQuality->GetInt() != 0)
-		{
-			CVarSGShadowQuality->Set(0);
-		}
-	}
+    static auto CVarSGShadowQuality = IConsoleManager::Get().FindConsoleVariable((TEXT("sg.ShadowQuality")));
+    if (CVarSGShadowQuality && CVarSGShadowQuality->GetInt() != 0)
+    {
+        CVarSGShadowQuality->Set(0);
+    }
 
 	if (bIsIntelHaswell)
 	{
@@ -593,7 +583,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 
 #if PLATFORM_MAC
 	check(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v1));
-	GRHISupportsBaseVertexIndex = FPlatformMisc::MacOSXVersionCompare(10,11,2) >= 0 || !IsRHIDeviceAMD(); // Supported on macOS & iOS but not tvOS - broken on AMD prior to 10.11.2
+	GRHISupportsBaseVertexIndex = true;
 	GRHISupportsFirstInstance = true; // Supported on macOS & iOS but not tvOS.
 	GMaxTextureDimensions = 16384;
 	GMaxCubeTextureDimensions = 16384;
@@ -601,7 +591,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMaxShadowDepthBufferSizeX = GMaxTextureDimensions;
 	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
     bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
-    GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
+    GRHISupportsHDROutput = Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
 	// Based on the spec below, the maxTotalThreadsPerThreadgroup is not a fixed number but calculated according to the device current ability, so the available threads could less than the maximum number.
 	// For safety and keep the consistency for all platform, reduce the maximum number to half of the device based.

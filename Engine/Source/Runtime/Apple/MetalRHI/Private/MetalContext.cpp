@@ -161,28 +161,21 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 	
 	ns::Array<mtlpp::Device> DeviceList;
 	
-	if (FPlatformMisc::MacOSXVersionCompare(10, 13, 4) >= 0)
-	{
-			DeviceList = mtlpp::Device::CopyAllDevicesWithObserver(GMetalDeviceObserver, ^(const mtlpp::Device & Device, const ns::String & Notification)
-			{
-				if ([Notification.GetPtr() isEqualToString:MTLDeviceWasAddedNotification])
-				{
-					FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::Added);
-				}
-				else if ([Notification.GetPtr() isEqualToString:MTLDeviceRemovalRequestedNotification])
-				{
-					FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::RemovalRequested);
-				}
-				else if ([Notification.GetPtr() isEqualToString:MTLDeviceWasRemovedNotification])
-				{
-					FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::Removed);
-				}
-			});
-	}
-	else
-	{
-		DeviceList = mtlpp::Device::CopyAllDevices();
-	}
+    DeviceList = mtlpp::Device::CopyAllDevicesWithObserver(GMetalDeviceObserver, ^(const mtlpp::Device & Device, const ns::String & Notification)
+    {
+        if ([Notification.GetPtr() isEqualToString:MTLDeviceWasAddedNotification])
+        {
+            FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::Added);
+        }
+        else if ([Notification.GetPtr() isEqualToString:MTLDeviceRemovalRequestedNotification])
+        {
+            FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::RemovalRequested);
+        }
+        else if ([Notification.GetPtr() isEqualToString:MTLDeviceWasRemovedNotification])
+        {
+            FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::Removed);
+        }
+    });
 	
 	const int32 NumDevices = DeviceList.GetSize();
 	
@@ -198,7 +191,7 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
  	int32 OverrideRendererId = FPlatformMisc::GetExplicitRendererIndex();
 	
 	int32 ExplicitRendererId = OverrideRendererId >= 0 ? OverrideRendererId : HmdGraphicsAdapter;
-	if(ExplicitRendererId < 0 && GPUs.Num() > 1 && FMacPlatformMisc::MacOSXVersionCompare(10, 11, 5) == 0)
+	if(ExplicitRendererId < 0 && GPUs.Num() > 1)
 	{
 		OverrideRendererId = -1;
 		bool bForceExplicitRendererId = false;
@@ -458,10 +451,7 @@ FMetalDeviceContext::~FMetalDeviceContext()
     delete UniformBufferAllocator;
 	
 #if PLATFORM_MAC
-	if (FPlatformMisc::MacOSXVersionCompare(10, 13, 4) >= 0)
-	{
-		mtlpp::Device::RemoveDeviceObserver(GMetalDeviceObserver);
-	}
+    mtlpp::Device::RemoveDeviceObserver(GMetalDeviceObserver);
 #endif
 }
 

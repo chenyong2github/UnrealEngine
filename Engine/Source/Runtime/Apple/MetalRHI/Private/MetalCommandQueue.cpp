@@ -161,7 +161,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		Features |= EMetalFeaturesSetBytes;
 		
 		// On earlier OS versions Intel Broadwell couldn't suballocate properly
-		if (!(DeviceName.Contains(TEXT("Intel")) && (DeviceName.Contains(TEXT("5300")) || DeviceName.Contains(TEXT("6000")) || DeviceName.Contains(TEXT("6100")))) || FPlatformMisc::MacOSXVersionCompare(10,14,0) >= 0)
+		if (!(DeviceName.Contains(TEXT("Intel")) && (DeviceName.Contains(TEXT("5300")) || DeviceName.Contains(TEXT("6000")) || DeviceName.Contains(TEXT("6100")))))
 		{
 			// Using Private Memory & BlitEncoders for Vertex & Index data should be *much* faster.
 			Features |= EMetalFeaturesEfficientBufferBlits;
@@ -169,7 +169,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			Features |= EMetalFeaturesBufferSubAllocation;
 					
 			// On earlier OS versions Vega didn't like non-zero blit offsets
-	        if (!DeviceName.Contains(TEXT("Vega")) || FPlatformMisc::MacOSXVersionCompare(10,13,5) >= 0)
+	        if (!DeviceName.Contains(TEXT("Vega")))
 			{
 				Features |= EMetalFeaturesPrivateBufferSubAllocation;
 			}
@@ -219,7 +219,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		Features |= EMetalFeaturesSetBytes;
 	}
     
-    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3) && FPlatformMisc::MacOSXVersionCompare(10,13,0) >= 0)
+    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3))
 	{
 		Features |= EMetalFeaturesMultipleViewports | EMetalFeaturesPipelineBufferMutability | EMetalFeaturesGPUCaptureManager;
 		

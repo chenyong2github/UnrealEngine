@@ -277,7 +277,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		return;
 	}
 
-	if (FPlatformMisc::MacOSXVersionCompare(10,15,5) < 0)
+	if (FPlatformMisc::MacOSXVersionCompare(11, 0 ,0) < 0)
 	{
 		// this message can be suppressed with r.WarnOfBadDrivers=0
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,

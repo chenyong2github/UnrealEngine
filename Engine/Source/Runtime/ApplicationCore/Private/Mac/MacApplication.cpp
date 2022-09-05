@@ -83,7 +83,7 @@ public:
 	
 	FMacControllerInterface(const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler)
 	{
-		if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0 && CVarMacControllerPreferGCImpl.GetValueOnAnyThread() > 0)
+		if(CVarMacControllerPreferGCImpl.GetValueOnAnyThread() > 0)
 		{
 			AppleControllerInterface = FAppleControllerInterface::Create(InMessageHandler);
 		}

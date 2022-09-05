@@ -6908,7 +6908,7 @@ void UEditorEngine::UpdateAutoLoadProject()
 #if PLATFORM_MAC
 	if ( !GIsBuildMachine )
 	{
-		if(FPlatformMisc::MacOSXVersionCompare(10,15,7) < 0)
+		if(FPlatformMisc::MacOSXVersionCompare(11, 0, 0) < 0)
 		{
 			if(FSlateApplication::IsInitialized())
 			{
