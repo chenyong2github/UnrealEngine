@@ -374,7 +374,7 @@ bool UExporter::RunAssetExportTask(class UAssetExportTask* Task)
 		const int32 FileCount = Exporter->GetFileCount(Task->Object);
 		for( int32 i = 0; i < FileCount; i++ )
 		{
-			FBufferArchive Buffer;
+			FBufferArchive64 Buffer;
 			if(ExportToArchive(Task->Object, Exporter, Buffer, *Extension, i))
 			{
 				FString UniqueFilename = Exporter->GetUniqueFilename(Task->Object, *Task->Filename, i, FileCount);
