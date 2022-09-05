@@ -37,26 +37,21 @@ public:
 
 	void ShowResourceUsageTab();
 	void ShowCacheStatisticsTab();
-
-	void ShowVirtualAssetsStatisticsTab();
+	
 	void ShowSettingsDialog();
 
 private:
 
 	TSharedPtr<SWidget> CreateResourceUsageDialog();
 	TSharedPtr<SWidget> CreateCacheStatisticsDialog();
-	TSharedPtr<SWidget> CreateVirtualAssetsStatisticsDialog();
-
 
 	TSharedRef<SDockTab> CreateResourceUsageTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> CreateCacheStatisticsTab(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> CreateVirtualAssetsStatisticsTab(const FSpawnTabArgs& Args);
 
 	void OnSettingsDialogClosed(const TSharedRef<SWindow>& InWindow);
 
 	TWeakPtr<SDockTab> ResourceUsageTab;
 	TWeakPtr<SDockTab> CacheStatisticsTab;
-	TWeakPtr<SDockTab> VirtualAssetsStatisticsTab;
 
 	TSharedPtr<SWindow>	SettingsWindow;
 	TSharedPtr<SDerivedDataCacheSettingsDialog> SettingsDialog;

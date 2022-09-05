@@ -25,19 +25,15 @@ public:
 
 private:
 
-
 	static void ChangeSettings_Clicked();
 	static void ViewCacheStatistics_Clicked();
 	static void ViewResourceUsage_Clicked();
-	static void ViewVirtualAssetsStatistics_Clicked();
-
 
 public:
 
 	TSharedPtr< FUICommandInfo > ChangeSettings;
 	TSharedPtr< FUICommandInfo > ViewResourceUsage;
 	TSharedPtr< FUICommandInfo > ViewCacheStatistics;
-	TSharedPtr< FUICommandInfo > ViewVirtualAssetsStatistics;
 
 	static TSharedRef<FUICommandList> ActionList;
 };

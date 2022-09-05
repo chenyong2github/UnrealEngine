@@ -5,7 +5,6 @@
 #include "SDerivedDataStatusBar.h"
 #include "SDerivedDataDialogs.h"
 #include "SDerivedDataCacheSettings.h"
-#include "SVirtualAssetsStatistics.h"
 #include "ZenServerInterface.h"
 #include "DerivedDataCacheNotifications.h"
 #include "Modules/ModuleManager.h"
@@ -22,7 +21,6 @@ IMPLEMENT_MODULE(FDerivedDataEditorModule, DerivedDataEditor );
 
 static const FName DerivedDataResourceUsageTabName = FName(TEXT("DerivedDataResourceUsage"));
 static const FName DerivedDataCacheStatisticsTabName = FName(TEXT("DerivedDataCacheStatistics"));
-static const FName VirtualAssetsStatisticsTabName = FName(TEXT("VirtualAssetsStatistics"));
 
 void FDerivedDataEditorModule::StartupModule()
 {
@@ -42,21 +40,11 @@ void FDerivedDataEditorModule::StartupModule()
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(CacheStatisticsIcon);
 
-	const FSlateIcon VirtaulAssetsStatisticsIcon(FAppStyle::GetAppStyleSetName(), "DerivedData.Cache.Statistics");
-
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(VirtualAssetsStatisticsTabName, FOnSpawnTab::CreateRaw(this, &FDerivedDataEditorModule::CreateVirtualAssetsStatisticsTab))
-		.SetDisplayName(LOCTEXT("VirtualAssetsStatisticsTabTitle", "Virtual Assets"))
-		.SetTooltipText(LOCTEXT("VirtualAssetsStatisticsTabToolTipText", "Virtual Assets  Statistics"))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsAuditCategory())
-		.SetIcon(CacheStatisticsIcon);
-
-
 #if WITH_RELOAD
 	// This code attempts to relaunch the tabs when you reload this module
 	if (IsReloadActive() && FSlateApplication::IsInitialized())
 	{
 		ShowCacheStatisticsTab();
-		ShowVirtualAssetsStatisticsTab();
 		ShowResourceUsageTab();
 	}
 #endif // WITH_RELOAD
@@ -82,13 +70,6 @@ void FDerivedDataEditorModule::ShutdownModule()
 		if (CacheStatisticsTab.IsValid())
 		{
 			CacheStatisticsTab.Pin()->RequestCloseTab();
-		}
-
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VirtualAssetsStatisticsTabName);
-
-		if (VirtualAssetsStatisticsTab.IsValid())
-		{
-			VirtualAssetsStatisticsTab.Pin()->RequestCloseTab();
 		}
 	}
 
@@ -138,26 +119,6 @@ TSharedRef<SDockTab> FDerivedDataEditorModule::CreateCacheStatisticsTab(const FS
 void FDerivedDataEditorModule::ShowCacheStatisticsTab()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(FTabId(DerivedDataCacheStatisticsTabName));
-}
-
-
-TSharedPtr<SWidget> FDerivedDataEditorModule::CreateVirtualAssetsStatisticsDialog()
-{
-	return SNew(SVirtualAssetsStatisticsDialog);
-}
-
-TSharedRef<SDockTab> FDerivedDataEditorModule::CreateVirtualAssetsStatisticsTab(const FSpawnTabArgs& Args)
-{
-	return SAssignNew(ResourceUsageTab, SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			CreateVirtualAssetsStatisticsDialog().ToSharedRef()
-		];
-}
-
-void FDerivedDataEditorModule::ShowVirtualAssetsStatisticsTab()
-{
-	FGlobalTabmanager::Get()->TryInvokeTab(FTabId(VirtualAssetsStatisticsTabName));
 }
 
 void FDerivedDataEditorModule::ShowSettingsDialog()

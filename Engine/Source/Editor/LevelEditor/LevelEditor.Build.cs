@@ -84,6 +84,7 @@ public class LevelEditor : ModuleRules
 				"DerivedDataEditor",
 				"EditorWidgets",
 				"ToolWidgets",
+				"VirtualizationEditor",
 			}
 		);
 

@@ -10,12 +10,14 @@
 #include "ContentBrowserItemData.h"
 #include "Delegates/Delegate.h"
 #include "Fonts/SlateFontInfo.h"
+#include "FrameNumberTimeEvaluator.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/Text/TextLayout.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/PlatformTime.h"
 #include "Internationalization/Internationalization.h"
+#include "Internationalization/FastDecimalFormat.h"
 #include "Layout/BasicLayoutWidgetSlot.h"
 #include "Layout/Children.h"
 #include "Layout/Margin.h"
@@ -48,7 +50,19 @@ class SWidget;
 
 #define LOCTEXT_NAMESPACE "VirtualAssets"
 
-extern FString SingleDecimalFormat(double Value);
+namespace
+{
+
+FString SingleDecimalFormat(double Value)
+{
+	const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
+		.SetUseGrouping(true)
+		.SetMinimumFractionalDigits(1)
+		.SetMaximumFractionalDigits(1);
+	return FastDecimalFormat::NumberToString(Value, ExpressionParser::GetLocalizedNumberFormattingRules(), NumberFormattingOptions);
+}
+
+} //namespace
 
 // This namespace contains code for adding the re-hydration options to the editor context menu.
 // For now it is easier to just put all virtualization editor code in this .cpp until we make
