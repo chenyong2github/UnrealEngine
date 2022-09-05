@@ -580,7 +580,10 @@ TSharedRef<SWidget> FPreviewSceneDescriptionCustomization::MakeControllerComboEn
 void FPreviewSceneDescriptionCustomization::OnComboSelectionChanged(TSharedPtr<FPersonaModeComboEntry> InSelectedItem, ESelectInfo::Type SelectInfo)
 {
 	TSharedPtr<FAnimationEditorPreviewScene> PreviewScenePtr = PreviewScene.Pin();
+
+	const FScopedTransaction Transaction(LOCTEXT("ChangePreviewSceneController", "Setting Preview Scene Controller"));
 	UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScenePtr->GetPreviewSceneDescription();
+	PersonaPreviewSceneDescription->Modify();
 
 	PersonaPreviewSceneDescription->SetPreviewController(InSelectedItem->Class, PreviewScenePtr.Get());
 
@@ -618,7 +621,11 @@ void FPreviewSceneDescriptionCustomization::HandleAdditionalMeshesChanged(const 
 
 void FPreviewSceneDescriptionCustomization::HandleAllowDifferentSkeletonsCheckedStateChanged(ECheckBoxState CheckState)
 {
-	GetMutableDefault<UPersonaOptions>()->bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons = (CheckState == ECheckBoxState::Checked);
+	const FScopedTransaction Transaction(LOCTEXT("AllowDifferentSkeletons", "Setting Allow Different Skeletons"));
+	UPersonaOptions* PersonaOptions = GetMutableDefault<UPersonaOptions>();
+	PersonaOptions->Modify();
+	
+	PersonaOptions->bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons = (CheckState == ECheckBoxState::Checked);
 }
 
 ECheckBoxState FPreviewSceneDescriptionCustomization::HandleAllowDifferentSkeletonsIsChecked() const
@@ -628,7 +635,10 @@ ECheckBoxState FPreviewSceneDescriptionCustomization::HandleAllowDifferentSkelet
 
 void FPreviewSceneDescriptionCustomization::HandleUseCustomAnimBPCheckedStateChanged(ECheckBoxState CheckState)
 {
-	GetMutableDefault<UPersonaOptions>()->bAllowPreviewMeshCollectionsToUseCustomAnimBP = (CheckState == ECheckBoxState::Checked);
+	const FScopedTransaction Transaction(LOCTEXT("AllowDifferentSkeletons", "Setting Allow Different Skeletons"));
+	UPersonaOptions* PersonaOptions = GetMutableDefault<UPersonaOptions>();
+	PersonaOptions->Modify();	
+	PersonaOptions->bAllowPreviewMeshCollectionsToUseCustomAnimBP = (CheckState == ECheckBoxState::Checked);
 
 	if (PreviewScene.IsValid())
 	{

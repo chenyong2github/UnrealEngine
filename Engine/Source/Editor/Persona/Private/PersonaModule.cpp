@@ -149,6 +149,8 @@ void FPersonaModule::StartupModule()
 
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UAnimNotify::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FPersonaModule::HandleNewAnimNotifyBlueprintCreated));
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(this, UAnimNotifyState::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateRaw(this, &FPersonaModule::HandleNewAnimNotifyStateBlueprintCreated));
+
+	GetMutableDefault<UPersonaOptions>()->SetFlags(RF_Transactional);
 }
 
 void FPersonaModule::ShutdownModule()
