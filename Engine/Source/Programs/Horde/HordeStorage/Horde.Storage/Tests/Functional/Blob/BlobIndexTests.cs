@@ -112,11 +112,11 @@ namespace Horde.Storage.FunctionalTests.Storage
 
             IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
             Assert.IsNotNull(index);
-            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, objectHash);
+            BlobInfo? blobInfo = await index.GetBlobInfo(_testNamespaceName, objectHash, BlobIndexFlags.IncludeReferences);
 
             Assert.IsNotNull(blobInfo);
             Assert.IsTrue(blobInfo.Regions.Contains("test"));
-            Assert.AreEqual(1, blobInfo.References.Count);
+            Assert.AreEqual(1, blobInfo.References!.Count);
 
             (BucketId bucket, IoHashKey key) = blobInfo.References[0];
             Assert.AreEqual("bucket", bucket.ToString());

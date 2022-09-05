@@ -54,7 +54,7 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         });
     }
 
-    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
     {
         IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
         IAsyncCursor<MongoBlobIndexModelV0>? cursor = await collection.FindAsync(m => m.Ns == ns.ToString() && m.BlobId == id.ToString());
@@ -152,8 +152,11 @@ class MongoBlobIndexModelV0
         Ns = blobInfo.Namespace.ToString();
         BlobId = blobInfo.BlobIdentifier.ToString();
         Regions = blobInfo.Regions.ToList();
-        References = blobInfo.References.Select(pair => new Dictionary<string, string>{ {"bucket", pair.Item1.ToString()}, {"key", pair.Item2.ToString()}}).ToList();
-    }
+        if (blobInfo.References != null)
+        {
+            References = blobInfo.References.Select(pair => new Dictionary<string, string> { { "bucket", pair.Item1.ToString() }, { "key", pair.Item2.ToString() } }).ToList();
+        }
+	}
 
     public MongoBlobIndexModelV0(NamespaceId ns, BlobIdentifier blobId)
     {

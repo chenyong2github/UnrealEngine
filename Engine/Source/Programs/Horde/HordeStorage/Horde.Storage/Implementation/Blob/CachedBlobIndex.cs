@@ -21,7 +21,7 @@ public class CachedBlobIndex : IBlobIndex
         _fileSystemStore = fileSystemStore;
     }
 
-    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
     {
         if (await BlobExistsInRegion(ns, id))
         {

@@ -47,21 +47,24 @@ public class ScyllaBlobIndex : IBlobIndex
             new string[] { region }, ns.ToString(), new ScyllaBlobIdentifier(id));
     }
 
-    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
+    public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
     {
         using IScope scope = Tracer.Instance.StartActive("scylla.fetch_blob_index");
         scope.Span.ResourceName = $"{ns}.{id}";
 
-        ScyllaBlobIndexTable? blobIndex =
-            await _mapper.FirstOrDefaultAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?",
-                ns.ToString(), new ScyllaBlobIdentifier(id));
+        bool includeReferences = (flags & BlobIndexFlags.IncludeReferences) != 0;
 
-        if (blobIndex == null)
+        ScyllaBlobIndexTable o;
+        if (includeReferences)
         {
-            return null;
+            o = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexTable>("SELECT namespace, blob_id, regions, references FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
+        }
+        else
+        {
+            o = await _mapper.SingleOrDefaultAsync<ScyllaBlobIndexTable>("SELECT namespace, blob_id, regions FROM blob_index WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
         }
 
-        return blobIndex.ToBlobInfo();
+        return o?.ToBlobInfo();
     }
 
     public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)

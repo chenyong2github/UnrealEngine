@@ -134,14 +134,14 @@ namespace Horde.Storage.Implementation
                     break;
                 }
 
-                BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
+                BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob, BlobIndexFlags.IncludeReferences);
 
                 if (blobIndex == null)
                 {
                     break;
                 }
 
-                foreach ((BucketId, IoHashKey) tuple in blobIndex.References)
+                foreach ((BucketId, IoHashKey) tuple in blobIndex.References!)
                 {
                     try
                     {
