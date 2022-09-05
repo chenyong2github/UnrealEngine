@@ -225,6 +225,15 @@ namespace ELauncherProfileValidationErrors
 		/** Using I/O store container file(s) requires using UnrealPak */
 		IoStoreRequiresPakFiles,
 
+		/** Build Target and Cook Variant mismatch */
+		BuildTargetCookVariantMismatch,
+
+		/** Build Target is required */
+		BuildTargetIsRequired,
+
+		/** FallbackBuild Target is required */
+		FallbackBuildTargetIsRequired,
+
 		Count
 	};
 }
@@ -354,6 +363,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnLauncherProfileDeployedDeviceGroupChanged
 
 /** Delegate type for a change in project */
 DECLARE_MULTICAST_DELEGATE(FOnProfileProjectChanged);
+
+/** Delegate type for a change in build target options */
+DECLARE_MULTICAST_DELEGATE(FOnProfileBuildTargetOptionsChanged);
 
 /** Delegate type for detecting if cook is finished
  *	Used when cooking from the editor.  Specific cook task will wait for the cook to be finished by the editor
@@ -513,12 +525,19 @@ public:
 	virtual EBuildConfiguration GetBuildConfiguration( ) const = 0;
 
 	/**
+	 * Checks whether the profile specifies a build target.
+	 *
+	 * @return true if the profile specifies a build target.
+	 */
+	virtual bool HasBuildTargetSpecified() const = 0;
+
+	/**
 	 * Gets the build target.
 	 *
 	 * @Return Target name to build/run (it would match a .Target.cs file)
 	 * @see SetBuildTarget
 	 */
-	virtual const FString& GetBuildTarget() const = 0;
+	virtual FString GetBuildTarget() const = 0;
 
 	/**
 	 * Gets the build configuration name of the cooker.
@@ -1009,12 +1028,23 @@ public:
 	virtual void SetBuildConfiguration( EBuildConfiguration Configuration ) = 0;
 
 	/**
+	 * Sets whether this profile specfies a build target.
+	 * 
+	 * @param Specified Whether a build target is specified.
+	 */
+	virtual void SetBuildTargetSpecified(bool Specified) = 0;
+
+	/** Notifies the profile that the fallback build target changed. */
+	virtual void FallbackBuildTargetUpdated() = 0;
+
+	/**
 	 * Sets the build target.
 	 *
 	 * @param TargetName The target name to set (it would match a .Target.cs file)
 	 * @see GetBuildTarget
 	 */
 	virtual void SetBuildTarget( const FString& TargetName ) = 0;
+
 	/**
 	 * Sets the build configuration of the cooker.
 	 *
@@ -1303,6 +1333,13 @@ public:
 	virtual FOnProfileProjectChanged& OnProjectChanged() = 0;
 
 	/**
+	 * Access delegate used when build target options change.
+	 * 
+	 * @return The delegate.
+	 */
+	virtual FOnProfileBuildTargetOptionsChanged& OnBuildTargetOptionsChanged() = 0;
+
+	/**
 	 * Sets whether to use I/O store for optimized loading.
 	 * @param bUseIoStore Whether to use I/O store
 	 */
@@ -1349,6 +1386,17 @@ public:
 	 * Whether or not the flash image/software on the device should attempt to be updated before running
 	 */
 	virtual bool ShouldUpdateDeviceFlash() const = 0;
+
+public:
+	/**
+	 * Helper function to get all of the build targets available for this profile, based on its current project & cook platforms
+	 */
+	virtual TArray<FString> GetExplicitBuildTargetNames() const = 0;
+
+	/**
+	 * Whether the profile will require an explicit -target=XXX parameter
+	 */
+	virtual bool RequiresExplicitBuildTargetName() const = 0;
 
 public:
 

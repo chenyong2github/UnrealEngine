@@ -21,6 +21,7 @@
 #include "Widgets/Profile/SProjectLauncherProfileListView.h"
 #include "Widgets/Progress/SProjectLauncherProgress.h"
 #include "Widgets/Project/SProjectLauncherProjectPicker.h"
+#include "Widgets/Shared/SProjectLauncherBuildTargetSelector.h"
 #include "Widgets/Settings/SProjectLauncherSettings.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
@@ -115,6 +116,15 @@ void SProjectLauncher::Construct(const FArguments& InArgs, const TSharedRef<SDoc
 						.Padding(0, 4)
 						[
 							SNew(SProjectLauncherProjectPicker, InModel)
+						]
+
+						// Build Target
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(0,4)
+						[
+							SNew(SProjectLauncherBuildTargetSelector, InModel)
+							.UseProfile(false)
 						]
 
 						// Advanced Button

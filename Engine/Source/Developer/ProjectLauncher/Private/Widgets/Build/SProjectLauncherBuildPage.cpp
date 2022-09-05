@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Shared/SProjectLauncherBuildConfigurationSelector.h"
 #include "Widgets/Shared/SProjectLauncherFormLabel.h"
+#include "Widgets/Shared/SProjectLauncherBuildTargetSelector.h"
 
 
 #define LOCTEXT_NAMESPACE "SProjectLauncherBuildPage"
@@ -117,6 +118,14 @@ void SProjectLauncherBuildPage::Construct(const FArguments& InArgs, const TShare
 									.OnConfigurationSelected(this, &SProjectLauncherBuildPage::HandleBuildConfigurationSelectorConfigurationSelected)
 									.Text(this, &SProjectLauncherBuildPage::HandleBuildConfigurationSelectorText)
 							]
+
+						+ SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								SNew(SProjectLauncherBuildTargetSelector, Model.ToSharedRef())
+									.UseProfile(true)
+							]
+
 					]
 			]
 

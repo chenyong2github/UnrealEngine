@@ -21,6 +21,7 @@
 #include "PlatformInfo.h"
 #include "TargetReceipt.h"
 #include "DesktopPlatformModule.h"
+#include "GameProjectHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLauncherProfile, Log, All);
 
@@ -52,6 +53,7 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_ADDEDREFERENCECONTAINERS = 31,
 	LAUNCHERSERVICES_REMOVEDNUMCOOKERSTOSPAWN = 32,
 	LAUNCHERSERVICES_ADDEDORIGINALRELEASEVERSION = 33,
+	LAUNCHERSERVICES_ADDBUILDTARGETNAME = 34,
 	//ADD NEW STUFF HERE
 
 
@@ -247,6 +249,7 @@ public:
 		, DefaultLaunchRole(MakeShareable(new FLauncherProfileLaunchRole()))
 	{ 
 		SetDefaults();
+		ProjectChangedDelegate.AddRaw(this, &FLauncherProfile::OnSelectedProjectChanged);
 	}
 
 	/**
@@ -261,6 +264,7 @@ public:
 		, Name(InProfileName)
 	{
 		SetDefaults();
+		ProjectChangedDelegate.AddRaw(this, &FLauncherProfile::OnSelectedProjectChanged);
 	}
 
 	/**
@@ -309,6 +313,7 @@ public:
 	{
 		CookedPlatforms.AddUnique(PlatformName);
 
+		RefreshValidBuildTargets();
 		Validate();
 	}
 
@@ -377,6 +382,7 @@ public:
 		{
 			CookedPlatforms.Reset();
 
+			RefreshValidBuildTargets();
 			Validate();
 		}
 	}
@@ -397,9 +403,21 @@ public:
 		return BuildConfiguration;
 	}
 
-	virtual const FString& GetBuildTarget() const override
+	virtual bool HasBuildTargetSpecified() const override
 	{
-		return BuildTargetName;
+		return BuildTargetSpecified;
+	}
+
+	virtual FString GetBuildTarget() const override
+	{
+		if (BuildTargetSpecified)
+		{
+			return BuildTargetName;
+		}
+		else
+		{
+			return LauncherProfileManager->GetBuildTarget();
+		}
 	}
 
 	virtual EBuildConfiguration GetCookConfiguration( ) const override
@@ -891,6 +909,7 @@ public:
 	{
 		CookedPlatforms.Remove(PlatformName);
 
+		RefreshValidBuildTargets();
 		Validate();
 	}
 
@@ -1064,6 +1083,12 @@ public:
 			Archive << OriginalReleaseVersionName;
 		}
 
+		if (Version >= LAUNCHERSERVICES_ADDBUILDTARGETNAME)
+		{
+			Archive << BuildTargetSpecified;
+			Archive << BuildTargetName;
+		}
+
 		else if(Archive.IsLoading())
 		{
 			BuildMode = BuildGame ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
@@ -1104,6 +1129,10 @@ public:
 			SetDefaultDeployPlatform(DefaultDeployPlatform);
 		}
 
+		if (Archive.IsLoading())
+		{
+			RefreshValidBuildTargets();
+		}
 		Validate();
 
 		return true;
@@ -1208,6 +1237,8 @@ public:
 		Writer.WriteValue("IncludePrerequisites", IncludePrerequisites);
 		Writer.WriteValue("UseIoStore", bUseIoStore);
 		Writer.WriteValue("MakeBinaryConfig", bMakeBinaryConfig);
+		Writer.WriteValue("BuildTargetSpecified", BuildTargetSpecified);
+		Writer.WriteValue("BuildTargetName", BuildTargetName);
 
 		// serialize the default launch role
 		DefaultLaunchRole->Save(Writer, TEXT("DefaultRole"));
@@ -1906,6 +1937,12 @@ public:
 			bMakeBinaryConfig = Object.GetBoolField("MakeBinaryConfig");
 		}
 
+		if (Version >= LAUNCHERSERVICES_ADDBUILDTARGETNAME)
+		{
+			BuildTargetSpecified = Object.GetBoolField("BuildTargetSpecified");
+			BuildTargetName = Object.GetStringField("BuildTargetName");
+		}
+
 		// load the default launch role
 		TSharedPtr<FJsonObject> Role = Object.GetObjectField("DefaultRole");
 		DefaultLaunchRole->Load(*(Role.Get()));
@@ -1932,6 +1969,7 @@ public:
 			SetDefaultDeployPlatform(DefaultDeployPlatform);
 		}
 
+		RefreshValidBuildTargets();
 		Validate();
 
 		return true;
@@ -1981,6 +2019,7 @@ public:
 		// default build settings
 		BuildMode = ELauncherProfileBuildModes::Auto;
 		BuildUAT = !FApp::GetEngineIsPromotedBuild() && !FApp::IsEngineInstalled();
+		BuildTargetSpecified = true;
 
 		// default cook settings
 		CookConfiguration = FApp::GetBuildConfiguration();
@@ -2054,6 +2093,7 @@ public:
 		bShouldUpdateFlash = false;
 		bMakeBinaryConfig = false;
 
+		RefreshValidBuildTargets();
 		Validate();
 	}
 
@@ -2096,6 +2136,24 @@ public:
 			Validate();
 		}
 	}
+
+	virtual void SetBuildTargetSpecified(bool Specified) override
+	{
+		if (BuildTargetSpecified != Specified)
+		{
+			BuildTargetSpecified = Specified;
+			Validate();
+		}
+	}
+
+	virtual void FallbackBuildTargetUpdated() override
+	{
+		if (!HasBuildTargetSpecified())
+		{
+			Validate();
+		}
+	}
+
 
 	virtual void SetBuildTarget( const FString& TargetName ) override
 	{
@@ -2394,6 +2452,7 @@ public:
 		{
 			ProjectSpecified = Specified;
 
+			RefreshValidBuildTargets();
 			Validate();
 
 			ProjectChangedDelegate.Broadcast();
@@ -2404,6 +2463,7 @@ public:
 	{
 		if (!HasProjectSpecified())
 		{
+			RefreshValidBuildTargets();
 			Validate();
 
 			ProjectChangedDelegate.Broadcast();
@@ -2437,6 +2497,7 @@ public:
 			}
 			CookedMaps.Reset();
 
+			RefreshValidBuildTargets();
 			Validate();
 
 			ProjectChangedDelegate.Broadcast();
@@ -2508,6 +2569,11 @@ public:
 		return ProjectChangedDelegate;
 	}
 
+	virtual FOnProfileBuildTargetOptionsChanged& OnBuildTargetOptionsChanged() override
+	{
+		return BuildTargetOptionsChangedDelegate;
+	}
+
 	virtual void SetEditorExe( const FString& InEditorExe ) override
 	{
 		EditorExe = InEditorExe;
@@ -2565,6 +2631,17 @@ public:
 	{
 		return bMakeBinaryConfig;
 	}
+
+	virtual TArray<FString> GetExplicitBuildTargetNames() const override
+	{
+		return ExplictBuildTargetNames;
+	}
+
+	virtual bool RequiresExplicitBuildTargetName() const override
+	{
+		return ExplictBuildTargetNames.Num() > 0;
+	}
+
 
 	//~ End ILauncherProfile Interface
 
@@ -2724,6 +2801,7 @@ protected:
 			ValidationErrors.Add(ELauncherProfileValidationErrors::IoStoreRequiresPakFiles);
 		}
 
+		ValidateBuildTarget();
 		ValidatePlatformSDKs();
 		ValidateDeviceStatus();
 	}
@@ -2816,6 +2894,135 @@ protected:
 		}
 	}
 
+	void ValidateBuildTarget()
+	{
+		bool bBuildTargetIsRequired = false;
+		bool bBuildTargetCookVariantMismatch = false;
+
+		FString BuildTarget = GetBuildTarget();
+		TSet<EBuildTargetType> CookTargetTypes = GetCookTargetTypes();
+
+		if (HasProjectSpecified())
+		{
+			if (RequiresExplicitBuildTargetName())
+			{
+				if (CookTargetTypes.Num() > 1 || (!BuildTarget.IsEmpty() && !ExplictBuildTargetNames.Contains(BuildTarget) ) )
+				{
+					// can only build the same Variant (Game, Client, etc) as the selected build target
+					bBuildTargetCookVariantMismatch = true;
+				}
+				else if (BuildTarget.IsEmpty())
+				{
+					// multiple .target.cs files defined of the same Variant - need to specify one
+					bBuildTargetIsRequired = true;
+				}
+			}
+		}		
+		else
+		{
+			// this profile is using the fallback project. Need to check all build targets instead
+			bool bBuildTargetIsCookable = false;
+			bool bVariantRequiresBuildTarget = false;
+
+			const TArray<FTargetInfo>& Targets = FDesktopPlatformModule::Get()->GetTargetsForProject(GetProjectPath());
+			for (const FTargetInfo& Target : Targets)
+			{
+				if (CookTargetTypes.IsEmpty() || CookTargetTypes.Contains(Target.Type))
+				{
+					if (BuildTarget.IsEmpty())
+					{
+						if (LauncherProfileManager->GetAllExplicitBuildTargetNames().Contains(Target.Name))
+						{
+							// a currently selected Variant has multiple .target.cs files - need to specify one
+							bBuildTargetIsRequired = true;
+							break;
+						}
+					}
+					else
+					{
+						if (Target.Name == BuildTarget)
+						{
+							bBuildTargetIsCookable = true;
+							break;
+						}
+					}				
+				}
+			}
+
+			if (!BuildTarget.IsEmpty() && !bBuildTargetIsCookable)
+			{
+				// currently build target does not reference a Variant with multiple .target.cs files
+				bBuildTargetCookVariantMismatch = true;
+			}
+		}
+
+		if (bBuildTargetIsRequired)
+		{
+			if (BuildTargetSpecified)
+			{
+				ValidationErrors.Add(ELauncherProfileValidationErrors::BuildTargetIsRequired);
+			}
+			else
+			{
+				ValidationErrors.Add(ELauncherProfileValidationErrors::FallbackBuildTargetIsRequired);
+			}
+		}
+
+		if (bBuildTargetCookVariantMismatch)
+		{
+			ValidationErrors.Add(ELauncherProfileValidationErrors::BuildTargetCookVariantMismatch);
+		}
+
+	}
+
+
+	void RefreshValidBuildTargets()
+	{
+		TArray<FString> LatestExplicitBuildTargetNames;
+
+		// collect the build targets for the current project, filtered to what we are currently wanting to cook. Do not show fallback project's build targets
+		if (HasProjectSpecified())
+		{
+			TSet<EBuildTargetType> CookTargetTypes = GetCookTargetTypes();
+			LatestExplicitBuildTargetNames = FGameProjectHelper::GetExplicitBuildTargetsForProject( GetProjectPath(), &CookTargetTypes );
+		}
+
+		// notify listeners if the explicitly-required build targets have changed
+		if (ExplictBuildTargetNames != LatestExplicitBuildTargetNames)
+		{
+			ExplictBuildTargetNames = LatestExplicitBuildTargetNames;
+			BuildTargetOptionsChangedDelegate.Broadcast();
+		}
+	}
+
+
+	TSet<EBuildTargetType> GetCookTargetTypes() const
+	{
+		TSet<EBuildTargetType> CookTargetTypes;
+		for ( const FString& Variant : GetCookedPlatforms() )
+		{
+			if (Variant.EndsWith(TEXT("Client")))
+			{
+				CookTargetTypes.Add(EBuildTargetType::Client);
+			}
+			else if (Variant.EndsWith(TEXT("Server")))
+			{
+				CookTargetTypes.Add(EBuildTargetType::Server);
+			}
+			else if (Variant.EndsWith(TEXT("Editor")))
+			{
+				CookTargetTypes.Add(EBuildTargetType::Editor);
+			}
+			else
+			{
+				CookTargetTypes.Add(EBuildTargetType::Game);
+			}
+		}
+
+		return MoveTemp(CookTargetTypes);
+	}
+
+
 	void OnLauncherDeviceGroupDeviceAdded(const ILauncherDeviceGroupRef& DeviceGroup, const FString& DeviceId)
 	{
 		if( DeviceGroup == DeployedDeviceGroup )
@@ -2832,6 +3039,14 @@ protected:
 		}
 	}
 
+	void OnSelectedProjectChanged()
+	{
+		RefreshValidBuildTargets();
+
+		BuildTargetName.Empty();
+		BuildTargetSpecified = ProjectSpecified; // if this is for 'Any Project' then it should use the fallback build target
+	}
+
 private:
 
 	//  Holds a reference to the launcher profile manager.
@@ -2839,6 +3054,9 @@ private:
 
 	// Holds the desired build configuration (only used if creating new builds).
 	EBuildConfiguration BuildConfiguration;
+
+	// Holds a flag indicating whether the build target is specified by this profile.
+	bool BuildTargetSpecified;
 
 	// Holds the name of the target (matching a .cs file) to build. Needed when multiple targets of a type exist
 	FString BuildTargetName;
@@ -3052,4 +3270,10 @@ private:
 
 	// Holds a delegate to be invoked when the project has changed
 	FOnProfileProjectChanged ProjectChangedDelegate;
+
+	// Holds a delegate to be invoked when the project build target options have changed
+	FOnProfileBuildTargetOptionsChanged BuildTargetOptionsChangedDelegate;
+
+	// Cached build target options (not serialized)
+	TArray<FString> ExplictBuildTargetNames;
 };

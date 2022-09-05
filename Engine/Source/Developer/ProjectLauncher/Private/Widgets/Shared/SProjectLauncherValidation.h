@@ -176,6 +176,21 @@ public:
 				MakeValidationMessage(TEXT("Icons.Error"), LOCTEXT("IoStoreRequiresPakFilesError", "UnrealPak must be selected when using I/O store container file(s)").ToString(), ELauncherProfileValidationErrors::IoStoreRequiresPakFiles)
 			];
 
+		VertBox->AddSlot().AutoHeight()
+			[
+				MakeValidationMessage(TEXT("Icons.Error"), LOCTEXT("BuildTargetCookVariantMismatch", "Build Target and Cook Variant mismatch.").ToString(), ELauncherProfileValidationErrors::BuildTargetCookVariantMismatch)
+			];
+
+		VertBox->AddSlot().AutoHeight()
+			[
+				MakeValidationMessage(TEXT("Icons.Error"), LOCTEXT("BuildTargetIsRequired", "This profile requires an explicit Build Target set.").ToString(), ELauncherProfileValidationErrors::BuildTargetIsRequired)
+			];
+
+		VertBox->AddSlot().AutoHeight()
+			[
+				MakeValidationMessage(TEXT("Icons.Error"), LOCTEXT("FallbackBuildTargetIsRequired", "An explicit Default Build Target is required for the selected Variant.").ToString(), ELauncherProfileValidationErrors::FallbackBuildTargetIsRequired)
+			];
+
 		check(VertBox->NumSlots() == ELauncherProfileValidationErrors::Count);
 
 		ChildSlot[VertBox.ToSharedRef()];

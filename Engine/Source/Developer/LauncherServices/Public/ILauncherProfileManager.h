@@ -43,6 +43,13 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnLauncherProfileManagerProfileAdded, const
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLauncherProfileManagerProfileRemoved, const ILauncherProfileRef&);
 
+
+/**
+ * Declares a delegate to be invoked when the project is changed.
+ *
+ */
+DECLARE_MULTICAST_DELEGATE(FOnLauncherProfileManagerProjectChanged);
+
 /** Type definition for shared references to instances of ILauncherProfile. */
 typedef TSharedPtr<class ILauncherProfileWizard> ILauncherProfileWizardPtr;
 
@@ -333,6 +340,24 @@ public:
 public:
 
 	/**
+	 * Gets the default build target to use.
+	 */
+	virtual FString GetBuildTarget() const = 0;
+	
+	/**
+	 * Sets the default buid target to use.
+	 */
+	virtual void SetBuildTarget( const FString& InBuildTarget ) = 0;
+	
+	/**
+	 * Return a list of all build build targets for the current project that need to be specified explicitly via -target=
+	 * If a build target isn't in the list, it does not need to be specified (and BuildTarget can be an empty string)
+	 */
+	virtual const TArray<FString>& GetAllExplicitBuildTargetNames() const = 0;
+
+public:
+
+	/**
 	 * Returns a delegate that is invoked when a device group was added.
 	 *
 	 * @return The delegate.
@@ -359,6 +384,15 @@ public:
 	 * @return The delegate.
 	 */
 	virtual FOnLauncherProfileManagerProfileRemoved& OnProfileRemoved( ) = 0;
+	
+
+	/**
+	 * Returns a delegate that is invoked when the project is changed.
+	 *
+	 * @return The delegate.
+	 */
+	virtual FOnLauncherProfileManagerProjectChanged& OnProjectChanged( ) = 0;
+	
 
 public:
 

@@ -133,7 +133,7 @@ public:
 		{
 			if (Profile != SelectedProfile)
 			{
-				TSharedPtr<ILauncherProfile>& PreviousProfile = SelectedProfile;
+				TSharedPtr<ILauncherProfile> PreviousProfile = SelectedProfile;
 				SelectedProfile = Profile;
 
 				ProfileSelectedDelegate.Broadcast(Profile, PreviousProfile);

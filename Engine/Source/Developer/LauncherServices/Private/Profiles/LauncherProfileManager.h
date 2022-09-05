@@ -80,6 +80,11 @@ public:
 		return ProfileRemovedDelegate;
 	}
 
+	virtual FOnLauncherProfileManagerProjectChanged& OnProjectChanged( ) override
+	{
+		return ProjectChangedDelegate;
+	}
+
 	virtual void RemoveDeviceGroup( const ILauncherDeviceGroupRef& DeviceGroup ) override;
 
 	virtual void SaveDeviceGroups() override;
@@ -109,6 +114,12 @@ public:
 	virtual FString GetProjectPath() const override;
 
 	virtual void SetProjectPath(const FString& InProjectPath) override;
+
+	virtual FString GetBuildTarget() const override;
+
+	virtual void SetBuildTarget( const FString& InBuildTarget ) override;
+
+	virtual const TArray<FString>& GetAllExplicitBuildTargetNames() const override;
 
 	//~ End ILauncherProfileManager Interface
 
@@ -171,6 +182,12 @@ private:
 
 	// Holds the currently selected project path
 	FString ProjectPath;
+
+	// Holds the currently selected build target
+	FString BuildTarget;
+
+	// Holds the current explicit build targets
+	TArray<FString> ExplicitBuildTargets;
 	
 	// Holds all registered profile wizards
 	TArray<ILauncherProfileWizardPtr> ProfileWizards;
@@ -188,5 +205,8 @@ private:
 
 	// Holds a delegate to be invoked when a launcher profile was removed.
 	FOnLauncherProfileManagerProfileRemoved ProfileRemovedDelegate;
+	
+	// Holds a delegate to be invoked when the project changes.
+	FOnLauncherProfileManagerProjectChanged ProjectChangedDelegate;	
 
 };

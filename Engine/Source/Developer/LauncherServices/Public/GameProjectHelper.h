@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
+#include "DesktopPlatformModule.h"
 
 /**
  * Implements a helper class for finding project specific information.
@@ -128,5 +129,53 @@ public:
 		}
 
 		return false;
+	}
+
+	/**
+	 * Returns the list of build targets that must be explicitly specified for the given project.
+	 * @param InProjectFilePath - the project to use
+	 * @param InFilterTargetTypes - if specified, the returned list will be restricted to the given target types.
+	 */
+	static TArray<FString> GetExplicitBuildTargetsForProject( const FString& InProjectFilePath, const TSet<EBuildTargetType>* InFilterTargetTypes = nullptr )
+	{
+		TArray<FString> ExplicitBuildTargetNames;
+
+		if (!InProjectFilePath.IsEmpty())
+		{
+			// ignore the filter if it's empty
+			if (InFilterTargetTypes != nullptr && InFilterTargetTypes->Num() == 0)
+			{
+				InFilterTargetTypes = nullptr;
+			}
+
+			// collect the build targets for the given project
+			TMap<EBuildTargetType,TArray<FString>> BuildTargetNamesByType;
+			const TArray<FTargetInfo>& Targets = FDesktopPlatformModule::Get()->GetTargetsForProject(InProjectFilePath);
+			for (const FTargetInfo& Target : Targets)
+			{
+				if (Target.Type != EBuildTargetType::Game && Target.Type != EBuildTargetType::Client && Target.Type != EBuildTargetType::Server)
+				{
+					continue;
+				}
+				
+				if (InFilterTargetTypes != nullptr && !InFilterTargetTypes->Contains(Target.Type) )
+				{
+					continue;
+				}
+
+				BuildTargetNamesByType.FindOrAdd(Target.Type).Add(Target.Name);
+			}
+
+			// create a list of build targets that need to be specified explicitly (because there is more than one of the same type)
+			for (auto& Itr : BuildTargetNamesByType)
+			{
+				if (Itr.Value.Num() > 1)
+				{
+					ExplicitBuildTargetNames.Append(Itr.Value);
+				}
+			}
+		}
+
+		return MoveTemp(ExplicitBuildTargetNames);
 	}
 };

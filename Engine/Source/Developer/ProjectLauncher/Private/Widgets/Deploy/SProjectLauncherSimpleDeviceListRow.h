@@ -88,6 +88,8 @@ public:
 		SimpleProfile = Model->GetProfileManager()->FindOrAddSimpleProfile(DeviceProxy->GetName());
 
 		LaunchProfile = Model->GetProfileManager()->CreateUnsavedProfile(DeviceProxy->GetName());
+		LaunchProfile->SetProjectSpecified(false); // device launch profiles should always use the fallback project & build target
+		LaunchProfile->SetBuildTargetSpecified(false);
 		UpdateProfile();
 
 		TSharedRef<SUniformGridPanel> NameGrid = SNew(SUniformGridPanel).SlotPadding(FMargin(0.0f, 1.0f));
