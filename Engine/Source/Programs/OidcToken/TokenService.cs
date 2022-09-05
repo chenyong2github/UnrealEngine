@@ -44,12 +44,12 @@ namespace OidcToken
 				catch (UnableToAllocateTokenException)
 				{
 					Logger.LogWarning("Was unable to allocate a token");
-					ExitCode = -1337;
+					ExitCode = 10;
 				}
 				catch (Exception ex)
 				{
 					Logger.LogError(ex, "Unhandled exception!");
-					ExitCode = -1;
+					ExitCode = 1;
 				}
 				finally
 				{
