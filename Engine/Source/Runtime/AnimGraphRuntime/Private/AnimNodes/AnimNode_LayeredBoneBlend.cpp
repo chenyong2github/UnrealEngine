@@ -182,11 +182,6 @@ void FAnimNode_LayeredBoneBlend::Update_AnyThread(const FAnimationUpdateContext&
 			}
 		}
 	}
-	else
-	{
-		// Clear BlendWeights if disabled by LODThreshold.
-		BlendWeights.Init(0.f, BlendWeights.Num());
-	}
 
 	// initialize children
 	const float BaseRootMotionWeight = 1.f - RootMotionWeight;
