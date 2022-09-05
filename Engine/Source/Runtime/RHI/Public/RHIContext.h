@@ -17,6 +17,7 @@
 #include "Math/Float16Color.h"
 #include "Modules/ModuleInterface.h"
 #include "RHIBreadcrumbs.h"
+#include "RHIResources.h"
 
 class FRHIDepthRenderTargetView;
 class FRHIRenderTargetView;
