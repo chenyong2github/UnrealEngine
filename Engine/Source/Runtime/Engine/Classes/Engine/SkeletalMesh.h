@@ -2439,6 +2439,11 @@ public:
 	/** Recalculate Retarget Base Pose BoneTransform */
 	void ReallocateRetargetBasePose();
 
+	/**
+	 *	Add a skeletal socket object to this SkeletalMesh, and optionally promotes it to USkeleton socket.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void AddSocket(USkeletalMeshSocket* InSocket, bool bAddToSkeleton=false);
 #endif // WITH_EDITOR
 
 	/** 
