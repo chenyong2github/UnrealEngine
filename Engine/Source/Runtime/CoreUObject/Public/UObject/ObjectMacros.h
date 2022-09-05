@@ -65,7 +65,7 @@ enum ELoadFlags
 //	LOAD_Unused						= 0x00000040
 	LOAD_NoVerify					= 0x00000080,   ///< Don't verify imports yet.
 	LOAD_IsVerifying				= 0x00000100,	///< Is verifying imports
-//	LOAD_Unused						= 0x00000200,
+	LOAD_SkipLoadImportedPackages	= 0x00000200,	///< Assume that all import packages are already loaded and don't call LoadPackage when creating imports 
 //	LOAD_Unused						= 0x00000400,
 //	LOAD_Unused						= 0x00000800,
 	LOAD_DisableDependencyPreloading = 0x00001000,	///< Bypass dependency preloading system

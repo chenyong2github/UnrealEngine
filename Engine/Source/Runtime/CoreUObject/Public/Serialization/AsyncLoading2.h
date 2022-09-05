@@ -340,12 +340,6 @@ struct FExportMapEntry
 
 COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages);
 
-#ifndef WITH_ASYNCLOADING2
-#define WITH_ASYNCLOADING2 (WITH_IOSTORE_IN_EDITOR || !WITH_EDITORONLY_DATA)
-#endif
-
-#if WITH_ASYNCLOADING2
-
 /**
  * Creates a new instance of the AsyncPackageLoader #2.
  *
@@ -354,5 +348,3 @@ COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages
  * @return The async package loader.
  */
 IAsyncPackageLoader* MakeAsyncPackageLoader2(FIoDispatcher& InIoDispatcher, IAsyncPackageLoader* UncookedPackageLoader = nullptr);
-
-#endif

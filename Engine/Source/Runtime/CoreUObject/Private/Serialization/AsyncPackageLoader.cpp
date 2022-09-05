@@ -185,22 +185,35 @@ void SetAsyncLoadingAllowed(bool bAllowAsyncLoading)
 void InitAsyncThread()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
-#if WITH_ASYNCLOADING2
 	if (FIoDispatcher::IsInitialized())
 	{
+		bool bSettingsEnabled = false;
+		bool bCommandLineEnabled = false;
+		bool bHasUseIoStoreParamInEditor = false;
+#if WITH_EDITOR
+		bCommandLineEnabled = FParse::Param(FCommandLine::Get(), TEXT("ZenLoader"));
+		check(GConfig);
+		GConfig->GetBool(TEXT("/Script/Engine.EditorStreamingSettings"), TEXT("s.ZenLoaderEnabled"), bSettingsEnabled, GEngineIni);
+		bHasUseIoStoreParamInEditor = FParse::Param(FCommandLine::Get(), TEXT("UseIoStore"));
+#endif
 		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 		bool bHasScriptObjectsChunk = IoDispatcher.DoesChunkExist(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects));
-		bool bHasUseIoStoreParamInEditor = WITH_EDITOR && FParse::Param(FCommandLine::Get(), TEXT("UseIoStore"));
-		if (bHasScriptObjectsChunk || bHasUseIoStoreParamInEditor)
+		if (bSettingsEnabled || bCommandLineEnabled)
 		{
-#if WITH_EDITOR
-			GPackageLoader = MakeEditorPackageLoader(IoDispatcher);
-#else
 			GPackageLoader.Reset(MakeAsyncPackageLoader2(IoDispatcher));
-#endif
 		}
-	}
+#if WITH_EDITOR
+		else if (bHasScriptObjectsChunk || bHasUseIoStoreParamInEditor)
+		{
+			GPackageLoader = MakeEditorPackageLoader(IoDispatcher);
+		}
+#else
+		else if (bHasScriptObjectsChunk)
+		{
+			GPackageLoader.Reset(MakeAsyncPackageLoader2(IoDispatcher));
+		}
 #endif
+	}
 	if (!GPackageLoader.IsValid())
 	{
 		GPackageLoader = MakeUnique<FAsyncLoadingThread>(/** ThreadIndex = */ 0);

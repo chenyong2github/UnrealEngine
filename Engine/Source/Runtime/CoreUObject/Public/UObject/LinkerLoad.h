@@ -120,6 +120,7 @@ class FLinkerLoad
 	friend class UPackageMap;
 	friend struct FAsyncPackage;
 	friend struct FAsyncPackage2;
+	friend class FAsyncLoadingThread2;
 	friend struct FResolvingExportTracker;
 protected:
 	/** Linker loading status. */
@@ -1067,6 +1068,8 @@ protected: // Daniel L: Made this protected so I can override the constructor an
 		TFunction<void()>&& InSummaryReadyCallback
 	);
 private:
+	ELinkerStatus ProcessPackageSummary(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap);
+
 	/**
 	 * Start the process of serializing the package file summary if needed
 	 */

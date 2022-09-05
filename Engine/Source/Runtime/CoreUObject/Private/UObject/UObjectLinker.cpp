@@ -105,6 +105,13 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 {
 	FLinkerIndexPair Existing = LinkerAnnotation.GetAnnotation(this);
 	Existing.CheckInvariants();
+
+	if (Existing.Linker == LinkerLoad && Existing.LinkerIndex == LinkerIndex)
+	{
+		// Nothing to do
+		return;
+	}
+
 	// Detach from existing linker.
 	if( Existing.Linker && bShouldDetachExisting )
 	{

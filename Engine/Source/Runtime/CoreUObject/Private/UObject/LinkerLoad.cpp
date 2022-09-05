@@ -699,6 +699,116 @@ FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
 	return FUObjectThreadContext::Get().GetSerializeContext();
 }
 
+FLinkerLoad::ELinkerStatus FLinkerLoad::ProcessPackageSummary(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap)
+{
+	ELinkerStatus Status = LINKER_Loaded;
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializePackageFileSummary);
+		Status = SerializePackageFileSummary();
+	}
+
+	// Serialize the header for the package trailer
+	if (Status == LINKER_Loaded)
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializePackageTrailer);
+		Status = SerializePackageTrailer();
+	}
+
+	// Serialize the name map and register the names.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap);
+		Status = SerializeNameMap();
+	}
+
+	// Serialize the gatherable text data map.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeGatherableTextDataMap);
+		Status = SerializeGatherableTextDataMap();
+	}
+
+	// Serialize the import map.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeImportMap);
+		Status = SerializeImportMap();
+	}
+
+	// Serialize the export map.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeExportMap);
+		Status = SerializeExportMap();
+	}
+
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	// Construct the exports readers
+	if (Status == LINKER_Loaded)
+	{
+		SCOPED_LOADTIMER(LinkerLoad_ConstructExportsReaders);
+		Status = ConstructExportsReaders();
+	}
+#endif
+
+	// Fix up import map for backward compatible serialization.
+	if( Status == LINKER_Loaded )
+	{	
+		SCOPED_LOADTIMER(LinkerLoad_FixupImportMap);
+		Status = FixupImportMap();
+	}
+
+	// Populate the linker instancing context for instance loading if needed.
+	if (Status == LINKER_Loaded)
+	{
+		SCOPED_LOADTIMER(LinkerLoad_PopulateInstancingContext);
+		Status = PopulateInstancingContext();
+	}
+
+	// Fix up export map for object class conversion 
+	if( Status == LINKER_Loaded )
+	{	
+		SCOPED_LOADTIMER(LinkerLoad_FixupExportMap);
+		Status = FixupExportMap();
+	}
+
+	// Serialize the dependency map.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeDependsMap);
+		Status = SerializeDependsMap();
+	}
+
+	// Hash exports.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_CreateExportHash);
+		Status = CreateExportHash();
+	}
+
+	// Find existing objects matching exports and associate them with this linker.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_FindExistingExports);
+		Status = FindExistingExports();
+	}
+
+	if (Status == LINKER_Loaded)
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializePreloadDependencies);
+		Status = SerializePreloadDependencies();
+	}
+
+	// Finalize creation process.
+	if( Status == LINKER_Loaded )
+	{
+		SCOPED_LOADTIMER(LinkerLoad_FinalizeCreation);
+		Status = FinalizeCreation(ObjectNameWithOuterToExportMap);
+	}
+
+	return Status;
+}
+
 /**
  * Ticks an in-flight linker and spends InTimeLimit seconds on creation. This is a soft time limit used
  * if bInUseTimeLimit is true.
@@ -743,107 +853,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 			// Serialize the package file summary and presize the various arrays (name, import & export map)
 			if (bCanSerializePackageFileSummary)
 			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializePackageFileSummary);
-				Status = SerializePackageFileSummary();
-			}
-
-			// Serialize the header for the package trailer
-			if (Status == LINKER_Loaded)
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializePackageTrailer);
-				Status = SerializePackageTrailer();
-			}
-
-			// Serialize the name map and register the names.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializeNameMap);
-				Status = SerializeNameMap();
-			}
-
-			// Serialize the gatherable text data map.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializeGatherableTextDataMap);
-				Status = SerializeGatherableTextDataMap();
-			}
-
-			// Serialize the import map.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializeImportMap);
-				Status = SerializeImportMap();
-			}
-
-			// Serialize the export map.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializeExportMap);
-				Status = SerializeExportMap();
-			}
-
-#if WITH_TEXT_ARCHIVE_SUPPORT
-			// Construct the exports readers
-			if (Status == LINKER_Loaded)
-			{
-				SCOPED_LOADTIMER(LinkerLoad_ConstructExportsReaders);
-				Status = ConstructExportsReaders();
-			}
-#endif
-
-			// Fix up import map for backward compatible serialization.
-			if( Status == LINKER_Loaded )
-			{	
-				SCOPED_LOADTIMER(LinkerLoad_FixupImportMap);
-				Status = FixupImportMap();
-			}
-
-			// Populate the linker instancing context for instance loading if needed.
-			if (Status == LINKER_Loaded)
-			{
-				SCOPED_LOADTIMER(LinkerLoad_PopulateInstancingContext);
-				Status = PopulateInstancingContext();
-			}
-
-			// Fix up export map for object class conversion 
-			if( Status == LINKER_Loaded )
-			{	
-				SCOPED_LOADTIMER(LinkerLoad_FixupExportMap);
-				Status = FixupExportMap();
-			}
-
-			// Serialize the dependency map.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializeDependsMap);
-				Status = SerializeDependsMap();
-			}
-
-			// Hash exports.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_CreateExportHash);
-				Status = CreateExportHash();
-			}
-
-			// Find existing objects matching exports and associate them with this linker.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_FindExistingExports);
-				Status = FindExistingExports();
-			}
-
-			if (Status == LINKER_Loaded)
-			{
-				SCOPED_LOADTIMER(LinkerLoad_SerializePreloadDependencies);
-				Status = SerializePreloadDependencies();
-			}
-
-			// Finalize creation process.
-			if( Status == LINKER_Loaded )
-			{
-				SCOPED_LOADTIMER(LinkerLoad_FinalizeCreation);
-				Status = FinalizeCreation(ObjectNameWithOuterToExportMap);
+				Status = ProcessPackageSummary(ObjectNameWithOuterToExportMap);
 			}
 		}
 		// Loop till we are done if no time limit is specified, or loop until the real time limit is up if we want to use full time
@@ -3076,6 +3086,15 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// In the other case we do not want to trigger another load of the objects in that import, in case they contain dependencies to the package we are currently loading
 		// and the current loader doesn't have the LOAD_DeferDependencyLoads flag
 		Package = FindObjectFast<UPackage>(nullptr, PackageToLoadInto);
+		if (LoadFlags & LOAD_SkipLoadImportedPackages)
+		{
+			if (!Package)
+			{
+				return nullptr;
+			}
+			Import.SourceLinker = FindExistingLinkerForPackage(Package);
+			return Package;
+		}
 		if (Package == nullptr || !Package->IsFullyLoaded())
 		{
 			{
