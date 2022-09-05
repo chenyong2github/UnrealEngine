@@ -83,9 +83,14 @@ namespace Horde.Build.Streams
 		public string? TriageChannel { get; set; }
 
 		/// <summary>
-		/// Default template for running preflights
+		/// Legacy name for the default preflight template
 		/// </summary>
-		public string? DefaultPreflightTemplate { get; set; }
+		[Obsolete("Use DefaultPreflight instead")]
+		public string? DefaultPreflightTemplate
+		{
+			get => DefaultPreflight?.TemplateId?.ToString();
+			set => DefaultPreflight = (value == null)? null : new DefaultPreflightConfig { TemplateId = new TemplateRefId(value) };
+		}
 
 		/// <summary>
 		/// Default template for running preflights
@@ -281,7 +286,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// The template id to query
 		/// </summary>
-		public string? TemplateId { get; set; }
+		public TemplateRefId? TemplateId { get; set; }
 
 		/// <summary>
 		/// The target to query
@@ -292,22 +297,6 @@ namespace Horde.Build.Streams
 		/// Whether to match a job that produced warnings
 		/// </summary>
 		public List<JobStepOutcome>? Outcomes { get; set; }
-
-		/// <summary>
-		/// Convert to a model object
-		/// </summary>
-		/// <returns></returns>
-		public ChangeQuery ToModel()
-		{
-			ChangeQuery query = new ChangeQuery();
-			if (TemplateId != null)
-			{
-				query.TemplateRefId = new StringId<TemplateRef>(TemplateId);
-			}
-			query.Target = Target;
-			query.Outcomes = Outcomes;
-			return query;
-		}
 	}
 
 	/// <summary>
@@ -318,34 +307,12 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// The template id to query
 		/// </summary>
-		public string? TemplateId { get; set; }
-
-		/// <summary>
-		/// The last successful job type to use for the base changelist
-		/// </summary>
-		[Obsolete("Use Change.TemplateId instead")]
-		public string? ChangeTemplateId { get; set; }
+		public TemplateRefId? TemplateId { get; set; }
 
 		/// <summary>
 		/// Query for the change to use
 		/// </summary>
 		public ChangeQueryConfig? Change { get; set; }
-
-		/// <summary>
-		/// Convert to a model object
-		/// </summary>
-		/// <returns></returns>
-		public DefaultPreflight ToModel()
-		{
-#pragma warning disable CS0618 // Type or member is obsolete
-			if (ChangeTemplateId != null)
-			{
-				Change ??= new ChangeQueryConfig();
-				Change.TemplateId = ChangeTemplateId;
-			}
-			return new DefaultPreflight((TemplateId != null) ? (TemplateRefId?)new TemplateRefId(TemplateId) : null, Change?.ToModel());
-#pragma warning restore CS0618 // Type or member is obsolete
-		}
 	}
 
 	/// <summary>

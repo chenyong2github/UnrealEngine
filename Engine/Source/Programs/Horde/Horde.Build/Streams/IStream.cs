@@ -228,90 +228,6 @@ namespace Horde.Build.Streams
 	}
 
 	/// <summary>
-	/// Query used to identify a base changelist for a preflight
-	/// </summary>
-	public class ChangeQuery
-	{
-		/// <summary>
-		/// Template to search for
-		/// </summary>
-		public TemplateRefId? TemplateRefId { get; set; }
-
-		/// <summary>
-		/// The target to look at the status for
-		/// </summary>
-		public string? Target { get; set; }
-
-		/// <summary>
-		/// Whether to match a job that contains warnings
-		/// </summary>
-		public List<JobStepOutcome>? Outcomes { get; set; }
-
-		/// <summary>
-		/// Convert to a request object
-		/// </summary>
-		/// <returns></returns>
-		public ChangeQueryConfig ToRequest()
-		{
-			return new ChangeQueryConfig { TemplateId = TemplateRefId?.ToString(), Target = Target, Outcomes = Outcomes };
-		}
-	}
-
-	/// <summary>
-	/// Definition of a query to execute to find the changelist to run a build at
-	/// </summary>
-	public class DefaultPreflight
-	{
-		/// <summary>
-		/// The template id to execute
-		/// </summary>
-		public TemplateRefId? TemplateRefId { get; set; }
-
-		/// <summary>
-		/// Query specifying a changelist to use
-		/// </summary>
-		public ChangeQuery? Change { get; set; }
-
-		/// <summary>
-		/// The job type to query for the change to use
-		/// </summary>
-		[Obsolete("Use Change.TemplateRefId instead")]
-		public TemplateRefId? ChangeTemplateRefId { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="templateRefId"></param>
-		/// <param name="change">The job type to query for the change to use</param>
-		public DefaultPreflight(TemplateRefId? templateRefId, ChangeQuery? change)
-		{
-			TemplateRefId = templateRefId;
-			Change = change;
-		}
-
-		/// <summary>
-		/// Convert to a request object
-		/// </summary>
-		/// <returns></returns>
-		public DefaultPreflightConfig ToRequest()
-		{
-#pragma warning disable CS0618 // Type or member is obsolete
-			ChangeQueryConfig? changeRequest = null;
-			if (Change != null)
-			{
-				changeRequest = Change.ToRequest();
-			}
-			else if (ChangeTemplateRefId != null)
-			{
-				changeRequest = new ChangeQueryConfig { TemplateId = ChangeTemplateRefId.ToString() };
-			}
-
-			return new DefaultPreflightConfig { TemplateId = TemplateRefId?.ToString(), Change = changeRequest, ChangeTemplateId = changeRequest?.TemplateId };
-#pragma warning restore CS0618 // Type or member is obsolete
-		}
-	}
-
-	/// <summary>
 	/// Extension methods for template refs
 	/// </summary>
 	static class TemplateRefExtensions
@@ -361,11 +277,6 @@ namespace Horde.Build.Streams
 		/// Whether this stream has been deleted
 		/// </summary>
 		public bool Deleted { get; }
-
-		/// <summary>
-		/// Default template to use for preflights
-		/// </summary>
-		public DefaultPreflight? DefaultPreflight { get; }
 
 		/// <summary>
 		/// List of pages to display in the dashboard
@@ -478,7 +389,7 @@ namespace Horde.Build.Streams
 			Dictionary<string, AgentConfig> apiAgentTypes = stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value);
 			Dictionary<string, WorkspaceConfig> apiWorkspaceTypes = stream.Config.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value);
 			GetAclResponse? apiAcl = (bIncludeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
-			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Config.Order, stream.Config.NotificationChannel, stream.Config.NotificationChannelFilter, stream.Config.TriageChannel, stream.DefaultPreflight?.ToRequest(), apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
+			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Config.Order, stream.Config.NotificationChannel, stream.Config.NotificationChannelFilter, stream.Config.TriageChannel, stream.Config.DefaultPreflight, apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
 		}
 
 		/// <summary>

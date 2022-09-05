@@ -88,7 +88,7 @@ namespace Horde.Build.Jobs
 			}
 
 			// Get the name of the template ref
-			TemplateRefId templateRefId = new TemplateRefId(create.TemplateId);
+			TemplateRefId templateRefId = create.TemplateId;
 
 			// Augment the request with template properties
 			TemplateRef? templateRef;
@@ -113,7 +113,7 @@ namespace Horde.Build.Jobs
 
 			// Get the name of the new job
 			string name = create.Name ?? template.Name;
-			if (create.TemplateId.Equals("stage-to-marketplace", StringComparison.Ordinal) && create.Arguments != null)
+			if (create.TemplateId == new TemplateRefId("stage-to-marketplace") && create.Arguments != null)
 			{
 				foreach (string argument in create.Arguments)
 				{
@@ -140,7 +140,7 @@ namespace Horde.Build.Jobs
 			}
 			else if (create.ChangeQuery != null)
 			{
-				change = await ExecuteChangeQueryAsync(stream, new TemplateRefId(create.ChangeQuery.TemplateId ?? create.TemplateId), create.ChangeQuery.Target, create.ChangeQuery.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success });
+				change = await ExecuteChangeQueryAsync(stream, create.ChangeQuery.TemplateId ?? create.TemplateId, create.ChangeQuery.Target, create.ChangeQuery.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success });
 			}
 			else if (create.PreflightChange == null && template.SubmitNewChange != null)
 			{

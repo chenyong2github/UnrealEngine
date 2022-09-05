@@ -49,7 +49,6 @@ namespace Horde.Build.Streams
 			[BsonIgnore]
 			public StreamConfig? Config { get; set; }
 
-			public DefaultPreflight? DefaultPreflight { get; set; }
 			public List<StreamTab> Tabs { get; set; } = new List<StreamTab>();
 			public Dictionary<TemplateRefId, TemplateRef> Templates { get; set; } = new Dictionary<TemplateRefId, TemplateRef>();
 			public DateTime? PausedUntil { get; set; }
@@ -140,22 +139,16 @@ namespace Horde.Build.Streams
 			List<StreamTab> tabs = config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
 			Dictionary<TemplateRefId, TemplateRef> templateRefs = await CreateTemplateRefsAsync(config.Templates, stream, _templateCollection);
 
-			DefaultPreflight? defaultPreflight = config.DefaultPreflight?.ToModel();
-			if (defaultPreflight == null && config.DefaultPreflightTemplate != null)
-			{
-				defaultPreflight = new DefaultPreflight(new TemplateRefId(config.DefaultPreflightTemplate), null);
-			}
-
-			Validate(id, defaultPreflight, templateRefs, tabs, config);
+			Validate(id, templateRefs, tabs, config);
 
 			Acl? acl = Acl.Merge(new Acl(), config.Acl);
 			if (stream == null)
 			{
-				return await TryCreateAsync(id, projectId, revision, config, defaultPreflight, tabs, templateRefs, acl);
+				return await TryCreateAsync(id, projectId, revision, config, tabs, templateRefs, acl);
 			}
 			else
 			{
-				return await TryReplaceAsync(stream, projectId, revision, config, defaultPreflight, tabs, templateRefs, acl);
+				return await TryReplaceAsync(stream, projectId, revision, config, tabs, templateRefs, acl);
 			}
 		}
 
@@ -318,12 +311,11 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
+		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
 		{
 			StreamDocument newStream = new StreamDocument(id, projectId);
 			newStream.ConfigRevision = configRevision;
 			newStream.Config = config;
-			newStream.DefaultPreflight = defaultPreflight;
 			newStream.Tabs = tabs;
 			newStream.Templates = templateRefs;
 			newStream.Acl = acl;
@@ -347,7 +339,7 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
+		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
 		{
 			int order = config.Order;
 
@@ -358,7 +350,6 @@ namespace Horde.Build.Streams
 			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
 			updates.Add(updateBuilder.Set(x => x.ProjectId, projectId));
 			updates.Add(updateBuilder.Set(x => x.ConfigRevision, configRevision));
-			updates.Add(updateBuilder.Set(x => x.DefaultPreflight, defaultPreflight));
 			updates.Add(updateBuilder.Set(x => x.Tabs, tabs ?? new List<StreamTab>()));
 			updates.Add(updateBuilder.Set(x => x.Templates, templateRefs ?? new Dictionary<TemplateRefId, TemplateRef>()));
 			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.Acl, acl));
@@ -485,14 +476,14 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Checks the stream definition for consistency
 		/// </summary>
-		public static void Validate(StreamId streamId, DefaultPreflight? defaultPreflight, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, IReadOnlyList<StreamTab> tabs, StreamConfig config)
+		public static void Validate(StreamId streamId, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, IReadOnlyList<StreamTab> tabs, StreamConfig config)
 		{
 			// Check the default preflight template is valid
-			if (defaultPreflight != null)
+			if (config.DefaultPreflight != null)
 			{
-				if (defaultPreflight.TemplateRefId != null && !templates.ContainsKey(defaultPreflight.TemplateRefId.Value))
+				if (config.DefaultPreflight.TemplateId != null && !templates.ContainsKey(config.DefaultPreflight.TemplateId.Value))
 				{
-					throw new InvalidStreamException($"Default preflight template was listed as '{defaultPreflight.TemplateRefId.Value}', but no template was found by that name");
+					throw new InvalidStreamException($"Default preflight template was listed as '{config.DefaultPreflight.TemplateId.Value}', but no template was found by that name");
 				}
 			}
 

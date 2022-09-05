@@ -10,10 +10,13 @@ using Horde.Build.Acls;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Streams;
 using Horde.Build.Users;
+using Horde.Build.Utilities;
 using HordeCommon;
 
 namespace Horde.Build.Jobs
 {
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// State of the job
 	/// </summary>
@@ -50,7 +53,7 @@ namespace Horde.Build.Jobs
 		/// The template for this job
 		/// </summary>
 		[Required]
-		public string TemplateId { get; set; }
+		public TemplateRefId TemplateId { get; set; }
 
 		/// <summary>
 		/// Name of the job
@@ -95,7 +98,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		public CreateJobRequest(string streamId, string templateId)
+		public CreateJobRequest(string streamId, TemplateRefId templateId)
 		{
 			StreamId = streamId;
 			TemplateId = templateId;

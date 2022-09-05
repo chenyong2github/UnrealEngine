@@ -441,7 +441,7 @@ namespace Horde.Build.Streams
 			NotificationChannel = notificationChannel;
 			NotificationChannelFilter = notificationChannelFilter;
 			TriageChannel = triageChannel;
-			DefaultPreflightTemplate = defaultPreflight?.TemplateId;
+			DefaultPreflightTemplate = defaultPreflight?.TemplateId?.ToString();
 			DefaultPreflight = defaultPreflight;
 			Tabs = tabs;
 			AgentTypes = agentTypes;
