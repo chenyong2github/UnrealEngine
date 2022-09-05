@@ -2245,7 +2245,7 @@ namespace AutomationTool
 				case 0:
 					throw new AutomationException("{0} target not found!", Type);
 				default:
-					throw new AutomationException("More than one {0} target found. Specify which one to use with the -{1}= option.", Type, Type);
+					throw new AutomationException("More than one {0} target found. Specify which one to use with the -Target= option.", Type);
 			}
 		}
 
