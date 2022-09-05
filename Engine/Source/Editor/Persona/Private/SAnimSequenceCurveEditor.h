@@ -77,6 +77,7 @@ class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor
 private:
 	// Build the toolbar for this curve editor
 	TSharedRef<SWidget> MakeToolbar(TSharedRef<SCurveEditorPanel> InEditorPanel);
+	TSharedPtr<SWidget> OnContextMenuOpening();
 
 private:
 	/** The actual curve editor */

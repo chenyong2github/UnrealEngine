@@ -555,8 +555,6 @@ void FAnimationEditor::EditCurves(UAnimSequenceBase* InAnimSequence, const TArra
 
 	check(CurveEditor.IsValid());
 
-	CurveEditor.Pin()->ResetCurves();
-
 	for(const FCurveEditInfo& CurveInfo : InCurveInfo)
 	{
 		CurveEditor.Pin()->AddCurve(CurveInfo.CurveDisplayName, CurveInfo.CurveColor, CurveInfo.Name, CurveInfo.Type, CurveInfo.CurveIndex, CurveInfo.OnCurveModified);

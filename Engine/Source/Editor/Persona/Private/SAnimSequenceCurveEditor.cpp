@@ -18,6 +18,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
 #include "Animation/AnimData/AnimDataModel.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SAnimSequenceCurveEditor"
 
@@ -385,7 +386,8 @@ void SAnimSequenceCurveEditor::Construct(const FArguments& InArgs, const TShared
 
 	AnimSequence->GetDataModel()->GetModifiedEvent().AddRaw(this, &SAnimSequenceCurveEditor::OnModelHasChanged);
 
-	CurveEditorTree = SNew(SCurveEditorTree, CurveEditor);
+	CurveEditorTree = SNew(SCurveEditorTree, CurveEditor)
+		.OnContextMenuOpening(this, &SAnimSequenceCurveEditor::OnContextMenuOpening);
 
 	TSharedRef<SCurveEditorPanel> CurveEditorPanel = SNew(SCurveEditorPanel, CurveEditor.ToSharedRef())
 		.GridLineTint(FLinearColor(0.f, 0.f, 0.f, 0.3f))
@@ -482,6 +484,50 @@ TSharedRef<SWidget> SAnimSequenceCurveEditor::MakeToolbar(TSharedRef<SCurveEdito
 	return ToolBarBuilder.MakeWidget();
 }
 
+TSharedPtr<SWidget> SAnimSequenceCurveEditor::OnContextMenuOpening()
+{
+	const TArray<FCurveEditorTreeItemID>& Selection = CurveEditorTree->GetSelectedItems();
+	if (Selection.Num())
+	{
+		UToolMenus* ToolMenus = UToolMenus::Get();
+		static const FName MenuName = "SAnimSequenceCurveEditor.CurveEditorTreeContextMenu";
+		if (!ToolMenus->IsMenuRegistered(MenuName))
+		{
+			ToolMenus->RegisterMenu(MenuName);
+		}
+
+		FToolMenuContext Context;
+		UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
+
+		FToolMenuSection& Section = Menu->AddSection("Selection", LOCTEXT("SelectionLablel", "Selection"));
+		Section.AddMenuEntry("RemoveSelectedCurves", LOCTEXT("RemoveCurveLabel", "Stop editing selected curve(s)"),
+			LOCTEXT("RemoveCurveTooltip", "Removes the currently selected curve(s) from editing"),
+			FSlateIcon(),
+			FToolUIActionChoice(FExecuteAction::CreateLambda([this]()
+				{
+					// Remove all selected tree items, and associated curves
+					TArray<FCurveModelID> ModelIDs;				
+					TArray<FCurveEditorTreeItemID> Selection = CurveEditorTree->GetSelectedItems();
+					for (const FCurveEditorTreeItemID& SelectedItem : Selection)
+					{
+						ModelIDs.Append(CurveEditor->GetTreeItem(SelectedItem).GetCurves());
+						CurveEditor->RemoveTreeItem(SelectedItem);
+					}
+					CurveEditorTree->ClearSelection();
+
+					for (const FCurveModelID& ID : ModelIDs)
+					{
+						CurveEditor->RemoveCurve(ID);
+					}
+				}))				
+			);
+
+		return ToolMenus->GenerateWidget(Menu);
+	}
+
+	return SNullWidget::NullWidget;
+}
+
 void SAnimSequenceCurveEditor::ResetCurves()
 {
 	CurveEditor->RemoveAllTreeItems();
@@ -490,6 +536,16 @@ void SAnimSequenceCurveEditor::ResetCurves()
 
 void SAnimSequenceCurveEditor::AddCurve(const FText& InCurveDisplayName, const FLinearColor& InCurveColor, const FSmartName& InName, ERawCurveTrackTypes InType, int32 InCurveIndex, FSimpleDelegate InOnCurveModified)
 {
+	// Ensure that curve is not already being edited
+	for (const TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveEditor->GetCurves())
+	{
+		const FRichCurveEditorModelNamed* Model = static_cast<FRichCurveEditorModelNamed*>(CurvePair.Value.Get());
+		if(Model->Name == InName && Model->Type == InType && Model->CurveIndex == InCurveIndex)
+		{
+			return;
+		}
+	}
+	
 	FCurveEditorTreeItem* TreeItem = CurveEditor->AddTreeItem(FCurveEditorTreeItemID());
 	TreeItem->SetStrongItem(MakeShared<FAnimSequenceCurveEditorItem>(InName, InType, InCurveIndex, AnimSequence, InCurveDisplayName, InCurveColor, InOnCurveModified, TreeItem->GetID()));
 
