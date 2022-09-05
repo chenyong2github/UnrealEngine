@@ -131,6 +131,17 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	ECVF_RenderThreadSafe);
 #endif
 
+TAutoConsoleVariable<int32> CVarMobileFSRCASEnabled(
+	TEXT("r.Mobile.FSR.RCAS.Enabled"),
+	0,
+	TEXT("FidelityFX FSR/RCAS : Robust Contrast Adaptive Sharpening Filter. Requires r.FidelityFX.FSR.PrimaryUpscale 1 or r.FidelityFX.FSR.SecondaryUpscale 1"),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32>CVarMobileFSRUpsamplingEnabled(
+	TEXT("r.Mobile.FSR.Upsampling.Enabled"),
+	0,
+	TEXT("FidelityFX FSR/RCAS : Robust Contrast Adaptive Sharpening Filter. Requires r.FidelityFX.FSR.PrimaryUpscale 1 or r.FidelityFX.FSR.SecondaryUpscale 1"),
+	ECVF_Default);
 } //! namespace
 
 EDownsampleQuality GetDownsampleQuality(const TAutoConsoleVariable<int32>& CVar)
@@ -1785,6 +1796,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		SelectionOutline,
 		EditorPrimitive,
 		PrimaryUpscale,
+		Sharpen,
 		Visualize,
 		HMDDistortion,
 		MAX
@@ -1808,6 +1820,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		TEXT("SelectionOutline"),
 		TEXT("EditorPrimitive"),
 		TEXT("PrimaryUpscale"),
+		TEXT("Sharpen"),
 		TEXT("Visualize"),
 		TEXT("HMDDistortion")
 	};
@@ -1847,6 +1860,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 	bool bUseHighResolutionScreenshotMask = IsHighResolutionScreenshotMaskEnabled(View);
 
+	bool bEnabledFSRCAS = CVarMobileFSRCASEnabled.GetValueOnRenderThread() > 0;
+	bool bEnabledFSRUpsampling = CVarMobileFSRUpsamplingEnabled.GetValueOnRenderThread() > 0;
 	bool bShouldPrimaryUpscale = (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect)
 								|| PaniniConfig.IsEnabled();
 
@@ -1860,6 +1875,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	PassSequence.SetEnabled(EPass::EditorPrimitive, false);
 #endif
 	PassSequence.SetEnabled(EPass::PrimaryUpscale, bShouldPrimaryUpscale);
+	PassSequence.SetEnabled(EPass::Sharpen, bEnabledFSRCAS);
 
 	PassSequence.SetEnabled(EPass::Visualize, View.Family->EngineShowFlags.ShaderComplexity);
 
@@ -2448,8 +2464,25 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		}
 		else
 		{
-			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, EUpscaleMethod::Bilinear, PaniniConfig);
+			if (!bEnabledFSRUpsampling)
+			{
+				SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, EUpscaleMethod::Bilinear, PaniniConfig);
+			}
+			else
+			{
+				SceneColor = AddEASUPass(GraphBuilder, View, PassInputs);
+			}
 		}
+	}
+
+	if (PassSequence.IsEnabled(EPass::Sharpen))
+	{
+		ISpatialUpscaler::FInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::Sharpen, PassInputs.OverrideOutput);
+		PassInputs.SceneColor = SceneColor;
+		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
+
+		SceneColor = AddCASPass(GraphBuilder, View, PassInputs);
 	}
 
 	if (PassSequence.IsEnabled(EPass::Visualize))

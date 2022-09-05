@@ -8,6 +8,8 @@
 
 #include "ScreenPass.h"
 #include "PostProcessEyeAdaptation.h"
+#include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/PostProcessUpscale.h"
 
 class FViewInfo;
 
@@ -192,3 +194,6 @@ class FMSAADecodeAndCopyRectPS_Mobile : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+FScreenPassTexture AddEASUPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const ISpatialUpscaler::FInputs& PassInputs);
+FScreenPassTexture AddCASPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const ISpatialUpscaler::FInputs& PassInputs);
