@@ -71,8 +71,8 @@ namespace Horde.Build.Tests
 			templates.Add(new TemplateRefConfig { Id = TemplateRefId1, Name = "Test Template" });
 			templates.Add(new TemplateRefConfig { Id = TemplateRefId2, Name = "Test Template" });
 
-			List<CreateStreamTabRequest> tabs = new List<CreateStreamTabRequest>();
-			tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<TemplateRefId> { TemplateRefId1, TemplateRefId2 } });
+			List<TabConfig> tabs = new List<TabConfig>();
+			tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateRefId> { TemplateRefId1, TemplateRefId2 } });
 
 			Dictionary<string, AgentConfig> agentTypes = new()
 			{

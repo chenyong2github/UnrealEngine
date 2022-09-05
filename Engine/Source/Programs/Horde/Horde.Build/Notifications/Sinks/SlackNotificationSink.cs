@@ -1601,7 +1601,7 @@ namespace Horde.Build.Notifications.Sinks
 				TemplateRefConfig? templateConfig;
 				if (stream.Config.TryGetTemplate(templateId, out templateConfig))
 				{
-					CreateJobsTabRequest? tab = stream.Config.Tabs.OfType<CreateJobsTabRequest>().FirstOrDefault(x => x.Templates != null && x.Templates.Contains(templateId));
+					JobsTabConfig? tab = stream.Config.Tabs.OfType<JobsTabConfig>().FirstOrDefault(x => x.Templates != null && x.Templates.Contains(templateId));
 					if (tab != null)
 					{
 						Uri templateUrl = new Uri(_settings.DashboardUrl, $"stream/{stream.Id}?tab={tab.Title}&template={templateId}");

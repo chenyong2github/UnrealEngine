@@ -91,12 +91,6 @@ namespace Horde.Build.Jobs.Templates
 		/// <param name="mongoService">The database service singleton</param>
 		public TemplateCollection(MongoService mongoService)
 		{
-			// Ensure discriminator cannot be registered twice (throws exception). Can otherwise happen during unit tests.
-			if (BsonSerializer.LookupDiscriminatorConvention(typeof(JobsTabColumn)) == null)
-			{
-				BsonSerializer.RegisterDiscriminatorConvention(typeof(JobsTabColumn), new DefaultDiscriminatorConvention(typeof(JobsTabColumn), typeof(JobsTabLabelColumn)));	
-			}
-			
 			_templates = mongoService.GetCollection<TemplateDocument>("Templates");
 
 			MemoryCacheOptions options = new MemoryCacheOptions();

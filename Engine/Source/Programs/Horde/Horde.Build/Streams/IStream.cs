@@ -279,11 +279,6 @@ namespace Horde.Build.Streams
 		public bool Deleted { get; }
 
 		/// <summary>
-		/// List of pages to display in the dashboard
-		/// </summary>
-		public IReadOnlyList<StreamTab> Tabs { get; }
-
-		/// <summary>
 		/// List of templates available for this stream
 		/// </summary>
 		public IReadOnlyDictionary<TemplateRefId, TemplateRef> Templates { get; }
@@ -385,7 +380,7 @@ namespace Horde.Build.Streams
 		/// <returns>New response instance</returns>
 		public static GetStreamResponse ToApiResponse(this IStream stream, bool bIncludeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
 		{
-			List<GetStreamTabResponse> apiTabs = stream.Tabs.ConvertAll(x => x.ToResponse());
+			List<TabConfig> apiTabs = stream.Config.Tabs;
 			Dictionary<string, AgentConfig> apiAgentTypes = stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value);
 			Dictionary<string, WorkspaceConfig> apiWorkspaceTypes = stream.Config.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value);
 			GetAclResponse? apiAcl = (bIncludeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;

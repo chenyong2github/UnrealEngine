@@ -49,7 +49,6 @@ namespace Horde.Build.Streams
 			[BsonIgnore]
 			public StreamConfig? Config { get; set; }
 
-			public List<StreamTab> Tabs { get; set; } = new List<StreamTab>();
 			public Dictionary<TemplateRefId, TemplateRef> Templates { get; set; } = new Dictionary<TemplateRefId, TemplateRef>();
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
@@ -59,7 +58,6 @@ namespace Horde.Build.Streams
 			public bool Deleted { get; set; }
 
 			StreamConfig IStream.Config => Config!;
-			IReadOnlyList<StreamTab> IStream.Tabs => Tabs;
 			IReadOnlyDictionary<TemplateRefId, TemplateRef> IStream.Templates => Templates;
 
 			string IStream.Name => Config!.Name;
@@ -136,19 +134,18 @@ namespace Horde.Build.Streams
 		{
 			StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(revision);
 
-			List<StreamTab> tabs = config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
 			Dictionary<TemplateRefId, TemplateRef> templateRefs = await CreateTemplateRefsAsync(config.Templates, stream, _templateCollection);
 
-			Validate(id, templateRefs, tabs, config);
+			Validate(id, templateRefs, config);
 
 			Acl? acl = Acl.Merge(new Acl(), config.Acl);
 			if (stream == null)
 			{
-				return await TryCreateAsync(id, projectId, revision, config, tabs, templateRefs, acl);
+				return await TryCreateAsync(id, projectId, revision, config, templateRefs, acl);
 			}
 			else
 			{
-				return await TryReplaceAsync(stream, projectId, revision, config, tabs, templateRefs, acl);
+				return await TryReplaceAsync(stream, projectId, revision, config, templateRefs, acl);
 			}
 		}
 
@@ -311,12 +308,11 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
+		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
 		{
 			StreamDocument newStream = new StreamDocument(id, projectId);
 			newStream.ConfigRevision = configRevision;
 			newStream.Config = config;
-			newStream.Tabs = tabs;
 			newStream.Templates = templateRefs;
 			newStream.Acl = acl;
 
@@ -339,7 +335,7 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
+		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
 		{
 			int order = config.Order;
 
@@ -350,7 +346,6 @@ namespace Horde.Build.Streams
 			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
 			updates.Add(updateBuilder.Set(x => x.ProjectId, projectId));
 			updates.Add(updateBuilder.Set(x => x.ConfigRevision, configRevision));
-			updates.Add(updateBuilder.Set(x => x.Tabs, tabs ?? new List<StreamTab>()));
 			updates.Add(updateBuilder.Set(x => x.Templates, templateRefs ?? new Dictionary<TemplateRefId, TemplateRef>()));
 			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.Acl, acl));
 			updates.Add(updateBuilder.Unset(x => x.Deleted));
@@ -476,7 +471,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Checks the stream definition for consistency
 		/// </summary>
-		public static void Validate(StreamId streamId, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, IReadOnlyList<StreamTab> tabs, StreamConfig config)
+		public static void Validate(StreamId streamId, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, StreamConfig config)
 		{
 			// Check the default preflight template is valid
 			if (config.DefaultPreflight != null)
@@ -489,7 +484,7 @@ namespace Horde.Build.Streams
 
 			// Check that all the templates are referenced by a tab
 			HashSet<TemplateRefId> remainingTemplates = new HashSet<TemplateRefId>(templates.Keys);
-			foreach (JobsTab jobsTab in tabs.OfType<JobsTab>())
+			foreach (JobsTabConfig jobsTab in config.Tabs.OfType<JobsTabConfig>())
 			{
 				if (jobsTab.Templates != null)
 				{
