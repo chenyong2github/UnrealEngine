@@ -11845,22 +11845,6 @@ bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName,
 	FRigVMGraphVariableDescription& VariableDescription = LocalVariables[FoundIndex];
 	VariableDescription.DefaultValue = InDefaultValue;
 	
-	// Refresh variable nodes to reflect change in default value
-	TArray<URigVMNode*> Nodes = Graph->GetNodes();
-	for (URigVMNode* Node : Nodes)
-	{
-		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
-		{
-			if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
-			{
-				if (VariablePin->GetDefaultValue() == InVariableName.ToString())
-				{
-					SetPinDefaultValue(VariableNode->FindPin(URigVMVariableNode::ValueName), InDefaultValue, true, true, true, bNotify);
-				}
-			}
-		}
-	}
-
 	if (!bSuspendNotifications)
 	{
 		Graph->MarkPackageDirty();
