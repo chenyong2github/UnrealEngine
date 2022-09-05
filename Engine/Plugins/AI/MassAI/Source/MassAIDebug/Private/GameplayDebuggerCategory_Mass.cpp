@@ -114,8 +114,11 @@ FGameplayDebuggerCategory_Mass::FGameplayDebuggerCategory_Mass()
 
 void FGameplayDebuggerCategory_Mass::SetCachedEntity(const FMassEntityHandle Entity, const FMassEntityManager& EntityManager)
 {
-	CachedEntity = Entity;
-	FMassDebugger::SelectEntity(EntityManager, Entity);
+	if (CachedEntity != Entity)
+	{
+		CachedEntity = Entity;
+		FMassDebugger::SelectEntity(EntityManager, Entity);
+	}
 }
 
 void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC, const UWorld& World, FMassEntityManager& EntityManager, const bool bLimitAngle)
@@ -219,6 +222,10 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 	AddTextLine(FString::Printf(TEXT("{Green}Entities count active{grey}/all: {white}%d{grey}/%d"), EntityManager.DebugGetEntityCount(), EntityManager.DebugGetEntityCount()));
 	AddTextLine(FString::Printf(TEXT("{Green}Registered Archetypes count: {white}%d {green}data ver: {white}%d"), EntityManager.DebugGetArchetypesCount(), EntityManager.GetArchetypeDataVersion()));
+	if (CachedEntity.IsValid())
+	{
+		AddTextLine(FString::Printf(TEXT("{Green}Entity: {White}%s"), *CachedEntity.DebugGetDescription()));
+	}
 
 	if (UE::Mass::Debug::HasDebugEntities())
 	{
@@ -289,7 +296,6 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			// (which causes the MassAgentComponent destruction and recreation).
 			if (EntityManager.IsEntityActive(CachedEntity))
 			{
-				AddTextLine(FString::Printf(TEXT("{Green}Entity: {White}%s"), *CachedEntity.DebugGetDescription()));
 				AddTextLine(FString::Printf(TEXT("{Green}Type: {White}%s"), (AgentComp == nullptr) ? TEXT("N/A") : AgentComp->IsPuppet() ? TEXT("PUPPET") : TEXT("AGENT")));
 
 				if (bShowEntityDetails)

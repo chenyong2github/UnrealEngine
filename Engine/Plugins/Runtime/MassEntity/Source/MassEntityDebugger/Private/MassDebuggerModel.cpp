@@ -295,6 +295,23 @@ FMassDebuggerProcessingGraph::FMassDebuggerProcessingGraph(const FMassDebuggerMo
 //----------------------------------------------------------------------//
 // FMassDebuggerModel
 //----------------------------------------------------------------------//
+FMassDebuggerModel::FMassDebuggerModel()
+{
+#if WITH_MASSENTITY_DEBUG
+	OnEntitySelectedHandle = FMassDebugger::OnEntitySelectedDelegate.AddRaw(this, &FMassDebuggerModel::OnEntitySelected);
+#endif // WITH_MASSENTITY_DEBUG
+}
+
+FMassDebuggerModel::~FMassDebuggerModel()
+{
+#if WITH_MASSENTITY_DEBUG
+	if (OnEntitySelectedHandle.IsValid())
+	{
+		FMassDebugger::OnEntitySelectedDelegate.Remove(OnEntitySelectedHandle);
+	}
+#endif // WITH_MASSENTITY_DEBUG
+}
+
 void FMassDebuggerModel::SetEnvironment(const TSharedPtr<FMassDebuggerEnvironment>& Item)
 {
 	if (Item)
@@ -362,7 +379,7 @@ void FMassDebuggerModel::ClearProcessorSelection()
 	OnProcessorsSelectedDelegate.Broadcast(SelectedProcessors, ESelectInfo::Direct);
 }
 
-void FMassDebuggerModel::SelectArchetypes(TArray<TSharedPtr<FMassDebuggerArchetypeData>> InSelectedArchetypes, ESelectInfo::Type SelectInfo)
+void FMassDebuggerModel::SelectArchetypes(TArrayView<TSharedPtr<FMassDebuggerArchetypeData>> InSelectedArchetypes, ESelectInfo::Type SelectInfo)
 {
 	ResetSelectedProcessors();
 	ResetSelectedArchetypes();
@@ -455,7 +472,8 @@ void FMassDebuggerModel::CacheProcessingGraphs()
 
 void FMassDebuggerModel::CacheArchetypesData(TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& OutTransientArchetypesMap)
 {
-	CachedArchetypes.Reset();
+	CachedAllArchetypes.Reset();
+	CachedArchetypeRepresentatives.Reset();
 
 	if (Environment)
 	{
@@ -481,7 +499,7 @@ void FMassDebuggerModel::StoreArchetypes(const FMassEntityManager& EntityManager
 #if WITH_MASSENTITY_DEBUG
 	TArray<FMassArchetypeHandle> ArchetypeHandles = FMassDebugger::GetAllArchetypes(EntityManager);
 
-	CachedArchetypes.Reset(ArchetypeHandles.Num());
+	CachedAllArchetypes.Reset(ArchetypeHandles.Num());
 
 	int32 MaxBitsUsed = 0;
 
@@ -489,8 +507,8 @@ void FMassDebuggerModel::StoreArchetypes(const FMassEntityManager& EntityManager
 	for (FMassArchetypeHandle& ArchetypeHandle : ArchetypeHandles)
 	{
 		FMassDebuggerArchetypeData* ArchetypeDataPtr = new FMassDebuggerArchetypeData(ArchetypeHandle);
-		ArchetypeDataPtr->Index = CachedArchetypes.Add(MakeShareable(ArchetypeDataPtr));
-		OutTransientArchetypesMap.Add(ArchetypeHandle, CachedArchetypes.Last());
+		ArchetypeDataPtr->Index = CachedAllArchetypes.Add(MakeShareable(ArchetypeDataPtr));
+		OutTransientArchetypesMap.Add(ArchetypeHandle, CachedAllArchetypes.Last());
 
 		MaxBitsUsed = FMath::Max(MaxBitsUsed, ArchetypeDataPtr->GetTotalBitsUsedCount());
 	}
@@ -498,17 +516,17 @@ void FMassDebuggerModel::StoreArchetypes(const FMassEntityManager& EntityManager
 
 	// calculate distances
 	ArchetypeDistances.Reset();
-	ArchetypeDistances.AddDefaulted(CachedArchetypes.Num());
-	for (int i = 0; i < CachedArchetypes.Num(); ++i)
+	ArchetypeDistances.AddDefaulted(CachedAllArchetypes.Num());
+	for (int i = 0; i < CachedAllArchetypes.Num(); ++i)
 	{
-		ArchetypeDistances[i].AddDefaulted(CachedArchetypes.Num());
+		ArchetypeDistances[i].AddDefaulted(CachedAllArchetypes.Num());
 	}
 
-	for (int i = 0; i < CachedArchetypes.Num(); ++i)
+	for (int i = 0; i < CachedAllArchetypes.Num(); ++i)
 	{
-		for (int k = i + 1; k < CachedArchetypes.Num(); ++k)
+		for (int k = i + 1; k < CachedAllArchetypes.Num(); ++k)
 		{
-			const float Distance = UE::Mass::Debugger::Private::CalcArchetypeBitDistance(*CachedArchetypes[i].Get(), *CachedArchetypes[k].Get());
+			const float Distance = UE::Mass::Debugger::Private::CalcArchetypeBitDistance(*CachedAllArchetypes[i].Get(), *CachedAllArchetypes[k].Get());
 			ArchetypeDistances[i][k] = Distance;
 			ArchetypeDistances[k][i] = Distance;
 		}
@@ -516,20 +534,22 @@ void FMassDebuggerModel::StoreArchetypes(const FMassEntityManager& EntityManager
 
 	// Add archetypes that share same primary name under the same entry. 
 	TMap<FString, TSharedPtr<FMassDebuggerArchetypeData>> ArchetypeNameMap;
-	for (int32 Index = 0; Index < CachedArchetypes.Num(); Index++)
+	for (TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : CachedAllArchetypes)
 	{
-		TSharedPtr<FMassDebuggerArchetypeData> ArchetypeData = CachedArchetypes[Index];
 		if (const TSharedPtr<FMassDebuggerArchetypeData>* Representative = ArchetypeNameMap.Find(ArchetypeData->PrimaryDebugName))
 		{
 			(*Representative)->Children.Add(ArchetypeData);
-			ArchetypeData->Parent = *Representative; 
-			CachedArchetypes.RemoveAt(Index);
-			Index--;
+			ArchetypeData->Parent = *Representative;
 		}
 		else
 		{
 			ArchetypeNameMap.Add(ArchetypeData->PrimaryDebugName, ArchetypeData);
 		}
+	}
+
+	for (auto& KeyValue : ArchetypeNameMap)
+	{
+		CachedArchetypeRepresentatives.Add(KeyValue.Value);
 	}
 }
 
@@ -595,6 +615,32 @@ void FMassDebuggerModel::ResetSelectedProcessors()
 		ProcessorData->Selection = EMassDebuggerProcessorSelection::None;
 	}
 	SelectedProcessors.Reset();
+}
+
+void FMassDebuggerModel::OnEntitySelected(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle)
+{
+	if (!Environment || Environment->GetEntityManager() != &EntityManager)
+	{
+		// not the entity manager we're debugging right now
+		return;
+	}
+	
+	const FMassArchetypeHandle ArchetypeHandle = EntityManager.GetArchetypeForEntity(EntityHandle);
+	if (ArchetypeHandle.IsValid() == false)
+	{
+		return;
+	}
+	
+	uint32 ArchetypeHash = FMassDebugger::GetArchetypeComposition(ArchetypeHandle).CalculateHash();
+	TSharedPtr<FMassDebuggerArchetypeData>* DebuggerArchetypeData = CachedAllArchetypes.FindByPredicate([ArchetypeHash](const TSharedPtr<FMassDebuggerArchetypeData>& Element)
+		{
+			return Element.IsValid() && Element->CompositionHash == ArchetypeHash;
+		});
+
+	if (DebuggerArchetypeData)
+	{
+		SelectArchetypes(MakeArrayView(DebuggerArchetypeData, 1), ESelectInfo::Direct);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

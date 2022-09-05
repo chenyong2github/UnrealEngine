@@ -155,6 +155,9 @@ struct FMassDebuggerModel
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnProcessorsSelected, TConstArrayView<TSharedPtr<FMassDebuggerProcessorData>>, ESelectInfo::Type);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnArchetypesSelected, TConstArrayView<TSharedPtr<FMassDebuggerArchetypeData>>, ESelectInfo::Type);
 
+	FMassDebuggerModel();
+	~FMassDebuggerModel();
+
 	void SetEnvironment(const TSharedPtr<FMassDebuggerEnvironment>& Item);
 
 	void RefreshAll();
@@ -163,7 +166,7 @@ struct FMassDebuggerModel
 	void SelectProcessors(TArrayView<TSharedPtr<FMassDebuggerProcessorData>> Processors, ESelectInfo::Type SelectInfo);
 	void ClearProcessorSelection();
 
-	void SelectArchetypes(TArray<TSharedPtr<FMassDebuggerArchetypeData>> SelectedArchetypes, ESelectInfo::Type SelectInfo);
+	void SelectArchetypes(TArrayView<TSharedPtr<FMassDebuggerArchetypeData>> SelectedArchetypes, ESelectInfo::Type SelectInfo);
 	void ClearArchetypeSelection();
 
 	bool IsCurrentEnvironment(const FMassDebuggerEnvironment& InEnvironment) const { return Environment && *Environment.Get() == InEnvironment; }
@@ -188,6 +191,8 @@ protected:
 	void ResetSelectedArchetypes();
 	void ResetSelectedProcessors();
 
+	void OnEntitySelected(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle);
+
 public:
 	FOnRefresh OnRefreshDelegate;
 	FOnProcessorsSelected OnProcessorsSelectedDelegate;
@@ -199,7 +204,8 @@ public:
 	TArray<TSharedPtr<FMassDebuggerProcessorData>> CachedProcessors;
 	TArray<TSharedPtr<FMassDebuggerProcessorData>> SelectedProcessors;
 
-	TArray<TSharedPtr<FMassDebuggerArchetypeData>> CachedArchetypes;
+	TArray<TSharedPtr<FMassDebuggerArchetypeData>> CachedAllArchetypes;
+	TArray<TSharedPtr<FMassDebuggerArchetypeData>> CachedArchetypeRepresentatives;
 	TArray<TSharedPtr<FMassDebuggerArchetypeData>> SelectedArchetypes;
 
 	TArray<TSharedPtr<FMassDebuggerProcessingGraph>> CachedProcessingGraphs;
@@ -209,5 +215,7 @@ public:
 	TArray<TArray<float>> ArchetypeDistances;
 
 	FString EnvironmentDisplayName;
+
+	FDelegateHandle OnEntitySelectedHandle;
 };
 

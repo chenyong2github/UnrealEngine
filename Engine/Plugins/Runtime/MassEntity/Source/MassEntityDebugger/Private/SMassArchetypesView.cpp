@@ -199,7 +199,7 @@ void SMassArchetypesView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 					{
 						int32 ActiveCount = 0;
 						int32 TotalCount = 0;
-						for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->CachedArchetypes)
+						for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->CachedArchetypeRepresentatives)
 						{
 							TotalCount++;
 							if (ArchetypeData->ArchetypeStats.EntitiesCount > 0)
@@ -307,7 +307,7 @@ void SMassArchetypesView::OnRefresh()
 	
 	if (DebuggerModel)
 	{
-		TreeViewSource = DebuggerModel->CachedArchetypes;
+		TreeViewSource = DebuggerModel->CachedArchetypeRepresentatives;
 
 		for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : TreeViewSource)
 		{
