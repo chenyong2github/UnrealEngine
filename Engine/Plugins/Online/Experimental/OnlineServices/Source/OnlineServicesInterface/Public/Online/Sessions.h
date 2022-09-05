@@ -252,8 +252,6 @@ struct FGetSessionById
 
 	struct Params
 	{
-		FAccountId LocalAccountId;
-
 		FOnlineSessionId SessionId;
 	};
 
@@ -276,7 +274,7 @@ struct FGetPresenceSession
 
 	struct Result
 	{
-		TSharedPtr<const ISession> Session;
+		TSharedRef<const ISession> Session;
 	};
 };
 
@@ -975,7 +973,6 @@ BEGIN_ONLINE_STRUCT_META(FGetSessionByName::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionById::Params)
-	ONLINE_STRUCT_FIELD(FGetSessionById::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FGetSessionById::Params, SessionId)
 END_ONLINE_STRUCT_META()
 

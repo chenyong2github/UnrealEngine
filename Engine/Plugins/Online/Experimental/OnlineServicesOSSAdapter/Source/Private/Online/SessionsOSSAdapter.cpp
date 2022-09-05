@@ -505,69 +505,57 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateS
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FUpdateSessionImpl> FSessionsOSSAdapter::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
+TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsOSSAdapter::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
 {
-	TOnlineAsyncOpRef<FUpdateSessionImpl> Op = GetOp<FUpdateSessionImpl>(MoveTemp(Params));
-	const FUpdateSessionImpl::Params& OpParams = Op->GetParams();
+	TPromise<TOnlineResult<FUpdateSessionImpl>> Promise;
+	TFuture<TOnlineResult<FUpdateSessionImpl>> Future = Promise.GetFuture();
 
-	Op->Then([this](TOnlineAsyncOp<FUpdateSessionImpl>& Op)
+	MakeMulticastAdapter(this, SessionsInterface->OnUpdateSessionCompleteDelegates,
+	[this, Promise = MoveTemp(Promise), OpParams = Params](FName SessionName, const bool bWasSuccessful) mutable
 	{
-		const FUpdateSessionImpl::Params& OpParams = Op.GetParams();
-
-		MakeMulticastAdapter(this, SessionsInterface->OnUpdateSessionCompleteDelegates,
-		[this, WeakOp = Op.AsWeak()](FName SessionName, const bool bWasSuccessful)
+		if (!bWasSuccessful)
 		{
-			if (TOnlineAsyncOpPtr<FUpdateSessionImpl> Op = WeakOp.Pin())
-			{
-				if (!bWasSuccessful)
-				{
-					Op->SetError(Errors::Unknown());
-					return;
-				}
+			Promise.EmplaceValue(Errors::Unknown());
+			return;
+		}
 
-				const FUpdateSessionImpl::Params& OpParams = Op->GetParams();
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ SessionName });
+		if (GetMutableSessionByNameResult.IsOk())
+		{
+			// We update our local session
+			TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
-				TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ SessionName });
-				if (GetMutableSessionByNameResult.IsOk())
-				{
-					// We update our local session
-					TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+			FSessionUpdate SessionUpdateData = BuildSessionUpdate(FoundSession, OpParams.Mutations);
 
-					FSessionUpdate SessionUpdateData = BuildSessionUpdate(FoundSession, OpParams.Mutations);
+			(*FoundSession) += SessionUpdateData;
 
-					(*FoundSession) += SessionUpdateData;
+			// We set the result and fire the event
+			Promise.EmplaceValue(FUpdateSessionImpl::Result{ });
 
-					// We set the result and fire the event
-					Op->SetResult({ });
+			FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, SessionUpdateData };
+			SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
+		}
+		else
+		{
+			Promise.EmplaceValue(Errors::NotFound());
+		}
+	});
 
-					FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, SessionUpdateData };
-					SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
-				}
-				else
-				{
-					Op->SetError(Errors::NotFound());
-				}
-			}
-		});
-
-		const TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ OpParams.SessionName });
-		check(GetMutableSessionByNameResult.IsOk());
+	const TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
+	check(GetMutableSessionByNameResult.IsOk());
 		
-		const TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+	const TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
-		// We will update a copy here, and wait until the operation has completed successfully to update our local data
-		FSessionSettings UpdatedV2Settings = FoundSession->SessionSettings;
-		//UpdatedV2Settings += OpParams.Mutations;
-		
-		// TODO: Will be refactored as part of the UpdateSession split
+	// We will update a copy here, and wait until the operation has completed successfully to update our local data
+	FSessionSettings UpdatedV2Settings = FoundSession->SessionSettings;
+	FSessionSettingsChanges SessionSettingsChanges = BuildSessionSettingsChanges(FoundSession, Params.Mutations.UpdatedSessionSettings);
+	UpdatedV2Settings += SessionSettingsChanges;
 
-		FOnlineSessionSettings UpdatedV1Settings = BuildV1SettingsForUpdate(OpParams.LocalAccountId, FoundSession);
+	FOnlineSessionSettings UpdatedV1Settings = BuildV1SettingsForUpdate(Params.LocalAccountId, FoundSession);
 
-		SessionsInterface->UpdateSession(OpParams.SessionName, UpdatedV1Settings);
-	})
-	.Enqueue(GetSerialQueue());
+	SessionsInterface->UpdateSession(Params.SessionName, UpdatedV1Settings);
 
-	return Op->GetHandle();
+	return Future;
 }
 
 TOnlineAsyncOpHandle<FLeaveSession> FSessionsOSSAdapter::LeaveSession(FLeaveSession::Params&& Params)
@@ -950,7 +938,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession
 
 				const FJoinSession::Params& OpParams = Op->GetParams();
 
-				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
+				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
 				if (GetSessionByIdResult.IsError())
 				{
 					// If no result is found, the id might be expired, which we should notify
@@ -978,7 +966,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession
 			}
 		});
 
-		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
 			Op.SetError(MoveTemp(GetSessionByIdResult.GetErrorValue()));
@@ -1153,7 +1141,7 @@ TOnlineResult<FGetResolvedConnectString> FSessionsOSSAdapter::GetResolvedConnect
 {
 	if (Params.SessionId.IsValid())
 	{
-		TOnlineResult<FGetSessionById> Result = GetSessionById({ Params.LocalAccountId, Params.SessionId });
+		TOnlineResult<FGetSessionById> Result = GetSessionById({ Params.SessionId });
 		if (Result.IsOk())
 		{
 			FOnlineSessionSearchResult SearchResult;

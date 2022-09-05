@@ -144,7 +144,7 @@ public:
 
 	virtual bool IsJoinable() const override								{ return GetNumOpenConnections() > 0 && SessionSettings.bAllowNewMembers; }
 
-	virtual FString ToLogString() const override							{ return FString(); } // TODO: Implement after completing refactor
+	virtual FString ToLogString() const override							{ return FString::Printf(TEXT("[FSessionCommon: SessionId[%d]]"), SessionInfo.SessionId.GetHandle()); } // TODO: Expand with relevant information
 
 public:
 	/** Session information that will remain constant throughout the session's lifetime */
@@ -284,7 +284,7 @@ protected:
 	FSessionSettingsChanges BuildSessionSettingsChanges(const TSharedRef<FSessionCommon>& Session, const FSessionSettingsUpdate& UpdatedValues) const;
 	FSessionUpdate BuildSessionUpdate(const TSharedRef<FSessionCommon>& Session, const FCombinedSessionUpdate& UpdatedValues) const;
 
-	virtual TOnlineAsyncOpHandle<FUpdateSessionImpl> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
+	virtual TFuture<TOnlineResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
 	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
 	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
 

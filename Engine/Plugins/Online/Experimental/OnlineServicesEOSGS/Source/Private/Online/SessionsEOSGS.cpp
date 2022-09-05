@@ -685,7 +685,7 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 	}
 }
 
-TOnlineAsyncOpHandle<FUpdateSessionImpl> FSessionsEOSGS::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
+TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
@@ -696,56 +696,49 @@ TOnlineAsyncOpHandle<FUpdateSessionImpl> FSessionsEOSGS::UpdateSessionImpl(FUpda
 
 	// EOSGS Sessions
 
-	TOnlineAsyncOpRef<FUpdateSessionImpl> Op = GetOp<FUpdateSessionImpl>(MoveTemp(Params));
-	const FUpdateSessionImpl::Params& OpParams = Op->GetParams();
+	TPromise<TOnlineResult<FUpdateSessionImpl>> Promise;
+	TFuture<TOnlineResult<FUpdateSessionImpl>> Future = Promise.GetFuture();
 
-	Op->Then([this](TOnlineAsyncOp<FUpdateSessionImpl>& Op)
+	EOS_Sessions_UpdateSessionModificationOptions UpdateSessionModificationOptions = {};
+	UpdateSessionModificationOptions.ApiVersion = EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST;
+	static_assert(EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST == 1, "EOS_Sessions_UpdateSessionModificationOptions updated, check new fields");
+
+	const FTCHARToUTF8 SessionNameUtf8(*Params.SessionName.ToString());
+	UpdateSessionModificationOptions.SessionName = SessionNameUtf8.Get();
+
+	EOS_HSessionModification SessionModificationHandle = nullptr;
+	EOS_EResult ResultCode = EOS_Sessions_UpdateSessionModification(SessionsHandle, &UpdateSessionModificationOptions, &SessionModificationHandle);
+	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		const FUpdateSessionImpl::Params& OpParams = Op.GetParams();
+		UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
 
-		EOS_Sessions_UpdateSessionModificationOptions UpdateSessionModificationOptions = {};
-		UpdateSessionModificationOptions.ApiVersion = EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST;
-		static_assert(EOS_SESSIONS_UPDATESESSIONMODIFICATION_API_LATEST == 1, "EOS_Sessions_UpdateSessionModificationOptions updated, check new fields");
+		Promise.EmplaceValue(Errors::FromEOSResult(ResultCode));
 
-		const FTCHARToUTF8 SessionNameUtf8(*OpParams.SessionName.ToString());
-		UpdateSessionModificationOptions.SessionName = SessionNameUtf8.Get();
+		return Future;
+	}
 
-		EOS_HSessionModification SessionModificationHandle = nullptr;
-		EOS_EResult ResultCode = EOS_Sessions_UpdateSessionModification(SessionsHandle, &UpdateSessionModificationOptions, &SessionModificationHandle);
-		if (ResultCode != EOS_EResult::EOS_Success)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::UpdateSession] EOS_Sessions_UpdateSessionModification failed with result [%s]"), *LexToString(ResultCode));
+	// After creating the session modification handle, we'll add all the updated data to it
+	WriteUpdateSessionModificationHandle(SessionModificationHandle, Params.Mutations.UpdatedSessionSettings);
 
-			Op.SetError(Errors::FromEOSResult(ResultCode));
+	for (const TPair<FAccountId, FSessionMemberUpdate>& Entry : Params.Mutations.UpdatedSessionMembers)
+	{
+		WriteUpdateSessionModificationHandle(SessionModificationHandle, Entry.Key, Entry.Value);
+	}
 
-			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImplEOSGS>>().GetFuture();
-		}
+	// Whether we update joinability or not will depend on if bAllowNewMembers was set to a new value
+	FUpdateSessionImplEOSGS::Params UpdateSessionImplEOSGSParams =
+	{
+		MakeShared<FSessionModificationHandleEOSGS>(SessionModificationHandle),
+		Params.Mutations.UpdatedSessionSettings.bAllowNewMembers.IsSet() ?
+			FUpdateSessionJoinabilityParams{ Params.SessionName, Params.Mutations.UpdatedSessionSettings.bAllowNewMembers.GetValue() } :
+			TOptional<FUpdateSessionJoinabilityParams>() // If bAllowNewMembers is not set, the TOptional will be unset too
+	};
 
-		// After creating the session modification handle, we'll add all the updated data to it
-		WriteUpdateSessionModificationHandle(SessionModificationHandle, OpParams.Mutations.UpdatedSessionSettings);
-
-		for (const TPair<FAccountId, FSessionMemberUpdate>& Entry : OpParams.Mutations.UpdatedSessionMembers)
-		{
-			WriteUpdateSessionModificationHandle(SessionModificationHandle, Entry.Key, Entry.Value);
-		}
-
-		// Whether we update joinability or not will depend on inf bAllowNewMembers was set to a new value
-		FUpdateSessionImplEOSGS::Params UpdateSessionImplEOSGSParams =
-		{
-			MakeShared<FSessionModificationHandleEOSGS>(SessionModificationHandle),
-			OpParams.Mutations.UpdatedSessionSettings.bAllowNewMembers.IsSet() ?
-				FUpdateSessionJoinabilityParams{ OpParams.SessionName, OpParams.Mutations.UpdatedSessionSettings.bAllowNewMembers.GetValue() } :
-				TOptional<FUpdateSessionJoinabilityParams>() // If bAllowNewMembers is not set, the TOptional will be unset too
-		};
-
-		return UpdateSessionImplEOSGS(MoveTemp(UpdateSessionImplEOSGSParams));
-	})
-	.Then([this](TOnlineAsyncOp<FUpdateSessionImpl>& Op, TDefaultErrorResult<FUpdateSessionImplEOSGS>&& Result)
+	UpdateSessionImplEOSGS(MoveTemp(UpdateSessionImplEOSGSParams))
+	.Next([this, Promise = MoveTemp(Promise), OpParams = MoveTemp(Params)](TDefaultErrorResult<FUpdateSessionImplEOSGS>&& Result) mutable
 	{
 		if (Result.IsOk())
 		{
-			const FUpdateSessionImpl::Params& OpParams = Op.GetParams();
-
 			TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ OpParams.SessionName });
 			if (GetMutableSessionByNameResult.IsOk())
 			{
@@ -757,24 +750,23 @@ TOnlineAsyncOpHandle<FUpdateSessionImpl> FSessionsEOSGS::UpdateSessionImpl(FUpda
 				(*FoundSession) += SessionUpdateData;
 
 				// We set the result and fire the event
-				Op.SetResult({ });
+				Promise.EmplaceValue(FUpdateSessionImpl::Result{ });
 
 				FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, SessionUpdateData };
 				SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
 			}
 			else
 			{
-				Op.SetError(MoveTemp(GetMutableSessionByNameResult.GetErrorValue()));
+				Promise.EmplaceValue(GetMutableSessionByNameResult.GetErrorValue());
 			}
 		}
 		else
 		{
-			Op.SetError(MoveTemp(Result.GetErrorValue()));
+			Promise.EmplaceValue(Result.GetErrorValue());
 		}
-	})
-	.Enqueue(GetSerialQueue());
+	});
 
-	return Op->GetHandle();
+	return Future;
 }
 
 TFuture<TDefaultErrorResult<FUpdateSessionImplEOSGS>> FSessionsEOSGS::UpdateSessionImplEOSGS(FUpdateSessionImplEOSGS::Params&& Params)
@@ -1281,7 +1273,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 	TOnlineAsyncOpRef<FJoinSession> Op = GetOp<FJoinSession>(MoveTemp(Params));
 	const FJoinSession::Params& OpParams = Op->GetParams();
 
-	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
+	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
 	if (GetSessionByIdResult.IsError())
 	{
 		// If no result is found, the id might be expired, which we should notify
@@ -1334,7 +1326,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 			return;
 		}
 
-		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
 			// If no result is found, the id might be expired, which we should notify
@@ -1377,7 +1369,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 			return;
 		}
 		
-		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
 			// If no result is found, the id might be expired, which we should notify
