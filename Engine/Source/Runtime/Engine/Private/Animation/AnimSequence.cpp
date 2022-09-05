@@ -5375,7 +5375,8 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 		}
 	};
 
-	bool bShouldMarkPackageDirty = !FUObjectThreadContext::Get().IsRoutingPostLoad;
+	bool bShouldMarkPackageDirty = !FUObjectThreadContext::Get().IsRoutingPostLoad &&
+		NotifyType != EAnimDataModelNotifyType::BracketOpened && NotifyType != EAnimDataModelNotifyType::BracketClosed;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	switch (NotifyType)

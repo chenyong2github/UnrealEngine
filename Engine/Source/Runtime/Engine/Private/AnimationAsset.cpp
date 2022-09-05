@@ -476,11 +476,6 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 			}
 		}
 
-		PostEditChange();
-		if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
-		{
-		    MarkPackageDirty();
-		}
 		return true;
 	}
 
