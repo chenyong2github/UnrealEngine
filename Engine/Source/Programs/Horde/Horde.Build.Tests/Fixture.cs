@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Agents;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Configuration;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Artifacts;
@@ -20,6 +21,7 @@ using HordeCommon;
 namespace Horde.Build.Tests
 {
 	using JobId = ObjectId<IJob>;
+	using PoolId = StringId<IPool>;
     using ProjectId = StringId<IProject>;
     using StreamId = StringId<IStream>;
     using TemplateRefId = StringId<TemplateRef>;
@@ -74,7 +76,7 @@ namespace Horde.Build.Tests
 
 			Dictionary<string, AgentConfig> agentTypes = new()
 			{
-				{ "Win64", new() { Pool = PoolName} }
+				{ "Win64", new() { Pool = new PoolId(PoolName) } }
 			};
 
 			StreamConfig config = new StreamConfig { Name = "//UE5/Main", Tabs = tabs, Templates = templates, AgentTypes = agentTypes };

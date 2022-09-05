@@ -38,63 +38,41 @@ namespace Horde.Build.Streams
 		/// </summary>
 		class StreamDocument : IStream
 		{
-			public const int DefaultOrder = 128;
-
 			[BsonRequired, BsonId]
 			public StreamId Id { get; set; }
 
 			[BsonRequired]
 			public ProjectId ProjectId { get; set; }
 
-			[BsonRequired]
-			public string Name { get; set; }
-
-			public string? ClusterName { get; set; }
 			public string ConfigRevision { get; set; } = String.Empty;
 
 			[BsonIgnore]
 			public StreamConfig? Config { get; set; }
 
-			public int Order { get; set; } = DefaultOrder;
-			public string? NotificationChannel { get; set; }
-			public string? NotificationChannelFilter { get; set; }
-			public string? TriageChannel { get; set; }
 			public DefaultPreflight? DefaultPreflight { get; set; }
 			public List<StreamTab> Tabs { get; set; } = new List<StreamTab>();
-			public Dictionary<string, AgentType> AgentTypes { get; set; } = new Dictionary<string, AgentType>(StringComparer.Ordinal);
-			public Dictionary<string, WorkspaceType> WorkspaceTypes { get; set; } = new Dictionary<string, WorkspaceType>(StringComparer.Ordinal);
 			public Dictionary<TemplateRefId, TemplateRef> Templates { get; set; } = new Dictionary<TemplateRefId, TemplateRef>();
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
-
-			[BsonIgnoreIfDefault]
-			[BsonDefaultValue(ContentReplicationMode.None)]
-			public ContentReplicationMode ReplicationMode { get; set; }
-
-			[BsonIgnoreIfNull]
-			public string? ReplicationFilter { get; set; }
 
 			public Acl? Acl { get; set; }
 			public int UpdateIndex { get; set; }
 			public bool Deleted { get; set; }
 
 			StreamConfig IStream.Config => Config!;
-			string IStream.ClusterName => ClusterName ?? PerforceCluster.DefaultName;
 			IReadOnlyList<StreamTab> IStream.Tabs => Tabs;
-			IReadOnlyDictionary<string, AgentType> IStream.AgentTypes => AgentTypes;
-			IReadOnlyDictionary<string, WorkspaceType> IStream.WorkspaceTypes => WorkspaceTypes;
 			IReadOnlyDictionary<TemplateRefId, TemplateRef> IStream.Templates => Templates;
+
+			string IStream.Name => Config!.Name;
 
 			[BsonConstructor]
 			private StreamDocument()
 			{
-				Name = null!;
 			}
 
-			public StreamDocument(StreamId id, string name, ProjectId projectId)
+			public StreamDocument(StreamId id, ProjectId projectId)
 			{
 				Id = id;
-				Name = name;
 				ProjectId = projectId;
 			}
 		}
@@ -162,34 +140,22 @@ namespace Horde.Build.Streams
 			List<StreamTab> tabs = config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
 			Dictionary<TemplateRefId, TemplateRef> templateRefs = await CreateTemplateRefsAsync(config.Templates, stream, _templateCollection);
 
-			Dictionary<string, AgentType> agentTypes = new Dictionary<string, AgentType>();
-			if (config.AgentTypes != null)
-			{
-				agentTypes = config.AgentTypes.Where(x => x.Value != null).ToDictionary(x => x.Key, x => new AgentType(x.Value!));
-			}
-
-			Dictionary<string, WorkspaceType> workspaceTypes = new Dictionary<string, WorkspaceType>();
-			if (config.WorkspaceTypes != null)
-			{
-				workspaceTypes = config.WorkspaceTypes.Where(x => x.Value != null).ToDictionary(x => x.Key, x => new WorkspaceType(x.Value!));
-			}
-
 			DefaultPreflight? defaultPreflight = config.DefaultPreflight?.ToModel();
 			if (defaultPreflight == null && config.DefaultPreflightTemplate != null)
 			{
 				defaultPreflight = new DefaultPreflight(new TemplateRefId(config.DefaultPreflightTemplate), null);
 			}
 
-			Validate(id, defaultPreflight, templateRefs, tabs, agentTypes, workspaceTypes);
+			Validate(id, defaultPreflight, templateRefs, tabs, config);
 
 			Acl? acl = Acl.Merge(new Acl(), config.Acl);
 			if (stream == null)
 			{
-				return await TryCreateAsync(id, projectId, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
+				return await TryCreateAsync(id, projectId, revision, config, defaultPreflight, tabs, templateRefs, acl);
 			}
 			else
 			{
-				return await TryReplaceAsync(stream, projectId, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
+				return await TryReplaceAsync(stream, projectId, revision, config, defaultPreflight, tabs, templateRefs, acl);
 			}
 		}
 
@@ -352,23 +318,14 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType> agentTypes, Dictionary<string, WorkspaceType> workspaceTypes, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
+		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
 		{
-			StreamDocument newStream = new StreamDocument(id, config.Name, projectId);
-			newStream.ClusterName = config.ClusterName;
+			StreamDocument newStream = new StreamDocument(id, projectId);
 			newStream.ConfigRevision = configRevision;
 			newStream.Config = config;
-			newStream.Order = config.Order ?? StreamDocument.DefaultOrder;
-			newStream.NotificationChannel = config.NotificationChannel;
-			newStream.NotificationChannelFilter = config.NotificationChannelFilter;
-			newStream.TriageChannel = config.TriageChannel;
 			newStream.DefaultPreflight = defaultPreflight;
 			newStream.Tabs = tabs;
-			newStream.AgentTypes = agentTypes;
-			newStream.WorkspaceTypes = workspaceTypes;
 			newStream.Templates = templateRefs;
-			newStream.ReplicationMode = config.ReplicationMode;
-			newStream.ReplicationFilter = config.ReplicationFilter;
 			newStream.Acl = acl;
 
 			try
@@ -390,30 +347,20 @@ namespace Horde.Build.Streams
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType>? agentTypes, Dictionary<string, WorkspaceType>? workspaceTypes, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
+		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
 		{
-			int order = config.Order ?? StreamDocument.DefaultOrder;
+			int order = config.Order;
 
 			StreamDocument stream = (StreamDocument)streamInterface;
 
 			UpdateDefinitionBuilder<StreamDocument> updateBuilder = Builders<StreamDocument>.Update;
 
 			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
-			updates.Add(updateBuilder.Set(x => x.Name, config.Name));
 			updates.Add(updateBuilder.Set(x => x.ProjectId, projectId));
-			updates.Add(updateBuilder.Set(x => x.ClusterName, config.ClusterName));
 			updates.Add(updateBuilder.Set(x => x.ConfigRevision, configRevision));
-			updates.Add(updateBuilder.Set(x => x.Order, order));
-			updates.Add(updateBuilder.Set(x => x.NotificationChannel, config.NotificationChannel));
-			updates.Add(updateBuilder.Set(x => x.NotificationChannelFilter, config.NotificationChannelFilter));
-			updates.Add(updateBuilder.Set(x => x.TriageChannel, config.TriageChannel));
 			updates.Add(updateBuilder.Set(x => x.DefaultPreflight, defaultPreflight));
 			updates.Add(updateBuilder.Set(x => x.Tabs, tabs ?? new List<StreamTab>()));
-			updates.Add(updateBuilder.Set(x => x.AgentTypes, agentTypes ?? new Dictionary<string, AgentType>()));
-			updates.Add(updateBuilder.Set(x => x.WorkspaceTypes, workspaceTypes ?? new Dictionary<string, WorkspaceType>()));
 			updates.Add(updateBuilder.Set(x => x.Templates, templateRefs ?? new Dictionary<TemplateRefId, TemplateRef>()));
-			updates.Add(updateBuilder.Set(x => x.ReplicationMode, config.ReplicationMode));
-			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.ReplicationFilter, config.ReplicationFilter));
 			updates.Add(updateBuilder.SetOrUnsetNullRef(x => x.Acl, acl));
 			updates.Add(updateBuilder.Unset(x => x.Deleted));
 
@@ -538,7 +485,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Checks the stream definition for consistency
 		/// </summary>
-		public static void Validate(StreamId streamId, DefaultPreflight? defaultPreflight, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, IReadOnlyList<StreamTab> tabs, IReadOnlyDictionary<string, AgentType> agentTypes, IReadOnlyDictionary<string, WorkspaceType> workspaceTypes)
+		public static void Validate(StreamId streamId, DefaultPreflight? defaultPreflight, IReadOnlyDictionary<TemplateRefId, TemplateRef> templates, IReadOnlyList<StreamTab> tabs, StreamConfig config)
 		{
 			// Check the default preflight template is valid
 			if (defaultPreflight != null)
@@ -564,10 +511,10 @@ namespace Horde.Build.Streams
 			}
 
 			// Check that all the agent types reference valid workspace names
-			foreach (KeyValuePair<string, AgentType> pair in agentTypes)
+			foreach (KeyValuePair<string, AgentConfig> pair in config.AgentTypes)
 			{
 				string? workspaceTypeName = pair.Value.Workspace;
-				if (workspaceTypeName != null && !workspaceTypes.ContainsKey(workspaceTypeName))
+				if (workspaceTypeName != null && !config.WorkspaceTypes.ContainsKey(workspaceTypeName))
 				{
 					throw new InvalidStreamException($"Agent type '{pair.Key}' references undefined workspace type '{pair.Value.Workspace}' in {streamId}");
 				}

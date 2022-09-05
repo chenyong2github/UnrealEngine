@@ -113,7 +113,7 @@ namespace Horde.Build.Tests.Fleet
 			PoolSizeData poolSize = new (pool1, agents, null);
 			
 			string agentTypeName1 = "bogusAgentType1";
-			Dictionary<string, AgentConfig> agentTypes = new() { {agentTypeName1, new() { Pool = pool1.Name} }, };
+			Dictionary<string, AgentConfig> agentTypes = new() { {agentTypeName1, new() { Pool = new PoolId(pool1.Name) } }, };
 
 			IStream stream = (await CreateOrReplaceStreamAsync(
 				new StreamId("ue5-main"),

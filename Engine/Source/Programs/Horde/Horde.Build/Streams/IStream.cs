@@ -19,7 +19,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Streams
 {
-	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
@@ -43,206 +42,6 @@ namespace Horde.Build.Streams
 		/// <inheritdoc/>
 		public InvalidStreamException(string message, Exception innerEx) : base(message, innerEx)
 		{
-		}
-	}
-
-	/// <summary>
-	/// Mapping from a BuildGraph agent type to a set of machines on the farm
-	/// </summary>
-	public class AgentType
-	{
-		/// <summary>
-		/// Name of the pool of agents to use
-		/// </summary>
-		[BsonRequired]
-		public PoolId Pool { get; set; }
-
-		/// <summary>
-		/// Name of the workspace to execute on
-		/// </summary>
-		public string? Workspace { get; set; }
-
-		/// <summary>
-		/// Path to the temporary storage dir
-		/// </summary>
-		public string? TempStorageDir { get; set; }
-
-		/// <summary>
-		/// Environment variables to be set when executing the job
-		/// </summary>
-		public Dictionary<string, string>? Environment { get; set; }
-
-		/// <summary>
-		/// Default constructor
-		/// </summary>
-		[BsonConstructor]
-		private AgentType()
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="pool">The pool for this agent</param>
-		/// <param name="workspace">Name of the workspace to use</param>
-		/// <param name="tempStorageDir">Path to the temp storage directory</param>
-		public AgentType(PoolId pool, string workspace, string? tempStorageDir)
-		{
-			Pool = pool;
-			Workspace = workspace;
-			TempStorageDir = tempStorageDir;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="request">The object to construct from</param>
-		public AgentType(AgentConfig request)
-		{
-			Pool = new PoolId(request.Pool);
-			Workspace = request.Workspace;
-			TempStorageDir = request.TempStorageDir;
-			Environment = request.Environment;
-		}
-
-		/// <summary>
-		/// Constructs an AgentType object from an optional request
-		/// </summary>
-		/// <param name="request">The request object</param>
-		/// <returns>New agent type object</returns>
-		[return: NotNullIfNotNull("request")]
-		public static AgentType? FromRequest(AgentConfig? request)
-		{
-			return (request != null) ? new AgentType(request) : null;
-		}
-
-		/// <summary>
-		/// Creates an API response object from this stream
-		/// </summary>
-		/// <returns>The response object</returns>
-		public GetAgentTypeResponse ToApiResponse()
-		{
-			return new GetAgentTypeResponse(Pool.ToString(), Workspace, TempStorageDir, Environment);
-		}
-
-		/// <summary>
-		/// Creates an API response object from this stream
-		/// </summary>
-		/// <returns>The response object</returns>
-		public HordeCommon.Rpc.GetAgentTypeResponse ToRpcResponse()
-		{
-			HordeCommon.Rpc.GetAgentTypeResponse response = new HordeCommon.Rpc.GetAgentTypeResponse();
-			if (TempStorageDir != null)
-			{
-				response.TempStorageDir = TempStorageDir;
-			}
-			if (Environment != null)
-			{
-				response.Environment.Add(Environment);
-			}
-			return response;
-		}
-	}
-
-	/// <summary>
-	/// Information about a workspace type
-	/// </summary>
-	public class WorkspaceType
-	{
-		/// <summary>
-		/// Name of the Perforce cluster to use
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public string? Cluster { get; set; }
-
-		/// <summary>
-		/// The Perforce server and port
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public string? ServerAndPort { get; set; }
-
-		/// <summary>
-		/// The Perforce username for syncing this workspace
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public string? UserName { get; set; }
-
-		/// <summary>
-		/// The Perforce password for syncing this workspace
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public string? Password { get; set; }
-
-		/// <summary>
-		/// Identifier to distinguish this workspace from other workspaces. Defaults to the workspace type name.
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public string? Identifier { get; set; }
-
-		/// <summary>
-		/// Override for the stream to sync
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public string? Stream { get; set; }
-
-		/// <summary>
-		/// Custom view for the workspace
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public List<string>? View { get; set; }
-
-		/// <summary>
-		/// Whether to use an incrementally synced workspace
-		/// </summary>
-		public bool Incremental { get; set; }
-
-		/// <summary>
-		/// Whether to use the AutoSDK
-		/// </summary>
-		public bool UseAutoSdk { get; set; } = true;
-
-		/// <summary>
-		/// Default constructor
-		/// </summary>
-		public WorkspaceType()
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="request">The object to construct from</param>
-		public WorkspaceType(WorkspaceConfig request)
-		{
-			Cluster = request.Cluster;
-			ServerAndPort = request.ServerAndPort;
-			UserName = request.UserName;
-			Password = request.Password;
-			Identifier = request.Identifier;
-			Stream = request.Stream;
-			View = request.View;
-			Incremental = request.Incremental;
-			UseAutoSdk = request.UseAutoSdk;
-		}
-
-		/// <summary>
-		/// Constructs an AgentType object from an optional request
-		/// </summary>
-		/// <param name="request">The request object</param>
-		/// <returns>New agent type object</returns>
-		[return: NotNullIfNotNull("request")]
-		public static WorkspaceType? FromRequest(WorkspaceConfig? request)
-		{
-			return (request != null) ? new WorkspaceType(request) : null;
-		}
-
-		/// <summary>
-		/// Creates an API response object from this stream
-		/// </summary>
-		/// <returns>The response object</returns>
-		public GetWorkspaceTypeResponse ToApiResponse()
-		{
-			return new GetWorkspaceTypeResponse(Cluster, ServerAndPort, UserName, Identifier, Stream, View, Incremental, UseAutoSdk);
 		}
 	}
 
@@ -529,27 +328,6 @@ namespace Horde.Build.Streams
 	}
 
 	/// <summary>
-	/// How to replicate data for this stream
-	/// </summary>
-	public enum ContentReplicationMode
-	{
-		/// <summary>
-		/// No content will be replicated for this stream
-		/// </summary>
-		None,
-
-		/// <summary>
-		/// Only replicate depot path and revision data for each file
-		/// </summary>
-		RevisionsOnly,
-
-		/// <summary>
-		/// Replicate full stream contents to storage
-		/// </summary>
-		Full,
-	}
-
-	/// <summary>
 	/// Information about a stream
 	/// </summary>
 	public interface IStream
@@ -570,11 +348,6 @@ namespace Horde.Build.Streams
 		public string Name { get; }
 
 		/// <summary>
-		/// Name of the perforce cluster
-		/// </summary>
-		public string ClusterName { get; }
-
-		/// <summary>
 		/// The revision of config file used for this stream
 		/// </summary>
 		public string ConfigRevision { get; }
@@ -590,26 +363,6 @@ namespace Horde.Build.Streams
 		public bool Deleted { get; }
 
 		/// <summary>
-		/// Order to display on the dashboard's drop-down list
-		/// </summary>
-		public int Order { get; }
-
-		/// <summary>
-		/// Notification channel for all jobs in this stream
-		/// </summary>
-		public string? NotificationChannel { get; }
-
-		/// <summary>
-		/// Notification channel filter for all jobs in this stream. Errors|Warnings|Success
-		/// </summary>
-		public string? NotificationChannelFilter { get; }
-
-		/// <summary>
-		/// Channel to post issue triage notifications
-		/// </summary>
-		public string? TriageChannel { get; }
-
-		/// <summary>
 		/// Default template to use for preflights
 		/// </summary>
 		public DefaultPreflight? DefaultPreflight { get; }
@@ -618,16 +371,6 @@ namespace Horde.Build.Streams
 		/// List of pages to display in the dashboard
 		/// </summary>
 		public IReadOnlyList<StreamTab> Tabs { get; }
-
-		/// <summary>
-		/// Dictionary of agent types
-		/// </summary>
-		public IReadOnlyDictionary<string, AgentType> AgentTypes { get; }
-
-		/// <summary>
-		/// Dictionary of workspace types
-		/// </summary>
-		public IReadOnlyDictionary<string, WorkspaceType> WorkspaceTypes { get; }
 
 		/// <summary>
 		/// List of templates available for this stream
@@ -643,16 +386,6 @@ namespace Horde.Build.Streams
 		/// Comment/reason for why the stream was paused
 		/// </summary>
 		public string? PauseComment { get; }
-
-		/// <summary>
-		/// Whether to replicate data from Perforce to Horde Storage.
-		/// </summary>
-		public ContentReplicationMode ReplicationMode { get; }
-
-		/// <summary>
-		/// Filter for paths to be replicated. May be removed in future.
-		/// </summary>
-		public string? ReplicationFilter { get; }
 
 		/// <summary>
 		/// The ACL for this object
@@ -672,7 +405,7 @@ namespace Horde.Build.Streams
 		/// <param name="agentType">The agent type</param>
 		/// <param name="workspace">Receives the agent workspace definition</param>
 		/// <returns>True if the agent type was valid, and an agent workspace could be created</returns>
-		public static bool TryGetAgentWorkspace(this IStream stream, AgentType agentType, [NotNullWhen(true)] out (AgentWorkspace, bool)? workspace)
+		public static bool TryGetAgentWorkspace(this IStream stream, AgentConfig agentType, [NotNullWhen(true)] out (AgentWorkspace, bool)? workspace)
 		{
 			// Get the workspace settings
 			if (agentType.Workspace == null)
@@ -684,8 +417,8 @@ namespace Horde.Build.Streams
 			else
 			{
 				// Try to get the matching workspace type
-				WorkspaceType? workspaceType;
-				if (!stream.WorkspaceTypes.TryGetValue(agentType.Workspace, out workspaceType))
+				WorkspaceConfig? workspaceType;
+				if (!stream.Config.WorkspaceTypes.TryGetValue(agentType.Workspace, out workspaceType))
 				{
 					workspace = null;
 					return false;
@@ -742,10 +475,10 @@ namespace Horde.Build.Streams
 		public static GetStreamResponse ToApiResponse(this IStream stream, bool bIncludeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
 		{
 			List<GetStreamTabResponse> apiTabs = stream.Tabs.ConvertAll(x => x.ToResponse());
-			Dictionary<string, GetAgentTypeResponse> apiAgentTypes = stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
-			Dictionary<string, GetWorkspaceTypeResponse> apiWorkspaceTypes = stream.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value.ToApiResponse());
+			Dictionary<string, AgentConfig> apiAgentTypes = stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value);
+			Dictionary<string, WorkspaceConfig> apiWorkspaceTypes = stream.Config.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value);
 			GetAclResponse? apiAcl = (bIncludeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
-			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Order, stream.NotificationChannel, stream.NotificationChannelFilter, stream.TriageChannel, stream.DefaultPreflight?.ToRequest(), apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
+			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Config.Order, stream.Config.NotificationChannel, stream.Config.NotificationChannelFilter, stream.Config.TriageChannel, stream.DefaultPreflight?.ToRequest(), apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
 		}
 
 		/// <summary>
@@ -757,7 +490,7 @@ namespace Horde.Build.Streams
 		{
 			HordeCommon.Rpc.GetStreamResponse response = new HordeCommon.Rpc.GetStreamResponse();
 			response.Name = stream.Name;
-			response.AgentTypes.Add(stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
+			response.AgentTypes.Add(stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
 			return response;
 		}
 

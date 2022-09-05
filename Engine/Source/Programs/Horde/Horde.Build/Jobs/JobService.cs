@@ -226,7 +226,7 @@ namespace Horde.Build.Jobs
 
 			if (preflightChange != null && ShouldClonePreflightChange(stream.Id))
 			{
-				clonedPreflightChange = await CloneShelvedChangeAsync(stream.ClusterName, clonedPreflightChange ?? preflightChange.Value);
+				clonedPreflightChange = await CloneShelvedChangeAsync(stream.Config.ClusterName, clonedPreflightChange ?? preflightChange.Value);
 			}
 
 			_logger.LogInformation("Creating job at CL {Change}, code CL {CodeChange}, preflight CL {PreflightChange}, cloned CL {ClonedPreflightChange}", change, codeChange, preflightChange, clonedPreflightChange);
@@ -990,7 +990,7 @@ namespace Horde.Build.Jobs
 								IStream? stream = await _streamService.GetCachedStream(job.StreamId);
 								if (stream != null)
 								{
-									await DeleteShelvedChangeAsync(stream.ClusterName, job.ClonedPreflightChange);
+									await DeleteShelvedChangeAsync(stream.Config.ClusterName, job.ClonedPreflightChange);
 								}
 							}
 						}
@@ -1085,7 +1085,7 @@ namespace Horde.Build.Jobs
 					{
 						if (ShouldClonePreflightChange(job.StreamId))
 						{
-							clonedPreflightChange = await CloneShelvedChangeAsync(stream.ClusterName, job.PreflightChange);
+							clonedPreflightChange = await CloneShelvedChangeAsync(stream.Config.ClusterName, job.PreflightChange);
 						}
 						else
 						{
@@ -1096,10 +1096,10 @@ namespace Horde.Build.Jobs
 					_logger.LogInformation("Updating description for {ClonedPreflightChange}", clonedPreflightChange);
 
 					ICommit details = await _perforceService.GetChangeDetailsAsync(stream, clonedPreflightChange);
-					await _perforceService.UpdateChangelistDescription(stream.ClusterName, clonedPreflightChange, details.Description.TrimEnd() + $"\n#preflight {job.Id}");
+					await _perforceService.UpdateChangelistDescription(stream.Config.ClusterName, clonedPreflightChange, details.Description.TrimEnd() + $"\n#preflight {job.Id}");
 
 					_logger.LogInformation("Submitting change {Change} (through {ChangeCopy}) after successful completion of {JobId}", job.PreflightChange, clonedPreflightChange, job.Id);
-					(change, message) = await _perforceService.SubmitShelvedChangeAsync(stream.ClusterName, clonedPreflightChange, job.PreflightChange);
+					(change, message) = await _perforceService.SubmitShelvedChangeAsync(stream.Config.ClusterName, clonedPreflightChange, job.PreflightChange);
 
 					_logger.LogInformation("Attempt to submit {Change} (through {ChangeCopy}): {Message}", job.PreflightChange, clonedPreflightChange, message);
 
@@ -1112,14 +1112,14 @@ namespace Horde.Build.Jobs
 					{
 						if (change != null && job.ClonedPreflightChange != 0)
 						{
-							await DeleteShelvedChangeAsync(stream.ClusterName, job.PreflightChange);
+							await DeleteShelvedChangeAsync(stream.Config.ClusterName, job.PreflightChange);
 						}
 					}
 					else
 					{
 						if (change != null && job.PreflightChange != 0)
 						{
-							await DeleteShelvedChangeAsync(stream.ClusterName, job.PreflightChange);
+							await DeleteShelvedChangeAsync(stream.Config.ClusterName, job.PreflightChange);
 						}
 					}
 				}

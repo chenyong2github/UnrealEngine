@@ -75,14 +75,14 @@ namespace Horde.Build.Agents.Pools
 				List<IStream> activeStreams = await _streams.FindAllAsync();
 				foreach (IStream activeStream in activeStreams)
 				{
-					foreach (KeyValuePair<string, AgentType> agentTypePair in activeStream.AgentTypes)
+					foreach (KeyValuePair<string, AgentConfig> agentTypePair in activeStream.Config.AgentTypes)
 					{
 						// Create the new agent workspace
 						(AgentWorkspace, bool)? result;
 						if (activeStream.TryGetAgentWorkspace(agentTypePair.Value, out result))
 						{
 							(AgentWorkspace agentWorkspace, bool useAutoSdk) = result.Value;
-							AgentType agentType = agentTypePair.Value;
+							AgentConfig agentType = agentTypePair.Value;
 
 							// Find or add a list of workspaces for this pool
 							List<AgentWorkspace>? agentWorkspaces;

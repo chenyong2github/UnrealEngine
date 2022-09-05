@@ -129,7 +129,7 @@ namespace Horde.Build.Agents.Fleet
 				}
 
 				string batchAgentType = graph.Groups[batch.GroupIdx].AgentType;
-				if (!stream.AgentTypes.TryGetValue(batchAgentType, out AgentType? agentType))
+				if (!stream.Config.AgentTypes.TryGetValue(batchAgentType, out AgentConfig? agentType))
 				{
 					continue;
 				}

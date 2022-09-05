@@ -87,7 +87,7 @@ namespace Horde.Build.Commands.Bundles
 				baseContents = await replicationService.ReadCommitTreeAsync(stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
 			}
 
-			await foreach (NewCommit newCommit in commitService.FindCommitsForClusterAsync(stream.ClusterName, streamToFirstChange).Take(Count))
+			await foreach (NewCommit newCommit in commitService.FindCommitsForClusterAsync(stream.Config.ClusterName, streamToFirstChange).Take(Count))
 			{
 				string briefSummary = newCommit.Description.Replace('\n', ' ');
 				logger.LogInformation("");

@@ -44,7 +44,7 @@ namespace Horde.Build.Perforce
 	public class ReplicationServiceOptions
 	{
 		/// <summary>
-		/// Whether to enable replication. Must also be enabled on a per-stream basis (see <see cref="IStream.ReplicationMode"/>).
+		/// Whether to enable replication. Must also be enabled on a per-stream basis (see <see cref="StreamConfig.ReplicationMode"/>).
 		/// </summary>
 		public bool Enable { get; set; } = true;
 
@@ -357,7 +357,7 @@ namespace Horde.Build.Perforce
 			for (; ; )
 			{
 				IStream? stream = await _streamCollection.GetAsync(streamId);
-				if (stream == null || stream.ReplicationMode == ContentReplicationMode.None)
+				if (stream == null || stream.Config.ReplicationMode == ContentReplicationMode.None)
 				{
 					// Remove all but the last item
 					await streamChanges.TrimAsync(0, -2);
@@ -483,7 +483,7 @@ namespace Horde.Build.Perforce
 		/// <returns></returns>
 		static RefName GetRefName(IStream stream, int change)
 		{
-			return GetRefName(stream.Id, change, stream.ReplicationFilter, stream.ReplicationMode == ContentReplicationMode.RevisionsOnly);
+			return GetRefName(stream.Id, change, stream.Config.ReplicationFilter, stream.Config.ReplicationMode == ContentReplicationMode.RevisionsOnly);
 		}
 
 		/// <summary>
@@ -512,8 +512,8 @@ namespace Horde.Build.Perforce
 		/// <returns>Root tree object</returns>
 		public async Task<ReplicationNode> WriteCommitTreeAsync(IStream stream, int change, int baseChange, ReplicationNode baseContents, CancellationToken cancellationToken)
 		{
-			bool revisionsOnly = stream.ReplicationMode == ContentReplicationMode.RevisionsOnly;
-			return await WriteCommitTreeAsync(stream, change, baseChange, baseContents, stream.ReplicationFilter, revisionsOnly, cancellationToken);
+			bool revisionsOnly = stream.Config.ReplicationMode == ContentReplicationMode.RevisionsOnly;
+			return await WriteCommitTreeAsync(stream, change, baseChange, baseContents, stream.Config.ReplicationFilter, revisionsOnly, cancellationToken);
 		}
 
 		[DebuggerDisplay("{_path}")]
@@ -994,7 +994,7 @@ namespace Horde.Build.Perforce
 			ReplicationClient? clientInfo;
 			if (_cachedPerforceClients.TryGetValue(stream.Id, out clientInfo))
 			{
-				if (!String.Equals(clientInfo.ClusterName, stream.ClusterName, StringComparison.Ordinal) && String.Equals(clientInfo.Client.Stream, stream.Name, StringComparison.Ordinal))
+				if (!String.Equals(clientInfo.ClusterName, stream.Config.ClusterName, StringComparison.Ordinal) && String.Equals(clientInfo.Client.Stream, stream.Name, StringComparison.Ordinal))
 				{
 					PerforceSettings serverSettings = new PerforceSettings(clientInfo.Settings);
 					serverSettings.ClientName = null;
@@ -1014,7 +1014,7 @@ namespace Horde.Build.Perforce
 			ReplicationClient? clientInfo = await FindReplicationClientAsync(stream);
 			if (clientInfo == null)
 			{
-				using IPerforceConnection? perforce = await _perforceService.ConnectAsync(stream.ClusterName);
+				using IPerforceConnection? perforce = await _perforceService.ConnectAsync(stream.Config.ClusterName);
 				if (perforce == null)
 				{
 					throw new PerforceException($"Unable to create connection to Perforce server");
@@ -1035,7 +1035,7 @@ namespace Horde.Build.Perforce
 				settings.ClientName = newClient.Name;
 				settings.PreferNativeClient = true;
 
-				clientInfo = new ReplicationClient(settings, stream.ClusterName, serverInfo, newClient, -1);
+				clientInfo = new ReplicationClient(settings, stream.Config.ClusterName, serverInfo, newClient, -1);
 				_cachedPerforceClients.Add(stream.Id, clientInfo);
 			}
 			return clientInfo;

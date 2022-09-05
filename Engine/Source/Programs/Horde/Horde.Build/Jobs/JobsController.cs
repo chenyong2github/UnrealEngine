@@ -161,7 +161,7 @@ namespace Horde.Build.Jobs
 			string? preflightDescription = null;
 			if (create.PreflightChange != null)
 			{
-				(CheckShelfResult result, preflightDescription) = await _perforce.CheckShelfAsync(stream.ClusterName, stream.Name, create.PreflightChange.Value);
+				(CheckShelfResult result, preflightDescription) = await _perforce.CheckShelfAsync(stream.Config.ClusterName, stream.Name, create.PreflightChange.Value);
 				switch (result)
 				{
 					case CheckShelfResult.Ok:

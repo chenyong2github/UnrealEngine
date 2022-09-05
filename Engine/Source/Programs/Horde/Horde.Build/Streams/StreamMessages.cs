@@ -379,12 +379,12 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Map of agent name to type
 		/// </summary>
-		public Dictionary<string, GetAgentTypeResponse> AgentTypes { get; set; }
+		public Dictionary<string, AgentConfig> AgentTypes { get; set; }
 
 		/// <summary>
 		/// Map of workspace name to type
 		/// </summary>
-		public Dictionary<string, GetWorkspaceTypeResponse>? WorkspaceTypes { get; set; }
+		public Dictionary<string, WorkspaceConfig>? WorkspaceTypes { get; set; }
 
 		/// <summary>
 		/// Templates for jobs in this stream
@@ -431,7 +431,7 @@ namespace Horde.Build.Streams
 		/// <param name="pausedUntil">Stream paused for new builds until this date</param>
 		/// <param name="pauseComment">Reason for stream being paused</param>
 		/// <param name="workflows">Workflows for this stream</param>
-		public GetStreamResponse(string id, string projectId, string name, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightConfig? defaultPreflight, List<GetStreamTabResponse> tabs, Dictionary<string, GetAgentTypeResponse> agentTypes, Dictionary<string, GetWorkspaceTypeResponse>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment, List<WorkflowConfig> workflows)
+		public GetStreamResponse(string id, string projectId, string name, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightConfig? defaultPreflight, List<GetStreamTabResponse> tabs, Dictionary<string, AgentConfig> agentTypes, Dictionary<string, WorkspaceConfig>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment, List<WorkflowConfig> workflows)
 		{
 			Id = id;
 			ProjectId = projectId;

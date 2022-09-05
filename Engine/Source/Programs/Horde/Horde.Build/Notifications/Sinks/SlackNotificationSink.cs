@@ -375,9 +375,9 @@ namespace Horde.Build.Notifications.Sinks
 			{
 				await SendJobCompleteNotificationToChannelAsync(job.NotificationChannel, job.NotificationChannelFilter, jobStream, job, graph, outcome);
 			}
-			if (jobStream.NotificationChannel != null)
+			if (jobStream.Config.NotificationChannel != null)
 			{
-				await SendJobCompleteNotificationToChannelAsync(jobStream.NotificationChannel, jobStream.NotificationChannelFilter, jobStream, job, graph, outcome);
+				await SendJobCompleteNotificationToChannelAsync(jobStream.Config.NotificationChannel, jobStream.Config.NotificationChannelFilter, jobStream, job, graph, outcome);
 			}
 		}
 
@@ -709,9 +709,9 @@ namespace Horde.Build.Notifications.Sinks
 					{
 						channels.Add(templateRef.TriageChannel);
 					}
-					else if (stream.TriageChannel != null)
+					else if (stream.Config.TriageChannel != null)
 					{
-						channels.Add(stream.TriageChannel);
+						channels.Add(stream.Config.TriageChannel);
 					}
 				}
 			}

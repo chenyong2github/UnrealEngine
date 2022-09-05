@@ -7,18 +7,42 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
 using Horde.Build.Acls;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Issues;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Schedules;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Perforce;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 
 namespace Horde.Build.Streams
 {
+	using PoolId = StringId<IPool>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
+
+	/// <summary>
+	/// How to replicate data for this stream
+	/// </summary>
+	public enum ContentReplicationMode
+	{
+		/// <summary>
+		/// No content will be replicated for this stream
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Only replicate depot path and revision data for each file
+		/// </summary>
+		RevisionsOnly,
+
+		/// <summary>
+		/// Replicate full stream contents to storage
+		/// </summary>
+		Full,
+	}
 
 	/// <summary>
 	/// Config for a stream
@@ -36,12 +60,12 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// The perforce cluster containing the stream
 		/// </summary>
-		public string? ClusterName { get; set; }
+		public string ClusterName { get; set; } = PerforceCluster.DefaultName;
 
 		/// <summary>
 		/// Order for this stream
 		/// </summary>
-		public int? Order { get; set; }
+		public int Order { get; set; } = 128;
 
 		/// <summary>
 		/// Notification channel for all jobs in this stream
@@ -162,7 +186,7 @@ namespace Horde.Build.Streams
 		/// Pool of agents to use for this agent type
 		/// </summary>
 		[Required]
-		public string Pool { get; set; } = null!;
+		public PoolId Pool { get; set; }
 
 		/// <summary>
 		/// Name of the workspace to sync
@@ -178,6 +202,24 @@ namespace Horde.Build.Streams
 		/// Environment variables to be set when executing the job
 		/// </summary>
 		public Dictionary<string, string>? Environment { get; set; }
+
+		/// <summary>
+		/// Creates an API response object from this stream
+		/// </summary>
+		/// <returns>The response object</returns>
+		public HordeCommon.Rpc.GetAgentTypeResponse ToRpcResponse()
+		{
+			HordeCommon.Rpc.GetAgentTypeResponse response = new HordeCommon.Rpc.GetAgentTypeResponse();
+			if (TempStorageDir != null)
+			{
+				response.TempStorageDir = TempStorageDir;
+			}
+			if (Environment != null)
+			{
+				response.Environment.Add(Environment);
+			}
+			return response;
+		}
 	}
 
 	/// <summary>

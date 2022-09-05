@@ -416,7 +416,7 @@ namespace Horde.Build.Jobs
 
 					// Validate the agent type and workspace settings
 					IJobStepBatch batch = newJob.Batches[batchIdx];
-					if (!stream.AgentTypes.TryGetValue(graph.Groups[batch.GroupIdx].AgentType, out AgentType? agentType))
+					if (!stream.Config.AgentTypes.TryGetValue(graph.Groups[batch.GroupIdx].AgentType, out AgentConfig? agentType))
 					{
 						newJob = await SkipBatchAsync(newJob, batch.Id, graph, JobStepBatchError.UnknownAgentType);
 					}
@@ -667,8 +667,8 @@ namespace Horde.Build.Jobs
 						INodeGroup group = graph.Groups[batch.GroupIdx];
 
 						// Get the requirements for the new queue item
-						AgentType? agentType;
-						if (stream.AgentTypes.TryGetValue(group.AgentType, out agentType))
+						AgentConfig? agentType;
+						if (stream.Config.AgentTypes.TryGetValue(group.AgentType, out agentType))
 						{
 							(AgentWorkspace, bool)? result;
 							if (stream.TryGetAgentWorkspace(agentType, out result))

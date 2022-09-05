@@ -183,11 +183,11 @@ namespace Horde.Build.Perforce
 			Match match = Regex.Match(template.SubmitNewChange!, @"^(//[^/]+/[^/]+)/(.+)$");
 			if (match.Success)
 			{
-				return perforce.CreateNewChangeAsync(stream.ClusterName, match.Groups[1].Value, match.Groups[2].Value, description);
+				return perforce.CreateNewChangeAsync(stream.Config.ClusterName, match.Groups[1].Value, match.Groups[2].Value, description);
 			}
 			else
 			{
-				return perforce.CreateNewChangeAsync(stream.ClusterName, stream.Name, template.SubmitNewChange!, description);
+				return perforce.CreateNewChangeAsync(stream.Config.ClusterName, stream.Name, template.SubmitNewChange!, description);
 			}
 		}
 

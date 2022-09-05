@@ -457,7 +457,7 @@ namespace Horde.Build.Perforce
 
 		Task<PooledConnectionHandle> ConnectWithStreamClientAsync(IStream stream, string? userName, CancellationToken cancellationToken)
 		{
-			return ConnectWithStreamClientAsync(stream.ClusterName, userName, stream.Name, cancellationToken);
+			return ConnectWithStreamClientAsync(stream.Config.ClusterName, userName, stream.Name, cancellationToken);
 		}
 
 		async Task<Credentials> GetTicketAsync(PerforceCluster cluster, string userName, CancellationToken cancellationToken)
@@ -598,7 +598,7 @@ namespace Horde.Build.Perforce
 		public async Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
-			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
 			scope.Span.SetTag("MinChange", minChange ?? -1);
 			scope.Span.SetTag("MaxChange", maxChange ?? -1);
 			scope.Span.SetTag("MaxResults", maxResults);
@@ -623,7 +623,7 @@ namespace Horde.Build.Perforce
 
 		async ValueTask<Commit> CreateCommitInternalAsync(IStream stream, int number, string author, string description, string? basePath, DateTime dateUtc, CancellationToken cancellationToken)
 		{
-			IUser authorUser = await FindOrAddUserAsync(stream.ClusterName, author, cancellationToken);
+			IUser authorUser = await FindOrAddUserAsync(stream.Config.ClusterName, author, cancellationToken);
 			IUser ownerUser = authorUser;
 
 			int originalChange = ParseRobomergeSource(description) ?? number;
@@ -631,10 +631,10 @@ namespace Horde.Build.Perforce
 			string? owner = ParseRobomergeOwner(description);
 			if (owner != null)
 			{
-				ownerUser = await FindOrAddUserAsync(stream.ClusterName, owner, cancellationToken);
+				ownerUser = await FindOrAddUserAsync(stream.Config.ClusterName, owner, cancellationToken);
 			}
 
-			return new Commit(this, stream.ClusterName, stream.Name, stream.Id, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
+			return new Commit(this, stream.Config.ClusterName, stream.Name, stream.Id, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
 		}
 
 		async ValueTask<Commit> CreateCommitAsync(IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
@@ -698,11 +698,11 @@ namespace Horde.Build.Perforce
 		public async Task<ICommit> GetChangeDetailsAsync(IStream stream, int changeNumber, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
-			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
 			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("ChangeNumber", changeNumber);
 
-			PerforceCluster cluster = await GetClusterAsync(stream.ClusterName);
+			PerforceCluster cluster = await GetClusterAsync(stream.Config.ClusterName);
 
 			using (PooledConnectionHandle perforce = await ConnectAsync(cluster, null, cancellationToken))
 			{
@@ -779,7 +779,7 @@ namespace Horde.Build.Perforce
 		public async Task<List<ICommit>> GetChangeDetailsAsync(IStream stream, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
-			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
 			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("ChangeNumbers.Count", changeNumbers.Count);
 
@@ -1043,7 +1043,7 @@ namespace Horde.Build.Perforce
 		public async Task<int> GetCodeChangeAsync(IStream stream, int change, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetCodeChangeAsync").StartActive();
-			scope.Span.SetTag("ClusterName", stream.ClusterName);
+			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
 			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("Change", change);
 			

@@ -195,7 +195,7 @@ namespace Horde.Build.Perforce
 		async ValueTask UpdateMetadataAsync(CancellationToken cancellationToken)
 		{
 			List<IStream> streams = await _streamCollection.FindAllAsync();
-			foreach (IGrouping<string, IStream> group in streams.GroupBy(x => x.ClusterName, StringComparer.OrdinalIgnoreCase))
+			foreach (IGrouping<string, IStream> group in streams.GroupBy(x => x.Config.ClusterName, StringComparer.OrdinalIgnoreCase))
 			{
 				try
 				{
