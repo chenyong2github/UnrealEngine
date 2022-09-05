@@ -67,8 +67,8 @@ public:
 	SLATE_EVENT(FExtenderDelegate, ExtendControllButtons)
 	/** Extends the menu when the user right-clicks a session */
 	SLATE_EVENT(FExtendSessionContextMenu, ExtendSessionContextMenu)
-	/** Custom slot placed to the right of the search bar */
-	SLATE_NAMED_SLOT(FArguments, RightOfSearchBar)
+	/** Custom slot placed to the right the control button in the top-most bar */
+	SLATE_NAMED_SLOT(FArguments, RightOfControlButtons)
 	
 	/** Called when a live or archived session is clicked */
 	SLATE_EVENT(FSessionDelegate, OnSessionClicked)

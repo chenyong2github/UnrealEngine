@@ -2,13 +2,8 @@
 
 #include "Session/Browser/SConcertSessionBrowser.h"
 
-#include "Algo/ForEach.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertHeaderRowUtils.h"
-
-#include "Algo/Find.h"
-#include "Algo/Transform.h"
-
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
 #include "Session/Browser/ConcertSessionItem.h"
@@ -17,6 +12,8 @@
 #include "Session/Browser/SSaveRestoreSessionRow.h"
 #include "Session/Browser/SSessionRow.h"
 
+#include "Algo/ForEach.h"
+#include "Algo/Find.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/TextFilter.h"
 #include "Styling/AppStyle.h"
@@ -31,6 +28,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Styling/StyleColors.h"
+#include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 
@@ -90,6 +88,26 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent(const FArguments&
 			.AutoHeight()
 			[
 				MakeControlBar(InArgs)
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SSeparator)
+				.Thickness(2.f)
+				.SeparatorImage(&FCoreStyle::Get().GetWidgetStyle<FToolBarStyle>("ToolBar").SeparatorBrush)
+			]
+
+			// The search text.
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.f, 4.f)
+			[
+				SAssignNew(SearchBox, SSearchBox)
+				.HintText(LOCTEXT("SearchHint", "Search Session"))
+				.OnTextChanged(this, &SConcertSessionBrowser::OnSearchTextChanged)
+				.OnTextCommitted(this, &SConcertSessionBrowser::OnSearchTextCommitted)
+				.DelayChangeNotificationsWhileTyping(true)
 			]
 
 			// Session list.
@@ -281,13 +299,8 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeControlBar(const FArguments& InA
 		// The search text.
 		+SHorizontalBox::Slot()
 		.FillWidth(1.0)
-		.Padding(4.0f, 5.0f, 8.0f, 5.0f)
 		[
-			SAssignNew(SearchBox, SSearchBox)
-			.HintText(LOCTEXT("SearchHint", "Search Session"))
-			.OnTextChanged(this, &SConcertSessionBrowser::OnSearchTextChanged)
-			.OnTextCommitted(this, &SConcertSessionBrowser::OnSearchTextCommitted)
-			.DelayChangeNotificationsWhileTyping(true)
+			SNew(SSpacer)
 		]
 
 		// Optional: everything to the right of the search bar, e.g. user name and settings combo button
@@ -295,7 +308,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeControlBar(const FArguments& InA
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			InArgs._RightOfSearchBar.Widget
+			InArgs._RightOfControlButtons.Widget
 		];
 }
 

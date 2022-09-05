@@ -1173,7 +1173,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeBrowserContent(TSharedPtr<
 					.ExtendSessionTable(this, &SConcertClientSessionBrowser::MakeOverlayedTableView)
 					.ExtendControllButtons(this, &SConcertClientSessionBrowser::ExtendControlButtons)
 					.ExtendSessionContextMenu(this, &SConcertClientSessionBrowser::ExtendSessionContextMenu)
-					.RightOfSearchBar()
+					.RightOfControlButtons()
 					[
 						MakeUserAndSettings()
 					]
