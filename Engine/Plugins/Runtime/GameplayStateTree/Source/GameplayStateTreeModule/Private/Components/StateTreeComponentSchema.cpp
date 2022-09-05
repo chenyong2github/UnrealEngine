@@ -39,6 +39,12 @@ TConstArrayView<FStateTreeExternalDataDesc> UStateTreeComponentSchema::GetNamedE
 	return MakeArrayView(&ContextActorDataDesc, 1);
 }
 
+void UStateTreeComponentSchema::PostLoad()
+{
+	Super::PostLoad();
+	ContextActorDataDesc.Struct = ContextActorClass.Get();
+}
+
 #if WITH_EDITOR
 void UStateTreeComponentSchema::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {

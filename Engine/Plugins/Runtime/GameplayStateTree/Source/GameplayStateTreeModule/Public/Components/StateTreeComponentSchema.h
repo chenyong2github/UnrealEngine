@@ -27,6 +27,8 @@ protected:
 	
 	virtual TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const;
 
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR

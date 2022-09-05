@@ -654,38 +654,39 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 
 EVisibility SStateTreeViewRow::GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const
 {
-	if (!EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+	// Handle completed, succeeeded and failed transitions.
+	if (EnumHasAnyFlags(Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
 	{
+		const bool bIsLeafState = (State.Children.Num() == 0);
+		EStateTreeTransitionTrigger HandledTriggers = EStateTreeTransitionTrigger::None;
+		bool bExactMatch = false;
+
 		for (const FStateTreeTransition& Transition : State.Transitions)
 		{
-			if (EnumHasAnyFlags(Trigger, Transition.Trigger))
-			{
-				return EVisibility::Visible;
-			}
+			HandledTriggers |= Transition.Trigger;
+			bExactMatch |= (Transition.Trigger == Trigger);
 		}
-		return EVisibility::Collapsed;
-	}
-	
-	EStateTreeTransitionTrigger HandledTriggers = EStateTreeTransitionTrigger::None;
-	TStaticArray<int32, static_cast<uint32>(EStateTreeTransitionTrigger::MAX)> Counts;
-	Algo::ForEach(Counts, [](int32& Count) { Count = 0; }); 
 
+		// Assume that leaf states should have completion transitions.
+		if (!bExactMatch && bIsLeafState)
+		{
+			// Find the missing transition type, note: Completed = Succeeded|Failed.
+			const EStateTreeTransitionTrigger MissingTriggers = HandledTriggers ^ EStateTreeTransitionTrigger::OnStateCompleted;
+			return MissingTriggers == Trigger ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+		
+		return bExactMatch ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	// Handle the test
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
-		HandledTriggers |= Transition.Trigger;
-		Counts[static_cast<uint8>(Transition.Trigger)]++;
+		if (EnumHasAnyFlags(Trigger, Transition.Trigger))
+		{
+			return EVisibility::Visible;
+		}
 	}
-
-	// Assume that leaf states should have completion transitions.
-	if (State.Children.Num() == 0
-	    && Counts[static_cast<uint8>(Trigger)] == 0)
-	{
-		// Find the missing transition type, note: Completed = Succeeded|Failed.
-		const EStateTreeTransitionTrigger MissingTriggers = HandledTriggers ^ EStateTreeTransitionTrigger::OnStateCompleted;
-		return MissingTriggers == Trigger ? EVisibility::Visible : EVisibility::Collapsed;
-	}
-	
-	return Counts[static_cast<uint8>(Trigger)] > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+	return EVisibility::Collapsed;
 }
 
 EVisibility SStateTreeViewRow::GetCompletedTransitionVisibility() const
