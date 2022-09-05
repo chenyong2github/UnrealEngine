@@ -6,63 +6,6 @@ using System.ComponentModel.DataAnnotations;
 namespace Horde.Build.Acls
 {
 	/// <summary>
-	/// New claim to create
-	/// </summary>
-	public class CreateAclClaimRequest
-	{
-		/// <summary>
-		/// The claim type
-		/// </summary>
-		[Required]
-		public string Type { get; set; } = null!;
-
-		/// <summary>
-		/// The claim value
-		/// </summary>
-		[Required]
-		public string Value { get; set; } = null!;
-	}
-
-	/// <summary>
-	/// Individual entry in an ACL
-	/// </summary>
-	public class CreateAclEntryRequest
-	{
-		/// <summary>
-		/// Name of the user or group
-		/// </summary>
-		[Required]
-		public CreateAclClaimRequest Claim { get; set; } = null!;
-
-		/// <summary>
-		/// Array of actions to allow
-		/// </summary>
-		[Required]
-		public string[] Actions { get; set; } = null!;
-	}
-
-	/// <summary>
-	/// Parameters to update an ACL
-	/// </summary>
-	public class UpdateAclRequest
-	{
-		/// <summary>
-		/// Entries to replace the existing ACL
-		/// </summary>
-		public List<CreateAclEntryRequest>? Entries { get; set; }
-
-		/// <summary>
-		/// Whether to inherit permissions from the parent ACL
-		/// </summary>
-		public bool? Inherit { get; set; }
-
-		/// <summary>
-		/// List of exceptions to the inherited setting
-		/// </summary>
-		public List<string>? Exceptions { get; set; }
-	}
-
-	/// <summary>
 	/// New claim to update
 	/// </summary>
 	public class GetAclClaimResponse

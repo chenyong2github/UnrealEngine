@@ -112,7 +112,7 @@ namespace Horde.Build.Agents
 		/// <summary>
 		/// New ACL for this agent
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 		
 		/// <summary>
 		/// New comment

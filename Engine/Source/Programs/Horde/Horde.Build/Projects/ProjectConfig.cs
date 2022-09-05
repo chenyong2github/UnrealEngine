@@ -42,7 +42,7 @@ namespace Horde.Build.Projects
 		/// <summary>
 		/// Acl entries
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>

@@ -546,7 +546,7 @@ namespace Horde.Build.Acls
 		/// Constructs a claim from a request object
 		/// </summary>
 		/// <param name="request">The request object</param>
-		public AclClaim(CreateAclClaimRequest request)
+		public AclClaim(AclClaimConfig request)
 			: this(request.Type, request.Value)
 		{
 		}
@@ -594,7 +594,7 @@ namespace Horde.Build.Acls
 		/// </summary>
 		/// <param name="request">Request instance</param>
 		/// <returns>New ACL entry</returns>
-		public static AclEntry FromRequest(CreateAclEntryRequest request)
+		public static AclEntry FromRequest(AclEntryConfig request)
 		{
 			return new AclEntry(new AclClaim(request.Claim.Type, request.Claim.Value), ParseActionNames(request.Actions).ToArray());
 		}
@@ -726,7 +726,7 @@ namespace Horde.Build.Acls
 		/// <param name="baseAcl">The current acl</param>
 		/// <param name="update">The update to apply</param>
 		/// <returns>The new ACL value. Null if the ACL has all default settings.</returns>
-		public static Acl? Merge(Acl? baseAcl, UpdateAclRequest? update)
+		public static Acl? Merge(Acl? baseAcl, AclConfig? update)
 		{
 			Acl? newAcl = null;
 			if(update != null)

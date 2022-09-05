@@ -65,7 +65,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Parameters to use when selecting the change to execute at.
 		/// </summary>
-		public ChangeQueryRequest? ChangeQuery { get; set; }
+		public ChangeQueryConfig? ChangeQuery { get; set; }
 
 		/// <summary>
 		/// The preflight changelist number
@@ -155,7 +155,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Custom permissions for this object
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>

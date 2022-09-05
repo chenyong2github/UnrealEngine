@@ -62,7 +62,7 @@ namespace Horde.Build.Credentials
 		/// <summary>
 		/// Custom permissions for this object
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>

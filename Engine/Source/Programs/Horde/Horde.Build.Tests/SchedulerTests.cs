@@ -54,7 +54,7 @@ namespace Horde.Build.Tests
 			PerforceService.AddChange(StreamId, 102, bob, "", new[] { "content.uasset" });
 		}
 
-		async Task<IStream> SetScheduleAsync(CreateScheduleRequest schedule)
+		async Task<IStream> SetScheduleAsync(ScheduleConfig schedule)
 		{
 			await ScheduleService.ResetAsync();
 
@@ -84,10 +84,10 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
 			schedule.MaxChanges = 10;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { Interval = 1 });
+			schedule.Patterns.Add(new SchedulePatternConfig { Interval = 1 });
 			schedule.Files = files.ToList();
 			await SetScheduleAsync(schedule);
 
@@ -199,9 +199,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 //			Schedule.LastTriggerTime = StartTime;
 			await SetScheduleAsync(schedule);
 
@@ -227,9 +227,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			IStream stream = await SetScheduleAsync(schedule);
 
 			// Initial tick
@@ -266,9 +266,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			schedule.MaxChanges = 2;
 			schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
 			await SetScheduleAsync(schedule);
@@ -303,9 +303,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			schedule.MaxChanges = 2;
 			schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
 			await SetScheduleAsync(schedule);
@@ -340,10 +340,10 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
 			schedule.RequireSubmittedChange = false;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			schedule.MaxActive = 1;
 			await SetScheduleAsync(schedule);
 
@@ -382,9 +382,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			/*IStream stream = */await SetScheduleAsync(schedule);
 
 			// Trigger a job
@@ -496,11 +496,11 @@ namespace Horde.Build.Tests
 			TemplateRefConfig newTemplate2 = new TemplateRefConfig();
 			newTemplate2.Id = newTemplateRefId2;
 			newTemplate2.Name = "Test template 2";
-			newTemplate2.Schedule = new CreateScheduleRequest();
+			newTemplate2.Schedule = new ScheduleConfig();
 			newTemplate2.Schedule.MaxChanges = 4;
 			newTemplate2.Schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
-			newTemplate2.Schedule.Gate = new CreateScheduleGateRequest { TemplateId = newTemplateRefId1.ToString(), Target = "TriggerNext" };
-			newTemplate2.Schedule.Patterns.Add(new CreateSchedulePatternRequest { Interval = 10 });// (null, 0, null, 10));
+			newTemplate2.Schedule.Gate = new ScheduleGateConfig { TemplateId = newTemplateRefId1.ToString(), Target = "TriggerNext" };
+			newTemplate2.Schedule.Patterns.Add(new SchedulePatternConfig { Interval = 10 });// (null, 0, null, 10));
 //			NewTemplate2.Schedule.LastTriggerTime = StartTime;
 
 			IStream? stream = await StreamService.GetStreamAsync(StreamId);
@@ -558,10 +558,10 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
 			schedule.RequireSubmittedChange = false;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			schedule.MaxActive = 2;
 			await SetScheduleAsync(schedule);
 
@@ -595,9 +595,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			CreateScheduleRequest schedule = new CreateScheduleRequest();
+			ScheduleConfig schedule = new ScheduleConfig();
 			schedule.Enabled = true;
-			schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			schedule.Patterns.Add(new SchedulePatternConfig { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
 			IStream stream = await SetScheduleAsync(schedule);
 
 			IStreamCollection streamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();

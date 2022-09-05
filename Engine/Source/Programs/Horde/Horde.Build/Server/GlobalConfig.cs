@@ -65,7 +65,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Access control list
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>
@@ -96,7 +96,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Access control list
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>
@@ -146,7 +146,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Access control for this namespace
 		/// </summary>
-		public UpdateAclRequest? Acl { get; set; }
+		public AclConfig? Acl { get; set; }
 	}
 
 	/// <summary>

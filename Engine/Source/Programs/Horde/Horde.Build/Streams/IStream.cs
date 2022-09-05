@@ -97,7 +97,7 @@ namespace Horde.Build.Streams
 		/// Constructor
 		/// </summary>
 		/// <param name="request">The object to construct from</param>
-		public AgentType(CreateAgentTypeRequest request)
+		public AgentType(AgentConfig request)
 		{
 			Pool = new PoolId(request.Pool);
 			Workspace = request.Workspace;
@@ -111,7 +111,7 @@ namespace Horde.Build.Streams
 		/// <param name="request">The request object</param>
 		/// <returns>New agent type object</returns>
 		[return: NotNullIfNotNull("request")]
-		public static AgentType? FromRequest(CreateAgentTypeRequest? request)
+		public static AgentType? FromRequest(AgentConfig? request)
 		{
 			return (request != null) ? new AgentType(request) : null;
 		}
@@ -212,7 +212,7 @@ namespace Horde.Build.Streams
 		/// Constructor
 		/// </summary>
 		/// <param name="request">The object to construct from</param>
-		public WorkspaceType(CreateWorkspaceTypeRequest request)
+		public WorkspaceType(WorkspaceConfig request)
 		{
 			Cluster = request.Cluster;
 			ServerAndPort = request.ServerAndPort;
@@ -231,7 +231,7 @@ namespace Horde.Build.Streams
 		/// <param name="request">The request object</param>
 		/// <returns>New agent type object</returns>
 		[return: NotNullIfNotNull("request")]
-		public static WorkspaceType? FromRequest(CreateWorkspaceTypeRequest? request)
+		public static WorkspaceType? FromRequest(WorkspaceConfig? request)
 		{
 			return (request != null) ? new WorkspaceType(request) : null;
 		}
@@ -283,7 +283,7 @@ namespace Horde.Build.Streams
 		/// Constructor
 		/// </summary>
 		/// <param name="request">Request to construct from</param>
-		public ChainedJobTemplate(CreateChainedJobTemplateRequest request)
+		public ChainedJobTemplate(ChainedJobTemplateConfig request)
 			: this(request.Trigger, new TemplateRefId(request.TemplateId))
 		{
 		}
@@ -452,9 +452,9 @@ namespace Horde.Build.Streams
 		/// Convert to a request object
 		/// </summary>
 		/// <returns></returns>
-		public ChangeQueryRequest ToRequest()
+		public ChangeQueryConfig ToRequest()
 		{
-			return new ChangeQueryRequest { TemplateId = TemplateRefId?.ToString(), Target = Target, Outcomes = Outcomes };
+			return new ChangeQueryConfig { TemplateId = TemplateRefId?.ToString(), Target = Target, Outcomes = Outcomes };
 		}
 	}
 
@@ -494,20 +494,20 @@ namespace Horde.Build.Streams
 		/// Convert to a request object
 		/// </summary>
 		/// <returns></returns>
-		public DefaultPreflightRequest ToRequest()
+		public DefaultPreflightConfig ToRequest()
 		{
 #pragma warning disable CS0618 // Type or member is obsolete
-			ChangeQueryRequest? changeRequest = null;
+			ChangeQueryConfig? changeRequest = null;
 			if (Change != null)
 			{
 				changeRequest = Change.ToRequest();
 			}
 			else if (ChangeTemplateRefId != null)
 			{
-				changeRequest = new ChangeQueryRequest { TemplateId = ChangeTemplateRefId.ToString() };
+				changeRequest = new ChangeQueryConfig { TemplateId = ChangeTemplateRefId.ToString() };
 			}
 
-			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = changeRequest, ChangeTemplateId = changeRequest?.TemplateId };
+			return new DefaultPreflightConfig { TemplateId = TemplateRefId?.ToString(), Change = changeRequest, ChangeTemplateId = changeRequest?.TemplateId };
 #pragma warning restore CS0618 // Type or member is obsolete
 		}
 	}

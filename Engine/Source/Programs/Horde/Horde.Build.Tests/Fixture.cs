@@ -72,7 +72,7 @@ namespace Horde.Build.Tests
 			List<CreateStreamTabRequest> tabs = new List<CreateStreamTabRequest>();
 			tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<TemplateRefId> { TemplateRefId1, TemplateRefId2 } });
 
-			Dictionary<string, CreateAgentTypeRequest> agentTypes = new()
+			Dictionary<string, AgentConfig> agentTypes = new()
 			{
 				{ "Win64", new() { Pool = PoolName} }
 			};
