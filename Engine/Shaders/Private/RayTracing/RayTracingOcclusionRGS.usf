@@ -177,7 +177,7 @@ float ComputeDiffuseTransmission(
 	float TMax = TransmissionDistance;
 	if (bTransmissionSamplingDistanceCulling)
 	{
-		RayDesc RejectionTestRay;
+		FRayDesc RejectionTestRay;
 		RejectionTestRay.Origin = P;
 		RejectionTestRay.Direction = Tr;
 		RejectionTestRay.TMin = 0.01;
@@ -227,7 +227,7 @@ float ComputeDiffuseTransmission(
 	ScatterDistance /= ScatterDistancePdf;
 
 	// Build sub-surface scattering ray
-	RayDesc SSSRay;
+	FRayDesc SSSRay;
 	SSSRay.Origin = P + Tr * ScatterDistance;
 	GenerateOcclusionRay(LightParameters, SSSRay.Origin, N, LightSample, SSSRay.Origin, SSSRay.Direction, SSSRay.TMin, SSSRay.TMax);
 
@@ -291,9 +291,9 @@ float OcclusionToShadow(FOcclusionResult In, uint LocalSamplesPerPixel)
 	return (LocalSamplesPerPixel > 0) ? In.Visibility / LocalSamplesPerPixel : In.Visibility;
 }
 
-RayDesc Invert(in RayDesc Ray)
+FRayDesc Invert(in FRayDesc Ray)
 {
-	RayDesc InvertedRay;
+	FRayDesc InvertedRay;
 	InvertedRay.TMin = Ray.TMin;
 	InvertedRay.TMax = Ray.TMax;
 #if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
@@ -376,7 +376,7 @@ FOcclusionResult ComputeOcclusion(
 
 		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
-		RayDesc Ray;
+		FRayDesc Ray;
 		bool bIsValidRay = GenerateOcclusionRay(
 			LightParameters,
 			TranslatedWorldPosition, WorldNormal,
@@ -447,7 +447,7 @@ FOcclusionResult ComputeOcclusion(
 
 #if AVOID_SELF_INTERSECTION_TRACE
 		{
-			RayDesc EpsilonRay = Ray;
+			FRayDesc EpsilonRay = Ray;
 			EpsilonRay.TMax = AvoidSelfIntersectionTraceDistance;
 
 			if (Ray.TMax > Ray.TMin)
@@ -502,7 +502,7 @@ FOcclusionResult ComputeOcclusion(
 			if (ShadingDesc.bIsSubsurface || ShadingDesc.bIsHair)
 			{
 				// Reverse the ray to support sub-surface casts
-				RayDesc InvertedRay = Invert(Ray);
+				FRayDesc InvertedRay = Invert(Ray);
 				FMinimalPayload SubsurfacePayload = TraceVisibilityRay(
 					TLAS,
 					RayFlags,

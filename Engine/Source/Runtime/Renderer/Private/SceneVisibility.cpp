@@ -4022,6 +4022,17 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		}
 	}
 
+#if RHI_RAYTRACING
+	if (Scene && Views.Num())
+	{
+		const int32 ReferenceViewIndex = 0;
+		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+		FRayTracingScene& RayTracingScene = Scene->RayTracingScene;
+
+		Scene->RayTracingScene.InitPreViewTranslation(ReferenceView.ViewMatrices);
+	}
+#endif
+
 	// Setup global dither fade in and fade out uniform buffers.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

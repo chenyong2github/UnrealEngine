@@ -117,7 +117,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		FRayData RayData = GetRayData(TraceCoord);
 
-		RayDesc Ray;
+		FRayDesc Ray;
 		Ray.Origin = TranslatedWorldPosition;
 		Ray.Direction = RayData.Direction;
 		float RayBias = ENABLE_FAR_FIELD_TRACING == 1 ? FarFieldBias : 0.05;

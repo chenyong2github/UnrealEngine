@@ -83,6 +83,8 @@ public:
 	RENDERER_API FRHIShaderResourceView* GetLayerSRVChecked(ERayTracingSceneLayer Layer) const;
 	
 	void AddInstanceDebugData(const FRHIRayTracingGeometry* GeometryRHI, const FPrimitiveSceneProxy* Proxy, bool bDynamic);
+
+	void InitPreViewTranslation(const FViewMatrices& ViewMatrices);
 public:
 
 	// Public members for initial refactoring step (previously were public members of FViewInfo).
@@ -113,6 +115,9 @@ public:
 	FRDGBufferRef InstanceDebugBuffer = nullptr;
 	TArray<FRayTracingInstanceDebugData> InstancesDebugData;
 
+	// Used for transforming to translated world space in which TLAS was built.
+	FVector RelativePreViewTranslation = FVector::Zero();
+	FVector3f ViewTilePosition = FVector3f::ZeroVector;
 private:
 	void WaitForTasks() const;
 

@@ -194,14 +194,14 @@ int MipLevel;
 // Output
 RWTexture2D<float4> RWLightingTexture;
 
-RayDesc CreateVolumeRay(
+FRayDesc CreateVolumeRay(
 	float3 Origin,
 	float3 Direction,
 	float TMin,
 	float TMax
 )
 {
-	RayDesc Ray;
+	FRayDesc Ray;
 	Ray.Origin = Origin;
 	Ray.Direction = Direction;
 	Ray.TMin = TMin;
@@ -211,7 +211,7 @@ RayDesc CreateVolumeRay(
 }
 
 void TraceVolumeRay(
-	RayDesc Ray,
+	FRayDesc Ray,
 	inout FSparseVoxelPayload Payload
 )
 {
@@ -228,13 +228,13 @@ void TraceVolumeRay(
 		RayContributionToHitGroupIndex,
 		MultiplierForGeometryContributionToHitGroupIndex,
 		MissShaderIndex,
-		Ray,
+		Ray.GetNativeDesc(),
 		Payload
 	);
 }
 
 void TraceVolumeShadowRay(
-	RayDesc Ray,
+	FRayDesc Ray,
 	inout FSparseVoxelPayload Payload
 )
 {
@@ -355,7 +355,7 @@ RAY_TRACING_ENTRY_RAYGEN(SparseVoxelsRayGenerationShader1)
 		LocalRayStart += LocalRayDirection * Jitter;
 
 		// Intersect against TLAS - HitT.x is real close to first intersection shader return value...
-		RayDesc Ray = CreateVolumeRay(WorldRayOrigin + WorldRayDirection * Jitter, WorldRayDirection, WorldRayLength * HitT.x, WorldRayLength * HitT.y);
+		FRayDesc Ray = CreateVolumeRay(WorldRayOrigin + WorldRayDirection * Jitter, WorldRayDirection, WorldRayLength * HitT.x, WorldRayLength * HitT.y);
 		FSparseVoxelPayload Payload = CreateSparseVoxelPayload();
 		TraceVolumeShadowRay(Ray, Payload);
 
@@ -378,7 +378,7 @@ float3 ComputeTransmittanceHardwareRayTracing(
 )
 {
 	// TODO: Apply jitter?
-	RayDesc ShadowRay = CreateVolumeRay(Origin, Direction, TMin, TMax);
+	FRayDesc ShadowRay = CreateVolumeRay(Origin, Direction, TMin, TMax);
 	FSparseVoxelPayload Payload = CreateSparseVoxelPayload();
 	TraceVolumeShadowRay(ShadowRay, Payload);
 	return Payload.GetTransmittance();
@@ -530,7 +530,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 	}
 
 	// Intersect against TLAS - HitT.x is real close to first intersection shader return value...
-	RayDesc Ray = CreateVolumeRay(WorldRayOrigin, WorldRayDirection, BoundingHitT.x, BoundingHitT.y);
+	FRayDesc Ray = CreateVolumeRay(WorldRayOrigin, WorldRayDirection, BoundingHitT.x, BoundingHitT.y);
 
 	FSparseVoxelPayload Payload = CreateSparseVoxelPayload();
 	TraceVolumeRay(Ray, Payload);

@@ -91,7 +91,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 					ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldSurfaceBias, TranslatedWorldPosition, TranslatedWorldCameraOrigin);
 				}
 
-				RayDesc Ray;
+				FRayDesc Ray;
 				Ray.Origin = TranslatedWorldPosition + WorldNormal * (SurfaceBias + ReceiverBias);
 				Ray.Direction = WorldRayDirection;
 				Ray.TMin = MinTraceDistance;

@@ -251,6 +251,7 @@ class FStaticShadowDepthMapTracingRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(int32, StaticShadowDepthMapSuperSampleFactor)
 		SHADER_PARAMETER(FIntPoint, ShadowMapSize)
 		SHADER_PARAMETER(FMatrix44f, LightToWorld)

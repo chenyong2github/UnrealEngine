@@ -20,7 +20,7 @@ LightSampling.usf: Light sampling for next-event estimation
 #include "PathTracingSpotLight.ush"
 
 // Returns float4 packed with Radiance and Pdf
-FLightHit TraceLight(RayDesc Ray, int LightId)
+FLightHit TraceLight(FRayDesc Ray, int LightId)
 {
 	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
 	{

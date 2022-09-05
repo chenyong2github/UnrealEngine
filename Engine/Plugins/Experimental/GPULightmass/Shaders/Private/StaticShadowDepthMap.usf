@@ -42,7 +42,7 @@ void StaticShadowDepthMapTracingRG()
 	const float3 WorldSpaceStartPosition = mul(LightSpaceStartPosition, LightToWorld).xyz;
 	const float3 WorldSpaceEndPosition = mul(LightSpaceEndPosition, LightToWorld).xyz;
 
-	RayDesc Ray;
+	FRayDesc Ray;
 	Ray.Origin = WorldSpaceStartPosition;
 	Ray.Direction = normalize(WorldSpaceEndPosition - WorldSpaceStartPosition);
 	Ray.TMin = 0;

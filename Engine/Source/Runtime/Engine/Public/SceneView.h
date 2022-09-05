@@ -918,6 +918,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 
 	SHADER_PARAMETER_SRV(Buffer<float>, PhysicsFieldClipmapBuffer)
 
+	// Ray tracing
+	SHADER_PARAMETER(FVector3f, TLASRelativePreViewTranslation)
+	SHADER_PARAMETER(FVector3f, TLASViewTilePosition)
+
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Copy of the view uniform shader parameters associated with a view for instanced stereo. */

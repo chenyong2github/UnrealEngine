@@ -98,7 +98,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	float3 TranslatedWorldPosition = ReconstructTranslatedWorldPositionFromDepth(UV, Depth);
 
 	// Trace rays from camera origin to Gbuffer (only translucent objects are considered on the first ray, so a bias is not needed)
-	RayDesc Ray = CreatePrimaryRay(UV);
+	FRayDesc Ray = CreatePrimaryRay(UV);
 	FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
@@ -203,7 +203,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 			// Trace reflection ray 
 			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
-			RayDesc ReflectionRay;
+			FRayDesc ReflectionRay;
 			ReflectionRay.TMin = 0.01;
 			ReflectionRay.TMax = LocalMaxRayDistance;
 			ReflectionRay.Origin = HitPoint;

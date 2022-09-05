@@ -396,14 +396,55 @@ void ApplyCameraRelativeDepthBias(inout float3 RayOrigin, float3 RayDirection, u
 	ApplyPositionBias(RayOrigin, RayDirection, WorldNormal, RayBias);
 }
 
+float3 TranslatedWorldToTLASWorld(float3 TranslatedWorldPosition)
+{
+	const FLWCVector3 TLASPreViewTranslation = MakeLWCVector3(-View.TLASViewTilePosition, View.TLASRelativePreViewTranslation);
+	const float3 TLASWorldPosition = TranslatedWorldPosition - LWCToFloat(LWCSubtract(PrimaryView.PreViewTranslation, TLASPreViewTranslation));
+	return TLASWorldPosition;
+}
+
+float3 TLASWorldToTranslatedWorld(float3 TLASWorldPosition)
+{
+	const FLWCVector3 TLASPreViewTranslation = MakeLWCVector3(-View.TLASViewTilePosition, View.TLASRelativePreViewTranslation);
+	const float3 TranslatedWorldPosition = TLASWorldPosition + LWCToFloat(LWCSubtract(PrimaryView.PreViewTranslation, TLASPreViewTranslation));
+	return TranslatedWorldPosition;
+}
+
+#if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+struct FRayDesc
+{
+	float3 Origin;
+	float TMin;
+	float3 Direction;
+	float TMax;
+
+	RayDesc GetNativeDesc()
+	{
+		RayDesc NativeRay;
+		NativeRay.Origin = TranslatedWorldToTLASWorld(Origin);
+		NativeRay.TMin = TMin;
+		NativeRay.Direction = Direction;
+		NativeRay.TMax = TMax;
+		return NativeRay;
+	}
+};
+
+#endif // !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
 #if !COMPUTESHADER
 
-void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float MaxNormalBias)
+float3 TranslatedWorldRayOrigin()
+{
+	return TLASWorldToTranslatedWorld(WorldRayOrigin());
+}
+
+void ApplyPositionBias(inout FRayDesc Ray, const float3 WorldNormal, const float MaxNormalBias)
 {
 	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, MaxNormalBias);
 }
 
-void ApplyCameraRelativeDepthBias(inout RayDesc Ray, uint2 PixelCoord, float DeviceZ, const float3 WorldNormal, const float AbsoluteNormalBias)
+void ApplyCameraRelativeDepthBias(inout FRayDesc Ray, uint2 PixelCoord, float DeviceZ, const float3 WorldNormal, const float AbsoluteNormalBias)
 {
 	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelCoord, DeviceZ, WorldNormal, AbsoluteNormalBias);
 }
@@ -412,11 +453,11 @@ void ApplyCameraRelativeDepthBias(inout RayDesc Ray, uint2 PixelCoord, float Dev
 
 #if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
-RayDesc CreatePrimaryRay(float2 UV)
+FRayDesc CreatePrimaryRay(float2 UV)
 {
 	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	RayDesc Ray;
+	FRayDesc Ray;
 	float4 NearPoint = mul(float4(ScreenPosition, 1, 1), View.ClipToTranslatedWorld);
 	float4 FarPoint = mul(float4(ScreenPosition, 0, 1), View.ClipToTranslatedWorld);
 	Ray.Origin = NearPoint.xyz * rcp(NearPoint.w);
@@ -596,7 +637,7 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	return Out;
 }
 
-FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload In, RayDesc Ray)
+FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload In, FRayDesc Ray)
 {
 	FMaterialClosestHitPayload Out = (FMaterialClosestHitPayload)0;
 	Out.HitT = In.HitT;
@@ -844,7 +885,7 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	return Output;
 }
 
-FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload Input, RayDesc Ray)
+FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload Input, FRayDesc Ray)
 {
 	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
 
@@ -957,7 +998,7 @@ void TraceVisibilityRayPacked(
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
 	in uint2 PixelCoord,
-	in RayDesc Ray)
+	in FRayDesc Ray)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
@@ -978,7 +1019,7 @@ void TraceVisibilityRayPacked(
 		RayContributionToHitGroupIndex,
 		MultiplierForGeometryContributionToShaderIndex,
 		MissShaderIndex,
-		Ray,
+		Ray.GetNativeDesc(),
 		PackedPayload);
 }
 
@@ -988,7 +1029,7 @@ FMinimalPayload TraceVisibilityRay(
 	in uint PayloadFlags,
 	in uint InstanceInclusionMask,
 	in uint2 PixelCoord,
-	in RayDesc Ray)
+	in FRayDesc Ray)
 {
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 	
@@ -1016,7 +1057,7 @@ FMinimalPayload TraceVisibilityRay(
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
 	in uint2 PixelCoord,
-	in RayDesc Ray)
+	in FRayDesc Ray)
 {
 	return TraceVisibilityRay(
 		TLAS,
@@ -1032,7 +1073,7 @@ void TraceMaterialRayPacked(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in RayDesc Ray,
+	in FRayDesc Ray,
 	// Payload Inputs
 	inout FRayCone RayCone,
 	in uint2 PixelCoord,
@@ -1064,7 +1105,7 @@ void TraceMaterialRayPacked(
 		RayContributionToHitGroupIndex,
 		MultiplierForGeometryContributionToShaderIndex,
 		MissShaderIndex,
-		Ray,
+		Ray.GetNativeDesc(),
 		Payload);
 
 	RayCone = Payload.GetRayCone();
@@ -1074,7 +1115,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
-	in RayDesc Ray,
+	in FRayDesc Ray,
 	// Payload Inputs
 	inout FRayCone RayCone,
 	in uint2 PixelCoord,
@@ -1112,7 +1153,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 		RayContributionToHitGroupIndex,
 		MultiplierForGeometryContributionToShaderIndex,
 		MissShaderIndex,
-		Ray,
+		Ray.GetNativeDesc(),
 		PackedPayload);
 
 	// Unpack the payload

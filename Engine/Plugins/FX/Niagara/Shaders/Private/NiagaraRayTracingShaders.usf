@@ -67,7 +67,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 
 	FNiagaraAsyncGpuTrace InputRay = Rays[RayIndex + RaysOffset];
 
-	RayDesc Ray;
+	FRayDesc Ray;
 	Ray.Origin = InputRay.Origin + LWCHackToFloat(PrimaryView.PreViewTranslation); // LWC_TODO
 	Ray.Direction = InputRay.Direction;
 	Ray.TMin = 0.0f;
@@ -93,7 +93,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 				RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
 				RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 				0,      // MissShaderIndex
-				Ray,    // RayDesc
+				Ray.GetNativeDesc(),    // RayDesc
 				Payload // Payload
 			); 
 
@@ -125,7 +125,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 			RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
 			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 			0,      // MissShaderIndex
-			Ray,    // RayDesc
+			Ray.GetNativeDesc(),    // FRayDesc
 			Payload // Payload
 		);
 	}

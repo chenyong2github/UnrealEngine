@@ -133,7 +133,7 @@ static const float MaxNormalBias = 0.1;
 RaytracingAccelerationStructure TLAS;
 uint SceneVisibleLightCount;
 
-void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal, bool ShadowTerminatorFix = false)
+void ApplyRayBias(inout FRayDesc Ray, float HitT, float3 Normal, bool ShadowTerminatorFix = false)
 {
 #if 1
 	// Take maximum of position or hit distance to determine "radius" of hit avoidance
@@ -166,7 +166,7 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 	}
 }
 
-FPathTracingPayload TraceTransparentRay(RayDesc Ray, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
+FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	const uint RayFlags = IsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
@@ -194,14 +194,14 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, bool IsCameraRay, bool Last
 			RAY_TRACING_SHADER_SLOT_MATERIAL,
 			RAY_TRACING_NUM_SHADER_SLOTS,
 			MissShaderIndex,
-			Ray,
+			Ray.GetNativeDesc(),
 			PackedPayload);
 
 		// Loop over lights to capture their contribution
 		// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 		for (uint LightId = 0; LightId < NumLights; ++LightId)
 		{
-			RayDesc LightRay = Ray;
+			FRayDesc LightRay = Ray;
 			LightRay.TMax = PackedPayload.IsMiss() ? Ray.TMax : PackedPayload.HitT;
 			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
 			AccumulateRadiance(Radiance, PathThroughput * LightRadiance);
@@ -288,7 +288,7 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, bool IsCameraRay, bool Last
 	return Payload;
 }
 
-float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRoughness)
+float3 TraceTransparentVisibilityRay(FRayDesc Ray, uint2 PixelCoord, float PathRoughness)
 {
 	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
@@ -306,7 +306,7 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 		RayContributionToHitGroupIndex,
 		MultiplierForGeometryContributionToShaderIndex,
 		MissShaderIndex,
-		Ray,
+		Ray.GetNativeDesc(),
 		PackedPayload);
 
 	if (PackedPayload.IsMiss())
@@ -353,7 +353,7 @@ void PathTracingKernel(
 	float3 Radiance = 0;
 	
 	// GPULightmass's SampleEmitter(): generate a fake camera ray hitting the texel
-	RayDesc Ray;
+	FRayDesc Ray;
 	Ray.Origin = TranslatedWorldPosition + ShadingNormal;
 	Ray.Direction = -ShadingNormal;
 	Ray.TMin = -0.01f;
@@ -598,7 +598,7 @@ void PathTracingKernel(
 						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
 						const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldNormal, LightSample.Direction)) : 1.0;
 
-						RayDesc LightRay;
+						FRayDesc LightRay;
 						LightRay.Origin = TranslatedWorldPos;
 						LightRay.TMin = 0;
 						LightRay.Direction = LightSample.Direction;
@@ -780,7 +780,7 @@ void PathTracingKernel(
 				{
 					if (CastsShadow(LightId))
 					{
-						RayDesc LightRay = Ray;
+						FRayDesc LightRay = Ray;
 						LightRay.TMax = LightResult.HitT;
 						float3 Visibility = TraceTransparentVisibilityRay(LightRay, LaunchIndex, PathRoughness);
 						LightContrib *= Visibility;
@@ -1385,7 +1385,7 @@ void VolumetricLightmapPathTracingMainRG()
 			Halton(StrongIntegerHash(Seed) + FrameNumber, 7)
 		);
 		
-		RayDesc Ray;
+		FRayDesc Ray;
 		bool bIsValidRay = GenerateOcclusionRay(
 			LIGHT_TYPE_DIRECTIONAL,
 			LightParameters,
@@ -1460,7 +1460,7 @@ void StationaryLightShadowTracingMainRG()
 				Halton(StrongIntegerHash(Seed) + LightSampleIndexArray[TileIndex], 7)
 			);
 			
-			RayDesc Ray;
+			FRayDesc Ray;
 			bIsValidSample &= GenerateOcclusionRay(
 				LightType,
 				LightParameters,

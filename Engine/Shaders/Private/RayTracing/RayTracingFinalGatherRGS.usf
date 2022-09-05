@@ -120,7 +120,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 	// Create ray differential based on rejection distance (in pixels)
 	UV = (float2(PixelCoord) + 0.5 + float2(0.0, FinalGatherDistance * UpscaleFactor)) * InvBufferSize;
-	RayDesc Ray = CreatePrimaryRay(UV);
+	FRayDesc Ray = CreatePrimaryRay(UV);
 
 	// Intersect ray differential with normal to find world-space distance
 	float d = -dot(WorldNormal, TranslatedWorldPosition);
@@ -225,7 +225,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		if (RayPdf < 1.0e-3) continue;
 
 		// Create ray
-		RayDesc Ray;
+		FRayDesc Ray;
 		Ray.Origin = TranslatedWorldPosition;
 		Ray.Direction = normalize(GPTranslatedPosition - TranslatedWorldPosition);
 		Ray.TMin = 0.05;
@@ -342,7 +342,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 #if USE_NEIGHBOR_VISIBILITY_TEST
 				// Create ray
-				RayDesc Ray;
+				FRayDesc Ray;
 				Ray.Origin = TranslatedWorldPosition;
 				Ray.Direction = normalize(GPTranslatedPosition - TranslatedWorldPosition);
 				Ray.TMin = 0.01;

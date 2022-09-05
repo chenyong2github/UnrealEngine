@@ -137,7 +137,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 					L = normalize(ToLight);
 				}
 
-				RayDesc Ray;
+				FRayDesc Ray;
 				const float2 RandSample = 0.5;
 
 #if 0
@@ -183,7 +183,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 #if ENABLE_FAR_FIELD_TRACING
 					{
 						// Rebase origin and point-source direction for far-field rays
-						RayDesc FarFieldRay;
+						FRayDesc FarFieldRay;
 						FarFieldRay.Origin = TranslatedWorldPosition;
 						FarFieldRay.Direction = Ray.Direction;
 						FarFieldRay.TMin = NearFieldTMax;
@@ -209,7 +209,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						float SearchRadius = HeightfieldProjectionBiasSearchRadius;
 						float3 SearchDirection = float3(0.0, 0.0, 1.0);
 
-						RayDesc ProjectedRay;
+						FRayDesc ProjectedRay;
 						ProjectedRay.Origin = Ray.Origin - SearchDirection * SearchRadius;
 						ProjectedRay.Direction = SearchDirection;
 						ProjectedRay.TMin = 0.0f;

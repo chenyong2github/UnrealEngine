@@ -55,6 +55,6 @@ FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
 
 FGBufferData GetGBufferDataFromPayload(in FPackedMaterialClosestHitPayload Payload)
 {
-	RayDesc DummyRay = (RayDesc)0; // Not needed to unpack GBuffer
+	FRayDesc DummyRay = (FRayDesc)0; // Not needed to unpack GBuffer
 	return GetGBufferDataFromPayload(UnpackRayTracingPayload(Payload, DummyRay));
 }

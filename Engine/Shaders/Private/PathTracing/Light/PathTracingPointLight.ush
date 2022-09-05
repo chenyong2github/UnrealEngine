@@ -10,7 +10,7 @@ PathTracingPointLight.ush: Light sampling functions for Point lights
 #include "PathTracingCapsuleLight.ush"
 
 
-FLightHit PointLight_TraceLight(RayDesc Ray, int LightId)
+FLightHit PointLight_TraceLight(FRayDesc Ray, int LightId)
 {
 	if (GetSourceLength(LightId) > 0)
 	{

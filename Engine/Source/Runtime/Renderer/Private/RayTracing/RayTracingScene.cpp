@@ -41,6 +41,15 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene* GPUSce
 	CreateWithInitializationData(GraphBuilder, GPUScene, ViewMatrices, BuildInitializationData());
 }
 
+void FRayTracingScene::InitPreViewTranslation(const FViewMatrices& ViewMatrices)
+{
+	const FLargeWorldRenderPosition AbsoluteViewOrigin(ViewMatrices.GetViewOrigin());
+	const FVector ViewTileOffset = AbsoluteViewOrigin.GetTileOffset();
+
+	RelativePreViewTranslation = ViewMatrices.GetPreViewTranslation() + ViewTileOffset;
+	ViewTilePosition = AbsoluteViewOrigin.GetTile();
+}
+
 void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene* GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
@@ -187,9 +196,6 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();
 		PassParams->InstanceBuffer = GraphBuilder.CreateUAV(InstanceBuffer);
 
-		const FLargeWorldRenderPosition AbsoluteViewOrigin(ViewMatrices.GetViewOrigin());
-		const FVector ViewTileOffset = AbsoluteViewOrigin.GetTileOffset();
-
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("BuildTLASInstanceBuffer"),
 			PassParams,
@@ -197,8 +203,8 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 			[PassParams,
 			this,
 			GPUScene,
-			ViewTilePosition = AbsoluteViewOrigin.GetTile(),
-			RelativePreViewTranslation = ViewMatrices.GetPreViewTranslation() + ViewTileOffset,
+			ViewTilePosition = ViewTilePosition,
+			RelativePreViewTranslation = RelativePreViewTranslation,
 			&SceneInitializer,
 			NumNativeGPUSceneInstances = SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,

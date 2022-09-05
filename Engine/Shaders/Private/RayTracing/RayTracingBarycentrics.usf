@@ -57,7 +57,7 @@ void RayTracingBarycentricsCommon(uint2 DispatchThreadIndex)
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
-	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+	FRayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 	uint RayFlags = 0
 		| RAY_FLAG_CULL_BACK_FACING_TRIANGLES      // use back face culling
 		| RAY_FLAG_FORCE_OPAQUE;                   // don't run anyhit shader
@@ -74,7 +74,7 @@ void RayTracingBarycentricsCommon(uint2 DispatchThreadIndex)
 		TLAS,   // AccelerationStructure
 		RayFlags,
 		RAY_TRACING_MASK_ALL,             // InstanceInclusionMask
-		Ray,    // RayDesc
+		Ray.GetNativeDesc(),    // RayDesc
 		TraceRayInlineContext,
 		NaniteCallback
 	);
@@ -89,7 +89,7 @@ void RayTracingBarycentricsCommon(uint2 DispatchThreadIndex)
 		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
 		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 		0,      // MissShaderIndex
-		Ray,    // RayDesc
+		Ray.GetNativeDesc(),    // RayDesc
 		Payload // Payload
 	);
 #endif // COMPUTESHADER

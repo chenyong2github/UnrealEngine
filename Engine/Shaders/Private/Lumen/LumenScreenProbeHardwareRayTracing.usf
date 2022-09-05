@@ -76,7 +76,7 @@ int ApplySkyLight;
 
 RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
-FRayTracedLightingResult EpsilonTrace(RayDesc Ray, inout FRayTracedLightingContext Context)
+FRayTracedLightingResult EpsilonTrace(FRayDesc Ray, inout FRayTracedLightingContext Context)
 {
 	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
 
@@ -152,7 +152,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		float ConeHalfAngle;
 		GetProbeTracingUV(ScreenProbeTraceCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
-		RayDesc Ray;
+		FRayDesc Ray;
 		Ray.Origin = TranslatedWorldPosition;
 		Ray.Direction = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 		Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);

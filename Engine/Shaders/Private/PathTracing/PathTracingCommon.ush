@@ -266,7 +266,7 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	return Output;
 }
 
-FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, RayDesc Ray)
+FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FRayDesc Ray)
 {
 	FPathTracingPayload Output = (FPathTracingPayload)0;
 

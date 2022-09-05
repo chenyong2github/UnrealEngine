@@ -1297,6 +1297,11 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.DirectionalLightDirection = FVector3f::ZeroVector;
 		}
 
+#if RHI_RAYTRACING	
+		ViewUniformShaderParameters.TLASRelativePreViewTranslation = FVector3f(Scene->RayTracingScene.RelativePreViewTranslation);
+		ViewUniformShaderParameters.TLASViewTilePosition = Scene->RayTracingScene.ViewTilePosition;
+#endif
+
 		// Set default atmosphere lights parameters
 		FLightSceneInfo* SunLight = Scene->AtmosphereLights[0];	// Atmospheric fog only takes into account the a single sun light with index 0.
 		const float SunLightDiskHalfApexAngleRadian = SunLight ? SunLight->Proxy->GetSunLightHalfApexAngleRadian() : FLightSceneProxy::GetSunOnEarthHalfApexAngleRadian();

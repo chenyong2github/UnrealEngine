@@ -177,7 +177,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsTraceRGS)
 		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 		// Initialize ray
-		RayDesc Ray;
+		FRayDesc Ray;
 		float RayPdf = 1.0;
 		GenerateCosineNormalRay(TranslatedWorldPosition, WorldNormal, RandSample, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateUniformRay(TranslatedWorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
@@ -197,7 +197,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsTraceRGS)
 			RAY_TRACING_SHADER_SLOT_MATERIAL,	// RayContributionToHitGroupIndex
 			RAY_TRACING_NUM_SHADER_SLOTS,		// MultiplierForGeometryContributionToShaderIndex
 			0,									// MissShaderIndex
-			Ray,								// RayDesc
+			Ray.GetNativeDesc(),				// RayDesc
 			DeferredMaterialPayload
 		);
 	}
@@ -303,7 +303,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 		// Initialize ray
-		RayDesc Ray;
+		FRayDesc Ray;
 		float RayPdf = 1.0;
 		GenerateCosineNormalRay(TranslatedWorldPosition, WorldNormal, RandSample, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateUniformRay(TranslatedWorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
@@ -373,7 +373,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 
 				float3 RandSample3 = RandomSequence_GenerateSample3D(RandSequence);
 
-				RayDesc LightRay;
+				FRayDesc LightRay;
 				if (SampleLight(RandSample3,
 								TranslatedPosition,
 								Normal,

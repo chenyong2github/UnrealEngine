@@ -202,7 +202,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			// Evenly distributing the sphere solid angle among all cones instead of based on Octahedron distortion
 			float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(TraceResolution * TraceResolution));
 
-			RayDesc Ray;
+			FRayDesc Ray;
 			Ray.Origin = ProbeWorldCenter + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 			Ray.Direction = WorldConeDirection;
 			Ray.TMin = FinalMinTraceDistance;

@@ -63,7 +63,7 @@ void RayTracingDebugTraversalCS(uint3 DispatchThread : SV_DispatchThreadID)
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
-	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+	FRayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 
 	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_FORCE_OPAQUE;
 
@@ -72,7 +72,7 @@ void RayTracingDebugTraversalCS(uint3 DispatchThread : SV_DispatchThreadID)
 	FTraceRayInlineContext TraceRayInlineContext = CreateTraceRayInlineContext();
 	TraceRayInlineContext.bProcedural = ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE;
 
-	FTraceRayInlineResult TraceResult = TraceRayInlineWithCallback(TLAS, RayFlags, RAY_TRACING_MASK_ALL, Ray, TraceRayInlineContext, NaniteCallback);
+	FTraceRayInlineResult TraceResult = TraceRayInlineWithCallback(TLAS, RayFlags, RAY_TRACING_MASK_ALL, Ray.GetNativeDesc(), TraceRayInlineContext, NaniteCallback);
 
 	float4 Result = 0;
 

@@ -48,7 +48,7 @@
 
 RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, PackedPayload)
 {
-	RayDesc DummyRay = (RayDesc)0;
+	FRayDesc DummyRay = (FRayDesc)0;
 
 	FMaterialClosestHitPayload Payload = UnpackRayTracingPayload(PackedPayload, DummyRay);
 
@@ -67,7 +67,7 @@ RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, P
 	float4 LightAttenuation = 1.0f;
 	float LightProfileMultiplier = 1.0f;
 
-	float3 WorldPosition = WorldRayOrigin(); // Shadow ray is traced from the shaded point
+	float3 WorldPosition = TranslatedWorldRayOrigin(); // Shadow ray is traced from the shaded point
 
 	if (LightProfileIndex >= 0)
 	{

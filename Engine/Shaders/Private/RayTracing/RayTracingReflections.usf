@@ -142,7 +142,7 @@ void FixSampleDirectionIfNeeded(float3 SmoothSurfaceNormal, inout float3 SampleD
 }
 
 // Volume rendering ala emission-absorption model along an arbitrary ray
-float Transmit(in RayDesc TransmissionRay, in uint2 PixelCoord, inout float3 OutRadiance)
+float Transmit(in FRayDesc TransmissionRay, in uint2 PixelCoord, inout float3 OutRadiance)
 {
 	float Transmission = 1.0;
 
@@ -353,7 +353,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			// Fog is applied as a function of the top layer path, for both top and bottom; reflections combined (as an optimization approximation).
 			//
 			uint BounceIndex = 0;
-			RayDesc TopLayerRay;
+			FRayDesc TopLayerRay;
 			bool bSkyWasHit = false;
 			for (; BounceIndex < LocalMaxBounces; ++BounceIndex)
 			{
@@ -429,7 +429,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 							RAY_TRACING_SHADER_SLOT_MATERIAL,	// RayContributionToHitGroupIndex
 							RAY_TRACING_NUM_SHADER_SLOTS,		// MultiplierForGeometryContributionToShaderIndex
 							0,									// MissShaderIndex
-							TopLayerRay,						// RayDesc
+							TopLayerRay.GetNativeDesc(),		// RayDesc
 							DeferredMaterialPayload
 						);
 
@@ -481,7 +481,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 				{
 					// Trace reflection ray for the bottom layer
-					RayDesc BottomLayerRay;
+					FRayDesc BottomLayerRay;
 					BottomLayerRay.Origin = TranslatedWorldPosition;
 					BottomLayerRay.TMin = 0.0;
 					BottomLayerRay.TMax = LocalMaxRayDistance;
@@ -656,7 +656,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					//#dxr-dxr_todo: do permutation instead of dynamic branching?
 					if (EnableTranslucency)
 					{
-						RayDesc TransmissionRay = TopLayerRay;
+						FRayDesc TransmissionRay = TopLayerRay;
 						TransmissionRay.TMin = 0.01;
 						TransmissionRay.TMax = PackedPayload.IsHit() ? PackedPayload.HitT : 100000.0f;
 						Transmission = Transmit(TransmissionRay, PixelCoord, TopLayerRadiance);

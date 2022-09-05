@@ -29,7 +29,7 @@ float3 FarFieldReferencePos;
 StructuredBuffer<FRayTracingInstanceDebugData> InstancesDebugData;
 StructuredBuffer<FRayTracingPickingFeedback> PickingBuffer;
 
-float4 DebugRayTracingMaterial(RayDesc Ray, bool bIsFarField)
+float4 DebugRayTracingMaterial(FRayDesc Ray, bool bIsFarField)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 
@@ -171,7 +171,7 @@ struct FRayTracingDebugPayload : FMinimalPayload
 	uint GeometryIndex;
 };
 
-float4 DebugRayTracingInstance(RayDesc Ray)
+float4 DebugRayTracingInstance(FRayDesc Ray)
 {
 	float4 Result = float4(0, 0, 0, 1);
 
@@ -185,7 +185,7 @@ float4 DebugRayTracingInstance(RayDesc Ray)
 		0 /*RayContributionToHitGroupIndex*/,
 		RAY_TRACING_NUM_SHADER_SLOTS /*MultiplierForGeometryContributionToShaderIndex*/,
 		0 /*MissShaderIndex*/,
-		Ray,
+		Ray.GetNativeDesc(),
 		Payload);
 
 	if (Payload.IsHit())
@@ -251,7 +251,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
-	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+	FRayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 
 	float4 Result = (float4)0;
 
@@ -324,7 +324,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugPickingRGS)
 	const uint2 PixelPos = (float2(View.CursorPosition) * View.ViewResolutionFraction);
 	float2 RenderTargetUV = (float2(PixelPos) + .5f) * View.BufferSizeAndInvSize.zw;
 
-	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+	FRayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 
 	const uint InstanceInclusionMask = (OpaqueOnly ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_ALL);
 
@@ -338,7 +338,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugPickingRGS)
 		0 /*RayContributionToHitGroupIndex*/,
 		RAY_TRACING_NUM_SHADER_SLOTS /*MultiplierForGeometryContributionToShaderIndex*/,
 		0 /*MissShaderIndex*/,
-		Ray,
+		Ray.GetNativeDesc(),
 		Payload);
 
 	FRayTracingPickingFeedback PickingFeedback = (FRayTracingPickingFeedback)0xFFFFFFFFu;

@@ -463,7 +463,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		// We are rendering after TAAU, remove jitter
 		BufferUV += View.TemporalAAJitter.xy * View.ScreenPositionScaleBias.xy;
 
-		RayDesc Ray = CreatePrimaryRay(BufferUV);
+		FRayDesc Ray = CreatePrimaryRay(BufferUV);
 		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);

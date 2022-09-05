@@ -111,7 +111,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 	const uint2 PixelPos = UnpackPixelCoordinates(ReflectionRay.PixelCoordinates);
 	if (all(PixelPos - View.ViewRectMin.xy < RayTracingResolution))
 	{
-		RayDesc Ray;
+		FRayDesc Ray;
 		Ray.TMin      = 0;
 		Ray.TMax      = 1e9;
 		Ray.Origin    = ReflectionRay.Origin;
@@ -129,7 +129,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			TraceDeferredMaterialGatherRay(TLAS,
 				RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 				RAY_TRACING_MASK_OPAQUE,
-				Ray,
+				Ray.GetNativeDesc(),
 				Bookmark,
 				DeferredMaterialPayload
 			);
@@ -167,7 +167,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 	if (DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 	{
-		RayDesc Ray;
+		FRayDesc Ray;
 		Ray.TMin      = 0;
 		Ray.TMax      = 1e9;
 		Ray.Origin    = ReflectionRay.Origin;
@@ -179,7 +179,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 			TLAS,
 			RAY_FLAG_FORCE_OPAQUE,
 			RAY_TRACING_MASK_OPAQUE,
-			Ray,
+			Ray.GetNativeDesc(),
 			Bookmark,
 			PackedPayload);
 

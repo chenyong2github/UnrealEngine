@@ -12,7 +12,7 @@ RAY_TRACING_ENTRY_RAYGEN(TestMainRGS)
 	const uint RayIndex = DispatchRaysIndex().x;
 	FBasicRayData InputRay = Rays[RayIndex];
 
-	RayDesc Ray;
+	FRayDesc Ray;
 	Ray.Origin = InputRay.Origin;
 	Ray.Direction = InputRay.Direction;
 	Ray.TMin = 0.0f;

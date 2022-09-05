@@ -74,7 +74,7 @@ float4 SampleApproxProjectionSphericalRect(float2 Rand, FSphericalRect Spherical
 	return float4(Direction, OutPdf * WarpedRand.z);
 }
 
-FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
+FLightHit RectLight_TraceLight(FRayDesc Ray, int LightId)
 {
 	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);

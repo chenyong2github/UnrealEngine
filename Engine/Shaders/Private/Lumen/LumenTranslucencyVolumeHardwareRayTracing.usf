@@ -81,7 +81,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 				}
 			#endif
 
-			RayDesc Ray;
+			FRayDesc Ray;
 			Ray.Origin = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 			Ray.Direction = WorldConeDirection;
 			Ray.TMin = 0;

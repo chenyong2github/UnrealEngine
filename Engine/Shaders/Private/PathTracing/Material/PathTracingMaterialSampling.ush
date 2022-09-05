@@ -365,7 +365,7 @@ float3 DecodeSSSProfileRadius(uint ProfileId, float3 DiffuseColor, float Opacity
 }
 
 
-FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, RayDesc Ray)
+FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, FRayDesc Ray)
 {
 	// the path tracer has a few more requirements compared to the ray-tracing path.
 	// Long term, we should reoranize the payload for the path tracer, but for now, just

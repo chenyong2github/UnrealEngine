@@ -174,7 +174,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixelLocal; ++SampleIndex)
 	{
-		RayDesc Ray;
+		FRayDesc Ray;
 		float RayPDF;
 
 		RandomSequence RandSequence;

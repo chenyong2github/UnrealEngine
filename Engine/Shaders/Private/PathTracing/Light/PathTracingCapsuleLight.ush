@@ -24,7 +24,7 @@ float GetCapsuleRadius(int LightId)
 	return max(GetRadius(LightId), 0.01);
 }
 
-FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
+FLightHit CapsuleLight_TraceLight(FRayDesc Ray, int LightId)
 {
 	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float LightRadius = GetCapsuleRadius(LightId);

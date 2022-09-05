@@ -69,7 +69,7 @@ void SkyLightEvaluate(
 	// Iterate up to the requested sample count
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
 	{
-		RayDesc Ray;
+		FRayDesc Ray;
 		float RayWeight;
 
 		if (bDecoupleSampleGeneration)
@@ -259,7 +259,7 @@ void SkyLightEvaluate(
 		// Trace a visibility ray from light to shading point to get estimation of "shadow thickness"
 		float ShadowThickness = 0.0;
 		{
-			RayDesc RayLocal;
+			FRayDesc RayLocal;
 			RayLocal.Origin = TranslatedWorldPosition + L * SkyLight.MaxShadowThickness;
 			RayLocal.Direction = -L;
 			RayLocal.TMin = 0.0;

@@ -401,6 +401,7 @@ void FDirectionalLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImm
 		), TEXT("GPULMStaticShadowDepthMap"));
 
 	FStaticShadowDepthMapTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStaticShadowDepthMapTracingRGS::FParameters>();
+	PassParameters->ViewUniformBuffer = Scene.ReferenceView->ViewUniformBuffer;
 	PassParameters->TLAS = Scene.RayTracingSceneSRV;
 	PassParameters->ShadowMapSize = FIntPoint{ShadowMapSizeX, ShadowMapSizeY};
 	PassParameters->StaticShadowDepthMapSuperSampleFactor = 1;
@@ -507,6 +508,7 @@ void FSpotLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate&
 	const FMatrix44f LightToWorld = WorldToLight.InverseFast();
 
 	FStaticShadowDepthMapTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStaticShadowDepthMapTracingRGS::FParameters>();
+	PassParameters->ViewUniformBuffer = Scene.ReferenceView->ViewUniformBuffer;
 	PassParameters->TLAS = Scene.RayTracingSceneSRV;
 	PassParameters->ShadowMapSize = FIntPoint{ShadowMapSizeX, ShadowMapSizeY};
 	PassParameters->StaticShadowDepthMapSuperSampleFactor = 1;
@@ -605,6 +607,7 @@ void FPointLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate
 		), TEXT("GPULMStaticShadowDepthMap"));
 
 	FStaticShadowDepthMapTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStaticShadowDepthMapTracingRGS::FParameters>();
+	PassParameters->ViewUniformBuffer = Scene.ReferenceView->ViewUniformBuffer;
 	PassParameters->TLAS = Scene.RayTracingSceneSRV;
 	PassParameters->ShadowMapSize = FIntPoint{ShadowMapSizeX, ShadowMapSizeY};
 	PassParameters->StaticShadowDepthMapSuperSampleFactor = 1;
@@ -694,6 +697,7 @@ void FRectLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate&
 		), TEXT("GPULMStaticShadowDepthMap"));
 
 	FStaticShadowDepthMapTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStaticShadowDepthMapTracingRGS::FParameters>();
+	PassParameters->ViewUniformBuffer = Scene.ReferenceView->ViewUniformBuffer;
 	PassParameters->TLAS = Scene.RayTracingSceneSRV;
 	PassParameters->ShadowMapSize = FIntPoint{ShadowMapSizeX, ShadowMapSizeY};
 	PassParameters->StaticShadowDepthMapSuperSampleFactor = 1;

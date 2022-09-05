@@ -27,7 +27,7 @@ float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
 }
 
 
-FLightHit SpotLight_TraceLight(RayDesc Ray, int LightId) {
+FLightHit SpotLight_TraceLight(FRayDesc Ray, int LightId) {
 
 	FLightHit Result = PointLight_TraceLight(Ray, LightId);
 	if (Result.IsHit())

@@ -8,7 +8,7 @@ DirectionalLight.usf: Light sampling functions for Directional light implementat
 
 #include "PathTracingLightCommon.ush"
 
-FLightHit DirectionalLight_TraceLight(RayDesc Ray, int LightId)
+FLightHit DirectionalLight_TraceLight(FRayDesc Ray, int LightId)
 {
 	if (Ray.TMax == POSITIVE_INFINITY) // we hit the background
 	{

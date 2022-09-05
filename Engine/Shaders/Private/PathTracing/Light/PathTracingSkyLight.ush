@@ -28,7 +28,7 @@ float SkyLight_EstimateLight(
 #endif
 }
 
-FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId)
+FLightHit SkyLight_TraceLight(FRayDesc Ray, int LightId)
 {
 	if (Ray.TMax == POSITIVE_INFINITY)
 	{
