@@ -293,6 +293,8 @@ void ReflectionEnvironmentSkyLighting(
 		const float CloudVolumetricAOShadow = GetCloudVolumetricAOShadow(TranslatedWorldPosition);
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
 
+		const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
+
 		FStrataDeferredLighting StrataLighting = StrataEnvironmentLighting(
 			SvPosition,
 			BufferUV,
@@ -303,6 +305,7 @@ void ReflectionEnvironmentSkyLighting(
 			V,
 			AmbientOcclusion,
 			TopLayerSpecularContributionFactor,
+			bEnableSpecular,
 			Settings,
 			Strata.MaterialTextureArray,
 			StrataAddressing,

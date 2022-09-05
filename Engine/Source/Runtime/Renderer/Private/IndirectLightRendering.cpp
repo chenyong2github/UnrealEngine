@@ -197,7 +197,9 @@ class FAmbientCubemapCompositePS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,  AmbientOcclusionSampler)
-		
+
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, StrataTile)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAmbientCubemapParameters, AmbientCubemap)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -1239,72 +1241,110 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		// Apply the ambient cubemaps
 		if (IsAmbientCubemapPassRequired(View) && !bIsVisualizePass && !ViewPipelineState.bUseLumenProbeHierarchy)
 		{
-			FAmbientCubemapCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientCubemapCompositePS::FParameters>();
+			auto ApplyAmbientCubemapComposite = [&](EStrataTileType TileType)
+			{			
+				FAmbientCubemapCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientCubemapCompositePS::FParameters>();
+				PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
+				PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			
-			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
-			PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				PassParameters->AmbientOcclusionTexture = AmbientOcclusionMask;
+				PassParameters->AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			
-			PassParameters->AmbientOcclusionTexture = AmbientOcclusionMask;
-			PassParameters->AmbientOcclusionSampler = TStaticSamplerState<SF_Point>::GetRHI();
-			
-			if (!PassParameters->AmbientOcclusionTexture)
-			{
-				PassParameters->AmbientOcclusionTexture = SystemTextures.White;
-			}
-
-			PassParameters->SceneTextures = SceneTextureParameters;
-			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(
-				SceneColorTexture, ERenderTargetLoadAction::ELoad);
-		
-			TShaderMapRef<FAmbientCubemapCompositePS> PixelShader(View.ShaderMap);
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("AmbientCubemapComposite %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
-				PassParameters,
-				ERDGPassFlags::Raster,
-				[PassParameters, &View, PixelShader](FRHICommandList& RHICmdList)
-			{
-				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-				
-				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 0.0);
-
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-				// set the state
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-
-				uint32 Count = View.FinalPostProcessSettings.ContributingCubemaps.Num();
-				for (const FFinalPostProcessSettings::FCubemapEntry& CubemapEntry : View.FinalPostProcessSettings.ContributingCubemaps)
+				if (!PassParameters->AmbientOcclusionTexture)
 				{
-					FAmbientCubemapCompositePS::FParameters ShaderParameters = *PassParameters;
-					SetupAmbientCubemapParameters(CubemapEntry, &ShaderParameters.AmbientCubemap);
-					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), ShaderParameters);
-					
-					DrawPostProcessPass(
-						RHICmdList,
-						0, 0,
-						View.ViewRect.Width(), View.ViewRect.Height(),
-						View.ViewRect.Min.X, View.ViewRect.Min.Y,
-						View.ViewRect.Width(), View.ViewRect.Height(),
-						View.ViewRect.Size(),
-						View.GetSceneTexturesConfig().Extent,
-						VertexShader,
-						View.StereoViewIndex,
-						false, // TODO.
-						EDRF_UseTriangleOptimization);
+					PassParameters->AmbientOcclusionTexture = SystemTextures.White;
 				}
-			});
+
+				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+				PassParameters->SceneTextures = SceneTextureParameters;
+				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+
+				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+				if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+				{
+					PassParameters->RenderTargets[1] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
+					PassParameters->RenderTargets[2] = FRenderTargetBinding(Scene->StrataSceneData.SeparatedSubSurfaceSceneColor, ERenderTargetLoadAction::ELoad);
+				}
+
+				TShaderMapRef<FPostProcessVS> FullScreenVertexShader(View.ShaderMap);
+
+				Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
+				VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableDebug >(false);
+				VSPermutationVector.Set< Strata::FStrataTilePassVS::FEnableTexCoordScreenVector >(false);
+				TShaderMapRef<Strata::FStrataTilePassVS> TileVertexShader(View.ShaderMap, VSPermutationVector);
+
+				const bool bStrataEnabled = Strata::IsStrataEnabled();
+				EPrimitiveType PrimitiveType = PT_TriangleList;
+				if (Strata::IsStrataEnabled())
+				{
+					PassParameters->StrataTile = Strata::SetTileParameters(GraphBuilder, View, TileType, PrimitiveType);
+				}
+
+				TShaderMapRef<FAmbientCubemapCompositePS> PixelShader(View.ShaderMap);
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("AmbientCubemapComposite(%dx%d%s%s)", View.ViewRect.Width(), View.ViewRect.Height(), bStrataEnabled ? TEXT(",") : TEXT(""), bStrataEnabled ? ToString(TileType) : TEXT("")),
+					PassParameters,
+					ERDGPassFlags::Raster,
+					[PassParameters, &View, FullScreenVertexShader, TileVertexShader, PixelShader, PrimitiveType, TileType, bStrataEnabled](FRHICommandList& RHICmdList)
+				{				
+					RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 0.0);
+
+					FGraphicsPipelineStateInitializer GraphicsPSOInit;
+					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+					// set the state
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = bStrataEnabled ? TileVertexShader.GetVertexShader() : FullScreenVertexShader.GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+					GraphicsPSOInit.PrimitiveType = PrimitiveType;
+
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+					uint32 Count = View.FinalPostProcessSettings.ContributingCubemaps.Num();
+					for (const FFinalPostProcessSettings::FCubemapEntry& CubemapEntry : View.FinalPostProcessSettings.ContributingCubemaps)
+					{
+						FAmbientCubemapCompositePS::FParameters ShaderParameters = *PassParameters;
+						SetupAmbientCubemapParameters(CubemapEntry, &ShaderParameters.AmbientCubemap);
+						SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), ShaderParameters);
+					
+						if (bStrataEnabled)
+						{
+							SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), PassParameters->StrataTile);
+							RHICmdList.DrawPrimitiveIndirect(PassParameters->StrataTile.TileIndirectBuffer->GetIndirectRHICallBuffer(), Strata::TileTypeDrawIndirectArgOffset(TileType));
+						}
+						else
+						{
+							DrawPostProcessPass(
+								RHICmdList,
+								0, 0,
+								View.ViewRect.Width(), View.ViewRect.Height(),
+								View.ViewRect.Min.X,   View.ViewRect.Min.Y,
+								View.ViewRect.Width(), View.ViewRect.Height(),
+								View.ViewRect.Size(),
+								View.GetSceneTexturesConfig().Extent,
+								FullScreenVertexShader,
+								View.StereoViewIndex,
+								false, // TODO.
+								EDRF_UseTriangleOptimization);
+						}
+					}
+				});				
+			};
+
+			if (Strata::IsStrataEnabled())
+			{
+				ApplyAmbientCubemapComposite(EStrataTileType::EComplex);
+				ApplyAmbientCubemapComposite(EStrataTileType::ESingle);
+				ApplyAmbientCubemapComposite(EStrataTileType::ESimple);
+			}
+			else
+			{
+				ApplyAmbientCubemapComposite(EStrataTileType::ECount);
+			}
 		} // if (IsAmbientCubemapPassRequired(View))
 	} // for (FViewInfo& View : Views)
 }

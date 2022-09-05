@@ -54,11 +54,11 @@ FSkyLightVisibilityData GetSkyLightVisibilityData(float3 SkyLightingNormal, cons
 
 	float ContrastCurve = 1 / (1 + exp(-ContrastAndNormalizeMulAdd.x * (SkyVisibility * 10 - 5)));
 	SkyVisibility = saturate(ContrastCurve * ContrastAndNormalizeMulAdd.y + ContrastAndNormalizeMulAdd.z);
-#endif
 
 	// Apply DFAO controls
 	SkyVisibility = pow(SkyVisibility, OcclusionExponent);
 	SkyVisibility = lerp(SkyVisibility, 1, OcclusionTintAndMinOcclusion.w);
+#endif
 
 	// Combine with other AO sources
 	if (OcclusionCombineMode == 0)

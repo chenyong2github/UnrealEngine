@@ -129,6 +129,46 @@ float3 StrataForwardLightingCommon(
 
 #ifdef USE_STRATA_ENV_LIGHTING_COMMON
 
+// USE_DEFAULT_ENV_LIGHTING_INPUT is use to allow lighting input override
+#ifndef USE_DEFAULT_ENV_LIGHTING_INPUT
+#define USE_DEFAULT_ENV_LIGHTING_INPUT 1
+#endif 
+
+#if USE_DEFAULT_ENV_LIGHTING_INPUT
+// Diffuse input lighting (sky)
+float3 GetEnvDiffuseLighting(float3 InBentNormal)
+{
+	return GetSkySHDiffuse(InBentNormal) * View.SkyLightColor.rgb;
+}
+
+// Specular input lighting (reflection capture + sky)
+float3 GetEnvSpecularLighting(
+	float CompositeAlpha,
+	float3 TranslatedWorldPosition,
+	float3 SpecularDirection,
+	float SpecularSafeRoughness,
+	float IndirectIrradiance,
+	float IndirectSpecularOcclusion,
+	float3 ExtraIndirectSpecular,
+	uint NumCulledReflectionCaptures,
+	uint CaptureDataStartIndex)
+{
+	const bool bCompositeSkylight = true;
+	return CompositeReflectionCapturesAndSkylightTWS(
+		CompositeAlpha,
+		TranslatedWorldPosition,
+		SpecularDirection,
+		SpecularSafeRoughness,
+		IndirectIrradiance,
+		IndirectSpecularOcclusion,
+		ExtraIndirectSpecular,
+		NumCulledReflectionCaptures,
+		CaptureDataStartIndex,
+		0,
+		bCompositeSkylight);
+}
+#endif // USE_DEFAULT_ENV_LIGHTING_INPUT
+
 void StrataEnvLightingCommon(
 	in FStrataEnvLightResult StrataEnvLight,
 	in FStrataPixelHeader StrataPixelHeader,
@@ -162,7 +202,7 @@ void StrataEnvLightingCommon(
 		if (bProcessFrontFaceDiffuse)
 		{
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
-			float3 DiffuseLookup = GetSkySHDiffuse(BentNormal) * View.SkyLightColor.rgb;
+			float3 DiffuseLookup = GetEnvDiffuseLighting(BentNormal);
 			// And accumulate
 			// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
 			DiffuseLighting = CloudVolumetricAOShadow * BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
@@ -173,7 +213,7 @@ void StrataEnvLightingCommon(
 			// However, we do apply SkyVisData.SkyDiffuseLookUpMul for scaling consistency.
 
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF) along the opposite normal direction
-			float3 DiffuseLookup = GetSkySHDiffuse(-BentNormal) * View.SkyLightColor.rgb;
+			float3 DiffuseLookup = GetEnvDiffuseLighting(-BentNormal);
 			// And accumulate
 			// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
 			DiffuseLighting += CloudVolumetricAOShadow * BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup) * StrataEnvLight.DiffuseBackFaceWeight;
@@ -215,9 +255,8 @@ void StrataEnvLightingCommon(
 		float RoughnessSquared = StrataEnvLight.SpecularSafeRoughness * StrataEnvLight.SpecularSafeRoughness;
 		float SpecularOcclusion = IndirectSpecularOcclusion * GetSpecularOcclusion(StrataBSDFContext.SatNoV, RoughnessSquared, CombinedScreenAndMaterialAO);
 
-		const bool bCompositeSkylight = true;
 		SpecularLighting += BSDFThroughput * StrataEnvLight.SpecularWeight *
-			CompositeReflectionCapturesAndSkylightTWS(
+			GetEnvSpecularLighting(
 				(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f) * SpecularOcclusion,
 				TranslatedWorldPosition,
 				StrataEnvLight.SpecularDirection,
@@ -226,15 +265,13 @@ void StrataEnvLightingCommon(
 				IndirectSpecularOcclusion,
 				ExtraIndirectSpecular,
 				NumCulledReflectionCaptures,
-				CaptureDataStartIndex,
-				0,
-				bCompositeSkylight);
+				CaptureDataStartIndex);
 
 	#if STRATA_FASTPATH==0
 		if (BSDF_GETHASHAZINESS(BSDF))
 		{
 			SpecularLighting += BSDFThroughput * StrataEnvLight.SpecularHazeWeight *
-				CompositeReflectionCapturesAndSkylightTWS(
+				GetEnvSpecularLighting(
 					(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f) * SpecularOcclusion,
 					TranslatedWorldPosition,
 					StrataEnvLight.SpecularHazeDirection,
@@ -243,9 +280,7 @@ void StrataEnvLightingCommon(
 					IndirectSpecularOcclusion,
 					ExtraIndirectSpecular,
 					NumCulledReflectionCaptures,
-					CaptureDataStartIndex,
-					0,
-					bCompositeSkylight);
+					CaptureDataStartIndex);
 
 			// SSR is traced for the sharpest lob. The smoothest one does not rely on SSR so we need to lower energy coming from SSR according to the lobe blend weight.
 			// And we also try to make the transition smooth using Haziness

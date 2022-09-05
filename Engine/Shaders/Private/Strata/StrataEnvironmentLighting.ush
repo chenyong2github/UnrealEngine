@@ -25,6 +25,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	float3 V,
 	float ScreenAmbientOcclusion,
 	float TopLayerSpecularContributionFactor,
+	bool bEnableSpecular,
 	FStrataIntegrationSettings Settings,
 	FStrataMaterialContainer MaterialBuffer,
 	FStrataAddressing StrataAddressing,
@@ -45,7 +46,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	float CombinedScreenAndMaterialAO = StrataGetAO(StrataPixelHeader) * ScreenAmbientOcclusion;
 
 	
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+#if USE_DEFAULT_ENV_LIGHTING_INPUT && FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	float2 LocalPosition = SvPosition.xy - View.ViewRectMin.xy;
 
 	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SceneDepth);
@@ -67,7 +68,6 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 		const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF); // Use the reflected direction
 
 		// Evaluate environment lighting
-		const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
 		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
 
 		float3 BentNormal = StrataEnvLight.DiffuseNormal;
