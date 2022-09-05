@@ -50,11 +50,14 @@ namespace Chaos
 		// Return whether there is any active range in the view.
 		bool HasActiveRange() const;
 
+		// Return the total number of active items from all active ranges.
+		int32 GetActiveSize() const;
+
 		// Return a list of pair (offset, range) of all active ranges.
 		TArray<TVector<int32, 2>, TInlineAllocator<8>> GetActiveRanges() const;
 
 		// Return internal ranges.
-		TConstArrayView<int32> GetRanges() const { return Ranges;  }
+		TConstArrayView<int32> GetRanges() const { return Ranges; }
 
 	private:
 		TItemsType& Items;
@@ -219,6 +222,26 @@ namespace Chaos
 			}
 		}
 		return false;
+	}
+
+	template <class TItemsType>
+	int32 TPBDActiveView<TItemsType>::GetActiveSize() const
+	{
+		int32 ActiveSize = 0;
+		int32 Offset = 0;
+		for (int32 Range : Ranges)
+		{
+			if (Range > 0)
+			{
+				ActiveSize += Range - Offset;
+				Offset = Range;
+			}
+			else
+			{
+				Offset = -Range;
+			}
+		}
+		return ActiveSize;
 	}
 
 	template <class TItemsType>

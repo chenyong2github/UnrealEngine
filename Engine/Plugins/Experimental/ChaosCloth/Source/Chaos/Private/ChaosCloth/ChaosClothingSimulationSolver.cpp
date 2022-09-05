@@ -715,9 +715,6 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 {
 	if (Evolution)
 	{
-		const bool bHasVelocityField = !PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity).IsEmpty();
-		const bool bHasForceField = !PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce).IsEmpty();
-
 		const FVec3& AngularDisplacement = FictitiousAngularDisplacements[GroupId];
 		const bool bHasFictitiousForces = !AngularDisplacement.IsNearlyZero();
 
@@ -725,19 +722,19 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 		const FVec3 LegacyWindVelocity = WindVelocity * LegacyWindMultiplier;
 
 		Evolution->GetForceFunction(GroupId) =
-			[this, bHasVelocityField, bHasForceField, bHasFictitiousForces, bUseLegacyWind, LegacyWindVelocity, AngularDisplacement](Softs::FSolverParticles& Particles, const FReal Dt, const int32 Index)
+			[this, bHasFictitiousForces, bUseLegacyWind, LegacyWindVelocity, AngularDisplacement](Softs::FSolverParticles& Particles, const FReal Dt, const int32 Index)
 			{
 				FVec3 Forces((FReal)0.);
 
-				if (bHasVelocityField)
+				const TArray<FVector>& LinearVelocities = PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity);
+				if (!LinearVelocities.IsEmpty())
 				{
-					const TArray<FVector>& LinearVelocities = PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity);
 					Forces += LinearVelocities[Index] * Particles.M(Index) / Dt;
 				}
 
-				if (bHasForceField)
+				const TArray<FVector>& LinearForces = PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce);
+				if (!LinearForces.IsEmpty())
 				{
-					const TArray<FVector>& LinearForces = PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce);
 					Forces += LinearForces[Index];
 				}
 
@@ -863,16 +860,27 @@ void FClothingSimulationSolver::UpdateSolverField()
 		TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
 
 		const uint32 NumParticles = Evolution->Particles().Size();
+		const uint32 NumActiveParticles = Evolution->ParticlesActiveView().GetActiveSize();
 
 		SamplePositions.SetNum(NumParticles, false);
-		SampleIndices.SetNum(NumParticles, false);
+		SampleIndices.SetNum(NumActiveParticles, false);
 
-		for (uint32 Index = 0; Index < NumParticles; ++Index)
-		{
-			SamplePositions[Index] = FVector(Evolution->Particles().X(Index)) + LocalSpaceLocation;
-			SampleIndices[Index] = FFieldContextIndex(Index, Index);
-		}
+		int32 SampleIndex = 0;
+		Evolution->ParticlesActiveView().SequentialFor(
+			[this, &SamplePositions, &SampleIndices, &SampleIndex](Softs::FSolverParticles& Particles, int32 ParticleIndex)
+			{
+				SamplePositions[ParticleIndex] = FVector(Particles.X(ParticleIndex)) + LocalSpaceLocation;
+				SampleIndices[SampleIndex] = FFieldContextIndex(ParticleIndex, SampleIndex);
+				++SampleIndex;
+			});
+
 		PerSolverField.ComputeFieldLinearImpulse(GetTime());
+	}
+	else
+	{
+		// Reset the outputs once the field isn't being processed anymore
+		PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity).Reset();
+		PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce).Reset();
 	}
 }
 
@@ -953,7 +961,7 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 			DeltaTime = InDeltaTime;
 		}
 
-		// Compute the solver field forces/velocities for future use in the AddExternalForces
+		// Compute the solver field forces/velocities for future use in the solver force function
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdateSolverFields);
 			SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverFields);
