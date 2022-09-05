@@ -92,6 +92,16 @@ public:
 	}
 
 	/**
+	 * Adds a bool to the buffer (converted to uint8)
+	 */
+	friend inline FNboSerializeToBuffer& operator<<(FNboSerializeToBuffer& Ar, const bool B)
+	{
+		Ar << (uint8)B;
+
+		return Ar;
+	}
+
+	/**
 	 * Adds a char to the buffer
 	 */
 	friend inline FNboSerializeToBuffer& operator<<(FNboSerializeToBuffer& Ar,const char Ch)
@@ -415,6 +425,18 @@ public:
 		CurrentOffset(0),
 		bHasOverflowed(false)
 	{
+	}
+
+	/**
+	 * Reads a bool from the buffer (as uint8)
+	 */
+	friend inline FNboSerializeFromBuffer& operator>>(FNboSerializeFromBuffer& Ar, bool& B)
+	{
+		uint8 Read = 0;
+		Ar >> Read;
+		B = !!Read;
+
+		return Ar;
 	}
 
 	/**

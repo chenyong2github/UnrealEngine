@@ -84,7 +84,7 @@ void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionSettings& Se
 
 void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionCommon& Session)
 {
-	// Session.OwnerUserId will be serialized in implementations as user id types will vary
+	// Session.OwnerAccountId will be serialized in implementations as user id types will vary
 	SerializeToBuffer(Packet, Session.SessionInfo);
 	SerializeToBuffer(Packet, Session.SessionSettings);
 	// Session.SessionMembers will be serialized in implementations as user id types will vary
@@ -164,18 +164,10 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMember& Sessio
 
 void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionInfo& SessionInfo)
 {
-	uint8 Read = 0;
-
-	// Read all the booleans as bytes
-	Packet >> Read;
-	SessionInfo.bAllowSanctionedPlayers = !!Read;
-	Packet >> Read;
-	SessionInfo.bAntiCheatProtected = !!Read;
-	Packet >> Read;
-	SessionInfo.bIsDedicatedServerSession = !!Read;
-	Packet >> Read;
-	SessionInfo.bIsLANSession = !!Read;
-
+	Packet >> SessionInfo.bAllowSanctionedPlayers;
+	Packet >> SessionInfo.bAntiCheatProtected;
+	Packet >> SessionInfo.bIsDedicatedServerSession;
+	Packet >> SessionInfo.bIsLANSession;
 	Packet >> SessionInfo.SessionIdOverride;
 
 	// SessionInfo.SessionId will be deserialized in implementations as user id types will vary
@@ -183,14 +175,11 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionInfo& SessionI
 
 void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionSettings& SessionSettings)
 {
-	uint8 Read = 0;
-
-	// Read all the booleans as bytes
-	Packet >> Read;
-	SessionSettings.bAllowNewMembers = !!Read;
+	Packet >> SessionSettings.bAllowNewMembers;
 
 	SerializeFromBuffer(Packet, SessionSettings.CustomSettings);
 
+	uint8 Read = 0;
 	Packet >> Read;
 	SessionSettings.JoinPolicy = (ESessionJoinPolicy)Read;
 
