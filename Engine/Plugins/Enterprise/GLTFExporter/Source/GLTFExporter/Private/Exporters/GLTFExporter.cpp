@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporter.h"
+#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterAnalytics.h"
 #include "Options/GLTFExportOptions.h"
 #include "UI/GLTFExportOptionsWindow.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "AssetExportTask.h"
-#include "GLTFExporterUtility.h"
 
 UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -30,6 +31,8 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		// User cancelled the export
 		return false;
 	}
+
+	const uint64 StartTime = FPlatformTime::Cycles64();
 
 	FGCObjectScopeGuard OptionsGuard(Options);
 
@@ -56,6 +59,8 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		bSuccess = Builder.WriteExternalFiles(DirPath);
 	}
 
+	FGLTFExporterAnalytics(Object, Builder, true, IsAutomated(), bSuccess, StartTime).Send();
+
 	// TODO: should we copy messages to UAssetExportTask::Errors?
 
 	if (!FApp::IsUnattended() && Builder.HasLoggedMessages())
@@ -81,6 +86,8 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& FilePath, const
 		return false;
 	}
 
+	const uint64 StartTime = FPlatformTime::Cycles64();
+
 	const FString FileName = FPaths::GetCleanFilename(FilePath);
 	const FString DirPath = FPaths::GetPath(FilePath);
 
@@ -96,6 +103,8 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& FilePath, const
 		Builder.ProcessSlowTasks();
 		bSuccess = Builder.WriteAllFiles(DirPath);
 	}
+
+	FGLTFExporterAnalytics(Object, Builder, false, FApp::IsUnattended(), bSuccess, StartTime).Send();
 
 	return bSuccess;
 }
@@ -114,16 +123,10 @@ bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Obj
 const UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 {
 	UGLTFExportOptions* Options = nullptr;
-	bool bAutomatedTask = GIsAutomationTesting || FApp::IsUnattended();
 
 	if (ExportTask != nullptr)
 	{
 		Options = Cast<UGLTFExportOptions>(ExportTask->Options);
-
-		if (ExportTask->bAutomated)
-		{
-			bAutomatedTask = true;
-		}
 	}
 
 	if (Options == nullptr)
@@ -132,7 +135,7 @@ const UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 	}
 
 #if WITH_EDITOR
-	if (GetShowExportOption() && !bAutomatedTask)
+	if (GetShowExportOption() && !IsAutomated())
 	{
 		bool bExportAll = GetBatchMode();
 		bool bOperationCanceled = false;
@@ -157,4 +160,10 @@ const UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 FString UGLTFExporter::GetFilePath() const
 {
 	return ExportTask != nullptr ? ExportTask->Filename : CurrentFilename;
+}
+
+bool UGLTFExporter::IsAutomated() const
+{
+	// NOTE: FApp::IsUnattended() already checks GIsAutomationTesting
+	return FApp::IsUnattended() || (ExportTask != nullptr && ExportTask->bAutomated);
 }

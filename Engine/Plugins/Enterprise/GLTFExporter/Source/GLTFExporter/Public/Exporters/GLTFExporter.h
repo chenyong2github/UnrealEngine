@@ -46,5 +46,7 @@ protected:
 private:
 
 	const UGLTFExportOptions* GetExportOptions();
+
 	FString GetFilePath() const;
+	bool IsAutomated() const;
 };
