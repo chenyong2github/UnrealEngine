@@ -645,7 +645,7 @@ bool FLODUtilities::SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkelet
 			{
 				SkeletalMeshImportData::FBone& ImportedBone = LODImportData.RefBonesBinary[ImportBoneIndex];
 				int32 LODBoneIndex = ImportBoneIndex;
-				FName LODBoneName = FName(*ImportedBone.Name);
+				FName LODBoneName = FName(*FSkeletalMeshImportData::FixupBoneName(ImportedBone.Name));
 				int32 BaseBoneIndex = DestinationSkeletalMesh->GetRefSkeleton().FindBoneIndex(LODBoneName);
 				ImportDataBoneRemap[ImportBoneIndex] = BaseBoneIndex;
 				if (BaseBoneIndex != INDEX_NONE)

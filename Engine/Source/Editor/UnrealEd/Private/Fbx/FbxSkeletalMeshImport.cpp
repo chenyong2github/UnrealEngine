@@ -4161,7 +4161,7 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 			{
 				SkeletalMeshImportData::FBone& ImportedBone = LODImportData.RefBonesBinary[ImportBoneIndex];
 				int32 LODBoneIndex = ImportBoneIndex;
-				FName LODBoneName = FName(*ImportedBone.Name);
+				FName LODBoneName = FName(*FSkeletalMeshImportData::FixupBoneName(ImportedBone.Name));
 				int32 BaseBoneIndex = BaseSkeletalMesh->GetRefSkeleton().FindBoneIndex(LODBoneName);
 				ImportDataBoneRemap[ImportBoneIndex] = BaseBoneIndex;
 				if (BaseBoneIndex != INDEX_NONE)
