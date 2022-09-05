@@ -178,8 +178,7 @@ public:
 
 	TPagedArray& operator=(std::initializer_list<ElementType> InList)
 	{
-		Reset();
-		CopyToEmpty(InList.begin(), static_cast<SizeType>(InList.size()));
+		Assign(InList);
 		return *this;
 	}
 
@@ -293,8 +292,13 @@ public:
 	void Append(const ElementType* InSource, SizeType InSize)
 	{
 		check(InSource || !InSize);
-		Grow(Count + InSize);
+		GrowIfRequired(Count + InSize);
 		CopyUnchecked(InSource, InSize);
+	}
+
+	void Append(std::initializer_list<ElementType> InList)
+	{
+		Append(InList.begin(), static_cast<SizeType>(InList.size()));
 	}
 
 	template <typename ContainerType, std::enable_if_t<TIsContiguousContainer<ContainerType>::Value>* = nullptr>
@@ -312,7 +316,7 @@ public:
 	{
 		using OtherType = TPagedArray<ElementType, OtherPageSizeInBytes, OtherAllocator>;
 		using OtherPageType = typename OtherType::PageType;
-		Grow(Count + Other.Count);
+		GrowIfRequired(Count + Other.Count);
 		for (const OtherPageType& Page : Other.Pages)
 		{
 			CopyUnchecked(Page.GetData(), Page.Num());
@@ -327,6 +331,12 @@ public:
 	{
 		Reset();
 		Append(InSource, InSize);
+	}
+
+	void Assign(std::initializer_list<ElementType> InList)
+	{
+		Reset();
+		Append(InList.begin(), static_cast<SizeType>(InList.size()));
 	}
 
 	template <typename ContainerType, std::enable_if_t<TIsContiguousContainer<ContainerType>::Value>* = nullptr>
@@ -454,12 +464,10 @@ public:
 	/*
 	 * Reserves storage for the parameter element count.
 	 */
-	void Reserve(SizeType InCount)
+	FORCEINLINE void Reserve(SizeType InCount)
 	{
-		if (Max() < InCount)
-		{
-			Grow(InCount);
-		}
+		check(InCount >= 0);
+		GrowIfRequired(InCount);
 	}
 
 	/*
@@ -610,6 +618,7 @@ private:
 
 	/*
 	 * Grows the container's storage to the parameter capacity value allocating the required page count.
+	 * This method assumes the container's current capacity is smaller than the parameter value.
 	 * This method preserves existing data.
 	 */
 	void Grow(SizeType InCapacity)
@@ -623,7 +632,8 @@ private:
 		}
 	}
 
-	/* Grows the container by adding a new page of the parameter size if full.
+	/*
+	 * Grows the container by adding a new page if full.
 	 * This method preserves existing data.
 	 */
 	void GrowIfRequired()
@@ -631,6 +641,18 @@ private:
 		if (Count == Max())
 		{
 			AddPage();
+		}
+	}
+
+	/*
+	 * Grows the container's storage to meet the parameter capacity value.
+	 * This method preserves existing data.
+	 */
+	void GrowIfRequired(SizeType InCapacity)
+	{
+		if (Max() < InCapacity)
+		{
+			Grow(InCapacity);
 		}
 	}
 
