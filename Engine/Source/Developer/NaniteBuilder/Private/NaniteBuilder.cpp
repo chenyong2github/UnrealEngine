@@ -15,10 +15,13 @@
 #include "NaniteEncode.h"
 #include "ImposterAtlas.h"
 #include "UObject/DevObjectVersion.h"
+#include "Compression/OodleDataCompressionUtil.h"
 
 #if WITH_MIKKTSPACE
 #include "mikktspace.h"
 #endif
+
+#define NANITE_LOG_COMPRESSED_SIZES		0
 
 namespace Nanite
 {
@@ -437,6 +440,20 @@ static void ClusterTriangles(
 	UE_LOG( LogStaticMesh, Log, TEXT("Leaves [%.2fs]"), FPlatformTime::ToMilliseconds( LeavesTime - ClusterTime ) / 1000.0f );
 }
 
+#if NANITE_LOG_COMPRESSED_SIZES
+static void CalculateCompressedNaniteDiskSize(FResources& Resources, int32& OutUncompressedSize, int32& OutCompressedSize)
+{
+	TArray<uint8> Data;
+	FMemoryWriter Ar(Data, true);
+	Resources.Serialize(Ar, nullptr, true);
+	OutUncompressedSize = Data.Num();
+
+	TArray<uint8> CompressedData;
+	FOodleCompressedArray::CompressTArray(CompressedData, Data, FOodleDataCompression::ECompressor::Mermaid, FOodleDataCompression::ECompressionLevel::Optimal2);
+	OutCompressedSize = CompressedData.Num();
+}
+#endif
+
 static bool BuildNaniteData(
 	FResources& Resources,
 	IBuilderModule::FVertexMeshData& InputMeshData,
@@ -671,6 +688,25 @@ static bool BuildNaniteData(
 
 		UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - ImposterStartTime ) / 1000.0f);
 	}
+
+#if NANITE_LOG_COMPRESSED_SIZES
+	int32 UncompressedSize, CompressedSize;
+	CalculateCompressedNaniteDiskSize(Resources, UncompressedSize, CompressedSize);
+	UE_LOG(LogStaticMesh, Log, TEXT("Compressed size: %.2fMB -> %.2fMB"), UncompressedSize / 1048576.0f, CompressedSize / 1048576.0f);
+
+	{
+		static FCriticalSection CriticalSection;
+		FScopeLock Lock(&CriticalSection);
+		static uint32 TotalMeshes = 0;
+		static uint64 TotalMeshUncompressedSize = 0;
+		static uint64 TotalMeshCompressedSize = 0;
+
+		TotalMeshes++;
+		TotalMeshUncompressedSize += UncompressedSize;
+		TotalMeshCompressedSize += CompressedSize;
+		UE_LOG(LogStaticMesh, Log, TEXT("Total: %d Meshes, Uncompressed: %.2fMB, Compressed: %.2fMB"), TotalMeshes, TotalMeshUncompressedSize / 1048576.0f, TotalMeshCompressedSize / 1048576.0f);
+	}
+#endif
 
 	uint32 Time1 = FPlatformTime::Cycles();
 
