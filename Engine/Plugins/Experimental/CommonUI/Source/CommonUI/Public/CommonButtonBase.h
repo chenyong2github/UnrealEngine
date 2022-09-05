@@ -136,11 +136,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Selected Pressed Sound"))
 	FCommonButtonStyleOptionalSlateSound SelectedPressedSlateSound;
 
-	/** The sound to play when the button is pressed while disabled */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Disabled Pressed Sound"))
-	FCommonButtonStyleOptionalSlateSound DisabledPressedSlateSound;
-
-
+	/** The sound to play when the button is pressed while locked */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Locked Pressed Sound"))
+	FCommonButtonStyleOptionalSlateSound LockedPressedSlateSound;
+	
 	/** The sound to play when the button is hovered */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Hovered Sound"))
 	FSlateSound HoveredSlateSound;
@@ -148,10 +147,10 @@ public:
 	/** The sound to play when the button is hovered while selected */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Selected Hovered Sound"))
 	FCommonButtonStyleOptionalSlateSound SelectedHoveredSlateSound;
-
-	/** The sound to play when the button is hovered while disabled */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Disabled Hovered Sound"))
-	FCommonButtonStyleOptionalSlateSound DisabledHoveredSlateSound;
+	
+	/** The sound to play when the button is hovered while locked */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Properties", meta = (DisplayName = "Locked Hovered Sound"))
+	FCommonButtonStyleOptionalSlateSound LockedHoveredSlateSound;
 
 	UFUNCTION(BlueprintCallable, Category = "Common ButtonStyle|Getters")
 	void GetMaterialBrush(FSlateBrush& Brush) const;
@@ -438,6 +437,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
 	void SetHoveredSoundOverride(USoundBase* Sound);
 
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	void SetSelectedPressedSoundOverride(USoundBase* Sound);
+
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	void SetSelectedHoveredSoundOverride(USoundBase* Sound);
+	
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	void SetLockedPressedSoundOverride(USoundBase* Sound);
+
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Sound")
+	void SetLockedHoveredSoundOverride(USoundBase* Sound);
+
 	DECLARE_EVENT(UCommonButtonBase, FCommonButtonEvent);
 	FCommonButtonEvent& OnClicked() const { return OnClickedEvent; }
 	FCommonButtonEvent& OnDoubleClicked() const { return OnDoubleClickedEvent; }
@@ -629,22 +640,52 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style)
 	bool bHideInputAction;
 
-	/** Optional override for the sound to play when this button is pressed */
+	/**
+	 * Optional override for the sound to play when this button is pressed.
+	 * Also used for the Selected and Locked Pressed state if their respective overrides are empty.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, meta = (DisplayName = "Pressed Sound Override"))
 	FSlateSound PressedSlateSoundOverride;
 
-	/** Optional override for the sound to play when this button is hovered */
+	/**
+	 * Optional override for the sound to play when this button is hovered.
+	 * Also used for the Selected and Locked Hovered state if their respective overrides are empty.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, meta = (DisplayName = "Hovered Sound Override"))
 	FSlateSound HoveredSlateSoundOverride;
+
+	/** Optional override for the sound to play when this button is pressed while Selected */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, meta = (DisplayName = "Selected Pressed Sound Override"))
+	FSlateSound SelectedPressedSlateSoundOverride;
+
+	/** Optional override for the sound to play when this button is hovered while Selected */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, meta = (DisplayName = "Selected Hovered Sound Override"))
+	FSlateSound SelectedHoveredSlateSoundOverride;
+
+	/** Optional override for the sound to play when this button is pressed while Locked */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, meta = (DisplayName = "Locked Pressed Sound Override"))
+	FSlateSound LockedPressedSlateSoundOverride;
+
+	/** Optional override for the sound to play when this button is hovered while Locked */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Sound, meta = (DisplayName = "Locked Hovered Sound Override"))
+	FSlateSound LockedHoveredSlateSoundOverride;
 
 	/** The type of mouse action required by the user to trigger the button's 'Click' */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Style, meta = (ExposeOnSpawn = true))
 	uint8 bApplyAlphaOnDisable:1;
 
+	/**
+	 * True if this button is currently locked.
+	 * Locked button can be hovered, focused, and pressed, but the Click event will not go through.
+	 * Business logic behind it will not be executed. Designed for progressive disclosure
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Locked, meta = (ExposeOnSpawn = true))
+	uint8 bLocked:1;
+	
 	/** True if the button supports being in a "selected" state, which will update the style accordingly */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Selection, meta = (ExposeOnSpawn = true))
 	uint8 bSelectable:1;
-
+	
 	/** If true, the button will be selected when it receives focus. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Selection, meta = (ExposeOnSpawn = true, EditCondition = "bSelectable"))
 	uint8 bShouldSelectUponReceivingFocus:1;
@@ -676,9 +717,6 @@ private:
 
 	/** True if this button is currently selected */
 	uint8 bSelected:1;
-
-	/** True if this button is currently locked */
-	uint8 bLocked:1;
 
 	/** True if this button is currently enabled */
 	uint8 bButtonEnabled:1;
@@ -783,6 +821,10 @@ private:
 	/** Internally managed and applied style to use when disabled */
 	UPROPERTY()
 	FButtonStyle DisabledStyle;
+
+	/** Internally managed and applied style to use when locked */
+	UPROPERTY()
+	FButtonStyle LockedStyle;
 
 	UPROPERTY(Transient)
 	uint32 bStopDoubleClickPropagation : 1;
