@@ -15,9 +15,18 @@ void UPreviewMeshCollection::GetPreviewSkeletalMeshes(TArray<USkeletalMesh*>& Ou
 		if (Entry.SkeletalMesh.LoadSynchronous())
 		{
 			OutList.Add(Entry.SkeletalMesh.Get());
+			TSubclassOf<UAnimInstance> SubClass = nullptr;
+			// Load up our custom animation blueprints
+			if (Entry.AnimBlueprint.LoadSynchronous())
+			{
+				const UAnimBlueprint* AnimBP = Entry.AnimBlueprint.Get();
+				if(UClass* AnimInstanceClass = Cast<UClass>(AnimBP->GeneratedClass))
+				{					
+					SubClass = AnimInstanceClass;
+				}
+			}
+			
+			OutAnimBP.Add(SubClass);
 		}
 	}
-
-	// no class, but just send it out
-	OutAnimBP.AddZeroed(OutList.Num());
 }

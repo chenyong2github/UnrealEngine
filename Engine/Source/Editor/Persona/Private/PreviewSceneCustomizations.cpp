@@ -728,7 +728,8 @@ void FPreviewMeshCollectionEntryCustomization::CustomizeHeader(TSharedRef<IPrope
 		PropertyHandle->GetParentHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPreviewMeshCollectionEntryCustomization::HandleMeshesArrayChanged, CustomizationUtils.GetPropertyUtilities()));
 
 		TSharedPtr<IPropertyHandle> SkeletalMeshProperty = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FPreviewMeshCollectionEntry, SkeletalMesh));
-		if (SkeletalMeshProperty.IsValid())
+		TSharedPtr<IPropertyHandle> AnimBlueprintProperty = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FPreviewMeshCollectionEntry, AnimBlueprint));
+		if (SkeletalMeshProperty.IsValid() && AnimBlueprintProperty.IsValid())
 		{
 			HeaderRow.NameContent()
 			[
@@ -738,12 +739,24 @@ void FPreviewMeshCollectionEntryCustomization::CustomizeHeader(TSharedRef<IPrope
 			.MaxDesiredWidth(250.0f)
 			.MinDesiredWidth(250.0f)
 			[
-				SNew(SObjectPropertyEntryBox)
-				.AllowedClass(USkeletalMesh::StaticClass())
-				.PropertyHandle(SkeletalMeshProperty)
-				.OnShouldFilterAsset(this, &FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset, SkeletonName, Skeleton)
-				.OnObjectChanged(this, &FPreviewMeshCollectionEntryCustomization::HandleMeshChanged)
-				.ThumbnailPool(CustomizationUtils.GetThumbnailPool())
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				[
+					SNew(SObjectPropertyEntryBox)
+					.AllowedClass(USkeletalMesh::StaticClass())
+					.PropertyHandle(SkeletalMeshProperty)
+					.OnShouldFilterAsset(this, &FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset, SkeletonName, Skeleton)
+					.OnObjectChanged(this, &FPreviewMeshCollectionEntryCustomization::HandleMeshChanged)
+					.ThumbnailPool(CustomizationUtils.GetThumbnailPool())
+				]
+				+SVerticalBox::Slot()
+				[
+					SNew(SObjectPropertyEntryBox)
+					.AllowedClass(UAnimBlueprint::StaticClass())
+					.PropertyHandle(AnimBlueprintProperty)
+					.OnObjectChanged(this, &FPreviewMeshCollectionEntryCustomization::HandleMeshChanged)
+					.ThumbnailPool(CustomizationUtils.GetThumbnailPool())
+				]
 			];
 		}
 	}

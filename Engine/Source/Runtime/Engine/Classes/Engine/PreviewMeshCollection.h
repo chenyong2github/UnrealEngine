@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Animation/AnimBlueprint.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/SkeletalMesh.h"
@@ -32,6 +33,10 @@ struct FPreviewMeshCollectionEntry
 	/** The skeletal mesh to display */
 	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", meta=(DisplayThumbnail=true, DisallowedClasses = "/Script/ApexDestruction.DestructibleMesh"))
 	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
+
+	/** The custom animation blueprint for the mesh */
+	UPROPERTY(EditAnywhere, Category = "Anim Blueprint", meta=(DisplayThumbnail=true))
+	TSoftObjectPtr<UAnimBlueprint> AnimBlueprint;
 };
 
 /** A simple collection of skeletal meshes used for in-editor preview */

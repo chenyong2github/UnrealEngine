@@ -411,7 +411,8 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 						{
 							NewComp->SetAnimInstanceClass(AnimInstances[MeshIndex]);
 						}
-						else
+
+						if (NewComp->GetAnimInstance() == nullptr)
 						{
 							bool bWasCreated = false;
 							FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp,bWasCreated);
@@ -633,7 +634,7 @@ void FAnimationEditorPreviewScene::SetPreviewAnimationAsset(UAnimationAsset* Ani
 
 		RemoveAttachedComponent(false);
 
-		if (AnimAsset != NULL)
+		if (AnimAsset != nullptr)
 		{
 			// Early out if the new preview asset is the same as the current one, to avoid replaying from the beginning, etc...
 			if (AnimAsset == GetPreviewAnimationAsset() && SkeletalMeshComponent->IsPreviewOn())
@@ -823,7 +824,7 @@ void FAnimationEditorPreviewScene::SetSelectedBone(const FName& BoneName, ESelec
 		ClearSelectedActor();
 
 		// Add in bone of interest only if we have a preview instance set-up
-		if (SkeletalMeshComponent->PreviewInstance != NULL)
+		if (SkeletalMeshComponent->PreviewInstance != nullptr)
 		{
 			// need to get mesh bone base since BonesOfInterest is saved in SkeletalMeshComponent
 			// and it is used by renderer. It is not Skeleton base
