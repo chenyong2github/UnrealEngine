@@ -175,7 +175,7 @@ void FAnimTimelineTrack_TransformCurve::ToggleEnabled()
 	UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
 
 	IAnimationDataController& Controller = AnimSequenceBase->GetController();
-	Controller.SetCurveFlag(CurveId, AACF_Disabled, !IsEnabled());
+	Controller.SetCurveFlag(CurveId, AACF_Disabled, IsEnabled());
 
 	// need to update curves, otherwise they're not disabled
 	if (GetModel()->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance != nullptr)
