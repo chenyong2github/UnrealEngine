@@ -3623,7 +3623,7 @@ FStrataBSDF UnpackFastWaterPathStrataBSDFIn(FStrataMaterialContainer StrataBuffe
 	const uint RoughnessAndUseSeparateDirLight8Bits	= 0xFF   & (Data0 >> HEADER_SLWENCODING_BIT_COUNT);
 	
 	const uint PackedBaseColor12Bits				= 0xFFF  & (Data1 >> 20);
-	const uint PackedOpacityMetalSpec20Bits			= 0xFFFF & Data1;
+	const uint PackedOpacityMetalSpec20Bits			= 0xFFFFF & Data1;
 	const uint PackedBaseColor20Bits				= PackedBaseColor12Bits | (PackedBaseColor8Bits << 12);
 
 	const bool bStoreSeparatedMainDirLight			= RoughnessAndUseSeparateDirLight8Bits & 0x1;
