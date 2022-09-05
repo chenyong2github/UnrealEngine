@@ -3411,6 +3411,25 @@ TArray<UActorComponent*> AActor::GetComponentsByTag(TSubclassOf<UActorComponent>
 	return MoveTemp(ComponentsByTag);
 }
 
+UActorComponent* AActor::FindComponentByInterface(const TSubclassOf<UInterface> Interface) const
+{
+	UActorComponent* FoundComponent = nullptr;
+
+	if (Interface)
+	{
+		for (UActorComponent* Component : GetComponents())
+		{
+			if (Component && Component->GetClass()->ImplementsInterface(Interface))
+			{
+				FoundComponent = Component;
+				break;
+			}
+		}
+	}
+
+	return FoundComponent;
+}
+
 TArray<UActorComponent*> AActor::GetComponentsByInterface(TSubclassOf<UInterface> Interface) const
 {
 	TArray<UActorComponent*> Components;

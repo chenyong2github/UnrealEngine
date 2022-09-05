@@ -3344,6 +3344,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
 	TArray<UActorComponent*> GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
 
+	/** Searches components array and returns first encountered component that implements the given interface. */
+	virtual UActorComponent* FindComponentByInterface(const TSubclassOf<UInterface> Interface) const;
+	
 	/** Gets all the components that implements the given interface. */
 	UFUNCTION(BlueprintCallable, Category = "Actor")
 	TArray<UActorComponent*> GetComponentsByInterface(TSubclassOf<UInterface> Interface) const;
@@ -3355,6 +3358,15 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<T, const UActorComponent>::Value, "'T' template parameter to FindComponentByClass must be derived from UActorComponent");
 
 		return (T*)FindComponentByClass(T::StaticClass());
+	}
+
+	/** Templatized version of FindComponentByInterface that handles casting for you */
+	template<class T>
+	T* FindComponentByInterface() const
+	{
+		static_assert(TPointerIsConvertibleFromTo<T, const UInterface>::Value, "'T' template parameter to FindComponentByInterface must be derived from UInterface");
+
+		return (T*)FindComponentByInterface(T::StaticClass());
 	}
 
 private:
