@@ -3553,7 +3553,6 @@ void FEventLoadNode2::DependsOn(FEventLoadNode2* Other)
 	uint8 Expected = 0;
 	while (!Other->DependencyWriterCount.compare_exchange_weak(Expected, 1))
 	{
-		check(Expected == 1);
 		Expected = 0;
 	}
 	if (!Other->IsDone())
