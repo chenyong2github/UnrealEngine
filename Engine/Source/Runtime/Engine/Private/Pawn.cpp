@@ -36,6 +36,8 @@
 DEFINE_LOG_CATEGORY(LogDamage);
 DEFINE_LOG_CATEGORY_STATIC(LogPawn, Warning, All);
 
+FOnPawnBeginPlay APawn::OnPawnBeginPlay;
+
 APawn::APawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -169,6 +171,13 @@ void APawn::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 	UpdateNavAgent();
+}
+
+void APawn::BeginPlay()
+{
+	Super::BeginPlay();
+
+	OnPawnBeginPlay.Broadcast(this);
 }
 
 UPawnMovementComponent* APawn::GetMovementComponent() const
