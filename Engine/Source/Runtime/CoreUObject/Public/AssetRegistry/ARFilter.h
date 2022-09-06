@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/TopLevelAssetPath.h"
 
 struct FAssetData;
