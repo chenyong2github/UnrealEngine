@@ -51,6 +51,8 @@ public:
 	void SetSelectedWidget(FName WidgetName);
 	void SetRawFilterText(const FText& Text);
 
+	TArray<FName> GetSelectedWidgets() const;
+
 private:
 
 	TSharedRef<ITableRow> GenerateRow(TSharedPtr<FItem> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
@@ -69,6 +71,8 @@ private:
 
 	void SetItemExpansionRecursive(TSharedPtr<FItem> Item, bool bShouldBeExpanded);
 	void ExpandAll();
+
+	FName GetItemName(const TSharedPtr<FItem>& Item) const;
 
 private:
 

@@ -2,6 +2,7 @@
 
 #include "Hierarchy/SReadOnlyHierarchyView.h"
 
+#include "Algo/Transform.h"
 #include "Blueprint/WidgetTree.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -62,23 +63,29 @@ SReadOnlyHierarchyView::~SReadOnlyHierarchyView()
 {
 }
 
+FName SReadOnlyHierarchyView::GetItemName(const TSharedPtr<FItem>& Item) const 
+{
+	if (!Item.IsValid())
+	{
+		return FName();
+	}
+
+	if (const UWidgetBlueprint* WidgetBP = Item->WidgetBlueprint.Get())
+	{
+		return WidgetBP->GetFName();
+	}
+
+	if (const UWidget* Widget = Item->Widget.Get())
+	{
+		return Widget->GetFName();
+	}
+
+	return FName();
+}
+
 void SReadOnlyHierarchyView::OnSelectionChanged(TSharedPtr<FItem> Selected, ESelectInfo::Type SelectionType)
 {
-	if (!Selected.IsValid())
-	{
-		OnSelectionChangedDelegate.ExecuteIfBound(FName(), SelectionType);
-		return;
-	}
-
-	if (const UWidgetBlueprint* WidgetBP = Selected->WidgetBlueprint.Get())
-	{
-		OnSelectionChangedDelegate.ExecuteIfBound(WidgetBP->GetFName(), SelectionType);
-	}
-
-	if (const UWidget* Widget = Selected->Widget.Get())
-	{
-		OnSelectionChangedDelegate.ExecuteIfBound(Widget->GetFName(), SelectionType);
-	}
+	OnSelectionChangedDelegate.ExecuteIfBound(GetItemName(Selected), SelectionType);
 }
 
 void SReadOnlyHierarchyView::Refresh()
@@ -167,8 +174,9 @@ TSharedRef<ITableRow> SReadOnlyHierarchyView::GenerateRow(TSharedPtr<FItem> Item
 			SNew(SHorizontalBox)
 			// Widget icon
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
 			.VAlign(VAlign_Center)
+			.Padding(4, 3, 0, 3)
+			.AutoWidth()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
@@ -178,7 +186,7 @@ TSharedRef<ITableRow> SReadOnlyHierarchyView::GenerateRow(TSharedPtr<FItem> Item
 			// Name of the widget
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
-			.Padding(2, 0, 0, 0)
+			.Padding(2, 0, 4, 0)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -209,6 +217,24 @@ void SReadOnlyHierarchyView::SetSelectedWidget(FName WidgetName)
 	{
 		TreeView->SetSelection(Found);
 	}
+}
+
+TArray<FName> SReadOnlyHierarchyView::GetSelectedWidgets() const
+{
+	TArray<TSharedPtr<FItem>> SelectedItems = TreeView->GetSelectedItems();
+
+	TArray<FName> SelectedNames;
+	Algo::TransformIf(SelectedItems, SelectedNames, 
+		[this](const TSharedPtr<FItem>& Item)
+		{
+			return !GetItemName(Item).IsNone();
+		},
+		[this](const TSharedPtr<FItem>& Item)
+		{
+			return GetItemName(Item);
+		});
+
+	return SelectedNames;
 }
 
 void SReadOnlyHierarchyView::GetItemChildren(TSharedPtr<FItem> Item, TArray<TSharedPtr<FItem>>& OutChildren) const
