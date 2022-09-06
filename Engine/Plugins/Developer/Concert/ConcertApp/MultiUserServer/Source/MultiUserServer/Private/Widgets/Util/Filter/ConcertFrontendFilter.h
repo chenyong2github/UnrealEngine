@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertFilter.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Filters/FilterBase.h"
 
+class FMenuBuilder;
 class SWidget;
 
 namespace UE::MultiUserServer
@@ -13,13 +15,31 @@ namespace UE::MultiUserServer
 	template<typename TFilterType>
 	class TConcertFrontendFilter
 		:
-		public TConcertFilter<TFilterType>,
+		public FFilterBase<TFilterType>,
 		public TSharedFromThis<TConcertFrontendFilter<TFilterType>>
 	{
 	public:
 
-		/** Gets a widget that represents this filter */
-		virtual TSharedRef<SWidget> GetFilterWidget() = 0;
+		TConcertFrontendFilter(TSharedPtr<FFilterCategory> InCategory)
+			: FFilterBase<TFilterType>(MoveTemp(InCategory))
+		{}
+
+		/** Exposes widgets with which the filter can be edited. */
+		virtual void ExposeEditWidgets(FMenuBuilder& MenuBuilder) {}
+		
+		virtual void ModifyContextMenu(FMenuBuilder& MenuBuilder)
+		{
+			MenuBuilder.BeginSection("EditFilter", NSLOCTEXT("TConcertFrontendFilter", "EditFilter", "Edit Filter"));
+			ExposeEditWidgets(MenuBuilder);
+		}
+
+		virtual FText GetToolTipText() const { return FText::GetEmpty(); }
+		virtual FLinearColor GetColor() const { return FLinearColor::White; }
+		virtual FName GetIconName() const { return NAME_None; }
+		virtual bool IsInverseFilter() const { return false; }
+		virtual void ActiveStateChanged(bool bActive) {}
+		virtual void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const {}
+		virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) {}
 	};
 
 	/**
@@ -39,24 +59,20 @@ namespace UE::MultiUserServer
 		virtual bool PassesFilter(TFilterType InItem) const final override { return Implementation.PassesFilter(InItem); }
 		//~ End FConcertLogFilter Interface
 	
-		//~ Begin FConcertFrontendLogFilter Interface
-		virtual TSharedRef<SWidget> GetFilterWidget() final override { return ChildSlot.ToSharedRef(); }
-		//~ End FConcertLogFilter Interface
-	
 	protected:
 
 		template<typename... TArg>
-		TConcertFrontendFilterAggregate(TArg&&... Arg)
-			: Implementation(Forward<TArg>(Arg)...)
+		TConcertFrontendFilterAggregate(TSharedPtr<FFilterCategory> InCategory, TArg&&... Arg)
+			: Super(MoveTemp(InCategory))
+			, Implementation(Forward<TArg>(Arg)...)
 		{
 			Implementation.OnChanged().AddLambda([this]()
 			{
-				Super::OnChanged().Broadcast();
+				Super::BroadcastChangedEvent();
 			});
 		}
 
 		TConcertFilterImpl Implementation;
-		TSharedPtr<TWidgetType> ChildSlot;
 	};
 }
 

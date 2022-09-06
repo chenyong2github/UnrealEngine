@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PackageTransmissionFilterTypes.h"
 #include "Widgets/Clients/PackageTransmission/Util/PackageTransmissionEntryTokenizer.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter_TextSearch.h"
 
@@ -41,8 +40,8 @@ namespace UE::MultiUserServer
 		using Super = TConcertFrontendFilter_TextSearch<FPackageTransmissionFilter_TextSearch, const FPackageTransmissionEntry&>;
     public:
     	
-    	FPackageTransmissionFrontendFilter_TextSearch(TSharedRef<FPackageTransmissionEntryTokenizer> Tokenizer)
-    		: Super(MoveTemp(Tokenizer))
+    	FPackageTransmissionFrontendFilter_TextSearch(TSharedPtr<FFilterCategory> InCategory, TSharedRef<FPackageTransmissionEntryTokenizer> Tokenizer)
+    		: Super(MoveTemp(InCategory), MoveTemp(Tokenizer))
     	{}
     };
 }

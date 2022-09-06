@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertLogFilterTypes.h"
+#include "Misc/IFilter.h"
 #include "Widgets/Clients/Logging/Source/IConcertLogSource.h"
 
 struct FConcertLog;
@@ -15,7 +15,7 @@ namespace UE::MultiUserServer
 	{
 	public:
 		
-		FFilteredConcertLogList(TSharedRef<IConcertLogSource> InLogSource, TSharedPtr<FConcertLogFilter> InOptionalFilter);
+		FFilteredConcertLogList(TSharedRef<IConcertLogSource> InLogSource, TSharedPtr<IFilter<const FConcertLogEntry&>> InOptionalFilter);
 		~FFilteredConcertLogList();
 		
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnLogListChanged, const TArray<TSharedPtr<FConcertLogEntry>>& /*NewFilteredView*/);
@@ -39,7 +39,7 @@ namespace UE::MultiUserServer
 		TSharedRef<IConcertLogSource> LogSource;
 
 		/** Optional. Filters items from the LogSource */
-		TSharedPtr<FConcertLogFilter> Filter;
+		TSharedPtr<IFilter<const FConcertLogEntry&>> Filter;
 
 		/** Contains the items of LogSource with Filter applied. */
 		TArray<TSharedPtr<FConcertLogEntry>> FilteredLogs;
@@ -65,7 +65,7 @@ namespace UE::MultiUserServer
 		using FLogsPerPageCount = uint16;
 		using FPageCount = uint32;
 
-		FPagedFilteredConcertLogList(TSharedRef<IConcertLogSource> LogSource, TSharedPtr<FConcertLogFilter> OptionalFilter, uint16 FLogsPerPageCount = 500);
+		FPagedFilteredConcertLogList(TSharedRef<IConcertLogSource> LogSource, TSharedPtr<IFilter<const FConcertLogEntry&>> OptionalFilter, uint16 FLogsPerPageCount = 500);
 
 		FPageCount GetNumPages() const { const FPageCount PageCount = GetFilteredLogs().Num() / LogsPerPage; return GetFilteredLogs().Num() % LogsPerPage == 0 ? PageCount : PageCount + 1;}
 		FPageCount GetCurrentPage() const { return CurrentPageIndex; }

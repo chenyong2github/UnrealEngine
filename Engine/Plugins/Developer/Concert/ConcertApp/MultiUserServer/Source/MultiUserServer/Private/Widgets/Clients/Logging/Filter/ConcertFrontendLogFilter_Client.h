@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertLogFilterTypes.h"
-#include "Widgets/Util/Filter/ConcertFilter.h"
+#include "Misc/IFilter.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 
 class FEndpointToUserNameCache;
 
 namespace UE::MultiUserServer
 {
 	/** Only allows messages from the given clients */
-	class FConcertLogFilter_Client : public FConcertLogFilter
+	class FConcertLogFilter_Client : public IFilter<const FConcertLogEntry&>
 	{
 	public:
 
@@ -22,6 +22,7 @@ namespace UE::MultiUserServer
 
 		//~ Begin FConcertLogFilter Interface
 		virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
+		virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
 		//~ End FConcertLogFilter Interface
 
 	private:
@@ -31,5 +32,7 @@ namespace UE::MultiUserServer
 
 		/** Translates Concert endpoint Ids to messaging node Ids */
 		TSharedRef<FEndpointToUserNameCache> EndpointCache;
+
+		FChangedEvent ChangedEvent;
 	};
 }

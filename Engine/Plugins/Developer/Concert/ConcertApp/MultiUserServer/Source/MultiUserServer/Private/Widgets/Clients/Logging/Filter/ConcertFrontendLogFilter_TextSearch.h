@@ -41,8 +41,8 @@ namespace UE::MultiUserServer
 		using Super = TConcertFrontendFilter_TextSearch<FConcertLogFilter_TextSearch, const FConcertLogEntry&>;
 	public:
 
-		FConcertFrontendLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer)
-			: Super(MoveTemp(Tokenizer))
+		FConcertFrontendLogFilter_TextSearch(TSharedPtr<FFilterCategory> InCategory, TSharedRef<FConcertLogTokenizer> Tokenizer)
+			: Super(MoveTemp(InCategory), MoveTemp(Tokenizer))
 		{}
 	};
 }

@@ -2,11 +2,10 @@
 
 #include "FilteredConcertLogList.h"
 
-#include "Widgets/Util/Filter/ConcertFilter.h"
 
 namespace UE::MultiUserServer
 {
-	FFilteredConcertLogList::FFilteredConcertLogList(TSharedRef<IConcertLogSource> InLogSource, TSharedPtr<FConcertLogFilter> InOptionalFilter)
+	FFilteredConcertLogList::FFilteredConcertLogList(TSharedRef<IConcertLogSource> InLogSource, TSharedPtr<IFilter<const FConcertLogEntry&>> InOptionalFilter)
 		: LogSource(MoveTemp(InLogSource))
 		, Filter(MoveTemp(InOptionalFilter))
 	{
@@ -91,7 +90,7 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	FPagedFilteredConcertLogList::FPagedFilteredConcertLogList(TSharedRef<IConcertLogSource> LogSource, TSharedPtr<FConcertLogFilter> OptionalFilter, uint16 InitialLogsPerPage)
+	FPagedFilteredConcertLogList::FPagedFilteredConcertLogList(TSharedRef<IConcertLogSource> LogSource, TSharedPtr<IFilter<const FConcertLogEntry&>> OptionalFilter, uint16 InitialLogsPerPage)
 		: FFilteredConcertLogList(MoveTemp(LogSource), MoveTemp(OptionalFilter))
 		, LogsPerPage(FMath::Max<uint16>(InitialLogsPerPage, 1))
 	{

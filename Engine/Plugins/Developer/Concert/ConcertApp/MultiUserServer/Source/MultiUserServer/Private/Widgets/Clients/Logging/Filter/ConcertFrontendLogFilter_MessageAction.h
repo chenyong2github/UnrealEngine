@@ -6,7 +6,6 @@
 #include "ConcertFrontendLogFilter_BaseSetSelection.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Logging/Util/MessageActionUtils.h"
-#include "Widgets/Util/Filter/ConcertFilter.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
 namespace UE::MultiUserServer
@@ -38,9 +37,12 @@ namespace UE::MultiUserServer
 	{
 	public:
 
-		FConcertFrontendLogFilter_MessageAction()
-			: TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_MessageAction>(NSLOCTEXT("UnrealMultiUserUI.Filter.MessageAction", "Name", "Actions"))
+		FConcertFrontendLogFilter_MessageAction(TSharedRef<FFilterCategory> FilterCategory)
+			: TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_MessageAction>(MoveTemp(FilterCategory), NSLOCTEXT("UnrealMultiUserUI.Filter.MessageAction", "Name", "Actions"))
 		{}
+		
+		virtual FString GetName() const override { return TEXT("Message Action"); }
+		virtual FText GetDisplayName() const override { return NSLOCTEXT("UnrealMultiUserUI.FConcertFrontendLogFilter_MessageAction", "DisplayLabel", "Action"); }
 	};
 }
 

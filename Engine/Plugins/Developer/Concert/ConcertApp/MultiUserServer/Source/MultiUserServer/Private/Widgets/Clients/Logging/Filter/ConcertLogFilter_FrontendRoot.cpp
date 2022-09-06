@@ -9,43 +9,52 @@
 #include "ConcertFrontendLogFilter_TextSearch.h"
 #include "ConcertFrontendLogFilter_Time.h"
 #include "ConcertFrontendLogFilter_Size.h"
-#include "ConcertLogFilterTypes.h"
 
 
 namespace UE::MultiUserServer
 {
 	namespace Private
 	{
-		static TArray<TSharedRef<FConcertFrontendLogFilter>> CreateCommonFilters()
+		static TArray<TSharedRef<TConcertFrontendFilter<const FConcertLogEntry&>>> CreateCommonFilters(const TSharedRef<FFilterCategory>& FilterCategory)
 		{
 			return {
-				MakeShared<FConcertFrontendLogFilter_MessageAction>(),
-				MakeShared<FConcertFrontendLogFilter_MessageType>(),
-				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowAfter),
-				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowBefore),
-				MakeShared<FConcertFrontendLogFilter_Size>(),
-				MakeShared<FConcertFrontendLogFilter_Ack>()
+				MakeShared<FConcertFrontendLogFilter_MessageAction>(FilterCategory),
+				MakeShared<FConcertFrontendLogFilter_MessageType>(FilterCategory),
+				MakeShared<FConcertFrontendLogFilter_Time>(FilterCategory, ETimeFilter::AllowAfter),
+				MakeShared<FConcertFrontendLogFilter_Time>(FilterCategory, ETimeFilter::AllowBefore),
+				MakeShared<FConcertFrontendLogFilter_Size>(FilterCategory),
+				MakeShared<FConcertFrontendLogFilter_Ack>(FilterCategory)
 			};
 		}
 	}
 	
 	TSharedRef<FConcertLogFilter_FrontendRoot> MakeGlobalLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer)
 	{
+		TSharedRef<FFilterCategory> FilterCategory = MakeShared<FFilterCategory>(
+			NSLOCTEXT("UnrealMultiUserUI.TConcertFrontendRootFilter", "DefaultCategoryLabel", "Default"),
+			FText::GetEmpty()
+			);
 		return MakeShared<FConcertLogFilter_FrontendRoot>(
 			MoveTemp(Tokenizer),
-			Private::CreateCommonFilters()
+			Private::CreateCommonFilters(FilterCategory),
+			FilterCategory
 			);
 	}
 
 	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientMessageNodeId, const TSharedRef<FEndpointToUserNameCache>& EndpointCache)
 	{
-		const TArray<TSharedRef<FConcertFrontendLogFilter>> CommonFilters = Private::CreateCommonFilters();
-		const TArray<TSharedRef<FConcertLogFilter>> NonVisuals = {
+		TSharedRef<FFilterCategory> FilterCategory = MakeShared<FFilterCategory>(
+			NSLOCTEXT("UnrealMultiUserUI.TConcertFrontendRootFilter", "DefaultCategoryLabel", "Default"),
+			FText::GetEmpty()
+			);
+		const TArray<TSharedRef<TConcertFrontendFilter<const FConcertLogEntry&>>> CommonFilters = Private::CreateCommonFilters(FilterCategory);
+		const TArray<TSharedRef<IFilter<const FConcertLogEntry&>>> NonVisuals = {
 			MakeShared<FConcertLogFilter_Client>(ClientMessageNodeId, EndpointCache)
 		};
 		return MakeShared<FConcertLogFilter_FrontendRoot>(
 			MoveTemp(Tokenizer),
 			CommonFilters,
+			MoveTemp(FilterCategory),
 			NonVisuals
 			);
 	}

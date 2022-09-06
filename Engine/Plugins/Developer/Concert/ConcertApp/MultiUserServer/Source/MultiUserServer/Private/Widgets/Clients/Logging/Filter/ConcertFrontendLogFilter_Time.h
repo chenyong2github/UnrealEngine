@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertLogFilterTypes.h"
-
-#include "Widgets/Util/Filter/ConcertFilter.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
 namespace UE::MultiUserServer
@@ -19,7 +17,7 @@ namespace UE::MultiUserServer
 	};
 
 	/** Filters based on whether a log happened before or after a certain time */
-	class FConcertLogFilter_Time : public FConcertLogFilter
+	class FConcertLogFilter_Time : public IFilter<const FConcertLogEntry&>
 	{
 	public:
 
@@ -29,6 +27,7 @@ namespace UE::MultiUserServer
 
 		//~ Begin FConcertLogFilter Interface
 		virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
+		virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
 		//~ End FConcertLogFilter Interfac
 
 		ETimeFilter GetFilterMode() const { return FilterMode; }
@@ -41,6 +40,7 @@ namespace UE::MultiUserServer
 
 		ETimeFilter FilterMode;
 		FDateTime Time;
+		FChangedEvent ChangedEvent;
 
 		FDateTime MakeResetTime() const;
 	};
@@ -50,11 +50,33 @@ namespace UE::MultiUserServer
 		using Super = TConcertFrontendFilterAggregate<FConcertLogFilter_Time, const FConcertLogEntry&>;
 	public:
 	
-		FConcertFrontendLogFilter_Time(ETimeFilter TimeFilter);
+		FConcertFrontendLogFilter_Time(TSharedRef<FFilterCategory> FilterCategory, ETimeFilter TimeFilter);
+		
+		virtual FString GetName() const override { return TimeFilter == ETimeFilter::AllowAfter ? TEXT("After") : TEXT("Before"); }
+		virtual FText GetDisplayName() const override
+		{
+			return TimeFilter == ETimeFilter::AllowAfter
+				? NSLOCTEXT("UnrealMultiUserUI.FConcertFrontendLogFilter_Time", "DisplayLabel.After", "After Timestamp")
+				: NSLOCTEXT("UnrealMultiUserUI.FConcertFrontendLogFilter_Time", "DisplayLabel.Before", "Before Timestamp");
+		}
+
+		virtual void ExposeEditWidgets(FMenuBuilder& MenuBuilder) override;
 
 	private:
 
-		TSharedRef<SWidget> CreateDatePicker();
+		enum class ETimeComponent
+		{
+			Year,
+			Day,
+			Hour,
+			Minute,
+			Second
+		};
+		
+		ETimeFilter TimeFilter;
+		
+		void BuildMonthSubMenu(FMenuBuilder& MenuBuilder);
+		TSharedRef<SWidget> CreateDateComponentNumericWidget(ETimeComponent TimeComponent);
 	};
 }
 

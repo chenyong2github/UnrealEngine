@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IPackageTransmissionEntrySource.h"
-#include "Widgets/Clients/PackageTransmission/Filter/PackageTransmissionFilterTypes.h"
+#include "Misc/IFilter.h"
 
 namespace UE::MultiUserServer
 {
@@ -12,7 +12,7 @@ namespace UE::MultiUserServer
 	{
 	public:
 
-		FFilteredPackageTransmissionModel(TSharedRef<IPackageTransmissionEntrySource> RealSource, TSharedRef<FPackageTransmissionFilter> Filter);
+		FFilteredPackageTransmissionModel(TSharedRef<IPackageTransmissionEntrySource> RealSource, TSharedRef<IFilter<const FPackageTransmissionEntry&>> Filter);
 		virtual ~FFilteredPackageTransmissionModel() override;
 
 		//~ Begin IPackageTransmissionEntrySource Interface
@@ -25,7 +25,7 @@ namespace UE::MultiUserServer
 	private:
 
 		TSharedRef<IPackageTransmissionEntrySource> RealSource;
-		TSharedRef<FPackageTransmissionFilter> Filter;
+		TSharedRef<IFilter<const FPackageTransmissionEntry&>> Filter;
 
 		FOnPackageEntriesAdded OnPackageEntriesAddedDelegate;
 		FOnPackageEntriesModified OnPackageEntriesModifiedDelegate;

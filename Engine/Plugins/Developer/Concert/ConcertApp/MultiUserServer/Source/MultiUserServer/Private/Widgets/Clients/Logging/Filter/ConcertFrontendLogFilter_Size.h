@@ -4,11 +4,10 @@
 
 #include "CoreMinimal.h"
 
-#include "ConcertLogFilterTypes.h"
-#include "Widgets/Util/Filter/ConcertFilter.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
 #include "Math/UnitConversion.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
 
 namespace UE::MultiUserServer
 {
@@ -21,19 +20,20 @@ namespace UE::MultiUserServer
 	};
 
 	/** Filters based on the log's size */
-	class FConcertLogFilter_Size : public FConcertLogFilter
+	class FConcertLogFilter_Size : public IFilter<const FConcertLogEntry&>
 	{
 	public:
 	
 		//~ Begin FConcertLogFilter Interface
 		virtual bool PassesFilter(const FConcertLogEntry& InItem) const override;
+		virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
 		//~ End FConcertLogFilter Interface
 
-		void AdvanceFilterMode();
+		void SetOperator(ESizeFilterMode Operator);
 		void SetSizeInBytes(uint32 NewSizeInBytes);
 		void SetDataUnit(EUnit NewUnit);
 	
-		ESizeFilterMode GetFilterMode() const { return FilterMode; }
+		ESizeFilterMode GetOperator() const { return FilterMode; }
 		uint32 GetSizeInBytes() const { return SizeInBytes; }
 		EUnit GetDataUnit() const { return DataUnit; }
 		TSet<EUnit> GetAllowedUnits() const { return { EUnit::Bytes, EUnit::Kilobytes, EUnit::Megabytes }; }
@@ -43,6 +43,8 @@ namespace UE::MultiUserServer
 		ESizeFilterMode FilterMode = ESizeFilterMode::BiggerThanOrEqual;
 		uint32 SizeInBytes = 0;
 		EUnit DataUnit = EUnit::Bytes;
+
+		FChangedEvent ChangedEvent;
 	};
 
 	class FConcertFrontendLogFilter_Size : public TConcertFrontendFilterAggregate<FConcertLogFilter_Size, const FConcertLogEntry&>
@@ -50,11 +52,11 @@ namespace UE::MultiUserServer
 		using Super = TConcertFrontendFilterAggregate<FConcertLogFilter_Size, const FConcertLogEntry&>;
 	public:
 	
-		FConcertFrontendLogFilter_Size();
+		FConcertFrontendLogFilter_Size(TSharedRef<FFilterCategory> FilterCategory);
 
-	private:
+		virtual FString GetName() const override { return TEXT("Size"); }
+		virtual FText GetDisplayName() const override { return NSLOCTEXT("UnrealMultiUserUI.FConcertFrontendLogFilter_Size", "DisplayLabel", "Size"); }
 
-		TSharedRef<SWidget> MakeDataUnitMenu();
-		FText GetSizeAndUnitAsText() const;
+		virtual void ExposeEditWidgets(FMenuBuilder& MenuBuilder) override;
 	};
 }

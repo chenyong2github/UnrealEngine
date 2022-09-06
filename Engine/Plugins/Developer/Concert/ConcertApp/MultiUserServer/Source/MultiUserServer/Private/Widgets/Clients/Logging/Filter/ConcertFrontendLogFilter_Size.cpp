@@ -4,13 +4,11 @@
 
 #include "ConcertTransportEvents.h"
 #include "SSimpleComboButton.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
+#include "Widgets/Util/Filter/ConcertFilterUtils.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Clients/Logging/ConcertLogEntry.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FConcertLogFilter_Size"
 
@@ -34,21 +32,13 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	void FConcertLogFilter_Size::AdvanceFilterMode()
+	void FConcertLogFilter_Size::SetOperator(ESizeFilterMode Operator)
 	{
-		switch (FilterMode)
+		if (FilterMode != Operator)
 		{
-		case ESizeFilterMode::LessThanOrEqual:
-			FilterMode = ESizeFilterMode::BiggerThanOrEqual;
-			break;
-		case ESizeFilterMode::BiggerThanOrEqual:
-			FilterMode = ESizeFilterMode::LessThanOrEqual;
-			break;
-		default:
-			checkNoEntry();
+			FilterMode = Operator;
+			OnChanged().Broadcast();
 		}
-
-		OnChanged().Broadcast();
 	}
 
 	void FConcertLogFilter_Size::SetSizeInBytes(uint32 NewSizeInBytes)
@@ -69,97 +59,55 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	FConcertFrontendLogFilter_Size::FConcertFrontendLogFilter_Size()
+	FConcertFrontendLogFilter_Size::FConcertFrontendLogFilter_Size(TSharedRef<FFilterCategory> FilterCategory)
+		: Super(MoveTemp(FilterCategory))
+	{}
+
+	void FConcertFrontendLogFilter_Size::ExposeEditWidgets(FMenuBuilder& MenuBuilder)
 	{
-		ChildSlot = SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			[
-				SNew(SButton)
-				.OnClicked_Lambda([this]()
+		using namespace ConcertFilterUtils;
+
+		constexpr float MenuWidth = 100.f;
+		TRadialMenuBuilder<ESizeFilterMode>::AddRadialSubMenu(
+			MenuBuilder,
+			LOCTEXT("Operator", "Operator"),
+			TAttribute<ESizeFilterMode>::CreateLambda([this](){ return Implementation.GetOperator(); }),
+			TArray<ESizeFilterMode>{ ESizeFilterMode::BiggerThanOrEqual, ESizeFilterMode::LessThanOrEqual },
+			TRadialMenuBuilder<ESizeFilterMode>::FItemToText::CreateLambda([this](const ESizeFilterMode& Operator)
+			{
+				switch (Operator)
 				{
-					Implementation.AdvanceFilterMode();
-					return FReply::Handled();
-				})
-				.ToolTipText_Lambda([this]()
-				{
-					switch (Implementation.GetFilterMode())
-					{
-					case ESizeFilterMode::BiggerThanOrEqual: return FText::Format(LOCTEXT("BiggerThanOrEqual.ToolTipFmt", "Size >= {0}"), GetSizeAndUnitAsText());
-						case ESizeFilterMode::LessThanOrEqual: return FText::Format(LOCTEXT("LessThanOrEqual.ToolTipFmt", "Size <= {0}"), GetSizeAndUnitAsText());
-						default: return FText::GetEmpty();
-					}
-				})
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]()
-					{
-						switch (Implementation.GetFilterMode())
-						{
-							case ESizeFilterMode::BiggerThanOrEqual: return LOCTEXT("BiggerThanOrEqual.Text", ">=") ;
-							case ESizeFilterMode::LessThanOrEqual: return LOCTEXT("LessThanOrEqual.Text", "<=") ;
-							default: return FText::GetEmpty();
-						}
-					})
-				]
-			]
-		
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SNumericEntryBox<uint32>)
-				.AllowSpin(true)
-				.MinDesiredValueWidth(30)
-				.MaxSliderValue(1000)
-				.OnValueChanged_Lambda([this](uint32 NewValue){ Implementation.SetSizeInBytes(NewValue); })
-				.Value_Lambda([this](){ return Implementation.GetSizeInBytes(); })
-			]
+				case ESizeFilterMode::BiggerThanOrEqual: return LOCTEXT("BiggerThanOrEqual.Text", ">= (Greater)") ;
+				case ESizeFilterMode::LessThanOrEqual: return LOCTEXT("LessThanOrEqual.Text", "<= (Less)") ;
+				default: return FText::GetEmpty();
+				}
+			}),
+			TRadialMenuBuilder<ESizeFilterMode>::FOnSelectItem::CreateLambda([this](const ESizeFilterMode& Operator)
+			{
+				Implementation.SetOperator(Operator);
+			}), MenuWidth);
 
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SSimpleComboButton)
-				.HasDownArrow(true)
-				.Text_Lambda([this](){ return FText::FromString(FUnitConversion::GetUnitDisplayString(Implementation.GetDataUnit())); })
-				.MenuContent()
-				[
-					MakeDataUnitMenu()
-				]
-			];
-	}
+		const TSharedRef<SWidget> SizeWidget = SNew(SNumericEntryBox<uint32>)
+			.AllowSpin(true)
+			.MinDesiredValueWidth(30)
+			.MaxSliderValue(1000)
+			.OnValueChanged_Lambda([this](uint32 NewValue){ Implementation.SetSizeInBytes(NewValue); })
+			.Value_Lambda([this](){ return Implementation.GetSizeInBytes(); });
+		MenuBuilder.AddWidget(SetMenuWidgetWidth(SizeWidget), LOCTEXT("Size", "Size"), true);
 
-	TSharedRef<SWidget> FConcertFrontendLogFilter_Size::MakeDataUnitMenu()
-	{
-		FMenuBuilder MenuBuilder(true, nullptr);
-
-		for (const EUnit Unit : Implementation.GetAllowedUnits())
-		{
-			MenuBuilder.AddMenuEntry(
-				FText::FromString(FUnitConversion::GetUnitDisplayString(Unit)),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda([this, Unit]()
-					{
-						Implementation.SetDataUnit(Unit);
-					}),
-					FCanExecuteAction::CreateLambda([] { return true; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-				);
-		}
-		
-		return MenuBuilder.MakeWidget();
-	}
-
-	FText FConcertFrontendLogFilter_Size::GetSizeAndUnitAsText() const
-	{
-		return FText::Format(
-			LOCTEXT("SizeAndUnitAsTextFmt", "{0} {1}"),
-			FUnitConversion::Convert(Implementation.GetSizeInBytes(), Implementation.GetDataUnit(), EUnit::Bytes),
-			FText::FromString(FUnitConversion::GetUnitDisplayString(Implementation.GetDataUnit()))
-			);
+		TRadialMenuBuilder<EUnit>::AddRadialSubMenu(
+			MenuBuilder,
+			LOCTEXT("Unit", "Unit"),
+			TAttribute<EUnit>::CreateLambda([this](){ return Implementation.GetDataUnit(); }),
+			TArray<EUnit>{ EUnit::Bytes, EUnit::Kilobytes, EUnit::Megabytes },
+			TRadialMenuBuilder<EUnit>::FItemToText::CreateLambda([this](const EUnit& Unit)
+			{
+				return FText::FromString(FUnitConversion::GetUnitDisplayString(Unit));
+			}),
+			TRadialMenuBuilder<EUnit>::FOnSelectItem::CreateLambda([this](const EUnit& Unit)
+			{
+				Implementation.SetDataUnit(Unit);
+			}), MenuWidth);
 	}
 }
 

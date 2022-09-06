@@ -49,9 +49,12 @@ namespace UE::MultiUserServer
 	{
 	public:
 
-		FConcertFrontendLogFilter_Ack()
-			: TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_Ack>(NSLOCTEXT("UnrealMultiUserUI.Filter.Ack", "Name", "ACKs"))
+		FConcertFrontendLogFilter_Ack(TSharedRef<FFilterCategory> FilterCategory)
+			: TConcertFrontendLogFilter_BaseSetSelection<FConcertLogFilter_Ack>(MoveTemp(FilterCategory), NSLOCTEXT("UnrealMultiUserUI.Filter.Ack", "Name", "ACKs"))
 		{}
+		
+		virtual FString GetName() const override { return TEXT("Acknowledgement"); }
+		virtual FText GetDisplayName() const override { return NSLOCTEXT("UnrealMultiUserUI.FConcertFrontendLogFilter_Ack", "DisplayLabel", "Acknowledgement"); }
 	};
 }
 

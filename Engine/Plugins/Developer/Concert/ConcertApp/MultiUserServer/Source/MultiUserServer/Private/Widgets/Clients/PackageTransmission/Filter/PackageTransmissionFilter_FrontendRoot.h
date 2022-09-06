@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "PackageTransmissionFrontendFilter_TextSearch.h"
-#include "PackageTransmissionFilterTypes.h"
 #include "Widgets/Util/Filter/ConcertRootFrontendFilter.h"
 
 class FEndpointToUserNameCache;
@@ -23,10 +22,11 @@ namespace UE::MultiUserServer
 
 		FPackageTransmissionFilter_FrontendRoot(
 			TSharedRef<FPackageTransmissionEntryTokenizer> Tokenizer,
-			TArray<TSharedRef<Super::FConcertFrontendFilter>> FrontendFilters,
-			const TArray<TSharedRef<Super::FConcertFilter>>& NonVisualFilters = {}
+			TArray<TSharedRef<TConcertFrontendFilter<const FPackageTransmissionEntry&>>> FrontendFilters,
+			const TArray<TSharedRef<IFilter<const FPackageTransmissionEntry&>>>& NonVisualFilters = {},
+			TSharedRef<FFilterCategory> DefaultCategory = MakeShared<FFilterCategory>(NSLOCTEXT("UnrealMultiUserServer.TConcertFrontendRootFilter", "DefaultCategoryLabel", "Default"), FText::GetEmpty())
 			)
-			: Super(MakeShared<FPackageTransmissionFrontendFilter_TextSearch>(MoveTemp(Tokenizer)), MoveTemp(FrontendFilters), NonVisualFilters)
+			: Super(MakeShared<FPackageTransmissionFrontendFilter_TextSearch>(DefaultCategory, MoveTemp(Tokenizer)), MoveTemp(FrontendFilters), NonVisualFilters, DefaultCategory)
 		{}
 	};
 

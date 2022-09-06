@@ -3,14 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "ConcertLogFilterTypes.h"
-#include "Widgets/Util/Filter/ConcertFilter.h"
+#include "Misc/IFilter.h"
 #include "Widgets/Util/Filter/ConcertFrontendFilter.h"
-
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.BaseSetSelection"
 
@@ -23,8 +18,9 @@ namespace UE::MultiUserServer
 	 * - static FString GetOptionDisplayString(const TSetType&);
 	 */
 	template<typename TRealFilterImpl, typename TSetType>
-	class TConcertLogFilter_BaseSetSelection : public FConcertLogFilter
+	class TConcertLogFilter_BaseSetSelection : public IFilter<const FConcertLogEntry&>
 	{
+		using Super = IFilter<TRealFilterImpl>;
 	public:
 
 		using TItemType = TSetType;
@@ -96,57 +92,28 @@ namespace UE::MultiUserServer
 			return AllowedItems.Num() == TRealFilterImpl::GetAllOptions().Num();
 		}
 		uint8 GetNumSelected() const { return AllowedItems.Num(); }
-		
+
+		virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
+
 	private:
 	
 		TSet<TSetType> AllowedItems;
+		FChangedEvent ChangedEvent;
 	};
 
 	template<typename TRealFilterImpl>
 	class TConcertFrontendLogFilter_BaseSetSelection : public TConcertFrontendFilterAggregate<TRealFilterImpl, const FConcertLogEntry&>
 	{
 		using TItemType = typename TRealFilterImpl::TItemType;
+		using Super = TConcertFrontendFilterAggregate<TRealFilterImpl, const FConcertLogEntry&>;
 	public:
 
-		TConcertFrontendLogFilter_BaseSetSelection(FText FilterName)
+		TConcertFrontendLogFilter_BaseSetSelection(TSharedRef<FFilterCategory> FilterCategory, FText FilterName)
+			: Super(MoveTemp(FilterCategory))
+		{}
+
+		virtual void ExposeEditWidgets(FMenuBuilder& MenuBuilder) override
 		{
-			this->ChildSlot = SNew(SHorizontalBox)
-				.ToolTipText(LOCTEXT("BaseSetSelection.ToolTipText", "Select a list of allowed items\nHint: Type in menu to search"))
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(FilterName)
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2, 0, 0, 0)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SComboButton)
-					.OnGetMenuContent_Raw(this, &TConcertFrontendLogFilter_BaseSetSelection::MakeSelectionMenu)
-					.ButtonContent()
-					[
-						SNew(STextBlock)
-						.Text_Lambda([this]()
-						{
-							return this->Implementation.AreAllAllowed()
-								? LOCTEXT("BaseSetSelection.Selection.All", "All")
-								: FText::FromString(FString::FromInt(this->Implementation.GetNumSelected()));
-						})
-					]
-				];
-		}
-
-	private:
-
-		TSharedRef<SWidget> MakeSelectionMenu()
-		{
-			FMenuBuilder MenuBuilder(false, nullptr);
-
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("BaseSetSelection.SelectAll.", "Select all"),
 				LOCTEXT("BaseSetSelection.SelectAll.Tooltip", "Allows all items"),
@@ -169,8 +136,6 @@ namespace UE::MultiUserServer
 				NAME_None,
 				EUserInterfaceActionType::Button
 				);
-	
-			MenuBuilder.AddSeparator();
 	
 			for (const TItemType& Item : TRealFilterImpl::GetAllOptions())
 			{
@@ -196,7 +161,6 @@ namespace UE::MultiUserServer
 					EUserInterfaceActionType::ToggleButton
 				);
 			}
-			return MenuBuilder.MakeWidget();
 		}
 	};
 

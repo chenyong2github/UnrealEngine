@@ -26,7 +26,8 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StandaloneRenderer",	
 					"ToolWidgets",
-					"WorkspaceMenuStructure" // Needed so OutputLog module to work correctly
+					"ToolMenus",
+					"WorkspaceMenuStructure" // Needed for OutputLog module to work correctly
 				}
 			);
 			

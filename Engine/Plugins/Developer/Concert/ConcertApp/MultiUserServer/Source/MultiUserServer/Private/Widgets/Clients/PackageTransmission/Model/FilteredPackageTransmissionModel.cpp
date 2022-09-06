@@ -2,11 +2,9 @@
 
 #include "FilteredPackageTransmissionModel.h"
 
-#include "Widgets/Util/Filter/ConcertFilter.h"
-
 namespace UE::MultiUserServer
 {
-	FFilteredPackageTransmissionModel::FFilteredPackageTransmissionModel(TSharedRef<IPackageTransmissionEntrySource> RealSource, TSharedRef<FPackageTransmissionFilter> Filter)
+	FFilteredPackageTransmissionModel::FFilteredPackageTransmissionModel(TSharedRef<IPackageTransmissionEntrySource> RealSource, TSharedRef<IFilter<const FPackageTransmissionEntry&>> Filter)
 		: RealSource(MoveTemp(RealSource))
 		, Filter(MoveTemp(Filter))
 	{

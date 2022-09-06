@@ -20,10 +20,11 @@ namespace UE::MultiUserServer
 
 		FConcertLogFilter_FrontendRoot(
 			TSharedRef<FConcertLogTokenizer> Tokenizer,
-			TArray<TSharedRef<Super::FConcertFrontendFilter>> FrontendFilters,
-			const TArray<TSharedRef<Super::FConcertFilter>>& NonVisualFilters = {}
+			TArray<TSharedRef<TConcertFrontendFilter<const FConcertLogEntry&>>> FrontendFilters,
+			TSharedRef<FFilterCategory> DefaultCategory,
+			const TArray<TSharedRef<IFilter<const FConcertLogEntry&>>>& NonVisualFilters = {}
 			)
-			: Super(MakeShared<FConcertFrontendLogFilter_TextSearch>(MoveTemp(Tokenizer)), MoveTemp(FrontendFilters), NonVisualFilters)
+			: Super(MakeShared<FConcertFrontendLogFilter_TextSearch>(DefaultCategory, MoveTemp(Tokenizer)), MoveTemp(FrontendFilters), NonVisualFilters, DefaultCategory)
 		{}
 	};
 	
