@@ -173,10 +173,10 @@ void FGameplayCueTrackEditor::AddTracks(TRange<FFrameNumber> SectionTickRange, U
 
 	if (InObjectBindingIDs.Num() == 0)
 	{
-		UMovieSceneGameplayCueTrack* NewMasterTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneGameplayCueTrack>();
-		AddSectionToTrack(NewMasterTrack, SectionTickRange, SectionClass);
+		UMovieSceneGameplayCueTrack* NewMainTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneGameplayCueTrack>();
+		AddSectionToTrack(NewMainTrack, SectionTickRange, SectionClass);
 
-		SequencerPtr->OnAddTrack(NewMasterTrack, FGuid());
+		SequencerPtr->OnAddTrack(NewMainTrack, FGuid());
 	}
 	else for (const FGuid& ObjectBindingID : InObjectBindingIDs)
 	{
