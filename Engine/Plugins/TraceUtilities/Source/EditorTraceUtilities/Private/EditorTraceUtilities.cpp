@@ -1,4 +1,6 @@
-﻿#include "EditorTraceUtilities.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "EditorTraceUtilities.h"
 
 #include "ToolMenus.h"
 #include "UnrealInsightsLauncher.h"
