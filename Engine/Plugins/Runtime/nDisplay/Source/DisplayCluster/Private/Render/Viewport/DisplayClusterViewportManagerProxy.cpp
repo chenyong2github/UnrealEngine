@@ -132,7 +132,7 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateClusterNodeViewportProxies()
 	// Collect viewport proxies for rendered cluster node
 	for (FDisplayClusterViewportProxy* ViewportProxyIt : ViewportProxies)
 	{
-		if (ViewportProxyIt && ViewportProxyIt->GetClusterNodeId() == RenderFrameSettings.ClusterNodeId)
+		if (ViewportProxyIt && (RenderFrameSettings.ClusterNodeId.IsEmpty() || ViewportProxyIt->GetClusterNodeId() == RenderFrameSettings.ClusterNodeId))
 		{
 			ClusterNodeViewportProxies.Add(ViewportProxyIt);
 		}

@@ -65,7 +65,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	for (FDisplayClusterViewport* const ViewportIt : Viewports)
 	{
 		// update only current cluster node
-		if (ViewportIt->GetClusterNodeId() == ClusterNodeId)
+		if ((ClusterNodeId.IsEmpty() || ViewportIt->GetClusterNodeId() == ClusterNodeId))
 		{
 			if (ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)
 			{

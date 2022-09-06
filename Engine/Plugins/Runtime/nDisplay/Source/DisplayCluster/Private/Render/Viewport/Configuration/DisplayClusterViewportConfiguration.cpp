@@ -122,7 +122,7 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 
 			if (InViewportNames)
 			{
-				ConfigurationBase.Update(*InViewportNames);
+				ConfigurationBase.Update(*InViewportNames, RenderFrameSettings);
 			}
 			else
 			{

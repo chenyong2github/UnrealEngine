@@ -25,7 +25,7 @@ public:
 
 public:
 	void Update(const FString& ClusterNodeId);
-	void Update(const TArray<FString>& InViewportNames);
+	void Update(const TArray<FString>& InViewportNames, FDisplayClusterRenderFrameSettings& InOutRenderFrameSettings);
 	void UpdateClusterNodePostProcess(const FString& ClusterNodeId, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings);
 
 public:

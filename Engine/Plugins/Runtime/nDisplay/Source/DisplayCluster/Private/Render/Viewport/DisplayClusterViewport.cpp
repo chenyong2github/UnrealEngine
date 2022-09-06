@@ -32,6 +32,8 @@ FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager&
 	, ClusterNodeId(InClusterNodeId)
 	, Owner(InOwner)
 {
+	check(!ClusterNodeId.IsEmpty());
+	check(!ViewportId.IsEmpty());
 	check(UninitializedProjectionPolicy.IsValid());
 
 	// Create scene proxy pair with on game thread. Outside, in ViewportManager added to proxy array on render thread

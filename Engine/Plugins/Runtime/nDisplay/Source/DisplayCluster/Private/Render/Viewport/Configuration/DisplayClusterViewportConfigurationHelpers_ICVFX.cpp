@@ -76,6 +76,10 @@ namespace DisplayClusterViewportConfigurationHelpers_ICVFX_Impl
 	// Return unique ICVFX name
 	static FString ImplGetNameICVFX(const FString& InClusterNodeId, const FString& InViewportId, const FString& InResourceId)
 	{
+		check(!InClusterNodeId.IsEmpty());
+		check(!InViewportId.IsEmpty());
+		check(!InResourceId.IsEmpty());
+
 		return FString::Printf(TEXT("%s_%s_%s_%s"), *InClusterNodeId, DisplayClusterViewportStrings::icvfx::prefix, *InViewportId, *InResourceId);
 	}
 
@@ -113,8 +117,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::Impl
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager != nullptr)
 	{
-		const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = ViewportManager->GetRenderFrameSettings();
-		return ViewportManager->ImplFindViewport(ImplGetNameICVFX(RenderFrameSettingsConstRef.ClusterNodeId, InViewportId, InResourceId));
+		return ViewportManager->ImplFindViewport(ImplGetNameICVFX(ViewportManager->GetRenderFrameSettings().ClusterNodeId, InViewportId, InResourceId));
 	}
 
 	return nullptr;
@@ -125,17 +128,17 @@ static bool ImplCreateProjectionPolicy(ADisplayClusterRootActor& RootActor, cons
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager != nullptr)
 	{
-		const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = ViewportManager->GetRenderFrameSettings();
+		const FString& ClusterNodeId = ViewportManager->GetRenderFrameSettings().ClusterNodeId;
 
 		FDisplayClusterConfigurationProjection CameraProjectionPolicyConfig;
 		CameraProjectionPolicyConfig.Type = bIsCameraProjection ? DisplayClusterProjectionStrings::projection::Camera : DisplayClusterProjectionStrings::projection::Link;
 
 		// Create projection policy for viewport
-		OutProjPolicy = FDisplayClusterViewportManager::CreateProjectionPolicy(ImplGetNameICVFX(RenderFrameSettingsConstRef.ClusterNodeId, InViewportId, InResourceId), &CameraProjectionPolicyConfig);
+		OutProjPolicy = FDisplayClusterViewportManager::CreateProjectionPolicy(ImplGetNameICVFX(ClusterNodeId, InViewportId, InResourceId), &CameraProjectionPolicyConfig);
 
 		if (!OutProjPolicy.IsValid())
 		{
-			UE_LOG(LogDisplayClusterViewport, Error, TEXT("ICVFX Viewport '%s': projection policy for resource '%s' not created for node '%s'."), *InViewportId, *InResourceId, *RenderFrameSettingsConstRef.ClusterNodeId);
+			UE_LOG(LogDisplayClusterViewport, Error, TEXT("ICVFX Viewport '%s': projection policy for resource '%s' not created for node '%s'."), *InViewportId, *InResourceId, *ClusterNodeId);
 			return false;
 		}
 
@@ -156,10 +159,8 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::Impl
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager != nullptr)
 	{
-		const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = ViewportManager->GetRenderFrameSettings();
-
 		// Create viewport for new projection policy
-		FDisplayClusterViewport* NewViewport = ViewportManager->ImplCreateViewport(ImplGetNameICVFX(RenderFrameSettingsConstRef.ClusterNodeId, InViewportId, InResourceId), InProjectionPolicy);
+		FDisplayClusterViewport* NewViewport = ViewportManager->ImplCreateViewport(ImplGetNameICVFX(ViewportManager->GetRenderFrameSettings().ClusterNodeId, InViewportId, InResourceId), InProjectionPolicy);
 		if (NewViewport != nullptr)
 		{
 			// Mark as internal resource
@@ -570,8 +571,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 		const FDisplayClusterConfigurationICVFXMedia& MediaSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
 		if (MediaSettings.bEnabled)
 		{
-			const FString ThisClusterNodeId = IDisplayCluster::Get().GetClusterMgr()->GetNodeId();
-			const bool bThisNodeSharesMedia = MediaSettings.MediaOutputNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
+			const bool bThisNodeSharesMedia = MediaSettings.MediaOutputNode.Equals(DstViewport.GetClusterNodeId(), ESearchCase::IgnoreCase);
 
 			// In most cases there is no need to render ICVFX view if media input set up. The only exception
 			// is when this camera is used as media source for other cluster nodes. In this case media input

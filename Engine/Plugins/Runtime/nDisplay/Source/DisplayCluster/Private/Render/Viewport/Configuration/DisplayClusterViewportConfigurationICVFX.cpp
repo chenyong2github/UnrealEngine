@@ -318,6 +318,16 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 	{
 		ImplBeginReallocateViewports(*ViewportManager);
 
+		// Disable ICVFX if cluster node rendering is not used
+		const FString& ClusterNodeId = ViewportManager->GetRenderFrameSettings().ClusterNodeId;
+		if(ClusterNodeId.IsEmpty())
+		{
+			// The nDisplay viewport should now always have the name of the cluster node.
+			// When rendering MRQ viewports, the list of viewports is used without cluster node names.
+			ImplFinishReallocateViewports(*ViewportManager);
+			return;
+		}
+
 		TArray<FDisplayClusterViewport*> TargetViewports;
 		const EDisplayClusterViewportICVFXFlags TargetViewportsFlags = ImplGetTargetViewports(*ViewportManager, TargetViewports);
 

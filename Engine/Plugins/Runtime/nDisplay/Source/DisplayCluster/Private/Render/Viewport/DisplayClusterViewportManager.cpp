@@ -394,7 +394,7 @@ void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports(const EDispl
 			TArray<FDisplayClusterViewport*> OverriddenViewports;
 			for (FDisplayClusterViewport* Viewport : Viewports)
 			{
-				if (Viewport && Viewport->GetClusterNodeId() == InClusterNodeId)
+				if (Viewport && (InClusterNodeId.IsEmpty() || Viewport->GetClusterNodeId() == InClusterNodeId))
 				{
 					bool bHasParentViewport = Viewport->RenderSettings.GetParentViewportId().IsEmpty() == false;
 					bool bHasViewportOverride = Viewport->RenderSettings.OverrideViewportId.IsEmpty() == false;
@@ -831,6 +831,7 @@ FDisplayClusterViewport* FDisplayClusterViewportManager::ImplCreateViewport(cons
 
 	// Create viewport for cluster node used for rendering
 	const FString& ClusterNodeId = GetRenderFrameSettings().ClusterNodeId;
+	check(!ClusterNodeId.IsEmpty());
 
 	// Create viewport
 	FDisplayClusterViewport* NewViewport = new FDisplayClusterViewport(*this, ClusterNodeId, ViewportId, InProjectionPolicy);

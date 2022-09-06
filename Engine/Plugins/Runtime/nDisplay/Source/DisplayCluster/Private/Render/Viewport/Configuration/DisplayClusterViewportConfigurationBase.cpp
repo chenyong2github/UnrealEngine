@@ -49,7 +49,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 			if ((It->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_InternalResource) == 0)
 			{
 				// Only viewports from cluster node in render
-				if (It->GetClusterNodeId() == ClusterNodeId)
+				if (ClusterNodeId.IsEmpty() || It->GetClusterNodeId() == ClusterNodeId)
 				{
 					if (!DesiredViewports.Contains(It->GetId()))
 					{
@@ -89,7 +89,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 	}
 }
 
-void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InViewportNames)
+void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InViewportNames, FDisplayClusterRenderFrameSettings& InOutRenderFrameSettings)
 {
 	// Collect unused viewports and delete
 	{
@@ -118,6 +118,9 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 	{
 		if (const UDisplayClusterConfigurationClusterNode* ClusterNodeConfiguration = ClusterNodeConfigurationIt.Value)
 		{
+			// Assign the cluster node name to viewport internals
+			InOutRenderFrameSettings.ClusterNodeId = ClusterNodeConfigurationIt.Key;
+
 			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportIt : ClusterNodeConfiguration->Viewports)
 			{
 				if (ViewportIt.Key.Len() && ViewportIt.Value && InViewportNames.Find(ViewportIt.Key) != INDEX_NONE)
@@ -135,10 +138,15 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 			}
 		}
 	}
+
+	// Do not use the cluster node name for this pass type
+	InOutRenderFrameSettings.ClusterNodeId.Empty();
 }
 
 void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(const FString& InClusterNodeId, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings)
 {
+	check(!InClusterNodeId.IsEmpty());
+
 	const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.Cluster->GetNode(InClusterNodeId);
 	if (ClusterNode)
 	{
