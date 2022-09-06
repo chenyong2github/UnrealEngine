@@ -56,6 +56,10 @@ private:
 
 	void HandleExtensionAdded(UBlueprintExtension* NewExtension);
 
+	FReply HandleCreateViewModelClicked();
+
+	EVisibility GetVisibility(bool bVisibleWithBindings) const;
+
 private:
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;
 	TSharedPtr<SBindingsList> BindingsList;

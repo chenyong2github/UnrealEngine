@@ -16,8 +16,10 @@
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
 #include "Tabs/MVVMBindingSummoner.h"
-
+#include "Tabs/MVVMViewModelSummoner.h"
+#include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SSimpleButton.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
@@ -27,6 +29,7 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SMVVMManageViewModelsWidget.h"
 #include "Widgets/SMVVMViewModelContextListWidget.h"
+#include "Widgets/SMVVMViewModelPanel.h"
 #include "Widgets/SMVVMViewBindingListView.h"
 #include "Widgets/SNullWidget.h"
 #include "SPositiveActionButton.h"
@@ -320,13 +323,73 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 		BindingsList = SNew(SBindingsList, StaticCastSharedRef<SBindingsPanel>(AsShared()), MVVMExtension.Get());
 	}
 
-	TSharedRef<SWidget> BindingWidget = BindingsList ? BindingsList.ToSharedRef() : SNullWidget::NullWidget;
+	TSharedRef<SWidget> BindingWidget = SNew(SOverlay)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBorder)
+			.BorderImage(FMVVMEditorStyle::Get().GetBrush("BindingView.ViewModelWarning"))
+			.Visibility_Lambda([this]()
+				{
+					if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
+					{
+						if (MVVMExtensionPtr->GetBlueprintView() != nullptr && 
+							MVVMExtensionPtr->GetBlueprintView()->GetViewModels().Num() > 0)
+						{
+							return EVisibility::Collapsed;
+						}
+					}
+					return EVisibility::Visible;
+				})
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(20, 20, 12, 20)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(0, 0, 8, 0)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("MissingViewModel", "This editor requires a viewmodel that widgets can bind to, would you like to create a viewmodel now?"))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(0, 0, 20, 0)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SButton)
+					.OnClicked(this, &SBindingsPanel::HandleCreateViewModelClicked)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CreateViewModel", "Create Viewmodel"))
+					]
+				]
+			]
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SBox)
+			.Visibility(this, &SBindingsPanel::GetVisibility, true)
+			[
+				BindingsList ? BindingsList.ToSharedRef() : SNullWidget::NullWidget
+			]
+		];
 
 	return SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(FMargin(0.0f, 2.0f))
+		.Padding(8.0f, 2.0f, 0.0f, 2.0f)
 		[
 			ToolbarBuilderGlobal.MakeWidget()
 		]
@@ -335,8 +398,7 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 		.FillHeight(1.0f)
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(FMargin(4.0f, 4.0f))
+			.BorderImage(FMVVMEditorStyle::Get().GetBrush("BindingView.Background"))
 			[
 				SNew(SSplitter)
 				.Orientation(EOrientation::Orient_Horizontal)
@@ -351,12 +413,42 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 				.Value(0.25f)
 				[
 					SAssignNew(DetailContainer, SBorder)
+					.Visibility(this, &SBindingsPanel::GetVisibility, true)
 					[
 						DetailsView.ToSharedRef()
 					]
 				]
 			]
 		];
+}
+
+EVisibility SBindingsPanel::GetVisibility(bool bVisibleWithBindings) const
+{
+	if (UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = MVVMExtension.Get())
+	{
+		if (MVVMExtensionPtr->GetBlueprintView() != nullptr &&
+			MVVMExtensionPtr->GetBlueprintView()->GetNumBindings() > 0)
+		{
+			return bVisibleWithBindings ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+	}
+	return bVisibleWithBindings ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+FReply SBindingsPanel::HandleCreateViewModelClicked()
+{
+	if (TSharedPtr<FWidgetBlueprintEditor> BPEditor = WeakBlueprintEditor.Pin())
+	{
+		if (TSharedPtr<SDockTab> DockTab = BPEditor->GetTabManager()->TryInvokeTab(FTabId(FViewModelSummoner::TabID)))
+		{
+			TSharedPtr<SWidget> ViewModelPanel = DockTab->GetContent();
+			if (ViewModelPanel.IsValid())
+			{
+				StaticCastSharedPtr<SMVVMViewModelPanel>(ViewModelPanel)->OpenAddViewModelMenu();
+			}
+		}
+	}
+	return FReply::Handled();
 }
 
 } // namespace UE::MVVM

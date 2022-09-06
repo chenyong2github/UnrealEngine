@@ -202,6 +202,12 @@ void SMVVMViewModelPanel::HandleViewModelsUpdated()
 }
 
 
+void SMVVMViewModelPanel::OpenAddViewModelMenu()
+{
+	AddMenuButton->SetIsMenuOpen(true, true);
+}
+
+
 TSharedRef<SWidget> SMVVMViewModelPanel::MakeAddMenu()
 {
 	const UWidgetBlueprint* WidgetBlueprint = nullptr;
@@ -246,8 +252,7 @@ void SMVVMViewModelPanel::HandleAddMenuViewModel(const UClass* SelectedClass)
 					UMVVMBlueprintView* CurrentBlueprintView = WeakBlueprintView.Get();
 					if (!CurrentBlueprintView)
 					{
-						EditorSubsystem->RequestView(WidgetBlueprint);
-						CurrentBlueprintView = EditorSubsystem->GetView(WidgetBlueprint);
+						CurrentBlueprintView = EditorSubsystem->RequestView(WidgetBlueprint);
 						WeakBlueprintView = CurrentBlueprintView;
 						ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
 					}

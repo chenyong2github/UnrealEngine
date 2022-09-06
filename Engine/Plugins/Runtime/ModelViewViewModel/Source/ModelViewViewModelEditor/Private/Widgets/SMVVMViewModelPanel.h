@@ -32,6 +32,8 @@ public:
 	void Construct(const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> Editor);
 	virtual ~SMVVMViewModelPanel();
 
+	void OpenAddViewModelMenu();
+
 private:
 	void HandleViewUpdated(UBlueprintExtension* Extension);
 	void HandleViewModelsUpdated();
