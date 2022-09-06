@@ -177,6 +177,13 @@ static void GetStreamedAudioDerivedDataKeySuffix(
 		Version,
 		*SoundWave.CompressedDataGuid.ToString()
 		);
+
+#if PLATFORM_CPU_ARM_FAMILY
+	// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given
+	// input. Add the arm specifically so that a) we avoid rebuilding the current DDC and
+	// b) we can remove it once we get arm64 to be consistent.
+	OutKeySuffix.Append(TEXT("_arm64"));
+#endif
 }
 
 /**
