@@ -654,9 +654,11 @@ void ULatticeControlPointsMechanic::OnDragRectangleFinished(const FCameraRectang
 			PreDragSelection, false, Transform, Transform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
 			SelectedPointIDs, true, Transform, Transform, CurrentChangeStamp), LatticePointSelectionTransactionText);
-		UpdateGizmoLocation();
+		
 		OnSelectionChanged.Broadcast();
 	}
+	// We hid the gizmo at rectangle start, so it needs updating now.
+	UpdateGizmoLocation();
 
 	ParentTool->GetToolManager()->EndUndoTransaction();
 
