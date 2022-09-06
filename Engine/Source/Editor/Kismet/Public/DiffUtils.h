@@ -75,9 +75,17 @@ struct FPropertySoftPath
 
 	FPropertySoftPath( FPropertyPath InPropertyPath )
 	{
-		for (int32 i = 0, end = InPropertyPath.GetNumProperties(); i != end; ++i)
+		for (int32 PropertyIndex = 0, end = InPropertyPath.GetNumProperties(); PropertyIndex != end; ++PropertyIndex)
 		{
-			PropertyChain.Push(FChainElement(InPropertyPath.GetPropertyInfo(i).Property.Get()));
+			const FPropertyInfo& Info = InPropertyPath.GetPropertyInfo(PropertyIndex);
+			if (Info.ArrayIndex != INDEX_NONE)
+			{
+				PropertyChain.Push(FName(*FString::FromInt(Info.ArrayIndex)));
+			}
+			else
+			{
+				PropertyChain.Push(FChainElement(Info.Property.Get()));
+			}
 		}
 	}
 
@@ -163,6 +171,7 @@ private:
 			return !(*this == RHS);
 		}
 	};
+	static int32 TryReadIndex(const TArray<FChainElement>& LocalPropertyChain, int32& OutIndex);
 
 	friend uint32 GetTypeHash( FPropertySoftPath const& Path );
 	TArray<FChainElement> PropertyChain;

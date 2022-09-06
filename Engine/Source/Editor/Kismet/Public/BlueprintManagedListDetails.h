@@ -31,6 +31,7 @@ protected:
 		FText DisplayName;
 		TWeakObjectPtr<> AssetPtr;
 		uint8 bIsRemovable : 1;
+		TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
 
 		FManagedListItem()
 			:bIsRemovable(false)

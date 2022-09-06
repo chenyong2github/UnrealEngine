@@ -81,6 +81,22 @@ FResolvedProperty FPropertySoftPath::Resolve(const UObject* Object) const
 	return ResolvedProperty;
 }
 
+
+
+int32 FPropertySoftPath::TryReadIndex(const TArray<FChainElement>& LocalPropertyChain, int32& OutIndex)
+{
+	if(OutIndex + 1 < LocalPropertyChain.Num())
+	{
+		FString AsString = LocalPropertyChain[OutIndex + 1].DisplayString;
+		if(AsString.IsNumeric())
+		{
+			++OutIndex;
+			return FCString::Atoi(*AsString);
+		}
+	}
+	return INDEX_NONE;
+};
+
 FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* StructData) const
 {
 	// dig into the object, finding nested objects, etc:
@@ -93,6 +109,34 @@ FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* 
 	{
 		CurrentBlock = NextBlock;
 		const FProperty* NextProperty = UEDiffUtils_Private::Resolve(NextClass, PropertyChain[i].PropertyName);
+
+		// if an index was provided, resolve it
+		const int32 PropertyIndex = TryReadIndex(PropertyChain, i);
+		if (NextProperty && PropertyIndex != INDEX_NONE)
+		{
+			Property = NextProperty;
+			if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				FScriptArrayHelper ArrayHelper(ArrayProperty, Property->ContainerPtrToValuePtr<UObject*>(CurrentBlock));
+				if (ArrayHelper.IsValidIndex(PropertyIndex))
+				{
+					NextProperty = ArrayProperty->Inner;
+					NextBlock = ArrayHelper.GetRawPtr(PropertyIndex);
+				}
+			}
+			else if( const FSetProperty* SetProperty = CastField<FSetProperty>(Property) )
+			{
+				checkf(false, TEXT("Set Indexing not supported yet"));
+				// TODO: @jordan.hoffmann: handle indexing for sets
+			}
+			else if( const FMapProperty* MapProperty = CastField<FMapProperty>(Property) )
+			{
+				checkf(false, TEXT("Map Indexing not supported yet"));
+				// TODO: @jordan.hoffmann: handle indexing for maps
+			}
+		}
+		
+		CurrentBlock = NextBlock;
 		if (NextProperty)
 		{
 			Property = NextProperty;
@@ -144,20 +188,6 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 		}
 	};
 
-	auto TryReadIndex = [](const TArray<FChainElement>& LocalPropertyChain, int32& OutIndex) -> int32
-	{
-		if(OutIndex + 1 < LocalPropertyChain.Num())
-		{
-			FString AsString = LocalPropertyChain[OutIndex + 1].DisplayString;
-			if(AsString.IsNumeric())
-			{
-				++OutIndex;
-				return FCString::Atoi(*AsString);
-			}
-		}
-		return INDEX_NONE;
-	};
-
 	const void* ContainerAddress = Object;
 	const UStruct* ContainerStruct = (Object ? Object->GetClass() : nullptr);
 
@@ -176,10 +206,9 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 		// calculate offset so we can continue resolving object properties/structproperties:
 		if( const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ResolvedProperty) )
 		{
-			if(PropertyIndex != INDEX_NONE)
+			FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<const void*>( ContainerAddress ));
+			if (ArrayHelper.IsValidIndex(PropertyIndex))
 			{
-				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<const void*>( ContainerAddress ));
-
 				UpdateContainerAddress( ArrayProperty->Inner, ArrayHelper.GetRawPtr(PropertyIndex), ContainerAddress, ContainerStruct );
 
 				FPropertyInfo ArrayInfo(ArrayProperty->Inner, PropertyIndex);

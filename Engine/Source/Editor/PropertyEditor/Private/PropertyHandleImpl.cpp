@@ -865,7 +865,7 @@ TSharedPtr<FPropertyNode> FPropertyValueImpl::GetChildNode( FName ChildName, boo
 TSharedPtr<FPropertyNode> FPropertyValueImpl::GetChildNode( int32 ChildIndex ) const
 {
 	TSharedPtr<FPropertyNode> PropertyNodePin = PropertyNode.Pin();
-	if( PropertyNodePin.IsValid() )
+	if( PropertyNodePin.IsValid() && ChildIndex < PropertyNodePin->GetNumChildNodes() )
 	{
 		return PropertyNodePin->GetChildNode( ChildIndex );
 	}

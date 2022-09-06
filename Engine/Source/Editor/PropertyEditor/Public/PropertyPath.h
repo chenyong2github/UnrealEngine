@@ -76,7 +76,7 @@ public:
 		return Properties[ 0 ];
 	}
 
-	TSharedRef< FPropertyPath > ExtendPath( const FPropertyInfo& NewLeaf )
+	TSharedRef< FPropertyPath > ExtendPath( const FPropertyInfo& NewLeaf ) const
 	{
 		TSharedRef< FPropertyPath > NewPath = MakeShareable( new FPropertyPath() );
 
@@ -86,7 +86,7 @@ public:
 		return NewPath;
 	}
 
-	TSharedRef< FPropertyPath > ExtendPath( const TSharedRef< FPropertyPath >& Extension )
+	TSharedRef< FPropertyPath > ExtendPath( const TSharedRef< FPropertyPath >& Extension ) const
 	{
 		TSharedRef< FPropertyPath > NewPath = MakeShareable( new FPropertyPath() );
 
@@ -100,7 +100,7 @@ public:
 		return NewPath;
 	}
 
-	TSharedRef< FPropertyPath > TrimPath( const int32 AmountToTrim )
+	TSharedRef< FPropertyPath > TrimPath( const int32 AmountToTrim ) const
 	{
 		TSharedRef< FPropertyPath > NewPath = MakeShareable( new FPropertyPath() );
 

@@ -222,6 +222,39 @@ static void FindTreeNodeFromPropertyRecursive( const TArray< TSharedRef<FDetailT
 	}
 }
 
+static void GetPropertyPathToTreeNodes(const TArray< TSharedRef<FDetailTreeNode> >& RootTreeNodes, TMap<FString, TArray<TSharedRef<FDetailTreeNode>>> &OutMap)
+{
+	for (const TSharedRef<FDetailTreeNode>& TreeNode : RootTreeNodes)
+	{
+		if (TreeNode->IsLeaf())
+		{
+			TArray<TSharedRef<FDetailTreeNode>>& Nodes = OutMap.FindOrAdd(TreeNode->GetPropertyPath().ToString());
+			Nodes.Add(TreeNode);
+		}
+
+		// Need to check children even if we're a leaf, because all DetailItemNodes are leaves, even if they may have sub-children
+		TArray< TSharedRef<FDetailTreeNode> > Children;
+		TreeNode->GetChildren(Children);
+		GetPropertyPathToTreeNodes(Children, OutMap);
+	}
+}
+
+static TArray< TSharedRef< FDetailTreeNode > > FindBestFitTreeNodeFromProperty(const TArray< TSharedRef<FDetailTreeNode> >& RootTreeNodes, FPropertyPath Property)
+{
+	TMap<FString, TArray<TSharedRef<FDetailTreeNode>>> PropertyPathToTreeNodes;
+	GetPropertyPathToTreeNodes(RootTreeNodes, PropertyPathToTreeNodes);
+	
+	TArray< TSharedRef< FDetailTreeNode > >* TreeNodeChain = PropertyPathToTreeNodes.Find(Property.ToString());
+
+	// if we couldn't find the exact property, trim the path to get the next best option
+	while (!TreeNodeChain && Property.GetNumProperties() > 1)
+	{
+		Property = *Property.TrimPath(1);
+		TreeNodeChain = PropertyPathToTreeNodes.Find(Property.ToString());
+	}
+	return TreeNodeChain? MoveTemp(*TreeNodeChain) : TArray< TSharedRef< FDetailTreeNode > >{};
+}
+
 void SDetailsViewBase::HighlightProperty(const FPropertyPath& Property)
 {
 	TSharedPtr<FDetailTreeNode> PrevHighlightedNodePtr = CurrentlyHighlightedNode.Pin();
@@ -230,9 +263,9 @@ void SDetailsViewBase::HighlightProperty(const FPropertyPath& Property)
 		PrevHighlightedNodePtr->SetIsHighlighted(false);
 	}
 
+	const TArray< TSharedRef< FDetailTreeNode > > TreeNodeChain = FindBestFitTreeNodeFromProperty(RootTreeNodes, Property);
+	
 	TSharedPtr< FDetailTreeNode > FinalNodePtr = nullptr;
-	TArray< TSharedPtr< FDetailTreeNode > > TreeNodeChain;
-	FindTreeNodeFromPropertyRecursive(RootTreeNodes, Property, TreeNodeChain);
 	if (TreeNodeChain.Num() > 0)
 	{
 		FinalNodePtr = TreeNodeChain[0];

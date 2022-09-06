@@ -91,7 +91,8 @@ void FBlueprintManagedListDetails::GenerateChildContent(IDetailChildrenBuilder& 
 			.EditCondition(
 				DisplayOptions.EditCondition,
 				FOnBooleanValueChanged()
-			);
+			)
+			.PropertyHandleList(Item.PropertyHandles);
 
 			if (Item.AssetPtr.IsValid())
 			{

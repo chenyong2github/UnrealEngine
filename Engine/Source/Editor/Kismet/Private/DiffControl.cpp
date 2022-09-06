@@ -226,56 +226,6 @@ void FClassSettingsDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprint
 {
 	TDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
 
-	// Check for parent class and interfaces here
-	const UBlueprint* OldBlueprint = Cast<UBlueprint>(OldDetails.GetDisplayedObject());
-	const UBlueprint* NewBlueprint = Cast<UBlueprint>(NewDetails.GetDisplayedObject());
-
-	if (OldBlueprint && NewBlueprint)
-	{
-		if (OldBlueprint->ParentClass != NewBlueprint->ParentClass)
-		{
-			FText DiffText = FText::Format(LOCTEXT("ParentChanged", "Parent Class changed from {0} to {1}"), FText::FromString(GetNameSafe(OldBlueprint->ParentClass)), FText::FromString(GetNameSafe(NewBlueprint->ParentClass)));
-
-			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
-				SelectionCallback,
-				FGenerateDiffEntryWidget::CreateStatic(&GenerateSimpleDiffWidget, DiffText));
-
-			Children.Push(Entry);
-			OutRealDifferences.Push(Entry);
-		}
-
-		FString OldInterfaces, NewInterfaces;
-		for (const FBPInterfaceDescription& Desc : OldBlueprint->ImplementedInterfaces)
-		{
-			if (!OldInterfaces.IsEmpty())
-			{
-				OldInterfaces += TEXT(", ");
-			}
-			OldInterfaces += GetNameSafe(*Desc.Interface);
-		}
-
-		for (const FBPInterfaceDescription& Desc : NewBlueprint->ImplementedInterfaces)
-		{
-			if (!NewInterfaces.IsEmpty())
-			{
-				NewInterfaces += TEXT(", ");
-			}
-			NewInterfaces += GetNameSafe(*Desc.Interface);
-		}
-			
-		if (OldInterfaces != NewInterfaces)
-		{
-			FText DiffText = FText::Format(LOCTEXT("InterfacesChanged", "Interfaces changed from '{0}' to '{1}'"), FText::FromString(OldInterfaces), FText::FromString(NewInterfaces));
-
-			TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
-				SelectionCallback,
-				FGenerateDiffEntryWidget::CreateStatic(&GenerateSimpleDiffWidget, DiffText));
-
-			Children.Push(Entry);
-			OutRealDifferences.Push(Entry);
-		}
-	}
-
 	const bool bHasDifferences = Children.Num() != 0;
 	if (!bHasDifferences)
 	{

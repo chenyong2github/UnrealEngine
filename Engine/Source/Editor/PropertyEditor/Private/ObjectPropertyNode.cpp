@@ -699,18 +699,17 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 		// Iterate over all fields, creating items.
 		for( TFieldIterator<FProperty> It(BaseClass.Get()); It; ++It )
 		{
-			if (PropertyEditorHelpers::ShouldBeVisible(*this, *It))
-			{
-				FProperty* CurProp = *It;
-				if( SinglePropertyName == NAME_None || CurProp->GetFName() == SinglePropertyName )
-				{
-					SortedProperties.Add(CurProp);
+			FProperty* CurProp = *It;
 
-					if( SinglePropertyName != NAME_None )
-					{
-						// Generate no other children
-						break;
-					}
+			// if a SinglePropertyName was provided, bypass the 'property visibility check' and always include it
+			if ((SinglePropertyName == NAME_None && PropertyEditorHelpers::ShouldBeVisible(*this, CurProp)) || CurProp->GetFName() == SinglePropertyName)
+			{
+				SortedProperties.Add(CurProp);
+
+				if( SinglePropertyName != NAME_None )
+				{
+					// Generate no other children
+					break;
 				}
 			}
 		}

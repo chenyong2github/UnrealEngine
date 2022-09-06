@@ -5795,20 +5795,25 @@ void FBlueprintImportsLayout::OnGetNamespacesToExclude(TSet<FString>& OutNamespa
 }
 
 
-FBlueprintInterfaceLayout::FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces)
+FBlueprintInterfaceLayout::FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, TSharedPtr<IPropertyHandle> InInterfacesProperty)
 	: FBlueprintGlobalOptionsManagedListDetails(InGlobalOptionsDetails)
-	, bShowsInheritedInterfaces(bInShowsInheritedInterfaces)
+	, InterfacesProperty(InInterfacesProperty)
 {
-	DisplayOptions.TitleText = bShowsInheritedInterfaces ?
+	DisplayOptions.TitleText = InterfacesProperty ?
 		LOCTEXT("BlueprintInheritedInterfaceTitle", "Inherited Interfaces") :
 		LOCTEXT("BlueprintImplementedInterfaceTitle", "Implemented Interfaces");
 	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintInterface", "No Interfaces");
 	DisplayOptions.BrowseButtonToolTipText = LOCTEXT("BlueprintInterfaceBrowseTooltip", "Opens this interface");
 }
 
+TSharedPtr<IPropertyHandle> FBlueprintInterfaceLayout::GetPropertyHandle() const
+{
+	return InterfacesProperty;
+}
+
 TSharedPtr<SWidget> FBlueprintInterfaceLayout::MakeAddItemWidget()
 {
-	if (!bShowsInheritedInterfaces)
+	if (InterfacesProperty)
 	{
 		return SAssignNew(AddInterfaceComboButton, SComboButton)
 		.ButtonContent()
@@ -5826,17 +5831,27 @@ void FBlueprintInterfaceLayout::GetManagedListItems(TArray<FManagedListItem>& Ou
 {
 	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
-	if (!bShowsInheritedInterfaces)
+	if (InterfacesProperty)
 	{
+		checkf(
+			&Blueprint->ImplementedInterfaces == (TArray<FBPInterfaceDescription>*)InterfacesProperty->GetValueBaseAddress((uint8*)Blueprint),
+			TEXT("Different Property provided than ImplementedInterfaces")
+		);
+		
 		// Generate a list of interfaces already implemented
-		for (const FBPInterfaceDescription& ImplementedInterface : Blueprint->ImplementedInterfaces)
+		for (int32 InterfaceIndex = 0; InterfaceIndex < Blueprint->ImplementedInterfaces.Num(); ++InterfaceIndex)
 		{
-			if (const TSubclassOf<UInterface> Interface = ImplementedInterface.Interface)
+			if (const TSubclassOf<UInterface> Interface = Blueprint->ImplementedInterfaces[InterfaceIndex].Interface)
 			{
 				FManagedListItem ItemDesc;
 				ItemDesc.ItemName = Interface->GetPathName();
 				ItemDesc.DisplayName = Interface->GetDisplayNameText();
 				ItemDesc.bIsRemovable = true;
+				const TSharedPtr<IPropertyHandle> Property = GetPropertyHandle()->GetChildHandle(InterfaceIndex);
+				if (Property && Property->IsValidHandle())
+				{
+					ItemDesc.PropertyHandles.Add(Property);
+				}
 
 				// Allow browsing to Blueprint interface class assets.
 				if (UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(*Interface))
@@ -5950,6 +5965,11 @@ float FBlueprintGlobalOptionsDetails::NamespacePropertyValueCustomization_MinDes
 
 UBlueprint* FBlueprintGlobalOptionsDetails::GetBlueprintObj() const
 {
+	if(BlueprintObjOverride)
+	{
+		return BlueprintObjOverride;
+	}
+	
 	if(BlueprintEditorPtr.IsValid())
 	{
 		return BlueprintEditorPtr.Pin()->GetBlueprintObj();
@@ -6183,6 +6203,10 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 
 		// Display the parent class and set up the menu for reparenting
 		IDetailCategoryBuilder& Category = DetailLayout.EditCategory("ClassOptions", LOCTEXT("ClassOptions", "Class Options"));
+
+		// ParentClass is a hidden property so we have to add it to the property map manually to use it
+		const TSharedPtr<IPropertyHandle> ParentClassProperty = DetailLayout.AddObjectPropertyData({const_cast<UBlueprint*>(Blueprint)}, TEXT("ParentClass"));
+
 		Category.AddCustomRow( LOCTEXT("ClassOptions", "Class Options") )
 		.NameContent()
 		[
@@ -6206,7 +6230,8 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
-		];
+		]
+		.PropertyHandleList({ParentClassProperty});
 		
 		const bool bIsInterfaceBP = FBlueprintEditorUtils::IsInterfaceBlueprint(Blueprint);
 		const bool bIsMacroLibrary = Blueprint->BlueprintType == BPTYPE_MacroLibrary;
@@ -6231,11 +6256,19 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 		{
 			// Interface details customization
 			IDetailCategoryBuilder& InterfacesCategory = DetailLayout.EditCategory("Interfaces", LOCTEXT("BlueprintInterfacesDetailsCategory", "Interfaces"));
-		
-			TSharedRef<FBlueprintInterfaceLayout> InheritedInterfacesLayout = MakeShareable(new FBlueprintInterfaceLayout(SharedThis(this), /*bShowInheritedInterfaces = */true));
+
+			// ImplementedInterfaces is a hidden property so we have to add it to the property map manually to use it
+			const TSharedPtr<IPropertyHandle> InterfacesProperty = DetailLayout.AddObjectPropertyData({const_cast<UBlueprint*>(Blueprint)}, TEXT("ImplementedInterfaces"));
+			
+			TSharedRef<FBlueprintInterfaceLayout> InheritedInterfacesLayout = MakeShareable(new FBlueprintInterfaceLayout(
+				SharedThis(this)
+				));
 			InterfacesCategory.AddCustomBuilder(InheritedInterfacesLayout);
 
-			TSharedRef<FBlueprintInterfaceLayout> LocalInterfacesLayout = MakeShareable(new FBlueprintInterfaceLayout(SharedThis(this), /*bShowInheritedInterfaces = */false));
+			TSharedRef<FBlueprintInterfaceLayout> LocalInterfacesLayout = MakeShareable(new FBlueprintInterfaceLayout(
+				SharedThis(this),
+				InterfacesProperty.ToSharedRef()
+				));
 			InterfacesCategory.AddCustomBuilder(LocalInterfacesLayout);
 		}
 
@@ -6275,7 +6308,8 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 					.IsChecked( this, &FBlueprintGlobalOptionsDetails::IsDeprecatedBlueprint )
 					.OnCheckStateChanged( this, &FBlueprintGlobalOptionsDetails::OnDeprecateBlueprint )
 					.ToolTipText( this, &FBlueprintGlobalOptionsDetails::GetDeprecatedTooltip )
-				];
+				]
+				.PropertyHandleList({DetailLayout.GetProperty(DeprecatePropName)});
 		}
 
 		static FName BlueprintNamespacePropertyName = GET_MEMBER_NAME_CHECKED(UBlueprint, BlueprintNamespace);

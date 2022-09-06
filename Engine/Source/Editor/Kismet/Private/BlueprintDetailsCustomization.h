@@ -762,8 +762,11 @@ private:
 class FBlueprintInterfaceLayout : public FBlueprintGlobalOptionsManagedListDetails, public TSharedFromThis<FBlueprintInterfaceLayout>
 {
 public:
-	FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowsInheritedInterfaces);
+	FBlueprintInterfaceLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, TSharedPtr<IPropertyHandle> InInterfacesProperty = nullptr);
 
+	/** IDetailCustomNodeBuilder interface */
+	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const override;
+	/** END IDetailCustomNodeBuilder interface */
 protected:
 	/** FBlueprintManagedListDetails interface */
 	virtual TSharedPtr<SWidget> MakeAddItemWidget() override;
@@ -782,8 +785,8 @@ private:
 	/** The add interface combo button */
 	TSharedPtr<SComboButton> AddInterfaceComboButton;
 
-	/** Whether we show inherited interfaces versus implemented interfaces */
-	bool bShowsInheritedInterfaces;
+	/** Property that stores interfaces */
+	TSharedPtr<IPropertyHandle> InterfacesProperty;
 };
 
 /** Details customization for Blueprint settings */
@@ -793,6 +796,13 @@ public:
 	/** Constructor */
 	FBlueprintGlobalOptionsDetails(TWeakPtr<FBlueprintEditor> InBlueprintEditorPtr)
 		:BlueprintEditorPtr(InBlueprintEditorPtr)
+		,BlueprintObjOverride(nullptr)
+	{
+
+	}
+	
+	FBlueprintGlobalOptionsDetails(UBlueprint* InBlueprintPtr)
+		:BlueprintObjOverride(InBlueprintPtr)
 	{
 
 	}
@@ -801,6 +811,13 @@ public:
 	static TSharedRef<class IDetailCustomization> MakeInstance(TWeakPtr<FBlueprintEditor> InBlueprintEditorPtr)
 	{
 		return MakeShareable(new FBlueprintGlobalOptionsDetails(InBlueprintEditorPtr));
+	}
+
+	/** Diff functionality doesn't need access to the FBlueprintEditor so this allows creation without editor access
+	 *  but with limited functionality */
+	static TSharedRef<IDetailCustomization> MakeInstanceForDiff(UBlueprint* InBlueprintPtr)
+	{
+		return MakeShareable(new FBlueprintGlobalOptionsDetails(InBlueprintPtr));
 	}
 
 	/** IDetailCustomization interface */
@@ -852,6 +869,9 @@ protected:
 private:
 	/** Weak reference to the Blueprint editor */
 	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;
+	
+	/** Weak reference to the Blueprint editor */
+	TObjectPtr<UBlueprint> BlueprintObjOverride;
 
 	/** Combo button used to choose a parent class */
 	TSharedPtr<SComboButton> ParentClassComboButton;

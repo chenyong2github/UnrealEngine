@@ -800,6 +800,26 @@ FPropertyPath FDetailItemNode::GetPropertyPath() const
 	{
 		Ret = *FPropertyNode::CreatePropertyPath( PropertyNode.ToSharedRef() );
 	}
+
+	// add properties used by custom widgets
+	if (Customization.WidgetDecl)
+	{
+		for (const TSharedPtr<IPropertyHandle> &ItemPropHandle : Customization.WidgetDecl->PropertyHandles)
+		{
+			if (ItemPropHandle)
+			{
+				if (ItemPropHandle->GetIndexInArray() != INDEX_NONE)
+				{
+					Ret.AddProperty(FPropertyInfo(ItemPropHandle->GetParentHandle()->GetProperty(), INDEX_NONE));
+					Ret.AddProperty(FPropertyInfo(ItemPropHandle->GetProperty(), ItemPropHandle->GetIndexInArray()));
+				}
+				else
+				{
+					Ret.AddProperty(FPropertyInfo(ItemPropHandle->GetProperty(), INDEX_NONE));
+				}
+			}
+		}
+	}
 	return Ret;
 }
 
