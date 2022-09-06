@@ -83,8 +83,8 @@ class FDistanceFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_Sign
 class FHeightFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_HeightField> {};
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneObjectData)
 	SHADER_PARAMETER(uint32, NumSceneObjects)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectBounds)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectData)
@@ -122,7 +122,6 @@ namespace DistanceField
 	struct FUpdateTrackingBounds
 	{
 		FBox GlobalDistanceFieldBounds;
-		FBox LumenBounds;
 	};
 
 	RENDERER_API FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData& DistanceFieldSceneData);

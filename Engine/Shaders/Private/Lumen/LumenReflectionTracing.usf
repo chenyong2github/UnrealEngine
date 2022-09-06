@@ -4,7 +4,6 @@
 #include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"
 #include "LumenCardCommon.ush"
-#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenReflectionCommon.ush"
@@ -418,7 +417,6 @@ void TraceMeshSDFs(
 
 	FConeTraceInput TraceInput;
 	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f), RayData.TraceDistance, 1.0f);
-	TraceInput.VoxelStepFactor = 1.0f;
 	TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
 	uint CardGridCellIndex = ComputeCardGridCellIndex(ReflectionTracingCoord.Coord * ReflectionDownsampleFactor, SceneDepth);
@@ -517,7 +515,6 @@ void TraceVoxels(
 
 	FConeTraceInput TraceInput;
 	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, 0.0f, RayData.TraceDistance, 1.0f);
-	TraceInput.VoxelStepFactor = 1.0f;
 
 	uint ClipmapForSurfaceExpand = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition + TraceHitDistance * RayData.Direction);
 	// Pull back from where the previous tracing method left off so that we start outside the surface, so that the SDF expansion works properly and prevents leaking through thin objects

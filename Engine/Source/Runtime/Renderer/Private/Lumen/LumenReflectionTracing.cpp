@@ -420,11 +420,9 @@ FCompactedReflectionTraceParameters CompactTraces(
 			FIntVector(1, 1, 1));
 	}
 
-	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-
 	{
 		FReflectionCompactTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionCompactTracesCS::FParameters>();
-		GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT);
@@ -486,7 +484,6 @@ void SetupIndirectTracingParametersForReflections(const FViewInfo& View, FLumenI
 {
 	//@todo - cleanup
 	OutParameters.StepFactor = 1.0f;
-	OutParameters.VoxelStepFactor = 1.0f;
 	extern float GDiffuseCardTraceEndDistanceFromCamera;
 	OutParameters.CardTraceEndDistanceFromCamera = GDiffuseCardTraceEndDistanceFromCamera;
 	OutParameters.MinSampleRadius = 0.0f;
@@ -621,7 +618,6 @@ void TraceReflections(
 	SetupIndirectTracingParametersForReflections(View, IndirectTracingParameters);
 
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
-	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	const bool bScreenTraces = GLumenReflectionScreenTraces != 0 && View.Family->EngineShowFlags.LumenScreenTraces;
 
@@ -736,7 +732,7 @@ void TraceReflections(
 
 				{
 					FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
-					GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+					GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -782,7 +778,7 @@ void TraceReflections(
 
 		{
 			FReflectionTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceVoxelsCS::FParameters>();
-			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+			GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 			PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

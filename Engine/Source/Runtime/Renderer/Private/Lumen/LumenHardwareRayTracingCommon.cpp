@@ -190,8 +190,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	SharedParameters->RayTracingSceneMetadata = View.GetRayTracingSceneChecked()->GetMetadataBufferSRV();
 
 	// Use surface cache, instead
-	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-	GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, SharedParameters->TracingParameters);
+	GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, SharedParameters->TracingParameters);
 }
 
 class FLumenHWRTCompactRaysIndirectArgsCS : public FGlobalShader

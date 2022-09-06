@@ -603,7 +603,7 @@ void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 			UTexture2D* HeightAndNormal;
 			UTexture2D* DiffuseColor;
 			UTexture2D* Visibility;
-			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			FHeightfieldComponentDescription Desc(FMatrix::Identity, InPrimitive->GetInstanceSceneDataOffset());
 			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
 			GHeightFieldTextureAtlas.AddAllocation(HeightAndNormal);
 
@@ -668,7 +668,7 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 			UTexture2D* HeightAndNormal;
 			UTexture2D* DiffuseColor;
 			UTexture2D* Visibility;
-			FHeightfieldComponentDescription Desc(FMatrix::Identity);
+			FHeightfieldComponentDescription Desc(FMatrix::Identity, InPrimitive->GetInstanceSceneDataOffset());
 			Proxy->GetHeightfieldRepresentation(HeightAndNormal, DiffuseColor, Visibility, Desc);
 			GHeightFieldTextureAtlas.RemoveAllocation(HeightAndNormal);
 
@@ -982,8 +982,6 @@ uint64 FLumenViewState::GetGPUSizeBytes(bool bLogSizes) const
 		ScreenProbeGatherState.GetGPUSizeBytes(bLogSizes) +
 		ReflectionState.GetGPUSizeBytes(bLogSizes) +
 		GetRenderTargetGPUSizeBytes(DepthHistoryRT, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(VoxelLighting, bLogSizes) +
-		GetBufferGPUSizeBytes(VoxelVisBuffer, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(TranslucencyVolume0, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(TranslucencyVolume1, bLogSizes) +
 		RadianceCacheState.GetGPUSizeBytes(bLogSizes) +

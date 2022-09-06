@@ -98,7 +98,6 @@ void TranslucencyVolumeTraceVoxelsCS(
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(WorldPosition, WorldConeDirection, ConeHalfAngle, 0, 0, TraceDistance, StepFactor);
-			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
 
@@ -106,7 +105,7 @@ void TranslucencyVolumeTraceVoxelsCS(
 			TraceResult.Transparency = 1;
 
 #if TRACE_FROM_VOLUME
-			ConeTraceVoxels(TraceInput, TraceResult);
+			RayTraceGlobalDistanceField(TraceInput, TraceResult);
 #endif
 
 			if (TraceResult.Transparency <= .5f)

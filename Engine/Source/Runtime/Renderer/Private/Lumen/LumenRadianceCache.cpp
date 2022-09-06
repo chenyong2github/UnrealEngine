@@ -846,10 +846,9 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
-	class FDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF, FDistantScene, FDynamicSkyLight>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF, FDynamicSkyLight>;
 
 public:
 
@@ -1977,8 +1976,7 @@ void UpdateRadianceCaches(
 			else
 			{
 				FRadianceCacheTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadianceCacheTraceFromProbesCS::FParameters>();
-				FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-				GetLumenCardTracingParameters(View, Inputs.TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+				GetLumenCardTracingParameters(GraphBuilder, View, Inputs.TracingInputs, PassParameters->TracingParameters);
 				SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 				PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 				PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;
@@ -1990,7 +1988,6 @@ void UpdateRadianceCaches(
 
 				FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
-				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->GetLumenSceneData(View)->DistantCardIndices.Num() > 0);
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 				auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);
 

@@ -266,12 +266,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 			LumenSceneData.bFinalLightingAtlasContentsValid = true;
 		}
-
-		for (const FViewInfo& View : Views)
-		{
-			FLumenViewCardTracingInputs ViewCardTracingInputs(GraphBuilder, View);
-			ComputeLumenSceneVoxelLighting(GraphBuilder, View, FrameTemporaries, TracingInputs, ViewCardTracingInputs);
-		}
 	}
 }
 
@@ -530,7 +524,7 @@ void Lumen::BuildCardUpdateContext(
 	const int32 NumCardPages = LumenSceneData.GetNumCardPages();
 	const uint32 UpdateFrameIndex = LumenSceneData.GetSurfaceCacheUpdateFrameIndex();
 	const uint32 FreezeUpdateFrame = Lumen::IsSurfaceCacheUpdateFrameFrozen() ? 1 : 0;
-	const float FirstClipmapWorldExtentRcp = 1.0f / Lumen::GetFirstClipmapWorldExtent();
+	const float FirstClipmapWorldExtentRcp = 1.0f / Lumen::GetGlobalDFClipmapExtent(0);
 
 	SetLightingUpdateAtlasSize(LumenSceneData.GetPhysicalAtlasSize(), FMath::RoundToInt(GLumenDirectLightingUpdateFactor / LumenSceneLightingUpdateSpeed), DirectLightingCardUpdateContext);
 	SetLightingUpdateAtlasSize(LumenSceneData.GetPhysicalAtlasSize(), FMath::RoundToInt(GLumenRadiosityUpdateFactor / LumenSceneLightingUpdateSpeed), IndirectLightingCardUpdateContext);

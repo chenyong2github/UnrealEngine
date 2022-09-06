@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneRendering.cpp
-=============================================================================*/
-
 #include "LumenSceneRendering.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
@@ -22,6 +18,7 @@
 #include "LumenSurfaceCacheFeedback.h"
 #include "LumenSceneLighting.h"
 #include "LumenTracingUtils.h"
+#include "GlobalDistanceField.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -413,14 +410,40 @@ bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& 
 		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing(*View.Family) || IsSoftwareRayTracingSupported());
 }
 
+bool Lumen::UseGlobalSDFObjectGrid(const FSceneViewFamily& ViewFamily)
+{
+	if (!Lumen::IsSoftwareRayTracingSupported())
+	{
+		return false;
+	}
+
+	// All features use Hardware RayTracing, no need to update voxel lighting
+	if (Lumen::UseHardwareRayTracedSceneLighting(ViewFamily)
+		&& Lumen::UseHardwareRayTracedScreenProbeGather(ViewFamily)
+		&& Lumen::UseHardwareRayTracedReflections(ViewFamily)
+		&& Lumen::UseHardwareRayTracedRadianceCache(ViewFamily)
+		&& Lumen::UseHardwareRayTracedTranslucencyVolume(ViewFamily)
+		&& Lumen::UseHardwareRayTracedVisualize(ViewFamily))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 int32 Lumen::GetGlobalDFResolution()
 {
 	return GLumenSceneGlobalDFResolution;
 }
 
-float Lumen::GetGlobalDFClipmapExtent()
+float Lumen::GetGlobalDFClipmapExtent(int32 ClipmapIndex)
 {
-	return GLumenSceneGlobalDFClipmapExtent;
+	return GLumenSceneGlobalDFClipmapExtent * FMath::Pow(2.0f, ClipmapIndex);
+}
+
+int32 Lumen::GetNumGlobalDFClipmaps(const FSceneView& View)
+{
+	return GlobalDistanceField::GetNumGlobalDistanceFieldClipmaps(/*bLumenEnabled*/ true, View.FinalPostProcessSettings.LumenSceneViewDistance);
 }
 
 float GetCardCameraDistanceTexelDensityScale()
@@ -1279,21 +1302,15 @@ public:
 	float MaxTexelDensity;
 };
 
-float ComputeMaxCardUpdateDistanceFromCamera(float LumenSceneViewDistance, const FSceneViewFamily& ViewFamily)
+float ComputeMaxCardUpdateDistanceFromCamera(const FViewInfo& View)
 {
-	float MaxCardDistanceFromCamera = 0.0f;
-	
-	// Limit to voxel clipmap range
-	extern int32 GLumenSceneClipmapResolution;
-	if (GetNumLumenVoxelClipmaps(LumenSceneViewDistance) > 0 && GLumenSceneClipmapResolution > 0)
-	{
-		const float LastClipmapExtent = Lumen::GetFirstClipmapWorldExtent() * (float)(1 << (GetNumLumenVoxelClipmaps(LumenSceneViewDistance) - 1));
-		MaxCardDistanceFromCamera = LastClipmapExtent;
-	}
+	// Limit to global distance field range
+	const float LastClipmapExtent = Lumen::GetGlobalDFClipmapExtent(Lumen::GetNumGlobalDFClipmaps(View) - 1);
+	float MaxCardDistanceFromCamera = LastClipmapExtent;
 
 #if RHI_RAYTRACING
 	// Limit to ray tracing culling radius if ray tracing is used
-	if (Lumen::UseHardwareRayTracing(ViewFamily) && GetRayTracingCulling() != 0)
+	if (Lumen::UseHardwareRayTracing(*View.Family) && GetRayTracingCulling() != 0)
 	{
 		MaxCardDistanceFromCamera = GetRayTracingCullingRadius();
 	}
@@ -1401,12 +1418,6 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 				const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
 				if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
 				{
-					// Landscape traces card representation, so need to invalidate voxel vis buffer when it's ready for the first time
-					if (MeshCardsElement.bHeightfield && Card.DesiredLockedResLevel == 0)
-					{
-						PrimitiveModifiedBounds.Add(MeshCardsElement.GetWorldSpaceBounds());
-					}
-
 					Card.bVisible = true;
 					Card.DesiredLockedResLevel = Request.ResLevel;
 
@@ -2048,8 +2059,8 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 		for (const FViewInfo& View : Views)
 		{
-			LumenSceneCameraOrigins.Add(GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance) - 1));
-			MaxCardUpdateDistanceFromCamera = FMath::Max(MaxCardUpdateDistanceFromCamera, ComputeMaxCardUpdateDistanceFromCamera(View.FinalPostProcessSettings.LumenSceneViewDistance, ViewFamily));
+			LumenSceneCameraOrigins.Add(Lumen::GetLumenSceneViewOrigin(View, Lumen::GetNumGlobalDFClipmaps(View) - 1));
+			MaxCardUpdateDistanceFromCamera = FMath::Max(MaxCardUpdateDistanceFromCamera, ComputeMaxCardUpdateDistanceFromCamera(View));
 			LumenSceneDetail = FMath::Max(LumenSceneDetail, FMath::Clamp<float>(View.FinalPostProcessSettings.LumenSceneDetail, .125f, 8.0f));
 		}
 

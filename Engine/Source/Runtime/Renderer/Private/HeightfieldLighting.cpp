@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-HeightfieldLighting.cpp
-=============================================================================*/
-
 #include "HeightfieldLighting.h"
 #include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
@@ -18,7 +14,7 @@ HeightfieldLighting.cpp
 #include "PipelineStateCache.h"
 
 // In float4's, must match usf
-static const int32 HEIGHTFIELD_DATA_STRIDE = 11;
+static const int32 HEIGHTFIELD_DATA_STRIDE = 12;
 
 void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, TArray<FVector4f, SceneRenderingAllocator>& HeightfieldDescriptionData)
 {
@@ -68,6 +64,13 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 			ChannelMask.Component(Description.VisibilityChannel) = 1.f;
 		}
 		HeightfieldDescriptionData.Add(ChannelMask);
+
+		uint32 PackedData[4];
+		PackedData[0] = Description.GPUSceneInstanceIndex;
+		PackedData[1] = 0;
+		PackedData[2] = 0;
+		PackedData[3] = 0;
+		HeightfieldDescriptionData.Add(*(FVector4f*)&PackedData);
 	}
 
 	check(HeightfieldDescriptionData.Num() % HEIGHTFIELD_DATA_STRIDE == 0);

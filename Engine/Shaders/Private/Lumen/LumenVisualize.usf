@@ -1,14 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	VisualizeLumenCardScene.usf
-=============================================================================*/
-
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
-// Depth weighted OIT doesn't cover enough depth range for ConeTraceLumenDistantScene
-// This has the side effect that card tracing for detail traces in this file don't get blended
-#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "LumenTracingCommon.ush"
 #define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
@@ -22,13 +15,10 @@ uint3 CullGridSize;
 uint CardGridPixelSizeShift;
 int VisualizeTileIndex;
 float VisualizeStepFactor;
-float VoxelStepFactor;
 float MinTraceDistance;
 float MaxTraceDistance;
 float MaxMeshSDFTraceDistanceForVoxelTracing;
 float MaxMeshSDFTraceDistance;
-int VisualizeClipmapIndex;
-int VisualizeVoxelFaceIndex;
 int VisualizeHiResSurface;
 float CardInterpolateInfluenceRadius;
 
@@ -77,7 +67,6 @@ void VisualizeQuadsCS(
 
 	FConeTraceInput TraceInput;
 	TraceInput.Setup(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
-	TraceInput.VoxelStepFactor = VoxelStepFactor;
 	TraceInput.SDFStepFactor = lerp(.8f, 1.0f, Noise);
 	TraceInput.bDitheredTransparency = false;
 	TraceInput.DitherScreenCoord = PixelPos;
@@ -132,15 +121,6 @@ void VisualizeQuadsCS(
 	TraceResult.Lighting += SampleRadianceCacheInterpolated(Coverage, LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle).xyz * TraceResult.Transparency;
 	TraceResult.Transparency = 0.0f;
 #else
-
-	#define VISUALIZE_TRACE_DISTANT_SCENE 1
-	#if VISUALIZE_TRACE_DISTANT_SCENE
-		FConeTraceResult DistantTraceResult;
-		ConeTraceLumenDistantScene(TraceInput, DistantTraceResult);
-		TraceResult.Lighting += DistantTraceResult.Lighting * TraceResult.Transparency;
-		TraceResult.Transparency *= DistantTraceResult.Transparency;
-	#endif
-
 	ApplySkylightToTraceResult(CameraVector, TraceResult);
 #endif
 
@@ -171,125 +151,6 @@ void VisualizeQuadsCS(
 
 	RWSceneColor[OutputScreenCoord] = FinalColor;
 }
-
-uint3 VoxelLightingGridResolution;
-
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void VisualizeLumenVoxelsCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	uint2 PixelPos = DispatchThreadId.xy + OutputViewOffset;
-	float2 ViewportUV = (DispatchThreadId.xy + 0.5f) / OutputViewSize;
-	float2 ScreenPosition = float2(2.0f, -2.0f) * ViewportUV + float2(-1.0f, 1.0f);
-	float3 ScreenVector = mul(float4(ScreenPosition, 1, 0), View.ScreenToTranslatedWorld).xyz;
-
-	float4 LightingAndAlpha = float4(0, 0, 0, 1);
-	uint TotalNumSteps = 0;
-
-	float RayTime = 0.0f;
-	float3 RayDirection = normalize(ScreenVector);
-	float3 RayOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin) + MinTraceDistance * RayDirection;
-	int3 VoxelStep = select(RayDirection < 0, int3(-1, -1, -1), int3(1, 1, 1));
-
-	uint VoxelClipmapIndex = VisualizeClipmapIndex >= 0 ? VisualizeClipmapIndex : 0;
-	for (uint ClipmapIndex = 0; ClipmapIndex < NumClipmapLevels; ++ClipmapIndex)
-	{
-		bool bOutOfRange = any(abs(RayOrigin - ClipmapWorldCenter[ClipmapIndex].xyz) > ClipmapWorldExtent[ClipmapIndex].xyz);
-		VoxelClipmapIndex = bOutOfRange ? ClipmapIndex + 1 : VoxelClipmapIndex;
-	}
-
-	float VoxelSize = ClipmapVoxelSizeAndRadius[VoxelClipmapIndex].x;
-	float3 ClipmapMin = ClipmapWorldCenter[VoxelClipmapIndex].xyz - ClipmapWorldExtent[VoxelClipmapIndex].xyz;
-	float3 ClipmapMax = ClipmapWorldCenter[VoxelClipmapIndex].xyz + ClipmapWorldExtent[VoxelClipmapIndex].xyz;
-	int3 VoxelCoord = VoxelLightingGridResolution * (RayOrigin - ClipmapMin) / (ClipmapMax - ClipmapMin);
-
-	float3 VoxelMin = (VoxelCoord + 0.0f) * VoxelSize + ClipmapMin;
-	float3 VoxelMax = (VoxelCoord + 1.0f) * VoxelSize + ClipmapMin;
-	float3 MaxNegT = (VoxelMin - RayOrigin) / RayDirection;
-	float3 MaxPosT = (VoxelMax - RayOrigin) / RayDirection;
-	float3 NextVoxelFaceT = select(RayDirection < 0, MaxNegT, MaxPosT);
-	float3 VoxelFaceStepT = abs(VoxelSize / RayDirection);
-
-	uint RayVoxelEntryFace = 6;
-	uint StepIndex = 0;
-
-	while (StepIndex < 512 && LightingAndAlpha.a > MIN_VOXEL_TRACE_TRANSPARENCY && VoxelClipmapIndex < NumClipmapLevels)
-	{
-		if (VoxelClipmapIndex >= NumClipmapLevels || (VisualizeClipmapIndex >= 0 && (uint)VisualizeClipmapIndex != VoxelClipmapIndex))
-		{
-			break;
-		}
-
-		if (RayTime > MaxTraceDistance)
-		{
-			break;
-		}
-
-
-		if (RayVoxelEntryFace < 6)
-		{
-			int3 LightingVolumeCoord = VoxelCoord;
-			LightingVolumeCoord.y += VoxelLightingGridResolution.y * VoxelClipmapIndex;
-			LightingVolumeCoord.z += VoxelLightingGridResolution.z * RayVoxelEntryFace;
-
-			float4 StepLighting;
-			StepLighting = VoxelLighting.Load(int4(LightingVolumeCoord, 0));
-
-			if (StepLighting.w > 0.0f)
-			{
-				LightingAndAlpha.xyz = StepLighting.xyz;
-				LightingAndAlpha.w = 0.0f;
-				break;
-			}
-		}
-
-
-		// Next step
-		float VoxelFaceT = min3(NextVoxelFaceT.x, NextVoxelFaceT.y, NextVoxelFaceT.z);
-		uint3 StepInc = int3(NextVoxelFaceT == VoxelFaceT.xxx);
-		RayVoxelEntryFace = VoxelFaceFromStep(StepInc, VoxelStep);
-		RayTime = VoxelFaceT;
-		NextVoxelFaceT += StepInc * VoxelFaceStepT;
-		VoxelCoord += StepInc * VoxelStep;
-
-
-		// Next clipmap if we are out of bounds
-		if (any(VoxelCoord < 0) || any((uint3)VoxelCoord >= VoxelLightingGridResolution))
-		{
-			++VoxelClipmapIndex;
-
-			// #lumen_todo: it should just go back to the last face of the higher climap level
-			float3 SamplePosition = RayOrigin + (RayTime - 2.0f * ClipmapVoxelSizeAndRadius[VoxelClipmapIndex].w) * RayDirection;
-
-			VoxelSize = ClipmapVoxelSizeAndRadius[VoxelClipmapIndex].x;
-			ClipmapMin = ClipmapWorldCenter[VoxelClipmapIndex].xyz - ClipmapWorldExtent[VoxelClipmapIndex].xyz;
-			ClipmapMax = ClipmapWorldCenter[VoxelClipmapIndex].xyz + ClipmapWorldExtent[VoxelClipmapIndex].xyz;
-			VoxelCoord = VoxelLightingGridResolution * (SamplePosition - ClipmapMin) / (ClipmapMax - ClipmapMin);
-
-			VoxelMin = (VoxelCoord + 0.0f) * VoxelSize + ClipmapMin;
-			VoxelMax = (VoxelCoord + 1.0f) * VoxelSize + ClipmapMin;
-			MaxNegT = (VoxelMin - RayOrigin) / RayDirection;
-			MaxPosT = (VoxelMax - RayOrigin) / RayDirection;
-			NextVoxelFaceT = select(RayDirection < 0, MaxNegT, MaxPosT);
-			VoxelFaceStepT = abs(VoxelSize / RayDirection);
-		}
-
-		++StepIndex;
-	}
-
-	FConeTraceResult TraceResult = (FConeTraceResult)0;
-	TraceResult.Lighting = LightingAndAlpha.xyz;
-	TraceResult.Transparency = LightingAndAlpha.w;
-
-	ApplySkylightToTraceResult(RayDirection, TraceResult);
-
-	TraceResult.Lighting *= View.PreExposure;
-
-	RWSceneColor[PixelPos] = float4(TraceResult.Lighting, 1.0f);
-}
-
 
 Buffer<float4> VisualizeTracesData;
 

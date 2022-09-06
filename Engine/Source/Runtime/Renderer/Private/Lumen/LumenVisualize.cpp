@@ -52,14 +52,6 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneGridPixelSize(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenVisualizeVoxels = 0;
-FAutoConsoleVariableRef CVarLumenVisualizeVoxels(
-	TEXT("r.Lumen.Visualize.Voxels"),
-	GLumenVisualizeVoxels,
-	TEXT("Visualize Lumen voxel Representation."),
-	ECVF_RenderThreadSafe
-);
-
 int32 GLumenVisualizeIndirectDiffuse = 0;
 FAutoConsoleVariableRef CVarLumenVisualizeIndirectDiffuse(
 	TEXT("r.Lumen.Visualize.IndirectDiffuse"),
@@ -124,14 +116,6 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneConeStepFactor(
 	ECVF_RenderThreadSafe
 	);
 
-float GVisualizeLumenSceneVoxelStepFactor = 1.0f;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneVoxelStepFactor(
-	TEXT("r.Lumen.Visualize.VoxelStepFactor"),
-	GVisualizeLumenSceneVoxelStepFactor,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-	);
-
 float GVisualizeLumenSceneMinTraceDistance = 0;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneMinTraceDistance(
 	TEXT("r.Lumen.Visualize.MinTraceDistance"),
@@ -145,22 +129,6 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneMaxTraceDistance(
 	TEXT("r.Lumen.Visualize.MaxTraceDistance"),
 	GVisualizeLumenSceneMaxTraceDistance,
 	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GVisualizeLumenSceneClipmapIndex = -1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneClipmapIndex(
-	TEXT("r.Lumen.Visualize.ClipmapIndex"),
-	GVisualizeLumenSceneClipmapIndex,
-	TEXT("Which clipmap to use for the Lumen scene visualization. -1 uses all possible clipmaps."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GVisualizeLumenSceneVoxelFaceIndex = -1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneVoxelFaceIndex(
-	TEXT("r.Lumen.Visualize.VoxelFaceIndex"),
-	GVisualizeLumenSceneVoxelFaceIndex,
-	TEXT("Which voxel face to use for the Lumen scene visualization -X,+X,-Y,+Y,-Z,+Z. -1 uses all voxel faces."),
 	ECVF_RenderThreadSafe
 );
 
@@ -289,16 +257,12 @@ bool Lumen::ShouldVisualizeScene(const FSceneViewFamily& ViewFamily)
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneSoftwareRayTracingParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenVisualizeSceneParameters, CommonParameters)
-	SHADER_PARAMETER(FIntVector, VoxelLightingGridResolution)
 	SHADER_PARAMETER(float, VisualizeStepFactor)
-	SHADER_PARAMETER(float, VoxelStepFactor)
 	SHADER_PARAMETER(float, MinTraceDistance)
 	SHADER_PARAMETER(float, MaxTraceDistance)
 	SHADER_PARAMETER(float, MaxMeshSDFTraceDistanceForVoxelTracing)
 	SHADER_PARAMETER(float, MaxMeshSDFTraceDistance)
 	SHADER_PARAMETER(float, CardInterpolateInfluenceRadius)
-	SHADER_PARAMETER(int, VisualizeClipmapIndex)
-	SHADER_PARAMETER(int, VisualizeVoxelFaceIndex)
 	SHADER_PARAMETER(int, HeightfieldMaxTracingSteps)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -361,40 +325,6 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenSceneCS, "/Engine/Private/Lumen/LumenVisualize.usf", "VisualizeQuadsCS", SF_Compute);
-
-class FVisualizeLumenVoxelsCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVisualizeLumenVoxelsCS)
-	SHADER_USE_PARAMETER_STRUCT(FVisualizeLumenVoxelsCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntRect, ViewDimensions)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenVisualizeSceneSoftwareRayTracingParameters, VisualizeParameters)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-
-	static int32 GetGroupSize()
-	{
-		return 8;
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/LumenVisualize.usf", "VisualizeLumenVoxelsCS", SF_Compute);
-
 
 class FVisualizeTracesVS : public FGlobalShader
 {
@@ -553,7 +483,6 @@ void SetupVisualizeParameters(
 	const FIntRect& ViewRect, 
 	FRDGTextureRef ColorGradingTexture,
 	FRDGTextureRef EyeAdaptationTexture,
-	const FLumenViewCardTracingInputs& ViewTracingInputs,
 	int32 VisualizeMode, 
 	int32 VisualizeTileIndex, 
 	FLumenVisualizeSceneSoftwareRayTracingParameters& VisualizeParameters)
@@ -614,23 +543,10 @@ void SetupVisualizeParameters(
 			MaxMeshSDFTraceDistance = 0.0f;
 		}
 
-		VisualizeParameters.VoxelLightingGridResolution = ViewTracingInputs.VoxelGridResolution;
 		VisualizeParameters.VisualizeStepFactor = FMath::Clamp(GVisualizeLumenSceneConeStepFactor, .1f, 10.0f);
-		VisualizeParameters.VoxelStepFactor = FMath::Clamp(GVisualizeLumenSceneVoxelStepFactor, .1f, 10.0f);
 		VisualizeParameters.MinTraceDistance = FMath::Clamp(GVisualizeLumenSceneMinTraceDistance, .01f, 1000.0f);
 		VisualizeParameters.MaxTraceDistance = FMath::Clamp(MaxTraceDistance, .01f, Lumen::MaxTraceDistance);
-		VisualizeParameters.VisualizeClipmapIndex = FMath::Clamp(GVisualizeLumenSceneClipmapIndex, -1, ViewTracingInputs.NumClipmapLevels - 1);
-		VisualizeParameters.VisualizeVoxelFaceIndex = FMath::Clamp(GVisualizeLumenSceneVoxelFaceIndex, -1, 5);
 		VisualizeParameters.CardInterpolateInfluenceRadius = GVisualizeLumenSceneCardInterpolateInfluenceRadius;
-
-		if (MaxMeshSDFTraceDistance <= 0)
-		{
-			MaxMeshSDFTraceDistance = FMath::Clamp<float>(
-				ViewTracingInputs.ClipmapVoxelSizeAndRadius[0].W / FMath::Max(VisualizeParameters.CommonParameters.TanPreviewConeAngle, 0.001f),
-				VisualizeParameters.MinTraceDistance,
-				VisualizeParameters.MaxTraceDistance);
-		}
-
 		VisualizeParameters.MaxMeshSDFTraceDistanceForVoxelTracing = FMath::Clamp(MaxMeshSDFTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
 		VisualizeParameters.MaxMeshSDFTraceDistance = FMath::Clamp(MaxMeshSDFTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
 		VisualizeParameters.HeightfieldMaxTracingSteps = Lumen::GetHeightfieldMaxTracingSteps();
@@ -648,36 +564,6 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 		RDG_EVENT_SCOPE(GraphBuilder, "MiscLumenVisualization");
 
 		RenderVisualizeTraces(GraphBuilder, View, SceneTextures);
-
-		if (Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily) || Lumen::IsSoftwareRayTracingSupported())
-		{
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
-
-			if (GLumenVisualizeVoxels != 0)
-			{
-				FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-
-				FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
-				SetupVisualizeParameters(GraphBuilder, View, View.ViewRect, TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT()), GetEyeAdaptationTexture(GraphBuilder, View), ViewTracingInputs, VISUALIZE_MODE_LUMEN_SCENE, -1, VisualizeParameters);
-
-				FVisualizeLumenVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenVoxelsCS::FParameters>();
-				PassParameters->ViewDimensions = View.ViewRect;
-				PassParameters->RWSceneColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneTextures.Color.Resolve));
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-				PassParameters->VisualizeParameters = VisualizeParameters;
-				GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
-
-				auto ComputeShader = View.ShaderMap->GetShader< FVisualizeLumenVoxelsCS >();
-				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVisualizeLumenVoxelsCS::GetGroupSize()));
-
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("LumenVoxelsVisualization"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(GroupSize.X, GroupSize.Y, 1));
-			}
-		}
 	}
 
 	RenderLumenRadianceCacheVisualization(GraphBuilder, SceneTextures);
@@ -722,10 +608,9 @@ void VisualizeLumenScene(
 	int32 VisualizeTileIndex)
 {
 	FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Output.Texture));
-	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
 	FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
-	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, ViewTracingInputs, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
+	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
 
 	const FRadianceCacheState& RadianceCacheState = View.ViewState->Lumen.RadianceCacheState;
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize(View);
@@ -787,7 +672,7 @@ void VisualizeLumenScene(
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 		PassParameters->VisualizeParameters = VisualizeParameters;
 		LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, PassParameters->RadianceCacheParameters);
-		GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 
 		FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDF>(bTraceMeshSDF);
@@ -1273,7 +1158,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 	if (bVisualizeLumenSceneViewOrigin)
 	{
-		const int32 NumClipmaps = GetNumLumenVoxelClipmaps(Views[0].FinalPostProcessSettings.LumenSceneViewDistance);
+		const int32 NumClipmaps = Lumen::GetNumGlobalDFClipmaps(Views[0]);
 
 		for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
 		{
@@ -1284,7 +1169,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 			FLinearColor MarkerColor = FLinearColor::MakeFromHSV8(MarkerHue, MarkerSaturation, MarkerValue);
 			MarkerColor.A = 0.5f;
-			const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(Views[0], ClipmapIndex);
+			const FVector LumenSceneCameraOrigin = Lumen::GetLumenSceneViewOrigin(Views[0], ClipmapIndex);
 			DrawWireSphere(&ViewPDI, LumenSceneCameraOrigin, MarkerColor, 10 * (1 << ClipmapIndex), 32, SDPG_World);
 		}
 	}

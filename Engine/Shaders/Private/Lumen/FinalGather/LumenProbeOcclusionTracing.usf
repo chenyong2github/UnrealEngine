@@ -28,7 +28,6 @@
 //------------------------------------------------------- PARAMETERS
 
 float StepFactor;
-float VoxelStepFactor;
 float CardTraceEndDistanceFromCamera;
 float DiffuseConeHalfAngle;
 float MinSampleRadius;
@@ -143,7 +142,6 @@ void TraceRay(
 		MinTraceDistance, 
 		FinalMaxTraceDistance,
 		StepFactor);
-	TraceInput.VoxelStepFactor = VoxelStepFactor;
 
 #if DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_CARDS
 	TraceInput.VoxelTraceStartDistance = FinalMaxTraceDistance;

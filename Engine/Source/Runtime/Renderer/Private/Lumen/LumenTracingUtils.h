@@ -33,16 +33,6 @@ public:
 	}
 };
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenVoxelTracingParameters, )
-	SHADER_PARAMETER(uint32, NumClipmapLevels)
-	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
@@ -72,8 +62,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelLighting)
-	SHADER_PARAMETER_STRUCT_REF(FLumenVoxelTracingParameters, LumenVoxelTracingParameters)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GlobalDistanceFieldPageObjectGridBuffer)
 	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -106,34 +95,15 @@ public:
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
 };
 
-class FLumenViewCardTracingInputs
-{
-public:
-
-	FLumenViewCardTracingInputs(FRDGBuilder& GraphBuilder, const FViewInfo& View);
-
-	FRDGTextureRef VoxelLighting;
-
-	// Voxel clipmaps
-	FIntVector VoxelGridResolution;
-	int32 NumClipmapLevels;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVBias;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldCenter;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldExtent;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldSamplingExtent;
-	TStaticArray<FVector4f, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
-};
-
 BEGIN_SHADER_PARAMETER_STRUCT(FOctahedralSolidAngleParameters, )
 	SHADER_PARAMETER(float, OctahedralSolidAngleTextureResolutionSq)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, OctahedralSolidAngleTexture)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void GetLumenCardTracingParameters(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
-	const FLumenCardTracingInputs& TracingInputs, 
-	const FLumenViewCardTracingInputs& ViewTracingInputs,
+	const FLumenCardTracingInputs& TracingInputs,
 	FLumenCardTracingParameters& TracingParameters, 
 	bool bShaderWillTraceCardsOnly = false);
 
@@ -163,7 +133,6 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenIndirectTracingParameters, )
 	SHADER_PARAMETER(float, StepFactor)
-	SHADER_PARAMETER(float, VoxelStepFactor)
 	SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)
 	SHADER_PARAMETER(float, DiffuseConeHalfAngle)
 	SHADER_PARAMETER(float, TanDiffuseConeHalfAngle)
@@ -251,10 +220,8 @@ extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures);
 
-extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
-extern int32 GetNumLumenVoxelClipmaps(float LumenSceneViewDistance);
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
-extern float ComputeMaxCardUpdateDistanceFromCamera(float LumenSceneViewDistance, const FSceneViewFamily& ViewFamily);
+extern float ComputeMaxCardUpdateDistanceFromCamera(const FViewInfo& View);
 
 extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 	FRDGBuilder& GraphBuilder,

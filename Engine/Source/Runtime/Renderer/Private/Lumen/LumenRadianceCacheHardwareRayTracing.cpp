@@ -620,8 +620,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	// Reduce to Atlas
 	{
 		FSplatRadianceCacheIntoAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSplatRadianceCacheIntoAtlasCS::FParameters>();
-		FLumenViewCardTracingInputs ViewCardTracingInputs(GraphBuilder, View);
-		GetLumenCardTracingParameters(View, TracingInputs, ViewCardTracingInputs, PassParameters->TracingParameters);
+		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 		SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, -1.0f);
 		PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeAtlasTextureUAV;
 		PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;

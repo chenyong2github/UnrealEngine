@@ -129,14 +129,6 @@ FAutoConsoleVariableRef CVarLumenRadiosityHardwareRayTracingSlopeSurfaceBias(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenRadiosityVoxelStepFactor = 1.0f;
-FAutoConsoleVariableRef CVarRadiosityVoxelStepFactor(
-	TEXT("r.LumenScene.Radiosity.VoxelStepFactor"),
-	GLumenRadiosityVoxelStepFactor,
-	TEXT("."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracing(
 	TEXT("r.LumenScene.Radiosity.HardwareRayTracing"),
 	1,
@@ -852,13 +844,11 @@ void LumenRadiosity::AddRadiosityPass(
 			PassParameters->RWTraceRadianceAtlas = TraceRadianceAtlasUAV;
 			PassParameters->RWTraceHitDistanceAtlas = TraceHitDistanceAtlasUAV;
 
-			FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+			GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 			SetupLumenDiffuseTracingParametersForProbe(View, PassParameters->IndirectTracingParameters, 0.0f);
 			PassParameters->IndirectTracingParameters.SurfaceBias = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceSlopeBias, 0.0f, 1000.0f);
 			PassParameters->IndirectTracingParameters.MinTraceDistance = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceBias, 0.0f, 1000.0f);
 			PassParameters->IndirectTracingParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
-			PassParameters->IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, 0.1f, 10.0f);
 			PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 
 			FLumenRadiosityDistanceFieldTracingCS::FPermutationDomain PermutationVector;
@@ -1028,17 +1018,6 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 		&& LumenSceneData.bFinalLightingAtlasContentsValid)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
-
-		for (const FViewInfo& View : Views)
-		{
-			FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-
-			if (ViewTracingInputs.NumClipmapLevels == 0 && !Lumen::UseHardwareRayTracedRadiosity(ViewFamily))
-			{
-				// First frame since enabling, initialize voxel lighting since we won't have anything from last frame
-				ComputeLumenSceneVoxelLighting(GraphBuilder, View, FrameTemporaries, TracingInputs, ViewTracingInputs);
-			}
-		}
 
 		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
 

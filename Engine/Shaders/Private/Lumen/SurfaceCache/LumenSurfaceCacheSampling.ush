@@ -130,8 +130,8 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	float2 MaxUVBorder = select(PageCoord.xy + 1 == SizeInPages.xy, 0.0f, 0.5f);
 	float2 CoordInPage = (PageUV * (AtlasScale - MinUVBorder - MaxUVBorder)) + MinUVBorder;
 
-	// Card edges need to be clamped to [0.5; CardResolution - 0.5] so that bilinear filtering doesn't read texels from other cards
-	CoordInPage = clamp(CoordInPage, 0.5f, AtlasScale - 0.5f);
+	// Card edges need to be clamped to [0.5; CardResolution - 1 - 0.5] so that bilinear filtering doesn't read texels from other cards
+	CoordInPage = clamp(CoordInPage, 0.5f, AtlasScale - 1.0f - 0.5f);
 
 	float2 PhysicalAtlasUV = (CoordInPage + AtlasBias) * LumenCardScene.InvPhysicalAtlasSize;
 	
@@ -411,15 +411,28 @@ struct FSurfaceCacheSample
 	// Surface properties
 	float3 Lighting;
 	float Opacity;
+
+	// Card accumulator
+	float3 LightingSum;
+	float OpacitySum;
+	float SampleWeightSum;
+
 	bool bValid;
 };
 
 FSurfaceCacheSample InitSurfaceCacheSample()
 {
 	FSurfaceCacheSample SurfaceCacheSample;
+
 	SurfaceCacheSample.Lighting = 0.0f;
 	SurfaceCacheSample.Opacity = 1.0f;
+
+	SurfaceCacheSample.LightingSum = 0.0f;
+	SurfaceCacheSample.OpacitySum = 0.0f;
+	SurfaceCacheSample.SampleWeightSum = 0.0f;
+
 	SurfaceCacheSample.bValid = false;
+
 	return SurfaceCacheSample;
 }
 
@@ -431,9 +444,9 @@ FSurfaceCacheSample SampleLumenMeshCards(
 	uint MeshCardsIndex, 
 	float3 WorldSpacePosition, 
 	float3 WorldSpaceNormal, 
-	float SampleRadius, 
-	float SurfaceCacheBias, // Card bounds and depth test bias in mesh space. Useful when traced geometry doesn't match the original mesh due to SDFs or geometry LOD
-	bool bHiResSurface, // Whether to allow to sample high res surface pages or use only the lowest quality ones (always resident)
+	float SampleRadius,		// Cone footprint for mip map selection and feedback
+	float SurfaceCacheBias,	// Card bounds and depth test bias in mesh space. Useful when traced geometry doesn't match the original mesh due to SDFs or geometry LOD
+	bool bHiResSurface,		// Whether to allow to sample high res surface pages or use only the lowest quality ones (always resident)
 	uint AtlasId)
 {
 	FSurfaceCacheSample SurfaceCacheSample = InitSurfaceCacheSample();
@@ -451,9 +464,6 @@ FSurfaceCacheSample SampleLumenMeshCards(
 
 		float3 MeshCardsSpacePosition = mul(WorldSpacePosition - MeshCardsData.WorldOrigin, MeshCardsData.WorldToLocalRotation);
 		float3 MeshCardsSpaceNormal = mul(WorldSpaceNormal, MeshCardsData.WorldToLocalRotation);
-
-		// Make sure we don't sample out of bounds
-		MeshCardsSpacePosition = clamp(MeshCardsSpacePosition, MeshCardsData.MinMeshCardsPosition, MeshCardsData.MaxMeshCardsPosition);
 
 		uint CardMask = 0;
 		float3 AxisWeights = MeshCardsSpaceNormal * MeshCardsSpaceNormal;
@@ -526,6 +536,10 @@ FSurfaceCacheSample SampleLumenMeshCards(
 
 		if (CardSampleAccumulator.SampleWeightSum > 0.0f)
 		{
+			SurfaceCacheSample.LightingSum = CardSampleAccumulator.LightingSum;
+			SurfaceCacheSample.OpacitySum = CardSampleAccumulator.OpacitySum;
+			SurfaceCacheSample.SampleWeightSum = CardSampleAccumulator.SampleWeightSum;
+
 			SurfaceCacheSample.Lighting = CardSampleAccumulator.LightingSum / CardSampleAccumulator.SampleWeightSum;
 			SurfaceCacheSample.Opacity = CardSampleAccumulator.OpacitySum / CardSampleAccumulator.SampleWeightSum;
 			SurfaceCacheSample.bValid = true;

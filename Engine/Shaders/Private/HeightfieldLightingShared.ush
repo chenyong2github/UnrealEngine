@@ -14,7 +14,7 @@ uint NumHeightfields;
 Buffer<float4> HeightfieldDescriptions;
 
 // In float4's, must match C++
-#define HEIGHTFIELD_DATA_STRIDE 11
+#define HEIGHTFIELD_DATA_STRIDE 12
 
 float4 GetHeightfieldScaleBias(uint Index, out bool bHasSubsections)
 {
@@ -69,6 +69,12 @@ FLWCMatrix GetLocalToWorld(uint Index)
 float4 GetVisibilityMask(uint Index)
 {
 	return HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 10];
+}
+
+uint GetHeightfieldGPUSceneInstanceIndex(uint HeightfieldIndex)
+{
+	float4 V0 = HeightfieldDescriptions[HeightfieldIndex * HEIGHTFIELD_DATA_STRIDE + 11];
+	return asuint(V0.x);
 }
 
 float2 GetHeightfieldUV(uint HeightfieldIndex, float2 LocalPosition, out float4 MinMaxHeightfieldUV)

@@ -1,11 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenRadianceCache.usf
-=============================================================================*/
-
-#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
-
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../FastMath.ush"
@@ -623,7 +617,6 @@ void SortProbeTraceTilesCS(
 }
 
 float StepFactor;
-float VoxelStepFactor;
 float MinSampleRadius;
 float MaxMeshSDFTraceDistance;
 
@@ -636,16 +629,6 @@ FConeTraceResult TraceForProbeTexel(FConeTraceInput TraceInput)
 	TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
 	ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
-
-#if TRACE_DISTANT_SCENE
-	if (TraceResult.Transparency > .01f)
-	{
-		FConeTraceResult DistantTraceResult;
-		ConeTraceLumenDistantScene(TraceInput, DistantTraceResult);
-		TraceResult.Lighting += DistantTraceResult.Lighting * TraceResult.Transparency;
-		TraceResult.Transparency *= DistantTraceResult.Transparency;
-	}
-#endif
 
 #if ENABLE_DYNAMIC_SKY_LIGHT
 	if (ReflectionStruct.SkyLightParameters.y > 0)
@@ -713,7 +696,6 @@ void TraceFromProbesCS(
 				ConeHalfAngle, MinSampleRadius,
 				FinalMinTraceDistance, FinalMaxTraceDistance,
 				EffectiveStepFactor);
-			TraceInput.VoxelStepFactor = VoxelStepFactor;
 
 			TraceInput.bDitheredTransparency = true;
 			TraceInput.DitherScreenCoord = RadianceProbeResolution * uint2(ProbeIndex & ProbeAtlasResolutionModuloMask, ProbeIndex >> ProbeAtlasResolutionDivideShift) + ProbeTexelCoord;

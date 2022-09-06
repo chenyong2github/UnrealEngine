@@ -115,12 +115,14 @@ public:
 	FVector2D LightingAtlasLocation = FVector2D(ForceInit);
 	FIntRect HeightfieldRect; // Default initialized
 
+	uint32 GPUSceneInstanceIndex = 0;
 	int32 NumSubsections = 0;
 	FVector4 SubsectionScaleAndBias = FVector4(ForceInit);
 	int32 VisibilityChannel;
 
-	FHeightfieldComponentDescription(const FMatrix& InLocalToWorld) :
-		LocalToWorld(InLocalToWorld), 
+	FHeightfieldComponentDescription(const FMatrix& InLocalToWorld, uint32 InGPUSceneInstanceIndex) :
+		LocalToWorld(InLocalToWorld),
+		GPUSceneInstanceIndex(InGPUSceneInstanceIndex),
 		VisibilityChannel(-1)
 	{}
 };

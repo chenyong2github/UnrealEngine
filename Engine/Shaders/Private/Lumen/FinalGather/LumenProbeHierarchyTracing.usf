@@ -6,9 +6,6 @@
 
 #include "../../Common.ush"
 #include "../LumenCardCommon.ush"
-// Depth weighted OIT doesn't cover enough depth range for ConeTraceLumenDistantScene
-// This has the side effect that card tracing for detail traces in this file don't get blended
-#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "../LumenTracingCommon.ush"
 #include "../ProbeHierarchy/LumenProbeTracing.ush"
 #include "../LumenRadianceCacheCommon.ush"
@@ -58,7 +55,6 @@ void QuantizeTraceResult(FProbeTracingCtx Ctx, FConeTraceResult TraceResult, out
 }
 
 float StepFactor;
-float VoxelStepFactor;
 float CardTraceEndDistanceFromCamera;
 float DiffuseConeHalfAngle;
 float TanDiffuseConeHalfAngle;
@@ -109,7 +105,6 @@ void CardTraceProbeCS(
 			DiffuseConeHalfAngle, MinSampleRadius,
 			FinalMinTraceDistance, FinalMaxTraceDistance,
 			EffectiveStepFactor);
-		TraceInput.VoxelStepFactor = VoxelStepFactor;
 		TraceInput.VoxelTraceStartDistance = min(MaxMeshSDFTraceDistance, ProbeTMax);
 
 		uint CardGridCellIndex = ProbeTracingCtx.ProbeIndex;
@@ -188,7 +183,6 @@ void VoxelTraceProbeCS(
 			DiffuseConeHalfAngle, MinSampleRadius,
 			FinalMinTraceDistance, FinalMaxTraceDistance,
 			EffectiveStepFactor);
-		TraceInput.VoxelStepFactor = VoxelStepFactor;
 
 		bool bContinueCardTracing = (DIFFUSE_TRACE_CARDS != 0);
 
@@ -202,16 +196,6 @@ void VoxelTraceProbeCS(
 		ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
 
 		{
-#if PROBE_HIERARCHY_TRACE_DISTANT_SCENE
-			if (TraceResult.Transparency > .01f)
-			{
-				FConeTraceResult DistantTraceResult;
-				ConeTraceLumenDistantScene(TraceInput, DistantTraceResult);
-				TraceResult.Lighting += DistantTraceResult.Lighting * TraceResult.Transparency;
-				TraceResult.Transparency *= DistantTraceResult.Transparency;
-			}
-#endif
-
 #if ENABLE_DYNAMIC_SKY_LIGHT
 			if (ReflectionStruct.SkyLightParameters.y > 0)
 			{

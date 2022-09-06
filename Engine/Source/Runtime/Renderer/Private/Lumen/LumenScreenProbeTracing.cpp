@@ -648,8 +648,7 @@ void TraceScreenProbes(
 			FScreenProbeTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceScreenTexturesCS::FParameters>();
 
 			PassParameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
-			FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-			GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+			GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 			PassParameters->SceneTextures = SceneTextureParameters;
 
 			if (PassParameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !PassParameters->SceneTextures.GBufferVelocityTexture)
@@ -755,8 +754,7 @@ void TraceScreenProbes(
 			auto TraceMeshSDFs = [&](bool bTraceLightSamples)
 			{
 				FScreenProbeTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceMeshSDFsCS::FParameters>();
-				FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-				GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+				GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -822,8 +820,7 @@ void TraceScreenProbes(
 
 		FScreenProbeTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceVoxelsCS::FParameters>();
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-		FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-		GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+		GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

@@ -74,14 +74,6 @@ FAutoConsoleVariableRef CVarDiffuseCardInterpolateInfluenceRadius(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenDiffuseVoxelStepFactor = 1.0f;
-FAutoConsoleVariableRef CVarLumenDiffuseVoxelStepFactor(
-	TEXT("r.Lumen.DiffuseIndirect.VoxelStepFactor"),
-	GLumenDiffuseVoxelStepFactor,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
 float GDiffuseCardTraceEndDistanceFromCamera = 4000.0f;
 FAutoConsoleVariableRef CVarDiffuseCardTraceEndDistanceFromCamera(
 	TEXT("r.Lumen.DiffuseIndirect.CardTraceEndDistanceFromCamera"),
@@ -244,7 +236,6 @@ bool ShouldRenderLumenDirectLighting(const FScene* Scene, const FSceneView& View
 void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters)
 {
 	OutParameters.StepFactor = FMath::Clamp(GDiffuseTraceStepFactor, .1f, 10.0f);
-	OutParameters.VoxelStepFactor = FMath::Clamp(GLumenDiffuseVoxelStepFactor, .1f, 10.0f);
 	OutParameters.CardTraceEndDistanceFromCamera = GDiffuseCardTraceEndDistanceFromCamera;
 	OutParameters.MinSampleRadius = FMath::Clamp(GLumenDiffuseMinSampleRadius, .01f, 100.0f);
 	OutParameters.MinTraceDistance = FMath::Clamp(GLumenDiffuseMinTraceDistance, .01f, 1000.0f);

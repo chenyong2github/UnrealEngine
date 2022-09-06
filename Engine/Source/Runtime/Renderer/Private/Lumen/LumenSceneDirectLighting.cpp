@@ -834,8 +834,8 @@ void CullMeshObjectsForLightCards(
 	FMatrix& WorldToMeshSDFShadowValue,
 	FLightTileIntersectionParameters& LightTileIntersectionParameters)
 {
-	const FVector LumenSceneViewOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance) - 1);
-	const FVector LumenSceneExtent = FVector(ComputeMaxCardUpdateDistanceFromCamera(View.FinalPostProcessSettings.LumenSceneViewDistance, *View.Family));
+	const FVector LumenSceneViewOrigin = Lumen::GetLumenSceneViewOrigin(View, Lumen::GetNumGlobalDFClipmaps(View) - 1);
+	const FVector LumenSceneExtent = FVector(ComputeMaxCardUpdateDistanceFromCamera(View));
 	const FBox LumenSceneBounds(LumenSceneViewOrigin - LumenSceneExtent, LumenSceneViewOrigin + LumenSceneExtent);
 
 	FSphere MeshSDFShadowBounds;

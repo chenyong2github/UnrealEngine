@@ -106,25 +106,6 @@ public:
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
-class FLumenVoxelLightingClipmapState
-{
-public:
-	FIntVector FullUpdateOriginInTiles = FIntVector(0);
-	FIntVector LastPartialUpdateOriginInTiles = FIntVector(0);
-	FIntVector ScrollOffsetInTiles = FIntVector(0);
-
-	FVector Center = FVector(0.0f);
-	FVector Extent = FVector(0.0f);
-	FVector VoxelSize = FVector(0.0f);
-	float VoxelRadius = 0.0f;
-	float MeshSDFRadiusThreshold = 0.0f;
-	FVector VoxelCoordToUVScale = FVector(0.0f);
-	FVector VoxelCoordToUVBias = FVector(0.0f);
-
-	TArray<FRenderBounds> PrimitiveModifiedBounds;
-};
-
-
 class FRadianceCacheClipmap
 {
 public:
@@ -204,14 +185,6 @@ public:
 	FReflectionTemporalState ReflectionState;
 	TRefCountPtr<IPooledRenderTarget> DepthHistoryRT;
 
-	// Voxel clipmaps
-	int32 NumClipmapLevels = 0;
-	FLumenVoxelLightingClipmapState VoxelLightingClipmapState[MaxVoxelClipmapLevels];
-	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
-	TRefCountPtr<FRDGPooledBuffer>     VoxelVisBuffer;
-	const FScene* VoxelVisBufferCachedScene = nullptr;
-	FIntVector VoxelGridResolution;
-
 	// Translucency
 	TRefCountPtr<IPooledRenderTarget> TranslucencyVolume0;
 	TRefCountPtr<IPooledRenderTarget> TranslucencyVolume1;
@@ -225,8 +198,6 @@ public:
 		ReflectionState.SafeRelease();
 		DepthHistoryRT.SafeRelease();
 
-		VoxelLighting.SafeRelease();
-		VoxelVisBuffer.SafeRelease();
 		TranslucencyVolume0.SafeRelease();
 		TranslucencyVolume1.SafeRelease();
 	}

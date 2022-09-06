@@ -66,7 +66,6 @@ void LumenRadiosityIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 RWTexture2D<float3> RWTraceRadianceAtlas;
 RWTexture2D<float> RWTraceHitDistanceAtlas;
 
-float VoxelStepFactor;
 float SurfaceBias;
 float MinTraceDistance;
 float MaxTraceDistance;
@@ -115,7 +114,6 @@ void LumenRadiosityDistanceFieldTracingCS(
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(SamplePosition, WorldRayDirection, ConeHalfAngle, 0, MinTraceDistance, MaxTraceDistance, 1);
-			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
 			TraceInput.DitherScreenCoord = (RadiosityTexel.CardCoord >> ProbeSpacingInRadiosityTexelsDivideShift) + TraceTexelCoord;
@@ -125,7 +123,7 @@ void LumenRadiosityDistanceFieldTracingCS(
 
 			#if TRACE_GLOBAL_SDF
 			{
-				ConeTraceVoxels(TraceInput, TraceResult);
+				RayTraceGlobalDistanceField(TraceInput, TraceResult);
 			}
 			#endif
 

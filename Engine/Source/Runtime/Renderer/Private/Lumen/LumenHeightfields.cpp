@@ -8,10 +8,6 @@ TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
 	TEXT("r.LumenScene.Heightfield.Tracing"),
 	1,
 	TEXT("Enables heightfield (Landscape) software ray tracing (default = 1)"),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		Lumen::DebugResetVoxelLighting();
-	}),
 	ECVF_RenderThreadSafe
 );
 

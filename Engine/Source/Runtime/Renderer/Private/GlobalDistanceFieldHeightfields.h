@@ -47,9 +47,7 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_X"), GetGroupSize().X);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Y"), GetGroupSize().Y);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Z"), GetGroupSize().Z);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
 	}												   
 };
 
@@ -74,9 +72,7 @@ class FBuildHeightfieldComposeTilesIndirectArgBufferCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_X"), 1);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Y"), 1);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Z"), 1);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), 1);
 	}
 };
 
@@ -109,9 +105,7 @@ class FBuildHeightfieldComposeTilesCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_X"), GetGroupSize().X);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Y"), GetGroupSize().Y);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Z"), GetGroupSize().Z);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
 	}												   
 };
 
@@ -123,6 +117,7 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FComposeHeightfieldsIntoPagesCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWPageAtlasTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<UNORM float>, RWCoverageAtlasTexture)
 		RDG_BUFFER_ACCESS(ComposeIndirectArgBuffer, ERHIAccess::IndirectArgs)
@@ -145,7 +140,6 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, HeightfieldDescriptions)
 		SHADER_PARAMETER(uint32, NumHeightfields)
 		SHADER_PARAMETER(float, HeightfieldThickness)
-
 		SHADER_PARAMETER(FVector3f, ViewTilePosition)
 		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
 	END_SHADER_PARAMETER_STRUCT()
@@ -166,12 +160,61 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_X"), GetGroupSize().X);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Y"), GetGroupSize().Y);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_Z"), GetGroupSize().Z);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
 	}												   
 };
 
 IMPLEMENT_GLOBAL_SHADER(FComposeHeightfieldsIntoPagesCS, "/Engine/Private/DistanceField/GlobalDistanceFieldHeightfields.usf", "ComposeHeightfieldsIntoPagesCS", SF_Compute);
+
+class FCompositeHeightfieldsIntoObjectGridPagesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCompositeHeightfieldsIntoObjectGridPagesCS);
+	SHADER_USE_PARAMETER_STRUCT(FCompositeHeightfieldsIntoObjectGridPagesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint4>, RWPageObjectGridBuffer)
+		RDG_BUFFER_ACCESS(ComposeIndirectArgBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ComposeTileBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, PageTableLayerTexture)
+		SHADER_PARAMETER(FVector3f, InvPageGridResolution)
+		SHADER_PARAMETER(FIntVector, PageGridResolution)
+		SHADER_PARAMETER(FVector3f, PageCoordToVoxelTranslatedCenterScale)
+		SHADER_PARAMETER(FVector3f, PageCoordToVoxelTranslatedCenterBias)
+		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterScale)
+		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterBias)
+		SHADER_PARAMETER(FVector4f, ClipmapVolumeTranslatedWorldToUVAddAndMul)
+		SHADER_PARAMETER(float, ClipmapVoxelExtent)
+		SHADER_PARAMETER(float, InfluenceRadius)
+		SHADER_PARAMETER(uint32, PageTableClipmapOffsetZ)
+		SHADER_PARAMETER_TEXTURE(Texture2D, HeightfieldTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HeightfieldSampler)
+		SHADER_PARAMETER_TEXTURE(Texture2D, VisibilityTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, VisibilitySampler)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, HeightfieldDescriptions)
+		SHADER_PARAMETER(uint32, NumHeightfields)
+		SHADER_PARAMETER(float, HeightfieldThickness)
+		SHADER_PARAMETER(FVector3f, ViewTilePosition)
+		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
+	}
+
+	static FIntVector GetGroupSize()
+	{
+		return FIntVector(4, 4, 4);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
+	}												   
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCompositeHeightfieldsIntoObjectGridPagesCS, "/Engine/Private/DistanceField/GlobalDistanceFieldHeightfields.usf", "CompositeHeightfieldsIntoObjectGridPagesCS", SF_Compute);
 
 extern FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions);

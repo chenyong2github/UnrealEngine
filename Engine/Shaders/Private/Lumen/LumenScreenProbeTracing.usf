@@ -3,7 +3,6 @@
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
 #include "LumenCardCommon.ush"
-#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "LumenTracingCommon.ush"
 #define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
@@ -450,7 +449,6 @@ uint ComputeCardGridCellIndex(uint2 PixelPos, float SceneDepth)
 }
 
 float StepFactor;
-float VoxelStepFactor;
 float MinSampleRadius;
 float MinTraceDistance;
 float SurfaceBias;
@@ -499,7 +497,6 @@ void TraceMeshSDFs(
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(SamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
-			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = min(MaxMeshSDFTraceDistance, TraceDistance);
 			TraceInput.bDitheredTransparency = true;
 			TraceInput.DitherScreenCoord = ScreenTileCoord * ProbeTracingResolution + TraceTexelCoord;
@@ -645,7 +642,6 @@ void TraceVoxels(
 
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(SamplePosition, RayWorldDirection, ConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
-			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2);
 			TraceInput.bDitheredTransparency = true;
 			TraceInput.DitherScreenCoord = ScreenTileCoord * ProbeTracingResolution + TraceTexelCoord;

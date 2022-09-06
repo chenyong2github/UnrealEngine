@@ -90,6 +90,5 @@ bool IsFroxelVisible(uint3 GridCoordinate)
 float MaxTraceDistance;
 float MaxMeshSDFTraceDistance;
 float StepFactor;
-float VoxelStepFactor;
 float VoxelTraceStartDistanceScale;
 float MaxRayIntensity;

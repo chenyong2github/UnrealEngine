@@ -39,29 +39,22 @@ namespace Lumen
 	};
 
 	void DebugResetSurfaceCache();
-	void DebugResetVoxelLighting();
 
-	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
-	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
-	bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
-	bool UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData);
-	int32 GetHeightfieldMaxTracingSteps();
 	float GetMaxTraceDistance(const FViewInfo& View);
-	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
-	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
-	bool IsSoftwareRayTracingSupported();
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 	bool ShouldVisualizeScene(const FSceneViewFamily& ViewFamily);
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
-	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 	float GetDistanceSceneNaniteLODScaleFactor();
 
 	bool ShouldUpdateLumenSceneViewOrigin();
+	FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
+
+	// Global Distance Field
 	int32 GetGlobalDFResolution();
-	float GetGlobalDFClipmapExtent();
-	float GetFirstClipmapWorldExtent();
+	float GetGlobalDFClipmapExtent(int32 ClipmapIndex);
+	int32 GetNumGlobalDFClipmaps(const FSceneView& View);
 
 	// Features
 	bool UseThreadGroupSize32();
@@ -73,9 +66,17 @@ namespace Lumen
 	bool IsSurfaceCacheUpdateFrameFrozen();
 
 	// Software ray tracing
-	bool UseVoxelLighting(const FSceneViewFamily& ViewFamily);
+	bool IsSoftwareRayTracingSupported();
+	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
+	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
+	bool UseGlobalSDFObjectGrid(const FSceneViewFamily& ViewFamily);
+	bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
+	bool UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData);
+	int32 GetHeightfieldMaxTracingSteps();
 
 	// Hardware ray tracing
+	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
+	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool UseHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedSceneLighting(const FSceneViewFamily& ViewFamily);
 	bool UseHardwareRayTracedDirectLighting(const FSceneViewFamily& ViewFamily);

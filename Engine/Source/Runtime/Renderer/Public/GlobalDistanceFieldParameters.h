@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceFieldParameters.h
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -37,6 +33,7 @@ public:
 	float MipTransition;
 	FRHITexture* PageAtlasTexture;
 	FRHITexture* CoverageAtlasTexture;
+	TRefCountPtr<FRDGPooledBuffer> PageObjectGridBuffer;
 	FRHITexture* PageTableTexture;
 	FRHITexture* MipTexture;
 	int32 ClipmapSizeInPages;

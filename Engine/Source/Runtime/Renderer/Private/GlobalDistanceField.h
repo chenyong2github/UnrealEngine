@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceField.h
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -29,6 +25,8 @@ namespace GlobalDistanceField
 	int32 GetMipFactor();
 	int32 GetClipmapMipResolution(bool bLumenEnabled);
 	float GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled);
+	int32 GetNumGlobalDistanceFieldClipmaps(bool bLumenEnabled, float LumenSceneViewDistance);
+
 	FIntVector GetPageAtlasSizeInPages(bool bLumenEnabled, float LumenSceneViewDistance);
 	FIntVector GetPageAtlasSize(bool bLumenEnabled, float LumenSceneViewDistance);
 	FIntVector GetCoverageAtlasSize(bool bLumenEnabled, float LumenSceneViewDistance);

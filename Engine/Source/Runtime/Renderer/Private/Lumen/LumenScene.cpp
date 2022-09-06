@@ -33,6 +33,51 @@ bool Lumen::ShouldUpdateLumenSceneViewOrigin()
 	return CVarLumenSceneUpdateViewOrigin.GetValueOnRenderThread() != 0;
 }
 
+FVector Lumen::GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
+{
+	FVector CameraOrigin = View.ViewMatrices.GetViewOrigin();
+
+	if (View.ViewState)
+	{
+		FVector CameraVelocityOffset = View.ViewState->GlobalDistanceFieldData->CameraVelocityOffset;
+
+		if (ClipmapIndex > 0)
+		{
+			const float ClipmapExtent = Lumen::GetGlobalDFClipmapExtent(ClipmapIndex);
+			const float MaxCameraDriftFraction = .75f;
+			CameraVelocityOffset.X = FMath::Clamp<float>(CameraVelocityOffset.X, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+			CameraVelocityOffset.Y = FMath::Clamp<float>(CameraVelocityOffset.Y, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+			CameraVelocityOffset.Z = FMath::Clamp<float>(CameraVelocityOffset.Z, -ClipmapExtent * MaxCameraDriftFraction, ClipmapExtent * MaxCameraDriftFraction);
+		}
+
+		CameraOrigin += CameraVelocityOffset;
+	}
+
+	// Frozen camera
+	if (View.ViewState)
+	{
+		if (Lumen::ShouldUpdateLumenSceneViewOrigin())
+		{
+			View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin = true;
+		}
+		else
+		{
+			if (View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin)
+			{
+				View.ViewState->GlobalDistanceFieldData->LastViewOrigin = View.ViewMatrices.GetViewOrigin();
+				View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin = false;
+			}
+		}
+
+		if (!View.ViewState->GlobalDistanceFieldData->bUpdateViewOrigin)
+		{
+			CameraOrigin = View.ViewState->GlobalDistanceFieldData->LastViewOrigin;
+		}
+	}
+
+	return CameraOrigin;
+}
+
 bool Lumen::UseThreadGroupSize32()
 {
 	return GRHISupportsWaveOperations && GRHIMinimumWaveSize <= 32 && CVarLumenThreadGroupSize32.GetValueOnRenderThread() != 0;

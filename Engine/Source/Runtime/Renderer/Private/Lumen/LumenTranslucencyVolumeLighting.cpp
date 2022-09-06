@@ -130,14 +130,6 @@ FAutoConsoleVariableRef CVarTranslucencyVolumeTracingOctahedronResolution(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GTranslucencyVolumeVoxelStepFactor = 1.0f;
-FAutoConsoleVariableRef CVarTranslucencyVolumeVoxelStepFactor(
-	TEXT("r.Lumen.TranslucencyVolume.VoxelStepFactor"),
-	GTranslucencyVolumeVoxelStepFactor,
-	TEXT("."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
 float GTranslucencyVolumeVoxelTraceStartDistanceScale = 1.0f;
 FAutoConsoleVariableRef CVarTranslucencyVoxelTraceStartDistanceScale(
 	TEXT("r.Lumen.TranslucencyVolume.VoxelTraceStartDistanceScale"),
@@ -621,8 +613,7 @@ void TraceVoxelsTranslucencyVolume(
 	PassParameters->RWVolumeTraceRadiance = GraphBuilder.CreateUAV(VolumeTraceRadiance);
 	PassParameters->RWVolumeTraceHitDistance = GraphBuilder.CreateUAV(VolumeTraceHitDistance);
 
-	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
-	GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters);
+	GetLumenCardTracingParameters(GraphBuilder, View, TracingInputs, PassParameters->TracingParameters);
 	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 	PassParameters->VolumeParameters = VolumeParameters;
 	PassParameters->TraceSetupParameters = TraceSetupParameters;
@@ -729,7 +720,6 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			{
 				TraceSetupParameters.StepFactor = FMath::Clamp(GTranslucencyVolumeTraceStepFactor, .1f, 10.0f);
 				TraceSetupParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
-				TraceSetupParameters.VoxelStepFactor = FMath::Clamp(GTranslucencyVolumeVoxelStepFactor, .1f, 10.0f);
 				TraceSetupParameters.VoxelTraceStartDistanceScale = GTranslucencyVolumeVoxelTraceStartDistanceScale;
 				TraceSetupParameters.MaxRayIntensity = GTranslucencyVolumeMaxRayIntensity;
 			}

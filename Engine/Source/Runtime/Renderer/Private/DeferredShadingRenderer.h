@@ -484,13 +484,6 @@ private:
 		const struct FCardCaptureAtlas& CardCaptureAtlas,
 		const struct FResampledCardCaptureAtlas& ResampledCardCaptureAtlas);
 
-	void ComputeLumenSceneVoxelLighting(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FLumenSceneFrameTemporaries& FrameTemporaries,
-		const FLumenCardTracingInputs& TracingInputs,
-		class FLumenViewCardTracingInputs& ViewTracingInputs);
-
 	LumenRadianceCache::FUpdateInputs GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View, 

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	DistanceFieldObjectManagement.cpp
-=============================================================================*/
-
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
@@ -97,13 +93,13 @@ FDistanceFieldObjectBufferParameters DistanceField::SetupObjectBufferParameters(
 	if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
 		check(DistanceFieldSceneData.GetCurrentObjectBuffers());
-		ObjectBufferParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds->GetSRV();
-		ObjectBufferParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data->GetSRV();
+		ObjectBufferParameters.SceneObjectBounds = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds));
+		ObjectBufferParameters.SceneObjectData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(DistanceFieldSceneData.GetCurrentObjectBuffers()->Data));
 	}
 	else
 	{
-		ObjectBufferParameters.SceneObjectBounds = nullptr;
-		ObjectBufferParameters.SceneObjectData = nullptr;
+		ObjectBufferParameters.SceneObjectBounds = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f)));
+		ObjectBufferParameters.SceneObjectData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f)));
 	}
 
 	if (DistanceFieldSceneData.NumHeightFieldObjectsInBuffer > 0)
@@ -114,8 +110,8 @@ FDistanceFieldObjectBufferParameters DistanceField::SetupObjectBufferParameters(
 	}
 	else
 	{
-		ObjectBufferParameters.SceneHeightfieldObjectBounds = nullptr;
-		ObjectBufferParameters.SceneHeightfieldObjectData = nullptr;
+		ObjectBufferParameters.SceneHeightfieldObjectBounds = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f)));
+		ObjectBufferParameters.SceneHeightfieldObjectData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f)));
 	}
 
 	return ObjectBufferParameters;
@@ -221,17 +217,6 @@ static int32 PartitionUpdateRangesDFO(FParallelUpdateRangesDFO& Ranges, int32 It
 	return Ranges.Range[3].ItemCount > 0 ? 4 : 3;
 }
 
-void AddModifiedBoundsForLumen(FScene* Scene, FGlobalDFCacheType CacheType, const FBox& Bounds, const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
-{
-	if (UpdateTrackingBounds.LumenBounds.IsValid && UpdateTrackingBounds.LumenBounds.Intersect(Bounds))
-	{
-		for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
-		{
-			LumenSceneData->PrimitiveModifiedBounds.Add(Bounds);
-		}
-	}
-}
-
 void AddModifiedBounds(FScene* Scene, FGlobalDFCacheType CacheType, const FBox& Bounds, const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
 {
 	FDistanceFieldSceneData& DistanceFieldData = Scene->DistanceFieldSceneData;
@@ -241,8 +226,6 @@ void AddModifiedBounds(FScene* Scene, FGlobalDFCacheType CacheType, const FBox& 
 	{
 		DistanceFieldData.PrimitiveModifiedBounds[CacheType].Add(Bounds);
 	}
-
-	AddModifiedBoundsForLumen(Scene, CacheType, Bounds, UpdateTrackingBounds);
 }
 
 void UpdateGlobalDistanceFieldObjectRemoves(FScene* Scene, const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds, TArray<FSetElementId>& DistanceFieldAssetRemoves)
@@ -309,14 +292,6 @@ void UpdateGlobalDistanceFieldObjectRemoves(FScene* Scene, const DistanceField::
 				DistanceFieldSceneData.PrimitiveInstanceMapping.RemoveAtSwap(RemoveIndex, 1, false);
 
 				DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Add(RemoveIndex);
-
-				// Lumen caches distance field indices, which requires an update after a swap
-				if (RemoveIndex < DistanceFieldSceneData.PrimitiveInstanceMapping.Num())
-				{
-					const FPrimitiveAndInstance& Swapped = DistanceFieldSceneData.PrimitiveInstanceMapping[RemoveIndex];
-					const FGlobalDFCacheType CacheType = Swapped.Primitive->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-					AddModifiedBoundsForLumen(Scene, CacheType, Swapped.WorldBounds, UpdateTrackingBounds);
-				}
 			}
 
 			PendingRemoveOperations.Reset();
@@ -547,7 +522,7 @@ bool ProcessHeightFieldPrimitiveUpdate(
 	UTexture2D* HeightNormalTexture;
 	UTexture2D* DiffuseColorTexture;
 	UTexture2D* VisibilityTexture;
-	FHeightfieldComponentDescription HeightFieldCompDesc(PrimitiveSceneInfo->Proxy->GetLocalToWorld());
+	FHeightfieldComponentDescription HeightFieldCompDesc(PrimitiveSceneInfo->Proxy->GetLocalToWorld(), PrimitiveSceneInfo->GetInstanceSceneDataOffset());
 	PrimitiveSceneInfo->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, DiffuseColorTexture, VisibilityTexture, HeightFieldCompDesc);
 
 	const uint32 Handle = GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture);
@@ -943,7 +918,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 							UTexture2D* HeightNormalTexture;
 							UTexture2D* DiffuseColorTexture;
 							UTexture2D* VisibilityTexture;
-							FHeightfieldComponentDescription HeightFieldCompDesc(Primitive->Proxy->GetLocalToWorld());
+							FHeightfieldComponentDescription HeightFieldCompDesc(Primitive->Proxy->GetLocalToWorld(), Primitive->GetInstanceSceneDataOffset());
 							Primitive->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, DiffuseColorTexture, VisibilityTexture, HeightFieldCompDesc);
 
 							{
@@ -1157,19 +1132,6 @@ void DistanceField::BuildUpdateTrackingBounds(const TArray<FViewInfo>& Views, Di
 			if (ViewState)
 			{
 				GlobalDistanceField::ExpandDistanceFieldUpdateTrackingBounds(ViewState, UpdateTrackingBounds);
-			}
-		}
-	}
-
-	// Lumen
-	{
-		UpdateTrackingBounds.LumenBounds.Init();
-		for (const FViewInfo& View : Views)
-		{
-			const FSceneViewState* ViewState = View.ViewState;
-			if (ViewState)
-			{
-				Lumen::ExpandDistanceFieldUpdateTrackingBounds(ViewState, UpdateTrackingBounds);
 			}
 		}
 	}

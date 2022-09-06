@@ -4431,11 +4431,6 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 			ResetAndShrinkModifiedBounds(Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType]);
 		}
 
-		for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
-		{
-			ResetAndShrinkModifiedBounds(LumenSceneData->PrimitiveModifiedBounds);
-		}
-
 		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
 		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
