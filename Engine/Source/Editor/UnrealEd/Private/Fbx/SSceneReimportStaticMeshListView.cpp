@@ -522,7 +522,7 @@ void SFbxSceneStaticMeshReimportListView::AssignToStaticMesh()
 			//Override the MeshInfo with the new asset path
 			ItemPtr->SetOverridePath(true);
 			ItemPtr->OverrideImportPath = AssetData[0].PackageName.ToString();
-			ItemPtr->OverrideFullImportName = AssetData[0].ObjectPath.ToString();
+			ItemPtr->OverrideFullImportName = AssetData[0].GetObjectPathString();
 			StatusFlag |= EFbxSceneReimportStatusFlags::FoundContentBrowserAsset;
 			
 			//Add the new reimport status

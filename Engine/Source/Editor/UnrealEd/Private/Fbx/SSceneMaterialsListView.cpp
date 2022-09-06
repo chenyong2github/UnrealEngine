@@ -419,7 +419,7 @@ void SFbxSceneMaterialsListView::AssignMaterialAssetData(const FAssetData& Asset
 				//Override the MeshInfo with the new asset path
 				ItemPtr->SetOverridePath(true);
 				ItemPtr->OverrideImportPath = AssetData.PackageName.ToString();
-				ItemPtr->OverrideFullImportName = AssetData.ObjectPath.ToString();
+				ItemPtr->OverrideFullImportName = AssetData.GetObjectPathString();
 			}
 		}
 	}
@@ -453,7 +453,7 @@ void SFbxSceneMaterialsListView::AssignMaterialToExisting()
 					//Override the MeshInfo with the new asset path
 					ItemPtr->SetOverridePath(true);
 					ItemPtr->OverrideImportPath = AssetData[0].PackageName.ToString();
-					ItemPtr->OverrideFullImportName = AssetData[0].ObjectPath.ToString();
+					ItemPtr->OverrideFullImportName = AssetData[0].GetObjectPathString();
 				}
 			}
 		}

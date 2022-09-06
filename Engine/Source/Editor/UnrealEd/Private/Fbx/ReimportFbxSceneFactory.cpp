@@ -553,7 +553,7 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 			continue;
 		}
 		//Find the asset
-		AssetDataToDelete.Add(AssetRegistryModule.Get().GetAssetByObjectPath(FName(*(MeshInfo->GetFullImportName()))));
+		AssetDataToDelete.Add(AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath((MeshInfo->GetFullImportName()))));
 	}
 
 	FbxNode* RootNodeToImport = FbxImporter->Scene->GetRootNode();
@@ -940,7 +940,7 @@ UBlueprint *UReimportFbxSceneFactory::UpdateOriginalBluePrint(FString &BluePrint
 	FbxSceneReimportStatusMapPtr NodeStatusMapPtr = (FbxSceneReimportStatusMapPtr)VoidNodeStatusMapPtr;
 	//Find the BluePrint
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	FAssetData BlueprintAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*(BluePrintFullName)));
+	FAssetData BlueprintAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(BluePrintFullName));
 
 	UPackage* PkgExist = FindPackage(nullptr, *BlueprintAssetData.PackageName.ToString());
 	if (PkgExist == nullptr)

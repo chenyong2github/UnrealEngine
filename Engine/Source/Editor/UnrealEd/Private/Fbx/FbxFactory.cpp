@@ -889,7 +889,7 @@ void UFbxFactory::CancelObjectCreation(UnFbx::FFbxImporter* FbxImporter) const
 		const TWeakObjectPtr<UObject>& CurrentObject = CreatedObjects[CreatedObjectIndex];
 		if (CurrentObject.IsValid())
 		{
-			AssetsToDelete.Emplace(AssetRegistryModule.Get().GetAssetByObjectPath(FName(*CurrentObject->GetPathName())));
+			AssetsToDelete.Emplace(AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(CurrentObject.Get())));
 			PotentialPackageToDeleteReferences.Add(CurrentObject->GetOutermost());
 			CurrentObject->ClearFlags(RF_Standalone | RF_Public);
 			CurrentObject->RemoveFromRoot();
