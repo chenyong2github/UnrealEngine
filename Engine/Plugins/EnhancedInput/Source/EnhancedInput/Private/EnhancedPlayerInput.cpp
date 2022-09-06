@@ -8,6 +8,18 @@
 #include "InputTriggers.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
+#include "EnhancedInputDeveloperSettings.h"
+
+namespace UE
+{
+	namespace Input
+	{
+		static int32 ShouldOnlyTriggerLastActionInChord = 1;
+		static FAutoConsoleVariableRef CVarShouldOnlyTriggerLastActionInChord(TEXT("EnhancedInput.OnlyTriggerLastActionInChord"),
+			ShouldOnlyTriggerLastActionInChord,
+			TEXT("Should only the last action in a ChordedAction trigger be fired? If this is disabled, then the dependant chords will be fired as well"));
+	}
+}
 
 // NOTE: Enum order represents firing priority(lowest to highest) and is important as multiple keys bound to the same action may generate differing trigger event states.
 enum class ETriggerEventInternal : uint8
@@ -442,7 +454,13 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 					else
 					{
 						TriggeredDelegates.Emplace(Binding->Clone());
-					}	
+					}
+
+					// Keep track of the triggered actions this tick so that we can quickly look them up later when determining chorded action state
+					if (BoundTriggerEvent == ETriggerEvent::Triggered)
+					{
+						TriggeredActionsThisTick.Add(ActionData->GetSourceAction());
+					}
 				}
 			}
 		}
@@ -450,13 +468,38 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		// Action all delegates that triggered this tick, in the order in which they triggered.
 		for (TUniquePtr<FEnhancedInputActionEventBinding>& Delegate : TriggeredDelegates)
 		{
-			// Search for the action instance data a second time as a previous delegate call may have deleted it.
-			if (const FInputActionInstance* ActionData = FindActionInstanceData(Delegate->GetAction()))
+			const UInputAction* DelegateAction = Delegate->GetAction();
+			bool bCanTrigger = true;
+
+			if (UE::Input::ShouldOnlyTriggerLastActionInChord)
 			{
-				Delegate->Execute(*ActionData);
+				// If this delegate is referenced by a UInputTriggerChordAction::ChordAction
+				// then we only want to trigger it the referencing action is not triggered
+				for (const UEnhancedPlayerInput::FDependentChordTracker& DepAction : DependentChordActions)
+				{
+					if (DepAction.DependantAction && DepAction.DependantAction == DelegateAction)
+					{
+						bCanTrigger = !TriggeredActionsThisTick.Contains(DepAction.SourceAction);
+						if(!bCanTrigger)
+						{
+							UE_LOG(LogTemp, Warning, TEXT("'%s' action was cancelled, its dependant on '%s'"), *DelegateAction->GetName(), *DepAction.SourceAction->GetName());
+						}
+						break;
+					}
+				}
+			}
+
+			if (bCanTrigger)
+			{
+				// Search for the action instance data a second time as a previous delegate call may have deleted it.
+				if (const FInputActionInstance* ActionData = FindActionInstanceData(DelegateAction))
+				{
+					Delegate->Execute(*ActionData);
+				}
 			}
 		}
 		TriggeredDelegates.Reset();
+		TriggeredActionsThisTick.Reset();
 
 		// Update action value bindings
 		for (const FEnhancedInputActionValueBinding& Binding : IC->GetActionValueBindings())

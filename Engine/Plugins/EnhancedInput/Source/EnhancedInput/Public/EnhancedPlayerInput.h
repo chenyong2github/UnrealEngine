@@ -106,6 +106,9 @@ private:
 	/** Actions which had actuated events at the last call to ProcessInputStack (held/pressed/released) */
 	TSet<const UInputAction*> ActionsWithEventsThisTick;
 
+	/** Actions that have been triggered this tick and have a delegate that may be fired */
+	TSet<TObjectPtr<const UInputAction>> TriggeredActionsThisTick;
+
 	/**
 	 * A map of Keys to the amount they were depressed this frame. This is reset with each call to ProcessInputStack
 	 * and is populated within UEnhancedPlayerInput::InputKey.
@@ -129,6 +132,22 @@ private:
 
 	/** Last frame's injected inputs */
 	TSet<const UInputAction*> LastInjectedActions;
+
+	/** Used to keep track of Input Actions that have UInputTriggerChordAction triggers on them */
+	struct FDependentChordTracker
+	{
+		/** The Input Action that has the UInputTriggerChordAction on it */
+		TObjectPtr<const UInputAction> SourceAction;
+		
+		/** The action that is referenced by the SourceAction's Chord trigger */
+		TObjectPtr<const UInputAction> DependantAction;
+	};
+	
+	/**
+	 * Array of all dependant Input Action's with Chord triggers on them.
+	 * Populated by IEnhancedInputSubsystemInterface::ReorderMappings
+	 */
+	TArray<FDependentChordTracker> DependentChordActions;
 
 	/** The last time of the last frame that was processed in ProcessPlayerInput */
 	float LastFrameTime = 0.0f;

@@ -7,6 +7,7 @@
 #include "InputMappingQuery.h"
 #include "UObject/Interface.h"
 #include "EnhancedActionKeyMapping.h"
+#include "EnhancedPlayerInput.h"
 
 #include "EnhancedInputSubsystemInterface.generated.h"
 
@@ -251,8 +252,16 @@ private:
 	void RemoveForcedInput(FKey Key);
 
 	void InjectChordBlockers(const TArray<int32>& ChordedMappings);
-	bool HasTriggerWith(TFunctionRef<bool(const class UInputTrigger*)> TestFn, const TArray<class UInputTrigger*>& Triggers);
+	bool HasTriggerWith(TFunctionRef<bool(const class UInputTrigger*)> TestFn, const TArray<class UInputTrigger*>& Triggers);	
 
+	/**
+	 * Reorder the given UnordedMappings such that chording mappings > chorded mappings > everything else.
+	 * This is used to ensure mappings within a single context are evaluated in the correct order to support chording.
+	 * Populate the DependentChordActions array with any chorded triggers so that we can detect which ones should be triggered
+	 * later. 
+	 */
+	TArray<FEnhancedActionKeyMapping> ReorderMappings(const TArray<FEnhancedActionKeyMapping>& UnorderedMappings, TArray<UEnhancedPlayerInput::FDependentChordTracker>& OUT DependentChordActions);
+	
 	/**
 	 * Reapply all control mappings to players pending a rebuild
 	 */
@@ -266,6 +275,12 @@ private:
 
 	/** A map of any player mapped keys to the key that they should redirect to instead */
 	TMap<FName, FKey> PlayerMappedSettings;
+
+	/**
+	 * A map of input actions with a Chorded trigger, mapped to the action they are dependent on.
+	 * The Key is the Input Action with the Chorded Trigger, and the value is the action it is dependant on.
+	 */
+	TMap<TObjectPtr<const UInputAction>, TObjectPtr<const UInputAction>> ChordedActionDependencies;
 
 	/**
 	 * A map of the currently applied mapping context redirects. This is populated in RebuildControlMappings

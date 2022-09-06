@@ -22,4 +22,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Enhanced Input")
 	FPerPlatformSettings PlatformSettings;
+
+	/**
+	 * If true, then only the last action in a ChordedAction trigger will be fired.
+	 * This means that only the action that has the ChordedTrigger on it will be fired, not the individual steps.
+	 * 
+	 * Default value is true.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Enhanced Input", meta=(ConsoleVariable="EnhancedInput.OnlyTriggerLastActionInChord"))
+	bool bShouldOnlyTriggerLastActionInChord = true;
 };

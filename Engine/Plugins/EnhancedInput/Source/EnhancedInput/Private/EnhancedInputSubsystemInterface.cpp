@@ -483,21 +483,31 @@ void DeepCopyPtrArray(const TArray<T*>& From, TArray<T*>& To)
 }
 
 // TODO: This should be a delegate (along with InjectChordBlockers), moving chording out of the underlying subsystem and enabling implementation of custom mapping handlers.
-TArray<FEnhancedActionKeyMapping> ReorderMappings(const TArray<FEnhancedActionKeyMapping>& UnorderedMappings)
+/**
+ * Reorder the given UnordedMappings such that chording mappings > chorded mappings > everything else.
+ * This is used to ensure mappings within a single context are evaluated in the correct order to support chording.
+ * Populate the DependentChordActions array with any chorded triggers so that we can detect which ones should be triggered
+ * later. 
+ */
+TArray<FEnhancedActionKeyMapping> IEnhancedInputSubsystemInterface::ReorderMappings(const TArray<FEnhancedActionKeyMapping>& UnorderedMappings, TArray<UEnhancedPlayerInput::FDependentChordTracker>& OUT DependentChordActions)
 {
-	// Reorder mappings such that chording mappings > chorded mappings > everything else. This is used to ensure mappings within a single context are evaluated in the correct order to support chording.
-
 	TSet<const UInputAction*> ChordingActions;
 
 	// Gather all chording actions within a mapping's triggers.
-	auto GatherChordingActions = [&ChordingActions](const FEnhancedActionKeyMapping& Mapping) {
+	auto GatherChordingActions = [&ChordingActions, &DependentChordActions](const FEnhancedActionKeyMapping& Mapping)
+	{
 		bool bFoundChordTrigger = false;
-		auto EvaluateTriggers = [&Mapping, &ChordingActions, &bFoundChordTrigger](const TArray<UInputTrigger*>& Triggers) {
+		auto EvaluateTriggers = [&Mapping, &ChordingActions, &bFoundChordTrigger, &DependentChordActions](const TArray<UInputTrigger*>& Triggers)
+		{
 			for (const UInputTrigger* Trigger : Triggers)
 			{
 				if (const UInputTriggerChordAction* ChordTrigger = Cast<const UInputTriggerChordAction>(Trigger))
 				{
 					ChordingActions.Add(ChordTrigger->ChordAction);
+
+					// Keep track of the action itself, and the action it is dependant on
+					DependentChordActions.Emplace(UEnhancedPlayerInput::FDependentChordTracker { Mapping.Action, ChordTrigger->ChordAction });
+					
 					bFoundChordTrigger = true;
 				}
 			}
@@ -623,13 +633,16 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 
 	TArray<int32> ChordedMappings;
 
+	// Reset the tracking of dependant chord actions on the player input
+	PlayerInput->DependentChordActions.Reset();
+
 	for (const TPair<TObjectPtr<const UInputMappingContext>, int32>& ContextPair : OrderedInputContexts)
 	{
 		// Don't apply context specific keys immediately, allowing multiple mappings to the same key within the same context if required.
 		TArray<FKey> ContextAppliedKeys;
 
 		const UInputMappingContext* MappingContext = ContextPair.Key;
-		TArray<FEnhancedActionKeyMapping> OrderedMappings = ReorderMappings(MappingContext->GetMappings());
+		TArray<FEnhancedActionKeyMapping> OrderedMappings = ReorderMappings(MappingContext->GetMappings(), PlayerInput->DependentChordActions);
 
 		for (FEnhancedActionKeyMapping& Mapping : OrderedMappings)
 		{
