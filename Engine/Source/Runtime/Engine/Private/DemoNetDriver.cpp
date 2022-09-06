@@ -3997,7 +3997,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		TrackedRewindActorsByGUID.Empty();
 	}
 
-#if 1
 	TSet<const AActor*> KeepAliveActors;
 
 	// Determine if an Actor has a reference to a spectator in some way.
@@ -4093,21 +4092,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		ServerConnection->OwningActor = nullptr;
 	}
 
-#else
-	for (int32 i = ServerConnection->OpenChannels.Num() - 1; i >= 0; i--)
-	{
-		UChannel* OpenChannel = ServerConnection->OpenChannels[i];
-		if (OpenChannel != nullptr)
-		{
-			UActorChannel* ActorChannel = Cast<UActorChannel>(OpenChannel);
-			if (ActorChannel != nullptr && ActorChannel->GetActor() != nullptr && !ActorChannel->GetActor()->IsNetStartupActor())
-			{
-				World->DestroyActor(ActorChannel->GetActor(), true);
-			}
-		}
-	}
-#endif
-
 	ReplayHelper.ExternalDataToObjectMap.Empty();
 
 	PlaybackPackets.Empty();
@@ -4130,6 +4114,8 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	CleanUpSplitscreenConnections(false);
 	ServerConnection->Close();
 	ServerConnection->CleanUp();
+
+	FNetworkReplayDelegates::OnScrubTeardown.Broadcast(World);
 
 	// Optionally collect garbage after the old actors and connection are cleaned up - there could be a lot of pending-kill objects at this point.
 	if (CVarDemoLoadCheckpointGarbageCollect.GetValueOnGameThread() != 0)

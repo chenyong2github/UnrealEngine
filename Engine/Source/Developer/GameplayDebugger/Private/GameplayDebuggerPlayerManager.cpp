@@ -10,7 +10,8 @@
 #include "GameplayDebuggerConfig.h"
 #include "UnrealEngine.h"
 #include "Engine/LocalPlayer.h"
-
+#include "Net/UnrealNetwork.h"
+#include "GameFramework/GameModeBase.h"
 
 AGameplayDebuggerPlayerManager::AGameplayDebuggerPlayerManager(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -84,6 +85,9 @@ void AGameplayDebuggerPlayerManager::BeginPlay()
 	}
 
 	PendingRegistrations.Empty();
+
+	FNetworkReplayDelegates::OnScrubTeardown.AddUObject(this, &ThisClass::OnReplayScrubTeardown);
+	FGameModeEvents::GameModeLogoutEvent.AddUObject(this, &ThisClass::OnGameModeLogout);
 }
 
 void AGameplayDebuggerPlayerManager::EndPlay(const EEndPlayReason::Type Reason)
@@ -99,6 +103,9 @@ void AGameplayDebuggerPlayerManager::EndPlay(const EEndPlayReason::Type Reason)
 			TestData.Controller = nullptr;
 		}
 	}
+
+	FNetworkReplayDelegates::OnScrubTeardown.RemoveAll(this);
+	FGameModeEvents::GameModeLogoutEvent.RemoveAll(this);
 }
 
 void AGameplayDebuggerPlayerManager::Init()
@@ -314,3 +321,38 @@ TStatId AGameplayDebuggerPlayerManager::GetStatId() const
 }
 // FTickableGameObject end
 
+void AGameplayDebuggerPlayerManager::OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting)
+{
+	if (GameMode && GameMode->GetWorld() == GetWorld())
+	{
+		UWorld* World = GetWorld();
+		for (int32 Idx = PlayerData.Num() - 1; Idx >= 0; Idx--)
+		{
+			FGameplayDebuggerPlayerData& TestData = PlayerData[Idx];
+
+			if (IsValid(TestData.Replicator) && (TestData.Replicator->GetReplicationOwner() == Exiting))
+			{
+				if (IsValid(TestData.Replicator))
+				{
+					World->DestroyActor(TestData.Replicator);
+				}
+
+				if (IsValid(TestData.Controller))
+				{
+					TestData.Controller->Cleanup();
+				}
+
+				PlayerData.RemoveAt(Idx, 1, false);
+				break;
+			}
+		}
+	}
+}
+
+void AGameplayDebuggerPlayerManager::OnReplayScrubTeardown(UWorld* InWorld)
+{
+	if (GetWorld() == InWorld)
+	{
+		UpdateAuthReplicators();
+	}
+}

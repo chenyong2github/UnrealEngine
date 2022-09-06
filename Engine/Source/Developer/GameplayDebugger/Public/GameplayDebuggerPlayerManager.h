@@ -12,6 +12,7 @@ class AGameplayDebuggerCategoryReplicator;
 class APlayerController;
 class UGameplayDebuggerLocalController;
 class UInputComponent;
+class AGameModeBase;
 
 USTRUCT()
 struct FGameplayDebuggerPlayerData
@@ -50,6 +51,9 @@ class GAMEPLAYDEBUGGER_API AGameplayDebuggerPlayerManager : public AActor, publi
 
 protected:
 	virtual void BeginPlay() override;
+
+	void OnReplayScrubTeardown(UWorld* InWorld);
+	void OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting);
 
 public:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;

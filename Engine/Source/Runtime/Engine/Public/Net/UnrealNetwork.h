@@ -39,8 +39,15 @@ inline int32 MakeRelative( int32 Value, int32 Reference, int32 Max )
 	return Reference + BestSignedDifference(Value,Reference,Max);
 }
 
+UE_DEPRECATED(5.1, "No longer used.")
 DECLARE_MULTICAST_DELEGATE_OneParam(FPreActorDestroyReplayScrub, AActor*);
+
+/** Fired at the start of replay checkpoint loading */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPreReplayScrub, UWorld*);
+
+/** Fired mid-checkpoint load after the previous game state is torn down, and prior to any GC */
+DECLARE_MULTICAST_DELEGATE_OneParam(FReplayScrubTeardown, UWorld*);
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWriteGameSpecificDemoHeader, TArray<FString>& /*GameSpecificData*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnProcessGameSpecificDemoHeader, const TArray<FString>& /*GameSpecificData*/, FString& /*Error*/);
 
@@ -65,6 +72,7 @@ struct ENGINE_API FNetworkReplayDelegates
 {
 	/** global delegate called one time prior to scrubbing */
 	static FPreReplayScrub OnPreScrub;
+	static FReplayScrubTeardown OnScrubTeardown;
 
 	/** Game specific demo headers */
 	static FOnWriteGameSpecificDemoHeader OnWriteGameSpecificDemoHeader;
