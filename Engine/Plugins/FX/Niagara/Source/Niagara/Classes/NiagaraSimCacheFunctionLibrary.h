@@ -16,7 +16,7 @@ class UAsyncNiagaraCaptureSimCache : public UBlueprintAsyncActionBase
 	GENERATED_BODY()
 
 public:
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCaptureComplete);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCaptureComplete, bool, bSuccess);
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraSimCache> CaptureSimCache;
@@ -51,7 +51,7 @@ public:
 	CaptureRate allows you to reduce the rate of capture, i.e. a rate of 2 would capture frames 0, 2, 4, etc.
 	*/
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache))
-	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheMultiFrame(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, int32 NumFrames = 16, int32 CaptureRate = 1);
+	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheMultiFrame(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 NumFrames = 16, int32 CaptureRate = 1);
 
 	/**
 	Capture frames from the provided simulation into a SimCache until the simulation becomes inactive or completes.
@@ -59,7 +59,7 @@ public:
 	CaptureRate allows you to reduce the rate of capture, i.e. a rate of 2 would capture frames 0, 2, 4, etc.
 	*/
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache))
-	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheUntilComplete(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, int32 CaptureRate = 1);
+	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheUntilComplete(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 CaptureRate = 1);
 };
 
 UCLASS()
@@ -73,12 +73,12 @@ public:
 	This happens immediately so you may need to be careful with tick order of the component you are capturing from.
 	The return can be invalid if the component can not be captured for some reason (i.e. not active).
 	*/
-	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
-	static bool CaptureNiagaraSimCacheImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent);
+	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(ReturnDisplayName="Success"))
+	static bool CaptureNiagaraSimCacheImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache);
 
 	/**
 	Captures the simulation cache object that can be captured into using the various API calls.
 	*/
-	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(WorldContext="WorldContextObject"))
+	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(WorldContext="WorldContextObject", ReturnDisplayName="SimCache"))
 	static UNiagaraSimCache* CreateNiagaraSimCache(UObject* WorldContextObject);
 };

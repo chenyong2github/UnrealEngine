@@ -591,7 +591,7 @@ void UNiagaraSimCache::ReadPositionAttribute(TArray<FVector>& OutValues, FName A
 	}
 }
 
-void UNiagaraSimCache::ReadPositionAttributeWithRebase(TArray<FVector>& OutValues, FName AttributeName, FName EmitterName, FTransform Transform, int FrameIndex) const
+void UNiagaraSimCache::ReadPositionAttributeWithRebase(TArray<FVector>& OutValues, FTransform Transform, FName AttributeName, FName EmitterName, int FrameIndex) const
 {
 	FNiagaraSimCacheAttributeReaderHelper AttributeReader(this, EmitterName, AttributeName, FrameIndex);
 	if (AttributeReader.IsValid() && AttributeReader.Variable->Variable.GetType() == FNiagaraTypeDefinition::GetPositionDef())
@@ -631,7 +631,7 @@ void UNiagaraSimCache::ReadQuatAttribute(TArray<FQuat>& OutValues, FName Attribu
 	}
 }
 
-void UNiagaraSimCache::ReadQuatAttributeWithRebase(TArray<FQuat>& OutValues, FName AttributeName, FName EmitterName, FQuat Quat, int FrameIndex) const
+void UNiagaraSimCache::ReadQuatAttributeWithRebase(TArray<FQuat>& OutValues, FQuat Quat, FName AttributeName, FName EmitterName, int FrameIndex) const
 {
 	FNiagaraSimCacheAttributeReaderHelper AttributeReader(this, EmitterName, AttributeName, FrameIndex);
 	if (AttributeReader.IsValid() && AttributeReader.Variable->Variable.GetType() == FNiagaraTypeDefinition::GetQuatDef())

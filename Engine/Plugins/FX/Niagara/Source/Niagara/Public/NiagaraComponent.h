@@ -705,11 +705,30 @@ public:
 	uint32 bWaitForCompilationOnActivate : 1;
 #endif
 
+	/**
+	Sets the simulation cache to use for the component.
+	A null SimCache parameter will clear the active simulation cache.
+	When clearing a simulation cache that has been running you may wish to reset or continue, this option is only
+	valid when using a full simulation cache.  A renderer only cache will always reset as we can not continue the
+	simulation due to missing simulation data.
+	*/
 	UFUNCTION(BlueprintCallable, Category = SimCache)
-	void SetSimCache(UNiagaraSimCache* InSimCache);
+	void SetSimCache(UNiagaraSimCache* SimCache, bool bResetSystem = false);
 
+	/**
+	Get the active simulation cache, will return null if we do not have an active one.
+	*/
 	UFUNCTION(BlueprintCallable, Category = SimCache)
 	UNiagaraSimCache* GetSimCache() const;
+
+	/**
+	Clear any active simulation cache.
+	When clearing a simulation cache that has been running you may wish to reset or continue, this option is only
+	valid when using a full simulation cache.  A renderer only cache will always reset as we can not continue the
+	simulation due to missing simulation data.
+	*/
+	UFUNCTION(BlueprintCallable, Category = SimCache)
+	void ClearSimCache(bool bResetSystem = false) { SetSimCache(nullptr, bResetSystem); }
 
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	UFUNCTION(BlueprintSetter, Category = Scalability, meta = (Keywords = "LOD scalability"))

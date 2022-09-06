@@ -3525,10 +3525,17 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 	}
 }
 
-void UNiagaraComponent::SetSimCache(UNiagaraSimCache* InSimCache)
+void UNiagaraComponent::SetSimCache(UNiagaraSimCache* InSimCache, bool bResetSystem)
 {
+	const bool bForceReset = SimCache ? SimCache->GetAttributeCaptureMode() != ENiagaraSimCacheAttributeCaptureMode::All : false;
+
 	SimCache = InSimCache;
 	UpdateInstanceSoloMode();
+
+	if (bResetSystem || bForceReset)
+	{
+		ReinitializeSystem();
+	}
 }
 
 UNiagaraSimCache* UNiagaraComponent::GetSimCache() const
