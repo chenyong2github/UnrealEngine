@@ -18,6 +18,11 @@
 			"Name": "AudioGameplayVolume",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "AudioGameplayVolumeEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostDefault"
 		}
 	],
 	"Plugins" : [

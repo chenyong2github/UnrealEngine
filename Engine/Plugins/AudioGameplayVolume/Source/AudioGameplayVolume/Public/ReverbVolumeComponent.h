@@ -43,6 +43,8 @@ public:
 
 	const FReverbSettings& GetReverbSettings() const { return ReverbSettings; }
 
+	friend class FReverbVolumeComponentDetail;
+
 private:
 
 	//~ Begin UAudioGameplayVolumeMutator interface
