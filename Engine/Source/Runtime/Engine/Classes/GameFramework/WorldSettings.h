@@ -838,8 +838,9 @@ public:
 	void SetWorldPartition(UWorldPartition* InWorldPartition);
 	void ApplyWorldPartitionForcedSettings();
 
-#if WITH_EDITOR
 	virtual bool SupportsWorldPartitionStreaming() const { return true; }
+
+#if WITH_EDITOR
 	void SupportsWorldPartitionStreamingChanged();
 #endif
 

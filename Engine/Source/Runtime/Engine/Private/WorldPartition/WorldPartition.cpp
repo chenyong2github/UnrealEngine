@@ -212,11 +212,11 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, AlwaysLoadedActors(nullptr)
 	, PinnedActors(nullptr)
 	, WorldPartitionEditor(nullptr)
-	, bEnableStreaming(true)
 	, bStreamingWasEnabled(true)
 	, bShouldEnableStreamingWarned(false)
 	, bShouldCheckEnableStreamingWarning(false)
 	, bCanBeUsedByLevelInstance(false)
+	, bEnableStreaming(true)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
 	, bIsPIE(false)
@@ -656,6 +656,16 @@ bool UWorldPartition::IsInitialized() const
 	return InitState == EWorldPartitionInitState::Initialized;
 }
 
+bool UWorldPartition::SupportsStreaming() const
+{
+	return World ? World->GetWorldSettings()->SupportsWorldPartitionStreaming() : false;
+}
+
+bool UWorldPartition::IsStreamingEnabled() const
+{
+	return bEnableStreaming && SupportsStreaming();
+}
+
 bool UWorldPartition::CanStream() const
 {
 	// WorldPartition can't stream if not initialized or it it's part of a partitioned 
@@ -940,16 +950,6 @@ const FTransform& UWorldPartition::GetInstanceTransform() const
 }
 
 #if WITH_EDITOR
-bool UWorldPartition::SupportsStreaming() const
-{
-	return World ? World->GetWorldSettings()->SupportsWorldPartitionStreaming() : false;
-}
-
-bool UWorldPartition::IsStreamingEnabled() const
-{
-	return bEnableStreaming && SupportsStreaming();
-}
-
 void UWorldPartition::SetEnableStreaming(bool bInEnableStreaming)
 {
 	if (bEnableStreaming != bInEnableStreaming)

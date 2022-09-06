@@ -40,9 +40,14 @@ public:
 	virtual ~UHLODSubsystem();
 
 	//~ Begin USubsystem Interface.
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
+
+	//~ Begin UWorldSubsystem Interface.
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+	//~ End UWorldSubsystem Interface.
 
 	void RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);
 	void UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);

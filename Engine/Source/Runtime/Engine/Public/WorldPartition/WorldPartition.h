@@ -104,8 +104,6 @@ public:
 	TArray<FBox> GetUserLoadedEditorRegions() const;
 
 public:
-	bool SupportsStreaming() const;
-	bool IsStreamingEnabled() const;
 	void SetEnableStreaming(bool bInEnableStreaming);
 	bool CanBeUsedByLevelInstance() const;
 	void SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance);
@@ -211,7 +209,10 @@ public:
 	bool IsInitialized() const;
 	void Uninitialize();
 
+	bool SupportsStreaming() const;
+	bool IsStreamingEnabled() const;
 	bool CanStream() const;
+
 	bool IsMainWorldPartition() const;
 
 	void Tick(float DeltaSeconds);
@@ -245,10 +246,6 @@ private:
 	UPROPERTY()
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 
-	/** Enables streaming for this world. */
-	UPROPERTY()
-	bool bEnableStreaming;
-
 	/** Used to know if it's the first time streaming is enabled on this world. */
 	UPROPERTY()
 	bool bStreamingWasEnabled;
@@ -276,6 +273,11 @@ public:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UWorld> World;
+
+	/** Enables streaming for this world. */
+	UPROPERTY()
+	bool bEnableStreaming;
+
 private:
 #if WITH_EDITOR
 	bool bForceGarbageCollection;
