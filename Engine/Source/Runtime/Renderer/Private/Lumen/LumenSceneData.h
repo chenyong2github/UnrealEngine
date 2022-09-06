@@ -426,9 +426,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> CardBuffer;
 	FRDGScatterUploadBuffer CardUploadBuffer;
 
-	// Modified bounds for caching voxel lighting
-	TArray<FRenderBounds> PrimitiveModifiedBounds;
-
 	// Primitive groups
 	TSparseSpanArray<FLumenPrimitiveGroup> PrimitiveGroups;
 	// Maps RayTracingGroupId to a specific Primitive Group Index

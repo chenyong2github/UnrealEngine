@@ -860,9 +860,6 @@ void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
 
 		if (PrimitiveGroup.HeightfieldIndex >= 0)
 		{
-			// Invalidate bounds for voxel lighting
-			PrimitiveModifiedBounds.Add(MeshCardsInstance.GetWorldSpaceBounds());
-
 			Heightfields.RemoveSpan(PrimitiveGroup.HeightfieldIndex, 1);
 			HeightfieldIndicesToUpdateInBuffer.Add(PrimitiveGroup.HeightfieldIndex);
 		}
