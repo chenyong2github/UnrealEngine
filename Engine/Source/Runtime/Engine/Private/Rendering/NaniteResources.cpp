@@ -445,12 +445,6 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(Nanite::FVertexFactory, "/Engine/Private/Nanite/Na
 	| EVertexFactoryFlags::SupportsNaniteRendering
 );
 
-SIZE_T FSceneProxyBase::GetTypeHash() const
-{
-	static size_t UniquePointer;
-	return reinterpret_cast<size_t>(&UniquePointer);
-}
-
 #if WITH_EDITOR
 HHitProxy* FSceneProxyBase::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
 {
@@ -912,6 +906,12 @@ FSceneProxy::~FSceneProxy()
 void FSceneProxy::CreateRenderThreadResources()
 {
 	check(Resources->RuntimeResourceID != INDEX_NONE && Resources->HierarchyOffset != INDEX_NONE);
+}
+
+SIZE_T FSceneProxy::GetTypeHash() const
+{
+	static size_t UniquePointer;
+	return reinterpret_cast<size_t>(&UniquePointer);
 }
 
 FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) const

@@ -116,8 +116,6 @@ public:
 	};
 
 public:
-	ENGINE_API SIZE_T GetTypeHash() const override;
-
 	ENGINE_API FSceneProxyBase(UPrimitiveComponent* Component)
 	: FPrimitiveSceneProxy(Component)
 	{
@@ -222,6 +220,7 @@ public:
 
 public:
 	// FPrimitiveSceneProxy interface.
+	virtual SIZE_T GetTypeHash() const override;
 	virtual FPrimitiveViewRelevance	GetViewRelevance(const FSceneView* View) const override;
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 
