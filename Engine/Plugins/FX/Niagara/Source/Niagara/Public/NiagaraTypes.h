@@ -1194,6 +1194,7 @@ public:
 	static const FNiagaraTypeDefinition& GetUStaticMeshDef() { return UStaticMeshDef; }
 	static const FNiagaraTypeDefinition& GetUTextureDef() { return UTextureDef; }
 	static const FNiagaraTypeDefinition& GetUTextureRenderTargetDef() { return UTextureRenderTargetDef; }
+	static const FNiagaraTypeDefinition& GetSimCacheClassDef() { return USimCacheClassDef; }
 	static const FNiagaraTypeDefinition& GetWildcardDef() { return WildcardDef; }
 	static const FNiagaraTypeDefinition& GetHalfDef() { return HalfDef; }
 	static const FNiagaraTypeDefinition& GetHalfVec2Def() { return HalfVec2Def; }
@@ -1280,6 +1281,7 @@ private:
 	static FNiagaraTypeDefinition UTextureDef;
 	static FNiagaraTypeDefinition UTextureRenderTargetDef;
 	static FNiagaraTypeDefinition UStaticMeshDef;
+	static FNiagaraTypeDefinition USimCacheClassDef;
 	static FNiagaraTypeDefinition WildcardDef;
 
 	static FNiagaraTypeDefinition HalfDef;

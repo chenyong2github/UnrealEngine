@@ -255,7 +255,7 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 {
 	friend struct FNiagaraSimCacheAttributeReaderHelper;
 	friend struct FNiagaraSimCacheHelper;
-	friend class FNiagaraSimCacheViewModel;	//-TODO: Refactor to use API
+	friend struct FNiagaraSimCacheGpuResource;
 
 	GENERATED_UCLASS_BODY()
 
@@ -302,6 +302,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
 	int GetNumEmitters() const { return CacheLayout.EmitterLayouts.Num(); }
 
+	/** Get the emitter index from a name */
+	int GetEmitterIndex(FName EmitterName) const;
+
 	/** Get the emitter name at the provided index. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
 	FName GetEmitterName(int32 EmitterIndex) const { return CacheLayout.EmitterLayouts.IsValidIndex(EmitterIndex) ? CacheLayout.EmitterLayouts[EmitterIndex].LayoutName : NAME_None; }
@@ -309,6 +312,19 @@ public:
 	/** Returns a list of emitters we have captured in the SimCache. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
 	TArray<FName> GetEmitterNames() const;
+
+	/**
+	Get number of active instances for the emitter at the given frame.
+	An EmitterIndex or INDEX_NONE will return information about the system instance.
+	*/
+	int GetEmitterNumInstances(int32 EmitterIndex, int32 FrameIndex) const;
+
+	/**
+	Runs a function for each attribute for the provided emitter index.
+	An EmitterIndex or INDEX_NONE will return information about the system instance.
+	Return true to continue iterating or false to stop
+	*/
+	void ForEachEmitterAttribute(int32 EmitterIndex, TFunction<bool(const FNiagaraSimCacheVariable&)> Function) const;
 
 	/**
 	Reads Niagara attributes by name from the cache frame and appends them into the relevant arrays.

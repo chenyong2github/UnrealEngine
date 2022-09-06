@@ -330,7 +330,9 @@ bool UNiagaraSimCache::CanRead(UNiagaraSystem* NiagaraSystem)
 		for ( int32 i=0; i < NumEmitters; ++i )
 		{
 			const FNiagaraEmitterCompiledData& EmitterCompiledData = NiagaraSystem->GetEmitterCompiledData()[i].Get();
-			bCacheValid &= FNiagaraSimCacheHelper::BuildCacheReadMappings(CacheLayout.EmitterLayouts[i], EmitterCompiledData.DataSetCompiledData);
+			FNiagaraSimCacheDataBuffersLayout& EmitterLayout = CacheLayout.EmitterLayouts[i];
+			bCacheValid &= FNiagaraSimCacheHelper::BuildCacheReadMappings(EmitterLayout, EmitterCompiledData.DataSetCompiledData);
+			bCacheValid &= EmitterLayout.SimTarget == EmitterCompiledData.DataSetCompiledData.SimTarget;
 		}
 
 		if (bCacheValid == false)
@@ -448,6 +450,21 @@ bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, float FrameFraction, FNiagara
 	return true;
 }
 
+int UNiagaraSimCache::GetEmitterIndex(FName EmitterName) const
+{
+	if ( IsCacheValid() )
+	{
+		for ( int i=0; i < CacheLayout.EmitterLayouts.Num(); ++i )
+		{
+			if ( CacheLayout.EmitterLayouts[i].LayoutName == EmitterName )
+			{
+				return i;
+			}
+		}
+	}
+	return INDEX_NONE;
+}
+
 TArray<FName> UNiagaraSimCache::GetEmitterNames() const
 {
 	TArray<FName> EmitterNames;
@@ -461,6 +478,46 @@ TArray<FName> UNiagaraSimCache::GetEmitterNames() const
 	}
 
 	return EmitterNames;
+}
+
+int UNiagaraSimCache::GetEmitterNumInstances(int32 EmitterIndex, int32 FrameIndex) const
+{
+	if ( CacheFrames.IsValidIndex(FrameIndex) )
+	{
+		if ( EmitterIndex == INDEX_NONE )
+		{
+			return CacheFrames[FrameIndex].SystemData.SystemDataBuffers.NumInstances;
+		}
+		else if ( CacheFrames[FrameIndex].EmitterData.IsValidIndex(EmitterIndex) )
+		{
+			return CacheFrames[FrameIndex].EmitterData[EmitterIndex].ParticleDataBuffers.NumInstances;
+		}
+	}
+	return 0;
+}
+
+void UNiagaraSimCache::ForEachEmitterAttribute(int32 EmitterIndex, TFunction<bool(const FNiagaraSimCacheVariable&)> Function) const
+{
+	if (EmitterIndex == INDEX_NONE)
+	{
+		for (const FNiagaraSimCacheVariable& CacheVariable : CacheLayout.SystemLayout.Variables)
+		{
+			if ( Function(CacheVariable) == false )
+			{
+				break;
+			}
+		}
+	}
+	else if (CacheLayout.EmitterLayouts.IsValidIndex(EmitterIndex))
+	{
+		for (const FNiagaraSimCacheVariable& CacheVariable : CacheLayout.EmitterLayouts[EmitterIndex].Variables)
+		{
+			if (Function(CacheVariable) == false)
+			{
+				break;
+			}
+		}
+	}
 }
 
 void UNiagaraSimCache::ReadAttribute(TArray<float>& OutFloats, TArray<FFloat16>& OutHalfs, TArray<int32>& OutInts, FName AttributeName, FName EmitterName, int FrameIndex) const
@@ -522,7 +579,7 @@ void UNiagaraSimCache::ReadVector2Attribute(TArray<FVector2D>& OutValues, FName 
 		const int32 OutValueOffset = OutValues.AddUninitialized(AttributeReader.GetNumInstances());
 		for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 		{
-			OutValues[OutValueOffset + i] = AttributeReader.ReadFloat2(i);
+			OutValues[OutValueOffset + i] = FVector2D(AttributeReader.ReadFloat2f(i));
 		}
 	}
 }
@@ -535,7 +592,7 @@ void UNiagaraSimCache::ReadVectorAttribute(TArray<FVector>& OutValues, FName Att
 		const int32 OutValueOffset = OutValues.AddUninitialized(AttributeReader.GetNumInstances());
 		for (int32 i=0; i < AttributeReader.GetNumInstances(); ++i)
 		{
-			OutValues[OutValueOffset + i] = AttributeReader.ReadFloat3(i);
+			OutValues[OutValueOffset + i] = FVector(AttributeReader.ReadFloat3f(i));
 		}
 	}
 }
@@ -548,7 +605,7 @@ void UNiagaraSimCache::ReadVector4Attribute(TArray<FVector4>& OutValues, FName A
 		const int32 OutValueOffset = OutValues.AddUninitialized(AttributeReader.GetNumInstances());
 		for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 		{
-			OutValues[OutValueOffset + i] = AttributeReader.ReadFloat4(i);
+			OutValues[OutValueOffset + i] = FVector4(AttributeReader.ReadFloat4f(i));
 		}
 	}
 }
@@ -585,7 +642,7 @@ void UNiagaraSimCache::ReadPositionAttribute(TArray<FVector>& OutValues, FName A
 		const int32 OutValueOffset = OutValues.AddUninitialized(AttributeReader.GetNumInstances());
 		for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 		{
-			const FVector Position = AttributeReader.ReadFloat3(i);
+			const FVector Position = FVector(AttributeReader.ReadFloat3f(i));
 			OutValues[OutValueOffset + i] = LocalToWorld.TransformPosition(Position);
 		}
 	}
@@ -600,7 +657,7 @@ void UNiagaraSimCache::ReadPositionAttributeWithRebase(TArray<FVector>& OutValue
 		const int32 OutValueOffset = OutValues.AddUninitialized(AttributeReader.GetNumInstances());
 		for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 		{
-			const FVector Position = AttributeReader.ReadFloat3(i);
+			const FVector Position = FVector(AttributeReader.ReadFloat3f(i));
 			OutValues[OutValueOffset + i] = LocalToWorld.TransformPosition(Position);
 		}
 	}
@@ -616,7 +673,7 @@ void UNiagaraSimCache::ReadQuatAttribute(TArray<FQuat>& OutValues, FName Attribu
 		{
 			for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 			{
-				const FQuat Quat = AttributeReader.ReadQuat(i);
+				const FQuat Quat = FQuat(AttributeReader.ReadQuat4f(i));
 				OutValues[OutValueOffset + i] = Quat * AttributeReader.CacheFrame->LocalToWorld.GetRotation();
 			}
 		}
@@ -624,7 +681,7 @@ void UNiagaraSimCache::ReadQuatAttribute(TArray<FQuat>& OutValues, FName Attribu
 		{
 			for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 			{
-				const FQuat Quat = AttributeReader.ReadQuat(i);
+				const FQuat Quat = FQuat(AttributeReader.ReadQuat4f(i));
 				OutValues[OutValueOffset + i] = Quat;
 			}
 		}
@@ -642,7 +699,7 @@ void UNiagaraSimCache::ReadQuatAttributeWithRebase(TArray<FQuat>& OutValues, FQu
 		const int32 OutValueOffset = OutValues.AddUninitialized(AttributeReader.GetNumInstances());
 		for (int32 i = 0; i < AttributeReader.GetNumInstances(); ++i)
 		{
-			const FQuat Rotation = AttributeReader.ReadQuat(i);
+			const FQuat Rotation = FQuat(AttributeReader.ReadQuat4f(i));
 			OutValues[OutValueOffset + i] = Rotation * LocalToWorld;
 		}
 	}

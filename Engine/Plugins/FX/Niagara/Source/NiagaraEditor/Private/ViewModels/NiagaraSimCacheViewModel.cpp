@@ -173,29 +173,33 @@ void FNiagaraSimCacheViewModel::UpdateCachedFrame()
 	FoundHalfComponents = 0;
 	FoundInt32Components = 0;
 
-	NumInstances = EmitterIndex == INDEX_NONE ? 1 : SimCache->CacheFrames[FrameIndex].EmitterData[EmitterIndex].ParticleDataBuffers.NumInstances;
+	NumInstances = EmitterIndex == INDEX_NONE ? 1 : SimCache->GetEmitterNumInstances(EmitterIndex, FrameIndex);
 	const FName EmitterName = EmitterIndex == INDEX_NONE ? NAME_None : SimCache->GetEmitterName(EmitterIndex);
-	const FNiagaraSimCacheDataBuffersLayout* DataBufferLayout = EmitterIndex == INDEX_NONE ? &SimCache->CacheLayout.SystemLayout : &SimCache->CacheLayout.EmitterLayouts[EmitterIndex];
-	for ( const FNiagaraSimCacheVariable& Variable : DataBufferLayout->Variables )
-	{
-		// Build component info
-		const FNiagaraTypeDefinition& TypeDef = Variable.Variable.GetType();
-		if (TypeDef.IsEnum())
-		{
-			FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
-			ComponentInfo.Name = Variable.Variable.GetName();
-			ComponentInfo.ComponentOffset = FoundInt32Components++;
-			ComponentInfo.bIsInt32 = true;
-			ComponentInfo.Enum = TypeDef.GetEnum();
-		}
-		else
-		{
-			BuildComponentInfos(Variable.Variable.GetName(), TypeDef.GetScriptStruct());
-		}
 
-		// Pull in data
-		SimCache->ReadAttribute(FloatComponents, HalfComponents, Int32Components, Variable.Variable.GetName(), EmitterName, FrameIndex);
-	}
+	SimCache->ForEachEmitterAttribute(EmitterIndex,
+		[&](const FNiagaraSimCacheVariable& Variable)
+		{
+			// Build component info
+			const FNiagaraTypeDefinition& TypeDef = Variable.Variable.GetType();
+			if (TypeDef.IsEnum())
+			{
+				FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
+				ComponentInfo.Name = Variable.Variable.GetName();
+				ComponentInfo.ComponentOffset = FoundInt32Components++;
+				ComponentInfo.bIsInt32 = true;
+				ComponentInfo.Enum = TypeDef.GetEnum();
+			}
+			else
+			{
+				BuildComponentInfos(Variable.Variable.GetName(), TypeDef.GetScriptStruct());
+			}
+
+			// Pull in data
+			SimCache->ReadAttribute(FloatComponents, HalfComponents, Int32Components, Variable.Variable.GetName(), EmitterName, FrameIndex);
+
+			return true;
+		}
+	);
 }
 
 void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScriptStruct* Struct)
