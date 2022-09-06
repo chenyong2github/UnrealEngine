@@ -105,7 +105,7 @@ public:
 	{
 	public:
 		FOpenXRInput(FOpenXRHMD* HMD);
-		virtual ~FOpenXRInput();
+		virtual ~FOpenXRInput() {};
 
 		// IOpenXRAdditionalModule overrides
 		virtual void OnBeginSession() override;

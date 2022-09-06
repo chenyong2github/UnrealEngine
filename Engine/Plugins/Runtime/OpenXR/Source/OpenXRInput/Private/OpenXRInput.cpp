@@ -328,11 +328,6 @@ bool FOpenXRInputPlugin::FOpenXRInput::IsOpenXRInputSupportedMotionSource(const 
 		|| MotionSourceToControllerHandMap.Contains(MotionSource);
 }
 
-FOpenXRInputPlugin::FOpenXRInput::~FOpenXRInput()
-{
-	DestroyActions();
-}
-
 bool FOpenXRInputPlugin::FOpenXRInput::BuildActions(XrSession Session)
 {
 	if (bActionsAttached)
