@@ -207,6 +207,39 @@ namespace UE
 			return CompletedTaskCount == TaskPool.Num();
 		}
 
+		//this is a static function
+		bool FInterchangeDispatcher::IsInterchangeWorkerAvailable()
+		{
+			const FString ResultFolder = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir());
+			TUniquePtr<UE::Interchange::FInterchangeDispatcher> Dispatcher = MakeUnique<UE::Interchange::FInterchangeDispatcher>(ResultFolder);
+			bool bWorkerValid = false;
+			if (ensure(Dispatcher.IsValid()))
+			{
+				Dispatcher->StartProcess();
+				//Wait the conection handshake is done
+				//The interchange worker will validate the version and issue a error message if the connection is incorrect
+				//If version is good the interchange worker will issue a ping command
+				while (Dispatcher->IsHandlerAlive() && Dispatcher->GetInterchangeWorkerFatalError().IsEmpty())
+				{
+					if (Dispatcher->WorkerHandler->IsPingCommandReceived())
+					{
+						break;
+					}
+					else
+					{
+						FPlatformProcess::Sleep(0.001f);
+					}
+				}
+				if (Dispatcher->IsHandlerAlive())
+				{
+					Dispatcher->WaitAllTaskToCompleteExecution();
+					bWorkerValid = Dispatcher->GetInterchangeWorkerFatalError().IsEmpty();
+				}
+				Dispatcher->CloseHandler();
+			}
+			return bWorkerValid;
+		}
+
 		void FInterchangeDispatcher::SpawnHandler()
 		{
 			WorkerHandler = MakeUnique<FInterchangeWorkerHandler>(*this, ResultFolder);

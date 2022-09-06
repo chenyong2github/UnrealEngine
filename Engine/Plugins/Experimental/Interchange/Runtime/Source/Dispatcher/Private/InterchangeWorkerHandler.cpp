@@ -88,7 +88,7 @@ namespace UE
 #endif //#elif PLATFORM_WINDOWS
 				if (!FPaths::FileExists(Path))
 				{
-					UE_LOG(LogInterchangeDispatcher, Warning, TEXT("InterchangeWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(Path));
+					UE_LOG(LogInterchangeDispatcher, Display, TEXT("InterchangeWorker executable not found. Expected location: %s"), *FPaths::ConvertRelativePathToFull(Path));
 				}
 				return Path;
 			}();
@@ -156,13 +156,13 @@ namespace UE
 		{
 			if (!NetworkInterface.IsValid())
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("NetworkInterface lost"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("NetworkInterface lost"));
 				WorkerState = EWorkerState::Closing;
 				ErrorState = EWorkerErrorState::ConnectionLost;
 			}
 			else if (WorkerHandle.IsValid() && !FPlatformProcess::IsProcRunning(WorkerHandle))
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("Worker lost"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("Worker lost"));
 				WorkerState = EWorkerState::Closing;
 				ErrorState = EWorkerErrorState::WorkerProcess_Lost;
 			}
@@ -213,7 +213,7 @@ namespace UE
 			WorkerState = EWorkerState::Uninitialized;
 			RunInternal();
 			WorkerState = EWorkerState::Terminated;
-			UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogInterchangeDispatcher, Warning, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
+			UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogInterchangeDispatcher, Display, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
 		}
 
 		void FInterchangeWorkerHandler::KillAllCurrentTasks()
@@ -429,13 +429,14 @@ namespace UE
 
 		void FInterchangeWorkerHandler::ProcessCommand(FPingCommand& PingCommand)
 		{
+			bPingCommandReceived = true;
 			UE::Interchange::FBackPingCommand BackPing;
 			CommandIO.SendCommand(BackPing, 0);
 		}
 
 		void FInterchangeWorkerHandler::ProcessCommand(FErrorCommand& ErrorCommand)
 		{
-			UE_LOG(LogInterchangeDispatcher, Error, TEXT("%s"), *ErrorCommand.ErrorMessage);
+			UE_LOG(LogInterchangeDispatcher, Display, TEXT("%s"), *ErrorCommand.ErrorMessage);
 			this->Dispatcher.SetInterchangeWorkerFatalError(ErrorCommand.ErrorMessage);
 			FTerminateCommand Terminate;
 			CommandIO.SendCommand(Terminate, 0);

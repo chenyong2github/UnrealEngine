@@ -8,17 +8,19 @@
 #include "Misc/AutomationTest.h"
 #include "InterchangeTestsLog.h"
 #include "ImportTestFunctions/StaticMeshImportTestFunctions.h"
+#include "InterchangeDispatcher.h"
 #include "InterchangeImportTestData.h"
 #include "InterchangeImportTestSettings.h"
 #include "InterchangeImportTestPlan.h"
 #include "InterchangeImportTestStepBase.h"
+#include "InterchangeManager.h"
 #include "InterchangeTestsModule.h"
 #include "UObject/StrongObjectPtr.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Editor/Transactor.h"
-#include "InterchangeManager.h"
+
 #include "UObject/SavePackage.h"
 #include "ObjectTools.h"
 
@@ -36,6 +38,12 @@ void FInterchangeImportTest::GetTests(TArray<FString>& OutBeautifiedNames, TArra
 #if PLATFORM_MAC || PLATFORM_LINUX
 	return;
 #endif
+
+	//Make sure interchange worker is available, do not run the test if unavailable
+	if (!UE::Interchange::FInterchangeDispatcher::IsInterchangeWorkerAvailable())
+	{
+		return;
+	}
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> AllTestPlans;

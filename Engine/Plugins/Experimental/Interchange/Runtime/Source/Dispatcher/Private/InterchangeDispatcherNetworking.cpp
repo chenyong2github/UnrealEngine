@@ -30,27 +30,27 @@ namespace UE
 			FScopeLock Lock(&SendReceiveCriticalSection);
 			if (bWriteError)
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("bWriteError flag raised, can't write"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("bWriteError flag raised, can't write"));
 				return false;
 			}
 
 			if (ConnectedSocket == nullptr)
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("node not connected, can't write"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("node not connected, can't write"));
 				return false;
 			}
 
 			ESocketConnectionState State = ConnectedSocket->GetConnectionState();
 			if (State == ESocketConnectionState::SCS_ConnectionError)
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("connection state error"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("connection state error"));
 				return false;
 			}
 
 			bool bCanWrite = ConnectedSocket->Wait(ESocketWaitConditions::WaitForWrite, TimespanFromSeconds(Timeout_s));
 			if (!bCanWrite)
 			{
-				UE_LOG(LogInterchangeDispatcher, Warning, TEXT("can't write on socket"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("can't write on socket"));
 				return false;
 			}
 
@@ -82,7 +82,7 @@ namespace UE
 
 			if (!SendBuffer(HeaderBuffer))
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("can't write header on socket"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("can't write header on socket"));
 				bWriteError = true;
 				return false;
 			}
@@ -90,7 +90,7 @@ namespace UE
 			// Send the content
 			if (!SendBuffer(Message))
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("can't write content on socket"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("can't write content on socket"));
 				bWriteError = true;
 				return false;
 			}
@@ -103,13 +103,13 @@ namespace UE
 			FScopeLock Lock(&SendReceiveCriticalSection);
 			if (bReadError)
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("ReadError flag raised, can't read"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("ReadError flag raised, can't read"));
 				return false;
 			}
 
 			if (ConnectedSocket == nullptr)
 			{
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("node not connected, can't read"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("node not connected, can't read"));
 				return false;
 			}
 
@@ -145,7 +145,7 @@ namespace UE
 				bool bRecvSucceed = ConnectedSocket->Recv(HeaderBuffer.GetData(), HeaderBuffer.Num(), BytesRead);
 				if (!bRecvSucceed || BytesRead != HeaderByteSize)
 				{
-					UE_LOG(LogInterchangeDispatcher, Error, TEXT("Parsed header failed"));
+					UE_LOG(LogInterchangeDispatcher, Display, TEXT("Parsed header failed"));
 					bReadError = true;
 					return false;
 				}
@@ -155,7 +155,7 @@ namespace UE
 
 				if (IncommingMessage.Header.ByteSize < 0 || IncommingMessage.Header.ByteSize > 1 << 20)
 				{
-					UE_LOG(LogInterchangeDispatcher, Error, TEXT("Parsed header failed: bad message size %d"), IncommingMessage.Header.ByteSize);
+					UE_LOG(LogInterchangeDispatcher, Display, TEXT("Parsed header failed: bad message size %d"), IncommingMessage.Header.ByteSize);
 					bReadError = true;
 					return false;
 				}
@@ -177,7 +177,7 @@ namespace UE
 				if (BytesRead != ReadTarget)
 				{
 					bReadError = true;
-					UE_LOG(LogInterchangeDispatcher, Error, TEXT("Recv issue"));
+					UE_LOG(LogInterchangeDispatcher, Display, TEXT("Recv issue"));
 					return false;
 				}
 
@@ -207,7 +207,7 @@ namespace UE
 				Protocol = InternetAddress->GetProtocolType();
 			}
 			FSocket* NewSocket = SocketSubsystem->CreateSocket(NAME_Stream, *Description, Protocol);
-			UE_CLOG(!NewSocket, LogInterchangeDispatcher, Error, TEXT("Socket creation failure"));
+			UE_CLOG(!NewSocket, LogInterchangeDispatcher, Display, TEXT("Socket creation failure"));
 			return NewSocket;
 		}
 
@@ -244,7 +244,7 @@ namespace UE
 			if (BoundPort == 0)
 			{
 				ConnectedSocketError = SocketErrorCode::Error_Bind;
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("Socket binding failure"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("Socket binding failure"));
 				return;
 			}
 			ensure(BoundPort == ListeningSocket->GetPortNo());
@@ -252,7 +252,7 @@ namespace UE
 			if (!ListeningSocket->Listen(0))
 			{
 				ConnectedSocketError = SocketErrorCode::Error_Listen;
-				UE_LOG(LogInterchangeDispatcher, Error, TEXT("Socket listen failure"));
+				UE_LOG(LogInterchangeDispatcher, Display, TEXT("Socket listen failure"));
 				return;
 			}
 		}
@@ -314,7 +314,7 @@ namespace UE
 				}
 			} while (FPlatformTime::Seconds() < ConnectTimeout_s);
 
-			UE_LOG(LogInterchangeDispatcher, Error, TEXT("Client socket failed to connect"));
+			UE_LOG(LogInterchangeDispatcher, Display, TEXT("Client socket failed to connect"));
 			CloseSocket(ConnectedSocket);
 			return false;
 		}

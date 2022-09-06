@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"AssetRegistry",
 					"InterchangePipelines",
 					"InterchangeCore",
+					"InterchangeDispatcher",
 					"InterchangeEngine",
 					"MeshDescription",
 					"StaticMeshDescription",

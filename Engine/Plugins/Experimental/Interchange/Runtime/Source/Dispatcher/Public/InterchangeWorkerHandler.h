@@ -52,6 +52,8 @@ namespace UE
 			void Stop();
 			void StopBlocking();
 
+			bool IsPingCommandReceived() { return bPingCommandReceived; }
+
 			FSimpleMulticastDelegate OnWorkerHandlerExitLoop;
 		protected:
 			void ProcessCommand(ICommand& Command);
@@ -88,6 +90,9 @@ namespace UE
 			TArray<int32> CurrentTasks;
 			bool bShouldTerminate;
 			double LastProgressMessageTime;
+
+			//When the worker start, it send a ping command. This flag is turn on when we receive the ping command
+			bool bPingCommandReceived = false;
 
 			friend Dispatcher::FTaskProcessCommand;
 		};
