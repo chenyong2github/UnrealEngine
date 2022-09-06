@@ -37,8 +37,6 @@ public class RemoteControl : ModuleRules
 					"AssetTools",
 					"DeveloperSettings",
 					"MessageLog",
-					"Slate",
-					"SlateCore",
 					"UnrealEd",
 				}
 			);

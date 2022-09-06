@@ -109,17 +109,6 @@ TFunction<bool(FRemoteControlProtocolEntityWeakPtr InProtocolEntityWeakPtr)> FRe
 	};
 }
 
-#if WITH_EDITOR
-
-void FRemoteControlProtocol::RegisterColumns()
-{
-	REGISTER_COLUMN(FRemoteControlDefaultProtocolColumns::BindingStatus
-		, NSLOCTEXT("RemoteControlProtocol", "RCPresetBindingStatusColumnHeader", "REC")
-		, 33.f);
-}
-
-#endif // WITH_EDITOR
-
 FProperty* IRemoteControlProtocol::GetRangeInputTemplateProperty() const
 {
 	FProperty* RangeInputTemplateProperty = nullptr;

@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Factories/IRemoteControlMaskingFactory.h"
 
 class IRemoteControlInterceptionFeatureProcessor;
 
@@ -30,6 +31,8 @@ public:
 	virtual void UnregisterEmbeddedPreset(FName Name) override;
 	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) override;
 	virtual void PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation) override;
+	virtual void RegisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType, const TSharedPtr<IRemoteControlMaskingFactory>& InMaskingFactory) override;
+	virtual void UnregisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType) override;
 	virtual bool SupportsMasking(const FProperty* InProperty) const override;
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override;
 	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) override;
@@ -65,11 +68,6 @@ public:
 
 private:
 
-	/** Applies masked values to the given struct property. */
-	void ApplyMaskedValues(const FGuid& FromMaskingOperation, bool bIsInteractive);
-	/** Caches premasking values from the given struct property. */
-	void CacheRawValues(const FGuid& ToMaskingOperation);
-
 	/** Cache all presets in the project for the ResolvePreset function. */
 	void CachePresets() const;
 	
@@ -95,6 +93,11 @@ private:
 	 * @return True if the data was successfully deserialized and modified.
 	 */
 	static bool DeserializeDeltaModificationData(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCModifyOperation Operation, TArray<uint8>& OutData);
+
+	/**
+	 * Register(s) masking factories of supported types.
+	 */
+	void RegisterMaskingFactories();
 
 #if WITH_EDITOR
 	/**
@@ -189,6 +192,9 @@ private:
 
 	/** Map of the factories which is responsible for the Remote Control property creation */
 	TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>> EntityFactories;
+
+	/** Map of the factories which is responsible for the Remote Control property masking. */
+	TMap<TWeakObjectPtr<UScriptStruct>, TSharedPtr<IRemoteControlMaskingFactory>> MaskingFactories;
 
 	/** Holds the set of active masking operations. */
 	TSet<TSharedPtr<FRCMaskingOperation>> ActiveMaskingOperations;

@@ -37,9 +37,10 @@
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
 TSet<FName> SRCPanelExposedEntitiesList::DefaultProtocolColumns = {
-//	FRemoteControlPresetColumns::LinkIdentifier,
-	FRemoteControlPresetColumns::Mask,
-	FRemoteControlPresetColumns::Status,
+//	RemoteControlPresetColumns::LinkIdentifier,
+	RemoteControlPresetColumns::Mask,
+	RemoteControlPresetColumns::Status,
+	RemoteControlPresetColumns::BindingStatus,
 };
 
 /**
@@ -92,7 +93,7 @@ public:
 
 		if (Entity.IsValid())
 		{
-			if (Entity->HasChildren() && InColumnName == FRemoteControlPresetColumns::Description)
+			if (Entity->HasChildren() && InColumnName == RemoteControlPresetColumns::Description)
 			{
 				// -- Row is for TreeView --
 				SHorizontalBox::FSlot* InnerContentSlotNativePtr = nullptr;
@@ -125,9 +126,9 @@ public:
 			}
 			else
 			{
-				const bool bAlignCenter = InColumnName == FRemoteControlPresetColumns::Status || InColumnName == FRemoteControlDefaultProtocolColumns::BindingStatus;
+				const bool bAlignCenter = InColumnName == RemoteControlPresetColumns::Status || InColumnName == RemoteControlPresetColumns::BindingStatus;
 				
-				const bool bAlignLeft = InColumnName == FRemoteControlPresetColumns::Mask;
+				const bool bAlignLeft = InColumnName == RemoteControlPresetColumns::Mask;
 
 				return SNew(SBox)
 					.Padding(FMargin(4.f, 2.f))
@@ -270,24 +271,24 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 			SAssignNew(FieldsHeaderRow, SHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
 
-			+ SHeaderRow::Column(FRemoteControlPresetColumns::DragDropHandle)
+			+ SHeaderRow::Column(RemoteControlPresetColumns::DragDropHandle)
 			.DefaultLabel(LOCTEXT("RCPresetDragDropHandleColumnHeader", ""))
 			.FixedWidth(25.f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(FRemoteControlPresetColumns::Description)
+			+ SHeaderRow::Column(RemoteControlPresetColumns::Description)
 			.DefaultLabel(LOCTEXT("RCPresetDescColumnHeader", "Description"))
 			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.5f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(FRemoteControlPresetColumns::Value)
+			+ SHeaderRow::Column(RemoteControlPresetColumns::Value)
 			.DefaultLabel(LOCTEXT("RCPresetValueColumnHeader", "Value"))
 			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.5f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(FRemoteControlPresetColumns::Reset)
+			+ SHeaderRow::Column(RemoteControlPresetColumns::Reset)
 			.DefaultLabel(LOCTEXT("RCPresetResetButtonColumnHeader", ""))
 			.FixedWidth(48.f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
@@ -1376,7 +1377,7 @@ SHeaderRow::FColumn::FArguments SRCPanelExposedEntitiesList::CreateColumn(const 
 {
 	const FText DefaultColumnLabel = GetColumnLabel(ForColumnName);
 
-	if (ForColumnName == FRemoteControlPresetColumns::Status || ForColumnName == FRemoteControlDefaultProtocolColumns::BindingStatus) // Exception for Status & BindingStatus columns as they are fixed ones.
+	if (ForColumnName == RemoteControlPresetColumns::Status || ForColumnName == RemoteControlPresetColumns::BindingStatus) // Exception for Status & BindingStatus columns as they are fixed ones.
 	{
 		const SHeaderRow::FColumn::FArguments ColumnArgs = SHeaderRow::Column(ForColumnName)
 			.DefaultLabel(DefaultColumnLabel)
@@ -1398,25 +1399,21 @@ SHeaderRow::FColumn::FArguments SRCPanelExposedEntitiesList::CreateColumn(const 
 
 int32 SRCPanelExposedEntitiesList::GetColumnIndex(const FName& ForColumn) const
 {
-	if (ForColumn == FRemoteControlPresetColumns::LinkIdentifier)
+	if (ForColumn == RemoteControlPresetColumns::LinkIdentifier)
 	{
-		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::DragDropHandle, ERCColumn::ERC_After);
+		return GetColumnIndex_Internal(ForColumn, RemoteControlPresetColumns::DragDropHandle, ERCColumn::ERC_After);
 	}
-	else if (ForColumn == FRemoteControlPresetColumns::Mask)
+	else if (ForColumn == RemoteControlPresetColumns::Mask)
 	{
-		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Description, ERCColumn::ERC_After);
+		return GetColumnIndex_Internal(ForColumn, RemoteControlPresetColumns::Description, ERCColumn::ERC_After);
 	}
-	else if (ForColumn == FRemoteControlPresetColumns::Status)
+	else if (ForColumn == RemoteControlPresetColumns::Status)
 	{
-		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Value, ERCColumn::ERC_After);
-	}
-	else if (ForColumn == FRemoteControlPresetColumns::Type)
-	{
-		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Value, ERCColumn::ERC_After);
+		return GetColumnIndex_Internal(ForColumn, RemoteControlPresetColumns::Value, ERCColumn::ERC_After);
 	}
 	else
 	{
-		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Value, ERCColumn::ERC_After);
+		return GetColumnIndex_Internal(ForColumn, RemoteControlPresetColumns::Value, ERCColumn::ERC_After);
 	}
 
 	return INDEX_NONE;
@@ -1476,15 +1473,19 @@ int32 SRCPanelExposedEntitiesList::GetColumnIndex_Internal(const FName& ForColum
 
 FText SRCPanelExposedEntitiesList::GetColumnLabel(const FName& ForColumn) const
 {
-	if (ForColumn == FRemoteControlPresetColumns::LinkIdentifier)
+	if (ForColumn == RemoteControlPresetColumns::BindingStatus)
+	{
+		return LOCTEXT("RCPresetBindingStatusColumnHeader", "REC");
+	}
+	else if (ForColumn == RemoteControlPresetColumns::LinkIdentifier)
 	{
 		return LOCTEXT("RCPresetLinkIDColumnHeader", "Link ID");
 	}
-	else if (ForColumn == FRemoteControlPresetColumns::Mask)
+	else if (ForColumn == RemoteControlPresetColumns::Mask)
 	{
 		return LOCTEXT("RCPresetMaskColumnHeader", "Mask");
 	}
-	else if (ForColumn == FRemoteControlPresetColumns::Status)
+	else if (ForColumn == RemoteControlPresetColumns::Status)
 	{
 		return LOCTEXT("RCPresetStatusColumnHeader", "");
 	}
@@ -1506,10 +1507,9 @@ FText SRCPanelExposedEntitiesList::GetColumnLabel(const FName& ForColumn) const
 
 float SRCPanelExposedEntitiesList::GetColumnSize(const FName ForColumn) const
 {
-	float ColumnSize = ProtocolColumnConstants::ColumnSizeSmall;
+	float ColumnSize = ProtocolColumnConstants::ColumnSizeNormal;
 
-	if (ForColumn == FRemoteControlPresetColumns::LinkIdentifier ||
-		ForColumn == FRemoteControlPresetColumns::Type)
+	if (ForColumn == RemoteControlPresetColumns::LinkIdentifier)
 	{
 		ColumnSize = ProtocolColumnConstants::ColumnSizeMini;
 	}

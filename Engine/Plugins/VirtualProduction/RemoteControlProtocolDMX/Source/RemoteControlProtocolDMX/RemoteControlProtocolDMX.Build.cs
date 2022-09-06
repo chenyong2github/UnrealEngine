@@ -28,8 +28,6 @@ public class RemoteControlProtocolDMX : ModuleRules
 				new string[] {
 					"InputCore",
 					"RemoteControlProtocolWidgets",
-					"Slate",
-					"SlateCore",
 				}
 			);
 		}

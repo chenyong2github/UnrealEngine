@@ -27,8 +27,6 @@ public class RemoteControlProtocolMIDI : ModuleRules
 				new string[] {
 					"InputCore",
 					"RemoteControlProtocolWidgets",
-					"Slate",
-					"SlateCore",
 				}
 			);
 		}

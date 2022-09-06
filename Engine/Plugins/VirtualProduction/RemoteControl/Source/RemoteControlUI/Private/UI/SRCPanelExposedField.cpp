@@ -143,13 +143,64 @@ TSharedRef<SWidget> SRCPanelExposedField::GetProtocolWidget(const FName ForColum
 				{
 					if (TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> RCProtocolEntityPtr = RCProtocolIter.GetRemoteControlProtocolEntityPtr())
 					{
-						return RCProtocolEntityPtr->Get()->GetWidget(ForColumnName);
+						if (ForColumnName == RemoteControlPresetColumns::BindingStatus)
+						{
+							TSharedPtr<SWidget> BindingStatusWidget = SNew(SButton)
+								.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+								.ToolTipText(LOCTEXT("RecordingButtonToolTip", "Status of the protocol entity binding"))
+								.ForegroundColor(FSlateColor::UseForeground())
+								.OnClicked_Lambda([RCProtocolEntityPtr]()
+									{
+										(*RCProtocolEntityPtr)->ToggleBindingStatus();
+
+										return FReply::Handled();
+									}
+								)
+								.Content()
+								[
+									SNew(SImage)
+									.ColorAndOpacity_Lambda([RCProtocolEntityPtr]()
+										{
+											const ERCBindingStatus ActiveBindingStatus = (*RCProtocolEntityPtr)->GetBindingStatus();
+
+											switch (ActiveBindingStatus)
+											{
+												case ERCBindingStatus::Awaiting:
+													return FLinearColor::Red;
+												case ERCBindingStatus::Bound:
+													return FLinearColor::Green;
+												case ERCBindingStatus::Unassigned:
+													return FLinearColor::Gray;
+												default:
+													checkNoEntry();
+											}
+
+											return FLinearColor::Black;
+										}
+									)
+									.Image(FAppStyle::Get().GetBrush(TEXT("Icons.FilledCircle")))
+								];
+
+							return BindingStatusWidget.ToSharedRef();
+						}
+						else if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
+						{
+							if (TSharedPtr<IDetailTreeNode> Node = Registry->GetStructTreeNode(RCProtocolEntityPtr, (*RCProtocolEntityPtr)->GetPropertyName(ForColumnName).ToString(), ERCFindNodeMethod::Name))
+							{
+								FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
+
+								if (NodeWidgets.ValueWidget)
+								{
+									return NodeWidgets.ValueWidget.ToSharedRef();
+								}
+							}
+						}
 					}
 				}
 			}
 		}
 	}
-
+	
 	return SRCPanelTreeNode::GetProtocolWidget(ForColumnName, InProtocolName);
 }
 
@@ -217,11 +268,11 @@ TSharedRef<SWidget> SRCPanelExposedField::GetWidget(const FName ForColumnName, c
 {
 	if (HasProtocolExtension())
 	{
-		if (ForColumnName == FRemoteControlPresetColumns::Mask)
+		if (ForColumnName == RemoteControlPresetColumns::Mask)
 		{
 			return SNew(SRCProtocolMask, WeakField);
 		}
-		else if (ForColumnName == FRemoteControlPresetColumns::Status)
+		else if (ForColumnName == RemoteControlPresetColumns::Status)
 		{
 			return SNew(STextBlock)
 				.Text(LOCTEXT("StatusText", "!"))

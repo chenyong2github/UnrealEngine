@@ -3,6 +3,7 @@
 #include "RemoteControlProtocolBinding.h"
 
 #include "CborWriter.h"
+#include "Factories/IRemoteControlMaskingFactory.h"
 #include "IRemoteControlModule.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlSettings.h"
@@ -13,14 +14,6 @@
 #include "Serialization/MemoryWriter.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/TextProperty.h"
-
-#if WITH_EDITOR
-
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-
-#endif // WITH_EDITOR
-
 
 #define LOCTEXT_NAMESPACE "RemoteControl"
 
@@ -670,6 +663,11 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 		return true;
 	}
 
+	if (RemoteControlProperty->GetActiveMasks() == ERCMask::NoMask)
+	{
+		return true;
+	}
+
 	FProperty* Property = RemoteControlProperty->GetProperty();
 	if (!Property)
 	{
@@ -742,65 +740,16 @@ void FRemoteControlProtocolEntity::ResetDefaultBindingState()
 
 #if WITH_EDITOR
 
-TSharedRef<SWidget> FRemoteControlProtocolEntity::GetWidget(const FName& ForColumnName)
+const FName FRemoteControlProtocolEntity::GetPropertyName(const FName& ForColumnName)
 {
-	RegisterWidgets();
+	RegisterProperties();
 
-	TSharedPtr<SWidget> ProtocolWidget = SNullWidget::NullWidget;
-
-	for (const TPair<FName, TSharedPtr<SWidget>>& Widget : Widgets)
+	if (const FName* PropertyName = ColumnsToProperties.Find(ForColumnName))
 	{
-		if (Widget.Key == ForColumnName && Widget.Value.IsValid())
-		{
-			return Widget.Value.ToSharedRef();
-		}
+		return *PropertyName;
 	}
 
-	return ProtocolWidget.ToSharedRef();
-}
-
-void FRemoteControlProtocolEntity::RegisterWidgets()
-{
-	if (!Widgets.Contains(FRemoteControlDefaultProtocolColumns::BindingStatus))
-	{
-		TSharedPtr<SWidget> BindingStatusWidget = SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("RecordingButtonToolTip", "Status of the protocol entity binding"))
-			.ForegroundColor(FSlateColor::UseForeground())
-			.OnClicked_Lambda([this]()
-				{
-					ToggleBindingStatus();
-
-					return FReply::Handled();
-				}
-			)
-			.Content()
-			[
-				SNew(SImage)
-				.ColorAndOpacity_Lambda([this]()
-					{
-						const ERCBindingStatus ActiveBindingStatus = GetBindingStatus();
-				
-						switch (ActiveBindingStatus)
-						{
-							case ERCBindingStatus::Awaiting:
-								return FLinearColor::Red;
-							case ERCBindingStatus::Bound:
-								return FLinearColor::Green;
-							case ERCBindingStatus::Unassigned:
-								return FLinearColor::Gray;
-							default:
-								checkNoEntry();
-						}
-
-						return FLinearColor::Black;
-					}
-				)
-				.Image(FAppStyle::Get().GetBrush(TEXT("Icons.FilledCircle")))
-			];
-
-		Widgets.Add(FRemoteControlDefaultProtocolColumns::BindingStatus, BindingStatusWidget);
-	}
+	return NAME_None;
 }
 
 #endif // WITH_EDITOR

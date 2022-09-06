@@ -25,10 +25,11 @@ using FGetProtocolMappingCallback = TFunctionRef<void(FRemoteControlProtocolMapp
 
 #if WITH_EDITOR
 
-namespace FRemoteControlDefaultProtocolColumns
-{
-	static FName BindingStatus = TEXT("BindingStatus");
-}
+#define EXPOSE_PROTOCOL_PROPERTY(ColumnName, ClassName, MemberName) \
+	if (!ColumnsToProperties.Contains(ColumnName)) \
+	{	\
+		ColumnsToProperties.Add(ColumnName, GET_MEMBER_NAME_CHECKED(ClassName, MemberName)); \
+	}
 
 #endif // WITH_EDITOR
 
@@ -427,11 +428,11 @@ public:
 
 #if WITH_EDITOR
 
-	/** Retrieves the widget corresponding to the given column name. */
-	TSharedRef<SWidget> GetWidget(const FName& ForColumnName);
-
-	/** Register(s) all the widgets of this protocol entity. */
-	virtual void RegisterWidgets();
+	/** Retrieves the name of property corresponding to the given column name. */
+	const FName GetPropertyName(const FName& ForColumnName);
+	
+	/** Register(s) all the properties (to be exposed) of this protocol entity. */
+	virtual void RegisterProperties() {};
 
 #endif // WITH_EDITOR
 
@@ -535,10 +536,14 @@ protected:
 	UPROPERTY()
 	TSet<FRemoteControlProtocolMapping> Mappings;
 	
-	/** 
-	 * Holds column specific widget(s) for this protocol.
+#if WITH_EDITOR
+
+	/**
+	 * Holds column specific properties for this protocol.
 	 */
-	TMap<FName, TSharedPtr<SWidget>> Widgets;
+	TMap<FName, FName> ColumnsToProperties;
+
+#endif // WITH_EDITOR
 
 private:
 	/** Binding status of this protocol entity */

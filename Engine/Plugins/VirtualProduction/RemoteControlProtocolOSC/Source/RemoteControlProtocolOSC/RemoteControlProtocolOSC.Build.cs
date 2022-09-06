@@ -30,8 +30,6 @@ public class RemoteControlProtocolOSC : ModuleRules
 					"InputCore",
 				    "RemoteControlProtocolWidgets",
 					"Settings",
-					"Slate",
-					"SlateCore",
 				}
 			);
 		}

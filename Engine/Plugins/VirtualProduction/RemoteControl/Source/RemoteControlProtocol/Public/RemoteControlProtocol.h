@@ -47,7 +47,7 @@ public:
 protected:
 
 	/** Populates protocol specific columns. */
-	virtual void RegisterColumns();
+	virtual void RegisterColumns() {};
 
 #endif // WITH_EDITOR
 

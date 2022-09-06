@@ -11,10 +11,10 @@
 #define LOCTEXT_NAMESPACE "RemoteControlPanelNode"
 
 TSet<FName> SRCPanelTreeNode::DefaultColumns = {
-	FRemoteControlPresetColumns::DragDropHandle,
-	FRemoteControlPresetColumns::Description,
-	FRemoteControlPresetColumns::Value,
-	FRemoteControlPresetColumns::Reset
+	RemoteControlPresetColumns::DragDropHandle,
+	RemoteControlPresetColumns::Description,
+	RemoteControlPresetColumns::Value,
+	RemoteControlPresetColumns::Reset
 };
 
 TSharedRef<SWidget> SRCPanelTreeNode::GetProtocolWidget(const FName ForColumnName, const FName InProtocolName)
@@ -39,19 +39,19 @@ const bool SRCPanelTreeNode::SupportsProtocol(const FName& InProtocolName) const
 
 TSharedRef<SWidget> SRCPanelTreeNode::GetWidget(const FName ForColumnName, const FName InActiveProtocol)
 {
-	if (ForColumnName == FRemoteControlPresetColumns::DragDropHandle)
+	if (ForColumnName == RemoteControlPresetColumns::DragDropHandle)
 	{
 		return DragHandleWidget.ToSharedRef();
 	}
-	else if (ForColumnName == FRemoteControlPresetColumns::Description)
+	else if (ForColumnName == RemoteControlPresetColumns::Description)
 	{
 		return NodeNameWidget.ToSharedRef();
 	}
-	else if (ForColumnName == FRemoteControlPresetColumns::Reset)
+	else if (ForColumnName == RemoteControlPresetColumns::Reset)
 	{
 		return ResetValueWidget.ToSharedRef();
 	}
-	else if (ForColumnName == FRemoteControlPresetColumns::Value)
+	else if (ForColumnName == RemoteControlPresetColumns::Value)
 	{
 		return NodeValueWidget.ToSharedRef();
 	}

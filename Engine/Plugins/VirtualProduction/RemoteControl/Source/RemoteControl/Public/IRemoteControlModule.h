@@ -11,12 +11,14 @@
 
 REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 
+class IRemoteControlMaskingFactory;
 class IStructDeserializerBackend;
 class IStructSerializerBackend;
 class URemoteControlPreset;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FExposedProperty;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+struct FRCMaskingOperation;
 struct FRemoteControlProperty;
 class IRemoteControlPropertyFactory;
 
@@ -213,61 +215,6 @@ struct FRCObjectReference
 };
 
 /**
- * Reference to a UObject or one of its properties for the purpose of masking.
- */
-struct FRCMaskingOperation
-{
-	FRCMaskingOperation() = default;
-
-	explicit FRCMaskingOperation(FRCFieldPathInfo InPathInfo, UObject* InObject)
-		: OperationId(FGuid::NewGuid())
-		, ObjectRef(ERCAccess::NO_ACCESS, InObject, InPathInfo)
-	{
-		check(InObject);
-	}
-	
-	explicit FRCMaskingOperation(const FRCObjectReference& InObjectRef)
-		: OperationId(FGuid::NewGuid())
-		, ObjectRef(InObjectRef)
-	{
-	}
-
-	bool HasMask(ERCMask InMaskBit) const
-	{
-		return (Masks & InMaskBit) != ERCMask::NoMask;
-	}
-
-	bool IsValid() const
-	{
-		return OperationId.IsValid() && ObjectRef.IsValid();
-	}
-
-	friend bool operator==(const FRCMaskingOperation& LHS, const FRCMaskingOperation& RHS)
-	{
-		return LHS.OperationId == RHS.OperationId && LHS.ObjectRef == RHS.ObjectRef;
-	}
-
-	friend uint32 GetTypeHash(const FRCMaskingOperation& MaskingOperation)
-	{
-		return HashCombine(GetTypeHash(MaskingOperation.OperationId), GetTypeHash(MaskingOperation.ObjectRef));
-	}
-
-public:
-
-	/** Unique identifier of the operation being performed. */
-	FGuid OperationId;
-
-	/** Masks to be applied. */
-	ERCMask Masks = ERCMask::NoMask;
-	
-	/** Holds Object reference. */
-	FRCObjectReference ObjectRef;
-
-	/** Holds the state of this RC property before applying any masking. */
-	FVector4 PreMaskingCache = FVector4::Zero();
-};
-
-/**
  * Interface for the remote control module.
  */
 class IRemoteControlModule : public IModuleInterface
@@ -324,6 +271,16 @@ public:
 	 * @param InMaskingOperation Masking operation to be performed.
 	 */
 	virtual void PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation) = 0;
+
+	/**
+	 * Register a masking factory to handle that masks the supported properties.
+	 */
+	virtual void RegisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType, const TSharedPtr<IRemoteControlMaskingFactory>& InMaskingFactory) = 0;
+
+	/**
+	 * Unregister a previously registered masking factory.
+	 */
+	virtual void UnregisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType) = 0;
 
 	/**
 	 * Returns true if the given property can be masked, false otherwise.

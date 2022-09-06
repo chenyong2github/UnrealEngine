@@ -15,14 +15,14 @@ struct SRCPanelExposedField;
 struct SRCPanelExposedActor;
 struct SRCPanelExposedMaterial;
 
-namespace FRemoteControlPresetColumns
+namespace RemoteControlPresetColumns
 {
 	static FName DragDropHandle = TEXT("DragDropHandle");
 	static FName LinkIdentifier = TEXT("LinkID");
 	static FName Description = TEXT("Description");
 	static FName Mask = TEXT("Mask");
-	static FName Type = TEXT("Type");
 	static FName Value = TEXT("Value");
+	static FName BindingStatus = TEXT("BindingStatus");
 	static FName Status = TEXT("Status");
 	static FName Reset = TEXT("Reset");
 }

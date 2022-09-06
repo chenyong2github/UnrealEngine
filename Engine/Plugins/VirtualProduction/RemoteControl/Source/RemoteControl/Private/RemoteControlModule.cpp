@@ -7,6 +7,7 @@
 #include "Backends/CborStructSerializerBackend.h"
 #include "Components/ActorComponent.h"
 #include "Components/LightComponent.h"
+#include "Factories/RemoteControlMaskingFactories.h"
 #include "Features/IModularFeatures.h"
 #include "IRemoteControlInterceptionFeature.h"
 #include "IRemoteControlModule.h"
@@ -591,6 +592,9 @@ void FRemoteControlModule::StartupModule()
 	
 	// Register Property Factories
 	RegisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName(), FRemoteControlInstanceMaterialFactory::MakeInstance());
+
+	// Register Masking Factories
+	RegisterMaskingFactories();
 }
 
 void FRemoteControlModule::ShutdownModule()
@@ -734,37 +738,46 @@ void FRemoteControlModule::PerformMasking(const TSharedRef<FRCMaskingOperation>&
 		return;
 	}
 
-	if (ActiveMaskingOperations.Contains(InMaskingOperation))
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InMaskingOperation->ObjectRef.Property.Get()))
 	{
-		constexpr bool bIsInteractive = true;
+		if (const TSharedPtr<IRemoteControlMaskingFactory>* MaskingFactory = MaskingFactories.Find(StructProperty->Struct))
+		{
+			if (ActiveMaskingOperations.Contains(InMaskingOperation))
+			{
+				constexpr bool bIsInteractive = true;
 
-		ApplyMaskedValues(InMaskingOperation->OperationId, bIsInteractive);
+				(*MaskingFactory)->ApplyMaskedValues(InMaskingOperation, bIsInteractive);
 
-		ActiveMaskingOperations.Remove(InMaskingOperation);
+				ActiveMaskingOperations.Remove(InMaskingOperation);
+			}
+			else
+			{
+				ActiveMaskingOperations.Add(InMaskingOperation);
+
+				(*MaskingFactory)->CacheRawValues(InMaskingOperation);
+			}
+		}
 	}
-	else
+}
+
+void FRemoteControlModule::RegisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType, const TSharedPtr<IRemoteControlMaskingFactory>& InMaskingFactory)
+{
+	if (!MaskingFactories.Contains(RemoteControlPropertyType))
 	{
-		ActiveMaskingOperations.Add(InMaskingOperation);
-
-		CacheRawValues(InMaskingOperation->OperationId);
+		MaskingFactories.Add(RemoteControlPropertyType, InMaskingFactory);
 	}
+}
+
+void FRemoteControlModule::UnregisterMaskingFactoryForType(UScriptStruct* RemoteControlPropertyType)
+{
+	MaskingFactories.Remove(RemoteControlPropertyType);
 }
 
 bool FRemoteControlModule::SupportsMasking(const FProperty* InProperty) const
 {
-	/** Holds the set of structs supported by masking. */
-	static const TSet<UScriptStruct*> MaskingSupportedStructs = { TBaseStructure<FColor>::Get()
-		, TBaseStructure<FLinearColor>::Get()
-		, TBaseStructure<FRotator>::Get()
-		, TBaseStructure<FVector>::Get()
-		, TBaseStructure<FVector4>::Get()
-		, TBaseStructure<FIntVector>::Get()
-		, TBaseStructure<FIntVector4>::Get()
-	};
-	
 	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 	{
-		return MaskingSupportedStructs.Contains(StructProperty->Struct);
+		return MaskingFactories.Contains(StructProperty->Struct);
 	}
 
 	return false;
@@ -1817,245 +1830,6 @@ int32 FRemoteControlModule::EndManualEditorTransaction(const FGuid& TransactionI
 	return INDEX_NONE;
 }
 
-void FRemoteControlModule::ApplyMaskedValues(const FGuid& FromMaskingOperation, bool bIsInteractive)
-{
-	for (const TSharedPtr<FRCMaskingOperation>& MaskingOperation : ActiveMaskingOperations)
-	{
-		if (MaskingOperation->OperationId == FromMaskingOperation)
-		{
-			const bool bHasMaskA = MaskingOperation->HasMask(ERCMask::MaskA);
-			const bool bHasMaskB = MaskingOperation->HasMask(ERCMask::MaskB);
-			const bool bHasMaskC = MaskingOperation->HasMask(ERCMask::MaskC);
-			const bool bHasMaskD = MaskingOperation->HasMask(ERCMask::MaskD);
-
-			if (FStructProperty* ToStructProp = CastField<FStructProperty>(MaskingOperation->ObjectRef.Property.Get()))
-			{
-				if (UObject* OwningObject = MaskingOperation->ObjectRef.Object.Get())
-				{
-#if WITH_EDITOR
-					OwningObject->PreEditChange(ToStructProp);
-					OwningObject->Modify();
-#endif // WITH_EDITOR
-
-					switch (*ToStructProp->Struct->GetFName().ToEName())
-					{
-						case NAME_Vector:
-						{
-							if (const FVector* VectorProp = ToStructProp->ContainerPtrToValuePtr<FVector>(OwningObject))
-							{
-								FVector MaskedVector;
-
-								MaskedVector.X = bHasMaskA ? VectorProp->X : MaskingOperation->PreMaskingCache.X;
-								MaskedVector.Y = bHasMaskB ? VectorProp->Y : MaskingOperation->PreMaskingCache.Y;
-								MaskedVector.Z = bHasMaskC ? VectorProp->Z : MaskingOperation->PreMaskingCache.Z;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedVector);
-							}
-						}
-						break;
-						
-						case NAME_Vector4:
-						{
-							if (const FVector4* Vector4Prop = ToStructProp->ContainerPtrToValuePtr<FVector4>(OwningObject))
-							{
-								FVector4 MaskedVector4;
-
-								MaskedVector4.X = bHasMaskA ? Vector4Prop->X : MaskingOperation->PreMaskingCache.X;
-								MaskedVector4.Y = bHasMaskB ? Vector4Prop->Y : MaskingOperation->PreMaskingCache.Y;
-								MaskedVector4.Z = bHasMaskC ? Vector4Prop->Z : MaskingOperation->PreMaskingCache.Z;
-								MaskedVector4.W = bHasMaskD ? Vector4Prop->W : MaskingOperation->PreMaskingCache.W;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedVector4);
-							}
-						}
-						break;
-
-						case NAME_IntVector:
-						{
-							if (const FIntVector* IntVectorProp = ToStructProp->ContainerPtrToValuePtr<FIntVector>(OwningObject))
-							{
-								FIntVector MaskedIntVector;
-
-								MaskedIntVector.X = bHasMaskA ? IntVectorProp->X : MaskingOperation->PreMaskingCache.X;
-								MaskedIntVector.Y = bHasMaskB ? IntVectorProp->Y : MaskingOperation->PreMaskingCache.Y;
-								MaskedIntVector.Z = bHasMaskC ? IntVectorProp->Z : MaskingOperation->PreMaskingCache.Z;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedIntVector);
-							}
-						}
-						break;
-
-						case NAME_IntVector4:
-						{
-							if (const FIntVector4* IntVector4Prop = ToStructProp->ContainerPtrToValuePtr<FIntVector4>(OwningObject))
-							{
-								FIntVector4 MaskedIntVector4;
-
-								MaskedIntVector4.X = bHasMaskA ? IntVector4Prop->X : MaskingOperation->PreMaskingCache.X;
-								MaskedIntVector4.Y = bHasMaskB ? IntVector4Prop->Y : MaskingOperation->PreMaskingCache.Y;
-								MaskedIntVector4.Z = bHasMaskC ? IntVector4Prop->Z : MaskingOperation->PreMaskingCache.Z;
-								MaskedIntVector4.W = bHasMaskD ? IntVector4Prop->W : MaskingOperation->PreMaskingCache.W;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedIntVector4);
-							}
-						}
-						break;
-
-						case NAME_Rotator:
-						{
-							if (const FRotator* RotatorProp = ToStructProp->ContainerPtrToValuePtr<FRotator>(OwningObject))
-							{
-								FRotator MaskedRotator;
-
-								MaskedRotator.Roll = bHasMaskA ? RotatorProp->Roll : MaskingOperation->PreMaskingCache.X;
-								MaskedRotator.Pitch = bHasMaskB ? RotatorProp->Pitch : MaskingOperation->PreMaskingCache.Y;
-								MaskedRotator.Yaw = bHasMaskC ? RotatorProp->Yaw : MaskingOperation->PreMaskingCache.Z;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedRotator);
-							}
-						}
-						break;
-
-						case NAME_Color:
-						{
-							if (const FColor* ColorProp = ToStructProp->ContainerPtrToValuePtr<FColor>(OwningObject))
-							{
-								FColor MaskedColor;
-
-								MaskedColor.R = bHasMaskA ? ColorProp->R : MaskingOperation->PreMaskingCache.X;
-								MaskedColor.G = bHasMaskB ? ColorProp->G : MaskingOperation->PreMaskingCache.Y;
-								MaskedColor.B = bHasMaskC ? ColorProp->B : MaskingOperation->PreMaskingCache.Z;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedColor);
-							}
-						}
-						break;
-
-						case NAME_LinearColor:
-						{
-							if (const FLinearColor* LinearColorProp = ToStructProp->ContainerPtrToValuePtr<FLinearColor>(OwningObject))
-							{
-								FLinearColor MaskedLinearColor;
-
-								MaskedLinearColor.R = bHasMaskA ? LinearColorProp->R : MaskingOperation->PreMaskingCache.X;
-								MaskedLinearColor.G = bHasMaskB ? LinearColorProp->G : MaskingOperation->PreMaskingCache.Y;
-								MaskedLinearColor.B = bHasMaskC ? LinearColorProp->B : MaskingOperation->PreMaskingCache.Z;
-								MaskedLinearColor.A = bHasMaskD ? LinearColorProp->A : MaskingOperation->PreMaskingCache.W;
-
-								ToStructProp->SetValue_InContainer(OwningObject, &MaskedLinearColor);
-							}
-						}
-						break;
-					}
-
-#if WITH_EDITOR
-					FPropertyChangedEvent ChangeEvent(ToStructProp, bIsInteractive ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet);
-					OwningObject->PostEditChangeProperty(ChangeEvent);
-#endif // WITH_EDITOR
-				}
-			}
-		}
-	}
-}
-
-void FRemoteControlModule::CacheRawValues(const FGuid& FromMaskingOperation)
-{
-	for (const TSharedPtr<FRCMaskingOperation>& MaskingOperation : ActiveMaskingOperations)
-	{
-		if (MaskingOperation->OperationId == FromMaskingOperation)
-		{
-			if (const FStructProperty* FromStructProp = CastField<FStructProperty>(MaskingOperation->ObjectRef.Property.Get()))
-			{
-				if (const UObject* OwningObject = MaskingOperation->ObjectRef.Object.Get())
-				{
-					switch (*FromStructProp->Struct->GetFName().ToEName())
-					{
-						case NAME_Vector:
-						{
-							if (const FVector* VectorProp = FromStructProp->ContainerPtrToValuePtr<FVector>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = VectorProp->X;
-								MaskingOperation->PreMaskingCache.Y = VectorProp->Y;
-								MaskingOperation->PreMaskingCache.Z = VectorProp->Z;
-							}
-						}
-						break;
-						
-						case NAME_Vector4:
-						{
-							if (const FVector4* Vector4Prop = FromStructProp->ContainerPtrToValuePtr<FVector4>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = Vector4Prop->X;
-								MaskingOperation->PreMaskingCache.Y = Vector4Prop->Y;
-								MaskingOperation->PreMaskingCache.Z = Vector4Prop->Z;
-								MaskingOperation->PreMaskingCache.W = Vector4Prop->W;
-							}
-						}
-						break;
-						
-						case NAME_IntVector:
-						{
-							if (const FIntVector* IntVectorProp = FromStructProp->ContainerPtrToValuePtr<FIntVector>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = IntVectorProp->X;
-								MaskingOperation->PreMaskingCache.Y = IntVectorProp->Y;
-								MaskingOperation->PreMaskingCache.Z = IntVectorProp->Z;
-							}
-						}
-						break;
-						
-						case NAME_IntVector4:
-						{
-							if (const FIntVector4* IntVector4Prop = FromStructProp->ContainerPtrToValuePtr<FIntVector4>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = IntVector4Prop->X;
-								MaskingOperation->PreMaskingCache.Y = IntVector4Prop->Y;
-								MaskingOperation->PreMaskingCache.Z = IntVector4Prop->Z;
-								MaskingOperation->PreMaskingCache.W = IntVector4Prop->W;
-							}
-						}
-						break;
-						
-						case NAME_Rotator:
-						{
-							if (const FRotator* RotatorProp = FromStructProp->ContainerPtrToValuePtr<FRotator>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = RotatorProp->Roll;
-								MaskingOperation->PreMaskingCache.Y = RotatorProp->Pitch;
-								MaskingOperation->PreMaskingCache.Z = RotatorProp->Yaw;
-							}
-						}
-						break;
-
-						case NAME_Color:
-						{
-							if (const FColor* ColorProp = FromStructProp->ContainerPtrToValuePtr<FColor>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = ColorProp->R;
-								MaskingOperation->PreMaskingCache.Y = ColorProp->G;
-								MaskingOperation->PreMaskingCache.Z = ColorProp->B;
-							}
-						}
-						break;
-
-						case NAME_LinearColor:
-						{
-							if (const FLinearColor* LinearColorProp = FromStructProp->ContainerPtrToValuePtr<FLinearColor>(OwningObject))
-							{
-								MaskingOperation->PreMaskingCache.X = LinearColorProp->R;
-								MaskingOperation->PreMaskingCache.Y = LinearColorProp->G;
-								MaskingOperation->PreMaskingCache.Z = LinearColorProp->B;
-								MaskingOperation->PreMaskingCache.W = LinearColorProp->A;
-							}
-						}
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-
 void FRemoteControlModule::CachePresets() const
 {
 	TArray<FAssetData> Assets;
@@ -2332,6 +2106,17 @@ bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectRefer
 	}
 
 	return bSuccess;
+}
+
+void FRemoteControlModule::RegisterMaskingFactories()
+{
+	RegisterMaskingFactoryForType(TBaseStructure<FVector>::Get(), FVectorMaskingFactory::MakeInstance());
+	RegisterMaskingFactoryForType(TBaseStructure<FVector4>::Get(), FVector4MaskingFactory::MakeInstance());
+	RegisterMaskingFactoryForType(TBaseStructure<FIntVector>::Get(), FIntVectorMaskingFactory::MakeInstance());
+	RegisterMaskingFactoryForType(TBaseStructure<FIntVector4>::Get(), FIntVector4MaskingFactory::MakeInstance());
+	RegisterMaskingFactoryForType(TBaseStructure<FRotator>::Get(), FRotatorMaskingFactory::MakeInstance());
+	RegisterMaskingFactoryForType(TBaseStructure<FColor>::Get(), FColorMaskingFactory::MakeInstance());
+	RegisterMaskingFactoryForType(TBaseStructure<FLinearColor>::Get(), FLinearColorMaskingFactory::MakeInstance());
 }
 
 #if WITH_EDITOR

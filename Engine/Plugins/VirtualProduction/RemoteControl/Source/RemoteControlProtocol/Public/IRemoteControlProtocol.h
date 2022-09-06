@@ -18,7 +18,8 @@ namespace ProtocolColumnConstants
 {
 	static float ColumnSizeMicro = 0.075f;
 	static float ColumnSizeMini = 0.15f;
-	static float ColumnSizeSmall = 0.3f;
+	static float ColumnSizeSmall = 0.21f;
+	static float ColumnSizeNormal = 0.3f;
 	static float ColumnSizeMedium = 0.5f;
 	static float ColumnSizeLarge = 0.8f;
 	static float ColumnSizeExtraLarge = 1.f;

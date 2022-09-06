@@ -72,7 +72,7 @@ public:
 #if WITH_EDITOR
 
 	/** Register(s) all the widgets of this protocol entity. */
-	virtual void RegisterWidgets() override;
+	virtual void RegisterProperties() override;
 
 #endif // WITH_EDITOR
 	//~ End FRemoteControlProtocolEntity interface
