@@ -10,7 +10,7 @@ class ULevel;
 class ENGINE_API FTraceScreenshot
 {
 public:
-	static void RequestScreenshot(FString Name);
+	static void RequestScreenshot(FString Name, bool bShowUI);
 
 	/* 
 	* Add the provided screenshot to the trace.
