@@ -807,36 +807,32 @@ TArray<TRigVMTypeIndex> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* In
 	return FilteredTypes;
 }
 
-bool URigVMTemplateNode::TryReduceTypesToSingle(TArray<TRigVMTypeIndex>& InOutTypes, const TRigVMTypeIndex PreferredType) const
+TRigVMTypeIndex URigVMTemplateNode::TryReduceTypesToSingle(const TArray<TRigVMTypeIndex>& InTypes, const TRigVMTypeIndex PreferredType) const
 {
-	if (InOutTypes.IsEmpty())
+	if (InTypes.IsEmpty())
 	{
-		return false;
+		return INDEX_NONE;
 	}
 
-	if (InOutTypes.Num() == 1)
+	if (InTypes.Num() == 1)
 	{
-		return true;
+		return InTypes[0];
 	}
 	
-	for (int32 i=1; i<InOutTypes.Num(); ++i)
+	for (int32 i=1; i<InTypes.Num(); ++i)
 	{
-		if (!FRigVMRegistry::Get().CanMatchTypes(InOutTypes[0], InOutTypes[i], true))
+		if (!FRigVMRegistry::Get().CanMatchTypes(InTypes[0], InTypes[i], true))
 		{
-			return false;
+			return INDEX_NONE;
 		}
 	}
 
-	if (InOutTypes.Contains(PreferredType))
+	if (InTypes.Contains(PreferredType))
 	{
-		InOutTypes = {PreferredType};
+		return PreferredType;
 	}
-	else
-	{
-		InOutTypes = {InOutTypes[0]};
-	}
-			
-	return true;	
+
+	return InTypes[0];
 }
 
 TArray<int32> URigVMTemplateNode::GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin)
