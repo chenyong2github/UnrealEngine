@@ -303,7 +303,7 @@ enum class EFiBCacheOpFlags
 ENUM_CLASS_FLAGS(EFiBCacheOpFlags);
 
 /** Options to configure the bulk caching task */
-struct FFindInBlueprintCachingOptions
+struct KISMET_API FFindInBlueprintCachingOptions
 {
 	/** Type of caching operation */
 	EFiBCacheOpType OpType = EFiBCacheOpType::CachePendingAssets;
@@ -396,7 +396,7 @@ typedef TSharedPtr<FFindInBlueprintsResult> FSearchResult;
 ////////////////////////////////////
 // FStreamSearch
 
-struct FStreamSearchOptions
+struct KISMET_API FStreamSearchOptions
 {
 	/** Filter to limit the FilteredImaginaryResults to */
 	enum ESearchQueryFilter ImaginaryDataFilter;

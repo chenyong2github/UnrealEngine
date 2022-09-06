@@ -256,7 +256,7 @@ enum class EFiBSearchBarWidget
 };
 
 /*Widget for searching for (functions/events) across all blueprints or just a single blueprint */
-class SFindInBlueprints: public SCompoundWidget
+class KISMET_API SFindInBlueprints: public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SFindInBlueprints )
