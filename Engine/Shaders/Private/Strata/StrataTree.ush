@@ -80,7 +80,12 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	CurrentBSDF.Coverage = int(Op.LayerDepth) < Settings.PeelLayersAboveDepth && !CurrentBSDF.bIsBottom ? 0.0f : CurrentBSDF.Coverage;
 #endif
 
+	float CurrentBSDFCoverage = CurrentBSDF.Coverage;
 	const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
+	float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
+
+	// Distortion and translucency passes accumnulate pass calls for colored transmittance, coverage and TopDownRefractionLobeStat to be setup correctly.
+#if STRATA_COMPLEXPATH || MATERIALBLENDING_ANY_TRANSLUCENT
 
 	// Extract the true thickness of the BSDF before it is cast into the normalised Slab thickness we used.
 	// for opaque rough refraction, we are only interested in thickness of non bottom layers.
@@ -91,12 +96,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	PostProcessBSDFBeforeLighting(CurrentBSDF);
 
 	// Compute current BSDF transmittance
-	float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
 	float3 LEqualN = TangentBasis[2];
 	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, LEqualN);
 	FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, Settings);
-
-	float CurrentBSDFCoverage		= CurrentBSDF.Coverage;
 
 	// We multiply this weight with coverage:
 	//  - Because when coming from parameter blending, we need to scale the output down according to coverage resulting from parameter blending.
@@ -136,6 +138,25 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 		RefractedLobe = StrataWeightLobe(RefractedLobe, CurrentBSDFCoverage);
 		Op.BottomUpRefractionLobeStat = RefractedLobe;
 	}
+
+#else // STRATA_COMPLEXPATH
+
+	CurrentBSDF.LuminanceWeightV		= CurrentBSDFCoverage;
+	CurrentBSDF.TransmittanceAboveAlongN= float3(1.0f, 1.0f, 1.0f);
+	CurrentBSDF.TopLayerDataWeight		= 1.0f;
+
+	Op.OpaqueRoughRefractThicknessCm	= 0.0;
+	Op.OpaqueRoughRefractCoverage		= CurrentBSDFCoverage;
+	Op.OpaqueRoughRefractTopRoughness	= Roughness;
+
+	Op.Coverage				= CurrentBSDFCoverage;
+	Op.ThroughputAlongV		= 1.0f;
+	Op.TransmittanceAlongN	= 1.0f;
+
+	Op.TopDownRefractionLobeStat = StrataGetNullLobe();
+	Op.BottomUpRefractionLobeStat = StrataGetNullLobe();
+
+#endif // STRATA_COMPLEXPATH
 	
 	Op.TopDownRefractionWorldNormal = TangentBasis[2];
 

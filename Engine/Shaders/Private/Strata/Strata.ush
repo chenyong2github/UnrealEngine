@@ -1321,7 +1321,7 @@ FStrataData GetStrataSlabBSDF(
 	FHaziness Haziness = InitialiseHaziness();
 
 	// Derive roughness and haziness from profile data
-	if (bSSSProfilePlugged)
+	if (!STRATA_FASTPATH && bSSSProfilePlugged)
 	{
 		// Average roughness for dual specular.
 		const uint SubsurfaceProfileUInt = StrataSubsurfaceProfileIdTo8bits(SSSProfileID);
@@ -1340,7 +1340,7 @@ FStrataData GetStrataSlabBSDF(
 	// If MFP is smaller than the pixel's footprint, remove SSS attributes
 	// The scaling factor 'SSSFootprintScale' is based on empiric tests
 	const float SSSFootprintScale = 3.f;
-	if (all(SSSMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace) && !bHasSSSWrap)
+	if (!STRATA_FASTPATH && all(SSSMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace) && !bHasSSSWrap)
 	{
 		bHasSSSProfile = false;
 		bHasSSS = false;
@@ -1350,7 +1350,7 @@ FStrataData GetStrataSlabBSDF(
 	}
 
 	// Convert MFP be expressed relative to simple volume thickness
-	if (bHasSSSWrap)
+	if (!STRATA_FASTPATH && bHasSSSWrap)
 	{
 		SSSMFP = RescaleMFPToComputationSpace(SSSMFP, Thickness, STRATA_SIMPLEVOLUME_THICKNESS_CM);
 		Thickness = STRATA_SIMPLEVOLUME_THICKNESS_CM;
@@ -1359,7 +1359,7 @@ FStrataData GetStrataSlabBSDF(
 	const uint bHasHaziness = ((Haziness.Roughness != Roughness  && Haziness.Weight > 0.0f) || Haziness.bSimpleClearCoat) ? 1 : 0;
 	const uint bHasAnisotropy = Anisotropy != 0 ? 1 : 0;
 	const uint bHasFuzz = FuzzAmount > 0.0f ? 1 : 0;
-	if (bHasAnisotropy)
+	if (!STRATA_FASTPATH && bHasAnisotropy)
 	{
 		StrataRequestSharedLocalBasisTangent(SharedLocalBasisTypes, SharedLocalBasisIndex);
 	}
@@ -1375,18 +1375,24 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETTYPE			(StrataData.InlinedBSDF,		STRATA_BSDF_TYPE_SLAB);
 	BSDF_SETSHAREDLOCALBASISID(StrataData.InlinedBSDF,		SharedLocalBasisIndex);
 	BSDF_SETEMISSIVE		(StrataData.InlinedBSDF,		Emissive);
+
+#if !STRATA_FASTPATH
+	BSDF_SETSSSTYPE			(StrataData.InlinedBSDF,		bHasSSS ? (bHasSSSWrap ? SSS_TYPE_WRAP : (bHasSSSProfile ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_DIFFUSION)) : SSS_TYPE_INVALID);
 	BSDF_SETHASANISOTROPY	(StrataData.InlinedBSDF,		bHasAnisotropy);
 	BSDF_SETISTOPLAYER		(StrataData.InlinedBSDF,		0);
-	BSDF_SETSSSTYPE			(StrataData.InlinedBSDF,		bHasSSS ? (bHasSSSWrap ? SSS_TYPE_WRAP : (bHasSSSProfile ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_DIFFUSION)) : SSS_TYPE_INVALID);
 	BSDF_SETISTHIN			(StrataData.InlinedBSDF,		bIsThin ? 1 : 0);
 	BSDF_SETHASMFP			(StrataData.InlinedBSDF,		bMFPPlugged ? 1 : 0);
 	BSDF_SETHASHAZINESS		(StrataData.InlinedBSDF,		bHasHaziness);
-	BSDF_SETTHICKNESSCM		(StrataData.InlinedBSDF,		Thickness);
 	BSDF_SETHASFUZZ			(StrataData.InlinedBSDF,		bHasFuzz);
+	BSDF_SETTHICKNESSCM		(StrataData.InlinedBSDF,		Thickness);
+#endif
+
 
 	if (UseMetalness > 0.0f)
 	{
+#if !STRATA_FASTPATH
 		BSDF_SETHASF90(StrataData.InlinedBSDF, any(EdgeColor < 1.0f));
+#endif
 
 		const float SafeMetallic = saturate(Metallic);
 		SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= ComputeDiffuseAlbedo(BaseColor, SafeMetallic);
@@ -1395,8 +1401,10 @@ FStrataData GetStrataSlabBSDF(
 	}
 	else
 	{
+#if !STRATA_FASTPATH
 		// See how UMaterialExpressionStrataSlabBSDF node interface is changed
 		BSDF_SETHASF90(StrataData.InlinedBSDF, any(F90 < 1.0f));
+#endif
 
 		SLAB_DIFFUSEALBEDO(StrataData.InlinedBSDF)			= DiffuseAlbedo;
 		SLAB_F0(StrataData.InlinedBSDF)						= F0;
@@ -1404,6 +1412,8 @@ FStrataData GetStrataSlabBSDF(
 	}
 
 	SLAB_ROUGHNESS			(StrataData.InlinedBSDF)		= Roughness;
+
+#if !STRATA_FASTPATH
 	SLAB_ANISOTROPY			(StrataData.InlinedBSDF)		= Anisotropy;
 
 	SLAB_HAZINESS(StrataData.InlinedBSDF)					= PackHaziness(Haziness);
@@ -1422,6 +1432,8 @@ FStrataData GetStrataSlabBSDF(
 
 	SLAB_FUZZ_AMOUNT		(StrataData.InlinedBSDF)		= FuzzAmount;
 	SLAB_FUZZ_COLOR			(StrataData.InlinedBSDF)		= FuzzColor;
+
+#endif // !STRATA_FASTPATH
 
 #if STRATA_INLINE_SHADING
 	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the MFP on the side to not override SSSPROFILE data.

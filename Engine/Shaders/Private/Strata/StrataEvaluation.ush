@@ -948,20 +948,16 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FStrata
 }
 
 // Area light evaluation
-FStrataEvaluateResult StrataIntegrateBSDF(FStrataBSDFContext BSDFContext, FShadowTerms Shadow, FAreaLightIntegrateContext AreaLightContext, FStrataIntegrationSettings Settings)
+FStrataEvaluateResult StrataIntegrateBSDF(FStrataBSDFContext BSDFContext, FShadowTerms Shadow, FAreaLightIntegrateContext AreaLightContext, FStrataIntegrationSettings Settings, uint IntegrationMode)
 {
 	BRANCH
-	if (IsAreaLight(AreaLightContext.AreaLight))
+	if (IntegrationMode == INTEGRATION_AREA_LIGHT_RECT)
 	{
-		BRANCH
-		if(IsRectLight(AreaLightContext.AreaLight))
-		{
-			return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
-		}
-		else
-		{
-			return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
-		}
+		return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_RECT);
+	}
+	else if (IntegrationMode == INTEGRATION_AREA_LIGHT_CAPSULE)
+	{
+		return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_AREA_LIGHT_CAPSULE);
 	}
 
 	return StrataEvaluateBSDFCommon(BSDFContext, Shadow, AreaLightContext, Settings, INTEGRATION_PUNCTUAL_LIGHT);
