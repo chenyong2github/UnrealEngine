@@ -20,6 +20,11 @@ namespace UnrealBuildToolTests
 
 		class LoggerCapture : ILogger
 		{
+			class Scope : IDisposable
+			{
+				public void Dispose() { }
+			}
+
 			int _logLineIndex;
 
 			public void Reset()
@@ -30,11 +35,11 @@ namespace UnrealBuildToolTests
 
 			public List<LogEvent> _events = new List<LogEvent>();
 
-			public IDisposable? BeginScope<TState>(TState state) => null;
+			public IDisposable BeginScope<TState>(TState state) => new Scope();
 
 			public bool IsEnabled(LogLevel logLevel) => true;
 
-			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception?, string> formatter)
+			public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 			{
 				LogEvent logEvent = LogEvent.Read(JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter).Data.Span);
 				if (logEvent.Level != LogLevel.Information || logEvent.Id != default || logEvent.Properties != null)
@@ -905,6 +910,30 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(lines);
 			Assert.AreEqual(1, logEvents.Count);
 			CheckEventGroup(logEvents, 5, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_CacheLimit);
+		}
+
+		[TestMethod]
+		public void XoreaxErrorMatcher3()
+		{
+			string[] lines =
+			{
+				@"Module.ExternalSource.cpp (Agent '10-99-199-46 (Core #3)', 0:16.43 at +23:42)",
+				@"Default.rc2 (0:00.29 at +23:59)",
+				@"--------------------Build System Error-----------------------------------------",
+				@"Fatal error:",
+				@"    Task queue management failed.",
+				@"    Error starting Task 'clang-cl: Task: Env_0->Action1715_1 (Tool1715_1)' on machine 'Local CPU 8'",
+				@"    Failed to map view of file mapping 0x082C at position 0:0 (0 bytes): Not enough memory resources are available to process this command (8)",
+				@"-------------------------------------------------------------------------------",
+				@"",
+				@"--------------------Build Cache summary----------------------------------------",
+				@"Build Tasks: 15751",
+				@"Build Cache Efficiency: 0% (0 tasks)"
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(6, logEvents.Count);
+			CheckEventGroup(logEvents, 2, 6, LogLevel.Error, KnownLogEvents.Systemic_Xge);
 		}
 
 		[TestMethod]

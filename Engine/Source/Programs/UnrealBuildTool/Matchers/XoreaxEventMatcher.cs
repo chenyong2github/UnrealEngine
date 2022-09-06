@@ -12,6 +12,9 @@ namespace UnrealBuildTool.Matchers
 
 		static readonly Regex s_xgConsole = new Regex(@"BUILD FAILED: (.*)xgConsole\.exe(.*)");
 
+		static readonly Regex s_buildSystemError = new Regex(@"^\s*--------------------Build System Error");
+		static readonly Regex s_buildSystemErrorEnd = new Regex(@"^(\s*)--------------------");
+
 		static readonly Regex s_buildSystemWarning = new Regex(@"^\s*--------------------Build System Warning[- ]");
 		static readonly Regex s_buildSystemWarningNext = new Regex(@"^(\s*)([^ ].*):");
 
@@ -35,6 +38,23 @@ namespace UnrealBuildTool.Matchers
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
 				return builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
+			}
+
+			if (cursor.IsMatch(s_buildSystemError))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				builder.MoveNext();
+
+				for(int idx = 0; idx < 100; idx++)
+				{
+					if (builder.Current.IsMatch(idx, s_buildSystemErrorEnd))
+					{
+						builder.MoveNext(idx);
+						break;
+					}
+				}
+
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Systemic_Xge);
 			}
 
 			if (cursor.IsMatch(s_buildSystemWarning))
