@@ -434,6 +434,19 @@ public:
 	void GetFullName( const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
 
 	/**
+	 * Returns the fully qualified pathname for this object as well as the name of the class, in the format:
+	 * 'ClassName Outermost[.Outer].Name'.
+	 *
+	 * @param	ResultString StringBuilder to populate
+	 * @param	StopOuter	if specified, indicates that the output string should be relative to this object.  if StopOuter
+	 *						does not exist in this object's Outer chain, the result would be the same as passing NULL.
+	 * @param	Flags		flags that control the behavior of full name generation
+	 *
+	 * @note	safe to call on NULL object pointers!
+	 */
+	void GetFullName(FStringBuilderBase& ResultString, const UObject* StopOuter = NULL, EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const;
+
+	/**
 	 * Returns the fully qualified pathname for this object, in the format:
 	 * 'Outermost[.Outer].Name'
 	 *

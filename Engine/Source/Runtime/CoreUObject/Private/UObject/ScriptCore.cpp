@@ -337,12 +337,16 @@ void PrintScriptCallStackImpl()
 	if (BlueprintExceptionTracker)
 	{
 		TArrayView<const FFrame* const> RawStack = BlueprintExceptionTracker->GetCurrentScriptStack();
-		FString ScriptStack = FString::Printf(TEXT("\n\nScript Stack (%d frames):\n"), RawStack.Num());
+		TStringBuilder<4096> ScriptStack;
+		ScriptStack << TEXT("\n\nScript Stack (") << RawStack.Num() << TEXT(" frames) :\n");
+
 		for (int32 FrameIdx = RawStack.Num() - 1; FrameIdx >= 0; --FrameIdx)
 		{
-			ScriptStack += RawStack[FrameIdx]->GetStackDescription() + TEXT("\n");
+			RawStack[FrameIdx]->GetStackDescription(ScriptStack);
+			ScriptStack << TEXT("\n");
 		}
 		UE_LOG(LogOutputDevice, Warning, TEXT("%s"), *ScriptStack);
+		GLog->Flush(); // flush is needed because logging is buffered 
 	}
 }
 
@@ -521,8 +525,13 @@ static bool ShowKismetScriptStackOnWarnings()
 
 FString FFrame::GetScriptCallstack(bool bReturnEmpty, bool bTopOfStackOnly)
 {
-	FString ScriptStack;
+	TStringBuilder<4096> ScriptStack;
+	GetScriptCallstack(ScriptStack, bReturnEmpty, bTopOfStackOnly);
+	return FString(ScriptStack);
+}
 
+void FFrame::GetScriptCallstack(FStringBuilderBase& ScriptStack, bool bReturnEmpty, bool bTopOfStackOnly)
+{
 #if DO_BLUEPRINT_GUARD
 	FBlueprintContextTracker& BlueprintExceptionTracker = FBlueprintContextTracker::Get();
 	if (BlueprintExceptionTracker.ScriptStack.Num() > 0)
@@ -533,32 +542,39 @@ FString FFrame::GetScriptCallstack(bool bReturnEmpty, bool bTopOfStackOnly)
 
 		do
 		{
-			ScriptStack += TEXT("\t") + BlueprintExceptionTracker.ScriptStack[i]->GetStackDescription();
+			ScriptStack << TEXT("\t");
+			BlueprintExceptionTracker.ScriptStack[i]->GetStackDescription(ScriptStack);
 			if ((i == TopOfStackIndex) && bDisplayArrow)
 			{
-				ScriptStack += TEXT(" <---");
+				ScriptStack << TEXT(" <---");
 			}
-			ScriptStack += TEXT("\n");
+			ScriptStack << TEXT("\n");
 			--i;
 		} while ((i >= 0) && !bTopOfStackOnly);
 	}
 	else if (!bReturnEmpty)
 	{
-		ScriptStack += TEXT("\t[Empty] (FFrame::GetScriptCallstack() called from native code)");
+		ScriptStack << TEXT("\t[Empty] (FFrame::GetScriptCallstack() called from native code)");
 	}
 #else
 	if (!bReturnEmpty)
 	{
-		ScriptStack = TEXT("Unable to display Script Callstack. Compile with DO_BLUEPRINT_GUARD=1");
+		ScriptStack << TEXT("Unable to display Script Callstack. Compile with DO_BLUEPRINT_GUARD=1");
 	}
 #endif
-
-	return ScriptStack;
 }
 
 FString FFrame::GetStackDescription() const
 {
-	return Node->GetOuter()->GetPathName() + TEXT(".") + Node->GetName();
+	TStringBuilder<256> StringBuilder;
+	GetStackDescription(StringBuilder);
+	return FString(StringBuilder);
+}
+
+void FFrame::GetStackDescription(FStringBuilderBase& StringBuilder) const
+{
+	Node->GetOuter()->GetPathName(nullptr, StringBuilder);
+	StringBuilder << TEXT(".") << Node->GetName();
 }
 
 #if DO_BLUEPRINT_GUARD
@@ -610,7 +626,7 @@ void FFrame::KismetExecutionMessage(const TCHAR* Message, ELogVerbosity::Type Ve
 	}
 #endif
 
-	FString ScriptStack;
+	TStringBuilder<4096> ScriptStack;
 
 	// Tracking down some places that display warnings but no message..
 	ensureAlways(Verbosity > ELogVerbosity::Warning || FCString::Strlen(Message) > 0);
@@ -620,12 +636,12 @@ void FFrame::KismetExecutionMessage(const TCHAR* Message, ELogVerbosity::Type Ve
 	if (Verbosity <= ELogVerbosity::Error || (ShowKismetScriptStackOnWarnings() && Verbosity == ELogVerbosity::Warning))
 	{
 		ScriptStack = TEXT("Script call stack:\n");
-		ScriptStack += GetScriptCallstack();
+		GetScriptCallstack(ScriptStack);
 	}
 	else if (Verbosity == ELogVerbosity::Warning)
 	{
 		ScriptStack = TEXT("Last function called:\n");
-		ScriptStack += GetScriptCallstack(false, true);
+		GetScriptCallstack(ScriptStack, false, true);
 	}
 #endif
 
@@ -694,11 +710,15 @@ void FFrame::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const cla
 #endif
 	}
 }
-
 FString FFrame::GetStackTrace() const
 {
-	FString Result;
+	TStringBuilder<4096> Result;
+	GetStackTrace(Result);
+	return FString(Result);
+}
 
+void FFrame::GetStackTrace(FStringBuilderBase& Result) const
+{
 	// travel down the stack recording the frames
 	TArray<const FFrame*> FrameStack;
 	const FFrame* CurrFrame = this;
@@ -711,18 +731,18 @@ FString FFrame::GetStackTrace() const
 	// and then dump them to a string
 	if (FrameStack.Num() > 0)
 	{
-		Result += FString(TEXT("Script call stack:\n"));
+		Result << TEXT("Script call stack:\n");
 		for (int32 Index = FrameStack.Num() - 1; Index >= 0; Index--)
 		{
-			Result += FString::Printf(TEXT("\t%s\n"), *FrameStack[Index]->Node->GetFullName());
+			Result << TEXT("\t");
+			FrameStack[Index]->Node->GetFullName(Result);
+			Result << TEXT("\n");
 		}
 	}
 	else
 	{
-		Result += FString(TEXT("Script call stack: [Empty] (FFrame::GetStackTrace() called from native code)"));
+		Result << TEXT("Script call stack: [Empty] (FFrame::GetStackTrace() called from native code)");
 	}
-
-	return Result;
 }
 
 //////////////////////////////////////////////////////////////////////////

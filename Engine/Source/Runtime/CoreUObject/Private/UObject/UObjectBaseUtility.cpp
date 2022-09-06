@@ -96,15 +96,22 @@ FString UObjectBaseUtility::GetFullName(const UObject* StopOuter, EObjectFullNam
   */
 void UObjectBaseUtility::GetFullName(const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags) const
 {
+	TStringBuilder<256> StringBuilder;
+	GetFullName(StringBuilder, StopOuter, Flags);
+	ResultString.Append(StringBuilder);
+}
+
+void UObjectBaseUtility::GetFullName(FStringBuilderBase& ResultString, const UObject* StopOuter, EObjectFullNameFlags Flags) const
+{
 	if (this != nullptr)
 	{
 		if (EnumHasAllFlags(Flags, EObjectFullNameFlags::IncludeClassPackage))
 		{
-			ResultString += GetClass()->GetPathName();
+			GetClass()->GetPathName(nullptr, ResultString);
 		}
 		else
 		{
-			GetClass()->AppendName(ResultString);
+			GetClass()->GetFName().AppendString(ResultString);
 		}
 		ResultString += TEXT(' ');
 		GetPathName(StopOuter, ResultString);
@@ -112,7 +119,7 @@ void UObjectBaseUtility::GetFullName(const UObject* StopOuter, FString& ResultSt
 	else
 	{
 		ResultString += TEXT("None");
-	} 
+	}
 }
 
 

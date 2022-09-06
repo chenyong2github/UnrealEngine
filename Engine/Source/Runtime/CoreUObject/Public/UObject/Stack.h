@@ -236,16 +236,41 @@ public:
 	COREUOBJECT_API FString GetStackTrace() const;
 
 	/**
+	 * This will return the StackTrace of the current callstack from the last native entry point
+	 * 
+	 * @param StringBuilder to populate
+	 **/
+	COREUOBJECT_API void GetStackTrace(FStringBuilderBase& StringBuilder) const;
+
+	/**
 	* This will return the StackTrace of the all script frames currently active
 	* 
 	* @param	bReturnEmpty if true, returns empty string when no script callstack found
+	* @param	bTopOfStackOnly if true only returns the top of the callstack
 	**/
 	COREUOBJECT_API static FString GetScriptCallstack(bool bReturnEmpty = false, bool bTopOfStackOnly = false);
 
+	/**
+	* This will return the StackTrace of the all script frames currently active
+	*
+	* @param	StringBuilder to populate
+	* @param	bReturnEmpty if true, returns empty string when no script callstack found
+	* @param	bTopOfStackOnly if true only returns the top of the callstack
+	**/
+	COREUOBJECT_API static void GetScriptCallstack(FStringBuilderBase& StringBuilder, bool bReturnEmpty = false, bool bTopOfStackOnly = false);
+		
 	/** 
 	 * This will return a string of the form "ScopeName.FunctionName" associated with this stack frame:
 	 */
+	UE_DEPRECATED(5.2, "Please use GetStackDescription(FStringBuilderBase&).")
 	COREUOBJECT_API FString GetStackDescription() const;
+
+	/**
+	* This will append a string of the form "ScopeName.FunctionName" associated with this stack frame
+	*
+	* @param	StringBuilder to populate
+	**/
+	COREUOBJECT_API void GetStackDescription(FStringBuilderBase& StringBuilder) const;
 
 #if DO_BLUEPRINT_GUARD
 	static void InitPrintScriptCallstack();

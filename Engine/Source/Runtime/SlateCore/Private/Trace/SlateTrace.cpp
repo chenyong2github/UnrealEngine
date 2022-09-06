@@ -358,7 +358,7 @@ void FSlateTrace::WidgetInvalidated(const SWidget* Widget, const SWidget* Invest
 
 		static_assert(sizeof(EInvalidateWidgetReason) == sizeof(uint8), "EInvalidateWidgetReason is not a uint8");
 
-		FString ScriptTrace;
+		TStringBuilder<4096> ScriptTrace;
 		constexpr int MAX_DEPTH = 64;
 		uint64 StackTrace[MAX_DEPTH] = { 0 };
 		uint32 StackTraceDepth = 0;
@@ -371,10 +371,10 @@ void FSlateTrace::WidgetInvalidated(const SWidget* Widget, const SWidget* Invest
 			FSlowHeartBeatScope SuspendHeartBeat;
 			FDisableHitchDetectorScope SuspendGameThreadHitch;
 
-			ScriptTrace = FFrame::GetScriptCallstack(true /* bReturnEmpty */);
-			if (!ScriptTrace.IsEmpty())
+			FFrame::GetScriptCallstack(ScriptTrace, true /* bReturnEmpty */);
+			if (ScriptTrace.Len() != 0)
 			{
-				ScriptTrace = "ScriptTrace: \n" + ScriptTrace;
+				ScriptTrace.InsertAt(0, TEXT("ScriptTrace: \n"));
 			}
 
 			// Walk the stack and dump it to the allocated memory.
