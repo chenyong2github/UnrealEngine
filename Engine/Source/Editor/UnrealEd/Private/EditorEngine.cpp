@@ -1073,7 +1073,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("EditorConfig"),
 			TEXT("DerivedDataEditor"),
 			TEXT("CSVtoSVG"),
-			TEXT("GeometryFramework")
+			TEXT("GeometryFramework"),
 			TEXT("VirtualizationEditor"),
 		};
 
