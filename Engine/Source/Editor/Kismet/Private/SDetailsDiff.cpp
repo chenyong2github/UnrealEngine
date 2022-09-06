@@ -75,7 +75,7 @@ void SDetailsDiff::Construct( const FArguments& InArgs)
 		, FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDif.NextDiff")
 	);
 
-	DifferencesTreeView = DiffTreeView::CreateTreeView(&MasterDifferencesList);
+	DifferencesTreeView = DiffTreeView::CreateTreeView(&PrimaryDifferencesList);
 
 	GenerateDifferencesList();
 
@@ -247,12 +247,12 @@ TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, UObject* O
 
 void SDetailsDiff::NextDiff()
 {
-	DiffTreeView::HighlightNextDifference(DifferencesTreeView.ToSharedRef(), RealDifferences, MasterDifferencesList);
+	DiffTreeView::HighlightNextDifference(DifferencesTreeView.ToSharedRef(), RealDifferences, PrimaryDifferencesList);
 }
 
 void SDetailsDiff::PrevDiff()
 {
-	DiffTreeView::HighlightPrevDifference(DifferencesTreeView.ToSharedRef(), RealDifferences, MasterDifferencesList);
+	DiffTreeView::HighlightPrevDifference(DifferencesTreeView.ToSharedRef(), RealDifferences, PrimaryDifferencesList);
 }
 
 bool SDetailsDiff::HasNextDiff() const
@@ -273,7 +273,7 @@ void SDetailsDiff::OnDiffListSelectionChanged(TSharedPtr<FDiffResultItem> TheDif
 
 void SDetailsDiff::GenerateDifferencesList()
 {
-	MasterDifferencesList.Empty();
+	PrimaryDifferencesList.Empty();
 	RealDifferences.Empty();
 	ModePanels.Empty();
 	
@@ -307,7 +307,7 @@ void SDetailsDiff::GenerateDifferencesList()
 SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 {
 	TSharedPtr<FDetailsDiffControl> NewDiffControl = MakeShared<FDetailsDiffControl>(PanelOld.Object, PanelNew.Object, FOnDiffEntryFocused::CreateRaw(this, &SDetailsDiff::SetCurrentMode, DetailsMode));
-	NewDiffControl->GenerateTreeEntries(MasterDifferencesList, RealDifferences);
+	NewDiffControl->GenerateTreeEntries(PrimaryDifferencesList, RealDifferences);
 
 	SDetailsDiff::FDiffControl Ret;
 	Ret.DiffControl = NewDiffControl;
