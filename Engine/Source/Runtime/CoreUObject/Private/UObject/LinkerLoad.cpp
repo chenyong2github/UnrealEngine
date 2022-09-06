@@ -6256,11 +6256,7 @@ void FLinkerLoad::FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutS
 			FName LongPackageName = InOutSoftObjectPath.GetLongPackageFName();
 			if (FName RemappedPackage = InstancingContext.RemapPackage(LongPackageName); RemappedPackage != LongPackageName)
 			{
-				FNameBuilder TmpSoftObjectPathBuilder;
-				InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
-
-				TmpSoftObjectPathBuilder.ReplaceAt(0, LongPackageName.GetStringLength(), RemappedPackage.ToString());
-				InOutSoftObjectPath.SetPath(FName(TmpSoftObjectPathBuilder));
+				InOutSoftObjectPath = FSoftObjectPath(RemappedPackage, InOutSoftObjectPath.GetAssetFName(), InOutSoftObjectPath.GetSubPathString());
 			}
 		}
 	}

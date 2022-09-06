@@ -2083,8 +2083,21 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 * @param ClassNames [DEPRECATED] - Class names are now represented by path names. If non-empty, this input will result in a runtime warning. Please use the ClassPaths input instead.
 	 * @param RecursiveClassesExclusionSet [DEPRECATED] - Class names are now represented by path names. If non-empty, this input will result in a runtime warning. Please use the RecursiveClassPathsExclusionSet input instead.
 	 */
-	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (Keywords = "construct build", NativeMakeFunc, BlueprintThreadSafe, AdvancedDisplay = "5", AutoCreateRefTerm = "PackageNames, PackagePaths, ObjectPaths, ClassNames, ClassPaths, RecursiveClassPathsExclusionSet, RecursiveClassesExclusionSet"))
-	static FARFilter MakeARFilter(const TArray<FName>& PackageNames, const TArray<FName>& PackagePaths, const TArray<FName>& ObjectPaths, const TArray<FTopLevelAssetPath>& ClassPaths, const TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, const TArray<FName>& ClassNames, const TSet<FName>& RecursiveClassesExclusionSet, const bool bRecursivePaths = false, const bool bRecursiveClasses = false, const bool bIncludeOnlyOnDiskAssets = false);
+	UFUNCTION(BlueprintPure, Category = "Utilities", 
+		meta = (Keywords = "construct build", NativeMakeFunc, BlueprintThreadSafe, AdvancedDisplay = "5", 
+		AutoCreateRefTerm = "PackageNames, PackagePaths, SoftObjectPaths, ClassNames, ClassPaths, RecursiveClassPathsExclusionSet, RecursiveClassesExclusionSet"))
+	static FARFilter MakeARFilter(
+		const TArray<FName>& PackageNames, 
+		const TArray<FName>& PackagePaths, 
+		const TArray<FSoftObjectPath>& SoftObjectPaths, 
+		const TArray<FTopLevelAssetPath>& ClassPaths,
+		const TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, 
+		const TArray<FName>& ClassNames, 
+		const TSet<FName>& RecursiveClassesExclusionSet, 
+		const bool bRecursivePaths = false, 
+		const bool bRecursiveClasses = false, 
+		const bool bIncludeOnlyOnDiskAssets = false
+		);
 
 	/**
 	 * Breaks an ARFilter struct into its component pieces. You should be using ClassPaths and RecursiveClassPathsExclusionSet from this node, ClassNames and RecursiveClassesExclusionSet are deprecated.
@@ -2093,7 +2106,19 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 * @param RecursiveClassesExclusionSet [DEPRECATED] - Class names are now represented by path names. Please use the RecursiveClassPathsExclusionSet output instead.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (NativeBreakFunc, BlueprintThreadSafe, AdvancedDisplay = "6"))
-	static void BreakARFilter(FARFilter InARFilter, TArray<FName>& PackageNames, TArray<FName>& PackagePaths, TArray<FName>& ObjectPaths, TArray<FTopLevelAssetPath>& ClassPaths, TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, TArray<FName>& ClassNames, TSet<FName>& RecursiveClassesExclusionSet, bool& bRecursivePaths, bool& bRecursiveClasses, bool& bIncludeOnlyOnDiskAssets);
+	static void BreakARFilter(
+		FARFilter InARFilter,
+		TArray<FName>& PackageNames,
+		TArray<FName>& PackagePaths,
+		TArray<FSoftObjectPath>& SoftObjectPaths,
+		TArray<FTopLevelAssetPath>& ClassPaths,
+		TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet,
+		TArray<FName>& ClassNames,
+		TSet<FName>& RecursiveClassesExclusionSet,
+		bool& bRecursivePaths,
+		bool& bRecursiveClasses,
+		bool& bIncludeOnlyOnDiskAssets
+		);
 
 };
 

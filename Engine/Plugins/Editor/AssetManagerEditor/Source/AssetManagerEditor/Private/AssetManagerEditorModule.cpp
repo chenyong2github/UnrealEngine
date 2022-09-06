@@ -1219,7 +1219,7 @@ bool FAssetManagerEditorModule::GetStringValueForCustomColumn(const FAssetData& 
 		}
 		else
 		{
-			FAssetData PlatformData = CurrentRegistrySource->GetAssetByObjectPath(AssetData.ObjectPath);
+			FAssetData PlatformData = CurrentRegistrySource->GetAssetByObjectPath(AssetData.GetSoftObjectPath());
 			if (PlatformData.IsValid())
 			{
 				FoundChunks = MoveTemp(PlatformData.ChunkIDs);
@@ -1591,7 +1591,7 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 
 				NewState->Serialize(SerializedAssetData, Options);
 
-				if (NewState->GetObjectPathToAssetDataMap().Num() > 0)
+				if (NewState->GetNumAssets() > 0)
 				{
 					bLoaded = true;
 					CurrentRegistrySource->SetRegistryState(NewState);
@@ -1622,11 +1622,9 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 				// Iterate assets and look for chunks
 				const FAssetRegistryState* RegistryState = CurrentRegistrySource->GetOwnedRegistryState();
 				checkf(RegistryState, TEXT("Should be non-null because HasRegistry() && !bIsEditor"));
-				const TMap<FName, const FAssetData*>& AssetDataMap = RegistryState->GetObjectPathToAssetDataMap();
 
-				for (const TPair<FName, const FAssetData*>& Pair : AssetDataMap)
+				RegistryState->EnumerateAllAssets([&RegistryState, this](const FAssetData& AssetData)
 				{
-					const FAssetData& AssetData = *Pair.Value;
 					if (AssetData.ChunkIDs.Num() > 0)
 					{
 						TArray<FAssetIdentifier> ManagerAssets;
@@ -1671,7 +1669,7 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 							}
 						}
 					}
-				}
+				});
 			}
 
 			CurrentRegistrySource->bManagementDataInitialized = true;
@@ -2293,7 +2291,7 @@ bool FAssetManagerEditorModule::WriteCollection(FName CollectionName, ECollectio
 	FText ResultsMessage;
 	bool bSuccess = false;
 
-	TSet<FName> ObjectPathsToAddToCollection;
+	TSet<FSoftObjectPath> ObjectPathsToAddToCollection;
 
 	FARFilter Filter;
 	Filter.PackageNames = PackageNames;
@@ -2302,7 +2300,7 @@ bool FAssetManagerEditorModule::WriteCollection(FName CollectionName, ECollectio
 	AssetRegistry->GetAssets(Filter, AssetsInPackages);
 	for (const FAssetData& AssetData : AssetsInPackages)
 	{
-		ObjectPathsToAddToCollection.Add(AssetData.ObjectPath);
+		ObjectPathsToAddToCollection.Add(AssetData.GetSoftObjectPath());
 	}
 
 	if (ObjectPathsToAddToCollection.Num() == 0)
@@ -2311,8 +2309,10 @@ bool FAssetManagerEditorModule::WriteCollection(FName CollectionName, ECollectio
 		ResultsMessage = FText::Format(LOCTEXT("NothingToAddToCollection", "Nothing to add to collection {0}"), FText::FromName(CollectionName));
 	}
 	else if (CreateOrEmptyCollection(CollectionName, ShareType))
-	{		
-		if (CollectionManager.AddToCollection(CollectionName, ECollectionShareType::CST_Local, ObjectPathsToAddToCollection.Array()))
+	{	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (CollectionManager.AddToCollection(CollectionName, ECollectionShareType::CST_Local, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(ObjectPathsToAddToCollection.Array())))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			UE_LOG(LogAssetManagerEditor, Log, TEXT("Updated collection %s"), *CollectionName.ToString());
 			ResultsMessage = FText::Format(LOCTEXT("CreateCollectionSucceeded", "Updated collection {0}"), FText::FromName(CollectionName));

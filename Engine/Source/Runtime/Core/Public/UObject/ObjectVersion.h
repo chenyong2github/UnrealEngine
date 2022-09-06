@@ -62,7 +62,10 @@ enum class EUnrealEngineObjectUE5Version : uint32
 
 	// Add IsInherited to the FObjectExport entry
 	TRACK_OBJECT_EXPORT_IS_INHERITED,
-
+	
+	// Replace FName asset path in FSoftObjectPath with (package name, asset name) pair FTopLevelAssetPath
+	FSOFTOBJECTPATH_REMOVE_ASSET_PATH_FNAMES,
+	
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
 	AUTOMATIC_VERSION_PLUS_ONE,

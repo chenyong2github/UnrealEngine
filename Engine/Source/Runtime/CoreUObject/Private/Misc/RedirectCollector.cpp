@@ -28,9 +28,9 @@ FAutoConsoleCommand CVarResolveAllSoftObjects(
 	})
 );
 
-void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, FArchive* InArchive)
+void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& ObjectPath, FArchive* InArchive)
 {
-	if (InPath.IsNull() || !GIsEditor)
+	if (ObjectPath.IsNull() || !GIsEditor)
 	{
 		// No need to track empty strings, or in standalone builds
 		return;
@@ -51,22 +51,22 @@ void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, F
 	}
 
 	const bool bReferencedByEditorOnlyProperty = (CollectType == ESoftObjectPathCollectType::EditorOnlyCollect);
-	FName AssetPathName = InPath.GetAssetPathName();
+	FTopLevelAssetPath AssetPath = ObjectPath.GetAssetPath();
 
 	FScopeLock ScopeLock(&CriticalSection);
 	if (CollectType != ESoftObjectPathCollectType::NeverCollect)
 	{
 		// Add this reference to the soft object inclusion list for the cook's iterative traversal of the soft dependency graph
-		FSoftObjectPathProperty SoftObjectPathProperty(AssetPathName, PropertyName, bReferencedByEditorOnlyProperty);
+		FSoftObjectPathProperty SoftObjectPathProperty(FSoftObjectPath(AssetPath, {}), PropertyName, bReferencedByEditorOnlyProperty);
 		SoftObjectPathMap.FindOrAdd(PackageName).Add(SoftObjectPathProperty);
 	}
 
 	if (ShouldTrackPackageReferenceTypes())
 	{
 		// Add the referenced package to the potential-exclusion list for the cook's up-front traversal of the soft dependency graph
-		TStringBuilder<256> AssetPathString;
-		AssetPathName.ToString(AssetPathString);
-		FName ReferencedPackageName = FName(FPackageName::ObjectPathToPackageName(AssetPathString));
+		TStringBuilder<FName::StringBufferSize> ObjectPathString;
+		ObjectPath.AppendString(ObjectPathString);
+		FName ReferencedPackageName = FName(FPackageName::ObjectPathToPackageName(ObjectPathString));
 		if (PackageName != ReferencedPackageName)
 		{
 			TMap<FName, ESoftObjectPathCollectType>& PackageReferences = PackageReferenceTypes.FindOrAdd(PackageName);
@@ -81,7 +81,7 @@ void FRedirectCollector::CollectSavedSoftPackageReferences(FName ReferencingPack
 	TArray<FSoftObjectPathProperty, TInlineAllocator<4>> SoftObjectPathArray;
 	Algo::Transform(PackageNames, SoftObjectPathArray, [ReferencingPackage, bEditorOnlyReferences](const FName& PackageName)
 		{
-			return FSoftObjectPathProperty(PackageName, NAME_None, bEditorOnlyReferences);
+			return FSoftObjectPathProperty(FSoftObjectPath(PackageName, NAME_None, FString()), NAME_None, bEditorOnlyReferences);
 		});
 
 	FScopeLock ScopeLock(&CriticalSection);
@@ -92,8 +92,8 @@ void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)
 {	
 	auto LoadSoftObjectPathLambda = [this](const FSoftObjectPathProperty& SoftObjectPathProperty, const FName ReferencerPackageName)
 	{
-		const FName& ToLoadFName = SoftObjectPathProperty.GetAssetPathName();
-		const FString ToLoad = ToLoadFName.ToString();
+		FSoftObjectPath ToLoadPath = SoftObjectPathProperty.GetObjectPath();
+		const FString ToLoad = ToLoadPath.ToString();
 
 		if (ToLoad.Len() > 0 )
 		{
@@ -113,11 +113,11 @@ void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)
 
 			if (Loaded)
 			{
-				FString Dest = Loaded->GetPathName();
-				UE_LOG(LogRedirectors, Verbose, TEXT("    Resolved to '%s'"), *Dest);
-				if (Dest != ToLoad)
+				FSoftObjectPath Dest(Loaded);
+				UE_LOG(LogRedirectors, Verbose, TEXT("    Resolved to '%s'"), *Dest.ToString());
+				if (Dest.ToString() != ToLoad)
 				{
-					AssetPathRedirectionMap.Add(ToLoadFName, FName(*Dest));
+					ObjectPathRedirectionMap.Add(ToLoadPath, Dest);
 				}
 			}
 			else
@@ -186,8 +186,8 @@ void FRedirectCollector::ProcessSoftObjectPathPackageList(FName FilterPackage, b
 	{
 		if (!SoftObjectPathProperty.GetReferencedByEditorOnlyProperty() || bGetEditorOnly)
 		{
-			const FName& ToLoadFName = SoftObjectPathProperty.GetAssetPathName();
-			FString PackageNameString = FPackageName::ObjectPathToPackageName(ToLoadFName.ToString());
+			FSoftObjectPath ToLoadPath = SoftObjectPathProperty.GetObjectPath();
+			FString PackageNameString = FPackageName::ObjectPathToPackageName(ToLoadPath.ToString());
 			OutReferencedPackages.Add(FName(*PackageNameString));
 		}
 	}
@@ -232,57 +232,78 @@ bool FRedirectCollector::ShouldTrackPackageReferenceTypes()
 	return TrackingReferenceTypesState == ETrackingReferenceTypesState::Enabled;
 }
 
-void FRedirectCollector::AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath)
+void FRedirectCollector::AddAssetPathRedirection(const FSoftObjectPath& OriginalPath, const FSoftObjectPath& RedirectedPath)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	if (!ensureMsgf(OriginalPath != NAME_None, TEXT("Cannot add redirect from Name_None!")))
+	if (!ensureMsgf(!OriginalPath.IsNull(), TEXT("Cannot add redirect from Name_None!")))
 	{
 		return;
 	}
 
-	FName FinalRedirection = GetAssetPathRedirection(RedirectedPath);
+	FSoftObjectPath FinalRedirection = GetAssetPathRedirection(RedirectedPath);
 	if (FinalRedirection == OriginalPath)
 	{
 		// If RedirectedPath points back to OriginalPath, remove that to avoid a circular reference
 		// This can happen when renaming assets in the editor but not actually dropping redirectors because it was new
-		AssetPathRedirectionMap.Remove(RedirectedPath);
+		ObjectPathRedirectionMap.Remove(RedirectedPath);
 	}
 
 	// This replaces an existing mapping, can happen in the editor if things are renamed twice
-	AssetPathRedirectionMap.Add(OriginalPath, RedirectedPath);
+	ObjectPathRedirectionMap.Add(OriginalPath, RedirectedPath);
+}
+
+void FRedirectCollector::AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	AddAssetPathRedirection(FSoftObjectPath(OriginalPath), FSoftObjectPath(RedirectedPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FRedirectCollector::RemoveAssetPathRedirection(const FSoftObjectPath& OriginalPath)
+{
+	FScopeLock ScopeLock(&CriticalSection);
+
+	FSoftObjectPath* Found = ObjectPathRedirectionMap.Find(OriginalPath);
+
+	if (ensureMsgf(Found, TEXT("Cannot remove redirection from %s, it was not registered"), *OriginalPath.ToString()))
+	{
+		ObjectPathRedirectionMap.Remove(OriginalPath);
+	}
 }
 
 void FRedirectCollector::RemoveAssetPathRedirection(FName OriginalPath)
 {
-	FScopeLock ScopeLock(&CriticalSection);
-
-	FName* Found = AssetPathRedirectionMap.Find(OriginalPath);
-
-	if (ensureMsgf(Found, TEXT("Cannot remove redirection from %s, it was not registered"), *OriginalPath.ToString()))
-	{
-		AssetPathRedirectionMap.Remove(OriginalPath);
-	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	RemoveAssetPathRedirection(FSoftObjectPath(OriginalPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FName FRedirectCollector::GetAssetPathRedirection(FName OriginalPath)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return FName(*GetAssetPathRedirection(FSoftObjectPath(OriginalPath)).ToString());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FSoftObjectPath FRedirectCollector::GetAssetPathRedirection(const FSoftObjectPath& OriginalPath)
+{
 	FScopeLock ScopeLock(&CriticalSection);
-	TArray<FName> SeenPaths;
+	TArray<FSoftObjectPath, TInlineAllocator<2>> SeenPaths;
 
 	// We need to follow the redirect chain recursively
-	FName CurrentPath = OriginalPath;
+	FSoftObjectPath CurrentPath = OriginalPath;
 
-	while (CurrentPath != NAME_None)
+	while (!CurrentPath.IsNull())
 	{
 		SeenPaths.Add(CurrentPath);
-		FName NewPath = AssetPathRedirectionMap.FindRef(CurrentPath);
+		FSoftObjectPath NewPath = ObjectPathRedirectionMap.FindRef(CurrentPath);
 
-		if (NewPath != NAME_None)
+		if (!NewPath.IsNull())
 		{
 			if (!ensureMsgf(!SeenPaths.Contains(NewPath), TEXT("Found circular redirect from %s to %s! Returning None instead"), *CurrentPath.ToString(), *NewPath.ToString()))
 			{
-				return NAME_None;
+				return FSoftObjectPath();
 			}
 
 			// Continue trying to follow chain
@@ -299,7 +320,7 @@ FName FRedirectCollector::GetAssetPathRedirection(FName OriginalPath)
 	{
 		return CurrentPath;
 	}
-	return NAME_None;
+	return FSoftObjectPath();
 }
 
 FRedirectCollector GRedirectCollector;

@@ -7,6 +7,7 @@
 #include "AssetRegistry/ARFilter.h"
 #include "Containers/Set.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/PathViews.h"
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/CompactBinary.h"
@@ -24,6 +25,49 @@ UE_IMPLEMENT_STRUCT("/Script/CoreUObject", AssetData);
 // Register Asset Registry version
 const FGuid FAssetRegistryVersion::GUID(0x717F9EE7, 0xE9B0493A, 0x88B39132, 0x1B388107);
 FCustomVersionRegistration GRegisterAssetRegistryVersion(FAssetRegistryVersion::GUID, FAssetRegistryVersion::LatestVersion, TEXT("AssetRegistry"));
+
+namespace UE::AssetRegistry::Private
+{
+	FAssetPathParts SplitIntoOuterPathAndAssetName(FStringView InObjectPath)
+	{
+		constexpr FAsciiSet Delimiters(SUBOBJECT_DELIMITER ".");
+		FStringView OuterPathPlusDelimiter = FAsciiSet::TrimSuffixWithout(InObjectPath, Delimiters);
+
+		return FAssetPathParts{
+			OuterPathPlusDelimiter.LeftChop(1),
+			InObjectPath.RightChop(OuterPathPlusDelimiter.Len())
+		};
+	}
+
+	void ConcatenateOuterPathAndObjectName(FStringBuilderBase& Builder, FName OuterPath, FName ObjectName)
+	{
+		// We assume that OuterPath was correctly constructed with a subobject delimiter if it needed one
+		// So we only need to decide if OuterPath and ObjectName should be separated by '.' or ':'
+		// See UObjectBaseUtility::GetPathName.
+		// We don't have access to type information here so the best we can do is rely on the fact that we don't have
+		// UPackage anywhere but top-level and ensure that the second delimiter in any path string is a ':'
+
+		int32 StartingLen = Builder.Len();
+		Builder << OuterPath;
+
+		TCHAR Delimiter = '.';
+
+		FStringView OuterPathView = Builder.ToView().Mid(StartingLen, Builder.Len() - StartingLen);
+		int32 DotIndex = 0;
+		if (OuterPathView.FindChar('.', DotIndex))
+		{
+			// Contains a dot delimiter, so we may need to use SUBOBJECT_DELIMITER_CHAR
+			int32 SubobjectDelimIndex = 0;
+			if (!OuterPathView.RightChop(DotIndex + 1).FindChar(SUBOBJECT_DELIMITER_CHAR, SubobjectDelimIndex))
+			{
+				// No delimiter, OuterPath must be of the form 'A.B' so we need SUBOBJECT_DELIMITER_CHAR to produce full path 'A.B:C'
+				Delimiter = SUBOBJECT_DELIMITER_CHAR;
+			}
+		}
+
+		Builder << Delimiter << ObjectName;
+	}
+}
 
 const FName GAssetBundleDataName("AssetBundleData");
 
@@ -78,26 +122,36 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 	FNameBuilder ObjectPathStr(PackageName);
 	ObjectPathStr << TEXT('.');
 	AssetName.AppendString(ObjectPathStr);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ObjectPath = FName(FStringView(ObjectPathStr));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FTopLevelAssetPath InAssetClassPathName, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
-	: ObjectPath(*InObjectPath)
-	, PackageName(*InLongPackageName)
+	: PackageName(*InLongPackageName)
 	, AssetClassPath(InAssetClassPathName)
 	, PackageFlags(InPackageFlags)
 	, ChunkIDs(MoveTemp(InChunkIDs))
 {
+	using namespace UE::AssetRegistry::Private;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ObjectPath = *InObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	SetTagsAndAssetBundles(MoveTemp(InTags));
 
 	PackagePath = FName(*FPackageName::GetLongPackagePath(InLongPackageName));
 
-	// Find the object name from the path, FPackageName::ObjectPathToObjectName(InObjectPath)) doesn't provide what we want here
-	int32 CharPos = InObjectPath.FindLastCharByPredicate([](TCHAR Char)
+
+	const FAssetPathParts Parts = SplitIntoOuterPathAndAssetName(InObjectPath);
+	AssetName = FName(Parts.InnermostName);
+
+#if WITH_EDITORONLY_DATA
+	if (!Parts.OuterPath.Equals(InLongPackageName, ESearchCase::IgnoreCase))
 	{
-		return Char == ':' || Char == '.';
-	});
-	AssetName = FName(*InObjectPath.Mid(CharPos + 1));
+		OptionalOuterPath = FName(Parts.OuterPath);
+	}
+#endif
 }
 
 FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCreationFlags)
@@ -120,7 +174,15 @@ FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCrea
 		PackagePath = FName(*FPackageName::GetLongPackagePath(Package->GetName()));
 		AssetName = InAsset->GetFName();
 		AssetClassPath = InAsset->GetClass()->GetPathName();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ObjectPath = FName(*InAsset->GetPathName());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#if WITH_EDITORONLY_DATA
+		if (InAsset->GetOuter() != Package)
+		{
+			OptionalOuterPath = *InAsset->GetOuter()->GetPathName();
+		}
+#endif
 
 		if (!EnumHasAnyFlags(InCreationFlags, FAssetData::ECreationFlags::SkipAssetRegistryTagsGathering))
 		{
@@ -129,6 +191,20 @@ FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCrea
 
 		ChunkIDs = Package->GetChunkIDs();
 		PackageFlags = Package->GetPackageFlags();
+	}
+}
+
+FSoftObjectPath FAssetData::GetSoftObjectPath() const
+{
+	if (IsTopLevelAsset())
+	{
+		return FSoftObjectPath(PackageName, AssetName, FString());
+	}
+	else
+	{
+		TStringBuilder<FName::StringBufferSize> Builder;
+		AppendObjectPath(Builder);
+		return FSoftObjectPath(Builder.ToView());
 	}
 }
 
@@ -152,9 +228,23 @@ bool FAssetData::IsUAsset(UObject* InAsset)
 
 bool FAssetData::IsTopLevelAsset() const
 {
+#if WITH_EDITORONLY_DATA
+	if (OptionalOuterPath.IsNone())
+	{
+		// If no outer path, then path is PackageName.AssetName so we must be top level
+		return true;
+	}
+
+	TStringBuilder<FName::StringBufferSize> Builder;
+	AppendObjectPath(Builder);
+
 	int32 SubObjectIndex;
-	FStringView(WriteToString<256>(ObjectPath)).FindChar(SUBOBJECT_DELIMITER_CHAR, SubObjectIndex);
+	FStringView(Builder).FindChar(SUBOBJECT_DELIMITER_CHAR, SubObjectIndex);
 	return SubObjectIndex == INDEX_NONE;
+#else
+	// Non-top-level assets only appear in the editor
+	return true;
+#endif
 }
 
 bool FAssetData::IsTopLevelAsset(UObject* Object)
@@ -206,10 +296,19 @@ FPrimaryAssetId FAssetData::GetPrimaryAssetId() const
 	return FPrimaryAssetId();
 }
 
-void FAssetData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&))
+void FAssetData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&, FAssetRegistryVersion::Type))
 {
 	// Serialize out the asset info
-	Ar << ObjectPath;
+	// Only needed if Version < FAssetRegistryVersion::RemoveAssetPathFNames but we need to reference it later to 
+	// rebuild OptionalOuterPath for assets which are stored in a different package to their outer (e.g. external actors)
+	FName OldObjectPath; 
+	if (Version < FAssetRegistryVersion::RemoveAssetPathFNames)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Ar << OldObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	Ar << PackagePath;
 
 	// Serialize the asset class.
@@ -225,11 +324,45 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	// These are derived from ObjectPath, we manually serialize them because they get pooled
 	Ar << PackageName;
 	Ar << AssetName;
 
-	SerializeTagsAndBundles(Ar , *this);
+#if WITH_EDITORONLY_DATA
+	if (Version >= FAssetRegistryVersion::RemoveAssetPathFNames)
+	{
+		if (!Ar.IsFilterEditorOnly())
+		{
+			Ar << OptionalOuterPath;
+		}
+		else if (Ar.IsLoading())
+		{
+			OptionalOuterPath = NAME_None;
+		}
+	}
+	else
+	{
+		check(Ar.IsLoading());
+		check(!OldObjectPath.IsNone());
+
+		using namespace UE::AssetRegistry::Private;
+
+		OptionalOuterPath = NAME_None;
+		TStringBuilder<FName::StringBufferSize> Builder;
+		Builder << PackageName << '.' << AssetName;
+		if (OldObjectPath != *Builder)
+		{
+			Builder.Reset();
+			Builder << OldObjectPath;
+			FAssetPathParts Parts = SplitIntoOuterPathAndAssetName(Builder.ToView());
+			if (PackageName.ToString() != Parts.OuterPath)
+			{
+				OptionalOuterPath = FName(Parts.OuterPath);
+			}
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	SerializeTagsAndBundles(Ar, *this, Version);
 
 	if (Ar.IsSaving() && ChunkIDs.Num() > 1)
 	{
@@ -242,6 +375,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << ChunkIDs;
 	}
 	Ar << PackageFlags;
+
+	// Rebuild deprecated ObjectPath field 
+	TStringBuilder<FName::StringBufferSize> Builder;
+	AppendObjectPath(Builder);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ObjectPath = *Builder;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAssetData::NetworkWrite(FCbWriter& Writer, bool bWritePackageName) const
@@ -250,9 +390,11 @@ void FAssetData::NetworkWrite(FCbWriter& Writer, bool bWritePackageName) const
 	Writer.BeginObject();
 	if (bWritePackageName)
 	{
-		Writer << "O" << ObjectPath;
 		Writer << "P" << PackagePath;
 		Writer << "Q" << PackageName;
+#if WITH_EDITORONLY_DATA
+		Writer << "OO" << OptionalOuterPath;
+#endif
 	}
 	Writer << "N" << AssetName;
 	Writer << "C" << AssetClassPath.ToString();
@@ -295,21 +437,21 @@ bool FAssetData::TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName
 	bOk &= bHasAssetName;
 	if (bReadPackageName)
 	{
-		bOk = LoadFromCompactBinary(Object["O"], ObjectPath) & bOk;
 		bOk = LoadFromCompactBinary(Object["P"], PackagePath) & bOk;
 		bOk = LoadFromCompactBinary(Object["Q"], PackageName) & bOk;
+#if WITH_EDITORONLY_DATA
+		bOk = LoadFromCompactBinary(Object["OO"], OptionalOuterPath) & bOk;
+#endif
 	}
 	else
 	{
 		if (bHasAssetName)
 		{
 			WriteToString<256> PackageNameStr(InPackageName);
-			ObjectPath = FName(WriteToString<256>(PackageNameStr.ToView(), TEXT("."), AssetName));
 			PackagePath = FName(FPathViews::GetPath(PackageNameStr.ToView()));
 		}
 		else
 		{
-			ObjectPath = NAME_None;
 			PackagePath = NAME_None;
 		}
 		PackageName = InPackageName;
@@ -346,14 +488,22 @@ bool FAssetData::TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName
 	}
 
 	LoadFromCompactBinary(Object["I"], ChunkIDs); // Ok if it does not exist
+
+	// Rebuild deprecated ObjectPath field 
+	TStringBuilder<FName::StringBufferSize> Builder;
+	AppendObjectPath(Builder);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ObjectPath = *Builder;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	return bOk;
 }
 
-void FAssetData::SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&))
+void FAssetData::SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&, FAssetRegistryVersion::Type))
 {
 	SerializeForCacheInternal(Ar, FAssetRegistryVersion::LatestVersion, SerializeTagsAndBundles);
 }
-void FAssetData::SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&))
+void FAssetData::SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&, FAssetRegistryVersion::Type Version))
 {
 	SerializeForCacheInternal(Ar, Version, SerializeTagsAndBundles);
 }

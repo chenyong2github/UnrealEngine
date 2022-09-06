@@ -110,6 +110,9 @@ namespace Impl
  */
 class FAssetRegistryImpl
 {
+	using FAssetDataMap = UE::AssetRegistry::Private::FAssetDataMap;
+	using FCachedAssetKey = UE::AssetRegistry::Private::FCachedAssetKey;
+
 public:
 	/** Constructor initializes as little as possible; meaningful operations are first done during Initialize. */
 	FAssetRegistryImpl();
@@ -121,6 +124,8 @@ public:
 
 
 	bool HasAssets(const FName PackagePath, const bool bRecursive) const;
+	FSoftObjectPath GetRedirectedObjectPath(const FSoftObjectPath& ObjectPath) const;
+	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	FName GetRedirectedObjectPath(const FName ObjectPath) const;
 	bool GetAncestorClassNames(Impl::FClassInheritanceContext& InheritanceContext, FTopLevelAssetPath ClassName,
 		TArray<FTopLevelAssetPath>& OutAncestorClassNames) const;
@@ -140,7 +145,7 @@ public:
 	void SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap,
 		bool bClearExisting, UE::AssetRegistry::EDependencyCategory RecurseType,
 		TSet<FDependsNode*>& ExistingManagedNodes, IAssetRegistry::ShouldSetManagerPredicate ShouldSetManager);
-	bool SetPrimaryAssetIdForObjectPath(Impl::FEventContext& EventContext, const FName ObjectPath, FPrimaryAssetId PrimaryAssetId);
+	bool SetPrimaryAssetIdForObjectPath(Impl::FEventContext& EventContext, const FSoftObjectPath& ObjectPath, FPrimaryAssetId PrimaryAssetId);
 	bool ResolveRedirect(const FString& InPackageName, FString& OutPackageName) const;
 #if WITH_EDITOR
 	void OnDirectoryChanged(Impl::FEventContext& EventContext, TArray<FFileChangeData>& FileChangesProcessed);
@@ -181,7 +186,7 @@ public:
 	void PushProcessLoadedAssetsBatch(Impl::FEventContext& EventContext,
 		TArrayView<FAssetData> LoadedAssetDatas, TArrayView<const UObject*> UnprocessedFromBatch);
 	/** Call LoadCalculatedDependencies on each Package updated after the last LoadCalculatedDependencies. */
-	void LoadCalculatedDependencies(TArray<FName>* AssetsToCalculate, double TickStartTime, bool& bOutInterrupted);
+	void LoadCalculatedDependencies(TArray<FName>* AssetPackageNamessToCalculate, double TickStartTime, bool& bOutInterrupted);
 	/**
 	 * Look for a CalculatedDependencies function registered for the asset(s) in the given package
 	 * and call that function to add calculated dependencies. Calculated dependencies are added only after
@@ -397,7 +402,7 @@ private:
 	TRingBuffer<TWeakObjectPtr<const UObject>> LoadedAssetsToProcess;
 
 	/** The set of object paths that have had their disk cache updated from the in memory version */
-	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;
+	TSet<FSoftObjectPath> AssetDataObjectPathsUpdatedOnLoad;
 
 	/**
 	 * The set of object paths that have had their dependencies gathered since the last idle,
@@ -482,7 +487,7 @@ struct FClassInheritanceContext
 struct FScanPathContext
 {
 	FScanPathContext(FEventContext& InEventContext, const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-		bool bInForceRescan = false, bool bInIgnoreDenyListScanFilters = false, TArray<FName>* FoundAssets = nullptr);
+		bool bInForceRescan = false, bool bInIgnoreDenyListScanFilters = false, TArray<FSoftObjectPath>* FoundAssets = nullptr);
 
 	TArray<FString> PackageDirs;
 	TArray<FString> LocalDirs;
@@ -490,7 +495,7 @@ struct FScanPathContext
 	TArray<FString> LocalFiles;
 	TArray<FString> LocalPaths;
 	FEventContext& EventContext;
-	TArray<FName>* OutFoundAssets = nullptr;
+	TArray<FSoftObjectPath>* OutFoundAssets = nullptr;
 	int32 NumFoundAssets = 0;
 	bool bForceRescan = false;
 	bool bIgnoreDenyListScanFilters = false;

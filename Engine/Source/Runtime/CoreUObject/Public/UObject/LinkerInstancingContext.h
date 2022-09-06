@@ -44,11 +44,9 @@ public:
 	 */
 	FSoftObjectPath RemapPath(const FSoftObjectPath& Path) const
 	{
-		if (const FName* Remapped = PathMapping.Find(Path.GetAssetPathName()))
+		if (const FTopLevelAssetPath* Remapped = PathMapping.Find(Path.GetAssetPath()))
 		{
-			FSoftObjectPath NewPath = Path;
-			NewPath.SetAssetPathName(*Remapped);
-			return NewPath;
+			return FSoftObjectPath(*Remapped, Path.GetSubPathString());
 		}
 		return Path;
 	}
@@ -67,7 +65,7 @@ public:
 		ensureAlwaysMsgf(Instanced.GetSubPathString().IsEmpty(), 
 			TEXT("Linker instance remap paths should be top-level assets only: ->%s"), *Instanced.ToString());
 	
-		PathMapping.Emplace(Original.GetAssetPathName(), Instanced.GetAssetPathName());
+		PathMapping.Emplace(Original.GetAssetPath(), Instanced.GetAssetPath());
 	}
 
 	void AddTag(FName NewTag)
@@ -116,8 +114,8 @@ private:
 
 	/** Map of original package name to their instance counterpart. */
 	TMap<FName, FName> PackageMapping;
-	/** Map of original top level asset path to their instance counterpart. This should be FTopLevelAssetPath when FSoftObjectPath is refactored to contain that. */
-	TMap<FName, FName> PathMapping;
+	/** Map of original top level asset path to their instance counterpart. */
+	TMap<FTopLevelAssetPath, FTopLevelAssetPath> PathMapping;
 	/** Tags can be used to determine some loading behavior. */
 	TSet<FName> Tags;
 	/** Remap soft object paths */

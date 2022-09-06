@@ -31,15 +31,15 @@ private:
 	/** Helper struct for soft object path tracking */
 	struct FSoftObjectPathProperty
 	{
-		FSoftObjectPathProperty(FName InAssetPathName, FName InProperty, bool bInReferencedByEditorOnlyProperty)
-			: AssetPathName(InAssetPathName)
+		FSoftObjectPathProperty(FSoftObjectPath InObjectPath, FName InProperty, bool bInReferencedByEditorOnlyProperty)
+			: ObjectPath(MoveTemp(InObjectPath))
 			, PropertyName(InProperty)
 			, bReferencedByEditorOnlyProperty(bInReferencedByEditorOnlyProperty)
 		{}
 
 		 bool operator==(const FSoftObjectPathProperty& Other) const
 		 {
-		 	return AssetPathName == Other.AssetPathName &&
+		 	return ObjectPath == Other.ObjectPath &&
 		 		PropertyName == Other.PropertyName &&
 		 		bReferencedByEditorOnlyProperty == Other.bReferencedByEditorOnlyProperty;
 		 }
@@ -47,15 +47,15 @@ private:
 		friend inline uint32 GetTypeHash(const FSoftObjectPathProperty& Key)
 		{
 			uint32 Hash = 0;
-			Hash = HashCombine(Hash, GetTypeHash(Key.AssetPathName));
+			Hash = HashCombine(Hash, GetTypeHash(Key.ObjectPath));
 			Hash = HashCombine(Hash, GetTypeHash(Key.PropertyName));
 			Hash = HashCombine(Hash, (uint32)Key.bReferencedByEditorOnlyProperty);
 			return Hash;
 		}
 
-		const FName& GetAssetPathName() const
+		const FSoftObjectPath& GetObjectPath() const
 		{
-			return AssetPathName;
+			return ObjectPath;
 		}
 
 		const FName& GetPropertyName() const
@@ -69,7 +69,7 @@ private:
 		}
 
 	private:
-		FName AssetPathName;
+		FSoftObjectPath ObjectPath;
 		FName PropertyName;
 		bool bReferencedByEditorOnlyProperty;
 	};
@@ -106,13 +106,20 @@ public:
 	void ProcessSoftObjectPathPackageList(FName FilterPackage, bool bGetEditorOnly, TSet<FName>& OutReferencedPackages);
 
 	/** Adds a new mapping for redirector path to destination path, this is called from the Asset Registry to register all redirects it knows about */
+	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	void AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath);
+	void AddAssetPathRedirection(const FSoftObjectPath& OriginalPath, const FSoftObjectPath& RedirectedPath);
 
 	/** Removes an asset path redirection, call this when deleting redirectors */
+	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	void RemoveAssetPathRedirection(FName OriginalPath);
+	void RemoveAssetPathRedirection(const FSoftObjectPath& OriginalPath);
 
 	/** Returns a remapped asset path, if it returns null there is no relevant redirector */
+	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	FName GetAssetPathRedirection(FName OriginalPath);
+	/** Returns a remapped asset path, if there is no relevant redirector, the return value reports true from IsNull() */
+	FSoftObjectPath GetAssetPathRedirection(const FSoftObjectPath& OriginalPath);
 
 	/**
 	 * Do we have any references to resolve.
@@ -151,7 +158,7 @@ private:
 	TMap<FName, TMap<FName, ESoftObjectPathCollectType>> PackageReferenceTypes;
 
 	/** When saving, apply this remapping to all soft object paths */
-	TMap<FName, FName> AssetPathRedirectionMap;
+	TMap<FSoftObjectPath, FSoftObjectPath> ObjectPathRedirectionMap;
 
 	/** For SoftObjectPackageMap map */
 	FCriticalSection CriticalSection;

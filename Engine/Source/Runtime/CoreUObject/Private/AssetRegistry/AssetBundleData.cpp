@@ -7,27 +7,28 @@
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", AssetBundleData);
 
 
-namespace UE { namespace AssetBundleEntry { namespace Private
+namespace UE::AssetBundleEntry::Private
 {
+	const FStringView BundleNamePrefix(TEXT("(BundleName=\""));
+	const FStringView BundleAssetsPrefix(TEXT(",BundleAssets=("));
+	const FStringView AssetPathsPrefix(TEXT(",AssetPaths=("));
+	const FStringView EmptyAssetPathsPrefix(TEXT(",AssetPaths="));
+	const FStringView AssetPathsSuffix(TEXT("))"));
+	const FStringView BundlesPrefix(TEXT("(Bundles=("));
+	const FStringView BundlesSuffix(TEXT("))"));
+	const FStringView EmptyBundles(TEXT("(Bundles=)"));
+	const FStringView StructOrArraySuffix(TEXT(")"));
 
-const FStringView BundleNamePrefix(TEXT("(BundleName=\""));
-const FStringView BundleAssetsPrefix(TEXT(",BundleAssets=("));
-const FStringView BundleAssetsSuffix(TEXT("))"));
-const FStringView BundlesPrefix(TEXT("(Bundles=("));
-const FStringView BundlesSuffix(TEXT("))"));
-const FStringView EmptyBundles(TEXT("(Bundles=)"));
-
-static bool SkipPrefix(const TCHAR*& InOutIt, FStringView Prefix)
-{
-	const bool bOk = FStringView(InOutIt, Prefix.Len()) == Prefix;
-	if (bOk)
+	static bool SkipPrefix(const TCHAR*& InOutIt, FStringView Prefix)
 	{
-		InOutIt += Prefix.Len();
+		const bool bOk = FStringView(InOutIt, Prefix.Len()) == Prefix;
+		if (bOk)
+		{
+			InOutIt += Prefix.Len();
+		}
+		return bOk;
 	}
-	return bOk;
 }
-
-}}}
 
 bool FAssetBundleEntry::ExportTextItem(FString& ValueStr, const FAssetBundleEntry& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {	
@@ -44,24 +45,34 @@ bool FAssetBundleEntry::ExportTextItem(FString& ValueStr, const FAssetBundleEntr
 	ValueStr += BundleNamePrefix;
 	BundleName.AppendString(ValueStr);
 	ValueStr += '\"';
-	ValueStr += BundleAssetsPrefix;
 
-	const FSoftObjectPath EmptyPath;
-	for (const FSoftObjectPath& Path : BundleAssets)
+	if (AssetPaths.Num())
 	{
-		if (!Path.ExportTextItem(ValueStr, EmptyPath, Parent, PortFlags, ExportRootScope))
+		ValueStr += AssetPathsPrefix;
+		const FSoftObjectPath EmptyAssetPath;
+		for (const FTopLevelAssetPath& Path : AssetPaths)
 		{
-			ValueStr.LeftInline(OriginalLen);
-			return false;
+			FSoftObjectPath ObjectPath(Path, {});
+			if (!ObjectPath.ExportTextItem(ValueStr, EmptyAssetPath, Parent, PortFlags, ExportRootScope))
+			{
+				ValueStr.LeftInline(OriginalLen);
+				return false;
+			}
+			
+			ValueStr.AppendChar(TEXT(','));
 		}
-		
-		ValueStr.AppendChar(TEXT(','));
+
+		// Remove last comma
+		ValueStr.LeftChopInline(1, /* shrink */ false);
+
+		ValueStr += AssetPathsSuffix;
 	}
+	else
+	{
 
-	// Remove last comma
-	ValueStr.LeftChopInline(1, /* shrink */ false);
-
-	ValueStr += BundleAssetsSuffix;
+		ValueStr += EmptyAssetPathsPrefix;
+		ValueStr += StructOrArraySuffix;
+	}
 
 	return true;
 }
@@ -70,41 +81,155 @@ bool FAssetBundleEntry::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 {
 	using namespace UE::AssetBundleEntry::Private;
 
-	const TCHAR* BundleNameBegin = Buffer;
-	if (SkipPrefix(/* in-out */ BundleNameBegin, BundleNamePrefix))
+	const TCHAR* BufferIt = Buffer;
+	FName LocalBundleName;
+	TArray<FSoftObjectPath> LocalObjectPaths;
+
+	if (SkipPrefix(/* in-out */ BufferIt, BundleNamePrefix))
 	{
-		if (const TCHAR* BundleNameEnd = FCString::Strchr(BundleNameBegin, TCHAR('"')))
+		if (const TCHAR* BundleNameEnd = FCString::Strchr(BufferIt, TCHAR('"')))
 		{
-			FName Name(UE_PTRDIFF_TO_INT32(BundleNameEnd - BundleNameBegin), BundleNameBegin);
+			LocalBundleName = FName(UE_PTRDIFF_TO_INT32(BundleNameEnd - BufferIt), BufferIt);
+			BufferIt = BundleNameEnd + 1;
+		}
+		else
+		{
+			ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Unterminated BundleName string. When parsing import text '%s'."), Buffer);
+			return false;
+		}
+	}
+	else
+	{
+		ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Text does not start with expected prefix '%.*s'. When parsing import text '%s'."), 
+			BundleNamePrefix.Len(), BundleNamePrefix.GetData(), Buffer);
+		return false;
+	}
 
-			const TCHAR* PathIt = BundleNameEnd + 1;
-			if (SkipPrefix(/* in-out */ PathIt, BundleAssetsPrefix))
+	bool bBundleAssetsSeen = false;
+	bool bAssetPathsSeen = false;
+	while (true)
+	{
+		// Parse deprecated format 
+		if (SkipPrefix(/* in-out */ BufferIt, BundleAssetsPrefix))
+		{
+			if (bBundleAssetsSeen)
 			{
-				TArray<FSoftObjectPath> Paths;
-				while (Paths.Emplace_GetRef().ImportTextItem(/* in-out */ PathIt, PortFlags, Parent, ErrorText))
-				{
-					if (*PathIt == ',')
-					{
-						++PathIt;
-					}
-					else if (SkipPrefix(/* in-out */ PathIt, BundleAssetsSuffix))
-					{
-						BundleName = Name;
-						BundleAssets = MoveTemp(Paths);
-						Buffer = PathIt;
+				// Parse error 
+				ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Encountered key BundleAssets twice. When parsing import text '%s'."), Buffer);
+				return false;
+			}
+			bBundleAssetsSeen = true;
 
-						return true;
-					}
-					else
-					{
-						return false;
-					}
+			if (SkipPrefix(/* in-out */ BufferIt, StructOrArraySuffix))
+			{
+				// End of array
+				continue;
+			}
+
+			while (LocalObjectPaths.Emplace_GetRef().ImportTextItem(/* in-out */ BufferIt, PortFlags, Parent, ErrorText))
+			{
+				if(!LocalObjectPaths.Last().GetSubPathString().IsEmpty())
+				{
+					ErrorText->Logf(ELogVerbosity::Warning, TEXT("FAssetBundleEntry::ImportTextItem - Asset bundle entries should all be top level objects, but found a subobject path '%s'. When parsing import text '%s'."), 
+						*LocalObjectPaths.Last().ToString(), Buffer);
+				}
+
+				if (*BufferIt == ',')
+				{
+					++BufferIt; // We expect another path
+				}
+				else if (SkipPrefix(/* in-out */ BufferIt, StructOrArraySuffix))
+				{
+					// End of array
+					break;
+				}
+				else
+				{
+					// Parse error 
+					ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Unterminated or ill formed BundleAssets list while importing asset bundle entry. When parsing import text '%s'."), Buffer);
+					return false;
 				}
 			}
 		}
+		else if (SkipPrefix(/* in-out */ BufferIt, AssetPathsPrefix))
+		{
+			if (bAssetPathsSeen)
+			{
+				// Parse error 
+				ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Encountered key AssetPaths twice. When parsing import text '%s'."), Buffer);
+				return false;
+			}
+			bAssetPathsSeen = true;
+
+			if (SkipPrefix(/* in-out */ BufferIt, StructOrArraySuffix))
+			{
+				// End of array
+				continue;
+			}
+
+			while (LocalObjectPaths.Emplace_GetRef().ImportTextItem(/* in-out */ BufferIt, PortFlags, Parent, ErrorText))
+			{
+				if (!LocalObjectPaths.Last().GetSubPathString().IsEmpty())
+				{
+					// Parse error, these should only have top-level paths
+					ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Asset bundle entries should all be top level objects, but found a subobject path '%s'. When parsing import text '%s'."), 
+						*LocalObjectPaths.Last().ToString(), Buffer);
+					return false;
+				}
+
+				if (*BufferIt == ',')
+				{
+					++BufferIt; // We expect another path
+				}
+				else if (SkipPrefix(/* in-out */ BufferIt, StructOrArraySuffix))
+				{
+					// End of array
+					break;
+				}
+				else
+				{
+					// Parse error 
+					ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - unterminated or ill formed AssetPaths list while importing asset bundle entry: '%s'. When parsing import text '%s'."), BufferIt, Buffer);
+					return false;
+				}
+			}
+		}
+		else if (SkipPrefix(/* in-out */ BufferIt, EmptyAssetPathsPrefix))
+		{
+			// Empty array 
+			continue;
+		}
+		else if (SkipPrefix(/* in-out */ BufferIt, StructOrArraySuffix))
+		{
+			// End
+			break;
+		}
+		else
+		{
+			// Parse error 
+			ErrorText->Logf(ELogVerbosity::Error, TEXT("FAssetBundleEntry::ImportTextItem - Ill-formed asset bundle entry, unexpected: '%s'. When parsing import text '%s'."), BufferIt, Buffer);
+			return false;
+		}
 	}
 
-	return false;
+	BundleName = LocalBundleName;
+	AssetPaths.Reset(LocalObjectPaths.Num());
+	for (const FSoftObjectPath& Path : LocalObjectPaths)
+	{
+		AssetPaths.Add(Path.GetAssetPath());
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	BundleAssets.Reset(AssetPaths.Num());
+	for (const FTopLevelAssetPath& Path : AssetPaths)
+	{
+		BundleAssets.Add(FSoftObjectPath(Path, {}));
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// Success, update how much we read for the caller
+	Buffer = BufferIt;
+	return true;
 }
 
 FAssetBundleEntry* FAssetBundleData::FindEntry(FName SearchName)
@@ -117,6 +242,65 @@ FAssetBundleEntry* FAssetBundleData::FindEntry(FName SearchName)
 		}
 	}
 	return nullptr;
+}
+
+
+void FAssetBundleData::AddBundleAsset(FName BundleName, const FTopLevelAssetPath& AssetPath)
+{
+	if (!AssetPath.IsValid())
+	{
+		return;
+	}
+
+	FAssetBundleEntry* FoundEntry = FindEntry(BundleName);
+
+	if (!FoundEntry)
+	{
+		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FoundEntry->BundleAssets.AddUnique(FSoftObjectPath(AssetPath, {}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FoundEntry->AssetPaths.AddUnique(AssetPath);
+}
+
+void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FTopLevelAssetPath>& AssetPaths)
+{
+	FAssetBundleEntry* FoundEntry = FindEntry(BundleName);
+
+	for (const FTopLevelAssetPath& Path : AssetPaths)
+	{
+		if (Path.IsValid())
+		{
+			// Only create if required
+			if (!FoundEntry)
+			{
+				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+			}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FoundEntry->BundleAssets.AddUnique(FSoftObjectPath(Path, {}));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FoundEntry->AssetPaths.AddUnique(Path);
+		}
+	}
+}
+
+void FAssetBundleData::SetBundleAssets(FName BundleName, TArray<FTopLevelAssetPath>&& AssetPaths)
+{
+	FAssetBundleEntry* FoundEntry = FindEntry(BundleName);
+
+	if (!FoundEntry)
+	{
+		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+	}
+
+	FoundEntry->AssetPaths = MoveTemp(AssetPaths);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FoundEntry->BundleAssets.Reset();
+	Algo::Transform(FoundEntry->AssetPaths, FoundEntry->BundleAssets, [](FTopLevelAssetPath Path) { return FSoftObjectPath(Path, {}); });
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAssetBundleData::AddBundleAsset(FName BundleName, const FSoftObjectPath& AssetPath)
@@ -133,7 +317,10 @@ void FAssetBundleData::AddBundleAsset(FName BundleName, const FSoftObjectPath& A
 		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FoundEntry->BundleAssets.AddUnique(AssetPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FoundEntry->AssetPaths.AddUnique(AssetPath.GetAssetPath());
 }
 
 void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths)
@@ -150,7 +337,10 @@ void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FSoftObjec
 				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 			}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FoundEntry->BundleAssets.AddUnique(Path);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FoundEntry->AssetPaths.AddUnique(Path.GetAssetPath());
 		}
 	}
 }
@@ -164,7 +354,79 @@ void FAssetBundleData::SetBundleAssets(FName BundleName, TArray<FSoftObjectPath>
 		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
 	}
 
-	FoundEntry->BundleAssets = AssetPaths;
+	FoundEntry->AssetPaths.Reset(AssetPaths.Num());
+	for( const FSoftObjectPath& Path : AssetPaths )
+	{	
+		FoundEntry->AssetPaths.Add(Path.GetAssetPath());
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FoundEntry->BundleAssets.Reset();
+	Algo::Transform(FoundEntry->AssetPaths, FoundEntry->BundleAssets, [](FTopLevelAssetPath Path) { return FSoftObjectPath(Path, {}); });
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FAssetBundleData::AddBundleAssetTruncated(FName BundleName, const FSoftObjectPath& AssetPath)
+{
+	if (!AssetPath.IsValid())
+	{
+		return;
+	}
+
+	FAssetBundleEntry* FoundEntry = FindEntry(BundleName);
+
+	if (!FoundEntry)
+	{
+		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FoundEntry->BundleAssets.AddUnique(AssetPath.GetWithoutSubPath());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FoundEntry->AssetPaths.AddUnique(AssetPath.GetAssetPath());
+}
+
+void FAssetBundleData::AddBundleAssetsTruncated(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths)
+{
+	FAssetBundleEntry* FoundEntry = FindEntry(BundleName);
+
+	for (const FSoftObjectPath& Path : AssetPaths)
+	{
+		if (Path.IsValid())
+		{
+			// Only create if required
+			if (!FoundEntry)
+			{
+				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+			}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FoundEntry->BundleAssets.AddUnique(Path.GetWithoutSubPath());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FoundEntry->AssetPaths.AddUnique(Path.GetAssetPath());
+		}
+	}
+}
+
+void FAssetBundleData::SetBundleAssetsTruncated(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths)
+{
+	FAssetBundleEntry* FoundEntry = FindEntry(BundleName);
+
+	if (!FoundEntry)
+	{
+		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+	}
+
+	FoundEntry->AssetPaths.Reset(AssetPaths.Num());
+	for (const FSoftObjectPath& Path : AssetPaths)
+	{	
+		FoundEntry->AssetPaths.Add(Path.GetAssetPath());
+	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FoundEntry->BundleAssets.Reset();
+	Algo::Transform(FoundEntry->AssetPaths, FoundEntry->BundleAssets, [](FTopLevelAssetPath Path) { return FSoftObjectPath(Path); });
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAssetBundleData::Reset()
@@ -261,10 +523,174 @@ FString FAssetBundleData::ToDebugString() const
 
 		Result.Appendf(TEXT("%s -> (%s)"),
 			*Data.BundleName.ToString(),
-			*FString::JoinBy(Data.BundleAssets, TEXT(", "), [](const FSoftObjectPath& LoadBundle) { return LoadBundle.ToString(); }));
+			*FString::JoinBy(Data.AssetPaths, TEXT(", "), [](const FTopLevelAssetPath& LoadBundle) { return LoadBundle.ToString(); })
+		);
 
 		bFirstLine = false;
 	}
 
 	return Result.ToString();
 }
+
+
+#if WITH_DEV_AUTOMATION_TESTS 
+
+#include "Misc/AutomationTest.h"
+
+// Combine import/export tests
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAssetBundleEntryImportExportTextTest, "Engine.AssetRegistry.AssetBundleEntry.ImportExportText", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FAssetBundleEntryImportExportTextTest::RunTest(const FString& Parameters)
+{
+	FAssetBundleEntry DefaultEntry;
+
+	FAssetBundleEntry EmptyEntry;
+	EmptyEntry.BundleName = "Empty";
+	FString EmptyEntryString = TEXT("(BundleName=\"Empty\",AssetPaths=)");
+
+	FAssetBundleEntry SingleAssetEntry;
+	SingleAssetEntry.BundleName = "Single";
+	SingleAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Characters/Steve.Steve")));
+	FString SingleAssetEntryString = TEXT("(BundleName=\"Single\",AssetPaths=(\"/Game/Characters/Steve.Steve\"))");
+
+	FAssetBundleEntry MultiAssetEntry;
+	MultiAssetEntry.BundleName = "Multi";
+	MultiAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Meshes/ConcreteWall.ConcreteWall")));
+	MultiAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Meshes/GarbageCan.GarbageCan")));
+	MultiAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Blueprints/Widget.Widget_C")));
+	FString MultiAssetEntryString = TEXT("(BundleName=\"Multi\",AssetPaths=(\"/Game/Meshes/ConcreteWall.ConcreteWall\",\"/Game/Meshes/GarbageCan.GarbageCan\",\"/Game/Blueprints/Widget.Widget_C\"))");
+
+	FString EmptyExported;
+	TestTrue(TEXT("Empty asset bundle exports to text"), EmptyEntry.ExportTextItem(EmptyExported, FAssetBundleEntry{}, nullptr, PPF_Delimited, nullptr));
+	TestEqual(TEXT("Empty asset bundle exports to correct string"), EmptyExported, EmptyEntryString);
+
+	FString SingleExported;
+	TestTrue(TEXT("Single-asset asset bundle exports to text"), SingleAssetEntry.ExportTextItem(SingleExported, FAssetBundleEntry{}, nullptr, PPF_Delimited, nullptr));
+	TestEqual(TEXT("Single-asset asset bundle exports to correct string"), SingleExported, SingleAssetEntryString);
+
+	FString MultiExported;
+	TestTrue(TEXT("Multi-asset asset bundle exports to text"), MultiAssetEntry.ExportTextItem(MultiExported, FAssetBundleEntry{}, nullptr, PPF_Delimited, nullptr));
+	TestEqual(TEXT("Multi-asset asset bundle exports to correct string"), MultiExported, MultiAssetEntryString);
+
+	const TCHAR* EmptyBuffer = *EmptyEntryString;
+	FAssetBundleEntry EmptyImported;
+	TestTrue(TEXT("Empty asset bundle imports from text"), EmptyImported.ImportTextItem(EmptyBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Empty asset bundle imports correctly"), EmptyImported, EmptyEntry);
+
+	const TCHAR* SingleBuffer = *SingleAssetEntryString;
+	FAssetBundleEntry SingleImported;
+	TestTrue(TEXT("Single-asset asset bundle imports from text"), SingleImported.ImportTextItem(SingleBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Single-asset asset bundle imports correctly"), SingleImported, SingleAssetEntry);
+
+	const TCHAR* MultiBuffer = *MultiAssetEntryString;
+	FAssetBundleEntry MultiImported;
+	TestTrue(TEXT("Multi-asset asset bundle imports from text"), MultiImported.ImportTextItem(MultiBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Multi-asset asset bundle imports correctly"), MultiImported, MultiAssetEntry);
+
+	AddExpectedError(TEXT("FAssetBundleEntry::ImportTextItem - Asset bundle entries should all be top level objects"));
+	FString SubobjectEntryString = TEXT("(BundleName=\"Subobject\",AssetPaths=(\"/Game/Characters/Steve.Steve:Hat\"))");
+	const TCHAR* SubobjectBuffer = *SubobjectEntryString;
+	FAssetBundleEntry SubobjectImported;
+	TestFalse(TEXT("Subobject bunld does not import from text"), SubobjectImported.ImportTextItem(SubobjectBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Subobject bundle does not import from text"), SubobjectImported, DefaultEntry);
+
+	AddExpectedError(TEXT("FAssetBundleEntry::ImportTextItem - Unterminated BundleName string"));
+	FString UnterminatedBundleNameString = TEXT("(BundleName=\"TestUnterminated,BundleAssets=))");
+	const TCHAR* UnterminatedBundleNameBuffer = *UnterminatedBundleNameString;
+	FAssetBundleEntry UnterminatedEntry;
+	TestFalse(TEXT("Unterminated asset bundle name fails import"), UnterminatedEntry.ImportTextItem(UnterminatedBundleNameBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Unterminated asset bundle name fails import"), UnterminatedEntry, DefaultEntry);
+
+	AddExpectedError(TEXT("AssetBundleEntry::ImportTextItem - Ill-formed asset bundle entry"));
+	FString MismatchedQuotesString = TEXT("(BundleName=\"TestUnterminated,BundleAssets=(\"/Game/Characters/Steve.Steve\")))");
+	const TCHAR* MismatchedQuotesBuffer = *MismatchedQuotesString;
+	FAssetBundleEntry MismatchedQuotesEntry;
+	TestFalse(TEXT("Mismatched quotes asset bundle name fails import"), MismatchedQuotesEntry.ImportTextItem(MismatchedQuotesBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Mismatched quotes asset bundle name fails import"), MismatchedQuotesEntry, DefaultEntry);
+
+	AddExpectedError(TEXT("FAssetBundleEntry::ImportTextItem - Text does not start with expected prefix"));
+	FString UnsupportedOrderString = TEXT("(BundleAssets=(\"/Game/Characters/Steve.Steve\"), BundleName=\"UnsupportedOrder\")");
+	const TCHAR* UnsupportedOrderBuffer = *UnsupportedOrderString;
+	FAssetBundleEntry UnsupportedOrderEntry;
+	TestFalse(TEXT("Unsupported order fails import"), UnsupportedOrderEntry.ImportTextItem(UnsupportedOrderBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Unsupported order fails import"), UnsupportedOrderEntry, DefaultEntry);
+
+	AddExpectedError(TEXT("FAssetBundleEntry::ImportTextItem - Encountered key BundleAssets twice"));
+	FString DuplicateKeysString = TEXT("(BundleName=\"DuplicateKeys\",BundleAssets=(\"/Game/Characters/Steve.Steve\"),BundleAssets=(\"/Game/Characters/Will.Will\"))");
+	const TCHAR* DuplicateKeysBuffer = *DuplicateKeysString;
+	FAssetBundleEntry DuplicateKeysEntry;
+	TestFalse(TEXT("Duplicate keys fails import"), DuplicateKeysEntry.ImportTextItem(DuplicateKeysBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Duplicate keys fails import"), DuplicateKeysEntry, DefaultEntry);
+
+	return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLegacyAssetBundleEntryTest, "Engine.AssetRegistry.AssetBundleEntry.LegacyAssetBundleEntry", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+// Test ImportText for old asset bundles with BundleAssets field
+bool FLegacyAssetBundleEntryTest::RunTest(const FString& Parameters)
+{
+	// Test subobject path truncation
+	FAssetBundleEntry DefaultEntry;
+
+	FAssetBundleEntry EmptyEntry;
+	EmptyEntry.BundleName = "Empty";
+	FString EmptyEntryString = TEXT("(BundleName=\"Empty\",AssetPaths=())");
+	FString EmptyEntryString2 = TEXT("(BundleName=\"Empty\",AssetPaths=)");
+
+	FAssetBundleEntry SingleAssetEntry;
+	SingleAssetEntry.BundleName = "Single";
+	SingleAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Characters/Steve.Steve")));
+	FString SingleAssetEntryString = TEXT("(BundleName=\"Single\",BundleAssets=(\"/Game/Characters/Steve.Steve\"))");
+
+	FAssetBundleEntry MultiAssetEntry;
+	MultiAssetEntry.BundleName = "Multi";
+	MultiAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Meshes/ConcreteWall.ConcreteWall")));
+	MultiAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Meshes/GarbageCan.GarbageCan")));
+	MultiAssetEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Blueprints/Widget.Widget_C")));
+	FString MultiAssetEntryString = TEXT("(BundleName=\"Multi\",BundleAssets=(\"/Game/Meshes/ConcreteWall.ConcreteWall\",\"/Game/Meshes/GarbageCan.GarbageCan\",\"/Game/Blueprints/Widget.Widget_C\"))");
+
+	FAssetBundleEntry SubobjectEntry;
+	SubobjectEntry.BundleName = "Subobject";
+	SubobjectEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Characters/Steve.Steve")));
+	FString SubobjectEntryString = TEXT("(BundleName=\"Subobject\",BundleAssets=(\"/Game/Characters/Steve.Steve:Hat\"))");
+
+	const TCHAR* EmptyBuffer = *EmptyEntryString;
+	FAssetBundleEntry EmptyImported;
+	TestTrue(TEXT("Empty asset bundle imports from text"), EmptyImported.ImportTextItem(EmptyBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Empty asset bundle imports correctly"), EmptyImported, EmptyEntry);
+
+	const TCHAR* EmptyBuffer2 = *EmptyEntryString2;
+	FAssetBundleEntry EmptyImported2;
+	TestTrue(TEXT("Empty asset bundle without inner parens imports from text"), EmptyImported2.ImportTextItem(EmptyBuffer2, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Empty asset bundle without inner parens imports correctly"), EmptyImported2, EmptyEntry);
+
+	const TCHAR* SingleBuffer = *SingleAssetEntryString;
+	FAssetBundleEntry SingleImported;
+	TestTrue(TEXT("Single-asset asset bundle imports from text"), SingleImported.ImportTextItem(SingleBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Single-asset asset bundle imports correctly"), SingleImported, SingleAssetEntry);
+
+	const TCHAR* MultiBuffer = *MultiAssetEntryString;
+	FAssetBundleEntry MultiImported;
+	TestTrue(TEXT("Multi-asset asset bundle imports from text"), MultiImported.ImportTextItem(MultiBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Multi-asset asset bundle imports correctly"), MultiImported, MultiAssetEntry);
+
+	const TCHAR* SubobjectBuffer = *SubobjectEntryString;
+	FAssetBundleEntry SubobjectImported;
+	TestTrue(TEXT("Subobject asset bundle imports from text"), SubobjectImported.ImportTextItem(SubobjectBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Subobject asset bundle imports correctly"), SubobjectImported, SubobjectEntry);
+
+	FAssetBundleEntry MixedFormatEntry;
+	MixedFormatEntry.BundleName = "MixedFormat";
+	MixedFormatEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Meshes/ConcreteWall.ConcreteWall")));
+	MixedFormatEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Meshes/GarbageCan.GarbageCan")));
+	MixedFormatEntry.AssetPaths.Add(FTopLevelAssetPath(TEXT("/Game/Blueprints/Widget.Widget_C")));
+	FString MixedFormatString = TEXT("(BundleName=\"MixedFormat\",AssetPaths=(\"/Game/Meshes/ConcreteWall.ConcreteWall\"),BundleAssets=(\"/Game/Meshes/GarbageCan.GarbageCan\",\"/Game/Blueprints/Widget.Widget_C\"))");
+	const TCHAR* MixedFormatBuffer = *MixedFormatString;
+	FAssetBundleEntry MixedFormatImported;
+	TestTrue(TEXT("Mixed format asset bundle imports from text"), MixedFormatImported.ImportTextItem(MixedFormatBuffer, PPF_Delimited, nullptr, GLog->Get()));
+	TestEqual(TEXT("Mixed format asset bundle imports correctly"), MixedFormatImported, MixedFormatEntry);
+
+	return true;
+}
+#endif // WITH_DEV_AUTOMATION_TESTS

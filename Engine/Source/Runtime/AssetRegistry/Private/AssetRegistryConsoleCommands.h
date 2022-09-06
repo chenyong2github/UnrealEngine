@@ -23,6 +23,8 @@ public:
 	FAutoConsoleCommand GetReferencersCommand;
 	FAutoConsoleCommand FindInvalidUAssetsCommand;
 	FAutoConsoleCommand ScanPathCommand;
+	FAutoConsoleCommand DumpAllocatedSizeCommand;
+	FAutoConsoleCommand DumpStateCommand;
 
 	FAssetRegistryConsoleCommands()
 		: GetByNameCommand(
@@ -57,6 +59,14 @@ public:
 		TEXT("AssetRegistry.ScanPath"),
 		*LOCTEXT("CommandText_ScanPath", "<PathToScan> //Scan the given filename or directoryname for package files and load them into the assetregistry. Extra string parameters: -forcerescan, -ignoreDenyLists, -asfile, -asdir").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetRegistryConsoleCommands::ScanPath ) )
+	, DumpAllocatedSizeCommand(
+		TEXT("AssetRegistry.DumpAllocatedSize"),
+		*LOCTEXT("CommandText_DumpAllocatedSize", "Dump the allocations of the asset registry state to the log").ToString(),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetRegistryConsoleCommands::DumpAllocatedSize ) )
+	, DumpStateCommand(
+		TEXT("AssetRegistry.DumpState"),
+		*LOCTEXT("CommandText_DumpState", "Dump the state of the asset registry to a file. Pass -log to dump to the log as well. Extra string parameters: All, ObjectPath, PackageName, Path, Class, Tag, Dependencies, DependencyDetails, PackageData, AssetBundles, AssetTags").ToString(),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetRegistryConsoleCommands::DumpState ) )
 	{}
 
 	void GetByName(const TArray<FString>& Args)
@@ -207,7 +217,7 @@ public:
 				if ( FPaths::GetExtension(PackageFilename, true) == FPackageName::GetAssetPackageExtension() && !AssetData.IsUAsset())
 				{
 					// This asset was in a package with a uasset extension but did not share the name of the package
-					UE_LOG(LogAssetRegistry, Log, TEXT("%s"), *AssetData.ObjectPath.ToString());
+					UE_LOG(LogAssetRegistry, Log, TEXT("%s"), *AssetData.GetObjectPathString());
 				}
 			}
 		}
@@ -271,6 +281,48 @@ public:
 		{
 			IAssetRegistry::GetChecked().ScanFilesSynchronous({ InPath }, bForceRescan);
 		}
+	}
+
+	void DumpAllocatedSize(const TArray<FString>& Args)
+	{
+		SIZE_T Size = IAssetRegistry::GetChecked().GetAllocatedSize(true);
+
+		UE_LOG(LogAssetRegistry, Log, TEXT("Total %2.f mb"), double(Size) / 1024.0 / 1024.0);
+	}
+
+	void DumpState(const TArray<FString>& Args)	
+	{
+		const bool bLog = Args.Contains(TEXT("log"));
+		const bool bDashLog = Args.Contains(TEXT("-log"));
+		if (Args.Num() == 0 + int32(bLog) + int32(bDashLog))
+		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("No arguments for asset registry dump."));
+			return;
+		}
+
+		const bool bDoLog = bLog || bDashLog || (!ALLOW_DEBUG_FILES);
+
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+		FString Path = FPaths::ProfilingDir() / FString::Printf(TEXT("AssetRegistryState_%s.txt"), *FDateTime::Now().ToString());
+		TUniquePtr<FArchive> Ar{ IFileManager::Get().CreateDebugFileWriter(*Path) };
+
+		TArray<FString> Pages;
+		IAssetRegistry::GetChecked().DumpState(Args, Pages, 1000);
+		for (const FString& Page : Pages)
+		{
+			if( bDoLog )
+			{
+				UE_LOG(LogAssetRegistry, Log, TEXT("%s"), *Page);
+			}
+#if ALLOW_DEBUG_FILES
+			Ar->Logf(TEXT("%s"), *Page);
+#endif
+		}
+
+		UE_LOG(LogAssetRegistry, Display, TEXT("Dumped asset registry state to %s."), *Path);
+#else
+		UE_LOG(LogAssetRegistry, Error, TEXT("Asset registry dumping is disabled by compilation flags."));
+#endif
 	}
 
 };

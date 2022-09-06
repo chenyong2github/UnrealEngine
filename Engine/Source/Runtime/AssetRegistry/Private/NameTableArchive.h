@@ -31,6 +31,7 @@ public:
 	virtual FArchive& operator<<(FName& Name);
 
 	void SerializeTagsAndBundles(FAssetData& Out);
+	void SerializeTagsAndBundlesOldVersion(FAssetData& Out, int32 Version);
 
 private:
 	/** Serializers for different package maps */

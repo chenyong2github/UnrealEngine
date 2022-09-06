@@ -92,6 +92,7 @@ struct COREUOBJECT_API FAssetRegistryVersion
 		ObjectResourceOptionalVersionChange,// Change to linker export/import resource serialization
 		AddedChunkHashes,					// Added FIoHash for each FIoChunkId in the package to the AssetPackageData.
 		ClassPaths,							// Classes are serialized as path names rather than short object names, e.g. /Script/Engine.StaticMesh
+		RemoveAssetPathFNames,				// Asset bundles are serialized as FTopLevelAssetPath instead of FSoftObjectPath, deprecated FAssetData::ObjectPath	
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -107,6 +108,23 @@ struct COREUOBJECT_API FAssetRegistryVersion
 private:
 	FAssetRegistryVersion() {}
 };
+
+namespace UE::AssetRegistry::Private
+{
+	struct FAssetPathParts
+	{
+		FStringView OuterPath;
+		FStringView InnermostName;
+	};
+
+	/** 
+	* Split a full object path into the path of the innermost object's outer and the name of that object.
+	* E.g. splits /Path/To/PackageName.AssetName:SubObject.Innermost into /Path/To/PackageName.AssetName:SubObject and Innermost
+	*/
+	COREUOBJECT_API FAssetPathParts SplitIntoOuterPathAndAssetName(FStringView InObjectPath);
+	/** Concatenates an existing object path with an inner object with the correct separator ('.' or ':'). Assumes the outer path already contains correct separators. */
+	COREUOBJECT_API void ConcatenateOuterPathAndObjectName(FStringBuilderBase& Builder, FName OuterPath, FName ObjectName);
+}
 
 /** 
  * A struct to hold important information about an assets found by the Asset Registry
@@ -131,6 +149,7 @@ public:
 
 public:
 	/** The object path for the asset in the form PackageName.ObjectName, or PackageName.ObjectName:SubObjectName. */
+	// UE_DEPRECATED(5.1, "FName asset paths have been deprecated. Use GetSoftObjectPath to get the path this asset will use in memory when loaded.")
 	FName ObjectPath;
 	/** The name of the package in which the asset is found, this is the full long package name such as /Game/Path/Package */
 	FName PackageName;
@@ -139,12 +158,27 @@ public:
 	/** The name of the asset without the package */
 	FName AssetName;
 	/** The name of the asset's class */
-	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use AssetClassPath.")
+	// UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use AssetClassPath.")
 	FName AssetClass;
 	/** The path of the asset's class, e.g. /Script/Engine.StaticMesh */
 	FTopLevelAssetPath AssetClassPath;
 	/** Asset package flags */
 	uint32 PackageFlags = 0;
+
+#if WITH_EDITORONLY_DATA
+private:
+	/**
+	 * If this object is not a top level asset, this contains the path of the outer of this object.
+	 * Non top-level assets may only be used in the editor.
+	 * For some assets (such as external actors) this may not start with PackageName.
+	 * e.g. PackageName			= /Game/__EXTERNAL_ACTORS__/Maps/MyMap/ABCDE12345
+			OptionalOuterPath	= /Game/Maps/MyMap.MyMap:PersistentLevel
+			AssetName			= SomeExternalActor
+	*/
+	FName OptionalOuterPath;
+public:
+#endif
+
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
 	/**
@@ -189,31 +223,41 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
 
-	/** FAssetDatas are equal if their object paths match */
+	/** FAssetDatas are uniquely identified by PackageName and AssetName. */
 	bool operator==(const FAssetData& Other) const
 	{
-		return ObjectPath == Other.ObjectPath;
+		return PackageName == Other.PackageName && AssetName == Other.AssetName;
 	}
 
 	bool operator!=(const FAssetData& Other) const
 	{
-		return ObjectPath != Other.ObjectPath;
+		return PackageName != Other.PackageName || AssetName != Other.AssetName;
 	}
 
+	/** Perform a lexical greater-than operation on the PackageName and AssetName that uniquely identify two FAssetData. */
 	bool operator>(const FAssetData& Other) const
 	{
-		return  Other.ObjectPath.LexicalLess(ObjectPath);
+		if (PackageName == Other.PackageName)
+		{
+			return Other.AssetName.LexicalLess(AssetName);
+		}
+		return Other.PackageName.LexicalLess(PackageName);
 	}
 
+	/** Perform a lexical less-than operation on the PackageName and AssetName that uniquely identify two FAssetData. */
 	bool operator<(const FAssetData& Other) const
 	{
-		return ObjectPath.LexicalLess(Other.ObjectPath);
+		if (PackageName == Other.PackageName)
+		{
+			return AssetName.LexicalLess(Other.AssetName);
+		}
+		return PackageName.LexicalLess(Other.PackageName);
 	}
 
 	/** Checks to see if this AssetData refers to an asset or is NULL */
 	bool IsValid() const
 	{
-		return !ObjectPath.IsNone();
+		return !PackageName.IsNone() && !AssetName.IsNone();
 	}
 
 	/**
@@ -235,6 +279,23 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TStringBuilder<FName::StringBufferSize> PackageNameStrBuilder;
 		PackageName.ToString(PackageNameStrBuilder);
 		return DetectIsUAssetByNames(PackageNameStrBuilder, AssetNameStrBuilder);
+	}
+
+	/** Convert to a SoftObjectPath. PackageName.AssetName for ToplevelAssets. OptionalOuterName and AssetName joined by : or . for sub-object assets */
+	COREUOBJECT_API FSoftObjectPath GetSoftObjectPath() const;
+	
+	// TODO: Deprecate in favor of GetSoftObjectPath
+	FSoftObjectPath ToSoftObjectPath() const
+	{
+		return GetSoftObjectPath();
+	}
+	
+	/** Return the object path as a string. */
+	FString GetObjectPathString() const
+	{
+		TStringBuilder<FName::StringBufferSize> Builder;
+		AppendObjectPath(Builder);
+		return FString(Builder);
 	}
 
 	/**
@@ -264,7 +325,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TagsAndValues.Shrink();
 	}
 
-	/** Returns the full name for the asset in the form: Class ObjectPath */
+#if WITH_EDITORONLY_DATA	
+	FName GetOptionalOuterPathName() const { return OptionalOuterPath; }
+	void SetOptionalOuterPathName(FName InName) { OptionalOuterPath = InName; }
+#endif
+
+	/** Returns the full name for the asset in the form: Class FullPath */
 	FString GetFullName() const
 	{
 		FString FullName;
@@ -272,13 +338,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return FullName;
 	}
 
-	/** Populates OutFullName with the full name for the asset in the form: Class ObjectPath */
+	/** Populates OutFullName with the full name for the asset in the form: Class FullPath */
 	void GetFullName(FString& OutFullName) const
 	{
 		OutFullName.Reset();
 		OutFullName += AssetClassPath.ToString();
 		OutFullName.AppendChar(TEXT(' '));
-		ObjectPath.AppendString(OutFullName);
+		AppendObjectPath(OutFullName);
 	}
 
 	/** Populates OutFullNameBuilder with the full name for the asset in the form: Class ObjectPath */
@@ -287,10 +353,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		OutFullNameBuilder.Reset();
 		AssetClassPath.AppendString(OutFullNameBuilder);
 		OutFullNameBuilder.AppendChar(TEXT(' '));
-		ObjectPath.AppendString(OutFullNameBuilder);
+		AppendObjectPath(OutFullNameBuilder);
 	}
 
-	/** Returns the name for the asset in the form: Class'ObjectPath' */
+	/** Returns the name for the asset in the form: Class'FullPath' */
 	FString GetExportTextName() const
 	{
 		FString ExportTextName;
@@ -298,23 +364,23 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ExportTextName;
 	}
 
-	/** Populates OutExportTextName with the name for the asset in the form: Class'ObjectPath' */
+	/** Populates OutExportTextName with the name for the asset in the form: Class'FullPath' */
 	void GetExportTextName(FString& OutExportTextName) const
 	{
 		OutExportTextName.Reset();
 		OutExportTextName.Append(AssetClassPath.ToString());
 		OutExportTextName.AppendChar(TEXT('\''));
-		ObjectPath.AppendString(OutExportTextName);
+		AppendObjectPath(OutExportTextName);
 		OutExportTextName.AppendChar(TEXT('\''));
 	}
 
-	/** Populates OutExportTextNameBuilder with the name for the asset in the form: Class'ObjectPath' */
+	/** Populates OutExportTextNameBuilder with the name for the asset in the form: Class'FullPath' */
 	void GetExportTextName(FStringBuilderBase& OutExportTextNameBuilder) const
 	{
 		OutExportTextNameBuilder.Reset();
 		AssetClassPath.AppendString(OutExportTextNameBuilder);
 		OutExportTextNameBuilder.AppendChar(TEXT('\''));
-		ObjectPath.AppendString(OutExportTextNameBuilder);
+		AppendObjectPath(OutExportTextNameBuilder);
 		OutExportTextNameBuilder.AppendChar(TEXT('\''));
 	}
 
@@ -358,16 +424,35 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ClassPointer && ClassPointer->IsChildOf(BaseClass);
 	}
 
-	/** Convert to a SoftObjectPath for loading */
-	FSoftObjectPath ToSoftObjectPath() const
+	/** Append the object path to the given string builder. */
+	void AppendObjectPath(FStringBuilderBase& Builder) const
 	{
-		return FSoftObjectPath(ObjectPath);
+#if WITH_EDITORONLY_DATA
+		if (!OptionalOuterPath.IsNone())
+		{
+			UE::AssetRegistry::Private::ConcatenateOuterPathAndObjectName(Builder, OptionalOuterPath, AssetName);
+		}
+		else
+#endif
+		{
+			Builder << PackageName << '.' << AssetName;
+		}
+
 	}
 
-	UE_DEPRECATED(4.18, "ToStringReference was renamed to ToSoftObjectPath")
+	/** Append the object path to the given string. */
+	void AppendObjectPath(FString& String) const
+	{
+		TStringBuilder<FName::StringBufferSize> Builder;
+		AppendObjectPath(Builder);
+		String = FString(Builder);
+	}
+
+
+	UE_DEPRECATED(4.18, "ToStringReference was renamed to GetSoftObjectPath")
 	FSoftObjectPath ToStringReference() const
 	{
-		return ToSoftObjectPath();
+		return GetSoftObjectPath();
 	}
 	
 	/** Gets primary asset id of this data */
@@ -381,33 +466,38 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 */
 	UObject* FastGetAsset(bool bLoad = false, TSet<FName> LoadTags = {}) const
 	{
-		if ( !IsValid())
+		if (!IsValid())
 		{
-			// Do not try to find the object if the objectpath is not set
+			// Do not try to find the object if the fields are not set
 			return nullptr;
 		}
 
+		// We load PackageName rather than using GetObjectPath because external assets may be saved in a different package to their loaded path. 
 		UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, PackageName);
-		if (FoundPackage == nullptr)
+		if (FoundPackage == nullptr && bLoad)
 		{
-			if (bLoad)
-			{
-				FLinkerInstancingContext InstancingContext(MoveTemp(LoadTags));
-				return LoadObject<UObject>(nullptr, *ObjectPath.ToString(), nullptr, 0, nullptr, &InstancingContext);
-			}
-			else
-			{
-				return nullptr;
-			}
+			FLinkerInstancingContext InstancingContext(MoveTemp(LoadTags));
+			FoundPackage = LoadPackage(nullptr, *PackageName.ToString(), LOAD_None, nullptr, &InstancingContext);
 		}
 
-		UObject* Asset = FindObjectFast<UObject>(FoundPackage, AssetName);
-		if (Asset == nullptr && bLoad)
+		if (!FoundPackage)
 		{
-			return LoadObject<UObject>(nullptr, *ObjectPath.ToString());
+			return nullptr;
 		}
 
-		return Asset;
+#if WITH_EDITORONLY_DATA
+		if (!OptionalOuterPath.IsNone())
+		{
+			TStringBuilder<FName::StringBufferSize> Builder;
+			AppendObjectPath(Builder);
+			return FindObject<UObject>(nullptr, *Builder);
+		}
+		else
+#endif
+		{
+			// If the package is loaded all objects in it must be loaded, just search for the asset in memory with its outer.
+			return FindObjectFast<UObject>(FoundPackage, AssetName);
+		}
 	}
 
 	/** 
@@ -417,20 +507,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 */
 	UObject* GetAsset(TSet<FName> LoadTags = {}) const
 	{
-		if ( !IsValid())
-		{
-			// Dont even try to find the object if the objectpath isn't set
-			return nullptr;
-		}
 
-		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPath.ToString());
-		if ( Asset == nullptr)
-		{
-			FLinkerInstancingContext InstancingContext(MoveTemp(LoadTags));
-			Asset = LoadObject<UObject>(nullptr, *ObjectPath.ToString(), nullptr, 0, nullptr, &InstancingContext);
-		}
-
-		return Asset;
+		return FastGetAsset(true /* bLoad */, MoveTemp(LoadTags));
 	}
 
 	/**
@@ -455,11 +533,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ((PackageFlags & FlagsToCheck) == FlagsToCheck);
 	}
 
+	/** Tries to find the package in memory if it is loaded, otherwise loads it. */
 	UPackage* GetPackage() const
 	{
-		if (PackageName == NAME_None)
+		if (PackageName.IsNone())
 		{
-			return NULL;
+			return nullptr;
 		}
 
 		UPackage* Package = FindPackage(NULL, *PackageName.ToString());
@@ -499,13 +578,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Returns true if the asset is loaded */
 	bool IsAssetLoaded() const
 	{
-		return IsValid() && FindObjectSafe<UObject>(NULL, *ObjectPath.ToString()) != NULL;
+		return FastGetAsset(false) != nullptr;
 	}
 
 	/** Prints the details of the asset to the log */
 	void PrintAssetData() const
 	{
-		UE_LOG(LogAssetData, Log, TEXT("    FAssetData for %s"), *ObjectPath.ToString());
+		UE_LOG(LogAssetData, Log, TEXT("    FAssetData for %s"), *GetObjectPathString());
 		UE_LOG(LogAssetData, Log, TEXT("    ============================="));
 		UE_LOG(LogAssetData, Log, TEXT("        PackageName: %s"), *PackageName.ToString());
 		UE_LOG(LogAssetData, Log, TEXT("        PackagePath: %s"), *PackagePath.ToString());
@@ -559,7 +638,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	template<class Archive>
 	FORCEINLINE void SerializeForCache(Archive&& Ar)
 	{
-		SerializeForCacheWithTagsAndBundles(Ar, [](FArchive& Ar, FAssetData& Ad) {
+		SerializeForCacheWithTagsAndBundles(Ar, [](FArchive& Ar, FAssetData& Ad, FAssetRegistryVersion::Type) {
 			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
 			});
 	}
@@ -569,11 +648,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	template<class Archive>
 	FORCEINLINE void SerializeForCacheOldVersion(Archive&& Ar, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion)
 	{
-		SerializeForCacheOldVersionWithTagsAndBundles(Ar, Version, [](FArchive& Ar, FAssetData& Ad) {
-			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
+		SerializeForCacheOldVersionWithTagsAndBundles(Ar, Version, [](FArchive& Ar, FAssetData& Ad, FAssetRegistryVersion::Type Version) {
+			static_cast<Archive&>(Ar).SerializeTagsAndBundlesOldVersion(Ad, Version);
 			});
 	}
 
+	// Note: these functions should only be used for live communication between processing running the same version of the engine.
+	// There is no versioning support
 	COREUOBJECT_API void NetworkWrite(FCbWriter& Writer, bool bWritePackageName) const;
 	COREUOBJECT_API bool TryNetworkRead(FCbFieldView Field, bool bReadPackageName, FName InPackageName);
 private:
@@ -582,9 +663,9 @@ private:
 	 * Note that this function is force-inlined but defined in AssetData.cpp which is fine as functions will get inlined
 	 * as long as they're defined before they are used for the first time by other functions (SerializeForCacheWithTagsAndBundles in this case)
 	 */
-	FORCEINLINE void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&));
-	COREUOBJECT_API void SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&));
-	COREUOBJECT_API void SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&));
+	FORCEINLINE void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&, FAssetRegistryVersion::Type));
+	COREUOBJECT_API void SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&, FAssetRegistryVersion::Type));
+	COREUOBJECT_API void SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&, FAssetRegistryVersion::Type));
 
 	static bool DetectIsUAssetByNames(FStringView PackageName, FStringView ObjectPathName)
 	{
@@ -614,7 +695,7 @@ ENUM_CLASS_FLAGS(FAssetData::ECreationFlags);
 
 FORCEINLINE uint32 GetTypeHash(const FAssetData& AssetData)
 {
-	return GetTypeHash(AssetData.ObjectPath);
+	return HashCombine(GetTypeHash(AssetData.PackageName), GetTypeHash(AssetData.AssetName));
 }
 
 

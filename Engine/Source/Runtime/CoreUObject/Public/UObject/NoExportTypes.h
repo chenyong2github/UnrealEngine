@@ -22,6 +22,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Timespan.h"
 
+#include "UObject/TopLevelAssetPath.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/PropertyAccessUtil.h"
 
@@ -1995,31 +1996,6 @@ struct FTimespan
 	int64 Ticks;
 };
 
-/** 
- * A struct that contains a string reference to an object, either a top level asset or a subobject.
- * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\SoftObjectPath.h
- */
-USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, meta=(HasNativeMake="/Script/Engine.KismetSystemLibrary.MakeSoftObjectPath", HasNativeBreak="/Script/Engine.KismetSystemLibrary.BreakSoftObjectPath"))
-struct FSoftObjectPath
-{
-	/** Asset path, patch to a top level object in a package */
-	UPROPERTY()
-	FName AssetPathName;
-
-	/** Optional FString for subobject within an asset */
-	UPROPERTY()
-	FString SubPathString;
-};
-
-/** 
- * A struct that contains a string reference to a class, can be used to make soft references to classes.
- * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\SoftObjectPath.h
- */
-USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, meta=(HasNativeMake="/Script/Engine.KismetSystemLibrary.MakeSoftClassPath", HasNativeBreak="/Script/Engine.KismetSystemLibrary.BreakSoftClassPath"))
-struct FSoftClassPath : public FSoftObjectPath
-{
-};
-
 /**
  * A struct that can reference a top level asset such as '/Path/To/Package.AssetName'
  * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\TopLevelAssetPath.h
@@ -2034,6 +2010,31 @@ private:
 	/** Name of the asset within the package e.g. 'AssetName' */
 	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath, meta = (AllowPrivateAccess = "true"))
 	FName AssetName;
+};
+
+/** 
+ * A struct that contains a string reference to an object, either a top level asset or a subobject.
+ * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\SoftObjectPath.h
+ */
+USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, meta=(HasNativeMake="/Script/Engine.KismetSystemLibrary.MakeSoftObjectPath", HasNativeBreak="/Script/Engine.KismetSystemLibrary.BreakSoftObjectPath"))
+struct FSoftObjectPath
+{
+	/** Asset path, patch to a top level object in a package */
+	UPROPERTY()
+	FTopLevelAssetPath AssetPath;
+
+	/** Optional FString for subobject within an asset */
+	UPROPERTY()
+	FString SubPathString;
+};
+
+/** 
+ * A struct that contains a string reference to a class, can be used to make soft references to classes.
+ * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\SoftObjectPath.h
+ */
+USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, meta=(HasNativeMake="/Script/Engine.KismetSystemLibrary.MakeSoftClassPath", HasNativeBreak="/Script/Engine.KismetSystemLibrary.BreakSoftClassPath"))
+struct FSoftClassPath : public FSoftObjectPath
+{
 };
 
 /** 
@@ -2458,6 +2459,9 @@ enum class EDataValidationResult : uint8
 	NotValidated
 };
 
+/**
+ * A struct to serve as a filter for Asset Registry queries. (mirrored in ARFilter.h)
+ */
 USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, meta = (HasNativeMake = "/Script/Engine.KismetSystemLibrary.MakeARFilter", HasNativeBreak = "/Script/Engine.KismetSystemLibrary.BreakARFilter"))
 struct FARFilter
 {
@@ -2469,9 +2473,13 @@ struct FARFilter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
 	TArray<FName> PackagePaths;
 
+	/** The filter component containing specific object paths. Deprecated. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry, meta=(DeprecatedProperty, DeprecationMessage="Names containing full asset paths are deprecated. Use SoftObjectPaths instead."))
+	TArray<FName> ObjectPaths;
+
 	/** The filter component containing specific object paths */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = AssetRegistry)
-	TArray<FName> ObjectPaths;
+	TArray<FSoftObjectPath> SoftObjectPaths;
 
 	/** [DEPRECATED] - Class names are now represented by path names. Please use ClassPaths instead. */
 	UPROPERTY(BlueprintReadWrite, Category = AssetRegistry, meta=(DeprecatedProperty, DeprecationMessage="Short asset class names must be converted to full asset pathnames. Use ClassPaths instead."))
@@ -2519,8 +2527,11 @@ struct COREUOBJECT_API FAssetBundleEntry
 	FName BundleName;
 
 	/** List of string assets contained in this bundle */
-	UPROPERTY()
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Asset bundles may only contain top level asset paths which are referenced through the AssetPaths property."))
 	TArray<FSoftObjectPath> BundleAssets;
+
+	UPROPERTY()
+	TArray<FTopLevelAssetPath> AssetPaths;
 };
 
 /** A struct with a list of asset bundle entries. If one of these is inside a UObject it will get automatically exported as the asset registry tag AssetBundleData */
@@ -2539,8 +2550,7 @@ struct COREUOBJECT_API FAssetBundleData
 USTRUCT(noexport, BlueprintType, IsAlwaysAccessible, HasDefaults)
 struct FAssetData
 {
-	/** The object path for the asset in the form PackageName.AssetName. Only top level objects in a package can have AssetData */
-	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
+	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient, meta=(DeprecatedProperty, DeprecationMessage="Names containing full asset paths are deprecated. Use 'To Soft Object Path' instead."))
 	FName ObjectPath;
 	/** The name of the package in which the asset is found, this is the full long package name such as /Game/Path/Package */
 	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
@@ -2560,6 +2570,12 @@ struct FAssetData
 
 	/** Asset package flags */
 	uint32 PackageFlags = 0;
+	
+#if WITH_EDITORONLY_DATA
+	/** If the outer of this object is not PackageName, it is the object specified by this path. Not exposed to blueprints except through 'To Soft Object Path'. */
+	FName OptionalOuterPath;
+#endif
+
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
 	TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> TaggedAssetBundles;

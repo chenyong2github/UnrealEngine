@@ -3308,12 +3308,23 @@ void UKismetSystemLibrary::GetPrimaryAssetsWithBundleState(const TArray<FName>& 
 	}
 }
 
-FARFilter UKismetSystemLibrary::MakeARFilter(const TArray<FName>& PackageNames, const TArray<FName>& PackagePaths, const TArray<FName>& ObjectPaths, const TArray<FTopLevelAssetPath>& ClassPaths, const TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, const TArray<FName>& ClassNames, const TSet<FName>& RecursiveClassesExclusionSet, const bool bRecursivePaths, const bool bRecursiveClasses, const bool bIncludeOnlyOnDiskAssets)
+FARFilter UKismetSystemLibrary::MakeARFilter(
+	const TArray<FName>& PackageNames, 
+	const TArray<FName>& PackagePaths, 
+	const TArray<FSoftObjectPath>& SoftObjectPaths, 
+	const TArray<FTopLevelAssetPath>& ClassPaths,
+	const TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, 
+	const TArray<FName>& ClassNames, 
+	const TSet<FName>& RecursiveClassesExclusionSet, 
+	const bool bRecursivePaths, 
+	const bool bRecursiveClasses, 
+	const bool bIncludeOnlyOnDiskAssets
+	)
 {
 	FARFilter NewFilter;
 	NewFilter.PackageNames = PackageNames;
 	NewFilter.PackagePaths = PackagePaths;
-	NewFilter.ObjectPaths = ObjectPaths;
+	NewFilter.SoftObjectPaths = SoftObjectPaths;
 	NewFilter.bRecursivePaths = bRecursivePaths;
 	NewFilter.bRecursiveClasses = bRecursiveClasses;
 	NewFilter.bIncludeOnlyOnDiskAssets = bIncludeOnlyOnDiskAssets;
@@ -3350,11 +3361,23 @@ FARFilter UKismetSystemLibrary::MakeARFilter(const TArray<FName>& PackageNames, 
 	return NewFilter;
 }
 
-void UKismetSystemLibrary::BreakARFilter(FARFilter InARFilter, TArray<FName>& PackageNames, TArray<FName>& PackagePaths, TArray<FName>& ObjectPaths, TArray<FTopLevelAssetPath>& ClassPaths, TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet, TArray<FName>& ClassNames, TSet<FName>& RecursiveClassesExclusionSet, bool& bRecursivePaths, bool& bRecursiveClasses, bool& bIncludeOnlyOnDiskAssets)
+void UKismetSystemLibrary::BreakARFilter(
+	FARFilter InARFilter,
+	TArray<FName>& PackageNames,
+	TArray<FName>& PackagePaths,
+	TArray<FSoftObjectPath>& SoftObjectPaths,
+	TArray<FTopLevelAssetPath>& ClassPaths,
+	TSet<FTopLevelAssetPath>& RecursiveClassPathsExclusionSet,
+	TArray<FName>& ClassNames,
+	TSet<FName>& RecursiveClassesExclusionSet,
+	bool& bRecursivePaths,
+	bool& bRecursiveClasses,
+	bool& bIncludeOnlyOnDiskAssets
+	)
 {
 	PackageNames = InARFilter.PackageNames;
 	PackagePaths = InARFilter.PackagePaths;
-	ObjectPaths = InARFilter.ObjectPaths;
+	SoftObjectPaths = InARFilter.SoftObjectPaths;
 	ClassPaths = InARFilter.ClassPaths;
 	RecursiveClassPathsExclusionSet = InARFilter.RecursiveClassPathsExclusionSet;
 	bRecursivePaths = InARFilter.bRecursivePaths;

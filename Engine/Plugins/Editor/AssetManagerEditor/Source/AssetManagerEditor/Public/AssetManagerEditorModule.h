@@ -200,8 +200,7 @@ public:
 	void LoadRegistryTimestamp();
 
 	// Functions to forward on to the RegistryState, either the owned one or the editor's global State.
-
-	FAssetData GetAssetByObjectPath(FName ObjectPath) const
+	FAssetData GetAssetByObjectPath(const FSoftObjectPath& ObjectPath) const
 	{
 		if (bIsEditor)
 		{
@@ -216,6 +215,14 @@ public:
 		{
 			return nullptr;
 		}
+	}
+
+	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
+	FAssetData GetAssetByObjectPath(FName ObjectPath) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies,

@@ -20,6 +20,7 @@ public:
 	virtual FArchive& operator<<(FName& Value) override;
 
 	void SerializeTagsAndBundles(FAssetData& Out);
+	void SerializeTagsAndBundlesOldVersion(FAssetData& Out, FAssetRegistryVersion::Type Version);
 
 	void WaitForTasks();
 

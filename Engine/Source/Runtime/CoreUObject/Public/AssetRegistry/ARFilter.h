@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/TopLevelAssetPath.h"
 
 struct FAssetData;
 
 /**
  * A struct to serve as a filter for Asset Registry queries.
  * Each component element is processed as an 'OR' operation while all the components are processed together as an 'AND' operation.
+ * This type is mirrored in NoExportTypes.h 
  */
 struct FARFilter
 {
@@ -29,8 +31,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<FName> PackagePaths;
 
 	/** The filter component containing specific object paths */
+	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	TArray<FName> ObjectPaths;
 
+	/** 
+	 * The filter component containing the paths of specific assets to match. 
+	 * Matches against FAssetData::ToSoftObjectPath().
+	 * This is a top level asset path for most assets and a subobject path for assets such as world partition external actors.
+	 */
+	TArray<FSoftObjectPath> SoftObjectPaths;
+	
 	/** Deprecated. The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
 	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use ClassPaths.")
 	TArray<FName> ClassNames;
@@ -68,7 +78,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		PackageNames.Append(Other.PackageNames);
 		PackagePaths.Append(Other.PackagePaths);
-		ObjectPaths.Append(Other.ObjectPaths);
+		SoftObjectPaths.Append(Other.SoftObjectPaths);
 		ClassPaths.Append(Other.ClassPaths);
 
 		for (auto TagIt = Other.TagsAndValues.CreateConstIterator(); TagIt; ++TagIt)
@@ -88,7 +98,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Returns true if this filter has no entries */
 	bool IsEmpty() const
 	{
-		return PackageNames.Num() + PackagePaths.Num() + ObjectPaths.Num() + ClassPaths.Num() + TagsAndValues.Num() + WithoutPackageFlags + WithPackageFlags == 0;
+		return PackageNames.Num() + PackagePaths.Num() + SoftObjectPaths.Num() + ClassPaths.Num() + TagsAndValues.Num() + WithoutPackageFlags + WithPackageFlags == 0;
 	}
 
 	/** Returns true if this filter is recursive */
@@ -102,7 +112,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		PackageNames.Empty();
 		PackagePaths.Empty();
-		ObjectPaths.Empty();
+		SoftObjectPaths.Empty();
 		ClassPaths.Empty();
 		TagsAndValues.Empty();
 		RecursiveClassPathsExclusionSet.Empty();
@@ -150,7 +160,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TSet<FName> PackagePaths;
 
 	/** The filter component containing specific object paths */
+	// UE_DEPRECATED(5.1, "Object path FNames have been deprecated, use FSoftObjectPath instead.")
 	TSet<FName> ObjectPaths;
+
+	/** The filter component containing specific object paths */
+	TSet<FSoftObjectPath> SoftObjectPaths;
 
 	/** Deprecated. The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
 	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use ClassPaths.")
@@ -174,7 +188,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Returns true if this filter has no entries */
 	bool IsEmpty() const
 	{
-		return PackageNames.Num() + PackagePaths.Num() + ObjectPaths.Num() + ClassPaths.Num() + TagsAndValues.Num() == 0;
+		return PackageNames.Num() + PackagePaths.Num() + SoftObjectPaths.Num() + ClassPaths.Num() + TagsAndValues.Num() == 0;
 	}
 
 	/** Clears this filter of all entries */
@@ -182,7 +196,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		PackageNames.Empty();
 		PackagePaths.Empty();
-		ObjectPaths.Empty();
+		SoftObjectPaths.Empty();
 		ClassPaths.Empty();
 		TagsAndValues.Empty();
 

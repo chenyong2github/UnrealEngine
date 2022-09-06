@@ -13,22 +13,26 @@ static void SaveBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry*>& Entries)
 {
 	for (FAssetBundleEntry* EntryPtr : Entries)
 	{
-		FAssetBundleEntry& Entry = *EntryPtr;
+		FAssetBundleEntry& Entry = *EntryPtr;	
 		Ar << Entry.BundleName;
 
-		int32 Num = Entry.BundleAssets.Num();
+		int32 Num = Entry.AssetPaths.Num();
 		Ar << Num;
 
-		TArray<FSoftObjectPath*> SortedPaths;
+		TArray<FTopLevelAssetPath*> SortedPaths;
 		SortedPaths.Reserve(Num);
-		for (FSoftObjectPath& Path : Entry.BundleAssets)
+		for (FTopLevelAssetPath& Path : Entry.AssetPaths)
 		{
 			SortedPaths.Add(&Path);
 		}
-		Algo::Sort(SortedPaths, [](FSoftObjectPath* A, FSoftObjectPath* B) { return A->LexicalLess(*B); });
-		for (FSoftObjectPath* Path : SortedPaths)
+		Algo::Sort(SortedPaths, [](FTopLevelAssetPath* A, FTopLevelAssetPath* B) { return A->Compare(*B) < 0; });
+		for (FTopLevelAssetPath* Path : SortedPaths)
 		{
-			Path->SerializePath(Ar);
+			// Serialize using FSoftObjectPath for backwards compatibility with FRedirectCollector code.
+			// We can investigate if any of this can be bypassed in future.
+
+			FSoftObjectPath TmpPath(*Path, {});
+			TmpPath.SerializePath(Ar);
 		}
 	}
 }
@@ -41,12 +45,68 @@ static void LoadBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry>& Entries)
 
 		int32 Num = 0;
 		Ar << Num;
-		Entry.BundleAssets.SetNum(Num);
+		Entry.AssetPaths.SetNum(Num);
 
-		for (FSoftObjectPath& Path : Entry.BundleAssets)
+		for (FTopLevelAssetPath& Path : Entry.AssetPaths)
 		{
-			Path.SerializePath(Ar);
+			FSoftObjectPath TmpPath;
+			TmpPath.SerializePath(Ar);
+			Path = TmpPath.GetAssetPath();
 		}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Entry.BundleAssets.Reserve(Entry.AssetPaths.Num());
+		for (const FTopLevelAssetPath& Path : Entry.AssetPaths)
+		{
+			Entry.BundleAssets.Add(FSoftObjectPath(Path, {}));
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+
+static void LoadBundleEntriesOldVersion(FArchive& Ar, TArray<FAssetBundleEntry>& Entries, FAssetRegistryVersion::Type Version)
+{
+	for (FAssetBundleEntry& Entry : Entries)
+	{
+		Ar << Entry.BundleName;
+
+		int32 Num = 0;
+		Ar << Num;
+		Entry.AssetPaths.SetNum(Num);
+
+		if (Version < FAssetRegistryVersion::RemoveAssetPathFNames)
+		{
+			for (FTopLevelAssetPath& Path : Entry.AssetPaths)
+			{
+				// This change is synchronized with a change to the format of FSoftObjectPath in EUnrealEngineObjectUE5Version::FSOFTOBJECTPATH_REMOVE_ASSET_PATH_FNAMES
+				// We have to manually deserialize the old format of FSoftObjectPath
+				FName AssetPathName;
+				Ar << AssetPathName;
+				FString SubPathString;
+				Ar << SubPathString;
+			
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				Path = FTopLevelAssetPath(AssetPathName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			}
+		}
+		else
+		{
+			for (FTopLevelAssetPath& Path : Entry.AssetPaths)
+			{
+				FSoftObjectPath TmpPath;
+				TmpPath.SerializePath(Ar);
+				Path = TmpPath.GetAssetPath();
+			}
+		}
+		
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Entry.BundleAssets.Reserve(Entry.AssetPaths.Num());
+		for (const FTopLevelAssetPath& Path : Entry.AssetPaths)
+		{
+			Entry.BundleAssets.Add(FSoftObjectPath(Path, {}));
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -70,7 +130,7 @@ static void SaveBundles(FArchive& Ar, const TSharedPtr<FAssetBundleData, ESPMode
 	SaveBundleEntries(Ar, SortedEntries);
 }
 
-static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundles(FArchive& Ar)
+static FORCEINLINE TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundlesInternal(FArchive& Ar, FAssetRegistryVersion::Type Version)
 {
 	int32 Num;
 	Ar << Num;
@@ -79,12 +139,29 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundles(FArchive& A
 	{
 		FAssetBundleData Temp;
 		Temp.Bundles.SetNum(Num);
-		LoadBundleEntries(Ar, Temp.Bundles);
+		if (Version == FAssetRegistryVersion::LatestVersion)
+		{
+			LoadBundleEntries(Ar, Temp.Bundles);
+		}
+		else
+		{
+			LoadBundleEntriesOldVersion(Ar, Temp.Bundles, Version);
+		}
 
 		return MakeShared<FAssetBundleData, ESPMode::ThreadSafe>(MoveTemp(Temp));
 	}
 
 	return TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>();
+}
+
+static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundles(FArchive& Ar)
+{
+	return LoadBundlesInternal(Ar, FAssetRegistryVersion::LatestVersion);
+}
+
+static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundlesOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version)
+{
+	return LoadBundlesInternal(Ar, Version);
 }
 
 #if ALLOW_NAME_BATCH_SAVING
@@ -221,6 +298,12 @@ void FAssetRegistryReader::SerializeTagsAndBundles(FAssetData& Out)
 {
 	Out.TagsAndValues = LoadTags(*this);
 	Out.TaggedAssetBundles = LoadBundles(*this);
+}
+
+void FAssetRegistryReader::SerializeTagsAndBundlesOldVersion(FAssetData& Out, FAssetRegistryVersion::Type Version)
+{
+	Out.TagsAndValues = LoadTags(*this);
+	Out.TaggedAssetBundles = LoadBundlesOldVersion(*this, Version);
 }
 
 ////////////////////////////////////////////////////////////////////////////

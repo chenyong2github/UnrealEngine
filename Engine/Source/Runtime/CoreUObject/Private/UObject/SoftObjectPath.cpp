@@ -10,6 +10,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/RedirectCollector.h"
+#include "Misc/AutomationTest.h"
 #include "String/Find.h"
 
 FSoftObjectPath::FSoftObjectPath(const UObject* InObject)
@@ -20,6 +21,13 @@ FSoftObjectPath::FSoftObjectPath(const UObject* InObject)
 	}
 }
 
+// Deprecated constructor
+FSoftObjectPath::FSoftObjectPath(FName InAssetPathName, FString InSubPathString)
+{
+	AssetPath = FTopLevelAssetPath(WriteToString<FName::StringBufferSize>(InAssetPathName).ToView());
+	SubPathString = MoveTemp(InSubPathString);
+}
+
 FString FSoftObjectPath::ToString() const
 {
 	// Most of the time there is no sub path so we can do a single string allocation
@@ -28,78 +36,56 @@ FString FSoftObjectPath::ToString() const
 		return GetAssetPathString();
 	}
 
-	TCHAR Buffer[FName::StringBufferSize];
-	FStringView AssetPathString;
-	if (AssetPathName.IsValid())
-	{
-		AssetPathString = FStringView(Buffer, AssetPathName.ToString(Buffer));
-	}
-
-	FString FullPathString;
-
-	// Preallocate to correct size and then append strings
-	FullPathString.Reserve(AssetPathString.Len() + SubPathString.Len() + 1);
-	FullPathString += AssetPathString;
-	FullPathString += SUBOBJECT_DELIMITER_CHAR;
-	FullPathString += SubPathString;
-	return FullPathString;
+	TStringBuilder<FName::StringBufferSize> Builder;
+	Builder << AssetPath << SUBOBJECT_DELIMITER_CHAR << SubPathString;
+	return Builder.ToString();
 }
 
 void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
 {
-	if (!AssetPathName.IsNone())
+	AppendString(Builder);
+}
+
+void FSoftObjectPath::AppendString(FStringBuilderBase& Builder) const
+{
+	if (AssetPath.IsNull())
 	{
-		Builder << AssetPathName;
+		return;
 	}
 
+	Builder << AssetPath;
 	if (SubPathString.Len() > 0)
 	{
 		Builder << SUBOBJECT_DELIMITER_CHAR << SubPathString;
 	}
 }
 
-FString FSoftObjectPath::GetLongPackageName() const
+void FSoftObjectPath::AppendString(FString& Builder) const
 {
-	if (!AssetPathName.IsNone())
+	if (AssetPath.IsNull())
 	{
-		FNameBuilder AssetPathNameBuilder(AssetPathName);
-		FStringView AssetPathNameView = AssetPathNameBuilder.ToView();
-
-		int32 DotPos = INDEX_NONE;
-		if (AssetPathNameView.FindChar(TEXT('.'), DotPos))
-		{
-			return FString(AssetPathNameView.Left(DotPos));
-		}
-
-		return FString(AssetPathNameView);
+		return;
 	}
 
-	return FString();
-}
-
-FName FSoftObjectPath::GetLongPackageFName() const
-{
-	TCHAR Buffer[NAME_SIZE];
-	FStringView PlainAssetPath(Buffer, /* len */ AssetPathName.GetPlainNameString(Buffer));
-	int32 DotPos = UE::String::FindFirstChar(PlainAssetPath, '.');
-	return DotPos == INDEX_NONE ? AssetPathName : FName(PlainAssetPath.Left(DotPos));
-}
-
-FString FSoftObjectPath::GetAssetName() const
-{
-	if (!AssetPathName.IsNone())
+	AssetPath.AppendString(Builder);
+	if (SubPathString.Len() > 0)
 	{
-		FNameBuilder AssetPathNameBuilder(AssetPathName);
-		FStringView AssetPathNameView = AssetPathNameBuilder.ToView();
-
-		int32 DotPos = INDEX_NONE;
-		if (AssetPathNameView.FindChar(TEXT('.'), DotPos))
-		{
-			return FString(AssetPathNameView.Mid(DotPos + 1));
-		}
+		Builder += SUBOBJECT_DELIMITER_CHAR;
+		Builder += SubPathString;
 	}
+}
 
-	return FString();
+FName FSoftObjectPath::GetAssetPathName() const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return AssetPath.ToFName();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+// Deprecated setter
+void FSoftObjectPath::SetAssetPathName(FName InPath)
+{
+	AssetPath = WriteToString<FName::StringBufferSize>(InPath).ToView();
 }
 
 /** Helper function that adds info about the object currently being serialized when triggering an ensure about invalid soft object path */
@@ -112,6 +98,12 @@ static FString GetObjectBeingSerializedForSoftObjectPath()
 		Result = FString::Printf(TEXT(" while serializing %s"), *SerializeContext->SerializedObject->GetFullName());
 	}
 	return Result;
+}
+
+void FSoftObjectPath::SetPath(const FTopLevelAssetPath& InAssetPath, FString InSubPathString)
+{
+	AssetPath = InAssetPath;
+	SubPathString = MoveTemp(InSubPathString);
 }
 
 void FSoftObjectPath::SetPath(FWideStringView Path)
@@ -130,13 +122,13 @@ void FSoftObjectPath::SetPath(FWideStringView Path)
 		if (Path.FindChar(SUBOBJECT_DELIMITER_CHAR, ColonIndex))
 		{
 			// Has a subobject, split on that then create a name from the temporary path
-			AssetPathName = FName(Path.Left(ColonIndex));
+			AssetPath = Path.Left(ColonIndex);
 			SubPathString = Path.Mid(ColonIndex + 1);
 		}
 		else
 		{
 			// No Subobject
-			AssetPathName = FName(Path);
+			AssetPath = Path;
 			SubPathString.Empty();
 		}
 	}
@@ -156,37 +148,10 @@ void FSoftObjectPath::SetPath(FUtf8StringView Path)
 	SetPath(Wide);
 }
 
+// Deprecated setter
 void FSoftObjectPath::SetPath(FName PathName)
 {
-	if (PathName.IsNone())
-	{
-		Reset();
-	}
-	else
-	{
-		TCHAR Buffer[FName::StringBufferSize];
-		FStringView Path(Buffer, PathName.ToString(Buffer));
-
-		if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%s'%s! You must pass in fully qualified package names"), Path.GetData(), *GetObjectBeingSerializedForSoftObjectPath()))
-		{
-			// Possibly an ExportText path. Trim the ClassName.
-			Path = FPackageName::ExportTextPathToObjectPath(Path);
-
-			int32 ColonIndex;
-			if (Path.FindChar(SUBOBJECT_DELIMITER_CHAR, ColonIndex))
-			{
-				// Has a subobject, split on that then create a name from the temporary path
-				AssetPathName = FName(Path.Left(ColonIndex));
-				SubPathString = Path.Mid(ColonIndex + 1);
-			}
-			else
-			{
-				// No Subobject
-				AssetPathName = Path.GetData() == Buffer ? PathName : FName(Path);
-				SubPathString.Empty();
-			}
-		}
-	}
+	SetPath(PathName.ToString());
 }
 
 #if WITH_EDITOR
@@ -201,15 +166,15 @@ bool FSoftObjectPath::PreSavePath(bool* bReportSoftObjectPathRedirects)
 		return false;
 	}
 
-	FName FoundRedirection = GRedirectCollector.GetAssetPathRedirection(AssetPathName);
+	FSoftObjectPath FoundRedirection = GRedirectCollector.GetAssetPathRedirection(*this);
 
-	if (FoundRedirection != NAME_None)
+	if (!FoundRedirection.IsNull())
 	{
-		if (AssetPathName != FoundRedirection && bReportSoftObjectPathRedirects)
+		if (*this != FoundRedirection && bReportSoftObjectPathRedirects)
 		{
 			*bReportSoftObjectPathRedirects = true;
 		}
-		AssetPathName = FoundRedirection;
+		*this = FoundRedirection;
 		return true;
 	}
 
@@ -285,9 +250,17 @@ void FSoftObjectPath::SerializePath(FArchive& Ar)
 
 			SetPath(MoveTemp(Path));
 		}
+		else if( Ar.IsLoading() && Ar.UEVer() < EUnrealEngineObjectUE5Version::FSOFTOBJECTPATH_REMOVE_ASSET_PATH_FNAMES)
+		{
+			FName AssetPathName;
+			Ar << AssetPathName;
+			AssetPath = WriteToString<FName::StringBufferSize>(AssetPathName).ToView();
+
+			Ar << SubPathString;
+		}
 		else
 		{
-			Ar << AssetPathName;
+			Ar << AssetPath;
 			Ar << SubPathString;
 		}
 	}
@@ -320,7 +293,7 @@ void FSoftObjectPath::SerializePath(FArchive& Ar)
 
 bool FSoftObjectPath::operator==(FSoftObjectPath const& Other) const
 {
-	return AssetPathName == Other.AssetPathName && SubPathString == Other.SubPathString;
+	return AssetPath == Other.AssetPath && SubPathString == Other.SubPathString;
 }
 
 bool FSoftObjectPath::ExportTextItem(FString& ValueStr, FSoftObjectPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
@@ -494,7 +467,7 @@ UObject* FSoftObjectPath::TryLoad(FUObjectSerializeContext* InLoadContext) const
 		if (IsSubobject())
 		{
 			// For subobjects, it's not safe to call LoadObject directly, so we want to load the parent object and then resolve again
-			FSoftObjectPath TopLevelPath = FSoftObjectPath(AssetPathName, FString());
+			FSoftObjectPath TopLevelPath = FSoftObjectPath(AssetPath, FString());
 			UObject* TopLevelObject = TopLevelPath.TryLoad(InLoadContext);
 
 			// This probably loaded the top-level object, so re-resolve ourselves
@@ -572,16 +545,9 @@ UObject* FSoftObjectPath::ResolveObject() const
 
 UObject* FSoftObjectPath::ResolveObjectInternal() const
 {
-	if (SubPathString.IsEmpty())
-	{
-		TCHAR PathString[FName::StringBufferSize];
-		AssetPathName.ToString(PathString);
-		return ResolveObjectInternal(PathString);
-	}
-	else
-	{
-		return ResolveObjectInternal(*ToString());
-	}
+	TStringBuilder<FName::StringBufferSize> Builder;
+	Builder << *this;
+	return ResolveObjectInternal(*Builder);
 }
 
 UObject* FSoftObjectPath::ResolveObjectInternal(const TCHAR* PathString) const
@@ -591,7 +557,7 @@ UObject* FSoftObjectPath::ResolveObjectInternal(const TCHAR* PathString) const
 	if (!FoundObject && IsSubobject())
 	{
 		// Try to resolve through the top level object
-		FSoftObjectPath TopLevelPath = FSoftObjectPath(AssetPathName, FString());
+		FSoftObjectPath TopLevelPath = FSoftObjectPath(AssetPath, FString());
 		UObject* TopLevelObject = TopLevelPath.ResolveObject();
 
 		// If the the top-level object exists but we can't find the object, defer the resolving to the top-level container object in case
@@ -834,3 +800,33 @@ bool FSoftObjectPathThreadContext::GetSerializationOptions(FName& OutPackageName
 
 FThreadSafeCounter FSoftObjectPath::CurrentTag(1);
 TSet<FName> FSoftObjectPath::PIEPackageNames;
+
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSoftObjectPathTests, "System.CoreUObject.SoftObjectPath", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FSoftObjectPathTests::RunTest(const FString& Parameters)
+{
+	const TCHAR* PackageName = TEXT("/Game/Environments/Sets/Arid/Materials/M_Arid");
+	const TCHAR* AssetName = TEXT("M_Arid");
+	const FString String = FString::Printf(TEXT("%s.%s"), PackageName, AssetName);
+
+	const FString QuotedPath = FString::Printf(TEXT("\"%s\""), *String);
+	const FString UnquotedPath = String;
+
+	FSoftObjectPath Path(String);
+	TestEqual(TEXT("Correct package name"), Path.GetLongPackageName(), PackageName);
+	TestEqual(TEXT("Correct asset name"), Path.GetAssetName(), AssetName);
+	TestEqual(TEXT("Empty subpath"), Path.GetSubPathString(), TEXT(""));
+
+	FSoftObjectPath ImportQuoted;
+	const TCHAR* QuotedBuffer = *QuotedPath;
+	TestTrue(TEXT("Quoted path imports successfully"), ImportQuoted.ImportTextItem(QuotedBuffer, PPF_None, nullptr, GLog->Get()));
+	TestEqual(TEXT("Quoted path imports correctly"), ImportQuoted, Path);
+
+	FSoftObjectPath ImportUnquoted;
+	const TCHAR* UnquotedBuffer = *UnquotedPath;
+	TestTrue(TEXT("Unquoted path imports successfully"), ImportUnquoted.ImportTextItem(UnquotedBuffer, PPF_None, nullptr, GLog->Get()));
+	TestEqual(TEXT("Unquoted path imports correctly"), ImportUnquoted, Path);
+
+	return true;
+}

@@ -989,7 +989,7 @@ bool UCookOnTheFlyServer::ContainsMap(const FName& PackageName) const
 	return false;
 }
 
-bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FName, FName>& RedirectedPaths) const
+bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FSoftObjectPath, FSoftObjectPath>& RedirectedPaths) const
 {
 	bool bFoundRedirector = false;
 	TArray<FAssetData> Assets;
@@ -999,14 +999,14 @@ bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FNam
 	{
 		if (Asset.IsRedirector())
 		{
-			FName RedirectedPath;
+			FSoftObjectPath RedirectedPath;
 			FString RedirectedPathString;
 			if (Asset.GetTagValue("DestinationObject", RedirectedPathString))
 			{
 				ConstructorHelpers::StripObjectClass(RedirectedPathString);
-				RedirectedPath = FName(*RedirectedPathString);
+				RedirectedPath = FSoftObjectPath(RedirectedPathString);
 				FAssetData DestinationData = AssetRegistry->GetAssetByObjectPath(RedirectedPath, true);
-				TSet<FName> SeenPaths;
+				TSet<FSoftObjectPath> SeenPaths;
 
 				SeenPaths.Add(RedirectedPath);
 
@@ -1016,7 +1016,7 @@ bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FNam
 					if (DestinationData.GetTagValue("DestinationObject", RedirectedPathString))
 					{
 						ConstructorHelpers::StripObjectClass(RedirectedPathString);
-						RedirectedPath = FName(*RedirectedPathString);
+						RedirectedPath = FSoftObjectPath(RedirectedPathString);
 
 						if (SeenPaths.Contains(RedirectedPath))
 						{
@@ -1041,7 +1041,7 @@ bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FNam
 
 				if (!bDestinationValid)
 				{
-					if (RedirectedPath != NAME_None)
+					if (RedirectedPath.IsValid())
 					{
 						FName StandardPackageName = PackageDatas->GetFileNameByPackageName(FName(*FPackageName::ObjectPathToPackageName(RedirectedPathString)));
 						if (!StandardPackageName.IsNone())
@@ -1053,11 +1053,11 @@ bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FNam
 
 				if (bDestinationValid)
 				{
-					RedirectedPaths.Add(Asset.ObjectPath, RedirectedPath);
+					RedirectedPaths.Add(Asset.GetSoftObjectPath(), RedirectedPath);
 				}
 				else
 				{
-					RedirectedPaths.Add(Asset.ObjectPath, NAME_None);
+					RedirectedPaths.Add(Asset.GetSoftObjectPath(), FSoftObjectPath{});
 					UE_LOG(LogCook, Log, TEXT("Found redirector in package %s pointing to deleted object %s"), *PackageName.ToString(), *RedirectedPathString);
 				}
 
@@ -5607,12 +5607,12 @@ void FSaveCookedPackageContext::FinishPackage()
 		GRedirectCollector.ProcessSoftObjectPathPackageList(PackageFName, false, SoftObjectPackages);
 		for (FName SoftObjectPackage : SoftObjectPackages)
 		{
-			TMap<FName, FName> RedirectedPaths;
+			TMap<FSoftObjectPath, FSoftObjectPath> RedirectedPaths;
 
 			// If this is a redirector, extract destination from asset registry
 			if (COTFS.ContainsRedirector(SoftObjectPackage, RedirectedPaths))
 			{
-				for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+				for (TPair<FSoftObjectPath, FSoftObjectPath>& RedirectedPath : RedirectedPaths)
 				{
 					GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
 				}
@@ -9373,12 +9373,12 @@ void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContex
 	}
 	for (FName SoftObjectPackage : StartupSoftObjectPackages)
 	{
-		TMap<FName, FName> RedirectedPaths;
+		TMap<FSoftObjectPath, FSoftObjectPath> RedirectedPaths;
 
 		// If this is a redirector, extract destination from asset registry
 		if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
 		{
-			for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+			for (TPair<FSoftObjectPath, FSoftObjectPath>& RedirectedPath : RedirectedPaths)
 			{
 				GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
 			}
@@ -9955,50 +9955,39 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 			GPreloadedARState.Serialize(*Reader.Get(), FAssetRegistrySerializationOptions());
 		}
 
-		// possibly use the preloaded state
-		const TMap<FName, const FAssetData*>& RegistryDataMapLoaded = GPreloadedARState.GetObjectPathToAssetDataMap();
-		TMap<FName, const FAssetData*> RegistryDataMapTrimmed;
 		
-		// if we want to reevaluate uncooked pacakges, then remove the uncooked packages from the set of known packages
-		// removing them from the map up here simplifies the logic below 
-		if (bReevaluateUncookedPackages)
-		{
-			for (TPair<FName, const FAssetData*> Pair : RegistryDataMapLoaded)
-			{
-				if (Pair.Value->PackageFlags != 0)
-				{
-					RegistryDataMapTrimmed.Add(Pair.Key, Pair.Value);
-				}
-			}
-		}
-		const TMap<FName, const FAssetData*>& RegistryDataMap = bReevaluateUncookedPackages ? RegistryDataMapTrimmed : RegistryDataMapLoaded;
-
 		check(OutPackageDatas.Num() == 0);
 
-		int32 NumPackages = RegistryDataMap.Num();
+		int32 NumPackages = GPreloadedARState.GetNumAssets();
 		TArray<const FAssetData*> AssetDatas;
 		TSet<FName> PackageNames;
 		AssetDatas.Reserve(NumPackages);
 		OutPackageDatas.Reserve(NumPackages);
 
 		// Convert the Map of RegistryData into an Array of FAssetData and populate PackageNames in the output array
-		for (const TPair<FName, const FAssetData*>& RegistryData : RegistryDataMap)
+		GPreloadedARState.EnumerateAllAssets([&](const FAssetData& RegistryData)
 		{
-			FName PackageName = RegistryData.Value->PackageName;
+			// If we want to reevaluate (try cooking again) the uncooked packages (packages that were found to be empty when we cooked them before),
+			// then remove the uncooked packages from the set of known packages. Uncooked packages are identified by PackageFlags == 0.
+			if (bReevaluateUncookedPackages && (RegistryData.PackageFlags == 0))
+			{
+				return;
+			}
+			FName PackageName = RegistryData.PackageName;
 			bool bPackageAlreadyAdded;
 			PackageNames.Add(PackageName, &bPackageAlreadyAdded);
 			if (bPackageAlreadyAdded)
 			{
-				continue;
+				return;
 			}
 			if (FPackageName::GetPackageMountPoint(PackageName.ToString()).IsNone())
 			{
 				// Skip any packages that are not currently mounted; if we tried to find their FileNames below
 				// we would get log spam
-				continue;
+				return;
 			}
 
-			AssetDatas.Add(RegistryData.Value);
+			AssetDatas.Add(&RegistryData);
 			FConstructPackageData& PackageData = OutPackageDatas.Emplace_GetRef();
 			PackageData.PackageName = PackageName;
 
@@ -10009,7 +9998,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 			{
 				PackageData.NormalizedFileName = ExistingPackageData->GetFileName();
 			}
-		}
+		});
 		NumPackages = AssetDatas.Num();
 
 		ParallelFor(NumPackages,
@@ -10305,12 +10294,12 @@ uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 
 					for (FName StringAssetPackage : StringAssetPackages)
 					{
-						TMap<FName, FName> RedirectedPaths;
+						TMap<FSoftObjectPath, FSoftObjectPath> RedirectedPaths;
 
 						// If this is a redirector, extract destination from asset registry
 						if (ContainsRedirector(StringAssetPackage, RedirectedPaths))
 						{
-							for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
+							for (TPair<FSoftObjectPath, FSoftObjectPath>& RedirectedPath : RedirectedPaths)
 							{
 								GRedirectCollector.AddAssetPathRedirection(RedirectedPath.Key, RedirectedPath.Value);
 								PackagesToLoad.Add(FPackageName::ObjectPathToPackageName(RedirectedPath.Value.ToString()));

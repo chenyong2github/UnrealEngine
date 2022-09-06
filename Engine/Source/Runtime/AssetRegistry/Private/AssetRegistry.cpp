@@ -1884,12 +1884,11 @@ void EnumerateMemoryAssetsHelper(const FARCompiledFilter& InFilter, TSet<FName>&
 				return;
 			}
 
-			// Object Path
-			const FString ObjectPathStr = Obj->GetPathName();
-			if (InFilter.ObjectPaths.Num() > 0)
+			// Asset Path
+			const FSoftObjectPath ObjectPath = FSoftObjectPath(Obj);
+			if (InFilter.SoftObjectPaths.Num() > 0)
 			{
-				const FName ObjectPath = FName(*ObjectPathStr, FNAME_Find);
-				if (!InFilter.ObjectPaths.Contains(ObjectPath))
+				if (!InFilter.SoftObjectPaths.Contains(ObjectPath))
 				{
 					return;
 				}
@@ -1908,7 +1907,7 @@ void EnumerateMemoryAssetsHelper(const FARCompiledFilter& InFilter, TSet<FName>&
 
 			// Could perhaps save some FName -> String conversions by creating this a bit earlier using the UObject constructor
 			// to get package name and path.
-			FAssetData PartialAssetData(PackageNameStr, ObjectPathStr, Obj->GetClass()->GetClassPathName(), FAssetDataTagMap(),
+			FAssetData PartialAssetData(PackageNameStr, ObjectPath.ToString(), Obj->GetClass()->GetClassPathName(), FAssetDataTagMap(),
 				InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags());
 
 			// All filters passed, except for AssetRegistry filter; caller must check that one
@@ -2005,12 +2004,13 @@ void FAssetRegistryImpl::EnumerateDiskAssets(const FARCompiledFilter& InFilter, 
 
 }
 
-FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool bIncludeOnlyOnDiskAssets) const
+FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets) const
 {
 	if (!bIncludeOnlyOnDiskAssets)
 	{
-		const FNameBuilder ObjectPathStr(ObjectPath);
-		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPathStr);
+		TStringBuilder<FName::StringBufferSize> Builder;
+		ObjectPath.ToString(Builder);
+		UObject* Asset = FindObject<UObject>(nullptr, *Builder);
 
 		if (Asset)
 		{
@@ -2031,6 +2031,13 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 		const FAssetData* FoundData = State.GetAssetByObjectPath(ObjectPath);
 		return (FoundData && !GuardedData.ShouldSkipAsset(FoundData->AssetClassPath, FoundData->PackageFlags)) ? *FoundData : FAssetData();
 	}
+}
+
+FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool bIncludeOnlyOnDiskAssets) const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	return GetAssetByObjectPath(FSoftObjectPath(ObjectPath.ToString()));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
 bool UAssetRegistryImpl::GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets) const
@@ -2490,48 +2497,57 @@ bool UAssetRegistryImpl::DoesPackageExistOnDisk(FName PackageName, FString* OutC
 	}
 }
 
-
-FName UAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
+FSoftObjectPath UAssetRegistryImpl::GetRedirectedObjectPath(const FSoftObjectPath& ObjectPath) const
 {
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
 	return GuardedData.GetRedirectedObjectPath(ObjectPath);
 }
 
+FName UAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GuardedData.GetRedirectedObjectPath(ObjectPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 namespace UE::AssetRegistry
 {
 
-FName FAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
+FSoftObjectPath FAssetRegistryImpl::GetRedirectedObjectPath(const FSoftObjectPath& ObjectPath) const
 {
-	FString RedirectedPath = ObjectPath.ToString();
+	FSoftObjectPath RedirectedPath = ObjectPath;
 
 	// For legacy behavior, for the first object pointed to, we look up the object in memory
 	// before checking the on-disk assets
-	UObject* Asset = FindObject<UObject>(nullptr, *ObjectPath.ToString());
+	UObject* Asset = ObjectPath.ResolveObject();
 	const FAssetData* AssetData = nullptr;
 	if (!Asset)
 	{
 		AssetData = State.GetAssetByObjectPath(ObjectPath);
 	}
 
-	TSet<FString> SeenPaths;
+	TSet<FSoftObjectPath> SeenPaths;
 	SeenPaths.Add(RedirectedPath);
 
-	auto TryGetRedirectedPath = [](UObject* InAsset, const FAssetData* InAssetData, FString& OutRedirectedPath)
+	auto TryGetRedirectedPath = [](UObject* InAsset, const FAssetData* InAssetData, FSoftObjectPath& OutRedirectedPath)
 	{
 		if (InAsset)
 		{
 			UObjectRedirector* Redirector = Cast<UObjectRedirector>(InAsset);
 			if (Redirector && Redirector->DestinationObject)
 			{
-				OutRedirectedPath = Redirector->DestinationObject->GetPathName();
+				OutRedirectedPath = FSoftObjectPath(Redirector->DestinationObject);
 				return true;
 			}
 		}
 		else if (InAssetData && InAssetData->IsRedirector())
 		{
-			if (InAssetData->GetTagValue("DestinationObject", OutRedirectedPath))
+			FString Dest;
+			if (InAssetData->GetTagValue("DestinationObject", Dest))
 			{
-				ConstructorHelpers::StripObjectClass(OutRedirectedPath);
+				ConstructorHelpers::StripObjectClass(Dest);
+				OutRedirectedPath = Dest;
 				return true;
 			}
 		}
@@ -2551,11 +2567,17 @@ FName FAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
 			SeenPaths.Add(RedirectedPath);
 			// For legacy behavior, for all redirects after the initial request, we only check on-disk assets
 			Asset = nullptr;
-			AssetData = State.GetAssetByObjectPath(FName(*RedirectedPath));
+			AssetData = State.GetAssetByObjectPath(RedirectedPath);
 		}
 	}
 
-	return FName(*RedirectedPath);
+	return RedirectedPath;
+}
+
+UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
+FName FAssetRegistryImpl::GetRedirectedObjectPath(const FName ObjectPath) const
+{
+	return FName(*GetRedirectedObjectPath(FSoftObjectPath(ObjectPath.ToString())).ToString());
 }
 
 }
@@ -2833,9 +2855,9 @@ bool RunAssetThroughFilter_Unchecked(const FAssetData& AssetData, const FARCompi
 	}
 
 	// ObjectPaths
-	if (Filter.ObjectPaths.Num() > 0)
+	if (Filter.SoftObjectPaths.Num() > 0)
 	{
-		const bool bPassesObjectPaths = Filter.ObjectPaths.Contains(AssetData.ObjectPath);
+		const bool bPassesObjectPaths = Filter.SoftObjectPaths.Contains(AssetData.GetSoftObjectPath());
 		if (bPassesObjectPaths != bPassFilterValue)
 		{
 			return !bPassFilterValue;
@@ -2911,7 +2933,7 @@ void UAssetRegistryImpl::ExpandRecursiveFilter(const FARFilter& InFilter, FARFil
 	ExpandedFilter.Clear();
 	ExpandedFilter.PackageNames = CompiledFilter.PackageNames.Array();
 	ExpandedFilter.PackagePaths = CompiledFilter.PackagePaths.Array();
-	ExpandedFilter.ObjectPaths = CompiledFilter.ObjectPaths.Array();
+	ExpandedFilter.SoftObjectPaths = CompiledFilter.SoftObjectPaths.Array();
 	ExpandedFilter.ClassPaths = CompiledFilter.ClassPaths.Array();
 	ExpandedFilter.TagsAndValues = CompiledFilter.TagsAndValues;
 	ExpandedFilter.bIncludeOnlyOnDiskAssets = CompiledFilter.bIncludeOnlyOnDiskAssets;
@@ -2950,7 +2972,10 @@ void FAssetRegistryImpl::CompileFilter(Impl::FClassInheritanceContext& Inheritan
 	{
 		OutCompiledFilter.PackagePaths.Add(FPathTree::NormalizePackagePath(PackagePath));
 	}
-	OutCompiledFilter.ObjectPaths.Append(InFilter.ObjectPaths);
+	OutCompiledFilter.SoftObjectPaths.Append(InFilter.SoftObjectPaths);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	OutCompiledFilter.SoftObjectPaths.Append(UE::SoftObjectPath::Private::ConvertObjectPathNames(InFilter.ObjectPaths));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!ensureAlwaysMsgf(InFilter.ClassNames.Num() == 0, TEXT("Asset Registry Filter using ClassNames instead of ClassPaths. First class name: \"%s\""), *InFilter.ClassNames[0].ToString()))
 	{
@@ -3375,7 +3400,7 @@ void UAssetRegistryImpl::AssetDeleted(UObject* DeletedAsset)
 
 		{
 			// Need to remove from GRedirectCollector
-			GRedirectCollector.RemoveAssetPathRedirection(FName(*DeletedAsset->GetPathName()));
+			GRedirectCollector.RemoveAssetPathRedirection(FSoftObjectPath(DeletedAsset));
 		}
 #endif
 
@@ -3757,7 +3782,7 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 }
 
 #if WITH_EDITOR
-void FAssetRegistryImpl::LoadCalculatedDependencies(TArray<FName>* AssetsToCalculate, double TickStartTime, bool& bOutInterrupted)
+void FAssetRegistryImpl::LoadCalculatedDependencies(TArray<FName>* AssetPackageNamesToCalculate, double TickStartTime, bool& bOutInterrupted)
 {
 	auto CheckForTimeUp = [&TickStartTime, &bOutInterrupted](bool bHadActivity)
 	{
@@ -3774,9 +3799,9 @@ void FAssetRegistryImpl::LoadCalculatedDependencies(TArray<FName>* AssetsToCalcu
 		return false;
 	};
 
-	if (AssetsToCalculate)
+	if (AssetPackageNamesToCalculate)
 	{
-		for (FName PackageName : *AssetsToCalculate)
+		for (FName PackageName : *AssetPackageNamesToCalculate)
 		{
 			// We do not remove the package from PackagesNeedingDependencyCalculation, because
 			// we are only calculating an interim result when AssetsToCalculate is non-null
@@ -3963,10 +3988,8 @@ void FAssetRegistryImpl::CachePathsFromState(Impl::FEventContext& EventContext, 
 	CollectCodeGeneratorClasses();
 
 	// Add paths to cache
-	for (const TPair<FName, FAssetData*>& AssetDataPair : InState.CachedAssetsByObjectPath)
+	for (const FAssetData* AssetData : InState.CachedAssets)
 	{
-		const FAssetData* AssetData = AssetDataPair.Value;
-
 		if (AssetData != nullptr)
 		{
 			AddAssetPath(EventContext, AssetData->PackagePath);
@@ -4111,13 +4134,13 @@ bool ReadAssetFile(FPackageReader& PackageReader, IAssetRegistry::FLoadPackageRe
 
 }
 
-void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting, const TMap<FName, FAssetData*>& OverrideData) const
+void UAssetRegistryImpl::InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting) const
 {
+	using FAssetDataMap = UE::AssetRegistry::Private::FAssetDataMap;
+
 	FReadScopeLock InterfaceScopeLock(InterfaceLock);
 	const FAssetRegistryState& State = GuardedData.GetState();
-	const TMap<FName, FAssetData*>& DataToUse = OverrideData.Num() > 0 ? OverrideData : State.CachedAssetsByObjectPath;
-
-	OutState.InitializeFromExisting(DataToUse, State.CachedDependsNodes, State.CachedPackageData, Options, bRefreshExisting ? FAssetRegistryState::EInitializationMode::OnlyUpdateExisting : FAssetRegistryState::EInitializationMode::Rebuild);
+	OutState.InitializeFromExisting(State.CachedAssets, State.CachedDependsNodes, State.CachedPackageData, Options, bRefreshExisting ? FAssetRegistryState::EInitializationMode::OnlyUpdateExisting : FAssetRegistryState::EInitializationMode::Rebuild);
 }
 
 #if ASSET_REGISTRY_STATE_DUMPING_ENABLED
@@ -4163,7 +4186,7 @@ namespace Impl
 {
 
 FScanPathContext::FScanPathContext(FEventContext& InEventContext, const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-	bool bInForceRescan, bool bInIgnoreDenyListScanFilters, TArray<FName>* FoundAssets)
+	bool bInForceRescan, bool bInIgnoreDenyListScanFilters, TArray<FSoftObjectPath>* FoundAssets)
 	: EventContext(InEventContext)
 	, OutFoundAssets(FoundAssets)
 	, bForceRescan(bInForceRescan)
@@ -4266,19 +4289,14 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 	}
 
 	Gatherer.ScanPathsSynchronous(Context.LocalPaths, Context.bForceRescan, Context.bIgnoreDenyListScanFilters, CacheFilename, Context.PackageDirs);
-	TArray<FName> BufferFoundAssets;
-	TArray<FName>* FoundAssets = &BufferFoundAssets;
-	if (Context.OutFoundAssets)
-	{
-		FoundAssets = Context.OutFoundAssets;
-	}
+	TArray<FName> FoundAssetPackageNames;
 
-	auto AssetsFoundCallback = [&Context, FoundAssets, this](const TRingBuffer<FAssetData*>& InFoundAssets)
+	auto AssetsFoundCallback = [&Context, &FoundAssetPackageNames, this](const TRingBuffer<FAssetData*>& InFoundAssets)
 	{
 		Context.NumFoundAssets = InFoundAssets.Num();
 
-		FoundAssets->Reset();
-		FoundAssets->Reserve(Context.NumFoundAssets);
+		FoundAssetPackageNames.Reset();
+		FoundAssetPackageNames.Reserve(Context.NumFoundAssets);
 
 		// The gatherer may have added other assets that were scanned as part of the ongoing background scan; remove any assets that were not in the requested paths
 		for (FAssetData* AssetData : InFoundAssets)
@@ -4313,8 +4331,12 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 			if (bIsInRequestedPaths)
 			{
 				UE_LOG(LogAssetRegistry, VeryVerbose, TEXT("FAssetRegistryImpl::ScanPathsSynchronous: Found Asset: %s"),
-					*AssetData->ObjectPath.ToString());
-				FoundAssets->Add(AssetData->ObjectPath);
+					*AssetData->GetObjectPathString());
+				if (Context.OutFoundAssets)
+				{
+					Context.OutFoundAssets->Add(AssetData->GetSoftObjectPath());
+				}
+				FoundAssetPackageNames.Add(AssetData->PackageName);
 			}
 		}
 	};
@@ -4322,7 +4344,7 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 	bool bUnusedInterrupted;
 	Context.Status = TickGatherer(Context.EventContext, -1., bUnusedInterrupted, FAssetsFoundCallback(AssetsFoundCallback));
 #if WITH_EDITOR
-	LoadCalculatedDependencies(FoundAssets, -1., bUnusedInterrupted);
+	LoadCalculatedDependencies(&FoundAssetPackageNames, -1., bUnusedInterrupted);
 #endif
 }
 
@@ -4424,7 +4446,9 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 		CA_ASSUME(BackgroundResult.Get() != nullptr);
 
 		// Try to update any asset data that may already exist
-		FAssetData* ExistingAssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
+		FCachedAssetKey Key(*BackgroundResult);
+		FAssetData* const* FoundData = State.CachedAssets.Find(Key);
+		FAssetData* ExistingAssetData = FoundData ? *FoundData : nullptr;
 
 		const FName PackagePath = BackgroundResult->PackagePath;
 
@@ -4446,7 +4470,7 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 			{
 				// If the current AssetData came from a loaded asset, don't overwrite it with the new one from disk; loaded asset is more authoritative because it has run the postload steps
 #if WITH_EDITOR
-				if (!AssetDataObjectPathsUpdatedOnLoad.Contains(BackgroundResult->ObjectPath))
+				if (!AssetDataObjectPathsUpdatedOnLoad.Contains(BackgroundResult->GetSoftObjectPath()))
 #endif
 				{
 #if WITH_EDITOR
@@ -4476,7 +4500,7 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 		}
 		else
 		{
-			UE_LOG(LogAssetRegistry, Warning, TEXT("AssetRegistry: An asset has been loaded with an invalid mount point: '%s', Mount Point: '%s'"), *BackgroundResult->ObjectPath.ToString(), *PackagePathString)
+			UE_LOG(LogAssetRegistry, Warning, TEXT("AssetRegistry: An asset has been loaded with an invalid mount point: '%s', Mount Point: '%s'"), *BackgroundResult->GetObjectPathString(), *PackagePathString)
 		}
 
 		// Check to see if we have run out of time in this tick
@@ -5183,9 +5207,10 @@ void FAssetRegistryImpl::PushProcessLoadedAssetsBatch(Impl::FEventContext& Event
 	// Add or update existing for all of the AssetDatas created by the batch
 	for (FAssetData& NewAssetData : LoadedAssetDatas)
 	{
-		FAssetData** DataFromGather = State.CachedAssetsByObjectPath.Find(NewAssetData.ObjectPath);
+		FCachedAssetKey Key(NewAssetData);
+		FAssetData** DataFromGather = State.CachedAssets.Find(Key);
 
-		AssetDataObjectPathsUpdatedOnLoad.Add(NewAssetData.ObjectPath);
+		AssetDataObjectPathsUpdatedOnLoad.Add(NewAssetData.GetSoftObjectPath());
 
 		if (!DataFromGather)
 		{
@@ -5213,11 +5238,11 @@ void FAssetRegistryImpl::UpdateRedirectCollector()
 
 	for (const FAssetData* AssetData : RedirectorAssets)
 	{
-		FName Destination = GetRedirectedObjectPath(AssetData->ObjectPath);
+		FSoftObjectPath Destination = GetRedirectedObjectPath(AssetData->GetSoftObjectPath());
 
-		if (Destination != AssetData->ObjectPath)
+		if (Destination != AssetData->GetSoftObjectPath())
 		{
-			GRedirectCollector.AddAssetPathRedirection(AssetData->ObjectPath, Destination);
+			GRedirectCollector.AddAssetPathRedirection(AssetData->GetSoftObjectPath(), Destination);
 		}
 	}
 }
@@ -5277,7 +5302,7 @@ void FAssetRegistryImpl::ScanModifiedAssetFiles(Impl::FEventContext& EventContex
 		}
 
 		// Re-scan and update the asset registry with the new asset data
-		TArray<FName> FoundAssets;
+		TArray<FSoftObjectPath> FoundAssets;
 		Impl::FScanPathContext Context(EventContext, TArray<FString>(), InFilePaths,
 			true /* bForceRescan */, false /* bIgnoreDenyListScanFilters */, &FoundAssets);
 		ScanPathsSynchronous(Context);
@@ -5287,7 +5312,7 @@ void FAssetRegistryImpl::ScanModifiedAssetFiles(Impl::FEventContext& EventContex
 		{
 			for (FAssetData* OldPackageAsset : OldPackageAssets)
 			{
-				if (!FoundAssets.Contains(OldPackageAsset->ObjectPath))
+				if (!FoundAssets.Contains(OldPackageAsset->GetSoftObjectPath()))
 				{
 					RemoveAssetData(EventContext, OldPackageAsset);
 				}
@@ -5295,9 +5320,9 @@ void FAssetRegistryImpl::ScanModifiedAssetFiles(Impl::FEventContext& EventContex
 		}
 
 		// Send ModifiedOnDisk event for every Asset that was modified
-		for (FName FoundAsset : FoundAssets)
+		for (const FSoftObjectPath& FoundAsset : FoundAssets)
 		{
-			FAssetData** AssetData = State.CachedAssetsByObjectPath.Find(FoundAsset);
+			FAssetData** AssetData = State.CachedAssets.Find(FCachedAssetKey(FoundAsset));
 			if (AssetData)
 			{
 				EventContext.AssetEvents.Emplace(**AssetData, Impl::FEventContext::EEvent::UpdatedOnDisk);
@@ -5657,7 +5682,7 @@ void UAssetRegistryImpl::OnGetExtraObjectTags(const UObject* Object, TArray<UObj
 	{
 		TSet<FName>& MetaDataTags = UObject::GetMetaDataTagsForAssetRegistry();
 		// It is critical that bIncludeOnlyOnDiskAssets=true otherwise this will cause an infinite loop
-		const FAssetData AssetData = GetAssetByObjectPath(*Object->GetPathName(), /*bIncludeOnlyOnDiskAssets=*/true);
+		const FAssetData AssetData = GetAssetByObjectPath(FSoftObjectPath(Object), /*bIncludeOnlyOnDiskAssets=*/true);
 		for (const FName MetaDataTag : MetaDataTags)
 		{
 			auto OutTagsContainsTagPredicate = [MetaDataTag](const UObject::FAssetRegistryTag& Tag) { return Tag.Name == MetaDataTag; };
@@ -6014,7 +6039,7 @@ void FAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 }
 
-bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId)
+bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FSoftObjectPath& ObjectPath, FPrimaryAssetId PrimaryAssetId)
 {
 	UE::AssetRegistry::Impl::FEventContext EventContext;
 	bool bResult;
@@ -6029,9 +6054,9 @@ bool UAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(const FName ObjectPath, 
 namespace UE::AssetRegistry
 {
 
-bool FAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(Impl::FEventContext& EventContext, const FName ObjectPath, FPrimaryAssetId PrimaryAssetId)
+bool FAssetRegistryImpl::SetPrimaryAssetIdForObjectPath(Impl::FEventContext& EventContext, const FSoftObjectPath& ObjectPath, FPrimaryAssetId PrimaryAssetId)
 {
-	FAssetData** FoundAssetData = State.CachedAssetsByObjectPath.Find(ObjectPath);
+	FAssetData** FoundAssetData = State.CachedAssets.Find(FCachedAssetKey(ObjectPath));
 
 	if (!FoundAssetData)
 	{

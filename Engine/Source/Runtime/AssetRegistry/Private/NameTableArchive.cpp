@@ -164,3 +164,10 @@ void FNameTableArchiveReader::SerializeTagsAndBundles(FAssetData& Out)
 	*this << Map;
 	Out.SetTagsAndAssetBundles(MoveTemp(Map));
 }
+	
+void FNameTableArchiveReader::SerializeTagsAndBundlesOldVersion(FAssetData& Out, int32 Version)
+{
+	FAssetDataTagMap Map;
+	*this << Map;
+	Out.SetTagsAndAssetBundles(MoveTemp(Map));
+}

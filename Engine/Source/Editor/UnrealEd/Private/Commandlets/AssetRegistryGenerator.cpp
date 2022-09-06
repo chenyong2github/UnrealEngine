@@ -985,7 +985,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 
 						if (AssetData->ChunkIDs.Num() > 1)
 						{
-							UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Encrypted root asset '%s' exists in two chunks. Only secondary assets should be shared between chunks."), *AssetData->ObjectPath.ToString());
+							UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Encrypted root asset '%s' exists in two chunks. Only secondary assets should be shared between chunks."), *AssetData->GetObjectPathString());
 						}
 						else if (AssetData->ChunkIDs.Num() == 1)
 						{
@@ -1120,7 +1120,7 @@ static void AddCookTagsToState(TMap<FSoftObjectPath, TArray<TPair<FName, FString
 	for (TPair<FSoftObjectPath, TArray<TPair<FName, FString>>>& ObjectToTags : InCookTags)
 	{
 		ObjectCount++;
-		const FAssetData* AssetData = InState.GetAssetByObjectPath(FName(WriteToString<256>(ObjectToTags.Key)));
+		const FAssetData* AssetData = InState.GetAssetByObjectPath(FSoftObjectPath(WriteToString<256>(ObjectToTags.Key)));
 
 		// Migrate to FAssetDataTagMap
 		FAssetDataTagMap NewTags;
@@ -1191,12 +1191,12 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 	// Collection tags are queried only by the existence of the key, the value is never used. But Tag Values are not allowed
 	// to be empty. Set the value for each tag to an arbitrary field, something short to avoid wasting memory. We use 1 (aka "true") for now.
 	FStringView CollectionValue(TEXTVIEW("1"));
-	for (const auto& AssetPathNameToCollectionTagsPair : AssetPathNamesToCollectionTags)
+	for (const TPair<FName, TArray<FName>>& AssetPathNameToCollectionTagsPair : AssetPathNamesToCollectionTags)
 	{
 		const FName AssetPathName = AssetPathNameToCollectionTagsPair.Key;
 		const TArray<FName>& CollectionTagsForAsset = AssetPathNameToCollectionTagsPair.Value;
 
-		const FAssetData* AssetData = State.GetAssetByObjectPath(AssetPathName);
+		const FAssetData* AssetData = State.GetAssetByObjectPath(FSoftObjectPath(WriteToString<FName::StringBufferSize>(AssetPathName)));
 		if (AssetData)
 		{
 			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
@@ -1375,9 +1375,8 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 	}
 
 	// Copy ExplicitChunkIDs and other data from the AssetRegistry into the maps we use during finalization
-	for (const TPair<FName, const FAssetData*>& Pair : State.GetObjectPathToAssetDataMap())
+	State.EnumerateAllAssets([&](const FAssetData& AssetData)
 	{
-		const FAssetData& AssetData = *Pair.Value;
 		for (int32 ChunkID : AssetData.ChunkIDs)
 		{
 			if (ChunkID < 0)
@@ -1398,7 +1397,7 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 		{
 			PackagesContainingMaps.Add(AssetData.PackageName);
 		}
-	}
+	});
 
 	// add all the packages to the unassigned package list
 	for (FName CookedPackage : CookedPackages)
@@ -1533,7 +1532,6 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Saving asset registry v%d."), FAssetRegistryVersion::Type::LatestVersion);
 	FAutoScopedDurationTimer Timer;
 
-	const TMap<FName, const FAssetData*>& ObjectToDataMap = State.GetObjectPathToAssetDataMap();
 	
 	// Write development first, this will always write
 	FAssetRegistrySerializationOptions DevelopmentSaveOptions;
@@ -1682,7 +1680,9 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 			// Save the generated registry
 			FString PlatformSandboxPath = SandboxPath.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
 			FFileHelper::SaveArrayToFile(SerializedAssetRegistry, *PlatformSandboxPath);
-			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Generated asset registry num assets %d, size is %5.2fkb"), ObjectToDataMap.Num(), (float)SerializedAssetRegistry.Num() / 1024.f);
+
+			int32 NumAssets = State.GetNumAssets();
+			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Generated asset registry num assets %d, size is %5.2fkb"), NumAssets, (float)SerializedAssetRegistry.Num() / 1024.f);
 		}
 	}
 	
@@ -1752,19 +1752,17 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder(FSandboxPlatformFile& InSandb
 {
 	TSet<FName> PackageNameSet;
 	TSet<FName> MapList;
-	const TMap<FName, const FAssetData*>& ObjectToDataMap = State.GetObjectPathToAssetDataMap();
-	for (const TPair<FName, const FAssetData*>& Pair : ObjectToDataMap)
+	State.EnumerateAllAssets([this, &PackageNameSet, &MapList](const FAssetData& AssetData)
 	{
-		FAssetData* AssetData = const_cast<FAssetData*>(Pair.Value);
-		PackageNameSet.Add(AssetData->PackageName);
+		PackageNameSet.Add(AssetData.PackageName);
 
 		// REPLACE WITH PRIORITY
 
-		if (ContainsMap(AssetData->PackageName))
+		if (ContainsMap(AssetData.PackageName))
 		{
-			MapList.Add(AssetData->PackageName);
+			MapList.Add(AssetData.PackageName);
 		}
-	}
+	});
 
 	FString CookerFileOrderString;
 	{
@@ -1967,17 +1965,16 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 	FString TmpString, TmpStringChunks;
 	ANSICHAR HeaderText[] = "ChunkID, Package Name, Class Type, Hard or Soft Chunk, File Size, Other Chunks\n";
 
-	const TMap<FName, const FAssetData*>& ObjectToDataMap = State.GetObjectPathToAssetDataMap();
 	TArray<const FAssetData*> AssetDataList;
-	for (const TPair<FName, const FAssetData*>& Pair : ObjectToDataMap)
+	State.EnumerateAllAssets([&AssetDataList](const FAssetData& AssetData)
 	{
-		AssetDataList.Add(Pair.Value);
-	}
+		AssetDataList.Add(&AssetData);
+	});
 
 	// Sort list so it's consistent over time
 	AssetDataList.Sort([](const FAssetData& A, const FAssetData& B)
 	{
-		return A.ObjectPath.LexicalLess(B.ObjectPath);
+		return A.GetSoftObjectPath().LexicalLess(B.GetSoftObjectPath());
 	});
 
 	// Create file for all chunks
@@ -2506,7 +2503,7 @@ FAssetRegistryGenerator::FCreateOrFindArray FAssetRegistryGenerator::CreateOrFin
 
 const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object)
 {
-	const FAssetData* const AssetData = State.GetAssetByObjectPath(FName(Object.GetPathName()));
+	const FAssetData* const AssetData = State.GetAssetByObjectPath(FSoftObjectPath(&Object));
 	if (!AssetData)
 	{
 		FAssetData* const NewAssetData = new FAssetData(&Object, true /* bAllowBlueprintClass */);
