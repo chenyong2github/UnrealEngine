@@ -112,7 +112,7 @@ private:
 					// if the type matches
 					if (AssetData.IsInstanceOf(ObjectProperty->PropertyClass))
 					{
-						PropertyEditor->AddGivenItem(AssetData.ObjectPath.ToString());
+						PropertyEditor->AddGivenItem(AssetData.GetObjectPathString());
 					}
 				}
 				// Let this bubble up to the rest of the row

@@ -246,7 +246,7 @@ void SPropertyEditorStruct::OnDragEnter(const FGeometry& MyGeometry, const FDrag
 		// Find the struct path
 		if (UnloadedStructOp->HasAssets())
 		{
-			AssetPath = UnloadedStructOp->GetAssets()[0].ObjectPath.ToString();
+			AssetPath = UnloadedStructOp->GetAssets()[0].GetObjectPathString();
 		}
 		else if (UnloadedStructOp->HasAssetPaths())
 		{
@@ -296,7 +296,7 @@ FReply SPropertyEditorStruct::OnDrop(const FGeometry& MyGeometry, const FDragDro
 		// Find the struct path
 		if (UnloadedStructOp->HasAssets())
 		{
-			AssetPath = UnloadedStructOp->GetAssets()[0].ObjectPath.ToString();
+			AssetPath = UnloadedStructOp->GetAssets()[0].GetObjectPathString();
 		}
 		else if (UnloadedStructOp->HasAssetPaths())
 		{

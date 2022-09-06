@@ -380,7 +380,7 @@ static UObject* LoadDragDropObject(TSharedPtr<FAssetDragDropOp> UnloadedClassOp)
 	// Find the class/blueprint path
 	if (UnloadedClassOp->HasAssets())
 	{
-		AssetPath = UnloadedClassOp->GetAssets()[0].ObjectPath.ToString();
+		AssetPath = UnloadedClassOp->GetAssets()[0].GetObjectPathString();
 	}
 	else if (UnloadedClassOp->HasAssetPaths())
 	{
@@ -467,7 +467,7 @@ FReply SPropertyEditorClass::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 		// Find the class/blueprint path
 		if (UnloadedClassOp->HasAssets())
 		{
-			AssetPath = UnloadedClassOp->GetAssets()[0].ObjectPath.ToString();
+			AssetPath = UnloadedClassOp->GetAssets()[0].GetObjectPathString();
 		}
 		else if (UnloadedClassOp->HasAssetPaths())
 		{

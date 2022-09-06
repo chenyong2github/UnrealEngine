@@ -701,7 +701,7 @@ SPropertyEditorAsset::EActorReferenceState SPropertyEditorAsset::GetActorReferen
 		else
 		{
 			// Get a path pointing to the owning map
-			FSoftObjectPath MapObjectPath = FSoftObjectPath(Value.ObjectPath.GetAssetPathName(), FString());
+			FSoftObjectPath MapObjectPath = Value.ObjectPath.GetWithoutSubPath();
 
 			if (UObject* MapObject = MapObjectPath.ResolveObject())
 			{
@@ -987,12 +987,12 @@ FPropertyAccess::Result SPropertyEditorAsset::GetValue( FObjectOrAssetData& OutV
 
 				if (SoftObjectPath.IsAsset())
 				{
-					if (!CachedAssetData.IsValid() || CachedAssetData.ObjectPath.ToString() != CurrentObjectPath)
+					if (!CachedAssetData.IsValid() || CachedAssetData.GetObjectPathString() != CurrentObjectPath)
 					{
 						static FName AssetRegistryName("AssetRegistry");
 
 						FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(AssetRegistryName);
-						CachedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*CurrentObjectPath);
+						CachedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(CurrentObjectPath));
 					}
 
 					Result = FPropertyAccess::Success;
@@ -1064,13 +1064,13 @@ FPropertyAccess::Result SPropertyEditorAsset::GetValue( FObjectOrAssetData& OutV
 
 			if (SoftObjectPath.IsAsset())
 			{
-				const FString CurrentObjectPath = SoftObjectPath.ToString();
-				if (CurrentObjectPath != TEXT("None") && (!CachedAssetData.IsValid() || CachedAssetData.ObjectPath.ToString() != CurrentObjectPath))
+				const FSoftObjectPath CurrentObjectPath = SoftObjectPath;
+				if (CurrentObjectPath.IsValid() && (!CachedAssetData.IsValid() || CachedAssetData.GetSoftObjectPath() != CurrentObjectPath))
 				{
 					static FName AssetRegistryName("AssetRegistry");
 
 					FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(AssetRegistryName);
-					CachedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*CurrentObjectPath);
+					CachedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(CurrentObjectPath);
 				}
 
 				OutValue = FObjectOrAssetData(CachedAssetData);
@@ -1175,7 +1175,7 @@ void SPropertyEditorAsset::OnBrowse()
 			// Try to resolve a potentially unloaded object
 			if (!Value.Object)
 			{
-				FSoftObjectPath MapObjectPath = FSoftObjectPath(Value.ObjectPath.GetAssetPathName(), FString());
+				FSoftObjectPath MapObjectPath = Value.ObjectPath.GetWithoutSubPath();
 
 				if (UObject* MapObject = MapObjectPath.ResolveObject())
 				{
@@ -1383,7 +1383,7 @@ bool SPropertyEditorAsset::CanPaste()
 		else
 		{
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-			bCanPaste = PossibleObjectPath.Len() < NAME_SIZE && AssetRegistryModule.Get().GetAssetByObjectPath( *PossibleObjectPath ).IsValid();
+			bCanPaste = PossibleObjectPath.Len() < NAME_SIZE && AssetRegistryModule.Get().GetAssetByObjectPath( FSoftObjectPath(PossibleObjectPath) ).IsValid();
 		}
 	}
 

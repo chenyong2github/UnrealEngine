@@ -379,9 +379,10 @@ void STextPropertyEditableStringTableReference::UpdateStringTableComboOptions()
 
 		for (const FAssetData& StringTableAsset : StringTableAssets)
 		{
+			FName StringTableId = *StringTableAsset.GetObjectPathString();
 			// Only allow string tables assets that have entries to be visible otherwise unexpected behavior happens for the user
 			bool HasEntries = false;
-			FStringTableConstPtr StringTable = FStringTableRegistry::Get().FindStringTable(StringTableAsset.ObjectPath);
+			FStringTableConstPtr StringTable = FStringTableRegistry::Get().FindStringTable(StringTableId);
 			if (StringTable.IsValid())
 			{
 				StringTable->EnumerateSourceStrings([&](const FString& InKey, const FString& InSourceString) -> bool
@@ -402,9 +403,9 @@ void STextPropertyEditableStringTableReference::UpdateStringTableComboOptions()
 			}
 
 			TSharedRef<FAvailableStringTable> AvailableStringTableEntry = MakeShared<FAvailableStringTable>();
-			AvailableStringTableEntry->TableId = StringTableAsset.ObjectPath;
+			AvailableStringTableEntry->TableId = StringTableId;
 			AvailableStringTableEntry->DisplayName = FText::FromName(StringTableAsset.AssetName);
-			if (StringTableAsset.ObjectPath == CurrentTableId)
+			if (StringTableId == CurrentTableId)
 			{
 				SelectedStringTableComboEntry = AvailableStringTableEntry;
 			}
