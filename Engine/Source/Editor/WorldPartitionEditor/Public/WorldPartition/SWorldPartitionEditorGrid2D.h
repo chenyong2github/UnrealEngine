@@ -44,6 +44,9 @@ protected:
 	void ConvertSelectedRegionsToActors();
 	void MoveCameraHere();
 
+	bool IsFollowPlayerInPIE() const;
+	bool IsInteractive() const;
+
 	virtual int32 GetSelectionSnap() const;
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -94,6 +97,7 @@ protected:
 	bool bIsDragSelecting;
 	bool bIsPanning;
 	bool bShowActors;
+	bool bFollowPlayerInPIE;
 	FVector2D MouseCursorPos;
 	FVector2D MouseCursorPosWorld;
 	FVector2D LastMouseCursorPosWorldDrag;
