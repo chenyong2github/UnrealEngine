@@ -575,9 +575,9 @@ void FNiagaraGpuComputeDispatch::DumpDebugFrame()
 				Builder.Appendf(TEXT("Source(%p 0x%08x %d) "), SimStageData.Source, SimStageData.SourceCountOffset, SimStageData.SourceNumInstances);
 				Builder.Appendf(TEXT("Destination(%p 0x%08x %d) "), SimStageData.Destination, SimStageData.DestinationCountOffset, SimStageData.DestinationNumInstances);
 				Builder.Appendf(TEXT("Iteration(%d | %s) "), SimStageData.IterationIndex, SimStageData.AlternateIterationSource ? *SimStageData.AlternateIterationSource->SourceDIName.ToString() : TEXT("Particles"));
-				if (SimStageData.UserElementCount != -1)
+				if (SimStageData.StageMetaData->bOverrideElementCount)
 				{
-					Builder.Appendf(TEXT("UserElementCount(%d) "), SimStageData.UserElementCount);
+					Builder.Appendf(TEXT("ElementCountXYZ(%d, %d, %d) "), SimStageData.ElementCountXYZ.X, SimStageData.ElementCountXYZ.Y, SimStageData.ElementCountXYZ.Z);
 				}
 				UE_LOG(LogNiagara, Warning, TEXT("%s"), Builder.ToString());
 			}
@@ -832,7 +832,7 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 					SimStageData.bFirstStage = bFirstStage;
 					SimStageData.StageIndex = SimStageIndex;
 					SimStageData.IterationIndex = IterationIndex;
-					SimStageData.UserElementCount = InstanceData.PerStageInfo[SimStageIndex].UserElementCount;
+					SimStageData.ElementCountXYZ = InstanceData.PerStageInfo[SimStageIndex].ElementCountXYZ;
 					SimStageData.StageMetaData = &SimStageMetaData;
 					SimStageData.AlternateIterationSource = IterationInterface;
 
@@ -1408,10 +1408,20 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 		DispatchNumThreads = FNiagaraShader::GetDefaultThreadGroupSize(ENiagaraGpuDispatchType::OneD);
 	}
 
-	// User override element count
-	if (SimStageData.UserElementCount != -1)
+	if (SimStageData.StageMetaData->bOverrideElementCount)
 	{
-		DispatchCount = FIntVector(SimStageData.UserElementCount, 1, 1);
+		if (DispatchType == ENiagaraGpuDispatchType::OneD)
+		{
+			DispatchCount = FIntVector(SimStageData.ElementCountXYZ.X, 1, 1);
+		}
+		else if (DispatchType == ENiagaraGpuDispatchType::TwoD)
+		{
+			DispatchCount = FIntVector(SimStageData.ElementCountXYZ.X, SimStageData.ElementCountXYZ.Y, 1);
+		}
+		else if (DispatchType == ENiagaraGpuDispatchType::ThreeD)
+		{
+			DispatchCount = SimStageData.ElementCountXYZ;
+		}
 	}
 
 	const int32 TotalDispatchCount = DispatchCount.X * DispatchCount.Y * DispatchCount.Z;

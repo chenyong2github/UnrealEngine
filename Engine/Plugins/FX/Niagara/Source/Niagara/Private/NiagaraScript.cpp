@@ -1028,7 +1028,12 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 					if (const UNiagaraSimulationStageGeneric* SimStageGeneric = Cast<const UNiagaraSimulationStageGeneric>(SimStageBase))
 					{
 						AddAttributeToPreserve(SimStageGeneric->EnabledBinding.GetParamMapBindableVariable().GetName());
-						AddAttributeToPreserve(SimStageGeneric->ElementCountBinding.GetParamMapBindableVariable().GetName());
+						if (SimStageGeneric->bOverrideGpuDispatchType)
+						{
+							AddAttributeToPreserve(SimStageGeneric->ElementCountXBinding.GetParamMapBindableVariable().GetName());
+							AddAttributeToPreserve(SimStageGeneric->ElementCountYBinding.GetParamMapBindableVariable().GetName());
+							AddAttributeToPreserve(SimStageGeneric->ElementCountZBinding.GetParamMapBindableVariable().GetName());
+						}
 						AddAttributeToPreserve(SimStageGeneric->NumIterationsBinding.GetParamMapBindableVariable().GetName());
 					}
 				}
@@ -3352,10 +3357,23 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 			SimStageMetaData.EnabledBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
 		}
 
-		if (!SimStageMetaData.ElementCountBinding.IsNone())
+		if (SimStageMetaData.bOverrideElementCount)
 		{
-			FNiagaraVariable Var(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountBinding);
-			SimStageMetaData.ElementCountBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+			if (!SimStageMetaData.ElementCountXBinding.IsNone())
+			{
+				FNiagaraVariable Var(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountXBinding);
+				SimStageMetaData.ElementCountXBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+			}
+			if (!SimStageMetaData.ElementCountYBinding.IsNone())
+			{
+				FNiagaraVariable Var(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountYBinding);
+				SimStageMetaData.ElementCountYBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+			}
+			if (!SimStageMetaData.ElementCountZBinding.IsNone())
+			{
+				FNiagaraVariable Var(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountZBinding);
+				SimStageMetaData.ElementCountZBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+			}
 		}
 
 		if (!SimStageMetaData.NumIterationsBinding.IsNone())

@@ -491,9 +491,20 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 				{
 					bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), SimStageMetaData.EnabledBinding), false);
 				}
-				if (!SimStageMetaData.ElementCountBinding.IsNone())
+				if (SimStageMetaData.bOverrideElementCount)
 				{
-					bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountBinding), false);
+					if (!SimStageMetaData.ElementCountXBinding.IsNone())
+					{
+						bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountXBinding), false);
+					}
+					if (!SimStageMetaData.ElementCountYBinding.IsNone())
+					{
+						bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountYBinding), false);
+					}
+					if (!SimStageMetaData.ElementCountZBinding.IsNone())
+					{
+						bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountZBinding), false);
+					}
 				}
 				if ( !SimStageMetaData.NumIterationsBinding.IsNone() )
 				{

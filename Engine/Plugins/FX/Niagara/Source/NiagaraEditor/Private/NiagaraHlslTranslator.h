@@ -368,7 +368,9 @@ public:
 	FName IterationSource;
 	int32 SimulationStageIndex = -1;
 	FName EnabledBinding;
-	FName ElementCountBinding;
+	FName ElementCountXBinding;
+	FName ElementCountYBinding;
+	FName ElementCountZBinding;
 	int32 NumIterations = 1;
 	FName NumIterationsBinding;
 	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
@@ -380,6 +382,8 @@ public:
 	bool bWritesParticles = false;
 	bool bPartialParticleUpdate = false;
 	bool bGpuDispatchForceLinear = false;
+	bool bOverrideGpuDispatchType = false;
+	ENiagaraGpuDispatchType OverrideGpuDispatchType = ENiagaraGpuDispatchType::OneD;
 	bool bOverrideGpuDispatchNumThreads = false;
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
 	TArray<FNiagaraVariable> SetParticleAttributes;

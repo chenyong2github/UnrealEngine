@@ -1255,7 +1255,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].bCopyPreviousParams = false;
 					TranslationStages[Index].SimulationStageIndex = DestSimStageIndex;					
 					TranslationStages[Index].EnabledBinding = CompileSimStageData.EnabledBinding;
-					TranslationStages[Index].ElementCountBinding = CompileSimStageData.ElementCountBinding;
+					TranslationStages[Index].ElementCountXBinding = CompileSimStageData.ElementCountXBinding;
+					TranslationStages[Index].ElementCountYBinding = CompileSimStageData.ElementCountYBinding;
+					TranslationStages[Index].ElementCountZBinding = CompileSimStageData.ElementCountZBinding;
 					TranslationStages[Index].NumIterations = CompileSimStageData.NumIterations;
 					TranslationStages[Index].ExecuteBehavior = CompileSimStageData.ExecuteBehavior;
 					TranslationStages[Index].bPartialParticleUpdate = CompileSimStageData.PartialParticleUpdate;
@@ -1265,6 +1267,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].ParticleIterationStateBinding = CompileSimStageData.ParticleIterationStateBinding;
 					TranslationStages[Index].ParticleIterationStateRange = CompileSimStageData.ParticleIterationStateRange;
 					TranslationStages[Index].bGpuDispatchForceLinear = CompileSimStageData.bGpuDispatchForceLinear;
+					TranslationStages[Index].bOverrideGpuDispatchType = CompileSimStageData.bOverrideGpuDispatchType;
+					TranslationStages[Index].OverrideGpuDispatchType = CompileSimStageData.OverrideGpuDispatchType;
 					TranslationStages[Index].bOverrideGpuDispatchNumThreads = CompileSimStageData.bOverrideGpuDispatchNumThreads;
 					TranslationStages[Index].OverrideGpuDispatchNumThreads = CompileSimStageData.OverrideGpuDispatchNumThreads;
 
@@ -1325,7 +1329,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
 					SimulationStageMetaData.SimulationStageName = InCompileData->CompileSimStageData[SourceSimStageIndex].StageName;
 					SimulationStageMetaData.EnabledBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].EnabledBinding;
-					SimulationStageMetaData.ElementCountBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountBinding;
+					SimulationStageMetaData.ElementCountXBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountXBinding;
+					SimulationStageMetaData.ElementCountYBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountYBinding;
+					SimulationStageMetaData.ElementCountZBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountZBinding;
 					SimulationStageMetaData.ExecuteBehavior = TranslationStages[Index].ExecuteBehavior;
 					SimulationStageMetaData.IterationSource = InCompileData->CompileSimStageData[SourceSimStageIndex].IterationSource;
 					SimulationStageMetaData.NumIterationsBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].NumIterationsBinding;
@@ -1335,6 +1341,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.bParticleIterationStateEnabled = TranslationStages[Index].bParticleIterationStateEnabled;
 					SimulationStageMetaData.ParticleIterationStateBinding = TranslationStages[Index].ParticleIterationStateBinding;
 					SimulationStageMetaData.ParticleIterationStateRange = TranslationStages[Index].ParticleIterationStateRange;
+					SimulationStageMetaData.bOverrideElementCount = TranslationStages[Index].bOverrideGpuDispatchType;
 
 					// Determine dispatch information from iteration source (if we have one)
 					SimulationStageMetaData.GpuDispatchType = ENiagaraGpuDispatchType::OneD;
@@ -1345,15 +1352,22 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 						{
 							if ( UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()) )
 							{
-								if ( TranslationStages[Index].bOverrideGpuDispatchNumThreads )
+								if (TranslationStages[Index].bGpuDispatchForceLinear)
 								{
-									SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].bGpuDispatchForceLinear ? ENiagaraGpuDispatchType::OneD : ENiagaraGpuDispatchType::Custom;
+									SimulationStageMetaData.GpuDispatchType = ENiagaraGpuDispatchType::OneD;
+								}
+								else
+								{
+									SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].bOverrideGpuDispatchType ? TranslationStages[Index].OverrideGpuDispatchType : IteratinoSourceCDO->GetGpuDispatchType();
+								}
+
+								if (TranslationStages[Index].bOverrideGpuDispatchNumThreads)
+								{
 									SimulationStageMetaData.GpuDispatchNumThreads = TranslationStages[Index].OverrideGpuDispatchNumThreads;
 								}
 								else
 								{
-									SimulationStageMetaData.GpuDispatchType = TranslationStages[Index].bGpuDispatchForceLinear ? ENiagaraGpuDispatchType::OneD : IteratinoSourceCDO->GetGpuDispatchType();
-									SimulationStageMetaData.GpuDispatchNumThreads = SimulationStageMetaData.GpuDispatchType == ENiagaraGpuDispatchType::Custom ? IteratinoSourceCDO->GetGpuDispatchNumThreads() : FNiagaraShader::GetDefaultThreadGroupSize(SimulationStageMetaData.GpuDispatchType);
+									SimulationStageMetaData.GpuDispatchNumThreads = (SimulationStageMetaData.GpuDispatchType == ENiagaraGpuDispatchType::Custom) ? IteratinoSourceCDO->GetGpuDispatchNumThreads() : FNiagaraShader::GetDefaultThreadGroupSize(SimulationStageMetaData.GpuDispatchType);
 								}
 							}
 						}
