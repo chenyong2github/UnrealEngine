@@ -66,6 +66,11 @@ namespace UnrealBuildTool
 		public readonly VersionNumber WindowsSdkVersion;
 
 		/// <summary>
+		/// Use the CPP/WinRT language projection
+		/// </summary>
+		public readonly bool bUseCPPWinRT;
+
+		/// <summary>
 		/// The path to the linker for linking executables
 		/// </summary>
 		public readonly FileReference CompilerPath;
@@ -118,6 +123,7 @@ namespace UnrealBuildTool
 			this.WindowsSdkDir = Params.WindowsSdkDir;
 			this.WindowsSdkVersion = Params.WindowsSdkVersion;
 			this.RedistDir = Params.RedistDir;
+			this.bUseCPPWinRT = Params.bUseCPPWinRT;
 
 			// Get the standard VC paths
 			DirectoryReference VCToolPath = GetVCToolPath(ToolChain, ToolChainDir, Architecture);
@@ -335,6 +341,10 @@ namespace UnrealBuildTool
 				IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "shared"));
 				IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "um"));
 				IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "winrt"));
+				if (bUseCPPWinRT)
+				{
+					IncludePaths.Add(DirectoryReference.Combine(IncludeRootDir, "cppwinrt"));
+				}
 
 				DirectoryReference LibraryRootDir = DirectoryReference.Combine(WindowsSdkDir, "lib", WindowsSdkVersion.ToString());
 				LibraryPaths.Add(DirectoryReference.Combine(LibraryRootDir, "ucrt", ArchFolder));
@@ -369,12 +379,13 @@ namespace UnrealBuildTool
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
+		/// <param name="bUseCPPWinRT">Include the CPP/WinRT language projection</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>New environment object with paths for the given settings</returns>
 		[SupportedOSPlatform("windows")]
-		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, ILogger Logger)
+		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, ILogger Logger)
 		{
-			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion, Logger), Logger );
+			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion, bUseCPPWinRT, Logger), Logger );
 		}
 
 		/// <summary>
@@ -427,6 +438,9 @@ namespace UnrealBuildTool
 		/// <summary>Optional directory for redistributable items (DLLs etc)</summary>
 		public DirectoryReference? RedistDir;
 
+		/// <summary>Include the CPP/WinRT language projection</summary>
+		public bool bUseCPPWinRT;
+
 		/// <summary>
 		/// Creates VC environment construction parameters with the given settings
 		/// </summary>
@@ -436,10 +450,11 @@ namespace UnrealBuildTool
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
+		/// <param name="bUseCPPWinRT">Include the CPP/WinRT language projection</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>Creation parameters for VC environment</returns>
 		[SupportedOSPlatform("windows")]
-		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, ILogger Logger)
+		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, bool bUseCPPWinRT, ILogger Logger)
 		{
 			// Get the compiler version info
 			VersionNumber? SelectedCompilerVersion;
@@ -509,6 +524,7 @@ namespace UnrealBuildTool
 			this.WindowsSdkDir = SelectedWindowsSdkDir;
 			this.WindowsSdkVersion = SelectedWindowsSdkVersion;
 			this.RedistDir = SelectedRedistDir;
+			this.bUseCPPWinRT = bUseCPPWinRT;
 		}
 	}
 }

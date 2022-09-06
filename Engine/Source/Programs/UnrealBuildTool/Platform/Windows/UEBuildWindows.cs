@@ -209,6 +209,12 @@ namespace UnrealBuildTool
 		public bool bUseWindowsSDK10 = false;
 
 		/// <summary>
+		/// Enable building with the C++/WinRT language projection
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "bUseCPPWinRT")]
+		public bool bUseCPPWinRT = false;
+
+		/// <summary>
 		/// Enables runtime ray tracing support.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "bEnableRayTracing")]
@@ -545,6 +551,11 @@ namespace UnrealBuildTool
 			get { return Inner.bUseWindowsSDK10; }
 		}
 
+		public bool bUseCPPWinRT
+		{
+			get { return Inner.bUseCPPWinRT; }
+		}
+
 		public bool bEnableRayTracing
 		{
 			get { return Inner.bEnableRayTracing; }
@@ -808,7 +819,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		protected virtual VCEnvironment CreateVCEnvironment(TargetRules Target)
 		{
-			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Logger);
+			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Target.WindowsPlatform.bUseCPPWinRT, Logger);
 		}
 
 		/// <summary>
@@ -1293,17 +1304,9 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("NDIS_MINIPORT_MAJOR_VERSION=0");
 
 			CompileEnvironment.Definitions.Add("WIN32=1");
-			if (Target.WindowsPlatform.bUseWindowsSDK10)
-			{
-				CompileEnvironment.Definitions.Add(String.Format("_WIN32_WINNT=0x{0:X4}", 0x0602));
-				CompileEnvironment.Definitions.Add(String.Format("WINVER=0x{0:X4}", 0x0602));
 
-			}
-			else
-			{
-				CompileEnvironment.Definitions.Add(String.Format("_WIN32_WINNT=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
-				CompileEnvironment.Definitions.Add(String.Format("WINVER=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
-			}
+			CompileEnvironment.Definitions.Add(String.Format("_WIN32_WINNT=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
+			CompileEnvironment.Definitions.Add(String.Format("WINVER=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
 			
 			CompileEnvironment.Definitions.Add("PLATFORM_WINDOWS=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_MICROSOFT=1");
