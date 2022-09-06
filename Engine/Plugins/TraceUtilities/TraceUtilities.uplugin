@@ -19,6 +19,11 @@
       "Name": "TraceUtilities",
       "Type": "Runtime",
       "LoadingPhase": "Default"
+    },
+    {
+      "Name": "EditorTraceUtilities",
+      "Type": "EditorNoCommandlet",
+      "LoadingPhase": "Default"
     }
   ]
 }

@@ -23,11 +23,6 @@
 			"ProgramAllowList": [
 				"UnrealInsights"
 			]
-		},
-		{
-			"Name": "UnrealInsightsInterface",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
 		}
 	]
 }
