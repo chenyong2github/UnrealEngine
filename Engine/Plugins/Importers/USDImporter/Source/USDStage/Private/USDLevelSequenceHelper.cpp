@@ -288,7 +288,8 @@ namespace UsdLevelSequenceHelperImpl
 			LevelPlayer->State.AssignSequence( MovieSceneSequenceID::Root, *LevelSequence, *Player );
 
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
-			LevelPlayer->SetPlaybackPosition( FMovieSceneSequencePlaybackParams( UE::MovieScene::DiscreteInclusiveLower( MovieScene->GetPlaybackRange() ).Value, EUpdatePositionMethod::Play ) );
+			FFrameTime StartTime = FFrameRate::TransformTime(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate());
+			LevelPlayer->SetPlaybackPosition( FMovieSceneSequencePlaybackParams( StartTime, EUpdatePositionMethod::Play ) );
 		}
 
 		MovieScene->Modify();
@@ -3081,9 +3082,10 @@ void FUsdLevelSequenceHelperImpl::HandleControlRigSectionChange( UMovieSceneCont
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
 			// Note that we never actually generate spawnables on our LevelSequence, but its a common pattern to
 			// do this and the user may have added them manually
+			FFrameTime StartTime = FFrameRate::TransformTime(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, MovieScene->GetTickResolution(), MovieScene->GetDisplayRate());
 			LevelPlayer->SetPlaybackPosition(
 				FMovieSceneSequencePlaybackParams(
-					UE::MovieScene::DiscreteInclusiveLower( MovieScene->GetPlaybackRange() ).Value,
+					StartTime,
 					EUpdatePositionMethod::Play
 				)
 			);
