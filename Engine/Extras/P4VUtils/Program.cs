@@ -70,6 +70,7 @@ namespace P4VUtils
 			["unshelvemakedatawritable"] = new UnshelveMakeDataWritable(),
 			["convertcldatatolocalwritable"] = new ConvertCLDataToLocalWritable(),
 			["convertdatatolocalwritable"] = new ConvertDataToLocalWritable(),
+			["describedirectory"] = new DescribeDirectoryCommand(),
 		};
 
 		// UEIntegrate Folder commands - complex commands to facilitate integrations/backout
