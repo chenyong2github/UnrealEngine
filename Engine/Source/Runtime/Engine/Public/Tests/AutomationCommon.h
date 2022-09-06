@@ -203,6 +203,12 @@ public:
 
 private:
 
+	// Add a sample to the rolling buffer where we hold tick rate
+	void AddTickRateSample(const double Value);
+
+	// return the average tick rate
+	double CurrentAverageTickRate() const;
+
 	// Time we began executing
 	double StartTimeOfWait;
 
@@ -211,6 +217,21 @@ private:
 
 	// time we last logged we are waiting
 	double LastReportTime;
+
+	// time of last tick
+	double LastTickTime;
+
+	// buffer of recent tick rate
+	TArray<double> RollingTickRateBuffer;
+
+	// index into the buffer
+	int32 BufferIndex;
+
+	// We tick at 60Hz
+	const double kTickRate = 60.0;
+
+	// How many samples we hold
+	const int kSampleCount = kTickRate * 5;
 };
 
 /**
