@@ -489,6 +489,8 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 
 void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Worker"));
+	
 	if (TestRequesterAddress.IsValid() && !TestName.IsEmpty())
 	{
 		// Worker is already running a test.

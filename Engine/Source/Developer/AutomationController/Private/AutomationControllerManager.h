@@ -574,7 +574,7 @@ private:
 		/** The test runners message address */
 		FMessageAddress OwnerMessageAddress;
 		/** The time since we had a ping from the instance*/
-		float LastPingTime;
+		double LastPingTime;
 		/** Is Confirmed to be running */
 		bool bConfirmed;
 	};
