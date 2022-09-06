@@ -32,6 +32,9 @@ struct FWeakObjectPtr;
 template <typename UserPolicy>
 class TMulticastDelegateBase;
 
+template <typename UserPolicy>
+class TTSMulticastDelegateBase;
+
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename ElementType>, FDelegateAllocatorType::ForElementType<ElementType>, void*);
 
 /**
@@ -165,6 +168,14 @@ struct FDefaultDelegateUserPolicy
 	using FDelegateInstanceExtras  = IDelegateInstance;
 	using FDelegateExtras          = FDelegateBase;
 	using FMulticastDelegateExtras = TMulticastDelegateBase<FDefaultDelegateUserPolicy>;
+};
+
+struct FDefaultTSDelegateUserPolicy
+{
+	// see `FDefaultDelegateUserPolicy` for documentation
+	using FDelegateInstanceExtras = IDelegateInstance;
+	using FDelegateExtras = FDelegateBase;
+	using FMulticastDelegateExtras = TTSMulticastDelegateBase<FDefaultTSDelegateUserPolicy>;
 };
 
 template <typename UserPolicy>

@@ -8,6 +8,7 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Delegates/MulticastDelegateBase.h" // IWYU pragma: export
+#include "Delegates/TSMulticastDelegateBase.h"
 #include "Delegates/IntegerSequence.h" // IWYU pragma: export
 
 /**
@@ -209,6 +210,10 @@
 /** Declares a broadcast delegate that can bind to multiple native functions simultaneously */
 #define FUNC_DECLARE_MULTICAST_DELEGATE( MulticastDelegateName, ReturnType, ... ) \
 	typedef TMulticastDelegate<ReturnType(__VA_ARGS__)> MulticastDelegateName;
+
+  /** Declares a broadcast thread-safe delegate that can bind to multiple native functions simultaneously */
+#define FUNC_DECLARE_TS_MULTICAST_DELEGATE( MulticastDelegateName, ReturnType, ... ) \
+	typedef TMulticastDelegate<ReturnType(__VA_ARGS__), FDefaultTSDelegateUserPolicy> MulticastDelegateName;
 
 /**
  * Declares a multicast delegate that is meant to only be activated from OwningType
@@ -494,6 +499,7 @@ namespace UE::Delegates::Private
 // Simple delegate used by various utilities such as timers
 DECLARE_DELEGATE( FSimpleDelegate );
 DECLARE_MULTICAST_DELEGATE( FSimpleMulticastDelegate );
+DECLARE_TS_MULTICAST_DELEGATE( FTSSimpleMulticastDelegate );
 
 // Legacy typedefs
 template <typename RetType, typename... ArgTypes>
