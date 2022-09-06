@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Misc/Timespan.h"
+#include "Internationalization/InternationalizationUtilities.h"
 
 #if UE_ENABLE_ICU
 THIRD_PARTY_INCLUDES_START
@@ -17,6 +18,9 @@ THIRD_PARTY_INCLUDES_END
 
 namespace ICUUtilities
 {
+	// InternationalizationUtilities was split from ICUUtilities, so import its functions to avoid breaking existing code
+	using namespace InternationalizationUtilities;
+
 	/**
 	 * Implementation of the string converter that can copy FString to icu::UnicodeString directly since the native string format for this platform is already UTF-16 (as used by ICU)
 	 * Note: Do not use this type directly! Use the FStringConverterImpl typedef, which will be set correctly for your platform
@@ -96,20 +100,5 @@ namespace ICUUtilities
 	/** Given an FString, count how many characters it would be if converted to an icu::UnicodeString (as FString may not always be UTF-16) */
 	int32 GetUnicodeStringLength(const FString& Source);
 	int32 GetUnicodeStringLength(const TCHAR* Source, const int32 InSourceStartIndex, const int32 InSourceLength);
-
-	/** Sanitize the given culture code so that it is safe to use with ICU */
-	FString SanitizeCultureCode(const FString& InCultureCode);
-
-	/** Sanitize the given timezone code so that it is safe to use with ICU */
-	FString SanitizeTimezoneCode(const FString& InTimezoneCode);
-
-	/** Sanitize the given currency code so that it is safe to use with ICU */
-	FString SanitizeCurrencyCode(const FString& InCurrencyCode);
-
-	/** Is the given character valid as part of currency code to be used with ICU? */
-	static bool IsValidCurencyCodeCharacter(const TCHAR InChar)
-	{
-		return (InChar >= TEXT('A') && InChar <= TEXT('Z')) || (InChar >= TEXT('a') && InChar <= TEXT('z'));
-	};
 }
 #endif

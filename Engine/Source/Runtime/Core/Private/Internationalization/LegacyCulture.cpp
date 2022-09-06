@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/LegacyCulture.h"
+#include "Internationalization/InternationalizationUtilities.h"
 #include "Containers/ArrayBuilder.h"
 #include "Misc/ScopeLock.h"
 
@@ -64,6 +65,10 @@ FString FLegacyCultureImplementation::GetName() const
 
 FString FLegacyCultureImplementation::GetCanonicalName(const FString& Name)
 {
+	if (!Name.IsEmpty())
+	{
+		return InternationalizationUtilities::GetCanonicalCultureName(Name, FString());
+	}
 	return Name;
 }
 
