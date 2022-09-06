@@ -150,7 +150,7 @@ namespace Scalability
 	};
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScalabilitySettingsChanged, const Scalability::FQualityLevels&);
-	static FOnScalabilitySettingsChanged OnScalabilitySettingsChanged;
+	ENGINE_API extern FOnScalabilitySettingsChanged OnScalabilitySettingsChanged;
 
 	/** This is the only suggested way to set the current state - don't set CVars directly **/
 	ENGINE_API void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce = false);

@@ -11,6 +11,8 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Interfaces/IProjectManager.h"
 
+Scalability::FOnScalabilitySettingsChanged Scalability::OnScalabilitySettingsChanged;
+
 static TAutoConsoleVariable<float> CVarResolutionQuality(
 	TEXT("sg.ResolutionQuality"),
 	100.0f,
