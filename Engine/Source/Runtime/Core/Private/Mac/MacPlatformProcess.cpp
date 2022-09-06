@@ -1029,7 +1029,20 @@ const TCHAR* FMacPlatformProcess::BaseDir()
 #ifdef UE_RELATIVE_BASE_DIR
 			else
 			{
-				BasePath = [BasePath stringByAppendingPathComponent : @UE_RELATIVE_BASE_DIR];
+				// Get executable path
+				NSString* ExecutablePath = [[NSBundle mainBundle] executablePath];
+
+				// When building an extra console app i.e. a commandlet, the Mac executable can  be placed in a distinct folder, usually 3 directories up compared to the packaged app
+				if ([[ExecutablePath lowercaseString] hasSuffix : @"-cmd"] )
+				{
+#ifdef UE_CMDLET_RELATIVE_BASE_DIR
+					BasePath = [BasePath stringByAppendingPathComponent : @UE_CMDLET_RELATIVE_BASE_DIR];
+#endif
+				}
+				else
+				{
+					BasePath = [BasePath stringByAppendingPathComponent : @UE_RELATIVE_BASE_DIR];
+				}
 			}
 #endif
 

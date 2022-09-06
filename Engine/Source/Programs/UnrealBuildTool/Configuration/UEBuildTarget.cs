@@ -3967,6 +3967,11 @@ namespace UnrealBuildTool
 			if (RelativeBaseDir != null)
 			{
 				GlobalCompileEnvironment.Definitions.Add(String.Format("UE_RELATIVE_BASE_DIR=\"{0}/\"", RelativeBaseDir));
+				if (Rules.bBuildAdditionalConsoleApp)
+				{
+					string? CmdletRelativeBaseDir = GetRelativeBaseDir(GetExecutableDir(), Platform);
+					GlobalCompileEnvironment.Definitions.Add(String.Format("UE_CMDLET_RELATIVE_BASE_DIR=\"{0}/\"", CmdletRelativeBaseDir));
+				}
 			}
 
 			bool bCompileDevTests = (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping);
