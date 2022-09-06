@@ -869,19 +869,19 @@ namespace Horde.Build.Devices
 					constraint = tokens[1];
 				}
 
-				DevicePlatformId platformId;
-
 				DevicePlatformMapV1 mapV1 = await _deviceService.GetPlatformMapV1();
 
-				if (!mapV1.PlatformMap.TryGetValue(platformName, out platformId))
-				{
-					string message = $"Unknown platform {platformName}" + details;
-					_logger.LogError("Unknown platform {PlatformName} {Details}", platformName, details);
-					await _deviceService.NotifyDeviceServiceAsync(message, null, request.JobId, request.StepId);
-					return BadRequest(message);
-				}
+				DevicePlatformId platformId = DevicePlatformId.Sanitize(platformName);
 
 				IDevicePlatform? platform = platforms.FirstOrDefault(x => x.Id == platformId);
+
+				if (platform == null)
+				{
+					if (mapV1.PlatformMap.TryGetValue(platformName, out platformId))
+					{
+						platform = platforms.FirstOrDefault(x => x.Id == platformId);
+					}
+				}
 
 				if (platform == null)
 				{
@@ -1067,16 +1067,9 @@ namespace Horde.Build.Devices
 			DevicePlatformMapV1 mapV1 = await _deviceService.GetPlatformMapV1();
 
 			if (String.IsNullOrEmpty(platformName))
-			{
-				if (!mapV1.PlatformReverseMap.TryGetValue(device.PlatformId, out platformName))
-				{
-					return BadRequest($"Unable to map platform for {deviceName} : {device.PlatformId}");
-				}
-			}
-
-			if (String.IsNullOrEmpty(platformName))
-			{
-				return BadRequest($"Unable to get platform for {deviceName} from reservation or mapping : {device.PlatformId}");
+			{				
+				_logger.LogError("Unable to map platform for {DeviceName} : {PlatformId} from reservation", deviceName, device.PlatformId);			
+				return BadRequest($"Unable to get platform for {deviceName} from reservation : {device.PlatformId}");
 			}
 
 			GetLegacyDeviceResponse response = new GetLegacyDeviceResponse();
@@ -1154,38 +1147,6 @@ namespace Horde.Build.Devices
 
 			return Ok();
 
-		}
-
-		/// <summary>
-		/// Updates the platform map for v1 requests
-		/// </summary>
-		[HttpPut]
-		[Route("/api/v1/devices/platformmap")]
-		public async Task<ActionResult> UpdatePlatformMapV1([FromBody] UpdatePlatformMapRequest request)
-		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			bool result;
-			try
-			{
-				result = await _deviceService.UpdatePlatformMapAsync(request);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error updating device platform map {Message}", ex.Message);
-				throw;
-			}
-
-			if (!result)
-			{
-				_logger.LogError("Unable to update device platform mapping");
-				return BadRequest();
-			}
-
-			return Ok();
 		}
 	}
 }

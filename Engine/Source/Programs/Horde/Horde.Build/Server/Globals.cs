@@ -330,6 +330,11 @@ namespace Horde.Build.Server
 		public List<ComputeClusterConfig> ComputeClusters { get; set; } = new List<ComputeClusterConfig>();
 
 		/// <summary>
+		/// Device platform configuration
+		/// </summary>
+		public DeviceConfig? Devices { get; set; }
+
+		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		public Globals()

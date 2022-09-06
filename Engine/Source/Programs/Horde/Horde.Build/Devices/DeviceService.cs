@@ -77,15 +77,10 @@ namespace Horde.Build.Devices
 		public Dictionary<string, DevicePlatformId> PlatformMap { get; set; } = new Dictionary<string, DevicePlatformId>();
 
 		/// <summary>
-		/// Platform Id => Platform V1
-		/// </summary>
-		public Dictionary<DevicePlatformId, string> PlatformReverseMap { get; set; } = new Dictionary<DevicePlatformId, string>();
-
-		/// <summary>
 		/// Perfspec V1 => Model
 		/// </summary>
 		public Dictionary<DevicePlatformId, string> PerfSpecHighMap { get; set; } = new Dictionary<DevicePlatformId, string>();
-
+		
 	}
 
 	/// <summary>
@@ -119,6 +114,11 @@ namespace Horde.Build.Devices
 		readonly ProjectService _projectService;
 
 		/// <summary>
+		/// Singleton instance of the mongo service
+		/// </summary>
+		readonly MongoService _mongoService;
+
+		/// <summary>
 		/// The user collection instance
 		/// </summary>
 		IUserCollection UserCollection { get; set; }
@@ -143,7 +143,7 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
+		public DeviceService(IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, MongoService mongoService, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
 		{
 			UserCollection = userCollection;
 			_devices = devices;
@@ -155,6 +155,7 @@ namespace Horde.Build.Devices
 			_ticker = clock.AddSharedTicker<DeviceService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 			_telemetryTicker = clock.AddSharedTicker("DeviceService.Telemetry", TimeSpan.FromMinutes(10.0), TickTelemetryAsync, logger);
 			_logger = logger;
+			_mongoService = mongoService;
 
 			_platformMapSingleton = platformMapSingleton;
 
@@ -187,6 +188,38 @@ namespace Horde.Build.Devices
 		/// </summary>
 		async ValueTask TickTelemetryAsync(CancellationToken stoppingToken)
 		{
+			try
+			{
+				Globals globals = await _mongoService.GetGlobalsAsync();
+
+				if (globals.Devices != null)
+				{
+					await _platformMapSingleton.UpdateAsync(platformMap => {
+
+						platformMap.PlatformMap.Clear();
+						platformMap.PerfSpecHighMap.Clear();
+
+						foreach (DevicePlatformConfig platform in globals.Devices.Platforms)
+						{
+							DevicePlatformId id = new DevicePlatformId(platform.Id);
+							foreach (string name in platform.Names)
+							{
+								platformMap.PlatformMap[name] = id;
+							}
+
+							if (platform.LegacyPerfSpecHighModel != null)
+							{
+								platformMap.PerfSpecHighMap[id] = platform.LegacyPerfSpecHighModel;
+							}
+						}
+					} );
+				}				
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Exception while updating platform map: {Message}", ex.Message);
+			}
+
 			if (!stoppingToken.IsCancellationRequested)
 			{
 				using IScope scope = GlobalTracer.Instance.BuildSpan("DeviceService.TickTelemetryAsync").StartActive();
@@ -681,67 +714,6 @@ namespace Horde.Build.Devices
 		public async Task<DevicePlatformMapV1> GetPlatformMapV1()
 		{
 			return await _platformMapSingleton.GetAsync();
-		}
-
-		/// <summary>
-		/// Updates the platform mapping information required for the V1 api
-		/// </summary>				
-		public async Task<bool> UpdatePlatformMapAsync(UpdatePlatformMapRequest request)
-		{
-
-			List<IDevicePlatform> platforms = await GetPlatformsAsync();
-
-			// Update the platform map
-			for (int i = 0; i < 10; i++)
-			{
-				DevicePlatformMapV1 instance = await _platformMapSingleton.GetAsync();
-
-				instance.PlatformMap = new Dictionary<string, DevicePlatformId>();
-				instance.PlatformReverseMap = new Dictionary<DevicePlatformId, string>();
-				instance.PerfSpecHighMap = new Dictionary<DevicePlatformId, string>();
-
-				foreach(KeyValuePair<string, string> entry in request.PlatformMap)
-				{
-					IDevicePlatform? platform = platforms.FirstOrDefault(p => p.Id == new DevicePlatformId(entry.Value));
-					if (platform == null)
-					{
-						throw new Exception($"Unknowm platform in map {entry.Key} : {entry.Value}");
-					}
-
-					instance.PlatformMap.Add(entry.Key, platform.Id);
-				}
-
-				foreach (KeyValuePair<string, string> entry in request.PlatformReverseMap)
-				{
-					IDevicePlatform? platform = platforms.FirstOrDefault(p => p.Id == new DevicePlatformId(entry.Key));
-					if (platform == null)
-					{
-						throw new Exception($"Unknowm platform in reverse map {entry.Key} : {entry.Value}");
-					}
-
-					instance.PlatformReverseMap.Add(platform.Id, entry.Value);
-				}
-
-				foreach (KeyValuePair<string, string> entry in request.PerfSpecHighMap)
-				{
-					IDevicePlatform? platform = platforms.FirstOrDefault(p => p.Id == new DevicePlatformId(entry.Key));
-					if (platform == null)
-					{
-						throw new Exception($"Unknowm platform in spec map {entry.Key} : {entry.Value}");
-					}
-
-					instance.PerfSpecHighMap.Add(platform.Id, entry.Value);
-				}
-
-				if (await _platformMapSingleton.TryUpdateAsync(instance))
-				{
-					return true;
-				}
-
-				Thread.Sleep(1000);
-			}
-
-			return false;
 		}
 	}
 }

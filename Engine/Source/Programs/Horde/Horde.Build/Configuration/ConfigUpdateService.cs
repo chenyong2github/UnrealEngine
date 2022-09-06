@@ -137,6 +137,7 @@ namespace Horde.Build.Configuration
 				globals.ScheduledDowntime = _cachedGlobalConfig.Downtime;
 				globals.MaxConformCount = _cachedGlobalConfig.MaxConformCount;
 				globals.ComputeClusters = _cachedGlobalConfig.Compute;
+				globals.Devices = _cachedGlobalConfig.Devices;
 				globals.RootAcl = Acl.Merge(null, _cachedGlobalConfig.Acl);
 
 				if (await _mongoService.TryUpdateSingletonAsync(globals))

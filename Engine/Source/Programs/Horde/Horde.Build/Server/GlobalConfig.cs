@@ -48,6 +48,11 @@ namespace Horde.Build.Server
 		public List<ComputeClusterConfig> Compute { get; set; } = new List<ComputeClusterConfig>();
 
 		/// <summary>
+		/// Device configuration
+		/// </summary>
+		public DeviceConfig? Devices { get; set; }
+
+		/// <summary>
 		/// List of tools hosted by the server
 		/// </summary>
 		public List<ToolOptions> Tools { get; set; } = new List<ToolOptions>();
@@ -148,6 +153,39 @@ namespace Horde.Build.Server
 		/// </summary>
 		public AclConfig? Acl { get; set; }
 	}
+
+	/// <summary>
+	/// Configuration for a device platform 
+	/// </summary>
+	public class DevicePlatformConfig
+	{
+		/// <summary>
+		/// The id for this platform 
+		/// </summary>
+		public string Id { get; set; } = String.Empty;
+
+		/// <summary>
+		/// List of platform names for this device, which may be requested by Gauntlet 
+		/// </summary>
+		public List<string> Names { get; set; } = new List<string>();
+
+		/// <summary>
+		/// Model name for the high perf spec, which may be requested by Gauntlet (Deprecated)
+		/// </summary>
+		public string? LegacyPerfSpecHighModel { get; set; }
+	}
+
+	/// <summary>
+	/// Configuration for devices
+	/// </summary>
+	public class DeviceConfig
+	{
+		/// <summary>
+		/// List of device platforms
+		/// </summary>
+		public List<DevicePlatformConfig> Platforms { get; set; } = new List<DevicePlatformConfig>();
+	}
+
 
 	/// <summary>
 	/// Configuration for a bucket

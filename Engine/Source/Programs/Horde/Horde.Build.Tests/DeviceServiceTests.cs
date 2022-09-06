@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Devices;
 using Horde.Build.Jobs;
-using Horde.Build.Server;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Build.Projects;
@@ -12,12 +11,14 @@ using Horde.Build.Utilities;
 using Horde.Build.Users;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Horde.Build.Server;
 
 namespace Horde.Build.Tests
 {
 
 	using ProjectId = StringId<IProject>;
 	using DeviceId = StringId<IDevice>;
+	using DevicePlatformId = StringId<IDevicePlatform>;
 
 	/// <summary>
 	/// Tests for the device service
@@ -50,9 +51,9 @@ namespace Horde.Build.Tests
 			}
 		}
 
-
 		private async Task PopulateDevices()
 		{
+			DeviceConfig Devices = new DeviceConfig();
 
 			await ProjectCollection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" });
 
@@ -63,50 +64,67 @@ namespace Horde.Build.Tests
 			}
 
 			Dictionary<string, string> platformMap = new Dictionary<string, string>();
-			Dictionary<string, string> platformReverseMap = new Dictionary<string, string>();
 
 			// create 3 platforms
 			for (int i = 1; i < 4; i++)
 			{
 				string platformName = "TestDevicePlatform" + i;
 				await DevicesController.CreatePlatformAsync(new CreateDevicePlatformRequest() { Name = platformName });
+
+				List<string> modelIds = new List<string>();
+				for (int j = 2; j < 5; j++)
+				{
+					modelIds.Add(platformName + "_Model" + j);
+				}
+
+				// add models
+				await DevicesController.UpdatePlatformAsync(DevicePlatformId.Sanitize(platformName).ToString(), new UpdateDevicePlatformRequest() { ModelIds = modelIds.ToArray() });
+
 				platformMap[platformName] = platformName;
-				platformReverseMap[platformName] = platformName;
+
+				// platform 3 has some name aliases
+				if (i == 3)
+				{
+					DevicePlatformConfig config = new DevicePlatformConfig();
+					config.Id = DevicePlatformId.Sanitize(platformName).ToString();
+					config.Names.Add("TestDevicePlatform3Alias");
+					config.LegacyPerfSpecHighModel = "TestDevicePlatform3_Model4";
+					Devices.Platforms.Add(config);
+				}
 			}
+
+			Globals globals = await MongoService.GetGlobalsAsync();
+			globals.Devices = Devices;
+			Assert.IsTrue(await MongoService.TryUpdateSingletonAsync(globals));
 
 			// add 4 devices to each platform, split between 2 pools
 			for (int i = 1; i < 4; i++)
 			{
 				for (int j = 1; j < 5; j++)
 				{
-					// @todo: add model tests
 					// one base model, and 3 other models 
-					/*
 					string? ModelId = null;
 					if (j > 1)
 					{
 						ModelId = "TestDevicePlatform" + i + "_Model" + j;
 					}
-					*/
 
 					string poolId = (j & 1) != 0 ? "testdevicepool1" : "testdevicepool2";
 
-					await DeviceController.CreateDeviceAsync(new CreateDeviceRequest() { Name = "TestDevice" + j + "_Platform" + i + "_" + poolId, Address = "10.0.0.1", Enabled = true, PlatformId = "testdeviceplatform" + i/*, ModelId = ModelId*/, PoolId = poolId });
+					await DeviceController.CreateDeviceAsync(new CreateDeviceRequest() { Name = "TestDevice" + j + "_Platform" + i + "_" + poolId, Address = "10.0.0.1", Enabled = true, PlatformId = "testdeviceplatform" + i, ModelId = ModelId, PoolId = poolId });
 				}
 			}
 
-			// populate the legacy platform map, this exists to avoid having platform names in server code, though needs to be cleaned up.
-			// Gauntlet in various streams can't/hasn't been updated and asks for non-platform-id device types
-			await DeviceController.UpdatePlatformMapV1(new UpdatePlatformMapRequest() { PlatformMap = platformMap, PlatformReverseMap = platformReverseMap, PerfSpecHighMap = new Dictionary<string, string>() });
-
+			// tick to pick up config change
+			await DeviceService.TickForTestingAsync();
 		}
 
 		static T ResultToValue<T>(ActionResult<T> result) where T: class
 		{
 			return ((result.Result! as JsonResult)!.Value! as T)!;
 		}
-	
-		async Task<LegacyCreateReservationRequest> SetupReservationTest()
+
+		async Task<LegacyCreateReservationRequest> SetupReservationTest(string poolId = "TestDevicePool1", string deviceType = "TestDevicePlatform1")
 		{
 			await CreateFixtureAsync();
 			await PopulateDevices();
@@ -117,8 +135,8 @@ namespace Horde.Build.Tests
 
 			// Gauntlet uses the legacy v1 API
 			LegacyCreateReservationRequest request = new LegacyCreateReservationRequest();
-			request.PoolId = "TestDevicePool1";
-			request.DeviceTypes = new string[] { "TestDevicePlatform1" };
+			request.PoolId = poolId;
+			request.DeviceTypes = new string[] { deviceType };
 			request.Hostname = "localhost";
 			request.Duration = "00:10:00";
 			request.JobId = job.Id;
@@ -126,7 +144,6 @@ namespace Horde.Build.Tests
 
 			return request;
 		}
-
 
 		[TestMethod]
 		public async Task TestReservation()
@@ -142,6 +159,39 @@ namespace Horde.Build.Tests
 			// get the device in the reservation, and make sure it is the right platform
 			GetLegacyDeviceResponse device = ResultToValue(await DeviceController!.GetDeviceV1Async(reservation.DeviceNames[0]));
 			Assert.AreEqual("TestDevicePlatform1", device.Type);
+
+			// update the reservation
+			GetLegacyReservationResponse renewed = ResultToValue(await DeviceController!.UpdateReservationV1Async(reservation.Guid));
+			Assert.AreEqual(renewed.Guid, reservation.Guid);
+
+			// delete the reservation, would be nice to also test reservation expiration
+			OkResult? deleted = (await DeviceController!.DeleteReservationV1Async(reservation.Guid)) as OkResult;
+			Assert.IsNotNull(deleted);
+
+			// check that telemetry was created
+			List<GetDeviceTelemetryResponse> telemetry = (await DeviceController!.GetDeviceTelemetry()).Value!;
+			Assert.AreEqual(telemetry.Count, 1);
+			Assert.AreEqual(telemetry[0].Telemetry.Count, 1);
+			Assert.AreEqual(telemetry[0].Telemetry[0].StreamId, "ue5-main");
+			Assert.AreEqual(telemetry[0].Telemetry[0].StepId, "abcd");
+			Assert.AreEqual(telemetry[0].Telemetry[0].JobName, "hello2");
+		}
+
+		[TestMethod]
+		public async Task TestReservationPerfSpecWithAlias()
+		{
+			LegacyCreateReservationRequest request = await SetupReservationTest("TestDevicePool2", "TestDevicePlatform3Alias:High");
+
+			// create a reservation
+			GetLegacyReservationResponse reservation = ResultToValue(await DeviceController!.CreateDeviceReservationV1Async(request));
+			Assert.AreEqual(1, reservation.DeviceNames.Length);
+			Assert.AreEqual("hello2", reservation.JobName);
+			Assert.AreEqual("abcd", reservation.StepId);
+
+			// get the device in the reservation, and make sure it is the right platform
+			GetLegacyDeviceResponse device = ResultToValue(await DeviceController!.GetDeviceV1Async(reservation.DeviceNames[0]));
+			Assert.AreEqual("TestDevicePlatform3Alias", device.Type);
+			Assert.AreEqual("TestDevicePlatform3_Model4", device.Model);
 
 			// update the reservation
 			GetLegacyReservationResponse renewed = ResultToValue(await DeviceController!.UpdateReservationV1Async(reservation.Guid));
@@ -204,7 +254,6 @@ namespace Horde.Build.Tests
 			request.Problem = true;
 			await DeviceController!.UpdateDeviceAsync("testdevice4_platform2_testdevicepool2", request);
 
-
 			IDevice? maintenanceDevice = await DeviceService.GetDeviceAsync(new DeviceId("testdevice1_platform1_testdevicepool1"));
 			Assert.IsNotNull(maintenanceDevice);
 			
@@ -217,8 +266,10 @@ namespace Horde.Build.Tests
 			await DeviceService.TickForTestingAsync();
 
 			List<GetDevicePoolTelemetryResponse> telemetry = (await DeviceController!.GetDevicePoolTelemetry()).Value!;
-			Assert.AreEqual(1, telemetry.Count);
-			foreach (GetDevicePlatformTelemetryResponse t in telemetry[0].Telemetry["testdevicepool1"])
+
+			// 2, as generate an initial telemetry tick in setup
+			Assert.AreEqual(2, telemetry.Count);
+			foreach (GetDevicePlatformTelemetryResponse t in telemetry[1].Telemetry["testdevicepool1"])
 			{
 				if (t.PlatformId == "testdeviceplatform1")
 				{
@@ -243,7 +294,7 @@ namespace Horde.Build.Tests
 				}
 			}
 
-			foreach (GetDevicePlatformTelemetryResponse t in telemetry[0].Telemetry["testdevicepool2"])
+			foreach (GetDevicePlatformTelemetryResponse t in telemetry[1].Telemetry["testdevicepool2"])
 			{
 				if (t.PlatformId == "testdeviceplatform2")
 				{
