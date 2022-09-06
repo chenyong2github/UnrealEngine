@@ -300,6 +300,12 @@ void FNavHeightfieldSamples::GetResourceSizeEx(FResourceSizeEx& CumulativeResour
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(*this) + Heights.GetAllocatedSize() + Holes.GetAllocatedSize());
 }
 
+void FNavHeightfieldSamples::Empty()
+{
+	Heights.Empty();
+	Holes.Empty();
+}
+
 //----------------------------------------------------------------------//
 // FNavAgentProperties
 //----------------------------------------------------------------------//

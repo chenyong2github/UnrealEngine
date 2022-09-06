@@ -765,5 +765,6 @@ struct ENGINE_API FNavHeightfieldSamples
 	FNavHeightfieldSamples();
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 
-	FORCEINLINE bool IsEmpty() const { return Heights.Num() == 0; }
+	void Empty();
+	FORCEINLINE bool IsEmpty() const { return Heights.IsEmpty() && Holes.IsEmpty();  }
 };
