@@ -201,6 +201,7 @@ struct PHYSICSCONTROL_API FPhysicsControlSettings
 		: ControlPoint(ForceInitToZero)
 		, bUseSkeletalAnimation(true)
 		, SkeletalAnimationVelocityMultiplier(1.0f)
+		, bDisableCollision(false)
 		, bAutoDisable(false)
 	{
 	}
@@ -216,6 +217,13 @@ struct PHYSICSCONTROL_API FPhysicsControlSettings
 	/** The amount of skeletal animation velocity to use in the targets */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl)
 	float SkeletalAnimationVelocityMultiplier;
+
+	/**
+	 * Whether or not this control should disable collision between the parent and child bodies (only
+	 * has an effect if there is a parent body)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl)
+	bool bDisableCollision;
 
 	/**
 	 * Whether or not this control should automatically disable itself at the end of each tick. This

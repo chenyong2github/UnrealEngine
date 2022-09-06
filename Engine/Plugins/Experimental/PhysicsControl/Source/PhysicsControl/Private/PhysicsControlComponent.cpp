@@ -43,20 +43,22 @@ void UPhysicsControlComponent::InitializeComponent()
 //======================================================================================================================
 void UPhysicsControlComponent::BeginDestroy()
 {
-	for (TPair<FName, FPhysicsControlRecord>& PhysicsControlRecordPair : Implementation->PhysicsControlRecords)
+	if (Implementation)
 	{
-		DestroyControl(PhysicsControlRecordPair.Key);
-		FPhysicsControlRecord& Record = PhysicsControlRecordPair.Value;
-		Record.PhysicsControlState.Reset();
-	}
-	Implementation->PhysicsControlRecords.Empty();
+		for (TPair<FName, FPhysicsControlRecord>& PhysicsControlRecordPair : Implementation->PhysicsControlRecords)
+		{
+			DestroyControl(PhysicsControlRecordPair.Key);
+			FPhysicsControlRecord& Record = PhysicsControlRecordPair.Value;
+			Record.PhysicsControlState.Reset();
+		}
+		Implementation->PhysicsControlRecords.Empty();
 
-	for (TPair<FName, FPhysicsBodyModifier>& PhysicsBodyModifierPair : Implementation->PhysicsBodyModifiers)
-	{
-		DestroyBodyModifier(PhysicsBodyModifierPair.Key);
+		for (TPair<FName, FPhysicsBodyModifier>& PhysicsBodyModifierPair : Implementation->PhysicsBodyModifiers)
+		{
+			DestroyBodyModifier(PhysicsBodyModifierPair.Key);
+		}
+		Implementation->PhysicsBodyModifiers.Empty();
 	}
-	Implementation->PhysicsBodyModifiers.Empty();
-
 	Super::BeginDestroy();
 }
 
@@ -120,6 +122,7 @@ void UPhysicsControlComponent::TickComponent(
 			{
 				ConstraintInstance->SetAngularDriveParams(0.0f, 0.0f, 0.0f);
 				ConstraintInstance->SetLinearDriveParams(0.0f, 0.0f, 0.0f);
+				ConstraintInstance->SetDisableCollision(false);
 			}
 			else
 			{
