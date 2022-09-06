@@ -51,5 +51,5 @@ public:
 	TOptional<UE::Interchange::FImportImage> GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer) const;
 
 private:
-	bool bFillPNGZeroAlpha;
+	TOptional<bool> bFillPNGZeroAlpha; // Set on the CDO only
 };

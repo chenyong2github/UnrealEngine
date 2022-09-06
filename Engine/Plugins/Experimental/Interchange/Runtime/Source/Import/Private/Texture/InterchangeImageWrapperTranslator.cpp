@@ -65,12 +65,12 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableTGAImport(
 	ECVF_Default);
 
 UInterchangeImageWrapperTranslator::UInterchangeImageWrapperTranslator()
-	: bFillPNGZeroAlpha(true)
 {
-	if (GConfig)
+	if (IsTemplate() && GConfig)
 	{
 		ensure(IsInGameThread()); // Reading config values isn't threadsafe
-		GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
+		bFillPNGZeroAlpha = true;
+		GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha.GetValue(), GEditorIni);
 	}
 }
 
@@ -202,7 +202,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 
 			if (ImageFormat == EImageFormat::PNG)
 			{
-				if (bFillPNGZeroAlpha)
+				if (GetDefault<UInterchangeImageWrapperTranslator>()->bFillPNGZeroAlpha.GetValue())
 				{
 					// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
 					UE::TextureUtilitiesCommon::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, reinterpret_cast<uint8*>(PayloadData.RawData.GetData()));
