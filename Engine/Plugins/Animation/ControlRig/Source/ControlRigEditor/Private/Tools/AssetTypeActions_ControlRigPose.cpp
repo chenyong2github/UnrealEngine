@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_ControlRigPose.h"
+#include "Tools/AssetTypeActions_ControlRigPose.h"
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ToolMenus.h"
 
 #include "ControlRig.h"
 #include "UnrealEdGlobals.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "Tools/ControlRigPose.h"
 #include "EditorModeManager.h"
-#include "SControlRigRenamePoseControls.h"
+#include "EditMode/SControlRigRenamePoseControls.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_ControlRigPose"
 

@@ -6,7 +6,7 @@
 #include "EditorUndoClient.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "Engine/SkeletalMesh.h"
-#include "SRigHierarchyTreeView.h"
+#include "Editor/SRigHierarchyTreeView.h"
 #include "Units/RigUnitContext.h"
 #include "SRigHierarchy.generated.h"
 

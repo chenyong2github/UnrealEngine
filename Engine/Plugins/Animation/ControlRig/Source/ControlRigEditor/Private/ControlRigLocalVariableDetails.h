@@ -7,12 +7,11 @@
 #include "IPropertyTypeCustomization.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
-#include "DetailsViewWrapperObject.h"
+#include "Editor/DetailsViewWrapperObject.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
-#include "DetailsViewWrapperObject.h"
 #include "Graph/ControlRigGraphSchema.h"
 
 class IPropertyHandle;

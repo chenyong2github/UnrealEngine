@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MovieSceneControlRigSectionDetailsCustomization.h"
+#include "Sequencer/MovieSceneControlRigSectionDetailsCustomization.h"
 #include "DetailLayoutBuilder.h"
 
 TSharedRef<IDetailCustomization> FMovieSceneControlRigSectionDetailsCustomization::MakeInstance()

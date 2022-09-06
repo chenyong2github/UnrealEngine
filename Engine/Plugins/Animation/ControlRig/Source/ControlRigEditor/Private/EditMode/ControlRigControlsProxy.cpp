@@ -2,7 +2,7 @@
 
 #include "ControlRigControlsProxy.h"
 #include "EditorModeManager.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "Sequencer/ControlRigSequence.h"
 #include "Rigs/RigHierarchy.h"
 

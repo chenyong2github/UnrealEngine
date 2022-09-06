@@ -11,7 +11,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Misc/FrameNumber.h"
 #include "ControlRig.h"
-#include "SRigSpacePickerWidget.h"
+#include "Editor/SRigSpacePickerWidget.h"
 
 
 class ISequencer;

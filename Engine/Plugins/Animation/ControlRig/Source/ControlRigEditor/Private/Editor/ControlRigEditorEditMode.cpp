@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigEditorEditMode.h"
+#include "Editor/ControlRigEditorEditMode.h"
 #include "IPersonaPreviewScene.h"
 #include "AssetEditorModeManager.h"
 #include "ControlRig.h"

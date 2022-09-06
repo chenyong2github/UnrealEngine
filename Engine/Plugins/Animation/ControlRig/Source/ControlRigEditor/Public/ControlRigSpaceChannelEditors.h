@@ -15,7 +15,7 @@
 
 #include "Sequencer/MovieSceneControlRigSpaceChannel.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
-#include "SRigSpacePickerWidget.h"
+#include "Editor/SRigSpacePickerWidget.h"
 #include "Containers/SortedMap.h"
 #include "KeyBarCurveModel.h"
 

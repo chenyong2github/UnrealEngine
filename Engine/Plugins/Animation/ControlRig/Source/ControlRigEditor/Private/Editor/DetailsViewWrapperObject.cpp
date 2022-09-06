@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DetailsViewWrapperObject.h"
+#include "Editor/DetailsViewWrapperObject.h"
 #include "Units/RigUnit.h"
 #include "ControlRigElementDetails.h"
 #include "ControlRigLocalVariableDetails.h"

@@ -9,7 +9,7 @@
 #include "Widgets/Input/STextEntryPopup.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/Skeleton.h"
 #include "ControlRig.h"

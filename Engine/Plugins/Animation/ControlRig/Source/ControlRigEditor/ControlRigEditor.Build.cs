@@ -9,13 +9,8 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.AddRange(
                 new string[] {
                     "ControlRigEditor/Private",
-                    "ControlRigEditor/Private/Sequencer",
-                    "ControlRigEditor/Private/EditMode",
-                    "ControlRigEditor/Private/Graph",
-                    "ControlRigEditor/Private/Editor",
                     "../../../../Source/Editor/UnrealEd/Private", 
 					"../../../../Source/Developer/MessageLog/Private", //compatibility for FBX importer
-					"ControlRigEditor/Private/Tools"
 				}
 			);
 

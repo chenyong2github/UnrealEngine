@@ -12,7 +12,7 @@
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "ScopedTransaction.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "ControlRig.h"
 #include "EditorModeManager.h"
 #include "SEditorUserWidgetHost.h"

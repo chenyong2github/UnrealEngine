@@ -7,10 +7,10 @@
 #include "ISequencer.h"
 #include "PropertyHandle.h"
 #include "ControlRig.h"
-#include "ControlRigEditModeSettings.h"
+#include "EditMode/ControlRigEditModeSettings.h"
 #include "IDetailRootObjectCustomization.h"
 #include "Modules/ModuleManager.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "EditorModeManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -38,7 +38,7 @@
 #include "ScopedTransaction.h"
 #include "ControlRigEditModeToolkit.h"
 #include "SControlRigDetails.h"
-#include "Constraints/SConstraintsWidget.h"
+#include "Editor/Constraints/SConstraintsWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditModeTools"
 

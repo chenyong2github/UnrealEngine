@@ -3,7 +3,7 @@
 #pragma once
 
 #include "IControlRigEditor.h"
-#include "ControlRigEditorEditMode.h"
+#include "Editor/ControlRigEditorEditMode.h"
 #include "AssetEditorModeManager.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "ControlRigDefines.h"
@@ -20,7 +20,7 @@
 #include "ScopedTransaction.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "RigVMModel/RigVMController.h"
-#include "DetailsViewWrapperObject.h"
+#include "Editor/DetailsViewWrapperObject.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;

@@ -10,7 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "ControlRig.h"
 #include "Rigs/RigHierarchy.h"
-#include "SRigHierarchyTreeView.h"
+#include "Editor/SRigHierarchyTreeView.h"
 #include "Widgets/SBoxPanel.h"
 
 

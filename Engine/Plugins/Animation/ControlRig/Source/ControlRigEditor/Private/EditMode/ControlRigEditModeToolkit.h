@@ -9,7 +9,7 @@
 #include "Toolkits/BaseToolkit.h"
 #include "EditorModeManager.h"
 #include "SControlRigEditModeTools.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 
 class SControlRigTweenWidget;
 

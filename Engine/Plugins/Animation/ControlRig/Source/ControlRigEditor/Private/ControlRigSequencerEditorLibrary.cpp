@@ -17,7 +17,7 @@
 #include "Rigs/FKControlRig.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
 #include "ControlRig.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "EditorModeManager.h"
 #include "Engine/Selection.h"
 #include "ControlRigObjectBinding.h"
@@ -34,7 +34,7 @@
 #include "Exporters/AnimSeqExportOption.h"
 #include "MovieSceneTimeHelpers.h"
 #include "ScopedTransaction.h"
-#include "ControlRigParameterTrackEditor.h"
+#include "Sequencer/ControlRigParameterTrackEditor.h"
 #include "ControlRigSpaceChannelEditors.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
 

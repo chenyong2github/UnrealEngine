@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigParameterTrackEditor.h"
+#include "Sequencer/ControlRigParameterTrackEditor.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "Framework/Commands/Commands.h"
@@ -39,7 +39,7 @@
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/Blueprint.h"
 #include "ControlRig.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "EditorModeManager.h"
 #include "Engine/Selection.h"
 #include "ControlRigObjectBinding.h"
@@ -73,7 +73,7 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Toolkits/IToolkitHost.h"
-#include "ControlRigEditModeSettings.h"
+#include "EditMode/ControlRigEditModeSettings.h"
 #include "ControlRigSpaceChannelEditors.h"
 #include "TransformConstraint.h"
 #include "Misc/ScopedSlowTask.h"

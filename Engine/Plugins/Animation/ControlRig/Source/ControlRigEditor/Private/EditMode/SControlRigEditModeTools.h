@@ -6,8 +6,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "IDetailKeyframeHandler.h"
 #include "RigVMModel/RigVMGraph.h"
-#include "SRigHierarchyTreeView.h"
-#include "SRigSpacePickerWidget.h"
+#include "Editor/SRigHierarchyTreeView.h"
+#include "Editor/SRigSpacePickerWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SConstraintsEditionWidget;

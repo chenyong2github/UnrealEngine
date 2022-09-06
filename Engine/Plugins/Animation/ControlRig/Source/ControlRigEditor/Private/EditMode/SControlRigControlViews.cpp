@@ -15,7 +15,7 @@
 #include "AssetThumbnail.h"
 #include "FileHelpers.h"
 #include "Tools/ControlRigPoseMirrorSettings.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 #include "EditorModeManager.h"
 #include "Widgets/Input/SButton.h"
 #include "LevelEditor.h"

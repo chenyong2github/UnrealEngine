@@ -19,7 +19,7 @@
 #include "Channels/FloatChannelCurveModel.h"
 #include "MovieSceneSection.h"
 #include "EditorModeManager.h"
-#include "ControlRigEditMode.h"
+#include "EditMode/ControlRigEditMode.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigTweenWidget"
 

@@ -40,7 +40,7 @@
 #include "EditMode/ControlRigEditMode.h"
 #include "ToolMenus.h"
 #include "ControlRigContextMenuContext.h"
-#include "SRigSpacePickerWidget.h"
+#include "Editor/SRigSpacePickerWidget.h"
 #include "Settings/ControlRigSettings.h"
 #include "Slate/Private/Widgets/Views/SListPanel.h"
 #include "Framework/Notifications/NotificationManager.h"

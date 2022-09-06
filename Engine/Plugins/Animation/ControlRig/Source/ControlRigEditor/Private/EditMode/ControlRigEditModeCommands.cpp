@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigEditModeCommands.h"
+#include "EditMode/ControlRigEditModeCommands.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditModeCommands"
 
