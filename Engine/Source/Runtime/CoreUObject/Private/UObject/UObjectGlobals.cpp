@@ -3667,15 +3667,16 @@ void FObjectInitializer::PostConstructInit()
 			}
 		}
 	}
-	if (bNeedInstancing || bNeedSubobjectInstancing)
-	{
-		InstanceSubobjects(Class, bNeedInstancing, bNeedSubobjectInstancing);
-	}
 
 	// Allow custom property initialization to happen before PostInitProperties is called
 	if (PropertyInitCallback)
 	{
 		PropertyInitCallback();
+	}
+	// After the call to `PropertyInitCallback` to allow the callback to modify the instancing graph
+	if (bNeedInstancing || bNeedSubobjectInstancing)
+	{
+		InstanceSubobjects(Class, bNeedInstancing, bNeedSubobjectInstancing);
 	}
 
 	// Make sure subobjects knows that they had their properties overwritten

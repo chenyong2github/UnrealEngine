@@ -3513,6 +3513,22 @@ public:
 	FObjectInstancingGraph( class UObject* DestinationSubobjectRoot );
 
 	/**
+	 * Returns whether this instancing graph has a valid destination root.
+	 */
+	bool HasDestinationRoot() const
+	{
+		return GetDestinationRoot() != nullptr;
+	}
+
+	/**
+	 * Returns the DestinationRoot for this instancing graph.
+	 */
+	const UObject* GetDestinationRoot() const
+	{
+		return DestinationRoot;
+	}
+
+	/**
 	 * Sets the DestinationRoot for this instancing graph.
 	 *
 	 * @param	DestinationSubobjectRoot	the top-level object that is being created
@@ -3625,14 +3641,6 @@ public:
 
 private:
 	/**
-	 * Returns whether this instancing graph has a valid destination root.
-	 */
-	bool HasDestinationRoot() const
-	{
-		return DestinationRoot != nullptr;
-	}
-
-	/**
 	 * Returns whether DestinationRoot corresponds to an archetype object.
 	 *
 	 * @param	bUserGeneratedOnly	true indicates that we only care about cases where the user selected "Create [or Update] Archetype" in the editor
@@ -3714,6 +3722,10 @@ private:
 	/** List of member variable properties that should not instantiate subobjects */
 	TSet<const FProperty*>						SubobjectInstantiationExclusionList;
 };
+
+Expose_TNameOf(FObjectInstancingGraph);
+
+Expose_TNameOf(FObjectInstancingGraph*);
 
 // UFunction interface.
 
