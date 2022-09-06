@@ -67,3 +67,5 @@ TSharedRef<SDockTab> FVirtualizationEditorModule::CreateVirtualAssetsStatisticsT
 			CreateVirtualAssetsStatisticsDialog().ToSharedRef()
 		];
 }
+
+#undef LOCTEXT_NAMESPACE
