@@ -234,8 +234,12 @@ namespace UE::MLDeformer
 		FMLDeformerEditorModel::OnPropertyChanged(PropertyChangedEvent);
 
 		// Properties specific to the geometry cache editor model.
-		if (Property->GetFName() == UMLDeformerGeomCacheModel::GetGeometryCachePropertyName() ||
-			Property->GetFName() == UMLDeformerGeomCacheVizSettings::GetTestGroundTruthPropertyName())
+		if (Property->GetFName() == UMLDeformerGeomCacheModel::GetGeometryCachePropertyName())
+		{
+			SetResamplingInputOutputsNeeded(true);
+			TriggerInputAssetChanged(true);
+		}
+		else if (Property->GetFName() == UMLDeformerGeomCacheVizSettings::GetTestGroundTruthPropertyName())
 		{
 			TriggerInputAssetChanged(true);
 		}

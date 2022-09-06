@@ -61,8 +61,8 @@ namespace UE::MLDeformer
 	}
 
 	FString FMLDeformerMorphModelEditorModel::GetDefaultDeformerGraphAssetPath() const
-	{
-		return FString(TEXT("/Script/OptimusCore.OptimusDeformer'/Optimus/Deformers/DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals.DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals'"));
+	{						 
+		return FString(TEXT("/DeformerGraph/Deformers/DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals.DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals"));
 	}
 
 	FString FMLDeformerMorphModelEditorModel::GetHeatMapDeformerGraphPath() const
