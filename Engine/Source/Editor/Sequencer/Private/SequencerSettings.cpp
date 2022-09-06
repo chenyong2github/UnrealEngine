@@ -61,6 +61,8 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	TrajectoryPathCap = 250;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
 	bAutoExpandNodesOnSelection = true;
+	bShowTickLines = true;
+	bShowSequencerToolbar = true;
 }
 
 void USequencerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -606,6 +608,34 @@ void USequencerSettings::SetShowStatusBar(bool InbShowStatusBar)
 	if (bShowStatusBar != InbShowStatusBar)
 	{
 		bShowStatusBar = InbShowStatusBar;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetShowTickLines() const
+{
+	return bShowTickLines;
+}
+
+void USequencerSettings::SetShowTickLines(bool bInDrawTickLines)
+{
+	if(bShowTickLines != bInDrawTickLines)
+	{
+		bShowTickLines = bInDrawTickLines;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetShowSequencerToolbar() const
+{
+	return bShowSequencerToolbar;
+}
+
+void USequencerSettings::SetShowSequencerToolbar(bool bInShowSequencerToolbar)
+{
+	if(bShowSequencerToolbar != bInShowSequencerToolbar)
+	{
+		bShowSequencerToolbar = bInShowSequencerToolbar;
 		SaveConfig();
 	}
 }

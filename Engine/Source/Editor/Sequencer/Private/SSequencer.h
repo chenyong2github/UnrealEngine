@@ -581,6 +581,12 @@ private:
 	/** Gets whether the status bar should be visible. */
 	EVisibility GetStatusBarVisibility() const;
 
+	/** Gets whether the tick lines should be drawn. */
+	EVisibility GetShowTickLines() const;
+
+	/** Gets whether the sequencer toolbar should be displayed */
+	EVisibility GetShowSequencerToolbar() const;
+
 	/** What is the preferred display format for time values. */
 	EFrameNumberDisplayFormats GetTimeDisplayFormat() const;
 

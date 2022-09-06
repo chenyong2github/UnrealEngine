@@ -311,6 +311,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		.AutoHeight()
 		[
 			SNew(SBox)
+			.Visibility(this, &SSequencer::GetShowSequencerToolbar)
 			.Padding(FMargin(CommonPadding,0.0f,0.0f,0.f))
 			[
 				SNew(SWrapBox)
@@ -735,7 +736,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					.Padding(ResizeBarPadding)
 					[
 						SNew( SSequencerSectionOverlay, TimeSliderControllerRef )
-						.Visibility( EVisibility::HitTestInvisible )
+						.Visibility(this, &SSequencer::GetShowTickLines)
 						.DisplayScrubPosition( false )
 						.DisplayTickLines( true )
 						.Clipping(EWidgetClipping::ClipToBounds)
@@ -3598,12 +3599,20 @@ EVisibility SSequencer::GetStatusBarVisibility() const
 	return GetSequencerSettings()->GetShowStatusBar() ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
 }
 
+EVisibility SSequencer::GetShowTickLines() const
+{
+	return GetSequencerSettings()->GetShowTickLines() ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
+}
+
+EVisibility SSequencer::GetShowSequencerToolbar() const
+{
+	return GetSequencerSettings()->GetShowSequencerToolbar() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 EFrameNumberDisplayFormats SSequencer::GetTimeDisplayFormat() const
 {
 	return GetSequencerSettings()->GetTimeDisplayFormat();
 }
-
-
 void SSequencer::OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex)
 {
 	ColumnFillCoefficients[ColumnIndex] = FillCoefficient;

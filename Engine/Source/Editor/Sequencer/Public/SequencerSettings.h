@@ -294,6 +294,16 @@ public:
 	/** Set whether to show status bar */
 	void SetShowStatusBar(bool bInShowStatusBar);
 
+	/** @return true if showing tick lines */
+	bool GetShowTickLines() const;
+	/** Set whether to show status bar */
+	void SetShowTickLines(bool bInDrawTickLines);
+
+	/** @return true if showing sequencer toolbar */
+	bool GetShowSequencerToolbar() const;
+	/** Set whether to show sequencer toolbar bar */
+	void SetShowSequencerToolbar(bool bInDrawTickLines);
+
 	/** @return Whether the given channel has curve extents */
 	bool HasKeyAreaCurveExtents(const FString& ChannelName) const;
 	/** @ Remove curve extents for the given channel */
@@ -550,6 +560,14 @@ protected:
 	/** Enable or disable displaying the status bar for number of items. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowStatusBar;
+
+	/** Enable or disable displaying the tick lines. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bShowTickLines;
+
+	/** Enable or disable displaying the sequencer toolbar. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bShowSequencerToolbar;
 
 	/** The key area curve extents, stored per channel name */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
