@@ -8,20 +8,32 @@
 
 #if STRATA_ENABLED
 
+#ifndef USE_8BIT_TILE_COORD
+#error USE_8BIT_TILE_COORD needs to be defined
+#define USE_8BIT_TILE_COORD 0
+#endif
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Strata material type tile
 
 uint2 StrataUnpackTile(uint In)
 {
+#if USE_8BIT_TILE_COORD
+	return uint2(In & 0xFF, In >> 8);
+#else
 	return uint2(In & 0xFFFF, In >> 16);
+#endif
 }
 
 uint StrataPackTile(uint2 TileCoord)
 {
-#if COMPILER_SUPPORTS_PACK_INTRINSICS
-	return PackUInt2ToUInt(TileCoord.x, TileCoord.y);
+#if USE_8BIT_TILE_COORD
+	return TileCoord.x | (TileCoord.y << 8);
 #else
+  #if COMPILER_SUPPORTS_PACK_INTRINSICS
+	return PackUInt2ToUInt(TileCoord.x, TileCoord.y);
+  #else
 	return TileCoord.x | (TileCoord.y << 16); // assumes 16bit is enough to represent a tiled resolution up to 65,535 :)
+  #endif
 #endif
 }
 

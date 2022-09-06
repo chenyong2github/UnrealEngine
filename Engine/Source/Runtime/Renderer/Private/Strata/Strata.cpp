@@ -38,7 +38,13 @@ static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
 static TAutoConsoleVariable<int32> CVarStrataShadingQuality(
 	TEXT("r.Strata.ShadingQuality"),
 	1,
-	TEXT("Defube Strata shading quality (1: accurate lighting, 2: approximate lighting). This variable is read-only."),
+	TEXT("Define Strata shading quality (1: accurate lighting, 2: approximate lighting). This variable is read-only."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataTileCoord8Bits(
+	TEXT("r.Strata.TileCoord8bits"),
+	0,
+	TEXT("Format of tile coord. This variable is read-only."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarStrataRoughDiffuse(
@@ -157,6 +163,13 @@ FIntPoint GetStrataTextureResolution(const FIntPoint& InResolution)
 
 static void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataViewData* StrataViewData, FStrataGlobalUniformParameters& OutStrataUniformParameters);
 
+static EPixelFormat GetClassificationTileFormat(const FIntPoint& InResolution)
+{
+	// For platform which whose resolution is never above 1080p, use 8bit tile format for performance.
+	check(InResolution.X <= 2048 && InResolution.Y <= 2048);
+	return CVarStrataTileCoord8Bits.GetValueOnRenderThread() == 1 ? PF_R16_UINT : PF_R32_UINT;
+}
+
 static void InitialiseStrataViewData(FRDGBuilder& GraphBuilder, FViewInfo& View, const FSceneTexturesConfig& SceneTexturesConfig, bool bNeedBSDFOffets, FStrataSceneData& SceneData)
 {
 	// Sanity check: the scene data should already exist 
@@ -192,11 +205,12 @@ static void InitialiseStrataViewData(FRDGBuilder& GraphBuilder, FViewInfo& View,
 			Out.ClassificationTileDispatchIndirectBufferUAV = GraphBuilder.CreateUAV(Out.ClassificationTileDispatchIndirectBuffer, PF_R32_UINT);
 			AddClearUAVPass(GraphBuilder, Out.ClassificationTileDispatchIndirectBufferUAV, 0);
 
+			const EPixelFormat ClassificationTileFormat = GetClassificationTileFormat(ViewResolution);
 			for (uint32 i = 0; i <= EStrataTileType::EComplex; ++i)
 			{
-				Out.ClassificationTileListBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileResolution.X * TileResolution.Y), StrataTileListBufferNames[i]);
-				Out.ClassificationTileListBufferSRV[i] = GraphBuilder.CreateSRV(Out.ClassificationTileListBuffer[i], PF_R32_UINT);
-				Out.ClassificationTileListBufferUAV[i] = GraphBuilder.CreateUAV(Out.ClassificationTileListBuffer[i], PF_R32_UINT);
+				Out.ClassificationTileListBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(ClassificationTileFormat == PF_R16_UINT ? sizeof(uint16) : sizeof(uint32), TileResolution.X * TileResolution.Y), StrataTileListBufferNames[i]);
+				Out.ClassificationTileListBufferSRV[i] = GraphBuilder.CreateSRV(Out.ClassificationTileListBuffer[i], ClassificationTileFormat);
+				Out.ClassificationTileListBufferUAV[i] = GraphBuilder.CreateUAV(Out.ClassificationTileListBuffer[i], ClassificationTileFormat);
 			}
 		}
 
