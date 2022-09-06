@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.1",
-	"FriendlyName": "ML Deformer Framework",
-	"Description": "Machine Learning Mesh Deformer Framework",
+	"VersionName": "0.21",
+	"FriendlyName": "ML Deformer Vertex Delta Model",
+	"Description": "Vertex Delta Model for the ML Deformer Framework",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -11,22 +11,30 @@
 	"MarketplaceURL": "",
 	"SupportURL": "https://forums.unrealengine.com/",
 	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "MLDeformerFramework",
+			"Name": "VertexDeltaModel",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "MLDeformerFrameworkEditor",
+			"Name": "VertexDeltaModelEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "GeometryCache",
+			"Enabled": true
+		},
+		{
+			"Name": "NeuralNetworkInference",
+			"Enabled": true
+		},
 		{
 			"Name": "DeformerGraph",
 			"Enabled": true
@@ -36,11 +44,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "NeuralNetworkInference",
-			"Enabled": true
-		},
-		{
-			"Name": "GeometryCache",
+			"Name": "MLDeformerFramework",
 			"Enabled": true
 		}
 	]

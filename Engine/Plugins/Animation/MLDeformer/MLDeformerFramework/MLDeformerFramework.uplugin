@@ -2,8 +2,8 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.1",
-	"FriendlyName": "ML Deformer Neural Morph Model",
-	"Description": "Neural Morph Model for the ML Deformer Framework",
+	"FriendlyName": "ML Deformer Framework",
+	"Description": "Machine Learning Mesh Deformer Framework",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -11,30 +11,22 @@
 	"MarketplaceURL": "",
 	"SupportURL": "https://forums.unrealengine.com/",
 	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "NeuralMorphModel",
+			"Name": "MLDeformerFramework",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "NeuralMorphModelEditor",
+			"Name": "MLDeformerFrameworkEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
-		{
-			"Name": "GeometryCache",
-			"Enabled": true
-		},
-		{
-			"Name": "NeuralNetworkInference",
-			"Enabled": true
-		},
 		{
 			"Name": "DeformerGraph",
 			"Enabled": true
@@ -44,7 +36,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "MLDeformerFramework",
+			"Name": "NeuralNetworkInference",
+			"Enabled": true
+		},
+		{
+			"Name": "GeometryCache",
 			"Enabled": true
 		}
 	]

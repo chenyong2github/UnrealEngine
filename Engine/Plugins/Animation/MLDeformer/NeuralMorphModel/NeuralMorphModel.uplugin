@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.21",
-	"FriendlyName": "ML Deformer Vertex Delta Model",
-	"Description": "Vertex Delta Model for the ML Deformer Framework",
+	"VersionName": "0.1",
+	"FriendlyName": "ML Deformer Neural Morph Model",
+	"Description": "Neural Morph Model for the ML Deformer Framework",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -11,17 +11,17 @@
 	"MarketplaceURL": "",
 	"SupportURL": "https://forums.unrealengine.com/",
 	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "VertexDeltaModel",
+			"Name": "NeuralMorphModel",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "VertexDeltaModelEditor",
+			"Name": "NeuralMorphModelEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
