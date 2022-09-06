@@ -258,25 +258,29 @@ bool FConsoleVariablesEditorModule::PopulateGlobalSearchAssetWithVariablesMatchi
 	return EditingGlobalSearchAsset->GetSavedCommandsCount() > 0;
 }
 
-void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString) const
+void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString)
 {
-	if (GEditor && GEditor->IsPlaySessionInProgress())
+	if (GEditor && GEditor->IsPlaySessionInProgress() && !bHaveWarnedAboutPIE)
 	{
-		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Play In Editor is about to start or has started; Multi-User Cvar sync is suspended duirng PIE."), __FUNCTION__);
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Play In Editor is about to start or has started; Multi-User Cvar sync is suspended during PIE."), __FUNCTION__);
+		bHaveWarnedAboutPIE = true;
 		return;
 	}
-	
+
+	bHaveWarnedAboutPIE = false;
 	MainPanel->GetMultiUserManager().SendConsoleVariableChange(InVariableName, InValueAsString);
 }
 
 void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, const FString InValue)
 {
-	if (GEditor && GEditor->IsPlaySessionInProgress())
+	if (GEditor && GEditor->IsPlaySessionInProgress() && !bHaveWarnedAboutPIE)
 	{
-		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Play In Editor is about to start or has started; Multi-User Cvar sync is suspended duirng PIE."), __FUNCTION__);
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Play In Editor is about to start or has started; Multi-User Cvar sync is suspended during PIE."), __FUNCTION__);
+		bHaveWarnedAboutPIE = true;
 		return;
 	}
-	
+
+	bHaveWarnedAboutPIE = false;
 	UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
 
 	CommandsRecentlyReceivedFromMultiUser.Add(InName, InValue);

@@ -84,7 +84,7 @@ public:
 	/** Fills Global Search Asset's Saved Commands with variables matching the specified query. Returns false if no matches were found. */
 	bool PopulateGlobalSearchAssetWithVariablesMatchingTokens(const TArray<FString>& InTokens);
 
-	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString) const;
+	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString);
 	void OnRemoteCvarChanged(const FString InName, const FString InValue);
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector )  override;
@@ -128,4 +128,7 @@ private:
 	 * if the command and value match an item in this map, the change will not be propagated to other nodes.
 	 */
 	TMap<FString, FString> CommandsRecentlyReceivedFromMultiUser;
+
+	/* Have we warned the user about PIE and Console Variable Editor */
+	bool bHaveWarnedAboutPIE = false;
 };
