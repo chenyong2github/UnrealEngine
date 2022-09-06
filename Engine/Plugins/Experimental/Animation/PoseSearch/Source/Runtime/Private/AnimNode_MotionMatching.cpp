@@ -100,7 +100,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		const FPoseSearchDatabaseAnimationAssetBase& AnimationAssetBase = Database->GetAnimationSourceAsset(SearchIndexAsset);
 		BlendStackNode.BlendTo(	SearchIndexAsset->Type, AnimationAssetBase.GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
 								AnimationAssetBase.IsLooping(), SearchIndexAsset->bMirrored, Database->Schema->MirrorDataTable.Get(),
-								Settings.MaxActiveBlends, Settings.BlendTime, SearchIndexAsset->BlendParameters);
+								Settings.MaxActiveBlends, Settings.BlendTime, Settings.BlendProfile, SearchIndexAsset->BlendParameters);
 	}
 
 	if (!BlendStackNode.AnimPlayers.IsEmpty() && BlendStackNode.AnimPlayers[0].GetAssetType() == ESearchIndexAssetType::Sequence)

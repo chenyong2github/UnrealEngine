@@ -2,6 +2,7 @@
 
 #include "PoseSearch/AnimNode_BlendStack.h"
 
+#include "Algo/MaxElement.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
@@ -9,10 +10,23 @@
 
 /////////////////////////////////////////////////////
 // FPoseSearchAnimPlayer
-void FPoseSearchAnimPlayer::Initialize(ESearchIndexAssetType InAssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, float BlendTime, FVector BlendParameters)
+void FPoseSearchAnimPlayer::Initialize(ESearchIndexAssetType InAssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, float BlendTime, const UBlendProfile* BlendProfile, FVector BlendParameters)
 {
 	check(AnimationAsset);
 	check(MirrorDataTable);
+
+	if (BlendProfile != nullptr)
+	{
+		const USkeleton* SkeletonAsset = BlendProfile->OwningSkeleton;
+		check(SkeletonAsset);
+
+		const FReferenceSkeleton& RefSkeleton = SkeletonAsset->GetReferenceSkeleton();
+		const int32 NumSkeletonBones = RefSkeleton.GetNum();
+		TotalBlendInTimePerBone.Init(BlendTime, NumSkeletonBones);
+
+		BlendProfile->FillSkeletonBoneDurationsArray(TotalBlendInTimePerBone, BlendTime);
+		BlendTime = *Algo::MaxElement(TotalBlendInTimePerBone);
+	}
 
 	AssetType = InAssetType;
 	TotalBlendInTime = BlendTime;
@@ -108,6 +122,29 @@ float FPoseSearchAnimPlayer::GetBlendInPercentage() const
 	return FMath::Clamp(CurrentBlendInTime / TotalBlendInTime, 0.f, 1.f);
 }
 
+bool FPoseSearchAnimPlayer::GetBlendInWeights(TArray<float>& Weights) const
+{
+	const int32 NumBones = TotalBlendInTimePerBone.Num();
+	if (NumBones > 0)
+	{
+		Weights.SetNumUninitialized(NumBones);
+		for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
+		{
+			const float TotalBlendInTimeBoneIdx = TotalBlendInTimePerBone[BoneIdx];
+			if (FMath::IsNearlyZero(TotalBlendInTimeBoneIdx))
+			{
+				Weights[BoneIdx] = 1.f;
+			}
+			else
+			{
+				Weights[BoneIdx] = FMath::Clamp(CurrentBlendInTime / TotalBlendInTimeBoneIdx, 0.f, 1.f);
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
 void FPoseSearchAnimPlayer::SetBlendWeight(float InBlendWeight)
 {
 	BlendWeight = InBlendWeight;
@@ -132,35 +169,34 @@ void FAnimNode_BlendStack::Evaluate_AnyThread(FPoseContext& Output)
 	}
 	else
 	{
-		TArray<FPoseContext, TMemStackAllocator<>> PoseContexts;
-		PoseContexts.Reserve(BlendStackSize);
-		for (int32 i = 0; i < BlendStackSize; ++i)
+		AnimPlayers[BlendStackSize - 1].Evaluate_AnyThread(Output);
+
+		FPoseContext EvaluationPoseContext(Output);
+		FPoseContext BlendedPoseContext(Output); // @todo: this should not be necessary (but FBaseBlendedCurve::InitFrom complains about "ensure(&InCurveToInitFrom != this)"): optimize it away!
+		FAnimationPoseData BlendedAnimationPoseData(BlendedPoseContext);
+
+		const USkeleton* SkeletonAsset = Output.AnimInstanceProxy->GetRequiredBones().GetSkeletonAsset();
+		check(SkeletonAsset);
+
+		const FReferenceSkeleton& RefSkeleton = SkeletonAsset->GetReferenceSkeleton();
+		const int32 NumSkeletonBones = RefSkeleton.GetNum();
+		TArray<float> Weights;
+		for (int32 i = BlendStackSize - 2; i >= 0; --i)
 		{
-			PoseContexts.Add(Output);
-			AnimPlayers[i].Evaluate_AnyThread(PoseContexts[i]);
+			AnimPlayers[i].Evaluate_AnyThread(EvaluationPoseContext);
+			
+			if (AnimPlayers[i].GetBlendInWeights(Weights))
+			{
+				// @todo: have BlendTwoPosesTogetherPerBone using a TArrayView for the Weights to avoid allocations
+				FAnimationRuntime::BlendTwoPosesTogetherPerBone(FAnimationPoseData(Output), FAnimationPoseData(EvaluationPoseContext), Weights, BlendedAnimationPoseData);
+			}
+			else
+			{
+				const float Weight = 1.f - AnimPlayers[i].GetBlendInPercentage();
+				FAnimationRuntime::BlendTwoPosesTogether(FAnimationPoseData(Output), FAnimationPoseData(EvaluationPoseContext), Weight, BlendedAnimationPoseData);
+			}
+			Output = BlendedPoseContext; // @todo: this should not be necessary either: optimize it away!
 		}
-
-		// @todo: optimize copies and allocations: is there a FAnimationRuntime::BlendPosesTogether(PoseContexts, Weights, AnimationPoseData)?
-		TArray<FCompactPose, TMemStackAllocator<>> Poses;
-		TArray<FBlendedCurve, TMemStackAllocator<>> Curves;
-		TArray<UE::Anim::FStackAttributeContainer, TMemStackAllocator<>> Attributes;
-		TArray<float, TMemStackAllocator<>> Weights;
-
-		Poses.AddDefaulted(BlendStackSize);
-		Curves.AddDefaulted(BlendStackSize);
-		Attributes.AddDefaulted(BlendStackSize);
-		Weights.AddDefaulted(BlendStackSize);
-
-		for (int32 i = 0; i < BlendStackSize; ++i)
-		{
-			Poses[i] = PoseContexts[i].Pose;
-			Curves[i] = PoseContexts[i].Curve;
-			Attributes[i] = PoseContexts[i].CustomAttributes;
-			Weights[i] = AnimPlayers[i].GetBlendWeight();
-		}
-
-		FAnimationPoseData AnimationPoseData(Output);
-		FAnimationRuntime::BlendPosesTogether(Poses, Curves, Attributes, Weights, AnimationPoseData);
 	}
 }
 
@@ -185,10 +221,10 @@ float FAnimNode_BlendStack::GetAccumulatedTime() const
 	return AnimPlayers.IsEmpty() ? 0.f : AnimPlayers.First().GetAccumulatedTime();
 }
 
-void FAnimNode_BlendStack::BlendTo(ESearchIndexAssetType AssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, int32 MaxActiveBlends, float BlendTime, FVector BlendParameters)
+void FAnimNode_BlendStack::BlendTo(ESearchIndexAssetType AssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, int32 MaxActiveBlends, float BlendTime, const UBlendProfile* BlendProfile, FVector BlendParameters)
 {
 	AnimPlayers.PushFirst(FPoseSearchAnimPlayer());
-	AnimPlayers.First().Initialize(AssetType, AnimationAsset, AccumulatedTime, bLoop, bMirrored, MirrorDataTable, BlendTime, BlendParameters);
+	AnimPlayers.First().Initialize(AssetType, AnimationAsset, AccumulatedTime, bLoop, bMirrored, MirrorDataTable, BlendTime, BlendProfile, BlendParameters);
 
 	CalculateWeights();
 	PruneBlendStack(MaxActiveBlends);

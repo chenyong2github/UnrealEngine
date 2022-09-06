@@ -16,13 +16,14 @@ struct FPoseSearchAnimPlayer
 {
 	GENERATED_BODY()
 	
-	void Initialize(ESearchIndexAssetType InAssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, float BlendTime = 0.f, FVector BlendParameters = FVector::Zero());
+	void Initialize(ESearchIndexAssetType InAssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, float BlendTime = 0.f, const UBlendProfile* BlendProfile = nullptr, FVector BlendParameters = FVector::Zero());
 	void Evaluate_AnyThread(FPoseContext& Output);
 	void Update_AnyThread(const FAnimationUpdateContext& Context);
 	float GetAccumulatedTime() const;
 	float GetBlendWeight() const { return BlendWeight;  }
 	float GetBlendInPercentage() const;
 	void SetBlendWeight(float InBlendWeight);
+	bool GetBlendInWeights(TArray<float>& Weights) const;
 	ESearchIndexAssetType GetAssetType() const { return AssetType; }
 
 	// @todo: used only for DynamicPlayRateAdjustment. Remove once the functionality is integrated with the BlendStackNode
@@ -44,6 +45,8 @@ protected:
 
 	ESearchIndexAssetType AssetType = ESearchIndexAssetType::Sequence;
 
+	TCustomBoneIndexArray<float, FSkeletonPoseBoneIndex> TotalBlendInTimePerBone;
+
 	float TotalBlendInTime = 0.f;
 	float CurrentBlendInTime = 0.f;
 	float BlendWeight = 1.f;
@@ -60,7 +63,7 @@ struct POSESEARCH_API FAnimNode_BlendStack : public FAnimNode_AssetPlayerBase
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	// End of FAnimNode_Base interface
 
-	void BlendTo(ESearchIndexAssetType AssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, int32 MaxActiveBlends = 3, float BlendTime = 0.3f, FVector BlendParameters = FVector::Zero());
+	void BlendTo(ESearchIndexAssetType AssetType, UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, int32 MaxActiveBlends = 3, float BlendTime = 0.3f, const UBlendProfile* BlendProfile = nullptr, FVector BlendParameters = FVector::Zero());
 	void CalculateWeights();
 	void PruneBlendStack(int32 MaxActiveBlends);
 
