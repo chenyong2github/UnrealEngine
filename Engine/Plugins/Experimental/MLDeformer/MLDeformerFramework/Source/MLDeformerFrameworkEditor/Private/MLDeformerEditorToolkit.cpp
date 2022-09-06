@@ -237,7 +237,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		ActiveModel->GetModel()->GetVizSettings()->VisualizationMode = Mode;
+		ActiveModel->GetModel()->GetVizSettings()->SetVisualizationMode(Mode);
 		OnSwitchedVisualizationMode();
 	}
 
@@ -653,7 +653,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VisualizationMode))
+		if (Property->GetFName() == UMLDeformerVizSettings::GetVisualizationModePropertyName())
 		{
 			OnSwitchedVisualizationMode();
 		}

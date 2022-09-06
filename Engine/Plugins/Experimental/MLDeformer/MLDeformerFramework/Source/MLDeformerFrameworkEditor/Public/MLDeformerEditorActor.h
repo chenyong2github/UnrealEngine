@@ -11,24 +11,57 @@ class UMLDeformerComponent;
 
 namespace UE::MLDeformer
 {
+	/**
+	 * The default ID's for editor actors.
+	 * You can assign any ID to the editor actors, although some code in the editor model classes will assume
+	 * that some of these exist. You can always overload certain methods to change that behavior though.
+	 * @see FMLDeformerEditorActor
+	 */
 	enum : int32
 	{
+		/** The linear skinned (base) actor in training mode. */
 		ActorID_Train_Base,
+
+		/** The ground truth (target) actor in training mode. This is our training target that we try to approximate. */
 		ActorID_Train_GroundTruth,
+
+		/** The linear skinned (base) actor, in test mode. */
 		ActorID_Test_Base,
+
+		/** The ML Deformed actor, in test mode. This one should have an UMLDeformerComponent on it. */
 		ActorID_Test_MLDeformed,
+
+		/** The ground truth test actor, in test mode. This will represent your test anim sequence ground truth. */
 		ActorID_Test_GroundTruth
 	};
 
+	/**
+	 * An actor in the ML Deformer asset editor viewport.
+	 * The UE Actor object itself is created by the FMLDeformerEditorModel class, after which this editor actor class
+	 * can create components on it.
+	 * It also contains some methods to control visibility and playback, among some other helper methods.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerEditorActor
 	{
 	public:
+		/**
+		 * The construction settings, which can be used as info when creating new components.
+		 */
 		struct MLDEFORMERFRAMEWORKEDITOR_API FConstructSettings
 		{
+			/** The UE actor object that we should add components to. */
 			AActor* Actor = nullptr;
+
+			/** The ID of the actor. Look at the UE::MLDeformer::ActorID_Train_Base etc for example. */
 			int32 TypeID = -1;
+
+			/** The color of the label text. */
 			FLinearColor LabelColor = FLinearColor(1.0f, 0.0f, 0.0f);
+
+			/** The label text, which should be something like "Linear Skinned" or "Ground Truth", basically describing the actor. This will appear inside the render viewport. */
 			FText LabelText;
+
+			/** Is this an actor used during training? Set to false if it is a testing mode actor. */
 			bool bIsTrainingActor = false;
 		};
 

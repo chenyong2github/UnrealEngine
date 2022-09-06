@@ -8,6 +8,7 @@
 #include "MLDeformerTestModel.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerComponent.h"
+#include "MLDeformerInputInfo.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "PreviewScene.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -31,7 +32,7 @@ namespace UE::MLDeformerTests
 		USkeletalMesh* SkeletalMesh = LoadObject<USkeletalMesh>(nullptr, TEXT("SkeletalMesh'/MLDeformerFramework/Tests/SKM_Cylinder.SKM_Cylinder'"));
 		UTEST_NOT_NULL(TEXT("Loading skeletal mesh"), SkeletalMesh);
 
-		TestModel->SkeletalMesh = SkeletalMesh;
+		TestModel->SetSkeletalMesh(SkeletalMesh);
 		UTEST_EQUAL(TEXT("GetSkeletalMesh check"), TestModel->GetSkeletalMesh(), SkeletalMesh);
 
 		DeformerAsset->SetModel(TestModel);
@@ -45,7 +46,7 @@ namespace UE::MLDeformerTests
 		UTEST_EQUAL(TEXT("Imported verts check"), ImportedVerts, ExpectedNumImportedVerts);
 
 		TestModel->UpdateCachedNumVertices();
-		UTEST_EQUAL(TEXT("Imported verts check"), TestModel->NumBaseMeshVerts, ImportedVerts);
+		UTEST_EQUAL(TEXT("Imported verts check"), TestModel->GetNumBaseMeshVerts(), ImportedVerts);
 
 		const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 		bool bErrorOnInvalid = false;

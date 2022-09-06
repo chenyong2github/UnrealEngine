@@ -34,13 +34,20 @@ namespace UE::MLDeformer
 
 		FMLDeformerGeomCacheEditorModel::OnPropertyChanged(PropertyChangedEvent);
 
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetNumber))
+		// Clamp the morph target number, if it changes.
+		if (Property->GetFName() == UMLDeformerMorphModelVizSettings::GetMorphTargetNumberPropertyName())
 		{
-			const UMLDeformerMorphModel* MorphModel = GetMorphModel();
-			UMLDeformerMorphModelVizSettings* MorphViz = GetMorphModelVizSettings();
-			const int32 NumMorphTargets = MorphModel->MorphTargetSet.IsValid() ? MorphModel->MorphTargetSet->MorphBuffers.GetNumMorphs() : 0;
-			MorphViz->MorphTargetNumber = (NumMorphTargets > 0) ? FMath::Min<int32>(MorphViz->MorphTargetNumber, NumMorphTargets - 1) : 0;
+			ClampMorphTargetNumber();
 		}
+	}
+
+	void FMLDeformerMorphModelEditorModel::ClampMorphTargetNumber()
+	{
+		const UMLDeformerMorphModel* MorphModel = GetMorphModel();			
+		UMLDeformerMorphModelVizSettings* MorphViz = GetMorphModelVizSettings();
+		const int32 NumMorphTargets = MorphModel->GetMorphTargetSet().IsValid() ? MorphModel->GetMorphTargetSet()->MorphBuffers.GetNumMorphs() : 0;
+		const int32 ClampedMorphTargetNumber = (NumMorphTargets > 0) ? FMath::Min<int32>(MorphViz->GetMorphTargetNumber(), NumMorphTargets - 1) : 0;
+		MorphViz->SetMorphTargetNumber(ClampedMorphTargetNumber);
 	}
 
 	UMLDeformerMorphModel* FMLDeformerMorphModelEditorModel::GetMorphModel() const
@@ -66,7 +73,7 @@ namespace UE::MLDeformer
 	void FMLDeformerMorphModelEditorModel::OnPreTraining()
 	{
 		// Backup the morph target deltas in case we abort training.
-		MorphTargetDeltasBackup = GetMorphModel()->MorphTargetDeltas;
+		MorphTargetDeltasBackup = GetMorphModel()->GetMorphTargetDeltas();
 	}
 
 	void FMLDeformerMorphModelEditorModel::OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted)
@@ -75,16 +82,16 @@ namespace UE::MLDeformer
 		if (TrainingResult == ETrainingResult::Aborted && !bUsePartiallyTrainedWhenAborted)
 		{
 			// Restore the blendshape backup.
-			GetMorphModel()->MorphTargetDeltas = MorphTargetDeltasBackup;
+			GetMorphModel()->SetMorphTargetDeltas(MorphTargetDeltasBackup);
 		}
 		else if (TrainingResult == ETrainingResult::Success || (TrainingResult == ETrainingResult::Aborted && bUsePartiallyTrainedWhenAborted))
 		{
 			const UMLDeformerMorphModel* MorphModel = GetMorphModel();
-			if (!MorphModel->MorphTargetDeltas.IsEmpty())
+			if (!MorphModel->GetMorphTargetDeltas().IsEmpty())
 			{
 				// Set deltas with a length equal or below a given threshold to zero, for better compression.
-				TArray<FVector3f> MorphTargetDeltas = MorphModel->MorphTargetDeltas;
-				ZeroDeltasByThreshold(MorphTargetDeltas, MorphModel->MorphTargetDeltaThreshold);
+				TArray<FVector3f> MorphTargetDeltas = MorphModel->GetMorphTargetDeltas();
+				ZeroDeltasByThreshold(MorphTargetDeltas, MorphModel->GetMorphTargetDeltaThreshold());
 
 				// Build morph targets inside the engine, using the engine's compression scheme.
 				// Add one as we included the means now as extra morph target.
@@ -103,12 +110,12 @@ namespace UE::MLDeformer
 		// Turn the delta buffer in a set of engine morph targets.
 		UMLDeformerMorphModel* MorphModel = GetMorphModel();
 		TArray<UMorphTarget*> MorphTargets;	// These will be garbage collected.
-		CreateEngineMorphTargets(MorphTargets, Deltas, TEXT("MLDeformerMorph_"), LOD, MorphModel->MorphTargetDeltaThreshold);
+		CreateEngineMorphTargets(MorphTargets, Deltas, TEXT("MLDeformerMorph_"), LOD, MorphModel->GetMorphTargetDeltaThreshold());
 
 		// Now compress the morph targets to GPU friendly buffers.
-		check(MorphModel->MorphTargetSet.IsValid());
-		FMorphTargetVertexInfoBuffers& MorphBuffers = MorphModel->MorphTargetSet->MorphBuffers;
-		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, MorphModel->MorphTargetErrorTolerance);
+		check(MorphModel->GetMorphTargetSet().IsValid());
+		FMorphTargetVertexInfoBuffers& MorphBuffers = MorphModel->GetMorphTargetSet()->MorphBuffers;
+		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, MorphModel->GetMorphTargetErrorTolerance());
 	}
 
 	void FMLDeformerMorphModelEditorModel::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -117,10 +124,10 @@ namespace UE::MLDeformer
 
 		// Debug draw the selected morph target.
 		const UMLDeformerMorphModelVizSettings* VizSettings = GetMorphModelVizSettings();
-		if (VizSettings->bDrawMorphTargets && VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
+		if (VizSettings->GetDrawMorphTargets() && VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
 		{
 			const FVector DrawOffset = -VizSettings->GetMeshSpacingOffsetVector();
-			DrawMorphTarget(PDI, GetMorphModel()->MorphTargetDeltas, VizSettings->MorphTargetDeltaThreshold, VizSettings->MorphTargetNumber, DrawOffset);
+			DrawMorphTarget(PDI, GetMorphModel()->GetMorphTargetDeltas(), VizSettings->GetMorphTargetDeltaThreshold(), VizSettings->GetMorphTargetNumber(), DrawOffset);
 		}
 	}
 }	// namespace UE::MLDeformer

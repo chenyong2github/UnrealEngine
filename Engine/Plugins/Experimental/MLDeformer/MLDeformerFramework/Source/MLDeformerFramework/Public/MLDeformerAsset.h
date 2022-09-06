@@ -19,11 +19,20 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerAsset
 	GENERATED_BODY()
 
 public:
-	UMLDeformerModel* GetModel() const { return Model.Get(); }
-	void SetModel(UMLDeformerModel* InModel) { Model = InModel; }
+	/**
+	 * Get the ML Deformer model that is being applied by this asset.
+	 * @return A pointer to the model.
+	 */
+	UMLDeformerModel* GetModel() const			{ return Model.Get(); }
+
+	/**
+	 * Set the ML Deformer model that is used by this deformer asset.
+	 * @param InModel A pointer to the model object.
+	 */
+	void SetModel(UMLDeformerModel* InModel)	{ Model = InModel; }
 
 public:
 	/** The ML Deformer model, used to deform the mesh. */
 	UPROPERTY()
-	TObjectPtr<UMLDeformerModel> Model;
+	TObjectPtr<UMLDeformerModel> Model = nullptr;
 };

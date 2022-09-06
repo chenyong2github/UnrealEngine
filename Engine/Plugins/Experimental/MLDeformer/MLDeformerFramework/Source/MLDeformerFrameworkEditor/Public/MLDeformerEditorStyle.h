@@ -6,6 +6,9 @@
 
 namespace UE::MLDeformer
 {
+	/**
+	 * The editor style class that describes specific UI style related settings for the ML Deformer editor.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerEditorStyle
 		: public FSlateStyleSet
 	{
@@ -15,5 +18,4 @@ namespace UE::MLDeformer
 
 		static FMLDeformerEditorStyle& Get();
 	};
-
 }	// namespace UE::MLDeformer

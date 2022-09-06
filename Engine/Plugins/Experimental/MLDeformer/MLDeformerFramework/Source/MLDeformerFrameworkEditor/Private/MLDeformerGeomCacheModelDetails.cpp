@@ -45,7 +45,7 @@ namespace UE::MLDeformer
 
 	void FMLDeformerGeomCacheModelDetails::AddTargetMesh()
 	{
-		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerGeomCacheModel, GeometryCache), UMLDeformerGeomCacheModel::StaticClass());
+		TargetMeshCategoryBuilder->AddProperty(UMLDeformerGeomCacheModel::GetGeometryCachePropertyName(), UMLDeformerGeomCacheModel::StaticClass());
 
 		const FText TargetMeshErrorText = GetGeomCacheErrorText(GeomCacheModel->GetSkeletalMesh(), GeomCacheModel->GetGeometryCache());
 		TargetMeshCategoryBuilder->AddCustomRow(FText::FromString("TargetMeshError"))
@@ -76,6 +76,23 @@ namespace UE::MLDeformer
 			];
 
 		AddGeomCacheMeshMappingWarnings(TargetMeshCategoryBuilder, Model->GetSkeletalMesh(), GeomCacheModel->GetGeometryCache());
+	}
+
+	void FMLDeformerGeomCacheModelDetails::AddGeomCacheMeshMappingWarnings(IDetailCategoryBuilder* InTargetMeshCategoryBuilder, USkeletalMesh* SkeletalMesh, UGeometryCache* GeometryCache)
+	{
+		const FText MeshMappingError = GetGeomCacheMeshMappingErrorText(SkeletalMesh, GeometryCache);
+		InTargetMeshCategoryBuilder->AddCustomRow(FText::FromString("MeshMappingWarning"))
+			.Visibility(!MeshMappingError.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Warning)
+					.Message(MeshMappingError)
+				]
+			];
 	}
 }	// namespace UE::MLDeformer
 

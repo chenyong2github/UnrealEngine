@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
@@ -12,6 +11,9 @@ class USkeleton;
 
 namespace UE::MLDeformer
 {
+	/**
+	 * The curve reference property detail customization.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerCurveReferenceCustomization
 		: public IPropertyTypeCustomization
 	{

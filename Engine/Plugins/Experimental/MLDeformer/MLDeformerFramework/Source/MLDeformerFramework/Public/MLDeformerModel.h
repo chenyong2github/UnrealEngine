@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MLDeformerInputInfo.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/Object.h"
-#include "Templates/UniquePtr.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "BoneContainer.h"
 #include "RenderCommandFence.h"
@@ -17,6 +16,7 @@ class UMLDeformerAsset;
 class UMLDeformerVizSettings;
 class UMLDeformerModelInstance;
 class UMLDeformerComponent;
+class UMLDeformerInputInfo;
 class UAnimSequence;
 class UGeometryCache;
 class UNeuralNetwork;
@@ -29,7 +29,8 @@ namespace UE::MLDeformer
 	 * So if a cube requires 32 render vertices, there will be 32 ints inside this buffer, and each item in this buffer
 	 * will in this specific example case contain a value between 0 and 7, as a cube has only 8 vertices.
 	 */
-	class FVertexMapBuffer : public FVertexBufferWithSRV
+	class FVertexMapBuffer
+		: public FVertexBufferWithSRV
 	{
 	public:
 		/**
@@ -64,6 +65,8 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerModel
 	GENERATED_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE(FNeuralNetworkModifyDelegate);
+
 	virtual ~UMLDeformerModel() = default;
 
 	/**
@@ -112,14 +115,14 @@ public:
 	 * On default this is set to return true as most models have bone rotations as inputs to the neural network.
 	 * @result Returns true when this model supports bones, or false otherwise.
 	 */
-	virtual bool DoesSupportBones() const { return true; }
+	virtual bool DoesSupportBones() const					{ return true; }
 
 	/**
 	 * Defines whether this model supports curves as inputs or not. A curve is just a single float value.
 	 * On default this returns true.
 	 * @result Returns true when this model supports curves, or false otherwise.
 	 */
-	virtual bool DoesSupportCurves() const { return true; }
+	virtual bool DoesSupportCurves() const					{ return true; }
 
 	/**
 	 * Check whether the neural network of this model should run on the GPU or not.
@@ -127,7 +130,7 @@ public:
 	 * Some code internally that creates and initializes the neural network will use the return value of this method to mark it to be on CPU or GPU.
 	 * @return Returns true if the neural network of this model should run on the GPU. False is returned when it should run on the CPU.
 	 */
-	virtual bool IsNeuralNetworkOnGPU() const { return false; }	// CPU neural network.
+	virtual bool IsNeuralNetworkOnGPU() const				{ return false; }	// CPU neural network.
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -135,7 +138,7 @@ public:
 	 * For example if there is say a GeometryCache as target mesh, it could check whether that property is a nullptr or not.
 	 * @return Returns true when the training target mesh has been selected, otherwise false is returned.
 	 */
-	virtual bool HasTrainingGroundTruth() const { return false; }
+	virtual bool HasTrainingGroundTruth() const				{ return false; }
 
 	/**
 	 * Sample the positions from the target (ground truth) mesh, at a specific time (in seconds).
@@ -207,21 +210,21 @@ public:
 	 * Inputs are things like bone transforms and curve values.
 	 * @return A pointer to the input info object.
 	 */
-	UMLDeformerInputInfo* GetInputInfo() const { return InputInfo.Get(); }
+	UMLDeformerInputInfo* GetInputInfo() const				{ return InputInfo.Get(); }
 
 	/**
 	 * Get the number of vertices in the base mesh (linear skinned skeletal mesh).
 	 * This is the number of vertices in the DCC, so not the render vertex count.
 	 * @return The number of imported vertices inside linear skinned skeletal mesh.
 	 */
-	int32 GetNumBaseMeshVerts() const { return NumBaseMeshVerts; }
+	int32 GetNumBaseMeshVerts() const						{ return NumBaseMeshVerts; }
 
 	/**
 	 * Get the number of vertices of the target mesh.
 	 * This is the number of vertices in the DCC, so not the render vertex count.
 	 * @return The number of imported vertices inside the target mesh.
 	 */
-	int32 GetNumTargetMeshVerts() const { return NumTargetMeshVerts; }
+	int32 GetNumTargetMeshVerts() const						{ return NumTargetMeshVerts; }
 
 	/**
 	 * The mapping that maps from render vertices into dcc vertices.
@@ -229,7 +232,7 @@ public:
 	 * For a cube with 32 render vertices, the item values would be between 0..7 as in the dcc the cube has 8 vertices.
 	 * @return A reference to the array that contains the DCC vertex number for each render vertex.
 	 */
-	const TArray<int32>& GetVertexMap() const { return VertexMap; }
+	const TArray<int32>& GetVertexMap() const				{ return VertexMap; }
 
 	/**
 	 * Get the GPU buffer of the VertexMap.
@@ -243,13 +246,20 @@ public:
 	 * This network is used during inference.
 	 * @return A pointer to the neural network, or nullptr when the network has not yet been trained.
 	 */
-	UNeuralNetwork* GetNeuralNetwork() const { return NeuralNetwork.Get(); }
+	UNeuralNetwork* GetNeuralNetwork() const				{ return NeuralNetwork.Get(); }
 
 	/**
 	 * Set the neural network object that we use during inference.
 	 * @param InNeuralNetwork The new neural network to use inside this deformer model.
 	 */
 	void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork);
+
+	/**
+	 * Get the neural network modified delegate.
+	 * This triggers when the neural network pointers changes.
+	 * @return A reference to the delegate.
+	 */
+	FNeuralNetworkModifyDelegate& GetNeuralNetworkModifyDelegate() { return NeuralNetworkModifyDelegate; }
 
 #if WITH_EDITORONLY_DATA
 	// UObject overrides.
@@ -268,14 +278,14 @@ public:
 	 * Check whether we should include bone transforms as input to the model during training or not.
 	 * @return Returns true when bone transfomations should be a part of the network inputs, during the training process.
 	 */
-	bool ShouldIncludeBonesInTraining() const { return bIncludeBones; }
+	bool ShouldIncludeBonesInTraining() const				{ return bIncludeBones; }
 
 	/**
 	 * Check whether we should include curve values as input to the model during training or not.
 	 * Curve values are single floats.
 	 * @return Returns true when curve values should be a part of the network inputs, during the training process.
 	 */
-	bool ShouldIncludeCurvesInTraining() const { return bIncludeCurves; }
+	bool ShouldIncludeCurvesInTraining() const				{ return bIncludeCurves; }
 
 	/**
 	 * The delegate that gets fired when a property value changes.
@@ -290,23 +300,29 @@ public:
 	 * @return A pointer to the visualization settings. You can cast this to the type specific for your model, in case you inherited from 
 	 *         the UMLDeformerVizSettings base class. This never return a nullptr.
 	 */
-	UMLDeformerVizSettings* GetVizSettings() const { return VizSettings; }
+	UMLDeformerVizSettings* GetVizSettings() const			{ return VizSettings; }
 
 	/**
 	 * Get the skeletal mesh that is used during training.
 	 * You typically want to apply the ML Deformer on this specific skeletal mesh in your game as well.
 	 * @return A pointer to the skeletal mesh.
 	 */
-	const USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh;  }
-	USkeletalMesh* GetSkeletalMesh() { return SkeletalMesh; }
+	const USkeletalMesh* GetSkeletalMesh() const			{ return SkeletalMesh;  }
+	USkeletalMesh* GetSkeletalMesh()						{ return SkeletalMesh; }
+
+	/**
+	 * Set the skeletal mesh that this deformer uses.
+	 * @param SkelMesh The skeletal mesh.
+	 */
+	void SetSkeletalMesh(USkeletalMesh* SkelMesh)			{ SkeletalMesh = SkelMesh; }
 
 	/**
 	 * Get the animation sequence that is used during training.
 	 * Each frame of this anim sequence will contain a training pose.
 	 * @return A pointer to the animation sequence used for training.
 	 */
-	const UAnimSequence* GetAnimSequence() const { return AnimSequence;  }
-	UAnimSequence* GetAnimSequence() { return AnimSequence; }
+	const UAnimSequence* GetAnimSequence() const			{ return AnimSequence;  }
+	UAnimSequence* GetAnimSequence()						{ return AnimSequence; }
 
 	/**
 	 * Get the maximum number of training frames to use during training.
@@ -314,7 +330,7 @@ public:
 	 * want to train on only 2000 frames instead. You can do this by setting the maximum training frames to 2000.
 	 * @return The max number of frames to use during training.
 	 */
-	int32 GetTrainingFrameLimit() const { return MaxTrainingFrames; }
+	int32 GetTrainingFrameLimit() const						{ return MaxTrainingFrames; }
 
 	/**
 	 * Get the target mesh alignment tranformation.
@@ -324,7 +340,7 @@ public:
 	 * The alignment transform is then used to correct this and align both base and target mesh.
 	 * @return The alignment transformation. When set to Identity it will not do anything, which is its default.
 	 */
-	const FTransform& GetAlignmentTransform() const { return AlignmentTransform; }
+	const FTransform& GetAlignmentTransform() const			{ return AlignmentTransform; }
 
 	/**
 	 * Get the list of bones that we configured to be included during training.
@@ -336,8 +352,8 @@ public:
 	 * will contain different items.
 	 * @return The list of bones that should be included when performing the next training session.
 	 */
-	TArray<FBoneReference>& GetBoneIncludeList() { return BoneIncludeList; }
-	const TArray<FBoneReference>& GetBoneIncludeList() const { return BoneIncludeList; }
+	TArray<FBoneReference>& GetBoneIncludeList()				{ return BoneIncludeList; }
+	const TArray<FBoneReference>& GetBoneIncludeList() const	{ return BoneIncludeList; }
 
 	/**
 	 * Get the list of curves that we configured to be included during training.
@@ -349,8 +365,8 @@ public:
 	 * will contain different items.
 	 * @return The list of curves that should be included when performing the next training session.
 	 */
-	TArray<FMLDeformerCurveReference>& GetCurveIncludeList() { return CurveIncludeList; }
-	const TArray<FMLDeformerCurveReference>& GetCurveIncludeList() const { return CurveIncludeList; }
+	TArray<FMLDeformerCurveReference>& GetCurveIncludeList()				{ return CurveIncludeList; }
+	const TArray<FMLDeformerCurveReference>& GetCurveIncludeList() const	{ return CurveIncludeList; }
 
 	/**
 	 * Get the delta cutoff length. Deltas that have a length larger than this length will be set to zero.
@@ -358,22 +374,27 @@ public:
 	 * Skipping those deltas will prevent issues.
 	 * @return The length after which deltas will be ignored. So anything delta length larger than this value will be ignored.
 	 */
-	float GetDeltaCutoffLength() const { return DeltaCutoffLength; }
+	float GetDeltaCutoffLength() const					{ return DeltaCutoffLength; }
+
+	// Get property names.
+	static FName GetSkeletalMeshPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, SkeletalMesh); }
+	static FName GetShouldIncludeBonesPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones); }
+	static FName GetShouldIncludeCurvesPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves); }
+	static FName GetAnimSequencePropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AnimSequence); }
+	static FName GetAlignmentTransformPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform); }
+	static FName GetBoneIncludeListPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList); }
+	static FName GetCurveIncludeListPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList); }
+	static FName GetMaxTrainingFramesPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, MaxTrainingFrames); }
+	static FName GetDeltaCutoffLengthPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength); }
 #endif	// #if WITH_EDITORONLY_DATA
 
 protected:
-	/** The deformer asset that this model is part of. */
-	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
-
-	/** The delegate that gets fired when a property is being modified. */
-	FMLDeformerModelOnPostEditProperty PostEditPropertyDelegate;
-
 	/**
 	 * Set the training input information.
 	 * @param Input A pointer to the input information object.
 	 * @see CreateInputInfo
 	 */
-	void SetInputInfo(UMLDeformerInputInfo* Input) { InputInfo = Input; }
+	void SetInputInfo(UMLDeformerInputInfo* Input)		{ InputInfo = Input; }
 
 	/**
 	 * Convert an array of floats to an array of Vector3's.
@@ -385,7 +406,22 @@ protected:
 	 */
 	void FloatArrayToVector3Array(const TArray<float>& FloatArray, TArray<FVector3f>& OutVectorArray);
 
-public:
+protected:
+	/** The deformer asset that this model is part of. */
+	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
+
+	/** The delegate that gets fired when a property is being modified. */
+	FMLDeformerModelOnPostEditProperty PostEditPropertyDelegate;
+
+	/** GPU buffers for Vertex Map. */
+	UE::MLDeformer::FVertexMapBuffer VertexMapBuffer;
+
+	/** Fence used in render thread cleanup on destruction. */
+	FRenderCommandFence RenderResourceDestroyFence;
+
+	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
+	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate;
+
 	/** Cached number of skeletal mesh vertices. */
 	UPROPERTY()
 	int32 NumBaseMeshVerts = 0;
@@ -407,16 +443,6 @@ public:
 	/** The neural network that is used during inference. */
 	UPROPERTY()
 	TObjectPtr<UNeuralNetwork> NeuralNetwork = nullptr;
-
-	/** GPU buffers for Vertex Map. */
-	UE::MLDeformer::FVertexMapBuffer VertexMapBuffer;
-
-	/** Fence used in render thread cleanup on destruction. */
-	FRenderCommandFence RenderResourceDestroyFence;
-
-	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
-	DECLARE_MULTICAST_DELEGATE(FNeuralNetworkModifyDelegate);
-	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

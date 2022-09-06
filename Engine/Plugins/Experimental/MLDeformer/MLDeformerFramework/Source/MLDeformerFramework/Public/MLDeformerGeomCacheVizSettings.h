@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerGeomCacheVizSettings.generated.h"
 
@@ -22,16 +22,19 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerGeomCacheVizSettings
 public:
 #if WITH_EDITORONLY_DATA
 	// UMLDeformerModel overrides.
-	virtual bool HasTestGroundTruth() const override { return !GroundTruth.IsNull(); }
+	virtual bool HasTestGroundTruth() const override	{ return !GroundTruth.IsNull(); }
 	// ~END UMLDeformerModel overrides.
 
 	/**
 	 * Get the test ground truth geometry cache, which represents the ground truth version of the test animation sequence.
 	 * @return A pointer to the geometry cache object.
 	 */
-	UGeometryCache* GetTestGroundTruth() const { return GroundTruth; }
+	UGeometryCache* GetTestGroundTruth() const			{ return GroundTruth; }
 
-public:
+	// Get property names.
+	static FName GetTestGroundTruthPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerGeomCacheVizSettings, GroundTruth); }
+
+protected:
 	/** The geometry cache that represents the ground truth of the test anim sequence. */
 	UPROPERTY(EditAnywhere, Category = "Test Assets")
 	TObjectPtr<UGeometryCache> GroundTruth = nullptr;

@@ -234,8 +234,8 @@ namespace UE::MLDeformer
 		FMLDeformerEditorModel::OnPropertyChanged(PropertyChangedEvent);
 
 		// Properties specific to the geometry cache editor model.
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerGeomCacheModel, GeometryCache) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerGeomCacheVizSettings, GroundTruth))
+		if (Property->GetFName() == UMLDeformerGeomCacheModel::GetGeometryCachePropertyName() ||
+			Property->GetFName() == UMLDeformerGeomCacheVizSettings::GetTestGroundTruthPropertyName())
 		{
 			TriggerInputAssetChanged(true);
 		}
@@ -269,7 +269,7 @@ namespace UE::MLDeformer
 		GeometryCacheComponent->SetPlaybackSpeed(TestAnimSpeed);
 		GeometryCacheComponent->Play();
 
-		GetGeomCacheModel()->MeshMappings.Reset();
+		GetGeomCacheModel()->GetGeomCacheMeshMappings().Reset();
 	}
 }	// namespace UE::MLDeformer
 

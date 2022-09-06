@@ -3,10 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "MLDeformerMorphModel.h"
-#include "MLDeformerVizSettings.h"
-#include "MLDeformerInputInfo.h"
-#include "MLDeformerGeomCacheHelpers.h"
-#include "UObject/Object.h"
 #include "NeuralMorphModel.generated.h"
 
 class USkeletalMesh;
@@ -16,7 +12,6 @@ class UNeuralNetwork;
 class UMLDeformerAsset;
 class UMLDeformerModelInstance;
 class USkeleton;
-class IPropertyHandle;
 struct FExternalMorphSet;
 
 NEURALMORPHMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogNeuralMorphModel, Log, All);
@@ -47,6 +42,15 @@ enum class ENeuralMorphMode : uint8
 	Global
 };
 
+/**
+ * The neural morph model.
+ * This generates a set of highly compressed morph targets to approximate a target deformation based on bone rotations and/or curve inputs.
+ * The neural network inside this model runs on the CPU and outputs the morph target weights.
+ * An external morph target set is generated during training and serialized inside the ML Deformer asset that contains this model.
+ * When the ML Deformer component initializes the morph target set is registered. Most of the heavy lifting is done by the UMLDeformerMorphModel class.
+ * The neural morph model has two modes: local and global. See the ENeuralMorphMode for a description of the two.
+ * @see ENeuralMorphMode
+ */
 UCLASS()
 class NEURALMORPHMODEL_API UNeuralMorphModel 
 	: public UMLDeformerMorphModel
@@ -57,18 +61,18 @@ public:
 	UNeuralMorphModel(const FObjectInitializer& ObjectInitializer);
 
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override { return "Neural Morph Model"; }
+	virtual FString GetDisplayName() const override		{ return "Neural Morph Model"; }
 	// ~END UMLDeformerModel overrides.
 
 #if WITH_EDITORONLY_DATA
-	int32 GetLocalNumHiddenLayers() const { return LocalNumHiddenLayers; }
-	int32 GetLocalNumNeuronsPerLayer() const { return LocalNumNeuronsPerLayer; }
-	int32 GetGlobalNumHiddenLayers() const { return GlobalNumHiddenLayers; }
-	int32 GetGlobalNumNeuronsPerLayer() const { return GlobalNumNeuronsPerLayer; }
-	int32 GetNumIterations() const { return NumIterations; }
-	int32 GetBatchSize() const { return BatchSize; }
-	float GetLearningRate() const { return LearningRate; }
-	float GetRegularizationFactor() const { return RegularizationFactor;  }
+	int32 GetLocalNumHiddenLayers() const				{ return LocalNumHiddenLayers; }
+	int32 GetLocalNumNeuronsPerLayer() const			{ return LocalNumNeuronsPerLayer; }
+	int32 GetGlobalNumHiddenLayers() const				{ return GlobalNumHiddenLayers; }
+	int32 GetGlobalNumNeuronsPerLayer() const			{ return GlobalNumNeuronsPerLayer; }
+	int32 GetNumIterations() const						{ return NumIterations; }
+	int32 GetBatchSize() const							{ return BatchSize; }
+	float GetLearningRate() const						{ return LearningRate; }
+	float GetRegularizationFactor() const				{ return RegularizationFactor;  }
 
 public:
 	/**

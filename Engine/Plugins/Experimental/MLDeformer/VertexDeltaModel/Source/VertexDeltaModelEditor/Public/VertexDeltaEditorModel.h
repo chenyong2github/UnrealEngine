@@ -9,6 +9,9 @@ namespace UE::VertexDeltaModel
 {
 	using namespace UE::MLDeformer;
 
+	/** 
+	 * The editor model for a UVertexDeltaModel.
+	 */
 	class VERTEXDELTAMODELEDITOR_API FVertexDeltaEditorModel 
 		: public UE::MLDeformer::FMLDeformerGeomCacheEditorModel
 	{
@@ -17,7 +20,7 @@ namespace UE::VertexDeltaModel
 		static FMLDeformerEditorModel* MakeInstance();
 
 		// FGCObject overrides.
-		virtual FString GetReferencerName() const override { return TEXT("FVertexDeltaEditorModel"); }
+		virtual FString GetReferencerName() const override	{ return TEXT("FVertexDeltaEditorModel"); }
 		// ~END FGCObject overrides.
 	
 		// FMLDeformerEditorModel overrides.

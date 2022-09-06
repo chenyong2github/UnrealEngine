@@ -36,19 +36,19 @@ namespace UE::MLDeformer
 
 	bool FMLDeformerMorphModelVizSettingsDetails::IsMorphTargetsEnabled() const
 	{
-		return MorphModelVizSettings->bDrawMorphTargets && !MorphModel->MorphTargetDeltas.IsEmpty();
+		return MorphModelVizSettings->GetDrawMorphTargets() && !MorphModel->GetMorphTargetDeltas().IsEmpty();
 	}
 
 	void FMLDeformerMorphModelVizSettingsDetails::AddAdditionalSettings()
 	{
 		IDetailGroup& MorphsGroup = LiveSettingsCategory->AddGroup("Morph Targets", LOCTEXT("MorphTargetsLabel", "Morph Targets"), false, true);
-		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, bDrawMorphTargets), UMLDeformerMorphModelVizSettings::StaticClass()))
-			.EditCondition(!MorphModel->MorphTargetDeltas.IsEmpty(), nullptr);
+		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(UMLDeformerMorphModelVizSettings::GetDrawMorphTargetsPropertyName(), UMLDeformerMorphModelVizSettings::StaticClass()))
+			.EditCondition(!MorphModel->GetMorphTargetDeltas().IsEmpty(), nullptr);
 
-		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetNumber), UMLDeformerMorphModelVizSettings::StaticClass()))
+		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(UMLDeformerMorphModelVizSettings::GetMorphTargetNumberPropertyName(), UMLDeformerMorphModelVizSettings::StaticClass()))
 			.EditCondition(TAttribute<bool>(this, &FMLDeformerMorphModelVizSettingsDetails::IsMorphTargetsEnabled), nullptr);
 
-		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetDeltaThreshold), UMLDeformerMorphModelVizSettings::StaticClass()))
+		MorphsGroup.AddPropertyRow(DetailLayoutBuilder->GetProperty(UMLDeformerMorphModelVizSettings::GetMorphTargetDeltaThresholdPropertyName(), UMLDeformerMorphModelVizSettings::StaticClass()))
 			.EditCondition(TAttribute<bool>(this, &FMLDeformerMorphModelVizSettingsDetails::IsMorphTargetsEnabled), nullptr);
 	}
 }	//namespace UE::MLDeformer

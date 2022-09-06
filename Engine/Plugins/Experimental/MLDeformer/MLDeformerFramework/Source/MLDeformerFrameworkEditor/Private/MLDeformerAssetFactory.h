@@ -6,6 +6,10 @@
 #include "Factories/Factory.h"
 #include "MLDeformerAssetFactory.generated.h"
 
+/**
+ * The factory for the ML Deformer asset type.
+ * This basically integrates the new asset type into the editor, so you can right click and create a new ML Deformer asset.
+ */
 UCLASS(hidecategories=Object)
 class UMLDeformerFactory
 	: public UFactory

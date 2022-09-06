@@ -7,12 +7,12 @@
 #include "IDetailCustomization.h"
 
 class IDetailLayoutBuilder;
-class UNeuralMorphModel;
 
 namespace UE::NeuralMorphModel
 {
-	class FNeuralMorphEditorModel;
-
+	/**
+	 * The detail customization for the neural morph model.
+	 */
 	class NEURALMORPHMODELEDITOR_API FNeuralMorphModelDetails
 		: public UE::MLDeformer::FMLDeformerMorphModelDetails
 	{

@@ -27,6 +27,10 @@ namespace UE::MLDeformer
 		extern const FName Editor;
 	}
 
+	/**
+	 * The ML Deformer asset editor toolkit.
+	 * This is the editor that opens when you double click an ML Deformer asset.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerEditorToolkit :
 		public FPersonaAssetEditorToolkit,
 		public IHasPersonaToolkit,
@@ -128,7 +132,6 @@ namespace UE::MLDeformer
 
 		/** The timeline slider widget. */
 		TSharedPtr<SMLDeformerTimeline> TimeSlider = nullptr;
-
 
 		/** The currently active editor model. */
 		TSharedPtr<FMLDeformerEditorModel> ActiveModel = nullptr;

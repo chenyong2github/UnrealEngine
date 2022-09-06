@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "MLDeformerGeomCacheVizSettings.h"
 #include "MLDeformerMorphModelVizSettings.generated.h"
 
 /**
- * The vizualization settings specific to this model.
+ * The vizualization settings specific to the UMLDeformerMorphModel class, or inherited classes.
  */
 UCLASS()
 class MLDEFORMERFRAMEWORK_API UMLDeformerMorphModelVizSettings
@@ -18,6 +17,17 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerMorphModelVizSettings
 
 public:
 #if WITH_EDITORONLY_DATA
+	void SetMorphTargetNumber(int32 MorphIndexToPreview)	{ MorphTargetNumber = MorphIndexToPreview; }
+	int32 GetMorphTargetNumber() const						{ return MorphTargetNumber; }
+	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold; }
+	bool GetDrawMorphTargets() const						{ return bDrawMorphTargets; }
+
+	// Get property names.
+	static FName GetMorphTargetNumberPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetNumber); }
+	static FName GetMorphTargetDeltaThresholdPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, MorphTargetDeltaThreshold); }
+	static FName GetDrawMorphTargetsPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModelVizSettings, bDrawMorphTargets); }
+
+protected:
 	/**
 	 * The morph target to visualize. The first one always being the means, so not a sparse target.
 	 * This only can be used after you trained, in the same editor session directly after training.

@@ -14,7 +14,7 @@
 
 namespace UE::MLDeformer
 {
-	void SMLDeformerCurvePickerWidget::Construct(const FArguments& InArgs)
+	void SCurvePickerWidget::Construct(const FArguments& InArgs)
 	{
 		OnCurveNamePicked = InArgs._OnCurveNamePicked;
 		OnGetSkeleton = InArgs._OnGetSkeleton;
@@ -32,7 +32,7 @@ namespace UE::MLDeformer
 			[
 				SAssignNew(SearchBox, SSearchBox)
 					.HintText(LOCTEXT("SearchBoxHint", "Search Curves"))
-					.OnTextChanged(this, &SMLDeformerCurvePickerWidget::HandleFilterTextChanged)
+					.OnTextChanged(this, &SCurvePickerWidget::HandleFilterTextChanged)
 			]
 			+SVerticalBox::Slot()
 			.FillHeight(1.0f)
@@ -41,20 +41,20 @@ namespace UE::MLDeformer
 				.SelectionMode(ESelectionMode::Single)
 				.ItemHeight(20.0f)
 				.ListItemsSource(&CurveNames)
-				.OnSelectionChanged(this, &SMLDeformerCurvePickerWidget::HandleSelectionChanged)
-				.OnGenerateRow(this, &SMLDeformerCurvePickerWidget::HandleGenerateRow)
+				.OnSelectionChanged(this, &SCurvePickerWidget::HandleSelectionChanged)
+				.OnGenerateRow(this, &SCurvePickerWidget::HandleGenerateRow)
 			]
 		];
 
 		RefreshListItems();
 	}
 
-	void SMLDeformerCurvePickerWidget::HandleSelectionChanged(TSharedPtr<FString> InItem, ESelectInfo::Type InSelectionType)
+	void SCurvePickerWidget::HandleSelectionChanged(TSharedPtr<FString> InItem, ESelectInfo::Type InSelectionType)
 	{
 		OnCurveNamePicked.ExecuteIfBound(**InItem.Get());
 	}
 
-	TSharedRef<ITableRow> SMLDeformerCurvePickerWidget::HandleGenerateRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
+	TSharedRef<ITableRow> SCurvePickerWidget::HandleGenerateRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
 	{
 		return 
 			SNew(STableRow<TSharedPtr<FString>>, InOwnerTable)
@@ -70,7 +70,7 @@ namespace UE::MLDeformer
 			];
 	}
 
-	void SMLDeformerCurvePickerWidget::RefreshListItems()
+	void SCurvePickerWidget::RefreshListItems()
 	{
 		CurveNames.Empty();
 		UniqueCurveNames.Empty();
@@ -95,7 +95,7 @@ namespace UE::MLDeformer
 		FilterAvailableCurves();
 	}
 
-	void SMLDeformerCurvePickerWidget::FilterAvailableCurves()
+	void SCurvePickerWidget::FilterAvailableCurves()
 	{
 		CurveNames.Empty();
 
@@ -110,7 +110,7 @@ namespace UE::MLDeformer
 		NameListView->RequestListRefresh();
 	}
 
-	void SMLDeformerCurvePickerWidget::HandleFilterTextChanged(const FText& InFilterText)
+	void SCurvePickerWidget::HandleFilterTextChanged(const FText& InFilterText)
 	{
 		FilterText = InFilterText.ToString();
 		FilterAvailableCurves();
@@ -145,7 +145,7 @@ namespace UE::MLDeformer
 	{
 		bool bMultipleValues = false;
 
-		TSharedRef<SMLDeformerCurvePickerWidget> ListWidget = SNew(SMLDeformerCurvePickerWidget)
+		TSharedRef<SCurvePickerWidget> ListWidget = SNew(SCurvePickerWidget)
 			.OnCurveNamePicked(this, &SCurveSelectionWidget::OnSelectionChanged)
 			.OnGetSkeleton(OnGetSkeleton);
 

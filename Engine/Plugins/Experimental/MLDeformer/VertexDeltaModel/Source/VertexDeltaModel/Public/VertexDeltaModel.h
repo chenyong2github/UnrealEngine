@@ -1,14 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "MLDeformerGeomCacheModel.h"
 #include "VertexDeltaModelVizSettings.h"
-#include "UObject/Object.h"
 #include "VertexDeltaModel.generated.h"
 
 VERTEXDELTAMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogVertexDeltaModel, Log, All);
 
+/** 
+ * The vertex delta model, which uses a GPU based neural network.
+ * This model acts more as an example of how to implement a model that only uses the GPU.
+ * It is not as efficient as the Neural Morph Model, even though that model runs on the CPU.
+ * Unlike the Neural Morph Model this Vertex Delta Model does not generate any morph targets. All the vertex deltas are directly output
+ * by the neural network. This buffer of output deltas remains on the GPU and is then used as input buffer directly inside an optimus deformer graph.
+ */
 UCLASS()
 class VERTEXDELTAMODEL_API UVertexDeltaModel 
 	: public UMLDeformerGeomCacheModel
@@ -19,16 +26,16 @@ public:
 	UVertexDeltaModel(const FObjectInitializer& ObjectInitializer);
 
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override { return "Vertex Delta Model"; }
-	virtual bool IsNeuralNetworkOnGPU() const override { return true; }	// GPU neural network.
+	virtual FString GetDisplayName() const override			{ return "Vertex Delta Model"; }
+	virtual bool IsNeuralNetworkOnGPU() const override		{ return true; }	// GPU neural network.
 	// ~END UMLDeformerModel overrides.
 
 #if WITH_EDITORONLY_DATA
-	int32 GetNumHiddenLayers() const { return NumHiddenLayers; }
-	int32 GetNumNeuronsPerLayer() const { return NumNeuronsPerLayer; }
-	int32 GetNumIterations() const { return NumIterations; }
-	int32 GetBatchSize() const { return BatchSize; }
-	float GetLearningRate() const { return LearningRate; }
+	int32 GetNumHiddenLayers() const						{ return NumHiddenLayers; }
+	int32 GetNumNeuronsPerLayer() const						{ return NumNeuronsPerLayer; }
+	int32 GetNumIterations() const							{ return NumIterations; }
+	int32 GetBatchSize() const								{ return BatchSize; }
+	float GetLearningRate() const							{ return LearningRate; }
 
 public:
 	/** The number of hidden layers that the neural network model will have.\nHigher numbers will slow down performance but can deal with more complex deformations. */

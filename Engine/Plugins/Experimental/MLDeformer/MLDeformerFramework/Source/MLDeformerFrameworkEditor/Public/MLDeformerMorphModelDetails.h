@@ -13,6 +13,10 @@ namespace UE::MLDeformer
 {
 	class FMLDeformerMorphModelEditorModel;
 
+	/**
+	 * The detail customization for models inherited from the UMLDeformerMorphModel class.
+	 * You can inherit the detail customization for your own model from this class if your model inherited from the UMLDeformerMorphModel class.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerMorphModelDetails
 		: public FMLDeformerGeomCacheModelDetails
 	{
@@ -27,8 +31,13 @@ namespace UE::MLDeformer
 		// ~END FMLDeformerModelDetails overrides.
 
 	protected:
+		/** A pointer to the morph model. This is updated when UpdateMemberPointers is called. */
 		TObjectPtr<UMLDeformerMorphModel> MorphModel = nullptr;
+
+		/** A pointer to the editor model for the morph model. This is updated when UpdateMemberPointers is called. */
 		FMLDeformerMorphModelEditorModel* MorphModelEditorModel = nullptr;
+
+		/** The morph settings category. */
 		IDetailCategoryBuilder* MorphTargetCategoryBuilder = nullptr;
 	};
 }	// namespace UE::MLDeformer

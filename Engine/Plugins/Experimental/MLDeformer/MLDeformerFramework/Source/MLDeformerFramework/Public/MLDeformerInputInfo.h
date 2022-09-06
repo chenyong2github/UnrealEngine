@@ -28,7 +28,7 @@ public:
 	 * This method is executed post loading.
 	 * On default it will initialize the FNames based on the bone and curve string based names.
 	 */
-	virtual void OnPostLoad() { UpdateFNames(); }
+	virtual void OnPostLoad();
 
 	/**
 	 * Check whether the current inputs are compatible with a given skeletal mesh.
@@ -63,7 +63,7 @@ public:
 	 * This happens when there are no bones or curves to use as inputs.
 	 * @return Returns true when there are no bones or curves specified as inputs.
 	 */
-	virtual bool IsEmpty() const { return (BoneNameStrings.IsEmpty() && CurveNameStrings.IsEmpty()); }
+	virtual bool IsEmpty() const;
 
 	/**
 	 * Calculate how many inputs this input info generates for the neural network.
@@ -76,65 +76,65 @@ public:
 	 * Get the number of bones that we trained on.
 	 * @return The number of bones.
 	 */
-	int32 GetNumBones() const { return BoneNames.Num(); }
+	int32 GetNumBones() const;
 
 	/**
 	 * Get the bone name as a string, for a given bone we included during training.
 	 * @param Index The bone index, which is a number in range of [0..GetNumBones()-1].
 	 * @result The name of the bone.
 	 */
-	const FString& GetBoneNameString(int32 Index) const { return BoneNameStrings[Index]; }
+	const FString& GetBoneNameString(int32 Index) const;
 
 	/**
 	 * Get the bone name as an FName, for a given bone we included during training.
 	 * @param Index The bone index, which is a number in range of [0..GetNumBones()-1].
 	 * @result The name of the bone.
 	 */
-	const FName GetBoneName(int32 Index) const { return BoneNames[Index]; }
+	const FName GetBoneName(int32 Index) const;
 
 	/**
 	 * Get the number of curves that we trained on.
 	 * @return The number of curves.
 	 */
-	int32 GetNumCurves() const { return CurveNames.Num(); }
+	int32 GetNumCurves() const;
 
 	/**
 	 * Get the list of bone names that should be included as training inputs.
 	 * @return An array of strings, one for each bone name.
 	 */
-	TArray<FString>& GetBoneNameStrings() { return BoneNameStrings; }
+	TArray<FString>& GetBoneNameStrings();
 
 	/**
 	 * Get the list of curve names that should be included as training inputs.
 	 * @return An array of strings, one for each curve name.
 	 */
-	TArray<FString>& GetCurveNameStrings() { return CurveNameStrings; }
+	TArray<FString>& GetCurveNameStrings();
 
 	/**
 	 * Get the list of bone names that should be included as training inputs.
 	 * @return An array of FName objects, one for each bone.
 	 */
-	TArray<FName>& GetBoneNames() { return BoneNames; }
+	TArray<FName>& GetBoneNames();
 
 	/**
 	 * Get the list of curve names that should be included as training inputs.
 	 * @return An array of FName objects, one for each curve.
 	 */
-	TArray<FName>& GetCurveNames() { return CurveNames; }
+	TArray<FName>& GetCurveNames();
 
 	/**
 	 * Get the curve name as a string, for a given bone we included during training.
 	 * @param Index The curve index, which is a number in range of [0..GetNumCurves()-1].
 	 * @result The name of the curve.
 	 */
-	const FString& GetCurveNameString(int32 Index) const { return CurveNameStrings[Index]; }
+	const FString& GetCurveNameString(int32 Index) const;
 
 	/**
 	 * Get the curve name as an FName, for a given curve we included during training.
 	 * @param Index The curve index, which is a number in range of [0..GetNumCurves()-1].
 	 * @result The name of the curve.
 	 */
-	const FName GetCurveName(int32 Index) const { return CurveNames[Index]; }
+	const FName GetCurveName(int32 Index) const;
 
 	/** 
 	 * Extract the curve values for all curves we're interested in.
@@ -156,28 +156,28 @@ public:
 	 * Get the number of imported vertices in the base mesh, which is the linear skinned skeletal mesh.
 	 * @return The number of imported vertices in the base mesh.
 	 */
-	int32 GetNumBaseMeshVertices() const { return NumBaseMeshVertices; }
+	int32 GetNumBaseMeshVertices() const;
 
 	/**
 	 * Set the number of vertices of our base mesh, which is the linear skinned skeletal mesh.
 	 * The vertex count must be the same as in the DCC, so not the render mesh vertex count.
 	 * @param NumVerts The number of vertices of our base mesh.
 	 */
-	void SetNumBaseVertices(int32 NumVerts) { NumBaseMeshVertices = NumVerts; }
+	void SetNumBaseVertices(int32 NumVerts);
 
 	/**
 	 * Get the number of imported vertices in the target mesh, which is our training target/ground truth mesh.
 	 * The number of vertices is the vertex count as in the DCC.
 	 * @return The number of imported vertices in the target mesh.
 	 */
-	int32 GetNumTargetMeshVertices() const { return NumTargetMeshVertices; }
+	int32 GetNumTargetMeshVertices() const;
 
 	/**
 	 * Set the number of target mesh vertices. The target mesh is our training target/ground truth mesh.
 	 * The vertex count must be the same as in the DCC, so not the render mesh vertex count.
 	 * @param NumVerts The number of vertices in the target mesh.
 	 */
-	void SetNumTargetVertices(int32 NumVerts) { NumTargetMeshVertices = NumVerts; }
+	void SetNumTargetVertices(int32 NumVerts);
 
 protected:
 	/** 

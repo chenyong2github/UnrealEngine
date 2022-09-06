@@ -33,7 +33,7 @@ namespace UE::MLDeformer
 
 	void FMLDeformerGeomCacheVizSettingsDetails::AddGroundTruth()
 	{
-		TestAssetsCategory->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerGeomCacheVizSettings, GroundTruth), UMLDeformerGeomCacheVizSettings::StaticClass());
+		TestAssetsCategory->AddProperty(UMLDeformerGeomCacheVizSettings::GetTestGroundTruthPropertyName(), UMLDeformerGeomCacheVizSettings::StaticClass());
 
 		// Show an error when the test anim sequence duration doesn't match the one of the ground truth.
 		const FText AnimErrorText = GetGeomCacheAnimSequenceErrorText(GeomCacheVizSettings->GetTestGroundTruth(), VizSettings->GetTestAnimSequence());

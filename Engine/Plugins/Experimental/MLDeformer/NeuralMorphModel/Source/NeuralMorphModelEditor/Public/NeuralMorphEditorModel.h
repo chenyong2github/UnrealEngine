@@ -11,6 +11,9 @@ namespace UE::NeuralMorphModel
 {
 	using namespace UE::MLDeformer;
 
+	/**
+	 * The editor model related to the neural morph model's runtime class (UNeuralMorphModel).
+	 */
 	class NEURALMORPHMODELEDITOR_API FNeuralMorphEditorModel
 		: public UE::MLDeformer::FMLDeformerMorphModelEditorModel
 	{
@@ -19,15 +22,15 @@ namespace UE::NeuralMorphModel
 		static FMLDeformerEditorModel* MakeInstance();
 
 		// FGCObject overrides.
-		virtual FString GetReferencerName() const override { return TEXT("FNeuralMorphEditorModel"); }
+		virtual FString GetReferencerName() const override		{ return TEXT("FNeuralMorphEditorModel"); }
 		// ~END FGCObject overrides.
 	
 		// FMLDeformerEditorModel overrides.
 		virtual ETrainingResult Train() override;
-		virtual void OnPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent);
+		virtual void OnPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent) override;
 		// ~END FMLDeformerEditorModel overrides.
 
-		// Some helpers that cast to this model's variants of some classes.
-		UNeuralMorphModel* GetNeuralMorphModel() const { return Cast<UNeuralMorphModel>(Model); }
+		/** Get a pointer to the neural morph runtime model. */
+		UNeuralMorphModel* GetNeuralMorphModel() const			{ return Cast<UNeuralMorphModel>(Model); }
 	};
 }	// namespace UE::NeuralMorphModel

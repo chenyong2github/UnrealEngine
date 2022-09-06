@@ -16,7 +16,7 @@ void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
 		return;
 	}
 
-	const int32 ExternalMorphSetID = MorphModel->ExternalMorphSetID;
+	const int32 ExternalMorphSetID = MorphModel->GetExternalMorphSetID();
 	// If this check fails please set this member to some value larger than 0 in your model's constructor.
 	checkf(ExternalMorphSetID != -1, TEXT("Please set the ExternalMorphSetID member value to a unique value for your model type."));
 

@@ -15,19 +15,22 @@ class SSearchBox;
 class USkeleton;
 
 DECLARE_DELEGATE_OneParam(FOnCurveSelectionChanged, const FString&);
+DECLARE_DELEGATE_OneParam(FOnCurveNamePicked, const FString&)
 
 DECLARE_DELEGATE_RetVal(FString, FOnGetSelectedCurve);
 DECLARE_DELEGATE_RetVal(USkeleton*, FOnGetSkeleton);
 
-DECLARE_DELEGATE_OneParam(FOnCurveNamePicked, const FString&)
 
 namespace UE::MLDeformer
 {
-	class MLDEFORMERFRAMEWORKEDITOR_API SMLDeformerCurvePickerWidget
+	/**
+	 * The curve picker widget for the ML Deformer editor.
+	 */
+	class MLDEFORMERFRAMEWORKEDITOR_API SCurvePickerWidget
 		: public SCompoundWidget
 	{
 	public:
-		SLATE_BEGIN_ARGS(SMLDeformerCurvePickerWidget) {}
+		SLATE_BEGIN_ARGS(SCurvePickerWidget) {}
 		SLATE_EVENT(FOnCurveNamePicked, OnCurveNamePicked)
 		SLATE_EVENT(FOnGetSkeleton, OnGetSkeleton)
 		SLATE_END_ARGS()
@@ -39,10 +42,9 @@ namespace UE::MLDeformer
 	private:
 		void RefreshListItems();
 		void FilterAvailableCurves();
-
 		void HandleSelectionChanged(TSharedPtr<FString> InItem, ESelectInfo::Type InSelectionType);
-		TSharedRef<ITableRow> HandleGenerateRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& InOwnerTable);
 		void HandleFilterTextChanged(const FText& InFilterText);
+		TSharedRef<ITableRow> HandleGenerateRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& InOwnerTable);
 
 	private:
 		/** Delegate fired when a curve name is picked. */
@@ -70,6 +72,9 @@ namespace UE::MLDeformer
 		TSharedPtr<SListView<TSharedPtr<FString>>> NameListView;
 	};
 
+	/**
+	 * The curve selection widget for the ML Deformer.
+	 */
 	class SCurveSelectionWidget
 		: public SCompoundWidget
 	{

@@ -10,6 +10,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 
+
 void UMLDeformerInputInfo::Reset()
 {
 	BoneNameStrings.Empty();
@@ -39,6 +40,86 @@ void UMLDeformerInputInfo::UpdateFNames()
 	{
 		CurveNames.Add(FName(NameString));
 	}
+}
+
+void UMLDeformerInputInfo::OnPostLoad()
+{ 
+	UpdateFNames();
+}
+
+bool UMLDeformerInputInfo::IsEmpty() const
+{ 
+	return (BoneNameStrings.IsEmpty() && CurveNameStrings.IsEmpty());
+}
+
+int32 UMLDeformerInputInfo::GetNumBones() const
+{ 
+	return BoneNames.Num();
+}
+
+const FString& UMLDeformerInputInfo::GetBoneNameString(int32 Index) const
+{ 
+	return BoneNameStrings[Index];
+}
+
+const FName UMLDeformerInputInfo::GetBoneName(int32 Index) const
+{ 
+	return BoneNames[Index];
+}
+
+int32 UMLDeformerInputInfo::GetNumCurves() const
+{ 
+	return CurveNames.Num();
+}
+
+TArray<FString>& UMLDeformerInputInfo::GetBoneNameStrings()
+{ 
+	return BoneNameStrings;
+}
+
+TArray<FString>& UMLDeformerInputInfo::GetCurveNameStrings()
+{ 
+	return CurveNameStrings;
+}
+
+TArray<FName>& UMLDeformerInputInfo::GetBoneNames()
+{ 
+	return BoneNames;
+}
+
+TArray<FName>& UMLDeformerInputInfo::GetCurveNames()
+{ 
+	return CurveNames;
+}
+
+const FString& UMLDeformerInputInfo::GetCurveNameString(int32 Index) const
+{ 
+	return CurveNameStrings[Index];
+}
+
+const FName UMLDeformerInputInfo::GetCurveName(int32 Index) const
+{ 
+	return CurveNames[Index];
+}
+
+int32 UMLDeformerInputInfo::GetNumBaseMeshVertices() const
+{ 
+	return NumBaseMeshVertices;
+}
+
+void UMLDeformerInputInfo::SetNumBaseVertices(int32 NumVerts)
+{ 
+	NumBaseMeshVertices = NumVerts;
+}
+
+int32 UMLDeformerInputInfo::GetNumTargetMeshVertices() const
+{
+	return NumTargetMeshVertices;
+}
+
+void UMLDeformerInputInfo::SetNumTargetVertices(int32 NumVerts)
+{
+	NumTargetMeshVertices = NumVerts;
 }
 
 bool UMLDeformerInputInfo::IsCompatible(USkeletalMesh* SkeletalMesh) const

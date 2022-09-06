@@ -2,6 +2,7 @@
 
 #include "MLDeformerGeomCacheHelpers.h"
 #include "MLDeformerModel.h"
+#include "MLDeformerModule.h"
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"

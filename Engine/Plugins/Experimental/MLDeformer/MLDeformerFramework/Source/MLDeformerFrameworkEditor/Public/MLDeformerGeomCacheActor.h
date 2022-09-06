@@ -9,6 +9,10 @@ class UGeometryCacheComponent;
 
 namespace UE::MLDeformer
 {
+	/**
+	 * An editor actor with a geometry cache component on it.
+	 * This can for example be used as ground truth viewport actors.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerGeomCacheActor
 		: public FMLDeformerEditorActor
 	{
@@ -16,8 +20,8 @@ namespace UE::MLDeformer
 		FMLDeformerGeomCacheActor(const FConstructSettings& Settings);
 		virtual ~FMLDeformerGeomCacheActor() override;
 
-		void SetGeometryCacheComponent(UGeometryCacheComponent* Component) { GeomCacheComponent = Component; }
-		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeomCacheComponent; }
+		void SetGeometryCacheComponent(UGeometryCacheComponent* Component)	{ GeomCacheComponent = Component; }
+		UGeometryCacheComponent* GetGeometryCacheComponent() const			{ return GeomCacheComponent; }
 
 		// FMLDeformerEditorActor overrides.
 		virtual void SetVisibility(bool bIsVisible) override;
@@ -32,7 +36,7 @@ namespace UE::MLDeformer
 		// ~END FMLDeformerEditorActor overrides.
 
 	protected:
-		/** The geometry cache component (can be nullptr). */
+		/** The geometry cache component. */
 		TObjectPtr<UGeometryCacheComponent> GeomCacheComponent = nullptr;
 	};
 }	// namespace UE::MLDeformer

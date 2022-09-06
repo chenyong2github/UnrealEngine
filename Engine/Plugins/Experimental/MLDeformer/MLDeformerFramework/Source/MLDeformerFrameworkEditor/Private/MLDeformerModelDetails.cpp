@@ -4,6 +4,7 @@
 #include "MLDeformerModule.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerModel.h"
+#include "MLDeformerInputInfo.h"
 #include "MLDeformerEditorModel.h"
 #include "MLDeformerEditorModule.h"
 #include "MLDeformerGeomCacheHelpers.h"
@@ -72,7 +73,7 @@ namespace UE::MLDeformer
 		CreateCategories();
 
 		// Base mesh details.
-		BaseMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, SkeletalMesh), UMLDeformerModel::StaticClass());
+		BaseMeshCategoryBuilder->AddProperty(UMLDeformerModel::GetSkeletalMeshPropertyName(), UMLDeformerModel::StaticClass());
 
 		AddBaseMeshErrors();
 
@@ -121,7 +122,7 @@ namespace UE::MLDeformer
 			];
 
 		// Animation sequence.
-		IDetailPropertyRow& AnimRow = BaseMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AnimSequence), UMLDeformerModel::StaticClass());
+		IDetailPropertyRow& AnimRow = BaseMeshCategoryBuilder->AddProperty(UMLDeformerModel::GetAnimSequencePropertyName(), UMLDeformerModel::StaticClass());
 		AnimRow.CustomWidget()
 		.NameContent()
 		[
@@ -143,7 +144,7 @@ namespace UE::MLDeformer
 
 		AddAnimSequenceErrors();
 
-		const FText AnimErrorText = EditorModel->GetIncompatibleSkeletonErrorText(Model->GetSkeletalMesh(), Model->AnimSequence);
+		const FText AnimErrorText = EditorModel->GetIncompatibleSkeletonErrorText(Model->GetSkeletalMesh(), Model->GetAnimSequence());
 		FDetailWidgetRow& AnimErrorRow = BaseMeshCategoryBuilder->AddCustomRow(FText::FromString("AnimSkeletonMisMatchError"))
 			.Visibility(!AnimErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
@@ -160,12 +161,12 @@ namespace UE::MLDeformer
 
 		AddTargetMesh();
 
-		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform), UMLDeformerModel::StaticClass());
+		TargetMeshCategoryBuilder->AddProperty(UMLDeformerModel::GetAlignmentTransformPropertyName(), UMLDeformerModel::StaticClass());
 
-		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones), UMLDeformerModel::StaticClass())
+		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetShouldIncludeBonesPropertyName(), UMLDeformerModel::StaticClass())
 			.Visibility(IsBonesFlagVisible() ? EVisibility::Visible : EVisibility::Collapsed);
 
-		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves), UMLDeformerModel::StaticClass())
+		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetShouldIncludeCurvesPropertyName(), UMLDeformerModel::StaticClass())
 			.Visibility(IsCurvesFlagVisible() ? EVisibility::Visible : EVisibility::Collapsed);
 
 		AddTrainingInputFlags();
@@ -185,8 +186,8 @@ namespace UE::MLDeformer
 				]
 			];
 
-		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, MaxTrainingFrames), UMLDeformerModel::StaticClass());
-		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength), UMLDeformerModel::StaticClass());
+		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetMaxTrainingFramesPropertyName(), UMLDeformerModel::StaticClass());
+		InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetDeltaCutoffLengthPropertyName(), UMLDeformerModel::StaticClass());
 
 		// Bone include list group.
 		if (Model->DoesSupportBones())
@@ -233,13 +234,13 @@ namespace UE::MLDeformer
 					.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedBonesOnly))
 					.IsEnabled_Lambda([this](){ return Model->ShouldIncludeBonesInTraining(); })
 				];
-			BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList), UMLDeformerModel::StaticClass()));
+			BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(UMLDeformerModel::GetBoneIncludeListPropertyName(), UMLDeformerModel::StaticClass()));
 
 			AddBoneInputErrors();
 		}
 		else
 		{
-			InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList), UMLDeformerModel::StaticClass())
+			InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetBoneIncludeListPropertyName(), UMLDeformerModel::StaticClass())
 				.Visibility(EVisibility::Collapsed);
 		}
 
@@ -294,13 +295,13 @@ namespace UE::MLDeformer
 					.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedCurvesOnly))
 					.IsEnabled_Lambda([this](){ return Model->ShouldIncludeCurvesInTraining() && EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh()) > 0; })
 				];
-			CurvesIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList), UMLDeformerModel::StaticClass()));
+			CurvesIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(UMLDeformerModel::GetCurveIncludeListPropertyName(), UMLDeformerModel::StaticClass()));
 
 			AddCurveInputErrors();
 		}
 		else
 		{
-			InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList), UMLDeformerModel::StaticClass())
+			InputOutputCategoryBuilder->AddProperty(UMLDeformerModel::GetCurveIncludeListPropertyName(), UMLDeformerModel::StaticClass())
 				.Visibility(EVisibility::Collapsed);
 		}
 
@@ -365,22 +366,6 @@ namespace UE::MLDeformer
 		return FReply::Handled();
 	}
 
-	void FMLDeformerModelDetails::AddGeomCacheMeshMappingWarnings(IDetailCategoryBuilder* InTargetMeshCategoryBuilder, USkeletalMesh* SkeletalMesh, UGeometryCache* GeometryCache)
-	{
-		const FText MeshMappingError = GetGeomCacheMeshMappingErrorText(SkeletalMesh, GeometryCache);
-		InTargetMeshCategoryBuilder->AddCustomRow(FText::FromString("MeshMappingWarning"))
-			.Visibility(!MeshMappingError.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Warning)
-					.Message(MeshMappingError)
-				]
-			];
-	}
 	bool FMLDeformerModelDetails::IsBonesFlagVisible() const
 	{
 		return (Model->DoesSupportBones() && Model->DoesSupportCurves());

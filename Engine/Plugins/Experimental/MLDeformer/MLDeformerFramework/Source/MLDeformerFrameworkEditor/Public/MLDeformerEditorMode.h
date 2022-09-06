@@ -12,10 +12,15 @@ namespace UE::MLDeformer
 	class FMLDeformerEditorToolkit;
 	class FMLDeformerPreviewScene;
 
+	/**
+	 * The ML Deformer Persona editor mode.
+	 * This handles ticking and rendering of the render viewport and camera focus.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerEditorMode
 		: public IPersonaEditMode
 	{
 	public:
+		/** The name of the mode. */
 		static FName ModeName;
 
 		void SetEditorToolkit(FMLDeformerEditorToolkit* InToolkit) { DeformerEditorToolkit = InToolkit; }

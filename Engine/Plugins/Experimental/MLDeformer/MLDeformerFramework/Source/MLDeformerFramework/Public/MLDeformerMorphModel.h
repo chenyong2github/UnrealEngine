@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "MLDeformerGeomCacheModel.h"
-#include "UObject/Object.h"
 #include "MLDeformerMorphModel.generated.h"
 
-class USkeletalMesh;
-class UMLDeformerAsset;
-class UMLDeformerModelInstance;
 struct FExternalMorphSet;
 
 UCLASS()
@@ -21,10 +18,10 @@ public:
 	UMLDeformerMorphModel(const FObjectInitializer& ObjectInitializer);
 
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override { return "Morph Base Model"; }
+	virtual FString GetDisplayName() const override			{ return "Morph Base Model"; }
+	virtual bool IsNeuralNetworkOnGPU() const override		{ return false; }	// CPU based neural network.
 	virtual void Serialize(FArchive& Archive) override;
 	virtual void PostMLDeformerComponentInit(UMLDeformerModelInstance* ModelInstance) override;
-	virtual bool IsNeuralNetworkOnGPU() const override { return false; }	// CPU neural network.
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	// ~END UMLDeformerModel overrides.
 
@@ -33,16 +30,40 @@ public:
 	// ~END UObject overrides.
 
 #if WITH_EDITORONLY_DATA
-	float GetMorphTargetDeltaThreshold() const { return MorphTargetDeltaThreshold; }
+	float GetMorphTargetDeltaThreshold() const				{ return MorphTargetDeltaThreshold; }
+	float GetMorphTargetErrorTolerance() const				{ return MorphTargetErrorTolerance; }
+
+	// Get property names.
+	static FName GetMorphTargetDeltaThresholdPropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetDeltaThreshold); }
+	static FName GetMorphTargetErrorTolerancePropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerMorphModel, MorphTargetErrorTolerance); }
 #endif
 
-	UFUNCTION(BlueprintCallable, Category = "NeuralMorphModel")
-	void SetMorphTargetDeltas(const TArray<float>& Deltas);
+	/**
+	 * Set the per vertex deltas, as a set of floats. Each vertex delta must have 3 floats.
+	 * Concatenate all deltas into one buffer, so like this [morphdeltas_target0, morphdeltas_target1, ..., morphdeltas_targetN].
+	 * The vertex ordering should be: [(x, y, z), (x, y, z), (x, y, z)].
+	 * @param Deltas The array of floats that contains the deltas. The number of items in the array must be equal to (NumMorphs * NumBaseMeshVerts * 3).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformerMorphModel")
+	void SetMorphTargetDeltaFloats(const TArray<float>& Deltas);
 
-	const TArray<FVector3f>& GetMorphTargetDeltas() const { return MorphTargetDeltas; }
+	UFUNCTION(BlueprintCallable, Category = "MLDeformerMorphModel")
+	void SetMorphTargetDeltas(const TArray<FVector3f>& Deltas);
+
+	const TArray<FVector3f>& GetMorphTargetDeltas() const	{ return MorphTargetDeltas; }
+	int32 GetExternalMorphSetID() const						{ return ExternalMorphSetID; }
+	void SetExternalMorphSetID(int32 ID)					{ check(ID != -1);  ExternalMorphSetID = ID; }
+	TSharedPtr<FExternalMorphSet> GetMorphTargetSet() const { return MorphTargetSet; }
+
+	/**
+	 * Get the start index into the array of deltas, for a given morph target.
+	 * This does not perform a bounds check to see if MorphTargetIndex is in a valid range, so be aware.
+	 * @param MorphTargetIndex The morph target index.
+	 * @return The start index, or INDEX_NONE in case there are no deltas.
+	 */
 	int32 GetMorphTargetDeltaStartIndex(int32 MorphTargetIndex) const;
 
-public:
+protected:
 	/** The compressed morph target data, ready for the GPU. */
 	TSharedPtr<FExternalMorphSet> MorphTargetSet;
 

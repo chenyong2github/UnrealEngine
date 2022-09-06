@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,6 +11,14 @@ class UMLDeformerModel;
 class UNeuralNetwork;
 class USkeletalMeshComponent;
 
+/**
+ * An instance of the ML Deformer model.
+ * The ML Deformer model contains shared data, while this instance contains data unique to the actor it is being applied to.
+ * So if you have 1 ML Deformer model, applied to 100 enemy actors, you will get 100 ML Deformer Model Instance objects.
+ * The model instance is created and managed by the ML Deformer component.
+ * The main task of the model instance is to feed the neural network with the right input values and run the neural network
+ * inference at runtime, and possibly do something with the output.
+ */
 UCLASS()
 class MLDEFORMERFRAMEWORK_API UMLDeformerModelInstance
 	: public UObject
@@ -96,45 +105,46 @@ public:
 	 * Get the current component space bone transforms that we grabbed from the skeletal mesh component.
 	 * @return The cached bone transforms, in component space.
 	 */
-	const TArray<FTransform>& GetBoneTransforms() const { return BoneTransforms; }
+	const TArray<FTransform>& GetBoneTransforms() const;
 
 	/**
 	 * Is the deformer asset used compatible with the skeletal mesh component used during the Init call?
 	 * @return True if compatible, false if not.
 	 */
-	bool IsCompatible() const { return bIsCompatible; }
+	bool IsCompatible() const;
 
 	/** 
 	 * Get the compatibility error text. This will be a non-empty string in case IsCompatible() return false. 
 	 * @return Returns the string containing more information about the reasons for compatibility issues.
 	 */
-	const FString& GetCompatibilityErrorText() const { return ErrorText; }
+	const FString& GetCompatibilityErrorText() const;
 
 	/**
 	 * Get the skeletal mesh component we're working with.
 	 * @return A pointer to the skeletal mesh component.
 	 */
-	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkeletalMeshComponent; }
+	USkeletalMeshComponent* GetSkeletalMeshComponent() const;
 
 	/** Update the compatibility status, as returned by IsCompatible() and GetCompatibilityErrorText(). */
 	void UpdateCompatibilityStatus();
 
 	/** Get the model that this is an instance of. */
-	UMLDeformerModel* GetModel() const { return Model.Get(); }
+	UMLDeformerModel* GetModel() const;
 
 	/** Set the deformer model that this is an instance of. */
-	void SetModel(UMLDeformerModel* InModel) { Model = InModel; }
+	void SetModel(UMLDeformerModel* InModel);
 
 	/**
 	 * Get the neural network inference handle.
 	 * @return Returns the handle. This is -1 for an invalid handle.
 	 */
-	int32 GetNeuralNetworkInferenceHandle() const { return NeuralNetworkInferenceHandle; }
+	int32 GetNeuralNetworkInferenceHandle() const;
 
 	/** Set whether we had a successful call to UMLDeformerModel::PostMLDeformerComponentInit. */
-	void SetHasPostInitialized(bool bHasInitialized) { bHasPostInitialized = bHasInitialized; }
+	void SetHasPostInitialized(bool bHasInitialized);
 
-	bool HasPostInitialized() const { return bHasPostInitialized; }
+	/** Check whether we already called UMLDeformerModel::PostMLDeformerComponentInit. */
+	bool HasPostInitialized() const;
 
 protected:
 	/**
@@ -160,12 +170,11 @@ protected:
 	 */
 	void UpdateBoneTransforms();
 
-public:
+protected:
 	/** The ML Deformer model that this is an instance of. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMLDeformerModel> Model = nullptr;
 
-protected:
 	/** The skeletal mesh component we work with. This is mainly used for compatibility checks. */
 	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
 

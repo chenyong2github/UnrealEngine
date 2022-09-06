@@ -17,10 +17,13 @@ namespace UE::MLDeformer
 {
 	class FMLDeformerEditorModel;
 
+	/**
+	 * The space in which the sampler will calculate its vertex deltas.
+	 */
 	enum class EVertexDeltaSpace
 	{
-		PreSkinning,	/** Apply the deltas before skinning. */
-		PostSkinning	/** Apply the deltas after skinning. */
+		PreSkinning,	/** Vertex deltas will be in pre-skinning space. We train on pre-skinning deltas. */
+		PostSkinning	/** Vertex deltas will be in post-skinning space. Mostly used to visualize deltas in the viewport. */
 	};
 
 	/**
@@ -40,31 +43,75 @@ namespace UE::MLDeformer
 		virtual void Sample(int32 AnimFrameIndex);
 
 		/** Get the time in seconds, at a given frame index. */
-		virtual float GetTimeAtFrame(int32 InAnimFrameIndex) const { return 0.0f; }
+		virtual float GetTimeAtFrame(int32 InAnimFrameIndex) const		{ return 0.0f; }
 
-		const TArray<FVector3f>& GetSkinnedVertexPositions() const { return SkinnedVertexPositions; }
-		const TArray<FVector3f>& GetUnskinnedVertexPositions() const { return UnskinnedVertexPositions; }
-		const TArray<float>& GetVertexDeltas() const { return VertexDeltas; }
-		const TArray<float>& GetBoneRotations() const { return BoneRotations; }
-		const TArray<float>& GetCurveValues() const { return CurveValues; }
-		int32 GetNumImportedVertices() const { return NumImportedVertices; }
+		/** Get the skinned vertex positions of the skeletal mesh. */
+		const TArray<FVector3f>& GetSkinnedVertexPositions() const		{ return SkinnedVertexPositions; }
+
+		/** Get the unskinned vertex positions of the skeletal mesh. */
+		const TArray<FVector3f>& GetUnskinnedVertexPositions() const	{ return UnskinnedVertexPositions; }
+
+		/** Get the calculated vertex deltas. The space they will be in depends on the setup vertex deltas space. */
+		const TArray<float>& GetVertexDeltas() const					{ return VertexDeltas; }
+
+		/** 
+		 * Get the current bone rotations that we can feed to a neural network. 
+		 * The number of floats in the buffer equals to NumBones * 6.
+		 * The six floats represent two columns of the 3x3 rotation matrix of the bone.
+		 * @return The arrray of floats that we can pass to the neural network as inputs.
+		 */
+		const TArray<float>& GetBoneRotations() const					{ return BoneRotations; }
+
+		/** Get the float values for the curves. One float per curve. */
+		const TArray<float>& GetCurveValues() const						{ return CurveValues; }
+
+		/** Get the number of imported vertices. */
+		int32 GetNumImportedVertices() const							{ return NumImportedVertices; }
+
+		/** Get the space in which we will calculate the vertex deltas. */
+		EVertexDeltaSpace GetVertexDeltaSpace() const					{ return VertexDeltaSpace; }
+
+		/** Set the space in which we should calculate the vertex deltas. */
+		void SetVertexDeltaSpace(EVertexDeltaSpace DeltaSpace)			{ VertexDeltaSpace = DeltaSpace; }
+
+		/** Have we already initialized this sampler? Is it ready for sampling? */
+		bool IsInitialized() const										{ return SkelMeshActor.Get() != nullptr; }
+
+		/** Get the number of bones. */
 		int32 GetNumBones() const;
-		EVertexDeltaSpace GetVertexDeltaSpace() const { return VertexDeltaSpace; }
+
+		/** Calculate the memory usage of the sampler. */
 		SIZE_T CalcMemUsagePerFrameInBytes() const;
-		void SetVertexDeltaSpace(EVertexDeltaSpace DeltaSpace) { VertexDeltaSpace = DeltaSpace; }
-		bool IsInitialized() const { return SkelMeshActor.Get() != nullptr; }
 
 	protected:
+		/** Create the actors used for sampling. This creates two actors, one for the base skeletal mesh and one for the target mesh. */
 		virtual void CreateActors();
+
+		/** Register the target mesh components. */
 		virtual void RegisterTargetComponents() {}
+
+		/** Extract the skinned vertex positions, of the skeletal mesh. */
 		void ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const;
+
+		/** Extract the unskinned vertex positions, of the skeletal mesh. */
 		void ExtractUnskinnedPositions(int32 LODIndex, TArray<FVector3f>& OutPositions) const;
+
+		/** Calculate the inverse skinning transform, which is used to convert from post-skinning to pre-skinning space. */
 		FMatrix44f CalcInverseSkinningTransform(int32 VertexIndex, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const;
+
+		/** Create a new actor with a specific name, in a specified world. */
 		AActor* CreateNewActor(UWorld* InWorld, const FName& Name) const;
 
+		/** Update the skeletal mesh component's play position, and refresh its bone transforms internally. */
 		void UpdateSkeletalMeshComponent();
+
+		/** Update the skinned vertex positions. */
 		void UpdateSkinnedPositions();
+
+		/** Update the bone rotation buffers. */
 		void UpdateBoneRotations();
+
+		/** Update the curve value buffers. */
 		void UpdateCurveValues();
 
 	protected:

@@ -4,9 +4,6 @@
 #include "MLDeformerMorphModelInstance.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerComponent.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
-#include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
 
@@ -101,9 +98,14 @@ void UMLDeformerMorphModel::PostMLDeformerComponentInit(UMLDeformerModelInstance
 	}
 }
 
-void UMLDeformerMorphModel::SetMorphTargetDeltas(const TArray<float>& Deltas)
+void UMLDeformerMorphModel::SetMorphTargetDeltaFloats(const TArray<float>& Deltas)
 {
 	FloatArrayToVector3Array(Deltas, MorphTargetDeltas);
+}
+
+void UMLDeformerMorphModel::SetMorphTargetDeltas(const TArray<FVector3f>& Deltas)
+{
+	MorphTargetDeltas = Deltas;
 }
 
 int32 UMLDeformerMorphModel::GetMorphTargetDeltaStartIndex(int32 BlendShapeIndex) const

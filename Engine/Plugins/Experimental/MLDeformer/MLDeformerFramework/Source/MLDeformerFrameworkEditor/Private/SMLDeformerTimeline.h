@@ -27,7 +27,7 @@ namespace UE::MLDeformer
 	class SAnimTimelineTransportControls; 
 
 	/**
-	 * Implements a timeline widget for the ML Deformer Editor.
+	 * Implements a timeline widget for the ML Deformer editor.
 	 */
 	class SMLDeformerTimeline : public SCompoundWidget
 	{

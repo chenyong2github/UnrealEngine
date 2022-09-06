@@ -26,6 +26,51 @@ void UMLDeformerModelInstance::Release()
 	}
 }
 
+USkeletalMeshComponent* UMLDeformerModelInstance::GetSkeletalMeshComponent() const
+{ 
+	return SkeletalMeshComponent;
+}
+
+UMLDeformerModel* UMLDeformerModelInstance::GetModel() const
+{ 
+	return Model.Get();
+}
+
+void UMLDeformerModelInstance::SetModel(UMLDeformerModel* InModel)
+{ 
+	Model = InModel;
+}
+
+int32 UMLDeformerModelInstance::GetNeuralNetworkInferenceHandle() const
+{ 
+	return NeuralNetworkInferenceHandle;
+}
+
+void UMLDeformerModelInstance::SetHasPostInitialized(bool bHasInitialized)
+{ 
+	bHasPostInitialized = bHasInitialized;
+}
+
+bool UMLDeformerModelInstance::HasPostInitialized() const
+{ 
+	return bHasPostInitialized;
+}
+
+const TArray<FTransform>& UMLDeformerModelInstance::GetBoneTransforms() const
+{ 
+	return BoneTransforms;
+}
+
+bool UMLDeformerModelInstance::IsCompatible() const
+{ 
+	return bIsCompatible;
+}
+
+const FString& UMLDeformerModelInstance::GetCompatibilityErrorText() const
+{ 
+	return ErrorText;
+}
+
 void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 {
 	SkeletalMeshComponent = SkelMeshComponent;

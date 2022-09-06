@@ -49,7 +49,7 @@ public:
 	 * Values can be anything between 0 and 1.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
-	float GetWeight() const { return Weight; }
+	float GetWeight() const										{ return Weight; }
 
 	/**
 	 * Set the ML Deformer weight. This determines how active the deformer is. You can see it as a blend weight.
@@ -60,16 +60,41 @@ public:
 	 * @param NormalizedWeightValue The weight value.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
-	void SetWeight(float NormalizedWeightValue) { Weight = FMath::Clamp<float>(NormalizedWeightValue, 0.0f, 1.0f);  }
+	void SetWeight(float NormalizedWeightValue)					{ Weight = FMath::Clamp<float>(NormalizedWeightValue, 0.0f, 1.0f);  }
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	UMLDeformerAsset* GetDeformerAsset() { return DeformerAsset; }
-	void SetDeformerAsset(UMLDeformerAsset* InDeformerAsset) { DeformerAsset = InDeformerAsset; }
-	UMLDeformerModelInstance* GetModelInstance() const { return ModelInstance; }
-	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkelMeshComponent.Get(); }
+	/**
+	 * Get the ML Deformer asset that is used by this component.
+	 * @return A pointer to the ML Deformer asset.
+	 */
+	UMLDeformerAsset* GetDeformerAsset() const					{ return DeformerAsset; }
+
+	/**
+	 * Set the deformer asset that is used by this component.
+	 * @param InDeformerAsset A pointer to the deformer asset.
+	 */
+	void SetDeformerAsset(UMLDeformerAsset* InDeformerAsset)	{ DeformerAsset = InDeformerAsset; }
+
+	/**
+	 * Get the ML Deformer model instance that this component currently uses.
+	 * The instance is responsible for running inference and feeding the neural network with inputs.
+	 * @return A pointer to the model instance object.
+	 */
+	UMLDeformerModelInstance* GetModelInstance() const			{ return ModelInstance; }
+
+	/**
+	 * Get the skeletal mesh component that the ML Deformer will work on.
+	 * The skeletal mesh that is setup inside the skeletal mesh component will be the mesh that will be deformed by this ML Deformer component.
+	 * @return A pointer to the skeletal mesh component who's mesh will be deformed by this ML Deformer component.
+	 */
+	USkeletalMeshComponent* GetSkeletalMeshComponent() const	{ return SkelMeshComponent.Get(); }
+
+	// Get property names.
+	static FName GetDeformerAssetPropertyName()					{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, DeformerAsset); }
+	static FName GetWeightPropertyName()						{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, Weight); }
 
 protected:
 	// AActorComponent overrides.
@@ -101,7 +126,6 @@ protected:
 	/** DelegateHandle for NeuralNetwork modification. */
 	FDelegateHandle NeuralNetworkModifyDelegateHandle;
 
-public:
 	/** The deformer asset to use. */
 	UPROPERTY(EditAnywhere, DisplayName = "ML Deformer Asset", Category = "ML Deformer")
 	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;

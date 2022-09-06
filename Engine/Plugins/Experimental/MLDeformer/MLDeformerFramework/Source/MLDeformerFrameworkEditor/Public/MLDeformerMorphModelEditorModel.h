@@ -6,19 +6,15 @@
 #include "MLDeformerGeomCacheEditorModel.h"
 #include "MLDeformerGeomCacheSampler.h"
 #include "MLDeformerEditorActor.h"
-#include "UObject/GCObject.h"
 
-class UMLDeformerAsset;
-class USkeletalMesh;
-class UGeometryCache;
 class UMLDeformerMorphModel;
 class UMLDeformerMorphModelVizSettings;
 
 namespace UE::MLDeformer
 {
-	class FMLDeformerGeomCacheActor;
-	class FNeuralMorphEditorModelActor;
-
+	/**
+	 * The editor model related to the runtime UMLDeformerMorphModel class, or models inherited from that.
+	 */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerMorphModelEditorModel
 		: public FMLDeformerGeomCacheEditorModel
 	{
@@ -52,6 +48,12 @@ namespace UE::MLDeformer
 		 * @param Deltas The deltas for all morph targets concatenated. So the number of items in this array is a multiple of Model->GetNumBaseVerts().
 		 */
 		void InitEngineMorphTargets(const TArray<FVector3f>& Deltas);
+
+		/**
+		 * Clamp the current morph target number inside the visualization settings to a valid range.
+		 * This won't let the number of the morph target that we are visualizing go above the total number of morph targets.
+		 */
+		void ClampMorphTargetNumber();
 
 	protected:
 		/**

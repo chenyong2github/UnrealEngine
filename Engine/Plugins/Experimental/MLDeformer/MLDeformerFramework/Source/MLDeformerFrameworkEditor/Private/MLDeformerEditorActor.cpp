@@ -10,7 +10,7 @@ namespace UE::MLDeformer
 {
 	FMLDeformerEditorActor::FMLDeformerEditorActor(const FConstructSettings& Settings)
 	{
-		check(Settings.TypeID != -1);
+		checkf(Settings.TypeID != -1, TEXT("Expected a valid actor type ID, please set this to a valid ID."));
 		check(Settings.Actor != nullptr);
 
 		TypeID = Settings.TypeID;

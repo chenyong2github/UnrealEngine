@@ -9,9 +9,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
-#include "GeometryCache.h"
-#include "GeometryCacheMeshData.h"
-#include "GeometryCacheTrack.h"
 #include "NeuralNetwork.h"
 #include "Animation/AnimSequence.h"
 #include "UObject/UObjectGlobals.h"
@@ -22,7 +19,7 @@ namespace UE::MLDeformer
 	{
 		if (VertexMap.Num() > 0)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FVertexMapBuffer"));
+			FRHIResourceCreateInfo CreateInfo(TEXT("UMLDeformerModel::FVertexMapBuffer"));
 
 			VertexBufferRHI = RHICreateVertexBuffer(VertexMap.Num() * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo);
 			uint32* Data = reinterpret_cast<uint32*>(RHILockBuffer(VertexBufferRHI, 0, VertexMap.Num() * sizeof(uint32), RLM_WriteOnly));

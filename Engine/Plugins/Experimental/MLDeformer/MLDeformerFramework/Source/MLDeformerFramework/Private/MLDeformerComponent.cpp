@@ -72,7 +72,7 @@ void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
 	UMLDeformerModel* Model = DeformerAsset->GetModel();
 	if (Model)
 	{
-		NeuralNetworkModifyDelegateHandle = Model->NeuralNetworkModifyDelegate.AddLambda
+		NeuralNetworkModifyDelegateHandle = Model->GetNeuralNetworkModifyDelegate().AddLambda
 		(
 			([this]()
 			{
@@ -88,7 +88,7 @@ void UMLDeformerComponent::RemoveNeuralNetworkModifyDelegate()
 		NeuralNetworkModifyDelegateHandle != FDelegateHandle() && 
 		DeformerAsset->GetModel())
 	{
-		DeformerAsset->GetModel()->NeuralNetworkModifyDelegate.Remove(NeuralNetworkModifyDelegateHandle);
+		DeformerAsset->GetModel()->GetNeuralNetworkModifyDelegate().Remove(NeuralNetworkModifyDelegateHandle);
 	}
 	
 	NeuralNetworkModifyDelegateHandle = FDelegateHandle();
@@ -103,24 +103,24 @@ void UMLDeformerComponent::BeginDestroy()
 void UMLDeformerComponent::Activate(bool bReset)
 {
 	// If we haven't pointed to some skeletal mesh component to use, then try to find one on the actor.
-	
 	if (SkelMeshComponent == nullptr)
 	{
 		// First search for a skeletal mesh component with the expected number of vertices.
-		UMLDeformerModel const* Model = DeformerAsset ? DeformerAsset->GetModel() : nullptr;
+		// This will try to find a skeletal mesh with the same number of vertices.
+		const UMLDeformerModel* Model = DeformerAsset ? DeformerAsset->GetModel() : nullptr;
 		const int32 NumModelVertices = Model ? Model->GetVertexMap().Num() : -1;
-
 		if (NumModelVertices > 0)
 		{
+			// Get a list of all skeletal mesh components on the actor.
 			TArray<USkeletalMeshComponent*> Components;
-		
 			AActor* Actor = Cast<AActor>(GetOuter());
-			Actor->GetComponents(Components);
+			Actor->GetComponents<USkeletalMeshComponent>(Components);
 		
+			// Find a component that uses a mesh with the same vertex count.
 			for (USkeletalMeshComponent* Component : Components)
 			{
-				USkeletalMesh const* SkeletalMesh = Component->GetSkeletalMeshAsset();
-				FSkeletalMeshRenderData const* RenderData = SkeletalMesh ? SkeletalMesh->GetResourceForRendering() : nullptr;
+				const USkeletalMesh* SkeletalMesh = Component->GetSkeletalMeshAsset();
+				const FSkeletalMeshRenderData* RenderData = SkeletalMesh ? SkeletalMesh->GetResourceForRendering() : nullptr;
 				const int32 NumComponentVertices = RenderData && RenderData->LODRenderData.IsValidIndex(0) ? RenderData->LODRenderData[0].GetNumVertices() : -1;
 
 				if (NumComponentVertices == NumModelVertices)
@@ -135,7 +135,7 @@ void UMLDeformerComponent::Activate(bool bReset)
 	if (SkelMeshComponent == nullptr)
 	{
 		// Fall back to the first skeletal mesh component.
-		AActor* Actor = Cast<AActor>(GetOuter());
+		const AActor* Actor = Cast<AActor>(GetOuter());
 		SkelMeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
 	}
 

@@ -7,6 +7,11 @@
 
 namespace UE::VertexDeltaModel
 {
+	/**
+	 * The detail customization for the vertex delta model visualization settings.
+	 * We inherit from a base class as that already takes care of some nice grouping of properties, some error reporting
+	 * in case of issues, and some nice grouping of settings.
+	 */
 	class VERTEXDELTAMODELEDITOR_API FVertexDeltaModelVizSettingsDetails
 		: public UE::MLDeformer::FMLDeformerGeomCacheVizSettingsDetails
 	{

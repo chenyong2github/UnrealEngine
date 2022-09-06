@@ -88,5 +88,4 @@ namespace UE::MLDeformer
 	{
 		return Skeleton;
 	}
-
 }	// namespace UE::MLDeformer

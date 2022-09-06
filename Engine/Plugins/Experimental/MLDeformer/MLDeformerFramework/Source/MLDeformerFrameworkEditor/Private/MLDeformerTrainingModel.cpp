@@ -16,6 +16,16 @@ void UMLDeformerTrainingModel::Init(UE::MLDeformer::FMLDeformerEditorModel* InEd
 	EditorModel = InEditorModel;
 }
 
+void UMLDeformerTrainingModel::SetEditorModel(UE::MLDeformer::FMLDeformerEditorModel* InModel)
+{ 
+	EditorModel = InModel;
+}
+
+UE::MLDeformer::FMLDeformerEditorModel* UMLDeformerTrainingModel::GetEditorModel() const
+{
+	return EditorModel;
+}
+
 int32 UMLDeformerTrainingModel::GetNumberSampleTransforms() const
 {
 	return GetModel()->GetInputInfo()->GetNumBones();

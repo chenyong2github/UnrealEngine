@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -6,7 +7,7 @@
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerGeomCacheHelpers.h"
-#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 #include "MLDeformerGeomCacheModel.generated.h"
 
 class UMLDeformerAsset;
@@ -64,16 +65,12 @@ public:
 	 * @return The geometry cache mesh to skeletal mesh mappings.
 	 */
 	TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping>& GetGeomCacheMeshMappings() { return MeshMappings; }
-
-	/**
-	 * Get the mapping between geometry cache tracks and meshes inside the skeletal mesh.
-	 * This lets us know what parts of the skeletal mesh are related to what geometry cache tracks.
-	 * Once we have that, we can calculate deltas between the two.
-	 * @return The geometry cache mesh to skeletal mesh mappings, in read-only mode.
-	 */
 	const TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping>& GetGeomCacheMeshMappings() const { return MeshMappings; }
 
-public:
+	// Get property names.
+	static FName GetGeometryCachePropertyName() { return GET_MEMBER_NAME_CHECKED(UMLDeformerGeomCacheModel, GeometryCache); }
+
+protected:
 	/** The mappings between the geometry cache tracks and skeletal mesh imported meshes. */
 	TArray<UE::MLDeformer::FMLDeformerGeomCacheMeshMapping> MeshMappings;
 

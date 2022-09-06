@@ -522,7 +522,7 @@ namespace UE::MLDeformer
 					EditorActor->SetPlayPosition(PlayOffset);
 				}
 			}
-			VizSettings->TrainingFrameNumber = TargetFrame;
+			VizSettings->SetTrainingFrameNumber(TargetFrame);
 		}
 		else if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
 		{
@@ -538,7 +538,7 @@ namespace UE::MLDeformer
 					EditorActor->SetPlayPosition(PlayOffset);
 				}
 			}
-			VizSettings->TestingFrameNumber = TargetFrame;
+			VizSettings->SetTestingFrameNumber(TargetFrame);
 		}
 	}
 
@@ -565,7 +565,7 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::SetTrainingFrame(int32 FrameNumber)
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		VizSettings->TrainingFrameNumber = FrameNumber;
+		VizSettings->SetTrainingFrameNumber(FrameNumber);
 		ClampCurrentTrainingFrameIndex();
 		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 		{
@@ -576,7 +576,7 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::SetTestFrame(int32 FrameNumber)
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		VizSettings->TestingFrameNumber = FrameNumber;
+		VizSettings->SetTestingFrameNumber(FrameNumber);
 		ClampCurrentTestFrameIndex();
 		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
 		{
@@ -593,88 +593,25 @@ namespace UE::MLDeformer
 		}
 
 		// When we change one of these properties below, restart animations etc.
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, SkeletalMesh))
+		if (Property->GetFName() == UMLDeformerModel::GetSkeletalMeshPropertyName())
 		{
 			TriggerInputAssetChanged();
+			SetResamplingInputOutputsNeeded(true);
 			Model->InitVertexMap();
 			Model->InitGPUData();
 			UpdateDeformerGraph();
 		}
-		else
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AnimSequence) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestAnimSequence))
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetTestAnimSequencePropertyName())
 		{
 			TriggerInputAssetChanged(true);
 		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform))
-		{
-			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-			{
-				SampleDeltas();
-			}
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, MaxTrainingFrames))
+		else if (Property->GetFName() == UMLDeformerModel::GetAnimSequencePropertyName())
 		{
 			TriggerInputAssetChanged();
+			SetResamplingInputOutputsNeeded(true);
 		}
-		else
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves))
-		{
-			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-			{
-				UpdateEditorInputInfo();
-				UpdateIsReadyForTrainingState();
-				GetEditor()->GetModelDetailsView()->ForceRefresh();
-			}
-		}
-		else
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList))
-		{
-			UpdateEditorInputInfo();
-			GetEditor()->GetModelDetailsView()->ForceRefresh();
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed))
-		{
-			UpdateTestAnimPlaySpeed();
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TrainingFrameNumber))
-		{
-			ClampCurrentTrainingFrameIndex();
-			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetTrainingFrameNumber();
-			OnTimeSliderScrubPositionChanged(GetTrainingTimeAtFrame(CurrentFrameNumber), false);
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestingFrameNumber))
-		{
-			ClampCurrentTestFrameIndex();
-			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetTestingFrameNumber();
-			OnTimeSliderScrubPositionChanged(GetTestTimeAtFrame(CurrentFrameNumber), false);
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap))
-		{
-			SetHeatMapMaterialEnabled(Model->GetVizSettings()->GetShowHeatMap());
-			UpdateDeformerGraph();
-		}
-		else
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawLinearSkinnedActor) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawMLDeformedActor) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawGroundTruthActor))
-		{
-			UpdateActorVisibility();
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawDeltas))
-		{
-			SampleDeltas();
-		} 
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph))
-		{
-			UpdateDeformerGraph();
-			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
-		}
-		else
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength) ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform))
+		if (Property->GetFName() == UMLDeformerModel::GetAlignmentTransformPropertyName() ||
+		    Property->GetFName() == UMLDeformerModel::GetDeltaCutoffLengthPropertyName())
 		{
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 			{
@@ -682,6 +619,68 @@ namespace UE::MLDeformer
 				SampleDeltas();
 			}
 		}
+		else if (Property->GetFName() == UMLDeformerModel::GetMaxTrainingFramesPropertyName())
+		{
+			TriggerInputAssetChanged();
+			SetResamplingInputOutputsNeeded(true);
+		}
+		else
+		if (Property->GetFName() == UMLDeformerModel::GetShouldIncludeBonesPropertyName() ||
+			Property->GetFName() == UMLDeformerModel::GetShouldIncludeCurvesPropertyName())
+		{
+			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+			{
+				SetResamplingInputOutputsNeeded(true);
+				UpdateEditorInputInfo();
+				UpdateIsReadyForTrainingState();
+				GetEditor()->GetModelDetailsView()->ForceRefresh();
+			}
+		}
+		else
+		if (Property->GetFName() == UMLDeformerModel::GetBoneIncludeListPropertyName() ||
+			Property->GetFName() == UMLDeformerModel::GetCurveIncludeListPropertyName())
+		{
+			SetResamplingInputOutputsNeeded(true);
+			UpdateEditorInputInfo();
+			GetEditor()->GetModelDetailsView()->ForceRefresh();
+		}
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetAnimPlaySpeedPropertyName())
+		{
+			UpdateTestAnimPlaySpeed();
+		}
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetTrainingFrameNumberPropertyName())
+		{
+			ClampCurrentTrainingFrameIndex();
+			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetTrainingFrameNumber();
+			OnTimeSliderScrubPositionChanged(GetTrainingTimeAtFrame(CurrentFrameNumber), false);
+		}
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetTestingFrameNumberPropertyName())
+		{
+			ClampCurrentTestFrameIndex();
+			const int32 CurrentFrameNumber = Model->GetVizSettings()->GetTestingFrameNumber();
+			OnTimeSliderScrubPositionChanged(GetTestTimeAtFrame(CurrentFrameNumber), false);
+		}
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetShowHeatMapPropertyName())
+		{
+			SetHeatMapMaterialEnabled(Model->GetVizSettings()->GetShowHeatMap());
+			UpdateDeformerGraph();
+		}
+		else
+		if (Property->GetFName() == UMLDeformerVizSettings::GetDrawLinearSkinnedActorPropertyName() ||
+			Property->GetFName() == UMLDeformerVizSettings::GetDrawMLDeformedActorPropertyName() ||
+			Property->GetFName() == UMLDeformerVizSettings::GetDrawGroundTruthActorPropertyName())
+		{
+			UpdateActorVisibility();
+		}
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetDrawVertexDeltasPropertyName())
+		{
+			SampleDeltas();
+		} 
+		else if (Property->GetFName() == UMLDeformerVizSettings::GetDeformerGraphPropertyName())
+		{
+			UpdateDeformerGraph();
+			GetEditor()->GetVizSettingsDetailsView()->ForceRefresh();
+		};
 	}
 
 	FMLDeformerEditorActor* FMLDeformerEditorModel::GetVisualizationModeBaseActor() const
@@ -716,7 +715,7 @@ namespace UE::MLDeformer
 		{
 			if (EditorActor && ((EditorActor->IsTestActor() && bTestMode) || (EditorActor->IsTrainingActor() && !bTestMode)))
 			{
-				EditorActor->SetPlaySpeed(VizSettings->AnimPlaySpeed);
+				EditorActor->SetPlaySpeed(VizSettings->GetAnimPlaySpeed());
 				EditorActor->Pause(bMustPause);
 			}
 		}
@@ -799,11 +798,12 @@ namespace UE::MLDeformer
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		if (GetNumTrainingFrames() > 0)
 		{
-			VizSettings->TrainingFrameNumber = FMath::Min(VizSettings->TrainingFrameNumber, static_cast<uint32>(GetNumTrainingFrames() - 1));
+			const int32 ClampedNumber = FMath::Min(VizSettings->GetTrainingFrameNumber(), GetNumTrainingFrames() - 1);
+			VizSettings->SetTrainingFrameNumber(ClampedNumber);
 		}
 		else
 		{
-			VizSettings->TrainingFrameNumber = 0;
+			VizSettings->SetTrainingFrameNumber(0);
 		}
 	}
 
@@ -812,11 +812,12 @@ namespace UE::MLDeformer
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		if (GetNumTestFrames() > 0)
 		{
-			VizSettings->TestingFrameNumber = FMath::Min(VizSettings->TestingFrameNumber, static_cast<uint32>(GetNumTestFrames() - 1));
+			const int32 ClampedNumber = FMath::Min(VizSettings->GetTestingFrameNumber(), GetNumTestFrames() - 1);
+			VizSettings->SetTestingFrameNumber(ClampedNumber);
 		}
 		else
 		{
-			VizSettings->TestingFrameNumber = 0;
+			VizSettings->SetTestingFrameNumber(0);
 		}
 	}
 
@@ -838,14 +839,14 @@ namespace UE::MLDeformer
 	FText FMLDeformerEditorModel::GetBaseAssetChangedErrorText() const
 	{
 		FText Result;
-		if (Model->SkeletalMesh && Model->GetInputInfo())
+		if (Model->GetSkeletalMesh() && Model->GetInputInfo())
 		{
-			if (Model->NumBaseMeshVerts != Model->GetInputInfo()->GetNumBaseMeshVertices() &&
-				Model->NumBaseMeshVerts > 0 && Model->GetInputInfo()->GetNumBaseMeshVertices() > 0)
+			if (Model->GetNumBaseMeshVerts() != Model->GetInputInfo()->GetNumBaseMeshVertices() &&
+				Model->GetNumBaseMeshVerts() > 0 && Model->GetInputInfo()->GetNumBaseMeshVertices() > 0)
 			{
 				Result = FText::Format(LOCTEXT("BaseMeshMismatch", "Number of vertices in base mesh has changed from {0} to {1} vertices since this ML Deformer Asset was saved! {2}"),
 					Model->GetInputInfo()->GetNumBaseMeshVertices(),
-					Model->NumBaseMeshVerts,
+					Model->GetNumBaseMeshVerts(),
 					IsTrained() ? LOCTEXT("BaseMeshMismatchNN", "Neural network needs to be retrained!") : FText());
 			}
 		}
@@ -855,10 +856,10 @@ namespace UE::MLDeformer
 	FText FMLDeformerEditorModel::GetVertexMapChangedErrorText() const
 	{
 		FText Result;
-		if (Model->SkeletalMesh)
+		if (Model->GetSkeletalMesh())
 		{
 			bool bVertexMapMatch = true;
-			const FSkeletalMeshModel* ImportedModel = Model->SkeletalMesh->GetImportedModel();
+			const FSkeletalMeshModel* ImportedModel = Model->GetSkeletalMesh()->GetImportedModel();
 			if (ImportedModel)
 			{
 				const TArray<int32>& MeshVertexMap = ImportedModel->LODModels[0].MeshToImportVertexMap;
@@ -888,9 +889,9 @@ namespace UE::MLDeformer
 	{
 		FText Result;
 
-		if (Model->SkeletalMesh)
+		if (Model->GetSkeletalMesh())
 		{
-			FSkeletalMeshModel* ImportedModel = Model->SkeletalMesh->GetImportedModel();
+			FSkeletalMeshModel* ImportedModel = Model->GetSkeletalMesh()->GetImportedModel();
 			check(ImportedModel);
 
 			const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
@@ -905,7 +906,7 @@ namespace UE::MLDeformer
 
 	FText FMLDeformerEditorModel::GetInputsErrorText() const
 	{
-		if (Model->SkeletalMesh && GetEditorInputInfo()->IsEmpty())
+		if (Model->GetSkeletalMesh() && GetEditorInputInfo()->IsEmpty())
 		{
 			FString ErrorString;
 			if (Model->DoesSupportBones() && Model->ShouldIncludeBonesInTraining())
@@ -949,12 +950,12 @@ namespace UE::MLDeformer
 		UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
 		if (Model->HasTrainingGroundTruth() && InputInfo)
 		{
-			if (Model->NumTargetMeshVerts != InputInfo->GetNumTargetMeshVertices() &&
-				Model->NumTargetMeshVerts > 0 && InputInfo->GetNumTargetMeshVertices() > 0)
+			if (Model->GetNumTargetMeshVerts() != InputInfo->GetNumTargetMeshVertices() &&
+				Model->GetNumTargetMeshVerts() > 0 && InputInfo->GetNumTargetMeshVertices() > 0)
 			{
 				Result = FText::Format(LOCTEXT("TargetMeshMismatch", "Number of vertices in target mesh has changed from {0} to {1} vertices since this ML Deformer Asset was saved! {2}"),
 					InputInfo->GetNumTargetMeshVertices(),
-					Model->NumTargetMeshVerts,
+					Model->GetNumTargetMeshVerts(),
 					IsTrained() ? LOCTEXT("BaseMeshMismatchModel", "Model needs to be retrained!") : FText());
 			}
 		}
@@ -1061,26 +1062,26 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::InitBoneIncludeListToAnimatedBonesOnly()
 	{
-		if (!Model->AnimSequence)
+		if (!Model->GetAnimSequence())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Cannot initialize bone list as no Anim Sequence has been picked."));
 			return;
 		}
 
-		const UAnimDataModel* DataModel = Model->AnimSequence->GetDataModel();
+		const UAnimDataModel* DataModel = Model->GetAnimSequence()->GetDataModel();
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
 			return;
 		}
 
-		if (!Model->SkeletalMesh)
+		if (!Model->GetSkeletalMesh())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has not been set."));
 			return;
 		}
 
-		USkeleton* Skeleton = Model->SkeletalMesh->GetSkeleton();
+		USkeleton* Skeleton = Model->GetSkeletalMesh()->GetSkeleton();
 		if (!Skeleton)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has no skeleton."));
@@ -1131,45 +1132,46 @@ namespace UE::MLDeformer
 		// Init the bone include list using the animated bones.
 		if (!AnimatedBoneList.IsEmpty())
 		{
-			Model->BoneIncludeList.Empty();
-			Model->BoneIncludeList.Reserve(AnimatedBoneList.Num());
+			TArray<FBoneReference>& BoneList = Model->GetBoneIncludeList();
+			BoneList.Empty();
+			BoneList.Reserve(AnimatedBoneList.Num());
 			for (FName BoneName : AnimatedBoneList)
 			{
-				Model->BoneIncludeList.AddDefaulted();
-				FBoneReference& BoneRef = Model->BoneIncludeList.Last();
+				BoneList.AddDefaulted();
+				FBoneReference& BoneRef = BoneList.Last();
 				BoneRef.BoneName = BoneName;
 			}
 		}
 		else
 		{
-			Model->BoneIncludeList.Empty();
-			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated bone rotations in Anim Sequence '%s'."), *(Model->AnimSequence->GetName()));
+			Model->GetBoneIncludeList().Empty();
+			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated bone rotations in Anim Sequence '%s'."), *(Model->GetAnimSequence()->GetName()));
 		}
 		UpdateEditorInputInfo();
 	}
 
 	void FMLDeformerEditorModel::InitCurveIncludeListToAnimatedCurvesOnly()
 	{
-		if (!Model->AnimSequence)
+		if (!Model->GetAnimSequence())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Cannot initialize curve list as no Anim Sequence has been picked."));
 			return;
 		}
 
-		const UAnimDataModel* DataModel = Model->AnimSequence->GetDataModel();
+		const UAnimDataModel* DataModel = Model->GetAnimSequence()->GetDataModel();
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
 			return;
 		}
 
-		if (!Model->SkeletalMesh)
+		if (!Model->GetSkeletalMesh())
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has not been set."));
 			return;
 		}
 
-		USkeleton* Skeleton = Model->SkeletalMesh->GetSkeleton();
+		USkeleton* Skeleton = Model->GetSkeletalMesh()->GetSkeleton();
 		if (!Skeleton)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has no skeleton."));
@@ -1214,19 +1216,20 @@ namespace UE::MLDeformer
 		// Init the bone include list using the animated bones.
 		if (!AnimatedCurveList.IsEmpty())
 		{
-			Model->CurveIncludeList.Empty();
-			Model->CurveIncludeList.Reserve(AnimatedCurveList.Num());
+			TArray<FMLDeformerCurveReference>& CurveList = Model->GetCurveIncludeList();
+			CurveList.Empty();
+			CurveList.Reserve(AnimatedCurveList.Num());
 			for (FName CurveName : AnimatedCurveList)
 			{
-				Model->CurveIncludeList.AddDefaulted();
-				FMLDeformerCurveReference& CurveRef = Model->CurveIncludeList.Last();
+				CurveList.AddDefaulted();
+				FMLDeformerCurveReference& CurveRef = CurveList.Last();
 				CurveRef.CurveName = CurveName;
 			}
 		}
 		else
 		{
-			Model->CurveIncludeList.Empty();
-			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated curves in Anim Sequence '%s'."), *(Model->AnimSequence->GetName()));
+			Model->GetCurveIncludeList().Empty();
+			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated curves in Anim Sequence '%s'."), *(Model->GetAnimSequence()->GetName()));
 		}
 		UpdateEditorInputInfo();
 	}
@@ -1293,7 +1296,7 @@ namespace UE::MLDeformer
 		if (Sampler->IsInitialized())
 		{
 			Sampler->SetVertexDeltaSpace(EVertexDeltaSpace::PostSkinning);
-			Sampler->Sample(VizSettings->TrainingFrameNumber);
+			Sampler->Sample(VizSettings->GetTrainingFrameNumber());
 		}
 	}
 
@@ -1301,7 +1304,7 @@ namespace UE::MLDeformer
 	{
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 		ClampCurrentTrainingFrameIndex();
-		if (CurrentTrainingFrame != VizSettings->TrainingFrameNumber)
+		if (CurrentTrainingFrame != VizSettings->GetTrainingFrameNumber())
 		{
 			OnTrainingDataFrameChanged();
 		}
@@ -1312,9 +1315,9 @@ namespace UE::MLDeformer
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
 
 		// If the current frame number changed, re-sample the deltas if needed.
-		if (CurrentTrainingFrame != VizSettings->TrainingFrameNumber)
+		if (CurrentTrainingFrame != VizSettings->GetTrainingFrameNumber())
 		{
-			CurrentTrainingFrame = VizSettings->TrainingFrameNumber;
+			CurrentTrainingFrame = VizSettings->GetTrainingFrameNumber();
 			if (VizSettings->GetDrawVertexDeltas() && VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
 			{
 				SampleDeltas();
@@ -1634,10 +1637,11 @@ namespace UE::MLDeformer
 			}
 
 			// Init deltas for this morph target.
+			const TArray<int32>& VertexMap = Model->GetVertexMap();
 			MorphLODModel.Vertices.Reserve(NumRenderVertices);
 			for (int32 VertexIndex = 0; VertexIndex < NumRenderVertices; ++VertexIndex)
 			{
-				const int32 ImportedVertexNumber = Model->VertexMap[VertexIndex];
+				const int32 ImportedVertexNumber = VertexMap[VertexIndex];
 				if (ImportedVertexNumber != INDEX_NONE)
 				{
 					const FVector3f Delta = Deltas[ImportedVertexNumber + BlendShapeIndex * NumBaseMeshVerts];

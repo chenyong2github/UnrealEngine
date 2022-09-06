@@ -36,47 +36,75 @@ enum class EMLDeformerHeatMapMode : uint8
  * The vizualization settings.
  */
 UCLASS()
-class MLDEFORMERFRAMEWORK_API UMLDeformerVizSettings : public UObject
+class MLDEFORMERFRAMEWORK_API UMLDeformerVizSettings
+	: public UObject
 {
 	GENERATED_BODY()
 
 public:
 	// UObject overrides.
-	virtual bool IsEditorOnly() const override { return true; }
+	virtual bool IsEditorOnly() const override				{ return true; }
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) { GetOuter()->PostEditChangeProperty(PropertyChangedEvent); } // Forward to the UMLDeformerModel.
 #endif
 	// ~END UObject overrides.
 
 #if WITH_EDITORONLY_DATA
-	virtual bool HasTestGroundTruth() const { return false; }
+	virtual bool HasTestGroundTruth() const					{ return false; }
 
-	FVector GetMeshSpacingOffsetVector() const { return FVector(MeshSpacing, 0.0f, 0.0f); }
-	float GetMeshSpacing() const { return MeshSpacing; }
-	float GetLabelHeight() const { return LabelHeight; }
-	bool GetDrawLabels() const { return bDrawLabels; }
-	float GetLabelScale() const { return LabelScale; }
-	EMLDeformerVizMode GetVisualizationMode() const { return VisualizationMode; }
-	int32 GetTrainingFrameNumber() const { return TrainingFrameNumber; }
-	int32 GetTestingFrameNumber() const { return TestingFrameNumber; }
-	float GetAnimPlaySpeed() const { return AnimPlaySpeed; }
-	const UAnimSequence* GetTestAnimSequence() const { return TestAnimSequence; }
-	UAnimSequence* GetTestAnimSequence() { return TestAnimSequence; }
-	bool GetDrawLinearSkinnedActor() const { return bDrawLinearSkinnedActor; }
-	bool GetDrawMLDeformedActor() const { return bDrawMLDeformedActor; }
-	bool GetDrawGroundTruthActor() const { return bDrawGroundTruthActor; }
-	bool GetShowHeatMap() const { return bShowHeatMap; }
-	EMLDeformerHeatMapMode GetHeatMapMode() const { return HeatMapMode; }
-	float GetHeatMapMax() const { return HeatMapMax; }
-	float GetGroundTruthLerp() const { return HeatMapMode == EMLDeformerHeatMapMode::GroundTruth ? GroundTruthLerp : 0.0f; }
-	UMeshDeformer* GetDeformerGraph() const { return DeformerGraph; }
-	void SetDeformerGraph(UMeshDeformer* InDeformerGraph) { DeformerGraph = InDeformerGraph; }
-	float GetWeight() const { return Weight; }
-	bool GetXRayDeltas() const { return bXRayDeltas; }
-	bool GetDrawVertexDeltas() const { return bDrawDeltas; }
+	void SetVisualizationMode(EMLDeformerVizMode Mode)		{ VisualizationMode = Mode; }
+	void SetDeformerGraph(UMeshDeformer* InDeformerGraph)	{ DeformerGraph = InDeformerGraph; }
+	void SetTrainingFrameNumber(int32 FrameNumber)			{ TrainingFrameNumber = FrameNumber; }
+	void SetTestingFrameNumber(int32 FrameNumber)			{ TestingFrameNumber = FrameNumber; }
+	void SetWeight(float InWeight)							{ Weight = InWeight; }
+
+	FVector GetMeshSpacingOffsetVector() const				{ return FVector(MeshSpacing, 0.0f, 0.0f); }
+	float GetMeshSpacing() const							{ return MeshSpacing; }
+	float GetLabelHeight() const							{ return LabelHeight; }
+	bool GetDrawLabels() const								{ return bDrawLabels; }
+	float GetLabelScale() const								{ return LabelScale; }
+	EMLDeformerVizMode GetVisualizationMode() const			{ return VisualizationMode; }
+	int32 GetTrainingFrameNumber() const					{ return TrainingFrameNumber; }
+	int32 GetTestingFrameNumber() const						{ return TestingFrameNumber; }
+	float GetAnimPlaySpeed() const							{ return AnimPlaySpeed; }
+	const UAnimSequence* GetTestAnimSequence() const		{ return TestAnimSequence; }
+	UAnimSequence* GetTestAnimSequence()					{ return TestAnimSequence; }
+	bool GetDrawLinearSkinnedActor() const					{ return bDrawLinearSkinnedActor; }
+	bool GetDrawMLDeformedActor() const						{ return bDrawMLDeformedActor; }
+	bool GetDrawGroundTruthActor() const					{ return bDrawGroundTruthActor; }
+	bool GetShowHeatMap() const								{ return bShowHeatMap; }
+	EMLDeformerHeatMapMode GetHeatMapMode() const			{ return HeatMapMode; }
+	float GetHeatMapMax() const								{ return HeatMapMax; }
+	float GetGroundTruthLerp() const						{ return HeatMapMode == EMLDeformerHeatMapMode::GroundTruth ? GroundTruthLerp : 0.0f; }
+	UMeshDeformer* GetDeformerGraph() const					{ return DeformerGraph; }
+	float GetWeight() const									{ return Weight; }
+	bool GetXRayDeltas() const								{ return bXRayDeltas; }
+	bool GetDrawVertexDeltas() const						{ return bDrawDeltas; }
+
+	// Get property names.
+	static FName GetVisualizationModePropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VisualizationMode); }
+	static FName GetMeshSpacingPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, MeshSpacing); }
+	static FName GetDrawLabelsPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawLabels); }
+	static FName GetLabelHeightPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, LabelHeight); }
+	static FName GetLabelScalePropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, LabelScale); }
+	static FName GetTrainingFrameNumberPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TrainingFrameNumber); }
+	static FName GetTestingFrameNumberPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestingFrameNumber); }
+	static FName GetAnimPlaySpeedPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed); }
+	static FName GetTestAnimSequencePropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestAnimSequence); }
+	static FName GetDrawLinearSkinnedActorPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawLinearSkinnedActor); }
+	static FName GetDrawMLDeformedActorPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawMLDeformedActor); }
+	static FName GetDrawGroundTruthActorPropertyName()		{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawGroundTruthActor); }
+	static FName GetShowHeatMapPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap); }
+	static FName GetHeatMapModePropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, HeatMapMode); }
+	static FName GetHeatMapMaxPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, HeatMapMax); }
+	static FName GetGroundTruthLerpPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, GroundTruthLerp); }
+	static FName GetDeformerGraphPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph); }
+	static FName GetWeightPropertyName()					{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, Weight); }
+	static FName GetXRayDeltasPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bXRayDeltas); }
+	static FName GetDrawVertexDeltasPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawDeltas); }
 #endif
 
-public:
+protected:
 #if WITH_EDITORONLY_DATA
 	/** The data to visualize. */
 	UPROPERTY()
@@ -96,7 +124,7 @@ public:
 
 	/** The frame number of the training data to visualize. */
 	UPROPERTY(EditAnywhere, Category = "Training Meshes", meta = (ClampMin = "0"))
-	uint32 TrainingFrameNumber = 0;
+	int32 TrainingFrameNumber = 0;
 
 	/** Specifies whether we should draw the labels, such as "Linear Skinned" and "ML Deformed" or not. */
 	UPROPERTY(EditAnywhere, Category = "Shared Settings")
@@ -116,7 +144,7 @@ public:
 
 	/** The frame number of the test data to visualize. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0"))
-	uint32 TestingFrameNumber = 0;
+	int32 TestingFrameNumber = 0;
 
 	/** Specify whether the heatmap is enabled or not. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
