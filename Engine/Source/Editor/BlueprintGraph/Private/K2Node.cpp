@@ -1739,7 +1739,14 @@ void FOptionalPinManager::EvaluateOldShownPins(const TArray<FOptionalPinFromProp
 UEdGraphPin* UK2Node::GetExecPin() const
 {
 	UEdGraphPin* Pin = FindPin(UEdGraphSchema_K2::PN_Execute);
-	check(Pin == nullptr || Pin->Direction == EGPD_Input); // If pin exists, it must be input
+	check(Pin == nullptr || Pin->Direction == EGPD_Input);
+	return Pin;
+}
+
+UEdGraphPin* UK2Node::GetThenPin() const
+{
+	UEdGraphPin* Pin = FindPin(UEdGraphSchema_K2::PN_Then);
+	check(Pin == nullptr || Pin->Direction == EGPD_Output);
 	return Pin;
 }
 

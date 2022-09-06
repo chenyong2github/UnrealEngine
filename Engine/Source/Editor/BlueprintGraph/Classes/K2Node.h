@@ -324,8 +324,11 @@ public:
 	/** Get the Blueprint object to which this node belongs */
 	BLUEPRINTGRAPH_API UBlueprint* GetBlueprint() const;
 
-	/** Get the input execution pin if this node is impure (will return NULL when IsNodePure() returns true) */
+	/** Get the input execution pin of this node (if one exists)*/
 	BLUEPRINTGRAPH_API UEdGraphPin* GetExecPin() const;
+
+	/** Get the output then pin of this node (if one exists)*/
+	BLUEPRINTGRAPH_API UEdGraphPin* GetThenPin() const;
 
 	/**
 	 * If this node references an actor in the level that should be selectable by "Find Actors In Level," this will return a reference to that actor
