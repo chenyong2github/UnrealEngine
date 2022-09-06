@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Framework/Views/ITypedTableView.h"
 #include "Templates/TypeHash.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/Class.h"
@@ -81,6 +82,8 @@ public:
 		SLATE_ARGUMENT_DEFAULT(bool, bSortChildNode) = false;
 		/** Show a search box. */
 		SLATE_ARGUMENT_DEFAULT(bool, bShowSearchBox) = false;
+		/** Is selection enabled. */ 
+		SLATE_ARGUMENT_DEFAULT(ESelectionMode::Type, SelectionMode) = ESelectionMode::Single;
 		/** Which properties/functions to show. FFieldIterator_BlueprintVisible is the default. */
 		SLATE_ARGUMENT_DEFAULT(IFieldIterator*, FieldIterator) = nullptr;
 		/** Which properties/functions that allow expansion. FFieldIterator_NoExpand is the default. */

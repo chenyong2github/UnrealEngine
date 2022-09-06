@@ -225,7 +225,7 @@ private:
 	void AddContainerInternal(SPropertyViewer::FHandle Identifier, TSharedPtr<FContainer>& NewContainer);
 
 	TSharedRef<SWidget> CreateSearch();
-	TSharedRef<SWidget> CreateTree(bool bHasPreWidget, bool bShowPropertyValue, bool bHasPostWidget);
+	TSharedRef<SWidget> CreateTree(bool bHasPreWidget, bool bShowPropertyValue, bool bHasPostWidget, ESelectionMode::Type SelectionMode);
 
 	void HandleSearchChanged(const FText& InFilterText);
 	FText SetRawFilterTextInternal(const FText& InFilterText);
