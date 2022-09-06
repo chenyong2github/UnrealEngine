@@ -175,9 +175,7 @@ protected:
 	virtual void SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, UE::AssetRegistry::EDependencyCategory RecurseType, TSet<FDependsNode*>& ExistingManagedNodes, ShouldSetManagerPredicate ShouldSetManager = nullptr) override;
 	virtual bool SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId) override
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SetPrimaryAssetIdForObjectPath(FSoftObjectPath(ObjectPath), PrimaryAssetId);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	virtual bool SetPrimaryAssetIdForObjectPath(const FSoftObjectPath& ObjectPath, FPrimaryAssetId PrimaryAssetId) override;
 
