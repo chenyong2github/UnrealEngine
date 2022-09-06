@@ -129,6 +129,8 @@ protected:
 
 	FDelegateHandle ActorSpawnedDelegateHandle;
 
+	FDelegateHandle PawnBeginPlayDelegateHandle;
+
 	/** random number stream to be used by all things AI. WIP */
 	static FRandomStream RandomStream;
 	
@@ -276,5 +278,7 @@ public:
 
 protected:
 	virtual void OnActorSpawned(AActor* SpawnedActor);
+	virtual void OnPawnBeginPlay(APawn* Pawn);
+
 	void LoadDebuggerPlugin();
 };
