@@ -38,14 +38,14 @@ public:
 
 	/** Breaks an ActionValue into X, Y, Z. Axes not supported by value type will be 0. */
 	UFUNCTION(BlueprintPure, Category = "Input", meta = (NativeBreakFunc))
-	static void BreakInputActionValue(FInputActionValue InActionValue, float& X, float& Y, float& Z);
+	static void BreakInputActionValue(FInputActionValue InActionValue, double& X, double& Y, double& Z);
 
 	/**
 	 * Builds an ActionValue from X, Y, Z. Inherits type from an existing ActionValue. Ignores axis values unused by the provided value type.
 	 * @note Intended for use in Input Modifier Modify Raw overloads to modify an existing Input Action Value.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Input", meta = (Keywords = "construct build", NativeMakeFunc))
-	static FInputActionValue MakeInputActionValue(float X, float Y, float Z, const FInputActionValue& MatchValueType);
+	static FInputActionValue MakeInputActionValue(double X, double Y, double Z, const FInputActionValue& MatchValueType);
 
 
 	// Internal helper functionality
@@ -60,9 +60,9 @@ public:
 	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly, meta = (BlueprintAutocast))
 	static bool Conv_InputActionValueToBool(FInputActionValue InValue);
 
-	/** Interpret an InputActionValue as a 1D axis (float) input */
+	/** Interpret an InputActionValue as a 1D axis (double) input */
 	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly, meta = (BlueprintAutocast))
-	static float Conv_InputActionValueToAxis1D(FInputActionValue InValue);
+	static double Conv_InputActionValueToAxis1D(FInputActionValue InValue);
 
 	/** Interpret an InputActionValue as a 2D axis (Vector2D) input */
 	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly, meta = (BlueprintAutocast))

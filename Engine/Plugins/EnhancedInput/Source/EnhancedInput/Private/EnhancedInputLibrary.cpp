@@ -46,7 +46,7 @@ FInputActionValue UEnhancedInputLibrary::GetBoundActionValue(AActor* Actor, cons
 }
 
 
-void UEnhancedInputLibrary::BreakInputActionValue(FInputActionValue InActionValue, float& X, float& Y, float& Z)
+void UEnhancedInputLibrary::BreakInputActionValue(FInputActionValue InActionValue, double& X, double& Y, double& Z)
 {
 	FVector AsAxis3D = InActionValue.Get<FInputActionValue::Axis3D>();
 	X = AsAxis3D.X;
@@ -54,7 +54,7 @@ void UEnhancedInputLibrary::BreakInputActionValue(FInputActionValue InActionValu
 	Z = AsAxis3D.Z;
 }
 
-FInputActionValue UEnhancedInputLibrary::MakeInputActionValue(float X, float Y, float Z, const FInputActionValue& MatchValueType)
+FInputActionValue UEnhancedInputLibrary::MakeInputActionValue(double X, double Y, double Z, const FInputActionValue& MatchValueType)
 {
 	return FInputActionValue(MatchValueType.GetValueType(), FVector(X, Y, Z));
 }
@@ -66,9 +66,9 @@ bool UEnhancedInputLibrary::Conv_InputActionValueToBool(FInputActionValue InValu
 	return InValue.Get<bool>();
 }
 
-float UEnhancedInputLibrary::Conv_InputActionValueToAxis1D(FInputActionValue InValue)
+double UEnhancedInputLibrary::Conv_InputActionValueToAxis1D(FInputActionValue InValue)
 {
-	return InValue.Get<FInputActionValue::Axis1D>();
+	return static_cast<double>(InValue.Get<FInputActionValue::Axis1D>());
 }
 
 FVector2D UEnhancedInputLibrary::Conv_InputActionValueToAxis2D(FInputActionValue InValue)
