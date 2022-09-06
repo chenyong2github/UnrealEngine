@@ -4,10 +4,6 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "ContentBrowserDataMenuContexts.h"
-#include "ContentBrowserDataSource.h"
-#include "ContentBrowserItem.h"
-#include "ContentBrowserItemData.h"
 #include "Delegates/Delegate.h"
 #include "Fonts/SlateFontInfo.h"
 #include "FrameNumberTimeEvaluator.h"
@@ -26,9 +22,7 @@
 #include "Misc/Attribute.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "SlotBase.h"
-#include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateColor.h"
 #include "Styling/StyleColors.h"
@@ -36,7 +30,6 @@
 #include "ToolMenu.h"
 #include "ToolMenuDelegates.h"
 #include "ToolMenuSection.h"
-#include "ToolMenus.h"
 #include "Types/WidgetActiveTimerDelegate.h"
 #include "UObject/UObjectGlobals.h"
 #include "Virtualization/VirtualizationTypes.h"
@@ -48,7 +41,7 @@
 
 class SWidget;
 
-#define LOCTEXT_NAMESPACE "VirtualAssets"
+#define LOCTEXT_NAMESPACE "VirtualizationEditor"
 
 namespace
 {
@@ -64,123 +57,6 @@ FString SingleDecimalFormat(double Value)
 
 } //namespace
 
-// This namespace contains code for adding the re-hydration options to the editor context menu.
-// For now it is easier to just put all virtualization editor code in this .cpp until we make
-// a virtualization specific editor module like 'DerivedDataEditor'
-namespace UE::Virtualization::Rehydration
-{
-
-/** 
- * Attempt to rehydrate the provided files although this currently assumes that the user has
- * checked the files out of source control before hand. 
- */
-void RehydratePackages(TArray<FString> SelectedFiles)
-{
-	TArray<FText> Errors;
-	if (IVirtualizationSystem::Get().TryRehydratePackages(SelectedFiles, Errors) == ERehydrationResult::Success)
-	{
-		// TODO: At some point ::TryRehydratePackages will return more detail info about the process
-		// when it does we should make a better job at logging it.
-	
-		const FText Message = LOCTEXT("RehydrationSucccess", "Files were successfully re-hydrated");
-		
-		FNotificationInfo Info(Message);
-		Info.bFireAndForget = true;
-		Info.ExpireDuration = 2.0f;
-
-		FSlateNotificationManager::Get().AddNotification(Info);
-	}
-	else
-	{
-		const bool bForceNotification = true;
-
-		FMessageLog Log("LogVirtualization");
-
-		for (const FText& Error : Errors)
-		{
-			Log.Error(Error);
-		}
-
-		Log.Notify(LOCTEXT("RehydrationFailed", "Failed to rehydrate packages, see the message log for more info"), EMessageSeverity::Info, bForceNotification);
-	}
-}
-
-void BrowserItemsToFilePaths(const TArray<FContentBrowserItem>& Source, TArray<FString>& OutResult)
-{
-	for (const FContentBrowserItem& SelectedItem : Source)
-	{
-		const FContentBrowserItemData* SelectedItemData = SelectedItem.GetPrimaryInternalItem();
-		if (SelectedItemData == nullptr)
-		{
-			continue;
-		}
-
-		if (!SelectedItemData->IsFile())
-		{
-			continue;
-		}
-
-		UContentBrowserDataSource* DataSource = SelectedItemData->GetOwnerDataSource();
-		if (DataSource == nullptr)
-		{
-			continue;
-		}
-			
-		FString Path;
-		if (DataSource->GetItemPhysicalPath(*SelectedItemData, Path))
-		{
-			OutResult.Add(FPaths::ConvertRelativePathToFull(Path));
-		}
-	}
-}
-
-void AddContextMenuEntry()
-{
-	if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.AssetActionsSubMenu"))
-	{
-		Menu->AddDynamicSection("VirtualizedAssetsDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* Menu)
-		{
-			const UContentBrowserDataMenuContext_FileMenu* Context = Menu->FindContext<UContentBrowserDataMenuContext_FileMenu>();
-
-			if (Context == nullptr)
-			{
-				return;
-			}
-
-			if (Context->bCanBeModified == false)
-			{
-				return;
-			}
-
-			if (GetDefault<UEditorExperimentalSettings>()->bVirtualizedAssetRehydration == false)
-			{
-				return;
-			}
-
-			TArray<FString> SelectedFiles;
-			BrowserItemsToFilePaths(Context->SelectedItems, SelectedFiles);
-
-			if (SelectedFiles.IsEmpty())
-			{
-				return;
-			}
-
-			FToolMenuSection& Section = Menu->AddSection("VirtualizedAssets", LOCTEXT("VirtualizedAssetsHeading", "Virtualized Assets"));
-			{
-				Section.AddMenuEntry(
-					"RehydrateAsset",
-					LOCTEXT("RehydrateAsset", "Rehydrate Asset"),
-					LOCTEXT("RehydrateAssetTooltip", "Pulls the assets virtualized payloads and stores them in the package file once more"),
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateStatic(&RehydratePackages, SelectedFiles))
-				);
-			}
-		}));
-	}
-}
-
-} // UE::Virtualization::Rehydration
-
 SVirtualAssetsStatisticsDialog::SVirtualAssetsStatisticsDialog()
 {
 	using namespace UE::Virtualization;
@@ -192,8 +68,6 @@ SVirtualAssetsStatisticsDialog::SVirtualAssetsStatisticsDialog()
 		IVirtualizationSystem& System = IVirtualizationSystem::Get();
 		System.GetNotificationEvent().AddRaw(this, &SVirtualAssetsStatisticsDialog::OnNotificationEvent);
 	}
-
-	UE::Virtualization::Rehydration::AddContextMenuEntry();
 }
 
 SVirtualAssetsStatisticsDialog::~SVirtualAssetsStatisticsDialog()

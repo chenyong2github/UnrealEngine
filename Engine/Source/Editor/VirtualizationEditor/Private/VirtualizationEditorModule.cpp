@@ -6,6 +6,8 @@
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
+#include "Modules/ModuleManager.h"
+#include "RehydrationMenuEntry.h"
 #include "SVirtualAssetsStatistics.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -15,6 +17,17 @@
 IMPLEMENT_MODULE(FVirtualizationEditorModule, VirtualizationEditor);
 
 static const FName VirtualAssetsStatisticsTabName = FName(TEXT("VirtualAssetsStatistics"));
+
+namespace 
+{
+
+/** Utility function for adding menu entries, called when the module is started */
+void SetupMenuEntries()
+{
+	UE::Virtualization::SetupRehydrationContentMenuEntry();
+}
+
+} //namespace
 
 void FVirtualizationEditorModule::StartupModule()
 {
@@ -34,6 +47,7 @@ void FVirtualizationEditorModule::StartupModule()
 	}
 #endif // WITH_RELOAD
 
+	SetupMenuEntries();
 }
 
 void FVirtualizationEditorModule::ShutdownModule()
