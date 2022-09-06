@@ -47,7 +47,7 @@ public:
 			.Time(this, &SSequencerKeyNavigationButtons::GetTime)
 			.OnSetTime(this, &SSequencerKeyNavigationButtons::SetTime)
 			.OnAddKey(this, &SSequencerKeyNavigationButtons::HandleAddKey)
-			.IsEnabled(!InSequencer->IsReadOnly())
+			.IsEnabled_Lambda([this] () { return WeakSequencer.IsValid() ? !WeakSequencer.Pin()->IsReadOnly() : false; })
 		];
 	}
 

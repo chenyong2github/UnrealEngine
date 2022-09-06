@@ -37,7 +37,7 @@ public:
 	DECLARE_DELEGATE_TwoParams(FOnAddKey, FFrameTime, TSharedPtr<FViewModel>)
 
 	SLATE_BEGIN_ARGS(SKeyNavigationButtons) : _IsEnabled(true) {}
-		SLATE_ARGUMENT(bool, IsEnabled)
+		SLATE_ATTRIBUTE(bool, IsEnabled)
 
 		SLATE_ARGUMENT(FText, PreviousKeyToolTip)
 		SLATE_ARGUMENT(FText, NextKeyToolTip)
