@@ -56,6 +56,7 @@ namespace CubeGridToolLocals
 
 	const FText SelectionChangeTransactionName = LOCTEXT("SelectionChangeTransaction", "Cube Grid Selection Change");
 	const FText ModeChangeTransactionName = LOCTEXT("ModeChangeTransaction", "Cube Grid Mode Change");
+	const FText CornerModeExtrudeAmountChangeTransactionName = LOCTEXT("CornerExtrudeAmountTransaction", "Corner Push/Pull Amount");
 
 	const FString PropertyCacheIdentifier = TEXT("CubeGridTool");
 
@@ -192,6 +193,75 @@ namespace CubeGridToolLocals
 		{
 			return TEXT("CubeGridToolLocals::FCubeGridToolModeChange");
 		}
+	};
+
+	class FCornerModeExtrudeAmountChange : public FToolCommandChange
+	{
+	public:
+		FCornerModeExtrudeAmountChange(int32 ExtrudeAmountBeforeIn, int32 ExtrudeAmountAfterIn) 
+			: ExtrudeAmountBefore(ExtrudeAmountBeforeIn)
+			, ExtrudeAmountAfter(ExtrudeAmountAfterIn)
+		
+		{};
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			return !Cast<UCubeGridTool>(Object)->IsInCornerMode();
+		}
+
+		virtual void Apply(UObject* Object) override
+		{
+			Cast<UCubeGridTool>(Object)->SetCurrentExtrudeAmount(ExtrudeAmountAfter);
+		}
+		virtual void Revert(UObject* Object) override
+		{
+			Cast<UCubeGridTool>(Object)->SetCurrentExtrudeAmount(ExtrudeAmountBefore);
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("CubeGridToolLocals::FCornerModeExtrudeAmountChange");
+		}
+
+	protected:
+		int32 ExtrudeAmountBefore = 0;
+		int32 ExtrudeAmountAfter = 0;
+	};
+
+	class FCornerModeSelectedCornerChange : public FToolCommandChange
+	{
+	public:
+		FCornerModeSelectedCornerChange(bool CornerFlagsBeforeIn[4], bool CornerFlagsAfterIn[4])
+		{
+			for (int i = 0; i < 4; ++i)
+			{
+				CornerFlagsBefore[i] = CornerFlagsBeforeIn[i];
+				CornerFlagsAfter[i] = CornerFlagsAfterIn[i];
+			}
+		};
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			return !Cast<UCubeGridTool>(Object)->IsInCornerMode();
+		}
+
+		virtual void Apply(UObject* Object) override
+		{
+			Cast<UCubeGridTool>(Object)->SetCornerSelection(CornerFlagsAfter);
+		}
+		virtual void Revert(UObject* Object) override
+		{
+			Cast<UCubeGridTool>(Object)->SetCornerSelection(CornerFlagsBefore);
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("CubeGridToolLocals::FCornerModeSelectedCornerChange");
+		}
+
+	protected:
+		bool CornerFlagsBefore[4] = { false,false,false,false };
+		bool CornerFlagsAfter[4] = { false,false,false,false };
 	};
 
 	/** Undoes setting bChangesMade, which is used to determine whether the target needs saving. */
@@ -974,15 +1044,15 @@ void UCubeGridTool::Setup()
 
 	GridFrameOriginWatcherIdx = Settings->WatchProperty(Settings->GridFrameOrigin,
 		[this](FVector) {
-			UpdateGridTransform(FTransform(Settings->GridFrameOrientation, Settings->GridFrameOrigin, FVector::One()), 
-				// Update gizmo, don't update detail panel
-				true, false);
+			FTransform Transform(Settings->GridFrameOrientation, Settings->GridFrameOrigin, FVector::One());
+			UpdateGridGizmo(Transform, /* bSilentlyUpdate */ true); // Silent to avoid undo/redo during drag in detail panel
+			UpdateGridTransform(Transform, /*bUpdateDetailPanel */ false);
 		});
 	GridFrameOrientationWatcherIdx = Settings->WatchProperty(Settings->GridFrameOrientation,
 		[this](FRotator) {
-			UpdateGridTransform(FTransform(Settings->GridFrameOrientation, Settings->GridFrameOrigin, FVector::One()), 
-				// Update gizmo, don't update detail panel
-				true, false);
+			FTransform Transform(Settings->GridFrameOrientation, Settings->GridFrameOrigin, FVector::One());
+			UpdateGridGizmo(Transform, /* bSilentlyUpdate */ true); // Silent to avoid undo/redo during drag in detail panel
+			UpdateGridTransform(Transform, /*bUpdateDetailPanel */ false);
 		});
 
 	Settings->SilentUpdateWatched();
@@ -1240,9 +1310,10 @@ void UCubeGridTool::ClearHover()
 
 void  UCubeGridTool::GridGizmoMoved(UTransformProxy* Proxy, FTransform Transform)
 {
-	UpdateGridTransform(Transform, 
-		// Don't update gizmo, update detail panel
-		false, true);
+	UpdateGridTransform(Transform, /* bUpdateDetailPanel */ true,
+		// If we're here due to a drag, then we don't want to trigger the detail panel
+		// rebuild (it will be triggered on drag end).
+		!bInGizmoDrag);
 }
 
 void UCubeGridTool::OnCtrlMiddleClick(const FInputDeviceRay& ClickPos)
@@ -1313,9 +1384,7 @@ void UCubeGridTool::OnCtrlMiddleClick(const FInputDeviceRay& ClickPos)
 	}
 
 	// Move the gizmo to that corner.
-	UpdateGridTransform(FTransform(Settings->GridFrameOrientation, CubeGrid->ToWorldPoint(Corners[ClosestCornerIndex]), FVector::One())
-		// Update both gizmo and detail panel
-		, true, true);
+	UpdateGridGizmo(FTransform(Settings->GridFrameOrientation, CubeGrid->ToWorldPoint(Corners[ClosestCornerIndex]), FVector::One()));
 
 	GetToolManager()->EndUndoTransaction();
 }
@@ -1443,13 +1512,20 @@ void UCubeGridTool::UpdateGizmoVisibility(bool bVisible)
 	Settings->SilentUpdateWatched();
 }
 
-void UCubeGridTool::UpdateGridTransform(FTransform NewTransform, bool bUpdateGizmo, bool bUpdateDetailPanel)
+void UCubeGridTool::UpdateGridGizmo(const FTransform& NewTransform, bool bSilentlyUpdate)
 {
-	if (bUpdateGizmo)
+	if (bSilentlyUpdate)
 	{
 		GridGizmo->ReinitializeGizmoTransform(NewTransform);
 	}
+	else
+	{
+		GridGizmo->SetNewGizmoTransform(NewTransform);
+	}
+}
 
+void UCubeGridTool::UpdateGridTransform(const FTransform& NewTransform, bool bUpdateDetailPanel, bool bTriggerDetailPanelRebuild)
+{
 	if (bUpdateDetailPanel)
 	{
 		Settings->GridFrameOrigin = NewTransform.GetTranslation();
@@ -1457,6 +1533,11 @@ void UCubeGridTool::UpdateGridTransform(FTransform NewTransform, bool bUpdateGiz
 
 		Settings->GridFrameOrientation = NewTransform.GetRotation().Rotator();
 		Settings->SilentUpdateWatcherAtIndex(GridFrameOrientationWatcherIdx);
+
+		if (bTriggerDetailPanelRebuild)
+		{
+			NotifyOfPropertyChangeByTool(Settings);
+		}
 	}
 
 	CubeGrid->SetGridFrame(FFrame3d(NewTransform));
@@ -1468,6 +1549,7 @@ void UCubeGridTool::UpdateGridTransform(FTransform NewTransform, bool bUpdateGiz
 
 		if (!bInGizmoDrag)
 		{
+			// Don't need to update corner hit points while dragging since we can't drag and click corners at the same time.
 			UpdateCornerGeometrySet();
 		}
 	}
@@ -1609,6 +1691,7 @@ void UCubeGridTool::OnClickPress(const FInputDeviceRay& PressPos)
 		// Clear selection (the event emit, if needed, happens on click release) 
 		bHaveSelection = false;
 		Selection.Box = FAxisAlignedBox3d();
+		UpdateSelectionLineSet();
 	}
 }
 
@@ -1661,7 +1744,27 @@ void UCubeGridTool::OnClickDrag(const FInputDeviceRay& DragPos)
 
 void UCubeGridTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
-	if (MouseState == EMouseState::DraggingExtrudeDistance)
+	using namespace CubeGridToolLocals;
+
+	if (MouseState == EMouseState::DraggingCornerSelection)
+	{
+		bool bCornerSelectionChanged = false;
+		for (int i = 0; i < 4; ++i)
+		{
+			if (PreDragCornerSelectedFlags[i] != CornerSelectedFlags[i])
+			{
+				bCornerSelectionChanged = true;
+				break;
+			}
+		}
+		if (bCornerSelectionChanged)
+		{
+			GetToolManager()->EmitObjectChange(this,
+				MakeUnique<FCornerModeSelectedCornerChange>(PreDragCornerSelectedFlags, CornerSelectedFlags),
+				LOCTEXT("CornerSelectionTransaction", "Corner Selection"));
+		}
+	}
+	else if (MouseState == EMouseState::DraggingExtrudeDistance)
 	{
 		// Only apply result if we're not in corner mode, because in corner mode
 		// we apply when exiting corner mode (that behavior is particularly important 
@@ -1672,6 +1775,12 @@ void UCubeGridTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
 			bWaitingToApplyPreview = true;
 			bBlockUntilPreviewUpdate = false;
 			bAdjustSelectionOnPreviewUpdate = true;
+		}
+		else if (Mode == EMode::Corner && CurrentExtrudeAmount != DragStartExtrudeAmount)
+		{
+			GetToolManager()->EmitObjectChange(this, 
+				MakeUnique<FCornerModeExtrudeAmountChange>(DragStartExtrudeAmount, CurrentExtrudeAmount), 
+				CornerModeExtrudeAmountChangeTransactionName);
 		}
 	}
 	else if (MouseState == EMouseState::DraggingRegularSelection)
@@ -1993,15 +2102,24 @@ void UCubeGridTool::ApplyPushPull(int32 NumBlocks)
 		return;
 	}
 
+	int32 PreviousExtrudeAmount = CurrentExtrudeAmount;
 	CurrentExtrudeAmount += NumBlocks;
 
 	InvalidatePreview();
 
-	if (Mode != EMode::Corner)
+	if (Mode == EMode::PushPull)
 	{
 		bWaitingToApplyPreview = true;
 		bBlockUntilPreviewUpdate = false;
 		bAdjustSelectionOnPreviewUpdate = true;
+	}
+	else if (Mode == EMode::Corner)
+	{
+		// In corner mode, we don't actually appy the change yet, but we transact the extrude amount.
+		// (in regular mode we transact the mesh change once the actual change is applied)
+		GetToolManager()->EmitObjectChange(this,
+			MakeUnique<FCornerModeExtrudeAmountChange>(PreviousExtrudeAmount, CurrentExtrudeAmount),
+			CornerModeExtrudeAmountChangeTransactionName);
 	}
 }
 
@@ -2147,9 +2265,7 @@ void UCubeGridTool::ApplyAction(ECubeGridToolAction ActionType)
 	case ECubeGridToolAction::ResetFromActor:
 		if (ToolActions->GridSourceActor)
 		{
-			UpdateGridTransform(ToolActions->GridSourceActor->GetTransform(), 
-				// Update gizmo and detail panel
-				true, true);
+			UpdateGridGizmo(ToolActions->GridSourceActor->GetTransform());
 		}
 		break;
 	}
@@ -2394,6 +2510,11 @@ bool UCubeGridTool::IsInDefaultMode() const
 	return Mode == EMode::PushPull;
 }
 
+bool UCubeGridTool::IsInCornerMode() const
+{
+	return Mode == EMode::Corner;
+}
+
 void UCubeGridTool::RevertToDefaultMode()
 {
 	if (Mode == EMode::Corner)
@@ -2409,6 +2530,23 @@ void UCubeGridTool::RevertToDefaultMode()
 void UCubeGridTool::SetChangesMade(bool bChangesMadeIn)
 {
 	bChangesMade = bChangesMadeIn;
+}
+
+// For use by Undo/Redo during corner mode
+void UCubeGridTool::SetCurrentExtrudeAmount(int32 ExtrudeAmount)
+{
+	CurrentExtrudeAmount = ExtrudeAmount;
+	InvalidatePreview();
+}
+
+// For use by Undo/Redo during corner mode
+void UCubeGridTool::SetCornerSelection(bool CornerSelectedFlagsIn[4])
+{
+	for (int i = 0; i < 4; ++i)
+	{
+		CornerSelectedFlags[i] = CornerSelectedFlagsIn[i];
+	}
+	InvalidatePreview();
 }
 
 bool UCubeGridTool::CanCurrentlyNestedCancel()

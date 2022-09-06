@@ -337,7 +337,7 @@ public:
 		// Both of these boxes are in the coordinate space of the (unscaled) grid frame.
 		UE::Geometry::FAxisAlignedBox3d Box;
 		UE::Geometry::FAxisAlignedBox3d StartBox; // Box delineating original selected face
-		
+
 		// Direction must be initialized to a valid enum value (0 is not one).
 		FCubeGrid::EFaceDirection Direction = FCubeGrid::EFaceDirection::PositiveX;
 
@@ -379,8 +379,11 @@ public:
 	// Used by undo/redo
 	virtual void UpdateUsingMeshChange(const UE::Geometry::FDynamicMeshChange& MeshChange, bool bRevert);
 	virtual bool IsInDefaultMode() const;
+	virtual bool IsInCornerMode() const;
 	virtual void RevertToDefaultMode();
 	virtual void SetChangesMade(bool bChangesMadeIn);
+	virtual void SetCurrentExtrudeAmount(int32 ExtrudeAmount);
+	virtual void SetCornerSelection(bool CornerSelectedFlags[4]);
 
 	// IClickDragBehaviorTarget
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
@@ -418,7 +421,7 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UDragAlignmentMechanic> GridGizmoAlignmentMechanic = nullptr;
-	
+
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> GridGizmoTransformProxy = nullptr;
 
@@ -427,7 +430,7 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UClickDragInputBehavior> ClickDragBehavior = nullptr;
-	
+
 	UPROPERTY()
 	TObjectPtr<UMouseHoverBehavior> HoverBehavior = nullptr;
 
@@ -555,9 +558,28 @@ protected:
 	int32 GridFrameOrientationWatcherIdx;
 	void GridGizmoMoved(UTransformProxy* Proxy, FTransform Transform);
 	void UpdateGizmoVisibility(bool bVisible);
-	void UpdateGridTransform(FTransform NewTransform, bool bUpdateGizmo, bool bUpdateDetailPanel);
 	bool bInGizmoDrag = false;
 
+	/*
+	 * Updates the gizmo controlling the cube grid transform. Only updates the cube grid itself if
+	 * bSilentlyUpdate is false.
+	 * 
+	 * @param bSilentlyUpdate If true, gizmo is just repositioned without triggering any callback
+	 *   or emitting an undo transaction. If false, emits transactions and triggers the GridGizmoMoved
+	 *   callback (which will trigger UpdateGridTransform).
+	 */
+	void UpdateGridGizmo(const FTransform& NewTransform, bool bSilentlyUpdate = false);
+	
+	/*
+	* Updates the cube grid.
+	* 
+	 * @param bUpdateDetailPanel Not needed if updating from the detail panel, otherwise should be true.
+	 * @param bTriggerDetailPanelRebuild Should be false if updating from a drag to avoid the costly rebuild, 
+	 * but otherwise should be true to update the edit conditions and "revert to default" arrows. Not relevant
+	 * if bUpdateDetailPanel is false.
+	 */
+	void UpdateGridTransform(const FTransform& NewTransform, bool bUpdateDetailPanel = true, bool bTriggerDetailPanelRebuild = true);
+	
 	FVector3d MiddleClickDragStart;
 	FInputRayHit RayCastSelectionPlane(const FRay3d& WorldRay, 
 		FVector3d& HitPointOut);
@@ -571,6 +593,7 @@ protected:
 	// the current selection, with the Z axis being along selection normal, the 0-3
 	// indices here correspond to the 0-3 corner indices in the box, which are the
 	// bottom corners along Z axis (see TOrientedBox3::GetCorner())
+	// TODO: Might be nice to pack these into one value for ease of copying/resetting/comparing
 	bool CornerSelectedFlags[4] = { false, false, false, false };
 	bool PreDragCornerSelectedFlags[4] = { false, false, false, false };
 
