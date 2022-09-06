@@ -734,7 +734,7 @@ namespace P4VUtils.Commands
 			if (!String.IsNullOrEmpty(engineIdentifier))
 			{
 				string engineRoot = GetEngineRootDirFromIdentifier(engineIdentifier, logger);
-				if (!String.IsNullOrEmpty(engineIdentifier))
+				if (!String.IsNullOrEmpty(engineRoot))
 				{
 					return engineRoot;
 				}
