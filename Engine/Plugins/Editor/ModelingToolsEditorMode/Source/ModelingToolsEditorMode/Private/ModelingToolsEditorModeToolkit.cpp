@@ -1001,7 +1001,7 @@ void FModelingToolsEditorModeToolkit::ShowRealtimeAndModeWarnings(bool bShowReal
 	}
 	else if (GEditor->PlayWorld != NULL)
 	{
-		WarningText = LOCTEXT("ModelingModeToolkitSimulatingWarning", "Cannot use Modeling Tools in PIE.");
+		WarningText = LOCTEXT("ModelingModeToolkitPIEWarning", "Cannot use Modeling Tools in PIE.");
 	}
 	else if (bShowRealtimeWarning)
 	{
