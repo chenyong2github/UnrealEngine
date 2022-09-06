@@ -24,6 +24,7 @@
 #include "LevelEditor.h"
 #include "RewindDebuggerModule.h"
 #include "Engine/PoseWatch.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 
 static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
 {
@@ -52,9 +53,6 @@ FRewindDebugger::FRewindDebugger()  :
 	bTargetActorPositionValid(false),
 	bIsDetailsPanelOpen(true)
 {
-	UE::Trace::ToggleChannel(TEXT("Cpu"), false);
-	UE::Trace::ToggleChannel(TEXT("Gpu"), false);
-
 	RecordingDuration.Set(0);
 
 	if (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld)
