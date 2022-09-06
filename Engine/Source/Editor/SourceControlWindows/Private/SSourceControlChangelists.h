@@ -54,6 +54,11 @@ private:
 	void OnGetFileChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
 	void OnGetChangelistChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
 
+	EColumnSortPriority::Type GetColumnSortPriority(const FName ColumnId) const;
+	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
+	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+	void SortFileView();
+
 	FReply OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
 
 	void RequestRefresh();
@@ -153,7 +158,6 @@ private:
 	void EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState);
 
 private:
-
 	TSharedPtr<SExpandableChangelistArea> ChangelistExpandableArea;
 	TSharedPtr<SExpandableChangelistArea> UncontrolledChangelistExpandableArea;
 
@@ -179,6 +183,11 @@ private:
 
 	/** Files to select after refresh */
 	TArray<FString> FilesToSelect;
+
+	FName PrimarySortedColumn;
+	FName SecondarySortedColumn;
+	EColumnSortMode::Type PrimarySortMode = EColumnSortMode::Ascending;
+	EColumnSortMode::Type SecondarySortMode = EColumnSortMode::None;
 
 	void StartRefreshStatus();
 	void TickRefreshStatus(double InDeltaTime);

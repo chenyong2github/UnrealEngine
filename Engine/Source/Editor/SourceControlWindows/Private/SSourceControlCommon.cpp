@@ -320,6 +320,7 @@ TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bI
 			.HeightOverride(IconOverlaySize)
 			[
 				SNew(SLayeredImage, InFileState->GetIcon())
+				.ToolTipText(InFileState->GetDisplayTooltip())
 			]
 		];
 }
