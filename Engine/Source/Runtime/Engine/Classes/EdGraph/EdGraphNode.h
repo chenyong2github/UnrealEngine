@@ -323,6 +323,7 @@ public:
 
 private:
 	/** Whether the node was created as part of an expansion step */
+	UPROPERTY()
 	uint8 bIsIntermediateNode : 1;
 
 #if WITH_EDITORONLY_DATA
