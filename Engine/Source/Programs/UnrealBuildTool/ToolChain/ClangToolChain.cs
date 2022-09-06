@@ -648,7 +648,7 @@ namespace UnrealBuildTool
 			{
 				// Always enable LTO when generating PGO profile data.
 				Log.TraceInformationOnce("Enabling Profile Guided Instrumentation (PGI). Linking will take a while.");
-				Arguments.Add("-fprofile-instr-generate");
+				Arguments.Add("-fprofile-generate");
 			}
 
 			if (!CompileEnvironment.bUseInlining)
