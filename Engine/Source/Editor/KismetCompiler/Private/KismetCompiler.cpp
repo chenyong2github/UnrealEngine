@@ -5393,7 +5393,7 @@ TSharedPtr<FKismetCompilerContext> FKismetCompilerContext::GetCompilerForBP(UBlu
 	}
 }
 
-void FKismetCompilerContext::RegisterCompilerForBP(UClass* BPClass, TFunction<TSharedPtr<FKismetCompilerContext>(UBlueprint*, FCompilerResultsLog&, const FKismetCompilerOptions&)> FactoryFunction)
+void FKismetCompilerContext::RegisterCompilerForBP(UClass* BPClass, CompilerContextFactoryFunction FactoryFunction)
 {
 	CustomCompilerMap.Add(BPClass, FactoryFunction);
 }

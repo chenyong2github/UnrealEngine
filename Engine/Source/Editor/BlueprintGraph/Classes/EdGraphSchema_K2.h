@@ -968,7 +968,7 @@ public:
 	 * @param	Graph			Graph to add the function terminators to
 	 * @param	FunctionSignature	The function signature to mimic when creating the inputs and outputs for the function.
 	 */
-	virtual void CreateFunctionGraphTerminators(UEdGraph& Graph, UFunction* FunctionSignature) const;
+	virtual void CreateFunctionGraphTerminators(UEdGraph& Graph, const UFunction* FunctionSignature) const;
 
 	/**
 	 * Converts the type of a property into a fully qualified string (e.g., object'ObjectName').
