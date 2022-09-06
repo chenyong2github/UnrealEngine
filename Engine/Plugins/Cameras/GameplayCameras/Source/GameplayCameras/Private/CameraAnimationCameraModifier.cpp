@@ -77,6 +77,7 @@ float UCameraAnimationCameraModifier::EvaluateEasing(ECameraAnimationEasingType 
 
 UCameraAnimationCameraModifier::UCameraAnimationCameraModifier(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, NextInstanceSerialNumber(1)
 {
 }
 
@@ -92,7 +93,7 @@ FCameraAnimationHandle UCameraAnimationCameraModifier::PlayCameraAnimation(UCame
 	int32 NewIndex = FindInactiveCameraAnimation();
 	check(NewIndex < MAX_uint16);
 
-	const uint16 InstanceSerial = InstanceSerialNumber++;
+	const uint16 InstanceSerial = NextInstanceSerialNumber++;
 	FCameraAnimationHandle InstanceHandle { (uint16)NewIndex, InstanceSerial };
 
 	FActiveCameraAnimationInfo& NewCameraAnimation = ActiveAnimations[NewIndex];

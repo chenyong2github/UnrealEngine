@@ -261,7 +261,7 @@ protected:
 
 	/** Next serial number to use for a camera animation instance */
 	UPROPERTY()
-	uint16 InstanceSerialNumber;
+	uint16 NextInstanceSerialNumber;
 };
 
 /**
