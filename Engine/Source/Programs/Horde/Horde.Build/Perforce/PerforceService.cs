@@ -172,7 +172,7 @@ namespace Horde.Build.Perforce
 						_files = GetStreamFiles(describeRecord, _streamName);
 					}
 				}
-				throw new NotImplementedException();
+				return _files;
 			}
 		}
 
