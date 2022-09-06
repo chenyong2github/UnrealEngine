@@ -41,6 +41,7 @@ struct FBroadPhaseConfig
 		TreeOfGridAndGrid = 4
 	};
 
+	// Broadphase Type from the enum above
 	int32 BroadphaseType;
 	int32 BVNumCells;
 	int32 MaxChildrenInLeaf;
@@ -52,7 +53,7 @@ struct FBroadPhaseConfig
 
 	FBroadPhaseConfig()
 	{
-		BroadphaseType = 3;
+		BroadphaseType = Tree;
 		BVNumCells = 35;
 		MaxChildrenInLeaf = 5;
 		MaxTreeDepth = 200;
