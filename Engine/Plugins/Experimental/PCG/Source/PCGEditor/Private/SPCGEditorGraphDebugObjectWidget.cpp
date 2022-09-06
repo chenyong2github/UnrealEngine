@@ -93,6 +93,11 @@ void SPCGEditorGraphDebugObjectWidget::OnComboBoxOpening()
 	GetObjectsOfClass(UPCGComponent::StaticClass(), PCGComponents, true);
 	for (UObject* PCGComponentObject : PCGComponents)
 	{
+		if (!IsValid(PCGComponentObject))
+		{
+			continue;
+		}
+		
 		UPCGComponent* PCGComponent = Cast<UPCGComponent>(PCGComponentObject);
 		if (!PCGComponent)
 		{
