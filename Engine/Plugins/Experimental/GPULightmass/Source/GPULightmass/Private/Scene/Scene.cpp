@@ -1713,7 +1713,6 @@ void ReadbackVolumetricLightmapDataLayerFromGPU(FRHICommandListImmediate& RHICmd
 		RHICmdList.MapStagingSurface(StagingTexture2DSlice, Fence, (void*&)Buffer, RowPitchInPixels, Height);
 		check(RowPitchInPixels >= Dimensions.X);
 		check(Height == Dimensions.Y);
-		RHICmdList.UnmapStagingSurface(StagingTexture2DSlice);
 
 		const int32 SrcPitch = RowPitchInPixels * GPixelFormats[Layer.Format].BlockBytes;
 		const int32 DstPitch = Dimensions.X * GPixelFormats[Layer.Format].BlockBytes;
@@ -1727,6 +1726,8 @@ void ReadbackVolumetricLightmapDataLayerFromGPU(FRHICommandListImmediate& RHICmd
 			const int32 SourceIndex = YIndex * SrcPitch;
 			FMemory::Memcpy((uint8*)&Layer.Data[DestIndex], (const uint8*)&Buffer[SourceIndex], DstPitch);
 		}
+		
+		RHICmdList.UnmapStagingSurface(StagingTexture2DSlice);
 	}
 
 }
