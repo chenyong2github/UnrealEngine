@@ -51,7 +51,8 @@ int32 GConeTraceDownsampleFactor = 4;
 
 FIntPoint GetBufferSizeForConeTracing(const FViewInfo& View)
 {
-	return FIntPoint::DivideAndRoundDown(GetBufferSizeForAO(View), GConeTraceDownsampleFactor);
+	const FIntPoint ConeTracingBufferSize = FIntPoint::DivideAndRoundDown(GetBufferSizeForAO(View), GConeTraceDownsampleFactor);
+	return FIntPoint(FMath::Max(ConeTracingBufferSize.X, 1), FMath::Max(ConeTracingBufferSize.Y, 1));
 }
 
 FVector2f JitterOffsets[4] = 
