@@ -8,9 +8,11 @@
 #	include <lm.h>
 #	include <lmdfs.h>
 #	include <wincrypt.h>
+#	include <winnetwk.h> // for WNetGetUniversalName
 #	pragma comment(lib, "Netapi32.lib")
 #	pragma comment(lib, "Crypt32.lib")
 #	pragma comment(lib, "Bcrypt.lib")
+#	pragma comment(lib, "Mpr.lib")
 #endif	// UNSYNC_PLATFORM_WINDOWS
 
 #include <codecvt>
@@ -258,6 +260,30 @@ DfsEnumerate(const FPath& Root)
 	for (auto It : InfosToFree)
 	{
 		NetApiBufferFree(It);
+	}
+
+#endif	// UNSYNC_PLATFORM_WINDOWS
+
+	return Result;
+}
+
+FPath GetUniversalPath(const FPath& Path)
+{
+	FPath Result = Path;
+
+#if UNSYNC_PLATFORM_WINDOWS
+
+	// https://docs.microsoft.com/en-us/windows/win32/api/winnetwk/nf-winnetwk-wnetgetuniversalnamea
+
+	static constexpr DWORD MaxBufferSize = 1024;
+	WCHAR Buffer[MaxBufferSize];
+	DWORD BufferSize = MaxBufferSize;
+	UNIVERSAL_NAME_INFO* UniversalNameInfo = (UNIVERSAL_NAME_INFO*)Buffer;
+
+	DWORD ErrorCode = WNetGetUniversalNameW(Path.native().c_str(), UNIVERSAL_NAME_INFO_LEVEL, (LPVOID)UniversalNameInfo, &BufferSize);
+	if (ErrorCode == NO_ERROR)
+	{
+		Result = FPath(UniversalNameInfo->lpUniversalName);
 	}
 
 #endif	// UNSYNC_PLATFORM_WINDOWS

@@ -9,8 +9,15 @@ namespace unsync {
 int32  // TODO: return a TResult
 CmdSync(const FCmdSyncOptions& Options)
 {
-	auto ResolvePath = [&Options](const FPath& Path) -> FPath
+	auto ResolvePath = [&Options](FPath Path) -> FPath
 	{
+#if UNSYNC_PLATFORM_WINDOWS
+		if (!Path.native().starts_with(L"\\\\"))
+		{
+			Path = GetUniversalPath(Path);
+		}
+#endif // UNSYNC_PLATFORM_WINDOWS
+
 		return Options.Filter ? Options.Filter->Resolve(Path) : Path;
 	};
 
@@ -49,6 +56,8 @@ CmdSync(const FCmdSyncOptions& Options)
 
 	bool bSourceFileSystemRequired = !bSourceIsManifestHash;
 
+	std::vector<FPath> ResolvedOverlays;
+
 	if (!Options.Overlays.empty())
 	{
 		for (const FPath& Entry : Options.Overlays)
@@ -62,6 +71,7 @@ CmdSync(const FCmdSyncOptions& Options)
 			{
 				UNSYNC_VERBOSE(L"Sync overlay: '%ls' ('%ls')", Entry.wstring().c_str(), ResolvedEntry.wstring().c_str());
 			}
+			ResolvedOverlays.push_back(ResolvedEntry);
 		}
 
 		bSourceFileSystemRequired = true;
@@ -117,10 +127,10 @@ CmdSync(const FCmdSyncOptions& Options)
 				SyncOptions.SourceType = ESyncSourceType::FileSystem;
 			}
 
-			SyncOptions.Source				   = Options.Source;
+			SyncOptions.Source				   = ResolvedSource;
 			SyncOptions.Base				   = Options.Target;  // read base data from existing target
 			SyncOptions.Target				   = Options.Target;
-			SyncOptions.Overlays			   = Options.Overlays;
+			SyncOptions.Overlays			   = ResolvedOverlays;
 			SyncOptions.SourceManifestOverride = Options.SourceManifestOverride;
 			SyncOptions.Remote				   = &Options.Remote;
 			SyncOptions.SyncFilter			   = Options.Filter;

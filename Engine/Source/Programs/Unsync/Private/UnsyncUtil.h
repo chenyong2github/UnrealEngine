@@ -153,6 +153,10 @@ struct FDfsAlias
 	FPath Target;
 };
 
+// Takes a drive-based path (e.g. P:/Foo/Bar) and converts it to universal form (e.g. //server/Foo/Bar), if possible.
+// Otherwise, returns original path.
+FPath GetUniversalPath(const FPath& Path);
+
 template<typename T>
 struct TArrayView
 {
