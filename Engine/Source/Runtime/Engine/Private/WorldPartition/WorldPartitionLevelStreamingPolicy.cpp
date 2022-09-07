@@ -232,7 +232,18 @@ void UWorldPartitionLevelStreamingPolicy::DrawRuntimeCellsDetails(UCanvas* Canva
 			const FColor Color = ULevelStreaming::GetLevelStreamingStatusColor(StreamingStatus);
 			for (const UWorldPartitionRuntimeCell* Cell : Cells)
 			{
-				DrawCellDetails(Cell->GetDebugName(), GEngine->GetTinyFont(), Color);
+				if ((StreamingStatus == EStreamingStatus::LEVEL_Loaded) ||
+					(StreamingStatus == EStreamingStatus::LEVEL_MakingVisible) ||
+					(StreamingStatus == EStreamingStatus::LEVEL_Visible) ||
+					(StreamingStatus == EStreamingStatus::LEVEL_MakingInvisible))
+				{
+					float LoadTime = Cell->GetLevel() ? Cell->GetLevel()->GetPackage()->GetLoadTime() : 0.f;
+					DrawCellDetails(FString::Printf(TEXT("%s (%s)"), *Cell->GetDebugName(), *FPlatformTime::PrettyTime(LoadTime)), GEngine->GetTinyFont(), Color);
+				}
+				else
+				{
+					DrawCellDetails(Cell->GetDebugName(), GEngine->GetTinyFont(), Color);
+				}
 			}
 		}
 	}

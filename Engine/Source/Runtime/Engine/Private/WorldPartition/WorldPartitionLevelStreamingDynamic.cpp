@@ -460,6 +460,17 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	// Mark this package as fully loaded with regards to external objects
 	RuntimeLevel->GetPackage()->SetDynamicPIEPackagePending(false);
 
+	// Update runtime level package load time : take into account actor packages load time
+	float LoadTime = RuntimeLevel->GetPackage()->GetLoadTime();
+	for (AActor* Actor : RuntimeLevel->Actors)
+	{
+		if (UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr)
+		{
+			LoadTime += ActorPackage->GetLoadTime();
+		}
+	}
+	RuntimeLevel->GetPackage()->SetLoadTime(LoadTime);
+
 	PackageReferencer.RemoveReferences();
 }
 
