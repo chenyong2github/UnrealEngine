@@ -3093,6 +3093,9 @@ void FShaderCompilerStats::WriteStatSummary()
 		{
 			TotalTimeForAllShaders += Iter.Value().TotalCompileTime;
 		}
+
+		UE_LOG(LogShaderCompilers, Display, TEXT("Total thread time: %.2f s"), TotalTimeForAllShaders);
+
 		if (TotalTimeAtLeastOneJobWasInFlight > 0.0)
 		{
 			double EffectiveParallelization = TotalTimeForAllShaders / TotalTimeAtLeastOneJobWasInFlight;
