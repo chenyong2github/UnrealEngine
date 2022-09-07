@@ -225,11 +225,11 @@ public:
 			bool bIsMatch = false;
 			if (InTextComparisonMode == ETextFilterTextComparisonMode::Partial)
 			{
-				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->ObjectPath, InValue, InTextComparisonMode);
+				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetObjectPathString(), InValue, InTextComparisonMode);
 			}
 			else
 			{
-				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->ObjectPath, InValue, InTextComparisonMode)
+				bIsMatch = TextFilterUtils::TestBasicStringExpression(AssetPtr->GetObjectPathString(), InValue, InTextComparisonMode)
 					|| TextFilterUtils::TestBasicStringExpression(AssetPtr->PackageName, InValue, InTextComparisonMode)
 					|| TextFilterUtils::TestBasicStringExpression(AssetPtr->PackagePath, InValue, InTextComparisonMode);
 			}
@@ -363,7 +363,7 @@ void FAssetRegistrySearchProvider::Search(FSearchQueryPtr SearchQuery)
 		for (const FAssetData& Asset : Assets)
 		{
 			FSearchRecord Record;
-			Record.AssetPath = Asset.ObjectPath.ToString();
+			Record.AssetPath = Asset.GetObjectPathString();
 			Record.AssetName = Asset.AssetName.ToString();
 			Record.AssetClass = Asset.AssetClassPath;
 

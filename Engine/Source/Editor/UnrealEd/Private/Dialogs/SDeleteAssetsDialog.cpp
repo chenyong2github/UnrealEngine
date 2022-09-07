@@ -819,7 +819,7 @@ void SDeleteAssetsDialog::OnAssetsActivated(const TArray<FAssetData>& ActivatedA
 		for(const FAssetData& ActivatedAsset : ActivatedAssets)
 		{
 			FString MapFilePath;
-			if ( FEditorFileUtils::IsMapPackageAsset(ActivatedAsset.ObjectPath.ToString(), MapFilePath) )
+			if (FEditorFileUtils::IsMapPackageAsset(ActivatedAsset.GetObjectPathString(), MapFilePath))
 			{
 				if ( ActivatedAsset.IsAssetLoaded() )
 				{

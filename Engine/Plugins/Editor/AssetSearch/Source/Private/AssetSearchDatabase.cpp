@@ -119,7 +119,7 @@ public:
 	public: bool IsAssetUpToDate(const FAssetData& InAssetData, const FString& IndexedJsonHash)
 	{
 		FString OutIndexedJsonHash;
-		if (Statement_IsAssetUpToDate.BindAndExecuteSingle(InAssetData.ObjectPath.ToString(), OutIndexedJsonHash))
+		if (Statement_IsAssetUpToDate.BindAndExecuteSingle(InAssetData.GetObjectPathString(), OutIndexedJsonHash))
 		{
 			return OutIndexedJsonHash.Equals(IndexedJsonHash, ESearchCase::CaseSensitive);
 		}
@@ -153,7 +153,7 @@ public:
 	public: int64 GetAssetIdForAsset(const FAssetData& InAssetData)
 	{
 		int64 OutAssetId = INDEX_NONE;
-		if (Statement_GetAssetIdForAssetPath.BindAndExecuteSingle(InAssetData.ObjectPath.ToString(), OutAssetId))
+		if (Statement_GetAssetIdForAssetPath.BindAndExecuteSingle(InAssetData.GetObjectPathString(), OutAssetId))
 		{
 			return OutAssetId;
 		}
@@ -177,7 +177,7 @@ public:
 	private: FAddAssetPropertiesFromJson Statement_AddAssetProperty;
 	public: bool AddSearchRecord(const FAssetData& InAssetData, const FString& IndexedJson, const FString& IndexedJsonHash)
 	{
-		FString AssetObjectPath = InAssetData.ObjectPath.ToString();
+		FString AssetObjectPath = InAssetData.GetObjectPathString();
 		if (Statement_AddAssetToAssetTable.BindAndExecute(InAssetData.AssetName.ToString(), InAssetData.AssetClassPath.ToString(), AssetObjectPath, IndexedJsonHash))
 		{
 			int64 AssetId = Database.GetLastInsertRowId();
@@ -304,7 +304,7 @@ public:
 	private: FDeleteEntriesForAsset Statement_DeleteEntriesForAsset;
 	public: bool DeleteEntriesForAsset(const FAssetData& InAssetData)
 	{
-		return DeleteEntriesForAsset(InAssetData.ObjectPath.ToString());
+		return DeleteEntriesForAsset(InAssetData.GetObjectPathString());
 	}
 	public: bool DeleteEntriesForAsset(const FString& InAssetObjectPath)
 	{
@@ -807,7 +807,7 @@ void FAssetSearchDatabase::RemoveAssetsNotInThisSet(const TArray<FAssetData>& In
 			continue;
 		}
 
-		InAssetPaths.Add(InAsset.ObjectPath.ToString());
+		InAssetPaths.Add(InAsset.GetObjectPathString());
 	}
 
 	TArray<FString> MissingAssets;

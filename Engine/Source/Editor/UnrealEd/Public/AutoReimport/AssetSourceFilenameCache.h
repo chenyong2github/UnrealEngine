@@ -53,5 +53,5 @@ private:
 	FAssetRenamedEvent AssetRenamedEvent;
 
 	/** Map of clean filenames (no leading path information) to object paths that were imported with that file */
-	TMap<FString, TSet<FName>> SourceFileToObjectPathCache;
+	TMap<FString, TSet<FSoftObjectPath>> SourceFileToObjectPathCache;
 };

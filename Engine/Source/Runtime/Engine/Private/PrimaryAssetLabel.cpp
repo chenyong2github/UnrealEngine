@@ -46,7 +46,7 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 		TArray<FAssetData> DirectoryAssets;
 		AssetRegistry.GetAssetsByPath(PackagePath, DirectoryAssets, true);
 
-		TArray<FSoftObjectPath> NewPaths;
+		TArray<FTopLevelAssetPath> NewPaths;
 
 		for (const FAssetData& AssetData : DirectoryAssets)
 		{
@@ -54,7 +54,7 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 
 			if (!AssetRef.IsNull())
 			{
-				NewPaths.Add(AssetRef);
+				NewPaths.Add(AssetRef.GetAssetPath());
 			}
 		}
 
@@ -64,19 +64,19 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 
 	if (AssetCollection.CollectionName != NAME_None)
 	{
-		TArray<FSoftObjectPath> NewPaths;
-		TArray<FName> CollectionAssets;
+		TArray<FTopLevelAssetPath> NewPaths;
+		TArray<FName> CollectionAssetPathNames;
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-		CollectionManager.GetAssetsInCollection(AssetCollection.CollectionName, ECollectionShareType::CST_All, CollectionAssets);
+		CollectionManager.GetAssetsInCollection(AssetCollection.CollectionName, ECollectionShareType::CST_All, CollectionAssetPathNames);
+		TArray<FSoftObjectPath> CollectionAssets = UE::SoftObjectPath::Private::ConvertObjectPathNames(CollectionAssetPathNames);
 		for (int32 Index = 0; Index < CollectionAssets.Num(); ++Index)
 		{
 			FAssetData FoundAsset = Manager.GetAssetRegistry().GetAssetByObjectPath(CollectionAssets[Index]);
-
 			FSoftObjectPath AssetRef = Manager.GetAssetPathForData(FoundAsset);
 
 			if (!AssetRef.IsNull())
 			{
-				NewPaths.Add(AssetRef);
+				NewPaths.Add(AssetRef.GetAssetPath());
 			}
 		}
 

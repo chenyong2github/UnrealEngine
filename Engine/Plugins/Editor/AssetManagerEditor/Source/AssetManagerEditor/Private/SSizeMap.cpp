@@ -510,7 +510,7 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 				NodeSizeMapData.AssetData.AssetClassPath = FTopLevelAssetPath(TEXT("/None"), *LOCTEXT("MissingAsset", "MISSING!").ToString());
 
 				const FString AssetPathString = AssetPackageNameString + TEXT(".") + FPackageName::GetLongPackageAssetName(AssetPackageNameString);
-				FAssetData FoundData = CurrentRegistrySource->GetAssetByObjectPath(FName(*AssetPathString));
+				FAssetData FoundData = CurrentRegistrySource->GetAssetByObjectPath(FSoftObjectPath(AssetPathString));
 
 				if (FoundData.IsValid())
 				{
@@ -964,10 +964,10 @@ void SSizeMap::EditSelectedAssets() const
 	const FNodeSizeMapData* NodeSizeMapData = GetCurrentSizeMapData(true);
 	if (NodeSizeMapData)
 	{
-		TArray<FName> AssetNames;
-		AssetNames.Add(NodeSizeMapData->AssetData.ObjectPath);
+		TArray<FSoftObjectPath> AssetPaths;
+		AssetPaths.Add(NodeSizeMapData->AssetData.GetSoftObjectPath());
 
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetNames);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
 	}
 }
 	

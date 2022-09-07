@@ -121,7 +121,7 @@ bool FDomainAssetReferenceFilter::PassesFilterImpl(const FAssetData& AssetData, 
 	// The only exception anticipated is if somehow an editor with an asset picker is pointed
 	// towards something living in the transient package, but that's not expected!
 	// If it gets hit, transient can be added to the special system mount 'Temp' domain
-	if (ensureMsgf(AssetDomain.IsValid(), TEXT("Asset %s didn't match any domain"), *AssetData.ObjectPath.ToString()))
+	if (ensureMsgf(AssetDomain.IsValid(), TEXT("Asset %s didn't match any domain"), *AssetData.GetObjectPathString()))
 	{
 		// Check the referencing domains
 		for (const TSharedPtr<FDomainData>& ReferencingDomain : ReferencingDomains)

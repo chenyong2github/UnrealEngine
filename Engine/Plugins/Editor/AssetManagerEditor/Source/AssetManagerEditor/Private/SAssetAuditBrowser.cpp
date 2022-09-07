@@ -128,22 +128,22 @@ void SAssetAuditBrowser::GetSelectedPackages(const TArray<FAssetData>& Assets, T
 void SAssetAuditBrowser::EditSelectedAssets() const
 {
 	TArray<FAssetData> Assets = GetCurrentSelectionDelegate.Execute();
-	TArray<FName> AssetNames;
+	TArray<FSoftObjectPath> AssetPaths;
 
 	for (FAssetData& AssetData : Assets)
 	{
-		AssetNames.Add(AssetData.ObjectPath);
+		AssetPaths.Add(AssetData.GetSoftObjectPath());
 	}
 
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetNames);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
 }
 
 void SAssetAuditBrowser::OnRequestOpenAsset(const FAssetData& AssetData) const
 {
-	TArray<FName> AssetNames;
-	AssetNames.Add(AssetData.ObjectPath);
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Add(AssetData.GetSoftObjectPath());
 
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetNames);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
 }
 
 void SAssetAuditBrowser::SaveSelectedAssets() const

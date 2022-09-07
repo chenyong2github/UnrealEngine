@@ -595,6 +595,11 @@ void UAssetEditorSubsystem::HandleRequestOpenAssetMessage(const FAssetEditorRequ
 	OpenEditorForAsset(Message.AssetName);
 }
 
+void UAssetEditorSubsystem::OpenEditorForAsset(const FSoftObjectPath& AssetPath)
+{
+	OpenEditorForAsset(AssetPath.ToString());
+}
+
 void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName)
 {
 	// An asset needs loading
@@ -983,6 +988,14 @@ void UAssetEditorSubsystem::HandlePackageReloaded(const EPackageReloadPhase InPa
 			OpenEditorForAsset(NewAsset);
 		}
 		PendingAssetsToOpen.Reset();
+	}
+}
+
+void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FSoftObjectPath>& AssetsToOpen)
+{
+	for (const FSoftObjectPath& AssetName : AssetsToOpen)
+	{
+		OpenEditorForAsset(AssetName);
 	}
 }
 

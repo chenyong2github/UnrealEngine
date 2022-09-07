@@ -59,7 +59,7 @@ namespace UE::EditorAssetUtils
 		}
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 		if (!AssetData.IsValid())
 		{
 			return MakeError(FString::Printf(TEXT("The AssetData '%s' could not be found in the Asset Registry."), *ObjectPath));
@@ -78,11 +78,11 @@ namespace UE::EditorAssetUtils
 		UObject* FoundObject = AssetData.GetAsset();
 		if (!IsValid(FoundObject))
 		{
-			return MakeError(FString::Printf(TEXT("The asset '%s' exists but was not able to be loaded."), *AssetData.ObjectPath.ToString()));
+			return MakeError(FString::Printf(TEXT("The asset '%s' exists but was not able to be loaded."), *AssetData.GetObjectPathString()));
 		}
 		else if (!FoundObject->IsAsset())
 		{
-			return MakeError(FString::Printf(TEXT("'%s' is not a valid asset."), *AssetData.ObjectPath.ToString()));
+			return MakeError(FString::Printf(TEXT("'%s' is not a valid asset."), *AssetData.GetObjectPathString()));
 		}
 		return MakeValue(FoundObject);
 	}
@@ -116,7 +116,10 @@ namespace UE::EditorAssetUtils
 
 		UPackage* Package = Object->GetPackage();
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(Package->GetFName());
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// This should likely get GetAssetsByPackagename but the impact of changing it should be checked
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(Package->GetName());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (!AssetData.IsValid())
 		{
 			return MakeError(FString::Printf(TEXT("The AssetData '%s' could not be found in the Asset Registry."), *Package->GetName()));
@@ -450,7 +453,7 @@ bool UEditorAssetSubsystem::DoesAssetExist(const FString& AssetPath)
 	}
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 	if (!AssetData.IsValid())
 	{
 		return false;
@@ -480,7 +483,7 @@ bool UEditorAssetSubsystem::DoAssetsExist(const TArray<FString>& AssetPaths)
 			return false;
 		}
 
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 		if (!AssetData.IsValid())
 		{
 			return false;
@@ -895,7 +898,7 @@ bool UEditorAssetSubsystem::DuplicateDirectory(const FString& SourceDirectoryPat
 		UObject* DuplicatedAsset = Module.Get().DuplicateAsset(AssetPaths.SourceDirectoryAssetDatas[Index].AssetName.ToString(), AssetPaths.DestinationDirectoryAssetPaths[Index], AssetPaths.SourceDirectoryAssetDatas[Index].GetAsset());
 		if (DuplicatedAsset == nullptr)
 		{
-			UE_LOG(LogEditorAssetSubsystem, Warning, TEXT("DuplicateDirectory failed: Could not duplicate object '%s'"), *AssetPaths.SourceDirectoryAssetDatas[Index].ObjectPath.ToString());
+			UE_LOG(LogEditorAssetSubsystem, Warning, TEXT("DuplicateDirectory failed: Could not duplicate object '%s'"), *AssetPaths.SourceDirectoryAssetDatas[Index].GetObjectPathString());
 			bHaveAFailedAsset = true;
 		}
 	}
@@ -1018,7 +1021,7 @@ bool UEditorAssetSubsystem::RenameDirectory(const FString& SourceDirectoryPath, 
 
 	for (int32 Index = 0; Index < AssetPathsResult.GetValue().SourceDirectoryAssetDatas.Num(); ++Index)
 	{
-		AssetsToRename.Add(FAssetRenameData(AssetPathsResult.GetValue().SourceDirectoryAssetDatas[Index].ObjectPath.ToString(), AssetPathsResult.GetValue().DestinationDirectoryAssetPaths[Index]));
+		AssetsToRename.Add(FAssetRenameData(AssetPathsResult.GetValue().SourceDirectoryAssetDatas[Index].GetObjectPathString(), AssetPathsResult.GetValue().DestinationDirectoryAssetPaths[Index]));
 	}
 
 	// Rename the assets
@@ -1386,7 +1389,7 @@ TArray<FString> UEditorAssetSubsystem::ListAssets(const FString& DirectoryPath, 
 		AssetDatas.Reserve(AssetDatas.Num());
 		for (const FAssetData& AssetData : AssetDatas)
 		{
-			AssetPaths.Add(AssetData.ObjectPath.ToString());
+			AssetPaths.Add(AssetData.GetObjectPathString());
 		}
 	}
 

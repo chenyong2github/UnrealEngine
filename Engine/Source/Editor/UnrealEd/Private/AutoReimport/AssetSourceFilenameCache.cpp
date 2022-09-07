@@ -100,7 +100,7 @@ void FAssetSourceFilenameCache::HandleOnAssetAdded(const FAssetData& AssetData)
 	{
 		for (const auto& SourceFile : ImportData->SourceFiles)
 		{
-			SourceFileToObjectPathCache.FindOrAdd(FPaths::GetCleanFilename(SourceFile.RelativeFilename)).Add(AssetData.ObjectPath);
+			SourceFileToObjectPathCache.FindOrAdd(FPaths::GetCleanFilename(SourceFile.RelativeFilename)).Add(AssetData.GetSoftObjectPath());
 		}
 	}
 }
@@ -115,7 +115,7 @@ void FAssetSourceFilenameCache::HandleOnAssetRemoved(const FAssetData& AssetData
 			FString CleanFilename = FPaths::GetCleanFilename(SourceFile.RelativeFilename);
 			if (auto* Objects = SourceFileToObjectPathCache.Find(CleanFilename))
 			{
-				Objects->Remove(AssetData.ObjectPath);
+				Objects->Remove(AssetData.GetSoftObjectPath());
 				if (Objects->Num() == 0)
 				{
 					SourceFileToObjectPathCache.Remove(CleanFilename);
@@ -130,22 +130,20 @@ void FAssetSourceFilenameCache::HandleOnAssetRenamed(const FAssetData& AssetData
 	TOptional<FAssetImportInfo> ImportData = ExtractAssetImportInfo(AssetData);
 	if (ImportData.IsSet())
 	{
-		FName OldPathName = *OldPath;
-
 		for (auto& SourceFile : ImportData->SourceFiles)
 		{
 			FString CleanFilename = FPaths::GetCleanFilename(SourceFile.RelativeFilename);
 
 			if (auto* Objects = SourceFileToObjectPathCache.Find(CleanFilename))
 			{
-				Objects->Remove(OldPathName);
+				Objects->Remove(FSoftObjectPath(OldPath));
 				if (Objects->Num() == 0)
 				{
 					SourceFileToObjectPathCache.Remove(CleanFilename);
 				}
 			}
 
-			SourceFileToObjectPathCache.FindOrAdd(CleanFilename).Add(AssetData.ObjectPath);
+			SourceFileToObjectPathCache.FindOrAdd(CleanFilename).Add(AssetData.GetSoftObjectPath());
 		}
 	}
 
@@ -154,7 +152,7 @@ void FAssetSourceFilenameCache::HandleOnAssetRenamed(const FAssetData& AssetData
 
 void FAssetSourceFilenameCache::HandleOnAssetUpdated(const FAssetImportInfo& OldData, const UAssetImportData* ImportData)
 {
-	FName ObjectPath = FName(*ImportData->GetOuter()->GetPathName());
+	FSoftObjectPath ObjectPath = FSoftObjectPath(ImportData->GetOuter());
 
 	for (const auto& SourceFile : OldData.SourceFiles)
 	{
@@ -181,7 +179,7 @@ TArray<FAssetData> FAssetSourceFilenameCache::GetAssetsPertainingToFile(const IA
 	
 	if (const auto* ObjectPaths = SourceFileToObjectPathCache.Find(FPaths::GetCleanFilename(AbsoluteFilename)))
 	{
-		for (const FName& Path : *ObjectPaths)
+		for (const FSoftObjectPath& Path : *ObjectPaths)
 		{
 			FAssetData Asset = Registry.GetAssetByObjectPath(Path);
 			TOptional<FAssetImportInfo> ImportInfo = ExtractAssetImportInfo(Asset);

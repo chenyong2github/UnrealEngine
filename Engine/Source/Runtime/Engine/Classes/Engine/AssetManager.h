@@ -193,6 +193,8 @@ public:
 
 	/** Sees if the passed in object path is a registered primary asset, if so return it. Returns invalid Identifier if not found */
 	virtual FPrimaryAssetId GetPrimaryAssetIdForPath(const FSoftObjectPath& ObjectPath) const;
+
+	UE_DEPRECATED(5.1, "FName asset paths are deprecated, use FSoftObjectPath instead.")
 	virtual FPrimaryAssetId GetPrimaryAssetIdForPath(FName ObjectPath) const;
 
 	/** Sees if the package has a primary asset, useful if only the package name is available */
@@ -407,6 +409,7 @@ public:
 	virtual FPrimaryAssetId DeterminePrimaryAssetIdForObject(const UObject* Object) const;
 
 	/** Reads AssetManagerSettings for specifically redirected asset paths. This is useful if you need to convert older saved data */
+	UE_DEPRECATED(5.1, "Asset path FNames are deprecated, use FSoftObjectPath instead.")
 	virtual FName GetRedirectedAssetPath(FName OldPath) const;
 	virtual FSoftObjectPath GetRedirectedAssetPath(const FSoftObjectPath& OldPath) const;
 
@@ -696,7 +699,7 @@ protected:
 #endif // WITH_EDITOR
 
 	/** Map from object path to Primary Asset Id */
-	TMap<FName, FPrimaryAssetId> AssetPathMap;
+	TMap<FSoftObjectPath, FPrimaryAssetId> AssetPathMap;
 
 	/** Overridden asset management data for specific types */
 	TMap<FPrimaryAssetId, FPrimaryAssetRulesExplicitOverride> AssetRuleOverrides;
@@ -806,7 +809,7 @@ protected:
 	/** Redirector maps loaded out of AssetMigrations.ini */
 	TMap<FName, FName> PrimaryAssetTypeRedirects;
 	TMap<FString, FString> PrimaryAssetIdRedirects;
-	TMap<FName, FName> AssetPathRedirects;
+	TMap<FSoftObjectPath, FSoftObjectPath> AssetPathRedirects;
 
 	/** Delegate called when initial span finishes */
 	static FSimpleMulticastDelegate OnCompletedInitialScanDelegate;
