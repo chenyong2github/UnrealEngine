@@ -18,12 +18,5 @@ public class Virtualization : ModuleRules
 				"Projects",
 				"SourceControl"
 			});
-
-		// The dependencies below this point are for FHttpBackend
-		// and can be removed when it is removed
-		PrivateDependencyModuleNames.AddRange(new string[] { "SSL", "Json" });
-
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 	}
 }
