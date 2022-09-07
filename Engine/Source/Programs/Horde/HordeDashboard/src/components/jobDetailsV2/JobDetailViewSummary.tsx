@@ -68,7 +68,7 @@ export const AutosubmitInfo: React.FC<{ jobDetails: JobDetailsV2 }> = observer((
    }
 
    if (jobData.autoSubmitChange) {
-      const url = `https://p4-swarm.epicgames.net/change/${jobData.autoSubmitChange}`;
+      const url = `${dashboard.swarmUrl}/change/${jobData.autoSubmitChange}`;
       return <Stack style={{ paddingTop: 24 }}><Text>Automatically submitted in <a href={url} target="_blank" rel="noreferrer" onClick={ev => ev?.stopPropagation()}>{`CL ${jobData.autoSubmitChange}`}</a></Text></Stack>;
    }
 
