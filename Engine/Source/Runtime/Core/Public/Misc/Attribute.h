@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/TVariant.h"
 #include "Templates/Function.h"
+#include "Templates/Identity.h"
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
 
@@ -111,7 +112,7 @@ public:
 	 * @param  InFuncPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
 	template <typename... VarTypes >
-	UE_NODISCARD static TAttribute Create( typename FGetter::template FStaticDelegate< VarTypes... >::FuncType InFuncPtr, VarTypes... Vars )
+	UE_NODISCARD static TAttribute CreateStatic( TIdentity_T< typename FGetter::template TFuncPtr< VarTypes... > > InFuncPtr, VarTypes... Vars )
 	{
 		const bool bExplicitConstructor = true;
 		return TAttribute( FGetter::CreateStatic( InFuncPtr, Vars... ), bExplicitConstructor );
@@ -298,7 +299,7 @@ public:
 	 * @param  InFuncPtr	Function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
 	template < typename... VarTypes >
-	void BindStatic( typename FGetter::template FStaticDelegate< VarTypes... >::FFuncPtr InFuncPtr, VarTypes... Vars )
+	void BindStatic( TIdentity_T< typename FGetter::template TFuncPtr< VarTypes... > > InFuncPtr, VarTypes... Vars )
 	{
 		bIsSet = true;
 		Getter.BindStatic( InFuncPtr, Vars... );

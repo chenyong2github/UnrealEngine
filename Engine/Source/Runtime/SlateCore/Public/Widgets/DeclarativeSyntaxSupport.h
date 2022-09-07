@@ -13,6 +13,7 @@
 #include "Trace/SlateMemoryTags.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
+#include "Templates/Identity.h"
 
 class IToolTip;
 class SUserWidget;
@@ -126,7 +127,7 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 		/* Bind attribute with delegate to a global function
 		 * NOTE: We use a template here to avoid 'typename' issues when hosting attributes inside templated classes */ \
 		template< typename... VarTypes > \
-		WidgetArgsType& AttrName##_Static( typename TAttribute< AttrType >::FGetter::template FStaticDelegate<VarTypes...>::FFuncPtr InFunc, VarTypes... Vars )	\
+		WidgetArgsType& AttrName##_Static( TIdentity_T< typename TAttribute< AttrType >::FGetter::template TFuncPtr<VarTypes...> > InFunc, VarTypes... Vars )	\
 		{ \
 			_##AttrName = TAttribute< AttrType >::Create( TAttribute< AttrType >::FGetter::CreateStatic( InFunc, Vars... ) ); \
 			return static_cast<WidgetArgsType*>(this)->Me(); \

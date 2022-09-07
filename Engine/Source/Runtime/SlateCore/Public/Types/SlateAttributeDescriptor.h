@@ -12,6 +12,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/InvalidateWidgetReason.h"
+#include "Templates/Identity.h"
 
 #include <type_traits>
 
@@ -55,7 +56,7 @@ public:
 		}
 
 		template<typename... PayloadTypes>
-		explicit FInvalidateWidgetReasonAttribute(typename FGetter::template FStaticDelegate<PayloadTypes...>::FFuncPtr InFuncPtr, PayloadTypes&&... InputPayload)
+		explicit FInvalidateWidgetReasonAttribute(TIdentity_T<typename FGetter::template TFuncPtr<PayloadTypes...>> InFuncPtr, PayloadTypes&&... InputPayload)
 			: Reason(EInvalidateWidgetReason::None)
 			, Getter(FGetter::CreateStatic(InFuncPtr, Forward<PayloadTypes>(InputPayload)...))
 		{
