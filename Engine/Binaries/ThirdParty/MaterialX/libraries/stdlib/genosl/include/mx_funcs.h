@@ -468,8 +468,211 @@ vector4 fBm( point position, int octaves, float lacunarity, float diminish, stri
 }
 
 
+void mx_split_float(output float x, output int ix)
+{
+    ix = int(floor(x));
+    x -= ix;
+}
 
+float mx_worley_distance(vector2 p, int x, int y, int X, int Y, float jitter, int metric)
+{
+    vector o = cellnoise(x+X, y+Y);
+    o = (o - .5)*jitter + .5;
+    float cposx = x + o[0];
+    float cposy = y + o[1];
+    float diffx = cposx - p.x;
+    float diffy = cposy - p.y;
 
+    if (metric == 2)
+        return abs(diffx) + abs(diffy);     // Manhattan distance
+    if (metric == 3)
+        return max(abs(diffx), abs(diffy)); // Chebyshev distance
+    return diffx*diffx + diffy*diffy;       // Euclidean or distance^2
+}
+
+float mx_worley_distance(vector p, int x, int y, int z, int X, int Y, int Z, float jitter, int metric)
+{
+    vector o = cellnoise(vector(x+X, y+Y, z+Z));
+    o = (o - .5)*jitter + .5;
+    vector cpos = vector(x, y, z) + o;
+    vector diff = cpos - p;
+
+    if (metric == 2)
+        return abs(diff[0]) + abs(diff[1]);     // Manhattan distance
+    if (metric == 3)
+        return max(abs(diff[0]), abs(diff[1])); // Chebyshev distance
+    return dot(diff, diff);                     // Eucldean or distance^2
+}
+
+void mx_sort_distance(float dist, output vector2 result)
+{
+    if (dist < result.x)
+    {
+        result.y = result.x;
+        result.x = dist;
+    }
+    else if (dist < result.y)
+    {
+        result.y = dist;
+    }
+}
+
+void mx_sort_distance(float dist, output vector result)
+{
+    if (dist < result[0])
+    {
+        result[2] = result[1];
+        result[1] = result[0];
+        result[0] = dist;
+    }
+    else if (dist < result[1])
+    {
+        result[2] = result[1];
+        result[1] = dist;
+    }
+    else if (dist < result[2])
+    {
+        result[2] = dist;
+    }
+}
+
+float mx_worley_noise_float(vector2 p, float jitter, int metric)
+{
+    int X, Y;
+    vector2 seed = p;
+    float result = 1e6;
+
+    mx_split_float(seed.x, X);
+    mx_split_float(seed.y, Y);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            float d = mx_worley_distance(seed, x, y, X, Y, jitter, metric);
+            result = min(result, d);
+        }
+    }
+    if (metric == 0)
+        result = sqrt(result);
+    return result;
+}
+
+vector2 mx_worley_noise_vector2(vector2 p, float jitter, int metric)
+{
+    int X, Y;
+    vector2 seed = p;
+    vector2 result = vector2(1e6, 1e6);
+
+    mx_split_float(seed.x, X);
+    mx_split_float(seed.y, Y);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            float d = mx_worley_distance(seed, x, y, X, Y, jitter, metric);
+            mx_sort_distance(d, result);
+        }
+    }
+    if (metric == 0)
+        result = sqrt(result);
+    return result;
+}
+
+vector mx_worley_noise_vector3(vector2 p, float jitter, int metric)
+{
+    int X, Y;
+    vector2 seed = p;
+    vector result = vector(1e6, 1e6, 1e6);
+
+    mx_split_float(seed.x, X);
+    mx_split_float(seed.y, Y);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            float d = mx_worley_distance(seed, x, y, X, Y, jitter, metric);
+            mx_sort_distance(d, result);
+        }
+    }
+    if (metric == 0)
+        result = sqrt(result);
+    return result;
+}
+
+float mx_worley_noise_float(vector p, float jitter, int metric)
+{
+    int X, Y, Z;
+    vector seed = p;
+    float result = 1e6;
+
+    mx_split_float(seed[0], X);
+    mx_split_float(seed[1], Y);
+    mx_split_float(seed[2], Z);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            for (int z = -1; z <= 1; ++z)
+            {
+                float d = mx_worley_distance(seed, x, y, z, X, Y, Z, jitter, metric);
+                result = min(result, d);
+            }
+        }
+    }
+    if (metric == 0)
+        result = sqrt(result);
+    return result;
+}
+
+vector2 mx_worley_noise_vector2(vector p, float jitter, int metric)
+{
+    int X, Y, Z;
+    vector seed = p;
+    vector2 result = vector2(1e6, 1e6);
+
+    mx_split_float(seed[0], X);
+    mx_split_float(seed[1], Y);
+    mx_split_float(seed[2], Z);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            for (int z = -1; z <= 1; ++z)
+            {
+                float d = mx_worley_distance(seed, x, y, z, X, Y, Z, jitter, metric);
+                mx_sort_distance(d, result);
+            }
+        }
+    }
+    if (metric == 0)
+        result = sqrt(result);
+    return result;
+}
+
+vector mx_worley_noise_vector3(vector p, float jitter, int metric)
+{
+    int X, Y, Z;
+    vector result = 1e6;
+    vector seed = p;
+
+    mx_split_float(seed[0], X);
+    mx_split_float(seed[1], Y);
+    mx_split_float(seed[2], Z);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            for (int z = -1; z <= 1; ++z)
+            {
+                float d = mx_worley_distance(seed, x, y, z, X, Y, Z, jitter, metric);
+                mx_sort_distance(d, result);
+            }
+        }
+    }
+    if (metric == 0)
+        result = sqrt(result);
+    return result;
+}
 
 
 float swizzle_float (float in[4], string channels)
