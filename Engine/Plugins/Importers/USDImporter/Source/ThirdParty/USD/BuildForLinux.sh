@@ -2,28 +2,24 @@
 
 set -e
 
-USD_VERSION=22.05a
+USD_VERSION=22.08
 
 # This path may be adjusted to point to wherever the USD source is located.
 # It is typically obtained by either downloading a zip/tarball of the source
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
-#     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.git USD_src
+#     git clone --branch v22.08 https://github.com/PixarAnimationStudios/USD.git USD_src
 # Note that a small patch to the USD CMake build is currently necessary for
 # the usdAbc plugin to require and link against Imath instead of OpenEXR:
-#     git apply USD_v2205a_usdAbc_Imath.patch
+#     git apply USD_v2208_usdAbc_Imath.patch
 # We also apply a patch for the usdMtlx plugin to ensure that we do not
 # bake a hard-coded path to the MaterialX standard data libraries into the
 # built plugin:
-#     git apply USD_v2205a_usdMtlx_undef_stdlib_dir.patch
-# This patch ensures that SdfFileFormat objects are returned correctly from
-# the registry, particularly on Linux when using clang/libc++ which
-# implements dynamic_cast differently from libstdc++.
-#     git apply USD_v2205a_Sdf_FileFormatFactoryBase_non_inline_dtor.patch
+#     git apply USD_v2208_usdMtlx_undef_stdlib_dir.patch
 # Specifically for Linux when building with clang, an additional patch is
 # needed to ensure that type comparisons work correctly across shared library
 # boundaries:
-#     git apply USD_v2205a_Linux_clang_TfSafeTypeCompare.patch
+#     git apply USD_v2208_Linux_clang_TfSafeTypeCompare.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"
@@ -47,8 +43,9 @@ IMATH_CMAKE_LOCATION="$IMATH_LIB_LOCATION/lib/cmake/Imath"
 ALEMBIC_LOCATION="$UE_THIRD_PARTY_LOCATION/Alembic/Deploy/alembic-1.8.2"
 ALEMBIC_INCLUDE_LOCATION="$ALEMBIC_LOCATION/include"
 ALEMBIC_LIB_LOCATION="$ALEMBIC_LOCATION/Unix/$ARCH_NAME"
-MATERIALX_LOCATION="$UE_THIRD_PARTY_LOCATION/MaterialX/Deploy/MaterialX-1.38.1"
+MATERIALX_LOCATION="$UE_THIRD_PARTY_LOCATION/MaterialX/Deploy/MaterialX-1.38.5"
 MATERIALX_LIB_LOCATION="$MATERIALX_LOCATION/Unix/$ARCH_NAME/lib"
+MATERIALX_CMAKE_LOCATION="$MATERIALX_LIB_LOCATION/cmake/MaterialX"
 
 PYTHON_BINARIES_LOCATION="$UE_ENGINE_LOCATION/Binaries/ThirdParty/Python3/Linux"
 PYTHON_EXECUTABLE_LOCATION="$PYTHON_BINARIES_LOCATION/bin/python3"
@@ -90,7 +87,7 @@ CMAKE_ARGS=(
     -DCMAKE_MODULE_LINKER_FLAGS="$CXX_LINKER"
     -DCMAKE_SHARED_LINKER_FLAGS="$CXX_LINKER"
     -DCMAKE_STATIC_LINKER_FLAGS="$CXX_LINKER"
-    -DCMAKE_PREFIX_PATH="$IMATH_CMAKE_LOCATION"
+    -DCMAKE_PREFIX_PATH="$IMATH_CMAKE_LOCATION;$MATERIALX_CMAKE_LOCATION"
     -DTBB_INCLUDE_DIR="$TBB_INCLUDE_LOCATION"
     -DTBB_LIBRARY="$TBB_LIB_LOCATION"
     -DBoost_NO_BOOST_CMAKE=ON
@@ -107,8 +104,6 @@ CMAKE_ARGS=(
     -DALEMBIC_INCLUDE_DIR="$ALEMBIC_INCLUDE_LOCATION"
     -DALEMBIC_DIR="$ALEMBIC_LIB_LOCATION"
     -DPXR_ENABLE_MATERIALX_SUPPORT=ON
-    -DMATERIALX_ROOT="$MATERIALX_LOCATION"
-    -DMATERIALX_LIB_DIRS="$MATERIALX_LIB_LOCATION"
     -DBUILD_SHARED_LIBS=ON
     -DPXR_BUILD_TESTS=OFF
     -DPXR_BUILD_EXAMPLES=OFF

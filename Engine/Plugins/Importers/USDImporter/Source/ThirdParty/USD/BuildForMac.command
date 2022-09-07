@@ -2,20 +2,16 @@
 
 set -e
 
-USD_VERSION=22.05a
+USD_VERSION=22.08
 
 # This path may be adjusted to point to wherever the USD source is located.
 # It is typically obtained by either downloading a zip/tarball of the source
 # code, or more commonly by cloning the GitHub repository, e.g. for the
 # current engine USD version:
-#     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.git USD_src
+#     git clone --branch v22.08 https://github.com/PixarAnimationStudios/USD.git USD_src
 # Note that a small patch to the USD CMake build is currently necessary for
 # the usdAbc plugin to require and link against Imath instead of OpenEXR:
-#     git apply USD_v2205a_usdAbc_Imath.patch
-# This patch ensures that SdfFileFormat objects are returned correctly from
-# the registry, particularly on Linux when using clang/libc++ which
-# implements dynamic_cast differently from libstdc++.
-#     git apply USD_v2205a_Sdf_FileFormatFactoryBase_non_inline_dtor.patch
+#     git apply USD_v2208_usdAbc_Imath.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"

@@ -1,24 +1,20 @@
 @echo off
 setlocal
 
-set USD_VERSION=22.05a
+set USD_VERSION=22.08
 
 rem This path may be adjusted to point to wherever the USD source is located.
 rem It is typically obtained by either downloading a zip/tarball of the source
 rem code, or more commonly by cloning the GitHub repository, e.g. for the
 rem current engine USD version:
-rem     git clone --branch v22.05a https://github.com/PixarAnimationStudios/USD.git USD_src
+rem     git clone --branch v22.08 https://github.com/PixarAnimationStudios/USD.git USD_src
 rem Note that a small patch to the USD CMake build is currently necessary for
 rem the usdAbc plugin to require and link against Imath instead of OpenEXR:
-rem     git apply USD_v2205a_usdAbc_Imath.patch
+rem     git apply USD_v2208_usdAbc_Imath.patch
 rem We also apply a patch for the usdMtlx plugin to ensure that we do not
 rem bake a hard-coded path to the MaterialX standard data libraries into the
 rem built plugin:
-rem     git apply USD_v2205a_usdMtlx_undef_stdlib_dir.patch
-rem This patch ensures that SdfFileFormat objects are returned correctly from
-rem the registry, particularly on Linux when using clang/libc++ which
-rem implements dynamic_cast differently from libstdc++.
-rem     git apply USD_v2205a_Sdf_FileFormatFactoryBase_non_inline_dtor.patch
+rem     git apply USD_v2208_usdMtlx_undef_stdlib_dir.patch
 rem Note also that this path may be emitted as part of USD error messages, so
 rem it is suggested that it not reveal any sensitive information.
 set USD_SOURCE_LOCATION=C:\USD_src
@@ -44,8 +40,9 @@ set IMATH_CMAKE_LOCATION=%IMATH_LIB_LOCATION%\lib\cmake\Imath
 set ALEMBIC_LOCATION=%UE_THIRD_PARTY_LOCATION%\Alembic\Deploy\alembic-1.8.2
 set ALEMBIC_INCLUDE_LOCATION=%ALEMBIC_LOCATION%\include
 set ALEMBIC_LIB_LOCATION=%ALEMBIC_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%
-set MATERIALX_LOCATION=%UE_THIRD_PARTY_LOCATION%\MaterialX\Deploy\MaterialX-1.38.1
+set MATERIALX_LOCATION=%UE_THIRD_PARTY_LOCATION%\MaterialX\Deploy\MaterialX-1.38.5
 set MATERIALX_LIB_LOCATION=%MATERIALX_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%\lib
+set MATERIALX_CMAKE_LOCATION=%MATERIALX_LIB_LOCATION%\cmake\MaterialX
 
 set PYTHON_BINARIES_LOCATION=%UE_ENGINE_LOCATION%\Binaries\ThirdParty\Python3\Win64
 set PYTHON_EXECUTABLE_LOCATION=%PYTHON_BINARIES_LOCATION%\python.exe
@@ -71,7 +68,7 @@ pushd %BUILD_LOCATION%
 echo Configuring build for USD version %USD_VERSION%...
 cmake -G "Visual Studio 16 2019" %USD_SOURCE_LOCATION%^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_LOCATION%"^
-    -DCMAKE_PREFIX_PATH="%IMATH_CMAKE_LOCATION%"^
+    -DCMAKE_PREFIX_PATH="%IMATH_CMAKE_LOCATION%;%MATERIALX_CMAKE_LOCATION%"^
     -DTBB_INCLUDE_DIR="%TBB_INCLUDE_LOCATION%"^
     -DTBB_LIBRARY="%TBB_LIB_LOCATION%"^
     -DBoost_NO_BOOST_CMAKE=ON^
@@ -87,8 +84,6 @@ cmake -G "Visual Studio 16 2019" %USD_SOURCE_LOCATION%^
     -DALEMBIC_INCLUDE_DIR="%ALEMBIC_INCLUDE_LOCATION%"^
     -DALEMBIC_DIR="%ALEMBIC_LIB_LOCATION%"^
     -DPXR_ENABLE_MATERIALX_SUPPORT=ON^
-    -DMATERIALX_ROOT="%MATERIALX_LOCATION%"^
-    -DMATERIALX_LIB_DIRS="%MATERIALX_LIB_LOCATION%"^
     -DBUILD_SHARED_LIBS=ON^
     -DPXR_BUILD_TESTS=OFF^
     -DPXR_BUILD_EXAMPLES=OFF^
