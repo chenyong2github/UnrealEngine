@@ -4,6 +4,6 @@
 
 #include "CoreTypes.h"
 
-COMPILE_WARNING("UCameraShake has been renamed to UMatineeCameraShake, change to #include \"MatineeCameraShake.h\" and rename references")
-#include "MatineeCameraShake.h"
+COMPILE_WARNING("UCameraShake has been renamed to ULegacyCameraShake, change to #include \"LegacyCameraShake.h\" and rename references")
+#include "LegacyCameraShake.h"
 

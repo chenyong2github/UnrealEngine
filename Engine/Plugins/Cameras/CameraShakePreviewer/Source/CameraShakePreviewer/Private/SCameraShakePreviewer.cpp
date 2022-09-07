@@ -12,7 +12,7 @@
 #include "Styling/AppStyle.h"
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
-#include "MatineeCameraShake.h"
+#include "LegacyCameraShake.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"
 #include "Widgets/Input/SButton.h"

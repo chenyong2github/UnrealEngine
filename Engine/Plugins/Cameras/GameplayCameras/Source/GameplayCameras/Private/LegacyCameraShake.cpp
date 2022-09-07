@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MatineeCameraShake.h"
+#include "LegacyCameraShake.h"
 #include "SequenceCameraShake.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -8,7 +8,7 @@
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 
-DEFINE_LOG_CATEGORY_STATIC(LogMatineeCameraShake, Warning, All);
+DEFINE_LOG_CATEGORY_STATIC(LogLegacyCameraShake, Warning, All);
 
 //////////////////////////////////////////////////////////////////////////
 // FFOscillator
@@ -63,11 +63,11 @@ float FFOscillator::GetOffsetAtTime(FFOscillator const& Osc, float InitialOffset
 }
 
 //////////////////////////////////////////////////////////////////////////
-// UMatineeCameraShake
+// ULegacyCameraShake
 
-UMatineeCameraShake::UMatineeCameraShake(const FObjectInitializer& ObjectInitializer)
+ULegacyCameraShake::ULegacyCameraShake(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
-				.SetDefaultSubobjectClass<UMatineeCameraShakePattern>(TEXT("RootShakePattern")))
+				.SetDefaultSubobjectClass<ULegacyCameraShakePattern>(TEXT("RootShakePattern")))
 {
 	AnimPlayRate = 1.0f;
 	AnimScale = 1.0f;
@@ -77,7 +77,7 @@ UMatineeCameraShake::UMatineeCameraShake(const FObjectInitializer& ObjectInitial
 	OscillationBlendOutTime = 0.2f;
 }
 
-void UMatineeCameraShake::DoStopShake(bool bImmediately)
+void ULegacyCameraShake::DoStopShake(bool bImmediately)
 {
 	APlayerCameraManager* CameraOwner = GetCameraManager();
 
@@ -106,12 +106,12 @@ void UMatineeCameraShake::DoStopShake(bool bImmediately)
 		SequenceShakePattern->StopShakePattern(StopParams);
 	}
 
-	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoStopShake %s"), *GetNameSafe(this));
+	UE_LOG(LogLegacyCameraShake, Verbose, TEXT("ULegacyCameraShake::DoStopShake %s"), *GetNameSafe(this));
 
 	ReceiveStopShake(bImmediately);
 }
 
-void UMatineeCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
+void ULegacyCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 {
 	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
 
@@ -194,12 +194,12 @@ void UMatineeCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 		SequenceShakePattern->StartShakePattern(Params);
 	}
 
-	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoStartShake %s Duration: %f"), *GetNameSafe(this), OscillationDuration);
+	UE_LOG(LogLegacyCameraShake, Verbose, TEXT("ULegacyCameraShake::DoStartShake %s Duration: %f"), *GetNameSafe(this), OscillationDuration);
 
 	ReceivePlayShake(ShakeScale);
 }
 
-void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
+void ULegacyCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	const float DeltaTime = Params.DeltaTime;
 	const float BaseShakeScale = Params.GetTotalScale();
@@ -354,10 +354,10 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 	}
 
 
-	UE_LOG(LogMatineeCameraShake, Verbose, TEXT("UMatineeCameraShake::DoUpdateShake %s Finished: %i Duration: %f Remaining: %f"), *GetNameSafe(this), bOscillationFinished, OscillationDuration, OscillatorTimeRemaining);
+	UE_LOG(LogLegacyCameraShake, Verbose, TEXT("ULegacyCameraShake::DoUpdateShake %s Finished: %i Duration: %f Remaining: %f"), *GetNameSafe(this), bOscillationFinished, OscillationDuration, OscillatorTimeRemaining);
 }
 
-void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+void ULegacyCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	const float NewTime = Params.AbsoluteTime;
 
@@ -398,7 +398,7 @@ void UMatineeCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FC
 	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
 }
 
-bool UMatineeCameraShake::DoGetIsFinished() const
+bool ULegacyCameraShake::DoGetIsFinished() const
 {
 	return ((OscillatorTimeRemaining <= 0.f) &&									// oscillator is finished
 		((SequenceShakePattern == nullptr) ||									// other anim is finished
@@ -407,7 +407,7 @@ bool UMatineeCameraShake::DoGetIsFinished() const
 		);
 }
 
-void UMatineeCameraShake::DoTeardownShake()
+void ULegacyCameraShake::DoTeardownShake()
 {
 	if (SequenceShakePattern)
 	{
@@ -417,47 +417,47 @@ void UMatineeCameraShake::DoTeardownShake()
 
 /// @cond DOXYGEN_WARNINGS
 
-bool UMatineeCameraShake::ReceiveIsFinished_Implementation() const
+bool ULegacyCameraShake::ReceiveIsFinished_Implementation() const
 {
 	return true;
 }
 
 /// @endcond
 
-bool UMatineeCameraShake::IsLooping() const
+bool ULegacyCameraShake::IsLooping() const
 {
 	return OscillationDuration < 0.0f;
 }
 
-void UMatineeCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV)
+void ULegacyCameraShake::SetCurrentTimeAndApplyShake(float NewTime, FMinimalViewInfo& POV)
 {
 	ScrubAndApplyCameraShake(NewTime, 1.f, POV);
 }
 
-UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShake(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+ULegacyCameraShake* ULegacyCameraShake::StartLegacyCameraShake(APlayerCameraManager* PlayerCameraManager, TSubclassOf<ULegacyCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	if (PlayerCameraManager)
 	{
-		return Cast<UMatineeCameraShake>(PlayerCameraManager->StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
+		return Cast<ULegacyCameraShake>(PlayerCameraManager->StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
 	}
 
 	return nullptr;
 }
 
-UMatineeCameraShake* UMatineeCameraShake::StartMatineeCameraShakeFromSource(APlayerCameraManager* PlayerCameraManager, TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+ULegacyCameraShake* ULegacyCameraShake::StartLegacyCameraShakeFromSource(APlayerCameraManager* PlayerCameraManager, TSubclassOf<ULegacyCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	if (PlayerCameraManager)
 	{
-		return Cast<UMatineeCameraShake>(PlayerCameraManager->StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
+		return Cast<ULegacyCameraShake>(PlayerCameraManager->StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
 	}
 
 	return nullptr;
 }
 
-void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
+void ULegacyCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const
 {
 	// We will manage our own duration, but let's give a hint about how long we are for editor purposes.
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	
 	if (Shake->AnimSequence)
 	{
@@ -476,39 +476,39 @@ void UMatineeCameraShakePattern::GetShakePatternInfoImpl(FCameraShakeInfo& OutIn
 	}
 }
 
-void UMatineeCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
+void ULegacyCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
 {
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	Shake->DoStopShake(Params.bImmediately);
 }
 
-void UMatineeCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
+void ULegacyCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
 {
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	Shake->DoStartShake(Params);
 }
 
-void UMatineeCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
+void ULegacyCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	Shake->DoUpdateShake(Params, OutResult);
 }
 
-void UMatineeCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
+void ULegacyCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	Shake->DoScrubShake(Params, OutResult);
 }
 
-bool UMatineeCameraShakePattern::IsFinishedImpl() const
+bool ULegacyCameraShakePattern::IsFinishedImpl() const
 {
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	return Shake->DoGetIsFinished();
 }
 
-void UMatineeCameraShakePattern::TeardownShakePatternImpl()
+void ULegacyCameraShakePattern::TeardownShakePatternImpl()
 {
-	UMatineeCameraShake* Shake = GetShakeInstance<UMatineeCameraShake>();
+	ULegacyCameraShake* Shake = GetShakeInstance<ULegacyCameraShake>();
 	Shake->DoTeardownShake();
 }
 
