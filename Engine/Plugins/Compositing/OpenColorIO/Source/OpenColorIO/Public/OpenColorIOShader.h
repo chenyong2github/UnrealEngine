@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
 #include "GlobalShader.h"
 #include "OpenColorIOShaderType.h"
 #include "OpenColorIOShared.h"
@@ -81,4 +82,4 @@ public:
 	}
 };
 
-OPENCOLORIO_API void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Parameters, TConstArrayView<FTextureResource*> InTextureResources);
+OPENCOLORIO_API void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Parameters, const TSortedMap<int32, FTextureResource*>& InTextureResources);

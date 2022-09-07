@@ -2,6 +2,7 @@
 
 #include "OpenColorIODisplayExtension.h"
 
+#include "Containers/SortedMap.h"
 #include "CoreGlobals.h"
 #include "OpenColorIOConfiguration.h"
 #include "OpenColorIOColorTransform.h"
@@ -55,7 +56,7 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	//Cache render resource so they are available on the render thread (Can't access UObjects on RT)
 	//If something fails, cache invalid resources to invalidate them
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
-	TArray<FTextureResource*> TextureResources;
+	TSortedMap<int32, FTextureResource*> TransformTextureResources;
 
 	if (DisplayConfiguration.ColorConfiguration.ConfigurationSource == nullptr)
 	{
@@ -65,10 +66,9 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	{
 		const bool bFoundTransform = DisplayConfiguration.ColorConfiguration.ConfigurationSource->GetRenderResources(
 			InViewFamily.GetFeatureLevel()
-			, DisplayConfiguration.ColorConfiguration.SourceColorSpace.ColorSpaceName
-			, DisplayConfiguration.ColorConfiguration.DestinationColorSpace.ColorSpaceName
+			, DisplayConfiguration.ColorConfiguration
 			, ShaderResource
-			, TextureResources);
+			, TransformTextureResources);
 
 		if (!bFoundTransform)
 		{
@@ -99,7 +99,7 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	}
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[this, ShaderResource, TextureResources](FRHICommandListImmediate& RHICmdList)
+		[this, ShaderResource, TextureResources = MoveTemp(TransformTextureResources)](FRHICommandListImmediate& RHICmdList)
 		{
 			//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
 			CachedResourcesRenderThread.ShaderResource = ShaderResource;

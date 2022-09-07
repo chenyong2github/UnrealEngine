@@ -2,6 +2,7 @@
 
 #include "OpenColorIOColorTransform.h"
 
+#include "Containers/SortedMap.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/PackedVector.h"
 #include "Modules/ModuleManager.h"
@@ -277,9 +278,11 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 						{
 							Filter = TF_Nearest;
 						}
-						TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, FName(TextureName), EdgeLength, Filter, TextureValues);
+						const FName TextureFName = FName(TextureName);
+						TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, TextureFName, EdgeLength, Filter, TextureValues);
 
-						Textures.Add(MoveTemp(Result));
+						const int32 SlotIndex = TextureFName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
+						Textures.Add(SlotIndex, MoveTemp(Result));
 					}
 
 					// Process 1D luts
@@ -301,20 +304,14 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 
 						TextureFilter Filter = Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_NEAREST ? TF_Nearest : TF_Bilinear;
 						bool bRedChannelOnly = Channel == OCIO_NAMESPACE::GpuShaderCreator::TEXTURE_RED_CHANNEL;
-						TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, FName(TextureName), TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
+						const FName TextureFName = FName(TextureName);
+						TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, TextureFName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
 
-						Textures.Add(MoveTemp(Result));
+						const int32 SlotIndex = TextureFName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
+						Textures.Add(SlotIndex, MoveTemp(Result));
 					}
 
 					ensureAlwaysMsgf(Textures.Num() <= (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Color transform %s exceeds our current limit of %u texture slots. Use the legacy processor instead."), *GetTransformFriendlyName(), OpenColorIOShader::MaximumTextureSlots);
-
-					// Subscript numbers extracted by FName can be used to sort textures for matching the shader binding accesses.
-					Textures.Sort(
-						[](const UTexture& TextureA, const UTexture& TextureB)
-						{
-							return TextureA.GetFName().GetNumber() < TextureB.GetFName().GetNumber();
-						}
-					);
 				}
 				else
 				{
@@ -405,16 +402,16 @@ FOpenColorIOTransformResource* UOpenColorIOColorTransform::AllocateResource()
 	return new FOpenColorIOTransformResource();
 }
 
-bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, TArray<FTextureResource*>& OutTextureResources)
+bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources)
 {
 	OutShaderResource = ColorTransformResources[InFeatureLevel];
 	if (OutShaderResource)
 	{
 		OutTextureResources.Reserve(Textures.Num());
 
-		for (const TObjectPtr<UTexture>& Texture : Textures)
+		for (const TPair<int32, TObjectPtr<UTexture>>& Pair : Textures)
 		{
-			OutTextureResources.Add(Texture->GetResource());
+			OutTextureResources.Add(Pair.Key, Pair.Value->GetResource());
 		}
 
 		return true;
@@ -428,10 +425,10 @@ bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFea
 
 bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
 {
-	TArray<FTextureResource*> OutTextureResources;
+	TSortedMap<int32, FTextureResource*> OutTextureResources;
 	bool bResult = GetRenderResources(InFeatureLevel, OutShaderResource, OutTextureResources);
 
-	if (!OutTextureResources.IsEmpty())
+	if (OutTextureResources.Contains(0))
 	{
 		OutLUT3dResource = OutTextureResources[0];
 	}
@@ -612,7 +609,7 @@ void UOpenColorIOColorTransform::Update3dLutTexture(const FString& InLutIdentifi
 	Textures.Empty();
 
 	TObjectPtr<UTexture> Texture = CreateTexture3DLUT(InLutIdentifier, FName(), OpenColorIOShader::Lut3dEdgeLength, TextureFilter::TF_Bilinear, InSourceData);
-	Textures.Add(MoveTemp(Texture));
+	Textures.Add(0, MoveTemp(Texture));
 #endif
 }
 

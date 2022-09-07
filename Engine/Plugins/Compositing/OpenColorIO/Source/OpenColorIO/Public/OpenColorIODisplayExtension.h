@@ -65,7 +65,7 @@ private:
 	struct FCachedRenderResource
 	{
 		FOpenColorIOTransformResource* ShaderResource = nullptr;
-		TArray<FTextureResource*> TextureResources;
+		TSortedMap<int32, FTextureResource*> TextureResources;
 	};
 
 	/** Cached resources required to apply conversion for render thread */

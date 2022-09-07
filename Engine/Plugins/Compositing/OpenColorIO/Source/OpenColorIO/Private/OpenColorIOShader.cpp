@@ -2,11 +2,12 @@
 
 #include "OpenColorIOShader.h"
 
+#include "Containers/SortedMap.h"
 #include "OpenColorIOModule.h"
 #include "OpenColorIOShared.h"
 #include "TextureResource.h"
 
-void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Parameters, TConstArrayView<FTextureResource*> InTextureResources)
+void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Parameters, const TSortedMap<int32, FTextureResource*>& InTextureResources)
 {
 	/**
 	* The engine's shader parameter API doesn't provide name/slot-based updates (in the style of legacy OpenGL),
@@ -18,9 +19,12 @@ void OpenColorIOBindTextureResources(FOpenColorIOPixelShaderParameters* Paramete
 	*/
 	const uint8* BaseAddress = (uint8*)Parameters;
 
-	for (int32 Index = 0; Index < FMath::Min(InTextureResources.Num(), (int32)OpenColorIOShader::MaximumTextureSlots); ++Index)
+	for ( const TPair<int32, FTextureResource*>& Pair : InTextureResources )
 	{
-		const FTextureResource* Texture = InTextureResources[Index];
+		const int32 Index = Pair.Key;
+		ensureMsgf(Index >= 0 && Index < (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Out of range LUT texture slot index."));
+
+		const FTextureResource* Texture = Pair.Value;
 		const bool bIsLUT3D = Texture->GetTexture3DResource() != nullptr;
 
 		const uint32 BaseOffset = bIsLUT3D ? offsetof(FOpenColorIOPixelShaderParameters, Ocio_lut3d_0) : offsetof(FOpenColorIOPixelShaderParameters, Ocio_lut1d_0);

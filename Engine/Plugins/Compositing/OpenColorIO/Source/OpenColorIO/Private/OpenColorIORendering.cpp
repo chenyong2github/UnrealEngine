@@ -22,7 +22,7 @@ void ProcessOCIOColorSpaceTransform_RenderThread(
 	FRHICommandListImmediate& InRHICmdList
 	, ERHIFeatureLevel::Type InFeatureLevel
 	, FOpenColorIOTransformResource* InOCIOColorTransformResource
-	, TArray<FTextureResource*> InTextureResources
+	, const TSortedMap<int32, FTextureResource*>& InTextureResources
 	, FTextureRHIRef InputSpaceColorTexture
 	, FTextureRHIRef OutputSpaceColorTexture
 	, FIntPoint OutputResolution)
@@ -103,8 +103,8 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 
 	const ERHIFeatureLevel::Type FeatureLevel = InWorld->Scene->GetFeatureLevel();
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
-	TArray<FTextureResource*> TextureResources;
-	bool bFoundTransform = InSettings.ConfigurationSource->GetRenderResources(FeatureLevel, InSettings.SourceColorSpace.ColorSpaceName, InSettings.DestinationColorSpace.ColorSpaceName, ShaderResource, TextureResources);
+	TSortedMap<int32, FTextureResource*> TextureResources;
+	bool bFoundTransform = InSettings.ConfigurationSource->GetRenderResources(FeatureLevel, InSettings, ShaderResource, TextureResources);
 	if (!bFoundTransform)
 	{
 		UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply color transform - Couldn't find shader to transform from %s to %s"), *InSettings.SourceColorSpace.ColorSpaceName, *InSettings.DestinationColorSpace.ColorSpaceName);

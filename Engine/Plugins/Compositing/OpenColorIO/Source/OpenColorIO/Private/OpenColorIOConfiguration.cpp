@@ -2,6 +2,7 @@
 
 #include "OpenColorIOConfiguration.h"
 
+#include "Containers/SortedMap.h"
 #include "EngineAnalytics.h"
 #include "Engine/VolumeTexture.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -54,16 +55,16 @@ void UOpenColorIOConfiguration::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, TArray<FTextureResource*>& OutTextureResources)
+bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FOpenColorIOColorConversionSettings& InSettings, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources)
 {
 	TObjectPtr<UOpenColorIOColorTransform>* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
 	{
-		return InTransform->SourceColorSpace == InSourceColorSpace && InTransform->DestinationColorSpace == InDestinationColorSpace;
+		return InTransform->SourceColorSpace == InSettings.SourceColorSpace.ColorSpaceName && InTransform->DestinationColorSpace == InSettings.DestinationColorSpace.ColorSpaceName;
 	});
 
 	if (TransformPtr == nullptr)
 	{
-		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform data from %s to %s was not found."), *InSourceColorSpace, *InDestinationColorSpace);
+		UE_LOG(LogOpenColorIO, Warning, TEXT("Color transform data from %s to %s was not found."), *InSettings.SourceColorSpace.ColorSpaceName, *InSettings.DestinationColorSpace.ColorSpaceName);
 		return false;
 	}
 
@@ -73,10 +74,13 @@ bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeat
 
 bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
 {
-	TArray<FTextureResource*> TextureResources;
-	if (GetRenderResources(InFeatureLevel, InSourceColorSpace, InDestinationColorSpace, OutShaderResource, TextureResources))
+	TSortedMap<int32, FTextureResource*> TextureResources;
+	FOpenColorIOColorConversionSettings Settings;
+	Settings.SourceColorSpace.ColorSpaceName = InSourceColorSpace;
+	Settings.DestinationColorSpace.ColorSpaceName = InDestinationColorSpace;
+	if (GetRenderResources(InFeatureLevel, Settings, OutShaderResource, TextureResources))
 	{
-		if (TextureResources.Num() > 0)
+		if (TextureResources.Contains(0))
 		{
 			OutLUT3dResource = TextureResources[0];
 			return true;
