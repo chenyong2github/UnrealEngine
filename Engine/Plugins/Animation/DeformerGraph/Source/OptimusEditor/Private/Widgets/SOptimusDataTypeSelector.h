@@ -60,6 +60,7 @@ private:
 	FSlateColor GetTypeIconColor() const { return GetTypeIconColor(CurrentDataType.Get()); }
 	FText GetTypeDescription(FOptimusDataTypeHandle InDataType) const;
 	FText GetTypeDescription() const { return GetTypeDescription(CurrentDataType.Get()); }
+	FText GetTypeTooltip(FOptimusDataTypeHandle InDataType) const;
 	FText GetTypeTooltip() const;
 	
 	TSharedRef<SWidget> GetMenuContent();

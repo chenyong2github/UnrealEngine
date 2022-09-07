@@ -23,13 +23,13 @@ void FOptimusCoreModule::StartupModule()
 
 	// Make sure all our types are known at startup.
 	FOptimusDataTypeRegistry::RegisterBuiltinTypes();
-	FOptimusDataTypeRegistry::RegisterAssetRegistryCallbacks();
+	FOptimusDataTypeRegistry::RegisterEngineCallbacks();
 	UOptimusComputeDataInterface::RegisterAllTypes();
 }
 
 void FOptimusCoreModule::ShutdownModule()
 {
-	FOptimusDataTypeRegistry::UnregisterAssetRegistryCallbacks();
+	FOptimusDataTypeRegistry::UnregisterEngineCallbacks();
 	FOptimusDataTypeRegistry::UnregisterAllTypes();
 }
 

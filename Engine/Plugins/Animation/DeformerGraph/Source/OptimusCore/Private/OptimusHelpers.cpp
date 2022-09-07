@@ -181,6 +181,6 @@ FName Optimus::GetTypeName(UScriptStruct* InStructType, bool bInShouldGetUniqueN
 		}
 	}
 	
-	return FName(*FString::Printf(TEXT("F%s"), *InStructType->GetName()));
+	return FName(*InStructType->GetStructCPPName());
 }
 

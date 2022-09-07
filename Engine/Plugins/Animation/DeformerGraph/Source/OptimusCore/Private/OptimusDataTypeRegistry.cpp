@@ -7,6 +7,7 @@
 #include "OptimusComponentSource.h"
 
 #include "ShaderParameterMetadata.h"
+#include "Animation/AttributeTypes.h"
 #include "Animation/BuiltInAttributeTypes.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -14,8 +15,20 @@
 #include "Engine/Classes/Engine/UserDefinedStruct.h"
 
 #include "UObject/UnrealType.h"
-#include "UObject/UObjectIterator.h"
 
+static const TMap<FName, UScriptStruct*>& GetBuiltInAttributeTypes()
+{
+	static const TMap<FName, UScriptStruct*> BuiltInAttributeTypes =
+	{
+		{FFloatProperty::StaticClass()->GetFName(), FFloatAnimationAttribute::StaticStruct()},
+		{FIntProperty::StaticClass()->GetFName(), FIntegerAnimationAttribute::StaticStruct()},
+		{*TBaseStructure<FTransform>::Get()->GetStructCPPName(), FTransformAnimationAttribute::StaticStruct()},
+		{*TBaseStructure<FVector>::Get()->GetStructCPPName(), FVectorAnimationAttribute::StaticStruct()},
+		{*TBaseStructure<FQuat>::Get()->GetStructCPPName(), FQuaternionAnimationAttribute::StaticStruct()},
+	};
+
+	return BuiltInAttributeTypes;
+}
 
 static bool IsStructHashable(const UScriptStruct* InStructType)
 {
@@ -54,7 +67,7 @@ static bool ConvertPropertyValuePOD(
 	return false;
 }
 
-EOptimusDataTypeUsageFlags FOptimusDataTypeRegistry::CanRegisterStructType(UScriptStruct* InStruct)
+EOptimusDataTypeUsageFlags FOptimusDataTypeRegistry::GetStructTypeUsageFlag(UScriptStruct* InStruct)
 {
 	struct FTypeValidator 
     {
@@ -496,7 +509,7 @@ bool FOptimusDataTypeRegistry::RegisterStructType(UScriptStruct* InStructType)
 		return false;
 	}
 
-	EOptimusDataTypeUsageFlags UsageFlags = CanRegisterStructType(InStructType);
+	EOptimusDataTypeUsageFlags UsageFlags = GetStructTypeUsageFlag(InStructType);
 
 	// Disable the use of structs in variables and resources for now
 	UsageFlags &= ~EOptimusDataTypeUsageFlags::Variable;
@@ -1294,22 +1307,28 @@ void FOptimusDataTypeRegistry::UnregisterAllTypes()
 	Registry.RegisteredTypes.Reset();
 }
 
-void FOptimusDataTypeRegistry::RegisterAssetRegistryCallbacks()
+void FOptimusDataTypeRegistry::RegisterEngineCallbacks()
 {
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 	{
+		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnFilesLoaded);
 		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAssetRemoved);
 		AssetRegistryModule->Get().OnAssetRenamed().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAssetRenamed);
 	}
+
+	UE::Anim::AttributeTypes::GetOnAttributeTypesChanged().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAnimationAttributeRegistryChanged);
 }
 
-void FOptimusDataTypeRegistry::UnregisterAssetRegistryCallbacks()
+void FOptimusDataTypeRegistry::UnregisterEngineCallbacks()
 {
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 	{
+		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(&Get());
 		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&Get());
 		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(&Get());
 	}
+	
+	UE::Anim::AttributeTypes::GetOnAttributeTypesChanged().RemoveAll(&Get());
 }
 
 
@@ -1329,6 +1348,29 @@ FOptimusDataTypeRegistry::PropertyCreateFuncT FOptimusDataTypeRegistry::FindProp
 
 FOptimusDataTypeRegistry::FOptimusDataTypeRegistry()
 {
+}
+
+void FOptimusDataTypeRegistry::OnFilesLoaded()
+{
+	TArray<TWeakObjectPtr<const UScriptStruct>> AttributeTypes = UE::Anim::AttributeTypes::GetRegisteredTypes();
+	
+	for (TWeakObjectPtr<const UScriptStruct> Type : AttributeTypes)
+	{
+		UScriptStruct* ScriptStruct = const_cast<UScriptStruct*>(Type.Get());
+
+		TArray<UScriptStruct*> BuiltInAttributeTypeArray;
+		GetBuiltInAttributeTypes().GenerateValueArray(BuiltInAttributeTypeArray);
+		
+		if (ScriptStruct && !BuiltInAttributeTypeArray.Contains(ScriptStruct))
+		{
+			FOptimusDataTypeHandle DataType = FindType(Optimus::GetTypeName(ScriptStruct));
+
+			if (!DataType.IsValid())
+			{
+				RegisterStructType(ScriptStruct);
+			}
+		}
+	}
 }
 
 void FOptimusDataTypeRegistry::OnAssetRemoved(const FAssetData& InAssetData)
@@ -1355,6 +1397,25 @@ void FOptimusDataTypeRegistry::OnAssetRenamed(const FAssetData& InAssetData, con
 			MutableDataType->DisplayName = Optimus::GetTypeDisplayName(UserDefinedStruct);
 			
 			OnDataTypeChanged.Broadcast(TypeName);
+		}
+	}
+}
+
+void FOptimusDataTypeRegistry::OnAnimationAttributeRegistryChanged(const UScriptStruct* InScriptStruct,
+	bool bIsAdded)
+{
+	if (ensure(InScriptStruct) && ensure(InScriptStruct->IsA<UUserDefinedStruct>()))
+	{
+		
+		UScriptStruct* ScriptStruct = const_cast<UScriptStruct*>(InScriptStruct);
+		FOptimusDataTypeHandle DataType = FindType(Optimus::GetTypeName(ScriptStruct));
+		
+		if (bIsAdded)
+		{
+			if (!DataType.IsValid())
+			{
+				RegisterStructType(ScriptStruct);
+			}
 		}
 	}
 }
@@ -1388,20 +1449,7 @@ const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* FOptimusDataTypeRegistry
 
 UScriptStruct* FOptimusDataTypeRegistry::FindAttributeType(FName InTypeName) const
 {
-	FName TransformTypeName(*FString::Printf(TEXT("F%s"), *TBaseStructure<FTransform>::Get()->GetName()));
-	FName VectorTypeName(*FString::Printf(TEXT("F%s"), *TBaseStructure<FVector>::Get()->GetName()));
-	FName QuatTypeName(*FString::Printf(TEXT("F%s"), *TBaseStructure<FQuat>::Get()->GetName()));
-
-	static TMap<FName, UScriptStruct*> BuiltInAttributeTypes =
-		{
-			{FFloatProperty::StaticClass()->GetFName(), FFloatAnimationAttribute::StaticStruct()},
-			{FIntProperty::StaticClass()->GetFName(), FIntegerAnimationAttribute::StaticStruct()},
-			{TransformTypeName, FTransformAnimationAttribute::StaticStruct()},
-			{VectorTypeName, FVectorAnimationAttribute::StaticStruct()},
-			{QuatTypeName, FQuaternionAnimationAttribute::StaticStruct()},
-		};
-
-	if (UScriptStruct** AttributeType = BuiltInAttributeTypes.Find(InTypeName))
+	if (UScriptStruct* const* AttributeType = GetBuiltInAttributeTypes().Find(InTypeName))
 	{
 		return *AttributeType;
 	}

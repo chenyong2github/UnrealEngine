@@ -183,10 +183,10 @@ protected:
 	static void UnregisterAllTypes();
 
 	/** Call during module init to register asset registry callbacks for struct type registration*/	
-	static void RegisterAssetRegistryCallbacks();
+	static void RegisterEngineCallbacks();
 	
 	/** Call during module shutdown to unregister asset registry callbacks*/	
-	static void UnregisterAssetRegistryCallbacks();
+	static void UnregisterEngineCallbacks();
 
 	/** A helper function to return a property create function. The function can be unbound
 	 *  and that should be checked prior to calling
@@ -197,9 +197,14 @@ protected:
 private:
 	FOptimusDataTypeRegistry();
 
-	// Callbacks to update registry when user defined structs are removed/renamed
+	// Callbacks to update registry when user defined structs are loaded/removed/renamed
+	void OnFilesLoaded();
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldName);
+	
+	// Callbacks to update registry when list of user defined structs supported by the animation attribute system is changed
+	void OnAnimationAttributeRegistryChanged(const UScriptStruct* InScriptStruct, bool bIsAdded);
+
 	
 	bool RegisterType(
 		FName InTypeName,
@@ -210,7 +215,7 @@ private:
 		);
 
 	/** Check if a type can be registered */
-	static EOptimusDataTypeUsageFlags CanRegisterStructType(UScriptStruct* InStruct);
+	static EOptimusDataTypeUsageFlags GetStructTypeUsageFlag(UScriptStruct* InStruct);
 
 	struct FTypeInfo
 	{

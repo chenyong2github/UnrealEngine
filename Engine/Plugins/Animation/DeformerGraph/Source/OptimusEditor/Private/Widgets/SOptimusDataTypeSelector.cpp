@@ -9,6 +9,7 @@
 #include "EdGraphSchema_K2.h"
 #include "OptimusHelpers.h"
 #include "SListViewSelectorDropdownMenu.h"
+#include "Animation/AttributeTypes.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Widgets/Images/SImage.h"
@@ -148,6 +149,17 @@ FText SOptimusDataTypeSelector::GetTypeDescription(FOptimusDataTypeHandle InData
 		{
 			if (EnumHasAnyFlags(InDataType->UsageFlags, UsageMask.Get()))
 			{
+				if (UsageMask.Get() == EOptimusDataTypeUsageFlags::AnimAttributes)
+				{
+					if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InDataType->TypeObject))
+					{
+						if (!UE::Anim::AttributeTypes::IsTypeRegistered(UserDefinedStruct))
+						{
+							return FText::FromString(TEXT("<Unregistered> ") + InDataType->DisplayName.ToString());
+						}
+					}
+				}
+
 				return InDataType->DisplayName;
 			}
 		}
@@ -159,6 +171,38 @@ FText SOptimusDataTypeSelector::GetTypeDescription(FOptimusDataTypeHandle InData
 }
 
 
+FText SOptimusDataTypeSelector::GetTypeTooltip(FOptimusDataTypeHandle InDataType) const
+{
+	if (!InDataType.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+
+	if (!UsageMask.IsSet())
+	{
+		return FText::GetEmpty();
+	}
+
+	if (UsageMask.Get() == EOptimusDataTypeUsageFlags::AnimAttributes)
+	{
+		if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InDataType->TypeObject))
+		{
+			if (!EnumHasAnyFlags(InDataType->UsageFlags, EOptimusDataTypeUsageFlags::AnimAttributes))
+			{
+				return FText::FromString(TEXT("Type contains unsupported members or nested arrays"));
+			}
+			else if (!UE::Anim::AttributeTypes::IsTypeRegistered(UserDefinedStruct))
+			{
+				return FText::FromString(TEXT("Please register the type in Project Settings - Animation - CustomAttributes - User Defined Struct Animation Attributes."));
+			}
+		}
+	}
+
+
+	return FText::GetEmpty();
+
+}
+
 FText SOptimusDataTypeSelector::GetTypeTooltip() const
 {
 	FText EditText;
@@ -167,23 +211,43 @@ FText SOptimusDataTypeSelector::GetTypeTooltip() const
 		EditText = LOCTEXT("DataTypeSelector", "Click to see the data type menu and change the current type.");
 	}
 
-	return FText::Format(LOCTEXT("TypeTooltip", "{0}Current Type: {1}"), EditText, GetTypeDescription());
+	return FText::Format(LOCTEXT("TypeTooltip", "{0} Current Type: {1}"), EditText, GetTypeDescription());
 }
 
 
 TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 {
 	AllDataTypeItems.Reset();
+
+	TArray<FOptimusDataTypeHandle> UnsupportedUserDefinedStructs;
 	FOptimusDataTypeHandle SelectedItem;
 	for (FOptimusDataTypeHandle DataType : FOptimusDataTypeRegistry::Get().GetAllTypes())
 	{
-		if ( !UsageMask.IsSet() || UsageMask.Get() == EOptimusDataTypeUsageFlags::None || EnumHasAnyFlags(DataType->UsageFlags, UsageMask.Get()))
+		if (!UsageMask.IsSet() ||
+			UsageMask.Get() == EOptimusDataTypeUsageFlags::None ||
+			EnumHasAnyFlags(DataType->UsageFlags, UsageMask.Get()))
 		{
 			AllDataTypeItems.Add(DataType);
-			if (DataType == CurrentDataType.Get())
+		}
+		else if (UsageMask.Get() == EOptimusDataTypeUsageFlags::AnimAttributes)
+		{
+			if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(DataType->TypeObject.Get()))
 			{
-				SelectedItem = AllDataTypeItems.Last();
+				UnsupportedUserDefinedStructs.Add(DataType);	
 			}
+		}
+	}
+
+	// Show unsupported types for animation attribute at the end
+	// so that we can provide tooltips on why they are not supported
+	AllDataTypeItems.Append(UnsupportedUserDefinedStructs);
+
+	for (FOptimusDataTypeHandle DataType : AllDataTypeItems)
+	{
+		if (DataType == CurrentDataType.Get())
+		{
+			SelectedItem = DataType;
+			break;
 		}
 	}
 
@@ -228,6 +292,9 @@ TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 			];
 	}
 
+	// Refresh in case ViewDataTypeItems has changed
+	TypeListView->RebuildList();
+	
 	// Update the current selection
 	if (SelectedItem.IsValid())
 	{
@@ -270,6 +337,7 @@ TSharedRef<ITableRow> SOptimusDataTypeSelector::GenerateTypeListRow(
 				.Text_Lambda([InItem, this]() { return SOptimusDataTypeSelector::GetTypeDescription(InItem); })
 				.HighlightText(FilterText)
 				.Font(FAppStyle::GetFontStyle(TEXT("Kismet.TypePicker.NormalFont")))
+				.ToolTipText_Lambda([InItem, this](){ return SOptimusDataTypeSelector::GetTypeTooltip(InItem); })
 			]
 		];
 }
