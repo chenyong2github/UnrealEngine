@@ -566,7 +566,7 @@ void UPhysicsAssetRenderUtilities::OnAssetRenamed(FAssetData const& AssetInfo, c
 
 	if (IdToSettingsMap.RemoveAndCopyValue(OldPhysicsAssetPathNameHash, Temp))
 	{
-		const uint32 PhysicsAssetPathNameHash = GetPathNameHash(AssetInfo.ObjectPath.ToString());
+		const uint32 PhysicsAssetPathNameHash = GetPathNameHash(AssetInfo.GetObjectPathString());
 		IdToSettingsMap.Add(PhysicsAssetPathNameHash, Temp);
 		SaveConfig();
 	}

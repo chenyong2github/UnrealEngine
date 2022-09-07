@@ -105,7 +105,7 @@ void SRigPicker::OnAssetSelected(const FAssetData& AssetData)
 
 bool SRigPicker::OnShouldFilterAsset(const struct FAssetData& AssetData)
 {
-	if (EngineHumanoidRig && AssetData.ObjectPath == FName(*EngineHumanoidRig->GetPathName()))
+	if (EngineHumanoidRig && AssetData.GetSoftObjectPath() == FSoftObjectPath(EngineHumanoidRig))
 	{
 		return true;
 	}

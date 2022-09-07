@@ -207,7 +207,7 @@ public:
 			}
 			else
 			{
-				UE_LOG(LogAnimation, Error, TEXT("Asset cannot be opened: %s"), *AssetData.ObjectPath.ToString());
+				UE_LOG(LogAnimation, Error, TEXT("Asset cannot be opened: %s"), *AssetData.GetObjectPathString());
 			}
 		}
 	}
@@ -240,7 +240,7 @@ public:
 			{
 				for (UObject* Object : *Objects)
 				{
-					if (Object->GetPathName().Compare(AssetData.ObjectPath.ToString(), ESearchCase::IgnoreCase) == 0)
+					if (Object->GetPathName().Compare(AssetData.GetObjectPathString(), ESearchCase::IgnoreCase) == 0)
 					{
 						return ECheckBoxState::Checked;
 					}
@@ -371,7 +371,7 @@ public:
 	{
 		if (AssetFamily->IsAssetCompatible(InAssetData))
 		{
-			if(InOldObjectPath == AssetData.ObjectPath.ToString())
+			if (InOldObjectPath == AssetData.GetObjectPathString())
 			{
 				AssetData = InAssetData;
 

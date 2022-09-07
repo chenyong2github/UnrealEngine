@@ -1077,7 +1077,7 @@ TSharedRef<SWidget> SAnimationSequenceBrowser::CreateHistoryMenu(bool bInBackHis
 			if(AssetData.IsValid())
 			{
 				const FText DisplayName = FText::FromName(AssetData.AssetName);
-				const FText Tooltip = FText::FromString( AssetData.ObjectPath.ToString() );
+				const FText Tooltip = FText::FromString( AssetData.GetObjectPathString() );
 
 				MenuBuilder.AddMenuEntry(DisplayName, Tooltip, FSlateIcon(), 
 					FUIAction(
@@ -1099,7 +1099,7 @@ TSharedRef<SWidget> SAnimationSequenceBrowser::CreateHistoryMenu(bool bInBackHis
 			if(AssetData.IsValid())
 			{
 				const FText DisplayName = FText::FromName(AssetData.AssetName);
-				const FText Tooltip = FText::FromString( AssetData.ObjectPath.ToString() );
+				const FText Tooltip = FText::FromString(AssetData.GetObjectPathString());
 
 				MenuBuilder.AddMenuEntry(DisplayName, Tooltip, FSlateIcon(), 
 					FUIAction(
@@ -1199,7 +1199,7 @@ void SAnimationSequenceBrowser::CacheOriginalAnimAssetHistory()
 			if(UObject* PreviewAsset = PersonaToolkitPtr.Pin()->GetPreviewScene()->GetPreviewAnimationAsset())
 			{
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*PreviewAsset->GetPathName()));
+				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(PreviewAsset));
 				AssetHistory.Add(AssetData);
 				CurrentAssetHistoryIndex = AssetHistory.Num() - 1;
 			}

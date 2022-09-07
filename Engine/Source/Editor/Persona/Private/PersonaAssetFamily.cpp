@@ -150,7 +150,7 @@ FAssetData FPersonaAssetFamily::FindAssetOfType(UClass* InAssetClass) const
 				Filter.ClassPaths.Add(UPhysicsAsset::StaticClass()->GetClassPathName());
 				if(Mesh.IsValid())
 				{
-					Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh), FAssetData(Mesh.Get()).ObjectPath.ToString());
+					Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh), FSoftObjectPath(Mesh.Get()).ToString());
 				}
 
 				AssetRegistryModule.Get().GetAssets(Filter, Assets);
@@ -195,7 +195,7 @@ void FPersonaAssetFamily::FindAssetsOfType(UClass* InAssetClass, TArray<FAssetDa
 			Filter.ClassPaths.Add(UPhysicsAsset::StaticClass()->GetClassPathName());
 			if(Mesh != nullptr)
 			{
-				Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh), FAssetData(Mesh.Get()).ObjectPath.ToString());
+				Filter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh), FSoftObjectPath(Mesh.Get()).ToString());
 			}
 
 			AssetRegistryModule.Get().GetAssets(Filter, OutAssets);
@@ -342,7 +342,7 @@ bool FPersonaAssetFamily::IsAssetCompatible(const FAssetData& InAssetData) const
 			FAssetDataTagMapSharedView::FFindTagResult Result = InAssetData.TagsAndValues.FindTag(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PreviewSkeletalMesh));
 			if (Result.IsSet() && Mesh.IsValid())
 			{
-				return Result.GetValue() == FAssetData(Mesh.Get()).ObjectPath.ToString();
+				return Result.GetValue() == FSoftObjectPath(Mesh.Get()).ToString();
 			}
 		}
 	}
