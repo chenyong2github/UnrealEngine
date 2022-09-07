@@ -1174,6 +1174,37 @@ namespace Horde.Build.Tests
 		}
 
 		[TestMethod]
+		public async Task ContentIssueTest()
+		{
+			IJob job1 = CreateJob(_mainStreamId, 120, "Cook Test", _graph);
+			await ParseEventsAsync(job1, 0, 0, new[] 
+			{
+				// Note: using relative paths here, which can't be mapped to depot paths
+				@"LogBlueprint: Warning: [AssetLog] ..\..\..\QAGame\Plugins\NiagaraFluids\Content\Blueprints\Phsyarum_BP.uasset: [Compiler] Fill Texture 2D : Usage of 'Fill Texture 2D' has been deprecated. This function has been replaced by object user variables on the emitter to specify render targets to fill with data." 
+			});
+			await UpdateCompleteStep(job1, 0, 0, JobStepOutcome.Failure);
+
+			List<IIssue> issues1 = await IssueCollection.FindIssuesAsync();
+			Assert.AreEqual(1, issues1.Count);
+			Assert.AreEqual("Warnings in Phsyarum_BP.uasset", issues1[0].Summary);
+
+			IJob job2 = CreateJob(_mainStreamId, 125, "Cook Test", _graph);
+			await ParseEventsAsync(job2, 0, 0, new[] 
+			{
+				// Add a new warning; should create a new issue
+				@"LogBlueprint: Warning: [AssetLog] ..\..\..\QAGame\Plugins\NiagaraFluids\Content\Blueprints\Phsyarum_BP.uasset: [Compiler] Fill Texture 2D : Usage of 'Fill Texture 2D' has been deprecated. This function has been replaced by object user variables on the emitter to specify render targets to fill with data.",
+				@"LogBlueprint: Warning: [AssetLog] ..\..\..\QAGame\Plugins\NiagaraFluids\Content\Blueprints\Phsyarum_BP2.uasset: [Compiler] Fill Texture 2D : Usage of 'Fill Texture 2D' has been deprecated. This function has been replaced by object user variables on the emitter to specify render targets to fill with data.", 
+			});
+			await UpdateCompleteStep(job2, 0, 0, JobStepOutcome.Failure);
+
+			List<IIssue> issues2 = await IssueCollection.FindIssuesAsync();
+			issues2.SortBy(x => x.Id);
+			Assert.AreEqual(2, issues2.Count);
+			Assert.AreEqual("Warnings in Phsyarum_BP.uasset", issues2[0].Summary);
+			Assert.AreEqual("Warnings in Phsyarum_BP2.uasset", issues2[1].Summary);
+		}
+
+		[TestMethod]
 		public async Task HashedIssueTest()
 		{
 			IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
