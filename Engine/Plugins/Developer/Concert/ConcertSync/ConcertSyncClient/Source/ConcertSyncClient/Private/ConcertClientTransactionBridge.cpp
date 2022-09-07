@@ -592,6 +592,7 @@ FConcertClientTransactionBridge::FConcertClientTransactionBridge()
 	: bHasBoundUnderlyingLocalTransactionEvents(false)
 	, bIgnoreLocalTransactions(false)
 	, bIncludeEditorOnlyProperties(true)
+	, bIncludeNonPropertyObjectData(true)
 	, bIncludeAnnotationObjectChanges(GetDefault<UConcertSyncConfig>()->bIncludeAnnotationObjectChanges)
 {
 	ConditionalBindUnderlyingLocalTransactionEvents();
@@ -621,6 +622,11 @@ FConcertClientTransactionBridge::~FConcertClientTransactionBridge()
 void FConcertClientTransactionBridge::SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties)
 {
 	bIncludeEditorOnlyProperties = InIncludeEditorOnlyProperties;
+}
+
+void FConcertClientTransactionBridge::SetIncludeNonPropertyObjectData(const bool InIncludeNonPropertyObjectData)
+{
+	bIncludeNonPropertyObjectData = InIncludeNonPropertyObjectData;
 }
 
 void FConcertClientTransactionBridge::SetIncludeAnnotationObjectChanges(const bool InIncludeAnnotationObjectChanges)
@@ -831,7 +837,12 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation = InTransactionEvent.GetAnnotation();
 	const bool bUseSerializedAnnotationData = !bIncludeAnnotationObjectChanges || !TransactionAnnotation || !TransactionAnnotation->SupportsAdditionalObjectChanges();
 
-	if (!InTransactionEvent.HasNonPropertyChanges() && ExportedProperties.Num() == 0 && !(TransactionAnnotation && bUseSerializedAnnotationData))
+	const bool bObjectHasChangesToSend = InTransactionEvent.HasIdOrPendingKillChanges()
+		|| (bIncludeNonPropertyObjectData && InTransactionEvent.HasNonPropertyChanges(/*SerializationOnly*/true))
+		|| ExportedProperties.Num() > 0
+		|| (TransactionAnnotation && bUseSerializedAnnotationData);
+
+	if (!bObjectHasChangesToSend)
 	{
 		// This object has no changes to send
 		return;
@@ -919,7 +930,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			TransactionAnnotation->Serialize(AnnotationWriter);
 		}
 
-		if (InTransactionEvent.HasNonPropertyChanges(/*SerializationOnly*/true))
+		if (bIncludeNonPropertyObjectData && InTransactionEvent.HasNonPropertyChanges(/*SerializationOnly*/true))
 		{
 			// The 'non-property changes' refers to custom data added by a deriver UObject before and/or after the standard serialized data. Since this is a custom
 			// data format, we don't know what changed, call the object to re-serialize this part, but still send the delta for the generic reflected properties (in RootPropertyNames).

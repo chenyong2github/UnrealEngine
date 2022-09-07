@@ -94,6 +94,12 @@ public:
 	virtual void SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties) = 0;
 
 	/**
+	 * Set whether to include non-property object data in updates, or whether to only include property changes.
+	 * @note This is set to true by default.
+	 */
+	virtual void SetIncludeNonPropertyObjectData(const bool InIncludeNonPropertyObjectData) = 0;
+
+	/**
 	 * Set whether to include object changes that have been generated via a transaction annotation 
 	 * (where possible), or whether to send the entire transaction annotation blob instead.
 	 * @note This is set to UConcertSyncConfig::bIncludeAnnotationObjectChanges by default.

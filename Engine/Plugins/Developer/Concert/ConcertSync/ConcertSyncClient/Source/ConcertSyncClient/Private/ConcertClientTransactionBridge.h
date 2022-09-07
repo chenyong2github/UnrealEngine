@@ -14,6 +14,7 @@ public:
 
 	//~ IConcertClientTransactionBridge interface
 	virtual void SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties) override;
+	virtual void SetIncludeNonPropertyObjectData(const bool InIncludeNonPropertyObjectData) override;
 	virtual void SetIncludeAnnotationObjectChanges(const bool InIncludeAnnotationObjectChanges) override;
 	virtual FOnConcertClientLocalTransactionSnapshot& OnLocalTransactionSnapshot() override;
 	virtual FOnConcertClientLocalTransactionFinalized& OnLocalTransactionFinalized() override;
@@ -83,6 +84,9 @@ private:
 
 	/** Include non-cooked properties in object serialization */
 	bool bIncludeEditorOnlyProperties;
+
+	/** Include non-property object data in updates */
+	bool bIncludeNonPropertyObjectData;
 
 	/** Include object changes that have been generated via a transaction annotation (where possible) */
 	bool bIncludeAnnotationObjectChanges;

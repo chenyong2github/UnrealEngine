@@ -287,10 +287,16 @@ public:
 		return ObjectChange.OriginalId.ObjectExternalPackageName;
 	}
 
-	/** Were any non-property changes made to the object? */
+	/** Were ID (name, outer, package) or pending kill changes made to the object? */
+	bool HasIdOrPendingKillChanges() const
+	{
+		return ObjectChange.DeltaChange.bHasNameChange || ObjectChange.DeltaChange.bHasOuterChange || ObjectChange.DeltaChange.bHasExternalPackageChange || ObjectChange.DeltaChange.bHasPendingKillChange;
+	}
+
+	/** Were any non-property changes made to the object? (name, outer, package, pending kill, or serialized non-property data) */
 	bool HasNonPropertyChanges(const bool InSerializationOnly = false) const
 	{
-		return (!InSerializationOnly && (ObjectChange.DeltaChange.bHasNameChange || ObjectChange.DeltaChange.bHasOuterChange || ObjectChange.DeltaChange.bHasExternalPackageChange || ObjectChange.DeltaChange.bHasPendingKillChange)) || ObjectChange.DeltaChange.bHasNonPropertyChanges;
+		return (!InSerializationOnly && HasIdOrPendingKillChanges()) || ObjectChange.DeltaChange.bHasNonPropertyChanges;
 	}
 
 	/** Were any property changes made to the object? */
