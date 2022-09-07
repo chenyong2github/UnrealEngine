@@ -98,7 +98,7 @@ public:
 				FString Value;
 				KeyValuePair.GetValue(Value);
 				// This will write a length prefixed string
-				((FNboSerializeToBuffer&)Ar) << (TCHAR*)*Value;
+				((FNboSerializeToBuffer&)Ar) << *Value;
 				break;
 			}
 		case EOnlineKeyValuePairDataType::Bool:

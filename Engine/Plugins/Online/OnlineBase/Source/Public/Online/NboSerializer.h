@@ -6,6 +6,12 @@
 #include "Misc/Guid.h"
 #include "IPAddress.h"
 
+namespace NboSerializer
+{
+	template <typename T>
+	static constexpr inline bool UnexpectedType = false;
+}
+
 /**
  * Serializes data in network byte order form into a buffer
  */
@@ -339,6 +345,15 @@ public:
 		return Ar;
 	}
 
+	// This will be chosen in case of any type not specially supported
+	template <typename T>
+	friend inline FNboSerializeToBuffer& operator <<(FNboSerializeToBuffer& Ar, const T& Value)
+	{
+		static_assert(NboSerializer::UnexpectedType<T>, "Unsupported type in FNboSerializeToBuffer::operator<<");
+
+		return Ar;
+	}
+
 	/**
 	 * Writes a blob of data to the buffer
 	 *
@@ -623,6 +638,15 @@ public:
 		Ar >> Guid.B;
 		Ar >> Guid.C;
 		Ar >> Guid.D;
+		return Ar;
+	}
+
+	// This will be chosen in case of any type not specially supported
+	template <typename T>
+	friend inline FNboSerializeFromBuffer& operator>>(FNboSerializeFromBuffer& Ar, T& Value)
+	{
+		static_assert(NboSerializer::UnexpectedType<T>, "Unsupported type in FNboSerializeFromBuffer::operator>>");
+
 		return Ar;
 	}
 
