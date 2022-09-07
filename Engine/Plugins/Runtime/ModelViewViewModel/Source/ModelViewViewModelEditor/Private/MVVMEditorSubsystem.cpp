@@ -295,6 +295,23 @@ UEdGraph* UMVVMEditorSubsystem::GetConversionFunctionGraph(const UWidgetBlueprin
 	return UE::MVVM::ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bSourceToDestination);
 }
 
+UFunction* UMVVMEditorSubsystem::GetConversionFunction(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const
+{
+	const UEdGraph* Graph = GetConversionFunctionGraph(WidgetBlueprint, Binding, bSourceToDestination);
+
+	TArray<UK2Node_CallFunction*> FunctionNodes;
+	Graph->GetNodesOfClass<UK2Node_CallFunction>(FunctionNodes);
+
+	if (FunctionNodes.Num() != 1)
+	{
+		// ambiguous result, no idea what our function node is
+		return nullptr;
+	}
+
+	const UK2Node_CallFunction* CallFunctionNode = FunctionNodes[0];
+	return CallFunctionNode->GetTargetFunction();
+}
+
 UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction, bool bSourceToDestination)
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
@@ -365,6 +382,25 @@ UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlue
 		}
 	}
 	return nullptr;
+}
+
+UEdGraphPin* UMVVMEditorSubsystem::FindConversionFunctionArgumentPin(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, FName ParameterName, bool bSourceToDestination)
+{
+	const UEdGraph* Graph = GetConversionFunctionGraph(WidgetBlueprint, Binding, bSourceToDestination);
+
+	TArray<UK2Node_CallFunction*> FunctionNodes;
+	Graph->GetNodesOfClass<UK2Node_CallFunction>(FunctionNodes);
+
+	if (FunctionNodes.Num() != 1)
+	{
+		// ambiguous result, no idea what our function node is
+		return nullptr;
+	}
+
+	UK2Node_CallFunction* CallFunctionNode = FunctionNodes[0];
+	UEdGraphPin* Pin = CallFunctionNode->FindPin(ParameterName, EGPD_Input);
+	
+	return Pin;
 }
 
 void UMVVMEditorSubsystem::SetSourceToDestinationConversionFunction(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction)
