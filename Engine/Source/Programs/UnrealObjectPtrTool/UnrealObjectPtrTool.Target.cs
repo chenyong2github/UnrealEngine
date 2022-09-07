@@ -10,6 +10,7 @@ public class UnrealObjectPtrToolTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "UnrealObjectPtrTool";
 
 		bBuildDeveloperTools			= false;

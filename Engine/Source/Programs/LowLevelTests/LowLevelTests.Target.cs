@@ -8,5 +8,6 @@ public class LowLevelTestsTarget : TestTargetRules
 	public LowLevelTestsTarget(TargetInfo Target) : base(Target)
 	{
 		bWithLowLevelTestsOverride = true;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 	}
 }

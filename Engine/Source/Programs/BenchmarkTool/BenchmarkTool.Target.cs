@@ -10,6 +10,7 @@ public class BenchmarkToolTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "BenchmarkTool";
 
 		bBuildDeveloperTools			= false;

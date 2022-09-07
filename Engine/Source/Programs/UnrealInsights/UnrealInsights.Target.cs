@@ -14,6 +14,7 @@ public class UnrealInsightsTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = bMonolithic ? TargetLinkType.Monolithic : TargetLinkType.Modular;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		LaunchModuleName = "UnrealInsights";
 		if (bBuildEditor)

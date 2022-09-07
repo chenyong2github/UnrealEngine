@@ -18,6 +18,8 @@ public abstract class TextureBuildWorkerTarget : DerivedDataBuildWorkerTarget
 
 	public TextureBuildWorkerTarget(TargetInfo Target) : base(Target)
 	{
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
 		SolutionDirectory += "/Texture";
 
 		//always add the engine TextureFormatOodle (if enabled)

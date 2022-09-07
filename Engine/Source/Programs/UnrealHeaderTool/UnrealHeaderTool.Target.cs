@@ -9,6 +9,7 @@ public class UnrealHeaderToolTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Modular;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "UnrealHeaderTool";
 
 		// Never use malloc profiling in Unreal Header Tool.  We set this because often UHT is compiled right before the engine

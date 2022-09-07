@@ -9,6 +9,7 @@ public class BlankProgramTarget : TargetRules
 	public BlankProgramTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "BlankProgram";
 

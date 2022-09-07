@@ -9,6 +9,7 @@ public class UnrealPackageToolTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "UnrealPackageTool";
 
 		bBuildDeveloperTools = false;

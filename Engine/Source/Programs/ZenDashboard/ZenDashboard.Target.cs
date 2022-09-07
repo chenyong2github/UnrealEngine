@@ -9,6 +9,7 @@ public class ZenDashboardTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "ZenDashboard";
 
 		bBuildDeveloperTools = false;
