@@ -28,6 +28,9 @@ struct FCellInfo
 
 	/** The size of a cell used by the World Partition Builder */
 	int32 IterativeCellSize;
+
+	static UNREALED_API FWorldBuilderCellCoord GetCellCoord(const FVector& InPos, const int32 InCellSize);
+	static UNREALED_API FWorldBuilderCellCoord GetCellCount(const FBox& InBounds, const int32 InCellSize);
 };
 
 UCLASS(Abstract, Config=Engine)
@@ -75,6 +78,11 @@ protected:
 	 * Overridable method for derived classes to perform operations when world builder has unloaded the world.
 	 */
 	virtual bool PostWorldTeardown(FPackageSourceControlHelper& PackageHelper) { return true; }
+
+	/**
+	 * When using EloadingMode::IterativeCells/IterativeCells2D return true to skip processing of cell.
+	 */
+	virtual bool ShouldSkipCell(const FWorldBuilderCellCoord& CellCoord) const { return false; }
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;

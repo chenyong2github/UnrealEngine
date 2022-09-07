@@ -142,7 +142,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 	return bResult;
 }
 
-static FWorldBuilderCellCoord GetCellCoord(const FVector& InPos, const int32 InCellSize)
+FWorldBuilderCellCoord FCellInfo::GetCellCoord(const FVector& InPos, const int32 InCellSize)
 {
 	return FWorldBuilderCellCoord(
 		FMath::FloorToInt(InPos.X / InCellSize),
@@ -151,7 +151,7 @@ static FWorldBuilderCellCoord GetCellCoord(const FVector& InPos, const int32 InC
 	);
 }
 
-static FWorldBuilderCellCoord GetCellCount(const FBox& InBounds, const int32 InCellSize)
+FWorldBuilderCellCoord FCellInfo::GetCellCount(const FBox& InBounds, const int32 InCellSize)
 {
 	const FWorldBuilderCellCoord MinCellCoords = GetCellCoord(InBounds.Min, InCellSize);
 	const FWorldBuilderCellCoord MaxCellCoords = FWorldBuilderCellCoord(FMath::CeilToInt(InBounds.Max.X / InCellSize),
@@ -210,8 +210,8 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	if ((LoadingMode == ELoadingMode::IterativeCells) || (LoadingMode == ELoadingMode::IterativeCells2D))
 	{
 		// do partial loading loop that calls RunInternal
-		const FWorldBuilderCellCoord MinCellCoords = GetCellCoord(CellInfo.EditorBounds.Min, IterativeCellSize);
-		const FWorldBuilderCellCoord NumCellsIterations = GetCellCount(CellInfo.EditorBounds, IterativeCellSize);
+		const FWorldBuilderCellCoord MinCellCoords = FCellInfo::GetCellCoord(CellInfo.EditorBounds.Min, IterativeCellSize);
+		const FWorldBuilderCellCoord NumCellsIterations = FCellInfo::GetCellCount(CellInfo.EditorBounds, IterativeCellSize);
 		const FWorldBuilderCellCoord BeginCellCoords = MinCellCoords;
 		const FWorldBuilderCellCoord EndCellCoords = BeginCellCoords + NumCellsIterations;
 
@@ -243,6 +243,13 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 				for (int64 x = BeginCellCoords.X; bResult && (x < EndCellCoords.X); x++)
 				{
 					IterationIndex++;
+					
+					if (ShouldSkipCell(FWorldBuilderCellCoord(x, y, z)))
+					{
+						UE_LOG(LogWorldPartitionBuilder, Display, TEXT("[%d / %d] Processing cells... (skipped)"), IterationIndex, IterationCount);
+						continue;
+					}
+					
 					UE_LOG(LogWorldPartitionBuilder, Display, TEXT("[%d / %d] Processing cells..."), IterationIndex, IterationCount);
 
 					FVector Min(x * IterativeCellSize, y * IterativeCellSize, z * IterativeCellSize);
