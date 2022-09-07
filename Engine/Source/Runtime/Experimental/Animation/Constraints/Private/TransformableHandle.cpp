@@ -108,9 +108,9 @@ bool UTransformableComponentHandle::HasDirectDependencyWith(const UTransformable
 		return false;
 	}
 
-	// check whether the other handle is one of the component's parent
 	if (Component.IsValid())
 	{
+		// check whether the other handle is one of the component's parent
 		for (const USceneComponent* Comp=Component->GetAttachParent(); Comp!=nullptr; Comp=Comp->GetAttachParent() )
 		{
 			const uint32 AttachParentHash = GetTypeHash(Comp);
@@ -120,8 +120,86 @@ bool UTransformableComponentHandle::HasDirectDependencyWith(const UTransformable
 			}
 		}
 	}
-	
+
 	return false;
+}
+
+namespace
+{
+	
+FTickPrerequisite LookForPrimaryPrerequisite(USceneComponent* Component)
+{
+	static const FTickPrerequisite DummyPrerex;
+	
+	if (!Component)
+	{
+		return DummyPrerex;
+	}
+
+	auto IsValidTickFunction = [](const FTickFunction* InTickFunction)
+	{
+		if (InTickFunction)
+		{
+			return (InTickFunction->bCanEverTick || InTickFunction->IsTickFunctionRegistered());
+		};
+
+		return false;
+	};
+
+	// check if this can tick
+	if ( IsValidTickFunction(&Component->PrimaryComponentTick) )
+	{
+		return FTickPrerequisite(Component, Component->PrimaryComponentTick);
+	}
+
+	// check if a master constraint can tick
+	if (UWorld* World = Component->GetWorld())
+	{
+		static constexpr bool bSorted = true;
+		
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+		const TArray<TObjectPtr<UTickableConstraint>> ParentConstraints =
+			Controller.GetParentConstraints(GetTypeHash(Component), bSorted);
+		
+		for (int Index = ParentConstraints.Num()-1; Index >= 0; Index--)
+		{
+			if (UTickableConstraint* Constraint = ParentConstraints[Index])
+			{
+				if(IsValidTickFunction(&Constraint->ConstraintTick))
+				{
+					return FTickPrerequisite(Constraint->GetOuter(), Constraint->ConstraintTick);
+				}
+			}
+		}	
+	}
+
+	// check if parent ticks
+	if (USceneComponent* Parent = Component->GetAttachParent())
+	{
+		FTickFunction& ParentTickFunction = Parent->PrimaryComponentTick;
+		if (IsValidTickFunction(&ParentTickFunction))
+		{
+			return FTickPrerequisite(Parent, ParentTickFunction);
+		}
+
+		// get up the hierarchy if not found
+		return LookForPrimaryPrerequisite(Parent);
+	}
+
+	return DummyPrerex;
+}
+	
+}
+
+FTickPrerequisite UTransformableComponentHandle::GetPrimaryPrerequisite() const
+{
+	if (Component.IsValid())
+	{
+		return LookForPrimaryPrerequisite(Component.Get());
+	}
+
+	static const FTickPrerequisite DummyPrerex;
+	return DummyPrerex;
 }
 
 void UTransformableComponentHandle::UnregisterDelegates() const

@@ -102,6 +102,7 @@ public:
 
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditUndo() override;
 	// End of UObject interface
 #endif
 	/** @todo documentation. */
@@ -227,6 +228,9 @@ public:
 	
 	/** Get read-only access to the array of constraints. */
 	const TArray< TObjectPtr<UTickableConstraint> >& GetConstraintsArray() const;
+
+	/** @todo document */
+	TArray< TObjectPtr<UTickableConstraint> > GetAllConstraints(const bool bSorted = false) const;
 
 	/** Get parent constraints of the specified child. If bSorted is true, then the constraints will be sorted by dependency. */
 	TArray< TObjectPtr<UTickableConstraint> > GetParentConstraints(

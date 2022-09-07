@@ -781,7 +781,7 @@ void SConstraintsEditionWidget::RemoveItem(const TSharedPtr<FEditableConstraintI
 	FScopedTransaction Transaction(LOCTEXT("RemoveConstraint", "Remove Constraint"));
 	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		
+	
 	const FName ConstraintName(Item->Name.ToString());
 	Controller.RemoveConstraint(ConstraintName);
 
@@ -813,7 +813,8 @@ int32 SConstraintsEditionWidget::RefreshConstraintList()
 	if (bIsConstraintsActor)
 	{
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		Constraints = Controller.GetConstraintsArray();
+		static constexpr bool bSorted = true;
+		Constraints = Controller.GetAllConstraints(bSorted);
 	}
 	else
 	{

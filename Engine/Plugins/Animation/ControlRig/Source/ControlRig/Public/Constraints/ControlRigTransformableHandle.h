@@ -75,6 +75,9 @@ public:
 	/** Check for direct dependencies (ie hierarchy + skeletal mesh) with InOther. */
 	virtual bool HasDirectDependencyWith(const UTransformableHandle& InOther) const override;
 
+	/** Look for a possible tick function that can be used as a prerequisite. */
+	virtual FTickPrerequisite GetPrimaryPrerequisite() const override;
+
 #if WITH_EDITOR
 	/** Returns labels used for UI. */
 	virtual FString GetLabel() const override;

@@ -916,6 +916,92 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateFromType(
 	return Constraint;
 }
 
+namespace
+{
+
+// we suppose that both InParentHandle and InChildHandle are safe to use
+bool HasConstraintDependencyWith(UWorld* InWorld, const UTransformableHandle* InParentHandle, const UTransformableHandle* InChildHandle)
+{
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	static constexpr bool bSorted = false;
+
+	using HandlePtr = TObjectPtr<UTransformableHandle>;
+	TArray<TObjectPtr<UTransformableHandle>> ParentHandles;
+	
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray<ConstraintPtr> Constraints = Controller.GetParentConstraints(InParentHandle->GetHash(), bSorted);
+
+	// get parent handles
+	for (const ConstraintPtr& Constraint: Constraints)
+	{
+		if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint.Get()))
+		{
+			if (TransformConstraint->ParentTRSHandle)
+			{
+				ParentHandles.Add(TransformConstraint->ParentTRSHandle);
+			}
+		}
+	}
+
+	// check if InChildHandle is one of them
+	const uint32 ChildHash = InChildHandle->GetHash();
+	const bool bIsParentADependency = ParentHandles.ContainsByPredicate([ChildHash](const HandlePtr& InHandle)
+	{
+		return InHandle->GetHash() == ChildHash;
+	});
+
+	if (bIsParentADependency)
+	{
+		return true;
+	}
+
+	// if not, recurse
+	for (const HandlePtr& ParentHandle: ParentHandles)
+	{
+		if (HasConstraintDependencyWith(InWorld, ParentHandle, InChildHandle))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+	
+bool AreHandlesConstrainable( UWorld* InWorld, UTransformableHandle* InParentHandle, UTransformableHandle* InChildHandle)
+{
+	static const TCHAR* ErrorPrefix = TEXT("Dependency error:");
+
+	if (InChildHandle->GetHash() == InParentHandle->GetHash())
+	{
+		UE_LOG(LogTemp, Error, TEXT("%s handles are pointing at the same object."), ErrorPrefix);
+		return false;
+	}
+
+	// check for direct transform dependencies (ei hierarchy)
+	if (InParentHandle->HasDirectDependencyWith(*InChildHandle))
+	{
+#if WITH_EDITOR
+		UE_LOG(LogTemp, Error, TEXT("%s: %s has a direct dependency with %s."),
+			ErrorPrefix, *InParentHandle->GetLabel(), *InChildHandle->GetLabel());
+#endif
+		return false;
+	}
+
+	// check for indirect transform dependencies (ei constraint chain)
+	if (HasConstraintDependencyWith(InWorld, InParentHandle, InChildHandle))
+	{
+#if WITH_EDITOR
+		UE_LOG(LogTemp, Error, TEXT("%s: %s has an indirect dependency with %s."),
+			ErrorPrefix, *InParentHandle->GetLabel(), *InChildHandle->GetLabel());
+#endif
+		return false;
+	}
+
+	return true;
+}
+
+}
+
 UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 	UWorld* InWorld,
 	AActor* InParent,
@@ -952,23 +1038,8 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 		return nullptr;
 	}
 
-	bool bDeleteHandles = false;
-	if (ChildHandle->GetHash() == ParentHandle->GetHash())
-	{
-		UE_LOG(LogTemp, Error, TEXT("%s handles are pointing at the same object."), ErrorPrefix);
-		bDeleteHandles = true;
-	}
-	
-	if (ParentHandle->HasDirectDependencyWith(*ChildHandle))
-	{
-#if WITH_EDITOR
-		UE_LOG(LogTemp, Error, TEXT("%s: %s has a direct dependecy to %s."),
-			ErrorPrefix, *ParentHandle->GetLabel(), *ChildHandle->GetLabel());
-#endif
-		bDeleteHandles = true;
-	}
-	
-	if (bDeleteHandles)
+	const bool bCanConstrain = AreHandlesConstrainable(InWorld, ParentHandle, ChildHandle);
+	if (!bCanConstrain)
 	{
 		ChildHandle->MarkAsGarbage();
 		ParentHandle->MarkAsGarbage();
@@ -1008,7 +1079,18 @@ bool FTransformConstraintUtils::AddConstraint(
 		return false;
 	}
 
+	// store previous child constraints
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	const TArray<TObjectPtr<UTickableConstraint>> ChildParentConstraints = Controller.GetParentConstraints(InChildHandle->GetHash(), true);
 
+	// add the new one
+	const bool bConstraintAdded = Controller.AddConstraint(Constraint);
+	if (!bConstraintAdded)
+	{
+		return false;
+	}
+
+	// setup the constraint
 	auto SetupConstraint = [InParentHandle, InChildHandle, bMaintainOffset](UTickableTransformConstraint* InConstraint)
 	{
 		InConstraint->ParentTRSHandle = InParentHandle;
@@ -1017,12 +1099,44 @@ bool FTransformConstraintUtils::AddConstraint(
 		InConstraint->Setup();
 	};
 	
-	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
-	
-	Controller.AddConstraint(Constraint);
-
 	SetupConstraint(Constraint);
 
+	// add dependencies with the last child constraint
+	const FName NewConstraintName = Constraint->GetFName();
+	if (!ChildParentConstraints.IsEmpty())
+	{
+		const FName LastChildConstraintName = ChildParentConstraints.Last()->GetFName();
+		Controller.SetConstraintsDependencies( LastChildConstraintName, NewConstraintName);
+	}
+
+	// make sure we tick after the parent.
+	const FTickFunction* ParentTickFunction = InParentHandle->GetTickFunction();
+	const FTickFunction* ChildTickFunction = InChildHandle->GetTickFunction();
+	if (ParentTickFunction && (ChildTickFunction != ParentTickFunction))
+	{
+		const TArray<FTickPrerequisite>& ParentPrerequisites =  Constraint->ConstraintTick.GetPrerequisites();
+		if (ParentPrerequisites.IsEmpty())
+		{
+			// if the constraint has no prerex at this stage, this means that the parent tick function
+			// is not registered or can't tick (static meshes for instance) so look for the first master tick function if any.
+			// In a context of adding several constraints, we want to make sure that the evaluation order is the right one
+			FTickPrerequisite PrimaryPrerex = InParentHandle->GetPrimaryPrerequisite();
+			if (FTickFunction* PotentialFunction = PrimaryPrerex.Get())
+			{
+				UObject* Target = PrimaryPrerex.PrerequisiteObject.Get();
+				Constraint->ConstraintTick.AddPrerequisite(Target, *PotentialFunction);
+			}
+		}
+	}
+
+	// if child handle is the parent of some other constraints, ensure they will tick after that new one
+	TArray<TObjectPtr<UTickableConstraint>> ChildChildConstraints;
+	GetChildrenConstraints(InWorld, InChildHandle, ChildChildConstraints);
+	for (const TObjectPtr<UTickableConstraint>& ChildConstraint: ChildChildConstraints)
+	{
+		Controller.SetConstraintsDependencies( NewConstraintName, ChildConstraint->GetFName());
+	}
+	
 	return true;
 }
 
@@ -1123,4 +1237,36 @@ TOptional<FTransform> FTransformConstraintUtils::GetConstraintRelativeTransform(
 	const FTransform ParentGlobal = Constraint->GetParentGlobalTransform();
 
 	return ComputeRelativeTransform(ChildLocal, ChildGlobal, ParentGlobal, Constraint);
+}
+
+void FTransformConstraintUtils::GetChildrenConstraints(
+	UWorld* World,
+	const UTransformableHandle* InParentHandle,
+	TArray< TObjectPtr<UTickableConstraint> >& OutConstraints)
+{
+	const uint32 ParentHash = InParentHandle->GetHash();
+
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray<ConstraintPtr>& AllConstraints = Controller.GetConstraintsArray();
+
+	const TArray<ConstraintPtr> FilteredConstraints =
+	AllConstraints.FilterByPredicate( [ParentHash](const ConstraintPtr& Constraint)
+	{
+		const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint.Get());
+		if (!TransformConstraint)
+		{
+			return false;
+		}
+		
+		if (TransformConstraint->ParentTRSHandle && (TransformConstraint->ParentTRSHandle->GetHash() == ParentHash))
+		{
+			return true;
+		}
+
+		return false;
+	} );
+
+	OutConstraints.Append(FilteredConstraints);
 }

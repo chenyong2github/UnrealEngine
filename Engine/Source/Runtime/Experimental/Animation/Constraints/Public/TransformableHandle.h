@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "Engine/EngineBaseTypes.h"
 
 #include "TransformableHandle.generated.h"
 
@@ -86,6 +87,9 @@ public:
 
 	/** Check for direct dependencies with InOther. */
 	virtual bool HasDirectDependencyWith(const UTransformableHandle& InOther) const PURE_VIRTUAL(HasDirectDependencyWith, return false;);
+
+	/** Look for a possible tick function that can be used as a prerequisite. */
+	virtual FTickPrerequisite GetPrimaryPrerequisite() const PURE_VIRTUAL(GetPrimaryPrerequisite, return FTickPrerequisite(););
 	
 	FHandleModifiedEvent& HandleModified();
 
@@ -136,6 +140,9 @@ public:
 
 	/** Check for direct dependencies (ie hierarchy) with InOther. */
 	virtual bool HasDirectDependencyWith(const UTransformableHandle& InOther) const override;
+
+	/** Look for a possible tick function that can be used as a prerequisite. */
+	virtual FTickPrerequisite GetPrimaryPrerequisite() const override;
 
 	/** Get the array of float channels for the specified section*/
 	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const override;

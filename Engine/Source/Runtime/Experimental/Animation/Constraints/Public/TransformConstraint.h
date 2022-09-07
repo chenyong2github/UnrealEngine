@@ -333,7 +333,7 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		UWorld* World,
 		const AActor* InChild,
 		TArray< TObjectPtr<UTickableConstraint> >& OutConstraints);
-		
+
 	/** Create a handle for the scene component.*/
 	static UTransformableComponentHandle* CreateHandleForSceneComponent(
 		USceneComponent* InSceneComponent,
@@ -371,4 +371,10 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 
 	/** Computes the current constraint space local transform. */
 	static TOptional<FTransform> GetConstraintRelativeTransform(UWorld* InWorld, const uint32 InHandleHash);
+
+	/** Fills a constraint array that InParentHandle is the parent of. */
+	static void GetChildrenConstraints(
+		UWorld* World,
+		const UTransformableHandle* InParentHandle,
+		TArray< TObjectPtr<UTickableConstraint> >& OutConstraints);
 };

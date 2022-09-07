@@ -108,6 +108,16 @@ void UTickableConstraint::PostEditChangeProperty(FPropertyChangedEvent& Property
 	}
 }
 
+void UTickableConstraint::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// make sure we update ticking when undone
+	const bool bActiveTick = IsValid(this);
+	ConstraintTick.SetTickFunctionEnable(bActiveTick);
+	ConstraintTick.bCanEverTick = bActiveTick;
+}
+
 #endif
 
 /** 
@@ -427,8 +437,6 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 		return false;
 	}
 
-	Manager->Modify();
-
 	const FName ConstraintName = Manager->Constraints[InConstraintIndex]->GetFName();
 	UTickableConstraint* Constraint = Manager->Constraints[InConstraintIndex];
 	
@@ -436,6 +444,7 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	ConstraintRemoved.Broadcast(ConstraintName);
 	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint);
 
+	Manager->Modify();
 	Manager->Constraints[InConstraintIndex]->ConstraintTick.UnRegisterTickFunction();
 	Manager->Constraints.RemoveAt(InConstraintIndex);
 
@@ -554,4 +563,40 @@ const TArray< TObjectPtr<UTickableConstraint> >& FConstraintsManagerController::
 	}
 
 	return Manager->Constraints;
+}
+
+TArray< TObjectPtr<UTickableConstraint> > FConstraintsManagerController::GetAllConstraints(const bool bSorted) const
+{
+	UConstraintsManager* Manager = FindManager();
+	if (!Manager)
+	{
+		static const TArray< TObjectPtr<UTickableConstraint> > Empty;
+		return Empty;
+	}
+
+	if (!bSorted)
+	{
+		return Manager->Constraints;
+	}
+
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	TArray< TObjectPtr<UTickableConstraint> > SortedConstraints(Manager->Constraints);
+	// LHS ticks before RHS = LHS is a prerex of RHS 
+	auto TicksBefore = [](const UTickableConstraint& LHS, const UTickableConstraint& RHS)
+	{
+		const TArray<FTickPrerequisite>& RHSPrerex = RHS.ConstraintTick.GetPrerequisites();
+		const FConstraintTickFunction& LHSTickFunction = LHS.ConstraintTick;
+		const bool bIsLHSAPrerexOfRHS = RHSPrerex.ContainsByPredicate([&LHSTickFunction](const FTickPrerequisite& Prerex)
+		{
+			return Prerex.PrerequisiteTickFunction == &LHSTickFunction;
+		});
+		return bIsLHSAPrerexOfRHS;
+	};
+	
+	Algo::StableSort(SortedConstraints, [TicksBefore](const ConstraintPtr& LHS, const ConstraintPtr& RHS)
+	{
+		return TicksBefore(*LHS, *RHS);
+	});
+	
+	return SortedConstraints;
 }

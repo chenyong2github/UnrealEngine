@@ -183,7 +183,7 @@ bool UTransformableControlHandle::HasDirectDependencyWith(const UTransformableHa
 		}
 	}
 	
-	const FRigControlElement* ControlElement = GetControlElement();
+	FRigControlElement* ControlElement = GetControlElement();
 	if (!ControlElement)
 	{
 		return false;
@@ -191,12 +191,59 @@ bool UTransformableControlHandle::HasDirectDependencyWith(const UTransformableHa
 
 	// check whether the other handle is one of the control parent within the CR hierarchy
 	static constexpr bool bRecursive = true;
-	const FRigBaseElementParentArray AllParents = ControlRig->GetHierarchy()->GetParents(ControlElement, bRecursive);
-	return  AllParents.ContainsByPredicate([this, OtherHash](const FRigBaseElement* Parent)
+	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+	const FRigBaseElementParentArray AllParents = Hierarchy->GetParents(ControlElement, bRecursive);
+	const bool bIsParent = AllParents.ContainsByPredicate([this, OtherHash](const FRigBaseElement* Parent)
 	{
 		const uint32 ParentHash = ComputeHash(ControlRig.Get(), Parent->GetName());
 		return ParentHash == OtherHash;		
 	});
+
+	if (bIsParent)
+	{
+		return true;
+	}
+
+	// otherwise, check if there are any dependency in the graph that would cause a cycle
+	const TArray<FRigControlElement*> AllControls = Hierarchy->GetControls();
+	const int32 IndexOfPossibleParent = AllControls.IndexOfByPredicate([this, OtherHash](const FRigBaseElement* Parent)
+	{
+		const uint32 ChildHash = ComputeHash(ControlRig.Get(), Parent->GetName());
+		return ChildHash == OtherHash;
+	});
+
+	if (IndexOfPossibleParent != INDEX_NONE)
+	{
+		FRigControlElement* Parent = AllControls[IndexOfPossibleParent];
+
+		FString FailureReason;
+
+#if WITH_EDITOR
+		const URigHierarchy::TElementDependencyMap DependencyMap = Hierarchy->GetDependenciesForVM(ControlRig->GetVM());
+		const bool bIsParentedTo = Hierarchy->IsParentedTo(ControlElement, Parent, DependencyMap);
+#else
+		const bool bIsParentedTo = Hierarchy->IsParentedTo(ControlElement, Parent);
+#endif
+		
+		if (bIsParentedTo)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// if there's no skeletal mesh bound then the handle is not valid so no need to do anything else
+FTickPrerequisite UTransformableControlHandle::GetPrimaryPrerequisite() const
+{
+	if (FTickFunction* TickFunction = GetTickFunction())
+	{
+		return FTickPrerequisite( GetSkeletalMesh(), *TickFunction); 
+	}
+	
+	static const FTickPrerequisite DummyPrerex;
+	return DummyPrerex;
 }
 
 FRigControlElement* UTransformableControlHandle::GetControlElement() const
