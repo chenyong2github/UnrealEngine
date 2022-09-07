@@ -796,11 +796,6 @@ void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 	const UNiagaraScripStatsViewModelSettings* Settings = GetDefault<UNiagaraScripStatsViewModelSettings>();
 	for (const EShaderPlatform ShaderPlatform : ValidShaderPlatforms)
 	{
-		if (!FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
-		{
-			continue;
-		}
-
 		const FName ShaderFormat = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
 		if (TPM.FindShaderFormat(ShaderFormat) == nullptr)
 		{

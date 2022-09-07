@@ -1211,18 +1211,6 @@ namespace FNiagaraUtilities
 		return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::ES3_1);
 	}
 
-	// Whether the platform supports GPU particles. A static function that doesn't not rely on any runtime switches.
-	inline bool SupportsComputeShaders(EShaderPlatform ShaderPlatform)
-	{
-		return RHISupportsComputeShaders(ShaderPlatform);
-	}
-
-	// DEPRECATED, use SupportsComputeShaders instead!
-	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
-	{
-		return SupportsComputeShaders(ShaderPlatform);
-	}
-
 	// When enabled log more information for the end user
 #if NO_LOGGING
 	inline bool LogVerboseWarnings() { return false; }

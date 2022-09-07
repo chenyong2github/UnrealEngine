@@ -584,11 +584,6 @@ class FClearVelocityGridCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FClearVelocityGridCS)
 	SHADER_USE_PARAMETER_STRUCT(FClearVelocityGridCS, FGlobalShader);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -640,11 +635,6 @@ class FCopyVelocityGridCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCopyVelocityGridCS)
 	SHADER_USE_PARAMETER_STRUCT(FCopyVelocityGridCS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

@@ -87,26 +87,23 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
-		if (RHISupportsComputeShaders(GShaderPlatformForFeatureLevel[GetFeatureLevel()]))
-		{
-			const int32 OffsetsCount = DIGIT_COUNT * MAX_GROUP_COUNT;
-			const int32 OffsetsBufferSize = OffsetsCount * sizeof(uint32);
+		const int32 OffsetsCount = DIGIT_COUNT * MAX_GROUP_COUNT;
+		const int32 OffsetsBufferSize = OffsetsCount * sizeof(uint32);
 		
-			for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
-			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("SortOffset"));
-				Buffers[BufferIndex] = RHICreateVertexBuffer(
-					OffsetsBufferSize,
-					BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess,
-					CreateInfo);
-				BufferSRVs[BufferIndex] = RHICreateShaderResourceView(
-					Buffers[BufferIndex],
-					/*Stride=*/ sizeof(uint32),
-					/*Format=*/ PF_R32_UINT );
-				BufferUAVs[BufferIndex] = RHICreateUnorderedAccessView(
-					Buffers[BufferIndex],
-					/*Format=*/ PF_R32_UINT );
-			}
+		for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
+		{
+			FRHIResourceCreateInfo CreateInfo(TEXT("SortOffset"));
+			Buffers[BufferIndex] = RHICreateVertexBuffer(
+				OffsetsBufferSize,
+				BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess,
+				CreateInfo);
+			BufferSRVs[BufferIndex] = RHICreateShaderResourceView(
+				Buffers[BufferIndex],
+				/*Stride=*/ sizeof(uint32),
+				/*Format=*/ PF_R32_UINT );
+			BufferUAVs[BufferIndex] = RHICreateUnorderedAccessView(
+				Buffers[BufferIndex],
+				/*Format=*/ PF_R32_UINT );
 		}
 	}
 
@@ -188,8 +185,6 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
-		if (RHISupportsComputeShaders(GShaderPlatformForFeatureLevel[GetFeatureLevel()]))
-		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FRadixSortParametersBuffer"));
 			SortParametersBufferRHI = RHICreateVertexBuffer(
 				/*Size=*/ sizeof(FRadixSortParameters),
@@ -198,7 +193,6 @@ public:
 			SortParametersBufferSRV = RHICreateShaderResourceView(
 				SortParametersBufferRHI, /*Stride=*/ sizeof(uint32), PF_R32_UINT 
 				);
-		}
 	}
 
 	/**
@@ -225,11 +219,6 @@ class FRadixSortClearOffsetsCS : public FGlobalShader
 	DECLARE_SHADER_TYPE(FRadixSortClearOffsetsCS,Global);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
@@ -301,11 +290,6 @@ class FRadixSortUpsweepCS : public FGlobalShader
 	DECLARE_SHADER_TYPE(FRadixSortUpsweepCS,Global);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -408,11 +392,6 @@ class FRadixSortSpineCS : public FGlobalShader
 
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
@@ -494,11 +473,6 @@ class FRadixSortDownsweepCS : public FGlobalShader
 	DECLARE_SHADER_TYPE(FRadixSortDownsweepCS,Global);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -671,8 +645,6 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 	FRadixSortUniformBufferRef SortUniformBufferRef;
 	const bool bDebugOffsets = CVarDebugOffsets.GetValueOnRenderThread() != 0;
 	const bool bDebugSort = CVarDebugSort.GetValueOnRenderThread() != 0;
-
-	check(RHISupportsComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]));
 
 	SCOPED_DRAW_EVENTF(RHICmdList, SortGPU, TEXT("Sort(%d)"), Count);
 
@@ -877,11 +849,6 @@ static bool RunGPUSortTest(FRHICommandListImmediate& RHICmdList, int32 TestSize,
 	const int32 BufferSize = TestSize * sizeof(uint32);
 	const bool bDebugOffsets = CVarDebugOffsets.GetValueOnRenderThread() != 0;
 	const bool bDebugSort = CVarDebugSort.GetValueOnRenderThread() != 0;
-
-	if (!RHISupportsComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
-	{
-		return false;
-	}
 
 	// Generate the test keys.
 	Keys.Reserve(TestSize);

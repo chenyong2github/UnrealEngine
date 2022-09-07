@@ -82,14 +82,9 @@ static TAutoConsoleVariable<float> CVarOIT_SortedPixels_TransmittanceThreshold(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool IsOITSortedTrianglesSupported(EShaderPlatform InShaderPlatform)
-{
-	return RHISupportsComputeShaders(InShaderPlatform);
-}
-
 static bool IsOITSortedPixelsSupported(EShaderPlatform InShaderPlatform)
 {
-	return RHISupportsComputeShaders(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsROV(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsOIT(InShaderPlatform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsROV(InShaderPlatform) && FDataDrivenShaderPlatformInfo::GetSupportsOIT(InShaderPlatform);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -300,7 +295,7 @@ public:
 
 static bool IsOITSupported(EShaderPlatform InShaderPlatform)
 {
-	return RHISupportsComputeShaders(InShaderPlatform) && !IsMobilePlatform(InShaderPlatform) && !FDataDrivenShaderPlatformInfo::GetIsHlslcc(InShaderPlatform);
+	return !IsMobilePlatform(InShaderPlatform) && !FDataDrivenShaderPlatformInfo::GetIsHlslcc(InShaderPlatform);
 }
 
 static void RemoveAllocation(FSortedIndexBuffer* InBuffer)
@@ -480,7 +475,6 @@ class FOITSortTriangleIndex_ScanCS : public FGlobalShader
 
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -503,7 +497,6 @@ class FOITSortTriangleIndex_AllocateCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, SliceOffsetsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -535,7 +528,6 @@ class FOITSortTriangleIndex_WriteOutCS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWBuffer<uint>, OutIndexBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -566,7 +558,6 @@ class FOITSortTriangleIndex_Debug : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, DebugData)
 	END_SHADER_PARAMETER_STRUCT()
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsOITSortedTrianglesSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -822,7 +813,7 @@ namespace OIT
 	{
 		switch (Type)
 		{
-		case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0 && IsOITSortedTrianglesSupported(View.GetShaderPlatform());
+		case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0;
 		case EOITSortingType::SortedPixels	 : return CVarOIT_SortedPixels_Enable.GetValueOnAnyThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsOIT(View.GetShaderPlatform());
 		}
 		return false;
@@ -836,7 +827,7 @@ namespace OIT
 
 		switch (Type)
 		{
-			case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0 && IsOITSortedTrianglesSupported(InPlatform);
+			case EOITSortingType::SortedTriangles: return CVarOIT_SortedTriangles_Enable.GetValueOnAnyThread() > 0;
 			case EOITSortingType::SortedPixels	 : return CVarOIT_SortedPixels_Enable.GetValueOnAnyThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsOIT(EShaderPlatform(InPlatform));
 		}
 		return false;

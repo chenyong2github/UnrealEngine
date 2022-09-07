@@ -141,11 +141,6 @@ class FDumpTextureCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FDumpTextureCS);
 	SHADER_USE_PARAMETER_STRUCT(FDumpTextureCS, FGlobalShader);
 
-	static inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
-	{
-		return RHISupportsComputeShaders(ShaderPlatform);
-	}
-
 	enum class ETextureType
 	{
 		Texture2DFloatNoMSAA,
@@ -155,11 +150,6 @@ class FDumpTextureCS : public FGlobalShader
 	};
 	class FTextureTypeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_TEXTURE_TYPE", ETextureType);
 	using FPermutationDomain = TShaderPermutationDomain<FTextureTypeDim>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsSupported(Parameters.Platform);
-	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(Texture2D, Texture)
@@ -1164,12 +1154,6 @@ public:
 				if (!(SubresourceDesc.Texture->Desc.Flags & TexCreate_ShaderResource))
 				{
 					UE_LOG(LogRendererCore, Warning, TEXT("Not dumping %s because requires copy to staging texture using compute, but is missing TexCreate_ShaderResource."), *UniqueResourceSubResourceName);
-					return;
-				}
-
-				if (!FDumpTextureCS::IsSupported(GMaxRHIShaderPlatform))
-				{
-					UE_LOG(LogRendererCore, Warning, TEXT("Not dumping %s because FDumpTextureCS compute shader is not supported."), *UniqueResourceSubResourceName);
 					return;
 				}
 

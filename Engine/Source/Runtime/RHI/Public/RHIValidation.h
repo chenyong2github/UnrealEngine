@@ -195,7 +195,6 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FComputeShaderRHIRef RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
 		return RHI->RHICreateComputeShader(Code, Hash);
 	}
 
@@ -348,7 +347,6 @@ public:
 
 	virtual TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader, FRHIPipelineBinaryLibrary* PipelineBinary) override final
 	{
-		check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
 		return RHI->RHICreateComputePipelineState(ComputeShader, PipelineBinary);
 	}
 
@@ -462,7 +460,6 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer) override final
 	{
-		check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer);
 		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 		return SRV;
@@ -1369,7 +1366,6 @@ public:
 
 	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
 		return RHI->CreateComputeShader_RenderThread(RHICmdList, Code, Hash);
 	}
 

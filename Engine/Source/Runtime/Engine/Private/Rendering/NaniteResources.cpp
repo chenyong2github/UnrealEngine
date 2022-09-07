@@ -417,7 +417,6 @@ public:
 			IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
 			IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
 			Parameters.ShaderType->GetFrequency() == SF_Pixel &&
-			RHISupportsComputeShaders(Parameters.Platform) &&
 			DoesPlatformSupportNanite(Parameters.Platform);
 
 		return bShouldCompile;

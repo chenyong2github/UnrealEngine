@@ -301,12 +301,6 @@ float GetValidAerialPerspectiveStartDepthInCm(const FViewInfo& View, const FSkyA
 	return StartDepthInCm;
 }
 
-static bool ShouldPipelineCompileSkyAtmosphereShader(EShaderPlatform ShaderPlatform)
-{
-	// Requires SM5 or ES3_1 (GL/Vulkan) for compute shaders and volume textures support.
-	return RHISupportsComputeShaders(ShaderPlatform);
-}
-
 static bool VirtualShadowMapSamplingSupported(EShaderPlatform ShaderPlatform)
 {
 	return GetMaxSupportedFeatureLevel(ShaderPlatform) >= ERHIFeatureLevel::SM5;
@@ -379,8 +373,7 @@ bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& Engi
 		const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere = Scene->GetSkyAtmosphereSceneInfo();
 		check(SkyAtmosphere);
 
-		const bool ShadersCompiled = ShouldPipelineCompileSkyAtmosphereShader(ShaderPlatform);
-		return FReadOnlyCVARCache::Get().bSupportSkyAtmosphere && ShadersCompiled && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
+		return FReadOnlyCVARCache::Get().bSupportSkyAtmosphere && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
 	}
 	return false;
 }
@@ -625,12 +618,8 @@ class FRenderSkyAtmosphereVS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (IsMobilePlatform(Parameters.Platform))
-		{
-			// Mobile must use a skydome mesh with a sky material to achieve good GPU performance
-			return false;
-		}
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
+		// Mobile must use a skydome mesh with a sky material to achieve good GPU performance
+		return !IsMobilePlatform(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -733,7 +722,7 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 			return false;
 		}
 
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -773,11 +762,6 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, TransmittanceLutUAV)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -809,11 +793,6 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, TransmittanceLutTextureSampler)
 		SHADER_PARAMETER(uint32, UniformSphereSamplesBufferSampleCount)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -851,11 +830,6 @@ public:
 		SHADER_PARAMETER(FLinearColor, AtmosphereLightIlluminanceOuterSpace1)
 		SHADER_PARAMETER(float, DistantSkyLightSampleAltitude)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -904,11 +878,6 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
 		SHADER_PARAMETER(uint32, SourceDiskEnabled)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -968,11 +937,6 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -1020,7 +984,7 @@ class FRenderDebugSkyAtmospherePS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		// TODO: Exclude when shipping.
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1054,7 +1018,7 @@ class RenderSkyAtmosphereEditorHudPS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		// TODO: Exclude when shipping.
-		return ShouldPipelineCompileSkyAtmosphereShader(Parameters.Platform);
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1082,10 +1046,6 @@ public:
 
 	virtual void InitRHI() override
 	{
-		if ( ! RHISupportsComputeShaders(GMaxRHIShaderPlatform) )
-		{
-			return;
-		}
 		const uint32 GroupSize = GetSampletCount();
 		const float GroupSizeInv = 1.0f / float(GroupSize);
 
@@ -1117,10 +1077,7 @@ public:
 
 	virtual void ReleaseRHI()
 	{
-		if ( RHISupportsComputeShaders(GMaxRHIShaderPlatform) )
-		{
-			UniformSphereSamplesBuffer.Release();
-		}
+		UniformSphereSamplesBuffer.Release();
 	}
 };
 TGlobalResource<FUniformSphereSamplesBuffer> GUniformSphereSamplesBuffer;
@@ -2052,8 +2009,6 @@ FScreenPassTexture AddSkyAtmosphereDebugPasses(FRDGBuilder& GraphBuilder, FScene
 {
 #if WITH_EDITOR
 	check(ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
-
-	//if (!RHISupportsComputeShaders()) return;	// TODO cannot render, add a ShouldRender function. Also should PipelineShouldCook ?
 
 	RDG_EVENT_SCOPE(GraphBuilder, "SkyAtmosphereDebugVisualize");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SkyAtmosphereDebugVisualize);

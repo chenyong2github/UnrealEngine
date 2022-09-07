@@ -22,11 +22,6 @@ class FNiagaraInitFreeIDBufferCS : public FGlobalShader
 
 	static constexpr uint32 ThreadGroupSize = 64;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -86,7 +81,7 @@ class NiagaraComputeFreeIDsCS : public FGlobalShader
 			return false;
 		}
 
-		return RHISupportsComputeShaders(Parameters.Platform);
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -141,11 +136,6 @@ class NiagaraFillIntBufferCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(NiagaraFillIntBufferCS, FGlobalShader);
 
 	static constexpr uint32 ThreadGroupSize = 64;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

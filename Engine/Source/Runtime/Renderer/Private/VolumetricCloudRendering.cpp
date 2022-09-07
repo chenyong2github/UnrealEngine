@@ -217,12 +217,6 @@ static TAutoConsoleVariable<int32> CVarVolumetricCloudDebugSampleCountMode(
 ////////////////////////////////////////////////////////////////////////// 
 
 
-static bool ShouldPipelineCompileVolumetricCloudShader(EShaderPlatform ShaderPlatform)
-{
-	// Requires SM5 or ES3_1 (GL/Vulkan) for compute shaders and volume textures support.
-	return RHISupportsComputeShaders(ShaderPlatform);
-}
-
 static bool ShouldUseComputeForCloudTracing(const FStaticFeatureLevel InFeatureLevel)
 {
 	// When capturing a non-real-time sky light, the reflection cube face is first rendered in the scene texture 
@@ -241,8 +235,6 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 		const FVolumetricCloudRenderSceneInfo* VolumetricCloud = Scene->GetVolumetricCloudSceneInfo();
 		check(VolumetricCloud);
 
-		const bool bShadersCompiled = ShouldPipelineCompileVolumetricCloudShader(Scene->GetShaderPlatform());
-
 		bool bCloudMaterialValid = false;
 		if (VolumetricCloud->GetVolumetricCloudSceneProxy().GetCloudVolumeMaterial())
 		{
@@ -252,7 +244,7 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 			bCloudMaterialValid = MaterialTest.GetMaterialDomain() == MD_Volume;
 		}
 
-		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && bCloudMaterialValid;
+		return CVarVolumetricCloud.GetValueOnRenderThread() > 0 && bCloudMaterialValid;
 	}
 	return false;
 }

@@ -196,7 +196,7 @@ namespace ShaderPrint
 
 	bool IsSupported(EShaderPlatform InShaderPlatform)
 	{
-		return RHISupportsComputeShaders(InShaderPlatform) && !IsHlslccShaderPlatform(InShaderPlatform);
+		return !IsHlslccShaderPlatform(InShaderPlatform);
 	}
 
 	bool IsEnabled()

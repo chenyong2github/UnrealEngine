@@ -212,11 +212,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_WAVE_INTRINSICS"), bUseWaveIntrinsics ? 1 : 0);
 	}
 
-	static bool ShouldCompilePermutation(const FNiagaraShaderPermutationParameters& Parameters)
-	{
-		return FNiagaraUtilities::SupportsComputeShaders(Parameters.Platform);
-	}
-
 	FNiagaraShader() {}
 	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
 

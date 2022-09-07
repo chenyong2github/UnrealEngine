@@ -74,8 +74,6 @@ using FRibbonComputePermutationDomain = TShaderPermutationDomain<FRibbonHasFullR
 struct FNiagaraRibbonComputeCommon
 {	
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment, int32 ThreadGroupSize);
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
-
 	
 	static constexpr uint32 VertexGenReductionInitializationThreadSize = 64;
 	static constexpr uint32 VertexGenReductionPropagationThreadSize = 64;
@@ -111,11 +109,6 @@ class NIAGARASHADER_API FNiagaraRibbonSortPhase1CS : public FGlobalShader
 	using FParameters = FRibbonOrderSortParameters;
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasCustomLinkOrder>;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return FNiagaraRibbonComputeCommon::ShouldCompilePermutation(Parameters);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
@@ -131,11 +124,6 @@ class NIAGARASHADER_API FNiagaraRibbonSortPhase2CS : public FGlobalShader
 
 	using FParameters = FRibbonOrderSortParameters;
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasCustomLinkOrder>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
@@ -164,11 +152,6 @@ class NIAGARASHADER_API FNiagaraRibbonVertexReductionInitializationCS : public F
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
 	using FParameters = FNiagaraRibbonVertexReductionParameters;
 	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
@@ -181,11 +164,6 @@ class NIAGARASHADER_API FNiagaraRibbonVertexReductionPropagateCS : public FGloba
 	using FParameters = FNiagaraRibbonVertexReductionParameters
 	;
 	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
@@ -209,11 +187,6 @@ class NIAGARASHADER_API FNiagaraRibbonVertexReductionFinalizeCS : public FGlobal
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
 	using FParameters = FNiagaraRibbonVertexReductionFinalizationParameters;
-	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
@@ -249,11 +222,6 @@ class NIAGARASHADER_API FNiagaraRibbonUVParamCalculationCS : public FGlobalShade
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation, FRibbonHasTwist>;
 	using FParameters = FNiagaraRibbonVertexFinalizationParameters;
 	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
@@ -296,11 +264,6 @@ class NIAGARASHADER_API FNiagaraRibbonCreateIndexBufferParamsCS : public FGlobal
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonWantsConstantTessellation, FRibbonWantsAutomaticTessellation>;
 	using FParameters = FNiagaraRibbonInitializeIndices;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
@@ -341,11 +304,6 @@ class NIAGARASHADER_API FNiagaraRibbonCreateIndexBufferCS : public FGlobalShader
 	
 	using FPermutationDomain = TShaderPermutationDomain<FRibbonHasFullRibbonID, FRibbonHasRibbonID, FRibbonHasHighSliceComplexity>;;
 	using FParameters = FNiagaraRibbonGenerateIndices;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };

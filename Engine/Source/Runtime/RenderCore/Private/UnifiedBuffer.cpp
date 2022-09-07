@@ -45,7 +45,7 @@ class FByteBufferShader : public FGlobalShader
 		}
 		else
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return true;
 		}
 	}
 

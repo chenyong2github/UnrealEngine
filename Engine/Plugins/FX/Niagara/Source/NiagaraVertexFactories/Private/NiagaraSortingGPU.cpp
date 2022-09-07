@@ -47,7 +47,7 @@ bool FNiagaraSortKeyGenCS::ShouldCompilePermutation(const FGlobalShaderPermutati
 		}
 	}
 
-	return RHISupportsComputeShaders(Parameters.Platform);
+	return true;
 }
 
 void FNiagaraSortKeyGenCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

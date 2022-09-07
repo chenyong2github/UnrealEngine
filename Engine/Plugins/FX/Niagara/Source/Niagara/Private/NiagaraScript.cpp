@@ -3102,10 +3102,7 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 		{
 			const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
-			if (FNiagaraUtilities::SupportsComputeShaders(LegacyShaderPlatform))
-			{
-				CacheResourceShadersForCooking(LegacyShaderPlatform, CachedScriptResourcesForPlatform, TargetPlatform);
-			}
+			CacheResourceShadersForCooking(LegacyShaderPlatform, CachedScriptResourcesForPlatform, TargetPlatform);
 		}
 	}
 }
@@ -3262,11 +3259,8 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 
-			if (FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
-			{
-				CacheShadersForResources(ScriptResource.Get(), true);
-				ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
-			}
+			CacheShadersForResources(ScriptResource.Get(), true);
+			ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
 		}
 		else
 		{

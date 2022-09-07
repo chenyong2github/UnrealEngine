@@ -19,11 +19,6 @@ class FNiagaraClearCountsIntCS : public FGlobalShader
 
 	static constexpr uint32 ThreadGroupSize = 64;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -72,11 +67,6 @@ class FNiagaraClearCountsIntCS_Legacy : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraClearCountsIntCS_Legacy, FGlobalShader);
 
 	static constexpr uint32 ThreadGroupSize = 64;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

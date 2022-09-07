@@ -2240,9 +2240,10 @@ inline bool RHISupportsSeparateMSAAAndResolveTextures(const FStaticShaderPlatfor
 	return !IsMetalMobilePlatform(Platform);
 }
 
+UE_DEPRECATED(5.1, "This function is no longer in use and will be removed.")
 inline bool RHISupportsComputeShaders(const FStaticShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) 
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
 		|| (GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1);
 }
 

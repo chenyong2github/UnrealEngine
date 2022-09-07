@@ -2936,7 +2936,6 @@ public:
 
 				const bool bTranslucent = RendersWithTranslucentMaterial();
 				const bool bAllowSorting = FXConsoleVariables::bAllowGPUSorting
-					&& RHISupportsComputeShaders(ViewFamily.GetShaderPlatform())
 					&& bTranslucent;
 
 				// Iterate over views and assign parameters for each.
@@ -4521,7 +4520,6 @@ void FFXSystem::RemoveGPUSimulation(FParticleSimulationGPU* Simulation)
 bool FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin, bool bIsTranslucent, FGPUSortManager::FAllocationInfo& OutInfo)
 {
 	LLM_SCOPE(ELLMTag::Particles);
-	check(RHISupportsComputeShaders(ShaderPlatform));
 
 	const EGPUSortFlags SortFlags = 
 		EGPUSortFlags::KeyGenAfterPostRenderOpaque |

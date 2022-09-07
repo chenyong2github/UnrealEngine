@@ -368,11 +368,6 @@ class FClearPressureGridCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FClearPressureGridCS)
 	SHADER_USE_PARAMETER_STRUCT(FClearPressureGridCS, FGlobalShader);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return RHISupportsComputeShaders(Parameters.Platform);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);

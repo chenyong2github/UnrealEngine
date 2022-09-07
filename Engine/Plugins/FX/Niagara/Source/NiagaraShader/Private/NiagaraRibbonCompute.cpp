@@ -20,12 +20,6 @@ void FNiagaraRibbonComputeCommon::ModifyCompilationEnvironment(const FGlobalShad
 	}
 }
 
-bool FNiagaraRibbonComputeCommon::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-{
-	return RHISupportsComputeShaders(Parameters.Platform);		
-}
-
-
 void FNiagaraRibbonSortPhase1CS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
