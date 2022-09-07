@@ -6,6 +6,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
 #include "Input/DragAndDrop.h"
 #include "SSourceControlCommon.h"
 
