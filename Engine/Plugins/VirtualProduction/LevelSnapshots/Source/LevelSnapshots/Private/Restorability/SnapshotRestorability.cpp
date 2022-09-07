@@ -105,7 +105,7 @@ bool UE::LevelSnapshots::Restorability::IsActorDesirableForCapture(const AActor*
 	for (const TSharedRef<ISnapshotRestorabilityOverrider>& Override : Overrides)
 	{
 		const ISnapshotRestorabilityOverrider::ERestorabilityOverride Result = Override->IsActorDesirableForCapture(Actor);
-		bSomebodyAllowed = Result == ISnapshotRestorabilityOverrider::ERestorabilityOverride::Allow;
+		bSomebodyAllowed |= Result == ISnapshotRestorabilityOverrider::ERestorabilityOverride::Allow;
 		if (Result == ISnapshotRestorabilityOverrider::ERestorabilityOverride::Disallow)
 		{
 			return false;
@@ -148,7 +148,7 @@ bool UE::LevelSnapshots::Restorability::IsComponentDesirableForCapture(const UAc
 	for (const TSharedRef<ISnapshotRestorabilityOverrider>& Override : Overrides)
 	{
 		const ISnapshotRestorabilityOverrider::ERestorabilityOverride Result = Override->IsComponentDesirableForCapture(Component);
-		bSomebodyAllowed = Result == ISnapshotRestorabilityOverrider::ERestorabilityOverride::Allow;
+		bSomebodyAllowed |= Result == ISnapshotRestorabilityOverrider::ERestorabilityOverride::Allow;
 		if (Result == ISnapshotRestorabilityOverrider::ERestorabilityOverride::Disallow)
 		{
 			return false;
