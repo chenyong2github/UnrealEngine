@@ -2,6 +2,7 @@
 
 #include "SLogWidget.h"
 #include "Framework/Text/SlateTextRun.h"
+#include "SlateOptMacros.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

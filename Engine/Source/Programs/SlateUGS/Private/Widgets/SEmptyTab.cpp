@@ -2,11 +2,14 @@
 
 #include "SEmptyTab.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "SWorkspaceWindow.h"
 #include "SPrimaryButton.h"
 #include "SlateUGSStyle.h"
 
 #include "UGSTab.h"
+
+#include "Widgets/Images/SImage.h"
 
 // Todo: delete
 #include "Widgets/Colors/SSimpleGradient.h"

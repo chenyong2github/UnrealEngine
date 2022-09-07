@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Text/STextBlock.h"
 #include "ChangeInfo.h"
 
 class UGSTab;

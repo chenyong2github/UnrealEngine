@@ -2,6 +2,7 @@
 
 #include "ScheduledSyncTimer.h"
 #include "HAL/RunnableThread.h"
+#include "HAL/PlatformProcess.h"
 #include "UGSLog.h"
 
 ScheduledSyncTimer::~ScheduledSyncTimer()

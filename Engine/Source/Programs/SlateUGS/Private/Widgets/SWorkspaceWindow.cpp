@@ -4,11 +4,14 @@
 
 #include "Styling/AppStyle.h"
 #include "DesktopPlatformModule.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "UGSTab.h"
 #include "SGameSyncTab.h"
 #include "SPopupTextWindow.h"
 #include "SPrimaryButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 

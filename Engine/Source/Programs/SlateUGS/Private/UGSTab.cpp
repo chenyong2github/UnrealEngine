@@ -16,6 +16,7 @@
 #include "Widgets/SLogWidget.h"
 
 #include "HAL/PlatformApplicationMisc.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "Internationalization/Regex.h"
 

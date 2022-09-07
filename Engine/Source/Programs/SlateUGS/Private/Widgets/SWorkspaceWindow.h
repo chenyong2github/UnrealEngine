@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Widgets/SWindow.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 class UGSTab;
 

@@ -3,6 +3,7 @@
 #include "UGSTabManager.h"
 #include "Containers/Array.h"
 #include "UGSLog.h"
+#include "HAL/FileManager.h"
 
 #include "UGSCore/UserSettings.h"
 

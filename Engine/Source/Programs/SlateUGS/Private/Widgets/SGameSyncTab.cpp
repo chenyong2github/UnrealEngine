@@ -18,7 +18,9 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Colors/SSimpleGradient.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Views/SListView.h"
 
 #include "SlateUGSStyle.h"
 

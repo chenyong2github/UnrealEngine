@@ -4,6 +4,7 @@
 
 #include "UGSTab.h"
 #include "ScheduledSyncTimer.h"
+#include "Widgets/Docking/SDockTab.h"
 
 namespace UGSCore
 {

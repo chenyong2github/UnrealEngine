@@ -5,6 +5,7 @@
 #include "Widgets/SEmptyTab.h"
 #include "Widgets/SGameSyncTab.h"
 #include "Widgets/SWorkspaceWindow.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #include "UGSCore/Workspace.h"
 #include "UGSCore/UserSettings.h"
