@@ -713,8 +713,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	UNiagaraBakerSettings* GetBakerSettings();
 	const UNiagaraBakerSettings* GetBakerGeneratedSettings() const { return BakerGeneratedSettings; }
-	void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings) { BakerGeneratedSettings = Settings; }
-
+	void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings);
 
 	/** Get the cached parameter map traversal for this emitter.  */
 	const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& GetCachedTraversalData() const;

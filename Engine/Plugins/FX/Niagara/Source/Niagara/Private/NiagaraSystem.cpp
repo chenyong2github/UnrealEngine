@@ -3740,10 +3740,23 @@ UNiagaraBakerSettings* UNiagaraSystem::GetBakerSettings()
 {
 	if ( BakerSettings == nullptr )
 	{
+		Modify();
 		BakerSettings = NewObject<UNiagaraBakerSettings>(this, "BakerSettings", RF_Transactional);
+		PostEditChange();
 	}
 	return BakerSettings;
 }
+
+void UNiagaraSystem::SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings)
+{
+	if (BakerGeneratedSettings != Settings)
+	{
+		Modify();
+		BakerGeneratedSettings = Settings;
+		PostEditChange();
+	}
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE // NiagaraSystem
