@@ -271,13 +271,8 @@ void FGenericCrashContext::Initialize()
 		NCached::Set(NCached::Session.GameStateName, *InGameStateName);
 	});
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::CrashOverrideParamsChanged.AddLambda([](const FCrashOverrideParameters& InParams)
 	{
-		if (InParams.bSetCrashReportClientMessageText)
-		{
-			NCached::Set(NCached::Session.CrashReportClientRichText, *InParams.CrashReportClientMessageText);
-		}
 		if (InParams.bSetGameNameSuffix)
 		{
 			NCached::Set(NCached::Session.GameName, *(FString(TEXT("UE-")) + FApp::GetProjectName() + InParams.GameNameSuffix));
@@ -292,7 +287,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		}
 		SerializeTempCrashContextToFile();
 	});
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FCoreDelegates::OnPostEngineInit.AddLambda([] 
 	{
