@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
-#include "Templates/SharedPointer.h"
 
 class ILowLevelTestsModule : public IModuleInterface
 {
