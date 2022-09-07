@@ -2514,40 +2514,42 @@ void FControlRigParameterTrackEditor::HandleSpaceKeyMoved(
 
 void FControlRigParameterTrackEditor::ClearOutAllSpaceAndConstraintDelegates(const UControlRig* InOptionalControlRig) const
 {
-	if (GetSequencer().IsValid())
+	const UMovieScene* MovieScene = GetSequencer().IsValid() && GetSequencer()->GetFocusedMovieSceneSequence() ? GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene() : nullptr;
+	if (!MovieScene)
 	{
-		const UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
-		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-		for (const FMovieSceneBinding& Binding : Bindings)
-		{
-			const UMovieSceneTrack* Track = MovieScene->FindTrack(
-				UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
-			if (const UMovieSceneControlRigParameterTrack* CRTrack = Cast<UMovieSceneControlRigParameterTrack>(Track))
-			{
-				if (InOptionalControlRig && CRTrack->GetControlRig() != InOptionalControlRig)
-				{
-					continue;
-				}
-				
-				for (UMovieSceneSection* Section : Track->GetAllSections())
-				{
-					if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
-					{
-						// clear space channels
-						TArray<FSpaceControlNameAndChannel>& Channels = CRSection->GetSpaceChannels();
-						for (FSpaceControlNameAndChannel& SpaceAndChannel : Channels)
-						{
-							SpaceAndChannel.SpaceCurve.OnKeyMovedEvent().Clear();
-							SpaceAndChannel.SpaceCurve.OnKeyDeletedEvent().Clear();
-						}
+		return;
+	}
 
-						// clear constraint channels
-						TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
-						for (FConstraintAndActiveChannel& Channel: ConstraintChannels)
-						{
-							Channel.ActiveChannel.OnKeyMovedEvent().Clear();
-							Channel.ActiveChannel.OnKeyDeletedEvent().Clear();							
-						}
+	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
+	{
+		const UMovieSceneTrack* Track = MovieScene->FindTrack(
+			UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
+		if (const UMovieSceneControlRigParameterTrack* CRTrack = Cast<UMovieSceneControlRigParameterTrack>(Track))
+		{
+			if (InOptionalControlRig && CRTrack->GetControlRig() != InOptionalControlRig)
+			{
+				continue;
+			}
+				
+			for (UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
+				{
+					// clear space channels
+					TArray<FSpaceControlNameAndChannel>& Channels = CRSection->GetSpaceChannels();
+					for (FSpaceControlNameAndChannel& SpaceAndChannel : Channels)
+					{
+						SpaceAndChannel.SpaceCurve.OnKeyMovedEvent().Clear();
+						SpaceAndChannel.SpaceCurve.OnKeyDeletedEvent().Clear();
+					}
+
+					// clear constraint channels
+					TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
+					for (FConstraintAndActiveChannel& Channel: ConstraintChannels)
+					{
+						Channel.ActiveChannel.OnKeyMovedEvent().Clear();
+						Channel.ActiveChannel.OnKeyDeletedEvent().Clear();							
 					}
 				}
 			}

@@ -75,6 +75,7 @@ F3DTransformTrackEditor::F3DTransformTrackEditor( TSharedRef<ISequencer> InSeque
 		GEditor->RegisterForUndo(this);
 	}
 }
+
 F3DTransformTrackEditor::~F3DTransformTrackEditor()
 {
 	if (GEditor != nullptr)
@@ -105,7 +106,6 @@ void F3DTransformTrackEditor::OnRelease()
 		}
 	}
 }
-
 
 TSharedRef<ISequencerTrackEditor> F3DTransformTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> InSequencer )
 {
@@ -1554,6 +1554,7 @@ void F3DTransformTrackEditor::HandleConstraintKeyDeleted(IMovieSceneConstrainedS
 		}
 	}
 }
+
 void F3DTransformTrackEditor::HandleConstraintKeyMoved(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
 	const TArray<FKeyMoveEventItem>& InMovedItems)
 {
@@ -1606,43 +1607,38 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 					InSection->RemoveConstraintChannel(InConstraintName);
 				});
 	}
-	
 }
-
 
 void F3DTransformTrackEditor::ClearOutConstraintDelegates() const
 {
-	if (GetSequencer().IsValid())
+	const UMovieScene* MovieScene = GetSequencer().IsValid() && GetSequencer()->GetFocusedMovieSceneSequence() ? GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene() : nullptr;
+	if (!MovieScene)
 	{
-		const UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
-		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-		for (const FMovieSceneBinding& Binding : Bindings)
-		{
-			const UMovieSceneTrack* Track = MovieScene->FindTrack(
-				UMovieScene3DTransformTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
-			if (const UMovieScene3DTransformTrack* CRTrack = Cast<UMovieScene3DTransformTrack>(Track))
-			{
+		return;
+	}
 
-				for (UMovieSceneSection* Section : Track->GetAllSections())
+	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
+	{
+		const UMovieSceneTrack* Track = MovieScene->FindTrack(
+			UMovieScene3DTransformTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
+		if (const UMovieScene3DTransformTrack* CRTrack = Cast<UMovieScene3DTransformTrack>(Track))
+		{
+			for (UMovieSceneSection* Section : Track->GetAllSections())
+			{
+				if (UMovieScene3DTransformSection* CRSection = Cast<UMovieScene3DTransformSection>(Section))
 				{
-					if (UMovieScene3DTransformSection* CRSection = Cast<UMovieScene3DTransformSection>(Section))
+					// clear constraint channels
+					TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
+					for (FConstraintAndActiveChannel& Channel : ConstraintChannels)
 					{
-						// clear constraint channels
-						TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
-						for (FConstraintAndActiveChannel& Channel : ConstraintChannels)
-						{
-							Channel.ActiveChannel.OnKeyMovedEvent().Clear();
-							Channel.ActiveChannel.OnKeyDeletedEvent().Clear();
-						}
+						Channel.ActiveChannel.OnKeyMovedEvent().Clear();
+						Channel.ActiveChannel.OnKeyDeletedEvent().Clear();
 					}
 				}
 			}
 		}
 	}
 }
-
-
-
-	
 
 #undef LOCTEXT_NAMESPACE
