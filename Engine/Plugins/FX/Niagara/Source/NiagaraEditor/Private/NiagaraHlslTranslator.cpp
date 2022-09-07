@@ -7444,10 +7444,10 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 		FNiagaraVariable Input = OutSignature.Inputs[i];
 		if (Input.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
-			FString ParameterMapInstanceName = GetParameterMapInstanceName(0);
-			FString ReplaceSrc = Input.GetName().ToString();
-			FString ReplaceDest = ParameterMapInstanceName;
+			FNameBuilder ReplaceSrc(Input.GetName());
+			FString ReplaceDest = GetParameterMapInstanceName(0);
 			UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, true);
+
 			SigInputs.Add(Input);
 			OutSignature.bRequiresContext = true;
 			ParamMapHistoryIdx = Inputs[i];
@@ -7587,8 +7587,11 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 		}
 		else
 		{
-			FString ReplaceSrc = Input.GetName().ToString();
-			FString ReplaceDest = TEXT("In_") + ReplaceSrc;
+			FNameBuilder ReplaceSrc(Input.GetName());
+			TStringBuilder<128> ReplaceDest;
+			ReplaceDest.Append(TEXT("In_"));
+			ReplaceDest.Append(ReplaceSrc);
+
 			UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, true);
 			SigInputs.Add(Input);
 		}
@@ -7601,9 +7604,9 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 	{
 		if (Output.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 		{
-			FString ParameterMapInstanceName = GetParameterMapInstanceName(0);
-			FString ReplaceSrc = Output.GetName().ToString();
-			FString ReplaceDest = ParameterMapInstanceName;
+			FNameBuilder ReplaceSrc(Output.GetName());
+			FString ReplaceDest = GetParameterMapInstanceName(0);
+
 			UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, true);
 			SigOutputs.Add(Output);
 			OutSignature.bRequiresContext = true;
@@ -7611,8 +7614,11 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 		}
 		else
 		{
-			FString ReplaceSrc = Output.GetName().ToString();
-			FString ReplaceDest = TEXT("Out_") + ReplaceSrc;
+			FNameBuilder ReplaceSrc(Output.GetName());
+			TStringBuilder<128> ReplaceDest;
+			ReplaceDest.Append(TEXT("Out_"));
+			ReplaceDest.Append(ReplaceSrc);
+
 			UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(Tokens, ReplaceSrc, ReplaceDest, true);
 			SigOutputs.Add(Output);
 		}

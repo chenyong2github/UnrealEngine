@@ -4,6 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
+#include "EdGraphSchema_Niagara.h"
 #include "NiagaraConstants.h"
 #include "NiagaraModule.h"
 #include "NiagaraNodeCustomHlsl.h"
@@ -22,12 +23,18 @@ uint32 GetTypeHash(const FModuleScopedPin& ScopedPin)
 namespace NiagaraAttributeTrimming
 {
 	using FDependencySet = TSet<FModuleScopedPin>;
-	using FCustomHlslNodeSet = TSet<const UNiagaraNodeCustomHlsl*>;
+	struct FCustomHlslNodeInfo
+	{
+		bool bHasDataInterfaceInputs = false;
+		bool bHasImpureFunctionText = false;
+	};
+
+	using FCustomHlslNodeMap = TMap<const UNiagaraNodeCustomHlsl*, FCustomHlslNodeInfo>;
 
 	struct FDependencyChain
 	{
 		FDependencySet Pins;
-		FCustomHlslNodeSet CustomNodes;
+		FCustomHlslNodeMap CustomNodes;
 	};
 
 	using FDependencyMap = TMap<FModuleScopedPin, FDependencyChain>;
@@ -166,9 +173,10 @@ namespace NiagaraAttributeTrimming
 	{
 	public:
 
-		FExpressionBuilder(const FNiagaraParameterMapHistory& InParamMap, const FFunctionInputResolver& InInputResolver)
+		FExpressionBuilder(const FNiagaraParameterMapHistory& InParamMap, const FFunctionInputResolver& InInputResolver, const UEdGraphSchema_Niagara* InNiagaraSchema)
 		: ParamMap(InParamMap)
 		, InputResolver(InInputResolver)
+		, NiagaraSchema(InNiagaraSchema)
 		{}
 
 		// generates a set of dependencies for a specific pin
@@ -309,7 +317,11 @@ namespace NiagaraAttributeTrimming
 
 							if (const UNiagaraNodeCustomHlsl* CustomHlslNode = Cast<const UNiagaraNodeCustomHlsl>(CurrentNode))
 							{
-								Dependencies.CustomNodes.Add(CustomHlslNode);
+								if (!Dependencies.CustomNodes.Contains(CustomHlslNode))
+								{
+									FCustomHlslNodeInfo& NodeInfo = Dependencies.CustomNodes.Add(CustomHlslNode);
+									BuildCustomHlslNodeInfo(CustomHlslNode, NodeInfo);
+								}
 							}
 						}
 					}
@@ -326,8 +338,68 @@ namespace NiagaraAttributeTrimming
 			}
 		}
 
+		void BuildCustomHlslNodeInfo(const UNiagaraNodeCustomHlsl* CustomNode, FCustomHlslNodeInfo& NodeInfo)
+		{
+			check(CustomNode);
+
+			NodeInfo.bHasDataInterfaceInputs = false;
+			NodeInfo.bHasImpureFunctionText = false;
+
+			TArray<FString> ImpureFunctionNames;
+
+			FPinCollectorArray InputPins;
+			CustomNode->GetInputPins(InputPins);
+			for (const UEdGraphPin* InputPin : InputPins)
+			{
+				FNiagaraTypeDefinition NiagaraType = NiagaraSchema->PinToTypeDefinition(InputPin);
+				if (NiagaraType.IsDataInterface())
+				{
+					NodeInfo.bHasDataInterfaceInputs = true;
+
+					if (UNiagaraDataInterface* DataInterfaceClass = CastChecked<UNiagaraDataInterface>(NiagaraType.GetClass()->ClassDefaultObject))
+					{
+						TArray<FNiagaraFunctionSignature> FunctionSignatures;
+						DataInterfaceClass->GetFunctions(FunctionSignatures);
+
+						for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
+						{
+							if (FunctionSignature.bRequiresExecPin)
+							{
+								TStringBuilder<256> Builder;
+								InputPin->GetFName().AppendString(Builder);
+								Builder.AppendChar(TCHAR('.'));
+								FunctionSignature.Name.AppendString(Builder);
+
+								ImpureFunctionNames.AddUnique(Builder.ToString());
+							}
+						}
+					}
+				}
+			}
+
+			if (!ImpureFunctionNames.IsEmpty())
+			{
+				TArray<FString> StringTokens;
+				UNiagaraNodeCustomHlsl::GetTokensFromString(CustomNode->GetCustomHlsl(), StringTokens, false, false);
+
+				for (const FString& FunctionCall : ImpureFunctionNames)
+				{
+					for (const FString& Token : StringTokens)
+					{
+						if (Token.Equals(FunctionCall))
+						{
+							NodeInfo.bHasImpureFunctionText = true;
+							return;
+						}
+					}
+				}
+			}
+		}
+
 		const FNiagaraParameterMapHistory& ParamMap;
 		const FFunctionInputResolver& InputResolver;
+		const UEdGraphSchema_Niagara* NiagaraSchema = nullptr;
+
 		const bool EvaluateStaticSwitches = false;
 	};
 
@@ -541,7 +613,7 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 
 	FDependencyMap PerVariableDependencySets;
 
-	TMap<FName, TArray<FDependencyChain>> DependencySets;
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 
 	for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
 	{
@@ -557,10 +629,16 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 			{
 				FDependencyChain& Dependencies = PerVariableDependencySets.Add(WritePin);
 
-				FExpressionBuilder Builder(*ParamMap, InputResolver);
+				FExpressionBuilder Builder(*ParamMap, InputResolver, NiagaraSchema);
 				Builder.FindDependencies(WritePin, Dependencies);
 
-				DependencySets.FindOrAdd(Var.GetName()).Add(Dependencies);
+				for (FCustomHlslNodeMap::TConstIterator CustomNodeIt = Dependencies.CustomNodes.CreateConstIterator(); CustomNodeIt; ++CustomNodeIt)
+				{
+					if (CustomNodeIt.Value().bHasImpureFunctionText)
+					{
+						AttributesToPreserve.Add(Var.GetName());
+					}
+				}
 			}
 		}
 
@@ -569,7 +647,7 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 		{
 			FDependencyChain Dependencies;
 
-			FExpressionBuilder Builder(*ParamMap, InputResolver);
+			FExpressionBuilder Builder(*ParamMap, InputResolver, NiagaraSchema);
 			Builder.FindDependencies(RequiredFunctionInput, Dependencies);
 
 			for (const FModuleScopedPin& DependentPin : Dependencies.Pins)
@@ -583,6 +661,19 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 
 				const FName VariableName = *VariableNameString;
 
+				if (VariableNameString.StartsWith(FNiagaraConstants::StackContextNamespaceString))
+				{
+					const int32 AliasedIndex = ParamMap->VariablesWithOriginalAliasesIntact.IndexOfByPredicate([&](const FNiagaraVariable& Variable)
+					{
+						return Variable.GetName() == VariableName;
+					});
+
+					if (ParamMap->Variables.IsValidIndex(AliasedIndex))
+					{
+						AttributesToPreserve.Add(ParamMap->Variables[AliasedIndex].GetName());
+					}
+				}
+				else
 				if (ParamMap->FindVariableByName(VariableName) != INDEX_NONE)
 				{
 					AttributesToPreserve.Add(VariableName);
@@ -640,7 +731,7 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 				}
 			}
 
-			for (const UNiagaraNodeCustomHlsl* CustomHlsl : ResolvedChain.CustomNodes)
+			for (const auto& CustomHlslInfo : ResolvedChain.CustomNodes)
 			{
 				// go through all of the variables in the attributes to see if they are referenced by any encountered CustomNodes
 				for (const FNiagaraVariableBase& Variable : UnifiedVariables)
@@ -651,7 +742,7 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 						continue;
 					}
 
-					if (CustomHlsl->ReferencesVariable(Variable))
+					if (CustomHlslInfo.Key->ReferencesVariable(Variable))
 					{
 						ConditionalAddAttribute(Variable.GetName());
 					}

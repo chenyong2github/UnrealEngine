@@ -87,19 +87,35 @@ FLinearColor UNiagaraNodeCustomHlsl::GetNodeTitleColor() const
 	return UEdGraphSchema_Niagara::NodeTitleColor_CustomHlsl;
 }
 
-bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<FString>& OutTokens, bool IncludeComments)
+bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<FString>& OutTokens, bool IncludeComments, bool IncludeWhitespace)
 {
 	if (InHlsl.Len() == 0)
 	{
 		return false;
 	}
 
-	FString Separators = TEXT(";/*+-=)(?:, []<>\"\t\n");
+	FString Separators = TEXT(";/*+-=)(?:, []<>\"\t\r\n");
+	const int32 TargetLength = InHlsl.Len();
+
 	int32 TokenStart = 0;
-	int32 TargetLength = InHlsl.Len();
+	bool TokenIsWhitespace = true;
+
+	auto AddToken = [&](bool DoAdd, FString&& TokenString)
+	{
+		if (DoAdd && (!TokenIsWhitespace || IncludeWhitespace))
+		{
+			OutTokens.Add(MoveTemp(TokenString));
+		}
+		
+		// reset the meta data about the token
+		TokenIsWhitespace = true;
+	};
+
 	for (int32 i = 0; i < TargetLength; )
 	{
 		int32 Index = INDEX_NONE;
+
+		const bool bWhitespace = FChar::IsWhitespace(InHlsl[i]);
 
 		// Determine if we are a splitter character or a regular character.
 		if (Separators.FindChar(InHlsl[i], Index) && Index != INDEX_NONE)
@@ -107,7 +123,12 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 			// Commit the current token, if any.
 			if (i > TokenStart)
 			{
-				OutTokens.Add(InHlsl.Mid(TokenStart, i - TokenStart));
+				AddToken(true, InHlsl.Mid(TokenStart, i - TokenStart));
+			}
+
+			if (!bWhitespace)
+			{
+				TokenIsWhitespace = false;
 			}
 
 			if (InHlsl[i] == '/' && (i + 1 != TargetLength) && InHlsl[i + 1] == '/')
@@ -119,10 +140,7 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				if (IncludeComments)
-				{
-					OutTokens.Add(InHlsl.Mid(i, FoundEndIdx - i + 1));
-				}
+				AddToken(IncludeComments, InHlsl.Mid(i, FoundEndIdx - i + 1));
 				i = FoundEndIdx + 1;
 			}
 			else if (InHlsl[i] == '/' && (i + 1 != TargetLength) && InHlsl[i + 1] == '*')
@@ -140,10 +158,7 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				if (IncludeComments)
-				{
-					OutTokens.Add(InHlsl.Mid(i, FoundEndIdx - i + 1));
-				}
+				AddToken(IncludeComments, InHlsl.Mid(i, FoundEndIdx - i + 1));
 				i = FoundEndIdx + 1;
 			}
 			else if (InHlsl[i] == '"')
@@ -159,14 +174,13 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 					FoundEndIdx = TargetLength - 1;
 				}
 
-				OutTokens.Add(InHlsl.Mid(i, FoundEndIdx - i + 1));
+				AddToken(true, InHlsl.Mid(i, FoundEndIdx - i + 1));
 				i = FoundEndIdx + 1;
 
 			}
 			else
 			{
-				// The separator will be its own token.
-				OutTokens.Add(FString(1, &InHlsl[i]));
+				AddToken(true, FString(1, &InHlsl[i]));
 				i++;
 			}
 
@@ -175,6 +189,11 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 		}
 		else
 		{
+			if (!bWhitespace)
+			{
+				TokenIsWhitespace = false;
+			}
+
 			// This character is part of a token, continue scanning.
 			i++;
 		}
@@ -183,15 +202,14 @@ bool UNiagaraNodeCustomHlsl::GetTokensFromString(const FString& InHlsl, TArray<F
 	// We may need to pull in the last chars from the end.
 	if (TokenStart < TargetLength)
 	{
-		OutTokens.Add(InHlsl.Mid(TokenStart));
+		AddToken(true, InHlsl.Mid(TokenStart));
 	}
 	return true;
 }
 
-bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeComments) const
+bool UNiagaraNodeCustomHlsl::GetTokens(TArray<FString>& OutTokens, bool IncludeComments, bool IncludeWhitespace) const
 {
-	FString HlslData = *CustomHlsl;
-	return GetTokensFromString(HlslData, OutTokens, IncludeComments);
+	return GetTokensFromString(CustomHlsl, OutTokens, IncludeComments, IncludeWhitespace);
 }
 
 void UNiagaraNodeCustomHlsl::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -362,7 +380,7 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 	}
 
 	TArray<FString> Tokens;
-	GetTokens(Tokens);
+	GetTokens(Tokens, false, false);
 
 	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
@@ -386,8 +404,6 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 			if (Input.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 			{
 				bHasParamMapInput = true;
-				FString ReplaceSrc = Input.GetName().ToString() + TEXT(".");
-				ReplaceExactMatchTokens(Tokens, ReplaceSrc, TEXT(""), false);
 				if (InputPins[i]->LinkedTo.Num() != 0)
 				{
 					ParamMapIdx = OutHistory.TraceParameterMapOutputPin(InputPins[i]->LinkedTo[0]);
@@ -408,8 +424,6 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 			if (Output.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 			{
 				bHasParamMapOutput = true;
-				FString ReplaceSrc = Output.GetName().ToString() + TEXT(".");
-				ReplaceExactMatchTokens(Tokens, ReplaceSrc, TEXT(""), false);
 				OutHistory.RegisterParameterMapPin(ParamMapIdx, OutputPins[i]);
 			}
 			else
@@ -493,22 +507,29 @@ void UNiagaraNodeCustomHlsl::GatherExternalDependencyData(ENiagaraScriptUsage In
 }
 
 // Replace items in the tokens array if they start with the src string or optionally src string and a namespace delimiter
-uint32 UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation)
+uint32 UNiagaraNodeCustomHlsl::ReplaceExactMatchTokens(TArray<FString>& Tokens, FStringView SrcString, FStringView ReplaceString, bool bAllowNamespaceSeparation)
 {
+	const int32 SrcLength = SrcString.Len();
+
 	uint32 Count = 0;
 	for (int32 i = 0; i < Tokens.Num(); i++)
 	{
-		if (Tokens[i].StartsWith(SrcString, ESearchCase::CaseSensitive))
+		if (FStringView(Tokens[i]).StartsWith(SrcString, ESearchCase::CaseSensitive))
 		{
-			if (Tokens[i].Len() > SrcString.Len() && Tokens[i][SrcString.Len()] == '.' && bAllowNamespaceSeparation)
+			const int32 TokenLength = Tokens[i].Len();
+
+			if (TokenLength > SrcLength)
 			{
-				Tokens[i] = ReplaceString + Tokens[i].Mid(SrcString.Len());
-				Count++;
+				if (bAllowNamespaceSeparation && Tokens[i][SrcLength] == TCHAR('.'))
+				{
+					Tokens[i] = ReplaceString + Tokens[i].Mid(SrcLength);
+					++Count;
+				}
 			}
-			else if (Tokens[i].Len() == SrcString.Len())
+			else
 			{
 				Tokens[i] = ReplaceString;
-				Count++;
+				++Count;
 			}
 		}
 	}
@@ -540,7 +561,7 @@ bool UNiagaraNodeCustomHlsl::ReferencesVariable(const FNiagaraVariableBase& InVa
 	// todo - all variable references in custom code should be explicit and typed
 	TArray<FString> Tokens;
 
-	GetTokens(Tokens, false);
+	GetTokens(Tokens, false, false);
 
 	const FString VariableName = InVar.GetName().ToString();
 
