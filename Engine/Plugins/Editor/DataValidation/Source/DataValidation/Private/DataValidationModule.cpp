@@ -181,8 +181,7 @@ void FDataValidationModule::FindAssetDependencies(const FAssetRegistryModule& As
 					FString DependencyObjectString = FString::Printf(TEXT("%s.%s"), *DependencyPackageString, *FPackageName::GetLongPackageAssetName(DependencyPackageString));
 
 					// recurse on each dependency
-					FName ObjectPath(*DependencyObjectString);
-					FAssetData DependentAsset = AssetRegistryModule.Get().GetAssetByObjectPath(ObjectPath);
+					FAssetData DependentAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(DependencyObjectString));
 
 					FindAssetDependencies(AssetRegistryModule, DependentAsset, DependentAssets);
 				}
@@ -240,7 +239,7 @@ void FDataValidationModule::ValidateFolders(TArray<FString> SelectedFolders, con
 	// be loaded on the fly like other assets.
 	auto IsAssetPackageExternal = [](const FAssetData& AssetData)
 	{
-		FString ObjectPath = AssetData.ObjectPath.ToString();
+		FString ObjectPath = AssetData.GetObjectPathString();
 		FStringView ClassName, PackageName, ObjectName, SubObjectName;
 		FPackageName::SplitFullObjectPath(FStringView(ObjectPath), ClassName, PackageName, ObjectName, SubObjectName);
 

@@ -40,7 +40,7 @@ FString GetPrettyPackageName(const FName& InPackageName)
 
 	if (Assets.Num() > 0)
 	{
-		FString AssetPath = Assets[0].ObjectPath.ToString();
+		FString AssetPath = Assets[0].GetObjectPathString();
 
 		int32 LastDot = -1;
 		if (AssetPath.FindLastChar('.', LastDot))

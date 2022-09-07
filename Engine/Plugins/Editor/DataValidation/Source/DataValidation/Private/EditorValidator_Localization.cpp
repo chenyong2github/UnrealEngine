@@ -39,7 +39,7 @@ EDataValidationResult UEditorValidator_Localization::ValidateLoadedAsset_Impleme
 		FString SourceObjectPath;
 		if (FPackageLocalizationUtil::ConvertLocalizedToSource(AssetPathName, SourceObjectPath))
 		{
-			const FAssetData SourceAssetData = AssetRegistry.GetAssetByObjectPath(*SourceObjectPath);
+			const FAssetData SourceAssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(SourceObjectPath));
 
 			// Does this source asset exist?
 			// It is valid to have orphan localized assets, as they may be a direct reference of another localized asset
@@ -87,7 +87,7 @@ EDataValidationResult UEditorValidator_Localization::ValidateLoadedAsset_Impleme
 					FString LocalizedObjectPath;
 					if (FPackageLocalizationUtil::ConvertSourceToLocalized(AssetPathName, CultureName, LocalizedObjectPath))
 					{
-						const FAssetData LocalizedAssetData = AssetRegistry.GetAssetByObjectPath(*LocalizedObjectPath);
+						const FAssetData LocalizedAssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(LocalizedObjectPath));
 
 						if (LocalizedAssetData.IsValid())
 						{
