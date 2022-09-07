@@ -4035,8 +4035,9 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		{
 			float GlobalResolutionFraction = 1.0f;
 
-			// If not doing VR rendering, apply preview resolution fraction.
-			if (!bStereoRendering && SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
+			// Apply preview resolution fraction. Supported in stereo for VR Editor Mode only
+			if ((!bStereoRendering || bInVREditViewMode) && 
+				SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
 			{
 				if (PreviewResolutionFraction.IsSet())
 				{
