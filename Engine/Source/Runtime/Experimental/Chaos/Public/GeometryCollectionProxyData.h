@@ -114,6 +114,9 @@ public:
 	bool HasBrokenOff(int32 TransformIndex) const;
 
 	/** return true if the transform has an internal cluster parent */
+	bool HasInternalClusterParent(int32 TransformIndex) const;
+
+	/** return true if the transform has an internal cluster parent in a dynamic state */
 	bool HasDynamicInternalClusterParent(int32 TransformIndex) const;
 	
 private:

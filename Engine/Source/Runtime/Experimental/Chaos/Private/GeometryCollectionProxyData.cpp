@@ -111,6 +111,12 @@ bool FGeometryCollectionDynamicStateFacade::HasBrokenOff(int32 TransformIndex) c
 	return IsActive && (!HasParent) && IsDynamicOrSleeping(TransformIndex);
 }
 
+bool FGeometryCollectionDynamicStateFacade::HasInternalClusterParent(int32 TransformIndex) const
+{
+	const uint8 InternalParenttype = InternalClusterParentTypeAttribute.Get()[TransformIndex];
+	return InternalParenttype != (uint8)Chaos::EInternalClusterType::None;
+}
+
 bool FGeometryCollectionDynamicStateFacade::HasDynamicInternalClusterParent(int32 TransformIndex) const
 {
 	const uint8 InternalParenttype = InternalClusterParentTypeAttribute.Get()[TransformIndex];
