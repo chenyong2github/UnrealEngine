@@ -30,6 +30,8 @@ public:
 	/** Removes all functions from this delegate's invocation list. */
 	void Clear( )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		for (TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
 			DelegateBaseRef.Unbind();
@@ -45,6 +47,8 @@ public:
 	 */
 	inline bool IsBound( ) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+	
 		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
 			if (DelegateBaseRef.GetDelegateInstanceProtected())
@@ -62,6 +66,8 @@ public:
 	 */
 	inline bool IsBoundToObject( void const* InUserObject ) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
 			IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
@@ -83,6 +89,8 @@ public:
 	 */
 	int32 RemoveAll( const void* InUserObject )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		int32 Result = 0;
 		if (InvocationListLockCount > 0)
 		{
@@ -144,6 +152,8 @@ protected:
 	template<typename DelegateInstanceInterfaceType, typename DelegateType>
 	void CopyFrom(const TMulticastDelegateBase& Other)
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		checkSlow(&Other != this);
 
 		Clear();
@@ -162,6 +172,8 @@ protected:
 	template<typename DelegateInstanceInterfaceType, typename DelegateBaseType, typename... ParamTypes>
 	void Broadcast(ParamTypes... Params) const
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		bool NeedsCompaction = false;
 
 		LockInvocationList();
@@ -196,6 +208,8 @@ protected:
 	 */
 	inline FDelegateHandle AddDelegateInstance(TDelegateBase<UserPolicy>&& NewDelegateBaseRef)
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		FDelegateHandle Result;
 		if (GetDelegateInstanceProtectedHelper(NewDelegateBaseRef))
 		{
@@ -215,6 +229,8 @@ protected:
 	 */
 	bool RemoveDelegateInstance(FDelegateHandle Handle)
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		for (int32 InvocationListIndex = 0; InvocationListIndex < InvocationList.Num(); ++InvocationListIndex)
 		{
 			TDelegateBase<UserPolicy>& DelegateBase = InvocationList[InvocationListIndex];
@@ -332,4 +348,6 @@ private:
 
 	/** Holds a lock counter for the invocation list. */
 	mutable int32 InvocationListLockCount;
+
+	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 };

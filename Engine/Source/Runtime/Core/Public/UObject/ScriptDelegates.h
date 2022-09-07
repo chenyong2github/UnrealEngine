@@ -58,6 +58,8 @@ public:
 	 */
 	void BindUFunction( UObject* InObject, const FName& InFunctionName )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		Object = InObject;
 		FunctionName = InFunctionName;
 	}
@@ -69,6 +71,8 @@ public:
 	 */
 	inline bool IsBound() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return IsBound_Internal<UObject>();
 	}
 
@@ -79,6 +83,8 @@ public:
 	 */
 	inline bool IsBoundToObject(void const* InUserObject) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return InUserObject && (InUserObject == GetUObject());
 	}
 
@@ -89,6 +95,8 @@ public:
 	 */
 	bool IsBoundToObjectEvenIfUnreachable(void const* InUserObject) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return InUserObject && InUserObject == GetUObjectEvenIfUnreachable();
 	}
 
@@ -99,6 +107,8 @@ public:
 	 */
 	inline bool IsCompactable() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return FunctionName == NAME_None || !Object.Get(true);
 	}
 
@@ -107,6 +117,8 @@ public:
 	 */
 	void Unbind()
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		Object = nullptr;
 		FunctionName = NAME_None;
 	}
@@ -129,6 +141,8 @@ public:
 	{
 		if( IsBound() )
 		{
+			UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 			return ((UObjectTemplate*)GetUObject())->GetPathName() + TEXT(".") + GetFunctionName().ToString();
 		}
 		return TEXT( "<Unbound>" );
@@ -137,6 +151,8 @@ public:
 	/** Delegate serialization */
 	friend FArchive& operator<<( FArchive& Ar, TScriptDelegate& D )
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		Ar << D.Object << D.FunctionName;
 		return Ar;
 	}
@@ -144,6 +160,8 @@ public:
 	/** Delegate serialization */
 	friend void operator<<(FStructuredArchive::FSlot Slot, TScriptDelegate& D)
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
 		Record << SA_VALUE(TEXT("Object"), D.Object) << SA_VALUE(TEXT("FunctionName"),D.FunctionName);
 	}
@@ -151,16 +169,22 @@ public:
 	/** Comparison operators */
 	FORCEINLINE bool operator==( const TScriptDelegate& Other ) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return Object == Other.Object && FunctionName == Other.FunctionName;
 	}
 
 	FORCEINLINE bool operator!=( const TScriptDelegate& Other ) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return Object != Other.Object || FunctionName != Other.FunctionName;
 	}
 
 	void operator=( const TScriptDelegate& Other )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		Object = Other.Object;
 		FunctionName = Other.FunctionName;
 	}
@@ -172,6 +196,8 @@ public:
 	 */
 	UObject* GetUObject()
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		// Downcast UObjectBase to UObject
 		return static_cast< UObject* >( Object.Get() );
 	}
@@ -183,6 +209,8 @@ public:
 	 */
 	const UObject* GetUObject() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		// Downcast UObjectBase to UObject
 		return static_cast< const UObject* >( Object.Get() );
 	}
@@ -194,6 +222,8 @@ public:
 	 */
 	UObject* GetUObjectEvenIfUnreachable()
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		// Downcast UObjectBase to UObject
 		return static_cast< UObject* >( Object.GetEvenIfUnreachable() );
 	}
@@ -205,6 +235,8 @@ public:
 	 */
 	const UObject* GetUObjectEvenIfUnreachable() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		// Downcast UObjectBase to UObject
 		return static_cast< const UObject* >( Object.GetEvenIfUnreachable() );
 	}
@@ -216,6 +248,8 @@ public:
 	 */
 	FName GetFunctionName() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return FunctionName;
 	}
 
@@ -230,6 +264,8 @@ public:
 	template <class UObjectTemplate>
 	void ProcessDelegate( void* Parameters ) const
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		checkf( Object.IsValid() != false, TEXT( "ProcessDelegate() called with no object bound to delegate!" ) );
 		checkf( FunctionName != NAME_None, TEXT( "ProcessDelegate() called with no function name set!" ) );
 
@@ -249,6 +285,8 @@ public:
 
 	friend uint32 GetTypeHash(const TScriptDelegate& Delegate)
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return HashCombine(GetTypeHash(Delegate.Object), GetTypeHash(Delegate.GetFunctionName()));
 	}
 
@@ -259,6 +297,8 @@ protected:
 
 	/** Name of the function to call on the bound object */
 	FName FunctionName;
+
+	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 
 	// 
 	friend class FCallDelegateHelper;
@@ -290,6 +330,8 @@ public:
 	 */
 	inline bool IsBound() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return InvocationList.Num() > 0;
 	}
 
@@ -301,6 +343,8 @@ public:
 	 */
 	bool Contains( const TScriptDelegate<TWeakPtr>& InDelegate ) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return InvocationList.Contains( InDelegate );
 	}
 
@@ -313,6 +357,8 @@ public:
 	 */
 	bool Contains( const UObject* InObject, FName InFunctionName ) const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		return InvocationList.ContainsByPredicate( [=]( const TScriptDelegate<TWeakPtr>& Delegate ){
 			return Delegate.GetFunctionName() == InFunctionName && Delegate.IsBoundToObjectEvenIfUnreachable(InObject);
 		} );
@@ -325,6 +371,8 @@ public:
 	 */
 	void Add( const TScriptDelegate<TWeakPtr>& InDelegate )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		// First check for any objects that may have expired
 		CompactInvocationList();
 
@@ -340,6 +388,8 @@ public:
 	 */
 	void AddUnique( const TScriptDelegate<TWeakPtr>& InDelegate )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		// Add the delegate, if possible
 		AddUniqueInternal( InDelegate );
 
@@ -355,6 +405,8 @@ public:
 	 */
 	void Remove( const TScriptDelegate<TWeakPtr>& InDelegate )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		// Remove the delegate
 		RemoveInternal( InDelegate );
 
@@ -371,6 +423,8 @@ public:
 	 */
 	void Remove( const UObject* InObject, FName InFunctionName )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		// Remove the delegate
 		RemoveInternal( InObject, InFunctionName );
 
@@ -388,6 +442,8 @@ public:
 	 */
 	void RemoveAll(const UObject* Object)
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		for (int32 BindingIndex = InvocationList.Num() - 1; BindingIndex >= 0; --BindingIndex)
 		{
 			const TScriptDelegate<TWeakPtr>& Binding = InvocationList[BindingIndex];
@@ -404,6 +460,8 @@ public:
 	 */
 	void Clear()
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		InvocationList.Empty();
 	}
 
@@ -415,6 +473,8 @@ public:
 	template <typename UObjectTemplate>
 	inline FString ToString() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		if( IsBound() )
 		{
 			FString AllDelegatesString = TEXT( "[" );
@@ -437,6 +497,8 @@ public:
 	/** Multi-cast delegate serialization */
 	friend FArchive& operator<<( FArchive& Ar, TMulticastScriptDelegate<TWeakPtr>& D )
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		if( Ar.IsSaving() )
 		{
 			// When saving the delegate, clean up the list to make sure there are no bad object references
@@ -456,6 +518,8 @@ public:
 
 	friend void operator<<(FStructuredArchive::FSlot Slot, TMulticastScriptDelegate<TWeakPtr>& D)
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
 		if (UnderlyingArchive.IsSaving())
@@ -483,6 +547,8 @@ public:
 	template <class UObjectTemplate>
 	void ProcessMulticastDelegate(void* Parameters) const
 	{
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
 		if( InvocationList.Num() > 0 )
 		{
 			// Create a copy of the invocation list, just in case the list is modified by one of the callbacks during the broadcast
@@ -513,6 +579,8 @@ public:
 	 */
 	TArray< UObject* > GetAllObjects() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		TArray< UObject* > OutputList;
 		for( typename FInvocationList::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 		{
@@ -532,6 +600,8 @@ public:
 	 */
 	TArray< UObject* > GetAllObjectsEvenIfUnreachable() const
 	{
+		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+
 		TArray< UObject* > OutputList;
 		for( typename FInvocationList::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 		{
@@ -621,6 +691,8 @@ protected:
 
 	/** Ordered list functions to invoke when the Broadcast function is called */
 	mutable FInvocationList InvocationList;		// Mutable so that we can housekeep list even with 'const' broadcasts
+
+	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 
 	// Declare ourselves as a friend of FMulticastDelegateProperty so that it can access our function list
 	friend class FMulticastDelegateProperty;
