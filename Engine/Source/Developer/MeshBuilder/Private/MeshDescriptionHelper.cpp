@@ -30,14 +30,14 @@ FMeshDescriptionHelper::FMeshDescriptionHelper(FMeshBuildSettings* InBuildSettin
 {
 }
 
-void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription)
+void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDescription& RenderMeshDescription, bool bAllowNanite)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionHelper::SetupRenderMeshDescription);
 
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Owner);
 	check(StaticMesh);
 
-	const bool bNaniteBuildEnabled = StaticMesh->NaniteSettings.bEnabled;
+	const bool bNaniteBuildEnabled = bAllowNanite && StaticMesh->NaniteSettings.bEnabled;
 	float ComparisonThreshold = (BuildSettings->bRemoveDegenerates && !bNaniteBuildEnabled) ? THRESH_POINTS_ARE_SAME : 0.0f;
 	
 	// Compact the mesh description prior to performing operations

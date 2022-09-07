@@ -62,7 +62,8 @@ namespace UE::Private::StaticMeshBuilder
 		TArray<TArray<uint32>>& OutPerSectionIndices,
 		TArray<FStaticMeshBuildVertex>& StaticMeshBuildVertices,
 		const FOverlappingCorners& OverlappingCorners,
-		TArray<int32>& RemapVerts
+		TArray<int32>& RemapVerts,
+		bool bAllowNanite
 	);
 
 	MESHBUILDER_API void BuildCombinedSectionIndices(
