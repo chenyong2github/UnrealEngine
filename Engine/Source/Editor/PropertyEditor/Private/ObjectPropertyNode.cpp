@@ -96,18 +96,13 @@ bool FObjectPropertyNode::PurgeKilledObjects()
 	bool bDidPurgeObjects = false;
 
 	// Purge any objects that are marked pending kill from the object list
-	for (int32 Index = 0; Index < Objects.Num(); )
+	for (auto It = Objects.CreateIterator(); It; ++It)
 	{
-		TWeakObjectPtr<UObject> Object = Objects[Index];
-
-		if ( !Object.IsValid() )
+		const TWeakObjectPtr<UObject>& Object = *It;
+		if (Object.IsStale())
 		{
-			Objects.RemoveAt(Index, 1);
 			bDidPurgeObjects = true;
-		}
-		else
-		{
-			++Index;
+			It.RemoveCurrent();
 		}
 	}
 
