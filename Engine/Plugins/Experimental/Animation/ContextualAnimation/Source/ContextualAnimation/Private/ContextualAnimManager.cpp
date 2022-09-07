@@ -114,7 +114,9 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 	}
 
 	const int32 SectionIdx = Params.SectionIdx;
-	FContextualAnimSceneBindings Bindings;
+	const int32 AnimSetIdx = Params.AnimSetIdx;
+	FContextualAnimSceneBindings Bindings = FContextualAnimSceneBindings(SceneAsset, SectionIdx, AnimSetIdx);
+
 	for (const auto& Pair : Params.RoleToActorMap)
 	{
 		FName RoleToBind = Pair.Key;
@@ -128,7 +130,7 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 			return nullptr;
 		}
 
-		const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, Params.AnimSetIdx, RoleToBind);
+		const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleToBind);
 		if (AnimTrack == nullptr)
 		{
 			UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::ForceStartScene. Can't start scene. Reason: Can't find anim track for '%s'. SceneAsset: %s"), 
@@ -137,13 +139,14 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 			return nullptr;
 		}
 
-		Bindings.Add(FContextualAnimSceneBinding(Pair.Value, SceneAsset, *AnimTrack));
+		Bindings.Add(FContextualAnimSceneBinding(Pair.Value, *AnimTrack));
 	}
 
 	const UClass* Class = SceneAsset.GetSceneInstanceClass();
 	UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 	NewInstance->SceneAsset = &SceneAsset;
-	
+	Bindings.SceneInstancePtr = NewInstance;
+
 	if (Params.Pivots.IsEmpty())
 	{
 		Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());
@@ -201,7 +204,8 @@ UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UConte
 		const UClass* Class = SceneAsset.GetSceneInstanceClass();
 		UContextualAnimSceneInstance* NewInstance = Class ? NewObject<UContextualAnimSceneInstance>(this, Class) : NewObject<UContextualAnimSceneInstance>(this);
 		NewInstance->SceneAsset = &SceneAsset;
-		
+		Bindings.SceneInstancePtr = NewInstance;
+
 		if (Params.Pivots.IsEmpty())
 		{
 			Bindings.CalculateAnimSetPivots(NewInstance->GetMutablePivots());

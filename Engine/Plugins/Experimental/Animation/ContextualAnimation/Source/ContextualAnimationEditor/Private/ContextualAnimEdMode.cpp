@@ -222,7 +222,8 @@ void FContextualAnimEdMode::DrawHUD(FEditorViewportClient* ViewportClient, FView
 
 void FContextualAnimEdMode::DrawIKTargetsForBinding(FPrimitiveDrawInterface& PDI, const FContextualAnimSceneBinding& Binding) const
 {
-	for (const FContextualAnimIKTargetDefinition& IKTargetDef : Binding.GetIKTargetDefs().IKTargetDefs)
+	const TArray<FContextualAnimIKTargetDefinition>& IKTargetDefs = ViewModel->SceneBindings.GetIKTargetDefContainerFromBinding(Binding).IKTargetDefs;
+	for (const FContextualAnimIKTargetDefinition& IKTargetDef : IKTargetDefs)
 	{
 		if (const FContextualAnimSceneBinding* TargetBinding = ViewModel->SceneBindings.FindBindingByRole(IKTargetDef.TargetRoleName))
 		{
@@ -238,7 +239,7 @@ void FContextualAnimEdMode::DrawIKTargetsForBinding(FPrimitiveDrawInterface& PDI
 				{
 					const FTransform ParentTransform = TargetSkelMeshComp->GetSocketTransform(IKTargetDef.TargetBoneName);
 
-					const FTransform TargetTransform = Binding.GetAnimTrack().IKTargetData.ExtractTransformAtTime(IKTargetDef.GoalName, Binding.GetAnimMontageTime()) * ParentTransform;
+					const FTransform TargetTransform = ViewModel->SceneBindings.GetIKTargetTransformFromBinding(Binding, IKTargetDef.GoalName, Binding.GetAnimMontageTime()) * ParentTransform;
 
 					FLinearColor Color = Alpha > 0.f ? FLinearColor(FColor::MakeRedToGreenColorFromScalar(Alpha)) : FLinearColor::White;
 

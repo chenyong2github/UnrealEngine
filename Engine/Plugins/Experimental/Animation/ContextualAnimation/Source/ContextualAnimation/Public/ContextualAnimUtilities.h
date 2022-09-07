@@ -138,16 +138,10 @@ public:
 	// FContextualAnimSceneBinding Blueprint Interface
 	//------------------------------------------------------------------------------------------
 
-	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Binding", meta = (DisplayName = "Get Role"))
-	static FName BP_SceneBinding_GetRole(const FContextualAnimSceneBinding& Binding) { return Binding.GetRoleDef().Name; }
-
 	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Binding", meta = (DisplayName = "Get Actor"))
 	static AActor* BP_SceneBinding_GetActor(const FContextualAnimSceneBinding& Binding) { return Binding.GetActor(); }
 
 	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Binding", meta = (DisplayName = "Get Skeletal Mesh"))
 	static USkeletalMeshComponent* BP_SceneBinding_GetSkeletalMesh(const FContextualAnimSceneBinding& Binding) { return Binding.GetSkeletalMeshComponent(); }
-
-	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Binding", meta = (DisplayName = "Get Animation To Play"))
-	static const UAnimSequenceBase* BP_SceneBinding_GetAnimationToPlay(const FContextualAnimSceneBinding& Binding) { return Binding.GetAnimTrack().Animation; }
 
 };

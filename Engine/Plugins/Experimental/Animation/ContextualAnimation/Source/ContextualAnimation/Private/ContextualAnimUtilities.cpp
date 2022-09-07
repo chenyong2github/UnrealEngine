@@ -413,8 +413,9 @@ void UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBinding
 				if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
 				{
 					//@TODO: Cache this
-					const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(PivotDef.Name);
-					const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(PivotDef.Name, Time);
+					const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
+					const float Time = AnimTrack.GetSyncTimeForWarpSection(PivotDef.Name);
+					const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, PivotDef.Name, Time);
 					const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot.Transform);
 					MotionWarpComp->AddOrUpdateWarpTargetFromTransform(PivotDef.Name, WarpTarget);
 				}

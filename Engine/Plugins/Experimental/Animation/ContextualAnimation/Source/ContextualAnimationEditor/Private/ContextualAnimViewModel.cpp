@@ -501,7 +501,7 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 			{
 				if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
 				{
-					for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(Binding.GetAnimTrack().SectionIdx))
+					for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(SceneInstance->GetBindings().GetSectionIdx()))
 					{
 						MotionWarpComp->RemoveWarpTarget(Def.Name);
 					}
@@ -520,7 +520,7 @@ void FContextualAnimViewModel::StartSimulation()
 	FContextualAnimStartSceneParams Params;
 	for (const FContextualAnimSceneBinding& Binding : SceneBindings)
 	{
-		Params.RoleToActorMap.Add(Binding.GetRoleDef().Name, Binding.GetContext());
+		Params.RoleToActorMap.Add(SceneBindings.GetRoleFromBinding(Binding), Binding.GetContext());
 	}
 	Params.SectionIdx = 0;
 	SceneInstance = ContextualAnimManager->TryStartScene(*GetSceneAsset(), Params);
@@ -558,16 +558,17 @@ void FContextualAnimViewModel::UpdatePreviewActorTransform(const FContextualAnim
 		// This allows the user to scrub the time line while maintaining the new MeshToScene transform 
 		if(ModifyingActorTransformInSceneState != EModifyActorTransformInSceneState::Inactive && Binding.GetActor() == ModifyingTransformInSceneCachedActor.Get())
 		{
-			if (Binding.GetAnimTrack().Animation)
+			const UAnimSequenceBase* Animation = SceneBindings.GetAnimTrackFromBinding(Binding).Animation;
+			if (Animation)
 			{
-				Transform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(Binding.GetAnimTrack().Animation, Time);
+				Transform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(Animation, Time);
 			}
 
 			Transform *= NewMeshToSceneTransform;
 		}
 		else
 		{
-			Transform = Binding.GetAnimTrack().GetRootTransformAtTime(Time);
+			Transform = SceneBindings.GetAnimTrackFromBinding(Binding).GetRootTransformAtTime(Time);
 		}
 
 		// Special case for Character
@@ -735,7 +736,7 @@ void FContextualAnimViewModel::UpdateSelection(const AActor* SelectedActor)
 			DiscardChangeToActorTransformInScene();
 		}
 
-		UpdateSelection(Binding->GetRoleDef().Name);
+		UpdateSelection(SceneBindings.GetRoleFromBinding(*Binding));
 	}
 	else
 	{
@@ -771,7 +772,7 @@ AActor* FContextualAnimViewModel::GetSelectedActor() const
 FContextualAnimTrack* FContextualAnimViewModel::GetSelectedAnimTrack() const
 {
 	FContextualAnimSceneBinding* Binding = GetSelectedBinding();
-	return Binding ? const_cast<FContextualAnimTrack*>(&Binding->GetAnimTrack()) : nullptr;
+	return Binding ? const_cast<FContextualAnimTrack*>(&SceneBindings.GetAnimTrackFromBinding(*Binding)) : nullptr;
 }
 
 UContextualAnimSelectionCriterion* FContextualAnimViewModel::GetSelectedSelectionCriterion() const
@@ -945,7 +946,7 @@ bool FContextualAnimViewModel::StartTracking()
 	{
 		if (const FContextualAnimSceneBinding* Binding = GetSelectedBinding())
 		{
-			NewMeshToSceneTransform = Binding->GetAnimTrack().MeshToScene;
+			NewMeshToSceneTransform = SceneBindings.GetAnimTrackFromBinding(*Binding).MeshToScene;
 			ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::Modifying;
 			ModifyingTransformInSceneCachedActor = Binding->GetActor();
 			return true;
@@ -960,7 +961,7 @@ bool FContextualAnimViewModel::EndTracking()
 	if (ModifyingActorTransformInSceneState == EModifyActorTransformInSceneState::Modifying)
 	{
 		const FContextualAnimSceneBinding* Binding = GetSelectedBinding();
-		if (Binding && !Binding->GetAnimTrack().MeshToScene.Equals(NewMeshToSceneTransform))
+		if (Binding && !SceneBindings.GetAnimTrackFromBinding(*Binding).MeshToScene.Equals(NewMeshToSceneTransform))
 		{
 			ModifyingActorTransformInSceneState = EModifyActorTransformInSceneState::WaitingForConfirmation;
 		}
@@ -990,7 +991,7 @@ void FContextualAnimViewModel::ApplyChangeToActorTransformInScene()
 		FScopedTransaction Transaction(LOCTEXT("ModifyMeshToSceneTransform", "Modify MeshToScene Transform"));
 		SceneAsset->Modify();
 
-		FTransform& MeshToSpaceTransform = (const_cast<FContextualAnimTrack*>(&Binding->GetAnimTrack()))->MeshToScene;
+		FTransform& MeshToSpaceTransform = (const_cast<FContextualAnimTrack*>(&SceneBindings.GetAnimTrackFromBinding(*Binding)))->MeshToScene;
 		MeshToSpaceTransform = NewMeshToSceneTransform;
 
 		UpdatePreviewActorTransform(*Binding, Sequencer->GetGlobalTime().AsSeconds());

@@ -325,7 +325,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 	GENERATED_BODY()
 
 	FContextualAnimSceneBinding() {}
-	FContextualAnimSceneBinding(const FContextualAnimSceneBindingContext& InContext, const UContextualAnimSceneAsset& InSceneAsset, const FContextualAnimTrack& InAnimTrack);
+	FContextualAnimSceneBinding(const FContextualAnimSceneBindingContext& InContext, const FContextualAnimTrack& InAnimTrack);
 
 	FORCEINLINE const FContextualAnimSceneBindingContext& GetContext() const { return Context; }
 	FORCEINLINE FContextualAnimSceneBindingContext& GetContext() { return Context; }
@@ -333,21 +333,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 	FORCEINLINE FTransform GetTransform() const { return GetContext().GetTransform(); }
 	FORCEINLINE FVector GetVelocity()  const { return GetContext().GetVelocity(); }
 
-	/** Returns the track in the scene asset used by this actor */
-	const FContextualAnimTrack& GetAnimTrack() const;
+	FORCEINLINE int32 GetAnimTrackIdx() const { return AnimTrackIdx; }
 	
 	void SetAnimTrack(const FContextualAnimTrack& InAnimTrack);
-
-	/** Returns the role definition used by this actor */
-	const FContextualAnimRoleDefinition& GetRoleDef() const;
-
-	/** Returns the SceneInstance we belong to (if any) */
-	FORCEINLINE const UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstancePtr.Get(); }
-
-	/** Returns the SceneAsset we were created from */
-	FORCEINLINE const UContextualAnimSceneAsset& GetSceneAsset() const { return *SceneAsset; }
-
-	const FContextualAnimIKTargetDefContainer& GetIKTargetDefs() const;
 
 	/** Return the current playback time of the animation this actor is playing */
 	float GetAnimMontageTime() const;
@@ -376,14 +364,6 @@ private:
 
 	FContextualAnimSceneBindingContext Context;
 
-	/** Scene Asset we are bound to */
-	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
-
-	/** Ptr back to the scene instance we belong to (if any) */
-	TWeakObjectPtr<const UContextualAnimSceneInstance> SceneInstancePtr = nullptr;
-
-	int32 SectionIdx = INDEX_NONE;
-	int32 AnimSetIdx = INDEX_NONE;
 	int32 AnimTrackIdx = INDEX_NONE;
 };
 
@@ -401,23 +381,26 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 {
 	GENERATED_BODY()
 
+	FContextualAnimSceneBindings(){}
+	FContextualAnimSceneBindings(const UContextualAnimSceneAsset& InSceneAsset, int32 InSectionIdx, int32 InAnimSetIdx);
+
 	const FContextualAnimSceneBinding* FindBindingByActor(const AActor* Actor) const
 	{
-		return Actor ? Data.FindByPredicate([Actor](const auto& Item) { return Item.GetActor() == Actor; }) : nullptr;
+		return Actor ? Data.FindByPredicate([Actor](const FContextualAnimSceneBinding& Item) { return Item.GetActor() == Actor; }) : nullptr;
 	}
 
 	const FContextualAnimSceneBinding* FindBindingByRole(const FName& Role) const
 	{
-		return Role != NAME_None ? Data.FindByPredicate([&Role](const auto& Item) { return Item.GetAnimTrack().Role == Role; }) : nullptr;
+		return Role != NAME_None ? Data.FindByPredicate([this, &Role](const FContextualAnimSceneBinding& Item) { return GetAnimTrackFromBinding(Item).Role == Role; }) : nullptr;
 	}
 
-	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return Num() > 0 ? &Data[0].GetSceneAsset() : nullptr; }
-	FORCEINLINE int32 GetSectionIdx() const { return Num() > 0 ? Data[0].GetAnimTrack().SectionIdx : INDEX_NONE; }
-	FORCEINLINE int32 GetAnimSetIdx() const { return Num() > 0 ? Data[0].GetAnimTrack().AnimSetIdx : INDEX_NONE; }
+	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset.Get(); }
+	FORCEINLINE int32 GetSectionIdx() const { return SectionIdx; }
+	FORCEINLINE int32 GetAnimSetIdx() const { return AnimSetIdx; }
 	FORCEINLINE int32 Num() const { return Data.Num(); }
 	FORCEINLINE int32 Add(const FContextualAnimSceneBinding& NewData) { return Data.Add(NewData); }
-	FORCEINLINE void Reset() { return Data.Reset(); }
 	FORCEINLINE const TArray<FContextualAnimSceneBinding>& GetBindings() const { return Data; }
+	FORCEINLINE const UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstancePtr.Get(); }
 
 	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForIteratorType      begin() { return Data.begin(); }
 	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForConstIteratorType begin() const { return Data.begin(); }
@@ -439,13 +422,30 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 
 	bool IsValid() const;
 
+	void Reset();
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 private:
 
+	friend class UContextualAnimManager;
+
+	UPROPERTY()
+	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
+
+	UPROPERTY()
+	int32 SectionIdx = INDEX_NONE;
+
+	UPROPERTY()
+	int32 AnimSetIdx = INDEX_NONE;
+
 	/** List of actors bound to each role in the SceneAsset */
 	UPROPERTY()
 	TArray<FContextualAnimSceneBinding> Data;
+
+	/** Ptr back to the scene instance we belong to (if any) */
+	UPROPERTY()
+	TWeakObjectPtr<const UContextualAnimSceneInstance> SceneInstancePtr = nullptr;
 };
 
 template<>

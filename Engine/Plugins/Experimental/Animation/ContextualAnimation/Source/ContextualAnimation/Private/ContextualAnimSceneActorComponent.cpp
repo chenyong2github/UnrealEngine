@@ -40,7 +40,7 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings()
 		if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
 		{
 			// Start listening to TickPose if we joined an scene where we need IK
-			if (Binding->GetIKTargetDefs().IKTargetDefs.Num() > 0)
+			if (Bindings.GetIKTargetDefContainerFromBinding(*Binding).IKTargetDefs.Num() > 0)
 			{
 				USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
 				if (SkelMeshComp && !SkelMeshComp->OnTickPose.IsBoundToObject(this))
@@ -102,7 +102,7 @@ void UContextualAnimSceneActorComponent::OnJoinedScene(const FContextualAnimScen
 		Bindings = InBindings;
 
 		// Start listening to TickPose if we joined an scene where we need IK
-		if (Binding->GetIKTargetDefs().IKTargetDefs.Num() > 0)
+		if (Bindings.GetIKTargetDefContainerFromBinding(*Binding).IKTargetDefs.Num() > 0)
 		{
 			USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
 			if (SkelMeshComp && !SkelMeshComp->OnTickPose.IsBoundToObject(this))
@@ -154,7 +154,8 @@ void UContextualAnimSceneActorComponent::UpdateIKTargets()
 		return;
 	}
 
-	for (const FContextualAnimIKTargetDefinition& IKTargetDef : BindingPtr->GetIKTargetDefs().IKTargetDefs)
+	const TArray<FContextualAnimIKTargetDefinition>& IKTargetDefs = Bindings.GetIKTargetDefContainerFromBinding(*BindingPtr).IKTargetDefs;
+	for (const FContextualAnimIKTargetDefinition& IKTargetDef : IKTargetDefs)
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		const bool bDrawDebugEnable = CVarContextualAnimIKDebug.GetValueOnGameThread() > 0;
@@ -178,7 +179,7 @@ void UContextualAnimSceneActorComponent::UpdateIKTargets()
 					const FTransform IKTargetParentTransform = TargetSkelMeshComp->GetSocketTransform(IKTargetDef.TargetBoneName);
 
 					const float Time = MontageInstance->GetPosition();
-					IKTargetTransform = BindingPtr->GetAnimTrack().IKTargetData.ExtractTransformAtTime(IKTargetDef.GoalName, Time) * IKTargetParentTransform;
+					IKTargetTransform = Bindings.GetIKTargetTransformFromBinding(*BindingPtr, IKTargetDef.GoalName, Time) * IKTargetParentTransform;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 					if (bDrawDebugEnable)

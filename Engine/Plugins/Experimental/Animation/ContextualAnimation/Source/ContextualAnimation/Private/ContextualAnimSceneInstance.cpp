@@ -77,7 +77,7 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 		return Duration;
 	}
 
-	if (UAnimSequenceBase* Animation = Binding.GetAnimTrack().Animation)
+	if (UAnimSequenceBase* Animation = Bindings.GetAnimTrackFromBinding(Binding).Animation)
 	{
 		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
@@ -101,7 +101,7 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 		}
 
 		//@TODO: Temp, until we have a way to switch between movement mode using AnimNotifyState
-		if (Binding.GetAnimTrack().bRequireFlyingMode)
+		if (Bindings.GetAnimTrackFromBinding(Binding).bRequireFlyingMode)
 		{
 			if (UCharacterMovementComponent* CharacterMovementComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
 			{
@@ -114,18 +114,18 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 	for (int32 PivotIndex = 0; PivotIndex < AlignmentSectionToScenePivotList.Num(); PivotIndex++)
 	{
 		const FContextualAnimSetPivot& Pivot = AlignmentSectionToScenePivotList[PivotIndex];
-		const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(Pivot.Name);
+		const float Time = Bindings.GetAnimTrackFromBinding(Binding).GetSyncTimeForWarpSection(Pivot.Name);
 
 		if (MotionWarpComp)
 		{
-			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(Pivot.Name, Time);
+			const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, Pivot.Name, Time);
 			const FTransform WarpTarget = TransformRelativeToScenePivot * Pivot.Transform;
 			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(Pivot.Name, WarpTarget);
 		}
 		else if (PivotIndex == 0)
 		{
 			// In case motion warping is not available, we use the first alignment section at time T=0 to teleport the actor
-			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(Pivot.Name, 0.f);
+			const FTransform TransformRelativeToScenePivot = Bindings.GetAlignmentTransformFromBinding(Binding, Pivot.Name, 0.f);
 			const FTransform ActorTransform = TransformRelativeToScenePivot * Pivot.Transform;
 			Actor->TeleportTo(ActorTransform.GetLocation(), ActorTransform.GetRotation().Rotator(), /*bIsATest*/false, /*bNoCheck*/true);
 		}
@@ -135,8 +135,6 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 	{
 		SetIgnoreCollisionWithOtherActors(Actor, true);
 	}
-
-	Binding.SceneInstancePtr = this;
 
 	if (UContextualAnimSceneActorComponent* SceneActorComp = Binding.GetSceneActorComponent())
 	{
@@ -162,8 +160,6 @@ void UContextualAnimSceneInstance::Leave(FContextualAnimSceneBinding& Binding)
 float UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack)
 {
 	float Duration = MIN_flt;
-	check(AnimTrack.Animation != Binding.GetAnimTrack().Animation);
-	check(AnimTrack.Role == Binding.GetRoleDef().Name);
 
 	UAnimInstance* AnimInstance = Binding.GetAnimInstance();
 	if (AnimInstance == nullptr)
@@ -261,7 +257,7 @@ bool UContextualAnimSceneInstance::ForceTransitionToSection(const int32 SectionI
 	RemainingDuration = 0.f;
 	for (FContextualAnimSceneBinding& Binding : Bindings)
 	{
-		const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, Binding.GetRoleDef().Name);
+		const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, Bindings.GetRoleFromBinding(Binding));
 		if (AnimTrack == nullptr)
 		{
 			return false;
@@ -280,7 +276,8 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 
 	for (auto& Binding : Bindings)
 	{
-		if (Binding.GetAnimTrack().Animation == Montage)
+		const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
+		if (AnimTrack.Animation == Montage)
 		{
 			AActor* Actor = Binding.GetActor();
 			if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
@@ -289,7 +286,7 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 				AnimInstance->OnPlayMontageNotifyEnd.RemoveDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
 				AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
-				if (Binding.GetAnimTrack().bRequireFlyingMode)
+				if (AnimTrack.bRequireFlyingMode)
 				{
 					if (UCharacterMovementComponent* CharacterMovementComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
 					{
@@ -319,8 +316,10 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 	{
 		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
+			const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
+
 			// Keep montage support for now but might go away soon
-			if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(Binding.GetAnimTrack().Animation))
+			if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(AnimTrack.Animation))
 			{
 				if (AnimInstance->Montage_IsPlaying(AnimMontage))
 				{
@@ -337,7 +336,7 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 					{
 						if(MontageInstance->Montage->SlotAnimTracks.Num() > 0 && MontageInstance->Montage->SlotAnimTracks[0].AnimTrack.AnimSegments.Num() > 0)
 						{
-							if(MontageInstance->Montage->SlotAnimTracks[0].AnimTrack.AnimSegments[0].GetAnimReference() == Binding.GetAnimTrack().Animation)
+							if (MontageInstance->Montage->SlotAnimTracks[0].AnimTrack.AnimSegments[0].GetAnimReference() == AnimTrack.Animation)
 							{
 								bShouldEnd = false;
 								break;

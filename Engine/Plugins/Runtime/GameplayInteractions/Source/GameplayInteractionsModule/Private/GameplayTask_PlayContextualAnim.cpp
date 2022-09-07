@@ -459,14 +459,15 @@ bool UGameplayTask_PlayContextualAnim::CreateBindings(const UContextualAnimScene
 		// Try to find matching bindings (using selection criteria)
 		if (!FContextualAnimSceneBindings::TryCreateBindings(SceneAsset, SectionIdx, AnimSetIdx, SceneParams.RoleToActorMap, OutBindings))
 		{
-			OutBindings.Reset();
+			OutBindings = FContextualAnimSceneBindings(SceneAsset, SectionIdx, AnimSetIdx);
+
 			// Force bindings to the first AnimSet (ignoring selection criteria)
 			for (const auto& Pair : SceneParams.RoleToActorMap)
 			{
 				FName RoleToBind = Pair.Key;
 				if (const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleToBind))
 				{
-					OutBindings.Add(FContextualAnimSceneBinding(Pair.Value, SceneAsset, *AnimTrack));
+					OutBindings.Add(FContextualAnimSceneBinding(Pair.Value, *AnimTrack));
 				}
 			}
 		}
@@ -486,17 +487,19 @@ bool UGameplayTask_PlayContextualAnim::CreateBindings(const UContextualAnimScene
 		// Force bindings to the first AnimSet (ignoring selection criteria)
 		if (OutBindings.Num() != SceneAsset.GetNumRoles() && NumAnimSets > 0)
 		{
-			OutBindings.Reset();
 			for (int32 AnimSetIdx = 0; AnimSetIdx < NumAnimSets; AnimSetIdx++)
 			{
+				OutBindings = FContextualAnimSceneBindings(SceneAsset, SectionIdx, AnimSetIdx);
+
 				for (const auto& Pair : SceneParams.RoleToActorMap)
 				{
 					FName RoleToBind = Pair.Key;
 					if (const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleToBind))
 					{
-						OutBindings.Add(FContextualAnimSceneBinding(Pair.Value, SceneAsset, *AnimTrack));
+						OutBindings.Add(FContextualAnimSceneBinding(Pair.Value, *AnimTrack));
 					}
 				}
+
 				if (OutBindings.Num() == SceneParams.RoleToActorMap.Num())
 				{
 					break;
