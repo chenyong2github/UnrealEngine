@@ -47,6 +47,11 @@ public:
 		}
 	}
 
+	void RemoveAt(int32 Index, int32 Count)
+	{
+		RemoveAtHelper(Index, Count);
+	}
+
 	uint32 Size() const 
 	{ return MSize; }
 

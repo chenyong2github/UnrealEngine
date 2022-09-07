@@ -43,6 +43,13 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	// Set a block of particles active or inactive, using the index of the first added particle to identify the block.
 	void ActivateParticleRange(int32 Offset, bool bActivate)  { MParticlesActiveView.ActivateRange(Offset, bActivate); }
 
+	// Clear all ranges.
+	void DeactivateParticleRanges() { MParticlesActiveView.Reset(0); }
+
+	// Set a block of particles active or inactive, using the index of the first added particle to identify the block.
+	int32 AddParticleRange(int32 NumItems, bool bActivate = true) { return MParticlesActiveView.AddRange(NumItems, bActivate); }
+
+
 	// Particles accessors
 	const FSolverParticles& Particles() const { return MParticles; }
 	FSolverParticles& Particles() { return MParticles; }
