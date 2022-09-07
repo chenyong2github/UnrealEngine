@@ -5,7 +5,9 @@
 #include "Algo/Transform.h"
 #include "EditorFontGlyphs.h"
 #include "IDetailTreeNode.h"
+#include "IRCProtocolBindingList.h"
 #include "IRemoteControlProtocolModule.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
 #include "IRemoteControlUIModule.h"
 #include "Layout/Visibility.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -151,7 +153,25 @@ TSharedRef<SWidget> SRCPanelExposedField::GetProtocolWidget(const FName ForColum
 								.ForegroundColor(FSlateColor::UseForeground())
 								.OnClicked_Lambda([RCProtocolEntityPtr]()
 									{
-										(*RCProtocolEntityPtr)->ToggleBindingStatus();
+										const ERCBindingStatus BindingStatus = (*RCProtocolEntityPtr)->ToggleBindingStatus();
+
+										IRemoteControlProtocolWidgetsModule& RCProtocolWidgetsModule = IRemoteControlProtocolWidgetsModule::Get();
+
+										if (TSharedPtr<IRCProtocolBindingList> RCProtocolBindingList = RCProtocolWidgetsModule.GetProtocolBindingList())
+										{
+											if (BindingStatus == ERCBindingStatus::Awaiting)
+											{
+												RCProtocolBindingList->OnStartRecording(RCProtocolEntityPtr);
+											}
+											else if (BindingStatus == ERCBindingStatus::Bound)
+											{
+												RCProtocolBindingList->OnStopRecording(RCProtocolEntityPtr);
+											}
+											else
+											{
+												checkNoEntry();
+											}
+										}
 
 										return FReply::Handled();
 									}

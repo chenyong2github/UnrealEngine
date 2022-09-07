@@ -20,4 +20,11 @@ public:
 
 	/** Get the set of entities which is awaiting state and waiting for binding */
 	virtual FRemoteControlProtocolEntitySet GetAwaitingProtocolEntities() const = 0;
+
+	/** Start recording incoming protocol message handler */
+	virtual void OnStartRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity) = 0;
+
+	/** Stop recording incoming protocol message handler */
+	virtual void OnStopRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity) = 0;
+
 };

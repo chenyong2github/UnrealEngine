@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -35,6 +35,15 @@ public:
 	{
 		return AwaitingProtocolEntities;
 	}
+
+private:
+
+	/** Start recording incoming protocol message handler */
+	virtual void OnStartRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity) override;
+
+	/** Stop recording incoming protocol message handler */
+	virtual void OnStopRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity) override;
+
 	//~ End IRCProtocolBindingList Interface
 
 private:
@@ -84,12 +93,6 @@ private:
 	{
 		SecondaryColumnWidth = InWidth;
 	}
-
-	/** Start recording incoming protocol message handler */
-	void OnStartRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity);
-
-	/** Stop recording incoming protocol message handler */
-	void OnStopRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity);
 
 	/** Get (mutable) module settings */
 	URemoteControlProtocolWidgetsSettings* GetSettings();
