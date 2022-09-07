@@ -79,8 +79,30 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 
 #endif
 
+	struct FGenerateProceduralContentParams
+	{
+		FGenerateProceduralContentParams()
+			: FoliageSpawner(nullptr)
+			, Bounds(EForceInit::ForceInit)
+			, TileOverlap(0.f)
+			, ProceduralVolumeInstance(nullptr)
+		{
+		}
+
+		TObjectPtr<UProceduralFoliageSpawner> FoliageSpawner;
+		FBox Bounds;
+		float TileOverlap;
+		FGuid ProceduralGuid;
+		FBodyInstance* ProceduralVolumeInstance;
+	};
+				
 	// UObject interface
 	virtual void PostEditImport() override;
+
+	/**
+	 * Returns a params struct based on this component properties. 
+	 */
+	FGenerateProceduralContentParams GetGenerateProceduralContentParams() const;
 
 	/**
 	 * Runs the procedural foliage simulation, removes the old result, creates instances with the new result
@@ -92,16 +114,19 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 	 * Runs the procedural foliage simulation to generate a list of desired instances to spawn.
 	 * @return True if the simulation succeeded
 	 */
-	bool GenerateProceduralContent(TArray<FDesiredFoliageInstance>& OutFoliageInstances);
-	
+	bool GenerateProceduralContent(TArray<FDesiredFoliageInstance>& OutInstances);
+	static bool GenerateProceduralContent(const FGenerateProceduralContentParams& Params, TArray<FDesiredFoliageInstance>& OutInstances);
+			
 	/** Removes all spawned foliage instances in the level that were spawned by this component */
 	void RemoveProceduralContent(bool InRebuildTree = true);
+	static void RemoveProceduralContent(UWorld* World, const FGuid& ProceduralGuid, bool InRebuildTree, TSet<AInstancedFoliageActor*>& OutModifiedActors);
 
 	/** @return True if any foliage instances in the level were spawned by this component */
 	bool HasSpawnedAnyInstances();
 	
 	/** @return The position in world space of the bottom-left corner of the bottom-left-most active tile */
 	FVector GetWorldPosition() const;
+	static FVector GetWorldPosition(const FGenerateProceduralContentParams& Param);
 
 	/** @return The bounds of area encompassed by the simulation */
 	virtual FBox GetBounds() const;
@@ -111,6 +136,7 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 
 	/** Determines the basic layout of the tiles used in the simulation */
 	void GetTileLayout(FTileLayout& OutTileLayout) const;
+	static void GetTileLayout(const FGenerateProceduralContentParams& Params, FTileLayout& OutTileLayout);
 
 	void SetSpawningVolume(AVolume* InSpawningVolume) { SpawningVolume = InSpawningVolume; }
 	const FGuid& GetProceduralGuid() const { return ProceduralGuid; }
@@ -120,10 +146,6 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 	void UnloadSimulatedRegion();
 	bool IsSimulatedRegionLoaded();
 #endif
-
-private:
-	/** Does all the actual work of executing the procedural foliage simulation */
-	bool ExecuteSimulation(TArray<FDesiredFoliageInstance>& OutFoliageInstances);
 
 private:
 	UPROPERTY()

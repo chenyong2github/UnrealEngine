@@ -3260,9 +3260,14 @@ void AInstancedFoliageActor::DeleteInstancesForComponent(UWorld* InWorld, UActor
 	}
 }
 
-void AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent, bool InRebuildTree)
+bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent, bool InRebuildTree)
 {
-	const FGuid& ProceduralGuid = ProceduralFoliageComponent->GetProceduralGuid();
+	return DeleteInstancesForProceduralFoliageComponent(ProceduralFoliageComponent->GetProceduralGuid(), InRebuildTree);
+}
+
+bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const FGuid& ProceduralGuid, bool InRebuildTree)
+{
+	bool bRemovedInstances = false;
 	BeginUpdate();
 	for (auto& Pair : FoliageInfos)
 	{
@@ -3279,16 +3284,23 @@ void AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const 
 		if (InstancesToRemove.Num())
 		{
 			Info.RemoveInstances(InstancesToRemove, InRebuildTree);
+			bRemovedInstances = true;
 		}
 	}
 	EndUpdate();
 	// Clean up dead cross-level references
 	FFoliageInstanceBaseCache::CompactInstanceBaseCache(this);
+
+	return bRemovedInstances;
 }
 
 bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent)
 {
-	const FGuid& ProceduralGuid = ProceduralFoliageComponent->GetProceduralGuid();
+	return ContainsInstancesFromProceduralFoliageComponent(ProceduralFoliageComponent->GetProceduralGuid());
+}
+
+bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(const FGuid& ProceduralGuid)
+{
 	for (auto& Pair : FoliageInfos)
 	{
 		FFoliageInfo& Info = *Pair.Value;
