@@ -185,7 +185,7 @@ private:
 		FullPath /= LevelSequenceSettings->MasterSequenceName;
 		FullPath /= LevelSequenceSettings->MasterSequenceName;
 		FullPath += LevelSequenceSettings->MasterSequenceSuffix;
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*FullPath));
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(FullPath));
 		if (AssetData.IsValid())
 		{
 			return LOCTEXT("MasterSequenceExists", "Warning: Master Sequence Exists");

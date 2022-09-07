@@ -36,10 +36,18 @@ struct FLevelSequenceBindingReference
 	 * Resolve this reference within the specified context
 	 *
 	 * @param InContext		The context to resolve the binding within. Either a UWorld, ULevel (when playing in an instanced level) or an AActor where this binding relates to an actor component
-	 * @oaram StreamedLevelAssetPath    The path to the streamed level asset that contains the level sequence actor playing back the sequence. 'None' for any non-instance-level setups.
+	 * @param StreamedLevelAssetPath    The path to the streamed level asset that contains the level sequence actor playing back the sequence. A null path for any non-instance-level setups.
 	 * @return The object (usually an Actor or an ActorComponent).
 	 */
-	LEVELSEQUENCE_API UObject* Resolve(UObject* InContext, FName StreamedLevelAssetPath) const;
+	LEVELSEQUENCE_API UObject* Resolve(UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath) const;
+	
+	UE_DEPRECATED(5.1, "Asset path FNames are deprecated. Use FTopLevelAssetPath instead.")
+	UObject* Resolve(UObject* InContext, FName StreamedLevelAssetPath) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return Resolve(InContext, FTopLevelAssetPath(StreamedLevelAssetPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS		
+	}
 
 	/**
 	 * Check whether this binding reference is equal to the specified object
@@ -142,7 +150,7 @@ struct FLevelSequenceBindingReferences
 	 * @oaram StreamedLevelAssetPath    The path to the streamed level asset that contains the level sequence actor playing back the sequence. 'None' for any non-instance-level setups.
 	 * @param OutObjects				Array to populate with resolved object bindings
 	 */
-	void ResolveBinding(const FGuid& ObjectId, UObject* InContext, FName StreamedLevelAssetPath, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const;
+	void ResolveBinding(const FGuid& ObjectId, UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const;
 
 	/**
 	 * Resolve a binding for the specified ID using a given context

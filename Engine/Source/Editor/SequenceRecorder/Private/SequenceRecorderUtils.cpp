@@ -107,7 +107,7 @@ FString MakeNewGroupName(const FString& BaseAssetPath, const FString& BaseAssetN
 		// If the existing base asset name doesn't conflict, use it
 		FString AssetPath = BaseAssetPath / BaseAssetName / BaseAssetName + Dot + BaseAssetName;
 
-		if (!ExistingGroupNames.Contains(FName(*BaseAssetName)) && !AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath).IsValid())
+		if (!ExistingGroupNames.Contains(FName(*BaseAssetName)) && !AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath)).IsValid())
 		{
 			return BaseAssetName;
 		}
@@ -137,7 +137,7 @@ FString MakeNewGroupName(const FString& BaseAssetPath, const FString& BaseAssetN
 
 		FString AssetPath = BaseAssetPath / NewAssetName / NewAssetName + Dot + NewAssetName;
 
-		if (!ExistingGroupNames.Contains(FName(*NewAssetName)) && !AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath).IsValid())
+		if (!ExistingGroupNames.Contains(FName(*NewAssetName)) && !AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath)).IsValid())
 		{
 			return NewAssetName;
 		}
