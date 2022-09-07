@@ -2115,7 +2115,7 @@ namespace Horde.Build.Notifications.Sinks
 					return null;
 				}
 
-				TimeSpan openTime = utcNow - span.FirstFailure.StepTime;
+				TimeSpan openTime = utcNow - issue.CreatedAt;
 
 				string openTimeStr;
 				if (openTime < TimeSpan.FromHours(1.0))
