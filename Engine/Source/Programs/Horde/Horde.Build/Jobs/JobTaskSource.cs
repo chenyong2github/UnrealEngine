@@ -438,31 +438,28 @@ namespace Horde.Build.Jobs
 					}
 					else
 					{
-						TemplateRef? templateRef;
+						ITemplateRef? templateRef;
 						if (stream.Templates.TryGetValue(newJob.TemplateId, out templateRef))
 						{							
 							if (templateRef.StepStates != null)
 							{
 								for (int i = 0; i < templateRef.StepStates.Count; i++)
 								{
-									TemplateStepState state = templateRef.StepStates[i];
-									if (state.PausedByUserId != null)
-									{
-										IJobStep? step = batch.Steps.FirstOrDefault(x => graph.Groups[batch.GroupIdx].Nodes[x.NodeIdx].Name.Equals(state.Name, StringComparison.Ordinal));
+									ITemplateStep state = templateRef.StepStates[i];
 
-										if (step != null)
+									IJobStep? step = batch.Steps.FirstOrDefault(x => graph.Groups[batch.GroupIdx].Nodes[x.NodeIdx].Name.Equals(state.Name, StringComparison.Ordinal));
+									if (step != null)
+									{
+										JobId jobId = newJob.Id;
+										newJob = await _jobs.TryUpdateStepAsync(newJob, graph, batch.Id, step.Id, JobStepState.Skipped, newError: JobStepError.Paused);
+										if (newJob == null)
 										{
-											JobId jobId = newJob.Id;
-											newJob = await _jobs.TryUpdateStepAsync(newJob, graph, batch.Id, step.Id, JobStepState.Skipped, newError: JobStepError.Paused);
-											if (newJob == null)
-											{
-												_logger.LogError("Job {JobId} failed to update step {StepName} pause state", jobId, state.Name);
-												break;
-											}
-											else
-											{
-												_logger.LogInformation("Job {JobId} step {StepName} has been skipped due to being paused", jobId, state.Name);
-											}
+											_logger.LogError("Job {JobId} failed to update step {StepName} pause state", jobId, state.Name);
+											break;
+										}
+										else
+										{
+											_logger.LogInformation("Job {JobId} step {StepName} has been skipped due to being paused", jobId, state.Name);
 										}
 									}
 								}

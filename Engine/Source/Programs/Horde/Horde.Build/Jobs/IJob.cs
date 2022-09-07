@@ -30,7 +30,7 @@ namespace Horde.Build.Jobs
 	using ReportPlacement = HordeCommon.Rpc.ReportPlacement;
 	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -528,7 +528,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// The template to trigger on success
 		/// </summary>
-		public TemplateRefId TemplateRefId { get; }
+		public TemplateId TemplateRefId { get; }
 
 		/// <summary>
 		/// The triggered job id
@@ -564,7 +564,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// The template ref id
 		/// </summary>
-		public TemplateRefId TemplateId { get; }
+		public TemplateId TemplateId { get; }
 
 		/// <summary>
 		/// The template that this job was created from

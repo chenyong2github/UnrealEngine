@@ -29,7 +29,7 @@ namespace Horde.Build.Jobs
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -88,10 +88,10 @@ namespace Horde.Build.Jobs
 			}
 
 			// Get the name of the template ref
-			TemplateRefId templateRefId = create.TemplateId;
+			TemplateId templateRefId = create.TemplateId;
 
 			// Augment the request with template properties
-			TemplateRef? templateRef;
+			ITemplateRef? templateRef;
 			if (!stream.Templates.TryGetValue(templateRefId, out templateRef))
 			{
 				return BadRequest($"Template {create.TemplateId} is not available for stream {stream.Id}");
@@ -113,7 +113,7 @@ namespace Horde.Build.Jobs
 
 			// Get the name of the new job
 			string name = create.Name ?? template.Name;
-			if (create.TemplateId == new TemplateRefId("stage-to-marketplace") && create.Arguments != null)
+			if (create.TemplateId == new TemplateId("stage-to-marketplace") && create.Arguments != null)
 			{
 				foreach (string argument in create.Arguments)
 				{
@@ -190,7 +190,7 @@ namespace Horde.Build.Jobs
 			}
 
 			// Create the job
-			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, preflightDescription, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.ChainedJobs, templateRef.ShowUgsBadges, templateRef.ShowUgsAlerts, templateRef.NotificationChannel, templateRef.NotificationChannelFilter, arguments);
+			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, preflightDescription, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.Config.ChainedJobs, templateRef.Config.ShowUgsBadges, templateRef.Config.ShowUgsAlerts, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, arguments);
 			await UpdateNotificationsAsync(job.Id, new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(job.Id.ToString());
 		}
@@ -203,7 +203,7 @@ namespace Horde.Build.Jobs
 		/// <param name="target"></param>
 		/// <param name="outcomes"></param>
 		/// <returns></returns>
-		async Task<int> ExecuteChangeQueryAsync(IStream stream, TemplateRefId templateId, string? target, List<JobStepOutcome> outcomes)
+		async Task<int> ExecuteChangeQueryAsync(IStream stream, TemplateId templateId, string? target, List<JobStepOutcome> outcomes)
 		{
 			IList<IJob> jobs = await _jobService.FindJobsAsync(streamId: stream.Id, templates: new[] { templateId }, target: target, state: new[] { JobStepState.Completed }, outcome: outcomes.ToArray(), count: 1, excludeUserJobs: true);
 			if (jobs.Count == 0)
@@ -606,10 +606,10 @@ namespace Horde.Build.Jobs
 				return BadRequest("Missing/invalid query parameter streamId");
 			}
 
-			TemplateRefId[] templateRefIds = templates switch
+			TemplateId[] templateRefIds = templates switch
 			{
-				{ Length: > 0 } => templates.Select(x => new TemplateRefId(x)).ToArray(),
-				_ => Array.Empty<TemplateRefId>()
+				{ Length: > 0 } => templates.Select(x => new TemplateId(x)).ToArray(),
+				_ => Array.Empty<TemplateId>()
 			};
 
 			List<IJob> jobs = await _jobService.FindJobsByStreamWithTemplatesAsync(new StreamId(streamId), templateRefIds, count: count, consistentRead: false);
@@ -710,7 +710,7 @@ namespace Horde.Build.Jobs
 			JobId[]? jobIdValues = (ids == null) ? (JobId[]?)null : Array.ConvertAll(ids, x => new JobId(x));
 			StreamId? streamIdValue = (streamId == null)? (StreamId?)null : new StreamId(streamId);
 			
-			TemplateRefId[]? templateRefIds = (templates != null && templates.Length > 0) ? templates.Select(x => new TemplateRefId(x)).ToArray() : null;
+			TemplateId[]? templateRefIds = (templates != null && templates.Length > 0) ? templates.Select(x => new TemplateId(x)).ToArray() : null;
 
 			if (includePreflight == false)
 			{
@@ -816,7 +816,7 @@ namespace Horde.Build.Jobs
 			[FromQuery] bool consistentRead = false)
 		{
 			StreamId streamIdValue = new StreamId(streamId);
-			TemplateRefId[] templateRefIds = templates.Select(x => new TemplateRefId(x)).ToArray();
+			TemplateId[] templateRefIds = templates.Select(x => new TemplateId(x)).ToArray();
 			UserId? preflightStartedByUserIdValue = preflightStartedByUserId != null ? new UserId(preflightStartedByUserId) : null;
 			count = Math.Min(1000, count);
 

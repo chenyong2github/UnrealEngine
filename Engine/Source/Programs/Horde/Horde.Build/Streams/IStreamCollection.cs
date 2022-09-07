@@ -12,7 +12,7 @@ namespace Horde.Build.Streams
 	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Collection of stream documents
@@ -74,7 +74,7 @@ namespace Horde.Build.Streams
 		/// <param name="lastTriggerChange">New last trigger changelist for the schedule</param>
 		/// <param name="newActiveJobs">New list of active jobs</param>
 		/// <returns>The updated stream if successful, null otherwise</returns>
-		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream stream, TemplateRefId templateRefId, DateTime? lastTriggerTimeUtc, int? lastTriggerChange, List<JobId> newActiveJobs);
+		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream stream, TemplateId templateRefId, DateTime? lastTriggerTimeUtc, int? lastTriggerChange, List<JobId> newActiveJobs);
 
 		/// <summary>
 		/// Attempts to update a stream template ref
@@ -83,7 +83,7 @@ namespace Horde.Build.Streams
 		/// <param name="templateRefId">The template ref to update</param>
 		/// <param name="stepStates">The stream states to update, pass an empty list to clear all step states, otherwise will be a partial update based on included step updates</param>
 		/// <returns></returns>
-		Task<IStream?> TryUpdateTemplateRefAsync(IStream streamInterface, TemplateRefId templateRefId, List<UpdateStepStateRequest>? stepStates = null);
+		Task<IStream?> TryUpdateTemplateRefAsync(IStream streamInterface, TemplateId templateRefId, List<UpdateStepStateRequest>? stepStates = null);
 
 		/// <summary>
 		/// Delete a stream

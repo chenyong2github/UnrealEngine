@@ -20,7 +20,7 @@ namespace Horde.Build.Utilities
 	using StreamId = StringId<IStream>;
 	using ToolId = StringId<Tool>;
 	using ToolDeploymentId = ObjectId<ToolDeployment>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Base class for Horde controllers
@@ -108,7 +108,7 @@ namespace Horde.Build.Utilities
 		/// Returns a 403 (forbidden) response with the given action and object
 		/// </summary>
 		[NonAction]
-		protected ActionResult Forbid(AclAction action, TemplateRefId templateId)
+		protected ActionResult Forbid(AclAction action, TemplateId templateId)
 		{
 			return Forbid(action, "template {TemplateId}", templateId);
 		}
@@ -207,7 +207,7 @@ namespace Horde.Build.Utilities
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
-		protected ActionResult NotFound(StreamId streamId, TemplateRefId templateId)
+		protected ActionResult NotFound(StreamId streamId, TemplateId templateId)
 		{
 			return NotFound("Template {TemplateId} not found on stream {StreamId}", templateId, streamId);
 		}

@@ -11,7 +11,7 @@ using HordeCommon;
 namespace Horde.Build.Notifications
 {
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Request object for creating a new subscription
@@ -140,7 +140,7 @@ namespace Horde.Build.Notifications
 		/// <param name="streamId">The stream id</param>
 		/// <param name="templateId">The template id</param>
 		/// <param name="outcome">Outcome of the job</param>
-		public JobCompleteEventRecord(StreamId streamId, TemplateRefId templateId, LabelOutcome outcome)
+		public JobCompleteEventRecord(StreamId streamId, TemplateId templateId, LabelOutcome outcome)
 		{
 			StreamId = streamId.ToString();
 			TemplateId = templateId.ToString();
@@ -200,7 +200,7 @@ namespace Horde.Build.Notifications
 		/// <param name="categoryName">Name of the category</param>
 		/// <param name="labelName">The label name</param>
 		/// <param name="outcome">Outcome of the label</param>
-		public LabelCompleteEventRecord(StreamId streamId, TemplateRefId templateId, string? categoryName, string labelName, LabelOutcome outcome)
+		public LabelCompleteEventRecord(StreamId streamId, TemplateId templateId, string? categoryName, string labelName, LabelOutcome outcome)
 		{
 			StreamId = streamId.ToString();
 			TemplateId = templateId.ToString();
@@ -256,7 +256,7 @@ namespace Horde.Build.Notifications
 		/// <param name="templateId">The template id</param>
 		/// <param name="stepName">The label name</param>
 		/// <param name="outcome">Outcome of the step</param>
-		public StepCompleteEventRecord(StreamId streamId, TemplateRefId templateId, string stepName, JobStepOutcome outcome)
+		public StepCompleteEventRecord(StreamId streamId, TemplateId templateId, string stepName, JobStepOutcome outcome)
 		{
 			StreamId = streamId.ToString();
 			TemplateId = templateId.ToString();

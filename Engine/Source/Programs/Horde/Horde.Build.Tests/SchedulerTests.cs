@@ -25,14 +25,14 @@ namespace Horde.Build.Tests
 	using LogId = ObjectId<ILogFile>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	[TestClass]
     public class SchedulerTests : TestSetup
 	{
 		ProjectId ProjectId { get; } = new ProjectId("ue5");
 		StreamId StreamId { get; } = new StreamId("ue5-main");
-		TemplateRefId TemplateRefId { get; } = new TemplateRefId("template1");
+		TemplateId TemplateId { get; } = new TemplateId("template1");
 
 		readonly ITemplate _template;
 		readonly HashSet<JobId> _initialJobIds;
@@ -62,8 +62,8 @@ namespace Horde.Build.Tests
 
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
-			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateRefId> { TemplateRefId } });
-			config.Templates.Add(new TemplateRefConfig { Id = TemplateRefId, Name = "Test", Schedule = schedule });
+			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { TemplateId } });
+			config.Templates.Add(new TemplateRefConfig { Id = TemplateId, Name = "Test", Schedule = schedule });
 
 			return (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!; 
 		}
@@ -132,8 +132,8 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			Schedule schedule = new Schedule(Clock.UtcNow, requireSubmittedChange: false);
-			schedule.Patterns.Add(new SchedulePattern(new List<DayOfWeek> { DayOfWeek.Friday, DayOfWeek.Sunday }, 13 * 60, null, null));
+			ScheduleConfig schedule = new ScheduleConfig { RequireSubmittedChange = false };
+			schedule.Patterns.Add(new SchedulePatternConfig(new List<DayOfWeek> { DayOfWeek.Friday, DayOfWeek.Sunday }, 13 * 60, null, null));
 
 			DateTime? nextTime = schedule.GetNextTriggerTimeUtc(startTime, TimeZoneInfo.Utc);
 			Assert.AreEqual(startTime + TimeSpan.FromHours(1.0), nextTime!.Value);
@@ -154,8 +154,8 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			Schedule schedule = new Schedule(Clock.UtcNow, requireSubmittedChange: false);
-			schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
+			ScheduleConfig schedule = new ScheduleConfig { RequireSubmittedChange = false };
+			schedule.Patterns.Add(new SchedulePatternConfig(null, 13 * 60, 14 * 60, 15));
 
 			DateTime? nextTime = schedule.GetNextTriggerTimeUtc(startTime, TimeZoneInfo.Utc);
 			Assert.AreEqual(startTime + TimeSpan.FromHours(1.0), nextTime!.Value);
@@ -182,9 +182,9 @@ namespace Horde.Build.Tests
 			DateTime startTime = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = startTime;
 
-			Schedule schedule = new Schedule(Clock.UtcNow, requireSubmittedChange: false);
-			schedule.Patterns.Add(new SchedulePattern(null, 11 * 60, 0, 0));
-			schedule.Patterns.Add(new SchedulePattern(null, 19 * 60, 0, 0));
+			ScheduleConfig schedule = new ScheduleConfig { RequireSubmittedChange = false };
+			schedule.Patterns.Add(new SchedulePatternConfig(null, 11 * 60, 0, 0));
+			schedule.Patterns.Add(new SchedulePatternConfig(null, 19 * 60, 0, 0));
 
 			DateTime? nextTime = schedule.GetNextTriggerTimeUtc(startTime, TimeZoneInfo.Utc);
 			Assert.AreEqual(startTime + TimeSpan.FromHours(11), nextTime!.Value);
@@ -248,9 +248,9 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(100, jobs2[0].CodeChange);
 
 			IStream stream2 = (await StreamCollection.GetAsync(stream.Id))!;
-			Schedule schedule2 = stream2.Templates.First().Value.Schedule!;
+			ITemplateSchedule schedule2 = stream2.Templates.First().Value.Schedule!;
 			Assert.AreEqual(102, schedule2.LastTriggerChange);
-			Assert.AreEqual(Clock.UtcNow, schedule2.LastTriggerTime);
+			Assert.AreEqual(Clock.UtcNow, schedule2.LastTriggerTimeUtc);
 
 			// Trigger another job
 			await Clock.AdvanceAsync(TimeSpan.FromHours(0.5));
@@ -413,21 +413,21 @@ namespace Horde.Build.Tests
 			// Create two templates, the second dependent on the first
 			ITemplate? newTemplate1 = await TemplateCollection.AddAsync("Test template 1");
 			//TemplateRef newTemplateRef1 = new TemplateRef(newTemplate1);
-			TemplateRefId newTemplateRefId1 = new TemplateRefId("new-template-1");
+			TemplateId newTemplateRefId1 = new TemplateId("new-template-1");
 
 			ITemplate? newTemplate2 = await TemplateCollection.AddAsync("Test template 2");
-			TemplateRef newTemplateRef2 = new TemplateRef(newTemplate2);
-			newTemplateRef2.Schedule = new Schedule(Clock.UtcNow);
-			newTemplateRef2.Schedule.Gate = new ScheduleGate(newTemplateRefId1, "TriggerNext");
-			newTemplateRef2.Schedule.Patterns.Add(new SchedulePattern(null, 0, null, 10));
-			newTemplateRef2.Schedule.LastTriggerTime = startTime;
-			TemplateRefId newTemplateRefId2 = new TemplateRefId("new-template-2");
+//			TemplateRef newTemplateRef2 = new TemplateRef(newTemplate2);
+//			newTemplateRef2.Schedule = new Schedule(Clock.UtcNow);
+//			newTemplateRef2.Schedule.Gate = new ScheduleGate(newTemplateRefId1, "TriggerNext");
+//			newTemplateRef2.Schedule.Patterns.Add(new SchedulePattern(null, 0, null, 10));
+//			newTemplateRef2.Schedule.LastTriggerTime = startTime;
+			TemplateId newTemplateRefId2 = new TemplateId("new-template-2");
 
 			IStream? stream = await StreamService.GetStreamAsync(StreamId);
 
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
-			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateRefId> { newTemplateRefId1, newTemplateRefId2 } });
+			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { newTemplateRefId1, newTemplateRefId2 } });
 
 			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
 
@@ -488,18 +488,18 @@ namespace Horde.Build.Tests
 			PerforceService.AddChange(StreamId, 1233, bob, "", new[] { "code.cpp" });
 
 			// Create two templates, the second dependent on the first
-			TemplateRefId newTemplateRefId1 = new TemplateRefId("new-template-1");
+			TemplateId newTemplateRefId1 = new TemplateId("new-template-1");
 			TemplateRefConfig newTemplate1 = new TemplateRefConfig();
 			newTemplate1.Id = newTemplateRefId1;
 
-			TemplateRefId newTemplateRefId2 = new TemplateRefId("new-template-2");
+			TemplateId newTemplateRefId2 = new TemplateId("new-template-2");
 			TemplateRefConfig newTemplate2 = new TemplateRefConfig();
 			newTemplate2.Id = newTemplateRefId2;
 			newTemplate2.Name = "Test template 2";
 			newTemplate2.Schedule = new ScheduleConfig();
 			newTemplate2.Schedule.MaxChanges = 4;
 			newTemplate2.Schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
-			newTemplate2.Schedule.Gate = new ScheduleGateConfig { TemplateId = newTemplateRefId1.ToString(), Target = "TriggerNext" };
+			newTemplate2.Schedule.Gate = new ScheduleGateConfig { TemplateId = newTemplateRefId1, Target = "TriggerNext" };
 			newTemplate2.Schedule.Patterns.Add(new SchedulePatternConfig { Interval = 10 });// (null, 0, null, 10));
 //			NewTemplate2.Schedule.LastTriggerTime = StartTime;
 
@@ -507,7 +507,7 @@ namespace Horde.Build.Tests
 
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
-			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateRefId> { newTemplateRefId1, newTemplateRefId2 } });
+			config.Tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { newTemplateRefId1, newTemplateRefId2 } });
 			config.Templates.Add(newTemplate1);
 			config.Templates.Add(newTemplate2);
 
@@ -575,7 +575,7 @@ namespace Horde.Build.Tests
 
 			// Make sure the job is registered
 			IStream? stream1 = await StreamService.GetStreamAsync(StreamId);
-			TemplateRef templateRef1 = stream1!.Templates.First().Value;
+			ITemplateRef templateRef1 = stream1!.Templates.First().Value;
 			Assert.AreEqual(1, templateRef1.Schedule!.ActiveJobs.Count);
 			Assert.AreEqual(jobs1[0].Id, templateRef1.Schedule!.ActiveJobs[0]);
 
@@ -584,7 +584,7 @@ namespace Horde.Build.Tests
 
 			// Make sure the job is still registered
 			IStream? stream2 = await StreamService.GetStreamAsync(StreamId);
-			TemplateRef templateRef2 = stream2!.Templates.First().Value;
+			ITemplateRef templateRef2 = stream2!.Templates.First().Value;
 			Assert.AreEqual(1, templateRef2.Schedule!.ActiveJobs.Count);
 			Assert.AreEqual(jobs1[0].Id, templateRef2.Schedule!.ActiveJobs[0]);
 		}

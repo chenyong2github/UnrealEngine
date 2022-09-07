@@ -30,7 +30,7 @@ using OpenTracing.Util;
 namespace Horde.Build.Issues
 {
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 	using WorkflowId = StringId<WorkflowConfig>;
 
@@ -189,7 +189,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Cache of templates to show desktop alerts for
 		/// </summary>
-		Dictionary<StreamId, HashSet<TemplateRefId>> _cachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateRefId>>();
+		Dictionary<StreamId, HashSet<TemplateId>> _cachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateId>>();
 
 		/// <summary>
 		/// Logger for tracing
@@ -254,12 +254,12 @@ namespace Horde.Build.Issues
 		{
 			DateTime utcNow = _clock.UtcNow;
 
-			Dictionary<StreamId, HashSet<TemplateRefId>> newCachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateRefId>>();
+			Dictionary<StreamId, HashSet<TemplateId>> newCachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateId>>();
 
 			List<IStream> cachedStreams = await _streams.StreamCollection.FindAllAsync();
 			foreach(IStream cachedStream in cachedStreams)
 			{
-				HashSet<TemplateRefId> templates = new HashSet<TemplateRefId>(cachedStream.Templates.Where(x => x.Value.ShowUgsAlerts).Select(x => x.Key));
+				HashSet<TemplateId> templates = new HashSet<TemplateId>(cachedStream.Templates.Where(x => x.Value.Config.ShowUgsAlerts).Select(x => x.Key));
 				if(templates.Count > 0)
 				{
 					newCachedDesktopAlerts[cachedStream.Id] = templates;
@@ -363,12 +363,12 @@ namespace Horde.Build.Issues
 
 			bool bShowDesktopAlerts = false;
 
-			HashSet<(StreamId, TemplateRefId)> checkedTemplates = new HashSet<(StreamId, TemplateRefId)>();
+			HashSet<(StreamId, TemplateId)> checkedTemplates = new HashSet<(StreamId, TemplateId)>();
 			foreach(IIssueSpan span in spans)
 			{
 				if (span.NextSuccess == null && checkedTemplates.Add((span.StreamId, span.TemplateRefId)))
 				{
-					HashSet<TemplateRefId>? templates;
+					HashSet<TemplateId>? templates;
 					if (_cachedDesktopAlerts.TryGetValue(span.StreamId, out templates) && templates.Contains(span.TemplateRefId))
 					{
 						bShowDesktopAlerts = true;

@@ -16,7 +16,7 @@ namespace Horde.Build.Jobs
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Unique id struct for JobStepRef objects. Includes a job id, batch id, and step id to uniquely identify the step.
@@ -134,7 +134,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Template for the job being executed
 		/// </summary>
-		public TemplateRefId TemplateId { get; }
+		public TemplateId TemplateId { get; }
 
 		/// <summary>
 		/// The change number being built

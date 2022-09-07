@@ -25,7 +25,7 @@ namespace Horde.Build.Issues
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	class IssueCollection : IIssueCollection
@@ -258,7 +258,7 @@ namespace Horde.Build.Issues
 			public string StreamName { get; set; }
 
 			[BsonRequired]
-			public TemplateRefId TemplateRefId { get; set; }
+			public TemplateId TemplateRefId { get; set; }
 
 			[BsonRequired]
 			public string NodeName { get; set; }
@@ -1274,7 +1274,7 @@ namespace Horde.Build.Issues
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IIssueSpan>> FindOpenSpansAsync(StreamId streamId, TemplateRefId templateId, string nodeName, int change)
+		public async Task<List<IIssueSpan>> FindOpenSpansAsync(StreamId streamId, TemplateId templateId, string nodeName, int change)
 		{
 			List<IssueSpan> spans = await _issueSpans.Find(x => x.StreamId == streamId && x.TemplateRefId == templateId && x.NodeName == nodeName && change >= x.MinChange && change <= x.MaxChange).ToListAsync();
 			return spans.ConvertAll<IIssueSpan>(x => x);

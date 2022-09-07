@@ -10,7 +10,6 @@ using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Issues;
 using Horde.Build.Jobs.Graphs;
-using Horde.Build.Jobs.Schedules;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Perforce;
 using Horde.Build.Server;
@@ -20,7 +19,7 @@ using HordeCommon;
 namespace Horde.Build.Streams
 {
 	using PoolId = StringId<IPool>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
@@ -89,7 +88,7 @@ namespace Horde.Build.Streams
 		public string? DefaultPreflightTemplate
 		{
 			get => DefaultPreflight?.TemplateId?.ToString();
-			set => DefaultPreflight = (value == null)? null : new DefaultPreflightConfig { TemplateId = new TemplateRefId(value) };
+			set => DefaultPreflight = (value == null)? null : new DefaultPreflightConfig { TemplateId = new TemplateId(value) };
 		}
 
 		/// <summary>
@@ -163,7 +162,7 @@ namespace Horde.Build.Streams
 		/// <param name="templateRefId"></param>
 		/// <param name="templateConfig"></param>
 		/// <returns></returns>
-		public bool TryGetTemplate(TemplateRefId templateRefId, [NotNullWhen(true)] out TemplateRefConfig? templateConfig)
+		public bool TryGetTemplate(TemplateId templateRefId, [NotNullWhen(true)] out TemplateRefConfig? templateConfig)
 		{
 			templateConfig = Templates.FirstOrDefault(x => x.Id == templateRefId);
 			return templateConfig != null;
@@ -215,7 +214,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// List of job template names to show on this page.
 		/// </summary>
-		public List<TemplateRefId>? Templates { get; set; }
+		public List<TemplateId>? Templates { get; set; }
 
 		/// <summary>
 		/// Columns to display for different types of aggregates
@@ -375,7 +374,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// The template id to query
 		/// </summary>
-		public TemplateRefId? TemplateId { get; set; }
+		public TemplateId? TemplateId { get; set; }
 
 		/// <summary>
 		/// The target to query
@@ -396,7 +395,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// The template id to query
 		/// </summary>
-		public TemplateRefId? TemplateId { get; set; }
+		public TemplateId? TemplateId { get; set; }
 
 		/// <summary>
 		/// Query for the change to use
@@ -419,7 +418,7 @@ namespace Horde.Build.Streams
 		/// Id of the template to trigger
 		/// </summary>
 		[Required]
-		public string TemplateId { get; set; } = String.Empty;
+		public TemplateId TemplateId { get; set; }
 	}
 
 	/// <summary>
@@ -427,14 +426,14 @@ namespace Horde.Build.Streams
 	/// </summary>
 	public class TemplateRefConfig : TemplateConfig
 	{
-		TemplateRefId _id;
+		TemplateId _id;
 
 		/// <summary>
 		/// Optional identifier for this ref. If not specified, an id will be generated from the name.
 		/// </summary>
-		public TemplateRefId Id
+		public TemplateId Id
 		{
-			get => _id.IsEmpty ? TemplateRefId.Sanitize(Name) : _id;
+			get => _id.IsEmpty ? TemplateId.Sanitize(Name) : _id;
 			set => _id = value;
 		}
 
@@ -501,7 +500,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Days of the week to run this schedule on. If null, the schedule will run every day.
 		/// </summary>
-		public List<string>? DaysOfWeek { get; set; }
+		public List<DayOfWeek>? DaysOfWeek { get; set; }
 
 		/// <summary>
 		/// Time during the day for the first schedule to trigger. Measured in minutes from midnight.
@@ -519,12 +518,72 @@ namespace Horde.Build.Streams
 		public int? Interval { get; set; }
 
 		/// <summary>
-		/// Constructs a model object from this request
+		/// Constructor
 		/// </summary>
-		/// <returns>Model object</returns>
-		public SchedulePattern ToModel()
+		public SchedulePatternConfig()
 		{
-			return new SchedulePattern(DaysOfWeek?.ConvertAll(x => Enum.Parse<DayOfWeek>(x)), MinTime, MaxTime, Interval);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="daysOfWeek">Which days of the week the schedule should run</param>
+		/// <param name="minTime">Time during the day for the first schedule to trigger. Measured in minutes from midnight.</param>
+		/// <param name="maxTime">Time during the day for the last schedule to trigger. Measured in minutes from midnight.</param>
+		/// <param name="interval">Interval between each schedule triggering</param>
+		public SchedulePatternConfig(List<DayOfWeek>? daysOfWeek, int minTime, int? maxTime, int? interval)
+		{
+			DaysOfWeek = daysOfWeek;
+			MinTime = minTime;
+			MaxTime = maxTime;
+			Interval = interval;
+		}
+
+		/// <summary>
+		/// Calculates the trigger index based on the given time in minutes
+		/// </summary>
+		/// <param name="lastTimeUtc">Time for the last trigger</param>
+		/// <param name="timeZone">The timezone for running the schedule</param>
+		/// <returns>Index of the trigger</returns>
+		public DateTime GetNextTriggerTimeUtc(DateTime lastTimeUtc, TimeZoneInfo timeZone)
+		{
+			// Convert last time into the correct timezone for running the scheule
+			DateTimeOffset lastTime = TimeZoneInfo.ConvertTime((DateTimeOffset)lastTimeUtc, timeZone);
+
+			// Get the base time (ie. the start of this day) for anchoring the schedule
+			DateTimeOffset baseTime = new DateTimeOffset(lastTime.Year, lastTime.Month, lastTime.Day, 0, 0, 0, lastTime.Offset);
+			for (; ; )
+			{
+				if (DaysOfWeek == null || DaysOfWeek.Contains(baseTime.DayOfWeek))
+				{
+					// Get the last time in minutes from the start of this day
+					int lastTimeMinutes = (int)(lastTime - baseTime).TotalMinutes;
+
+					// Get the time of the first trigger of this day. If the last time is less than this, this is the next trigger.
+					if (lastTimeMinutes < MinTime)
+					{
+						return baseTime.AddMinutes(MinTime).UtcDateTime;
+					}
+
+					// Otherwise, get the time for the last trigger in the day.
+					if (Interval.HasValue && Interval.Value > 0)
+					{
+						int actualMaxTime = MaxTime ?? ((24 * 60) - 1);
+						if (lastTimeMinutes < actualMaxTime)
+						{
+							int lastIndex = (lastTimeMinutes - MinTime) / Interval.Value;
+							int nextIndex = lastIndex + 1;
+
+							int nextTimeMinutes = MinTime + (nextIndex * Interval.Value);
+							if (nextTimeMinutes <= actualMaxTime)
+							{
+								return baseTime.AddMinutes(nextTimeMinutes).UtcDateTime;
+							}
+						}
+					}
+				}
+				baseTime = baseTime.AddDays(1.0);
+			}
 		}
 	}
 
@@ -537,22 +596,13 @@ namespace Horde.Build.Streams
 		/// The template containing the dependency
 		/// </summary>
 		[Required]
-		public string TemplateId { get; set; } = String.Empty;
+		public TemplateId TemplateId { get; set; }
 
 		/// <summary>
 		/// Target to wait for
 		/// </summary>
 		[Required]
 		public string Target { get; set; } = String.Empty;
-
-		/// <summary>
-		/// Constructs a model object
-		/// </summary>
-		/// <returns>New model object.</returns>
-		public ScheduleGate ToModel()
-		{
-			return new ScheduleGate(new TemplateRefId(TemplateId), Target);
-		}
 	}
 
 	/// <summary>
@@ -568,7 +618,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Whether the schedule should be enabled
 		/// </summary>
-		public bool Enabled { get; set; }
+		public bool Enabled { get; set; } = true;
 
 		/// <summary>
 		/// Maximum number of builds that can be active at once
@@ -611,13 +661,45 @@ namespace Horde.Build.Streams
 		public List<SchedulePatternConfig> Patterns { get; set; } = new List<SchedulePatternConfig>();
 
 		/// <summary>
-		/// Constructs a model object
+		/// Gets the flags to filter changes by
 		/// </summary>
-		/// <param name="currentTimeUtc">The current time</param>
-		/// <returns>New model object</returns>
-		public Schedule ToModel(DateTime currentTimeUtc)
+		/// <returns>Set of filter flags</returns>
+		public ChangeContentFlags? GetFilterFlags()
 		{
-			return new Schedule(currentTimeUtc, Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, Files, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
+			if (Filter == null)
+			{
+				return null;
+			}
+
+			ChangeContentFlags flags = 0;
+			foreach (ChangeContentFlags flag in Filter)
+			{
+				flags |= flag;
+			}
+			return flags;
+		}
+
+		/// <summary>
+		/// Get the next time that the schedule will trigger
+		/// </summary>
+		/// <param name="lastTimeUtc">Last time at which the schedule triggered</param>
+		/// <param name="timeZone">Timezone to evaluate the trigger</param>
+		/// <returns>Next time at which the schedule will trigger</returns>
+		public DateTime? GetNextTriggerTimeUtc(DateTime lastTimeUtc, TimeZoneInfo timeZone)
+		{
+			DateTime? nextTriggerTimeUtc = null;
+			if (Enabled)
+			{
+				foreach (SchedulePatternConfig pattern in Patterns)
+				{
+					DateTime patternTriggerTime = pattern.GetNextTriggerTimeUtc(lastTimeUtc, timeZone);
+					if (nextTriggerTimeUtc == null || patternTriggerTime < nextTriggerTimeUtc)
+					{
+						nextTriggerTimeUtc = patternTriggerTime;
+					}
+				}
+			}
+			return nextTriggerTimeUtc;
 		}
 	}
 

@@ -15,7 +15,7 @@ using HordeCommon;
 
 namespace Horde.Build.Jobs
 {
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// State of the job
@@ -53,7 +53,7 @@ namespace Horde.Build.Jobs
 		/// The template for this job
 		/// </summary>
 		[Required]
-		public TemplateRefId TemplateId { get; set; }
+		public TemplateId TemplateId { get; set; }
 
 		/// <summary>
 		/// Name of the job
@@ -98,7 +98,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
-		public CreateJobRequest(string streamId, TemplateRefId templateId)
+		public CreateJobRequest(string streamId, TemplateId templateId)
 		{
 			StreamId = streamId;
 			TemplateId = templateId;

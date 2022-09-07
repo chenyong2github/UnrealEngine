@@ -24,7 +24,7 @@ namespace Horde.Build.Tests
 	using PoolId = StringId<IPool>;
     using ProjectId = StringId<IProject>;
     using StreamId = StringId<IStream>;
-    using TemplateRefId = StringId<TemplateRef>;
+    using TemplateId = StringId<ITemplateRef>;
 
 	public class Fixture
 	{
@@ -33,8 +33,8 @@ namespace Horde.Build.Tests
 		public ITemplate Template { get; private set; } = null!;
 		public IGraph Graph { get; private set; } = null!;
 		public IStream? Stream { get; private set; }
-		public TemplateRefId TemplateRefId1 { get; private set; }
-		public TemplateRefId TemplateRefId2 { get; private set; }
+		public TemplateId TemplateRefId1 { get; private set; }
+		public TemplateId TemplateRefId2 { get; private set; }
 		public IArtifact Job1Artifact { get; private set; } = null!;
 		public string Job1ArtifactData { get; private set; } = null!;
 		public IAgent Agent1 { get; private set; } = null!;
@@ -64,15 +64,15 @@ namespace Horde.Build.Tests
 			Template = await templateCollection.AddAsync("Test template");
 			Graph = await graphCollection.AddAsync(Template);
 
-			TemplateRefId1 = new TemplateRefId("template1");
-			TemplateRefId2 = new TemplateRefId("template2");
+			TemplateRefId1 = new TemplateId("template1");
+			TemplateRefId2 = new TemplateId("template2");
 
 			List<TemplateRefConfig> templates = new List<TemplateRefConfig>();
 			templates.Add(new TemplateRefConfig { Id = TemplateRefId1, Name = "Test Template" });
 			templates.Add(new TemplateRefConfig { Id = TemplateRefId2, Name = "Test Template" });
 
 			List<TabConfig> tabs = new List<TabConfig>();
-			tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateRefId> { TemplateRefId1, TemplateRefId2 } });
+			tabs.Add(new JobsTabConfig { Title = "foo", Templates = new List<TemplateId> { TemplateRefId1, TemplateRefId2 } });
 
 			Dictionary<string, AgentConfig> agentTypes = new()
 			{
@@ -119,7 +119,7 @@ namespace Horde.Build.Tests
 			Job2 = await jobService.CreateJobAsync(
 				jobId: new JobId("5f69ea1b68423e921b035106"),
 				stream: Stream!,
-				templateRefId: new TemplateRefId("template-id-1"),
+				templateRefId: new TemplateId("template-id-1"),
 				templateHash: ContentHash.MD5("made-up-template-hash"),
 				graph: fg,
 				name: "hello2",

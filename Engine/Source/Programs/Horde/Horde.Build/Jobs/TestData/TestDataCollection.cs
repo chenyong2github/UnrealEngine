@@ -14,7 +14,7 @@ namespace Horde.Build.Jobs.TestData
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Collection of test data documents
@@ -28,7 +28,7 @@ namespace Horde.Build.Jobs.TestData
 		{
 			public ObjectId Id { get; set; }
 			public StreamId StreamId { get; set; }
-			public TemplateRefId TemplateRefId { get; set; }
+			public TemplateId TemplateRefId { get; set; }
 			public JobId JobId { get; set; }
 			public SubResourceId StepId { get; set; }
 			public int Change { get; set; }

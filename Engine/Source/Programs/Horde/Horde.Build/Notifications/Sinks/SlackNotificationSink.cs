@@ -43,7 +43,7 @@ namespace Horde.Build.Notifications.Sinks
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 	using WorkflowId = StringId<WorkflowConfig>;
 
@@ -704,10 +704,10 @@ namespace Horde.Build.Notifications.Sinks
 				IStream? stream = await _streamService.GetCachedStream(span.StreamId);
 				if (stream != null)
 				{
-					TemplateRef? templateRef;
-					if (stream.Templates.TryGetValue(span.TemplateRefId, out templateRef) && templateRef.TriageChannel != null)
+					ITemplateRef? templateRef;
+					if (stream.Templates.TryGetValue(span.TemplateRefId, out templateRef) && templateRef.Config.TriageChannel != null)
 					{
-						channels.Add(templateRef.TriageChannel);
+						channels.Add(templateRef.Config.TriageChannel);
 					}
 					else if (stream.Config.TriageChannel != null)
 					{
@@ -1360,7 +1360,7 @@ namespace Horde.Build.Notifications.Sinks
 			public StreamId StreamId { get; set; }
 
 			[JsonPropertyName("t")]
-			public TemplateRefId TemplateId { get; set; }
+			public TemplateId TemplateId { get; set; }
 
 			[JsonPropertyName("i")]
 			public List<int> IssueIds { get; set; } = new List<int>();
@@ -1409,7 +1409,7 @@ namespace Horde.Build.Notifications.Sinks
 					issueIdToInfo[issue.Id] = issue;
 				}
 
-				foreach (IGrouping<TemplateRefId, IIssueSpan> group in report.IssueSpans.GroupBy(x => x.TemplateRefId).OrderBy(x => x.Key.ToString()))
+				foreach (IGrouping<TemplateId, IIssueSpan> group in report.IssueSpans.GroupBy(x => x.TemplateRefId).OrderBy(x => x.Key.ToString()))
 				{
 					TemplateRefConfig? templateConfig;
 					if (!report.Stream.Config.TryGetTemplate(group.Key, out templateConfig))
@@ -1492,7 +1492,7 @@ namespace Horde.Build.Notifications.Sinks
 			}
 		}
 
-		static bool IsIssueOpenForWorkflow(StreamId streamId, TemplateRefId templateId, WorkflowId workflowId, IEnumerable<IIssueSpan> spans)
+		static bool IsIssueOpenForWorkflow(StreamId streamId, TemplateId templateId, WorkflowId workflowId, IEnumerable<IIssueSpan> spans)
 		{
 			foreach (IIssueSpan span in spans)
 			{
@@ -1592,7 +1592,7 @@ namespace Horde.Build.Notifications.Sinks
 			}
 		}
 
-		async Task UpdateReportBlockAsync(string channel, string eventId, DateTime reportTime, IStream stream, TemplateRefId templateId, List<(IIssue, IIssueSpan?, bool)> issues, bool templateHeader)
+		async Task UpdateReportBlockAsync(string channel, string eventId, DateTime reportTime, IStream stream, TemplateId templateId, List<(IIssue, IIssueSpan?, bool)> issues, bool templateHeader)
 		{
 			StringBuilder body = new StringBuilder();
 

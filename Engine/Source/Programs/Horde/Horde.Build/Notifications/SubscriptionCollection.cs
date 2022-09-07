@@ -19,7 +19,7 @@ using MongoDB.Driver;
 namespace Horde.Build.Notifications
 {
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -59,7 +59,7 @@ namespace Horde.Build.Notifications
 		class JobCompleteEvent : Event, IJobCompleteEvent
 		{
 			public StreamId StreamId { get; set; }
-			public TemplateRefId TemplateId { get; set; }
+			public TemplateId TemplateId { get; set; }
 			public LabelOutcome Outcome { get; set; }
 
 			public JobCompleteEvent()
@@ -69,7 +69,7 @@ namespace Horde.Build.Notifications
 			public JobCompleteEvent(JobCompleteEventRecord record)
 			{
 				StreamId = new StreamId(record.StreamId);
-				TemplateId = new TemplateRefId(record.TemplateId);
+				TemplateId = new TemplateId(record.TemplateId);
 				Outcome = record.Outcome;
 			}
 
@@ -87,7 +87,7 @@ namespace Horde.Build.Notifications
 		class LabelCompleteEvent : Event, ILabelCompleteEvent
 		{
 			public StreamId StreamId { get; set; }
-			public TemplateRefId TemplateId { get; set; }
+			public TemplateId TemplateId { get; set; }
 			public string? CategoryName { get; set; }
 			public string LabelName { get; set; }
 			public LabelOutcome Outcome { get; set; }
@@ -100,7 +100,7 @@ namespace Horde.Build.Notifications
 			public LabelCompleteEvent(LabelCompleteEventRecord record)
 			{
 				StreamId = new StreamId(record.StreamId);
-				TemplateId = new TemplateRefId(record.TemplateId);
+				TemplateId = new TemplateId(record.TemplateId);
 				CategoryName = record.CategoryName;
 				LabelName = record.LabelName;
 				Outcome = record.Outcome;
@@ -127,7 +127,7 @@ namespace Horde.Build.Notifications
 		class StepCompleteEvent : Event, IStepCompleteEvent
 		{
 			public StreamId StreamId { get; set; }
-			public TemplateRefId TemplateId { get; set; }
+			public TemplateId TemplateId { get; set; }
 			public string StepName { get; set; }
 			public JobStepOutcome Outcome { get; set; }
 
@@ -139,7 +139,7 @@ namespace Horde.Build.Notifications
 			public StepCompleteEvent(StepCompleteEventRecord record)
 			{
 				StreamId = new StreamId(record.StreamId);
-				TemplateId = new TemplateRefId(record.TemplateId);
+				TemplateId = new TemplateId(record.TemplateId);
 				StepName = record.StepName;
 				Outcome = record.Outcome;
 			}

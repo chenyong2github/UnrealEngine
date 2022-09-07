@@ -19,7 +19,7 @@ namespace Horde.Build.Issues
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -191,7 +191,7 @@ namespace Horde.Build.Issues
 		public string StreamName { get; set; }
 
 		/// <inheritdoc cref="IIssueSpan.TemplateRefId"/>
-		public TemplateRefId TemplateRefId { get; set; }
+		public TemplateId TemplateRefId { get; set; }
 
 		/// <inheritdoc cref="IIssueSpan.NodeName"/>
 		public string NodeName { get; set; }
@@ -214,7 +214,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NewIssueSpanData(StreamId streamId, string streamName, TemplateRefId templateRefId, string nodeName, NewIssueFingerprint fingerprint, NewIssueStepData firstFailure)
+		public NewIssueSpanData(StreamId streamId, string streamName, TemplateId templateRefId, string nodeName, NewIssueFingerprint fingerprint, NewIssueStepData firstFailure)
 		{
 			StreamId = streamId;
 			StreamName = streamName;
@@ -536,7 +536,7 @@ namespace Horde.Build.Issues
 		/// <param name="name">Name of the node</param>
 		/// <param name="change">Changelist number to query</param>
 		/// <returns>List of open issues</returns>
-		Task<List<IIssueSpan>> FindOpenSpansAsync(StreamId streamId, TemplateRefId templateId, string name, int change);
+		Task<List<IIssueSpan>> FindOpenSpansAsync(StreamId streamId, TemplateId templateId, string name, int change);
 
 		/// <summary>
 		/// Searches for open issues

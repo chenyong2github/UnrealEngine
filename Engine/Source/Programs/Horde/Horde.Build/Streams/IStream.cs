@@ -8,20 +8,17 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
-using Horde.Build.Agents.Pools;
-using Horde.Build.Jobs.Schedules;
-using Horde.Build.Jobs.Templates;
+using Horde.Build.Jobs;
 using Horde.Build.Projects;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
-using HordeCommon;
-using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Streams
 {
+	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -46,204 +43,6 @@ namespace Horde.Build.Streams
 	}
 
 	/// <summary>
-	/// Allows triggering another downstream job on succesful completion of a step or aggregate
-	/// </summary>
-	public class ChainedJobTemplate
-	{
-		/// <summary>
-		/// Name of the target that needs to complete successfully
-		/// </summary>
-		public string Trigger { get; set; } = String.Empty;
-
-		/// <summary>
-		/// The new template to trigger
-		/// </summary>
-		public TemplateRefId TemplateRefId { get; set; }
-
-		/// <summary>
-		/// Default constructor for serialization
-		/// </summary>
-		private ChainedJobTemplate()
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="trigger">Name of the target that needs to complete</param>
-		/// <param name="templateRefId">The new template to trigger</param>
-		public ChainedJobTemplate(string trigger, TemplateRefId templateRefId)
-		{
-			Trigger = trigger;
-			TemplateRefId = templateRefId;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="request">Request to construct from</param>
-		public ChainedJobTemplate(ChainedJobTemplateConfig request)
-			: this(request.Trigger, new TemplateRefId(request.TemplateId))
-		{
-		}
-	}
-
-	/// <summary>
-	/// A
-	/// </summary>
-	public class TemplateStepState
-	{
-		/// <summary>
-		/// Name of the step
-		/// </summary>
-		public string Name { get; set; } = String.Empty ;
-
-		/// <summary>
-		/// User who paused the step
-		/// </summary>
-		public UserId? PausedByUserId { get; set; }
-
-		/// <summary>
-		/// The UTC time when the step was paused
-		/// </summary>
-		public DateTime? PauseTimeUtc { get; set; }
-
-		/// <summary>
-		/// Default constructor for serialization
-		/// </summary>
-		private TemplateStepState()
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public TemplateStepState( string name, UserId? pausedByUserId = null, DateTime? pauseTimeUtc = null)
-		{
-			Name = name;
-			PausedByUserId = pausedByUserId;
-			PauseTimeUtc = pauseTimeUtc;
-		}
-	}
-
-	/// <summary>
-	/// Reference to a template
-	/// </summary>
-	public class TemplateRef
-	{
-		/// <summary>
-		/// The template name (duplicated from the template object)
-		/// </summary>
-		public string Name { get; set; }
-
-		/// <summary>
-		/// Hash of the template definition
-		/// </summary>
-		public ContentHash Hash { get; set; }
-
-		/// <summary>
-		/// Whether to show badges in UGS for this schedule
-		/// </summary>
-		public bool ShowUgsBadges { get; set; }
-
-		/// <summary>
-		/// Whether to show desktop alerts for build health issues created from jobs this type
-		/// </summary>
-		public bool ShowUgsAlerts { get; set; }
-
-		/// <summary>
-		/// Notification channel for this template. Overrides the stream channel if set.
-		/// </summary>
-		public string? NotificationChannel { get; set; }
-
-		/// <summary>
-		/// Notification channel filter for this template. Errors|Warnings|Success
-		/// </summary>
-		public string? NotificationChannelFilter { get; set; }
-
-		/// <summary>
-		/// Channel for triage notification messages
-		/// </summary>
-		public string? TriageChannel { get; set; }
-
-		/// <summary>
-		/// List of schedules for this template
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public Schedule? Schedule { get; set; }
-
-		/// <summary>
-		/// List of downstream templates to trigger at the same change
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public List<ChainedJobTemplate>? ChainedJobs { get; set; }
-
-		/// <summary>
-		/// List of template step states
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public List<TemplateStepState>? StepStates { get;set; }
-
-		/// <summary>
-		/// Custom permissions for this template
-		/// </summary>
-		public Acl? Acl { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private TemplateRef()
-		{
-			Name = null!;
-			Hash = null!;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="template">The template being referenced</param>
-		/// <param name="showUgsBadges">Whether to show badges in UGS for this job</param>
-		/// <param name="showUgsAlerts">Whether to show alerts in UGS for this job</param>
-		/// <param name="notificationChannel">Notification channel for this template</param>
-		/// <param name="notificationChannelFilter">Notification channel filter for this template</param>
-		/// <param name="triageChannel"></param>
-		/// <param name="schedule">Schedule for this template</param>
-		/// <param name="triggers">List of downstream templates to trigger</param>
-		/// <param name="stepStates">List of template step states</param>
-		/// <param name="acl">ACL for this template</param>
-		public TemplateRef(ITemplate template, bool showUgsBadges = false, bool showUgsAlerts = false, string? notificationChannel = null, string? notificationChannelFilter = null, string? triageChannel = null, Schedule? schedule = null, List<ChainedJobTemplate>? triggers = null, List<TemplateStepState>? stepStates = null, Acl? acl = null)
-		{
-			Name = template.Name;
-			Hash = template.Id;
-			ShowUgsBadges = showUgsBadges;
-			ShowUgsAlerts = showUgsAlerts;
-			NotificationChannel = notificationChannel;
-			NotificationChannelFilter = notificationChannelFilter;
-			TriageChannel = triageChannel;
-			Schedule = schedule;
-			ChainedJobs = triggers;
-			StepStates = stepStates;
-			Acl = acl;
-		}
-	}
-
-	/// <summary>
-	/// Extension methods for template refs
-	/// </summary>
-	static class TemplateRefExtensions
-	{
-		/// <summary>
-		/// Adds a new template ref to a list
-		/// </summary>
-		/// <param name="templateRefs">List of template refs</param>
-		/// <param name="templateRef">The template ref to add</param>
-		public static void AddRef(this Dictionary<TemplateRefId, TemplateRef> templateRefs, TemplateRef templateRef)
-		{
-			templateRefs.Add(new TemplateRefId(templateRef.Name), templateRef);
-		}
-	}
-
-	/// <summary>
 	/// Information about a stream
 	/// </summary>
 	public interface IStream
@@ -251,52 +50,135 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Name of the stream.
 		/// </summary>
-		public StreamId Id { get; }
+		StreamId Id { get; }
 
 		/// <summary>
 		/// The project that this stream belongs to
 		/// </summary>
-		public ProjectId ProjectId { get; }
+		ProjectId ProjectId { get; }
 
 		/// <summary>
 		/// The stream name
 		/// </summary>
-		public string Name { get; }
+		string Name { get; }
 
 		/// <summary>
 		/// The revision of config file used for this stream
 		/// </summary>
-		public string ConfigRevision { get; }
+		string ConfigRevision { get; }
 
 		/// <summary>
 		/// Configuration settings for the stream
 		/// </summary>
-		public StreamConfig Config { get; }
+		StreamConfig Config { get; }
 
 		/// <summary>
 		/// Whether this stream has been deleted
 		/// </summary>
-		public bool Deleted { get; }
+		bool Deleted { get; }
 
 		/// <summary>
 		/// List of templates available for this stream
 		/// </summary>
-		public IReadOnlyDictionary<TemplateRefId, TemplateRef> Templates { get; }
+		IReadOnlyDictionary<TemplateId, ITemplateRef> Templates { get; }
 
 		/// <summary>
 		/// Stream is paused for builds until specified time
 		/// </summary>
-		public DateTime? PausedUntil { get; }
+		DateTime? PausedUntil { get; }
 		
 		/// <summary>
 		/// Comment/reason for why the stream was paused
 		/// </summary>
-		public string? PauseComment { get; }
+		string? PauseComment { get; }
 
 		/// <summary>
 		/// The ACL for this object
 		/// </summary>
-		public Acl? Acl { get; }
+		Acl? Acl { get; }
+	}
+
+	/// <summary>
+	/// Job template in a stream
+	/// </summary>
+	public interface ITemplateRef
+	{
+		/// <summary>
+		/// The template id
+		/// </summary>
+		TemplateId Id { get; }
+
+		/// <summary>
+		/// Configuration of this template ref
+		/// </summary>
+		TemplateRefConfig Config { get; }
+
+		/// <summary>
+		/// Hash of the template definition
+		/// </summary>
+		ContentHash Hash { get; }
+
+		/// <summary>
+		/// List of schedules for this template
+		/// </summary>
+		ITemplateSchedule? Schedule { get; }
+
+		/// <summary>
+		/// List of template step states
+		/// </summary>
+		IReadOnlyList<ITemplateStep> StepStates { get; }
+
+		/// <summary>
+		/// Custom permissions for this template
+		/// </summary>
+		Acl? Acl { get; set; }
+	}
+
+	/// <summary>
+	/// Schedule for a template
+	/// </summary>
+	public interface ITemplateSchedule
+	{
+		/// <summary>
+		/// Config for this schedule
+		/// </summary>
+		ScheduleConfig Config { get; }
+
+		/// <summary>
+		/// Last changelist number that this was triggered for
+		/// </summary>
+		int LastTriggerChange { get; }
+
+		/// <summary>
+		/// Gets the last trigger time, in UTC
+		/// </summary>
+		DateTime LastTriggerTimeUtc { get; }
+
+		/// <summary>
+		/// List of jobs that are currently active
+		/// </summary>
+		IReadOnlyList<JobId> ActiveJobs { get; }
+	}
+
+	/// <summary>
+	/// Information about a paused template step
+	/// </summary>
+	public interface ITemplateStep
+	{
+		/// <summary>
+		/// Name of the step
+		/// </summary>
+		string Name { get; }
+
+		/// <summary>
+		/// User who paused the step
+		/// </summary>
+		UserId PausedByUserId { get; }
+
+		/// <summary>
+		/// The UTC time when the step was paused
+		/// </summary>
+		DateTime PauseTimeUtc { get; }
 	}
 
 	/// <summary>
@@ -304,6 +186,17 @@ namespace Horde.Build.Streams
 	/// </summary>
 	static class StreamExtensions
 	{
+		/// <summary>
+		/// Gets the next trigger time for a schedule
+		/// </summary>
+		/// <param name="schedule"></param>
+		/// <param name="timeZone"></param>
+		/// <returns></returns>
+		public static DateTime? GetNextTriggerTimeUtc(this ITemplateSchedule schedule, TimeZoneInfo timeZone)
+		{
+			return schedule.Config.GetNextTriggerTimeUtc(schedule.LastTriggerTimeUtc, timeZone);
+		}
+
 		/// <summary>
 		/// Tries to get an agent workspace definition from the given type name
 		/// </summary>

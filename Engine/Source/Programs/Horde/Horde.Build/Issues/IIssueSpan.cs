@@ -9,7 +9,7 @@ using MongoDB.Bson;
 namespace Horde.Build.Issues
 {
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -35,7 +35,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// The template containing this node
 		/// </summary>
-		public TemplateRefId TemplateRefId { get; }
+		public TemplateId TemplateRefId { get; }
 
 		/// <summary>
 		/// Name of the node

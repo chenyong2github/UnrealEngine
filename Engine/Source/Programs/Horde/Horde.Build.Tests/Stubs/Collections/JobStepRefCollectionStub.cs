@@ -17,7 +17,7 @@ namespace Horde.Build.Tests.Stubs.Collections
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateRefId = StringId<ITemplateRef>;
 
 	class JobStepRefStub : IJobStepRef
 	{

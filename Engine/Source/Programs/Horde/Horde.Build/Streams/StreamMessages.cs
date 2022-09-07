@@ -5,18 +5,15 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Core;
 using Horde.Build.Acls;
-using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Jobs.Schedules;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
-using HordeCommon;
 using Horde.Build.Issues;
 
 namespace Horde.Build.Streams
 {
-	using TemplateRefId = StringId<TemplateRef>;
-	using WorkflowId = StringId<WorkflowConfig>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Step state update request
@@ -164,32 +161,6 @@ namespace Horde.Build.Streams
 	}
 
 	/// <summary>
-	/// Trigger for another template
-	/// </summary>
-	public class GetChainedJobTemplateResponse
-	{
-		/// <summary>
-		/// Name of the target that needs to complete before starting the other template
-		/// </summary>
-		public string Trigger { get; set; }
-
-		/// <summary>
-		/// Id of the template to trigger
-		/// </summary>
-		public string TemplateId { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="trigger">The trigger definition</param>
-		public GetChainedJobTemplateResponse(ChainedJobTemplate trigger)
-		{
-			Trigger = trigger.Trigger;
-			TemplateId = trigger.TemplateRefId.ToString();
-		}
-	}
-
-	/// <summary>
 	/// State information for a step in the stream
 	/// </summary>
 	public class GetTemplateStepStateResponse
@@ -219,7 +190,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetTemplateStepStateResponse(TemplateStepState state, GetThinUserInfoResponse? pausedByUserInfo)
+		public GetTemplateStepStateResponse(ITemplateStep state, GetThinUserInfoResponse? pausedByUserInfo)
 		{
 			Name = state.Name;			
 			PauseTimeUtc = state.PauseTimeUtc;
@@ -275,7 +246,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// List of templates to trigger
 		/// </summary>
-		public List<GetChainedJobTemplateResponse>? ChainedJobs { get; set; }
+		public List<ChainedJobTemplateConfig>? ChainedJobs { get; set; }
 
 		/// <summary>
 		/// List of step states
@@ -295,17 +266,17 @@ namespace Horde.Build.Streams
 		/// <param name="template">The template instance</param>
 		/// <param name="stepStates">The template step states</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetTemplateRefResponse(TemplateRefId id, TemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, bool bIncludeAcl)
+		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, bool bIncludeAcl)
 			: base(template)
 		{
 			Id = id.ToString();
 			Hash = templateRef.Hash.ToString();
-			ShowUgsBadges = templateRef.ShowUgsBadges;
-			ShowUgsAlerts = templateRef.ShowUgsAlerts;
-			NotificationChannel = templateRef.NotificationChannel;
-			NotificationChannelFilter = templateRef.NotificationChannelFilter;
+			ShowUgsBadges = templateRef.Config.ShowUgsBadges;
+			ShowUgsAlerts = templateRef.Config.ShowUgsAlerts;
+			NotificationChannel = templateRef.Config.NotificationChannel;
+			NotificationChannelFilter = templateRef.Config.NotificationChannelFilter;
 			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule) : null;
-			ChainedJobs = (templateRef.ChainedJobs != null && templateRef.ChainedJobs.Count > 0) ? templateRef.ChainedJobs.ConvertAll(x => new GetChainedJobTemplateResponse(x)) : null;
+			ChainedJobs = (templateRef.Config.ChainedJobs != null && templateRef.Config.ChainedJobs.Count > 0) ? templateRef.Config.ChainedJobs : null;
 			StepStates = stepStates;
 			Acl = (bIncludeAcl && templateRef.Acl != null)? new GetAclResponse(templateRef.Acl) : null;
 		}

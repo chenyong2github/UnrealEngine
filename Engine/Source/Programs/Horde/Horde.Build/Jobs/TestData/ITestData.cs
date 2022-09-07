@@ -8,7 +8,7 @@ namespace Horde.Build.Jobs.TestData
 {
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Stores information about the results of a test
@@ -28,7 +28,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// The template reference id
 		/// </summary>
-		TemplateRefId TemplateRefId { get; }
+		TemplateId TemplateRefId { get; }
 
 		/// <summary>
 		/// The job which produced the data

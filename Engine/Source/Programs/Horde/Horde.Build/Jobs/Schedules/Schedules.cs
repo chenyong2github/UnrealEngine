@@ -2,79 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using Horde.Build.Acls;
 using Horde.Build.Perforce;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 
 namespace Horde.Build.Jobs.Schedules
 {
-	using TemplateRefId = StringId<TemplateRef>;
-
-	/// <summary>
-	/// Information about a schedule pattern
-	/// </summary>
-	public class GetSchedulePatternResponse
-	{
-		/// <summary>
-		/// Days of the week to run this schedule on. If null, the schedule will run every day.
-		/// </summary>
-		public List<string>? DaysOfWeek { get; set; }
-
-		/// <summary>
-		/// Time during the day for the first schedule to trigger. Measured in minutes from midnight.
-		/// </summary>
-		public int MinTime { get; set; }
-
-		/// <summary>
-		/// Time during the day for the last schedule to trigger. Measured in minutes from midnight.
-		/// </summary>
-		public int? MaxTime { get; set; }
-
-		/// <summary>
-		/// Interval between each schedule triggering
-		/// </summary>
-		public int? Interval { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="pattern">The pattern to construct from</param>
-		public GetSchedulePatternResponse(SchedulePattern pattern)
-		{
-			DaysOfWeek = pattern.DaysOfWeek?.ConvertAll(x => x.ToString());
-			MinTime = pattern.MinTime;
-			MaxTime = pattern.MaxTime;
-			Interval = pattern.Interval;
-		}
-	}
-
-	/// <summary>
-	/// Gate allowing a schedule to trigger.
-	/// </summary>
-	public class GetScheduleGateResponse
-	{
-		/// <summary>
-		/// The template containing the dependency
-		/// </summary>
-		public string TemplateId { get; set; }
-
-		/// <summary>
-		/// Target to wait for
-		/// </summary>
-		public string Target { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="gate">Gate to construct from</param>
-		public GetScheduleGateResponse(ScheduleGate gate)
-		{
-			TemplateId = gate.TemplateRefId.ToString();
-			Target = gate.Target;
-		}
-	}
+	using JobId = ObjectId<IJob>;
 
 	/// <summary>
 	/// Response describing a schedule
@@ -104,7 +38,7 @@ namespace Horde.Build.Jobs.Schedules
 		/// <summary>
 		/// Gate for this schedule to trigger
 		/// </summary>
-		public GetScheduleGateResponse? Gate { get; set; }
+		public ScheduleGateConfig? Gate { get; set; }
 
 		/// <summary>
 		/// The types of changes to run for
@@ -119,7 +53,7 @@ namespace Horde.Build.Jobs.Schedules
 		/// <summary>
 		/// New patterns for the schedule
 		/// </summary>
-		public List<GetSchedulePatternResponse> Patterns { get; set; }
+		public List<SchedulePatternConfig> Patterns { get; set; }
 
 		/// <summary>
 		/// Last changelist number that this was triggered for
@@ -134,28 +68,25 @@ namespace Horde.Build.Jobs.Schedules
 		/// <summary>
 		/// List of active jobs
 		/// </summary>
-		public List<string> ActiveJobs { get; set; }
+		public List<JobId> ActiveJobs { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="schedule">The schedule to construct from</param>
-		public GetScheduleResponse(Schedule schedule)
+		/// <param name="schedule">Schedule to construct from</param>
+		public GetScheduleResponse(ITemplateSchedule schedule)
 		{
-			Enabled = schedule.Enabled;
-			MaxActive = schedule.MaxActive;
-			MaxChanges = schedule.MaxChanges;
-			RequireSubmittedChange = schedule.RequireSubmittedChange;
-			if (schedule.Gate != null)
-			{
-				Gate = new GetScheduleGateResponse(schedule.Gate);
-			}
-			Filter = schedule.Filter;
-			TemplateParameters = schedule.TemplateParameters;
-			Patterns = schedule.Patterns.ConvertAll(x => new GetSchedulePatternResponse(x));
+			Enabled = schedule.Config.Enabled;
+			MaxActive = schedule.Config.MaxActive;
+			MaxChanges = schedule.Config.MaxChanges;
+			RequireSubmittedChange = schedule.Config.RequireSubmittedChange;
+			Gate = schedule.Config.Gate;
+			Filter = schedule.Config.Filter;
+			TemplateParameters = schedule.Config.TemplateParameters;
+			Patterns = schedule.Config.Patterns;
 			LastTriggerChange = schedule.LastTriggerChange;
-			LastTriggerTime = schedule.GetLastTriggerTimeUtc();
-			ActiveJobs = schedule.ActiveJobs.ConvertAll(x => x.ToString());
+			LastTriggerTime = schedule.LastTriggerTimeUtc;
+			ActiveJobs = new List<JobId>(schedule.ActiveJobs);
 		}
 	}
 

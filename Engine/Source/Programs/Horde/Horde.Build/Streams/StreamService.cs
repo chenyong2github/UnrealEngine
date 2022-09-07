@@ -17,7 +17,7 @@ namespace Horde.Build.Streams
 	using JobId = ObjectId<IJob>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Cache of information about stream ACLs
@@ -114,12 +114,12 @@ namespace Horde.Build.Streams
 		/// <param name="addJobs">Jobs to add</param>
 		/// <param name="removeJobs">Jobs to remove</param>
 		/// <returns>True if the stream was updated</returns>
-		public async Task<IStream?> UpdateScheduleTriggerAsync(IStream stream, TemplateRefId templateRefId, DateTime? lastTriggerTimeUtc = null, int? lastTriggerChange = null, List<JobId>? addJobs = null, List<JobId>? removeJobs = null)
+		public async Task<IStream?> UpdateScheduleTriggerAsync(IStream stream, TemplateId templateRefId, DateTime? lastTriggerTimeUtc = null, int? lastTriggerChange = null, List<JobId>? addJobs = null, List<JobId>? removeJobs = null)
 		{
 			IStream? newStream = stream;
 			while (newStream != null)
 			{
-				TemplateRef? templateRef;
+				ITemplateRef? templateRef;
 				if (!newStream.Templates.TryGetValue(templateRefId, out templateRef))
 				{
 					break;
@@ -158,7 +158,7 @@ namespace Horde.Build.Streams
 		/// <param name="templateRefId"></param>
 		/// <param name="stepStates"></param>
 		/// <returns></returns>
-		public Task<IStream?> TryUpdateTemplateRefAsync(IStream streamInterface, TemplateRefId templateRefId, List<UpdateStepStateRequest>? stepStates = null)
+		public Task<IStream?> TryUpdateTemplateRefAsync(IStream streamInterface, TemplateId templateRefId, List<UpdateStepStateRequest>? stepStates = null)
 		{
 			return _streams.TryUpdateTemplateRefAsync(streamInterface, templateRefId, stepStates );
 		}
@@ -293,7 +293,7 @@ namespace Horde.Build.Streams
 		/// <param name="user">The principal to authorize</param>
 		/// <param name="cache">Cache of project permissions</param>
 		/// <returns>True if the action is authorized</returns>
-		public Task<bool> AuthorizeAsync(IStream stream, TemplateRef template, AclAction action, ClaimsPrincipal user, ProjectPermissionsCache? cache)
+		public Task<bool> AuthorizeAsync(IStream stream, ITemplateRef template, AclAction action, ClaimsPrincipal user, ProjectPermissionsCache? cache)
 		{
 			bool? result = template.Acl?.Authorize(action, user);
 			if (result == null)

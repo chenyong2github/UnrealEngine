@@ -37,7 +37,7 @@ namespace Horde.Build.Tests
 	using LogId = ObjectId<ILogFile>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using UserId = ObjectId<IUser>;
 
 	[TestClass]
@@ -122,8 +122,8 @@ namespace Horde.Build.Tests
 			string revision = $"config:{streamId}";
 
 			StreamConfig streamConfig = new StreamConfig { Name = streamName };
-			streamConfig.Tabs.Add(new JobsTabConfig { Title = "General", Templates = new List<TemplateRefId> { new TemplateRefId("test-template") } });
-			streamConfig.Templates.Add(new TemplateRefConfig { Id = new TemplateRefId("test-template") });
+			streamConfig.Tabs.Add(new JobsTabConfig { Title = "General", Templates = new List<TemplateId> { new TemplateId("test-template") } });
+			streamConfig.Templates.Add(new TemplateRefConfig { Id = new TemplateId("test-template") });
 			await ConfigCollection.AddConfigAsync(revision, streamConfig);
 
 			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, revision, projectId));
@@ -236,7 +236,7 @@ namespace Horde.Build.Tests
 			job.SetupGet(x => x.Id).Returns(jobId);
 			job.SetupGet(x => x.Name).Returns(name);
 			job.SetupGet(x => x.StreamId).Returns(streamId);
-			job.SetupGet(x => x.TemplateId).Returns(new TemplateRefId("test-template"));
+			job.SetupGet(x => x.TemplateId).Returns(new TemplateId("test-template"));
 			job.SetupGet(x => x.Change).Returns(change);
 			job.SetupGet(x => x.Batches).Returns(batches);
 			job.SetupGet(x => x.ShowUgsBadges).Returns(promoteByDefault);

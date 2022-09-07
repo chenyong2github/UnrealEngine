@@ -21,7 +21,7 @@ namespace Horde.Build.Streams
 {
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
 	/// Controller for the /api/v1/streams endpoint
@@ -118,10 +118,10 @@ namespace Horde.Build.Streams
 			bool bIncludeAcl = stream.Acl != null && await _streamService.AuthorizeAsync(stream, AclAction.ViewPermissions, User, cache);
 
 			List<GetTemplateRefResponse> apiTemplateRefs = new List<GetTemplateRefResponse>();
-			foreach (KeyValuePair<TemplateRefId, TemplateRef> pair in stream.Templates)
+			foreach (KeyValuePair<TemplateId, ITemplateRef> pair in stream.Templates)
 			{
 				using IScope templateScope = GlobalTracer.Instance.BuildSpan("CreateGetStreamResponse.Template").StartActive();
-				templateScope.Span.SetTag("templateName", pair.Value.Name);
+				templateScope.Span.SetTag("templateName", pair.Value.Config.Name);
 				
 				if (await _streamService.AuthorizeAsync(stream, pair.Value, AclAction.ViewTemplate, User, cache))
 				{
@@ -129,19 +129,14 @@ namespace Horde.Build.Streams
 					
 					if (template != null)						
 					{
-						TemplateRef tref = pair.Value;
+						ITemplateRef tref = pair.Value;
 
 						List<GetTemplateStepStateResponse>? stepStates = null;
 						if (tref.StepStates != null)
 						{
 							for (int i = 0; i < tref.StepStates.Count; i++)
 							{
-								TemplateStepState state = tref.StepStates[i];
-
-								if (state.PausedByUserId == null)
-								{
-									continue;
-								}
+								ITemplateStep state = tref.StepStates[i];
 
 								stepStates ??= new List<GetTemplateStepStateResponse>();
 
@@ -253,7 +248,7 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewJob, streamId);
 			}
 
-			TemplateRefId templateIdValue = new TemplateRefId(templateId);
+			TemplateId templateIdValue = new TemplateId(templateId);
 
 			List<IJobStepRef> steps = await _jobStepRefCollection.GetStepsForNodeAsync(streamId, templateIdValue, step, change, true, count);
 			return steps.ConvertAll(x => PropertyFilter.Apply(new GetJobStepRefResponse(x), filter));
@@ -292,7 +287,7 @@ namespace Horde.Build.Streams
 		[HttpGet]
 		[Route("/api/v1/streams/{streamId}/templates/{templateId}")]
 		[ProducesResponseType(typeof(List<GetTemplateResponse>), 200)]
-		public async Task<ActionResult<object>> GetTemplateAsync(StreamId streamId, TemplateRefId templateId, [FromQuery] PropertyFilter? filter = null)
+		public async Task<ActionResult<object>> GetTemplateAsync(StreamId streamId, TemplateId templateId, [FromQuery] PropertyFilter? filter = null)
 		{
 			IStream? stream = await _streamService.GetStreamAsync(streamId);
 			if (stream == null)
@@ -300,7 +295,7 @@ namespace Horde.Build.Streams
 				return NotFound(streamId);
 			}
 
-			TemplateRef? templateRef;
+			ITemplateRef? templateRef;
 			if (!stream.Templates.TryGetValue(templateId, out templateRef))
 			{
 				return NotFound(streamId, templateId);
@@ -325,7 +320,7 @@ namespace Horde.Build.Streams
 		[HttpPut]
 		[Authorize]
 		[Route("/api/v1/streams/{streamId}/templates/{templateRefId}")]
-		public async Task<ActionResult> UpdateStreamTemplateRefAsync(StreamId streamId, TemplateRefId templateRefId, [FromBody] UpdateTemplateRefRequest update)
+		public async Task<ActionResult> UpdateStreamTemplateRefAsync(StreamId streamId, TemplateId templateRefId, [FromBody] UpdateTemplateRefRequest update)
 		{
 			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{

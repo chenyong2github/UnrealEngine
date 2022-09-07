@@ -13,7 +13,7 @@ using MongoDB.Bson;
 namespace Horde.Build.Issues
 {
 	using StreamId = StringId<IStream>;
-	using TemplateRefId = StringId<TemplateRef>;
+	using TemplateId = StringId<ITemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
@@ -340,12 +340,12 @@ namespace Horde.Build.Issues
 			Resolved = spans.All(x => x.NextSuccess != null);
 
 			AffectedTemplates = new List<GetIssueAffectedTemplateResponse>();
-			foreach (IGrouping<TemplateRefId, IIssueSpan> template in spans.GroupBy(x => x.TemplateRefId))
+			foreach (IGrouping<TemplateId, IIssueSpan> template in spans.GroupBy(x => x.TemplateRefId))
 			{
 				string templateName = template.Key.ToString();
-				if (stream != null && stream.Templates.TryGetValue(template.Key, out TemplateRef? templateRef))
+				if (stream != null && stream.Templates.TryGetValue(template.Key, out ITemplateRef? templateRef))
 				{
-					templateName = templateRef.Name;
+					templateName = templateRef.Config.Name;
 				}
 
 				HashSet<ObjectId> unresolvedTemplateSpans = new HashSet<ObjectId>(template.Where(x => x.NextSuccess == null).Select(x => x.Id));
@@ -355,10 +355,10 @@ namespace Horde.Build.Issues
 				AffectedTemplates.Add(new GetIssueAffectedTemplateResponse(template.Key.ToString(), templateName, template.All(x => x.NextSuccess != null), templateStep?.Severity ?? IssueSeverity.Unspecified));
 			}
 
-			HashSet<TemplateRefId> templateIdsSet = new HashSet<TemplateRefId>(spans.Select(x => x.TemplateRefId));
+			HashSet<TemplateId> templateIdsSet = new HashSet<TemplateId>(spans.Select(x => x.TemplateRefId));
 			TemplateIds = templateIdsSet.Select(x => x.ToString()).ToList();
 
-			HashSet<TemplateRefId> unresolvedTemplateIdsSet = new HashSet<TemplateRefId>(spans.Where(x => x.NextSuccess == null).Select(x => x.TemplateRefId));
+			HashSet<TemplateId> unresolvedTemplateIdsSet = new HashSet<TemplateId>(spans.Where(x => x.NextSuccess == null).Select(x => x.TemplateRefId));
 			UnresolvedTemplateIds = unresolvedTemplateIdsSet.Select(x => x.ToString()).ToList();
 			ResolvedTemplateIds = templateIdsSet.Except(unresolvedTemplateIdsSet).Select(x => x.ToString()).ToList();
 		}
