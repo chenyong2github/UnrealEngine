@@ -267,12 +267,14 @@ bool FBuildOutputInternal::TryLoad()
 
 	if (FCbFieldView MessagesField = OutputView[ANSITEXTVIEW("Messages")])
 	{
-		if (!MessagesField.IsArray())
+		const FCbArrayView MessagesArray = MessagesField.AsArrayView();
+		const uint64 MessageCount = MessagesArray.Num();
+		if (MessagesField.HasError() || MessageCount > MAX_int32)
 		{
 			return false;
 		}
-		Messages.Reserve(MessagesField.AsArrayView().Num());
-		for (FCbFieldView MessageField : MessagesField)
+		Messages.Reserve(int32(MessageCount));
+		for (FCbFieldView MessageField : MessagesArray)
 		{
 			const FUtf8StringView LevelName = MessageField[ANSITEXTVIEW("Level")].AsString();
 			const FUtf8StringView Message = MessageField[ANSITEXTVIEW("Message")].AsString();
@@ -287,12 +289,14 @@ bool FBuildOutputInternal::TryLoad()
 
 	if (FCbFieldView LogsField = OutputView[ANSITEXTVIEW("Logs")])
 	{
-		if (!LogsField.IsArray())
+		const FCbArrayView LogsArray = LogsField.AsArrayView();
+		const uint64 LogCount = LogsArray.Num();
+		if (LogsField.HasError() || LogCount > MAX_int32)
 		{
 			return false;
 		}
-		Logs.Reserve(LogsField.AsArrayView().Num());
-		for (FCbFieldView LogField : LogsField)
+		Logs.Reserve(int32(LogCount));
+		for (FCbFieldView LogField : LogsArray)
 		{
 			const FUtf8StringView LevelName = LogField[ANSITEXTVIEW("Level")].AsString();
 			const FUtf8StringView Category = LogField[ANSITEXTVIEW("Category")].AsString();

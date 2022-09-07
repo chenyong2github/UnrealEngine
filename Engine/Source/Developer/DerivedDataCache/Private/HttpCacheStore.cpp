@@ -1786,7 +1786,7 @@ void FHttpCacheStore::SetAccessToken(FStringView Token, double RefreshDelay)
 					AcquireAccessToken();
 					return false;
 				}
-			), RefreshDelay - RefreshGracePeriod);
+			), float(FMath::Min(RefreshDelay - RefreshGracePeriod, MAX_flt)));
 		}
 
 		// Schedule a forced refresh of the token when the scheduled refresh is starved or unavailable.
@@ -1803,7 +1803,7 @@ void FHttpCacheStore::SetAccessToken(FStringView Token, double RefreshDelay)
 
 TUniquePtr<FHttpCacheStore::FHttpOperation> FHttpCacheStore::WaitForHttpOperation(EOperationCategory Category, bool bUnboundedOverflow)
 {
-	if (Access && RefreshAccessTokenTime && RefreshAccessTokenTime < FPlatformTime::Seconds())
+	if (Access && RefreshAccessTokenTime > 0.0 && RefreshAccessTokenTime < FPlatformTime::Seconds())
 	{
 		AcquireAccessToken();
 	}

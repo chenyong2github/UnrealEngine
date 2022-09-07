@@ -302,12 +302,12 @@ bool FPakFileCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Out
 		{
 			check(Item->Size);
 			check(!OutData.Num());
-			OutData.AddUninitialized(Item->Size);
+			OutData.AddUninitialized(int32(Item->Size));
 			if (!FileHandle->Read(OutData.GetData(), int64(Item->Size)))
 			{
 				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Pak file, bad read."), *CachePath);
 			}
-			else if (uint32 TestCrc = FCrc::MemCrc_DEPRECATED(OutData.GetData(), Item->Size); TestCrc != Item->Crc)
+			else if (uint32 TestCrc = FCrc::MemCrc_DEPRECATED(OutData.GetData(), int32(Item->Size)); TestCrc != Item->Crc)
 			{
 				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Pak file, bad crc."), *CachePath);
 			}

@@ -990,7 +990,7 @@ FZenCacheStore::FZenCacheStore(
 	{
 		RpcUri << ZenService.GetInstance().GetURL() << ANSITEXTVIEW("/z$/$rpc");
 
-		const uint32 MaxConnections = FMath::Clamp(static_cast<uint32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads()), 8, 64);
+		const uint32 MaxConnections = uint32(FMath::Clamp(FPlatformMisc::NumberOfCoresIncludingHyperthreads(), 8, 64));
 		constexpr uint32 RequestPoolSize = 128;
 		constexpr uint32 RequestPoolOverflowSize = 128;
 

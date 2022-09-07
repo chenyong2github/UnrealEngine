@@ -74,7 +74,7 @@ protected:
 	{
 		std::atomic<uint64> Requests{ 0 };
 		std::atomic<uint64> MaxLatency{ 0 };
-		std::atomic<uint64> TotalMS{ 0 };
+		std::atomic<uint64> TotalCycles{ 0 };
 		std::atomic<uint64> TotalRequests{ 0 };
 
 		FEvent* StartEvent = FPlatformProcess::GetSynchEventFromPool(true);
@@ -94,11 +94,11 @@ protected:
 
 					while (FPlatformTime::Seconds() < StopTime.load(std::memory_order_relaxed))
 					{
-						uint64 Before = FPlatformTime::Cycles64();
+						const uint64 Before = FPlatformTime::Cycles64();
 						TestFunction();
-						uint64 Delta = FPlatformTime::Cycles64() - Before;
+						const uint64 Delta = FPlatformTime::Cycles64() - Before;
 						Requests++;
-						TotalMS += FPlatformTime::ToMilliseconds64(Delta);
+						TotalCycles += Delta;
 						TotalRequests++;
 
 						// Compare exchange loop until we either succeed to set the maximum value
@@ -143,11 +143,13 @@ protected:
 
 			if (TotalRequests)
 			{
-				UE_LOG(LogHttpDerivedDataBackendTests, Display, TEXT("RPS: %llu, AvgLatency: %.02f ms, MaxLatency: %.02f s"), Requests.exchange(0), double(TotalMS) / TotalRequests, FPlatformTime::ToSeconds(MaxLatency));
+				UE_LOG(LogHttpDerivedDataBackendTests, Display, TEXT("RPS: %" UINT64_FMT ", AvgLatency: %.02f ms, MaxLatency: %.02f s"),
+					Requests.exchange(0), FPlatformTime::ToMilliseconds64(TotalCycles) / double(TotalRequests), FPlatformTime::ToSeconds64(MaxLatency));
 			}
 			else
 			{
-				UE_LOG(LogHttpDerivedDataBackendTests, Display, TEXT("RPS: %llu, AvgLatency: N/A, MaxLatency: %.02f s"), Requests.exchange(0), FPlatformTime::ToSeconds(MaxLatency));
+				UE_LOG(LogHttpDerivedDataBackendTests, Display, TEXT("RPS: %" UINT64_FMT ", AvgLatency: N/A, MaxLatency: %.02f s"),
+					Requests.exchange(0), FPlatformTime::ToSeconds64(MaxLatency));
 			}
 		}
 
@@ -203,7 +205,7 @@ protected:
 						RecordBuilder.AddValue(Value);
 					}
 				}
-				GetOutputs[Response.UserData].Emplace(FGetOutput{ RecordBuilder.Build(), Response.Status });
+				GetOutputs[int32(Response.UserData)].Emplace(FGetOutput{ RecordBuilder.Build(), Response.Status });
 			});
 		RequestOwner.Wait();
 
@@ -249,7 +251,7 @@ protected:
 		FRequestOwner RequestOwner(EPriority::Blocking);
 		TestBackend->GetValue(Requests, RequestOwner, [&GetValueOutputs](FCacheGetValueResponse&& Response)
 			{
-				GetValueOutputs[Response.UserData].Emplace(FGetValueOutput{ Response.Value, Response.Status });
+				GetValueOutputs[int32(Response.UserData)].Emplace(FGetValueOutput{ Response.Value, Response.Status });
 			});
 		RequestOwner.Wait();
 
@@ -297,7 +299,7 @@ protected:
 		FRequestOwner RequestOwner(EPriority::Blocking);
 		TestBackend->GetChunks(Requests, RequestOwner, [&GetOutputs](FCacheGetChunkResponse&& Response)
 			{
-				GetOutputs[Response.UserData].Emplace(FGetChunksOutput { Response.RawData, Response.Status });
+				GetOutputs[int32(Response.UserData)].Emplace(FGetChunksOutput { Response.RawData, Response.Status });
 			});
 		RequestOwner.Wait();
 

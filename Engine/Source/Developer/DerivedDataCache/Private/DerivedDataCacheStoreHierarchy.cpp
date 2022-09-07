@@ -175,7 +175,7 @@ struct FCacheStoreHierarchy::TBatchParams
 	static void ModifyPolicyForResponse(decltype(FGetRequest::Policy)& Policy, const FGetResponse& Response) {}
 	static FGetResponse FilterResponseByRequest(const FGetResponse& Response, const FGetRequest& Request);
 	static FPutRequest MakePutRequest(const FGetResponse& Response, const FGetRequest& Request);
-	static FGetRequest MakeGetRequest(const FPutRequest& Request, uint64 UserData);
+	static FGetRequest MakeGetRequest(const FPutRequest& Request, int32 RequestIndex);
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,7 +441,7 @@ bool FCacheStoreHierarchy::TPutBatch<Params>::DispatchGetRequests()
 	TArray<FGetRequest, TInlineAllocator<1>> NodeRequests;
 	NodeRequests.Reserve(Requests.Num());
 
-	uint64 RequestIndex = 0;
+	int32 RequestIndex = 0;
 	for (const FPutRequest& Request : Requests)
 	{
 		if (!States[RequestIndex].bStop && CanQuery(GetCombinedPolicy(Request.Policy), Node.CacheFlags))
@@ -603,7 +603,7 @@ private:
 	{
 		FGetRequest Request;
 		FGetResponse Response;
-		uint64 NodeIndex = 0;
+		int32 NodeIndex = 0;
 	};
 
 	const FCacheStoreHierarchy& Hierarchy;
@@ -956,9 +956,9 @@ FCachePutRequest FCacheStoreHierarchy::FCacheRecordBatchParams::MakePutRequest(
 template <>
 FCacheGetRequest FCacheStoreHierarchy::FCacheRecordBatchParams::MakeGetRequest(
 	const FCachePutRequest& Request,
-	const uint64 UserData)
+	const int32 RequestIndex)
 {
-	return {Request.Name, Request.Record.GetKey(), AddPolicy(Request.Policy, ECachePolicy::SkipData), UserData};
+	return {Request.Name, Request.Record.GetKey(), AddPolicy(Request.Policy, ECachePolicy::SkipData), uint64(RequestIndex)};
 }
 
 void FCacheStoreHierarchy::Put(
@@ -1032,9 +1032,9 @@ FCachePutValueRequest FCacheStoreHierarchy::FCacheValueBatchParams::MakePutReque
 template <>
 FCacheGetValueRequest FCacheStoreHierarchy::FCacheValueBatchParams::MakeGetRequest(
 	const FCachePutValueRequest& Request,
-	const uint64 UserData)
+	const int32 RequestIndex)
 {
-	return {Request.Name, Request.Key, AddPolicy(Request.Policy, ECachePolicy::SkipData), UserData};
+	return {Request.Name, Request.Key, AddPolicy(Request.Policy, ECachePolicy::SkipData), uint64(RequestIndex)};
 }
 
 void FCacheStoreHierarchy::PutValue(

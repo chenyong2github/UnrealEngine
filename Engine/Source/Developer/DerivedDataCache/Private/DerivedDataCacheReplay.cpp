@@ -380,7 +380,7 @@ bool FCacheReplayReader::FState::DispatchRequests(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_Serialize);
 		const FCbArrayView Array = Object[ANSITEXTVIEW("Requests")].AsArrayView();
-		Requests.Reserve(Array.Num());
+		Requests.Reserve(IntCastChecked<int32>(Array.Num()));
 		for (FCbFieldView Field : Array)
 		{
 			RequestType& Request = Requests.AddDefaulted_GetRef();

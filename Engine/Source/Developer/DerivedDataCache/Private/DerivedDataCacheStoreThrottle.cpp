@@ -169,7 +169,7 @@ private:
 			if (ExpectedTime > ActualTime)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ThrottlingBandwidth);
-				FPlatformProcess::Sleep(ExpectedTime - ActualTime);
+				FPlatformProcess::Sleep(float(ExpectedTime - ActualTime));
 			}
 		}
 	}
