@@ -6,8 +6,9 @@
 
 #include <jni.h>
 #include <android/log.h>
-#include <vulkan/vulkan.h>
+#include "vulkan/vulkan.h"
 #include <vector>
+#include <list>
 #include <string>
 
 #define APPNAME "UEPSOService"
@@ -288,7 +289,6 @@ public:
 		}
 
 		// Create PSO
-
 		COPY_FROM_BUFFER(&PipelineCreateInfo, PSO, MemoryOffset, sizeof(GraphicsPipelineCreateInfo));
 
 		memset(&CreateInfo, 0, sizeof(VkGraphicsPipelineCreateInfo));
@@ -296,6 +296,18 @@ public:
 		CreateInfo.flags = PipelineCreateInfo.PipelineCreateFlags;
 		CreateInfo.stageCount = PipelineCreateInfo.StageCount;
 		CreateInfo.subpass = PipelineCreateInfo.subpass;
+
+		// FSR
+		bool bHasFSRCreateInfo = false;
+		COPY_FROM_BUFFER(&bHasFSRCreateInfo, PSO, MemoryOffset, sizeof(bool));
+
+		VkPipelineFragmentShadingRateStateCreateInfoKHR FSRCreateInfo;
+		if (bHasFSRCreateInfo)
+		{
+			COPY_FROM_BUFFER(&FSRCreateInfo, PSO, MemoryOffset, sizeof(VkPipelineFragmentShadingRateStateCreateInfoKHR));
+			FSRCreateInfo.pNext = nullptr;
+			CreateInfo.pNext = &FSRCreateInfo;
+		}
 
 		VkPipelineShaderStageCreateInfo ShaderStages[2];
 
@@ -467,6 +479,7 @@ public:
 		{
 			// Render pass
 			VkRenderPassCreateInfo2KHR RenderPassCreateInfo;
+
 			COPY_FROM_BUFFER(&RenderPassCreateInfo, PSO, MemoryOffset, sizeof(VkRenderPassCreateInfo2KHR));
 
 			// Check for VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT
@@ -492,24 +505,31 @@ public:
 			}
 
 			VkSubpassDescription2KHR* SubpassDescriptions = new VkSubpassDescription2KHR[RenderPassCreateInfo.subpassCount];
+			std::vector<VkFragmentShadingRateAttachmentInfoKHR> FSRAttachmentInfos;
 
 			for (uint32_t Idx = 0; Idx < RenderPassCreateInfo.subpassCount; ++Idx)
 			{
 				COPY_FROM_BUFFER(&SubpassDescriptions[Idx], PSO, MemoryOffset, sizeof(VkSubpassDescription2KHR));
 
-				// Check for fragment shading rate info
-				/*bool bHasNext = false;
-				COPY_FROM_BUFFER(&bHasNext, PSO, MemoryOffset, sizeof(bool));
+				// Add additional pNext structs
+				// FSR
+				bool bHasFSRAttachmentInfo = false;
+				COPY_FROM_BUFFER(&bHasFSRAttachmentInfo, PSO, MemoryOffset, sizeof(bool));;
 
-				if (bHasNext)
+				if (bHasFSRAttachmentInfo)
 				{
-					SubpassDescriptions[Idx].pNext = &PSO[MemoryOffset];
-					MemoryOffset += sizeof(VkFragmentShadingRateAttachmentInfoKHR);
-
-					VkFragmentShadingRateAttachmentInfoKHR* FragmentShadingRate = (VkFragmentShadingRateAttachmentInfoKHR*)SubpassDescriptions[Idx].pNext;
-					FragmentShadingRate->pFragmentShadingRateAttachment = (VkAttachmentReference2KHR*)&PSO[MemoryOffset];
+					FSRAttachmentInfos.push_back(VkFragmentShadingRateAttachmentInfoKHR());
+					auto& FSRAttachmentInfo = FSRAttachmentInfos.back();
+					FSRAttachmentInfo.pNext = nullptr;
+					FSRAttachmentInfo.sType = VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR;
+					FSRAttachmentInfo.pFragmentShadingRateAttachment = (VkAttachmentReference2KHR*)&PSO[MemoryOffset];
 					MemoryOffset += sizeof(VkAttachmentReference2KHR);
-				}*/
+
+					FSRAttachmentInfo.shadingRateAttachmentTexelSize = *(VkExtent2D*)&PSO[MemoryOffset];
+					MemoryOffset += sizeof(VkExtent2D);
+
+					SubpassDescriptions[Idx].pNext = &FSRAttachmentInfo;
+				}
 
 				if (SubpassDescriptions[Idx].colorAttachmentCount > 0)
 				{

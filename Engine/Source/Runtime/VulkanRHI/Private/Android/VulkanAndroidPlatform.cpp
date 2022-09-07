@@ -649,6 +649,78 @@ void CharArrayToBuffer(const TArray<const ANSICHAR*>& CharArray, TArray<char>& M
 	}
 }
 
+void GetVKStructsFromPNext(const void* pNext, TMap<uint32_t, const void*>& VkStructs)
+{
+	const void* PointerNext = pNext;
+
+	while (PointerNext)
+	{
+		const VkStructureType* NextType = (VkStructureType*)PointerNext;
+		VkStructs.FindOrAdd((uint32_t)*NextType) = PointerNext;
+
+		PointerNext = *((void**)(((uint8*)NextType) + sizeof(size_t)));
+	}
+}
+
+void HandleGraphicsPipelineCreatePNext(VkGraphicsPipelineCreateInfo* PipelineCreateInfo, TArray<char>& MemoryStream)
+{
+	TMap<uint32_t, const void*> VkStructs;
+	GetVKStructsFromPNext(PipelineCreateInfo->pNext, VkStructs);
+
+	int32_t HandledCount = 0;
+
+	// FSR Create Info
+	bool bHasFSRCreateInfo = false;
+
+#if !VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	COPY_TO_BUFFER(MemoryStream, &bHasFSRCreateInfo, sizeof(bool));
+#else
+	const void** Struct = VkStructs.Find((uint32_t)VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR);
+	bHasFSRCreateInfo = Struct != nullptr;
+	COPY_TO_BUFFER(MemoryStream, &bHasFSRCreateInfo, sizeof(bool));
+
+	if (bHasFSRCreateInfo)
+	{
+		VkPipelineFragmentShadingRateStateCreateInfoKHR FSRCreateInfo = *(VkPipelineFragmentShadingRateStateCreateInfoKHR*)*Struct;
+		FSRCreateInfo.pNext = nullptr;
+
+		COPY_TO_BUFFER(MemoryStream, &FSRCreateInfo, sizeof(VkPipelineFragmentShadingRateStateCreateInfoKHR));
+		HandledCount++;
+	} 
+#endif
+
+	check(HandledCount == VkStructs.Num());
+}
+
+void HandleSubpassDescriptionPNext(VkSubpassDescription2* SubpassDescription, TArray<char>& MemoryStream)
+{
+	TMap<uint32_t, const void*> VkStructs;
+	GetVKStructsFromPNext(SubpassDescription->pNext, VkStructs);
+
+	int32_t HandledCount = 0;
+
+	// FSR Create Info 
+	bool bHasFSRAttachmentCreateInfo = false;
+
+#if !VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	COPY_TO_BUFFER(MemoryStream, &bHasFSRAttachmentCreateInfo, sizeof(bool));
+#else
+	const void** Struct = VkStructs.Find((uint32_t)VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
+	bHasFSRAttachmentCreateInfo = Struct != nullptr;
+	COPY_TO_BUFFER(MemoryStream, &bHasFSRAttachmentCreateInfo, sizeof(bool));
+
+	if (bHasFSRAttachmentCreateInfo)
+	{
+		VkFragmentShadingRateAttachmentInfoKHR* FragmentShadingRateCreateInfo = (VkFragmentShadingRateAttachmentInfoKHR*)*Struct;
+		COPY_TO_BUFFER(MemoryStream, FragmentShadingRateCreateInfo->pFragmentShadingRateAttachment, sizeof(VkAttachmentReference2));
+		COPY_TO_BUFFER(MemoryStream, &FragmentShadingRateCreateInfo->shadingRateAttachmentTexelSize, sizeof(VkExtent2D));
+		HandledCount++;
+	}
+#endif
+
+	check(HandledCount == VkStructs.Num());
+}
+
 void PipelineToBinary(FVulkanDevice* Device, VkGraphicsPipelineCreateInfo* PipelineInfo, FGfxPipelineDesc* GfxEntry, const FVulkanRenderTargetLayout* RTLayout, TArray<char>& MemoryStream)
 {
 	static const unsigned int INITIAL_PSO_STREAM_SIZE = 64 * 1024;
@@ -679,7 +751,7 @@ void PipelineToBinary(FVulkanDevice* Device, VkGraphicsPipelineCreateInfo* Pipel
 	CharArrayToBuffer(DeviceExtensions, MemoryStream);
 	COPY_TO_BUFFER(MemoryStream, &pipelineCreateInfo, sizeof(GraphicsPipelineCreateInfo));
 
-	check(PipelineInfo->pNext == nullptr);
+	HandleGraphicsPipelineCreatePNext(PipelineInfo, MemoryStream);
 
 	// VkPipelineShaderStageCreateInfo
 	for (int32_t Idx = 0; Idx < PipelineInfo->stageCount; ++Idx)
@@ -912,22 +984,7 @@ void PipelineToBinary(FVulkanDevice* Device, VkGraphicsPipelineCreateInfo* Pipel
 			
 			COPY_TO_BUFFER(MemoryStream, &CreateInfo.pSubpasses[Idx], sizeof(VkSubpassDescription2));
 
-			check(CreateInfo.pSubpasses[Idx].pNext == nullptr);
-
-			// Check for fragment shading rate info
-			/*bool bHasNext = CreateInfo.pSubpasses[Idx].pNext != nullptr;
-			COPY_TO_BUFFER(MemoryStream, &bHasNext, MemoryOffset, sizeof(bool));
-			
-			if (bHasNext)
-			{
-				VkStructureType NextType = *(VkStructureType*)CreateInfo.pSubpasses[Idx].pNext;
-				check(NextType == VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
-
-				VkFragmentShadingRateAttachmentInfoKHR* FragmentShadingRate = (VkFragmentShadingRateAttachmentInfoKHR*)CreateInfo.pSubpasses[Idx].pNext;
-
-				COPY_TO_BUFFER(MemoryStream, FragmentShadingRate, MemoryOffset, sizeof(VkFragmentShadingRateAttachmentInfoKHR));
-				COPY_TO_BUFFER(MemoryStream, FragmentShadingRate->pFragmentShadingRateAttachment, MemoryOffset, sizeof(VkAttachmentReference2));
-			}*/
+			HandleSubpassDescriptionPNext(&SubpassDescription, MemoryStream);
 
 			if(SubpassDescription.colorAttachmentCount > 0)
 			{

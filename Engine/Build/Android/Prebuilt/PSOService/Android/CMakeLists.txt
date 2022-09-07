@@ -14,10 +14,10 @@ set(SOURCE_ROOT
 
 set(libpsoservice_includes
     ${SOURCE_ROOT}/src
+    ${CMAKE_SOURCE_DIR}/../../../../../Source/ThirdParty/Vulkan/Include
 )
 
 include_directories(${libpsoservice_includes}) 
-
 set(libpsoservice_source
     ${SOURCE_ROOT}/PSOService.cpp
 )
