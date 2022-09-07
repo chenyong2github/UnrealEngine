@@ -31,9 +31,8 @@ namespace UE::PixelStreaming
 		Player->VideoSink = VideoSink;
 
 		Streamer->StartStreaming();
-		Player->Connect(PlayerPort);
 
-		ADD_LATENT_AUTOMATION_COMMAND(FWaitForStreamerConnectedOrTimeout(5.0, Streamer))
+		ADD_LATENT_AUTOMATION_COMMAND(FConnectPlayerAfterStreamerConnectedOrTimeout(5.0, Streamer, Player, PlayerPort))
 		ADD_LATENT_AUTOMATION_COMMAND(FWaitForPlayerConnectedOrTimeout(5.0, Player, PlayerPort))
 		ADD_LATENT_AUTOMATION_COMMAND(FWaitForICEConnectedOrTimeout(5.0, Player))
 		ADD_LATENT_AUTOMATION_COMMAND(FSendSolidColorFrame(VideoInput, FrameConfig))
@@ -60,9 +59,8 @@ namespace UE::PixelStreaming
 		// Note: Important to couple framerate as we are manually passing frames and don't want any cached frames
 		Streamer->SetCoupleFramerate(true);
 		Streamer->StartStreaming();
-		Player->Connect(PlayerPort);
 
-		ADD_LATENT_AUTOMATION_COMMAND(FWaitForStreamerConnectedOrTimeout(5.0, Streamer))
+		ADD_LATENT_AUTOMATION_COMMAND(FConnectPlayerAfterStreamerConnectedOrTimeout(5.0, Streamer, Player, PlayerPort))
 		ADD_LATENT_AUTOMATION_COMMAND(FWaitForPlayerConnectedOrTimeout(5.0, Player, PlayerPort))
 		ADD_LATENT_AUTOMATION_COMMAND(FWaitForICEConnectedOrTimeout(5.0, Player))
 

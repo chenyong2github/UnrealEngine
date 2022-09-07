@@ -166,6 +166,24 @@ namespace UE::PixelStreaming
 		return false;
 	}
 
+	bool FConnectPlayerAfterStreamerConnectedOrTimeout::Update()
+	{
+		if (OutStreamer->IsSignallingConnected())
+		{
+			UE_LOG(LogPixelStreaming, Log, TEXT("Streamer connected to signalling server. Attempting to connect player..."));
+			OutPlayer->Connect(PlayerPort);
+			return true;
+		}
+
+		double DeltaTime = FPlatformTime::Seconds() - StartTime;
+		if (DeltaTime > TimeoutSeconds)
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Timed out waiting for streamer to connect to signalling server."));
+			return true;
+		}
+		return false;		
+	}
+
 	bool FWaitForPlayerConnectedOrTimeout::Update()
 	{
 		if (OutPlayer->IsSignallingConnected())

@@ -127,7 +127,9 @@ namespace UE::PixelStreaming
 		}
 		else
 		{
-			UE_LOG(LogPixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
+			#if !WITH_DEV_AUTOMATION_TESTS
+				UE_LOG(LogPixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
+			#endif
 		}
 
 		rtc::InitializeSSL();
