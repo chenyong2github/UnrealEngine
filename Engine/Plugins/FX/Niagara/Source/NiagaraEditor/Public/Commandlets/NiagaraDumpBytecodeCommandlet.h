@@ -33,10 +33,11 @@ class UNiagaraDumpByteCodeCommandlet : public UCommandlet
 
 private:
 	void ProcessNiagaraScripts();
-	void DumpByteCode(const UNiagaraScript* Script, const FString& FilePath);
+	void DumpByteCode(const UNiagaraScript* Script, const FString& PathName, const FString& HashName, const FString& FilePath);
 
 	struct FScriptMetaData
 	{
+		FString SystemHash;
 		FString FullName;
 		int32 RegisterCount;
 		int32 OpCount;
