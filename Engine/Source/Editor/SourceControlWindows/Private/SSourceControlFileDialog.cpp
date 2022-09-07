@@ -3,7 +3,7 @@
 #include "SSourceControlFileDialog.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "SFileTableRow.h"
+#include "SSourceControlChangelistRows.h"
 #include "Styling/AppStyle.h"
 #include "SWarningOrErrorBox.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

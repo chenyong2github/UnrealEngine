@@ -8,6 +8,9 @@
 #include "SourceControlAssetDataCache.h"
 #include "ISourceControlProvider.h"
 #include "UncontrolledChangelistState.h"
+#include "Input/DragAndDrop.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Templates/Function.h"
 
 struct FAssetData;
 
@@ -66,6 +69,7 @@ protected:
 	TreeItemType Type;
 };
 
+
 /** Displays a changelist icon/number/description. */
 struct FChangelistTreeItem : public IChangelistTreeItem
 {
@@ -98,6 +102,7 @@ struct FChangelistTreeItem : public IChangelistTreeItem
 	TSharedRef<ISourceControlChangelistState> ChangelistState;
 };
 
+
 /** Displays an uncontrolled changelist icon/number/description. */
 struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 {
@@ -129,6 +134,7 @@ struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 
 	FUncontrolledChangelistStateRef UncontrolledChangelistState;
 };
+
 
 /** Displays a set of files under a changelist or uncontrolled changelist. */
 struct FFileTreeItem : public IChangelistTreeItem
@@ -230,12 +236,14 @@ private:
 	bool bAssetsUpToDate;
 };
 
+
 /** Root node to group shelved files as children. */
 struct FShelvedChangelistTreeItem : public IChangelistTreeItem
 {
 	FShelvedChangelistTreeItem() : IChangelistTreeItem(IChangelistTreeItem::ShelvedChangelist) {}
 	FText GetDisplayText() const;
 };
+
 
 struct FShelvedFileTreeItem : public FFileTreeItem
 {
@@ -245,21 +253,17 @@ struct FShelvedFileTreeItem : public FFileTreeItem
 	}
 };
 
+
 struct FOfflineFileTreeItem : public IChangelistTreeItem
 {
 	explicit FOfflineFileTreeItem(const FString& InFilename);
 
 public:
 	const FString& GetFilename() const { return Filename; }
-
 	const FText& GetPackageName() const { return PackageName; }
-
 	const FText& GetDisplayName() const { return AssetName; }
-
 	const FText& GetDisplayPath() const { return AssetPath; }
-
 	const FText& GetDisplayType() const { return AssetType; }
-
 	const FSlateColor& GetDisplayColor() const { return AssetTypeColor; }
 
 private:
@@ -272,6 +276,7 @@ private:
 	FSlateColor AssetTypeColor;
 };
 
+
 namespace SSourceControlCommon
 {
 	TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bIsShelvedFile = false);
@@ -279,7 +284,30 @@ namespace SSourceControlCommon
 	FText GetDefaultAssetType();
 	FText GetDefaultUnknownAssetType();
 	FText GetDefaultMultipleAsset();
+
+	void ExecuteChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& ChangelistTask);
+	void ExecuteUncontrolledChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& UncontrolledChangelistTask);
+	void DisplaySourceControlOperationNotification(const FText& Message, SNotificationItem::ECompletionState CompletionState);
+	bool OpenConflictDialog(const TArray<FSourceControlStateRef>& InFilesConflicts);
 }
+
+
+/** Implements drag and drop operation. */
+struct FSCCFileDragDropOp : public FDragDropOperation
+{
+	DRAG_DROP_OPERATOR_TYPE(FSCCFileDragDropOp, FDragDropOperation);
+
+	using FDragDropOperation::Construct;
+
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
+	{
+		FSourceControlStateRef FileState = Files.IsEmpty() ? UncontrolledFiles[0] : Files[0];
+		return SSourceControlCommon::GetSCCFileWidget(MoveTemp(FileState));
+	}
+
+	TArray<FSourceControlStateRef> Files;
+	TArray<FSourceControlStateRef> UncontrolledFiles;
+};
 
 
 typedef TSharedPtr<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemPtr;

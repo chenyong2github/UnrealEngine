@@ -12,11 +12,14 @@
 #include "ISourceControlModule.h"
 #include "SourceControlAssetDataCache.h"
 #include "SourceControlHelpers.h"
+#include "SSourceControlFileDialog.h"
 
 #include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Layout/SBox.h"
+#include"Framework/Notifications/NotificationManager.h"
+#include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -344,6 +347,77 @@ FText GetDefaultMultipleAsset()
 {
 	return LOCTEXT("SourceCOntrol_ManyAssetType", "Multiple Assets");
 }
+
+/** Wraps the execution of a changelist operations with a slow task. */
+void ExecuteChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& ChangelistTask)
+{
+	// NOTE: This is a ugly workaround for P4 because the generic popup feedback operations in FScopedSourceControlProgress() was supressed for all synchrounous
+	//       operations. For other source control providers, the popup still shows up and showing a slow task and the FScopedSourceControlProgress at the same
+	//       time is a bad user experience. Until we fix source control popup situation in general in the Editor, this hack is in place to avoid the double popup.
+	//       At the time of writing, the other source control provider that supports changelists is Plastic.
+	if (ISourceControlModule::Get().GetProvider().GetName() == "Perforce")
+	{
+		FScopedSlowTask Progress(0.f, Message);
+		Progress.MakeDialog();
+		ChangelistTask();
+	}
+	else
+	{
+		ChangelistTask();
+	}
+}
+
+/** Wraps the execution of an uncontrolled changelist operations with a slow task. */
+void ExecuteUncontrolledChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& UncontrolledChangelistTask)
+{
+	ExecuteChangelistOperationWithSlowTaskWrapper(Message, UncontrolledChangelistTask);
+}
+
+/** Displays toast notification to report the status of task. */
+void DisplaySourceControlOperationNotification(const FText& Message, SNotificationItem::ECompletionState CompletionState)
+{
+	if (Message.IsEmpty())
+	{
+		return;
+	}
+
+	FNotificationInfo NotificationInfo(Message);
+	NotificationInfo.ExpireDuration = 6.0f;
+	NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([]() { FGlobalTabmanager::Get()->TryInvokeTab(FName("OutputLog")); });
+	NotificationInfo.HyperlinkText = LOCTEXT("ShowOutputLogHyperlink", "Show Output Log");
+	FSlateNotificationManager::Get().AddNotification(NotificationInfo)->SetCompletionState(CompletionState);
+}
+
+bool OpenConflictDialog(const TArray<FSourceControlStateRef>& InFilesConflicts)
+{
+	TSharedPtr<SWindow> Window;
+	TSharedPtr<SSourceControlFileDialog> SourceControlFileDialog;
+
+	Window = SNew(SWindow)
+			 .Title(LOCTEXT("CheckoutPackagesDialogTitle", "Check Out Assets"))
+			 .SizingRule(ESizingRule::UserSized)
+			 .ClientSize(FVector2D(1024.0f, 512.0f))
+			 .SupportsMaximize(false)
+			 .SupportsMinimize(false)
+			 [
+			 	SNew(SBorder)
+			 	.Padding(4.f)
+			 	.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			 	[
+			 		SAssignNew(SourceControlFileDialog, SSourceControlFileDialog)
+			 		.Message(LOCTEXT("CheckoutPackagesDialogMessage", "Conflict detected in the following assets:"))
+			 		.Warning(LOCTEXT("CheckoutPackagesWarnMessage", "Warning: These assets are locked or not at the head revision. You may lose your changes if you continue, as you will be unable to submit them to source control."))
+			 		.Files(InFilesConflicts)
+			 	]
+			 ];
+
+	SourceControlFileDialog->SetWindow(Window);
+	Window->SetWidgetToFocusOnActivate(SourceControlFileDialog);
+	GEditor->EditorAddModalWindow(Window.ToSharedRef());
+
+	return SourceControlFileDialog->IsProceedButtonPressed();
+}
+
 
 } // end of namespace SSourceControlCommon
 
