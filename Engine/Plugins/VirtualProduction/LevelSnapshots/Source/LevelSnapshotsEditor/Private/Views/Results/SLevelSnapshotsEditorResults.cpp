@@ -608,7 +608,11 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 					}
 				}
 
-				if (!CheckedNodeFieldPaths.IsEmpty())
+				if (CheckedNodeFieldPaths.IsEmpty())
+				{
+					SelectionMap.RemoveObjectPropertiesFromMap(WorldObject);
+				}
+				else
 				{
 					SelectionMap.AddObjectProperties(WorldObject, CheckedNodeFieldPaths);
 				}
