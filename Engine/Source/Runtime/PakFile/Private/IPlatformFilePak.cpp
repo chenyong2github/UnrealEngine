@@ -7281,9 +7281,6 @@ FPakPlatformFile::~FPakPlatformFile()
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	FCoreDelegates::OnMountAllPakFiles.Unbind();
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreDelegates::OnMountPak.Unbind();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::MountPak.Unbind();
 	FCoreDelegates::OnUnmountPak.Unbind();
 	FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks.Unbind();
@@ -7510,9 +7507,6 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 #endif // !UE_BUILD_SHIPPING
 
 	FCoreDelegates::OnMountAllPakFiles.BindRaw(this, &FPakPlatformFile::MountAllPakFiles);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreDelegates::OnMountPak.BindRaw(this, &FPakPlatformFile::HandleOnMountPakDelegate);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::MountPak.BindRaw(this, &FPakPlatformFile::HandleMountPakDelegate);
 	FCoreDelegates::OnUnmountPak.BindRaw(this, &FPakPlatformFile::HandleUnmountPakDelegate);
 	FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks.BindRaw(this, &FPakPlatformFile::OptimizeMemoryUsageForMountedPaks);
@@ -7805,10 +7799,6 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 
 		if (bPakSuccess)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
-			FCoreDelegates::OnPakFileMounted.Broadcast(InPakFilename, Pak->PakchunkIndex);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			double OnPakFileMounted2Time = 0.0;
 			{
 				FScopedDurationTimer Timer(OnPakFileMounted2Time);
