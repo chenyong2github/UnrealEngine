@@ -794,7 +794,7 @@ const TArray<TRigVMTypeIndex>& FRigVMRegistry::GetCompatibleTypes(TRigVMTypeInde
 	return EmptyTypes;
 }
 
-const TArray<TRigVMTypeIndex>& FRigVMRegistry::GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory InCategory)
+const TArray<TRigVMTypeIndex>& FRigVMRegistry::GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory InCategory) const
 {
 	check(InCategory != FRigVMTemplateArgument::ETypeCategory_Invalid);
 	return TypesPerCategory.FindChecked(InCategory);
@@ -1159,11 +1159,6 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 				Argument.TypeCategories.Add(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
 			}
 
-			for (int32 i = 0; i < Argument.TypeIndices.Num(); ++i)
-			{
-				Argument.TypeToPermutations.Add(Argument.TypeIndices[i], {i});				
-			}
-			
 			NumPermutations = FMath::Max(NumPermutations, Argument.TypeIndices.Num()); 
 		}
 	}
@@ -1177,16 +1172,50 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 			{
 				const int32 TypeIndex = Argument.TypeIndices[0];
 				Argument.TypeIndices.SetNum(NumPermutations);
-				TArray<int32> ArgTypePermutations;
-				ArgTypePermutations.SetNum(NumPermutations);
 				for(int32 Index=0;Index<NumPermutations;Index++)
 				{
 					Argument.TypeIndices[Index] = TypeIndex;
-					ArgTypePermutations[Index] = Index;
 				}
-				Argument.TypeToPermutations.Add(TypeIndex, ArgTypePermutations);
 			}
 		}
+	}
+
+	// Remove duplicate permutations
+	{
+		TArray<int32> ToRemove;
+		TArray<TArray<TRigVMTypeIndex>> PermutationTypes;
+		PermutationTypes.Reserve(NumPermutations);
+		for(int32 Index=0;Index<NumPermutations;Index++)
+		{
+			TArray<TRigVMTypeIndex> ArgTypes;
+			ArgTypes.Reserve(Template.Arguments.Num());
+			for(FRigVMTemplateArgument& Argument : Template.Arguments)
+			{
+				ArgTypes.Add(Argument.TypeIndices[Index]);
+			}
+
+			if (PermutationTypes.Contains(ArgTypes))
+			{
+				ToRemove.Add(Index);
+			}
+			else
+			{
+				PermutationTypes.Add(ArgTypes);
+			}
+		}
+		for (int32 i=ToRemove.Num()-1; i>=0; --i)
+		{
+			for(FRigVMTemplateArgument& Argument : Template.Arguments)
+			{
+				Argument.TypeIndices.RemoveAt(ToRemove[i]);
+			}
+		}
+		NumPermutations -= ToRemove.Num();
+	}
+	
+	for(FRigVMTemplateArgument& Argument : Template.Arguments)
+	{
+		Argument.UpdateTypeToPermutations();
 	}
 
 	Template.Permutations.SetNum(NumPermutations);

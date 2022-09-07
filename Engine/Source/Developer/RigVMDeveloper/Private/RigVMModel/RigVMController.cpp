@@ -17045,8 +17045,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 			}
 			
 			PreferredPermutations = InNode->FindPermutationsForTypes(PreferredPermutationPairs, false);
-			// ensure(PreferredPermutations.Num() == 1);
-			check(!PreferredPermutations.IsEmpty());
+			ensureMsgf(PreferredPermutations.Num() == 1, TEXT("Number of preferred permutations is not 1 in %s"), *GetPackage()->GetPathName());
 			if (EntryNode)
 			{
 				EntryNode->ResolvedPermutation = PreferredPermutations[0];
@@ -17059,8 +17058,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 		else
 		{
 			PreferredPermutations = InNode->FindPermutationsForTypes(InNode->PreferredPermutationPairs, false);
-			// ensure(PreferredPermutations.Num() == 1);
-			check(!PreferredPermutations.IsEmpty());
+			ensureMsgf(PreferredPermutations.Num() == 1, TEXT("Number of preferred permutations is not 1 in %s"), *GetPackage()->GetPathName());
 			InNode->ResolvedPermutation = PreferredPermutations[0];
 		}			
 	}

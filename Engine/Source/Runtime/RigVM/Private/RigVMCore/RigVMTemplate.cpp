@@ -190,6 +190,7 @@ void FRigVMTemplateArgument::EnsureValidExecuteType()
 
 void FRigVMTemplateArgument::UpdateTypeToPermutations()
 {
+	TypeToPermutations.Reset();
 	for(int32 TypeIndex=0;TypeIndex<TypeIndices.Num();TypeIndex++)
 	{
 		if (TArray<int32>* Permutations = TypeToPermutations.Find(TypeIndices[TypeIndex]))
