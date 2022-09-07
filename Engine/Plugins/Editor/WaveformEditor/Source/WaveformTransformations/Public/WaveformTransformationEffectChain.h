@@ -22,7 +22,7 @@ private:
 	TArray<TStrongObjectPtr<class USoundEffectSourcePreset>> Presets;
 };
 
-UCLASS()
+UCLASS(hidden)
 class WAVEFORMTRANSFORMATIONS_API UWaveformTransformationEffectChain : public UWaveformTransformationBase
 {
 	GENERATED_BODY()
