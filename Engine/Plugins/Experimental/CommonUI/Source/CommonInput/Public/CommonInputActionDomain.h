@@ -50,6 +50,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputEventFlowBehavior InnerBehavior = ECommonInputEventFlowBehavior::BlockIfHandled;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Default" )
+	bool bUseActionDomainDesiredInputConfig;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	ECommonInputMode InputMode = ECommonInputMode::Game;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
+
 	bool ShouldBreakInnerEventFlow(bool bInputEventHandled) const;
 
 	bool ShouldBreakEventFlow(bool bDomainHadActiveRoots, bool bInputEventHandledAtLeastOnce) const;
@@ -67,4 +76,10 @@ public:
 	// Domains will receive events in ascending index order
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TArray<TObjectPtr<UCommonInputActionDomain>> ActionDomains;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	ECommonInputMode InputMode = ECommonInputMode::Game;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	EMouseCaptureMode MouseCaptureMode = EMouseCaptureMode::CapturePermanently;
 };

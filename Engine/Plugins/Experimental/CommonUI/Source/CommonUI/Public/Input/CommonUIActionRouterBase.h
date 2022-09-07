@@ -125,6 +125,10 @@ protected:
 	virtual void SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot);
 	void SetForceResetActiveRoot(bool bInForceResetActiveRoot);
 
+	void UpdateLeafNodeAndConfig(FActivatableTreeRootPtr DesiredRoot, FActivatableTreeNodePtr DesiredLeafNode);
+
+	void RefreshActionDomainLeafNodeConfig();
+
 	bool bIsActivatableTreeEnabled = true;
 
 	TSharedPtr<FCommonAnalogCursor> AnalogCursor;
@@ -218,7 +222,7 @@ private:
 		int32 Remove(FActivatableTreeRootRef RootNode);
 
 		// Trivial Contains check
-		bool Contains(FActivatableTreeRootRef RootNode);
+		bool Contains(FActivatableTreeRootRef RootNode) const;
 	};
 
 	TMap<TObjectPtr<UCommonInputActionDomain>, FActionDomainSortedRootList> ActionDomainRootNodes;

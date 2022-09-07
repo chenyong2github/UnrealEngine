@@ -190,8 +190,11 @@ public:
 
 	int32 GetLastPaintLayer() const;
 	TOptional<FUIInputConfig> FindDesiredInputConfig() const;
+	TOptional<FUIInputConfig> FindDesiredActionDomainInputConfig() const;
 	FUICameraConfig FindDesiredCameraConfig() const;
-
+	
+	void SetCanReceiveInput(bool bInCanReceiveInput);
+	
 	void AddScrollRecipient(const UWidget& ScrollRecipient);
 	void RemoveScrollRecipient(const UWidget& ScrollRecipient);
 	void AddInputPreprocessor(const TSharedRef<IInputProcessor>& InputPreprocessor, int32 DesiredIndex);
@@ -204,11 +207,9 @@ protected:
 	FActivatableTreeNode(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget, const FActivatableTreeNodeRef& InParent);
 
 	virtual bool IsWidgetReachableForInput(const UWidget* Widget) const override;
-
-	virtual void Init();
-	virtual void SetCanReceiveInput(bool bInCanReceiveInput);
 	
 	bool CanReceiveInput() const { return bCanReceiveInput; }
+	virtual void Init();	
 	FActivatableTreeRootRef GetRoot() const;
 
 	void AppendValidScrollRecipients(TArray<const UWidget*>& AllScrollRecipients) const;
@@ -260,11 +261,11 @@ class COMMONUI_API FActivatableTreeRoot : public FActivatableTreeNode
 public:
 	static FActivatableTreeRootRef Create(UCommonUIActionRouterBase& OwningRouter, UCommonActivatableWidget& ActivatableWidget);
 	
-	virtual void SetCanReceiveInput(bool bInCanReceiveInput) override;
+	void UpdateLeafNode();
 
 	TArray<const UWidget*> GatherScrollRecipients() const;
 
-	bool UpdateLeafmostActiveNode(FActivatableTreeNodePtr BaseCandidateNode);
+	bool UpdateLeafmostActiveNode(FActivatableTreeNodePtr BaseCandidateNode, bool bInApplyConfig = true);
 
 	void DebugDump(FString& OutputStr, bool bIncludeActions, bool bIncludeChildren, bool bIncludeInactive) const;
 
@@ -273,6 +274,8 @@ public:
 	void FocusLeafmostNode();
 
 	void RefreshCachedRestorationTarget();
+
+	void ApplyLeafmostNodeConfig();
 
 protected:
 	virtual void Init() override;
@@ -283,8 +286,6 @@ private:
 	{}
 
 	void HandleInputMethodChanged(ECommonInputType InputMethod);
-
-	void ApplyLeafmostNodeConfig();
 
 	void HandleRequestRefreshLeafmostFocus();
 

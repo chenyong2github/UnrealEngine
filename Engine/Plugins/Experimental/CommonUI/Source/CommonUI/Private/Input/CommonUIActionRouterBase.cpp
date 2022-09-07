@@ -580,6 +580,7 @@ void UCommonUIActionRouterBase::HandleRootWidgetSlateReleased(TWeakPtr<FActivata
 		{
 			//@todo DanH: This won't actually change the current config, which we may want to do with a loading screen
 			ActiveInputConfig.Reset();
+			RefreshActionDomainLeafNodeConfig();
 		}
 	}
 	else
@@ -589,6 +590,9 @@ void UCommonUIActionRouterBase::HandleRootWidgetSlateReleased(TWeakPtr<FActivata
 		{
 			FActionDomainSortedRootList& ActionDomainRootList = Pair.Value;
 			NumRemoved += ActionDomainRootList.Remove(RootNode);
+			RootNode->OnLeafmostActiveNodeChanged.Unbind();
+			RootNode->SetCanReceiveInput(false);
+			RootNode->UpdateLeafNode();
 		}
 
 		if (NumRemoved <= 0)
@@ -602,21 +606,59 @@ void UCommonUIActionRouterBase::HandleRootWidgetSlateReleased(TWeakPtr<FActivata
 void UCommonUIActionRouterBase::HandleRootNodeActivated(TWeakPtr<FActivatableTreeRoot> WeakActivatedRoot)
 {
 	FActivatableTreeRootRef ActivatedRoot = WeakActivatedRoot.Pin().ToSharedRef();
-	if (!RootNodes.Contains(ActivatedRoot))
+	UCommonActivatableWidget* NodeWidget = ActivatedRoot->GetWidget();
+	if (UCommonInputActionDomain* WidgetActionDomain = NodeWidget ? NodeWidget->GetCalculatedActionDomain() : nullptr)
 	{
+		const FActionDomainSortedRootList* ActionDomainRootList = ActionDomainRootNodes.Find(WidgetActionDomain);
+		if (ActionDomainRootList && ensure(ActionDomainRootList->Contains(ActivatedRoot)))
+		{
+			ActivatedRoot->SetCanReceiveInput(true);
+			ActivatedRoot->OnLeafmostActiveNodeChanged.BindUObject(this, &UCommonUIActionRouterBase::HandleLeafmostActiveNodeChanged);
+			
+			UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
+			if (UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable())
+			{
+				// We find the first root node that isn't the activated root and bail early. 
+				// The action domains and root lists are sorted so we should end up with a node with a higher paint layer
+				// or we just stop at the activated node and make sure it's leaf node is updated.
+				for (const UCommonInputActionDomain* ActionDomain : ActionDomainTable->ActionDomains)
+				{
+					if (FActionDomainSortedRootList* SortedRootList = ActionDomainRootNodes.Find(ActionDomain))
+					{
+						for (FActivatableTreeRootRef& RootNode : SortedRootList->RootList)
+						{
+							if (RootNode->IsReceivingInput() && RootNode->DoesWidgetSupportActivationFocus())
+							{
+								if (RootNode == ActivatedRoot)
+								{
+									// This will allow us to update the leaf node config on the activated root.
+									ActivatedRoot->UpdateLeafNode();
+									OnBoundActionsUpdated().Broadcast();
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		return;
 	}
 
-	if (ActivatedRoot->GetLastPaintLayer() > 0)
+	if (RootNodes.Contains(ActivatedRoot))
 	{
-		const int32 CurrentRootLayer = ActiveRootNode ? ActiveRootNode->GetLastPaintLayer() : INDEX_NONE;
-		if (ActivatedRoot->GetLastPaintLayer() > CurrentRootLayer)
+		if (ActivatedRoot->GetLastPaintLayer() > 0)
 		{
-			// Ensure we have a local player so the action router local player subsystem will handle root change
-			const ULocalPlayer* LocalPlayer = GetLocalPlayer();
-			if (LocalPlayer && LocalPlayer->ViewportClient)
+			const int32 CurrentRootLayer = ActiveRootNode ? ActiveRootNode->GetLastPaintLayer() : INDEX_NONE;
+			if (ActivatedRoot->GetLastPaintLayer() > CurrentRootLayer)
 			{
-				SetActiveRoot(ActivatedRoot);
+				// Ensure we have a local player so the action router local player subsystem will handle root change
+				const ULocalPlayer* LocalPlayer = GetLocalPlayer();
+				if (LocalPlayer && LocalPlayer->ViewportClient)
+				{
+					SetActiveRoot(ActivatedRoot);
+				}
 			}
 		}
 	}
@@ -624,10 +666,21 @@ void UCommonUIActionRouterBase::HandleRootNodeActivated(TWeakPtr<FActivatableTre
 
 void UCommonUIActionRouterBase::HandleRootNodeDeactivated(TWeakPtr<FActivatableTreeRoot> WeakDeactivatedRoot)
 {
-	if (ActiveRootNode && ActiveRootNode == WeakDeactivatedRoot.Pin())
+	FActivatableTreeRootPtr DeactivatedRoot = WeakDeactivatedRoot.Pin();
+	UCommonActivatableWidget* NodeWidget = DeactivatedRoot ? DeactivatedRoot->GetWidget() : nullptr;
+	UCommonInputActionDomain* ActionDomain = NodeWidget ? NodeWidget->GetCalculatedActionDomain() : nullptr;
+	
+	if (ActionDomain || (ActiveRootNode && ActiveRootNode == DeactivatedRoot))
 	{
+		// Action domain root nodes will need to recalibrate during deactivation since we're not relying on 
+		// timing to fix up the input config as RootNodes does.
+		RefreshActionDomainLeafNodeConfig();
+
 		// Reset the active root widget - we'll re-establish it on the next tick
-		SetActiveRoot(nullptr);
+		if (ActiveRootNode.IsValid())
+		{
+			SetActiveRoot(nullptr);
+		}
 	}
 }
 
@@ -777,13 +830,7 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 	{
 		if (RebuiltWidget.IsValid() && RebuiltWidget->GetCachedWidget())
 		{
-			if (UCommonInputActionDomain* ActionDomain = RebuiltWidget->GetCalculatedActionDomain())
-			{
-				FActivatableTreeRootRef RootNode = FActivatableTreeRoot::Create(*this, *RebuiltWidget);
-				RebuiltWidget->OnSlateReleased().AddUObject(this, &UCommonUIActionRouterBase::HandleRootWidgetSlateReleased, TWeakPtr<FActivatableTreeRoot>(RootNode));
-				ActionDomainRootNodes.FindOrAdd(ActionDomain).Add(RootNode);
-			}
-			else if (UCommonActivatableWidget* ActivatableParent = !RebuiltWidget->IsModal() ? ::FindOwningActivatable(*RebuiltWidget) : nullptr)
+			if (UCommonActivatableWidget* ActivatableParent = !RebuiltWidget->IsModal() ? ::FindOwningActivatable(*RebuiltWidget) : nullptr)
 			{
 				WidgetsByDirectParent.FindOrAdd(ActivatableParent).Add(RebuiltWidget.Get());
 			}
@@ -805,7 +852,15 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 		RootNode->OnDeactivated.BindUObject(this, &UCommonUIActionRouterBase::HandleRootNodeDeactivated, WeakRoot);
 		RootWidget->OnSlateReleased().AddUObject(this, &UCommonUIActionRouterBase::HandleRootWidgetSlateReleased, WeakRoot);
 
-		RootNodes.Add(RootNode);
+		UCommonInputActionDomain* ActionDomain = RootWidget->GetCalculatedActionDomain();
+		if (ActionDomain)
+		{
+			ActionDomainRootNodes.FindOrAdd(ActionDomain).Add(RootNode);
+		}
+		else
+		{
+			RootNodes.Add(RootNode);
+		}
 
 		AssembleTreeRecursive(RootNode, WidgetsByDirectParent);
 
@@ -1055,6 +1110,7 @@ void UCommonUIActionRouterBase::SetActiveRoot(FActivatableTreeRootPtr NewActiveR
 	{
 		ActiveRootNode->OnLeafmostActiveNodeChanged.Unbind();
 		ActiveRootNode->SetCanReceiveInput(false);
+		ActiveRootNode->UpdateLeafNode();
 	}
 
 	if (bForceResetActiveRoot || !bIsActivatableTreeEnabled)
@@ -1069,6 +1125,7 @@ void UCommonUIActionRouterBase::SetActiveRoot(FActivatableTreeRootPtr NewActiveR
 		if (NewActiveRoot)
 		{
 			NewActiveRoot->SetCanReceiveInput(true);
+			NewActiveRoot->UpdateLeafNode();
 			NewActiveRoot->OnLeafmostActiveNodeChanged.BindUObject(this, &UCommonUIActionRouterBase::HandleLeafmostActiveNodeChanged);
 		}
 	}
@@ -1079,6 +1136,18 @@ void UCommonUIActionRouterBase::SetActiveRoot(FActivatableTreeRootPtr NewActiveR
 void UCommonUIActionRouterBase::SetForceResetActiveRoot(bool bInForceResetActiveRoot)
 {
 	bForceResetActiveRoot = bInForceResetActiveRoot;
+}
+
+void UCommonUIActionRouterBase::UpdateLeafNodeAndConfig(FActivatableTreeRootPtr DesiredRoot, FActivatableTreeNodePtr DesiredLeafNode)
+{
+	if (DesiredRoot.IsValid())
+	{
+		// We're updating both the leaf node and it's config if we're the active root.
+		if (!DesiredRoot->UpdateLeafmostActiveNode(DesiredLeafNode, DesiredRoot == ActiveRootNode))
+		{
+			UE_LOG(LogUIActionRouter, Warning, TEXT("LeafmostActiveNode not updated."));
+		}
+	}
 }
 
 UCommonUIActionRouterBase::FPendingWidgetRegistration& UCommonUIActionRouterBase::GetOrCreatePendingRegistration(const UWidget& Widget)
@@ -1123,9 +1192,10 @@ FActivatableTreeNodePtr UCommonUIActionRouterBase::FindNode(const UCommonActivat
 			{
 				for (const FActivatableTreeRootRef& RootNode : Pair.Value.RootList)
 				{
-					if (Widget == RootNode->GetWidget())
+					FoundNode = FindNodeRecursive(RootNode, *Widget);
+					if (FoundNode.IsValid())
 					{
-						return RootNode;
+						break;
 					}
 				}
 			}
@@ -1208,6 +1278,35 @@ FActivatableTreeNodePtr UCommonUIActionRouterBase::FindNodeRecursive(const FActi
 void UCommonUIActionRouterBase::SetActiveUIInputConfig(const FUIInputConfig& NewConfig)
 {
 	ApplyUIInputConfig(NewConfig, !ActiveInputConfig.IsSet());
+}
+
+void UCommonUIActionRouterBase::RefreshActionDomainLeafNodeConfig()
+{
+	UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
+	if (UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable())
+	{
+		for (const UCommonInputActionDomain* ActionDomain : ActionDomainTable->ActionDomains)
+		{
+			if (FActionDomainSortedRootList* SortedRootList = ActionDomainRootNodes.Find(ActionDomain))
+			{
+				for (FActivatableTreeRootRef& RootNode : SortedRootList->RootList)
+				{
+					// only root nodes that are actively receiving input and supports widget activation focus
+					// should update leaf nodes and have input config applied. This will also update focus.
+					if (RootNode->IsReceivingInput() && RootNode->DoesWidgetSupportActivationFocus())
+					{
+						if (!RootNode->UpdateLeafmostActiveNode(RootNode))
+						{
+							RootNode->ApplyLeafmostNodeConfig();
+						}
+						return;
+					}
+				}
+			}
+		}
+
+		SetActiveUIInputConfig(FUIInputConfig(ActionDomainTable->InputMode, ActionDomainTable->MouseCaptureMode));
+	}
 }
 
 void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh)
@@ -1470,7 +1569,7 @@ int32 UCommonUIActionRouterBase::FActionDomainSortedRootList::Remove(FActivatabl
 	return RootList.Remove(RootNode);
 }
 
-bool UCommonUIActionRouterBase::FActionDomainSortedRootList::Contains(FActivatableTreeRootRef RootNode)
+bool UCommonUIActionRouterBase::FActionDomainSortedRootList::Contains(FActivatableTreeRootRef RootNode) const
 {
 	return RootList.Contains(RootNode);
 }
