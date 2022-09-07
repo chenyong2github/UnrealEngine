@@ -32,13 +32,11 @@ void FTimecodeDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle
 {
 	TimecodeProperty = PropertyHandle;
 
-	ChildBuilder.AddCustomRow(LOCTEXT("TimecodeLabel", "Timecode"))
+	ChildBuilder.AddProperty(PropertyHandle)
+		.CustomWidget()
 		.NameContent()
 		[
-			SNew(STextBlock)
-			.Text(PropertyHandle->GetPropertyDisplayName())
-			.ToolTipText(LOCTEXT("TimecodeLabelTooltip", "Timecode"))
-			.Font(CustomizationUtils.GetRegularFont())
+			PropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
 		[

@@ -373,7 +373,10 @@ class UPropertyEditorTestObject : public UObject
 	TArray<FColor> ColorPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
-	TArray<TEnumAsByte<enum EPropertyEditorTestEnum> > EnumPropertyArray;
+	TArray<FTimecode> TimecodePropertyArray;
+
+	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
+	TArray<TEnumAsByte<EPropertyEditorTestEnum> > EnumPropertyArray;
 
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	TArray<FPropertyEditorTestBasicStruct> StructPropertyArray;
