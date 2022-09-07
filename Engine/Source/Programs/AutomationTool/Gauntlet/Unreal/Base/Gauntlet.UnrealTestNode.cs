@@ -1093,6 +1093,10 @@ namespace Gauntlet
 				{
 					TestNodeEvents.Add(new UnrealTestEvent(EventSeverity.Fatal, "Engine Initialization Failed", new List<string> { "Engine failed to initialize in one or more roles. This is likely a bad build." }));
 				}
+				if (DistinctResults.Contains(UnrealProcessResult.LoginFailed))
+				{
+					TestNodeEvents.Add(new UnrealTestEvent(EventSeverity.Fatal, "Login Unsuccessful", new List<string> { "User account never successfully finished logging in." }));
+				}
 				if (DistinctResults.Contains(UnrealProcessResult.EncounteredFatalError))
 				{
 					TestNodeEvents.Add(new UnrealTestEvent(EventSeverity.Fatal, "Fatal Error Encountered", new List<string> { "Test encountered a fatal error. Check ClientOutput.log and ServerOutput.log for details." }));
