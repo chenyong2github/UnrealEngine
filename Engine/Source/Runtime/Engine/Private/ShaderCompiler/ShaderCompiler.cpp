@@ -5589,10 +5589,12 @@ void GlobalBeginCompileShader(
 	if (bUsingMobileRenderer)
 	{
 		Input.Environment.SetDefine(TEXT("SHADING_PATH_MOBILE"), 1);
-		if (IsMobileDeferredShadingEnabled((EShaderPlatform)Target.Platform))
-		{
-			Input.Environment.SetDefine(TEXT("MOBILE_DEFERRED_SHADING"), 1);
+		
+		const bool bMobileDeferredShading = IsMobileDeferredShadingEnabled((EShaderPlatform)Target.Platform);
+		Input.Environment.SetDefine(TEXT("MOBILE_DEFERRED_SHADING"), bMobileDeferredShading ? 1 : 0);
 
+		if (bMobileDeferredShading)
+		{
 			bool bGLESDeferredShading = Target.Platform == SP_OPENGL_ES3_1_ANDROID;
 			Input.Environment.SetDefine(TEXT("USE_GLES_FBF_DEFERRED"), bGLESDeferredShading ? 1 : 0);
 			Input.Environment.SetDefine(TEXT("MOBILE_EXTENDED_GBUFFER"), MobileUsesExtenedGBuffer((EShaderPlatform)Target.Platform) ? 1 : 0);
