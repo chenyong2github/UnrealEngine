@@ -10,10 +10,13 @@
 #include "StateTreeTestTypes.h"
 #include "StateTreeExecutionContext.h"
 #include "Engine/World.h"
+#include "Async/ParallelFor.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_StateTreeTest"
 
 PRAGMA_DISABLE_OPTIMIZATION
+
+std::atomic<int32> FStateTreeTestConditionInstanceData::GlobalCounter = 0;
 
 namespace UE::StateTree::Tests
 {
@@ -49,7 +52,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(TaskB1.ID, TEXT("IntB")));
 
 		auto& IntCond = StateA.AddEnterCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Less);
-		IntCond.GetInstance().Right = 2;
+		IntCond.GetInstanceData().Right = 2;
 
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(IntCond.ID, TEXT("Left")));
 
@@ -61,7 +64,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 
 		FStateTreeTransition& Trans = StateB.AddTransition({}, EStateTreeTransitionType::GotoState, &Root);
 		auto& TransFloatCond = Trans.AddCondition<FStateTreeCompareFloatCondition>(EGenericAICheck::Less);
-		TransFloatCond.GetInstance().Right = 13.0f;
+		TransFloatCond.GetInstanceData().Right = 13.0f;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("FloatA")), FStateTreeEditorPropertyPath(TransFloatCond.ID, TEXT("Left")));
 
 		StateB.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
@@ -106,34 +109,34 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		auto& ReserveSOTask = UseSmartObjectOnLane.AddTask<FTestTask_ReserveSmartObject>(FName(TEXT("ReserveSOTask")));
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(SmartObjectEval.ID, TEXT("PotentialSmartObjects")), FStateTreeEditorPropertyPath(ReserveSOTask.ID, TEXT("PotentialSmartObjects")));
 		auto& ReserveHasSmartObjects = UseSmartObjectOnLane.AddEnterCondition<FStateTreeCompareBoolCondition>();
-		ReserveHasSmartObjects.GetInstance().bRight = true;
+		ReserveHasSmartObjects.GetInstanceData().bRight = true;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(SmartObjectEval.ID, TEXT("bHasSmartObjects")), FStateTreeEditorPropertyPath(ReserveHasSmartObjects.ID, TEXT("bLeft")));
 		UseSmartObjectOnLane.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Wander); // This catches child states too
 
 		//      |  |- WalkToSO
 		auto& MoveToSOTask = WalkToSO.AddTask<FTestTask_MoveTo>(FName(TEXT("MoveToSOTask")));
-		MoveToSOTask.GetItem().TicksToCompletion = 2;
+		MoveToSOTask.GetNode().TicksToCompletion = 2;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(ReserveSOTask.ID, TEXT("ReservedSmartObjectLocation")), FStateTreeEditorPropertyPath(MoveToSOTask.ID, TEXT("MoveLocation")));
 		WalkToSO.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 
 		//      |  \- UseSO
 		auto& UseSOTask = UseSO.AddTask<FTestTask_UseSmartObject>(FName(TEXT("UseSOTask")));
-		UseSOTask.GetItem().TicksToCompletion = 2;
+		UseSOTask.GetNode().TicksToCompletion = 2;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(ReserveSOTask.ID, TEXT("ReservedSmartObject")), FStateTreeEditorPropertyPath(UseSOTask.ID, TEXT("SmartObject")));
 		// UseSO uses UseSmartObjectOnLane completed transition.
 
 		//      |- Walk Along Lane
 		auto& MoveAlongLaneTask = WalkAlongLane.AddTask<FTestTask_MoveTo>(FName(TEXT("MoveAlongLaneTask")));
-		MoveAlongLaneTask.GetItem().TicksToCompletion = 2;
+		MoveAlongLaneTask.GetNode().TicksToCompletion = 2;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(WanderEval.ID, TEXT("WanderLocation")), FStateTreeEditorPropertyPath(MoveAlongLaneTask.ID, TEXT("MoveLocation")));
 		auto& MoveHasWanderLoc = WalkAlongLane.AddEnterCondition<FStateTreeCompareBoolCondition>();
-		MoveHasWanderLoc.GetInstance().bRight = true;
+		MoveHasWanderLoc.GetInstanceData().bRight = true;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(WanderEval.ID, TEXT("bHasWanderLocation")), FStateTreeEditorPropertyPath(MoveHasWanderLoc.ID, TEXT("bLeft")));
 		WalkAlongLane.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
 		//      \- StandOnLane
 		auto& StandTask = StandOnLane.AddTask<FTestTask_Stand>(FName(TEXT("StandTask")));
-		StandTask.GetItem().TicksToCompletion = 2;
+		StandTask.GetNode().TicksToCompletion = 2;
 		StandOnLane.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
 		FStateTreeCompilerLog Log;
@@ -283,13 +286,13 @@ struct FStateTreeTest_Select : FAITestBase
 		UStateTreeState& State1A = State1.AddChildState(FName(TEXT("State1A")));
 
 		auto& TaskRoot = Root.AddTask<FTestTask_Stand>(FName(TEXT("TaskRoot")));
-		TaskRoot.GetItem().TicksToCompletion = 2;
+		TaskRoot.GetNode().TicksToCompletion = 2;
 
 		auto& Task1 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
-		Task1.GetItem().TicksToCompletion = 2;
+		Task1.GetNode().TicksToCompletion = 2;
 
 		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
-		Task1A.GetItem().TicksToCompletion = 2;
+		Task1A.GetNode().TicksToCompletion = 2;
 		State1A.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &State1);
 
 		FStateTreeCompilerLog Log;
@@ -358,7 +361,7 @@ struct FStateTreeTest_FailEnterState : FAITestBase
 
 		auto& Task1 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task1")));
 		auto& Task2 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task2")));
-		Task2.GetItem().EnterStateResult = EStateTreeRunStatus::Failed;
+		Task2.GetNode().EnterStateResult = EStateTreeRunStatus::Failed;
 		auto& Task3 = State1.AddTask<FTestTask_Stand>(FName(TEXT("Task3")));
 
 		auto& Task1A = State1A.AddTask<FTestTask_Stand>(FName(TEXT("Task1A")));
@@ -460,6 +463,100 @@ struct FStateTreeTest_SubTree : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_SubTree, "System.StateTree.SubTree");
+
+
+struct FStateTreeTest_SharedInstanceData : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+		
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		auto& IntCond = Root.AddEnterCondition<FStateTreeTestCondition>();
+		IntCond.GetInstanceData().Count = 1;
+
+		auto& Task = Root.AddTask<FTestTask_Stand>(FName(TEXT("Task")));
+		Task.GetNode().TicksToCompletion = 2;
+
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		// Init, nothing should access the shared data.
+		constexpr int32 NumConcurrent = 100;
+		FStateTreeTestConditionInstanceData::GlobalCounter = 0;
+
+		bool bInitSucceeded = true;
+		TArray<FTestStateTreeExecutionContext> ExecContexts;
+		ExecContexts.SetNum(NumConcurrent);
+		for (FTestStateTreeExecutionContext& Exec : ExecContexts)
+		{
+			bInitSucceeded &= Exec.Init(StateTree, StateTree, EStateTreeStorage::Internal);
+		}
+		AITEST_TRUE("All StateTree contexts should init", bInitSucceeded);
+		AITEST_EQUAL("Test condition global counter should be 0", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, 0);
+		
+		// Start in parallel
+		// This should create shared data per thread.
+		// We expect that ParallelForWithTaskContext() creates a context per thread.
+		TArray<FStateTreeTestRunContext> RunContexts;
+		
+		ParallelForWithTaskContext(
+			RunContexts,
+			ExecContexts.Num(),
+			[&ExecContexts](FStateTreeTestRunContext& RunContext, int32 Index)
+			{
+				const EStateTreeRunStatus Status = ExecContexts[Index].Start();
+				if (Status == EStateTreeRunStatus::Running)
+				{
+					RunContext.Count++;
+				}
+			}
+		);
+
+		int32 StartTotalRunning = 0;
+		for (FStateTreeTestRunContext RunContext : RunContexts)
+		{
+			StartTotalRunning += RunContext.Count;
+		}
+		AITEST_EQUAL("All StateTree contexts should be running after Start", StartTotalRunning, NumConcurrent);
+		AITEST_EQUAL("Test condition global counter should equal context count after Start", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, ExecContexts.Num());
+
+		
+		// Tick in parallel
+		// This should not recreate the data, so FStateTreeTestConditionInstanceData::GlobalCounter should stay as is.
+		for (FStateTreeTestRunContext RunContext : RunContexts)
+		{
+			RunContext.Count = 0;
+		}
+
+		ParallelForWithTaskContext(
+			RunContexts,
+			ExecContexts.Num(),
+			[&ExecContexts](FStateTreeTestRunContext& RunContext, int32 Index)
+			{
+				const EStateTreeRunStatus Status = ExecContexts[Index].Tick(0.1f);
+				if (Status == EStateTreeRunStatus::Running)
+				{
+					RunContext.Count++;
+				}
+			}
+		);
+
+		int32 TickTotalRunning = 0;
+		for (FStateTreeTestRunContext RunContext : RunContexts)
+		{
+			TickTotalRunning += RunContext.Count;
+		}
+		AITEST_EQUAL("All StateTree contexts should be running after Tick", TickTotalRunning, NumConcurrent);
+		AITEST_EQUAL("Test condition global counter should equal context count after Tick", (int32)FStateTreeTestConditionInstanceData::GlobalCounter, ExecContexts.Num());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_SharedInstanceData, "System.StateTree.SharedInstanceData");
 
 PRAGMA_ENABLE_OPTIMIZATION
 

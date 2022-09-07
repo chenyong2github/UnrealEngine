@@ -65,7 +65,7 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorNode
 template <typename T>
 struct TStateTreeEditorNode : public FStateTreeEditorNode
 {
-	typedef T NodeType;
-	FORCEINLINE T& GetItem() { return Node.template GetMutable<T>(); }
-	FORCEINLINE typename T::InstanceDataType& GetInstance() { return Instance.template GetMutable<typename T::InstanceDataType>(); }
+	using NodeType = T;
+	FORCEINLINE T& GetNode() { return Node.template GetMutable<T>(); }
+	FORCEINLINE typename T::InstanceDataType& GetInstanceData() { return Instance.template GetMutable<typename T::InstanceDataType>(); }
 };

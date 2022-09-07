@@ -6,6 +6,7 @@
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "AssetRegistry/AssetData.h"
+#include "Misc/ScopeRWLock.h"
 
 const FGuid FStateTreeCustomVersion::GUID(0x28E21331, 0x501F4723, 0x8110FA64, 0xEA10DA1E);
 FCustomVersionRegistration GRegisterStateTreeCustomVersion(FStateTreeCustomVersion::GUID, FStateTreeCustomVersion::LatestVersion, TEXT("StateTreeAsset"));
@@ -14,6 +15,42 @@ bool UStateTree::IsReadyToRun() const
 {
 	// Valid tree must have at least one state and valid instance data.
 	return States.Num() > 0 && bIsLinked;
+}
+
+TSharedPtr<FStateTreeInstanceData> UStateTree::GetSharedInstanceData() const
+{
+	// Create a unique index for each thread.
+	static std::atomic_int ThreadIndexCounter {0};
+	static thread_local int32 ThreadIndex = ThreadIndexCounter.fetch_add(1);
+
+	// If shared instance data for this thread exists, return it.
+	{
+		FReadScopeLock ReadLock(PerThreadSharedInstanceDataLock);
+		if (ThreadIndex < PerThreadSharedInstanceData.Num())
+		{
+			return PerThreadSharedInstanceData[ThreadIndex];
+		}
+	}
+
+	// Not initialized yet, create new instances up to the index.
+	FWriteScopeLock WriteLock(PerThreadSharedInstanceDataLock);
+
+	// It is possible that multiple threads are waiting for the write lock,
+	// which means that execution may get here so that 'ThreadIndex' is already in valid range.
+	// The loop below is organized to handle that too.
+	
+	const int32 NewNum = ThreadIndex + 1;
+	PerThreadSharedInstanceData.Reserve(NewNum);
+	UStateTree* NonConstThis = const_cast<UStateTree*>(this); 
+	
+	for (int32 Index = PerThreadSharedInstanceData.Num(); Index < NewNum; Index++)
+	{
+		TSharedPtr<FStateTreeInstanceData> SharedData = MakeShared<FStateTreeInstanceData>();
+		SharedData->CopyFrom(*NonConstThis, SharedInstanceData);
+		PerThreadSharedInstanceData.Add(SharedData);
+	}
+
+	return PerThreadSharedInstanceData[ThreadIndex];
 }
 
 #if WITH_EDITOR
@@ -109,6 +146,9 @@ void UStateTree::ResetLinked()
 	ExternalDataDescs.Reset();
 	ExternalDataBaseIndex = 0;
 	NumDataViews = 0;
+
+	FWriteScopeLock WriteLock(PerThreadSharedInstanceDataLock);
+	PerThreadSharedInstanceData.Reset();
 }
 
 bool UStateTree::Link()

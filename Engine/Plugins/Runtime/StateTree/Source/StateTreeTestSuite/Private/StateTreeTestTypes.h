@@ -4,6 +4,7 @@
 
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
+#include "StateTreeConditionBase.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
 #include "StateTreeTestTypes.generated.h"
@@ -836,5 +837,39 @@ struct FTestTask_UseSmartObject : public FStateTreeTaskBase
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	EStateTreeRunStatus EnterStateResult = EStateTreeRunStatus::Running;
+};
+
+USTRUCT()
+struct FStateTreeTestConditionInstanceData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category = Input)
+	int32 Count = 1;
+
+	static std::atomic<int32> GlobalCounter;
+};
+
+USTRUCT()
+struct FStateTreeTestCondition : public FStateTreeConditionCommonBase
+{
+	GENERATED_BODY()
+
+	typedef FStateTreeTestConditionInstanceData InstanceDataType;
+
+	FStateTreeTestCondition() = default;
+
+	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override
+	{
+		InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+		InstanceData.GlobalCounter.fetch_add(InstanceData.Count);
+		return true;
+	}
+};
+
+struct FStateTreeTestRunContext
+{
+	int32 Count = 0;
 };
 

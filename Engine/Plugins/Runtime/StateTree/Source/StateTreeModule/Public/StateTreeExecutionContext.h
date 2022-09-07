@@ -312,7 +312,7 @@ protected:
 	 * Checks all conditions at given range
 	 * @return True if all conditions pass.
 	 */
-	bool TestAllConditions(const int32 ConditionsOffset, const int32 ConditionsNum);
+	bool TestAllConditions(FStateTreeInstanceData& SharedInstanceData, const int32 ConditionsOffset, const int32 ConditionsNum);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.
@@ -321,7 +321,7 @@ protected:
 	 * the actual next state returned by the selector.
 	 * @return Transition result describing the source state, state transitioned to, and next selected state.
 	 */
-	bool TriggerTransitions(FStateTreeInstanceData& InstanceData, FStateTreeTransitionResult& OutTransition);
+	bool TriggerTransitions(FStateTreeInstanceData& InstanceData, FStateTreeInstanceData& SharedInstanceData, FStateTreeTransitionResult& OutTransition);
 
 	/**
 	 * Runs state selection logic starting at the specified state, walking towards the leaf states.
@@ -333,12 +333,12 @@ protected:
 	 * @param OutNewActiveStates Active states that got selected.
 	 * @return True if succeeded to select new active states.
 	 */
-	bool SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
+	bool SelectState(FStateTreeInstanceData& InstanceData, FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/**
 	 * Used internally to do the recursive part of the SelectState().
 	 */
-	bool SelectStateInternal(FStateTreeInstanceData& InstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
+	bool SelectStateInternal(FStateTreeInstanceData& InstanceData, FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/** @return Mutable storage based on storage settings. */
 	FStateTreeInstanceData& SelectMutableInstanceData(FStateTreeInstanceData* ExternalInstanceData)

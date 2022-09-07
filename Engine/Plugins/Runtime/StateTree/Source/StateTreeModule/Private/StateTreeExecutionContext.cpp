@@ -185,7 +185,10 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* Ex
 			return EStateTreeRunStatus::Failed;
 		}
 	}
-	
+
+	const TSharedPtr<FStateTreeInstanceData> SharedInstanceData = StateTree->GetSharedInstanceData();
+	check(SharedInstanceData.IsValid());
+
 	FScopedCurrentInstanceData InstanceDataScope(*this, InstanceData); 
 	FStateTreeExecutionState* Exec = &GetExecState(InstanceData);
 
@@ -209,7 +212,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* Ex
 	static const FStateTreeStateHandle RootState = FStateTreeStateHandle(0);
 
 	FStateTreeActiveStates NextActiveStates;
-	if (SelectState(InstanceData, RootState, NextActiveStates))
+	if (SelectState(InstanceData, *SharedInstanceData.Get(), RootState, NextActiveStates))
 	{
 		if (NextActiveStates.Last() == FStateTreeStateHandle::Succeeded || NextActiveStates.Last() == FStateTreeStateHandle::Failed)
 		{
@@ -326,6 +329,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 		return EStateTreeRunStatus::Failed;
 	}
 
+	const TSharedPtr<FStateTreeInstanceData> SharedInstanceData = StateTree->GetSharedInstanceData();
+	check(SharedInstanceData.IsValid());
+
 	FScopedCurrentInstanceData InstanceDataScope(*this, InstanceData); 
 	FStateTreeExecutionState* Exec = &GetExecState(InstanceData);
 
@@ -372,7 +378,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 	{
 		// Trigger conditional transitions or state succeed/failed transitions. First tick transition is handled here too.
 		FStateTreeTransitionResult Transition;
-		if (TriggerTransitions(InstanceData, Transition))
+		if (TriggerTransitions(InstanceData, *SharedInstanceData.Get(), Transition))
 		{
 			// We have committed to state change, consume events that were accumulated during the tick above.
 			InstanceData.GetEvents().Reset();
@@ -1054,7 +1060,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeInstanceData
 	return Result;
 }
 
-bool FStateTreeExecutionContext::TestAllConditions(const int32 ConditionsOffset, const int32 ConditionsNum)
+bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& SharedInstanceData, const int32 ConditionsOffset, const int32 ConditionsNum)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TestConditions);
 
@@ -1063,8 +1069,6 @@ bool FStateTreeExecutionContext::TestAllConditions(const int32 ConditionsOffset,
 		return true;
 	}
 
-	const FStateTreeInstanceData& SharedInstanceData = StateTree->GetSharedInstanceData();
-	
 	TStaticArray<EStateTreeConditionOperand, UE::StateTree::MaxConditionIndent + 1> Operands(InPlace, EStateTreeConditionOperand::Copy);
 	TStaticArray<bool, UE::StateTree::MaxConditionIndent + 1> Values(InPlace, false);
 
@@ -1134,7 +1138,7 @@ bool FStateTreeExecutionContext::TestAllConditions(const int32 ConditionsOffset,
 	return Values[0];
 }
 
-bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& InstanceData, FStateTreeTransitionResult& OutTransition)
+bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& InstanceData, FStateTreeInstanceData& SharedInstanceData, FStateTreeTransitionResult& OutTransition)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TriggerTransition);
 
@@ -1178,7 +1182,7 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Inst
 									|| Transition.Trigger == EStateTreeTransitionTrigger::OnTick
 									|| (Transition.Trigger == EStateTreeTransitionTrigger::OnEvent && HasEvent(Transition.EventTag));
 			
-			if (bShouldCheck && TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum))
+			if (bShouldCheck && TestAllConditions(SharedInstanceData, Transition.ConditionsBegin, Transition.ConditionsNum))
 			{
 				// If a transition has delay, we stop testing other transitions, but the transition will not pass the condition until the delay time passes.
 				if (Transition.GateDelay > 0)
@@ -1206,7 +1210,7 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Inst
 					OutTransition.TargetState = Transition.State;
 					OutTransition.NextActiveStates.Reset();
 
-					if (SelectState(InstanceData, Transition.State, OutTransition.NextActiveStates))
+					if (SelectState(InstanceData, SharedInstanceData, Transition.State, OutTransition.NextActiveStates))
 					{
 						STATETREE_LOG(Verbose, TEXT("Transition on state '%s' (%s) -[%s]-> state '%s'"), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State), *GetSafeStateName(OutTransition.NextActiveStates.Last()));
 						return true;
@@ -1248,14 +1252,14 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Inst
 		// Could not trigger completion transition, jump back to start.
 		static const FStateTreeStateHandle RootState = FStateTreeStateHandle(0);
 		OutTransition.TargetState = RootState;
-		return SelectState(InstanceData, RootState, OutTransition.NextActiveStates);
+		return SelectState(InstanceData, SharedInstanceData, RootState, OutTransition.NextActiveStates);
 	}
 
 	// No transition triggered, keep on updating current state.
 	return false;
 }
 
-bool FStateTreeExecutionContext::SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
+bool FStateTreeExecutionContext::SelectState(FStateTreeInstanceData& InstanceData, FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
 {
 	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
@@ -1311,10 +1315,10 @@ bool FStateTreeExecutionContext::SelectState(FStateTreeInstanceData& InstanceDat
 		return false;
 	}
 
-	return SelectStateInternal(InstanceData, NextState, OutNewActiveState);
+	return SelectStateInternal(InstanceData, SharedInstanceData, NextState, OutNewActiveState);
 }
 
-bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& InstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
+bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& InstanceData, FStateTreeInstanceData& SharedInstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_SelectState);
 
@@ -1331,7 +1335,7 @@ bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& Ins
 	const FCompactStateTreeState& State = StateTree->States[NextState.Index];
 
 	// Check that the state can be entered
-	if (TestAllConditions(State.EnterConditionsBegin, State.EnterConditionsNum))
+	if (TestAllConditions(SharedInstanceData, State.EnterConditionsBegin, State.EnterConditionsNum))
 	{
 		if (!OutNewActiveState.Push(NextState))
 		{
@@ -1343,7 +1347,7 @@ bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& Ins
 		if (State.LinkedState.IsValid())
 		{
 			// If State is linked, proceed to the linked state.
-			if (SelectStateInternal(InstanceData, State.LinkedState, OutNewActiveState))
+			if (SelectStateInternal(InstanceData, SharedInstanceData, State.LinkedState, OutNewActiveState))
 			{
 				// Selection succeeded
 				return true;
@@ -1354,7 +1358,7 @@ bool FStateTreeExecutionContext::SelectStateInternal(FStateTreeInstanceData& Ins
 			// If the state has children, proceed to select children.
 			for (uint16 ChildState = State.ChildrenBegin; ChildState < State.ChildrenEnd; ChildState = StateTree->States[ChildState].GetNextSibling())
 			{
-				if (SelectStateInternal(InstanceData, FStateTreeStateHandle(ChildState), OutNewActiveState))
+				if (SelectStateInternal(InstanceData, SharedInstanceData, FStateTreeStateHandle(ChildState), OutNewActiveState))
 				{
 					// Selection succeeded
 					return true;

@@ -9,6 +9,7 @@
 #include "InstancedStructArray.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
+#include "Misc/ScopeRWLock.h"
 #include "StateTree.generated.h"
 
 
@@ -77,11 +78,8 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 
 public:
 
-	/**
-	 * @todo: This should return different data for each thread.
-	 * @return Shared instance data.
-	 */
-	const FStateTreeInstanceData& GetSharedInstanceData() const { return SharedInstanceData; }
+	/** @return Shared instance data. */
+	TSharedPtr<FStateTreeInstanceData> GetSharedInstanceData() const;
 
 	/** @return Number of data views required for StateTree execution (Evaluators, Tasks, Conditions, External data). */
 	int32 GetNumDataViews() const { return NumDataViews; }
@@ -169,6 +167,9 @@ private:
 	UPROPERTY()
 	FStateTreeInstanceData SharedInstanceData;
 
+	mutable FRWLock PerThreadSharedInstanceDataLock;
+	mutable TArray<TSharedPtr<FStateTreeInstanceData>> PerThreadSharedInstanceData;
+	
 	/** List of names external data enforced by the schema, created at compilation. */
 	UPROPERTY()
 	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
