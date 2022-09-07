@@ -213,14 +213,14 @@ void UNiagaraComponentRendererProperties::PostLoad()
 	{
 		Binding.AttributeBinding.PostLoad(InSourceMode);
 
-		// Move old bindings over to new position type 
+		// Move old bindings over to new position type
 		for (FNiagaraVariable OldVarType : OldTypes)
 		{
-			if (Binding.AttributeBinding.GetParamMapBindableVariable() == static_cast<const FNiagaraVariableBase&>(OldVarType))
+			if (Binding.AttributeBinding.GetParamMapBindableVariable() == OldVarType)
 			{
 				FNiagaraVariable NewVarType(FNiagaraTypeDefinition::GetPositionDef(), OldVarType.GetName());
 				Binding.AttributeBinding.Setup(NewVarType, NewVarType, InSourceMode);
-				Binding.PropertyType = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetVec3Struct());
+				Binding.PropertyType = GetFVectorDef();
 				break;
 			}
 		}
@@ -547,7 +547,7 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 			FNiagaraComponentPropertyBinding PositionBinding;
 			PositionBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_POSITION, SYS_PARAM_PARTICLES_POSITION);
 			PositionBinding.PropertyName = FName("RelativeLocation");
-			PositionBinding.PropertyType = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetVec3Struct());
+			PositionBinding.PropertyType = GetFVectorDef();
 			PropertyBindings.Add(PositionBinding);
 
 			FNiagaraComponentPropertyBinding ScaleBinding;

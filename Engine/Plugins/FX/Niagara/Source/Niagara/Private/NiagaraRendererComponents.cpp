@@ -114,7 +114,7 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, const FNiagar
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetPositionDef() && TargetType == UNiagaraComponentRendererProperties::GetFVector3fDef())
 	{
-		const FVector3f Data = (FVector3f)LwcConverter.ConvertSimulationPositionToWorld(SourceVariable.GetValue<FNiagaraPosition>());
+		const FVector3f Data = FVector3f(LwcConverter.ConvertSimulationPositionToWorld(SourceVariable.GetValue<FNiagaraPosition>()));
 		TargetData.AddUninitialized(sizeof(FVector3f));
 		*reinterpret_cast<FVector3f*>(TargetData.GetData()) = Data;
 	}
