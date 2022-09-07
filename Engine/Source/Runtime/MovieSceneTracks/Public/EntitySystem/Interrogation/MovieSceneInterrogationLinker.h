@@ -28,6 +28,7 @@ namespace MovieScene
 
 struct FInitialValueCache;
 struct FSystemInterrogatorEntityTracker;
+enum class EEntitySystemCategory : uint32;
 
 struct FInterrogationParams
 {
@@ -44,7 +45,7 @@ struct FInterrogationParams
 /**
  * A class specialized for interrogating Sequencer entity data without applying any state to objects.
  * Currently only tracks within the same time-base are supported.
- * Will only link systems that are not excluded from EEntitySystemContext::Interrogation.
+ * Will not link systems that are in the custom "ExcludedFromInterrogation" category.
  * Multiple different outputs can be interrogated simultaneously by Importing tracks onto separate channels
  * allocated through AllocateChannel.
  * 
@@ -273,6 +274,18 @@ class MOVIESCENETRACKS_API FSystemInterrogator
 public:
 	FSystemInterrogator();
 	~FSystemInterrogator();
+
+
+	/**
+	 * Gets the custom system category for interrogation-specific systems
+	 */
+	static EEntitySystemCategory GetInterrogationCategory();
+
+
+	/**
+	 * Gets the custom system category for systems who should be excluded from interrogation linkers
+	 */
+	static EEntitySystemCategory GetExcludedFromInterrogationCategory();
 
 	
 	/**

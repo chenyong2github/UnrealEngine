@@ -10,8 +10,6 @@
 UMovieSceneDoublePropertySystem::UMovieSceneDoublePropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
-
 	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->Double);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))

@@ -8,6 +8,7 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectGroupManager.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
@@ -114,7 +115,7 @@ UMovieSceneComponentMobilitySystem::UMovieSceneComponentMobilitySystem(const FOb
 {
 	using namespace UE::MovieScene;
 
-	SystemExclusionContext |= EEntitySystemContext::Interrogation;
+	SystemCategories |= FSystemInterrogator::GetExcludedFromInterrogationCategory();
 
 	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TrackComponents   = FMovieSceneTracksComponentTypes::Get();

@@ -45,6 +45,8 @@ UDoublePerlinNoiseChannelEvaluatorSystem::UDoublePerlinNoiseChannelEvaluatorSyst
 {
 	using namespace UE::MovieScene;
 
+	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
+
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 

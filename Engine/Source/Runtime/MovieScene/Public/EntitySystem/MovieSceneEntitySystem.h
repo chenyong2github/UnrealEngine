@@ -29,17 +29,29 @@ namespace MovieScene
 	struct FSystemSubsequentTasks;
 	struct FSystemTaskPrerequisites;
 
-	enum class EEntitySystemContext : uint8 
+	enum class EEntitySystemCategory : uint32
 	{
+		// No category
 		None = 0,
+		// Systems lacking any particular category
+		Unspecified = 1u << 0,
+		// Core systems, such as the time evaluation system
+		Core = 1u << 1,
+		// Systems that evaluate channel values
+		ChannelEvaluators = 1u << 2,
+		// Systems the blend values together
+		BlenderSystems = 1u << 3,
+		// Systems that set properties on objects
+		PropertySystems = 1u << 4,
+		// Start of custom categories
+		Custom = 1u << 5,
 
-		/** This system is relevant to runtime */
-		Runtime = 1 << 0,
-
-		/** This system is relevant to interrogation */
-		Interrogation = 1 << 1,
+		// Last entry, used as error condition
+		Last = 1u << 31,
+		// All categories
+		All = ~0u
 	};
-	ENUM_CLASS_FLAGS(EEntitySystemContext)
+	ENUM_CLASS_FLAGS(EEntitySystemCategory)
 
 } // namespace MovieScene
 } // namespace UE
@@ -93,12 +105,27 @@ public:
 	 */
 	static void LinkRelevantSystems(UMovieSceneEntitySystemLinker* InLinker);
 
+	/**
+	 * Link all systems in a given category
+	 */
+	static void LinkCategorySystems(UMovieSceneEntitySystemLinker* InLinker, UE::MovieScene::EEntitySystemCategory InCategory);
+
+	/**
+	 * Link all systems that pass the given linker's filter
+	 */
+	static void LinkAllSystems(UMovieSceneEntitySystemLinker* InLinker);
+
+	/**
+	 * Create a new system category
+	 */
+	static UE::MovieScene::EEntitySystemCategory RegisterCustomSystemCategory();
+
 public:
 
-	/** Returns linker contexts for which this system should not exist */
-	UE::MovieScene::EEntitySystemContext GetExclusionContext() const
+	/** Returns system categories */
+	UE::MovieScene::EEntitySystemCategory GetCategories() const
 	{
-		return SystemExclusionContext;
+		return SystemCategories;
 	}
 
 	/** Returns the phase(s) during which this system should be run */
@@ -198,7 +225,7 @@ protected:
 	uint16 GraphID;
 	uint16 GlobalDependencyGraphID;
 
-	UE::MovieScene::EEntitySystemContext SystemExclusionContext;
+	UE::MovieScene::EEntitySystemCategory SystemCategories;
 
 	/** When false, this system will not call its OnRun function, but will still be kept alive as long as IsRelevant is true */
 	bool bSystemIsEnabled;

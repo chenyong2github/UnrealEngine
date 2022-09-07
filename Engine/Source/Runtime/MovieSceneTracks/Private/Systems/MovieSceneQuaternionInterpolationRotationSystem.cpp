@@ -185,6 +185,8 @@ UMovieSceneQuaternionInterpolationRotationSystem::UMovieSceneQuaternionInterpola
 {
 	using namespace UE::MovieScene;
 
+	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());

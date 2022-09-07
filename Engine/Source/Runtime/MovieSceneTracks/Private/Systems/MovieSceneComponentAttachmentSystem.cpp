@@ -7,6 +7,7 @@
 
 #include "EntitySystem/MovieSceneBoundObjectInstantiator.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 #include "PreAnimatedState/MovieScenePreAnimatedComponentTransformStorage.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
@@ -163,7 +164,7 @@ UMovieSceneComponentAttachmentSystem::UMovieSceneComponentAttachmentSystem(const
 {
 	using namespace UE::MovieScene;
 
-	SystemExclusionContext |= EEntitySystemContext::Interrogation;
+	SystemCategories |= FSystemInterrogator::GetExcludedFromInterrogationCategory();
 
 	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 	RelevantComponent = TrackComponents->AttachParentBinding;

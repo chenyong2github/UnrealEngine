@@ -38,6 +38,8 @@ UIntegerChannelEvaluatorSystem::UIntegerChannelEvaluatorSystem(const FObjectInit
 {
 	using namespace UE::MovieScene;
 
+	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
+
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	RelevantComponent = BuiltInComponents->IntegerChannel;
 

@@ -4,12 +4,15 @@
 #include "Systems/MovieScenePropertyInstantiator.h"
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
 
 UMovieScenePropertySystem::UMovieScenePropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
+	using namespace UE::MovieScene;
+
+	SystemCategories = EEntitySystemCategory::PropertySystems | FSystemInterrogator::GetExcludedFromInterrogationCategory();
 }
 
 void UMovieScenePropertySystem::OnLink()
@@ -17,9 +20,9 @@ void UMovieScenePropertySystem::OnLink()
 	using namespace UE::MovieScene;
 
 	// Never apply properties during evaluation. This code is necessary if derived types do support interrogation.
-	if (!EnumHasAnyFlags(Linker->GetSystemContext(), EEntitySystemContext::Interrogation))
+	InstantiatorSystem = Linker->LinkSystemIfAllowed<UMovieScenePropertyInstantiatorSystem>();
+	if (InstantiatorSystem)
 	{
-		InstantiatorSystem = Linker->LinkSystem<UMovieScenePropertyInstantiatorSystem>();
 		Linker->SystemGraph.AddReference(this, InstantiatorSystem);
 	}
 }
@@ -29,7 +32,7 @@ void UMovieScenePropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 	using namespace UE::MovieScene;
 
 	// Never apply properties during evaluation. This code is necessary if derived types do support interrogation.
-	if (EnumHasAnyFlags(Linker->GetSystemContext(), EEntitySystemContext::Interrogation))
+	if (!InstantiatorSystem)
 	{
 		return;
 	}

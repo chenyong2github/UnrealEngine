@@ -29,11 +29,14 @@ struct FAssignEvalTimesTask
 UMovieSceneEvalTimeSystem::UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	RelevantComponent = UE::MovieScene::FBuiltInComponentTypes::Get()->EvalTime;
+	using namespace UE::MovieScene;
+
+	RelevantComponent = FBuiltInComponentTypes::Get()->EvalTime;
+	SystemCategories = EEntitySystemCategory::Core;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineComponentProducer(GetClass(), UE::MovieScene::FBuiltInComponentTypes::Get()->EvalTime);
+		DefineComponentProducer(GetClass(), FBuiltInComponentTypes::Get()->EvalTime);
 	}
 }
 

@@ -109,6 +109,8 @@ UMovieSceneHierarchicalBiasSystem::UMovieSceneHierarchicalBiasSystem(const FObje
 {
 	using namespace UE::MovieScene;
 
+	SystemCategories = EEntitySystemCategory::Core;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->BlendChannelInput);

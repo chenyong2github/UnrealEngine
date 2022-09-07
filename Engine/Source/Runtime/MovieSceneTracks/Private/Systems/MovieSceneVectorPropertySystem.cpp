@@ -13,8 +13,6 @@
 UMovieSceneFloatVectorPropertySystem::UMovieSceneFloatVectorPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
-
 	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->FloatVector);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -33,8 +31,6 @@ void UMovieSceneFloatVectorPropertySystem::OnRun(FSystemTaskPrerequisites& InPre
 UMovieSceneDoubleVectorPropertySystem::UMovieSceneDoubleVectorPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
-
 	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->DoubleVector);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))

@@ -6,16 +6,19 @@
 #include "Systems/MovieScenePropertyInstantiator.h"
 
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 #include "MovieSceneTracksComponentTypes.h"
 
 UMovieSceneComponentTransformSystem::UMovieSceneComponentTransformSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	// This system can be used for interrogation
-	SystemExclusionContext = UE::MovieScene::EEntitySystemContext::None;
+	using namespace UE::MovieScene;
 
-	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->ComponentTransform);
+	// This system can be used for interrogation
+	SystemCategories &= ~FSystemInterrogator::GetExcludedFromInterrogationCategory();
+
+	BindToProperty(FMovieSceneTracksComponentTypes::Get()->ComponentTransform);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{

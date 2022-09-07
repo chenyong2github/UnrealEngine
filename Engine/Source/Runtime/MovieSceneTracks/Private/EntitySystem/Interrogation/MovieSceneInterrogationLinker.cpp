@@ -617,21 +617,33 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 	}
 }
 
+EEntitySystemCategory FSystemInterrogator::GetInterrogationCategory()
+{
+	static EEntitySystemCategory Interrogation = UMovieSceneEntitySystem::RegisterCustomSystemCategory();
+	return Interrogation;
+}
 
+EEntitySystemCategory FSystemInterrogator::GetExcludedFromInterrogationCategory()
+{
+	static EEntitySystemCategory ExcludedFromInterrogation = UMovieSceneEntitySystem::RegisterCustomSystemCategory();
+	return ExcludedFromInterrogation;
+}
 
 FSystemInterrogator::FSystemInterrogator()
 {
 	InitialValueCache = FInitialValueCache::GetGlobalInitialValues();
 
 	Linker = NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
-	Linker->SetSystemContext(EEntitySystemContext::Interrogation);
+	Linker->SetLinkerRole(EEntitySystemLinkerRole::Interrogation);
+	Linker->GetSystemFilter().DisallowCategory(FSystemInterrogator::GetExcludedFromInterrogationCategory());
 
 	Linker->AddExtension(IInterrogationExtension::GetExtensionID(), static_cast<IInterrogationExtension*>(this));
 	Linker->AddExtension(InitialValueCache.Get());
 }
 
 FSystemInterrogator::~FSystemInterrogator()
-{}
+{
+}
 
 void FSystemInterrogator::AddReferencedObjects(FReferenceCollector& Collector)
 {

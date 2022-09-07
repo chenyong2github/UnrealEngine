@@ -77,6 +77,8 @@ struct FInitialValueMutation : IMovieSceneEntityMutation
 UMovieSceneInitialValueSystem::UMovieSceneInitialValueSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	SystemCategories = UE::MovieScene::EEntitySystemCategory::Core;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(UMovieScenePropertyInstantiatorSystem::StaticClass(), StaticClass());

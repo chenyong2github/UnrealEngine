@@ -48,6 +48,92 @@ EEntitySystemLinkerRole RegisterCustomEntitySystemLinkerRole()
 	return Result;
 }
 
+FSystemFilter::FSystemFilter()
+{
+	CategoriesAllowed = EEntitySystemCategory::All;
+	CategoriesDisallowed = EEntitySystemCategory::None;
+}
+
+bool FSystemFilter::CheckSystem(TSubclassOf<UMovieSceneEntitySystem> InClass) const
+{
+	const UMovieSceneEntitySystem* SystemCDO = InClass.GetDefaultObject();
+	if (SystemCDO)
+	{
+		return CheckSystem(SystemCDO);
+	}
+	// Allow any systems without a CDO.
+	return true;
+}
+
+bool FSystemFilter::CheckSystem(const UMovieSceneEntitySystem* InSystem) const
+{
+	// Specific allow/disallow rules for systems take precedence.
+	const uint16 SystemClassID = InSystem->GetGlobalDependencyGraphID();
+	if (SystemsDisallowed.IsValidIndex(SystemClassID) && SystemsDisallowed[SystemClassID])
+	{
+		return false;
+	}
+	if (SystemsAllowed.IsValidIndex(SystemClassID) && SystemsAllowed[SystemClassID])
+	{
+		return true;
+	}
+
+	// If any given category is disallowed, the entire thing is refused.
+	if (EnumHasAnyFlags(InSystem->GetCategories(), CategoriesDisallowed))
+	{
+		return false;
+	}
+	// If the given categories contain at least one allowed category, it's good.
+	if (EnumHasAnyFlags(InSystem->GetCategories(), CategoriesAllowed))
+	{
+		return true;
+	}
+	// Nothing explicitly disallowed, but nothing allowed either, so we don't want it.
+	return false;
+}
+
+void FSystemFilter::SetAllowedCategories(EEntitySystemCategory InCategory)
+{
+	CategoriesAllowed = InCategory;
+}
+
+void FSystemFilter::AllowCategory(EEntitySystemCategory InCategory)
+{
+	CategoriesAllowed |= InCategory;
+}
+
+void FSystemFilter::SetDisallowedCategories(EEntitySystemCategory InCategory)
+{
+	CategoriesDisallowed = InCategory;
+}
+
+void FSystemFilter::DisallowCategory(EEntitySystemCategory InCategory)
+{
+	CategoriesDisallowed |= InCategory;
+}
+
+void FSystemFilter::AllowSystem(TSubclassOf<UMovieSceneEntitySystem> InClass)
+{
+	const UMovieSceneEntitySystem* SystemCDO = InClass.GetDefaultObject();
+	if (ensure(SystemCDO))
+	{
+		const uint16 SystemClassID = SystemCDO->GetGlobalDependencyGraphID();
+		SystemsAllowed.PadToNum(SystemClassID + 1, false);
+		SystemsAllowed[SystemClassID] = true;
+	}
+}
+
+void FSystemFilter::DisallowSystem(TSubclassOf<UMovieSceneEntitySystem> InClass)
+{
+	const UMovieSceneEntitySystem* SystemCDO = InClass.GetDefaultObject();
+	if (ensure(SystemCDO))
+	{
+		const uint16 SystemClassID = SystemCDO->GetGlobalDependencyGraphID();
+		SystemsDisallowed.PadToNum(SystemClassID + 1, false);
+		SystemsDisallowed[SystemClassID] = true;
+	}
+}
+
 } // namespace MovieScene
 } // namespace UE
 
@@ -59,9 +145,9 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 
 	Role = EEntitySystemLinkerRole::Unknown;
 	LastSystemLinkVersion = 0;
+	LastSystemUnlinkVersion = 0;
 	LastInstantiationVersion = 0;
 	AutoLinkMode = EAutoLinkRelevantSystems::Enabled;
-	SystemContext = EEntitySystemContext::Runtime;
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -413,6 +499,27 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<U
 		return Existing;
 	}
 
+	return LinkSystemImpl(InClassType);
+}
+
+UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystemIfAllowed(TSubclassOf<UMovieSceneEntitySystem> InClassType)
+{
+	UMovieSceneEntitySystem* Existing = FindSystem(InClassType);
+	if (Existing)
+	{
+		return Existing;
+	}
+
+	if (!SystemFilter.CheckSystem(InClassType))
+	{
+		return nullptr;
+	}
+
+	return LinkSystemImpl(InClassType);
+}
+
+UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystemImpl(TSubclassOf<UMovieSceneEntitySystem> InClassType)
+{
 	// We always create systems with a fixed name (since there should only ever be one of that name)
 	// This means we can do our own recycling within the scope of this linker, to save on the cost of re-creating
 	// systems when the first instantiation phase kicks in after a period without any sequence playing.
@@ -436,7 +543,7 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<U
 	}
 
 	// If a system implements a hard depdency on another (through direct use of LinkSystem<>), we can't break the client code by returning null, but we can still warn that it should have checked whether it can call LinkSystem first
-	ensureMsgf(!EnumHasAnyFlags(NewSystem->GetExclusionContext(), SystemContext), TEXT("Attempting to link a system that should have been excluded - this is probably an explicit call to Link a system that should have been excluded."));
+	ensureMsgf(SystemFilter.CheckSystem(NewSystem), TEXT("Attempting to link a system that should have been excluded - this is probably an explicit call to Link a system that should have been excluded."));
 
 	SystemGraph.AddSystem(NewSystem);
 	NewSystem->Link(this);
@@ -472,11 +579,29 @@ void UMovieSceneEntitySystemLinker::LinkRelevantSystems()
 	}
 }
 
+void UMovieSceneEntitySystemLinker::UnlinkIrrelevantSystems()
+{
+	if (EntityManager.HasStructureChangedSince(LastSystemUnlinkVersion))
+	{
+		SystemGraph.RemoveIrrelevantSystems(this);
+
+		LastSystemUnlinkVersion = EntityManager.GetSystemSerial();
+	}
+}
+
 void UMovieSceneEntitySystemLinker::AutoLinkRelevantSystems()
 {
 	if (AutoLinkMode == UE::MovieScene::EAutoLinkRelevantSystems::Enabled)
 	{
 		LinkRelevantSystems();
+	}
+}
+
+void UMovieSceneEntitySystemLinker::AutoUnlinkIrrelevantSystems()
+{
+	if (AutoLinkMode == UE::MovieScene::EAutoLinkRelevantSystems::Enabled)
+	{
+		UnlinkIrrelevantSystems();
 	}
 }
 

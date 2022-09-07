@@ -8,6 +8,7 @@
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 #include "Algo/AllOf.h"
 #include "Algo/IndexOf.h"
@@ -27,7 +28,7 @@ UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(con
 	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
 				this, &UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource);
 
-	SystemExclusionContext = EEntitySystemContext::Interrogation;
+	SystemCategories = FSystemInterrogator::GetExcludedFromInterrogationCategory();
 	RelevantComponent = BuiltInComponents->PropertyBinding;
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{

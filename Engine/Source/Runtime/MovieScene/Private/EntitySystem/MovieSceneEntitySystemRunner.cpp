@@ -552,7 +552,7 @@ bool FMovieSceneEntitySystemRunner::GameThread_PostInstantiation(UMovieSceneEnti
 	// Free anything that has been unlinked
 	EntityManager.FreeEntities(FEntityComponentFilter().All({ BuiltInComponentTypes->Tags.NeedsUnlink }));
 
-	Linker->SystemGraph.RemoveIrrelevantSystems(Linker);
+	Linker->AutoUnlinkIrrelevantSystems();
 
 	EntityManager.Compact();
 	return true;

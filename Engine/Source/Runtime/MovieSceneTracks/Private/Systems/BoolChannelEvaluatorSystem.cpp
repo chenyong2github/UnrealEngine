@@ -15,6 +15,7 @@ UBoolChannelEvaluatorSystem::UBoolChannelEvaluatorSystem(const FObjectInitialize
 {
 	using namespace UE::MovieScene;
 
+	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
 	RelevantComponent = FBuiltInComponentTypes::Get()->BoolChannel;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))

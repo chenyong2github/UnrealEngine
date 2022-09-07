@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
-#include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
@@ -22,6 +23,8 @@ UMovieSceneInterrogatedPropertyInstantiatorSystem::UMovieSceneInterrogatedProper
 				this, &UMovieSceneInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource);
 
 	RelevantComponent = BuiltInComponents->Interrogation.InputKey;
+	SystemCategories |= FSystemInterrogator::GetInterrogationCategory();
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineComponentProducer(GetClass(), BuiltInComponents->BlendChannelInput);

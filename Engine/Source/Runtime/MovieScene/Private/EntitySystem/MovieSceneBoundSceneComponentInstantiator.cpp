@@ -67,12 +67,6 @@ void UMovieSceneBoundSceneComponentInstantiator::OnRun(FSystemTaskPrerequisites&
 						Add(InEntityIndex, SceneComponent);
 						Result = EResolveError::None;
 					}
-					else if (Object->Implements<UMovieSceneSceneComponentImpersonator>())
-					{
-						// Objects meant explicitly to be impersonators are also allowed.
-						Add(InEntityIndex, Object);
-						Result = EResolveError::None;
-					}
 				}
 				else
 				{

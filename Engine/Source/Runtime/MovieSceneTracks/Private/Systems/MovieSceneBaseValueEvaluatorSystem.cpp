@@ -49,6 +49,7 @@ UMovieSceneBaseValueEvaluatorSystem::UMovieSceneBaseValueEvaluatorSystem(const F
 
 	Phase = ESystemPhase::Instantiation;
 	RelevantComponent = FBuiltInComponentTypes::Get()->BaseValueEvalTime;
+	SystemCategories = EEntitySystemCategory::ChannelEvaluators;
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{

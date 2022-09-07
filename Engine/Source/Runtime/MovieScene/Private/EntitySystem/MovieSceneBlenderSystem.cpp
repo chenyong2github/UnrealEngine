@@ -27,6 +27,8 @@ UMovieSceneBlenderSystem::UMovieSceneBlenderSystem(const FObjectInitializer& Obj
 {
 	using namespace UE::MovieScene;
 
+	SystemCategories = UE::MovieScene::EEntitySystemCategory::BlenderSystems;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// You can only ever register blender systems, never unregister them.

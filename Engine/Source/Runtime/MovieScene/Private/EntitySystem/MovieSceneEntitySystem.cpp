@@ -177,7 +177,7 @@ UMovieSceneEntitySystem::UMovieSceneEntitySystem(const FObjectInitializer& ObjIn
 	using namespace UE::MovieScene;
 
 	bSystemIsEnabled = true;
-	SystemExclusionContext = EEntitySystemContext::None;
+	SystemCategories = EEntitySystemCategory::Unspecified;
 
 	Phase = ESystemPhase::Evaluation;
 	GraphID = TNumericLimits<uint16>::Max();
@@ -251,7 +251,6 @@ void UMovieSceneEntitySystem::LinkRelevantSystems(UMovieSceneEntitySystemLinker*
 {
 	using namespace UE::MovieScene;
 
-	EEntitySystemContext LinkerContext = InLinker->GetSystemContext();
 	for (uint16 GraphID = 0; GraphID < GlobalDependencyGraph.NumGraphIDs(); ++GraphID)
 	{
 		if (InLinker->HasLinkedSystem(GraphID))
@@ -262,11 +261,69 @@ void UMovieSceneEntitySystem::LinkRelevantSystems(UMovieSceneEntitySystemLinker*
 		UClass* Class = GlobalDependencyGraph.ClassFromGraphID(GraphID);
 		UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
 
-		if (SystemCDO && !EnumHasAnyFlags(SystemCDO->SystemExclusionContext, LinkerContext))
+		if (SystemCDO && InLinker->GetSystemFilter().CheckSystem(SystemCDO))
 		{
 			SystemCDO->ConditionalLinkSystem(InLinker);
 		}
 	}
+}
+
+void UMovieSceneEntitySystem::LinkCategorySystems(UMovieSceneEntitySystemLinker* InLinker, UE::MovieScene::EEntitySystemCategory InCategory)
+{
+	using namespace UE::MovieScene;
+
+	for (uint16 GraphID = 0; GraphID < GlobalDependencyGraph.NumGraphIDs(); ++GraphID)
+	{
+		if (InLinker->HasLinkedSystem(GraphID))
+		{
+			continue;
+		}
+
+		UClass* Class = GlobalDependencyGraph.ClassFromGraphID(GraphID);
+		if (Class == UMovieSceneEntitySystem::StaticClass())
+		{
+			// Ignore the base class
+			continue;
+		}
+
+		UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
+		if (SystemCDO && EnumHasAnyFlags(SystemCDO->SystemCategories, InCategory))
+		{
+			InLinker->LinkSystemIfAllowed(Class);
+		}
+	}
+}
+
+void UMovieSceneEntitySystem::LinkAllSystems(UMovieSceneEntitySystemLinker* InLinker)
+{
+	using namespace UE::MovieScene;
+
+	for (uint16 GraphID = 0; GraphID < GlobalDependencyGraph.NumGraphIDs(); ++GraphID)
+	{
+		if (InLinker->HasLinkedSystem(GraphID))
+		{
+			continue;
+		}
+
+		UClass* Class = GlobalDependencyGraph.ClassFromGraphID(GraphID);
+		// Ignore the base class
+		if (Class && Class != UMovieSceneEntitySystem::StaticClass())
+		{
+			InLinker->LinkSystemIfAllowed(Class);
+		}
+	}
+}
+
+UE::MovieScene::EEntitySystemCategory UMovieSceneEntitySystem::RegisterCustomSystemCategory()
+{
+	using namespace UE::MovieScene;
+
+	static EEntitySystemCategory NextCustomCategory = EEntitySystemCategory::Custom;
+
+	EEntitySystemCategory Result = NextCustomCategory;
+	NextCustomCategory = (EEntitySystemCategory)((uint32)NextCustomCategory << 1);
+	check(NextCustomCategory != EEntitySystemCategory::Last);
+	return Result;
 }
 
 bool UMovieSceneEntitySystem::IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const
@@ -350,7 +407,7 @@ void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSy
 	checkf(Linker != nullptr, TEXT("Attempting to evaluate a system that has been unlinked!"));
 
 	// We may have erroneously linked a system we should have done, but we must not run it in this case
-	if (EnumHasAnyFlags(SystemExclusionContext, Linker->GetSystemContext()))
+	if (!Linker->GetSystemFilter().CheckSystem(this))
 	{
 		return;
 	}
