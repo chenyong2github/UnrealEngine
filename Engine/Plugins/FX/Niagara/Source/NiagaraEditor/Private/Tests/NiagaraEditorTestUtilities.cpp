@@ -59,6 +59,6 @@ TSharedRef<FNiagaraSystemViewModel> FNiagaraEditorTestUtilities::CreateTestSyste
 UNiagaraEmitter* FNiagaraEditorTestUtilities::LoadEmitter(FString AssetPath)
 {
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+	const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 	return Cast<UNiagaraEmitter>(AssetData.GetAsset());
 }

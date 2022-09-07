@@ -344,7 +344,7 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*InScriptAssetPath);
+	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(InScriptAssetPath));
 	if (AssetData.IsValid())
 	{
 		UNiagaraScript* ScriptAsset = Cast<UNiagaraScript>(AssetData.GetAsset());

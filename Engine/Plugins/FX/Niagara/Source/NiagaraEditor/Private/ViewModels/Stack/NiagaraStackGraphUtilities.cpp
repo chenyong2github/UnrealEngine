@@ -1761,12 +1761,14 @@ bool FNiagaraStackGraphUtilities::FindScriptModulesInStack(FAssetData ModuleScri
 	Graph->BuildTraversal(Nodes, &TargetOutputNode);
 
 	OutFunctionCalls.Empty();
-	FString ModuleObjectName = ModuleScriptAsset.ObjectPath.ToString();
+	FString ModuleObjectName = ModuleScriptAsset.GetObjectPathString();
 	for (UEdGraphNode* Node : Nodes)
 	{
 		if (UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(Node))
 		{
-			if (FunctionCallNode->FunctionScriptAssetObjectPath == ModuleScriptAsset.ObjectPath ||
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if (FunctionCallNode->FunctionScriptAssetObjectPath == ModuleScriptAsset.GetSoftObjectPath().ToFName() ||
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				(FunctionCallNode->FunctionScript != nullptr && FunctionCallNode->FunctionScript->GetPathName() == ModuleObjectName))
 			{
 				OutFunctionCalls.Add(FunctionCallNode);
@@ -1871,7 +1873,9 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FA
 
 	FGraphNodeCreator<UNiagaraNodeFunctionCall> ModuleNodeCreator(*Graph);
 	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
-	NewModuleNode->FunctionScriptAssetObjectPath = ModuleScriptAsset.ObjectPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NewModuleNode->FunctionScriptAssetObjectPath = ModuleScriptAsset.GetSoftObjectPath().ToFName();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ModuleNodeCreator.Finalize();
 
 	if (NewModuleNode->HasValidScriptAndGraph() == false)

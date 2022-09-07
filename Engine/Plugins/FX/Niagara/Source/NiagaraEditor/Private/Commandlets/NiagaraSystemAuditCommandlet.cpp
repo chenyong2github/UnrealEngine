@@ -126,7 +126,9 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 	if (!FilterCollection.IsEmpty())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CollectionManagerModule.Get().GetObjectsInCollection(FName(*FilterCollection), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	TArray<FAssetData> AssetList;
@@ -145,7 +147,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 
 	for (const FAssetData& AssetIt : AssetList)
 	{
-		const FString SystemName = AssetIt.ObjectPath.ToString();
+		const FString SystemName = AssetIt.GetObjectPathString();
 		const FString PackageName = AssetIt.PackageName.ToString();
 
 		if (PackageName.StartsWith(DevelopersFolder))

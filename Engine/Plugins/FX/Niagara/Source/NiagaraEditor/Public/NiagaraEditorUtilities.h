@@ -246,7 +246,7 @@ namespace FNiagaraEditorUtilities
 
 	NIAGARAEDITOR_API FText FormatScriptName(FName Name, bool bIsInLibrary);
 
-	NIAGARAEDITOR_API FText FormatScriptDescription(FText Description, FName Path, bool bIsInLibrary);
+	NIAGARAEDITOR_API FText FormatScriptDescription(FText Description, const FSoftObjectPath& Path, bool bIsInLibrary);
 
 	NIAGARAEDITOR_API FText FormatVariableDescription(FText Description, FText Name, FText Type);
 

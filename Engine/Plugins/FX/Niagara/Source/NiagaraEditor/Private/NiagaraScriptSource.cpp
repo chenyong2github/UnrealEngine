@@ -276,7 +276,8 @@ bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScript
 {
 	FSoftObjectPath SystemUpdateScriptRef(ModulePath);
 	FAssetData ModuleScriptAsset;
-	ModuleScriptAsset.ObjectPath = SystemUpdateScriptRef.GetAssetPathName();
+	ModuleScriptAsset.PackageName = SystemUpdateScriptRef.GetAssetPath().GetPackageName();
+	ModuleScriptAsset.AssetName = SystemUpdateScriptRef.GetAssetPath().GetAssetName();
 	bOutFoundModule = false;
 
 	if (ModuleScriptAsset.IsValid())

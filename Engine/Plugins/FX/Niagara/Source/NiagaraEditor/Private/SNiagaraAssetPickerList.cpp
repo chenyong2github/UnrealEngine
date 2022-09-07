@@ -195,7 +195,7 @@ TArray<FText> SNiagaraAssetPickerList::OnGetCategoriesForItem(const FAssetData& 
 
 	auto AddAssetPathCategory = [&Categories, &Item]() {
 		TArray<FString> AssetPathParts;
-		Item.ObjectPath.ToString().ParseIntoArray(AssetPathParts, TEXT("/"));
+		Item.GetObjectPathString().ParseIntoArray(AssetPathParts, TEXT("/"));
 		if (AssetPathParts.Num() > 0)
 		{
 			if (AssetPathParts[0] == TEXT("Niagara"))

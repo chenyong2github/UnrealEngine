@@ -387,7 +387,7 @@ void GetScriptsFromClipboard(TArray<const UNiagaraScript*>& OutScripts, const TA
 		if (ClipboardString.IsEmpty() == false && ClipboardString.Len() < NAME_SIZE && AssetRegistry != nullptr)
 		{
 			TArray<FAssetData> Assets;
-			FAssetData AssetFoundByObjectPath = AssetRegistry->GetAssetByObjectPath(*ClipboardString);
+			FAssetData AssetFoundByObjectPath = AssetRegistry->GetAssetByObjectPath(FSoftObjectPath(ClipboardString));
 			if (AssetFoundByObjectPath.IsValid())
 			{
 				Assets.Add(AssetFoundByObjectPath);

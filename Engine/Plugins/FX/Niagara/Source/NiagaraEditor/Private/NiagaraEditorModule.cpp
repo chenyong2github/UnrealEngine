@@ -358,7 +358,7 @@ void DumpRapidIterationParamersForAsset(const TArray<FString>& Arguments)
 	if (Arguments.Num() == 1)
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*Arguments[0]);
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(Arguments[0]));
 		UObject* Asset = AssetData.GetAsset();
 		if (Asset != nullptr)
 		{
@@ -446,7 +446,7 @@ void PreventSystemRecompile(const TArray<FString>& Arguments)
 	if (Arguments.Num() > 0)
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FAssetData SystemAsset = AssetRegistryModule.Get().GetAssetByObjectPath(*Arguments[0]);
+		FAssetData SystemAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(Arguments[0]));
 		if (SystemAsset.IsValid() == false)
 		{
 			TArray<FAssetData> AssetsInPackage;
@@ -618,7 +618,7 @@ void DumpCompileIdDataForAsset(const TArray<FString>& Arguments)
 	if (Arguments.Num() > 0)
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FAssetData SystemAsset = AssetRegistryModule.Get().GetAssetByObjectPath(*Arguments[0]);
+		FAssetData SystemAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(Arguments[0]));
 		if (SystemAsset.IsValid() == false)
 		{
 			TArray<FAssetData> AssetsInPackage;
