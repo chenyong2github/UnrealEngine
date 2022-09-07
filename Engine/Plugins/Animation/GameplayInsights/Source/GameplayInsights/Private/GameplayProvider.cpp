@@ -36,7 +36,7 @@ static UClass* FindBlueprintClass(const FString& TargetNameRaw)
 	UClass* FoundClass = nullptr;
 	AssetRegistry.EnumerateAssets(Filter, [&FoundClass, TargetName](const FAssetData& AssetData)
 	{
-		if ((AssetData.AssetName.ToString() == TargetName) || (AssetData.ObjectPath.ToString() == TargetName))
+		if ((AssetData.AssetName.ToString() == TargetName) || (AssetData.GetObjectPathString() == TargetName))
 		{
 			if (UBlueprint* BP = Cast<UBlueprint>(AssetData.GetAsset()))
 			{

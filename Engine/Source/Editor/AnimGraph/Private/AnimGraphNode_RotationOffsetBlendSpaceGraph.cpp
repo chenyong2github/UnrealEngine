@@ -82,7 +82,7 @@ void UAnimGraphNode_RotationOffsetBlendSpaceGraph::GetMenuActions(FBlueprintActi
 		{
 			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "AimOffset\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "AimOffset\n'{0}'"), FText::FromString(InAssetData.GetObjectPathString()));
 			}
 			else if(InClass != nullptr)
 			{

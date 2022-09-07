@@ -556,8 +556,8 @@ bool UAnimGraphNode_LinkedAnimLayer::OnShouldFilterInstanceBlueprint(const FAsse
 				{
 					const FString ParentClassFromData = CurrentAssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
 					const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(ParentClassFromData);
-					const FName BlueprintPath = FName(*ClassObjectPath.LeftChop(2)); // Chop off _C
-					CurrentAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(BlueprintPath);
+					const FString BlueprintPath = ClassObjectPath.LeftChop(2); // Chop off _C
+					CurrentAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(BlueprintPath));
 				}
 			// Only continue checking if the parent is an anim blueprint
 			} while (!bMatchesInterface && (CurrentAssetData.AssetClassPath == UAnimBlueprint::StaticClass()->GetClassPathName()));

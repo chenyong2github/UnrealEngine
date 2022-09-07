@@ -112,7 +112,7 @@ void FSkeletalMeshPoseTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimi
 				Tooltip.AddNameValueTextLine(LOCTEXT("Mesh", "Mesh").ToString(), SkeletalMeshObjectInfo->PathName);
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-				if(!AssetRegistryModule.Get().GetAssetByObjectPath(SkeletalMeshObjectInfo->PathName).IsValid())
+				if(!AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).IsValid())
 				{
 					Tooltip.AddTextLine(LOCTEXT("MeshNotFound", "Mesh not found").ToString(), FLinearColor::Red);
 				}

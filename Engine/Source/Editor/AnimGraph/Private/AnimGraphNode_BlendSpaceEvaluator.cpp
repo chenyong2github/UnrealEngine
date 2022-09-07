@@ -48,7 +48,7 @@ void UAnimGraphNode_BlendSpaceEvaluator::GetMenuActions(FBlueprintActionDatabase
 		{
 			if(InAssetData.IsValid())
 			{
-				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace Evaluator\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace Evaluator\n'{0}'"), FText::FromString(InAssetData.GetObjectPathString()));
 			}
 			else
 			{

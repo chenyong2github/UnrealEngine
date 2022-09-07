@@ -115,7 +115,7 @@ void UAnimGraphNode_LinkedAnimGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 				}
 				else
 				{
-					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Linked Anim Graph - Runs a linked anim graph in another instance to process animation\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+					return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Linked Anim Graph - Runs a linked anim graph in another instance to process animation\n'{0}'"), FText::FromString(InAssetData.GetObjectPathString()));
 				}
 			}
 			else
