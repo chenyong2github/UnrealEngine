@@ -2224,14 +2224,13 @@ bool FActorBrowsingMode::ConvertItemToAssetData(SceneOutliner::FilterBarType InI
 
 		return true;
 	}
-	// TODO: Maybe can be improved to not use TryConvertShortClassNameToPathName to optimize?
 	else if (const FActorDescTreeItem* ActorDescItem = InItem.CastTo<FActorDescTreeItem>())
 	{
 		if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 		{
-			// For Unloaded Actors, grab the native class and try to convert it to a path name
+			// For Unloaded Actors, grab the native class 
 			OutAssetData = FAssetData();
-			FTopLevelAssetPath ClassPath = FAssetData::TryConvertShortClassNameToPathName(ActorDesc->GetNativeClass());
+			FTopLevelAssetPath ClassPath = ActorDesc->GetNativeClass();
 			if(ClassPath.IsValid())
 			{
 				OutAssetData.AssetClassPath = ClassPath;

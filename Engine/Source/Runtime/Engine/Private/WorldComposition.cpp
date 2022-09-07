@@ -182,7 +182,7 @@ struct FWorldTilesGatherer
 		for (const FString& FullPath : MapFilesToConsider)
 		{
 			FString TilePackageName = FPackageName::FilenameToLongPackageName(FullPath);
-			const FName TilePackagePath = *(TilePackageName + TEXT(".") + FPackageName::GetLongPackageAssetName(TilePackageName));
+			const FSoftObjectPath TilePackagePath(FName(*TilePackageName), FName(*FPackageName::GetLongPackageAssetName(TilePackageName)), FString{});
 
 			const FAssetData MapAssetData = AssetRegistry.GetAssetByObjectPath(TilePackagePath);
 

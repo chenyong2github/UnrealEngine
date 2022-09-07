@@ -143,8 +143,7 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 			}
 
 			// Use the WorldPartition world name here instead of using the world name from the path to support converting level instance paths to main world paths.
-			ObjectPath.SetAssetPathName(FName(*FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *OuterWorld->GetName())));
-			ObjectPath.SetSubPathString(SrcObjectPath.GetSubPathString());
+			ObjectPath = FSoftObjectPath(FTopLevelAssetPath(FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *OuterWorld->GetName())), SrcObjectPath.GetSubPathString());
 			// Put back PIE prefix
 			if (OuterWorld->IsPlayInEditor() && (PIEInstanceID != INDEX_NONE))
 			{

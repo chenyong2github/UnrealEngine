@@ -307,7 +307,7 @@ void FWorldPartitionConverter::FixupSoftObjectPaths(UPackage* OuterPackage)
 				int32 DotPos = Value.GetSubPathString().Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart);
 				if (DotPos != INDEX_NONE)
 				{
-					RemappedValue = RemapSoftObjectPaths.Find(Value.GetAssetPathName().ToString());
+					RemappedValue = RemapSoftObjectPaths.Find(Value.GetWithoutSubPath().ToString());
 					if (RemappedValue)
 					{
 						FString NewPath = *RemappedValue + ':' + Value.GetSubPathString();

@@ -23,12 +23,12 @@ const FGuid& FWorldPartitionActorDescView::GetGuid() const
 	return ActorDesc->GetGuid();
 }
 
-FName FWorldPartitionActorDescView::GetBaseClass() const
+FTopLevelAssetPath FWorldPartitionActorDescView::GetBaseClass() const
 {
 	return ActorDesc->GetBaseClass();
 }
 
-FName FWorldPartitionActorDescView::GetNativeClass() const
+FTopLevelAssetPath FWorldPartitionActorDescView::GetNativeClass() const
 {
 	return ActorDesc->GetNativeClass();
 }
@@ -99,9 +99,9 @@ FName FWorldPartitionActorDescView::GetActorPackage() const
 	return ActorDesc->GetActorPackage();
 }
 
-FName FWorldPartitionActorDescView::GetActorPath() const
+FSoftObjectPath FWorldPartitionActorDescView::GetActorSoftPath() const
 {
-	return ActorDesc->GetActorPath();
+	return ActorDesc->GetActorSoftPath();
 }
 
 FName FWorldPartitionActorDescView::GetActorLabel() const

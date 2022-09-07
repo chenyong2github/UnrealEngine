@@ -226,10 +226,10 @@ bool FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InConta
 		const FString NewSubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(InContainerID, SoftObjectPath.GetSubPathString());
 
 		FNameBuilder NewAssetPathBuilder;
-		SoftObjectPath.GetAssetPathName().ToString(NewAssetPathBuilder);
+		SoftObjectPath.GetAssetPath().AppendString(NewAssetPathBuilder);
 		NewAssetPathBuilder.ReplaceAt(0, LongPackageName.Len(), ContainerPackageString);
 
-		OutActorPath = FSoftObjectPath(*NewAssetPathBuilder, NewSubPathString).ToString();
+		OutActorPath = FSoftObjectPath(FTopLevelAssetPath(NewAssetPathBuilder.ToView()), NewSubPathString).ToString();
 		return true;
 	}
 

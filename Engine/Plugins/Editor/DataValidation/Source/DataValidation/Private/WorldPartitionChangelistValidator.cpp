@@ -48,7 +48,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateLoadedAsset_Im
 
 FString GetPrettyPackageName(const FWorldPartitionActorDescView& Desc)
 {
-	FString AssetPath = Desc.GetActorPath().ToString();
+	FString AssetPath = Desc.GetActorSoftPath().ToString();
 	
 	int32 LastDot = -1;
 	if (AssetPath.FindLastChar('.', LastDot))
@@ -75,7 +75,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 	FSourceControlChangelistStatePtr ChangelistState = SourceControlProvider.GetState(Changelist->Changelist->AsShared(), EStateCacheUsage::Use);
 
 	// Figure out which world(s) these actors are in and split the files per world, and return the actor's native class
-	TMap<FName, TSet<FAssetData>> MapToActorsFiles;
+	TMap<FTopLevelAssetPath, TSet<FAssetData>> MapToActorsFiles;
 	auto TryAssociateActorToMap = [&MapToActorsFiles](const FAssetData& AssetData) -> UClass*
 	{
 		// Check that the asset is an actor
@@ -83,8 +83,8 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		{
 			// WorldPartition actors are all in OFPA mode so they're external
 			// Extract the MapName from the ObjectPath (<PathToPackage>.<MapName>:<Level>.<ActorName>)
-			FSoftObjectPath ActorPath = FSoftObjectPath(AssetData.ObjectPath);
-			FName MapAssetName = ActorPath.GetAssetPathName();
+			FSoftObjectPath ActorPath = AssetData.GetSoftObjectPath();
+			FTopLevelAssetPath MapAssetName = ActorPath.GetAssetPath();
 
 			TSet<FAssetData>* ActorFiles = MapToActorsFiles.Find(MapAssetName);
 
@@ -154,7 +154,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 					{
 						if (ULevel::GetIsLevelPartitionedFromPackage(*PackageName))
 						{
-							MapToActorsFiles.FindOrAdd(AssetData.ObjectPath);
+							MapToActorsFiles.FindOrAdd(AssetData.GetSoftObjectPath().GetAssetPath());
 						}
 					}
 				}
@@ -163,13 +163,13 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 	}
 
 	// For Each world 
-	for (TTuple<FName, TSet<FAssetData>>& It : MapToActorsFiles)
+	for (TTuple<FTopLevelAssetPath, TSet<FAssetData>>& It : MapToActorsFiles)
 	{
-		const FName& MapName = It.Get<0>();
+		const FTopLevelAssetPath& MapPath = It.Get<0>();
 		const TSet<FAssetData>& ActorsData = It.Get<1>();
 
 		// Find/Load the ActorDescContainer
-		UWorld* World = FindObject<UWorld>(nullptr, *MapName.ToString(), true);
+		UWorld* World = FindObject<UWorld>(nullptr, *MapPath.ToString(), true);
 
 		UActorDescContainer* ActorDescContainer = nullptr;
 		
@@ -181,14 +181,12 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		else
 		{
 			// Find in memory failed, load the ActorDescContainer
-			FSoftObjectPath MapPath = FSoftObjectPath(MapName);
-
 			ActorDescContainer = NewObject<UActorDescContainer>();
-			ActorDescContainer->Initialize(nullptr, MapPath.GetLongPackageFName());
+			ActorDescContainer->Initialize(nullptr, MapPath.GetPackageName());
 		}
 
 		// Build a set of Relevant Actor Guids to scope error messages to what's contained in the CL 
-		RelevantMap = MapName;
+		RelevantMap = MapPath;
 		RelevantActorGuids.Reset();
 
 		for (const FAssetData& ActorData : ActorsData)
@@ -203,8 +201,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		}
 
 		// Invoke static WorldPartition Validation from the ActorDescContainer
-		const FSoftObjectPath MapPath = FSoftObjectPath(MapName);
-		const bool bIsStreamingDisabled = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetLongPackageFName());
+		const bool bIsStreamingDisabled = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetPackageName());
 		UWorldPartition::CheckForErrors(this, ActorDescContainer, !bIsStreamingDisabled);
 	}
 
@@ -224,10 +221,10 @@ bool UWorldPartitionChangelistValidator::Filter(const FWorldPartitionActorDescVi
 		return true;
 	}
 
-	if (!RelevantMap.IsNone())
+	if (!RelevantMap.IsNull())
 	{
-		FSoftObjectPath ActorPath = ActorDescView.GetActorPath().ToString();
-		return ActorPath.GetAssetPathName() == RelevantMap;
+		FSoftObjectPath ActorPath = ActorDescView.GetActorSoftPath();
+		return ActorPath.GetAssetPath() == RelevantMap;
 	}
 
 	return false;

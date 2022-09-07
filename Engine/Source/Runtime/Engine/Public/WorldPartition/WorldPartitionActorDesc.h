@@ -6,6 +6,8 @@
 #include "PropertyPairsMap.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/TopLevelAssetPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Templates/SubclassOf.h"
@@ -16,7 +18,7 @@ struct FWorldPartitionActorDescInitData
 {
 	UClass* NativeClass;
 	FName PackageName;
-	FName ActorPath;
+	FSoftObjectPath ActorPath;
 	TArray<uint8> SerializedData;
 };
 
@@ -73,11 +75,15 @@ public:
 
 	inline const FGuid& GetGuid() const { return Guid; }
 	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.1, "GetClass is deprecated, GetBaseClass or GetNativeClass should be used instead.")
-	inline FName GetClass() const { return GetNativeClass(); }
+	inline FName GetClass() const { return GetNativeClass().ToFName(); }
+	UE_DEPRECATED(5.1, "GetActorPath is deprecated, GetActorSoftPath should be used instead.")
+	inline FName GetActorPath() const { return ActorPath.ToFName(); }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	inline FName GetBaseClass() const { return BaseClass; }
-	inline FName GetNativeClass() const { return NativeClass; }
+	inline FTopLevelAssetPath GetBaseClass() const { return BaseClass; }
+	inline FTopLevelAssetPath GetNativeClass() const { return NativeClass; }
 	inline UClass* GetActorNativeClass() const { return ActorNativeClass; }
 	inline FVector GetOrigin() const { return GetBounds().GetCenter(); }
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
@@ -95,7 +101,7 @@ public:
 	inline const TArray<FName>& GetTags() const { return Tags; }
 	inline void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames) { DataLayerInstanceNames = InDataLayerInstanceNames; }
 	inline FName GetActorPackage() const { return ActorPackage; }
-	inline FName GetActorPath() const { return ActorPath; }
+	inline FSoftObjectPath GetActorSoftPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
 	inline FName GetFolderPath() const { return FolderPath; }
 	inline const FGuid& GetFolderGuid() const { return FolderGuid; }
@@ -233,10 +239,10 @@ protected:
 
 	// Persistent
 	FGuid							Guid;
-	FName							BaseClass;
-	FName							NativeClass;
+	FTopLevelAssetPath				BaseClass;
+	FTopLevelAssetPath				NativeClass;
 	FName							ActorPackage;
-	FName							ActorPath;
+	FSoftObjectPath					ActorPath;
 	FName							ActorLabel;
 	FVector							BoundsLocation;
 	FVector							BoundsExtent;

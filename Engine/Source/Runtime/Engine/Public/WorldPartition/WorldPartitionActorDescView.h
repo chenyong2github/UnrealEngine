@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/TopLevelAssetPath.h"
 #include "Misc/Optional.h"
 
 #if WITH_EDITOR
@@ -25,8 +27,8 @@ public:
 	FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc);
 
 	const FGuid& GetGuid() const;
-	FName GetBaseClass() const;
-	FName GetNativeClass() const;
+	FTopLevelAssetPath GetBaseClass() const;
+	FTopLevelAssetPath GetNativeClass() const;
 	UClass* GetActorNativeClass() const;
 	FVector GetOrigin() const;
 	FName GetRuntimeGrid() const;
@@ -39,7 +41,12 @@ public:
 	const TArray<FName>& GetRuntimeDataLayers() const;
 	const TArray<FName>& GetTags() const;
 	FName GetActorPackage() const;
-	FName GetActorPath() const;
+	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "GetActorPath is deprecated, GetActorSoftPath should be used instead.")
+	inline FName GetActorPath() const { return GetActorSoftPath().ToFName(); }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	FSoftObjectPath GetActorSoftPath() const;
 	FName GetActorLabel() const;
 	FBox GetBounds() const;
 	const TArray<FGuid>& GetReferences() const;

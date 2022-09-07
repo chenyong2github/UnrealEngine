@@ -277,6 +277,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add flag to override MeshDeformer on a SkinnedMeshComponent.
 		AddSetMeshDeformerFlag,
 
+		// Replace FNames for class/actor paths with FSoftObjectPath
+		WorldPartitionActorDescActorAndClassPaths,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

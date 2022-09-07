@@ -60,7 +60,7 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 		FWorldPartitionActorDescInitData ActorDescInitData;
 		ActorDescInitData.NativeClass = ActorClass;
 		ActorDescInitData.PackageName = InAssetData.PackageName;
-		ActorDescInitData.ActorPath = InAssetData.ObjectPath;
+		ActorDescInitData.ActorPath = InAssetData.GetSoftObjectPath();
 		FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
 
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass));

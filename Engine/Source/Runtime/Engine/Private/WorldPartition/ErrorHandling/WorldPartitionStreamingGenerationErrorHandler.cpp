@@ -7,7 +7,7 @@
 // Helpers
 FString IStreamingGenerationErrorHandler::GetFullActorName(const FWorldPartitionActorDescView& ActorDescView)
 {
-	const FSoftObjectPath ActorPath(ActorDescView.GetActorPath());
+	const FSoftObjectPath ActorPath = ActorDescView.GetActorSoftPath();
 	return ActorDescView.GetActorLabelOrName().ToString() + TEXT(" (") + ActorPath.GetLongPackageName() + TEXT(")");
 }
 #endif

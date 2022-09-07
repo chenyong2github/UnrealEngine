@@ -8,6 +8,7 @@
 #include "UObject/LinkerInstancingContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/MetaData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Algo/Transform.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
@@ -317,10 +318,34 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescNativeBaseClassSerialization)
 	{
-		Ar << BaseClass;
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescActorAndClassPaths)
+		{
+			FName BaseClassPathName;
+			Ar << BaseClassPathName;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			BaseClass = FAssetData::TryConvertShortClassNameToPathName(BaseClassPathName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+		else
+		{
+			Ar << BaseClass;
+		}
 	}
 
-	Ar << NativeClass << Guid;
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescActorAndClassPaths)
+	{
+		FName NativeClassPathName;
+		Ar << NativeClassPathName;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		NativeClass = FAssetData::TryConvertShortClassNameToPathName(NativeClassPathName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	else
+	{
+		Ar << NativeClass;
+	}
+
+	Ar << Guid;
 
 	if(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
 	{
@@ -370,7 +395,19 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeArchivePersistent)
 	{
-		Ar << ActorPackage << ActorPath;
+		Ar << ActorPackage;
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescActorAndClassPaths)
+		{ 
+			FName ActorPathName;
+			Ar << ActorPathName;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ActorPath = FSoftObjectPath(ActorPathName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+		else
+		{
+			Ar << ActorPath;
+		}
 	}
 
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
@@ -438,20 +475,21 @@ FName FWorldPartitionActorDesc::GetActorLabelOrName() const
 
 FName FWorldPartitionActorDesc::GetDisplayClassName() const
 {
-	auto GetCleanClassName = [](FName ClassName) -> FName
+	auto GetCleanClassName = [](FTopLevelAssetPath ClassPath) -> FName
 	{
+		// Should this just return ClassPath.GetAssetName() with _C removed if necessary?
 		int32 Index;
-		FString ClassNameStr(ClassName.ToString());
+		FString ClassNameStr(ClassPath.ToString());
 		if (ClassNameStr.FindLastChar(TCHAR('.'), Index))
 		{
 			FString CleanClassName = ClassNameStr.Mid(Index + 1);
 			CleanClassName.RemoveFromEnd(TEXT("_C"));
 			return *CleanClassName;
 		}
-		return ClassName;
+		return *ClassPath.ToString(); 
 	};
 
-	return BaseClass.IsNone() ? GetCleanClassName(NativeClass) : GetCleanClassName(BaseClass);
+	return BaseClass.IsNull() ? GetCleanClassName(NativeClass) : GetCleanClassName(BaseClass);
 }
 
 FGuid FWorldPartitionActorDesc::GetContentBundleUID() const
@@ -520,7 +558,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 		if (InstancingContext)
 		{
 			FName RemappedPackageName = InstancingContext->RemapPackage(ActorPackage);
-			check(RemappedPackageName != ActorPath);
+			check(RemappedPackageName != ActorPath.GetLongPackageFName());
 
 			Package = CreatePackage(*RemappedPackageName.ToString());
 		}

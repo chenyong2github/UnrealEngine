@@ -21,13 +21,13 @@ FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTrans
 {
 	Guid = InActorDesc.GetGuid();
 
-	if (!InActorDesc.GetBaseClass().IsNone())
+	if (!InActorDesc.GetBaseClass().IsNull())
 	{
-		Class = InActorDesc.GetBaseClass();
+		Class = FSoftObjectPath(InActorDesc.GetBaseClass(), {});
 	}
 	else
 	{
-		Class = InActorDesc.GetActorNativeClass();
+		Class = FSoftObjectPath(InActorDesc.GetActorNativeClass());
 	}
 
 	Name = InActorDesc.GetActorName();
