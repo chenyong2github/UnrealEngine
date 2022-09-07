@@ -334,6 +334,11 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 				const bool bWasPendingKill = !IsValid(TransactionObjectRef.Obj);
 				ConcertSyncClientUtil::UpdatePendingKillState(TransactionObjectRef.Obj, ObjectUpdate.ObjectData.bIsPendingKill);
 
+				if (ObjectUpdate.ObjectData.bResetExisting && !NewlyCreatedObjects.Contains(TransactionObjectRef.Obj))
+				{
+					ConcertSyncUtil::ResetObjectPropertiesToArchetypeValues(TransactionObjectRef.Obj, bIncludeEditorOnlyProperties);
+				}
+
 				if (!TransactionObjectRef.NewlyCreated() && !ObjectUpdate.ObjectData.bIsPendingKill && bWasPendingKill)
 				{
 					// If we're bringing this actor back to life, then make sure any SCS/UCS components exist in a clean state
@@ -357,11 +362,6 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 							}
 						});
 					}
-				}
-
-				if (ObjectUpdate.ObjectData.bResetExisting && !NewlyCreatedObjects.Contains(TransactionObjectRef.Obj))
-				{
-					ConcertSyncUtil::ResetObjectPropertiesToArchetypeValues(TransactionObjectRef.Obj, bIncludeEditorOnlyProperties);
 				}
 			}
 		}
