@@ -3,14 +3,13 @@
 #include "Dataflow/DataflowNodeColorsRegistry.h"
 
 #include "Dataflow/DataflowNode.h"
-//#include "Misc/MessageDialog.h"
 #include "Misc/LazySingleton.h"
 
 namespace Dataflow
 {
 	FNodeColorsRegistry::FNodeColorsRegistry()
 	{
-		DataflowSettings = GetMutableDefault<UDataflowSettings>();
+		UDataflowSettings* DataflowSettings = GetMutableDefault<UDataflowSettings>();
 		DataflowSettingsChangedDelegateHandle = DataflowSettings->GetOnDataflowSettingsChangedDelegate().AddRaw(this, &FNodeColorsRegistry::NodeColorsChangedInSettings);
 
 		const FNodeColorsMap NodeColorsMap = DataflowSettings->GetNodeColorsMap();
@@ -30,7 +29,11 @@ namespace Dataflow
 
 	FNodeColorsRegistry::~FNodeColorsRegistry()
 	{
-		DataflowSettings->GetOnDataflowSettingsChangedDelegate().Remove(DataflowSettingsChangedDelegateHandle);
+		if (IsClassLoaded<UDataflowSettings>())
+		{
+			UDataflowSettings* DataflowSettings = GetMutableDefault<UDataflowSettings>();
+			DataflowSettings->GetOnDataflowSettingsChangedDelegate().Remove(DataflowSettingsChangedDelegateHandle);
+		}
 	}
 
 	FNodeColorsRegistry& FNodeColorsRegistry::Get()

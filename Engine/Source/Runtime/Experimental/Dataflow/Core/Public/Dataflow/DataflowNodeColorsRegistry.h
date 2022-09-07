@@ -34,7 +34,6 @@ namespace Dataflow
 
 		TMap<FName, FNodeColors > ColorsMap;					// [Category] -> Colors
 		FDelegateHandle DataflowSettingsChangedDelegateHandle;
-		UDataflowSettings* DataflowSettings;
 
 		friend FLazySingleton;
 	};
