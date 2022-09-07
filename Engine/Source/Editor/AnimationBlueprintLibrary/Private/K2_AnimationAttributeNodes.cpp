@@ -18,7 +18,6 @@
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Engine/UserDefinedStruct.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_AnimationAttributeNodes"
 
@@ -75,11 +74,6 @@ bool UK2Node_BaseAttributeActionNode::IsConnectionDisallowed(const UEdGraphPin* 
 				if (!bAllowed)
 				{
 					OutReason = FText::Format(LOCTEXT("UnregisterdStructureTypeFormat", "Must be a registered Animation Attribute, which {0} is not."), FText::FromName(AttributeType->GetFName())).ToString();
-				}
-				else if (AttributeType->IsA<UUserDefinedStruct>())
-				{
-					bAllowed = false;
-					OutReason = FText::Format(LOCTEXT("UnsupportedStructureTypeFormat", "User Defined Structs like {0} are not supported by this function"), FText::FromName(AttributeType->GetFName())).ToString();
 				}
 			}
 		}

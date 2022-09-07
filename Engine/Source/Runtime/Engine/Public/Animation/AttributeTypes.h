@@ -11,7 +11,6 @@
 #include "UObject/WeakObjectPtr.h"
 
 #include "CoreTypes.h"
-#include "Animation/AnimationSettings.h"
 #include "Templates/UnrealTemplate.h"
 
 enum EAdditiveAnimationType;
@@ -43,28 +42,15 @@ namespace UE
 
 		struct ENGINE_API AttributeTypes
 		{
-			DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAttributeTypesChanged, const UScriptStruct*, bool /* bIsAdded */ );
-			
 		protected:
 			static TArray<TWeakObjectPtr<const UScriptStruct>> RegisteredTypes;
 			static TArray<TUniquePtr<IAttributeBlendOperator>> Operators;
 			static TArray<TWeakObjectPtr<const UScriptStruct>> InterpolatableTypes;
 			static std::atomic<bool> bInitialized;
-			static FOnAttributeTypesChanged OnAttributeTypesChangedDelegate;
-
 			static void Initialize();
-
-			/** Register user defined structs as non-blendable animation attribute */
-			static bool RegisterNonBlendableType(const UScriptStruct* InScriptStruct);
-
-			/** Unregisters a specific attribute type and deletes its associated blend operator */
-			static void UnregisterType(const UScriptStruct* InScriptStruct);
-			
 		public:			
 			static void LazyInitialize();
 
-			static FOnAttributeTypesChanged& GetOnAttributeTypesChanged() { return OnAttributeTypesChangedDelegate; };
-			
 			/** Used for registering an attribute type for which TAttributeTypeTraits::WithCustomBlendOperator is set to true, use RegisterType() otherwise */
 			template<typename AttributeType, typename OperatorType, typename... OperatorArgs>
 			static void RegisterTypeWithOperator(OperatorArgs&&... args)
@@ -154,8 +140,6 @@ namespace UE
 				LazyInitialize();
 				return AttributeTypes::RegisteredTypes;
 			}
-
-			friend class UAnimationSettings;
 		};
 	}
 }

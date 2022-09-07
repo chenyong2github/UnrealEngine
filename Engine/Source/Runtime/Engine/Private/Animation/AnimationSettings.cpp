@@ -2,8 +2,6 @@
 
 #include "Animation/AnimationSettings.h"
 #include "Animation/AnimCompress_BitwiseCompressOnly.h"
-#include "Animation/AttributeTypes.h"
-
 
 UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -66,32 +64,15 @@ void UAnimationSettings::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
- 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-	
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAnimationSettings, UserDefinedStructAttributes))
-	{
-		TArray<UScriptStruct*> NewListOfStructs;
-		for (const TSoftObjectPtr<UUserDefinedStruct>& UserDefinedStruct : UAnimationSettings::Get()->UserDefinedStructAttributes)
-		{
-			if (UserDefinedStruct.IsValid())
-			{
-				NewListOfStructs.Add(UserDefinedStruct.Get());
-				UE::Anim::AttributeTypes::RegisterNonBlendableType(UserDefinedStruct.Get());
-			}
-		}
-
-		TArray<TWeakObjectPtr<const UScriptStruct>> RegisteredTypes = UE::Anim::AttributeTypes::GetRegisteredTypes();
-		for (const TWeakObjectPtr<const UScriptStruct>& RegisteredStruct : RegisteredTypes)
-		{
-			if (RegisteredStruct.IsValid() && RegisteredStruct->IsA<UUserDefinedStruct>())
-			{
-				if (!NewListOfStructs.Contains(RegisteredStruct.Get()))
-				{
-					UE::Anim::AttributeTypes::UnregisterType(RegisteredStruct.Get());
-				}
-			}
-		}
-	}
+// 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+// 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAnimationSettings, FrictionCombineMode))
+// 	{
+// 		UPhysicalMaterial::RebuildPhysicalMaterials();
+// 	}
+// 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAnimationSettings, LockedAxis))
+// 	{
+// 		UMovementComponent::PhysicsLockedAxisSettingChanged();
+// 	}
 }
 
 

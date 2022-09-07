@@ -13,7 +13,6 @@
 #include "Engine/DeveloperSettings.h"
 #include "CustomAttributes.h"
 #include "MirrorDataTable.h"
-#include "Engine/UserDefinedStruct.h"
 #include "AnimationSettings.generated.h"
 
 /**
@@ -91,10 +90,6 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	/** Names to match against when importing FBX node transform curves as attributes (can use ? and * wildcards) */
 	UPROPERTY(config, EditAnywhere, Category = AnimationAttributes)
 	TArray<FString> TransformAttributeNames;
-
-	/** Register user defined structs as animation attributes*/
-	UPROPERTY(config, EditAnywhere, DisplayName="User Defined Struct Animation Attributes (Runtime only, Non-blendable)", Category = CustomAttributes, meta=(AllowedClasses="/Script/Engine.UserDefinedStruct"))
-	TArray<TSoftObjectPtr<UUserDefinedStruct>> UserDefinedStructAttributes;
 
 	/** Find and Replace Expressions used for mirroring  */
 	UPROPERTY(config, EditAnywhere, Category = Mirroring)

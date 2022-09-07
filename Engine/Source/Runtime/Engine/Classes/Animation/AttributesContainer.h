@@ -285,7 +285,7 @@ namespace UE
 			*
 			* @return	The ptr to the added entry, to be used for populating the data, nullptr if adding it failed
 			*/
-			uint8* Add(const UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
+			uint8* Add(UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
 			{
 				const int32 TypeIndex = FindOrAddTypeIndex(InScriptStruct);
 
@@ -337,7 +337,7 @@ namespace UE
 			*
 			* @return	The ptr to the added/existing entry, to be used for populating the data, nullptr if adding it failed
 			*/
-			uint8* FindOrAdd(const UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
+			uint8* FindOrAdd(UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId)
 			{
 				const int32 TypeIndex = FindOrAddTypeIndex(InScriptStruct);
 				TArray<FAttributeId>& AttributeIds = AttributeIdentifiers[TypeIndex];
@@ -552,33 +552,6 @@ namespace UE
 				return INDEX_NONE;
 			}
 
-			/**
-			* Tries to find and return the indedx of a attribute type/value entry of the specified AttributeType.
-			*
-			* @param	InAttributeId		Key to be used for seraching the entry
-			*
-			* @return	Index to the entry, INDEX_NONE if not found
-			*/
-			int32 IndexOfByKey(const UScriptStruct* InScriptStruct, const FAttributeId& InAttributeId) const
-			{
-				const int32 TypeIndex = FindTypeIndex(InScriptStruct);
-				if (TypeIndex != INDEX_NONE)
-				{
-					const TArray<int32>& UniqueBoneIndices = UniqueTypedBoneIndices[TypeIndex];
-
-					// Early out if for this bone index no attributes are currently contained
-					if (UniqueBoneIndices.Contains(InAttributeId.GetIndex()))
-					{
-						const TArray<FAttributeId>& AttributeIds = AttributeIdentifiers[TypeIndex];
-						const int32 AttributeIndex = AttributeIds.IndexOfByKey(InAttributeId);
-						
-						return AttributeIndex;
-					}
-				}
-
-				return INDEX_NONE;
-			}
-			
 			/**
 			* Removes, if existing, an attribute type/value entry of the specified AttributeType.
 			*
@@ -811,12 +784,10 @@ namespace UE
 			TArray<FAttributeId>& GetKeysInternal(int32 TypeIndex) { return AttributeIdentifiers[TypeIndex]; }
 			
 			/** Find or add a new root-level entry for the provided attribute data type, returning the index into the arrays representing the type */
-			int32 FindOrAddTypeIndex(const UScriptStruct* InScriptStruct)
+			int32 FindOrAddTypeIndex(UScriptStruct* InScriptStruct)
 			{
 				const int32 OldNum = UniqueTypes.Num();
-				// Technically we could have avoided using const cast here if we made UniqueTypes use const UScriptStruct*
-				// but a bit of refactoring is required
-				const int32 TypeIndex = UniqueTypes.AddUnique(const_cast<UScriptStruct*>(InScriptStruct));
+				const int32 TypeIndex = UniqueTypes.AddUnique(InScriptStruct);
 
 				if (UniqueTypes.Num() > OldNum)
 				{
