@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
-#include "EntitySystem/MovieScenePropertySystemTypes.inl"
+#include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "GameFramework/WorldSettings.h"
 #include "CameraAnimationSequenceSubsystem.h"
 #include "MovieSceneTimeHelpers.h"
