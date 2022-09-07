@@ -1118,7 +1118,7 @@ bool FTransformConstraintUtils::AddConstraint(
 		if (ParentPrerequisites.IsEmpty())
 		{
 			// if the constraint has no prerex at this stage, this means that the parent tick function
-			// is not registered or can't tick (static meshes for instance) so look for the first master tick function if any.
+			// is not registered or can't tick (static meshes for instance) so look for the first parent tick function if any.
 			// In a context of adding several constraints, we want to make sure that the evaluation order is the right one
 			FTickPrerequisite PrimaryPrerex = InParentHandle->GetPrimaryPrerequisite();
 			if (FTickFunction* PotentialFunction = PrimaryPrerex.Get())

@@ -152,7 +152,7 @@ FTickPrerequisite LookForPrimaryPrerequisite(USceneComponent* Component)
 		return FTickPrerequisite(Component, Component->PrimaryComponentTick);
 	}
 
-	// check if a master constraint can tick
+	// check if a parent constraint can tick
 	if (UWorld* World = Component->GetWorld())
 	{
 		static constexpr bool bSorted = true;
