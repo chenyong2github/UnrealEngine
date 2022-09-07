@@ -130,9 +130,6 @@ public:
 	// Callback for handling accepting invitations - generally for engine code
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInviteAccepted, const FString&, const FString&);
 
-	UE_DEPRECATED(4.26, "FCoreDelegates::FRegisterEncryptionKeyDelegate is deprecated; use FRegisterEncryptionKeyMulticastDelegate instead")
-	DECLARE_DELEGATE_TwoParams(FRegisterEncryptionKeyDelegate, const FGuid&, const FAES::FAESKey&);
-
 	// Callback for registering a new encryption key
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FRegisterEncryptionKeyMulticastDelegate, const FGuid&, const FAES::FAESKey&);
 
@@ -235,10 +232,6 @@ public:
 	// Called when an actor label is changed
 	static FOnActorLabelChanged OnActorLabelChanged;
 
-	UE_DEPRECATED(4.26, "FCoreDelegates::GetRegisterEncryptionKeyDelegate is deprecated; use GetRegisterEncryptionKeyMulticastDelegate instead")
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Don't warn about FRegisterEncryptionKeyDelegate
-	static FRegisterEncryptionKeyDelegate& GetRegisterEncryptionKeyDelegate();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	static FRegisterEncryptionKeyMulticastDelegate& GetRegisterEncryptionKeyMulticastDelegate();
 	static FPakEncryptionKeyDelegate& GetPakEncryptionKeyDelegate();
 	static FPakSigningKeysDelegate& GetPakSigningKeysDelegate();
