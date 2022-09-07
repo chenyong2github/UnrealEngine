@@ -292,6 +292,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// Phase 1
 	// --------------------------------------------------------------------------------------------------------------------
 	bool bObjectsDeleted = false;
+	TArray<AActor*> ResurrectedActors;
 	TArray<ConcertSyncClientUtil::FGetObjectResult, TInlineAllocator<32>> TransactionObjects;
 	{
 		TSet<const UObject*> NewlyCreatedObjects;
@@ -345,6 +346,8 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 					// We have to do this as some of the actor components may have been GC'd when using "AllowEliminatingReferences(false)" (eg, within the transaction buffer)
 					if (AActor* Actor = Cast<AActor>(TransactionObjectRef.Obj))
 					{
+						ResurrectedActors.Add(Actor);
+
 						TSet<const UObject*> ExistingSubObjects;
 						ForEachObjectWithOuter(Actor, [&ExistingSubObjects](UObject* InnerObj)
 						{
@@ -551,6 +554,12 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		EditorTransactionNotification.PostUndo();
 	}
 #endif
+
+	// Ensure that any actors we restored from the dead are added back to the actors array of their owner level
+	for (AActor* Actor : ResurrectedActors)
+	{
+		ConcertSyncClientUtil::AddActorToOwnerLevel(Actor);
+	}
 
 	DeselectActorsAndActorComponents(DeletedActorsForSelectionUpdate, DeletedActorComponentForSelectionUpdate);
 

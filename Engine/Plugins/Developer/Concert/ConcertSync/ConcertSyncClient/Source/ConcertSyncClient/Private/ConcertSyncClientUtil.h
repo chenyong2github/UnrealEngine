@@ -75,6 +75,8 @@ namespace ConcertSyncClientUtil
 
 	void UpdatePendingKillState(UObject* InObj, const bool bIsPendingKill);
 
+	void AddActorToOwnerLevel(AActor* InActor);
+
 	bool ObjectIdsMatch(const FConcertObjectId& One, const FConcertObjectId& Two);
 
 	int32 GetObjectPathDepth(UObject* InObjToTest);

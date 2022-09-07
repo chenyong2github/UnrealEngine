@@ -114,13 +114,72 @@ bool CanPerformBlockingAction(const bool bBlockDuringInteraction)
 
 void UpdatePendingKillState(UObject* InObj, const bool bIsPendingKill)
 {
+	const bool bWasPendingKill = !IsValid(InObj);
+	if (bIsPendingKill == bWasPendingKill)
+	{
+		return;
+	}
+
 	if (bIsPendingKill)
 	{
-		InObj->MarkAsGarbage();
+		bool bMarkAsGarbage = true;
+
+		if (AActor* Actor = Cast<AActor>(InObj))
+		{
+			if (UWorld* ActorWorld = Actor->GetWorld())
+			{
+#if WITH_EDITOR
+				if (GIsEditor)
+				{
+					bMarkAsGarbage = !ActorWorld->EditorDestroyActor(Actor, /*bShouldModifyLevel*/false);
+				}
+				else
+#endif	// WITH_EDITOR
+				{
+					bMarkAsGarbage = !ActorWorld->DestroyActor(Actor, /*bNetForce*/false, /*bShouldModifyLevel*/false);
+				}
+			}
+		}
+
+		if (bMarkAsGarbage)
+		{
+			InObj->MarkAsGarbage();
+		}
 	}
 	else
 	{
 		InObj->ClearGarbage();
+	}
+}
+
+void AddActorToOwnerLevel(AActor* InActor)
+{
+	if (ULevel* Level = InActor->GetLevel())
+	{
+		if (Level->Actors.Contains(InActor))
+		{
+			return;
+		}
+
+		Level->Actors.Add(InActor);
+		Level->ActorsForGC.Add(InActor);
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			if (Level->IsUsingActorFolders())
+			{
+				InActor->FixupActorFolder();
+			}
+
+			GEngine->BroadcastLevelActorAdded(InActor);
+
+			if (UWorld* World = Level->GetWorld())
+			{
+				World->BroadcastLevelsChanged();
+			}
+		}
+#endif	// WITH_EDITOR
 	}
 }
 
@@ -217,7 +276,7 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 					if (UObject* NewObject = StaticFindObject(ObjectClass, NewObjectOuter ? NewObjectOuter : ExistingObjectOuter, *ObjectNameToCreate.ToString(), /*bExactClass*/true))
 					{
 						UE_LOG(LogConcert, Warning, TEXT("Attempted to rename '%s' over '%s'. Re-using the found object instead of performing the rename!"), *ExistingObject->GetPathName(), *NewObject->GetPathName());
-						ExistingObject->MarkAsGarbage();
+						UpdatePendingKillState(ExistingObject, /*bIsPendingKill*/true);
 						ResultFlags |= EGetObjectResultFlags::NeedsGC;
 
 						ExistingObject = NewObject;
