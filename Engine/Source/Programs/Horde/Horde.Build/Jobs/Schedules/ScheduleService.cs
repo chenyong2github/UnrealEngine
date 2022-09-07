@@ -63,15 +63,13 @@ namespace Horde.Build.Jobs.Schedules
 
 		class PerforceHistory
 		{
-			readonly IPerforceService _perforce;
 			readonly IStream _stream;
 			int _maxResults;
 			readonly List<ICommit> _changes = new List<ICommit>();
 			int _nextIndex;
 
-			public PerforceHistory(IPerforceService perforce, IStream stream)
+			public PerforceHistory(IStream stream)
 			{
-				_perforce = perforce;
 				_stream = stream;
 				_maxResults = 10;
 			}
@@ -80,7 +78,7 @@ namespace Horde.Build.Jobs.Schedules
 			{
 				while (index >= _changes.Count)
 				{
-					List<ICommit> newChanges = await _perforce.GetChangesAsync(_stream, null, null, _maxResults);
+					List<ICommit> newChanges = await _stream.Commits.FindCommitsAsync(null, null, _maxResults).ToListAsync();
 
 					int numResults = newChanges.Count;
 					if (_changes.Count > 0)
@@ -93,7 +91,7 @@ namespace Horde.Build.Jobs.Schedules
 					}
 					if(newChanges.Count > 0)
 					{
-						_changes.AddRange((await _perforce.GetChangeDetailsAsync(_stream, newChanges.ConvertAll(x => x.Number))).OrderByDescending(x => x.Number));
+						_changes.AddRange(newChanges);
 					}
 					_maxResults += 10;
 				}
@@ -429,7 +427,7 @@ namespace Horde.Build.Jobs.Schedules
 			}
 
 			// Cache the Perforce history as we're iterating through changes to improve query performance
-			PerforceHistory history = new PerforceHistory(_perforce, stream);
+			PerforceHistory history = new PerforceHistory(stream);
 			
 			// Start as many jobs as possible
 			List<(int Change, int CodeChange)> triggerChanges = new List<(int, int)>();

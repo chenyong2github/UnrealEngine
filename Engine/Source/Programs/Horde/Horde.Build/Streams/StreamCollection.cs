@@ -12,6 +12,7 @@ using Horde.Build.Configuration;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Schedules;
 using Horde.Build.Jobs.Templates;
+using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Users;
@@ -50,9 +51,6 @@ namespace Horde.Build.Streams
 
 			public string ConfigRevision { get; set; } = String.Empty;
 
-			[BsonIgnore]
-			public StreamConfig? Config { get; set; }
-
 			public Dictionary<TemplateId, TemplateRefDoc> Templates { get; set; } = new Dictionary<TemplateId, TemplateRefDoc>();
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
@@ -60,20 +58,6 @@ namespace Horde.Build.Streams
 			public Acl? Acl { get; set; }
 			public int UpdateIndex { get; set; }
 			public bool Deleted { get; set; }
-
-			StreamConfig IStream.Config => Config!;
-
-			IReadOnlyDictionary<TemplateId, ITemplateRef>? _cachedTemplates;
-			IReadOnlyDictionary<TemplateId, ITemplateRef> IStream.Templates
-			{
-				get
-				{
-					_cachedTemplates ??= Templates.ToDictionary(x => x.Key, x => (ITemplateRef)x.Value);
-					return _cachedTemplates;
-				}
-			}
-
-			string IStream.Name => Config!.Name;
 
 			[BsonConstructor]
 			private StreamDoc()
@@ -85,12 +69,74 @@ namespace Horde.Build.Streams
 				Id = id;
 				ProjectId = projectId;
 			}
+
+			#region IStream Implementation
+
+			[BsonIgnore]
+			public string Name => Config?.Name!;
+
+			[BsonIgnore]
+			public StreamConfig Config { get; private set; } = null!;
+
+			[BsonIgnore]
+			IPerforceService? _perforceService;
+
+			[BsonIgnore]
+			PerforceCommitSource? _cachedCommitSource;
+
+			[BsonIgnore]
+			IReadOnlyDictionary<TemplateId, ITemplateRef>? _cachedTemplates;
+
+			ICommitSource IStream.Commits
+			{
+				get
+				{
+					_cachedCommitSource ??= (_perforceService == null)? null : new PerforceCommitSource(_perforceService!, this);
+					return _cachedCommitSource!;
+				}
+			}
+
+			IReadOnlyDictionary<TemplateId, ITemplateRef> IStream.Templates
+			{
+				get
+				{
+					_cachedTemplates ??= Templates.ToDictionary(x => x.Key, x => (ITemplateRef)x.Value);
+					return _cachedTemplates;
+				}
+			}
+
+			public async Task PostLoadAsync(ConfigCollection configCollection, IPerforceService perforceService, ILogger logger)
+			{
+				_perforceService = perforceService;
+
+				try
+				{
+					if (Deleted)
+					{
+						Config = new StreamConfig();
+					}
+					else
+					{
+						Config = await configCollection.GetConfigAsync<StreamConfig>(ConfigRevision);
+					}
+				}
+				catch (Exception)
+				{
+					logger.LogError("Unable to get stream config for {StreamId} at {Revision}", Id, ConfigRevision);
+					throw;
+				}
+
+				foreach (KeyValuePair<TemplateId, TemplateRefDoc> pair in Templates)
+				{
+					pair.Value.PostLoad(this, pair.Key);
+				}
+			}
+
+			#endregion
 		}
 
 		class TemplateRefDoc : ITemplateRef
 		{
-			#region Serialized
-
 			[BsonRequired]
 			public ContentHash Hash { get; set; } = null!;
 
@@ -103,7 +149,7 @@ namespace Horde.Build.Streams
 			[BsonIgnoreIfNull]
 			public Acl? Acl { get; set; }
 
-			#endregion
+			#region ITemplateRef implementation
 
 			[BsonIgnore]
 			StreamDoc? _owner;
@@ -133,12 +179,12 @@ namespace Horde.Build.Streams
 				Id = id;
 				Schedule?.PostLoad(this);
 			}
+
+			#endregion
 		}
 
 		class TemplateScheduleDoc : ITemplateSchedule
 		{
-			#region Serialized
-
 			public int LastTriggerChange { get; set; }
 
 			[BsonIgnoreIfNull, Obsolete("Use LastTriggerTimeUtc instead")]
@@ -147,7 +193,7 @@ namespace Horde.Build.Streams
 			public DateTime LastTriggerTimeUtc { get; set; }
 			public List<JobId> ActiveJobs { get; set; } = new List<JobId>();
 
-			#endregion
+			#region ITemplateSchedule implementation
 
 			[BsonIgnore]
 			TemplateRefDoc? _owner;
@@ -169,6 +215,8 @@ namespace Horde.Build.Streams
 				}
 #pragma warning restore CS0618 // Type or member is obsolete
 			}
+
+			#endregion
 		}
 
 		class TemplateStepDoc : ITemplateStep
@@ -203,6 +251,7 @@ namespace Horde.Build.Streams
 
 		readonly IMongoCollection<StreamDoc> _streams;
 		readonly ConfigCollection _configCollection;
+		readonly IPerforceService _perforceService;
 		readonly IClock _clock;
 		readonly ITemplateCollection _templateCollection;
 		readonly ILogger<StreamCollection> _logger;
@@ -212,42 +261,21 @@ namespace Horde.Build.Streams
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
 		/// <param name="configCollection"></param>
+		/// <param name="perforceService"></param>
 		/// <param name="clock"></param>
 		/// <param name="templateCollection"></param>
 		/// <param name="logger"></param>
-		public StreamCollection(MongoService mongoService, ConfigCollection configCollection, IClock clock, ITemplateCollection templateCollection, ILogger<StreamCollection> logger)
+		public StreamCollection(MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, IClock clock, ITemplateCollection templateCollection, ILogger<StreamCollection> logger)
 		{
 			_streams = mongoService.GetCollection<StreamDoc>("Streams");
 			_configCollection = configCollection;
+			_perforceService = perforceService;
 			_clock = clock;
 			_templateCollection = templateCollection;
 			_logger = logger;
 		}
 
-		async Task PostLoadAsync(StreamDoc stream)
-		{
-			try
-			{
-				if (stream.Deleted)
-				{
-					stream.Config = new StreamConfig();
-				}
-				else
-				{
-					stream.Config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
-				}
-			}
-			catch (Exception)
-			{
-				_logger.LogError("Unable to get stream config for {StreamId} at {Revision}", stream.Id, stream.ConfigRevision);
-				throw;
-			}
-
-			foreach (KeyValuePair<TemplateId, TemplateRefDoc> pair in stream.Templates)
-			{
-				pair.Value.PostLoad(stream, pair.Key);
-			}
-		}
+		Task PostLoadAsync(StreamDoc stream) => stream.PostLoadAsync(_configCollection, _perforceService, _logger);
 
 		/// <inheritdoc/>
 		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string revision, ProjectId projectId)

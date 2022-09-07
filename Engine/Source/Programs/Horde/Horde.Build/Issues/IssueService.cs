@@ -151,7 +151,6 @@ namespace Horde.Build.Issues
 		readonly IIssueCollection _issueCollection;
 		readonly StreamService _streams;
 		readonly IUserCollection _userCollection;
-		readonly IPerforceService _perforce;
 		readonly ILogFileService _logFileService;
 		readonly IClock _clock;
 		readonly ITicker _ticker;
@@ -204,7 +203,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueService(IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, IPerforceService perforce, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
+		public IssueService(IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
 		{
 			Type[] issueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type issueType in issueTypes)
@@ -217,7 +216,6 @@ namespace Horde.Build.Issues
 			_jobStepRefs = jobStepRefs;
 			_streams = streams;
 			_userCollection = userCollection;
-			_perforce = perforce;
 			_logFileService = logFileService;
 			_clock = clock;
 			_ticker = clock.AddTicker<IssueService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
@@ -1085,8 +1083,8 @@ namespace Horde.Build.Issues
 				if (stream != null)
 				{
 					_logger.LogInformation("Querying fix changelist {FixChange} in {StreamId}", fixChange, streamId);
-					List<ICommit> changes = await _perforce.GetChangesAsync(stream, fixChange, fixChange, 1);
-					bContainsFixChange = changes.Count > 0;
+					ICommit? change = await stream.Commits.FindCommitsAsync(fixChange, fixChange, 1).FirstOrDefaultAsync();
+					bContainsFixChange = change != null;
 				}
 				cachedContainsFixChange[(streamId, fixChange)] = bContainsFixChange;
 			}
@@ -1109,7 +1107,7 @@ namespace Horde.Build.Issues
 				_logger.LogDebug("Querying for changes in {StreamName} between {MinChange} and {MaxChange}", stream.Name, minChange, maxChange);
 
 				// Get the submitted changes before this job
-				List<ICommit> changes = await PerforceServiceExtensions.GetChangeDetailsAsync(_perforce, stream, minChange, maxChange, MaxChanges);
+				List<ICommit> changes = await stream.Commits.FindCommitsAsync(minChange, maxChange, MaxChanges).ToListAsync();
 				_logger.LogDebug("Found {NumResults} changes", changes.Count);
 
 				// Get the handler to rank them

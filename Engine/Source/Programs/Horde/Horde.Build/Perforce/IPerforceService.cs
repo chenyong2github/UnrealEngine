@@ -95,7 +95,7 @@ namespace Horde.Build.Perforce
 		/// <param name="results">Number of results to return</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Latest changelist number</returns>
-		public Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int results, CancellationToken cancellationToken = default);
+		public Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int? results, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Checks a shelf is valid for the given stream

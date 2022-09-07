@@ -9,6 +9,7 @@ using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
 using Horde.Build.Jobs;
+using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
@@ -96,6 +97,11 @@ namespace Horde.Build.Streams
 		/// The ACL for this object
 		/// </summary>
 		Acl? Acl { get; }
+
+		/// <summary>
+		/// Accessor for commits of this stream
+		/// </summary>
+		ICommitSource Commits { get; }
 	}
 
 	/// <summary>

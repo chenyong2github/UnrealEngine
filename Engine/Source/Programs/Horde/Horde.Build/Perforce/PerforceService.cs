@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -595,13 +596,13 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int maxResults, CancellationToken cancellationToken)
+		public async Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int? maxResults, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
 			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
 			scope.Span.SetTag("MinChange", minChange ?? -1);
 			scope.Span.SetTag("MaxChange", maxChange ?? -1);
-			scope.Span.SetTag("MaxResults", maxResults);
+			scope.Span.SetTag("MaxResults", maxResults ?? -1);
 
 			List<ICommit> results = new List<ICommit>();
 			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(stream, null, cancellationToken))
@@ -610,7 +611,7 @@ namespace Horde.Build.Perforce
 
 				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
-				List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, maxResults, ChangeStatus.Submitted, filter, cancellationToken);
+				List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, maxResults ?? -1, ChangeStatus.Submitted, filter, cancellationToken);
 
 				foreach (ChangesRecord change in changes)
 				{
@@ -1138,6 +1139,37 @@ namespace Horde.Build.Perforce
 
 			relativePath = null;
 			return false;
+		}
+	}
+
+	class PerforceCommitSource : ICommitSource
+	{
+		readonly IPerforceService _perforceService;
+		readonly IStream _stream;
+
+		public PerforceCommitSource(IPerforceService perforceService, IStream stream)
+		{
+			_perforceService = perforceService;
+			_stream = stream;
+		}
+
+		public async IAsyncEnumerable<ICommit> FindCommitsAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			List<ICommit> commits = await _perforceService.GetChangesAsync(_stream, minChange, maxChange, maxResults, cancellationToken);
+			foreach(ICommit commit in commits)
+			{
+				yield return commit;
+			}
+		}
+
+		public Task<ICommit> GetCommitAsync(int changeNumber, CancellationToken cancellationToken = default)
+		{
+			return _perforceService.GetChangeDetailsAsync(_stream, changeNumber, cancellationToken);
+		}
+
+		public Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
+		{
+			return _perforceService.GetLatestChangeAsync(_stream);
 		}
 	}
 }

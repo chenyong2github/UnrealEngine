@@ -103,7 +103,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			streamChanges.Add(number, new Commit(streamId, number, originalNumber, author.Id, owner.Id, description, files.ToList()));
 		}
 
-		public Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int numResults, CancellationToken cancellationToken)
+		public Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int? numResults, CancellationToken cancellationToken)
 		{
 			List<ICommit> results = new List<ICommit>();
 
@@ -120,7 +120,7 @@ namespace Horde.Build.Tests.Stubs.Services
 					{
 						results.Add(details);
 					}
-					if (numResults > 0 && results.Count >= numResults)
+					if (numResults != null && numResults > 0 && results.Count >= numResults)
 					{
 						break;
 					}
