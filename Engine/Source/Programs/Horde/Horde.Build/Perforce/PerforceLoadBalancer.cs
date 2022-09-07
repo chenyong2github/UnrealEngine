@@ -130,7 +130,7 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// 
 		/// </summary>
-		[SingletonDocument("6046aec374a9283100967ee7")]
+		[SingletonDocument("perforce-server-list", "6046aec374a9283100967ee7")]
 		class PerforceServerList : SingletonBase
 		{
 			public List<PerforceServerEntry> Servers { get; set; } = new List<PerforceServerEntry>();

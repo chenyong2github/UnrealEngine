@@ -65,7 +65,7 @@ namespace Horde.Build.Agents.Software
 	/// <summary>
 	/// Singleton document used to track different versions of the agent software
 	/// </summary>
-	[SingletonDocument("5f455039d97900f2b6c735a9")]
+	[SingletonDocument("agent-software-channels", "5f455039d97900f2b6c735a9")]
 	public class AgentSoftwareChannels : SingletonBase
 	{
 		/// <summary>

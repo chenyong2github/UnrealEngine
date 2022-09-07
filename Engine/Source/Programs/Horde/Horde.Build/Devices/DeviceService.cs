@@ -68,7 +68,7 @@ namespace Horde.Build.Devices
 	/// <summary>
 	/// Platform map required by V1 API
 	/// </summary>
-	[SingletonDocument("6165a2e26fd5f104e31e6862")]
+	[SingletonDocument("device-platform-map", "6165a2e26fd5f104e31e6862")]
 	public class DevicePlatformMapV1 : SingletonBase
 	{
 		/// <summary>

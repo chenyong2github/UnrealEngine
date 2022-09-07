@@ -30,7 +30,7 @@ namespace Horde.Build.Issues
 
 	class IssueCollection : IIssueCollection
 	{
-		[SingletonDocument("5e4c226440ce25fa3207a9af")]
+		[SingletonDocument("issue-ledger", "5e4c226440ce25fa3207a9af")]
 		class IssueLedger : SingletonBase
 		{
 			public int NextId { get; set; }

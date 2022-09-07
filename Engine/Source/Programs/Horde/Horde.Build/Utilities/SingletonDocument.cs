@@ -8,6 +8,8 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Utilities
 {
+	using SingletonId = StringId<SingletonBase>;
+
 	/// <summary>
 	/// Attribute specifying the unique id for a singleton document
 	/// </summary>
@@ -20,12 +22,19 @@ namespace Horde.Build.Utilities
 		public string Id { get; }
 
 		/// <summary>
+		/// ObjectId for the legacy document
+		/// </summary>
+		public string? LegacyId { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="id">Unique id for the singleton document</param>
-		public SingletonDocumentAttribute(string id)
+		/// <param name="id">Unique id for the singleton document. Should be a valid StringId.</param>
+		/// <param name="legacyId">Legacy identifier for the document</param>
+		public SingletonDocumentAttribute(string id, string? legacyId = null)
 		{
 			Id = id;
+			LegacyId = legacyId;
 		}
 	}
 
@@ -61,44 +70,18 @@ namespace Horde.Build.Utilities
 		readonly MongoService _mongoService;
 
 		/// <summary>
-		/// Unique id for the singleton document
-		/// </summary>
-		readonly ObjectId _objectId;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
 		public SingletonDocument(MongoService mongoService)
 		{
 			_mongoService = mongoService;
-
-			SingletonDocumentAttribute? attribute = typeof(T).GetCustomAttribute<SingletonDocumentAttribute>();
-			if (attribute == null)
-			{
-				throw new Exception($"Type {typeof(T).Name} is missing a {nameof(SingletonDocumentAttribute)} annotation");
-			}
-
-			_objectId = new ObjectId(attribute.Id);
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="mongoService">The database service instance</param>
-		/// <param name="objectId">The singleton document object id</param>
-		public SingletonDocument(MongoService mongoService, ObjectId objectId)
-		{
-			_mongoService = mongoService;
-			_objectId = objectId;
 		}
 
 		/// <inheritdoc/>
 		public async Task<T> GetAsync()
 		{
-			T value = await _mongoService.GetSingletonAsync<T>(_objectId);
-			value.Id = _objectId;
-			return value;
+			return await _mongoService.GetSingletonAsync<T>();
 		}
 
 		/// <inheritdoc/>

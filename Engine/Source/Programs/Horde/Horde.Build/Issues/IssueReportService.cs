@@ -66,7 +66,7 @@ namespace Horde.Build.Issues
 
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 
-	[SingletonDocument("6268871c211d05611b3e4fd8")]
+	[SingletonDocument("issue-report-state", "6268871c211d05611b3e4fd8")]
 	class IssueReportState : SingletonBase
 	{
 		[BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]

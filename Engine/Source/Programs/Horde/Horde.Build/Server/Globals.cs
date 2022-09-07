@@ -14,6 +14,8 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Server
 {
+	using SingletonId = StringId<SingletonBase>;
+
 	/// <summary>
 	/// Base class for singleton documents
 	/// </summary>
@@ -23,7 +25,7 @@ namespace Horde.Build.Server
 		/// Unique id for this singleton
 		/// </summary>
 		[BsonId]
-		public ObjectId Id { get; set; }
+		public SingletonId Id { get; set; }
 
 		/// <summary>
 		/// The revision index of this document
@@ -276,14 +278,9 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Global server settings
 	/// </summary>
-	[SingletonDocument("5e3981cb28b8ec59cd07184a")]
+	[SingletonDocument("globals", "5e3981cb28b8ec59cd07184a")]
 	public class Globals : SingletonBase
 	{
-		/// <summary>
-		/// The unique id for all globals objects
-		/// </summary>
-		public static ObjectId StaticId { get; } = new ObjectId("5e3981cb28b8ec59cd07184a");
-
 		/// <summary>
 		/// Unique instance id of this database
 		/// </summary>

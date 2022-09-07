@@ -60,7 +60,7 @@ namespace Horde.Build.Agents
 	/// <summary>
 	/// List of machines that are currently conforming
 	/// </summary>
-	[SingletonDocument("60afc737f0d2a70754229300")]
+	[SingletonDocument("conform-list", "60afc737f0d2a70754229300")]
 	public class ConformList : SingletonBase
 	{
 		/// <summary>
