@@ -433,8 +433,9 @@ inline const bool IsEPASuccess(EEPAResult EPAResult)
 // Expanding Polytope Algorithm for finding the contact point for overlapping convex polyhedra.
 // See e.g., "Collision Detection in Interactive 3D Environments" (Gino van den Bergen, 2004)
 // or "Real-time Collision Detection with Implicit Objects" (Leif Olvang, 2010)
-template <typename T, typename TSupportA, typename TSupportB>
-EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const TSupportA& SupportA, const TSupportB& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB, const FReal Eps = 1.e-2f)
+template <typename T>
+EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const TFunctionRef<TVector<T, 3>(const TVec3<T>& V)>& SupportA,
+	const TFunctionRef<TVector<T, 3>(const TVec3<T>& V)>& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB, const FReal Eps = 1.e-2f)
 {
 	struct FEPAEntryWrapper
 	{
