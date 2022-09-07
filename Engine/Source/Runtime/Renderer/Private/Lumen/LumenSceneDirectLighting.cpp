@@ -1353,9 +1353,7 @@ void CullDirectLightingTiles(
 	RDG_EVENT_SCOPE(GraphBuilder, "CullTiles %d lights", GatheredLights.Num());
 	const FGlobalShaderMap* GlobalShaderMap = Views[0].ShaderMap;
 
-	const uint32 MaxLightTilesTilesX = FMath::DivideAndRoundUp<uint32>(CardUpdateContext.UpdateAtlasSize.X, Lumen::CardTileSize);
-	const uint32 MaxLightTilesTilesY = FMath::DivideAndRoundUp<uint32>(CardUpdateContext.UpdateAtlasSize.Y, Lumen::CardTileSize);
-	const uint32 MaxLightTiles = MaxLightTilesTilesX * MaxLightTilesTilesY;
+	const uint32 MaxLightTiles = CardUpdateContext.MaxUpdateTiles;;
 	const uint32 NumLightsRoundedUp = FMath::RoundUpToPowerOfTwo(FMath::Max(GatheredLights.Num(), 1)) * Views.Num();
 	const uint32 MaxLightsPerTile = FMath::Max(GLumenDirectLightingMaxLightsPerTile, 1);
 	const uint32 MaxCulledCardTiles = MaxLightsPerTile * MaxLightTiles;
