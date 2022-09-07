@@ -313,6 +313,11 @@ public:
 	TRangeSet<float> GetSupportedRates(bool Unthinned = true) const;
 
 	/**
+	 * Get the number of tiles in each frame.
+	 */
+	virtual FIntPoint GetTileNum() const;
+
+	/**
 	 * Get the media's current playback time.
 	 *
 	 * @return Playback time.

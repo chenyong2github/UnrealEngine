@@ -5,6 +5,8 @@
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
 #include "Math/Interval.h"
+#include "Math/IntPoint.h"
+#include "Math/MathFwd.h"
 #include "Misc/Paths.h"
 #include "Misc/Timespan.h"
 
@@ -200,6 +202,14 @@ public:
 		}
 
 		return FText::FromString(FPaths::GetBaseFilename(Url));
+	}
+
+	/**
+	 * Get the number of tiles in each frame.
+	 */
+	virtual FIntPoint GetTileNum() const
+	{
+		return FIntPoint::ZeroValue;
 	}
 
 	/**

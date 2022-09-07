@@ -298,6 +298,14 @@ public:
 	void GetSupportedRates(TArray<FFloatRange>& OutRates, bool Unthinned) const;
 
 	/**
+	 * Get the number of tiles in each frame.
+	 * 
+	 * @return Number of tiles in each dimension.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
+	virtual FIntPoint GetTileNum() const;
+
+	/**
 	 * Get the media's current playback time.
 	 *
 	 * @return Playback time.

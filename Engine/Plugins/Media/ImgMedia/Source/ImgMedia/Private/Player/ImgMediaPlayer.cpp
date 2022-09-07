@@ -287,6 +287,18 @@ bool FImgMediaPlayer::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& /*Ar
 	return false; // not supported
 }
 
+FIntPoint FImgMediaPlayer::GetTileNum() const
+{
+	FIntPoint TileNum = FIntPoint::ZeroValue;
+
+	if (Loader.IsValid())
+	{
+		TileNum.X = Loader->GetNumTilesX();
+		TileNum.Y = Loader->GetNumTilesY();
+	}
+	
+	return TileNum;
+}
 
 void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 {

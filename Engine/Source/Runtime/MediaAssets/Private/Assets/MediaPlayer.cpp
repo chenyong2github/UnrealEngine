@@ -230,6 +230,10 @@ void UMediaPlayer::GetSupportedRates(TArray<FFloatRange>& OutRates, bool Unthinn
 	Rates.GetRanges((TArray<TRange<float>>&)OutRates);
 }
 
+FIntPoint UMediaPlayer::GetTileNum() const
+{
+	return PlayerFacade->GetTileNum();
+}
 
 FTimespan UMediaPlayer::GetTime() const
 {

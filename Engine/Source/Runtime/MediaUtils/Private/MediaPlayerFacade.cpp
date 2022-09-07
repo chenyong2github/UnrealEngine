@@ -423,6 +423,18 @@ bool FMediaPlayerFacade::HaveAudioPlayback() const
 	return PrimaryAudioSink.IsValid() && GetSelectedTrack(EMediaTrackType::Audio) != INDEX_NONE;
 }
 
+FIntPoint FMediaPlayerFacade::GetTileNum() const
+{
+	FIntPoint TileNum = FIntPoint::ZeroValue;
+
+	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
+	if (CurrentPlayer.IsValid())
+	{
+		TileNum = CurrentPlayer->GetTileNum();
+	}
+
+	return TileNum;
+}
 
 FTimespan FMediaPlayerFacade::GetTime() const
 {
