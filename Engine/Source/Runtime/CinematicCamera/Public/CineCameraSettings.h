@@ -39,6 +39,11 @@ struct FCameraFilmbackSettings
 		return !operator==(Other);
 	}
 
+	void RecalcSensorAspectRatio()
+	{
+		SensorAspectRatio = (SensorHeight > 0.f) ? (SensorWidth / SensorHeight) : 0.f;
+	}
+
 	FCameraFilmbackSettings()
 		: SensorWidth(24.89f)
 		, SensorHeight(18.67f)
@@ -270,6 +275,10 @@ class CINEMATICCAMERA_API UCineCameraSettings : public UDeveloperSettings
 public:
 	virtual void PostInitProperties() override;
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	/** Name of the default lens preset */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetDefaultLensPresetName, Category=Lens, meta=(GetOptions=GetLensPresetNames))
 	FString DefaultLensPresetName;
@@ -351,4 +360,7 @@ private:
 	TSharedPtr<SNotificationItem> Notification;
 	void CopyOldConfigSettings();
 	void CloseNotification();
+
+	// Sensor aspect ratio is derived from Sensor Height and Width so needs to be updated when either property is updated
+	void RecalcSensorAspectRatios();
 };

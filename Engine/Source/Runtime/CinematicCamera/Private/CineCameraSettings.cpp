@@ -34,7 +34,20 @@ void UCineCameraSettings::PostInitProperties()
 		Notification = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 	}
 #endif
+	RecalcSensorAspectRatios();
 }
+
+#if WITH_EDITOR
+void UCineCameraSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UCineCameraSettings, FilmbackPresets))
+	{
+		RecalcSensorAspectRatios();
+	}
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
 
 void UCineCameraSettings::SetDefaultLensPresetName(const FString InDefaultLensPresetName)
 {
@@ -69,6 +82,7 @@ void UCineCameraSettings::SetDefaultFilmbackPreset(const FString InDefaultFilmba
 void UCineCameraSettings::SetFilmbackPresets(const TArray<FNamedFilmbackPreset>& InFilmbackPresets)
 {
 	FilmbackPresets = InFilmbackPresets;
+	RecalcSensorAspectRatios();
 	SaveConfig();
 }
 
@@ -150,6 +164,14 @@ void UCineCameraSettings::CloseNotification()
 	NotificationInfo.bFireAndForget = true;
 
 	FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+}
+
+void UCineCameraSettings::RecalcSensorAspectRatios()
+{
+	for (FNamedFilmbackPreset& FilmbackPreset : FilmbackPresets)
+	{
+		FilmbackPreset.FilmbackSettings.RecalcSensorAspectRatio();	
+	}
 }
 
 void UCineCameraSettings::CopyOldConfigSettings()

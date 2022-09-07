@@ -478,7 +478,7 @@ void UCineCameraComponent::RecalcDerivedData()
 	FocusSettings.ManualFocusDistance = FMath::Max(FocusSettings.ManualFocusDistance, MinFocusDistInWorldUnits);
 
 	FieldOfView = GetHorizontalFieldOfView();
-	Filmback.SensorAspectRatio = (Filmback.SensorHeight > 0.f) ? (Filmback.SensorWidth / Filmback.SensorHeight) : 0.f;
+	Filmback.RecalcSensorAspectRatio();
 	AspectRatio = Filmback.SensorAspectRatio * LensSettings.SqueezeFactor;
 	if (CropSettings.AspectRatio > 0.0f)
 	{
