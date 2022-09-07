@@ -25,7 +25,7 @@ void BuildVisualizeProbesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 GroupThreadIndex : SV_GroupThreadID)
 {
-	uint DispatchThreadId = GetUnWrappedDispatchThreadId(GroupId, GroupThreadIndex, THREADGROUP_SIZE);
+	uint DispatchThreadId = GetUnWrappedDispatchThreadId(GroupId, GroupThreadIndex.x, THREADGROUP_SIZE);
 
 	uint CardPageIndex = DispatchThreadId.x / (ProbesPerPhysicalPage * ProbesPerPhysicalPage);
 	uint LocalTileIndex = DispatchThreadId.x % (ProbesPerPhysicalPage * ProbesPerPhysicalPage);

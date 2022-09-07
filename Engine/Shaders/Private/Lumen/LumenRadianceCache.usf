@@ -627,6 +627,7 @@ FConeTraceResult TraceForProbeTexel(FConeTraceInput TraceInput)
 	TraceResult.Lighting = 0.0;
 	TraceResult.Transparency = 1.0;
 	TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
+	TraceInput.bZeroRadianceIfRayStartsInsideGeometry = true;
 
 	ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
 

@@ -62,7 +62,6 @@ struct FConeTraceInput
 	float VoxelTraceStartDistance;
 	float SDFStepFactor;
 	float MinSDFStepFactor;
-	bool bBlackOutSteepIntersections;
 	bool bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;
 	float InitialMaxDistance;
 
@@ -75,6 +74,7 @@ struct FConeTraceInput
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
 
+	bool bZeroRadianceIfRayStartsInsideGeometry;
 	bool bCalculateHitVelocity;
 
 	// Mesh SDF traces
@@ -111,7 +111,6 @@ struct FConeTraceInput
 		MinSDFStepFactor = 1.0f;
 
 		// The global SDF often overestimates due to the way distances outside of an object SDF are calculated, can be corrected by stepping slower, but increases trace cost
-		bBlackOutSteepIntersections = false;
 		bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = true;
 		InitialMaxDistance = 0;
 
@@ -121,6 +120,7 @@ struct FConeTraceInput
 		bCalculateHitVelocity = false;
 
 		bUseEpsilonTraceForHeightfields = true;
+		bZeroRadianceIfRayStartsInsideGeometry = false;
 	}
 };
 
@@ -147,7 +147,6 @@ struct FTraceMeshSDFResult
 {
 	float HitDistance;
 	uint HitObject;
-	bool bRayStartInsideGeometry;
 };
 
 float MeshSDFNotCoveredExpandSurfaceScale;
@@ -209,7 +208,6 @@ void RayTraceSingleMeshSDF(
 		float Coverage = DFObjectData.bMostlyTwoSided && bDitheredTransparency ? 0.0f : 1.0f;
 		float ExpandSurfaceScale = lerp(MeshSDFNotCoveredExpandSurfaceScale, 1.0f, Coverage);
 
-		bool bRayStartInsideGeometry = false;
 		float SampleRayTime = VolumeSpaceIntersectionTimes.x;
 
 		uint MaxSteps = 64;
@@ -258,7 +256,6 @@ void RayTraceSingleMeshSDF(
 				&& ReversedMipIndex == MaxMipIndex
 				&& (!bDitheredTransparency || StepNoise * (1 - Coverage) <= MeshSDFDitheredTransparencyStepThreshold))
 			{
-				bRayStartInsideGeometry = SampleRayTime <= 0.0f && SampleRayTime + DistanceField < 0.0f ? true : false;
 				// One more step to the surface
 				// Pull back by ExpandSurfaceAmount to improve the gradient computed off of the hit point
 				SampleRayTime = clamp(SampleRayTime + DistanceField - ExpandSurfaceAmount, VolumeSpaceIntersectionTimes.x, VolumeSpaceIntersectionTimes.y);
@@ -289,7 +286,6 @@ void RayTraceSingleMeshSDF(
 			{
 				TraceResult.HitObject = ObjectIndex;
 				TraceResult.HitDistance = NewHitDistance;
-				TraceResult.bRayStartInsideGeometry = bRayStartInsideGeometry;
 			}
 		}
 	}
@@ -686,17 +682,20 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 
 float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTraceResult SDFTraceResult)
 {
-	float4 LightingAndAlpha = 0.0f;
-
 	float3 SampleWorldPosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * SDFTraceResult.HitTime;
 	float3 SampleWorldNormal = ComputeGlobalDistanceFieldNormal(SampleWorldPosition, SDFTraceResult.HitClipmapIndex, -TraceInput.ConeDirection);
 	float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[SDFTraceResult.HitClipmapIndex].w * GlobalVolumeTexelSize;
 
-	float VoxelSelfLightingBias = 1.0f;
+	float RadianceFactor = 1.0f;
 	if (TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance)
 	{
 		// Make sure we don't self-intersect and cause leaking
-		VoxelSelfLightingBias = smoothstep(1.5f * ClipmapVoxelExtent, 2.0f * ClipmapVoxelExtent, SDFTraceResult.HitTime);
+		RadianceFactor = smoothstep(1.5f * ClipmapVoxelExtent, 2.0f * ClipmapVoxelExtent, SDFTraceResult.HitTime);
+	}
+
+	if (TraceInput.bZeroRadianceIfRayStartsInsideGeometry && SDFTraceResult.HitTime <= TraceInput.MinTraceDistance)
+	{
+		RadianceFactor = 0.0f;
 	}
 
 	float3 LightingSum = 0.0f;
@@ -704,7 +703,7 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 
 	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, SDFTraceResult.HitClipmapIndex);
 	uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
-	if (VoxelSelfLightingBias > 0.0f && PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+	if (RadianceFactor > 0.0f && PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
 	{
 		float3 PageTableCoord = saturate(ClipmapVolumeUV) * GlobalDistanceFieldClipmapSizeInPages;
 		uint3 CellCoordInPage = frac(frac(PageTableCoord)) * DISTANCE_FIELD_OBJECT_GRID_PAGE_RESOLUTION;
@@ -788,9 +787,11 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 		#endif
 	}
 
+	float4 LightingAndAlpha = 0.0f;
+
 	if (SampleWeightSum > 0.0f)
 	{
-		LightingAndAlpha.xyz = VoxelSelfLightingBias * (LightingSum / SampleWeightSum);
+		LightingAndAlpha.xyz = RadianceFactor * (LightingSum / SampleWeightSum);
 	}
 
 	// Debug visualization
