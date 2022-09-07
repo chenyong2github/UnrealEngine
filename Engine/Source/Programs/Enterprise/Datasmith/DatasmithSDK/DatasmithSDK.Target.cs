@@ -77,6 +77,11 @@ public class DatasmithSDKTarget : TargetRules
 			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\Public\"
 		);
 
+		PostBuildCopy(
+			@"$(EngineDir)\Extras\VisualStudioDebugging\Unreal.natvis",
+			@"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithSDK\"
+		);
+
 		// Other headers we depend on, but that are not part of our public API:
 		PostBuildCopy(
 			@"$(EngineDir)\Source\Runtime\TraceLog\Public\*.h",
