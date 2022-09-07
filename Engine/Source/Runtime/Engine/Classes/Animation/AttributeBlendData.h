@@ -278,6 +278,119 @@ namespace UE
 				int32 CurrentIndex;
 			};
 
+			struct TAttributeSetRawIterator
+			{
+				friend struct FAttributeBlendData;
+			protected:
+				TAttributeSetRawIterator(const FAttributeBlendData& InData, const FAttributeSet& InCollection) : Data(InData), Collection(InCollection), CurrentIndex(-1) {}
+			public:
+				/** Return the value for the currently indexed entry in the attribute set */
+				const uint8* GetValuePtr() const
+				{
+					check(CurrentIndex < Collection.DataPtrs.Num() && Collection.DataPtrs.IsValidIndex(CurrentIndex));
+					return Collection.DataPtrs[CurrentIndex];
+				}
+
+				/** Returns (container level) weight value for the current attribute's container in the attribute set */
+				const float GetWeight() const
+				{
+					check(Data.HasContainerWeights());
+					check(CurrentIndex < Collection.DataPtrs.Num() && Collection.WeightIndices.IsValidIndex(CurrentIndex));
+					return Data.GetContainerWeight(Collection.WeightIndices[CurrentIndex]);
+				}
+
+				/** Returns (bone level) weight value for the current attribute its bone and container */
+				const float GetBoneWeight() const
+				{
+					check(Data.HasBoneWeights());
+					check(CurrentIndex < Collection.DataPtrs.Num() && Collection.WeightIndices.IsValidIndex(CurrentIndex));
+					return Data.GetBoneWeight(Collection.WeightIndices[CurrentIndex], Collection.Identifier->GetIndex());
+				}
+
+				/** Returns highest (container level) weighted value for the attribute set */
+				const uint8* GetHighestWeightedValue() const
+				{
+					check(Data.HasContainerWeights());
+					check(Collection.HighestWeightedIndex < Collection.DataPtrs.Num() && Collection.DataPtrs.IsValidIndex(Collection.HighestWeightedIndex));
+					return Collection.DataPtrs[Collection.HighestWeightedIndex];
+				}
+
+				/** Returns highest (bone level) weighted value for the attribute set */
+				const uint8* GetHighestBoneWeightedValue() const
+				{
+					check(Data.HasBoneWeights());
+
+					int32 HighestIndex = INDEX_NONE;
+					float Weight = -1.f;
+					for (const int32 Index : Collection.WeightIndices)
+					{
+						const float BoneWeight = Data.GetBoneWeight(Index, Collection.Identifier->GetIndex());
+						if (BoneWeight > Weight)
+						{
+							Weight = BoneWeight;
+							HighestIndex = Index;
+						}
+					}
+					ensure(HighestIndex != INDEX_NONE);
+					return Collection.DataPtrs[Collection.WeightIndices.IndexOfByKey(HighestIndex)];
+				}
+
+				/** Returns highest (bone level) weighted value, and its weight for the attribute set */
+				void GetHighestBoneWeighted(const uint8* OutAttributePtr, float& OutWeight) const
+				{
+					check(Data.HasBoneWeights());
+
+					int32 HighestIndex = INDEX_NONE;
+					float Weight = -1.f;
+					for (const int32 Index : Collection.WeightIndices)
+					{
+						const float BoneWeight = Data.GetBoneWeight(Index, Collection.Identifier->GetIndex());
+						if (BoneWeight > Weight)
+						{
+							Weight = BoneWeight;
+							HighestIndex = Index;
+						}
+					}
+					ensure(HighestIndex != INDEX_NONE);
+					OutAttributePtr = Collection.DataPtrs[Collection.WeightIndices.IndexOfByKey(HighestIndex)];
+					OutWeight = Weight;
+				}
+
+				/** Returns the identifier for the current attribute set */
+				const FAttributeId& GetIdentifier() const
+				{
+					return *Collection.Identifier;
+				}
+
+				EAdditiveAnimationType GetAdditiveType() const
+				{
+					return Data.AdditiveType;
+				}
+
+				bool IsFilteredBlend() const
+				{
+					return Data.bPerBoneFilter;
+				}
+
+				/** Cycle through to next entry in the attribute set, returns false if the end was reached */
+				bool Next()
+				{
+					++CurrentIndex;
+					return CurrentIndex < Collection.DataPtrs.Num();
+				}
+
+				int32 GetIndex() const
+				{
+					return CurrentIndex;
+				}
+			protected:
+				/** Outer object that creates this */
+				const FAttributeBlendData& Data;
+				/** Attribute collection for current index */
+				const FAttributeSet& Collection;
+				int32 CurrentIndex;
+			};
+
 			template<typename AttributeType>
 			struct TSingleIterator
 			{
@@ -351,6 +464,78 @@ namespace UE
 				int32 CurrentIndex;
 			};
 
+			struct TSingleRawIterator
+			{
+				friend struct FAttributeBlendData;
+			protected:
+				TSingleRawIterator(const FAttributeBlendData& InData, const TArray<FUniqueAttribute>& InAttributes) : Data(InData), AttributesView(InAttributes), CurrentIndex(-1) {}
+			public:
+				/** Cycle through to next unique attribute, returns false if the end was reached */
+				bool Next()
+				{
+					++CurrentIndex;
+					return CurrentIndex < AttributesView.Num();
+				}
+
+				/** Return the value for the currently indexed unique attribute */
+				const uint8* GetValuePtr() const
+				{
+					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));
+					return AttributesView[CurrentIndex].DataPtr;
+				}
+
+				/** Returns (container level) weight value for the unique attribute its container */
+				const float GetWeight() const
+				{
+					check(Data.HasContainerWeights());
+					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));
+					
+					return Data.GetContainerWeight(AttributesView[CurrentIndex].WeightIndex);
+				}
+				
+				/** Returns (bone level) weight value for the unique attribute its bone and container */
+				const float GetBoneWeight() const
+				{
+					check(Data.HasBoneWeights());
+					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));
+					
+					return Data.GetBoneWeight(AttributesView[CurrentIndex].WeightIndex, AttributesView[CurrentIndex].Identifier->GetIndex());
+				}
+
+				/** Returns whether or not the unique attribute its (bone level) weight is the highest across the containers */
+				bool IsHighestBoneWeighted() const
+				{
+					check(Data.HasBoneWeights());
+					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));
+					check(Data.HighestBoneWeightedIndices.IsValidIndex(AttributesView[CurrentIndex].Identifier->GetIndex()));
+
+					return Data.HighestBoneWeightedIndices[AttributesView[CurrentIndex].Identifier->GetIndex()] == AttributesView[CurrentIndex].WeightIndex;
+				}
+
+				/** Returns the identifier for the current attribute set */
+				const FAttributeId& GetIdentifier() const
+				{
+					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));					
+					return *AttributesView[CurrentIndex].Identifier;
+				}
+
+				EAdditiveAnimationType GetAdditiveType() const
+				{
+					return Data.AdditiveType;
+				}
+				
+				bool IsFilteredBlend() const
+				{
+					return Data.bPerBoneFilter;
+				}
+
+			protected:
+				/** Outer object that creates this */
+				const FAttributeBlendData& Data;
+				TArrayView<const FUniqueAttribute> AttributesView;
+				int32 CurrentIndex;
+			};
+
 		public:
 			template<typename AttributeType>
 			void ForEachAttributeSet(TFunctionRef<void(TAttributeSetIterator<AttributeType>&)> ForEachFunction) const
@@ -366,6 +551,21 @@ namespace UE
 			void ForEachUniqueAttribute(TFunctionRef<void(TSingleIterator<AttributeType>&)> ForEachFunction) const
 			{
 				TSingleIterator<AttributeType> It(*this, UniqueAttributes);
+				ForEachFunction(It);
+			}
+			
+			void ForEachAttributeSet(TFunctionRef<void(TAttributeSetRawIterator&)> ForEachFunction) const
+			{
+				for (const FAttributeSet& Collection : AttributeSets)
+				{
+					TAttributeSetRawIterator It(*this, Collection);
+					ForEachFunction(It);
+				}
+			}
+
+			void ForEachUniqueAttribute(TFunctionRef<void(TSingleRawIterator&)> ForEachFunction) const
+			{
+				TSingleRawIterator It(*this, UniqueAttributes);
 				ForEachFunction(It);
 			}
 		};
