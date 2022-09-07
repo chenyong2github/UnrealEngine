@@ -27,6 +27,8 @@ void FStateTreeReferenceDetails::CustomizeHeader(const TSharedRef<IPropertyHandl
 	const TSharedPtr<IPropertyHandle> StateTreeProperty = StructPropertyHandle->GetChildHandle(FName(TEXT("StateTree")));
 	check(StateTreeProperty.IsValid());
 
+	const FString SchemaMetaDataValue = InStructPropertyHandle->GetMetaData(UE::StateTree::SchemaTag);
+
 	InHeaderRow
 	.NameContent()
 	[
@@ -38,9 +40,8 @@ void FStateTreeReferenceDetails::CustomizeHeader(const TSharedRef<IPropertyHandl
 		.PropertyHandle(StateTreeProperty)
 		.AllowedClass(UStateTree::StaticClass())
 		.ThumbnailPool(InCustomizationUtils.GetThumbnailPool())
-		.OnShouldFilterAsset_Lambda([InStructPropertyHandle](const FAssetData& InAssetData)
+		.OnShouldFilterAsset_Lambda([SchemaMetaDataValue](const FAssetData& InAssetData)
 		{
-			const FString& SchemaMetaDataValue = InStructPropertyHandle->GetMetaData(UE::StateTree::SchemaTag);
 			return !SchemaMetaDataValue.IsEmpty() && !InAssetData.TagsAndValues.ContainsKeyValue(UE::StateTree::SchemaTag, SchemaMetaDataValue);
 		})
 	]

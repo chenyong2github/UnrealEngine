@@ -21,9 +21,6 @@ class STATETREEMODULE_API UStateTreeSchema : public UObject
 
 public:
 
-	/** @return Returns the script struct the storage struct will be derived from. */
-	virtual UScriptStruct* GetStorageSuperStruct() const { return nullptr; }
-
 	/** @return True if specified struct is supported */
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const { return false; }
 
