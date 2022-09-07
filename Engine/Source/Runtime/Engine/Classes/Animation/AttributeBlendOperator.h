@@ -423,5 +423,134 @@ namespace UE
 				AttributeType::StaticStruct()->CopyScriptStruct(InOutData, CopySource);
 			}
 		};
+
+		class FNonBlendableAttributeBlendOperator : public IAttributeBlendOperator
+		{
+		public:
+			FNonBlendableAttributeBlendOperator(const UScriptStruct* InScriptStruct) : ScriptStructPtr(InScriptStruct) {}; 
+			
+			/** Begin IAttributeBlendOperator overrides */
+			virtual void Accumulate(const FAttributeBlendData& BlendData, FStackAttributeContainer* OutAttributes) const final
+			{
+				BlendData.ForEachUniqueAttribute([&, OutAttributes](FAttributeBlendData::TSingleRawIterator& It) -> void
+				{
+					while (It.Next())
+					{						
+						const uint8* Attribute= It.GetValuePtr();
+						const FAttributeId& Identifier = It.GetIdentifier();
+						const int32 ExistingIndex = OutAttributes->IndexOfByKey(ScriptStructPtr.Get(), Identifier);
+						uint8* OutAttributePtr = OutAttributes->FindOrAdd(ScriptStructPtr.Get(), Identifier);
+
+						// 'Accumulate' value if the attribute did not yet exist, or based upon being the highest weighted attribute
+						const float AttributeWeight = It.GetWeight();
+						if (ExistingIndex == INDEX_NONE || AttributeWeight > 0.5f)
+						{
+							ScriptStructPtr.Get()->CopyScriptStruct(OutAttributePtr, Attribute);
+						}
+					}
+				});
+			};
+			virtual void Interpolate(const void* FromData, const void* ToData, float Alpha, void* InOutData) const final
+			{
+				// Determine stepped value to copy
+				const void* CopySource = Alpha > 0.5f ? ToData : FromData;
+				// Using CopyScriptStruct as assignment operator might not be implemented for attribute type
+				ScriptStructPtr.Get()->CopyScriptStruct(InOutData, CopySource);	
+			};
+			virtual void Override(const FAttributeBlendData& BlendData, FStackAttributeContainer* OutAttributes) const final
+			{
+				BlendData.ForEachUniqueAttribute([&, OutAttributes](FAttributeBlendData::TSingleRawIterator& It) -> void
+				{
+					while (It.Next())
+					{
+						const uint8* Attribute = It.GetValuePtr();
+						const FAttributeId& Identifier = It.GetIdentifier();
+
+						// Find or add as the attribute might already exist, so Add would fail
+						uint8* OutAttribute = OutAttributes->FindOrAdd(ScriptStructPtr.Get(),Identifier);
+						ScriptStructPtr.Get()->CopyScriptStruct(OutAttribute, Attribute);
+					}
+				});
+			};
+			virtual void Blend(const FAttributeBlendData& BlendData, FStackAttributeContainer* OutAttributes) const final
+			{
+				BlendData.ForEachAttributeSet([&, OutAttributes](FAttributeBlendData::TAttributeSetRawIterator& It) -> void
+				{
+					const FAttributeId& Identifier = It.GetIdentifier();
+					const ECustomAttributeBlendType BlendType = Attributes::GetAttributeBlendType(Identifier);
+					
+					// Not iterating over each attribute, but just picking highest weighted value
+					uint8* OutAttribute = OutAttributes->Add(ScriptStructPtr.Get(), Identifier);
+
+					ScriptStructPtr.Get()->CopyScriptStruct(OutAttribute, It.GetHighestWeightedValue());
+				});
+
+				BlendData.ForEachUniqueAttribute([&, OutAttributes](FAttributeBlendData::TSingleRawIterator& It) -> void
+				{
+					while (It.Next())
+					{
+						const FAttributeId& Identifier = It.GetIdentifier();
+						
+						uint8* OutAttribute = OutAttributes->Add(ScriptStructPtr.Get(), Identifier);
+						ScriptStructPtr.Get()->CopyScriptStruct(OutAttribute, It.GetValuePtr());	
+					}
+				});
+			};
+			virtual void BlendPerBone(const FAttributeBlendData& BlendData, FStackAttributeContainer* OutAttributes) const final
+			{
+				BlendData.ForEachAttributeSet([&, OutAttributes](FAttributeBlendData::TAttributeSetRawIterator& It) -> void
+				{
+					const FAttributeId& Identifier = It.GetIdentifier();
+					uint8* OutAttribute = OutAttributes->FindOrAdd(ScriptStructPtr.Get(), Identifier);
+					ScriptStructPtr.Get()->CopyScriptStruct(OutAttribute, It.GetHighestBoneWeightedValue());
+				});
+
+				BlendData.ForEachUniqueAttribute([&, OutAttributes](FAttributeBlendData::TSingleRawIterator& It) -> void
+				{
+					while (It.Next())
+					{
+						const FAttributeId& Identifier = It.GetIdentifier();
+						const int32 ExistingIndex = OutAttributes->IndexOfByKey(ScriptStructPtr.Get() ,Identifier);
+						const float BoneWeight = It.GetBoneWeight();
+
+						if (FAnimWeight::IsRelevant(BoneWeight) || ExistingIndex == INDEX_NONE)
+						{
+							uint8* OutAttributePtr = OutAttributes->FindOrAdd(ScriptStructPtr.Get(), Identifier);
+							const uint8* Attribute = It.GetValuePtr();
+
+							// 'Blend' value if the attribute did not yet exist, or based upon being the highest weighted attribute
+							const bool bHighestWeight = It.IsHighestBoneWeighted();
+							if (bHighestWeight || ExistingIndex == INDEX_NONE)
+							{
+								ScriptStructPtr.Get()->CopyScriptStruct(OutAttributePtr, Attribute);
+							}
+						}
+					}
+				});
+			};
+			virtual void ConvertToAdditive(const FAttributeBlendData& BlendData, FStackAttributeContainer* OutAdditiveAttributes) const final
+			{
+				BlendData.ForEachUniqueAttribute([&, OutAdditiveAttributes](FAttributeBlendData::TSingleRawIterator& It) -> void
+				{
+					while (It.Next())
+					{
+						const uint8* Attribute = It.GetValuePtr();
+						const FAttributeId& Identifier = It.GetIdentifier();
+						const int32 ExistingIndex = OutAdditiveAttributes->IndexOfByKey(ScriptStructPtr.Get(), Identifier);
+						uint8* OutAttributePtr = OutAdditiveAttributes->FindOrAdd(ScriptStructPtr.Get(),Identifier);
+
+						// 'Accumulate' value if the attribute did not yet exist, or based upon being the highest weighted attribute
+						const float AttributeWeight = It.GetWeight();
+						if (ExistingIndex == INDEX_NONE)
+						{							
+							ScriptStructPtr.Get()->CopyScriptStruct(OutAttributePtr, &Attribute);
+						}
+					}
+				});
+			};
+
+		protected:
+			TWeakObjectPtr<const UScriptStruct> ScriptStructPtr;
+		};
 	}
 }
