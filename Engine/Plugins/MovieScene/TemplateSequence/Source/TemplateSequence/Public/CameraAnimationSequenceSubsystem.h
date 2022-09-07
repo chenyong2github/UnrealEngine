@@ -3,10 +3,33 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "UObject/ObjectMacros.h"
 #include "CameraAnimationSequenceSubsystem.generated.h"
+
+UCLASS()
+class UCameraAnimationBoundObjectInstantiator : public UMovieSceneEntityInstantiatorSystem
+{
+	GENERATED_BODY()
+
+public:
+	UCameraAnimationBoundObjectInstantiator(const FObjectInitializer& ObjInit);
+
+	void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+};
+
+UCLASS()
+class UCameraAnimationEntitySystemLinker : public UMovieSceneEntitySystemLinker
+{
+	GENERATED_BODY()
+
+public:
+	UCameraAnimationEntitySystemLinker(const FObjectInitializer& ObjInit);
+
+	void LinkRequiredSystems();
+};
 
 /**
  * World subsystem that holds global objects for handling camera animation sequences.
@@ -19,6 +42,12 @@ class UCameraAnimationSequenceSubsystem : public UWorldSubsystem
 public:
 	/** Get the camera animation sequence subsystem for the given world */
 	static UCameraAnimationSequenceSubsystem* GetCameraAnimationSequenceSubsystem(const UWorld* InWorld);
+
+	/** Create a new linker setup for handling camera animation sequences */
+	static UMovieSceneEntitySystemLinker* CreateLinker(UObject* Outer, FName Name);
+
+	/** Gets the system category for camera animation specific systems */
+	static UE::MovieScene::EEntitySystemCategory GetCameraAnimationSystemCategory();
 
 	/** Construct a new camera animation sequence subsystem */
 	UCameraAnimationSequenceSubsystem();

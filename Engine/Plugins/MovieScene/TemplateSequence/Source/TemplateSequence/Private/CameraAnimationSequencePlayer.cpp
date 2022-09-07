@@ -264,8 +264,7 @@ UMovieSceneEntitySystemLinker* UCameraAnimationSequencePlayer::ConstructEntitySy
 			return Linker;
 		}
 	}
-	UMovieSceneEntitySystemLinker* NewLinker = NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
-	NewLinker->SetLinkerRole(UE::MovieScene::EEntitySystemLinkerRole::Standalone);
+	UMovieSceneEntitySystemLinker* NewLinker = UCameraAnimationSequenceSubsystem::CreateLinker(GetTransientPackage(), TEXT("StandaloneCameraAnimationLinker"));
 	return NewLinker;
 }
 
