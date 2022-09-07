@@ -5,6 +5,9 @@
 #include "ISourceControlModule.h"
 #include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelistRow"
 

@@ -18,8 +18,10 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Layout/SBox.h"
-#include"Framework/Notifications/NotificationManager.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
