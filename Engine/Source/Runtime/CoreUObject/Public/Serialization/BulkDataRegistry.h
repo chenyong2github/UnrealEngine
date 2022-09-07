@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "Delegates/DelegateBase.h"
+#include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
 #include "UObject/NameTypes.h"
