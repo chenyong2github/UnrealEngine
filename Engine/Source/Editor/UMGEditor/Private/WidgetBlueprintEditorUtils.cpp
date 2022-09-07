@@ -889,7 +889,7 @@ void FWidgetBlueprintEditorUtils::BuildReplaceWithMenu(FMenuBuilder& Menu, TShar
 			UClass* WidgetClass = Widget.GetTemplate()->GetClass();
 			TWeakObjectPtr<UClass> TemplateWidget = BlueprintEditor->GetSelectedTemplate();
 			FAssetData SelectedUserWidget = BlueprintEditor->GetSelectedUserWidget();
-			if (TemplateWidget.IsValid() || SelectedUserWidget.ObjectPath != NAME_None)
+			if (TemplateWidget.IsValid() || SelectedUserWidget.GetSoftObjectPath().IsValid() )
 			{
 				Menu.AddMenuEntry(
 					FText::Format(LOCTEXT("WidgetTree_ReplaceWithSelection", "Replace With {0}"), FText::FromString(TemplateWidget.IsValid() ? TemplateWidget->GetName() : SelectedUserWidget.AssetName.ToString())),
@@ -986,7 +986,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 		TSharedPtr<FWidgetTemplateClass> Template = MakeShareable(new FWidgetTemplateClass(WidgetClass));
 		NewReplacementWidget = Template->Create(BP->WidgetTree);
 	}
-	else if (BlueprintEditor->GetSelectedUserWidget().ObjectPath != NAME_None)
+	else if (BlueprintEditor->GetSelectedUserWidget().GetSoftObjectPath().IsValid())
 	{
 		bIsUserWidget = true;
 		FAssetData WidgetAssetData = BlueprintEditor->GetSelectedUserWidget();
@@ -1065,7 +1065,7 @@ bool FWidgetBlueprintEditorUtils::CanBeReplacedWithTemplate(TSharedRef<FWidgetBl
 	UWidget* ThisWidget = Widget.GetTemplate();
 	UPanelWidget* ExistingPanel = Cast<UPanelWidget>(ThisWidget);
 	// If selecting another widget blueprint
-	if (SelectedUserWidget.ObjectPath != NAME_None)
+	if (SelectedUserWidget.GetSoftObjectPath().IsValid())
 	{
 		if (ExistingPanel)
 		{
@@ -1422,7 +1422,7 @@ UWidget* FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(UWidgetBluep
 			const FAssetData& AssetData = AssetDragDropOp->GetAssets()[0];
 
 			bool CodeClass = AssetData.AssetClassPath == FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("Class"));
-			FString ClassName = CodeClass ? AssetData.ObjectPath.ToString() : AssetData.AssetClassPath.ToString();
+			FString ClassName = CodeClass ? AssetData.GetObjectPathString() : AssetData.AssetClassPath.ToString();
 			UClass* AssetClass = FindObjectChecked<UClass>(nullptr, *ClassName);
 
 			if (FWidgetTemplateBlueprintClass::Supports(AssetClass))
@@ -1430,7 +1430,7 @@ UWidget* FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(UWidgetBluep
 				// Allows a UMG Widget Blueprint to be dragged from the Content Browser to another Widget Blueprint...as long as we're not trying to place a
 				// blueprint inside itself.
 				FString BlueprintPath = Blueprint->GetPathName();
-				if (BlueprintPath != AssetData.ObjectPath.ToString())
+				if (BlueprintPath != AssetData.GetSoftObjectPath().ToString())
 				{
 					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(RootWidgetTree);
 				}

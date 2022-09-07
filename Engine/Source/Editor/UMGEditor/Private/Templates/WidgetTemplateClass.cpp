@@ -87,7 +87,7 @@ UWidget* FWidgetTemplateClass::Create(UWidgetTree* Tree)
 	// Load the blueprint asset if needed
 	if (!WidgetClass.Get())
 	{
-		FString AssetPath = WidgetAssetData.ObjectPath.ToString();
+		FString AssetPath = WidgetAssetData.GetObjectPathString();
 		UBlueprint* LoadedBP = LoadObject<UBlueprint>(nullptr, *AssetPath);
 		WidgetClass = *LoadedBP->GeneratedClass;
 	}

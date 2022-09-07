@@ -38,8 +38,7 @@ namespace UE::Editor::SPaletteViewModel::Private
 	{
 	public:
 		FUnloadedBlueprintData(const FAssetData& InAssetData)
-			:ClassPath(NAME_None)
-			,ParentClassPath(NAME_None)
+			:ClassPath()
 			,ClassFlags(CLASS_None)
 			,bIsNormalBlueprintType(false)
 		{
@@ -49,17 +48,11 @@ namespace UE::Editor::SPaletteViewModel::Private
 			const UClass* AssetClass = InAssetData.GetClass();
 			if (AssetClass && AssetClass->IsChildOf(UBlueprintGeneratedClass::StaticClass()))
 			{
-				ClassPath = InAssetData.ObjectPath;
+				ClassPath = InAssetData.ToSoftObjectPath().GetAssetPathString();
 			}
 			else if (InAssetData.GetTagValue(FBlueprintTags::GeneratedClassPath, GeneratedClassPath))
 			{
-				ClassPath = FName(*FPackageName::ExportTextPathToObjectPath(GeneratedClassPath));
-			}
-
-			FString ParentClassPathString;
-			if (InAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassPathString))
-			{
-				ParentClassPath = FName(*FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
+				ClassPath = FTopLevelAssetPath(*FPackageName::ExportTextPathToObjectPath(GeneratedClassPath));
 			}
 
 			FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(InAssetData, ImplementedInterfaces);
@@ -137,19 +130,20 @@ namespace UE::Editor::SPaletteViewModel::Private
 
 		virtual FName GetClassPath() const
 		{
-			return ClassPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return ClassPath.ToFName();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		virtual FTopLevelAssetPath GetClassPathName() const
 		{
-			return FTopLevelAssetPath(ClassPath.ToString());
+			return ClassPath;
 		}
 		// End IUnloadedBlueprintData interface
 
 	private:
 		TSharedPtr<FString> ClassName;
-		FName ClassPath;
-		FName ParentClassPath;
+		FTopLevelAssetPath ClassPath;
 		uint32 ClassFlags;
 		TArray<FString> ImplementedInterfaces;
 		bool bIsNormalBlueprintType;
@@ -360,7 +354,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 
 	auto WidgetPassesConfigFiltering = [&](const FAssetData& InWidgetAssetData, const FString& InCategoryName, TWeakObjectPtr<UClass> InWidgetClass)
 	{
-		if (AllowedPaletteWidgets.PassesFilter(InWidgetAssetData.ObjectPath))
+		if (AllowedPaletteWidgets.PassesFilter(InWidgetAssetData.GetObjectPathString()))
 		{
 			return true;
 		}
@@ -431,7 +425,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			bool bIsOnList = false;
 			for (FSoftClassPath Widget : WidgetClassesToHide)
 			{
-				if (WidgetAssetData.ObjectPath.ToString().Find(Widget.ToString()) == 0)
+				if (WidgetAssetData.GetObjectPathString().Find(Widget.ToString()) == 0)
 				{
 					bIsOnList = true;
 					break;
@@ -558,7 +552,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 				bool bIsOnList = false;
 				for (FSoftClassPath Widget : WidgetClassesToHide)
 				{
-					if (Widget.ToString().Find(WidgetBPAssetData.ObjectPath.ToString()) == 0)
+					if (Widget.ToString().Find(WidgetBPAssetData.GetObjectPathString()) == 0)
 					{
 						bIsOnList = true;
 						break;
@@ -596,7 +590,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			}
 
 			if (!FilterAssetData(GeneratedBPAssetData) 
-				&& AllowedPaletteWidgets.PassesFilter(GeneratedBPAssetData.ObjectPath) 
+				&& AllowedPaletteWidgets.PassesFilter(GeneratedBPAssetData.GetObjectPathString()) 
 				&& !LoadedGeneratedBlueprintClassesByName.Contains(GeneratedBPAssetData.AssetName))
 			{
 				uint32 BPFlags = GeneratedBPAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
