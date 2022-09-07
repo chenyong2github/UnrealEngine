@@ -766,7 +766,7 @@ FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetCurrentChan
 	return StaticCastSharedPtr<FChangelistTreeItem>(SelectedItems[0])->ChangelistState;
 }
 
-FUncontrolledChangelistStatePtr SSourceControlChangelistsWidget::GetCurrentUncontrolledChangelistState()
+FUncontrolledChangelistStatePtr SSourceControlChangelistsWidget::GetCurrentUncontrolledChangelistState() const
 {
 	if (!UncontrolledChangelistTreeView)
 	{
@@ -786,6 +786,12 @@ FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetCurrentChangelis
 {
 	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
 	return ChangelistState ? (FSourceControlChangelistPtr)(ChangelistState->GetChangelist()) : nullptr;
+}
+
+TOptional<FUncontrolledChangelist> SSourceControlChangelistsWidget::GetCurrentUncontrolledChangelist() const
+{
+	FUncontrolledChangelistStatePtr UncontrolledChangelistState = GetCurrentUncontrolledChangelistState();
+	return UncontrolledChangelistState ? UncontrolledChangelistState->Changelist : TOptional<FUncontrolledChangelist>();
 }
 
 FSourceControlChangelistStatePtr SSourceControlChangelistsWidget::GetChangelistStateFromSelection()
@@ -1804,7 +1810,7 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 		if (UncontrolledChangelist->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
 		{
 			const TSharedPtr<FUncontrolledChangelistTreeItem>& TypedChangelist = StaticCastSharedPtr<FUncontrolledChangelistTreeItem>(UncontrolledChangelist);
-			Items.Emplace(TypedChangelist->GetDisplayText(), TypedChangelist->GetDescriptionText(), bCanEditAlreadyExistingChangelistDescription);
+			Items.Emplace(TypedChangelist->GetDisplayText(), FText(), bCanEditAlreadyExistingChangelistDescription);
 		}
 	}
 

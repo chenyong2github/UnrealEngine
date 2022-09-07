@@ -169,14 +169,6 @@ void SUncontrolledChangelistTableRow::Construct(const FArguments& InArgs, const 
 				SNew(STextBlock)
 				.Text(FText::Format(INVTEXT("({0})"), TreeItem->GetFileCount() + TreeItem->GetOfflineFileCount()))
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.0f, 0.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(this, &SUncontrolledChangelistTableRow::GetChangelistDescriptionText)
-			]
 		], InOwner);
 }
 

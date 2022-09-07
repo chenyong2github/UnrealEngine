@@ -15,9 +15,17 @@
 
 #define LOCTEXT_NAMESPACE "UncontrolledChangelists"
 
+const FText FUncontrolledChangelistState::DEFAULT_UNCONTROLLED_CHANGELIST_DESCRIPTION = LOCTEXT("DefaultUncontrolledChangelist", "Default Uncontrolled Changelist");
+
 FUncontrolledChangelistState::FUncontrolledChangelistState(const FUncontrolledChangelist& InUncontrolledChangelist)
 	: Changelist(InUncontrolledChangelist)
 {
+}
+
+FUncontrolledChangelistState::FUncontrolledChangelistState(const FUncontrolledChangelist& InUncontrolledChangelist, const FText& InDescription)
+	: Changelist(InUncontrolledChangelist)
+{
+	SetDescription(InDescription);
 }
 
 FName FUncontrolledChangelistState::GetIconName() const
@@ -30,14 +38,14 @@ FName FUncontrolledChangelistState::GetSmallIconName() const
 	return FName("SourceControl.UncontrolledChangelist_Small");
 }
 
-FText FUncontrolledChangelistState::GetDisplayText() const
+const FText& FUncontrolledChangelistState::GetDisplayText() const
 {
-	return FText::FromString(Changelist.ToString());
+	return Description;
 }
 
-FText FUncontrolledChangelistState::GetDescriptionText() const
+const FText& FUncontrolledChangelistState::GetDescriptionText() const
 {
-	return FText::FromString(Description);
+	return Description;
 }
 
 FText FUncontrolledChangelistState::GetDisplayTooltip() const
@@ -64,6 +72,8 @@ void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObje
 {
 	TArray<TSharedPtr<FJsonValue>> FileValues;
 
+	OutJsonObject->SetStringField(DESCRIPTION_NAME, Description.ToString());
+
 	Algo::Transform(Files, FileValues, [](const FSourceControlStateRef& File) { return MakeShareable(new FJsonValueString(File->GetFilename())); });
 	Algo::Transform(OfflineFiles, FileValues, [](const FString& OfflineFile) { return MakeShareable(new FJsonValueString(OfflineFile)); });
 
@@ -73,6 +83,15 @@ void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObje
 bool FUncontrolledChangelistState::Deserialize(const TSharedRef<FJsonObject> InJsonValue)
 {
 	const TArray<TSharedPtr<FJsonValue>>* FileValues = nullptr;
+	FString TempString;
+
+	if (!InJsonValue->TryGetStringField(DESCRIPTION_NAME, TempString) && !InJsonValue->TryGetStringField(NAME_NAME, TempString))
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Cannot get field %s or %s."), DESCRIPTION_NAME, NAME_NAME);
+		return false;
+	}
+
+	SetDescription(FText::FromString(TempString));
 
 	if ((!InJsonValue->TryGetArrayField(FILES_NAME, FileValues)) || (FileValues == nullptr))
 	{
@@ -202,6 +221,22 @@ void FUncontrolledChangelistState::RemoveDuplicates(TSet<FString>& InOutAddedAss
 		
 		InOutAddedAssets.Remove(Filename);
 	}
+}
+
+void FUncontrolledChangelistState::SetDescription(const FText& InDescription)
+{
+	Description = InDescription;
+
+	if (Description.EqualToCaseIgnored(FText::FromString(TEXT("default"))))
+	{
+		Description = FText::Format(LOCTEXT("Default_Override", "{0} (Uncontrolled Changelist)"), Description);
+	}
+}
+
+
+bool FUncontrolledChangelistState::ContainsFiles() const
+{
+	return (!Files.IsEmpty()) || (!OfflineFiles.IsEmpty());
 }
 
 #undef LOCTEXT_NAMESPACE

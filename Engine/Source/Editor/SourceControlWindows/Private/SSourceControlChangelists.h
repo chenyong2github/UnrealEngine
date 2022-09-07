@@ -69,8 +69,9 @@ private:
 
 	/** Returns the currently selected changelist state ptr or null in invalid cases */
 	FSourceControlChangelistStatePtr GetCurrentChangelistState();
-	FUncontrolledChangelistStatePtr GetCurrentUncontrolledChangelistState();
+	FUncontrolledChangelistStatePtr GetCurrentUncontrolledChangelistState() const;
 	FSourceControlChangelistPtr GetCurrentChangelist();
+	TOptional<FUncontrolledChangelist> GetCurrentUncontrolledChangelist() const;
 	FSourceControlChangelistStatePtr GetChangelistStateFromSelection();
 	FSourceControlChangelistPtr GetChangelistFromSelection();
 

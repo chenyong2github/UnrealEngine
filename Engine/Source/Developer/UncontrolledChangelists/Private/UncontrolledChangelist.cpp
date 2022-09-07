@@ -9,24 +9,20 @@
 #define LOCTEXT_NAMESPACE "UncontrolledChangelists"
 
 const FGuid FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID = FGuid(0, 0, 0, 0);
-const FText FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME = LOCTEXT("DefaultUncontrolledChangelist", "Default Uncontrolled Changelist");
 
 FUncontrolledChangelist::FUncontrolledChangelist()
 	: Guid(FGuid::NewGuid())
-	, Name()
 {
 }
 
-FUncontrolledChangelist::FUncontrolledChangelist(const FGuid& InGuid, const FString& InName)
+FUncontrolledChangelist::FUncontrolledChangelist(const FGuid& InGuid)
 	: Guid(InGuid)
-	, Name(InName)
 {
 }
 
 void FUncontrolledChangelist::Serialize(TSharedRef<FJsonObject> OutJsonObject) const
 {
 	OutJsonObject->SetStringField(GUID_NAME, Guid.ToString());
-	OutJsonObject->SetStringField(NAME_NAME, Name);
 }
 
 bool FUncontrolledChangelist::Deserialize(const TSharedRef<FJsonObject> InJsonValue)
@@ -42,12 +38,6 @@ bool FUncontrolledChangelist::Deserialize(const TSharedRef<FJsonObject> InJsonVa
 	if (!FGuid::Parse(TempStr, Guid))
 	{
 		UE_LOG(LogSourceControl, Error, TEXT("Cannot parse Guid %s."), *TempStr);
-		return false;
-	}
-
-	if (!InJsonValue->TryGetStringField(NAME_NAME, Name))
-	{
-		UE_LOG(LogSourceControl, Error, TEXT("Cannot get field %s."), NAME_NAME);
 		return false;
 	}
 

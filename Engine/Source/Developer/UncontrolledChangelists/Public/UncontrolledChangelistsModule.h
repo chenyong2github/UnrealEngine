@@ -22,7 +22,7 @@ class UNCONTROLLEDCHANGELISTS_API FUncontrolledChangelistsModule : public IModul
 public:	
 	static constexpr const TCHAR* VERSION_NAME = TEXT("version");
 	static constexpr const TCHAR* CHANGELISTS_NAME = TEXT("changelists");
-	static constexpr uint32 VERSION_NUMBER = 0;
+	static constexpr uint32 VERSION_NUMBER = 1;
 
 	/** Callback called when the state of the Uncontrolled Changelist Module (or any Uncontrolled Changelist) changed */
 	DECLARE_MULTICAST_DELEGATE(FOnUncontrolledChangelistModuleChanged);
@@ -172,6 +172,9 @@ private:
 	 * @return 	True file have been added.
 	 */
 	bool AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags);
+
+	/** Returns the default Uncontrolled Changelist state, creates it if it does not exist. */
+	FUncontrolledChangelistStateRef GetDefaultUncontrolledChangelistState();
 
 private:
 	class FStartupTask : public FNonAbandonableTask

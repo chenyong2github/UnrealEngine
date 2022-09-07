@@ -20,10 +20,13 @@
 
 class FJsonObject;
 
-class FUncontrolledChangelistState : public TSharedFromThis<FUncontrolledChangelistState, ESPMode::ThreadSafe>
+class UNCONTROLLEDCHANGELISTS_API FUncontrolledChangelistState : public TSharedFromThis<FUncontrolledChangelistState, ESPMode::ThreadSafe>
 {
 public:
 	static constexpr const TCHAR* FILES_NAME = TEXT("files");
+	static constexpr const TCHAR* NAME_NAME = TEXT("name");
+	static constexpr const TCHAR* DESCRIPTION_NAME = TEXT("description");
+	static const FText DEFAULT_UNCONTROLLED_CHANGELIST_DESCRIPTION;
 
 	enum class ECheckFlags
 	{
@@ -41,37 +44,46 @@ public:
 	};
 
 public:
+	// An FUncontrolledChangelistState should always reference a given Changelist (with a valid GUID).
+	FUncontrolledChangelistState() = delete;
+
 	FUncontrolledChangelistState(const FUncontrolledChangelist& InUncontrolledChangelist);
+	
+	FUncontrolledChangelistState(const FUncontrolledChangelist& InUncontrolledChangelist, const FText& InDescription);
+
+	// Uncontrolled Changelist states are unique and non-copyable, should always be used by reference to preserve cache coherence.
+	FUncontrolledChangelistState(const FUncontrolledChangelistState& InUncontrolledChangelistState) = delete;
+	FUncontrolledChangelistState& operator=(const FUncontrolledChangelistState& InUncontrolledChangelistState) = delete;
 
 	/**
 	 * Get the name of the icon graphic we should use to display the state in a UI.
 	 * @returns the name of the icon to display
 	 */
-	UNCONTROLLEDCHANGELISTS_API FName GetIconName() const;
+	 FName GetIconName() const;
 
 	/**
 	 * Get the name of the small icon graphic we should use to display the state in a UI.
 	 * @returns the name of the icon to display
 	 */
-	UNCONTROLLEDCHANGELISTS_API FName GetSmallIconName() const;
+	FName GetSmallIconName() const;
 
 	/**
 	 * Get a text representation of the state
 	 * @returns	the text to display for this state
 	 */
-	UNCONTROLLEDCHANGELISTS_API FText GetDisplayText() const;
+	const FText& GetDisplayText() const;
 
 	/**
 	 * Get a text representation of the state
 	 * @returns	the text to display for this state
 	 */
-	UNCONTROLLEDCHANGELISTS_API FText GetDescriptionText() const;
+	const FText& GetDescriptionText() const;
 
 	/**
 	 * Get a tooltip to describe this state
 	 * @returns	the text to display for this states tooltip
 	 */
-	UNCONTROLLEDCHANGELISTS_API FText GetDisplayTooltip() const;
+	FText GetDisplayTooltip() const;
 
 	/**
 	 * Get the timestamp of the last update that was made to this state.
@@ -79,9 +91,9 @@ public:
 	 */
 	const FDateTime& GetTimeStamp() const;
 
-	UNCONTROLLEDCHANGELISTS_API const TSet<FSourceControlStateRef>& GetFilesStates() const;
+	const TSet<FSourceControlStateRef>& GetFilesStates() const;
 	
-	UNCONTROLLEDCHANGELISTS_API const TSet<FString>& GetOfflineFiles() const;
+	const TSet<FString>& GetOfflineFiles() const;
 
 	/**
 	 * Serialize the state of the Uncontrolled Changelist to a Json Object.
@@ -123,9 +135,18 @@ public:
 	 */
 	void RemoveDuplicates(TSet<FString>& InOutAddedAssets);
 
+	/**
+	 * Sets a new description for this Uncontrolled Changelist
+	 * @param	InDescription	The new description to set.
+	 */
+	void SetDescription(const FText& InDescription);
+
+	/** Returns true if the Uncontrolled Changelists contains either Files or OfflineFiles.	*/
+	bool ContainsFiles() const;
+
 public:
 	FUncontrolledChangelist Changelist;
-	FString Description;
+	FText Description;
 	TSet<FSourceControlStateRef> Files;
 	TSet<FString> OfflineFiles;
 

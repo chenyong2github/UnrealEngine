@@ -66,8 +66,7 @@ void FUncontrolledChangelistsModule::StartupModule()
 	}
 
 	// Adds Default Uncontrolled Changelist if it is not already present.
-	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID, FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME.ToString());
-	UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(DefaultUncontrolledChangelist), MakeShareable(new FUncontrolledChangelistState(DefaultUncontrolledChangelist)));
+	GetDefaultUncontrolledChangelistState();
 
 	LoadState();
 
@@ -118,24 +117,12 @@ TArray<FUncontrolledChangelistStateRef> FUncontrolledChangelistsModule::GetChang
 
 bool FUncontrolledChangelistsModule::OnMakeWritable(const TArray<FString>& InFilenames)
 {
-	bool bHasStateChanged = false;
-
 	if (!IsEnabled())
 	{
 		return false;
 	}
 
-	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID, FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME.ToString());
-	FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(DefaultUncontrolledChangelist), MakeShareable(new FUncontrolledChangelistState(DefaultUncontrolledChangelist)));
-
-	bHasStateChanged = UncontrolledChangelistState->AddFiles(InFilenames, FUncontrolledChangelistState::ECheckFlags::NotCheckedOut);
-
-	if (bHasStateChanged)
-	{
-		OnStateChanged();
-	}
-
-	return bHasStateChanged;
+	return AddFilesToDefaultUncontrolledChangelist(InFilenames, FUncontrolledChangelistState::ECheckFlags::NotCheckedOut);
 }
 
 void FUncontrolledChangelistsModule::UpdateStatus()
@@ -516,8 +503,7 @@ bool FUncontrolledChangelistsModule::AddFilesToDefaultUncontrolledChangelist(con
 {
 	bool bHasStateChanged = false;
 
-	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID, FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME.ToString());
-	FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(DefaultUncontrolledChangelist), MakeShareable(new FUncontrolledChangelistState(DefaultUncontrolledChangelist)));
+	FUncontrolledChangelistStateRef UncontrolledChangelistState = GetDefaultUncontrolledChangelistState();
 
 	// Try to add files, they will be added only if they pass the required checks
 	bHasStateChanged = UncontrolledChangelistState->AddFiles(InFilenames, InCheckFlags);
@@ -528,6 +514,19 @@ bool FUncontrolledChangelistsModule::AddFilesToDefaultUncontrolledChangelist(con
 	}
 
 	return bHasStateChanged;
+}
+
+FUncontrolledChangelistStateRef FUncontrolledChangelistsModule::GetDefaultUncontrolledChangelistState()
+{
+	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID);
+	FUncontrolledChangelistStateRef* DefaultUncontrolledChangelistState = UncontrolledChangelistsStateCache.Find(DefaultUncontrolledChangelist);
+
+	if (DefaultUncontrolledChangelistState != nullptr)
+	{
+		return *DefaultUncontrolledChangelistState;
+	}
+
+	return UncontrolledChangelistsStateCache.Emplace(MoveTemp(DefaultUncontrolledChangelist), MakeShared<FUncontrolledChangelistState>(DefaultUncontrolledChangelist, FUncontrolledChangelistState::DEFAULT_UNCONTROLLED_CHANGELIST_DESCRIPTION));
 }
 
 void FUncontrolledChangelistsModule::SaveState() const
@@ -587,7 +586,7 @@ void FUncontrolledChangelistsModule::LoadState()
 		return;
 	}
 
-	if (VersionNumber != VERSION_NUMBER)
+	if (VersionNumber > VERSION_NUMBER)
 	{
 		UE_LOG(LogSourceControl, Error, TEXT("Version number is invalid (file: %u, current: %u)."), VersionNumber, VERSION_NUMBER);
 		return;
@@ -610,7 +609,7 @@ void FUncontrolledChangelistsModule::LoadState()
 			continue;
 		}
 
-		FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(TempKey), MakeShareable(new FUncontrolledChangelistState(TempKey)));
+		FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(TempKey), MakeShared<FUncontrolledChangelistState>(TempKey));
 
 		UncontrolledChangelistState->Deserialize(JsonObject);
 	}
