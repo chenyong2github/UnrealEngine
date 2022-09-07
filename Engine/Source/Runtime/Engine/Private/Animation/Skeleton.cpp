@@ -483,18 +483,6 @@ USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 
 void USkeleton::BeginDestroy()
 {
-	Super::BeginDestroy();
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
-	}
-
-	// Clear our own skeleton mappings.
-	ClearSkeletonRemappings();
-	OnSkeletonDestructEvent.Broadcast(this); // Inform others about this skeleton being destructed, so we can remove mappings inside those skeletons.
-	OnSkeletonDestructEvent.Clear();
-	OnSmartNamesChangedEvent.Clear();
-
 	//  Remove the loaded skeleton from the list.
 	{
 		FScopeLock Lock(&LoadedSkeletonsMutex);
@@ -506,9 +494,22 @@ void USkeleton::BeginDestroy()
 			if (Skeleton->IsCompatible(this))
 			{
 				Skeleton->OnSkeletonDestructEvent.RemoveAll(this);
+				Skeleton->RemoveCompatibleSkeleton(this);
 			}
 		}
 	}
+
+	Super::BeginDestroy();
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+	}
+
+	// Clear our own skeleton mappings.
+	ClearSkeletonRemappings();
+	OnSkeletonDestructEvent.Broadcast(this); // Inform others about this skeleton being destructed, so we can remove mappings inside those skeletons.
+	OnSkeletonDestructEvent.Clear();
+	OnSmartNamesChangedEvent.Clear();
 }
 
 void USkeleton::PostInitProperties()
@@ -596,6 +597,12 @@ void USkeleton::PostLoad()
 	{
 		OnSmartNamesChangedEvent.AddUObject(this, &USkeleton::HandleSmartNamesChangedEvent);
 	}
+	
+	// Cleanup CompatibleSkeletons for convenience, this does not ensure CompatibleSkeletons is free of invalid TSoftObjectPtrs at access-time.
+	CompatibleSkeletons = CompatibleSkeletons.FilterByPredicate([](const TSoftObjectPtr<USkeleton>& Skeleton)
+	{
+		return Skeleton.IsValid();
+	});
 }
 
 // Regenerate all required skeleton remappings whenever curves change.

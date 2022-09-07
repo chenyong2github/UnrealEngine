@@ -485,6 +485,7 @@ protected:
 	/**
 	 * The list of compatible skeletons.
 	 * This is an array of TSoftObjectPtr in order to prevent all skeletons to be loaded, as we only want to load things on demand.
+	 * As this is EditAnywhere and an array of TSoftObjectPtr, checking validity of pointers is needed.
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CompatibleSkeletons)
 	TArray<TSoftObjectPtr<USkeleton>> CompatibleSkeletons;
