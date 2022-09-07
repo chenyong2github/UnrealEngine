@@ -92,10 +92,13 @@ public:
 	// Accessors.
 	FIntPoint GetSizeXY() const { return FIntPoint(SizeX, SizeY); }
 
-	FD3D12Texture* GetDummyBackBuffer_RenderThread(bool bInIsSDR) const { return bInIsSDR ? SDRDummyBackBuffer_RenderThread : DummyBackBuffer_RenderThread; }
+	FD3D12Texture* GetDummyBackBuffer_RenderThread(bool bInIsSDR) const;
+	FD3D12Texture* GetBackBuffer_RenderThread() const;
 
 	FD3D12Texture* GetBackBuffer_RHIThread() const { return BackBuffer_RHIThread; }
 	FD3D12Texture* GetSDRBackBuffer_RHIThread() const { return (PixelFormat == SDRPixelFormat) ? GetBackBuffer_RHIThread() : SDRBackBuffer_RHIThread; }
+
+	FD3D12UnorderedAccessView* GetBackBufferUAV_RenderThread() const;
 
 	virtual void WaitForFrameEventCompletion() override;
 	virtual void IssueFrameEvent() override;
@@ -135,9 +138,9 @@ public:
 	/** Query the swap chain's current connected output for HDR support. */
 	bool CurrentOutputSupportsHDR() const;
 
-#if WITH_MGPU
 	/** Advance and get the next present GPU index */
 	void AdvanceExpectedBackBufferIndex_RenderThread();
+#if WITH_MGPU
 	uint32 GetNextPresentGPUIndex() const
 	{
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
@@ -223,16 +226,21 @@ private:
 #endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	TArray<TRefCountPtr<FD3D12Texture>> BackBuffers;
+	TArray<TRefCountPtr<FD3D12UnorderedAccessView>> BackBuffersUAV;
 	uint32 NumBackBuffers;
 
 	TRefCountPtr<FD3D12Texture> DummyBackBuffer_RenderThread; // Dummy back buffer texture which always references the current back buffer on the RHI thread
 	uint32 CurrentBackBufferIndex_RHIThread;
 	FD3D12Texture* BackBuffer_RHIThread;
+	FD3D12Texture* BackBuffer_RenderThread;
+	FD3D12UnorderedAccessView* BackBufferUAV_RenderThread;
 
 #if WITH_MGPU
 	int32 BackbufferMultiGPUBinding; // where INDEX_NONE cycles through the GPU, otherwise the GPU index.
 	mutable FCriticalSection ExpectedBackBufferIndexLock; // Can very rarely be modified on the RHI thread as well if present is skipped
+#endif
 	uint32 ExpectedBackBufferIndex_RenderThread; // Expected back buffer GPU index - used and updated on RenderThread!
+#if WITH_MGPU
 	TArray<uint32> BackBufferGPUIndices;
 #endif // WITH_MGPU
 

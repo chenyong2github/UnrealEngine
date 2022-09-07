@@ -210,6 +210,11 @@ inline bool RHISupportsManualVertexFetch(const FStaticShaderPlatform InShaderPla
 	return FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(InShaderPlatform);
 }
 
+inline bool RHISupportsSwapchainUAVs(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsSwapchainUAVs(Platform);
+}
+
 /** 
  * Returns true if SV_VertexID contains BaseVertexIndex passed to the draw call, false if shaders must manually construct an absolute VertexID.
  */

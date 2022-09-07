@@ -641,10 +641,9 @@ private:
 IMPLEMENT_SHADER_TYPE(, FCompositeLUTGenerationPS, TEXT("/Engine/Private/CompositeUIPixelShader.usf"), TEXT("GenerateLUTPS"), SF_Pixel);
 
 // Pixel shader to composite UI over HDR buffer
-template<uint32 EncodingType>
-class FCompositePS : public FGlobalShader
+class FCompositeShaderBase : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FCompositePS, Global);
+	DECLARE_TYPE_LAYOUT(FCompositeShaderBase, NonVirtual);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -652,116 +651,164 @@ public:
 		return SupportsUICompositionRendering(Parameters.Platform);
 	}
 
-	FCompositePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+	FCompositeShaderBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FGlobalShader(Initializer)
 	{
 		UITexture.Bind(Initializer.ParameterMap, TEXT("UITexture"));
 		UIWriteMaskTexture.Bind(Initializer.ParameterMap, TEXT("UIWriteMaskTexture"));
 		UISampler.Bind(Initializer.ParameterMap, TEXT("UISampler"));
-		SceneTexture.Bind(Initializer.ParameterMap, TEXT("SceneTexture"));
-		SceneSampler.Bind(Initializer.ParameterMap, TEXT("SceneSampler"));
 		ColorSpaceLUT.Bind(Initializer.ParameterMap, TEXT("ColorSpaceLUT"));
 		ColorSpaceLUTSampler.Bind(Initializer.ParameterMap, TEXT("ColorSpaceLUTSampler"));
 		UILevel.Bind(Initializer.ParameterMap, TEXT("UILevel"));
 		OutputDevice.Bind(Initializer.ParameterMap, TEXT("OutputDevice"));
 	}
-	FCompositePS() {}
+	FCompositeShaderBase() = default;
 
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* UITextureRHI, FRHITexture* UITextureWriteMaskRHI, FRHITexture* SceneTextureRHI, FRHITexture* ColorSpaceLUTRHI)
+	template<class TRHIShader>
+	void SetParametersBase(FRHICommandList& RHICmdList, TRHIShader* BoundShader, FRHITexture* UITextureRHI, FRHITexture* UITextureWriteMaskRHI, FRHITexture* ColorSpaceLUTRHI)
 	{
 		static const auto CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UITexture, UISampler, TStaticSamplerState<SF_Point>::GetRHI(), UITextureRHI);
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), ColorSpaceLUT, ColorSpaceLUTSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), ColorSpaceLUTRHI);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILevel, CVarUILevel.GetValueOnRenderThread());
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputDevice, CVarOutputDevice->GetValueOnRenderThread());
+		SetTextureParameter(RHICmdList, BoundShader, UITexture, UISampler, TStaticSamplerState<SF_Point>::GetRHI(), UITextureRHI);
+		SetTextureParameter(RHICmdList, BoundShader, ColorSpaceLUT, ColorSpaceLUTSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), ColorSpaceLUTRHI);
+		SetShaderValue(RHICmdList, BoundShader, UILevel, CVarUILevel.GetValueOnRenderThread());
+		SetShaderValue(RHICmdList, BoundShader, OutputDevice, CVarOutputDevice->GetValueOnRenderThread());
 		
 		if (UITextureWriteMaskRHI != nullptr)
 		{
-			SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UIWriteMaskTexture, UITextureWriteMaskRHI);
+			SetTextureParameter(RHICmdList, BoundShader, UIWriteMaskTexture, UITextureWriteMaskRHI);
 		}
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SCRGB_ENCODING"), EncodingType);
 	}
 
 	static const TCHAR* GetSourceFilename()
 	{
 		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("Main");
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, UITexture);
 	LAYOUT_FIELD(FShaderResourceParameter, UIWriteMaskTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, UISampler);
-	LAYOUT_FIELD(FShaderResourceParameter, SceneTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, SceneSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, ColorSpaceLUT);
 	LAYOUT_FIELD(FShaderResourceParameter, ColorSpaceLUTSampler);
 	LAYOUT_FIELD(FShaderParameter, UILevel);
 	LAYOUT_FIELD(FShaderParameter, OutputDevice);
 };
+IMPLEMENT_TYPE_LAYOUT(FCompositeShaderBase);
 
-
-// Pixel shader to convert UI from PQ 2020 to Linear (and 2020 space)
-class FHDRBackBufferConvertPS : public FGlobalShader
+class FCompositePSBase : public FCompositeShaderBase
 {
-	DECLARE_SHADER_TYPE(FHDRBackBufferConvertPS, Global);
+	DECLARE_TYPE_LAYOUT(FCompositePSBase, NonVirtual);
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	FHDRBackBufferConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
+	FCompositePSBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FCompositeShaderBase(Initializer)
 	{
 		SceneTexture.Bind(Initializer.ParameterMap, TEXT("SceneTexture"));
 		SceneSampler.Bind(Initializer.ParameterMap, TEXT("SceneSampler"));
 	}
-	FHDRBackBufferConvertPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* SceneTextureRHI)
-	{
-		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
-	}
+	FCompositePSBase() = default;
 
 	static const TCHAR* GetFunctionName()
 	{
-		return TEXT("HDRBackBufferConvertPS");
+		return TEXT("Main");
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* UITextureRHI, FRHITexture* UITextureWriteMaskRHI, FRHITexture* SceneTextureRHI, FRHITexture* ColorSpaceLUTRHI)
+	{
+		SetParametersBase(RHICmdList, RHICmdList.GetBoundPixelShader(), UITextureRHI, UITextureWriteMaskRHI, ColorSpaceLUTRHI);
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, SceneTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, SceneSampler);
 };
+IMPLEMENT_TYPE_LAYOUT(FCompositePSBase);
 
-IMPLEMENT_SHADER_TYPE(, FHDRBackBufferConvertPS, FHDRBackBufferConvertPS::GetSourceFilename(), FHDRBackBufferConvertPS::GetFunctionName(), SF_Pixel);
+template<uint32 EncodingType>
+class FCompositePS : public FCompositePSBase
+{
+	DECLARE_SHADER_TYPE(FCompositePS, Global);
+public:
+	FCompositePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FCompositePSBase(Initializer) {}
+	FCompositePS() = default;
 
-#define SHADER_VARIATION(A) typedef FCompositePS<A> FCompositePS##A; \
-	IMPLEMENT_SHADER_TYPE2(FCompositePS##A, SF_Pixel);
-SHADER_VARIATION(0)  SHADER_VARIATION(1)
-#undef SHADER_VARIATION
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SCRGB_ENCODING"), EncodingType);
+	}
+};
+IMPLEMENT_SHADER_TYPE(template<>, FCompositePS<0>, FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositePS<1>, FCompositePSBase::GetSourceFilename(), FCompositePSBase::GetFunctionName(), SF_Pixel);
+
+class FCompositeCSBase : public FCompositeShaderBase
+{
+	DECLARE_TYPE_LAYOUT(FCompositeCSBase, NonVirtual);
+public:
+
+	static const uint32 NUM_THREADS_PER_GROUP = 16;
+
+	static bool IsShaderSupported(const EShaderPlatform ShaderPlatform)
+	{
+		return RHISupports4ComponentUAVReadWrite(ShaderPlatform) && RHISupportsSwapchainUAVs(ShaderPlatform);
+	}
+
+	FCompositeCSBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FCompositeShaderBase(Initializer)
+	{
+		RWSceneTexture.Bind(Initializer.ParameterMap, TEXT("RWSceneTexture"));
+		SceneTextureDimensions.Bind(Initializer.ParameterMap, TEXT("SceneTextureDimensions"));
+	}
+	FCompositeCSBase() = default;
+
+	static const TCHAR* GetFunctionName()
+	{
+		return TEXT("CompositeUICS");
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* UITextureRHI, FRHITexture* UITextureWriteMaskRHI, FRHIUnorderedAccessView* InRWSceneTexture, FRHITexture* ColorSpaceLUTRHI, const FVector4f& InSceneTextureDimensions)
+	{
+		SetParametersBase(RHICmdList, RHICmdList.GetBoundComputeShader(), UITextureRHI, UITextureWriteMaskRHI, ColorSpaceLUTRHI);
+		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), RWSceneTexture, InRWSceneTexture);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundComputeShader(), SceneTextureDimensions, InSceneTextureDimensions);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, RWSceneTexture);
+	LAYOUT_FIELD(FShaderParameter, SceneTextureDimensions);
+};
+IMPLEMENT_TYPE_LAYOUT(FCompositeCSBase);
+
+template<uint32 EncodingType>
+class FCompositeCS : public FCompositeCSBase
+{
+	DECLARE_SHADER_TYPE(FCompositeCS, Global);
+public:
+	FCompositeCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FCompositeCSBase(Initializer) {}
+	FCompositeCS() = default;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		if (!SupportsUICompositionRendering(Parameters.Platform))
+		{
+			return false;
+		}
+
+		return IsShaderSupported(Parameters.Platform);
+	}
+
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("USE_COMPUTE_FOR_COMPOSITION"), 1);
+		OutEnvironment.SetDefine(TEXT("SCRGB_ENCODING"), EncodingType);
+		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NUM_THREADS_PER_GROUP);
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS<0>, FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
+IMPLEMENT_SHADER_TYPE(template<>, FCompositeCS<1>, FCompositeCSBase::GetSourceFilename(), FCompositeCSBase::GetFunctionName(), SF_Compute);
+
 
 int32 SlateWireFrame = 0;
 static FAutoConsoleVariableRef CVarSlateWireframe(TEXT("Slate.ShowWireFrame"), SlateWireFrame, TEXT(""), ECVF_Default);
@@ -1092,16 +1139,21 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				}
 
 				// Composition pass
+
+				RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.UITargetRT->GetRHI(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+
+				if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
 				{
-					RHICmdList.Transition(FRHITransitionInfo(ViewportInfo.UITargetRT->GetRHI(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+					IPooledRenderTarget* RenderTargets[] = { ViewportInfo.UITargetRT.GetReference() };
+					FRenderTargetWriteMask::Decode(RHICmdList, ShaderMap, RenderTargets, ViewportInfo.UITargetRTMask, TexCreate_None, TEXT("UIRTWriteMask"));
+				}
+				FRHITexture* UITargetRTMaskTexture = ViewportInfo.UITargetRTMask.IsValid() ? ViewportInfo.UITargetRTMask->GetRHI() : nullptr;
 
-					if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
-					{
-						IPooledRenderTarget* RenderTargets[] = { ViewportInfo.UITargetRT.GetReference() };
-						FRenderTargetWriteMask::Decode(RHICmdList, ShaderMap, RenderTargets, ViewportInfo.UITargetRTMask, TexCreate_None, TEXT("UIRTWriteMask"));
-					}
+				bool bUseScRGB = (HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB || HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB);
 
-
+				FRHIUnorderedAccessView* BackBufferUAV = (FCompositeCSBase::IsShaderSupported(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)) && ViewportRT == nullptr) ? RHIGetViewportBackBufferUAV(ViewportInfo.ViewportRHI) : nullptr;
+				if (BackBufferUAV == nullptr)
+				{
 					TRefCountPtr<IPooledRenderTarget> FinalBufferCopy;
 					{
 						FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
@@ -1131,35 +1183,24 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
-						FRHITexture* UITargetRTMaskTexture = ViewportInfo.UITargetRTMask.IsValid() ? ViewportInfo.UITargetRTMask->GetRHI() : nullptr;
-						if (HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB || HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB)
+						TShaderRef<FCompositePSBase> PixelShader;
+						if (bUseScRGB)
 						{
-							// ScRGB encoding
-							TShaderMapRef<FCompositePS<1>> PixelShader(ShaderMap);
-
-							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-							GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-
-							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, FinalBufferCopy->GetRHI(), ViewportInfo.ColorSpaceLUT);
+							PixelShader = TShaderMapRef<FCompositePS<1> >(ShaderMap);
 						}
 						else
 						{
-							// ST2084 (PQ) encoding
-							TShaderMapRef<FCompositePS<0>> PixelShader(ShaderMap);
-
-							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-							GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-
-							PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, FinalBufferCopy->GetRHI(), ViewportInfo.ColorSpaceLUT);
+							PixelShader = TShaderMapRef<FCompositePS<0> >(ShaderMap);
 						}
+
+						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+						GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+						PixelShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, FinalBufferCopy->GetRHI(), ViewportInfo.ColorSpaceLUT);
 
 						RendererModule.DrawRectangle(
 							RHICmdList,
@@ -1173,6 +1214,29 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 							EDRF_UseTriangleOptimization);
 					}
 					RHICmdList.EndRenderPass();
+				}
+				else
+				{
+					TShaderRef<FCompositeCSBase> ComputeShader;
+					if (bUseScRGB)
+					{
+						ComputeShader = TShaderMapRef<FCompositeCS<1> >(ShaderMap);
+					}
+					else
+					{
+						ComputeShader = TShaderMapRef<FCompositeCS<0> >(ShaderMap);
+					}
+
+					RHICmdList.Transition({
+						FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+					});
+
+					FVector4f SceneTextureDimensions((float)ViewportWidth, (float)ViewportHeight, 1.0f/(float)ViewportWidth, 1.0f/(float)ViewportHeight);
+					SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
+					ComputeShader->SetParameters(RHICmdList, ViewportInfo.UITargetRT->GetRHI(), UITargetRTMaskTexture, BackBufferUAV, ViewportInfo.ColorSpaceLUT, SceneTextureDimensions);
+
+					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp(ViewportWidth, FCompositeCSBase::NUM_THREADS_PER_GROUP), FMath::DivideAndRoundUp(ViewportHeight, FCompositeCSBase::NUM_THREADS_PER_GROUP), 1);
+
 				}
 
 				// Put the backbuffer back to the correct one.

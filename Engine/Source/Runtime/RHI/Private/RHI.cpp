@@ -2551,6 +2551,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_SUPPORT_HELPER(bSupportsRealTypes);
 	GET_SECTION_INT_HELPER(EnablesHLSL2021ByDefault);
 	GET_SECTION_BOOL_HELPER(bSupportsSceneDataCompressedTransforms);
+	GET_SECTION_BOOL_HELPER(bSupportsSwapchainUAVs);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
 #undef GET_SECTION_SUPPORT_HELPER

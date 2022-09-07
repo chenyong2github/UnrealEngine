@@ -968,7 +968,6 @@ public:
 
 	virtual FUnorderedAccessViewRHIRef RHIGetViewportBackBufferUAV(FRHIViewport* ViewportRHI) override final
 	{
-		checkNoEntry(); // @todo fix barrier tracking for this, or remove this function
 		return RHI->RHIGetViewportBackBufferUAV(ViewportRHI);
 	}
 

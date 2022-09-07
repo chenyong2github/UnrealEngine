@@ -185,10 +185,9 @@ float4 ComputeHDRUIColor(float2 InputUV)
 	return UIColor;
 }
 
-float3 ComputeHDRSceneColor(float2 InputUV, SamplerState InSceneSampler)
+float3 ComputeHDRSceneColor(float3 SceneColor)
 {
 	const float3x3 sRGB_2_Rec2020 = mul(XYZ_2_Rec2020_MAT, sRGB_2_XYZ_MAT);
-	float3 SceneColor = Texture2DSample(SceneTexture, InSceneSampler, InputUV).xyz;
 #if !SCRGB_ENCODING
 	SceneColor.xyz = ST2084ToLinear(SceneColor.xyz);
 #else
@@ -214,7 +213,8 @@ void Main(
 
 	float4 UIColor = ComputeHDRUIColor(Input.UV);
 
-	float3 SceneColor = ComputeHDRSceneColor(Input.UV, SceneSampler);
+	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
+	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel);
 
 	OutColor.w = 1.f;
@@ -227,6 +227,51 @@ void Main(
 	OutColor.xyz = mul(Rec2020_2_sRGB, OutColor.xyz / ScRGBScaleFactor);
 #endif
 }
+
+#if USE_COMPUTE_FOR_COMPOSITION
+float4 SceneTextureDimensions;
+RWTexture2D<float4> RWSceneTexture;
+
+[numthreads(NUM_THREADS_PER_GROUP, NUM_THREADS_PER_GROUP, 1)]
+void CompositeUICS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (any(DispatchThreadId.xy >= (uint2)SceneTextureDimensions.xy))
+	{
+		return;
+	}
+
+	float2 InputPosition = DispatchThreadId.xy + float2(0.5, 0.5);
+#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+	uint CompositeUIMask = DecodeRTWriteMask(DispatchThreadId.xy, UIWriteMaskTexture, 1);
+	BRANCH
+	if (CompositeUIMask == 0)
+	{
+		return;
+	}
+#endif
+
+	float2 InputUV = InputPosition * SceneTextureDimensions.zw;
+
+	float4 UIColor = ComputeHDRUIColor(InputUV);
+
+	float3 SceneColor = RWSceneTexture[DispatchThreadId.xy].rgb;
+	SceneColor = ComputeHDRSceneColor(SceneColor);
+	float4 OutColor = 0;
+	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel);
+	OutColor.w = 1.f;
+
+#if !SCRGB_ENCODING
+	// Linear -> PQ
+	OutColor.xyz = LinearToST2084(OutColor.xyz);
+#else
+	const float3x3 Rec2020_2_sRGB = mul(XYZ_2_sRGB_MAT, Rec2020_2_XYZ_MAT);
+	OutColor.xyz = mul(Rec2020_2_sRGB, OutColor.xyz / ScRGBScaleFactor);
+#endif
+
+	RWSceneTexture[DispatchThreadId.xy] = float4(OutColor.xyz, 1);
+}
+
+#endif
 
 #if DISPLAY_MAPPING_PS
 float4x4 TextureToOutputGamutMatrix;
@@ -275,7 +320,8 @@ void BlitUIToHDRPS(
 	}
 #endif
 
-	float3 SceneColor = ComputeHDRSceneColor(Input.UV, UISampler);
+	float3 SceneColor = Texture2DSample(SceneTexture, UISampler, Input.UV).xyz;
+	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel) / ScRGBScaleFactor;
 	OutColor.a = 1;
 }

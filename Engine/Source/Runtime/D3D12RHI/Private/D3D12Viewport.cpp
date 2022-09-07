@@ -247,11 +247,18 @@ FD3D12Texture* GetSwapChainSurface(FD3D12Device* Parent, EPixelFormat PixelForma
 	D3D12_RESOURCE_DESC BackBufferDesc = BackBufferResource->GetDesc();
 
 	FString Name = FString::Printf(TEXT("BackBuffer%d"), BackBufferIndex);
+
+	ETextureCreateFlags SwapchainTextureCreateFlags = ETextureCreateFlags::RenderTargetable;
+	if (RHISupportsSwapchainUAVs(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)))
+	{
+		SwapchainTextureCreateFlags |= ETextureCreateFlags::UAV;
+	}
+
 	FRHITextureCreateDesc CreateDesc =
 		FRHITextureCreateDesc::Create2D(*Name)
 		.SetExtent(FIntPoint((uint32)BackBufferDesc.Width, BackBufferDesc.Height))
 		.SetFormat(PixelFormat)
-		.SetFlags(ETextureCreateFlags::RenderTargetable)
+		.SetFlags(SwapchainTextureCreateFlags)
 		.SetInitialState(ERHIAccess::Present);
 
 	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
@@ -438,7 +445,9 @@ void FD3D12Viewport::CalculateSwapChainDepth(int32 DefaultSwapChainDepth)
 #endif // WITH_MGPU
 
 	BackBuffers.Empty();
+	BackBuffersUAV.Empty();
 	BackBuffers.AddZeroed(NumBackBuffers);
+	BackBuffersUAV.AddZeroed(NumBackBuffers);
 
 	SDRBackBuffers.Empty();
 	SDRBackBuffers.AddZeroed(NumBackBuffers);
@@ -497,6 +506,24 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		
 		BackBuffers[i].SafeRelease();
 		check(BackBuffers[i] == nullptr);
+
+		if (IsValidRef(BackBuffersUAV[i]))
+		{
+			// Tell the back buffer to delete immediately so that we can call resize.
+			if (BackBuffersUAV[i]->GetRefCount() != 1)
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Backbuffer %d leaking with %d refs during Resize."), i, BackBuffersUAV[i]->GetRefCount());
+			}
+			check(BackBuffersUAV[i]->GetRefCount() == 1);
+
+			for (FD3D12UnorderedAccessView& Uav : *BackBuffersUAV[i])
+			{
+				Uav.GetResource()->DoNotDeferDelete();
+			}
+		}
+
+		BackBuffersUAV[i].SafeRelease();
+		check(BackBuffersUAV[i] == nullptr);
 
 		if (IsValidRef(SDRBackBuffers[i]))
 		{
@@ -601,7 +628,27 @@ static bool IsCompositionEnabled()
 	return !!bDwmEnabled;
 }
 
-#if WITH_MGPU
+FD3D12Texture* FD3D12Viewport::GetDummyBackBuffer_RenderThread(bool bInIsSDR) const
+{
+#if D3D12_USE_DUMMY_BACKBUFFER
+	return bInIsSDR ? SDRDummyBackBuffer_RenderThread : DummyBackBuffer_RenderThread;
+#else
+	checkNoEntry();
+	return nullptr;
+#endif
+}
+
+FD3D12UnorderedAccessView* FD3D12Viewport::GetBackBufferUAV_RenderThread() const
+{ 
+#if D3D12_USE_DUMMY_BACKBUFFER
+    // See FD3D12Viewport::PresentChecked: if we change fullscreen state (which is detected on RHI thread), we might end up with invalid backbuffer: the safe way is to rely on the dummybackbuffer instead, but 
+	// managing UAV is a bit tricky: disallow UAV on viewports right now
+    checkNoEntry();
+	return nullptr;
+#else
+	return BackBufferUAV_RenderThread;
+#endif
+}
 
 /** Update the expected next present GPU back buffer index from RenderThread point of view */
 void FD3D12Viewport::AdvanceExpectedBackBufferIndex_RenderThread()
@@ -610,11 +657,15 @@ void FD3D12Viewport::AdvanceExpectedBackBufferIndex_RenderThread()
 		CustomPresent->NeedsNativePresent() || CustomPresent->NeedsAdvanceBackbuffer() : true;
 	if (bNeedsNativePresent)
 	{
+#if WITH_MGPU
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
+#endif
 
 		ExpectedBackBufferIndex_RenderThread++;
 		ExpectedBackBufferIndex_RenderThread = ExpectedBackBufferIndex_RenderThread % NumBackBuffers;
 
+		BackBuffer_RenderThread = BackBuffers[ExpectedBackBufferIndex_RenderThread];
+		BackBufferUAV_RenderThread = BackBuffersUAV[ExpectedBackBufferIndex_RenderThread];
 #if !UE_BUILD_SHIPPING
 		if (RHIConsoleVariables::LogViewportEvents)
 		{
@@ -624,8 +675,6 @@ void FD3D12Viewport::AdvanceExpectedBackBufferIndex_RenderThread()
 #endif
 	}
 }
-
-#endif // WITH_MGPU
 
 /** Presents the swap chain checking the return result. */
 bool FD3D12Viewport::PresentChecked(int32 SyncInterval)
@@ -1148,13 +1197,11 @@ void FD3D12DynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Vie
 	// Don't need to do anything on the back because dummy back buffer texture is used to make sure the correct back
 	// buffer index is always used on RHI thread
 
-#if WITH_MGPU
 	// But advance the expected present GPU index so the next call to RHIGetViewportNextPresentGPUIndex returns the expected GPU index for the next present.
 	// Warning: when present fails or is not called on the RHIThread then this might not be in sync but RHI thread will fix up the correct state
 	//          Present doesn't happen so shouldn't matter that the index was wrong then
 	FD3D12Viewport* Viewport = FD3D12DynamicRHI::ResourceCast(ViewportRHI);
 	Viewport->AdvanceExpectedBackBufferIndex_RenderThread();
-#endif // WITH_MGPU
 }
 
 uint32 FD3D12DynamicRHI::RHIGetViewportNextPresentGPUIndex(FRHIViewport* ViewportRHI)
@@ -1177,18 +1224,24 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIGetViewportBackBuffer(FRHIViewport* Viewpo
 	check(IsInRenderingThread());
 
 	const FD3D12Viewport* const Viewport = FD3D12DynamicRHI::ResourceCast(ViewportRHI);
-	const bool sIsSDR = false;
-	FRHITexture2D* const DummyBackBuffer = Viewport->GetDummyBackBuffer_RenderThread(sIsSDR);
-	
+
+	FRHITexture* SelectedBackBuffer = Viewport->GetBackBuffer_RenderThread();
 #if !UE_BUILD_SHIPPING
 	if (RHIConsoleVariables::LogViewportEvents)
 	{
 		const FString& ThreadName = FThreadManager::GetThreadName(FPlatformTLS::GetCurrentThreadId());
-		UE_LOG(LogD3D12RHI, Log, TEXT("Thread %s: RHIGetViewportBackBuffer (Viewport %#016llx: Dummy BackBuffer %#016llx)"), ThreadName.GetCharArray().GetData(), Viewport, DummyBackBuffer);
+		UE_LOG(LogD3D12RHI, Log, TEXT("Thread %s: RHIGetViewportBackBuffer (Viewport %#016llx: BackBuffer %#016llx)"), ThreadName.GetCharArray().GetData(), Viewport, SelectedBackBuffer);
 	}
 #endif
 
-	return DummyBackBuffer;
+	return SelectedBackBuffer;
+}
+
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHIGetViewportBackBufferUAV(FRHIViewport* ViewportRHI)
+{
+	check(IsInRenderingThread());
+	const FD3D12Viewport* const Viewport = FD3D12DynamicRHI::ResourceCast(ViewportRHI);
+	return Viewport->GetBackBufferUAV_RenderThread();
 }
 
 #if defined(D3D12_WITH_DWMAPI) && D3D12_WITH_DWMAPI

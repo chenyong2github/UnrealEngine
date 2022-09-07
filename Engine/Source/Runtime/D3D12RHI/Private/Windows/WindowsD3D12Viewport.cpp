@@ -45,10 +45,12 @@ FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandl
 	DummyBackBuffer_RenderThread(nullptr),
 	CurrentBackBufferIndex_RHIThread(0),
 	BackBuffer_RHIThread(nullptr),
+	BackBuffer_RenderThread(nullptr),
+	BackBufferUAV_RenderThread(nullptr),
 #if WITH_MGPU
 	BackbufferMultiGPUBinding(0),
-	ExpectedBackBufferIndex_RenderThread(0),
 #endif //WITH_MGPU
+	ExpectedBackBufferIndex_RenderThread(0),
 	SDRDummyBackBuffer_RenderThread(nullptr),
 	SDRBackBuffer_RHIThread(nullptr),
 	SDRPixelFormat(PF_B8G8R8A8),
@@ -371,6 +373,12 @@ void FD3D12Viewport::ResizeInternal()
 	BackBuffer_RHIThread = BackBuffers[CurrentBackBufferIndex_RHIThread].GetReference();
 	SDRBackBuffer_RHIThread = SDRBackBuffers[CurrentBackBufferIndex_RHIThread].GetReference();
 
+#if !D3D12_USE_DUMMY_BACKBUFFER
+    static_assert(false, "D3D12_USE_DUMMY_BACKBUFFER==0 has not been tested for viewports");
+	ExpectedBackBufferIndex_RenderThread = 0;
+	BackBuffer_RenderThread = BackBuffers[ExpectedBackBufferIndex_RenderThread].GetReference();
+#endif
+
 	// Create dummy back buffer which always reference to the actual RHI thread back buffer - can't be bound directly to D3D12
 	DummyBackBuffer_RenderThread = CreateDummyBackBufferTextures(Adapter, PixelFormat, SizeX, SizeY, false);
 	SDRDummyBackBuffer_RenderThread = (SDRBackBuffer_RHIThread != nullptr) ? CreateDummyBackBufferTextures(Adapter, PixelFormat, SizeX, SizeY, true) : nullptr;
@@ -613,6 +621,14 @@ void FD3D12Viewport::OnResumeRendering()
 
 void FD3D12Viewport::OnSuspendRendering()
 {}
+
+FD3D12Texture* FD3D12Viewport::GetBackBuffer_RenderThread() const
+{
+	check(IsInRenderingThread());
+	const bool sIsSDR = false;
+	FD3D12Texture* const DummyBackBuffer = GetDummyBackBuffer_RenderThread(sIsSDR);
+	return DummyBackBuffer;
+}
 
 void FD3D12DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
 {

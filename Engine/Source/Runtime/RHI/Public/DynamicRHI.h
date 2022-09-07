@@ -1504,6 +1504,11 @@ FORCEINLINE FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport)
 	return GDynamicRHI->RHIGetViewportBackBuffer(Viewport);
 }
 
+FORCEINLINE FUnorderedAccessViewRHIRef RHIGetViewportBackBufferUAV(FRHIViewport* Viewport)
+{
+	return GDynamicRHI->RHIGetViewportBackBufferUAV(Viewport);
+}
+
 FORCEINLINE uint32 RHIGetHTilePlatformConfig(uint32 DepthWidth, uint32 DepthHeight)
 {
 	return GDynamicRHI->RHIGetHTilePlatformConfig(DepthWidth, DepthHeight);

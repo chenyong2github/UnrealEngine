@@ -208,11 +208,13 @@ FORCEINLINE FD3D12Texture* GetD3D12TextureFromRHITexture(FRHITexture* Texture)
 	
 	// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
 	FRHITexture* RHITexture = Texture;
+#if D3D12_USE_DUMMY_BACKBUFFER
 	if (RHITexture && EnumHasAnyFlags(RHITexture->GetFlags(), TexCreate_Presentable))
 	{
 		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)RHITexture;
 		RHITexture = BufferBufferReferenceTexture->GetBackBufferTexture();
 	}
+#endif
 
 	FD3D12Texture* Result((FD3D12Texture*)RHITexture->GetTextureBaseRHI());
 	check(Result);
