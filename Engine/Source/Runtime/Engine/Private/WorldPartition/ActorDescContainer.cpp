@@ -112,8 +112,9 @@ FString UActorDescContainer::GetExternalActorPath() const
 
 bool UActorDescContainer::IsActorDescHandled(const AActor* Actor) const
 {
-	FString ActorPackageName = Actor->GetPackage()->GetName();
-	return ActorPackageName.StartsWith(GetExternalActorPath());
+	const FString ActorPackageName = Actor->GetPackage()->GetName();
+	const FString ExternalActorPath = GetExternalActorPath() / TEXT("");
+	return ActorPackageName.StartsWith(ExternalActorPath);
 }
 
 bool UActorDescContainer::IsMainPartitionContainer() const
