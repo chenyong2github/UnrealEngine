@@ -135,10 +135,14 @@ void FRigVMRegistry::InitializeIfNeeded()
 				AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&s_RigVMRegistry);
 			}
 		}
+
+		UE::Anim::AttributeTypes::GetOnAttributeTypesChanged().RemoveAll(&s_RigVMRegistry);
 	});
 	
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FRigVMRegistry::OnAssetRemoved);
+
+	UE::Anim::AttributeTypes::GetOnAttributeTypesChanged().AddRaw(this, &FRigVMRegistry::OnAnimationAttributeTypesChanged);
 }
 
 void FRigVMRegistry::Refresh()
@@ -216,6 +220,21 @@ void FRigVMRegistry::OnAssetRemoved(const FAssetData& InAssetData)
 		OnRigVMRegistryChangedDelegate.Broadcast();
 	}
 }
+
+void FRigVMRegistry::OnAnimationAttributeTypesChanged(const UScriptStruct* InStruct, bool bIsAdded)
+{
+	if (!ensure(InStruct))
+	{
+		return;
+	}
+
+	if (bIsAdded)
+	{
+		FindOrAddType(FRigVMTemplateArgumentType(const_cast<UScriptStruct*>(InStruct)));
+		OnRigVMRegistryChangedDelegate.Broadcast();		
+	}
+}
+
 
 void FRigVMRegistry::Reset()
 {

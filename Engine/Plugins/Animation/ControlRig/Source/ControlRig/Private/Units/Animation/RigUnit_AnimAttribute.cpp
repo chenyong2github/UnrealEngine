@@ -59,6 +59,14 @@ bool FRigDispatch_AnimAttributeBase::IsTypeSupported(const TRigVMTypeIndex& InTy
 				return false;
 			}
 
+			if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(ScriptStruct))
+			{
+				// allow all user defined structs because even if a struct is not registered with anim attribute system,
+				// it could be added to or removed from the system easily. allowing all of them as valid permutations
+				// avoids having to create orphan pins.
+				return true;
+			}
+			
 			return UE::Anim::AttributeTypes::IsTypeRegistered(ScriptStruct);
 		}
 	}
@@ -240,8 +248,8 @@ void FRigDispatch_SetAnimAttribute::SetAnimAttributeDispatch(FRigVMExtendedExecu
 			if (!UE::Anim::AttributeTypes::IsTypeRegistered(ScriptStruct))
 			{
 				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(
-					TEXT("Type: '%s' is not registered with the Animation Attribute System. "
-						"Please register the type in Project Settings - Animation - CustomAttributes - User Defined Struct Attributes."),
+					TEXT("Type: '%s' is not registered in the Animation Attribute System. "
+						"Please register the type in Project Settings - Animation - CustomAttributes - User Defined Struct Animation Attributes."),
 					*ScriptStruct->GetAuthoredName());
 				Registered = false;
 			}
@@ -394,7 +402,7 @@ FRigVMTemplateTypeMap FRigDispatch_GetAnimAttribute::OnNewArgumentType(const FNa
 	// similar pattern to URigVMArrayNode's FRigVMTemplate_NewArgumentTypeDelegate to avoid double registration
 	// this is needed since a single type is called for both DefaultArg and ValueArg but we should only
 	// register one permutation
-	if (InArgumentName == DefaultArgName)
+	if (InArgumentName == ValueArgName)
 	{
 		if (IsTypeSupported(InTypeIndex))
 		{

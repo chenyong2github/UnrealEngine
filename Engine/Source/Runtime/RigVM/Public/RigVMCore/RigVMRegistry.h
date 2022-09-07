@@ -62,6 +62,10 @@ public:
 	// Update the registry when old types are removed
     void OnAssetRemoved(const FAssetData& InAssetData);
 
+	// Update the registry when new types are added to the attribute system so that they can be selected
+	// on Attribute Nodes
+	void OnAnimationAttributeTypesChanged(const UScriptStruct* InStruct, bool bIsAdded);
+	
 	// Clear the registry
 	void Reset();
 
