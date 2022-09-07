@@ -40,8 +40,14 @@ private:
 	void OnWidgetSelectionChanged(FName SelectedName, ESelectInfo::Type SelectionType);
 	TSharedRef<SWidget> OnGetMenuContent();
 
+	FReply HandleSelect();
+	FReply HandleCancel();
+	bool IsSelectEnabled() const;
+
 	EVisibility GetClearVisibility() const;
 	FReply OnClearSource();
+
+	TSharedRef<ITableRow> OnGenerateRow(FBindingSource Source, const TSharedRef<STableViewBase>& OwnerTable);
 
 private:
 	TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint;
@@ -52,6 +58,7 @@ private:
 	TAttribute<FBindingSource> SelectedSourceAttribute;
 
 	TArray<FBindingSource> ViewModelSources;
+	FBindingSource InitialSource;
 	FBindingSource SelectedSource;
 
 	TSharedPtr<SMenuAnchor> MenuAnchor;

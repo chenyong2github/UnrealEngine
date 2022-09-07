@@ -5,6 +5,7 @@
 #include "Algo/Transform.h"
 #include "Editor.h"
 #include "MVVMEditorSubsystem.h"
+#include "SPrimaryButton.h"
 #include "SSimpleButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SMVVMFieldIcon.h"
@@ -18,8 +19,11 @@ namespace UE::MVVM
 void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* InWidgetBlueprint)
 {
 	TextStyle = Args._TextStyle;
+
 	SelectedSourceAttribute = Args._SelectedSource;
 	check(SelectedSourceAttribute.IsSet());
+
+	InitialSource = SelectedSourceAttribute.Get();
 
 	WidgetBlueprint = InWidgetBlueprint;
 	check(InWidgetBlueprint);
@@ -85,31 +89,31 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 	];
 
 	OnSelectionChangedDelegate = Args._OnSelectionChanged;
+	check(OnSelectionChangedDelegate.IsBound());
 }
 
 TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
 {
-	TSharedRef<SBox> TopLevelBox = SNew(SBox)
-		.MinDesiredWidth(200)
-		.MinDesiredHeight(400);
+	TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox);
 
 	if (bViewModels)
 	{
 		ViewModelList = SNew(SListView<FBindingSource>)
-			.OnGenerateRow_Lambda([this](FBindingSource Source, TSharedRef<STableViewBase> OwnerTable)
-				{
-					return SNew(STableRow<FBindingSource>, OwnerTable)
-					[
-						SNew(SSourceEntry)
-						.Source(Source)
-						.TextStyle(TextStyle)
-					];
-				})
+			.OnGenerateRow(this, &SSourceSelector::OnGenerateRow)
 			.OnSelectionChanged(this, &SSourceSelector::OnViewModelSelectionChanged)
 			.SelectionMode(ESelectionMode::Single)
 			.ListItemsSource(&ViewModelSources);
 
-		TopLevelBox->SetContent(ViewModelList.ToSharedRef());
+		VBox->AddSlot()
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+				.Padding(4)
+				[
+					ViewModelList.ToSharedRef()
+				]
+			];
 	}
 	else
 	{
@@ -117,35 +121,95 @@ TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
 			.OnSelectionChanged(this, &SSourceSelector::OnWidgetSelectionChanged)
 			.ShowSearch(false);
 
-		TopLevelBox->SetContent(WidgetHierarchy.ToSharedRef());
+		VBox->AddSlot()
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+				.Padding(4)
+				[
+					WidgetHierarchy.ToSharedRef()
+				]
+			];
 	}
 
-	return TopLevelBox;
+	VBox->AddSlot()
+		.Padding(4,0,4,4)
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Bottom)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+			.AutoWidth()
+			[
+				SNew(SPrimaryButton)
+				.Text(LOCTEXT("Select", "Select"))
+				.OnClicked(this, &SSourceSelector::HandleSelect)
+				.IsEnabled(this, &SSourceSelector::IsSelectEnabled)
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("Cancel", "Cancel"))
+				.HAlign(HAlign_Center)
+				.OnClicked(this, &SSourceSelector::HandleCancel)
+			]
+		];
+
+	return SNew(SBox)
+		.MinDesiredWidth(300)
+		.Padding(1)
+		[
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.Padding(4)
+			[
+				VBox
+			]
+		];
+}
+
+bool SSourceSelector::IsSelectEnabled() const
+{
+	return SelectedSource.IsValid();
+}
+
+FReply SSourceSelector::HandleCancel()
+{
+	OnViewModelSelectionChanged(InitialSource, ESelectInfo::Direct);
+
+	MenuAnchor->SetIsOpen(false);
+	return FReply::Handled();
+}
+
+FReply SSourceSelector::HandleSelect()
+{
+	if (SelectedSourceWidget.IsValid())
+	{
+		SelectedSourceWidget->RefreshSource(SelectedSource);
+	}
+
+	OnSelectionChangedDelegate.ExecuteIfBound(SelectedSource);
+
+	MenuAnchor->SetIsOpen(false);
+
+	return FReply::Handled();
 }
 
 void SSourceSelector::OnViewModelSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType)
 {
 	SelectedSource = Selected;
-
-	if (SelectedSourceWidget.IsValid())
-	{
-		SelectedSourceWidget->RefreshSource(Selected);
-	}
-
-	OnSelectionChangedDelegate.ExecuteIfBound(Selected);
 }
 
 void SSourceSelector::OnWidgetSelectionChanged(FName SelectedName, ESelectInfo::Type SelectionType)
 {
-	FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint.Get(), SelectedName);
+	FBindingSource Selected = FBindingSource::CreateForWidget(WidgetBlueprint.Get(), SelectedName);
 
-	if (SelectedSourceWidget.IsValid())
-	{
-		SelectedSourceWidget->RefreshSource(Source);
-	}
-
-	OnSelectionChangedDelegate.ExecuteIfBound(Source);
-
+	SelectedSource = Selected;
 }
 
 void SSourceSelector::Refresh()
@@ -193,7 +257,6 @@ void SSourceSelector::Refresh()
 			ViewModelList->ClearSelection();
 		}
 	}
-
 }
 
 EVisibility SSourceSelector::GetClearVisibility() const
@@ -209,6 +272,20 @@ FReply SSourceSelector::OnClearSource()
 	}
 
 	return FReply::Handled();
+}
+
+TSharedRef<ITableRow> SSourceSelector::OnGenerateRow(FBindingSource Source, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return SNew(STableRow<FBindingSource>, OwnerTable)
+	[
+		SNew(SBox)
+		.Padding(4, 3)
+		[
+			SNew(SSourceEntry)
+			.Source(Source)
+			.TextStyle(TextStyle)
+		]
+	];
 }
 
 } // namespace UE::MVVM

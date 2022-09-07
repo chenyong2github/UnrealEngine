@@ -30,7 +30,7 @@ public:
 	}
 
 private:
-	void OnPropertySelectionChanged(FMVVMBlueprintPropertyPath Selected);
+	void OnPropertySelectionChanged(const FMVVMBlueprintPropertyPath& Selected);
 
 	void OnOtherPropertyChanged();
 

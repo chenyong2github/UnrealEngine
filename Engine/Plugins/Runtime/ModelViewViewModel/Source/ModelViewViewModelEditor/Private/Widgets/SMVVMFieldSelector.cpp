@@ -7,7 +7,6 @@
 #include "Hierarchy/SReadOnlyHierarchyView.h"
 #include "Modules/ModuleManager.h"
 #include "MVVMEditorSubsystem.h"
-#include "SMVVMSelectViewModel.h"
 #include "SNegativeActionButton.h"
 #include "SPositiveActionButton.h"
 #include "SPrimaryButton.h"
@@ -46,9 +45,9 @@ FBindingSource GetSourceFromPath(const UWidgetBlueprint* WidgetBlueprint, const 
 
 void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInViewModelProperty)
 {
-	OnValidateFieldDelegate = InArgs._OnValidateField;
 	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
 	check(OnSelectionChangedDelegate.IsBound());
+
 	WidgetBlueprint = InWidgetBlueprint;
 	check(WidgetBlueprint);
 
@@ -61,64 +60,76 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 
 	bViewModelProperty = bInViewModelProperty;
 
+	AssignableTo = InArgs._AssignableTo;
+
 	TextStyle = InArgs._TextStyle;
+
+	TSharedPtr<SHorizontalBox> HBox;
 
 	ChildSlot
 	[
-		SNew(SBox)
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
+		SAssignNew(ComboButton, SComboButton)
+		.ComboButtonStyle(FMVVMEditorStyle::Get(), "FieldSelector.ComboButton")
+		.OnGetMenuContent(this, &SFieldSelector::OnGetMenuContent)
+		.ContentPadding(FMargin(4, 2))
+		.ButtonContent()
 		[
-			SAssignNew(ComboButton, SComboButton)
-			.ComboButtonStyle(FMVVMEditorStyle::Get(), "FieldSelector.ComboButton")
-			.OnGetMenuContent(this, &SFieldSelector::OnGetMenuContent)
-			.ContentPadding(FMargin(4, 2))
-			.ButtonContent()
+			SNew(SOverlay)
+			+ SOverlay::Slot()
 			[
-				SNew(SOverlay)
-				+ SOverlay::Slot()
+				SAssignNew(HBox, SHorizontalBox)
+				.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+					
+			]
+			+ SOverlay::Slot()
+			[
+				SNew(SBox)
+				.Padding(FMargin(8, 0, 8, 0))
 				[
-					SNew(SHorizontalBox)
-					.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
-					+ SHorizontalBox::Slot()
-					.Padding(8, 0, 0, 0)
-					.HAlign(HAlign_Fill)
-					.FillWidth(1)
-					[
-						SAssignNew(SelectedSourceWidget, SSourceEntry)
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(8, 0)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(0, 0, 8, 0)
-					.HAlign(HAlign_Fill)
-					.FillWidth(1)
-					[
-						SAssignNew(SelectedEntryWidget, SFieldEntry)
-						.TextStyle(TextStyle)
-						.OnValidateField(this, &SFieldSelector::ValidateField)
-					]
-				]
-				+ SOverlay::Slot()
-				[
-					SNew(SBox)
-					.Padding(FMargin(8, 0, 8, 0))
-					[
-						SNew(STextBlock)
-						.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
-						.TextStyle(FAppStyle::Get(), "HintText")
-						.Text(LOCTEXT("None", "No field selected"))
-					]
+					SNew(STextBlock)
+					.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.TextStyle(FAppStyle::Get(), "HintText")
+					.Text(LOCTEXT("None", "No field selected"))
 				]
 			]
 		]
 	];
+	
+	if (InArgs._ShowSource)
+	{
+		HBox->AddSlot()
+			.Padding(8, 0, 0, 0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SAssignNew(SelectedSourceWidget, SSourceEntry)
+			];
+
+		HBox->AddSlot()
+			.Padding(8, 0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
+			];					
+	}
+	else
+	{
+		FixedSource = InArgs._Source;
+	}
+
+	HBox->AddSlot()
+		.Padding(0, 0, 8, 0)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SAssignNew(SelectedEntryWidget, SFieldEntry)
+			.TextStyle(TextStyle)
+		];
 
 	Refresh();
 }
@@ -138,22 +149,11 @@ void SFieldSelector::Refresh()
 	}
 }
 
-TValueOrError<bool, FString> SFieldSelector::ValidateField(FMVVMBlueprintPropertyPath Field) const
-{
-	if (OnValidateFieldDelegate.IsBound())
-	{
-		return OnValidateFieldDelegate.Execute(Field);
-	}
-
-	return MakeValue(true);
-}
-
 TSharedRef<SWidget> SFieldSelector::OnGenerateFieldWidget(FMVVMBlueprintPropertyPath Path) const
 {
 	return SNew(SFieldEntry)
 		.TextStyle(TextStyle)
-		.Field(Path)
-		.OnValidateField(this, &SFieldSelector::ValidateField);
+		.Field(Path);
 }
 
 bool SFieldSelector::IsSelectEnabled() const
@@ -215,11 +215,23 @@ void SFieldSelector::OnSearchTextChanged(const FText& NewText)
 
 void SFieldSelector::OnViewModelSelected(FBindingSource Source, ESelectInfo::Type)
 {
-	TArray<FBindingSource> Selection = ViewModelList->GetSelectedItems();
 	if (BindingList.IsValid())
 	{
+		TArray<FBindingSource> Selection = ViewModelList->GetSelectedItems();
+
 		BindingList->Clear();
 		BindingList->AddSources(Selection);
+	}
+}
+
+void SFieldSelector::OnWidgetSelected(FName WidgetName, ESelectInfo::Type)
+{
+	if (BindingList.IsValid())
+	{
+		FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint, WidgetName);
+
+		BindingList->Clear();
+		BindingList->AddSource(Source);
 	}
 }
 
@@ -229,7 +241,7 @@ TSharedRef<ITableRow> SFieldSelector::GenerateRowForViewModel(FBindingSource Vie
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(0, 0, 2, 0)
+			.Padding(4)
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -258,61 +270,137 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 	BindingList = SNew(SSourceBindingList, WidgetBlueprint)
 		.ShowSearchBox(false)
 		.OnDoubleClicked(this, &SFieldSelector::SetSelection)
-		.FieldVisibilityFlags(GetFieldVisibilityFlags());
+		.FieldVisibilityFlags(GetFieldVisibilityFlags())
+		.AssignableTo(AssignableTo);
 
-	TSharedPtr<SWidget> SourcePicker;
-	if (bViewModelProperty)
+	TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Top)
+		.Padding(0, 4, 0, 4)
+		.AutoHeight()
+		[
+			SNew(SSearchBox)
+			.OnTextChanged(this, &SFieldSelector::OnSearchTextChanged)
+		];
+
+	// single fixed source
+	if (FixedSource.IsSet())
 	{
-		FBindingSource SelectedSource;
+		BindingList->AddSource(FixedSource.GetValue());
 
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
-		{
-			const TArrayView<const FMVVMBlueprintViewModelContext> ViewModels = View->GetViewModels();
-			ViewModelSources.Reserve(ViewModels.Num());
-
-			for (const FMVVMBlueprintViewModelContext& ViewModel : ViewModels)
-			{
-				FBindingSource& Source = ViewModelSources.AddDefaulted_GetRef();
-				Source.Class = ViewModel.GetViewModelClass();
-				Source.Name = ViewModel.GetViewModelName();
-				Source.DisplayName = ViewModel.GetDisplayName();
-				Source.ViewModelId = ViewModel.GetViewModelId();
-
-				if (Source.ViewModelId == CachedSelectedField.GetViewModelId())
-				{
-					SelectedSource = Source;
-				}
-			}
-		}
-
-		ViewModelList = SNew(SListView<FBindingSource>)
-			.OnGenerateRow(this, &SFieldSelector::GenerateRowForViewModel)
-			.SelectionMode(ESelectionMode::Multi)
-			.ListItemsSource(&ViewModelSources)
-			.OnSelectionChanged(this, &SFieldSelector::OnViewModelSelected);
-
-		ViewModelList->SetItemSelection(SelectedSource, true);
-
-		SourcePicker = ViewModelList;
+		VBox->AddSlot()
+			[
+				BindingList.ToSharedRef()
+			];
 	}
 	else
-	{
-		auto OnWidgetSelected = [this](FName WidgetName, ESelectInfo::Type)
+	{ 
+		// show source picker
+		TSharedPtr<SWidget> SourcePicker;
+		if (bViewModelProperty)
 		{
-			BindingList->Clear();
+			FBindingSource SelectedSource;
 
-			FBindingSource Source = FBindingSource::CreateForWidget(WidgetBlueprint, WidgetName);
-			if (Source.IsValid())
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
 			{
-				BindingList->AddSources(MakeArrayView(&Source, 1));
-			}
-		};
+				const TArrayView<const FMVVMBlueprintViewModelContext> ViewModels = View->GetViewModels();
+				ViewModelSources.Reserve(ViewModels.Num());
 
-		SourcePicker = SNew(SReadOnlyHierarchyView, WidgetBlueprint)
-			.OnSelectionChanged_Lambda(OnWidgetSelected)
-			.ShowSearch(false);
+				for (const FMVVMBlueprintViewModelContext& ViewModel : ViewModels)
+				{
+					FBindingSource& Source = ViewModelSources.AddDefaulted_GetRef();
+					Source.Class = ViewModel.GetViewModelClass();
+					Source.Name = ViewModel.GetViewModelName();
+					Source.DisplayName = ViewModel.GetDisplayName();
+					Source.ViewModelId = ViewModel.GetViewModelId();
+
+					if (Source.ViewModelId == CachedSelectedField.GetViewModelId())
+					{
+						SelectedSource = Source;
+					}
+				}
+			}
+
+			ViewModelList = SNew(SListView<FBindingSource>)
+				.OnGenerateRow(this, &SFieldSelector::GenerateRowForViewModel)
+				.SelectionMode(ESelectionMode::Multi)
+				.ListItemsSource(&ViewModelSources)
+				.OnSelectionChanged(this, &SFieldSelector::OnViewModelSelected);
+
+			ViewModelList->SetItemSelection(SelectedSource, true);
+
+			SourcePicker = ViewModelList;
+		}
+		else
+		{
+			WidgetList = SNew(SReadOnlyHierarchyView, WidgetBlueprint)
+				.OnSelectionChanged(this, &SFieldSelector::OnWidgetSelected)
+				.SelectionMode(ESelectionMode::Multi)
+				.ShowSearch(false);
+
+			SourcePicker = WidgetList;
+		}
+
+		VBox->AddSlot()
+			.FillHeight(1.0f)
+			[
+				SNew(SSplitter)
+				.PhysicalSplitterHandleSize(4.0f)
+				+ SSplitter::Slot()
+				.Value(0.5f)
+				[
+					SourcePicker.ToSharedRef()
+				]
+				+ SSplitter::Slot()
+				.Value(0.5f)
+				[
+					BindingList.ToSharedRef()
+				]
+			];
 	}
+				
+	VBox->AddSlot()
+		.Padding(4, 4, 4, 0)
+		.HAlign(HAlign_Right)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SPrimaryButton)
+				.OnClicked(this, &SFieldSelector::OnSelectProperty)
+				.IsEnabled(this, &SFieldSelector::IsSelectEnabled)
+				.Text(LOCTEXT("Select", "Select"))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.OnClicked(this, &SFieldSelector::OnClearBinding)
+				.IsEnabled(this, &SFieldSelector::IsClearEnabled)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("Clear", "Clear"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.OnClicked(this, &SFieldSelector::OnCancel)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("Cancel", "Cancel"))
+				]
+			]
+		];
 
 	TSharedRef<SWidget> MenuWidget = 
 		SNew(SBox)
@@ -323,67 +411,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(8, 2, 8, 3))
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Top)
-				.AutoHeight()
-				[
-					SNew(SSearchBox)
-					.OnTextChanged(this, &SFieldSelector::OnSearchTextChanged)
-				]
-				+ SVerticalBox::Slot()
-				.FillHeight(1.0f)
-				[
-					SNew(SSplitter)
-					.PhysicalSplitterHandleSize(4.0f)
-					+ SSplitter::Slot()
-					.Value(0.5f)
-					[
-						SourcePicker.ToSharedRef()
-					]
-					+ SSplitter::Slot()
-					.Value(0.5f)
-					[
-						BindingList.ToSharedRef()
-					]
-				]
-				+ SVerticalBox::Slot()
-				.Padding(4, 4, 4, 0)
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					[
-						SNew(SButton)
-						.OnClicked(this, &SFieldSelector::OnCancel)
-						.HAlign(HAlign_Center)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("Cancel", "Cancel"))
-						]
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(4, 0, 0, 0)
-					[
-						SNew(SButton)
-						.OnClicked(this, &SFieldSelector::OnClearBinding)
-						.IsEnabled(this, &SFieldSelector::IsClearEnabled)
-						.HAlign(HAlign_Center)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("Clear", "Clear"))
-						]
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(4, 0, 0, 0)
-					[
-						SNew(SPrimaryButton)
-						.OnClicked(this, &SFieldSelector::OnSelectProperty)
-						.IsEnabled(this, &SFieldSelector::IsSelectEnabled)
-						.Text(LOCTEXT("Select", "Select"))
-					]
-				]
+				VBox
 			]
 		];
 

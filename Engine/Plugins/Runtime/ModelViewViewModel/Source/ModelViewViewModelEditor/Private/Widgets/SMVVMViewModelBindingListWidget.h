@@ -35,12 +35,13 @@ namespace UE::MVVM
 	class FFieldIterator_Bindable : public UE::PropertyViewer::FFieldIterator_BlueprintVisible
 	{
 	public:
-		FFieldIterator_Bindable(const UWidgetBlueprint* WidgetBlueprint, EFieldVisibility InVisibilityFlags);
+		FFieldIterator_Bindable(const UWidgetBlueprint* WidgetBlueprint, EFieldVisibility InVisibilityFlags, const FProperty* InAssignableTo = nullptr);
 		virtual TArray<FFieldVariant> GetFields(const UStruct*) const override;
 
 	private:
 		TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint; 
 		EFieldVisibility FieldVisibilityFlags = EFieldVisibility::All;
+		const FProperty* AssignableTo = nullptr;
 	};
 
 	/** 
@@ -49,13 +50,14 @@ namespace UE::MVVM
 	class SSourceBindingList : public SCompoundWidget
 	{
 	public:
-
 		DECLARE_DELEGATE_OneParam(FOnDoubleClicked, const FMVVMBlueprintPropertyPath&);
 	
 		SLATE_BEGIN_ARGS(SSourceBindingList) {}
 			SLATE_ARGUMENT(FBindingSource, InitialSource)
 			SLATE_ARGUMENT_DEFAULT(bool, ShowSearchBox) = false;
 			SLATE_ARGUMENT_DEFAULT(EFieldVisibility, FieldVisibilityFlags) = EFieldVisibility::All;
+			SLATE_ARGUMENT_DEFAULT(bool, EnableSelection) = true;
+			SLATE_ARGUMENT_DEFAULT(const FProperty*, AssignableTo) = nullptr;
 			SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked)
 		SLATE_END_ARGS()
 

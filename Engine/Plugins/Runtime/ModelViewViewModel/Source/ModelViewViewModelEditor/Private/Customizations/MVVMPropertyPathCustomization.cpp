@@ -127,7 +127,7 @@ EMVVMBindingMode FPropertyPathCustomization::GetCurrentBindingMode() const
 	return EMVVMBindingMode::OneWayToDestination;
 }
 
-void FPropertyPathCustomization::OnPropertySelectionChanged(FMVVMBlueprintPropertyPath Selected)
+void FPropertyPathCustomization::OnPropertySelectionChanged(const FMVVMBlueprintPropertyPath& Selected)
 {
 	if (bPropertySelectionChanging)
 	{

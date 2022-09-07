@@ -18,11 +18,24 @@ FText GetFieldDisplayName(const FMVVMConstFieldVariant& Field)
 	{
 		return Field.GetProperty()->GetDisplayNameText();
 	}
-	else if (Field.IsFunction())
+	if (Field.IsFunction())
 	{
 		return Field.GetFunction()->GetDisplayNameText();
 	}
 	return LOCTEXT("None", "<None>");
+}
+
+FText GetFieldToolTip(const FMVVMConstFieldVariant& Field)
+{
+	if (Field.IsFunction())
+	{
+		return Field.GetFunction()->GetToolTipText();
+	}
+	if (Field.IsProperty())
+	{
+		return FText::Join(FText::FromString(TEXT("\n")), Field.GetProperty()->GetToolTipText(), FText::FromString(Field.GetProperty()->GetCPPType()));
+	}
+	return FText::GetEmpty();
 }
 
 } // namespace Private
@@ -30,7 +43,6 @@ FText GetFieldDisplayName(const FMVVMConstFieldVariant& Field)
 void SFieldEntry::Construct(const FArguments& InArgs)
 {
 	Field = InArgs._Field;
-	OnValidateField = InArgs._OnValidateField;
 
 	ChildSlot
 	[
@@ -58,24 +70,6 @@ void SFieldEntry::Construct(const FArguments& InArgs)
 
 void SFieldEntry::Refresh()
 {
-	FText ToolTipText = FText::GetEmpty();
-	bool bEnabled = true;
-	if (OnValidateField.IsBound())
-	{
-		TValueOrError<bool, FString> Result = OnValidateField.Execute(Field);
-		if (Result.HasError())
-		{
-			ToolTipText = FText::FromString(Result.GetError());
-			bEnabled = false;
-		}
-		else
-		{
-			bEnabled = true;
-		}
-	}
-
-	SetEnabled(bEnabled);
-
 	UE::MVVM::FMVVMConstFieldVariant Variant;
 
 	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Field.GetFields();
@@ -84,14 +78,7 @@ void SFieldEntry::Refresh()
 		Variant = Fields.Last();
 	}
 
-	if (ToolTipText.IsEmpty())
-	{
-		ToolTipText = Variant.IsFunction() ? Variant.GetFunction()->GetToolTipText() :
-			Variant.IsProperty() ? Variant.GetProperty()->GetToolTipText() :
-			FText::GetEmpty();
-	}
-
-	SetToolTipText(ToolTipText);
+	SetToolTipText(Private::GetFieldToolTip(Variant));
 
 	Icon->RefreshBinding(Variant);
 	Label->SetText(Private::GetFieldDisplayName(Variant));

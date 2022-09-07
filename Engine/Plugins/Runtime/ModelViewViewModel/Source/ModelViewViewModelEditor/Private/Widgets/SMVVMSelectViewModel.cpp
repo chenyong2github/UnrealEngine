@@ -15,7 +15,6 @@
 #include "Styling/MVVMEditorStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
 
 #include "ClassViewerModule.h"
@@ -32,7 +31,7 @@ namespace Private
 
 	bool IsValidViewModel(const UClass* InClass)
 	{
-		if (InClass->IsChildOf(UWidget::StaticClass()))
+		if (InClass == nullptr || InClass->IsChildOf(UWidget::StaticClass()))
 		{
 			return false;
 		}
@@ -60,23 +59,6 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 	OnCancel = InArgs._OnCancel;
 	OnViewModelCommitted = InArgs._OnViewModelCommitted;
 
-	TSharedRef<SWidget> ButtonsPanelContent = SNew(SUniformGridPanel)
-		.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
-		+ SUniformGridPanel::Slot(0, 0)
-		[
-			SNew(SPrimaryButton)
-			.Text(LOCTEXT("ViewModelAddButtonText", "OK"))
-			.OnClicked(this, &SMVVMSelectViewModel::HandleAccepted)
-			.IsEnabled(this, &SMVVMSelectViewModel::HandleIsSelectionEnabled)
-		]
-		+ SUniformGridPanel::Slot(1, 0)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("ViewModelCancelButtonText", "Cancel"))
-			.HAlign(HAlign_Center)
-			.OnClicked(this, &SMVVMSelectViewModel::HandleCancel)
-		];
-
 	FClassViewerInitializationOptions ClassViewerOptions;
 	ClassViewerOptions.DisplayMode = EClassViewerDisplayMode::TreeView;
 	ClassViewerOptions.Mode = EClassViewerMode::ClassPicker;
@@ -88,40 +70,64 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		.Padding(1)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			[
-				SNew(SSplitter)
-				.PhysicalSplitterHandleSize(2.0f)
-				+ SSplitter::Slot()
-				.Value(0.6f)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
 				[
-					SNew(SBorder)
-					.BorderImage(FStyleDefaults::GetNoBrush())
+					SNew(SSplitter)
+					.PhysicalSplitterHandleSize(2.0f)
+					+ SSplitter::Slot()
+					.Value(0.6f)
 					[
-						ClassViewer.ToSharedRef()
+						SNew(SBorder)
+						.BorderImage(FStyleDefaults::GetNoBrush())
+						[
+							ClassViewer.ToSharedRef()
+						]
+					]
+					+ SSplitter::Slot()
+					.Value(0.4f)
+					[
+						SNew(SBorder)
+						.BorderImage(FStyleDefaults::GetNoBrush())
+						.Padding(4, 30, 4, 30)
+						[
+							SAssignNew(BindingListWidget, SSourceBindingList, WidgetBlueprint)
+							.EnableSelection(false)
+						]
 					]
 				]
-				+ SSplitter::Slot()
-				.Value(0.4f)
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				.AutoHeight()
+				.Padding(8)
 				[
-					SNew(SBorder)
-					.BorderImage(FStyleDefaults::GetNoBrush())
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+					.AutoWidth()
 					[
-						SAssignNew(BindingListWidget, SSourceBindingList, WidgetBlueprint)
+						SNew(SPrimaryButton)
+						.Text(LOCTEXT("ViewModelSelectButtonText", "Select"))
+						.OnClicked(this, &SMVVMSelectViewModel::HandleSelected)
+						.IsEnabled(this, &SMVVMSelectViewModel::HandleIsSelectionEnabled)
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("ViewModelCancelButtonText", "Cancel"))
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &SMVVMSelectViewModel::HandleCancel)
 					]
 				]
-			]
-			+ SVerticalBox::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Bottom)
-			.AutoHeight()
-			.Padding(8)
-			[
-				ButtonsPanelContent
 			]
 		]
 	];
@@ -140,7 +146,7 @@ void SMVVMSelectViewModel::HandleClassPicked(UClass* ClassPicked)
 }
 
 
-FReply SMVVMSelectViewModel::HandleAccepted()
+FReply SMVVMSelectViewModel::HandleSelected()
 {
 	OnViewModelCommitted.ExecuteIfBound(SelectedClass.Get());
 	return FReply::Handled();

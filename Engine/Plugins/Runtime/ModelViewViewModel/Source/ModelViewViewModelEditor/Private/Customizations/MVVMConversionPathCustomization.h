@@ -42,15 +42,6 @@ private:
 	void OnFunctionPathChanged(const UFunction* NewFunction, TSharedRef<IPropertyHandle> Property, bool bSourceToDestination);
 	void RefreshDetailsView() const;
 
-	FMVVMBlueprintPropertyPath OnGetSelectedField(FName ArgumentName, bool bSourceToDestination) const;
-	void OnSetProperty(FMVVMBlueprintPropertyPath NewSelection, FName ArgumentName, bool bSourceToDestination);
-
-	ECheckBoxState OnGetIsArgumentBound(FName ArgumentName, bool bSourceToDestination) const;
-	void OnCheckedBindArgument(ECheckBoxState CheckState, FName ArgumentName, bool bSourceToDestination);
-	EVisibility GetArgumentWidgetVisibility(FName ArgumentName, bool bSourceToDestination, bool bDefaultValue) const;
-
-	FEdGraphPinType GetArgumentPinType(FName ArgumentName, bool bSourceToDestination) const;
-
 	EMVVMBindingMode GetBindingMode() const;
 
 private:
@@ -59,9 +50,6 @@ private:
 	TSharedPtr<IPropertyHandle> ParentHandle;
 	TSharedPtr<IPropertyHandle> BindingModeHandle;
 	TWeakPtr<IPropertyUtilities> WeakPropertyUtilities;
-
-	TArray<TSharedPtr<SGraphPin>> ArgumentPinWidgets; 
-	TArray<TSharedPtr<UE::MVVM::SFieldSelector>> ArgumentFieldSelectors;
 };
 
 } // namespace UE::MVVM

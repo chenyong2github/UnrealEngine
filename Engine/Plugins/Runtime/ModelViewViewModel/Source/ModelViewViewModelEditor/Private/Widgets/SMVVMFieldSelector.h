@@ -29,7 +29,7 @@ class SSourceBindingList;
 class SFieldSelector : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnSelectionChanged, FMVVMBlueprintPropertyPath);
+	DECLARE_DELEGATE_OneParam(FOnSelectionChanged, const FMVVMBlueprintPropertyPath&);
 
 	SLATE_BEGIN_ARGS(SFieldSelector) :
 		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
@@ -38,13 +38,26 @@ public:
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ATTRIBUTE(FMVVMBlueprintPropertyPath, SelectedField)
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+		
+		/**
+		 * Get the binding mode for this field. 
+		 * Required for validating the availability of functions, eg. SetFoo() can only be used as a setter.
+		 */
 		SLATE_ATTRIBUTE(EMVVMBindingMode, BindingMode)
 
+		/** 
+		 * Should we show the source as well as the field?
+		 * If this is set to false, then the Source attribute must be set.
+		 */
+		SLATE_ARGUMENT_DEFAULT(bool, ShowSource) = true;
+
 		/**
-		  * Would the given field be a valid entry for this combo box? 
-		  * The error string returned will be used as a tooltip.
-		  */
-		SLATE_EVENT(FIsFieldValid, OnValidateField)
+		 * Only show properties assignable to the given property.
+		 */
+		SLATE_ARGUMENT_DEFAULT(const FProperty*, AssignableTo) = nullptr;
+
+		/** The source to use. Only used if ShowSource is false. */
+		SLATE_ARGUMENT(FBindingSource, Source)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInViewModelProperty);
@@ -70,6 +83,8 @@ private:
 	void OnViewModelSelected(FBindingSource ViewModel, ESelectInfo::Type);
 	TSharedRef<ITableRow> GenerateRowForViewModel(MVVM::FBindingSource ViewModel, const TSharedRef<STableViewBase>& OwnerTable) const;
 
+	void OnWidgetSelected(FName WidgetName, ESelectInfo::Type);
+
 	void OnSearchTextChanged(const FText& NewText);
 
 private:
@@ -82,7 +97,6 @@ private:
 	const FTextBlockStyle* TextStyle = nullptr;
 
 	FOnSelectionChanged OnSelectionChangedDelegate;
-	FIsFieldValid OnValidateFieldDelegate;
 
 	FMVVMBlueprintPropertyPath CachedSelectedField;
 
@@ -90,11 +104,16 @@ private:
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<SComboButton> ComboButton;
 
+	TOptional<FBindingSource> FixedSource;
+
 	const UWidgetBlueprint* WidgetBlueprint = nullptr;
 	bool bViewModelProperty = false;
 
 	TArray<FBindingSource> ViewModelSources;
 	TSharedPtr<SListView<FBindingSource>> ViewModelList;
+	TSharedPtr<SReadOnlyHierarchyView> WidgetList;
+
+	const FProperty* AssignableTo = nullptr;
 }; 
 
 } // namespace UE::MVVM

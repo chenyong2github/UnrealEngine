@@ -115,8 +115,11 @@ FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* Widget
 
 void UMVVMBlueprintView::RemoveBindingAt(int32 Index)
 {
-	Bindings.RemoveAt(Index);
-	OnBindingsUpdated.Broadcast();
+	if (Bindings.IsValidIndex(Index))
+	{
+		Bindings.RemoveAt(Index);
+		OnBindingsUpdated.Broadcast();
+	}
 }
 
 void UMVVMBlueprintView::RemoveBinding(const FMVVMBlueprintViewBinding* Binding)
@@ -130,8 +133,7 @@ void UMVVMBlueprintView::RemoveBinding(const FMVVMBlueprintViewBinding* Binding)
 		}
 	}
 
-	Bindings.RemoveAt(Index);
-	OnBindingsUpdated.Broadcast();
+	RemoveBindingAt(Index);
 }
 
 FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget, const FProperty* Property)

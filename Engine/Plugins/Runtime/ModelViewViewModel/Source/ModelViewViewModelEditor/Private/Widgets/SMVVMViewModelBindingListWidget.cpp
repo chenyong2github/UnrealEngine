@@ -24,32 +24,33 @@ using UE::PropertyViewer::SPropertyViewer;
 namespace UE::MVVM
 {
 
-	FFieldIterator_Bindable::FFieldIterator_Bindable(const UWidgetBlueprint* InWidgetBlueprint, EFieldVisibility InVisibilityFlags)
-	: WidgetBlueprint(InWidgetBlueprint)
-	, FieldVisibilityFlags(InVisibilityFlags)
-{ }
-
+FFieldIterator_Bindable::FFieldIterator_Bindable(const UWidgetBlueprint* InWidgetBlueprint, EFieldVisibility InVisibilityFlags, const FProperty* InAssignableTo) :
+	WidgetBlueprint(InWidgetBlueprint),
+	FieldVisibilityFlags(InVisibilityFlags),
+	AssignableTo(InAssignableTo)
+{
+}
 
 TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) const
 {
 	TArray<FFieldVariant> Result;
 
-	auto AddResult = [Flags = FieldVisibilityFlags, &Result, Struct](const TArray<FMVVMAvailableBinding>& AvailableBindingsList)
+	auto AddResult = [this, &Result, Struct](const TArray<FMVVMAvailableBinding>& AvailableBindingsList)
 	{
 		Result.Reserve(AvailableBindingsList.Num());
 		for (const FMVVMAvailableBinding& Value : AvailableBindingsList)
 		{
-			if (EnumHasAllFlags(Flags, EFieldVisibility::Readable) && !Value.IsReadable())
+			if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Readable) && !Value.IsReadable())
 			{
 				continue;
 			} 
 
-			if (EnumHasAllFlags(Flags, EFieldVisibility::Writable) && !Value.IsWritable())
+			if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Writable) && !Value.IsWritable())
 			{
 				continue;
 			}
 			
-			if (EnumHasAllFlags(Flags, EFieldVisibility::Notify) && !Value.HasNotify())
+			if (EnumHasAllFlags(FieldVisibilityFlags, EFieldVisibility::Notify) && !Value.HasNotify())
 			{
 				continue;
 			}
@@ -57,10 +58,20 @@ TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) 
 			FMVVMFieldVariant FieldVariant = BindingHelper::FindFieldByName(Struct, Value.GetBindingName());
 			if (FieldVariant.IsFunction())
 			{
+				if (AssignableTo != nullptr && !BindingHelper::ArePropertiesCompatible(FieldVariant.GetFunction()->GetReturnProperty(), AssignableTo))
+				{
+					continue;
+				}
+
 				Result.Add(FFieldVariant(FieldVariant.GetFunction()));
 			}
 			else if (FieldVariant.IsProperty())
 			{
+				if (AssignableTo != nullptr && !BindingHelper::ArePropertiesCompatible(FieldVariant.GetProperty(), AssignableTo))
+				{
+					continue;
+				}
+
 				Result.Add(FFieldVariant(FieldVariant.GetProperty()));
 			}
 		}
@@ -115,7 +126,7 @@ TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) 
 /** */
 void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint)
 {
-	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, InArgs._FieldVisibilityFlags);
+	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, InArgs._FieldVisibilityFlags, InArgs._AssignableTo);
 
 	OnDoubleClicked = InArgs._OnDoubleClicked;
 
@@ -126,6 +137,7 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 		.PropertyVisibility(SPropertyViewer::EPropertyVisibility::Hidden)
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
+		.SelectionMode(InArgs._EnableSelection ? ESelectionMode::Single : ESelectionMode::None)
 		.bShowSearchBox(InArgs._ShowSearchBox)
 		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
 		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked)

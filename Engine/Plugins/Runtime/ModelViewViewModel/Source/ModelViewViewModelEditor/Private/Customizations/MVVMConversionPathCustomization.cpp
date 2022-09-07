@@ -9,30 +9,22 @@
 #include "DetailWidgetRow.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Editor.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "IPropertyUtilities.h"
 #include "K2Node_CallFunction.h"
-#include "K2Node_VariableGet.h"
 #include "MVVMBlueprintViewBinding.h"
 #include "MVVMEditorSubsystem.h"
 #include "MVVMSubsystem.h"
-#include "NodeFactory.h"
 #include "PropertyHandle.h"
-#include "ScopedTransaction.h"
-#include "SGraphPin.h"
-#include "Styling/MVVMEditorStyle.h"
 #include "UObject/StructOnScope.h"
 #include "WidgetBlueprint.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SMVVMConversionPath.h"
-#include "Widgets/SMVVMFieldSelector.h"
+#include "Widgets/SMVVMFunctionParameter.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MVVMConversionPath"
@@ -70,8 +62,6 @@ namespace UE::MVVM
 
 	void FConversionPathCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 	{
-		ArgumentPinWidgets.Reset();
-
 		AddRowForProperty(ChildBuilder, InPropertyHandle, true);
 		AddRowForProperty(ChildBuilder, InPropertyHandle, false);
 	}
@@ -216,29 +206,6 @@ namespace UE::MVVM
 				continue;
 			}
 
-			const FName ArgumentName = Pin->GetFName();
-
-			// create a new pin widget so that we can get the default value widget out of it
-			TSharedPtr<SGraphPin> PinWidget = FNodeFactory::CreateK2PinWidget(Pin);
-
-			TSharedRef<SWidget> ValueWidget = SNullWidget::NullWidget;
-			if (PinWidget.IsValid())
-			{
-				ArgumentPinWidgets.Add(PinWidget);
-				ValueWidget = PinWidget->GetDefaultValueWidget();
-			}
-
-			if (ValueWidget == SNullWidget::NullWidget)
-			{
-				ValueWidget = SNew(STextBlock)
-					.Text(LOCTEXT("DefaultValue", "Default Value"))
-					.TextStyle(FAppStyle::Get(), "HintText");
-			}
-
-			ValueWidget->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &FConversionPathCustomization::GetArgumentWidgetVisibility, ArgumentName, bSourceToDestination, true));
-
-			TSharedPtr<UE::MVVM::SFieldSelector> FieldSelector;
-
 			ChildBuilder.AddCustomRow(Pin->GetDisplayName())
 			.NameContent()
 			[
@@ -251,196 +218,14 @@ namespace UE::MVVM
 			]
 			.ValueContent()
 			[
-				// TODO (sebastiann): This would be easier to accomplish if this entire thing was a widget
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SOverlay)
-					+ SOverlay::Slot()
-					[
-						ValueWidget
-					]
-					+ SOverlay::Slot()
-					[
-						SAssignNew(FieldSelector, UE::MVVM::SFieldSelector, WidgetBlueprint, bSourceToDestination)
-						.Visibility(this, &FConversionPathCustomization::GetArgumentWidgetVisibility, ArgumentName, bSourceToDestination, false)
-						.SelectedField(this, &FConversionPathCustomization::OnGetSelectedField, ArgumentName, bSourceToDestination)
-						.BindingMode(this, &FConversionPathCustomization::GetBindingMode)
-						.OnSelectionChanged(this, &FConversionPathCustomization::OnSetProperty, ArgumentName, bSourceToDestination)
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.Padding(5, 0, 0, 0)
-				[
-					SNew(SCheckBox)
-					.ToolTipText(LOCTEXT("BindArgument", "Bind this argument to a property."))
-					.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-					.IsChecked(this, &FConversionPathCustomization::OnGetIsArgumentBound, ArgumentName, bSourceToDestination)
-					.OnCheckStateChanged(this, &FConversionPathCustomization::OnCheckedBindArgument, ArgumentName, bSourceToDestination)
-					[
-						SNew(SBox)
-						.WidthOverride(16)
-						.HeightOverride(16)
-						[
-							SNew(SImage)
-							.Image_Lambda([this, ArgumentName, bSourceToDestination]()
-								{
-									ECheckBoxState CheckState = OnGetIsArgumentBound(ArgumentName, bSourceToDestination);
-									return CheckState == ECheckBoxState::Checked ? FAppStyle::GetBrush("Icons.Link") : FAppStyle::GetBrush("Icons.Unlink");
-								})
-						]
-					]
-				]
+				SNew(UE::MVVM::SFunctionParameter)
+				.WidgetBlueprint(WidgetBlueprint)
+				.Binding(ViewBindings[0])
+				.ParameterName(Pin->GetFName())
+				.SourceToDestination(bSourceToDestination)
+				.OnGetBindingMode(this, &FConversionPathCustomization::GetBindingMode)
 			];
-
-			ArgumentFieldSelectors.Add(FieldSelector);
 		}
-	}
-
-	void FConversionPathCustomization::OnSetProperty(FMVVMBlueprintPropertyPath NewSelection, FName ArgumentName, bool bSourceToDestination)
-	{
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-
-		TArray<void*> RawBindings;
-		ParentHandle->AccessRawData(RawBindings);
-
-		for (void* RawBinding : RawBindings)
-		{
-			FMVVMBlueprintViewBinding* Binding = reinterpret_cast<FMVVMBlueprintViewBinding*>(RawBinding);
-			EditorSubsystem->SetPathForConversionFunctionArgument(WidgetBlueprint, *Binding, ArgumentName, NewSelection, bSourceToDestination);
-		}
-	}
-
-	FMVVMBlueprintPropertyPath FConversionPathCustomization::OnGetSelectedField(FName ArgumentName, bool bSourceToDestination) const
-	{
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		
-		TArray<void*> RawBindings;
-		ParentHandle->AccessRawData(RawBindings);
-
-		FMVVMBlueprintPropertyPath Path;
-		bool bFirst = true;
-
-		for (void* RawBinding : RawBindings)
-		{
-			FMVVMBlueprintViewBinding* Binding = reinterpret_cast<FMVVMBlueprintViewBinding*>(RawBinding);
-			
-			FMVVMBlueprintPropertyPath CurrentPath = EditorSubsystem->GetPathForConversionFunctionArgument(WidgetBlueprint, *Binding, ArgumentName, bSourceToDestination);
-			if (bFirst)
-			{
-				Path = CurrentPath;
-				bFirst = false;
-			}
-			else if (Path != CurrentPath)
-			{
-				return FMVVMBlueprintPropertyPath();
-			}
-		}
-
-		return Path;
-	}
-
-	ECheckBoxState FConversionPathCustomization::OnGetIsArgumentBound(FName ArgumentName, bool bSourceToDestination) const
-	{
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-
-		TArray<void*> RawBindings;
-		ParentHandle->AccessRawData(RawBindings);
-
-		FMVVMBlueprintPropertyPath Path;
-		bool bFirst = true;
-
-		for (void* RawBinding : RawBindings)
-		{
-			FMVVMBlueprintViewBinding* Binding = reinterpret_cast<FMVVMBlueprintViewBinding*>(RawBinding);
-
-			FMVVMBlueprintPropertyPath CurrentPath = EditorSubsystem->GetPathForConversionFunctionArgument(WidgetBlueprint, *Binding, ArgumentName, bSourceToDestination);
-			if (bFirst)
-			{
-				Path = CurrentPath;
-				bFirst = false;
-			}
-			else if (Path != CurrentPath)
-			{
-				return ECheckBoxState::Undetermined;
-			}
-		}
-
-		return Path.IsEmpty() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
-	}
-
-	void FConversionPathCustomization::OnCheckedBindArgument(ECheckBoxState CheckState, FName ArgumentName, bool bSourceToDestination)
-	{
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-
-		FMVVMBlueprintPropertyPath Path;
-
-		if (CheckState == ECheckBoxState::Checked)
-		{
-			// HACK: Just set a placeholder viewmodel reference
-			if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
-			{
-				const TArrayView<const FMVVMBlueprintViewModelContext> ViewModels = View->GetViewModels();
-				if (ViewModels.Num() > 0)
-				{
-					Path.SetViewModelId(ViewModels[0].GetViewModelId());
-				}
-			}
-		}
-
-		TArray<void*> RawBindings;
-		ParentHandle->AccessRawData(RawBindings);
-
-		for (void* RawBinding : RawBindings)
-		{
-			FMVVMBlueprintViewBinding* Binding = reinterpret_cast<FMVVMBlueprintViewBinding*>(RawBinding);
-			EditorSubsystem->SetPathForConversionFunctionArgument(WidgetBlueprint, *Binding, ArgumentName, Path, bSourceToDestination);
-		}
-	}
-
-	EVisibility FConversionPathCustomization::GetArgumentWidgetVisibility(FName ArgumentName, bool bSourceToDestination, bool bDefaultValue) const
-	{
-		FMVVMBlueprintPropertyPath Path = OnGetSelectedField(ArgumentName, bSourceToDestination);
-		if (Path.IsEmpty())
-		{
-			return bDefaultValue ? EVisibility::Visible : EVisibility::Collapsed;
-		}
-		else
-		{
-			return bDefaultValue ? EVisibility::Collapsed : EVisibility::Visible;
-		}
-	}
-
-	FEdGraphPinType FConversionPathCustomization::GetArgumentPinType(FName ArgumentName, bool bSourceToDestination) const 
-	{
-		TArray<void*> RawData;
-		ParentHandle->AccessRawData(RawData);
-		if (RawData.Num() != 1)
-		{
-			return FEdGraphPinType();
-		}
-
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		UEdGraph* Graph = EditorSubsystem->GetConversionFunctionGraph(WidgetBlueprint, *reinterpret_cast<const FMVVMBlueprintViewBinding*>(RawData[0]), bSourceToDestination);
-		if (Graph == nullptr)
-		{
-			return FEdGraphPinType();
-		}
-
-		TArray<UK2Node_CallFunction*> FunctionNodes;
-		Graph->GetNodesOfClass<UK2Node_CallFunction>(FunctionNodes);
-		if (FunctionNodes.Num() != 1)
-		{
-			// ambiguous result, no idea what our function node is
-			return FEdGraphPinType();
-		}
-
-		UK2Node_CallFunction* CallFunctionNode = FunctionNodes[0];
-		UEdGraphPin* Pin = CallFunctionNode->FindPin(ArgumentName);
-		return Pin != nullptr ? Pin->PinType : FEdGraphPinType();
 	}
 
 	EMVVMBindingMode FConversionPathCustomization::GetBindingMode() const

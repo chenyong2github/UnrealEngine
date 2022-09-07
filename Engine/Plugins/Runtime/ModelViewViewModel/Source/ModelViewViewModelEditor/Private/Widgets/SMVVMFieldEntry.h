@@ -29,7 +29,6 @@ public:
 	{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, Field)
-		SLATE_EVENT(FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -38,7 +37,6 @@ public:
 
 private:
 	FMVVMBlueprintPropertyPath Field;
-	FIsFieldValid OnValidateField;
 	TSharedPtr<SFieldIcon> Icon;
 	TSharedPtr<STextBlock> Label;
 };

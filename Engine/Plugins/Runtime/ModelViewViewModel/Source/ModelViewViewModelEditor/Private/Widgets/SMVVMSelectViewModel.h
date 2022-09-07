@@ -37,7 +37,7 @@ public:
 
 private:
 	void HandleClassPicked(UClass* ClassPicked);
-	FReply HandleAccepted();
+	FReply HandleSelected();
 	FReply HandleCancel();
 	bool HandleIsSelectionEnabled() const;
 
