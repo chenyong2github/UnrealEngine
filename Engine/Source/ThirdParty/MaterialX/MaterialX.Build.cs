@@ -11,7 +11,7 @@ public class MaterialX : ModuleRules
 
 		bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
 
-		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "MaterialX-1.38.1");
+		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "MaterialX-1.38.5");
 
 		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 

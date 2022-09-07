@@ -1,8 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #pragma once
 
-namespace MaterialX
-{
+// Interchange currently only brings in MaterialX when in the editor, so we
+// define its namespace macros ourselves otherwise.
+#if WITH_EDITOR
+
+#include "HAL/Platform.h"
+
+THIRD_PARTY_INCLUDES_START
+#include "MaterialXCore/Library.h"
+THIRD_PARTY_INCLUDES_END
+
+#else
+
+#define MATERIALX_NAMESPACE_BEGIN namespace MaterialX {
+#define MATERIALX_NAMESPACE_END }
+
+#endif
+
+
+MATERIALX_NAMESPACE_BEGIN
+
 	namespace StandardSurface
 	{
 		namespace Input
@@ -244,10 +262,7 @@ namespace MaterialX
 
 	namespace Library
 	{
-		static constexpr const char* Std = "stdlib";
-		static constexpr const char* Pbr = "pbrlib";
-		static constexpr const char* Bxdf = "bxdf";
-		static constexpr const char* Lights = "lights";
+		static constexpr const char* Libraries = "libraries";
 	}
 
 	namespace Type
@@ -323,4 +338,5 @@ namespace MaterialX
 			static constexpr const char* RealWorldTileSize = "realworldtilesize";
 		}
 	}
-}
+
+MATERIALX_NAMESPACE_END

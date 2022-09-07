@@ -224,21 +224,20 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 	}
 	try
 	{
-		mx::FileSearchPath MaterialXLibFolder{ TCHAR_TO_UTF8(*FPaths::Combine(
+		mx::FileSearchPath MaterialXFolder{ TCHAR_TO_UTF8(*FPaths::Combine(
 			FPaths::EngineDir(),
 			TEXT("Binaries"),
 			TEXT("ThirdParty"),
-			TEXT("MaterialX"),
-			TEXT("libraries"))) };
+			TEXT("MaterialX"))) };
 
 		mx::DocumentPtr MaterialXLibrary = mx::createDocument();
 
-		mx::StringSet LoadedLibs = mx::loadLibraries({ mx::Library::Std, mx::Library::Pbr, mx::Library::Bxdf, mx::Library::Lights }, MaterialXLibFolder, MaterialXLibrary);
+		mx::StringSet LoadedLibs = mx::loadLibraries({ mx::Library::Libraries }, MaterialXFolder, MaterialXLibrary);
 		if(LoadedLibs.empty())
 		{
 			UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
 			Message->Text = FText::Format(LOCTEXT("MaterialXLibrariesNotFound", "Couldn't load MaterialX libraries from {0}"),
-										  FText::FromString(MaterialXLibFolder.asString().c_str()));
+										  FText::FromString(MaterialXFolder.asString().c_str()));
 			return false;
 		}
 
