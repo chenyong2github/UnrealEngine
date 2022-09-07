@@ -31,8 +31,11 @@ namespace Dataflow
 	{
 		if (IsClassLoaded<UDataflowSettings>())
 		{
-			UDataflowSettings* DataflowSettings = GetMutableDefault<UDataflowSettings>();
-			DataflowSettings->GetOnDataflowSettingsChangedDelegate().Remove(DataflowSettingsChangedDelegateHandle);
+			if (UObjectInitialized())
+			{
+				UDataflowSettings* DataflowSettings = GetMutableDefault<UDataflowSettings>();
+				DataflowSettings->GetOnDataflowSettingsChangedDelegate().Remove(DataflowSettingsChangedDelegateHandle);
+			}
 		}
 	}
 
