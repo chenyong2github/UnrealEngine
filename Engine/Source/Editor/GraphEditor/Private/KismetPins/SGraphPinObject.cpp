@@ -304,7 +304,7 @@ void SGraphPinObject::OnAssetSelectedFromPicker(const struct FAssetData& AssetDa
 		AssetPickerAnchor->SetIsOpen(false);
 
 		// Set the object found from the asset picker
-		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, AssetData.ObjectPath.ToString());
+		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, AssetData.GetObjectPathString());
 	}
 }
 
@@ -441,7 +441,7 @@ const FAssetData& SGraphPinObject::GetAssetData(bool bRuntimePath) const
 	// For normal assets, the editor and runtime path are the same
 	if (GraphPinObj->DefaultObject)
 	{
-		if (!GraphPinObj->DefaultObject->GetPathName().Equals(CachedAssetData.ObjectPath.ToString(), ESearchCase::CaseSensitive))
+		if (!GraphPinObj->DefaultObject->GetPathName().Equals(CachedAssetData.GetObjectPathString(), ESearchCase::CaseSensitive))
 		{
 			// This always uses the exact object pointed at
 			CachedAssetData = FAssetData(GraphPinObj->DefaultObject, true);
@@ -449,8 +449,8 @@ const FAssetData& SGraphPinObject::GetAssetData(bool bRuntimePath) const
 	}
 	else if (!GraphPinObj->DefaultValue.IsEmpty())
 	{
-		FName ObjectPath = FName(*GraphPinObj->DefaultValue);
-		if (ObjectPath != CachedAssetData.ObjectPath)
+		FSoftObjectPath ObjectPath = FSoftObjectPath(GraphPinObj->DefaultValue);
+		if (ObjectPath != CachedAssetData.GetSoftObjectPath())
 		{
 			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 

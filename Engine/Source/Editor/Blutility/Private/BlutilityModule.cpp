@@ -311,7 +311,7 @@ protected:
 		}
 		for (const FSoftObjectPath& LoadedUIPath : GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>()->LoadedUIs)
 		{
-			if (LoadedUIPath.GetAssetPathName() == InAssetData.ObjectPath)
+			if (LoadedUIPath == InAssetData.GetSoftObjectPath())
 			{
 				bDeletingLoadedUI = true;
 				break;
@@ -320,7 +320,7 @@ protected:
 
 		if (bDeletingLoadedUI)
 		{
-			FName UIToCleanup = FName(*(InAssetData.ObjectPath.ToString() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
+			FName UIToCleanup = FName(*(InAssetData.GetObjectPathString() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
 			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 			TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 			TSharedPtr<SDockTab> CurrentTab = LevelEditorTabManager->FindExistingLiveTab(UIToCleanup);

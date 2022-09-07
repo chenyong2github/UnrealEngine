@@ -264,7 +264,7 @@ struct FUnloadedAssetData
 		InAsset.GetTagValue(FBlueprintMetadata::MD_Tooltip, Tooltip);
 		if (Tooltip.IsEmpty())
 		{
-			Tooltip = FText::FromString(InAsset.ObjectPath.ToString());
+			Tooltip = FText::FromString(InAsset.GetObjectPathString());
 		}
 	}
 };
@@ -522,7 +522,7 @@ const FEdGraphPinType& UEdGraphSchema_K2::FPinTypeTreeInfo::GetPinType(bool bFor
 	if (SubCategoryObjectAssetReference.IsValid() && (!PinType.PinSubCategoryObject.IsValid() || FSoftObjectPath(PinType.PinSubCategoryObject.Get()) != SubCategoryObjectAssetReference))
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*SubCategoryObjectAssetReference.ToString());
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(SubCategoryObjectAssetReference);
 		if (bForceLoadedSubCategoryObject || AssetData.IsAssetLoaded())
 		{
 			UObject* LoadedObject = AssetData.GetAsset();

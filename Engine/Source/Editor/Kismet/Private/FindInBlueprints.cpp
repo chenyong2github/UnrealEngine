@@ -783,15 +783,15 @@ void SFindInBlueprints::ConditionallyAddCacheBar()
 		if(MainVerticalBox.IsValid() && !CacheBarSlot.IsValid())
 		{
 			// Create a single string of all the Blueprint paths that failed to cache, on separate lines
-			FString PackageList;
-			TSet<FName> FailedToCacheList = FFindInBlueprintSearchManager::Get().GetFailedToCachePathList();
-			for (FName Package : FailedToCacheList)
+			FString PathList;
+			TSet<FSoftObjectPath> FailedToCacheList = FFindInBlueprintSearchManager::Get().GetFailedToCachePathList();
+			for (const FSoftObjectPath& Path : FailedToCacheList)
 			{
-				PackageList += Package.ToString() + TEXT("\n");
+				PathList += Path.ToString() + TEXT("\n");
 			}
 
 			// Lambda to put together the popup menu detailing the failed to cache paths
-			auto OnDisplayCacheFailLambda = [](TWeakPtr<SWidget> InParentWidget, FString InPackageList)->FReply
+			auto OnDisplayCacheFailLambda = [](TWeakPtr<SWidget> InParentWidget, FString InPathList)->FReply
 			{
 				if (InParentWidget.IsValid())
 				{
@@ -810,7 +810,7 @@ void SFindInBlueprints::ConditionallyAddCacheBar()
 									SNew(SMultiLineEditableText)
 									.AutoWrapText(true)
 									.IsReadOnly(true)
-									.Text(FText::FromString(InPackageList))
+									.Text(FText::FromString(InPathList))
 								]
 							]
 						];
@@ -864,7 +864,7 @@ void SFindInBlueprints::ConditionallyAddCacheBar()
 							[
 								SNew(SButton)
 								.Text(LOCTEXT("ShowFailedPackages", "Show Failed Packages"))
-								.OnClicked(FOnClicked::CreateLambda(OnDisplayCacheFailLambda, TWeakPtr<SWidget>(SharedThis(this)), PackageList))
+								.OnClicked(FOnClicked::CreateLambda(OnDisplayCacheFailLambda, TWeakPtr<SWidget>(SharedThis(this)), PathList))
 								.Visibility(this, &SFindInBlueprints::GetCacheBarWidgetVisibility, EFiBCacheBarWidget::ShowCacheFailuresButton)
 								.ToolTip(IDocumentation::Get()->CreateToolTip(
 									LOCTEXT("FailedCache_Tooltip", "Displays a list of packages that failed to save."),
@@ -1551,10 +1551,10 @@ FText SFindInBlueprints::GetCacheBarCurrentAssetName() const
 {
 	if (IsCacheInProgress())
 	{
-		LastCachedAssetName = FFindInBlueprintSearchManager::Get().GetCurrentCacheBlueprintName();
+		LastCachedAssetPath = FFindInBlueprintSearchManager::Get().GetCurrentCacheBlueprintPath();
 	}
 
-	return FText::FromName(LastCachedAssetName);
+	return FText::FromString(LastCachedAssetPath.ToString());
 }
 
 void SFindInBlueprints::OnCacheStarted(EFiBCacheOpType InOpType, EFiBCacheOpFlags InOpFlags)

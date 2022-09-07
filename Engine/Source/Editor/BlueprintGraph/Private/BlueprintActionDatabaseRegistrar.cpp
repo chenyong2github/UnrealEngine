@@ -221,7 +221,7 @@ bool FBlueprintActionDatabaseRegistrar::AddBlueprintAction(FAssetData const& Ass
 		bReturnResult = AddBlueprintAction(NodeSpawner->NodeClass, NodeSpawner);
 		if(bReturnResult)
 		{
-			TArray<UBlueprintNodeSpawner*>& ActionList = UnloadedActionDatabase.FindOrAdd(AssetDataOwner.ObjectPath);
+			TArray<UBlueprintNodeSpawner*>& ActionList = UnloadedActionDatabase.FindOrAdd(AssetDataOwner.GetSoftObjectPath());
 			ActionList.Add(NodeSpawner);
 		}
 	}

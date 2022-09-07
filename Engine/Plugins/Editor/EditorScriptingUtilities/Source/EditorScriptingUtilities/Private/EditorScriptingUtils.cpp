@@ -98,7 +98,7 @@ namespace EditorScriptingUtils
 		}
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 		if (AssetData.IsValid())
 		{
 			OutFailureReason = TEXT("An asset already exists at this location.");
@@ -382,7 +382,7 @@ namespace EditorScriptingUtils
 		}
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 		if (!AssetData.IsValid())
 		{
 			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' could not be found in the Content Browser."), *ObjectPath);
@@ -415,16 +415,16 @@ namespace EditorScriptingUtils
 		UPackage* NewPackage = Object->GetOutermost();
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(NewPackage->GetFName());
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(NewPackage->GetName())); // NOTE: This only works because of the in-memory-assets path, the package names is not correct for GetAssetByObjectPath
 		if (!AssetData.IsValid())
 		{
 			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' could not be found in the Content Browser."), *NewPackage->GetName());
 			return false;
 		}
 
-		if (FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()))
+		if (FEditorFileUtils::IsMapPackageAsset(AssetData.GetObjectPathString()))
 		{
-			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' is not accessible because it is of type Map/Level."), *AssetData.ObjectPath.ToString());
+			OutFailureReason = FString::Printf(TEXT("The AssetData '%s' is not accessible because it is of type Map/Level."), *AssetData.GetObjectPathString());
 			return false;
 		}
 
@@ -454,7 +454,7 @@ namespace EditorScriptingUtils
 		// Remove Map & PlayInEditor package
 		for (int32 Index = OutAssetDatas.Num() - 1; Index >= 0; --Index)
 		{
-			if (FEditorFileUtils::IsMapPackageAsset(OutAssetDatas[Index].ObjectPath.ToString())
+			if (FEditorFileUtils::IsMapPackageAsset(OutAssetDatas[Index].GetObjectPathString())
 				|| !IsPackageFlagsSupportedForAssetLibrary(OutAssetDatas[Index].PackageFlags))
 			{
 				OutMapAssetDatas.Add(OutAssetDatas[Index]);
@@ -506,10 +506,10 @@ namespace EditorScriptingUtils
 
 		if (!bAllowMapAsset)
 		{
-			if (FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString())
+			if (FEditorFileUtils::IsMapPackageAsset(AssetData.GetObjectPathString())
 				|| !IsPackageFlagsSupportedForAssetLibrary(AssetData.PackageFlags))
 			{
-				OutFailureReason = FString::Printf(TEXT("The AssetData '%s' is not accessible because it is of type Map/Level."), *AssetData.ObjectPath.ToString());
+				OutFailureReason = FString::Printf(TEXT("The AssetData '%s' is not accessible because it is of type Map/Level."), *AssetData.GetObjectPathString());
 				return nullptr;
 			}
 		}
@@ -517,11 +517,11 @@ namespace EditorScriptingUtils
 		UObject* FoundObject = AssetData.GetAsset();
 		if (!IsValid(FoundObject))
 		{
-			OutFailureReason = FString::Printf(TEXT("The asset '%s' exists but was not able to be loaded."), *AssetData.ObjectPath.ToString());
+			OutFailureReason = FString::Printf(TEXT("The asset '%s' exists but was not able to be loaded."), *AssetData.GetObjectPathString());
 		}
 		else if (!FoundObject->IsAsset())
 		{
-			OutFailureReason = FString::Printf(TEXT("'%s' is not a valid asset."), *AssetData.ObjectPath.ToString());
+			OutFailureReason = FString::Printf(TEXT("'%s' is not a valid asset."), *AssetData.GetObjectPathString());
 			FoundObject = nullptr;
 		}
 		return FoundObject;

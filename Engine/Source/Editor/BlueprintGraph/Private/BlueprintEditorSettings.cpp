@@ -103,7 +103,7 @@ void UBlueprintEditorSettings::OnAssetRenamed(FAssetData const& AssetInfo, const
 	FPerBlueprintSettings Temp;
 	if(PerBlueprintSettings.RemoveAndCopyValue(InOldName, Temp))
 	{
-		PerBlueprintSettings.Add(AssetInfo.ObjectPath.ToString(), Temp);
+		PerBlueprintSettings.Add(AssetInfo.GetObjectPathString(), Temp);
 		SaveConfig();
 	}
 }

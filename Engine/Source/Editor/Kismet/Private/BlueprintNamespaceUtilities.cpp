@@ -163,12 +163,15 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const FSoftObjectPath& 
 		return GetObjectNamespace(Object);
 	}
 
-	FString ObjectPathAsString = InObjectPath.ToString();
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
-	if (!AssetData.IsValid() && ObjectPathAsString.RemoveFromEnd(TEXT("_C")))
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(InObjectPath);
+	if (!AssetData.IsValid())
 	{
-		AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
+		FString ObjectPathAsString = InObjectPath.ToString();
+		if (ObjectPathAsString.RemoveFromEnd(TEXT("_C")))
+		{
+			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPathAsString));
+		}
 	}
 
 	return GetAssetNamespace(AssetData);

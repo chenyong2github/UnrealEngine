@@ -186,7 +186,7 @@ struct FSearchData
 	TWeakObjectPtr<UBlueprint> Blueprint;
 
 	/** The full asset path this search data is associated with of the form /Game/Path/To/Package.Package */
-	FName AssetPath;
+	FSoftObjectPath AssetPath;
 
 	/** Search data block for the Blueprint */
 	FString Value;
@@ -214,7 +214,7 @@ struct FSearchData
 
 	bool IsValid() const
 	{
-		return AssetPath != NAME_None;
+		return !AssetPath.IsNull();
 	}
 
 	bool IsIndexingCompleted() const
@@ -525,7 +525,7 @@ public:
 	 * @param InAssetPath				Asset path (search index key).
 	 * @return							Matching search data from the index cache. Will return invalid (empty) search data if a matching entry was not found.
 	 */
-	FSearchData GetSearchDataForAssetPath(FName InAssetPath);
+	FSearchData GetSearchDataForAssetPath(const FSoftObjectPath& InAssetPath);
 
 	/**
 	 * Gathers the Blueprint's search metadata and adds or updates it in the cache
@@ -605,14 +605,14 @@ public:
 	/** Returns the current index in the caching */
 	int32 GetCurrentCacheIndex() const;
 
-	/** Returns the name of the current Blueprint being cached */
-	FName GetCurrentCacheBlueprintName() const;
+	/** Returns the path of the current Blueprint being cached */
+	FSoftObjectPath GetCurrentCacheBlueprintPath() const;
 
 	/** Returns the progress complete on the caching */
 	float GetCacheProgress() const;
 
 	/** Returns the list of Blueprint paths that failed to cache */
-	TSet<FName> GetFailedToCachePathList() const { return FailedToCachePaths; }
+	TSet<FSoftObjectPath> GetFailedToCachePathList() const { return FailedToCachePaths; }
 
 	/** Returns the number of Blueprints that failed to cache */
 	int32 GetFailedToCacheCount() const { return FailedToCachePaths.Num(); }
@@ -628,7 +628,7 @@ public:
 	 *
 	 * @param InNumberCached		The number of Blueprints cached, to be chopped off the existing array so the rest (if any) can be finished later
 	 */
-	void FinishedCachingBlueprints(EFiBCacheOpType InCacheOpType, EFiBCacheOpFlags InCacheOpFlags, int32 InNumberCached, TSet<FName>& InFailedToCacheList);
+	void FinishedCachingBlueprints(EFiBCacheOpType InCacheOpType, EFiBCacheOpFlags InCacheOpFlags, int32 InNumberCached, TSet<FSoftObjectPath>& InFailedToCacheList);
 
 	/** Returns TRUE if Blueprints are being cached. */
 	bool IsCacheInProgress() const;
@@ -734,7 +734,7 @@ private:
 	int32 AddSearchDataToDatabase(FSearchData InSearchData);
 
 	/** Removes a Blueprint from being managed by the FiB system by passing in the UBlueprint's path */
-	void RemoveBlueprintByPath(FName InPath);
+	void RemoveBlueprintByPath(const FSoftObjectPath& InPath);
 
 	/** Adds a new search database entry for unloaded asset data */
 	void AddUnloadedBlueprintSearchMetadata(const FAssetData& InAssetData);
@@ -760,7 +760,7 @@ protected:
 		/** Current count of assets searched */
 		TAtomic<int32> SearchCount;
 		/** Asset paths for which searching was deferred due to being indexed */
-		TQueue<FName> DeferredAssetPaths;
+		TQueue<FSoftObjectPath> DeferredAssetPaths;
 
 		FActiveSearchQuery()
 			:NextIndex(0)
@@ -782,7 +782,7 @@ protected:
 
 private:
 	/** Maps the Blueprint paths to their index in the SearchArray */
-	TMap<FName, int32> SearchMap;
+	TMap<FSoftObjectPath, int32> SearchMap;
 
 	/** Stores the Blueprint search data and is used to iterate over in small chunks */
 	TArray<FSearchData> SearchArray;
@@ -809,16 +809,16 @@ private:
 	TWeakPtr<SFindInBlueprints> SourceCachingWidget;
 
 	/** Asset paths that were discovered, loaded or modified and now require indexing (or re-indexing) */
-	TSet<FName> PendingAssets;
+	TSet<FSoftObjectPath> PendingAssets;
 
 	/** Asset paths that have not been cached for searching due to lack of FiB data, this means that they are either older Blueprints, or the DDC cannot find the data */
-	TSet<FName> UnindexedAssets;
+	TSet<FSoftObjectPath> UnindexedAssets;
 
 	/** List of paths for Blueprints that failed to cache */
-	TSet<FName> FailedToCachePaths;
+	TSet<FSoftObjectPath> FailedToCachePaths;
 
 	/** List of paths that require a full index pass during the first global search */
-	TSet<FName> AssetsToIndexOnFirstSearch;
+	TSet<FSoftObjectPath> AssetsToIndexOnFirstSearch;
 
 	/** Tickable object that does the caching of uncached Blueprints at a rate of once per tick */
 	TUniquePtr<class FCacheAllBlueprintsTickableObject> CachingObject;

@@ -461,8 +461,8 @@ private:
 	/** Tab hosting this widget. May be invalid. */
 	TWeakPtr<SDockTab> HostTab;
 
-	/** Last cached asset name (used during continuous cache operations). */
-	mutable FName LastCachedAssetName;
+	/** Last cached asset path (used during continuous cache operations). */
+	mutable FSoftObjectPath LastCachedAssetPath;
 
 	/** Should we search within the current blueprint only (rather than all blueprints) */
 	bool bIsInFindWithinBlueprintMode;

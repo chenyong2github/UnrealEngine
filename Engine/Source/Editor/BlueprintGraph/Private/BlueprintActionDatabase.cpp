@@ -1069,7 +1069,7 @@ static void BlueprintActionDatabaseImpl::OnAssetRemoved(FAssetData const& AssetI
 	}
 	else
 	{
-		ActionDatabase.ClearUnloadedAssetActions(AssetInfo.ObjectPath);
+		ActionDatabase.ClearUnloadedAssetActions(AssetInfo.GetSoftObjectPath());
 	}
 }
 
@@ -1103,7 +1103,7 @@ static void BlueprintActionDatabaseImpl::OnAssetRenamed(FAssetData const& AssetI
 
 	if (!AssetInfo.IsAssetLoaded())
 	{
-		ActionDatabase.MoveUnloadedAssetActions(*InOldName, AssetInfo.ObjectPath);
+		ActionDatabase.MoveUnloadedAssetActions(FSoftObjectPath(InOldName), AssetInfo.GetSoftObjectPath());
 	}
 }
 
@@ -1283,7 +1283,7 @@ void FBlueprintActionDatabase::AddReferencedObjects(FReferenceCollector& Collect
 	if (UnloadedActionRegistry.Num() > 0)
 	{
 		TSet<UBlueprintNodeSpawner*> UnloadedActions;
-		for (const TPair<FName, FActionList>& UnloadedActionListIt : UnloadedActionRegistry)
+		for (const TPair<FSoftObjectPath, FActionList>& UnloadedActionListIt : UnloadedActionRegistry)
 		{
 			const FActionList& ActionList = UnloadedActionListIt.Value;
 			UnloadedActions.Reserve(UnloadedActions.Num() + ActionList.Num());
@@ -1707,7 +1707,7 @@ void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 	RegisterAllNodeActions(Registrar);
 
 	// Will clear up any unloaded asset actions associated with this object, if any
-	ClearUnloadedAssetActions(*AssetObject->GetPathName());
+	ClearUnloadedAssetActions(FSoftObjectPath(AssetObject));
 
 	if (!IsValid(AssetObject))
 	{
@@ -1819,7 +1819,7 @@ bool FBlueprintActionDatabase::ClearAssetActions(const FObjectKey& AssetObjectKe
 }
 
 //------------------------------------------------------------------------------
-void FBlueprintActionDatabase::ClearUnloadedAssetActions(FName ObjectPath)
+void FBlueprintActionDatabase::ClearUnloadedAssetActions(const FSoftObjectPath& ObjectPath)
 {
 	// Check if the asset can be found in the unloaded action registry, if it can, we need to remove it
 	if(TArray<UBlueprintNodeSpawner*>* UnloadedActionList = UnloadedActionRegistry.Find(ObjectPath))
@@ -1838,7 +1838,7 @@ void FBlueprintActionDatabase::ClearUnloadedAssetActions(FName ObjectPath)
 }
 
 //------------------------------------------------------------------------------
-void FBlueprintActionDatabase::MoveUnloadedAssetActions(FName SourceObjectPath, FName TargetObjectPath)
+void FBlueprintActionDatabase::MoveUnloadedAssetActions(const FSoftObjectPath& SourceObjectPath, const FSoftObjectPath& TargetObjectPath)
 {
 	// Check if the asset can be found in the unloaded action registry, if it can, we need to remove it and re-add under the new name
 	if(TArray<UBlueprintNodeSpawner*>* UnloadedActionList = UnloadedActionRegistry.Find(SourceObjectPath))

@@ -436,7 +436,7 @@ namespace BlueprintEditorImpl
 			if(AssetReferenceFilter.IsValid() && AssetReference.IsValid())
 			{
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(AssetReference.GetAssetPathName());
+				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(AssetReference.GetWithoutSubPath());
 				if (!AssetReferenceFilter->PassesFilter(AssetData))
 				{
 					return false;
@@ -1925,7 +1925,7 @@ struct FLoadObjectsFromAssetRegistryHelper
 		{
 			if(AssetData[AssetIndex].IsValid())
 			{
-				FString AssetPath = AssetData[AssetIndex].ObjectPath.ToString();
+				FString AssetPath = AssetData[AssetIndex].GetObjectPathString();
 				TObjectType* Object = LoadObject<TObjectType>(nullptr, *AssetPath, nullptr, 0, nullptr);
 				if (Object)
 				{
@@ -2061,7 +2061,7 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 				// Only check for Blueprint Macros & Functions in the asset data for loading
 				if ((AssetBPType == BPMacroTypeStr) || (AssetBPType == BPFunctionTypeStr))
 				{
-					const FString BlueprintPath = AssetEntry.ObjectPath.ToString();
+					const FString BlueprintPath = AssetEntry.ToSoftObjectPath().ToString();
 
 					// See if this passes the namespace check
 					bool bAllowLoadBP = !ImportedNamespaceHelper.IsValid() || ImportedNamespaceHelper->IsImportedAsset(AssetEntry);
@@ -3321,7 +3321,7 @@ void FBlueprintEditor::OnDumpCachedIndexDataForBlueprint()
 		FArchive* DumpFile = IFileManager::Get().CreateFileWriter(*FullPath);
 		if (DumpFile)
 		{
-			const FName AssetPath = *Blueprint->GetPathName();
+			const FSoftObjectPath AssetPath(Blueprint);
 			FSearchData SearchData = FFindInBlueprintSearchManager::Get().GetSearchDataForAssetPath(AssetPath);
 			if (SearchData.IsValid() && SearchData.ImaginaryBlueprint.IsValid())
 			{

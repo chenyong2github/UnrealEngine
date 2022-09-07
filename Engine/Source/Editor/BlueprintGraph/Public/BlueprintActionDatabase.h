@@ -18,6 +18,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/TopLevelAssetPath.h"
 
 class FBlueprintActionDatabaseRegistrar;
@@ -46,10 +47,10 @@ class BLUEPRINTGRAPH_API FBlueprintActionDatabase : public FGCObject, public FTi
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDatabaseEntryUpdated, UObject*);
 
-	typedef TMap<FObjectKey, int32>						FPrimingQueue;
-	typedef TArray<UBlueprintNodeSpawner*>				FActionList;
-	typedef TMap<FObjectKey, FActionList>				FActionRegistry;
-	typedef TMap<FName, TArray<UBlueprintNodeSpawner*>>	FUnloadedActionRegistry;
+	typedef TMap<FObjectKey, int32>									FPrimingQueue;
+	typedef TArray<UBlueprintNodeSpawner*>							FActionList;
+	typedef TMap<FObjectKey, FActionList>							FActionRegistry;
+	typedef TMap<FSoftObjectPath, TArray<UBlueprintNodeSpawner*>>	FUnloadedActionRegistry;
 
 public:
 	/** Destructor */
@@ -152,7 +153,15 @@ public:
 	 *
 	 * @param ObjectPath	Object's path to lookup into the database
 	 */
-	void ClearUnloadedAssetActions(FName ObjectPath);
+	void ClearUnloadedAssetActions(const FSoftObjectPath& ObjectPath);
+
+	UE_DEPRECATED(5.1, "FNames containing full asset paths are deprecated. Use FSoftObjectPath instead.")
+	void ClearUnloadedAssetActions(FName ObjectPath)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		ClearUnloadedAssetActions(FSoftObjectPath(ObjectPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Moves the unloaded asset actions from one location to another
@@ -160,7 +169,15 @@ public:
 	 * @param SourceObjectPath	The object path that the data can currently be found under
 	 * @param TargetObjectPath	The object path that the data should be moved to
 	 */
-	void MoveUnloadedAssetActions(FName SourceObjectPath, FName TargetObjectPath);
+	void MoveUnloadedAssetActions(const FSoftObjectPath& SourceObjectPath, const FSoftObjectPath& TargetObjectPath);
+
+	UE_DEPRECATED(5.1, "FNames containing full asset paths are deprecated. Use FSoftObjectPath instead.")
+	void MoveUnloadedAssetActions(FName SourceObjectPath, FName TargetObjectPath) 
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MoveUnloadedAssetActions(FSoftObjectPath(SourceObjectPath), FSoftObjectPath(TargetObjectPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** */
 	FOnDatabaseEntryUpdated& OnEntryUpdated() { return EntryRefreshDelegate; }
