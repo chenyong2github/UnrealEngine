@@ -334,7 +334,7 @@ namespace UE
 			AutomationTestConfig Config = base.GetConfiguration();
 
 			// Tests in the editor only require a single role
-			UnrealTestRole EditorRole = Config.RequireRole(UnrealTargetRole.Editor);
+			UnrealTestRole EditorRole = Config.RequireRole(Config.CookedEditor ? UnrealTargetRole.CookedEditor : UnrealTargetRole.Editor);
 			EditorRole.CommandLineParams.AddRawCommandline("-NoWatchdog -stdout -FORCELOGFLUSH -CrashForUAT -log");
 
 			return Config;

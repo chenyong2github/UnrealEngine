@@ -257,6 +257,9 @@
 		<Property Name="TestAgentType" Value="Test$(EditorPlatform)" />
 		<Property Name="TestAgentType" Value="$(TestAgentOverride)" If="'$(TestAgentOverride)' != ''"/>
 
+		<Property Name="EditorPlatformPath" Value="$(EditorPlatform)" />
+		<Property Name="EditorPlatformPath" Value="Windows" If="'$(EditorPlatform)' == 'Win64'" />
+
 		<Property Name="PlatformPublishNodeName" Value="Publish CookedEditor $(EditorPlatform)" />
 
 		<Property Name="CookedEditorCookRequirements" Value="Compile Tools $(EditorPlatform);Compile $(ProjectName)Editor $(EditorPlatform);Compile $(ProjectName)CookedEditor $(EditorPlatform)"/>
@@ -279,9 +282,9 @@
 
 			<!-- Publish CookedEditor -->
 			<Node Name="Publish CookedEditor $(EditorPlatform)" Requires="Stage CookedEditor $(EditorPlatform)">
-				<Log Message="Copying to $(NetworkOutputDirectory)/$(EditorPlatform)CookedEditor"/>
+				<Log Message="Copying to $(NetworkOutputDirectory)/$(EditorPlatformPath)CookedEditor"/>
 				<Do If="!$(SkipPublish)">
-					<Copy Files="..." From="$(ProjectOutputDirectory)/$(EditorPlatform)CookedEditor" To="$(NetworkOutputDirectory)/$(EditorPlatform)CookedEditor"/>
+					<Copy Files="..." From="$(ProjectOutputDirectory)/$(EditorPlatformPath)CookedEditor" To="$(NetworkOutputDirectory)/$(EditorPlatformPath)CookedEditor"/>
 				</Do>
 			</Node>
 
@@ -305,7 +308,7 @@
 				<Property Name="GauntletReportArgs" Value="$(GauntletReportArgs) -ReportURL=&quot;$(AutomationReportUrl)/$(OutputFragmentPath)/&quot;" If="'$(AutomationReportUrl)' != ''" />
 			</Do>
 			<Node Name="$(PlatformBootTestNodeName)" Requires="$(TestPrerequisites)">
-				<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -build=&quot;$(NetworkOutputDirectory)/$(EditorPlatform)CookedEditor&quot; -cookededitor -test=&quot;UE.EditorBootTest&quot; $(GauntletEditorTestArgs) $(GauntletReportArgs)" />
+				<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -build=&quot;$(NetworkOutputDirectory)/$(EditorPlatformPath)CookedEditor&quot; -test=&quot;UE.EditorBootTest&quot; $(GauntletCookedEditorTestArgs) $(GauntletReportArgs)" />
 			</Node>
 
 			<!-- Link the boot test in to the prerequisites and generated nodes if its enabled-->
@@ -323,7 +326,7 @@
 				</Do>
 				<Property Name="TestNodeName" Value="CookedEditor $(EditorPlatform) Test=$(TestName)" />
 				<Node Name="$(TestNodeName)" Requires="$(TestPrerequisites)">
-					<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -build=&quot;$(NetworkOutputDirectory)/$(EditorPlatform)CookedEditor&quot; -cookededitor -test=&quot;$(TestName)&quot; $(GauntletReportArgs) $(GauntletEditorTestArgs)" />
+					<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -build=&quot;$(NetworkOutputDirectory)/$(EditorPlatformPath)CookedEditor&quot; -test=&quot;$(TestName)&quot; $(GauntletReportArgs) $(GauntletCookedEditorTestArgs)" />
 				</Node>
 				<!-- Add each test node to our generated list -->
 				<Property Name="PlatformCookedEditorTestNodes" Value="$(PlatformCookedEditorTestNodes);$(TestNodeName)" />
