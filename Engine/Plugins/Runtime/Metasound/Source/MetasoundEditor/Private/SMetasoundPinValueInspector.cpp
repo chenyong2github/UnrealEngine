@@ -462,7 +462,7 @@ namespace Metasound
 				];
 
 			const FName DataType = GetOutputHandle()->GetDataType();
-			const bool bConnectionAnimationsEnabled = GetDefault<UMetasoundEditorSettings>()->bAnimateConnections;
+			const bool bConnectionAnimationsEnabled = GetDefault<UMetasoundEditorSettings>()->AnalyzerAnimationSettings.bAnimateConnections;
 			const bool bIsTypeSupported = PinValueInspectorPrivate::IsMetasoundPrimitiveValueColorizationSupported(DataType);
 			if (bConnectionAnimationsEnabled && bIsTypeSupported)
 			{

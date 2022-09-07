@@ -9,11 +9,11 @@
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
-#include "MetasoundEditorSettings.h"
 #include "MetasoundTrace.h"
 #include "Misc/App.h"
 #include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "Templates/Function.h"
+#include "WaveTableSampler.h"
 
 #define METASOUND_EDITOR_DEBUG_CONNECTIONS 0
 
@@ -295,17 +295,11 @@ namespace Metasound
 			ArrowRadius = FVector2D::ZeroVector;
 
 			WireAnimationLayerID = (InFrontLayerID + InBackLayerID) / 2;
-			ActiveWireThickness = Settings->TraceAttackWireThickness;
-			InactiveWireThickness = Settings->TraceReleaseWireThickness;
 
 			// Numeric wires are inflated up to account for interior animation
 			if (const UMetasoundEditorSettings* MetasoundSettings = GetDefault<UMetasoundEditorSettings>())
 			{
-				bAnimateConnections = MetasoundSettings->bAnimateConnections;
-				ActiveAnalyzerNumericWireThickness = MetasoundSettings->ActiveAnalyzerNumericWireThickness;
-				ActiveAnalyzerEnvelopeWireThickness = MetasoundSettings->ActiveAnalyzerEnvelopeWireThickness;
-				ActiveAnalyzerWireScalarMin = MetasoundSettings->ActiveAnalyzerWireScalarMin;
-				ActiveAnalyzerWireScalarMax = MetasoundSettings->ActiveAnalyzerWireScalarMax;
+				AnalyzerSettings = MetasoundSettings->AnalyzerAnimationSettings;
 			}
 
 			if (GraphObj)
@@ -318,11 +312,11 @@ namespace Metasound
 		{
 			if (OutParams.bDrawBubbles)
 			{
-				OutParams.WireThickness = FMath::Lerp(InactiveWireThickness * ActiveAnalyzerWireScalarMin, ActiveAnalyzerEnvelopeWireThickness * ActiveAnalyzerWireScalarMax, OutParams.WireThickness);
+				OutParams.WireThickness = FMath::Lerp(Settings->TraceReleaseWireThickness * AnalyzerSettings.WireScalarMin, AnalyzerSettings.EnvelopeWireThickness * AnalyzerSettings.WireScalarMax, OutParams.WireThickness);
 			}
 			else
 			{
-				OutParams.WireThickness = InactiveWireThickness;
+				OutParams.WireThickness = Settings->TraceReleaseWireThickness;
 			}
 		}
 
@@ -383,7 +377,7 @@ namespace Metasound
 				OutParams.WireColor = FGraphBuilder::GetPinCategoryColor(AnyPin->PinType);
 			}
 
-			if (AnyPin && bAnimateConnections)
+			if (AnyPin && AnalyzerSettings.bAnimateConnections)
 			{
 				if (AnyPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 				{
@@ -405,17 +399,17 @@ namespace Metasound
 
 					if (bEdgeStyleValid && EditorPtr->IsPlaying())
 					{
-						OutParams.WireThickness = ActiveAnalyzerNumericWireThickness;
+						OutParams.WireThickness = AnalyzerSettings.NumericWireThickness;
 					}
 					else
 					{
-						OutParams.WireThickness = InactiveWireThickness;
+						OutParams.WireThickness = Settings->TraceReleaseWireThickness;
 					}
 				}
 			}
 			else
 			{
-				OutParams.WireThickness = InactiveWireThickness;
+				OutParams.WireThickness = Settings->TraceReleaseWireThickness;
 			}
 		}
 
@@ -432,7 +426,7 @@ namespace Metasound
 				return;
 			}
 
-			if (!GraphObj || !EditorPtr->IsPlaying() || !bAnimateConnections)
+			if (!GraphObj || !EditorPtr->IsPlaying() || !AnalyzerSettings.bAnimateConnections)
 			{
 				FConnectionDrawingPolicy::DrawConnection(LayerId, Start, End, Params);
 				return;
@@ -464,14 +458,14 @@ namespace Metasound
 					if (DataType == GetMetasoundDataTypeName<FAudioBuffer>())
 					{
 						SignalParams.SpacingFactor = DrawingPolicyPrivate::EnvelopeConnectionSpacingCVar;
-						SignalParams.SpeedFactor = DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar;
+						SignalParams.SpeedFactor = AnalyzerSettings.EnvelopeSpeed * DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar;
 						const FName AnalyzerName = Frontend::FVertexAnalyzerEnvelopeFollower::GetAnalyzerName();
 						DrawConnectionSignal_Envelope(SignalParams, AnalyzerName);
 					}
 					else if (DataType == GetMetasoundDataTypeName<FTrigger>())
 					{
 						SignalParams.SpacingFactor = DrawingPolicyPrivate::EnvelopeConnectionSpacingCVar;
-						SignalParams.SpeedFactor = DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar;
+						SignalParams.SpeedFactor = AnalyzerSettings.EnvelopeSpeed * DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar;
 						const FName AnalyzerName = Frontend::FVertexAnalyzerTriggerDensity::GetAnalyzerName();
 						DrawConnectionSignal_Envelope(SignalParams, AnalyzerName);
 					}
@@ -600,9 +594,8 @@ namespace Metasound
 			}
 
 			const float PointSpacing = FMath::Max(1.0f, InParams.SpacingFactor * ZoomFactor);
-			float PointSpeed = InParams.SpeedFactor * ZoomFactor;
 			const float PointSize = ZoomFactor * InParams.ConnectionData.Params.WireThickness;
-			const float PointOffset = FMath::Fmod(InParams.AppTime * PointSpeed, PointSpacing);
+			const float PointOffset = FMath::Fmod(InParams.AppTime * ZoomFactor, PointSpacing);
 			const int32 NumPoints = FMath::Min(FMath::CeilToInt(InParams.SplineLength / PointSpacing), DrawingPolicyPrivate::EnvelopeConnectionMaxPointsPerConnection);
 
 			TArray<float> EnvMagnitudes;
@@ -617,24 +610,72 @@ namespace Metasound
 						const FGuid NodeId = OutputHandle->GetOwningNodeID();
 						FName OutputName = OutputHandle->GetName();
 
-						// Only set to max as multiple edges can exist and each may have a different window size.
+						const float SpeedFactor = FMath::Clamp(1.0f - InParams.SpeedFactor, 0.0f, 1.0f);
+						const int32 NumTrackedPoints = FMath::Max(1, (int32)(SpeedFactor * NumPoints));
+
 						FGraphConnectionManager& ConnectionManager = Editor->GetConnectionManager();
 						if (const FFloatMovingWindow* Window = ConnectionManager.GetValueWindow(NodeId, OutputName, InAnalyzerName))
 						{
-							if (NumPoints > Window->Num())
+							if (NumTrackedPoints > Window->Num())
 							{
-								ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumPoints);
+								ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumTrackedPoints);
 							}
 
-							for (int32 i = 0; i < EnvMagnitudes.Num(); ++i)
+							auto SampleWindowFunction = [&Window, this](TArrayView<float> SampleEnvelope)
 							{
-								const float ClampedScalar = FMath::Clamp(Window->GetValueWrapped(i), 0.0f, 1.0f) * ActiveAnalyzerWireScalarMax;
-								EnvMagnitudes[i] *= ClampedScalar;
+								switch(AnalyzerSettings.EnvelopeDirection)
+								{
+									case EMetasoundActiveAnalyzerEnvelopeDirection::FromSourceOutput:
+									{
+										for (int32 i = 0; i < SampleEnvelope.Num(); ++i)
+										{
+											const float ClampedScalar = FMath::Clamp(Window->GetValueWrapped(i), 0.0f, 1.0f) * AnalyzerSettings.WireScalarMax;
+											SampleEnvelope[i] *= ClampedScalar;
+										}
+									}
+									break;
+
+									case EMetasoundActiveAnalyzerEnvelopeDirection::FromDestinationInput:
+									{
+										for (int32 i = 0; i < SampleEnvelope.Num(); ++i)
+										{
+											const float ClampedScalar = FMath::Clamp(Window->GetValueWrapped(SampleEnvelope.Num() - 1 - i), 0.0f, 1.0f) * AnalyzerSettings.WireScalarMax;
+											SampleEnvelope[i] *= ClampedScalar;
+										}
+									}
+									break;
+
+									default:
+									{
+										checkNoEntry();
+									}
+									break;
+								}
+							};
+
+							if (FMath::IsNearlyEqual(SpeedFactor, 1.0f))
+							{
+								SampleWindowFunction(EnvMagnitudes);
+							}
+							else
+							{
+								TArray<float> EnvSampled;
+								EnvSampled.Init(PointSize, NumTrackedPoints);
+
+								SampleWindowFunction(EnvSampled);
+
+								const float StepRatio = ((float)EnvSampled.Num()) / EnvMagnitudes.Num();
+								for (int32 i = 0; i < EnvMagnitudes.Num(); ++i)
+								{
+									EnvMagnitudes[i] = StepRatio * i;
+								}
+								constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::Cubic;
+								WaveTable::FWaveTableSampler::Interpolate(EnvSampled, EnvMagnitudes, InterpMode);
 							}
 						}
 						else
 						{
-							ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumPoints);
+							ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumTrackedPoints);
 						}
 					}
 				}

@@ -26,10 +26,4 @@ UMetasoundEditorSettings::UMetasoundEditorSettings(const FObjectInitializer& Obj
 	InputNodeTitleColor = FLinearColor(0.168f, 1.0f, 0.7294f);					// sea foam
 	OutputNodeTitleColor = FLinearColor(1.0f, 0.878f, 0.1686f);					// yellow
 	VariableNodeTitleColor = FLinearColor(0.211f, 0.513f, 0.035f);				// copper
-
-	bAnimateConnections = true;
-	ActiveAnalyzerNumericWireThickness = 5.0f;
-	ActiveAnalyzerEnvelopeWireThickness = 1.0f;
-	ActiveAnalyzerWireScalarMin = 1.0f;
-	ActiveAnalyzerWireScalarMax = 4.5f;
 }

@@ -12,7 +12,9 @@ namespace WaveTable
 		UE_NODISCARD FORCEINLINE FVector2f GetTangentP0(const float* InTableView, const float NextValue, float InIndex, int32 InArraySize)
 		{
 			const int32 Index = FMath::TruncToInt32(InIndex);
-			const float LastValue = InTableView[(Index - 1) % InArraySize];
+
+			// Addition of array size guarantees that if index is 0, we aren't modding a negative number and returning a negative index
+			const float LastValue = InTableView[(Index - 1 + InArraySize) % InArraySize];
 			return FVector2f(2.0f, NextValue - LastValue).GetSafeNormal();
 		};
 

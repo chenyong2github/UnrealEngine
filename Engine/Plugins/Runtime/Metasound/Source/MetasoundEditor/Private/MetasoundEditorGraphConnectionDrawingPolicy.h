@@ -6,6 +6,7 @@
 #include "EdGraphUtilities.h"
 #include "Layout/ArrangedWidget.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontendController.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Rendering/DrawElements.h"
@@ -102,14 +103,7 @@ namespace Metasound
 
 			int32 WireAnimationLayerID = 0;
 
-			bool bAnimateConnections = false;
-			float ActiveWireThickness = 1.0f;
-			float ActiveAnalyzerEnvelopeWireThickness = 1.0f;
-			float ActiveAnalyzerNumericWireThickness = 1.0f;
-			float ActiveAnalyzerWireScalarMin = 1.0f;
-			float ActiveAnalyzerWireScalarMax = 1.0f;
-
-			float InactiveWireThickness = 1.0f;
+			FMetasoundAnalyzerAnimationSettings AnalyzerSettings;
 
 			TWeakPtr<FEditor> MetasoundEditor;
 
