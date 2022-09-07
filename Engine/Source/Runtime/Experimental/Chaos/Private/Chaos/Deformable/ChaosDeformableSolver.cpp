@@ -35,9 +35,10 @@ DECLARE_CYCLE_STAT(TEXT("DeformableSolver.Advance"), STAT_DeformableSolver_Advan
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolver, Log, All);
 namespace Chaos::Softs
 {
+	FCriticalSection FDeformableSolver::InitializationMutex;
+	FCriticalSection FDeformableSolver::RemovalMutex;
 	FCriticalSection FDeformableSolver::PackageOutputMutex;
 	FCriticalSection FDeformableSolver::PackageInputMutex;
-
 
 	FDeformableSolver::FDeformableSolver(FDeformableSolverProperties InProp)
 		: CurrentInputPackage(TUniquePtr < FDeformablePackage >(nullptr))
@@ -62,7 +63,7 @@ namespace Chaos::Softs
 		{
 			SurfaceElements.Reset(new TArray<Chaos::TVec3<int32>>());
 		}
-		
+
 		if (Property.bDoSelfCollision)
 		{
 			SurfaceTriangleMesh.Reset(new Chaos::FTriangleMesh());
@@ -71,11 +72,24 @@ namespace Chaos::Softs
 		{
 			AllElements.Reset(new TArray<Chaos::TVec4<int32>>());
 		}
+
+		InitializeKinematicConstraint();
 		Frame = 0;
 		Time = 0.f;
 	}
 
-	bool FDeformableSolver::Advance(FSolverReal DeltaTime)
+	void FDeformableSolver::Simulate(FSolverReal DeltaTime)
+	{
+		if (Property.NumSolverIterations)
+		{
+			RemoveSimulationObjects();
+			InitializeSimulationObjects();
+			UpdateProxyInputPackages();
+			AdvanceDt(DeltaTime);
+		}
+	}
+
+	bool FDeformableSolver::AdvanceDt(FSolverReal DeltaTime)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DeformableSolver_Advance);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Advance);
@@ -101,188 +115,196 @@ namespace Chaos::Softs
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObjects);
 
-		for (TUniquePtr<FThreadingProxy>& Proxy : UninitializedProxys)
 		{
-			InitializeSimulationObject(*Proxy);
-			InitializeKinematicState(*Proxy);
-
-			FThreadingProxy::FKey Key = Proxy->GetOwner();
-			Proxies.Add(Key, TUniquePtr<FThreadingProxy>(Proxy.Release()));
-		}
-		
-		if (UninitializedProxys.Num() != 0)
-		{
-			if (Property.bDoSelfCollision)
+			FScopeLock Lock(&InitializationMutex); // @todo(flesh) : change to threaded task based commands to prevent the lock. 
+			if (UninitializedProxys_External.Num())
 			{
-				InitializeSelfCollisionVariables();
-			}
+				for (TUniquePtr<FThreadingProxy>& Proxy : UninitializedProxys_External)
+				{
+					InitializeSimulationObject(*Proxy);
 
-			if (Property.bUseGridBasedConstraints)
-			{
-				InitializeGridBasedConstraintVariables();
+					FThreadingProxy::FKey Key = Proxy->GetOwner();
+					Proxies.Add(Key, TUniquePtr<FThreadingProxy>(Proxy.Release()));
+				}
+
+				if (UninitializedProxys_External.Num() != 0)
+				{
+					if (Property.bDoSelfCollision)
+					{
+						InitializeSelfCollisionVariables();
+					}
+
+					if (Property.bUseGridBasedConstraints)
+					{
+						InitializeGridBasedConstraintVariables();
+					}
+				}
+				UninitializedProxys_External.SetNum(0, true);
 			}
 		}
-		UninitializedProxys.SetNum(0, true);
+
 		InitializeCollisionBodies();
 	}
 
 	void FDeformableSolver::InitializeSimulationObject(FThreadingProxy& InProxy)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
-
 		if (FFleshThreadingProxy* Proxy = InProxy.As<FFleshThreadingProxy>())
 		{
-			if (const FManagedArrayCollection* Dynamic = &Proxy->GetDynamicCollection())
+			InitializeDeformableParticles(*Proxy);
+			InitializeKinematicParticles(*Proxy);
+			InitializeTetrahedralConstraint(*Proxy);
+			InitializeGidBasedConstraints(*Proxy);
+		}
+		Time = 0.f;
+	}
+
+	void FDeformableSolver::InitializeDeformableParticles(FFleshThreadingProxy& Proxy)
+	{
+		const FManagedArrayCollection& Dynamic = Proxy.GetDynamicCollection();
+		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
+
+		const TManagedArray<FVector3f>& DynamicVertex = Dynamic.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+		const TManagedArray<FSolverReal>* MassArray = Rest.FindAttribute<FSolverReal>("Mass", FGeometryCollection::VerticesGroup);
+		uint32 NumParticles = Rest.NumElements(FGeometryCollection::VerticesGroup);
+		FSolverReal Mass = 100.0;// @todo(chaos) : make user attributes
+
+		auto ChaosVert = [](FVector3d V) { return Chaos::FVec3(V.X, V.Y, V.Z); };
+		auto ChaosM = [](FSolverReal M, const TManagedArray<float>* AM, int32 Index, int32 Num) { return FSolverReal((AM != nullptr) ? (*AM)[Index] : M / FSolverReal(Num)); };
+		auto ChaosInvM = [](FSolverReal M) { return FSolverReal(FMath::IsNearlyZero(M) ? 0.0 : 1 / M); };
+		auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+
+		const FTransform& InitialTransform = Proxy.GetInitialTransform();
+		int32 ParticleStart = Evolution->AddParticleRange(NumParticles, 1, true);
+		for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
+		{
+			int32 SolverParticleIndex = ParticleStart + vdx;
+			Evolution->Particles().X(SolverParticleIndex) = ChaosVert(InitialTransform.TransformPosition(DoubleVert(DynamicVertex[vdx])));
+			Evolution->Particles().V(SolverParticleIndex) = Chaos::FVec3(0.f, 0.f, 0.f);
+			Evolution->Particles().M(SolverParticleIndex) = ChaosM(Mass, MassArray, vdx, NumParticles);
+			Evolution->Particles().InvM(SolverParticleIndex) = ChaosInvM(Evolution->Particles().M(SolverParticleIndex));
+			Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
+			MObjects[SolverParticleIndex] = Proxy.GetOwner();
+		}
+		Proxy.SetSolverParticleRange(ParticleStart, NumParticles);
+	}
+
+	void FDeformableSolver::InitializeKinematicParticles(FFleshThreadingProxy& Proxy)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+
+		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
+		const FIntVector2& Range = Proxy.GetSolverParticleRange();
+
+		if (Property.bEnableKinematics)
+		{
+			typedef Chaos::Facades::FKinematicBindingFacade Kinematics;
+
+			// Add Kinematics Node
+			for (int i = Kinematics::NumKinematicBindings(&Rest) - 1; i >= 0; i--)
 			{
-				if (const FManagedArrayCollection* Rest = &Proxy->GetRestCollection())
+				Kinematics::FBindingKey Key = Kinematics::GetKinematicBindingKey(&Rest, i);
+
+				int32 BoneIndex = INDEX_NONE;
+				TArray<int32> BoundVerts;
+				TArray<float> BoundWeights;
+				Kinematics::GetBoneBindings(&Rest, Key, BoneIndex, BoundVerts, BoundWeights);
+
+				for (int32 vdx : BoundVerts)
 				{
-					const TManagedArray<FSolverReal>* MassArray = Rest->FindAttribute<FSolverReal>("Mass", FGeometryCollection::VerticesGroup);
-
-					// @todo(chaos) : make user attributes
-					FSolverReal Mass = 100.0;
-
-					const TManagedArray<FVector3f>& Vertex = Rest->GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-					const TManagedArray<FIntVector>& Indices = Rest->GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-					const TManagedArray<FVector3f>& DynamicVertex = Dynamic->GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-
-					if (uint32 NumParticles = Vertex.Num())
+					if (BoneIndex != INDEX_NONE)
 					{
-						if (uint32 NumSurfaceElements = Indices.Num())
-						{
-							// @todo(chaos) : reduce conversions
-							auto ChaosVert = [](FVector3d V) { return Chaos::FVec3(V.X, V.Y, V.Z); };
-							auto DoubleVert = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
-							auto ChaosM = [](FSolverReal M, const TManagedArray<float>* AM, int32 Index, int32 Num) { return FSolverReal((AM != nullptr) ? (*AM)[Index] : M / FSolverReal(Num)); };
-							auto ChaosInvM = [](FSolverReal M) { return FSolverReal(FMath::IsNearlyZero(M) ? 0.0 : 1 / M); };
-							auto ChaosTet = [](FIntVector4 V, int32 dp) { return Chaos::TVec4<int32>(dp + V.X, dp + V.Y, dp + V.Z, dp + V.W); };
-							auto ChaosTri = [](FIntVector V, int32 dp) { return  Chaos::TVec3<int32>(dp + V.X, dp + V.Y, dp + V.Z); };
-							auto ChaosIntVec2 = [](int32 A, int32 B) { return  Chaos::TVec2<int32>(A, B); };
-
-							//  Add Simulation Particles Node
-							const FTransform& InitialTransform = Proxy->GetInitialTransform();
-							int32 ParticleStart = Evolution->AddParticleRange(NumParticles, 1, true);
-							for (uint32 vdx = 0; vdx < NumParticles; ++vdx)
-							{
-								int32 SolverParticleIndex = ParticleStart + vdx;
-								Evolution->Particles().X(SolverParticleIndex) = ChaosVert(InitialTransform.TransformPosition(DoubleVert(DynamicVertex[vdx])));
-								Evolution->Particles().V(SolverParticleIndex) = Chaos::FVec3(0.f, 0.f, 0.f);
-								Evolution->Particles().M(SolverParticleIndex) = ChaosM(Mass, MassArray, vdx, NumParticles);
-								Evolution->Particles().InvM(SolverParticleIndex) = ChaosInvM(Evolution->Particles().M(SolverParticleIndex));
-								Evolution->Particles().PAndInvM(SolverParticleIndex).InvM = Evolution->Particles().InvM(SolverParticleIndex);
-								MObjects[SolverParticleIndex] = Proxy->GetOwner();
-							}
-							Proxy->SetSolverParticleRange(ParticleStart, NumParticles);
-
-							if (Property.bEnableKinematics)
-							{
-								typedef Chaos::Facades::FKinematicBindingFacade Kinematics;
-
-								// Add Kinematics Node
-								for (int i = Kinematics::NumKinematicBindings(Rest) - 1; i >= 0; i--)
-								{
-									Kinematics::FBindingKey Key = Kinematics::GetKinematicBindingKey(Rest, i);
-
-									int32 BoneIndex = INDEX_NONE;
-									TArray<int32> BoundVerts;
-									TArray<float> BoundWeights;
-									Kinematics::GetBoneBindings(Rest, Key, BoneIndex, BoundVerts, BoundWeights);
-
-									for (int32 vdx : BoundVerts)
-									{
-										if (BoneIndex != INDEX_NONE)
-										{
-											int32 ParticleIndex = ParticleStart + vdx;
-											Evolution->Particles().InvM(ParticleIndex) = 0.f;
-											Evolution->Particles().PAndInvM(ParticleIndex).InvM = 0.f;
-										}
-									}
-								}
-							}
-
-							const TManagedArray<FIntVector4>& Tetrahedron = Rest->GetAttribute<FIntVector4>("Tetrahedron", "Tetrahedral");
-
-							if (uint32 NumElements = Tetrahedron.Num())
-							{
-								const FIntVector2& Range = Proxy->GetSolverParticleRange();
-
-								// Add Tetrahedral Elements Node
-								TArray<Chaos::TVec4<int32>> Elements;
-								Elements.SetNum(NumElements);
-								for (uint32 edx = 0; edx < NumElements; ++edx)
-								{
-									Elements[edx] = ChaosTet(Tetrahedron[edx], Range[0]);
-								}
-
-								if (Property.bUseGridBasedConstraints)
-								{
-									int32 ElementsOffset = AllElements->Num();
-									AllElements->SetNum(ElementsOffset + NumElements);
-									for (uint32 edx = 0; edx < NumElements; ++edx)
-									{
-										(*AllElements)[edx + ElementsOffset] = ChaosTet(Tetrahedron[edx], Range[0]);
-									}
-
-								}
-
-
-								FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
-									new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-										Evolution->Particles(), Elements, /*bRecordMetric = */false, (FSolverReal)100000.0);
-
-								int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
-								Evolution->ConstraintInits()[InitIndex] =
-									[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
-								{
-									CorotatedConstraint->Init();
-								};
-
-
-								int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
-								Evolution->ConstraintRules()[ConstraintIndex] =
-									[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
-								{
-									CorotatedConstraint->ApplyInParallel(InParticles, Dt);
-
-								};
-								CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
-							}
-
-							if (Property.bDoSelfCollision || Property.CacheToFile)
-							{
-								// Add Surface Elements Node
-								int32 SurfaceElementsOffset = SurfaceElements->Num();
-								SurfaceElements->SetNum(NumSurfaceElements + SurfaceElementsOffset);
-								for (uint32 edx = 0; edx < NumSurfaceElements; ++edx)
-								{
-									(*SurfaceElements)[edx + SurfaceElementsOffset] = ChaosTri(Indices[edx], ParticleStart);
-								}
-
-							}
-
-
-							Time = 0.f;
-						}
+						int32 ParticleIndex = Range[0] + vdx;
+						Evolution->Particles().InvM(ParticleIndex) = 0.f;
+						Evolution->Particles().PAndInvM(ParticleIndex).InvM = 0.f;
 					}
 				}
 			}
 		}
 	}
 
-	void FDeformableSolver::InitializeCollisionBodies()
+
+	void FDeformableSolver::InitializeTetrahedralConstraint(FFleshThreadingProxy& Proxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeCollisionBodies);
-		if (Property.bUseFloor && Evolution->CollisionParticles().Size()==0)
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+
+		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
+
+		auto ChaosTet = [](FIntVector4 V, int32 dp) { return Chaos::TVec4<int32>(dp + V.X, dp + V.Y, dp + V.Z, dp + V.W); };
+
+		const TManagedArray<FIntVector4>& Tetrahedron = Rest.GetAttribute<FIntVector4>("Tetrahedron", "Tetrahedral");
+		if (uint32 NumElements = Tetrahedron.Num())
 		{
-			Chaos::FVec3 Position(0.f);
-			Chaos::FVec3 EulerRot(0.f);
-			Evolution->AddCollisionParticleRange(1, 1, true);
-			Evolution->CollisionParticles().X(0) = Position;
-			Evolution->CollisionParticles().R(0) = Chaos::TRotation<Chaos::FReal, 3>::MakeFromEuler(EulerRot);
-			Evolution->CollisionParticles().SetDynamicGeometry(0, MakeUnique<Chaos::TPlane<Chaos::FReal, 3>>(Chaos::FVec3(0.f, 0.f, 0.f), Chaos::FVec3(0.f, 0.f, 1.f)));
+			const FIntVector2& Range = Proxy.GetSolverParticleRange();
+
+			// Add Tetrahedral Elements Node
+			TArray<Chaos::TVec4<int32>> Elements;
+			Elements.SetNum(NumElements);
+			for (uint32 edx = 0; edx < NumElements; ++edx)
+			{
+				Elements[edx] = ChaosTet(Tetrahedron[edx], Range[0]);
+			}
+
+			if (Property.bUseGridBasedConstraints)
+			{
+				int32 ElementsOffset = AllElements->Num();
+				AllElements->SetNum(ElementsOffset + NumElements);
+				for (uint32 edx = 0; edx < NumElements; ++edx)
+				{
+					(*AllElements)[edx + ElementsOffset] = ChaosTet(Tetrahedron[edx], Range[0]);
+				}
+
+			}
+
+
+			FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
+				new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
+					Evolution->Particles(), Elements, /*bRecordMetric = */false, (FSolverReal)100000.0);
+
+			int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
+			Evolution->ConstraintInits()[InitIndex] =
+				[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				CorotatedConstraint->Init();
+			};
+
+
+			int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
+			Evolution->ConstraintRules()[ConstraintIndex] =
+				[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				CorotatedConstraint->ApplyInParallel(InParticles, Dt);
+			};
+			CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
 		}
 	}
 
-	void FDeformableSolver::InitializeKinematicState(FThreadingProxy& InProxy)
+	void FDeformableSolver::InitializeGidBasedConstraints(FFleshThreadingProxy& Proxy)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+		if (Property.bUseGridBasedConstraints)
+		{
+			auto ChaosTet = [](FIntVector4 V, int32 dp) { return Chaos::TVec4<int32>(dp + V.X, dp + V.Y, dp + V.Z, dp + V.W); };
+
+			const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
+			const TManagedArray<FIntVector4>& Tetrahedron = Rest.GetAttribute<FIntVector4>("Tetrahedron", "Tetrahedral");
+
+			if (uint32 NumElements = Tetrahedron.Num())
+			{
+				const FIntVector2& Range = Proxy.GetSolverParticleRange();
+
+				int32 ElementsOffset = AllElements->Num();
+				AllElements->SetNum(ElementsOffset + NumElements);
+				for (uint32 edx = 0; edx < NumElements; ++edx)
+				{
+					(*AllElements)[edx + ElementsOffset] = ChaosTet(Tetrahedron[edx], Range[0]);
+				}
+			}
+		}
+	}
+
+
+	void FDeformableSolver::InitializeKinematicConstraint()
 	{
 		auto MKineticUpdate = [this](FSolverParticles& MParticles, const FSolverReal Dt, const FSolverReal MTime, const int32 Index)
 		{
@@ -309,6 +331,20 @@ namespace Chaos::Softs
 			}
 		};
 		Evolution->SetKinematicUpdateFunction(MKineticUpdate);
+	}
+
+	void FDeformableSolver::InitializeCollisionBodies()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeCollisionBodies);
+		if (Property.bUseFloor && Evolution->CollisionParticles().Size() == 0)
+		{
+			Chaos::FVec3 Position(0.f);
+			Chaos::FVec3 EulerRot(0.f);
+			Evolution->AddCollisionParticleRange(1, 1, true);
+			Evolution->CollisionParticles().X(0) = Position;
+			Evolution->CollisionParticles().R(0) = Chaos::TRotation<Chaos::FReal, 3>::MakeFromEuler(EulerRot);
+			Evolution->CollisionParticles().SetDynamicGeometry(0, MakeUnique<Chaos::TPlane<Chaos::FReal, 3>>(Chaos::FVec3(0.f, 0.f, 0.f), Chaos::FVec3(0.f, 0.f, 1.f)));
+		}
 	}
 
 	void FDeformableSolver::InitializeSelfCollisionVariables()
@@ -404,6 +440,67 @@ namespace Chaos::Softs
 		}
 	}
 
+	void FDeformableSolver::RemoveSimulationObjects()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_RemoveSimulationObjects);
+		TArray< FThreadingProxy* > RemovedProxies;
+		{
+			FScopeLock Lock(&RemovalMutex); // @todo(flesh) : change to threaded task based commands to prevent the lock. 
+			RemovedProxies = TArray< FThreadingProxy* >(RemovedProxys_External);
+			RemovedProxys_External.Empty();
+		}
+
+		if (RemovedProxies.Num())
+		{
+			Evolution->ResetConstraintRules();
+			Evolution->DeactivateParticleRanges();
+
+			// delete the simulated particles in block moves
+			for (FThreadingProxy* BaseProxy : RemovedProxies)
+			{
+				if (FFleshThreadingProxy* Proxy = BaseProxy->As<FFleshThreadingProxy>())
+				{
+					FIntVector2 Indices = Proxy->GetSolverParticleRange();
+					Proxies.FindAndRemoveChecked(MObjects[Indices[0]]);
+					Evolution->Particles().RemoveAt(Indices[0], Indices[1]);
+				}
+			}
+
+			// reindex ranges on moved particles in the proxies. 
+			const UObject* CurrentObject = nullptr;
+			for (int Index = 0; Index < MObjects.Num(); Index++)
+			{
+				if (MObjects[Index] != CurrentObject)
+				{
+					CurrentObject = MObjects[Index];
+					if (CurrentObject)
+					{
+						if (ensure(Proxies.Contains(CurrentObject)))
+						{
+							if (FFleshThreadingProxy* MovedProxy = Proxies[CurrentObject]->As<FFleshThreadingProxy>())
+							{
+								FIntVector2 Range = MovedProxy->GetSolverParticleRange();
+								MovedProxy->SetSolverParticleRange(Index, Range[1]);
+								int32 Offset = Evolution->AddParticleRange(Range[1]);
+								//ensure(Offset == Range[0]);
+							}
+						}
+					}
+				}
+			}
+
+			// regenerate all constraints
+			for (TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> >& BaseProxyPair : Proxies)
+			{
+				if (FFleshThreadingProxy* Proxy = BaseProxyPair.Value->As<FFleshThreadingProxy>())
+				{
+					InitializeTetrahedralConstraint(*Proxy);
+					InitializeGidBasedConstraints(*Proxy);
+				}
+			}
+		}
+	}
+
 	void FDeformableSolver::TickSimulation(FSolverReal DeltaTime)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_TickSimulation);
@@ -456,9 +553,18 @@ namespace Chaos::Softs
 		return TUniquePtr<FDeformablePackage>(nullptr);
 	}
 
-	void FDeformableSolver::AddProxy(TUniquePtr<FThreadingProxy> InObject)
+	void FDeformableSolver::AddProxy(FThreadingProxy* InObject)
 	{
-		UninitializedProxys.Add(TUniquePtr< FThreadingProxy>(InObject.Release()));
+		FScopeLock Lock(&InitializationMutex);
+		UninitializedProxys_External.Add(TUniquePtr< FThreadingProxy>(InObject));
+		InitializedObjects_External.Add(InObject->GetOwner());
+	}
+
+	void FDeformableSolver::RemoveProxy(FThreadingProxy* InObject)
+	{
+		FScopeLock Lock(&RemovalMutex);
+		RemovedProxys_External.Add(InObject);
+		InitializedObjects_External.Remove(InObject->GetOwner());
 	}
 
 	void FDeformableSolver::UpdateOutputState(FThreadingProxy& InProxy)

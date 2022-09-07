@@ -20,7 +20,6 @@
 
 namespace Chaos::Softs
 {
-	// @todo(Deformable) : Explore using the chaos ISolverBase, IProxyBase instead. 
 	class CHAOS_API FDeformableSolver
 	{
 		friend class FGameThreadAccess;
@@ -35,11 +34,13 @@ namespace Chaos::Softs
 		class CHAOS_API FPhysicsThreadAccess
 		{
 		public:
-			FPhysicsThreadAccess(FDeformableSolver& InSolver, const FPhysicsThreadAccessor&) : Solver(InSolver) {}
+			FPhysicsThreadAccess(FDeformableSolver* InSolver, const FPhysicsThreadAccessor&) : Solver(InSolver) {}
+			bool operator()() { return Solver != nullptr; }
 
 			/* Simulation Advance */
 			void UpdateProxyInputPackages();
-			bool Advance(FSolverReal DeltaTime);
+			void Simulate(FSolverReal DeltaTime);
+			bool AdvanceDt(FSolverReal DeltaTime);
 			void Reset(const FDeformableSolverProperties&);
 			void TickSimulation(FSolverReal DeltaTime);
 			void UpdateOutputState(FThreadingProxy&);
@@ -50,24 +51,25 @@ namespace Chaos::Softs
 			void InitializeSimulationObjects();
 			void InitializeSimulationObject(FThreadingProxy&);
 			void InitializeCollisionBodies();
-			void InitializeKinematicState(FThreadingProxy&);
+			void InitializeKinematicConstraint();
 			void InitializeSelfCollisionVariables();
+			void RemoveSimulationObjects();
 
 			/*IO Utility*/
 			void WriteTrisGEO(const Softs::FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
 			void WriteFrame(FThreadingProxy& , const FSolverReal DeltaTime);
 
-			const FDeformableSolverProperties& GetProperties() const { return Solver.GetProperties(); }
+			const FDeformableSolverProperties& GetProperties() const { return Solver->GetProperties(); }
 
-			FPBDEvolution* GetEvolution() { return Solver.Evolution.Get(); }
-			const FPBDEvolution* GetEvolution() const { return Solver.Evolution.Get(); }
+			FPBDEvolution* GetEvolution() { return Solver->Evolution.Get(); }
+			const FPBDEvolution* GetEvolution() const { return Solver->Evolution.Get(); }
 
-			TArrayCollectionArray<const UObject*>& GetObjectsMap() { return Solver.MObjects; }
-			const TArrayCollectionArray<const UObject*>& GetObjectsMap() const { return Solver.MObjects; }
+			TArrayCollectionArray<const UObject*>& GetObjectsMap() { return Solver->MObjects; }
+			const TArrayCollectionArray<const UObject*>& GetObjectsMap() const { return Solver->MObjects; }
 
 
 		private:
-			FDeformableSolver& Solver;
+			FDeformableSolver* Solver;
 		};
 
 
@@ -75,17 +77,19 @@ namespace Chaos::Softs
 		class CHAOS_API FGameThreadAccess
 		{
 		public:
-			FGameThreadAccess(FDeformableSolver& InSolver, const FGameThreadAccessor&) : Solver(InSolver) {}
+			FGameThreadAccess(FDeformableSolver* InSolver, const FGameThreadAccessor&) : Solver(InSolver) {}
+			bool operator()() { return Solver != nullptr; }
 
-			int32 GetFrame() const { return Solver.GetFrame(); }
-			void AddProxy(TUniquePtr<FThreadingProxy> InObject);
-
+			int32 GetFrame() const { return Solver->GetFrame(); }
+			bool HasObject(UObject* InObject) const;
+			void AddProxy(FThreadingProxy* InObject);
+			void RemoveProxy(FThreadingProxy* InObject);
 			void PushInputPackage(int32 Frame, FDeformableDataMap&& InPackage);
 
 			TUniquePtr<FDeformablePackage> PullOutputPackage();
 
 		private:
-			FDeformableSolver& Solver;
+			FDeformableSolver* Solver;
 		};
 
 	protected:
@@ -93,7 +97,8 @@ namespace Chaos::Softs
 		/* Simulation Advance */
 		int32 GetFrame() const { return Frame; }
 		void UpdateProxyInputPackages();
-		bool Advance(FSolverReal DeltaTime);
+		void Simulate(FSolverReal DeltaTime);
+		bool AdvanceDt(FSolverReal DeltaTime);
 		void Reset(const FDeformableSolverProperties&);
 		void TickSimulation(FSolverReal DeltaTime);
 		void UpdateOutputState(FThreadingProxy&);
@@ -103,17 +108,25 @@ namespace Chaos::Softs
 		/* Iteration Advance */
 		void InitializeSimulationObjects();
 		void InitializeSimulationObject(FThreadingProxy&);
+		void InitializeDeformableParticles(FFleshThreadingProxy&);
+		void InitializeKinematicParticles(FFleshThreadingProxy&);
+		void InitializeTetrahedralConstraint(FFleshThreadingProxy&);
+		void InitializeGidBasedConstraints(FFleshThreadingProxy&);
+		void InitializeKinematicConstraint();
 		void InitializeCollisionBodies();
-		void InitializeKinematicState(FThreadingProxy&);
 		void InitializeSelfCollisionVariables();
 		void InitializeGridBasedConstraintVariables();
+		void RemoveSimulationObjects();
+
 
 		/*IO Utility*/
 		void WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
 		void WriteFrame(FThreadingProxy&, const FSolverReal DeltaTime);
 
 		/*Game Thread API*/
-		void AddProxy(TUniquePtr<FThreadingProxy> InObject);
+		bool HasObject(UObject* InObject) const { return InitializedObjects_External.Contains(InObject); }
+		void AddProxy(FThreadingProxy* InObject);
+		void RemoveProxy(FThreadingProxy* InObject);
 		TUniquePtr<FDeformablePackage> PullOutputPackage();
 		void PushInputPackage(int32 Frame, FDeformableDataMap&& InPackage);
 
@@ -122,14 +135,20 @@ namespace Chaos::Softs
 	private:
 
 		// connections outside the solver.
+		static FCriticalSection	InitializationMutex; // @todo(flesh) : change to threaded commands to prevent the lock. 
+		static FCriticalSection	RemovalMutex; // @todo(flesh) : change to threaded commands to prevent the lock. 
 		static FCriticalSection	PackageOutputMutex;
 		static FCriticalSection	PackageInputMutex;
-		TArray< TUniquePtr<FThreadingProxy> > UninitializedProxys;
-		TMap< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > Proxies;
+		TArray< FThreadingProxy* > RemovedProxys_External;
+		TArray< TUniquePtr<FThreadingProxy> > UninitializedProxys_External;
 		TArray< TUniquePtr<FDeformablePackage>  > BufferedInputPackages;
 		TArray< TUniquePtr<FDeformablePackage>  > BufferedOutputPackages;
 		TUniquePtr < FDeformablePackage > CurrentInputPackage;
 		TUniquePtr < FDeformablePackage > PreviousInputPackage;
+
+		TSet< const UObject* > InitializedObjects_External;
+		TMap< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > Proxies;
+
 
 		// User Configuration
 		FDeformableSolverProperties Property;

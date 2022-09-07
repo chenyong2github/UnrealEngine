@@ -35,86 +35,130 @@ namespace Chaos::Softs
 {
 	void FDeformableSolver::FPhysicsThreadAccess::Reset(const FDeformableSolverProperties& InProps)
 	{
-		Solver.Reset(InProps);
+		if(Solver) 
+			Solver->Reset(InProps);
 	}
 
-	bool FDeformableSolver::FPhysicsThreadAccess::Advance(FSolverReal DeltaTime)
+	bool FDeformableSolver::FPhysicsThreadAccess::AdvanceDt(FSolverReal DeltaTime)
 	{
-		return Solver.Advance(DeltaTime);
+		if (Solver)
+			return Solver->AdvanceDt(DeltaTime);
+		return false;
+	}
+
+	void FDeformableSolver::FPhysicsThreadAccess::Simulate(FSolverReal DeltaTime)
+	{
+		if(Solver) 
+			Solver->Simulate(DeltaTime);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::InitializeSimulationObjects()
 	{
-		Solver.InitializeSimulationObjects();
+		if(Solver) 
+			Solver->InitializeSimulationObjects();
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::InitializeSimulationObject(FThreadingProxy& InProxy)
 	{
-		Solver.InitializeSimulationObject(InProxy);
+		if(Solver) 
+			Solver->InitializeSimulationObject(InProxy);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::InitializeCollisionBodies()
 	{
-		return Solver.InitializeCollisionBodies();
+		if (Solver)
+			Solver->InitializeCollisionBodies();
 	}
 
-	void FDeformableSolver::FPhysicsThreadAccess::InitializeKinematicState(FThreadingProxy& InProxy)
+	void FDeformableSolver::FPhysicsThreadAccess::InitializeKinematicConstraint()
 	{
-		Solver.InitializeKinematicState(InProxy);
+		if(Solver) Solver->InitializeKinematicConstraint();
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::InitializeSelfCollisionVariables()
 	{
-		Solver.InitializeSelfCollisionVariables();
+		if(Solver) 
+			Solver->InitializeSelfCollisionVariables();
+	}
+
+	bool FDeformableSolver::FGameThreadAccess::HasObject(UObject* InObject) const
+	{
+		if (Solver)
+			return Solver->HasObject(InObject);
+		return false;
 	}
 
 	void FDeformableSolver::FGameThreadAccess::PushInputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
 	{
-		Solver.PushInputPackage(InFrame, MoveTemp(InPackage));
+		if(Solver) 
+			Solver->PushInputPackage(InFrame, MoveTemp(InPackage));
 	}
 
 	TUniquePtr<FDeformablePackage> FDeformableSolver::FPhysicsThreadAccess::PullInputPackage()
 	{
-		return Solver.PullInputPackage();
+		if (Solver)
+			return Solver->PullInputPackage();
+		return TUniquePtr<FDeformablePackage>(nullptr);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::UpdateProxyInputPackages()
 	{
-		return Solver.UpdateProxyInputPackages();
+		if (Solver)
+			Solver->UpdateProxyInputPackages();
+	}
+
+	void FDeformableSolver::FPhysicsThreadAccess::RemoveSimulationObjects()
+	{
+		if(Solver) 
+			Solver->RemoveSimulationObjects();
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::TickSimulation(FSolverReal DeltaTime)
 	{
-		Solver.TickSimulation(DeltaTime);
+		if(Solver)
+			Solver->TickSimulation(DeltaTime);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::PushOutputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
 	{
-		Solver.PushOutputPackage(InFrame, MoveTemp(InPackage));
+		if(Solver)
+			Solver->PushOutputPackage(InFrame, MoveTemp(InPackage));
 	}
 
 	TUniquePtr<FDeformablePackage>  FDeformableSolver::FGameThreadAccess::PullOutputPackage()
 	{
-		return Solver.PullOutputPackage();
+		if (Solver)
+			return  Solver->PullOutputPackage();
+		return TUniquePtr<FDeformablePackage>(nullptr);
 	}
 
-	void  FDeformableSolver::FGameThreadAccess::AddProxy(TUniquePtr<FThreadingProxy> InObject)
+	void  FDeformableSolver::FGameThreadAccess::AddProxy(FThreadingProxy* InObject)
 	{
-		return Solver.AddProxy(TUniquePtr<FThreadingProxy>(InObject.Release()));
+		if (Solver)
+			Solver->AddProxy(InObject);
+	}
+
+	void  FDeformableSolver::FGameThreadAccess::RemoveProxy(FThreadingProxy* InObject)
+	{
+		if(Solver) 
+			Solver->RemoveProxy(InObject);
 	}
 
 	void  FDeformableSolver::FPhysicsThreadAccess::UpdateOutputState(FThreadingProxy& InProxy)
 	{
-		Solver.UpdateOutputState(InProxy);
+		if(Solver) 
+			Solver->UpdateOutputState(InProxy);
 	}
 
 	void  FDeformableSolver::FPhysicsThreadAccess::WriteFrame(FThreadingProxy& InProxy, const FSolverReal DeltaTime)
 	{
-		Solver.WriteFrame(InProxy, DeltaTime);
+		if(Solver) 
+			Solver->WriteFrame(InProxy, DeltaTime);
 	}
 
 	void  FDeformableSolver::FPhysicsThreadAccess::WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh)
 	{
-		Solver.WriteTrisGEO(Particles, Mesh);
+		if(Solver) 
+			Solver->WriteTrisGEO(Particles, Mesh);
 	}
 }; // Namespace Chaos::Softs
