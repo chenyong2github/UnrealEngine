@@ -166,15 +166,14 @@ FAnimationViewportClient::~FAnimationViewportClient()
 {
 	CameraController = CachedDefaultCameraController;
 
+	// Unregistering the callbacks is mandatory, else we get random crashes
 	if (PreviewScenePtr.IsValid())
 	{
-		TSharedPtr<IPersonaPreviewScene> ScenePtr = PreviewScenePtr.Pin();
-
-		ScenePtr->UnregisterOnPreviewMeshChanged(this);
-		ScenePtr->UnregisterOnInvalidateViews(this);
-		ScenePtr->UnregisterOnCameraOverrideChanged(this);
-		ScenePtr->UnregisterOnPreTick(this);
-		ScenePtr->UnregisterOnPostTick(this);
+		PreviewScenePtr->UnregisterOnPreviewMeshChanged(this);
+		PreviewScenePtr->UnregisterOnInvalidateViews(this);
+		PreviewScenePtr->UnregisterOnCameraOverrideChanged(this);
+		PreviewScenePtr->UnregisterOnPreTick(this);
+		PreviewScenePtr->UnregisterOnPostTick(this);
 
 		if (UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent())
 		{

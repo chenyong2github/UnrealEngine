@@ -286,7 +286,7 @@ public:
 	EAnimationPlaybackSpeeds::Type GetPlaybackSpeedMode() const;
 
 	/** Get the preview scene we are viewing */
-	TSharedRef<class IPersonaPreviewScene> GetPreviewScene() const { return PreviewScenePtr.Pin().ToSharedRef(); }
+	TSharedRef<class IPersonaPreviewScene> GetPreviewScene() const { return PreviewScenePtr.ToSharedRef(); }
 
 	/** Get the asset editor we are embedded in */
 	TSharedRef<class FAssetEditorToolkit> GetAssetEditorToolkit() const { return AssetEditorToolkitPtr.Pin().ToSharedRef(); }
@@ -328,8 +328,13 @@ public:
 	FOnGetBoneSize OnGetBoneSize;
 
 private:
-	/** Weak pointer back to the preview scene we are viewing */
-	TWeakPtr<class IPersonaPreviewScene> PreviewScenePtr;
+	/** Shared pointer back to the preview scene we are viewing 
+	* Workaround fix for FORT-495476, UE-159733, UE-160424, UE-145060
+	* We hold a shared because if the PreviewScene gets destroyed before we reach
+	* this class destructor, we can not unregister the callbacks from this class
+	* and we get crashes when any of the callbacks is triggered afterwards
+	*/
+	TSharedPtr<class IPersonaPreviewScene> PreviewScenePtr;
 
 	/** Weak pointer back to asset editor we are embedded in */
 	TWeakPtr<class FAssetEditorToolkit> AssetEditorToolkitPtr;
