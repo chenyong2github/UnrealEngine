@@ -212,7 +212,7 @@ private:
 	// Called when the inspector has changed a value.
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	void OnDataTypeChanged(FName InTypeName);
+	void OnDataTypeChanged();
 	
 private:
 	// Persona toolkit for the skelmesh preview

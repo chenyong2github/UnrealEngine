@@ -57,8 +57,6 @@ FOptimusEditor::FOptimusEditor()
 
 FOptimusEditor::~FOptimusEditor()
 {
-	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().RemoveAll(this);
-	
 	if (DeformerObject)
 	{
 		DeformerObject->GetCompileBeginDelegate().RemoveAll(this);
@@ -177,8 +175,6 @@ void FOptimusEditor::Construct(
 	{
 		HandlePreviewMeshChanged(nullptr, PersonaToolkit->GetPreviewMesh());
 	}
-
-	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().AddSP(this, &FOptimusEditor::OnDataTypeChanged);
 }
 
 
@@ -1088,7 +1084,10 @@ void FOptimusEditor::OnDeformerModified(
 	case EOptimusGlobalNotifyType::NodeTypeRemoved: 
 		RefreshEvent.Broadcast();
 		break;
-		
+
+	case EOptimusGlobalNotifyType::DataTypeChanged:
+		OnDataTypeChanged();
+		break;
 
 	case EOptimusGlobalNotifyType::GraphRemoved: 
 	{
@@ -1144,7 +1143,7 @@ void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& P
 	}
 }
 
-void FOptimusEditor::OnDataTypeChanged(FName InTypeName)
+void FOptimusEditor::OnDataTypeChanged()
 {
 	if (PropertyDetailsWidget)
 	{

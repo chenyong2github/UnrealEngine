@@ -1806,6 +1806,9 @@ void UOptimusDeformer::OnDataTypeChanged(FName InTypeName)
 	}
 
 	//TODO: Recreate variables/Resources that uses this type
+
+	// Once we updated the deformer instance, we need to make sure the editor is aware as well
+	Notify(EOptimusGlobalNotifyType::DataTypeChanged, nullptr);
 }
 
 template<typename Allocator>

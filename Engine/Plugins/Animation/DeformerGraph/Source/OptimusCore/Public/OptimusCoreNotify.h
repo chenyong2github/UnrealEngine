@@ -39,6 +39,8 @@ enum class EOptimusGlobalNotifyType
 									
 	NodeTypeAdded,					/// A new node type has been added (Subject == UClass)
 	NodeTypeRemoved,				/// A node type is about to be removed (Subject == UClass)
+
+	DataTypeChanged,				/// A user defined struct type is changed (Subject == nullptr)
 };
 
 // A delegate for subscribing / reacting to Optimus global notifications.
