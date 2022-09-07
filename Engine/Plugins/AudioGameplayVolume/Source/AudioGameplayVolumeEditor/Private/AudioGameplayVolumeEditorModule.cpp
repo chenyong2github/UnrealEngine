@@ -3,6 +3,7 @@
 #include "AudioGameplayVolumeEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 #include "ToolMenus.h"
 #include "DetailCustomizations/ReverbVolumeComponentDetail.h"
 

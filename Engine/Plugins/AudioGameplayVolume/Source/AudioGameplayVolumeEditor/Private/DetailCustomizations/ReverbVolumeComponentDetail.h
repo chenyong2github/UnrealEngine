@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IDetailCustomization.h"
+#include "UObject/ObjectPtr.h"
 
 struct FAssetData;
 class UReverbVolumeComponent;
