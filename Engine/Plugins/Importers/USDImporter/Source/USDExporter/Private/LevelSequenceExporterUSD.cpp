@@ -2,6 +2,7 @@
 
 #include "LevelSequenceExporterUSD.h"
 
+#include "LevelExporterUSDOptions.h"
 #include "LevelSequenceExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
@@ -58,96 +59,32 @@ namespace UE
 				const FString& Extension
 			)
 			{
-				if ( !LevelSequence || ExportedStages.Num() == 0 )
+				if ( !LevelSequence || ExportedStages.Num() == 0 || !FEngineAnalytics::IsAvailable() )
 				{
 					return;
 				}
 
-				if ( FEngineAnalytics::IsAvailable() )
+				FString ClassName = LevelSequence->GetClass()->GetName();
+
+				TArray<FAnalyticsEventAttribute> EventAttributes;
+				EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+				EventAttributes.Emplace( TEXT( "NumExportedLevelSequenceLayers" ), ExportedStages.Num() );
+
+				int32 NumFrames = 0;
+				if ( Options )
 				{
-					FString ClassName = LevelSequence->GetClass()->GetName();
-
-					TArray<FAnalyticsEventAttribute> EventAttributes;
-
-					EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
-
-					if ( Options )
-					{
-						// Stage options
-						EventAttributes.Emplace( TEXT( "MetersPerUnit" ), LexToString( Options->StageOptions.MetersPerUnit ) );
-						EventAttributes.Emplace( TEXT( "UpAxis" ), Options->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
-
-						// LevelSequence options
-						EventAttributes.Emplace( TEXT( "TimeCodesPerSecond" ), LexToString( Options->TimeCodesPerSecond ) );
-						EventAttributes.Emplace( TEXT( "OverrideExportRange" ), Options->bOverrideExportRange );
-						if( Options->bOverrideExportRange )
-						{
-							EventAttributes.Emplace( TEXT( "StartFrame" ), LexToString( Options->StartFrame ) );
-							EventAttributes.Emplace( TEXT( "EndFrame" ), LexToString( Options->EndFrame ) );
-						}
-						EventAttributes.Emplace( TEXT( "ExportSubsequencesAsLayers" ), Options->bExportSubsequencesAsLayers );
-						EventAttributes.Emplace( TEXT( "ExportLevel" ), Options->bExportLevel );
-						if( Options->bExportLevel )
-						{
-							EventAttributes.Emplace( TEXT( "UseExportedLevelAsSublayer" ), Options->bUseExportedLevelAsSublayer );
-						}
-						EventAttributes.Emplace( TEXT( "NumExportedLevelSequenceLayers" ), ExportedStages.Num() );
-
-						if( Options->bExportLevel )
-						{
-							// Level options
-							EventAttributes.Emplace( TEXT( "SelectionOnly" ), Options->LevelExportOptions.bSelectionOnly );
-							EventAttributes.Emplace( TEXT( "ExportActorFolders" ), Options->LevelExportOptions.bExportActorFolders );
-							EventAttributes.Emplace( TEXT( "IgnoreSequencerAnimations" ), Options->LevelExportOptions.bIgnoreSequencerAnimations );
-							EventAttributes.Emplace( TEXT( "ExportFoliageOnActorsLayer" ), Options->LevelExportOptions.bExportFoliageOnActorsLayer );
-							EventAttributes.Emplace( TEXT( "LowestLandscapeLOD" ), LexToString( Options->LevelExportOptions.LowestLandscapeLOD ) );
-							EventAttributes.Emplace( TEXT( "HighestLandscapeLOD" ), LexToString( Options->LevelExportOptions.HighestLandscapeLOD ) );
-							EventAttributes.Emplace( TEXT( "LandscapeBakeResolution" ), Options->LevelExportOptions.LandscapeBakeResolution.ToString() );
-							EventAttributes.Emplace( TEXT( "ExportSublayers" ), LexToString( Options->LevelExportOptions.bExportSublayers ) );
-							EventAttributes.Emplace( TEXT( "NumLevelsToIgnore" ), LexToString( Options->LevelExportOptions.LevelsToIgnore.Num() ) );
-						}
-
-						// Asset options
-						EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->LevelExportOptions.AssetOptions.bUsePayload ) );
-						if( Options->LevelExportOptions.AssetOptions.bUsePayload )
-						{
-							EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->LevelExportOptions.AssetOptions.PayloadFormat );
-						}
-						EventAttributes.Emplace( TEXT( "BakeMaterials" ), Options->LevelExportOptions.AssetOptions.bBakeMaterials );
-						EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->LevelExportOptions.AssetOptions.LowestMeshLOD ) );
-						EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->LevelExportOptions.AssetOptions.HighestMeshLOD ) );
-
-						// Material baking options
-						if( Options->LevelExportOptions.AssetOptions.bBakeMaterials )
-						{
-							FString BakedPropertiesString;
-							{
-								const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
-								for ( const FPropertyEntry& PropertyEntry : Options->LevelExportOptions.AssetOptions.MaterialBakingOptions.Properties )
-								{
-									FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
-									PropertyString.RemoveFromStart( TEXT( "MP_" ) );
-									BakedPropertiesString += PropertyString + TEXT( ", " );
-								}
-
-								BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
-							}
-
-							EventAttributes.Emplace( TEXT( "RemoveUnrealMaterials" ), Options->LevelExportOptions.AssetOptions.bRemoveUnrealMaterials );
-							EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
-							EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options->LevelExportOptions.AssetOptions.MaterialBakingOptions.DefaultTextureSize.ToString() );
-						}
-
-						IUsdClassesModule::SendAnalytics(
-							MoveTemp( EventAttributes ),
-							FString::Printf( TEXT( "Export.%s" ), *ClassName ),
-							bAutomated,
-							ElapsedSeconds,
-							( Options->EndFrame - Options->StartFrame ),
-							Extension
-						);
-					}
+					NumFrames = Options->EndFrame - Options->StartFrame;
+					UsdUtils::AddAnalyticsAttributes( *Options, EventAttributes );
 				}
+
+				IUsdClassesModule::SendAnalytics(
+					MoveTemp( EventAttributes ),
+					FString::Printf( TEXT( "Export.%s" ), *ClassName ),
+					bAutomated,
+					ElapsedSeconds,
+					NumFrames,
+					Extension
+				);
 			}
 
 #if USE_USD_SDK

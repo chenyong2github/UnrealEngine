@@ -3,6 +3,7 @@
 #include "USDConversionBlueprintLibrary.h"
 
 #include "LevelExporterUSD.h"
+#include "LevelExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
@@ -461,6 +462,25 @@ TArray<FTransform> UUsdConversionBlueprintLibrary::GetInstanceTransforms( AInsta
 	}
 
 	return Result;
+}
+
+TArray<FAnalyticsEventAttr> UUsdConversionBlueprintLibrary::GetAnalyticsAttributes( const ULevelExporterUSDOptions* Options )
+{
+	TArray<FAnalyticsEventAttr> Attrs;
+	if ( Options )
+	{
+		TArray<FAnalyticsEventAttribute> Attributes;
+		UsdUtils::AddAnalyticsAttributes( *Options, Attributes );
+
+		Attrs.Reserve( Attributes.Num() );
+		for(const FAnalyticsEventAttribute& Attribute : Attributes )
+		{
+			FAnalyticsEventAttr& NewAttr = Attrs.Emplace_GetRef();
+			NewAttr.Name = Attribute.GetName();
+			NewAttr.Value = Attribute.GetValue();
+		}
+	}
+	return Attrs;
 }
 
 void UUsdConversionBlueprintLibrary::SendAnalytics( const TArray<FAnalyticsEventAttr>& Attrs, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )

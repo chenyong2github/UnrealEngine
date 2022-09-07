@@ -12,6 +12,8 @@
 
 #include "LevelExporterUSDOptions.generated.h"
 
+struct FAnalyticsEventAttribute;
+
 USTRUCT( BlueprintType )
 struct USDEXPORTER_API FLevelExporterUSDOptionsInner
 {
@@ -118,10 +120,17 @@ public:
 
 private:
 	UFUNCTION()
-	static TArray<FString> GetUsdExtensions()
-	{
-		TArray<FString> Extensions = UnrealUSDWrapper::GetNativeFileFormats();
-		Extensions.Remove( TEXT( "usdz" ) );
-		return Extensions;
-	}
+	static TArray<FString> GetUsdExtensions();
 };
+
+namespace UsdUtils
+{
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const FLevelExporterUSDOptionsInner& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const ULevelExporterUSDOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+}

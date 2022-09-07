@@ -10,6 +10,8 @@
 
 #include "LevelSequenceExporterUSDOptions.generated.h"
 
+struct FAnalyticsEventAttribute;
+
 /**
  * Options for level sequences to the USD format.
  */
@@ -83,3 +85,11 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Level Export", meta = ( EditCondition = "bExportLevel" ) )
 	FLevelExporterUSDOptionsInner LevelExportOptions;
 };
+
+namespace UsdUtils
+{
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const ULevelSequenceExporterUsdOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+}

@@ -25,69 +25,40 @@
 #include "AssetExportTask.h"
 #include "UObject/GCObjectScopeGuard.h"
 
-namespace UE
+namespace UE::AnimSequenceExporterUSD::Private
 {
-	namespace AnimSequenceExporterUSD
+	void SendAnalytics(
+		UObject* Asset,
+		UAnimSequenceExporterUSDOptions* Options,
+		bool bAutomated,
+		double ElapsedSeconds,
+		double NumberOfFrames,
+		const FString& Extension
+	)
 	{
-		namespace Private
+		if ( !Asset || !FEngineAnalytics::IsAvailable() )
 		{
-			void SendAnalytics( UObject* Asset, UAnimSequenceExporterUSDOptions* Options, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
-			{
-				if ( !Asset )
-				{
-					return;
-				}
-
-				if ( FEngineAnalytics::IsAvailable() )
-				{
-					FString ClassName = Asset->GetClass()->GetName();
-
-					TArray<FAnalyticsEventAttribute> EventAttributes;
-
-					EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
-
-					if ( Options )
-					{
-						EventAttributes.Emplace( TEXT( "MetersPerUnit" ), LexToString( Options->StageOptions.MetersPerUnit ) );
-						EventAttributes.Emplace( TEXT( "UpAxis" ), Options->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
-
-						EventAttributes.Emplace( TEXT( "ExportPreviewMesh" ), LexToString( Options->bExportPreviewMesh ) );
-						if ( Options->bExportPreviewMesh )
-						{
-							EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->PreviewMeshOptions.bUsePayload ) );
-							if ( Options->PreviewMeshOptions.bUsePayload )
-							{
-								EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->PreviewMeshOptions.PayloadFormat );
-							}
-							EventAttributes.Emplace( TEXT( "BakeMaterials" ), Options->PreviewMeshOptions.bBakeMaterials );
-							if ( Options->PreviewMeshOptions.bBakeMaterials )
-							{
-								FString BakedPropertiesString;
-								{
-									const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
-									for ( const FPropertyEntry& PropertyEntry : Options->PreviewMeshOptions.MaterialBakingOptions.Properties )
-									{
-										FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
-										PropertyString.RemoveFromStart( TEXT( "MP_" ) );
-										BakedPropertiesString += PropertyString + TEXT( ", " );
-									}
-
-									BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
-								}
-
-								EventAttributes.Emplace( TEXT( "RemoveUnrealMaterials" ), Options->PreviewMeshOptions.bRemoveUnrealMaterials );
-								EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
-								EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options->PreviewMeshOptions.MaterialBakingOptions.DefaultTextureSize.ToString() );
-							}
-							EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->PreviewMeshOptions.LowestMeshLOD ) );
-							EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->PreviewMeshOptions.HighestMeshLOD ) );
-						}
-					}
-
-					IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), FString::Printf( TEXT( "Export.%s" ), *ClassName ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
-				}
-			}
+			return;
 		}
+
+		FString ClassName = Asset->GetClass()->GetName();
+
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+
+		if ( Options )
+		{
+			UsdUtils::AddAnalyticsAttributes( *Options, EventAttributes );
+		}
+
+		IUsdClassesModule::SendAnalytics(
+			MoveTemp( EventAttributes ),
+			FString::Printf( TEXT( "Export.%s" ), *ClassName ),
+			bAutomated,
+			ElapsedSeconds,
+			NumberOfFrames,
+			Extension
+		);
 	}
 }
 

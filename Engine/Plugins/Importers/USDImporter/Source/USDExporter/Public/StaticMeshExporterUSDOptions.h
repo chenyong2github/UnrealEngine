@@ -9,6 +9,8 @@
 
 #include "StaticMeshExporterUSDOptions.generated.h"
 
+struct FAnalyticsEventAttribute;
+
 /**
  * Options for exporting static meshes to USD format.
  */
@@ -31,3 +33,11 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Collision", meta = ( DisplayName = "Re-export Identical Assets" ) )
 	bool bReExportIdenticalAssets = false;
 };
+
+namespace UsdUtils
+{
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const UStaticMeshExporterUSDOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+}

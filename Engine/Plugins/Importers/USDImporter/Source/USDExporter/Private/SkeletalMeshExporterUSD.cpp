@@ -22,64 +22,40 @@
 #include "AssetExportTask.h"
 #include "Engine/SkeletalMesh.h"
 
-namespace UE
+namespace UE::SkeletalMeshExporterUSD::Private
 {
-	namespace SkeletalMeshExporterUSD
+	void SendAnalytics(
+		UObject* Asset,
+		USkeletalMeshExporterUSDOptions* Options,
+		bool bAutomated,
+		double ElapsedSeconds,
+		double NumberOfFrames,
+		const FString& Extension
+	)
 	{
-		namespace Private
+		if ( !Asset || !FEngineAnalytics::IsAvailable() )
 		{
-			void SendAnalytics( UObject* Asset, USkeletalMeshExporterUSDOptions* Options, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
-			{
-				if ( !Asset )
-				{
-					return;
-				}
-
-				if ( FEngineAnalytics::IsAvailable() )
-				{
-					FString ClassName = Asset->GetClass()->GetName();
-
-					TArray<FAnalyticsEventAttribute> EventAttributes;
-
-					EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
-
-					if ( Options )
-					{
-						EventAttributes.Emplace( TEXT( "MetersPerUnit" ), LexToString( Options->StageOptions.MetersPerUnit ) );
-						EventAttributes.Emplace( TEXT( "UpAxis" ), Options->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
-						EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->MeshAssetOptions.bUsePayload ) );
-						if ( Options->MeshAssetOptions.bUsePayload )
-						{
-							EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->MeshAssetOptions.PayloadFormat );
-						}
-						EventAttributes.Emplace( TEXT( "BakeMaterials" ), Options->MeshAssetOptions.bBakeMaterials );
-						if ( Options->MeshAssetOptions.bBakeMaterials )
-						{
-							FString BakedPropertiesString;
-							{
-								const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
-								for ( const FPropertyEntry& PropertyEntry : Options->MeshAssetOptions.MaterialBakingOptions.Properties )
-								{
-									FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
-									PropertyString.RemoveFromStart( TEXT( "MP_" ) );
-									BakedPropertiesString += PropertyString + TEXT( ", " );
-								}
-
-								BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
-							}
-
-							EventAttributes.Emplace( TEXT( "RemoveUnrealMaterials" ), Options->MeshAssetOptions.bRemoveUnrealMaterials );
-							EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
-							EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options->MeshAssetOptions.MaterialBakingOptions.DefaultTextureSize.ToString() );
-						}
-						EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->MeshAssetOptions.LowestMeshLOD ) );
-						EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->MeshAssetOptions.HighestMeshLOD ) );
-					}
-
-					IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), FString::Printf( TEXT( "Export.%s" ), *ClassName ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
-				}
-			}
+			return;
 		}
+
+		FString ClassName = Asset->GetClass()->GetName();
+
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+
+		if ( Options )
+		{
+			UsdUtils::AddAnalyticsAttributes( *Options, EventAttributes );
+		}
+
+		IUsdClassesModule::SendAnalytics(
+			MoveTemp( EventAttributes ),
+			FString::Printf( TEXT( "Export.%s" ), *ClassName ),
+			bAutomated,
+			ElapsedSeconds,
+			NumberOfFrames,
+			Extension
+		);
 	}
 }
 
@@ -228,7 +204,8 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 								Options->MeshAssetOptions.bUsePayload,
 								Options->MeshAssetOptions.bRemoveUnrealMaterials,
 								ExportTask->bReplaceIdentical,
-								Options->bReExportIdenticalAssets
+								Options->bReExportIdenticalAssets,
+								ExportTask->bAutomated
 							);
 							TempStage.GetRootLayer().Save();
 						}
@@ -328,7 +305,8 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 			Options->MeshAssetOptions.bUsePayload,
 			Options->MeshAssetOptions.bRemoveUnrealMaterials,
 			ExportTask->bReplaceIdentical,
-			Options->bReExportIdenticalAssets
+			Options->bReExportIdenticalAssets,
+			ExportTask->bAutomated
 		);
 	}
 

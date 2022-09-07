@@ -35,6 +35,8 @@
 #include "EngineAnalytics.h"
 #include "EngineUtils.h"
 #include "GeometryCache.h"
+#include "GroomAsset.h"
+#include "GroomCache.h"
 #include "HAL/FileManager.h"
 #include "IAssetTools.h"
 #include "LevelSequence.h"
@@ -1300,7 +1302,13 @@ namespace UsdStageImporterImpl
 		}
 	}
 
-	void SendAnalytics( FUsdStageImportContext& ImportContext, UObject* Asset, const FString& Operation, const TSet<UObject*>& ImportedAssets, double ElapsedSeconds )
+	void SendAnalytics(
+		FUsdStageImportContext& ImportContext,
+		UObject* Asset,
+		const FString& Operation,
+		const TSet<UObject*>& ImportedAssets,
+		double ElapsedSeconds
+	)
 	{
 #if USE_USD_SDK
 		if ( FEngineAnalytics::IsAvailable() )
@@ -1319,29 +1327,7 @@ namespace UsdStageImporterImpl
 
 			if ( ImportContext.ImportOptions )
 			{
-				EventAttributes.Emplace( TEXT( "ImportActors" ), LexToString( ImportContext.ImportOptions->bImportActors ) );
-				EventAttributes.Emplace( TEXT( "ImportGeometry" ), LexToString( ImportContext.ImportOptions->bImportGeometry ) );
-				EventAttributes.Emplace( TEXT( "ImportSkeletalAnimations" ), LexToString( ImportContext.ImportOptions->bImportSkeletalAnimations ) );
-				EventAttributes.Emplace( TEXT( "ImportLevelSequences" ), LexToString( ImportContext.ImportOptions->bImportLevelSequences ) );
-				EventAttributes.Emplace( TEXT( "ImportMaterials" ), LexToString( ImportContext.ImportOptions->bImportMaterials ) );
-				EventAttributes.Emplace( TEXT( "PurposesToImport" ), LexToString( ImportContext.ImportOptions->PurposesToImport ) );
-				EventAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( ImportContext.ImportOptions->NaniteTriangleThreshold ) );
-				EventAttributes.Emplace( TEXT( "RenderContextToImport" ), ImportContext.ImportOptions->RenderContextToImport.ToString() );
-				EventAttributes.Emplace( TEXT( "MaterialPurpose" ), ImportContext.ImportOptions->MaterialPurpose.ToString() );
-				EventAttributes.Emplace( TEXT( "RootMotionHandling" ), LexToString( ( uint8 ) ImportContext.ImportOptions->RootMotionHandling ) );
-				EventAttributes.Emplace( TEXT( "OverrideStageOptions" ), ImportContext.ImportOptions->bOverrideStageOptions );
-				if( ImportContext.ImportOptions->bOverrideStageOptions )
-				{
-					EventAttributes.Emplace( TEXT( "MetersPerUnit" ), ImportContext.ImportOptions->StageOptions.MetersPerUnit );
-					EventAttributes.Emplace( TEXT( "UpAxis" ), ImportContext.ImportOptions->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
-				}
-				EventAttributes.Emplace( TEXT( "ReplaceActorPolicy" ), LexToString( (uint8)ImportContext.ImportOptions->ExistingActorPolicy ) );
-				EventAttributes.Emplace( TEXT( "ReplaceAssetPolicy" ), LexToString( (uint8)ImportContext.ImportOptions->ExistingAssetPolicy ) );
-				EventAttributes.Emplace( TEXT( "PrimPathFolderStructure" ), LexToString( ImportContext.ImportOptions->bPrimPathFolderStructure ) );
-				EventAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( ImportContext.ImportOptions->KindsToCollapse ) );
-				EventAttributes.Emplace( TEXT( "MergeIdenticalMaterialSlots" ), LexToString( ImportContext.ImportOptions->bMergeIdenticalMaterialSlots ) );
-				EventAttributes.Emplace( TEXT( "CollapseTopLevelPointInstancers" ), LexToString( ImportContext.ImportOptions->bCollapseTopLevelPointInstancers ) );
-				EventAttributes.Emplace( TEXT( "InterpretLODs" ), LexToString( ImportContext.ImportOptions->bInterpretLODs ) );
+				UsdUtils::AddAnalyticsAttributes( *ImportContext.ImportOptions, EventAttributes );
 			}
 
 			int32 NumStaticMeshes = 0;
@@ -1351,6 +1337,8 @@ namespace UsdStageImporterImpl
 			int32 NumLevelSequences = 0;
 			int32 NumTextures = 0;
 			int32 NumGeometryCaches = 0;
+			int32 NumGroomAssets = 0;
+			int32 NumGroomCaches = 0;
 			for ( UObject* ImportedAsset : ImportedAssets )
 			{
 				if ( !ImportedAsset )
@@ -1386,6 +1374,14 @@ namespace UsdStageImporterImpl
 				{
 					++NumGeometryCaches;
 				}
+				else if ( ImportedAsset->IsA<UGroomAsset>() )
+				{
+					++NumGroomAssets;
+				}
+				else if ( ImportedAsset->IsA<UGroomCache>() )
+				{
+					++NumGroomCaches;
+				}
 			}
 			EventAttributes.Emplace( TEXT( "NumStaticMeshes" ), LexToString( NumStaticMeshes ) );
 			EventAttributes.Emplace( TEXT( "NumSkeletalMeshes" ), LexToString( NumSkeletalMeshes ) );
@@ -1394,6 +1390,8 @@ namespace UsdStageImporterImpl
 			EventAttributes.Emplace( TEXT( "NumLevelSequences" ), LexToString( NumLevelSequences ) );
 			EventAttributes.Emplace( TEXT( "NumTextures" ), LexToString( NumTextures ) );
 			EventAttributes.Emplace( TEXT( "NumGeometryCaches" ), LexToString( NumGeometryCaches ) );
+			EventAttributes.Emplace( TEXT( "NumGroomAssets" ), LexToString( NumGroomAssets ) );
+			EventAttributes.Emplace( TEXT( "NumGroomCaches" ), LexToString( NumGroomCaches ) );
 
 			FString RootLayerIdentifier = ImportContext.FilePath;
 			if ( ImportContext.Stage )

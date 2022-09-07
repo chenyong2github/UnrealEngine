@@ -5,6 +5,7 @@
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 
+#include "AnalyticsEventAttribute.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
 
@@ -67,4 +68,38 @@ void UUsdStageImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent
 	{
 		SaveConfig();
 	}
+}
+
+void UsdUtils::AddAnalyticsAttributes(
+	const UUsdStageImportOptions& Options,
+	TArray< FAnalyticsEventAttribute >& InOutAttributes
+)
+{
+	InOutAttributes.Emplace( TEXT( "ImportActors" ), LexToString( Options.bImportActors ) );
+	InOutAttributes.Emplace( TEXT( "ImportGeometry" ), LexToString( Options.bImportGeometry ) );
+	InOutAttributes.Emplace( TEXT( "ImportSkeletalAnimations" ), LexToString( Options.bImportSkeletalAnimations ) );
+	InOutAttributes.Emplace( TEXT( "ImportLevelSequences" ), LexToString( Options.bImportLevelSequences ) );
+	InOutAttributes.Emplace( TEXT( "ImportMaterials" ), LexToString( Options.bImportMaterials ) );
+	if ( Options.PrimsToImport != TArray<FString>{ TEXT( "/" ) } )
+	{
+		InOutAttributes.Emplace( TEXT( "NumPrimsToImport" ), LexToString( Options.PrimsToImport.Num() ) );
+	}
+	InOutAttributes.Emplace( TEXT( "PurposesToImport" ), LexToString( Options.PurposesToImport ) );
+	InOutAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( Options.NaniteTriangleThreshold ) );
+	InOutAttributes.Emplace( TEXT( "RenderContextToImport" ), Options.RenderContextToImport.ToString() );
+	InOutAttributes.Emplace( TEXT( "MaterialPurpose" ), Options.MaterialPurpose.ToString() );
+	InOutAttributes.Emplace( TEXT( "RootMotionHandling" ), LexToString( ( uint8 ) Options.RootMotionHandling ) );
+	InOutAttributes.Emplace( TEXT( "OverrideStageOptions" ), Options.bOverrideStageOptions );
+	if ( Options.bOverrideStageOptions )
+	{
+		UsdUtils::AddAnalyticsAttributes( Options.StageOptions, InOutAttributes );
+	}
+	InOutAttributes.Emplace( TEXT( "NumGroomInterpolationSettings" ), LexToString( Options.GroomInterpolationSettings.Num() ) );
+	InOutAttributes.Emplace( TEXT( "ReplaceActorPolicy" ), LexToString( ( uint8 ) Options.ExistingActorPolicy ) );
+	InOutAttributes.Emplace( TEXT( "ReplaceAssetPolicy" ), LexToString( ( uint8 ) Options.ExistingAssetPolicy ) );
+	InOutAttributes.Emplace( TEXT( "PrimPathFolderStructure" ), LexToString( Options.bPrimPathFolderStructure ) );
+	InOutAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( Options.KindsToCollapse ) );
+	InOutAttributes.Emplace( TEXT( "MergeIdenticalMaterialSlots" ), LexToString( Options.bMergeIdenticalMaterialSlots ) );
+	InOutAttributes.Emplace( TEXT( "CollapseTopLevelPointInstancers" ), LexToString( Options.bCollapseTopLevelPointInstancers ) );
+	InOutAttributes.Emplace( TEXT( "InterpretLODs" ), LexToString( Options.bInterpretLODs ) );
 }

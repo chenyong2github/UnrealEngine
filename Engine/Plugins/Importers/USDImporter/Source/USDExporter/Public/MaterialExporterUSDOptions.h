@@ -8,6 +8,8 @@
 
 #include "MaterialExporterUSDOptions.generated.h"
 
+struct FAnalyticsEventAttribute;
+
 /**
  * Options for exporting materials to USD format.
  * We use a dedicated object instead of reusing the MaterialBaking module as automated export tasks
@@ -29,3 +31,11 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Collision", meta = ( DisplayName = "Re-export Identical Assets" ) )
 	bool bReExportIdenticalAssets = false;
 };
+
+namespace UsdUtils
+{
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const UMaterialExporterUSDOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+}

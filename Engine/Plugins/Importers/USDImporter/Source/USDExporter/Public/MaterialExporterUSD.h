@@ -30,6 +30,7 @@ public:
 	 * @param FilePath - Filepath of the destination file (e.g. "C:/MyFolder/Red.usda")
 	 * @param ReplaceIdentical - Whether to overwrite the destination file in case it already exists
 	 * @param bReExportIdenticalAssets - Whether to overwrite the destination file even if it already describes an up-to-date version of Material
+	 * @param bIsAutomated - Whether the export is being done by a script or not. Just used for analytics
 	 * @return Whether the export was successful or not.
 	 */
 	static bool ExportMaterial(
@@ -37,7 +38,8 @@ public:
 		const FUsdMaterialBakingOptions& Options,
 		const FFilePath& FilePath,
 		bool bReplaceIdentical = true,
-		bool bReExportIdenticalAssets = false
+		bool bReExportIdenticalAssets = false,
+		bool bIsAutomated = false
 	);
 
 	/**
@@ -55,6 +57,7 @@ public:
 	 *                                 Important because the `unrealMaterial` attributes will be used as a higher priority when determining material assignments
 	 * @param ReplaceIdentical - Whether to overwrite the destination files in case they already exist
 	 * @param bReExportIdenticalAssets - Whether to overwrite the destination files even if they already describe up-to-date versions of Materials
+	 * @param bIsAutomated - Whether the export is being done by a script or not. Just used for analytics
 	 * @return Whether the export was successful or not.
 	 */
 	static bool ExportMaterialsForStage(
@@ -65,6 +68,7 @@ public:
 		bool bUsePayload,
 		bool bRemoveUnrealMaterials,
 		bool bReplaceIdentical = true,
-		bool bReExportIdenticalAssets = false
+		bool bReExportIdenticalAssets = false,
+		bool bIsAutomated = false
 	);
 };

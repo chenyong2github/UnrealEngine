@@ -11,6 +11,7 @@
 class AInstancedFoliageActor;
 class UFoliageType;
 class ULevel;
+class ULevelExporterUSDOptions;
 
 /** Wrapped static conversion functions from the UsdUtilities module, so that they can be used via scripting */
 UCLASS(meta=(ScriptName="UsdConversionLibrary"))
@@ -112,6 +113,10 @@ public:
 	 */
 	UFUNCTION( BlueprintCallable, meta = ( ScriptMethod ), Category = "USD Foliage Exporter" )
 	static TArray<FTransform> GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel = nullptr );
+
+	/** Retrieves the analytics attributes to send for the provided options object */
+	UFUNCTION( BlueprintCallable, Category = "Analytics" )
+	static TArray<FAnalyticsEventAttr> GetAnalyticsAttributes( const ULevelExporterUSDOptions* Options );
 
 	/** Defer to the USDClasses module to actually send analytics information */
 	UFUNCTION( BlueprintCallable, Category = "Analytics" )

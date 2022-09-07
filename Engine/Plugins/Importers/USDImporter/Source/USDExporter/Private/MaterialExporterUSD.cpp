@@ -35,34 +35,35 @@
 
 namespace UE::MaterialExporterUSD::Private
 {
-	void SendAnalytics( const UMaterialInterface& Material, const FUsdMaterialBakingOptions& Options, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+	void SendAnalytics(
+		const UMaterialInterface& Material,
+		const FUsdMaterialBakingOptions& Options,
+		bool bAutomated,
+		double ElapsedSeconds,
+		double NumberOfFrames,
+		const FString& Extension
+	)
 	{
-		if ( FEngineAnalytics::IsAvailable() )
+		if ( !FEngineAnalytics::IsAvailable() )
 		{
-			FString ClassName = Material.GetClass()->GetName();
-
-			TArray<FAnalyticsEventAttribute> EventAttributes;
-
-			EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
-
-			FString BakedPropertiesString;
-			{
-				const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
-				for ( const FPropertyEntry& PropertyEntry : Options.Properties )
-				{
-					FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
-					PropertyString.RemoveFromStart( TEXT( "MP_" ) );
-					BakedPropertiesString += PropertyString + TEXT( ", " );
-				}
-
-				BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
-			}
-
-			EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
-			EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options.DefaultTextureSize.ToString() );
-
-			IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), FString::Printf( TEXT( "Export.%s" ), *ClassName ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+			return;
 		}
+
+		FString ClassName = Material.GetClass()->GetName();
+
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+
+		UsdUtils::AddAnalyticsAttributes( Options, EventAttributes );
+
+		IUsdClassesModule::SendAnalytics(
+			MoveTemp( EventAttributes ),
+			FString::Printf( TEXT( "Export.%s" ), *ClassName ),
+			bAutomated,
+			ElapsedSeconds,
+			NumberOfFrames,
+			Extension
+		);
 	}
 
 	FString GetMaterialHashString( const UMaterialInterface& Material )
@@ -248,7 +249,8 @@ bool UMaterialExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 		Options->MaterialBakingOptions,
 		FFilePath{ UExporter::CurrentFilename },
 		ExportTask->bReplaceIdentical,
-		Options->bReExportIdenticalAssets
+		Options->bReExportIdenticalAssets,
+		ExportTask->bAutomated
 	);
 #else
 	return false;
@@ -260,7 +262,8 @@ bool UMaterialExporterUsd::ExportMaterial(
 	const FUsdMaterialBakingOptions& Options,
 	const FFilePath& FilePath,
 	bool bReplaceIdentical,
-	bool bReExportIdenticalAssets
+	bool bReExportIdenticalAssets,
+	bool bIsAutomated
 )
 {
 #if USE_USD_SDK
@@ -357,12 +360,18 @@ bool UMaterialExporterUsd::ExportMaterial(
 
 	// Analytics
 	{
-		bool bAutomated = false;  // TODO: Can't properly fetch this yet as it would change the function signature
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		FString Extension = FPaths::GetExtension( FilePath.FilePath );
 		double NumberOfFrames = 1 + UsdStage.GetEndTimeCode() - UsdStage.GetStartTimeCode();
 
-		UE::MaterialExporterUSD::Private::SendAnalytics( Material, Options, bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+		UE::MaterialExporterUSD::Private::SendAnalytics(
+			Material,
+			Options,
+			bIsAutomated,
+			ElapsedSeconds,
+			NumberOfFrames,
+			Extension
+		);
 	}
 
 	return true;
@@ -379,7 +388,8 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 	bool bUsePayload,
 	bool bRemoveUnrealMaterials,
 	bool bReplaceIdentical,
-	bool bReExportIdenticalAssets
+	bool bReExportIdenticalAssets,
+	bool bIsAutomated
 )
 {
 #if USE_USD_SDK
@@ -438,7 +448,8 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 			Options,
 			FFilePath{ FinalPath },
 			bReplaceIdentical,
-			bReExportIdenticalAssets
+			bReExportIdenticalAssets,
+			bIsAutomated
 		))
 		{
 			UsedFilePathsWithoutExt.Add( FinalPathNoExt );

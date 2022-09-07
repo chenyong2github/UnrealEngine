@@ -8,6 +8,8 @@
 
 #include "USDAssetOptions.generated.h"
 
+struct FAnalyticsEventAttribute;
+
 USTRUCT( BlueprintType )
 struct USDEXPORTER_API FUsdMaterialBakingOptions
 {
@@ -58,3 +60,15 @@ struct USDEXPORTER_API FUsdMeshAssetOptions
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Mesh options", meta = ( ClampMin = "0" ) )
 	int32 HighestMeshLOD = MAX_MESH_LOD_COUNT - 1;
 };
+
+namespace UsdUtils
+{
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const FUsdMaterialBakingOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+	USDEXPORTER_API void AddAnalyticsAttributes(
+		const FUsdMeshAssetOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+}

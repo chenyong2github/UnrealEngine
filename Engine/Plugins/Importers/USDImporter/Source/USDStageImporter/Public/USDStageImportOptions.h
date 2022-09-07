@@ -13,6 +13,8 @@
 
 #include "USDStageImportOptions.generated.h"
 
+struct FAnalyticsEventAttribute;
+
 UENUM(BlueprintType)
 enum class EReplaceActorPolicy : uint8
 {
@@ -153,3 +155,11 @@ public:
 	void EnableActorImport(bool bEnable);
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 };
+
+namespace UsdUtils
+{
+	USDSTAGEIMPORTER_API void AddAnalyticsAttributes(
+		const UUsdStageImportOptions& Options,
+		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+}
