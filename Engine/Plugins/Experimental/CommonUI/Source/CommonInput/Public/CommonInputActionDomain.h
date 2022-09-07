@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Types/ISlateMetaData.h"
 #include "CommonInputModeTypes.h"
 
