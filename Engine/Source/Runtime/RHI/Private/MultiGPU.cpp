@@ -11,17 +11,9 @@
 uint32 GNumAlternateFrameRenderingGroups = 1;
 uint32 GNumExplicitGPUsForRendering = 1;
 uint32 GVirtualMGPU = 0;
-int32 GAllowMultiGPUInEditor = 0;
 #endif
 
 #if WITH_MGPU
-
-TAutoConsoleVariable<int32> CVarAllowMultiGPUInEditor(
-	TEXT("r.AllowMultiGPUInEditor"),
-	GAllowMultiGPUInEditor,
-	TEXT("Enable experimental multi-GPU support in editor"),
-	ECVF_ReadOnly
-);
 
 RHI_API TArray<FRHIGPUMask, TFixedAllocator<MAX_NUM_GPUS>> AFRUtils::GroupMasks;
 RHI_API TArray<FRHIGPUMask, TFixedAllocator<MAX_NUM_GPUS>> AFRUtils::SiblingMasks;

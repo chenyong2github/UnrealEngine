@@ -762,18 +762,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	GNumExplicitGPUsForRendering = 1;
 	if (Desc.NumDeviceNodes > 1)
 	{
-		// Can't access GAllowMultiGPUInEditor directly as its value is cached but hasn't been set by console manager due to module loading order
-		static IConsoleVariable* AllowMultiGPUInEditor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowMultiGPUInEditor"));
-
-		if (GIsEditor && AllowMultiGPUInEditor->GetInt() == 0)
-		{
-			UE_LOG(LogD3D12RHI, Log, TEXT("Multi-GPU is available, but skipping due to editor mode."));
-		}
-		else
-		{
-			GNumExplicitGPUsForRendering = Desc.NumDeviceNodes;
-			UE_LOG(LogD3D12RHI, Log, TEXT("Enabling multi-GPU with %d nodes"), Desc.NumDeviceNodes);
-		}
+		GNumExplicitGPUsForRendering = Desc.NumDeviceNodes;
+		UE_LOG(LogD3D12RHI, Log, TEXT("Enabling multi-GPU with %d nodes"), Desc.NumDeviceNodes);
 	}
 
 	// Viewport ignores AFR if PresentGPU is specified.

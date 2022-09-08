@@ -213,7 +213,7 @@ TAutoConsoleVariable<int32> CVarPathTracingMultiGPU(
 	TEXT("r.PathTracing.MultiGPU"),
 	0,
 	TEXT("Run the path tracer using all available GPUs when enabled (default = 0)\n")
-	TEXT("Using this functionality in the editor requires r.AllowMultiGPUInEditor=1"),
+	TEXT("Using this functionality in the editor requires -MaxGPUCount=N setting on the command line"),
 	ECVF_RenderThreadSafe
 );
 

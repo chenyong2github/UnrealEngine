@@ -125,11 +125,10 @@ void D3D12RHI::FD3DGPUProfiler::EndFrame(FD3D12DynamicRHI* InRHI)
 
 			// Only dump the event tree and generate the screenshot for the first GPU.  Eventually, we may want to collate
 			// profiling data for all GPUs into a single tree, but the short term goal is to make profiling in the editor
-			// functional at all with "r.AllowMultiGPUInEditor=1" and "-MaxGPUCount=2" (settings required to enable multiple
-			// GPUs for GPU Lightmass).  In the editor, we don't actually render anything on the additional GPUs, but the
-			// editor's profile visualizer will pick up whatever event tree we dumped last, which will be the empty one from
-			// the last GPU, making the results useless without this code fix.  Unreal Insights would be preferred for
-			// multi-GPU profiling outside the editor.
+			// functional at all with "-MaxGPUCount=2" (required to enable multiple GPUs for GPU Lightmass).  In the editor,
+			// we don't actually render anything on the additional GPUs, but the editor's profile visualizer will pick up
+			// whatever event tree we dumped last, which will be the empty one from the last GPU, making the results
+			// useless without this code fix.  Unreal Insights would be preferred for multi-GPU profiling outside the editor.
 			if (GPUIndex == 0)
 			{
 				CurrentEventNodeFrame->DumpEventTree();
