@@ -39,8 +39,8 @@
 #endif
 
 //It's always 0 in mobile deferred lighting shaders
-#ifndef FORWARDSHADING_USE_HQ_ENV_BRDF
-#define  FORWARDSHADING_USE_HQ_ENV_BRDF 0
+#ifndef MOBILE_USE_PREINTEGRATED_GF
+#define  MOBILE_USE_PREINTEGRATED_GF 0
 #endif
 
 //It's always 1 in mobile deferred lighting shaders
@@ -66,7 +66,7 @@ half3 GetEnvBRDF(half3 SpecularColor, half Roughness, half NoV)
 {
 #if FULLY_ROUGH
 	return 0.0f;
-#elif FORWARDSHADING_USE_HQ_ENV_BRDF || MOBILE_DEFERRED_LIGHTING
+#elif MOBILE_USE_PREINTEGRATED_GF
 	return EnvBRDF(SpecularColor, Roughness, NoV);
 #elif NONMETAL
 	// If nothing is hooked up to Metalic and Specular,

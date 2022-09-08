@@ -366,7 +366,7 @@ void AccumulateReflection(FGBufferData GBuffer
 		half LayerAttenuation = (1 - F);
 
 		// Fc * Vis
-	#if FORWARDSHADING_USE_HQ_ENV_BRDF
+	#if MOBILE_USE_PREINTEGRATED_GF
 		half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(NoV, GBuffer.Roughness), 0).rg;
 	#else
 		half2 AB = EnvBRDFApproxLazarov(GBuffer.Roughness, NoV);
