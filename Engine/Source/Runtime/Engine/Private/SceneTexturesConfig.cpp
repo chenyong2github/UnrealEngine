@@ -4,6 +4,8 @@
 #include "RenderGraphResources.h"
 #include "ShaderCompiler.h"
 #include "SceneInterface.h"
+#include "Engine/Engine.h"
+#include "StereoRendering.h"
 
 FSceneTexturesConfig FSceneTexturesConfig::GlobalInstance;
 

@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "PSOPrecache.h"
+#include "SceneInterface.h"
+#include "VertexFactory.h"
 
 PSOCollectorCreateFunction FPSOCollectorCreateManager::JumpTable[(int32)EShadingPath::Num][FPSOCollectorCreateManager::MaxPSOCollectorCount] = {};
 
