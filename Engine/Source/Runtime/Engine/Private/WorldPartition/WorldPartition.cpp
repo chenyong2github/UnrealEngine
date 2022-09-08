@@ -1012,7 +1012,7 @@ void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->HashActor(ActorHandle);
 
-	bShouldCheckEnableStreamingWarning = true;
+	bShouldCheckEnableStreamingWarning = IsMainWorldPartition();
 }
 
 void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
