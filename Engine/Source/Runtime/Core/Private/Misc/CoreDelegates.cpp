@@ -130,7 +130,7 @@ FCoreDelegates::FCountPreLoadConfigFileRespondersDelegate FCoreDelegates::CountP
 FCoreDelegates::FPreLoadConfigFileDelegate FCoreDelegates::PreLoadConfigFileDelegate;
 FCoreDelegates::FPreSaveConfigFileDelegate FCoreDelegates::PreSaveConfigFileDelegate;
 FCoreDelegates::FOnFConfigFileCreated FCoreDelegates::OnFConfigCreated;
-FCoreDelegates::FOnFConfigFileCreated FCoreDelegates::OnFConfigDeleted;
+FCoreDelegates::FOnFConfigFileDeleted FCoreDelegates::OnFConfigDeleted;
 FCoreDelegates::FOnConfigValueRead FCoreDelegates::OnConfigValueRead;
 FCoreDelegates::FOnConfigSectionRead FCoreDelegates::OnConfigSectionRead;
 FCoreDelegates::FOnConfigSectionRead FCoreDelegates::OnConfigSectionNameRead;
