@@ -55,7 +55,7 @@ EBTNodeResult::Type UBTTask_FindAndUseGameplayBehaviorSmartObject::ExecuteTask(U
 		// Create filter
 		FSmartObjectRequestFilter Filter;
 		Filter.ActivityRequirements = ActivityRequirements;
-		Filter.BehaviorDefinitionClass = UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass();
+	Filter.BehaviorDefinitionClasses = { UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass() };
 		const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(&Avatar);
 		if (TagsSource != nullptr)
 		{

@@ -61,7 +61,7 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(FMassEntityManager& Enti
 	
 	// Create filter
 	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorDefinitionClass = USmartObjectMassBehaviorDefinition::StaticClass();
+	Filter.BehaviorDefinitionClasses = { USmartObjectMassBehaviorDefinition::StaticClass() };
 
 	// Build list of request owner entities to send a completion signal
 	TArray<FMassEntityHandle> EntitiesToSignal;

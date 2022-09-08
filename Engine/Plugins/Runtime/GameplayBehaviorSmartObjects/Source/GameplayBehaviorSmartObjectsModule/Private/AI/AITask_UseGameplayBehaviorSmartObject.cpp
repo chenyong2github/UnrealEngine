@@ -55,7 +55,7 @@ UAITask_UseGameplayBehaviorSmartObject* UAITask_UseGameplayBehaviorSmartObject::
 	}
 
 	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorDefinitionClass = UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass();
+	Filter.BehaviorDefinitionClasses = { UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass() };
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(Pawn);
 	if (TagsSource != nullptr)
 	{

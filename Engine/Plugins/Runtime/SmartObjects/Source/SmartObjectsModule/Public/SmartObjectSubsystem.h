@@ -27,7 +27,15 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 {
 	GENERATED_BODY()
 
+	// Macro needed to avoid deprecation errors with BehaviorDefinitionClass_DEPRECATED being copied or created in the default methods
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FSmartObjectRequestFilter() = default;
+	
+	FSmartObjectRequestFilter(const FSmartObjectRequestFilter&) = default;
+	FSmartObjectRequestFilter(FSmartObjectRequestFilter&&) = default;
+	FSmartObjectRequestFilter& operator=(const FSmartObjectRequestFilter&) = default;
+	FSmartObjectRequestFilter& operator=(FSmartObjectRequestFilter&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FGameplayTagContainer UserTags;
@@ -35,8 +43,13 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FGameplayTagQuery ActivityRequirements;
 
+	UE_DEPRECATED(5.1, "Use BehaviorDefinitionClasses instead.")
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use BehaviorDefinitionClasses instead"))
+	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass_DEPRECATED;
+
+	/** If set will filter out any SmartObject that uses different BehaviorDefinition classes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
-	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass;
+	TArray<TSubclassOf<USmartObjectBehaviorDefinition>> BehaviorDefinitionClasses;
 
 	TFunction<bool(FSmartObjectHandle)> Predicate;
 };

@@ -83,7 +83,7 @@ struct FSmartObjectTestBase : FAITestBase
 		ThirdSlot.Data.Add(FInstancedStruct::Make(DefinitionData));
 
 		// Setup filter
-		TestFilter.BehaviorDefinitionClass = USmartObjectTestBehaviorDefinition::StaticClass();
+		TestFilter.BehaviorDefinitionClasses = { USmartObjectTestBehaviorDefinition::StaticClass() };
 
 		// Allow derived classes to tweak the definitions before we initialize the runtime
 		const bool DefinitionValid = SetupDefinition();

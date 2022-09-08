@@ -943,11 +943,32 @@ void USmartObjectSubsystem::FindMatchingSlotDefinitionIndices(const USmartObject
 	{
 		const FSmartObjectSlotDefinition& Slot = SlotDefinitions[i];
 
-		// Filter out mismatching behavior type (if specified)
-		if (Filter.BehaviorDefinitionClass != nullptr
-			&& Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// (Deprecated property handling) Filter out mismatching behavior type (if specified)
+		if (Filter.BehaviorDefinitionClass_DEPRECATED != nullptr
+			&& Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass_DEPRECATED) == nullptr)
 		{
 			continue;
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		// Filter out mismatching behavior type (if specified)
+		if (!Filter.BehaviorDefinitionClasses.IsEmpty())
+		{
+			bool bMatchesAny = false;
+			for (const TSubclassOf<USmartObjectBehaviorDefinition>& BehaviorDefinitionClass : Filter.BehaviorDefinitionClasses)
+			{
+				if (Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), BehaviorDefinitionClass) != nullptr)
+				{
+					bMatchesAny = true;
+					break;
+				}
+			}
+			
+			if (!bMatchesAny)
+			{
+				continue;
+			}
 		}
 
 		// Filter out slots based on their activity tags
