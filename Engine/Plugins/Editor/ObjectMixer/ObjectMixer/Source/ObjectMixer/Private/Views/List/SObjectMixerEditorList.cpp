@@ -997,14 +997,16 @@ void CreateOuterRowsForTopLevelRow(
 		}
 		TopLevelRow = OuterRow;
 			
-		UObject* Outer = InObject->GetOuter();
+		UObject* Outer = nullptr;
+		
+		if (const AActor* AsActor = Cast<AActor>(InObject))
+		{
+			Outer = AsActor->GetAttachParentActor();
+		}
 
 		if (!Outer)
 		{
-			if (const AActor* AsActor = Cast<AActor>(InObject))
-			{
-				Outer = AsActor->GetAttachParentActor();
-			}
+			Outer = InObject->GetOuter();
 		}
 
 		// Recurse with Outer object
@@ -1180,15 +1182,17 @@ void SObjectMixerEditorList::OnGetRowChildren(FObjectMixerEditorListRowPtr Row, 
 {
 	if (Row.IsValid())
 	{
-		if (!Row->IsHybridRow())
+		OutChildren = Row->GetChildRows();
+		
+		if (const int32 HybridIndex = Row->GetHybridRowIndex(); HybridIndex != INDEX_NONE)
 		{
-			OutChildren = Row->GetChildRows();
+			OutChildren.RemoveAt(HybridIndex);
+		}
 
-			if (Row->GetShouldExpandAllChildren())
-			{
-				SetChildExpansionRecursively(Row, true);
-				Row->SetShouldExpandAllChildren(false);
-			}
+		if (Row->GetShouldExpandAllChildren())
+		{
+			SetChildExpansionRecursively(Row, true);
+			Row->SetShouldExpandAllChildren(false);
 		}
 	}
 }

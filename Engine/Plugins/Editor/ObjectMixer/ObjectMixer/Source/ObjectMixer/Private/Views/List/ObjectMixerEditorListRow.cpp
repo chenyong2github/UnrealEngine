@@ -97,10 +97,42 @@ void FObjectMixerEditorListRow::SetRowType(EObjectMixerEditorListRowType InNewRo
 	RowType = InNewRowType;
 }
 
-bool FObjectMixerEditorListRow::IsHybridRow() const
+int32 FObjectMixerEditorListRow::GetHybridRowIndex() const
 {
-	return GetRowType() == FObjectMixerEditorListRow::ContainerObject &&
-			GetChildCount() == 1 && GetChildRows()[0]->GetChildCount() == 0;
+	if (GetRowType() == FObjectMixerEditorListRow::ContainerObject)
+	{
+		if (const UObject* ThisObject = GetObject())
+		{
+			TArray<int32> HybridCandidates;
+		
+			for (int32 ChildItr = 0; ChildItr < GetChildCount(); ChildItr++)
+			{
+				const FObjectMixerEditorListRowPtr& ChildRow = GetChildRows()[ChildItr];
+			
+				if (ChildRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject)
+				{
+					if (const UObject* ChildObject = ChildRow->GetObject(); ChildObject->GetOuter() == ThisObject)
+					{
+						HybridCandidates.Add(ChildItr);
+
+						if (HybridCandidates.Num() > 1)
+						{
+							// There can only be one row to hybrid with.
+							// If there's more than one candidate, don't hybrid.
+							break;
+						}
+					}
+				}
+			}
+			
+			if (HybridCandidates.Num() == 1)
+			{
+				return HybridCandidates[0];
+			}
+		}
+	}
+	
+	return INDEX_NONE;
 }
 
 int32 FObjectMixerEditorListRow::GetSortOrder() const

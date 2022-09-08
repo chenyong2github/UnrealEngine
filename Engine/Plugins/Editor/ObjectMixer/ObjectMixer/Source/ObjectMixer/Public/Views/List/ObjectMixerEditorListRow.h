@@ -88,7 +88,8 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
 	void SetRowType(EObjectMixerEditorListRowType InNewRowType);
 
-	[[nodiscard]] bool IsHybridRow() const;
+	/** If this is a hybrid row, return the index of the child used to hybrid with. */
+	[[nodiscard]] int32 GetHybridRowIndex() const;
 
 	[[nodiscard]] int32 GetSortOrder() const;
 	void SetSortOrder(const int32 InNewOrder);

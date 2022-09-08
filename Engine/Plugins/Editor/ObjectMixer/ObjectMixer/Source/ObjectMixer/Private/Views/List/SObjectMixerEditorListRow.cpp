@@ -37,7 +37,7 @@ void SObjectMixerEditorListRow::Construct(
 	check(InRow.IsValid());
 
 	Item = InRow;
-	bIsHybridRow = Item.Pin()->IsHybridRow();
+	HybridRowIndex = Item.Pin()->GetHybridRowIndex();
 
 	SMultiColumnTableRow<FObjectMixerEditorListRowPtr>::Construct(
 		FSuperRowType::FArguments()
@@ -63,7 +63,7 @@ void SObjectMixerEditorListRow::Construct(
 TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
 	const FObjectMixerEditorListRowPtr PinnedItem =
-		bIsHybridRow ? Item.Pin()->GetChildRows()[0] : Item.Pin();
+		HybridRowIndex != INDEX_NONE ? Item.Pin()->GetChildRows()[HybridRowIndex] : Item.Pin();
 
 	if (const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, PinnedItem))
 	{

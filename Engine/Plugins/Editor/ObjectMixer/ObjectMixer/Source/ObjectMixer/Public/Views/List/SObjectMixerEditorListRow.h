@@ -64,7 +64,7 @@ private:
 	float TextBlockLeftPadding = 3.0f;
 
 	/** Hybrid Rows are a combination of an actor and a single child subobject */
-	bool bIsHybridRow = false;
+	int32 HybridRowIndex = INDEX_NONE;
 
 	bool bIsHovered = false;
 };
