@@ -945,8 +945,8 @@ void USmartObjectSubsystem::FindMatchingSlotDefinitionIndices(const USmartObject
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// (Deprecated property handling) Filter out mismatching behavior type (if specified)
-		if (Filter.BehaviorDefinitionClass_DEPRECATED != nullptr
-			&& Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass_DEPRECATED) == nullptr)
+		if (Filter.BehaviorDefinitionClass != nullptr
+			&& Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
 		{
 			continue;
 		}

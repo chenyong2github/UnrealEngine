@@ -45,7 +45,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.1, "Use BehaviorDefinitionClasses instead.")
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use BehaviorDefinitionClasses instead"))
-	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass_DEPRECATED;
+	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass;
 
 	/** If set will filter out any SmartObject that uses different BehaviorDefinition classes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
