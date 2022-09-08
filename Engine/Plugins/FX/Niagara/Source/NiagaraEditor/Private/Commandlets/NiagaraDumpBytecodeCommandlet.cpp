@@ -94,7 +94,7 @@ void UNiagaraDumpByteCodeCommandlet::ProcessNiagaraScripts()
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CollectionManagerModule.Get().GetObjectsInCollection(FName(*FilterCollection), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	TArray<FAssetData> AssetList;
