@@ -206,6 +206,10 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 		CHECK(Request1Repeat.Policy.GetValuePolicies().Num() == 3);
 		Store1->ExecuteAsync();
 
+		// Execute stores to Store0 and Store2.
+		Store0->ExecuteAsync();
+		Store2->ExecuteAsync();
+
 		// Wait to ensure that the counts checked below are final.
 		Owner.Wait();
 
@@ -256,6 +260,10 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 		CHECK(Request1.Policy.GetValuePolicy(Id2) == ECachePolicy::None);
 		CHECK(Request1.Policy.GetValuePolicies().Num() == 2);
 		Store1->ExecuteAsync();
+
+		// Execute stores to Store0 and Store2.
+		Store0->ExecuteAsync();
+		Store2->ExecuteAsync();
 
 		// Wait to ensure that the counts checked below are final.
 		Owner.Wait();

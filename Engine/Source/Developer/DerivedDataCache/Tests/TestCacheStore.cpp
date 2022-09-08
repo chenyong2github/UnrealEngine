@@ -19,6 +19,8 @@ class FTestCacheStore final : public ITestCacheStore
 {
 public:
 	explicit FTestCacheStore(ECacheStoreFlags Flags, bool bAsync = false);
+	~FTestCacheStore() final;
+
 	FTestCacheStore(const FTestCacheStore&) = delete;
 	FTestCacheStore& operator=(const FTestCacheStore&) = delete;
 
@@ -144,6 +146,14 @@ FTestCacheStore::FTestCacheStore(const ECacheStoreFlags Flags, const bool bInAsy
 	CacheStorePolicy |= EnumHasAllFlags(Flags, ECacheStoreFlags::Store | ECacheStoreFlags::Local) ? ECachePolicy::StoreLocal : ECachePolicy::None;
 	CacheStorePolicy |= EnumHasAllFlags(Flags, ECacheStoreFlags::Query | ECacheStoreFlags::Remote) ? ECachePolicy::QueryRemote : ECachePolicy::None;
 	CacheStorePolicy |= EnumHasAllFlags(Flags, ECacheStoreFlags::Store | ECacheStoreFlags::Remote) ? ECachePolicy::StoreRemote : ECachePolicy::None;
+}
+
+FTestCacheStore::~FTestCacheStore()
+{
+	while (!Queue.IsEmpty())
+	{
+		ExecuteAsync();
+	}
 }
 
 void FTestCacheStore::AddRecord(const FCacheKey& Key, TConstArrayView<FValueWithId> Values, const FCbObject* Meta)
