@@ -904,14 +904,15 @@ void FPhysicsConstraintComponentDetails::AddConstraintProperties(IDetailLayoutBu
 		AddConstraintFrameTransform(EConstraintFrame::Frame2, ConstraintTransformsCat, ConstraintInstance);
 
 		UpdateTransformProxyDisplayRelativeToDefault(ConstraintInstance);
+
+		// Hide the constraint positions as they are represented by the proxy values in PhAT.
+		ChildPositionPropertyHandle->MarkHiddenByCustomization();
+		ParentPositionPropertyHandle->MarkHiddenByCustomization();
 	}
 
-	// Hide the constraint transform values that are being represented by the proxy values in the details panel.
-	ChildPositionPropertyHandle->MarkHiddenByCustomization();
+	// Always hide the constraint orientation values as they are represented by the proxy values in PhAT and hidden by design everywhere else.
 	ChildPriAxisPropertyHandle->MarkHiddenByCustomization();
 	ChildSecAxisPropertyHandle->MarkHiddenByCustomization();
-
-	ParentPositionPropertyHandle->MarkHiddenByCustomization();
 	ParentPriAxisPropertyHandle->MarkHiddenByCustomization();
 	ParentSecAxisPropertyHandle->MarkHiddenByCustomization();
 }	
@@ -961,7 +962,7 @@ void FPhysicsConstraintComponentDetails::AddConstraintFrameTransform(const ECons
 	{
 		TransformProxy = ChildTransformProxy;
 		TransformProxy->SetFrameLabelText(LOCTEXT("Child", "Child"));
-		KeyboardShortcutText = LOCTEXT("ShiftCtl", "[Shift + Alt]");
+		KeyboardShortcutText = LOCTEXT("ShiftAlt", "[Shift + Alt]");
 		PositionPropertyHandle = ChildPositionPropertyHandle;
 		PriAxisPropertyHandle = ChildPriAxisPropertyHandle;
 		SecAxisPropertyHandle = ChildSecAxisPropertyHandle;

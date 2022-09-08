@@ -256,29 +256,29 @@ public:
 	///////////////////////////// Body1 ref frame
 	
 	/** Location of constraint in Body1 reference frame (usually the "child" body for skeletal meshes). */
-	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
+	UPROPERTY(EditAnywhere, Category = Constraint)
 	FVector Pos1;
 
 	/** Primary (twist) axis in Body1 reference frame. */
-	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
+	UPROPERTY(EditAnywhere, Category = Constraint)
 	FVector PriAxis1;
 
 	/** Secondary axis in Body1 reference frame. Orthogonal to PriAxis1. */
-	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
+	UPROPERTY(EditAnywhere, Category = Constraint)
 	FVector SecAxis1;
 
 	///////////////////////////// Body2 ref frame
 	
 	/** Location of constraint in Body2 reference frame (usually the "parent" body for skeletal meshes). */
-	UPROPERTY(EditAnywhere, Category= ConstraintTransforms)
+	UPROPERTY(EditAnywhere, Category= Constraint)
 	FVector Pos2;
 
 	/** Primary (twist) axis in Body2 reference frame. */
-	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
+	UPROPERTY(EditAnywhere, Category = Constraint)
 	FVector PriAxis2;
 
 	/** Secondary axis in Body2 reference frame. Orthogonal to PriAxis2. */
-	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
+	UPROPERTY(EditAnywhere, Category = Constraint)
 	FVector SecAxis2;
 
 	/** Specifies the angular offset between the two frames of reference. By default limit goes from (-Angle, +Angle)
