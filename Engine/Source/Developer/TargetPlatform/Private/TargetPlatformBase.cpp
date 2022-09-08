@@ -11,6 +11,7 @@
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Sound/AudioFormatSettings.h"
+#include "AnalyticsEventAttribute.h"
 
 #define LOCTEXT_NAMESPACE "TargetPlatform"
 
@@ -103,6 +104,61 @@ void FTargetPlatformBase::GetRayTracingShaderFormats(TArray<FName>& OutFormats) 
 		GetAllTargetedShaderFormats(OutFormats);
 	}
 }
+
+void FTargetPlatformBase::GetPlatformSpecificProjectAnalytics( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray ) const
+{
+	AppendAnalyticsEventAttributeArray( AnalyticsParamArray,
+		TEXT("UsesDistanceFields"), UsesDistanceFields(),
+		TEXT("UsesForwardShading"), UsesForwardShading()
+	);
+}
+
+void FTargetPlatformBase::AppendAnalyticsEventConfigBool( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray, const TCHAR* ConfigSection, const TCHAR* ConfigKey, const FString& IniFileName, const TCHAR* AnalyticsKeyNameOverride )
+{
+	bool ConfigValue;
+	if (GConfig->GetBool(ConfigSection, ConfigKey, ConfigValue, IniFileName))
+	{
+		AnalyticsParamArray.Add( FAnalyticsEventAttribute( AnalyticsKeyNameOverride ? AnalyticsKeyNameOverride : ConfigKey, ConfigValue ) );
+	}
+}
+
+void FTargetPlatformBase::AppendAnalyticsEventConfigInt( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray, const TCHAR* ConfigSection, const TCHAR* ConfigKey, const FString& IniFileName, const TCHAR* AnalyticsKeyNameOverride )
+{
+	int32 ConfigValue;
+	if (GConfig->GetInt(ConfigSection, ConfigKey, ConfigValue, IniFileName))
+	{
+		AnalyticsParamArray.Add( FAnalyticsEventAttribute( AnalyticsKeyNameOverride ? AnalyticsKeyNameOverride : ConfigKey, ConfigValue ) );
+	}
+}
+
+void FTargetPlatformBase::AppendAnalyticsEventConfigFloat( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray, const TCHAR* ConfigSection, const TCHAR* ConfigKey, const FString& IniFileName, const TCHAR* AnalyticsKeyNameOverride )
+{
+	float ConfigValue;
+	if (GConfig->GetFloat(ConfigSection, ConfigKey, ConfigValue, IniFileName))
+	{
+		AnalyticsParamArray.Add( FAnalyticsEventAttribute( AnalyticsKeyNameOverride ? AnalyticsKeyNameOverride : ConfigKey, ConfigValue ) );
+	}
+}
+
+void FTargetPlatformBase::AppendAnalyticsEventConfigString( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray, const TCHAR* ConfigSection, const TCHAR* ConfigKey, const FString& IniFileName, const TCHAR* AnalyticsKeyNameOverride )
+{
+	FString ConfigValue;
+	if (GConfig->GetString(ConfigSection, ConfigKey, ConfigValue, IniFileName))
+	{
+		AnalyticsParamArray.Add( FAnalyticsEventAttribute( AnalyticsKeyNameOverride ? AnalyticsKeyNameOverride : ConfigKey, ConfigValue ) );
+	}
+}
+
+void FTargetPlatformBase::AppendAnalyticsEventConfigArray( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray, const TCHAR* ConfigSection, const TCHAR* ConfigKey, const FString& IniFileName, const TCHAR* AnalyticsKeyNameOverride )
+{
+	TArray<FString> ConfigValue;
+	if (GConfig->GetArray(ConfigSection, ConfigKey, ConfigValue, IniFileName))
+	{
+		AnalyticsParamArray.Add( FAnalyticsEventAttribute( AnalyticsKeyNameOverride ? AnalyticsKeyNameOverride : ConfigKey, ConfigValue ) );
+	}
+}
+
+
 
 static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescriptor* Project, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType)
 {

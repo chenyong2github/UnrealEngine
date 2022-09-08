@@ -11,6 +11,7 @@
 #include "Mac/MacPlatformProperties.h"
 #include "Misc/ConfigCacheIni.h"
 #include "LocalMacTargetDevice.h"
+#include "AnalyticsEventAttribute.h"
 
 
 #if WITH_ENGINE
@@ -144,6 +145,13 @@ public:
 		{
 			OutFormats.AddUnique(FName(*ShaderFormat));
 		}
+	}
+
+	virtual void GetPlatformSpecificProjectAnalytics( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray ) const override
+	{
+		TSuper::GetPlatformSpecificProjectAnalytics(AnalyticsParamArray);
+
+		TSuper::AppendAnalyticsEventConfigArray(AnalyticsParamArray, TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("TargetedRHIs"), GEngineIni);
 	}
 
 #if WITH_ENGINE

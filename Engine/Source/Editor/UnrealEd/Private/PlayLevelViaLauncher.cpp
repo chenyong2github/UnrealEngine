@@ -425,8 +425,10 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	}
 
 	// analytics for launch on
-	int32 ErrorCode = 0;
-	FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Started"), LastPlayUsingLauncherDeviceId.Left(LastPlayUsingLauncherDeviceId.Find(TEXT("@"))), LauncherSessionInfo->bPlayUsingLauncherHasCode);
+	TArray<FAnalyticsEventAttribute> AnalyticsParamArray;
+	LaunchPlatform->GetPlatformSpecificProjectAnalytics(AnalyticsParamArray);
+	FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Started"), LaunchPlatformName, LauncherSessionInfo->bPlayUsingLauncherHasCode, AnalyticsParamArray);
+
 
 	NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
 

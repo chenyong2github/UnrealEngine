@@ -26,6 +26,7 @@
 #include "Interfaces/IAndroidDeviceDetection.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/SecureHash.h"
+#include "AnalyticsEventAttribute.h"
 
 
 #if WITH_ENGINE
@@ -439,6 +440,19 @@ void FAndroidTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutForm
 	GetAllPossibleShaderFormats(OutFormats);
 }
 
+void FAndroidTargetPlatform::GetPlatformSpecificProjectAnalytics( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray ) const
+{
+	TNonDesktopTargetPlatformBase<FAndroidPlatformProperties>::GetPlatformSpecificProjectAnalytics( AnalyticsParamArray );
+
+	AppendAnalyticsEventAttributeArray(AnalyticsParamArray,
+		TEXT("AndroidVariant"), GetAndroidVariantName(),
+		TEXT("SupportsVulkan"), SupportsVulkan(),
+		TEXT("SupportsVulkanSM5"), SupportsVulkanSM5(),
+		TEXT("SupportsES31"), SupportsES31()
+	);
+
+	AppendAnalyticsEventConfigArray(AnalyticsParamArray, TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("PackageForOculusMobile"), GEngineIni);
+}
 
 #if WITH_ENGINE
 

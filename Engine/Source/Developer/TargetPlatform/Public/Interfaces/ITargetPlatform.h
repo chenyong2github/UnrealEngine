@@ -543,6 +543,11 @@ public:
 	*/
 	virtual void GetRayTracingShaderFormats(TArray<FName>& OutFormats) const = 0;
 
+	/**
+	 * Gather per-project cook/package analytics
+	 */
+	virtual void GetPlatformSpecificProjectAnalytics( TArray<struct FAnalyticsEventAttribute>& AnalyticsParamArray ) const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.

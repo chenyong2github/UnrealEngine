@@ -13,6 +13,7 @@
 #include "Misc/App.h"
 #include "Misc/MonitoredProcess.h"
 #include "Logging/MessageLog.h"
+#include "AnalyticsEventAttribute.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -529,6 +530,14 @@ void FIOSTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutFormats 
 	GetAllPossibleShaderFormats(OutFormats);
 }
 
+void FIOSTargetPlatform::GetPlatformSpecificProjectAnalytics( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray ) const
+{
+	TNonDesktopTargetPlatformBase<FIOSPlatformProperties>::GetPlatformSpecificProjectAnalytics( AnalyticsParamArray );
+
+	AppendAnalyticsEventAttributeArray(AnalyticsParamArray,
+		TEXT("SupportsMetalMRT"), SupportsMetalMRT()
+	);
+}
 
 #if WITH_ENGINE
 

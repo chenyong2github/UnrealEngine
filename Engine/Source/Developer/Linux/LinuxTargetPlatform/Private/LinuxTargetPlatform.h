@@ -13,6 +13,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Common/TargetPlatformBase.h"
 #include "SteamDeck/SteamDeckDevice.h"
+#include "AnalyticsEventAttribute.h"
 
 
 #if WITH_ENGINE
@@ -291,6 +292,13 @@ public:
 		{
 			OutFormats.AddUnique(FName(*ShaderFormat));
 		}
+	}
+
+	virtual void GetPlatformSpecificProjectAnalytics( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray ) const override
+	{
+		TSuper::GetPlatformSpecificProjectAnalytics(AnalyticsParamArray);
+
+		TSuper::AppendAnalyticsEventConfigArray(AnalyticsParamArray, TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"), TEXT("TargetedRHIs"), GEngineIni);
 	}
 
 #if WITH_ENGINE

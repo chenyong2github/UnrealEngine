@@ -180,6 +180,15 @@ void FHoloLensTargetPlatform::GetAllTargetedShaderFormats(TArray<FName>& OutForm
 	OutFormats.AddUnique(NAME_PCD3D_SM5);
 }
 
+void FHoloLensTargetPlatform::GetPlatformSpecificProjectAnalytics( TArray<FAnalyticsEventAttribute>& AnalyticsParamArray ) const
+{
+	TNonDesktopTargetPlatformBase<FHoloLensPlatformProperties>::GetPlatformSpecificProjectAnalytics(AnalyticsParamArray);
+
+	// NB. HololensDynamicRHI reads the Windows key for the default RHI
+	AppendAnalyticsEventConfigString(AnalyticsParamArray, TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), GEngineIni);
+}
+
+
 #if WITH_ENGINE
 
 void FHoloLensTargetPlatform::GetReflectionCaptureFormats(TArray<FName>& OutFormats) const

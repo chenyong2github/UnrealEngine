@@ -158,7 +158,7 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 				}
 				FText TaskName = LOCTEXT("VerifyingSDK", "Verifying SDK and Device");
 
-				IUATHelperModule::Get().CreateUatTask(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FAppStyle::Get().GetBrush(TEXT("MainFrame.PackageProject")),
+				IUATHelperModule::Get().CreateUatTask(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FAppStyle::Get().GetBrush(TEXT("MainFrame.PackageProject")), nullptr,
 					[SessionParams, RealDeviceName, UBTPlatformName](FString Result, double)
 					{
 						// unfortunate string comparison for success
@@ -220,10 +220,10 @@ bool FTurnkeyEditorSupport::DoesProjectHaveCode()
 #endif
 }
 
-void FTurnkeyEditorSupport::RunUAT(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText& TaskShortName, const FSlateBrush* TaskIcon, TFunction<void(FString, double)> ResultCallback)
+void FTurnkeyEditorSupport::RunUAT(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText& TaskShortName, const FSlateBrush* TaskIcon, const TArray<FAnalyticsEventAttribute>* OptionalAnalyticsParamArray, TFunction<void(FString, double)> ResultCallback)
 {
 #if WITH_EDITOR
-	IUATHelperModule::Get().CreateUatTask(CommandLine, PlatformDisplayName, TaskName, TaskShortName, TaskIcon, ResultCallback);
+	IUATHelperModule::Get().CreateUatTask(CommandLine, PlatformDisplayName, TaskName, TaskShortName, TaskIcon, OptionalAnalyticsParamArray, ResultCallback);
 #else
 	unimplemented();
 #endif

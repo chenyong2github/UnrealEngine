@@ -28,6 +28,7 @@ public class TurnkeySupport : ModuleRules
  				"LauncherServices",
 				"SourceControl",
 				"TurnkeyIO",
+				"Analytics",
 			}
 		);
 

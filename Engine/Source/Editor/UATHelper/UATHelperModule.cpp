@@ -383,7 +383,7 @@ public:
 	{
 	}
 
-	virtual void CreateUatTask( const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, UatTaskResultCallack ResultCallback, const FString& ResultLocation)
+	virtual void CreateUatTask( const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, const TArray<FAnalyticsEventAttribute>* OptionalAnalyticsParamArray, UatTaskResultCallack ResultCallback, const FString& ResultLocation)
 	{
 		// If this is a packaging or cooking task, clear the PackagingResults log
 		if (!TaskShortName.CompareToCaseIgnored(FText::FromString(TEXT("Packaging"))) || 
@@ -462,7 +462,14 @@ public:
 		}
 
 		FString EventName = (CommandLine.Contains(TEXT("-package")) ? TEXT("Editor.Package") : TEXT("Editor.Cook"));
-		FEditorAnalytics::ReportEvent(EventName + TEXT(".Start"), PlatformDisplayName.ToString(), bHasCode);
+		if (OptionalAnalyticsParamArray != nullptr)
+		{
+			FEditorAnalytics::ReportEvent(EventName + TEXT(".Start"), PlatformDisplayName.ToString(), bHasCode, *OptionalAnalyticsParamArray);
+		}
+		else
+		{
+			FEditorAnalytics::ReportEvent(EventName + TEXT(".Start"), PlatformDisplayName.ToString(), bHasCode);
+		}
 
 		NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
 

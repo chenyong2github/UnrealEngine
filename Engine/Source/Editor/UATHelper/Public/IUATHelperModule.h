@@ -43,6 +43,6 @@ public:
 	/** Creates and starts up a UAT Task
 	  * @param	ResultLocation	The folder where the result of the task will be stored  
 	  */
-	virtual void CreateUatTask(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, UatTaskResultCallack ResultCallback = UatTaskResultCallack(), const FString& ResultLocation = FString()) = 0;
+	virtual void CreateUatTask(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, const TArray<struct FAnalyticsEventAttribute>* OptionalAnalyticsParamArray = nullptr, UatTaskResultCallack ResultCallback = UatTaskResultCallack(), const FString& ResultLocation = FString()) = 0;
 };
 

@@ -120,7 +120,7 @@ void FUnrealInsightsLauncher::TryBuildUnrealInsightsExe(const FString& Path, con
 #endif
 
 	IUATHelperModule::Get().CreateUatTask(Arguments, PlatformName, LOCTEXT("BuildingUnrealInsights", "Building Unreal Insights"),
-		LOCTEXT("BuildUnrealInsightsTask", "Build Unreal Insights Task"), FAppStyle::GetBrush(TEXT("MainFrame.CookContent")), [this, Path, LaunchParameters](FString Result, double Time)
+		LOCTEXT("BuildUnrealInsightsTask", "Build Unreal Insights Task"), FAppStyle::GetBrush(TEXT("MainFrame.CookContent")), nullptr, [this, Path, LaunchParameters](FString Result, double Time)
 		{
 			if (Result.Equals(TEXT("Completed")))
 			{

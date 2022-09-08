@@ -45,6 +45,7 @@
 #include "ToolMenus.h"
 #include "TurnkeyEditorSupport.h"
 #include "ITurnkeyIOModule.h"
+#include "AnalyticsEventAttribute.h"
 #if WITH_EDITOR
 #include "ZenServerInterface.h"
 #endif
@@ -268,6 +269,8 @@ public:
 
 	static void CookOrPackage(FName IniPlatformName, EPrepareContentMode Mode)
 	{
+		TArray<FAnalyticsEventAttribute> AnalyticsParamArray;
+
 		// get a in-memory defaults which will have the user-settings, like the per-platform config/target platform stuff
 		UProjectPackagingSettings* AllPlatformPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
 	
@@ -376,6 +379,9 @@ public:
 			BuildCookRunParams += TEXT(" -zenstore");
 		}
 
+		// gather analytics
+		const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name);
+		TargetPlatform->GetPlatformSpecificProjectAnalytics( AnalyticsParamArray );
 
 		// per mode settings
 		FText ContentPrepDescription;
@@ -406,7 +412,6 @@ public:
 
 			BuildCookRunParams += TEXT(" -stage -archive -package");
 
-			const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name);
 			if (ShouldBuildProject(PackagingSettings, TargetPlatform))
 			{
 				BuildCookRunParams += TEXT(" -build");
@@ -508,7 +513,6 @@ public:
 		}
 // 		else if (Mode == EPrepareContentMode::PrepareForDebugging)
 // 		{
-// 			const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name);
 // 			if (ShouldBuildProject(PackagingSettings, TargetPlatform))
 // 			{
 // 				BuildCookRunParams += TEXT(" -build");
@@ -546,7 +550,7 @@ public:
 		}
 		CommandLine.Appendf(TEXT("Turnkey %s BuildCookRun %s"), *TurnkeyParams, *BuildCookRunParams);
 
-		FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, ContentPrepDescription, ContentPrepTaskName, ContentPrepIcon);
+		FTurnkeyEditorSupport::RunUAT(CommandLine, PlatformInfo->DisplayName, ContentPrepDescription, ContentPrepTaskName, ContentPrepIcon, &AnalyticsParamArray);
 	}
 
 	static bool CanExecuteCustomBuild(FName IniPlatformName, FProjectBuildSettings Build)
@@ -862,7 +866,7 @@ static void TurnkeyInstallSdk(FString IniPlatformName, bool bPreferFull, bool bF
 	CommandLine.Appendf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s %s %s -noturnkeyvariables -utf8output -WaitForUATMutex"), *IniPlatformName, *OptionalOptions, *ITurnkeyIOModule::Get().GetUATParams());
 
 	FText TaskName = LOCTEXT("InstallingSdk", "Installing Sdk");
-	FTurnkeyEditorSupport::RunUAT(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")),
+	FTurnkeyEditorSupport::RunUAT(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FAppStyle::GetBrush(TEXT("MainFrame.PackageProject")), nullptr,
 		[IniPlatformName](FString, double)
 	{
 		AsyncTask(ENamedThreads::GameThread, [IniPlatformName]()
