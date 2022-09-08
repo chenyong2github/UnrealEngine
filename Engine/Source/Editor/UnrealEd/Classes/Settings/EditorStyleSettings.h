@@ -161,7 +161,8 @@ public:
 	/** @return A subdued version of the users selection color (for use with inactive selection)*/
 	FLinearColor GetSubduedSelectionColor() const;
 	
-	bool OnExportBegin(const FString& ExportToPath); 
+	bool OnImportBegin(const FString& ImportFromPath);
+	bool OnExportBegin(const FString& ExportToPath);
 
 protected:
 

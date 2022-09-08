@@ -13,6 +13,7 @@
 #include "UObject/UnrealType.h"
 #include "Styling/StyleColors.h"
 #include "HAL/FileManager.h"
+#include "EditorStyleSettingsCustomization.h"
 
 class FObjectInitializer;
 
@@ -93,6 +94,18 @@ void UEditorStyleSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 	SettingChangedEvent.Broadcast(PropertyName);
 }
 
+bool UEditorStyleSettings::OnImportBegin(const FString& ImportFromPath)
+{
+	LoadConfig(GetClass(), *ImportFromPath, UE::LCPF_PropagateToInstances);
+
+	// if theme exists, it would already be applied by import. 
+	// if theme doesn't exist, prompt to open to import a theme. 
+	if (!USlateThemeManager::Get().DoesThemeExist(CurrentAppliedTheme))
+	{
+		FEditorStyleSettingsCustomization::PromptToImportTheme(ImportFromPath); 
+	}
+	return true; 
+}
 
 bool UEditorStyleSettings::OnExportBegin(const FString& ExportToPath)
 {

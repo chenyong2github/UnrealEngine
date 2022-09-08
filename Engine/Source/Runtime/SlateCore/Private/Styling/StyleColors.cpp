@@ -212,7 +212,7 @@ void USlateThemeManager::ApplyTheme(FGuid ThemeId)
 				// Unload existing colors
 				CurrentTheme->LoadedDefaultColors.Empty();
 			}
-
+			
 			FStyleTheme* Theme = Themes.FindByKey(ThemeId);
 			if (Theme)
 			{
@@ -230,6 +230,7 @@ void USlateThemeManager::ApplyTheme(FGuid ThemeId)
 		// Apply the new colors. Note that if the incoming theme is the same as the current theme we still apply the colors as they may have been overwritten by defaults
 		FMemory::Memcpy(ActiveColors.StyleColors, CurrentTheme->LoadedDefaultColors.GetData(), sizeof(FLinearColor)*CurrentTheme->LoadedDefaultColors.Num());
 	}
+	OnThemeChanged().Broadcast(CurrentThemeId); 
 }
 
 void USlateThemeManager::ApplyDefaultTheme()
@@ -454,6 +455,18 @@ void USlateThemeManager::LoadThemeColors(FStyleTheme& Theme)
 			}
 		}
 	}
+}
+
+bool USlateThemeManager::DoesThemeExist(const FGuid& ThemeID) const
+{
+	for (const FStyleTheme& Theme : Themes)
+	{
+		if (Theme.Id == ThemeID)
+		{
+			return true; 
+		}
+	}
+	return false; 
 }
 
 /*

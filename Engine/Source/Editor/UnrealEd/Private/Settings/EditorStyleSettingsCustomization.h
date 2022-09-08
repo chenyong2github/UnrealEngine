@@ -33,10 +33,18 @@ public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
+	FEditorStyleSettingsCustomization();
+
+	~FEditorStyleSettingsCustomization(); 
+
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 	
 	void RefreshComboBox();
+
+	/** Import theme from OS */
+	static void PromptToImportTheme(const FString& ImportPath);
+
 private:
 	void GenerateThemeOptions(TSharedPtr<FString>& OutSelectedTheme);
 
@@ -50,7 +58,13 @@ private:
 	void OnThemePicked(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OpenThemeEditorWindow(FOnThemeEditorClosed OnThemeEditorClosed);
 	bool IsThemeEditingEnabled() const;
-	void ShowNotification(const FText& Text, SNotificationItem::ECompletionState CompletionState) const;
+
+	/** Delegate for when theme gets changed by another class */
+	void OnThemeChanged(const FGuid ThemeId) { RefreshComboBox(); }
+
+	/** Show import status (success/failure) when users import a theme */
+	static void ShowNotification(const FText& Text, SNotificationItem::ECompletionState CompletionState);
+
 private:
 	TArray<TSharedPtr<FString>> ThemeOptions;
 	TSharedPtr<STextComboBox> ComboBox;

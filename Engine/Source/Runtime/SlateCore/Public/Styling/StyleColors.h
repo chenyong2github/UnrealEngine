@@ -278,6 +278,20 @@ public:
 	 * @return the user theme dir. Themes in this dir are per-user and override engine and project themes
 	 */
 	FString GetUserThemeDir() const;
+		
+	/**
+	 * @return true if the ThemeID already exists in the theme dropdown. 
+	 */
+	bool DoesThemeExist(const FGuid& ThemeID) const;
+
+	DECLARE_EVENT_OneParam(USlateThemeManager, FThemeChangedEvent, FGuid);
+	/**
+	 * Returns an event delegate that is executed when the themeID has changed.
+	 *
+	 * @return the event delegate.
+	 */
+	FThemeChangedEvent& OnThemeChanged() { return ThemeChangedEvent; }
+
 private:
 
 	FStyleTheme& GetMutableCurrentTheme() { return *Themes.FindByKey(CurrentThemeId); }
@@ -286,11 +300,14 @@ private:
 	void EnsureValidCurrentTheme();
 	void LoadThemeColors(FStyleTheme& Theme);
 
-
 private:
 	FStyleTheme DefaultDarkTheme;
 	TArray<FStyleTheme> Themes;
 	FLinearColor DefaultColors[(int32)EStyleColor::MAX];
+
+	/** Broadcasts whenever the theme changes **/
+	FThemeChangedEvent ThemeChangedEvent;
+
 #endif // ALLOW_THEMES
 
 	FLinearColor GetDefaultColor(EStyleColor InColorId)

@@ -173,6 +173,8 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 	if (FPaths::IsProjectFilePathSet() && GIsEditor && !FApp::IsUnattended())
 	{
+
+		UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing AutoReimportManager"));
 		AutoReimportManager = NewObject<UAutoReimportManager>();
 		AutoReimportManager->Initialize();
 	}
@@ -193,7 +195,8 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 
 		UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
-		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"); 
+	
 
 		if (SettingsModule != nullptr)
 		{
@@ -202,9 +205,10 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 				NSLOCTEXT("UnrealEd", "Appearance_UserSettingsDescription", "Customize the look of the editor."),
 				Settings
 			);
-			
+
+			StyleSettingsPtr->OnImport().BindUObject(Settings, &UEditorStyleSettings::OnImportBegin);
 			StyleSettingsPtr->OnExport().BindUObject(Settings, &UEditorStyleSettings::OnExportBegin);
-		}
+		} 
 
 
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");

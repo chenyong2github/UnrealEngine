@@ -347,9 +347,19 @@ bool FStyleColorListCustomization::IsResetToDefaultVisible(TSharedPtr<IPropertyH
 
 TSharedRef<IDetailCustomization> FEditorStyleSettingsCustomization::MakeInstance()
 {
-	return MakeShared<FEditorStyleSettingsCustomization>();
+	return MakeShared<FEditorStyleSettingsCustomization>(); 
 }
 
+FEditorStyleSettingsCustomization::FEditorStyleSettingsCustomization()
+{
+	USlateThemeManager::Get().OnThemeChanged().AddSP(StaticCastSharedRef<FEditorStyleSettingsCustomization>(AsShared()), &FEditorStyleSettingsCustomization::OnThemeChanged);
+}
+
+FEditorStyleSettingsCustomization::~FEditorStyleSettingsCustomization()
+{
+	USlateThemeManager& ThemeManager = USlateThemeManager::Get();
+	ThemeManager.OnThemeChanged().RemoveAll(this);
+}
 
 void FEditorStyleSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
@@ -608,64 +618,7 @@ void GetThemeIdFromPath(FString& ThemePath, FString& ImportedThemeID)
 
 FReply FEditorStyleSettingsCustomization::OnImportThemeClicked()
 {
-	TArray<FString> OutFiles;
-	const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr); 
-	const FString ImportFrom = FPlatformProcess::UserDir();
-
-	if (FDesktopPlatformModule::Get()->OpenFileDialog(ParentWindowHandle, LOCTEXT("ImportThemeDialogTitle", "Import theme...").ToString(), FPaths::GetPath(ImportFrom), TEXT(""), TEXT("JSON files (*.json)|*.json"), EFileDialogFlags::None, OutFiles))
-	{
-		FString SourcePath = OutFiles[0];
-		const FString DestPath = USlateThemeManager::Get().GetUserThemeDir() / FPaths::GetCleanFilename(SourcePath);
-
-		FString PathPart; 
-		FString Extension; 
-		FString FilenameWithoutExtension; 
-		FPaths::Split(SourcePath, PathPart, FilenameWithoutExtension, Extension);
-
-		// if theme name exists, don't import (to prevent from overwriting existing theme files)
-		if (!IsThemeNameValid(FilenameWithoutExtension))
-		{
-			ShowNotification(LOCTEXT("ImportThemeFailureNameExists", "Import theme failed: Theme name already exists"), SNotificationItem::CS_Fail);
-		}
-		// if theme name is valid: copying the file is safe (as it will not overwrite existing theme files)
-		else 
-		{	
-			const int32 NumOfThemesBefore = USlateThemeManager::Get().GetThemes().Num();
-
-			if  (IPlatformFile::GetPlatformPhysical().CopyFile(*DestPath, *SourcePath)) 
-			{	
-				// update the number of valid themes: 
-				USlateThemeManager::Get().LoadThemes();
-
-				// if valid theme: the theme Num will be updated. 
-				if (USlateThemeManager::Get().GetThemes().Num() != NumOfThemesBefore)
-				{
-					// Extract ID as a FString directly from a JSON file. 
-					FString ImportedThemeID; 
-					GetThemeIdFromPath(SourcePath, ImportedThemeID);
-
-					// convert FString ID to a FGuid
-					FGuid ImportedThemeGUID = FGuid(ImportedThemeID); 
-					USlateThemeManager::Get().ApplyTheme(ImportedThemeGUID);
-					RefreshComboBox();
-
-					ShowNotification(LOCTEXT("ImportThemeSuccess", "Import theme succeeded"), SNotificationItem::CS_Success);
-				}
-				// if invalid theme: delete the copied file. 
-				else
-				{
-					// incomplete themes will not reach here. 
-					IPlatformFile::GetPlatformPhysical().DeleteFile(*DestPath); 
-					ShowNotification(LOCTEXT("ImportThemeFailureInvalidName", "Import theme failed: Invalid theme"), SNotificationItem::CS_Fail);
-				}
-			}
-			// if unable to copy the file to user-specific theme location, do nothing. 
-			else
-			{
-				ShowNotification(LOCTEXT("ImportThemeFailure", "Import theme failed"), SNotificationItem::CS_Fail);
-			}
-		}
-	}
+	PromptToImportTheme(FPlatformProcess::UserDir());
 	return FReply::Handled();
 }
 
@@ -782,13 +735,73 @@ bool FEditorStyleSettingsCustomization::IsThemeEditingEnabled() const
 	return !ThemeEditorWindow.IsValid();
 }
 
-void FEditorStyleSettingsCustomization::ShowNotification(const FText& Text, SNotificationItem::ECompletionState CompletionState) const
+void FEditorStyleSettingsCustomization::ShowNotification(const FText& Text, SNotificationItem::ECompletionState CompletionState)
 {
 	FNotificationInfo Notification(Text);
 	Notification.ExpireDuration = 3.f;
 	Notification.bUseSuccessFailIcons = false;
 
 	FSlateNotificationManager::Get().AddNotification(Notification)->SetCompletionState(CompletionState);
+}
+
+void FEditorStyleSettingsCustomization::PromptToImportTheme(const FString& ImportPath)
+{
+	TArray<FString> OutFiles;
+	const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+
+	if (FDesktopPlatformModule::Get()->OpenFileDialog(ParentWindowHandle, LOCTEXT("ImportThemeDialogTitle", "Import theme...").ToString(), FPaths::GetPath(ImportPath), TEXT(""), TEXT("JSON files (*.json)|*.json"), EFileDialogFlags::None, OutFiles))
+	{
+		FString SourcePath = OutFiles[0];
+		const FString DestPath = USlateThemeManager::Get().GetUserThemeDir() / FPaths::GetCleanFilename(SourcePath);
+
+		FString PathPart;
+		FString Extension;
+		FString FilenameWithoutExtension;
+		FPaths::Split(SourcePath, PathPart, FilenameWithoutExtension, Extension);
+
+		// if theme name exists, don't import (to prevent from overwriting existing theme files)
+		if (!IsThemeNameValid(FilenameWithoutExtension))
+		{
+			ShowNotification(LOCTEXT("ImportThemeFailureNameExists", "Import theme failed: Theme name already exists"), SNotificationItem::CS_Fail);
+		}
+		// if theme name is valid: copying the file is safe (as it will not overwrite existing theme files)
+		else
+		{
+			const int32 NumOfThemesBefore = USlateThemeManager::Get().GetThemes().Num();
+
+			if (IPlatformFile::GetPlatformPhysical().CopyFile(*DestPath, *SourcePath))
+			{
+				// update the number of valid themes: 
+				USlateThemeManager::Get().LoadThemes();
+
+				// if valid theme: the theme Num will be updated. 
+				if (USlateThemeManager::Get().GetThemes().Num() != NumOfThemesBefore)
+				{
+					// Extract ID as a FString directly from a JSON file. 
+					FString ImportedThemeID;
+					GetThemeIdFromPath(SourcePath, ImportedThemeID);
+
+					// convert FString ID to a FGuid
+					FGuid ImportedThemeGUID = FGuid(ImportedThemeID);
+					USlateThemeManager::Get().ApplyTheme(ImportedThemeGUID);
+
+					ShowNotification(LOCTEXT("ImportThemeSuccess", "Import theme succeeded"), SNotificationItem::CS_Success);
+				}
+				// if invalid theme: delete the copied file. 
+				else
+				{
+					// incomplete themes will not reach here. 
+					IPlatformFile::GetPlatformPhysical().DeleteFile(*DestPath);
+					ShowNotification(LOCTEXT("ImportThemeFailureInvalidName", "Import theme failed: Invalid theme"), SNotificationItem::CS_Fail);
+				}
+			}
+			// if unable to copy the file to user-specific theme location, do nothing. 
+			else
+			{
+				ShowNotification(LOCTEXT("ImportThemeFailure", "Import theme failed"), SNotificationItem::CS_Fail);
+			}
+		}
+	}
 }
 
 
