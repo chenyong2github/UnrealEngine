@@ -36,6 +36,7 @@ namespace EDiffType
 		PIN_TYPE_IS_ARRAY,
 		PIN_TYPE_IS_REF,
 		PIN_LINKEDTO_NODE,
+		PIN_LINKEDTO_PIN, // only used when a pin was relinked to a different pin on the same node
 		NODE_MOVED,
 		TIMELINE_LENGTH,
 		TIMELINE_AUTOPLAY,
