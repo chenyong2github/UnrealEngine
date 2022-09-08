@@ -426,7 +426,10 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 
 	// analytics for launch on
 	TArray<FAnalyticsEventAttribute> AnalyticsParamArray;
-	LaunchPlatform->GetPlatformSpecificProjectAnalytics(AnalyticsParamArray);
+	if (LaunchPlatform != nullptr)
+	{
+		LaunchPlatform->GetPlatformSpecificProjectAnalytics(AnalyticsParamArray);
+	}
 	FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Started"), LaunchPlatformName, LauncherSessionInfo->bPlayUsingLauncherHasCode, AnalyticsParamArray);
 
 
