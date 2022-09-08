@@ -319,7 +319,7 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 	UncontrolledChangelistExpandableArea = SNew(SExpandableChangelistArea)
 		.HeaderText_Lambda([this]() { return FText::Format(LOCTEXT("SourceControl_UncontrolledChangeLists", "Uncontrolled Changelists ({0})"), UncontrolledChangelistTreeNodes.Num()); })
 		.ChangelistView(UncontrolledChangelistTreeView.ToSharedRef())
-		.NewButtonVisibility(EVisibility::Collapsed) // Functionality is planned but not implemented yet.
+		.OnNewChangelist_Lambda([this]() { OnNewUncontrolledChangelist(); return FReply::Handled(); })
 		.OnNewChangelistTooltip(LOCTEXT("Create_New_Uncontrolled_Changelist", "Create a new uncontrolled changelist."))
 		.SearchButtonVisibility(EVisibility::Collapsed); // Functionality is planned but not fully implemented yet.
 
@@ -1767,6 +1767,83 @@ bool SSourceControlChangelistsWidget::CanValidateChangelist()
 	return Changelist != nullptr && Changelist->GetFilesStates().Num() > 0;
 }
 
+void SSourceControlChangelistsWidget::OnNewUncontrolledChangelist()
+{
+	FText UncontrolledChangelistDescription;
+	bool bOk = GetChangelistDescription(
+		nullptr,
+		LOCTEXT("SourceControl.UncontrolledChangelist.New.Title", "New Uncontrolled Changelist..."),
+		LOCTEXT("SourceControl.UncontrolledChangelist.New.Label", "Enter a description for the uncontrolled changelist:"),
+		UncontrolledChangelistDescription);
+
+	if (!bOk)
+	{
+		return;
+	}
+
+	ExecuteUncontrolledChangelistOperation(LOCTEXT("Creating_Uncontrolled_Changelist", "Creating uncontrolled changelist..."), [&]()
+	{
+		FUncontrolledChangelistsModule::Get().CreateUncontrolledChangelist(UncontrolledChangelistDescription);
+	});
+}
+
+void SSourceControlChangelistsWidget::OnEditUncontrolledChangelist()
+{
+	FUncontrolledChangelistStatePtr UncontrolledChangelistState = GetCurrentUncontrolledChangelistState();
+
+	if (UncontrolledChangelistState == nullptr)
+	{
+		return;
+	}
+
+	FText NewUncontrolledChangelistDescription = UncontrolledChangelistState->GetDisplayText();
+
+	bool bOk = GetChangelistDescription(
+		nullptr,
+		LOCTEXT("SourceControl.Uncontrolled.Changelist.New.Title2", "Edit Uncontrolled Changelist..."),
+		LOCTEXT("SourceControl.Uncontrolled.Changelist.New.Label2", "Enter a new description for the uncontrolled changelist:"),
+		NewUncontrolledChangelistDescription);
+
+	if (!bOk)
+	{
+		return;
+	}
+
+	ExecuteUncontrolledChangelistOperation(LOCTEXT("Updating_Uncontrolled_Changelist_Description", "Updating uncontrolled changelist description..."), [&NewUncontrolledChangelistDescription, &UncontrolledChangelistState]()
+	{
+		FUncontrolledChangelistsModule::Get().EditUncontrolledChangelist(UncontrolledChangelistState->Changelist, NewUncontrolledChangelistDescription);
+	});
+}
+
+bool SSourceControlChangelistsWidget::CanEditUncontrolledChangelist()
+{
+	FUncontrolledChangelistStatePtr UncontrolledChangelistState = GetCurrentUncontrolledChangelistState();
+
+	return (UncontrolledChangelistState != nullptr) && !UncontrolledChangelistState->Changelist.IsDefault();
+}
+
+void SSourceControlChangelistsWidget::OnDeleteUncontrolledChangelist()
+{
+	TOptional<FUncontrolledChangelist> UncontrolledChangelist = GetCurrentUncontrolledChangelist();
+
+	if (!UncontrolledChangelist.IsSet())
+	{
+		return;
+	}
+
+	ExecuteUncontrolledChangelistOperation(LOCTEXT("Deleting_Uncontrolled_Changelist", "Deleting uncontrolled changelist..."), [&UncontrolledChangelist]()
+	{
+		FUncontrolledChangelistsModule::Get().DeleteUncontrolledChangelist(UncontrolledChangelist.GetValue());
+	});
+}
+
+bool SSourceControlChangelistsWidget::CanDeleteUncontrolledChangelist()
+{
+	FUncontrolledChangelistStatePtr UncontrolledChangelistState = GetCurrentUncontrolledChangelistState();
+
+	return (UncontrolledChangelistState != nullptr) && !UncontrolledChangelistState->Changelist.IsDefault() && !UncontrolledChangelistState->ContainsFiles();
+}
+
 void SSourceControlChangelistsWidget::OnMoveFiles()
 {
 	TArray<FString> SelectedControlledFiles;
@@ -2101,6 +2178,27 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDeleteChangelist),
 				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDeleteChangelist)));
+	}
+
+	if (bHasSelectedUncontrolledChangelist)
+	{
+		Section.AddMenuEntry(
+			"EditUncontrolledChangelist",
+			LOCTEXT("SourceControl_EditUncontrolledChangelist", "Edit Uncontrolled Changelist..."),
+			LOCTEXT("SourceControl_Edit_Uncontrolled_Changelist_Tooltip", "Edit an uncontrolled changelist description"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnEditUncontrolledChangelist),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanEditUncontrolledChangelist)));
+
+		Section.AddMenuEntry(
+			"DeleteUncontrolledChangelist",
+			LOCTEXT("SourceControl_DeleteUncontrolledChangelist", "Delete Empty Changelist"),
+			LOCTEXT("SourceControl_Delete_Uncontrolled_Changelist_Tooltip", "Deletes an empty uncontrolled changelist"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnDeleteUncontrolledChangelist),
+				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanDeleteUncontrolledChangelist)));
 	}
 
 	// Files-only operations

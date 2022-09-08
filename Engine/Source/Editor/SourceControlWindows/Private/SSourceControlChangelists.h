@@ -110,6 +110,13 @@ private:
 	void OnValidateChangelist();
 	bool CanValidateChangelist();
 
+	/** Uncontrolled Changelist operations */
+	void OnNewUncontrolledChangelist();
+	void OnEditUncontrolledChangelist();
+	bool CanEditUncontrolledChangelist();
+	void OnDeleteUncontrolledChangelist();
+	bool CanDeleteUncontrolledChangelist();
+
 	/** Changelist & File operations */
 	void OnRevertUnchanged();
 	bool CanRevertUnchanged();

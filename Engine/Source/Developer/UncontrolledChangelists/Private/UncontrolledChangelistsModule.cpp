@@ -483,6 +483,78 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 	}
 }
 
+void FUncontrolledChangelistsModule::CreateUncontrolledChangelist(const FText& InDescription)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	// Default constructor will generate a new GUID.
+	FUncontrolledChangelist NewUncontrolledChangelist;
+	UncontrolledChangelistsStateCache.Emplace(MoveTemp(NewUncontrolledChangelist), MakeShared<FUncontrolledChangelistState>(NewUncontrolledChangelist, InDescription));
+
+	OnStateChanged();
+}
+
+void FUncontrolledChangelistsModule::EditUncontrolledChangelist(const FUncontrolledChangelist& InUncontrolledChangelist, const FText& InNewDescription)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	if (InUncontrolledChangelist.IsDefault())
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Cannot edit Default Uncontrolled Changelist."));
+		return;
+	}
+
+	FUncontrolledChangelistStateRef* UncontrolledChangelistState = UncontrolledChangelistsStateCache.Find(InUncontrolledChangelist);
+
+	if (UncontrolledChangelistState == nullptr)
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Cannot find Uncontrolled Changelist %s in cache."), *InUncontrolledChangelist.ToString());
+		return;
+	}
+
+	(*UncontrolledChangelistState)->SetDescription(InNewDescription);
+
+	OnStateChanged();
+}
+
+void FUncontrolledChangelistsModule::DeleteUncontrolledChangelist(const FUncontrolledChangelist& InUncontrolledChangelist)
+{
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	if (InUncontrolledChangelist.IsDefault())
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Cannot delete Default Uncontrolled Changelist."));
+		return;
+	}
+
+	FUncontrolledChangelistStateRef* UncontrolledChangelistState = UncontrolledChangelistsStateCache.Find(InUncontrolledChangelist);
+
+	if (UncontrolledChangelistState == nullptr)
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Cannot find Uncontrolled Changelist %s in cache."), *InUncontrolledChangelist.ToString());
+		return;
+	}
+
+	if ((*UncontrolledChangelistState)->ContainsFiles())
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Cannot delete Uncontrolled Changelist %s while it contains files."), *InUncontrolledChangelist.ToString());
+		return;
+	}
+
+	UncontrolledChangelistsStateCache.Remove(InUncontrolledChangelist);
+
+	OnStateChanged();
+}
+
 void FUncontrolledChangelistsModule::OnStateChanged()
 {
 	OnUncontrolledChangelistModuleChanged.Broadcast();

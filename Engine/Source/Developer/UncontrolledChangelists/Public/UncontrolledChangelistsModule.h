@@ -126,6 +126,25 @@ public:
 	 */
 	void MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist, TFunctionRef<bool(const TArray<FSourceControlStateRef>&)> InOpenConflictDialog);
 
+	/**
+	 * Creates a new Uncontrolled Changelist.
+	 * @param	InDescription	The description of the newly created Uncontrolled Changelist.
+	 */
+	void CreateUncontrolledChangelist(const FText& InDescription);
+	
+	/**
+     * Edits an Uncontrolled Changelist's description
+	 * @param	InUncontrolledChangelist	The Uncontrolled Changelist to modify. Should not be the default Uncontrolled Changelist.
+	 * @param	InNewDescription			The description to set.
+	 */
+	void EditUncontrolledChangelist(const FUncontrolledChangelist& InUncontrolledChangelist, const FText& InNewDescription);
+	
+	/**
+	 * Deletes an Uncontrolled Changelist.
+	 * @param	InUncontrolledChangelist	The Uncontrolled Changelist to delete. Should not be the default Uncontrolled Changelist and should not contain files.
+	 */
+	void DeleteUncontrolledChangelist(const FUncontrolledChangelist& InUncontrolledChangelist);
+
 private:
 	/**
 	 * Helper use by Startup task and OnAssetLoaded delegate.
