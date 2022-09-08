@@ -1132,7 +1132,7 @@ int32 UBaseIteratePackagesCommandlet::Main( const FString& Params )
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 	AssetRegistry.Tick(-1.0f);
 
-	PostSavePackages();
+	PostProcessPackages();
 
 	// Submit the results to source control
 	CheckInFiles(FilesToSubmit, GetChangelistDescription());

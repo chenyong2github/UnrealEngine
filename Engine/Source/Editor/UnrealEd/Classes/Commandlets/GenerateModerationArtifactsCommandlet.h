@@ -7,6 +7,68 @@
 
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogModerationArtifactsCommandlet, Log, All);
 
+
+
+
+USTRUCT()
+struct FModerationAsset
+{
+public:
+	GENERATED_BODY();
+
+	UObject* Object;
+
+	UPROPERTY()
+	FString FullPath;
+
+	UPROPERTY()
+	FString ClassName;
+
+	UPROPERTY()
+	TArray<FString> ModerationArtifactFilenames;
+
+};
+
+
+USTRUCT()
+struct FModerationPackage
+{
+public:
+	GENERATED_BODY();
+
+
+	FModerationAsset* FindOrCreateModerationAsset(const UObject* InObject);
+
+	UPackage* Package;
+
+	UPROPERTY()
+	FString PackagePath;
+
+	UPROPERTY()
+	FString PackageHash;
+
+	UPROPERTY()
+	TArray<struct FModerationAsset> Assets;
+
+
+};
+
+
+USTRUCT()
+struct FModerationManifest
+{
+	GENERATED_BODY();
+
+
+	FModerationPackage* FindOrCreateModerationPackage(UPackage* InPackage);
+
+	FString CreateModerationAssetFileName(const UObject* Object, const FString& Extension);
+
+	UPROPERTY()
+		TArray<struct FModerationPackage> Packages;
+
+};
+
 UCLASS()
 // Added UNREALED_API to expose this to the save packages test
 // Base commandlet used to iterate packages provided on a commandline
@@ -64,6 +126,8 @@ class UNREALED_API UGenerateModerationArtifactsCommandlet : public UBaseIterateP
 	*/
 	// virtual void PerformAdditionalOperations(class UWorld* World, bool& bSavePackage) { }
 
+	virtual void PostProcessPackages() override;
+
 private:
 	void GatherLocalizationFromPackage(class UPackage* Package);
 	void GatherFStringsFromObject(class UObject* Object);
@@ -76,4 +140,10 @@ private:
 
 	FString OutputPath;
 
+	FModerationManifest Manifest; 
+	TMap<const UObject*, TWeakPtr<FModerationAsset>> ModerationAssetMap;
+	TMap<const UPackage*, TWeakPtr<FModerationPackage>> ModerationPackageMap;
+
+	TMap<FName, float> TimerStats;
 };
+

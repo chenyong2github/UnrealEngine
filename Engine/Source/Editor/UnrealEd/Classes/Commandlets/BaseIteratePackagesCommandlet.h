@@ -227,7 +227,7 @@ protected:
 	/**
 	 * Allows the commandlet to do something after all the packages have been processed
 	 */
-	virtual void PostSavePackages() { }
+	virtual void PostProcessPackages() { }
 
 	/**
 	 * Removes any UClass exports from packages which aren't script packages.
