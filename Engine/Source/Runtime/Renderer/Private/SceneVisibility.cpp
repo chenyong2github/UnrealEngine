@@ -661,7 +661,7 @@ static FORCEINLINE void CullOctree(const FScene* RESTRICT Scene, FViewInfo& View
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SceneVisibility_CullOctree);
 
-	// Two bits per octree node, 1st bit is Inisde Frustum, 2nd bit is Outside Frustum
+	// Two bits per octree node, 1st bit is Inside Frustum, 2nd bit is Outside Frustum
 	OutVisibleNodes.Init(false, Scene->PrimitiveOctree.GetNumNodes() * 2);
 
 	Scene->PrimitiveOctree.FindNodesWithPredicate(
