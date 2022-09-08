@@ -189,7 +189,9 @@ public:
           TraverseImplicitCastExpr(initCast);
         } else if (DeclRefExpr *initRef = dyn_cast<DeclRefExpr>(initExp)) {
           TraverseDeclRefExpr(initRef);
-        }
+        } else if (Stmt* initStmt = dyn_cast<Stmt>(initExp)) {
+          TraverseStmt(initStmt);
+		}
       }
     }
     return true;
@@ -753,7 +755,8 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
       }
 
       // UE Change Begin: Don't remove static const variables.
-      if (varDecl->getStorageClass() != SC_Static) {
+      if (varDecl->getStorageClass() != SC_Static ||
+          IsHLSLResourceType(varDecl->getType())) {
         unusedGlobals.insert(varDecl);
         if (const RecordType *recordType =
                 varDecl->getType()->getAs<RecordType>()) {
