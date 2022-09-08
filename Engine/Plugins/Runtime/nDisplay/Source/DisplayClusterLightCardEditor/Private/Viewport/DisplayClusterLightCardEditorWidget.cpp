@@ -26,7 +26,7 @@ void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FD
 	{
 		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar, OrthoScalar);
 		DrawCircle(PDI, EAxisList::Type::Z, SizeScalar, LengthScalar);
-		DrawOrigin(PDI, SizeScalar, OrthoScalar);
+		DrawOrigin(PDI, LengthScalar, 1.f);
 	}
 	else
 	{
