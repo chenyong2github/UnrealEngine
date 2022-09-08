@@ -38,15 +38,18 @@ public:
 
 	/** Breaks an ActionValue into X, Y, Z. Axes not supported by value type will be 0. */
 	UFUNCTION(BlueprintPure, Category = "Input", meta = (NativeBreakFunc))
-	static void BreakInputActionValue(FInputActionValue InActionValue, double& X, double& Y, double& Z);
+	static void BreakInputActionValue(FInputActionValue InActionValue, double& X, double& Y, double& Z, EInputActionValueType& Type);
 
 	/**
 	 * Builds an ActionValue from X, Y, Z. Inherits type from an existing ActionValue. Ignores axis values unused by the provided value type.
 	 * @note Intended for use in Input Modifier Modify Raw overloads to modify an existing Input Action Value.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Input", meta = (Keywords = "construct build", NativeMakeFunc))
-	static FInputActionValue MakeInputActionValue(double X, double Y, double Z, const FInputActionValue& MatchValueType);
+	static FInputActionValue MakeInputActionValueOfType(double X, double Y, double Z, const EInputActionValueType ValueType);
 
+	UE_DEPRECATED(5.1, "This version of MakeInputActionValue has been deprecated, please use MakeInputActionValueOfType")
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (Keywords = "construct build", NativeMakeFunc, DeprecatedFunction, DeprecatedMessage="This version of MakeInputActionValue has been deprecated, please use MakeInputActionValueOfType"))
+	static FInputActionValue MakeInputActionValue(double X, double Y, double Z, const FInputActionValue& MatchValueType);
 
 	// Internal helper functionality
 

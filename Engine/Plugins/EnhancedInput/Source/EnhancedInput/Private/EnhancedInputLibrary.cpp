@@ -46,17 +46,25 @@ FInputActionValue UEnhancedInputLibrary::GetBoundActionValue(AActor* Actor, cons
 }
 
 
-void UEnhancedInputLibrary::BreakInputActionValue(FInputActionValue InActionValue, double& X, double& Y, double& Z)
+void UEnhancedInputLibrary::BreakInputActionValue(FInputActionValue InActionValue, double& X, double& Y, double& Z, EInputActionValueType& Type)
 {
 	FVector AsAxis3D = InActionValue.Get<FInputActionValue::Axis3D>();
 	X = AsAxis3D.X;
 	Y = AsAxis3D.Y;
 	Z = AsAxis3D.Z;
+	Type = InActionValue.GetValueType();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FInputActionValue UEnhancedInputLibrary::MakeInputActionValue(double X, double Y, double Z, const FInputActionValue& MatchValueType)
 {
 	return FInputActionValue(MatchValueType.GetValueType(), FVector(X, Y, Z));
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+FInputActionValue UEnhancedInputLibrary::MakeInputActionValueOfType(double X, double Y, double Z, const EInputActionValueType ValueType)
+{
+	return FInputActionValue(ValueType, FVector(X, Y, Z));
 }
 
 // FInputActionValue type conversions
