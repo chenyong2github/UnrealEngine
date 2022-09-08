@@ -32,6 +32,7 @@ namespace Horde.Build.Streams
 	public class StreamsController : HordeControllerBase
 	{
 		private readonly StreamService _streamService;
+		private readonly ICommitService _commitService;
 		private readonly ITemplateCollection _templateCollection;
 		private readonly IJobStepRefCollection _jobStepRefCollection;
 		private readonly IUserCollection _userCollection;
@@ -40,9 +41,10 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamsController(AclService aclService, StreamService streamService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IUserCollection userCollection)
+		public StreamsController(AclService aclService, StreamService streamService, ICommitService commitService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IUserCollection userCollection)
 		{
 			_streamService = streamService;
+			_commitService = commitService;
 			_templateCollection = templateCollection;
 			_jobStepRefCollection = jobStepRefCollection;
 			_userCollection = userCollection;
@@ -177,7 +179,7 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			List<ICommit> commits = await stream.Commits.FindCommitsAsync(min, max, results).ToListAsync();
+			List<ICommit> commits = await _commitService.GetCollection(stream).FindAsync(min, max, results).ToListAsync();
 
 			List<GetChangeSummaryResponse> responses = new List<GetChangeSummaryResponse>();
 			foreach (ICommit commit in commits)
@@ -210,7 +212,7 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			ICommit? changeDetails = await stream.Commits.GetCommitAsync(changeNumber);
+			ICommit? changeDetails = await _commitService.GetCollection(stream).GetAsync(changeNumber);
 			if(changeDetails == null)
 			{
 				return NotFound("CL {Change} not found in stream {StreamId}", changeNumber, streamId);

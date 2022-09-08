@@ -97,11 +97,6 @@ namespace Horde.Build.Streams
 		/// The ACL for this object
 		/// </summary>
 		Acl? Acl { get; }
-
-		/// <summary>
-		/// Accessor for commits of this stream
-		/// </summary>
-		ICommitSource Commits { get; }
 	}
 
 	/// <summary>

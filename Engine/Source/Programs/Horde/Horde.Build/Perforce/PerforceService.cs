@@ -35,7 +35,7 @@ namespace Horde.Build.Perforce
 	/// </summary>
 	class PerforceService : IPerforceService, IDisposable
 	{
-		sealed class PooledConnection : IDisposable
+		protected sealed class PooledConnection : IDisposable
 		{
 			public IPerforceConnection Perforce { get; }
 			public IPerforceSettings Settings => Perforce.Settings;
@@ -65,7 +65,7 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		class PooledConnectionHandle : IPerforceConnection
+		protected class PooledConnectionHandle : IPooledPerforceConnection
 		{
 			readonly PerforceService _owner;
 			PooledConnection _inner;
@@ -111,7 +111,7 @@ namespace Horde.Build.Perforce
 
 		}
 
-		class Credentials
+		protected class Credentials
 		{
 			public string UserName { get; }
 			public string? Password { get; }
@@ -131,14 +131,14 @@ namespace Horde.Build.Perforce
 			readonly string _clusterName;
 			readonly string _streamName;
 
-			public StreamId StreamId { get; }
-			public int Number { get; }
-			public int OriginalChange { get; }
-			public UserId AuthorId { get; }
-			public UserId OwnerId { get; }
-			public string Description { get; }
-			public string BasePath { get; }
-			public DateTime DateUtc { get; }
+			public StreamId StreamId { get; set; }
+			public int Number { get; set; }
+			public int OriginalChange { get; set; }
+			public UserId AuthorId { get; set; }
+			public UserId OwnerId { get; set; }
+			public string Description { get; set; }
+			public string BasePath { get; set; }
+			public DateTime DateUtc { get; set; }
 
 			IReadOnlyList<string>? _files;
 
@@ -211,7 +211,7 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		public void Dispose()
+		public virtual void Dispose()
 		{
 			foreach (PooledConnection pooledConnection in _pooledConnections)
 			{
@@ -364,7 +364,7 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		public async Task<IPerforceConnection> ConnectAsync(string clusterName, string? userName = null, CancellationToken cancellationToken = default)
+		public async Task<IPooledPerforceConnection> ConnectAsync(string clusterName, string? userName = null, CancellationToken cancellationToken = default)
 		{
 			PerforceCluster cluster = await GetClusterAsync(clusterName);
 			return await ConnectAsync(cluster, userName, cancellationToken);
@@ -638,7 +638,7 @@ namespace Horde.Build.Perforce
 			return new Commit(this, stream.Config.ClusterName, stream.Name, stream.Id, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
 		}
 
-		async ValueTask<Commit> CreateCommitAsync(IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
+		public async ValueTask<ICommit> CreateCommitAsync(IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
 		{
 			DateTime timeUtc = new DateTime(describeRecord.Time.Ticks - serverInfo.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
 
@@ -713,7 +713,7 @@ namespace Horde.Build.Perforce
 
 				DateTime timeUtc = new DateTime(record.Time.Ticks - info.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
 
-				Commit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
+				ICommit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
 				return commit;
 			}
 		}
@@ -792,7 +792,7 @@ namespace Horde.Build.Perforce
 				List<DescribeRecord> records = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, changeNumbers.ToArray(), cancellationToken);
 				foreach (DescribeRecord record in records)
 				{
-					Commit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
+					ICommit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
 					results.Add(commit);
 				}
 			}
@@ -1140,36 +1140,45 @@ namespace Horde.Build.Perforce
 			relativePath = null;
 			return false;
 		}
-	}
 
-	class PerforceCommitSource : ICommitSource
-	{
-		readonly IPerforceService _perforceService;
-		readonly IStream _stream;
-
-		public PerforceCommitSource(IPerforceService perforceService, IStream stream)
+		/// <summary>
+		/// Implementation of <see cref="ICommitCollection"/> to return commits from a particular stream
+		/// </summary>
+		protected class CommitSource : ICommitCollection
 		{
-			_perforceService = perforceService;
-			_stream = stream;
-		}
+			protected readonly IPerforceService _perforceService;
+			protected readonly IStream _stream;
 
-		public async IAsyncEnumerable<ICommit> FindCommitsAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-		{
-			List<ICommit> commits = await _perforceService.GetChangesAsync(_stream, minChange, maxChange, maxResults, cancellationToken);
-			foreach(ICommit commit in commits)
+			public CommitSource(IPerforceService perforceService, IStream stream)
 			{
-				yield return commit;
+				_perforceService = perforceService;
+				_stream = stream;
+			}
+
+			public virtual async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			{
+				List<ICommit> commits = await _perforceService.GetChangesAsync(_stream, minChange, maxChange, maxResults, cancellationToken);
+				foreach (ICommit commit in commits)
+				{
+					yield return commit;
+				}
+			}
+
+			public virtual Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default)
+			{
+				return _perforceService.GetChangeDetailsAsync(_stream, changeNumber, cancellationToken);
+			}
+
+			public virtual Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
+			{
+				return _perforceService.GetLatestChangeAsync(_stream);
 			}
 		}
 
-		public Task<ICommit> GetCommitAsync(int changeNumber, CancellationToken cancellationToken = default)
+		/// <inheritdoc/>
+		public virtual ICommitCollection GetCommits(IStream stream)
 		{
-			return _perforceService.GetChangeDetailsAsync(_stream, changeNumber, cancellationToken);
-		}
-
-		public Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
-		{
-			return _perforceService.GetLatestChangeAsync(_stream);
+			return new CommitSource(this, stream);
 		}
 	}
 }

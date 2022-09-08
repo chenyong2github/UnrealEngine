@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Perforce;
@@ -77,7 +78,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			_userCollection = userCollection;
 		}
 
-		public Task<IPerforceConnection> ConnectAsync(string? clusterName, string? userName, CancellationToken cancellationToken)
+		public Task<IPooledPerforceConnection> ConnectAsync(string? clusterName, string? userName, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
@@ -203,6 +204,39 @@ namespace Horde.Build.Tests.Stubs.Services
 		public Task<ICommit> GetChangeDetailsAsync(IStream stream, int changeNumber, CancellationToken cancellationToken)
 		{
 			return Task.FromResult<ICommit>(Changes[stream.Id][changeNumber]);
+		}
+
+		class CommitCollection : ICommitCollection
+		{
+			readonly PerforceServiceStub _owner;
+			readonly IStream _stream;
+
+			public CommitCollection(PerforceServiceStub owner, IStream stream)
+			{
+				_owner = owner;
+				_stream = stream;
+			}
+
+			public async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			{
+				foreach (ICommit commit in await _owner.GetChangesAsync(_stream, minChange, maxChange, maxResults, cancellationToken))
+				{
+					yield return commit;
+				}
+			}
+
+			public Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default) => _owner.GetChangeDetailsAsync(_stream, changeNumber);
+
+			public async Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
+			{
+				List<ICommit> commits = await _owner.GetChangesAsync(_stream, null, null, 1, cancellationToken);
+				return commits[0].Number;
+			}
+		}
+
+		public ICommitCollection GetCommits(IStream stream)
+		{
+			return new CommitCollection(this, stream);
 		}
 	}
 }

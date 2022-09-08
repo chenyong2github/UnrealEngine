@@ -352,7 +352,6 @@ namespace Horde.Build
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
-			services.AddSingleton<ICommitCollection, CommitCollection>();
 			services.AddSingleton<IGraphCollection, GraphCollection>();
 			services.AddSingleton<IIssueCollection, IssueCollection>();
 			services.AddSingleton<IJobCollection, JobCollection>();
@@ -428,8 +427,7 @@ namespace Horde.Build
 				}
 				return new NoOpDogStatsd();
 			});
-			services.AddSingleton<CommitService>();
-			services.AddSingleton<ICommitService>(sp => sp.GetRequiredService<CommitService>());
+			services.AddSingleton<ICommitService, CommitService>();
 			services.AddSingleton<IClock, Clock>();
 			services.AddSingleton<IDowntimeService, DowntimeService>();
 			services.AddSingleton<IssueService>();
@@ -437,7 +435,8 @@ namespace Horde.Build
 			services.AddSingleton<LifetimeService>();
 			services.AddSingleton<ILogFileService, LogFileService>();
 			services.AddSingleton<INotificationService, NotificationService>();
-			services.AddSingleton<IPerforceService, PerforceService>();
+			services.AddSingleton<PerforceServiceCache>();
+			services.AddSingleton<IPerforceService>(sp => sp.GetRequiredService<PerforceServiceCache>());
 
 			services.AddSingleton<PerforceLoadBalancer>();
 			services.AddSingleton<PoolService>();
@@ -624,7 +623,7 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<AutoscaleServiceV2>());
 				
 				services.AddHostedService(provider => provider.GetRequiredService<AgentService>());
-				services.AddHostedService(provider => provider.GetRequiredService<CommitService>());
+				services.AddHostedService(provider => provider.GetRequiredService<PerforceServiceCache>());
 				services.AddHostedService(provider => provider.GetRequiredService<ConsistencyService>());
 				services.AddHostedService(provider => provider.GetRequiredService<IssueService>());
 				services.AddHostedService<IssueReportService>();

@@ -44,6 +44,24 @@ namespace Horde.Build.Perforce
 	}
 
 	/// <summary>
+	/// A connection returned by the Perforce service
+	/// </summary>
+	public interface IPooledPerforceConnection : IPerforceConnection, IDisposable
+	{
+		/// <summary>
+		/// The client used by the connection
+		/// </summary>
+		ClientRecord? Client { get; }
+
+		/// <summary>
+		/// Gets the server information, returning a cached copy if possible
+		/// </summary>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		ValueTask<InfoRecord> GetInfoAsync(CancellationToken cancellationToken);
+	}
+
+	/// <summary>
 	/// Wrapper around Perforce functionality. Can use a local p4.exe client for development purposes, or a separate HordePerforceBridge instance over REST for deployments.
 	/// </summary>
 	public interface IPerforceService
@@ -55,7 +73,7 @@ namespace Horde.Build.Perforce
 		/// <param name="userName">Name of the user to connect as. Uses the service account if null.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Connection information</returns>
-		public Task<IPerforceConnection> ConnectAsync(string clusterName, string? userName = null, CancellationToken cancellationToken = default);
+		public Task<IPooledPerforceConnection> ConnectAsync(string clusterName, string? userName = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Finds or adds a user from the given Perforce server, adding the user (and populating their profile with Perforce data) if they do not currently exist
@@ -162,6 +180,13 @@ namespace Horde.Build.Perforce
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
 		public Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Creates a commit source for the given stream
+		/// </summary>
+		/// <param name="stream">Stream to create a commit source for</param>
+		/// <returns>Commit source instance</returns>
+		public ICommitCollection GetCommits(IStream stream);
 	}
 
 	/// <summary>

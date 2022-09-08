@@ -1,20 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Threading.Tasks;
+using Horde.Build.Streams;
 
 namespace Horde.Build.Perforce
 {
 	/// <summary>
-	/// Provides information about commits
+	/// Provides information about commits to a stream
 	/// </summary>
 	public interface ICommitService
 	{
 		/// <summary>
-		/// Registers a delegate to be called when a new commit is added
+		/// Gets a commit collection for the given stream
 		/// </summary>
-		/// <param name="onAddCommit">Callback for a new commit being added</param>
-		/// <returns>Disposable handler.</returns>
-		IAsyncDisposable AddListener(Func<ICommit, Task> onAddCommit);
+		/// <param name="stream">Stream to get commits for</param>
+		/// <returns>Collection object</returns>
+		ICommitCollection GetCollection(IStream stream);
 	}
 }

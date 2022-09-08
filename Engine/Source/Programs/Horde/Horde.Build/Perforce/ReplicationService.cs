@@ -159,8 +159,8 @@ namespace Horde.Build.Perforce
 		readonly RedisConnectionPool _redisConnectionPool;
 
 		// Collections
-		readonly CommitService _commitService;
-		readonly IAsyncDisposable _commitListener;
+//		readonly CommitService _commitService;
+//		readonly IAsyncDisposable _commitListener;
 
 		readonly IStreamCollection _streamCollection;
 		readonly IPerforceService _perforceService;
@@ -184,7 +184,7 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReplicationService(RedisService redisService, CommitService commitService, IStreamCollection streamCollection, IPerforceService perforceService, ITreeStore<ReplicationService> treeStore, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
+		public ReplicationService(RedisService redisService, /* CommitService commitService, */IStreamCollection streamCollection, IPerforceService perforceService, ITreeStore<ReplicationService> treeStore, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
 		{
 			Options = options.Value;
 
@@ -192,8 +192,8 @@ namespace Horde.Build.Perforce
 			_redisDirtyStreams = new RedisSet<StreamId>(_redisConnectionPool, RedisBaseKey.Append("streams"));
 			_redisReservations = new RedisSortedSet<StreamId>(_redisConnectionPool, RedisBaseKey.Append("reservations"));
 
-			_commitService = commitService;
-			_commitListener = _commitService.AddListener(OnCommitAdded);
+//			_commitService = commitService;
+//			_commitListener = _commitService.AddListener(OnCommitAdded);
 
 			_streamCollection = streamCollection;
 			_perforceService = perforceService;
@@ -204,7 +204,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			_commitListener.DisposeAsync().AsTask().Wait();
+//			_commitListener.DisposeAsync().AsTask().Wait();
 		}
 
 		/// <inheritdoc/>
@@ -232,7 +232,7 @@ namespace Horde.Build.Perforce
 					_redisUpdateSubscription = null;
 				}
 				await _streamUpdateTask!;
-				await _commitListener.DisposeAsync();
+//				await _commitListener.DisposeAsync();
 			}
 		}
 

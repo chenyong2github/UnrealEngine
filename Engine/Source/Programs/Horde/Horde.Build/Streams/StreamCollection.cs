@@ -79,22 +79,7 @@ namespace Horde.Build.Streams
 			public StreamConfig Config { get; private set; } = null!;
 
 			[BsonIgnore]
-			IPerforceService? _perforceService;
-
-			[BsonIgnore]
-			PerforceCommitSource? _cachedCommitSource;
-
-			[BsonIgnore]
 			IReadOnlyDictionary<TemplateId, ITemplateRef>? _cachedTemplates;
-
-			ICommitSource IStream.Commits
-			{
-				get
-				{
-					_cachedCommitSource ??= (_perforceService == null)? null : new PerforceCommitSource(_perforceService!, this);
-					return _cachedCommitSource!;
-				}
-			}
 
 			IReadOnlyDictionary<TemplateId, ITemplateRef> IStream.Templates
 			{
@@ -105,10 +90,8 @@ namespace Horde.Build.Streams
 				}
 			}
 
-			public async Task PostLoadAsync(ConfigCollection configCollection, IPerforceService perforceService, ILogger logger)
+			public async Task PostLoadAsync(ConfigCollection configCollection, ILogger logger)
 			{
-				_perforceService = perforceService;
-
 				try
 				{
 					if (Deleted)
@@ -259,7 +242,6 @@ namespace Horde.Build.Streams
 
 		readonly IMongoCollection<StreamDoc> _streams;
 		readonly ConfigCollection _configCollection;
-		readonly IPerforceService _perforceService;
 		readonly IClock _clock;
 		readonly ITemplateCollection _templateCollection;
 		readonly ILogger<StreamCollection> _logger;
@@ -269,21 +251,19 @@ namespace Horde.Build.Streams
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
 		/// <param name="configCollection"></param>
-		/// <param name="perforceService"></param>
 		/// <param name="clock"></param>
 		/// <param name="templateCollection"></param>
 		/// <param name="logger"></param>
-		public StreamCollection(MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, IClock clock, ITemplateCollection templateCollection, ILogger<StreamCollection> logger)
+		public StreamCollection(MongoService mongoService, ConfigCollection configCollection, IClock clock, ITemplateCollection templateCollection, ILogger<StreamCollection> logger)
 		{
 			_streams = mongoService.GetCollection<StreamDoc>("Streams");
 			_configCollection = configCollection;
-			_perforceService = perforceService;
 			_clock = clock;
 			_templateCollection = templateCollection;
 			_logger = logger;
 		}
 
-		Task PostLoadAsync(StreamDoc stream) => stream.PostLoadAsync(_configCollection, _perforceService, _logger);
+		Task PostLoadAsync(StreamDoc stream) => stream.PostLoadAsync(_configCollection, _logger);
 
 		/// <inheritdoc/>
 		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string revision, ProjectId projectId)

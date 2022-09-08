@@ -64,13 +64,15 @@ namespace Horde.Build.Jobs.Schedules
 		class PerforceHistory
 		{
 			readonly IStream _stream;
+			readonly ICommitService _commitService;
 			int _maxResults;
 			readonly List<ICommit> _changes = new List<ICommit>();
 			int _nextIndex;
 
-			public PerforceHistory(IStream stream)
+			public PerforceHistory(IStream stream, ICommitService commitService)
 			{
 				_stream = stream;
+				_commitService = commitService;
 				_maxResults = 10;
 			}
 
@@ -78,7 +80,7 @@ namespace Horde.Build.Jobs.Schedules
 			{
 				while (index >= _changes.Count)
 				{
-					List<ICommit> newChanges = await _stream.Commits.FindCommitsAsync(null, null, _maxResults).ToListAsync();
+					List<ICommit> newChanges = await _commitService.GetCollection(_stream).FindAsync(null, null, _maxResults).ToListAsync();
 
 					int numResults = newChanges.Count;
 					if (_changes.Count > 0)
@@ -136,6 +138,7 @@ namespace Horde.Build.Jobs.Schedules
 
 		readonly IGraphCollection _graphs;
 		readonly IPerforceService _perforce;
+		readonly ICommitService _commitService;
 		readonly IJobCollection _jobCollection;
 		readonly JobService _jobService;
 		readonly StreamService _streamService;
@@ -152,10 +155,11 @@ namespace Horde.Build.Jobs.Schedules
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ScheduleService(RedisService redis, IGraphCollection graphs, IPerforceService perforce, IJobCollection jobCollection, JobService jobService, StreamService streamService, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ScheduleService> logger)
+		public ScheduleService(RedisService redis, IGraphCollection graphs, IPerforceService perforce, ICommitService commitService, IJobCollection jobCollection, JobService jobService, StreamService streamService, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ScheduleService> logger)
 		{
 			_graphs = graphs;
 			_perforce = perforce;
+			_commitService = commitService;
 			_jobCollection = jobCollection;
 			_jobService = jobService;
 			_streamService = streamService;
@@ -427,7 +431,7 @@ namespace Horde.Build.Jobs.Schedules
 			}
 
 			// Cache the Perforce history as we're iterating through changes to improve query performance
-			PerforceHistory history = new PerforceHistory(stream);
+			PerforceHistory history = new PerforceHistory(stream, _commitService);
 			
 			// Start as many jobs as possible
 			List<(int Change, int CodeChange)> triggerChanges = new List<(int, int)>();

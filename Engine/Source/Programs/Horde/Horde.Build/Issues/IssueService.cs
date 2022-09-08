@@ -149,6 +149,7 @@ namespace Horde.Build.Issues
 
 		readonly IJobStepRefCollection _jobStepRefs;
 		readonly IIssueCollection _issueCollection;
+		readonly ICommitService _commitService;
 		readonly StreamService _streams;
 		readonly IUserCollection _userCollection;
 		readonly ILogFileService _logFileService;
@@ -203,7 +204,7 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueService(IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
+		public IssueService(IIssueCollection issueCollection, ICommitService commitService, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
 		{
 			Type[] issueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type issueType in issueTypes)
@@ -213,6 +214,7 @@ namespace Horde.Build.Issues
 
 			// Get all the collections
 			_issueCollection = issueCollection;
+			_commitService = commitService;
 			_jobStepRefs = jobStepRefs;
 			_streams = streams;
 			_userCollection = userCollection;
@@ -1083,7 +1085,7 @@ namespace Horde.Build.Issues
 				if (stream != null)
 				{
 					_logger.LogInformation("Querying fix changelist {FixChange} in {StreamId}", fixChange, streamId);
-					ICommit? change = await stream.Commits.FindCommitsAsync(fixChange, fixChange, 1).FirstOrDefaultAsync();
+					ICommit? change = await _commitService.GetCollection(stream).FindAsync(fixChange, fixChange, 1).FirstOrDefaultAsync();
 					bContainsFixChange = change != null;
 				}
 				cachedContainsFixChange[(streamId, fixChange)] = bContainsFixChange;
@@ -1107,7 +1109,7 @@ namespace Horde.Build.Issues
 				_logger.LogDebug("Querying for changes in {StreamName} between {MinChange} and {MaxChange}", stream.Name, minChange, maxChange);
 
 				// Get the submitted changes before this job
-				List<ICommit> changes = await stream.Commits.FindCommitsAsync(minChange, maxChange, MaxChanges).ToListAsync();
+				List<ICommit> changes = await _commitService.GetCollection(stream).FindAsync(minChange, maxChange, MaxChanges).ToListAsync();
 				_logger.LogDebug("Found {NumResults} changes", changes.Count);
 
 				// Get the handler to rank them

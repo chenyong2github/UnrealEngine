@@ -62,9 +62,8 @@ namespace Horde.Build.Commands.Bundles
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
-			CommitService commitService = serviceProvider.GetRequiredService<CommitService>();
+			ICommitService commitService = serviceProvider.GetRequiredService<ICommitService>();
 			ReplicationService replicationService = serviceProvider.GetRequiredService<ReplicationService>();
-			ICommitCollection commitCollection = serviceProvider.GetRequiredService<ICommitCollection>();
 			IStreamCollection streamCollection = serviceProvider.GetRequiredService<IStreamCollection>();
 			IStorageClient storageClient = serviceProvider.GetRequiredService<IStorageClient>();
 
@@ -87,17 +86,17 @@ namespace Horde.Build.Commands.Bundles
 				baseContents = await replicationService.ReadCommitTreeAsync(stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
 			}
 
-			await foreach (NewCommit newCommit in commitService.FindCommitsForClusterAsync(stream.Config.ClusterName, streamToFirstChange).Take(Count))
+			await foreach (ICommit commit in commitService.GetCollection(stream).FindAsync(Change, null, Count))
 			{
-				string briefSummary = newCommit.Description.Replace('\n', ' ');
+				string briefSummary = commit.Description.Replace('\n', ' ');
 				logger.LogInformation("");
-				logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", newCommit.Change, newCommit.AuthorId, briefSummary.Substring(0, Math.Min(50, briefSummary.Length)));
-				logger.LogInformation("Base path: {BasePath}", newCommit.BasePath);
+				logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", commit.Number, commit.AuthorId, briefSummary.Substring(0, Math.Min(50, briefSummary.Length)));
+				logger.LogInformation("Base path: {BasePath}", commit.BasePath);
 
 				if (Content)
 				{
-					baseContents = await replicationService.WriteCommitTreeAsync(stream, newCommit.Change, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
-					BaseChange = newCommit.Change;
+					baseContents = await replicationService.WriteCommitTreeAsync(stream, commit.Number, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
+					BaseChange = commit.Number;
 				}
 			}
 

@@ -168,7 +168,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
-			services.AddSingleton<ICommitCollection, CommitCollection>();
+			services.AddSingleton<ICommitService, CommitService>();
 			services.AddSingleton<IGraphCollection, GraphCollection>();
 			services.AddSingleton<IIssueCollection, IssueCollection>();
 			services.AddSingleton<IJobCollection, JobCollection>();
