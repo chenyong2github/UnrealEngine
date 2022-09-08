@@ -46,6 +46,8 @@ SamplerState SceneDepthSampler;
  */
 float4 SkyLightCaptureParameters;
 float4 LowerHemisphereColor;
+float4 ColorAlphaMultiplier;
+float ClampToFP16;
 
 void CopySceneColorToCubeFaceColorPS(
 	FCopyToCubeFaceVSOutput Input,
@@ -121,6 +123,40 @@ float3 GetCubemapVector(float2 ScaledUVs, int InCubeFace)
 	return CubeCoordinates;
 }
 
+void GetCubemapTangent(int InCubeFace, inout float3 OutX, inout float3 OutY)
+{
+	if (InCubeFace == 0)
+	{
+		OutX = float3(0,-1, 0);
+		OutY = float3(0, 0,-1);
+	}
+	else if (InCubeFace == 1)
+	{
+		OutX = float3(0,-1, 0);
+		OutY = float3(0, 0, 1);
+	}
+	else if (InCubeFace == 2)
+	{
+		OutX = float3(1, 0, 0);
+		OutY = float3(0, 0, 1);
+	}
+	else if (InCubeFace == 3)
+	{
+		OutX = float3(1, 0, 0);
+		OutY = float3(0, 0,-1);
+	}
+	else if (InCubeFace == 4)
+	{
+		OutX = float3(1, 0, 0);
+		OutY = float3(0,-1, 0);
+	}
+	else
+	{
+		OutX = float3(-1, 0, 0);
+		OutY = float3( 0,-1, 0);
+	}
+}
+
 float CubeTexelWeight( float3 N )
 {
 	uint Axis = 2;
@@ -171,6 +207,10 @@ void CopyCubemapToCubeFaceColorPS(
 	}
 
 	OutColor.a = 1;
+
+	OutColor *= ColorAlphaMultiplier;
+
+	OutColor = ClampToFP16 == 0.0f ? OutColor : clamp(OutColor, float4(0.0f, 0.0f, 0.0f, 0.0f), float4(MaxHalfFloat, MaxHalfFloat, MaxHalfFloat, 1.0f));
 }
 
 uint MipIndex;
@@ -247,6 +287,46 @@ void DownsamplePS(
 #endif
 }
 
+void DownsampleMaxPS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0
+)
+{
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
+	const int SelectedCubeFace = CubeFace;
+
+	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, SelectedCubeFace);
+
+	uint MipSize = 1u << (NumMips - MipIndex - 1);
+
+	float3 TangentX = 0.0f;
+	float3 TangentY = 0.0f;
+	GetCubemapTangent(SelectedCubeFace, TangentX, TangentY);
+
+	const float SampleOffset = 1.0f / MipSize;
+
+	// Offset from the connect of 4 texels towards their center.
+	float2 Offsets[] =
+	{
+		float2(-0.5,-0.5),
+		float2( 0.5,-0.5),
+		float2( 0.5, 0.5),
+		float2(-0.5, 0.5),
+	};
+
+	OutColor = 0;
+
+	UNROLL
+	for (uint i = 0; i < 4; i++)
+	{
+		float3 SampleDir = CubeCoordinates;
+		SampleDir += TangentX * (Offsets[i].x * SampleOffset);
+		SampleDir += TangentY * (Offsets[i].y * SampleOffset);
+		OutColor = max(OutColor, SourceCubemapTexture.SampleLevel(SourceCubemapSampler, SampleDir, 0));
+	}
+}
+
 #ifdef USE_COMPUTE
 float4 LowerHemisphereSolidColor;
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -289,6 +369,24 @@ void ComputeBrightnessMain(out float4 OutColor : SV_Target0)
 	AverageColor += TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3(0, 0, -1), NumCaptureArrayMips - 1).rgb;
 
 	OutColor = dot(AverageColor / 6, .3333f); 
+}
+
+#endif
+
+#if COMPUTEMAXLUMINANCE_PIXELSHADER
+
+void ComputeCubeMaxLuminancePS(out float4 OutColor : SV_Target0)
+{ 
+	// Sample the 6 1x1 cube faces and average
+	float3 MaxLuminanceRGB = TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3(1, 0, 0), NumCaptureArrayMips - 1).rgb;
+	MaxLuminanceRGB = max(MaxLuminanceRGB, TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3(-1, 0, 0), NumCaptureArrayMips - 1).rgb);
+	MaxLuminanceRGB = max(MaxLuminanceRGB, TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3( 0, 1, 0), NumCaptureArrayMips - 1).rgb);
+	MaxLuminanceRGB = max(MaxLuminanceRGB, TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3( 0,-1, 0), NumCaptureArrayMips - 1).rgb);
+	MaxLuminanceRGB = max(MaxLuminanceRGB, TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3( 0, 0, 1), NumCaptureArrayMips - 1).rgb);
+	MaxLuminanceRGB = max(MaxLuminanceRGB, TextureCubeSampleLevel(ReflectionEnvironmentColorTexture, ReflectionEnvironmentColorSampler, float3( 0, 0,-1), NumCaptureArrayMips - 1).rgb);
+
+	float MaxLuminance = max(MaxLuminanceRGB.r, max(MaxLuminanceRGB.g, MaxLuminanceRGB.b));
+	OutColor = MaxLuminance;
 }
 
 #endif

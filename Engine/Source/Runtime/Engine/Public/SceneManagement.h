@@ -1171,7 +1171,8 @@ public:
 		const FSHVectorRGB3* InIrradianceEnvironmentMap, 
 		const FSHVectorRGB3* BlendDestinationIrradianceEnvironmentMap,
 		const float* InAverageBrightness,
-		const float* BlendDestinationAverageBrightness);
+		const float* BlendDestinationAverageBrightness,
+		const FLinearColor* InSpecifiedCubemapColorScale);
 
 	const USkyLightComponent* LightComponent;
 	FTexture* ProcessedTexture;
@@ -1207,6 +1208,7 @@ public:
 	uint32 CaptureCubeMapResolution;
 	FLinearColor LowerHemisphereColor;
 	bool bLowerHemisphereIsSolidColor;
+	FLinearColor SpecifiedCubemapColorScale;
 
 	bool IsMovable() { return bMovable; }
 

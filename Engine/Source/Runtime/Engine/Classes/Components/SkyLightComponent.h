@@ -333,6 +333,8 @@ protected:
 	FSHVectorRGB3 BlendDestinationIrradianceEnvironmentMap;
 	float BlendDestinationAverageBrightness;
 
+	FLinearColor SpecifiedCubemapColorScale;
+
 	/** Tracks when the rendering thread has completed its writes to IrradianceEnvironmentMap. */
 	FRenderCommandFence IrradianceMapFence;
 
