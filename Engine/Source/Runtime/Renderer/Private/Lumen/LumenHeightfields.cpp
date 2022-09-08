@@ -53,21 +53,22 @@ void FLumenHeightfieldGPUData::FillData(const FLumenHeightfield& RESTRICT Height
 {
 	// Note: layout must match GetLumenHeightfieldData in usf
 
-	FVector3f BoundsCenter = FVector3f(FLT_MAX, FLT_MAX, FLT_MAX);
-	FVector3f BoundsExtent = FVector3f(0.0f, 0.0f, 0.0f);
+	FLargeWorldRenderPosition BoundsCenter(FVector3f::ZeroVector);
+	FVector3f BoundsExtent = FVector3f::ZeroVector;
 	uint32 MeshCardsIndex = UINT32_MAX;
 
 	if (Heightfield.MeshCardsIndex >= 0)
 	{
 		MeshCardsIndex = Heightfield.MeshCardsIndex;
 		const FBox WorldSpaceBounds = MeshCards[Heightfield.MeshCardsIndex].GetWorldSpaceBounds();
-		BoundsCenter = (FVector3f)WorldSpaceBounds.GetCenter();	// LWC_TODO: Precision Loss
-		BoundsExtent = (FVector3f)WorldSpaceBounds.GetExtent();	// LWC_TODO: Precision Loss
+		BoundsCenter = FLargeWorldRenderPosition(WorldSpaceBounds.GetCenter());
+		BoundsExtent = (FVector3f)WorldSpaceBounds.GetExtent();
 	}
 
-	OutData[0] = BoundsCenter;
-	OutData[1] = BoundsExtent;
+	OutData[0] = BoundsCenter.GetTile();
+	OutData[1] = BoundsCenter.GetOffset();
+	OutData[2] = BoundsExtent;
 	OutData[0].W = *((float*)&MeshCardsIndex);
 
-	static_assert(DataStrideInFloat4s == 2, "Data stride doesn't match");
+	static_assert(DataStrideInFloat4s == 3, "Data stride doesn't match");
 }

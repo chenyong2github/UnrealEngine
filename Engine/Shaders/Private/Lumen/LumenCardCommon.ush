@@ -245,12 +245,12 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 }
 
 // Stride of mesh cards data, must match C++
-#define LUMEN_HEIGHTFIELD_DATA_STRIDE 2
+#define LUMEN_HEIGHTFIELD_DATA_STRIDE 3
 
 struct FLumenHeightfieldData
 {
-	float3 BoundsCenter;
-	float3 BoundsExtent;
+	FLWCVector3 BoundsCenter;	// World space AABB center
+	float3 BoundsExtent;		// World space AABB extent
 	uint MeshCardsIndex;
 	bool bValid;
 };
@@ -264,9 +264,11 @@ FLumenHeightfieldData GetLumenHeightfieldData(uint HeightfieldId)
 
 	float4 V0 = LumenCardScene.HeightfieldData[BaseOffset + 0];
 	float4 V1 = LumenCardScene.HeightfieldData[BaseOffset + 1];
+	float4 V2 = LumenCardScene.HeightfieldData[BaseOffset + 2];
 
-	LumenHeightfield.BoundsCenter = V0.xyz;
-	LumenHeightfield.BoundsExtent = V1.xyz;
+	LumenHeightfield.BoundsCenter = MakeLWCVector3(V0.xyz, V1.xyz);
+	LumenHeightfield.BoundsExtent = V2.xyz;
+
 	LumenHeightfield.MeshCardsIndex = asuint(V0.w);
 	LumenHeightfield.bValid = LumenHeightfield.MeshCardsIndex < LumenCardScene.NumMeshCards;
 

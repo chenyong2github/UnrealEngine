@@ -316,7 +316,7 @@ void MeshSDFObjectCullVS(
 			ObjectWorldOrigin = LumenCardData.Origin;
 			ObjectWorldRadius = length(LumenCardData.LocalExtent);
 #else
-			ObjectWorldOrigin = LumenHeightfield.BoundsCenter;
+			ObjectWorldOrigin = LWCHackToFloat(LumenHeightfield.BoundsCenter); // LWC_TODO:
 			ObjectWorldRadius = length(LumenHeightfield.BoundsExtent);
 #endif
 		}
@@ -423,7 +423,7 @@ void MeshSDFObjectCullPS(
 		WorldObjectPosition = LumenCardData.Origin;
 		WorldObjectExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
 #else
-		WorldObjectPosition = LumenHeightfield.BoundsCenter;
+		WorldObjectPosition = LWCHackToFloat(LumenHeightfield.BoundsCenter); // LWC_TODO:
 		WorldObjectExtent = LumenHeightfield.BoundsExtent;
 #endif
 	}

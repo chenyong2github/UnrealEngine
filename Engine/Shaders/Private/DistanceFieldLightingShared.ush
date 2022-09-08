@@ -202,6 +202,7 @@ struct FHeightfieldObjectBounds
 	float3 BoxExtent;		// World space AABB extent
 };
 
+// Must match FLumenHeightfieldData as heightfield culling is reused
 FHeightfieldObjectBounds LoadHeightfieldObjectBounds(uint ObjectIndex)
 {
 	FHeightfieldObjectBounds Bounds;
