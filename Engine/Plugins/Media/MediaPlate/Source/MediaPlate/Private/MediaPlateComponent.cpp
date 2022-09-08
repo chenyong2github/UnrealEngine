@@ -63,6 +63,7 @@ FLazyName UMediaPlateComponent::MediaPlaylistName(TEXT("MediaPlaylist0"));
 UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bTickInEditor = true;
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 
@@ -111,14 +112,14 @@ void UMediaPlateComponent::OnRegister()
 			SoundComponent->SetMediaPlayer(MediaPlayer);
 		}
 	}
+
+	// Activate tick if needed.
+	UpdateTicking();
 }
 
 void UMediaPlateComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Activate tick if needed.
-	UpdateTicking();
 
 	// Start playing?
 	if (bAutoPlay)
@@ -467,15 +468,6 @@ void UMediaPlateComponent::StopClockSink()
 
 bool UMediaPlateComponent::IsVisible()
 {
-#if WITH_EDITOR
-	// Always return true if the game is not running as the visibility checks do not work in this
-	// case.
-	if (FApp::IsGame() == false)
-	{
-		return true;
-	}
-#endif
-
 	return GetOwner()->WasRecentlyRendered();
 }
 

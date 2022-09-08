@@ -172,7 +172,7 @@ public:
 	void UnregisterWithMediaTextureTracker();
 
 	/**
-	 * Call this to geet the aspect ratio of the mesh.
+	 * Call this to get the aspect ratio of the mesh.
 	 */
 	float GetAspectRatio();
 
@@ -192,6 +192,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
 	void SetLetterboxAspectRatio(float AspectRatio);
+
+	/**
+	 * Call this to see if this plate wants to play when it becomes visible.
+	 */
+	bool GetWantsToPlayWhenVisible() const { return bWantsToPlayWhenVisible; }
 
 #if WITH_EDITOR
 	/**

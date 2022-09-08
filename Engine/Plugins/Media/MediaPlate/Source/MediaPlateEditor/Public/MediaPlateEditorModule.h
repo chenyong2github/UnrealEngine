@@ -68,6 +68,8 @@ private:
 
 	/** Maps a drag and drop file to a media source we created from it. */
 	TMap<FString, TWeakObjectPtr<UMediaSource>> MapFileToMediaSource;
+	/** Caches if real time viewports are enabled. */
+	bool bIsRealTimeViewportsEnabled = false;
 
 	/**
 	 * Registers all of our asset tools.
@@ -99,4 +101,9 @@ private:
 	 * @param AssetDataArray	Will add the asset here if it gets one.
 	 */
 	void ExtractAssetDataFromFiles(const TArray<FString>& Files, TArray<FAssetData>& AssetDataArray);
+
+	/**
+	 * Enables real time viewports so media plates can update in the editor.
+	 */
+	void ForceRealTimeViewports(const bool bEnable);
 };

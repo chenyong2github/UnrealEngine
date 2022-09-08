@@ -5,7 +5,7 @@
 #include "AssetTools/MediaPlateActions.h"
 #include "Editor.h"
 #include "ISequencerModule.h"
-#include "LevelEditorViewport.h"
+#include "LevelEditor.h"
 #include "MaterialList.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateCustomization.h"
@@ -14,11 +14,14 @@
 #include "MediaSoundComponent.h"
 #include "MediaSource.h"
 #include "Models/MediaPlateEditorCommands.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Sequencer/MediaPlateTrackEditor.h"
 #include "SLevelViewport.h"
 #include "Subsystems/EditorAssetSubsystem.h"
 #include "Widgets/SMediaPlateEditorMaterial.h"
+
+#define LOCTEXT_NAMESPACE "MediaPlateEditorModule"
 
 DEFINE_LOG_CATEGORY(LogMediaPlateEditor);
 
@@ -102,7 +105,7 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 			{
 				bIsMediaPlateToBeRemoved = false;
 				// Are we playing something?
-				if (MediaPlayer->IsPlaying())
+				if ((MediaPlayer->IsPlaying()) || (MediaPlate->GetWantsToPlayWhenVisible()))
 				{
 					bIsMediaPlatePlaying = true;
 					break;
@@ -119,14 +122,7 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 	}
 
 	// Is anything playing?
-	if (bIsMediaPlatePlaying)
-	{
-		// Yes. Invalidate the viewport so we can see it.
-		if (GCurrentLevelEditingViewportClient != nullptr)
-		{
-			GCurrentLevelEditingViewportClient->Invalidate();
-		}
-	}
+	ForceRealTimeViewports(bIsMediaPlatePlaying);
 }
 
 void FMediaPlateEditorModule::MediaPlateStartedPlayback(TObjectPtr<UMediaPlateComponent> MediaPlate)
@@ -217,4 +213,38 @@ void FMediaPlateEditorModule::ExtractAssetDataFromFiles(const TArray<FString>& F
 	}
 }
 
+void FMediaPlateEditorModule::ForceRealTimeViewports(const bool bEnable)
+{
+	if (bIsRealTimeViewportsEnabled != bEnable)
+	{
+		bIsRealTimeViewportsEnabled = bEnable;
+
+		// Go through viewports.
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+		if (LevelEditor.IsValid())
+		{
+			TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+			for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+			{
+				if (ViewportWindow.IsValid())
+				{
+					FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+					const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage", "Media Plate");
+					if (bEnable)
+					{
+						Viewport.AddRealtimeOverride(bEnable, SystemDisplayName);
+					}
+					else
+					{
+						Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
+					}
+				}
+			}
+		}
+	}
+}
+
 IMPLEMENT_MODULE(FMediaPlateEditorModule, MediaPlateEditor)
+
+#undef LOCTEXT_NAMESPACE
