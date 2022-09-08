@@ -421,7 +421,7 @@ void CreateNonoverlappingConvexHulls(
 			return false;
 		}
 		const Chaos::TRigidTransform<Chaos::FReal, 3> IdentityTransform = Chaos::TRigidTransform<Chaos::FReal, 3>::Identity;
-		return GJKIntersection(*Convexes[ConvexA], Convexes[ConvexA]->BoundingBox().Extents().Max(), *Convexes[ConvexB], Convexes[ConvexB]->BoundingBox().Extents().Max(), IdentityTransform);
+		return GJKIntersection(*Convexes[ConvexA], *Convexes[ConvexB], IdentityTransform);
 	};
 
 	auto IsBoneColliding = [&TransformToConvexIndices, &Convexes, &IsColliding](int32 BoneA, int32 BoneB)

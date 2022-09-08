@@ -407,7 +407,7 @@ struct FTriangleMeshOverlapVisitorNoMTD
 
 		FTriangleRegister Tri(ASimd, BSimd, CSimd);
 
-		if (GJKIntersectionSimd(Tri, Tri.BoundingBox().Extents().Max(), QueryGeom, QueryGeom.BoundingBox().Extents().Max(), Translation, Rotation, Thickness, InitialDir))
+		if (GJKIntersectionSimd(Tri, QueryGeom, Translation, Rotation, Thickness, InitialDir))
 		{
 			bFoundIntersection = true;
 			return false;
