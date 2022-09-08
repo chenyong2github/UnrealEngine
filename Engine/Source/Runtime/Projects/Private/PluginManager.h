@@ -156,7 +156,9 @@ public:
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() override;
 	virtual FNewPluginMountedEvent& OnPluginEdited() override;
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) override;
-	virtual void MountExplicitlyLoadedPlugin(const FString& PluginName) override;
+	virtual bool MountExplicitlyLoadedPlugin(const FString& PluginName) override;
+	virtual bool MountExplicitlyLoadedPlugin_FromFileName(const FString& PluginFileName) override;
+	virtual bool MountExplicitlyLoadedPlugin_FromDescriptor(const FPluginReferenceDescriptor& PluginDescriptor) override;
 	virtual bool UnmountExplicitlyLoadedPlugin(const FString& PluginName, FText* OutReason) override;
 	virtual FName PackageNameFromModuleName(FName ModuleName) override;
 	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) override;
@@ -220,6 +222,15 @@ private:
 
 	/** Gets the instance of a given plugin */
 	TSharedPtr<FPlugin> FindPluginInstance(const FString& Name);
+
+	/** 
+	 * Attempts to mount a spectific plugin version. Can fail if the plugin isn't marked 'ExplicitlyLoaded',
+	 * or if there's a different version already mounted.
+	 * 
+	 * NOTE: It's expected that `AllPlugins_PluginPtr` directly addresses an entry in `AllPlugins` 
+	 *       (so that it can reorder the versions in `AllPlugins` since that's how we track the mounted/choice version).
+	 */
+	bool TryMountExplicitlyLoadedPluginVersion(TSharedRef<FPlugin>* AllPlugins_PluginPtr);
 
 	/** Mounts a plugin that was requested to be mounted from external code (either by MountNewlyCreatedPlugin or MountExplicitlyLoadedPlugin) */
 	void MountPluginFromExternalSource(const TSharedRef<FPlugin>& Plugin);
