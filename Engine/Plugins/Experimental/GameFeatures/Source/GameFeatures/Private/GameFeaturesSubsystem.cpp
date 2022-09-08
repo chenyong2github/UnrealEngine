@@ -1632,7 +1632,7 @@ void UGameFeaturesSubsystem::FilterInactivePluginAssets(TArray<FAssetData>& Asse
 {
 	AssetsToFilter.RemoveAllSwap([ActivePluginNames = GetActivePluginNames()](const FAssetData& Asset) 
 	{
-		return !GameFeaturesSubsystem::IsContentWithinActivePlugin(Asset.ObjectPath.ToString(), ActivePluginNames);
+		return !GameFeaturesSubsystem::IsContentWithinActivePlugin(Asset.GetObjectPathString(), ActivePluginNames);
 	});
 }
 EBuiltInAutoState UGameFeaturesSubsystem::DetermineBuiltInInitialFeatureState(TSharedPtr<FJsonObject> Descriptor, const FString& ErrorContext)

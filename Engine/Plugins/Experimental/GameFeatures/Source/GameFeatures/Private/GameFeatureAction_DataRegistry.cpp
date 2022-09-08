@@ -147,7 +147,7 @@ void UGameFeatureAction_DataRegistry::AddAdditionalAssetBundleData(FAssetBundleD
 	{
 		if(!RegistryToAdd.IsNull())
 		{
-			const FSoftObjectPath RegistryPath = RegistryToAdd.ToSoftObjectPath();
+			const FTopLevelAssetPath RegistryPath = RegistryToAdd.ToSoftObjectPath().GetAssetPath();
 
 			// Add for both clients and servers, this will not work properly for games that do not set those bundle states
 			// @TODO: If another way to preload specific assets is added, switch to that so it works regardless of bundles

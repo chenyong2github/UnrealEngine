@@ -51,11 +51,11 @@ void UGameFeatureAction_AddComponents::AddAdditionalAssetBundleData(FAssetBundle
 		{
 			if (Entry.bClientComponent)
 			{
-				AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient, Entry.ComponentClass.ToSoftObjectPath());
+				AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient, Entry.ComponentClass.ToSoftObjectPath().GetAssetPath());
 			}
 			if (Entry.bServerComponent)
 			{
-				AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateServer, Entry.ComponentClass.ToSoftObjectPath());
+				AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateServer, Entry.ComponentClass.ToSoftObjectPath().GetAssetPath());
 			}
 		}
 	}

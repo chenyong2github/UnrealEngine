@@ -195,7 +195,7 @@ void UGameFeatureAction_DataRegistrySource::AddAdditionalAssetBundleData(FAssetB
 
 		if (!RegistrySource.DataTableToAdd.IsNull())
 		{
-			const FSoftObjectPath DataTableSourcePath = RegistrySource.DataTableToAdd.ToSoftObjectPath();
+			const FTopLevelAssetPath DataTableSourcePath = RegistrySource.DataTableToAdd.ToSoftObjectPath().GetAssetPath();
 			if (RegistrySource.bClientSource)
 			{
 				AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient, DataTableSourcePath);
@@ -208,7 +208,7 @@ void UGameFeatureAction_DataRegistrySource::AddAdditionalAssetBundleData(FAssetB
 
 		if (!RegistrySource.CurveTableToAdd.IsNull())
 		{
-			const FSoftObjectPath CurveTableSourcePath = RegistrySource.CurveTableToAdd.ToSoftObjectPath();
+			const FTopLevelAssetPath CurveTableSourcePath = RegistrySource.CurveTableToAdd.ToSoftObjectPath().GetAssetPath();
 			if (RegistrySource.bClientSource)
 			{
 				AssetBundleData.AddBundleAsset(UGameFeaturesSubsystemSettings::LoadStateClient, CurveTableSourcePath);
