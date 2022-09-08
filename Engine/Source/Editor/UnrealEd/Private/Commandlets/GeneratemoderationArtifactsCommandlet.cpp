@@ -14,6 +14,7 @@
 
 // localization includes 
 #include "Serialization/PropertyLocalizationDataGathering.h"
+#include "LocTextHelper.h"
 // string proxy includes
 //#include "Serialization/NameAsStringProxyArchive.h"
 // saving json manifest file
