@@ -56,6 +56,12 @@ static TAutoConsoleVariable<float> CVarUILevel(
 	TEXT("Luminance level for UI elements when compositing into HDR framebuffer (default: 1.0)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarHDRUILuminance(
+	TEXT("r.HDR.UI.Luminance"),
+	300.0f,
+	TEXT("Base Luminance in nits for UI elements when compositing into HDR framebuffer. Gets multiplied by r.HDR.UI.Level"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarUICompositeMode(
 	TEXT("r.HDR.UI.CompositeMode"),
 	1,
@@ -594,6 +600,13 @@ public:
 		OutputDevice.Bind(Initializer.ParameterMap, TEXT("OutputDevice"));
 		OutputGamut.Bind(Initializer.ParameterMap, TEXT("OutputGamut"));
 		OutputMaxLuminance.Bind(Initializer.ParameterMap, TEXT("OutputMaxLuminance"));
+		ACESMinMaxData.Bind(Initializer.ParameterMap, TEXT("ACESMinMaxData"));
+		ACESMidData.Bind(Initializer.ParameterMap, TEXT("ACESMidData"));
+		ACESCoefsLow_0.Bind(Initializer.ParameterMap, TEXT("ACESCoefsLow_0"));
+		ACESCoefsHigh_0.Bind(Initializer.ParameterMap, TEXT("ACESCoefsHigh_0"));
+		ACESCoefsLow_4.Bind(Initializer.ParameterMap, TEXT("ACESCoefsLow_4"));
+		ACESCoefsHigh_4.Bind(Initializer.ParameterMap, TEXT("ACESCoefsHigh_4"));
+		ACESSceneColorMultiplier.Bind(Initializer.ParameterMap, TEXT("ACESSceneColorMultiplier"));
 	}
 	FCompositeLUTGenerationPS() {}
 
@@ -620,6 +633,18 @@ public:
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputDevice, OutputDeviceValue);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputGamut, OutputGamutValue);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputMaxLuminance, DisplayMaxLuminance);
+
+		FACESTonemapParams TmpInternalACESParams;
+		GetACESTonemapParameters(TmpInternalACESParams);
+
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESMinMaxData, TmpInternalACESParams.ACESMinMaxData);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESMidData, TmpInternalACESParams.ACESMidData);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESCoefsLow_0, TmpInternalACESParams.ACESCoefsLow_0);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESCoefsHigh_0, TmpInternalACESParams.ACESCoefsHigh_0);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESCoefsLow_4, TmpInternalACESParams.ACESCoefsLow_4);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESCoefsHigh_4, TmpInternalACESParams.ACESCoefsHigh_4);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ACESSceneColorMultiplier, TmpInternalACESParams.ACESSceneColorMultiplier);
+
 	}
 
 	static const TCHAR* GetSourceFilename()
@@ -636,6 +661,13 @@ private:
 	LAYOUT_FIELD(FShaderParameter, OutputDevice);
 	LAYOUT_FIELD(FShaderParameter, OutputGamut);
 	LAYOUT_FIELD(FShaderParameter, OutputMaxLuminance);
+	LAYOUT_FIELD(FShaderParameter, ACESMinMaxData) // xy = min ACES/luminance, zw = max ACES/luminance
+	LAYOUT_FIELD(FShaderParameter, ACESMidData) // x = mid ACES, y = mid luminance, z = mid slope
+	LAYOUT_FIELD(FShaderParameter, ACESCoefsLow_0) // coeflow 0-3
+	LAYOUT_FIELD(FShaderParameter, ACESCoefsHigh_0) // coefhigh 0-3
+	LAYOUT_FIELD(FShaderParameter, ACESCoefsLow_4)
+	LAYOUT_FIELD(FShaderParameter, ACESCoefsHigh_4)
+	LAYOUT_FIELD(FShaderParameter, ACESSceneColorMultiplier)
 };
 
 IMPLEMENT_SHADER_TYPE(, FCompositeLUTGenerationPS, TEXT("/Engine/Private/CompositeUIPixelShader.usf"), TEXT("GenerateLUTPS"), SF_Pixel);
@@ -660,6 +692,7 @@ public:
 		ColorSpaceLUT.Bind(Initializer.ParameterMap, TEXT("ColorSpaceLUT"));
 		ColorSpaceLUTSampler.Bind(Initializer.ParameterMap, TEXT("ColorSpaceLUTSampler"));
 		UILevel.Bind(Initializer.ParameterMap, TEXT("UILevel"));
+		UILuminance.Bind(Initializer.ParameterMap, TEXT("UILuminance"));
 		OutputDevice.Bind(Initializer.ParameterMap, TEXT("OutputDevice"));
 	}
 	FCompositeShaderBase() = default;
@@ -673,7 +706,8 @@ public:
 		SetTextureParameter(RHICmdList, BoundShader, ColorSpaceLUT, ColorSpaceLUTSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), ColorSpaceLUTRHI);
 		SetShaderValue(RHICmdList, BoundShader, UILevel, CVarUILevel.GetValueOnRenderThread());
 		SetShaderValue(RHICmdList, BoundShader, OutputDevice, CVarOutputDevice->GetValueOnRenderThread());
-		
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILuminance, CVarHDRUILuminance.GetValueOnRenderThread());
+
 		if (UITextureWriteMaskRHI != nullptr)
 		{
 			SetTextureParameter(RHICmdList, BoundShader, UIWriteMaskTexture, UITextureWriteMaskRHI);
@@ -692,6 +726,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, ColorSpaceLUT);
 	LAYOUT_FIELD(FShaderResourceParameter, ColorSpaceLUTSampler);
 	LAYOUT_FIELD(FShaderParameter, UILevel);
+	LAYOUT_FIELD(FShaderParameter, UILuminance);
 	LAYOUT_FIELD(FShaderParameter, OutputDevice);
 };
 IMPLEMENT_TYPE_LAYOUT(FCompositeShaderBase);

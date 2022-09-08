@@ -872,7 +872,11 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 {
 	static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
 	check(CVarHDROutputEnabled);
-	
+	static const auto CVarHDRMinLuminanceLog10 = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.HDR.Display.MinLuminanceLog10"));
+	static const auto CVarHDRMidLuminance = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.HDR.Display.MidLuminance"));
+	static const auto CVarHDRMaxLuminance = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.MaxLuminance"));
+	static const auto CVarHDRSceneColorMultiplier = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.HDR.Aces.SceneColorMultiplier"));
+
 	if (GRHIVendorId == 0)
 	{
 		return;
@@ -885,7 +889,13 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 		bIsHDREnabled = false;
 	}
 
-	if(bIsHDREnabled != GRHIIsHDREnabled)
+	static float GHDRMinLuminnanceLog10 = CVarHDRMinLuminanceLog10->GetValueOnAnyThread();
+	static float GHDRMidLuminnance = CVarHDRMidLuminance->GetValueOnAnyThread();
+	static int32 GHDRMaxLuminnance = CVarHDRMaxLuminance->GetValueOnAnyThread();
+	static float GHDRSceneColorMultiplier = CVarHDRSceneColorMultiplier->GetValueOnAnyThread();
+
+	if(bIsHDREnabled != GRHIIsHDREnabled || !FMath::IsNearlyEqual(GHDRMinLuminnanceLog10, CVarHDRMinLuminanceLog10->GetValueOnAnyThread()) || !FMath::IsNearlyEqual(GHDRMidLuminnance, CVarHDRMidLuminance->GetValueOnAnyThread()) ||
+									        (GHDRMaxLuminnance != CVarHDRMaxLuminance->GetValueOnAnyThread()) || !FMath::IsNearlyEqual(GHDRSceneColorMultiplier, CVarHDRSceneColorMultiplier->GetValueOnAnyThread()))
 	{
 		// We'll naively fall back to 1000 if DisplayNits is 0
 		uint32 DisplayNitLevel = 0;
@@ -904,6 +914,10 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 
 		// Now set the HDR setting.
 		GRHIIsHDREnabled = IsHDREnabled();
+		GHDRMinLuminnanceLog10 = CVarHDRMinLuminanceLog10->GetValueOnAnyThread();
+		GHDRMidLuminnance = CVarHDRMidLuminance->GetValueOnAnyThread();
+		GHDRMaxLuminnance = CVarHDRMaxLuminance->GetValueOnAnyThread();
+		GHDRSceneColorMultiplier = CVarHDRSceneColorMultiplier->GetValueOnAnyThread();
 	}
 }
 

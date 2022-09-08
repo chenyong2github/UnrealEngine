@@ -4,6 +4,7 @@
 #include "PostProcess/PostProcessTonemap.h"
 #include "ScenePrivate.h"
 #include "VolumeRendering.h"
+#include "HDRHelper.h"
 
 namespace
 {
@@ -90,11 +91,23 @@ FColorRemapParameters GetColorRemapParameters()
 	return Parameters;
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FACESTonemapShaderParameters, )
+	SHADER_PARAMETER(FVector4f, ACESMinMaxData) // xy = min ACES/luminance, zw = max ACES/luminance
+	SHADER_PARAMETER(FVector4f, ACESMidData) // x = mid ACES, y = mid luminance, z = mid slope
+	SHADER_PARAMETER(FVector4f, ACESCoefsLow_0) // coeflow 0-3
+	SHADER_PARAMETER(FVector4f, ACESCoefsHigh_0) // coefhigh 0-3
+	SHADER_PARAMETER(float, ACESCoefsLow_4)
+	SHADER_PARAMETER(float, ACESCoefsHigh_4)
+	SHADER_PARAMETER(float, ACESSceneColorMultiplier)
+END_SHADER_PARAMETER_STRUCT()
+
+
 BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER_TEXTURE_ARRAY(Texture2D, Textures, [GMaxLUTBlendCount])
 	SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, Samplers, [GMaxLUTBlendCount])
 	SHADER_PARAMETER_SCALAR_ARRAY(float, LUTWeights, [GMaxLUTBlendCount])
 	SHADER_PARAMETER_STRUCT_REF(FWorkingColorSpaceShaderParameters, WorkingColorSpace)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FACESTonemapShaderParameters, ACESTonemapParameters)
 	SHADER_PARAMETER(FVector4f, OverlayColor)
 	SHADER_PARAMETER(FVector3f, ColorScale)
 	SHADER_PARAMETER(FVector4f, ColorSaturation)
@@ -170,6 +183,7 @@ void GetCombineLUTParameters(
 	}
 
 	Parameters.WorkingColorSpace = GDefaultWorkingColorSpaceUniformBuffer.GetUniformBufferRef();
+	GetACESTonemapParameters(Parameters.ACESTonemapParameters);
 
 	Parameters.ColorScale = FVector4f(View.ColorScale);
 	Parameters.OverlayColor = View.OverlayColor;

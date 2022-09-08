@@ -17,6 +17,13 @@ uint OutputDevice;
 uint OutputGamut;
 float OutputMaxLuminance;
 
+float4 ACESMinMaxData;
+float4 ACESMidData;
+float4 ACESCoefsLow_0;
+float4 ACESCoefsHigh_0;
+float ACESCoefsLow_4;
+float ACESCoefsHigh_4;
+
 void GenerateLUTPS(
 	FWriteToSliceGeometryOutput Input,
 	out float4 OutColor : SV_Target0
@@ -30,10 +37,12 @@ void GenerateLUTPS(
 
 	float3 LinearColor = ST2084ToLinear(Neutral);
 
+	FACESTonemapParams LUTTsParams = ComputeACESTonemapParams(ACESMinMaxData, ACESMidData, ACESCoefsLow_0, ACESCoefsHigh_0, ACESCoefsLow_4, ACESCoefsHigh_4, 1.0);
+
 	if( OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{		
 		// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
-		float3 ODTColor = ACESOutputTransforms1000(LinearColor, OutputMaxLuminance);
+		float3 ODTColor = ACESOutputTransforms1000(LinearColor, LUTTsParams);
 		// do not apply scRGB here because LUT is not 16F in this format, and scRGB can output negative values
 		if (OutputDevice != TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 		{
@@ -44,7 +53,7 @@ void GenerateLUTPS(
 	else if( OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{		
 		// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
-		float3 ODTColor = ACESOutputTransforms2000(LinearColor, OutputMaxLuminance);
+		float3 ODTColor = ACESOutputTransforms2000(LinearColor, LUTTsParams);
 		// do not apply scRGB here because LUT is not 16F in this format, and scRGB can output negative values
 		// 
 		if (OutputDevice != TONEMAPPER_OUTPUT_ACES2000nitScRGB)
@@ -77,6 +86,7 @@ Texture3D ColorSpaceLUT;
 SamplerState ColorSpaceLUTSampler;
 
 float UILevel;
+float UILuminance;
 
 // Invert the encoding applied by the ApplyGammaCorrection function.
 float3 LinearizeColor(float3 EncodedColor)
@@ -95,7 +105,6 @@ float3 LinearizeColor(float3 EncodedColor)
 }
 
 static const float ScRGBScaleFactor = 80.0f; // used to convert between ScRGB and nits
-static const float UIBrightnessInNits = 300.0f; // todo stop hardcoding this value and try to fetch SDR/HDR brightness balance instead (automatically or though calibration step)
 
 float3 ColorLookupTable(float3 LinearColor)
 {
@@ -175,11 +184,11 @@ float4 ComputeHDRUIColor(float2 InputUV)
 	UIColor.xyz = ST2084ToLinear(UIColor.xyz);
 #else
 	UIColor.xyz = ST2084ToScRGB(UIColor.xyz, OutputDevice, OutputMaxLuminance);
-	UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UIBrightnessInNits;
+	UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UILuminance;
 #endif
 
 #else // #if USE_LUT_FOR_UI
-	UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UIBrightnessInNits;
+	UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UILuminance;
 #endif // #if USE_LUT_FOR_UI
 
 	return UIColor;

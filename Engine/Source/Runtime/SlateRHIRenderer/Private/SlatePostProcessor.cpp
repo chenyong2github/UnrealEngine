@@ -48,6 +48,7 @@ public:
 		UIWriteMaskTexture.Bind(Initializer.ParameterMap, TEXT("UIWriteMaskTexture"));
 		UISampler.Bind(Initializer.ParameterMap, TEXT("UISampler"));
 		UILevel.Bind(Initializer.ParameterMap, TEXT("UILevel"));
+		UILuminance.Bind(Initializer.ParameterMap, TEXT("UILuminance"));
 		UITextureSize.Bind(Initializer.ParameterMap, TEXT("UITextureSize"));
 	}
 	FBlitUIToHDRPSBase() = default;
@@ -57,7 +58,9 @@ public:
 		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), HDRTexture, UISampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), HDRTextureRHI);
 		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UITexture, UISampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), UITextureRHI);
 		static auto CVarHDRUILevel = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.UI.Level"));
+		static auto CVarHDRUILuminance = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.UI.Luminance"));
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILevel, CVarHDRUILevel ? CVarHDRUILevel->GetFloat() : 1.0f);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILuminance, CVarHDRUILuminance ? CVarHDRUILuminance->GetFloat() : 300.0f);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UITextureSize, InUITextureSize);
 		if (UITextureWriteMaskRHI != nullptr)
 		{
@@ -87,6 +90,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, UISampler);
 	LAYOUT_FIELD(FShaderResourceParameter, UIWriteMaskTexture);
 	LAYOUT_FIELD(FShaderParameter, UILevel);
+	LAYOUT_FIELD(FShaderParameter, UILuminance);
 	LAYOUT_FIELD(FShaderParameter, UITextureSize);
 };
 

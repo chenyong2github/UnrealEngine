@@ -352,27 +352,68 @@ float3 InverseACESOutputTransformsRGBD65( float3 OutputReferredLinearsRGBColor )
 	return SceneReferredLinearsRGBColor;
 }
 
+struct FACESTonemapParams
+{
+	TsParams AcesParams;
+	float SceneColorMultiplier;
+};
+
+FACESTonemapParams ComputeACESTonemapParams(float4 InACESMinMaxData, float4 InACESMidData, float4 InACESCoefsLow_0, float4 InACESCoefsHigh_0, float InACESCoefsLow_4, float InACESCoefsHigh_4, float SceneColorMultiplier)
+{
+	FACESTonemapParams OutACESTonemapParams;
+	OutACESTonemapParams.AcesParams.Min.x = InACESMinMaxData.x;
+	OutACESTonemapParams.AcesParams.Min.y = InACESMinMaxData.y;
+	OutACESTonemapParams.AcesParams.Min.slope = 0;
+
+	OutACESTonemapParams.AcesParams.Mid.x = InACESMidData.x;
+	OutACESTonemapParams.AcesParams.Mid.y = InACESMidData.y;
+	OutACESTonemapParams.AcesParams.Mid.slope = InACESMidData.z;
+
+	OutACESTonemapParams.AcesParams.Max.x = InACESMinMaxData.z;
+	OutACESTonemapParams.AcesParams.Max.y = InACESMinMaxData.w;
+	OutACESTonemapParams.AcesParams.Max.slope = 0;
+
+	OutACESTonemapParams.AcesParams.coefsLow[0] = InACESCoefsLow_0.x;
+	OutACESTonemapParams.AcesParams.coefsLow[1] = InACESCoefsLow_0.y;
+	OutACESTonemapParams.AcesParams.coefsLow[2] = InACESCoefsLow_0.z;
+	OutACESTonemapParams.AcesParams.coefsLow[3] = InACESCoefsLow_0.w;
+	OutACESTonemapParams.AcesParams.coefsLow[4] = InACESCoefsLow_4;
+	OutACESTonemapParams.AcesParams.coefsLow[5] = InACESCoefsLow_4;
+
+	OutACESTonemapParams.AcesParams.coefsHigh[0] = InACESCoefsHigh_0.x;
+	OutACESTonemapParams.AcesParams.coefsHigh[1] = InACESCoefsHigh_0.y;
+	OutACESTonemapParams.AcesParams.coefsHigh[2] = InACESCoefsHigh_0.z;
+	OutACESTonemapParams.AcesParams.coefsHigh[3] = InACESCoefsHigh_0.w;
+	OutACESTonemapParams.AcesParams.coefsHigh[4] = InACESCoefsHigh_4;
+	OutACESTonemapParams.AcesParams.coefsHigh[5] = InACESCoefsHigh_4;
+
+	OutACESTonemapParams.SceneColorMultiplier = SceneColorMultiplier;
+
+	return OutACESTonemapParams;
+
+}
+
 //
 // ACES D65 1000 nit Output Transform - Forward
 //  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the AP1 gamut
 //
-float3 ACESOutputTransforms1000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0, float MaxLuminance ) 
+float3 ACESOutputTransforms1000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0, FACESTonemapParams InACESTonemapParams)
 {
-	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 ); // x 1.5 to get similar brightness between HDR and SDR
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * InACESTonemapParams.SceneColorMultiplier);
 	const FColorSpace UE_ACES_AP1_DISPLAY_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
 	const FColorSpace UE_ACES_AP1_LIMITING_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
-	float3 OutputReferredLinearAP1Color = outputTransform(aces, UE_ACES_HDR_Y_MIN, UE_ACES_HDR_Y_MID, MaxLuminance, UE_ACES_AP1_DISPLAY_PRI, UE_ACES_AP1_LIMITING_PRI, UE_ACES_EOTF,
+	float3 OutputReferredLinearAP1Color = outputTransform(aces, InACESTonemapParams.AcesParams, UE_ACES_AP1_DISPLAY_PRI, UE_ACES_AP1_LIMITING_PRI, UE_ACES_EOTF,
 											 			  UE_ACES_SURROUND, UE_ACES_STRETCH_BLACK, UE_ACES_D60_SIM, UE_ACES_LEGAL_RANGE);
 
 	return OutputReferredLinearAP1Color;
 }
 
-float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor, float MaxLuminance )
+float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor, FACESTonemapParams InACESTonemapParams)
 {
 	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
 
-	return ACESOutputTransforms1000( SceneReferredLinearsRGBColor, sRGB_2_AP0, MaxLuminance );
+	return ACESOutputTransforms1000( SceneReferredLinearsRGBColor, sRGB_2_AP0, InACESTonemapParams);
 }
 
 //
@@ -380,22 +421,22 @@ float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor, float MaxL
 //  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the AP1 gamut
 //
-float3 ACESOutputTransforms2000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0, float MaxLuminance ) 
+float3 ACESOutputTransforms2000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0, FACESTonemapParams InACESTonemapParams)
 {
-	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 ); // x 1.5 to get similar brightness between HDR and SDR
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * InACESTonemapParams.SceneColorMultiplier);
 	const FColorSpace UE_ACES_AP1_DISPLAY_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
 	const FColorSpace UE_ACES_AP1_LIMITING_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
-	float3 OutputReferredLinearAP1Color = outputTransform(aces, UE_ACES_HDR_Y_MIN, UE_ACES_HDR_Y_MID, MaxLuminance, UE_ACES_AP1_DISPLAY_PRI, UE_ACES_AP1_LIMITING_PRI, UE_ACES_EOTF,
+	float3 OutputReferredLinearAP1Color = outputTransform(aces, InACESTonemapParams.AcesParams, UE_ACES_AP1_DISPLAY_PRI, UE_ACES_AP1_LIMITING_PRI, UE_ACES_EOTF,
 											 			  UE_ACES_SURROUND, UE_ACES_STRETCH_BLACK, UE_ACES_D60_SIM, UE_ACES_LEGAL_RANGE);
 
 	return OutputReferredLinearAP1Color;
 }
 
-float3 ACESOutputTransforms2000( float3 SceneReferredLinearsRGBColor, float MaxLuminance )
+float3 ACESOutputTransforms2000( float3 SceneReferredLinearsRGBColor, FACESTonemapParams InACESTonemapParams)
 {
 	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
 
-	return ACESOutputTransforms2000( SceneReferredLinearsRGBColor, sRGB_2_AP0, MaxLuminance );
+	return ACESOutputTransforms2000( SceneReferredLinearsRGBColor, sRGB_2_AP0, InACESTonemapParams);
 }
 
 static const float3x3 GamutMappingIdentityMatrix = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };

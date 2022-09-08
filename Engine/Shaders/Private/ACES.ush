@@ -1304,9 +1304,7 @@ float3 dim_to_dark(float3 XYZ)
 float3 outputTransform
 (
 	float3 inValue,
-	float Y_MIN,
-	float Y_MID,
-	float Y_MAX,
+	TsParams PARAMS,
 	FColorSpace DISPLAY_PRI,
 	FColorSpace LIMITING_PRI,
 	int EOTF,
@@ -1322,9 +1320,9 @@ float3 outputTransform
 		NOTE: This is a bit of a hack - probably a more direct way to do this.
 		TODO: Fix in future version
 	*/
-	TsParams PARAMS_DEFAULT = init_TsParams(Y_MIN, Y_MAX);
-	float expShift = log2(inv_ssts(Y_MID, PARAMS_DEFAULT)) - log2(0.18);
-	TsParams PARAMS = init_TsParams(Y_MIN, Y_MAX, expShift);
+
+	float Y_MIN = PARAMS.Min.y;
+	float Y_MAX = PARAMS.Max.y;
 
 	// RRT sweeteners
 	float3 rgbPre = rrt_sweeteners(inValue);
@@ -1478,6 +1476,32 @@ float3 outputTransform
 	}
 
 	return outputCV;
+}
+
+float3 outputTransform
+(
+	float3 inValue,
+	float Y_MIN,
+	float Y_MID,
+	float Y_MAX,
+	FColorSpace DISPLAY_PRI,
+	FColorSpace LIMITING_PRI,
+	int EOTF,
+	int SURROUND,
+	bool STRETCH_BLACK = true,
+	bool D60_SIM = false,
+	bool LEGAL_RANGE = false
+)
+{
+	/*
+		NOTE: This is a bit of a hack - probably a more direct way to do this.
+		TODO: Fix in future version
+	*/
+	TsParams PARAMS_DEFAULT = init_TsParams(Y_MIN, Y_MAX);
+	float expShift = log2(inv_ssts(Y_MID, PARAMS_DEFAULT)) - log2(0.18);
+	TsParams PARAMS = init_TsParams(Y_MIN, Y_MAX, expShift);
+
+	return outputTransform(inValue, PARAMS, DISPLAY_PRI, LIMITING_PRI, EOTF, SURROUND, STRETCH_BLACK, D60_SIM, LEGAL_RANGE);
 }
 
 float3 invOutputTransform

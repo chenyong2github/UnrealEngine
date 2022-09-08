@@ -33,6 +33,14 @@ uint OutputDevice;
 uint OutputGamut;
 float OutputMaxLuminance;
 
+float4 ACESMinMaxData;
+float4 ACESMidData;
+float4 ACESCoefsLow_0;
+float4 ACESCoefsHigh_0;
+float ACESCoefsLow_4;
+float ACESCoefsHigh_4;
+float ACESSceneColorMultiplier;
+
 uint GetOutputDevice()
 {
 #if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
@@ -95,9 +103,10 @@ float4 DeviceEncodingOnlyCommonPS(
 
 	// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitST2084 )
-	{		
+	{		 
 		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance);
+		FACESTonemapParams AcesParams = ComputeACESTonemapParams(ACESMinMaxData, ACESMidData, ACESCoefsLow_0, ACESCoefsHigh_0, ACESCoefsLow_4, ACESCoefsHigh_4, ACESSceneColorMultiplier);
+		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, AcesParams);
 
 		// Convert from AP1 to specified output gamut
 		ODTColor = mul( AP1_2_Output, ODTColor );
@@ -105,12 +114,14 @@ float4 DeviceEncodingOnlyCommonPS(
 		// Apply conversion to ST-2084 (Dolby PQ)
 		OutDeviceColor = LinearToST2084( ODTColor );
 	}
-
+	 
 	// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitST2084 )
 	{		
+		FACESTonemapParams AcesParams = ComputeACESTonemapParams(ACESMinMaxData, ACESMidData, ACESCoefsLow_0, ACESCoefsHigh_0, ACESCoefsLow_4, ACESCoefsHigh_4, ACESSceneColorMultiplier);
+		
 		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance);
+		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, AcesParams);
 
 		// Convert from AP1 to specified output gamut
 		ODTColor = mul( AP1_2_Output, ODTColor );
@@ -122,8 +133,10 @@ float4 DeviceEncodingOnlyCommonPS(
 	// ACES 1000nit transform to linear ScRGB
 	else if(GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{
+		FACESTonemapParams AcesParams = ComputeACESTonemapParams(ACESMinMaxData, ACESMidData, ACESCoefsLow_0, ACESCoefsHigh_0, ACESCoefsLow_4, ACESCoefsHigh_4, ACESSceneColorMultiplier);
+
 		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance );
+		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, AcesParams);
 
 		// Apply conversion to ScRGB
 		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES1000nitScRGB, OutputMaxLuminance );
@@ -132,8 +145,10 @@ float4 DeviceEncodingOnlyCommonPS(
 	// ACES 2000nit transform to linear ScRGB
 	else if(GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{
+		FACESTonemapParams AcesParams = ComputeACESTonemapParams(ACESMinMaxData, ACESMidData, ACESCoefsLow_0, ACESCoefsHigh_0, ACESCoefsLow_4, ACESCoefsHigh_4, ACESSceneColorMultiplier);
+
 		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance );
+		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, AcesParams);
 
 		// Apply conversion to ScRGB
 		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES2000nitScRGB, OutputMaxLuminance );
