@@ -125,7 +125,15 @@ public:
 	void UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength);
 
 	/** Register a new overlay material name and path that can be queried from camera calibration tools */
-	void RegisterOverlayMaterial(const FName& MaterialName, const FName& MaterialPath);
+	void RegisterOverlayMaterial(const FName& MaterialName, const FSoftObjectPath& MaterialPath);
+
+	UE_DEPRECATED(5.1, "FNames containing full object paths are deprecated. Use FSoftObjectPath instead.")
+	void RegisterOverlayMaterial(const FName& MaterialName, const FName& MaterialPathName)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RegisterOverlayMaterial(MaterialName, FSoftObjectPath(MaterialPathName));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** Unregister an overlay material */
 	void UnregisterOverlayMaterial(const FName& MaterialName);

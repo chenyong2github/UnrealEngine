@@ -622,7 +622,7 @@ void STakeRecorderCockpit::UpdateTakeError()
 	// If there's only a single one, and it's the one that we're looking at directly, don't show the error
 	if (DuplicateTakes.Num() == 1 && DuplicateTakes[0].IsValid())
 	{
-		ULevelSequence* AlreadyLoaded = FindObject<ULevelSequence>(nullptr, *DuplicateTakes[0].ObjectPath.ToString());
+		ULevelSequence* AlreadyLoaded = FindObject<ULevelSequence>(nullptr, *DuplicateTakes[0].GetObjectPathString());
 		if (AlreadyLoaded && AlreadyLoaded->FindMetaData<UTakeMetaData>() == TakeMetaData)
 		{
 			return;

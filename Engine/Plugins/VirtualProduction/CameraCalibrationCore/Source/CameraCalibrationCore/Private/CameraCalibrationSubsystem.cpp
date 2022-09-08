@@ -118,9 +118,9 @@ void UCameraCalibrationSubsystem::UnregisterDistortionModel(TSubclassOf<ULensMod
 	LensModelMap.Remove(LensModel->GetDefaultObject<ULensModel>()->GetModelName());
 }
 
-void UCameraCalibrationSubsystem::RegisterOverlayMaterial(const FName& MaterialName, const FName& MaterialPath)
+void UCameraCalibrationSubsystem::RegisterOverlayMaterial(const FName& MaterialName, const FSoftObjectPath& MaterialPath)
 {
-	RegisteredOverlayMaterials.Add(MaterialName, TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(MaterialPath)));
+	RegisteredOverlayMaterials.Add(MaterialName, TSoftObjectPtr<UMaterialInterface>(MaterialPath));
 }
 
 void UCameraCalibrationSubsystem::UnregisterOverlayMaterial(const FName& MaterialName)

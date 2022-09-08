@@ -60,7 +60,7 @@ namespace TakesUtils
 
 		// Generate a unique level sequence name for this take if there are already assets of the same name
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-		while (AssetRegistry.GetAssetByObjectPath(*InPackageName).IsValid())
+		while (AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(InPackageName)).IsValid()) // Note: as-is this will only return in-memory assets
 		{
 			int32 TrimCount = InPackageName.Len() - BasePackageLength;
 			if (TrimCount > 0)
@@ -122,7 +122,7 @@ namespace TakesUtils
 		AssetPath += Dot + AssetName;
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 
 		// if object with same name exists, try a different name until we don't find one
 		int32 ExtensionIndex = 0;
@@ -130,7 +130,7 @@ namespace TakesUtils
 		{
 			AssetName = FString::Printf(TEXT("%s_%d"), *AssetName, ExtensionIndex);
 			AssetPath = (BaseAssetPath / AssetName) + Dot + AssetName;
-			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 
 			ExtensionIndex++;
 		}
