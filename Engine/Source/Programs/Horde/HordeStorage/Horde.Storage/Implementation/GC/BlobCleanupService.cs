@@ -33,7 +33,7 @@ namespace Horde.Storage.Implementation
             return _settings.CurrentValue.BlobCleanupServiceEnabled;
         }
 
-        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings, IOptionsMonitor<FilesystemSettings> filesystemSettings) : base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency, new BlobCleanupState())
+        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings) : base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency, new BlobCleanupState())
         {
             _settings = settings;
             
@@ -43,10 +43,13 @@ namespace Horde.Storage.Implementation
                 RegisterCleanup(orphanBlobCleanupRefs);
             }
 
-            FileSystemStore? fileSystemStore = provider.GetService<FileSystemStore>();
-            if (fileSystemStore != null && filesystemSettings.CurrentValue.RunCleanup)
+            if (settings.CurrentValue.RunFilesystemCleanup)
             {
-                RegisterCleanup(fileSystemStore);
+                FileSystemStore? fileSystemStore = provider.GetService<FileSystemStore>();
+                if (fileSystemStore != null)
+                {
+                    RegisterCleanup(fileSystemStore);
+                }
             }
         }
 

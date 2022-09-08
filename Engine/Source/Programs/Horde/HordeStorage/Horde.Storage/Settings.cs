@@ -130,7 +130,6 @@ namespace Horde.Storage
     public class FilesystemSettings
     {
         [Required] public string RootDir { get; set; } = "";
-        public bool RunCleanup { get; set; } = false;
         public ulong MaxSizeBytes { get; set; } = 500 * 1024 * 1024;
         public double TriggerThresholdPercentage { get; set; } = 0.95;
         public double TargetThresholdPercentage { get; set; } = 0.85;
@@ -157,6 +156,7 @@ namespace Horde.Storage
         
         public bool CleanOldRefRecords { get; set; } = false;
         public bool CleanOldBlobs { get; set; } = true;
+        public bool RunFilesystemCleanup { get; set; } = false;
 
         public TimeSpan LastAccessCutoff { get; set; } = TimeSpan.FromDays(14);
 
@@ -164,6 +164,7 @@ namespace Horde.Storage
         public TimeSpan RefCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
         public int OrphanGCMaxParallelOperations { get; set; } = 8;
         public int OrphanRefMaxParallelOperations { get; set; } = 8;
+
     }
 
     public class UpstreamRelaySettings
