@@ -445,7 +445,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		TStringBuilder<FName::StringBufferSize> Builder;
 		AppendObjectPath(Builder);
-		String = FString(Builder);
+		String.Append(FString(Builder));
 	}
 
 
