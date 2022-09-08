@@ -1,99 +1,81 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Net;
-using RestSharp;
-using RestSharp.Authenticators;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Jupiter.Implementation
 {
+    public interface IAuthenticator
+    {
+        public Task<string?> Authenticate();
+    }
+
     public class ClientCredentialOAuthAuthenticator: IAuthenticator
     {
-        public ClientCredentialOAuthAuthenticator(Uri authUrl, string clientId, string clientSecret, string scope, string schemeName)
+        public ClientCredentialOAuthAuthenticator(IHttpClientFactory httpClientFactory, Uri authUrl, string clientId, string clientSecret, string scope)
         {
+            _httpClientFactory = httpClientFactory;
             _authUrl = authUrl;
             _clientId = clientId;
             _clientSecret = clientSecret;
             _scope = scope;
-            _schemeName = schemeName;
         }
 
         private string? _accessToken;
 
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly Uri _authUrl;
         private readonly string _clientId;
         private readonly string _clientSecret;
         private readonly string _scope;
-        private readonly string _schemeName;
         private DateTime _expiresAt;
 
-        public void Authenticate(IRestClient client, IRestRequest request)
+        public async Task<string?> Authenticate()
         {
             if (string.IsNullOrEmpty(_accessToken) || DateTime.Now > _expiresAt)
             {
-                PreAuthenticate();
-            }
-
-            request.AddHeader("Authorization", $"{_schemeName} {_accessToken}");
-        }
-
-        public string? Authenticate()
-        {
-            if (string.IsNullOrEmpty(_accessToken) || DateTime.Now > _expiresAt)
-            {
-                PreAuthenticate();
+                await PreAuthenticate();
             }
 
             return _accessToken;
         }
 
-        private void PreAuthenticate()
+        private async Task PreAuthenticate()
         {
-            IRestResponse<ClientCredentialsResponse> authRequest = DoAuthenticationRequest();
-            try
+            (ClientCredentialsResponse result, string body) = await DoAuthenticationRequest();
+            string? accessToken = result.access_token;
+            if (string.IsNullOrEmpty(accessToken))
             {
-                if (!authRequest.IsSuccessful)
-                {
-                    throw new AuthenticationFailedException(authRequest.Content);
-                }
+                throw new InvalidOperationException("The authentication token received by the server is null or empty. Body received was: " + body);
+            }
+            _accessToken = accessToken;
+            // renew after half the renewal time
+            _expiresAt = DateTime.Now + TimeSpan.FromSeconds((result?.expires_in ?? 3200) / 2.0);
 
-                ClientCredentialsResponse result = authRequest.Data;
-                string? accessToken = result?.access_token;
-                if (string.IsNullOrEmpty(accessToken))
-                {
-                    throw new InvalidOperationException("The authentication token received by the server is null or empty. Body received was: " + authRequest.Content);
-                }
-                _accessToken = accessToken;
-                // renew after half the renewal time
-                _expiresAt = DateTime.Now + TimeSpan.FromSeconds((result?.expires_in ?? 3200) / 2.0);
-            }
-            catch (WebException ex)
-            {
-                if (ex.Response is HttpWebResponse response && response.StatusCode != HttpStatusCode.InternalServerError)
-                {
-                    string errorResult = authRequest.Content;
-                    if (errorResult == null)
-                    {
-                        throw;
-                    }
-                    throw new AuthenticationFailedException(errorResult);
-                }
-                throw;
-            }
         }
 
-        private IRestResponse<ClientCredentialsResponse> DoAuthenticationRequest()
+        private async Task<(ClientCredentialsResponse, string)> DoAuthenticationRequest()
         {
-            RestClient client = new RestClient(_authUrl);
-            RestRequest request = new RestRequest(Method.POST);
+            using HttpClient client = _httpClientFactory.CreateClient();
+            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _authUrl);
 
-            request.AddParameter("grant_type", "client_credentials", ParameterType.GetOrPost);
-            request.AddParameter("client_id", _clientId, ParameterType.GetOrPost);
-            request.AddParameter("client_secret", _clientSecret, ParameterType.GetOrPost);
-            request.AddParameter("scope", _scope, ParameterType.GetOrPost);
-            IRestResponse<ClientCredentialsResponse> response = client.Execute<ClientCredentialsResponse>(request);
+            request.Content = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("grant_type", "client_credentials"),
+                    new KeyValuePair<string, string>("client_id", _clientId),
+                    new KeyValuePair<string, string>("client_secret", _clientSecret),
+                    new KeyValuePair<string, string>("scope", _scope)
+                });
+            HttpResponseMessage response = await client.SendAsync(request);
 
-            return response;
+            string s = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new AuthenticationFailedException(s);
+            }
+            return (await response.Content.ReadAsAsync<ClientCredentialsResponse>(), s);
         }
     }
 
@@ -111,6 +93,6 @@ namespace Jupiter.Implementation
 
     public class AuthenticationFailedException : Exception
     {
-        public AuthenticationFailedException(object errorResult) : base(errorResult.ToString()) { }
+        public AuthenticationFailedException(string errorResult) : base(errorResult) { }
     }
 }

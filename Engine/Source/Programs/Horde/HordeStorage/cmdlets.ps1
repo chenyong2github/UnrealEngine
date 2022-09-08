@@ -4,15 +4,6 @@ function Start-Minio {
     minio server .minio
 }
 
-function Start-Dynamo {
-    $version = "2016-01-07"
-    $dynamoDir = Join-Path -Path $env:USERPROFILE -ChildPath "dynamodb-local" -AdditionalChildPath $version
-    Push-Location $dynamoDir
-    java -D"java.library.path=.\DynamoDBLocal_lib" -jar DynamoDBLocal.jar -sharedDb
-    Pop-Location
-}
-
-
 function Start-Scylla {
     docker run --name some-scylla -it --rm --hostname some-scylla -p 9042:9042 scylladb/scylla --smp 1
 }

@@ -137,7 +137,6 @@ namespace Horde.Storage.Implementation
                 case AmazonS3Store:
                     return true;
                 case MemoryBlobStore:
-                case MemoryCacheBlobStore:
                 case RelayBlobStore:
                     return false;
                 default:

@@ -14,18 +14,6 @@ using Serilog;
 
 namespace Horde.Storage.Implementation
 {
-    public class LastAccessTrackerRefRecord : LastAccessTracker<RefRecord>
-    {
-        public LastAccessTrackerRefRecord(IOptionsMonitor<HordeStorageSettings> settings) : base(settings)
-        {
-        }
-
-        protected override string BuildCacheKey(RefRecord record)
-        {
-            return $"{record.Namespace}.{record.Bucket}.{record.RefName}";
-        }
-    }
-
     public class LastAccessRecord
     {
         public LastAccessRecord(NamespaceId ns, BucketId bucket, IoHashKey key)

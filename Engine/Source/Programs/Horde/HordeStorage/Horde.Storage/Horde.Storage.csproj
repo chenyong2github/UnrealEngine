@@ -66,26 +66,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="akarnokd.async-enumerable-dotnet" Version="0.0.4" />
     <PackageReference Include="AspNetCore.HealthChecks.Aws.S3" Version="5.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.AzureStorage" Version="5.0.1" />
-    <PackageReference Include="AspNetCore.HealthChecks.DynamoDb" Version="5.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.MongoDb" Version="5.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.System" Version="5.0.1" />
     <PackageReference Include="AsyncEnumerator" Version="4.0.2" />
-    <PackageReference Include="AWSSDK.DAX.Client" Version="2.0.2" />
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.0.16" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.0.1" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.0.17" />
     <PackageReference Include="Azure.Identity" Version="1.5.0" />
     <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.2.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.8.0" />
-    <PackageReference Include="Destructurama.Attributed" Version="2.0.0" />
     <PackageReference Include="KubernetesClient" Version="4.0.10" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="6.0.0" />
     <PackageReference Include="MongoDB.Driver" Version="2.11.6" />
-    <PackageReference Include="Nito.AsyncEx" Version="5.1.0" />
     <PackageReference Include="SerilogAnalyzer" Version="0.15.0" />
     <PackageReference Include="Crc32.NET" Version="1.2.0" />
     <PackageReference Include="K4os.Compression.LZ4" Version="1.2.16" />
@@ -110,6 +104,10 @@
     <None Include="..\version.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Implementation\Refs\" />
   </ItemGroup>
 
 </Project>

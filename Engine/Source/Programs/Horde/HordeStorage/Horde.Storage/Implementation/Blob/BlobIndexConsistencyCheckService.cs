@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
-using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation.Blob;
 using Jupiter;
 using Jupiter.Common;
@@ -64,21 +63,6 @@ namespace Horde.Storage.Implementation
             return true;
         }
 
-        private bool NamespaceShouldBeCheckedForConsistency(NamespaceId ns)
-        {
-            try
-            {
-                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
-
-                return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
-            }
-            catch (UnknownNamespaceException)
-            {
-                _logger.Warning("Namespace {Namespace} does not configure any policy, not running blob index consistency checks on it.", ns);
-                return false;
-            }
-        }
-
         private async Task RunConsistencyCheck()
         {
             ulong countOfBlobsChecked = 0;
@@ -95,12 +79,6 @@ namespace Horde.Storage.Implementation
                     if (countOfBlobsChecked % 100 == 0)
                     {
                         _logger.Information("Consistency check running on blob index, count of blobs processed so far: {CountOfBlobs}", countOfBlobsChecked);
-                    }
-
-                    // skip namespace that we shouldn't consistency check, e.g. the legacy namespaces
-                    if (!NamespaceShouldBeCheckedForConsistency(blobInfo.Namespace))
-                    {
-                        return;
                     }
 
                     using IScope scope = Tracer.Instance.StartActive("consistency_check.blob_index");

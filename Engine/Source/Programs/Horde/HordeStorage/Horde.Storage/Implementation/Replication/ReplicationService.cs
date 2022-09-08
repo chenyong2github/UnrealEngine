@@ -39,9 +39,6 @@ namespace Horde.Storage.Implementation
 
             _leaderElection.OnLeaderChanged += OnLeaderChanged;
 
-            DirectoryInfo di = new DirectoryInfo(settings.CurrentValue.StateRoot);
-            Directory.CreateDirectory(di.FullName);
-
             foreach (ReplicatorSettings replicator in settings.CurrentValue.Replicators)
             {
                 try
@@ -73,8 +70,6 @@ namespace Horde.Storage.Implementation
         {
             switch (replicatorSettings.Version)
             {
-                case ReplicatorVersion.V1:
-                    return ActivatorUtilities.CreateInstance<ReplicatorV1>(provider, replicatorSettings);
                 case ReplicatorVersion.Refs:
                     return ActivatorUtilities.CreateInstance<RefsReplicator>(provider, replicatorSettings);
                 default:

@@ -20,11 +20,8 @@ using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
-using Nito.AsyncEx;
 using Serilog;
-using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Horde.Storage.Implementation
 {
@@ -32,8 +29,7 @@ namespace Horde.Storage.Implementation
     {
         private readonly string _name;
         private readonly ILogger _logger = Log.ForContext<RefsReplicator>();
-        private readonly FileInfo _stateFile;
-        private readonly AsyncManualResetEvent _replicationFinishedEvent = new AsyncManualResetEvent(true);
+        private readonly ManualResetEvent _replicationFinishedEvent = new ManualResetEvent(true);
         private readonly CancellationTokenSource _replicationTokenSource = new CancellationTokenSource();
         private readonly ReplicatorSettings _replicatorSettings;
         private readonly IBlobService _blobService;
@@ -45,7 +41,7 @@ namespace Horde.Storage.Implementation
         private bool _replicationRunning;
         private bool _disposed = false;
 
-        public RefsReplicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
+        public RefsReplicator(ReplicatorSettings replicatorSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
         {
             _name = replicatorSettings.ReplicatorName;
             _namespace = new NamespaceId(replicatorSettings.NamespaceToReplicate);
@@ -57,21 +53,10 @@ namespace Horde.Storage.Implementation
             _httpClient = httpClientFactory.CreateClient();
             _httpClient.BaseAddress = new Uri(replicatorSettings.ConnectionString);
 
-            string stateFileName = $"{_name}.json";
-            DirectoryInfo stateRoot = new DirectoryInfo(replicationSettings.CurrentValue.StateRoot);
-            _stateFile = new FileInfo(Path.Combine(stateRoot.FullName, stateFileName));
-
             ReplicatorState? replicatorState = _replicationLog.GetReplicatorState(_namespace, _name).Result;
             if (replicatorState == null)
             {
-                if (_stateFile.Exists)
-                {
-                    _refsState = ReadState(_stateFile)!;
-                }
-                else
-                {
-                    _refsState = new RefsState();
-                }
+                _refsState = new RefsState();
             }
             else
             {
@@ -100,9 +85,8 @@ namespace Horde.Storage.Implementation
 
             if (disposing)
             {
-                SaveState(_stateFile, _refsState);
-
-                _replicationFinishedEvent.Wait();
+                _replicationFinishedEvent.WaitOne();
+                _replicationFinishedEvent.Dispose();
                 _replicationTokenSource.Dispose();
 
                 _httpClient.Dispose();
@@ -111,31 +95,9 @@ namespace Horde.Storage.Implementation
             _disposed = true;
         }
 
-        private static RefsState ReadState(FileInfo stateFile)
+        private async Task SaveState(RefsState newState)
         {
-            using StreamReader streamReader = stateFile.OpenText();
-            using JsonReader reader = new JsonTextReader(streamReader);
-            JsonSerializer serializer = new JsonSerializer();
-            RefsState? state =  serializer.Deserialize<RefsState>(reader);
-            if (state == null)
-            {
-                throw new Exception("Failed to read state");
-            }
-
-            return state;
-        }
-
-        private void SaveState(FileInfo stateFile, RefsState newState)
-        {
-            using StreamWriter writer = stateFile.CreateText();
-            JsonSerializer serializer = new JsonSerializer();
-            serializer.Serialize(writer, newState);
-
-            _replicationLog.UpdateReplicatorState(Info.NamespaceToReplicate, _name, new ReplicatorState
-            {
-                LastBucket = newState.LastBucket,
-                LastEvent = newState.LastEvent
-            }).Wait();
+            await _replicationLog.UpdateReplicatorState(Info.NamespaceToReplicate, _name, new ReplicatorState { LastBucket = newState.LastBucket, LastEvent = newState.LastEvent });
         }
 
         public async Task<bool> TriggerNewReplications()
@@ -150,15 +112,7 @@ namespace Horde.Storage.Implementation
             ReplicatorState? replicatorState = await _replicationLog.GetReplicatorState(_namespace, _name);
             if (replicatorState == null)
             {
-                _stateFile.Refresh();
-                if (_stateFile.Exists)
-                {
-                    _refsState = ReadState(_stateFile) ?? new RefsState();
-                }
-                else
-                {
-                    _refsState = new RefsState();
-                }
+                _refsState = new RefsState();
             }
             else
             {
@@ -208,7 +162,7 @@ namespace Horde.Storage.Implementation
                         // finished replicating the snapshot, persist the state
                         _refsState.LastBucket = eventBucket;
                         _refsState.LastEvent = eventId;
-                        SaveState(_stateFile, _refsState);
+                        await SaveState(_refsState);
                         hasRun = true;
                     }
                     catch (NoSnapshotAvailableException)
@@ -280,7 +234,7 @@ namespace Horde.Storage.Implementation
 
                         _refsState.LastBucket = eventBucket;
                         _refsState.LastEvent = eventId;
-                        SaveState(_stateFile, _refsState);
+                        await SaveState(_refsState);
                         retry = true;
                     }
                 } while (retry);
@@ -302,7 +256,7 @@ namespace Horde.Storage.Implementation
             // determine latest snapshot if no specific blob was specified
             if (snapshotBlob == null)
             {
-                using HttpRequestMessage snapshotRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/replication-log/snapshots/{ns}", UriKind.Relative));
+                using HttpRequestMessage snapshotRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/replication-log/snapshots/{ns}", UriKind.Relative));
                 HttpResponseMessage snapshotResponse = await _httpClient.SendAsync(snapshotRequest, cancellationToken);
                 snapshotResponse.EnsureSuccessStatusCode();
 
@@ -327,7 +281,7 @@ namespace Horde.Storage.Implementation
             // fetch the snapshot from the remote blob store
             ReplicationLogSnapshot snapshot;
             {
-                using HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{blobNamespace}/{snapshotBlob}", UriKind.Relative));
+                using HttpRequestMessage request = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{blobNamespace}/{snapshotBlob}", UriKind.Relative));
                 HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 response.EnsureSuccessStatusCode();
                 await using Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -383,9 +337,9 @@ namespace Horde.Storage.Implementation
             return (snapshotBucket, snapshotEvent, countOfObjectsReplicated);
         }
 
-        private HttpRequestMessage BuildHttpRequest(HttpMethod httpMethod, Uri uri)
+        private async Task<HttpRequestMessage> BuildHttpRequest(HttpMethod httpMethod, Uri uri)
         {
-            string? token = _serviceCredentials.GetToken();
+            string? token = await _serviceCredentials.GetTokenAsync();
             HttpRequestMessage request = new HttpRequestMessage(httpMethod, uri);
             if (!string.IsNullOrEmpty(token))
             {
@@ -465,7 +419,7 @@ namespace Horde.Storage.Implementation
                         // we have replicated everything up to a point and can persist this in the state
                         _refsState.LastBucket = eventBucket;
                         _refsState.LastEvent = eventId;
-                        SaveState(_stateFile, _refsState);
+                        await SaveState(_refsState);
 
                         _logger.Information("{Name} replicated all events up to {Time} . Bucket: {EventBucket} Id: {EventId}", _name, @event.Timestamp, eventBucket, eventId);
                     }
@@ -501,7 +455,7 @@ namespace Horde.Storage.Implementation
             //if (await _blobService.Exists(ns, blob))
             //    return currentOffset;
 
-            using HttpRequestMessage referencesRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/objects/{ns}/{objectToReplicate}/references", UriKind.Relative));
+            using HttpRequestMessage referencesRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/objects/{ns}/{objectToReplicate}/references", UriKind.Relative));
             HttpResponseMessage referencesResponse = await _httpClient.SendAsync(referencesRequest, cancellationToken);
             string body = await referencesResponse.Content.ReadAsStringAsync(cancellationToken);
 
@@ -535,7 +489,7 @@ namespace Horde.Storage.Implementation
                 BlobIdentifier blobToReplicate = missingBlobs[i];
                 blobReplicationTasks[i] = Task.Run(async () =>
                 {
-                    HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blobToReplicate}", UriKind.Relative));
+                    HttpRequestMessage blobRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/blobs/{ns}/{blobToReplicate}", UriKind.Relative));
                     HttpResponseMessage blobResponse = await _httpClient.SendAsync(blobRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
                     _logger.Information("Attempting to replicate blob {Blob} in {Namespace}.", blobToReplicate, ns);
@@ -592,7 +546,7 @@ namespace Horde.Storage.Implementation
                 }
 
                 hasRunOnce = true;
-                using HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, new Uri(url.ToString(), UriKind.Relative));
+                using HttpRequestMessage request = await BuildHttpRequest(HttpMethod.Get, new Uri(url.ToString(), UriKind.Relative));
                 HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
                 string body = await response.Content.ReadAsStringAsync(cancellationToken);
                 if (response.StatusCode == HttpStatusCode.BadRequest)
@@ -650,15 +604,17 @@ namespace Horde.Storage.Implementation
             throw new NotImplementedException();
         }
 
-        public async Task StopReplicating()
+        public Task StopReplicating()
         {
             if (_disposed)
             {
-                return;
+                return Task.CompletedTask;
             }
 
             _replicationTokenSource.Cancel(true);
-            await _replicationFinishedEvent.WaitAsync();
+            _replicationFinishedEvent.WaitOne();
+
+            return Task.CompletedTask;
         }
 
         public ReplicatorState State => _refsState;
@@ -668,16 +624,14 @@ namespace Horde.Storage.Implementation
         public Task DeleteState()
         {
             _refsState = new RefsState();
-            SaveState(_stateFile, _refsState);
-
-            return Task.CompletedTask;
+            return SaveState(_refsState);
         }
 
         public void SetRefState(string? lastBucket, Guid? lastEvent)
         {
             _refsState.LastBucket = lastBucket;
             _refsState.LastEvent = lastEvent;
-            SaveState(_stateFile, _refsState);
+            SaveState(_refsState).Wait();
         }
     }
 

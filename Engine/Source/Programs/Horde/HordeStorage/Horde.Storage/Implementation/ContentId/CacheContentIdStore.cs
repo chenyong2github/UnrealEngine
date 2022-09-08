@@ -21,7 +21,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
-            using HttpRequestMessage getContentIdRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/content-id/{ns}/{contentId}", UriKind.Relative));
+            using HttpRequestMessage getContentIdRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/content-id/{ns}/{contentId}", UriKind.Relative));
             HttpResponseMessage response = await HttpClient.SendAsync(getContentIdRequest);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
@@ -37,7 +37,7 @@ namespace Horde.Storage.Implementation
 
         public async Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
-            using HttpRequestMessage putContentIdRequest = BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/content-id/{ns}/{contentId}/update/{blobIdentifier}/{contentWeight}", UriKind.Relative));
+            using HttpRequestMessage putContentIdRequest = await BuildHttpRequest(HttpMethod.Put, new Uri($"api/v1/content-id/{ns}/{contentId}/update/{blobIdentifier}/{contentWeight}", UriKind.Relative));
             HttpResponseMessage response = await HttpClient.SendAsync(putContentIdRequest);
 
             response.EnsureSuccessStatusCode();

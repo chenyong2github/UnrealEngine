@@ -459,7 +459,7 @@ namespace Horde.Storage.Controllers
         /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
         /// <returns>200 if it existed, 400 otherwise</returns>
         [HttpHead("{ns}/{bucket}/{key}", Order = 500)]
-        [ProducesResponseType(type: typeof(RefResponse), 200)]
+        [ProducesResponseType(type: typeof(OkResult), 200)]
         [ProducesResponseType(type: typeof(ValidationProblemDetails), 400)]
         public async Task<IActionResult> Head(
             [FromRoute] [Required] NamespaceId ns,
@@ -511,10 +511,6 @@ namespace Horde.Storage.Controllers
             catch (ObjectNotFoundException e)
             {
                 return NotFound(new ProblemDetails {Title = $"Object {e.Bucket} {e.Key} in namespace {e.Namespace} did not exist"});
-            }
-            catch (MissingBlobsException e)
-            {
-                return NotFound(new ProblemDetails { Title = $"Blobs {e.Blobs} from object {e.Bucket} {e.Key} in namespace {e.Namespace} did not exist" });
             }
             catch (PartialReferenceResolveException)
             {
@@ -583,6 +579,10 @@ namespace Horde.Storage.Controllers
                     missingObject.Add((bucket, key));
                 }
                 catch (ReferenceIsMissingBlobsException)
+                {
+                    missingObject.Add((bucket, key));
+                }
+                catch (BlobNotFoundException)
                 {
                     missingObject.Add((bucket, key));
                 }
@@ -811,6 +811,15 @@ namespace Horde.Storage.Controllers
                 return accessResult;
             }
 
+            HashSet<uint> usedOpIds = new HashSet<uint>();
+            foreach (BatchOps.BatchOp batchOp in ops.Ops)
+            {
+                bool added = usedOpIds.Add(batchOp.OpId);
+                if (!added)
+                {
+                    return BadRequest(new ProblemDetails { Title = $"Duplicate op ids used for id: {batchOp.OpId}" });
+                }
+            }
             ConcurrentDictionary<uint, (CbObject, HttpStatusCode)> results = new();
 
             async Task<(CbObject, HttpStatusCode)> BatchGetOp(BatchOps.BatchOp op)
@@ -1289,6 +1298,29 @@ namespace Horde.Storage.Controllers
 
             [CbField("key")]
             public IoHashKey Key { get; set; }
+        }
+    }
+
+    public class GetNamespacesResponse
+    {
+        [JsonConstructor]
+        public GetNamespacesResponse(NamespaceId[] namespaces)
+        {
+            Namespaces = namespaces;
+        }
+
+        public NamespaceId[] Namespaces { get; set; }
+    }
+
+    public class HashMismatchException : Exception
+    {
+        public ContentHash SuppliedHash { get; }
+        public ContentHash ContentHash { get; }
+
+        public HashMismatchException(ContentHash suppliedHash, ContentHash contentHash) : base($"ID was not a hash of the content uploaded. Supplied hash was: {suppliedHash} but hash of content was {contentHash}")
+        {
+            SuppliedHash = suppliedHash;
+            ContentHash = contentHash;
         }
     }
 }

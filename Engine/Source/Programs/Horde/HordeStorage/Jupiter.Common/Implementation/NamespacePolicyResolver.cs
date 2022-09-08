@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Collections.Generic;
+using System;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
 namespace Jupiter.Common
@@ -38,6 +37,13 @@ namespace Jupiter.Common
             }
 
             throw new UnknownNamespaceException($"Unable to find a valid policy for namespace {ns}");
+        }
+    }
+
+    public class UnknownNamespaceException : Exception
+    {
+        public UnknownNamespaceException(string message) : base(message)
+        {
         }
     }
 }

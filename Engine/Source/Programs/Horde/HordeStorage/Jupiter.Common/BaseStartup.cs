@@ -360,7 +360,7 @@ namespace Jupiter
             //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
             {
-                bool PassAllChecks(HealthCheckRegistration check) => true;
+                static bool PassAllChecks(HealthCheckRegistration check) => true;
 
                 // Ready checks in Kubernetes is to verify that the service is working, if this returns false the app will not get any traffic (load balancer ignores it)
                 endpoints.MapHealthChecks("/health/readiness", options: new HealthCheckOptions()
@@ -653,7 +653,6 @@ namespace Jupiter
         public bool OnDemandReplication { get; set; } = false;
         public bool UseBlobIndexForExists { get; set; } = false;
         public bool UseBlobIndexForSlowExists { get; set; } = false;
-        public bool? IsLegacyNamespace { get; set; } = null;
         public bool IsPublicNamespace { get; set; } = true;
     }
 

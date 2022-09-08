@@ -9,7 +9,6 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Threading.Tasks;
-using async_enumerable_dotnet;
 using Cassandra;
 using Dasync.Collections;
 using Horde.Storage.Controllers;
@@ -564,7 +563,7 @@ namespace Horde.Storage.FunctionalTests.References
             }
 
             // verify there are no previous snapshots
-            Assert.AreEqual(0, await _replicationLog.GetSnapshots(TestNamespace).Count().FirstAsync());
+            Assert.AreEqual(0, (await _replicationLog.GetSnapshots(TestNamespace).ToListAsync()).Count);
 
             // create a snapshot
             ReplicationLogSnapshotBuilder snapshotBuilder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_server!.Services);
@@ -611,7 +610,7 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.AreEqual(4, logEvents.Count);
 
             // verify there are no previous snapshots
-            Assert.AreEqual(0, await _replicationLog.GetSnapshots(TestNamespace).Count().FirstAsync());
+            Assert.AreEqual(0, (await _replicationLog.GetSnapshots(TestNamespace).ToListAsync()).Count);
 
             // create a snapshot
             ReplicationLogSnapshotBuilder snapshotBuilder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_server!.Services);
@@ -666,7 +665,7 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.AreEqual(4, logEvents.Count);
 
             // verify there are no previous snapshots
-            Assert.AreEqual(0, await _replicationLog.GetSnapshots(TestNamespace).Count().FirstAsync());
+            Assert.AreEqual(0, (await _replicationLog.GetSnapshots(TestNamespace).ToListAsync()).Count);
 
             // create a snapshot
             ReplicationLogSnapshotBuilder snapshotBuilder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_server!.Services);

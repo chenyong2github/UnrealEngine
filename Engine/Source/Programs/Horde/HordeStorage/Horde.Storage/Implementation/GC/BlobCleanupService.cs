@@ -11,6 +11,12 @@ using Serilog;
 
 namespace Horde.Storage.Implementation
 {
+    public interface IBlobCleanup
+    {
+        bool ShouldRun();
+        Task<ulong> Cleanup(CancellationToken none);
+    }
+
     public class BlobCleanupState
     {
         public List<IBlobCleanup> BlobCleanups { get; } = new List<IBlobCleanup>();
@@ -30,13 +36,6 @@ namespace Horde.Storage.Implementation
         public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings) : base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency, new BlobCleanupState())
         {
             _settings = settings;
-
-            if (settings.CurrentValue.CleanOldBlobsLegacy)
-            {
-                OrphanBlobCleanup orphanBlobCleanup = provider.GetService<OrphanBlobCleanup>()!;
-                RegisterCleanup(orphanBlobCleanup);
-            }
-
             
             if (settings.CurrentValue.CleanOldBlobs)
             {

@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Dasync.Collections;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
 using Jupiter.Implementation;
@@ -13,107 +12,13 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
 using Serilog;
 using Serilog.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using Jupiter;
 
 namespace Horde.Storage.FunctionalTests.GC
 {
-    [TestClass]
-
-    public class GCRefTests : IDisposable
-    {
-        private HttpClient? _httpClient;
-        private Mock<IRefsStore>? _refMock;
-
-        private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
-        private readonly BucketId DefaultBucket = new BucketId("default");
-        private TestServer? _server;
-
-        [TestInitialize]
-        public void Setup()
-        {
-            IConfigurationRoot configuration = new ConfigurationBuilder()
-                            // we are not reading the base appSettings here as we want exact control over what runs in the tests
-                            .AddJsonFile("appsettings.Testing.json", false)
-                            .AddEnvironmentVariables()
-                            .Build();
-
-            Logger logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(configuration)
-                .CreateLogger();
-
-            OldRecord[] oldRecords =
-            {
-                new OldRecord(TestNamespace, DefaultBucket, new KeyId("object2")),
-                new OldRecord(TestNamespace, DefaultBucket, new KeyId("object5")),
-                new OldRecord(TestNamespace, DefaultBucket, new KeyId("object6")),
-            };
-            _refMock = new Mock<IRefsStore>();
-            _refMock.Setup(store => store.GetOldRecords(TestNamespace, It.IsAny<TimeSpan>())).Returns(oldRecords.ToAsyncEnumerable()).Verifiable();
-            _refMock.Setup(store => store.Delete(TestNamespace, DefaultBucket, It.IsAny<KeyId>())).Verifiable();
-
-           _server = new TestServer(new WebHostBuilder()
-                .UseConfiguration(configuration)
-                .UseEnvironment("Testing")
-                .UseSerilog(logger)
-                .UseStartup<HordeStorageStartup>()
-                .ConfigureTestServices(collection =>
-                {
-                    // use our refs mock instead of the actual refs store so we can control which records are invalid
-                    collection.AddSingleton<IRefsStore>(_refMock.Object);
-
-                    collection.Configure<NamespaceSettings>(settings =>
-                    {
-                        settings.Policies = new Dictionary<string, NamespacePolicy>()
-                        {
-                            {
-                                TestNamespace.ToString(), new NamespacePolicy()
-                                {
-                                    IsLegacyNamespace = true
-                                }
-                            }
-                        };
-                    });
-                })
-            );
-            _httpClient = _server.CreateClient();
-        }
-
-        [TestMethod]
-        public async Task RunRefCleanup()
-        {
-            // trigger the cleanup
-            using StringContent content = new StringContent(string.Empty);
-            HttpResponseMessage cleanupResponse = await _httpClient!.PostAsync(new Uri($"api/v1/admin/refCleanup/{TestNamespace}", UriKind.Relative), content);
-            cleanupResponse.EnsureSuccessStatusCode();
-            RemovedRefRecordsResponse removedRefRecords = await cleanupResponse.Content.ReadAsAsync<RemovedRefRecordsResponse>();
-
-            Assert.AreEqual(3, removedRefRecords.CountOfRemovedRecords);
-
-            _refMock!.Verify();
-            _refMock.VerifyNoOtherCalls();
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _httpClient?.Dispose();
-                _server?.Dispose();
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            System.GC.SuppressFinalize(this);
-        }
-    }
-
     [TestClass]
     public class MemoryGCReferencesTests : GCReferencesTests
     {
@@ -165,7 +70,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 .AddEnvironmentVariables()
                 .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
                 {
-                    new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "MemoryBlobStore"),
+                    new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "Memory"),
                     new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", GetImplementation()),
                 })
                 .Build();
@@ -177,21 +82,6 @@ namespace Horde.Storage.FunctionalTests.GC
                 .UseConfiguration(configuration)
                 .UseEnvironment("Testing")
                 .UseSerilog(logger)
-                .ConfigureTestServices(collection =>
-                {
-                    collection.Configure<NamespaceSettings>(settings =>
-                    {
-                        settings.Policies = new Dictionary<string, NamespacePolicy>()
-                        {
-                            {
-                                TestNamespace.ToString(), new NamespacePolicy()
-                                {
-                                    IsLegacyNamespace = false
-                                }
-                            }
-                        };
-                    });
-                })
                 .UseStartup<HordeStorageStartup>()
             );
             _httpClient = _server.CreateClient();

@@ -1,18 +1,17 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Threading.Tasks;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using RestSharp.Authenticators;
 
 namespace Horde.Storage.Implementation
 {
     public interface IServiceCredentials
     {
-        IAuthenticator? GetAuthenticator();
-
-        string? GetToken();
+        Task<string?> GetTokenAsync();
 
         string GetAuthenticationScheme();
     }
@@ -22,7 +21,7 @@ namespace Horde.Storage.Implementation
         private readonly ClientCredentialOAuthAuthenticator? _authenticator;
         private readonly IOptionsMonitor<ServiceCredentialSettings> _settings;
 
-        public ServiceCredentials(IOptionsMonitor<ServiceCredentialSettings> settings, ISecretResolver secretResolver)
+        public ServiceCredentials(IServiceProvider provider, IOptionsMonitor<ServiceCredentialSettings> settings, ISecretResolver secretResolver)
         {
             _settings = settings;
             if (settings.CurrentValue.OAuthLoginUrl != null)
@@ -39,18 +38,22 @@ namespace Horde.Storage.Implementation
                     throw new ArgumentException("ClientSecret must be set when using a service credential");
                 }
 
-                _authenticator = new ClientCredentialOAuthAuthenticator(settings.CurrentValue.OAuthLoginUrl, clientId, clientSecret, settings.CurrentValue.OAuthScope, settings.CurrentValue.SchemeName);
+                _authenticator = ActivatorUtilities.CreateInstance<ClientCredentialOAuthAuthenticator>(provider, settings.CurrentValue.OAuthLoginUrl, clientId, clientSecret, settings.CurrentValue.OAuthScope);
             }
-        }
-
-        public IAuthenticator? GetAuthenticator()
-        {
-            return _authenticator;
         }
 
         public string? GetToken()
         {
-            return _authenticator?.Authenticate();
+            return _authenticator?.Authenticate().Result;
+        }
+
+        public async Task<string?> GetTokenAsync()
+        {
+            if (_authenticator == null)
+            {
+                return null;
+            }
+            return await _authenticator.Authenticate();
         }
 
         public string GetAuthenticationScheme()

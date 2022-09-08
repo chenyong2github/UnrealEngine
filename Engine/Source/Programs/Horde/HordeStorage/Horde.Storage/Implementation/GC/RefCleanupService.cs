@@ -14,13 +14,11 @@ namespace Horde.Storage.Implementation
 {
     public class RefCleanupState
     {
-        public RefCleanupState(IRefsStore refs, IRefCleanup refCleanup)
+        public RefCleanupState(IRefCleanup refCleanup)
         {
-            Refs = refs;
             RefCleanup = refCleanup;
         }
 
-        public IRefsStore Refs { get; }
         public IRefCleanup RefCleanup { get; }
         public Dictionary<NamespaceId, Task> RunningCleanupTasks { get; } = new Dictionary<NamespaceId, Task>();
     }
@@ -33,7 +31,7 @@ namespace Horde.Storage.Implementation
         private volatile bool _alreadyPolling;
         private readonly ILogger _logger = Log.ForContext<RefCleanupService>();
 
-        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefsStore store, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore) : base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(store, refCleanup), startAtRandomTime: false)
+        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore) : base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(refCleanup), startAtRandomTime: false)
         {
             _settings = settings;
             _leaderElection = leaderElection;
@@ -75,22 +73,6 @@ namespace Horde.Storage.Implementation
                     }
                     state.RunningCleanupTasks.Add(ns, DoCleanup(ns, state, cancellationToken));
                 }
-
-                // Do not run the cleanup of legacy namespaces as this can take a very long time and we do not care about these anymore
-                /*
-                 await foreach (NamespaceId ns in state.Refs.GetNamespaces().WithCancellation(cancellationToken))
-                {
-                    _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
-                    try
-                    {
-                        int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
-                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, countOfRemovedRecords);
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
-                    }
-                }*/
                 return true;
 
             }

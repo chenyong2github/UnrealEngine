@@ -11,36 +11,11 @@ namespace Horde.Storage
     
     public class HordeStorageSettings
     {
-        public enum RefDbImplementations
-        {
-            Memory,
-            Mongo,
-            Cosmos,
-            DynamoDb
-        }
-
-        public enum TransactionLogWriterImplementations
-        {
-            Callisto,
-            Memory
-        }
-
         public enum ReplicationLogWriterImplementations
         {
             Memory,
             Scylla,
             Mongo
-        }
-
-        public enum TreeStoreImplementations
-        {
-            Memory,
-            DynamoDb
-        }
-        public enum TreeRootStoreImplementations
-        {
-            Memory,
-            DynamoDb
         }
 
         public enum StorageBackendImplementations
@@ -49,7 +24,6 @@ namespace Horde.Storage
             Azure,
             FileSystem,
             Memory,
-            MemoryBlobStore,
             Relay
         }
 
@@ -116,18 +90,7 @@ namespace Horde.Storage
             }
         }
 
-        [Required]
-        public TransactionLogWriterImplementations TransactionLogWriterImplementation { get; set; } = TransactionLogWriterImplementations.Memory;
-
         [Required] public ReplicationLogWriterImplementations ReplicationLogWriterImplementation { get; set; } = ReplicationLogWriterImplementations.Memory;
-
-        [Required] public RefDbImplementations RefDbImplementation { get; set; } = RefDbImplementations.Memory;
-
-        [Required]
-        public TreeStoreImplementations TreeStoreImplementation { get; set; } = TreeStoreImplementations.Memory;
-
-        [Required]
-        public TreeRootStoreImplementations TreeRootStoreImplementation { get; set; } = TreeRootStoreImplementations.Memory;
 
         [Required]
         public ReferencesDbImplementations ReferencesDbImplementation { get; set; } = ReferencesDbImplementations.Memory;
@@ -141,9 +104,6 @@ namespace Horde.Storage
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
         public bool EnableLastAccessTracking { get; set; } = true;
         public bool EnableOnDemandReplication { get; set; } = false;
-
-        // disable the legacy api
-        public bool DisableLegacyApi { get; set; } = false;
     }
 
     public class MongoSettings
@@ -153,50 +113,7 @@ namespace Horde.Storage
         public bool RequireTls12 { get; set; } = true;
         public bool CreateDatabaseIfMissing { get; set; } = true;
     }
-
-    public class DynamoDbSettings
-    {
-        [Required] public string ConnectionString { get; set; } = "";
-
-        public long ReadCapacityUnits { get; set; } = 100;
-        public long WriteCapacityUnits { get; set; } = 20;
-
-        public bool UseOndemandCapacityProvisioning { get; set; } = true;
-        
-        /// <summary>
-        /// Endpoint name for DynamoDB Accelerator (DAX). Acts as a cache in front of DynamoDB to speed up requests
-        /// Disabled when set to null.
-        /// </summary>
-        public string? DaxEndpoint { get; set; } = null;
-
-        /// <summary>
-        /// Enabling this will make Horde.Storage create missing tables on demand, works great for local tables but for global tables its easier to have terraform manage it
-        /// </summary>
-        public bool CreateTablesOnDemand { get; set; } = true;
-
-        public static (string, int) ParseDaxEndpointAsHostPort(string endpoint)
-        {
-            if (!endpoint.Contains(':', StringComparison.InvariantCultureIgnoreCase))
-            {
-                return (endpoint, 8111);
-            }
-
-            string host = endpoint.Split(":")[0];
-            int port = Convert.ToInt32(endpoint.Split(":")[1]);
-            return (host, port);
-        }
-    }
-
-    public class CosmosSettings
-    {
-        [Range(400, 10_000)] public int DefaultRU { get; set; } = 400;
-    }
-
-    public class CallistoTransactionLogSettings
-    {
-        [Required] public string ConnectionString { get; set; } = "";
-    }
-
+    
     public class MemoryCacheContentIdSettings : MemoryCacheOptions
     {
         public bool Enabled { get; set; } = true;
@@ -205,29 +122,7 @@ namespace Horde.Storage
         public int SlidingExpirationMinutes { get; set; } = 120;
     }
 
-	public class MemoryCacheBlobSettings : MemoryCacheOptions
-    {
-        public bool Enabled { get; set; } = true;
-
-        public bool EnableSlidingExpiry { get; set; } = true;
-        public int SlidingExpirationMinutes { get; set; } = 60;
-    }
-
-    public class MemoryCacheTreeSettings : MemoryCacheOptions
-    {
-        public bool Enabled { get; set; } = true;
-        public bool EnableSlidingExpiry { get; set; } = true;
-        public int SlidingExpirationMinutes { get; set; } = 60;
-    }
-
-    public class MemoryCacheRefSettings : MemoryCacheOptions
-    {
-        public bool Enabled { get; set; } = true;
-        public bool EnableSlidingExpiry { get; set; } = true;
-        public int SlidingExpirationMinutes { get; set; } = 60;
-    }
-
-    public class AzureSettings
+	public class AzureSettings
     {
         [Required] public string ConnectionString { get; set; } = string.Empty;
     }
@@ -261,7 +156,6 @@ namespace Horde.Storage
         
         public bool CleanOldRefRecords { get; set; } = false;
         public bool CleanOldBlobs { get; set; } = true;
-        public bool CleanOldBlobsLegacy { get; set; } = false;
 
         public TimeSpan LastAccessCutoff { get; set; } = TimeSpan.FromDays(14);
 

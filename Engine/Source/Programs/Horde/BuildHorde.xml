@@ -54,9 +54,8 @@
 			</Property>
 			<Tag Files="$(StagePaths)" Except=".../.vs/...;.../.git/...;.../bin/...;.../obj/..." With="#InputFiles"/>
 
-			<!-- Build the Docker images -->
-			<Docker-Build BaseDir="Engine/Source" Files="#InputFiles" Tag="horde_storage:$(InformationalVersion)" DockerFile="Engine/Source/Programs/Horde/HordeStorage/dockerfile" Arguments="--build-arg Project=Horde.Storage" Environment="UE_P4_CHANGELIST=(Change)"/>
-			<Docker-Build BaseDir="Engine/Source" Files="#InputFiles" Tag="callisto:$(InformationalVersion)" DockerFile="Engine/Source/Programs/Horde/HordeStorage/dockerfile" Arguments="--build-arg Project=Callisto" Environment="UE_P4_CHANGELIST=(Change)" />
+			<!-- Build the Docker image -->
+			<Docker-Build BaseDir="Engine/Source" Files="#InputFiles" Tag="horde_storage:$(InformationalVersion)" DockerFile="Engine/Source/Programs/Horde/HordeStorage/dockerfile" Environment="UE_P4_CHANGELIST=(Change)"/>
 		</Node>
 	</Agent>
 </BuildGraph>

@@ -5,11 +5,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using async_enumerable_dotnet;
 using Dasync.Collections;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.Blob;
 using Jupiter;
 using Jupiter.Common;
@@ -58,7 +56,7 @@ namespace Horde.Storage.Implementation
                 return 0;
             }
 
-            List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
+            List<NamespaceId> namespaces = await ListNamespaces().ToListAsync(cancellationToken: cancellationToken);
             List<NamespaceId> namespacesThatHaveBeenChecked = new List<NamespaceId>();
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
             ulong countOfBlobsRemoved = 0;
@@ -154,11 +152,6 @@ namespace Horde.Storage.Implementation
                     {
                         // this is not a valid reference so we should delete
                     }
-                    catch (MissingBlobsException)
-                    {
-                        // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
-                        found = true;
-                    }
                 }
             }
 
@@ -198,21 +191,6 @@ namespace Horde.Storage.Implementation
             catch (Exception e)
             {
                 _logger.Warning("Failed to delete blob {Blob} from {Namespace} due to {Error}", blob, ns, e.Message);
-            }
-        }
-
-        private bool NamespaceShouldBeCleaned(NamespaceId ns)
-        {
-            try
-            {
-                NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(ns);
-
-                return policy.IsLegacyNamespace.HasValue && !policy.IsLegacyNamespace.Value;
-            }
-            catch (UnknownNamespaceException)
-            {
-                _logger.Warning("Namespace {Namespace} does not configure any policy, not running cleanup on it.", ns);
-                return false;
             }
         }
 

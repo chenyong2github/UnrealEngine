@@ -105,8 +105,7 @@ public class BlobService : IBlobService
             HordeStorageSettings.StorageBackendImplementations.S3 => provider.GetService<AmazonS3Store>(),
             HordeStorageSettings.StorageBackendImplementations.Azure => provider.GetService<AzureBlobStore>(),
             HordeStorageSettings.StorageBackendImplementations.FileSystem => provider.GetService<FileSystemStore>(),
-            HordeStorageSettings.StorageBackendImplementations.Memory => provider.GetService<MemoryCacheBlobStore>(),
-            HordeStorageSettings.StorageBackendImplementations.MemoryBlobStore => provider.GetService<MemoryBlobStore>(),
+            HordeStorageSettings.StorageBackendImplementations.Memory => provider.GetService<MemoryBlobStore>(),
             HordeStorageSettings.StorageBackendImplementations.Relay => provider.GetService<RelayBlobStore>(),
             _ => throw new NotImplementedException("Unknown blob store {store")
         };
@@ -322,7 +321,7 @@ public class BlobService : IBlobService
 
             PeerEndpoints peerEndpoint = peerStatus.Endpoints.First();
             using HttpClient httpClient = _httpClientFactory.CreateClient();
-            using HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, new Uri($"{peerEndpoint.Url}/api/v1/blobs/{ns}/{blob}"));
+            using HttpRequestMessage blobRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"{peerEndpoint.Url}/api/v1/blobs/{ns}/{blob}"));
             HttpResponseMessage blobResponse = await httpClient.SendAsync(blobRequest, HttpCompletionOption.ResponseHeadersRead);
 
             if (blobResponse.StatusCode == HttpStatusCode.NotFound)
@@ -356,9 +355,9 @@ public class BlobService : IBlobService
         return _settings.CurrentValue.EnableOnDemandReplication && _namespacePolicyResolver.GetPoliciesForNs(ns).OnDemandReplication;
     }
 
-    private HttpRequestMessage BuildHttpRequest(HttpMethod httpMethod, Uri uri)
+    private async Task<HttpRequestMessage> BuildHttpRequest(HttpMethod httpMethod, Uri uri)
     {
-        string? token = _serviceCredentials.GetToken();
+        string? token = await _serviceCredentials.GetTokenAsync();
         HttpRequestMessage request = new HttpRequestMessage(httpMethod, uri);
         if (!string.IsNullOrEmpty(token))
         {

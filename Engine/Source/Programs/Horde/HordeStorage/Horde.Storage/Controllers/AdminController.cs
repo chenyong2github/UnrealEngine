@@ -24,12 +24,12 @@ namespace Horde.Storage.Controllers
     [Authorize]
     public class AdminController : Controller
     {
-        private readonly LastAccessService _lastAccessService;
+        private readonly LastAccessServiceReferences _lastAccessService;
         private readonly IRefCleanup _refCleanup;
         private readonly IConfiguration _configuration;
         private readonly RequestHelper _requestHelper;
 
-        public AdminController(LastAccessService lastAccessService, IRefCleanup refCleanup, IConfiguration configuration, RequestHelper requestHelper)
+        public AdminController(LastAccessServiceReferences lastAccessService, IRefCleanup refCleanup, IConfiguration configuration, RequestHelper requestHelper)
         {
             _lastAccessService = lastAccessService;
             _refCleanup = refCleanup;
@@ -54,8 +54,8 @@ namespace Horde.Storage.Controllers
                 return result;
             }
 
-            Task<List<(RefRecord, DateTime)>>? updateRecordsTask = _lastAccessService.ProcessLastAccessRecords();
-            List<(RefRecord, DateTime)>? updatedRecords = null;
+            Task<List<(LastAccessRecord, DateTime)>>? updateRecordsTask = _lastAccessService.ProcessLastAccessRecords();
+            List<(LastAccessRecord, DateTime)>? updatedRecords = null;
             if (updateRecordsTask != null)
             {
                 updatedRecords = await updateRecordsTask;
@@ -172,13 +172,13 @@ namespace Horde.Storage.Controllers
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "Only used by serialization")]
         public class UpdatedRecord
         {
-            public UpdatedRecord(RefRecord record, DateTime time)
+            public UpdatedRecord(LastAccessRecord record, DateTime time)
             {
                 Record = record;
                 Time = time;
             }
 
-            public RefRecord Record { get; }
+            public LastAccessRecord Record { get; }
             public DateTime Time { get; }
         }
 

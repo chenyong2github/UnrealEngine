@@ -76,7 +76,7 @@ namespace Horde.Storage.Implementation
         {
             if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
-                throw new NamespaceNotFoundException(ns);
+                throw new BlobNotFoundException(ns, blob);
             }
 
             if (!namespaceContainer.TryGetValue(blob, value: out BlobContainer? blobContainer))
@@ -92,7 +92,7 @@ namespace Horde.Storage.Implementation
         {
             if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
-                throw new NamespaceNotFoundException(ns);
+                throw new BlobNotFoundException(ns, blob);
             }
 
             if (!namespaceContainer.TryRemove(blob, out _))
@@ -107,7 +107,7 @@ namespace Horde.Storage.Implementation
         {
             if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
-                throw new NamespaceNotFoundException(ns);
+                return Task.FromResult(false);
             }
 
             return Task.FromResult(namespaceContainer.ContainsKey(blob));
@@ -153,7 +153,7 @@ namespace Horde.Storage.Implementation
         {
             if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {
-                throw new Exception($"Namespace {ns} not found");
+                throw new BlobNotFoundException(ns, blob);
             }
 
             if (namespaceContainer.TryGetValue(blob, value: out BlobContainer? blobContainer))

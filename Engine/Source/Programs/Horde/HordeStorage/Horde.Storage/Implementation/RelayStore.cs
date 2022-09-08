@@ -2,6 +2,7 @@
 
 using System;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
 namespace Horde.Storage.Implementation
@@ -23,9 +24,9 @@ namespace Horde.Storage.Implementation
             _httpClient.BaseAddress = new Uri(_settings.CurrentValue.ConnectionString);
         }
 
-        protected HttpRequestMessage BuildHttpRequest(HttpMethod method, Uri uri)
+        protected async Task<HttpRequestMessage> BuildHttpRequest(HttpMethod method, Uri uri)
         {
-            string? token = _serviceCredentials.GetToken();
+            string? token = await _serviceCredentials.GetTokenAsync();
             HttpRequestMessage request = new HttpRequestMessage(method, uri);
             if (!string.IsNullOrEmpty(token))
             {

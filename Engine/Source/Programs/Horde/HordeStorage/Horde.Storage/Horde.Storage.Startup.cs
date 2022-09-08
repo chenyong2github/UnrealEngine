@@ -8,8 +8,6 @@ using System.Net;
 using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
-using Amazon.DAX;
-using Amazon.DynamoDBv2;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -86,13 +84,6 @@ namespace Horde.Storage
 
             services.AddOptions<HordeStorageSettings>().Bind(Configuration.GetSection("Horde_Storage")).ValidateDataAnnotations();
             services.AddOptions<MongoSettings>().Bind(Configuration.GetSection("Mongo")).ValidateDataAnnotations();
-            services.AddOptions<CosmosSettings>().Bind(Configuration.GetSection("Cosmos")).ValidateDataAnnotations();
-            services.AddOptions<DynamoDbSettings>().Bind(Configuration.GetSection("DynamoDb")).ValidateDataAnnotations();
-
-            services.AddOptions<CallistoTransactionLogSettings>().Bind(Configuration.GetSection("Callisto")).ValidateDataAnnotations();
-
-            services.AddOptions<MemoryCacheBlobSettings>().Bind(Configuration.GetSection("Cache.Blob")).ValidateDataAnnotations();
-            services.AddOptions<MemoryCacheRefSettings>().Bind(Configuration.GetSection("Cache.Db")).ValidateDataAnnotations();
 
             services.AddOptions<S3Settings>().Bind(Configuration.GetSection("S3")).ValidateDataAnnotations();
             services.AddOptions<AzureSettings>().Bind(Configuration.GetSection("Azure")).ValidateDataAnnotations();
@@ -121,21 +112,15 @@ namespace Horde.Storage
 
                 return AWSCredentialsHelper.GetCredentials(awsSettings, "Horde.Storage");
             });
-            services.AddSingleton(typeof(IAmazonDynamoDB), AddDynamo);
-
             services.AddSingleton<BufferedPayloadFactory>();
 
             services.AddSingleton<BlobCleanupService>();
             services.AddHostedService<BlobCleanupService>(p => p.GetService<BlobCleanupService>()!);
 
-            services.AddSingleton(serviceType: typeof(IDDCRefService), typeof(DDCRefService));
-
             services.AddSingleton(serviceType: typeof(IObjectService), typeof(ObjectService));
             services.AddSingleton(serviceType: typeof(IReferencesStore), ObjectStoreFactory);
             services.AddSingleton(serviceType: typeof(IReferenceResolver), typeof(ReferenceResolver));
             services.AddSingleton(serviceType: typeof(IContentIdStore), ContentIdStoreFactory);
-
-            services.AddSingleton(serviceType: typeof(ITransactionLogWriter), TransactionLogWriterFactory);
 
             services.AddSingleton(serviceType: typeof(IBlobIndex), BlobIndexFactory);
             services.AddSingleton(serviceType: typeof(IAmazonS3), CreateS3);
@@ -143,11 +128,9 @@ namespace Horde.Storage
             services.AddSingleton<AmazonS3Store>();
             services.AddSingleton<FileSystemStore>();
             services.AddSingleton<AzureBlobStore>();
-            services.AddSingleton<MemoryCacheBlobStore>();
             services.AddSingleton<MemoryBlobStore>();
             services.AddSingleton<RelayBlobStore>();
 
-            services.AddSingleton<OrphanBlobCleanup>();
             services.AddSingleton<OrphanBlobCleanupRefs>();
 
             services.AddSingleton(typeof(IBlobService), typeof(BlobService));
@@ -156,10 +139,6 @@ namespace Horde.Storage
 
             services.AddSingleton(serviceType: typeof(IReplicationLog), ReplicationLogWriterFactory);
             
-            services.AddSingleton<LastAccessTrackerRefRecord>();
-            services.AddSingleton(serviceType: typeof(ILastAccessCache<RefRecord>), p => p.GetService<LastAccessTrackerRefRecord>()!);
-            services.AddSingleton(serviceType: typeof(ILastAccessTracker<RefRecord>), p => p.GetService<LastAccessTrackerRefRecord>()!);
-
             services.AddSingleton<LastAccessTrackerReference>();
             services.AddSingleton(serviceType: typeof(ILastAccessCache<LastAccessRecord>), p => p.GetService<LastAccessTrackerReference>()!);
             services.AddSingleton(serviceType: typeof(ILastAccessTracker<LastAccessRecord>), p => p.GetService<LastAccessTrackerReference>()!);
@@ -169,16 +148,11 @@ namespace Horde.Storage
             services.AddTransient<RequestHelper>();
 
             services.AddSingleton(Configuration);
-            services.AddSingleton<DynamoNamespaceStore>();
-            services.AddSingleton(RefStoreFactory);
 
             services.AddSingleton<FormatResolver>();
 
             services.AddSingleton(serviceType: typeof(ISecretResolver), typeof(SecretResolver));
             services.AddSingleton(typeof(IAmazonSecretsManager), CreateAWSSecretsManager);
-
-            services.AddSingleton<LastAccessService>();
-            services.AddHostedService<LastAccessService>(p => p.GetService<LastAccessService>()!);
 
             services.AddSingleton<LastAccessServiceReferences>();
             services.AddHostedService<LastAccessServiceReferences>(p => p.GetService<LastAccessServiceReferences>()!);
@@ -463,60 +437,6 @@ namespace Horde.Storage
             return null!;
         }
 
-        private IAmazonDynamoDB AddDynamo(IServiceProvider provider)
-        {
-            IOptionsMonitor<HordeStorageSettings> settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!;
-
-            bool hasDynamo = settings.CurrentValue.RefDbImplementation == HordeStorageSettings.RefDbImplementations.DynamoDb ||
-                             settings.CurrentValue.TreeRootStoreImplementation == HordeStorageSettings.TreeRootStoreImplementations.DynamoDb ||
-                             settings.CurrentValue.TreeStoreImplementation == HordeStorageSettings.TreeStoreImplementations.DynamoDb;
-            if (!hasDynamo)
-            {
-                return null!;
-            }
-
-            AWSCredentials awsCredentials = provider.GetService<AWSCredentials>()!;
-
-            DynamoDbSettings dynamoDbSettings = provider.GetService<IOptionsMonitor<DynamoDbSettings>>()!.CurrentValue;
-
-            AWSOptions awsOptions = Configuration.GetAWSOptions();
-            if (dynamoDbSettings.ConnectionString.ToUpper() != "AWS")
-            {
-                awsOptions.DefaultClientConfig.ServiceURL = dynamoDbSettings.ConnectionString;
-            }
-
-            awsOptions.Credentials = awsCredentials;
-
-            IAmazonDynamoDB serviceClient = awsOptions.CreateServiceClient<IAmazonDynamoDB>();
-
-            if (!string.IsNullOrEmpty(dynamoDbSettings.DaxEndpoint))
-            {
-                (string daxHost, int daxPort) = DynamoDbSettings.ParseDaxEndpointAsHostPort(dynamoDbSettings.DaxEndpoint);
-                DaxClientConfig daxConfig = new (daxHost, daxPort)
-                {
-                    AwsCredentials = awsOptions.Credentials
-                };
-                
-                serviceClient = new ClusterDaxClient(daxConfig);
-            }
-
-            return serviceClient;
-        }
-
-        private ITransactionLogWriter TransactionLogWriterFactory(IServiceProvider provider)
-        {
-            HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue;
-            switch (settings.TransactionLogWriterImplementation)
-            {
-                case HordeStorageSettings.TransactionLogWriterImplementations.Callisto:
-                    return ActivatorUtilities.CreateInstance<CallistoTransactionLogWriter>(provider);
-                case HordeStorageSettings.TransactionLogWriterImplementations.Memory:
-                    return ActivatorUtilities.CreateInstance<MemoryTransactionLogWriter>(provider);
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
         private IReplicationLog ReplicationLogWriterFactory(IServiceProvider provider)
         {
             HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue;
@@ -531,66 +451,11 @@ namespace Horde.Storage
             }
         }
 
-        private static IRefsStore RefStoreFactory(IServiceProvider provider)
-        {
-            HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue;
-
-            IRefsStore refsStore = settings.RefDbImplementation switch
-            {
-                HordeStorageSettings.RefDbImplementations.Memory => ActivatorUtilities.CreateInstance<MemoryRefsStore>(provider),
-                HordeStorageSettings.RefDbImplementations.DynamoDb => ActivatorUtilities.CreateInstance<DynamoDbRefsStore>(provider),
-                HordeStorageSettings.RefDbImplementations.Mongo => ActivatorUtilities.CreateInstance<MongoRefsStore>(provider),
-                HordeStorageSettings.RefDbImplementations.Cosmos => ActivatorUtilities.CreateInstance<CosmosRefsStore>(provider),
-                _ => throw new NotImplementedException()
-            };
-
-            MemoryCacheRefSettings memoryCacheSettings = provider.GetService<IOptionsMonitor<MemoryCacheRefSettings>>()!.CurrentValue;
-
-            if (memoryCacheSettings.Enabled)
-            {
-                refsStore = ActivatorUtilities.CreateInstance<CachedRefStore>(provider, refsStore);
-            }
-
-            return refsStore;
-        }
-
         protected override void OnAddHealthChecks(IServiceCollection services, IHealthChecksBuilder healthChecks)
         {
             ServiceProvider provider = services.BuildServiceProvider();
             HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue;
-
-            switch (settings.RefDbImplementation)
-            {
-                case HordeStorageSettings.RefDbImplementations.Memory:
-                    break;
-                case HordeStorageSettings.RefDbImplementations.Mongo:
-                case HordeStorageSettings.RefDbImplementations.Cosmos:
-                    MongoSettings mongoSettings = provider.GetService<IOptionsMonitor<MongoSettings>>()!.CurrentValue;
-                    healthChecks.AddMongoDb(mongoSettings.ConnectionString, tags: new[] {"services"});
-                    break;
-                case HordeStorageSettings.RefDbImplementations.DynamoDb:
-                    // dynamo health tests disabled for now as they do not support specifying credentials that are automatically renewed
-                    break;
-                    /*
-                    AWSCredentials awsCredentials = provider.GetService<AWSCredentials>()!;
-                    IAmazonDynamoDB amazonDynamoDb = provider.GetService<IAmazonDynamoDB>()!;
-
-                    // if the region endpoint is null, e.g. we are using a local dynamo then we do not create health checks as they do not support this
-                    if (amazonDynamoDb.Config.RegionEndpoint != null)
-                    {
-                        healthChecks.AddDynamoDb(options =>
-                        {
-                            ImmutableCredentials credentials = awsCredentials.GetCredentials();
-                            options.RegionEndpoint = amazonDynamoDb.Config.RegionEndpoint;
-                            options.AccessKey = credentials.AccessKey;
-                            options.SecretKey = credentials.SecretKey;
-                        }, tags: new[] {"services"});
-                    }
-                    break;*/
-                default:
-                    throw new NotImplementedException($"Unknown ref db implementation: {settings.RefDbImplementation} when adding health checks");
-            }
-
+            
             foreach (HordeStorageSettings.StorageBackendImplementations impl in settings.GetStorageImplementations())
             {
                 switch (impl)
@@ -621,7 +486,6 @@ namespace Horde.Storage
                         });
                         break;
                     case HordeStorageSettings.StorageBackendImplementations.Memory:
-                    case HordeStorageSettings.StorageBackendImplementations.MemoryBlobStore:
                     case HordeStorageSettings.StorageBackendImplementations.Relay:
                         break;
                     default:

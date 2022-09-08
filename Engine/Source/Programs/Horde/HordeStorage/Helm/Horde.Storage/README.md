@@ -71,3 +71,14 @@ Each region also needs to setup some configuration of the local table (we keep a
 The local keyspace suffix is appened to the keyspace (database) name to make it globally unique.
 The local datacenter name is used to make sure we attempt to query the local data center before hitting remote nodes and should be the name of the DC in scylla (usually the same name as the region name from your cloud provider) 
 LocalKeyspaceReplicationStrategy should always be set to `NetworkTopologyStrategy` class and then you need to enumerate all the regions that exists - setting them to 0 except for the region which you are creating the configuration for (that should be set to 2).
+
+## Enabling the worker deployment
+You can enable the worker deployment by setting
+```
+worker:
+  enabled: true
+```
+We generally recommend using this as it moves background task of a seperate deployment that doesnt take capacity away from your api serving.
+
+Do note that any configuration override that is specified for your api deployment will
+need to be duplicated if it also applies to the worker, if it is not specified under the global section. Most commonly this would be configuration with connection strings like `Scylla` and `S3`.

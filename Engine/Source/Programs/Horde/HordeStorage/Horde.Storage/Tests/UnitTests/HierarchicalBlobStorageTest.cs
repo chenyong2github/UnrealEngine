@@ -52,8 +52,8 @@ namespace Horde.Storage.UnitTests
         public async Task Setup()
         {
             Mock<IServiceProvider> serviceProviderMock = new Mock<IServiceProvider>();
-            using MemoryCacheBlobStore blobStore =  new MemoryCacheBlobStore(Mock.Of<IOptionsMonitor<MemoryCacheBlobSettings>>(_ => _.CurrentValue == new MemoryCacheBlobSettings()));
-            serviceProviderMock.Setup(x => x.GetService(typeof(MemoryCacheBlobStore))).Returns(blobStore);
+            MemoryBlobStore blobStore =  new MemoryBlobStore();
+            serviceProviderMock.Setup(x => x.GetService(typeof(MemoryBlobStore))).Returns(blobStore);
             IOptionsMonitor<HordeStorageSettings> settingsMonitor = Mock.Of<IOptionsMonitor<HordeStorageSettings>>(_ => _.CurrentValue == new HordeStorageSettings());
             Mock<INamespacePolicyResolver> mockPolicyResolver = new Mock<INamespacePolicyResolver>();
             mockPolicyResolver.Setup(x => x.GetPoliciesForNs(It.IsAny<NamespaceId>())).Returns(new NamespacePolicy());
@@ -92,7 +92,7 @@ namespace Horde.Storage.UnitTests
             Assert.AreEqual("onlySecondUniqueNs", BlobToString(await _chained.GetObject(NsOnlySecond, _onlySecondUniqueNsId)));
             Assert.AreEqual("allContent", BlobToString(await _chained.GetObject(Ns, _allId)));
             await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.GetObject(Ns, _nonExisting));
-            await Assert.ThrowsExceptionAsync<NamespaceNotFoundException>(() => _chained.GetObject(new NamespaceId("non-existing-ns"), _nonExisting));
+            await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.GetObject(new NamespaceId("non-existing-ns"), _nonExisting));
 
             // verify that the objects have propagated
             Assert.AreEqual(3, _first.GetIdentifiers(Ns).Count());
@@ -127,7 +127,7 @@ namespace Horde.Storage.UnitTests
         [TestMethod]
         public async Task DeleteObject()
         {
-            await Assert.ThrowsExceptionAsync<NamespaceNotFoundException>(() => _chained.DeleteObject(NsnonExistingNs, _nonExisting));
+            await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.DeleteObject(NsnonExistingNs, _nonExisting));
             await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.DeleteObject(NsOnlyFirst, _nonExisting));
             await Assert.ThrowsExceptionAsync<BlobNotFoundException>(() => _chained.DeleteObject(NsOnlySecond, _nonExisting));
             

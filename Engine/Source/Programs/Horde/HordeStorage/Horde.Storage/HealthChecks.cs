@@ -72,9 +72,9 @@ namespace Horde.Storage
     
     public class LastAccessServiceCheck: IHealthCheck
     {
-        private readonly LastAccessService _lastAccessService;
+        private readonly LastAccessServiceReferences _lastAccessService;
 
-        public LastAccessServiceCheck(LastAccessService lastAccessService)
+        public LastAccessServiceCheck(LastAccessServiceReferences lastAccessService)
         {
             _lastAccessService = lastAccessService;
         }
