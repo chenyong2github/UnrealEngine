@@ -58,93 +58,109 @@ IVirtualizationBackend::EConnectionStatus FFileSystemBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-EPushResult FFileSystemBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
+bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);
 
-	if (DoesPayloadExist(Id))
+	int32 ErrorCount = 0;
+
+	for (FPushRequest& Request : Requests)
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(Id));
-		return EPushResult::PayloadAlreadyExisted;
-	}
+		const FIoHash& PayloadId = Request.GetIdentifier();
 
-	// Make sure to log any disk write failures to the user, even if this backend will often be optional as they are
-	// not expected and could indicate bigger problems.
-	// 
-	// First we will write out the payload to a temp file, after which we will move it to the correct storage location
-	// this helps reduce the chance of leaving corrupted data on disk in the case of a power failure etc.
-	const FString TempFilePath = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), TEXT("miragepayload"));
-	
-	TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*TempFilePath));
-
-	if (FileAr == nullptr)
-	{
-		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		Utils::GetFormattedSystemError(SystemErrorMsg);
-
-		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' to '%s' due to system error: %s"), 
-			*GetDebugName(),
-			*LexToString(Id),
-			*TempFilePath,
-			SystemErrorMsg.ToString());
-
-		return EPushResult::Failed;
-	}
-
-	for (const FSharedBuffer& Buffer : Payload.GetCompressed().GetSegments())
-	{
-		// Const cast because FArchive requires a non-const pointer!
-		FileAr->Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
-	}
-
-	if (!FileAr->Close())
-	{
-		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		Utils::GetFormattedSystemError(SystemErrorMsg);
-
-		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
-			*GetDebugName(),
-			*LexToString(Id),
-			*TempFilePath,
-			SystemErrorMsg.ToString());
-
-		IFileManager::Get().Delete(*TempFilePath, true, false, true);  // Clean up the temp file if it is still around but do not failure cases to the user
-		
-		return EPushResult::Failed;
-	}
-
-	TStringBuilder<512> FilePath;
-	CreateFilePath(Id, FilePath);
-
-	// If the file already exists we don't need to replace it, we will also do our own error logging.
-	if (!IFileManager::Get().Move(FilePath.ToString(), *TempFilePath, /*Replace*/ false, /*EvenIfReadOnly*/ false, /*Attributes*/ false, /*bDoNotRetryOrError*/ true))
-	{
-		// Store the error message in case we need to display it
-		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		Utils::GetFormattedSystemError(SystemErrorMsg);
-
-		IFileManager::Get().Delete(*TempFilePath, true, false, true); // Clean up the temp file if it is still around but do not failure cases to the user
-
-		// Check if another thread or process was writing out the payload at the same time, if so we 
-		// don't need to give an error message.
-		if (DoesPayloadExist(Id))
+		if (DoesPayloadExist(PayloadId))
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(Id));
-			return EPushResult::PayloadAlreadyExisted;
+			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(PayloadId));
+			Request.SetStatus(FPushRequest::EStatus::Success);
+
+			continue;
 		}
-		else
+
+		// Make sure to log any disk write failures to the user, even if this backend will often be optional as they are
+		// not expected and could indicate bigger problems.
+		// 
+		// First we will write out the payload to a temp file, after which we will move it to the correct storage location
+		// this helps reduce the chance of leaving corrupted data on disk in the case of a power failure etc.
+		const FString TempFilePath = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), TEXT("vapayload"));
+
+		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*TempFilePath));
+
+		if (FileAr == nullptr)
 		{
-			UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to move payload '%s' to it's final location '%s' due to system error: %s"),
+			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+			Utils::GetFormattedSystemError(SystemErrorMsg);
+
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' to '%s' due to system error: %s"),
+				*GetDebugName(),
+				*LexToString(PayloadId),
+				*TempFilePath,
+				SystemErrorMsg.ToString());
+
+			ErrorCount++;
+			Request.SetStatus(FPushRequest::EStatus::Failed);
+
+			continue;
+		}
+
+		for (const FSharedBuffer& Buffer : Request.GetPayload().GetCompressed().GetSegments())
+		{
+			// Const cast because FArchive requires a non-const pointer!
+			FileAr->Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
+		}
+
+		if (!FileAr->Close())
+		{
+			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+			Utils::GetFormattedSystemError(SystemErrorMsg);
+
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
+				*GetDebugName(),
+				*LexToString(PayloadId),
+				*TempFilePath,
+				SystemErrorMsg.ToString());
+
+			IFileManager::Get().Delete(*TempFilePath, true, false, true);  // Clean up the temp file if it is still around but do not failure cases to the user
+
+			ErrorCount++;
+			Request.SetStatus(FPushRequest::EStatus::Failed);
+
+			continue;
+		}
+
+		TStringBuilder<512> FilePath;
+		CreateFilePath(PayloadId, FilePath);
+
+		// If the file already exists we don't need to replace it, we will also do our own error logging.
+		if (!IFileManager::Get().Move(FilePath.ToString(), *TempFilePath, /*Replace*/ false, /*EvenIfReadOnly*/ false, /*Attributes*/ false, /*bDoNotRetryOrError*/ true))
+		{
+			// Store the error message in case we need to display it
+			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+			Utils::GetFormattedSystemError(SystemErrorMsg);
+
+			IFileManager::Get().Delete(*TempFilePath, true, false, true); // Clean up the temp file if it is still around but do not failure cases to the user
+
+			// Check if another thread or process was writing out the payload at the same time, if so we 
+			// don't need to give an error message.
+			if (DoesPayloadExist(PayloadId))
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(PayloadId));
+				continue;
+			}
+			else
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to move payload '%s' to it's final location '%s' due to system error: %s"),
 					*GetDebugName(),
-					*LexToString(Id),
+					*LexToString(PayloadId),
 					*FilePath,
 					SystemErrorMsg.ToString());
 
-			return EPushResult::Failed;
+				ErrorCount++;
+				Request.SetStatus(FPushRequest::EStatus::Failed);
+			}
 		}
 	}
 
-	return EPushResult::Success;
+	return ErrorCount == 0;
 }
 
 FCompressedBuffer FFileSystemBackend::PullData(const FIoHash& Id)

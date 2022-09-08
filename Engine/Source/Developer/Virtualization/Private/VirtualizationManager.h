@@ -119,7 +119,6 @@ private:
 
 	virtual bool AllowSubmitIfVirtualizationFailed() const override;
 	
-	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;
 
 	virtual FCompressedBuffer PullData(const FIoHash& Id) override;

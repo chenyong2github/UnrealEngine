@@ -1445,7 +1445,7 @@ void FEditorBulkData::PushData(const FPackagePath& InPackagePath)
 		RecompressForSerialization(PayloadToPush, Flags);
 
 		// TODO: We could make the storage type a config option?
-		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, UE::Virtualization::EStorageType::Cache, InPackagePath.GetPackageName()))
+		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, InPackagePath.GetPackageName(), UE::Virtualization::EStorageType::Cache))
 		{
 			EnumAddFlags(Flags, EFlags::IsVirtualized);
 			EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain | EFlags::LegacyFileIsCompressed);

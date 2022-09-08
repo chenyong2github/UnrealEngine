@@ -413,12 +413,6 @@ bool FSourceControlBackend::DoesPayloadExist(const FIoHash& Id)
 	}
 }
 
-EPushResult FSourceControlBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& Context)
-{
-	FPushRequest Request(Id, Payload, Context);
-	return FSourceControlBackend::PushData(MakeArrayView(&Request, 1)) ? EPushResult::Success : EPushResult::Failed;
-}
-
 bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PushData);

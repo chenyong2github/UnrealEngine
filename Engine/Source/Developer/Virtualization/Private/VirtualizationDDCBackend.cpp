@@ -74,51 +74,6 @@ IVirtualizationBackend::EConnectionStatus FDDCBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-EPushResult FDDCBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
-
-	if (DoesPayloadExist(Id))
-	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(Id));
-		return EPushResult::PayloadAlreadyExisted;
-	}
-
-	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
-	
-	UE::DerivedData::FCacheKey Key;
-	Key.Bucket = Bucket;
-	Key.Hash = Id;
-
-	UE::DerivedData::FValue DerivedDataValue(Payload);
-	check(DerivedDataValue.GetRawHash() == Id);
-
-	UE::DerivedData::FCacheRecordBuilder RecordBuilder(Key);
-	RecordBuilder.AddValue(ToDerivedDataValueId(Id), DerivedDataValue);
-
-	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
-
-	UE::DerivedData::FCachePutResponse Result;
-	auto Callback = [&Result](UE::DerivedData::FCachePutResponse&& Response)
-	{
-		Result = Response;
-	};
-
-	// TODO: Improve the name when we start passing more context to this function
-	Cache.Put({{{TEXT("Mirage")}, RecordBuilder.Build(), TransferPolicy}}, Owner, MoveTemp(Callback));
-
-	Owner.Wait();
-
-	if (Result.Status == UE::DerivedData::EStatus::Ok)
-	{
-		return EPushResult::Success;
-	}
-	else
-	{
-		return EPushResult::Failed;
-	}
-}
-
 bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);

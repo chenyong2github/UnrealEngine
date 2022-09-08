@@ -14,17 +14,6 @@ struct FIoHash;
 namespace UE::Virtualization
 {
 
-/** Describes the result of a IVirtualizationBackend::Push operation */
-enum class EPushResult
-{
-	/** The push failed, the backend should print an error message to 'LogVirtualization'.*/
-	Failed = 0,
-	/** The payload already exists in the backend and does not need to be pushed. */
-	PayloadAlreadyExisted,
-	/** The payload was successfully pushed to the backend. */
-	Success
-};
-
 /**
  * The interface to derive from to create a new backend implementation.
  * 
@@ -120,35 +109,17 @@ public:
 	 * @param Payload	A potentially compressed buffer representing the payload
 	 * @return			The result of the push operation
 	 */
-	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext) = 0;
-
-	virtual bool PushData(TArrayView<FPushRequest> Requests)
+	bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
 	{
-		// TODO: Improve the error codes in the future
-		for (FPushRequest& Request : Requests)
-		{
-			EPushResult Result = PushData(Request.GetIdentifier(), Request.GetPayload(), Request.GetContext());
-			switch (Result)
-			{
-			case EPushResult::Failed:
-				Request.SetStatus(FPushRequest::EStatus::Failed);
-				return false;
+		FPushRequest Request(Id, Payload, PackageContext);
 
-			case EPushResult::PayloadAlreadyExisted:
-				// falls through
-			case EPushResult::Success:
-				Request.SetStatus(FPushRequest::EStatus::Success);
-				break;
-
-			default:
-				Request.SetStatus(FPushRequest::EStatus::Failed);
-				checkNoEntry();
-				break;
-			}
-		}
-
-		return true;
+		return PushData(MakeArrayView(&Request, 1));
 	}
+
+	/**
+	 * @return True if all of the requests succeeded, false if one of more failed
+	 */
+	virtual bool PushData(TArrayView<FPushRequest> Requests) = 0;
 
 	/** 
 	 * The backend will attempt to retrieve the given payload by what ever method the backend uses.

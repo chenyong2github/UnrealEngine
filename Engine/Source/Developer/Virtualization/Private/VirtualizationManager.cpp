@@ -422,12 +422,6 @@ bool FVirtualizationManager::AllowSubmitIfVirtualizationFailed() const
 	return bAllowSubmitIfVirtualizationFailed;
 }
 
-bool FVirtualizationManager::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
-{
-	FPushRequest Request(Id, Payload, Context);
-	return FVirtualizationManager::PushData(MakeArrayView(&Request, 1), StorageType);
-}
-
 bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PushData);
@@ -1509,14 +1503,16 @@ void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBu
 bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FIoHash& Id, const FCompressedBuffer& Payload)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
-	const EPushResult Result = Backend.PushData(Id, Payload, FString());
-
-	if (Result == EPushResult::Success)
+	
+	if (Backend.PushData(Id, Payload, FString()))
 	{
 		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+		return true;
 	}
-
-	return Result != EPushResult::Failed;
+	else
+	{
+		return false;
+	}
 }
 
 bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests)

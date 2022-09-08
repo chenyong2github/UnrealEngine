@@ -393,35 +393,68 @@ public:
 	 *				process failed. If it returns false then the calling code should prevent the submit.
 	 */
 	virtual bool AllowSubmitIfVirtualizationFailed() const = 0;
+	
+	/**
+	 * Push one or more payloads to a backend storage system. @See FPushRequest.
+	 * 
+	 * @param	Requests	A collection of one or more payload push requests
+	 * @param	StorageType	The type of storage to push the payload to, @See EStorageType for details.
+	 * 
+	 * @return	When StorageType is EStorageType::Cache this will return true as long each payload
+	 *			ends up being stored in at least one of the cache backends.
+	 *			When StorageType is EStorageType::Persistent this will only return true if each payload
+	 *			endd up being stored in *all* of the backends.
+	 *			This is because the cache backends are not considered essential and it is not the end of
+	 *			the world if a payload is missing but the persistent backends must be reliable.
+	 */
+	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) = 0;
+
+	/**
+	 * Push a payload to the virtualization backends.
+	 *
+	 * @param	Request			A single push request
+	 * @param	PackageContext	Context for the payload being submitted, typically the name from the UPackage that owns it.
+	 *
+	 * @return	When StorageType is EStorageType::Cache this will return true as long each payload
+	 *			ends up being stored in at least one of the cache backends.
+	 *			When StorageType is EStorageType::Persistent this will only return true if each payload
+	 *			endd up being stored in *all* of the backends.
+	 *			This is because the cache backends are not considered essential and it is not the end of
+	 *			the world if a payload is missing but the persistent backends must be reliable.
+	 */
+	bool PushData(FPushRequest Request, EStorageType StorageType)
+	{
+		return PushData(MakeArrayView(&Request, 1), StorageType);
+	}
 
 	/**
 	 * Push a payload to the virtualization backends.
 	 *
 	 * @param	Id				The identifier of the payload being pushed.
-	 * @param	Payload			The payload itself in FCompressedBuffer form, it is assumed that if the buffer is to 
+	 * @param	Payload			The payload itself in FCompressedBuffer form, it is assumed that if the buffer is to
 	 *							be compressed that it will have been done by the caller.
+	 * @param	Context			Context for the payload being submitted, typically the name from the UPackage that owns it.
 	 * @param	StorageType		The type of storage to push the payload to, @See EStorageType for details.
-	 * @param	PackageContext	Context for the payload being submitted, typically the name from the UPackage that owns it.
-	 * 
-	 * @return	True if at least one backend now contains the payload, otherwise false.
+	 *
+	 * @return	When StorageType is EStorageType::Cache this will return true as long each payload
+	 *			ends up being stored in at least one of the cache backends.
+	 *			When StorageType is EStorageType::Persistent this will only return true if each payload
+	 *			endd up being stored in *all* of the backends.
+	 *			This is because the cache backends are not considered essential and it is not the end of
+	 *			the world if a payload is missing but the persistent backends must be reliable.
 	 */
-	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) = 0;
-	
-	/**
-	 * Push one or more payloads to a backend storage system. @See FPushRequest.
-	 * 
-	 * @param	Requests	A list of one or more payloads
-	 * @param	StorageType	The type of storage to push the payload to, @See EStorageType for details.
-	 * 
-	 * @return	When StorageType is Local, this method will return true assuming at least one backend
-	 *			managed to push all of the payloads. 
-	 *			When StorageType is Persistent, this method will only return true if ALL backends
-	 *			manage to push all of the payloads.
-	 * 			If this returns true then you can check the Status member of each request for more info 
-	 *			about each payloads push operation.
-	 *			If this returns false then you can assume that the payloads are not safely virtualized.
-	 */
-	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) = 0;
+	bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& Context, EStorageType StorageType)
+	{
+		FPushRequest Request(Id, Payload, Context);
+		return PushData(MakeArrayView(&Request, 1), StorageType);
+	}
+
+	UE_DEPRECATED(5.1, "Use the overload of ::PushData(FIoHash, FCompressedBuffer, FString, EStorageType)")
+	bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
+	{
+		FPushRequest Request(Id, Payload, Context);
+		return PushData(MakeArrayView(&Request, 1), StorageType);
+	}
 
 	/**
 	 * Pull a payload from the virtualization backends.

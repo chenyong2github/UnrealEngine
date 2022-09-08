@@ -83,15 +83,6 @@ public:
 		return false;
 	}
 
-	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
-	{
-#if UE_LOG_ON_NULLSYSTEM_USE
-		UE_LOG(LogVirtualization, UE_NULLSYSTEM_SEVERITY, TEXT("Cannot push payload '%s' as the virtualization system is disabled"), *LexToString(Id));
-#endif //UE_LOG_ON_NULLSYSTEM_USE
-		
-		return false;
-	}
-
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override
 	{
 #if UE_LOG_ON_NULLSYSTEM_USE
