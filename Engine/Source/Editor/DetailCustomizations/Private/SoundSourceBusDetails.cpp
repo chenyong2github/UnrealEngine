@@ -2,6 +2,8 @@
 
 #include "SoundSourceBusDetails.h"
 
+#include "DetailLayoutBuilder.h"
+
 #define LOCTEXT_NAMESPACE "FSoundSourceBusDetails"
 
 TSharedRef<IDetailCustomization> FSoundSourceBusDetails::MakeInstance()
@@ -12,7 +14,7 @@ TSharedRef<IDetailCustomization> FSoundSourceBusDetails::MakeInstance()
 void FSoundSourceBusDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	// Hide details of sound base that aren't relevant for buses
-
+	DetailBuilder.HideCategory("Transformations");
 
 }
 
