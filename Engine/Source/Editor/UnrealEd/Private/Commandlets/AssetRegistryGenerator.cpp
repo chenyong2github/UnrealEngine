@@ -2515,7 +2515,8 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 
 void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 	FSavePackageResultStruct& SavePackageResult,
-	FCookTagList&& InArchiveCookTagList
+	FCookTagList&& InArchiveCookTagList,
+	bool bIncludeOnlyDiskAssets
 	)
 {
 	const FName PackageName = Package.GetFName();
@@ -2528,7 +2529,6 @@ void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 	// Copy latest data for all Assets in the package into the cooked registry. This should be done even
 	// if not successful so that editor-only packages are recorded as well
 	TArray<FAssetData> AssetDatas;
-	constexpr bool bIncludeOnlyDiskAssets = true; // Enumerating memory assets is unnecessary; we waited on AR to update
 	AssetRegistry.GetAssetsByPackageName(PackageName, AssetDatas, bIncludeOnlyDiskAssets,
 		false /* SkipARFilteredAssets */);
 	for (FAssetData& AssetData : AssetDatas)
@@ -2591,7 +2591,7 @@ FAssetRegistryReporterRemote::FAssetRegistryReporterRemote(FCookWorkerClient& In
 }
 
 void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList)
+	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList, bool bIncludeOnlyDiskAssets)
 {
 	uint32 NewPackageFlags = 0;
 	int64 DiskSize = -1;
@@ -2614,7 +2614,6 @@ void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& Package
 	Message.DiskSize = DiskSize;
 
 	// Add to the message all the AssetDatas in the package from the global AssetRegistry
-	constexpr bool bIncludeOnlyDiskAssets = true; // Enumerating memory assets is unnecessary; we waited on AR to update
 	IAssetRegistry::Get()->GetAssetsByPackageName(PackageData.GetPackageName(), Message.AssetDatas,
 		bIncludeOnlyDiskAssets, false /* SkipARFilteredAssets */);
 

@@ -5532,7 +5532,15 @@ void FSaveCookedPackageContext::FinishPlatform()
 		// Flush the AssetRegisty so any AssetData changes from the save are present
 		COTFS.AssetRegistry->WaitForCompletion();
 		IAssetRegistryReporter& Reporter = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryReporter);
-		Reporter.UpdateAssetRegistryData(PackageData, *Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
+
+		// UpdateAssetRegistryData will pull data from the global asset registry
+		// For most types, our contract is that we use the data in the asset registry that was updated on load and is in
+		// the disk asset storage of the global asset registry. Most types do not take significant action during cooking
+		// so we do not need to allow them to update their tags after they finish loading.
+		// But generator packages do a lot of work during generation and may need to update their tags, so read the
+		// latest tags off of their asset by setting bIncludeOnlyDiskAssets=true.
+		const bool bIncludeOnlyDiskAssets = PackageData.GetGeneratorPackage() == nullptr;
+		Reporter.UpdateAssetRegistryData(PackageData, *Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()), bIncludeOnlyDiskAssets);
 	}
 
 	// If not retrying, mark the package as cooked, either successfully or with failure
