@@ -115,11 +115,11 @@ class FOLIAGE_API UProceduralFoliageComponent : public UActorComponent
 	 * @return True if the simulation succeeded
 	 */
 	bool GenerateProceduralContent(TArray<FDesiredFoliageInstance>& OutInstances);
-	static bool GenerateProceduralContent(const FGenerateProceduralContentParams& Params, TArray<FDesiredFoliageInstance>& OutInstances);
+	static bool GenerateProceduralContent(const FGenerateProceduralContentParams& InParams, TArray<FDesiredFoliageInstance>& OutInstances);
 			
 	/** Removes all spawned foliage instances in the level that were spawned by this component */
-	void RemoveProceduralContent(bool InRebuildTree = true);
-	static void RemoveProceduralContent(UWorld* World, const FGuid& ProceduralGuid, bool InRebuildTree, TSet<AInstancedFoliageActor*>& OutModifiedActors);
+	void RemoveProceduralContent(bool bInRebuildTree = true);
+	static void RemoveProceduralContent(UWorld* InWorld, const FGuid& InProceduralGuid, bool bInRebuildTree, TSet<AInstancedFoliageActor*>& OutModifiedActors);
 
 	/** @return True if any foliage instances in the level were spawned by this component */
 	bool HasSpawnedAnyInstances();

@@ -219,12 +219,13 @@ public:
 	static FOLIAGE_API void DeleteInstancesForComponent(UWorld* InWorld, UActorComponent* InComponent);
 
 	// Deletes the instances spawned by a procedural component
-	FOLIAGE_API bool DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent, bool InRebuildTree);
-	FOLIAGE_API bool DeleteInstancesForProceduralFoliageComponent(const FGuid& ProceduralGuid, bool InRebuildTree);
-	
+	FOLIAGE_API bool DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* InProceduralFoliageComponent, bool bInRebuildTree);
+	FOLIAGE_API bool DeleteInstancesForProceduralFoliageComponent(const FGuid& InProceduralGuid, bool bInRebuildTree);
+	FOLIAGE_API bool DeleteInstancesForAllProceduralFoliageComponents(bool bInRebuildTree);
+
 	/** @return True if any instances exist that were spawned by the given procedural component */
-	FOLIAGE_API bool ContainsInstancesFromProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent);
-	FOLIAGE_API bool ContainsInstancesFromProceduralFoliageComponent(const FGuid& ProceduralGuid);
+	FOLIAGE_API bool ContainsInstancesFromProceduralFoliageComponent(const UProceduralFoliageComponent* InProceduralFoliageComponent);
+	FOLIAGE_API bool ContainsInstancesFromProceduralFoliageComponent(const FGuid& InProceduralGuid);
 
 	// Finds a mesh entry or adds it if it doesn't already exist
 	FOLIAGE_API FFoliageInfo* FindOrAddMesh(UFoliageType* InType);
@@ -302,6 +303,7 @@ private:
 	void OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift);
 	void OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
 	void MoveInstancesToNewComponent(UPrimitiveComponent* InOldComponent, UPrimitiveComponent* InNewComponent, TFunctionRef<TArray<int32>(const FFoliageInfo&)> GetInstancesToMoveFunc);
+	bool DeleteInstancesForProceduralFoliageComponentInternal(const FGuid& InProceduralGuid, bool bInRebuildTree, bool bInDeleteAll);
 #endif
 private:
 #if WITH_EDITOR

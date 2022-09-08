@@ -3260,12 +3260,7 @@ void AInstancedFoliageActor::DeleteInstancesForComponent(UWorld* InWorld, UActor
 	}
 }
 
-bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent, bool InRebuildTree)
-{
-	return DeleteInstancesForProceduralFoliageComponent(ProceduralFoliageComponent->GetProceduralGuid(), InRebuildTree);
-}
-
-bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const FGuid& ProceduralGuid, bool InRebuildTree)
+bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponentInternal(const FGuid& InProceduralGuid, bool bInRebuildTree, bool bInDeleteAll)
 {
 	bool bRemovedInstances = false;
 	BeginUpdate();
@@ -3275,7 +3270,7 @@ bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const 
 		TArray<int32> InstancesToRemove;
 		for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
 		{
-			if (Info.Instances[InstanceIdx].ProceduralGuid == ProceduralGuid)
+			if ((Info.Instances[InstanceIdx].ProceduralGuid == InProceduralGuid) || (bInDeleteAll && Info.Instances[InstanceIdx].ProceduralGuid.IsValid()))
 			{
 				InstancesToRemove.Add(InstanceIdx);
 			}
@@ -3283,7 +3278,7 @@ bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const 
 
 		if (InstancesToRemove.Num())
 		{
-			Info.RemoveInstances(InstancesToRemove, InRebuildTree);
+			Info.RemoveInstances(InstancesToRemove, bInRebuildTree);
 			bRemovedInstances = true;
 		}
 	}
@@ -3294,12 +3289,27 @@ bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const 
 	return bRemovedInstances;
 }
 
-bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(const UProceduralFoliageComponent* ProceduralFoliageComponent)
+bool AInstancedFoliageActor::DeleteInstancesForAllProceduralFoliageComponents(bool bInRebuildTree)
 {
-	return ContainsInstancesFromProceduralFoliageComponent(ProceduralFoliageComponent->GetProceduralGuid());
+	return DeleteInstancesForProceduralFoliageComponentInternal(FGuid(), bInRebuildTree, true);
 }
 
-bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(const FGuid& ProceduralGuid)
+bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const UProceduralFoliageComponent* InProceduralFoliageComponent, bool bInRebuildTree)
+{
+	return DeleteInstancesForProceduralFoliageComponent(InProceduralFoliageComponent->GetProceduralGuid(), bInRebuildTree);
+}
+
+bool AInstancedFoliageActor::DeleteInstancesForProceduralFoliageComponent(const FGuid& InProceduralGuid, bool bInRebuildTree)
+{
+	return DeleteInstancesForProceduralFoliageComponentInternal(InProceduralGuid, bInRebuildTree, false);
+}
+
+bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(const UProceduralFoliageComponent* InProceduralFoliageComponent)
+{
+	return ContainsInstancesFromProceduralFoliageComponent(InProceduralFoliageComponent->GetProceduralGuid());
+}
+
+bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(const FGuid& InProceduralGuid)
 {
 	for (auto& Pair : FoliageInfos)
 	{
@@ -3307,7 +3317,7 @@ bool AInstancedFoliageActor::ContainsInstancesFromProceduralFoliageComponent(con
 		TArray<int32> InstancesToRemove;
 		for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
 		{
-			if (Info.Instances[InstanceIdx].ProceduralGuid == ProceduralGuid)
+			if (Info.Instances[InstanceIdx].ProceduralGuid == InProceduralGuid)
 			{
 				// The procedural component is responsible for an instance
 				return true;
