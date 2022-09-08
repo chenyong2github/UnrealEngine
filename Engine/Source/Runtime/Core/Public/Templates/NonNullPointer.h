@@ -181,6 +181,12 @@ public:
 	{
 	}
 
+	/** Construct an OptionalType with an invalid value. */
+	TOptional(FNullOpt)
+		: TOptional()
+	{
+	}
+
 	TOptional& operator=(const TOptional& Other)
 	{
 		Pointer = Other.Pointer;
