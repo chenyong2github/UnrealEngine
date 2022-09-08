@@ -29,6 +29,7 @@ namespace Chaos::Softs
 	public:
 
 		FDeformableSolver(FDeformableSolverProperties InProp = FDeformableSolverProperties());
+		virtual ~FDeformableSolver();
 
 		/* Physics Thread Access API */
 		class CHAOS_API FPhysicsThreadAccess
@@ -139,8 +140,8 @@ namespace Chaos::Softs
 		static FCriticalSection	RemovalMutex; // @todo(flesh) : change to threaded commands to prevent the lock. 
 		static FCriticalSection	PackageOutputMutex;
 		static FCriticalSection	PackageInputMutex;
-		TArray< FThreadingProxy* > RemovedProxys_External;
-		TArray< TUniquePtr<FThreadingProxy> > UninitializedProxys_External;
+		TArray< FThreadingProxy* > RemovedProxys_Internal;
+		TArray< FThreadingProxy* > UninitializedProxys_Internal;
 		TArray< TUniquePtr<FDeformablePackage>  > BufferedInputPackages;
 		TArray< TUniquePtr<FDeformablePackage>  > BufferedOutputPackages;
 		TUniquePtr < FDeformablePackage > CurrentInputPackage;
