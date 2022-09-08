@@ -395,7 +395,7 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 			// For transient buffers we need the function index as given by the
 			// ReadValue function. 
 			DataInterface = InLinkDataInterfaceMap[OutputPin];
-			DataInterfaceFuncIndex = UOptimusTransientBufferDataInterface::ReadValueInputIndex;
+			DataInterfaceFuncIndex = UOptimusTransientBufferDataInterface::GetReadValueInputIndex();
 
 			TArray<FShaderFunctionDefinition> ReadFunctions;
 			DataInterface->GetSupportedInputs(ReadFunctions);
@@ -554,14 +554,6 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 			TArray<FShaderFunctionDefinition> WriteFunctions;
 			DataInterface->GetSupportedOutputs(WriteFunctions);
 
-			// This is a horrible hack for detecting interlocked writes
-			// TODO: Either express this via the kernel metadata or add full support for buffer data interface in graph editor.
-			int32 WriteValueOutputIndex = UOptimusTransientBufferDataInterface::WriteValueOutputIndex;
-			if (InOutputPin->GetName().Contains(TEXT("Interlocked")) && WriteFunctions.Num() > WriteValueOutputIndex + 1)
-			{
-				++WriteValueOutputIndex;
-			}
-
 			// Get the component binding from the upstream connection.
 			UOptimusComponentSourceBinding* ComponentBinding = nullptr;
 			TArray<UOptimusComponentSourceBinding*> ComponentBindings = GetOwningGraph()->GetComponentSourceBindingsForPin(InOutputPin).Array();
@@ -570,7 +562,8 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 				ComponentBinding = ComponentBindings[0];
 			}
 			
-			WriteConnectionDefs.Add({DataInterface, ComponentBinding, WriteFunctions[WriteValueOutputIndex].Name, TEXT("Transient")});
+			const int32 OutputIndex = UOptimusTransientBufferDataInterface::GetWriteValueOutputIndex(EOptimusBufferWriteType::Write);
+			WriteConnectionDefs.Add({DataInterface, ComponentBinding, WriteFunctions[OutputIndex].Name, TEXT("Transient")});
 		}
 		
 		for (const FOptimusRoutedNodePin& ConnectedPin: ConnectedPins)

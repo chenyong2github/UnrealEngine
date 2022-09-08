@@ -126,6 +126,11 @@ public:
 	);
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddResourceNode(
+		UOptimusResourceDescription* InResourceDesc,
+		const FVector2D& InPosition);
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNode* AddResourceGetNode(
 	    UOptimusResourceDescription *InResourceDesc,
 	    const FVector2D& InPosition);

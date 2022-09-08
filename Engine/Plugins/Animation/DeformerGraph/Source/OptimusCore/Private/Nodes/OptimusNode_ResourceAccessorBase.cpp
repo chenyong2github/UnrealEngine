@@ -32,6 +32,18 @@ UOptimusResourceDescription* UOptimusNode_ResourceAccessorBase::GetResourceDescr
 }
 
 
+FName UOptimusNode_ResourceAccessorBase::GetResourcePinName(int32 InPinIndex) const
+{
+	UOptimusResourceDescription const* Description = GetResourceDescription();
+	if (!ensure(Description))
+	{
+		return {};
+	}
+	
+	return Description->ResourceName;
+}
+
+
 TOptional<FText> UOptimusNode_ResourceAccessorBase::ValidateForCompile() const
 {
 	const UOptimusResourceDescription* ResourceDescription = GetResourceDescription();

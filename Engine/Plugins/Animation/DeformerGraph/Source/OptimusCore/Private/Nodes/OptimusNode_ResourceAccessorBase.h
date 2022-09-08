@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "IOptimusComponentBindingProvider.h"
 #include "IOptimusDataInterfaceProvider.h"
 #include "OptimusNode.h"
@@ -25,7 +26,10 @@ public:
 	void SetResourceDescription(UOptimusResourceDescription* InResourceDesc);
 
 	UOptimusResourceDescription* GetResourceDescription() const;
-	
+
+	/** Returns name to use when creating each pin on the node. */
+	virtual FName GetResourcePinName(int32 InPinIndex) const;
+
 	// UOptimusNode overrides
 	FName GetNodeCategory() const override 
 	{
@@ -41,7 +45,11 @@ public:
 	UOptimusComponentSourceBinding* GetComponentBinding() const override;
 
 	
-private:
+protected:
 	UPROPERTY()
 	TWeakObjectPtr<UOptimusResourceDescription> ResourceDesc;
+
+	/** Logical operation when writing to the resource. */
+	UPROPERTY(EditAnywhere, Category = Resource)
+	EOptimusBufferWriteType WriteType = EOptimusBufferWriteType::Write;
 };

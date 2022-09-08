@@ -31,23 +31,29 @@ DI_IMPL_WRITE(WriteValue, uint Index, BUFFER_TYPE Value)
 	DI_LOCAL(BufferUAV)[BufferIndex] = Value;
 }
 
-#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
-
-DI_IMPL_READ(ReadAtomicAdd, BUFFER_TYPE, uint Index, BUFFER_TYPE Value)
-{
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-	
-	BUFFER_TYPE OldValue;
-	InterlockedAdd(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
-	return OldValue;
-}
-
 DI_IMPL_WRITE(WriteAtomicAdd, uint Index, BUFFER_TYPE Value)
 {
+#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-
 	BUFFER_TYPE OldValue;
 	InterlockedAdd(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
+#endif
 }
 
+DI_IMPL_WRITE(WriteAtomicMin, uint Index, BUFFER_TYPE Value)
+{
+#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
+	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	BUFFER_TYPE OldValue;
+	InterlockedMin(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
 #endif
+}
+
+DI_IMPL_WRITE(WriteAtomicMax, uint Index, BUFFER_TYPE Value)
+{
+#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
+	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+	BUFFER_TYPE OldValue;
+	InterlockedMin(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
+#endif
+}

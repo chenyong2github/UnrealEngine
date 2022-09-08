@@ -202,6 +202,16 @@ FReply FOptimusEditorGraphDragAction_Resource::DroppedOnPanel(
 	MenuBuilder.BeginSection("OptimusResourceDroppedOn", ResourceNameText);
 
 	MenuBuilder.AddMenuEntry(
+		FText::Format(LOCTEXT("CreateResource", "Get/Set {0}"), ResourceNameText),
+		FText::Format(LOCTEXT("CreateResourceToolTip", "Create Getter/Setter for resource '{0}'"), ResourceNameText),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([ModelGraph, ResourceDesc, InGraphPosition]() {
+				ModelGraph->AddResourceNode(ResourceDesc, InGraphPosition);
+			}),
+			FCanExecuteAction()));
+
+	MenuBuilder.AddMenuEntry(
 	    FText::Format(LOCTEXT("CreateGetResource", "Get {0}"), ResourceNameText),
 	    FText::Format(LOCTEXT("CreateGetResourceToolTip", "Create Getter for resource '{0}'"), ResourceNameText),
 	    FSlateIcon(),

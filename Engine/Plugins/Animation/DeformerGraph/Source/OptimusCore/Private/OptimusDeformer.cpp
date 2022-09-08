@@ -535,10 +535,7 @@ bool UOptimusDeformer::RemoveResource(UOptimusResourceDescription* InResourceDes
 		UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
 		if (ResourceNode->GetResourceDescription() == InResourceDesc)
 		{
-			if (ensure(ResourceNode->GetPins().Num() == 1))
-			{
-				NodesByGraph.FindOrAdd(ResourceNode->GetOwningGraph()).Add(ResourceNode);
-			}
+			NodesByGraph.FindOrAdd(ResourceNode->GetOwningGraph()).Add(ResourceNode);
 		}	
 	}
 
@@ -595,9 +592,9 @@ bool UOptimusDeformer::RenameResource(
 		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
 		if (ResourceNode->GetResourceDescription() == InResourceDesc)
 		{
-			if (ensure(ResourceNode->GetPins().Num() == 1))
+			for (int32 PinIndex = 0; PinIndex < ResourceNode->GetPins().Num(); ++PinIndex)
 			{
-				Action->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[0], InNewName);
+				Action->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[PinIndex], ResourceNode->GetResourcePinName(PinIndex));
 			}
 		}	
 	}	
@@ -652,25 +649,24 @@ bool UOptimusDeformer::SetResourceDataType(
 		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
 		if (ResourceNode->GetResourceDescription() == InResourceDesc)
 		{
-			if (ensure(ResourceNode->GetPins().Num() == 1))
+			for (UOptimusNodePin* Pin : ResourceNode->GetPins())
 			{
-				UOptimusNodePin* Pin = ResourceNode->GetPins()[0];
-
 				// Update the pin type to match.
-				Action->AddSubAction<FOptimusNodeAction_SetPinType>(ResourceNode->GetPins()[0], InDataType);
+				Action->AddSubAction<FOptimusNodeAction_SetPinType>(Pin, InDataType);
 
-				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
-				// show up twice).
+				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise show up twice).
 				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
 
 				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
-				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
-					Links.Add({Pin, ConnectedPin});
-				}
-				else
-				{
-					Links.Add({ConnectedPin, Pin});
+					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+					{
+						Links.Add({Pin, ConnectedPin});
+					}
+					else
+					{
+						Links.Add({ConnectedPin, Pin});
+					}
 				}
 			}
 		}	
@@ -720,18 +716,17 @@ bool UOptimusDeformer::SetResourceDataDomain(
 		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
 		if (ResourceNode->GetResourceDescription() == InResourceDesc)
 		{
-			if (ensure(ResourceNode->GetPins().Num() == 1))
+			for (UOptimusNodePin* Pin : ResourceNode->GetPins())
 			{
-				UOptimusNodePin* Pin = ResourceNode->GetPins()[0];
-
 				// Update the pin type to match.
-				Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(ResourceNode->GetPins()[0], InDataDomain);
+				Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(Pin, InDataDomain);
 
 				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
 				// show up twice).
 				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
 
 				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
+				{
 					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 					{
 						Links.Add({Pin, ConnectedPin});
@@ -740,6 +735,7 @@ bool UOptimusDeformer::SetResourceDataDomain(
 					{
 						Links.Add({ConnectedPin, Pin});
 					}
+				}
 			}
 		}	
 	}
@@ -1558,7 +1554,6 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 								return nullptr;
 							}
 
-							TransientBufferDI->bClearBeforeUse = true;
 							TransientBufferDI->ValueType = Pin->GetDataType()->ShaderValueType;
 							TransientBufferDI->DataDomain = Pin->GetDataDomain();
 							TransientBufferDI->ComponentSourceBinding = *ComponentSourceBindings.CreateConstIterator();

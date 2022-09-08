@@ -17,14 +17,25 @@ class UOptimusComponentSourceBinding;
 class UOptimusRawBufferDataProvider;
 class UOptimusComponentSource;
 
+/** Write to buffer operation types. */
+UENUM()
+enum class EOptimusBufferWriteType : uint8
+{
+	Write UMETA(ToolTip = "Write the value to resource buffer."),
+	WriteAtomicAdd UMETA(ToolTip = "AtomicAdd the value to the value in the resource buffer."),
+	WriteAtomicMin UMETA(ToolTip = "AtomicMin the value with the value in the resource buffer."),
+	WriteAtomicMax UMETA(ToolTip = "AtomicMax the value with the value in the resource buffer."),
+	Count UMETA(Hidden),
+};
+
 UCLASS(Abstract)
 class OPTIMUSCORE_API UOptimusRawBufferDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
-	static const int32 ReadValueInputIndex;
-	static const int32 WriteValueOutputIndex;
+	static int32 GetReadValueInputIndex();
+	static int32 GetWriteValueOutputIndex(EOptimusBufferWriteType WriteType);
 	
 	//~ Begin UOptimusComputeDataInterface Interface
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
@@ -50,7 +61,7 @@ public:
 	/** The component source to query component domain validity and sizing */
 	UPROPERTY()
 	TWeakObjectPtr<UOptimusComponentSourceBinding> ComponentSourceBinding;
-	
+
 protected:
 	virtual bool UseSplitBuffers() const { return true; }
 
@@ -89,10 +100,6 @@ public:
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
-
-	/** Set to true if the buffer should be cleared prior to each render */ 
-	UPROPERTY()
-	bool bClearBeforeUse = true;
 };
 
 
@@ -168,9 +175,6 @@ public:
 	//~ Begin UComputeDataProvider Interface
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
-
-	UPROPERTY()
-	bool bClearBeforeUse = true;
 };
 
 
@@ -204,8 +208,7 @@ class FOptimusTransientBufferDataProviderProxy :
 public:
 	FOptimusTransientBufferDataProviderProxy(
 		TArray<int32> InInvocationElementCounts,
-		int32 InElementStride,
-		bool bInClearBeforeUse
+		int32 InElementStride
 		);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
@@ -216,7 +219,6 @@ public:
 private:
 	const TArray<int32> InvocationElementCounts;
 	const int32 ElementStride;
-	const bool bClearBeforeUse;
 
 	TArray<FRDGBuffer*> Buffer;
 	TArray<FRDGBufferSRV*> BufferSRV;

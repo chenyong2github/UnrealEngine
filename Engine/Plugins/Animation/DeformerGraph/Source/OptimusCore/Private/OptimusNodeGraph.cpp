@@ -13,6 +13,7 @@
 #include "Actions/OptimusNodeActions.h"
 #include "Nodes/OptimusNode_GetResource.h"
 #include "Nodes/OptimusNode_GetVariable.h"
+#include "Nodes/OptimusNode_Resource.h"
 #include "Nodes/OptimusNode_SetResource.h"
 
 #include "Containers/Queue.h"
@@ -305,6 +306,19 @@ UOptimusNode* UOptimusNodeGraph::AddDataInterfaceNode(
 		[InDataInterfaceClass](UOptimusNode *InNode)
 		{
 			Cast<UOptimusNode_DataInterface>(InNode)->SetDataInterfaceClass(InDataInterfaceClass);			
+		});
+}
+
+
+UOptimusNode* UOptimusNodeGraph::AddResourceNode(
+	UOptimusResourceDescription* InResourceDesc,
+	const FVector2D& InPosition
+)
+{
+	return AddNodeInternal(UOptimusNode_Resource::StaticClass(), InPosition,
+		[InResourceDesc](UOptimusNode* InNode)
+		{
+			Cast<UOptimusNode_Resource>(InNode)->SetResourceDescription(InResourceDesc);
 		});
 }
 

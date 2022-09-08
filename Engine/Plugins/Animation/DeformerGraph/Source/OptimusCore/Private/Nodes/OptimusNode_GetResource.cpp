@@ -18,7 +18,7 @@ int32 UOptimusNode_GetResource::GetDataFunctionIndexFromPin(const UOptimusNodePi
 		return INDEX_NONE;
 	}
 
-	return UOptimusRawBufferDataInterface::ReadValueInputIndex;
+	return UOptimusRawBufferDataInterface::GetReadValueInputIndex();
 }
 
 void UOptimusNode_GetResource::ConstructNode()
@@ -27,7 +27,7 @@ void UOptimusNode_GetResource::ConstructNode()
 	{
 		// FIXME: Define context.
 		AddPinDirect(
-			Res->ResourceName,
+			GetResourcePinName(0),
 			EOptimusNodePinDirection::Output,
 			Res->DataDomain,
 			Res->DataType);

@@ -18,7 +18,7 @@ int32 UOptimusNode_SetResource::GetDataFunctionIndexFromPin(const UOptimusNodePi
 		return INDEX_NONE;
 	}
 
-	return UOptimusRawBufferDataInterface::WriteValueOutputIndex;
+	return UOptimusRawBufferDataInterface::GetWriteValueOutputIndex(WriteType);
 }
 
 
@@ -27,7 +27,7 @@ void UOptimusNode_SetResource::ConstructNode()
 	if (const UOptimusResourceDescription* Res = GetResourceDescription())
 	{
 		AddPinDirect(
-		    Res->ResourceName,
+		    GetResourcePinName(0),
 		    EOptimusNodePinDirection::Input,
 			Res->DataDomain,
 		    Res->DataType);

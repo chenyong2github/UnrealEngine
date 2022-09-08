@@ -13,10 +13,6 @@
 #include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
 
 
-const int32 UOptimusRawBufferDataInterface::ReadValueInputIndex = 1;
-const int32 UOptimusRawBufferDataInterface::WriteValueOutputIndex = 0;
-
-
 const UOptimusComponentSource* UOptimusRawBufferDataInterface::GetComponentSource() const
 {
 	if (const UOptimusComponentSourceBinding* ComponentSourceBindingPtr = ComponentSourceBinding.Get())
@@ -25,7 +21,6 @@ const UOptimusComponentSource* UOptimusRawBufferDataInterface::GetComponentSourc
 	}
 	return nullptr;
 }
-
 
 bool UOptimusRawBufferDataInterface::SupportsAtomics() const
 {
@@ -41,12 +36,10 @@ TArray<FOptimusCDIPinDefinition> UOptimusRawBufferDataInterface::GetPinDefinitio
 	return Defs;
 }
 
-
 TSubclassOf<UActorComponent> UOptimusRawBufferDataInterface::GetRequiredComponentClass() const
 {
 	return USceneComponent::StaticClass();
 }
-
 
 void UOptimusRawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
@@ -58,31 +51,40 @@ void UOptimusRawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		.SetName(TEXT("ReadValue"))
 		.AddReturnType(ValueType)
 		.AddParam(EShaderFundamentalType::Uint);
-
-	if (SupportsAtomics())
-	{
-		OutFunctions.AddDefaulted_GetRef()
-			.SetName(TEXT("WriteAtomicAdd"))
-			.AddReturnType(ValueType)
-			.AddParam(EShaderFundamentalType::Uint)
-			.AddParam(ValueType);
-	}
 }
 
 void UOptimusRawBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
+	// Functions in order of EOptimusBufferWriteType
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("WriteValue"))
 		.AddParam(EShaderFundamentalType::Uint)
 		.AddParam(ValueType);
 
-	if (SupportsAtomics())
-	{
-		OutFunctions.AddDefaulted_GetRef()
-			.SetName(TEXT("WriteAtomicAdd"))
-			.AddParam(EShaderFundamentalType::Uint)
-			.AddParam(ValueType);
-	}
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteAtomicAdd"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(ValueType);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteAtomicMin"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(ValueType);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteAtomicMax"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(ValueType);
+}
+
+int32 UOptimusRawBufferDataInterface::GetReadValueInputIndex()
+{
+	return 1;
+}
+
+int32 UOptimusRawBufferDataInterface::GetWriteValueOutputIndex(EOptimusBufferWriteType WriteType)
+{
+	return (int32)WriteType;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTransientBufferDataInterfaceParameters, )
@@ -118,12 +120,16 @@ void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#define BUFFER_TYPE ");
 	OutHLSL += ValueType->ToString();
 	OutHLSL += TEXT(" \n");
+
 	if (SupportsAtomics()) { OutHLSL += TEXT("#define BUFFER_TYPE_SUPPORTS_ATOMIC 1\n"); }
 	if (UseSplitBuffers()) { OutHLSL += TEXT("#define BUFFER_SPLIT_READ_WRITE 1\n"); }
+
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush\"\n");
-	OutHLSL += TEXT("#undef BUFFER_TYPE\n");
+
 	if (SupportsAtomics()) { OutHLSL += TEXT("#undef BUFFER_TYPE_SUPPORTS_ATOMIC\n"); }
 	if (UseSplitBuffers()) { OutHLSL += TEXT("#undef BUFFER_SPLIT_READ_WRITE\n"); }
+
+	OutHLSL += TEXT("#undef BUFFER_TYPE\n");
 }
 
 FString UOptimusTransientBufferDataInterface::GetDisplayName() const
@@ -136,9 +142,6 @@ UComputeDataProvider* UOptimusTransientBufferDataInterface::CreateDataProvider(
 	) const
 {
 	UOptimusTransientBufferDataProvider *Provider = CreateProvider<UOptimusTransientBufferDataProvider>(InBinding);
-	
-	Provider->bClearBeforeUse = bClearBeforeUse;
-	
 	return Provider;
 }
 
@@ -289,7 +292,7 @@ FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderP
 	TArray<int32> InvocationCounts;
 	GetInvocationElementCounts(InvocationCounts);
 	
-	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride, bClearBeforeUse);
+	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride);
 }
 
 
@@ -315,12 +318,10 @@ FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRender
 
 FOptimusTransientBufferDataProviderProxy::FOptimusTransientBufferDataProviderProxy(
 	TArray<int32> InInvocationElementCounts,
-	int32 InElementStride,
-	bool bInClearBeforeUse
+	int32 InElementStride
 	) :
 	InvocationElementCounts(InInvocationElementCounts),
-	ElementStride(InElementStride),
-	bClearBeforeUse(bInClearBeforeUse)
+	ElementStride(InElementStride)
 {
 }
 
@@ -332,11 +333,6 @@ void FOptimusTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& Gr
 		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements), TEXT("TransientBuffer"), ERDGBufferFlags::None));
 		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer.Last()));
 		BufferUAV.Add(GraphBuilder.CreateUAV(Buffer.Last()));
-
-		if (bClearBeforeUse)
-		{
-			AddClearUAVPass(GraphBuilder, BufferUAV.Last(), 0);
-		}
 	}
 }
 
