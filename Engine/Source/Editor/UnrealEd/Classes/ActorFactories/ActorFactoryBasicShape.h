@@ -19,9 +19,9 @@ class UActorFactoryBasicShape : public UActorFactoryStaticMesh
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
 	virtual void PostSpawnActor(UObject* Asset, AActor* NewActor) override;
 
-	UNREALED_API static const FName BasicCube;
-	UNREALED_API static const FName BasicSphere;
-	UNREALED_API static const FName BasicCylinder;
-	UNREALED_API static const FName BasicCone;
-	UNREALED_API static const FName BasicPlane;
+	UNREALED_API static const FSoftObjectPath BasicCube;
+	UNREALED_API static const FSoftObjectPath BasicSphere;
+	UNREALED_API static const FSoftObjectPath BasicCylinder;
+	UNREALED_API static const FSoftObjectPath BasicCone;
+	UNREALED_API static const FSoftObjectPath BasicPlane;
 };

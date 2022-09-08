@@ -467,7 +467,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UToolMenu* Menu, EActor
 			const TArray< FActorPlacementInfo > RecentlyPlaced = IPlacementModeModule::Get().GetRecentlyPlaced();
 			for (int Index = 0; Index < RecentlyPlaced.Num() && Index < 3; Index++)
 			{
-				FAssetData Asset = AssetRegistryModule.Get().GetAssetByObjectPath( *RecentlyPlaced[Index].ObjectPath );
+				FAssetData Asset = AssetRegistryModule.Get().GetAssetByObjectPath( FSoftObjectPath(RecentlyPlaced[Index].ObjectPath) );
 
 				if ( Asset.IsValid() )
 				{

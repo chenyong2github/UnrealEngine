@@ -65,7 +65,7 @@ public:
 						SNew(SImage)
 						.Image_Lambda([this]()
 						{
-							return FAppStyle::GetBrush(GetDefault<UActorPaletteSettings>()->FavoritesList.Contains(AssetData.ObjectPath.ToString()) ?
+							return FAppStyle::GetBrush(GetDefault<UActorPaletteSettings>()->FavoritesList.Contains(AssetData.GetObjectPathString()) ?
 								TEXT("Icons.Star") :
 								TEXT("PropertyWindow.Favorites_Disabled"));
 						})

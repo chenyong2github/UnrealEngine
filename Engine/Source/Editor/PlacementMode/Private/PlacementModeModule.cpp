@@ -438,7 +438,7 @@ void FPlacementModeModule::OnAssetRenamed(const FAssetData& AssetData, const FSt
 	{
 		if (RecentlyPlacedItem.ObjectPath == OldObjectPath)
 		{
-			RecentlyPlacedItem.ObjectPath = AssetData.ObjectPath.ToString();
+			RecentlyPlacedItem.ObjectPath = AssetData.GetObjectPathString();
 			break;
 		}
 	}
@@ -624,7 +624,7 @@ void FPlacementModeModule::RefreshRecentlyPlaced()
 		// If asset is pending delete, it will not be marked as RF_Standalone, in which case we skip it
 		if (Asset != nullptr && Asset->HasAnyFlags(RF_Standalone))
 		{
-			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*RecentlyPlacedItem.ObjectPath);
+			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(RecentlyPlacedItem.ObjectPath));
 
 			if (AssetData.IsValid())
 			{

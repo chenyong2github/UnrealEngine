@@ -570,7 +570,7 @@ void SAssetPlacementPalette::SetPaletteItems(TArrayView<const TObjectPtr<UPlacem
 	{
 		if (PaletteItem)
 		{
-			FAssetData AssetData = AssetRegistry.Get().GetAssetByObjectPath(PaletteItem->AssetPath.GetAssetPathName());
+			FAssetData AssetData = AssetRegistry.Get().GetAssetByObjectPath(PaletteItem->AssetPath.GetWithoutSubPath());
 			if (AssetData.IsValid())
 			{
 				PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, PaletteItem, SharedThis(this), ThumbnailPool));

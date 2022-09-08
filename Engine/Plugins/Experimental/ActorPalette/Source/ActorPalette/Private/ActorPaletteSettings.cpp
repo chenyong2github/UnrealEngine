@@ -6,7 +6,7 @@
 FAssetData FActorPaletteMapEntry::GetAsAssetData() const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	return AssetRegistryModule.Get().GetAssetByObjectPath(*MapPath);
+	return AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(MapPath));
 }
 
 UActorPaletteSettings::UActorPaletteSettings()
@@ -36,7 +36,7 @@ void UActorPaletteSettings::MarkAsRecentlyUsed(const FAssetData& MapAsset, int32
 {
 	if (MapAsset.IsValid())
 	{
-		const FString MapAssetPath = MapAsset.ObjectPath.ToString();
+		const FString MapAssetPath = MapAsset.GetObjectPathString();
 
 		// Remember as the most recent for this tab
 		if (!MostRecentLevelByTab.IsValidIndex(TabIndex))
@@ -62,7 +62,7 @@ void UActorPaletteSettings::MarkAsRecentlyUsed(const FAssetData& MapAsset, int32
 		{
 			// New entry
 			FActorPaletteMapEntry& NewEntry = SettingsPerLevel[SettingsPerLevel.AddDefaulted()];
-			NewEntry.MapPath = MapAsset.ObjectPath.ToString();
+			NewEntry.MapPath = MapAsset.GetObjectPathString();
 		}
 	}
 
@@ -76,13 +76,13 @@ void UActorPaletteSettings::MarkAsRecentlyUsed(const FAssetData& MapAsset, int32
 
 void UActorPaletteSettings::ToggleFavorite(const FAssetData& MapAsset)
 {
-	if (FavoritesList.Contains(MapAsset.ObjectPath.ToString()))
+	if (FavoritesList.Contains(MapAsset.GetObjectPathString()))
 	{
-		FavoritesList.Remove(MapAsset.ObjectPath.ToString());
+		FavoritesList.Remove(MapAsset.GetObjectPathString());
 	}
 	else
 	{
-		FavoritesList.Add(MapAsset.ObjectPath.ToString());
+		FavoritesList.Add(MapAsset.GetObjectPathString());
 	}
 
 #if WITH_EDITOR

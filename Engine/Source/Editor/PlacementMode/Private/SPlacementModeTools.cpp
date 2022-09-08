@@ -158,7 +158,7 @@ void SPlacementAssetEntry::Construct(const FArguments& InArgs, const TSharedPtr<
 		AssetEntryToolTip = FSlateApplicationBase::Get().MakeToolTip(
 			FText::Format(LOCTEXT("ItemInternalsTooltip", "Native Name: {0}\nAsset Path: {1}\nFactory Class: {2}"), 
 			FText::FromString(Item->NativeName), 
-			FText::FromName(Item->AssetData.ObjectPath),
+			FText::FromString(Item->AssetData.GetObjectPathString()),
 			FText::FromString(Item->Factory ? Item->Factory->GetClass()->GetName() : TEXT("None"))));
 	}
 

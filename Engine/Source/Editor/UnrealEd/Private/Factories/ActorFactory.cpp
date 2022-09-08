@@ -225,10 +225,19 @@ bool UActorFactory::CanCreateActorFrom( const FAssetData& AssetData, FText& OutE
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UActorFactory::CanCreateActorFrom);
 
+	if (!AssetData.IsValid())
+	{
+		return false;
+	}
+
+	UObject* DefaultActor = GetDefaultActor(AssetData);
+	FSoftObjectPath DefaultActorPath(DefaultActor);
+	FSoftObjectPath DefaultActorClassPath(DefaultActor->GetClass());
+
 	// By Default we assume the factory can't work with existing asset data
 	return !AssetData.IsValid() || 
-		AssetData.ObjectPath == *GetDefaultActor( AssetData )->GetPathName() || 
-		AssetData.ObjectPath == *GetDefaultActor( AssetData )->GetClass()->GetPathName();
+		AssetData.GetSoftObjectPath() == DefaultActorPath || 
+		AssetData.GetSoftObjectPath() == DefaultActorClassPath;
 }
 
 AActor* UActorFactory::GetDefaultActor( const FAssetData& AssetData )
@@ -608,11 +617,11 @@ FQuat UActorFactoryStaticMesh::AlignObjectToSurfaceNormal(const FVector& InSurfa
 UActorFactoryBasicShape
 -----------------------------------------------------------------------------*/
 
-const FName UActorFactoryBasicShape::BasicCube("/Engine/BasicShapes/Cube.Cube");
-const FName UActorFactoryBasicShape::BasicSphere("/Engine/BasicShapes/Sphere.Sphere");
-const FName UActorFactoryBasicShape::BasicCylinder("/Engine/BasicShapes/Cylinder.Cylinder");
-const FName UActorFactoryBasicShape::BasicCone("/Engine/BasicShapes/Cone.Cone");
-const FName UActorFactoryBasicShape::BasicPlane("/Engine/BasicShapes/Plane.Plane");
+const FSoftObjectPath UActorFactoryBasicShape::BasicCube("/Engine/BasicShapes/Cube", "Cube", {});
+const FSoftObjectPath UActorFactoryBasicShape::BasicSphere("/Engine/BasicShapes/Sphere", "Sphere", {});
+const FSoftObjectPath UActorFactoryBasicShape::BasicCylinder("/Engine/BasicShapes/Cylinder", "Cylinder", {});
+const FSoftObjectPath UActorFactoryBasicShape::BasicCone("/Engine/BasicShapes/Cone", "Cone", {});
+const FSoftObjectPath UActorFactoryBasicShape::BasicPlane("/Engine/BasicShapes/Plane", "Plane", {});
 
 UActorFactoryBasicShape::UActorFactoryBasicShape(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -624,7 +633,8 @@ UActorFactoryBasicShape::UActorFactoryBasicShape(const FObjectInitializer& Objec
 
 bool UActorFactoryBasicShape::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	if(AssetData.IsValid() && (AssetData.ObjectPath == BasicCube || AssetData.ObjectPath == BasicSphere || AssetData.ObjectPath == BasicCone || AssetData.ObjectPath == BasicCylinder || AssetData.ObjectPath == BasicPlane) )
+	FSoftObjectPath AssetPath = AssetData.GetSoftObjectPath();
+	if(AssetData.IsValid() && (AssetPath == BasicCube || AssetPath == BasicSphere || AssetPath == BasicCone || AssetPath == BasicCylinder || AssetPath == BasicPlane) )
 	{
 		return true;
 	}
@@ -700,7 +710,7 @@ bool UActorFactoryDeferredDecal::CanCreateActorFrom( const FAssetData& AssetData
 			return false;
 		}
 
-		CurrentAssetData = AssetRegistry.GetAssetByObjectPath( *ObjectPath );
+		CurrentAssetData = AssetRegistry.GetAssetByObjectPath( FSoftObjectPath(ObjectPath) );
 		if ( !CurrentAssetData.IsValid() )
 		{
 			OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoMaterial", "A valid material must be specified.");
@@ -1038,7 +1048,7 @@ bool UActorFactoryAnimationAsset::CanCreateActorFrom( const FAssetData& AssetDat
 			return false;
 		}
 
-		FAssetData SkeletonData = AssetRegistry.GetAssetByObjectPath( *SkeletonPath );
+		FAssetData SkeletonData = AssetRegistry.GetAssetByObjectPath( FSoftObjectPath(SkeletonPath) );
 
 		if ( !SkeletonData.IsValid() )
 		{
@@ -1200,7 +1210,7 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 			return false;
 		}
 
-		FAssetData TargetSkeleton = AssetRegistry.GetAssetByObjectPath( *TargetSkeletonPath );
+		FAssetData TargetSkeleton = AssetRegistry.GetAssetByObjectPath( FSoftObjectPath(TargetSkeletonPath) );
 		if ( !TargetSkeleton.IsValid() )
 		{
 			OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoAnimBPTargetSkeleton", "UAnimBlueprints must have a valid Target Skeleton.");
@@ -1417,7 +1427,7 @@ UActorFactoryEmptyActor::UActorFactoryEmptyActor(const FObjectInitializer& Objec
 
 bool UActorFactoryEmptyActor::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
 {
-	return AssetData.ObjectPath == FName(*AActor::StaticClass()->GetPathName());
+	return AssetData.ToSoftObjectPath() == FSoftObjectPath(AActor::StaticClass());
 }
 
 AActor* UActorFactoryEmptyActor::SpawnActor(UObject* InAsset, ULevel* InLevel, const FTransform& InTransform, const FActorSpawnParameters& InSpawnParams)
@@ -1455,7 +1465,7 @@ UActorFactoryCharacter::UActorFactoryCharacter(const FObjectInitializer& ObjectI
 
 bool UActorFactoryCharacter::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	return AssetData.ObjectPath == FName(*ACharacter::StaticClass()->GetPathName());
+	return AssetData.ToSoftObjectPath() == FSoftObjectPath(ACharacter::StaticClass());
 }
 
 /*-----------------------------------------------------------------------------
@@ -1470,7 +1480,7 @@ UActorFactoryPawn::UActorFactoryPawn(const FObjectInitializer& ObjectInitializer
 
 bool UActorFactoryPawn::CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg)
 {
-	return AssetData.ObjectPath == FName(*APawn::StaticClass()->GetPathName());
+	return AssetData.GetSoftObjectPath() == FSoftObjectPath(APawn::StaticClass());
 }
 
 /*-----------------------------------------------------------------------------
@@ -1564,7 +1574,7 @@ AActor* UActorFactoryClass::GetDefaultActor( const FAssetData& AssetData )
 {
 	if ( AssetData.IsValid() && AssetData.IsInstanceOf( UClass::StaticClass() ) )
 	{
-		UClass* ActualClass = Cast<UClass>(StaticLoadObject(UClass::StaticClass(), nullptr, *AssetData.ObjectPath.ToString(), nullptr, LOAD_NoWarn, nullptr));
+		UClass* ActualClass = Cast<UClass>(StaticLoadObject(UClass::StaticClass(), nullptr, *AssetData.GetObjectPathString(), nullptr, LOAD_NoWarn, nullptr));
 			
 		//Cast<UClass>(AssetData.GetAsset());
 		if ( (nullptr != ActualClass) && ActualClass->IsChildOf(AActor::StaticClass()) )
