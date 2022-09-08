@@ -125,14 +125,20 @@ public:
 	{
 		TArray<UObject*> Objects;
 		KeyedPropertyHandle.GetOuterObjects( Objects );
-		FKeyPropertyParams KeyPropertyParams(Objects, KeyedPropertyHandle, ESequencerKeyMode::ManualKeyForced);
 
+		TArray<UObject*> EachObject;
+		EachObject.SetNum(1);
 		for (const TWeakPtr<ISequencer>& WeakSequencer : Sequencers)
 		{
 			TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 			if (Sequencer.IsValid())
 			{
-				Sequencer->KeyProperty(KeyPropertyParams);
+				for (UObject* Object : Objects)
+				{
+					EachObject[0] = Object;
+					FKeyPropertyParams KeyPropertyParams(EachObject, KeyedPropertyHandle, ESequencerKeyMode::ManualKeyForced);
+					Sequencer->KeyProperty(KeyPropertyParams);
+				}
 			}
 		}
 	}
