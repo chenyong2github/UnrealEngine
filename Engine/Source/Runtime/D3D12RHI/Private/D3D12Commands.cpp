@@ -700,8 +700,9 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, F
 		if (pSourceResource->RequiresResourceStateTracking())
 		{
 			FD3D12DynamicRHI::TransitionResource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
-			CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 		}
+
+		CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
 
 		numCopies++;
 
