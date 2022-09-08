@@ -9,10 +9,12 @@
 #include "AudioMixerTrace.h"
 #include "ContentStreaming.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioModulation.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundModulationDestination.h"
 #include "Misc/ScopeRWLock.h"
+#include "Templates/Function.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -57,37 +59,115 @@ namespace Audio
 					return EMixerSourceSubmixSendStage::PostDistanceAttenuation;
 			}
 		}
+
+		const USoundClass* GetFallbackSoundClass(const FActiveSound& InActiveSound, const FWaveInstance& InWaveInstance)
+		{
+			const USoundClass* SoundClass = InActiveSound.GetSoundClass();
+			if (InWaveInstance.SoundClass)
+			{
+				SoundClass = InWaveInstance.SoundClass;
+			}
+
+			return SoundClass;
+		}
 	}
 	namespace ModulationUtils
 	{
-		static const FSoundModulationDestinationSettings DefaultDestination;
-
-		const FSoundModulationDestinationSettings& GetRoutedVolumeModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		void MixInRoutedValue(const FModulationParameter& InParam, float& InOutValueA, float InValueB)
 		{
-			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
-			switch (RoutingSettings.VolumeRouting)
+			if (InParam.bRequiresConversion)
 			{
-				case EModulationRouting::Inherit:
+				InParam.NormalizedFunction(InOutValueA);
+				InParam.NormalizedFunction(InValueB);
+			}
+			InParam.MixFunction(InOutValueA, InValueB);
+			if (InParam.bRequiresConversion)
+			{
+				InParam.UnitFunction(InOutValueA);
+			}
+		}
+
+		FSoundModulationDestinationSettings InitRoutedDestinationSettings(
+			const EModulationRouting& InActiveSoundRouting,
+			const FSoundModulationDestinationSettings& InActiveSoundSettings,
+			const EModulationRouting& InWaveRouting,
+			const FSoundModulationDestinationSettings& InWaveSettings,
+			const USoundClass* InSoundClass,
+			const FModulationParameter& InParam,
+			TFunctionRef<const FSoundModulationDestinationSettings* (const USoundClass&)> InGetSoundClassDestinationFunction)
+		{
+			auto UnionSoundClassSettings = [&](FSoundModulationDestinationSettings& InOutSettings)
+			{
+				if (InSoundClass)
 				{
-					switch (InWaveData.ModulationSettings.VolumeRouting)
+					const FSoundModulationDestinationSettings& ClassSettings = *InGetSoundClassDestinationFunction(*InSoundClass);
+					MixInRoutedValue(InParam, InOutSettings.Value, ClassSettings.Value);
+					InOutSettings.Modulators = InOutSettings.Modulators.Union(ClassSettings.Modulators);
+				}
+			};
+
+			switch (InActiveSoundRouting)
+			{
+				case EModulationRouting::Union:
+				{
+					FSoundModulationDestinationSettings UnionSettings = InActiveSoundSettings;
+					switch (InWaveRouting)
 					{
+						case EModulationRouting::Union:
+						{
+							MixInRoutedValue(InParam, UnionSettings.Value, InWaveSettings.Value);
+							UnionSettings.Modulators = UnionSettings.Modulators.Union(InWaveSettings.Modulators);
+							UnionSoundClassSettings(UnionSettings);
+							return UnionSettings;
+						}
+						break;
+
 						case EModulationRouting::Inherit:
 						{
-							USoundClass* SoundClass = InActiveSound->GetSoundClass();
-							if (InWaveInstance.SoundClass)
+							UnionSoundClassSettings(UnionSettings);
+						}
+						break;
+
+						case EModulationRouting::Override:
+						{
+							MixInRoutedValue(InParam, UnionSettings.Value, InWaveSettings.Value);
+							UnionSettings.Modulators = UnionSettings.Modulators.Union(InWaveSettings.Modulators);
+						}
+						break;
+
+						case EModulationRouting::Disable:
+						default:
+						break;
+					}
+
+					return UnionSettings;
+				}
+				break;
+
+				case EModulationRouting::Inherit:
+				{
+					switch (InWaveRouting)
+					{
+						case EModulationRouting::Union:
+						{
+							FSoundModulationDestinationSettings UnionSettings = InWaveSettings;
+							UnionSoundClassSettings(UnionSettings);
+							return UnionSettings;
+						}
+						break;
+
+						case EModulationRouting::Inherit:
+						{
+							if (InSoundClass)
 							{
-								SoundClass = InWaveInstance.SoundClass;
-							}
-							if (SoundClass)
-							{
-								return SoundClass->Properties.ModulationSettings.VolumeModulationDestination;
+								return *InGetSoundClassDestinationFunction(*InSoundClass);
 							}
 						}
 						break;
 
 						case EModulationRouting::Override:
 						{
-							return InWaveData.ModulationSettings.VolumeModulationDestination;
+							return InWaveSettings;
 						}
 						break;
 
@@ -100,7 +180,7 @@ namespace Audio
 
 				case EModulationRouting::Override:
 				{
-					return RoutingSettings.VolumeModulationDestination;
+					return InActiveSoundSettings;
 				}
 				break;
 
@@ -109,35 +189,87 @@ namespace Audio
 				break;
 			}
 
-			return DefaultDestination;
+			return { };
 		}
 
-		const FSoundModulationDestinationSettings& GetRoutedPitchModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		float GetRoutedDestinationValue(
+			const EModulationRouting& InActiveSoundRouting,
+			const FSoundModulationDestinationSettings& InActiveSoundSettings,
+			const EModulationRouting& InWaveRouting,
+			const FSoundModulationDestinationSettings& InWaveSettings,
+			const USoundClass* InSoundClass,
+			const FModulationParameter& InParam,
+			TFunctionRef<const FSoundModulationDestinationSettings* (const USoundClass&)> InGetSoundClassDestinationFunction)
 		{
-			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
-			switch (RoutingSettings.PitchRouting)
+			auto MixInSoundClassValue = [&](float& InOutValue)
 			{
-				case EModulationRouting::Inherit:
+				if (InSoundClass)
 				{
-					switch (InWaveData.ModulationSettings.PitchRouting)
+					const FSoundModulationDestinationSettings& ClassSettings = *InGetSoundClassDestinationFunction(*InSoundClass);
+					MixInRoutedValue(InParam, InOutValue, ClassSettings.Value);
+				}
+			};
+
+			switch (InActiveSoundRouting)
+			{
+				case EModulationRouting::Union:
+				{
+					float UnionValue = InActiveSoundSettings.Value;
+					switch (InWaveRouting)
 					{
+						case EModulationRouting::Union:
+						{
+							MixInRoutedValue(InParam, UnionValue, InWaveSettings.Value);
+							MixInSoundClassValue(UnionValue);
+							return UnionValue;
+						}
+						break;
+
 						case EModulationRouting::Inherit:
 						{
-							USoundClass* SoundClass = InActiveSound->GetSoundClass();
-							if (InWaveInstance.SoundClass)
+							MixInSoundClassValue(UnionValue);
+						}
+						break;
+
+						case EModulationRouting::Override:
+						{
+							MixInRoutedValue(InParam, UnionValue, InWaveSettings.Value);
+						}
+						break;
+
+						case EModulationRouting::Disable:
+						default:
+						break;
+					}
+
+					return UnionValue;
+				}
+				break;
+
+				case EModulationRouting::Inherit:
+				{
+					switch (InWaveRouting)
+					{
+						case EModulationRouting::Union:
+						{
+							float UnionValue = InWaveSettings.Value;
+							MixInSoundClassValue(UnionValue);
+							return UnionValue;
+						}
+						break;
+
+						case EModulationRouting::Inherit:
+						{
+							if (InSoundClass)
 							{
-								SoundClass = InWaveInstance.SoundClass;
-							}
-							if (SoundClass)
-							{
-								return SoundClass->Properties.ModulationSettings.PitchModulationDestination;
+								return InGetSoundClassDestinationFunction(*InSoundClass)->Value;
 							}
 						}
 						break;
 
 						case EModulationRouting::Override:
 						{
-							return InWaveData.ModulationSettings.PitchModulationDestination;
+							return InWaveSettings.Value;
 						}
 						break;
 
@@ -150,126 +282,179 @@ namespace Audio
 
 				case EModulationRouting::Override:
 				{
-					return RoutingSettings.PitchModulationDestination;
+					return InActiveSoundSettings.Value;
 				}
 				break;
+
 				case EModulationRouting::Disable:
 				default:
 				break;
 			}
 
-			return DefaultDestination;
+			return 1.0f;
 		}
 
-		const FSoundModulationDestinationSettings& GetRoutedHighpassModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		FSoundModulationDestinationSettings InitRoutedVolumeModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
 		{
-			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
-			switch (RoutingSettings.HighpassRouting)
-			{
-				case EModulationRouting::Inherit:
-				{
-					switch (InWaveData.ModulationSettings.HighpassRouting)
-					{
-						case EModulationRouting::Inherit:
-						{
-							USoundClass* SoundClass = InActiveSound->GetSoundClass();
-							if (InWaveInstance.SoundClass)
-							{
-								SoundClass = InWaveInstance.SoundClass;
-							}
-							if (SoundClass)
-							{
-								return SoundClass->Properties.ModulationSettings.HighpassModulationDestination;
-							}
-						}
-						break;
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.VolumeRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.VolumeModulationDestination;
 
-						case EModulationRouting::Override:
-						{
-							return InWaveData.ModulationSettings.HighpassModulationDestination;
-						}
-						break;
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.VolumeRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.VolumeModulationDestination;
 
-						case EModulationRouting::Disable:
-						default:
-						break;
-					}
-				}
-				break;
-
-				case EModulationRouting::Override:
-				{
-					return RoutingSettings.HighpassModulationDestination;
-				}
-				break;
-
-				case EModulationRouting::Disable:
-				default:
-				break;
-			}
-
-			return DefaultDestination;
+			return InitRoutedDestinationSettings(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("Volume"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.VolumeModulationDestination; }
+			);
 		}
 
-		const FSoundModulationDestinationSettings& GetRoutedLowpassModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		float GetRoutedVolume(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
 		{
-			const FSoundModulationDefaultRoutingSettings& RoutingSettings = InActiveSound->ModulationRouting;
-			switch (RoutingSettings.LowpassRouting)
-			{
-				case EModulationRouting::Inherit:
-				{
-					switch (InWaveData.ModulationSettings.LowpassRouting)
-					{
-						case EModulationRouting::Inherit:
-						{
-							USoundClass* SoundClass = InActiveSound->GetSoundClass();
-							if (InWaveInstance.SoundClass)
-							{
-								SoundClass = InWaveInstance.SoundClass;
-							}
-							if (SoundClass)
-							{
-								return SoundClass->Properties.ModulationSettings.LowpassModulationDestination;
-							}
-						}
-						break;
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.VolumeRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.VolumeModulationDestination;
 
-						case EModulationRouting::Override:
-						{
-							return InWaveData.ModulationSettings.LowpassModulationDestination;
-						}
-						break;
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.VolumeRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.VolumeModulationDestination;
 
-						case EModulationRouting::Disable:
-						default:
-						break;
-					}
-				}
-				break;
-
-				case EModulationRouting::Override:
-				{
-					return RoutingSettings.LowpassModulationDestination;
-				}
-				break;
-
-				case EModulationRouting::Disable:
-				default:
-				break;
-			}
-
-			return DefaultDestination;
+			return GetRoutedDestinationValue(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("Volume"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.VolumeModulationDestination; }
+			);
 		}
 
-		FSoundModulationDefaultSettings GetRoutedModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
+		FSoundModulationDestinationSettings InitRoutedPitchModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
+		{
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.PitchRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.PitchModulationDestination;
+
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.PitchRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.PitchModulationDestination;
+
+			return InitRoutedDestinationSettings(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("Pitch"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.PitchModulationDestination; }
+			);
+		}
+
+		float GetRoutedPitch(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
+		{
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.PitchRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.PitchModulationDestination;
+
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.PitchRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.PitchModulationDestination;
+
+			return GetRoutedDestinationValue(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("Pitch"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.PitchModulationDestination; }
+			);
+		}
+
+		FSoundModulationDestinationSettings InitRoutedHighpassModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
+		{
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.HighpassRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.HighpassModulationDestination;
+
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.HighpassRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.HighpassModulationDestination;
+
+			return InitRoutedDestinationSettings(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("HPFCutoffFrequency"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.HighpassModulationDestination; }
+			);
+		}
+
+		float GetRoutedHighpass(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
+		{
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.HighpassRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.HighpassModulationDestination;
+
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.HighpassRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.HighpassModulationDestination;
+
+			return GetRoutedDestinationValue(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("HPFCutoffFrequency"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.HighpassModulationDestination; }
+			);
+		}
+
+		FSoundModulationDestinationSettings InitRoutedLowpassModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
+		{
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.LowpassRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.LowpassModulationDestination;
+
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.LowpassRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.LowpassModulationDestination;
+
+			return InitRoutedDestinationSettings(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("LPFCutoffFrequency"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.LowpassModulationDestination; }
+			);
+		}
+
+		float GetRoutedLowpass(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, const FActiveSound& InActiveSound)
+		{
+			const EModulationRouting& ActiveSoundRouting = InActiveSound.ModulationRouting.LowpassRouting;
+			const FSoundModulationDestinationSettings& ActiveSoundSettings = InActiveSound.ModulationRouting.LowpassModulationDestination;
+
+			const EModulationRouting& WaveRouting = InWaveData.ModulationSettings.LowpassRouting;
+			const FSoundModulationDestinationSettings& WaveSettings = InWaveData.ModulationSettings.LowpassModulationDestination;
+
+			return GetRoutedDestinationValue(
+				ActiveSoundRouting,
+				ActiveSoundSettings,
+				WaveRouting,
+				WaveSettings,
+				MixerSourcePrivate::GetFallbackSoundClass(InActiveSound, InWaveInstance),
+				Audio::GetModulationParameter("LPFCutoffFrequency"),
+				[](const USoundClass& InSoundClass) { return &InSoundClass.Properties.ModulationSettings.LowpassModulationDestination; }
+			);
+		}
+
+		FSoundModulationDefaultSettings InitRoutedModulation(const FWaveInstance& InWaveInstance, const USoundWave& InWaveData, FActiveSound* InActiveSound)
 		{
 			FSoundModulationDefaultSettings Settings;
 			if (InActiveSound)
 			{
-				Settings.VolumeModulationDestination = GetRoutedVolumeModulation(InWaveInstance, InWaveData, InActiveSound);
-				Settings.PitchModulationDestination = GetRoutedPitchModulation(InWaveInstance, InWaveData, InActiveSound);
-				Settings.HighpassModulationDestination = GetRoutedHighpassModulation(InWaveInstance, InWaveData, InActiveSound);
-				Settings.LowpassModulationDestination = GetRoutedLowpassModulation(InWaveInstance, InWaveData, InActiveSound);
+				Settings.VolumeModulationDestination = InitRoutedVolumeModulation(InWaveInstance, InWaveData, *InActiveSound);
+				Settings.PitchModulationDestination = InitRoutedPitchModulation(InWaveInstance, InWaveData, *InActiveSound);
+				Settings.HighpassModulationDestination = InitRoutedHighpassModulation(InWaveInstance, InWaveData, *InActiveSound);
+				Settings.LowpassModulationDestination = InitRoutedLowpassModulation(InWaveInstance, InWaveData, *InActiveSound);
 			}
 
 			return Settings;
@@ -385,7 +570,7 @@ namespace Audio
 			InitParams.bIsSoundfield = WaveInstance->bIsAmbisonics && (WaveData->NumChannels == 4);
 
 			FActiveSound* ActiveSound = WaveInstance->ActiveSound;
-			InitParams.ModulationSettings = ModulationUtils::GetRoutedModulation(*WaveInstance, *WaveData, ActiveSound);
+			InitParams.ModulationSettings = ModulationUtils::InitRoutedModulation(*WaveInstance, *WaveData, ActiveSound);
 
 			// Copy quantization request data
 			if (WaveInstance->QuantizedRequestData)
@@ -1290,8 +1475,8 @@ namespace Audio
 
 		USoundWave* WaveData = WaveInstance->WaveData;
 		check(WaveData);
-		const FSoundModulationDestinationSettings& PitchSettings = ModulationUtils::GetRoutedPitchModulation(*WaveInstance, *WaveData, ActiveSound);
-		MixerSourceVoice->SetModPitch(PitchSettings.Value);
+		const float ModPitchBase = ModulationUtils::GetRoutedPitch(*WaveInstance, *WaveData, *ActiveSound);
+		MixerSourceVoice->SetModPitch(ModPitchBase);
 	}
 
 	void FMixerSource::UpdateVolume()
@@ -1318,8 +1503,8 @@ namespace Audio
 
 			USoundWave* WaveData = WaveInstance->WaveData;
 			check(WaveData);
-			const FSoundModulationDestinationSettings& VolumeSettings = ModulationUtils::GetRoutedVolumeModulation(*WaveInstance, *WaveData, ActiveSound);
-			MixerSourceVoice->SetModVolume(VolumeSettings.Value);
+			const float ModVolumeBase = ModulationUtils::GetRoutedVolume(*WaveInstance, *WaveData, *ActiveSound);
+			MixerSourceVoice->SetModVolume(ModVolumeBase);
 		}
 		MixerSourceVoice->SetVolume(CurrentVolume);
 	}
@@ -1360,11 +1545,11 @@ namespace Audio
 		USoundWave* WaveData = WaveInstance->WaveData;
 		check(WaveData);
 
-		const FSoundModulationDestinationSettings& HighpassSettings = ModulationUtils::GetRoutedHighpassModulation(*WaveInstance, *WaveData, ActiveSound);
-		MixerSourceVoice->SetModHPFFrequency(HighpassSettings.Value);
+		float ModHighpassBase = ModulationUtils::GetRoutedHighpass(*WaveInstance, *WaveData, *ActiveSound);
+		MixerSourceVoice->SetModHPFFrequency(ModHighpassBase);
 
-		const FSoundModulationDestinationSettings& LowpassSettings = ModulationUtils::GetRoutedLowpassModulation(*WaveInstance, *WaveData, ActiveSound);
-		MixerSourceVoice->SetModLPFFrequency(LowpassSettings.Value);
+		float ModLowpassBase = ModulationUtils::GetRoutedLowpass(*WaveInstance, *WaveData, *ActiveSound);
+		MixerSourceVoice->SetModLPFFrequency(ModLowpassBase);
 
 		// If reverb is applied, figure out how of the source to "send" to the reverb.
 		if (WaveInstance->bReverb)

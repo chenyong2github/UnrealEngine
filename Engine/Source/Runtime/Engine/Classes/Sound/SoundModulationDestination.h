@@ -3,6 +3,7 @@
 
 #include "Audio.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "DSP/BufferVectorOperations.h"
 #include "HAL/CriticalSection.h"
 #include "IAudioModulation.h"
@@ -16,6 +17,11 @@
 // Forward Declarations
 class USoundModulatorBase;
 
+namespace Audio
+{
+	struct FModulationParameter;
+}
+
 
 UENUM(BlueprintType)
 enum class EModulationRouting : uint8
@@ -27,7 +33,10 @@ enum class EModulationRouting : uint8
 	Inherit,
 
 	/* Ignores inherited settings and uses modulation settings on this object */
-	Override
+	Override,
+
+	/* Performs set union on local modulation sources with those inherited (AudioComponent inherits from Sound, Sound inherits from SoundClass) */
+	Union
 };
 
 /** Parameter destination settings allowing modulation control override for parameter destinations opting in to the Modulation System. */
@@ -41,14 +50,23 @@ struct ENGINE_API FSoundModulationDestinationSettings
 	float Value = 1.0f;
 
 #if WITH_EDITORONLY_DATA
-	/** Base value of parameter */
+	/** Whether or not to enable modulation */
 	UPROPERTY(EditAnywhere, Category = Modulation, meta = (DisplayName = "Modulate"))
 	bool bEnableModulation = false;
+
+	/** Deprecated in favor of Modulators set. */
+	UPROPERTY(meta = (DeprecatedProperty))
+	TObjectPtr<USoundModulatorBase> Modulator = nullptr;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Modulation source, which provides value to mix with base value. */
+	/** Set of modulation sources, which provides values to mix with base value. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
-	TObjectPtr<USoundModulatorBase> Modulator = nullptr;
+	TSet<TObjectPtr<USoundModulatorBase>> Modulators;
+
+#if WITH_EDITORONLY_DATA
+	/** Versioning utility function to upgrade single modulator field to set of modulators */
+	void VersionModulators();
+#endif // WITH_EDITORONLY_DATA
 };
 
 /** Default parameter destination settings for source audio object. */
@@ -74,6 +92,10 @@ struct ENGINE_API FSoundModulationDefaultSettings
 	/** Lowpass modulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Lowpass", AudioParam = "LPFCutoffFrequency"))
 	FSoundModulationDestinationSettings LowpassModulationDestination;
+
+#if WITH_EDITORONLY_DATA
+	void VersionModulators();
+#endif // WITH_EDITORONLY_DATA
 };
 
 /** Default parameter destination settings for source audio object. */
@@ -137,12 +159,18 @@ namespace Audio
 			 */
 			bool ProcessControl(float InValueUnitBase, int32 InNumSamples = 0);
 
+
+			UE_DEPRECATED(5.1, "Deprecated in favor of supporting multiple modulators per destination. Use 'UpdateModulators' instead.")
 			void UpdateModulator(const USoundModulatorBase* InModulator);
 
-		private:
-			void ResetHandle();
-			void SetHandle(const FModulatorHandle& InHandle);
-			void SetHandle(FModulatorHandle&& InHandle);
+			void UpdateModulators(const TSet<TObjectPtr<USoundModulatorBase>>& InModulators);
+			void UpdateModulators(const TSet<USoundModulatorBase*>& InModulators);
+			void UpdateModulators(const TSet<const USoundModulatorBase*>& InModulators);
+	
+	private:
+			void UpdateModulatorsInternal(TArray<TUniquePtr<Audio::IModulatorSettings>>&& ProxySettings);
+
+			void ResetHandles();
 
 			FDeviceId DeviceId = INDEX_NONE;
 
@@ -153,9 +181,10 @@ namespace Audio
 			bool bHasProcessed = false;
 
 			FAlignedFloatBuffer OutputBuffer;
-			FModulatorHandle Handle;
 
-			FName ParameterName;
+			TSet<FModulatorHandle> Handles;
+
+			FModulationParameter Parameter;
 
 			mutable FCriticalSection HandleCritSection;
 

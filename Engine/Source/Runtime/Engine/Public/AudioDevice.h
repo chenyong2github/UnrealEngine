@@ -1485,7 +1485,13 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
+	UE_DEPRECATED(5.1, "UpdateSubmixModulationSettings taking single modulators is deprecated.  Use the overload that allows for modulator sets")
 	virtual void UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer & 'UpdateSubmixModulationSettings' function taking single modulators no longer supported."));
+	}
+
+	virtual void UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, const TSet<TObjectPtr<USoundModulatorBase>>& InOutputModulation, const TSet<TObjectPtr<USoundModulatorBase>>& InWetLevelModulation, const TSet<TObjectPtr<USoundModulatorBase>>& InDryLevelModulation)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}

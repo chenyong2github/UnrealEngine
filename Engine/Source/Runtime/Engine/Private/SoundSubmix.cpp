@@ -117,6 +117,10 @@ void USoundSubmix::Serialize(FArchive& Ar)
 		{
 			DryLevelModulation.Value = Audio::ConvertToDecibels(DryLevelModulation.Value);
 		}
+
+		OutputVolumeModulation.VersionModulators();
+		WetLevelModulation.VersionModulators();
+		DryLevelModulation.VersionModulators();
 	}
 #endif // WITH_EDITORONLY_DATA
 }
@@ -491,13 +495,13 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 			{
 				USoundSubmix* SoundSubmix = this;
 
-				USoundModulatorBase* NewVolumeMod = OutputVolumeModulation.Modulator;
-				USoundModulatorBase* NewWetLevelMod = WetLevelModulation.Modulator;
-				USoundModulatorBase* NewDryLevelMod = DryLevelModulation.Modulator;
+				TSet<TObjectPtr<USoundModulatorBase>> NewVolumeMod = OutputVolumeModulation.Modulators;
+				TSet<TObjectPtr<USoundModulatorBase>> NewWetLevelMod = WetLevelModulation.Modulators;
+				TSet<TObjectPtr<USoundModulatorBase>> NewDryLevelMod = DryLevelModulation.Modulators;
 
-				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewVolumeMod, NewWetLevelMod, NewDryLevelMod](Audio::FDeviceId Id, FAudioDevice* Device)
+				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, VolMod = MoveTemp(NewVolumeMod), WetMod = MoveTemp(NewWetLevelMod), DryMod = MoveTemp(NewDryLevelMod)](Audio::FDeviceId Id, FAudioDevice* Device) mutable
 				{
-					Device->UpdateSubmixModulationSettings(SoundSubmix, NewVolumeMod, NewWetLevelMod, NewDryLevelMod);
+					Device->UpdateSubmixModulationSettings(SoundSubmix, VolMod, WetMod, DryMod);
 				});
 
 				float NewVolumeModBase = OutputVolumeModulation.Value;

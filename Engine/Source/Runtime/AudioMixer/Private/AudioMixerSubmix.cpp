@@ -274,14 +274,14 @@ namespace Audio
 
 			if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 			{
-				USoundModulatorBase* VolumeModulator = SoundSubmix->OutputVolumeModulation.Modulator;
-				USoundModulatorBase* WetLevelModulator = SoundSubmix->WetLevelModulation.Modulator;
-				USoundModulatorBase* DryLevelModulator = SoundSubmix->DryLevelModulation.Modulator;
+				TSet<TObjectPtr<USoundModulatorBase>> VolumeModulator = SoundSubmix->OutputVolumeModulation.Modulators;
+				TSet<TObjectPtr<USoundModulatorBase>> WetLevelModulator = SoundSubmix->WetLevelModulation.Modulators;
+				TSet<TObjectPtr<USoundModulatorBase>> DryLevelModulator = SoundSubmix->DryLevelModulation.Modulators;
 
 				// Queue this up to happen after submix init, when the mixer device has finished being added to the device manager
-				SubmixCommand([this, VolumeModulator, WetLevelModulator, DryLevelModulator]()
+				SubmixCommand([this, VolMod = MoveTemp(VolumeModulator), WetMod = MoveTemp(WetLevelModulator), DryMod = MoveTemp(DryLevelModulator)]() mutable
 				{
-					UpdateModulationSettings(VolumeModulator, WetLevelModulator, DryLevelModulator);
+					UpdateModulationSettings(VolMod, WetMod, DryMod);
 				});
 			}
 			if (SoundSubmix->AudioLinkSettings)
@@ -2310,11 +2310,11 @@ namespace Audio
 		WetLevelModifier = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
 	}
 
-	void FMixerSubmix::UpdateModulationSettings(USoundModulatorBase* InOutputModulator, USoundModulatorBase* InWetLevelModulator, USoundModulatorBase* InDryLevelModulator)
+	void FMixerSubmix::UpdateModulationSettings(const TSet<TObjectPtr<USoundModulatorBase>>& InOutputModulators, const TSet<TObjectPtr<USoundModulatorBase>>& InWetLevelModulators, const TSet<TObjectPtr<USoundModulatorBase>>& InDryLevelModulators)
 	{
-		VolumeMod.UpdateModulator(InOutputModulator);
-		WetLevelMod.UpdateModulator(InWetLevelModulator);
-		DryLevelMod.UpdateModulator(InDryLevelModulator);
+		VolumeMod.UpdateModulators(InOutputModulators);
+		WetLevelMod.UpdateModulators(InWetLevelModulators);
+		DryLevelMod.UpdateModulators(InDryLevelModulators);
 	}
 
 	void FMixerSubmix::SetModulationBaseLevels(float InVolumeModBaseDb, float InWetModBaseDb, float InDryModBaseDb)

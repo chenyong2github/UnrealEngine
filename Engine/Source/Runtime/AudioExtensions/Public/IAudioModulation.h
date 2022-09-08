@@ -136,6 +136,21 @@ namespace Audio
 		bool GetValueThreadSafe(float& OutValue) const;
 		bool IsValid() const;
 
+		friend FORCEINLINE uint32 GetTypeHash(const FModulatorHandle& InModulatorHandle)
+		{
+			return HashCombineFast(InModulatorHandle.HandleId, InModulatorHandle.ModulatorId);
+		}
+
+		FORCEINLINE bool operator==(const FModulatorHandle& Other) const
+		{
+			return HandleId == Other.HandleId && ModulatorId == Other.ModulatorId;
+		}
+
+		FORCEINLINE bool operator!=(const FModulatorHandle& Other) const
+		{
+			return !(*this == Other);
+		}
+
 	private:
 		FModulationParameter Parameter;
 		FModulatorHandleId HandleId = INDEX_NONE;
@@ -149,43 +164,40 @@ class AUDIOEXTENSIONS_API IAudioModulationManager : public TSharedFromThis<IAudi
 {
 public:
 	/** Virtual destructor */
-	virtual ~IAudioModulationManager() { }
+	virtual ~IAudioModulationManager() = default;
 
 	/** Initialize the modulation plugin with the same rate and number of sources */
-	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
+	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) = 0;
 
-	virtual void OnAuditionEnd() { }
+	virtual void OnAuditionEnd() = 0;
 
 #if !UE_BUILD_SHIPPING
 	/** Request to post help from active plugin (non-shipping builds only) */
-	virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; };
+	virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) = 0; 
 
 	/** Render stats pertaining to modulation (non-shipping builds only) */
-	virtual int32 OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) { return Y; }
+	virtual int32 OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) = 0;
 
 	/** Toggle showing render stats pertaining to modulation (non-shipping builds only) */
-	virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
+	virtual bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) = 0;
 #endif //!UE_BUILD_SHIPPING
 
-	/** Processes audio with the given input and output data structs.*/
-	virtual void ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData) { }
-
 	/** Processes all modulators Run on the audio render thread prior to processing audio */
-	virtual void ProcessModulators(const double InElapsed) { }
+	virtual void ProcessModulators(const double InElapsed) = 0;
 
 	/** Updates modulator definition on the AudioRender Thread with that provided by the UObject representation */
-	virtual void UpdateModulator(const USoundModulatorBase& InModulator) { }
+	virtual void UpdateModulator(const USoundModulatorBase& InModulator) = 0;
 
 protected:
-	virtual void RegisterModulator(uint32 InHandleId, Audio::FModulatorId InModulatorId) { }
+	virtual void RegisterModulator(uint32 InHandleId, Audio::FModulatorId InModulatorId) = 0;
 
 	// Get the modulator value from the AudioRender Thread
-	virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const { return false; }
+	virtual bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const = 0;
 
 	// Get the modulator value from any thread.
-	virtual bool GetModulatorValueThreadSafe(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const { return false; }
+	virtual bool GetModulatorValueThreadSafe(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const = 0;
 
-	virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) { }
+	virtual void UnregisterModulator(const Audio::FModulatorHandle& InHandle) = 0;
 
 	friend Audio::FModulatorHandle;
 };

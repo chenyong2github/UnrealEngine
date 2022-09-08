@@ -918,6 +918,11 @@ void USoundWave::Serialize( FArchive& Ar )
 		VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 	}
 
+	if (Ar.IsLoading())
+	{
+		ModulationSettings.VersionModulators();
+	}
+
 	// If we have deprecated properties with data, migrate the data to the new enum
 	if (bUseBinkAudio || bSeekableStreaming)
 	{

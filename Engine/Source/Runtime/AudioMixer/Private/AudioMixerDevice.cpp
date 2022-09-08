@@ -1453,15 +1453,15 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation)
+	void FMixerDevice::UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, const TSet<TObjectPtr<USoundModulatorBase>>& InOutputModulation, const TSet<TObjectPtr<USoundModulatorBase>>& InWetLevelModulation, const TSet<TObjectPtr<USoundModulatorBase>>& InDryLevelModulation)
 	{
 		if (!IsInAudioThread())
 		{
 			FMixerDevice* MixerDevice = this;
 
-			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation]() 
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, OutMod = InOutputModulation, WetMod = InWetLevelModulation, DryMod = InDryLevelModulation]()
 			{
-				MixerDevice->UpdateSubmixModulationSettings(InSoundSubmix, InOutputModulation, InWetLevelModulation, InDryLevelModulation);
+				MixerDevice->UpdateSubmixModulationSettings(InSoundSubmix, OutMod, WetMod, DryMod);
 			});
 			return;
 		}
@@ -1472,11 +1472,7 @@ namespace Audio
 
 			if (MixerSubmixPtr.IsValid())
 			{
-				USoundModulatorBase* VolumeMod = InOutputModulation;
-				USoundModulatorBase* WetMod = InOutputModulation;
-				USoundModulatorBase* DryMod = InOutputModulation;
-
-				AudioRenderThreadCommand([MixerSubmixPtr, VolumeMod, WetMod, DryMod]()
+				AudioRenderThreadCommand([MixerSubmixPtr, VolumeMod = InOutputModulation, WetMod = InOutputModulation, DryMod = InOutputModulation]()
 				{
 					MixerSubmixPtr->UpdateModulationSettings(VolumeMod, WetMod, DryMod);
 				});

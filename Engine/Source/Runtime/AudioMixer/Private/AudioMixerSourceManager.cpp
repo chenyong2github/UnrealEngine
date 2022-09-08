@@ -746,19 +746,19 @@ namespace Audio
 
 		FModulationDestination VolumeMod;
 		VolumeMod.Init(MixerDevice->DeviceID, FName("Volume"), false /* bInIsBuffered */, true /* bInValueLinear */);
-		VolumeMod.UpdateModulator(InitParams.ModulationSettings.VolumeModulationDestination.Modulator);
+		VolumeMod.UpdateModulators(InitParams.ModulationSettings.VolumeModulationDestination.Modulators);
 
 		FModulationDestination PitchMod;
 		PitchMod.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
-		PitchMod.UpdateModulator(InitParams.ModulationSettings.PitchModulationDestination.Modulator);
+		PitchMod.UpdateModulators(InitParams.ModulationSettings.PitchModulationDestination.Modulators);
 
 		FModulationDestination HighpassMod;
 		HighpassMod.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
-		HighpassMod.UpdateModulator(InitParams.ModulationSettings.HighpassModulationDestination.Modulator);
+		HighpassMod.UpdateModulators(InitParams.ModulationSettings.HighpassModulationDestination.Modulators);
 
 		FModulationDestination LowpassMod;
 		LowpassMod.Init(MixerDevice->DeviceID, FName("LPFCutoffFrequency"), false /* bInIsBuffered */);
-		LowpassMod.UpdateModulator(InitParams.ModulationSettings.LowpassModulationDestination.Modulator);
+		LowpassMod.UpdateModulators(InitParams.ModulationSettings.LowpassModulationDestination.Modulators);
 
 		AudioMixerThreadCommand([
 			this,

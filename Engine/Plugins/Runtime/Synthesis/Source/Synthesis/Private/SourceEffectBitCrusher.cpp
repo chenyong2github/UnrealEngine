@@ -2,6 +2,7 @@
 
 #include "SourceEffects/SourceEffectBitCrusher.h"
 
+#include "Algo/Transform.h"
 #include "IAudioModulation.h"
 
 
@@ -15,8 +16,15 @@ void FSourceEffectBitCrusher::Init(const FSoundEffectSourceInitData& InitData)
 		BitMod.Init(InitData.AudioDeviceId, FName("BitDepth"), false /* bInIsBuffered */);
 		SampleRateMod.Init(InitData.AudioDeviceId, FName("SampleRate"), false /* bInIsBuffered */);
 
-		SetBitModulator(ProcPreset->Settings.BitModulation.Modulator);
-		SetSampleRateModulator(ProcPreset->Settings.SampleRateModulation.Modulator);
+		auto TransformObjectPtrSet = [](const TSet<TObjectPtr<USoundModulatorBase>>& InPtrs)
+		{
+			TSet<USoundModulatorBase*> Objects;
+			Algo::Transform(InPtrs, Objects, [](const TObjectPtr<USoundModulatorBase>& Obj) { return Obj; });
+			return Objects;
+		};
+
+		SetBitModulators(TransformObjectPtrSet(ProcPreset->Settings.BitModulation.Modulators));
+		SetSampleRateModulators(TransformObjectPtrSet(ProcPreset->Settings.SampleRateModulation.Modulators));
 	}
 }
 
@@ -44,18 +52,35 @@ void FSourceEffectBitCrusher::ProcessAudio(const FSoundEffectSourceInputData& In
 
 void FSourceEffectBitCrusher::SetBitModulator(const USoundModulatorBase* InModulator)
 {
-	BitMod.UpdateModulator(InModulator);
+	BitMod.UpdateModulators({ InModulator });
+}
+
+void FSourceEffectBitCrusher::SetBitModulators(const TSet<USoundModulatorBase*>& InModulators)
+{
+	BitMod.UpdateModulators(InModulators);
 }
 
 void FSourceEffectBitCrusher::SetSampleRateModulator(const USoundModulatorBase* InModulator)
 {
-	SampleRateMod.UpdateModulator(InModulator);
+	SampleRateMod.UpdateModulators({ InModulator });
+}
+
+void FSourceEffectBitCrusher::SetSampleRateModulators(const TSet<USoundModulatorBase*>& InModulators)
+{
+	SampleRateMod.UpdateModulators(InModulators);
 }
 
 void USourceEffectBitCrusherPreset::OnInit()
 {
-	SetBitModulator(Settings.BitModulation.Modulator);
-	SetSampleRateModulator(Settings.SampleRateModulation.Modulator);
+	auto TransformObjectPtrSet = [](const TSet<TObjectPtr<USoundModulatorBase>>& InPtrs)
+	{
+		TSet<USoundModulatorBase*> Objects;
+		Algo::Transform(InPtrs, Objects, [](const TObjectPtr<USoundModulatorBase>& Obj) { return Obj; });
+		return Objects;
+	};
+
+	SetBitModulators(TransformObjectPtrSet(Settings.BitModulation.Modulators));
+	SetSampleRateModulators(TransformObjectPtrSet(Settings.SampleRateModulation.Modulators));
 }
 
 void USourceEffectBitCrusherPreset::Serialize(FArchive& Ar)
@@ -96,6 +121,14 @@ void USourceEffectBitCrusherPreset::SetBitModulator(const USoundModulatorBase* I
 	});
 }
 
+void USourceEffectBitCrusherPreset::SetBitModulators(const TSet<USoundModulatorBase*>& InModulators)
+{
+	IterateEffects<FSourceEffectBitCrusher>([&InModulators](FSourceEffectBitCrusher& InCrusher)
+	{
+		InCrusher.SetBitModulators(InModulators);
+	});
+}
+
 void USourceEffectBitCrusherPreset::SetSampleRate(float InSampleRate)
 {
 	UpdateSettings([NewSampleRate = InSampleRate](FSourceEffectBitCrusherSettings& OutSettings)
@@ -109,6 +142,14 @@ void USourceEffectBitCrusherPreset::SetSampleRateModulator(const USoundModulator
 	IterateEffects<FSourceEffectBitCrusher>([InModulator](FSourceEffectBitCrusher& InCrusher)
 	{
 		InCrusher.SetSampleRateModulator(InModulator);
+	});
+}
+
+void USourceEffectBitCrusherPreset::SetSampleRateModulators(const TSet<USoundModulatorBase*>& InModulators)
+{
+	IterateEffects<FSourceEffectBitCrusher>([&InModulators](FSourceEffectBitCrusher& InCrusher)
+	{
+		InCrusher.SetSampleRateModulators(InModulators);
 	});
 }
 

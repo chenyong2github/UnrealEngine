@@ -2,11 +2,15 @@
 
 #include "Sound/SoundModulationDestination.h"
 
+#include "Algo/NoneOf.h"
+#include "Algo/Transform.h"
 #include "Async/Async.h"
 #include "AudioDevice.h"
 #include "DSP/FloatArrayMath.h"
+#include "IAudioModulation.h"
 #include "Math/TransformCalculus.h"
 #include "UObject/Object.h"
+#include "GenericPlatform/GenericPlatformCompilerPreSetup.h"
 
 
 FSoundModulationDefaultSettings::FSoundModulationDefaultSettings()
@@ -17,10 +21,35 @@ FSoundModulationDefaultSettings::FSoundModulationDefaultSettings()
 	LowpassModulationDestination.Value = MAX_FILTER_FREQUENCY;
 }
 
+#if WITH_EDITORONLY_DATA
+void FSoundModulationDefaultSettings::VersionModulators()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	VolumeModulationDestination.VersionModulators();
+	PitchModulationDestination.VersionModulators();
+	HighpassModulationDestination.VersionModulators();
+	LowpassModulationDestination.VersionModulators();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FSoundModulationDestinationSettings::VersionModulators()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (Modulator)
+	{
+		Modulators.Add(Modulator);
+		Modulator = nullptr;
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif // WITH_EDITORONLY_DATA
+
+
 FSoundModulationDefaultRoutingSettings::FSoundModulationDefaultRoutingSettings()
 	: FSoundModulationDefaultSettings()
 {
 }
+
 
 namespace Audio
 {
@@ -30,10 +59,10 @@ namespace Audio
 		, bIsBuffered(InModulationDestination.bIsBuffered)
 		, bValueNormalized(InModulationDestination.bValueNormalized)
 		, OutputBuffer(InModulationDestination.OutputBuffer)
-		, ParameterName(InModulationDestination.ParameterName)
+		, Parameter(InModulationDestination.Parameter)
 	{
 		FScopeLock OtherLock(&InModulationDestination.HandleCritSection);
-		Handle = InModulationDestination.Handle;
+		Handles = InModulationDestination.Handles;
 	}
 
 	FModulationDestination::FModulationDestination(FModulationDestination&& InModulationDestination)
@@ -42,10 +71,10 @@ namespace Audio
 		, bIsBuffered(MoveTemp(InModulationDestination.bIsBuffered))
 		, bValueNormalized(MoveTemp(InModulationDestination.bValueNormalized))
 		, OutputBuffer(MoveTemp(InModulationDestination.OutputBuffer))
-		, ParameterName(MoveTemp(InModulationDestination.ParameterName))
+		, Parameter(MoveTemp(InModulationDestination.Parameter))
 	{
 		FScopeLock OtherLock(&InModulationDestination.HandleCritSection);
-		Handle = MoveTemp(InModulationDestination.Handle);
+		Handles = MoveTemp(InModulationDestination.Handles);
 	}
 
 	FModulationDestination& FModulationDestination::operator=(const FModulationDestination& InModulationDestination)
@@ -58,11 +87,11 @@ namespace Audio
 
 		{
 			FScopeLock OtherLock(&InModulationDestination.HandleCritSection);
-			SetHandle(InModulationDestination.Handle);
+			FScopeLock Lock(&HandleCritSection);
+			Handles = InModulationDestination.Handles;
 		}
-			
-		ParameterName = InModulationDestination.ParameterName;
 
+		Parameter = InModulationDestination.Parameter;
 
 		return *this;
 	}
@@ -78,21 +107,21 @@ namespace Audio
 		{
 			FScopeLock OtherLock(&InModulationDestination.HandleCritSection);
 			FScopeLock Lock(&HandleCritSection);
-			Handle = MoveTemp(InModulationDestination.Handle);
+			Handles = MoveTemp(InModulationDestination.Handles);
 		}
 
-
-		ParameterName = MoveTemp(InModulationDestination.ParameterName);
+		Parameter = MoveTemp(InModulationDestination.Parameter);
 
 		return *this;
 	}
 
-	void FModulationDestination::ResetHandle()
+	void FModulationDestination::ResetHandles()
 	{
-		Audio::FModulationParameter Parameter = Audio::GetModulationParameter(ParameterName);
+		Audio::FModulationParameter ParameterCopy = Parameter;
 
 		FScopeLock Lock(&HandleCritSection);
-		Handle = FModulatorHandle(MoveTemp(Parameter));
+		Handles.Reset();
+		Handles.Add(FModulatorHandle { MoveTemp(ParameterCopy) });
 	}
 
 	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueNormalized)
@@ -107,15 +136,15 @@ namespace Audio
 		bValueNormalized = bInValueNormalized;
 
 		OutputBuffer.Reset();
-		ParameterName = InParameterName;
+		Parameter = Audio::GetModulationParameter(InParameterName);
 
-		ResetHandle();
+		ResetHandles();
 	}
 
 	bool FModulationDestination::IsActive()
 	{
 		FScopeLock Lock(&HandleCritSection);
-		return Handle.IsValid();
+		return Algo::NoneOf(Handles, [](const FModulatorHandle& Handle) { return Handle.IsValid(); });
 	}
 
 	bool FModulationDestination::ProcessControl(float InValueUnitBase, int32 InNumSamples)
@@ -123,36 +152,40 @@ namespace Audio
 		bHasProcessed = true;
 		float LastTarget = ValueTarget;
 
+		float NewTargetNormalized = Parameter.DefaultValue;
+		if (Parameter.bRequiresConversion)
+		{
+			Parameter.NormalizedFunction(NewTargetNormalized);
+		}
+
 		FScopeLock Lock(&HandleCritSection);
 		{
-			const FModulationParameter& Parameter = Handle.GetParameter();
-			float NewTargetNormalized = Parameter.DefaultValue;
-			if (Parameter.bRequiresConversion)
+			for (const FModulatorHandle& Handle : Handles)
 			{
-				Parameter.NormalizedFunction(NewTargetNormalized);
+				if (Handle.IsValid())
+				{
+					float NewHandleValue = 1.0f;
+					Handle.GetValue(NewHandleValue);
+					Parameter.MixFunction(NewTargetNormalized, NewHandleValue);
+				}
 			}
+		}
 
-			if (Handle.IsValid())
-			{
-				Handle.GetValue(NewTargetNormalized);
-			}
+		// Convert base to linear space
+		float InValueBaseNormalized = InValueUnitBase;
+		if (Parameter.bRequiresConversion)
+		{
+			Parameter.NormalizedFunction(InValueBaseNormalized);
+		}
 
-			// Convert base to linear space
-			float InValueBaseNormalized = InValueUnitBase;
-			if (Parameter.bRequiresConversion)
-			{
-				Parameter.NormalizedFunction(InValueBaseNormalized);
-			}
+		// Mix in base value
+		Parameter.MixFunction(NewTargetNormalized, InValueBaseNormalized);
+		ValueTarget = NewTargetNormalized;
 
-			// Mix in base value
-			Parameter.MixFunction(NewTargetNormalized, InValueBaseNormalized);
-			ValueTarget = NewTargetNormalized;
-
-			// Convert target to unit space if required
-			if (Parameter.bRequiresConversion && !bValueNormalized)
-			{
-				Parameter.UnitFunction(ValueTarget);
-			}
+		// Convert target to unit space if required
+		if (Parameter.bRequiresConversion && !bValueNormalized)
+		{
+			Parameter.UnitFunction(ValueTarget);
 		}
 
 		if (bIsBuffered)
@@ -201,27 +234,53 @@ namespace Audio
 		return !FMath::IsNearlyEqual(LastTarget, ValueTarget);
 	}
 
-	void FModulationDestination::SetHandle(const FModulatorHandle& InHandle)
-	{
-		FScopeLock Lock(&HandleCritSection);
-		Handle = InHandle;
-	}
-
-	void FModulationDestination::SetHandle(FModulatorHandle&& InHandle)
-	{
-		FScopeLock Lock(&HandleCritSection);
-		Handle = MoveTemp(InHandle);
-	}
-
 	void FModulationDestination::UpdateModulator(const USoundModulatorBase* InModulator)
 	{
-		if (!InModulator)
-		{
-			return;
-		}
+		UpdateModulators({ InModulator });
+	}
 
-		Audio::FModulationParameter OutputParam = Audio::GetModulationParameter(ParameterName);
-		auto UpdateHandleLambda = [this, ModSettings = InModulator->CreateProxySettings(), Parameter = MoveTemp(OutputParam)]() mutable
+	void FModulationDestination::UpdateModulators(const TSet<TObjectPtr<USoundModulatorBase>>& InModulators)
+	{
+		TArray<TUniquePtr<Audio::IModulatorSettings>> ProxySettings;
+		Algo::TransformIf(
+			InModulators,
+			ProxySettings,
+			[](const USoundModulatorBase* Mod) { return Mod != nullptr; },
+			[](const USoundModulatorBase* Mod) { return Mod->CreateProxySettings(); }
+		);
+
+		UpdateModulatorsInternal(MoveTemp(ProxySettings));
+	}
+
+	void FModulationDestination::UpdateModulators(const TSet<USoundModulatorBase*>& InModulators)
+	{
+		TArray<TUniquePtr<Audio::IModulatorSettings>> ProxySettings;
+		Algo::TransformIf(
+			InModulators,
+			ProxySettings,
+			[](const USoundModulatorBase* Mod) { return Mod != nullptr; },
+			[](const USoundModulatorBase* Mod) { return Mod->CreateProxySettings(); }
+		);
+
+		UpdateModulatorsInternal(MoveTemp(ProxySettings));
+	}
+
+	void FModulationDestination::UpdateModulators(const TSet<const USoundModulatorBase*>& InModulators)
+	{
+		TArray<TUniquePtr<Audio::IModulatorSettings>> ProxySettings;
+		Algo::TransformIf(
+			InModulators,
+			ProxySettings,
+			[](const USoundModulatorBase* Mod) { return Mod != nullptr; },
+			[](const USoundModulatorBase* Mod) { return Mod->CreateProxySettings(); }
+		);
+
+		UpdateModulatorsInternal(MoveTemp(ProxySettings));
+	}
+
+	void FModulationDestination::UpdateModulatorsInternal(TArray<TUniquePtr<Audio::IModulatorSettings>>&& ProxySettings)
+	{
+		auto UpdateHandleLambda = [this, ModSettings = MoveTemp(ProxySettings)]() mutable
 		{
 			if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
 			{
@@ -229,14 +288,21 @@ namespace Audio
 				{
 					if (IAudioModulationManager* Modulation = AudioDevice->ModulationInterface.Get())
 					{
-						check(ModSettings.IsValid());
-						SetHandle(FModulatorHandle(*Modulation, *ModSettings.Get(), MoveTemp(Parameter)));
+						TSet<FModulatorHandle> NewHandles;
+						for (TUniquePtr<Audio::IModulatorSettings>& ModSetting : ModSettings)
+						{
+							Audio::FModulationParameter HandleParam = Parameter;
+							NewHandles.Add(FModulatorHandle{ *Modulation, *ModSetting.Get(), MoveTemp(HandleParam) });
+						}
+
+						FScopeLock Lock(&HandleCritSection);
+						Handles = MoveTemp(NewHandles);
 					}
 					return;
 				}
 			}
 
-			ResetHandle();
+			ResetHandles();
 		};
 
 		FAudioThread::RunCommandOnAudioThread(MoveTemp(UpdateHandleLambda));

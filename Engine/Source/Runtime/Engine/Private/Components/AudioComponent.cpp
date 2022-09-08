@@ -186,6 +186,8 @@ void UAudioComponent::Serialize(FArchive& Ar)
 			ConcurrencySet.Add(ConcurrencySettings_DEPRECATED);
 			ConcurrencySettings_DEPRECATED = nullptr;
 		}
+
+		ModulationRouting.VersionModulators();
 	}
 #endif // WITH_EDITORONLY_DATA
 }

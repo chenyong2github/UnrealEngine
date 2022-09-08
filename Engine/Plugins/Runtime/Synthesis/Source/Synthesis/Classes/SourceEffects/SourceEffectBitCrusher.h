@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Set.h"
 #include "DSP/BitCrusher.h"
 #include "Sound/SoundEffectSource.h"
 #include "Sound/SoundModulationDestination.h"
@@ -63,9 +64,11 @@ public:
 	// Process the input block of audio. Called on audio thread.
 	virtual void ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData) override;
 
-	void SetSampleRateModulator(const USoundModulatorBase* Modulator);
-
 	void SetBitModulator(const USoundModulatorBase* Modulator);
+	void SetBitModulators(const TSet<USoundModulatorBase*>& InModulators);
+
+	void SetSampleRateModulator(const USoundModulatorBase* Modulator);
+	void SetSampleRateModulators(const TSet<USoundModulatorBase*>& InModulators);
 
 protected:
 	Audio::FBitCrusher BitCrusher;
@@ -97,10 +100,16 @@ public:
 	void SetBitModulator(const USoundModulatorBase* Modulator);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|BitCrusher")
+	void SetBitModulators(const TSet<USoundModulatorBase*>& InModulators);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|BitCrusher")
 	void SetSampleRate(float SampleRate);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|BitCrusher")
 	void SetSampleRateModulator(const USoundModulatorBase* Modulator);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|BitCrusher")
+	void SetSampleRateModulators(const TSet<USoundModulatorBase*>& InModulators);
 
 	// Sets just base (i.e. carrier) setting values without modifying modulation source references
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects|BitCrusher")
