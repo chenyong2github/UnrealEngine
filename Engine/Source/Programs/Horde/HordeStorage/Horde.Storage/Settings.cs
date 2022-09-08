@@ -130,6 +130,7 @@ namespace Horde.Storage
     public class FilesystemSettings
     {
         [Required] public string RootDir { get; set; } = "";
+        public bool RunCleanup { get; set; } = false;
         public ulong MaxSizeBytes { get; set; } = 500 * 1024 * 1024;
         public double TriggerThresholdPercentage { get; set; } = 0.95;
         public double TargetThresholdPercentage { get; set; } = 0.85;
