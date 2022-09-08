@@ -104,5 +104,4 @@ void CleanupTaskGraphAndDependencies()
 void CleanupPlatform()
 {
 	FPlatformMisc::PlatformTearDown();
-	FGenericPlatformMisc::RequestExit(false);
 }

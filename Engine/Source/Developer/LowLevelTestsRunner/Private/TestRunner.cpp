@@ -228,10 +228,6 @@ namespace UE::LowLevelTests
 			if (ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName))
 			{
 				Module->GlobalTeardown();
-				if (Module->SupportsAutomaticShutdown())
-				{
-					Module->ShutdownModule();
-				}
 			}
 		}
 
@@ -285,6 +281,8 @@ int RunTests(int32 ArgC, const ANSICHAR* ArgV[])
 	{
 		TestRunner.GlobalTeardown();
 		TestRunner.Terminate();
+		RequestEngineExit(TEXT("Exiting"));
+		FModuleManager::Get().UnloadModulesAtShutdown();
 	};
 
 	return TestRunner.RunCatchSession();
