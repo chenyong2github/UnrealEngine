@@ -82,6 +82,17 @@ enum class ESceneTextureExtracts : uint32
 	All = Depth | CustomDepth
 };
 
+struct FSceneTexturesConfigInitSettings
+{
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+	FIntPoint Extent = FIntPoint::ZeroValue;
+	bool bRequireMultiView = false;
+	bool bRequiresAlphaChannel = false;
+	bool bSupportsXRTargetManagerDepthAlloc = false;
+	ETextureCreateFlags ExtraSceneColorCreateFlags = ETextureCreateFlags::None;
+	ETextureCreateFlags ExtraSceneDepthCreateFlags = ETextureCreateFlags::None;
+};
+
 /** Struct containing the scene texture configuration used to create scene textures.  Use InitializeViewFamily to initialize the
  *  SceneTexturesConfig structure in the FViewFamilyInfo.  A global singleton instance is maintained manually with static Set / Get
  *  functions, but will soon be deprecated, in preference of using the structure from the FViewFamilyInfo.
@@ -109,6 +120,9 @@ struct ENGINE_API FSceneTexturesConfig
 		, bMemorylessMSAA{}
 		, bSupportsXRTargetManagerDepthAlloc{}
 	{}
+
+	void Init(const FSceneTexturesConfigInitSettings& InitSettings);
+	uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const;
 
 	FORCEINLINE bool IsValid() const
 	{
@@ -140,6 +154,10 @@ struct ENGINE_API FSceneTexturesConfig
 
 	// Pixel format to use when creating scene color.
 	EPixelFormat ColorFormat = PF_Unknown;
+
+	// Create flags when creating scene color / depth textures
+	ETextureCreateFlags ColorCreateFlags = ETextureCreateFlags::None;
+	ETextureCreateFlags DepthCreateFlags = ETextureCreateFlags::None;
 
 	// Optimized clear values to use for color / depth textures.
 	FClearValueBinding ColorClearValue = FClearValueBinding::Black;

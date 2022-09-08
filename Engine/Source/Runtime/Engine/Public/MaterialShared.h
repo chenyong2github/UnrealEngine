@@ -29,6 +29,7 @@
 #include "VirtualTexturing.h"
 #include "Templates/UnrealTemplate.h"
 #include "ShaderCompilerCore.h"
+#include "PSOPrecache.h"
 
 #include "Shader/Preshader.h"
 
@@ -1200,7 +1201,7 @@ public:
 	
 	FMaterialShaderMap* AcquireFinalizedClone();
 	FMaterialShaderMap* GetFinalizedClone() const;
-	
+
 
 	// ShaderMap interface
 	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const
@@ -1250,6 +1251,11 @@ public:
 	 * @return True if the shader map has all of the shader types necessary.
 	 */
 	bool IsComplete(const FMaterial* Material, bool bSilent);
+
+	/**
+	 * Collect all possible PSO's  which can be used with this material shader map for given parameters - PSOs will be async precached
+	 */
+	FGraphEventArray CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FMaterial* Material, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams);
 
 #if WITH_EDITOR
 	/** Attempts to load missing shaders from memory. */
@@ -1626,7 +1632,7 @@ extern ENGINE_API bool CanConnectMaterialValueTypes(const uint32 InputType, cons
  */
 class FMaterial
 {
-public:
+public:	
 #if UE_CHECK_FMATERIAL_LIFETIME
 	ENGINE_API uint32 AddRef() const;
 	ENGINE_API uint32 Release() const;
@@ -1784,6 +1790,11 @@ public:
 	 */
 	ENGINE_API void CacheGivenTypes(EShaderPlatform ShaderPlatform, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*>& PipelineTypes, const TArray<const FShaderType*>& ShaderTypes);
 #endif
+
+	/**
+	 * Collect all possible PSO's  which can be used with this material for given parameters - PSOs will be async precached
+	 */
+	ENGINE_API FGraphEventArray CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams);
 
 	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
@@ -2076,6 +2087,7 @@ public:
 	ENGINE_API bool MaterialMayModifyMeshPosition() const;
 
 	/** Get the runtime virtual texture output attribute mask for the material. */
+	ENGINE_API uint8 GetRuntimeVirtualTextureOutputAttibuteMask_GameThread() const;
 	ENGINE_API uint8 GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const;
 
 	ENGINE_API bool MaterialUsesAnisotropy_GameThread() const;
@@ -2374,6 +2386,33 @@ private:
 	/** Set when the owner of this FMaterial (typically a UMaterial or UMaterialInstance) has had BeginDestroy() called */
 	uint32 bOwnerBeginDestroyed : 1;
 #endif // UE_CHECK_FMATERIAL_LIFETIME
+
+	/**
+	 * Keep track which VertexFactory/Precache params have already been requested for this material
+	 */
+	struct FPrecacheVertexTypeWithParams
+	{
+		const FVertexFactoryType* VertexFactoryType;
+		FPSOPrecacheParams PrecachePSOParams;
+
+		bool operator==(const FPrecacheVertexTypeWithParams& Other) const
+		{
+			return VertexFactoryType == Other.VertexFactoryType &&
+				PrecachePSOParams == Other.PrecachePSOParams;
+		}
+
+		bool operator!=(const FPrecacheVertexTypeWithParams& rhs) const
+		{
+			return !(*this == rhs);
+		}
+
+		friend uint32 GetTypeHash(const FPrecacheVertexTypeWithParams& Params)
+		{
+			return HashCombine(GetTypeHash(Params.PrecachePSOParams), GetTypeHash(Params.VertexFactoryType));
+		}
+	};
+	FRWLock PrecachePSOVFLock;
+	TArray<FPrecacheVertexTypeWithParams> PrecachedPSOVertexFactories;
 
 	/**
 	* Compiles this material for Platform, storing the result in OutShaderMap if the compile was synchronous

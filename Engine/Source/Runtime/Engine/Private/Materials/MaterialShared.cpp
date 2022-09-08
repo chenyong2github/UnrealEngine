@@ -1076,6 +1076,11 @@ uint8 FMaterial::GetCustomDepthStencilUsageMask_GameThread() const
 	return CustomDepthStencilUsageMask;
 }
 
+uint8 FMaterial::GetRuntimeVirtualTextureOutputAttibuteMask_GameThread() const
+{
+	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->GetRuntimeVirtualTextureOutputAttributeMask() : 0;
+}
+
 uint8 FMaterial::GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const
 {
 	check(IsInParallelRenderingThread());
@@ -2622,6 +2627,61 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #if WITH_EDITOR
 }; // Close the lambda
 #endif
+}
+
+FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams)
+{
+	FGraphEventArray GraphEvents;
+
+	// Only care about inline shaders for now
+	if (!bContainsInlineShaders || GameThreadShaderMap == nullptr)
+	{
+		return GraphEvents;
+	}
+
+	TArray<const FVertexFactoryType*, TInlineAllocator<4>> MissingVFs;
+
+	// Try and find missing entries which still need to be precached
+	{
+		FRWScopeLock ReadLock(PrecachePSOVFLock, SLT_ReadOnly);
+		for (const FVertexFactoryType* VFType : VertexFactoryTypes)
+		{
+			FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
+			PrecacheVertexTypeWithParams.VertexFactoryType = VFType;
+			PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
+			if (!PrecachedPSOVertexFactories.Contains(PrecacheVertexTypeWithParams))
+			{
+				MissingVFs.Add(VFType);
+			}
+		}
+	}
+
+	if (MissingVFs.Num() > 0)
+	{
+		// Build array again with writing lock because we probably have missing entries
+		TArray<const FVertexFactoryType*, TInlineAllocator<4>> ActualMissingVFs;
+
+		{
+			// We possibly need to add
+			FRWScopeLock WriteLock(PrecachePSOVFLock, SLT_Write);
+
+			for (const FVertexFactoryType* VFType : MissingVFs)
+			{
+				FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
+				PrecacheVertexTypeWithParams.VertexFactoryType = VFType;
+				PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
+				if (PrecachedPSOVertexFactories.Contains(PrecacheVertexTypeWithParams))
+					continue;
+
+				ActualMissingVFs.Add(VFType);
+				PrecachedPSOVertexFactories.Add(PrecacheVertexTypeWithParams);
+			}
+		}
+
+		GraphEvents.Append(GameThreadShaderMap->CollectPSOs(InFeatureLevel, this, ActualMissingVFs, PreCacheParams));
+	}
+
+	return GraphEvents;
 }
 
 #if WITH_EDITOR

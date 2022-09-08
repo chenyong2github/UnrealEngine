@@ -402,6 +402,13 @@ public:
 		return ClearColor;
 	}
 
+	FORCEINLINE EPixelFormat GetFormat() const
+	{
+		return Format;
+	}
+
+	ETextureCreateFlags GetCreateFlags();
+
 	// FTextureRenderTargetResource interface
 
 	/** 

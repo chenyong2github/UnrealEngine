@@ -148,6 +148,9 @@ FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const 
 
 		switch (Target.TargetType)
 		{
+		case GBT_Unorm_16_16:
+			PixelFormat = PF_G16R16;
+			break;
 		case GBT_Unorm_8_8_8_8:
 			PixelFormat = PF_B8G8R8A8;
 			break;
@@ -157,8 +160,11 @@ FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const 
 		case GBT_Unorm_10_10_10_2:
 			PixelFormat = PF_A2B10G10R10;
 			break;
+		case GBT_Unorm_16_16_16_16:
+			PixelFormat = PF_A16B16G16R16;
+			break;
 		case GBT_Float_16_16:
-			PixelFormat = PF_G16R16;
+			PixelFormat = PF_G16R16F;
 			break;
 		case GBT_Float_16_16_16_16:
 			PixelFormat = PF_FloatRGBA;
@@ -270,7 +276,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 
 		if (Params.bHasVelocity)
 		{
-			Info.Targets[TargetVelocity].Init(Params.bUsesVelocityDepth ? GBT_Float_16_16_16_16 : GBT_Float_16_16, TEXT("Velocity"), false, true, true, false); // Velocity
+			Info.Targets[TargetVelocity].Init(Params.bUsesVelocityDepth ? GBT_Unorm_16_16_16_16 : (IsAndroidOpenGLESPlatform(Params.ShaderPlatform) ? GBT_Float_16_16 : GBT_Unorm_16_16), TEXT("Velocity"), false, true, true, false); // Velocity
 			Info.Slots[GBS_Velocity] = FGBufferItem(GBS_Velocity, Params.bUsesVelocityDepth ? GBC_Raw_Float_16_16_16_16 : GBC_Raw_Float_16_16, GBCH_Both);
 			Info.Slots[GBS_Velocity].Packing[0] = FGBufferPacking(TargetVelocity, 0, 0);
 			Info.Slots[GBS_Velocity].Packing[1] = FGBufferPacking(TargetVelocity, 1, 1);
@@ -363,7 +369,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		TargetGBufferD = 5;
 
 		// note the false for use extra flags for velocity, not quite sure of all the ramifications, but this keeps it consistent with previous usage
-		Info.Targets[4].Init(Params.bUsesVelocityDepth ? GBT_Float_16_16_16_16 : GBT_Float_16_16,   TEXT("Velocity"), false,  true,  true, false);
+		Info.Targets[4].Init(Params.bUsesVelocityDepth ? GBT_Unorm_16_16_16_16 : (IsAndroidOpenGLESPlatform(Params.ShaderPlatform) ? GBT_Float_16_16 : GBT_Unorm_16_16), TEXT("Velocity"), false, true, true, false);
 		Info.Targets[5].Init(GBT_Unorm_8_8_8_8, TEXT("GBufferD"), false, true, true, true);
 		TargetSeparatedMainDirLight = 6;
 

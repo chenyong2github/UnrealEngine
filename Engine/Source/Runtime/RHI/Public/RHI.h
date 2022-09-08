@@ -1256,6 +1256,16 @@ struct FVertexElement
 		bUseInstanceIndex = Other.bUseInstanceIndex;
 	}
 
+	bool operator==(const FVertexElement& Other) const
+	{
+		return (StreamIndex		== Other.StreamIndex &&
+				Offset			== Other.Offset &&
+				Type			== Other.Type &&
+				AttributeIndex	== Other.AttributeIndex &&
+				Stride			== Other.Stride &&
+				bUseInstanceIndex == Other.bUseInstanceIndex);
+	}
+
 	friend FArchive& operator<<(FArchive& Ar,FVertexElement& Element)
 	{
 		Ar << Element.StreamIndex;

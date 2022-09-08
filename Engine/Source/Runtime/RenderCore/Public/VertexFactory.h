@@ -121,7 +121,8 @@ enum class EVertexFactoryFlags : uint32
 	SupportsRayTracing                    = 1u << 9,
 	SupportsRayTracingDynamicGeometry     = 1u << 10,
 	SupportsRayTracingProceduralPrimitive = 1u << 11,
-	SupportsLightmapBaking                = 1u << 12
+	SupportsLightmapBaking                = 1u << 12,
+	SupportsPSOPrecaching				  = 1u << 13,
 };
 ENUM_CLASS_FLAGS(EVertexFactoryFlags);
 
@@ -401,6 +402,7 @@ public:
 		const struct FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const { (*GetParameterTypeElementShaderBindings)(ShaderFrequency, Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); }
+	void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements) const { }
 
 	EVertexFactoryFlags GetFlags() const
 	{
@@ -424,7 +426,8 @@ public:
 	bool SupportsRayTracing() const                    { return HasFlags(EVertexFactoryFlags::SupportsRayTracing); }
 	bool SupportsRayTracingDynamicGeometry() const     { return HasFlags(EVertexFactoryFlags::SupportsRayTracingDynamicGeometry); }
 	bool SupportsRayTracingProceduralPrimitive() const { return HasFlags(EVertexFactoryFlags::SupportsRayTracingProceduralPrimitive); }
-	bool SupportsLightmapBaking() const                { return HasFlags(EVertexFactoryFlags::SupportsLightmapBaking); }
+	bool SupportsLightmapBaking() const                { return HasFlags(EVertexFactoryFlags::SupportsLightmapBaking); }	
+	bool SupportsPSOPrecaching() const				   { return HasFlags(EVertexFactoryFlags::SupportsPSOPrecaching); }
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)

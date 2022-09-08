@@ -542,7 +542,29 @@ void UMaterialInterface::InitDefaultMaterials()
 				}
 			}
 		}
-		
+
+		// Now precache PSOs for all the default materials
+		if (PipelineStateCache::IsPSOPrecachingEnabled())
+		{
+			FPSOPrecacheParams PrecachePSOParams;
+			TArray<const FVertexFactoryType*> AllVertexFactoryTypes;
+			for (TLinkedList<FVertexFactoryType*>::TIterator It(FVertexFactoryType::GetTypeList()); It; It.Next())
+			{
+				AllVertexFactoryTypes.Add(*It);
+			}
+			for (int32 Domain = 0; Domain < MD_MAX; ++Domain)
+			{
+				if (GDefaultMaterials[Domain])
+				{
+					PrecachePSOParams.Mobility = EComponentMobility::Static;
+					GDefaultMaterials[Domain]->PrecachePSOs(AllVertexFactoryTypes, PrecachePSOParams);
+
+					PrecachePSOParams.Mobility = EComponentMobility::Movable;
+					GDefaultMaterials[Domain]->PrecachePSOs(AllVertexFactoryTypes, PrecachePSOParams);
+				}
+			}
+		}
+
 		RecursionLevel--;
 #if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
 		bInitialized = !GEventDrivenLoaderEnabled || RecursionLevel == 0;
@@ -2476,6 +2498,29 @@ bool UMaterial::IsComplete() const
 		}
 	}
 	return bComplete;
+}
+
+FGraphEventArray UMaterial::PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& InPreCacheParams)
+{
+	FGraphEventArray GraphEvents;
+	if (FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		// Assume post load has been called on the UMaterial already and material resources are created
+		check(MaterialResources.Num() > 0);
+
+		EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
+		while (FeatureLevelsToCompile != 0)
+		{
+			const ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
+			FMaterialResource* MaterialResource = FindMaterialResource(MaterialResources, FeatureLevel, ActiveQualityLevel, true/*bAllowDefaultMaterial*/);
+			if (MaterialResource)
+			{
+				GraphEvents.Append(MaterialResource->CollectPSOs(FeatureLevel, VertexFactoryTypes, InPreCacheParams));
+			}
+		}
+	}
+	return GraphEvents;
 }
 
 void UMaterial::ReleaseResourcesAndMutateDDCKey(const FGuid& TransformationId)

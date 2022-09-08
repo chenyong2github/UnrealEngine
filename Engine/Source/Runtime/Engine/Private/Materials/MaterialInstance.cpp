@@ -2098,7 +2098,7 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 	OutResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
 	StaticPermutationMaterialResources.Reset();
 #endif // STORE_ONLY_ACTIVE_SHADERMAPS
-
+	
 	if (bHasStaticPermutationResource && FApp::CanEverRender())
 	{
 		check(IsA(UMaterialInstanceConstant::StaticClass()));
@@ -2285,6 +2285,33 @@ void UMaterialInstance::BeginCacheShadersForResources(EShaderPlatform ShaderPlat
 void UMaterialInstance::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 {
 	InitStaticPermutation(CompileMode);
+}
+
+FGraphEventArray UMaterialInstance::PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& InPreCacheParams)
+{
+	FGraphEventArray GraphEvents;
+	if (FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled() && Parent)
+	{
+		if (bHasStaticPermutationResource)
+		{			
+			EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+			uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
+			while (FeatureLevelsToCompile != 0)
+			{
+				const ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
+				FMaterialResource* StaticPermutationResource = FindMaterialResource(StaticPermutationMaterialResources, FeatureLevel, ActiveQualityLevel, true/*bAllowDefaultMaterial*/);
+				if (StaticPermutationResource)
+				{
+					GraphEvents.Append(StaticPermutationResource->CollectPSOs(FeatureLevel, VertexFactoryTypes, InPreCacheParams));
+				}
+			}
+		}
+		else
+		{
+			GraphEvents = Parent->PrecachePSOs(VertexFactoryTypes, InPreCacheParams);
+		}
+	}
+	return GraphEvents;
 }
 
 #if WITH_EDITOR

@@ -6741,27 +6741,40 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 		int32 PermutationCountToCompile = 0;
 		for (int32 PermutationId = 0; PermutationId < GlobalShaderType->GetPermutationCount(); PermutationId++)
 		{
-			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, PermutationFlags)
-				&& (!GlobalShaderMap->HasShader(GlobalShaderType, PermutationId) || (OutdatedShaderTypes && OutdatedShaderTypes->Contains(GlobalShaderType))))
+			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, PermutationFlags))
 			{
-				if (bErrorOnMissing)
+				bool bOutdated = OutdatedShaderTypes && OutdatedShaderTypes->Contains(GlobalShaderType);
+				TShaderRef<FShader> GlobalShader = GlobalShaderMap->GetShader(GlobalShaderType, PermutationId);
+				if (bOutdated || !GlobalShader.IsValid())
 				{
-					UE_LOG(LogShaders, Fatal, TEXT("Missing global shader %s's permutation %i, Please make sure cooking was successful."),
-						GlobalShaderType->GetName(), PermutationId);
-				}
+					if (bErrorOnMissing)
+					{
+						UE_LOG(LogShaders, Fatal, TEXT("Missing global shader %s's permutation %i, Please make sure cooking was successful."),
+							GlobalShaderType->GetName(), PermutationId);
+					}
 
-				if (OutdatedShaderTypes)
+					if (OutdatedShaderTypes)
+					{
+						// Remove old shader, if it exists
+						GlobalShaderMap->RemoveShaderTypePermutaion(GlobalShaderType, PermutationId);
+					}
+
+					// Compile this global shader type.
+					FGlobalShaderTypeCompiler::BeginCompileShader(GlobalShaderType, PermutationId, Platform, PermutationFlags, GlobalShaderJobs);
+					//TShaderTypePermutation<const FShaderType> ShaderTypePermutation(GlobalShaderType, PermutationId);
+					//check(!SharedShaderJobs.Find(ShaderTypePermutation));
+					//SharedShaderJobs.Add(ShaderTypePermutation, Job);
+					PermutationCountToCompile++;
+				}
+				else if (GlobalShader.IsValid())
 				{
-					// Remove old shader, if it exists
-					GlobalShaderMap->RemoveShaderTypePermutaion(GlobalShaderType, PermutationId);
+					// try and precache if compute
+					if (GlobalShader->GetFrequency() == SF_Compute)
+					{
+						FRHIComputeShader* RHIComputeShader = GlobalShader.GetComputeShader();
+						PipelineStateCache::PrecacheComputePipelineState(RHIComputeShader);
+					}
 				}
-
-				// Compile this global shader type.
-				FGlobalShaderTypeCompiler::BeginCompileShader(GlobalShaderType, PermutationId, Platform, PermutationFlags, GlobalShaderJobs);
-				//TShaderTypePermutation<const FShaderType> ShaderTypePermutation(GlobalShaderType, PermutationId);
-				//check(!SharedShaderJobs.Find(ShaderTypePermutation));
-				//SharedShaderJobs.Add(ShaderTypePermutation, Job);
-				PermutationCountToCompile++;
 			}
 		}
 

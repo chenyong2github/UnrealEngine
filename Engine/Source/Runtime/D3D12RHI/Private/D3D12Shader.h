@@ -36,6 +36,7 @@ public:
 	}
 
 	virtual bool GetInitializer(FVertexDeclarationElementList& Init) final override;
+	virtual uint32 GetPrecachePSOHash() const final override { return HashNoStrides;  }
 };
 
 struct FD3D12ShaderData

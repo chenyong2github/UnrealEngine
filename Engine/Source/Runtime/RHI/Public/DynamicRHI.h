@@ -855,6 +855,12 @@ public:
 	virtual void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
 	{
 	}
+	
+	// Compute the hash of the PSO initializer for PSO Precaching (only hash data relevant for the RHI specific PSO)
+	virtual uint64 RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer);
+
+	// Check if PSO Initializers are the same used during PSO Precaching (only compare data relevant for the RHI specific PSO)
+	virtual bool RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateInitializer& LHS, const FGraphicsPipelineStateInitializer& RHS);
 
 	virtual void RHIAdvanceFrameFence() {};
 
@@ -1638,6 +1644,16 @@ FORCEINLINE IRHITransientResourceAllocator* RHICreateTransientResourceAllocator(
 FORCEINLINE void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
 {
 	GDynamicRHI->RHIGetDisplaysInformation(OutDisplayInformation);
+}
+
+FORCEINLINE uint64 RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)
+{
+	return GDynamicRHI->RHIComputePrecachePSOHash(Initializer);
+}
+
+FORCEINLINE bool RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateInitializer& LHS, const FGraphicsPipelineStateInitializer& RHS)
+{
+	return GDynamicRHI->RHIMatchPrecachePSOInitializers(LHS, RHS);
 }
 
 #if RHI_RAYTRACING

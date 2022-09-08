@@ -572,6 +572,29 @@ void FTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSizeY)
 	}	
 }
 
+ETextureCreateFlags FTextureRenderTarget2DResource::GetCreateFlags()
+{
+	// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
+	ETextureCreateFlags TexCreateFlags = Owner->IsSRGB() ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None;
+	TexCreateFlags |= Owner->bGPUSharedFlag ? ETextureCreateFlags::Shared : ETextureCreateFlags::None;
+	
+	if (Owner->bAutoGenerateMips)
+	{
+		TexCreateFlags |= ETextureCreateFlags::GenerateMipCapable;
+		if (FGenerateMips::WillFormatSupportCompute(Format))
+		{
+			TexCreateFlags |= ETextureCreateFlags::UAV;
+		}
+	}
+
+	if (Owner->bCanCreateUAV)
+	{
+		TexCreateFlags |= ETextureCreateFlags::UAV;
+	}
+
+	return TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource;
+}
+
 /**
  * Initializes the RHI render target resources used by this resource.
  * Called when the resource is initialized, or when reseting all RHI resources.
@@ -581,31 +604,15 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 {
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
-		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		ETextureCreateFlags TexCreateFlags = Owner->IsSRGB() ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None;
-		TexCreateFlags |= Owner->bGPUSharedFlag ? ETextureCreateFlags::Shared : ETextureCreateFlags::None;
 		FString ResourceName = Owner->GetName();
-
-		if (Owner->bAutoGenerateMips)
-		{
-			TexCreateFlags |= ETextureCreateFlags::GenerateMipCapable;
-			if (FGenerateMips::WillFormatSupportCompute(Format))
-			{
-				TexCreateFlags |= ETextureCreateFlags::UAV;
-			}
-		}
-
-		if (Owner->bCanCreateUAV)
-		{
-			TexCreateFlags |= ETextureCreateFlags::UAV;
-		}
+		ETextureCreateFlags TexCreateFlags = GetCreateFlags();
 
 		FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(*ResourceName)
 			.SetExtent(Owner->SizeX, Owner->SizeY)
 			.SetFormat(Format)
 			.SetNumMips(Owner->GetNumMips())
-			.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+			.SetFlags(TexCreateFlags)
 			.SetInitialState(ERHIAccess::SRVMask)
 			.SetClearValue(FClearValueBinding(ClearColor));
 

@@ -725,6 +725,8 @@ public:
 #endif
 	virtual ENGINE_API void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 	virtual ENGINE_API bool GetRefractionSettings(float& OutBiasValue) const override;
+	
+	virtual ENGINE_API FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams) override;
 
 #if WITH_EDITOR
 	ENGINE_API virtual void ForceRecompileForRendering() override;

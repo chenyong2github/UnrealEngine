@@ -596,8 +596,7 @@ void FShaderMapResource::BeginCreateAllShaders()
 }
 
 FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
-{
-	check(IsInParallelRenderingThread());
+{	
 	check(!RHIShaders[ShaderIndex].load(std::memory_order_acquire));
 
 	TRefCountPtr<FRHIShader> RHIShader = CreateRHIShader(ShaderIndex);

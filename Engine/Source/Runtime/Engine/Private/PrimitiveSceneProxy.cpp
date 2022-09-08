@@ -147,6 +147,22 @@ bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const
 	return false;
 }
 
+
+bool SupportsNaniteRendering(const FVertexFactoryType* RESTRICT VertexFactoryType, const class FMaterial& Material, ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (FeatureLevel >= ERHIFeatureLevel::SM5 && VertexFactoryType->SupportsNaniteRendering())
+	{
+		const FMaterialShaderMap* ShaderMap = Material.GetGameThreadShaderMap();
+		return (Material.IsUsedWithNanite() || Material.IsSpecialEngineMaterial()) &&
+			Nanite::IsSupportedBlendMode(Material.GetBlendMode()) &&
+			Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()) &&
+			(Nanite::IsWorldPositionOffsetSupported() || !ShaderMap->UsesWorldPositionOffset());
+	}
+
+	return false;
+}
+
+
 static bool VertexDeformationOutputsVelocity()
 {
 	static const auto CVarVelocityOutputPass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));

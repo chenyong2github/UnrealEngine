@@ -458,6 +458,101 @@ bool FD3D12BlendState::GetInitializer(class FBlendStateInitializerRHI& Init)
 	return true;
 }
 
+uint64 FD3D12DynamicRHI::RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)
+{
+	// When compute precache PSO hash we assume a valid state precache PSO hash is already provided
+	checkf(Initializer.StatePrecachePSOHash != 0, TEXT("Initializer should have a valid state precache PSO hash set when computing the full initializer PSO hash"));
+
+	// All members which are not part of the state objects and influence the PSO on D3D12
+	struct FNonStateHashKey
+	{
+		uint64							StatePrecachePSOHash;
+
+		EPrimitiveType					PrimitiveType;
+		uint32							RenderTargetsEnabled;
+		FGraphicsPipelineStateInitializer::TRenderTargetFormats RenderTargetFormats;
+		EPixelFormat					DepthStencilTargetFormat;
+		uint16							NumSamples;
+		EConservativeRasterization		ConservativeRasterization;
+		bool							bDepthBounds;
+		uint8							MultiViewCount;
+		bool							bHasFragmentDensityAttachment;
+		EVRSShadingRate					ShadingRate;
+	} HashKey;
+
+	FMemory::Memzero(&HashKey, sizeof(FNonStateHashKey));
+
+	HashKey.StatePrecachePSOHash			= Initializer.StatePrecachePSOHash;
+
+	HashKey.PrimitiveType					= Initializer.PrimitiveType;
+	HashKey.RenderTargetsEnabled			= Initializer.RenderTargetsEnabled;
+	HashKey.RenderTargetFormats				= Initializer.RenderTargetFormats;
+	HashKey.DepthStencilTargetFormat		= Initializer.DepthStencilTargetFormat;
+	HashKey.NumSamples						= Initializer.NumSamples;
+	HashKey.ConservativeRasterization		= Initializer.ConservativeRasterization;
+	HashKey.bDepthBounds					= Initializer.bDepthBounds;
+	HashKey.MultiViewCount					= Initializer.MultiViewCount;
+	HashKey.bHasFragmentDensityAttachment	= Initializer.bHasFragmentDensityAttachment;
+	HashKey.ShadingRate						= Initializer.ShadingRate;
+
+	return CityHash64((const char*)&HashKey, sizeof(FNonStateHashKey));
+}
+
+bool FD3D12DynamicRHI::RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateInitializer& LHS, const FGraphicsPipelineStateInitializer& RHS)
+{
+	// first check non pointer objects
+	if (LHS.ImmutableSamplerState != LHS.ImmutableSamplerState ||
+		LHS.PrimitiveType != RHS.PrimitiveType ||
+		LHS.bDepthBounds != RHS.bDepthBounds ||
+		LHS.MultiViewCount != RHS.MultiViewCount ||
+		LHS.ShadingRate != RHS.ShadingRate ||
+		LHS.bHasFragmentDensityAttachment != RHS.bHasFragmentDensityAttachment ||
+		LHS.RenderTargetsEnabled != RHS.RenderTargetsEnabled ||
+		LHS.RenderTargetFormats != RHS.RenderTargetFormats ||
+		LHS.DepthStencilTargetFormat != RHS.DepthStencilTargetFormat ||
+		LHS.NumSamples != RHS.NumSamples ||
+		LHS.ConservativeRasterization != RHS.ConservativeRasterization)
+	{
+		return false;
+	}
+
+	// check the RHI shaders (pointer check for shaders should be fine)
+	if (LHS.BoundShaderState.GetVertexShader() != RHS.BoundShaderState.GetVertexShader() ||
+		LHS.BoundShaderState.GetPixelShader() != RHS.BoundShaderState.GetPixelShader() ||
+		LHS.BoundShaderState.GetMeshShader() != RHS.BoundShaderState.GetMeshShader() ||
+		LHS.BoundShaderState.GetAmplificationShader() != RHS.BoundShaderState.GetAmplificationShader() ||
+		LHS.BoundShaderState.GetGeometryShader() != RHS.BoundShaderState.GetGeometryShader())
+	{
+		return false;
+	}
+
+	// Compare the d3d12 vertex elements without the stride
+	FD3D12VertexElements LHSVertexElements;
+	if (LHS.BoundShaderState.VertexDeclarationRHI)
+	{
+		LHSVertexElements = ((FD3D12VertexDeclaration*)LHS.BoundShaderState.VertexDeclarationRHI)->VertexElements;
+	}
+	FD3D12VertexElements RHSVertexElements;
+	if (RHS.BoundShaderState.VertexDeclarationRHI)
+	{
+		RHSVertexElements = ((FD3D12VertexDeclaration*)RHS.BoundShaderState.VertexDeclarationRHI)->VertexElements;
+	}
+	if (LHSVertexElements != RHSVertexElements)
+	{
+		return false;
+	}
+
+	// Check actual state content (each initializer can have it's own state and not going through a factory)
+	if (!MatchRHIState<FRHIBlendState, FBlendStateInitializerRHI>(LHS.BlendState, RHS.BlendState) ||
+		!MatchRHIState<FRHIRasterizerState, FRasterizerStateInitializerRHI>(LHS.RasterizerState, RHS.RasterizerState) ||
+		!MatchRHIState<FRHIDepthStencilState, FDepthStencilStateInitializerRHI>(LHS.DepthStencilState, RHS.DepthStencilState))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 FGraphicsPipelineStateRHIRef FD3D12DynamicRHI::RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PSOGraphicsFindOrCreateTime);

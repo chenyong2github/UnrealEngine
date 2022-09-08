@@ -96,113 +96,6 @@ static EPixelFormat GetGBufferFFormat()
 	return NormalGBufferFormat;
 }
 
-static EPixelFormat GetDefaultMobileSceneColorLowPrecisionFormat()
-{
-	return (GEngine && GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStandaloneStereoOnlyDevice()) ? PF_R8G8B8A8 : PF_B8G8R8A8;
-}
-
-static EPixelFormat GetMobileSceneColorFormat(const FSceneViewFamily& ViewFamily)
-{
-	bool bRequiresAlphaChannel = IsMobilePropagateAlphaEnabled(ViewFamily.GetShaderPlatform());
-
-	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
-	{
-		// Planar reflections and scene captures use scene color alpha to keep track of where content has been rendered, for compositing into a different scene later
-		if (ViewFamily.Views[ViewIndex]->bIsPlanarReflection || ViewFamily.Views[ViewIndex]->bIsSceneCapture)
-		{
-			bRequiresAlphaChannel = true;
-		}
-	}
-	
-	EPixelFormat DefaultColorFormat;
-	const bool bUseLowPrecisionFormat = !IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA;
-	if (bUseLowPrecisionFormat)
-	{
-		DefaultColorFormat = GetDefaultMobileSceneColorLowPrecisionFormat();
-	}
-	else
-	{
-		DefaultColorFormat = bRequiresAlphaChannel ? PF_FloatRGBA : PF_FloatR11G11B10;
-	}
-
-	check(GPixelFormats[DefaultColorFormat].Supported);
-
-	EPixelFormat Format = DefaultColorFormat;
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SceneColorFormat"));
-	int32 MobileSceneColor = CVar->GetValueOnRenderThread();
-	switch (MobileSceneColor)
-	{
-	case 1:
-		Format = PF_FloatRGBA; break;
-	case 2:
-		Format = PF_FloatR11G11B10; break;
-	case 3:
-		if (bUseLowPrecisionFormat)
-		{
-			// if bUseLowPrecisionFormat, DefaultColorFormat already contains the value of GetDefaultMobileSceneColorLowPrecisionFormat
-			checkSlow(DefaultColorFormat == GetDefaultMobileSceneColorLowPrecisionFormat());
-			Format = DefaultColorFormat;
-		}
-		else
-		{
-			Format = GetDefaultMobileSceneColorLowPrecisionFormat();
-		}
-		break;
-	default:
-		break;
-	}
-
-	return GPixelFormats[Format].Supported ? Format : DefaultColorFormat;
-}
-
-static EPixelFormat GetSceneColorFormat(const FSceneViewFamily& ViewFamily)
-{
-	bool bRequiresAlphaChannel = false;
-
-	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
-	{
-		// Planar reflections and scene captures use scene color alpha to keep track of where content has been rendered, for compositing into a different scene later
-		if (ViewFamily.Views[ViewIndex]->bIsPlanarReflection || ViewFamily.Views[ViewIndex]->bIsSceneCapture)
-		{
-			bRequiresAlphaChannel = true;
-		}
-	}
-
-	EPixelFormat Format = PF_FloatRGBA;
-
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SceneColorFormat"));
-
-	switch (CVar->GetValueOnRenderThread())
-	{
-	case 0:
-		Format = PF_R8G8B8A8; break;
-	case 1:
-		Format = PF_A2B10G10R10; break;
-	case 2:
-		Format = PF_FloatR11G11B10; break;
-	case 3:
-		Format = PF_FloatRGB; break;
-	case 4:
-		// default
-		break;
-	case 5:
-		Format = PF_A32B32G32R32F; break;
-	}
-
-	// Fallback in case the scene color selected isn't supported.
-	if (!GPixelFormats[Format].Supported)
-	{
-		Format = PF_FloatRGBA;
-	}
-
-	if (bRequiresAlphaChannel)
-	{
-		Format = PF_FloatRGBA;
-	}
-
-	return Format;
-}
-
 inline EPixelFormat GetMobileSceneDepthAuxPixelFormat(EShaderPlatform ShaderPlatform, bool bPreciseFormat)
 {
 	if (IsMobileDeferredShadingEnabled(ShaderPlatform) || bPreciseFormat)
@@ -222,37 +115,6 @@ inline EPixelFormat GetMobileSceneDepthAuxPixelFormat(EShaderPlatform ShaderPlat
 		break;
 	}
 	return Format;
-}
-
-static uint32 GetEditorPrimitiveNumSamples(ERHIFeatureLevel::Type FeatureLevel)
-{
-	uint32 SampleCount = 1;
-
-	if (FeatureLevel >= ERHIFeatureLevel::SM5 && GRHISupportsMSAADepthSampleAccess)
-	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MSAA.CompositingSampleCount"));
-
-		SampleCount = CVar->GetValueOnRenderThread();
-
-		if (SampleCount <= 1)
-		{
-			SampleCount = 1;
-		}
-		else if (SampleCount <= 2)
-		{
-			SampleCount = 2;
-		}
-		else if (SampleCount <= 4)
-		{
-			SampleCount = 4;
-		}
-		else
-		{
-			SampleCount = 8;
-		}
-	}
-
-	return SampleCount;
 }
 
 static IStereoRenderTargetManager* FindStereoRenderTargetManager()
@@ -534,86 +396,33 @@ ENUM_CLASS_FLAGS(FSceneTextureExtentState::ERenderTargetHistory);
 
 void InitializeSceneTexturesConfig(FSceneTexturesConfig& Config, const FSceneViewFamily& ViewFamily)
 {
-	Config.FeatureLevel = ViewFamily.GetFeatureLevel();
-	Config.ShadingPath = FSceneInterface::GetShadingPath(Config.FeatureLevel);
-	Config.ShaderPlatform = GetFeatureLevelShaderPlatform(Config.FeatureLevel);
-	Config.Extent = FSceneTextureExtentState::Get().Compute(ViewFamily);
-	Config.NumSamples = GetDefaultMSAACount(Config.FeatureLevel, GDynamicRHI->RHIGetPlatformTextureMaxSampleCount());
-	Config.EditorPrimitiveNumSamples = GetEditorPrimitiveNumSamples(Config.FeatureLevel);
-	Config.ColorFormat = PF_Unknown;
-	Config.ColorClearValue = FClearValueBinding::Black;
-	Config.DepthClearValue = FClearValueBinding::DepthFar;
-	Config.bRequireMultiView = ViewFamily.bRequireMultiView;
-	Config.bIsUsingGBuffers = IsUsingGBuffers(Config.ShaderPlatform);
+	FIntPoint Extent = FSceneTextureExtentState::Get().Compute(ViewFamily);
+	EShadingPath ShadingPath = FSceneInterface::GetShadingPath(ViewFamily.GetFeatureLevel());
 
+	bool bRequiresAlphaChannel = ShadingPath == EShadingPath::Mobile ? IsMobilePropagateAlphaEnabled(ViewFamily.GetShaderPlatform()) : false;
+	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
 	{
-		const bool bNeedsStereoAlloc = ViewFamily.Views.ContainsByPredicate([](const FSceneView* View)
-			{
-				return (IStereoRendering::IsStereoEyeView(*View) && (FindStereoRenderTargetManager() != nullptr));
-			});
-		Config.bSupportsXRTargetManagerDepthAlloc = bNeedsStereoAlloc ? 1 : 0;
-	}
-
-	switch (Config.ShadingPath)
-	{
-	case EShadingPath::Deferred:
-	{
-		Config.ColorFormat = GetSceneColorFormat(ViewFamily);
-		break;
-	}
-
-	case EShadingPath::Mobile:
-	{
-		Config.ColorFormat = GetMobileSceneColorFormat(ViewFamily);
-		break;
-	}
-
-	default:
-		checkNoEntry();
-	}
-
-	if (Config.bIsUsingGBuffers)
-	{
-		const FGBufferParams GBufferParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(Config.ShaderPlatform);
-
-		// GBuffer configuration information is expensive to compute, the results are cached between runs.
-		struct FGBufferBindingCache
+		// Planar reflections and scene captures use scene color alpha to keep track of where content has been rendered, for compositing into a different scene later
+		if (ViewFamily.Views[ViewIndex]->bIsPlanarReflection || ViewFamily.Views[ViewIndex]->bIsSceneCapture)
 		{
-			FGBufferParams GBufferParams;
-			FGBufferBinding GBufferA;
-			FGBufferBinding GBufferB;
-			FGBufferBinding GBufferC;
-			FGBufferBinding GBufferD;
-			FGBufferBinding GBufferE;
-			FGBufferBinding GBufferVelocity;
-			bool bInitialized = false;
-		};
-		static FGBufferBindingCache BindingCache;
-
-		if (!BindingCache.bInitialized || BindingCache.GBufferParams != GBufferParams)
-		{
-			const FGBufferInfo GBufferInfo = FetchFullGBufferInfo(GBufferParams);
-
-			BindingCache.GBufferParams = GBufferParams;
-			BindingCache.GBufferA = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferA"));
-			BindingCache.GBufferB = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferB"));
-			BindingCache.GBufferC = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferC"));
-			BindingCache.GBufferD = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferD"));
-			BindingCache.GBufferE = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferE"));
-			BindingCache.GBufferVelocity = FindGBufferBindingByName(GBufferInfo, TEXT("Velocity"));
-
-			BindingCache.bInitialized = true;
+			bRequiresAlphaChannel = true;
 		}
-
-		Config.GBufferA = BindingCache.GBufferA;
-		Config.GBufferB = BindingCache.GBufferB;
-		Config.GBufferC = BindingCache.GBufferC;
-		Config.GBufferD = BindingCache.GBufferD;
-		Config.GBufferE = BindingCache.GBufferE;
-		Config.GBufferVelocity = BindingCache.GBufferVelocity;
-
-		Config.GBufferParams = GBufferParams;
 	}
+
+	const bool bNeedsStereoAlloc = ViewFamily.Views.ContainsByPredicate([](const FSceneView* View)
+		{
+			return (IStereoRendering::IsStereoEyeView(*View) && (FindStereoRenderTargetManager() != nullptr));
+		});
+
+	FSceneTexturesConfigInitSettings SceneTexturesConfigInitSettings;
+	SceneTexturesConfigInitSettings.FeatureLevel = ViewFamily.GetFeatureLevel();
+	SceneTexturesConfigInitSettings.Extent = Extent;
+	SceneTexturesConfigInitSettings.bRequireMultiView = ViewFamily.bRequireMultiView;
+	SceneTexturesConfigInitSettings.bRequiresAlphaChannel = bRequiresAlphaChannel;
+	SceneTexturesConfigInitSettings.bSupportsXRTargetManagerDepthAlloc = bNeedsStereoAlloc ? 1 : 0;
+	SceneTexturesConfigInitSettings.ExtraSceneColorCreateFlags = GFastVRamConfig.SceneColor;
+	SceneTexturesConfigInitSettings.ExtraSceneDepthCreateFlags = GFastVRamConfig.SceneDepth;
+	Config.Init(SceneTexturesConfigInitSettings);
 }
 
 void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily)
@@ -636,23 +445,10 @@ void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FVie
 	}
 	else
 	{
-		ETextureCreateFlags Flags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | GFastVRamConfig.SceneDepth;
-
-		ETextureCreateFlags MemorylessFlag = TexCreate_None;
-		if (!Config.bKeepDepthContent || (Config.NumSamples > 1 && Config.bMemorylessMSAA))
-		{
-			MemorylessFlag = TexCreate_Memoryless;
-		}
-
-		if (Config.NumSamples == 1 && GRHISupportsDepthUAV)
-		{
-			Flags |= TexCreate_UAV;
-		}
-
 		// TODO: Array-size could be values > 2, on upcoming XR devices. This should be part of the config.
 		FRDGTextureDesc Desc(Config.bRequireMultiView ?
-							 FRDGTextureDesc::Create2DArray(SceneTextures.Config.Extent, PF_DepthStencil, Config.DepthClearValue, Flags | MemorylessFlag, 2) :
-							 FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_DepthStencil, Config.DepthClearValue, Flags | MemorylessFlag));
+							 FRDGTextureDesc::Create2DArray(SceneTextures.Config.Extent, PF_DepthStencil, Config.DepthClearValue, Config.DepthCreateFlags, 2) :
+							 FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_DepthStencil, Config.DepthClearValue, Config.DepthCreateFlags));
 		Desc.NumSamples = Config.NumSamples;
 		SceneTextures.Depth = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthZ"));
 
@@ -676,29 +472,15 @@ void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FVie
 	// Scene Color
 	{
 		const bool bIsMobilePlatform = Config.ShadingPath == EShadingPath::Mobile;
-
-		ETextureCreateFlags Flags = TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.SceneColor;
 		const ETextureCreateFlags sRGBFlag = (bIsMobilePlatform && IsMobileColorsRGB()) ? TexCreate_SRGB : TexCreate_None;
-
-		if (Config.FeatureLevel >= ERHIFeatureLevel::SM5 && Config.NumSamples == 1)
-		{
-			Flags |= TexCreate_UAV;
-		}
-		
-		if (Config.NumSamples > 1 && Config.bMemorylessMSAA)
-		{
-			Flags |= TexCreate_Memoryless;
-		}
-
-		Flags |= sRGBFlag;
 
 		const TCHAR* SceneColorName = TEXT("SceneColor");
 
 		// Create the scene color.
 		// TODO: Array-size could be values > 2, on upcoming XR devices. This should be part of the config.
 		FRDGTextureDesc Desc(Config.bRequireMultiView ?
-							 FRDGTextureDesc::Create2DArray(Config.Extent, Config.ColorFormat, Config.ColorClearValue, Flags, 2) :
-							 FRDGTextureDesc::Create2D(Config.Extent, Config.ColorFormat, Config.ColorClearValue, Flags));
+							 FRDGTextureDesc::Create2DArray(Config.Extent, Config.ColorFormat, Config.ColorClearValue, Config.ColorCreateFlags, 2) :
+							 FRDGTextureDesc::Create2D(Config.Extent, Config.ColorFormat, Config.ColorClearValue, Config.ColorCreateFlags));
 		Desc.NumSamples = Config.NumSamples;
 		SceneTextures.Color = CreateTextureMSAA(GraphBuilder, Desc, SceneColorName, GFastVRamConfig.SceneColor | sRGBFlag);
 	}

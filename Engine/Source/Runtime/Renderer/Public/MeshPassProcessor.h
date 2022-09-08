@@ -9,6 +9,7 @@
 #include "MeshMaterialShader.h"
 #include "SceneUtils.h"
 #include "MeshBatch.h"
+#include "PSOPrecache.h"
 #include "Hash/CityHash.h"
 #include "Experimental/Containers/RobinHoodHashTable.h"
 #include <atomic>
@@ -19,6 +20,9 @@ class FGPUScene;
 class FInstanceCullingDrawParams;
 
 class FRayTracingLocalShaderBindingWriter;
+
+struct FMeshProcessorShaders;
+struct FSceneTexturesConfig;
 
 /** Mesh pass types supported. */
 namespace EMeshPass
@@ -269,8 +273,13 @@ public:
 		, bDepthBounds(InMinimalState.bDepthBounds)
 		, DrawShadingRate(InMinimalState.DrawShadingRate)
 		, PrimitiveType(InMinimalState.PrimitiveType)
+		, PrecachePSOHash(InMinimalState.PrecachePSOHash)
+		, bPSOPrecached(InMinimalState.bPSOPrecached)
 	{
 	}
+
+	RENDERER_API void SetupBoundShaderState(FRHIVertexDeclaration* VertexDeclaration, const FMeshProcessorShaders& Shaders);
+	RENDERER_API void ComputePrecachePSOHash();
 
 	FGraphicsPipelineStateInitializer AsGraphicsPipelineStateInitializer() const
 	{	
@@ -300,6 +309,7 @@ public:
 			, MultiViewCount
 			, bHasFragmentDensityAttachment
 			, DrawShadingRate
+			, PrecachePSOHash
 		);
 	}
 
@@ -436,7 +446,12 @@ public:
 	bool							bHasFragmentDensityAttachment = false;
 	EVRSShadingRate					DrawShadingRate  = EVRSShadingRate::VRSSR_1x1;
 
-	EPrimitiveType			PrimitiveType;
+	EPrimitiveType					PrimitiveType;
+		
+	// Data hash of the minimal PSO which is used to optimize the computation of the full PSO
+	uint64							PrecachePSOHash = 0;
+	// Is the PSO is precached - updated at draw time and can be used to skip draw when still precaching
+	mutable bool					bPSOPrecached = false;
 };
 
 static_assert(sizeof(FMeshPassMask::Data) * 8 >= EMeshPass::Num, "FMeshPassMask::Data is too small to fit all mesh passes.");
@@ -640,6 +655,8 @@ struct FMeshDrawCommandDebugData
 	TShaderRef<FShader> VertexShader;
 	TShaderRef<FShader> PixelShader;
 	const FVertexFactory* VertexFactory;
+	const FVertexFactoryType* VertexFactoryType;
+	uint32 MeshPassType;
 	FName ResourceName;
 	FString MaterialName;
 #endif
@@ -981,7 +998,7 @@ public:
 	 * PSO
 	 */
 	FGraphicsMinimalPipelineStateId CachedPipelineId;
-
+	
 	/**
 	 * Draw command parameters
 	 */
@@ -1101,8 +1118,11 @@ public:
 		return uint32(CityHash64((char*)&HashKey, sizeof(FHashKey)));
 	}
 
-	/** Sets shaders on the mesh draw command and allocates room for the shader bindings. */
-	RENDERER_API void SetShaders(FRHIVertexDeclaration* VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState);
+	/** Allocates room for the shader bindings. */
+	inline void InitializeShaderBindings(const FMeshProcessorShaders& Shaders)
+	{
+		ShaderBindings.Initialize(Shaders);
+	}
 
 	inline void SetStencilRef(uint32 InStencilRef)
 	{
@@ -1124,8 +1144,11 @@ public:
 		ShaderBindings.Finalize(ShadersForDebugging);	
 	}
 
-	/** Submits the state and shader bindings to the RHI command list, but does not invoke the draw. */
-	static void SubmitDrawBegin(
+	/** 
+	 * Submits the state and shader bindings to the RHI command list, but does not invoke the draw. 	 
+	 * If function returns false, then draw can be skipped because the PSO used by the draw command is not compiled yet (still precaching)
+	 */
+	static bool SubmitDrawBegin(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
@@ -1141,8 +1164,11 @@ public:
 		FRHIBuffer* IndirectArgsOverrideBuffer = nullptr,
 		uint32 IndirectArgsOverrideByteOffset = 0U);
 
-	/** Submits the state and shader bindings to the RHI command list, but does not invoke the draw indirect. */
-	static void SubmitDrawIndirectBegin(
+	/** 	 
+	 * Submits the state and shader bindings to the RHI command list, but does not invoke the draw indirect. 
+	 * If function returns false, then draw will be skipped because PSO used by the draw command is not compiled yet (still precaching)
+	 */
+	static bool SubmitDrawIndirectBegin(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
@@ -1182,9 +1208,9 @@ public:
 		return Other.CachedPipelineId.GetId();
 	}
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-	RENDERER_API void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory);
+	RENDERER_API void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory, uint32 MeshPassType);
 #else
-	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory){}
+	void SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory, uint32 MeshPassType){}
 #endif
 
 	SIZE_T GetAllocatedSize() const
@@ -1894,16 +1920,17 @@ ENUM_CLASS_FLAGS(EDrawingPolicyOverrideFlags);
 /** 
  * Base class of mesh processors, whose job is to transform FMeshBatch draw descriptions received from scene proxy implementations into FMeshDrawCommands ready for the RHI command list
  */
-class FMeshPassProcessor
+class FMeshPassProcessor : public IPSOCollector
 {
 public:
 
+	EMeshPass::Type MeshPassType;
 	const FScene* RESTRICT Scene;
 	ERHIFeatureLevel::Type FeatureLevel;
 	const FSceneView* ViewIfDynamicMeshCommand;
 	FMeshPassDrawListContext* DrawListContext;
-
-	RENDERER_API FMeshPassProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
+		
+	RENDERER_API FMeshPassProcessor(/*EMeshPass::Type InMeshPassType,*/ const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual ~FMeshPassProcessor() {}
 
@@ -1915,6 +1942,9 @@ public:
 	// FMeshPassProcessor interface
 	// Add a FMeshBatch to the pass
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) = 0;
+		
+	// By default no PSOs collected 
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override {}
 
 	static FORCEINLINE_DEBUGGABLE ERasterizerCullMode InverseCullMode(ERasterizerCullMode CullMode)
 	{
@@ -1946,6 +1976,19 @@ public:
 		EMeshPassFeatures MeshPassFeatures,
 		const ShaderElementDataType& ShaderElementData);
 
+	template<typename PassShadersType>
+	void AddGraphicsPipelineStateInitializer(
+		const FVertexFactoryType* RESTRICT VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		const FMeshPassProcessorRenderState& RESTRICT DrawRenderState,
+		const FGraphicsPipelineRenderTargetsInfo& RESTRICT RenderTargetsInfo,
+		PassShadersType PassShaders,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		EPrimitiveType PrimitiveType,
+		EMeshPassFeatures MeshPassFeatures, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
+
 protected:
 	UE_DEPRECATED(5.0, "This version of GetDrawCommandPrimitiveId is deprecated. Use the below function instead.")
 	RENDERER_API void GetDrawCommandPrimitiveId(
@@ -1963,6 +2006,27 @@ protected:
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy
 	) const;
 };
+
+#if PSO_PRECACHING_VALIDATE
+
+namespace PSOCollectorStats
+{
+	// Stats for PSO shaders only (no state, only VS/PS/GS usage)
+	static FCriticalSection PSOShadersPrecacheLock;
+	static FPrecacheStats PSOShadersPrecacheStats;
+	static Experimental::TRobinHoodHashMap<FGraphicsMinimalPipelineStateInitializer, FShaderStateUsage> PSOShadersPrecacheMap;
+
+	// Stats for minimal PSO initializer data during MeshDrawCommand building (doesn't contain render target info)
+	static FCriticalSection MinimalPSOPrecacheLock;
+	static FPrecacheStats MinimalPSOPrecacheStats;		
+	static Experimental::TRobinHoodHashMap<uint64, FShaderStateUsage> MinimalPSOPrecacheMap;
+
+	// Add, check & track the minimal PSO initializer during precaching and MeshDrawCommand building
+	RENDERER_API extern void AddMinimalPipelineStateToCache(const FGraphicsMinimalPipelineStateInitializer& PipelineStateInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+	RENDERER_API extern void CheckMinimalPipelineStateInCache(const FGraphicsMinimalPipelineStateInitializer& PSOInitialize, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+}
+
+#endif // PSO_PRECACHING_VALIDATE
 
 typedef FMeshPassProcessor* (*PassProcessorCreateFunction)(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
 
@@ -2025,6 +2089,15 @@ private:
 	EMeshPass::Type PassType;
 };
 
+// Helper marco to register the mesh pass processor to both the FPassProcessorManager & the FPSOCollectorCreateManager
+#define REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(Name, MeshPassProcessorCreateFunction, ShadingPath, MeshPass, MeshPassFlags) \
+	FRegisterPassProcessorCreateFunction RegisterMeshPassProcesser##Name(&MeshPassProcessorCreateFunction, ShadingPath, MeshPass, MeshPassFlags); \
+	IPSOCollector* CreatePSOCollector##Name(ERHIFeatureLevel::Type FeatureLevel) \
+	{ \
+		return MeshPassProcessorCreateFunction(FeatureLevel, nullptr, nullptr, nullptr); \
+	} \
+	FRegisterPSOCollectorCreateFunction RegisterPSOCollector##Name(&CreatePSOCollector##Name, ShadingPath, (uint32) MeshPass);
+
 RENDERER_API extern void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet, 
@@ -2064,6 +2137,11 @@ RENDERER_API extern void DrawDynamicMeshPassPrivate(
 	uint32 InstanceFactor);
 
 RENDERER_API extern FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader);
+
+RENDERER_API extern void AddRenderTargetInfo(EPixelFormat PixelFormat, ETextureCreateFlags CreateFlags, FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo);
+RENDERER_API extern void SetupDepthStencilInfo(EPixelFormat DepthStencilFormat, ETextureCreateFlags DepthStencilCreateFlags, ERenderTargetLoadAction DepthTargetLoadAction, ERenderTargetLoadAction StencilTargetLoadAction, FExclusiveDepthStencil DepthStencilAccess, FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo);
+RENDERER_API extern void SetupGBufferRenderTargetInfo(const FSceneTexturesConfig& SceneTexturesConfig, FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo, bool bSetupDepthStencil);
+RENDERER_API extern void ApplyTargetsInfo(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo);
 
 inline FMeshDrawCommandSortKey CalculateMeshStaticSortKey(const TShaderRef<FMeshMaterialShader>& VertexShader, const TShaderRef<FMeshMaterialShader>& PixelShader)
 {

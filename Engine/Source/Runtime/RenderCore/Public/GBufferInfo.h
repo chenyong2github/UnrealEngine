@@ -82,11 +82,13 @@ enum EGBufferCompression
 enum EGBufferType
 {
 	GBT_Invalid,
+	GBT_Unorm_16_16,
 	GBT_Unorm_8_8_8_8,
 	GBT_Unorm_11_11_10,
 	GBT_Unorm_10_10_10_2,
+	GBT_Unorm_16_16_16_16,
 	GBT_Float_16_16,
-	GBT_Float_16_16_16_16,
+	GBT_Float_16_16_16_16,	
 	GBT_Num
 };
 
@@ -269,6 +271,7 @@ struct FGBufferInfo
 
 struct FGBufferParams
 {
+	EShaderPlatform ShaderPlatform = SP_NumPlatforms;
 	int32 LegacyFormatIndex = 0;
 	bool bHasVelocity = false;
 	bool bHasTangent = false;
@@ -279,6 +282,7 @@ struct FGBufferParams
 	bool operator == (const FGBufferParams& RHS) const
 	{
 		return
+			ShaderPlatform == RHS.ShaderPlatform &&
 			LegacyFormatIndex == RHS.LegacyFormatIndex &&
 			bHasVelocity == RHS.bHasVelocity &&
 			bHasTangent == RHS.bHasTangent &&
@@ -298,9 +302,6 @@ int32 RENDERCORE_API FindGBufferTargetByName(const FGBufferInfo& GBufferInfo, co
 
 FGBufferBinding RENDERCORE_API FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const FString& Name);
 
-//FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(bool bHasVelocity, bool bHasTangent, bool bHasPrecShadowFactor, int LegacyFormatIndex, bool bUsesVelocityDepth);
-//FGBufferInfo RENDERCORE_API FetchFullGBufferInfo(bool bHasVelocity, bool bHasTangent, bool bHasPrecShadowFactor, int LegacyFormatIndex, bool bUsesVelocityDepth);
-FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params);
 FGBufferInfo RENDERCORE_API FetchFullGBufferInfo(const FGBufferParams& Params);
 
 bool RENDERCORE_API IsGBufferInfoEqual(const FGBufferInfo& Lhs, const FGBufferInfo& Rhs);

@@ -21,6 +21,8 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/ScopeRWLock.h"
+#include "SceneTexturesConfig.h"
+#include "PSOPrecache.h"
 
 int32 GMaterialExcludeNonPipelinedShaders = 1;
 static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
@@ -2726,6 +2728,47 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 
 	// Was missing some shaders from the initial layout, but all of those shaders were explicitly exluced by our FMaterial::ShouldCache implementation
 	return true;
+}
+
+FGraphEventArray FMaterialShaderMap::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const FMaterial* Material, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams)
+{
+	// Only feature level is currently set as init settings - rest is default
+	// (multiview & alpha channel not taken into account here)
+	FSceneTexturesConfigInitSettings SceneTexturesConfigInitSettings;
+	SceneTexturesConfigInitSettings.FeatureLevel = InFeatureLevel;
+
+	FSceneTexturesConfig SceneTexturesConfig;
+	SceneTexturesConfig.Init(SceneTexturesConfigInitSettings);
+
+	const FMaterialShaderMapContent* LocalContent = GetContent();
+	const EShaderPlatform Platform = LocalContent->GetShaderPlatform();
+	const FMaterialShaderParameters MaterialParameters(Material);
+
+	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(InFeatureLevel);
+
+	TArray<FPSOPrecacheData> PSOInitializers;
+	PSOInitializers.Reserve(32);
+	
+	for (uint32 Index = 0; Index < FPSOCollectorCreateManager::MaxPSOCollectorCount; ++Index)
+	{
+		PSOCollectorCreateFunction CreateFunction = FPSOCollectorCreateManager::GetCreateFunction(ShadingPath, Index);
+		if (CreateFunction)
+		{
+			IPSOCollector* PSOCollector = CreateFunction(InFeatureLevel);
+			if (PSOCollector != nullptr)
+			{
+				for (const FVertexFactoryType* VFType : VertexFactoryTypes)
+				{
+					if (VFType->SupportsPSOPrecaching() && LocalContent->GetMeshShaderMap(VFType->GetHashedName()))
+					{
+						PSOCollector->CollectPSOInitializers(SceneTexturesConfig, *Material, VFType, PreCacheParams, PSOInitializers);
+					}
+				}
+			}
+		}
+	}
+
+	return PrecachePSOs(PSOInitializers);
 }
 
 #if WITH_EDITOR

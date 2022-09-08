@@ -637,6 +637,9 @@ static int32 GetBufferNumBits(EGBufferType Format, int32 Channel)
 	case GBT_Invalid:
 		check(0);
 		break;
+	case GBT_Unorm_16_16:
+		Ret = 16;
+		break;
 	case GBT_Unorm_8_8_8_8:
 		Ret = 8;
 		break;
@@ -652,6 +655,9 @@ static int32 GetBufferNumBits(EGBufferType Format, int32 Channel)
 		Ret = Sizes[Channel];
 	}
 	break;
+	case GBT_Unorm_16_16_16_16:
+		Ret = 16;
+		break;
 	case GBT_Float_16_16:
 		Ret = 16;
 		break;
@@ -675,6 +681,9 @@ static int32 GetTargetNumChannels(EGBufferType Type)
 	case GBT_Invalid:
 		Ret = 0;
 		break;
+	case GBT_Unorm_16_16:
+		Ret = 2;
+		break;
 	case GBT_Unorm_8_8_8_8:
 		Ret = 4;
 		break;
@@ -682,6 +691,9 @@ static int32 GetTargetNumChannels(EGBufferType Type)
 		Ret = 3;
 		break;
 	case GBT_Unorm_10_10_10_2:
+		Ret = 4;
+		break;
+	case GBT_Unorm_16_16_16_16:
 		Ret = 4;
 		break;
 	case GBT_Float_16_16:
@@ -2130,6 +2142,8 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatfor
 	// This code should match TBasePassPS
 
 	FGBufferParams Ret = {};
+	Ret.ShaderPlatform = Platform;
+
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	Ret.bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
 

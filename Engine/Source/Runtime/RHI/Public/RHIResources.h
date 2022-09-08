@@ -552,6 +552,22 @@ public:
 	virtual bool GetInitializer(class FBlendStateInitializerRHI& Init) { return false; }
 };
 
+template <typename RHIState, typename RHIStateInitializer>
+static bool MatchRHIState(RHIState* LHSState, RHIState* RHSState)
+{
+	RHIStateInitializer LHSStateInitializerRHI;
+	RHIStateInitializer RHSStateInitializerRHI;
+	if (LHSState)
+	{
+		LHSState->GetInitializer(LHSStateInitializerRHI);
+	}
+	if (RHSState)
+	{
+		RHSState->GetInitializer(RHSStateInitializerRHI);
+	}
+	return LHSStateInitializerRHI == RHSStateInitializerRHI;
+}
+
 //
 // Shader bindings
 //
@@ -562,6 +578,7 @@ class FRHIVertexDeclaration : public FRHIResource
 public:
 	FRHIVertexDeclaration() : FRHIResource(RRT_VertexDeclaration) {}
 	virtual bool GetInitializer(FVertexDeclarationElementList& Init) { return false; }
+	virtual uint32 GetPrecachePSOHash() const { return 0; }
 };
 
 class FRHIBoundShaderState : public FRHIResource
@@ -3275,6 +3292,7 @@ public:
 		, bHasFragmentDensityAttachment(false)
 		, ShadingRate(EVRSShadingRate::VRSSR_1x1)
 		, Flags(0)
+		, StatePrecachePSOHash(0)
 	{
 #if PLATFORM_WINDOWS
 		static_assert(sizeof(TRenderTargetFormats::ElementType) == sizeof(uint8/*EPixelFormat*/), "Change TRenderTargetFormats's uint8 to EPixelFormat's size!");
@@ -3307,7 +3325,8 @@ public:
 		bool						bInDepthBounds,
 		uint8						InMultiViewCount,
 		bool						bInHasFragmentDensityAttachment,
-		EVRSShadingRate				InShadingRate)
+		EVRSShadingRate				InShadingRate,
+		uint64						InStatePrecachePSOHash)
 		: BoundShaderState(InBoundShaderState)
 		, BlendState(InBlendState)
 		, RasterizerState(InRasterizerState)
@@ -3333,6 +3352,7 @@ public:
 		, bHasFragmentDensityAttachment(bInHasFragmentDensityAttachment)
 		, ShadingRate(InShadingRate)
 		, Flags(InFlags)
+		, StatePrecachePSOHash(InStatePrecachePSOHash)
 	{
 	}
 
@@ -3432,6 +3452,10 @@ public:
 		};
 		uint16						Flags;
 	};
+
+	// Cached hash off all state data provided at creation time (Only contains hash of data which influences the PSO precaching for the current platform)
+	// Created from hashing the state data instead of the pointers which are used during fast runtime cache checking and compares
+	uint64							StatePrecachePSOHash;
 };
 
 class FRayTracingPipelineStateSignature
