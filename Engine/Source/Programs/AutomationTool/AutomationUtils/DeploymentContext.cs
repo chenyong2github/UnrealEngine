@@ -707,6 +707,12 @@ public class DeploymentContext //: ProjectParams
 	/// <param name="Files">List to receive the enumerated files</param>
 	private void FindFilesToStageInternal(DirectoryReference BaseDir, string Pattern, StageFilesSearch Option, List<FileReference> Files)
 	{
+		// if the directory doesn't exist, this will crash in EnumerateFiles
+		if (!DirectoryReference.Exists(BaseDir))
+		{
+			return;
+		}	
+
 		// Enumerate all the files in this directory
 		Files.AddRange(DirectoryReference.EnumerateFiles(BaseDir, Pattern));
 

@@ -1279,6 +1279,12 @@ const TCHAR* FGenericPlatformMisc::ProjectDir()
 		{
 			// monolithic, game-agnostic executables, the ini is in Engine/Config/Platform
 			ProjectDir = FString::Printf(TEXT("../../../Engine/Programs/%s/"), FApp::GetProjectName());
+
+			// however, if it was staged, that directory won't exist, so look in the normal staged location
+			if (!FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*ProjectDir))
+			{
+				ProjectDir = FString::Printf(TEXT("../../../%s/"), FApp::GetProjectName());
+			}
 		}
 		else
 		{

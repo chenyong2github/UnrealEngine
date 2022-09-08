@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -121,19 +121,19 @@ public class MacPlatform : Platform
 			// Default to Intel. 
 			string UBTArchitectureParam = MacExports.IntelArchitecture;
 
-			// Targets are easy. 
-			// - If the project is set to Intel/Apple we do that
-			// - If it's universal we build the local architecture unless distributing
-			// - SpecifiedArchitecture overrides these
-			if (IsTarget)
+			// If an architecture was specified, use that
+			if (!string.IsNullOrEmpty(Params.SpecifiedArchitecture))
 			{
-				// If an architecture was specified, use that
-				if (!string.IsNullOrEmpty(Params.SpecifiedArchitecture))
-				{
-					UBTArchitectureParam = Params.SpecifiedArchitecture;
-					Log.TraceInformation("Building {0} as {1} due to -specifiedarchitecture", Target.TargetName, UBTArchitectureParam);
-				}
-				else
+				UBTArchitectureParam = Params.SpecifiedArchitecture;
+				Log.TraceInformation("Building {0} as {1} due to -specifiedarchitecture", Target.TargetName, UBTArchitectureParam);
+			}
+			else
+			{
+				// Targets are easy. 
+				// - If the project is set to Intel/Apple we do that
+				// - If it's universal we build the local architecture unless distributing
+				// - SpecifiedArchitecture overrides these
+				if (IsTarget)
 				{
 					// If the project isn't marked as universal built what it's set to
 					if (!ProjectIsUniversal)
@@ -156,20 +156,20 @@ public class MacPlatform : Platform
 						}
 					}
 				}
-			}
-			else
-			{
-				// We build tools for the local architecture if possible
-				if (CanBuildTargetForAllArchitectures(Target, Params) || LocalArchitecture == MacExports.IntelArchitecture)
+				else
 				{
-					UBTArchitectureParam = LocalArchitecture;
-					Log.TraceInformation("Building {0} as {1} for host", Target.TargetName, UBTArchitectureParam);
-				}
-				else if (MacExports.IsRunningOnAppleArchitecture)
-				{
-					// Tell them why to avoid confusion
-					Log.TraceInformation("Building {0} as {1} (arm64 not currently supported)", Target.TargetName, UBTArchitectureParam);
-					UBTArchitectureParam = MacExports.IntelArchitecture;
+					// We build tools for the local architecture if possible
+					if (CanBuildTargetForAllArchitectures(Target, Params) || LocalArchitecture == MacExports.IntelArchitecture)
+					{
+						UBTArchitectureParam = LocalArchitecture;
+						Log.TraceInformation("Building {0} as {1} for host", Target.TargetName, UBTArchitectureParam);
+					}
+					else if (MacExports.IsRunningOnAppleArchitecture)
+					{
+						// Tell them why to avoid confusion
+						Log.TraceInformation("Building {0} as {1} (arm64 not currently supported)", Target.TargetName, UBTArchitectureParam);
+						UBTArchitectureParam = MacExports.IntelArchitecture;
+					}
 				}
 			}
 

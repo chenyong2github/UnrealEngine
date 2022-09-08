@@ -702,7 +702,7 @@ namespace AutomationTool
 			this.Clean = GetOptionalParamValueIfNotSpecified(Command, Clean, this.Clean, "clean", null);
 			this.SignPak = ParseParamValueIfNotSpecified(Command, SignPak, "signpak", String.Empty);
 			this.SignedPak = !String.IsNullOrEmpty(this.SignPak) || GetParamValueIfNotSpecified(Command, SignedPak, this.SignedPak, "signedpak");
-			if (string.IsNullOrEmpty(this.SignPak))
+			if (string.IsNullOrEmpty(this.SignPak) && RawProjectPath != null)
 			{
 				this.SignPak = Path.Combine(RawProjectPath.Directory.FullName, @"Restricted\NoRedist\Build\Keys.txt");
 				if (!File.Exists(this.SignPak))
@@ -3073,7 +3073,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("DirectoriesToCook={0}", DirectoriesToCook.ToString());
                 CommandUtils.LogLog("DDCGraph={0}", DDCGraph);
                 CommandUtils.LogLog("CulturesToCook={0}", CommandUtils.IsNullOrEmpty(CulturesToCook) ? "<Not Specified> (Use Defaults)" : CulturesToCook.ToString());
-				CommandUtils.LogLog("EditorTargets={0}", EditorTargets.ToString());
+				CommandUtils.LogLog("EditorTargets={0}", EditorTargets?.ToString());
 				CommandUtils.LogLog("Foreign={0}", Foreign);
 				CommandUtils.LogLog("IsCodeBasedProject={0}", IsCodeBasedProject.ToString());
 				CommandUtils.LogLog("IsProgramTarget={0}", IsProgramTarget.ToString());

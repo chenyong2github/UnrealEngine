@@ -107,7 +107,7 @@ namespace AutomationScripts
 			// Build any tools we need to stage
 			if ((TargetMask & ProjectBuildTargets.UnrealPak) == ProjectBuildTargets.UnrealPak && !Unreal.IsEngineInstalled())
 			{
-				if (Params.EditorTargets.Contains("UnrealPak") == false)
+				if (!Params.HasEditorTargets || Params.EditorTargets.Contains("UnrealPak") == false)
 				{
 					Agenda.AddTargets(new string[] { "UnrealPak" }, HostPlatform.Current.HostEditorPlatform, UnrealTargetConfiguration.Development, Params.CodeBasedUprojectPath);
 				}

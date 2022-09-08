@@ -19,6 +19,7 @@ public class SlateUGS : ModuleRules
 				"SlateCore",
 				"StandaloneRenderer",
 				"ToolWidgets",
+				"PakFile",
 				"DesktopPlatform", // Open file dialog
 			}
 		);
