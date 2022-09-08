@@ -1186,10 +1186,13 @@ void AndroidEGL::UpdateBuffersTransform()
 
 bool AndroidEGL::IsOfflineSurfaceRequired()
 {
-	return FAndroidMisc::SupportsBackbufferSampling() ||
-		// setBuffersTransform doesn't work on arm and powerVR GPU devices, uses BlitFrameBuffer instead
-		(CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 0 && (GRHIVendorId == 0x13B5 || GRHIVendorId == 0x1010)) ||
-		CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 2;
+	return FAndroidMisc::SupportsBackbufferSampling()
+		// force to use BlitFrameBuffer
+		|| CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 2
+		// setBuffersTransform doesn't work on android 9 and below devices
+		|| !(CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 1 || FAndroidMisc::GetAndroidMajorVersion() >= 10)
+		// setBuffersTransform doesn't work on arm and powerVR GPU devices
+		|| (CVarAndroidGLESFlipYMethod.GetValueOnAnyThread() == 0 && (GRHIVendorId == 0x13B5 || GRHIVendorId == 0x1010));
 }
 
 ///
