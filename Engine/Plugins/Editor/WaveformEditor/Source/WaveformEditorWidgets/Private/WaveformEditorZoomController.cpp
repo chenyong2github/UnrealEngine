@@ -6,7 +6,7 @@ void FWaveformEditorZoomController::ZoomIn()
 {
 	if (CanZoomIn())
 	{
-		ZoomPercentage += ZoomPercentageStep;
+		ZoomLevel = FMath::Clamp(ZoomLevel += ZoomLevelStep, 0, LogRatioBase);
 		ApplyZoom();
 	}
 
@@ -14,21 +14,21 @@ void FWaveformEditorZoomController::ZoomIn()
 
 bool FWaveformEditorZoomController::CanZoomIn() const
 {
-	return ZoomPercentage + ZoomPercentageStep <= 100;
+	return ZoomLevel + ZoomLevelStep <= LogRatioBase + ZoomLevelInitValue;
 }
 
 void FWaveformEditorZoomController::ZoomOut()
 {
 	if (CanZoomOut())
 	{
-		ZoomPercentage -= ZoomPercentageStep;
+		ZoomLevel = FMath::Clamp(ZoomLevel -= ZoomLevelStep, 0, LogRatioBase);
 		ApplyZoom();
 	}
 }
 
 bool FWaveformEditorZoomController::CanZoomOut() const
 {
-	return ZoomPercentage - ZoomPercentageStep >= 0;
+	return ZoomLevel - ZoomLevelStep >= 0;
 }
 
 
@@ -44,13 +44,17 @@ void FWaveformEditorZoomController::ZoomByDelta(const float Delta)
 	}
 }
 
-uint8 FWaveformEditorZoomController::GetZoomRatio() const
+float FWaveformEditorZoomController::GetZoomRatio() const
 {
-	return 100 - ZoomPercentage;
+	return 1 - ConvertZoomLevelToLogRatio();
 }
 
 void FWaveformEditorZoomController::ApplyZoom()
 {
-	UE_LOG(LogInit, Log, TEXT("Wave Editor Zoom %d%%"), ZoomPercentage);
-	OnZoomRatioChanged.Broadcast(100 - ZoomPercentage);
+	OnZoomRatioChanged.Broadcast(1 - ConvertZoomLevelToLogRatio());
+}
+
+float FWaveformEditorZoomController::ConvertZoomLevelToLogRatio() const
+{
+	return FMath::Clamp(FMath::LogX(LogRatioBase, ZoomLevel), 0.f, 1.f);
 }

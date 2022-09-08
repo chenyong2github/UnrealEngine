@@ -40,7 +40,7 @@ public:
 
 	const float GetPlayheadPosition() const;
 	void ReceivePlayBackRatio(const float NewRatio);
-	void OnZoomLevelChanged(const uint8 NewLevel);
+	void OnZoomLevelChanged(const float NewLevel);
 
 	float ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const;
 	float ConvertZoomedRatioToAbsolute(const float InZoomedRatio) const;

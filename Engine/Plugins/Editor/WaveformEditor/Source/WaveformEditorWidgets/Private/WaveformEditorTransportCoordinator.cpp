@@ -208,10 +208,9 @@ void FWaveformEditorTransportCoordinator::ReceivePlayBackRatio(const float NewRa
 	}
 }
 
-void FWaveformEditorTransportCoordinator::OnZoomLevelChanged(const uint8 NewLevel)
+void FWaveformEditorTransportCoordinator::OnZoomLevelChanged(const float NewLevel)
 {
-	const float NewZoomRatio = NewLevel / 100.f;
-	UpdateZoomRatioAndDisplayRange(NewZoomRatio);
+	UpdateZoomRatioAndDisplayRange(NewLevel);
 }
 
 float FWaveformEditorTransportCoordinator::ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const
