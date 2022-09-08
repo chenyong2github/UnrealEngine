@@ -1219,7 +1219,7 @@ size_t FCurlHttpResponse::CurlDebug(CURL* Curl, curl_infotype DebugInfoType, cha
 
 size_t FCurlHttpResponse::CurlHeader(void* Ptr, size_t SizeInBlocks, size_t BlockSizeInBytes, void* Param)
 {
-	const size_t HeaderSize = SizeInBlocks * BlockSizeInBytes;
+	const int32 HeaderSize = IntCastChecked<int32>(SizeInBlocks * BlockSizeInBytes);
 	return ((FCurlHttpResponse*)Param)->WriteHeader(MakeStringView((const ANSICHAR*)Ptr, HeaderSize)) ? HeaderSize : 0;
 }
 

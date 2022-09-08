@@ -19,5 +19,7 @@ public class DerivedDataCache : ModuleRules
 		// Platform-specific opt-in
 		PrivateDefinitions.Add($"WITH_HTTP_DDC_BACKEND=1");
 		PrivateDefinitions.Add($"WITH_S3_DDC_BACKEND={(Target.Platform == UnrealTargetPlatform.Win64 ? 1 : 0)}");
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

@@ -365,10 +365,10 @@ constexpr inline auto MakeStringView(CharPtrOrRangeType&& CharPtrOrRange) -> dec
 	return TStringView(Forward<CharPtrOrRangeType>(CharPtrOrRange));
 }
 
-template <typename CharPtrType, typename SizeType>
-constexpr inline auto MakeStringView(CharPtrType&& CharPtr, SizeType&& Size) -> decltype(TStringView(Forward<CharPtrType>(CharPtr), Forward<SizeType>(Size)))
+template <typename CharPtrType>
+constexpr inline auto MakeStringView(CharPtrType&& CharPtr, int32 Size) -> decltype(TStringView(Forward<CharPtrType>(CharPtr), Size))
 {
-	return TStringView(Forward<CharPtrType>(CharPtr), Forward<SizeType>(Size));
+	return TStringView(Forward<CharPtrType>(CharPtr), Size);
 }
 
 template <typename CharType>
