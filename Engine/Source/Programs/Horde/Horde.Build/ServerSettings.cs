@@ -194,6 +194,10 @@ namespace Horde.Build
 	/// </summary>
 	public class FeatureFlagSettings
 	{
+		/// <summary>
+		/// Use new auth config for custom auth servers in Okta
+		/// </summary>
+		public bool AuthSettingsV2 { get; set; } = false;
 	}
 
 	/// <summary>
@@ -321,7 +325,7 @@ namespace Horde.Build
 		public string? JwtSecret { get; set; } = null!;
 
 		/// <summary>
-		/// Length of time before JWT tokens expire, in hourse
+		/// Length of time before JWT tokens expire, in hours
 		/// </summary>
 		public int JwtExpiryTimeHours { get; set; } = 4;
 

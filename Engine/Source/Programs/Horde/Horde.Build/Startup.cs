@@ -554,6 +554,11 @@ namespace Horde.Build
 							options.Authority = settings.OidcAuthority;
 							options.ClientId = settings.OidcClientId;
 
+							if (settings.FeatureFlags.AuthSettingsV2)
+							{
+								options.Scope.Remove("groups");								
+							}
+
 							if (!String.IsNullOrEmpty(settings.OidcSigninRedirect))
 							{
 								options.Events = new OpenIdConnectEvents
