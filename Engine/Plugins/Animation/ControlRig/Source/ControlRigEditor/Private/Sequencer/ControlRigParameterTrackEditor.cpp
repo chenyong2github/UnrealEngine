@@ -361,6 +361,11 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 					}
 				}
 
+				if (ControlRigEditMode && bRequestEvaluate)
+				{
+					GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+				}
+
 				// ensure we exit silent mode if it has been entered
 				if (bHasEnteredSilent)
 				{
