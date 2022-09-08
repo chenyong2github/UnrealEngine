@@ -62,7 +62,9 @@ int32 UCompileShadersTestBedCommandlet::Main(const FString& Params)
 			Filter.ClassPaths.Add(UMaterial::StaticClass()->GetClassPathName());
 
 			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			CollectionManagerModule.Get().GetObjectsInCollection(FName(*CollectionName), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			AssetRegistry.GetAssets(Filter, MaterialList);
 
@@ -86,13 +88,13 @@ int32 UCompileShadersTestBedCommandlet::Main(const FString& Params)
 	{
 		// re-use the filter and only filter based on the passed in objects.
 		Filter.ClassPaths.Empty();
-		Filter.ObjectPaths.Empty();
-		for (const FString& MaterialPath : CmdLineMaterialEntries)
+		Filter.SoftObjectPaths.Empty();
+		for (const FString& MaterialPathString : CmdLineMaterialEntries)
 		{
-			const FName MaterialPathFName(MaterialPath);
-			if (!Filter.ObjectPaths.Contains(MaterialPathFName))
+			const FSoftObjectPath MaterialPath(MaterialPathString);
+			if (!Filter.SoftObjectPaths.Contains(MaterialPath))
 			{
-				Filter.ObjectPaths.Add(MaterialPathFName);
+				Filter.SoftObjectPaths.Add(MaterialPath);
 			}
 		}
 
@@ -134,7 +136,7 @@ int32 UCompileShadersTestBedCommandlet::Main(const FString& Params)
 			TRACE_CPUPROFILER_EVENT_SCOPE(MaterialShaders);
 
 			// Sort the material lists by name so the order is stable.
-			Algo::SortBy(MaterialList, [](const FAssetData& AssetData) { return AssetData.ObjectPath; }, FNameLexicalLess());
+			Algo::SortBy(MaterialList, [](const FAssetData& AssetData) { return AssetData.GetSoftObjectPath(); }, [](const FSoftObjectPath& A, const FSoftObjectPath& B) { return A.LexicalLess(B); });
 
 			for (const FAssetData& AssetData : MaterialList)
 			{

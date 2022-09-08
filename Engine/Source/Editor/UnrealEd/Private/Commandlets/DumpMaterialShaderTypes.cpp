@@ -378,7 +378,7 @@ int ProcessMaterials(const ITargetPlatform* TargetPlatform, const EShaderPlatfor
 			TotalShaders += TotalShadersForMaterial;
 
 			Output.Log(TEXT(""));
-			Output.Log(FString::Printf(TEXT("Material: %s - %d shaders"), *AssetData.ObjectPath.ToString(), TotalShadersForMaterial));
+			Output.Log(FString::Printf(TEXT("Material: %s - %d shaders"), *AssetData.GetObjectPathString(), TotalShadersForMaterial));
 
 			PrintDebugShaderInfo(Output, OutShaderInfo);
 		}
@@ -639,7 +639,9 @@ int32 UDumpMaterialShaderTypesCommandlet::Main(const FString& Params)
 				Filter.ClassPaths.Add(UMaterial::StaticClass()->GetClassPathName());
 
 				FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				CollectionManagerModule.Get().GetObjectsInCollection(FName(*CollectionName), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				AssetRegistry.GetAssets(Filter, MaterialList);
 
@@ -664,8 +666,8 @@ int32 UDumpMaterialShaderTypesCommandlet::Main(const FString& Params)
 	UE_LOG(LogDumpMaterialShaderTypesCommandlet, Display, TEXT("Asset scan took: %.3f"), AssetRegistryEnd - AssetRegistryStart);
 
 	// Sort the material lists by name so the order is stable.
-	Algo::SortBy(MaterialList, [](const FAssetData& AssetData) { return AssetData.ObjectPath; }, FNameLexicalLess());
-	Algo::SortBy(MaterialInstanceList, [](const FAssetData& AssetData) { return AssetData.ObjectPath; }, FNameLexicalLess());
+	Algo::SortBy(MaterialList, [](const FAssetData& AssetData) { return AssetData.GetSoftObjectPath(); }, [](const FSoftObjectPath& A, const FSoftObjectPath& B) { return A.LexicalLess(B); });
+	Algo::SortBy(MaterialInstanceList, [](const FAssetData& AssetData) { return AssetData.GetSoftObjectPath(); }, [](const FSoftObjectPath& A, const FSoftObjectPath& B) { return A.LexicalLess(B); });
 
 	// For all active platforms
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();

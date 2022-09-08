@@ -283,7 +283,7 @@ void WriteOutMaterialFunctions(FArchive* FileWriter, const FString& OutputFilePa
 		// If this is a function that is selected to be exposed to the library
 		if (AssetData.GetTagValueRef<bool>("bExposeToLibrary"))
 		{
-			const FString FunctionPathName = AssetData.ObjectPath.ToString();
+			const FString FunctionPathName = AssetData.GetObjectPathString();
 			const FString Description = AssetData.GetTagValueRef<FText>("Description").ToString();
 
 			FString FunctionName = FunctionPathName;

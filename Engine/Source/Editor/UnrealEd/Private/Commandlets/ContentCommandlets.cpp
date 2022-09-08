@@ -3296,7 +3296,7 @@ int32 UListMaterialsUsedWithMeshEmittersCommandlet::Main( const FString& Params 
 
 	for(int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx )
 	{
-		const FString Filename = AssetList[AssetIdx].ObjectPath.ToString();
+		const FString Filename = AssetList[AssetIdx].GetObjectPathString();
 
 		UE_LOG(LogContentCommandlet, Display, TEXT("Processing particle system (%i/%i):  %s "), AssetIdx, AssetList.Num(), *Filename );
 
@@ -3382,7 +3382,7 @@ int32 UListStaticMeshesImportedFromSpeedTreesCommandlet::Main(const FString& Par
 
 	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
 	{
-		const FString Filename = AssetList[AssetIdx].ObjectPath.ToString();
+		const FString Filename = AssetList[AssetIdx].GetObjectPathString();
 
 		UE_LOG(LogContentCommandlet, Display, TEXT("Processing static mesh (%i/%i):  %s "), AssetIdx, AssetList.Num(), *Filename);
 
@@ -3538,7 +3538,7 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
 	{
 		bool SavePackage = false;
-		const FString Filename = AssetList[AssetIdx].ObjectPath.ToString();
+		const FString Filename = AssetList[AssetIdx].GetObjectPathString();
 		UE_LOG(LogContentCommandlet, Display, TEXT("Processing static mesh (%i/%i):  %s "), AssetIdx, AssetList.Num(), *Filename);
 
 		UPackage* Package = LoadPackage(NULL, *Filename, LOAD_Quiet);

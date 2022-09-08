@@ -255,7 +255,7 @@ int32 UImportLocalizedDialogueCommandlet::Main(const FString& Params)
 	for (const FAssetData& LocalizedAssetData : LocalizedAssetsToPotentiallyDelete)
 	{
 		// Has this asset already keen marked as "keep"?
-		if (AssetsToKeep.Contains(LocalizedAssetData.ObjectPath))
+		if (AssetsToKeep.Contains(LocalizedAssetData.GetSoftObjectPath()))
 		{
 			continue;
 		}
@@ -308,7 +308,7 @@ bool UImportLocalizedDialogueCommandlet::ImportDialogueForCulture(FLocTextHelper
 		}
 
 		// Mark this localized dialogue wave as used so it doesn't get deleted later
-		AssetsToKeep.Add(*LocalizedDialogueWave->GetPathName());
+		AssetsToKeep.Add(FSoftObjectPath(LocalizedDialogueWave));
 	}
 
 	// First pass, handle any contexts that have an exact mapping to their audio file
@@ -324,7 +324,7 @@ bool UImportLocalizedDialogueCommandlet::ImportDialogueForCulture(FLocTextHelper
 			// We're skipping this context entry due to our manifest, but we don't want the sound wave it's using to be deleted
 			if (ContextMapping.SoundWave)
 			{
-				AssetsToKeep.Add(*ContextMapping.SoundWave->GetPathName());
+				AssetsToKeep.Add(FSoftObjectPath(ContextMapping.SoundWave));
 			}
 
 			UE_LOG(LogImportLocalizedDialogueCommandlet, Log, TEXT("No internationalization manifest entry was found for context '%s' in culture '%s'. This context will be skipped."), *ContextLocalizationKey, *InCultureImportInfo.Name);
@@ -352,7 +352,7 @@ bool UImportLocalizedDialogueCommandlet::ImportDialogueForCulture(FLocTextHelper
 		// This sound wave is in use, so shouldn't be deleted
 		if (ContextMapping.SoundWave)
 		{
-			AssetsToKeep.Add(*ContextMapping.SoundWave->GetPathName());
+			AssetsToKeep.Add(FSoftObjectPath(ContextMapping.SoundWave));
 		}
 	}
 
@@ -431,7 +431,7 @@ bool UImportLocalizedDialogueCommandlet::ImportDialogueForCulture(FLocTextHelper
 		// This sound wave is in use, so shouldn't be deleted
 		if (ContextMappingPtr->SoundWave)
 		{
-			AssetsToKeep.Add(*ContextMappingPtr->SoundWave->GetPathName());
+			AssetsToKeep.Add(FSoftObjectPath(ContextMappingPtr->SoundWave));
 		}
 	}
 

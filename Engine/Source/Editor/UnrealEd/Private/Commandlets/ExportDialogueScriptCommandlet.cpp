@@ -266,7 +266,7 @@ int32 UExportDialogueScriptCommandlet::Main(const FString& Params)
 			UDialogueWave* LocalizedDialogueWave = nullptr;
 			{
 				const FString LocalizedDialogueWavePackagePath = FPackageName::GetLocalizedPackagePath(AssetData.PackageName.ToString(), CultureName);
-				const FAssetData LocalizedDialogueWaveAssetData = AssetRegistry.GetAssetByObjectPath(*FString::Printf(TEXT("%s.%s"), *LocalizedDialogueWavePackagePath, *AssetData.AssetName.ToString()));
+				const FAssetData LocalizedDialogueWaveAssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(*LocalizedDialogueWavePackagePath, AssetData.AssetName, {}));
 				LocalizedDialogueWave = Cast<UDialogueWave>(LocalizedDialogueWaveAssetData.GetAsset());
 				if (LocalizedDialogueWave == DialogueWave)
 				{

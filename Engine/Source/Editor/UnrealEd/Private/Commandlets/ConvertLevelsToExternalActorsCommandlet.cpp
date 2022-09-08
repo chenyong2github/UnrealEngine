@@ -65,9 +65,9 @@ void UConvertLevelsToExternalActorsCommandlet::GetSubLevelsToConvert(ULevel* Mai
 bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString& Level, bool bRepair)
 {
 	// Gather duplicated actor files.
-	TMultiMap<FName, FName> DuplicatedActorFiles;
+	TMultiMap<FSoftObjectPath, FName> DuplicatedActorFiles;
 	{
-		TMap<FName, FName> ActorFiles;
+		TMap<FSoftObjectPath, FName> ActorFiles;
 
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
@@ -76,19 +76,19 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString
 
 		FDelegateHandle AddedCheckHandle = AssetRegistry.OnAssetAdded().AddLambda([&ActorFiles](const FAssetData& AssetData)
 		{
-			check(!ActorFiles.Contains(AssetData.ObjectPath));
-			ActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);
+			check(!ActorFiles.Contains(AssetData.GetSoftObjectPath()));
+			ActorFiles.Add(AssetData.GetSoftObjectPath(), AssetData.PackageName);
 		});
 
 		FDelegateHandle UpdatedCheckHandle = AssetRegistry.OnAssetUpdated().AddLambda([&ActorFiles, &DuplicatedActorFiles](const FAssetData& AssetData)
 		{
 			FName ExistingPackageName;
-			if (ActorFiles.RemoveAndCopyValue(AssetData.ObjectPath, ExistingPackageName))
+			if (ActorFiles.RemoveAndCopyValue(AssetData.GetSoftObjectPath(), ExistingPackageName))
 			{
-				DuplicatedActorFiles.Add(AssetData.ObjectPath, ExistingPackageName);
+				DuplicatedActorFiles.Add(AssetData.GetSoftObjectPath(), ExistingPackageName);
 			}
 
-			DuplicatedActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);			
+			DuplicatedActorFiles.Add(AssetData.GetSoftObjectPath(), AssetData.PackageName);
 		});
 
 		AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(Level), /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/true);
@@ -101,14 +101,14 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString
 	{
 		// Gather unique keys from the duplicated map.
 		// Note: TMultiMap::GenerateKeyArray will return duplicated keys, clean that.
-		TArray<FName> DuplicatedActorFilesKeys;
+		TArray<FSoftObjectPath> DuplicatedActorFilesKeys;
 		DuplicatedActorFiles.GenerateKeyArray(DuplicatedActorFilesKeys);
-		DuplicatedActorFilesKeys.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
+		DuplicatedActorFilesKeys.Sort([](const FSoftObjectPath& A, const FSoftObjectPath& B) { return A.FastLess(B); });
 		int32 EndIndex = Algo::Unique(DuplicatedActorFilesKeys);
 		DuplicatedActorFilesKeys.RemoveAt(EndIndex, DuplicatedActorFilesKeys.Num() - EndIndex);
 
 		// Report or delete duplicated entries, keeping the latest one
-		for (const FName& DuplicatedActorFileKey : DuplicatedActorFilesKeys)
+		for (const FSoftObjectPath& DuplicatedActorFileKey : DuplicatedActorFilesKeys)
 		{
 			TArray<FName> DuplicatedActorFilesPaths;
 			DuplicatedActorFiles.MultiFind(DuplicatedActorFileKey, DuplicatedActorFilesPaths);

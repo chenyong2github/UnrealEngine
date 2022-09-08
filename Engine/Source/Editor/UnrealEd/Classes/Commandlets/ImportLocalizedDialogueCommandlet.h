@@ -41,5 +41,5 @@ private:
 	USoundWave* ConditionalImportSoundWave(const FString& InSoundWavePackageName, const FString& InSoundWaveAssetName, const FString& InWavFilename) const;
 	USoundWave* ImportSoundWave(const FString& InSoundWavePackageName, const FString& InSoundWaveAssetName, const FString& InWavFilename) const;
 
-	TSet<FName> AssetsToKeep;
+	TSet<FSoftObjectPath> AssetsToKeep;
 };

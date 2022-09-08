@@ -332,7 +332,7 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 					TArray<FDiffResult>& ClassResults = TagResults.FindOrAdd(Tag.BaseAssetData->AssetClassPath);
 
 					FDiffResult& Result = ClassResults.AddDefaulted_GetRef();
-					Result.ChangedAssetObjectPath = Tag.BaseAssetData->ObjectPath.ToString();
+					Result.ChangedAssetObjectPath = Tag.BaseAssetData->GetObjectPathString();
 					Result.TagBaseValue = MoveTemp(Tag.BaseValue);
 					Result.TagCurrentValue = MoveTemp(Tag.CurrentValue);
 					bFoundDiffTag = true;

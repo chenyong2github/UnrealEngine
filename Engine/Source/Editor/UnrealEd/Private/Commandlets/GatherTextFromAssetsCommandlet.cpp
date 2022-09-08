@@ -510,7 +510,9 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 			ICollectionManager& CollectionManager = CollectionManagerModule.Get();
 			for (const FString& CollectionName : CollectionFilters)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (!CollectionManager.GetObjectsInCollection(FName(*CollectionName), ECollectionShareType::CST_All, FirstPassFilter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					UE_LOG(LogGatherTextFromAssetsCommandlet, Error, TEXT("Failed get objects in specified collection: %s"), *CollectionName);
 					HasFailedToGetACollection = true;

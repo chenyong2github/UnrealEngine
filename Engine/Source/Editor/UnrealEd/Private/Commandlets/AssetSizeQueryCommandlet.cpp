@@ -130,7 +130,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 
 	struct FMatchedAssetInfo
 	{
-		FName ObjectPath;
+		FSoftObjectPath ObjectPath;
 		int64 CompressedSize;
 	};
 	TMap<FTopLevelAssetPath /* AssetClass */, int64> FilteredClassCompressedSizes;
@@ -158,7 +158,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 		bool bMatched = true;
 		if (AssetFilter.Len())
 		{
-			FString ObjectPath = AssetData.ObjectPath.ToString();
+			FString ObjectPath = AssetData.GetObjectPathString();
 			bMatched = FWildcardString::IsMatchSubstring(*AssetFilter, *ObjectPath, *ObjectPath + ObjectPath.Len(), ESearchCase::IgnoreCase);
 		} // end if filter exists
 
@@ -167,7 +167,7 @@ int32 UAssetSizeQueryCommandlet::Main(const FString& FullCommandLine)
 			MatchedAssetCount++;
 
 			FMatchedAssetInfo& Info = FilteredClassMatchedAssets.FindOrAdd(AssetData.AssetClassPath).AddDefaulted_GetRef();
-			Info.ObjectPath = AssetData.ObjectPath;
+			Info.ObjectPath = AssetData.GetSoftObjectPath();
 			Info.CompressedSize = AssetCompressedSize;
 			
 			FilteredCompressedSize += AssetCompressedSize;
