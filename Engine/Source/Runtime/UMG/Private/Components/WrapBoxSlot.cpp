@@ -36,7 +36,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		.VAlign(VerticalAlignment)
 		.FillEmptySpace(bFillEmptySpace)
 		.FillLineWhenSizeLessThan(FillSpanWhenLessThan == 0 ? TOptional<float>() : TOptional<float>(FillSpanWhenLessThan))
-		.ForceNewLine(false)
+		.ForceNewLine(bForceNewLine)
 		.Expose(Slot)
 		[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
