@@ -17,7 +17,7 @@ void ReloadProcessObject(UScriptStruct* ScriptStruct, const TCHAR* RenamePrefix)
 
 void ReloadProcessObject(UEnum* Enum, const TCHAR* RenamePrefix)
 {	
-	// Before renaming the enum (moving the enum to transient package) remove its enum value names from the enum master list as the list is populated with enum package name
+	// Before renaming the enum (moving the enum to transient package) remove its enum value names from the enum Primary list as the list is populated with enum package name
 	Enum->RemoveNamesFromPrimaryList();
 	// Make sure the old enum is not used by anything
 	Enum->ClearFlags(RF_Standalone | RF_Public);

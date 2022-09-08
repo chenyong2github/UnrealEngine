@@ -259,27 +259,9 @@ bool UEnum::IsValidEnumName(FName InName) const
 	return false;
 }
 
-void UEnum::AddNamesToMasterList()
-{
-	FWriteScopeLock ScopeLock(AllEnumNamesLock);
-	EnumPackage = GetPackage()->GetFName();
-	TMap<FName, UEnum*>& PackageEnumValues = AllEnumNames.FindOrAdd(EnumPackage);
-	for (TPair<FName, int64> Kvp : Names)
-	{
-		UEnum* Enum = PackageEnumValues.FindRef(Kvp.Key);
-		if (Enum == nullptr || Enum->HasAnyFlags(RF_NewerVersionExists))
-		{
-			PackageEnumValues.Add(Kvp.Key, this);
-		}
-		else if (Enum != this && Enum->GetOutermost() != GetTransientPackage())
-		{
-			UE_LOG(LogEnum, Warning, TEXT("Enum name collision: '%s' is in both '%s' and '%s'"), *Kvp.Key.ToString(), *GetPathName(), *Enum->GetPathName());
-		}
-	}
-}
-
 void UEnum::AddNamesToPrimaryList()
 {
+	FWriteScopeLock ScopeLock(AllEnumNamesLock);
 	EnumPackage = GetPackage()->GetFName();
 	TMap<FName, UEnum*>& PackageEnumValues = AllEnumNames.FindOrAdd(EnumPackage);
 	for (TPair<FName, int64> Kvp : Names)
@@ -292,33 +274,13 @@ void UEnum::AddNamesToPrimaryList()
 		else if (Enum != this && Enum->GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogEnum, Warning, TEXT("Enum name collision: '%s' is in both '%s' and '%s'"), *Kvp.Key.ToString(), *GetPathName(), *Enum->GetPathName());
-		}
-	}
-}
-
-void UEnum::RemoveNamesFromMasterList()
-{
-	FWriteScopeLock ScopeLock(AllEnumNamesLock);
-	TMap<FName, UEnum*>* PackageEnumValues = AllEnumNames.Find(EnumPackage);
-	if (PackageEnumValues != nullptr)
-	{
-		for (TPair<FName, int64> Kvp : Names)
-		{
-			UEnum* Enum = PackageEnumValues->FindRef(Kvp.Key);
-			if (Enum == this)
-			{
-				PackageEnumValues->Remove(Kvp.Key);
-			}
-		}
-		if (PackageEnumValues->Num() == 0)
-		{
-			AllEnumNames.Remove(EnumPackage);
 		}
 	}
 }
 
 void UEnum::RemoveNamesFromPrimaryList()
 {
+	FWriteScopeLock ScopeLock(AllEnumNamesLock);
 	TMap<FName, UEnum*>* PackageEnumValues = AllEnumNames.Find(EnumPackage);
 	if (PackageEnumValues != nullptr)
 	{
