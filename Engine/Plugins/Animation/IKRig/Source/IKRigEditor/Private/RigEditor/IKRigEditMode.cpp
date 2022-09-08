@@ -170,11 +170,11 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
 	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
 
-	TArray<HHitProxy*> HitProxies;
-	HitProxies.AddUninitialized(NumBones);
+	TArray<TRefCountPtr<HHitProxy>> HitProxies;
+	HitProxies.Reserve(NumBones);
 	for (int32 Index = 0; Index < NumBones; ++Index)
 	{
-		HitProxies[Index] = new HIKRigEditorBoneProxy(RefSkeleton.GetBoneName(Index));
+		HitProxies.Add(new HIKRigEditorBoneProxy(RefSkeleton.GetBoneName(Index)));
 	}
 	
 	// get selected bones

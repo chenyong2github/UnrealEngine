@@ -1680,14 +1680,14 @@ void FAnimationViewportClient::DrawBones(
 	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
 	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
 
-	TArray<HHitProxy*> HitProxies;
-	HitProxies.AddUninitialized(RefSkeleton.GetNum());
+	TArray<TRefCountPtr<HHitProxy>> HitProxies;
 
 	if (bAddHitProxy)
 	{
+		HitProxies.Reserve(RefSkeleton.GetNum());
 		for (int32 Index = 0; Index < RefSkeleton.GetNum(); ++Index)
 		{
-			HitProxies[Index] = new HPersonaBoneHitProxy(Index, RefSkeleton.GetBoneName(Index));
+			HitProxies.Add(new HPersonaBoneHitProxy(Index, RefSkeleton.GetBoneName(Index)));
 		}
 	}
 

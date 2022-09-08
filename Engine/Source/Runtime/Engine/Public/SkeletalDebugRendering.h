@@ -129,6 +129,6 @@ ENGINE_API void DrawBones(
 	const TArray<FTransform>& WorldTransforms,
 	const TArray<int32>& InSelectedBones,
 	const TArray<FLinearColor>& BoneColors,
-	const TArray<HHitProxy*>& HitProxies,
+	const TArray<TRefCountPtr<HHitProxy>>& HitProxies,
 	const FSkelDebugDrawConfig& DrawConfig);
 }

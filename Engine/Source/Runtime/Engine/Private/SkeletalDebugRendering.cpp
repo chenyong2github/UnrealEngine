@@ -252,7 +252,7 @@ void DrawBonesFromPoseWatch(
 		UseWorldTransforms,
 		/*SelectedBones*/TArray<int32>(),
 		/*BoneColors*/TArray<FLinearColor>(),
-		/*HitProxies*/TArray<HHitProxy*>(),
+		/*HitProxies*/TArray<TRefCountPtr<HHitProxy>>(),
 		DrawConfig
 	);
 #endif
@@ -266,7 +266,7 @@ void DrawBones(
 	const TArray<FTransform>& WorldTransforms,
 	const TArray<int32>& InSelectedBones,
 	const TArray<FLinearColor>& BoneColors,
-	const TArray<HHitProxy*>& HitProxies,
+	const TArray<TRefCountPtr<HHitProxy>>& HitProxies,
 	const FSkelDebugDrawConfig& DrawConfig)
 {
 	// first determine which bones to draw, and which to filter out

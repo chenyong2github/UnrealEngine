@@ -95,11 +95,11 @@ void FIKRetargetEditPoseMode::RenderSkeleton(
 	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
 	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
 
-	TArray<HHitProxy*> HitProxies;
-	HitProxies.AddUninitialized(NumBones);
+	TArray<TRefCountPtr<HHitProxy>> HitProxies;
+	HitProxies.Reserve(NumBones);
 	for (int32 Index = 0; Index < NumBones; ++Index)
 	{
-		HitProxies[Index] = new HIKRetargetEditorBoneProxy(RefSkeleton.GetBoneName(Index));
+		HitProxies.Add(new HIKRetargetEditorBoneProxy(RefSkeleton.GetBoneName(Index)));
 	}
 
 	// record selected bone indices
