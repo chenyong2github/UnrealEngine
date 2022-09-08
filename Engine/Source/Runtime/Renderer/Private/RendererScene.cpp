@@ -1096,7 +1096,6 @@ uint64 FVirtualShadowMapArrayFrameData::GetGPUSizeBytes(bool bLogSizes) const
 		GetBufferGPUSizeBytes(PageFlags, bLogSizes) +
 		GetBufferGPUSizeBytes(ProjectionData, bLogSizes) +
 		GetBufferGPUSizeBytes(PageRectBounds, bLogSizes) +
-		GetBufferGPUSizeBytes(DynamicCasterPageFlags, bLogSizes) +
 		GetBufferGPUSizeBytes(PhysicalPageMetaData, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(HZBPhysical, bLogSizes);
 };
