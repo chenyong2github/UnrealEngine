@@ -30,18 +30,18 @@ public:
 	 * Prepares the StateTree execution context using provided Definition then starts the underlying StateTree 
 	 * @return True if interaction has been properly initialized and ready to be ticked.
 	 */
-	bool Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& Definition);
+	GAMEPLAYINTERACTIONSMODULE_API bool Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& Definition);
 
 	/**
 	 * Updates the underlying StateTree
 	 * @return True if still requires to be ticked, false if done.
 	 */
-	bool Tick(const float DeltaTime);
+	GAMEPLAYINTERACTIONSMODULE_API bool Tick(const float DeltaTime);
 	
 	/**
 	 * Stops the underlying StateTree
 	 */
-	void Deactivate();
+	GAMEPLAYINTERACTIONSMODULE_API void Deactivate();
 
 protected:	
 	/**
