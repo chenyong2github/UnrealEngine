@@ -1189,7 +1189,10 @@ FORCEINLINE TVector2<T> TVector2<T>::RoundToVector() const
 	{
 		return TVector2<T>(FMath::RoundToFloat(X), FMath::RoundToFloat(Y));
 	}
-	return TVector2<T>(FMath::RoundToDouble(X), FMath::RoundToDouble(Y));
+	else
+	{
+		return TVector2<T>(FMath::RoundToDouble(X), FMath::RoundToDouble(Y));
+	}
 }
 
 template<typename T>

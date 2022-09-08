@@ -116,37 +116,37 @@ public:
 FORCEINLINE void FPackedNormal::operator=(const FVector3f& InVector)
 {
 	const float Scale = MAX_int8;
-	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int8, MAX_int8);
-	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int8, MAX_int8);
-	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int8, MAX_int8);
+	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int8, MAX_int8);
+	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int8, MAX_int8);
+	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int8, MAX_int8);
 	Vector.W = MAX_int8;
 }
 
 FORCEINLINE void FPackedNormal::operator=(const FVector3d& InVector)
 {
 	const float Scale = MAX_int8;
-	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int8, MAX_int8);
-	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int8, MAX_int8);
-	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int8, MAX_int8);
+	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int8, MAX_int8);
+	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int8, MAX_int8);
+	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int8, MAX_int8);
 	Vector.W = MAX_int8;
 }
 
 FORCEINLINE void FPackedNormal::operator=(const FVector4f& InVector)
 {
 	const float Scale = MAX_int8;
-	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int8, MAX_int8);
-	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int8, MAX_int8);
-	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int8, MAX_int8);
-	Vector.W = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.W * Scale), MIN_int8, MAX_int8);
+	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int8, MAX_int8);
+	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int8, MAX_int8);
+	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int8, MAX_int8);
+	Vector.W = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.W * Scale), MIN_int8, MAX_int8);
 }
 
 FORCEINLINE void FPackedNormal::operator=(const FVector4d& InVector)
 {
 	const float Scale = MAX_int8;
-	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int8, MAX_int8);
-	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int8, MAX_int8);
-	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int8, MAX_int8);
-	Vector.W = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.W * Scale), MIN_int8, MAX_int8);
+	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int8, MAX_int8);
+	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int8, MAX_int8);
+	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int8, MAX_int8);
+	Vector.W = (int8)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.W * Scale), MIN_int8, MAX_int8);
 }
 
 FORCEINLINE bool FPackedNormal::operator==(const FPackedNormal& B) const

@@ -697,7 +697,7 @@ public:
 	void AddShadingModel(EStrataShadingModel InShadingModel) { check(InShadingModel < SSM_NUM); ShadingModelField |= (1 << (uint16)InShadingModel); }
 	bool HasShadingModel(EStrataShadingModel InShadingModel) const { return (ShadingModelField & (1 << (uint16)InShadingModel)) != 0; }
 	bool HasOnlyShadingModel(EStrataShadingModel InShadingModel) const { return ShadingModelField == (1 << (uint16)InShadingModel); }
-	uint8 GetShadingModelField() const { return ShadingModelField; }
+	uint16 GetShadingModelField() const { return ShadingModelField; }
 	int32 CountShadingModels() const { return FMath::CountBits(ShadingModelField); }
 
 	// Subsurface profiles
@@ -1464,8 +1464,8 @@ FORCEINLINE ECollisionEnabled::Type CollisionEnabledIntersection(ECollisionEnabl
 	// Subtract 1 because the first index is NoCollision.
 	// If both indices indicate _some_ collision setting (ie, greater than -1),
 	// lookup their intersection setting in the matrix.
-	const int8 IndexA = (int32)CollisionEnabledA - 1;
-	const int8 IndexB = (int32)CollisionEnabledB - 1;
+	const int32 IndexA = (int32)CollisionEnabledA - 1;
+	const int32 IndexB = (int32)CollisionEnabledB - 1;
 	if (IndexA >= 0 && IndexB >= 0)
 	{
 		return IntersectionMatrix[IndexA][IndexB];
