@@ -1707,7 +1707,28 @@ bool FControlRigEditor::DetailViewShowsAnyRigElement() const
 
 bool FControlRigEditor::DetailViewShowsAnyRigUnit() const
 {
-	return DetailViewShowsStruct(FRigUnit::StaticStruct());
+	if (DetailViewShowsStruct(FRigUnit::StaticStruct()))
+	{
+		return true;
+	}
+
+	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = Inspector->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid())
+		{
+			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+			{
+				const FString Notation = WrapperObject->GetWrappedNodeNotation();
+				if(!Notation.IsEmpty())
+				{
+					return true;
+				}
+			}
+		}
+	}
+	
+	return false;
 }
 
 bool FControlRigEditor::DetailViewShowsLocalVariable() const
@@ -1755,25 +1776,6 @@ bool FControlRigEditor::DetailViewShowsRigElement(FRigElementKey InKey) const
 							return true;
 						}
 					}
-				}
-			}
-		}
-	}
-	return false;
-}
-
-bool FControlRigEditor::DetailViewShowsRigUnit(URigVMNode* InNode) const
-{
-	TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
-	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
-	{
-		if (SelectedObject.IsValid())
-		{
-			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
-			{
-				if(WrapperObject->GetOuter() == InNode)
-				{
-					return true;
 				}
 			}
 		}

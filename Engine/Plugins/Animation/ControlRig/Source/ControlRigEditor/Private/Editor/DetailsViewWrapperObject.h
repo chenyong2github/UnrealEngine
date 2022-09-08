@@ -27,6 +27,10 @@ public:
 	// Creating wrappers from a RigVMNode
 	static UClass* GetClassForNodes(TArray<URigVMNode*> InNodes, bool bCreateIfNeeded = true);
 	static UDetailsViewWrapperObject* MakeInstance(TArray<URigVMNode*> InNodes, URigVMNode* InSubject, UObject* InOuter = nullptr);
+	
+	static void MarkOutdatedClass(UClass* InClass);
+	static bool IsValidClass(UClass* InClass);
+	
 	FString GetWrappedNodeNotation() const;
 	
 	bool IsChildOf(const UStruct* InStruct) const
@@ -110,6 +114,7 @@ private:
 	
 	static TMap<FPerClassInfo, UClass*> InfoToClass;
 	static TMap<UClass*, FPerClassInfo> ClassToInfo;
+	static TSet<UClass*> OutdatedClassToRecreate;
 	bool bIsSettingValue;
 	
 	FWrappedPropertyChangedChainEvent WrappedPropertyChangedChainEvent;

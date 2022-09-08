@@ -160,7 +160,6 @@ public:
 	bool DetailViewShowsLocalVariable() const;
 	bool DetailViewShowsStruct(UScriptStruct* InStruct) const;
 	bool DetailViewShowsRigElement(FRigElementKey InKey) const;
-	bool DetailViewShowsRigUnit(URigVMNode* InNode) const;
 
 	void ClearDetailObject(bool bChangeUISelectionState = true);
 

@@ -2568,19 +2568,24 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 			{
 				// make sure variable properties on the BP is patched
 				// since active rig instance still references it
-				if (UControlRigBlueprintGeneratedClass* OwnerClass = Cast<UControlRigBlueprintGeneratedClass>(StructProperty->GetOwnerClass()))
+				if (UControlRigBlueprintGeneratedClass* BPClass = Cast<UControlRigBlueprintGeneratedClass>(StructProperty->GetOwnerClass()))
 				{
-					if (UControlRigBlueprint* FoundBlueprint = Cast<UControlRigBlueprint>(OwnerClass->ClassGeneratedBy))
+					if (UControlRigBlueprint* FoundBlueprint = Cast<UControlRigBlueprint>(BPClass->ClassGeneratedBy))
 					{
 						StructProperty->Struct = DuplicatedStruct;
-						StructsToRegenerateReferencesFor.Add(OwnerClass);
+						StructsToRegenerateReferencesFor.Add(BPClass);
 					}
 				}
 				// similar story, VM instructions reference properties on the GeneratorClass
-				if (URigVMMemoryStorageGeneratorClass* OwnerClass = Cast<URigVMMemoryStorageGeneratorClass>(StructProperty->GetOwnerStruct()))
+				else if (URigVMMemoryStorageGeneratorClass* MemoryClass = Cast<URigVMMemoryStorageGeneratorClass>(StructProperty->GetOwnerStruct()))
 				{
 					StructProperty->Struct = DuplicatedStruct;
-					StructsToRegenerateReferencesFor.Add(OwnerClass);
+					StructsToRegenerateReferencesFor.Add(MemoryClass);
+				}
+				else if (UDetailsViewWrapperObject::IsValidClass(StructProperty->GetOwnerClass()))
+				{
+					StructProperty->Struct = DuplicatedStruct;
+					StructsToRegenerateReferencesFor.Add(StructProperty->GetOwnerClass());
 				}
 			}
 		}
@@ -2595,6 +2600,10 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 			{
 				GeneratorClass->RefreshLinkedProperties();
 				GeneratorClass->RefreshPropertyPaths();	
+			}
+			else if (Struct->IsChildOf(UDetailsViewWrapperObject::StaticClass()))
+			{
+				UDetailsViewWrapperObject::MarkOutdatedClass(Cast<UClass>(Struct));
 			}
 		}
 
@@ -2652,10 +2661,7 @@ void FControlRigEditorModule::PostChange(const UUserDefinedStruct* Changed,
 
 	for (UControlRigBlueprint* RigBlueprint : BlueprintsToRefresh)
 	{
-		// refresh all pins
-		RigBlueprint->RefreshAllModels();
-		// reflect changes in the editor
-		RigBlueprint->RebuildGraphFromModel();
+		RigBlueprint->OnRigVMRegistryChanged();
 		RigBlueprint->MarkPackageDirty();
 	}
 	

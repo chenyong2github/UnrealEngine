@@ -14,6 +14,9 @@
 
 TMap<UDetailsViewWrapperObject::FPerClassInfo, UClass*> UDetailsViewWrapperObject::InfoToClass;
 TMap<UClass*, UDetailsViewWrapperObject::FPerClassInfo> UDetailsViewWrapperObject::ClassToInfo;
+TSet<UClass*> UDetailsViewWrapperObject::OutdatedClassToRecreate;
+
+static const TCHAR DiscardedWrapperClassTemplateName[] = TEXT("DiscardedWrapperClassTemplate");
 
 UDetailsViewWrapperObject::UDetailsViewWrapperObject()
 	: bIsSettingValue(false)
@@ -26,7 +29,35 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bo
 
 	if(UClass** ExistingClass = InfoToClass.Find(InStruct))
 	{
-		return *ExistingClass;
+		// if properties in a class has changed (due to user defined struct change)
+		// we have to recreate the class
+		if (OutdatedClassToRecreate.Contains(*ExistingClass))
+		{
+			OutdatedClassToRecreate.Remove(*ExistingClass);
+
+			InfoToClass.Remove(InStruct);
+			ClassToInfo.Remove(*ExistingClass);
+
+			FString DiscardedWrapperClassName;
+			static int32 DiscardedWrapperClassIndex = 0;
+			do
+			{
+				DiscardedWrapperClassName = FString::Printf(TEXT("%s_%d"), DiscardedWrapperClassTemplateName, DiscardedWrapperClassIndex++);
+				if(StaticFindObjectFast(nullptr, GetTransientPackage(), *DiscardedWrapperClassName) == nullptr)
+				{
+					break;
+				}
+			}
+			while (DiscardedWrapperClassIndex < INT_MAX);
+
+			(*ExistingClass)->Rename(*DiscardedWrapperClassName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			
+			(*ExistingClass)->RemoveFromRoot();
+		}
+		else
+		{
+			return *ExistingClass;
+		}
 	}
 
 	if(!bCreateIfNeeded)
@@ -280,7 +311,35 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 	const FPerClassInfo PerClassInfo(Notation);
 	if(UClass** ExistingClass = InfoToClass.Find(PerClassInfo))
 	{
-		return *ExistingClass;
+		// if properties in a class has changed (due to user defined struct change)
+		// we have to recreate the class
+		if (OutdatedClassToRecreate.Contains(*ExistingClass))
+		{
+			OutdatedClassToRecreate.Remove(*ExistingClass);
+
+			InfoToClass.Remove(PerClassInfo);
+			ClassToInfo.Remove(*ExistingClass);
+
+			FString DiscardedWrapperClassName;
+			static int32 DiscardedWrapperClassIndex = 0;
+			do
+			{
+				DiscardedWrapperClassName = FString::Printf(TEXT("%s_%d"), DiscardedWrapperClassTemplateName, DiscardedWrapperClassIndex++);
+				if(StaticFindObjectFast(nullptr, GetTransientPackage(), *DiscardedWrapperClassName) == nullptr)
+				{
+					break;
+				}
+			}
+			while (DiscardedWrapperClassIndex < INT_MAX);
+
+			(*ExistingClass)->Rename(*DiscardedWrapperClassName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			
+			(*ExistingClass)->RemoveFromRoot();
+		}
+		else
+		{
+			return *ExistingClass;
+		}
 	}
 
 	if(!bCreateIfNeeded)
@@ -467,6 +526,34 @@ UDetailsViewWrapperObject* UDetailsViewWrapperObject::MakeInstance(TArray<URigVM
 	
 	return Instance;
 
+}
+
+void UDetailsViewWrapperObject::MarkOutdatedClass(UClass* InClass)
+{
+	if (InClass)
+	{
+		OutdatedClassToRecreate.Add(InClass);
+	}
+}
+
+bool UDetailsViewWrapperObject::IsValidClass(UClass* InClass)
+{
+	if (!InClass)
+	{
+		return false;
+	}
+	
+	if (!InClass->IsChildOf(StaticClass()))
+	{
+		return false;
+	}
+		
+	if (InClass->GetName().Contains(DiscardedWrapperClassTemplateName))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 FString UDetailsViewWrapperObject::GetWrappedNodeNotation() const
