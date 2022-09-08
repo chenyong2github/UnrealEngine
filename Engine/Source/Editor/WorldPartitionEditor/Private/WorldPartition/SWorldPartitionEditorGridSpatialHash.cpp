@@ -1,33 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/SWorldPartitionEditorGridSpatialHash.h"
-#include "GameFramework/WorldSettings.h"
-#include "DerivedDataCache/Public/DerivedDataCacheInterface.h"
-#include "Misc/SecureHash.h"
-#include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
-#include "WorldPartition/WorldPartitionEditorSpatialHash.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/WorldPartitionMiniMap.h"
-#include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
-#include "Framework/Commands/Commands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Misc/FileHelper.h"
-#include "Misc/ScopedSlowTask.h"
-#include "Layout/WidgetPath.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Slate/SlateTextures.h"
+#include "WorldPartition/WorldPartitionEditorSpatialHash.h"
+#include "WorldPartition/WorldPartition.h"
 #include "Brushes/SlateColorBrush.h"
-#include "ObjectTools.h"
-#include "UObject/ObjectResource.h"
-#include "Styling/AppStyle.h"
-#include "Selection.h"
-#include "Engine/World.h"
-#include "Engine/Texture2D.h"
-#include "Engine/Texture2DDynamic.h"
-#include "Misc/HashBuilder.h"
 #include "Fonts/FontMeasure.h"
-#include "EngineModule.h"
-#include "Renderer/Private/RendererModule.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
@@ -36,40 +13,9 @@ static inline FBox2D ToBox2D(const FBox& Box)
 	return FBox2D(FVector2D(Box.Min), FVector2D(Box.Max));
 }
 
-SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
-	: WorldMiniMapBounds(ForceInit)
-{}
-
-SWorldPartitionEditorGridSpatialHash::~SWorldPartitionEditorGridSpatialHash()
-{}
-
 void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 {
-	World = InArgs._InWorld;
-	WorldPartition = World ? World->GetWorldPartition() : nullptr;
-
-	if (WorldPartition)
-	{
-		UpdateWorldMiniMapDetails();
-
-		bShowActors = !WorldMiniMapBrush.HasUObject();
-	}
-
 	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
-}
-
-void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
-{
-	if (AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World))
-	{
-		WorldMiniMapBounds = FBox2D(FVector2D(WorldMiniMap->MiniMapWorldBounds.Min), FVector2D(WorldMiniMap->MiniMapWorldBounds.Max));
-		if (UTexture2D* MiniMapTexture = WorldMiniMap->MiniMapTexture)
-		{
-			WorldMiniMapBrush.SetUVRegion(WorldMiniMap->UVOffset);
-			WorldMiniMapBrush.SetImageSize(MiniMapTexture->GetImportedSize());
-			WorldMiniMapBrush.SetResourceObject(MiniMapTexture);
-		}
-	}
 }
 
 int32 SWorldPartitionEditorGridSpatialHash::GetSelectionSnap() const
@@ -135,48 +81,10 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		);
 	}
 
-	// Draw MiniMap image if any
-	if (UTexture2D* Texture2D = Cast<UTexture2D>(WorldMiniMapBrush.GetResourceObject()))
-	{	
-		FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
-			WorldToScreen.TransformPoint(WorldMiniMapBounds.Min),
-			WorldToScreen.TransformPoint(WorldMiniMapBounds.Max) - WorldToScreen.TransformPoint(WorldMiniMapBounds.Min)
-		);
+	// Paint minimap
+	LayerId = PaintMinimap(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
-		FSlateDrawElement::MakeRotatedBox(
-			OutDrawElements,
-			++LayerId,
-			WorldImageGeometry,
-			&WorldMiniMapBrush
-		);
-
-		if (Texture2D->IsCurrentlyVirtualTextured())
-		{
-			FVirtualTexture2DResource* VTResource = static_cast<FVirtualTexture2DResource*>(Texture2D->GetResource());
-			const FVector2D ViewportSize = AllottedGeometry.GetLocalSize();
-			const FVector2D ScreenSpaceSize = WorldImageGeometry.GetLocalSize();
-			const FVector2D ViewportPositon = -WorldImageGeometry.GetAccumulatedRenderTransform().GetTranslation() + AllottedGeometry.GetAbsolutePosition();
-
-			FBox2D UVRegion = WorldMiniMapBrush.GetUVRegion();
-			const FVector2D UV0 = UVRegion.Min;
-			const FVector2D UV1 = UVRegion.Max;
-
-			const ERHIFeatureLevel::Type InFeatureLevel = GMaxRHIFeatureLevel;
-			const int32 MipLevel = -1;
-
-			ENQUEUE_RENDER_COMMAND(MakeTilesResident)(
-				[InFeatureLevel, VTResource, ScreenSpaceSize, ViewportPositon, ViewportSize, UV0, UV1, MipLevel](FRHICommandListImmediate& RHICmdList)
-			{
-				// AcquireAllocatedVT() must happen on render thread
-				IAllocatedVirtualTexture* AllocatedVT = VTResource->AcquireAllocatedVT();
-
-				IRendererModule& RenderModule = GetRendererModule();
-				RenderModule.RequestVirtualTextureTilesForRegion(AllocatedVT, ScreenSpaceSize, ViewportPositon, ViewportSize, UV0, UV1, MipLevel);
-				RenderModule.LoadPendingVirtualTextureTiles(RHICmdList, InFeatureLevel);
-			});
-		}
-	}
-
+	// Paint grid lines
 	if (ToBox2D(VisibleGridRectWorld).GetArea() > 0.0f)
 	{
 		const FLinearColor Color = FLinearColor(0.1f, 0.1f, 0.1f, 1.f);
@@ -203,7 +111,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			LinePoints[0] = WorldToScreen.TransformPoint(LineStartH);
 			LinePoints[1] = WorldToScreen.TransformPoint(LineEndH);
 
-			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::NoBlending, Color, false, 1.0f);
+			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, false, 1.0f);
 		}
 
 		// Vertical
@@ -215,7 +123,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			LinePoints[0] = WorldToScreen.TransformPoint(LineStartH);
 			LinePoints[1] = WorldToScreen.TransformPoint(LineEndH);
 
-			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::NoBlending, Color, false, 1.0f);
+			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, false, 1.0f);
 		}
 
 		// Draw coordinates

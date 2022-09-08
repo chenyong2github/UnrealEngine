@@ -64,8 +64,10 @@ protected:
 	virtual uint32 PaintViewer(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, uint32 LayerId) const;
 	virtual uint32 PaintSelection(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, uint32 LayerId) const;
 	virtual int32 PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+	virtual int32 PaintMinimap(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 	virtual FReply FocusSelection();
+	virtual FReply FocusLoadedRegions();
 
 	void UpdateTransform() const;
 	void UpdateSelectionBox(bool bSnap);
@@ -139,6 +141,11 @@ protected:
 	FLoaderInterfaceSet HoveredLoaderInterfaces;
 	FLoaderInterfaceStack HoveredLoaderInterfacesStack;
 	FLoaderInterface HoveredLoaderInterface;
+
+	// Minimap
+	void UpdateWorldMiniMapDetails();
+	FBox2D WorldMiniMapBounds;
+	FSlateBrush WorldMiniMapBrush;
 
 	// Profiling
 	mutable double TickTime;

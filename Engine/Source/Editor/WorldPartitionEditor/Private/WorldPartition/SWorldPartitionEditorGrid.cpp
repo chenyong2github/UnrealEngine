@@ -16,6 +16,7 @@ TMap<FName, SWorldPartitionEditorGrid::PartitionEditorGridCreateInstanceFunc> SW
 void SWorldPartitionEditorGrid::Construct(const FArguments& InArgs)
 {
 	World = InArgs._InWorld;
+	WorldPartition = World ? World->GetWorldPartition() : nullptr;
 
 	if (IsDisabled())
 	{
