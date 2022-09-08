@@ -461,53 +461,78 @@ void ComputeEdgeDirection_{ParameterName}(in float3 NodePosition, in float4 Node
 
 	SharedNodePosition[GGroupThreadId.x] = NodePosition;
 	SharedNodeOrientation[GGroupThreadId.x] = NodeOrientation;
-	GroupMemoryBarrier(); 
+	GroupMemoryBarrier();
 
 	OutRestDirection = float3(0,0,0);
-
-	if( LocalIndex > 1 )
+	
+	if(GravityPreloading == 0.0)
 	{
-		float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
+		if( LocalIndex > 1 )
+		{
+			const float3 EdgeDirection = SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1];
+			OutRestDirection = UnrotateVectorByQuat(EdgeDirection,SharedNodeOrientation[GGroupThreadId.x-2]);
+		}
+		GroupMemoryBarrier();
+	}
+	else
+	{
+		float3 EdgeDirection = (LocalIndex > 1) ? SharedNodePosition[GGroupThreadId.x] - SharedNodePosition[GGroupThreadId.x-1] : float3(0,0,0);
 
-		SharedInverseInertia[GGroupThreadId.x] = BendStiffness*PI*StrandThickness*StrandThickness / (4.0*RestLength);
+		SharedInverseInertia[GGroupThreadId.x] = (isfinite(RestLength) && (abs(RestLength) > 1e-8f)) ? BendStiffness*PI*StrandThickness*StrandThickness / (4.0*RestLength) : 0.0;
 		SharedPreviousPosition[GGroupThreadId.x] = EdgeDirection;
 		SharedPreviousOrientation[GGroupThreadId.x] = float4(EdgeDirection,0);
 
 		GroupMemoryBarrier(); 
 
-		const float GradientNext = ( LocalIndex < ({ParameterName}_StrandSize-1) ) ?  SharedInverseInertia[GGroupThreadId.x+1]  : 0.0;
-		const float GradientPrev = SharedInverseInertia[GGroupThreadId.x];
-		const float SchurComplement =  (GradientNext * GradientNext + GradientPrev * GradientPrev);
-
-		for(int Index = 0; Index < 100; ++Index)
 		{
-			const int IsRed = (GGroupThreadId.x % 2) == 0;
-			if (!IsRed)
-			{	
-				const float3 DeltaConstraint = ((SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousOrientation[GGroupThreadId.x].xyz) * GradientPrev - 
-												(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousOrientation[GGroupThreadId.x+1].xyz) * GradientNext) - NodeMass * GravityVector;
-
-				SharedPreviousOrientation[GGroupThreadId.x].xyz += DeltaConstraint * GradientPrev / SchurComplement;
-				SharedPreviousOrientation[GGroupThreadId.x+1].xyz -= DeltaConstraint * GradientNext / SchurComplement;
-			}
-			GroupMemoryBarrier(); 
-
-			if (IsRed)
+			const bool IsNotLast = LocalIndex < ({ParameterName}_StrandSize-1);
+			const float GradientNext = IsNotLast ?  SharedInverseInertia[GGroupThreadId.x+1]  : 0.0;
+			const float GradientPrev = SharedInverseInertia[GGroupThreadId.x];
+			const float SchurComplement =  (GradientNext * GradientNext + GradientPrev * GradientPrev);
+			const bool bIsNodeValid = ( LocalIndex > 1 ) && (abs(SchurComplement) > 1e-8f);
+			
+			for(int Index = 0; Index < 100; ++Index)
 			{
-				const float3 DeltaConstraint = ((SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousOrientation[GGroupThreadId.x].xyz) * GradientPrev - 
-												(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousOrientation[GGroupThreadId.x+1].xyz) * GradientNext) - NodeMass * GravityVector;
+				const int IsRed = (GGroupThreadId.x % 2) == 0;
+				float3 DeltaConstraint = float3(0,0,0);
+				if (!IsRed)
+				{
+					DeltaConstraint = IsNotLast ? ((SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousOrientation[GGroupThreadId.x].xyz) * GradientPrev - 
+													(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousOrientation[GGroupThreadId.x+1].xyz) * GradientNext) - NodeMass * GravityVector :
+													((SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousOrientation[GGroupThreadId.x].xyz) * GradientPrev) - NodeMass * GravityVector;
+
+					if( bIsNodeValid) SharedPreviousOrientation[GGroupThreadId.x].xyz += DeltaConstraint * GradientPrev / SchurComplement;
+				}
+				GroupMemoryBarrier(); 
+				if(!IsRed && IsNotLast)
+				{
+					if( bIsNodeValid) SharedPreviousOrientation[GGroupThreadId.x+1].xyz -= DeltaConstraint * GradientNext / SchurComplement;
+				}
+				GroupMemoryBarrier(); 
+
+				if (IsRed)
+				{
+					DeltaConstraint = IsNotLast ? ((SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousOrientation[GGroupThreadId.x].xyz) * GradientPrev - 
+													(SharedPreviousPosition[GGroupThreadId.x+1] - SharedPreviousOrientation[GGroupThreadId.x+1].xyz) * GradientNext) - NodeMass * GravityVector :
+													((SharedPreviousPosition[GGroupThreadId.x] - SharedPreviousOrientation[GGroupThreadId.x].xyz) * GradientPrev) - NodeMass * GravityVector;
 
 
-				SharedPreviousOrientation[GGroupThreadId.x].xyz += DeltaConstraint * GradientPrev / SchurComplement;
-				SharedPreviousOrientation[GGroupThreadId.x+1].xyz -= DeltaConstraint * GradientNext / SchurComplement;
+					if( bIsNodeValid) SharedPreviousOrientation[GGroupThreadId.x].xyz += DeltaConstraint * GradientPrev / SchurComplement;
+				}
+				GroupMemoryBarrier();
+				if(IsRed && IsNotLast)
+				{
+					if( bIsNodeValid) SharedPreviousOrientation[GGroupThreadId.x+1].xyz -= DeltaConstraint * GradientNext / SchurComplement;
+				}
+				GroupMemoryBarrier(); 
 			}
-			GroupMemoryBarrier();
+			EdgeDirection = SharedPreviousOrientation[GGroupThreadId.x].xyz * GravityPreloading + (1.0-GravityPreloading) * EdgeDirection;
+			GroupMemoryBarrier(); 
+			OutRestDirection = UnrotateVectorByQuat(EdgeDirection,SharedNodeOrientation[GGroupThreadId.x-2]);
 		}
-		EdgeDirection = SharedPreviousOrientation[GGroupThreadId.x].xyz * GravityPreloading + (1.0-GravityPreloading) * EdgeDirection;
-		OutRestDirection = UnrotateVectorByQuat(EdgeDirection,SharedNodeOrientation[GGroupThreadId.x-2]);
-	}
 
-	GroupMemoryBarrier(); 
+		GroupMemoryBarrier();
+	}
 }
 
 

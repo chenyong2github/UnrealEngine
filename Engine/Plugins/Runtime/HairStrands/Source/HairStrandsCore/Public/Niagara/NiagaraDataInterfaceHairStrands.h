@@ -39,7 +39,7 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource);
 
 	/** Transfer CPU datas to GPU */
-	void Transfer(const TStaticArray<float, 32 * NumScales>& InParamsScale);
+	void Transfer(FRDGBuilder& GraphBuilder, const TStaticArray<float, 32 * NumScales>& InParamsScale);
 
 	/** Init the buffer */
 	virtual void InitRHI() override;
@@ -51,7 +51,7 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIHairStrandsBuffer"); }
 
 	/** Strand curves point offset buffer */
-	FReadBuffer CurvesOffsetsBuffer;
+	FNiagaraPooledRWBuffer CurvesOffsetsBuffer;
 
 	/** Deformed position buffer in case no resource are there */
 	TRefCountPtr<FRDGPooledBuffer> DeformedPositionBuffer;
@@ -60,10 +60,10 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	FNiagaraPooledRWBuffer BoundingBoxBuffer;
 
 	/** Params scale buffer */
-	FReadBuffer ParamsScaleBuffer;
+	FNiagaraPooledRWBuffer ParamsScaleBuffer;
 
 	/** Points curve index for fast query */
-	FReadBuffer PointsCurveBuffer;
+	FNiagaraPooledRWBuffer PointsCurveBuffer;
 
 	/** The strand asset resource from which to sample */
 	const FHairStrandsRestResource* SourceRestResources;
@@ -85,6 +85,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 
 	/** Valid geometry type for hair (strands, cards, mesh)*/
 	bool bValidGeometryType = false;
+
+	// For debug only
+	//FRHIGPUBufferReadback* ReadbackBuffer = nullptr;
 };
 
 /** Data stored per strand base instance*/
