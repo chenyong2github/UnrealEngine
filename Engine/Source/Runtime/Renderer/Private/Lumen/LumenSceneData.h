@@ -127,6 +127,9 @@ public:
 	uint8 AxisAlignedDirectionIndex = UINT8_MAX;
 	float ResolutionScale = 1.0f;
 
+	// Initial WorldOBB.Extent.X / WorldOBB.Extent.Y, which can't change during reallocation
+	float CardAspect = 1.0f;
+
 	void Initialize(
 		float InResolutionScale,
 		const FMatrix& LocalToWorld,
