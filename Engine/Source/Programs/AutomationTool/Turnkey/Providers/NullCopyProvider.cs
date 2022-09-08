@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
 using System.Collections.Generic;
@@ -81,7 +81,7 @@ namespace Turnkey
 			bool bIsLargeFile = File.Exists(OutputPath) && new FileInfo(OutputPath).Length > 5 * 1024 * 1024;
 			bool bIsDirectory = Directory.Exists(OutputPath);
 
-			if (bIsRemotePath && (bIsLargeFile || bIsDirectory))
+			if ((bIsRemotePath && (bIsLargeFile || bIsDirectory)) || (SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage))
 			{
 				// look in out local cache
 				string OperationTag = string.Format("file_op:{0}", Operation);
@@ -92,7 +92,7 @@ namespace Turnkey
 					return CachedLocation;
 				}
 
-				string CopyLocation = Path.Combine(LocalCache.CreateTempDirectory(), Path.GetFileName(OutputPath));
+				string CopyLocation = (SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage) ? SpecialModeHint : Path.Combine(LocalCache.CreateTempDirectory(), Path.GetFileName(OutputPath));
 
 				if (bIsDirectory)
 				{

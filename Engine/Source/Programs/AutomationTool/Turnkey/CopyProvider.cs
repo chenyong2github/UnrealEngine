@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -109,8 +109,12 @@ namespace Turnkey
 
 			ParseOperation(CopyOperation, out Provider, out ProviderParam, false);
 
-			// execute what comes after the colon
-			string OutputPath = Provider.Execute(ProviderParam, SpecialMode, SpecialModeHint);
+			string OperationExt = Path.GetExtension(ProviderParam).ToLower();
+			bool bWillDecompressToLocation = (OperationExt == ".zip" || OperationExt == ".7z") && SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage;
+
+			// execute what comes after the colon (if we guess we are going to decompress, don't pass in a specified location, we will decompress to it after)
+			string OutputPath = bWillDecompressToLocation ? Provider.Execute(ProviderParam, CopyExecuteSpecialMode.None, null) : 
+				Provider.Execute(ProviderParam, SpecialMode, SpecialModeHint);
 
 			// always unzip the file into a temp directory (or downloadpath if it's a permanent download), and make that directory be the outputpath
 			if (OutputPath != null)
@@ -137,7 +141,7 @@ namespace Turnkey
 						string DecompressLocation;
 						if (SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage)
 						{
-							DecompressLocation = Path.Combine(Path.GetDirectoryName(OutputPath), Path.GetFileNameWithoutExtension(OutputPath) + "_Uncompressed");
+							DecompressLocation = SpecialModeHint; // Path.Combine(Path.GetDirectoryName(OutputPath), Path.GetFileNameWithoutExtension(OutputPath) + "_Uncompressed");
 						}
 						else
 						{

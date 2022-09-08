@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -151,6 +151,8 @@ namespace Turnkey
 
 		public static bool SetupAutoSdk(FileSource Source, ITurnkeyContext TurnkeyContext, UnrealTargetPlatform Platform, bool bUnattended)
 		{
+			AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
+
 			bool bSetupEnvVarAfterInstall = false;
 			if (Environment.GetEnvironmentVariable("UE_SDKS_ROOT") == null)
 			{
@@ -166,10 +168,11 @@ namespace Turnkey
 					bSetupEnvVarAfterInstall = true;
 				}
 			}
+			else
+			{
+				TurnkeyUtils.Log("{0}: AutoSdk is setup on this computer, will look for available AutoSdk to download", Platform);
+			}
 
-			AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
-
-			TurnkeyUtils.Log("{0}: AutoSdk is setup on this computer, will look for available AutoSdk to download", Platform);
 
 			// make sure this is unset so that we can know if it worked or not after install
 			TurnkeyUtils.ClearVariable("CopyOutputPath");
@@ -183,8 +186,44 @@ namespace Turnkey
 				return false;
 			}
 
-			// download the AutoSDK
-			string DownloadedRoot = CopyProvider.ExecuteCopy(CopyOperation);
+			string DownloadedRoot;
+
+			// perforce is special case in that it will setup UE_SDKS_ROOT after we download, because p4 already has a mapping to a certain location
+			// and we don't need to ask user (if perforce needs to ask, it will)
+			if (!CopyOperation.StartsWith(new PerforceCopyProvider().ProviderToken))
+			{
+				if (bSetupEnvVarAfterInstall)
+				{
+					string Response = TurnkeyUtils.ReadInput("Enter directory to use for root of AutoSDKs", Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AutoSDK"));
+					if (string.IsNullOrEmpty(Response))
+					{
+						return false;
+					}
+
+					// set the env var, globally
+					TurnkeyUtils.StartTrackingExternalEnvVarChanges();
+					Environment.SetEnvironmentVariable("UE_SDKS_ROOT", Response);
+					Environment.SetEnvironmentVariable("UE_SDKS_ROOT", Response, EnvironmentVariableTarget.User);
+					TurnkeyUtils.EndTrackingExternalEnvVarChanges();
+
+					bSetupEnvVarAfterInstall = false;
+				}
+
+				// download the AutoSDK, to the UE_SDKS_ROOT dir
+				string AutoSDKDownloadedRoot = Path.Combine(Environment.GetEnvironmentVariable("UE_SDKS_ROOT"), $"Host{HostPlatform.Platform}", Platform.ToString(), Source.Version);
+				// it should return what we pass into ig
+				DownloadedRoot = CopyProvider.ExecuteCopy(CopyOperation, CopyExecuteSpecialMode.UsePermanentStorage, AutoSDKDownloadedRoot);
+				if (DownloadedRoot != AutoSDKDownloadedRoot)
+				{
+					throw new BuildException($"Turnkey did not download to the expected location, the copy operation failed: {CopyOperation} did not respect CopyExecuteSpecialMode.UsePermanentStorage with {AutoSDKDownloadedRoot}, it copied to {DownloadedRoot} instead");
+				}
+			}
+			else
+			{
+				// download the AutoSDK using perforce, where it doesn't need a Hint passed to it
+				DownloadedRoot = CopyProvider.ExecuteCopy(CopyOperation);
+			}
+
 			if (string.IsNullOrEmpty(DownloadedRoot))
 			{
 				TurnkeyContext.ReportError($"Unable to download the AutoSDK for {Platform}. Your Studio's TurnkeyManifest.xml file(s) may need to be fixed.");

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.IO;
@@ -64,7 +64,7 @@ namespace Turnkey
 				// if we are just downloading a quick switch SDK, or similar, then we are given a Hint for a location to download to
 				if (SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage && CachedOperationLocation == null)
 				{
-					DownloadDirectory = Path.Combine(LocalCache.GetInstallCacheDirectory(), SpecialModeHint);
+					DownloadDirectory = SpecialModeHint;// Path.Combine(LocalCache.GetInstallCacheDirectory(), SpecialModeHint);
 					AutomationTool.InternalUtils.SafeDeleteDirectory(DownloadDirectory);
 				}
 				else

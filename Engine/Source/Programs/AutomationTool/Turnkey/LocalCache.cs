@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -145,6 +145,7 @@ namespace Turnkey
 		static void SerializeObject(SavedCache Object, string Filename)
 		{
 			string Str = JsonSerializer.Serialize(Object);
+			Directory.CreateDirectory(Path.GetDirectoryName(Filename));
 			File.WriteAllText(Filename, Str);
 
 // 			using (FileStream Stream = new FileStream(Filename, FileMode.Create))
