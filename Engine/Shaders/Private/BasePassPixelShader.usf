@@ -1401,14 +1401,16 @@ void FPixelShaderInOut_MainPS(
 		BRANCH
 		if (View.OutOfBoundsMask > 0)
 		{
+			FPrimitiveSceneData PrimitiveData = GetPrimitiveData(MaterialParameters);
+
 			float3 ObjectBounds =
 				float3(
-					GetPrimitiveData(MaterialParameters).ObjectBoundsX,
-					GetPrimitiveData(MaterialParameters).ObjectBoundsY,
-					GetPrimitiveData(MaterialParameters).ObjectBoundsZ
+					PrimitiveData.ObjectBoundsX,
+					PrimitiveData.ObjectBoundsY,
+					PrimitiveData.ObjectBoundsZ
 				);
 
-			if (any(abs(LWCToFloat(LWCSubtract(MaterialParameters.AbsoluteWorldPosition, GetPrimitiveData(MaterialParameters).ObjectWorldPosition))) > ObjectBounds + 1))
+			if (any(abs(LWCToFloat(LWCSubtract(MaterialParameters.AbsoluteWorldPosition, PrimitiveData.ObjectWorldPosition))) > ObjectBounds + 1))
 			{
 				float Gradient = LWCFrac(LWCDivide(LWCDot(MaterialParameters.AbsoluteWorldPosition, float3(.577f, .577f, .577f)), 500.0f));
 				OutOfBoundsMaskLuminance = lerp(float3(1,1,0), float3(0,1,1), Gradient.xxx > .5f);

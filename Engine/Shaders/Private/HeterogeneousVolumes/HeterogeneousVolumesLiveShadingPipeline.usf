@@ -67,11 +67,13 @@ FDebugOutput CreateDebugOutput(
 {
 	FDebugOutput DebugOutput = (FDebugOutput)0;
 
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(MaterialParameters);
+
 	DebugOutput.PrimitiveId = MaterialParameters.PrimitiveId;
-	DebugOutput.LocalObjectBoundsMin = GetPrimitiveData(MaterialParameters).LocalObjectBoundsMin.xyz;
-	DebugOutput.LocalObjectBoundsMax = GetPrimitiveData(MaterialParameters).LocalObjectBoundsMax.xyz;
-	DebugOutput.LocalToWorld = LWCToFloat(GetPrimitiveData(MaterialParameters).LocalToWorld);
-	DebugOutput.WorldToLocal = LWCToFloat(GetPrimitiveData(MaterialParameters).WorldToLocal);
+	DebugOutput.LocalObjectBoundsMin = PrimitiveData.LocalObjectBoundsMin.xyz;
+	DebugOutput.LocalObjectBoundsMax = PrimitiveData.LocalObjectBoundsMax.xyz;
+	DebugOutput.LocalToWorld = LWCToFloat(PrimitiveData.LocalToWorld);
+	DebugOutput.WorldToLocal = LWCToFloat(PrimitiveData.WorldToLocal);
 
 	return DebugOutput;
 }

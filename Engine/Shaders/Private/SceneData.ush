@@ -769,8 +769,10 @@ void SetInstanceDeterminantSignFlag(float Determinant, inout uint Flags)
 // Determine the offsets into the payload data buffer for the given instance
 FInstancePayloadDataOffsets GetInstancePayloadDataOffsets(uint PrimitiveId, uint Flags, uint InstanceRelativeId)
 {
-	const uint PayloadDataRelativeOffset	= InstanceRelativeId * GetPrimitiveData(PrimitiveId).InstancePayloadDataStride;
-	const uint PayloadDataGlobalOffset		= PayloadDataRelativeOffset + GetPrimitiveData(PrimitiveId).InstancePayloadDataOffset;
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(PrimitiveId);
+
+	const uint PayloadDataRelativeOffset	= InstanceRelativeId * PrimitiveData.InstancePayloadDataStride;
+	const uint PayloadDataGlobalOffset		= PayloadDataRelativeOffset + PrimitiveData.InstancePayloadDataOffset;
 
 	const bool bHasHierarchyOffset			= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
 	const bool bHasLocalBounds				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
@@ -913,7 +915,9 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		InstanceData.RandomID					= LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w;
 	#endif
 
-		float3 TilePosition 									= GetPrimitiveData(InstanceData.PrimitiveId).TilePosition;
+		FPrimitiveSceneData PrimitiveData		= GetPrimitiveData(InstanceData.PrimitiveId);
+
+		float3 TilePosition 									= PrimitiveData.TilePosition;
 
 #if PLATFORM_ALLOW_SCENE_DATA_COMPRESSED_TRANSFORMS
 		uint4  RotationScale									= asuint(LoadInstanceSceneDataElement(1 * SOAStride + InstanceId));
@@ -946,8 +950,8 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		InstanceData.PrevLocalToWorld	= MakeLWCMatrix(TilePosition, PrevLocalToRelativeWorld);
 		ComputeInstanceDerivedData(InstanceData, TilePosition, LocalToRelativeWorld);
 
-		InstanceData.NaniteRuntimeResourceID	= GetPrimitiveData(InstanceData.PrimitiveId).NaniteResourceID;
-		InstanceData.NaniteHierarchyOffset		= GetPrimitiveData(InstanceData.PrimitiveId).NaniteHierarchyOffset;
+		InstanceData.NaniteRuntimeResourceID	= PrimitiveData.NaniteResourceID;
+		InstanceData.NaniteHierarchyOffset		= PrimitiveData.NaniteHierarchyOffset;
 
 		BRANCH
 		if (Offsets.HierarchyOffset != INVALID_INSTANCE_PAYLOAD_OFFSET)
@@ -978,8 +982,8 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		}
 		else
 		{
-			InstanceData.LocalBoundsCenter = GetPrimitiveData(InstanceData.PrimitiveId).InstanceLocalBoundsCenter;
-			InstanceData.LocalBoundsExtent = GetPrimitiveData(InstanceData.PrimitiveId).InstanceLocalBoundsExtent;
+			InstanceData.LocalBoundsCenter = PrimitiveData.InstanceLocalBoundsCenter;
+			InstanceData.LocalBoundsExtent = PrimitiveData.InstanceLocalBoundsExtent;
 		}
 
 		BRANCH
@@ -997,7 +1001,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 		#endif
 
-			float3 TilePosition 				= GetPrimitiveData(InstanceData.PrimitiveId).TilePosition;
+			float3 TilePosition 				= PrimitiveData.TilePosition;
 			InstanceData.PrevLocalToWorld		= MakeLWCMatrix(TilePosition, PrevLocalToRelativeWorld);
 		}
 
