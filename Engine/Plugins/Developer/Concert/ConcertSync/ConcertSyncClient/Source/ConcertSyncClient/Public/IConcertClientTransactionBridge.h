@@ -151,18 +151,6 @@ public:
 	 */
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const class FConcertSyncWorldRemapper& ConcertSyncWorldRemapper) = 0;
 
-	/**
-	 * Apply a remote transaction event to this local instance.
-	 * @param InEvent					The event to apply.
-	 * @param InVersionInfo				The version information for the serialized data in the event, or null if the event should be serialized using the compiled in version info.
-	 * @param InPackagesToProcess		The list of packages to apply changes for, or an empty array to apply all changes.
-	 * @param InLocalIdentifierTablePtr The local identifier table for the event data (if any).
-	 * @param bIsSnapshot				True if this transaction event was a snapshot rather than a finalized transaction.
-	 * @param ConcertSyncWorldRemapper	Remapper to use in the case the current world is different from the one sent in the transation.
-	 * @param DeletedActors				Optional set of actor pointers to gather deleted actors.
-	 */
-	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const class FConcertSyncWorldRemapper& ConcertSyncWorldRemapper, TSet<AActor*>* DeletedActors) = 0;
-
 	/** Callback to register delegate for handling transaction events */
 	virtual void RegisterTransactionFilter(FName FilterName, FTransactionFilterDelegate FilterHandle) = 0;
 

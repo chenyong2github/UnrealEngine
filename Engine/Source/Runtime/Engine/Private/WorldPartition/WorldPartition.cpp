@@ -274,16 +274,13 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 {
 	auto ShouldHandleActor = [this](AActor* Actor) {return Actor && Actor->IsMainPackageActor() && (Actor->GetLevel() != nullptr) && IsActorDescHandled(Actor);};
 
-	if (IsStreamingEnabled())
+	if (AActor* Actor = AActor::FindActorInPackage(Package); ShouldHandleActor(Actor))
 	{
-		if (AActor* Actor = AActor::FindActorInPackage(Package); ShouldHandleActor(Actor))
+		if (FWorldPartitionHandle ActorHandle(this, Actor->GetActorGuid()); ActorHandle.IsValid())
 		{
-			if (FWorldPartitionHandle ActorHandle(this, Actor->GetActorGuid()); ActorHandle.IsValid())
+			if (Package->IsDirty())
 			{
-				if (Package->IsDirty())
-				{
-					DirtyActors.Add(ActorHandle.ToReference(), Actor);
-				}
+				DirtyActors.Add(ActorHandle.ToReference(), Actor);
 			}
 		}
 	}
@@ -1171,7 +1168,8 @@ void UWorldPartition::Tick(float DeltaSeconds)
 		{
 			if (!DirtyActorIt.Key().IsValid() || !DirtyActorIt.Value()->GetPackage()->IsDirty())
 			{
-				if (DirtyActorIt.Key().IsValid() && DirtyActorIt.Key()->GetHardRefCount() <= 1)
+				// If we hold the last reference to that actor (or no reference are held at all), pin it to avoid unloading
+				if (IsStreamingEnabled() && DirtyActorIt.Key().IsValid() && DirtyActorIt.Key()->GetHardRefCount() <= 1)
 				{
 					PinnedActors->AddActors({ DirtyActorIt.Key().ToHandle() });
 				}
