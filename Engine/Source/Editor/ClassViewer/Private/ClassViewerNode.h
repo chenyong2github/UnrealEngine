@@ -99,7 +99,7 @@ public:
 	FTopLevelAssetPath ParentClassPath;
 
 	/** Full path to the Blueprint that this class is loaded from, none for native classes*/
-	FName BlueprintAssetPath;
+	FSoftObjectPath BlueprintAssetPath;
 
 	/** true if the class passed the filter. */
 	bool bPassesFilter;

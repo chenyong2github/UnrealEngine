@@ -37,7 +37,7 @@ bool UDataTableFactory::ConfigureProperties()
 			return FDataTableEditorUtils::IsValidTableStruct(InStruct);
 		}
 
-		virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FName InStructPath, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
+		virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FSoftObjectPath& InStructPath, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
 		{
 			// Unloaded structs are always User Defined Structs, and User Defined Structs are always allowed
 			// They will be re-validated by IsStructAllowed once loaded during the pick

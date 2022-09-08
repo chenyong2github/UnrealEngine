@@ -373,27 +373,9 @@ FTopLevelAssetPath FEditorClassUtils::GetClassPathNameFromAssetTag(const FAssetD
 
 FName FEditorClassUtils::GetClassPathFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing /*= false*/)
 {
-	bool bIsBPGC = false;
-	const bool bIsBP = IsBlueprintAsset(InAssetData, &bIsBPGC);
-
-	if (bIsBPGC)
-	{
-		return InAssetData.ObjectPath;
-	}
-	else if (bIsBP)
-	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FName ClassPath = GetClassPathFromAssetTag(InAssetData);
+	return GetClassPathNameFromAsset(InAssetData, bGenerateClassPathIfMissing).ToFName();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		if (bGenerateClassPathIfMissing && ClassPath.IsNone())
-		{
-			FNameBuilder ClassPathBuilder(InAssetData.ObjectPath);
-			ClassPathBuilder << "_C";
-			ClassPath = FName(ClassPathBuilder.ToString());
-		}
-		return ClassPath;
-	}
-	return NAME_None;
 }
 
 FTopLevelAssetPath FEditorClassUtils::GetClassPathNameFromAsset(const FAssetData& InAssetData, bool bGenerateClassPathIfMissing /*= false*/)
@@ -403,14 +385,14 @@ FTopLevelAssetPath FEditorClassUtils::GetClassPathNameFromAsset(const FAssetData
 
 	if (bIsBPGC)
 	{
-		return FTopLevelAssetPath(InAssetData.ObjectPath.ToString());
+		return FTopLevelAssetPath(InAssetData.GetSoftObjectPath().GetAssetPath());
 	}
 	else if (bIsBP)
 	{
 		FTopLevelAssetPath ClassPath = GetClassPathNameFromAssetTag(InAssetData);
 		if (bGenerateClassPathIfMissing && ClassPath.IsNull())
 		{
-			FString ClassPathString = InAssetData.ObjectPath.ToString();
+			FString ClassPathString = InAssetData.GetObjectPathString();
 			ClassPathString += TEXT("_C");
 			ClassPath = FTopLevelAssetPath(ClassPathString);
 		}

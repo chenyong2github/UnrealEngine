@@ -149,7 +149,7 @@ bool FClassViewerNode::IsClassPlaceable() const
 
 bool FClassViewerNode::IsBlueprintClass() const
 {
-	return BlueprintAssetPath != NAME_None;
+	return !BlueprintAssetPath.IsNull();
 }
 
 bool FClassViewerNode::IsEditorOnlyClass() const

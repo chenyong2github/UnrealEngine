@@ -669,12 +669,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bPassesAssetReferenceFilter = true;
 	if (AssetReferenceFilter.IsValid() && bIsBlueprintBase)
 	{
-		FName BlueprintAssetPath = FName(*GeneratedClassPathString);
-		FAssetData BlueprintAssetData = AssetRegistry.GetAssetByObjectPath(BlueprintAssetPath);
+		FString BlueprintAssetPath = GeneratedClassPathString;
+		FAssetData BlueprintAssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(BlueprintAssetPath));
 		if (!BlueprintAssetData.IsValid())
 		{
-			BlueprintAssetPath = FName(*GeneratedClassPathString.LeftChop(2)); // Chop off _C
-			BlueprintAssetData = AssetRegistry.GetAssetByObjectPath(BlueprintAssetPath);
+			BlueprintAssetPath = GeneratedClassPathString.LeftChop(2); // Chop off _C
+			BlueprintAssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(BlueprintAssetPath));
 		}
 
 		if (BlueprintAssetData.IsValid())

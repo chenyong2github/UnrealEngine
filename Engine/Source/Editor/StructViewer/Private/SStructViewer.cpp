@@ -146,8 +146,8 @@ public:
 	 * @param InStructPath	The path name of the struct to find the node for.
 	 * @return The node.
 	 */
-	TSharedPtr<FStructViewerNodeData> FindNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FName InStructPath);
-	TSharedPtr<FStructViewerNodeData> FindNodeByStructPath(const FName InStructPath)
+	TSharedPtr<FStructViewerNodeData> FindNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FSoftObjectPath& InStructPath);
+	TSharedPtr<FStructViewerNodeData> FindNodeByStructPath(const FSoftObjectPath& InStructPath)
 	{
 		return FindNodeByStructPath(GetStructRootNode(), InStructPath);
 	}
@@ -170,8 +170,8 @@ private:
 	 *
 	 * @return Returns true if the struct was found and deleted successfully.
 	 */
-	bool FindAndRemoveNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FName InStructPath);
-	bool FindAndRemoveNodeByStructPath(const FName InStructPath)
+	bool FindAndRemoveNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FSoftObjectPath& InStructPath);
+	bool FindAndRemoveNodeByStructPath(const FSoftObjectPath& InStructPath)
 	{
 		return FindAndRemoveNodeByStructPath(GetStructRootNode(), InStructPath);
 	}
@@ -227,7 +227,7 @@ namespace StructViewer
 		 * @param InInitOptions		The struct viewer's options, holds the AllowedStructs and DisallowedStructs.
 		 * @param InStructPath		The path name to test against.
 		 */
-		bool IsStructAllowed_UnloadedStruct(const FStructViewerInitializationOptions& InInitOptions, const FName InStructPath)
+		bool IsStructAllowed_UnloadedStruct(const FStructViewerInitializationOptions& InInitOptions, const FSoftObjectPath& InStructPath)
 		{
 			if (InInitOptions.StructFilter.IsValid())
 			{
@@ -640,9 +640,9 @@ public:
 
 				ToolTip = IDocumentation::Get()->CreateToolTip(RestrictionToolTip, nullptr, "", "");
 			}
-			else if (!AssociatedNode->GetStructPath().IsNone())
+			else if (!AssociatedNode->GetStructPath().IsNull())
 			{
-				ToolTip = SNew(SToolTip).Text(FText::FromName(AssociatedNode->GetStructPath()));
+				ToolTip = SNew(SToolTip).Text(FText::FromString(AssociatedNode->GetStructPath().ToString()));
 			}
 
 			return ToolTip;
@@ -938,7 +938,7 @@ void FStructHierarchy::PopulateStructHierarchy()
 	PopulateStructViewerDelegate.Broadcast();
 }
 
-TSharedPtr<FStructViewerNodeData> FStructHierarchy::FindNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FName InStructPath)
+TSharedPtr<FStructViewerNodeData> FStructHierarchy::FindNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FSoftObjectPath& InStructPath)
 {
 	// Check if the current node is the struct path that is being searched for
 	if (InRootNode->GetStructPath() == InStructPath)
@@ -960,7 +960,7 @@ TSharedPtr<FStructViewerNodeData> FStructHierarchy::FindNodeByStructPath(const T
 	return nullptr;
 }
 
-bool FStructHierarchy::FindAndRemoveNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FName InStructPath)
+bool FStructHierarchy::FindAndRemoveNodeByStructPath(const TSharedRef<FStructViewerNodeData>& InRootNode, const FSoftObjectPath& InStructPath)
 {
 	// Check if the current node contains a child of struct path that is being searched for
 	if (InRootNode->RemoveChild(InStructPath))
@@ -992,7 +992,7 @@ void FStructHierarchy::AddAsset(const FAssetData& InAddedAssetData)
 		if (AssetClass && AssetClass->IsChildOf(UScriptStruct::StaticClass()))
 		{
 			// Make sure that the node does not already exist. There is a bit of double adding going on at times and this prevents it.
-			if (!FindNodeByStructPath(InAddedAssetData.ObjectPath))
+			if (!FindNodeByStructPath(InAddedAssetData.GetSoftObjectPath()))
 			{
 				// User defined structs are always root level structs
 				StructRootNode->AddChild(MakeShared<FStructViewerNodeData>(InAddedAssetData));
@@ -1006,7 +1006,7 @@ void FStructHierarchy::AddAsset(const FAssetData& InAddedAssetData)
 
 void FStructHierarchy::RemoveAsset(const FAssetData& InRemovedAssetData)
 {
-	if (FindAndRemoveNodeByStructPath(InRemovedAssetData.ObjectPath))
+	if (FindAndRemoveNodeByStructPath(InRemovedAssetData.GetSoftObjectPath()))
 	{
 		// All viewers must refresh.
 		PopulateStructViewerDelegate.Broadcast();
@@ -1782,7 +1782,7 @@ void SStructViewer::Populate()
 		// Take the package names for the internal only structs and convert them into their UScriptStructs
 		for (const TSoftObjectPtr<const UScriptStruct>& InternalStructName : InternalStructNames)
 		{
-			const TSharedPtr<FStructViewerNodeData> StructNode = FStructHierarchy::Get().FindNodeByStructPath(*InternalStructName.ToString());
+			const TSharedPtr<FStructViewerNodeData> StructNode = FStructHierarchy::Get().FindNodeByStructPath(InternalStructName.ToSoftObjectPath());
 			if (StructNode.IsValid())
 			{
 				if (const UScriptStruct* Struct = StructNode->GetStruct())

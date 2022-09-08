@@ -1432,7 +1432,7 @@ void SNewClassDialog::UpdateInputValidity()
 		if (bLastInputValidityCheckSuccessful)
 		{
 			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
-			if (AssetRegistry.GetAssetByObjectPath(*(NewClassPath / NewClassName)).IsValid())
+			if (AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(NewClassPath / NewClassName)).IsValid())
 			{
 				bLastInputValidityCheckSuccessful = false;
 				LastInputValidityErrorText = FText::Format(LOCTEXT("AssetAlreadyExists", "An asset called {0} already exists in {1}."), FText::FromString(NewClassName), FText::FromString(NewClassPath));

@@ -117,7 +117,7 @@ const UClass* FClassIconFinder::GetIconClassForAssetData(const FAssetData& InAss
 			*bOutIsClassType = true;
 		}
 
-		return FindObject<UClass>(nullptr, *InAssetData.ObjectPath.ToString());
+		return FindObject<UClass>(nullptr, *InAssetData.GetObjectPathString());
 	}
 	
 	static const FName IgnoreClassThumbnail(TEXT("IgnoreClassThumbnail"));

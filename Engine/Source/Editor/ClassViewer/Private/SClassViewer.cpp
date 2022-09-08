@@ -1327,7 +1327,7 @@ void FClassHierarchy::CreateOrUpdateUnloadedClassNode(TSharedPtr<FClassViewerNod
 
 	// Blueprint-specific fields
 
-	InOutClassViewerNode->BlueprintAssetPath = InAssetData.ObjectPath;
+	InOutClassViewerNode->BlueprintAssetPath = InAssetData.GetSoftObjectPath();
 
 	// It is an unloaded blueprint, so we need to create the structure that will hold the data.
 	TSharedPtr<FUnloadedBlueprintData> UnloadedBlueprintData = MakeShareable(new FUnloadedBlueprintData(InOutClassViewerNode));
@@ -1376,7 +1376,7 @@ void FClassHierarchy::PopulateClassHierarchy()
 			else
 			{
 				UE_LOG(LogEditorClassViewer, Warning, TEXT("AssetRegistry Blueprint %s is missing tag value for %s. Blueprint will not be available to ClassViewer when unloaded."),
-					*AssetData.ObjectPath.ToString(), *FBlueprintTags::GeneratedClassPath.ToString());
+					*AssetData.GetObjectPathString(), *FBlueprintTags::GeneratedClassPath.ToString());
 			}
 		}
 
@@ -1385,7 +1385,7 @@ void FClassHierarchy::PopulateClassHierarchy()
 
 		for (const FAssetData& AssetData : Assets)
 		{
-			FTopLevelAssetPath ClassPathNameFromAssetPath(AssetData.ObjectPath.ToString());
+			FTopLevelAssetPath ClassPathNameFromAssetPath = AssetData.GetSoftObjectPath().GetAssetPath();
 			TSharedPtr<FClassViewerNode>& Node = ClassPathToNode.FindOrAdd(ClassPathNameFromAssetPath);
 			CreateOrUpdateUnloadedClassNode(Node, AssetData, ClassPathNameFromAssetPath);
 		}
@@ -2115,7 +2115,7 @@ FReply SClassViewer::OnDragDetected( const FGeometry& Geometry, const FPointerEv
 					return FReply::Handled().BeginDragDrop(FClassDragDropOp::New(MakeWeakObjectPtr(Class)));
 				}	
 			}
-			else if (Item->BlueprintAssetPath != NAME_None)
+			else if (!Item->BlueprintAssetPath.IsNull())
 			{
 				IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 

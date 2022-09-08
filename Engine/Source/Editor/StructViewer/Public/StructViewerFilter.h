@@ -27,7 +27,7 @@ public:
 	 * @param InStructPath				The path of the unloaded struct to be tested.
 	 * @param InFilterFuncs				Useful functions for filtering.
 	 */
-	virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FName InStructPath, TSharedRef<class FStructViewerFilterFuncs> InFilterFuncs) = 0;
+	virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FSoftObjectPath& InStructPath, TSharedRef<class FStructViewerFilterFuncs> InFilterFuncs) = 0;
 };
 
 enum class EStructFilterReturn : uint8

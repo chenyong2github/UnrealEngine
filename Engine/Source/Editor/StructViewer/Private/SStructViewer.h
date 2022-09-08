@@ -216,7 +216,7 @@ private:
 	bool bSaveExpansionStates;
 
 	/** The map holding the expansion state map for the tree. */
-	TMap<FName, bool> ExpansionStateMap;
+	TMap<FSoftObjectPath, bool> ExpansionStateMap;
 
 	/** True if the Struct Viewer needs to be repopulated at the next appropriate opportunity, occurs whenever structs are added, removed, renamed, etc. */
 	bool bNeedsRefresh;
