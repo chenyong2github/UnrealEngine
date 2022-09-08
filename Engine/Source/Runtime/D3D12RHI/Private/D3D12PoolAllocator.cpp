@@ -276,7 +276,8 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 	check(GPUIndex == Device->GetGPUIndex());
 
-	const bool PoolResource = InSize <= MaxAllocationSize;
+	const bool bSharedResource = EnumHasAnyFlags(InDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS);
+	const bool PoolResource = InSize <= MaxAllocationSize && !bSharedResource;
 	if (PoolResource)
 	{
 		const bool bPlacedResource = (AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
