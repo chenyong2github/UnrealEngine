@@ -955,7 +955,7 @@ private:
 	 * and call AActor::SetActorLabel() or FActorLabelUtilities::SetActorLabelUnique() to change the label.  Never set the label directly.
 	 */
 	UPROPERTY()
-	mutable FString ActorLabel;
+	FString ActorLabel;
 #endif
 
 #if !WITH_EDITOR && ACTOR_HAS_LABELS

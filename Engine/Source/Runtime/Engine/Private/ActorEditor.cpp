@@ -1109,7 +1109,9 @@ const FString& AActor::GetActorLabel(bool bCreateIfNone) const
 		// Remember, there could already be an actor with the same label in the level.  But that's OK, because
 		// actor labels aren't supposed to be unique.  We just try to make them unique initially to help
 		// disambiguate when opening up a new level and there are hundreds of actors of the same type.
-		ActorLabel = MoveTemp(DefaultActorLabel);
+		AActor* MutableThis = const_cast<AActor*>(this);
+		MutableThis->ActorLabel = MoveTemp(DefaultActorLabel);
+		FCoreDelegates::OnActorLabelChanged.Broadcast(MutableThis);
 	}
 
 	return ActorLabel;
