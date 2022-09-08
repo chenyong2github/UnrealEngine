@@ -30,11 +30,14 @@
 #include "OptimusValidatedName.h"
 #include "OptimusValueContainer.h"
 #include "PropertyEditorModule.h"
+#include "UserDefinedStructureCompilerUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Widgets/SOptimusEditorGraphExplorer.h"
 #include "Widgets/SOptimusShaderTextDocumentTextBox.h"
 #include "Algo/Transform.h"
 #include "OptimusCore/Private/Actions/OptimusResourceActions.h"
+#include "UObject/FieldIterator.h"
+#include "UserDefinedStructure/UserDefinedStructEditorData.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -110,6 +113,18 @@ FOptimusEditorClipboard& FOptimusEditorModule::GetClipboard() const
 void FOptimusEditorModule::PreChange(const UUserDefinedStruct* Changed,
 	FStructureEditorUtils::EStructureEditorChangeInfo ChangedType)
 {
+	// the following is similar to
+	// FUserDefinedStructureCompilerInner::ReplaceStructWithTempDuplicate()
+	// it is necessary since things like optimus value container class/objects can reference the old struct
+	// and we need to keep the old struct alive in those classes so that they can get GCed properly.
+	
+	UUserDefinedStruct* StructureToReinstance = (UUserDefinedStruct*)Changed;
+
+	FUserDefinedStructureCompilerUtils::ReplaceStructWithTempDuplicateByPredicate(
+		StructureToReinstance,
+		[](FStructProperty* InStructProperty){ return Cast<UOptimusValueContainerGeneratorClass>(InStructProperty->GetOwnerClass()) != nullptr; },
+		[](UStruct*){});
+	
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	TArray<FName> Referencers;
 	AssetRegistryModule.Get().GetReferencers(Changed->GetPackage()->GetFName(), Referencers);

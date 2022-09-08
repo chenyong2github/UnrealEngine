@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
                     "ControlRig",
                     "ControlRigDeveloper",
                     "Kismet",
+					"KismetCompiler",
                     "EditorStyle",
 					"EditorWidgets",
                     "ApplicationCore",

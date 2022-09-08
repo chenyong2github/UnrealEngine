@@ -130,6 +130,7 @@
 #include "AnimationToolMenuContext.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMUserWorkflowRegistry.h"
+#include "UserDefinedStructureCompilerUtils.h"
 #include "Units/ControlRigNodeWorkflow.h"
 #include "Units/RigDispatchFactory.h"
 
@@ -2537,79 +2538,45 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 	//                              --2--> PreBPCompile --3--> PostBPCompile
 	
 	UUserDefinedStruct* StructureToReinstance = (UUserDefinedStruct*)Changed;
-	if (StructureToReinstance)
-	{
-		UUserDefinedStruct* DuplicatedStruct = NULL;
+
+	FUserDefinedStructureCompilerUtils::ReplaceStructWithTempDuplicateByPredicate(
+		StructureToReinstance,
+		[](FStructProperty* InStructProperty)
 		{
-			const FString ReinstancedName = FString::Printf(TEXT("STRUCT_REINST_%s"), *StructureToReinstance->GetName());
-			const FName UniqueName = MakeUniqueObjectName(GetTransientPackage(), UUserDefinedStruct::StaticClass(), FName(*ReinstancedName));
-
-			TGuardValue<bool> IsDuplicatingClassForReinstancing(GIsDuplicatingClassForReinstancing, true);
-			DuplicatedStruct = (UUserDefinedStruct*)StaticDuplicateObject(StructureToReinstance, GetTransientPackage(), UniqueName, ~RF_Transactional); 
-		}
-
-		DuplicatedStruct->Guid = StructureToReinstance->Guid;
-		DuplicatedStruct->Bind();
-		DuplicatedStruct->StaticLink(true);
-		DuplicatedStruct->PrimaryStruct = StructureToReinstance;
-		DuplicatedStruct->Status = EUserDefinedStructureStatus::UDSS_Duplicate;
-		DuplicatedStruct->SetFlags(RF_Transient);
-		DuplicatedStruct->AddToRoot();
-
-		CastChecked<UUserDefinedStructEditorData>(DuplicatedStruct->EditorData)->RecreateDefaultInstance();
-
-		// List of unique classes and structs to regenerate bytecode and property referenced objects list
-		TSet<UStruct*> StructsToRegenerateReferencesFor;
-
-		for (TAllFieldsIterator<FStructProperty> FieldIt(RF_NoFlags, EInternalObjectFlags::Garbage); FieldIt; ++FieldIt)
-		{
-			FStructProperty* StructProperty = *FieldIt;
-			if (StructProperty && (StructureToReinstance == StructProperty->Struct))
+			// make sure variable properties on the BP is patched
+			// since active rig instance still references it
+			if (UControlRigBlueprintGeneratedClass* BPClass = Cast<UControlRigBlueprintGeneratedClass>(InStructProperty->GetOwnerClass()))
 			{
-				// make sure variable properties on the BP is patched
-				// since active rig instance still references it
-				if (UControlRigBlueprintGeneratedClass* BPClass = Cast<UControlRigBlueprintGeneratedClass>(StructProperty->GetOwnerClass()))
+				if (BPClass->ClassGeneratedBy->IsA<UControlRigBlueprint>())
 				{
-					if (UControlRigBlueprint* FoundBlueprint = Cast<UControlRigBlueprint>(BPClass->ClassGeneratedBy))
-					{
-						StructProperty->Struct = DuplicatedStruct;
-						StructsToRegenerateReferencesFor.Add(BPClass);
-					}
-				}
-				// similar story, VM instructions reference properties on the GeneratorClass
-				else if (URigVMMemoryStorageGeneratorClass* MemoryClass = Cast<URigVMMemoryStorageGeneratorClass>(StructProperty->GetOwnerStruct()))
-				{
-					StructProperty->Struct = DuplicatedStruct;
-					StructsToRegenerateReferencesFor.Add(MemoryClass);
-				}
-				else if (UDetailsViewWrapperObject::IsValidClass(StructProperty->GetOwnerClass()))
-				{
-					StructProperty->Struct = DuplicatedStruct;
-					StructsToRegenerateReferencesFor.Add(StructProperty->GetOwnerClass());
+					return true;
 				}
 			}
-		}
-
-		// Make sure we update the list of objects referenced by structs after we replaced the struct in FStructProperties
-		for (UStruct* Struct : StructsToRegenerateReferencesFor)
-		{
-			Struct->CollectBytecodeAndPropertyReferencedObjects();
+			// similar story, VM instructions reference properties on the GeneratorClass
+			else if ((InStructProperty->GetOwnerStruct())->IsA<URigVMMemoryStorageGeneratorClass>())
+			{
+				return true;
+			}
+			else if (UDetailsViewWrapperObject::IsValidClass(InStructProperty->GetOwnerClass()))
+			{
+				return true;
+			}
 			
+			return false;
+		},
+		[](UStruct* InStruct)
+		{
 			// refresh these since VM caching references them
-			if (URigVMMemoryStorageGeneratorClass* GeneratorClass = Cast<URigVMMemoryStorageGeneratorClass>(Struct))
+			if (URigVMMemoryStorageGeneratorClass* GeneratorClass = Cast<URigVMMemoryStorageGeneratorClass>(InStruct))
 			{
 				GeneratorClass->RefreshLinkedProperties();
 				GeneratorClass->RefreshPropertyPaths();	
 			}
-			else if (Struct->IsChildOf(UDetailsViewWrapperObject::StaticClass()))
+			else if (InStruct->IsChildOf(UDetailsViewWrapperObject::StaticClass()))
 			{
-				UDetailsViewWrapperObject::MarkOutdatedClass(Cast<UClass>(Struct));
+				UDetailsViewWrapperObject::MarkOutdatedClass(Cast<UClass>(InStruct));
 			}
-		}
-
-		// as rigs are re-instanced, the duplicated struct will be GCed
-		DuplicatedStruct->RemoveFromRoot();
-	}
+		});
 	
 	// in the future we could only invalidate caches on affected rig instances, it shouldn't make too much of a difference though
 	for (TObjectIterator<UControlRig> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::Garbage); It; ++It)

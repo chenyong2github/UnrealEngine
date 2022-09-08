@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"Persona",
 					"MessageLog",
 					"PropertyEditor",
+					"KismetCompiler"
 				}
 			);
 
