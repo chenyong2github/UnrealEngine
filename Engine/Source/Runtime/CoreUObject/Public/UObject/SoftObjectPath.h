@@ -178,7 +178,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	/** Returns /package/path, leaving off the asset name and sub object */
 	FString GetLongPackageName() const
 	{
-		return GetAssetPath().GetPackageName().ToString();
+		FName PackageName = GetAssetPath().GetPackageName();
+		return PackageName.IsNone() ? FString() : PackageName.ToString();
 	}
 
 	/** Returns /package/path, leaving off the asset name and sub object */
@@ -190,7 +191,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	/** Returns assetname string, leaving off the /package/path part and sub object */
 	FString GetAssetName() const
 	{
-		return GetAssetPath().GetAssetName().ToString();
+		FName AssetName = GetAssetPath().GetAssetName();
+		return AssetName.IsNone() ? FString() : AssetName.ToString();
 	}
 
 	/** Returns assetname string, leaving off the /package/path part and sub object */
