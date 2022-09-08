@@ -66,3 +66,9 @@ bool FVCamConnection::AttemptConnection(UVCamComponent* VCamComponent)
 
 	return bIsValidModifierConnection;
 }
+
+void FVCamConnection::ResetConnection()
+{
+	ConnectedModifier = nullptr;
+	ConnectedAction = nullptr;
+}

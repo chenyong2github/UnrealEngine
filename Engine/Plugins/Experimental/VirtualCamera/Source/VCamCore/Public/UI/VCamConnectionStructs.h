@@ -35,6 +35,17 @@ struct VCAMCORE_API FVCamConnectionTargetSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ConnectionBinding)
 	FName TargetConnectionPoint = NAME_None;
+
+	bool operator==(const FVCamConnectionTargetSettings& Other) const
+	{
+		return TargetModifierName == Other.TargetModifierName
+		&& TargetConnectionPoint == Other.TargetConnectionPoint;
+	}
+
+	bool HasValidSettings() const
+	{
+		return !(TargetModifierName.IsNone() || TargetConnectionPoint.IsNone());
+	}
 };
 
 /*
@@ -113,4 +124,9 @@ struct VCAMCORE_API FVCamConnection
 	 * Attempts to make a connection to a target Connection Point and returns a bool indicating success
 	 */
 	bool AttemptConnection(UVCamComponent* VCamComponent);
+
+	/*
+	 * Clears any currently connected modifier and action
+	 */
+	void ResetConnection();
 };

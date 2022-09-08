@@ -12,6 +12,13 @@
 class UInputAction;
 class UVCamModifier;
 
+UENUM(BlueprintType)
+enum class EConnectionUpdateResult : uint8
+{
+	DidUpdateConnections,
+	NoConnectionsUpdated
+};
+
 /*
  * A wrapper widget class that contains a set of VCam Connections
  * 
@@ -63,7 +70,31 @@ public:
 
 	/*
 	 * Iterate all VCam Connections within the widget and attempt to connect them using the provided VCam Component
+	 * Optionally registers for input with the VCam Component if requested
+	 */
+	void InitializeConnections(UVCamComponent* VCam);
+
+	/*
+	 * Attempts to use the cached VCam Component to initialize the connections
+	 * Returns true if there was a valid VCam Component to initialize with
 	 */
 	UFUNCTION(BlueprintCallable, Category="VCam Connections")
-	void InitializeConnections(UVCamComponent* VCam);
+	bool ReinitializeConnections();
+
+	/*
+	 * Looks through the set of Connections on this widget and if a matching connection name is found will attempt to update the connection target.
+	 * If the new target is the same as the old target then no update is performed.
+	 * This function will optionally reinitialize the widget connections if 1 or more targets were updated.
+	 * 
+	 * Note: If a connection name in the NewConnectionTargets map is not found in the Widget Connections then it is ignored
+	 * no new connections will be created and no connections will be removed
+	 */
+	UFUNCTION(BlueprintCallable, Category="VCam Connections", meta=(ExpandEnumAsExecs="Result", bReinitializeOnSuccessfulUpdate=true))
+	void UpdateConnectionTargets(const TMap<FName, FVCamConnectionTargetSettings>& NewConnectionTargets, const bool bReinitializeOnSuccessfulUpdate, EConnectionUpdateResult& Result);
+
+	/*
+	 * Cached pointer to the VCam Component that owns this VCam Widget
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="VCam")
+	TObjectPtr<UVCamComponent> VCamComponent;
 };
