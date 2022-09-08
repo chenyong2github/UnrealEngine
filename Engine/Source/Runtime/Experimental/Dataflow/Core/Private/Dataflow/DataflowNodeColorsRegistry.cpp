@@ -29,9 +29,9 @@ namespace Dataflow
 
 	FNodeColorsRegistry::~FNodeColorsRegistry()
 	{
-		if (IsClassLoaded<UDataflowSettings>())
+		if (UObjectInitialized())
 		{
-			if (UObjectInitialized())
+			if (IsClassLoaded<UDataflowSettings>())
 			{
 				UDataflowSettings* DataflowSettings = GetMutableDefault<UDataflowSettings>();
 				DataflowSettings->GetOnDataflowSettingsChangedDelegate().Remove(DataflowSettingsChangedDelegateHandle);
