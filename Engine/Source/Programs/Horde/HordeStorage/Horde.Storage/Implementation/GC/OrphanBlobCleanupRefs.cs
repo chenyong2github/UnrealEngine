@@ -136,7 +136,7 @@ namespace Horde.Storage.Implementation
 
                 if (blobIndex == null)
                 {
-                    break;
+                    continue;
                 }
 
                 foreach ((BucketId, IoHashKey) tuple in blobIndex.References!)
