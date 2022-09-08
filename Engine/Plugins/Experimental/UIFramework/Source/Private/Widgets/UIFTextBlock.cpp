@@ -10,13 +10,13 @@
 /**
  *
  */
-UUIFTextBlock::UUIFTextBlock()
+UUIFrameworkTextBlock::UUIFrameworkTextBlock()
 {
 	WidgetClass = UTextBlock::StaticClass();
 }
 
 
-void UUIFTextBlock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void UUIFrameworkTextBlock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
@@ -26,25 +26,23 @@ void UUIFTextBlock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 }
 
 
-void UUIFTextBlock::OnLocalUserWidgetCreated()
+void UUIFrameworkTextBlock::LocalOnUMGWidgetCreated()
 {
-	CastChecked<UTextBlock>(GetWidget())->SetText(Text);
+	CastChecked<UTextBlock>(LocalGetUMGWidget())->SetText(Text);
 }
 
 
-void UUIFTextBlock::SetText(FText InText)
+void UUIFrameworkTextBlock::SetText(FText InText)
 {
 	Text = InText;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
-
-	if (GetWidget())
-	{
-		CastChecked<UTextBlock>(GetWidget())->SetText(InText);
-	}
 }
 
 
-void UUIFTextBlock::OnRep_Text()
+void UUIFrameworkTextBlock::OnRep_Text()
 {
-	SetText(Text);
+	if (LocalGetUMGWidget())
+	{
+		CastChecked<UTextBlock>(LocalGetUMGWidget())->SetText(Text);
+	}
 }

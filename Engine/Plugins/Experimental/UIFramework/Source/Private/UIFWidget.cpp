@@ -1,45 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UIFWidget.h"
+//#include "UIFManagerSubsystem.h"
+#include "UIFPlayerComponent.h"
 
 #include "Blueprint/UserWidget.h"
 
 #include "Engine/ActorChannel.h"
 #include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/Engine.h"
 #include "Engine/NetDriver.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "Types/UIFWidgetTree.h"
 
 
-int32 UUIFWidget::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
+/**
+ *
+ */
+int32 UUIFrameworkWidget::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) || !IsSupportedForNetworking())
 	{
 		// This handles absorbing authority/cosmetic
 		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
 	}
-	return GetOuterAPlayerController()->GetFunctionCallspace(Function, Stack);
+	if (AActor* OwnerActor = GetPlayerComponent() ? GetPlayerComponent()->GetOwner() : nullptr)
+	{
+		return OwnerActor->GetFunctionCallspace(Function, Stack);
+	}
+	return Super::GetFunctionCallspace(Function, Stack);
 }
 
-
-bool UUIFWidget::CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack)
+bool UUIFrameworkWidget::CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack)
 {
 	check(!HasAnyFlags(RF_ClassDefaultObject));
 
-	AActor* Owner = GetOuterAPlayerController();
-
 	bool bProcessed = false;
-	FWorldContext* const Context = GEngine->GetWorldContextFromWorld(Owner->GetWorld());
-	if (Context != nullptr)
+	AActor* OwnerActor = GetPlayerComponent() ? GetPlayerComponent()->GetOwner() : nullptr;
+	FWorldContext* const Context = OwnerActor ? GEngine->GetWorldContextFromWorld(OwnerActor->GetWorld()) : nullptr;
+	if (Context)
 	{
 		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 		{
-			if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateFunction(Owner, Function))
+			if (Driver.NetDriver && Driver.NetDriver->ShouldReplicateFunction(OwnerActor, Function))
 			{
-				Driver.NetDriver->ProcessRemoteFunction(Owner, Function, Parameters, OutParms, Stack, this);
+				Driver.NetDriver->ProcessRemoteFunction(OwnerActor, Function, Parameters, OutParms, Stack, this);
 				bProcessed = true;
 			}
 		}
@@ -48,67 +57,121 @@ bool UUIFWidget::CallRemoteFunction(UFunction* Function, void* Parameters, FOutP
 	return bProcessed;
 }
 
-
-UWidget* UUIFWidget::GetWidget() const
+void UUIFrameworkWidget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	return Widget;
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Id, Params);
 }
 
-
-void UUIFWidget::LocalCreateWidgetAsync(TFunction<void()>&& OnUserWidgetCreated)
+void UUIFrameworkWidget::BeginDestroy()
 {
-	check(Widget == nullptr);
-	if (Widget != nullptr)
-	{
-		return;
-	}
-	if (WidgetClassStreamableHandle && WidgetClassStreamableHandle->IsLoadingInProgress())
-	{
-		ensureMsgf(false, TEXT("The loading is pending. 2 LocalCreate should not be possible."));
-		return;
-	}
+	Super::BeginDestroy();
 
-	if (WidgetClass.Get())
+	if (UObjectInitialized() && LocalGetUMGWidget() != nullptr)
 	{
-		// the class is loaded create the widget
-		LocalCreateWidget(MoveTemp(OnUserWidgetCreated));
-	}
-	else if (!WidgetClass.IsNull() && WidgetClass.IsPending())
-	{
-		// the class is not loaded
-		TWeakObjectPtr<ThisClass> WeakSelf = this;
-		WidgetClassStreamableHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
-			WidgetClass.ToSoftObjectPath()
-			, [WeakSelf, MovedCallback = MoveTemp(OnUserWidgetCreated)]() mutable
-			{
-				if (ThisClass* StrongSelf = WeakSelf.Get())
-				{
-					StrongSelf->LocalCreateWidget(MoveTemp(MovedCallback));
-				}
-			}
-			, FStreamableManager::AsyncLoadHighPriority, false, false, TEXT("UIWidget Widget Class"));
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("A widget class doesn't have it's WidgetClass property set."));
+		//if (UUIFrameworkManagerSubsystem* Subsystem = UUIFrameworkManagerSubsystem::Get(GetOuterAPlayerController()))
+		//{
+		//	Subsystem->LocalRemoveFromParent(GetLocalWidget());
+		//}
 	}
 }
 
-
-void UUIFWidget::LocalCreateWidget(TFunction<void()>&& OnUserWidgetCreated)
+void UUIFrameworkWidget::AuthoritySetParent(UUIFrameworkPlayerComponent* NewOwner, FUIFrameworkParentWidget NewParent)
 {
+	const bool bDifferentOwner = NewOwner != OwnerPlayerComponent;
+	if (OwnerPlayerComponent)
+	{
+		ensure(OwnerPlayerComponent == NewOwner);
+		NewOwner = OwnerPlayerComponent;
+		NewParent = FUIFrameworkParentWidget();
+	}
+
+	if (AuthorityParent.IsParentValid())
+	{
+		if (AuthorityParent.IsWidget())
+		{
+			AuthorityParent.AsWidget()->AuthorityRemoveChild(this);
+		}
+		else
+		{
+			check(AuthorityParent.IsPlayerComponent());
+			AuthorityParent.AsPlayerComponent()->AuthorityRemoveChild(this);
+		}
+	}
+
+	AuthorityParent = NewParent;
+	OwnerPlayerComponent = NewOwner;
+
+	if (AuthorityParent.IsParentValid() && OwnerPlayerComponent)
+	{
+		if (AuthorityParent.IsWidget())
+		{
+			OwnerPlayerComponent->GetWidgetTree().AddWidget(AuthorityParent.AsWidget(), this);
+		}
+		else
+		{
+			check(AuthorityParent.IsPlayerComponent());
+			OwnerPlayerComponent->GetWidgetTree().AddRoot(this);
+		}
+	}
+	else if (OwnerPlayerComponent)
+	{
+		OwnerPlayerComponent->GetWidgetTree().RemoveWidget(this);
+	}
+
+	if (bDifferentOwner)
+	{
+		SetParentPlayerOwnerRecursive();
+	}
+}
+
+void UUIFrameworkWidget::SetParentPlayerOwnerRecursive()
+{
+	UUIFrameworkWidget* Self = this;
+	AuthorityForEachChildren([Self](UUIFrameworkWidget* Child)
+		{
+			check(Child->AuthorityGetParent().IsWidget() && Child->AuthorityGetParent().AsWidget() == Self);
+			Child->OwnerPlayerComponent = Self->OwnerPlayerComponent;
+			Child->AuthorityParent = FUIFrameworkParentWidget(Self);
+			Child->SetParentPlayerOwnerRecursive();
+		});
+}
+
+void UUIFrameworkWidget::LocalAddChild(UUIFrameworkWidget* Child)
+{
+	if (LocalUMGWidget)
+	{
+		LocalUMGWidget->RemoveFromParent();
+	}
+}
+
+void UUIFrameworkWidget::LocalCreateUMGWidget(UUIFrameworkPlayerComponent* InOwner)
+{
+	OwnerPlayerComponent = InOwner;
 	if (UClass* Class = WidgetClass.Get())
 	{
 		if (Class->IsChildOf(UUserWidget::StaticClass()))
 		{
-			Widget = CreateWidget(GetOuterAPlayerController(), Class);
+			LocalUMGWidget = CreateWidget(OwnerPlayerComponent->GetPlayerController(), Class);
 		}
 		else
 		{
 			check(Class->IsChildOf(UWidget::StaticClass()));
-			Widget = NewObject<UWidget>(this, Class, FName(), RF_Transient);
+			LocalUMGWidget = NewObject<UWidget>(this, Class, FName(), RF_Transient);
 		}
-		OnLocalUserWidgetCreated();
-		OnUserWidgetCreated();
+		LocalOnUMGWidgetCreated();
 	}
+}
+
+void UUIFrameworkWidget::LocalDestroyUMGWidget()
+{
+	if (LocalUMGWidget)
+	{
+		LocalUMGWidget->RemoveFromParent();
+	}
+	LocalUMGWidget = nullptr;
+	OwnerPlayerComponent = nullptr;
 }

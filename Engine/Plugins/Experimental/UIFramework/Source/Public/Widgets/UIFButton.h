@@ -2,67 +2,61 @@
 
 #pragma once
 
-#include "Blueprint/UserWidget.h"
+#include "Types/UIFSlotBase.h"
+#include "Types/UIFEvents.h"
 #include "UIFWidget.h"
 
 #include "UIFButton.generated.h"
 
-class UButton;
-class UTextBlock;
-
 /**
  *
  */
-UCLASS(Abstract, meta = (DisableNativeTick))
-class UUIFButtonUserWidget : public UUserWidget
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(BlueprintReadOnly, Category = "UI Framework", meta = (BindWidget))
-	TObjectPtr<UTextBlock> TextBlock = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, Category = "UI Framework", meta = (BindWidget))
-	TObjectPtr<UButton> Button = nullptr;
-};
 
 
 /**
  *
  */
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FUIClientSideEvent, UUIFButton, OnClick, APlayerController*, PlayerControllers);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FUIFrameworkButtonClickEvent, UUIFrameworkButton, OnClick, FUIFrameworkClickEventArgument, Argument);
 
+/**
+ *
+ */
 UCLASS(DisplayName = "Button UIFramework")
-class UIFRAMEWORK_API UUIFButton : public UUIFWidget
+class UIFRAMEWORK_API UUIFrameworkButton : public UUIFrameworkWidget
 {
 	GENERATED_BODY()
 
 public:
-	UUIFButton();
+	UUIFrameworkButton();
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
-	void SetText(FText Text);
+	void SetContent(FUIFrameworkSimpleSlot Content);
 
 	UFUNCTION(BlueprintCallable, Category = "UI Framework")
-	FText GetText() const
+	FUIFrameworkSimpleSlot GetContent() const
 	{
-		return Text;
+		return Slot;
 	}
 
-	virtual void OnLocalUserWidgetCreated() override;
+	virtual void AuthorityForEachChildren(const TFunctionRef<void(UUIFrameworkWidget*)>& Func) override;
+	virtual void AuthorityRemoveChild(UUIFrameworkWidget* Widget) override;
+	virtual void LocalAddChild(UUIFrameworkWidget* Child) override;
+
+protected:
+	virtual void LocalOnUMGWidgetCreated() override;
 
 private:
-	UFUNCTION()
-	void OnRep_Text();
-
 	UFUNCTION(Server, Reliable)
 	void ServerClick();
 
-private:
-	UPROPERTY(ReplicatedUsing=OnRep_Text)
-	FText Text;
+	UFUNCTION()
+	void OnRep_Slot();
 
 public:
 	UPROPERTY(BlueprintAssignable)
-	FUIClientSideEvent OnClick;
+	FUIFrameworkButtonClickEvent OnClick;
+
+private:
+	UPROPERTY(/*ExposeOnSpawn, */ReplicatedUsing = OnRep_Slot)
+	FUIFrameworkSimpleSlot Slot;
 };

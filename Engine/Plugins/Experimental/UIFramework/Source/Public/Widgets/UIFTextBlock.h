@@ -12,12 +12,12 @@ class UTextBlock;
  *
  */
 UCLASS(DisplayName = "TextBlock UIFramework")
-class UIFRAMEWORK_API UUIFTextBlock : public UUIFWidget
+class UIFRAMEWORK_API UUIFrameworkTextBlock : public UUIFrameworkWidget
 {
 	GENERATED_BODY()
 
 public:
-	UUIFTextBlock();
+	UUIFrameworkTextBlock();
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
 	void SetText(FText Text);
@@ -28,13 +28,13 @@ public:
 		return Text;
 	}
 
-	virtual void OnLocalUserWidgetCreated() override;
+	virtual void LocalOnUMGWidgetCreated() override;
 
 private:
 	UFUNCTION()
 	void OnRep_Text();
 
 private:
-	UPROPERTY(ReplicatedUsing=OnRep_Text)
+	UPROPERTY(/*ExposeOnSpawn, */ReplicatedUsing=OnRep_Text)
 	FText Text;
 };
