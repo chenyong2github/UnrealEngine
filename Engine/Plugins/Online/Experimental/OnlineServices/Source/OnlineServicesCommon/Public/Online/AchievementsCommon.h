@@ -12,17 +12,43 @@ class FOnlineServicesCommon;
 
 struct FAchievementUnlockCondition
 {
-	FString StatToCheck;
+	FString StatName;
 	FStatValue UnlockThreshold; // The unlock rule depends on Stat modification type
 };
 
 struct FAchievementUnlockRule
 {
-	FString AchievementToUnlock;
+	FString AchievementId;
 	TArray<FAchievementUnlockCondition> Conditions;
 
 	bool ContainsStat(const FString& StatName) const;
 };
+
+struct FAchievementsCommonConfig
+{
+	bool bIsTitleManaged = false;
+	TArray<FAchievementUnlockRule> UnlockRules;
+};
+
+namespace Meta
+{
+
+BEGIN_ONLINE_STRUCT_META(FAchievementUnlockCondition)
+	ONLINE_STRUCT_FIELD(FAchievementUnlockCondition, StatName),
+	ONLINE_STRUCT_FIELD(FAchievementUnlockCondition, UnlockThreshold)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAchievementUnlockRule)
+	ONLINE_STRUCT_FIELD(FAchievementUnlockRule, AchievementId),
+	ONLINE_STRUCT_FIELD(FAchievementUnlockRule, Conditions)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAchievementsCommonConfig)
+	ONLINE_STRUCT_FIELD(FAchievementsCommonConfig, bIsTitleManaged),
+	ONLINE_STRUCT_FIELD(FAchievementsCommonConfig, UnlockRules)
+END_ONLINE_STRUCT_META()
+
+/* Meta */ }
 
 class ONLINESERVICESCOMMON_API FAchievementsCommon : public TOnlineComponent<IAchievements>
 {
@@ -52,13 +78,12 @@ protected:
 
 	void UnlockAchievementsByStats(const FStatsUpdated& StatsUpdated);
 	void ExecuteUnlockRulesRelatedToStat(const FAccountId& AccountId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock);
-	bool MeetUnlockCondition(FAchievementUnlockRule AchievementUnlockRule, const TMap<FString, FStatValue>& Stats);
+	bool MeetUnlockCondition(const FAchievementUnlockRule& AchievementUnlockRule, const TMap<FString, FStatValue>& Stats);
 	bool IsUnlocked(const FAccountId& AccountId, const FString& AchievementName) const;
 
-	TArray<FAchievementUnlockRule> AchievementUnlockRules;
 	FOnlineEventDelegateHandle StatEventHandle;
 
-	bool bIsTitleManaged = false;
+	FAchievementsCommonConfig Config;
 };
 
 /* UE::Online */ }
