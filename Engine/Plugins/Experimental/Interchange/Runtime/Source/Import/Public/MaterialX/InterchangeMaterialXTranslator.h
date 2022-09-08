@@ -260,7 +260,18 @@ protected:
 	MaterialX::InputPtr GetSpotLightInput(MaterialX::NodePtr SpotLight, const char* InputName, MaterialX::DocumentPtr Document) const;
 
 	/**
-	 * Add an attribute to a shader node, only floats and linear colors are supported for the moment
+	 * Add an attribute to a shader node from the given MaterialX input if that input has either a value or an interface name
+	 *
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param InputChannelName - The name of the shader node's input to add the attribute
+	 * @param ShaderNode - The shader node to which we want to add the attribute
+	 *
+	 * @return true if the attribute was successfully added
+	 */
+	bool AddAttributeFromValueOrInterface(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode) const;
+
+	/**
+	 * Add an attribute to a shader node from the given MaterialX input, only floats and linear colors are supported for the moment
 	 * 
 	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
 	 * @param InputChannelName - The name of the shader node's input to add the attribute
@@ -382,6 +393,24 @@ protected:
 	 * @return The newly created node
 	 */
 	MaterialX::NodePtr CreateNode(MaterialX::NodeGraphPtr NodeGraph, const char * NodeName, const char * Category, TArray<FInputToCopy> InputsToCopy, TArray<FInputToCreate> InputsToCreate) const;
+
+	/**
+	 * Convert math nodes (add, sub, div, mul) that have a neutral input, to the MaterialX <dot> node which is simply the identity or a noop
+	 * This allows us to optimize the final shader by avoiding unnecessary operation on a material (for example a*1 = a)
+	 * This function should be called after the subgraphs substitution in order to search for all the nodes even in the subgraphs
+	 * 
+	 * @param NodeGraph - The node graph to retrieve the different math nodes
+	 */
+	void ConvertNeutralNodesToDot(MaterialX::NodeGraphPtr NodeGraph) const;
+
+	/**
+	 * Add a texcoord input to the tiledimage nodes if the input is missing, and connect it to a texcoord node in the nodegraph
+	 * This function should be called before the subgraphs substitution to avoid missing UVs input on a texture
+	 * See for example standard_surface_brick_procedural where the tiledimage nodes have no texcoord input
+	 * 
+	 * @param Node - The nodegraph to retrieve the different tiledimage nodes
+	 */
+	void AddTexCoordToTiledImageNodes(MaterialX::NodeGraphPtr NodeGraph) const;
 
 private:
 

@@ -162,7 +162,6 @@ MATERIALX_NAMESPACE_BEGIN
 	namespace Attributes
 	{
 		static constexpr const char* IsVisited = "UE:IsVisited";
-		static constexpr const char* OriginalName = "UE:OriginalName";
 		static constexpr const char* NewName = "UE:NewName";
 	}
 
@@ -311,6 +310,15 @@ MATERIALX_NAMESPACE_BEGIN
 				static constexpr const char* FrameOffset = "frameoffset";
 				static constexpr const char* FrameEndAction = "frameendaction";
 			}
+		}
+
+		namespace Math
+		{
+			template<typename T>
+			static const T NeutralZero = T{ 0 };
+
+			template<typename T>
+			static const T NeutralOne = T{ 1 };
 		}
 	}
 
