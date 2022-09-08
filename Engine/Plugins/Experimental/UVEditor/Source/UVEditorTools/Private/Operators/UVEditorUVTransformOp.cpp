@@ -298,7 +298,9 @@ void FUVEditorUVTransformOp::HandleTransformationOp(FProgressCancel * Progress)
 	{
 		FVector2f UV = TransformOpLocals::UnwrapPositionToUV(ResultMesh->GetVertexRef(Vid));
 		FVector2f UV_Rotated;
-		double RotationInRadians = RotationIn / 180.0 * UE_PI;
+		// We are flipping the sign here to match the conventions in other UV editors
+		// where positive values are clockwise and negative values are counterclockwise.
+		double RotationInRadians = -RotationIn / 180.0 * UE_PI;
 		UV = (UV - Pivot);
 		UV_Rotated[0] = UV[0] * FMath::Cos(RotationInRadians) - UV[1] * FMath::Sin(RotationInRadians);
 		UV_Rotated[1] = UV[0] * FMath::Sin(RotationInRadians) + UV[1] * FMath::Cos(RotationInRadians);

@@ -257,7 +257,7 @@ void FUVEditorUVTransformToolDetails::BuildQuickRotateMenu(IDetailLayoutBuilder&
 	[
 		SNew(SUniformGridPanel)
 		.SlotPadding(FMargin(5.0f))
-		+ SUniformGridPanel::Slot(0, 0)
+		+ SUniformGridPanel::Slot(2, 0)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -267,7 +267,7 @@ void FUVEditorUVTransformToolDetails::BuildQuickRotateMenu(IDetailLayoutBuilder&
 			.OnClicked_Lambda([this, QuickRotationOffsetHandle, ApplyRotation]() {
 				float RotationValue;
 				QuickRotationOffsetHandle->GetValue(RotationValue);
-				return ApplyRotation(-RotationValue);
+				return ApplyRotation(RotationValue);
 			})
 		]
 		+ SUniformGridPanel::Slot(1, 0)
@@ -277,7 +277,7 @@ void FUVEditorUVTransformToolDetails::BuildQuickRotateMenu(IDetailLayoutBuilder&
 			SNew(SProperty, QuickRotationOffsetHandle)
 			.ShouldDisplayName(false)
 		]
-		+ SUniformGridPanel::Slot(2, 0)
+		+ SUniformGridPanel::Slot(0, 0)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -287,63 +287,63 @@ void FUVEditorUVTransformToolDetails::BuildQuickRotateMenu(IDetailLayoutBuilder&
 			.OnClicked_Lambda([this, QuickRotationOffsetHandle, ApplyRotation]() {
 				float RotationValue;
 				QuickRotationOffsetHandle->GetValue(RotationValue);
-				return ApplyRotation(RotationValue);
+				return ApplyRotation(-RotationValue);
 			})
 		]
 
-		+ SUniformGridPanel::Slot(0, 1)
+		+ SUniformGridPanel::Slot(2, 1)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
 			.Text(LOCTEXT("QuickRotateClockwise10Deg", "10°"))
 			.ToolTipText(LOCTEXT("QuickRotateClockwise10DegToolTip", "Applies a 10 degree clockwise orientation"))
-			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(-10.0); })
-		]
-		+ SUniformGridPanel::Slot(2, 1)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("QuickRotateCounterclockwise10Deg", "10°"))
-			.ToolTipText(LOCTEXT("QuickRotateCounterclockwise10DegToolTip", "Applies a 10 degree counter clockwise orientation"))
 			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(10.0); })
 		]
-		+ SUniformGridPanel::Slot(0, 2)
+		+ SUniformGridPanel::Slot(0, 1)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("QuickRotateClockwise45Deg", "45°"))
-			.ToolTipText(LOCTEXT("QuickRotateClockwise45DegToolTip", "Applies a 45 degree clockwise orientation"))
-			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(-45.0); })
+			.Text(LOCTEXT("QuickRotateCounterclockwise10Deg", "-10°"))
+			.ToolTipText(LOCTEXT("QuickRotateCounterclockwise10DegToolTip", "Applies a 10 degree counter clockwise orientation"))
+			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(-10.0); })
 		]
 		+ SUniformGridPanel::Slot(2, 2)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("QuickRotateCounterclockwise45Deg", "45°"))
-			.ToolTipText(LOCTEXT("QuickRotateCounterclockwise45DegToolTip", "Applies a 45 degree counter clockwise orientation"))
+			.Text(LOCTEXT("QuickRotateClockwise45Deg", "45°"))
+			.ToolTipText(LOCTEXT("QuickRotateClockwise45DegToolTip", "Applies a 45 degree clockwise orientation"))
 			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(45.0); })
 		]
-		+ SUniformGridPanel::Slot(0, 3)
+		+ SUniformGridPanel::Slot(0, 2)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("QuickRotateClockwise90Deg", "90°"))
-			.ToolTipText(LOCTEXT("QuickRotateClockwise90DegToolTip", "Applies a 90 degree clockwise orientation"))
-			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(-90.0); })
+			.Text(LOCTEXT("QuickRotateCounterclockwise45Deg", "-45°"))
+			.ToolTipText(LOCTEXT("QuickRotateCounterclockwise45DegToolTip", "Applies a 45 degree counter clockwise orientation"))
+			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(-45.0); })
 		]
 		+ SUniformGridPanel::Slot(2, 3)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("QuickRotateCounterclockwise90Deg", "90°"))
-			.ToolTipText(LOCTEXT("QuickRotateCounterclockwise90DegToolTip", "Applies a 90 degree counter clockwise orientation"))
+			.Text(LOCTEXT("QuickRotateClockwise90Deg", "90°"))
+			.ToolTipText(LOCTEXT("QuickRotateClockwise90DegToolTip", "Applies a 90 degree clockwise orientation"))
 			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(90.0); })
+		]
+		+ SUniformGridPanel::Slot(0, 3)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("QuickRotateCounterclockwise90Deg", "-90°"))
+			.ToolTipText(LOCTEXT("QuickRotateCounterclockwise90DegToolTip", "Applies a 90 degree counter clockwise orientation"))
+			.OnClicked_Lambda([this, ApplyRotation]() { return ApplyRotation(-90.0); })
 		]
 	];
 }
