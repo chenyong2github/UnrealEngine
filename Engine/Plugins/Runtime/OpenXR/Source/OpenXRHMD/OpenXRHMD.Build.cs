@@ -76,32 +76,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Android)
 			{
-				bool bAndroidOculusEnabled = false;
-				if (Target.ProjectFile != null)
-				{
-					ProjectDescriptor Project = ProjectDescriptor.FromFile(Target.ProjectFile);
-					if (Project.Plugins != null)
-					{
-						foreach (PluginReferenceDescriptor PluginDescriptor in Project.Plugins)
-						{
-							if ((PluginDescriptor.Name == "OculusVR") && PluginDescriptor.IsEnabledForPlatform(Target.Platform))
-							{
-								Log.TraceInformation("OpenXRHMD: Android Oculus plugin enabled, will use OculusMobile_APL.xml");
-								bAndroidOculusEnabled = true;
-								break;
-							}
-						}
-					}
-				}
-
-				if (!bAndroidOculusEnabled)
-				{
-					Log.TraceInformation("OpenXRHMD: Using OculusOpenXRLoader_APL.xml");
-
-					// If the Oculus plugin is not enabled we need to include our own APL
-					string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-					AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "..", "..", "OculusOpenXRLoader_APL.xml"));
-				}
+				PrivateDependencyModuleNames.Add("OculusOpenXRLoader");
 			}
 		}
 	}

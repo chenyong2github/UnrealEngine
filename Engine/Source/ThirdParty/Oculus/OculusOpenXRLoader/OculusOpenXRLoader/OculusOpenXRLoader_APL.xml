@@ -11,12 +11,10 @@
 		<setBoolFromPropertyContains result="bPackageForOculusQuest" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest"/>
 		<setBoolFromPropertyContains result="bPackageForOculusQuest2" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest2"/>
 		<setBoolOr result="bPackageForOculusMobile" arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
-		<setBoolAnd result="bPackageForOculusQuestAndQuest2" arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
 
 		<if condition="bCpuArchSupported">
 			<false>
 				<setBool result="bPackageForOculusMobile" value="false"/>
-				<setBool result="bPackageForOculusQuestAndQuest2" value="false"/>
 			</false>
 		</if>
 	</init>
@@ -56,7 +54,6 @@
 							<addAttribute tag="$vrIntent" name="android:name" value="com.oculus.intent.category.VR"/>
 							<addElement tag="intent-filter" name="vrIntent"/>
 
-							<addPermission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 							<addFeature android:name="android.hardware.usb.host"/>
 									
 							<setElement result="focusAware" value="meta-data" />
@@ -70,25 +67,44 @@
 				<!-- Add Application Specific Flags -->
 				<loopElements tag="application">
 					<!-- Add SupportedDevices Tag -->
-					<!-- TODO: Why do we retain 'delmar' when quest2 seems to be supported? -->
-					<setElement result ="supportedDevices" value="meta-data" />
-					<addAttribute tag="$supportedDevices" name="android:name" value="com.oculus.supportedDevices" />
-					<if condition="bPackageForOculusQuestAndQuest2">
+					<setString result="devicesString" value="" />
+					<if condition="bPackageForOculusQuest">
 						<true>
-							<addAttribute tag="$supportedDevices" name="android:value" value="quest|delmar" />
+							<setStringAdd result="devicesString" arg1="$S(devicesString)" arg2="quest|" />
 						</true>
-						<false>
-							<if condition="bPackageForOculusQuest2">
-								<true>
-									<addAttribute tag="$supportedDevices" name="android:value" value="delmar" />
-								</true>
-								<false>
-									<addAttribute tag="$supportedDevices" name="android:value" value="quest" />
-								</false>
-							</if>
-						</false>
 					</if>
-					<addElement tag="application" name="supportedDevices"/>
+					<if condition="bPackageForOculusQuest2">
+						<true>
+							<setStringAdd result="devicesString" arg1="$S(devicesString)" arg2="quest2|" />
+						</true>
+					</if>
+					<setIntLength result="devicesStringLength" source="$S(devicesString)"/>
+					<setBoolIsGreater result="bDevicesSupported" arg1="$I(devicesStringLength)" arg2="0"/>
+					<if condition="bDevicesSupported">
+						<true>
+							<!-- Check for an existing supported devices tag in manifest and append to that (duplicate devices are fine) -->
+							<loopElements tag="meta-data">
+								<setStringFromAttribute result="nameString" tag="meta-data" name="android:name"/>
+								<setBoolIsEqual result="bIsSupportedDevices" arg1="$S(nameString)" arg2="com.oculus.supportedDevices"/>
+								<if condition="bIsSupportedDevices">
+									<true>
+										<setStringFromAttribute result="existingDevicesString" tag="meta-data" name="android:value"/>
+										<log text="OculusOpenXRLoader: Found existing Meta Quest supported devices tag: $S(existingDevicesString)" />
+										<setStringAdd result="devicesString" arg1="$S(existingDevicesString)" arg2="|$S(devicesString)" />
+										<setIntLength result="devicesStringLength" source="$S(devicesString)"/>
+										<removeElement tag="$" />
+									</true>
+								</if>
+							</loopElements>
+							<setElement result="supportedDevices" value="meta-data" />
+							<addAttribute tag="$supportedDevices" name="android:name" value="com.oculus.supportedDevices" />
+							<setIntSubtract result="devicesStringLength" arg1="$I(devicesStringLength)" arg2="1"/>
+							<setStringSubstring result="devicesString" source="$S(devicesString)" start="0" length="$I(devicesStringLength)" />
+							<log text="OculusOpenXRLoader: Adding Meta Quest supported devices tag: $S(devicesString)" />
+							<addAttribute tag="$supportedDevices" name="android:value" value="$S(devicesString)" />
+							<addElement tag="application" name="supportedDevices"/>
+						</true>
+					</if>
 
 				</loopElements>
 			</true>
