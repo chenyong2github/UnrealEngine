@@ -35,13 +35,13 @@ public:
 	{
 		return 
 		{
-			"Intensity", "LightColor", "AttenuationRadius"
+			"Intensity", "LightColor", "LightingChannels", "AttenuationRadius"
 		};
 	}
 
 	virtual TSet<FName> GetForceAddedColumns() const override
 	{
-		return {"LightColor"};
+		return {"LightColor", "LightingChannels"};
 	}
 
 	virtual bool ShouldIncludeUnsupportedProperties() const override
