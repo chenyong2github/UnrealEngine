@@ -361,7 +361,9 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 						Scene,
 						ViewFamily,
 						View,
-						// Object Data
+						// Shadow Data
+						VisibleLightInfos,
+						// Object data
 						PrimitiveSceneProxy,
 						MaterialRenderProxy,
 						PrimitiveId,
@@ -380,6 +382,8 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 						SceneTextures,
 						Scene,
 						View,
+						// Shadow Data
+						VisibleLightInfos,
 						// Object Data
 						PrimitiveSceneProxy,
 						MaterialRenderProxy,

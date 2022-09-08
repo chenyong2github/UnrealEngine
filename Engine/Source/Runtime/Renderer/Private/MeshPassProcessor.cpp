@@ -340,7 +340,10 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		FShaderResourceParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
 		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
-		SetSamplerParameter(RHICmdList, Shader, Parameter, Sampler);
+		if (Sampler)
+		{
+			SetSamplerParameter(RHICmdList, Shader, Parameter, Sampler);
+		}
 	}
 
 	const uint8* RESTRICT SRVType = SingleShaderBindings.GetSRVTypeStart();

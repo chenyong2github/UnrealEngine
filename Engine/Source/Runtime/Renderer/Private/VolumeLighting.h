@@ -37,7 +37,9 @@ void GetVolumeShadowingShaderParameters(
 	const FProjectedShadowInfo* ShadowInfo,
 	FVolumeShadowingShaderParameters& OutParameters);
 
-
+void SetVolumeShadowingDefaultShaderParametersGlobal(
+	FRDGBuilder& GraphBuilder,
+	FVolumeShadowingShaderParameters& ShaderParams);
 
 ///
 ///

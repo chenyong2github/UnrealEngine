@@ -9,6 +9,7 @@
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneManagement.h"
+#include "VolumetricFog.h"
 
 class FGenerateRayMarchingTiles : public FGlobalShader
 {
@@ -279,10 +280,14 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		// Light data
-		SHADER_PARAMETER(int, bApplyEmission)
+		SHADER_PARAMETER(int, bApplyEmissionAndTransmittance)
 		SHADER_PARAMETER(int, bApplyDirectLighting)
 		SHADER_PARAMETER(int, LightType)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
+
+		// Shadow data
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 
 		// Volume data
 		SHADER_PARAMETER(int, MipLevel)
@@ -345,7 +350,7 @@ void RenderTransmitanceVolumeWithPreshadingCompute(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	// Light data
-	bool bApplyEmission,
+	bool bApplyEmissionAndTransmittance,
 	bool bApplyDirectLighting,
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
@@ -380,7 +385,7 @@ void RenderTransmitanceVolumeWithPreshadingCompute(
 
 		// Transmittance volume
 		PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
-		PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+		PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = TransmittanceVolumeTexture;
 
 		// Ray data
 		//PassParameters->StepSize = HeterogeneousVolumes::GetStepSize();
@@ -421,11 +426,13 @@ void RenderSingleScatteringWithPreshadingCompute(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	// Light data
-	bool bApplyEmission,
+	bool bApplyEmissionAndTransmittance,
 	bool bApplyDirectLighting,
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
+	// Shadow data
+	const FVisibleLightInfo* VisibleLightInfo,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data
@@ -453,7 +460,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 
 		// Light data
 		FDeferredLightUniformStruct DeferredLightUniform;
-		PassParameters->bApplyEmission = bApplyEmission;
+		PassParameters->bApplyEmissionAndTransmittance = bApplyEmissionAndTransmittance;
 		PassParameters->bApplyDirectLighting = bApplyDirectLighting;
 		if (PassParameters->bApplyDirectLighting && (LightSceneInfo != nullptr))
 		{
@@ -461,6 +468,26 @@ void RenderSingleScatteringWithPreshadingCompute(
 		}
 		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
 		PassParameters->LightType = LightType;
+
+		// Shadow data
+		PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
+		if (VisibleLightInfo != nullptr)
+		{
+			const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(*VisibleLightInfo);
+			bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
+			if (bDynamicallyShadowed)
+			{
+				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ProjectedShadowInfo, PassParameters->VolumeShadowingShaderParameters);
+			}
+			else
+			{
+				SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
+			}
+		}
+		else
+		{
+			SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
+		}
 
 		// Volume data
 		PassParameters->MipLevel = HeterogeneousVolumes::GetMipLevel();
@@ -472,7 +499,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 		if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
 		{
 			PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
-			PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+			PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = TransmittanceVolumeTexture;
 		}
 
 		// Ray data
@@ -522,6 +549,8 @@ void RenderWithPreshadingCompute(
 	const FScene* Scene,
 	const FSceneViewFamily& ViewFamily,
 	FViewInfo& View,
+	// Shadow data
+	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -577,16 +606,18 @@ void RenderWithPreshadingCompute(
 		int32 NumPasses = FMath::Max(LightSceneInfoCompact.Num(), 1);
 		for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 		{
-			bool bApplyEmission = PassIndex == 0;
+			bool bApplyEmissionAndTransmittance = PassIndex == 0;
 			bool bApplyDirectLighting = !LightSceneInfoCompact.IsEmpty();
 			bool bApplyShadowTransmittance = false;
 
 			uint32 LightType = 0;
 			FLightSceneInfo* LightSceneInfo = nullptr;
+			const FVisibleLightInfo* VisibleLightInfo = nullptr;
 			if (bApplyDirectLighting)
 			{
 				LightType = LightSceneInfoCompact[PassIndex].LightType;
 				LightSceneInfo = LightSceneInfoCompact[PassIndex].LightSceneInfo;
+				VisibleLightInfo = &VisibleLightInfos[LightSceneInfo->Id];
 				check(LightSceneInfo != nullptr);
 
 				bApplyDirectLighting = (LightSceneInfo != nullptr);
@@ -602,7 +633,7 @@ void RenderWithPreshadingCompute(
 					View,
 					SceneTextures,
 					// Light
-					bApplyEmission,
+					bApplyEmissionAndTransmittance,
 					bApplyDirectLighting,
 					bApplyShadowTransmittance,
 					LightType,
@@ -629,11 +660,13 @@ void RenderWithPreshadingCompute(
 				View,
 				SceneTextures,
 				// Light
-				bApplyEmission,
+				bApplyEmissionAndTransmittance,
 				bApplyDirectLighting,
 				bApplyShadowTransmittance,
 				LightType,
 				LightSceneInfo,
+				// Shadow
+				VisibleLightInfo,
 				// Object
 				PrimitiveSceneProxy,
 				// Volume data
@@ -659,6 +692,8 @@ void RenderWithPreshadingHardwareRayTracing(
 	FScene* Scene,
 	const FSceneViewFamily& ViewFamily,
 	FViewInfo& View,
+	// Shadow data
+	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -728,16 +763,18 @@ void RenderWithPreshadingHardwareRayTracing(
 		int32 NumPasses = FMath::Max(LightSceneInfoCompact.Num(), 1);
 		for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 		{
-			bool bApplyEmission = PassIndex == 0;
+			bool bApplyEmissionAndTransmittance = PassIndex == 0;
 			bool bApplyDirectLighting = !LightSceneInfoCompact.IsEmpty();
 			bool bApplyShadowTransmittance = false;
 
 			uint32 LightType = 0;
 			FLightSceneInfo* LightSceneInfo = nullptr;
+			const FVisibleLightInfo* VisibleLightInfo = nullptr;
 			if (bApplyDirectLighting)
 			{
 				LightType = LightSceneInfoCompact[PassIndex].LightType;
 				LightSceneInfo = LightSceneInfoCompact[PassIndex].LightSceneInfo;
+				VisibleLightInfo = &VisibleLightInfos[LightSceneInfo->Id];
 				check(LightSceneInfo != nullptr);
 
 				bApplyDirectLighting = (LightSceneInfo != nullptr);
@@ -753,7 +790,7 @@ void RenderWithPreshadingHardwareRayTracing(
 					View,
 					SceneTextures,
 					// Light data
-					bApplyEmission,
+					bApplyEmissionAndTransmittance,
 					bApplyDirectLighting,
 					bApplyShadowTransmittance,
 					LightType,
@@ -776,11 +813,13 @@ void RenderWithPreshadingHardwareRayTracing(
 				View,
 				SceneTextures,
 				// Light data
-				bApplyEmission,
+				bApplyEmissionAndTransmittance,
 				bApplyDirectLighting,
 				bApplyShadowTransmittance,
 				LightType,
 				LightSceneInfo,
+				// Shadow
+				VisibleLightInfo,
 				// Object data
 				PrimitiveSceneProxy,
 				// Sparse voxel
@@ -924,6 +963,8 @@ void RenderWithPreshading(
 	FScene* Scene,
 	const FSceneViewFamily& ViewFamily,
 	FViewInfo& View,
+	// Shadow data
+	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -1064,6 +1105,8 @@ void RenderWithPreshading(
 			Scene,
 			ViewFamily,
 			View,
+			// Shadow data
+			VisibleLightInfos,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
@@ -1086,6 +1129,8 @@ void RenderWithPreshading(
 			Scene,
 			ViewFamily,
 			View,
+			// Shadow data
+			VisibleLightInfos,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,

@@ -2,9 +2,16 @@
 
 #include "HeterogeneousVolumesTransmittanceVolumeUtils.ush"
 
+#include "../ForwardShadowingCommon.ush"
+#include "../VolumeLightingCommon.ush"
+
 #ifndef HARDWARE_RAY_TRACING
 #define HARDWARE_RAY_TRACING 0
 #endif // HARDWARE_RAY_TRACING
+
+#ifndef HARD_SURFACE_SHADOWING
+#define HARD_SURFACE_SHADOWING 1
+#endif // HARD_SURFACE_SHADOWING
 
 struct FRayMarchingContext
 {
@@ -26,7 +33,7 @@ struct FRayMarchingContext
 	float MipLevel;
 
 	// Lighting
-	int bApplyEmission;
+	int bApplyEmissionAndTransmittance;
 	int bApplyDirectLighting;
 	int bApplyShadowTransmittance;
 };
@@ -45,7 +52,7 @@ FRayMarchingContext CreateRayMarchingContext(
 	float StepSize,
 	uint MaxStepCount,
 	// Lighting
-	int bApplyEmission,
+	int bApplyEmissionAndTransmittance,
 	int bApplyDirectLighting,
 	int bApplyShadowTransmittance
 )
@@ -65,7 +72,7 @@ FRayMarchingContext CreateRayMarchingContext(
 	Context.StepSize = StepSize;
 	Context.MaxStepCount = MaxStepCount;
 	// Lighting
-	Context.bApplyEmission = bApplyEmission;
+	Context.bApplyEmissionAndTransmittance = bApplyEmissionAndTransmittance;
 	Context.bApplyDirectLighting = bApplyDirectLighting;
 	Context.bApplyShadowTransmittance = bApplyShadowTransmittance;
 
@@ -173,7 +180,7 @@ void RayMarchSingleScattering(
 		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
 		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 
-		if (RayMarchingContext.bApplyEmission)
+		if (RayMarchingContext.bApplyEmissionAndTransmittance)
 		{
 			float3 Emission = SampleEmission(SampleContext);
 			Radiance += Emission * RayMarchingContext.StepSize * Transmittance;
@@ -208,8 +215,33 @@ void RayMarchSingleScattering(
 					}
 				}
 
-				float3 Inscattering = LightData.Color * LightAttenuation;
+				float HardSurfaceShadowFactor = 1.0;
+#if HARD_SURFACE_SHADOWING
+				// Evaluate hard-surface shadow term
+				if (LightType == LIGHT_TYPE_DIRECTIONAL)
+				{
+					float SceneDepth = dot(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin, View.ViewForward);
+					bool bShadowingFromValidUVArea = false;
+					float ShadowFactor = ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, SceneDepth, bShadowingFromValidUVArea);
 
+					if (bShadowingFromValidUVArea)
+					{
+						HardSurfaceShadowFactor *= ShadowFactor;
+					}
+				}
+				else // Local lights
+				{
+					bool bShadowingFromValidUVArea = false;
+					float ShadowFactor = ComputeVolumeShadowing(TranslatedWorldPosition, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
+
+					if (bShadowingFromValidUVArea)
+					{
+						HardSurfaceShadowFactor *= ShadowFactor;
+					}
+				}
+#endif // HARD_SURFACE_SHADOWING
+
+				float3 Inscattering = LightData.Color * LightAttenuation * HardSurfaceShadowFactor;
 				if (any(Inscattering > 0.0))
 				{
 					float3 ShadowTransmittance = 1.0;
@@ -234,7 +266,7 @@ void RayMarchSingleScattering(
 						//float ShadowJitter = InterleavedGradientNoise(PixelCoord, StepIndex);
 						float ShadowJitter = 0.0;
 						float ShadowStepSize = GetStepSize() * GetShadowStepFactor();
-						int bApplyEmission = 0;
+						int bApplyEmissionAndTransmittance = 0;
 						int bApplyDirectLighting = 0;
 						int bApplyShadowTransmittance = 0;
 
@@ -248,7 +280,7 @@ void RayMarchSingleScattering(
 							ShadowJitter,
 							ShadowStepSize,
 							RayMarchingContext.MaxStepCount,
-							bApplyEmission,
+							bApplyEmissionAndTransmittance,
 							bApplyDirectLighting,
 							bApplyShadowTransmittance
 							//RayMarchingContext.MaxShadowTraceDistance

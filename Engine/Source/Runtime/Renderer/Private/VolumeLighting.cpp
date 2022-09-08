@@ -31,7 +31,7 @@ const FProjectedShadowInfo* GetFirstWholeSceneShadowMap(const FVisibleLightInfo&
 	return nullptr;
 }
 
-static void SetVolumeShadowingDefaultShaderParametersGlobal(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParameters& ShaderParams)
+void SetVolumeShadowingDefaultShaderParametersGlobal(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParameters& ShaderParams)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	FRDGTextureRef BlackDepthCubeTexture = SystemTextures.BlackDepthCube;

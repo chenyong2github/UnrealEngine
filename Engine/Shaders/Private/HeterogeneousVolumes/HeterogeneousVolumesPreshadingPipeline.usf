@@ -5,6 +5,12 @@
 
 #define SUPPORT_CONTACT_SHADOWS 0
 
+#define DYNAMICALLY_SHADOWED 1
+#define TREAT_MAXDEPTH_UNSHADOWED 1
+
+#define SHADOW_QUALITY 2
+#define NO_TRANSLUCENCY_AVAILABLE
+
 #include "HeterogeneousVolumesSparseVoxelUniformBufferUtils.ush"
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
@@ -35,7 +41,7 @@
 #endif // DIM_APPLY_SHADOW_TRANSMITTANCE
 
 // Lighting
-int bApplyEmission;
+int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
 int LightType;
 
@@ -451,6 +457,10 @@ void RenderTransmittanceVolumeWithPreshadingCS(
 	float3 ToLight = L * GetMaxShadowTraceDistance();
 	if (LightType != LIGHT_TYPE_DIRECTIONAL)
 	{
+		// Note: this function also permutes ToLight and L
+		float3 TranslatedWorldPosition = LWCHackToFloat(LWCAdd(WorldRayOrigin, PrimaryView.PreViewTranslation));
+		GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
+	
 		if (LightData.bRectLight)
 		{
 			FRect Rect = GetRect(ToLight, LightData);
@@ -473,7 +483,7 @@ void RenderTransmittanceVolumeWithPreshadingCS(
 	// Build ray-marching context
 	float RayJitter = length(VoxelJitter);
 	float StepSize = GetStepSize() * GetShadowStepFactor();
-	int bApplyEmission = 0;
+	int bApplyEmissionAndTransmittance = 0;
 	int bApplyDirectLighting = 0;
 	int bApplyShadowTransmittance = 0;
 	FRayMarchingContext RayMarchingContext = (FRayMarchingContext) 0;
@@ -491,7 +501,7 @@ void RenderTransmittanceVolumeWithPreshadingCS(
 		StepSize,
 		MaxStepCount,
 		// Lighting
-		bApplyEmission,
+		bApplyEmissionAndTransmittance,
 		bApplyDirectLighting,
 		bApplyShadowTransmittance
 	);
@@ -594,7 +604,7 @@ void RenderSingleScatteringWithPreshadingCS(
 			Jitter,
 			StepSize,
 			MaxStepCount,
-			bApplyEmission,
+			bApplyEmissionAndTransmittance,
 			bApplyDirectLighting,
 			DIM_APPLY_SHADOW_TRANSMITTANCE
 		);
@@ -625,7 +635,7 @@ void RenderSingleScatteringWithPreshadingCS(
 	}
 
 	// Output..
-	float3 Opacity = 1.0 - Transmittance;
+	float3 Opacity = bApplyEmissionAndTransmittance ? 1.0 - Transmittance : 0.0;
 	RWLightingTexture[PixelCoord] += float4(Radiance, Luminance(Opacity));
 
 #if DIM_DEBUG

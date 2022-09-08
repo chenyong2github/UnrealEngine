@@ -6,6 +6,12 @@
 
 #define SUPPORT_CONTACT_SHADOWS 0
 
+#define DYNAMICALLY_SHADOWED 1
+#define TREAT_MAXDEPTH_UNSHADOWED 1
+
+#define SHADOW_QUALITY 2
+#define NO_TRANSLUCENCY_AVAILABLE
+
 #include "HeterogeneousVolumesSparseVoxelUniformBufferUtils.ush"
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
@@ -366,7 +372,7 @@ RAY_TRACING_ENTRY_RAYGEN(SparseVoxelsRayGenerationShader1)
 	}
 }
 
-int bApplyEmission;
+int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
 int LightType;
 
@@ -429,6 +435,10 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 	float3 ToLight = L * GetMaxShadowTraceDistance();
 	if (LightType != LIGHT_TYPE_DIRECTIONAL)
 	{
+		// Note: this function also permutes ToLight and L
+		float3 TranslatedWorldPosition = LWCHackToFloat(LWCAdd(WorldRayOrigin, PrimaryView.PreViewTranslation));
+		GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
+
 		if (LightData.bRectLight)
 		{
 			FRect Rect = GetRect(ToLight, LightData);
@@ -450,7 +460,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 
 	float Jitter = bJitter ? InterleavedGradientNoise(VoxelIndex.xy, VoxelIndex.z) : 0.5;
 	float StepSize = GetStepSize() * GetShadowStepFactor();
-	int bApplyEmission = 0;
+	int bApplyEmissionAndTransmittance = 0;
 	int bApplyDirectLighting = 0;
 	int bApplyShadowTransmittance = 0;
 	FRayMarchingContext RayMarchingContext = (FRayMarchingContext)0;
@@ -468,7 +478,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 		StepSize,
 		MaxStepCount,
 		// Lighting
-		bApplyEmission,
+		bApplyEmissionAndTransmittance,
 		bApplyDirectLighting,
 		bApplyShadowTransmittance
 	);
@@ -551,7 +561,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 			Jitter,
 			GetStepSize(),
 			MaxStepCount,
-			bApplyEmission,
+			bApplyEmissionAndTransmittance,
 			bApplyDirectLighting,
 			DIM_APPLY_SHADOW_TRANSMITTANCE
 		);
@@ -576,7 +586,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 			// TODO: Remap Extinction to Transmittance
 			float3 Extinction = 0.02 * (1.0 - GetVoxelDebugColor(VoxelData.VoxelIndex));
 			Transmittance *= exp(-Extinction * HitSpan);
-			if (!bDirectLighting)
+			if (!bApplyDirectLighting)
 			{
 				float3 Emission = 0.002 * GetVoxelDebugColor(VoxelData.VoxelIndex);
 				Radiance += Emission * HitSpan * Transmittance;
@@ -592,6 +602,6 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 	}
 
 	// Output..
-	float3 Opacity = 1.0 - Transmittance;
+	float3 Opacity = bApplyEmissionAndTransmittance ? 1.0 - Transmittance : 0.0;
 	RWLightingTexture[PixelCoord] += float4(Radiance, Luminance(Opacity));
 }

@@ -88,7 +88,7 @@ END_UNIFORM_BUFFER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTransmittanceVolumeParameters, )
 	SHADER_PARAMETER(FIntVector, TransmittanceVolumeResolution)
-	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture3D, TransmittanceVolumeTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TransmittanceVolumeTexture)
 END_SHADER_PARAMETER_STRUCT()
 
 // Render specializations
@@ -98,6 +98,8 @@ void RenderWithLiveShading(
 	const FSceneTextures& SceneTextures,
 	const FScene* Scene,
 	const FViewInfo& View,
+	// Shadow data
+	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -116,6 +118,8 @@ void RenderWithPreshading(
 	FScene* Scene,
 	const FSceneViewFamily& ViewFamily,
 	FViewInfo& View,
+	// Shadow data
+	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -204,7 +208,7 @@ void RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	// Light data
-	bool bApplyEmission,
+	bool bApplyEmissionAndTransmittance,
 	bool bApplyDirectLighting,
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
@@ -226,11 +230,13 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	// Light data
-	bool bApplyEmission,
+	bool bApplyEmissionAndTransmittance,
 	bool bApplyDirectLighting,
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
+	// Shadow data
+	const FVisibleLightInfo* VisibleLightInfo,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data

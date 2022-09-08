@@ -9,6 +9,7 @@
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneManagement.h"
+#include "VolumetricFog.h"
 
 #if RHI_RAYTRACING
 FIntVector GetVoxelCoord(uint32 VoxelIndex, FIntVector VolumeResolution)
@@ -380,10 +381,14 @@ class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		// Lighting data
-		SHADER_PARAMETER(int, bApplyEmission)
+		SHADER_PARAMETER(int, bApplyEmissionAndTransmittance)
 		SHADER_PARAMETER(int, bApplyDirectLighting)
 		SHADER_PARAMETER(int, LightType)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
+
+		// Shadow data
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 
 		// Sparse Volume
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSparseVoxelUniformBufferParameters, SparseVoxelUniformBuffer)
@@ -407,6 +412,14 @@ class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform) &&
 			FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(
+		const FGlobalShaderPermutationParameters& Parameters,
+		FShaderCompilerEnvironment& OutEnvironment
+	)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
 
@@ -494,7 +507,7 @@ void RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	// Light data
-	bool bApplyEmission,
+	bool bApplyEmissionAndTransmittance,
 	bool bApplyDirectLighting,
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
@@ -593,11 +606,13 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	// Light data
-	bool bApplyEmission,
+	bool bApplyEmissionAndTransmittance,
 	bool bApplyDirectLighting,
 	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
+	// Shadow data
+	const FVisibleLightInfo* VisibleLightInfo,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data
@@ -619,7 +634,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 
 		// Light data
 		FDeferredLightUniformStruct DeferredLightUniform;
-		PassParameters->bApplyEmission = bApplyEmission;
+		PassParameters->bApplyEmissionAndTransmittance = bApplyEmissionAndTransmittance;
 		PassParameters->bApplyDirectLighting = bApplyDirectLighting;
 		if (PassParameters->bApplyDirectLighting && (LightSceneInfo != nullptr))
 		{
@@ -627,6 +642,19 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 		}
 		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
 		PassParameters->LightType = LightType;
+
+		// Shadow data
+		PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
+		if (VisibleLightInfo != nullptr)
+		{
+			const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(*VisibleLightInfo);
+			bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
+			GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ProjectedShadowInfo, PassParameters->VolumeShadowingShaderParameters);
+		}
+		else
+		{
+			SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
+		}
 
 		// Sparse Voxel data
 		PassParameters->SparseVoxelUniformBuffer = SparseVoxelUniformBuffer;
@@ -638,7 +666,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 		if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
 		{
 			PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
-			PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+			PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = TransmittanceVolumeTexture;
 		}
 
 		// Ray data
