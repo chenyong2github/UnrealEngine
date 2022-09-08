@@ -413,42 +413,6 @@ inline bool IsCompatibleBinding(const D3D12_SHADER_INPUT_BIND_DESC& BindDesc, ui
 	return bIsCompatibleBinding;
 }
 
-// Parses ray tracing shader entry point specification string in one of the following formats:
-// 1) Verbatim single entry point name, e.g. "MainRGS"
-// 2) Complex entry point for ray tracing hit group shaders:
-//      a) "closesthit=MainCHS"
-//      b) "closesthit=MainCHS anyhit=MainAHS"
-//      c) "closesthit=MainCHS anyhit=MainAHS intersection=MainIS"
-//      d) "closesthit=MainCHS intersection=MainIS"
-//    NOTE: closesthit attribute must always be provided for complex hit group entry points
-static void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FString& OutAnyHit, FString& OutIntersection)
-{
-	auto ParseEntry = [&Input](const TCHAR* Marker)
-	{
-		FString Result;
-		int32 BeginIndex = Input.Find(Marker, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-		if (BeginIndex != INDEX_NONE)
-		{
-			int32 EndIndex = Input.Find(TEXT(" "), ESearchCase::IgnoreCase, ESearchDir::FromStart, BeginIndex);
-			if (EndIndex == INDEX_NONE) EndIndex = Input.Len() + 1;
-			int32 MarkerLen = FCString::Strlen(Marker);
-			int32 Count = EndIndex - BeginIndex;
-			Result = Input.Mid(BeginIndex + MarkerLen, Count - MarkerLen);
-		}
-		return Result;
-	};
-
-	OutMain = ParseEntry(TEXT("closesthit="));
-	OutAnyHit = ParseEntry(TEXT("anyhit="));
-	OutIntersection = ParseEntry(TEXT("intersection="));
-
-	// If complex hit group entry is not specified, assume a single verbatim entry point
-	if (OutMain.IsEmpty() && OutAnyHit.IsEmpty() && OutIntersection.IsEmpty())
-	{
-		OutMain = Input;
-	}
-}
-
 static ShaderConductor::Compiler::ShaderModel ToDXCShaderModel(ELanguage Language)
 {
 	switch (Language)
@@ -625,7 +589,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	if (bIsRayTracingShader)
 	{
-		ParseRayTracingEntryPoint(Input.EntryPointName, RayEntryPoint, RayAnyHitEntryPoint, RayIntersectionEntryPoint);
+		UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(Input.EntryPointName, RayEntryPoint, RayAnyHitEntryPoint, RayIntersectionEntryPoint);
 
 		RayTracingExports = RayEntryPoint;
 

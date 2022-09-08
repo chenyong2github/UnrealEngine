@@ -625,6 +625,37 @@ bool UE::ShaderCompilerCommon::ValidatePackedResourceCounts(FShaderCompilerOutpu
 	return Output.bSucceeded;
 }
 
+void UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FString& OutAnyHit, FString& OutIntersection)
+{
+	auto ParseEntry = [&Input](const TCHAR* Marker)
+	{
+		FString Result;
+		const int32 BeginIndex = Input.Find(Marker, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		if (BeginIndex != INDEX_NONE)
+		{
+			int32 EndIndex = Input.Find(TEXT(" "), ESearchCase::IgnoreCase, ESearchDir::FromStart, BeginIndex);
+			if (EndIndex == INDEX_NONE)
+			{
+				EndIndex = Input.Len() + 1;
+			}
+			const int32 MarkerLen = FCString::Strlen(Marker);
+			const int32 Count = EndIndex - BeginIndex;
+			Result = Input.Mid(BeginIndex + MarkerLen, Count - MarkerLen);
+		}
+		return Result;
+	};
+
+	OutMain = ParseEntry(TEXT("closesthit="));
+	OutAnyHit = ParseEntry(TEXT("anyhit="));
+	OutIntersection = ParseEntry(TEXT("intersection="));
+
+	// If complex hit group entry is not specified, assume a single verbatim entry point
+	if (OutMain.IsEmpty() && OutAnyHit.IsEmpty() && OutIntersection.IsEmpty())
+	{
+		OutMain = Input;
+	}
+}
+
 void HandleReflectedGlobalConstantBufferMember(
 	const FString& InMemberName,
 	uint32 ConstantBufferIndex,

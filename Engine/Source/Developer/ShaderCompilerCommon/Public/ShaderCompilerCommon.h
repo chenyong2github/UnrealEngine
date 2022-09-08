@@ -67,6 +67,18 @@ namespace UE::ShaderCompilerCommon
 	extern SHADERCOMPILERCOMMON_API bool                 RemoveBindlessParameterPrefix(FString& InName);
 
 	extern SHADERCOMPILERCOMMON_API bool                 ValidatePackedResourceCounts(FShaderCompilerOutput& Output, const FShaderCodePackedResourceCounts& PackedResourceCounts);
+
+	/*
+	* Parses ray tracing shader entry point specification string in one of the following formats:
+	* 1) Verbatim single entry point name, e.g. "MainRGS"
+	* 2) Complex entry point for ray tracing hit group shaders:
+	*      a) "closesthit=MainCHS"
+	*      b) "closesthit=MainCHS anyhit=MainAHS"
+	*      c) "closesthit=MainCHS anyhit=MainAHS intersection=MainIS"
+	*      d) "closesthit=MainCHS intersection=MainIS"
+	*    NOTE: closesthit attribute must always be provided for complex hit group entry points
+	*/
+	extern SHADERCOMPILERCOMMON_API void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FString& OutAnyHit, FString& OutIntersection);
 }
 
 extern SHADERCOMPILERCOMMON_API void HandleReflectedGlobalConstantBufferMember(
