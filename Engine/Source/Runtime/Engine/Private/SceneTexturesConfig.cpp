@@ -3,6 +3,7 @@
 #include "SceneTexturesConfig.h"
 #include "RenderGraphResources.h"
 #include "ShaderCompiler.h"
+#include "SceneInterface.h"
 
 FSceneTexturesConfig FSceneTexturesConfig::GlobalInstance;
 
