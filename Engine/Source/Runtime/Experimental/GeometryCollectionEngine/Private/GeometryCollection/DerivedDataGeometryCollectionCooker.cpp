@@ -85,7 +85,7 @@ const TCHAR* FDerivedDataGeometryCollectionCooker::GetVersionString() const
 
 FString FDerivedDataGeometryCollectionCooker::GetPluginSpecificCacheKeySuffix() const
 {
-	return FString::Printf(
+	FString KeySuffix = FString::Printf(
 		TEXT("%s_%s_%s_%d_%d"),
 		Chaos::ChaosVersionGUID,
 		*GeometryCollection.GetIdGuid().ToString(),
@@ -93,6 +93,15 @@ FString FDerivedDataGeometryCollectionCooker::GetPluginSpecificCacheKeySuffix() 
 		FDestructionObjectVersion::Type::LatestVersion,
 		FUE5MainStreamObjectVersion::Type::LatestVersion
 	);
+
+#if PLATFORM_CPU_ARM_FAMILY
+	// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given
+	// input. Add the arm specifically so that a) we avoid rebuilding the current DDC and
+	// b) we can remove it once we get arm64 to be consistent.
+	KeySuffix.Append(TEXT("_arm64"));
+#endif
+
+	return KeySuffix;
 }
 
 #endif // WITH_EDITOR

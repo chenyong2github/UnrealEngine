@@ -656,6 +656,14 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 		Writer << DisplacementMap.Center;
 	}
 
+#if PLATFORM_CPU_ARM_FAMILY
+	// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given
+	// input. Add the arm specifically so that a) we avoid rebuilding the current DDC and
+	// b) we can remove it once we get arm64 to be consistent.
+	FString ArmSuffix(TEXT("_arm64"));
+	Writer << ArmSuffix;
+#endif
+
 	return Writer.Finalize();
 }
 

@@ -69,6 +69,13 @@ const FString& FBuilderModule::GetVersionString() const
 		VersionString = FString::Printf(TEXT("%s%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
 										NANITE_USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
 										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""));
+
+#if PLATFORM_CPU_ARM_FAMILY
+		// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given
+		// input. Add the arm specifically so that a) we avoid rebuilding the current DDC and
+		// b) we can remove it once we get arm64 to be consistent.
+		VersionString.Append(TEXT("_arm64"));
+#endif
 	}
 
 	return VersionString;
