@@ -185,7 +185,8 @@ namespace Horde.Build.Streams
 			foreach (ICommit commit in commits)
 			{
 				IUser? author = await _userCollection.GetCachedUserAsync(commit.AuthorId);
-				responses.Add(new GetChangeSummaryResponse(commit, author!));
+				IReadOnlyList<CommitTag> tags = await commit.GetTagsAsync(HttpContext.RequestAborted);
+				responses.Add(new GetChangeSummaryResponse(commit, author!, tags));
 			}
 			return responses.ConvertAll(x => PropertyFilter.Apply(x, filter));
 		}
@@ -219,9 +220,10 @@ namespace Horde.Build.Streams
 			}
 
 			IUser? author = await _userCollection.GetCachedUserAsync(changeDetails.AuthorId);
+			IReadOnlyList<CommitTag> tags = await changeDetails.GetTagsAsync(HttpContext.RequestAborted);
 			IReadOnlyList<string> files = await changeDetails.GetFilesAsync(CancellationToken.None);
 
-			return PropertyFilter.Apply(new GetChangeDetailsResponse(changeDetails, author!, files), filter);
+			return PropertyFilter.Apply(new GetChangeDetailsResponse(changeDetails, author!, tags, files), filter);
 		}
 
 		/// <summary>

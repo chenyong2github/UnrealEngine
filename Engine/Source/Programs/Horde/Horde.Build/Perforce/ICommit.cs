@@ -61,45 +61,17 @@ namespace Horde.Build.Perforce
 		DateTime DateUtc { get; }
 
 		/// <summary>
+		/// Gets the list of tags for the commit
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>True if the commit has the given tag</returns>
+		ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken);
+
+		/// <summary>
 		/// Gets the files for this change, relative to the root of the stream
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>List of files modified by this commit</returns>
 		ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken);
-	}
-
-	/// <summary>
-	/// Extension methods for commits
-	/// </summary>
-	public static class CommitExtensions
-	{
-		/// <summary>
-		/// Determines if this change is a code change
-		/// </summary>
-		/// <returns>True if this change is a code change</returns>
-		public static async ValueTask<ChangeContentFlags> GetContentFlagsAsync(this ICommit commit, CancellationToken cancellationToken)
-		{
-			ChangeContentFlags scope = 0;
-
-			// Check whether the files are code or content
-			IReadOnlyList<string> files = await commit.GetFilesAsync(cancellationToken);
-			foreach (string file in files)
-			{
-				if (PerforceUtils.CodeExtensions.Any(extension => file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
-				{
-					scope |= ChangeContentFlags.ContainsCode;
-				}
-				else
-				{
-					scope |= ChangeContentFlags.ContainsContent;
-				}
-
-				if (scope == (ChangeContentFlags.ContainsCode | ChangeContentFlags.ContainsContent))
-				{
-					break;
-				}
-			}
-			return scope;
-		}
 	}
 }

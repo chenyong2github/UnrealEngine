@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Datadog.Trace;
 using EpicGames.Core;
+using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Issues;
@@ -21,6 +23,24 @@ namespace Horde.Build.Streams
 	using PoolId = StringId<IPool>;
 	using TemplateId = StringId<ITemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
+
+	/// <summary>
+	/// Flags identifying content of a changelist
+	/// </summary>
+	[Flags]
+	[Obsolete]
+	public enum ChangeContentFlags
+	{
+		/// <summary>
+		/// The change contains code
+		/// </summary>
+		ContainsCode = 1,
+
+		/// <summary>
+		/// The change contains content
+		/// </summary>
+		ContainsContent = 2,
+	}
 
 	/// <summary>
 	/// How to replicate data for this stream
@@ -97,6 +117,11 @@ namespace Horde.Build.Streams
 		public DefaultPreflightConfig? DefaultPreflight { get; set; }
 
 		/// <summary>
+		/// List of tags to apply to commits. Allows fast searching and classification of different commit types (eg. code vs content).
+		/// </summary>
+		public List<CommitTagConfig> CommitTags { get; set; } = new List<CommitTagConfig>();
+
+		/// <summary>
 		/// List of tabs to show for the new stream
 		/// </summary>
 		public List<TabConfig> Tabs { get; set; } = new List<TabConfig>();
@@ -154,7 +179,61 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Tokens to create for each job step
 		/// </summary>
-		public List<TokenConfig> Tokens { get; set; } = new List<TokenConfig>(); 
+		public List<TokenConfig> Tokens { get; set; } = new List<TokenConfig>();
+
+		/// <summary>
+		/// Enumerates all commit tags, including the default tags for code and content.
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<CommitTagConfig> GetAllCommitTags()
+		{
+			if (TryGetCommitTag(CommitTag.Code, out CommitTagConfig? codeConfig))
+			{
+				yield return codeConfig;
+			}
+			if (TryGetCommitTag(CommitTag.Content, out CommitTagConfig? contentConfig))
+			{
+				yield return contentConfig;
+			}
+			foreach (CommitTagConfig config in CommitTags)
+			{
+				if (config.Name != CommitTag.Code && config.Name != CommitTag.Content)
+				{
+					yield return config;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Gets the configuration for a commit tag
+		/// </summary>
+		/// <param name="tag">Tag to search for</param>
+		/// <param name="config">Receives the tag configuration</param>
+		/// <returns>True if a match was found</returns>
+		public bool TryGetCommitTag(CommitTag tag, [NotNullWhen(true)] out CommitTagConfig? config)
+		{
+			CommitTagConfig? first = CommitTags.FirstOrDefault(x => x.Name == tag);
+			if (first != null)
+			{
+				config = first;
+				return true;
+			}
+			else if (tag == CommitTag.Code)
+			{
+				config = CommitTagConfig.CodeDefault;
+				return true;
+			}
+			else if (tag == CommitTag.Content)
+			{
+				config = CommitTagConfig.ContentDefault;
+				return true;
+			}
+			else
+			{
+				config = null;
+				return false;
+			}
+		}
 
 		/// <summary>
 		/// Tries to find a template with the given id
@@ -641,9 +720,42 @@ namespace Horde.Build.Streams
 		public ScheduleGateConfig? Gate { get; set; }
 
 		/// <summary>
+		/// Commit tags for this schedule
+		/// </summary>
+		public List<CommitTag> Commits { get; set; } = new List<CommitTag>();
+
+		/// <summary>
 		/// The types of changes to run for
 		/// </summary>
-		public List<ChangeContentFlags>? Filter { get; set; }
+		[Obsolete("Use Tags instead")]
+		public List<ChangeContentFlags> Filter
+		{
+			get
+			{
+				List<ChangeContentFlags> flags = new List<ChangeContentFlags>();
+				if (Commits.Contains(CommitTag.Code))
+				{
+					flags.Add(ChangeContentFlags.ContainsCode);
+				}
+				if (Commits.Contains(CommitTag.Content))
+				{
+					flags.Add(ChangeContentFlags.ContainsContent);
+				}
+				return flags;
+			}
+			set
+			{
+				Commits.Clear();
+				if (value.Contains(ChangeContentFlags.ContainsCode))
+				{
+					Commits.Add(CommitTag.Code);
+				}
+				if (value.Contains(ChangeContentFlags.ContainsContent))
+				{
+					Commits.Add(CommitTag.Content);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Files that should cause the job to trigger
@@ -659,25 +771,6 @@ namespace Horde.Build.Streams
 		/// New patterns for the schedule
 		/// </summary>
 		public List<SchedulePatternConfig> Patterns { get; set; } = new List<SchedulePatternConfig>();
-
-		/// <summary>
-		/// Gets the flags to filter changes by
-		/// </summary>
-		/// <returns>Set of filter flags</returns>
-		public ChangeContentFlags? GetFilterFlags()
-		{
-			if (Filter == null)
-			{
-				return null;
-			}
-
-			ChangeContentFlags flags = 0;
-			foreach (ChangeContentFlags flag in Filter)
-			{
-				flags |= flag;
-			}
-			return flags;
-		}
 
 		/// <summary>
 		/// Get the next time that the schedule will trigger
@@ -731,5 +824,43 @@ namespace Horde.Build.Streams
 		/// </summary>
 		[Required]
 		public string EnvVar { get; set; } = String.Empty;
+	}
+
+	/// <summary>
+	/// Configuration for custom commit filters
+	/// </summary>
+	public class CommitTagConfig
+	{
+		/// <summary>
+		/// Name of the tag
+		/// </summary>
+		[Required]
+		public CommitTag Name { get; set; }
+
+		/// <summary>
+		/// List of files to be included in this filter
+		/// </summary>
+		public List<string> Filter { get; set; } = new List<string>();
+
+		/// <summary>
+		/// Default config for code filters
+		/// </summary>
+		public static CommitTagConfig CodeDefault { get; } = new CommitTagConfig { Name = CommitTag.Code, Filter = CommitTag.CodeFilter.ToList() };
+
+		/// <summary>
+		/// Default config for content filters
+		/// </summary>
+		public static CommitTagConfig ContentDefault { get; } = new CommitTagConfig { Name = CommitTag.Content, Filter = CommitTag.ContentFilter.ToList() };
+
+		/// <summary>
+		/// Constructs a <see cref="FileFilter"/> from the rules in this configuration object
+		/// </summary>
+		/// <returns>Filter object</returns>
+		public FileFilter CreateFileFilter()
+		{
+			FileFilter filter = new FileFilter(FileFilterType.Exclude);
+			filter.AddRules(Filter);
+			return filter;
+		}
 	}
 }

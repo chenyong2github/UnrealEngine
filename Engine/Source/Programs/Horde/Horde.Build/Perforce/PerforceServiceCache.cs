@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Perforce;
 using Horde.Build.Server;
 using Horde.Build.Streams;
@@ -57,15 +58,29 @@ namespace Horde.Build.Perforce
 			public Dictionary<StreamId, int> MinChanges { get; set; } = new Dictionary<StreamId, int>();
 		}
 
+		class CommitTagInfo
+		{
+			public CommitTag Name { get; }
+			public FileFilter Filter { get; }
+
+			public CommitTagInfo(CommitTagConfig config)
+			{
+				Name = config.Name;
+				Filter = config.CreateFileFilter();
+			}
+		}
+
 		class StreamInfo
 		{
 			public IStream Stream { get; set; }
 			public PerforceViewMap View { get; }
+			public List<CommitTagInfo> CommitTags { get; set; }
 
 			public StreamInfo(IStream stream, PerforceViewMap view)
 			{
 				Stream = stream;
 				View = view;
+				CommitTags = stream.Config.GetAllCommitTags().Select(x => new CommitTagInfo(x)).ToList();
 			}
 		}
 
@@ -102,14 +117,18 @@ namespace Horde.Build.Perforce
 			public string BasePath { get; set; }
 			public DateTime DateUtc { get; set; }
 
+			public List<CommitTag> CommitTags { get; set; } = new List<CommitTag>();
+
 			[BsonConstructor]
 			CachedCommitDoc()
 			{
 				Description = null!;
 				BasePath = null!;
+
+				CommitTags = new List<CommitTag>();
 			}
 
-			public CachedCommitDoc(ICommit commit)
+			public CachedCommitDoc(ICommit commit, List<CommitTag> commitTags)
 			{
 				StreamId = commit.StreamId;
 				Number = commit.Number;
@@ -119,12 +138,19 @@ namespace Horde.Build.Perforce
 				Description = commit.Description;
 				BasePath = commit.BasePath;
 				DateUtc = commit.DateUtc;
+
+				CommitTags = commitTags;
 			}
 
 			public void PostLoad(PerforceServiceCache owner, IStream stream)
 			{
 				_owner = owner;
 				_stream = stream;
+			}
+
+			public ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken)
+			{
+				return new ValueTask<IReadOnlyList<CommitTag>>(CommitTags);
 			}
 
 			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
@@ -154,7 +180,11 @@ namespace Horde.Build.Perforce
 			Options = options.Value;
 
 			_mongoService = mongoService;
-			_commits = mongoService.GetCollection<CachedCommitDoc>("CommitsV2", keys => keys.Ascending(x => x.StreamId).Descending(x => x.Number), unique: true);
+
+			List<MongoIndex<CachedCommitDoc>> indexes = new List<MongoIndex<CachedCommitDoc>>();
+			indexes.Add(MongoIndex.Create<CachedCommitDoc>(keys => keys.Ascending(x => x.StreamId).Descending(x => x.Number), true));
+			indexes.Add(MongoIndex.Create<CachedCommitDoc>(keys => keys.Ascending(x => x.StreamId).Ascending(x => x.CommitTags).Descending(x => x.Number), true));
+			_commits = mongoService.GetCollection<CachedCommitDoc>("CommitsV2", indexes);
 
 			_streamCollection = streamCollection;
 			_logger = logger;
@@ -364,8 +394,17 @@ namespace Horde.Build.Perforce
 						if (files.Count > 0)
 						{
 							ICommit commit = await CreateCommitAsync(streamInfo.Stream, describeRecord, info, cancellationToken);
-							CachedCommitDoc commitDoc = new CachedCommitDoc(commit);
 
+							List<CommitTag> commitTags = new List<CommitTag>();
+							foreach (CommitTagInfo commitTagInfo in streamInfo.CommitTags)
+							{
+								if (commitTagInfo.Filter.ApplyTo(files.Select(x => "/" + x)).Any())
+								{
+									commitTags.Add(commitTagInfo.Name);
+								}
+							}
+
+							CachedCommitDoc commitDoc = new CachedCommitDoc(commit, commitTags);
 							FilterDefinition<CachedCommitDoc> filter = Builders<CachedCommitDoc>.Filter.Expr(x => x.StreamId == commit.StreamId && x.Number == commit.Number);
 							await _commits.ReplaceOneAsync(filter, commitDoc, new ReplaceOptions { IsUpsert = true }, cancellationToken);
 						}
@@ -376,12 +415,14 @@ namespace Horde.Build.Perforce
 				Dictionary<StreamId, int> minChanges = new Dictionary<StreamId, int>(streamInfos.Count);
 				foreach (StreamInfo streamInfo in streamInfos)
 				{
-					if (!state.MinChanges.ContainsKey(streamInfo.Stream.Id))
+					int minChange;
+					if (!state.MinChanges.TryGetValue(streamInfo.Stream.Id, out minChange))
 					{
-						int minChange = changes[^1].Number;
-						state.MinChanges.Add(streamInfo.Stream.Id, minChange);
+						minChange = changes[^1].Number;
 					}
+					minChanges.Add(streamInfo.Stream.Id, minChange);
 				}
+				state.MinChanges = minChanges;
 				state.MaxChange = changes[0].Number;
 				return state;
 			}

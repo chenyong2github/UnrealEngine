@@ -126,8 +126,8 @@ namespace Horde.Build.Jobs.Schedules
 						return 0;
 					}
 
-					ChangeContentFlags contentFlags = await details.GetContentFlagsAsync(CancellationToken.None);
-					if ((contentFlags & ChangeContentFlags.ContainsCode) != 0)
+					IReadOnlyList<CommitTag> commitTags = await details.GetTagsAsync(CancellationToken.None);
+					if (commitTags.Contains(CommitTag.Code))
 					{
 						return details.Number;
 					}
@@ -421,7 +421,6 @@ namespace Horde.Build.Jobs.Schedules
 
 			// Create a timer to limit the amount we look back through P4 history
 			Stopwatch timer = Stopwatch.StartNew();
-			ChangeContentFlags? filterFlags = schedule.Config.GetFilterFlags();
 
 			// Create a file filter
 			FileFilter? fileFilter = null;
@@ -466,7 +465,7 @@ namespace Horde.Build.Jobs.Schedules
 
 				// Adjust the changelist for the desired filter
 				int change = changeDetails.Number;
-				if (await ShouldBuildChangeAsync(changeDetails, filterFlags, fileFilter))
+				if (await ShouldBuildChangeAsync(changeDetails, schedule.Config.Commits, fileFilter))
 				{
 					int codeChange = await history.GetCodeChange(change);
 					if (codeChange == -1)
@@ -534,21 +533,21 @@ namespace Horde.Build.Jobs.Schedules
 		/// Tests whether a schedule should build a particular change, based on its requested change filters
 		/// </summary>
 		/// <param name="details">The change details</param>
-		/// <param name="filterFlags"></param>
+		/// <param name="filterTags"></param>
 		/// <param name="fileFilter">Filter for the files to trigger a build</param>
 		/// <returns></returns>
-		private async ValueTask<bool> ShouldBuildChangeAsync(ICommit details, ChangeContentFlags? filterFlags, FileFilter? fileFilter)
+		private async ValueTask<bool> ShouldBuildChangeAsync(ICommit details, List<CommitTag>? filterTags, FileFilter? fileFilter)
 		{
 			if (Regex.IsMatch(details.Description, @"^\s*#\s*skipci", RegexOptions.Multiline))
 			{
 				return false;
 			}
-			if (filterFlags != null && filterFlags.Value != 0)
+			if (filterTags != null && filterTags.Count > 0)
 			{
-				ChangeContentFlags contentFlags = await details.GetContentFlagsAsync(CancellationToken.None);
-				if ((contentFlags & filterFlags.Value) == 0)
+				IReadOnlyList<CommitTag> commitTags = await details.GetTagsAsync(CancellationToken.None);
+				if (!commitTags.Any(x => filterTags.Contains(x)))
 				{
-					_logger.LogDebug("Not building change {Change} ({ChangeFlags}) due to filter flags ({FilterFlags})", details.Number, contentFlags.ToString(), filterFlags.Value.ToString());
+					_logger.LogDebug("Not building change {Change} ({ChangeTags}) due to filter tags ({FilterTags})", details.Number, String.Join(", ", commitTags.Select(x => x.ToString())), String.Join(", ", filterTags.Select(x => x.ToString())));
 					return false;
 				}
 			}

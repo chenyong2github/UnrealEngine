@@ -7,7 +7,7 @@ namespace EpicGames.Horde
 	/// <summary>
 	/// Normalized string identifier for a resource
 	/// </summary>
-	struct StringId : IEquatable<StringId>
+	public struct StringId : IEquatable<StringId>
 	{
 		/// <summary>
 		/// The text representing this id
@@ -17,45 +17,57 @@ namespace EpicGames.Horde
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="input">Unique id for the string</param>
-		public StringId(string input)
+		/// <param name="text">Unique id for the string</param>
+		public StringId(string text)
 		{
-			Text = input;
-
-			if (Text.Length == 0)
-			{
-				throw new ArgumentException("String id may not be empty");
-			}
-
-			const int MaxLength = 64;
-			if (Text.Length > MaxLength)
-			{
-				throw new ArgumentException($"String id may not be longer than {MaxLength} characters");
-			}
-
-			for (int idx = 0; idx < Text.Length; idx++)
-			{
-				char character = Text[idx];
-				if (!IsValidCharacter(character))
-				{
-					if (character >= 'A' && character <= 'Z')
-					{
-#pragma warning disable CA1308 // Normalize strings to uppercase
-						Text = Text.ToLowerInvariant();
-#pragma warning restore CA1308 // Normalize strings to uppercase
-					}
-					else
-					{
-						throw new ArgumentException($"{Text} is not a valid string id");
-					}
-				}
-			}
+			Text = text;
+			ValidateArgument(text, nameof(text));
 		}
 
 		/// <summary>
 		/// Checks whether this StringId is set
 		/// </summary>
 		public bool IsEmpty => String.IsNullOrEmpty(Text);
+
+		/// <summary>
+		/// Validates the given string as a StringId, normalizing it if necessary.
+		/// </summary>
+		/// <param name="text">Text to validate as a StringId</param>
+		/// <param name="paramName">Name of the parameter to show if invalid characters are returned.</param>
+		/// <returns></returns>
+		public static string ValidateArgument(string text, string paramName)
+		{
+			if (text.Length == 0)
+			{
+				throw new ArgumentException("String id may not be empty", paramName);
+			}
+
+			const int MaxLength = 64;
+			if (text.Length > MaxLength)
+			{
+				throw new ArgumentException($"String id may not be longer than {MaxLength} characters", paramName);
+			}
+
+			for (int idx = 0; idx < text.Length; idx++)
+			{
+				char character = text[idx];
+				if (!IsValidCharacter(character))
+				{
+					if (character >= 'A' && character <= 'Z')
+					{
+#pragma warning disable CA1308 // Normalize strings to uppercase
+						text = text.ToLowerInvariant();
+#pragma warning restore CA1308 // Normalize strings to uppercase
+					}
+					else
+					{
+						throw new ArgumentException($"{text} is not a valid string id", paramName);
+					}
+				}
+			}
+
+			return text;
+		}
 
 		/// <summary>
 		/// Checks whether the given character is valid within a string id

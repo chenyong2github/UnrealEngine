@@ -19,6 +19,7 @@ using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
+using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -128,27 +129,24 @@ namespace Horde.Build.Perforce
 		class Commit : ICommit
 		{
 			readonly PerforceService _owner;
-			readonly string _clusterName;
-			readonly string _streamName;
+			readonly IStream _stream;
 
-			public StreamId StreamId { get; set; }
-			public int Number { get; set; }
-			public int OriginalChange { get; set; }
-			public UserId AuthorId { get; set; }
-			public UserId OwnerId { get; set; }
-			public string Description { get; set; }
-			public string BasePath { get; set; }
-			public DateTime DateUtc { get; set; }
+			public StreamId StreamId => _stream.Id;
+			public int Number { get; }
+			public int OriginalChange { get; }
+			public UserId AuthorId { get; }
+			public UserId OwnerId { get; }
+			public string Description { get; }
+			public string BasePath { get; }
+			public DateTime DateUtc { get; }
 
 			IReadOnlyList<string>? _files;
 
-			public Commit(PerforceService owner, string clusterName, string streamName, StreamId streamId, int number, int originalChange, UserId authorId, UserId ownerId, string description, string basePath, DateTime dateUtc)
+			public Commit(PerforceService owner, IStream stream, int number, int originalChange, UserId authorId, UserId ownerId, string description, string basePath, DateTime dateUtc)
 			{
 				_owner = owner;
-				_clusterName = clusterName;
-				_streamName = streamName;
-	
-				StreamId = streamId;
+				_stream = stream;
+
 				Number = number;
 				OriginalChange = originalChange;
 				AuthorId = authorId;
@@ -163,14 +161,30 @@ namespace Horde.Build.Perforce
 				_files = files;
 			}
 
+			public async ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken)
+			{
+				List<CommitTag> commitTags = new List<CommitTag>();
+
+				IReadOnlyList<string> files = await GetFilesAsync(cancellationToken);
+				foreach (CommitTagConfig tagConfig in _stream.Config.GetAllCommitTags())
+				{
+					if (tagConfig.CreateFileFilter().ApplyTo(files).Any())
+					{
+						commitTags.Add(tagConfig.Name);
+					}
+				}
+
+				return commitTags;
+			}
+
 			public async ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
 			{
 				if (_files == null)
 				{
-					using (IPerforceConnection perforce = await _owner.ConnectAsync(_clusterName, null, cancellationToken))
+					using (IPerforceConnection perforce = await _owner.ConnectAsync(_stream.Config.ClusterName, null, cancellationToken))
 					{
 						DescribeRecord describeRecord = await perforce.DescribeAsync(Number, cancellationToken);
-						_files = GetStreamFiles(describeRecord, _streamName);
+						_files = GetStreamFiles(describeRecord, _stream.Config.Name);
 					}
 				}
 				return _files;
@@ -635,7 +649,7 @@ namespace Horde.Build.Perforce
 				ownerUser = await FindOrAddUserAsync(stream.Config.ClusterName, owner, cancellationToken);
 			}
 
-			return new Commit(this, stream.Config.ClusterName, stream.Name, stream.Id, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
+			return new Commit(this, stream, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
 		}
 
 		public async ValueTask<ICommit> CreateCommitAsync(IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
@@ -1063,9 +1077,9 @@ namespace Horde.Build.Perforce
 				List<ICommit> detailsList = await GetChangeDetailsAsync(stream, changes.ConvertAll(x => x.Number), cancellationToken);
 				foreach (ICommit details in detailsList.OrderByDescending(x => x.Number))
 				{
-					ChangeContentFlags contentFlags = await details.GetContentFlagsAsync(cancellationToken);
-					_logger.LogInformation("Change {Change} = {Flags}", details.Number, contentFlags.ToString());
-					if ((contentFlags & ChangeContentFlags.ContainsCode) != 0)
+					IReadOnlyList<CommitTag> commitTags = await details.GetTagsAsync(cancellationToken);
+					_logger.LogInformation("Change {Change} = {Flags}", details.Number, String.Join(", ", commitTags.Select(x => x.ToString())));
+					if (commitTags.Contains(CommitTag.Code))
 					{
 						return details.Number;
 					}

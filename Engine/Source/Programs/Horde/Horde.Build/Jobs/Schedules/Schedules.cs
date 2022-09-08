@@ -41,8 +41,14 @@ namespace Horde.Build.Jobs.Schedules
 		public ScheduleGateConfig? Gate { get; set; }
 
 		/// <summary>
+		/// Which commits to run this job for
+		/// </summary>
+		public List<CommitTag>? Commits { get; set; }
+
+		/// <summary>
 		/// The types of changes to run for
 		/// </summary>
+		[Obsolete("Use Commits instead")]
 		public List<ChangeContentFlags>? Filter { get; set; }
 
 		/// <summary>
@@ -81,7 +87,10 @@ namespace Horde.Build.Jobs.Schedules
 			MaxChanges = schedule.Config.MaxChanges;
 			RequireSubmittedChange = schedule.Config.RequireSubmittedChange;
 			Gate = schedule.Config.Gate;
+			Commits = schedule.Config.Commits;
+#pragma warning disable CS0618 // Type or member is obsolete
 			Filter = schedule.Config.Filter;
+#pragma warning restore CS0618 // Type or member is obsolete
 			TemplateParameters = schedule.Config.TemplateParameters;
 			Patterns = schedule.Config.Patterns;
 			LastTriggerChange = schedule.LastTriggerChange;

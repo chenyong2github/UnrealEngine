@@ -31,16 +31,23 @@ namespace Horde.Build.Perforce
 		public string Description { get; set; }
 
 		/// <summary>
+		/// Tags for this commit
+		/// </summary>
+		public List<CommitTag> Tags { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="commit">The commit to construct from</param>
 		/// <param name="author">Author of the commit</param>
-		public GetChangeSummaryResponse(ICommit commit, IUser author)
+		/// <param name="tags">Tags for the commit</param>
+		public GetChangeSummaryResponse(ICommit commit, IUser author, IReadOnlyList<CommitTag> tags)
 		{
 			Number = commit.Number;
 			Author = author.Name;
 			AuthorInfo = new GetThinUserInfoResponse(author);
 			Description = commit.Description;
+			Tags = new List<CommitTag>(tags);
 		}
 	}
 
@@ -70,6 +77,11 @@ namespace Horde.Build.Perforce
 		public string Description { get; set; }
 
 		/// <summary>
+		/// Tags for this commit
+		/// </summary>
+		public List<CommitTag> Tags { get; set; }
+
+		/// <summary>
 		/// List of files that were modified, relative to the stream base
 		/// </summary>
 		public List<string> Files { get; set; }
@@ -79,13 +91,15 @@ namespace Horde.Build.Perforce
 		/// </summary>
 		/// <param name="commit">The commit to construct from</param>
 		/// <param name="author">Author of the change</param>
+		/// <param name="tags">Tags for the commit</param>
 		/// <param name="files">Files modified by the commit</param>
-		public GetChangeDetailsResponse(ICommit commit, IUser author, IReadOnlyList<string> files)
+		public GetChangeDetailsResponse(ICommit commit, IUser author, IReadOnlyList<CommitTag> tags, IReadOnlyList<string> files)
 		{
 			Number = commit.Number;
 			Author = author.Name;
 			AuthorInfo = new GetThinUserInfoResponse(author);
 			Description = commit.Description;
+			Tags = new List<CommitTag>(tags);
 			Files = new List<string>(files);
 		}
 	}
