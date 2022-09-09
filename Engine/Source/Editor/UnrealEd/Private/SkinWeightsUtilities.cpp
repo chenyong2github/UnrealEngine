@@ -196,7 +196,7 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 
 		for (FString AssetPath : Task->ImportedObjectPaths)
 		{
-			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*AssetPath));
+			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 			ImportedObject = AssetData.GetAsset();
 			if (ImportedObject != nullptr)
 			{

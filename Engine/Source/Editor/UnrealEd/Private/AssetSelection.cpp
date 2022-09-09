@@ -702,7 +702,7 @@ namespace AssetUtil
 				{
 					if (DroppedAssetString.Len() < NAME_SIZE && FName::IsValidXName(DroppedAssetString, INVALID_OBJECTPATH_CHARACTERS))
 					{
-						FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*DroppedAssetString));
+						FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(DroppedAssetString));
 						if (AssetData.IsValid())
 						{
 							DroppedAssetData.Add(AssetData);

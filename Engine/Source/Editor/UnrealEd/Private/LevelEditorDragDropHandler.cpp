@@ -25,7 +25,7 @@ bool ULevelEditorDragDropHandler::PreviewDropObjectsAtCoordinates(int32 MouseX, 
 	bCanDrop = false;
 	HintText = FText::GetEmpty();
 
-	if ( AssetData.ObjectPath.IsNone() )
+	if ( !AssetData.IsValid() )
 	{
 		bCanDrop = false;
 		return false;

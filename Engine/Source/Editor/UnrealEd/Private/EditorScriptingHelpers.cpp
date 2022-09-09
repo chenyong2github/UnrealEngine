@@ -234,7 +234,7 @@ bool EditorScriptingHelpers::IsAValidPathForCreateNewAsset(const FString& Object
 	}
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 	if (AssetData.IsValid())
 	{
 		OutFailureReason = TEXT("An asset already exists at this location.");

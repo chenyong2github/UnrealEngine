@@ -818,9 +818,9 @@ FSlateShaderResource* FAssetThumbnail::GetViewportRenderTargetTexture() const
 
 UObject* FAssetThumbnail::GetAsset() const
 {
-	if ( AssetData.ObjectPath != NAME_None )
+	if ( AssetData.IsValid() )
 	{
-		return FindObject<UObject>(NULL, *AssetData.ObjectPath.ToString());
+		return AssetData.GetSoftObjectPath().ResolveObject();
 	}
 	else
 	{
@@ -988,7 +988,7 @@ void FAssetThumbnailPool::ReleaseResources()
 		const TSharedRef<FThumbnailInfo>& Thumb = *ThumbIt;
 		if ( !Thumb.IsUnique() )
 		{
-			ensureMsgf(0, TEXT("Thumbnail info for '%s' is still referenced by '%d' other objects"), *Thumb->AssetData.ObjectPath.ToString(), Thumb.GetSharedReferenceCount());
+			ensureMsgf(0, TEXT("Thumbnail info for '%s' is still referenced by '%d' other objects"), *Thumb->AssetData.GetObjectPathString(), Thumb.GetSharedReferenceCount());
 		}
 	}
 }
@@ -1097,7 +1097,7 @@ void FAssetThumbnailPool::Tick( float DeltaTime )
 					{
 						if (FPackageName::IsValidObjectPath(CustomThumbnailTagValue))
 						{
-							CustomThumbnailAsset = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get().GetAssetByObjectPath(*CustomThumbnailTagValue);
+							CustomThumbnailAsset = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get().GetAssetByObjectPath(FSoftObjectPath(CustomThumbnailTagValue));
 						}
 					}
 
@@ -1235,13 +1235,13 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 
 FSlateTexture2DRHIRef* FAssetThumbnailPool::AccessTexture( const FAssetData& AssetData, uint32 Width, uint32 Height )
 {
-	if(AssetData.ObjectPath == NAME_None || Width == 0 || Height == 0)
+	if(AssetData.IsValid() || Width == 0 || Height == 0)
 	{
 		return NULL;
 	}
 	else
 	{
-		FThumbId ThumbId( AssetData.ObjectPath, Width, Height ) ;
+		FThumbId ThumbId( AssetData.GetSoftObjectPath(), Width, Height ) ;
 		// Check to see if a thumbnail for this asset exists.  If so we don't need to render it
 		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find( ThumbId );
 		TSharedPtr<FThumbnailInfo> ThumbnailInfo;
@@ -1330,14 +1330,14 @@ FSlateTexture2DRHIRef* FAssetThumbnailPool::AccessTexture( const FAssetData& Ass
 void FAssetThumbnailPool::AddReferencer( const FAssetThumbnail& AssetThumbnail )
 {
 	FIntPoint Size = AssetThumbnail.GetSize();
-	if ( AssetThumbnail.GetAssetData().ObjectPath == NAME_None || Size.X == 0 || Size.Y == 0 )
+	if ( AssetThumbnail.GetAssetData().IsValid() || Size.X == 0 || Size.Y == 0 )
 	{
 		// Invalid referencer
 		return;
 	}
 
 	// Generate a key and look up the number of references in the RefCountMap
-	FThumbId ThumbId( AssetThumbnail.GetAssetData().ObjectPath, Size.X, Size.Y ) ;
+	FThumbId ThumbId( AssetThumbnail.GetAssetData().GetSoftObjectPath(), Size.X, Size.Y ) ;
 	int32* RefCountPtr = RefCountMap.Find(ThumbId);
 
 	if ( RefCountPtr )
@@ -1355,8 +1355,8 @@ void FAssetThumbnailPool::AddReferencer( const FAssetThumbnail& AssetThumbnail )
 void FAssetThumbnailPool::RemoveReferencer( const FAssetThumbnail& AssetThumbnail )
 {
 	FIntPoint Size = AssetThumbnail.GetSize();
-	const FName ObjectPath = AssetThumbnail.GetAssetData().ObjectPath;
-	if ( ObjectPath == NAME_None || Size.X == 0 || Size.Y == 0 )
+	const FSoftObjectPath ObjectPath = AssetThumbnail.GetAssetData().GetSoftObjectPath();
+	if ( ObjectPath.IsNull() || Size.X == 0 || Size.Y == 0 )
 	{
 		// Invalid referencer
 		return;
@@ -1391,9 +1391,9 @@ bool FAssetThumbnailPool::IsInRenderStack( const TSharedPtr<FAssetThumbnail>& Th
 	const uint32 Width = Thumbnail->GetSize().X;
 	const uint32 Height = Thumbnail->GetSize().Y;
 
-	if ( ensure(AssetData.ObjectPath != NAME_None) && ensure(Width > 0) && ensure(Height > 0) )
+	if ( ensure(AssetData.IsValid()) && ensure(Width > 0) && ensure(Height > 0) )
 	{
-		FThumbId ThumbId( AssetData.ObjectPath, Width, Height ) ;
+		FThumbId ThumbId(AssetData.GetSoftObjectPath(), Width, Height);
 		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find( ThumbId );
 		if ( ThumbnailInfoPtr )
 		{
@@ -1410,9 +1410,9 @@ bool FAssetThumbnailPool::IsRendered(const TSharedPtr<FAssetThumbnail>& Thumbnai
 	const uint32 Width = Thumbnail->GetSize().X;
 	const uint32 Height = Thumbnail->GetSize().Y;
 
-	if (ensure(AssetData.ObjectPath != NAME_None) && ensure(Width > 0) && ensure(Height > 0))
+	if (ensure(AssetData.IsValid()) && ensure(Width > 0) && ensure(Height > 0))
 	{
-		FThumbId ThumbId(AssetData.ObjectPath, Width, Height);
+		FThumbId ThumbId(AssetData.GetSoftObjectPath(), Width, Height);
 		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find(ThumbId);
 		if (ThumbnailInfoPtr)
 		{
@@ -1427,17 +1427,17 @@ void FAssetThumbnailPool::PrioritizeThumbnails( const TArray< TSharedPtr<FAssetT
 {
 	if ( ensure(Width > 0) && ensure(Height > 0) )
 	{
-		TSet<FName> ObjectPathList;
+		TSet<FSoftObjectPath> ObjectPathList;
 		for ( int32 ThumbIdx = 0; ThumbIdx < ThumbnailsToPrioritize.Num(); ++ThumbIdx )
 		{
-			ObjectPathList.Add(ThumbnailsToPrioritize[ThumbIdx]->GetAssetData().ObjectPath);
+			ObjectPathList.Add(ThumbnailsToPrioritize[ThumbIdx]->GetAssetData().GetSoftObjectPath());
 		}
 
 		TArray< TSharedRef<FThumbnailInfo> > FoundThumbnails;
 		for ( int32 ThumbIdx = ThumbnailsToRenderStack.Num() - 1; ThumbIdx >= 0; --ThumbIdx )
 		{
 			const TSharedRef<FThumbnailInfo>& ThumbnailInfo = ThumbnailsToRenderStack[ThumbIdx];
-			if ( ThumbnailInfo->Width == Width && ThumbnailInfo->Height == Height && ObjectPathList.Contains(ThumbnailInfo->AssetData.ObjectPath) )
+			if (ThumbnailInfo->Width == Width && ThumbnailInfo->Height == Height && ObjectPathList.Contains(ThumbnailInfo->AssetData.GetSoftObjectPath()))
 			{
 				FoundThumbnails.Add(ThumbnailInfo);
 				ThumbnailsToRenderStack.RemoveAt(ThumbIdx);
@@ -1457,9 +1457,9 @@ void FAssetThumbnailPool::RefreshThumbnail( const TSharedPtr<FAssetThumbnail>& T
 	const uint32 Width = ThumbnailToRefresh->GetSize().X;
 	const uint32 Height = ThumbnailToRefresh->GetSize().Y;
 
-	if ( ensure(AssetData.ObjectPath != NAME_None) && ensure(Width > 0) && ensure(Height > 0) )
+	if ( ensure(AssetData.IsValid()) && ensure(Width > 0) && ensure(Height > 0) )
 	{
-		FThumbId ThumbId( AssetData.ObjectPath, Width, Height ) ;
+		FThumbId ThumbId(AssetData.GetSoftObjectPath(), Width, Height);
 		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find( ThumbId );
 		if ( ThumbnailInfoPtr )
 		{
@@ -1474,9 +1474,9 @@ void FAssetThumbnailPool::SetRealTimeThumbnail( const TSharedPtr<FAssetThumbnail
 	const uint32 Width = Thumbnail->GetSize().X;
 	const uint32 Height = Thumbnail->GetSize().Y;
 
-	if (ensure(AssetData.ObjectPath != NAME_None) && ensure(Width > 0) && ensure(Height > 0) )
+	if (ensure(AssetData.IsValid()) && ensure(Width > 0) && ensure(Height > 0) )
 	{
-		FThumbId ThumbId( AssetData.ObjectPath, Width, Height );
+		FThumbId ThumbId(AssetData.GetSoftObjectPath(), Width, Height);
 		const TSharedRef<FThumbnailInfo>* ThumbnailInfoPtr = ThumbnailToTextureMap.Find( ThumbId );
 		if ( ThumbnailInfoPtr )
 		{
@@ -1492,9 +1492,9 @@ void FAssetThumbnailPool::SetRealTimeThumbnail( const TSharedPtr<FAssetThumbnail
 	}
 }
 
-void FAssetThumbnailPool::FreeThumbnail( const FName& ObjectPath, uint32 Width, uint32 Height )
+void FAssetThumbnailPool::FreeThumbnail( const FSoftObjectPath& ObjectPath, uint32 Width, uint32 Height )
 {
-	if(ObjectPath != NAME_None && Width != 0 && Height != 0)
+	if(ObjectPath.IsValid() && Width != 0 && Height != 0)
 	{
 		FThumbId ThumbId( ObjectPath, Width, Height ) ;
 
@@ -1520,7 +1520,7 @@ void FAssetThumbnailPool::FreeThumbnail( const FName& ObjectPath, uint32 Width, 
 			
 }
 
-void FAssetThumbnailPool::RefreshThumbnailsFor( FName ObjectPath )
+void FAssetThumbnailPool::RefreshThumbnailsFor( const FSoftObjectPath& ObjectPath )
 {
 	for ( auto ThumbIt = ThumbnailToTextureMap.CreateIterator(); ThumbIt; ++ThumbIt)
 	{
@@ -1535,7 +1535,7 @@ void FAssetThumbnailPool::OnAssetLoaded( UObject* Asset )
 {
 	if ( Asset != NULL )
 	{
-		RecentlyLoadedAssets.Add( FName(*Asset->GetPathName()) );
+		RecentlyLoadedAssets.Add( FSoftObjectPath(Asset) );
 	}
 }
 
@@ -1612,6 +1612,6 @@ void FAssetThumbnailPool::DirtyThumbnailForObject(UObject* ObjectBeingModified)
 			Thumbnail->MarkAsDirty();
 		}
 
-		RefreshThumbnailsFor( FName(*ObjectBeingModified->GetPathName()) );
+		RefreshThumbnailsFor(FSoftObjectPath(ObjectBeingModified));
 	}
 }

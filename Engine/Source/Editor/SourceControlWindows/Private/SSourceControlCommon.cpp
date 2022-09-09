@@ -206,7 +206,7 @@ FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
 FString FFileTreeItem::RetrieveAssetPath(const FAssetData& InAssetData) const
 {
 	int32 LastDot = -1;
-	FString Path = InAssetData.ObjectPath.ToString();
+	FString Path = InAssetData.GetObjectPathString();
 
 	// Strip asset name from object path
 	if (Path.FindLastChar('.', LastDot))
@@ -243,7 +243,7 @@ FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
 	if (Assets.Num() > 0)
 	{
 		const FAssetData& AssetData = Assets[0];
-		AssetPath = FText::FromName(AssetData.ObjectPath);
+		AssetPath = FText::FromString(AssetData.GetObjectPathString());
 
 		// Find name, asset type & color only if there is exactly one asset
 		if (Assets.Num() == 1)

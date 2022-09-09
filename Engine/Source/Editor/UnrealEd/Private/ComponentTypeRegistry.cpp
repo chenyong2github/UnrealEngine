@@ -32,8 +32,8 @@ namespace UE::Editor::ComponentTypeRegistry::Private
 	{
 	public:
 		FUnloadedBlueprintData(const FAssetData& InAssetData)
-			:ClassPath(NAME_None)
-			,ParentClassPath(NAME_None)
+			:ClassPath()
+			,ParentClassPath()
 			,ClassFlags(CLASS_None)
 			,bIsNormalBlueprintType(false)
 		{
@@ -43,17 +43,17 @@ namespace UE::Editor::ComponentTypeRegistry::Private
 			const UClass* AssetClass = InAssetData.GetClass();
 			if (AssetClass && AssetClass->IsChildOf(UBlueprintGeneratedClass::StaticClass()))
 			{
-				ClassPath = InAssetData.ObjectPath;
+				ClassPath = InAssetData.GetSoftObjectPath().GetAssetPath();
 			}
 			else if (InAssetData.GetTagValue(FBlueprintTags::GeneratedClassPath, GeneratedClassPath))
 			{
-				ClassPath = FName(*FPackageName::ExportTextPathToObjectPath(GeneratedClassPath));
+				ClassPath = FTopLevelAssetPath(FPackageName::ExportTextPathToObjectPath(GeneratedClassPath));
 			}
 
 			FString ParentClassPathString;
 			if (InAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassPathString))
 			{
-				ParentClassPath = FName(*FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
+				ParentClassPath = FTopLevelAssetPath(FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
 			}
 
 			FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(InAssetData, ImplementedInterfaces);
@@ -231,19 +231,21 @@ namespace UE::Editor::ComponentTypeRegistry::Private
 		UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetClassPathName.")
 		virtual FName GetClassPath() const override
 		{
-			return ClassPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return ClassPath.ToFName();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		
 		virtual FTopLevelAssetPath GetClassPathName() const override
 		{
-			return FTopLevelAssetPath(ClassPath.ToString());
+			return ClassPath;
 		}
 		// End IUnloadedBlueprintData interface
 
 	private:
 		TSharedPtr<FString> ClassName;
-		FName ClassPath;
-		FName ParentClassPath;
+		FTopLevelAssetPath ClassPath;
+		FTopLevelAssetPath ParentClassPath;
 		uint32 ClassFlags;
 		TArray<FString> ImplementedInterfaces;
 		bool bIsNormalBlueprintType;
@@ -287,7 +289,7 @@ public:
 	TArray<FComponentClassComboEntryPtr> ComponentClassList;
 	TArray<FComponentTypeEntry> ComponentTypeList;
 	TArray<FAssetData> PendingAssetData;
-	TMap<FName, int32> ClassPathToClassListIndexMap;
+	TMap<FTopLevelAssetPath, int32> ClassPathToClassListIndexMap;
 	FOnComponentTypeListChanged ComponentListChanged;
 	bool bNeedsRefreshNextTick;
 };
@@ -659,7 +661,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 			int32 EntryIndex = ComponentClassList.Add(CurrentEntry);
 			if (CurrentEntry->IsClass())
 			{
-				ClassPathToClassListIndexMap.FindOrAdd(FName(*CurrentEntry->GetComponentPath()), EntryIndex);
+				ClassPathToClassListIndexMap.FindOrAdd(FTopLevelAssetPath(CurrentEntry->GetComponentPath()), EntryIndex);
 			}
 		}
 	}
@@ -780,7 +782,7 @@ void FComponentTypeRegistry::Invalidate()
 	Data->Invalidate();
 }
 
-FComponentClassComboEntryPtr FComponentTypeRegistry::FindClassEntryForObjectPath(FName InObjectPath) const
+FComponentClassComboEntryPtr FComponentTypeRegistry::FindClassEntryForObjectPath(FTopLevelAssetPath InObjectPath) const
 {
 	if (int32* ClassListIndexPtr = Data->ClassPathToClassListIndexMap.Find(InObjectPath))
 	{

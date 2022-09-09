@@ -2009,7 +2009,7 @@ namespace ObjectTools
 				}
 				else
 				{
-					TArray<FName> ObjectsToAdd;
+					TArray<FSoftObjectPath> ObjectsToAdd;
 					for(TSet<UObject*>::TConstIterator SetIt(ReferencedObjects); SetIt; ++SetIt)
 					{
 						UObject* RefObj = *SetIt;
@@ -2017,7 +2017,7 @@ namespace ObjectTools
 						{
 							if (RefObj != Object)
 							{
-								ObjectsToAdd.Add(FName(*RefObj->GetPathName()));
+								ObjectsToAdd.Emplace(RefObj);
 							}
 						}
 					}

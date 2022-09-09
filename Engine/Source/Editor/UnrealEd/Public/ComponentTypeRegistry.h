@@ -49,7 +49,7 @@ struct UNREALED_API FComponentTypeRegistry
 	/**
 	 * Attempts to locate the class entry corresponding to the given object path.
 	 */
-	FComponentClassComboEntryPtr FindClassEntryForObjectPath(FName InObjectPath) const;
+	FComponentClassComboEntryPtr FindClassEntryForObjectPath(FTopLevelAssetPath InObjectPath) const;
 
 private:
 	void OnReloadComplete(EReloadCompleteReason Reason);

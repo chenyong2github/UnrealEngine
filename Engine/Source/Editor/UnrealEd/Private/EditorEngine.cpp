@@ -3007,7 +3007,7 @@ void UEditorEngine::GetAssetsToSyncToContentBrowser(TArray<FAssetData>& Assets, 
 
 						for (const FSoftObjectPath& SoftObject : SoftObjects)
 						{
-							FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*SoftObject.ToString());
+							FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(SoftObject);
 
 							if (AssetData.IsValid())
 							{

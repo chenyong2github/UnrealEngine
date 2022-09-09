@@ -577,7 +577,7 @@ FAssetData FAutomationEditorCommonUtils::GetAssetDataFromPackagePath(const FStri
 	if (AssetPath.Len() > 0)
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		return AssetRegistry.GetAssetByObjectPath(*AssetPath);
+		return AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 	}
 
 	return FAssetData();
@@ -605,14 +605,14 @@ void FAutomationEditorCommonUtils::CollectTestsByClass(UClass * Class, TArray<FS
 	for (auto ObjIter = ObjectList.CreateConstIterator(); ObjIter; ++ObjIter)
 	{
 		const FAssetData& Asset = *ObjIter;
-		FString Filename = Asset.ObjectPath.ToString();
+		FString Filename = Asset.GetObjectPathString();
 		//convert to full paths
 		Filename = FPackageName::LongPackageNameToFilename(Filename);
 		if (FAutomationTestFramework::Get().ShouldTestContent(Filename))
 		{
 			FString BeautifiedFilename = Asset.AssetName.ToString();
 			OutBeautifiedNames.Add(BeautifiedFilename);
-			OutTestCommands.Add(Asset.ObjectPath.ToString());
+			OutTestCommands.Add(Asset.GetObjectPathString());
 		}
 	}
 }
@@ -644,7 +644,7 @@ void FAutomationEditorCommonUtils::CollectGameContentTestsByClass(UClass * Class
 	for (auto ObjIter = ObjectList.CreateConstIterator(); ObjIter; ++ObjIter)
 	{
 		const FAssetData& Asset = *ObjIter;
-		FString Filename = Asset.ObjectPath.ToString();
+		FString Filename = Asset.GetObjectPathString();
 
 		if (Filename.StartsWith("/Game"))
 		{
@@ -654,7 +654,7 @@ void FAutomationEditorCommonUtils::CollectGameContentTestsByClass(UClass * Class
 			{
 				FString BeautifiedFilename = Asset.AssetName.ToString();
 				OutBeautifiedNames.Add(BeautifiedFilename);
-				OutTestCommands.Add(Asset.ObjectPath.ToString());
+				OutTestCommands.Add(Asset.GetObjectPathString());
 			}
 		}
 	}
@@ -710,11 +710,11 @@ void FAutomationEditorCommonUtils::CollectGameContentTests(TArray<FString>& OutB
 		if (Asset.GetClass() == nullptr)
 		{
 			// a nullptr class is bad !
-			UE_LOG(LogAutomationEditorCommon, Warning, TEXT("GetClass for %s (%s) returned nullptr. Asset ignored"), *Asset.AssetName.ToString(), *Asset.ObjectPath.ToString());
+			UE_LOG(LogAutomationEditorCommon, Warning, TEXT("GetClass for %s (%s) returned nullptr. Asset ignored"), *Asset.AssetName.ToString(), *Asset.GetObjectPathString());
 		}
 		else 
 		{
-			FString Filename = Asset.ObjectPath.ToString();
+			FString Filename = Asset.GetObjectPathString();
 
 			if (Filename.StartsWith("/Game"))
 			{
@@ -724,7 +724,7 @@ void FAutomationEditorCommonUtils::CollectGameContentTests(TArray<FString>& OutB
 				{
 					FString BeautifiedFilename = FString::Printf(TEXT("%s.%s"), *Asset.AssetClassPath.ToString(), *Asset.AssetName.ToString());
 					OutBeautifiedNames.Add(BeautifiedFilename);
-					OutTestCommands.Add(Asset.ObjectPath.ToString());
+					OutTestCommands.Add(Asset.GetObjectPathString());
 				}
 			}
 		}

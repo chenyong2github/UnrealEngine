@@ -942,7 +942,7 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 			if (!ActionMenuBuilder.FromPin || HasCompatibleConnection(AssetData, FromPinType, ActionMenuBuilder.FromPin->Direction))
 			{
 				// Gather the relevant information from the asset data
-				const FString FunctionPathName = AssetData.ObjectPath.ToString();
+				const FString FunctionPathName = AssetData.GetObjectPathString();
 				const FText Description = AssetData.GetTagValueRef<FText>("Description");
 				TArray<FString> LibraryCategories;
 				{

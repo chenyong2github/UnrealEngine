@@ -1631,7 +1631,7 @@ void FUnrealEdMisc::OnGotoAsset(const FString& InAssetPath) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryName);
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( *InAssetPath );
+	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( FSoftObjectPath(InAssetPath) );
 	if ( AssetData.IsValid() )
 	{
 		TArray<FAssetData> AssetDataToSync;

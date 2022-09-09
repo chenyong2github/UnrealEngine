@@ -831,7 +831,7 @@ static bool SaveWorld(UWorld* World,
 
 					// We're changing the world path, add a path redirector so that soft object paths get fixed on save
 					FSoftObjectPath NewPath( World );
-					GRedirectCollector.AddAssetPathRedirection( *OldPath.GetAssetPathString(), *NewPath.GetAssetPathString() );
+					GRedirectCollector.AddAssetPathRedirection( OldPath.GetWithoutSubPath(), NewPath.GetWithoutSubPath() );
 					bAddedAssetPathRedirection = true;
 				}
 			}

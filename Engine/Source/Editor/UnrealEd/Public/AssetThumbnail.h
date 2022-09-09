@@ -256,10 +256,10 @@ private:
 	 * @param Width 		The width of the thumbnail to free
 	 * @param Height		The height of the thumbnail to free
 	 */
-	void FreeThumbnail( const FName& ObjectPath, uint32 Width, uint32 Height );
+	void FreeThumbnail( const FSoftObjectPath& ObjectPath, uint32 Width, uint32 Height );
 
 	/** Adds the thumbnails associated with the object found at ObjectPath to the render stack */
-	void RefreshThumbnailsFor( FName ObjectPath );
+	void RefreshThumbnailsFor( const FSoftObjectPath& ObjectPath );
 
 	/** Handler for when an asset is loaded */
 	void OnAssetLoaded( UObject* Asset );
@@ -326,12 +326,12 @@ private:
 	/** Key for looking up thumbnails in a map */
 	struct FThumbId
 	{
-		FName ObjectPath;
+		FSoftObjectPath ObjectPath;
 		uint32 Width;
 		uint32 Height;
 
-		FThumbId( const FName& InObjectPath, uint32 InWidth, uint32 InHeight )
-			: ObjectPath( InObjectPath )
+		FThumbId( FSoftObjectPath InObjectPath, uint32 InWidth, uint32 InHeight )
+			: ObjectPath( MoveTemp(InObjectPath) )
 			, Width( InWidth )
 			, Height( InHeight )
 		{}
@@ -371,7 +371,7 @@ private:
 	TMap< FThumbId, int32 > RefCountMap;
 
 	/** A list of object paths for recently loaded assets whose thumbnails need to be refreshed. */
-	TArray<FName> RecentlyLoadedAssets;
+	TArray<FSoftObjectPath> RecentlyLoadedAssets;
 
 	/** Attribute that determines if real-time thumbnails are allowed. Called every frame. */
 	TAttribute<bool> AreRealTimeThumbnailsAllowed;
