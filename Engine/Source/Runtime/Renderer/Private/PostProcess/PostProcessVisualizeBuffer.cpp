@@ -2,8 +2,8 @@
 
 #include "PostProcess/PostProcessVisualizeBuffer.h"
 #include "HighResScreenshot.h"
-#include "PostProcessMaterial.h"
-#include "PostProcessDownsample.h"
+#include "PostProcess/PostProcessMaterial.h"
+#include "PostProcess/PostProcessDownsample.h"
 #include "ImagePixelData.h"
 #include "ImageWriteStream.h"
 #include "ImageWriteTask.h"

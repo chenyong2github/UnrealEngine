@@ -8,9 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MRMesh(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateIncludePaths.Add("Runtime/MRMesh/Private");
-            PublicIncludePaths.Add("Runtime/MRMesh/Public");
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -31,7 +28,7 @@ namespace UnrealBuildTool.Rules
 			
 			// Used for including the private Chaos headers
 			string EnginePath = Path.GetFullPath(Target.RelativeEnginePath);
-			PrivateIncludePaths.Add(Path.Combine(EnginePath, "Source/Runtime/Engine/Private/PhysicsEngine"));
+			PrivateIncludePaths.Add(Path.Combine(EnginePath, "Source/Runtime/Engine/Private"));
 
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 		}

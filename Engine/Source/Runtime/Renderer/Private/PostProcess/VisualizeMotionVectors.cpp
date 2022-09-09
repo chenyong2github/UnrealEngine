@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/VisualizeMotionVectors.h"
-#include "PostProcessing.h"
+#include "PostProcess/PostProcessing.h"
 #include "ScreenPass.h"
 #include "PixelShaderUtils.h"
 

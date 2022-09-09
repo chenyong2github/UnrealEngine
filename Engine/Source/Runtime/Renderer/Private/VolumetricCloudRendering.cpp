@@ -9,7 +9,7 @@
 #include "VolumetricCloudProxy.h"
 #include "DeferredShadingRenderer.h"
 #include "PixelShaderUtils.h"
-#include "RenderCore/Public/RenderGraphUtils.h"
+#include "RenderGraphUtils.h"
 #include "ScenePrivate.h"
 #include "MeshPassProcessor.inl"
 #include "StaticMeshResources.h"

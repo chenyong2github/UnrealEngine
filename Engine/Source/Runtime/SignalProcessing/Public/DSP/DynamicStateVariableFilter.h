@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SignalProcessing/Public/DSP/EnvelopeFollower.h"
+#include "DSP/EnvelopeFollower.h"
 
 namespace Audio
 {

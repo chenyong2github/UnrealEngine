@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BmpImageWrapper.h"
+#include "Formats/BmpImageWrapper.h"
 #include "ImageWrapperPrivate.h"
 
 #include "BmpImageSupport.h"

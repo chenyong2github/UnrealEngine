@@ -9,8 +9,8 @@
 #include "RenderingThread.h"
 #include "HAL/UnrealMemory.h"
 #include "BoneIndices.h"
-#include "RHI/Public/RHIGPUReadback.h"
-#include "Core/Public/Templates/UniquePtr.h"
+#include "RHIGPUReadback.h"
+#include "Templates/UniquePtr.h"
 
 #include "SkinWeightProfile.generated.h"
 

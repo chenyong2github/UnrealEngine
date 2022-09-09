@@ -28,14 +28,6 @@ namespace UnrealBuildTool.Rules
                     "Runtime/Overlay/Public",
                 }
             );
-
-            PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/Overlay/Private",
-					"Runtime/Overlay/Private/Assets",
-					"Runtime/Overlay/Private/Factories",
-				}
-			);
         }
 	}
 }

@@ -11,7 +11,7 @@
 #include "HairStrandsInterface.h"
 #include "RenderGraphResources.h"
 #include "SceneTypes.h"
-#include "Renderer/Private/SceneRendering.h"
+#include "SceneRendering.h"
 
 void RenderHairStrandsDeepShadows(
 	FRDGBuilder& GraphBuilder,

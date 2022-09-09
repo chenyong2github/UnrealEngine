@@ -3,7 +3,7 @@
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Animation/AnimSequence.h"
-#include "Runtime/AnimGraphRuntime/Public/AnimSequencerInstanceProxy.h"
+#include "AnimSequencerInstanceProxy.h"
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
 #include "Logging/MessageLog.h"
 #include "MovieScene.h"

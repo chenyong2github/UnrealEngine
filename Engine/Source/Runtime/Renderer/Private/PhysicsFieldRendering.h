@@ -3,7 +3,7 @@
 #pragma once
 
 #include "RenderGraph.h"
-#include "Renderer/Private/SceneRendering.h"
+#include "SceneRendering.h"
 
 void RenderPhysicsField(
 	FRDGBuilder& GraphBuilder,

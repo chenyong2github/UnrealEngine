@@ -7,7 +7,7 @@
 
 #include "Engine/UserInterfaceSettings.h"
 #include "Slate/SlateBrushAsset.h"
-#include "Runtime/Engine/Classes/Engine/UserInterfaceSettings.h"
+#include "Engine/UserInterfaceSettings.h"
 #include "Blueprint/SlateBlueprintLibrary.h"
 #include "Slate/SceneViewport.h"
 #include "Blueprint/WidgetLayoutLibrary.h"

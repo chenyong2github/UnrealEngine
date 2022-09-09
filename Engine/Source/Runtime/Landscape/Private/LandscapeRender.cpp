@@ -35,7 +35,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "DrawDebugHelpers.h"
 #include "PrimitiveSceneInfo.h"
 #include "SceneView.h"
-#include "Runtime/Renderer/Private/SceneCore.h"
+#include "SceneCore.h"
 #include "LandscapeProxy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "MeshMaterialShader.h"

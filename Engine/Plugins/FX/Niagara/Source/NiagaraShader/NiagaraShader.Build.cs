@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class NiagaraShader : ModuleRules
@@ -45,7 +46,11 @@ public class NiagaraShader : ModuleRules
             new string[] {
             });
 
-        PrivateIncludePathModuleNames.AddRange(
+		PrivateIncludePaths.AddRange(new string[] {
+			Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Renderer/Private")
+		});
+
+		PrivateIncludePathModuleNames.AddRange(
             new string[] {
                 "DerivedDataCache",
                 "Niagara",

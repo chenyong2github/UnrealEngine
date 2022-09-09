@@ -8,8 +8,8 @@
 
 #include "CoreMinimal.h"
 #include "SceneRendering.h"
-#include "PostProcessDeferredDecals.h"
-#include "PostProcessAmbientOcclusion.h"
+#include "CompositionLighting/PostProcessDeferredDecals.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 
 /**
  * The center for all screen space processing activities (e.g. G-buffer manipulation, lighting).

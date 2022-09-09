@@ -9,9 +9,9 @@
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "LightRendering.h"
-#include "SceneFilterRendering.h"
-#include "PostProcessing.h"
-#include "RHI/Public/PipelineStateCache.h"
+#include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/PostProcessing.h"
+#include "PipelineStateCache.h"
 
 int GVolumetricFogLightFunctionResolution = 128;
 FAutoConsoleVariableRef CVarVolumetricFogLightFunctionResolution(

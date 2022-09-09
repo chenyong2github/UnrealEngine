@@ -13,7 +13,7 @@
 #include "Engine/World.h"
 #include "Serialization/MemoryWriter.h"
 #include "HAL/IConsoleManager.h"
-#include "Engine/Public/TimerManager.h"
+#include "TimerManager.h"
 
 #if USE_NETWORK_PROFILER
 

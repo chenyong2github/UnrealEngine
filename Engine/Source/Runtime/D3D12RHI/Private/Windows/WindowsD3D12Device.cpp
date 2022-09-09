@@ -34,7 +34,7 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HardwareInfo.h"
-#include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
+#include "IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 #include "RHIValidation.h"
 

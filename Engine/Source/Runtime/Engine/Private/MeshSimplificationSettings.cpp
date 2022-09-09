@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
-#include "Developer/MeshReductionInterface/Public/IMeshReductionManagerModule.h"
+#include "IMeshReductionManagerModule.h"
 #endif
 
 UMeshSimplificationSettings::UMeshSimplificationSettings(const FObjectInitializer& ObjectInitializer)

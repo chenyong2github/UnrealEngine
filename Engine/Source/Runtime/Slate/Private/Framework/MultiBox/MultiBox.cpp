@@ -26,7 +26,7 @@
 #include "Framework/MultiBox/SToolBarComboButtonBlock.h"
 
 #include "Framework/Commands/UICommandDragDropOp.h"
-#include "SUniformToolbarPanel.h"
+#include "Framework/MultiBox/SUniformToolbarPanel.h"
 #include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "MultiBox"

@@ -9,7 +9,7 @@
 #include "UMGPrivate.h"
 
 #include "SlateMaterialBrush.h"
-#include "Runtime/SlateRHIRenderer/Public/Interfaces/ISlateRHIRendererModule.h"
+#include "Interfaces/ISlateRHIRendererModule.h"
 #include "Slate/SlateVectorArtData.h"
 #include "Slate/SlateVectorArtInstanceData.h"
 

@@ -48,8 +48,8 @@
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
 

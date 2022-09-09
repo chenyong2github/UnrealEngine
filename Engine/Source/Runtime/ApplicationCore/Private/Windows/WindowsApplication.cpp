@@ -23,7 +23,6 @@
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
-#include "Developer/SourceCodeAccess/Public/ISourceCodeAccessModule.h"
 #endif
 
 #if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA

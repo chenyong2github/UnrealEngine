@@ -13,7 +13,6 @@
 #include "Dom/JsonObject.h"
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Runtime/Slate/Private/Framework/Docking/SDockingTabStack.h"
 
 /* Private includes
 *****************************************************************************/

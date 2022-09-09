@@ -9,8 +9,8 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Docking/TabManager.h"
-#include "SDockingNode.h"
-#include "SDockingSplitter.h"
+#include "Framework/Docking/SDockingNode.h"
+#include "Framework/Docking/SDockingSplitter.h"
 
 class STabSidebar;
 

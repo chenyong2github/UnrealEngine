@@ -4,7 +4,7 @@
 #include "VirtualTexturePhysicalSpace.h"
 #include "VirtualTextureSystem.h"
 #include "SpriteIndexBuffer.h"
-#include "SceneFilterRendering.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "RenderTargetPool.h"
 #include "VisualizeTexture.h"
 #include "CommonRenderResources.h"

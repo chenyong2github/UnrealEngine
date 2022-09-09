@@ -3,7 +3,7 @@
 
 #include "ConstraintsScripting.h"
 #include "TransformConstraint.h"
-#include "Animation/Constraints/Public/TransformableHandle.h"
+#include "TransformableHandle.h"
 #include "ConstraintsManager.h"
 
 UConstraintsManager* UConstraintsScriptingLibrary::GetManager(UWorld* InWorld)

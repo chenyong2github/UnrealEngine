@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DdsImageWrapper.h"
+#include "Formats/DdsImageWrapper.h"
 #include "ImageWrapperPrivate.h"
 
 void FDdsImageWrapper::Reset()

@@ -9,7 +9,7 @@
 #include "ShaderParameterStruct.h"
 #include "SceneRendering.h"
 #include "RenderTargetPool.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "SystemTextures.h"
 #include "ScreenPass.h"
 #include "ScenePrivate.h"

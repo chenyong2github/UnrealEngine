@@ -8,9 +8,6 @@ public class Renderer : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Runtime/Renderer/Private",
-				"Runtime/Renderer/Private/CompositionLighting",
-				"Runtime/Renderer/Private/PostProcess",
 				"../Shaders/Shared"
 				}
 			);

@@ -22,18 +22,6 @@ public class AppFramework : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/AppFramework/Private",
-                "Runtime/AppFramework/Private/Framework",
-                "Runtime/AppFramework/Private/Framework/Testing",
-				"Runtime/AppFramework/Private/Widgets",
-                "Runtime/AppFramework/Private/Widgets/Colors",
-                "Runtime/AppFramework/Private/Widgets/Testing",
-                "Runtime/AppFramework/Private/Widgets/Workflow",
-			}
-		);
-
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			PrivateIncludePathModuleNames.AddRange(

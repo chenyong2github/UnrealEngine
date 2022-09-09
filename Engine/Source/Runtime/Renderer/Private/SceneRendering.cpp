@@ -56,7 +56,7 @@
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
 #include "IHeadMountedDisplay.h"
-#include "DiaphragmDOF.h" 
+#include "PostProcess/DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h"
 #include "HairStrands/HairStrandsVisibility.h"
 #include "SystemTextures.h"

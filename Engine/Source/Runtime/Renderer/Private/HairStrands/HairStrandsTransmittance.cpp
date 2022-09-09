@@ -13,7 +13,7 @@
 #include "ShaderParameterStruct.h"
 #include "SceneTextureParameters.h"
 #include "RenderGraphUtils.h"
-#include "PostProcessing.h"
+#include "PostProcess/PostProcessing.h"
 #include "ShaderPrintParameters.h"
 #include "LightSceneInfo.h"
 #include "ShaderPrint.h"

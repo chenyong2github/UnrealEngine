@@ -5,7 +5,7 @@
 
 #if !UE_ENABLE_ICU
 
-#include "InvariantCulture.h"
+#include "Internationalization/Cultures/InvariantCulture.h"
 
 FLegacyInternationalization::FLegacyInternationalization(FInternationalization* const InI18N)
 	: I18N(InI18N)

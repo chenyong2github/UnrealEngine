@@ -6,7 +6,7 @@
 #include "VoiceCaptureWindows.h"
 #include "VoiceCodecOpus.h"
 #include "Voice.h"
-#include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
+#include "IHeadMountedDisplayModule.h"
 #include "HAL/IConsoleManager.h"
 #if PLATFORM_SUPPORTS_VOICE_CAPTURE
 

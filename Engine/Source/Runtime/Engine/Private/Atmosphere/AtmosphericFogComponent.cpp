@@ -11,7 +11,7 @@
 #include "ComponentReregisterContext.h"
 #include "Atmosphere/AtmosphericFog.h"
 #include "Components/BillboardComponent.h"
-#include "Runtime/Renderer/Private/ScenePrivate.h"
+#include "ScenePrivate.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR

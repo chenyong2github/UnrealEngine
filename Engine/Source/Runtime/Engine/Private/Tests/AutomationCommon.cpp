@@ -24,7 +24,7 @@
 #include "Tests/AutomationTestSettings.h"
 #include "GameMapsSettings.h"
 #include "IRenderCaptureProvider.h"
-#include <Runtime/Core/Public/Algo/Accumulate.h>
+#include "Algo/Accumulate.h"
 
 #if WITH_AUTOMATION_TESTS
 

@@ -7,7 +7,7 @@
 #include "Widgets/SWindow.h"
 #include "Widgets/SViewport.h"
 #include "Engine/Engine.h"
-#include "Runtime/MovieSceneCapture/Public/MovieSceneCaptureHandle.h"
+#include "MovieSceneCaptureHandle.h"
 #include "Templates/PimplPtr.h"
 #include "GameEngine.generated.h"
 

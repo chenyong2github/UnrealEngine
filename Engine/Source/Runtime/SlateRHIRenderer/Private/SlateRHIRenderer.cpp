@@ -21,7 +21,7 @@
 #include "StereoRendering.h"
 #include "SlateNativeTextureResource.h"
 #include "SceneUtils.h"
-#include "Runtime/Renderer/Public/VolumeRendering.h"
+#include "VolumeRendering.h"
 #include "ShaderCompiler.h"
 #include "PipelineStateCache.h"
 #include "EngineModule.h"

@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 //#include "AI/NavigationSystemBase.h"
 #if WITH_EDITOR
-#include "Developer/AssetTools/Public/AssetTypeCategories.h"
+#include "AssetTypeCategories.h"
 #endif // WITH_EDITOR
 
 /**

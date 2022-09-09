@@ -12,7 +12,7 @@
 #include "SceneTextureParameters.h"
 #include "ShaderPrintParameters.h"
 #include "RenderGraphUtils.h"
-#include "PostProcessing.h"
+#include "PostProcess/PostProcessing.h"
 #include "ScenePrivate.h"
 
 static int32 GHairVoxelizationEnable = 1;

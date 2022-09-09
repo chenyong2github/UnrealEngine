@@ -23,7 +23,7 @@
 #include "Sound/SoundSourceBus.h"
 #include "Sound/SoundWave.h"
 #include "Sound/SoundWaveProcedural.h"
-#include "AudioExtensions/Public/IWaveformTransformation.h"
+#include "IWaveformTransformation.h"
 #include "DSP/FloatArrayMath.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/MultichannelBuffer.h"

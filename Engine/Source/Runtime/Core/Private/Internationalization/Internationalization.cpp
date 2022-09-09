@@ -14,7 +14,7 @@
 #if UE_ENABLE_ICU
 #include "Internationalization/ICUInternationalization.h"
 #else
-#include "LegacyInternationalization.h"
+#include "Internationalization/LegacyInternationalization.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Internationalization"

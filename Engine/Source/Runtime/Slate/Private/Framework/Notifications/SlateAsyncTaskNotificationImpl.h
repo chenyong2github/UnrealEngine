@@ -4,7 +4,7 @@
 
 #include "Misc/CoreAsyncTaskNotificationImpl.h"
 #include "Containers/Ticker.h"
-#include "SlateCore/Public/Layout/Visibility.h"
+#include "Layout/Visibility.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 class SSlateAsyncTaskNotificationWidget;

@@ -48,7 +48,7 @@
 #include "VT/VirtualTexturePoolConfig.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "VT/VirtualTextureScalability.h"
-#include "Engine/Public/ImageUtils.h"
+#include "ImageUtils.h"
 #include "TextureCompiler.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/ObjectSaveContext.h"

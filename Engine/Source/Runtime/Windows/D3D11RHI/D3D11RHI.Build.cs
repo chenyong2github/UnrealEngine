@@ -9,7 +9,6 @@ public class D3D11RHI : ModuleRules
 
 	public D3D11RHI(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/Windows/D3D11RHI/Private");
 		PrivateIncludePaths.Add("../Shaders/Shared");
 
 		PrivateDependencyModuleNames.AddRange(
@@ -20,6 +19,12 @@ public class D3D11RHI : ModuleRules
 				"RHI",
 				"RHICore",
 				"RenderCore"
+			}
+			);
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+					"HeadMountedDisplay"
 			}
 			);
 

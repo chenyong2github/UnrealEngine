@@ -4,7 +4,7 @@
 
 #include "Subsystem.h"
 #include "Engine/EngineTypes.h"
-#include "Engine/Public/Tickable.h"
+#include "Tickable.h"
 #include "WorldSubsystem.generated.h"
 
 /**

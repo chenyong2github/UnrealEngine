@@ -2,9 +2,9 @@
 
 #include "Sound/QuartzQuantizationUtilities.h"
 
-#include "Core/Public/CoreGlobals.h"
-#include "Core/Public/Math/NumericLimits.h"
-#include "Core/Public/Math/UnrealMathUtility.h"
+#include "CoreGlobals.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
 #include "AudioMixerDevice.h"
 
 #define INVALID_DURATION -1

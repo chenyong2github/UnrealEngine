@@ -14,7 +14,7 @@
 #include "TextureCompiler.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Engine/Public/ImageUtils.h"
+#include "ImageUtils.h"
 #include "UObject/ReleaseObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "UTextureCube"

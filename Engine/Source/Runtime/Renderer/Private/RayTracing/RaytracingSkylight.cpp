@@ -24,7 +24,7 @@ static FAutoConsoleVariableRef CVarRayTracingSkyLight(
 #include "DistanceFieldAmbientOcclusion.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
 #include "VisualizeTexture.h"

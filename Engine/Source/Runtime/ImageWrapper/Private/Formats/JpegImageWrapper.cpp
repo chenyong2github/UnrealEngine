@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "JpegImageWrapper.h"
+#include "Formats/JpegImageWrapper.h"
 
 #include "Math/Color.h"
 #include "Misc/ScopeLock.h"

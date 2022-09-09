@@ -5,7 +5,7 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "SpriteIndexBuffer.h"
-#include "PostProcessing.h"
+#include "PostProcess/PostProcessing.h"
 #include "VelocityRendering.h"
 
 namespace

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "VectorVM.h"
-#include "Runtime/VectorVM/Private/VectorVMPrivate.h"
+#include "VectorVMPrivate.h"
 
 #define OP_REGISTER (0)
 #define OP1_CONST (1 << 1)

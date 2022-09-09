@@ -9,8 +9,8 @@
 #include "Misc/App.h"
 #include "Misc/Guid.h"
 #include "Misc/Fork.h"
-
 #include "HttpThread.h"
+#include "IHttpThreadedRequest.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CommandLine.h"
 

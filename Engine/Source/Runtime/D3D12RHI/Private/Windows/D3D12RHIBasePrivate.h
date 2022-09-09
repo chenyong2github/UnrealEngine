@@ -14,6 +14,6 @@
 #define D3D12RHI_NEEDS_VENDOR_EXTENSIONS     1
 #define D3D12RHI_NEEDS_SHADER_FEATURE_CHECKS 1
 
-#include "../Public/D3D12Util.h"
+#include "D3D12Util.h"
 #include "WindowsD3D12DiskCache.h"
 #include "WindowsD3D12PipelineState.h"

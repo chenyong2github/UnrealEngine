@@ -22,7 +22,7 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Templates/AndOrNot.h"
 #include "Math/NumericLimits.h"
-#include "PushModelPerNetDriverState.h"
+#include "Net/Core/PushModel/Types/PushModelPerNetDriverState.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/UnrealType.h"

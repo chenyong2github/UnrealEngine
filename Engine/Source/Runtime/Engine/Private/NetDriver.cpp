@@ -70,7 +70,7 @@
 #include "Engine/LevelScriptActor.h"
 #include "Engine/NetworkSettings.h"
 #include "Engine/NetworkDelegates.h"
-#include "Engine/Private/Net/NetSubObjectRegistryGetter.h"
+#include "Net/NetSubObjectRegistryGetter.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"

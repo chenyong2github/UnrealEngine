@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PngImageWrapper.h"
+#include "Formats/PngImageWrapper.h"
 #include "ImageWrapperPrivate.h"
 
 #include "Misc/ScopeLock.h"

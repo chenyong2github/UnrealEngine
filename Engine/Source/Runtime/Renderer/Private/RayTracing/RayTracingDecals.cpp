@@ -2,7 +2,7 @@
 
 #include "RayTracingDecals.h"
 
-#include "RHI/Public/RHIDefinitions.h"
+#include "RHIDefinitions.h"
 
 #if RHI_RAYTRACING
 

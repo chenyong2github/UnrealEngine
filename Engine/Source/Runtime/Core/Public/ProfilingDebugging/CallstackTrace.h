@@ -4,7 +4,7 @@
 #include "HAL/PlatformTLS.h"
 #include "Math/NumericLimits.h"
 #include "Misc/Build.h"
-#include "TraceLog/Public/Trace/Config.h"
+#include "Trace/Config.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 #if !defined(UE_CALLSTACK_TRACE_ENABLED)

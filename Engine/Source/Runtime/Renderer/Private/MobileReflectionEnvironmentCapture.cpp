@@ -7,11 +7,11 @@
 #include "ReflectionEnvironmentCapture.h"
 #include "ShaderParameterUtils.h"
 #include "RHIStaticStates.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "SceneUtils.h"
 #include "ScreenRendering.h"
 #include "PipelineStateCache.h"
-#include "SceneFilterRendering.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "OneColorShader.h"
 #include "PixelShaderUtils.h"
 

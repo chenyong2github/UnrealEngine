@@ -20,7 +20,7 @@
 #include "OIT/OIT.h"
 #include "OIT/OITParameters.h"
 #include "DynamicResolutionState.h"
-#include "TemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);

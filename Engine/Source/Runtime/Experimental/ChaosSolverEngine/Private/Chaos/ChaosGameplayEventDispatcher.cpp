@@ -5,7 +5,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Chaos/Framework/PhysicsProxy.h"
-#include "Chaos/Public/PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Engine/World.h"

@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "EngineDefines.h"
 #include "PhysxUserData.h"
-#include "PhysicsCore/Public/PhysicsInterfaceTypesCore.h"
+#include "PhysicsInterfaceTypesCore.h"
 #include "Engine/EngineTypes.h"
 #include "ShapeElem.generated.h"
 

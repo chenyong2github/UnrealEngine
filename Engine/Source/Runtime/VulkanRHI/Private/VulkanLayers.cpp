@@ -14,7 +14,7 @@ bool GRenderDocFound = false;
 #endif
 
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
-#include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
+#include "IHeadMountedDisplayModule.h"
 #endif
 
 #if VULKAN_HAS_DEBUGGING_ENABLED

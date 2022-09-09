@@ -5,7 +5,7 @@
 #include "PostProcess/PostProcessMitchellNetravali.h"
 #include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"
-#include "PostProcessing.h"
+#include "PostProcess/PostProcessing.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 #include "ScenePrivate.h"

@@ -14,7 +14,6 @@
 #include "HttpPackage.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Misc/EnumRange.h"
-#include "Runtime/Online/HTTP/Private/IHttpThreadedRequest.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 

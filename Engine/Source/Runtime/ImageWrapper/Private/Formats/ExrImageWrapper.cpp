@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ExrImageWrapper.h"
+#include "Formats/ExrImageWrapper.h"
 #include "ImageWrapperPrivate.h"
 
 #include "Containers/StringConv.h"

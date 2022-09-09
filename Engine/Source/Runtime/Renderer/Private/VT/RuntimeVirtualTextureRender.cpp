@@ -11,7 +11,7 @@
 #include "RenderGraphUtils.h"
 #include "RenderUtils.h"
 #include "ScenePrivate.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "ShaderBaseClasses.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"

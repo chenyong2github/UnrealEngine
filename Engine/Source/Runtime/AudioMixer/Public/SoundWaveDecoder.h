@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/Public/AudioDevice.h"
-#include "Engine/Classes/Sound/SoundWave.h"
+#include "AudioDevice.h"
+#include "Sound/SoundWave.h"
 #include "DSP/SinOsc.h"
 #include "DSP/ParamInterpolator.h"
 #include "Misc/ScopeLock.h"

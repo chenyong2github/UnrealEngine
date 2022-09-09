@@ -6,8 +6,8 @@
 
 #include "VolumetricRenderTarget.h"
 #include "DeferredShadingRenderer.h"
-#include "RenderCore/Public/RenderGraphUtils.h"
-#include "RenderCore/Public/PixelShaderUtils.h"
+#include "RenderGraphUtils.h"
+#include "PixelShaderUtils.h"
 #include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 #include "SingleLayerWaterRendering.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IcoImageWrapper.h"
+#include "Formats/IcoImageWrapper.h"
 
 #include "BmpImageSupport.h"
 #include "Formats/PngImageWrapper.h"

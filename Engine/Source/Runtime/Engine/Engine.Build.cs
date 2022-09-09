@@ -13,21 +13,24 @@ public class Engine : ModuleRules
 
 		SharedPCHHeaderFile = "Public/EngineSharedPCH.h";
 
-		PublicIncludePathModuleNames.AddRange(new string[] {
-			"Renderer", 
-			"PacketHandler", 
-			"AudioMixer", 
-			"AudioMixerCore",
-			"AnimationCore"
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"AnimationCore",
+				"AudioMixer", 
+				"AudioMixerCore",
+				"MovieSceneCapture", 
+				"PacketHandler", 
+				"Renderer", 
 			}
 		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Runtime/SynthBenchmark/Public",
+				"Developer/Virtualization/Private",
 				"Runtime/Engine/Private",
-				"Runtime/Net/Core/Private/Net/Core/PushModel/Types",
-				"Developer/Virtualization/Private"
+				"Runtime/Net/Core/Private",
+				"Runtime/Renderer/Private",
+				"Runtime/SynthBenchmark/Public",
 			}
 		);
 

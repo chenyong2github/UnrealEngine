@@ -5,7 +5,7 @@
 #if 0
 #include "SpriteIndexBuffer.h"
 #include "ScreenRendering.h"
-#include "SceneFilterRendering.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "RenderTargetPool.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"

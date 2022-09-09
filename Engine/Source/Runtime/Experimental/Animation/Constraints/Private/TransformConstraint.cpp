@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TransformConstraint.h"
-#include "Animation/Constraints/Public/TransformableHandle.h"
+#include "TransformableHandle.h"
 #include "ConstraintsManager.h"
 #include "TransformableRegistry.h"
 #include "GameFramework/Actor.h"

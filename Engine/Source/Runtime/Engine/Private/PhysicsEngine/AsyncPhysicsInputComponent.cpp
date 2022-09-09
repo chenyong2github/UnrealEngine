@@ -7,7 +7,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Experimental/Chaos/Public/RewindData.h"
+#include "RewindData.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"

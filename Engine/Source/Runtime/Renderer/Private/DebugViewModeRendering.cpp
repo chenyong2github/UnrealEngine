@@ -8,7 +8,7 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 #include "Materials/Material.h"
 #include "PrimitiveSceneInfo.h"
 #include "ScenePrivate.h"
-#include "PostProcessing.h"
+#include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSelectionOutline.h"

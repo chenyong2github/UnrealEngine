@@ -11,7 +11,7 @@
 #include "ScenePrivate.h"
 #include "UnifiedBuffer.h"
 #include "SpriteIndexBuffer.h"
-#include "SceneFilterRendering.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "ClearQuad.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteResources.h"

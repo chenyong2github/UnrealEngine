@@ -28,9 +28,9 @@
 //For DOREPLIFETIME macros
 #include "Net/UnrealNetwork.h"
 
-#include "Runtime/Core/Public/Math/Box2D.h"
-#include "Runtime/Core/Public/Math/InterpCurvePoint.h"
-#include "Runtime/Core/Public/Containers/EnumAsByte.h"
+#include "Math/Box2D.h"
+#include "Math/InterpCurvePoint.h"
+#include "Containers/EnumAsByte.h"
 
 inline FBox2D CreateFBox2D(FVector2D InMin, FVector2D InMax, bool InIsValid)
 {

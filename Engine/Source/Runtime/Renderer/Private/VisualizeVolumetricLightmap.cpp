@@ -22,7 +22,7 @@
 #include "ClearQuad.h"
 #include "ScenePrivate.h"
 #include "SpriteIndexBuffer.h"
-#include "SceneFilterRendering.h"
+#include "PostProcess/SceneFilterRendering.h"
 #include "PrecomputedVolumetricLightmap.h"
 
 float GVolumetricLightmapVisualizationRadiusScale = .01f;

@@ -5,7 +5,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "PhysicsCore/Public/PhysicsInterfaceUtilsCore.h"
+#include "PhysicsInterfaceUtilsCore.h"
 #include "PhysTestSerializer.h"
 
 #ifndef SQ_REPLAY_TEST

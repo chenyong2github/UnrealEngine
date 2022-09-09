@@ -42,7 +42,7 @@ TAtomic<uint64> GVulkanSamplerHandleIdCounter{ 0 };
 TAtomic<uint64> GVulkanDSetLayoutHandleIdCounter{ 0 };
 
 #if VULKAN_ENABLE_DESKTOP_HMD_SUPPORT
-#include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
+#include "IHeadMountedDisplayModule.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "VulkanRHI"

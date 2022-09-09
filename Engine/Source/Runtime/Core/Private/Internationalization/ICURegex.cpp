@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ICURegex.h"
+#include "Internationalization/ICURegex.h"
 #include "Misc/ScopeLock.h"
 
 #if UE_ENABLE_ICU

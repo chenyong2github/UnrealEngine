@@ -6,9 +6,9 @@
 
 #include "DeferredShadingRenderer.h"
 #include "GlobalShader.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
-#include "RHI/Public/PipelineStateCache.h"
+#include "PipelineStateCache.h"
 #include "RayTracing/RaytracingOptions.h"
 
 #include "Rendering/NaniteStreamingManager.h"

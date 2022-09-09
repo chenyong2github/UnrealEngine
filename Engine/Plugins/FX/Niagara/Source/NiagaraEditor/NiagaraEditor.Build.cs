@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class NiagaraEditor : ModuleRules
@@ -12,7 +13,8 @@ public class NiagaraEditor : ModuleRules
 			"NiagaraEditor/Private/Widgets",
 			"NiagaraEditor/Private/Sequencer/NiagaraSequence",
 			"NiagaraEditor/Private/ViewModels",
-			"NiagaraEditor/Private/TypeEditorUtilities"
+			"NiagaraEditor/Private/TypeEditorUtilities",
+			Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Renderer/Private")
 		});
 
 		PrivateDependencyModuleNames.AddRange(

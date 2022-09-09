@@ -8,7 +8,7 @@
 
 #include "DeferredShadingRenderer.h"
 #include "GlobalShader.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
 #include "SceneUtils.h"
 #include "RaytracingDebugDefinitions.h"

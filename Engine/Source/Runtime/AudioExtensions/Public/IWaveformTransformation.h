@@ -4,7 +4,7 @@
 
 #include "Containers/Array.h"
 #include "HAL/Platform.h"
-#include "SignalProcessing/Public/DSP/BufferVectorOperations.h"
+#include "DSP/BufferVectorOperations.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Object.h"

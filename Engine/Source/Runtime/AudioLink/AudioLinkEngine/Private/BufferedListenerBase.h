@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AudioDevice.h"
-#include "SignalProcessing/Public/DSP/Dsp.h"
+#include "DSP/Dsp.h"
 
 #include "IBufferedAudioOutput.h"
 #include "Misc/Optional.h"

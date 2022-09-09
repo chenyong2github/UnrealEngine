@@ -2,7 +2,7 @@
 
 #include "SQAccelerator.h"
 #include "CollisionQueryFilterCallbackCore.h"
-#include "PhysicsCore/Public/PhysicsInterfaceUtilsCore.h"
+#include "PhysicsInterfaceUtilsCore.h"
 
 #include "SceneQueryChaosImp.h"
 

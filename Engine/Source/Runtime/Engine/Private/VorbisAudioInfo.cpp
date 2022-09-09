@@ -5,7 +5,7 @@
 #include "Misc/Paths.h"
 #include "Interfaces/IAudioFormat.h"
 #include "ContentStreaming.h"
-#include "Engine/Public/Audio.h"
+#include "Audio.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif

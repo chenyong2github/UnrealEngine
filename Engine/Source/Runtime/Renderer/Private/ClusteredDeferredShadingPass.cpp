@@ -24,8 +24,8 @@
 #include "ShaderPrintParameters.h"
 #include "ShaderPrint.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
-#include "SceneFilterRendering.h"
-#include "PostProcessing.h"
+#include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/PostProcessing.h"
 #include "Strata/Strata.h"
 
 // This is used to switch on and off the clustered deferred shading implementation, that uses the light grid to perform shading.

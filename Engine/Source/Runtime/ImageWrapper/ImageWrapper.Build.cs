@@ -6,12 +6,6 @@ public class ImageWrapper : ModuleRules
 {
 	public ImageWrapper(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/ImageWrapper/Private",
-				"Runtime/ImageWrapper/Private/Formats",
-			});
-
 		PublicIncludePathModuleNames.AddRange(new string[] {
 			"ImageCore"
 			}

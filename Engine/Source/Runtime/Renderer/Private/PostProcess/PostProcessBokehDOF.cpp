@@ -4,7 +4,7 @@
 #include "PostProcess/PostProcessDOF.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
-#include "DiaphragmDOF.h"
+#include "PostProcess/DiaphragmDOF.h"
 
 class FVisualizeDOFPS : public FGlobalShader
 {

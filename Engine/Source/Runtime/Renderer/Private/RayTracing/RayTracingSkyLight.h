@@ -8,7 +8,7 @@ RaytracingOptions.h declares ray tracing options for use in rendering
 
 #include "UniformBuffer.h"
 #include "RenderGraph.h"
-#include "Renderer/Private/SceneRendering.h"
+#include "SceneRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, RENDERER_API)
 	SHADER_PARAMETER(uint32, SamplesPerPixel)

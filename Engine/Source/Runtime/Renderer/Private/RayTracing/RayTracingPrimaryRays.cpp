@@ -9,7 +9,7 @@
 
 #include "ClearQuad.h"
 #include "SceneRendering.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 #include "RHIResources.h"
 #include "PostProcess/PostProcessing.h"
 #include "RayTracing/RaytracingOptions.h"

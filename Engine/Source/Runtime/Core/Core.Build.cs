@@ -28,10 +28,6 @@ public class Core : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"Runtime/SynthBenchmark/Public",
-				"Runtime/Core/Private",
-				"Runtime/Core/Private/Misc",
-				"Runtime/Core/Private/Internationalization",
-				"Runtime/Core/Private/Internationalization/Cultures",
 				"Runtime/Engine/Public",
 			}
 			);

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RayTracingLighting.h"
-#include "RHI/Public/RHIDefinitions.h"
+#include "RHIDefinitions.h"
 #include "RendererPrivate.h"
 
 #if RHI_RAYTRACING

@@ -20,29 +20,6 @@ public class Slate : ModuleRules
 				"ImageWrapper"
 			});
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Slate/Private",
-				"Runtime/Slate/Private/Framework",
-				"Runtime/Slate/Private/Framework/Application",
-				"Runtime/Slate/Private/Framework/Commands",
-				"Runtime/Slate/Private/Framework/Docking",
-				"Runtime/Slate/Private/Framework/Layout",
-				"Runtime/Slate/Private/Framework/MultiBox",
-				"Runtime/Slate/Private/Framework/Notifications",
-				"Runtime/Slate/Private/Framework/Styling",
-				"Runtime/Slate/Private/Framework/Text",
-				"Runtime/Slate/Private/Framework/Text/IOS",
-				"Runtime/Slate/Private/Widgets/Colors",
-				"Runtime/Slate/Private/Widgets/Docking",
-				"Runtime/Slate/Private/Widgets/Images",
-				"Runtime/Slate/Private/Widgets/Input",
-				"Runtime/Slate/Private/Widgets/Layout",
-				"Runtime/Slate/Private/Widgets/Notifications",
-				"Runtime/Slate/Private/Widgets/Text",
-				"Runtime/Slate/Private/Widgets/Views",
-			});
-
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "XInput");

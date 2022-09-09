@@ -11,7 +11,7 @@
 #include "Misc/CoreDelegates.h"
 
 #if USE_MALLOC_PROFILER && WITH_ENGINE && IS_MONOLITHIC
-	#include "Runtime/Engine/Public/MallocProfilerEx.h"
+	#include "MallocProfilerEx.h"
 #endif
 
 /*-----------------------------------------------------------------------------

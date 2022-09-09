@@ -7,7 +7,7 @@
 #include "PixelShaderUtils.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/SceneRenderTargets.h"
-#include "TemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingReflections.h"
 #include "VolumetricRenderTarget.h"

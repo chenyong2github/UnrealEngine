@@ -14,7 +14,7 @@
 #include "VectorField/VectorField.h"
 #include "Components/VectorFieldComponent.h"
 #include "SceneUtils.h"
-#include "Renderer/Private/SceneRendering.h" // needed for STATGROUP_CommandListMarkers
+#include "SceneRendering.h" // needed for STATGROUP_CommandListMarkers
 #include "GPUSortManager.h"
 
 

@@ -36,7 +36,7 @@
 #include "UnrealEdMisc.h"
 #include "LocationVolume.h"
 #include "Engine/LevelScriptBlueprint.h"
-#include "Engine/Public/ActorReferencesUtils.h"
+#include "ActorReferencesUtils.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"

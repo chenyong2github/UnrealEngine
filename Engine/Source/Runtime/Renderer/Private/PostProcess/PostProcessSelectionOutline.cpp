@@ -10,7 +10,7 @@
 #include "RenderTargetTemp.h"
 #include "ClearQuad.h"
 #include "ScenePrivate.h"
-#include "SceneRenderTargets.h"
+#include "PostProcess/SceneRenderTargets.h"
 
 namespace
 {

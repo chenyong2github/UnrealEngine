@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ScreenPass.h"
-#include "PostProcessMotionBlur.h"
+#include "PostProcess/PostProcessMotionBlur.h"
 
 struct FTemporalAAHistory;
 struct FTranslucencyPassResources;

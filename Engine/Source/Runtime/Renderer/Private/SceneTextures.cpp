@@ -13,7 +13,7 @@
 #include "StereoRendering.h"
 #include "StereoRenderTargetManager.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
-#include "PostProcessCompositeEditorPrimitives.h"
+#include "PostProcess/PostProcessCompositeEditorPrimitives.h"
 #include "ShaderCompiler.h"
 #include "SystemTextures.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"

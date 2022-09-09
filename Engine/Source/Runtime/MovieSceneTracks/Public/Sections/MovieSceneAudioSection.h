@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneSection.h"
-#include "Runtime/Engine/Classes/Components/AudioComponent.h"
+#include "Components/AudioComponent.h"
 #include "Sound/SoundAttenuation.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneStringChannel.h"

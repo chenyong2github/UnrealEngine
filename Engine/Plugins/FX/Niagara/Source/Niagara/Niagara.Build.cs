@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class Niagara : ModuleRules
@@ -60,7 +61,8 @@ public class Niagara : ModuleRules
         PrivateIncludePaths.AddRange(
             new string[] {
                 "Niagara/Private",
-            });
+				Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Renderer/Private")
+			});
 
         if (Target.bBuildEditor == true)
         {

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Runtime/Online/Stomp/Private/StompFrame.h"
+#include "StompFrame.h"
 
 #if WITH_STOMP
 

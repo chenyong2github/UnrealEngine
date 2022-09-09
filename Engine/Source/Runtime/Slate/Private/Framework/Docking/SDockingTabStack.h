@@ -12,7 +12,7 @@
 #include "Widgets/SWidget.h"
 #include "Animation/CurveSequence.h"
 #include "Framework/Docking/TabManager.h"
-#include "SDockingNode.h"
+#include "Framework/Docking/SDockingNode.h"
 
 #define DEBUG_TAB_MANAGEMENT 0
 

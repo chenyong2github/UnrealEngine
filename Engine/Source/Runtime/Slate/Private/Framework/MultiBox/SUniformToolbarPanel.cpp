@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SUniformToolbarPanel.h"
+#include "Framework/MultiBox/SUniformToolbarPanel.h"
 #include "Layout/LayoutUtils.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"

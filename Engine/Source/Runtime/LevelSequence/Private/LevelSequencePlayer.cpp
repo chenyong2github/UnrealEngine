@@ -24,7 +24,7 @@
 #include "LevelSequenceActor.h"
 #include "Modules/ModuleManager.h"
 #include "LevelUtils.h"
-#include "Core/Public/ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "LevelSequenceModule.h"
 #include "Generators/MovieSceneEasingCurves.h"
 

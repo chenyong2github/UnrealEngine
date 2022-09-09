@@ -8,7 +8,6 @@ public class D3D12RHI : ModuleRules
 
 	public D3D12RHI(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/D3D12RHI/Private");
 		PrivateIncludePaths.Add("../Shaders/Shared");
 
 		PrivateDependencyModuleNames.AddRange(
@@ -20,6 +19,12 @@ public class D3D12RHI : ModuleRules
 				"RHICore",
 				"RenderCore",
 				}
+			);
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+					"HeadMountedDisplay"
+			}
 			);
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)

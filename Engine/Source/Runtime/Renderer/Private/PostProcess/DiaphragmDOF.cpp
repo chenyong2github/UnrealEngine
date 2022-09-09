@@ -17,7 +17,7 @@
 #include "ScenePrivate.h"
 #include "ClearQuad.h"
 #include "SpriteIndexBuffer.h"
-#include "TemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 #include "SceneTextureParameters.h"
 #include "TranslucentRendering.h"
 

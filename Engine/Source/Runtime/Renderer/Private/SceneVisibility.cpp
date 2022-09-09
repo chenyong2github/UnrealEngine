@@ -43,7 +43,7 @@
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Algo/Unique.h"
 #include "InstanceCulling/InstanceCullingManager.h"
-#include "TemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "RendererModule.h"
 #include "SceneViewExtension.h"

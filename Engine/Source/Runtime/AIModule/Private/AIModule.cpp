@@ -8,8 +8,8 @@
 #include "DefaultManagerInstanceTracker.h"
 
 #if WITH_EDITOR
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "AssetToolsModule.h"
 #if ENABLE_VISUAL_LOG
 	#include "VisualLoggerExtension.h"
 #endif // ENABLE_VISUAL_LOG

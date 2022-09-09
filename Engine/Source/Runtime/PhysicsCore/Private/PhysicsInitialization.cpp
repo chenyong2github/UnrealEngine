@@ -8,7 +8,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "Misc/Paths.h"
-#include "Core/Public/HAL/IConsoleManager.h"
+#include "HAL/IConsoleManager.h"
 
 #ifndef APEX_STATICALLY_LINKED
 #define APEX_STATICALLY_LINKED	0

@@ -7,7 +7,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSingleNodeInstance.h"
-#include "Runtime/AnimGraphRuntime/Public/AnimSequencerInstance.h"
+#include "AnimSequencerInstance.h"
 #include "AnimCustomInstanceHelper.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"

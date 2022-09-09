@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TgaImageWrapper.h"
+#include "Formats/TgaImageWrapper.h"
 #include "ImageWrapperPrivate.h"
 
 #include "TgaImageSupport.h"

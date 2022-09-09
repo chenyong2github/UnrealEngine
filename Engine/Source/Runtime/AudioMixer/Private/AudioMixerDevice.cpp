@@ -20,7 +20,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
+#include "IHeadMountedDisplayModule.h"
 #include "Misc/App.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "AssetRegistry/IAssetRegistry.h"

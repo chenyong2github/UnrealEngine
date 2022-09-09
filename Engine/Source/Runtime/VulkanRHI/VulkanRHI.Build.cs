@@ -12,7 +12,6 @@ public class VulkanRHI : ModuleRules
 	{
 		bLegalToDistributeObjectCode = true;
 
-		PrivateIncludePaths.Add("Runtime/VulkanRHI/Private");
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Windows");

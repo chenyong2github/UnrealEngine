@@ -25,7 +25,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-#include "Experimental/ChaosDerivedData.h"
+#include "PhysicsEngine/Experimental/ChaosDerivedData.h"
 
 // See ISpatialAcceleration.h, the header is not included to avoid having a dependency on Chaos
 #ifndef CHAOS_SERIALIZE_OUT

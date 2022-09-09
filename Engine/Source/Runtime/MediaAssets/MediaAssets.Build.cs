@@ -23,13 +23,6 @@ namespace UnrealBuildTool.Rules
 					"RHI"
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/MediaAssets/Private",
-					"Runtime/MediaAssets/Private/Assets",
-					"Runtime/MediaAssets/Private/Misc",
-				});
-
 			if (Target.bBuildEditor)
 			{
 				PrivateIncludePathModuleNames.Add("TargetPlatform");

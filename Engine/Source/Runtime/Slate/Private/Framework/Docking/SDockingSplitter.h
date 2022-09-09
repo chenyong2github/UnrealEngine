@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Docking/TabManager.h"
-#include "SDockingNode.h"
+#include "Framework/Docking/SDockingNode.h"
 
 class SDockingTabStack;
 

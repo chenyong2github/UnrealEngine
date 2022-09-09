@@ -6,7 +6,7 @@
 #include "Engine/Engine.h"
 #include "MaterialShaderType.h"
 #include "Materials/Material.h"
-#include "RenderCore/Public/CommonRenderResources.h"
+#include "CommonRenderResources.h"
 #include "Rendering/NaniteResources.h"
 #include "PrimitiveSceneInfo.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"

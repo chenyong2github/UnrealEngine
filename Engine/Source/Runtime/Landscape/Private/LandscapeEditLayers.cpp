@@ -26,7 +26,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "RenderGraph.h"
 #include "RenderGraphUtils.h"
 #include "PixelShaderUtils.h"
-#include "Runtime/Renderer/Private/SystemTextures.h"
+#include "SystemTextures.h"
 #include "Rendering/Texture2DResource.h"
 #include "MaterialCachedData.h"
 

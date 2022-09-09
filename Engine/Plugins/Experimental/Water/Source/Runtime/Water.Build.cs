@@ -8,7 +8,11 @@ public class Water : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PrivateIncludePaths.Add("Runtime/Private");
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				System.IO.Path.GetFullPath(Target.RelativeEnginePath) + "/Source/Runtime/Renderer/Private",
+			}
+		);
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {

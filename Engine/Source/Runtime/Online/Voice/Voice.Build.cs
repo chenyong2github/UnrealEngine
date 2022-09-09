@@ -20,6 +20,12 @@ public class Voice : ModuleRules
 			PublicDefinitions.Add("VOICE_MODULE_WITH_CAPTURE=1");
 		}
 
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+					"HeadMountedDisplay"
+			}
+			);
+
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PublicIncludePathModuleNames.AddRange(
@@ -32,12 +38,6 @@ public class Voice : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Engine",
-			}
-			);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Online/Voice/Private",
 			}
 			);
 

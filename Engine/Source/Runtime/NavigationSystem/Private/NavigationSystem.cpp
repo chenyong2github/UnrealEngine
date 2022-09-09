@@ -33,7 +33,7 @@
 #if WITH_EDITOR
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "Editor/LevelEditor/Public/LevelEditor.h"
+#include "LevelEditor.h"
 #include "Misc/MessageDialog.h"
 #endif
 

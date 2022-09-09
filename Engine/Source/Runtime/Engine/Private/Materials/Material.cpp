@@ -70,7 +70,7 @@
 #include "Materials/MaterialExpressionComment.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
-#include "RenderCore/Public/RenderUtils.h"
+#include "RenderUtils.h"
 #include "Engine/Font.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
