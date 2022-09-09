@@ -159,7 +159,7 @@ bool FDatasmithVREDTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLeve
 	return false;
 }
 
-void FDatasmithVREDTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithVREDTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	if (!ImportOptions.IsValid())
 	{
@@ -169,14 +169,14 @@ void FDatasmithVREDTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDa
 		ImportOptions->ResetPaths(FilePath, false);
 	}
 
-	Options.Add(ImportOptions);
+	Options.Add(ImportOptions.Get());
 }
 
-void FDatasmithVREDTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithVREDTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
+	for (const TObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		if (UDatasmithVREDImportOptions* InImportOptions = Cast<UDatasmithVREDImportOptions>(OptionPtr.Get()))
+		if (UDatasmithVREDImportOptions* InImportOptions = Cast<UDatasmithVREDImportOptions>(OptionPtr))
 		{
 			ImportOptions.Reset(InImportOptions);
 		}

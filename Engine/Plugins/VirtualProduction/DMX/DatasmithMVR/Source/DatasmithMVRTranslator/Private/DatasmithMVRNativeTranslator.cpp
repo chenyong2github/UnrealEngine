@@ -55,7 +55,7 @@ bool FDatasmithMVRNativeTranslator::LoadScene(TSharedRef<IDatasmithScene> InOutS
 	return true;
 }
 
-void FDatasmithMVRNativeTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithMVRNativeTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	FDatasmithNativeTranslator::GetSceneImportOptions(Options);
 
@@ -66,16 +66,16 @@ void FDatasmithMVRNativeTranslator::GetSceneImportOptions(TArray<TStrongObjectPt
 		ImportOptions = Datasmith::MakeOptions<UDatasmithMVRImportOptions>();
 	}
 
-	Options.Add(ImportOptions);
+	Options.Add(ImportOptions.Get());
 }
 
-void FDatasmithMVRNativeTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithMVRNativeTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	FDatasmithNativeTranslator::SetSceneImportOptions(Options);
 
-	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
+	for (const TObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		if (UDatasmithMVRImportOptions* InImportOptions = Cast<UDatasmithMVRImportOptions>(OptionPtr.Get()))
+		if (UDatasmithMVRImportOptions* InImportOptions = Cast<UDatasmithMVRImportOptions>(OptionPtr))
 		{
 			ImportOptions.Reset(InImportOptions);
 		}

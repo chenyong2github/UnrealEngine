@@ -161,7 +161,7 @@ namespace DatasmithImportFactoryImpl
 		// Copy over the changes the user may have done on the options
 		ReImportSceneData->BaseOptions = InContext.Options->BaseOptions;
 
-		for (const TStrongObjectPtr<UDatasmithOptionsBase>& Option : InContext.AdditionalImportOptions)
+		for (const TObjectPtr<UDatasmithOptionsBase>& Option : InContext.AdditionalImportOptions)
 		{
 			UDatasmithOptionsBase* OptionObj = Option.Get();
 			OptionObj->Rename(nullptr, ReImportSceneData);
@@ -186,7 +186,7 @@ namespace DatasmithImportFactoryImpl
 		bOutOperationCancelled = false;
 
 		// Return if the context is not valid
-		if ( !InContext.Options.IsValid() )
+		if ( InContext.Options.IsNull() )
 		{
 			return false;
 		}
@@ -348,12 +348,12 @@ namespace DatasmithImportFactoryImpl
 
 				// Log tessellator if CADKernel has been used
 				bool bUseCADKernel = false;
-				TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options;
+				TArray<TObjectPtr<UDatasmithOptionsBase>> Options;
 				ImportContext.SceneTranslator->GetSceneImportOptions(Options);
 
-				for (const TStrongObjectPtr<UDatasmithOptionsBase>& Option : Options)
+				for (const TObjectPtr<UDatasmithOptionsBase>& Option : Options)
 				{
-					if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option.Get()))
+					if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option))
 					{
 						bUseCADKernel = TessellationOptionsObject->Options.bUseCADKernel;
 					}

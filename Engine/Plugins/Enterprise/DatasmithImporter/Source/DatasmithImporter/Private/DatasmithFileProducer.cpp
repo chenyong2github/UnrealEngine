@@ -267,9 +267,9 @@ bool UDatasmithFileProducer::InitTranslator()
 	return true;
 }
 
-TArray<TStrongObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTranslatorImportOptions()
+TArray<TObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTranslatorImportOptions()
 {
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Result;
+	TArray<TObjectPtr<UDatasmithOptionsBase>> Result;
 
 	if (!ExternalSourcePtr.IsValid() && !InitTranslator())
 	{
@@ -284,19 +284,19 @@ TArray<TStrongObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTrans
 
 		if (IDatasmithTranslator* Translator = TranslatorPtr.Get())
 		{
-			TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options;
+			TArray< TObjectPtr<UDatasmithOptionsBase> > Options;
 			Translator->GetSceneImportOptions(Options);
 
-			for (TStrongObjectPtr<UDatasmithOptionsBase> Option : Options)
+			for (TObjectPtr<UDatasmithOptionsBase> Option : Options)
 			{
-				UDatasmithOptionsBase* MyOption = DuplicateObject<UDatasmithOptionsBase>(Option.Get(), this);
+				UDatasmithOptionsBase* MyOption = DuplicateObject<UDatasmithOptionsBase>(Option, this);
 				if (UDatasmithCommonTessellationOptions* TesselationOption = Cast<UDatasmithCommonTessellationOptions>(MyOption))
 				{
 					TesselationOption->Options = DefaultTessellationOptions;
 					TranslatorImportOptions.Add(MyOption);
 					continue;
 				}
-				else if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option.Get()))
+				else if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option))
 				{
 					continue;
 				}
@@ -318,7 +318,7 @@ TArray<TStrongObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTrans
 
 	for (UDatasmithOptionsBase* Option : TranslatorImportOptions)
 	{
-		Result.Add(TStrongObjectPtr<UDatasmithOptionsBase>(Option));
+		Result.Add(Option);
 	}
 
 	return MoveTemp(Result);
@@ -805,7 +805,7 @@ void UDatasmithFileProducer::OnChangeImportSettings()
 		.Title(FText::Format(LOCTEXT("ImportSettingsTitle", "{0} Import Settings"), FText::FromName(TranslatorPtr->GetFName())))
 		.SizingRule(ESizingRule::Autosized);
 
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options = GetTranslatorImportOptions();
+	TArray<TObjectPtr<UDatasmithOptionsBase>> Options = GetTranslatorImportOptions();
 
 	if (Options.Num() == 0)
 	{
@@ -814,7 +814,7 @@ void UDatasmithFileProducer::OnChangeImportSettings()
 	}
 
 	TArray<UObject*> OptionsRaw;
-	for(TStrongObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
+	for(TObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
 	{
 		OptionsRaw.Add(ObjectPtr.Get());
 	}
@@ -1041,10 +1041,10 @@ void UDatasmithDirProducer::OnChangeImportSettings()
 void UDatasmithDirProducer::SetFileProducerSettings()
 {
 	// Set translator options
-	TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options = FileProducer->GetTranslatorImportOptions();
+	TArray< TObjectPtr<UDatasmithOptionsBase> > Options = FileProducer->GetTranslatorImportOptions();
 
 	bool bHasTesselationOptions = false;
-	for (TStrongObjectPtr<UDatasmithOptionsBase> Option : Options)
+	for (TObjectPtr<UDatasmithOptionsBase> Option : Options)
 	{
 		if (UDatasmithCommonTessellationOptions* TesselationOption = Cast<UDatasmithCommonTessellationOptions>(Option.Get()))
 		{
@@ -1583,7 +1583,7 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	TSharedPtr<STextBlock> IconText;
 
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options = FileProducer->GetTranslatorImportOptions();
+	TArray<TObjectPtr<UDatasmithOptionsBase>> Options = FileProducer->GetTranslatorImportOptions();
 
 	CustomAssetImportRow.NameContent()
 	[

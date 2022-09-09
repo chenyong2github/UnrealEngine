@@ -185,16 +185,16 @@ bool FDatasmithGLTFTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLeve
 	return false;
 }
 
-void FDatasmithGLTFTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithGLTFTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	Options.Add(GetOrCreateGLTFImportOptions());
+	Options.Add(GetOrCreateGLTFImportOptions().Get());
 }
 
-void FDatasmithGLTFTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithGLTFTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
+	for (const TObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		if (UDatasmithGLTFImportOptions* InImportOptions = Cast<UDatasmithGLTFImportOptions>(OptionPtr.Get()))
+		if (UDatasmithGLTFImportOptions* InImportOptions = Cast<UDatasmithGLTFImportOptions>(OptionPtr))
 		{
 			ImportOptions.Reset(InImportOptions);
 		}

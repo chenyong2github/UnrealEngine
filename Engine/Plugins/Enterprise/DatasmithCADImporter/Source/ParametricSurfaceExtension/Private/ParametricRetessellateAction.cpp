@@ -70,7 +70,7 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 		}
 	};
 
-	TStrongObjectPtr<UParametricRetessellateActionOptions> RetessellateOptions = Datasmith::MakeOptions<UParametricRetessellateActionOptions>();
+	TStrongObjectPtr<UParametricRetessellateActionOptions> RetessellateOptions(Datasmith::MakeOptions<UParametricRetessellateActionOptions>());
 
 	bool bSameOptionsForAll = false;
 	int32 NumAssetsToProcess = SelectedAssets.Num();

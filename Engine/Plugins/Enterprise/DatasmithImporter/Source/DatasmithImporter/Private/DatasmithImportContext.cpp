@@ -259,11 +259,11 @@ void FDatasmithImportContext::UpdateImportOption(UDatasmithOptionsBase* NewOptio
 {
 	if (NewOption)
 	{
-		auto SameClass = [=](const TStrongObjectPtr<UDatasmithOptionsBase>& Option) { return Option->GetClass() == NewOption->GetClass(); };
+		auto SameClass = [=](const TObjectPtr<UDatasmithOptionsBase>& Option) { return Option->GetClass() == NewOption->GetClass(); };
 
-		if (TStrongObjectPtr<UDatasmithOptionsBase>* PreviousOptionPtr = AdditionalImportOptions.FindByPredicate(SameClass))
+		if (TObjectPtr<UDatasmithOptionsBase>* PreviousOptionPtr = AdditionalImportOptions.FindByPredicate(SameClass))
 		{
-			PreviousOptionPtr->Reset(NewOption);
+			*PreviousOptionPtr = NewOption;
 		}
 		else
 		{
@@ -320,9 +320,9 @@ bool FDatasmithImportContext::InitOptions(const TSharedPtr<FJsonObject>& ImportS
 	ImportOptions.Reserve(1 + AdditionalImportOptions.Num());
 
 	ImportOptions.Add(Options.Get());
-	for (const TStrongObjectPtr<UDatasmithOptionsBase>& AdditionalOption : AdditionalImportOptions)
+	for (const TObjectPtr<UDatasmithOptionsBase>& AdditionalOption : AdditionalImportOptions)
 	{
-		ImportOptions.Add(AdditionalOption.Get());
+		ImportOptions.Add(AdditionalOption);
 	}
 
 	if (bSilent)
@@ -581,6 +581,12 @@ void FDatasmithImportContext::FInternalReferenceCollector::AddReferencedObjects(
 
 	DatasmithImportContextInternal::AddReferenceList(Collector, ImportContext->ImportedActorMap);
 	DatasmithImportContextInternal::AddReferenceList(Collector, ImportContext->ImportedSceneComponentMap);
+
+	Collector.AddReferencedObject(ImportContext->Options);
+	for (TObjectPtr<UDatasmithOptionsBase>& Option : ImportContext->AdditionalImportOptions)
+	{
+		Collector.AddReferencedObject(Option);
+	}
 }
 
 FDatasmithActorUniqueLabelProvider::FDatasmithActorUniqueLabelProvider(UWorld* World)

@@ -121,6 +121,8 @@ public:
 	 *
 	 * @param OptionClasses list of classes that will be displayed to the user
 	 */
+	virtual void GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options) {}
+	UE_DEPRECATED(5.2, "Deprecated, please use same method using array of TObjectPtr instead")
 	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) {}
 
 	/**
@@ -128,6 +130,8 @@ public:
 	 *
 	 * @param Options Actual values for the displayed options.
 	 */
+	virtual void SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options) {}
+	UE_DEPRECATED(5.2, "Deprecated, please use same method using array of TObjectPtr instead")
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) {}
 
 private:
@@ -179,6 +183,12 @@ namespace Datasmith
 	{
 		TStrongObjectPtr<UOptionClass> Option(MakeOptionsPtr<UOptionClass>());
 		return Option;
+	}
+
+	template<class UOptionClass>
+	inline TObjectPtr<UOptionClass> MakeOptionsObjectPtr()
+	{
+		return NewObject<UOptionClass>(GetTransientPackage(), UOptionClass::StaticClass());
 	}
 
 	FString DATASMITHTRANSLATOR_API GetXMLFileSchema(const FString& XmlFilePath);

@@ -66,7 +66,7 @@ bool FDatasmithPlmXmlTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
     Importer = MakeUnique<FDatasmithPlmXmlImporter>(OutScene);
 
 	const FString& FilePath = GetSource().GetSourceFile();
-	if (!Importer->OpenFile(FilePath, GetSource(), CommonTessellationOptionsPtr->Options))
+	if (!Importer->OpenFile(FilePath, GetSource(), CommonTessellationOptions))
 	{
 		return false;
 	}
@@ -93,22 +93,22 @@ bool FDatasmithPlmXmlTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 	return false;
 }
 
-void FDatasmithPlmXmlTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithPlmXmlTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	if (!CommonTessellationOptionsPtr.IsValid())
-	{
-		CommonTessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	}
+	TObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptionsPtr = Datasmith::MakeOptionsObjectPtr<UDatasmithCommonTessellationOptions>();
+
+	CommonTessellationOptionsPtr->Options = CommonTessellationOptions;
+
 	Options.Add(CommonTessellationOptionsPtr);
 }
 
-void FDatasmithPlmXmlTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FDatasmithPlmXmlTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
+	for (const TObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr.Get()))
+		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr))
 		{
-			CommonTessellationOptionsPtr.Reset(TessellationOptionsObject);
+			CommonTessellationOptions = TessellationOptionsObject->Options;
 		}
 	}
 }

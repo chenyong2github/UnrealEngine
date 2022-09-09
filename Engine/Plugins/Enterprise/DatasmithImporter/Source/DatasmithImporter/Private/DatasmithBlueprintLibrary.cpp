@@ -150,13 +150,13 @@ namespace DatasmithSceneElementUtil
 	{
 		static FDatasmithTessellationOptions DefaultTessellationOptions(0.3f, 0.0f, 30.0f, EDatasmithCADStitchingTechnique::StitchingSew);
 
-		TArray< TStrongObjectPtr<UDatasmithOptionsBase> > Options;
+		TArray< TObjectPtr<UDatasmithOptionsBase> > Options;
 		Translator->GetSceneImportOptions(Options);
 
 		bool bUpdateOptions = false;
-		for (TStrongObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
+		for (TObjectPtr<UDatasmithOptionsBase>& ObjectPtr : Options)
 		{
-			if (UDatasmithCommonTessellationOptions* TessellationOption = Cast<UDatasmithCommonTessellationOptions>(ObjectPtr.Get()))
+			if (UDatasmithCommonTessellationOptions* TessellationOption = Cast<UDatasmithCommonTessellationOptions>(ObjectPtr))
 			{
 				bUpdateOptions = true;
 				TessellationOption->Options = DefaultTessellationOptions;
@@ -431,7 +431,7 @@ namespace DatasmithSceneElementUtil
 							// Copy over the changes the user may have done on the options
 							ReImportSceneData->BaseOptions = ImportContext.Options->BaseOptions;
 
-							for (const TStrongObjectPtr<UDatasmithOptionsBase>& Option : ImportContext.AdditionalImportOptions)
+							for (const TObjectPtr<UDatasmithOptionsBase>& Option : ImportContext.AdditionalImportOptions)
 							{
 								UDatasmithOptionsBase* OptionObj = Option.Get();
 								OptionObj->Rename(nullptr, ReImportSceneData);
@@ -677,12 +677,6 @@ FDatasmithImportFactoryCreateFileResult UDatasmithSceneElement::ImportScene(cons
 {
 	FDatasmithImportFactoryCreateFileResult Result;
 
-	if (this == nullptr)
-	{
-		UE_LOG(LogDatasmithImport, Error, TEXT("Invalid State. Ensure ConstructDatasmithSceneFromFile has been called."));
-		return Result;
-	}
-
 	if (bMultifile)
 	{
 		TArray<FString> FilesNotProcessed;
@@ -749,7 +743,7 @@ FDatasmithImportFactoryCreateFileResult UDatasmithSceneElement::ReimportScene()
 {
 	FDatasmithImportFactoryCreateFileResult Result;
 
-	if (this == nullptr || !ImportContextPtr.IsValid() || !ImportContextPtr->Options.IsValid() || !ExternalSourcePtr.IsValid())
+	if (!ImportContextPtr.IsValid() || ImportContextPtr->Options.IsNull() || !ExternalSourcePtr.IsValid())
 	{
 		UE_LOG(LogDatasmithImport, Error, TEXT("Invalid State. Ensure GetExistingDatasmithScene has been called."));
 		return Result;
@@ -824,7 +818,7 @@ UObject* UDatasmithSceneElement::GetOptions(UClass* OptionType)
 	if (ImportContextPtr.IsValid())
 	{
 		// Standard options from Datasmith
-		if (ImportContextPtr->Options.IsValid() && ImportContextPtr->Options->GetClass()->IsChildOf(OptionType))
+		if (!ImportContextPtr->Options.IsNull() && ImportContextPtr->Options->GetClass()->IsChildOf(OptionType))
 		{
 			return ImportContextPtr->Options.Get();
 		}
@@ -843,32 +837,32 @@ UObject* UDatasmithSceneElement::GetOptions(UClass* OptionType)
 
 TMap<UClass*, UObject*> UDatasmithSceneElement::GetAllOptions()
 {
-	TMap<UClass*, UObject*> M;
+	TMap<UClass*, UObject*> AllOptions;
 
 	auto Append = [&](UObject* Option)
 	{
 		if (Option)
-	{
-			M.Add(Option->GetClass(), Option);
-	}
+		{
+			AllOptions.Add(Option->GetClass(), Option);
+		}
 	};
 
 	if (ImportContextPtr.IsValid())
 	{
 		// Standard options from Datasmith
-		if (ImportContextPtr->Options.IsValid())
+		if (ImportContextPtr->Options)
 		{
-			Append(ImportContextPtr->Options.Get());
+			Append(ImportContextPtr->Options);
 		}
 
 		// Additional options from specific translators
 		for(const auto& AdditionalOption : ImportContextPtr->AdditionalImportOptions)
 		{
-			Append(AdditionalOption.Get());
+			Append(AdditionalOption);
 		}
 	}
 
-	return M;
+	return AllOptions;
 }
 
 UDatasmithImportOptions* UDatasmithSceneElement::GetImportOptions()

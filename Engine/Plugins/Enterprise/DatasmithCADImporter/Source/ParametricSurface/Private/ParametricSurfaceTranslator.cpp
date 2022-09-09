@@ -10,7 +10,7 @@
 
 #include "Misc/FileHelper.h"
 
-void FParametricSurfaceTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FParametricSurfaceTranslator::GetSceneImportOptions(TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	FString Extension = GetSource().GetSourceFileExtension();
 	if (Extension == TEXT("cgr") || Extension == TEXT("3dxml"))
@@ -18,18 +18,18 @@ void FParametricSurfaceTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr
 		return;
 	}
 
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-	check(CommonTessellationOptionsPtr.IsValid());
+	TObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptionsPtr = Datasmith::MakeOptionsObjectPtr<UDatasmithCommonTessellationOptions>();
+	check(CommonTessellationOptionsPtr);
 	InitCommonTessellationOptions(CommonTessellationOptionsPtr->Options);
 
 	Options.Add(CommonTessellationOptionsPtr);
 }
 
-void FParametricSurfaceTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FParametricSurfaceTranslator::SetSceneImportOptions(const TArray<TObjectPtr<UDatasmithOptionsBase>>& Options)
 {
-	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
+	for (const TObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
-		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr.Get()))
+		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr))
 		{
 			CommonTessellationOptions = TessellationOptionsObject->Options;
 		}

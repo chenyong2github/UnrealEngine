@@ -228,10 +228,10 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	EObjectFlags ObjectFlags;
 
 	/** Settings related to the import of a Datasmith scene */
-	TStrongObjectPtr<UDatasmithImportOptions> Options;
+	TObjectPtr<UDatasmithImportOptions> Options;
 
 	/** Per-Translator settings related to the import of a Datasmith scene */
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> AdditionalImportOptions;
+	TArray<TObjectPtr<UDatasmithOptionsBase>> AdditionalImportOptions;
 
 	/** Stack of parent components we're currently importing under */
 	TArray< USceneComponent* > Hierarchy;
