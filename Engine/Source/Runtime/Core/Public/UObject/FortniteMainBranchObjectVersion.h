@@ -241,6 +241,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Added FHierarchicalSimplification::SimplificationMethod
 		HierarchicalSimplificationMethodEnumAdded,
 
+		// Changed how world partition streaming cells are named
+		WorldPartitionStreamingCellsNamingShortened,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

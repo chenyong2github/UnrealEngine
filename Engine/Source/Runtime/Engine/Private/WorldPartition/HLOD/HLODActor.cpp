@@ -5,6 +5,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
@@ -68,6 +69,7 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -92,6 +94,31 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
+
+void AWorldPartitionHLOD::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionStreamingCellsNamingShortened)
+	{
+		if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+		{
+			if (FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(GetActorGuid()))
+			{
+				// As we may be dealing with an unsaved world created from a template map, get
+				// the source package name of this HLOD actor and figure out the world name from there
+				FString ExternalActorsPath = ActorDesc->GetContainer()->GetExternalActorPath();
+				FString WorldName = FPackageName::GetShortName(ExternalActorsPath);
+				
+				// Strip "WorldName_" from the cell name
+				FString CellName = SourceCellName.ToString();
+				CellName.RemoveFromStart(WorldName + TEXT("_"), ESearchCase::CaseSensitive);
+				SourceCellName = *CellName;
+			}
+		}
+	}
+}
+
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
 
