@@ -13,10 +13,7 @@ public class WebBrowserTexture : ModuleRules
             Target.Platform == UnrealTargetPlatform.IOS ||
             Target.Platform == UnrealTargetPlatform.TVOS ||
             Target.bBuildEditor == true)
-		{
-			PublicIncludePaths.Add("Runtime/WebBrowserTexture/Public");
-			PrivateIncludePaths.Add("Runtime/WebBrowserTexture/Private");
-			
+		{			
 			// Needed for external texture support
 			PublicIncludePaths.AddRange(
 				new string[] {

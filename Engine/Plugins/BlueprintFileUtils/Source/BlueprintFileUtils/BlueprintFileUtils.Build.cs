@@ -6,23 +6,7 @@ public class BlueprintFileUtils : ModuleRules
 {
 	public BlueprintFileUtils(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				// ... add public include paths required here ...
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"BlueprintFileUtils/Private",
-				
-				// ... add other private include paths required here ...
-			}
-			);
-			
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;			
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[]

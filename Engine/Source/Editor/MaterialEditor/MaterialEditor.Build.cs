@@ -6,12 +6,6 @@ public class MaterialEditor : ModuleRules
 {
 	public MaterialEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/MaterialEditor/Private"
-			}
-		);
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] 
 			{

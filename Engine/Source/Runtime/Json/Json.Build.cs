@@ -13,12 +13,6 @@ namespace UnrealBuildTool.Rules
 				}
 			); 
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/Json/Private",
-				}
-			);
-
 			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
 	}

@@ -6,12 +6,6 @@ public class CrashReportCore : ModuleRules
 {
 	public CrashReportCore( ReadOnlyTargetRules Target ) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-		new string[] {
-				"Runtime/CrashReportCore/Private/",
-            	}
-        );
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

@@ -17,12 +17,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Runtime/EngineSettings/Private",
-				});
 		}
 	}
 }

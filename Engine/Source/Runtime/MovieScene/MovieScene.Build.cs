@@ -6,8 +6,6 @@ public class MovieScene : ModuleRules
 {
 	public MovieScene(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/MovieScene/Private");
-
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
                 "TargetPlatform"

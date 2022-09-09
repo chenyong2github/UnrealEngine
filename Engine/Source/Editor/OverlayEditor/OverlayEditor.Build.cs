@@ -27,20 +27,6 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 				}
 			);
-			
-            PublicIncludePaths.AddRange(
-                new string[]
-                {
-                    "Editor/OverlayEditor/Public",
-                }
-            );
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Editor/OverlayEditor/Private",
-					"Editor/OverlayEditor/Private/Factories",
-				}
-			);
 
             PrivateIncludePathModuleNames.AddRange(
                 new string[] {

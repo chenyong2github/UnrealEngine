@@ -16,10 +16,5 @@ public class WidgetCarousel : ModuleRules
 				"CoreUObject"
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-		);
 	}
 }

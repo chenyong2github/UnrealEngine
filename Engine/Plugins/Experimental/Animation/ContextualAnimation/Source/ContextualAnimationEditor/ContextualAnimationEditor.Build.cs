@@ -8,18 +8,6 @@ public class ContextualAnimationEditor : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-			
-		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -30,8 +18,7 @@ public class ContextualAnimationEditor : ModuleRules
 				"MotionWarping",
 				"GameplayTags"
 			}
-			);
-			
+			);			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -63,14 +50,6 @@ public class ContextualAnimationEditor : ModuleRules
 				"RenderCore",
 				"BlueprintGraph",
 				"AnimGraph"
-			}
-			);
-		
-		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
 			}
 			);
 	}

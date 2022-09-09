@@ -6,12 +6,6 @@ public class AssetManagerEditor : ModuleRules
 {
 	public AssetManagerEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"AssetManagerEditor/Private",
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core",

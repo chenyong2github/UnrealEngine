@@ -7,8 +7,6 @@ public class AudioMixerXAudio2 : ModuleRules
 	public AudioMixerXAudio2(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
-		PublicIncludePaths.Add("Runtime/AudioMixer/Public");
-		PrivateIncludePaths.Add("Runtime/AudioMixer/Private");
 
 		if (Target.bCompileAgainstEngine)
         {

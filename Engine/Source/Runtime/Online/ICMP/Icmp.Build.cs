@@ -8,12 +8,6 @@ public class Icmp : ModuleRules
 	{
 		PublicDefinitions.Add("ICMP_PACKAGE=1");
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Online/ICMP/Private",
-			}
-			);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core", 

@@ -6,8 +6,6 @@ public class LevelSequence : ModuleRules
 {
 	public LevelSequence(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/LevelSequence/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

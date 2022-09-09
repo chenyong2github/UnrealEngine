@@ -6,8 +6,6 @@ public class SlateNullRenderer : ModuleRules
 {
 	public SlateNullRenderer(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.Add("Runtime/SlateNullRenderer/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

@@ -6,8 +6,6 @@ public class LauncherPlatform : ModuleRules
 {
     public LauncherPlatform(ReadOnlyTargetRules Target) : base(Target)
     {
-        PrivateIncludePaths.Add("Runtime/Portal/LauncherPlatform/Private");
-
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",

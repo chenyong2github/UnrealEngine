@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public Voronoi(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("Runtime/Experimental/Voronoi/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

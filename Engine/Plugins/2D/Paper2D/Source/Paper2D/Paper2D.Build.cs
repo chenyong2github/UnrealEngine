@@ -6,8 +6,6 @@ public class Paper2D : ModuleRules
 {
 	public Paper2D(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Paper2D/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

@@ -39,12 +39,6 @@ public class HTTP : ModuleRules
 	{
 		PublicDefinitions.Add("HTTP_PACKAGE=1");
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/Online/HTTP/Private",
-			}
-			);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core"

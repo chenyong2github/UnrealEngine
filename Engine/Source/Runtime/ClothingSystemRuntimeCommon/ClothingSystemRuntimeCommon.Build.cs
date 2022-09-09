@@ -6,7 +6,6 @@ public class ClothingSystemRuntimeCommon : ModuleRules
 {
 	public ClothingSystemRuntimeCommon(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/ClothingSystemRuntimeCommon/Private");
 		SetupModulePhysicsSupport(Target);
 
 		PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");

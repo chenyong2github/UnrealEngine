@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 
             PrivateIncludePaths.AddRange(
                 new string[] {
-                    "Runtime/AIModule/Private",
                     "Runtime/Engine/Private",
                 }
                 );

@@ -9,7 +9,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[] {
                     "../../../../Source/Runtime/Engine/",
-					"Composure/Private/"
 				}
 				);
             

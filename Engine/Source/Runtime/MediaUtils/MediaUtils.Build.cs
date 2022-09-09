@@ -20,11 +20,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"ImageWriteQueue",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/MediaUtils/Private",
-				});
 		}
 	}
 }

@@ -6,12 +6,6 @@ public class SequencerCore : ModuleRules
 {
 	public SequencerCore(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/SequencerCore/Private",
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

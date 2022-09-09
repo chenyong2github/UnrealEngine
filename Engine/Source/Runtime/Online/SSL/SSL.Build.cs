@@ -42,12 +42,6 @@ public class SSL : ModuleRules
 			PublicDefinitions.Add("WITH_SSL=1");
 			PrivateDefinitions.Add("USE_DEFAULT_SSLCERT=" + (bUseDefaultSSLCert ? "1" : "0"));
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/Online/SSL/Private",
-				}
-			);
-
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)

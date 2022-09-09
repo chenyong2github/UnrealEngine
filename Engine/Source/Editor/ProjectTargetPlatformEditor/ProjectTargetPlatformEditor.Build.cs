@@ -44,7 +44,6 @@ public class ProjectTargetPlatformEditor : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
-				"Editor/ProjectTargetPlatformEditor/Private",
 				"Editor/ProjectTargetPlatformEditor/Private/Widgets",
 			}
 		);

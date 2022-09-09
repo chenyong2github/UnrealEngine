@@ -8,19 +8,6 @@ namespace UnrealBuildTool.Rules
 		{
             PublicIncludePathModuleNames.Add("Renderer");
 
-			PublicIncludePaths.AddRange(
-				new string[] {
-					// ... add public include paths required here ...
-				}
-				);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/SynthBenchmark/Private",
-					// ... add other private include paths required here ...
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

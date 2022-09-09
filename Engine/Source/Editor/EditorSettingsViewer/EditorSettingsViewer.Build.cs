@@ -38,12 +38,6 @@ namespace UnrealBuildTool.Rules
 					"Settings",
 				}
 			);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Editor/EditorSettingsViewer/Private",
-				}
-			);
 		}
 	}
 }

@@ -7,8 +7,6 @@ public class Launch : ModuleRules
 {
 	public Launch(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/Launch/Private");
-
 		PrivateIncludePathModuleNames.AddRange(new string[] {
 				"AutomationController",
 				"TaskGraph",
@@ -89,7 +87,7 @@ public class Launch : ModuleRules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				DynamicallyLoadedModuleNames.AddRange(new string [] {
+				DynamicallyLoadedModuleNames.AddRange(new string[] {
 					"AudioMixerCoreAudio",
 				});
 			}
@@ -255,11 +253,11 @@ public class Launch : ModuleRules
 			}
 		}
 
-		if(Target.LinkType == TargetLinkType.Monolithic && !Target.bFormalBuild)
+		if (Target.LinkType == TargetLinkType.Monolithic && !Target.bFormalBuild)
 		{
 			PrivateDefinitions.Add(string.Format("COMPILED_IN_CL={0}", Target.Version.Changelist));
 			PrivateDefinitions.Add(string.Format("COMPILED_IN_COMPATIBLE_CL={0}", Target.Version.EffectiveCompatibleChangelist));
-			PrivateDefinitions.Add(string.Format("COMPILED_IN_BRANCH_NAME={0}", (Target.Version.BranchName == null || Target.Version.BranchName.Length == 0)? "UE" : Target.Version.BranchName));
+			PrivateDefinitions.Add(string.Format("COMPILED_IN_BRANCH_NAME={0}", (Target.Version.BranchName == null || Target.Version.BranchName.Length == 0) ? "UE" : Target.Version.BranchName));
 		}
 	}
 }

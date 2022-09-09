@@ -15,12 +15,6 @@ public class GameMenuBuilder : ModuleRules
 					"Slate",
                     "SlateCore",
 			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/GameMenuBuilder/Private",
-			}
-		);		
+		);	
 	}
 }

@@ -16,11 +16,5 @@ public class Foliage: ModuleRules
 				"RHI"
 			}
 		);
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Runtime/Foliage/Private"
-            })
-		;
 	}
 }

@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public GeometryCollectionEngine(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("Runtime/Experimental/GeometryCollectionEngine/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			SetupModulePhysicsSupport(Target);
 
 			PublicDependencyModuleNames.AddRange(

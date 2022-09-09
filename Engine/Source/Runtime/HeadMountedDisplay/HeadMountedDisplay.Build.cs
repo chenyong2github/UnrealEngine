@@ -1,17 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class HeadMountedDisplay : ModuleRules
 {
     public HeadMountedDisplay(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-				"Runtime/HeadMountedDisplay/Public"
-			}
-		);
-
         PrivateIncludePaths.AddRange(
             new string[] {
                 "Runtime/Renderer/Private"
@@ -39,13 +34,6 @@ public class HeadMountedDisplay : ModuleRules
                 "AugmentedReality",
             }
         );
-
-        PublicIncludePathModuleNames.AddRange(
-            new string[]
-            {
-            }
-       );
-
 
         if (Target.bBuildEditor == true)
 		{

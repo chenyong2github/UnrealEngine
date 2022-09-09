@@ -13,20 +13,6 @@ public class PoseSearch : ModuleRules
 			"nanoflann"
 		);
 
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-				System.IO.Path.Combine(ModuleDirectory, "Public"),
-			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				System.IO.Path.Combine(ModuleDirectory, "Private"),
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

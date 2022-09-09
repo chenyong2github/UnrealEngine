@@ -6,16 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public OpenColorIOEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

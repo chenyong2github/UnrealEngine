@@ -6,16 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public HTNPlanner(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicIncludePaths.AddRange(
-                    new string[] {
-                    }
-                    );
-
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                }
-                );
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                         "Core",
@@ -24,12 +14,6 @@ namespace UnrealBuildTool.Rules
                         "GameplayTags",
                         "GameplayTasks",
                         "AIModule"
-                }
-                );
-
-            DynamicallyLoadedModuleNames.AddRange(
-                new string[] {
-                    // ... add any modules that your module loads dynamically here ...
                 }
                 );
 

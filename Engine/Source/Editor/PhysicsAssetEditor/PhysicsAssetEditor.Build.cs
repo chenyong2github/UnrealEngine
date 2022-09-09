@@ -15,7 +15,6 @@ public class PhysicsAssetEditor : ModuleRules
 
         PrivateIncludePaths.AddRange(
             new string[] {
-                "Editor/PhysicsAssetEditor/Private",
                 "Editor/PhysicsAssetEditor/Private/PhysicsAssetGraph",
             }
         );

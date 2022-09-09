@@ -11,11 +11,5 @@ public class ColorManagement : ModuleRules
 				"Core",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/ColorManagement/Private"
-			}
-		);
 	}
 }

@@ -22,11 +22,6 @@ public class AnimationSharingEd : ModuleRules
                 "PropertyEditor",
             }
 		);
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "AnimationSharingEd/Private"
-         });       
     }
 
 }

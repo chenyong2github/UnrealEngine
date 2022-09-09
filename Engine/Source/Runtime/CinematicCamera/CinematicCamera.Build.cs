@@ -16,11 +16,5 @@ public class CinematicCamera : ModuleRules
                 "SlateCore"
 			}
 		);
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Runtime/CinematicCamera/Private"
-            })
-		;
 	}
 }

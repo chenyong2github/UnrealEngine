@@ -6,8 +6,6 @@ public class SequencerWidgets : ModuleRules
 {
 	public SequencerWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Editor/SequencerWidgets/Private");
-
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
                 "MovieScene",

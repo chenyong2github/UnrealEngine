@@ -23,7 +23,6 @@ public class PropertyEditor : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Editor/PropertyEditor/Private",
 				"Editor/PropertyEditor/Private/Presentation",
 				"Editor/PropertyEditor/Private/Presentation/PropertyTable",
 				"Editor/PropertyEditor/Private/Presentation/PropertyEditor",

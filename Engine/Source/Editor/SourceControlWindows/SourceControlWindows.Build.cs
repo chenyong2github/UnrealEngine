@@ -6,10 +6,6 @@ public class SourceControlWindows : ModuleRules
 {
 	public SourceControlWindows(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Editor/SourceControlWindows/Public");
-
-		PrivateIncludePaths.Add("Editor/SourceControlWindows/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core", 

@@ -22,12 +22,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"IntroTutorials/Private",
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
                     "AppFramework",

@@ -22,13 +22,6 @@ public class XMPP : ModuleRules
 	{
 		PublicDefinitions.Add("XMPP_PACKAGE=1");
 
-		PrivateIncludePaths.AddRange(
-			new string[] 
-			{
-				"Runtime/Online/XMPP/Private"
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 
 			{ 

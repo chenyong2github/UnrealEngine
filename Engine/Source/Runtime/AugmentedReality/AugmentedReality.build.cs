@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public AugmentedReality(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.Add("Runtime/AugmentedReality/Private");
-            PublicIncludePaths.Add("Runtime/AugmentedReality/Public");
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

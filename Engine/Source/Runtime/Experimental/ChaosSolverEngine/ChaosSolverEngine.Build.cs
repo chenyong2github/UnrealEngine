@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public ChaosSolverEngine(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateIncludePaths.Add("Runtime/Experimental/ChaosSolverEngine/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public SkeletalMeshDescription(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateIncludePaths.Add("Runtime/SkeletalMeshDescription/Private");
-            PublicIncludePaths.Add("Runtime/SkeletalMeshDescription/Public");
-
             // For GPUSkinPublicDefs.h
             PublicIncludePaths.Add("Runtime/Engine/Public");
             

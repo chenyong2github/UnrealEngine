@@ -6,7 +6,6 @@ public class Persona : ModuleRules
 {
     public Persona(ReadOnlyTargetRules Target) : base(Target)
     {
-        PrivateIncludePaths.Add("Editor/Persona/Private");  // For PCH includes (because they don't work with relative paths, yet)
         PrivateIncludePaths.Add("Editor/Persona/Private/AnimTimeline");
 
         PublicIncludePathModuleNames.AddRange(

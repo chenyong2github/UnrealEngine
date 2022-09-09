@@ -6,8 +6,6 @@ public class VirtualTexturingEditor : ModuleRules
 {
 	public VirtualTexturingEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.Add("Editor/VirtualTexturingEditor/Private");
-
         PrivateDependencyModuleNames.AddRange(
             new string[] {
 				"AppFramework",

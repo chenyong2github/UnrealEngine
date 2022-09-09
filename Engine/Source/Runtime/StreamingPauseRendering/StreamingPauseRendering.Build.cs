@@ -6,8 +6,6 @@ public class StreamingPauseRendering : ModuleRules
 {
     public StreamingPauseRendering(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.Add("Runtime/StreamingPauseRendering/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 					"Engine",

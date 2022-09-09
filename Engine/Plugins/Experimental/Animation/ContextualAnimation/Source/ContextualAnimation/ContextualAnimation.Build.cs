@@ -6,21 +6,7 @@ public class ContextualAnimation : ModuleRules
 {
 	public ContextualAnimation(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				// ... add public include paths required here ...
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				// ... add other private include paths required here ...
-			}
-			);
-			
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;			
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -32,8 +18,7 @@ public class ContextualAnimation : ModuleRules
 				"MotionWarping",
 				"IKRig"
 			}
-			);
-			
+			);			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -41,14 +26,6 @@ public class ContextualAnimation : ModuleRules
 				"Slate",
 				"SlateCore"
             }
-			);
-		
-		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
 			);
 	}
 }

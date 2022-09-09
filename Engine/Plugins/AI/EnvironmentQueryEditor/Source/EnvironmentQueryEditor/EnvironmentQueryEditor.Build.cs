@@ -12,7 +12,6 @@ public class EnvironmentQueryEditor : ModuleRules
 		// These nodes are not public so are hard to subclass
 		PrivateIncludePaths.AddRange(
 			new string[] {
-					"EnvironmentQueryEditor/Private",
 					 Path.Combine(EngineDir, @"Source/Editor/GraphEditor/Private"),
 					 Path.Combine(EngineDir, @"Source/Editor/AIGraph/Private")
 			});

@@ -6,12 +6,6 @@ public class MovieSceneCapture : ModuleRules
 {
 	public MovieSceneCapture(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/MovieSceneCapture/Private"
-			}
-		);
-
 		if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
 		{
 			PublicIncludePathModuleNames.Add("ImageWrapper");

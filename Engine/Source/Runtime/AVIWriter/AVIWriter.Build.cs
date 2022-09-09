@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public AVIWriter(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/AVIWriter/Private",
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

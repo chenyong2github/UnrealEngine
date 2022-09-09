@@ -7,9 +7,6 @@ public class SubobjectDataInterface : ModuleRules
 {
 	public SubobjectDataInterface(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
-		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

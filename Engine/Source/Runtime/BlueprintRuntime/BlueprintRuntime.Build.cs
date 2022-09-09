@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public BlueprintRuntime(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/BlueprintRuntime/Private",
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

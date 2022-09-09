@@ -17,13 +17,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Runtime/Projects/Private",
-				}
-			);
-
 			// Monolithic and non-editor builds compile in the enabled/disabled plugins. Non-monolithic editor builds save them in the plugin receipt to avoid invalidating the shared build environment.
 			if ((Target.Type == TargetType.Editor) && (Target.BuildEnvironment == TargetBuildEnvironment.Shared) && (Target.LinkType != TargetLinkType.Monolithic))
 			{

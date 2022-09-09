@@ -6,24 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public SequenceRecorderSections(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
-				new string[] {
-					"Editor/SequenceRecorderSections/Public",
-				}
-				);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Editor/SequenceRecorderSections/Private",
-				}
-				);
-
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -34,12 +16,6 @@ namespace UnrealBuildTool.Rules
                     "MovieSceneTracks",
 					"SequenceRecorder",
 					"TimeManagement"
-				}
-				);
-
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
 				}
 				);
 		}

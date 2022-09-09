@@ -21,19 +21,5 @@ public class FriendsAndChat : ModuleRules
 				"SlateCore",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Runtime/FriendsAndChat/Private",
-			}
-		);
-
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-				"Runtime/FriendsAndChat/Public",
-			}
-		);
 	}
 }

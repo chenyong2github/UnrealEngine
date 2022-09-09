@@ -8,7 +8,6 @@ public class ClothingSystemRuntimeInterface : ModuleRules
 	{
 		ShortName = "ClothSysRuntimeIntrfc";
 
-        PrivateIncludePaths.Add("Runtime/ClothingSystemRuntimeInterface/Private");
         SetupModulePhysicsSupport(Target);
 
         PublicDependencyModuleNames.AddRange(

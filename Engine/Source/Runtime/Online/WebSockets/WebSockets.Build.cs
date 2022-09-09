@@ -99,12 +99,6 @@ public class WebSockets : ModuleRules
 		{
 			bWithWebSockets = true;
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/Online/WebSockets/Private",
-				}
-			);
-
 			if (PlatformSupportsLibWebsockets)
 			{
 				bWithLibWebSockets = true;

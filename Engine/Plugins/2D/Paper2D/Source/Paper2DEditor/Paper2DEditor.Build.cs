@@ -6,8 +6,6 @@ public class Paper2DEditor : ModuleRules
 {
 	public Paper2DEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Paper2DEditor/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

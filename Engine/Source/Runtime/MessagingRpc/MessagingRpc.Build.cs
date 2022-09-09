@@ -25,11 +25,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"Messaging",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/MessagingRpc/Private",
-				});
 		}
 	}
 }

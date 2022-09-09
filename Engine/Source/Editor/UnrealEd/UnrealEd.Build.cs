@@ -19,7 +19,6 @@ public class UnrealEd : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
-				"Editor/UnrealEd/Private",
 				"Editor/UnrealEd/Private/Settings",
 				"Editor/PackagesDialog/Public",
 				"Developer/TargetPlatform/Public",

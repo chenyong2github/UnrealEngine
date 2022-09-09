@@ -20,13 +20,6 @@ public class BuildPatchServices : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Runtime/Online/BuildPatchServices/Private",
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 		new string[] {
 				"Analytics",

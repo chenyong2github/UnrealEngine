@@ -28,11 +28,6 @@ namespace UnrealBuildTool.Rules
                     "PortalServices",
                 }
             );
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-			);
 		}
 	}
 }

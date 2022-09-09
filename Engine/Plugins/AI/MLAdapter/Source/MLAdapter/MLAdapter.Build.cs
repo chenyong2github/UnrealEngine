@@ -19,8 +19,6 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-            PrivateIncludePaths.Add("MLAdapter/Private");
-
             PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Core",

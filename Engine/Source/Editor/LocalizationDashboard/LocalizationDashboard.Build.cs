@@ -39,20 +39,6 @@ public class LocalizationDashboard : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Editor/LocalizationDashboard/Private",
-			}
-		);
-
-        PublicIncludePaths.AddRange(
-			new string[]
-			{
-				"Editor/LocalizationDashboard/Public",
-			}
-		);
-
         CircularlyReferencedDependentModules.AddRange(
            new string[] {
                 "LocalizationService",

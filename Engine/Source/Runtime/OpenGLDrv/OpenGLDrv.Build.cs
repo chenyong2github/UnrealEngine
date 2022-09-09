@@ -7,8 +7,6 @@ public class OpenGLDrv : ModuleRules
 {
 	public OpenGLDrv(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Runtime/OpenGLDrv/Private");
-
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"RHI",

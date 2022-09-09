@@ -27,13 +27,6 @@ public class Stomp : ModuleRules
 		{
 			PublicDefinitions.Add("WITH_STOMP=1");
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Runtime/Online/Stomp/Private",
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"WebSockets"

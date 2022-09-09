@@ -10,8 +10,6 @@ public class CoreUObject : ModuleRules
 
 		SharedPCHHeaderFile = "Public/CoreUObjectSharedPCH.h";
 
-		PrivateIncludePaths.Add("Runtime/CoreUObject/Private");
-
         PrivateIncludePathModuleNames.AddRange(
                 new string[] 
 			    {

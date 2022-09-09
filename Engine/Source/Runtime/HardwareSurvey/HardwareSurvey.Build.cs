@@ -14,20 +14,6 @@ public class HardwareSurvey : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Runtime/HardwareSurvey/Private",
-			}
-		);
-
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-				"Runtime/HardwareSurvey/Public",
-			}
-		);
-
 		DynamicallyLoadedModuleNames.AddRange(
 		new string[] {
 				"Analytics",

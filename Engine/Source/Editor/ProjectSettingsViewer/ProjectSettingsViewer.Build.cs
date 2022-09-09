@@ -31,13 +31,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"Editor/ProjectSettingsViewer/Private",
-				}
-			);
-
 			if (Target.bBuildTargetDeveloperTools)
 			{
 				PrivateDependencyModuleNames.Add("ProjectTargetPlatformEditor");

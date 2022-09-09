@@ -14,11 +14,6 @@ namespace UnrealBuildTool.Rules
 					"MessagingRpc",
 					"PortalServices",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Runtime/Portal/Messages/Private",
-				});
 		}
 	}
 }

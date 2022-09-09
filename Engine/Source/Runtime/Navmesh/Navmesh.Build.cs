@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public Navmesh(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicIncludePaths.Add("Runtime/Navmesh/Public");
-			PrivateIncludePaths.Add("Runtime/Navmesh/Private");
-
             PrivateDependencyModuleNames.AddRange(new string[] { "Core" });
 
 			// This is an unsupported feature and has not been finished to production quality.

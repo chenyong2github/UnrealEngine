@@ -7,8 +7,6 @@ public class WebBrowser : ModuleRules
 {
 	public WebBrowser(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/WebBrowser/Public");
-		PrivateIncludePaths.Add("Runtime/WebBrowser/Private");
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

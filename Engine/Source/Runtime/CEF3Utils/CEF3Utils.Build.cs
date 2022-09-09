@@ -6,9 +6,6 @@ public class CEF3Utils : ModuleRules
 {
 	public CEF3Utils(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/CEF3Utils/Public");
-		PrivateIncludePaths.Add("Runtime/CEF3Utils/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

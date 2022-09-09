@@ -6,10 +6,6 @@ public class SourceControlWindowExtender : ModuleRules
 {
 	public SourceControlWindowExtender(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Editor/SourceControlWindowExtender/Public");
-
-		PrivateIncludePaths.Add("Editor/SourceControlWindowExtender/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core", 
