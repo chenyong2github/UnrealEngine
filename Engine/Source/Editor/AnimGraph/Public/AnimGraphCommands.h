@@ -29,6 +29,9 @@ public:
 	// Toggle pose watching for a given node
 	TSharedPtr<FUICommandInfo> TogglePoseWatch;
 
+	// Hide unbound property pins
+	TSharedPtr<FUICommandInfo> HideUnboundPropertyPins;
+
 	// SkeletalControl specific commands
 	TSharedPtr< FUICommandInfo > SelectBone;
 	// Blend list options

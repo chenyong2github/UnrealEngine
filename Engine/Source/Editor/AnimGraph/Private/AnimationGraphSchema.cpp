@@ -36,6 +36,7 @@
 #include "Animation/AnimMontage.h"
 #include "AnimGraphNode_LinkedInputPose.h"
 #include "AnimGraphNode_LinkedAnimLayer.h"
+#include "AnimGraphNode_LinkedAnimGraphBase.h"
 #include "AnimGraphNode_RigidBody.h"
 #include "AnimationBlendSpaceSampleGraph.h"
 #include "GraphEditorDragDropAction.h"
@@ -766,6 +767,7 @@ void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCon
 			// Node contextual actions
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphSchemaNodeActions", LOCTEXT("AnimNodeActionsMenuHeader", "Anim Node Actions"));
 			Section.AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
+			Section.AddMenuEntry(FAnimGraphCommands::Get().HideUnboundPropertyPins);
 		}
 
 		if(Context->Pin && !IsPosePin(Context->Pin->PinType))
@@ -776,6 +778,23 @@ void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCon
 				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions");
 				Section.AddEntry(FToolMenuEntry::InitWidget("BindingWidget", BindingWidget.ToSharedRef(), LOCTEXT("BindingWidgetLabel", "Binding"), true));
 			}
+		}
+	}
+}
+
+void UAnimationGraphSchema::HideUnboundPropertyPins(UAnimGraphNode_LinkedAnimGraphBase* Node)
+{
+	TArrayView<FOptionalPinFromProperty> OptionalPins = Node->CustomPinProperties;
+
+	for (FOptionalPinFromProperty& OptionalPin : OptionalPins)
+	{
+		FName PropertyName;
+		FProperty* Property = nullptr;
+		int32 PinIndex = 0;
+		Node->GetPinBindingInfo(OptionalPin.PropertyName, PropertyName, Property, PinIndex);
+		if (Node->IsPinUnlinkedUnboundAndUnset(OptionalPin.PropertyName.ToString(), EGPD_Input))
+		{
+			Node->SetCustomPinVisibility(false, PinIndex);
 		}
 	}
 }

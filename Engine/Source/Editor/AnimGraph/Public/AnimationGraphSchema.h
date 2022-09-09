@@ -16,6 +16,7 @@ class UAnimBlueprint;
 class UPhysicsAsset;
 struct FBPInterfaceDescription;
 class UAnimGraphNode_Base;
+class UAnimGraphNode_LinkedAnimGraphBase;
 
 UCLASS(MinimalAPI)
 class UAnimationGraphSchema : public UEdGraphSchema_K2
@@ -119,6 +120,10 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 
 	/** Create a binding widget for the specified named pin on the specified anim graph nodes */
 	ANIMGRAPH_API static TSharedPtr<SWidget> MakeBindingWidgetForPin(const TArray<UAnimGraphNode_Base*>& InAnimGraphNodes, FName InPinName, bool bInOnGraphNode, TAttribute<bool> bInIsEnabled);
+	
+	/** Unexpose pins that are unused on a linked anim graph node */
+	ANIMGRAPH_API static void HideUnboundPropertyPins(UAnimGraphNode_LinkedAnimGraphBase* Node);
+
 };
 
 

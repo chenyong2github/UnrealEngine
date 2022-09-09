@@ -12,6 +12,7 @@
 #include "AnimGraphNode_BlendSpaceGraph.h"
 #include "AnimGraphNode_BlendSpacePlayer.h"
 #include "AnimGraphNode_LayeredBoneBlend.h"
+#include "AnimGraphNode_LinkedAnimGraphBase.h"
 #include "AnimGraphNode_MultiWayBlend.h"
 #include "AnimGraphNode_PoseBlendNode.h"
 #include "AnimGraphNode_PoseByName.h"
@@ -46,6 +47,7 @@
 #include "AnimationBlueprintTemplateEditorMode.h"
 #include "AnimationEditorUtils.h"
 #include "AnimationGraph.h"
+#include "AnimationGraphSchema.h"
 #include "AssetRegistry/AssetData.h"
 #include "BlendSpaceDocumentTabFactory.h"
 #include "BlendSpaceGraph.h"
@@ -625,9 +627,14 @@ void FAnimationBlueprintEditor::CreateDefaultCommands()
 void FAnimationBlueprintEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList)
 {
 	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().TogglePoseWatch,
-		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnTogglePoseWatch ),
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnTogglePoseWatch),
 		FCanExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::CanTogglePoseWatch)
-		);
+	);
+
+	GraphEditorCommandsList->MapAction(FAnimGraphCommands::Get().HideUnboundPropertyPins,
+		FExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::OnHideUnboundPropertyPins),
+		FCanExecuteAction::CreateSP(this, &FAnimationBlueprintEditor::CanHideUnboundPropertyPins)
+	);
 
 	GraphEditorCommandsList->MapAction( FAnimGraphCommands::Get().AddBlendListPin,
 		FExecuteAction::CreateSP( this, &FAnimationBlueprintEditor::OnAddPosePin ),
@@ -813,6 +820,20 @@ bool FAnimationBlueprintEditor::CanTogglePoseWatch()
 	return false;
 }
 
+bool FAnimationBlueprintEditor::CanHideUnboundPropertyPins()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (UAnimGraphNode_LinkedAnimGraphBase* SelectedNode = Cast<UAnimGraphNode_LinkedAnimGraphBase>(*NodeIt))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FAnimationBlueprintEditor::OnTogglePoseWatch()
 {
 	ReleaseAllManagedNodes();
@@ -851,6 +872,19 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 	}
 
 	AcquireAllManagedNodes();
+}
+
+void FAnimationBlueprintEditor::OnHideUnboundPropertyPins()
+{
+	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		if (UAnimGraphNode_LinkedAnimGraphBase* SelectedNode = Cast<UAnimGraphNode_LinkedAnimGraphBase>(*NodeIt))
+		{
+			UAnimationGraphSchema::HideUnboundPropertyPins(SelectedNode);
+		}
+	}
 }
 
 // Helper function for node conversions

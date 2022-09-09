@@ -236,6 +236,10 @@ protected:
 	bool CanTogglePoseWatch();
 	void OnTogglePoseWatch();
 
+	// Hide unbound pins on selected nodes 
+	bool CanHideUnboundPropertyPins();
+	void OnHideUnboundPropertyPins();
+
 	void BindCommands();
 
 protected:

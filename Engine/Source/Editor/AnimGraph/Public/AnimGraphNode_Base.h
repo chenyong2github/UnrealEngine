@@ -426,6 +426,14 @@ public:
 	 */
 	bool IsPinExposedAndBound(const FString& InPinName, const EEdGraphPinDirection InDirection = EGPD_MAX) const;
 
+	/**
+	 * Helper function to check whether a pin is not linked, not bound via property access and still has its default value
+	 * @param	InPinName		The name of the pin @see UEdGraphNode::FindPin
+	 * @param	InPinDirection	The direction of the pin we are looking for. If this is EGPD_MAX, all directions are considered
+	 * @return true if the pin is unlinked, unbound and still has its default value
+	 */
+	bool IsPinUnlinkedUnboundAndUnset(const FString& InPinName, const EEdGraphPinDirection InDirection) const;
+
 	// Event that is broadcast to inform observers that the node title has changed
 	// The default SAnimationGraphNode uses this to invalidate cached node title text
 	DECLARE_EVENT(UAnimGraphNode_Base, FOnNodeTitleChangedEvent);
