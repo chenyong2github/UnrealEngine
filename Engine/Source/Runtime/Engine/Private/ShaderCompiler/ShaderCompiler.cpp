@@ -70,6 +70,7 @@
 #include "UnrealEngine.h"
 
 #if WITH_EDITOR
+#include "Misc/DelayedAutoRegister.h"
 #include "Compression/OodleDataCompression.h"
 #include "UObject/ArchiveCookContext.h"
 #include "DerivedDataCache.h"
@@ -203,6 +204,42 @@ static TAutoConsoleVariable<bool> CVarShaderCompilerDumpDDCKeys(
 	TEXT("if != 0, DDC keys for each shadermap will be dumped into project's Saved directory (ShaderDDCKeys subdirectory)"),
 	ECVF_Default
 );
+
+#if WITH_EDITOR
+static FDelayedAutoRegisterHelper GKickOffShaderAutoGen(EDelayedRegisterRunPhase::ShaderTypesReady, []
+{
+	FShaderCompileUtilities::GenerateBrdfHeaders(GMaxRHIShaderPlatform);
+});
+
+static FDelayedAutoRegisterHelper GKickOffShaderAutoGenForPlatforms(EDelayedRegisterRunPhase::DeviceProfileManagerReady, []
+{
+	// also do this for all active target platforms (e.g. when cooking)
+	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+	if (TPM)
+	{
+		const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
+
+		for (int32 Index = 0; Index < Platforms.Num(); ++Index)
+		{
+			TArray<FName> DesiredShaderFormats;
+			checkf(Platforms[Index], TEXT("Null platform on the list of active platforms!"));
+			Platforms[Index]->GetAllTargetedShaderFormats(DesiredShaderFormats);
+
+			for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); ++FormatIndex)
+			{
+				FShaderCompileUtilities::GenerateBrdfHeaders(DesiredShaderFormats[FormatIndex]);
+			}
+		}
+	}
+
+	// also do this for the editor mobile preview
+	EShaderPlatform MobilePreviewShaderPlatform = GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1];
+	if (MobilePreviewShaderPlatform != SP_NumPlatforms)
+	{
+		FShaderCompileUtilities::GenerateBrdfHeaders(MobilePreviewShaderPlatform);
+	}
+});
+#endif
 
 /** Helper functions for logging more debug info */
 namespace ShaderCompiler

@@ -1509,39 +1509,7 @@ static void UpdateGInputTime()
 	GInputTime = FPlatformTime::Cycles64();
 }
 
-#if WITH_EDITOR
-static void ShaderAutogenInit()
-{
-	// Force generation of the autogen files for the host platform
-	FShaderCompileUtilities::GenerateBrdfHeaders(GMaxRHIShaderPlatform);
 
-	// also do this for all active target platforms (e.g. when cooking)
-	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	if (TPM)
-	{
-		const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
-
-		for (int32 Index = 0; Index < Platforms.Num(); ++Index)
-		{
-			TArray<FName> DesiredShaderFormats;
-			checkf(Platforms[Index], TEXT("Null platform on the list of active platforms!"));
-			Platforms[Index]->GetAllTargetedShaderFormats(DesiredShaderFormats);
-
-			for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); ++FormatIndex)
-			{
-				FShaderCompileUtilities::GenerateBrdfHeaders(DesiredShaderFormats[FormatIndex]);
-			}
-		}
-	}
-
-	// also do this for the editor mobile preview
-	EShaderPlatform MobilePreviewShaderPlatform = GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1];
-	if (MobilePreviewShaderPlatform != SP_NumPlatforms)
-	{
-		FShaderCompileUtilities::GenerateBrdfHeaders(MobilePreviewShaderPlatform);
-	}
-}
-#endif // WITH_EDITOR
 
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPreStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPreStartupScreen_AfterStats, STATGROUP_LoadTime);
 DECLARE_CYCLE_STAT(TEXT("FEngineLoop::PreInitPostStartupScreen.AfterStats"), STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats, STATGROUP_LoadTime);
@@ -2850,13 +2818,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// One-time initialization of global variables based on engine configuration.
 		RenderUtilsInit();
 	}
-
-#if WITH_EDITOR
-	{
-		// pre-generate certain shader code based on the engine configuration (editor only)
-		ShaderAutogenInit();
-	}
-#endif
 
 	{
 		bool bUseCodeLibrary = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
