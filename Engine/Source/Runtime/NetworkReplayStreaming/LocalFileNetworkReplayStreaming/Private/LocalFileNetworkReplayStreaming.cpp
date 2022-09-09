@@ -1811,6 +1811,7 @@ void FLocalFileNetworkReplayStreamer::FlushStream(const uint32 TimeInMS)
 			}
 			else
 			{
+				UE_LOG(LogLocalFileReplay, Error, TEXT("FLocalFileNetworkReplayStreamer::FlushStream failed with invalid replay info."));
 				SetLastError(ENetworkReplayError::ServiceUnavailable);
 			}
 		});
@@ -1963,6 +1964,7 @@ void FLocalFileNetworkReplayStreamer::FlushCheckpointInternal(const uint32 TimeI
 			}
 			else
 			{
+				UE_LOG(LogLocalFileReplay, Error, TEXT("FLocalFileNetworkReplayStreamer::FlushCheckpointInternal failed with invalid replay info."));
 				SetLastError(ENetworkReplayError::ServiceUnavailable);
 			}
 		});
@@ -3002,6 +3004,7 @@ void FLocalFileNetworkReplayStreamer::WriteHeader()
 			}
 			else
 			{
+				UE_LOG(LogLocalFileReplay, Error, TEXT("FLocalFileNetworkReplayStreamer::WriteHeader failed with invalid replay info."));
 				SetLastError(ENetworkReplayError::ServiceUnavailable);
 			}
 		});
@@ -3233,6 +3236,8 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 			// Make sure our stream chunk index didn't change under our feet
 			if (RequestedStreamChunkIndex != StreamChunkIndex)
 			{
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk failed with requested chunk index mismatch."));
+
 				StreamAr.Reset();
 				SetLastError(ENetworkReplayError::ServiceUnavailable);
 				return;

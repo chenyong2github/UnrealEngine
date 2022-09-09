@@ -1536,6 +1536,9 @@ void UDemoNetDriver::StopDemo()
 
 	ReplayHelper.StopReplay();
 
+	SpectatorControllers.Empty();
+	SpectatorController = nullptr;
+
 	ClearReplayTasks();
 	ResetDemoState();
 
@@ -3121,8 +3124,8 @@ int32 UDemoNetDriver::CleanUpSplitscreenConnections(bool bDeleteOwner)
 		}
 	}
 
-	FString OwnerDeletionStr(bDeleteOwner ? TEXT("with") : TEXT("without"));
-	UE_LOG(LogDemo, Log, TEXT("Cleaned up %d splitscreen connections %s owner deletion"), NumSplitscreenConnectionsCleaned, *OwnerDeletionStr);
+	UE_LOG(LogDemo, Log, TEXT("Cleaned up %d splitscreen connections, owner deletion: %s"), NumSplitscreenConnectionsCleaned, bDeleteOwner ? TEXT("enabled") : TEXT("disabled"));
+
 	return NumSplitscreenConnectionsCleaned;
 }
 
