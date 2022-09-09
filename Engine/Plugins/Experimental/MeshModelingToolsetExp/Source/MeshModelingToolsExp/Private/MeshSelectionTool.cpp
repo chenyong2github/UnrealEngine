@@ -1665,6 +1665,11 @@ void UMeshSelectionTool::SmoothSelectionBoundary()
 			}
 		}
 
+		for (const TPair<int, FVector3d>& NewVert : NewLoopPositions) 
+		{
+			ChangeTracker.SaveVertexOneRingTriangles(NewVert.Key, true);
+		}
+
 		PreviewMesh->EditMesh([NewLoopPositions](FDynamicMesh3& Mesh)
 		{
 			for (const TPair<int, FVector3d>& NewVert : NewLoopPositions)
