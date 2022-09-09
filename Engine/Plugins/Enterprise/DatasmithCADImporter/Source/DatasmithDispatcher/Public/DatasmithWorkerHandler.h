@@ -10,8 +10,7 @@
 #include "DatasmithDispatcherTask.h"
 
 #include "HAL/PlatformProcess.h"
-#include "HAL/Thread.h"
-
+#include "Tasks/Task.h"
 
 namespace DatasmithDispatcher
 {
@@ -55,8 +54,6 @@ private:
 	void StartWorkerProcess();
 	void ValidateConnection();
 
-// 	void RestartProcessor();
-
 	void ProcessCommand(ICommand& Command);
 	void ProcessCommand(FPingCommand& PingCommand);
 	void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
@@ -68,7 +65,7 @@ private:
 	// Send and receive commands
 	FNetworkServerNode NetworkInterface;
 	FCommandQueue CommandIO;
-	FThread IOThread;
+	UE::Tasks::FTask IOTask;
 	FString ThreadName;
 
 	// External process

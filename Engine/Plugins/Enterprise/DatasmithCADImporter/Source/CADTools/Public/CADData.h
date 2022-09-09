@@ -41,8 +41,6 @@ enum class ECADFormat
 	OTHER
 };
 
-CADTOOLS_API ECADFormat FileFormat(const FString& Extension);
-
 enum class ECADParsingResult : uint8
 {
 	Unknown,
@@ -68,10 +66,9 @@ enum class ECADGraphicPropertyInheritance : uint8
 	ChildHerit,
 };
 
-// TODO: Remove from hear and replace by DatasmithUtils::GetCleanFilenameAndExtension... But need to remove DatasmithCore dependancies 
+// TODO: Remove from here and replace by DatasmithUtils::GetCleanFilenameAndExtension... But need to remove DatasmithCore dependancies 
 CADTOOLS_API void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilename, FString& OutExtension);
 CADTOOLS_API FString GetExtension(const FString& InFilePath);
-
 
 class CADTOOLS_API FCADMaterial
 {
@@ -170,7 +167,7 @@ public:
 		, Configuration(InConfiguration)
 	{
 		Name = FPaths::GetCleanFilename(InFilePath);
-		Format = FileFormat(GetExtension(InFilePath));
+		SetFileFormat(GetExtension(InFilePath));
 		RootFolder = InRootFolder ? InRootFolder : FPaths::GetPath(InFilePath);
 	}
 
@@ -240,6 +237,11 @@ public:
 		return Format;
 	}
 
+	bool CanReferenceOtherFiles() const
+	{
+		return bCanReferenceOtherFiles;
+	}
+
 	const FString& GetPathOfFileToLoad() const
 	{
 		if (CacheFilePath.IsEmpty())
@@ -274,10 +276,13 @@ private:
 	FString CacheFilePath; // if the file has already been loaded 
 	FString Name; // content.jt
 	ECADFormat Format; // ECADFormat::JT
+	bool bCanReferenceOtherFiles;
 	FString Configuration; // dedicated to JT or SW file to read the good configuration (SW) or only a sub-file (JT)
 	FString RootFolder; // alternative folder where the file could be if its path is not valid.
 
 	mutable uint32 DescriptorHash = 0;
+
+	void SetFileFormat(const FString& Extension);
 };
 
 /**

@@ -203,7 +203,14 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 			int32 NumCores = FPlatformMisc::NumberOfCores();
 			if (CADLibrary::GMaxImportThreads > 1)
 			{
-				NumCores = FMath::Min(CADLibrary::GMaxImportThreads, NumCores);
+				if (FileDescriptor.CanReferenceOtherFiles())
+				{
+					NumCores = FMath::Min(CADLibrary::GMaxImportThreads, NumCores);
+				}
+				else 
+				{
+					NumCores = 1;
+				}
 			}
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescriptor);

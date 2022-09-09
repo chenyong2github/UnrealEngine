@@ -14,7 +14,6 @@
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
 
-
 namespace DatasmithDispatcher
 {
 
@@ -130,10 +129,6 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 		bWithProcessor &= FPaths::FileExists(WorkerPath);
 	}
 
-#ifdef CAD_DISPATCHER_DEBUG
-	bWithProcessor = false;
-#endif //CAD_TRANSLATOR_DEBUG
-
 	if (bWithProcessor)
 	{
 		SpawnHandlers();
@@ -168,8 +163,7 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 			{
 				break;
 			}
-
-			FPlatformProcess::Sleep(0.1);
+			FPlatformProcess::Sleep(0.03);
 		}
 
 		CloseHandlers();

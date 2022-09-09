@@ -9,12 +9,12 @@
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
-#include "HAL/Thread.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
 #include "Sockets.h"
+#include "Tasks/Task.h"
 
 using namespace DatasmithDispatcher;
 
@@ -157,13 +157,13 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 	bProcessIsRunning = true;
 	int64 MaxDuration = DefineMaximumAllowedDuration(FileToProcess);
-	FThread TimeCheckerThread = FThread(TEXT("TimeCheckerThread"), [&]() { CheckDuration(FileToProcess, MaxDuration); });
+	UE::Tasks::FTask TimeChecker = UE::Tasks::Launch(TEXT("TimeChecker"), [&]() { CheckDuration(FileToProcess, MaxDuration); });
 
 	CADLibrary::FCADFileReader FileReader(ImportParameters, FileToProcess, EnginePluginsPath, CachePath);
 	ETaskState ProcessResult = FileReader.ProcessFile();
 
 	bProcessIsRunning = false;
-	TimeCheckerThread.Join();
+	TimeChecker.Wait();
 	
 	CompletedTask.ProcessResult = ProcessResult;
 

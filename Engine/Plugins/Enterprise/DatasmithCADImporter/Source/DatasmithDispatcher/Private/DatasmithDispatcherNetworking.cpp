@@ -65,7 +65,7 @@ bool FNetworkNode::SendMessage(const TArray<uint8>& Message, double Timeout_s)
 		{
 			int32 BytesSent = 0;
 			bSendSucceed &= ConnectedSocket->Send(Data + TotalByteSent, BufferSize - TotalByteSent, BytesSent);
-			TotalByteSent += (uint32) BytesSent;
+			TotalByteSent += (uint32)BytesSent;
 		}
 		return bSendSucceed && TotalByteSent == BufferSize;
 	};
@@ -112,7 +112,7 @@ bool FNetworkNode::ReceiveMessage(TArray<uint8>& OutMessage, double Timeout_s)
 
 	ConnectedSocket->SetNonBlocking(true);
 
-	bool bCanRead = ConnectedSocket && ConnectedSocket->Wait(ESocketWaitConditions::WaitForRead, TimespanFromSeconds(Timeout_s));
+	bool bCanRead = ConnectedSocket->Wait(ESocketWaitConditions::WaitForRead, TimespanFromSeconds(Timeout_s));
 	if (!bCanRead)
 	{
 		return false;
@@ -150,7 +150,7 @@ bool FNetworkNode::ReceiveMessage(TArray<uint8>& OutMessage, double Timeout_s)
 		FMemoryReader ArReader(HeaderBuffer);
 		ArReader << IncommingMessage.Header;
 
-		if (IncommingMessage.Header.ByteSize < 0 || IncommingMessage.Header.ByteSize > 1<<20)
+		if (IncommingMessage.Header.ByteSize < 0)
 		{
 			UE_LOG(LogDatasmithDispatcher, Error, TEXT("Parsed header failed: bad message size %d"), IncommingMessage.Header.ByteSize);
 			bReadError = true;
@@ -162,7 +162,7 @@ bool FNetworkNode::ReceiveMessage(TArray<uint8>& OutMessage, double Timeout_s)
 
 	// fill the message with available data
 	uint32 PendingByteCount;
-	if (IncommingMessage.Header.ByteSize >= 0 && ConnectedSocket->HasPendingData(PendingByteCount))
+	while (IncommingMessage.Header.ByteSize >= 0 && ConnectedSocket->HasPendingData(PendingByteCount))
 	{
 		int32 MissingByteInCurrentMessage = IncommingMessage.Header.ByteSize - IncommingMessage.Content.Num();
 		int32 ReadTarget = int32(PendingByteCount) < MissingByteInCurrentMessage ? PendingByteCount : MissingByteInCurrentMessage;

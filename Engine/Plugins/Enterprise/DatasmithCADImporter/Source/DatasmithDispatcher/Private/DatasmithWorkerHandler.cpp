@@ -48,12 +48,12 @@ FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatc
 	, bShouldTerminate(false)
 {
 	ThreadName = FString(TEXT("DatasmithWorkerHandler_")) + FString::FromInt(Id);
-	IOThread = FThread(*ThreadName, [this]() { Run(); } );
+	IOTask = UE::Tasks::Launch(*ThreadName, [this]() { Run(); } );
 }
 
 FDatasmithWorkerHandler::~FDatasmithWorkerHandler()
 {
-	IOThread.Join();
+	IOTask.Wait();
 }
 
 void FDatasmithWorkerHandler::StartWorkerProcess()
@@ -222,7 +222,7 @@ void FDatasmithWorkerHandler::RunInternal()
 				else
 				{
 					ValidateConnection();
-					if (ErrorState == EWorkerErrorState::WorkerProcess_Lost)
+					if (ErrorState == EWorkerErrorState::WorkerProcess_Lost || ErrorState == EWorkerErrorState::ConnectionLost)
 					{
 						if (CurrentTask.IsSet())
 						{
