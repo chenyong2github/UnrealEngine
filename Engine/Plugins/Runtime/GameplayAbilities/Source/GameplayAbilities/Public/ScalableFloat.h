@@ -61,8 +61,8 @@ public:
 	/** Returns the value as an int32 */
 	int32 AsInteger(float Level = 0, const FString* ContextString = nullptr) const;
 
-	/** Gets the value and possible curve at a given level, returning false if any errors occurred */
-	bool EvaluateCurveAtLevel(float& OutValue, const FRealCurve*& OutCurve, float Level, const FString& ContextString) const;
+	/** Gets the value and possible curve at a given level, returning false if it failed to find a good value */
+	bool EvaluateCurveAtLevel(float& OutValue, const FRealCurve*& OutCurve, float Level, const FString& ContextString, bool bWarnIfInvalid = true) const;
 
 	/** True if there is no curve lookup */
 	bool IsStatic() const
@@ -86,8 +86,11 @@ public:
 	/** Outputs human readable string */
 	FString ToSimpleString() const;
 
-	/** Error checking: checks if we have a curve source specified but no valid curve entry */
+	/** Error checking: Returns false if this has an invalid curve reference but will not print warnings */
 	bool IsValid() const;
+
+	/** Error checking: Checks if float is valid and prints detailed warnings if not valid */
+	bool IsValidWithWarnings(const FString& ContextString) const;
 
 	/** Equality/Inequality operators */
 	bool operator==(const FScalableFloat& Other) const;
@@ -115,3 +118,10 @@ struct TStructOpsTypeTraits<FScalableFloat>
 	};
 };
 
+/** Macro to call IsValidWithWarnings with a correct error info. Assumed to be called within a UObject */
+#define SCALABLEFLOAT_REPORTERROR(Scalable)\
+	Scalable.IsValidWithWarnings(FString::Printf(TEXT("%s.%s"), *GetPathName(), TEXT(#Scalable)))\
+
+/** Macro to call IsValidWithWarnings with a correct error info */
+#define SCALABLEFLOAT_REPORTERROR_WITHPATHNAME(Scalable, PathNameString)\
+	Scalable.IsValidWithWarnings(FString::Printf(TEXT("%s.%s"), *PathNameString, TEXT(#Scalable)))
