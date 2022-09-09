@@ -6,6 +6,7 @@
 #include "ClassIconFinder.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "EditorClassUtils.h"
+#include "LevelEditorActions.h"
 #include "LevelEditorViewport.h"
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "Styling/SlateIconFinder.h"
@@ -169,7 +170,7 @@ FReply SObjectMixerPlacementAssetMenuEntry::OnMouseButtonUp(const FGeometry& MyG
 				FActorFactoryAssetProxy::GetFactoryForAssetObject(ClassObject);
 			}
 		}
-		NewActor = GEditor->GetEditorWorldContext().World()->SpawnActor(Factory->NewActorClass);
+		NewActor = FLevelEditorActionCallbacks::AddActor(Factory, Item->AssetData, nullptr);
 		if (NewActor && GCurrentLevelEditingViewportClient)
 		{
   			GEditor->MoveActorInFrontOfCamera(*NewActor, 
