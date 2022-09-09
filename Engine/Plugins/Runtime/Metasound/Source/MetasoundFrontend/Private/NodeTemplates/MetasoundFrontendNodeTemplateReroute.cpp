@@ -129,7 +129,7 @@ namespace Metasound
 
 					const FMetasoundFrontendVertex& OutputVertex = InOutNode.Interface.Outputs.Last();
 					FNodeVertexGuidPair OutputNodeVertexPair{ InOutNode.GetID(), OutputVertex.VertexID };
-					OutputEdges = &OutputEdgeMap.FindChecked(OutputNodeVertexPair);
+					OutputEdges = OutputEdgeMap.Find(OutputNodeVertexPair);
 
 					// This can happen if the reroute node isn't provided any outputs to connect to, so its
 					// perfectly acceptable to just ignore this node as it ultimately provides no sourced input.
