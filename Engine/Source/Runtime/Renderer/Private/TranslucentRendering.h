@@ -9,6 +9,9 @@
 #include "VolumeRendering.h"
 #include "ScreenPass.h"
 #include "SystemTextures.h"
+#include "PostProcess/SceneRenderTargets.h"
+
+#define DISTORTION_STENCIL_MASK_BIT STENCIL_SANDBOX_MASK
 
 struct FSeparateTranslucencyDimensions
 {

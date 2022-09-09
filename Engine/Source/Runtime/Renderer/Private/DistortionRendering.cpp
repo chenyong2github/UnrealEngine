@@ -18,8 +18,6 @@
 
 DECLARE_GPU_DRAWCALL_STAT(Distortion);
 
-const uint8 kStencilMaskBit = STENCIL_SANDBOX_MASK;
-
 static TAutoConsoleVariable<int32> CVarDisableDistortion(
 	TEXT("r.DisableDistortion"),
 	0,
@@ -768,21 +766,13 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 		CommonParameters.RenderTargets.DepthStencil = StencilReadBinding;
 		PipelineState.PixelShader = ApplyPixelShader;
 
-		if (bAllowStandardTranslucencySeparated)
-		{
-			// We might have to compose translucent meshes that are not using any distortion so we cannot cull using stencil in this case.
-			PipelineState.DepthStencilState = TStaticDepthStencilState< false, CF_Always >::GetRHI();
-		}
-		else
-		{
-			// Test against stencil mask but don't clear.
-			PipelineState.DepthStencilState = TStaticDepthStencilState<
-				false, CF_Always,
-				true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-				kStencilMaskBit, kStencilMaskBit>::GetRHI();
-			PipelineState.StencilRef = kStencilMaskBit;
-		}
+		// Test against stencil mask but don't clear.
+		PipelineState.DepthStencilState = TStaticDepthStencilState<
+			false, CF_Always,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			DISTORTION_STENCIL_MASK_BIT, DISTORTION_STENCIL_MASK_BIT>::GetRHI();
+		PipelineState.StencilRef = DISTORTION_STENCIL_MASK_BIT;
 
 		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
 
@@ -824,21 +814,13 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 		CommonParameters.RenderTargets.DepthStencil = StencilWriteBinding;
 		PipelineState.PixelShader = MergePixelShader;
 
-		if (bAllowStandardTranslucencySeparated)
-		{
-			// We might have to compose translucent meshes that are not using any distortion so we cannot cull using stencil in this case.
-			PipelineState.DepthStencilState = TStaticDepthStencilState< false, CF_Always >::GetRHI();
-		}
-		else
-		{
-			// Test against stencil mask and clear it.
-			PipelineState.DepthStencilState = TStaticDepthStencilState<
-				false, CF_Always,
-				true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
-				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-				kStencilMaskBit, kStencilMaskBit>::GetRHI();
-			PipelineState.StencilRef = kStencilMaskBit;
-		}
+		// Test against stencil mask and clear it.
+		PipelineState.DepthStencilState = TStaticDepthStencilState<
+			false, CF_Always,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			DISTORTION_STENCIL_MASK_BIT, DISTORTION_STENCIL_MASK_BIT>::GetRHI();
+		PipelineState.StencilRef = DISTORTION_STENCIL_MASK_BIT;
 
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 		{
@@ -1009,9 +991,9 @@ FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSc
 		false, CF_DepthNearOrEqual,
 		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
 		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-		kStencilMaskBit, kStencilMaskBit>::GetRHI());
+		DISTORTION_STENCIL_MASK_BIT, DISTORTION_STENCIL_MASK_BIT>::GetRHI());
 
-	DistortionPassState.SetStencilRef(kStencilMaskBit);
+	DistortionPassState.SetStencilRef(DISTORTION_STENCIL_MASK_BIT);
 
 	if (GetUseRoughRefraction())
 	{
@@ -1029,8 +1011,8 @@ FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSc
 		false, CF_Always,
 		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
 		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-		kStencilMaskBit, kStencilMaskBit>::GetRHI());
-	DistortionPassStateNoDepthTest.SetStencilRef(kStencilMaskBit);
+		DISTORTION_STENCIL_MASK_BIT, DISTORTION_STENCIL_MASK_BIT>::GetRHI());
+	DistortionPassStateNoDepthTest.SetStencilRef(DISTORTION_STENCIL_MASK_BIT);
 
 	return new FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassStateNoDepthTest, InDrawListContext);
 }
