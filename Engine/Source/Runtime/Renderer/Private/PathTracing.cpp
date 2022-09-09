@@ -1649,7 +1649,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.MissShaderIndex = 0;
 
 			// these mean roughly the same thing across all light types
-			DestLight.Color = FVector3f(LightParameters.Color);
+			DestLight.Color = FVector3f(LightParameters.Color) * LightParameters.GetLightExposureScale(View.GetLastEyeAdaptationExposure());
 			DestLight.TranslatedWorldPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 			DestLight.Normal = -LightParameters.Direction;
 			DestLight.dPdu = FVector3f::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
@@ -1726,7 +1726,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		}
 
 		// these mean roughly the same thing across all light types
-		DestLight.Color = FVector3f(LightParameters.Color);
+		DestLight.Color = FVector3f(LightParameters.Color) * LightParameters.GetLightExposureScale(View.GetLastEyeAdaptationExposure());
 		DestLight.TranslatedWorldPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 		DestLight.Normal = -LightParameters.Direction;
 		DestLight.dPdu = FVector3f::CrossProduct(LightParameters.Tangent, LightParameters.Direction);

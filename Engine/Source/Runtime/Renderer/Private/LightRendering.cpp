@@ -281,7 +281,7 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 
 	FLightRenderParameters LightParameters;
 	LightSceneInfo.Proxy->GetLightShaderParameters(LightParameters);
-	LightParameters.MakeShaderParameters(View.ViewMatrices, Out.LightParameters);
+	LightParameters.MakeShaderParameters(View.ViewMatrices, View.GetLastEyeAdaptationExposure(), Out.LightParameters);
 
 	const bool bIsRayTracedLight = ShouldRenderRayTracingShadowsForLight(*LightSceneInfo.Proxy);
 

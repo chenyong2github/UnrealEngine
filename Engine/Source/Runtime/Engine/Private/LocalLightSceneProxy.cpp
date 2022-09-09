@@ -12,6 +12,7 @@ FLocalLightSceneProxy::FLocalLightSceneProxy(const ULocalLightComponent* Compone
 	: FLightSceneProxy(Component)
 	, MaxDrawDistance(Component->MaxDrawDistance)
 	, FadeRange(Component->MaxDistanceFadeRange)
+	, InverseExposureBlend(Component->InverseExposureBlend)
 {
 	UpdateRadius(Component->AttenuationRadius);
 }

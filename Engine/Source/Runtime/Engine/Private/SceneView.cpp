@@ -2763,6 +2763,16 @@ FRDGPooledBuffer* FSceneView::GetEyeAdaptationBuffer() const
 	return nullptr;
 }
 
+/** Returns the eye adaptation exposure or 0.0f if it doesn't exist. */
+float FSceneView::GetLastEyeAdaptationExposure() const
+{
+	if (EyeAdaptationViewState)
+	{
+		return EyeAdaptationViewState->GetLastEyeAdaptationExposure();
+	}
+	return 0.0f;
+}
+
 const FSceneView* FSceneView::GetPrimarySceneView() const
 {
 	// It is valid for this function to return itself if it's already the primary view.

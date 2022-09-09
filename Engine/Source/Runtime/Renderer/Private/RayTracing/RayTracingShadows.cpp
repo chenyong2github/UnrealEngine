@@ -289,7 +289,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		{
 			FLightRenderParameters LightParameters;
 			LightSceneProxy->GetLightShaderParameters(LightParameters);
-			LightParameters.MakeShaderParameters(View.ViewMatrices, PassParameters->Light);
+			LightParameters.MakeShaderParameters(View.ViewMatrices, View.GetLastEyeAdaptationExposure(), PassParameters->Light);
 			PassParameters->Light.SourceRadius *= LightSceneProxy->GetShadowSourceAngleFactor();
 		}
 

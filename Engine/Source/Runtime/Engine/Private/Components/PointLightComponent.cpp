@@ -50,6 +50,8 @@ void FPointLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Lig
 	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
+
+	LightParameters.InverseExposureBlend = InverseExposureBlend;
 }
 
 /**
@@ -294,6 +296,7 @@ void UPointLightComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	SourceRadius = FMath::Max(0.0f, SourceRadius);
 	SoftSourceRadius = FMath::Max(0.0f, SoftSourceRadius);
 	SourceLength = FMath::Max(0.0f, SourceLength);
+	InverseExposureBlend = FMath::Clamp(InverseExposureBlend, 0.0f, 1.0f);
 
 	if (!bUseInverseSquaredFalloff)
 	{

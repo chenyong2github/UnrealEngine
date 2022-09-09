@@ -1274,7 +1274,7 @@ struct FLumenPackedLight
 	FVector3f Padding;
 };
 
-FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray<FLumenGatheredLight, TInlineAllocator<64>>& GatheredLights)
+FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray<FLumenGatheredLight, TInlineAllocator<64>>& GatheredLights, float Exposure)
 {
 	TArray<FLumenPackedLight, TInlineAllocator<16>> PackedLightData;
 	PackedLightData.SetNum(FMath::RoundUpToPowerOfTwo(FMath::Max(GatheredLights.Num(), 16)));
@@ -1292,6 +1292,8 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray
 			ShaderParameters.FalloffExponent = 0;
 		}
 		ShaderParameters.Color *= LightSceneInfo->Proxy->GetIndirectLightingScale();
+
+		ShaderParameters.Color *= ShaderParameters.GetLightExposureScale(Exposure);
 
 		FLumenPackedLight& LightData = PackedLightData[LightIndex];
 		LightData.WorldPosition = FVector3f(ShaderParameters.WorldPosition);
@@ -1317,7 +1319,7 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray
 
 		LightData.InfluenceSphere = FVector4f((FVector3f)LightBounds.Center, LightBounds.W);
 
-		LightData.ProxyPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
+		LightData.ProxyPosition = FVector4f(LightSceneInfo->Proxy->GetPosition()); // LUMEN_LWC_TODO
 		LightData.ProxyRadius = LightSceneInfo->Proxy->GetRadius();
 
 		LightData.ProxyDirection = (FVector3f)LightSceneInfo->Proxy->GetDirection();
@@ -1580,7 +1582,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			}
 		}
 
-		FRDGBufferRef LumenPackedLights = CreateLumenLightDataBuffer(GraphBuilder, GatheredLights);
+		FRDGBufferRef LumenPackedLights = CreateLumenLightDataBuffer(GraphBuilder, GatheredLights, MainView.GetLastEyeAdaptationExposure()); // TODO View
 
 		FLightTileCullContext CullContext;
 		CullDirectLightingTiles(Views, GraphBuilder, CardUpdateContext, LumenCardSceneUniformBuffer, GatheredLights, LumenPackedLights, CullContext);

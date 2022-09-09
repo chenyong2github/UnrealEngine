@@ -310,11 +310,11 @@ FBoxSphereBounds ULightComponentBase::GetPlacementExtent() const
 	return NewBounds;
 }
 
-void FLightRenderParameters::MakeShaderParameters(const FViewMatrices& ViewMatrices, FLightShaderParameters& OutShaderParameters) const
+void FLightRenderParameters::MakeShaderParameters(const FViewMatrices& ViewMatrices, float Exposure, FLightShaderParameters& OutShaderParameters) const
 {
 	OutShaderParameters.TranslatedWorldPosition = FVector3f(ViewMatrices.GetPreViewTranslation() + WorldPosition);
 	OutShaderParameters.InvRadius = InvRadius;
-	OutShaderParameters.Color = FVector3f(Color);
+	OutShaderParameters.Color = FVector3f(Color) * GetLightExposureScale(Exposure);
 	OutShaderParameters.FalloffExponent = FalloffExponent;
 	OutShaderParameters.Direction = Direction;
 	OutShaderParameters.SpecularScale = SpecularScale;
@@ -328,6 +328,30 @@ void FLightRenderParameters::MakeShaderParameters(const FViewMatrices& ViewMatri
 	OutShaderParameters.RectLightAtlasUVOffset = RectLightAtlasUVOffset;
 	OutShaderParameters.RectLightAtlasUVScale = RectLightAtlasUVScale;
 	OutShaderParameters.RectLightAtlasMaxLevel = RectLightAtlasMaxLevel;
+}
+
+// match logic in EyeAdaptationInverseLookup(...)
+float FLightRenderParameters::GetLightExposureScale(float Exposure) const
+{
+	if (Exposure <= 0.0f)
+	{
+		return 1.0f;
+	}
+
+	const float Adaptation = Exposure;
+	const float Alpha = InverseExposureBlend;
+
+	// When Alpha = 0.0, we want to multiply by 1.0. when Alpha = 1.0, we want to multiply by 1/Adaptation.
+	// So the lerped value is:
+	//     LerpLogScale = Lerp(log(1),log(1/Adaptation),T)
+	// Which is simplified as:
+	//     LerpLogScale = Lerp(0,-log(Adaptation),T)
+	//     LerpLogScale = -T * logAdaptation;
+
+	const float LerpLogScale = -Alpha * log(Adaptation);
+	const float Scale = exp(LerpLogScale);
+
+	return Scale;
 }
 
 FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
@@ -790,6 +814,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UPointLightComponent, SourceRadius) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UPointLightComponent, SoftSourceRadius) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UPointLightComponent, SourceLength) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UPointLightComponent, InverseExposureBlend) &&
 		// Directional light properties that shouldn't unbuild lighting
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, DynamicShadowDistanceMovableLight) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, DynamicShadowDistanceStationaryLight) &&

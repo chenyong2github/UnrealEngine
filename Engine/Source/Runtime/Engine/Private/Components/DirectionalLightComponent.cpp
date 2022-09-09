@@ -390,6 +390,8 @@ public:
 		LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 		LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
 		LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
+
+		LightParameters.InverseExposureBlend = 0.0f;
 	}
 
 	virtual float GetLightSourceAngle() const override

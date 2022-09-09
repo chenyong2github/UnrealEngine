@@ -388,6 +388,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				}
 			}
 
+			const float Exposure = View.GetLastEyeAdaptationExposure();
+
 			float SelectedForwardDirectionalLightIntensitySq = 0.0f;
 			int32 SelectedForwardDirectionalLightPriority = -1;
 			const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights = SortedLightSet.SortedLights;
@@ -464,6 +466,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						}
 						const float LightFade = GetLightFadeFactor(View, LightProxy);
 						LightParameters.Color *= LightFade;
+
+						LightParameters.Color *= LightParameters.GetLightExposureScale(Exposure);
 
 						const FVector3f LightTranslatedWorldPosition(View.ViewMatrices.GetPreViewTranslation() + LightParameters.WorldPosition);
 						LightData.LightPositionAndInvRadius = FVector4f(LightTranslatedWorldPosition, LightParameters.InvRadius);

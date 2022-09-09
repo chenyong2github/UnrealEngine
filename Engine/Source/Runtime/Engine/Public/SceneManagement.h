@@ -232,6 +232,9 @@ public:
 	/** Returns the eye adaptation buffer (mobile only). */
 	virtual FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const = 0;
 
+	/** Returns the eye adaptation exposure. */
+	virtual float GetLastEyeAdaptationExposure() const = 0;
+
 	virtual void SetSequencerState(ESequencerState InSequencerState) = 0;
 
 	virtual ESequencerState GetSequencerState() = 0;
@@ -1335,7 +1338,8 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
  */
 struct FLightRenderParameters
 {
-	ENGINE_API void MakeShaderParameters(const FViewMatrices& ViewMatrices, FLightShaderParameters& OutShaderParameters) const;
+	ENGINE_API void MakeShaderParameters(const FViewMatrices& ViewMatrices, float Exposure, FLightShaderParameters& OutShaderParameters) const;
+	ENGINE_API float GetLightExposureScale(float Exposure) const;
 
 	// Position of the light in world space.
 	FVector WorldPosition;
@@ -1381,6 +1385,8 @@ struct FLightRenderParameters
 	FVector2f RectLightAtlasUVOffset;
 	FVector2f RectLightAtlasUVScale;
 	float RectLightAtlasMaxLevel;
+
+	float InverseExposureBlend;
 
 	// Return Invalid rect light atlas MIP level
 	static float GetRectLightAtlasInvalidMIPLevel() { return 32.f;  }

@@ -288,6 +288,8 @@ static void SetupLightParameters(
 		FLightRenderParameters LightShaderParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightShaderParameters);
 
+		LightShaderParameters.Color *= LightShaderParameters.GetLightExposureScale(View.GetLastEyeAdaptationExposure());
+
 		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
 		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
 		DestLight.Flags  = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;

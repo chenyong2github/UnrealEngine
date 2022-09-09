@@ -241,7 +241,7 @@ static void SetupRaytracingLightDataPacked(
 
 		LightDataElement.Direction = LightParameters.Direction;
 		LightDataElement.TranslatedLightPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
-		LightDataElement.LightColor = FVector3f(LightParameters.Color);
+		LightDataElement.LightColor = FVector3f(LightParameters.Color) * LightParameters.GetLightExposureScale(View.GetLastEyeAdaptationExposure());
 		LightDataElement.Tangent = LightParameters.Tangent;
 
 		// Ray tracing should compute fade parameters ignoring lightmaps

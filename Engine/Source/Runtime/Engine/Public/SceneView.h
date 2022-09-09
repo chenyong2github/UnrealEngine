@@ -1485,6 +1485,9 @@ public:
 	/** Returns the eye adaptation buffer (mobile) or null if it doesn't exist. */
 	FRDGPooledBuffer* GetEyeAdaptationBuffer() const;
 
+	/** Returns the eye adaptation exposure or 0.0f if it doesn't exist. */
+	float GetLastEyeAdaptationExposure() const;
+
 	/** Get the primary view associated with the secondary view. */
 	const FSceneView* GetPrimarySceneView() const;
 

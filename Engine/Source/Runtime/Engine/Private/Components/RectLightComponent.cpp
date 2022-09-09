@@ -241,6 +241,9 @@ void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Ligh
 	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
+
+	LightParameters.InverseExposureBlend = InverseExposureBlend;
+
 	if (AtlasSlotIndex != ~0u)
 	{
 		GetSceneInterface()->GetRectLightAtlasSlot(this, &LightParameters);

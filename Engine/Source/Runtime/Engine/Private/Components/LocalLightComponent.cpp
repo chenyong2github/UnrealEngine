@@ -17,6 +17,7 @@ ULocalLightComponent::ULocalLightComponent(const FObjectInitializer& ObjectIniti
 	Intensity = 5000;
 	Radius_DEPRECATED = 1024.0f;
 	AttenuationRadius = 1000;
+	InverseExposureBlend = 0;
 }
 
 void ULocalLightComponent::SetAttenuationRadius(float NewRadius)

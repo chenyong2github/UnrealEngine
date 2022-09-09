@@ -574,6 +574,8 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 				TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(View.ShaderMap);
 				auto PixelShader = View.ShaderMap->GetShader< FInjectShadowedLocalLightPS >(PermutationVector);
 
+				ClearUnusedGraphResources(PixelShader, PassParameters);
+
 				// We execute one pass per light: this is because RDG resources needs to be gathrered before and reference in the PassParameters.
 				// Not many lights cast shadow so that is acceptable (LightRendering is doing the same things).
 				// If light shadow maps woud be in a common resources (atlas, texture array, bindless) we could have a single pass for all the lights.
