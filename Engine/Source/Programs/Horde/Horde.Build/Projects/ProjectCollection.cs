@@ -120,15 +120,17 @@ namespace Horde.Build.Projects
 		}
 
 		/// <inheritdoc/>
-		public async Task<IProject?> AddOrUpdateAsync(ProjectId id, string configPath, string revision, int order, ProjectConfig config)
+		public async Task<IProject?> AddOrUpdateAsync(ProjectId id, string configRevision, int order)
 		{
+			ProjectConfig config = await _configCollection.GetConfigAsync<ProjectConfig>(configRevision);
+
 			ProjectDocument newProject = new ProjectDocument();
 			newProject.Id = id;
-			newProject.ConfigRevision = revision;
+			newProject.ConfigRevision = configRevision;
 			newProject.Order = order;
 			newProject.Acl = Acl.Merge(new Acl(), config.Acl);
 
-			ProjectDocument result = await _projects.FindOneAndReplaceAsync<ProjectDocument>(x => x.Id == id, newProject, new FindOneAndReplaceOptions<ProjectDocument> { IsUpsert = true });
+			ProjectDocument result = await _projects.FindOneAndReplaceAsync<ProjectDocument>(x => x.Id == id, newProject, new FindOneAndReplaceOptions<ProjectDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After });
 			await result.PostLoadAsync(_configCollection, _logger);
 			return result;
 		}

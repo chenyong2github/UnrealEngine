@@ -34,7 +34,10 @@ namespace Horde.Build.Tests
 		public async Task TestChainedJobs()
 		{
 			ProjectId projectId = new ProjectId("ue5");
-			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(projectId, "", "", 0, new ProjectConfig { Name = "UE5" });
+
+			const string ProjectConfigRevision = "projectconfig";
+			await ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" });
+			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(projectId, ProjectConfigRevision, 0);
 			Assert.IsNotNull(project);
 
 			ITemplate template = await TemplateCollection.AddAsync("Test template");
@@ -158,7 +161,9 @@ namespace Horde.Build.Tests
 			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, null, new List<StringId<IPool>> { new StringId<IPool>("win") });
 			await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 
-			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" });
+			const string ProjectConfigRevision = "projectconfig";
+			await ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" });
+			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(new ProjectId("ue5"), ProjectConfigRevision, 0);
 			Assert.IsNotNull(project);
 
 			StreamId streamId = new StreamId("ue5-main");

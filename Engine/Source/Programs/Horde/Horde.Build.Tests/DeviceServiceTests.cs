@@ -55,7 +55,9 @@ namespace Horde.Build.Tests
 		{
 			DeviceConfig Devices = new DeviceConfig();
 
-			await ProjectCollection.AddOrUpdateAsync(new ProjectId("ue5"), "", "", 0, new ProjectConfig { Name = "UE5" });
+			const string ConfigRevision = "device-test-config";
+			await ConfigCollection.AddConfigAsync(ConfigRevision, new ProjectConfig { Name = "UE5" });
+			await ProjectCollection.AddOrUpdateAsync(new ProjectId("ue5"), ConfigRevision, 0);
 
 			// create 2 pools
 			for (int i = 1; i < 3; i++)

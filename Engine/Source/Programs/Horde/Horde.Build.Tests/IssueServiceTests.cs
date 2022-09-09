@@ -142,7 +142,9 @@ namespace Horde.Build.Tests
 				_workspaceDir = new DirectoryReference("/Horde");
 			}
 
-			IProject project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), "", "", 0, new ProjectConfig { Name = "UE4" }).Result!;
+			const string ProjectConfigRevision = "projectconfig";
+			ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" }).Wait();
+			IProject project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), ProjectConfigRevision, 0).Result!;
 
 			IStream mainStream = CreateStreamAsync(project.Id, _mainStreamId, MainStreamName).Result;
 			IStream releaseStream = CreateStreamAsync(project.Id, _releaseStreamId, ReleaseStreamName).Result;

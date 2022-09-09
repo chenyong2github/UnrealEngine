@@ -219,7 +219,7 @@ namespace Horde.Build.Configuration
 						if (update)
 						{
 							_logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
-							await _projectService.Collection.AddOrUpdateAsync(projectRef.Id, projectPath.ToString(), revision, idx, projectConfig);
+							await _projectService.Collection.AddOrUpdateAsync(projectRef.Id, revision, idx);
 						}
 					}
 					catch (Exception ex)

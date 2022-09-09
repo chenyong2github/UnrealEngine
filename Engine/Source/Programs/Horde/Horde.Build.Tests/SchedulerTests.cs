@@ -41,7 +41,9 @@ namespace Horde.Build.Tests
 		{
 			IUser bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
 
-			IProject ? project = ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
+			const string ProjectConfigRevision = "projectconfig";
+			ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" }).Wait();
+			IProject? project = ProjectService.Collection.AddOrUpdateAsync(ProjectId, ProjectConfigRevision, 0).Result;
 			Assert.IsNotNull(project);
 
 			_template = TemplateCollection.AddAsync("Test template").Result;

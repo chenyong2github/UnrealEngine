@@ -17,12 +17,10 @@ namespace Horde.Build.Projects
 		/// Updates the project configuration
 		/// </summary>
 		/// <param name="id">The project id</param>
-		/// <param name="configPath">Path to the config file used to configure this project</param>
-		/// <param name="revision">The config file revision</param>
+		/// <param name="configRevision">The config file revision. Can be referenced withing the config collection.</param>
 		/// <param name="order">Order of the project</param>
-		/// <param name="config">The configuration</param>
 		/// <returns>New project instance</returns>
-		Task<IProject?> AddOrUpdateAsync(ProjectId id, string configPath, string revision, int order, ProjectConfig config);
+		Task<IProject?> AddOrUpdateAsync(ProjectId id, string configRevision, int order);
 
 		/// <summary>
 		/// Gets all the available projects
