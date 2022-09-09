@@ -542,7 +542,7 @@ struct FRenderTargetBinding
 		check(Validate());
 	}
 
-	void GetMipIndex(uint8 InMipIndex)
+	void SetMipIndex(uint8 InMipIndex)
 	{
 		MipIndex = InMipIndex;
 		check(Validate());
@@ -553,6 +553,9 @@ struct FRenderTargetBinding
 		ArraySlice = InArraySlice;
 		check(Validate());
 	}
+
+	UE_DEPRECATED(5.1, "GetMipIndex has been renamed to SetMipIndex.")
+	void GetMipIndex(uint8 InMipIndex) { SetMipIndex(InMipIndex); }
 
 private:
 	/** Intentionally kept private to force setting the load action in the constructor. */
