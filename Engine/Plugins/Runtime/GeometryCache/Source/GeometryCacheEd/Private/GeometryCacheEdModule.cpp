@@ -8,12 +8,15 @@
 #include "GeometryCacheAssetBroker.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
+#include "GeometryCacheModule.h"
 #include "GeometryCacheThumbnailRenderer.h"
 
 IMPLEMENT_MODULE(FGeometryCacheEdModule, GeometryCacheEd)
 
 void FGeometryCacheEdModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(GeometryCache);
+
 	FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 
 	IAssetTools& AssetTools = AssetToolsModule.Get();

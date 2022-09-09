@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Stats/Stats.h"
+
+LLM_DECLARE_TAG_API(GeometryCache, GEOMETRYCACHE_API);
 
 /**
  * The public interface to this module

@@ -2,15 +2,18 @@
 
 #include "AlembicLibraryModule.h"
 #include "AbcImporter.h"
-
 #include "AbcImportSettingsCustomization.h"
-
+#include "HAL/LowLevelMemTracker.h"
 #include "PropertyEditorModule.h"
+
+LLM_DEFINE_TAG(Alembic);
 
 class FAlembicLibraryModule : public IAlembicLibraryModule
 {
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Alembic);
+
 		FModuleManager::LoadModuleChecked<IModuleInterface>("GeometryCache");
 
 		// Register class/struct customizations
