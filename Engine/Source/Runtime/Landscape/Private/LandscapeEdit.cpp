@@ -5,6 +5,7 @@ LandscapeEdit.cpp: Landscape editing
 =============================================================================*/
 
 #include "LandscapeEdit.h"
+#include "LandscapePrivate.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
