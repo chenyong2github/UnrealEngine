@@ -677,6 +677,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	UNiagaraEmitter* GetEmitter() {return Emitter.Emitter;}
 
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void SetSimTarget(ENiagaraSimTarget InTarget) { if (GetEmitter() && GetEmitter()->GetLatestEmitterData()) { GetEmitter()->GetLatestEmitterData()->SimTarget = InTarget; } }
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void SetLocalSpace(bool bLocalSpace) {if (GetEmitter() && GetEmitter()->GetLatestEmitterData()) { GetEmitter()->GetLatestEmitterData()->bLocalSpace = bLocalSpace; }}
+
 	void InternalFinalizeEvents(UNiagaraSystemConversionContext* OwningSystemConversionContext);
 
 	void InternalFinalizeStackEntryAddActions();
@@ -877,6 +883,10 @@ public:
 	// Niagara Script and Script Input Helpers
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContext* CreateScriptContext(const FCreateScriptContextArgs& Args);
+
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static FAssetData CreateAssetData(FString InPath);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContextInput* CreateScriptInputLinkedParameter(FString ParameterNameString, ENiagaraScriptInputType InputType);

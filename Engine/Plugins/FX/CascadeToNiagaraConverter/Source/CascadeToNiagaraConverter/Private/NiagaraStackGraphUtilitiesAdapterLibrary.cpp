@@ -183,6 +183,24 @@ FName UFXConverterUtilitiesLibrary::GetCascadeEmitterName(UParticleEmitter* Emit
 	return Emitter->GetEmitterName();
 }
 
+FAssetData UFXConverterUtilitiesLibrary::CreateAssetData(FString InPath)
+{
+	FAssetData Out;
+	FSoftObjectPath Path;
+	Path.SetPath(InPath);
+	UObject* Obj = Path.TryLoad();
+	if (Obj)
+	{
+		Out = FAssetData(Obj);
+	}
+	else
+	{
+		UE_LOG(LogScript, Error, TEXT("Failed to make path %s") , *InPath);
+	}
+	
+	return Out;
+}
+
 UNiagaraScriptConversionContext* UFXConverterUtilitiesLibrary::CreateScriptContext(const FCreateScriptContextArgs& Args)
 {
 	UNiagaraScriptConversionContext* ScriptContext = NewObject<UNiagaraScriptConversionContext>();
