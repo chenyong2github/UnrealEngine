@@ -91,10 +91,10 @@ FText UEnvQueryGenerator_SmartObjects::GetDescriptionDetails() const
 	FFormatNamedArguments Args;
 
 	FTextBuilder DescBuilder;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	if (!SmartObjectRequestFilter.UserTags.IsEmpty()
 		|| !SmartObjectRequestFilter.ActivityRequirements.IsEmpty()
-		|| SmartObjectRequestFilter.BehaviorDefinitionClass
+		|| !SmartObjectRequestFilter.BehaviorDefinitionClasses.IsEmpty()
 		|| SmartObjectRequestFilter.Predicate)
 	{
 		DescBuilder.AppendLine(LOCTEXT("SmartObjectFilterHeader", "Smart Object Filter:"));
@@ -105,12 +105,27 @@ FText UEnvQueryGenerator_SmartObjects::GetDescriptionDetails() const
 		
 		if (!SmartObjectRequestFilter.ActivityRequirements.IsEmpty())
 		{
-			DescBuilder.AppendLineFormat(LOCTEXT("SmartObjectFilterActivityRequirements", "\tActivity Requirements: {0}"), FText::FromString(SmartObjectRequestFilter.ActivityRequirements.GetDescription()));
+			DescBuilder.AppendLineFormat(LOCTEXT("SmartObjectFilterActivityRequirements", "\tActivity Requirements: {0}")
+				, FText::FromString(SmartObjectRequestFilter.ActivityRequirements.GetDescription()));
 		}
 
-		if (SmartObjectRequestFilter.BehaviorDefinitionClass)
+		if (!SmartObjectRequestFilter.BehaviorDefinitionClasses.IsEmpty())
 		{
-			DescBuilder.AppendLineFormat(LOCTEXT("SmartObjectFilterBehaviorDefinitionClass", "\tBehavior Definition Class: {0}"), FText::FromString(SmartObjectRequestFilter.BehaviorDefinitionClass->GetName()));
+			if (SmartObjectRequestFilter.BehaviorDefinitionClasses.Num() == 1)//SmartObjectRequestFilter.BehaviorDefinitionClass)
+			{
+				DescBuilder.AppendLineFormat(LOCTEXT("SmartObjectFilterBehaviorDefinitionClass", "\tBehavior Definition Class: {0}")
+					, FText::FromString(GetNameSafe(SmartObjectRequestFilter.BehaviorDefinitionClasses[0])));
+			}
+			else
+			{
+				DescBuilder.AppendLine(LOCTEXT("SmartObjectFilterBehaviorDefinitionClassed", "\tBehavior Definition Classes:"));
+				for (int i = 0; i < SmartObjectRequestFilter.BehaviorDefinitionClasses.Num(); ++i)
+				{
+					const TSubclassOf<USmartObjectBehaviorDefinition>& BehaviorClass = SmartObjectRequestFilter.BehaviorDefinitionClasses[i];
+					DescBuilder.AppendLineFormat(LOCTEXT("SmartObjectFilterBehaviorDefinitionClassesElement", "\t\t[{0}]: {1}")
+						, i, FText::FromString(GetNameSafe(SmartObjectRequestFilter.BehaviorDefinitionClasses[i])));
+				}
+			}
 		}
 		
 		if (SmartObjectRequestFilter.Predicate)
@@ -118,7 +133,7 @@ FText UEnvQueryGenerator_SmartObjects::GetDescriptionDetails() const
 			DescBuilder.AppendLine(LOCTEXT("SmartObjectFilterPredicate", "\tWith Predicate function"));
 		}
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	Args.Add(TEXT("QUERYEXTENT"), FText::FromString(FString::Printf(TEXT("[%.1f, %.1f, %.1f]"), float(QueryBoxExtent.X), float(QueryBoxExtent.Y), float(QueryBoxExtent.Z))));
 	Args.Add(TEXT("CLAIMABLE"), FText::FromString(bOnlyClaimable ? TEXT("Claimable") : TEXT("All")));
 	
