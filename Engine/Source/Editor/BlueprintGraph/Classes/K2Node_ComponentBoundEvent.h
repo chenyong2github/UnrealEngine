@@ -72,16 +72,15 @@ class UK2Node_ComponentBoundEvent : public UK2Node_Event
 	/** Return the delegate property that this event is bound to */
 	BLUEPRINTGRAPH_API FMulticastDelegateProperty* GetTargetDelegateProperty() const;
 
+	/** Gets the proper display name for the property */
+	BLUEPRINTGRAPH_API FText GetTargetDelegateDisplayName() const;
+
 	BLUEPRINTGRAPH_API void InitializeComponentBoundEventParams(FObjectProperty const* InComponentProperty, const FMulticastDelegateProperty* InDelegateProperty);
 
 private:
 
 	/** Returns true if there is an FObjectProperty on this blueprint with a name that matches ComponentPropertyName */
 	bool IsDelegateValid() const;
-
-	/** Cached display name for the delegate property */
-	UPROPERTY()
-	FText DelegatePropertyDisplayName;
 
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTextCache CachedNodeTitle;

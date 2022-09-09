@@ -84,7 +84,7 @@ FText UK2Node_ComponentBoundEvent::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	if (CachedNodeTitle.IsOutOfDate(this))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("DelegatePropertyName"), DelegatePropertyDisplayName.IsEmpty() ? FText::FromName(DelegatePropertyName) : DelegatePropertyDisplayName);
+		Args.Add(TEXT("DelegatePropertyName"), GetTargetDelegateDisplayName());
 		Args.Add(TEXT("ComponentPropertyName"), FText::FromName(ComponentPropertyName));
 
 		// FText::Format() is slow, so we cache this to save on performance
@@ -99,7 +99,6 @@ void UK2Node_ComponentBoundEvent::InitializeComponentBoundEventParams(FObjectPro
 	{
 		ComponentPropertyName = InComponentProperty->GetFName();
 		DelegatePropertyName = InDelegateProperty->GetFName();
-		DelegatePropertyDisplayName = InDelegateProperty->GetDisplayNameText();
 		DelegateOwnerClass = CastChecked<UClass>(InDelegateProperty->GetOwner<UObject>())->GetAuthoritativeClass();
 
 		EventReference.SetFromField<UFunction>(InDelegateProperty->SignatureFunction, /*bIsConsideredSelfContext =*/false);
@@ -196,7 +195,7 @@ FEdGraphNodeDeprecationResponse UK2Node_ComponentBoundEvent::GetDeprecationRespo
 		{
 			Response.MessageType = EEdGraphNodeDeprecationMessageType::Warning;
 			const FText DetailedMessage = FText::FromString(Function->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage));
-			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(DelegatePropertyDisplayName, DetailedMessage);
+			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetTargetDelegateDisplayName(), DetailedMessage);
 		}
 	}
 
@@ -214,6 +213,11 @@ FMulticastDelegateProperty* UK2Node_ComponentBoundEvent::GetTargetDelegateProper
 	return FindFProperty<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName);
 }
 
+FText UK2Node_ComponentBoundEvent::GetTargetDelegateDisplayName() const
+{
+	FMulticastDelegateProperty* Prop = GetTargetDelegateProperty();
+	return Prop ? Prop->GetDisplayNameText() : FText::FromName(DelegatePropertyName);
+}
 
 FText UK2Node_ComponentBoundEvent::GetTooltipText() const
 {

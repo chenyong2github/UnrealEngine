@@ -77,6 +77,9 @@ class UK2Node_ActorBoundEvent : public UK2Node_Event
 	BLUEPRINTGRAPH_API FMulticastDelegateProperty* GetTargetDelegateProperty() const;
 	BLUEPRINTGRAPH_API FMulticastDelegateProperty* GetTargetDelegatePropertyFromSkel() const;
 
+	/** Gets the proper display name for the property */
+	BLUEPRINTGRAPH_API FText GetTargetDelegateDisplayName() const;
+
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTextCache CachedNodeTitle;

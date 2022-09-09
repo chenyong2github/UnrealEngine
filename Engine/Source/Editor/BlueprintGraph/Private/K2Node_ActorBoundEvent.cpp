@@ -148,13 +148,13 @@ FText UK2Node_ActorBoundEvent::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 	if (EventOwner == nullptr)
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("DelegatePropertyName"), FText::FromName(DelegatePropertyName));
+		Args.Add(TEXT("DelegatePropertyName"), GetTargetDelegateDisplayName());
 		return FText::Format(LOCTEXT("ActorBoundEventTitleNoOwner", "{DelegatePropertyName} (None)"), Args);
 	}
 	else if (CachedNodeTitle.IsOutOfDate(this))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("DelegatePropertyName"), FText::FromName(DelegatePropertyName));
+		Args.Add(TEXT("DelegatePropertyName"), GetTargetDelegateDisplayName());
 		Args.Add(TEXT("TargetName"), FText::FromString(EventOwner->GetActorLabel()));
 
 		// FText::Format() is slow, so we cache this to save on performance
@@ -252,6 +252,12 @@ FMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegateProperty()
 FMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegatePropertyFromSkel() const
 {
 	return FindFProperty<FMulticastDelegateProperty>(FBlueprintEditorUtils::GetMostUpToDateClass(DelegateOwnerClass), DelegatePropertyName);
+}
+
+FText UK2Node_ActorBoundEvent::GetTargetDelegateDisplayName() const
+{
+	FMulticastDelegateProperty* Prop = GetTargetDelegateProperty();
+	return Prop ? Prop->GetDisplayNameText() : FText::FromName(DelegatePropertyName);
 }
 
 bool UK2Node_ActorBoundEvent::IsUsedByAuthorityOnlyDelegate() const
