@@ -10,7 +10,7 @@
 #include "AnimNodes/AnimNode_Mirror.h"
 #include "AnimSequencerInstanceProxy.generated.h"
 
-UENUM()
+UENUM(BlueprintType)
 enum class ESwapRootBone : uint8
 {
 	/* Swap the root bone to the component */

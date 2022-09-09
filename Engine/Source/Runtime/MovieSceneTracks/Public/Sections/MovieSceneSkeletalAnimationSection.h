@@ -67,11 +67,11 @@ struct FMovieSceneSkeletalAnimationParams
 	bool bSkipAnimNotifiers;
 
 	/** If on animation sequence will always play when active even if the animation is controlled by a Blueprint or Anim Instance Class*/
-	UPROPERTY(EditAnywhere, Category = "Animation")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Animation")
 	bool bForceCustomMode;
 
 	/** If on the root bone transform will be swapped to the specified root*/
-	UPROPERTY(EditAnywhere, Category = "Animation")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Animation")
 	ESwapRootBone SwapRootBone;
 
 	UPROPERTY()
