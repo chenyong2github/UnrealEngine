@@ -60,7 +60,16 @@ namespace Horde.Build.Tests.Stubs.Services
 
 			public ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken)
 			{
-				return new ValueTask<IReadOnlyList<CommitTag>>(Array.Empty<CommitTag>());
+				List<CommitTag> tags = new List<CommitTag>();
+				if (CommitTagConfig.CodeDefault.CreateFileFilter().ApplyTo(Files).Any())
+				{
+					tags.Add(CommitTag.Code);
+				}
+				if (CommitTagConfig.ContentDefault.CreateFileFilter().ApplyTo(Files).Any())
+				{
+					tags.Add(CommitTag.Content);
+				}
+				return new ValueTask<IReadOnlyList<CommitTag>>(tags);
 			}
 
 			public ValueTask<IReadOnlyList<string>> GetFilesAsync(CancellationToken cancellationToken)
