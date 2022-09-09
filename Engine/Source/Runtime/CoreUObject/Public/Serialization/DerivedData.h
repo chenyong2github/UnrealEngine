@@ -8,7 +8,6 @@
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Misc/EnumClassFlags.h"
-#include "Templates/Function.h"
 #include "Templates/PimplPtr.h"
 
 #define UE_API COREUOBJECT_API
@@ -17,6 +16,7 @@ class FArchive;
 class FCompressedBuffer;
 class UObject;
 struct FIoHash;
+template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
@@ -265,7 +265,13 @@ public:
 
 	/** Returns the cache key for the request. Null if not applicable, executing, failed, or canceled. */
 	UE_API const DerivedData::FCacheKey* GetCacheKey(FDerivedDataIoRequest Handle) const;
-#endif
+
+	/** Returns the cache value ID for the request. Null if not applicable, executing, failed, or canceled. */
+	UE_API const DerivedData::FValueId* GetCacheValueId(FDerivedDataIoRequest Handle) const;
+
+	/** Returns the compressed data for the request. Null if not applicable, executing, failed, or canceled. */
+	UE_API const FCompressedBuffer* GetCompressedData(FDerivedDataIoRequest Handle) const;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	TPimplPtr<DerivedData::Private::FIoResponse> Response;
@@ -361,6 +367,17 @@ public:
 	 */
 	UE_API FDerivedDataIoRequest Exists(const FDerivedData& Data, const FDerivedDataIoOptions& Options = {});
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Compresses the derived data. Not executed until Dispatch() is invoked.
+	 *
+	 * The compressed data, size, and status will be available on the response.
+	 *
+	 * @return A request to query the response with. May be discarded by the caller if not needed.
+	 */
+	UE_API FDerivedDataIoRequest Compress(const FDerivedData& Data);
+#endif // WITH_EDITORONLY_DATA
+
 	/**
 	 * Dispatches the requests that have been queued to this batch and resets this batch to empty.
 	 *
@@ -368,9 +385,12 @@ public:
 	 *
 	 * @param OutResponse   Response that is assigned before any requests begin executing.
 	 * @param Priority      Priority of this batch relative to other batches.
-	 * @param OnComplete    Optional completion callback invoked when the entire batch is complete or canceled.
+	 * @param OnComplete    Completion callback invoked when the entire batch is complete or canceled.
 	 */
-	UE_API void Dispatch(FDerivedDataIoResponse& OutResponse, FDerivedDataIoPriority Priority = {}, FDerivedDataIoComplete&& OnComplete = {});
+	UE_API void Dispatch(FDerivedDataIoResponse& OutResponse);
+	UE_API void Dispatch(FDerivedDataIoResponse& OutResponse, FDerivedDataIoPriority Priority);
+	UE_API void Dispatch(FDerivedDataIoResponse& OutResponse, FDerivedDataIoPriority Priority, FDerivedDataIoComplete&& OnComplete);
+	UE_API void Dispatch(FDerivedDataIoResponse& OutResponse, FDerivedDataIoComplete&& OnComplete);
 
 private:
 	TPimplPtr<DerivedData::Private::FIoResponse> Response;

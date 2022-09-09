@@ -4,6 +4,7 @@
 
 #include "Serialization/DerivedData.h"
 
+#include "Algo/Compare.h"
 #include "HAL/Event.h"
 #include "IO/IoHash.h"
 #include "Memory/CompositeBuffer.h"
@@ -46,6 +47,13 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 	using namespace DerivedDataTest::Private;
 	uint64 Counter = 0;
 
+	SECTION("Null Request")
+	{
+		FDerivedDataIoRequest Request;
+		CHECK(Request.IsNull());
+		CHECK_FALSE(Request);
+	}
+
 	SECTION("Null")
 	{
 		const FDerivedData DerivedData;
@@ -66,16 +74,16 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.IsNull());
 		CHECK_FALSE(Response);
 
-		FDerivedDataIoRequest Requests[3];
-		CHECK(Requests[0].IsNull());
-		CHECK_FALSE(Requests[0]);
-
+		TArray<FDerivedDataIoRequest, TInlineAllocator<4>> Requests;
 		{
 			FDerivedDataIoBatch Batch;
 			CHECK(Batch.IsEmpty());
-			Requests[0] = Batch.Read(DerivedData, {});
-			Requests[1] = Batch.Cache(DerivedData, {});
-			Requests[2] = Batch.Exists(DerivedData, {});
+			Requests.Add(Batch.Read(DerivedData, {}));
+			Requests.Add(Batch.Cache(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, {}));
+		#if WITH_EDITORONLY_DATA
+			Requests.Add(Batch.Compress(DerivedData));
+		#endif
 			CHECK_FALSE(Batch.IsEmpty());
 			Batch.Dispatch(Response, {}, [&Event] { Event->Trigger(); });
 			CHECK(Batch.IsEmpty());
@@ -98,6 +106,8 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		#if WITH_EDITORONLY_DATA
 			CHECK(Response.GetHash(Request) == nullptr);
 			CHECK(Response.GetCacheKey(Request) == nullptr);
+			CHECK(Response.GetCacheValueId(Request) == nullptr);
+			CHECK(Response.GetCompressedData(Request) == nullptr);
 		#endif
 		}
 	}
@@ -124,15 +134,18 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 
 		FUniqueBuffer Target = FUniqueBuffer::Alloc(HalfSize);
 		FDerivedDataIoResponse Response;
-		FDerivedDataIoRequest Requests[6];
+		TArray<FDerivedDataIoRequest, TInlineAllocator<7>> Requests;
 		{
 			FDerivedDataIoBatch Batch;
-			Requests[0] = Batch.Read(DerivedData, {});
-			Requests[1] = Batch.Cache(DerivedData, {});
-			Requests[2] = Batch.Exists(DerivedData, {});
-			Requests[3] = Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize));
-			Requests[4] = Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize));
-			Requests[5] = Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2));
+			Requests.Add(Batch.Read(DerivedData, {}));
+			Requests.Add(Batch.Cache(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2)));
+		#if WITH_EDITORONLY_DATA
+			Requests.Add(Batch.Compress(DerivedData));
+		#endif
 			Batch.Dispatch(Response, {}, [&Event] { Event->Trigger(); });
 		}
 		Event->Wait();
@@ -150,6 +163,7 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 				CHECK(*RequestHash == SourceHash);
 			}
 			CHECK(Response.GetCacheKey(Request) == nullptr);
+			CHECK(Response.GetCacheValueId(Request) == nullptr);
 		}
 
 		CHECK(Response.GetData(Requests[0]).GetSize() == HalfSize * 2);
@@ -158,6 +172,9 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetData(Requests[3]).IsNull());
 		CHECK(Response.GetData(Requests[4]) == Source.GetSegments()[1]);
 		CHECK(FCompositeBuffer(Response.GetData(Requests[5])).EqualBytes(Source.Mid(HalfSize / 2, HalfSize)));
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetData(Requests[6]).IsNull());
+	#endif
 
 		CHECK(Response.GetSize(Requests[0]) == HalfSize * 2);
 		CHECK(Response.GetSize(Requests[1]) == HalfSize * 2);
@@ -165,6 +182,18 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetSize(Requests[3]) == HalfSize);
 		CHECK(Response.GetSize(Requests[4]) == HalfSize);
 		CHECK(Response.GetSize(Requests[5]) == HalfSize);
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetSize(Requests[6]) == HalfSize * 2);
+	#endif
+
+	#if WITH_EDITORONLY_DATA
+		const FCompressedBuffer* Compressed = Response.GetCompressedData(Requests[6]);
+		CHECKED_IF(Compressed)
+		{
+			CHECK(Compressed->GetRawHash() == SourceHash);
+			CHECK(Compressed->GetRawSize() == HalfSize * 2);
+		}
+	#endif
 
 		Response.Reset();
 		CHECK(Response.IsNull());
@@ -194,15 +223,18 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 
 		FUniqueBuffer Target = FUniqueBuffer::Alloc(HalfSize);
 		FDerivedDataIoResponse Response;
-		FDerivedDataIoRequest Requests[6];
+		TArray<FDerivedDataIoRequest, TInlineAllocator<7>> Requests;
 		{
 			FDerivedDataIoBatch Batch;
-			Requests[0] = Batch.Read(DerivedData, {});
-			Requests[1] = Batch.Cache(DerivedData, {});
-			Requests[2] = Batch.Exists(DerivedData, {});
-			Requests[3] = Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize));
-			Requests[4] = Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize));
-			Requests[5] = Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2));
+			Requests.Add(Batch.Read(DerivedData, {}));
+			Requests.Add(Batch.Cache(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2)));
+		#if WITH_EDITORONLY_DATA
+			Requests.Add(Batch.Compress(DerivedData));
+		#endif
 			Batch.Dispatch(Response, {}, [&Event] { Event->Trigger(); });
 		}
 		Event->Wait();
@@ -220,6 +252,7 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 				CHECK(*RequestHash == Source.GetRawHash());
 			}
 			CHECK(Response.GetCacheKey(Request) == nullptr);
+			CHECK(Response.GetCacheValueId(Request) == nullptr);
 		}
 
 		CHECK(Response.GetData(Requests[0]).GetSize() == HalfSize * 2);
@@ -228,6 +261,9 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetData(Requests[3]).IsNull());
 		CHECK(Response.GetData(Requests[4]).GetView().EqualBytes(RawSource.GetView().Right(HalfSize)));
 		CHECK(Response.GetData(Requests[5]).GetView().EqualBytes(RawSource.GetView().Mid(HalfSize / 2, HalfSize)));
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetData(Requests[6]).IsNull());
+	#endif
 
 		CHECK(Response.GetSize(Requests[0]) == HalfSize * 2);
 		CHECK(Response.GetSize(Requests[1]) == HalfSize * 2);
@@ -235,9 +271,127 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetSize(Requests[3]) == HalfSize);
 		CHECK(Response.GetSize(Requests[4]) == HalfSize);
 		CHECK(Response.GetSize(Requests[5]) == HalfSize);
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetSize(Requests[6]) == HalfSize * 2);
+	#endif
+
+	#if WITH_EDITORONLY_DATA
+		const FCompressedBuffer* Compressed = Response.GetCompressedData(Requests[6]);
+		CHECKED_IF(Compressed)
+		{
+			CHECK(Compressed->GetRawHash() == Source.GetRawHash());
+			CHECK(Compressed->GetRawSize() == Source.GetRawSize());
+			CHECK(Compressed->GetCompressedSize() == Source.GetCompressedSize());
+			CHECK(Algo::Compare(Compressed->GetCompressed().GetSegments(), Source.GetCompressed().GetSegments()));
+		}
+	#endif
 	}
 
 #if !PLATFORM_MAC
+	SECTION("CacheRecord")
+	{
+		constexpr uint64 HalfSize = 8 * 1024;
+		const FSharedBuffer RawValue = MakeSharedBuffer(Counter, HalfSize * 2);
+		const FValue Value = FValue::Compress(RawValue, HalfSize);
+		const FCacheKey Key{FCacheBucket(ANSITEXTVIEW("Test")), Value.GetRawHash()};
+		const FValueId ValueId = FValueId::FromName(ANSITEXTVIEW("Value"));
+
+		FCacheRecordBuilder RecordBuilder(Key);
+		RecordBuilder.AddValue(ValueId, Value);
+
+		FRequestOwner PutOwner(EPriority::Blocking);
+		GetCache().Put({{{TEXTVIEW("CacheRecord")}, RecordBuilder.Build()}}, PutOwner);
+		PutOwner.Wait();
+
+		const FDerivedData DerivedData(TEXTVIEW("CacheRecord"), Key, ValueId);
+		const FDerivedData DerivedDataCopy(TEXTVIEW("CacheRecordCopy"), Key, ValueId);
+
+		CHECK_FALSE(DerivedData.IsNull());
+		CHECK(DerivedData);
+		CHECK(DerivedData.GetFlags() == EDerivedDataFlags::Required);
+		CHECK(WriteToString<128>(DerivedData).ToView() == WriteToString<128>(TEXTVIEW("Cache: Key "), Key,
+			TEXTVIEW(" ID "), ValueId, TEXTVIEW(" for CacheRecord")));
+		CHECK(DerivedData.ReferenceEquals(DerivedDataCopy));
+		CHECK(DerivedData.ReferenceHash() == DerivedDataCopy.ReferenceHash());
+		CHECK(DerivedData.GetName() == TEXTVIEW("CacheRecord"));
+
+		FEventRef Event;
+
+		FUniqueBuffer Target = FUniqueBuffer::Alloc(HalfSize);
+		FDerivedDataIoResponse Response;
+		TArray<FDerivedDataIoRequest, TInlineAllocator<7>> Requests;
+		{
+			FDerivedDataIoBatch Batch;
+			Requests.Add(Batch.Read(DerivedData, {}));
+			Requests.Add(Batch.Cache(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2)));
+		#if WITH_EDITORONLY_DATA
+			Requests.Add(Batch.Compress(DerivedData));
+		#endif
+			Batch.Dispatch(Response, {}, [&Event] { Event->Trigger(); });
+		}
+		Event->Wait();
+
+		CHECK(Response.Poll());
+		CHECK(Response.Cancel());
+		CHECK(Response.GetOverallStatus() == EDerivedDataIoStatus::Ok);
+
+		for (const FDerivedDataIoRequest& Request : Requests)
+		{
+			CHECK(Response.GetStatus(Request) == EDerivedDataIoStatus::Ok);
+
+			const FIoHash* RequestHash = Response.GetHash(Request);
+			CHECKED_IF(RequestHash)
+			{
+				CHECK(*RequestHash == Value.GetRawHash());
+			}
+
+			const FCacheKey* CacheKey = Response.GetCacheKey(Request);
+			CHECKED_IF(CacheKey)
+			{
+				CHECK(*CacheKey == Key);
+			}
+
+			const FValueId* CacheValueId = Response.GetCacheValueId(Request);
+			CHECKED_IF(CacheValueId)
+			{
+				CHECK(*CacheValueId == ValueId);
+			}
+		}
+
+		CHECK(Response.GetData(Requests[0]).GetSize() == HalfSize * 2);
+		CHECK(Response.GetData(Requests[1]).IsNull());
+		CHECK(Response.GetData(Requests[2]).IsNull());
+		CHECK(Response.GetData(Requests[3]).IsNull());
+		CHECK(Response.GetData(Requests[4]).GetView().EqualBytes(RawValue.GetView().Right(HalfSize)));
+		CHECK(Response.GetData(Requests[5]).GetView().EqualBytes(RawValue.GetView().Mid(HalfSize / 2, HalfSize)));
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetData(Requests[6]).IsNull());
+	#endif
+
+		CHECK(Response.GetSize(Requests[0]) == HalfSize * 2);
+		CHECK(Response.GetSize(Requests[1]) == HalfSize * 2);
+		CHECK(Response.GetSize(Requests[2]) == HalfSize * 2);
+		CHECK(Response.GetSize(Requests[3]) == HalfSize);
+		CHECK(Response.GetSize(Requests[4]) == HalfSize);
+		CHECK(Response.GetSize(Requests[5]) == HalfSize);
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetSize(Requests[6]) == HalfSize * 2);
+	#endif
+
+	#if WITH_EDITORONLY_DATA
+		const FCompressedBuffer* Compressed = Response.GetCompressedData(Requests[6]);
+		CHECKED_IF(Compressed)
+		{
+			CHECK(Compressed->GetRawHash() == Value.GetRawHash());
+			CHECK(Compressed->GetRawSize() == Value.GetRawSize());
+		}
+	#endif
+	}
+
 	SECTION("CacheValue")
 	{
 		constexpr uint64 HalfSize = 4 * 1024;
@@ -265,15 +419,18 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 
 		FUniqueBuffer Target = FUniqueBuffer::Alloc(HalfSize);
 		FDerivedDataIoResponse Response;
-		FDerivedDataIoRequest Requests[6];
+		TArray<FDerivedDataIoRequest, TInlineAllocator<7>> Requests;
 		{
 			FDerivedDataIoBatch Batch;
-			Requests[0] = Batch.Read(DerivedData, {});
-			Requests[1] = Batch.Cache(DerivedData, {});
-			Requests[2] = Batch.Exists(DerivedData, {});
-			Requests[3] = Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize));
-			Requests[4] = Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize));
-			Requests[5] = Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2));
+			Requests.Add(Batch.Read(DerivedData, {}));
+			Requests.Add(Batch.Cache(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, {}));
+			Requests.Add(Batch.Exists(DerivedData, FDerivedDataIoOptions(HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(HalfSize, HalfSize)));
+			Requests.Add(Batch.Read(DerivedData, FDerivedDataIoOptions(Target, HalfSize / 2)));
+		#if WITH_EDITORONLY_DATA
+			Requests.Add(Batch.Compress(DerivedData));
+		#endif
 			Batch.Dispatch(Response, {}, [&Event] { Event->Trigger(); });
 		}
 		Event->Wait();
@@ -285,12 +442,20 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		for (const FDerivedDataIoRequest& Request : Requests)
 		{
 			CHECK(Response.GetStatus(Request) == EDerivedDataIoStatus::Ok);
+
 			const FIoHash* RequestHash = Response.GetHash(Request);
 			CHECKED_IF(RequestHash)
 			{
 				CHECK(*RequestHash == Value.GetRawHash());
 			}
-			CHECK(Response.GetCacheKey(Request) == nullptr);
+
+			const FCacheKey* CacheKey = Response.GetCacheKey(Request);
+			CHECKED_IF(CacheKey)
+			{
+				CHECK(*CacheKey == Key);
+			}
+
+			CHECK(Response.GetCacheValueId(Request) == nullptr);
 		}
 
 		CHECK(Response.GetData(Requests[0]).GetSize() == HalfSize * 2);
@@ -299,6 +464,9 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetData(Requests[3]).IsNull());
 		CHECK(Response.GetData(Requests[4]).GetView().EqualBytes(RawValue.GetView().Right(HalfSize)));
 		CHECK(Response.GetData(Requests[5]).GetView().EqualBytes(RawValue.GetView().Mid(HalfSize / 2, HalfSize)));
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetData(Requests[6]).IsNull());
+	#endif
 
 		CHECK(Response.GetSize(Requests[0]) == HalfSize * 2);
 		CHECK(Response.GetSize(Requests[1]) == HalfSize * 2);
@@ -306,6 +474,18 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetSize(Requests[3]) == HalfSize);
 		CHECK(Response.GetSize(Requests[4]) == HalfSize);
 		CHECK(Response.GetSize(Requests[5]) == HalfSize);
+	#if WITH_EDITORONLY_DATA
+		CHECK(Response.GetSize(Requests[6]) == HalfSize * 2);
+	#endif
+
+	#if WITH_EDITORONLY_DATA
+		const FCompressedBuffer* Compressed = Response.GetCompressedData(Requests[6]);
+		CHECKED_IF(Compressed)
+		{
+			CHECK(Compressed->GetRawHash() == Value.GetRawHash());
+			CHECK(Compressed->GetRawSize() == Value.GetRawSize());
+		}
+	#endif
 	}
 #endif // !PLATFORM_MAC
 #endif // WITH_EDITORONLY_DATA

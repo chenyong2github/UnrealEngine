@@ -189,15 +189,14 @@ uint32 FEditorData::ReferenceHash() const
 
 void FEditorData::Serialize(FArchive& Ar, UObject* Owner) const
 {
-	checkf(Ar.IsSaving() && Ar.IsCooking(), TEXT("FEditorData for FDerivedData only supports saving to cooked packages."));
+	checkf(Ar.IsSaving() && Ar.IsCooking(),
+		TEXT("FEditorData for FDerivedData only supports saving to cooked packages. %s"), *WriteToString<256>(*this));
 
 	struct FVisitor
 	{
 		inline explicit FVisitor(FArchive& Ar)
 			: Linker(Cast<FLinkerSave>(Ar.GetLinker()))
 		{
-			checkf(Linker, TEXT("Serializing FDerivedData requires a linker."));
-			checkf(Ar.IsCooking(), TEXT("Serializing FDerivedData is only supported for cooked packages."));
 		}
 
 		inline void operator()(const FCompositeBufferWithHash& BufferWithHash)
@@ -223,6 +222,7 @@ void FEditorData::Serialize(FArchive& Ar, UObject* Owner) const
 
 	static_assert(sizeof(FIoChunkId) == 12);
 	FVisitor Visitor(Ar);
+	checkf(Visitor.Linker, TEXT("Serializing FDerivedData requires a linker. %s"), *WriteToString<256>(*this));
 	Visit(Visitor);
 
 	Ar << Visitor.ChunkOffset;
@@ -438,6 +438,9 @@ enum class EIoRequestType : uint8
 	Read,
 	Cache,
 	Exists,
+#if WITH_EDITORONLY_DATA
+	Compress,
+#endif
 };
 
 struct FIoChunkState
@@ -454,7 +457,9 @@ struct FIoEditorState
 #if WITH_EDITORONLY_DATA
 	FEditorData EditorData;
 	FCacheKey CacheKey;
+	FValueId CacheValueId;
 	FIoHash Hash;
+	FCompressedBuffer CompressedData;
 
 	inline explicit FIoEditorState(const FEditorData& InEditorData)
 		: EditorData(InEditorData)
@@ -474,8 +479,7 @@ struct FIoRequestState
 
 	inline void SetStatus(EDerivedDataIoStatus NewStatus)
 	{
-		const bool bOk = NewStatus == EDerivedDataIoStatus::Ok;
-		Status.store(NewStatus, bOk ? std::memory_order_release : std::memory_order_relaxed);
+		Status.store(NewStatus, std::memory_order_release);
 	}
 };
 
@@ -537,9 +541,13 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	void DispatchEditor(FIoResponse& Response, FIoRequestState& Request, FIoEditorState& Editor, int32 RequestIndex);
-	static void OnCacheRequestComplete(FIoResponse& Response, FCacheGetChunkResponse&& Chunk);
+	static void OnCacheRecordRequestComplete(FIoResponse& Response, FCacheGetResponse&& CacheResponse);
+	static void OnCacheValueRequestComplete(FIoResponse& Response, FCacheGetValueResponse&& CacheResponse);
+	static void OnCacheChunkRequestComplete(FIoResponse& Response, FCacheGetChunkResponse&& CacheResponse);
 
-	TArray<FCacheGetChunkRequest> CacheRequests;
+	TArray<FCacheGetRequest> CacheRecordRequests;
+	TArray<FCacheGetValueRequest> CacheValueRequests;
+	TArray<FCacheGetChunkRequest> CacheChunkRequests;
 #endif
 
 	FIoBatch Batch;
@@ -730,12 +738,30 @@ void FIoResponseDispatcher::Dispatch(FIoResponse& Response, FDerivedDataIoPriori
 	Dispatcher.Batch.Issue();
 
 #if WITH_EDITORONLY_DATA
-	if (!Dispatcher.CacheRequests.IsEmpty())
+	if (!Dispatcher.CacheRecordRequests.IsEmpty())
 	{
-		GetCache().GetChunks(Dispatcher.CacheRequests, Response.Owner,
-			[Response = &Response](FCacheGetChunkResponse&& Chunk)
+		GetCache().Get(Dispatcher.CacheRecordRequests, Response.Owner,
+			[Response = &Response](FCacheGetResponse&& CacheResponse)
 			{
-				OnCacheRequestComplete(*Response, MoveTemp(Chunk));
+				OnCacheRecordRequestComplete(*Response, MoveTemp(CacheResponse));
+			});
+	}
+
+	if (!Dispatcher.CacheValueRequests.IsEmpty())
+	{
+		GetCache().GetValue(Dispatcher.CacheValueRequests, Response.Owner,
+			[Response = &Response](FCacheGetValueResponse&& CacheResponse)
+			{
+				OnCacheValueRequestComplete(*Response, MoveTemp(CacheResponse));
+			});
+	}
+
+	if (!Dispatcher.CacheChunkRequests.IsEmpty())
+	{
+		GetCache().GetChunks(Dispatcher.CacheChunkRequests, Response.Owner,
+			[Response = &Response](FCacheGetChunkResponse&& CacheResponse)
+			{
+				OnCacheChunkRequestComplete(*Response, MoveTemp(CacheResponse));
 			});
 	}
 #endif
@@ -888,6 +914,17 @@ void FIoResponseDispatcher::DispatchEditor(
 					Response->Owner.LaunchTask(TEXT("DerivedDataCopy"), MoveTemp(Execute));
 				}
 			}
+			else if (Request->Type == EIoRequestType::Compress)
+			{
+				Response->BeginRequest();
+				FRequestBarrier Barrier(Response->Owner);
+				Response->Owner.LaunchTask(TEXT("DerivedDataCompress"), [Response = Response, Request = Request, &BufferWithHash]
+				{
+					Request->State.Get<FIoEditorState>().CompressedData = FValue::Compress(BufferWithHash.Buffer).GetData();
+					Request->SetStatus(EDerivedDataIoStatus::Ok);
+					Response->EndRequest();
+				});
+			}
 			else
 			{
 				Request->SetStatus(EDerivedDataIoStatus::Ok);
@@ -937,6 +974,11 @@ void FIoResponseDispatcher::DispatchEditor(
 					Response->Owner.LaunchTask(TEXT("DerivedDataDecompress"), MoveTemp(Execute));
 				}
 			}
+			else if (Request->Type == EIoRequestType::Compress)
+			{
+				Request->State.Get<FIoEditorState>().CompressedData = Buffer;
+				Request->SetStatus(EDerivedDataIoStatus::Ok);
+			}
 			else
 			{
 				Request->SetStatus(EDerivedDataIoStatus::Ok);
@@ -945,17 +987,49 @@ void FIoResponseDispatcher::DispatchEditor(
 
 		void operator()(const FCacheKeyWithId& CacheKeyWithId) const
 		{
-			FCacheGetChunkRequest& Chunk = Dispatcher->CacheRequests.AddDefaulted_GetRef();
-			Chunk.Name = Editor->EditorData.GetName();
-			Chunk.Key = CacheKeyWithId.Key;
-			Chunk.Id = CacheKeyWithId.Id;
-			Chunk.RawOffset = Request->Options.GetOffset();
-			Chunk.RawSize = Request->Options.GetSize();
-			Chunk.Policy =
-				Request->Type == EIoRequestType::Read  ? (ECachePolicy::Default) :
-				Request->Type == EIoRequestType::Cache ? (ECachePolicy::Default | ECachePolicy::SkipData) :
-				                                         (ECachePolicy::Query   | ECachePolicy::SkipData);
-			Chunk.UserData = uint64(RequestIndex);
+			Editor->CacheKey = CacheKeyWithId.Key;
+			Editor->CacheValueId = CacheKeyWithId.Id;
+
+			if (Request->Type == EIoRequestType::Compress)
+			{
+				if (CacheKeyWithId.Id.IsValid())
+				{
+					// Requesting multiple values from the same record can be optimized by making
+					// one request for the record with a policy that requests each of the values,
+					// rather than one record request for each value.
+
+					FCacheRecordPolicyBuilder Policy(ECachePolicy::None | ECachePolicy::SkipMeta);
+					Policy.AddValuePolicy(CacheKeyWithId.Id, ECachePolicy::Default);
+
+					FCacheGetRequest& CacheRequest = Dispatcher->CacheRecordRequests.AddDefaulted_GetRef();
+					CacheRequest.Name = Editor->EditorData.GetName();
+					CacheRequest.Key = CacheKeyWithId.Key;
+					CacheRequest.Policy = Policy.Build();
+					CacheRequest.UserData = uint64(RequestIndex);
+				}
+				else
+				{
+					FCacheGetValueRequest& CacheRequest = Dispatcher->CacheValueRequests.AddDefaulted_GetRef();
+					CacheRequest.Name = Editor->EditorData.GetName();
+					CacheRequest.Key = CacheKeyWithId.Key;
+					CacheRequest.UserData = uint64(RequestIndex);
+				}
+			}
+			else
+			{
+				FCacheGetChunkRequest& CacheRequest = Dispatcher->CacheChunkRequests.AddDefaulted_GetRef();
+				CacheRequest.Name = Editor->EditorData.GetName();
+				CacheRequest.Key = CacheKeyWithId.Key;
+				CacheRequest.Id = CacheKeyWithId.Id;
+				CacheRequest.RawOffset = Request->Options.GetOffset();
+				CacheRequest.RawSize = Request->Options.GetSize();
+				CacheRequest.Policy =
+					Request->Type == EIoRequestType::Read  ? (ECachePolicy::Default) :
+					Request->Type == EIoRequestType::Cache ? (ECachePolicy::Default | ECachePolicy::SkipData) :
+															 (ECachePolicy::Query   | ECachePolicy::SkipData);
+				CacheRequest.UserData = uint64(RequestIndex);
+			}
+
 			Response->BeginRequest();
 		}
 
@@ -970,14 +1044,37 @@ void FIoResponseDispatcher::DispatchEditor(
 	Editor.EditorData.Visit(Visitor);
 }
 
-void FIoResponseDispatcher::OnCacheRequestComplete(FIoResponse& Response, FCacheGetChunkResponse&& Chunk)
+void FIoResponseDispatcher::OnCacheRecordRequestComplete(FIoResponse& Response, FCacheGetResponse&& CacheResponse)
 {
-	FIoRequestState& Request = Response.Requests[int32(Chunk.UserData)];
+	FIoRequestState& Request = Response.Requests[int32(CacheResponse.UserData)];
 	FIoEditorState& Editor = Request.State.Get<FIoEditorState>();
-	Editor.Hash = Chunk.RawHash;
-	Request.Size = Chunk.RawSize;
-	Request.Data = MoveTemp(Chunk.RawData);
-	Request.SetStatus(ConvertToIoStatus(Chunk.Status));
+	const FValue& Value = CacheResponse.Record.GetValue(Editor.CacheValueId);
+	Editor.CompressedData = Value.GetData();
+	Editor.Hash = Value.GetRawHash();
+	Request.Size = Value.GetRawSize();
+	Request.SetStatus(ConvertToIoStatus(CacheResponse.Status));
+	Response.EndRequest();
+}
+
+void FIoResponseDispatcher::OnCacheValueRequestComplete(FIoResponse& Response, FCacheGetValueResponse&& CacheResponse)
+{
+	FIoRequestState& Request = Response.Requests[int32(CacheResponse.UserData)];
+	FIoEditorState& Editor = Request.State.Get<FIoEditorState>();
+	Editor.CompressedData = CacheResponse.Value.GetData();
+	Editor.Hash = CacheResponse.Value.GetRawHash();
+	Request.Size = CacheResponse.Value.GetRawSize();
+	Request.SetStatus(ConvertToIoStatus(CacheResponse.Status));
+	Response.EndRequest();
+}
+
+void FIoResponseDispatcher::OnCacheChunkRequestComplete(FIoResponse& Response, FCacheGetChunkResponse&& CacheResponse)
+{
+	FIoRequestState& Request = Response.Requests[int32(CacheResponse.UserData)];
+	FIoEditorState& Editor = Request.State.Get<FIoEditorState>();
+	Editor.Hash = CacheResponse.RawHash;
+	Request.Size = CacheResponse.RawSize;
+	Request.Data = MoveTemp(CacheResponse.RawData);
+	Request.SetStatus(ConvertToIoStatus(CacheResponse.Status));
 	Response.EndRequest();
 }
 
@@ -1055,7 +1152,7 @@ const FIoHash* FDerivedDataIoResponse::GetHash(FDerivedDataIoRequest Handle) con
 	using namespace DerivedData::Private;
 	if (FIoRequestState* Request = FIoResponse::TryGetRequest(Response, Handle))
 	{
-		if (Request->Status.load(std::memory_order_relaxed) == EDerivedDataIoStatus::Ok)
+		if (Request->Status.load(std::memory_order_acquire) == EDerivedDataIoStatus::Ok)
 		{
 			if (FIoEditorState* EditorState = Request->State.TryGet<FIoEditorState>())
 			{
@@ -1074,13 +1171,56 @@ const DerivedData::FCacheKey* FDerivedDataIoResponse::GetCacheKey(FDerivedDataIo
 	using namespace DerivedData::Private;
 	if (FIoRequestState* Request = FIoResponse::TryGetRequest(Response, Handle))
 	{
-		if (Request->Status.load(std::memory_order_relaxed) == EDerivedDataIoStatus::Ok)
+		if (Request->Status.load(std::memory_order_acquire) == EDerivedDataIoStatus::Ok)
 		{
 			if (FIoEditorState* EditorState = Request->State.TryGet<FIoEditorState>())
 			{
 				if (EditorState->CacheKey != FCacheKey::Empty)
 				{
 					return &EditorState->CacheKey;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITORONLY_DATA
+const DerivedData::FValueId* FDerivedDataIoResponse::GetCacheValueId(FDerivedDataIoRequest Handle) const
+{
+	using namespace DerivedData;
+	using namespace DerivedData::Private;
+	if (FIoRequestState* Request = FIoResponse::TryGetRequest(Response, Handle))
+	{
+		if (Request->Status.load(std::memory_order_acquire) == EDerivedDataIoStatus::Ok)
+		{
+			if (FIoEditorState* EditorState = Request->State.TryGet<FIoEditorState>())
+			{
+				if (EditorState->CacheValueId != FValueId::Null)
+				{
+					return &EditorState->CacheValueId;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITORONLY_DATA
+const FCompressedBuffer* FDerivedDataIoResponse::GetCompressedData(FDerivedDataIoRequest Handle) const
+{
+	using namespace DerivedData::Private;
+	if (FIoRequestState* Request = FIoResponse::TryGetRequest(Response, Handle))
+	{
+		if (Request->Status.load(std::memory_order_acquire) == EDerivedDataIoStatus::Ok)
+		{
+			if (FIoEditorState* EditorState = Request->State.TryGet<FIoEditorState>())
+			{
+				if (EditorState->CompressedData)
+				{
+					return &EditorState->CompressedData;
 				}
 			}
 		}
@@ -1100,13 +1240,38 @@ FDerivedDataIoRequest FDerivedDataIoBatch::Read(const FDerivedData& Data, const 
 FDerivedDataIoRequest FDerivedDataIoBatch::Cache(const FDerivedData& Data, const FDerivedDataIoOptions& Options)
 {
 	using namespace DerivedData::Private;
+	checkf(!Options.GetTarget(), TEXT("Target is not supported by Cache. %s"), *WriteToString<256>(Data));
 	return FIoResponse::Queue(Response, Data, Options, EIoRequestType::Cache);
 }
 
 FDerivedDataIoRequest FDerivedDataIoBatch::Exists(const FDerivedData& Data, const FDerivedDataIoOptions& Options)
 {
 	using namespace DerivedData::Private;
+	checkf(!Options.GetTarget(), TEXT("Target is not supported by Exists. %s"), *WriteToString<256>(Data));
 	return FIoResponse::Queue(Response, Data, Options, EIoRequestType::Exists);
+}
+
+#if WITH_EDITORONLY_DATA
+FDerivedDataIoRequest FDerivedDataIoBatch::Compress(const FDerivedData& Data)
+{
+	using namespace DerivedData::Private;
+	return FIoResponse::Queue(Response, Data, {}, EIoRequestType::Compress);
+}
+#endif // WITH_EDITORONLY_DATA
+
+void FDerivedDataIoBatch::Dispatch(FDerivedDataIoResponse& OutResponse)
+{
+	Dispatch(OutResponse, {}, {});
+}
+
+void FDerivedDataIoBatch::Dispatch(FDerivedDataIoResponse& OutResponse, FDerivedDataIoPriority Priority)
+{
+	Dispatch(OutResponse, Priority, {});
+}
+
+void FDerivedDataIoBatch::Dispatch(FDerivedDataIoResponse& OutResponse, FDerivedDataIoComplete&& OnComplete)
+{
+	Dispatch(OutResponse, {}, MoveTemp(OnComplete));
 }
 
 void FDerivedDataIoBatch::Dispatch(
