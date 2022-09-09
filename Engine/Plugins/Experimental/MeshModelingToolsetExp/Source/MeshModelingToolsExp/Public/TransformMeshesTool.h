@@ -197,6 +197,8 @@ protected:
 	UE::Geometry::FFrame3d StartDragFrameWorld;
 	FTransform StartDragTransform;
 	int ActiveSnapDragIndex = -1;
+	// Can't just use ActiveSnapDragIndex to replace this bool, because the former gets set while checking for capture
+	bool bCurrentlyDragging = false;
 
 	void OnParametersUpdated();
 };
