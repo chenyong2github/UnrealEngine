@@ -313,6 +313,10 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	};
 
 	FGraphEventArray CompletionPrerequistes;
+	const int32 PoolWorkerThreadCount = FTaskGraphInterface::Get().GetNumWorkerThreads() / 2;
+	const int32 MaxNumWorker = FMath::Max(PoolWorkerThreadCount, 1);
+	FGraphEventArray GroupPrerequistes[2];
+	int32 CurrentGroup = 0;
 	for (int32 TaskIndex = 0; TaskIndex < TaskDatas.Num(); ++TaskIndex)
 	{
 		FTaskData& TaskData = TaskDatas[TaskIndex];
@@ -326,13 +330,23 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				{
 					//Add has prerequisite
 					TaskData.Prerequisites.Add(TaskDatas[DepTaskIndex].GraphEventRef);
+					if (GroupPrerequistes[(CurrentGroup + 1) % 2].Num() >= MaxNumWorker)
+					{
+						TaskData.Prerequisites.Append(GroupPrerequistes[(CurrentGroup + 1) % 2]);
+					}
 				}
 			}
 		}
 
 		TaskData.GraphEventRef = CreateTasksFromData(TaskData);
-		CompletionPrerequistes.Add(TaskData.GraphEventRef);
+		if (GroupPrerequistes[CurrentGroup%2].Num() >= MaxNumWorker)
+		{
+			CurrentGroup++;
+			GroupPrerequistes[CurrentGroup % 2].Reset();
+		}
+		GroupPrerequistes[CurrentGroup%2].Add(TaskData.GraphEventRef);
 	}
+	CompletionPrerequistes.Append(GroupPrerequistes[CurrentGroup % 2]);
 
 	if (!RenameAssets.IsEmpty())
 	{

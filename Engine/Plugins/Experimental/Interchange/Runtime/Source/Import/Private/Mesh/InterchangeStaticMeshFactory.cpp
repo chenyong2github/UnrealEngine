@@ -1278,7 +1278,11 @@ bool UInterchangeStaticMeshFactory::GenerateKDopCollision(const FCreateAssetPara
 	}
 
 	// Construct temporary UModel for kdop creation.
-	UModel* TempModel = NewObject<UModel>();
+	UModel* TempModel = nullptr;
+	{
+		FGCScopeGuard GCScopeGuard;
+		TempModel = NewObject<UModel>();
+	}
 	TempModel->RootOutside = true;
 	TempModel->EmptyModel(true, true);
 	TempModel->Polys->ClearFlags(RF_Transactional);
