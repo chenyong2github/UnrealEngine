@@ -5136,7 +5136,7 @@ void UClass::Serialize( FArchive& Ar )
 
 	if( Ar.IsLoading() )
 	{
-		if (ClassDefaultObject == NULL)
+		if (ClassDefaultObject == nullptr)
 		{
 			check(GConfig);
 			if (GEventDrivenLoaderEnabled || Ar.IsLoadingFromCookedPackage())
@@ -5147,10 +5147,20 @@ void UClass::Serialize( FArchive& Ar )
 			}
 			else if( !Ar.HasAnyPortFlags(PPF_DuplicateForPIE|PPF_Duplicate) )
 			{
-				UE_LOG(LogClass, Error, TEXT("CDO for class %s did not load!"), *GetPathName());
-				ensure(ClassDefaultObject != NULL);
-				ClassDefaultObject = GetDefaultObject();
-				Ar.ForceBlueprintFinalization();
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+				// Blueprint CDO serialization is deferred (see FLinkerLoad::CreateExport).
+				const FLinkerLoad* LinkerLoad = Cast<FLinkerLoad>(Ar.GetLinker());
+				const bool bHasDeferredCDOSerialization = HasAnyClassFlags(CLASS_CompiledFromBlueprint)
+					&& GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading)
+					&& LinkerLoad && LinkerLoad->IsBlueprintFinalizationPending();
+				if (!bHasDeferredCDOSerialization)
+#endif	// USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+				{
+					UE_LOG(LogClass, Error, TEXT("CDO for class %s did not load!"), *GetPathName());
+					ensure(ClassDefaultObject != nullptr);
+					ClassDefaultObject = GetDefaultObject();
+					Ar.ForceBlueprintFinalization();
+				}
 			}
 		}
 	}

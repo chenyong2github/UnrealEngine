@@ -4923,6 +4923,24 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			}
 		}
 
+		const bool bIsBlueprintCDO = ((Export.ObjectFlags & RF_ClassDefaultObject) != 0) && LoadClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint) &&
+			LoadClass->GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading);
+
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+		const bool bDeferCDOSerialization = bIsBlueprintCDO && ((LoadFlags & LOAD_DeferDependencyLoads) != 0);
+		if (bDeferCDOSerialization)
+		{
+			// if LOAD_DeferDependencyLoads is set, then we're already
+			// serializing the blueprint's class somewhere up the chain... 
+			// we don't want the class regenerated while it in the middle of
+			// serializing. we also don't want to construct the CDO yet,
+			// as that may depend on other deferred imports which may not
+			// be fully resolved (e.g. default subobject class overrides).
+			DeferredCDOIndex = Index;
+			return Export.Object;
+		}
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+
 		LoadClass->GetDefaultObject();
 
 		FStaticConstructObjectParameters Params(LoadClass);
@@ -4954,18 +4972,10 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		
 		if( Export.Object )
 		{
-			bool const bIsBlueprintCDO = ((Export.ObjectFlags & RF_ClassDefaultObject) != 0) && LoadClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint) &&
-				LoadClass->GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading);
-
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-			const bool bDeferCDOSerialization = bIsBlueprintCDO && ((LoadFlags & LOAD_DeferDependencyLoads) != 0);
-			if (bDeferCDOSerialization)			
+			if (bIsBlueprintCDO && IsBlueprintFinalizationPending())
 			{
-				// if LOAD_DeferDependencyLoads is set, then we're already
-				// serializing the blueprint's class somewhere up the chain... 
-				// we don't want the class regenerated while it in the middle of
-				// serializing
-				DeferredCDOIndex = Index;
+				// Class regeneration is deferred until Blueprint finalization, so just return the CDO.
 				return Export.Object;
 			}
 			else 

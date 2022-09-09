@@ -1985,6 +1985,16 @@ void FLinkerLoad::ResolveDeferredExports(UClass* LoadClass)
 
 	DEFERRED_DEPENDENCY_CHECK(DeferredCDOIndex != INDEX_NONE || bForceBlueprintFinalization);
 
+	// Handle deferred construction of the CDO and patch it into the export table. Any deferred ctor
+	// initializer dependencies (e.g. subobject class overrides) should now be resolved at this point.
+	if (DeferredCDOIndex != INDEX_NONE && !ExportMap[DeferredCDOIndex].Object)
+	{
+		// Note: We could just call GetDefaultObject() here, but then we'd also need to set object
+		// flags on it to ensure that it gets serialized later. For consistency/safety, this routes
+		// through CreateExport() so that we don't have to worry about keeping object flags in sync.
+		CreateExport(DeferredCDOIndex);
+	}
+
 	UObject* BlueprintCDO = DeferredCDOIndex != INDEX_NONE ? ExportMap[DeferredCDOIndex].Object : LoadClass->ClassDefaultObject;
 	DEFERRED_DEPENDENCY_CHECK(BlueprintCDO != nullptr);
 	
