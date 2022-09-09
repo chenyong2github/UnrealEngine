@@ -2077,6 +2077,7 @@ static void AddPass_Binning(
 FBinningData AddPass_Rasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
+	const FNaniteVisibilityResults& VisibilityResults,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
@@ -2265,7 +2266,7 @@ FBinningData AddPass_Rasterize(
 
 	if (bProgrammableRaster)
 	{
-		const auto& Pipelines = RasterPipelines.GetRasterPipelineMap();
+		const FNaniteRasterPipelineMap& Pipelines = RasterPipelines.GetRasterPipelineMap();
 		const uint32 RegularBinCount = RasterPipelines.GetRegularBinCount();
 
 		RasterizerPasses.Reserve(Pipelines.Num());
@@ -2273,6 +2274,12 @@ FBinningData AddPass_Rasterize(
 		{
 			auto& RasterBin = *RasterBinIter;
 			const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
+
+			// Test for visibility
+			if (!VisibilityResults.IsRasterBinVisible(RasterEntry.BinIndex))
+			{
+				continue;
+			}
 
 			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
 			RasterizerPass.RasterizerBin = uint32(FNaniteRasterPipelines::TranslateBinIndex(RasterEntry.BinIndex, RegularBinCount));
@@ -2732,6 +2739,7 @@ static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalSha
 static void CullRasterizeMultiPass(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
+	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -2790,6 +2798,7 @@ static void CullRasterizeMultiPass(
 		CullRasterize(
 			GraphBuilder,
 			RasterPipelines,
+			VisibilityResults,
 			Scene,
 			SceneView,
 			RangeViews,
@@ -2808,6 +2817,7 @@ static void CullRasterizeMultiPass(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
+	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -2831,6 +2841,7 @@ void CullRasterize(
 		CullRasterizeMultiPass(
 			GraphBuilder,
 			RasterPipelines,
+			VisibilityResults,
 			Scene,
 			SceneView,
 			Views,
@@ -3083,6 +3094,7 @@ void CullRasterize(
 		MainPassBinning = AddPass_Rasterize(
 			GraphBuilder,
 			RasterPipelines,
+			VisibilityResults,
 			Views,
 			Scene,
 			SceneView,
@@ -3179,6 +3191,7 @@ void CullRasterize(
 		PostPassBinning = AddPass_Rasterize(
 			GraphBuilder,
 			RasterPipelines,
+			VisibilityResults,
 			Views,
 			Scene,
 			SceneView,
@@ -3229,6 +3242,7 @@ void CullRasterize(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
+	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -3243,6 +3257,7 @@ void CullRasterize(
 	CullRasterize(
 		GraphBuilder,
 		RasterPipelines,
+		VisibilityResults,
 		Scene,
 		SceneView,
 		Views,

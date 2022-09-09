@@ -595,24 +595,22 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 				}
 
 				TArray<Nanite::FSceneProxyBase::FMaterialSection>& NaniteMaterialSections = NaniteProxy->GetMaterialSections();
-				for (int32 MaterialSectionIndex = 0; MaterialSectionIndex < NaniteMaterialSections.Num(); ++MaterialSectionIndex)
+				if (NaniteMaterialSections.Num() > 0)
 				{
-					Nanite::FSceneProxyBase::FMaterialSection& MaterialSection = NaniteMaterialSections[MaterialSectionIndex];
-					check(MaterialSection.RasterMaterialProxy != nullptr);
+					FNaniteDrawListContext::FDeferredPipelines& PipelinesCommand = DrawListContext.DeferredPipelines[MeshPass].Emplace_GetRef();
+					PipelinesCommand.PrimitiveSceneInfo = PrimitiveSceneInfo;
+					for (int32 MaterialSectionIndex = 0; MaterialSectionIndex < NaniteMaterialSections.Num(); ++MaterialSectionIndex)
+					{
+						Nanite::FSceneProxyBase::FMaterialSection& MaterialSection = NaniteMaterialSections[MaterialSectionIndex];
+						check(MaterialSection.RasterMaterialProxy != nullptr);
 
-					FNaniteRasterPipeline RasterPipeline{};
-					RasterPipeline.RasterMaterial	=   MaterialSection.RasterMaterialProxy;
-					RasterPipeline.bIsTwoSided		= !!MaterialSection.MaterialRelevance.bTwoSided;
-					// TODO: test PDO when supported
-					RasterPipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked;
-
-					DrawListContext.DeferredPipelines[MeshPass].Add(
-						FNaniteDrawListContext::FDeferredPipeline{
-							PrimitiveSceneInfo,
-							RasterPipeline,
-							uint8(MaterialSectionIndex)
-						}
-					);
+						FNaniteDrawListContext::FDeferredPipeline& Pipeline = PipelinesCommand.Pipelines.Emplace_GetRef();
+						Pipeline.RasterPipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
+						Pipeline.RasterPipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
+						// TODO: test PDO when supported
+						Pipeline.RasterPipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked;
+						Pipeline.SectionIndex = uint8(MaterialSectionIndex);
+					}
 				}
 			};
 
@@ -651,6 +649,7 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 	{
 		FNaniteMaterialCommands& ShadingCommands = Scene->NaniteMaterials[NaniteMeshPassIndex];
 		FNaniteRasterPipelines& RasterPipelines = Scene->NaniteRasterPipelines[NaniteMeshPassIndex];
+		FNaniteVisibility& Visibility = Scene->NaniteVisibility[NaniteMeshPassIndex];
 
 		TArray<FNaniteCommandInfo>& NanitePassCommandInfo = NaniteCommandInfos[NaniteMeshPassIndex];
 		for (int32 CommandIndex = 0; CommandIndex < NanitePassCommandInfo.Num(); ++CommandIndex)
@@ -665,6 +664,8 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 			const FNaniteRasterBin& RasterBin = NanitePassRasterBins[RasterBinIndex];
 			RasterPipelines.Unregister(RasterBin);
 		}
+
+		Visibility.PrimitiveReferences.Remove(this);
 
 		NanitePassRasterBins.Reset();
 		NanitePassCommandInfo.Reset();

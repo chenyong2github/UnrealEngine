@@ -172,6 +172,7 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 	{
 		FNaniteMaterialCommands& ShadingCommands = Scene.NaniteMaterials[MeshPass];
 		FNaniteRasterPipelines& RasterPipelines  = Scene.NaniteRasterPipelines[MeshPass];
+		FNaniteVisibility& Visibility = Scene.NaniteVisibility[MeshPass];
 
 		for (auto& Command : DeferredCommands[MeshPass])
 		{
@@ -183,13 +184,23 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = Command.PrimitiveSceneInfo;
 			FNaniteCommandInfo CommandInfo = ShadingCommands.Register(Command.MeshDrawCommand, Command.CommandHash, InstructionCount);
 			AddShadingCommand(*PrimitiveSceneInfo, CommandInfo, ENaniteMeshPass::Type(MeshPass), Command.SectionIndex);
+
+			FNaniteVisibility::FPrimitiveReferences& PrimitiveReferences = Visibility.PrimitiveReferences.FindOrAdd(PrimitiveSceneInfo);
+			PrimitiveReferences.ShadingDraws.Add(Command.CommandHash.AsUInt());
 		}
 
-		for (auto& Pipeline : DeferredPipelines[MeshPass])
+		for (const FDeferredPipelines& PipelinesCommand : DeferredPipelines[MeshPass])
 		{
-			FPrimitiveSceneInfo* PrimitiveSceneInfo = Pipeline.PrimitiveSceneInfo;
-			const FNaniteRasterBin RasterBin = RasterPipelines.Register(Pipeline.RasterPipeline);
-			AddRasterBin(*PrimitiveSceneInfo, RasterBin, ENaniteMeshPass::Type(MeshPass), Pipeline.SectionIndex);
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = PipelinesCommand.PrimitiveSceneInfo;
+			FNaniteVisibility::FPrimitiveReferences& PrimitiveReferences = Visibility.PrimitiveReferences.FindOrAdd(PrimitiveSceneInfo);
+			check(PrimitiveReferences.RasterBins.Num() == 0);
+
+			for (const FDeferredPipeline& Pipeline : PipelinesCommand.Pipelines)
+			{
+				const FNaniteRasterBin RasterBin = RasterPipelines.Register(Pipeline.RasterPipeline);
+				AddRasterBin(*PrimitiveSceneInfo, RasterBin, ENaniteMeshPass::Type(MeshPass), Pipeline.SectionIndex);
+				PrimitiveReferences.RasterBins.Add(RasterBin.BinIndex);
+			}
 		}
 	}
 }
@@ -548,6 +559,7 @@ public:
 void BuildNaniteMaterialPassCommands(
 	const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo,
 	const FNaniteMaterialCommands& MaterialCommands,
+	const FNaniteVisibilityResults& VisibilityResults,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildNaniteMaterialPassCommands);
@@ -561,6 +573,12 @@ void BuildNaniteMaterialPassCommands(
 	{
 		auto& Command = *Iter;
 		const FMeshDrawCommand& MeshDrawCommand = Command.Key;
+
+		if (!VisibilityResults.IsShadingDrawVisible(FNaniteMaterialEntryMap::ComputeHash(MeshDrawCommand).AsUInt()))
+		{
+			continue;
+		}
+
 		FNaniteMaterialPassCommand PassCommand(MeshDrawCommand);
 		const int32 MaterialId = Iter.GetElementId().GetIndex();
 
@@ -606,6 +624,10 @@ void DrawNaniteMaterialPasses(
 	FRDGBuffer* MaterialIndirectArgs,
 	TArrayView<FNaniteMaterialPassCommand const> MaterialPassCommands)
 {
+	if (MaterialPassCommands.IsEmpty())
+	{
+		return;
+	}
 	check(!MaterialPassCommands.IsEmpty());
 
 	MaterialIndirectArgs->MarkResourceAsUsed();

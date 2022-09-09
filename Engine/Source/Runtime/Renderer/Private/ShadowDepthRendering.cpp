@@ -1442,9 +1442,12 @@ static void RenderShadowDepthAtlasNanite(
 		{
 			Nanite::FRasterState RasterState;
 
+			FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
+
 			Nanite::CullRasterize(
 				GraphBuilder,
 				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+				VisibilityResults,
 				Scene,
 				SceneView,
 				PackedViews,
@@ -1733,6 +1736,8 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 						RasterState.bNearClip = false;
 					}
 
+					FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
+
 					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 					CullingConfig.bUpdateStreaming		= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 					CullingConfig.bTwoPassOcclusion		= VirtualShadowMapArray.UseTwoPassHzbOcclusion();
@@ -1753,6 +1758,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 					Nanite::CullRasterize(
 						GraphBuilder,
 						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+						VisibilityResults,
 						*Scene,
 						SceneView,
 						VirtualShadowViews,
@@ -1961,6 +1967,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, *Scene, PrevHZB, ShadowViewRect, CullingConfig);
 					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, TargetSize, false, Nanite::EOutputBufferMode::DepthOnly);
 
+					FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
+
 					// Setup packed view
 					TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
 					{
@@ -1988,6 +1996,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					Nanite::CullRasterize(
 						GraphBuilder,
 						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+						VisibilityResults,
 						*Scene,
 						SceneView,
 						PackedViews,

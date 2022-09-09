@@ -2731,6 +2731,9 @@ public:
 	/** Nanite raster material pipelines. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
 	FNaniteRasterPipelines NaniteRasterPipelines[ENaniteMeshPass::Num];
 
+	/** Nanite material visibility references. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
+	FNaniteVisibility NaniteVisibility[ENaniteMeshPass::Num];
+
 	/**
 	 * The following arrays are densely packed primitive data needed by various
 	 * rendering passes. PrimitiveSceneInfo->PackedIndex maintains the index

@@ -16,12 +16,55 @@
 #include "Lumen/LumenSceneRendering.h"
 #include "Strata/Strata.h"
 
-
 DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 END_SHADER_PARAMETER_STRUCT()
+
+static int32 GNaniteMaterialVisibility = 1;
+static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
+	TEXT("r.Nanite.MaterialVisibility"),
+	GNaniteMaterialVisibility,
+	TEXT("Whether to enable Nanite material visibility tests"),
+	ECVF_RenderThreadSafe
+);
+
+static int32 GNaniteMaterialVisibilityAsync = 1;
+static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityAsync(
+	TEXT("r.Nanite.MaterialVisibility.Async"),
+	GNaniteMaterialVisibilityAsync,
+	TEXT("Whether to enable parallelization of Nanite material visibility tests"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GNaniteMaterialVisibilityPrimitives = 1;
+static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityPrimitives(
+	TEXT("r.Nanite.MaterialVisibility.Primitives"),
+	GNaniteMaterialVisibilityPrimitives,
+	TEXT("")
+);
+
+int32 GNaniteMaterialVisibilityInstances = 1;
+static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityInstances(
+	TEXT("r.Nanite.MaterialVisibility.Instances"),
+	GNaniteMaterialVisibilityInstances,
+	TEXT("")
+);
+
+int32 GNaniteMaterialVisibilityRasterBins = 1;
+static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityRasterBins(
+	TEXT("r.Nanite.MaterialVisibility.RasterBins"),
+	GNaniteMaterialVisibilityRasterBins,
+	TEXT("")
+);
+
+int32 GNaniteMaterialVisibilityShadingDraws = 1;
+static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityShadingDraws(
+	TEXT("r.Nanite.MaterialVisibility.ShadingDraws"),
+	GNaniteMaterialVisibilityShadingDraws,
+	TEXT("")
+);
 
 int32 GNaniteResummarizeHTile = 1;
 static FAutoConsoleVariableRef CVarNaniteResummarizeHTile(
@@ -497,6 +540,8 @@ void DrawBasePass(
 
 	if (NumMaterialCommands > 0)
 	{
+		const FNaniteVisibilityResults& VisibilityResults = RasterResults.VisibilityResults;
+
 		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
 		PassParameters->MaterialIndirectArgs = MaterialIndirectArgs;
 
@@ -553,9 +598,9 @@ void DrawBasePass(
 			MaterialDepthStencil
 		);
 
-		GraphBuilder.AddSetupTask([PassParameters, &MaterialCommands, &MaterialPassCommands]
+		GraphBuilder.AddSetupTask([PassParameters, &MaterialCommands, &MaterialPassCommands, &RasterResults]
 		{
-			BuildNaniteMaterialPassCommands(ExtractRenderTargetsInfo(PassParameters->RenderTargets), MaterialCommands, MaterialPassCommands);
+			BuildNaniteMaterialPassCommands(ExtractRenderTargetsInfo(PassParameters->RenderTargets), MaterialCommands, RasterResults.VisibilityResults, MaterialPassCommands);
 		});
 
 		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(View.ShaderMap);
@@ -1604,5 +1649,341 @@ void FNaniteRasterPipelines::Unregister(const FNaniteRasterBin& InRasterBin)
 	{
 		ReleaseBin(RasterEntry.BinIndex);
 		PipelineMap.RemoveByElementId(RasterBinId);
+	}
+}
+
+struct FNaniteVisibilityQuery
+{
+	FGraphEventRef			CompletedEvent;
+	TArray<FConvexVolume>	Views;
+	TArray<TAtomic<bool>>	RasterBinVisibility;
+	TSet<uint32>			ShadingDrawVisibility;
+	FCriticalSection		ShadingDrawCriticalSection;
+	uint32 RasterBinCount;
+	uint32 ShadingDrawCount;
+	uint8 bFinished			: 1; 
+	uint8 bCullRasterBins	: 1;
+	uint8 bCullShadingBins	: 1;
+};
+
+bool FNaniteVisibilityResults::IsRasterBinVisible(uint16 BinIndex) const
+{
+	return IsRasterTestValid() ? RasterBinVisibility[int32(BinIndex)] : true;
+}
+
+bool FNaniteVisibilityResults::IsShadingDrawVisible(uint32 DrawId) const
+{
+	return IsShadingTestValid() ? ShadingDrawVisibility.Contains(DrawId) : true;
+}
+
+void FNaniteVisibilityResults::Invalidate()
+{
+	bRasterTestValid	= false;
+	bShadingTestValid	= false;
+	VisibleRasterBins	= 0;
+	VisibleShadingDraws	= 0;
+	RasterBinVisibility.Reset();
+	ShadingDrawVisibility.Reset();
+}
+
+static FORCEINLINE bool IsVisibilityTestNeeded(const FNaniteVisibilityQuery* Query, const FNaniteVisibility::FPrimitiveReferences& References)
+{
+	bool bShouldTest = false;
+
+	for (const uint16& RasterBinIndex : References.RasterBins)
+	{
+		if (!Query->RasterBinVisibility[int32(RasterBinIndex)]) // Raster bin reference is not marked visible
+		{
+			bShouldTest = true;
+			break;
+		}
+	}
+
+	if (!bShouldTest)
+	{
+		for (const uint32& ShadingDrawId : References.ShadingDraws)
+		{
+			if (!Query->ShadingDrawVisibility.Contains(ShadingDrawId)) // Shading draw reference is not present
+			{
+				bShouldTest = true;
+				break;
+			}
+		}
+	}
+
+	return bShouldTest;
+}
+
+static FORCEINLINE bool IsNanitePrimitiveVisible(const FNaniteVisibilityQuery* Query, const FPrimitiveSceneInfo* SceneInfo)
+{
+	FPrimitiveSceneProxy* SceneProxy = SceneInfo->Proxy;
+	if (!SceneProxy || SceneInfo->Scene == nullptr || !SceneInfo->IsIndexValid())
+	{
+		return false;
+	}
+
+	bool bPrimitiveVisible = true;
+	
+	if (GNaniteMaterialVisibilityPrimitives != 0)
+	{
+		bPrimitiveVisible = false;
+
+		const FBoxSphereBounds& ProxyBounds = SceneInfo->Scene->PrimitiveBounds[SceneInfo->GetIndex()].BoxSphereBounds; // World space bounds
+
+		for (const FConvexVolume& View : Query->Views)
+		{
+			bPrimitiveVisible = View.IntersectBox(ProxyBounds.Origin, ProxyBounds.BoxExtent);
+			if (bPrimitiveVisible)
+			{
+				break;
+			}
+		}
+	}
+
+	if (bPrimitiveVisible && GNaniteMaterialVisibilityInstances != 0)
+	{
+		bPrimitiveVisible = false;
+
+		const FMatrix& PrimitiveToWorld = SceneInfo->Scene->PrimitiveTransforms[SceneInfo->GetIndex()];
+		const TConstArrayView<FPrimitiveInstance> InstanceSceneData = SceneProxy->GetInstanceSceneData();
+
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+		{
+			const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
+			const FMatrix InstanceToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
+			const FBox InstanceBounds = SceneProxy->GetInstanceLocalBounds(InstanceIndex).ToBox();
+			const FBoxSphereBounds InstanceWorldBounds = FBoxSphereBounds(InstanceBounds.TransformBy(InstanceToWorld));
+
+			for (const FConvexVolume& View : Query->Views)
+			{
+				bPrimitiveVisible = View.IntersectBox(InstanceWorldBounds.Origin, InstanceWorldBounds.BoxExtent);
+				if (bPrimitiveVisible)
+				{
+					break;
+				}
+			}
+
+			if (bPrimitiveVisible)
+			{
+				break;
+			}
+		}
+	}
+
+	return bPrimitiveVisible;
+}
+
+static void PerformNaniteVisibility(const FNaniteVisibility::PrimitiveMapType& PrimitiveReferences, FNaniteVisibilityQuery* Query)
+{
+	SCOPED_NAMED_EVENT(PerformNaniteVisibility, FColor::Magenta);
+
+	struct FNaniteVisibilityWorkItem
+	{
+		const FPrimitiveSceneInfo* SceneInfo = nullptr;
+		const FNaniteVisibility::FPrimitiveReferences* References = nullptr;
+	};
+
+	TArray<FNaniteVisibilityWorkItem, SceneRenderingAllocator> WorkItems;
+	WorkItems.Reserve(PrimitiveReferences.Num());
+
+	for (FNaniteVisibility::PrimitiveMapType::TConstIterator It(PrimitiveReferences); It; ++It)
+	{
+		FNaniteVisibilityWorkItem WorkItem;
+		WorkItem.SceneInfo = It->Key;
+		WorkItem.References = &It->Value;
+		WorkItems.Emplace(WorkItem);
+	}
+
+	const bool bRunAsync = GNaniteMaterialVisibilityAsync != 0;
+	if (bRunAsync)
+	{
+		ParallelForTemplate(WorkItems.Num(), [Query, &WorkItems](int32 WorkItemIndex)
+		{
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			SCOPED_NAMED_EVENT(PerformNaniteVisibility, FColor::Magenta);
+
+			FNaniteVisibilityWorkItem& WorkItem = WorkItems[WorkItemIndex];
+
+			const bool bShouldTest = IsVisibilityTestNeeded(Query, *WorkItem.References);
+			if (bShouldTest)
+			{
+				const bool bPrimitiveVisible = IsNanitePrimitiveVisible(Query, WorkItem.SceneInfo);
+				if (bPrimitiveVisible)
+				{
+					if (Query->bCullRasterBins)
+					{
+						for (const uint16 RasterBinIndex : WorkItem.References->RasterBins)
+						{
+							Query->RasterBinVisibility[int32(RasterBinIndex)].Store(true);
+						}
+					}
+
+					if (Query->bCullShadingBins)
+					{
+						FScopeLock ScopeLock(&Query->ShadingDrawCriticalSection); // TODO: Improve
+						Query->ShadingDrawVisibility.Append(WorkItem.References->ShadingDraws);
+					}
+				}
+			}
+		});
+	}
+	else
+	{
+		for (const FNaniteVisibilityWorkItem& WorkItem : WorkItems)
+		{
+			const bool bShouldTest = IsVisibilityTestNeeded(Query, *WorkItem.References);
+			if (bShouldTest)
+			{
+				const bool bPrimitiveVisible = IsNanitePrimitiveVisible(Query, WorkItem.SceneInfo);
+				if (bPrimitiveVisible)
+				{
+					if (Query->bCullRasterBins)
+					{
+						for (const uint16 RasterBinIndex : WorkItem.References->RasterBins)
+						{
+							Query->RasterBinVisibility[int32(RasterBinIndex)] = true;
+						}
+					}
+
+					if (Query->bCullShadingBins)
+					{
+						Query->ShadingDrawVisibility.Append(WorkItem.References->ShadingDraws);
+					}
+				}
+			}
+		}
+	}
+}
+
+class FNaniteVisibilityTask
+{
+public:
+	explicit FNaniteVisibilityTask(const FNaniteVisibility& InVisibility, FNaniteVisibilityQuery* InQuery)
+	: Visibility(InVisibility)
+	, Query(InQuery)
+	{
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		PerformNaniteVisibility(Visibility.PrimitiveReferences, Query);
+	}
+
+public:
+	const FNaniteVisibility& Visibility;
+	FNaniteVisibilityQuery* Query = nullptr;
+	static ESubsequentsMode::Type	GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+	ENamedThreads::Type				GetDesiredThread() { return ENamedThreads::AnyNormalThreadNormalTask; }
+	FORCEINLINE TStatId				GetStatId() const { return TStatId(); }
+};
+
+FNaniteVisibility::FNaniteVisibility()
+: bCalledBegin(false)
+{
+}
+
+void FNaniteVisibility::BeginVisibilityFrame()
+{
+	check(VisibilityQueries.Num() == 0);
+	check(!bCalledBegin);
+	bCalledBegin = true;
+}
+
+void FNaniteVisibility::FinishVisibilityFrame()
+{
+	check(bCalledBegin);
+
+	for (FNaniteVisibilityQuery* Query : VisibilityQueries)
+	{
+		check(Query->bFinished);
+		delete Query;
+	}
+
+	VisibilityQueries.Reset();
+	bCalledBegin = false;
+}
+
+FNaniteVisibilityQuery* FNaniteVisibility::BeginVisibilityQuery(
+	const TConstArrayView<FConvexVolume>& ViewList,
+	const class FNaniteRasterPipelines* RasterPipelines,
+	const class FNaniteMaterialCommands* MaterialCommands
+)
+{
+	const uint32 RasterBinCount = RasterPipelines != nullptr ? RasterPipelines->GetBinCount() : 0u;
+	const uint32 ShadingDrawCount = MaterialCommands != nullptr ? MaterialCommands->GetCommands().Num() : 0u;
+
+	if ((RasterBinCount + ShadingDrawCount == 0u) || ViewList.Num() == 0 || GNaniteMaterialVisibility == 0)
+	{
+		// Nothing to do
+		return nullptr;
+	}
+
+	const bool bRunAsync = GNaniteMaterialVisibilityAsync != 0;
+
+	FNaniteVisibilityQuery* VisibilityQuery = new FNaniteVisibilityQuery;
+	VisibilityQuery->Views = ViewList;
+	VisibilityQuery->bCullRasterBins  = RasterPipelines != nullptr && GNaniteMaterialVisibilityRasterBins != 0;
+	VisibilityQuery->bCullShadingBins = MaterialCommands != nullptr && GNaniteMaterialVisibilityShadingDraws != 0;
+	VisibilityQuery->RasterBinCount   = RasterBinCount;
+	VisibilityQuery->ShadingDrawCount = ShadingDrawCount;
+
+	VisibilityQuery->RasterBinVisibility.SetNum(RasterBinCount);
+	for (uint32 RasterBinIndex = 0; RasterBinIndex < RasterBinCount; ++RasterBinIndex)
+	{
+		VisibilityQuery->RasterBinVisibility[int32(RasterBinIndex)] = false;
+	}
+
+	VisibilityQuery->ShadingDrawVisibility.Reserve(ShadingDrawCount);
+	VisibilityQueries.Emplace(VisibilityQuery);
+
+	VisibilityQuery->bFinished = false;
+	VisibilityQuery->CompletedEvent = bRunAsync ? TGraphTask<FNaniteVisibilityTask>::CreateTask().ConstructAndDispatchWhenReady(*this, VisibilityQuery) : nullptr;
+	return VisibilityQuery;
+}
+
+void FNaniteVisibility::FinishVisibilityQuery(FNaniteVisibilityQuery* Query, FNaniteVisibilityResults& OutResults) const
+{
+	OutResults.Invalidate();
+
+	if (Query != nullptr)
+	{
+		check(!Query->bFinished);
+
+		if (Query->CompletedEvent.IsValid())
+		{
+			SCOPED_NAMED_EVENT_TEXT("EndPerformNaniteVisibility", FColor::Magenta);
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(Query->CompletedEvent, ENamedThreads::GetRenderThread_Local());
+		}
+		else
+		{
+			PerformNaniteVisibility(PrimitiveReferences, Query);
+		}
+
+		OutResults.bRasterTestValid  = Query->bCullRasterBins;
+		OutResults.bShadingTestValid = Query->bCullShadingBins;
+
+		if (OutResults.bRasterTestValid)
+		{
+			OutResults.RasterBinVisibility.Init(false, Query->RasterBinVisibility.Num());
+			for (int32 RasterBinIndex = 0; RasterBinIndex < Query->RasterBinVisibility.Num(); ++RasterBinIndex)
+			{
+				if (Query->RasterBinVisibility[RasterBinIndex])
+				{
+					OutResults.RasterBinVisibility[RasterBinIndex] = true;
+					++OutResults.VisibleRasterBins;
+				}
+			}
+		}
+
+		if (OutResults.bShadingTestValid)
+		{
+			OutResults.ShadingDrawVisibility = Query->ShadingDrawVisibility.Array();
+			OutResults.VisibleShadingDraws = OutResults.ShadingDrawVisibility.Num();
+		}
+
+		OutResults.TotalRasterBins = Query->RasterBinCount;
+		OutResults.TotalShadingDraws = Query->ShadingDrawCount;
+
+		Query->bFinished = true;
 	}
 }

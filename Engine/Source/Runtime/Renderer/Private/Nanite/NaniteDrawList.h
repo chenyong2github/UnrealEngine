@@ -26,9 +26,14 @@ public:
 
 	struct FDeferredPipeline
 	{
-		FPrimitiveSceneInfo* PrimitiveSceneInfo;
 		FNaniteRasterPipeline RasterPipeline;
 		uint8 SectionIndex;
+	};
+
+	struct FDeferredPipelines
+	{
+		FPrimitiveSceneInfo* PrimitiveSceneInfo;
+		TArray<FDeferredPipeline, TInlineAllocator<4>> Pipelines;
 	};
 
 public:
@@ -106,7 +111,7 @@ private:
 
 public:
 	TArray<FDeferredCommand> DeferredCommands[ENaniteMeshPass::Num];
-	TArray<FDeferredPipeline> DeferredPipelines[ENaniteMeshPass::Num];
+	TArray<FDeferredPipelines> DeferredPipelines[ENaniteMeshPass::Num];
 };
 
 class FNaniteMeshProcessor : public FSceneRenderingAllocatorObject<FNaniteMeshProcessor>, public FMeshPassProcessor
@@ -150,6 +155,7 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 void BuildNaniteMaterialPassCommands(
 	const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo,
 	const FNaniteMaterialCommands& MaterialCommands,
+	const FNaniteVisibilityResults& VisibilityResults,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands);
 
 void DrawNaniteMaterialPasses(

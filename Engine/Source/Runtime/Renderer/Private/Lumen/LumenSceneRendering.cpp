@@ -2771,6 +2771,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 					CullingConfig
 				);
 
+				FNaniteVisibilityResults VisibilityResults; // No material visibility culling for Lumen at this time
+
 				const uint32 NumCardPagesToRender = CardPagesToRender.Num();
 
 				uint32 NextCardIndex = 0;
@@ -2810,6 +2812,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 						Nanite::CullRasterize(
 							GraphBuilder,
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+							VisibilityResults,
 							*Scene,
 							*SharedView,
 							NaniteViews,
@@ -2843,6 +2846,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 						Nanite::CullRasterize(
 							GraphBuilder,
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+							VisibilityResults,
 							*Scene,
 							*SharedView,
 							{ PackedView },

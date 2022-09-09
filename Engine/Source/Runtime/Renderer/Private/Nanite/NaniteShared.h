@@ -458,6 +458,131 @@ private:
 	FNaniteRasterPipelineMap PipelineMap;
 };
 
+struct FNaniteVisibilityQuery;
+
+class FNaniteVisibilityResults
+{
+	friend class FNaniteVisibility;
+
+public:
+	FNaniteVisibilityResults() = default;
+
+	FNaniteVisibilityResults(const FNaniteVisibilityResults& Other)
+	: RasterBinVisibility(Other.RasterBinVisibility)
+	, ShadingDrawVisibility(Other.ShadingDrawVisibility)
+	, TotalRasterBins(Other.TotalRasterBins)
+	, TotalShadingDraws(Other.TotalShadingDraws)
+	, VisibleRasterBins(Other.VisibleRasterBins)
+	, VisibleShadingDraws(Other.VisibleShadingDraws)
+	, bRasterTestValid(Other.bRasterTestValid)
+	, bShadingTestValid(Other.bShadingTestValid)
+	{
+	}
+
+	bool IsRasterBinVisible(uint16 BinIndex) const;
+	bool IsShadingDrawVisible(uint32 DrawId) const;
+
+	void Invalidate();
+
+	FORCEINLINE bool IsRasterTestValid() const
+	{
+		return bRasterTestValid;
+	}
+
+	FORCEINLINE bool IsShadingTestValid() const
+	{
+		return bShadingTestValid;
+	}
+
+	FORCEINLINE void GetRasterBinStats(uint32& OutNumVisible, uint32& OutNumTotal) const
+	{
+		OutNumTotal = TotalRasterBins;
+		OutNumVisible = IsRasterTestValid() ? VisibleRasterBins : OutNumTotal;
+	}
+
+	FORCEINLINE void GetShadingDrawStats(uint32& OutNumVisible, uint32& OutNumTotal) const
+	{
+		OutNumTotal = TotalShadingDraws;
+		OutNumVisible = IsShadingTestValid() ? VisibleShadingDraws : OutNumTotal;
+	}
+
+private:
+	TBitArray<> RasterBinVisibility;
+	TArray<uint32> ShadingDrawVisibility;
+	uint32 TotalRasterBins		= 0;
+	uint32 TotalShadingDraws	= 0;
+	uint32 VisibleRasterBins	= 0;
+	uint32 VisibleShadingDraws	= 0;
+	bool bRasterTestValid		= false;
+	bool bShadingTestValid		= false;
+};
+
+class FNaniteVisibility
+{
+public:
+	typedef TArray<uint16, TInlineAllocator<1>> PrimitiveBinsType;
+	typedef TArray<uint32, TInlineAllocator<1>> PrimitiveDrawType;
+
+	struct FPrimitiveReferences
+	{
+		PrimitiveBinsType RasterBins;
+		PrimitiveDrawType ShadingDraws;
+	};
+
+	typedef TMap<const FPrimitiveSceneInfo*, FPrimitiveReferences> PrimitiveMapType;
+
+public:
+	FNaniteVisibility();
+
+	void BeginVisibilityFrame();
+	void FinishVisibilityFrame();
+
+	FNaniteVisibilityQuery* BeginVisibilityQuery(
+		const TConstArrayView<FConvexVolume>& ViewList,
+		const class FNaniteRasterPipelines* RasterPipelines,
+		const class FNaniteMaterialCommands* MaterialCommands = nullptr
+	);
+
+	void FinishVisibilityQuery(FNaniteVisibilityQuery* Query, FNaniteVisibilityResults& OutResults) const;
+
+	PrimitiveMapType PrimitiveReferences;
+
+private:
+	TArray<FNaniteVisibilityQuery*, TInlineAllocator<32>> VisibilityQueries;
+	uint8 bCalledBegin : 1;
+};
+
+class FNaniteScopedVisibilityFrame
+{
+public:
+	FNaniteScopedVisibilityFrame(const bool bInEnabled, FNaniteVisibility& InVisibility)
+	: Visibility(InVisibility)
+	, bEnabled(bInEnabled)
+	{
+		if (bEnabled)
+		{
+			Visibility.BeginVisibilityFrame();
+		}
+	}
+
+	~FNaniteScopedVisibilityFrame()
+	{
+		if (bEnabled)
+		{
+			Visibility.FinishVisibilityFrame();
+		}
+	}
+
+	FORCEINLINE FNaniteVisibility& Get()
+	{
+		return Visibility;
+	}
+
+private:
+	FNaniteVisibility& Visibility;
+	bool bEnabled;
+};
+
 extern bool ShouldRenderNanite(const FScene* Scene, const FViewInfo& View, bool bCheckForAtomicSupport = true);
 
 /** Checks whether Nanite would be rendered in this view. Used to give a visual warning about the project settings that can disable Nanite. */

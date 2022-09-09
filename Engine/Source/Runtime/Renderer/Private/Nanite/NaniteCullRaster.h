@@ -146,6 +146,8 @@ struct FRasterResults
 	FRDGTextureRef	MaterialDepth{};
 	FRDGTextureRef	MaterialResolve{};
 
+	FNaniteVisibilityResults VisibilityResults;
+
 	TArray<FVisualizeResult, TInlineAllocator<32>> Visualizations;
 };
 
@@ -173,6 +175,7 @@ FRasterContext InitRasterContext(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
+	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -192,6 +195,7 @@ void CullRasterize(
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,
+	const FNaniteVisibilityResults& VisibilityResults,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
