@@ -7921,7 +7921,7 @@ ENGINE_API int32 UStaticMesh::GetMinLODIdx(bool bForceLowestLODIdx) const
 		extern int32 GUseMobileLODBiasOnDesktopES31;
 		if (GUseMobileLODBiasOnDesktopES31 != 0 && GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 		{
-			CurrentMinLodQualityLevel = (int32)QualityLevelProperty::EQualityLevels::Low;
+			CurrentMinLodQualityLevel = (int32)EPerQualityLevels::Low;
 		}
 #endif
 		return bForceLowestLODIdx ? GetQualityLevelMinLOD().GetLowestValue() : GetQualityLevelMinLOD().GetValue(CurrentMinLodQualityLevel);

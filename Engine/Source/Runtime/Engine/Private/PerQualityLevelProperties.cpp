@@ -15,9 +15,33 @@ namespace QualityLevelProperty
 	static TArray<FName> QualityLevelNames = { FName("Low"), FName("Medium"), FName("High"), FName("Epic"), FName("Cinematic") };
 	static FString QualityLevelMappingStr = TEXT("QualityLevelMapping");
 
+	TMap<int32, int32> ConvertQualtiyLevelData(const TMap<EPerQualityLevels, int32>& Data)
+	{
+		TMap<int32, int32> ConvertedData;
+
+		for (const TPair<EPerQualityLevels, int32>& Pair : Data)
+		{
+			ConvertedData.Add((int32)Pair.Key,Pair.Value);
+		}
+
+		return ConvertedData;
+	}
+
+	TMap<EPerQualityLevels, int32> ConvertQualtiyLevelData(const TMap<int32, int32>& Data)
+	{
+		TMap<EPerQualityLevels, int32> ConvertedData;
+
+		for (const TPair<int32, int32>& Pair : Data)
+		{
+			ConvertedData.Add((EPerQualityLevels)Pair.Key, Pair.Value);
+		}
+
+		return ConvertedData;
+	}
+
 	FName QualityLevelToFName(int32 QL)
 	{
-		if (QL >= 0 && QL < static_cast<int32>(EQualityLevels::Num))
+		if (QL >= 0 && QL < static_cast<int32>(EPerQualityLevels::Num))
 		{
 			return QualityLevelNames[QL];
 		}
@@ -177,9 +201,9 @@ FSupportedQualityLevelArray FPerQualityLevelProperty<_StructType, _ValueType, _B
 	FConfigCacheIni::LoadLocalIniFile(ScalabilitySettings, TEXT("Scalability"), true, InPlatformName);
 
 	//check all possible quality levels specify in the scalability ini 
-	for (int32 QualityLevel = 0; QualityLevel < (int32)QualityLevelProperty::EQualityLevels::Num; ++QualityLevel)
+	for (int32 QualityLevel = 0; QualityLevel < (int32)EPerQualityLevels::Num; ++QualityLevel)
 	{
-		FString QualitLevelSectionName = Scalability::GetScalabilitySectionString(*ScalabilitySection, QualityLevel, (int32)QualityLevelProperty::EQualityLevels::Num);
+		FString QualitLevelSectionName = Scalability::GetScalabilitySectionString(*ScalabilitySection, QualityLevel, (int32)EPerQualityLevels::Num);
 		PropertyQualityLevel = -1;
 		ScalabilitySettings.GetInt(*QualitLevelSectionName, *CVarName, PropertyQualityLevel);
 

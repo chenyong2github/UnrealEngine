@@ -23,10 +23,22 @@ FPerQualityLevelProperties.h: Property types that can be overridden on a quality
 	typedef TSet<int32> FSupportedQualityLevelArray;
 #endif
 
+
+UENUM(BlueprintType)
+enum class EPerQualityLevels : uint8
+{
+	Low,
+	Medium,
+	High,
+	Epic,
+	Cinematic,
+	Num
+};
+
 namespace QualityLevelProperty
 {
 	UENUM()
-	enum class EQualityLevels : uint8
+	enum class UE_DEPRECATED(5.1, "Use EPerQualityLevels instead since we need to expose as an ENUM in blueprint.") EQualityLevels : uint8
 	{
 		Low,
 		Medium,
@@ -38,6 +50,8 @@ namespace QualityLevelProperty
 
 	ENGINE_API FName QualityLevelToFName(int32 QL);
 	ENGINE_API int32 FNameToQualityLevel(FName QL);
+	ENGINE_API TMap<int32, int32> ConvertQualtiyLevelData(const TMap<EPerQualityLevels, int32>& Data);
+	ENGINE_API TMap<EPerQualityLevels, int32> ConvertQualtiyLevelData(const TMap<int32, int32>& Data);
 #if WITH_EDITOR
 	ENGINE_API FSupportedQualityLevelArray PerPlatformOverrideMapping(FString& InPlatformName);
 #endif

@@ -3399,7 +3399,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		]
 		.ValueContent()
 		.MinDesiredWidth((float)(StaticMesh->GetQualityLevelMinLOD().PerQuality.Num() + 1)*125.0f)
-		.MaxDesiredWidth((float)((int32)QualityLevelProperty::EQualityLevels::Num + 1)*125.0f)
+		.MaxDesiredWidth((float)((int32)EPerQualityLevels::Num + 1)*125.0f)
 		[
 			SNew(SPerQualityLevelPropertiesWidget)
 			.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODWidget)
@@ -3419,7 +3419,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		]
 		.ValueContent()
 		.MinDesiredWidth(float(StaticMesh->GetNoRefStreamingLODBias().PerQuality.Num() + 1) * 125.f)
-		.MaxDesiredWidth(float((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.f)
+		.MaxDesiredWidth(float((int32)EPerQualityLevels::Num + 1) * 125.f)
 		[
 			SNew(SPerQualityLevelPropertiesWidget)
 			.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasWidget)

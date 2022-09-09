@@ -849,6 +849,30 @@ public:
 	UPROPERTY(EditAnywhere, Category = LODSettings, meta = (DisplayName = "Quality Level Minimum LOD"))
 	FPerQualityLevelInt MinQualityLevelLOD;
 
+	UFUNCTION(BlueprintCallable, Category = StaticMesh, Meta = (ToolTip = "Allow to override min lod quality levels on a skeletalMesh and it Default value (-1 value for Default dont override its value)."))
+	void SetMinLODForQualityLevels(const TMap<EPerQualityLevels, int32>& QualityLevelMinimumLODs, int32 Default = -1)
+	{
+#if WITH_EDITORONLY_DATA
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MinLod);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		MinQualityLevelLOD.PerQuality = QualityLevelProperty::ConvertQualtiyLevelData(QualityLevelMinimumLODs);
+		MinQualityLevelLOD.Default = Default >=0 ? Default : MinQualityLevelLOD.Default;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+	}
+
+	UFUNCTION(BlueprintPure, Category = StaticMesh)
+	void GetMinLODForQualityLevels(TMap<EPerQualityLevels, int32>& QualityLevelMinimumLODs, int32& Default) const
+	{
+#if WITH_EDITORONLY_DATA
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MinLod, EAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		QualityLevelMinimumLODs = QualityLevelProperty::ConvertQualtiyLevelData(MinQualityLevelLOD.PerQuality);
+		Default = MinQualityLevelLOD.Default;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+	}
+
 	static FName GetQualityLevelMinLodMemberName()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS

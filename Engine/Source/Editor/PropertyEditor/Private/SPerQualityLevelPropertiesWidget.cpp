@@ -176,7 +176,7 @@ void SPerQualityLevelPropertiesWidget::ConstructChildren()
 		AddMenuBuilder.BeginSection(Section, FText::FromString(TEXT("Quality Levels")));
 
 		int32 QualityLevelCount = 0;
-		while (QualityLevelCount < static_cast<int32>(QualityLevelProperty::EQualityLevels::Num))
+		while (QualityLevelCount < static_cast<int32>(EPerQualityLevels::Num))
 		{
 			FName QualityName = QualityLevelProperty::QualityLevelToFName(QualityLevelCount++);
 			const FTextFormat Format = NSLOCTEXT("SPerQualityLevelPropertiesWidget", "AddOverrideGroupFor", "Add Override specifically for {0}");

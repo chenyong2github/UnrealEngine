@@ -230,7 +230,7 @@ void FPerQualityLevelPropertyCustomization<OverrideType>::CustomizeHeader(TShare
 		]
 	.ValueContent()
 		.MinDesiredWidth(FPerQualityLevelPropertyCustomization<OverrideType>::CalcDesiredWidth(StructPropertyHandle))
-		.MaxDesiredWidth((float)(static_cast<int32>(QualityLevelProperty::EQualityLevels::Num) + 1) * 125.0f)
+		.MaxDesiredWidth((float)(static_cast<int32>(EPerQualityLevels::Num) + 1) * 125.0f)
 		[
 			SNew(SPerQualityLevelPropertiesWidget)
 			.OnGenerateWidget(this, &FPerQualityLevelPropertyCustomization<OverrideType>::GetWidget, StructPropertyHandle)

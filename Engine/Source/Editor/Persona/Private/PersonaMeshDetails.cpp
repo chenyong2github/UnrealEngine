@@ -3253,7 +3253,7 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 	]
 	.ValueContent()
 	.MinDesiredWidth(float(SkelMesh->GetNoRefStreamingLODBias().PerQuality.Num() + 1) * 125.f)
-	.MaxDesiredWidth(float((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.f)
+	.MaxDesiredWidth(float((int32)EPerQualityLevels::Num + 1) * 125.f)
 	[
 		SNew(SPerQualityLevelPropertiesWidget)
 		.OnGenerateWidget(this, &FPersonaMeshDetails::GetNoRefStreamingLODBiasWidget)
@@ -3313,7 +3313,7 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 		]
 		.ValueContent()
 		.MinDesiredWidth((float)(SkelMesh->GetQualityLevelMinLod().PerQuality.Num() + 1) * 125.0f)
-		.MaxDesiredWidth((float)((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.0f)
+		.MaxDesiredWidth((float)((int32)EPerQualityLevels::Num + 1) * 125.0f)
 		[
 			SNew(SPerQualityLevelPropertiesWidget)
 			.OnGenerateWidget(this, &FPersonaMeshDetails::GetMinQualityLevelLodWidget)
