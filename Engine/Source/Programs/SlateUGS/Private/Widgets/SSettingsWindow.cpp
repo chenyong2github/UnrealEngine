@@ -5,6 +5,7 @@
 
 #include "UGSCore/UserSettings.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Layout/SUniformGridPanel.h"

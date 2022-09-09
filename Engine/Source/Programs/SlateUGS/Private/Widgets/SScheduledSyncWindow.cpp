@@ -6,6 +6,7 @@
 #include "UGSTab.h"
 #include "UGSTabManager.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"

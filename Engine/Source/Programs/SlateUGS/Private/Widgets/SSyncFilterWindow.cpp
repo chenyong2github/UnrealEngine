@@ -4,6 +4,7 @@
 
 #include "UGSTab.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Layout/SHeader.h"
 #include "SPrimaryButton.h"

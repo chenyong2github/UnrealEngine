@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Framework/Text/TextLayout.h"
 #include "Widgets/SWindow.h"
 
 class SPopupTextWindow : public SWindow
