@@ -174,8 +174,7 @@ bool FRenderTarget::ReadFloat16Pixels(FFloat16Color* OutImageData,ECubeFace Cube
 bool FRenderTarget::ReadFloat16Pixels(TArray<FFloat16Color>& OutputBuffer,ECubeFace CubeFace)
 {
 	// Copy the surface data into the output array.
-	OutputBuffer.Empty();
-	OutputBuffer.AddUninitialized(GetSizeXY().X * GetSizeXY().Y);
+	OutputBuffer.SetNumUninitialized(GetSizeXY().X * GetSizeXY().Y, true);
 	return ReadFloat16Pixels((FFloat16Color*)&(OutputBuffer[0]), CubeFace);
 }
 
