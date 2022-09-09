@@ -23,8 +23,8 @@
 class FStateTreeStateParametersInstanceDataDetails : public FPropertyBagInstanceDataDetails
 {
 public:
-	FStateTreeStateParametersInstanceDataDetails(TSharedPtr<IPropertyHandle> InValueProperty, TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout, FGuid InID, UStateTreeEditorData* InEditorData)
-		: FPropertyBagInstanceDataDetails(InValueProperty, InStructProperty, InPropUtils, bInFixedLayout)
+	FStateTreeStateParametersInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout, FGuid InID, UStateTreeEditorData* InEditorData)
+		: FPropertyBagInstanceDataDetails(InStructProperty, InPropUtils, bInFixedLayout)
 		, EditorData(InEditorData)
 	{
 		EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
@@ -103,11 +103,9 @@ void FStateTreeStateParametersDetails::CustomizeHeader(TSharedRef<class IPropert
 	ParametersProperty = StructProperty->GetChildHandle(TEXT("Parameters"));
 	FixedLayoutProperty = StructProperty->GetChildHandle(TEXT("bFixedLayout"));
 	IDProperty = StructProperty->GetChildHandle(TEXT("ID"));
-	ParametersValueProperty = ParametersProperty->GetChildHandle(TEXT("Value"));
 	check(ParametersProperty.IsValid());
 	check(FixedLayoutProperty.IsValid());
 	check(IDProperty.IsValid());
-	check(ParametersValueProperty.IsValid());
 
 	FindOuterObjects();
 	
@@ -138,7 +136,7 @@ void FStateTreeStateParametersDetails::CustomizeChildren(TSharedRef<class IPrope
 	UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IDProperty, ID);
 
 	// Show the Value (FInstancedStruct) as child rows.
-	TSharedRef<FStateTreeStateParametersInstanceDataDetails> InstanceDetails = MakeShareable(new FStateTreeStateParametersInstanceDataDetails(ParametersValueProperty, ParametersProperty, PropUtils, bFixedLayout, ID, EditorData));
+	TSharedRef<FStateTreeStateParametersInstanceDataDetails> InstanceDetails = MakeShareable(new FStateTreeStateParametersInstanceDataDetails(ParametersProperty, PropUtils, bFixedLayout, ID, EditorData));
 	StructBuilder.AddCustomBuilder(InstanceDetails);
 }
 

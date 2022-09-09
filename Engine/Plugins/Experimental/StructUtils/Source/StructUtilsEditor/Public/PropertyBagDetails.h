@@ -35,7 +35,6 @@ private:
 	
 	/** Handle to the struct property being edited */
 	TSharedPtr<IPropertyHandle> StructProperty;
-	TSharedPtr<IPropertyHandle> ValueProperty;
 
 	bool bFixedLayout = false; 
 	
@@ -53,7 +52,7 @@ private:
 class STRUCTUTILSEDITOR_API FPropertyBagInstanceDataDetails : public FInstancedStructDataDetails
 {
 public:
-	FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InValueProperty, TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout);
+	FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout);
 
 	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow) override;
 

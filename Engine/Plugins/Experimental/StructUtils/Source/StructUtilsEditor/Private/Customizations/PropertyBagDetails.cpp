@@ -438,12 +438,11 @@ bool CanHaveMemberVariableOfType(const FEdGraphPinType& PinType)
 //----------------------------------------------------------------//
 //  FPropertyBagInstanceDataDetails
 //  - StructProperty is FInstancedPropertyBag
-//  - ValueProperty is FInstancedStruct
-//  - ChildPropertyHandle a child property if the ValueProperty  
+//  - ChildPropertyHandle a child property of the FInstancedPropertyBag::Value (FInstancedStruct)  
 //----------------------------------------------------------------//
 
-FPropertyBagInstanceDataDetails::FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InValueProperty, TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout)
-	: FInstancedStructDataDetails(InValueProperty)
+FPropertyBagInstanceDataDetails::FPropertyBagInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout)
+	: FInstancedStructDataDetails(InStructProperty.IsValid() ? InStructProperty->GetChildHandle(TEXT("Value")) : nullptr)
 	, BagStructProperty(InStructProperty)
 	, PropUtils(InPropUtils)
 	, bFixedLayout(bInFixedLayout)
@@ -710,9 +709,6 @@ void FPropertyBagDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> Stru
 	StructProperty = StructPropertyHandle;
 	check(StructProperty);
 	
-	ValueProperty = StructProperty->GetChildHandle(TEXT("Value"));
-	check(ValueProperty);
-
 	static const FName NAME_FixedLayout = "FixedLayout";
 	if (const FProperty* MetaDataProperty = StructProperty->GetMetaDataProperty())
 	{
@@ -741,7 +737,7 @@ void FPropertyBagDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> Stru
 void FPropertyBagDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	// Show the Value (FInstancedStruct) as child rows.
-	TSharedRef<FPropertyBagInstanceDataDetails> InstanceDetails = MakeShareable(new FPropertyBagInstanceDataDetails(ValueProperty, StructProperty, PropUtils, bFixedLayout));
+	TSharedRef<FPropertyBagInstanceDataDetails> InstanceDetails = MakeShareable(new FPropertyBagInstanceDataDetails(StructProperty, PropUtils, bFixedLayout));
 	StructBuilder.AddCustomBuilder(InstanceDetails);
 }
 

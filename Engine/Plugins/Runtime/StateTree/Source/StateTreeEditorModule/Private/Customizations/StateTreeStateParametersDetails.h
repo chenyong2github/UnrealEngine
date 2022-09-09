@@ -29,7 +29,6 @@ private:
 	class IPropertyUtilities* PropUtils = nullptr;
 
 	TSharedPtr<IPropertyHandle> ParametersProperty;
-	TSharedPtr<IPropertyHandle> ParametersValueProperty;
 	TSharedPtr<IPropertyHandle> FixedLayoutProperty;
 	TSharedPtr<IPropertyHandle> IDProperty;
 	TSharedPtr<IPropertyHandle> StructProperty;
