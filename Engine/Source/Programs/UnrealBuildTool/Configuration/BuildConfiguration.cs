@@ -104,6 +104,13 @@ namespace UnrealBuildTool
 		public int MaxParallelActions = 0;
 
 		/// <summary>
+		/// Consider logical cores when determining how many total cpu cores are available.
+		/// </summary>
+		[XmlConfigFile(Name = "bAllCores")]
+		[CommandLine("-AllCores")]
+		public bool bAllCores = false;
+
+		/// <summary>
 		/// If true, force header regeneration. Intended for the build machine.
 		/// </summary>
 		[CommandLine("-ForceHeaderGeneration")]

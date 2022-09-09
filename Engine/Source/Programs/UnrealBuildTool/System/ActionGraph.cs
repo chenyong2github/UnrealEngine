@@ -337,11 +337,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		private static ActionExecutor SelectExecutor(BuildConfiguration BuildConfiguration, int ActionCount, List<TargetDescriptor> TargetDescriptors, ILogger Logger)
 		{
-			if (ActionCount > ParallelExecutor.GetDefaultNumParallelProcesses(Logger))
+			if (ActionCount > ParallelExecutor.GetDefaultNumParallelProcesses(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, Logger))
 			{
 				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable(Logger))
 				{
-					return new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput, Logger);
+					return new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 				}
 				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable(Logger) && ActionCount >= XGE.MinActions)
 				{
@@ -349,7 +349,7 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable(Logger))
 				{
-					return new FASTBuild(BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput, Logger);
+					return new FASTBuild(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 				}
 				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable(Logger))
 				{
@@ -357,11 +357,11 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowHordeCompute && HordeExecutor.IsAvailable())
 				{
-					return new HordeExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput, Logger);
+					return new HordeExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 				}
 			}
 
-			return new ParallelExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput, Logger);
+			return new ParallelExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 		}
 
 		/// <summary>

@@ -22,7 +22,10 @@ namespace UnrealBuildTool
 		/// Maximum processor count for local execution. 
 		/// </summary>
 		[XmlConfigFile]
-		private static int MaxProcessorCount = int.MaxValue;
+		[Obsolete("ParallelExecutor.MaxProcessorCount is deprecated. Please update xml to use BuildConfiguration.MaxParallelActions")]
+#pragma warning disable 0169
+		private static int MaxProcessorCount;
+#pragma warning restore 0169
 
 		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
@@ -90,7 +93,7 @@ namespace UnrealBuildTool
 
 		private static readonly char[] LineEndingSplit = new char[] { '\n', '\r' };
 
-		public static int GetDefaultNumParallelProcesses(ILogger Logger)
+		public static int GetDefaultNumParallelProcesses(int MaxLocalActions, bool bAllCores, ILogger Logger)
 		{
 			double MemoryPerActionBytesComputed = Math.Max(MemoryPerActionBytes, MemoryPerActionBytesOverride);
 			if (MemoryPerActionBytesComputed > MemoryPerActionBytes)
@@ -98,29 +101,22 @@ namespace UnrealBuildTool
 				Logger.LogInformation("Overriding MemoryPerAction with target-defined value of {Memory} bytes", MemoryPerActionBytesComputed / 1024 / 1024 / 1024);
 			}
 
-			return Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytesComputed));
+			return Utils.GetMaxActionsToExecuteInParallel(MaxLocalActions, ProcessorCountMultiplier, bAllCores, Convert.ToInt64(MemoryPerActionBytesComputed));
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="MaxLocalActions">How many actions to execute in parallel</param>
+		/// <param name="bAllCores">Consider logical cores when determining how many total cpu cores are available</param>
 		/// <param name="bCompactOutput">Should output be written in a compact fashion</param>
 		/// <param name="Logger">Logger for output</param>
-		public ParallelExecutor(int MaxLocalActions, bool bCompactOutput, ILogger Logger)
+		public ParallelExecutor(int MaxLocalActions, bool bAllCores, bool bCompactOutput, ILogger Logger)
 		{
 			XmlConfig.ApplyTo(this);
 
-			// if specified this caps how many processors we can use
-			if (MaxLocalActions > 0)
-			{
-				NumParallelProcesses = MaxLocalActions;
-			}
-			else
-			{
-				// Figure out how many processors to use
-				NumParallelProcesses = GetDefaultNumParallelProcesses(Logger);
-			}
+			// Figure out how many processors to use
+			NumParallelProcesses = GetDefaultNumParallelProcesses(MaxLocalActions, bAllCores, Logger);
 
 			this.bCompactOutput = bCompactOutput;
 		}
@@ -484,6 +480,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Maximum number of processes that should be used for execution
 		/// </summary>
-		public static int GetMaxParallelProcesses(ILogger Logger) => ParallelExecutor.GetDefaultNumParallelProcesses(Logger);
+		public static int GetMaxParallelProcesses(ILogger Logger) => ParallelExecutor.GetDefaultNumParallelProcesses(0, false, Logger);
 	}
 }

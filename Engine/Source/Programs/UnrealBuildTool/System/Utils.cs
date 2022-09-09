@@ -1272,10 +1272,11 @@ namespace UnrealBuildTool
 		/// Determines the maximum number of actions to execute in parallel, taking into account the resources available on this machine.
 		/// </summary>
 		/// <param name="MaxProcessorCount">How many actions to execute in parallel. When 0 a default will be chosen based on system resources</param>
-		/// <param name="ProcessorCountMultiplier">Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.</param>
-		/// <param name="MemoryPerActionBytes"></param>
+		/// <param name="ProcessorCountMultiplier">Physical processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.</param>
+		/// <param name="ConsiderLogicalCores">Consider logical cores when determing max actions to execute in parallel. Unused if ProcessorCountMultiplier is not 1.0.</param>
+		/// <param name="MemoryPerActionBytes">Limit max number of actions based on total system memory.</param>
 		/// <returns>Max number of actions to execute in parallel</returns>
-		public static int GetMaxActionsToExecuteInParallel(int MaxProcessorCount, double ProcessorCountMultiplier, long MemoryPerActionBytes)
+		public static int GetMaxActionsToExecuteInParallel(int MaxProcessorCount, double ProcessorCountMultiplier, bool ConsiderLogicalCores, long MemoryPerActionBytes)
 		{
 			// Get the number of logical processors
 			int NumLogicalCores = Utils.GetLogicalProcessorCount();
@@ -1297,6 +1298,11 @@ namespace UnrealBuildTool
 				// Use multiplier if provided
 				MaxActionsToExecuteInParallel = (int)(NumPhysicalCores * ProcessorCountMultiplier);
 				Log.TraceInformationOnce($"  Requested {ProcessorCountMultiplier} process count multiplier: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+			}
+			else if (ConsiderLogicalCores && NumLogicalCores > NumPhysicalCores)
+			{
+				Log.TraceInformationOnce($"  Executing up to {NumLogicalCores} processes, one per logical core");
+				MaxActionsToExecuteInParallel = NumLogicalCores;
 			}
 			// kick off a task per physical core - evidence suggests that, in general, using more cores does not yield significantly better throughput
 			else
@@ -1320,7 +1326,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (MaxProcessorCount < MaxActionsToExecuteInParallel)
+			if (MaxProcessorCount > 0 && MaxProcessorCount < MaxActionsToExecuteInParallel)
 			{
 				MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, MaxProcessorCount));
 				Log.TraceInformationOnce($"  Requested max {MaxProcessorCount} action(s): limiting max parallel actions to {MaxActionsToExecuteInParallel}");

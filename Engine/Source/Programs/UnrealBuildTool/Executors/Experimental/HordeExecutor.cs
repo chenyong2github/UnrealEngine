@@ -279,9 +279,10 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="MaxLocalActions">How many local actions to execute in parallel</param>
+		/// <param name="bAllCores">Consider logical cores when determining how many total cpu cores are available</param>
 		/// <param name="bCompactOutput"></param>
 		/// <param name="Logger"></param>
-		public HordeExecutor(int MaxLocalActions, bool bCompactOutput, ILogger Logger) : base(MaxLocalActions, bCompactOutput, Logger)
+		public HordeExecutor(int MaxLocalActions, bool bAllCores, bool bCompactOutput, ILogger Logger) : base(MaxLocalActions, bAllCores, bCompactOutput, Logger)
 		{
 			XmlConfig.ApplyTo(this);
 		}
