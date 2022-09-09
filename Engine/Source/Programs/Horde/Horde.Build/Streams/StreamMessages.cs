@@ -454,7 +454,7 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Tags for this commit
 		/// </summary>
-		public List<CommitTag> Tags { get; set; }
+		public List<CommitTag>? Tags { get; set; }
 
 		/// <summary>
 		/// List of files that were modified, relative to the stream base
@@ -468,13 +468,17 @@ namespace Horde.Build.Streams
 		/// <param name="author">Author of the change</param>
 		/// <param name="tags">Tags for the commit</param>
 		/// <param name="files">Files modified by the commit</param>
-		public GetCommitResponse(ICommit commit, IUser author, IReadOnlyList<CommitTag> tags, IReadOnlyList<string>? files)
+		public GetCommitResponse(ICommit commit, IUser author, IReadOnlyList<CommitTag>? tags, IReadOnlyList<string>? files)
 		{
 			Number = commit.Number;
 			Author = author.Name;
 			AuthorInfo = new GetThinUserInfoResponse(author);
 			Description = commit.Description;
-			Tags = new List<CommitTag>(tags);
+
+			if (tags != null)
+			{
+				Tags = new List<CommitTag>(tags);
+			}
 
 			if (files != null)
 			{

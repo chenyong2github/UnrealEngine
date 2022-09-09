@@ -19,7 +19,6 @@ using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
-using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -108,8 +107,27 @@ namespace Horde.Build.Perforce
 				return _inner.Perforce.CreateRecord(fields);
 			}
 
+			/// <inheritdoc/>
 			public ValueTask<InfoRecord> GetInfoAsync(CancellationToken cancellationToken) => _inner.GetInfoAsync(cancellationToken);
 
+			/// <inheritdoc/>
+			public async ValueTask<PerforceViewMap> GetCachedStreamViewAsync(IStream stream, CancellationToken cancellationToken)
+			{
+				PerforceViewMap? viewMap;
+				if (!_owner._streamCache.TryGetValue(stream.Id, out viewMap))
+				{
+					StreamRecord streamRecord = await _inner.Perforce.GetStreamAsync(stream.Name, true, cancellationToken);
+					viewMap = PerforceViewMap.Parse(streamRecord.View);
+
+					using (ICacheEntry entry = _owner._streamCache.CreateEntry(stream.Id))
+					{
+						entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2.0);
+						entry.Value = viewMap;
+					}
+				}
+
+				return viewMap!;
+			}
 		}
 
 		protected class Credentials
@@ -181,10 +199,10 @@ namespace Horde.Build.Perforce
 			{
 				if (_files == null)
 				{
-					using (IPerforceConnection perforce = await _owner.ConnectAsync(_stream.Config.ClusterName, null, cancellationToken))
+					using (IPooledPerforceConnection perforce = await _owner.ConnectAsync(_stream.Config.ClusterName, null, cancellationToken))
 					{
 						DescribeRecord describeRecord = await perforce.DescribeAsync(Number, cancellationToken);
-						_files = GetStreamFiles(describeRecord, _stream.Config.Name);
+						_files = await perforce.GetStreamFilesAsync(_stream, describeRecord, cancellationToken);
 					}
 				}
 				return _files;
@@ -203,6 +221,7 @@ namespace Horde.Build.Perforce
 		readonly Dictionary<string, Dictionary<string, Credentials>> _userCredentialsByCluster = new Dictionary<string, Dictionary<string, Credentials>>(StringComparer.OrdinalIgnoreCase);
 		readonly IUserCollection _userCollection;
 		readonly MemoryCache _userCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 2000 });
+		readonly MemoryCache _streamCache = new MemoryCache(new MemoryCacheOptions());
 
 		readonly List<PooledConnection> _pooledConnections = new List<PooledConnection>();
 
@@ -234,6 +253,7 @@ namespace Horde.Build.Perforce
 			_pooledConnections.Clear();
 
 			_userCache.Dispose();
+			_streamCache.Dispose();
 		}
 
 		async Task<PooledConnectionHandle> CreatePooledConnectionAsync(string serverAndPort, Credentials credentials, ClientRecord? clientRecord, CancellationToken cancellationToken)
@@ -609,33 +629,6 @@ namespace Horde.Build.Perforce
 			return clientName;
 		}
 
-		/// <inheritdoc/>
-		public async Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int? maxResults, CancellationToken cancellationToken)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
-			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
-			scope.Span.SetTag("MinChange", minChange ?? -1);
-			scope.Span.SetTag("MaxChange", maxChange ?? -1);
-			scope.Span.SetTag("MaxResults", maxResults ?? -1);
-
-			List<ICommit> results = new List<ICommit>();
-			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(stream, null, cancellationToken))
-			{
-				string filter = GetFilter($"//{perforce.Settings.ClientName}/...", minChange, maxChange);
-
-				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
-
-				List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, maxResults ?? -1, ChangeStatus.Submitted, filter, cancellationToken);
-
-				foreach (ChangesRecord change in changes)
-				{
-					ICommit commit = await CreateCommitAsync(stream, change, info, cancellationToken);
-					results.Add(commit);
-				}
-			}
-			return results;
-		}
-
 		async ValueTask<Commit> CreateCommitInternalAsync(IStream stream, int number, string author, string description, string? basePath, DateTime dateUtc, CancellationToken cancellationToken)
 		{
 			IUser authorUser = await FindOrAddUserAsync(stream.Config.ClusterName, author, cancellationToken);
@@ -652,12 +645,13 @@ namespace Horde.Build.Perforce
 			return new Commit(this, stream, number, originalChange, authorUser.Id, ownerUser.Id, description, basePath ?? String.Empty, dateUtc);
 		}
 
-		public async ValueTask<ICommit> CreateCommitAsync(IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
+		protected async ValueTask<ICommit> CreateCommitAsync(IPooledPerforceConnection perforce, IStream stream, DescribeRecord describeRecord, InfoRecord serverInfo, CancellationToken cancellationToken)
 		{
 			DateTime timeUtc = new DateTime(describeRecord.Time.Ticks - serverInfo.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
 
 			Commit commit = await CreateCommitInternalAsync(stream, describeRecord.Number, describeRecord.User, describeRecord.Description, describeRecord.Path, timeUtc, cancellationToken);
-			commit.SetFiles(GetStreamFiles(describeRecord, stream.Name));
+			List<string> files = await perforce.GetStreamFilesAsync(stream, describeRecord, cancellationToken);
+			commit.SetFiles(files);
 
 			return commit;
 		}
@@ -727,7 +721,7 @@ namespace Horde.Build.Perforce
 
 				DateTime timeUtc = new DateTime(record.Time.Ticks - info.TimeZoneOffsetSecs * TimeSpan.TicksPerSecond, DateTimeKind.Utc);
 
-				ICommit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
+				ICommit commit = await CreateCommitAsync(perforce, stream, record, info, cancellationToken);
 				return commit;
 			}
 		}
@@ -806,7 +800,7 @@ namespace Horde.Build.Perforce
 				List<DescribeRecord> records = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, changeNumbers.ToArray(), cancellationToken);
 				foreach (DescribeRecord record in records)
 				{
-					ICommit commit = await CreateCommitAsync(stream, record, info, cancellationToken);
+					ICommit commit = await CreateCommitAsync(perforce, stream, record, info, cancellationToken);
 					results.Add(commit);
 				}
 			}
@@ -1079,20 +1073,6 @@ namespace Horde.Build.Perforce
 			return filter.ToString();
 		}
 
-		static List<string> GetStreamFiles(DescribeRecord describeRecord, string streamName)
-		{
-			List<string> files = new List<string>();
-			foreach (DescribeFileRecord describeFile in describeRecord.Files)
-			{
-				string? relativePath;
-				if (TryGetStreamRelativePath(describeFile.DepotFile, streamName, out relativePath))
-				{
-					files.Add(relativePath);
-				}
-			}
-			return files;
-		}
-
 		/// <summary>
 		/// Gets a stream-relative path from a depot path
 		/// </summary>
@@ -1148,43 +1128,75 @@ namespace Horde.Build.Perforce
 
 			public virtual async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, IReadOnlyList<CommitTag>? tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 			{
-				int maxBatchResults = 20;
-				if (tags == null && maxResults != null)
-				{
-					maxBatchResults = Math.Min(maxBatchResults, maxResults.Value);
-				}
+				using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CommitSource.FindAsync").StartActive();
+				scope.Span.SetTag("ClusterName", _stream.Config.ClusterName);
+				scope.Span.SetTag("MinChange", minChange ?? -1);
+				scope.Span.SetTag("MaxChange", maxChange ?? -1);
+				scope.Span.SetTag("MaxResults", maxResults ?? -1);
 
-				int numResults = 0;
-				while (maxResults == null || numResults < maxResults.Value)
+				using (PooledConnectionHandle perforce = await _perforceService.ConnectWithStreamClientAsync(_stream, null, cancellationToken))
 				{
-					List<ICommit> commits = await _perforceService.GetChangesAsync(_stream, minChange, maxChange, maxBatchResults, cancellationToken);
-					if (commits.Count == 0)
-					{
-						break;
-					}
+					InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
 
-					foreach (ICommit commit in commits)
+					if (tags == null || tags.Count == 0)
 					{
-						if (tags != null)
+						string filter = GetFilter($"//{perforce.Settings.ClientName}/...", minChange, maxChange);
+
+						List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes | ChangesOptions.LongOutput, maxResults ?? -1, ChangeStatus.Submitted, filter, cancellationToken);
+						foreach (ChangesRecord change in changes)
 						{
-							IReadOnlyList<CommitTag> commitTags = await commit.GetTagsAsync(cancellationToken);
-							if (!tags.Any(x => commitTags.Contains(x)))
+							ICommit commit = await _perforceService.CreateCommitAsync(_stream, change, info, cancellationToken);
+							yield return commit;
+						}
+					}
+					else
+					{
+						const int BatchSize = 20;
+
+						// Construct filters for all the tags we're searching for
+						List<FileFilter> filters = new List<FileFilter>();
+						foreach (CommitTag tag in tags)
+						{
+							if (_stream.Config.TryGetCommitTag(tag, out CommitTagConfig? commitTagConfig))
 							{
-								continue;
+								filters.Add(commitTagConfig.CreateFileFilter());
 							}
 						}
 
-						yield return commit;
+						// Get the stream view
+						PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(_stream, cancellationToken);
 
-						numResults++;
-
-						if (maxResults != null && numResults >= maxResults.Value)
+						// Do the query in batches
+						int numResults = maxResults ?? Int32.MaxValue;
+						while (numResults > 0)
 						{
-							break;
+							string filter = GetFilter($"//{perforce.Settings.ClientName}/...", minChange, maxChange);
+
+							List<ChangesRecord> changesRecords = await perforce.GetChangesAsync(ChangesOptions.None, null, BatchSize, ChangeStatus.Submitted, null, filter, cancellationToken);
+							if (changesRecords.Count == 0)
+							{
+								break;
+							}
+
+							List<DescribeRecord> describeRecords = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, changesRecords.Select(x => x.Number).ToArray(), cancellationToken);
+							foreach (DescribeRecord describeRecord in describeRecords)
+							{
+								List<string> files = viewMap.MapFiles(describeRecord.Files.Select(x => x.DepotFile), info.PathComparison).ToList();
+								if (files.Any(x => filters.Any(y => y.Matches(x))))
+								{
+									ICommit commit = await _perforceService.CreateCommitAsync(perforce, _stream, describeRecord, info, cancellationToken);
+									yield return commit;
+
+									if (--numResults == 0)
+									{
+										yield break;
+									}
+								}
+							}
+
+							maxChange = changesRecords[^1].Number - 1;
 						}
 					}
-
-					maxChange = commits[^1].Number;
 				}
 			}
 

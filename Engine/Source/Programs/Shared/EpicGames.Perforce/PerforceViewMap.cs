@@ -87,6 +87,23 @@ namespace EpicGames.Perforce
 		}
 
 		/// <summary>
+		/// Maps a set of files into the target files
+		/// </summary>
+		/// <param name="sourceFiles">List of source files</param>
+		/// <param name="comparison">Comparison to use for strings</param>
+		/// <returns>List of files in the target domain, excluding any not covered by the mapping</returns>
+		public IEnumerable<string> MapFiles(IEnumerable<string> sourceFiles, StringComparison comparison)
+		{
+			foreach (string sourceFile in sourceFiles)
+			{
+				if (TryMapFile(sourceFile, comparison, out string? targetFile))
+				{
+					yield return targetFile;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Attempts to convert a source file to its target path
 		/// </summary>
 		/// <param name="sourceFile"></param>

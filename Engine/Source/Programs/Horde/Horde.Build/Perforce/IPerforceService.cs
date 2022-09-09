@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,6 +60,48 @@ namespace Horde.Build.Perforce
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
 		ValueTask<InfoRecord> GetInfoAsync(CancellationToken cancellationToken);
+
+		/// <summary>
+		/// Gets a cached stream view for the given stream
+		/// </summary>
+		/// <param name="stream">Stream to find the view for</param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		ValueTask<PerforceViewMap> GetCachedStreamViewAsync(IStream stream, CancellationToken cancellationToken);
+	}
+
+	/// <summary>
+	/// Extension methods for PerforceService
+	/// </summary>
+	public static class PooledPerforceConnectionExtensions
+	{
+		/// <summary>
+		/// Map files from a <see cref="DescribeRecord"/> to relative paths within a stream
+		/// </summary>
+		/// <param name="perforce">Perforce connection</param>
+		/// <param name="stream">Stream to target</param>
+		/// <param name="describeRecord">Description of the change</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of files relative to the stream</returns>
+		public static Task<List<string>> GetStreamFilesAsync(this IPooledPerforceConnection perforce, IStream stream, DescribeRecord describeRecord, CancellationToken cancellationToken)
+		{
+			return GetStreamFilesAsync(perforce, stream, describeRecord.Files.ConvertAll(x => x.DepotFile), cancellationToken);
+		}
+
+		/// <summary>
+		/// Map files from a <see cref="DescribeRecord"/> to relative paths within a stream
+		/// </summary>
+		/// <param name="perforce">Perforce connection</param>
+		/// <param name="stream">Stream to target</param>
+		/// <param name="depotPaths">Paths within the depot</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of files relative to the stream</returns>
+		public static async Task<List<string>> GetStreamFilesAsync(this IPooledPerforceConnection perforce, IStream stream, List<string> depotPaths, CancellationToken cancellationToken)
+		{
+			PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(stream, cancellationToken);
+			InfoRecord infoRecord = await perforce.GetInfoAsync(cancellationToken);
+			return viewMap.MapFiles(depotPaths, infoRecord.PathComparison).ToList();
+		}
 	}
 
 	/// <summary>

@@ -393,7 +393,7 @@ namespace Horde.Build.Perforce
 
 						if (files.Count > 0)
 						{
-							ICommit commit = await CreateCommitAsync(streamInfo.Stream, describeRecord, info, cancellationToken);
+							ICommit commit = await CreateCommitAsync(perforce, streamInfo.Stream, describeRecord, info, cancellationToken);
 
 							List<CommitTag> commitTags = new List<CommitTag>();
 							foreach (CommitTagInfo commitTagInfo in streamInfo.CommitTags)

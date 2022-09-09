@@ -162,12 +162,13 @@ namespace Horde.Build.Streams
 		/// <param name="min">The starting changelist number</param>
 		/// <param name="max">The ending changelist number</param>
 		/// <param name="results">Number of results to return</param>
+		/// <param name="tags">Tags to filter the changes returned</param>
 		/// <param name="filter">The filter to apply to the results</param>
 		/// <returns>Http result code</returns>
 		[HttpGet]
 		[Route("/api/v1/streams/{streamId}/changes")]
 		[ProducesResponseType(typeof(List<GetCommitResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetChangesAsync(StreamId streamId, [FromQuery] int? min = null, [FromQuery] int? max = null, [FromQuery] int results = 50, PropertyFilter? filter = null)
+		public async Task<ActionResult<List<object>>> GetChangesAsync(StreamId streamId, [FromQuery] int? min = null, [FromQuery] int? max = null, [FromQuery] int results = 50, [FromQuery] string? tags = null, PropertyFilter? filter = null)
 		{
 			IStream? stream = await _streamService.GetStreamAsync(streamId);
 			if (stream == null)
@@ -179,14 +180,19 @@ namespace Horde.Build.Streams
 				return Forbid(AclAction.ViewChanges, streamId);
 			}
 
-			List<ICommit> commits = await _commitService.GetCollection(stream).FindAsync(min, max, results).ToListAsync();
+			List<CommitTag>? commitTags = null;
+			if (tags != null)
+			{
+				commitTags = tags.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(x => new CommitTag(x)).ToList();
+			}
+
+			List<ICommit> commits = await _commitService.GetCollection(stream).FindAsync(min, max, results, commitTags).ToListAsync();
 
 			List<GetCommitResponse> responses = new List<GetCommitResponse>();
 			foreach (ICommit commit in commits)
 			{
 				IUser? author = await _userCollection.GetCachedUserAsync(commit.AuthorId);
-				IReadOnlyList<CommitTag> tags = await commit.GetTagsAsync(HttpContext.RequestAborted);
-				responses.Add(new GetCommitResponse(commit, author!, tags, null));
+				responses.Add(new GetCommitResponse(commit, author!, null, null));
 			}
 			return responses.ConvertAll(x => PropertyFilter.Apply(x, filter));
 		}
