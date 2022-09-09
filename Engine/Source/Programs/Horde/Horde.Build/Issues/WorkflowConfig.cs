@@ -66,6 +66,11 @@ namespace Horde.Build.Issues
 		public string? TriageAlias { get; set; }
 
 		/// <summary>
+		/// Slack user/alias to ping for specific issue types (such as Systemic), if there is nobody assigned to an issue by default.
+		/// </summary>
+		public Dictionary<string, string>? TriageTypeAliases { get; set; }
+
+		/// <summary>
 		/// Alias to ping if an issue has not been resolved for a certain amount of time
 		/// </summary>
 		public string? EscalateAlias { get; set; }
