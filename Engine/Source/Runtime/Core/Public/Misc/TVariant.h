@@ -18,6 +18,12 @@ struct TInPlaceType {};
  */
 struct FEmptyVariantState {};
 
+/** Allow FEmptyVariantState to be used with FArchive serialization */
+inline FArchive& operator<<(FArchive& Ar, FEmptyVariantState&)
+{
+	return Ar;
+}
+
 /**
  * A type-safe union based loosely on std::variant. This flavor of variant requires that all the types in the declaring template parameter pack be unique.
  * Attempting to use the value of a Get() when the underlying type is different leads to undefined behavior.
@@ -236,4 +242,35 @@ decltype(auto) Visit(Func&& Callable, Variants&&... Args)
 		TMakeIntegerSequence<SIZE_T, sizeof...(Variants)>{},
 		Forward<Variants>(Args)...
 	);
+}
+
+/**
+ * Serialization function for TVariants. 
+ *
+ * In order for a TVariant to be serializable, each type in its template parameter pack must:
+ *   1. Have a default constructor. This is required because when reading the type from an archive, it must be default constructed before being loaded.
+ *   2. Implement the `FArchive& operator<<(FArchive&, T&)` function. This is required to serialize the actual type that's stored in TVariant.
+ */
+template <typename... Ts>
+inline FArchive& operator<<(typename UE::Core::Private::TAlwaysFArchive<TVariant<Ts...>>::Type& Ar, TVariant<Ts...>& Variant)
+{
+	static_assert(sizeof...(Ts) < 256, "TVariant serialization assumes that the stored index can fit in 8 bits");
+	if (Ar.IsLoading())
+	{
+		uint8 Index;
+		Ar << Index;
+		check(Index < sizeof...(Ts));
+
+		UE::Core::Private::TVariantLoadFromArchiveLookup<Ts...>::Load((SIZE_T)Index, Ar, Variant);
+	}
+	else
+	{
+		uint8 Index = (uint8)Variant.GetIndex();
+		Ar << Index;
+		Visit([&Ar](auto& StoredValue)
+		{
+			Ar << StoredValue;
+		}, Variant);
+	}
+	return Ar;
 }
