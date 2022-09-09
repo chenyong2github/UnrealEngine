@@ -331,7 +331,7 @@ bool UMetaDataRegistrySource_CurveTable::SetDataForChild(FName SourceId, UDataRe
 	UDataRegistrySource_CurveTable* ChildCurveTable = Cast<UDataRegistrySource_CurveTable>(ChildSource);
 	if (ensure(ChildCurveTable))
 	{
-		TSoftObjectPtr<UCurveTable> NewTable = TSoftObjectPtr<UCurveTable>(FSoftObjectPath(SourceId));
+		TSoftObjectPtr<UCurveTable> NewTable = TSoftObjectPtr<UCurveTable>(FSoftObjectPath(SourceId.ToString()));
 		ChildCurveTable->SetSourceTable(NewTable, TableRules);
 		return true;
 	}

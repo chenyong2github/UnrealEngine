@@ -329,7 +329,7 @@ bool UMetaDataRegistrySource_DataTable::SetDataForChild(FName SourceId, UDataReg
 	UDataRegistrySource_DataTable* ChildDataTable = Cast<UDataRegistrySource_DataTable>(ChildSource);
 	if (ensure(ChildDataTable))
 	{
-		TSoftObjectPtr<UDataTable> NewTable = TSoftObjectPtr<UDataTable>(FSoftObjectPath(SourceId));
+		TSoftObjectPtr<UDataTable> NewTable = TSoftObjectPtr<UDataTable>(FSoftObjectPath(SourceId.ToString()));
 		ChildDataTable->SetSourceTable(NewTable, TableRules);
 		return true;
 	}

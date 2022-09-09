@@ -221,7 +221,7 @@ void UMetaDataRegistrySource::DetermineRuntimeNames(TArray<FName>& OutRuntimeNam
 	{
 		if (DoesAssetPassFilter(AssetData, false))
 		{
-			OutRuntimeNames.Add(AssetData.ObjectPath);
+			OutRuntimeNames.Add(FName(*AssetData.GetObjectPathString()));
 		}
 	}
 }
