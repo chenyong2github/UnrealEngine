@@ -72,7 +72,7 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 
 void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 {
-	check(!CommonMeshesProperties.IsNull());
+	check(CommonMeshesProperties.IsValid());
 	if (!bImportSkeletalMeshes)
 	{
 		//Nothing to import
@@ -264,7 +264,7 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 
 UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletonFactoryNode(const FString& RootJointUid)
 {
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
 	if (!RootJointNode)
 	{
@@ -306,10 +306,10 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeleton
 	}
 
 	//If we have a specified skeleton
-	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton)
+	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
 	{
 		SkeletonFactoryNode->SetEnabled(false);
-		SkeletonFactoryNode->SetCustomReferenceObject(FSoftObjectPath(CommonSkeletalMeshesAndAnimationsProperties->Skeleton));
+		SkeletonFactoryNode->SetCustomReferenceObject(FSoftObjectPath(CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get()));
 	}
 #if WITH_EDITOR
 	//Iterate all joints to set the meta data value in the skeleton node
@@ -321,8 +321,8 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeleton
 
 UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)
 {
-	check(!CommonMeshesProperties.IsNull());
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonMeshesProperties.IsValid());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 	//Get the skeleton factory node
 	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
 	if (!RootJointNode)
@@ -424,13 +424,13 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 	SkeletalMeshFactoryNode->SetCustomImportContentType(SkeletalMeshImportContentType);
 
 	//If we have a specified skeleton
-	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton)
+	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
 	{
 		bool bSkeletonCompatible = false;
 
 		//TODO: support skeleton helper in runtime
 #if WITH_EDITOR
-		bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton, RootJointNode->GetUniqueID(), BaseNodeContainer);
+		bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get(), RootJointNode->GetUniqueID(), BaseNodeContainer);
 #endif
 		if (bSkeletonCompatible)
 		{
@@ -461,7 +461,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 		}
 	}
 	SkeletalMeshFactoryNode->SetCustomCreatePhysicsAsset(bCreatePhysicsAsset);
-	if (!bCreatePhysicsAsset && !PhysicsAsset.IsNull())
+	if (!bCreatePhysicsAsset && PhysicsAsset.IsValid())
 	{
 		FSoftObjectPath PhysicSoftObjectPath(PhysicsAsset.Get());
 		SkeletalMeshFactoryNode->SetCustomPhysicAssetSoftObjectPath(PhysicSoftObjectPath);
@@ -530,8 +530,8 @@ UInterchangeSkeletalMeshLodDataNode* UInterchangeGenericMeshPipeline::CreateSkel
 
 void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex)
 {
-	check(!CommonMeshesProperties.IsNull());
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonMeshesProperties.IsValid());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 
 	const FString SkeletalMeshUid = SkeletalMeshFactoryNode->GetUniqueID();
 	const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
@@ -606,7 +606,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 
 void UInterchangeGenericMeshPipeline::PostImportSkeletalMesh(UObject* CreatedAsset, const UInterchangeFactoryBaseNode* FactoryNode)
 {
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 
 	if (!BaseNodeContainer)
 	{
@@ -621,7 +621,7 @@ void UInterchangeGenericMeshPipeline::PostImportSkeletalMesh(UObject* CreatedAss
 
 	//If we import only the geometry we do not want to update the skeleton reference pose.
 	const bool bImportGeometryOnlyContent = SkeletalMeshImportContentType == EInterchangeSkeletalMeshContentType::Geometry;
-	if (!bImportGeometryOnlyContent && bUpdateSkeletonReferencePose && !CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull() && SkeletalMesh->GetSkeleton() == CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get())
+	if (!bImportGeometryOnlyContent && bUpdateSkeletonReferencePose && CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid() && SkeletalMesh->GetSkeleton() == CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get())
 	{
 		SkeletalMesh->GetSkeleton()->UpdateReferencePoseFromMesh(SkeletalMesh);
 		//TODO: notify editor the skeleton has change
@@ -686,7 +686,7 @@ void UInterchangeGenericMeshPipeline::PostImportPhysicsAssetImport(UObject* Crea
 
 void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesImportedNodeCount, const bool bUseSourceNameForAsset)
 {
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 
 	const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
 	TArray<FString> SkeletalMeshNodeUids;
@@ -721,7 +721,7 @@ void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkelet
 		if (const UInterchangeSkeletalMeshLodDataNode* SkeletalMeshLodDataNode = Cast<const UInterchangeSkeletalMeshLodDataNode>(BaseNodeContainer->GetFactoryNode(LodDataUids[0])))
 		{
 			//If the user did not specify any skeleton
-			if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
+			if (!CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
 			{
 				FString SkeletalMeshSkeletonUid;
 				SkeletalMeshLodDataNode->GetCustomSkeletonUid(SkeletalMeshSkeletonUid);

@@ -32,11 +32,11 @@ public:
 
 	//Common Meshes Properties Settings Pointer
 	UPROPERTY(Transient)
-	TObjectPtr<UInterchangeGenericCommonMeshesProperties> CommonMeshesProperties;
+	TWeakObjectPtr<UInterchangeGenericCommonMeshesProperties> CommonMeshesProperties;
 
 	//Common SkeletalMeshes And Animations Properties Settings Pointer
 	UPROPERTY(Transient)
-	TObjectPtr<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties> CommonSkeletalMeshesAndAnimationsProperties;
+	TWeakObjectPtr<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties> CommonSkeletalMeshesAndAnimationsProperties;
 	
 	//////	STATIC_MESHES_CATEGORY Properties //////
 
@@ -110,7 +110,7 @@ public:
 	float DistanceFieldResolutionScale = 1.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
-	TObjectPtr<class UStaticMesh> DistanceFieldReplacementMesh = nullptr;
+	TWeakObjectPtr<class UStaticMesh> DistanceFieldReplacementMesh = nullptr;
 	
 	/** 
 	 * Max Lumen mesh cards to generate for this mesh.
@@ -153,7 +153,7 @@ public:
 
 	/** If this is set, use this specified PhysicsAsset. If its not set and bCreatePhysicsAsset is false, the importer will not generate or set any physic asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (editcondition = "!bCreatePhysicsAsset"))
-	TObjectPtr<UPhysicsAsset> PhysicsAsset;
+	TWeakObjectPtr<UPhysicsAsset> PhysicsAsset;
 
 	/** Threshold use to decide if two vertex position are equal. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))

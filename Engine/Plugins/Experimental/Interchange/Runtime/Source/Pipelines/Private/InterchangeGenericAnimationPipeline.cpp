@@ -51,7 +51,7 @@ void UInterchangeGenericAnimationPipeline::AdjustSettingsForContext(EInterchange
 {
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
 
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 	
 	if (ImportType == EInterchangePipelineContext::AssetCustomLODImport
 		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
@@ -116,12 +116,12 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 		}
 	}
 
-	if (CommonSkeletalMeshesAndAnimationsProperties.IsNull())
+	if (!CommonSkeletalMeshesAndAnimationsProperties.IsValid())
 	{
 		return;
 	}
 
-	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations && CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
+	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations && !CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericAnimationPipeline: Cannot execute pre-import pipeline because we cannot import animation only but not specify any valid skeleton"));
 		return;
@@ -504,13 +504,13 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 			}
 		}
 
-		if (!CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
+		if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
 		{
 			bool bSkeletonCompatible = true;
 
 			//TODO: support skeleton helper in runtime
 #if WITH_EDITOR
-			bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton, RootJointUid, BaseNodeContainer);
+			bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get(), RootJointUid, BaseNodeContainer);
 #endif
 			if(bSkeletonCompatible)
 			{
@@ -860,13 +860,13 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 		}
 	}
 
-	if (!CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsNull())
+	if (CommonSkeletalMeshesAndAnimationsProperties->Skeleton.IsValid())
 	{
 		bool bSkeletonCompatible = true;
 
 		//TODO: support skeleton helper in runtime
 #if WITH_EDITOR
-		bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton, RootJointUid, BaseNodeContainer);
+		bSkeletonCompatible = UE::Interchange::Private::FSkeletonHelper::IsCompatibleSkeleton(CommonSkeletalMeshesAndAnimationsProperties->Skeleton.Get(), RootJointUid, BaseNodeContainer);
 #endif
 		if (bSkeletonCompatible)
 		{

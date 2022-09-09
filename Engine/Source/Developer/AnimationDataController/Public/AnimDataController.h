@@ -45,8 +45,8 @@ public:
 #if WITH_EDITOR
 	/** Begin IAnimationDataController overrides */
 	virtual void SetModel(UAnimDataModel* InModel)  override;
-    virtual UAnimDataModel* GetModel() override { return Model; }
-	virtual const UAnimDataModel* const GetModel() const override { return Model; }
+    virtual UAnimDataModel* GetModel() override { return Model.Get(); }
+	virtual const UAnimDataModel* const GetModel() const override { return Model.Get(); }
 	virtual void OpenBracket(const FText& InTitle, bool bShouldTransact = true) override;
 	virtual void CloseBracket(bool bShouldTransact = true) override;
 	virtual void SetPlayLength(float Length, bool bShouldTransact = true) override;
@@ -152,7 +152,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-	TObjectPtr<UAnimDataModel> Model;
+	TWeakObjectPtr<UAnimDataModel> Model;
 #endif // WITH_EDITORONLY_DATA
 
 	friend class FAnimDataControllerTestBase;

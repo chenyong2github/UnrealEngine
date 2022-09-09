@@ -193,7 +193,7 @@ void UAnimDataController::SetFrameRate(FFrameRate FrameRate, bool bShouldTransac
 	{
 		CONDITIONAL_TRANSACTION(LOCTEXT("SetFrameRate", "Setting Frame Rate"));
 
-		CONDITIONAL_ACTION(UE::Anim::FSetFrameRateAction, Model);
+		CONDITIONAL_ACTION(UE::Anim::FSetFrameRateAction, Model.Get());
 
 		FFrameRateChangedPayload Payload;
 		Payload.PreviousFrameRate = Model->FrameRate;
@@ -1207,7 +1207,7 @@ void UAnimDataController::ResizePlayLength(float Length, float T0, float T1, boo
 					Payload.T1 = T1;
 					Payload.PreviousLength = Model->PlayLength;
 
-					CONDITIONAL_ACTION(UE::Anim::FResizePlayLengthAction, Model, T0, T1);
+					CONDITIONAL_ACTION(UE::Anim::FResizePlayLengthAction, Model.Get(), T0, T1);
 
 					Model->PlayLength = Length;
 

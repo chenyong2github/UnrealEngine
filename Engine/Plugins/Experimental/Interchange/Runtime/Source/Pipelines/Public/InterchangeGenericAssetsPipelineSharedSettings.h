@@ -115,7 +115,7 @@ public:
 
 	/** Skeleton to use for imported asset. When importing a skeletal mesh, leaving this as "None" will create a new skeleton. When importing an animation this MUST be specified to import the asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Meshes and Animations")
-	TObjectPtr<USkeleton> Skeleton;
+	TWeakObjectPtr<USkeleton> Skeleton;
 
 	/** If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Meshes and Animations")
@@ -127,7 +127,7 @@ public:
 
 	virtual bool IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const override
 	{
-		if (bImportOnlyAnimations && Skeleton.IsNull())
+		if (bImportOnlyAnimations && !Skeleton.IsValid())
 		{
 			OutInvalidReason = NSLOCTEXT("UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties", "SkeletonMustBeSpecified", "When importing only animations, a valid skeleton must be set.");
 			return false;

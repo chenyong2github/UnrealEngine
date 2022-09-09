@@ -19,7 +19,7 @@ void UInterchangeGenericMeshPipeline::AdjustSettingsForContext(EInterchangePipel
 {
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
 
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonSkeletalMeshesAndAnimationsProperties.IsValid());
 	if (ImportType == EInterchangePipelineContext::None)
 	{
 		//We do not change the setting if we are in editing context

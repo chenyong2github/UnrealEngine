@@ -136,7 +136,7 @@ static void BuildMeshToCollisionMeshMap(const TArray<FString>& MeshUids, TMap<FS
 
 void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 {
-	check(!CommonMeshesProperties.IsNull());
+	check(CommonMeshesProperties.IsValid());
 
 #if WITH_EDITOR
 	//Make sure the generic pipeline will cover all staticmesh build settings when we import
@@ -382,7 +382,7 @@ bool UInterchangeGenericMeshPipeline::MakeMeshFactoryNodeUidAndDisplayLabel(cons
 
 UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStaticMeshFactoryNode(const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)
 {
-	check(!CommonMeshesProperties.IsNull());
+	check(CommonMeshesProperties.IsValid());
 	if (MeshUidsPerLodIndex.Num() == 0)
 	{
 		return nullptr;
@@ -448,7 +448,7 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStatic
 	StaticMeshFactoryNode->SetCustomDstLightmapIndex(DstLightmapIndex);
 	StaticMeshFactoryNode->SetCustomBuildScale3D(BuildScale3D);
 	StaticMeshFactoryNode->SetCustomDistanceFieldResolutionScale(DistanceFieldResolutionScale);
-	StaticMeshFactoryNode->SetCustomDistanceFieldReplacementMesh(DistanceFieldReplacementMesh);
+	StaticMeshFactoryNode->SetCustomDistanceFieldReplacementMesh(DistanceFieldReplacementMesh.Get());
 	StaticMeshFactoryNode->SetCustomMaxLumenMeshCards(MaxLumenMeshCards);
 	StaticMeshFactoryNode->SetCustomBuildNanite(bBuildNanite);
 
@@ -476,7 +476,7 @@ UInterchangeStaticMeshLodDataNode* UInterchangeGenericMeshPipeline::CreateStatic
 
 void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex)
 {
-	check(!CommonMeshesProperties.IsNull());
+	check(CommonMeshesProperties.IsValid());
 	const FString StaticMeshFactoryUid = StaticMeshFactoryNode->GetUniqueID();
 
 	for (const TPair<int32, TArray<FString>>& LodIndexAndNodeUids : NodeUidsPerLodIndex)
