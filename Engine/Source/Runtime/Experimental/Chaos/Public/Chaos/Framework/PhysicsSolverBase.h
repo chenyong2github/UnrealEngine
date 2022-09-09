@@ -196,7 +196,7 @@ namespace Chaos
 		/** Clear all the callbacks*/
 		void            ClearCallbacks() 
 		{
-			EventPostSolve.Clear(); 
+			EventPreSolve.Clear(); 
 			EventPreBuffer.Clear(); 
 			EventPostSolve.Clear(); 
 			EventTeardown.Clear();
