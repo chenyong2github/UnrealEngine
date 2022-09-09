@@ -27,6 +27,7 @@ void FOptimusPersistentBufferPool::GetResourceBuffers(
 	FName InResourceName,
 	int32 InLODIndex,
 	int32 InElementStride,
+	int32 InRawStride,
 	TArray<int32> const& InElementCounts,
 	TArray<FRDGBufferRef>& OutBuffers)
 {
@@ -40,9 +41,14 @@ void FOptimusPersistentBufferPool::GetResourceBuffers(
 		TArray<FOptimusPersistentStructuredBuffer> ResourceBuffers;
 		ResourceBuffers.Reserve(InElementCounts.Num());
 
+		// If we are using a raw type alias for the buffer then we need to adjust stride and count.
+		check(InRawStride == 0 || InElementStride % InRawStride == 0);
+		const int32 Stride = InRawStride ? InRawStride : InElementStride;
+		const int32 ElementStrideMultiplier = InRawStride ? InElementStride / InRawStride : 1;
+
 		for (int32 Index = 0; Index < InElementCounts.Num(); Index++)
 		{
-			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(InElementStride, InElementCounts[Index]);
+			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(Stride, InElementCounts[Index] * ElementStrideMultiplier);
 			FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("FOptimusPersistentBuffer"), ERDGBufferFlags::None);
 			OutBuffers.Add(Buffer);
 

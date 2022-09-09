@@ -2,10 +2,14 @@
 
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
+// BUFFER_TYPE is type of underlying structure.
+// PUBLIC_TYPE is the exposed type that calling code expects to use.
+// Where BUFFER_TYPE is different to PUBLIC_TYPE we set BUFFER_TYPE_RAW and expect ReadRawBuffer() and WriteRawBuffer() to be implemented somewhere.
+
 uint DI_LOCAL(StartOffset);
 uint DI_LOCAL(BufferSize);
 
-#ifdef BUFFER_SPLIT_READ_WRITE
+#if BUFFER_SPLIT_READ_WRITE
 StructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferSRV);
 #endif
 RWStructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferUAV);
@@ -15,45 +19,59 @@ DI_IMPL_READ(ReadNumValues, uint, )
 	return DI_LOCAL(BufferSize);
 }
 
-DI_IMPL_READ(ReadValue, BUFFER_TYPE, uint Index)
+DI_IMPL_READ(ReadValue, PUBLIC_TYPE, uint Index)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-#ifdef BUFFER_SPLIT_READ_WRITE
-	return DI_LOCAL(BufferSRV)[BufferIndex];
+	PUBLIC_TYPE ReturnValue;
+#if BUFFER_SPLIT_READ_WRITE
+#if BUFFER_TYPE_RAW
+	ReadRawBuffer(DI_LOCAL(BufferSRV), BufferIndex, ReturnValue);
 #else
-	return DI_LOCAL(BufferUAV)[BufferIndex];
+	ReturnValue = DI_LOCAL(BufferSRV)[BufferIndex];
+#endif
+#else
+#if BUFFER_TYPE_RAW
+	ReadRawBuffer(DI_LOCAL(BufferUAV), BufferIndex, ReturnValue);
+#else
+	ReturnValue = DI_LOCAL(BufferUAV)[BufferIndex];
+#endif
+#endif
+	return ReturnValue;
+}
+
+DI_IMPL_WRITE(WriteValue, uint Index, PUBLIC_TYPE Value)
+{
+	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+#if BUFFER_TYPE_RAW
+	WriteRawBuffer(DI_LOCAL(BufferUAV), BufferIndex, Value);
+#else
+	DI_LOCAL(BufferUAV)[BufferIndex] = Value;
 #endif
 }
 
-DI_IMPL_WRITE(WriteValue, uint Index, BUFFER_TYPE Value)
+DI_IMPL_WRITE(WriteAtomicAdd, uint Index, PUBLIC_TYPE Value)
 {
+#if BUFFER_TYPE_SUPPORTS_ATOMIC
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-	DI_LOCAL(BufferUAV)[BufferIndex] = Value;
-}
-
-DI_IMPL_WRITE(WriteAtomicAdd, uint Index, BUFFER_TYPE Value)
-{
-#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
-	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-	BUFFER_TYPE OldValue;
+	PUBLIC_TYPE OldValue;
 	InterlockedAdd(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
 #endif
 }
 
-DI_IMPL_WRITE(WriteAtomicMin, uint Index, BUFFER_TYPE Value)
+DI_IMPL_WRITE(WriteAtomicMin, uint Index, PUBLIC_TYPE Value)
 {
-#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
+#if BUFFER_TYPE_SUPPORTS_ATOMIC
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-	BUFFER_TYPE OldValue;
+	PUBLIC_TYPE OldValue;
 	InterlockedMin(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
 #endif
 }
 
-DI_IMPL_WRITE(WriteAtomicMax, uint Index, BUFFER_TYPE Value)
+DI_IMPL_WRITE(WriteAtomicMax, uint Index, PUBLIC_TYPE Value)
 {
-#ifdef BUFFER_TYPE_SUPPORTS_ATOMIC
+#if BUFFER_TYPE_SUPPORTS_ATOMIC
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
-	BUFFER_TYPE OldValue;
-	InterlockedMin(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
+	PUBLIC_TYPE OldValue;
+	InterlockedMax(DI_LOCAL(BufferUAV)[BufferIndex], Value, OldValue);
 #endif
 }

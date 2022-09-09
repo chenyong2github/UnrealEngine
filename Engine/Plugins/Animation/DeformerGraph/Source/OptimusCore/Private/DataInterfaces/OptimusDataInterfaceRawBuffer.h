@@ -65,6 +65,8 @@ public:
 protected:
 	virtual bool UseSplitBuffers() const { return true; }
 
+	int32 GetRawStride() const;
+
 	template<typename U>
 	U* CreateProvider(TObjectPtr<UObject> InBinding) const
 	{
@@ -75,12 +77,14 @@ protected:
 			Provider->ComponentSource = GetComponentSource();
 			Provider->DataDomain = DataDomain;
 			Provider->ElementStride = ValueType->GetResourceElementSize();
+			Provider->RawStride = GetRawStride();
 		}
 		return Provider;
 	}
 private:
 	const UOptimusComponentSource* GetComponentSource() const;
 	bool SupportsAtomics() const;
+	FString GetRawType() const;
 };
 
 
@@ -162,6 +166,9 @@ public:
 
 	UPROPERTY()
 	int32 ElementStride = 4;
+
+	UPROPERTY()
+	int32 RawStride = 0;
 };
 
 
@@ -208,7 +215,8 @@ class FOptimusTransientBufferDataProviderProxy :
 public:
 	FOptimusTransientBufferDataProviderProxy(
 		TArray<int32> InInvocationElementCounts,
-		int32 InElementStride
+		int32 InElementStride,
+		int32 InRawStride
 		);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
@@ -219,6 +227,7 @@ public:
 private:
 	const TArray<int32> InvocationElementCounts;
 	const int32 ElementStride;
+	const int32 RawStride;
 
 	TArray<FRDGBuffer*> Buffer;
 	TArray<FRDGBufferSRV*> BufferSRV;
@@ -233,6 +242,7 @@ public:
 	FOptimusPersistentBufferDataProviderProxy(
 		TArray<int32> InInvocationElementCounts,
 		int32 InElementStride,
+		int32 InRawStride,
 		TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 		FName InResourceName,
 		int32 InLODIndex
@@ -246,6 +256,7 @@ public:
 private:
 	const TArray<int32> InvocationElementCounts;
 	const int32 ElementStride;
+	const int32 RawStride;
 	const TSharedPtr<FOptimusPersistentBufferPool> BufferPool;
 	const FName ResourceName;
 	const int32 LODIndex;

@@ -32,6 +32,7 @@ public:
 		FName InResourceName,
 		int32 InLODIndex,
 		int32 InElementStride,
+		int32 InRawStride,
 		TArray<int32> const& InElementCounts,
 		TArray<FRDGBuffer*>& OutBuffers );
 

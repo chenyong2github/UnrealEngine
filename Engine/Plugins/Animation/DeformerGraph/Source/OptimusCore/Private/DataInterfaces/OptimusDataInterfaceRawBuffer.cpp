@@ -27,6 +27,28 @@ bool UOptimusRawBufferDataInterface::SupportsAtomics() const
 	return ValueType->Type == EShaderFundamentalType::Int;
 }
 
+FString UOptimusRawBufferDataInterface::GetRawType() const
+{
+	// Currently the only case for using a raw typed buffer is for vectors with size 3.
+	// We _may_ also need something for user structures if we they don't obey alignment restrictions.
+	if (ValueType->DimensionType == EShaderFundamentalDimensionType::Vector && ValueType->VectorElemCount == 3)
+	{
+		return FShaderValueType::Get(ValueType->Type)->ToString();
+	}
+	return {};
+}
+
+int32 UOptimusRawBufferDataInterface::GetRawStride() const
+{
+	// Currently the only case for using a raw typed buffer is for vectors with size 3.
+	// We _may_ also need something for user structures if we they don't obey alignment restrictions.
+	if (ValueType->DimensionType == EShaderFundamentalDimensionType::Vector && ValueType->VectorElemCount == 3)
+	{
+		return 4;
+	}
+	return 0;
+}
+
 TArray<FOptimusCDIPinDefinition> UOptimusRawBufferDataInterface::GetPinDefinitions() const
 {
 	// FIXME: Multi-level support by proxying through a data interface.
@@ -117,19 +139,27 @@ void UOptimusRawBufferDataInterface::GetShaderHash(FString& InOutKey) const
 
 void UOptimusRawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 {
-	OutHLSL += TEXT("#define BUFFER_TYPE ");
-	OutHLSL += ValueType->ToString();
-	OutHLSL += TEXT(" \n");
+	TStringBuilder<512> StringBuilder;
 
-	if (SupportsAtomics()) { OutHLSL += TEXT("#define BUFFER_TYPE_SUPPORTS_ATOMIC 1\n"); }
-	if (UseSplitBuffers()) { OutHLSL += TEXT("#define BUFFER_SPLIT_READ_WRITE 1\n"); }
+	const FString PublicType = ValueType->ToString();
+	const FString RawType = GetRawType();
+	const bool bUseRawType = !RawType.IsEmpty();
 
-	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush\"\n");
+	StringBuilder.Appendf(TEXT("#define PUBLIC_TYPE %s\n"), *PublicType);
+	StringBuilder.Appendf(TEXT("#define BUFFER_TYPE %s\n"), bUseRawType ? *RawType : *PublicType);
+	StringBuilder.Appendf(TEXT("#define BUFFER_TYPE_RAW %d\n"), bUseRawType ? 1 : 0);
+	StringBuilder.Appendf(TEXT("#define BUFFER_TYPE_SUPPORTS_ATOMIC %d\n"), SupportsAtomics() ? 1 : 0);
+	StringBuilder.Appendf(TEXT("#define BUFFER_SPLIT_READ_WRITE %d\n"), UseSplitBuffers() ? 1 : 0);
 
-	if (SupportsAtomics()) { OutHLSL += TEXT("#undef BUFFER_TYPE_SUPPORTS_ATOMIC\n"); }
-	if (UseSplitBuffers()) { OutHLSL += TEXT("#undef BUFFER_SPLIT_READ_WRITE\n"); }
+	StringBuilder.Append(TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush\"\n"));
+	
+	StringBuilder.Append(TEXT("#undef PUBLIC_TYPE\n"));
+	StringBuilder.Append(TEXT("#undef BUFFER_TYPE\n"));
+	StringBuilder.Append(TEXT("#undef BUFFER_TYPE_RAW\n"));
+	StringBuilder.Append(TEXT("#undef BUFFER_TYPE_SUPPORTS_ATOMIC\n"));
+	StringBuilder.Append(TEXT("#undef BUFFER_SPLIT_READ_WRITE\n"));
 
-	OutHLSL += TEXT("#undef BUFFER_TYPE\n");
+	OutHLSL += StringBuilder.ToString();
 }
 
 FString UOptimusTransientBufferDataInterface::GetDisplayName() const
@@ -142,6 +172,8 @@ UComputeDataProvider* UOptimusTransientBufferDataInterface::CreateDataProvider(
 	) const
 {
 	UOptimusTransientBufferDataProvider *Provider = CreateProvider<UOptimusTransientBufferDataProvider>(InBinding);
+	Provider->ElementStride = ValueType->GetResourceElementSize();
+	Provider->RawStride = GetRawStride();
 	return Provider;
 }
 
@@ -292,7 +324,7 @@ FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderP
 	TArray<int32> InvocationCounts;
 	GetInvocationElementCounts(InvocationCounts);
 	
-	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride);
+	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride);
 }
 
 
@@ -312,25 +344,32 @@ FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRender
 	TArray<int32> InvocationCounts;
 	GetInvocationElementCounts(InvocationCounts);
 	
-	return new FOptimusPersistentBufferDataProviderProxy(InvocationCounts, ElementStride, BufferPool, ResourceName, LODIndex);
+	return new FOptimusPersistentBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride, BufferPool, ResourceName, LODIndex);
 }
 
 
 FOptimusTransientBufferDataProviderProxy::FOptimusTransientBufferDataProviderProxy(
 	TArray<int32> InInvocationElementCounts,
-	int32 InElementStride
+	int32 InElementStride,
+	int32 InRawStride
 	) :
 	InvocationElementCounts(InInvocationElementCounts),
-	ElementStride(InElementStride)
+	ElementStride(InElementStride),
+	RawStride(InRawStride)
 {
 }
 
 
 void FOptimusTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
+	// If we are using a raw type alias for the buffer then we need to adjust stride and count.
+	check(RawStride == 0 || ElementStride % RawStride == 0);
+	const int32 Stride = RawStride ? RawStride : ElementStride;
+	const int32 ElementStrideMultiplier = RawStride ? ElementStride / RawStride : 1;
+
 	for (const int32 NumElements: InvocationElementCounts)
 	{
-		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements), TEXT("TransientBuffer"), ERDGBufferFlags::None));
+		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(Stride, NumElements * ElementStrideMultiplier), TEXT("TransientBuffer"), ERDGBufferFlags::None));
 		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer.Last()));
 		BufferUAV.Add(GraphBuilder.CreateUAV(Buffer.Last()));
 	}
@@ -359,12 +398,14 @@ void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup
 FOptimusPersistentBufferDataProviderProxy::FOptimusPersistentBufferDataProviderProxy(
 	TArray<int32> InInvocationElementCounts,
 	int32 InElementStride,
+	int32 InRawStride,
 	TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 	FName InResourceName,
 	int32 InLODIndex
 	) :
 	InvocationElementCounts(InInvocationElementCounts),
 	ElementStride(InElementStride),
+	RawStride(InRawStride),
 	BufferPool(InBufferPool),
 	ResourceName(InResourceName),
 	LODIndex(InLODIndex)
@@ -376,7 +417,7 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	FRDGBuilder& GraphBuilder
 	)
 {
-	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, LODIndex, ElementStride, InvocationElementCounts, Buffers);
+	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, LODIndex, ElementStride, RawStride, InvocationElementCounts, Buffers);
 	BufferUAVs.Reserve(Buffers.Num());
 	for (FRDGBufferRef BufferRef : Buffers)
 	{
