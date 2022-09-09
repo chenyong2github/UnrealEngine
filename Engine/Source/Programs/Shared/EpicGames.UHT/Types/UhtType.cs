@@ -1208,7 +1208,10 @@ namespace EpicGames.UHT.Types
 				return nativeDisplayName;
 			}
 
-			return GetDisplayStringFromEngineName();
+			// In the engine, this is a call to NameToDisplayString.  UHT doesn't store these values
+			// so it is just important that they be reasonably unique.  This allows us to not have to 
+			// support changes to NameToDisplayString in the engine
+			return SourceName;
 		}
 
 		/// <summary>
@@ -1231,21 +1234,15 @@ namespace EpicGames.UHT.Types
 
 			if (nativeToolTip.Length == 0)
 			{
-				return GetDisplayStringFromEngineName();
+				// In the engine, this is a call to NameToDisplayString.  UHT doesn't store these values
+				// so it is just important that they be reasonably unique.  This allows us to not have to 
+				// support changes to NameToDisplayString in the engine
+				return SourceName;
 			}
 			else
 			{
 				return nativeToolTip.TrimEnd().Replace("@see", "See:", StringComparison.Ordinal);
 			}
-		}
-
-		/// <summary>
-		/// Return a generated display string from the engine name
-		/// </summary>
-		/// <returns>The generated string</returns>
-		protected virtual string GetDisplayStringFromEngineName()
-		{
-			return UhtFCString.NameToDisplayString(EngineName, false);
 		}
 		#endregion
 

@@ -1041,12 +1041,6 @@ namespace EpicGames.UHT.Types
 			PropertyCaps = UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey | UhtPropertyCaps.CanHaveConfig;
 		}
 
-		/// <inheritdoc/>
-		protected override string GetDisplayStringFromEngineName()
-		{
-			return UhtFCString.NameToDisplayString(EngineName, this is UhtBoolProperty);
-		}
-
 		#region Text and code generation support
 		/// <summary>
 		/// Internal version of AppendText.  Don't append any text to the builder to get the default behavior
