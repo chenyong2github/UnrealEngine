@@ -299,8 +299,9 @@ namespace Metasound
 				{
 					PinWidget = SNew(SMetasoundGraphPinBool, InPin);
 				}
-
-				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
+				
+				else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat
+					|| InPin->PinType.PinCategory == FGraphBuilder::PinCategoryTime)
 				{
 					PinWidget = SNew(SMetasoundGraphPinFloat, InPin);
 				}
