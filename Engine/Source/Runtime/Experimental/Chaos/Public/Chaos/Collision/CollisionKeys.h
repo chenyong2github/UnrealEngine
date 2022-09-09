@@ -7,6 +7,9 @@
 
 namespace Chaos
 {
+	/**
+	 * Combine two hashes in an order-independent way so that Hash(A, B) == Hash(B, A)
+	 */
 	inline uint32 OrderIndependentHashCombine(const uint32 A, const uint32 B)
 	{
 		if (A < B)
@@ -20,20 +23,31 @@ namespace Chaos
 	}
 
 	/**
-	 * @brief Order particles in a consistent way for use by Broadphase and Resim
-	*/
-	inline bool ShouldSwapParticleOrder(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1)
+	 * Return true if the particles are in the preferred order (the first one has the lower ID)
+	 */
+	inline bool AreParticlesInPreferredOrder(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1)
 	{
-		const bool bIsParticle1Preferred = (Particle1->ParticleID() < Particle0->ParticleID());
-		const bool bSwapOrder = !FConstGenericParticleHandle(Particle0)->IsDynamic() || !bIsParticle1Preferred;
-		return bSwapOrder;
+		return (Particle1->ParticleID() < Particle0->ParticleID());
 	}
 
 	/**
-	 * @brief A key which uniquely identifes a particle pair for use by the collision detection system
+	 * Used to order particles in a consistent way in Broadphase and Resim. Returns whether the partcile order should be reversed.
+	 * We want the particle with the lower ID first, unless only one is dynamic in which case that one is first.
+	 */
+	inline bool ShouldSwapParticleOrder(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1, const bool bIsParticle0Preferred)
+	{
+		return !FConstGenericParticleHandle(Particle0)->IsDynamic() || !bIsParticle0Preferred;
+	}
+	inline bool ShouldSwapParticleOrder(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1)
+	{
+		return ShouldSwapParticleOrder(Particle0, Particle1, AreParticlesInPreferredOrder(Particle0, Particle1));
+	}
+
+	/**
+	 * A key which uniquely identifes a particle pair for use by the collision detection system.
 	 * This key will be the same if particles order is reversed.
 	 * @note This uses ParticleID and truncates it from 32 to 31 bits
-	*/
+	 */
 	class FCollisionParticlePairKey
 	{
 	public:
@@ -104,14 +118,14 @@ namespace Chaos
 	};
 
 	/**
-	 * @brief A key which uniquely identifes a collision constraint within a particle pair
+	 * A key which uniquely identifes a collision constraint within a particle pair
 	 * 
 	 * This key only needs to be uinque within the context of a particle pair. There is no
 	 * guarantee of global uniqueness. This key is only used by the FMultiShapePairCollisionDetector
 	 * class which is used for colliding shape pairs where each shape is actually a hierarchy
 	 * of shapes. 
 	 * 
-	*/
+	 */
 	class FCollisionParticlePairConstraintKey
 	{
 	public:

@@ -297,8 +297,8 @@ namespace Chaos
 
 					// In both cases (resim or not) we will generate (1) dynamic-(sleeping,kinematic(steady+moving),static) pairs + (2) sleeping-moving kinematic ones
 					// Sleeping particles could collide with dynamic ones but these collisions are already handled in case 1
-					// Sleeping particles won't collide with static or steady kinematic particles since both are not supposed to move but will
-					// collide against moving kinematic particles
+					// Sleeping particles won't collide with static or steady kinematic particles since neither are moving
+					// Sleeping particles will collide against moving kinematic particles
 					if ((Particle1.ObjectState() == EObjectStateType::Dynamic && Particle2.ObjectState() != EObjectStateType::Dynamic) ||
 						(Particle1.ObjectState() == EObjectStateType::Sleeping && Particle2.ObjectState() == EObjectStateType::Kinematic))
 					{
@@ -306,7 +306,7 @@ namespace Chaos
 					}
 					
 					// Used to determine a winner in cases where we will visit particle pairs in both orders
-					const bool bIsParticle1Preferred = (Particle2.ParticleID() < Particle1.ParticleID());
+					const bool bIsParticle1Preferred = AreParticlesInPreferredOrder(Particle1.Handle(), Particle2.Handle());
 					
 					if(!bIsResimming)
 					{
@@ -375,7 +375,7 @@ namespace Chaos
 					// requirement but some downstream systems assume this is true (e.g., CCD, TriMesh collision).
 					TGeometryParticleHandle<FReal, 3>* ParticleA = Particle1.Handle();
 					TGeometryParticleHandle<FReal, 3>* ParticleB = Particle2.Handle();
-					const bool bSwapOrder = ShouldSwapParticleOrder(ParticleA, ParticleB);
+					const bool bSwapOrder = ShouldSwapParticleOrder(ParticleA, ParticleB, bIsParticle1Preferred);
 					if (bSwapOrder)
 					{
 						Swap(ParticleA, ParticleB);

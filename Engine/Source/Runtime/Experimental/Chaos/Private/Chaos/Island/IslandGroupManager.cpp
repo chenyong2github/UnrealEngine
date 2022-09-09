@@ -528,7 +528,8 @@ namespace Chaos
 #endif
 
 		// @todo(chaos): Remove SolveParallelFor when SolveParallelTasks has been thoroughly tested
-		const int32 ParallelMode = GSingleThreadedPhysics ? 0 : CVars::GIslandGroupsParallelMode;
+		const bool bSingleThreaded = GSingleThreadedPhysics || (IslandGroups.Num() == 1);
+		const int32 ParallelMode = bSingleThreaded ? 0 : CVars::GIslandGroupsParallelMode;
 		switch (ParallelMode)
 		{
 		case 0:
