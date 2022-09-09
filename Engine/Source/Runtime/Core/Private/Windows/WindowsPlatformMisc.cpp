@@ -60,12 +60,10 @@ THIRD_PARTY_INCLUDES_END
 
 #include "Modules/ModuleManager.h"
 
-#if !FORCE_ANSI_ALLOCATOR
-	#include "Windows/AllowWindowsPlatformTypes.h"
-		#include <Psapi.h>
-	#include "Windows/HideWindowsPlatformTypes.h"
-	#pragma comment(lib, "psapi.lib")
-#endif
+#include "Windows/AllowWindowsPlatformTypes.h"
+	#include <Psapi.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#pragma comment(lib, "psapi.lib")
 
 #include <fcntl.h>
 #include <io.h>
