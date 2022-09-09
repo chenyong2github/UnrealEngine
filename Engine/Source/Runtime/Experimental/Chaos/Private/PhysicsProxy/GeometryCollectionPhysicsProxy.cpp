@@ -513,46 +513,73 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 					{
 						const Chaos::FRigidTransform3 ParentShapeTransform =  GameThreadCollection.MassToLocal[ParentToFixIndex];
 				
-						// Make a union of the children geometry
-						TArray<TUniquePtr<Chaos::FImplicitObject>> ChildImplicits;
-						for (const int32& ChildIndex: GameThreadCollection.Children[ParentToFixIndex])
+						// let's make sure all our children have an implicit defined, other wise, postpone to next iteration 
+						bool bAllChildrenHaveCollision = true;
+						for (const int32& ChildIndex : GameThreadCollection.Children[ParentToFixIndex])
 						{
-							using FImplicitObjectTransformed = Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>;
-
-							Chaos::FGeometryParticle* ChildParticle = GTParticles[ChildIndex].Get();
-							const FGeometryDynamicCollection::FSharedImplicit& ChildImplicit = GameThreadCollection.Implicits[ChildIndex];
-							if (ChildImplicit)
+							// defer if any of the children is a cluster with no collision yet generated 
+							if (GameThreadCollection.Implicits[ChildIndex] == nullptr && GameThreadCollection.Children[ChildIndex].Num() > 0)
 							{
-								const Chaos::FRigidTransform3 ChildShapeTransform =  GameThreadCollection.MassToLocal[ChildIndex] * GameThreadCollection.Transform[ChildIndex];
-								const Chaos::FRigidTransform3 RelativeShapeTransform = ChildShapeTransform.GetRelativeTransform(ParentShapeTransform);
-						
-								// assumption that we only have can only have one level of union for any child
-								if (ChildImplicit->GetType() == Chaos::ImplicitObjectType::Union)
+								ParentToPotentiallyFix.Add(ParentToFixIndex);
+								bAllChildrenHaveCollision = false;
+								break;
+							}
+						}
+
+						if (bAllChildrenHaveCollision)
+						{
+							// Make a union of the children geometry
+							TArray<TUniquePtr<Chaos::FImplicitObject>> ChildImplicits;
+							for (const int32& ChildIndex : GameThreadCollection.Children[ParentToFixIndex])
+							{
+								using FImplicitObjectTransformed = Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>;
+
+								Chaos::FGeometryParticle* ChildParticle = GTParticles[ChildIndex].Get();
+								const FGeometryDynamicCollection::FSharedImplicit& ChildImplicit = GameThreadCollection.Implicits[ChildIndex];
+								if (ChildImplicit)
 								{
-									if (Chaos::FImplicitObjectUnion* Union = ChildImplicit->GetObject<Chaos::FImplicitObjectUnion>())
+									const Chaos::FRigidTransform3 ChildShapeTransform = GameThreadCollection.MassToLocal[ChildIndex] * GameThreadCollection.Transform[ChildIndex];
+									const Chaos::FRigidTransform3 RelativeShapeTransform = ChildShapeTransform.GetRelativeTransform(ParentShapeTransform);
+
+									// assumption that we only have can only have one level of union for any child
+									if (ChildImplicit->GetType() == Chaos::ImplicitObjectType::Union)
 									{
-										for (const TUniquePtr<Chaos::FImplicitObject>& ImplicitObject : Union->GetObjects())
+										if (Chaos::FImplicitObjectUnion* Union = ChildImplicit->GetObject<Chaos::FImplicitObjectUnion>())
 										{
-											TUniquePtr<Chaos::FImplicitObject> CopiedChildImplicit = ImplicitObject->DeepCopy();
-											FImplicitObjectTransformed* TransformedChildImplicit = new FImplicitObjectTransformed(MoveTemp(CopiedChildImplicit), RelativeShapeTransform);  
+											for (const TUniquePtr<Chaos::FImplicitObject>& ImplicitObject : Union->GetObjects())
+											{
+												TUniquePtr<Chaos::FImplicitObject> CopiedChildImplicit = ImplicitObject->DeepCopy();
+												FImplicitObjectTransformed* TransformedChildImplicit = new FImplicitObjectTransformed(MoveTemp(CopiedChildImplicit), RelativeShapeTransform);
+												ChildImplicits.Add(TUniquePtr<FImplicitObjectTransformed>(TransformedChildImplicit));
+											}
+										}
+									}
+									else
+									{
+										TUniquePtr<Chaos::FImplicitObject> CopiedChildImplicit = GameThreadCollection.Implicits[ChildIndex]->DeepCopy();
+										if (CopiedChildImplicit->GetType() == Chaos::ImplicitObjectType::Transformed)
+										{
+											if (FImplicitObjectTransformed* Transformed = CopiedChildImplicit->GetObject<FImplicitObjectTransformed>())
+											{
+												Transformed->SetTransform(Transformed->GetTransform() * RelativeShapeTransform);
+												ChildImplicits.Add(TUniquePtr<FImplicitObjectTransformed>(Transformed));
+											}
+										}
+										else
+										{
+											FImplicitObjectTransformed* TransformedChildImplicit = new FImplicitObjectTransformed(MoveTemp(CopiedChildImplicit), RelativeShapeTransform);
 											ChildImplicits.Add(TUniquePtr<FImplicitObjectTransformed>(TransformedChildImplicit));
 										}
 									}
 								}
-								else
-								{
-									TUniquePtr<Chaos::FImplicitObject> CopiedChildImplicit = GameThreadCollection.Implicits[ChildIndex]->DeepCopy();
-									FImplicitObjectTransformed* TransformedChildImplicit = new FImplicitObjectTransformed(MoveTemp(CopiedChildImplicit), RelativeShapeTransform);  
-									ChildImplicits.Add(TUniquePtr<FImplicitObjectTransformed>(TransformedChildImplicit));
-								}
 							}
+							if (ChildImplicits.Num() > 0)
+							{
+								Chaos::FImplicitObject* UnionImplicit = new Chaos::FImplicitObjectUnion(MoveTemp(ChildImplicits));
+								GameThreadCollection.Implicits[ParentToFixIndex] = FGeometryDynamicCollection::FSharedImplicit(UnionImplicit);
+							}
+							GTParticles[ParentToFixIndex]->SetGeometry(GameThreadCollection.Implicits[ParentToFixIndex]);
 						}
-						if (ChildImplicits.Num() > 0)
-						{
-							Chaos::FImplicitObject* UnionImplicit = new Chaos::FImplicitObjectUnion(MoveTemp(ChildImplicits));
-							GameThreadCollection.Implicits[ParentToFixIndex] = FGeometryDynamicCollection::FSharedImplicit(UnionImplicit);
-						}
-						GTParticles[ParentToFixIndex]->SetGeometry(GameThreadCollection.Implicits[ParentToFixIndex]);
 					}
 				}
 
