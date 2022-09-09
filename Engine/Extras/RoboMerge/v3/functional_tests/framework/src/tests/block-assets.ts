@@ -15,6 +15,7 @@ export class BlockAssets extends FunctionalTest {
 		await this.createStreamsAndWorkspaces(streams)
 
 		await P4Util.addFileAndSubmit(this.getClient('Main'), 'test.uasset', 'Initial content', true)
+		await P4Util.addFileAndSubmit(this.getClient('Main'), 'test2.uasset', 'Initial content', true)
 
 		const desc = 'Initial branch of files from Main'
 		await Promise.all([
@@ -23,29 +24,23 @@ export class BlockAssets extends FunctionalTest {
 		])
 	}
 
-	run() {
-		return P4Util.editFileAndSubmit(this.getClient('Main'), 'test.uasset', 'New content')
-	}	
+	async run() {
+		await P4Util.editFileAndSubmit(this.getClient('Main'), 'test.uasset', 'New content', '#disregardAssetBlock')
+		await P4Util.editFileAndSubmit(this.getClient('Main'), 'test2.uasset', 'New content')
+	}
 
 	verify() {
 		// situation before fixes:
 		//	- block asset on any target treated as syntax error, so blocks all
 		return Promise.all([
 			this.checkHeadRevision('Main', 'test.uasset', 2),
-			this.checkHeadRevision('Dev-Perkin', 'test.uasset', 1),
-
-
-// current state
-	
-/*
-	this.ensureBlocked('Main'),
-/*/
-// once fixed:
-
+			this.checkHeadRevision('Dev-Perkin', 'test.uasset', 2),
 			this.checkHeadRevision('Dev-Pootle', 'test.uasset', 2),
+			this.checkHeadRevision('Main', 'test2.uasset', 2),
+			this.checkHeadRevision('Dev-Perkin', 'test2.uasset', 1),
+			this.checkHeadRevision('Dev-Pootle', 'test2.uasset', 2),
 			this.ensureBlocked('Main', 'Dev-Perkin'),
 			this.ensureNotBlocked('Main', 'Dev-Pootle')
-/**/
 		])
 	}
 

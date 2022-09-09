@@ -641,7 +641,7 @@ Note first level is treated specially: for the purposes of these tests, force fl
 	return fail
 }
 
-type ChangeFlag = 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors' | 'roboshelf'
+type ChangeFlag = 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors' | 'roboshelf' | 'disregardassetblock'
 const ALLOWED_RAW_FLAGS = new Set(['null','ignore','deadend'])
 
 const FLAGMAP: {[name: string]: ChangeFlag} = {

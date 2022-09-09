@@ -1403,8 +1403,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			// check if we need to block a change containing assets
 			const blockAssetEdges: [EdgeBot, MergeAction][] = []
 			for (const action of info.targets) {
-				if (action.mergeMode === 'normal') {
-
+				if (action.mergeMode === 'normal' && !action.flags.has('disregardassetblock')) {
 
 					for (const blockTargetName of this.branch.blockAssetTargets) {
 						if (this._getBranch(blockTargetName) === action.branch) {

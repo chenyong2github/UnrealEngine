@@ -75,7 +75,7 @@ const ROBO_TAGS = [
 	'ROBOMERGE-SOURCE',
 ]
 
-type ChangeFlag = 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors'
+type ChangeFlag = 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors' | 'disregardassetblock'
 
 // mapping of #ROBOMERGE: flags to canonical names
 // use these with a pound like #ROBOMERGE: #stage
@@ -94,6 +94,9 @@ const FLAGMAP: {[name: string]: ChangeFlag} = {
 
 	// process this change even if the author is on the excluded list
 	disregardexcludedauthors: 'disregardexcludedauthors',
+
+	// process this change even if block assets is enabled for the edge and it contains assets
+	disregardassetblock: 'disregardassetblock',
 }
 
 const ALLOWED_RAW_FLAGS = ['null','ignore','deadend']

@@ -408,6 +408,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			description += '#ROBOMERGE[ALL]: #DISREGARDEXCLUDEDAUTHORS\n'
 		}
 
+		if (target.flags.has('disregardassetblock')) {
+			description += '#ROBOMERGE[ALL]: #DISREGARDASSETBLOCK\n'
+		}
+
 		let flags = '' // not all flags propagate, build them piecemeal
 
 		const thisBotMergeCommands = target.furtherMerges
