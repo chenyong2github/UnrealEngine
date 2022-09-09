@@ -450,6 +450,9 @@ public:
 	/** Number of times that properties have been compared */
 	int32 CompareIndex;
 
+	/** Tracking custom delta sends, for comparison against sending rep state. */
+	uint32 CustomDeltaChangeIndex = 0;
+	
 	/** Latest state of all property data. Not used on Clients, only used on Servers if Shadow State is enabled. */
 	FRepStateStaticBuffer StaticBuffer;
 
@@ -603,6 +606,9 @@ public:
 	 * Note, we can't solely rely on on LastChangelistIndex, since changelists are stored in circular buffers.
 	 */
 	int32 LastCompareIndex;
+
+	/** Tracking custom delta sends, for comparison against the changelist state. */
+	uint32 CustomDeltaChangeIndex = 0;
 
 	FReplicationFlags RepFlags;
 
@@ -1837,9 +1843,11 @@ private:
 
 	const uint16 GetNumLifetimeCustomDeltaProperties() const;
 
+	const uint16 GetLifetimeCustomDeltaPropertyRepIndex(const uint16 RepIndCustomDeltaPropertyIndex) const;
+
 	FProperty* GetLifetimeCustomDeltaProperty(const uint16 CustomDeltaPropertyIndex) const;
 
-	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndexex) const;
+	const ELifetimeCondition GetLifetimeCustomDeltaPropertyCondition(const uint16 RepIndCustomDeltaPropertyIndex) const;
 
 	ERepLayoutFlags Flags;
 

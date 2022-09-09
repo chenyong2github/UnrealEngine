@@ -8212,19 +8212,32 @@ const uint16 FRepLayout::GetNumLifetimeCustomDeltaProperties() const
 	return LifetimeCustomPropertyState.IsValid() ? LifetimeCustomPropertyState->GetNumCustomDeltaProperties() : 0;
 }
 
+const uint16 FRepLayout::GetLifetimeCustomDeltaPropertyRepIndex(const uint16 CustomDeltaPropertyIndex) const
+{
+	checkSlow(LifetimeCustomPropertyState.IsValid());
+
+	return LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex).PropertyRepIndex;
+}
+
 FProperty* FRepLayout::GetLifetimeCustomDeltaProperty(const uint16 CustomDeltaPropertyIndex) const
 {
+	checkSlow(LifetimeCustomPropertyState.IsValid());
+
 	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
 	return Parents[CustomDeltaProperty.PropertyRepIndex].Property;
 }
 
 const uint16 FRepLayout::GetCustomDeltaIndexFromPropertyRepIndex(const uint16 PropertyRepIndex) const
 {
+	checkSlow(LifetimeCustomPropertyState.IsValid());
+
 	return LifetimeCustomPropertyState->GetCustomDeltaIndexFromPropertyRepIndex(PropertyRepIndex);
 }
 
 const ELifetimeCondition FRepLayout::GetLifetimeCustomDeltaPropertyCondition(const uint16 CustomDeltaPropertyIndex) const
 {
+	checkSlow(LifetimeCustomPropertyState.IsValid());
+
 	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
 	return Parents[CustomDeltaProperty.PropertyRepIndex].Condition;
 }

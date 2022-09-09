@@ -157,7 +157,14 @@ public:
 	void CountBytes(FArchive& Ar) const;
 
 	/** Writes dirty properties to bunch */
-	void ReplicateCustomDeltaProperties(FNetBitWriter& Bunch, FReplicationFlags RepFlags);
+	UE_DEPRECATED(5.1, "Now takes an additional out param")
+	void ReplicateCustomDeltaProperties(FNetBitWriter& Bunch, FReplicationFlags RepFlags)
+	{
+		bool bSkippedPropertyCondition = false;
+		ReplicateCustomDeltaProperties(Bunch, RepFlags, bSkippedPropertyCondition);
+	}
+
+	void ReplicateCustomDeltaProperties(FNetBitWriter& Bunch, FReplicationFlags RepFlags, bool& bSkippedPropertyCondition);
 	bool ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags);
 	bool ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer);
 	bool ReplicateProperties_r(FOutBunch& Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer);
