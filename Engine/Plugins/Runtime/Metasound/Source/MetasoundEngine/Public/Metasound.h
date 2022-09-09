@@ -43,16 +43,11 @@ public:
 
 namespace Metasound
 {
-	namespace ConsoleVariables
-	{
-		static float GetBlockRate();
-	} // namespace ConsoleVariables
-
 #if WITH_EDITOR
 	template <typename TMetaSoundObject>
 	void PostEditUndo(TMetaSoundObject& InMetaSound)
 	{
-		InMetaSound.SetSynchronizationRequired();
+		InMetaSound.SetUpdateDetailsOnSynchronization();
 		if (UMetasoundEditorGraphBase* Graph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
 			Graph->RegisterGraphWithFrontend();
