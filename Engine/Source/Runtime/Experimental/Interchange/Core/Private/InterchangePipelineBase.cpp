@@ -93,6 +93,11 @@ FName UInterchangePipelineBase::GetPropertiesStatesPropertyName()
 	return GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, PropertiesStates);
 }
 
+FName UInterchangePipelineBase::GetResultsPropertyName()
+{
+	return GET_MEMBER_NAME_CHECKED(UInterchangePipelineBase, Results);
+}
+
 void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackName, const FString& ConfigFilename, TMap<FName, FInterchangePipelinePropertyStates>& ParentPropertiesStates)
 {
 	int32 PortFlags = 0;

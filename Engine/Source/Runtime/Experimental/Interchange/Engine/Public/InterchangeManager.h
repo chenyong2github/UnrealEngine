@@ -175,6 +175,9 @@ namespace UE
 				return TEXT("UE::Interchange::FImportAsyncHelper");
 			}
 
+			/** Unique id for this asynchelper. */
+			int32 UniqueId;
+
 			//The following Arrays are per source data
 			TArray<TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
 			TArray<UInterchangeSourceData*> SourceDatas;
@@ -228,6 +231,7 @@ namespace UE
 			//If we cancel the tasks, we set this boolean to true
 			std::atomic<bool> bCancel;
 
+			void SendAnalyticImportEndData();
 			void ReleaseTranslatorsSource();
 			void InitCancel();
 			void CancelAndWaitUntilDoneSynchronously();

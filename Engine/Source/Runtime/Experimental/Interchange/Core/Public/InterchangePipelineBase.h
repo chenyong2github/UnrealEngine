@@ -267,6 +267,8 @@ public:
 	 */
 	static FName GetPropertiesStatesPropertyName();
 
+	static FName GetResultsPropertyName();
+
 	bool CanEditPropertiesStates() { return bAllowPropertyStatesEdition; }
 	bool IsReimportContext() { return bIsReimportContext; }
 protected:

@@ -169,6 +169,7 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
+	AsyncHelper->SendAnalyticImportEndData();
 	//No need anymore of the translators sources
 	AsyncHelper->ReleaseTranslatorsSource();
 
