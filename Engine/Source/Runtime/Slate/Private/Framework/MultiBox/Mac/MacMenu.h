@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Framework/MultiBox/MultiBox.h"
-#include "SMenuEntryBlock.h"
+#include "Framework/MultiBox/SMenuEntryBlock.h"
 #include "Mac/CocoaMenu.h"
 
 @interface FMacMenu : FCocoaMenu <NSMenuDelegate>
