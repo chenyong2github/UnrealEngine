@@ -1640,6 +1640,28 @@ namespace UnrealBuildTool
 
 						ArchiveTimingInfoAction.ProducedItems.Add(ArchiveOutputFile);
 						Makefile.OutputItems.AddRange(ArchiveTimingInfoAction.ProducedItems);
+
+						// Extract CompileScore data from traces
+						FileReference ScoreDataExtractor = FileReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "CompileScore", "ScoreDataExtractor.exe");
+						if (RuntimePlatform.IsWindows && FileReference.Exists(ScoreDataExtractor))
+						{
+							FileItem CompileScoreOutput = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.scor"));
+
+							Action CompileScoreExtractorAction = MakefileBuilder.CreateAction(ActionType.ParseTimingInfo);
+							CompileScoreExtractorAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+							CompileScoreExtractorAction.StatusDescription = $"Extracting CompileScore";
+							CompileScoreExtractorAction.bCanExecuteRemotely = false;
+							CompileScoreExtractorAction.bCanExecuteRemotelyWithSNDBS = false;
+							CompileScoreExtractorAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+							CompileScoreExtractorAction.CommandPath = ScoreDataExtractor;
+							CompileScoreExtractorAction.CommandArguments = $"-clang -verbosity 0 -timelinepack 1000000 -extract -i \"{NormalizeCommandLinePath(Makefile.ProjectIntermediateDirectory)}\" -o \"{NormalizeCommandLinePath(CompileScoreOutput)}\"";
+
+							CompileScoreExtractorAction.ProducedItems.Add(CompileScoreOutput);
+							CompileScoreExtractorAction.ProducedItems.Add(FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.scor.gbl")));
+							CompileScoreExtractorAction.ProducedItems.Add(FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.scor.incl")));
+							CompileScoreExtractorAction.ProducedItems.Add(FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.scor.t0000")));
+							Makefile.OutputItems.AddRange(CompileScoreExtractorAction.ProducedItems);
+						}
 					}
 				}
 			}
