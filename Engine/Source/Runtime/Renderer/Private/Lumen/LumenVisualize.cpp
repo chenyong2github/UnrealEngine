@@ -526,7 +526,7 @@ void SetupVisualizeParameters(
 
 	// FLumenVisualizeSceneSoftwareRayTracingParameters
 	{
-		float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance;
+		float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance >= 0.0f ? GVisualizeLumenSceneMaxMeshSDFTraceDistance : FLT_MAX;
 		float MaxTraceDistance = GVisualizeLumenSceneMaxTraceDistance;
 
 		// Reflection scene view uses reflection setup
