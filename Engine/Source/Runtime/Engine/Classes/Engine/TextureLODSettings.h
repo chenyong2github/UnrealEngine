@@ -136,7 +136,7 @@ struct ENGINE_API FTextureLODGroup
  * Structure containing all information related to an LOD group and providing helper functions to calculate
  * the LOD bias of a given group.
  */
-UCLASS(config=DeviceProfiles, perObjectConfig)
+UCLASS(config=DeviceProfiles)
 class ENGINE_API UTextureLODSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
