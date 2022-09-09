@@ -173,7 +173,8 @@ public:
 	FName GetGroupName() const { return GroupName; }
 
 	virtual void CopyAndSort(const FMassProcessingPhaseConfig& PhaseConfig, const FString& DependencyGraphFileName = FString());
-	void SetProcessors(TArrayView<UMassProcessor*> InProcessorInstances, const FString& DependencyGraphFileName = FString());
+	virtual void SetProcessors(TArrayView<UMassProcessor*> InProcessorInstances, const FString& DependencyGraphFileName = FString());
+	virtual void BuildFlatProcessingGraph(TConstArrayView<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups);
 
 	/** adds SubProcessor to an appropriately named group. If RequestedGroupName == None then SubProcessor
 	 *  will be added directly to ChildPipeline. If not then the indicated group will be searched for in ChildPipeline 
@@ -211,7 +212,7 @@ protected:
 	UPROPERTY()
 	FName GroupName;
 
-	TArray<FDependencyNode> ProcessingFlatGraph;
+	TArray<FDependencyNode> FlatProcessingGraph;
 
 	struct FProcessorCompletion
 	{

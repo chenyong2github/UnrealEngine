@@ -256,9 +256,9 @@ void UMassCompositeProcessor::ConfigureQueries()
 FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(const TSharedPtr<FMassEntityManager>& EntityManager, FMassExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
 {
 	FGraphEventArray Events;
-	Events.Reserve(ProcessingFlatGraph.Num());
+	Events.Reserve(FlatProcessingGraph.Num());
 		
-	for (FDependencyNode& ProcessingNode : ProcessingFlatGraph)
+	for (FDependencyNode& ProcessingNode : FlatProcessingGraph)
 	{
 		FGraphEventArray Prerequisites;
 		for (const int32 DependencyIndex : ProcessingNode.Dependencies)
@@ -277,13 +277,13 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(const TSharedPtr<
 #if WITH_MASSENTITY_DEBUG
 	if (UE::Mass::Debug::bLogProcessingGraph)
 	{
-		for (int i = 0; i < ProcessingFlatGraph.Num(); ++i)
+		for (int i = 0; i < FlatProcessingGraph.Num(); ++i)
 		{
-			FDependencyNode& ProcessingNode = ProcessingFlatGraph[i];
+			FDependencyNode& ProcessingNode = FlatProcessingGraph[i];
 			FString DependenciesDesc;
 			for (const int32 DependencyIndex : ProcessingNode.Dependencies)
 			{
-				DependenciesDesc += FString::Printf(TEXT("%s, "), *ProcessingFlatGraph[DependencyIndex].Name.ToString());
+				DependenciesDesc += FString::Printf(TEXT("%s, "), *FlatProcessingGraph[DependencyIndex].Name.ToString());
 			}
 
 			check(ProcessingNode.Processor);
@@ -341,18 +341,25 @@ void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProces
 
 	Populate(SortedProcessorsAndGroups);
 
+	BuildFlatProcessingGraph(SortedProcessorsAndGroups);
+}
+
+void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BuildFlatProcessingGraph);
+
 	// this part is creating an ordered, flat list of processors that can be executed in sequence
 	// with subsequent task only depending on the elements prior on the list
 	TMap<FName, int32> NameToDependencyIndex;
 	NameToDependencyIndex.Reserve(SortedProcessorsAndGroups.Num());
 	TArray<int32> SuperGroupDependency;
-	for (FProcessorDependencySolver::FOrderInfo& Element : SortedProcessorsAndGroups)
+	for (const FProcessorDependencySolver::FOrderInfo& Element : SortedProcessorsAndGroups)
 	{
-		NameToDependencyIndex.Add(Element.Name, ProcessingFlatGraph.Num());
+		NameToDependencyIndex.Add(Element.Name, FlatProcessingGraph.Num());
 
 		// we don't expect to get any "group" nodes here. If it happens it indicates a bug in dependency solving
 		checkSlow(Element.Processor);
-		FDependencyNode& Node = ProcessingFlatGraph.Add_GetRef({ Element.Name, Element.Processor });
+		FDependencyNode& Node = FlatProcessingGraph.Add_GetRef({ Element.Name, Element.Processor });
 		Node.Dependencies.Reserve(Element.Dependencies.Num());
 		for (FName DependencyName : Element.Dependencies)
 		{
@@ -366,11 +373,11 @@ void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProces
 	UE_LOG(LogMass, Log, TEXT("%s flat processing graph:"), *GroupName.ToString());
 
 	TArray<int32> Offset;
-	Offset.Reserve(ProcessingFlatGraph.Num());
+	Offset.Reserve(FlatProcessingGraph.Num());
 
-	for (int i = 0; i < ProcessingFlatGraph.Num(); ++i)
+	for (int i = 0; i < FlatProcessingGraph.Num(); ++i)
 	{
-		FDependencyNode& ProcessingNode = ProcessingFlatGraph[i];
+		FDependencyNode& ProcessingNode = FlatProcessingGraph[i];
 		FString DependenciesDesc;
 		int32 MyOffset = 0;
 		for (const int32 DependencyIndex : ProcessingNode.Dependencies)

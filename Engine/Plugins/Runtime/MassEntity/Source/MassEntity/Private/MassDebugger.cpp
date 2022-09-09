@@ -271,7 +271,7 @@ const TConstArrayView<FName> FMassDebugger::GetArchetypeDebugNames(const FMassAr
 
 TConstArrayView<struct UMassCompositeProcessor::FDependencyNode> FMassDebugger::GetProcessingGraph(const UMassCompositeProcessor& GraphOwner)
 {
-	return GraphOwner.ProcessingFlatGraph;
+	return GraphOwner.FlatProcessingGraph;
 }
 
 FString FMassDebugger::GetRequirementsDescription(const FMassFragmentRequirements& Requirements)
