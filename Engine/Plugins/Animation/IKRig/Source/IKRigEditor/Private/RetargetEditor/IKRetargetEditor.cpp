@@ -49,6 +49,7 @@ void FIKRetargetEditor::InitAssetEditor(
 	
 	FPersonaToolkitArgs PersonaToolkitArgs;
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FIKRetargetEditor::HandlePreviewSceneCreated);
+	PersonaToolkitArgs.OnPreviewSceneSettingsCustomized = FOnPreviewSceneSettingsCustomized::FDelegate::CreateSP(this, &FIKRetargetEditor::HandleOnPreviewSceneSettingsCustomized);
 	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	EditorController->PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAsset, PersonaToolkitArgs);
@@ -381,6 +382,14 @@ void FIKRetargetEditor::SetupAnimInstance()
 
 	EditorController->SourceAnimInstance->InitializeAnimation();
 	EditorController->TargetAnimInstance->InitializeAnimation();
+}
+
+void FIKRetargetEditor::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder) const
+{
+	DetailBuilder.HideCategory("Additional Meshes");
+	DetailBuilder.HideCategory("Physics");
+	DetailBuilder.HideCategory("Mesh");
+	DetailBuilder.HideCategory("Animation Blueprint");
 }
 
 void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView)

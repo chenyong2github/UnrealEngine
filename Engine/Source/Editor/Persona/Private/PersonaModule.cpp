@@ -184,77 +184,45 @@ void FPersonaModule::ShutdownModule()
 	}
 }
 
-static void SetupPersonaToolkit(const TSharedRef<FPersonaToolkit>& Toolkit, const FPersonaToolkitArgs& PersonaToolkitArgs)
-{
-	if (PersonaToolkitArgs.bCreatePreviewScene)
-	{
-		Toolkit->CreatePreviewScene(PersonaToolkitArgs);
-	}
-}
-
 TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs, USkeleton* InSkeleton) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
-
-	NewPersonaToolkit->Initialize(InAsset, InSkeleton);
-
-	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
-
+	NewPersonaToolkit->Initialize(InAsset, PersonaToolkitArgs, InSkeleton);
 	return NewPersonaToolkit;
 }
 
 TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(USkeleton* InSkeleton, const FPersonaToolkitArgs& PersonaToolkitArgs) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
-
-	NewPersonaToolkit->Initialize(InSkeleton);
-
-	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
-
+	NewPersonaToolkit->Initialize(InSkeleton, PersonaToolkitArgs);
 	return NewPersonaToolkit;
 }
 
 TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(UAnimationAsset* InAnimationAsset, const FPersonaToolkitArgs& PersonaToolkitArgs) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
-
-	NewPersonaToolkit->Initialize(InAnimationAsset);
-
-	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
-
+	NewPersonaToolkit->Initialize(InAnimationAsset, PersonaToolkitArgs);
 	return NewPersonaToolkit;
 }
 
 TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(USkeletalMesh* InSkeletalMesh, const FPersonaToolkitArgs& PersonaToolkitArgs) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
-
-	NewPersonaToolkit->Initialize(InSkeletalMesh);
-
-	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
-
+	NewPersonaToolkit->Initialize(InSkeletalMesh, PersonaToolkitArgs);
 	return NewPersonaToolkit;
 }
 
 TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(UAnimBlueprint* InAnimBlueprint, const FPersonaToolkitArgs& PersonaToolkitArgs) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
-
-	NewPersonaToolkit->Initialize(InAnimBlueprint);
-
-	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
-
+	NewPersonaToolkit->Initialize(InAnimBlueprint, PersonaToolkitArgs);
 	return NewPersonaToolkit;
 }
 
 TSharedRef<IPersonaToolkit> FPersonaModule::CreatePersonaToolkit(UPhysicsAsset* InPhysicsAsset, const FPersonaToolkitArgs& PersonaToolkitArgs) const
 {
 	TSharedRef<FPersonaToolkit> NewPersonaToolkit(new FPersonaToolkit());
-
-	NewPersonaToolkit->Initialize(InPhysicsAsset);
-
-	SetupPersonaToolkit(NewPersonaToolkit, PersonaToolkitArgs);
-
+	NewPersonaToolkit->Initialize(InPhysicsAsset, PersonaToolkitArgs);
 	return NewPersonaToolkit;
 }
 

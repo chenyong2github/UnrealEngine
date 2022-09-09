@@ -26,6 +26,8 @@ class FWorkflowTabFactory;
 class UBlendSpace;
 class IAnimSequenceCurveEditor;
 class IAnimationEditor;
+class IDetailLayoutBuilder;
+class FPreviewSceneDescriptionCustomization;
 
 extern const FName PersonaAppName;
 
@@ -47,16 +49,19 @@ DECLARE_DELEGATE_TwoParams(FTickRecording, USkeletalMeshComponent* /*Component*/
 DECLARE_DELEGATE_OneParam(FOnViewportCreated, const TSharedRef<class IPersonaViewport>&);
 
 /** Called back when a details panel is created */
-DECLARE_DELEGATE_OneParam(FOnDetailsCreated, const TSharedRef<class IDetailsView>&);
+DECLARE_DELEGATE_OneParam(FOnDetailsCreated, const TSharedRef<IDetailsView>&);
 
 /** Called back when an anim sequence browser is created */
-DECLARE_DELEGATE_OneParam(FOnAnimationSequenceBrowserCreated, const TSharedRef<class IAnimationSequenceBrowser>&);
+DECLARE_DELEGATE_OneParam(FOnAnimationSequenceBrowserCreated, const TSharedRef<IAnimationSequenceBrowser>&);
 
 /** Called back when a Persona preview scene is created */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreviewSceneCreated, const TSharedRef<class IPersonaPreviewScene>&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreviewSceneCreated, const TSharedRef<IPersonaPreviewScene>&);
+
+/** Called back when a Persona preview scene settings are customized */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreviewSceneSettingsCustomized, IDetailLayoutBuilder& DetailBuilder);
 
 /** Called back to register tabs */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRegisterTabs, FWorkflowAllowedTabSet&, TSharedPtr<class FAssetEditorToolkit>);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRegisterTabs, FWorkflowAllowedTabSet&, TSharedPtr<FAssetEditorToolkit>);
 
 /** Called back to register common layout extensions */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterLayoutExtensions, FLayoutExtender&);
@@ -71,12 +76,14 @@ struct FPersonaToolkitArgs
 	FOnPreviewSceneCreated::FDelegate OnPreviewSceneCreated;
 
 	/** Whether to create a preview scene */
-	bool bCreatePreviewScene;
+	bool bCreatePreviewScene = true;
 
-	FPersonaToolkitArgs()
-		: bCreatePreviewScene(true)
-	{
-	}
+	/** 
+	 * Delegate called when the preview scene settings are being customized, supplies the IDetailLayoutBuilder
+	 * for the user to customize the layout however they wish. */
+	FOnPreviewSceneSettingsCustomized::FDelegate OnPreviewSceneSettingsCustomized;
+
+	FPersonaToolkitArgs() = default;
 };
 
 struct FAnimDocumentArgs
@@ -249,12 +256,12 @@ public:
 	virtual void ShutdownModule();
 
 	/** Create a re-usable toolkit that multiple asset editors that are concerned with USkeleton-related data can use */
-	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs = FPersonaToolkitArgs(), USkeleton* InSkeleton = nullptr) const;
-	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(USkeleton* InSkeleton, const FPersonaToolkitArgs& PersonaToolkitArgs = FPersonaToolkitArgs()) const;
-	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UAnimationAsset* InAnimationAsset, const FPersonaToolkitArgs& PersonaToolkitArgs = FPersonaToolkitArgs()) const;
-	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(USkeletalMesh* InSkeletalMesh, const FPersonaToolkitArgs& PersonaToolkitArgs = FPersonaToolkitArgs()) const;
-	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UAnimBlueprint* InAnimBlueprint, const FPersonaToolkitArgs& PersonaToolkitArgs = FPersonaToolkitArgs()) const;
-	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UPhysicsAsset* InPhysicsAsset, const FPersonaToolkitArgs& PersonaToolkitArgs = FPersonaToolkitArgs()) const;
+	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs, USkeleton* InSkeleton = nullptr) const;
+	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(USkeleton* InSkeleton, const FPersonaToolkitArgs& PersonaToolkitArgs) const;
+	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UAnimationAsset* InAnimationAsset, const FPersonaToolkitArgs& PersonaToolkitArgs) const;
+	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(USkeletalMesh* InSkeletalMesh, const FPersonaToolkitArgs& PersonaToolkitArgs) const;
+	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UAnimBlueprint* InAnimBlueprint, const FPersonaToolkitArgs& PersonaToolkitArgs) const;
+	virtual TSharedRef<IPersonaToolkit> CreatePersonaToolkit(UPhysicsAsset* InPhysicsAsset, const FPersonaToolkitArgs& PersonaToolkitArgs) const;
 
 	/** Create an asset family for the supplied persona asset */
 	virtual TSharedRef<IAssetFamily> CreatePersonaAssetFamily(const UObject* InAsset) const;

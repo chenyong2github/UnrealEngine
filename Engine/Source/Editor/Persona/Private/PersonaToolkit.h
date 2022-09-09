@@ -6,6 +6,7 @@
 #include "IPersonaPreviewScene.h"
 #include "IEditableSkeleton.h"
 #include "IPersonaToolkit.h"
+#include "PersonaModule.h"
 
 class FAnimationEditorPreviewScene;
 class UAnimationAsset;
@@ -20,16 +21,19 @@ public:
 	FPersonaToolkit();
 	virtual ~FPersonaToolkit();
 
-	/** Initialize from a various sources */
-	void Initialize(UObject* InAsset, USkeleton* InSkeleton = nullptr);
-	void Initialize(USkeleton* InSkeleton);
-	void Initialize(UAnimationAsset* InAnimationAsset);
-	void Initialize(USkeletalMesh* InSkeletalMesh);
-	void Initialize(UAnimBlueprint* InAnimBlueprint);
-	void Initialize(UPhysicsAsset* InPhysicsAsset);
+	/** Initialize from various sources */
+	void Initialize(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs, USkeleton* InSkeleton = nullptr);
+	void Initialize(USkeleton* InSkeleton, const FPersonaToolkitArgs& PersonaToolkitArgs);
+	void Initialize(UAnimationAsset* InAnimationAsset, const FPersonaToolkitArgs& PersonaToolkitArgs);
+	void Initialize(USkeletalMesh* InSkeletalMesh, const FPersonaToolkitArgs& PersonaToolkitArgs);
+	void Initialize(UAnimBlueprint* InAnimBlueprint, const FPersonaToolkitArgs& PersonaToolkitArgs);
+	void Initialize(UPhysicsAsset* InPhysicsAsset, const FPersonaToolkitArgs& PersonaToolkitArgs);
 
 	/** Optionally create a preview scene - note: creates an editable skeleton */
 	void CreatePreviewScene(const FPersonaToolkitArgs& PersonaToolkitArgs);
+
+	/** Store the options for the Preview Scene Settings details panel layout. */
+	void SetPreviewSceneDetailsOptions(const FPersonaPreviewSceneDetailsOptions& Options);
 
 	/** IPersonaToolkit interface */
 	virtual class USkeleton* GetSkeleton() const override;
@@ -47,9 +51,13 @@ public:
 	virtual UAnimBlueprint* GetPreviewAnimationBlueprint() const override;
 	virtual int32 GetCustomData(const int32 Key) const override;
 	virtual void SetCustomData(const int32 Key, const int32 CustomData) override;
+	virtual void CustomizeSceneSettings(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual FName GetContext() const override;
 
 private:
+	/** Common initialization */
+	void CommonInitialSetup(const FPersonaToolkitArgs& PersonaToolkitArgs);
+	
 	/** The skeleton we are editing */
 	TWeakObjectPtr<USkeleton> Skeleton;
 
@@ -76,6 +84,9 @@ private:
 
 	/** Preview scene for the editor */
 	TSharedPtr<FAnimationEditorPreviewScene> PreviewScene;
+
+	/* Callback to customize details tab of Preview Scene Settings */
+	FOnPreviewSceneSettingsCustomized::FDelegate OnPreviewSceneSettingsCustomized;
 
 	/** The class of the initial asset we were created with */
 	UClass* InitialAssetClass;

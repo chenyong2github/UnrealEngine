@@ -70,8 +70,6 @@ private:
 
 	void HandleMeshChanged(const FAssetData& InAssetData);
 
-	void HandlePreviewAnimBlueprintChanged(const FAssetData& InAssetData);
-
 	void HandleAdditionalMeshesChanged(const FAssetData& InAssetData, IDetailLayoutBuilder* DetailLayoutBuilder);
 
 	void HandleAllowDifferentSkeletonsCheckedStateChanged(ECheckBoxState CheckState);
@@ -81,9 +79,6 @@ private:
 	void HandleUseCustomAnimBPCheckedStateChanged(ECheckBoxState CheckState);
 
 	ECheckBoxState HandleUseCustomAnimBPIsChecked() const;
-
-	// Called when the anim blueprint being edited is compiled.
-	void HandleAnimBlueprintCompiled(UBlueprint* Blueprint);
 
 	// Reinitialize the preview controller in the preview scene.
 	void ReinitializePreviewController();

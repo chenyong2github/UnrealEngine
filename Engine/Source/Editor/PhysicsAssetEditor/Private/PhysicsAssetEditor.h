@@ -22,6 +22,7 @@
 #include "Containers/ArrayView.h"
 #include "GraphEditor.h"
 
+class IDetailLayoutBuilder;
 struct FAssetData;
 class FPhysicsAssetEditorTreeInfo;
 class IDetailsView;
@@ -320,6 +321,9 @@ private:
 
 	/** Handle initial preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
+
+	/** Handle customization of Preview Scene Settings details */
+	void HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder) const;
 
 	/** Build context menu for tree items */
 	void HandleExtendContextMenu(FMenuBuilder& InMenuBuilder);

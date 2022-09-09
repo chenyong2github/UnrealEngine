@@ -57,6 +57,7 @@
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
 #include "MeshMergeModule.h"
 #include "AssetToolsModule.h"
+#include "DetailLayoutBuilder.h"
 #include "IAssetTools.h"
 #include "SkeletalMeshEditorContextMenuContext.h"
 #include "Styling/AppStyle.h"
@@ -231,8 +232,11 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 {
 	SkeletalMesh = InSkeletalMesh;
 
+	FPersonaToolkitArgs PersonaToolkitArgs;
+	PersonaToolkitArgs.OnPreviewSceneSettingsCustomized = FOnPreviewSceneSettingsCustomized::FDelegate::CreateSP(this, &FSkeletalMeshEditor::HandleOnPreviewSceneSettingsCustomized);
+	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InSkeletalMesh);
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InSkeletalMesh, PersonaToolkitArgs);
 
 	PersonaToolkit->GetPreviewScene()->SetDefaultAnimationMode(EPreviewSceneDefaultAnimationMode::ReferencePose);
 
@@ -1460,6 +1464,15 @@ void FSkeletalMeshEditor::HandleReimportAllMeshWithNewFile(int32 SourceFileIndex
 			ReimportAllCustomLODs(SkeletalMesh, GetPersonaToolkit()->GetPreviewMeshComponent(), true);
 		}
 	}
+}
+
+void FSkeletalMeshEditor::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder)
+{
+	DetailBuilder.HideCategory("Mesh");
+	DetailBuilder.HideCategory("Physics");
+	// in mesh editor, we hide preview mesh section and additional mesh section
+	// sometimes additional meshes are interfering with preview mesh, it is not a great experience
+	DetailBuilder.HideCategory("Additional Meshes");
 }
 
 bool FSkeletalMeshEditor::IsMeshSectionSelectionChecked() const

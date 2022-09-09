@@ -3,6 +3,7 @@
 #include "RigEditor/IKRigMode.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "IPersonaPreviewScene.h"
+#include "IPersonaToolkit.h"
 #include "PersonaModule.h"
 #include "ISkeletonEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -34,6 +35,7 @@ FIKRigMode::FIKRigMode(
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InHostingApp, ViewportArgs));
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleDetailsCreated)));
+	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, IKRigEditor->GetPersonaToolkit()->GetPreviewScene()));
 
 	// register custom tabs
 	TabFactories.RegisterFactory(MakeShared<FIKRigAssetBrowserTabSummoner>(IKRigEditor));
@@ -43,7 +45,7 @@ FIKRigMode::FIKRigMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRigOutputLogTabSummoner>(IKRigEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.125")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.127")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -100,6 +102,7 @@ FIKRigMode::FIKRigMode(
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.6f)
 						->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
+						->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
 						->SetForegroundTab(FPersonaTabs::DetailsID)
                     )
                     ->Split

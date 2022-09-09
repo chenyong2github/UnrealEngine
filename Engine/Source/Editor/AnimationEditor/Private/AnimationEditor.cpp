@@ -19,6 +19,7 @@
 #include "AnimationEditorMode.h"
 #include "AnimationEditorUtils.h"
 #include "AnimationToolMenuContext.h"
+#include "DetailLayoutBuilder.h"
 #include "AssetRegistry/AssetData.h"
 #include "Curves/RichCurve.h"
 #include "Editor.h"
@@ -139,8 +140,11 @@ void FAnimationEditor::InitAnimationEditor(const EToolkitMode::Type Mode, const 
 	FReimportManager::Instance()->OnPostReimport().AddRaw(this, &FAnimationEditor::HandlePostReimport);
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FAnimationEditor::HandlePostImport);
 
+	FPersonaToolkitArgs PersonaToolkitArgs;
+	PersonaToolkitArgs.OnPreviewSceneSettingsCustomized = FOnPreviewSceneSettingsCustomized::FDelegate::CreateSP(this, &FAnimationEditor::HandleOnPreviewSceneSettingsCustomized);
+	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAnimationAsset);
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAnimationAsset, PersonaToolkitArgs);
 
 	PersonaToolkit->GetPreviewScene()->SetDefaultAnimationMode(EPreviewSceneDefaultAnimationMode::Animation);
 
@@ -266,6 +270,11 @@ TSharedPtr<FAnimationEditor> FAnimationEditor::GetAnimationEditor(const FToolMen
 	}
 
 	return TSharedPtr<FAnimationEditor>();
+}
+
+void FAnimationEditor::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder) const
+{
+	DetailBuilder.HideCategory("Animation Blueprint");
 }
 
 void FAnimationEditor::ExtendToolbar()

@@ -18,6 +18,7 @@
 
 #include "IKRigDefinition.h"
 #include "IPersonaViewport.h"
+#include "Persona/Private/PersonaPreviewSceneDescription.h"
 #include "RigEditor/IKRigAnimInstance.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
@@ -54,6 +55,7 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	
 	FPersonaToolkitArgs PersonaToolkitArgs;
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewSceneCreated);
+	PersonaToolkitArgs.OnPreviewSceneSettingsCustomized = FOnPreviewSceneSettingsCustomized::FDelegate::CreateSP(this, &FIKRigEditorToolkit::HandleOnPreviewSceneSettingsCustomized);
 	
 	const FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs);
@@ -178,6 +180,14 @@ void FIKRigEditorToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 TStatId FIKRigEditorToolkit::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FIKRigEditorToolkit, STATGROUP_Tickables);
+}
+
+void FIKRigEditorToolkit::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder) const
+{
+	DetailBuilder.HideCategory("Additional Meshes");
+	DetailBuilder.HideCategory("Physics");
+	DetailBuilder.HideCategory("Mesh");
+	DetailBuilder.HideCategory("Animation Blueprint");
 }
 
 void FIKRigEditorToolkit::PostUndo(bool bSuccess)

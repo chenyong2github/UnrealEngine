@@ -11,6 +11,7 @@
 #include "ISkeletalMeshEditor.h"
 #include "Containers/ArrayView.h"
 
+class IDetailLayoutBuilder;
 class IDetailsView;
 class IPersonaToolkit;
 class IPersonaViewport;
@@ -130,6 +131,8 @@ private:
 	bool HandleReimportMeshInternal(int32 SourceFileIndex = INDEX_NONE, bool bWithNewFile = false);
 	void HandleReimportAllMesh(int32 SourceFileIndex = INDEX_NONE);
 	void HandleReimportAllMeshWithNewFile(int32 SourceFileIndex = INDEX_NONE);
+
+	void HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder);
 
 	/** Callback for toggling UV drawing in the viewport */
 	void ToggleMeshSectionSelection();

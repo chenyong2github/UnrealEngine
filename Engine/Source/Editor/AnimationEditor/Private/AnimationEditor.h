@@ -19,6 +19,7 @@
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
 
+class IDetailLayoutBuilder;
 class FExtender;
 class FMenuBuilder;
 class FReferenceCollector;
@@ -172,6 +173,9 @@ private:
 	bool RecordMeshToAnimation(USkeletalMeshComponent* PreviewComponent, UAnimSequence* NewAsset) const;
 
 	static TSharedPtr<FAnimationEditor> GetAnimationEditor(const FToolMenuContext& InMenuContext);
+
+	void HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder) const;
+	
 public:
 	/** Multicast delegate fired on global undo/redo */
 	FSimpleMulticastDelegate OnLODChanged;

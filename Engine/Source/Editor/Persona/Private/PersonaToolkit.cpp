@@ -41,7 +41,7 @@ static void FindCounterpartAssets(const UObject* InAsset, TWeakObjectPtr<USkelet
 	OutMesh = const_cast<USkeletalMesh*>(CounterpartMesh);
 }
 
-void FPersonaToolkit::Initialize(UObject* InAsset, USkeleton* InSkeleton)
+void FPersonaToolkit::Initialize(UObject* InAsset, const FPersonaToolkitArgs& PersonaToolkitArgs, USkeleton* InSkeleton)
 {
 	Asset = InAsset;
 	InitialAssetClass = Asset->GetClass();
@@ -52,51 +52,73 @@ void FPersonaToolkit::Initialize(UObject* InAsset, USkeleton* InSkeleton)
 	}
 
 	Skeleton = InSkeleton;
+
+	CommonInitialSetup(PersonaToolkitArgs);
 }
 
-void FPersonaToolkit::Initialize(USkeleton* InSkeleton)
+void FPersonaToolkit::Initialize(USkeleton* InSkeleton, const FPersonaToolkitArgs& PersonaToolkitArgs)
 {
 	check(InSkeleton);
 	Skeleton = InSkeleton;
 	InitialAssetClass = USkeleton::StaticClass();
 
 	FindCounterpartAssets(InSkeleton, Skeleton, Mesh);
+
+	CommonInitialSetup(PersonaToolkitArgs);
 }
 
-void FPersonaToolkit::Initialize(UAnimationAsset* InAnimationAsset)
+void FPersonaToolkit::Initialize(UAnimationAsset* InAnimationAsset, const FPersonaToolkitArgs& PersonaToolkitArgs)
 {
 	check(InAnimationAsset);
 	AnimationAsset = InAnimationAsset;
 	InitialAssetClass = UAnimationAsset::StaticClass();
 
 	FindCounterpartAssets(InAnimationAsset, Skeleton, Mesh);
+
+	CommonInitialSetup(PersonaToolkitArgs);
 }
 
-void FPersonaToolkit::Initialize(USkeletalMesh* InSkeletalMesh)
+void FPersonaToolkit::Initialize(USkeletalMesh* InSkeletalMesh, const FPersonaToolkitArgs& PersonaToolkitArgs)
 {
 	check(InSkeletalMesh);
 	Mesh = InSkeletalMesh;
 	InitialAssetClass = USkeletalMesh::StaticClass();
 
 	FindCounterpartAssets(InSkeletalMesh, Skeleton, Mesh);
+
+	CommonInitialSetup(PersonaToolkitArgs);
 }
 
-void FPersonaToolkit::Initialize(UAnimBlueprint* InAnimBlueprint)
+void FPersonaToolkit::Initialize(UAnimBlueprint* InAnimBlueprint, const FPersonaToolkitArgs& PersonaToolkitArgs)
 {
 	check(InAnimBlueprint);
 	AnimBlueprint = InAnimBlueprint;
 	InitialAssetClass = UAnimBlueprint::StaticClass();
 
 	FindCounterpartAssets(InAnimBlueprint, Skeleton, Mesh);
+
+	CommonInitialSetup(PersonaToolkitArgs);
 }
 
-void FPersonaToolkit::Initialize(UPhysicsAsset* InPhysicsAsset)
+void FPersonaToolkit::Initialize(UPhysicsAsset* InPhysicsAsset, const FPersonaToolkitArgs& PersonaToolkitArgs)
 {
 	check(InPhysicsAsset);
 	PhysicsAsset = InPhysicsAsset;
 	InitialAssetClass = UPhysicsAsset::StaticClass();
 
 	FindCounterpartAssets(InPhysicsAsset, Skeleton, Mesh);
+
+	CommonInitialSetup(PersonaToolkitArgs);
+}
+
+void FPersonaToolkit::CommonInitialSetup(const FPersonaToolkitArgs& PersonaToolkitArgs)
+{
+	if (PersonaToolkitArgs.bCreatePreviewScene)
+	{
+		CreatePreviewScene(PersonaToolkitArgs);
+	}
+
+	OnPreviewSceneSettingsCustomized = PersonaToolkitArgs.OnPreviewSceneSettingsCustomized;
 }
 
 void FPersonaToolkit::CreatePreviewScene(const FPersonaToolkitArgs& PersonaToolkitArgs)
@@ -380,6 +402,11 @@ int32 FPersonaToolkit::GetCustomData(const int32 Key) const
 void FPersonaToolkit::SetCustomData(const int32 Key, const int32 CustomData)
 {
 	CustomEditorData.FindOrAdd(Key) = CustomData;
+}
+
+void FPersonaToolkit::CustomizeSceneSettings(IDetailLayoutBuilder& DetailBuilder)
+{
+	OnPreviewSceneSettingsCustomized.ExecuteIfBound(DetailBuilder);
 }
 
 FName FPersonaToolkit::GetContext() const

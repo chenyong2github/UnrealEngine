@@ -97,7 +97,10 @@
 #include "PersonaModule.h"
 #include "PersonaToolMenuContext.h"
 #include "PersonaUtils.h"
+#include "Persona/Private/AnimationEditorPreviewScene.h"
 // Hide related nodes feature
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
 #include "Preferences/AnimationBlueprintEditorOptions.h"
 #include "PropertyEditorDelegates.h"
 #include "SBlueprintEditorToolbar.h"
@@ -115,6 +118,8 @@
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
 #include "ToolMenuContext.h"
+#include "Persona/Private/PersonaPreviewSceneDescription.h"
+#include "Preferences/PersonaOptions.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
@@ -126,6 +131,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
+#include "PropertyCustomizationHelpers.h"
 
 class FEditorModeTools;
 class FToolBarBuilder;
@@ -377,8 +383,11 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 
 	GetToolkitCommands()->Append(FPlayWorldCommands::GlobalPlayWorldActions.ToSharedRef());
 
+	FPersonaToolkitArgs PersonaToolkitArgs;
+	PersonaToolkitArgs.OnPreviewSceneSettingsCustomized = FOnPreviewSceneSettingsCustomized::FDelegate::CreateSP(this, &FAnimationBlueprintEditor::HandleOnPreviewSceneSettingsCustomized);
+
 	FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
-	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAnimBlueprint);
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAnimBlueprint, PersonaToolkitArgs);
 
 	PersonaToolkit->GetPreviewScene()->SetDefaultAnimationMode(EPreviewSceneDefaultAnimationMode::AnimationBlueprint);
 	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FAnimationBlueprintEditor::HandlePreviewMeshChanged));
@@ -2079,6 +2088,129 @@ void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
 
 		AcquireAllManagedNodes(); // Register re-selection with all the currently selected nodes.
 	}
+}
+
+void FAnimationBlueprintEditor::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder)
+{
+	const TSharedRef<IPropertyHandle> PreviewAnimationBlueprintProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPersonaPreviewSceneDescription, PreviewAnimationBlueprint));
+	const TSharedRef<IPropertyHandle> ApplicationMethodProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPersonaPreviewSceneDescription, ApplicationMethod));
+	const TSharedRef<IPropertyHandle> LinkedAnimGraphTagProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPersonaPreviewSceneDescription, LinkedAnimGraphTag));
+	
+	// customize "Preview Animation Blueprint" for animation blueprint classes
+	DetailBuilder.EditCategory("Animation Blueprint")
+	.AddProperty(PreviewAnimationBlueprintProperty)
+	.CustomWidget()
+	.NameContent()
+	[
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			PreviewAnimationBlueprintProperty->CreatePropertyNameWidget()
+		]
+	]
+	.ValueContent()
+	.MaxDesiredWidth(250.0f)
+	.MinDesiredWidth(250.0f)
+	[
+		SNew(SObjectPropertyEntryBox)
+		.AllowedClass(UAnimBlueprint::StaticClass())
+		.PropertyHandle(PreviewAnimationBlueprintProperty)
+		.OnShouldFilterAsset(this, &FAnimationBlueprintEditor::HandleShouldFilterAsset, FName("TargetSkeleton"), false)
+		.OnObjectChanged(this, &FAnimationBlueprintEditor::HandlePreviewAnimBlueprintChanged)
+		.ThumbnailPool(DetailBuilder.GetThumbnailPool())
+	];
+
+	ApplicationMethodProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetAnimationBlueprintApplicationMethod", "Set Application Method"));
+		
+		const TSharedRef<FAnimationEditorPreviewScene> LocalPreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PersonaToolkit->GetPreviewScene());
+		const UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = LocalPreviewScene->GetPreviewSceneDescription();
+		PersonaToolkit->GetAnimBlueprint()->SetPreviewAnimationBlueprintApplicationMethod(PersonaPreviewSceneDescription->ApplicationMethod);
+		LocalPreviewScene->SetPreviewAnimationBlueprint(PersonaPreviewSceneDescription->PreviewAnimationBlueprint.Get(), PersonaToolkit->GetAnimBlueprint());
+	}));
+
+	DetailBuilder.EditCategory("Animation Blueprint")
+	.AddProperty(ApplicationMethodProperty)
+	.IsEnabled(MakeAttributeLambda([this]()
+	{
+		TSharedRef<FAnimationEditorPreviewScene> LocalPreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PersonaToolkit->GetPreviewScene());
+		UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = LocalPreviewScene->GetPreviewSceneDescription();
+		
+		return PersonaPreviewSceneDescription->PreviewAnimationBlueprint.IsValid();
+	}));
+
+	LinkedAnimGraphTagProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetAnimationBlueprintTag", "Set Linked Anim Graph Tag"));
+		
+		TSharedRef<FAnimationEditorPreviewScene> LocalPreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PersonaToolkit->GetPreviewScene());
+		UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = LocalPreviewScene->GetPreviewSceneDescription();
+		PersonaToolkit->GetAnimBlueprint()->SetPreviewAnimationBlueprintTag(PersonaPreviewSceneDescription->LinkedAnimGraphTag);
+		LocalPreviewScene->SetPreviewAnimationBlueprint(PersonaPreviewSceneDescription->PreviewAnimationBlueprint.Get(), PersonaToolkit->GetAnimBlueprint());
+	}));
+
+	DetailBuilder.EditCategory("Animation Blueprint")
+	.AddProperty(LinkedAnimGraphTagProperty)
+	.IsEnabled(MakeAttributeLambda([this]()
+	{
+		TSharedRef<FAnimationEditorPreviewScene> LocalPreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(PersonaToolkit->GetPreviewScene());
+		UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = LocalPreviewScene->GetPreviewSceneDescription();
+		
+		return PersonaPreviewSceneDescription->PreviewAnimationBlueprint.IsValid() && PersonaPreviewSceneDescription->ApplicationMethod == EPreviewAnimationBlueprintApplicationMethod::LinkedAnimGraph;
+	}));
+	
+	if (PersonaToolkit->GetAnimBlueprint())
+	{
+		PersonaToolkit->GetAnimBlueprint()->OnCompiled().AddSP(this, &FAnimationBlueprintEditor::HandleAnimBlueprintCompiled);
+	}
+}
+
+void FAnimationBlueprintEditor::HandleAnimBlueprintCompiled(UBlueprint* Blueprint) const
+{
+	// Only re-initialize controller if we are not debugging an external instance.
+	// If we switch at this point then we will disconnect from the external instance
+	const TSharedRef<FAnimationEditorPreviewScene> AnimPreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(GetPreviewScene());
+	if(AnimPreviewScene->GetPreviewMeshComponent()->PreviewInstance == nullptr || AnimPreviewScene->GetPreviewMeshComponent()->PreviewInstance->GetDebugSkeletalMeshComponent() == nullptr)
+	{
+		UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = AnimPreviewScene->GetPreviewSceneDescription();
+		PersonaPreviewSceneDescription->PreviewControllerInstance->UninitializeView(PersonaPreviewSceneDescription, &GetPreviewScene().Get());
+		PersonaPreviewSceneDescription->PreviewControllerInstance->InitializeView(PersonaPreviewSceneDescription, &GetPreviewScene().Get());
+	}
+}
+
+void FAnimationBlueprintEditor::HandlePreviewAnimBlueprintChanged(const FAssetData& InAssetData) const   
+{
+	UAnimBlueprint* NewAnimBlueprint = Cast<UAnimBlueprint>(InAssetData.GetAsset());
+	PersonaToolkit->SetPreviewAnimationBlueprint(NewAnimBlueprint);
+}
+
+bool FAnimationBlueprintEditor::HandleShouldFilterAsset(
+	const FAssetData& InAssetData,
+	FName InTag,
+	bool bCanUseDifferentSkeleton) const
+{
+	if (bCanUseDifferentSkeleton && GetDefault<UPersonaOptions>()->bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons)
+	{
+		return false;
+	}
+
+	const TSharedRef<FAnimationEditorPreviewScene> AnimPreviewScene = StaticCastSharedRef<FAnimationEditorPreviewScene>(GetPreviewScene());
+	const UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = AnimPreviewScene->GetPreviewSceneDescription();
+	if(!PersonaPreviewSceneDescription->PreviewMesh.IsValid())
+	{
+		return false;
+	}
+	
+	const USkeleton* Skeleton = PersonaPreviewSceneDescription->PreviewMesh->GetSkeleton();
+	const FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
+	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetString(SkeletonTag))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void FAnimationBlueprintEditor::RemoveAllSelectionPoseWatches()

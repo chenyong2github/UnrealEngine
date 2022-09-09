@@ -71,6 +71,7 @@ public:
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView) const;
 	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
+	void HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBuilder& DetailBuilder) const;
 	/** END preview scene setup */
 
 private:
