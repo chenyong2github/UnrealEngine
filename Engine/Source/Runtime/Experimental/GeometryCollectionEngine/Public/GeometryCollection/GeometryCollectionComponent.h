@@ -216,6 +216,7 @@ public:
 	bool GetEnableBoneSelection() const;
 
 	bool IsBoneSelected(int BoneIndex) const;
+	void Sanitize();
 	void SetSelectedBones(const TArray<int32>& SelectedBonesIn);
 	void AppendSelectedBones(const TArray<int32>& SelectedBonesIn);
 	void ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd, bool bSnapToLevel = true);

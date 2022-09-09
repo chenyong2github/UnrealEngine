@@ -2798,6 +2798,26 @@ bool FScopedColorEdit::IsBoneSelected(int BoneIndex) const
 	return Component->SelectedBones.Contains(BoneIndex);
 }
 
+void FScopedColorEdit::Sanitize()
+{
+	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
+	if (GeometryCollection)
+	{
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+		if (GeometryCollectionPtr)
+		{
+			const int32 NumTransforms = GeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
+			const int32 NumSelectionRemoved = Component->SelectedBones.RemoveAll([this, NumTransforms](int32 Index) {
+				return Index < 0 || Index >= NumTransforms;
+				});
+			const int32 NumHighlightRemoved = Component->HighlightedBones.RemoveAll([this, NumTransforms](int32 Index) {
+				return Index < 0 || Index >= NumTransforms;
+				});
+			bUpdated = NumSelectionRemoved || NumHighlightRemoved;
+		}
+	}
+}
+
 void FScopedColorEdit::SetSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
 	bUpdated = true;

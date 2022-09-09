@@ -983,6 +983,12 @@ void FFractureEditorModeToolkit::SetHideForUnselected(UGeometryCollectionCompone
 
 				for (int32 SelectedBone : SelectedBones)
 				{
+					if (!ensure(SelectedBone >= 0 && SelectedBone < Hide.Num()))
+					{
+						// Invalid selection, don't hide anything
+						Hide.Fill(false);
+						break;
+					}
 					Hide[SelectedBone] = false;
 					if (Children[SelectedBone].Num() > 0)
 					{ 
