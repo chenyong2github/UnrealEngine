@@ -151,6 +151,6 @@ void AVisualLoggerCameraController::Select(FHitResult const& Hit)
 	if (SelectedActor != PickedActor)
 	{
 		PickedActor = SelectedActor;
-		OnActorSelected.ExecuteIfBound(SelectedActor);
+		OnActorSelected.ExecuteIfBound(SelectedActor.Get());
 	}
 }

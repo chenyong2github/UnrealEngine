@@ -63,7 +63,7 @@ void AVisualLoggerHUD::PostRender()
 			Canvas->DrawItem( TextItem, X, Y );
 			Y += TextItem.DrawnSize.Y;
 
-			if (DebugCamController->PickedActor != NULL)
+			if (DebugCamController->PickedActor.IsValid())
 			{
 				TextItem.Text = FText::FromString(FString::Printf(TEXT("Selected: '%s'"), *DebugCamController->PickedActor->GetName()));
 				Canvas->DrawItem( TextItem, X, Y );				

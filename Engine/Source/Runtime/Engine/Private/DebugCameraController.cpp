@@ -31,8 +31,6 @@ static const float MIN_ORBIT_RADIUS = 30.0f;
 ADebugCameraController::ADebugCameraController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SelectedActor = nullptr;
-	SelectedComponent = nullptr;
 	OriginalControllerRef = nullptr;
 	OriginalPlayer = nullptr;
 
@@ -246,25 +244,27 @@ void ADebugCameraController::OnFingerMove(ETouchIndex::Type FingerIndex, FVector
 
 AActor* ADebugCameraController::GetSelectedActor() const
 {
-	return SelectedActor;
+	return SelectedActor.Get();
 }
 
 void ADebugCameraController::Select( FHitResult const& Hit )
 {
+	AActor* HitActor = Hit.HitObjectHandle.FetchActor();
+
 	// store selection
-	SelectedActor = Hit.HitObjectHandle.FetchActor();
-	SelectedComponent = Hit.Component.Get();
+	SelectedActor = HitActor;
+	SelectedComponent = Hit.Component;
 	SelectedHitPoint = Hit;
 
 	//BP Event
-	ReceiveOnActorSelected(SelectedActor, Hit.ImpactPoint, Hit.ImpactNormal, Hit);
+	ReceiveOnActorSelected(HitActor, Hit.ImpactPoint, Hit.ImpactNormal, Hit);
 }
 
 
 void ADebugCameraController::Unselect()
 {	
-	SelectedActor = nullptr;
-	SelectedComponent = nullptr;
+	SelectedActor.Reset();
+	SelectedComponent.Reset();
 }
 
 FString ADebugCameraController::ConsoleCommand(const FString& Cmd,bool bWriteToLog)
@@ -615,7 +615,7 @@ void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
 
 bool ADebugCameraController::GetPivotForOrbit(FVector& PivotLocation) const
 {
-	if (SelectedActor)
+	if (SelectedActor.IsValid())
 	{
 		if (bOrbitPivotUseCenter)
 		{
@@ -625,7 +625,7 @@ bool ADebugCameraController::GetPivotForOrbit(FVector& PivotLocation) const
 			// Use the center of the bounding box of the current selected actor as the pivot point for orbiting the camera
 			int32 NumSelectedActors = 0;
 
-			TInlineComponentArray<UMeshComponent*> MeshComponents(SelectedActor);
+			TInlineComponentArray<UMeshComponent*> MeshComponents(SelectedActor.Get());
 
 			for (int32 ComponentIndex = 0; ComponentIndex < MeshComponents.Num(); ++ComponentIndex)
 			{

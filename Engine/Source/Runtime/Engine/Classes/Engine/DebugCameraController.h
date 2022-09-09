@@ -177,7 +177,7 @@ public:
 
 	/** Currently selected actor, may be invalid */
 	UPROPERTY()
-	TObjectPtr<class AActor> SelectedActor;
+	TWeakObjectPtr<class AActor> SelectedActor;
 
 	/** Returns the currently selected actor, or null if it is invalid or not set */
 	UFUNCTION(BlueprintCallable, Category="Debug Camera")
@@ -185,7 +185,7 @@ public:
 	
 	/** Currently selected component, may be invalid */
 	UPROPERTY()
-	TObjectPtr<class UPrimitiveComponent> SelectedComponent;
+	TWeakObjectPtr<class UPrimitiveComponent> SelectedComponent;
 
 	/** Selected hit point */
 	UPROPERTY()
