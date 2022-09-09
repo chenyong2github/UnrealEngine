@@ -806,7 +806,12 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}
 
-			BeginCacheMeshCardRepresentation(Task->TargetPlatform, Task->StaticMesh, *Task->StaticMesh->GetRenderData(), Task->DDCKey, &Task->SourceMeshData);
+			BeginCacheMeshCardRepresentation(
+				Task->TargetPlatform,
+				Task->StaticMesh,
+				Task->StaticMesh->GetPlatformStaticMeshRenderData(Task->StaticMesh, Task->TargetPlatform),
+				Task->DDCKey,
+				&Task->SourceMeshData);
 		}
 
 		delete Task;

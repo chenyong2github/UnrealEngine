@@ -24,6 +24,7 @@
 #include "PackageHelperFunctions.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 #include "Templates/UniquePtr.h"
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
@@ -844,6 +845,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (GDistanceFieldAsyncQueue)
 		{
 			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
+		}
+		if (GCardRepresentationAsyncQueue)
+		{
+			GCardRepresentationAsyncQueue->ProcessAsyncTasks();
 		}
 
 		// Because packages may not have been resaved after this flagging was implemented, we may have added packages to load that weren't flagged - potential false positives.

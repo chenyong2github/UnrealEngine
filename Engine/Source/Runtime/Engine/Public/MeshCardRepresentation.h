@@ -343,7 +343,7 @@ public:
 	ENGINE_API void CancelAllOutstandingBuilds();
 
 	/** Blocks the main thread until the async build of the specified mesh is complete. */
-	ENGINE_API void BlockUntilBuildComplete(UStaticMesh* StaticMesh, bool bWarnIfBlocked);
+	ENGINE_API void BlockUntilBuildComplete(UStaticMesh* InStaticMesh, bool bWarnIfBlocked);
 
 	/** Blocks the main thread until all async builds complete. */
 	ENGINE_API void BlockUntilAllBuildsComplete();

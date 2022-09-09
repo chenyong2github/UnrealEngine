@@ -22,6 +22,7 @@
 #include "Protocols/AudioCaptureProtocol.h"
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
+#include "MeshCardRepresentation.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Systems/MovieSceneMotionVectorSimulationSystem.h"
 
@@ -668,6 +669,13 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Waiting for %d Mesh Distance Fields to finish building..."), GFrameCounter, GDistanceFieldAsyncQueue->GetNumOutstandingTasks());
 		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
 		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Done waiting for Mesh Distance Fields to build."), GFrameCounter);
+	}
+
+	if (GCardRepresentationAsyncQueue && GCardRepresentationAsyncQueue->GetNumOutstandingTasks() > 0)
+	{
+		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Waiting for %d Mesh Cards to finish building..."), GFrameCounter, GCardRepresentationAsyncQueue->GetNumOutstandingTasks());
+		GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
+		UE_LOG(LogMovieSceneCapture, Log, TEXT("[%d] Done waiting for Mesh Cards to build."), GFrameCounter);
 	}
 
 	// Setup the automated capture

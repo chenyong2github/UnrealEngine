@@ -501,7 +501,7 @@ void FCardRepresentationAsyncQueue::RescheduleBackgroundTask(FAsyncCardRepresent
 	}
 }
 
-void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, bool bWarnIfBlocked)
+void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* InStaticMesh, bool bWarnIfBlocked)
 {
 	// We will track the wait time here, but only the cycles used.
 	// This function is called whether or not an async task is pending, 
@@ -513,7 +513,11 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 	double StartTime = 0;
 
 #if WITH_EDITOR
-	FStaticMeshCompilingManager::Get().FinishCompilation({ StaticMesh });
+	FStaticMeshCompilingManager::Get().FinishCompilation({ InStaticMesh });
+	if (GDistanceFieldAsyncQueue)
+	{
+		GDistanceFieldAsyncQueue->BlockUntilBuildComplete(InStaticMesh, bWarnIfBlocked);
+	}	
 #endif
 
 	TSet<UStaticMesh*> RequiredFinishCompilation;
@@ -527,8 +531,8 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 			FScopeLock Lock(&CriticalSection);
 			for (FAsyncCardRepresentationTask* Task : ReferencedTasks)
 			{
-				if (Task->StaticMesh == StaticMesh ||
-					Task->GenerateSource == StaticMesh)
+				if (Task->StaticMesh == InStaticMesh ||
+					Task->GenerateSource == InStaticMesh)
 				{
 					bReferenced = true;
 
@@ -560,6 +564,13 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 		if (RequiredFinishCompilation.Num())
 		{
 			FStaticMeshCompilingManager::Get().FinishCompilation(RequiredFinishCompilation.Array());
+			if (GDistanceFieldAsyncQueue)
+			{
+				for (UStaticMesh* StaticMesh : RequiredFinishCompilation)
+				{
+					GDistanceFieldAsyncQueue->BlockUntilBuildComplete(StaticMesh, bWarnIfBlocked);
+				}
+			}
 		}
 #endif
 
@@ -585,7 +596,7 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 	{
 		UE_LOG(LogStaticMesh, Display, TEXT("Main thread blocked for %.3fs for async card representation build of %s to complete!  This can happen if the mesh is rebuilt excessively."),
 			(float)(FPlatformTime::Seconds() - StartTime), 
-			*StaticMesh->GetName());
+			*InStaticMesh->GetName());
 	}
 }
 
@@ -596,6 +607,10 @@ void FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete()
 	{
 #if WITH_EDITOR
 		FStaticMeshCompilingManager::Get().FinishAllCompilation();
+		if (GDistanceFieldAsyncQueue)
+		{
+			GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
+		}
 #endif
 		// Reschedule as highest prio since we're explicitly waiting on them
 		{
