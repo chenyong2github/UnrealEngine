@@ -4929,11 +4929,6 @@ void FModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(UE::Anim::IPoseSearchProvider::ModularFeatureName, this);
 
-#if UE_POSE_SEARCH_TRACE_ENABLED
-	// Enable the PoseSearch trace channel
-	UE::Trace::ToggleChannel(*FTraceLogger::Name.ToString(), true);
-#endif
-
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FModule::OnObjectSaved);
 #endif // WITH_EDITOR

@@ -2660,13 +2660,22 @@ void FDebugger::Initialize()
 {
 	Debugger = new FDebugger;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, Debugger);
-
 }
 
 void FDebugger::Shutdown()
 {
 	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, Debugger);
 	delete Debugger;
+}
+
+void FDebugger::RecordingStarted(IRewindDebugger*)
+{
+	UE::Trace::ToggleChannel(TEXT("PoseSearch"), true);
+}
+
+void FDebugger::RecordingStopped(IRewindDebugger*)
+{
+	UE::Trace::ToggleChannel(TEXT("PoseSearch"), false);
 }
 
 bool FDebugger::IsPIESimulating()

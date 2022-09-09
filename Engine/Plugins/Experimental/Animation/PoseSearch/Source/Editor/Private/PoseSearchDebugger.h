@@ -646,6 +646,9 @@ public:
 	virtual void Update(float DeltaTime, IRewindDebugger* InRewindDebugger) override;
 	virtual ~FDebugger() = default;
 
+	virtual void RecordingStarted(IRewindDebugger* RewindDebugger);
+	virtual void RecordingStopped(IRewindDebugger* RewindDebugger);
+
 	static FDebugger* Get() { return Debugger; }
 	static void Initialize();
 	static void Shutdown();
