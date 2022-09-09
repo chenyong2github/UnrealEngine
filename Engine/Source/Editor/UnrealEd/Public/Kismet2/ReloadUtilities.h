@@ -109,11 +109,6 @@ private:
 	void ReplaceReferencesToReconstructedCDOs();
 
 	/**
-	 * Given a new/old class pair, re-instance the class
-	 */
-	void ReinstanceClass(UClass* NewClass, UClass* OldClass, const TSet<UObject*>& ReinstancingObjects, TSet<UBlueprint*>& CompiledBlueprints);
-
-	/**
 	 * Based on the pointers, update the given stat
 	 */
 	void UpdateStats(FReinstanceStats& Stats, void* New, void* Old);
