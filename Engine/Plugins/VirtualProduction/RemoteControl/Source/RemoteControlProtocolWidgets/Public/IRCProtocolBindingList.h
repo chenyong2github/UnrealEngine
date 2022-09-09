@@ -27,4 +27,6 @@ public:
 	/** Stop recording incoming protocol message handler */
 	virtual void OnStopRecording(TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InEntity) = 0;
 
+	/** Refresh protocol binding list. Returns false if the backing widget wasn't valid. */
+	virtual bool Refresh(bool bNavigateToEnd = false) = 0;
 };

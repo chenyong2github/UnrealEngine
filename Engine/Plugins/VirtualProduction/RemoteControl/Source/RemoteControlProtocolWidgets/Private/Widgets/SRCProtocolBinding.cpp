@@ -2,7 +2,6 @@
 
 #include "SRCProtocolBinding.h"
 
-#include "EditorFontGlyphs.h"
 #include "SDropTarget.h"
 #include "SRCBindingWarning.h"
 #include "SRCProtocolRangeList.h"
@@ -58,7 +57,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 	RowBox->AddSlot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.Padding(0)
+		.Padding(2.f)
 		[
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
@@ -67,9 +66,9 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 			.OnClicked(this, &SRCProtocolBinding::OnDelete)
 			.Content()
 			[
-				SNew(STextBlock)
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf00d"))))
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("Icons.X"))
 			]
 		];
 
@@ -77,7 +76,7 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 	RowBox->AddSlot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.Padding(0)
+		.Padding(2.f)
 		[
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
@@ -86,10 +85,9 @@ void SRCProtocolBinding::Construct(const FArguments& InArgs, const TSharedRef<ST
 			.OnClicked(this, &SRCProtocolBinding::ToggleRecording)
 			.Content()
 			[
-				SNew(STextBlock)
+				SNew(SImage)
 				.ColorAndOpacity_Raw(this, &SRCProtocolBinding::GetRecordingButtonColor)
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FEditorFontGlyphs::Circle)
+				.Image(FAppStyle::Get().GetBrush(TEXT("Icons.FilledCircle")))
 			]
 		];
 

@@ -13,6 +13,8 @@ class SWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnProtocolBindingAddedOrRemoved, ERCProtocolBinding::Op /* BindingOperation */);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnActiveProtocolChanged, const FName /* NewActiveProtocolName */);
+
 /** A Remote Control module that provides editor widgets for protocol bindings. */
 class IRemoteControlProtocolWidgetsModule : public IModuleInterface
 {
@@ -37,7 +39,13 @@ public:
 
 	/** Get the binding list public reference */
 	virtual TSharedPtr<IRCProtocolBindingList> GetProtocolBindingList() const = 0;
+	
+	/** Get the selected protocol name. */
+	virtual const FName GetSelectedProtocolName() const = 0;
 
 	/** Called when binding is added or removed. */
 	virtual FOnProtocolBindingAddedOrRemoved& OnProtocolBindingAddedOrRemoved() = 0;
+
+	/** Called when active protocol selection changed. */
+	virtual FOnActiveProtocolChanged& OnActiveProtocolChanged() = 0;
 };

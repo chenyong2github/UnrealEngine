@@ -5,6 +5,7 @@
 #include "IRemoteControlModule.h"
 #include "IRemoteControlProtocol.h"
 #include "IRemoteControlProtocolModule.h"
+#include "RemoteControlProtocolWidgetsSettings.h"
 #include "IRemoteControlModule.h"
 #include "RemoteControlPreset.h"
 #include "Styling/ProtocolPanelStyle.h"
@@ -17,11 +18,15 @@ DEFINE_LOG_CATEGORY(LogRemoteControlProtocolWidgets);
 void FRemoteControlProtocolWidgetsModule::StartupModule()
 {
 	FProtocolPanelStyle::Initialize();
+
+	OnActiveProtocolChanged().AddRaw(this, &FRemoteControlProtocolWidgetsModule::SetActiveProtocolName);
 }
 
 void FRemoteControlProtocolWidgetsModule::ShutdownModule()
 {
 	FProtocolPanelStyle::Shutdown();
+
+	OnActiveProtocolChanged().RemoveAll(this);
 }
 
 TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType)
@@ -63,9 +68,19 @@ TSharedPtr<IRCProtocolBindingList> FRemoteControlProtocolWidgetsModule::GetProto
 	return RCProtocolBindingList;
 }
 
+const FName FRemoteControlProtocolWidgetsModule::GetSelectedProtocolName() const
+{
+	return ActiveProtocolName;
+}
+
 FOnProtocolBindingAddedOrRemoved& FRemoteControlProtocolWidgetsModule::OnProtocolBindingAddedOrRemoved()
 {
 	return OnProtocolBindingAddedOrRemovedDelegate;
+}
+
+FOnActiveProtocolChanged& FRemoteControlProtocolWidgetsModule::OnActiveProtocolChanged()
+{
+	return OnActiveProtocolChangedDelegate;
 }
 
 void FRemoteControlProtocolWidgetsModule::OnBindingAdded(TSharedRef<FProtocolBindingViewModel> InBindingViewModel)
@@ -76,6 +91,29 @@ void FRemoteControlProtocolWidgetsModule::OnBindingAdded(TSharedRef<FProtocolBin
 void FRemoteControlProtocolWidgetsModule::OnBindingRemoved(FGuid InBindingId)
 {
 	OnProtocolBindingAddedOrRemovedDelegate.Broadcast(ERCProtocolBinding::Removed);
+}
+
+void FRemoteControlProtocolWidgetsModule::SetActiveProtocolName(const FName InProtocolName)
+{
+	if (ActiveProtocolName == InProtocolName)
+	{
+		return;
+	}
+
+	ActiveProtocolName = InProtocolName;
+
+	URemoteControlProtocolWidgetsSettings* Settings = GetMutableDefault<URemoteControlProtocolWidgetsSettings>();
+
+	Settings->PreferredProtocol = ActiveProtocolName;
+
+	Settings->PostEditChange();
+
+	Settings->SaveConfig();
+
+	if (RCProtocolBindingList.IsValid())
+	{
+		RCProtocolBindingList->Refresh();
+	}
 }
 
 IMPLEMENT_MODULE(FRemoteControlProtocolWidgetsModule, RemoteControlProtocolWidgets);

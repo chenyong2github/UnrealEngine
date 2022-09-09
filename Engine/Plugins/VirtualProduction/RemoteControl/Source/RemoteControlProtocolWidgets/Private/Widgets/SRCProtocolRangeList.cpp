@@ -1,11 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRCProtocolRangeList.h"
-#include "EditorFontGlyphs.h"
 #include "SRCProtocolRange.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
 #include "ViewModels/ProtocolRangeViewModel.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -130,13 +130,12 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 				ViewModel->AddRangeMapping();
 				return FReply::Handled();
 			})
-			.ContentPadding(FMargin(2.0f, 1.0f))
+			.ContentPadding(FMargin(4.0f, 2.0f))
 			.Content()
 			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "NormalText.Important")
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FEditorFontGlyphs::Plus)
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("Icons.Plus"))
 			]
 		]
 
@@ -154,13 +153,12 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 				ViewModel->RemoveAllRangeMappings();
 				return FReply::Handled();
 			})
-			.ContentPadding(FMargin(2.0f, 1.0f))
+			.ContentPadding(FMargin(4.0f, 2.0f))
 			.Content()
 			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "NormalText.Important")
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf00d"))))
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("Icons.X"))
 			]
 		];
 

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRCProtocolRange.h"
 
@@ -29,7 +29,8 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
 	.HAlign(HAlign_Right)
-	.VAlign(VAlign_Top)
+	.VAlign(VAlign_Center)
+	.Padding(4.f, 4.f, 0.f, 0.f)
 	.AutoWidth()
 	[
 		MakeInput()
@@ -41,6 +42,7 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	+ SHorizontalBox::Slot()
 	.HAlign(HAlign_Left)
 	.VAlign(VAlign_Center)
+	.Padding(4.f, 4.f, 0.f, 0.f)
 	.FillWidth(1.0f)
 	[
 		SNew(SHorizontalBox)
@@ -57,8 +59,7 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	// Copies current property value
 	+ SHorizontalBox::Slot()
 	.HAlign(HAlign_Left)
-	.VAlign(VAlign_Top)
-	.Padding(0, 6, 0, 0)
+	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
 		SNew(SButton)
@@ -78,8 +79,7 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	// Validation warning
 	+ SHorizontalBox::Slot()
 	.HAlign(HAlign_Right)
-	.VAlign(VAlign_Top)
-	.Padding(0, 8, 0, 0)
+	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
 		SNew(SRCBindingWarning)
@@ -99,8 +99,8 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	// Delete button container
 	+ SHorizontalBox::Slot()
 	.HAlign(HAlign_Right)
-	.VAlign(VAlign_Top)
-	.Padding(0, 8, 0, 0)
+	.VAlign(VAlign_Center)
+	.Padding(2.f, 0.f)
 	.AutoWidth()
 	[
 		SNew(SButton)
@@ -108,11 +108,12 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 		.ForegroundColor(FSlateColor::UseForeground())
 		.IsFocusable(false)
 		.OnClicked(this, &SRCProtocolRange::OnDelete)
+		.ContentPadding(2.f)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FText::FromString(FString(TEXT("\xf00d"))))
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::GetBrush("Icons.X"))
 		]
 	];
 

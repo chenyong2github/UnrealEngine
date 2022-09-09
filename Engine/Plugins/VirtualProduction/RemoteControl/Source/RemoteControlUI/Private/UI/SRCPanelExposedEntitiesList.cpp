@@ -343,6 +343,10 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 
 					ActiveProtocol = NewMode.ModeId;
 
+					IRemoteControlProtocolWidgetsModule& RCProtocolWidgetsModule = IRemoteControlProtocolWidgetsModule::Get();
+
+					RCProtocolWidgetsModule.OnActiveProtocolChanged().Broadcast(ActiveProtocol);
+
 					if (bIsInProtocolsMode.Get())
 					{
 						RebuildListWithColumns(EEntitiesListMode::Protocols);
@@ -373,6 +377,10 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 			if (bIsDefault)
 			{
 				ActiveProtocol = ProtocolName;
+	
+				IRemoteControlProtocolWidgetsModule& RCProtocolWidgetsModule = IRemoteControlProtocolWidgetsModule::Get();
+
+				RCProtocolWidgetsModule.OnActiveProtocolChanged().Broadcast(ActiveProtocol);
 			}
 
 			SRCModeSwitcher::FRCMode::FArguments NewMode = SRCModeSwitcher::Mode(ProtocolName)
