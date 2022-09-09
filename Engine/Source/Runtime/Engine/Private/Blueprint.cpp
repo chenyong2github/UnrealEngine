@@ -2011,6 +2011,12 @@ EDataValidationResult UBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
 		IsValid = CombineDataValidationResults(IsValid, IsSCSValid);
 	}
 
+	if (InheritableComponentHandler)
+	{
+		EDataValidationResult IsICHValid = InheritableComponentHandler->IsDataValid(ValidationErrors);
+		IsValid = CombineDataValidationResults(IsValid, IsICHValid);
+	}
+
 	for (UActorComponent* Component : ComponentTemplates)
 	{
 		if (Component)

@@ -78,6 +78,28 @@ void UInheritableComponentHandler::PostLoad()
 }
 
 #if WITH_EDITOR
+EDataValidationResult UInheritableComponentHandler::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+
+	// If nothing has performed any validation yet, start with a valid result.
+	if (Result == EDataValidationResult::NotValidated)
+	{
+		Result = EDataValidationResult::Valid;
+	}
+
+	for (const FComponentOverrideRecord& Record : Records)
+	{
+		if (Record.ComponentTemplate)
+		{
+			EDataValidationResult OverrideResult = Record.ComponentTemplate->IsDataValid(ValidationErrors);
+			Result = CombineDataValidationResults(Result, OverrideResult);
+		}
+	}
+
+	return Result;
+}
+
 UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(const FComponentKey& Key)
 {
 	for (int32 Index = 0; Index < Records.Num(); ++Index)
