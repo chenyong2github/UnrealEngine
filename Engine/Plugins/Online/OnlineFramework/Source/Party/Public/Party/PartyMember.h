@@ -65,7 +65,13 @@ struct FPartyMemberJoinInProgressResponse
 	GENERATED_BODY()
 
 public:
-	bool operator==(const FPartyMemberJoinInProgressResponse& Other) const { return Requester == Other.Requester && Time == Other.Time; }
+	bool operator==(const FPartyMemberJoinInProgressResponse& Other) const
+	{
+		return Requester == Other.Requester &&
+			RequestTime == Other.RequestTime &&
+			ResponseTime == Other.ResponseTime &&
+			DenialReason == Other.DenialReason;
+	}
 	bool operator!=(const FPartyMemberJoinInProgressResponse& Other) const { return !operator==(Other); }
 
 	/** Remote member that this response is for. */
@@ -74,8 +80,12 @@ public:
 
 	/** Time the request was made. Matches FPartyMemberJoinInProgressRequest::Time */
 	UPROPERTY()
-	int64 Time = 0;
-	
+	int64 RequestTime = 0;
+
+	/** Time the response was made. */
+	UPROPERTY()
+	int64 ResponseTime = 0;
+
 	/**
 	 * Result of session reservation attempt.
 	 * @see EPartyJoinDenialReason
