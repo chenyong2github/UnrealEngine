@@ -117,7 +117,7 @@ void UOptimusDeformerInstanceSettings::RefreshComponentBindings(
 		ExistingBindings.Add(Binding.ProviderName, Binding.ActorComponent.Get());
 	}
 	
-	AActor* Actor = InMeshComponent->GetOwner();
+	AActor* Actor = InMeshComponent != nullptr ? InMeshComponent->GetOwner() : nullptr;
 	TSet<UActorComponent*> ComponentsUsed;
 
 	const TArray<UOptimusComponentSourceBinding*>& ComponentBindings = InDeformer->GetComponentBindings();
