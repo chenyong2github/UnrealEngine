@@ -114,6 +114,9 @@ void UMovieSceneSequenceTickManager::RegisterTickClient(const FMovieSceneSequenc
 		*InterfaceObject->GetName(), ObjectWorld ? *ObjectWorld->GetName() : TEXT("nullptr"), ThisWorld ? *ThisWorld->GetName() : TEXT("nullptr"));
 #endif
 
+	// Remove the client from any existing groups if we already know about it
+	UnregisterTickClientImpl(InTickInterface.GetInterface());
+
 	const int32 DesiredTickIntervalMs = ResolvedTickInterval.RoundTickIntervalMs();
 
 	// Find a linker group with the specified tick interval
@@ -180,14 +183,19 @@ void UMovieSceneSequenceTickManager::UnregisterTickClient(TScriptInterface<IMovi
 		return;
 	}
 
+	UnregisterTickClientImpl(ClientInterface);
+}
+
+void UMovieSceneSequenceTickManager::UnregisterTickClientImpl(IMovieSceneSequenceTickManagerClient* InClientInterface)
+{
 	// Remove any latent actions tied to the given client.
 	UObject* Object = InTickInterface.GetObject();
 	if (Object)
 	{
 		ClearLatentActions(Object);
 	}
-
-	const int32 ClientIndex = Algo::IndexOfBy(TickableClients, ClientInterface, &FTickableClientData::Interface);
+	
+	const int32 ClientIndex = Algo::IndexOfBy(TickableClients, InClientInterface, &FTickableClientData::Interface);
 	if (!TickableClients.IsValidIndex(ClientIndex))
 	{
 		return;

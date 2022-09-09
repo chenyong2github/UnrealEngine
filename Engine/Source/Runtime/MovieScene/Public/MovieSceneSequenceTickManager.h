@@ -212,6 +212,11 @@ private:
 	 */
 	void ProcessPendingOperations(TArrayView<const FPendingOperation> InOperations);
 
+	/**
+	 * Unregister tick client without performing basic checks
+	 */
+	void UnregisterTickClientImpl(IMovieSceneSequenceTickManagerClient* InClientInterface);
+
 private:
 
 	/** Flat array of tickable client data with indices into LinkerGroups */
