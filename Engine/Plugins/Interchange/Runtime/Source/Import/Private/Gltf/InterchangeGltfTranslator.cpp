@@ -34,6 +34,7 @@
 
 #include "Gltf/InterchangeGltfPrivate.h"
 
+#define LOCTEXT_NAMESPACE "InterchangeGltfTranslator"
 
 static bool GInterchangeEnableGLTFImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
@@ -838,28 +839,34 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 	ScaleNodeTranslations(const_cast<UInterchangeGltfTranslator*>(this)->GltfAsset.Nodes, GltfUnitConversionMultiplier);
 
+	const FString FileName = FPaths::GetBaseFilename(FilePath);
+
 	if (GltfAsset.RequiredExtensions.Num() != 0)
 	{
 		FString NotSupportedExtensions;
-		for (const FString& RequiredExtension: GltfAsset.RequiredExtensions)
+		for ( const FString& RequiredExtension: GltfAsset.RequiredExtensions )
 		{
-			if (SupportedExtensions.Find(RequiredExtension) == INDEX_NONE)
+			if ( SupportedExtensions.Find( RequiredExtension ) == INDEX_NONE )
 			{
-				if (NotSupportedExtensions.Len() > 0)
+				if ( NotSupportedExtensions.Len() > 0 )
 				{
 					NotSupportedExtensions += ", ";
 				}
 				NotSupportedExtensions += RequiredExtension;
 			}
 		}
-		if (NotSupportedExtensions.Len() > 0)
+		if ( NotSupportedExtensions.Len() > 0 )
 		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Not All Required Extensions are supported. (Unsupported extensions: %s)"), *NotSupportedExtensions);
+			UInterchangeResultError_Generic* ErrorResult = AddMessage< UInterchangeResultError_Generic >();
+			ErrorResult->SourceAssetName = FileName;
+			ErrorResult->Text = FText::Format(
+				LOCTEXT( "UnsupportedRequiredExtensions", "Not All Required Extensions are supported. (Unsupported extensions: {0})"),
+				FText::FromString( NotSupportedExtensions ) );
+
 			return false;
 		}
 	}
 
-	const FString FileName = FPaths::GetBaseFilename(FilePath);
 	const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset.GenerateNames(FileName);
 
 	// Textures
@@ -904,7 +911,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			NodeContainer.AddNode( MeshNode );
 
 			
-			for (size_t PrimitiveCounter = 0; PrimitiveCounter < GltfMesh.Primitives.Num(); PrimitiveCounter++)
+			for (int32 PrimitiveCounter = 0; PrimitiveCounter < GltfMesh.Primitives.Num(); PrimitiveCounter++)
 			{
 				const GLTF::FPrimitive& Primitive = GltfMesh.Primitives[PrimitiveCounter];
 
@@ -1042,23 +1049,54 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			}
 
 			// Skeletons:
-			HandleGltfSkeletons(NodeContainer, SceneNodeUid, SkinnedMeshNodes);
+			HandleGltfSkeletons( NodeContainer, SceneNodeUid, SkinnedMeshNodes );
 		}
 	}
 
 	// Animations
 	{
-		for (int32 AnimationIndex = 0; AnimationIndex < GltfAsset.Animations.Num(); ++AnimationIndex)
+		for ( int32 AnimationIndex = 0; AnimationIndex < GltfAsset.Animations.Num(); ++AnimationIndex )
 		{
-			HandleGltfAnimation(NodeContainer, AnimationIndex);
+			HandleGltfAnimation( NodeContainer, AnimationIndex );
 		}
 	}
 
 	// Variants
 	// Note: Variants are not supported yet in game play mode
-	if (!FApp::IsGame() && bHasVariants)
+	if ( !FApp::IsGame() && bHasVariants )
 	{
-		HandleGltfVariants(NodeContainer, FileName);
+		HandleGltfVariants( NodeContainer, FileName );
+	}
+
+	// Add glTF errors and warnings to the Interchange results
+	for ( const GLTF::FLogMessage& LogMessage : GltfFileReader.GetLogMessages() )
+	{
+		UInterchangeResult* Result = nullptr;
+
+		switch ( LogMessage.Get<0>() )
+		{
+		case GLTF::EMessageSeverity::Error :
+			{
+				UInterchangeResultError_Generic* ErrorResult = AddMessage< UInterchangeResultError_Generic >();
+				ErrorResult->Text = FText::FromString(LogMessage.Get<1>());
+				Result = ErrorResult;
+			}
+			break;
+		case GLTF::EMessageSeverity::Warning:
+		default:
+			{
+				UInterchangeResultWarning_Generic* WarningResult = AddMessage< UInterchangeResultWarning_Generic >();
+				WarningResult->Text = FText::FromString(LogMessage.Get<1>());
+				Result = WarningResult;
+			}
+
+			break;
+		}
+
+		if ( Result )
+		{
+			Result->SourceAssetName = FileName;
+		}
 	}
 
 	return true;
@@ -1785,3 +1823,5 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

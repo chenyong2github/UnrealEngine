@@ -921,6 +921,15 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 	if (bSuccess)
 	{
+		if (ObjDataPtr->Groups.IsEmpty() && ObjDataPtr->Materials.IsEmpty())
+		{
+			UInterchangeResultError_Generic* ErrorResult = AddMessage<UInterchangeResultError_Generic>();
+			ErrorResult->SourceAssetName = FPaths::GetBaseFilename(Filename);
+			ErrorResult->Text = NSLOCTEXT("InterchangeOBJTranslator", "EmptyFileError", "The OBJ file appears to be empty.");
+
+			return false;
+		}
+
 		// Add mesh nodes to the container for each mesh group
 
 		for (const TPair<FString, FObjData::FGroupData>& Group : ObjDataPtr->Groups)

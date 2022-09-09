@@ -1316,7 +1316,36 @@ TSharedRef<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchang
 
 void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper)
 {
+	using namespace UE::Interchange;
+
 	check(AsyncHelper.IsValid());
+	
+	bool bSucceeded = false;
+	{
+		TSharedPtr<FImportAsyncHelper> AsyncHelperPtr = AsyncHelper.Pin();
+		
+		for (UInterchangeResult* Result : AsyncHelperPtr->AssetImportResult->GetResults()->GetResults())
+		{
+			if (Result && Result->GetResultType() == EInterchangeResultType::Success)
+			{
+				bSucceeded = true;
+				break;
+			}
+		}
+
+		if (!bSucceeded)
+		{
+			for (UInterchangeResult* Result : AsyncHelperPtr->SceneImportResult->GetResults()->GetResults())
+			{
+				if (Result && Result->GetResultType() == EInterchangeResultType::Success)
+				{
+					bSucceeded = true;
+					break;
+				}
+			}
+		}
+	}
+
 	ImportTasks.RemoveSingle(AsyncHelper.Pin());
 	//Make sure the async helper is destroy, if not destroy its because we are canceling the import and we still have a shared ptr on it
 	{
@@ -1334,9 +1363,7 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 		if (Notification.IsValid())
 		{
 			FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_end", "Import Done");
-			//TODO make sure any error are reported so we can control success or not
-			const bool bSuccess = true;
-			Notification->SetComplete(TitleText, FText::GetEmpty(), bSuccess);
+			Notification->SetComplete(TitleText, FText::GetEmpty(), bSucceeded);
 			Notification = nullptr; //This should delete the notification
 		}
 	}

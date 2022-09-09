@@ -67,6 +67,8 @@ namespace UE::Interchange::Private
 			Texture->PreEditChange(nullptr);
 			if (UE::NormalMapIdentification::HandleAssetPostImport(Texture))
 			{
+				UE_LOG(LogInterchangePipeline, Display, TEXT("Auto-detected normal map"));
+
 				if (bFlipNormalMapGreenChannel)
 				{
 					Texture->bFlipGreenChannel = true;

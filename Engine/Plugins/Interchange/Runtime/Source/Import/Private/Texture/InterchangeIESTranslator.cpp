@@ -11,12 +11,28 @@
 #include "Misc/Paths.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
+#define LOCTEXT_NAMESPACE "InterchangeIESTranslator"
+
 static bool GInterchangeEnableIESImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnableIESImport(
 	TEXT("Interchange.FeatureFlags.Import.IES"),
 	GInterchangeEnableIESImport,
 	TEXT("Whether IES support is enabled."),
 	ECVF_Default);
+
+namespace UE::Interchange::IESTranslator::Private
+{
+	void LogError(const UInterchangeIESTranslator& IESTranslator, const FString& UniqueID, FText&& ErrorText)
+	{
+		check(IESTranslator.GetSourceData() != nullptr);
+
+		UInterchangeResultError_Generic* ErrorMessage = IESTranslator.AddMessage<UInterchangeResultError_Generic>();
+		ErrorMessage->SourceAssetName = IESTranslator.GetSourceData()->GetFilename();
+		ErrorMessage->AssetType = UTextureLightProfile::StaticClass();
+		ErrorMessage->InterchangeKey = UniqueID;
+		ErrorMessage->Text = MoveTemp(ErrorText);
+	}
+}
 
 TArray<FString> UInterchangeIESTranslator::GetSupportedFormats() const
 {
@@ -38,11 +54,15 @@ bool UInterchangeIESTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 TOptional<UE::Interchange::FImportLightProfile> UInterchangeIESTranslator::GetLightProfilePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
 {
+	using namespace UE::Interchange;
+
 	check(GetSourceData() == PayloadSourceData);
 
 	if (!GetSourceData())
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import IES, bad source data."));
+		IESTranslator::Private::LogError(*this, PayLoadKey,
+			LOCTEXT("IESImportFailure_BadData", "Failed to import IES, bad source data."));
+
 		return {};
 	}
 
@@ -52,19 +72,25 @@ TOptional<UE::Interchange::FImportLightProfile> UInterchangeIESTranslator::GetLi
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import IES, wrong payload key. [%s]"), *Filename);
+		IESTranslator::Private::LogError(*this, PayLoadKey,
+			LOCTEXT("IESImportFailure_BadPayloadKey", "Failed to import IES, wrong payload key."));
+
 		return {};
 	}
 
 	if (!FPaths::FileExists(Filename))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import IES, cannot open file. [%s]"), *Filename);
+		IESTranslator::Private::LogError(*this, PayLoadKey,
+			LOCTEXT("IESImportFailure_OpenFile", "Failed to import IES, cannot open file."));
+
 		return {};
 	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import IES, cannot load file content into an array. [%s]"), *Filename);
+		IESTranslator::Private::LogError(*this, PayLoadKey,
+			LOCTEXT("IESImportFailure_LoadFile", "Failed to import IES, cannot load file content into an array."));
+
 		return {};
 	}
 
@@ -94,6 +120,13 @@ TOptional<UE::Interchange::FImportLightProfile> UInterchangeIESTranslator::GetLi
 
 		return Payload;
 	}
+	else
+	{
+		IESTranslator::Private::LogError(*this, PayLoadKey,
+			FText::Format(LOCTEXT("IESImportFailure_Generic", "IES import failed: \"{0}\""), FText::FromString(IESConverter.GetError())));
+	}
 
 	return {};
 }
+
+#undef LOCTEXT_NAMESPACE

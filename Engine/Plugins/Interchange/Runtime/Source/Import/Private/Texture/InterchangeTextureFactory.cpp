@@ -980,9 +980,13 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return FilesToHash;
 	}
 
-	void LogErrorInvalidPayload(const FString& TextureClass, const FString& ObjectName)
+	void LogErrorInvalidPayload(UInterchangeFactoryBase& Factory, const UClass* TextureClass, const FString& SourceAssetName, const FString& DestinationAssetName)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a %s. (%s)"), *TextureClass, *ObjectName);
+		UInterchangeResultError_Generic* ErrorMessage = Factory.AddMessage<UInterchangeResultError_Generic>();
+		ErrorMessage->AssetType = TextureClass;
+		ErrorMessage->SourceAssetName = SourceAssetName;
+		ErrorMessage->DestinationAssetName = DestinationAssetName;
+		ErrorMessage->Text = LOCTEXT("InvalidPayload", "Unable to retrieve the payload from the source file.");
 	}
 
 	bool CanSetupTexture2DSourceData(FTexturePayloadVariant& TexturePayload)
@@ -1338,7 +1342,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 
 	if (!bCanSetup)
 	{
-		LogErrorInvalidPayload(Texture->GetClass()->GetName(), Texture->GetName());
+		LogErrorInvalidPayload(*this, Texture->GetClass(), Arguments.SourceData->GetFilename(), Texture->GetName());
 		return Texture;
 	}
 

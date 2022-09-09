@@ -177,7 +177,10 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 		if (ImageWrapperModule.DecompressImage(Buffer, Length, LoadedImage))
 		{
 			// Todo interchange: should these payload modification be part of the pipeline, factory or stay there?
-			UE::TextureUtilitiesCommon::AutoDetectAndChangeGrayScale(LoadedImage);
+			if (UE::TextureUtilitiesCommon::AutoDetectAndChangeGrayScale(LoadedImage))
+			{
+				UE_LOG(LogInterchangeImport, Display, TEXT("Auto-detected grayscale, image changed to G8"));
+			}
 
 			ETextureSourceFormat TextureFormat = FImageCoreUtils::ConvertToTextureSourceFormat(LoadedImage.Format);
 			bool bSRGB = LoadedImage.GammaSpace != EGammaSpace::Linear;
