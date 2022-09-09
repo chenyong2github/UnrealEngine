@@ -39,7 +39,7 @@ struct ZONEGRAPH_API FZoneGraphAStarNode : public FGraphAStarDefaultNode<FZoneGr
 	typedef FGraphAStarDefaultNode<FZoneGraphAStarWrapper> Super;
 	typedef int32/*lane index type*/ FNodeRef;
 
-	FORCEINLINE FZoneGraphAStarNode(const FNodeRef InNodeRef = INDEX_NONE, const FVector InPosition = FVector(MAX_flt))
+	FORCEINLINE FZoneGraphAStarNode(const FNodeRef InNodeRef = INDEX_NONE, const FVector InPosition = FVector(TNumericLimits<FVector::FReal>::Max()))
 		: Super(InNodeRef)
 		, Position(InPosition)
 	{}
@@ -47,7 +47,7 @@ struct ZONEGRAPH_API FZoneGraphAStarNode : public FGraphAStarDefaultNode<FZoneGr
 	FZoneGraphAStarNode(const FZoneGraphAStarNode& Other) = default;
 	FGraphAStarDefaultNode& operator=(const FGraphAStarDefaultNode& Other) = delete;
 
-	bool IsStartOrIsEnd() const { return Position != FVector(MAX_flt); };
+	bool IsStartOrIsEnd() const { return Position != FVector(TNumericLimits<FVector::FReal>::Max()); };
 
 	FVector Position; //@todo: this will likely change to be a position along the lane
 };
@@ -68,11 +68,11 @@ struct ZONEGRAPH_API FZoneGraphPathFilter
 	bool IsStart(const FZoneGraphAStarNode& Node) const { return Node.NodeRef == StartLocation.LaneHandle.Index; }
 	bool IsEnd(const FZoneGraphAStarNode& Node) const { return Node.NodeRef == EndLocation.LaneHandle.Index; }
 
-	FORCEINLINE float GetHeuristicScale() const { return 1.f; }
+	FORCEINLINE FVector::FReal GetHeuristicScale() const { return 1.; }
 
-	float GetHeuristicCost(const FZoneGraphAStarNode& NeighbourNode, const FZoneGraphAStarNode& EndNode) const
+	FVector::FReal GetHeuristicCost(const FZoneGraphAStarNode& NeighbourNode, const FZoneGraphAStarNode& EndNode) const
 	{
-		static const FVector InvalidPosition(MAX_flt);
+		static const FVector InvalidPosition(TNumericLimits<FVector::FReal>::Max());
 		
 		// Except for start to end nodes, compute heurisitic from the last point of lanes
 		if (NeighbourNode.Position == InvalidPosition)
@@ -92,7 +92,7 @@ struct ZONEGRAPH_API FZoneGraphPathFilter
 		}
 	}
 
-	float GetTraversalCost(const FZoneGraphAStarNode& CurNode, const FZoneGraphAStarNode& NeighbourNode) const
+	FVector::FReal GetTraversalCost(const FZoneGraphAStarNode& CurNode, const FZoneGraphAStarNode& NeighbourNode) const
 	{
 		const FZoneLaneData& CurLane = ZoneStorage.Lanes[CurNode.NodeRef];
 		const FZoneLaneData& NeighbourLane = ZoneStorage.Lanes[NeighbourNode.NodeRef];
@@ -159,7 +159,7 @@ struct ZONEGRAPH_API FZoneGraphPathFilter
 			else
 			{
 				UE_LOG(LogAStar, Warning, TEXT("Not handled"));
-				return MAX_flt;
+				return TNumericLimits<FVector::FReal>::Max();
 			}
 		}
 	}

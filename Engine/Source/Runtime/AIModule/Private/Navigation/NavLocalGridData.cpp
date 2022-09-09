@@ -240,17 +240,17 @@ namespace FGridHelpers
 	{
 		FGridPathFilter(const FNavLocalGridData& InGridRef) : GridRef(InGridRef) {}
 
-		float GetHeuristicScale() const
+		FVector::FReal GetHeuristicScale() const
 		{
-			return 1.0f;
+			return 1.;
 		}
 
-		float GetHeuristicCost(const int32 StartNodeRef, const int32 EndNodeRef) const
+		FVector::FReal GetHeuristicCost(const int32 StartNodeRef, const int32 EndNodeRef) const
 		{
 			return GetTraversalCost(StartNodeRef, EndNodeRef);
 		}
 
-		float GetTraversalCost(const int32 StartNodeRef, const int32 EndNodeRef) const
+		FVector::FReal GetTraversalCost(const int32 StartNodeRef, const int32 EndNodeRef) const
 		{
 			// manhattan distance
 			return FMath::Abs(GridRef.GetCellCoordX(StartNodeRef) - GridRef.GetCellCoordX(EndNodeRef)) + FMath::Abs(GridRef.GetCellCoordY(StartNodeRef) - GridRef.GetCellCoordY(EndNodeRef));

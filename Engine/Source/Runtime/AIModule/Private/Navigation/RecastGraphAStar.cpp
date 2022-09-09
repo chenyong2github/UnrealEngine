@@ -79,7 +79,7 @@ dtPolyRef FRecastAStarResult::SetPathInfo(const int32 Index, const FRecastAStarS
 	return SearchNode.NodeRef;
 }
 
-FRecastGraphAStarFilter::FRecastGraphAStarFilter(FRecastGraphWrapper& InRecastGraphWrapper, const FRecastQueryFilter& InFilter, const uint32 InMaxSearchNodes, const float InCostLimit, const UObject* Owner)
+FRecastGraphAStarFilter::FRecastGraphAStarFilter(FRecastGraphWrapper& InRecastGraphWrapper, const FRecastQueryFilter& InFilter, const uint32 InMaxSearchNodes, const FVector::FReal InCostLimit, const UObject* Owner)
 	: Filter{ InFilter }
 	, LinkFilter{ FNavigationSystem::GetCurrent<UNavigationSystemV1>(InRecastGraphWrapper.GetRecastNavMeshActor()->GetWorld()), Owner }
 	, RecastGraphWrapper{ InRecastGraphWrapper }

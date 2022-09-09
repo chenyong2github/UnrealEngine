@@ -167,29 +167,29 @@ struct AIMODULE_API FRecastAStar : public FGraphAStar<FRecastGraphWrapper, FReca
 
 struct AIMODULE_API FRecastGraphAStarFilter
 {
-	FRecastGraphAStarFilter(FRecastGraphWrapper& InRecastGraphWrapper, const FRecastQueryFilter& InFilter, uint32 InMaxSearchNodes, const float InCostLimit, const UObject* Owner);
+	FRecastGraphAStarFilter(FRecastGraphWrapper& InRecastGraphWrapper, const FRecastQueryFilter& InFilter, uint32 InMaxSearchNodes, const FVector::FReal InCostLimit, const UObject* Owner);
 
 	FORCEINLINE bool WantsPartialSolution() const
 	{ 
 		return true; 
 	}
-	FORCEINLINE float GetHeuristicScale() const
+	FORCEINLINE FVector::FReal GetHeuristicScale() const
 	{ 
 		// LWC_TODO_AI: Refactor all of these related classes in multiple files to use doubles! Probably not until after 5.0!
-		return UE_REAL_TO_FLOAT(Filter.getHeuristicScale());
+		return Filter.getHeuristicScale();
 	}
 
-	FORCEINLINE float GetHeuristicCost(const FRecastAStarSearchNode& StartNode, const FRecastAStarSearchNode& EndNode) const
+	FORCEINLINE FVector::FReal GetHeuristicCost(const FRecastAStarSearchNode& StartNode, const FRecastAStarSearchNode& EndNode) const
 	{
 		check(EndNode.HasValidCacheInfo());
 
 		const FVector::FReal Cost = dtVdist(StartNode.Position, EndNode.Position);
 
 		// LWC_TODO_AI: Refactor all of these related classes in multiple files to use doubles! Probably not until after 5.0!
-		return UE_REAL_TO_FLOAT_CLAMPED_MAX(Cost);
+		return Cost;
 	}
 
-	FORCEINLINE float GetTraversalCost(const FRecastAStarSearchNode& StartNode, const FRecastAStarSearchNode& EndNode) const
+	FORCEINLINE FVector::FReal GetTraversalCost(const FRecastAStarSearchNode& StartNode, const FRecastAStarSearchNode& EndNode) const
 	{
 		EndNode.CacheInfo(RecastGraphWrapper, StartNode);
 		const FVector::FReal Cost = Filter.getCost(
@@ -199,7 +199,7 @@ struct AIMODULE_API FRecastGraphAStarFilter
 			EndNode.NodeRef, EndNode.Tile, EndNode.Poly);
 
 		// LWC_TODO_AI: Refactor all of these related classes in multiple files to use doubles! Probably not until after 5.0!
-		return UE_REAL_TO_FLOAT_CLAMPED_MAX(Cost);
+		return Cost;
 	}
 
 	FORCEINLINE bool IsTraversalAllowed(const dtPolyRef& NodeA, const FRecastNeighbour& NodeB) const
@@ -229,7 +229,7 @@ struct AIMODULE_API FRecastGraphAStarFilter
 		return MaxSearchNodes;
 	}
 
-	FORCEINLINE float GetCostLimit() const
+	FORCEINLINE FVector::FReal GetCostLimit() const
 	{
 		return CostLimit;
 	}
@@ -246,5 +246,5 @@ private:
 	FRecastSpeciaLinkFilter LinkFilter;
 	const FRecastGraphWrapper& RecastGraphWrapper;
 	uint32 MaxSearchNodes;
-	float CostLimit;
+	FVector::FReal CostLimit;
 };
