@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					// ... add other public dependencies that you statically link with here ...
-					"DataInterface",
 				}
 			);
 

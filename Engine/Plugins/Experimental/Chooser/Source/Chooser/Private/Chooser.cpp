@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chooser.h"
-#include "DataInterfaceTypes.h"
-#include "DataInterface.h"
+#include "ChooserFunctionLibrary.h"
 
 UChooserTable::UChooserTable(const FObjectInitializer& Initializer)
 	:Super(Initializer)
@@ -9,49 +8,60 @@ UChooserTable::UChooserTable(const FObjectInitializer& Initializer)
 
 }
 
-void UChooserColumnBool::Filter(const UE::DataInterface::FContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
+void UChooserColumnBool::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
 {
 	bool Result = false;
-	if(UE::DataInterface::GetDataSafe(Value, Context, Result))
+
+	if (ContextObject)
 	{
-		for(uint32 Index : IndexListIn)
+		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(ContextObject->GetClass(), InputPropertyName))
 		{
-			if (RowValues.Num() > (int)Index)
+			Result = *Property->ContainerPtrToValuePtr<bool>(ContextObject);
+			for (uint32 Index : IndexListIn)
 			{
-				if (Result == RowValues[Index])
+				if (RowValues.Num() > (int)Index)
 				{
-					IndexListOut.Push(Index);
+					if (Result == RowValues[Index])
+					{
+						IndexListOut.Push(Index);
+					}
 				}
 			}
 		}
 	}
 }
 
-void UChooserColumnFloatRange::Filter(const UE::DataInterface::FContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
+void UChooserColumnFloatRange::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
 {
 	float Result = 0.0f;
-	
-	if(UE::DataInterface::GetDataSafe(Value, Context, Result))
+
+	Result = 0.0f;
+	if (ContextObject)
 	{
-		for(uint32 Index : IndexListIn)
+		if (const FDoubleProperty* Property = FindFProperty<FDoubleProperty>(ContextObject->GetClass(), InputPropertyName))
 		{
-			if (RowValues.Num() > (int)Index)
+			Result = *Property->ContainerPtrToValuePtr<double>(ContextObject);
+	
+			for(uint32 Index : IndexListIn)
 			{
-				const FChooserFloatRangeRowData& RowValue = RowValues[Index];
-				if (Result >= RowValue.Min && Result <= RowValue.Max)
+				if (RowValues.Num() > (int)Index)
 				{
-					IndexListOut.Push(Index);
+					const FChooserFloatRangeRowData& RowValue = RowValues[Index];
+					if (Result >= RowValue.Min && Result <= RowValue.Max)
+					{
+						IndexListOut.Push(Index);
+					}
 				}
 			}
 		}
 	}
 }
 
-bool UDataInterface_EvaluateChooser::GetDataImpl(const UE::DataInterface::FContext& DataContext) const
+static UObject* StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser)
 {
 	if (Chooser == nullptr)
 	{
-		return false;
+		return nullptr;
 	}
 
 	TArray<uint32> Indices1;
@@ -72,7 +82,7 @@ bool UDataInterface_EvaluateChooser::GetDataImpl(const UE::DataInterface::FConte
 		{
 			Swap(IndicesIn, IndicesOut);
 			IndicesOut->SetNum(0, false);
-			Column->Filter(DataContext, *IndicesIn, *IndicesOut);
+			Column->Filter(ContextObject, *IndicesIn, *IndicesOut);
 		}
 	}
 
@@ -81,15 +91,29 @@ bool UDataInterface_EvaluateChooser::GetDataImpl(const UE::DataInterface::FConte
 	{
 		if (Chooser->Results.Num() > (int32)SelectedIndex)
 		{
-			const TScriptInterface<IDataInterface>& SelectedResult = Chooser->Results[SelectedIndex];
+			const TScriptInterface<IObjectChooser>& SelectedResult = Chooser->Results[SelectedIndex];
 
-			// todo: GetResultRaw returns const, GetData requires non-const
-			if(UE::DataInterface::GetDataSafe(SelectedResult, DataContext, const_cast<UE::DataInterface::FParam&>(DataContext.GetResultRaw())))
+			if(UObject* Result = SelectedResult->ChooseObject(ContextObject))
 			{
-				return true;
+				return Result;
 			}
 		}
 	}
 
-	return false;
+	return nullptr;
+}
+
+UObject* UObjectChooser_EvaluateChooser::ChooseObject(const UObject* ContextObject) const
+{
+	return StaticEvaluateChooser(ContextObject, Chooser);
+}
+
+UChooserFunctionLibrary::UChooserFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+UObject* UChooserFunctionLibrary::EvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser)
+{
+	return StaticEvaluateChooser(ContextObject, Chooser);
 }

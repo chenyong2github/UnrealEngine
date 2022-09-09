@@ -25,8 +25,9 @@
 #include "SAssetDropTarget.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "DataInterfaceClassFilter.h"
-#include "DataInterfaceWidgetFactories.h"
+#include "ObjectChooser_Asset.h"
+#include "ObjectChooserClassFilter.h"
+#include "ObjectChooserWidgetFactories.h"
 
 
 #define LOCTEXT_NAMESPACE "ChooserEditor"
@@ -39,12 +40,12 @@ const FName FChooserTableEditor::PropertiesTabId( TEXT( "ChooserEditor_Propertie
 const FName FChooserTableEditor::TableTabId( TEXT( "ChooserEditor_Table" ) );
 
 
-void ConvertToText(UObject* Object, FText& OutText)
+void ConvertObjectToText(UObject* Object, FText& OutText)
 {
 	UClass* Class = Object->GetClass();
 	while (Class)
 	{
-		if (auto TextConverter = DataInterfaceGraphEditor::FDataInterfaceWidgetFactories::DataInterfaceTextConverter.Find(Class))
+		if (auto TextConverter = FObjectChooserWidgetFactories::ChooserTextConverter.Find(Class))
 		{
 			(*TextConverter)(Object, OutText);
 			break;
@@ -309,7 +310,7 @@ public:
 		Operation->ChooserEditor = InEditor;
 		Operation->RowIndex = InRowIndex;
 		Operation->DefaultHoverText = LOCTEXT("Chooser Row", "Chooser Row");
-		ConvertToText(InEditor->GetChooser()->Results[InRowIndex].GetObject(), Operation->DefaultHoverText);
+		ConvertObjectToText(InEditor->GetChooser()->Results[InRowIndex].GetObject(), Operation->DefaultHoverText);
 		Operation->CurrentHoverText = Operation->DefaultHoverText;
 			
 		Operation->Construct();
@@ -397,16 +398,15 @@ public:
 				
 				return 		SNew(SChooserRowHandle).ChooserEditor(Editor).RowIndex(RowIndex->RowIndex);
 			}
-			else if (ColumnName == Result)
+			else if (ColumnName == Result) 
 			{
-		
 				UObject* RowValue = Chooser->Results[RowIndex->RowIndex].GetObject();
-				TSharedPtr<SWidget> ResultWidget = DataInterfaceGraphEditor::FDataInterfaceWidgetFactories::CreateDataInterfaceWidget(Chooser->ResultType, RowValue,
+				TSharedPtr<SWidget> ResultWidget = FObjectChooserWidgetFactories::CreateWidget("", RowValue,
 				FOnClassPicked::CreateLambda([this, RowIndex=RowIndex->RowIndex](UClass* ChosenClass)
 				{
 					UObject* RowValue = NewObject<UObject>(Chooser, ChosenClass);
 					Chooser->Results[RowIndex] = RowValue;
-					DataInterfaceGraphEditor::FDataInterfaceWidgetFactories::CreateDataInterfaceWidget(Chooser->ResultType, RowValue, FOnClassPicked(), &CacheBorder);
+					FObjectChooserWidgetFactories::CreateWidget("", RowValue, FOnClassPicked(), &CacheBorder);
 				}),
 				&CacheBorder
 				);
@@ -448,7 +448,7 @@ public:
 				CreateRowComboButton->SetOnGetMenuContent(FOnGetContent::CreateLambda([this, CreateRowComboButton]()
 					{
 						FClassViewerInitializationOptions Options;
-						Options.ClassFilters.Add(MakeShared<UE::DataInterfaceGraphEditor::FDataInterfaceClassFilter>(Chooser->ResultType, nullptr));
+						Options.ClassFilters.Add(MakeShared<FObjectChooserClassFilter>("", nullptr));
 						
 						// Add class filter for columns here
 						TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options,
@@ -888,7 +888,7 @@ TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Column, int Row)>> F
 
 TSharedRef<SWidget> CreateAssetWidget(UObject* Object)
 {
-	UDataInterface_Object_Asset* DIAsset = Cast<UDataInterface_Object_Asset>(Object);
+	UObjectChooser_Asset* DIAsset = Cast<UObjectChooser_Asset>(Object);
 
 	UObject* Asset = DIAsset->Asset;
 	
@@ -919,7 +919,7 @@ TSharedRef<SWidget> CreateAssetWidget(UObject* Object)
 
 TSharedRef<SWidget> CreateEvaluateChooserWidget(UObject* Object)
 {
-	UDataInterface_EvaluateChooser* EvaluateChooser = Cast<UDataInterface_EvaluateChooser>(Object);
+	UObjectChooser_EvaluateChooser* EvaluateChooser = Cast<UObjectChooser_EvaluateChooser>(Object);
 
 	return
 	SNew(SAssetDropTarget)
@@ -946,14 +946,9 @@ TSharedRef<SWidget> CreateEvaluateChooserWidget(UObject* Object)
 	];
 }
 
-void ConvertToText_Base(const UObject* Object, FText& OutText)
-{
-	OutText = FText::FromString(Object->GetName());
-}
-
 void ConvertToText_Asset(const UObject* Object, FText& OutText)
 {
-	const UDataInterface_Object_Asset* AssetInterface = Cast<UDataInterface_Object_Asset>(Object);
+	const UObjectChooser_Asset* AssetInterface = Cast<UObjectChooser_Asset>(Object);
 	if (AssetInterface->Asset == nullptr)
 	{
 		OutText = LOCTEXT("NoChooser", "[No Chooser]");
@@ -966,7 +961,7 @@ void ConvertToText_Asset(const UObject* Object, FText& OutText)
 
 void ConvertToText_EvaluateChooser(const UObject* Object, FText& OutText)
 {
-	const UDataInterface_EvaluateChooser* EvaluateChooser = Cast<UDataInterface_EvaluateChooser>(Object);
+	const UObjectChooser_EvaluateChooser* EvaluateChooser = Cast<UObjectChooser_EvaluateChooser>(Object);
 	if (EvaluateChooser->Chooser == nullptr)
 	{
 		OutText = LOCTEXT("NoChooser", "[No Chooser]");
@@ -980,7 +975,7 @@ void ConvertToText_EvaluateChooser(const UObject* Object, FText& OutText)
 TSharedRef<SWidget> CreateObjectWidget(UObject* Object)
 {
 	FText ObjectText = FText::FromString(Object->GetName());
-	ConvertToText(Object, ObjectText);
+	ConvertObjectToText(Object, ObjectText);
 	
 	return SNew (STextBlock).Text(ObjectText); // could make this use Text_Lambda, to have it update correctly?
 }
@@ -1122,14 +1117,12 @@ void FChooserRowDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 void FChooserTableEditor::RegisterWidgets()
 {
-	using namespace DataInterfaceGraphEditor;
-	FDataInterfaceWidgetFactories::DataInterfaceTextConverter.Add(UObject::StaticClass(), ConvertToText_Base);
-	FDataInterfaceWidgetFactories::DataInterfaceTextConverter.Add(UDataInterface_Object_Asset::StaticClass(), ConvertToText_Asset);
-	FDataInterfaceWidgetFactories::DataInterfaceTextConverter.Add(UDataInterface_EvaluateChooser::StaticClass(), ConvertToText_EvaluateChooser);
+	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UObjectChooser_Asset::StaticClass(), ConvertToText_Asset);
+	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UObjectChooser_EvaluateChooser::StaticClass(), ConvertToText_EvaluateChooser);
 	
-	FDataInterfaceWidgetFactories::DataInterfaceWidgetCreators.Add(UObject::StaticClass(), CreateObjectWidget);
-	FDataInterfaceWidgetFactories::DataInterfaceWidgetCreators.Add(UDataInterface_Object_Asset::StaticClass(), CreateAssetWidget);
-	FDataInterfaceWidgetFactories::DataInterfaceWidgetCreators.Add(UDataInterface_EvaluateChooser::StaticClass(), CreateEvaluateChooserWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObject::StaticClass(), CreateObjectWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_Asset::StaticClass(), CreateAssetWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_EvaluateChooser::StaticClass(), CreateEvaluateChooserWidget);
 
 	ColumnWidgetCreators.Add(UChooserColumnBool::StaticClass(), CreateBoolColumnWidget);
 	ColumnWidgetCreators.Add(UChooserColumnFloatRange::StaticClass(), CreateFloatRangeColumnWidget);

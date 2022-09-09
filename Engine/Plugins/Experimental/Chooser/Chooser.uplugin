@@ -16,10 +16,6 @@
 	"IsExperimentalVersion" : true,
 	"Installed" : false,
 	"Plugins": [
-		{
-			"Name": "DataInterfaceGraph",
-			"Enabled": true
-		}
 	],
 	"Modules" :
 	[
