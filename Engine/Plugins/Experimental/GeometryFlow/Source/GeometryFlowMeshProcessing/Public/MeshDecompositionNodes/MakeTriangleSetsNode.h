@@ -93,7 +93,7 @@ public:
 	{
 		AddInput(InParamGroupLayer(), 
 				 MakeUnique<TBasicNodeInput<FName, (int)EDataTypes::Name>>(), 
-				 MakeSafeShared<TMovableData<FName, (int)EDataTypes::Name>>("Default"));
+				 MakeSafeShared<TMovableData<FName, (int)EDataTypes::Name>>());
 
 		AddInput(InParamIgnoreGroups(), 
 				 MakeBasicInput<FIndexSets>());
@@ -167,6 +167,10 @@ public:
 		TSafeSharedPtr<IData> GroupLayerArg = DatasIn.FindData(InParamGroupLayer());
 		FName GroupName = GroupLayerArg->GetDataConstRef<FName>((int)EDataTypes::Name);
 
+		if (GroupName.IsNone())
+		{
+			return;
+		}
 		if (Mesh.HasTriangleGroups() && (GroupName == "Default"))
 		{
 			ComputeIndexSetsForGroups(Mesh, IgnoreGroups, [&Mesh](int TriangleID) { return Mesh.GetTriangleGroup(TriangleID); }, SetsOut);

@@ -378,8 +378,14 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewWithBackgroundCompute->PreviewMesh, nullptr);
 	PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 
-	PreviewWithBackgroundCompute->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) {
-		UpdateAcceptWarnings(Compute->HaveEmptyResult() ? EAcceptWarning::EmptyForbidden : EAcceptWarning::NoWarning);
+	PreviewWithBackgroundCompute->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute) 
+	{
+		if (Compute->HaveEmptyResult())
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("CannotCreateEmptyMesh", "WARNING: Tool doesn't allow creation of an empty mesh."),
+				EToolMessageLevel::UserWarning);
+		}
+		// Don't clear the message area if we have a non-empty result
 	});
 
 	// For the first computation, display a bounding box with the working material. Otherwise it looks like nothing
@@ -451,8 +457,81 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	}
 }
 
+
+
+bool UGenerateStaticMeshLODAssetTool::ValidateSettings() const
+{
+	if (!BasicProperties || !GenerateProcess)
+	{
+		return true;
+	}
+
+	const FDynamicMesh3& Mesh = GenerateProcess->GetSourceMesh();
+
+	const FName& GroupName = BasicProperties->Preprocessing.FilterGroupLayer;
+	if (!GroupName.IsNone())
+	{
+		bool bFound = false;
+
+		if (Mesh.HasAttributes())
+		{
+			for (int GroupLayerIndex = 0; GroupLayerIndex < Mesh.Attributes()->NumPolygroupLayers(); ++GroupLayerIndex)
+			{
+				const FDynamicMeshPolygroupAttribute* GroupAttribute = Mesh.Attributes()->GetPolygroupLayer(GroupLayerIndex);
+				if (GroupAttribute->GetName() == GroupName)
+				{
+					bFound = true;
+					break;
+				}
+			}
+		}
+
+		if (!bFound)
+		{
+			const FText Message = FText::Format(LOCTEXT("GroupNotFoundWarning", "Group {0} not found on input mesh"), FText::FromName(GroupName));
+			GetToolManager()->DisplayMessage(Message, EToolMessageLevel::UserWarning);
+			return false;
+		}
+	}
+
+
+	const FName& WeightMapName = BasicProperties->Preprocessing.ThickenWeightMapName;
+	if (!WeightMapName.IsNone())
+	{
+		bool bFound = false;
+
+		if (Mesh.HasAttributes())
+		{
+			for (int WeightMapIndex = 0; WeightMapIndex < Mesh.Attributes()->NumWeightLayers(); ++WeightMapIndex)
+			{
+				const FDynamicMeshWeightAttribute* GroupAttribute = Mesh.Attributes()->GetWeightLayer(WeightMapIndex);
+				if (GroupAttribute->GetName() == WeightMapName)
+				{
+					bFound = true;
+					break;
+				}
+			}
+		}
+
+		if (!bFound)
+		{
+			const FText Message = FText::Format(LOCTEXT("WeightMapNotFoundWarning", "Weight Map {0} not found on input mesh"), FText::FromName(WeightMapName));
+			GetToolManager()->DisplayMessage(Message, EToolMessageLevel::UserWarning);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 {
+	bool bOK = ValidateSettings();
+	if (bOK)
+	{
+		GetToolManager()->DisplayMessage({}, EToolMessageLevel::UserWarning);
+	}
+
 	PreviewWithBackgroundCompute->InvalidateResult();
 }
 

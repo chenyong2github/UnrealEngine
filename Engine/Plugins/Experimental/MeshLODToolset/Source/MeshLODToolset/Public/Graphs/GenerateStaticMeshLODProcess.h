@@ -79,20 +79,25 @@ struct FGenerateStaticMeshLODProcess_PreprocessSettings
 {
 	GENERATED_BODY()
 
+	//
+	// NOTE: Customization of widgets for these properties happens in FAutoLODToolDetails::CustomizeDetails(). If you add, remove, or 
+	// change any of the properties in this struct, you must also update that function!
+	//
+
 	// Filter settings
 
 	/** Group layer to use for filtering out detail before processing */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filter Group Layer"))
-	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
+	UPROPERTY(EditAnywhere, Category = Preprocessing, meta = (DisplayName = "Detail Filter Group Layer"))
+	FName FilterGroupLayer = FName();
 
 	// Thicken settings
 
 	/** Weight map used during mesh thickening */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken Weight Map"))
-	FName ThickenWeightMapName = FName(TEXT("ThickenWeightMap"));
+	UPROPERTY(EditAnywhere, Category = Preprocessing, meta = (DisplayName = "Thicken Weight Map"))
+	FName ThickenWeightMapName = FName();
 
 	/** Amount to thicken the mesh prior to Solidifying. The thicken weight map values are multiplied by this value. */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	UPROPERTY(EditAnywhere, Category = Preprocessing, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float ThickenAmount = 0.0f;
 };
 

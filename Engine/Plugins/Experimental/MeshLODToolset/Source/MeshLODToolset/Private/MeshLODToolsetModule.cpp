@@ -3,6 +3,10 @@
 #include "MeshLODToolsetModule.h"
 #include "Tools/LODGenerationSettingsAsset.h"
 #include "AssetTypeActions_Base.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "Tools/DetailsCustomizations/AutoLODToolCustomizations.h"
+#include "Tools/GenerateStaticMeshLODAssetTool.h"
 
 #define LOCTEXT_NAMESPACE "FMeshLODToolsetModule"
 
@@ -24,10 +28,10 @@ public:
 
 
 
-
+// This function will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 void FMeshLODToolsetModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FMeshLODToolsetModule::OnPostEngineInit);
 
 	// Register asset actions
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -38,11 +42,10 @@ void FMeshLODToolsetModule::StartupModule()
 	}
 }
 
+// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
+// we call this function before unloading the module.
 void FMeshLODToolsetModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
-
 	// Unregister asset actions
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
 	if (AssetToolsModule)
@@ -52,6 +55,26 @@ void FMeshLODToolsetModule::ShutdownModule()
 			AssetToolsModule->Get().UnregisterAssetTypeActions(RegisteredAssetTypeAction);
 		}
 	}
+
+	// Unregister customizations
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyEditorModule)
+	{
+		for (FName ClassName : ClassesToUnregisterOnShutdown)
+		{
+			PropertyEditorModule->UnregisterCustomClassLayout(ClassName);
+		}
+	}
+}
+
+void FMeshLODToolsetModule::OnPostEngineInit()
+{
+	ClassesToUnregisterOnShutdown.Reset();
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	PropertyModule.RegisterCustomClassLayout("GenerateStaticMeshLODAssetToolProperties", FOnGetDetailCustomizationInstance::CreateStatic(&FAutoLODToolDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UGenerateStaticMeshLODAssetToolProperties::StaticClass()->GetFName());
 }
 
 #undef LOCTEXT_NAMESPACE

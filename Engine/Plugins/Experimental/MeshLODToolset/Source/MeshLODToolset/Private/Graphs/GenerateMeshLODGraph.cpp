@@ -490,7 +490,7 @@ void FGenerateMeshLODGraph::BuildGraph(const FDynamicMesh3* SourceMeshHint)
 	UpdateSettingsSourceNodeValue(*Graph, FilterGroupsNode, IgnoreGroupsForDelete);
 
 	FMeshLODGraphPreFilterSettings PreFilterSettings;
-	PreFilterSettings.FilterGroupLayerName = FName(TEXT("PreFilterGroups"));
+	PreFilterSettings.FilterGroupLayerName = FName();
 	UpdatePreFilterSettings(PreFilterSettings);
 
 	UE::GeometryFlow::FMeshThickenSettings MeshThickenSettings;

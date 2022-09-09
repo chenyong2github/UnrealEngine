@@ -343,4 +343,5 @@ protected:
 
 	void OnPresetSelectionChanged();
 
+	bool ValidateSettings() const;
 };

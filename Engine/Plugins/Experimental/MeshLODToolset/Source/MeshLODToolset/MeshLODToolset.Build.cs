@@ -51,6 +51,7 @@ public class MeshLODToolset : ModuleRules
 				"UnrealEd",
 				"EditorScriptingUtilities",
 				"Slate",
+				"SlateCore",
 				// ... add private dependencies that you statically link with here ...
 			}
 		);

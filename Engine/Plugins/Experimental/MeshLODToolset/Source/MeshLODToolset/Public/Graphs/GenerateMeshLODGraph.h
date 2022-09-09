@@ -26,7 +26,7 @@ using UE::Geometry::FDynamicMesh3;
 
 struct FMeshLODGraphPreFilterSettings
 {
-	FName FilterGroupLayerName = FName( "PreFilterGroups" );
+	FName FilterGroupLayerName = FName();
 };
 
 class FGenerateMeshLODGraph
