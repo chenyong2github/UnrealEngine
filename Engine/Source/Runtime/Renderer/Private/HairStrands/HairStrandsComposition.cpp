@@ -613,19 +613,25 @@ void RenderHairComposition(
 	const TArray<FViewInfo>& Views,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
-	FRDGTextureRef SceneVelocityTexture)
+	FRDGTextureRef SceneVelocityTexture,
+	FTranslucencyPassResourcesMap& TranslucencyResourceMap)
 {
+	uint32 ViewIndex = 0;
 	for (const FViewInfo& View : Views)
 	{		
 		if (View.Family && HairStrands::HasViewHairStrandsData(View))
-		{			
+		{
+			FTranslucencyPassResources& TranslucencyPassResources = TranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_StandardTranslucency);
+			FRDGTextureRef SceneColorTarget = TranslucencyPassResources.ColorTexture.IsValid() ? TranslucencyPassResources.ColorTexture.Target : SceneColorTexture;
+
 			InternalRenderHairComposition(
 				GraphBuilder,
 				View,
-				SceneColorTexture,
+				SceneColorTarget,
 				SceneDepthTexture,
 				SceneVelocityTexture);
 		}
+		ViewIndex++;
 	}
 }
 

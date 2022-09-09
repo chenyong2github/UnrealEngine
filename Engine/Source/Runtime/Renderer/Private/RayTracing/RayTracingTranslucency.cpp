@@ -144,7 +144,8 @@ bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 
 void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRDGBuilder& GraphBuilder, FRDGTextureMSAA SceneColorTexture)
 {
-	if (!ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucency)
+	if (   !ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucency)
+		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucencyModulate)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOF)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)

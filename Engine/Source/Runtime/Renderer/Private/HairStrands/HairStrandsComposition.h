@@ -21,4 +21,5 @@ void RenderHairComposition(
 	const TArray<FViewInfo>& Views,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
-	FRDGTextureRef VelocityTexture);
+	FRDGTextureRef VelocityTexture,
+	struct FTranslucencyPassResourcesMap& TranslucencyResourceMap);

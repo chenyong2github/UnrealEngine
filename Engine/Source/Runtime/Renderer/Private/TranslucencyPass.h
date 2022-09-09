@@ -8,6 +8,7 @@ namespace ETranslucencyPass
 	enum Type
 	{
 		TPT_StandardTranslucency,
+		TPT_StandardTranslucencyModulate,
 		TPT_TranslucencyAfterDOF,
 		TPT_TranslucencyAfterDOFModulate,
 		TPT_TranslucencyAfterMotionBlur,

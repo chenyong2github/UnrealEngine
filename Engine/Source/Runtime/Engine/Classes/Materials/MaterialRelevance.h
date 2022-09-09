@@ -23,7 +23,7 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bHairStrands : 1;
 			uint8 bTwoSided : 1;
 			uint8 bSeparateTranslucency : 1; // Translucency After DOF
-			uint8 bSeparateTranslucencyModulate : 1;
+			uint8 bTranslucencyModulate : 1;
 			uint8 bPostMotionBlurTranslucency : 1;
 			uint8 bNormalTranslucency : 1;
 			uint8 bUsesSceneColorCopy : 1;

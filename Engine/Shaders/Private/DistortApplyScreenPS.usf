@@ -29,11 +29,21 @@ SamplerState	SceneColorTextureSampler;
 Texture2DMS<float4> DistortionMSAATexture;
 Texture2DMS<float4> SceneColorMSAATexture;
 Texture2DMS<float4> RoughnessScatterMSAATexture;
+#if COMPOSITE_STANDARD_TRANSLUCENT
+Texture2DMS<float4> StandardTranslucentColorAlphaMSAATexture;
+Texture2DMS<float4> StandardTranslucentTransmittanceMSAATexture;
+#endif
 #else
 Texture2D		DistortionTexture;
 SamplerState	DistortionTextureSampler;
 Texture2D<float4> RoughnessScatterTexture;
 SamplerState      RoughnessScatterSampler;
+#if COMPOSITE_STANDARD_TRANSLUCENT
+Texture2D		StandardTranslucentColorAlphaTexture;
+SamplerState	StandardTranslucentColorAlphaTextureSampler;
+Texture2D		StandardTranslucentTransmittanceTexture;
+SamplerState	StandardTranslucentTransmittanceTextureSampler;
+#endif
 #endif
 
 float RefractionRoughnessToMipLevelFactor;
@@ -124,9 +134,30 @@ void Merge(
 	)
 {
 #if USE_MSAA
-	OutColor = SceneColorMSAATexture.Load(int2(View.BufferSizeAndInvSize.xy * TexCoord.xy), SampleIndex);
-#else
+
+	int2 PixCoord = int2(View.BufferSizeAndInvSize.xy * TexCoord.xy);
+	OutColor = SceneColorMSAATexture.Load(PixCoord, SampleIndex);
+#if COMPOSITE_STANDARD_TRANSLUCENT
+	const float4 TranslucentColorAlpha		= StandardTranslucentColorAlphaMSAATexture.Load(PixCoord, SampleIndex);
+	const float3 TranslucentTransmittance	= StandardTranslucentTransmittanceMSAATexture.Load(PixCoord, SampleIndex).rgb;
+#endif
+
+#else // USE_MSAA
+
 	OutColor = Texture2DSample(SceneColorTexture, SceneColorTextureSampler, TexCoord.xy);
+#if COMPOSITE_STANDARD_TRANSLUCENT
+	const float4 TranslucentColorAlpha		= Texture2DSample(StandardTranslucentColorAlphaTexture, StandardTranslucentColorAlphaTextureSampler, TexCoord.xy);
+	const float3 TranslucentTransmittance	= Texture2DSample(StandardTranslucentTransmittanceTexture, StandardTranslucentTransmittanceTextureSampler, TexCoord.xy).rgb;
+#endif
+
+#endif // USE_MSAA
+
+#if COMPOSITE_STANDARD_TRANSLUCENT
+	float GreyScaleModulateColorBackgroundVisibility = dot(TranslucentTransmittance, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+
+	OutColor = float4(
+		OutColor.rgb * TranslucentColorAlpha.a * TranslucentTransmittance + TranslucentColorAlpha.rgb,
+		OutColor.a   * TranslucentColorAlpha.a * GreyScaleModulateColorBackgroundVisibility);
 #endif
 }
 

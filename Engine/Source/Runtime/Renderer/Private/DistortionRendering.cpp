@@ -116,19 +116,26 @@ class FDistortionScreenPS : public FGlobalShader
 public:
 	class FUseMSAADim : SHADER_PERMUTATION_BOOL("USE_MSAA");
 	class FUseRoughRefractionDim : SHADER_PERMUTATION_BOOL("USE_ROUGH_REFRACTION");
-	using FPermutationDomain = TShaderPermutationDomain<FUseMSAADim, FUseRoughRefractionDim>;
+	class FCompositedStandardTranslucentDim : SHADER_PERMUTATION_BOOL("COMPOSITE_STANDARD_TRANSLUCENT");
+	using FPermutationDomain = TShaderPermutationDomain<FUseMSAADim, FUseRoughRefractionDim, FCompositedStandardTranslucentDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, RoughnessScatterMSAATexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, DistortionMSAATexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, SceneColorMSAATexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, StandardTranslucentColorAlphaMSAATexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, StandardTranslucentTransmittanceMSAATexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RoughnessScatterTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistortionTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, StandardTranslucentColorAlphaTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, StandardTranslucentTransmittanceTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, RoughnessScatterSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistortionTextureSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorTextureSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, StandardTranslucentColorAlphaTextureSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, StandardTranslucentTransmittanceTextureSampler)
 		SHADER_PARAMETER(float, RefractionRoughnessToMipLevelFactor)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -475,7 +482,11 @@ static void AddFilterSceneColorPass(FRDGBuilder& GraphBuilder, FFilterSceneColor
 
 //////////////////////////////////////////////////////////////////////////
 
-void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture)
+void FDeferredShadingSceneRenderer::RenderDistortion(
+	FRDGBuilder& GraphBuilder, 
+	FRDGTextureRef SceneColorTexture, 
+	FRDGTextureRef SceneDepthTexture,
+	FTranslucencyPassResourcesMap& TranslucencyResourceMap)
 {
 	check(SceneDepthTexture);
 	check(SceneColorTexture);
@@ -731,11 +742,15 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 	CommonParameters.SceneColorTextureSampler = bUseRoughRefraction ? TStaticSamplerState<SF_Trilinear>::GetRHI() : TStaticSamplerState<>::GetRHI();
 	CommonParameters.DistortionTextureSampler = TStaticSamplerState<>::GetRHI();
 	CommonParameters.RoughnessScatterSampler = TStaticSamplerState<>::GetRHI();
+	CommonParameters.StandardTranslucentColorAlphaTextureSampler = TStaticSamplerState<>::GetRHI();
+	CommonParameters.StandardTranslucentTransmittanceTextureSampler = TStaticSamplerState<>::GetRHI();
 	CommonParameters.RefractionRoughnessToMipLevelFactor = FMath::Max(0.0f, CVarRefractionRoughnessToMipLevelFactor.GetValueOnRenderThread());
 
+	const bool bAllowStandardTranslucencySeparated = ViewFamily.AllowStandardTranslucencySeparated();
 	FDistortionScreenPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FDistortionScreenPS::FUseMSAADim>(SceneColorTexture->Desc.NumSamples > 1);
 	PermutationVector.Set<FDistortionScreenPS::FUseRoughRefractionDim>(bUseRoughRefraction);
+	PermutationVector.Set<FDistortionScreenPS::FCompositedStandardTranslucentDim>(bAllowStandardTranslucencySeparated);
 
 	TShaderMapRef<FScreenPassVS> VertexShader(ShaderMap);
 	TShaderMapRef<FDistortionApplyScreenPS> ApplyPixelShader(ShaderMap, PermutationVector);
@@ -753,13 +768,21 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 		CommonParameters.RenderTargets.DepthStencil = StencilReadBinding;
 		PipelineState.PixelShader = ApplyPixelShader;
 
-		// Test against stencil mask but don't clear.
-		PipelineState.DepthStencilState = TStaticDepthStencilState<
-			false, CF_Always,
-			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-			kStencilMaskBit, kStencilMaskBit>::GetRHI();
-		PipelineState.StencilRef = kStencilMaskBit;
+		if (bAllowStandardTranslucencySeparated)
+		{
+			// We might have to compose translucent meshes that are not using any distortion so we cannot cull using stencil in this case.
+			PipelineState.DepthStencilState = TStaticDepthStencilState< false, CF_Always >::GetRHI();
+		}
+		else
+		{
+			// Test against stencil mask but don't clear.
+			PipelineState.DepthStencilState = TStaticDepthStencilState<
+				false, CF_Always,
+				true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+				kStencilMaskBit, kStencilMaskBit>::GetRHI();
+			PipelineState.StencilRef = kStencilMaskBit;
+		}
 
 		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
 
@@ -801,13 +824,21 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 		CommonParameters.RenderTargets.DepthStencil = StencilWriteBinding;
 		PipelineState.PixelShader = MergePixelShader;
 
-		// Test against stencil mask and clear it.
-		PipelineState.DepthStencilState = TStaticDepthStencilState<
-			false, CF_Always,
-			true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
-			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-			kStencilMaskBit, kStencilMaskBit>::GetRHI();
-		PipelineState.StencilRef = kStencilMaskBit;
+		if (bAllowStandardTranslucencySeparated)
+		{
+			// We might have to compose translucent meshes that are not using any distortion so we cannot cull using stencil in this case.
+			PipelineState.DepthStencilState = TStaticDepthStencilState< false, CF_Always >::GetRHI();
+		}
+		else
+		{
+			// Test against stencil mask and clear it.
+			PipelineState.DepthStencilState = TStaticDepthStencilState<
+				false, CF_Always,
+				true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
+				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+				kStencilMaskBit, kStencilMaskBit>::GetRHI();
+			PipelineState.StencilRef = kStencilMaskBit;
+		}
 
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 		{
@@ -820,6 +851,12 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
+			// Fetch the separated before dof translucent data if available for composition
+			FTranslucencyPassResources& TranslucencyPassResources = TranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_StandardTranslucency);
+			PassParameters->StandardTranslucentColorAlphaTexture = TranslucencyPassResources.GetColorForRead(GraphBuilder);
+			PassParameters->StandardTranslucentColorAlphaMSAATexture = TranslucencyPassResources.ColorTexture.Target;
+			PassParameters->StandardTranslucentTransmittanceTexture = TranslucencyPassResources.GetColorModulateForRead(GraphBuilder);
+			PassParameters->StandardTranslucentTransmittanceMSAATexture = TranslucencyPassResources.ColorModulateTexture.Target;
 			Viewport.Rect = View.ViewRect;
 
 			ClearUnusedGraphResources(MergePixelShader, PassParameters);
