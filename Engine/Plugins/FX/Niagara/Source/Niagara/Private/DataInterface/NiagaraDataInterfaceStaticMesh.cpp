@@ -73,6 +73,8 @@ namespace NDIStaticMeshLocal
 
 		SHADER_PARAMETER(int,					InstanceDistanceFieldIndex)
 
+		SHADER_PARAMETER(FVector3f,				PreSkinnedLocalBoundsCenter)
+		SHADER_PARAMETER(FVector3f,				PreSkinnedLocalBoundsExtents)
 		SHADER_PARAMETER(FVector3f,				SystemLWCTile)
 
 		SHADER_PARAMETER_SRV(Buffer<int>,		UvMappingBuffer)
@@ -180,6 +182,8 @@ namespace NDIStaticMeshLocal
 	//////////////////////////////////////////////////////////////////////////
 	// VM Misc Functions
 	static const FName	IsValidName("IsValid");
+
+	static const FName	GetPreSkinnedLocalBoundsName("GetPreSkinnedLocalBounds");
 
 	static const FName	GetLocalToWorldName("GetLocalToWorld");
 	static const FName	GetLocalToWorldInverseTransposedName("GetLocalToWorldInverseTransposed");
@@ -362,7 +366,8 @@ namespace NDIStaticMeshLocal
 		FQuat4f		Rotation = FQuat4f::Identity;
 		FQuat4f		PrevRotation = FQuat4f::Identity;
 		float		DeltaSeconds = 0.0f;
-
+		FVector3f	PreSkinnedLocalBoundsCenter = FVector3f::ZeroVector;
+		FVector3f	PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
 		FPrimitiveComponentId	DistanceFieldPrimitiveId;
 
 		FIntVector NumTriangles = FIntVector::ZeroValue;
@@ -519,6 +524,8 @@ namespace NDIStaticMeshLocal
 		FQuat4f					Rotation = FQuat4f::Identity;
 		FQuat4f					PrevRotation = FQuat4f::Identity;
 		float					DeltaSeconds = 0.0f;
+		FVector3f				PreSkinnedLocalBoundsCenter = FVector3f::ZeroVector;
+		FVector3f				PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
 		FPrimitiveComponentId	DistanceFieldPrimitiveId;
 
 		const FMeshUvMappingBufferProxy* UvMappingBuffer = nullptr;
@@ -557,6 +564,10 @@ namespace NDIStaticMeshLocal
 
 		/** Time separating Transform and PrevTransform. */
 		float DeltaSeconds;
+
+		/** Preskinned local bounds pulled from attached static mesh */
+		FVector3f PreSkinnedLocalBoundsCenter = FVector3f::ZeroVector;
+		FVector3f PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
 
 		/** Velocity set by the physics body of the mesh component */
 		FVector PhysicsVelocity;
@@ -650,6 +661,8 @@ namespace NDIStaticMeshLocal
 			Rotation = FQuat4f::Identity;
 			PrevRotation = FQuat4f::Identity;
 			DeltaSeconds = 0.0f;
+			PreSkinnedLocalBoundsCenter = FVector3f::ZeroVector;
+			PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
 			PhysicsVelocity = FVector::ZeroVector;
 			bUsePhysicsVelocity = Interface->bUsePhysicsBodyVelocity;
 			bComponentValid = false;
@@ -852,6 +865,12 @@ namespace NDIStaticMeshLocal
 					}
 				}
 
+				// Preskinned local bounds
+				{
+					const FBoxSphereBounds LocalBounds = StaticMesh->GetBounds();
+					PreSkinnedLocalBoundsCenter = FVector3f(LocalBounds.Origin);
+					PreSkinnedLocalBoundsExtents = FVector3f(LocalBounds.BoxExtent);
+				}
 			}
 
 			// support for UV mapping
@@ -1049,6 +1068,8 @@ namespace NDIStaticMeshLocal
 			InstanceData->Rotation					= FromGameThread->Rotation;
 			InstanceData->PrevRotation				= FromGameThread->PrevRotation;
 			InstanceData->DeltaSeconds				= FromGameThread->DeltaSeconds;
+			InstanceData->PreSkinnedLocalBoundsCenter = FromGameThread->PreSkinnedLocalBoundsCenter;
+			InstanceData->PreSkinnedLocalBoundsExtents = FromGameThread->PreSkinnedLocalBoundsExtents;
 			InstanceData->DistanceFieldPrimitiveId	= FromGameThread->DistanceFieldPrimitiveId;
 
 			InstanceData->UvMappingBuffer			= FromGameThread->UvMappingBuffer;
@@ -1637,6 +1658,8 @@ void UNiagaraDataInterfaceStaticMesh::ProvidePerInstanceDataForRenderThread(void
 	DataFromGT->Rotation					= InstanceData->Rotation;
 	DataFromGT->PrevRotation				= InstanceData->PrevRotation;
 	DataFromGT->DeltaSeconds				= InstanceData->DeltaSeconds;
+	DataFromGT->PreSkinnedLocalBoundsCenter = InstanceData->PreSkinnedLocalBoundsCenter;
+	DataFromGT->PreSkinnedLocalBoundsExtents = InstanceData->PreSkinnedLocalBoundsExtents;
 	DataFromGT->DistanceFieldPrimitiveId	= FPrimitiveComponentId();
 	DataFromGT->UvMappingBuffer				= InstanceData->UvMapping.GetQuadTreeProxy();
 	DataFromGT->UvMappingSet				= InstanceData->UvMapping.GetUvSetIndex();
@@ -1937,6 +1960,16 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
 		Sig.Name = IsValidName;
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid"));
+	}
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
+		Sig.Name = GetPreSkinnedLocalBoundsName;
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Center"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("ExtentsMin"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("ExtentsMax"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Extents"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Half Extents"));
+		Sig.SetDescription(LOCTEXT("GetPreSkinnedLocalBoundsDesc", "Returns the local bounds of the static mesh"));
 	}
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
@@ -2405,6 +2438,10 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMIsValid(Context); });
 	}
+	else if (BindingInfo.Name == GetPreSkinnedLocalBoundsName)
+	{
+	OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMGetPreSkinnedLocalBounds);
+	}
 	else if (BindingInfo.Name == GetLocalToWorldName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetLocalToWorld(Context); });
@@ -2729,6 +2766,9 @@ void UNiagaraDataInterfaceStaticMesh::SetShaderParameters(const FNiagaraDataInte
 		FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(Context.GetGraphBuilder(), DistanceFieldSceneData, *ShaderDistanceFieldObjectParameters, *ShaderDistanceFieldAtlasParameters, FNiagaraRenderer::GetDummyFloat4Buffer());
 	}
 
+	ShaderParameters->PreSkinnedLocalBoundsCenter = InstanceData.PreSkinnedLocalBoundsCenter;
+	ShaderParameters->PreSkinnedLocalBoundsExtents = InstanceData.PreSkinnedLocalBoundsExtents;
+
 	ShaderParameters->SystemLWCTile = Context.GetSystemLWCTile();
 
 	if (InstanceData.UvMappingBuffer)
@@ -3033,6 +3073,33 @@ void UNiagaraDataInterfaceStaticMesh::SetDefaultMeshFromBlueprints(UStaticMesh* 
 	SourceComponent = nullptr;
 	SoftSourceActor = nullptr;
 	DefaultMesh = MeshToUse;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Misc Functions
+void UNiagaraDataInterfaceStaticMesh::VMGetPreSkinnedLocalBounds(FVectorVMExternalFunctionContext& Context)
+{
+	NDIStaticMeshLocal::FStaticMeshCpuHelper<FNDITransformHandlerNoop> StaticMeshHelper(Context);
+	FNDIOutputParam<FVector3f>	OutCenter(Context);
+	FNDIOutputParam<FVector3f>	OutExtentsMin(Context);
+	FNDIOutputParam<FVector3f>	OutExtentsMax(Context);
+	FNDIOutputParam<FVector3f>	OutExtents(Context);
+	FNDIOutputParam<FVector3f>	OutHalfExtents(Context);
+
+	const FVector3f Center = StaticMeshHelper.InstanceData->PreSkinnedLocalBoundsCenter;
+	const FVector3f Extents = StaticMeshHelper.InstanceData->PreSkinnedLocalBoundsExtents;
+	const FVector3f HalfExtents = Extents * 0.5f;
+	const FVector3f ExtentsMin = Center - HalfExtents;
+	const FVector3f ExtentsMax = Center + HalfExtents;
+
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+	{
+		OutCenter.SetAndAdvance(Center);
+		OutExtentsMin.SetAndAdvance(ExtentsMin);
+		OutExtentsMax.SetAndAdvance(ExtentsMax);
+		OutExtents.SetAndAdvance(Extents);
+		OutHalfExtents.SetAndAdvance(HalfExtents);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

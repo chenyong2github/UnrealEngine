@@ -30,6 +30,8 @@ float4x4		{ParameterName}_InstancePreviousTransformInverseTransposed;
 float4			{ParameterName}_InstancePreviousRotation;
 float3			{ParameterName}_InstanceWorldVelocity;
 
+float3			{ParameterName}_PreSkinnedLocalBoundsCenter;
+float3			{ParameterName}_PreSkinnedLocalBoundsExtents;
 float3			{ParameterName}_SystemLWCTile;
 
 #if DISTATICMESH_ALLOWDISTANCEFIELD
@@ -47,13 +49,23 @@ void RandomFilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Sec
 void RandomUnfilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section);
 void RandomSectionTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Section, out int Tri, out float3 BaryCoord);
 
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Misc functions
 int UniformTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Tri, int SectionOffset)
 {
 	uint2 ProbAlias = {ParameterName}_UniformSamplingTriangles[Tri];
 	float Prob = asfloat(ProbAlias.x);
 	int Alias = ProbAlias.y;
 	return NiagaraRandomFloat(RandInfo) < Prob ? Tri : Alias + SectionOffset;
+}
+
+void GetPreSkinnedLocalBounds_{ParameterName}(out float3 OutCenter, out float3 OutExtentsMin, out float3 OutExtentsMax, out float3 OutExtents, out float3 OutHalfExtents)
+{
+	OutCenter		= {ParameterName}_PreSkinnedLocalBoundsCenter;
+	OutExtents		= {ParameterName}_PreSkinnedLocalBoundsExtents;
+	OutHalfExtents	= OutExtents * 0.5f;
+	OutExtentsMin	= OutCenter - OutHalfExtents;
+	OutExtentsMax	= OutCenter + OutHalfExtents;
 }
 
 //////////////////////////////////////////////////////////////////////////

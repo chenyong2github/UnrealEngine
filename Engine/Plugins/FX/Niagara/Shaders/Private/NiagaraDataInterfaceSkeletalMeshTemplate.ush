@@ -46,6 +46,8 @@ float4x4		{ParameterName}_InstancePrevTransform;
 float4			{ParameterName}_InstanceRotation;
 float4			{ParameterName}_InstancePrevRotation;
 float			{ParameterName}_InstanceInvDeltaTime;
+float3			{ParameterName}_PreSkinnedLocalBoundsCenter;
+float3			{ParameterName}_PreSkinnedLocalBoundsExtents;
 uint			{ParameterName}_EnabledFeatures;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,6 +56,17 @@ bool UniformTriangleSamplingEnable_{ParameterName}() { return ({ParameterName}_E
 bool UniformSamplingRegionEnabled_{ParameterName}() { return ({ParameterName}_EnabledFeatures & 0x2) == 2; }
 bool UnlimitedBoneInfluences_{ParameterName}() { return ({ParameterName}_EnabledFeatures & 0x4) == 4; }
 bool HasMeshColors_{ParameterName}() { return ({ParameterName}_EnabledFeatures & 0x8) == 8; }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Misc functions
+void GetPreSkinnedLocalBounds_{ParameterName}(out float3 OutCenter, out float3 OutExtentsMin, out float3 OutExtentsMax, out float3 OutExtents, out float3 OutHalfExtents)
+{
+	OutCenter		= {ParameterName}_PreSkinnedLocalBoundsCenter;
+	OutExtents		= {ParameterName}_PreSkinnedLocalBoundsExtents;
+	OutHalfExtents	= OutExtents * 0.5f;
+	OutExtentsMin	= OutCenter - OutHalfExtents;
+	OutExtentsMax	= OutCenter + OutHalfExtents;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Triangle Sampling

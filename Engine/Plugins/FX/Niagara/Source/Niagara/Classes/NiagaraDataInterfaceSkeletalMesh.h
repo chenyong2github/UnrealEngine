@@ -584,6 +584,10 @@ struct FNDISkeletalMesh_InstanceData
 	/** Time separating Transform and PrevTransform. */
 	float DeltaSeconds;
 
+	/** Preskinned local bounds pulled from attached skeletal mesh */
+	FVector3f PreSkinnedLocalBoundsCenter = FVector3f::ZeroVector;
+	FVector3f PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
+
 	/* Excluded bone for some specific functions, generally the root bone which you don't want to include when picking a random bone. */
 	int32 ExcludedBoneIndex = INDEX_NONE;
 
@@ -809,51 +813,6 @@ public:
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
-	static const FString MeshIndexBufferName;
-	static const FString MeshVertexBufferName;
-	static const FString MeshSkinWeightBufferName;
-	static const FString MeshSkinWeightLookupBufferName;
-	static const FString MeshCurrBonesBufferName;
-	static const FString MeshPrevBonesBufferName;
-	static const FString MeshCurrSamplingBonesBufferName;
-	static const FString MeshPrevSamplingBonesBufferName;
-	static const FString MeshTangentBufferName;
-	static const FString MeshTexCoordBufferName;
-	static const FString MeshColorBufferName;
-	static const FString MeshTriangleSamplerProbAliasBufferName;
-	static const FString MeshNumSamplingRegionTrianglesName;
-	static const FString MeshNumSamplingRegionVerticesName;
-	static const FString MeshSamplingRegionsProbAliasBufferName;
-	static const FString MeshSampleRegionsTriangleIndicesName;
-	static const FString MeshSampleRegionsVerticesName;
-	static const FString MeshTriangleMatricesOffsetBufferName;
-	static const FString MeshTriangleCountName;
-	static const FString MeshVertexCountName;
-	static const FString MeshWeightStrideName;
-	static const FString MeshSkinWeightIndexSizeName;
-	static const FString MeshNumTexCoordName;
-	static const FString MeshNumWeightsName;
-	static const FString NumBonesName;
-	static const FString NumFilteredBonesName;
-	static const FString NumUnfilteredBonesName;
-	static const FString RandomMaxBoneName;
-	static const FString ExcludeBoneIndexName;
-	static const FString FilteredAndUnfilteredBonesName;
-	static const FString NumFilteredSocketsName;
-	static const FString FilteredSocketBoneOffsetName;
-	static const FString UvMappingBufferName;
-	static const FString UvMappingBufferLengthName;
-	static const FString UvMappingSetName;
-	static const FString ConnectivityBufferName;
-	static const FString ConnectivityBufferLengthName;
-	static const FString ConnectivityMaxAdjacentPerVertexName;
-	static const FString InstanceTransformName;
-	static const FString InstancePrevTransformName;
-	static const FString InstanceRotationName;
-	static const FString InstancePrevRotationName;
-	static const FString InstanceInvDeltaTimeName;
-	static const FString EnabledFeaturesName;
-
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
@@ -863,6 +822,10 @@ protected:
 
 	UFUNCTION()
 	void OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Misc Functions
+	void VMGetPreSkinnedLocalBounds(FVectorVMExternalFunctionContext& Context);
 
 	//////////////////////////////////////////////////////////////////////////
 	//Triangle sampling
@@ -1102,6 +1065,8 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	FMatrix44f PrevTransform = FMatrix44f::Identity;
 	float DeltaSeconds = 0.0f;
 	uint32 UvMappingSet = 0;
+	FVector3f PreSkinnedLocalBoundsCenter = FVector3f::ZeroVector;
+	FVector3f PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
 };
 
 typedef FNiagaraDISkeletalMeshPassedDataToRT FNiagaraDataInterfaceProxySkeletalMeshData;

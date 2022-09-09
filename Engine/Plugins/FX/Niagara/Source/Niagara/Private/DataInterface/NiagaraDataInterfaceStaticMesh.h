@@ -230,6 +230,8 @@ protected:
 	// VM Misc Functions
 	void VMIsValid(FVectorVMExternalFunctionContext& Context);
 
+	void VMGetPreSkinnedLocalBounds(FVectorVMExternalFunctionContext& Context);
+
 	void VMGetLocalToWorld(FVectorVMExternalFunctionContext& Context);
 	void VMGetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
 	void VMGetWorldVelocity(FVectorVMExternalFunctionContext& Context);
