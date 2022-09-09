@@ -63,12 +63,12 @@ private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;
 };
 
-class FNiagaraUserParameterDragDropOp : public FNiagaraHierarchyDragDropOp
+class FNiagaraUserParameterHierarchyDragDropOp : public FNiagaraHierarchyDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FNiagaraUserParameterDragDropOp, FNiagaraHierarchyDragDropOp)
 
-	FNiagaraUserParameterDragDropOp(TSharedPtr<FNiagaraHierarchyItemViewModelBase> UserParameterItem) : FNiagaraHierarchyDragDropOp(UserParameterItem) {}
+	FNiagaraUserParameterHierarchyDragDropOp(TSharedPtr<FNiagaraHierarchyItemViewModelBase> UserParameterItem) : FNiagaraHierarchyDragDropOp(UserParameterItem) {}
 
 	FNiagaraVariable GetUserParameter() const
 	{

@@ -252,10 +252,6 @@ public:
 	virtual void OnParameterItemActivated(const FNiagaraParameterPanelItem& ActivatedItem) const;
 
 	const TArray<FNiagaraParameterPanelItem>& GetCachedViewedParameterItems() const;
-
-	virtual bool CanSummonHierarchyView() const { return false; };
-
-	virtual void SummonHierarchyView() const {}
 	
 	void SelectParameterItemByName(const FName ParameterName, const bool bRequestRename);
 
@@ -287,10 +283,8 @@ public:
 
 	virtual TSharedPtr<FNiagaraObjectSelection> GetVariableObjectSelection() { return TSharedPtr<FNiagaraObjectSelection>(); };
 
-protected:
 	static bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType);
-
-
+	
 protected:
 	TWeakPtr<INiagaraParameterPanelViewModel> MasterParameterPanelViewModel;
 	FOnParameterPanelViewModelExternalSelectionChanged OnParameterPanelViewModelExternalSelectionChangedDelegate;
@@ -350,8 +344,6 @@ public:
 	virtual FReply OnParameterItemsDragged(const TArray<FNiagaraParameterPanelItem>& DraggedItems, const FPointerEvent& MouseEvent) const override;
 
 	virtual TSharedPtr<SWidget> CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands) override;
-
-	virtual TSharedRef<SWidget> GenerateAdjacentWidget() override;
 	
 	virtual FNiagaraParameterUtilities::EParameterContext GetParameterContext() const override;
 
@@ -398,9 +390,6 @@ public:
 	virtual bool UsesCategoryFilteringForInitialExpansion() const override { return true; }
 
 	virtual void PreSectionChange(const TArray<FNiagaraParameterPanelCategory>& ExpandedItems) override;
-	virtual bool CanSummonHierarchyView() const override { return true; }
-
-	virtual void SummonHierarchyView() const override;
 private:
 
 	bool  ShouldRouteThroughScratchParameterMap(const FNiagaraParameterPanelCategory* Category = nullptr, const FNiagaraVariableBase* Variable = nullptr);

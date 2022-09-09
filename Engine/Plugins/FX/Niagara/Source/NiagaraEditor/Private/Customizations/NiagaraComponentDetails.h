@@ -4,11 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "EditorUndoClient.h"
-#include "TickableEditorObject.h"
 #include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Misc/NotifyHook.h"
 #include "NiagaraComponent.h"
 
 class IDetailLayoutBuilder;
@@ -22,7 +18,7 @@ class UNiagaraSystem;
 class FNiagaraComponentDetails : public IDetailCustomization
 {
 public:
-	virtual ~FNiagaraComponentDetails();
+	virtual ~FNiagaraComponentDetails() override;
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
@@ -34,11 +30,20 @@ protected:
 	void OnWorldDestroyed(class UWorld* InWorld);
 	void OnPiEEnd();
 
-	FNiagaraComponentDetails();
-
 	FReply OnResetSelectedSystem();
 	FReply OnDebugSelectedSystem();
 private:
 	TWeakObjectPtr<UNiagaraComponent> Component;
-	IDetailLayoutBuilder* Builder;
+	IDetailLayoutBuilder* Builder = nullptr;
+};
+
+class FNiagaraSystemUserParameterDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+
+protected:
+	TWeakObjectPtr<UNiagaraSystem> System;	
 };

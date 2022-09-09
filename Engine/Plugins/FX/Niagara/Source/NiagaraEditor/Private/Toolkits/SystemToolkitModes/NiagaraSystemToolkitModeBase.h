@@ -41,6 +41,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_ScriptStats(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Baker(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Versioning(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_UserParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_UserParametersHierarchyEditor(const FSpawnTabArgs& Args);
 
 protected:
@@ -82,6 +83,7 @@ public:
 	static const FName ScriptStatsTabID;
 	static const FName BakerTabID;
 	static const FName VersioningTabID;
+	static const FName UserParametersTabID;
 	static const FName UserParametersHierarchyTabID;
 };
 

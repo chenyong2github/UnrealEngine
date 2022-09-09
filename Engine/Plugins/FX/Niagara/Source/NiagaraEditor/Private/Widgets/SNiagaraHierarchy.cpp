@@ -667,6 +667,7 @@ void SNiagaraHierarchy::DeleteSelectedItems()
 
 	RefreshSourceView();
 	RefreshHierarchyView();
+	HierarchyViewModel->OnHierarchyChanged().Broadcast();
 }
 
 bool SNiagaraHierarchy::CanDeleteSelectedItems() const

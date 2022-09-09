@@ -3,6 +3,7 @@
 #include "NiagaraSystemToolkitModeBase.h"
 
 #include "AdvancedPreviewSceneModule.h"
+#include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorSettings.h"
 #include "NiagaraEditorStyle.h"
@@ -27,9 +28,12 @@
 #include "Widgets/SNiagaraGeneratedCodeView.h"
 #include "Widgets/SNiagaraHierarchy.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Input/SButton.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "NiagaraObjectSelection.h"
+#include "SNiagaraSystemUserParameters.h"
+#include "Customizations/NiagaraComponentDetails.h"
 #include "Styling/StyleColors.h"
 #include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
@@ -54,7 +58,8 @@ const FName FNiagaraSystemToolkitModeBase::ScriptStatsTabID(TEXT("NiagaraSystemE
 const FName FNiagaraSystemToolkitModeBase::BakerTabID(TEXT("NiagaraSystemEditor_Baker"));
 const FName FNiagaraSystemToolkitModeBase::VersioningTabID(TEXT("NiagaraSystemEditor_Versioning"));
 const FName FNiagaraSystemToolkitModeBase::ScratchPadScriptsTabID(TEXT("NiagaraSystemEditor_ScratchPadScripts"));
-const FName FNiagaraSystemToolkitModeBase::UserParametersHierarchyTabID(TEXT("NiagaraSystemEditor_UserParameters"));
+const FName FNiagaraSystemToolkitModeBase::UserParametersTabID(TEXT("NiagaraSystemEditor_UserParameters"));
+const FName FNiagaraSystemToolkitModeBase::UserParametersHierarchyTabID(TEXT("NiagaraSystemEditor_UserParametersHierarchy"));
 
 FNiagaraSystemToolkitModeBase::FNiagaraSystemToolkitModeBase(FName InModeName, TWeakPtr<FNiagaraSystemToolkit> InSystemToolkit) : FApplicationMode(InModeName), SystemToolkit(InSystemToolkit), SwitcherIdx(0)
 {
@@ -292,6 +297,10 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 
 	if(SystemToolkit.Pin()->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
+		InTabManager->RegisterTabSpawner(UserParametersTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_UserParameters))
+			.SetDisplayName(LOCTEXT("UserParametersTab", "User Parameters"))
+			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+		
 		InTabManager->RegisterTabSpawner(UserParametersHierarchyTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_UserParametersHierarchyEditor))
 			.SetDisplayName(LOCTEXT("UserParametersHierarchyTab", "User Parameters Hierarchy"))
 			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
@@ -763,6 +772,19 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_Versioning(const FS
 			[
 				SystemToolkit.Pin()->GetVersioningWidget().ToSharedRef()
 			]
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_UserParameters(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == UserParametersTabID);
+	
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("UserParametersTabTitle", "User Parameters"))
+		[
+			SNew(SNiagaraSystemUserParameters, SystemToolkit.Pin()->GetSystemViewModel())
 		];
 
 	return SpawnedTab;

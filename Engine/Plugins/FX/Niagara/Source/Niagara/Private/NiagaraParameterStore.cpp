@@ -1229,6 +1229,7 @@ void FNiagaraParameterStore::OnLayoutChange()
 	if (bSuppressOnChanged == false)
 	{
 		OnChangedDelegate.Broadcast();
+		OnStructureChangedDelegate.Broadcast();
 	}
 #endif
 }

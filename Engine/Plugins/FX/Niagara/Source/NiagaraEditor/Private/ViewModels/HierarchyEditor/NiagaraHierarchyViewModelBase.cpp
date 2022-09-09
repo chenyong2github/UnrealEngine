@@ -503,6 +503,7 @@ void FNiagaraHierarchyItemViewModelBase::DuplicateToThis(TSharedPtr<FNiagaraHier
 	}
 	
 	SyncToData();
+	HierarchyViewModel->OnHierarchyChanged().Broadcast();
 }
 
 void FNiagaraHierarchyItemViewModelBase::ReparentToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToMove, int32 InsertIndex)
@@ -519,6 +520,7 @@ void FNiagaraHierarchyItemViewModelBase::ReparentToThis(TSharedPtr<FNiagaraHiera
 	ItemToMove->Finalize();
 	ItemToMove->Parent.Pin()->SyncToData();
 	SyncToData();
+	HierarchyViewModel->OnHierarchyChanged().Broadcast();
 }
 
 int32 FNiagaraHierarchyItemViewModelBase::FindIndexOfChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const
@@ -613,6 +615,7 @@ TSharedPtr<FNiagaraHierarchySectionViewModel> FNiagaraHierarchyRootViewModel::Ad
 	SyncToData();
 	HierarchyViewModel->SetActiveSection(NewSectionViewModel);
 	NewSectionViewModel->RequestRename();
+	
 
 	return NewSectionViewModel;
 }
@@ -675,15 +678,15 @@ FReply FNiagaraHierarchySectionViewModel::OnDroppedOn(const FDragDropEvent& Drag
 
 		TArray<UNiagaraHierarchySection*>& SectionData = HierarchyViewModel->GetHierarchyDataRoot()->GetSectionDataMutable();
 		int32 Count = SectionData.Num();
-		
+
+		bool bDropSucceeded = false;
 		// above constitutes to the left here
 		if(ItemDropZone == EItemDropZone::AboveItem)
 		{
 			SectionData.RemoveAt(DraggedSectionIndex);
 			SectionData.Insert(DraggedSectionData, FMath::Max(IndexOfThis, 0));
 
-			HierarchyViewModel->ForceFullRefresh();
-			return FReply::Handled();
+			bDropSucceeded = true;
 		}
 		else if(ItemDropZone == EItemDropZone::BelowItem)
 		{
@@ -698,7 +701,14 @@ FReply FNiagaraHierarchySectionViewModel::OnDroppedOn(const FDragDropEvent& Drag
 				SectionData.Insert(DraggedSectionData, FMath::Min(IndexOfThis+1, Count));
 			}
 
+			bDropSucceeded = true;
+
+		}
+
+		if(bDropSucceeded)
+		{
 			HierarchyViewModel->ForceFullRefresh();
+			HierarchyViewModel->OnHierarchyChanged().Broadcast();
 			return FReply::Handled();
 		}
 
@@ -731,7 +741,8 @@ FReply FNiagaraHierarchySectionViewModel::OnDroppedOn(const FDragDropEvent& Drag
 			}
 			
 			HierarchyViewModel->RefreshHierarchyView();
-			
+			HierarchyViewModel->OnHierarchyChanged().Broadcast();
+
 			return FReply::Handled();
 		}
 	}
@@ -767,6 +778,7 @@ FReply FNiagaraHierarchyItemViewModel::OnDroppedOn(const FDragDropEvent& DragDro
 	if(DragDropEvent.GetOperation()->IsOfType<FNiagaraHierarchyDragDropOp>())
 	{
 		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FNiagaraHierarchyDragDropOp>();
+		bool bDropSucceeded = false;
 		if(ItemDropZone == EItemDropZone::AboveItem)
 		{
 			int32 IndexOfThis = Parent.Pin()->FindIndexOfDataChild(AsShared());
@@ -779,16 +791,19 @@ FReply FNiagaraHierarchyItemViewModel::OnDroppedOn(const FDragDropEvent& DragDro
 			{
 				Parent.Pin()->ReparentToThis(HierarchyDragDropOp->GetDraggedItem().Pin(), FMath::Max(IndexOfThis, 0));
 			}
-			
-			HierarchyViewModel->RefreshHierarchyView();
-			HierarchyViewModel->RefreshSourceView();
-			return FReply::Handled();
+
+			bDropSucceeded = true;
 		}
 		else if(ItemDropZone == EItemDropZone::BelowItem)
 		{
 			int32 IndexOfThis = Parent.Pin()->FindIndexOfDataChild(AsShared());
 			Parent.Pin()->ReparentToThis(HierarchyDragDropOp->GetDraggedItem().Pin(), FMath::Min(IndexOfThis+1, Parent.Pin()->GetChildren().Num()));
 
+			bDropSucceeded = true;
+		}
+
+		if(bDropSucceeded)
+		{
 			HierarchyViewModel->RefreshHierarchyView();
 			HierarchyViewModel->RefreshSourceView();
 			return FReply::Handled();
@@ -886,11 +901,14 @@ void UNiagaraHierarchyViewModelBase::AddCategory() const
 	Category->SetSection(GetActiveSectionData());
 	
 	RefreshHierarchyView();
+
+	OnHierarchyChangedDelegate.Broadcast();
 }
 
 void UNiagaraHierarchyViewModelBase::AddSection() const
 {
 	HierarchyViewModelRoot->AddNewSection();
+	OnHierarchyChangedDelegate.Broadcast();
 }
 
 TSharedPtr<SWidget> FNiagaraHierarchyDragDropOp::GetDefaultDecorator() const

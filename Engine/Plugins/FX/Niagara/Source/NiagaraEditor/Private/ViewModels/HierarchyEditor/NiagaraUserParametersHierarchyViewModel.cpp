@@ -60,7 +60,7 @@ void UNiagaraUserParametersHierarchyViewModel::FinalizeInternal()
 	}
 }
 
-TSharedRef<SWidget> FNiagaraUserParameterDragDropOp::CreateCustomDecorator() const
+TSharedRef<SWidget> FNiagaraUserParameterHierarchyDragDropOp::CreateCustomDecorator() const
 {
 	return FNiagaraParameterUtilities::GetParameterWidget(GetUserParameter(), true, false);
 }
@@ -135,7 +135,7 @@ TSharedRef<FNiagaraHierarchyDragDropOp> UNiagaraUserParametersHierarchyViewModel
 {
 	if(const UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(Item->GetData()))
 	{
-		TSharedRef<FNiagaraUserParameterDragDropOp> ParameterDragDropOp = MakeShared<FNiagaraUserParameterDragDropOp>(Item);
+		TSharedRef<FNiagaraUserParameterHierarchyDragDropOp> ParameterDragDropOp = MakeShared<FNiagaraUserParameterHierarchyDragDropOp>(Item);
 		ParameterDragDropOp->Construct();
 		return ParameterDragDropOp;
 	}

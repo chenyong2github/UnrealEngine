@@ -238,6 +238,7 @@ UCLASS(Abstract)
 class UNiagaraHierarchyViewModelBase : public UObject, public FEditorUndoClient
 {
 public:
+	DECLARE_MULTICAST_DELEGATE(FOnHierarchyChanged)
 	DECLARE_DELEGATE_OneParam(FRefreshTreeWidget, bool bFullRefresh)
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsItemSelected, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
 	DECLARE_DELEGATE_OneParam(FSelectObjectInDetailsPanel, UObject* Object)
@@ -299,6 +300,9 @@ public:
 	FSelectObjectInDetailsPanel& OnSelectObjectInDetailsPanel() { return SelectObjectInDetailsPanelDelegate; }
 	FIsItemSelected& IsItemSelected() { return IsItemSelectedDelegate; }
 
+	// Delegates for external systems
+	FOnHierarchyChanged& OnHierarchyChanged() { return OnHierarchyChangedDelegate; } 
+	
 	// Sections
 	void SetActiveSection(TSharedPtr<struct FNiagaraHierarchySectionViewModel>);
 	TSharedPtr<FNiagaraHierarchySectionViewModel> GetActiveSection() const;
@@ -333,6 +337,8 @@ protected:
 	FSimpleDelegate RefreshSectionsWidgetDelegate;
 	FIsItemSelected IsItemSelectedDelegate;
 	FSelectObjectInDetailsPanel SelectObjectInDetailsPanelDelegate;
+
+	FOnHierarchyChanged OnHierarchyChangedDelegate;
 };
 
 struct FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyItemViewModelBase>

@@ -1468,28 +1468,6 @@ TSharedPtr<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateContextM
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::GenerateAdjacentWidget()
-{
-	if(SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
-	{
-		return SNew(SButton)
-		.Visibility_Lambda([this]()
-		{
-			return IsUserSectionActive() ? EVisibility::Visible : EVisibility::Collapsed;
-		})
-		.OnClicked(FOnClicked::CreateLambda([this]()
-		{
-			SummonHierarchyView();
-			return FReply::Handled();
-		}))
-		[
-			SNew(STextBlock).Text(FText::FromString("Edit Hierarchy"))
-		];
-	}
-
-	return SNullWidget::NullWidget;
-}
-
 FNiagaraParameterUtilities::EParameterContext FNiagaraSystemToolkitParameterPanelViewModel::GetParameterContext() const
 {
 	return FNiagaraParameterUtilities::EParameterContext::System;
@@ -1798,11 +1776,6 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 
 	AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 	return MenuWidget;
-}
-
-void FNiagaraSystemToolkitParameterPanelViewModel::SummonHierarchyView() const
-{
-	SystemViewModel->FocusTab("NiagaraSystemEditor_UserParameters");
 }
 
 TArray<FNiagaraVariable> FNiagaraSystemToolkitParameterPanelViewModel::GetEditableStaticSwitchParameters() const
