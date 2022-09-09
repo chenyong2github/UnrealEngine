@@ -1298,6 +1298,12 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 		UpdateWaterSpriteComponent();
 #endif
 	}
+
+	// #todo_water: this should be reconsidered along with the entire concept of non-dynamic water bodies now that evening is runtime-generated.
+	if (bShapeOrPositionChanged)
+	{
+		UpdateWaterBodyRenderData();
+	}
 }
 
 void UWaterBodyComponent::UpdateSplineComponent()
