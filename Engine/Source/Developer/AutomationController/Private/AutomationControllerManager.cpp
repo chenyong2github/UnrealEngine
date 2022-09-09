@@ -1084,28 +1084,6 @@ void FAutomationControllerManager::AddPingResult(const FMessageAddress& Responde
 		if ( TestRunningArray[Index].OwnerMessageAddress == ResponderAddress )
 		{
 			TestRunningArray[Index].LastPingTime = 0;
-			// Verify if test was confirmed to be running on the device
-			if (!TestRunningArray[Index].bConfirmed)
-			{
-				// Resend the run test request
-				// Find the game session instance info
-				int32 ClusterIndex;
-				int32 DeviceIndex;
-				verify(DeviceClusterManager.FindDevice(ResponderAddress, ClusterIndex, DeviceIndex));
-				// Verify this device thought it was busy
-				TSharedPtr <IAutomationReport> Report = DeviceClusterManager.GetTest(ClusterIndex, DeviceIndex);
-				if (Report.IsValid())
-				{
-					UE_LOG(LogAutomationController, Verbose, TEXT("Request to run Test '%s' not confirmed from %s. Resending request."), *Report->GetDisplayName(), *ResponderAddress.ToString());
-					MessageEndpoint->Send(
-						FMessageEndpoint::MakeMessage<FAutomationWorkerRunTests>(
-							ExecutionCount, DeviceIndex, Report->GetCommand(), Report->GetDisplayName(), Report->GetFullTestPath(), bSendAnalytics
-						),
-						ResponderAddress
-					);
-				}
-			}
-
 			break;
 		}
 	}
@@ -1515,60 +1493,43 @@ void FAutomationControllerManager::ReportAutomationResult(const TSharedPtr<IAuto
 
 void FAutomationControllerManager::HandleRunTestsReplyMessage(const FAutomationWorkerRunTestsReply& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	if (Message.ExecutionCount == ExecutionCount)
+	// If we should commit these results
+	if ( Message.ExecutionCount == ExecutionCount )
 	{
+		FAutomationTestResults TestResults;
+
+		TestResults.State = Message.State;
+		TestResults.Duration = Message.Duration;
+
+		// Mark device as back on the market
 		int32 ClusterIndex;
 		int32 DeviceIndex;
+
 		verify(DeviceClusterManager.FindDevice(Context->GetSender(), ClusterIndex, DeviceIndex));
+
+		TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
+		TestResults.SetEvents(Message.Entries, Message.WarningTotal, Message.ErrorTotal);
+
+		// Verify this device thought it was busy
 		TSharedPtr<IAutomationReport> Report = DeviceClusterManager.GetTest(ClusterIndex, DeviceIndex);
-
-		// Is it an in-process test reply?
-		if (Message.State == EAutomationState::InProcess)
+		if (Report.IsValid())
 		{
-			// Confirm the test is in-process
-			if (Report.IsValid() && Report->GetState(ClusterIndex, CurrentTestPass) == EAutomationState::InProcess && Message.BeautifiedTestName == Report->GetDisplayName())
-			{
-				for (int32 Index = 0; Index < TestRunningArray.Num(); Index++)
-				{
-					if (TestRunningArray[Index].OwnerMessageAddress == Context->GetSender())
-					{
-						TestRunningArray[Index].bConfirmed = true;
-						break;
-					}
-				}
-			}
+			Report->SetResults(ClusterIndex, CurrentTestPass, TestResults);
+
+			const FAutomationTestResults& FinalResults = Report->GetResults(ClusterIndex, CurrentTestPass);
+
+			ReportAutomationResult(Report, ClusterIndex, CurrentTestPass);
+
+			// Gather all of the data relevant to this test for our json reporting.
+			CollectTestResults(Report, FinalResults);
 		}
-		else
-		{
-			// If we should commit these results
-			FAutomationTestResults TestResults;
 
-			TestResults.State = Message.State;
-			TestResults.Duration = Message.Duration;
-			TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
-			TestResults.SetEvents(Message.Entries, Message.WarningTotal, Message.ErrorTotal);
-
-			// Mark device as back on the market
-			// Verify this device thought it was busy
-			if (Report.IsValid())
-			{
-				Report->SetResults(ClusterIndex, CurrentTestPass, TestResults);
-
-				const FAutomationTestResults& FinalResults = Report->GetResults(ClusterIndex, CurrentTestPass);
-
-				ReportAutomationResult(Report, ClusterIndex, CurrentTestPass);
-
-				// Gather all of the data relevant to this test for our json reporting.
-				CollectTestResults(Report, FinalResults);
-			}
-
-			// Device is now good to go
-			DeviceClusterManager.SetTest(ClusterIndex, DeviceIndex, NULL);
-
-			// Remove the running test
-			RemoveTestRunning(Context->GetSender());
-		}
+		// Device is now good to go
+		DeviceClusterManager.SetTest(ClusterIndex, DeviceIndex, NULL);
 	}
+
+	// Remove the running test
+	RemoveTestRunning(Context->GetSender());
 }
 
 void FAutomationControllerManager::HandleWorkerOfflineMessage( const FAutomationWorkerWorkerOffline& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )

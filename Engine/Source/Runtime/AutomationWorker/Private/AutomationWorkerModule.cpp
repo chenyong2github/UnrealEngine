@@ -200,7 +200,7 @@ void FAutomationWorkerModule::ReportTestComplete()
 			// send the results to the controller
 			FAutomationWorkerRunTestsReply* Message = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
 
-			Message->BeautifiedTestName = BeautifiedTestName;
+			Message->TestName = TestName;
 			Message->ExecutionCount = ExecutionCount;
 			Message->State = bSuccess ? EAutomationState::Success : EAutomationState::Fail;
 			Message->Duration = ExecutionInfo.Duration;
@@ -215,7 +215,7 @@ void FAutomationWorkerModule::ReportTestComplete()
 				{
 					FAutomationAnalytics::Initialize();
 				}
-				FAutomationAnalytics::FireEvent_AutomationTestResults(Message, TestName);
+				FAutomationAnalytics::FireEvent_AutomationTestResults(Message, BeautifiedTestName);
 				SendAnalyticsEvents(ExecutionInfo.AnalyticsItems);
 			}
 
@@ -489,26 +489,25 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 
 void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
+	UE_LOG(LogAutomationWorker, Log, TEXT("Received RunTests %s from %s"), *Message.BeautifiedTestName, *Context->GetSender().ToString());
+
 	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Worker"));
 	
 	if (TestRequesterAddress.IsValid() && !TestName.IsEmpty())
 	{
-		// Worker is already running a test.
 		if (TestRequesterAddress == Context->GetSender())
 		{
-			// Ignore requests that come from the same sender
-			// It is an extra request sent in case the message did not pass through
-			UE_LOG(LogAutomationWorker, Verbose, TEXT("Worker is already running test '%s' from %s. Request is ignored."), *BeautifiedTestName, *TestRequesterAddress.ToString());
+			UE_LOG(LogAutomationWorker, Log, TEXT("Worker is already running test '%s' from %s. Request is ignored."), *BeautifiedTestName, *TestRequesterAddress.ToString());
 			return;
 		}
 
-		FString LogMessage = FString::Format(TEXT("Worker is already running test '{0}' from {1}. Request for '{2}' won't be run."),
-			{ *BeautifiedTestName, *TestRequesterAddress.ToString(), *Message.BeautifiedTestName});
+		FString LogMessage = FString::Format(TEXT("Worker is already running test '%s' from %s. '%s' won't be run."), 
+			{ *BeautifiedTestName, *TestRequesterAddress.ToString(), *Message.BeautifiedTestName });
 		UE_LOG(LogAutomationWorker, Warning, TEXT("%s"), *LogMessage);
 
 		// Let the sender know it won't happen
 		FAutomationWorkerRunTestsReply* OutMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
-		OutMessage->BeautifiedTestName = Message.BeautifiedTestName;
+		OutMessage->TestName = Message.TestName;
 		OutMessage->ExecutionCount = Message.ExecutionCount;
 		OutMessage->State = EAutomationState::Skipped;
 		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Error, LogMessage)));
@@ -517,8 +516,6 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 
 		return;
 	}
-
-	UE_LOG(LogAutomationWorker, Log, TEXT("Received RunTests %s from %s"), *Message.BeautifiedTestName, *Context->GetSender().ToString());
 
 	// Do we need to skip the test
 	FName SkipReason;
@@ -538,7 +535,7 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 		}
 
 		FAutomationWorkerRunTestsReply* OutMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
-		OutMessage->BeautifiedTestName = Message.BeautifiedTestName;
+		OutMessage->TestName = Message.TestName;
 		OutMessage->ExecutionCount = Message.ExecutionCount;
 		OutMessage->State = EAutomationState::Skipped;
 		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Info, FString::Printf(TEXT("Skipping test because of exclude list: %s"), *SkipReason.ToString()))));
@@ -558,13 +555,6 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 
 	// We are not executing network command sub-commands right now
 	bExecutingNetworkCommandResults = false;
-
-	// Let the sender know we are running the test
-	FAutomationWorkerRunTestsReply* OutMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
-	OutMessage->BeautifiedTestName = Message.BeautifiedTestName;
-	OutMessage->ExecutionCount = Message.ExecutionCount;
-	OutMessage->State = EAutomationState::InProcess;
-	MessageEndpoint->Send(OutMessage, Context->GetSender());
 
 	FAutomationTestFramework::Get().StartTestByName(Message.TestName, Message.RoleIndex);
 }

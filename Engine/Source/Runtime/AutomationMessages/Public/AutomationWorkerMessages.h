@@ -327,7 +327,7 @@ public:
 
 	/** */
 	UPROPERTY(EditAnywhere, Category="Message")
-	FString BeautifiedTestName;
+	FString TestName;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category="Message")

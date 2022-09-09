@@ -60,7 +60,7 @@ public:
 	static void FireEvent_FPSCapture(const FAutomationPerformanceSnapshot& PerfSnapshot);
 
 	//AutomationTest Event
-	static void FireEvent_AutomationTestResults(const FAutomationWorkerRunTestsReply* TestResults, const FString& TestName);
+	static void FireEvent_AutomationTestResults(const FAutomationWorkerRunTestsReply* TestResults, const FString& BeautifiedTestName);
 
 private:
 	

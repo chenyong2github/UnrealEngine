@@ -567,16 +567,13 @@ private:
 	{
 		FTestRunningInfo( FMessageAddress InMessageAddress ):
 			OwnerMessageAddress( InMessageAddress),
-			LastPingTime( 0.f ),
-			bConfirmed(false)
+			LastPingTime( 0.f )
 		{
 		}
 		/** The test runners message address */
 		FMessageAddress OwnerMessageAddress;
 		/** The time since we had a ping from the instance*/
-		double LastPingTime;
-		/** Is Confirmed to be running */
-		bool bConfirmed;
+		float LastPingTime;
 	};
 
 	/** A array of running tests. */
