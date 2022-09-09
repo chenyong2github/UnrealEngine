@@ -220,6 +220,7 @@ public:
 		TArray<int32> NewTriangles;				// new triangles that make up the beveled polygon for this vertex (if NumEdges > 2)
 
 		FIndex2i TerminatorInfo;				// for TerminatorVertex type, store [EdgeID, FarVertexID] in one-ring, used to unlink/fill (see usage)
+		int32 ConnectedBevelVertex = -1;		// If set to another FBevelVertex index, then the TerminatorInfo.EdgeID directly connects to that vertex and special handling is needed
 	};
 
 
@@ -275,6 +276,7 @@ protected:
 	void CreateBevelMeshing(FDynamicMesh3& Mesh);
 	void AppendJunctionVertexPolygon(FDynamicMesh3& Mesh, FBevelVertex& Vertex);
 	void AppendTerminatorVertexTriangle(FDynamicMesh3& Mesh, FBevelVertex& Vertex);
+	void AppendTerminatorVertexPairQuad(FDynamicMesh3& Mesh, FBevelVertex& Vertex0, FBevelVertex& Vertex1);
 	void AppendEdgeQuads(FDynamicMesh3& Mesh, FBevelEdge& Edge);
 	void AppendLoopQuads(FDynamicMesh3& Mesh, FBevelLoop& Loop);
 
