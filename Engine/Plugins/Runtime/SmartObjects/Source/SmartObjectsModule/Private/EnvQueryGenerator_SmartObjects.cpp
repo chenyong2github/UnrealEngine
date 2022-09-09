@@ -91,7 +91,7 @@ FText UEnvQueryGenerator_SmartObjects::GetDescriptionDetails() const
 	FFormatNamedArguments Args;
 
 	FTextBuilder DescBuilder;
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!SmartObjectRequestFilter.UserTags.IsEmpty()
 		|| !SmartObjectRequestFilter.ActivityRequirements.IsEmpty()
 		|| SmartObjectRequestFilter.BehaviorDefinitionClass
@@ -118,7 +118,7 @@ FText UEnvQueryGenerator_SmartObjects::GetDescriptionDetails() const
 			DescBuilder.AppendLine(LOCTEXT("SmartObjectFilterPredicate", "\tWith Predicate function"));
 		}
 	}
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Args.Add(TEXT("QUERYEXTENT"), FText::FromString(FString::Printf(TEXT("[%.1f, %.1f, %.1f]"), float(QueryBoxExtent.X), float(QueryBoxExtent.Y), float(QueryBoxExtent.Z))));
 	Args.Add(TEXT("CLAIMABLE"), FText::FromString(bOnlyClaimable ? TEXT("Claimable") : TEXT("All")));
 	
