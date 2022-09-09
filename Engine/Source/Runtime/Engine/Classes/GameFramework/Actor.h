@@ -590,7 +590,7 @@ public:
 	
 private:
 	/** Describes how much control the remote machine has over the actor. */
-	UPROPERTY(Replicated, Transient)
+	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, Category=Networking)
 	TEnumAsByte<enum ENetRole> RemoteRole;
 
 	/** The RayTracingGroupId this actor and its components belong to. (For components that did not specify any) */
@@ -655,7 +655,7 @@ public:
 
 private:
 	/** Describes how much control the local machine has over the actor. */
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated, VisibleInstanceOnly, Category=Networking)
 	TEnumAsByte<enum ENetRole> Role;
 
 public:
