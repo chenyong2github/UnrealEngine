@@ -1623,15 +1623,7 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		.AllowUncheckFiles(false)
 		.AllowKeepCheckedOut(true)
 		.AllowSubmit(bValidationResult)
-		.OnSaveChangelistDescription(
-			FSourceControlSaveChangelistDescription::CreateLambda([this, &ChangelistState, &bValidationResult, &UserEditChangelistDescription](const FText& NewDescription)
-			{
-				// NOTE this is called from a modal dialog, so adding a slow task on top of it doesn't really look good. Just run a synchronous operation.
-				TSharedRef<FEditChangelist> EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
-				EditChangelistOperation->SetDescription(NewDescription);
-				ISourceControlModule::Get().GetProvider().Execute(EditChangelistOperation, ChangelistState->GetChangelist(), EConcurrency::Synchronous);
-				UserEditChangelistDescription = NewDescription;
-			}));
+		.AllowSaveAndClose(true);
 
 	NewWindow->SetContent(
 		SourceControlWidget
@@ -1639,13 +1631,15 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 
 	FSlateApplication::Get().AddModalWindow(NewWindow, NULL);
 
+	bool bSaveDescriptionOnSubmitFailure = false;
+	bool bCheckinSuccess = false;
+
 	if (SourceControlWidget->GetResult() == ESubmitResults::SUBMIT_ACCEPTED)
 	{
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		FChangeListDescription Description;
 		TSharedRef<FCheckIn> SubmitChangelistOperation = ISourceControlOperation::Create<FCheckIn>();
 		SubmitChangelistOperation->SetKeepCheckedOut(SourceControlWidget->WantToKeepCheckedOut());
-		bool bCheckinSuccess = false;
 
 		// Get the changelist description the user had when he hit the 'submit' button.
 		SourceControlWidget->FillChangeListDescription(Description);
@@ -1676,20 +1670,48 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		}
 
 		// If something went wrong with the submit, try to preserve the changelist edited by the user (if he edited).
-		if (!bCheckinSuccess && !UserEditChangelistDescription.EqualTo(ChangelistDescriptionToSubmit))
+		bSaveDescriptionOnSubmitFailure = (!bCheckinSuccess && !UserEditChangelistDescription.EqualTo(ChangelistDescriptionToSubmit));
+	}
+
+	if (SourceControlWidget->GetResult() == ESubmitResults::SUBMIT_SAVED || bSaveDescriptionOnSubmitFailure)
+	{
+		FChangeListDescription Description;
+		SourceControlWidget->FillChangeListDescription(Description);
+
+		if (ChangelistState->SupportsPersistentDescription())
 		{
 			TSharedRef<FEditChangelist> EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
-			EditChangelistOperation->SetDescription(UserEditChangelistDescription);
-			ISourceControlModule::Get().GetProvider().Execute(EditChangelistOperation, ChangelistState->GetChangelist(), EConcurrency::Synchronous);
+			EditChangelistOperation->SetDescription(Description.Description);
+			EditChangelistDescription(Description.Description, ChangelistState);
 		}
-
-		if (bCheckinSuccess)
+		else // Move everything to a new CL. Ex: the default P4 CL description cannot be saved.
 		{
-			// Clear the description saved by the 'submit window'. Useful when the submit window is opened from the Editor menu rather than the changelist window.
-			// Opening the 'submit window' from the Editor menu is intended for source controls that do not support changelists (SVN/Git), but remains available to
-			// all source controls at the moment.
-			SourceControlWidget->ClearChangeListDescription();
+			TArray<FString> FilesToMove;
+			Algo::Transform(ChangelistState->GetFilesStates(), FilesToMove, [](const TSharedRef<ISourceControlState>& FileState) { return FileState->GetFilename(); });
+
+			TSharedRef<FNewChangelist> NewChangelistOperation = ISourceControlOperation::Create<FNewChangelist>();
+			NewChangelistOperation->SetDescription(Description.Description);
+			Execute(LOCTEXT("Saving_Into_New_Changelist", "Saving to a new changelist..."), NewChangelistOperation, FilesToMove, EConcurrency::Synchronous, FSourceControlOperationComplete::CreateLambda(
+				[](const TSharedRef<ISourceControlOperation>& Operation, ECommandResult::Type InResult)
+				{
+					if (InResult == ECommandResult::Succeeded)
+					{
+						SSourceControlCommon::DisplaySourceControlOperationNotification(LOCTEXT("Saving_New_Changelist_Succeeded", "New changelist saved"), SNotificationItem::CS_Success);
+					}
+					if (InResult == ECommandResult::Failed)
+					{
+						SSourceControlCommon::DisplaySourceControlOperationNotification(LOCTEXT("Saving_New_Changelist_Failed", "Failed to save to a new changelist."), SNotificationItem::CS_Fail);
+					}
+				}));
 		}
+	}
+	
+	if (bCheckinSuccess)
+	{
+		// Clear the description saved by the 'submit window'. Useful when the submit window is opened from the Editor menu rather than the changelist window.
+		// Opening the 'submit window' from the Editor menu is intended for source controls that do not support changelists (SVN/Git), but remains available to
+		// all source controls at the moment.
+		SourceControlWidget->ClearChangeListDescription();
 	}
 }
 

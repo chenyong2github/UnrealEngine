@@ -46,6 +46,13 @@ public:
 	virtual FText GetDescriptionText() const = 0;
 
 	/**
+	 * Returns whether the change list description can be saved and persisted. Some changelists are
+	 * special and the description cannot be persisted with the changelist. For example the P4 default
+	 * changelist description cannot be persisted and the user must create a new changelist.
+	 */
+	virtual bool SupportsPersistentDescription() const { return true; }
+
+	/**
 	 * Get a tooltip to describe this state
 	 * @returns	the text to display for this states tooltip
 	 */

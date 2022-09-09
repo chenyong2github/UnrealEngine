@@ -25,7 +25,8 @@ namespace ESubmitResults
 	enum Type
 	{
 		SUBMIT_ACCEPTED,
-		SUBMIT_CANCELED
+		SUBMIT_CANCELED,
+		SUBMIT_SAVED,
 	};
 }
 
@@ -58,7 +59,7 @@ public:
 		, _AllowUncheckFiles(true)
 		, _AllowKeepCheckedOut(true)
 		, _AllowSubmit(true)
-		, _OnSaveChangelistDescription()
+		, _AllowSaveAndClose(false)
 	{}
 
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
@@ -71,7 +72,7 @@ public:
 		SLATE_ATTRIBUTE(bool, AllowUncheckFiles)
 		SLATE_ATTRIBUTE(bool, AllowKeepCheckedOut)
 		SLATE_ATTRIBUTE(bool, AllowSubmit)
-		SLATE_EVENT(FSourceControlSaveChangelistDescription, OnSaveChangelistDescription)
+		SLATE_ATTRIBUTE(bool, AllowSaveAndClose)
 
 	SLATE_END_ARGS()
 
@@ -116,6 +117,9 @@ private:
 
 	/** Called when the settings of the dialog are to be ignored*/
 	FReply CancelClicked();
+
+	/** Called when the user click the 'Save' button. */
+	FReply SaveAndCloseClicked();
 
 	/** Called to check if the submit button is enabled or not. */
 	bool IsSubmitEnabled() const;
@@ -196,9 +200,6 @@ private:
 
 	/** Currently selected sorting mode */
 	EColumnSortMode::Type SortMode;
-
-	/** Delegate invoked to save the description of a changelist with the source control. */
-	FSourceControlSaveChangelistDescription OnSaveChangelistDescription;
 };
 
 class SSourceControlSubmitListRow : public SMultiColumnTableRow<TSharedPtr<FFileTreeItem>>

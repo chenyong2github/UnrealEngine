@@ -146,7 +146,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	const bool bAllowUncheckFiles = InArgs._AllowUncheckFiles.Get();
 	const bool bAllowKeepCheckedOut = InArgs._AllowKeepCheckedOut.Get();
 	const bool bShowChangelistValidation = !InArgs._ChangeValidationResult.Get().IsEmpty();
-	OnSaveChangelistDescription = InArgs._OnSaveChangelistDescription;
+	const bool bAllowSaveAndClose = InArgs._AllowSaveAndClose.Get();
 
 	for (const auto& Item : InArgs._Items.Get())
 	{
@@ -386,12 +386,12 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 		+SUniformGridPanel::Slot(0,0)
 		[
 			SNew(SButton)
-			.Visibility(OnSaveChangelistDescription.IsBound() ? EVisibility::Visible : EVisibility::Collapsed)
+			.Visibility(bAllowSaveAndClose ? EVisibility::Visible : EVisibility::Collapsed)
 			.HAlign(HAlign_Center)
 			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
-			.Text(NSLOCTEXT("SourceControl.SubmitPanel", "Apply", "Apply"))
-			.ToolTipText(NSLOCTEXT("SourceControl.SubmitPanel", "Apply_Tooltip", "Save the description without submitting."))
-			.OnClicked(FOnClicked::CreateLambda([this]() { OnSaveChangelistDescription.ExecuteIfBound(ChangeListDescriptionTextCtrl->GetText()); return FReply::Handled(); }))
+			.Text(NSLOCTEXT("SourceControl.SubmitPanel", "Save", "Save"))
+			.ToolTipText(NSLOCTEXT("SourceControl.SubmitPanel", "Save_Tooltip", "Save the description and close without submitting."))
+			.OnClicked(this, &SSourceControlSubmitWidget::SaveAndCloseClicked)
 		]
 		+SUniformGridPanel::Slot(1,0)
 		[
@@ -493,13 +493,13 @@ void SSourceControlSubmitWidget::OnDiffAgainstDepotSelected(TSharedPtr<FFileTree
 
 FReply SSourceControlSubmitWidget::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
-   // Pressing escape returns as if the user clicked cancel
-   if ( InKeyEvent.GetKey() == EKeys::Escape )
-   {
-      return CancelClicked();
-   }
+	// Pressing escape returns as if the user clicked cancel
+	if (InKeyEvent.GetKey() == EKeys::Escape)
+	{
+		return CancelClicked();
+	}
 
-   return FReply::Unhandled();
+	return FReply::Unhandled();
 }
 
 TSharedRef<SWidget> SSourceControlSubmitWidget::GenerateWidgetForItemAndColumn(TSharedPtr<FFileTreeItem> Item, const FName ColumnID) const
@@ -565,7 +565,7 @@ ECheckBoxState SSourceControlSubmitWidget::GetToggleSelectedState() const
 	ECheckBoxState PendingState = ECheckBoxState::Checked;
 
 	// Iterate through the list of selected items
-	for (const auto& Item : ListViewItems)
+	for (const TSharedPtr<FFileTreeItem>& Item : ListViewItems)
 	{
 		if (Item->GetCheckBoxState() == ECheckBoxState::Unchecked)
 		{
@@ -582,7 +582,7 @@ ECheckBoxState SSourceControlSubmitWidget::GetToggleSelectedState() const
 
 void SSourceControlSubmitWidget::OnToggleSelectedCheckBox(ECheckBoxState InNewState)
 {
-	for (const auto& Item : ListViewItems)
+	for (const TSharedPtr<FFileTreeItem>& Item : ListViewItems)
 	{
 		Item->SetCheckBoxState(InNewState);
 	}
@@ -598,7 +598,7 @@ void SSourceControlSubmitWidget::FillChangeListDescription(FChangeListDescriptio
 	OutDesc.FilesForAdd.Empty();
 	OutDesc.FilesForSubmit.Empty();
 
-	for (const auto& Item : ListViewItems)
+	for (const TSharedPtr<FFileTreeItem>& Item : ListViewItems)
 	{
 		if (Item->GetCheckBoxState() == ECheckBoxState::Checked)
 		{
@@ -633,7 +633,6 @@ FReply SSourceControlSubmitWidget::SubmitClicked()
 	return FReply::Handled();
 }
 
-
 FReply SSourceControlSubmitWidget::CancelClicked()
 {
 	DialogResult = ESubmitResults::SUBMIT_CANCELED;
@@ -642,6 +641,13 @@ FReply SSourceControlSubmitWidget::CancelClicked()
 	return FReply::Handled();
 }
 
+FReply SSourceControlSubmitWidget::SaveAndCloseClicked()
+{
+	DialogResult = ESubmitResults::SUBMIT_SAVED;
+	ParentFrame.Pin()->RequestDestroyWindow();
+
+	return FReply::Handled();
+}
 
 bool SSourceControlSubmitWidget::IsSubmitEnabled() const
 {
