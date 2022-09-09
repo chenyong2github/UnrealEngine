@@ -975,7 +975,8 @@ FLinearColor DiffViewUtils::Differs()
 
 FLinearColor DiffViewUtils::Identical()
 {
-	return FLinearColor::White;
+	const static FLinearColor ForegroundColor = FAppStyle::GetColor("Graph.ForegroundColor");
+	return ForegroundColor;
 }
 
 FLinearColor DiffViewUtils::Missing()
@@ -1097,7 +1098,7 @@ SHorizontalBox::FSlot::FSlotArguments DiffViewUtils::Box(bool bIsPresent, FLinea
 		.AutoWidth()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
-		.MaxWidth(8.0f)
+		.Padding(0.5f, 0.f)
 		[
 			SNew(SImage)
 			.ColorAndOpacity(Color)
