@@ -347,12 +347,12 @@ bool FStyleColorListCustomization::IsResetToDefaultVisible(TSharedPtr<IPropertyH
 
 TSharedRef<IDetailCustomization> FEditorStyleSettingsCustomization::MakeInstance()
 {
-	return MakeShared<FEditorStyleSettingsCustomization>(); 
-}
+	TSharedRef<FEditorStyleSettingsCustomization> Instance = MakeShared<FEditorStyleSettingsCustomization>();
+	// unable to perform this operation in FEditorStyleSettingsCustomization's constructor since by then the shared ref 
+	// controller has not been created yet
+	USlateThemeManager::Get().OnThemeChanged().AddSP(Instance, &FEditorStyleSettingsCustomization::OnThemeChanged);
 
-FEditorStyleSettingsCustomization::FEditorStyleSettingsCustomization()
-{
-	USlateThemeManager::Get().OnThemeChanged().AddSP(StaticCastSharedRef<FEditorStyleSettingsCustomization>(AsShared()), &FEditorStyleSettingsCustomization::OnThemeChanged);
+	return Instance;
 }
 
 FEditorStyleSettingsCustomization::~FEditorStyleSettingsCustomization()
