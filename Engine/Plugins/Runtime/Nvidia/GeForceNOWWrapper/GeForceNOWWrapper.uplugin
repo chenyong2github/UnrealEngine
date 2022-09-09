@@ -14,10 +14,9 @@
 		{
 			"Name": "GeForceNOWWrapper",
 			"Type": "ClientOnlyNoCommandlet",
-			"LoadingPhase" : "EarliestPossible",
-			"PlatformAllowList": [
-				"Win64"
-			]
+			"LoadingPhase": "EarliestPossible",
+			"PlatformAllowList": [ "Win64" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins":
