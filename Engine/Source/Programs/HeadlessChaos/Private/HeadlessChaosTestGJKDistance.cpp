@@ -24,7 +24,12 @@ namespace ChaosTest
 		{
 			TSphere<FReal, 3> A(FVec3(12, 0, 0), 5);
 			TSphere<FReal, 3> B(FVec3(4, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity()), Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity());
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_NE(Result, EGJKDistanceResult::Separated);
 		}
 
@@ -32,7 +37,12 @@ namespace ChaosTest
 		{
 			TSphere<FReal, 3> A(FVec3(12, 0, 0), 5);
 			TSphere<FReal, 3> B(FVec3(4, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(A), 
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_EQ(Result, EGJKDistanceResult::Separated);
 			EXPECT_NEAR(Distance, (FReal)1, Tolerance);
 			EXPECT_NEAR(NearestA.X, (FReal)7, Tolerance);
@@ -48,7 +58,12 @@ namespace ChaosTest
 			TSphere<FReal, 3> A(FVec3(0, 0, 0), 2);
 			TSphere<FReal, 3> B(FVec3(0, 0, 0), 2);
 			FVec3 BPos = FVec3(3, 3, 0);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3(BPos, FRotation3::FromIdentity()), Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3(BPos, FRotation3::FromIdentity());
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_EQ(Result, EGJKDistanceResult::Separated);
 			FVec3 CenterDelta = (B.GetCenter() + BPos) - A.GetCenter();
 			FVec3 CenterDir = CenterDelta.GetSafeNormal();
@@ -66,7 +81,12 @@ namespace ChaosTest
 			TSphere<FReal, 3> A(FVec3(12, 0, 0), 5);
 			TSphere<FReal, 3> B(FVec3(4, 0, 0), 2);
 			FVec3 BPos = FVec3(0.99, 0, 0);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3(BPos, FRotation3::FromIdentity()), Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3(BPos, FRotation3::FromIdentity());
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_EQ(Result, EGJKDistanceResult::Separated);
 			EXPECT_NEAR(Distance, (FReal)1 - BPos.X, Tolerance);
 			EXPECT_NEAR(NearestA.X, (FReal)7, Tolerance);
@@ -96,7 +116,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
 			TSphere<FReal, 3> B(FVec3(2, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity()), Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity());
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_NE(Result, EGJKDistanceResult::Separated);
 		}
 
@@ -104,7 +129,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
 			TSphere<FReal, 3> B(FVec3(2, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_EQ(Result, EGJKDistanceResult::Separated);
 			EXPECT_NEAR(Distance, (FReal)1, Tolerance);
 			EXPECT_NEAR(NearestA.X, (FReal)5, Tolerance);
@@ -118,7 +148,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
 			TSphere<FReal, 3> B(FVec3(2, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(B, A, FRigidTransform3::Identity, Distance, NearestB, NearestA, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_EQ(Result, EGJKDistanceResult::Separated);
 			EXPECT_NEAR(Distance, (FReal)1, Tolerance);
 			EXPECT_NEAR(NearestA.X, (FReal)5, Tolerance);
@@ -133,7 +168,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, 2, 2), FVec3(8, 4, 4));
 			TSphere<FReal, 3> B(FVec3(2, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 NearPointOnA = A.Min();
 			FVec3 SphereNearPointDir = (NearPointOnA - B.GetCenter()).GetSafeNormal();
 			FVec3 NearPointOnB = B.GetCenter() + SphereNearPointDir * B.GetRadius();
@@ -150,7 +190,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, 2, 2), FVec3(8, 4, 4));
 			TSphere<FReal, 3> B(FVec3(2, 0, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(B, A, FRigidTransform3::Identity, Distance, NearestB, NearestA, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 NearPointOnA = A.Min();
 			FVec3 SphereNearPointDir = (NearPointOnA - B.GetCenter()).GetSafeNormal();
 			FVec3 NearPointOnB = B.GetCenter() + SphereNearPointDir * B.GetRadius();
@@ -169,7 +214,11 @@ namespace ChaosTest
 			FAABB3 A(FVec3(-2, -2, -2), FVec3(4, 4, 4));
 			TSphere<FReal, 3> B(FVec3(0, 0, 0), 2);
 			FRigidTransform3 BToATm = FRigidTransform3(FVec3(8, 0, 0), FRotation3::FromAxisAngle(FVec3(0, 1, 0), FMath::DegreesToRadians(45)));	// Rotation won't affect contact depth, but does affect local contact position
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, BToATm, Distance, NearestA, NearestB, Normal);
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 NearPointOnA = FVec3(4, 0, 0);
 			FVec3 BPos = BToATm.TransformPositionNoScale(B.GetCenter());
 			FVec3 NearPointDir = (NearPointOnA - BPos).GetSafeNormal();
@@ -189,7 +238,11 @@ namespace ChaosTest
 			FAABB3 A(FVec3(-2, -2, -2), FVec3(4, 4, 4));
 			TSphere<FReal, 3> B(FVec3(0, 0, 0), 2);
 			FRigidTransform3 BToATm = FRigidTransform3(FVec3(-8, 0, 0), FRotation3::FromAxisAngle(FVec3(0, 1, 0), FMath::DegreesToRadians(45)));
-			EGJKDistanceResult Result = GJKDistance<FReal>(B, A, BToATm, Distance, NearestB, NearestA, Normal);
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(B),
+				TGJKShapeTransformed(A, BToATm),
+				GJKDistanceInitialV(B, A, BToATm),
+				Distance, NearestB, NearestA, Normal);
 			FVec3 NearPointOnA = FVec3(4, 0, 4);
 			FVec3 BPos = BToATm.InverseTransformPositionNoScale(B.GetCenter());
 			FVec3 NearPointDir = (NearPointOnA - BPos).GetSafeNormal();
@@ -213,7 +266,12 @@ namespace ChaosTest
 			bool bOverlap = GJKIntersection<FReal>(A, B, FRigidTransform3::Identity);
 			EXPECT_FALSE(bOverlap);
 
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 NearPointOnA = FVec3(5, 0, 2);
 			FVec3 NearPointDir = (NearPointOnA - B.GetCenter()).GetSafeNormal();
 			FVec3 NearPointOnB = B.GetCenter() + NearPointDir * B.GetRadius();
@@ -244,7 +302,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
 			FCapsule B(FVec3(2, -2, 0), FVec3(2, 2, 0), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity()), Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity());
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			EXPECT_NE(Result, EGJKDistanceResult::Separated);
 		}
 
@@ -252,8 +315,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
 			FCapsule B(FVec3(2, 0, -1), FVec3(2, 0, 2), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
-
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			const FReal Tolerance = (FReal)2e-3;
 			EXPECT_EQ(Result, EGJKDistanceResult::Separated);
 			EXPECT_NEAR(Distance, (FReal)1, Tolerance);
@@ -271,7 +338,12 @@ namespace ChaosTest
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
 			FCapsule B(FVec3(-2, 0, 3), FVec3(2, 0, -3), 2);
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 ExpectedNearestA = FVec3(5, 0, -2);
 			FVec3 ExpectedDir = (ExpectedNearestA - B.GetX2()).GetSafeNormal();
 			FVec3 ExpectedNearestB = B.GetX2() + ExpectedDir * B.GetRadius();
@@ -291,7 +363,12 @@ namespace ChaosTest
 		{
 			FCapsule A(FVec3(4, 0, -1), FVec3(4, 0, -7), 1);
 			FAABB3 B(FVec3(-2, -2, -2), FVec3(2, 2, 2));
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(A),
+				TGJKShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 ExpectedNearestA = FVec3(3, 0, (FReal)-1.5);
 			FVec3 ExpectedNearestB = FVec3(2, 0, (FReal)-1.5);
 
@@ -312,8 +389,12 @@ namespace ChaosTest
 		{
 			FCapsule A(FVec3(0, 0, -3), FVec3(0, 0, 3), 1);
 			FAABB3 B(FVec3(-2, -2, -2), FVec3(2, 2, 2));
-			FRigidTransform3 BToA = FRigidTransform3(FVec3(-4, 0, 4), FRotation3::FromIdentity());
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, BToA, Distance, NearestA, NearestB, Normal);
+			FRigidTransform3 BToATm = FRigidTransform3(FVec3(-4, 0, 4), FRotation3::FromIdentity());
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKCoreShape(A),
+				TGJKShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 ExpectedNearestA = FVec3(-1, 0, (FReal)2);
 			FVec3 ExpectedNearestB = FVec3(2, 0, (FReal)-2);
 
@@ -326,7 +407,7 @@ namespace ChaosTest
 			EXPECT_GT(NearestA.Z, (FReal)ExpectedNearestA.Z - (FReal)0.5 - Tolerance);
 			EXPECT_NEAR(NearestB.X, (FReal)ExpectedNearestB.X, Tolerance);
 			EXPECT_NEAR(NearestB.Y, (FReal)ExpectedNearestB.Y, Tolerance);
-			EXPECT_NEAR(NearestB.Z + BToA.GetTranslation().Z, (FReal)NearestA.Z, Tolerance);
+			EXPECT_NEAR(NearestB.Z + BToATm.GetTranslation().Z, (FReal)NearestA.Z, Tolerance);
 		}
 	}
 
@@ -351,7 +432,12 @@ namespace ChaosTest
 			FCapsule B(FVec3(-2, 0, 3), FVec3(2, 0, -3), 2);
 			FReal Epsilon = (FReal)1e-6;
 			int32 MaxIts = 5;
-			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal, Epsilon, MaxIts);
+			const FRigidTransform3 BToATm = FRigidTransform3::Identity;
+			EGJKDistanceResult Result = GJKDistance<FReal>(
+				TGJKShape(A),
+				TGJKCoreShapeTransformed(B, BToATm),
+				GJKDistanceInitialV(A, B, BToATm),
+				Distance, NearestA, NearestB, Normal);
 			FVec3 ExpectedNearestA = FVec3(5, 0, -2);
 			FVec3 ExpectedDir = (ExpectedNearestA - B.GetX2()).GetSafeNormal();
 			FVec3 ExpectedNearestB = B.GetX2() + ExpectedDir * B.GetRadius();

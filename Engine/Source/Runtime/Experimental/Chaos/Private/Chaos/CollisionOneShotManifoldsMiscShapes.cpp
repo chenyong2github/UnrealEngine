@@ -244,73 +244,20 @@ namespace Chaos
 		template<typename ConvexType>
 		void ConstructSphereConvexManifoldImpl(const FImplicitSphere3& Sphere, const ConvexType& Convex, const FRigidTransform3& SphereToConvexTransform, const FReal CullDistance, TCArray<FContactPoint, 4>& ContactPoints)
 		{
-			// Transform the sphere into convex space
-			const FVec3 SpherePos = SphereToConvexTransform.TransformPositionNoScale(Sphere.GetCenter());
-			const FReal SphereRadius = Sphere.GetRadius();
-
-			// No margins for the convex, but treat the sphere as a point with a margin
-			FGJKSphereShape GJKSphere(SpherePos, SphereRadius);
-			TGJKShape<ConvexType> GJKConvex(Convex);
-
-			// GJK and EPA tolerances. See comments in GJKContactPointMargin
-			const FReal GJKEpsilon = Chaos_Collision_GJKEpsilon;
-			const FReal EPAEpsilon = Chaos_Collision_EPAEpsilon;
-			const FVec3 InitialDir = FVec3(-1,0,0);
-			FReal ClosestPenetration;
-			int32 ClosestVertexIndexSphere = INDEX_NONE, ClosestVertexIndexConvex = INDEX_NONE;
-			FReal ClosestSupportMaxDelta = FReal(0);
-
-			// Primary contact
-			// NOTE: swapped contact point order to match desired output order (Sphere, Convex)
-			FContactPoint ClosestContactPoint;
-			if (bChaos_Collision_UseGJK2)
-			{
-				GJKPenetrationSameSpace2(
-					GJKConvex, 
-					GJKSphere, 
-					ClosestPenetration,
-					ClosestContactPoint.ShapeContactPoints[1], 
-					ClosestContactPoint.ShapeContactPoints[0], 
-					ClosestContactPoint.ShapeContactNormal, 
-					ClosestVertexIndexConvex,
-					ClosestVertexIndexSphere,
-					ClosestSupportMaxDelta,
-					InitialDir,
-					GJKEpsilon, 
-					EPAEpsilon);
-			}
-			else
-			{
-				GJKPenetrationSameSpace(
-					GJKConvex,
-					GJKSphere,
-					ClosestPenetration,
-					ClosestContactPoint.ShapeContactPoints[1],
-					ClosestContactPoint.ShapeContactPoints[0],
-					ClosestContactPoint.ShapeContactNormal,
-					ClosestVertexIndexConvex,
-					ClosestVertexIndexSphere,
-					ClosestSupportMaxDelta,
-					InitialDir,
-					GJKEpsilon,
-					EPAEpsilon);
-			}
+			FContactPoint ClosestContactPoint = SphereConvexContactPoint(Sphere, Convex, SphereToConvexTransform);
 
 			// Stop now if beyond cull distance
-			const FReal ClosestPhi = -ClosestPenetration;
-			if (ClosestPhi > CullDistance)
+			if (ClosestContactPoint.Phi > CullDistance)
 			{
 				return;
 			}
 
 			// We always use the primary contact so add it to the output now
-			ClosestContactPoint.ShapeContactPoints[0] = SphereToConvexTransform.InverseTransformPositionNoScale(ClosestContactPoint.ShapeContactPoints[0]);
-			ClosestContactPoint.Phi = ClosestPhi;
-			ClosestContactPoint.FaceIndex = INDEX_NONE;
-			ClosestContactPoint.ContactType = EContactPointType::Unknown;
 			ContactPoints.Add(ClosestContactPoint);
 
 			// If the sphere is "large" compared to the convex add more points
+			const FVec3 SpherePos = SphereToConvexTransform.TransformPositionNoScale(Sphere.GetCenter());
+			const FReal SphereRadius = Sphere.GetRadius();
 			const FReal SpheerConvexManifoldSizeThreshold = FReal(1);
 			const FReal ConvexSize = Convex.BoundingBox().Extents().GetAbsMax();
 			if (SphereRadius > SpheerConvexManifoldSizeThreshold * ConvexSize)

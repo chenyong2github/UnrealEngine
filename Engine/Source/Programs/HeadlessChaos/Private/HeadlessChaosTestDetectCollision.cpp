@@ -61,14 +61,6 @@ namespace ChaosTest
 				CheckContactPoint(ContactPoint, FVec3(0, 0, -SphereRadius), FVec3(0, 0, 0.5f * BoxSize.Z), FVec3(0,0,1), 1, FVec3(0,0,1), SpherePos.Z - SphereRadius);
 			}
 		}
-		{
-			FContactPoint ContactPoint = ConvexSphereContactPoint(Convex, ConvexTransform, Sphere, SphereTransform);
-			EXPECT_TRUE(ContactPoint.IsSet());
-			if (ContactPoint.IsSet())
-			{
-				CheckContactPoint(ContactPoint, FVec3(0, 0, 0.5f * BoxSize.Z), FVec3(0, 0, -SphereRadius), FVec3(0, 0, -1), 0, FVec3(0, 0, -1), SpherePos.Z - SphereRadius);
-			}
-		}
 	}
 
 	// Sphere-Convex(with margin) far separated when an edge is the nearest feature.

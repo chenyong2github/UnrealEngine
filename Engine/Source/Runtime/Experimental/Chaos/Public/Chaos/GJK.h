@@ -1828,13 +1828,19 @@ namespace Chaos
 
 
 	/**
-	 * Used by GJKDistance. It must return a vector in the Minkowski sum A - B. In principle this can be the vector of any point
-	 * in A to any point in B, but some choices will cause GJK to minimize faster (e.g., for two spheres, we can easily calculate
-	 * the actual separating vector and GJK will converge immediately).
+	 * Can be used to generate the initial support direction for use with GjkDistance. Returns a point on the Minkowski Sum
+	 * surface opposite to the direction of the supplied transform. This is usually a good guess for the initial direction
+	 * but it calls SupportCore on both shapes, and there are often faster alternatives if you know the type of shapes
+	 * you are dealing with (e.g., return the vectors between the centers of the two convex shapes).
+	 * 
+	 * If you do roll your own function, make sure that the vector returned is in or on the Minkowski sum (and don't just use a unit
+	 * vector along some direction for example) or GJKDistance may early-exit with an inaccurate result.
 	 */
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	TVector<T, 3> GJKDistanceInitialV(const TGeometryA& A, T MarginA, const TGeometryB& B, T MarginB, const TRigidTransform<T, 3>& BToATM)
+	TVector<T, 3> GJKDistanceInitialV(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM)
 	{
+		const T MarginA = A.GetMargin();
+		const T MarginB = B.GetMargin();
 		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 		const TVec3<T> V = -BToATM.GetTranslation();
 		const TVector<T, 3> SupportA = A.SupportCore(-V, MarginA, nullptr, VertexIndexA);
@@ -1842,16 +1848,6 @@ namespace Chaos
 		const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr, VertexIndexB);
 		const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 		return SupportA - SupportB;
-	}
-
-	/**
-	 * Used by GJKDistance. Specialization for sphere-sphere gives correct result immediately.
-	 */
-	template <typename T>
-	TVector<T, 3> GJKDistanceInitialV(const TSphere<T, 3>& A, const TSphere<T, 3>& B, const TRigidTransform<T, 3>& BToATM)
-	{
-		TVector<T, 3> Delta = A.GetCenter() - (B.GetCenter() + BToATM.GetTranslation());
-		return Delta;
 	}
 
 	// Status of a call to GJKDistance
@@ -1863,20 +1859,29 @@ namespace Chaos
 		// The shapes are overlapping by less than the net margin and all outputs have valid values (with a negative separation)
 		Contact,
 
-		// The shapes are overlapping by more than the net margin and all outputs are invalid
+		// The shapes are overlapping by more than the net margin and all outputs are invalid (unchanged from their input values)
 		DeepContact,
 	};
 
 	/**
-	 * Find the distance and nearest points on two convex geometries A and B.
-	 * All calculations are performed in the local-space of object A, and the transform from B-space to A-space must be provided.
+	 * Find the distance and nearest points on two convex geometries A and B, if they do not overlap.
+	 *
+	 * This is intended to be used with TGJKShape, TGJKCoreShape, TGJKShapeTransformed and TGJKCoreShapeTransformed
+	 * and generally you will have a TGJKShape or TGJKCoreShape as A, and a Transformed version for B. The transform in 
+	 * B should transform a vector in B space to a vector in A space as all calculations are performed in the local-
+	 * space of object A.
+	 *
+	 * You can also use this function when you have 2 shapes already in the same space to avoid transforms in the support
+	 * function(s). In this case you would use the non-transform versions of TGJKShape and would need to transform the 
+	 * results from the shared space to the space you desire.
+	 *
 	 * For algorithm see "A Fast and Robust GJK Implementation for Collision Detection of Convex Objects", Gino Van Deb Bergen, 1999.
 	 * @note This algorithm aborts if objects are overlapping and it does not initialize the out parameters.
 	 *
-	 * @param A The first object.
+	 * @param A The first object (usually TGJKShape or TGJKCoreShape)
+	 * @param B The second object (usually TGJKShapeTransformed or TGJKCoreShapeTransformed)
 	 * @param B The second object.
-	 * @param BToATM A transform taking vectors in B-space to A-space
-	 * @param B The second object.
+	 * @param InitialV  Starting support direction that must be in the Minkowski Sum. Use GJKDistanceInitialV() if unsure.
 	 * @param OutDistance if returns true, the minimum distance between A and B, otherwise not modified.
 	 * @param OutNearestA if returns true, the near point on A in local-space, otherwise not modified.
 	 * @param OutNearestB if returns true, the near point on B in local-space, otherwise not modified.
@@ -1884,22 +1889,20 @@ namespace Chaos
 	 * @param MaxIts A limit on the number of iterations. Results may be approximate if this is too low.
 	 * @return EGJKDistanceResult - see comments on the enum
 	 */
-	template <typename T, typename TGeometryA, typename TGeometryB>
-	EGJKDistanceResult GJKDistance(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutDistance, TVector<T, 3>& OutNearestA, TVector<T, 3>& OutNearestB, TVector<T, 3>& OutNormalA, const T Epsilon = (T)1e-3, const int32 MaxIts = 16)
+	template <typename T, typename GJKShapeTypeA, typename GJKShapeTypeB>
+	EGJKDistanceResult GJKDistance(const GJKShapeTypeA& A, const GJKShapeTypeB& B, const TVec3<T>& InitialV, T& OutDistance, TVec3<T>& OutNearestA, TVec3<T>& OutNearestB, TVec3<T>& OutNormalA, const T Epsilon = (T)1e-3, const int32 MaxIts = 16)
 	{
-		check(A.IsConvex() && B.IsConvex());
-
 		FSimplex SimplexIDs;
-		TVector<T, 3> Simplex[4], SimplexA[4], SimplexB[4];
+		TVec3<T> Simplex[4], SimplexA[4], SimplexB[4];
 		T Barycentric[4] = { -1, -1, -1, -1 };
 
-		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
 		const T AMargin = A.GetMargin();
 		const T BMargin = B.GetMargin();
 		T Mu = 0;
 
-		// Select an initial vector in Minkowski(A - B)
-		TVector<T, 3> V = GJKDistanceInitialV(A, AMargin, B, BMargin, BToATM);
+		// Initial vector in Minkowski(A - B)
+		// NOTE: If InitialV is not in the Minkowski Sum we may incorrectly early-out in the bCloseEnough chaeck below
+		TVec3<T> V = InitialV;
 		T VLen = V.Size();
 		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 
@@ -1909,13 +1912,11 @@ namespace Chaos
 			// Find a new point in A-B that is closer to the origin
 			// NOTE: we do not use support thickness here. Thickness is used when separating objects
 			// so that GJK can find a solution, but that can be added in a later step.
-			const TVector<T, 3> SupportA = A.SupportCore(-V, AMargin, nullptr, VertexIndexA);
-			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, BMargin, nullptr, VertexIndexB);
-			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
-			const TVector<T, 3> W = SupportA - SupportB;
+			const TVec3<T> SupportA = A.SupportCore(-V, AMargin, nullptr, VertexIndexA);
+			const TVec3<T> SupportB = B.SupportCore(V, BMargin, nullptr, VertexIndexB);
+			const TVec3<T> W = SupportA - SupportB;
 
-			T D = TVector<T, 3>::DotProduct(V, W) / VLen;
+			T D = TVec3<T>::DotProduct(V, W) / VLen;
 			Mu = FMath::Max(Mu, D);
 
 			// See if we are still making progress toward the origin
@@ -1930,13 +1931,13 @@ namespace Chaos
 				{
 					// Our initial guess of V was already the minimum separating vector
 					OutNearestA = SupportA;
-					OutNearestB = SupportBLocal;
+					OutNearestB = SupportB;
 				}
 				else
 				{
 					// The simplex vertices are the nearest point/line/face
-					OutNearestA = TVector<T, 3>(0, 0, 0);
-					OutNearestB = TVector<T, 3>(0, 0, 0);
+					OutNearestA = TVec3<T>(0, 0, 0);
+					OutNearestB = TVec3<T>(0, 0, 0);
 					for (int32 VertIndex = 0; VertIndex < SimplexIDs.NumVerts; ++VertIndex)
 					{
 						int32 WIndex = SimplexIDs[VertIndex];
@@ -1945,12 +1946,14 @@ namespace Chaos
 						OutNearestB += Barycentric[WIndex] * SimplexB[WIndex];
 					}
 				}
-				const TVector<T, 3> NormalA = -V / VLen;
-				const TVector<T, 3> NormalB = VInB / VLen;
+				const TVec3<T> NormalA = -V / VLen;
 				OutDistance = VLen - (AMargin + BMargin);
 				OutNearestA += AMargin * NormalA;
-				OutNearestB += BMargin * NormalB;
+				OutNearestB -= BMargin * NormalA;
 				OutNormalA = NormalA;
+
+				// NearestB should be in B-space but is currently in A-space
+				OutNearestB = B.InverseTransformPositionNoScale(OutNearestB);
 
 				return (OutDistance >= 0.0f) ? EGJKDistanceResult::Separated : EGJKDistanceResult::Contact;
 			}
@@ -1959,7 +1962,7 @@ namespace Chaos
 			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;
 			Simplex[SimplexIDs.NumVerts] = W;
 			SimplexA[SimplexIDs.NumVerts] = SupportA;
-			SimplexB[SimplexIDs.NumVerts] = SupportBLocal;
+			SimplexB[SimplexIDs.NumVerts] = SupportB;
 			++SimplexIDs.NumVerts;
 
 			// Find the closest point to the origin on the simplex, and update the simplex to eliminate unnecessary vertices
@@ -1969,69 +1972,6 @@ namespace Chaos
 
 		// Our geometries overlap - we did not set any outputs
 		return EGJKDistanceResult::DeepContact;
-	}
-
-
-	// Assumes objects are already intersecting, computes a minimum translation
-	// distance, deepest penetration positions on each body, and approximates
-	// a penetration normal and minimum translation distance.
-	//
-	// TODO: We want to re-visit how these functions work. Probably should be
-	// embedded in GJKOverlap and GJKRaycast so that secondary queries are unnecessary.
-	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationTemp(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, TVector<T, 3>& OutPositionA, TVector<T, 3>& OutPositionB, TVector<T, 3>& OutNormal, T& OutDistance, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0, const T Epsilon = (T)1e-6, const int32 MaxIts = 16)
-	{
-		//
-		// TODO: General case for MTD determination.
-		//
-		ensure(false);
-		OutPositionA = TVector<T, 3>(0.f);
-		OutPositionB = TVector<T, 3>(0.f);
-		OutNormal = TVector<T, 3>(0.f, 0.f, 1.f);
-		OutDistance = 0.f;
-		return GJKIntersection(A, B, BToATM, ThicknessA, InitialDir, ThicknessB);
-	}
-
-	// Specialization for when getting MTD against a capsule.
-	template <typename T, typename TGeometryA>
-	bool GJKPenetrationTemp(const TGeometryA& A, const FCapsule& B, const TRigidTransform<T, 3>& BToATM, TVector<T, 3>& OutPositionA, TVector<T, 3>& OutPositionB, TVector<T, 3>& OutNormal, T& OutDistance, const T ThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T ThicknessB = 0, const T Epsilon = (T)1e-6, const int32 MaxIts = 16)
-	{
-		T SegmentDistance;
-		const TSegment<T>& Segment = B.GetSegment();
-		const T MarginB = B.GetRadius();
-		TVector<T, 3> PositionBInB;
-		if (GJKDistance(A, Segment, BToATM, SegmentDistance, OutPositionA, PositionBInB, Epsilon, MaxIts))
-		{
-			OutPositionB = BToATM.TransformPosition(PositionBInB);
-			OutNormal
-				= ensure(SegmentDistance > TNumericLimits<T>::Min())
-				? (OutPositionB - OutPositionA) / SegmentDistance
-				: TVector<T, 3>(0.f, 0.f, 1.f);
-			OutPositionB -= OutNormal * MarginB;
-			OutDistance = SegmentDistance - MarginB;
-
-			if (OutDistance > 0.f)
-			{
-				// In this case, our distance calculation says we're not penetrating.
-				//
-				// TODO: check(false)! This shouldn't happen.
-				// It probably won't happen anymore if we warm-start GJKDistance
-				// with a polytope.
-				//
-				OutDistance = 0.f;
-				return false;
-			}
-
-			return true;
-		}
-		else
-		{
-			// TODO: Deep penetration - do EPA
-			ensure(false);
-			return true;
-		}
-
-		return false;
 	}
 
 }
