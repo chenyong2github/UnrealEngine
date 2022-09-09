@@ -36,13 +36,13 @@ FImgMediaTileSelection::FImgMediaTileSelection(int32 NumTilesX, int32 NumTilesY,
 {
 }
 
-FImgMediaTileSelection FImgMediaTileSelection::CreateForTargetMipLevel(const FIntPoint& BaseTileNum, int32 TargetMipLevel, bool bDefaultVisibility)
+FImgMediaTileSelection FImgMediaTileSelection::CreateForTargetMipLevel(const FIntPoint& MipZeroResolution, const FIntPoint& TileSize, int32 TargetMipLevel, bool bDefaultVisibility)
 {
 	ensure(TargetMipLevel >= 0);
 
 	const int MipLevelDiv = 1 << TargetMipLevel;
-	int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(BaseTileNum.X) / MipLevelDiv));
-	int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(BaseTileNum.Y) / MipLevelDiv));
+	int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(MipZeroResolution.X / MipLevelDiv) / TileSize.X));
+	int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(MipZeroResolution.Y / MipLevelDiv) / TileSize.Y));
 
 	return FImgMediaTileSelection(NumTilesX, NumTilesY, bDefaultVisibility);
 }
@@ -89,7 +89,8 @@ bool FImgMediaTileSelection::Contains(const FImgMediaTileSelection& Other) const
 
 void FImgMediaTileSelection::SetVisible(int32 TileCoordX, int32 TileCoordY)
 {
-	Tiles[ToIndex(TileCoordX, TileCoordY, Dimensions)] = true;
+	int Index = ToIndex(FMath::Min(TileCoordX, Dimensions.X - 1), FMath::Min(TileCoordY, Dimensions.Y - 1), Dimensions);
+	Tiles[Index] = true;
 	bCachedVisibleRegionDirty = true;
 }
 
@@ -273,7 +274,7 @@ void FImgMediaMipMapObjectInfo::CalculateVisibleTiles(const TArray<FImgMediaView
 	// We simply add fully visible regions for all mip levels
 	for (int32 MipLevel = 0; MipLevel < InSequenceInfo.NumMipLevels; ++MipLevel)
 	{
-		VisibleTiles.Add(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(InSequenceInfo.TilingDescription.TileNum, MipLevel, true));
+		VisibleTiles.Add(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(InSequenceInfo.Dim, InSequenceInfo.TilingDescription.TileSize, MipLevel, true));
 	}
 }
 
@@ -371,8 +372,8 @@ namespace {
 				int MipLevelDiv = 1 << MaxLevel;
 
 				FIntPoint CurrentNumTiles;
-				CurrentNumTiles.X = FMath::Max(1, FMath::CeilToInt(float(SequenceTileNum.X) / MipLevelDiv));
-				CurrentNumTiles.Y = FMath::Max(1, FMath::CeilToInt(float(SequenceTileNum.Y) / MipLevelDiv));
+				CurrentNumTiles.X = FMath::CeilToInt(float(InSequenceInfo.Dim.X / MipLevelDiv) / InSequenceInfo.TilingDescription.TileSize.X);
+				CurrentNumTiles.Y = FMath::CeilToInt(float(InSequenceInfo.Dim.Y / MipLevelDiv) / InSequenceInfo.TilingDescription.TileSize.Y);
 
 				// Starting with tiles at the highest mip level
 				TQueue<FIntVector> Tiles;
@@ -392,9 +393,10 @@ namespace {
 
 					int32 CurrentMipLevel = Tile.Z;
 					MipLevelDiv = 1 << CurrentMipLevel;
+
 					// Calculate the number of tiles at this mip level
-					CurrentNumTiles.X = FMath::Max(1, FMath::CeilToInt(float(SequenceTileNum.X) / MipLevelDiv));
-					CurrentNumTiles.Y = FMath::Max(1, FMath::CeilToInt(float(SequenceTileNum.Y) / MipLevelDiv));
+					CurrentNumTiles.X = FMath::Max(1, FMath::CeilToInt((float(InSequenceInfo.Dim.X) / MipLevelDiv) / InSequenceInfo.TilingDescription.TileSize.X));
+					CurrentNumTiles.Y = FMath::Max(1, FMath::CeilToInt((float(InSequenceInfo.Dim.Y) / MipLevelDiv) / InSequenceInfo.TilingDescription.TileSize.Y));
 
 					FVector2f CurrentPartialTileNum = InSequenceInfo.GetPartialTileNum(CurrentMipLevel);
 
@@ -631,10 +633,11 @@ namespace {
 								{
 									if (!VisibleTiles.Contains(Level))
 									{
-										VisibleTiles.Emplace(Level, FImgMediaTileSelection::CreateForTargetMipLevel(SequenceTileNum, Level, false));
+										VisibleTiles.Emplace(Level, FImgMediaTileSelection::CreateForTargetMipLevel(InSequenceInfo.Dim, InSequenceInfo.TilingDescription.TileSize, Level, false));
 									}
 
 									const int MipLevelDiv = 1 << Level;
+
 									VisibleTiles[Level].SetVisible(TileX / MipLevelDiv, TileY / MipLevelDiv);
 								}
 							}

@@ -101,8 +101,13 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTiles
 	{
 		int64 CurrentBufferPos = 0;
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReader_ReadTilesCustom_ReadTiles")));
-		for (const FIntRect& TileRegion : TileRegions)
+		for (const FIntRect& RawTileRegion : TileRegions)
 		{
+			// This clamp is to make sure that tile region is not out of bounds in case the region wasn't calculated incorrectly for some reason.
+			const FIntRect& TileRegion = FIntRect(
+				FIntPoint(FMath::Max(RawTileRegion.Min.X, 0), FMath::Max(RawTileRegion.Min.Y, 0)),
+				FIntPoint(FMath::Min(RawTileRegion.Max.X, DimensionInTiles.X), FMath::Min(RawTileRegion.Max.Y, DimensionInTiles.Y)));
+
 			for (int32 TileRow = TileRegion.Min.Y; TileRow < TileRegion.Max.Y; TileRow++)
 			{
 				// Check to see if the frame was canceled.

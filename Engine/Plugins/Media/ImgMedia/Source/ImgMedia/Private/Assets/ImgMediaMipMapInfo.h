@@ -68,12 +68,12 @@ struct FImgMediaTileSelection
 	/**
 	 * Create and initialize a new tile selection, adjusting tile counts for the specified higher mip level.
 	 *
-	 * @param BaseNumTilesX Horizontal tile count at mip level 0.
-	 * @param NumTilesY Vertical tile count at mip level 0.
+	 * @param MipZeroResolution Pixel resolution of Mip 0.
+	 * @param TileSize Dimensions of tiles in pixels.
 	 * @param TargetMipLevel Higher target mip level for the selection (usually 1 and above).
 	 * @param bDefaultVisibility Optional visibility for the entire region.
 	 */
-	static FImgMediaTileSelection CreateForTargetMipLevel(const FIntPoint& BaseTileNum, int32 TargetMipLevel, bool bDefaultVisibility = false);
+	static FImgMediaTileSelection CreateForTargetMipLevel(const FIntPoint& MipZeroResolution, const FIntPoint& TileSize, int32 TargetMipLevel, bool bDefaultVisibility = false);
 
 	FImgMediaTileSelection() = default;
 	~FImgMediaTileSelection() noexcept = default;
