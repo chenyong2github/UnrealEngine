@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Streams;
@@ -32,7 +34,7 @@ namespace Horde.Build.Projects
 		/// <summary>
 		/// Categories to include in this project
 		/// </summary>
-		public List<CreateProjectCategoryRequest> Categories { get; set; } = new List<CreateProjectCategoryRequest>();
+		public List<ProjectCategoryConfig> Categories { get; set; } = new List<ProjectCategoryConfig>();
 
 		/// <summary>
 		/// List of streams
@@ -61,5 +63,37 @@ namespace Horde.Build.Projects
 		/// </summary>
 		[Required]
 		public string Path { get; set; } = null!;
+	}
+
+	/// <summary>
+	/// Information about a category to display for a stream
+	/// </summary>
+	public class ProjectCategoryConfig
+	{
+		/// <summary>
+		/// Name of this category
+		/// </summary>
+		[Required]
+		public string Name { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Index of the row to display this category on
+		/// </summary>
+		public int Row { get; set; }
+
+		/// <summary>
+		/// Whether to show this category on the nav menu
+		/// </summary>
+		public bool ShowOnNavMenu { get; set; }
+
+		/// <summary>
+		/// Patterns for stream names to include
+		/// </summary>
+		public List<string> IncludePatterns { get; set; } = new List<string>();
+
+		/// <summary>
+		/// Patterns for stream names to exclude
+		/// </summary>
+		public List<string> ExcludePatterns { get; set; } = new List<string>();
 	}
 }

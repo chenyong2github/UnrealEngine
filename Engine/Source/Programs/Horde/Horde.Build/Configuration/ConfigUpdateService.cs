@@ -182,7 +182,7 @@ namespace Horde.Build.Configuration
 				}
 
 				IProject? project = projects.FirstOrDefault(x => x.Id == projectRef.Id);
-				bool update = project == null || project.ConfigPath != projectPath.ToString() || project.ConfigRevision != revision;
+				bool update = project == null || project.ConfigRevision != revision;
 
 				ProjectConfig? projectConfig;
 				if (!update && prevCachedProjectConfigs.TryGetValue(projectRef.Id, out (ProjectConfig Config, string Revision) result) && result.Revision == revision)

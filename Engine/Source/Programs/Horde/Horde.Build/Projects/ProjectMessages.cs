@@ -7,46 +7,6 @@ using Horde.Build.Acls;
 namespace Horde.Build.Projects
 {
 	/// <summary>
-	/// Information about a category to display for a stream
-	/// </summary>
-	public class CreateProjectCategoryRequest
-	{
-		/// <summary>
-		/// Name of this category
-		/// </summary>
-		[Required]
-		public string Name { get; set; }
-
-		/// <summary>
-		/// Index of the row to display this category on
-		/// </summary>
-		public int Row { get; set; }
-
-		/// <summary>
-		/// Whether to show this category on the nav menu
-		/// </summary>
-		public bool ShowOnNavMenu { get; set; }
-
-		/// <summary>
-		/// Patterns for stream names to include
-		/// </summary>
-		public List<string> IncludePatterns { get; set; } = new List<string>();
-
-		/// <summary>
-		/// Patterns for stream names to exclude
-		/// </summary>
-		public List<string> ExcludePatterns { get; set; } = new List<string>();
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public CreateProjectCategoryRequest(string name)
-		{
-			Name = name;
-		}
-	}
-
-	/// <summary>
 	/// Information about a stream within a project
 	/// </summary>
 	public class GetProjectStreamResponse
@@ -112,7 +72,7 @@ namespace Horde.Build.Projects
 		/// Constructor
 		/// </summary>
 		/// <param name="streamCategory">The category to construct from</param>
-		public GetProjectCategoryResponse(StreamCategory streamCategory)
+		public GetProjectCategoryResponse(ProjectCategoryConfig streamCategory)
 		{
 			Name = streamCategory.Name;
 			Row = streamCategory.Row;
