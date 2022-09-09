@@ -3,7 +3,7 @@
 //------------------------------------------------------- CONFIG WAVE SIZE
 
 #if DIM_WAVE_SIZE == 0 // fallback to LDS
-	#define WAVE_BROADCAST_GROUPSIZE 32
+	#define WAVE_BROADCAST_GROUPSIZE (16 * 16)
 #endif
 
 //------------------------------------------------------- INCLUDES
@@ -45,10 +45,15 @@
 	#define LANE_STRIDE_X 4
 	#define LANE_STRIDE_Y 2
 
-#elif DIM_WAVE_SIZE == 0
+#elif DIM_WAVE_SIZE == 0 && 0
 	#define LANE_COUNT 32
 	#define LANE_STRIDE_X 4
 	#define LANE_STRIDE_Y 2
+
+#elif DIM_WAVE_SIZE == 0 && 1
+	#define LANE_COUNT (GROUP_TILE_SIZE * GROUP_TILE_SIZE)
+	#define LANE_STRIDE_X 1
+	#define LANE_STRIDE_Y 1
 
 #else
 	#error Unknown wave size
@@ -422,10 +427,6 @@ void MainCS(
 	tsr_simd_halfC FilteredInput   = Convolve3x3HV<TAccumulatorAvg<tsr_simd_halfC>, tsr_simd_halfC>(ClampedInput  , bIsValid, GroupThreadIndex);
 	tsr_simd_halfC FilteredHistory = Convolve3x3HV<TAccumulatorAvg<tsr_simd_halfC>, tsr_simd_halfC>(ClampedHistory, bIsValid, GroupThreadIndex);
 	
-	Debug[0] = OriginalInput;
-	Debug[1] = AccessNeighborTexel(OriginalInput, tsr_short2(1, 0), GroupThreadIndex);
-	Debug[2] = FilteredInput;
-
 	// Measure rejection
 	tsr_simd_half Rejection;
 	Rejection.SetAllElements(tsr_half(1.0));

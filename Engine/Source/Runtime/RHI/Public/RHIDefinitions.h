@@ -401,6 +401,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
 	uint32 bSupportsDxc : 1; // Whether DirectXShaderCompiler (DXC) is supported
+	uint32 bIsSPIRV : 1;
 	uint32 bSupportsVariableRateShading : 1;
 	uint32 NumberOfComputeThreads : 10;
 	uint32 bWaterUsesSimpleForwardShading : 1;
@@ -905,6 +906,12 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsDxc;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetIsSPIRV(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bIsSPIRV;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVariableRateShading(const FStaticShaderPlatform Platform)

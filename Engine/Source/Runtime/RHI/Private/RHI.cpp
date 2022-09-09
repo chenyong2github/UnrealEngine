@@ -2529,6 +2529,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bIsHlslcc);
 	GET_SECTION_BOOL_HELPER(bSupportsDxc);
 	GET_SECTION_BOOL_HELPER(bSupportsVariableRateShading);
+	GET_SECTION_BOOL_HELPER(bIsSPIRV);
 	GET_SECTION_INT_HELPER(NumberOfComputeThreads);
 
 	GET_SECTION_BOOL_HELPER(bWaterUsesSimpleForwardShading);

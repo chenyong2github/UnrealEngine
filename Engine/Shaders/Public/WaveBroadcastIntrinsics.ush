@@ -40,7 +40,7 @@
 	#define WAVE_BROADCAST_READ_LANE_AT 1
 	#define WAVE_BROADCAST_READ_LDS_AT 2
 	#define WAVE_BROADCAST_GCN_SWIZZLE 3
-	#define WAVE_BROADCAST_RDNA_ROTATE 4
+	#define WAVE_BROADCAST_ROTATE 4
 
 /** Compile time structure to choose which broadcasting should be done. */
 struct FWaveBroadcastSettings
@@ -89,9 +89,9 @@ uint GetWaveBroadcastSourceLaneIndex(const FWaveBroadcastSettings Settings, uint
 	{
 		return (((DestLaneIndex & Settings.SwizzleAnd) | Settings.SwizzleOr) ^ Settings.SwizzleXor) % 32;
 	}
-	else if (Settings.Operation == WAVE_BROADCAST_RDNA_ROTATE)
+	else if (Settings.Operation == WAVE_BROADCAST_ROTATE)
 	{
-		return ((Settings.RotateFixMask & DestLaneIndex) | ((~Settings.RotateFixMask) & uint(DestLaneIndex + Settings.Rotate))) % 32;
+		return (Settings.RotateFixMask & DestLaneIndex) | ((~Settings.RotateFixMask) & uint(DestLaneIndex + Settings.Rotate));
 	}
 	return DestLaneIndex;
 }
@@ -153,11 +153,11 @@ uint WaveBroadcast(const FWaveBroadcastSettings Settings, uint x)
 	#endif
 
 	#if PLATFORM_SUPPORTS_WAVE_ROTATE
-	else if (Settings.Operation == WAVE_BROADCAST_RDNA_ROTATE)
+	else if (Settings.Operation == WAVE_BROADCAST_ROTATE)
 	{
 		#if defined(COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA) && COMPILER_SUPPORTS_WAVE_SWIZZLE_RDNA
 		{
-			return WaveLaneRotateSwizzleRDNA(x, /* rotate_amount = */ Settings.Rotate, Settings.RotateFixMask);
+			return WaveLaneRotateSwizzleRDNA(x, /* rotate_amount = */ Settings.Rotate, Settings.RotateFixMask & 0x1F);
 		}
 		#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6 || PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
 		{
@@ -498,7 +498,9 @@ FWaveBroadcastSettings InitWaveBroadcastLaneGroup(const uint LaneGroupSize, cons
 	return Settings;
 }
 
-/**  Rotate lane (-31 to +31) over a lane group (size is power of two in [2; 32]).
+/**  Rotate lane (-127 to +127) over a lane group (size is power of two in [2; 128]).
+ *
+ *  Notes: RDNA can only do this with LaneGroupSize <= 32
  *
  *	Requires PLATFORM_SUPPORTS_WAVE_ROTATE.
  *
@@ -515,12 +517,9 @@ FWaveBroadcastSettings InitWaveBroadcastLaneGroup(const uint LaneGroupSize, cons
 CALL_SITE_DEBUGLOC
 FWaveBroadcastSettings InitWaveRotateLaneGroup(const uint LaneGroupSize, const int LaneRotation)
 {
-	const uint RotateMask    = LaneGroupSize - 1;
-	const uint RotateFixMask = (~RotateMask) & 0x1F;
-
 	FWaveBroadcastSettings Settings;
-	Settings.Operation     = WAVE_BROADCAST_RDNA_ROTATE;
+	Settings.Operation     = WAVE_BROADCAST_ROTATE;
 	Settings.Rotate        = LaneRotation;
-	Settings.RotateFixMask = RotateFixMask;
+	Settings.RotateFixMask = ~(LaneGroupSize - 1);
 	return Settings;
 }

@@ -213,12 +213,44 @@ FTSRHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures&
 class FTSRShader : public FGlobalShader
 {
 public:
+	static constexpr int32 kSupportMinWaveSize = 32;
+	static constexpr int32 kSupportMaxWaveSize = 64;
+	
 	FTSRShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{ }
 
 	FTSRShader()
 	{ }
+
+	static ERHIFeatureSupport SupportsWaveOps(EShaderPlatform Platform)
+	{
+		// UE-161125: SPIRV ends up with 5min+ compilation times, and D3D11 needs SPIRV backend for HLSL2021 features on FXC.
+		if (FDataDrivenShaderPlatformInfo::GetIsSPIRV(Platform) || Platform == SP_PCD3D_SM5)
+		{
+			return ERHIFeatureSupport::Unsupported;
+		}
+
+		return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform);
+	}
+
+	static bool SupportsLDS(EShaderPlatform Platform)
+	{
+		// Always support LDS if wave ops are not guarenteed
+		if (SupportsWaveOps(Platform) != ERHIFeatureSupport::RuntimeGuaranteed)
+		{
+			return true;
+		}
+
+		// Do not support LDS if shader supported wave size are guarenteed to support the platform.
+		if (FDataDrivenShaderPlatformInfo::GetMinimumWaveSize(Platform) >= kSupportMinWaveSize &&
+			FDataDrivenShaderPlatformInfo::GetMaximumWaveSize(Platform) <= kSupportMaxWaveSize)
+		{
+			return false;
+		}
+
+		return true;
+	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -376,7 +408,7 @@ class FTSRRejectShadingCS : public FTSRShader
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		int32 WaveSize = PermutationVector.Get<FWaveSizeOps>();
 
-		ERHIFeatureSupport WaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Parameters.Platform);
+		ERHIFeatureSupport WaveOpsSupport = FTSRShader::SupportsWaveOps(Parameters.Platform);
 		if (WaveSize != 0)
 		{
 			if (WaveOpsSupport == ERHIFeatureSupport::Unsupported)
@@ -392,12 +424,7 @@ class FTSRRejectShadingCS : public FTSRShader
 		}
 		else // if (WaveSize == LDS fallback)
 		{
-			if (WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed &&
-				FDataDrivenShaderPlatformInfo::GetMinimumWaveSize(Parameters.Platform) >= 32 &&
-				FDataDrivenShaderPlatformInfo::GetMaximumWaveSize(Parameters.Platform) <= 64)
-			{
-				return false;
-			}
+			return FTSRShader::SupportsLDS(Parameters.Platform);
 		}
 
 		return FTSRShader::ShouldCompilePermutation(Parameters);
@@ -666,8 +693,9 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 #endif
 
 	// Whether to use wave ops optimizations.
-	const ERHIFeatureSupport WaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(View.GetShaderPlatform());
-	const bool bUseWaveOps = (CVarTSRWaveOps.GetValueOnRenderThread() != 0 && GRHISupportsWaveOperations && WaveOpsSupport == ERHIFeatureSupport::RuntimeDependent) || WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed;
+	const ERHIFeatureSupport WaveOpsSupport = FTSRShader::SupportsWaveOps(View.GetShaderPlatform());
+	const bool bSupportsLDS = FTSRShader::SupportsLDS(View.GetShaderPlatform());
+	const bool bUseWaveOps = (CVarTSRWaveOps.GetValueOnRenderThread() != 0 && GRHISupportsWaveOperations && bSupportsLDS && (WaveOpsSupport == ERHIFeatureSupport::RuntimeDependent || WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed)) || !bSupportsLDS;
 
 	// Whether alpha channel is supported.
 	const bool bSupportsAlpha = IsPostProcessingWithAlphaChannelSupported();
