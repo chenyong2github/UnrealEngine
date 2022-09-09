@@ -1385,6 +1385,12 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIn
 	for (int32 SequenceIdx = 0; SequenceIdx < Sequences.Num(); ++SequenceIdx)
 	{
 		const FPoseSearchDatabaseSequence& Sequence = Sequences[SequenceIdx];
+
+		if (!Sequence.bEnabled)
+		{
+			continue;
+		}
+
 		bool bAddUnmirrored = 
 			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly ||
 			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
@@ -1436,6 +1442,12 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIn
 	for (int32 BlendSpaceIdx = 0; BlendSpaceIdx < BlendSpaces.Num(); ++BlendSpaceIdx)
 	{
 		const FPoseSearchDatabaseBlendSpace& BlendSpace = BlendSpaces[BlendSpaceIdx];
+
+		if (!BlendSpace.bEnabled)
+		{
+			continue;
+		}
+
 		bool bAddUnmirrored =
 			BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly ||
 			BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;

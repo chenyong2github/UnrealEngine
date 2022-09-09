@@ -397,6 +397,31 @@ namespace UE::PoseSearch
 		PoseSearchDatabase->Groups.RemoveAt(GroupIdx);
 	}
 
+	void FDatabaseViewModel::SetSelectedSequenceEnabled(int32 SequenceIndex, bool bEnabled)
+	{
+		PoseSearchDatabase->Sequences[SequenceIndex].bEnabled = bEnabled;
+		PoseSearchDatabase->NotifyAssetChange();
+		PoseSearchDatabase->BeginCacheDerivedData();
+	}	
+	
+	void FDatabaseViewModel::SetSelectedBlendSpaceEnabled(int32 BlendSpaceIndex, bool bEnabled)
+	{
+		PoseSearchDatabase->BlendSpaces[BlendSpaceIndex].bEnabled = bEnabled;
+		PoseSearchDatabase->NotifyAssetChange();
+		PoseSearchDatabase->BeginCacheDerivedData();
+	}
+
+	bool FDatabaseViewModel::IsSelectedSequenceEnabled(int32 SequenceIndex) const
+	{
+		return PoseSearchDatabase->Sequences[SequenceIndex].bEnabled;
+		PoseSearchDatabase->NotifyAssetChange();
+	}
+
+	bool FDatabaseViewModel::IsSelectedBlendSpaceEnabled(int32 BlendSpaceIndex) const
+	{
+		return PoseSearchDatabase->BlendSpaces[BlendSpaceIndex].bEnabled;
+	}
+
 	void FDatabaseViewModel::SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes)
 	{
 		SelectedNodes = InSelectedNodes;

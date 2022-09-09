@@ -104,6 +104,12 @@ namespace UE::PoseSearch
 		void RemoveBlendSpaceFromGroup(int32 BlendSpaceIdx, int32 GroupIdx);
 		void DeleteGroup(int32 GroupIdx);
 
+		void SetSelectedSequenceEnabled(int32 SequenceIndex, bool bEnabled);
+		void SetSelectedBlendSpaceEnabled(int32 BlendSpaceIndex, bool bEnabled);
+		
+		bool IsSelectedSequenceEnabled(int32 SequenceIndex) const;
+		bool IsSelectedBlendSpaceEnabled(int32 BlendSpaceIndex) const;
+
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 		void ProcessSelectedActor(AActor* Actor);
 		

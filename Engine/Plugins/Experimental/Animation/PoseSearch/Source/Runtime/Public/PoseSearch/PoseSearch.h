@@ -746,6 +746,9 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> Sequence = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = "Sequence")
+	bool bEnabled = true;
+
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
 
@@ -783,6 +786,9 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	TObjectPtr<UBlendSpace> BlendSpace = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "BlendSpace")
+	bool bEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;

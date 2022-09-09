@@ -13,13 +13,13 @@
 #include "AssetSelection.h"
 
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPositiveActionButton.h"
 #include "Styling/AppStyle.h"
 
 #include "ScopedTransaction.h"
-
 
 #define LOCTEXT_NAMESPACE "PoseSearchDatabaseAssetList"
 
@@ -244,6 +244,7 @@ namespace UE::PoseSearch
 			[
 				SNew(STextBlock)
 				.Text(this, &SDatabaseAssetListItem::GetName)
+				.ColorAndOpacity(this, &SDatabaseAssetListItem::GetNameTextColorAndOpacity)
 			]
 			+ SHorizontalBox::Slot()
 			.MaxWidth(18)
@@ -254,7 +255,25 @@ namespace UE::PoseSearch
 				SNew(SImage)
 				.Image(FAppStyle::Get().GetBrush("Icons.EyeDropper"))
 				.Visibility_Raw(this, &SDatabaseAssetListItem::GetSelectedActorIconVisbility)
+			]
+			+SHorizontalBox::Slot()
+			.MaxWidth(16)
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &SDatabaseAssetListItem::GetAssetEnabledChecked)
+				.OnCheckStateChanged(const_cast<SDatabaseAssetListItem*>(this), &SDatabaseAssetListItem::OnAssetIsEnabledChanged)
+				.ToolTipText(this, &SDatabaseAssetListItem::GetAssetEnabledToolTip)
+				.CheckedImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+				.CheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+				.CheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Visible"))
+				.UncheckedImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+				.UncheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
+				.UncheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Hidden"))
 			];
+
 		}
 
 		return ItemWidget.ToSharedRef();
@@ -326,6 +345,57 @@ namespace UE::PoseSearch
 		}
 
 		return EVisibility::Hidden;
+	}
+
+	ECheckBoxState SDatabaseAssetListItem::GetAssetEnabledChecked() const
+	{
+		TSharedPtr<FDatabaseViewModel> ViewModelPtr = EditorViewModel.Pin();
+		TSharedPtr<FDatabaseAssetTreeNode> TreeNodePtr = WeakAssetTreeNode.Pin();
+
+		if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::Sequence)
+		{
+			const bool bEnabled = ViewModelPtr->IsSelectedSequenceEnabled(TreeNodePtr->SourceAssetIdx);
+			return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+		else if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::BlendSpace)
+		{
+			const bool bEnabled = ViewModelPtr->IsSelectedBlendSpaceEnabled(TreeNodePtr->SourceAssetIdx);
+			return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+
+		return ECheckBoxState::Unchecked;
+	}
+
+	void SDatabaseAssetListItem::OnAssetIsEnabledChanged(ECheckBoxState NewCheckboxState)
+	{
+		TSharedPtr<FDatabaseViewModel> ViewModelPtr = EditorViewModel.Pin();
+		TSharedPtr<FDatabaseAssetTreeNode> TreeNodePtr = WeakAssetTreeNode.Pin();
+
+		if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::Sequence)
+		{
+			ViewModelPtr->SetSelectedSequenceEnabled(TreeNodePtr->SourceAssetIdx, NewCheckboxState == ECheckBoxState::Checked ? true : false);
+		}
+		else if (TreeNodePtr->SourceAssetType == ESearchIndexAssetType::BlendSpace)
+		{
+			ViewModelPtr->SetSelectedBlendSpaceEnabled(TreeNodePtr->SourceAssetIdx, NewCheckboxState == ECheckBoxState::Checked ? true : false);
+		}
+
+		SkeletonView.Pin()->RefreshTreeView(false, true);
+	}
+
+	FSlateColor SDatabaseAssetListItem::GetNameTextColorAndOpacity() const
+	{
+		return GetAssetEnabledChecked() == ECheckBoxState::Checked ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.3f);
+	}
+
+	FText SDatabaseAssetListItem::GetAssetEnabledToolTip() const
+	{
+		if (GetAssetEnabledChecked() == ECheckBoxState::Checked)
+		{
+			return LOCTEXT("DisableAssetTooltip", "Disable this asset in the Pose Search Database.");
+		}
+		
+		return LOCTEXT("EnableAssetTooltip", "Enable this asset in the Pose Search Database.");
 	}
 
 	SDatabaseAssetTree::~SDatabaseAssetTree()

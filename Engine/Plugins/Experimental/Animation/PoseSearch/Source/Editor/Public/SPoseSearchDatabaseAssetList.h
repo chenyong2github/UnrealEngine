@@ -62,6 +62,11 @@ namespace UE::PoseSearch
 
 		EVisibility GetSelectedActorIconVisbility() const;
 
+		FSlateColor GetNameTextColorAndOpacity() const;
+		FText GetAssetEnabledToolTip() const;
+		ECheckBoxState GetAssetEnabledChecked() const;
+		void OnAssetIsEnabledChanged(ECheckBoxState NewCheckboxState);
+
 		TWeakPtr<FDatabaseAssetTreeNode> WeakAssetTreeNode;
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;
 		TWeakPtr<SDatabaseAssetTree> SkeletonView;
