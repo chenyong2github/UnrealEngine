@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Iris/IrisConstants.h"
+
 class UReplicationSystem;
 class UObjectReplicationBridge;
 
@@ -12,7 +14,8 @@ namespace UE::Net
 
 	struct FNetObjectResolveContext
 	{
-		FNetTokenStoreState* RemoteNetTokenStoreState;
+		FNetTokenStoreState* RemoteNetTokenStoreState = nullptr;
+		uint32 ConnectionId = InvalidConnectionId;
 	};
 
 	namespace Private

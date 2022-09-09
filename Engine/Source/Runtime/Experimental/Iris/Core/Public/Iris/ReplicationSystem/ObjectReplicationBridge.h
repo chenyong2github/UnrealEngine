@@ -102,7 +102,7 @@ public:
 	IRISCORE_API void AddStaticDestructionInfo(const FString& ObjectPath, const UObject* Outer, const FEndReplicationParameters& Parameters);
 	
 	/** PIE package name remapping support. */
-	virtual bool RemapPathForPIE(FString& Path, bool bReading) const { return false; }
+	virtual bool RemapPathForPIE(uint32 ConnectionId, FString& Path, bool bReading) const { return false; }
 
 	/** Returns true of the level that the Object belongs to has finished loading. */
 	virtual bool ObjectLevelHasFinishedLoading(UObject* Object) const { return true; }

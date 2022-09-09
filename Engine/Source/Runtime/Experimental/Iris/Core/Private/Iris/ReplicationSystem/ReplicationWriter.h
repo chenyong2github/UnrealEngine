@@ -168,7 +168,6 @@ public:
 	void SetReplicationEnabled(bool bInReplicationEnabled);
 	bool IsReplicationEnabled() const;
 
-	void SetRemoteNetTokenStoreState(FNetTokenStoreState* RemoteTokenStoreState);
 	void SetNetExports(FNetExports& InNetExports);
 
 	// Attachments
@@ -463,7 +462,6 @@ private:
 	FNetHandleManager* NetHandleManager = nullptr;
 	UReplicationBridge* ReplicationBridge = nullptr;
 	FDeltaCompressionBaselineManager* BaselineManager = nullptr;
-	FNetObjectResolveContext ResolveContext;
 	FObjectReferenceCache* ObjectReferenceCache = nullptr;
 	const FReplicationFiltering* ReplicationFiltering = nullptr;
 	FReplicationConditionals* ReplicationConditionals = nullptr;

@@ -18,7 +18,6 @@
 #include "Iris/ReplicationSystem/NetBlob/NetObjectBlobHandler.h"
 #include "Iris/ReplicationSystem/NetBlob/PartialNetObjectAttachmentHandler.h"
 #include "Iris/Serialization/NetReferenceCollector.h"
-#include "Iris/ReplicationSystem/NetTokenStoreState.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"
 #include "Iris/Serialization/NetSerializer.h"
@@ -2726,11 +2725,6 @@ bool FReplicationWriter::PatchupObjectChangeMaskWithInflightChanges(uint32 Inter
 	};
 
 	return bInFlightChangesAdded;
-}
-
-void FReplicationWriter::SetRemoteNetTokenStoreState(FNetTokenStoreState* InRemoteTokenStoreState)
-{
-	ResolveContext.RemoteNetTokenStoreState = InRemoteTokenStoreState;
 }
 
 void FReplicationWriter::SetNetExports(FNetExports& InNetExports)

@@ -746,6 +746,11 @@ void UReplicationSystem::SetConnectionUserData(uint32 ConnectionId, UObject* InU
 UObject* UReplicationSystem::GetConnectionUserData(uint32 ConnectionId) const
 {
 	UE::Net::Private::FReplicationConnections& Connections = Impl->ReplicationSystemInternal.GetConnections();
+	if (!ensureMsgf(Connections.IsValidConnection(ConnectionId), TEXT("Invalid ConnectionId %u passed to UReplicationSystem::GetConnectionUserData."), ConnectionId))
+	{
+		return nullptr;
+	}
+
 	if (UE::Net::Private::FReplicationConnection* Connection = Connections.GetConnection(ConnectionId))
 	{
 		return Connection->UserData.Get();

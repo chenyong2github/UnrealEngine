@@ -323,7 +323,13 @@ void FTestPolymorphicArrayStructNetSerializerFixture::SetUp()
 
 	FReplicationSystemInternal* ReplicationSystemInternal = Server->GetReplicationSystem()->GetReplicationSystemInternal();
 
-	InternalNetSerializationContext = FInternalNetSerializationContext(Server->ReplicationSystem, ReplicationSystemInternal->GetNetTokenStore().GetLocalNetTokenStoreState());
+	FInternalNetSerializationContext TempInternalNetSerializationContext;
+	FInternalNetSerializationContext::FInitParameters TempInternalNetSerializationContextInitParams;
+	TempInternalNetSerializationContextInitParams.ReplicationSystem = Server->ReplicationSystem;
+	TempInternalNetSerializationContextInitParams.ObjectResolveContext.RemoteNetTokenStoreState = ReplicationSystemInternal->GetNetTokenStore().GetLocalNetTokenStoreState();
+	TempInternalNetSerializationContext.Init(TempInternalNetSerializationContextInitParams);
+
+	InternalNetSerializationContext = MoveTemp(TempInternalNetSerializationContext);
 	NetSerializationContext.SetInternalContext(&InternalNetSerializationContext);
 
 	FMemory::Memzero(QuantizedBuffer, 0);

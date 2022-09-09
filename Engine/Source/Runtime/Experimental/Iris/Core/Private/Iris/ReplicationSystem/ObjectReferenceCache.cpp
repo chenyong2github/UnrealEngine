@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectReferenceCache.h"
+#include "Iris/IrisConstants.h"
 #include "Iris/Core/IrisLog.h"
 #include "Iris/Core/IrisMemoryTracker.h"
 #include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
@@ -164,9 +165,9 @@ bool FObjectReferenceCache::ShouldIgnoreWhenMissing(FNetHandle RefHandle) const
 	return CacheObject->bIgnoreWhenMissing;
 }
 
-bool FObjectReferenceCache::RenamePathForPie(FString &Str, bool bReading)
+bool FObjectReferenceCache::RenamePathForPie(uint32 ConnectionId, FString& Str, bool bReading)
 {
-	return GPlayInEditorID != -1 ? ReplicationBridge->RemapPathForPIE(Str, bReading) : false;
+	return GPlayInEditorID != -1 ? ReplicationBridge->RemapPathForPIE(ConnectionId, Str, bReading) : false;
 }
 
 FNetHandle FObjectReferenceCache::CreateObjectReferenceHandle(const UObject* Object)
@@ -239,9 +240,10 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 			if (FNetHandle* ReplicatedOuter = ObjectToNetReferenceHandle.Find(Outer))
 			{
 				FString RelativeObjectPath = Object->GetPathName(Outer);
-				RenamePathForPie(RelativeObjectPath, false);		
+				constexpr bool bReading = false;
+				// The connection ID isn't used unless reading.
+				RenamePathForPie(UE::Net::InvalidConnectionId, RelativeObjectPath, bReading);
 				OutReference = MakeNetObjectReference(*ReplicatedOuter, StringTokenStore->GetOrCreateToken(RelativeObjectPath));
-
 				return true;
 			}
 		}
@@ -255,9 +257,10 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 		{
 			// For static objects we can always fall back on the full pathname
 			FString ObjectPath = Object->GetPathName();
-			RenamePathForPie(ObjectPath, false);		
-			OutReference = MakeNetObjectReference(FNetHandle(), StringTokenStore->GetOrCreateToken(ObjectPath));
-		
+			constexpr bool bReading = false;
+			// The connection ID isn't used unless reading.
+			RenamePathForPie(UE::Net::InvalidConnectionId, ObjectPath, bReading);
+			OutReference = MakeNetObjectReference(FNetHandle(), StringTokenStore->GetOrCreateToken(ObjectPath));	
 			return true;
 		}
 	}
@@ -272,7 +275,9 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 	if (bIsFullNameStableForNetworking || Object->IsNameStableForNetworking())
 	{
 		FString ObjectPath = Object->GetName();
-		RenamePathForPie(ObjectPath, false);
+		constexpr bool bReading = false;
+		// The connection ID isn't used unless reading.
+		RenamePathForPie(UE::Net::InvalidConnectionId, ObjectPath, bReading);
 		PathToken = StringTokenStore->GetOrCreateToken(ObjectPath);
 	}
 
@@ -520,7 +525,8 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetHandle 
 #if UE_NET_VALIDATE_REFERENCECACHE
 		{			
 			FString ObjectPath(StringTokenStore->ResolveRemoteToken(CacheObjectPtr->RelativePath, *ResolveContext.RemoteNetTokenStoreState));
-			RenamePathForPie(ObjectPath, true);
+			constexpr bool bReading = true;
+			RenamePathForPie(ResolveContext.ConnectionId, ObjectPath, bReading);
 			check(ObjectPath == Object->GetFName().ToString() || RefHandle.IsDynamic() || IsAuthority());
 
 			FNetHandle* ExistingRefHandle = ObjectToNetReferenceHandle.Find(Object);
@@ -615,7 +621,8 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetHandle 
 	}
 
 	FString ObjectPath(ResolvedToken);
-	RenamePathForPie(ObjectPath, true);
+	constexpr bool bReading = true;
+	RenamePathForPie(ResolveContext.ConnectionId, ObjectPath, bReading);
 
 	// See if this object is in memory
 	Object = StaticFindObject(UObject::StaticClass(), ObjOuter, *ObjectPath, false);
@@ -847,7 +854,8 @@ ENetObjectReferenceResolveResult FObjectReferenceCache::ResolveObjectReference(c
 		if (ResolvedToken)
 		{
 			FString ObjectPath(ResolvedToken);
-			RenamePathForPie(ObjectPath, true);
+			constexpr bool bReading = true;
+			RenamePathForPie(ResolveContext.ConnectionId, ObjectPath, bReading);
 
 			// If both path and handle is valid this is a reference to a dynamic object with a relative path
 			if (Reference.GetRefHandle().IsValid())

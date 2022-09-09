@@ -86,7 +86,7 @@ protected:
 	virtual void EndInstantiateFromRemote(FNetHandle Handle) override;
 	virtual void DestroyInstanceFromRemote(UObject* Instance, bool bTearOff) override;
 	virtual void GetInitialDependencies(FNetHandle Handle, FNetDependencyInfoArray& OutDependencies) const override;
-	virtual bool RemapPathForPIE(FString& Path, bool bReading) const override;
+	virtual bool RemapPathForPIE(uint32 ConnectionId, FString& Path, bool bReading) const override;
 	virtual bool ObjectLevelHasFinishedLoading(UObject* Object) const override;
 
 private:

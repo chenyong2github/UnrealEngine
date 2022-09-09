@@ -8,6 +8,14 @@
 namespace UE::Net::Private
 {
 
+FInternalNetSerializationContext::FInternalNetSerializationContext(UReplicationSystem* InReplicationSystem)
+: ReplicationSystem(InReplicationSystem)
+, ObjectReferenceCache(&InReplicationSystem->GetReplicationSystemInternal()->GetObjectReferenceCache())
+, bDowngradeAutonomousProxyRole(0)
+, bInlineObjectReferenceExports(0)
+{
+}
+
 void* FInternalNetSerializationContext::Alloc(SIZE_T Size, SIZE_T Alignment)
 {
 	return GMalloc->Malloc(Size, Alignment);
@@ -23,13 +31,11 @@ void* FInternalNetSerializationContext::Realloc(void* PrevAddress, SIZE_T NewSiz
 	return GMalloc->Realloc(PrevAddress, NewSize, Alignment);
 }
 
-FInternalNetSerializationContext::FInternalNetSerializationContext(UReplicationSystem* ReplicationSystem, FNetTokenStoreState* RemoteTokenStoreState)
-: ReplicationSystem(ReplicationSystem)
-, ObjectReferenceCache(&ReplicationSystem->GetReplicationSystemInternal()->GetObjectReferenceCache())
-, bDowngradeAutonomousProxyRole(0)
-, bInlineObjectReferenceExports(0)
+void FInternalNetSerializationContext::Init(const FInitParameters& InitParams)
 {
-	ResolveContext.RemoteNetTokenStoreState = RemoteTokenStoreState;
+	ReplicationSystem = InitParams.ReplicationSystem;
+	ObjectReferenceCache = &InitParams.ReplicationSystem->GetReplicationSystemInternal()->GetObjectReferenceCache();
+	ResolveContext = InitParams.ObjectResolveContext;
 }
 
 }

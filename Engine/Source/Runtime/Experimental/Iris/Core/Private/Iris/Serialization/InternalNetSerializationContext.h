@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
+#include "Iris/IrisConstants.h"
 #include "Iris/ReplicationSystem/ObjectReferenceCacheFwd.h"
 
 class UReplicationSystem;
@@ -19,8 +20,16 @@ namespace UE::Net::Private
 class FInternalNetSerializationContext final
 {
 public:
+	struct FInitParameters
+	{
+		UReplicationSystem* ReplicationSystem = nullptr;
+		FNetObjectResolveContext ObjectResolveContext;
+	};
+
 	FInternalNetSerializationContext();
-	FInternalNetSerializationContext(UReplicationSystem* ReplicationSystem, FNetTokenStoreState* RemoteTokenStoreState = nullptr);
+	explicit FInternalNetSerializationContext(UReplicationSystem* InReplicationSystem);
+
+	void Init(const FInitParameters& Params);
 
 	// We allow memory allocations for dynamic states
 	void* Alloc(SIZE_T Size, SIZE_T Alignment);

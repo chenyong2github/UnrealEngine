@@ -126,7 +126,7 @@ private:
 	bool SupportsObjectInternal(const UObject* Object) const;
 	bool CanClientLoadObjectInternal(const UObject* Object, bool bIsDynamic) const;
 	bool ShouldIgnoreWhenMissing(FNetHandle RefHandle) const;
-	bool RenamePathForPie(FString &Str, bool bReading);
+	bool RenamePathForPie(uint32 ConnectionId, FString& Str, bool bReading);
 
 	// Get the string path of RefHandle
 	FString FullPath(FNetHandle RefHandle, const FNetObjectResolveContext& ResolveContext) const;

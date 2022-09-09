@@ -99,18 +99,39 @@ void FTestFieldPathNetSerializer::SetUp()
 		ServerNetSerializationContext = FNetSerializationContext(&Reader, &Writer);
 		ServerNetSerializationContext.SetInternalContext(&ServerInternalContext);
 		ServerNetSerializationContext.SetLocalConnectionId(Client->ConnectionIdOnServer);
-		ServerInternalContext = FInternalNetSerializationContext(Server->GetReplicationSystem(), Server->GetConnectionInfo(ServerNetSerializationContext.GetLocalConnectionId()).RemoteNetTokenStoreState);
 
-		// Since we do explicit serialization involving object references we set the context to allow for inlined exports
-		ServerInternalContext.bInlineObjectReferenceExports = 1U;
+		{
+			const FReplicationSystemTestNode::FConnectionInfo& ConnectionInfo = Server->GetConnectionInfo(Client->ConnectionIdOnServer);
+
+			FInternalNetSerializationContext TempServerInternalContext;
+			FInternalNetSerializationContext::FInitParameters TempServerInternalContextInitParams;
+			TempServerInternalContextInitParams.ReplicationSystem = Server->GetReplicationSystem();
+			TempServerInternalContextInitParams.ObjectResolveContext.RemoteNetTokenStoreState = ConnectionInfo.RemoteNetTokenStoreState;
+			TempServerInternalContextInitParams.ObjectResolveContext.ConnectionId = ConnectionInfo.ConnectionId;
+			TempServerInternalContext.Init(TempServerInternalContextInitParams);
+			// Since we do explicit serialization involving object references we set the context to allow for inlined exports
+			TempServerInternalContext.bInlineObjectReferenceExports = 1U;
+			ServerInternalContext = MoveTemp(TempServerInternalContext);
+		}
+
+		{
+			const FReplicationSystemTestNode::FConnectionInfo& ConnectionInfo = Client->GetConnectionInfo(Client->LocalConnectionId);
+
+			FInternalNetSerializationContext TempClientInternalContext;
+			FInternalNetSerializationContext::FInitParameters TempClientInternalContextInitParams;
+			TempClientInternalContextInitParams.ReplicationSystem = Client->GetReplicationSystem();
+			TempClientInternalContextInitParams.ObjectResolveContext.RemoteNetTokenStoreState = ConnectionInfo.RemoteNetTokenStoreState;
+			TempClientInternalContextInitParams.ObjectResolveContext.ConnectionId = ConnectionInfo.ConnectionId;
+			TempClientInternalContext.Init(TempClientInternalContextInitParams);
+			// Since we do explicit serialization involving object references we set the context to allow for inlined exports
+			TempClientInternalContext.bInlineObjectReferenceExports = 1U;
+
+			ClientInternalContext = MoveTemp(TempClientInternalContext);
+		}
 
 		ClientNetSerializationContext = FNetSerializationContext(&Reader, &Writer);
 		ClientNetSerializationContext.SetInternalContext(&ClientInternalContext);
 		ClientNetSerializationContext.SetLocalConnectionId(Client->LocalConnectionId);
-		ClientInternalContext = FInternalNetSerializationContext(Client->GetReplicationSystem(), Client->GetConnectionInfo(ClientNetSerializationContext.GetLocalConnectionId()).RemoteNetTokenStoreState);
-
-		// Since we do explicit serialization involving object references we set the context to allow for inlined exports
-		ClientInternalContext.bInlineObjectReferenceExports = 1U;
 	}
 
 	if (TestValues.Num() == 0)

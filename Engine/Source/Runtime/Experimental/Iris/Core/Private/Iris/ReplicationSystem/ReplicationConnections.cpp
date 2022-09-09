@@ -38,7 +38,6 @@ void FReplicationConnections::InitDataStreams(uint32 ReplicationSystemId, uint32
 
 	// Init ReplicationDataStream
 	Connection->ReplicationWriter->SetNetExports(DataStreamManager->GetNetExports());
-	Connection->ReplicationWriter->SetRemoteNetTokenStoreState(&RemoteNetTokenStoreStates[ConnectionId]);
 	Connection->ReplicationReader->SetRemoteNetTokenStoreState(&RemoteNetTokenStoreStates[ConnectionId]);
 
 	UReplicationDataStream* ReplicationDataStream = StaticCast<UReplicationDataStream*>(DataStreamManager->GetStream(FName("Replication")));

@@ -5,6 +5,7 @@
 
 #include "Net/Iris/ReplicationSystem/ActorReplicationBridgeInternal.h"
 #include "Iris/IrisConfig.h"
+#include "Iris/IrisConstants.h"
 #include "Iris/Core/IrisLog.h"
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/NetObjectReference.h"
@@ -20,6 +21,7 @@
 #include "Iris/Serialization/IrisObjectReferencePackageMap.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -943,11 +945,18 @@ void UActorReplicationBridge::GetSubObjectCreationHeader(const UObject* Object, 
 	Header.ObjectReference = ObjectRef;
 }
 
-bool UActorReplicationBridge::RemapPathForPIE(FString &Str, bool bReading) const
+bool UActorReplicationBridge::RemapPathForPIE(uint32 ConnectionId, FString& Str, bool bReading) const
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GEngine->NetworkRemapPath(NetDriver, Str, bReading);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (ConnectionId == UE::Net::InvalidConnectionId)
+	{
+		return GEngine->NetworkRemapPath(static_cast<UNetConnection*>(nullptr), Str, bReading);
+	}
+	else
+	{
+		UObject* UserData = GetReplicationSystem()->GetConnectionUserData(ConnectionId);
+		UNetConnection* NetConnection = Cast<UNetConnection>(UserData);
+		return GEngine->NetworkRemapPath(NetConnection, Str, bReading);
+	}
 }
 
 bool UActorReplicationBridge::ObjectLevelHasFinishedLoading(UObject* Object) const
