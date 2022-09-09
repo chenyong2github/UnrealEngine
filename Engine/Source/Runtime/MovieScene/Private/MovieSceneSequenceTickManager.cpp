@@ -182,19 +182,19 @@ void UMovieSceneSequenceTickManager::UnregisterTickClient(TScriptInterface<IMovi
 		PendingActorOperations->Add(FPendingOperation{ InTickInterface, InTickInterface.GetObject(), FMovieSceneSequenceTickInterval(),  FPendingOperation::EType::Unregister });
 		return;
 	}
-
-	UnregisterTickClientImpl(ClientInterface);
-}
-
-void UMovieSceneSequenceTickManager::UnregisterTickClientImpl(IMovieSceneSequenceTickManagerClient* InClientInterface)
-{
+	
 	// Remove any latent actions tied to the given client.
 	UObject* Object = InTickInterface.GetObject();
 	if (Object)
 	{
 		ClearLatentActions(Object);
 	}
-	
+
+	UnregisterTickClientImpl(ClientInterface);
+}
+
+void UMovieSceneSequenceTickManager::UnregisterTickClientImpl(IMovieSceneSequenceTickManagerClient* InClientInterface)
+{
 	const int32 ClientIndex = Algo::IndexOfBy(TickableClients, InClientInterface, &FTickableClientData::Interface);
 	if (!TickableClients.IsValidIndex(ClientIndex))
 	{
