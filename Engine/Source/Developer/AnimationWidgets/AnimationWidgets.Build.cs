@@ -19,16 +19,5 @@ public class AnimationWidgets : ModuleRules
 				"AnimationCore",
 			}
 		);
-
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/AnimationWidgets/Private",
-			}
-		);
 	}
 }

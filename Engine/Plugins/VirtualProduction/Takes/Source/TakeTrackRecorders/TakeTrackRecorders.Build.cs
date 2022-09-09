@@ -20,12 +20,5 @@ public class TakeTrackRecorders : ModuleRules
 				"UnrealEd",
             }
         );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"TakeTrackRecorders/Private",
-				"TakeTrackRecorders/Public",
-			}
-		);
 	}
 }

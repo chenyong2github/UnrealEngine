@@ -6,8 +6,6 @@ public class AssetTools : ModuleRules
 {
 	public AssetTools(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Developer/AssetTools/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

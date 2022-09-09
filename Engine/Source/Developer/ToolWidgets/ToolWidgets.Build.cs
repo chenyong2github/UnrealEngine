@@ -27,11 +27,5 @@ public class ToolWidgets : ModuleRules
 				"ApplicationCore"
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/ToolWidgets/Private",
-			}
-		);
 	}
 }

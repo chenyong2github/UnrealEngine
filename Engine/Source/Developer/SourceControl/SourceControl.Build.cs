@@ -6,8 +6,6 @@ public class SourceControl : ModuleRules
 {
 	public SourceControl(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.Add("Developer/SourceControl/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public MeshDescriptionOperations(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.Add("Developer/MeshDescriptionOperations/Private");
-            PublicIncludePaths.Add("Developer/MeshDescriptionOperations/Public");
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

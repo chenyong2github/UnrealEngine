@@ -20,12 +20,5 @@ public class TakeMovieScene : ModuleRules
 				"Engine",
             }
         );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"TakeMovieScene/Private",
-				"TakeMovieScene/Public",
-			}
-		);
 	}
 }

@@ -18,11 +18,6 @@ namespace UnrealBuildTool.Rules
 					"Core",
 				});
 
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-				});
-
 			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 			{
 				PrecompileForTargets = PrecompileTargetsType.Any;

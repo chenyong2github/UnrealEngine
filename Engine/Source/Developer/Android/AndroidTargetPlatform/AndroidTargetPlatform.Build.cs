@@ -35,11 +35,5 @@ public class AndroidTargetPlatform : ModuleRules
         }
 
         PublicDefinitions.Add("WITH_OGGVORBIS=1");
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-            }
-        );
 	}
 }

@@ -45,13 +45,6 @@ public class FunctionalTesting : ModuleRules
 			);
 		}
 
-        PrivateIncludePaths.AddRange(
-            new string[]
-            {
-                "Developer/FunctionalTesting/Private",
-			}
-		);
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"ImageWrapper",

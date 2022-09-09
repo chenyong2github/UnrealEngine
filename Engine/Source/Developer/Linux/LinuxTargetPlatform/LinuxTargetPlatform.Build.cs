@@ -24,11 +24,6 @@ public class LinuxTargetPlatform : ModuleRules
 			}
 		);
 
-        PrivateIncludePaths.AddRange(
-            new string[] {
-			}
-        );
-
 		if (Target.bCompileAgainstEngine)
 		{
 			PrivateDependencyModuleNames.Add("Engine");

@@ -6,8 +6,6 @@ public class AnimationBlueprintEditor : ModuleRules
 {
 	public AnimationBlueprintEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Editor/AnimationBlueprintEditor/Private");	// For PCH includes (because they don't work with relative paths, yet)
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry", 

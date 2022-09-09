@@ -9,11 +9,6 @@ public class AESHandlerComponent : ModuleRules
 
 	public AESHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

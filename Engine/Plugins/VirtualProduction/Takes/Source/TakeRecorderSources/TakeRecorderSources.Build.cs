@@ -38,12 +38,5 @@ public class TakeRecorderSources : ModuleRules
                 "TakeTrackRecorders",
             }
         );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"TakeRecorderSources/Private",
-				"TakeRecorderSources/Public",
-			}
-		);
 	}
 }

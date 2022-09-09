@@ -27,12 +27,5 @@ public class TakeSequencer : ModuleRules
 				"Engine",
             }
         );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"TakeSequencer/Private",
-				"TakeSequencer/Public",
-			}
-		);
 	}
 }

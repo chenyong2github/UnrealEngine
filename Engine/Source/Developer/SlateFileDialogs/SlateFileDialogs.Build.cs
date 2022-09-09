@@ -16,12 +16,6 @@ public class SlateFileDialogs : ModuleRules
                 "DirectoryWatcher",
             }
         );
-    
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Developer/SlateFileDialogs/Private",  
-            }
-        );
 
         PrivateIncludePathModuleNames.Add("TargetPlatform");
     }

@@ -6,18 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public NetworkPredictionExtras(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
-				new string[] {
-                    ModuleDirectory + "/Public",
-				}
-				);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-                    "NetworkPredictionExtras/Private",
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

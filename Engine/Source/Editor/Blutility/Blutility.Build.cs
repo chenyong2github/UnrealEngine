@@ -6,8 +6,6 @@ public class Blutility : ModuleRules
 {
 	public Blutility(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Editor/Blutility/Private");
-
 		PrivateIncludePathModuleNames.Add("AssetTools");
 
         PublicDependencyModuleNames.AddRange(new string[] {

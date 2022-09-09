@@ -6,8 +6,6 @@ public class DetailCustomizations : ModuleRules
 {
 	public DetailCustomizations(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Editor/DetailCustomizations/Private");	// For PCH includes (because they don't work with relative paths, yet)
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AppFramework",

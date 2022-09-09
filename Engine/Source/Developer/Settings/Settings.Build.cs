@@ -18,12 +18,6 @@ public class Settings : ModuleRules
 				"CoreUObject",
 			});
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Developer/Settings/Private",
-			});
-
 		PrecompileForTargets = PrecompileTargetsType.Any;
 	}
 }

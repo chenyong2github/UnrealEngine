@@ -6,13 +6,7 @@ using System.IO;
 public class AnimGraph : ModuleRules
 {
 	public AnimGraph(ReadOnlyTargetRules Target) : base(Target)
-	{
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Editor/AnimGraph/Private",
-            }
-        );
-		
+	{		
 		OverridePackageType = PackageOverrideType.EngineDeveloper;
 
         PublicDependencyModuleNames.AddRange(

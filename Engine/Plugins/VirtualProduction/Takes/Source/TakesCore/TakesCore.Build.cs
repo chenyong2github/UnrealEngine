@@ -29,12 +29,5 @@ public class TakesCore : ModuleRules
 
             }
         );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"TakesCore/Private",
-				"TakesCore/Public",
-			}
-		);
 	}
 }

@@ -7,13 +7,6 @@ public class RenderTrace : ModuleRules
 {
 	public RenderTrace(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Private",
-                //"../Shaders/Shared"
-            }
-		);
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Renderer",

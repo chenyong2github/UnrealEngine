@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public Merge(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Developer/Merge/Private",
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

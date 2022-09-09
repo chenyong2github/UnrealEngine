@@ -9,11 +9,6 @@ public class AESGCMHandlerComponent : ModuleRules
 
 	public AESGCMHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

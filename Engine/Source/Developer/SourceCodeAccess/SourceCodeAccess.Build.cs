@@ -19,7 +19,5 @@ public class SourceCodeAccess : ModuleRules
 				"Slate",
 			}
 		);
-
-		PrivateIncludePaths.Add("Developer/SourceCodeAccess/Private");
 	}
 }

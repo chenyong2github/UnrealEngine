@@ -6,8 +6,6 @@ public class StandaloneRenderer : ModuleRules
 {
 	public StandaloneRenderer(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Developer/StandaloneRenderer/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

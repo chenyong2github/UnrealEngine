@@ -6,21 +6,6 @@ public class LiveLinkCamera : ModuleRules
 {
 	public LiveLinkCamera(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] 
-			{
-			}
-		);
-			
-		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -32,13 +17,6 @@ public class LiveLinkCamera : ModuleRules
 				"LiveLinkInterface",
 				"LiveLink",
 				"LiveLinkComponents",
-			}
-		);
-			
-		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
 			}
 		);
 	}

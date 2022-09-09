@@ -81,11 +81,6 @@ namespace UnrealBuildTool.Rules
             }
             else if (Target.Platform == UnrealTargetPlatform.Android)
             {
-                PrivateIncludePaths.AddRange(
-                        new string[]
-                        {
-                        });
-
                 // Vulkan
                 {
                     AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");

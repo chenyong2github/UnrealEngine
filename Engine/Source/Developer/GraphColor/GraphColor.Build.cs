@@ -6,9 +6,6 @@ public class GraphColor : ModuleRules
 {
 	public GraphColor(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicIncludePaths.Add("Developer/GraphColor/Public");
-		//PrivateIncludePaths.Add("Developer/GraphColor/Private");
-
         PrivateDependencyModuleNames.AddRange(new string[] { "Core" });
 	}
 }

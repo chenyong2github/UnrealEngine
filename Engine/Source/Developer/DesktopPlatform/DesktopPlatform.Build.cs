@@ -6,8 +6,6 @@ public class DesktopPlatform : ModuleRules
 {
 	public DesktopPlatform(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("Developer/DesktopPlatform/Private");
-
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"DerivedDataCache",

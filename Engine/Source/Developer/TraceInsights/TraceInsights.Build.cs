@@ -6,13 +6,6 @@ public class TraceInsights : ModuleRules
 {
 	public TraceInsights(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange
-		(
-			new string[] {
-				"Developer/TraceInsights/Private",
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange
 		(
 			new string[] {

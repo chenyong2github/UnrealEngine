@@ -32,12 +32,6 @@ public class ScreenShotComparisonTools : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/ScreenShotComparisonTools/Private"
-			}
-		);
-
 		if (Target.bCompileAgainstEngine && Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			PrecompileForTargets = PrecompileTargetsType.Any;
