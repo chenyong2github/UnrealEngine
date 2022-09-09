@@ -442,7 +442,7 @@ public:
 	{
 		RealSize = ResourceSize ? ResourceSize : InSize;
 
-		if (!RHICmdList || RHICmdList->IsBottomOfPipe())
+		if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 		{
 			CreateGLBuffer(InData, ResourceToUse, ResourceSize);
 		}
