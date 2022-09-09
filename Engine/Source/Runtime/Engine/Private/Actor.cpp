@@ -2105,17 +2105,19 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void AActor::K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
+bool AActor::K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
-	AttachToComponent(Parent, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
+	return AttachToComponent(Parent, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
 }
 
-void AActor::AttachToComponent(USceneComponent* Parent, const FAttachmentTransformRules& AttachmentRules, FName SocketName)
+bool AActor::AttachToComponent(USceneComponent* Parent, const FAttachmentTransformRules& AttachmentRules, FName SocketName)
 {
 	if (RootComponent && Parent)
 	{
-		RootComponent->AttachToComponent(Parent, AttachmentRules, SocketName);
+		return RootComponent->AttachToComponent(Parent, AttachmentRules, SocketName);
 	}
+
+	return false;
 }
 
 void AActor::OnRep_AttachmentReplication()
@@ -2177,21 +2179,23 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
-void AActor::K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
+bool AActor::K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
-	AttachToActor(ParentActor, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
+	return AttachToActor(ParentActor, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
 }
 
-void AActor::AttachToActor(AActor* ParentActor, const FAttachmentTransformRules& AttachmentRules, FName SocketName)
+bool AActor::AttachToActor(AActor* ParentActor, const FAttachmentTransformRules& AttachmentRules, FName SocketName)
 {
 	if (RootComponent && ParentActor)
 	{
 		USceneComponent* ParentDefaultAttachComponent = ParentActor->GetDefaultAttachComponent();
 		if (ParentDefaultAttachComponent)
 		{
-			RootComponent->AttachToComponent(ParentDefaultAttachComponent, AttachmentRules, SocketName);
+			return RootComponent->AttachToComponent(ParentDefaultAttachComponent, AttachmentRules, SocketName);
 		}
 	}
+
+	return false;
 }
 
 void AActor::DetachRootComponentFromParent(bool bMaintainWorldPosition)
