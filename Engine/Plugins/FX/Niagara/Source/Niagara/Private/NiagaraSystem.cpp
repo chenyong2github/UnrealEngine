@@ -3742,7 +3742,7 @@ UNiagaraBakerSettings* UNiagaraSystem::GetBakerSettings()
 	{
 		Modify();
 		BakerSettings = NewObject<UNiagaraBakerSettings>(this, "BakerSettings", RF_Transactional);
-		PostEditChange();
+		//PostEditChange();
 	}
 	return BakerSettings;
 }
