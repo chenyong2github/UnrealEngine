@@ -28,39 +28,6 @@ namespace UE::Online {
 
 		SessionMembers.Append(SessionUpdate.AddedSessionMembers);
 
-		for (const TPair<FAccountId, FSessionMemberChanges>& MemberEntry : SessionUpdate.SessionMembersChanges)
-		{
-			if (FSessionMember* SessionMember = SessionMembers.Find(MemberEntry.Key))
-			{
-				const FSessionMemberChanges& SessionMemberChanges = MemberEntry.Value;
-
-				for (const FName& Key : SessionMemberChanges.RemovedMemberSettings)
-				{
-					SessionMember->MemberSettings.Remove(Key);
-				}
-
-				SessionMember->MemberSettings.Append(SessionMemberChanges.AddedMemberSettings);
-
-				for (const TPair<FName, FCustomSessionSettingUpdate>& SettingEntry : SessionMemberChanges.ChangedMemberSettings)
-				{
-					if (FCustomSessionSetting* CustomSetting = SessionMember->MemberSettings.Find(SettingEntry.Key))
-					{
-						(*CustomSetting) = SettingEntry.Value.NewValue;
-					}
-				}
-			}
-		}
-
-		return *this;
-	}
-
-	/** FCombinedSessionUpdate */
-	FCombinedSessionUpdate& FCombinedSessionUpdate::operator+=(FCombinedSessionUpdate&& UpdatedValues)
-	{
-		UpdatedSessionSettings += MoveTemp(UpdatedValues.UpdatedSessionSettings);
-
-		UpdatedSessionMembers.Append(MoveTemp(UpdatedValues.UpdatedSessionMembers));
-
 		return *this;
 	}
 
@@ -88,7 +55,6 @@ namespace UE::Online {
 		RegisterCommand(&FSessionsCommon::ClearPresenceSession);
 		RegisterCommand(&FSessionsCommon::CreateSession);
 		RegisterCommand(&FSessionsCommon::UpdateSessionSettings);
-		RegisterCommand(&FSessionsCommon::UpdateSessionMember);
 		RegisterCommand(&FSessionsCommon::LeaveSession);
 		RegisterCommand(&FSessionsCommon::FindSessions);
 		RegisterCommand(&FSessionsCommon::StartMatchmaking);
@@ -96,6 +62,7 @@ namespace UE::Online {
 		RegisterCommand(&FSessionsCommon::AddSessionMember);
 		RegisterCommand(&FSessionsCommon::RemoveSessionMember);
 		RegisterCommand(&FSessionsCommon::SendSessionInvite);
+		RegisterCommand(&FSessionsCommon::GetSessionInvites);
 		RegisterCommand(&FSessionsCommon::RejectSessionInvite);
 	}
 
@@ -226,8 +193,8 @@ namespace UE::Online {
 				return;
 			}
 
-			UpdateSessionImpl({ OpParams.LocalAccountId, OpParams.SessionName, { OpParams.Mutations, {} } })
-			.Next([this, WeakOp = Op.AsWeak()](const TOnlineResult<FUpdateSessionImpl>& Result)
+			UpdateSessionSettingsImpl({ OpParams.LocalAccountId, OpParams.SessionName, OpParams.Mutations })
+			.Next([this, WeakOp = Op.AsWeak()](const TOnlineResult<FUpdateSessionSettingsImpl>& Result)
 			{
 				if (TOnlineAsyncOpPtr<FUpdateSessionSettings> StrongOp = WeakOp.Pin())
 				{
@@ -242,53 +209,6 @@ namespace UE::Online {
 					}
 				}
 			});			
-		})
-		.Enqueue(GetSerialQueue());
-
-		return Op->GetHandle();
-	}
-
-	TOnlineAsyncOpHandle<FUpdateSessionMember> FSessionsCommon::UpdateSessionMember(FUpdateSessionMember::Params&& Params)
-	{
-		// TODO: check if session members can update their own settings across all APIs or if they need the owner to do it
-
-		TOnlineAsyncOpRef<FUpdateSessionMember> Op = GetOp<FUpdateSessionMember>(MoveTemp(Params));
-		const FUpdateSessionMember::Params& OpParams = Op->GetParams();
-
-		FOnlineError ParamsCheck = CheckUpdateSessionMemberParams(OpParams);
-		if (ParamsCheck != Errors::Success())
-		{
-			Op->SetError(MoveTemp(ParamsCheck));
-			return Op->GetHandle();
-		}
-
-		Op->Then([this](TOnlineAsyncOp<FUpdateSessionMember>& Op) mutable
-		{
-			const FUpdateSessionMember::Params& OpParams = Op.GetParams();
-
-			FOnlineError StateCheck = CheckUpdateSessionMemberState(OpParams);
-			if (StateCheck != Errors::Success())
-			{
-				Op.SetError(MoveTemp(StateCheck));
-				return;
-			}
-
-			UpdateSessionImpl({ OpParams.LocalAccountId, OpParams.SessionName, { FSessionSettingsUpdate() , { { OpParams.LocalAccountId, OpParams.Mutations } } } })
-			.Next([this, WeakOp = Op.AsWeak()](const TOnlineResult<FUpdateSessionImpl>& Result)
-			{
-				if (TOnlineAsyncOpPtr<FUpdateSessionMember> StrongOp = WeakOp.Pin())
-				{
-					if (Result.IsOk())
-					{
-						StrongOp->SetResult({ });
-					}
-					else
-					{
-						FOnlineError ErrorValue = Result.GetErrorValue();
-						StrongOp->SetError(MoveTemp(ErrorValue));
-					}
-				}
-			});
 		})
 		.Enqueue(GetSerialQueue());
 
@@ -595,19 +515,21 @@ namespace UE::Online {
 #define COPY_TOPTIONAL_VALUE_IF_SET(Value) \
 	if (UpdatedValues.Value.IsSet()) \
 	{ \
-		Result.Value = UpdatedValues.Value.GetValue(); \
+		SessionSettingsChanges.Value = UpdatedValues.Value.GetValue(); \
 	} \
 
-	FSessionSettingsChanges FSessionsCommon::BuildSessionSettingsChanges(const TSharedRef<FSessionCommon>& Session, const FSessionSettingsUpdate& UpdatedValues) const
+	FSessionUpdate FSessionsCommon::BuildSessionUpdate(const TSharedRef<FSessionCommon>& Session, const FSessionSettingsUpdate& UpdatedValues) const
 	{
-		FSessionSettingsChanges Result;
+		FSessionUpdate Result;
+
+		FSessionSettingsChanges SessionSettingsChanges;
 
 		COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
 		COPY_TOPTIONAL_VALUE_IF_SET(NumMaxConnections)
 		COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
 		COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
 
-		Result.RemovedCustomSettings.Append(UpdatedValues.RemovedCustomSettings);
+		SessionSettingsChanges.RemovedCustomSettings.Append(UpdatedValues.RemovedCustomSettings);
 
 		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : UpdatedValues.UpdatedCustomSettings)
 		{
@@ -615,57 +537,24 @@ namespace UE::Online {
 			{
 				FCustomSessionSettingUpdate SettingUpdate = { *CustomSetting, Entry.Value };
 
-				Result.ChangedCustomSettings.Emplace(Entry.Key, SettingUpdate);
+				SessionSettingsChanges.ChangedCustomSettings.Emplace(Entry.Key, SettingUpdate);
 			}
 			else
 			{
-				Result.AddedCustomSettings.Add(Entry);
+				SessionSettingsChanges.AddedCustomSettings.Add(Entry);
 			}
 		}
+
+		Result.SessionSettingsChanges = SessionSettingsChanges;
 
 		return Result;
 	}
 
 #undef COPY_TOPTIONAL_VALUE_IF_SET
 
-	FSessionUpdate FSessionsCommon::BuildSessionUpdate(const TSharedRef<FSessionCommon>& Session, const FCombinedSessionUpdate& UpdatedValues) const
+	TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> FSessionsCommon::UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params)
 	{
-		FSessionUpdate Result;
-
-		Result.SessionSettingsChanges = BuildSessionSettingsChanges(Session, UpdatedValues.UpdatedSessionSettings);
-
-		for (const TPair<FAccountId, FSessionMemberUpdate>& SessionMemberEntry : UpdatedValues.UpdatedSessionMembers)
-		{
-			if (const FSessionMember* SessionMember = Session->GetSessionMembers().Find(SessionMemberEntry.Key))
-			{
-				FSessionMemberChanges SessionMemberChanges;
-
-				SessionMemberChanges.RemovedMemberSettings.Append(SessionMemberEntry.Value.RemovedMemberSettings);
-
-				for (const TPair <FSchemaAttributeId, FCustomSessionSetting>& SettingEntry : SessionMemberEntry.Value.UpdatedMemberSettings)
-				{
-					if (const FCustomSessionSetting* MemberSetting = SessionMember->MemberSettings.Find(SettingEntry.Key))
-					{
-						FCustomSessionSettingUpdate SettingUpdate = { *MemberSetting, SettingEntry.Value };
-
-						SessionMemberChanges.ChangedMemberSettings.Emplace(SettingEntry.Key, SettingUpdate);
-					}
-					else
-					{
-						SessionMemberChanges.AddedMemberSettings.Add(SettingEntry);
-					}
-				}
-
-				Result.SessionMembersChanges.Emplace(SessionMemberEntry.Key, SessionMemberChanges);
-			}
-		}
-
-		return Result;
-	}
-
-	TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsCommon::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
-	{
-		return MakeFulfilledPromise<TOnlineResult<FUpdateSessionImpl>>(Errors::NotImplemented()).GetFuture();
+		return MakeFulfilledPromise<TOnlineResult<FUpdateSessionSettingsImpl>>(Errors::NotImplemented()).GetFuture();
 	}
 
 	TOnlineResult<FAddSessionMember> FSessionsCommon::AddSessionMemberImpl(const FAddSessionMember::Params& Params)
@@ -684,7 +573,7 @@ namespace UE::Online {
 			return TOnlineResult<FAddSessionMember>(Errors::InvalidState());
 		}
 
-		FoundSession->SessionMembers.Emplace(Params.LocalAccountId, Params.NewSessionMember);
+		FoundSession->SessionMembers.Emplace(Params.LocalAccountId);
 
 		return TOnlineResult<FAddSessionMember>();
 	}
@@ -810,51 +699,6 @@ namespace UE::Online {
 		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalAccountId, Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionSettingsState] Session with name [%s] not found."), *Params.SessionName.ToString());
-
-			return Result.GetValue();
-		}
-
-		return Errors::Success();
-	}
-
-	FOnlineError FSessionsCommon::CheckUpdateSessionMemberParams(const FUpdateSessionMember::Params& Params)
-	{
-		if (!Params.LocalAccountId.IsValid())
-		{
-			return Errors::InvalidUser();
-		}
-
-		if (Params.SessionName.IsNone())
-		{
-			return Errors::InvalidParams();
-		}
-
-		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : Params.Mutations.UpdatedMemberSettings)
-		{
-			if (Entry.Key.IsNone())
-			{
-				return Errors::InvalidParams();
-			}
-		}
-
-		return Errors::Success();
-	}
-
-	FOnlineError FSessionsCommon::CheckUpdateSessionMemberState(const FUpdateSessionMember::Params& Params)
-	{
-		// User login check
-		IAuthPtr Auth = Services.GetAuthInterface();
-		if (!Auth->IsLoggedIn(Params.LocalAccountId))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionMemberState] User [%s] not logged in"), *ToLogString(Params.LocalAccountId));
-
-			return Errors::InvalidUser();
-		}
-
-		// Session name check
-		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalAccountId, Params.SessionName))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionMemberState] Session with name [%s] not found."), *Params.SessionName.ToString());
 
 			return Result.GetValue();
 		}

@@ -62,7 +62,7 @@ public:
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
 
 	// FSessionsCommon
-	virtual TFuture<TOnlineResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params) override;
+	virtual TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params) override;
 
 protected:
 	TOptional<FOnlineError> TryHostLANSession();

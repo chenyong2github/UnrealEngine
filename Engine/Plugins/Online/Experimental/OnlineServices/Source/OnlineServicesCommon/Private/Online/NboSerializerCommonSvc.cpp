@@ -58,11 +58,6 @@ void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FCustomSessionSettin
 	}
 }
 
-void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMember& SessionMember)
-{
-	SerializeToBuffer(Packet, SessionMember.MemberSettings);
-}
-
 void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionInfo& SessionInfo)
 {
 	Packet << SessionInfo.bAllowSanctionedPlayers;
@@ -155,11 +150,6 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FCustomSessionSettings
 
 		CustomSessionSettingsMap.Emplace(Key, Value);
 	}
-}
-
-void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMember& SessionMember)
-{
-	SerializeFromBuffer(Packet, SessionMember.MemberSettings);
 }
 
 void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionInfo& SessionInfo)

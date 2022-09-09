@@ -80,7 +80,7 @@ FSessionAttributeConverter<ESessionAttributeConversionType::ToService>::FSession
 }
 
 FSessionAttributeConverter<ESessionAttributeConversionType::ToService>::FSessionAttributeConverter(const TPair<FSchemaAttributeId, FSchemaVariant>& InData)
-	: KeyConverterStorage(InData.Key.ToString())
+	: KeyConverterStorage(*InData.Key.ToString())
 {
 	AttributeData.ApiVersion = EOS_SESSIONS_ATTRIBUTEDATA_API_LATEST;
 	static_assert(EOS_SESSIONS_ATTRIBUTEDATA_API_LATEST == 1, "EOS_Sessions_AttributeData updated, check new fields");
@@ -103,7 +103,7 @@ FSessionAttributeConverter<ESessionAttributeConversionType::ToService>::FSession
 		break;
 	case ESchemaAttributeType::String:
 		AttributeData.ValueType = EOS_ESessionAttributeType::EOS_AT_STRING;
-		ValueConverterStorage.Emplace(InData.Value.GetString());
+		ValueConverterStorage.Emplace(*InData.Value.GetString());
 		AttributeData.Value.AsUtf8 = ValueConverterStorage->Get();
 		break;
 	}

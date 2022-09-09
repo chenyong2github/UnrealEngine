@@ -85,7 +85,7 @@ public:
 	FSessionEOSGS(const FSessionEOSGS& InSession) = default;
 
 	/** This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved. */
-	FSessionEOSGS(const EOS_HSessionDetails& SessionDetailsHandle);
+	FSessionEOSGS(const TSharedPtr<FSessionDetailsHandleEOSGS>& InSessionDetailsHandle);
 
 	static const FSessionEOSGS& Cast(const ISession& InSession);
 
@@ -200,7 +200,7 @@ public:
 	virtual TOnlineAsyncOpHandle<FRemoveSessionMember> RemoveSessionMember(FRemoveSessionMember::Params&& Params) override;
 
 	// FSessionsCommon
-	virtual TFuture<TOnlineResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params) override;
+	virtual TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params) override;
 
 protected:
 	void RegisterEventHandlers();
@@ -231,11 +231,6 @@ protected:
 	 * Writes only the new values for all updated session settings to the SessionModificationHandle
 	 */
 	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FSessionSettingsUpdate& NewSettings);
-
-	/**
-	 * Writes only the new values for all updated member settings to the SessionModificationHandle
-	 */
-	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FAccountId& LocalAccountId, const FSessionMemberUpdate& MemberUpdate);
 
 	/**
 	 * Writes all relevant values set in the FindSessions parameters into the SessionSearchHandle

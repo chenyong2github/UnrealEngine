@@ -33,14 +33,13 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionId&
 	Ar.WriteBinary(Data.GetData(), Data.Num());
 }
 
-inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembersMap& SessionMembersMap)
+inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembersSet& SessionMembersSet)
 {
-	Packet << SessionMembersMap.Num();
+	Packet << SessionMembersSet.Num();
 
-	for (const TPair<FAccountId, FSessionMember>& Entry : SessionMembersMap)
+	for (const FAccountId& SessionMember : SessionMembersSet)
 	{
-		SerializeToBuffer(Packet, Entry.Key);
-		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
+		SerializeToBuffer(Packet, SessionMember);
 	}
 }
 
@@ -76,7 +75,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionId& S
 	SessionId = FOnlineSessionIdRegistryNull::Get().FromReplicationData(Data);
 }
 
-inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembersMap& SessionMembersMap)
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembersSet& SessionMembersSet)
 {
 	int32 NumEntries = 0;
 	Packet >> NumEntries;
@@ -86,10 +85,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembers
 		FAccountId Key;
 		SerializeFromBuffer(Packet, Key);
 
-		FSessionMember Value;
-		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
-
-		SessionMembersMap.Emplace(Key, Value);
+		SessionMembersSet.Emplace(Key);
 	}
 }
 

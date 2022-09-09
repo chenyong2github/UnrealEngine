@@ -162,7 +162,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		NewSessionLANRef->SessionSettings = OpParams.SessionSettings;
 
 		// For LAN sessions, we'll add the Session member manually instead of calling JoinSession since there is no API calls involved
-		NewSessionLANRef->SessionMembers.Emplace(OpParams.LocalAccountId, OpParams.SessionMemberData);
+		NewSessionLANRef->SessionMembers.Emplace(OpParams.LocalAccountId);
 
 		// We save the local object for the session, and set up the appropriate references
 		AddSessionWithReferences(NewSessionLANRef, OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
@@ -174,10 +174,10 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 	return Op->GetHandle();
 }
 
-TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsLAN::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
+TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> FSessionsLAN::UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params)
 {
-	TPromise<TOnlineResult<FUpdateSessionImpl>> Promise;
-	TFuture<TOnlineResult<FUpdateSessionImpl>> Future = Promise.GetFuture();
+	TPromise<TOnlineResult<FUpdateSessionSettingsImpl>> Promise;
+	TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> Future = Promise.GetFuture();
 
 	TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
 	check(GetMutableSessionByNameResult.IsOk());
@@ -186,13 +186,12 @@ TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsLAN::UpdateSessionImpl(FUpda
 
 	TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 	FSessionSettings& SessionSettings = FoundSession->SessionSettings;
-	const FCombinedSessionUpdate& SessionUpdate = Params.Mutations;
 
-	if (SessionUpdate.UpdatedSessionSettings.JoinPolicy.IsSet())
+	if (Params.Mutations.JoinPolicy.IsSet())
 	{
 		// Changes in the join policy setting will mean we start or stop the LAN Beacon broadcasting the session information
 		// There is no FriendsLAN interface at the time of this implementation, hence the binary behavior (Public/Non-Public)
-		if (SessionSettings.JoinPolicy != ESessionJoinPolicy::Public && SessionUpdate.UpdatedSessionSettings.JoinPolicy.GetValue() == ESessionJoinPolicy::Public)
+		if (SessionSettings.JoinPolicy != ESessionJoinPolicy::Public && Params.Mutations.JoinPolicy.GetValue() == ESessionJoinPolicy::Public)
 		{
 			if (TOptional<FOnlineError> TryHostLANSessionResult = TryHostLANSession())
 			{
@@ -200,7 +199,7 @@ TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsLAN::UpdateSessionImpl(FUpda
 				return Future;
 			}
 		}
-		else if (SessionSettings.JoinPolicy == ESessionJoinPolicy::Public && SessionUpdate.UpdatedSessionSettings.JoinPolicy.GetValue() != ESessionJoinPolicy::Public)
+		else if (SessionSettings.JoinPolicy == ESessionJoinPolicy::Public && Params.Mutations.JoinPolicy.GetValue() != ESessionJoinPolicy::Public)
 		{
 			StopLANSession();
 		}
@@ -212,7 +211,7 @@ TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsLAN::UpdateSessionImpl(FUpda
 	(*FoundSession) += SessionUpdateData;
 
 	// We set the result and fire the event
-	Promise.EmplaceValue(FUpdateSessionImpl::Result{ });
+	Promise.EmplaceValue(FUpdateSessionSettingsImpl::Result{ });
 
 	FSessionUpdated SessionUpdatedEvent{ Params.SessionName, SessionUpdateData };
 	SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);

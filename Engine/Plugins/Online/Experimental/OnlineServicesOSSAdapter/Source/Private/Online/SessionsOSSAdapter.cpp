@@ -360,14 +360,11 @@ void FSessionsOSSAdapter::Initialize()
 			FSessionUpdate SessionUpdate;
 			if (bJoined)
 			{
-				if (const FSessionMember* SessionMember = FoundSession->GetSessionMembers().Find(TargetAccountId))
-				{
-					SessionUpdate.AddedSessionMembers.Emplace(TargetAccountId, *SessionMember);
-				}
+				SessionUpdate.AddedSessionMembers.Emplace(TargetAccountId);
 			}
 			else
 			{
-				SessionUpdate.RemovedSessionMembers.Add(TargetAccountId);
+				SessionUpdate.RemovedSessionMembers.Emplace(TargetAccountId);
 			}
 
 			const FSessionUpdated Event { SessionName , SessionUpdate };
@@ -376,64 +373,7 @@ void FSessionsOSSAdapter::Initialize()
 		}
 	}));
 
-	SessionsInterface->AddOnSessionParticipantSettingsUpdatedDelegate_Handle(FOnSessionParticipantSettingsUpdatedDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId, const FOnlineSessionSettings& UpdatedSettings)
-	{
-		// We won't transmit events for a session or member that doesn't exist
-		const TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ SessionName });
-		if (GetSessionByNameResult.IsOk())
-		{
-			const TSharedRef<const ISession>& FoundSession = GetSessionByNameResult.GetOkValue().Session;
-
-			const FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
-			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
-			const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
-
-			FSessionUpdate SessionUpdate;
-			if (const FSessionMember* SessionMember = FoundSession->GetSessionMembers().Find(TargetAccountId))
-			{
-				const ::FSessionSettings* MemberSettings = UpdatedSettings.MemberSettings.Find(TargetUniqueNetIdRef);
-				const FCustomSessionSettingsMap UpdatedMemberSettings = GetV2SessionSettings(*MemberSettings);
-
-				FSessionMemberChanges SessionMemberChanges;
-				for (const TPair<FName, FCustomSessionSetting>& Entry : UpdatedMemberSettings)
-				{
-					if (const FCustomSessionSetting* Setting = SessionMember->MemberSettings.Find(Entry.Key))
-					{
-						if (Setting->Data != Entry.Value.Data || Setting->Visibility != Entry.Value.Visibility || Setting->ID != Entry.Value.ID)
-						{
-							FCustomSessionSettingUpdate SettingUpdate;
-							SettingUpdate.OldValue = *Setting;
-							SettingUpdate.NewValue = Entry.Value;
-
-							SessionMemberChanges.ChangedMemberSettings.Emplace(Entry.Key, SettingUpdate);
-						}
-					}
-					else
-					{
-						SessionMemberChanges.AddedMemberSettings.Emplace(Entry.Key, Entry.Value);
-					}
-				}
-
-				for (const TPair<FName, FCustomSessionSetting>& Entry : SessionMember->MemberSettings)
-				{
-					if (!UpdatedMemberSettings.Contains(Entry.Key))
-					{
-						SessionMemberChanges.RemovedMemberSettings.AddUnique(Entry.Key);
-					}
-				}
-
-				SessionUpdate.SessionMembersChanges.Emplace(TargetAccountId, SessionMemberChanges);
-			}
-
-			// TODO: Method to update the interface session with the latest OSS Adapter session data
-			// Done after the update to read the value differences
-
-			const FSessionUpdated Event{ SessionName , SessionUpdate };
-
-			SessionEvents.OnSessionUpdated.Broadcast(Event);
-
-		}
-	}));
+	// Session member settings don't exist in V2, so we won't bind to FOnSessionParticipantSettingsUpdated
 }
 
 void FSessionsOSSAdapter::Shutdown()
@@ -505,10 +445,10 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateS
 	return Op->GetHandle();
 }
 
-TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsOSSAdapter::UpdateSessionImpl(FUpdateSessionImpl::Params&& Params)
+TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> FSessionsOSSAdapter::UpdateSessionSettingsImpl(FUpdateSessionSettingsImpl::Params&& Params)
 {
-	TPromise<TOnlineResult<FUpdateSessionImpl>> Promise;
-	TFuture<TOnlineResult<FUpdateSessionImpl>> Future = Promise.GetFuture();
+	TPromise<TOnlineResult<FUpdateSessionSettingsImpl>> Promise;
+	TFuture<TOnlineResult<FUpdateSessionSettingsImpl>> Future = Promise.GetFuture();
 
 	MakeMulticastAdapter(this, SessionsInterface->OnUpdateSessionCompleteDelegates,
 	[this, Promise = MoveTemp(Promise), OpParams = Params](FName SessionName, const bool bWasSuccessful) mutable
@@ -530,7 +470,7 @@ TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsOSSAdapter::UpdateSessionImp
 			(*FoundSession) += SessionUpdateData;
 
 			// We set the result and fire the event
-			Promise.EmplaceValue(FUpdateSessionImpl::Result{ });
+			Promise.EmplaceValue(FUpdateSessionSettingsImpl::Result{ });
 
 			FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, SessionUpdateData };
 			SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
@@ -548,8 +488,9 @@ TFuture<TOnlineResult<FUpdateSessionImpl>> FSessionsOSSAdapter::UpdateSessionImp
 
 	// We will update a copy here, and wait until the operation has completed successfully to update our local data
 	FSessionSettings UpdatedV2Settings = FoundSession->SessionSettings;
-	FSessionSettingsChanges SessionSettingsChanges = BuildSessionSettingsChanges(FoundSession, Params.Mutations.UpdatedSessionSettings);
-	UpdatedV2Settings += SessionSettingsChanges;
+	FSessionUpdate SessionUpdate = BuildSessionUpdate(FoundSession, Params.Mutations);
+	check(SessionUpdate.SessionSettingsChanges.IsSet());
+	UpdatedV2Settings += SessionUpdate.SessionSettingsChanges.GetValue();
 
 	FOnlineSessionSettings UpdatedV1Settings = BuildV1SettingsForUpdate(Params.LocalAccountId, FoundSession);
 
@@ -827,28 +768,7 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 		FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
 		TArray<FSessionMatchmakingUser> MatchMakingUsers;
-
 		FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(OpParams.SessionCreationParameters.LocalAccountId).ToSharedRef() };
-
-		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : OpParams.SessionCreationParameters.SessionMemberData.MemberSettings)
-		{
-			switch (Entry.Value.Data.VariantType)
-			{
-			case ESchemaAttributeType::Bool:
-				NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetBoolean()));
-				break;
-			case ESchemaAttributeType::Double:
-				NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetDouble()));
-				break;
-			case ESchemaAttributeType::Int64:
-				NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetInt64()));
-				break;
-			case ESchemaAttributeType::String:
-				NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetString()));
-				break;
-			}
-		}
-
 		MatchMakingUsers.Add(NewMatchMakingUser);
 
 		FOnlineSessionSettings NewSessionSettings = BuildV1SettingsForCreate(OpParams.SessionCreationParameters);
@@ -1211,7 +1131,7 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1SettingsForCreate(const FCrea
 
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-	Result.MemberSettings.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Params.LocalAccountId).ToSharedRef(), GetV1SessionSettings(Params.SessionMemberData.MemberSettings)); // TODO: Pending SchemaVariant work
+	Result.MemberSettings.Add(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Params.LocalAccountId).ToSharedRef());
 
 	return Result;
 }
@@ -1262,9 +1182,9 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1SettingsForUpdate(const FAcco
 	
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-	for (const TPair<FAccountId, FSessionMember>& Entry : Session->GetSessionMembers())
+	for (const FAccountId& SessionMember : Session->GetSessionMembers())
 	{
-		Result.MemberSettings.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Entry.Key).ToSharedRef(), GetV1SessionSettings(Entry.Value.MemberSettings)); // TODO: Pending SchemaVariant work
+		Result.MemberSettings.Add(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(SessionMember).ToSharedRef());
 	}
 
 	return Result;
@@ -1290,10 +1210,7 @@ void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSessi
 	{
 		FAccountId SessionMemberId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(Entry.Key);
 
-		FSessionMember SessionMember;
-		SessionMember.MemberSettings = GetV2SessionSettings(Entry.Value);
-
-		OutSession->SessionMembers.Emplace(SessionMemberId, SessionMember);
+		OutSession->SessionMembers.Emplace(SessionMemberId);
 	}
 }
 

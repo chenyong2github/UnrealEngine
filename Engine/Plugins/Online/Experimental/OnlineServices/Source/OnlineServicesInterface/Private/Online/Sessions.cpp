@@ -36,45 +36,6 @@ void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr)
 	}
 }
 
-FSessionMemberUpdate& FSessionMemberUpdate::operator+=(FSessionMemberUpdate&& UpdatedValue)
-{
-	for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& UpdatedMemberSetting : UpdatedValue.UpdatedMemberSettings)
-	{
-		// If an update adds a modification to a setting that had previously been marked for removal, we'll keep the latest change
-		RemovedMemberSettings.Remove(UpdatedMemberSetting.Key);
-	}
-	UpdatedMemberSettings.Append(MoveTemp(UpdatedValue.UpdatedMemberSettings));
-
-	for (FSchemaAttributeId& Key : UpdatedValue.RemovedMemberSettings)
-	{
-		// If an update removes a setting that had previously been modified, we'll keep the latest change
-		UpdatedMemberSettings.Remove(Key);
-		RemovedMemberSettings.AddUnique(MoveTemp(Key));
-	}
-
-	return *this;
-}
-
-FSessionMember& FSessionMember::operator+=(const FSessionMemberChanges& MemberChanges)
-{
-	for (const FName& Key : MemberChanges.RemovedMemberSettings)
-	{
-		MemberSettings.Remove(Key);
-	}
-
-	MemberSettings.Append(MemberChanges.AddedMemberSettings);
-
-	for (const TPair<FName, FCustomSessionSettingUpdate>& SettingEntry : MemberChanges.ChangedMemberSettings)
-	{
-		if (FCustomSessionSetting* CustomSetting = MemberSettings.Find(SettingEntry.Key))
-		{
-			(*CustomSetting) = SettingEntry.Value.NewValue;
-		}
-	}
-
-	return *this;
-}
-
 #define MOVE_TOPTIONAL_IF_SET(Value) \
 	if (UpdatedValue.Value.IsSet()) \
 	{ \
