@@ -12,3 +12,8 @@ void UsdUtils::AddAnalyticsAttributes(
 	InOutAttributes.Emplace( TEXT( "MetersPerUnit" ), LexToString( Options.MetersPerUnit ) );
 	InOutAttributes.Emplace( TEXT( "UpAxis" ), Options.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
 }
+
+void UsdUtils::HashForExport( const FUsdStageOptions& Options, FSHA1& HashToUpdate )
+{
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options ), sizeof( Options ) );
+}

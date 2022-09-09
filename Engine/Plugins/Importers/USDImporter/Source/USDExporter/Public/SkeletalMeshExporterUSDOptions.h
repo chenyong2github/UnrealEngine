@@ -40,4 +40,9 @@ namespace UsdUtils
 		const USkeletalMeshExporterUSDOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
+	USDEXPORTER_API void HashForSkeletalMeshExport(
+		const USkeletalMeshExporterUSDOptions& Options,
+		FSHA1& HashToUpdate
+	);
 }

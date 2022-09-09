@@ -38,4 +38,9 @@ namespace UsdUtils
 		const UMaterialExporterUSDOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
+	USDEXPORTER_API void HashForMaterialExport(
+		const UMaterialExporterUSDOptions& Options,
+		FSHA1& HashToUpdate
+	);
 }

@@ -142,6 +142,7 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 		const FString& DDCKey = RenderData->DerivedDataKey;
 		FSHA1 SHA1;
 		SHA1.UpdateWithString( *DDCKey, DDCKey.Len() );
+		UsdUtils::HashForSkeletalMeshExport( *Options, SHA1 );
 		SHA1.Final();
 		FSHAHash Hash;
 		SHA1.GetHash( &Hash.Hash[ 0 ] );
@@ -163,6 +164,8 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 		// If we don't want to re-export this asset we need to check if its the same version
 		else if ( !Options->bReExportIdenticalAssets )
 		{
+			bool bSkipMeshExport = false;
+
 			// Don't use the stage cache here as we want this stage to close within this scope in case
 			// we have to overwrite its files due to e.g. missing payload or anything like that
 			const bool bUseStageCache = false;
@@ -186,33 +189,37 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 							*UExporter::CurrentFilename
 						);
 
-						// Even if we're not going to export the mesh, we may still need to re-bake materials
-						if ( Options->MeshAssetOptions.bBakeMaterials )
-						{
-							TSet<UMaterialInterface*> MaterialsToBake;
-							for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
-							{
-								MaterialsToBake.Add( SkeletalMaterial.MaterialInterface );
-							}
-
-							const bool bIsAssetLayer = true;
-							UMaterialExporterUsd::ExportMaterialsForStage(
-								MaterialsToBake.Array(),
-								Options->MeshAssetOptions.MaterialBakingOptions,
-								TempStage,
-								bIsAssetLayer,
-								Options->MeshAssetOptions.bUsePayload,
-								Options->MeshAssetOptions.bRemoveUnrealMaterials,
-								ExportTask->bReplaceIdentical,
-								Options->bReExportIdenticalAssets,
-								ExportTask->bAutomated
-							);
-							TempStage.GetRootLayer().Save();
-						}
-
-						return true;
+						bSkipMeshExport = true;
 					}
 				}
+			}
+
+			if ( bSkipMeshExport )
+			{
+				// Even if we're not going to export the mesh, we may still need to re-bake materials
+				if ( Options->MeshAssetOptions.bBakeMaterials )
+				{
+					TSet<UMaterialInterface*> MaterialsToBake;
+					for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
+					{
+						MaterialsToBake.Add( SkeletalMaterial.MaterialInterface );
+					}
+
+					const bool bIsAssetLayer = true;
+					UMaterialExporterUsd::ExportMaterialsForStage(
+						MaterialsToBake.Array(),
+						Options->MeshAssetOptions.MaterialBakingOptions,
+						UExporter::CurrentFilename,
+						bIsAssetLayer,
+						Options->MeshAssetOptions.bUsePayload,
+						Options->MeshAssetOptions.bRemoveUnrealMaterials,
+						ExportTask->bReplaceIdentical,
+						Options->bReExportIdenticalAssets,
+						ExportTask->bAutomated
+					);
+				}
+
+				return true;
 			}
 		}
 	}
@@ -300,7 +307,7 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 		UMaterialExporterUsd::ExportMaterialsForStage(
 			MaterialsToBake.Array(),
 			Options->MeshAssetOptions.MaterialBakingOptions,
-			AssetStage,
+			AssetStage.GetRootLayer().GetRealPath(),
 			bIsAssetLayer,
 			Options->MeshAssetOptions.bUsePayload,
 			Options->MeshAssetOptions.bRemoveUnrealMaterials,

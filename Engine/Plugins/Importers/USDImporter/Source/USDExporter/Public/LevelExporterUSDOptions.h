@@ -129,8 +129,19 @@ namespace UsdUtils
 		const FLevelExporterUSDOptionsInner& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
 	USDEXPORTER_API void AddAnalyticsAttributes(
 		const ULevelExporterUSDOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+
+	USDEXPORTER_API void HashForLevelExport(
+		const FLevelExporterUSDOptionsInner& Options,
+		FSHA1& HashToUpdate
+	);
+
+	USDEXPORTER_API void HashForLevelExport(
+		const ULevelExporterUSDOptions& Options,
+		FSHA1& HashToUpdate
 	);
 }

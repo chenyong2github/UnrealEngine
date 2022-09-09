@@ -291,9 +291,29 @@ TSet<AActor*> UUsdConversionBlueprintLibrary::GetActorsToConvert( UWorld* World 
 	return Result;
 }
 
-FString UUsdConversionBlueprintLibrary::GeneratePackageVersionGuidString( const UPackage* Package )
+FString UUsdConversionBlueprintLibrary::GenerateObjectVersionString( const UObject* ObjectToExport, UObject* ExportOptions )
 {
-	return IUsdExporterModule::GeneratePackageVersionGuidString( Package );
+	if ( !ObjectToExport )
+	{
+		return {};
+	}
+
+	FSHA1 SHA1;
+
+	if ( !IUsdClassesModule::HashObjectPackage( ObjectToExport, SHA1 ) )
+	{
+		return {};
+	}
+
+	if ( ULevelExporterUSDOptions* LevelExportOptions = Cast<ULevelExporterUSDOptions>( ExportOptions ) )
+	{
+		UsdUtils::HashForLevelExport( *LevelExportOptions, SHA1 );
+	}
+
+	FSHAHash Hash;
+	SHA1.Final();
+	SHA1.GetHash( &Hash.Hash[ 0 ] );
+	return Hash.ToString();
 }
 
 FString UUsdConversionBlueprintLibrary::MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative )

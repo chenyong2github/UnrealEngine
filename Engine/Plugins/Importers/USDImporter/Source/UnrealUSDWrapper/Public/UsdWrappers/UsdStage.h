@@ -89,6 +89,9 @@ namespace UE
 		TArray<FSdfLayer> GetLayerStack( bool bIncludeSessionLayers = true ) const;
 		TArray<FSdfLayer> GetUsedLayers( bool bIncludeClipLayers = true ) const;
 
+		void MuteAndUnmuteLayers( const TArray<FString>& MuteLayers, const TArray<FString>& UnmuteLayers );
+		bool IsLayerMuted( const FString& LayerIdentifier ) const;
+
 		bool IsEditTargetValid() const;
 		void SetEditTarget( const FSdfLayer& Layer );
 		FSdfLayer GetEditTarget() const;

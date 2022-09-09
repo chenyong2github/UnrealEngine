@@ -66,9 +66,8 @@ namespace UE::MaterialExporterUSD::Private
 		);
 	}
 
-	FString GetMaterialHashString( const UMaterialInterface& Material )
+	void HashMaterial( const UMaterialInterface& Material, FSHA1& VersionHash )
 	{
-		FSHA1 VersionHash;
 		if ( const UMaterial* Parent = Material.GetMaterial() )
 		{
 			// Add StateId to the combined hash, which is updated on every compile
@@ -168,11 +167,21 @@ namespace UE::MaterialExporterUSD::Private
 				VersionHash.Update( reinterpret_cast< const uint8* >( &Parameter.ExpressionGUID ), sizeof( Parameter.ExpressionGUID ) );
 			}
 		}
+	}
 
-		VersionHash.Final();
-		FSHAHash Hash;
-		VersionHash.GetHash( &Hash.Hash[ 0 ] );
-		return Hash.ToString();
+	void HashOptions( const FUsdMaterialBakingOptions& Options, FSHA1& VersionHash )
+	{
+		VersionHash.Update(
+			reinterpret_cast< const uint8* >( &Options.DefaultTextureSize ),
+			sizeof( Options.DefaultTextureSize )
+		);
+
+		VersionHash.Update(
+			reinterpret_cast< const uint8* >( Options.Properties.GetData() ),
+			Options.Properties.Num() * Options.Properties.GetTypeSize()
+		);
+
+		VersionHash.UpdateWithString( *Options.TexturesDir.Path, Options.TexturesDir.Path.Len() );
 	}
 }
 
@@ -268,7 +277,13 @@ bool UMaterialExporterUsd::ExportMaterial(
 {
 #if USE_USD_SDK
 
-	FString MaterialHashString = UE::MaterialExporterUSD::Private::GetMaterialHashString( Material );
+	FSHAHash Hash;
+	FSHA1 SHA1;
+	UE::MaterialExporterUSD::Private::HashMaterial( Material, SHA1 );
+	UE::MaterialExporterUSD::Private::HashOptions( Options, SHA1 );
+	SHA1.Final();
+	SHA1.GetHash( &Hash.Hash[ 0 ] );
+	FString MaterialHashString = Hash.ToString();
 
 	// Check if we already have exported what we plan on exporting anyway
 	if ( FPaths::FileExists( FilePath.FilePath ) )
@@ -383,7 +398,7 @@ bool UMaterialExporterUsd::ExportMaterial(
 bool UMaterialExporterUsd::ExportMaterialsForStage(
 	const TArray<UMaterialInterface*>& Materials,
 	const FUsdMaterialBakingOptions& Options,
-	const UE::FUsdStage& Stage,
+	const FString& StageRootLayerPath,
 	bool bIsAssetLayer,
 	bool bUsePayload,
 	bool bRemoveUnrealMaterials,
@@ -393,7 +408,7 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 )
 {
 #if USE_USD_SDK
-	if ( !Stage )
+	if ( StageRootLayerPath.IsEmpty() )
 	{
 		return false;
 	}
@@ -403,9 +418,7 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 		return true;
 	}
 
-	const UE::FSdfLayer RootLayer = Stage.GetRootLayer();
-	const FString RootLayerPath = RootLayer.GetRealPath();
-	const FString ExtensionNoDot = FPaths::GetExtension( RootLayerPath );
+	const FString ExtensionNoDot = FPaths::GetExtension( StageRootLayerPath );
 
 	// If we have multiple materials *within this mesh* that want to be emitted to the same filepath we'll append
 	// a suffix, but we will otherwise overwrite any unrelated existing files that were there before we began the export.
@@ -457,6 +470,23 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 		}
 	}
 
+	// We can only open the stage *after* we finished exporting the materials. This because if we're exporting over
+	// existing files, it could be that this stage still references the existing material layers that the individual
+	// material exports would try to replace, meaning the exports would fail as those files would be currently open.
+	const EUsdInitialLoadSet InitialLoadSet = EUsdInitialLoadSet::LoadAll;
+	const bool bUseStageCache = false;
+	UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *StageRootLayerPath, InitialLoadSet, bUseStageCache );
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	UE::FSdfLayer RootLayer = Stage.GetRootLayer();
+	if ( !RootLayer )
+	{
+		return false;
+	}
+
 	UsdUtils::ReplaceUnrealMaterialsWithBaked(
 		Stage,
 		RootLayer,
@@ -465,6 +495,8 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 		bUsePayload,
 		bRemoveUnrealMaterials
 	);
+
+	RootLayer.Save();
 
 	return true;
 #else

@@ -943,6 +943,10 @@ namespace UE
 					// consistent
 					FSHA1 SHA1;
 					SHA1.UpdateWithString( *LevelSequenceVersion, LevelSequenceVersion.Len() );
+					if ( Context.ExportOptions )
+					{
+						UsdUtils::HashForLevelSequenceExport( *Context.ExportOptions, SHA1 );
+					}
 					SHA1.Final();
 					FSHAHash Hash;
 					SHA1.GetHash( &Hash.Hash[ 0 ] );

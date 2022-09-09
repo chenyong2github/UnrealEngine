@@ -92,4 +92,9 @@ namespace UsdUtils
 		const ULevelSequenceExporterUsdOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
+	USDEXPORTER_API void HashForLevelSequenceExport(
+		const ULevelSequenceExporterUsdOptions& Options,
+		FSHA1& HashToUpdate
+	);
 }

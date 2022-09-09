@@ -67,8 +67,19 @@ namespace UsdUtils
 		const FUsdMaterialBakingOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
 	USDEXPORTER_API void AddAnalyticsAttributes(
 		const FUsdMeshAssetOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
+	);
+
+	USDEXPORTER_API void HashForMaterialExport(
+		const FUsdMaterialBakingOptions& Options,
+		FSHA1& HashToUpdate
+	);
+
+	USDEXPORTER_API void HashForMeshExport(
+		const FUsdMeshAssetOptions& Options,
+		FSHA1& HashToUpdate
 	);
 }

@@ -60,13 +60,16 @@ public:
 	static TSet<AActor*> GetActorsToConvert( UWorld* World );
 
 	/**
-	 * Generates a unique identifier string that involves the package's persistent guid, the corresponding file save
-	 * date and time, and the number of times the package has been dirtied since last being saved.
+	 * Generates a unique identifier string that involves ObjectToExport's package's persistent guid, the
+	 * corresponding file save date and time, and the number of times the package has been dirtied since last being
+	 * saved.
+	 * Optionally it can also combine that hash with a hash of the export options being used for the export, if
+	 * available.
 	 * This can be used to track the version of exported assets and levels, to prevent reexporting of actors and
 	 * components.
 	 */
 	UFUNCTION( BlueprintCallable, Category = "World utils" )
-	static FString GeneratePackageVersionGuidString( const UPackage* Package );
+	static FString GenerateObjectVersionString( const UObject* ObjectToExport, UObject* ExportOptions );
 
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static FString MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative );

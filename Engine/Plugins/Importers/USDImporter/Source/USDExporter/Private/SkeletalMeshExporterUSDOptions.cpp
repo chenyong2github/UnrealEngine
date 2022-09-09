@@ -13,3 +13,9 @@ void UsdUtils::AddAnalyticsAttributes(
 	UsdUtils::AddAnalyticsAttributes( Options.MeshAssetOptions, InOutAttributes );
 	InOutAttributes.Emplace( TEXT( "ReExportIdenticalAssets" ), Options.bReExportIdenticalAssets );
 }
+
+void UsdUtils::HashForSkeletalMeshExport( const USkeletalMeshExporterUSDOptions& Options, FSHA1& HashToUpdate )
+{
+	UsdUtils::HashForExport( Options.StageOptions, HashToUpdate );
+	UsdUtils::HashForMeshExport( Options.MeshAssetOptions, HashToUpdate );
+}

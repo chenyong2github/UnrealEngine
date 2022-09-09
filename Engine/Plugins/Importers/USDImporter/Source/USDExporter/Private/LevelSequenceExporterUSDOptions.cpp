@@ -34,3 +34,19 @@ void UsdUtils::AddAnalyticsAttributes(
 		UsdUtils::AddAnalyticsAttributes( Options.LevelExportOptions, InOutAttributes );
 	}
 }
+
+void UsdUtils::HashForLevelSequenceExport( const ULevelSequenceExporterUsdOptions& Options, FSHA1& HashToUpdate )
+{
+	UsdUtils::HashForExport( Options.StageOptions, HashToUpdate );
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.TimeCodesPerSecond ), sizeof( Options.TimeCodesPerSecond ) );
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bOverrideExportRange ), sizeof( Options.bOverrideExportRange ) );
+	if ( Options.bOverrideExportRange )
+	{
+		HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.StartFrame ), sizeof( Options.StartFrame ) );
+		HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.EndFrame ), sizeof( Options.EndFrame ) );
+	}
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bExportSubsequencesAsLayers ), sizeof( Options.bExportSubsequencesAsLayers ) );
+
+	const bool bUsingLevelSublayer = Options.bExportLevel && Options.bUseExportedLevelAsSublayer;
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &bUsingLevelSublayer ), sizeof( bUsingLevelSublayer ) );
+}

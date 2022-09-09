@@ -403,6 +403,48 @@ namespace UE
 	}
 
 	template<typename PtrType>
+	void FUsdStageBase<PtrType>::MuteAndUnmuteLayers( const TArray<FString>& MuteLayers, const TArray<FString>& UnmuteLayers )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			std::vector<std::string> UsdMuteLayers;
+			UsdMuteLayers.reserve( MuteLayers.Num() );
+			for ( const FString& MuteLayer : MuteLayers )
+			{
+				UsdMuteLayers.push_back( TCHAR_TO_ANSI( *MuteLayer ) );
+			}
+
+			std::vector<std::string> UsdUnmuteLayers;
+			UsdUnmuteLayers.reserve( UnmuteLayers.Num() );
+			for ( const FString& UnmuteLayer : UnmuteLayers )
+			{
+				UsdUnmuteLayers.push_back( TCHAR_TO_ANSI( *UnmuteLayer ) );
+			}
+
+			Ptr->MuteAndUnmuteLayers( UsdMuteLayers, UsdUnmuteLayers );
+		}
+#endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::IsLayerMuted( const FString& LayerIdentifier ) const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			return Ptr->IsLayerMuted( TCHAR_TO_ANSI( *LayerIdentifier ) );
+		}
+#endif // #if USE_USD_SDK
+
+		return false;
+	}
+
+	template<typename PtrType>
 	FSdfLayer FUsdStageBase<PtrType>::GetEditTarget() const
 	{
 #if USE_USD_SDK

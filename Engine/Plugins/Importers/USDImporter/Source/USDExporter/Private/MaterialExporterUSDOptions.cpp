@@ -12,3 +12,8 @@ void UsdUtils::AddAnalyticsAttributes(
 	UsdUtils::AddAnalyticsAttributes( Options.MaterialBakingOptions, InOutAttributes );
 	InOutAttributes.Emplace( TEXT( "ReExportIdenticalAssets" ), Options.bReExportIdenticalAssets );
 }
+
+void UsdUtils::HashForMaterialExport( const UMaterialExporterUSDOptions& Options, FSHA1& HashToUpdate )
+{
+	UsdUtils::HashForMaterialExport( Options.MaterialBakingOptions, HashToUpdate );
+}

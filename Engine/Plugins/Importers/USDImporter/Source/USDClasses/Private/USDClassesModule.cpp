@@ -9,41 +9,41 @@
 #include "HAL/FileManager.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/JsonSerializer.h"
+#include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 
 DEFINE_LOG_CATEGORY( LogUsd );
 
-namespace UE
+namespace UE::USDClasses::Private
 {
-	namespace USDClasses
+	TSharedPtr<FJsonObject> ParseJSON( const FString& FileContents )
 	{
-		namespace Private
+		if ( FileContents.IsEmpty() )
 		{
-			TSharedPtr<FJsonObject> ParseJSON( const FString& FileContents )
-			{
-				if ( FileContents.IsEmpty() )
-				{
-					return nullptr;
-				}
-
-				const TSharedRef< TJsonReader<> >& Reader = TJsonReaderFactory<>::Create( FileContents );
-
-				TSharedPtr<FJsonObject> DescriptorObject;
-				if ( FJsonSerializer::Deserialize( Reader, DescriptorObject ) && DescriptorObject.IsValid() )
-				{
-					return DescriptorObject;
-				}
-				else
-				{
-					UE_LOG( LogUsd, Warning, TEXT( "Failed to parse plugInfo.json file: '%s'" ), *Reader->GetErrorMessage() );
-				}
-
-				return nullptr;
-			}
+			return nullptr;
 		}
+
+		const TSharedRef< TJsonReader<> >& Reader = TJsonReaderFactory<>::Create( FileContents );
+
+		TSharedPtr<FJsonObject> DescriptorObject;
+		if ( FJsonSerializer::Deserialize( Reader, DescriptorObject ) && DescriptorObject.IsValid() )
+		{
+			return DescriptorObject;
+		}
+		else
+		{
+			UE_LOG( LogUsd, Warning, TEXT( "Failed to parse plugInfo.json file: '%s'" ), *Reader->GetErrorMessage() );
+		}
+
+		return nullptr;
 	}
+
+	TMap<FString, int32> PackagePathNameToDirtyCounter;
 }
 
 void IUsdClassesModule::UpdatePlugInfoFiles( const FString& PluginDirectory, const FString& TargetDllFolder )
@@ -200,8 +200,86 @@ void IUsdClassesModule::SendAnalytics( TArray<FAnalyticsEventAttribute>&& InAttr
 	}
 }
 
+bool IUsdClassesModule::HashObjectPackage( const UObject* Object, FSHA1& HashToUpdate )
+{
+#if WITH_EDITOR
+	if ( !Object )
+	{
+		return false;
+	}
+
+	UPackage* Package = Object->GetOutermost();
+	if ( !Package )
+	{
+		return false;
+	}
+
+	// Hash package's persistent Guid
+	const FGuid& Guid = Package->GetPersistentGuid();
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Guid ), sizeof( Guid ) );
+
+	// Hash last modified date
+	FString PackageFullName = Package->GetPathName();
+	FString FileName;
+	if ( FPackageName::TryConvertLongPackageNameToFilename( PackageFullName, FileName ) )
+	{
+		FFileStatData StatData = IFileManager::Get().GetStatData( *FileName );
+		if ( StatData.bIsValid )
+		{
+			FString ModifiedTimeString = StatData.ModificationTime.ToString();
+			HashToUpdate.UpdateWithString( *ModifiedTimeString, ModifiedTimeString.Len() );
+		}
+	}
+
+	// If this asset is currently dirty, also hash how many times it was dirtied in this session.
+	// If it's ever saved, we'll reset this counter but update the last saved date
+	if ( int32* DirtyCounter = UE::USDClasses::Private::PackagePathNameToDirtyCounter.Find( PackageFullName ) )
+	{
+		HashToUpdate.Update( reinterpret_cast< const uint8* >( DirtyCounter ), sizeof( *DirtyCounter ) );
+	}
+
+	return true;
+#else
+	return false;
+#endif // WITH_EDITOR
+}
+
 class FUsdClassesModule : public IUsdClassesModule
 {
+
+public:
+	virtual void StartupModule() override
+	{
+		PackageMarkedDirtyEventHandle = UPackage::PackageMarkedDirtyEvent.AddLambda(
+			[]( const UPackage* Package, bool bWasDirty )
+			{
+				if ( Package )
+				{
+					UE::USDClasses::Private::PackagePathNameToDirtyCounter.FindOrAdd( Package->GetPathName() )++;
+				}
+			}
+		);
+
+		PackageSavedWithContextEventHandle = UPackage::PackageSavedWithContextEvent.AddLambda(
+			[]( const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext )
+			{
+				if ( Package )
+				{
+					UE::USDClasses::Private::PackagePathNameToDirtyCounter.Remove( Package->GetPathName() );
+				}
+			}
+		);
+	}
+
+	virtual void ShutdownModule() override
+	{
+		UPackage::PackageSavedWithContextEvent.Remove( PackageSavedWithContextEventHandle );
+		UPackage::PackageMarkedDirtyEvent.Remove( PackageMarkedDirtyEventHandle );
+	}
+
+private:
+	FDelegateHandle PackageMarkedDirtyEventHandle;
+	FDelegateHandle PackageSavedWithContextEventHandle;
 };
 
 IMPLEMENT_MODULE( FUsdClassesModule, USDClasses );

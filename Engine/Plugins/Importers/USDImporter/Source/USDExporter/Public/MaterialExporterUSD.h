@@ -47,8 +47,11 @@ public:
 	 * to the exported UsdPreviewMaterial assets.
 	 * @param Materials - Materials to bake
 	 * @param Options - Options to use when baking
-	 * @param Stage - Stage to replace the unrealMaterials attributes in. All of it's layers will be traversed.
-	 *                The root layer folder on disk is used as destination folder for the baked materials
+	 * @param StageRootLayerPath - Path to the stage to replace the unrealMaterials attributes in.
+	 *                             Note that this stage must not be opened in case you want this function to be able to
+	 *                             replace exported materials with new files.
+	 *                             All of it's layers will be traversed.
+	 *                             The root layer folder on disk is used as destination folder for the baked materials
 	 * @param bIsAssetLayer - True when we're exporting a single mesh/animation asset. False when we're exporting a level. Dictates minor behaviors
 	 *                        when authoring the material binding relationships, e.g. whether we author them inside variants or not
 	 * @param bUsePayload - Should be True if the Stage was exported using payload files to store the actual Mesh prims. Also dictates minor
@@ -63,7 +66,7 @@ public:
 	static bool ExportMaterialsForStage(
 		const TArray<UMaterialInterface*>& Materials,
 		const FUsdMaterialBakingOptions& Options,
-		const UE::FUsdStage& Stage,
+		const FString& StageRootLayerPath,
 		bool bIsAssetLayer,
 		bool bUsePayload,
 		bool bRemoveUnrealMaterials,

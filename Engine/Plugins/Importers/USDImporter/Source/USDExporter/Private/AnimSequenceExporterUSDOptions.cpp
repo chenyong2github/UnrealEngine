@@ -17,3 +17,9 @@ void UsdUtils::AddAnalyticsAttributes(
 	}
 	InOutAttributes.Emplace( TEXT( "ReExportIdenticalAssets" ), Options.bReExportIdenticalAssets );
 }
+
+void UsdUtils::HashForAnimSequenceExport( const UAnimSequenceExporterUSDOptions& Options, FSHA1& HashToUpdate )
+{
+	UsdUtils::HashForExport( Options.StageOptions, HashToUpdate );
+	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.bExportPreviewMesh ), sizeof( Options.bExportPreviewMesh ) );
+}

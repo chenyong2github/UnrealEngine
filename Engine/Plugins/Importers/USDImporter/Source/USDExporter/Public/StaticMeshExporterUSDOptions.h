@@ -40,4 +40,9 @@ namespace UsdUtils
 		const UStaticMeshExporterUSDOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
+	USDEXPORTER_API void HashForStaticMeshExport(
+		const UStaticMeshExporterUSDOptions& Options,
+		FSHA1& HashToUpdate
+	);
 }

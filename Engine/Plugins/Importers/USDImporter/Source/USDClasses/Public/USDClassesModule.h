@@ -22,5 +22,19 @@ public:
 	 * @param NumberOfFrames - Number of time codes in the exported/imported/opened stage
 	 * @param Extension - Extension of the main USD file opened/emitted/imported (e.g. "usda" or "usd")
 	 */
-	USDCLASSES_API static void SendAnalytics( TArray<FAnalyticsEventAttribute>&& InAttributes, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension );
+	USDCLASSES_API static void SendAnalytics(
+		TArray<FAnalyticsEventAttribute>&& InAttributes,
+		const FString& EventName,
+		bool bAutomated,
+		double ElapsedSeconds,
+		double NumberOfFrames,
+		const FString& Extension
+	);
+
+	/**
+	 * Updates HashToUpdate with the Object's package's persistent guid, the corresponding file save
+	 * date and time, and the number of times the package has been dirtied since last being saved.
+	 * This can be used to track the version of exported assets and levels, to prevent unnecessary re-exports.
+	 */
+	USDCLASSES_API static bool HashObjectPackage( const UObject* Object, FSHA1& HashToUpdate );
 };

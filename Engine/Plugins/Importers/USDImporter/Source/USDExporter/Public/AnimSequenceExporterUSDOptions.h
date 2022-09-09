@@ -46,4 +46,9 @@ namespace UsdUtils
 		const UAnimSequenceExporterUSDOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
+	USDEXPORTER_API void HashForAnimSequenceExport(
+		const UAnimSequenceExporterUSDOptions& Options,
+		FSHA1& HashToUpdate
+	);
 }

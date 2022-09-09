@@ -33,4 +33,9 @@ namespace UsdUtils
 		const FUsdStageOptions& Options,
 		TArray< FAnalyticsEventAttribute >& InOutAttributes
 	);
+
+	USDCLASSES_API void HashForExport(
+		const FUsdStageOptions& Options,
+		FSHA1& HashToUpdate
+	);
 }

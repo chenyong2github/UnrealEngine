@@ -207,12 +207,13 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 	FString AnimSequenceVersion;
 	if ( UAnimDataModel* DataModel = AnimSequence->GetDataModel() )
 	{
-		AnimSequenceVersion = DataModel->GenerateGuid().ToString();
-
-		// We could just use the GUID directly but all other asset types end up with SHA hash size so lets be
-		// consistent
 		FSHA1 SHA1;
-		SHA1.UpdateWithString( *AnimSequenceVersion, AnimSequenceVersion.Len() );
+
+		FGuid DataModelGuid = DataModel->GenerateGuid();
+		SHA1.Update( reinterpret_cast< uint8* >( &DataModelGuid ), sizeof( DataModelGuid ) );
+
+		UsdUtils::HashForAnimSequenceExport( *Options, SHA1 );
+
 		SHA1.Final();
 		FSHAHash Hash;
 		SHA1.GetHash( &Hash.Hash[ 0 ] );
