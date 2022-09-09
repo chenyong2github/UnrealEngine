@@ -3,10 +3,11 @@
 
 #include "LoudnessAnalyzer.h"
 #include "AudioMixer.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/DeinterleaveView.h"
+#include "DSP/FloatArrayMath.h"
 
-namespace 
+namespace LoudnessAnalyzerPrivate
 {
 	static const float Log10Scale = 1.0f / FMath::Loge(10.f);
 }
@@ -57,108 +58,112 @@ namespace Audio
 
     FLoudnessAnalyzer::FLoudnessAnalyzer(float InSampleRate, const FLoudnessAnalyzerSettings& InSettings)
     :   Settings(InSettings)
-    ,   EnergyScale(1.0f)
-    ,   MinFreqIndex(0)
-    ,   MaxFreqIndex(0)
-    ,   FFTFreqSize((Settings.FFTSize / 2) + 1)
     ,   Window(Settings.WindowType, Settings.FFTSize, 1, false)
     {
 		checkf(FMath::IsPowerOfTwo(Settings.FFTSize), TEXT("FFT size must be a power of two"));
-		checkf(Settings.FFTSize >= 4, TEXT("FFT size must be atleast 4"))
+		checkf(Settings.FFTSize >= 8, TEXT("FFT size must be atleast 8"))
         check(InSampleRate > 0);
 
-        // Determine which fft bins will be used for calculating loudness
-        const float FreqPerBin = InSampleRate / Settings.FFTSize;
-        MinFreqIndex = static_cast<int32>(FMath::RoundHalfFromZero(Settings.MinAnalysisFrequency / FreqPerBin));
-        MinFreqIndex = FMath::Max(0, MinFreqIndex);
-        MaxFreqIndex = static_cast<int32>(FMath::RoundHalfFromZero(Settings.MaxAnalysisFrequency / FreqPerBin)) + 1;
-        MaxFreqIndex = FMath::Min(MaxFreqIndex, FFTFreqSize);
+		// Create FFT
+		FFFTSettings FFTSettings;
+		FFTSettings.Log2Size = CeilLog2(Settings.FFTSize);
+		FFTSettings.bArrays128BitAligned = true;
+		FFTSettings.bEnableHardwareAcceleration = true;
 
-        // Resize internal buffers
-        WindowedSamples.Reset(Settings.FFTSize);
-        WindowedSamples.AddUninitialized(Settings.FFTSize);
+		ActualFFTSize = 1 << FFTSettings.Log2Size;
 
-        FFTOutputRealData.Reset(Settings.FFTSize);
-        FFTOutputRealData.AddUninitialized(Settings.FFTSize);
+		checkf(FFFTFactory::AreFFTSettingsSupported(FFTSettings), TEXT("No fft algorithm supports fft settings."));
+		FFT = FFFTFactory::NewFFTAlgorithm(FFTSettings);
+		if (FFT.IsValid())
+		{
+			// Size internal buffers
+			WindowedSamples.AddZeroed(FFT->NumInputFloats()); // Zero samples to apply zero buffer in case actual FFT is larger than provided settings.
+			ComplexSpectrum.AddUninitialized(FFT->NumOutputFloats());
+			RealSpectrum.AddUninitialized(ComplexSpectrum.Num() / 2);
 
-        FFTOutputImagData.Reset(Settings.FFTSize);
-        FFTOutputImagData.AddUninitialized(Settings.FFTSize);
+			FFTFreqSize = RealSpectrum.Num();
 
-        CurveWeights.Reset(FFTFreqSize);
-        CurveWeights.AddUninitialized(FFTFreqSize);
+			// Determine which fft bins will be used for calculating loudness
+			const float FreqPerBin = InSampleRate / FFT->NumOutputFloats();
+			MinFreqIndex = static_cast<int32>(FMath::RoundHalfFromZero(Settings.MinAnalysisFrequency / FreqPerBin));
+			MinFreqIndex = FMath::Max(0, MinFreqIndex);
+			MaxFreqIndex = static_cast<int32>(FMath::RoundHalfFromZero(Settings.MaxAnalysisFrequency / FreqPerBin)) + 1;
+			MaxFreqIndex = FMath::Min(MaxFreqIndex, FFTFreqSize);
 
-        PowerSpectrumBuffer.Reset(FFTFreqSize);
-        PowerSpectrumBuffer.AddUninitialized(FFTFreqSize);
+			CurveWeights.Reset(FFTFreqSize);
+			CurveWeights.AddUninitialized(FFTFreqSize);
 
-        float(*LoudnessMapFn)(const float);
-        switch (Settings.LoudnessCurveType)
-        {
-            case ELoudnessCurveType::A:
-                LoudnessMapFn = GetEqualLoudnessAWeightForFrequency;
-                break;
-
-            case ELoudnessCurveType::B:
-                LoudnessMapFn = GetEqualLoudnessBWeightForFrequency;
-                break;
-
-            case ELoudnessCurveType::C:
-                LoudnessMapFn = GetEqualLoudnessCWeightForFrequency;
-                break;
-
-            case ELoudnessCurveType::D:
-                LoudnessMapFn = GetEqualLoudnessDWeightForFrequency;
-                break;
-
-            case ELoudnessCurveType::None:
-            default:
-                LoudnessMapFn = GetEqualLoudnessNoneWeightForFrequency;
-                break;
-        }
-
-        /* Calculate equal loudness weighting curve */
-
-        // Convention is to normalize 1kHz to have a loudness of 1.
-        float EqualLoudnessNorm = 1.0f / LoudnessMapFn(1000.0f);
-
-        float* CurveWeightsPtr = CurveWeights.GetData();
-
-        const float FFTSize = static_cast<float>(Settings.FFTSize);
-
-        for (int32 i = 0; i < FFTFreqSize; i++)
-        {
-            const float Freq = static_cast<float>(i) * InSampleRate / FFTSize;
-			float Weighting = EqualLoudnessNorm;
-
+			float(*LoudnessMapFn)(const float);
 			switch (Settings.LoudnessCurveType)
 			{
 				case ELoudnessCurveType::A:
-					Weighting *= GetEqualLoudnessAWeightForFrequency(Freq);
+					LoudnessMapFn = GetEqualLoudnessAWeightForFrequency;
 					break;
 
 				case ELoudnessCurveType::B:
-					Weighting *= GetEqualLoudnessBWeightForFrequency(Freq);
+					LoudnessMapFn = GetEqualLoudnessBWeightForFrequency;
 					break;
 
 				case ELoudnessCurveType::C:
-					Weighting *= GetEqualLoudnessCWeightForFrequency(Freq);
+					LoudnessMapFn = GetEqualLoudnessCWeightForFrequency;
 					break;
 
 				case ELoudnessCurveType::D:
-					Weighting *= GetEqualLoudnessDWeightForFrequency(Freq);
+					LoudnessMapFn = GetEqualLoudnessDWeightForFrequency;
 					break;
 
 				case ELoudnessCurveType::None:
 				default:
-					Weighting *= GetEqualLoudnessNoneWeightForFrequency(Freq);
+					LoudnessMapFn = GetEqualLoudnessNoneWeightForFrequency;
 					break;
 			}
 
-            // Curve designed for magnitude domain, but applied to power spectrum. The curve is squared to be applied to power spectrum.
-            CurveWeightsPtr[i] = Weighting * Weighting;
-        }
+			/* Calculate equal loudness weighting curve */
 
-		// Normalize by FFT Scaling (1 / FFTSize) and by number of samples (1 / WindowSize) to calculate mean squared value.
-		EnergyScale = 1.f / static_cast<float>(Settings.FFTSize * Settings.FFTSize);
+			// Convention is to normalize 1kHz to have a loudness of 1.
+			float EqualLoudnessNorm = 1.0f / LoudnessMapFn(1000.0f);
+
+			float* CurveWeightsPtr = CurveWeights.GetData();
+
+			const float FFTSize = static_cast<float>(ActualFFTSize);
+
+			for (int32 i = 0; i < FFTFreqSize; i++)
+			{
+				const float Freq = static_cast<float>(i) * InSampleRate / FFTSize;
+				float Weighting = EqualLoudnessNorm;
+
+				switch (Settings.LoudnessCurveType)
+				{
+					case ELoudnessCurveType::A:
+						Weighting *= GetEqualLoudnessAWeightForFrequency(Freq);
+						break;
+
+					case ELoudnessCurveType::B:
+						Weighting *= GetEqualLoudnessBWeightForFrequency(Freq);
+						break;
+
+					case ELoudnessCurveType::C:
+						Weighting *= GetEqualLoudnessCWeightForFrequency(Freq);
+						break;
+
+					case ELoudnessCurveType::D:
+						Weighting *= GetEqualLoudnessDWeightForFrequency(Freq);
+						break;
+
+					case ELoudnessCurveType::None:
+					default:
+						Weighting *= GetEqualLoudnessNoneWeightForFrequency(Freq);
+						break;
+				}
+
+				// Curve designed for magnitude domain, but applied to power spectrum. The curve is squared to be applied to power spectrum.
+				CurveWeightsPtr[i] = Weighting * Weighting;
+			}
+
+			// Normalize by FFT Scaling (1 / FFTSize) and by number of samples (1 / WindowSize) to calculate mean squared value.
+			EnergyScale = GetPowerSpectrumScaling(ActualFFTSize, FFT->ForwardScaling(), EFFTScaling::None);
+			EnergyScale *= 1.f / static_cast<float>(Settings.FFTSize);
+		}
     }
 
     const FLoudnessAnalyzerSettings& FLoudnessAnalyzer::GetSettings() const
@@ -170,31 +175,28 @@ namespace Audio
     {
 		check(InView.Num() == Settings.FFTSize);
 
-		// Copy input samples and apply window
-        FMemory::Memcpy(WindowedSamples.GetData(), InView.GetData(), sizeof(float) * Settings.FFTSize);
-        Window.ApplyToBuffer(WindowedSamples.GetData());
+		float Total = 0.f;
 
-		// Take FFT of windowed samples
-        const FFTTimeDomainData TimeData = {WindowedSamples.GetData(), Settings.FFTSize};
-        FFTFreqDomainData FreqData = {FFTOutputRealData.GetData(), FFTOutputImagData.GetData()};
+		if (FFT.IsValid())
+		{
+			// Copy input samples and apply window
+			FMemory::Memcpy(WindowedSamples.GetData(), InView.GetData(), sizeof(float) * Settings.FFTSize);
+			Window.ApplyToBuffer(WindowedSamples.GetData());
 
-        PerformFFT(TimeData, FreqData);
+			FFT->ForwardRealToComplex(WindowedSamples.GetData(), ComplexSpectrum.GetData());
 
-		// Accumulate energy as weighted sum of power spectrum in frequency analysis range.
-        const float* FFTOutputRealPtr = FFTOutputRealData.GetData();
-        const float* FFTOutputImagPtr = FFTOutputImagData.GetData();
-        float* PowerSpectrumPtr = PowerSpectrumBuffer.GetData();
-		const float* CurveWeightsPtr = CurveWeights.GetData();
+			ArrayComplexToPower(ComplexSpectrum, RealSpectrum);
+		
+			const float* PowerSpectrumPtr = RealSpectrum.GetData();
+			const float* CurveWeightsPtr = CurveWeights.GetData();
+			for (int32 i = MinFreqIndex; i < MaxFreqIndex; i++)
+			{
+				Total += PowerSpectrumPtr[i] * CurveWeightsPtr[i];
+			}
 
-		float Total = 0.0f;
-        for (int32 i = MinFreqIndex; i < MaxFreqIndex; i++)
-        {
-            PowerSpectrumPtr[i] = FFTOutputRealPtr[i] * FFTOutputRealPtr[i] + FFTOutputImagPtr[i] * FFTOutputImagPtr[i];
-			Total += PowerSpectrumPtr[i] * CurveWeightsPtr[i];
-        }
-
-		// Normalize by FFT Scaling and by number of samples to calculate mean squared value.
-		Total *= EnergyScale;
+			// Normalize by FFT Scaling and by number of samples to calculate mean squared value.
+			Total *= EnergyScale;
+		}
 
         return Total;
     }
@@ -207,7 +209,7 @@ namespace Audio
 
 	float FLoudnessAnalyzer::ConvertPerceptualEnergyToLoudness(float InPerceptualEnergy)
 	{
-        return 10.0f * FMath::Loge(InPerceptualEnergy) * Log10Scale;
+        return 10.0f * FMath::Loge(InPerceptualEnergy) * LoudnessAnalyzerPrivate::Log10Scale;
 	}
 
 	/****************************************************************************/

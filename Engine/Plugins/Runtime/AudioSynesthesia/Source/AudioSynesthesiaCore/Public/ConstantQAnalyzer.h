@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "DSP/ConstantQ.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/AudioFFT.h"
+#include "DSP/ConstantQ.h"
 
 namespace Audio
 {
@@ -77,16 +78,19 @@ namespace Audio
 
 		const float SampleRate;
 
+		int32 ActualFFTSize;
+
 		/** Only the first (FFTSize / 2) + 1 FFT bins are used since FFT of real values is conjugate symmetric. */
-		const int32 NumUsefulFFTBins;
+		int32 NumUsefulFFTBins;
 
 		/** Scale factor to normalize between different FFT Sizes */
 		FWindow Window;
 
 		FAlignedFloatBuffer WindowedSamples;
-		FAlignedFloatBuffer FFTOutputRealData;
-		FAlignedFloatBuffer FFTOutputImagData;
-		FAlignedFloatBuffer SpectrumBuffer;
+		FAlignedFloatBuffer ComplexSpectrum;
+		FAlignedFloatBuffer RealSpectrum;
+
+		TUniquePtr<IFFTAlgorithm> FFT;
 
 		TUniquePtr<FContiguousSparse2DKernelTransform> CQTTransform;
 	};

@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
+ 
 #include "CoreMinimal.h"
 #include "DSP/AudioFFT.h"
+#include "DSP/FFTAlgorithm.h"
 #include "Async/ParallelFor.h"
 #include "Audio.h"
 
@@ -45,9 +46,6 @@ namespace Audio
 		{
 		}
 	};
-
-	UE_DEPRECATED(4.23, "PassiveFilterParams has been renamed to FPassiveFilterParams")
-	typedef FPassiveFilterParams PassiveFilterParams;
 
 	static float EvaluateChebyshevPolynomial(float FrequencyRatio, int32 Order)
 	{
@@ -127,19 +125,16 @@ namespace Audio
 			return;
 		}
 
-		FAlignedFloatBuffer TempReal;
-		FAlignedFloatBuffer TempImag;
-		TempReal.AddUninitialized(Signal.Num());
-		TempImag.AddUninitialized(Signal.Num());
+		FFFTSettings FFTSettings;
+		FFTSettings.Log2Size = CeilLog2(Signal.Num());
+		FFTSettings.bArrays128BitAligned = true;
 
-		// Perform FFT on data:
-		FFTTimeDomainData TimeData;
-		TimeData.Buffer = Signal.GetData();
-		TimeData.NumSamples = Signal.Num();
-
-		FFTFreqDomainData FreqData;
-		FreqData.OutReal = TempReal.GetData();
-		FreqData.OutImag = TempImag.GetData();
+		TUniquePtr<IFFTAlgorithm> FFT = FFFTFactory::NewFFTAlgorithm(FFTSettings);
+		if (!FFT.IsValid())
+		{
+			UE_LOG(LogAudio, Error, TEXT("Failed to create an FFT Algorithm with log2size %n"), FFTSettings.Log2Size);
+			return;
+		}
 
 		float MaxVal = Signal[0];
 		float MinVal = Signal[0];
@@ -171,32 +166,38 @@ namespace Audio
 			}
 		}
 
-		PerformFFT(TimeData, FreqData);
+		// Perform FFT on data:
+		FAlignedFloatBuffer TimeData;
+		TimeData.AddZeroed(FFT->NumInputFloats());
+		FMemory::Memcpy(TimeData.GetData(), Signal.GetData(), Signal.Num() * sizeof(float));
 
-		const int32 NumSamples = Signal.Num();
-		const float NumBins = NumSamples / 2;
+		FAlignedFloatBuffer ComplexSpectrum;
+		ComplexSpectrum.AddUninitialized(FFT->NumOutputFloats());
+
+		FFT->ForwardRealToComplex(TimeData.GetData(), ComplexSpectrum.GetData());
+
+		const float NumBins = FFT->NumOutputFloats() / 2;
 
 		if (InParams.bRemoveDC)
 		{
-			FreqData.OutReal[0] = 0.0f;
-			FreqData.OutImag[0] = 0.0f;
+			ComplexSpectrum[0] = 0.f;
+			ComplexSpectrum[1] = 0.f;
 		}
 
 		// Apply filter in parallel:
 		ParallelFor(NumBins, [&](int32 Index)
 		{
-			float NormalizedFreq = ((float)Index) / NumBins;
+			float NormalizedFreq = ((float)Index) / (NumBins - 1);
 			float Gain = GetGainForFrequency(NormalizedFreq, InParams);
 
-			FreqData.OutReal[Index] *= Gain;
-			FreqData.OutImag[Index] *= Gain;
-
-			FreqData.OutReal[NumSamples - Index - 1] *= Gain;
-			FreqData.OutImag[NumSamples - Index - 1] *= Gain;
+			ComplexSpectrum[2 * Index] *= Gain;
+			ComplexSpectrum[2 * Index + 1] *= Gain;
 		});
 
 		// Inverse FFT back into the signal:
-		PerformIFFT(FreqData, TimeData);
+		FFT->InverseComplexToReal(ComplexSpectrum.GetData(), TimeData.GetData());
+
+		FMemory::Memcpy(Signal.GetData(), TimeData.GetData(), Signal.Num() * sizeof(float));
 
 		// If we're scaling, map back to it's original range:
 		if (InParams.bScaleByOffset)

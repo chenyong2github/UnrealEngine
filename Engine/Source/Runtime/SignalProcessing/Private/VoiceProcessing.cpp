@@ -188,7 +188,7 @@ namespace Audio
 		return FMath::Clamp(UnclampedGain, GainMin, GainMax);
 	}
 
-	FAdaptiveFilter::FAdaptiveFilter(int32 FilterLength, int32 AudioCallbackSize)
+	FAdaptiveFilter_DEPRECATED::FAdaptiveFilter_DEPRECATED(int32 FilterLength, int32 AudioCallbackSize)
 		: WindowSize(FilterLength)
 		, CurrentStepsUntilConvergence(0)
 	{
@@ -208,7 +208,7 @@ namespace Audio
 		Convolver.SetFilter(CurrentWeights, FilterLength);
 	}
 
-	void FAdaptiveFilter::AdaptFilter()
+	void FAdaptiveFilter_DEPRECATED::AdaptFilter()
 	{
 		// If we've suitably converged, we avoid incrementing our weights.
 		if (CurrentStepsUntilConvergence <= 0)
@@ -221,7 +221,7 @@ namespace Audio
 		Convolver.SetFilter(CurrentWeights, WindowSize);
 	}
 
-	void FAdaptiveFilter::SetWeightDeltas(const float* InWeightsReal, const float* InWeightsImag, int32 NumWeights, float InLearningRate)
+	void FAdaptiveFilter_DEPRECATED::SetWeightDeltas(const float* InWeightsReal, const float* InWeightsImag, int32 NumWeights, float InLearningRate)
 	{
 		// ProcessAudio::NumWeights needs to use the same 
 		checkSlow(NumWeights == WeightDeltas.Real.Num());
@@ -252,7 +252,7 @@ namespace Audio
 		}
 	}
 
-	void FAdaptiveFilter::IncrementWeights()
+	void FAdaptiveFilter_DEPRECATED::IncrementWeights()
 	{
 		const int32 NumWeights = CurrentWeights.Real.Num();
 		float* CurrentRealBuffer = CurrentWeights.Real.GetData();
@@ -275,23 +275,23 @@ namespace Audio
 		}
 	}
 
-	void FAdaptiveFilter::ProcessAudio(float* InAudio, int32 NumSamples)
+	void FAdaptiveFilter_DEPRECATED::ProcessAudio(float* InAudio, int32 NumSamples)
 	{
 		AdaptFilter();
 		Convolver.ProcessAudio(InAudio, NumSamples);
 	}
 
-	void FAdaptiveFilter::SetWeights(const FrequencyBuffer& InFilterWeights, int32 FilterLength, float InLearningRate)
+	void FAdaptiveFilter_DEPRECATED::SetWeights(const FrequencyBuffer& InFilterWeights, int32 FilterLength, float InLearningRate)
 	{
 		SetWeightDeltas(InFilterWeights.Real.GetData(), InFilterWeights.Imag.GetData(), InFilterWeights.Real.Num(), InLearningRate);
 	}
 
-	FFDAPFilterComputer::FFDAPFilterComputer()
+	FFDAPFilterComputer_DEPRECATED::FFDAPFilterComputer_DEPRECATED()
 	{
 
 	}
 
-	void FFDAPFilterComputer::GenerateWeights(const float* IncomingSignal, int32 NumIncomingSamples, const float* OutgoingSignal, int32 NumOutgoingSamples, FrequencyBuffer& OutWeights)
+	void FFDAPFilterComputer_DEPRECATED::GenerateWeights(const float* IncomingSignal, int32 NumIncomingSamples, const float* OutgoingSignal, int32 NumOutgoingSamples, FrequencyBuffer& OutWeights)
 	{
 		int32 FFTSize = FFTIntrinsics::NextPowerOf2(NumIncomingSamples + NumOutgoingSamples - 1);
 		
@@ -305,13 +305,15 @@ namespace Audio
 		FMemory::Memcpy(ZeroPaddedOutgoingBuffer.GetData(), OutgoingSignal, NumOutgoingSamples * sizeof(float));
 
 		int32 FilterLength = FMath::Max(NumIncomingSamples, NumOutgoingSamples);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CrossCorrelate(ZeroPaddedIncomingBuffer.GetData(), ZeroPaddedOutgoingBuffer.GetData(), FilterLength, FFTSize, IncomingFrequencies, OutgoingFrequencies, OutWeights);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// TODO: Perform linear phase conversion on OutWeights.
 
 	}
 
-	FAcousticEchoCancellation::FAcousticEchoCancellation(float InConvergenceRate, int32 CallbackSize, int32 InFilterLength, int32 InFilterUpdateRate /*= 1*/)
+	FAcousticEchoCancellation_DEPRECATED::FAcousticEchoCancellation_DEPRECATED(float InConvergenceRate, int32 CallbackSize, int32 InFilterLength, int32 InFilterUpdateRate /*= 1*/)
 		: AdaptiveFilter(InFilterLength, CallbackSize)
 		, ConvergenceRate(InConvergenceRate)
 		, FilterLength(InFilterLength)
@@ -321,7 +323,7 @@ namespace Audio
 		checkSlow(FMath::IsPowerOfTwo(FilterLength));
 	}
 
-	void FAcousticEchoCancellation::ProcessAudio(float* InAudio, int32 NumSamples)
+	void FAcousticEchoCancellation_DEPRECATED::ProcessAudio(float* InAudio, int32 NumSamples)
 	{
 		checkSlow(FMath::IsPowerOfTwo(NumSamples));
 
@@ -365,12 +367,12 @@ namespace Audio
 		}
 	}
 
-	Audio::FPatchInput FAcousticEchoCancellation::AddNewSignalPatch(int32 ExpectedLatency, float Gain /*= 1.0f*/)
+	Audio::FPatchInput FAcousticEchoCancellation_DEPRECATED::AddNewSignalPatch(int32 ExpectedLatency, float Gain /*= 1.0f*/)
 	{
 		return PatchMixer.AddNewInput(ExpectedLatency, Gain);
 	}
 
-	void FAcousticEchoCancellation::RemoveSignalPatch(const FPatchInput& Patch)
+	void FAcousticEchoCancellation_DEPRECATED::RemoveSignalPatch(const FPatchInput& Patch)
 	{
 		PatchMixer.RemovePatch(Patch);
 	}

@@ -5,34 +5,44 @@
 #include "DSP/ConstantQ.h"
 #include "DSP/AudioFFT.h"
 #include "DSP/FloatArrayMath.h"
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/FFTAlgorithm.h"
 
 namespace Audio
 {
 	FConstantQAnalyzer::FConstantQAnalyzer(const FConstantQAnalyzerSettings& InSettings, const float InSampleRate)
-	:	Settings(InSettings)
-	,	SampleRate(InSampleRate)
-	,	NumUsefulFFTBins((Settings.FFTSize / 2) + 1)
-    ,   Window(Settings.WindowType, Settings.FFTSize, 1, false)
+	: Settings(InSettings)
+	, SampleRate(InSampleRate)
+	, ActualFFTSize(0)
+	, NumUsefulFFTBins(0)
+    , Window(Settings.WindowType, Settings.FFTSize, 1, false)
 	{
 		// Need FFTSize atleast 8 to support optimized operations.
 		check(Settings.FFTSize >= 8);
 		check(SampleRate > 0.f);
 
-		CQTTransform = NewPseudoConstantQKernelTransform(Settings, Settings.FFTSize, SampleRate);
+		// Create FFT
+		FFFTSettings FFTSettings;
+		FFTSettings.Log2Size = CeilLog2(Settings.FFTSize);
+		FFTSettings.bArrays128BitAligned = true;
+		FFTSettings.bEnableHardwareAcceleration = true;
 
-		// Resize internal buffers
-		WindowedSamples.Reset(Settings.FFTSize);
-		WindowedSamples.AddUninitialized(Settings.FFTSize);
+		ActualFFTSize = 1 << FFTSettings.Log2Size;
+		NumUsefulFFTBins = (ActualFFTSize / 2) + 1;
 
-		FFTOutputRealData.Reset(Settings.FFTSize);
-		FFTOutputRealData.AddUninitialized(Settings.FFTSize);
+		checkf(FFFTFactory::AreFFTSettingsSupported(FFTSettings), TEXT("No fft algorithm supports fft settings."));
+		FFT = FFFTFactory::NewFFTAlgorithm(FFTSettings);
 
-		FFTOutputImagData.Reset(Settings.FFTSize);
-		FFTOutputImagData.AddUninitialized(Settings.FFTSize);
+		// Create CQT kernel
+		CQTTransform = NewPseudoConstantQKernelTransform(Settings, ActualFFTSize, SampleRate);
 
-		SpectrumBuffer.Reset(NumUsefulFFTBins);
-		SpectrumBuffer.AddUninitialized(NumUsefulFFTBins);
+		if (FFT.IsValid())
+		{
+			// Size internal buffers
+			WindowedSamples.AddZeroed(FFT->NumInputFloats()); // Zero samples to apply zero buffer in case actual FFT is larger than provided settings.
+
+			ComplexSpectrum.AddUninitialized(FFT->NumOutputFloats());
+			RealSpectrum.AddUninitialized(ComplexSpectrum.Num() / 2);
+		}
 	}
 
 	void FConstantQAnalyzer::CalculateCQT(const float* InSamples, TArray<float>& OutCQT)
@@ -41,36 +51,48 @@ namespace Audio
 		FMemory::Memcpy(WindowedSamples.GetData(), InSamples, sizeof(float) * Settings.FFTSize);
 		Window.ApplyToBuffer(WindowedSamples.GetData());
 
-		// Take FFT of windowed samples
-		const FFTTimeDomainData TimeData = {WindowedSamples.GetData(), Settings.FFTSize};
-		FFTFreqDomainData FreqData = {FFTOutputRealData.GetData(), FFTOutputImagData.GetData()};
-
-		PerformFFT(TimeData, FreqData);
-
-		// Calculate spectrum from FFT output
-		ComputeSpectrum(Settings.SpectrumType, FreqData, Settings.FFTSize, SpectrumBuffer);
-		
-		// Convert spectrum to CQT
-		CQTTransform->TransformArray(SpectrumBuffer, OutCQT);
-
-		// Apply decibel scaling if appropriate.
-		if (EConstantQScaling::Decibel == Settings.Scaling)
+		if (FFT.IsValid())
 		{
-			// Convert to dB
-			switch (Settings.SpectrumType)
+			FFT->ForwardRealToComplex(WindowedSamples.GetData(), ComplexSpectrum.GetData());
+
+			ArrayComplexToPower(ComplexSpectrum, RealSpectrum);
+		
+			ScalePowerSpectrumInPlace(ActualFFTSize, FFT->ForwardScaling(), EFFTScaling::None, RealSpectrum);
+
+			if (ESpectrumType::MagnitudeSpectrum == Settings.SpectrumType)
 			{
-				case ESpectrumType::MagnitudeSpectrum:
-					ArrayMagnitudeToDecibelInPlace(OutCQT, -90.f);
-					break;
+				// Convert to magnitude
+				ArraySqrtInPlace(RealSpectrum);
+			}
+			else
+			{
+				// Spectrum type should only be magnitude or power. If not true,
+				// then there is a possible missing case coverage. 
+				check(ESpectrumType::PowerSpectrum == Settings.SpectrumType);
+			}
 
-				case ESpectrumType::PowerSpectrum:
-					ArrayPowerToDecibelInPlace(OutCQT, -90.f);
-					break;
+			// Convert spectrum to CQT
+			CQTTransform->TransformArray(RealSpectrum, OutCQT);
 
-				default:
-					check(false);
-					//checkf(false, TEXT("Unhandled ESpectrumType %s"), GETENUMSTRING(ESpectrumType, Settings.SpectrumType));
-					ArrayPowerToDecibelInPlace(OutCQT, -90.f);
+			// Apply decibel scaling if appropriate.
+			if (EConstantQScaling::Decibel == Settings.Scaling)
+			{
+				// Convert to dB
+				switch (Settings.SpectrumType)
+				{
+					case ESpectrumType::MagnitudeSpectrum:
+						ArrayMagnitudeToDecibelInPlace(OutCQT, -90.f);
+						break;
+
+					case ESpectrumType::PowerSpectrum:
+						ArrayPowerToDecibelInPlace(OutCQT, -90.f);
+						break;
+
+					default:
+						check(false);
+						//checkf(false, TEXT("Unhandled ESpectrumType %s"), GETENUMSTRING(ESpectrumType, Settings.SpectrumType));
+						ArrayPowerToDecibelInPlace(OutCQT, -90.f);
+				}
 			}
 		}
 	}

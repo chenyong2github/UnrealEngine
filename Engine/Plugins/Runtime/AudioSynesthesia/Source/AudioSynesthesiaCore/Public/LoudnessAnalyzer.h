@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DSP/BufferVectorOperations.h"
+#include "DSP/AlignedBuffer.h"
 #include "DSP/AudioFFT.h"
 
 namespace Audio
@@ -98,22 +98,23 @@ namespace Audio
             FLoudnessAnalyzerSettings Settings;
 
 			/** Scale factor used to normalize between differing window sizes and fft sizes */
-            float EnergyScale;
+            float EnergyScale = 1.f;
 
-            int32 MinFreqIndex;
-            int32 MaxFreqIndex;
+            int32 MinFreqIndex = 0;
+            int32 MaxFreqIndex = 0;
 
 			/** Number of FFTFrequency bins worth looking at. */
-			int32 FFTFreqSize;
+			int32 FFTFreqSize = 0;
+			int32 ActualFFTSize = 0;
 
             FWindow Window;
+			TUniquePtr<IFFTAlgorithm> FFT;
 
             FAlignedFloatBuffer WindowedSamples;
-            FAlignedFloatBuffer FFTOutputRealData;
-            FAlignedFloatBuffer FFTOutputImagData;
+            FAlignedFloatBuffer ComplexSpectrum;
+            FAlignedFloatBuffer RealSpectrum;
 
             FAlignedFloatBuffer CurveWeights;
-            FAlignedFloatBuffer PowerSpectrumBuffer;
     };
 
 

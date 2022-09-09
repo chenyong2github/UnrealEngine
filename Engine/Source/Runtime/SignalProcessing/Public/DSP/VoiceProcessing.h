@@ -128,16 +128,22 @@ namespace Audio
 		float GainMax;
 	};
 	
+	/** VoiceProcessing.h Deprecation
+	 *
+	 * Several classes in VoiceProcessing are deprecated due to lack of support
+	 * and lack of need. Current voice processing solutions are available through 
+	 * EOS and WebRTC. 
+	 */
 	
 	/**
 	 * This filter takes a precomputed set of FIR weights in the frequency domain, and linearly converges to it.
 	 * If no new weights are given and we've converged to our previous input weights, this works like a normal FFT-based FIR filter.
 	 * Convergence is non-asymptotic: if no new weights are given after our number of steps until convergence, our filter is using the exact weights given.
 	 */
-	class SIGNALPROCESSING_API FAdaptiveFilter
+	class SIGNALPROCESSING_API FAdaptiveFilter_DEPRECATED // Deprecated in 5.1
 	{
 	public:
-		FAdaptiveFilter(int32 FilterLength, int32 AudioCallbackSize);
+		FAdaptiveFilter_DEPRECATED(int32 FilterLength, int32 AudioCallbackSize);
 
 		/*
 		* Applies current filter to InAudio in-place. If there is a new target set of weights, they can be input below.
@@ -148,7 +154,7 @@ namespace Audio
 
 	private:
 
-		FAdaptiveFilter();
+		FAdaptiveFilter_DEPRECATED();
 
 		/** This is called every process callback to (A) reset our weight deltas if we have a new target, and (B) increment our current filter weights if we haven't converged yet. */
 		void AdaptFilter();
@@ -168,16 +174,23 @@ namespace Audio
 
 		int32 CurrentStepsUntilConvergence;
 
-		FFFTConvolver Convolver;
+		FFFTConvolver_DEPRECATED Convolver;
+	};
+
+	class UE_DEPRECATED(5.1, "FAdaptiveFilter will no longer be supported.") FAdaptiveFilter;
+	class SIGNALPROCESSING_API FAdaptiveFilter : public FAdaptiveFilter_DEPRECATED
+	{
+		public:
+			using FAdaptiveFilter_DEPRECATED::FAdaptiveFilter_DEPRECATED;
 	};
 
 	/**
 	 * This class takes an incoming signal and an outgoing signal, Correlates them, and returns the frequency values of the weight targets to pass to an adaptive filter.  
 	 */
-	class SIGNALPROCESSING_API FFDAPFilterComputer
+	class SIGNALPROCESSING_API FFDAPFilterComputer_DEPRECATED // Deprecated in 5.1
 	{
 	public:
-		FFDAPFilterComputer();
+		FFDAPFilterComputer_DEPRECATED();
 
 		void GenerateWeights(const float* IncomingSignal, int32 NumIncomingSamples, const float* OutgoingSignal, int32 NumOutgoingSamples, FrequencyBuffer& OutWeights);
 
@@ -189,18 +202,23 @@ namespace Audio
 		FAlignedFloatBuffer ZeroPaddedOutgoingBuffer;
 	};
 
+	class UE_DEPRECATED(5.1, "FAFDAPFFilterComputer will no longer be supported.") FFDAPFilterComputer;
+	class SIGNALPROCESSING_API FFDAPFilterComputer : public FFDAPFilterComputer_DEPRECATED 
+	{
+	};
+
 	/*
 	 * This class uses an adaptive filter to cancel out any rendered audio signal that might be picked up by the mic.
 	 * To add a new patch to a rendered audio signal, user AddNewSignalPatch. See FPatchInput for how to push audio.
 	 * ProcessAudio then filters the microphone signal accordingly.
 	 */
-	class SIGNALPROCESSING_API FAcousticEchoCancellation
+	class SIGNALPROCESSING_API FAcousticEchoCancellation_DEPRECATED // Deprecated in 5.1
 	{
 	public:
 		/**
 		 * Convergence Rate should be a number between 0 and 1. The higher the number, the quicker the adaptive filter reacts. 
 		 */
-		FAcousticEchoCancellation(float InConvergenceRate, int32 CallbackSize, int32 InFilterLength, int32 InFilterUpdateRate = 1);
+		FAcousticEchoCancellation_DEPRECATED(float InConvergenceRate, int32 CallbackSize, int32 InFilterLength, int32 InFilterUpdateRate = 1);
 
 		/** Callback function for outgoing audio signal. This is where the filter is applied, and the bulk of the DSP work takes place. */
 		void ProcessAudio(float* InAudio, int32 NumSamples);
@@ -211,8 +229,8 @@ namespace Audio
 
 	private:
 		FPatchMixer PatchMixer;
-		FFDAPFilterComputer FilterComputer;
-		FAdaptiveFilter AdaptiveFilter;
+		FFDAPFilterComputer_DEPRECATED FilterComputer;
+		FAdaptiveFilter_DEPRECATED AdaptiveFilter;
 		
 		FAlignedFloatBuffer FilterComputerInput;
 		FrequencyBuffer FilterComputerOutput;
@@ -220,5 +238,12 @@ namespace Audio
 		int32 FilterLength;
 		int32 FilterUpdateRate;
 		int32 FitlerUpdateCounter;
+	};
+
+	class UE_DEPRECATED(5.1, "FAcousticEchoCancellation will no longer be supported.") FAcousticEchoCancellation;
+	class SIGNALPROCESSING_API FAcousticEchoCancellation : public FAcousticEchoCancellation_DEPRECATED
+	{
+		public:
+			using FAcousticEchoCancellation_DEPRECATED::FAcousticEchoCancellation_DEPRECATED;
 	};
 }

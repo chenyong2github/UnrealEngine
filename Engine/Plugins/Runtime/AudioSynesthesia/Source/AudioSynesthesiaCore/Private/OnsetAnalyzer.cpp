@@ -3,6 +3,7 @@
 #include "OnsetAnalyzer.h"
 #include "PeakPicker.h"
 #include "DSP/FloatArrayMath.h"
+#include "DSP/FFTAlgorithm.h"
 
 namespace Audio
 {
@@ -21,24 +22,40 @@ namespace Audio
 		check(Settings.MelSettings.NumBands > 0);
 		check(Settings.NumWindowFrames <= Settings.FFTSize);
 
-		// intialize buffers dealing with audio window
-		WorkingBuffer.AddUninitialized(Settings.NumWindowFrames);
+		FFFTSettings FFTSettings;
+		FFTSettings.Log2Size = CeilLog2(Settings.FFTSize);
+		FFTSettings.bArrays128BitAligned = true;
+		FFTSettings.bEnableHardwareAcceleration = true;
 
-		// initialize buffers dealing with fft input / output
-		WindowedSamples.AddZeroed(Settings.FFTSize);
-		FFTOutputRealData.AddUninitialized(Settings.FFTSize);
-		FFTOutputImagData.AddUninitialized(Settings.FFTSize);
-		FFTSpectrumBuffer.AddUninitialized(Settings.FFTSize);
-		
-		// intialize buffers dealing with perceptual spectrum 
-		PreviousSpectra.AddDefaulted(Settings.ComparisonLag);
-		MelSpectrum.AddUninitialized(Settings.MelSettings.NumBands);
-		SpectrumDifference.AddUninitialized(Settings.MelSettings.NumBands);
+		ActualFFTSize = 1 << FFTSettings.Log2Size;
 
-		// create mel spectrum transform
-		MelTransform = NewMelSpectrumKernelTransform(Settings.MelSettings, Settings.FFTSize, InSampleRate);
+		checkf(FFFTFactory::AreFFTSettingsSupported(FFTSettings), TEXT("No fft algorithm supports fft settings."));
+		FFT = FFFTFactory::NewFFTAlgorithm(FFTSettings);
 
-		check(MelTransform.IsValid());
+		if (FFT.IsValid())
+		{
+			// intialize buffers dealing with audio window
+			WorkingBuffer.AddUninitialized(Settings.NumWindowFrames);
+
+			// initialize buffers dealing with fft input / output
+			WindowedSamples.AddZeroed(FFT->NumInputFloats());
+			ComplexSpectrum.AddUninitialized(FFT->NumOutputFloats());
+			RealSpectrum.AddUninitialized(FFT->NumOutputFloats() / 2);
+			
+			// intialize buffers dealing with perceptual spectrum 
+			PreviousMelSpectra.AddDefaulted(Settings.ComparisonLag);
+			for (FAlignedFloatBuffer& Spectrum : PreviousMelSpectra)
+			{
+				Spectrum.Reset();
+				Spectrum.AddZeroed(Settings.MelSettings.NumBands);
+			}
+
+			MelSpectrum.AddUninitialized(Settings.MelSettings.NumBands);
+			MelSpectrumDifference.AddUninitialized(Settings.MelSettings.NumBands);
+
+			// create mel spectrum transform
+			MelTransform = NewMelSpectrumKernelTransform(Settings.MelSettings, Settings.FFTSize, InSampleRate);
+		}
 	}
 
 	void FOnsetStrengthAnalyzer::CalculateOnsetStrengths(TArrayView<const float> InSamples, TArray<float>& OutEnvelopeStrengths)
@@ -61,9 +78,10 @@ namespace Audio
 	void FOnsetStrengthAnalyzer::Reset()
 	{
 		// Reset internal memory
-		for (TArray<float>& Spectrum : PreviousSpectra)
+		for (FAlignedFloatBuffer& Spectrum : PreviousMelSpectra)
 		{
 			Spectrum.Reset();
+			Spectrum.AddZeroed(Settings.MelSettings.NumBands);
 		}
 		SlidingBuffer.Reset();
 	}
@@ -114,47 +132,44 @@ namespace Audio
 	{
 		float OnsetStrength = 0.f;
 
-		// Copy input samples and apply window
-		FMemory::Memcpy(WindowedSamples.GetData(), InSamples.GetData(), sizeof(float) * Settings.NumWindowFrames);
-		Window.ApplyToBuffer(WindowedSamples.GetData());
-
-		// Take FFT of windowed samples
-		const FFTTimeDomainData TimeData = {WindowedSamples.GetData(), Settings.FFTSize};
-		FFTFreqDomainData FreqData = {FFTOutputRealData.GetData(), FFTOutputImagData.GetData()};
-
-		PerformFFT(TimeData, FreqData);
-
-		// Calculate spectrum from FFT output
-		ComputePowerSpectrum(FreqData, Settings.FFTSize, FFTSpectrumBuffer);
-		
-		// Convert spectrum to CQT
-		MelTransform->TransformArray(FFTSpectrumBuffer, MelSpectrum);
-
-		// Apply decibel scaling 
-		ArrayPowerToDecibelInPlace(MelSpectrum, -90.f);
-
-		// Clamp to noise floor
-		ArrayClampMinInPlace(MelSpectrum, Settings.NoiseFloorDb);
-
-		// Onset strength is mean(abs(diff(spectrum - previous_spectrum)))
-		TArray<float>& PreviousSpectrum = PreviousSpectra[LagSpectraIndex];
-		if (PreviousSpectrum.Num() > 0)
+		if (FFT.IsValid() && MelTransform.IsValid())
 		{
-			ArraySubtract(MelSpectrum, PreviousSpectrum, SpectrumDifference);
+			// Copy input samples and apply window
+			FMemory::Memcpy(WindowedSamples.GetData(), InSamples.GetData(), sizeof(float) * Settings.NumWindowFrames);
+			Window.ApplyToBuffer(WindowedSamples.GetData());
 
-			// Half wave rectify
-			ArrayClampMinInPlace(SpectrumDifference, 0.f);
+			FFT->ForwardRealToComplex(WindowedSamples.GetData(), ComplexSpectrum.GetData());
+			ArrayComplexToPower(ComplexSpectrum, RealSpectrum);
+		
+			ScalePowerSpectrumInPlace(ActualFFTSize, FFT->ForwardScaling(), EFFTScaling::None, RealSpectrum);
+		
+			// Convert spectrum to mel spectrum
+			MelTransform->TransformArray(RealSpectrum, MelSpectrum);
 
-			ArrayMean(SpectrumDifference, OnsetStrength);
+			// Apply decibel scaling 
+			ArrayPowerToDecibelInPlace(MelSpectrum, -90.f);
+
+			// Clamp to noise floor
+			ArrayClampMinInPlace(MelSpectrum, Settings.NoiseFloorDb);
+
+			// Onset strength is mean(abs(diff(spectrum - previous_spectrum)))
+			FAlignedFloatBuffer& PreviousSpectrum = PreviousMelSpectra[LagSpectraIndex];
+			if (PreviousSpectrum.Num() > 0)
+			{
+				ArraySubtract(MelSpectrum, PreviousSpectrum, MelSpectrumDifference);
+
+				// Half wave rectify
+				ArrayClampMinInPlace(MelSpectrumDifference, 0.f);
+
+				ArrayMean(MelSpectrumDifference, OnsetStrength);
+			}
+
+			// Save this spectrum for later use
+			FMemory::Memcpy(PreviousSpectrum.GetData(), MelSpectrum.GetData(), sizeof(float) * Settings.MelSettings.NumBands);
+
+			// Increment index for comparison spectra
+			LagSpectraIndex = (LagSpectraIndex + 1) % Settings.ComparisonLag;
 		}
-
-		// Save this spectrum for later use
-		PreviousSpectrum.Reset(Settings.MelSettings.NumBands);
-		PreviousSpectrum.AddUninitialized(Settings.MelSettings.NumBands);
-		FMemory::Memcpy(PreviousSpectrum.GetData(), MelSpectrum.GetData(), sizeof(float) * Settings.MelSettings.NumBands);
-
-		// Increment index for comparison spectra
-		LagSpectraIndex = (LagSpectraIndex + 1) % Settings.ComparisonLag;
 
 		return OnsetStrength;
 	}

@@ -13,7 +13,6 @@ namespace Audio
 {
 	class FSignalProcessingModule : public IModuleInterface
 	{
-		FAudioFFTAlgorithmFactory AudioFFTAlgorithmFactory;
 		FVectorFFTFactory VectorFFTAlgorithmFactory;
 
 		FUniformPartitionConvolutionFactory UniformPartitionConvolutionFactory;
@@ -23,7 +22,6 @@ namespace Audio
 		virtual void StartupModule() override
 		{
 			// FFT factories to register
-			IModularFeatures::Get().RegisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &AudioFFTAlgorithmFactory);
 			IModularFeatures::Get().RegisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &VectorFFTAlgorithmFactory);
 
 			// Convolution factories to register
@@ -33,7 +31,6 @@ namespace Audio
 		virtual void ShutdownModule() override
 		{
 			// FFT Factories to unregister
-			IModularFeatures::Get().UnregisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &AudioFFTAlgorithmFactory);
 			IModularFeatures::Get().UnregisterModularFeature(IFFTAlgorithmFactory::GetModularFeatureName(), &VectorFFTAlgorithmFactory);
 
 			// Convolution factories to unregister

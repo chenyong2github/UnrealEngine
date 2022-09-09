@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "PeakPicker.h"
+#include "DSP/AlignedBuffer.h"
+#include "DSP/AudioFFT.h"
+#include "DSP/FFTAlgorithm.h"
 #include "DSP/MelScale.h"
 #include "DSP/SlidingWindow.h"
-#include "DSP/AudioFFT.h"
+#include "PeakPicker.h"
 
 namespace Audio
 {
@@ -71,22 +73,23 @@ namespace Audio
 
 			FOnsetStrengthSettings Settings;
 			int32 LagSpectraIndex;
+			int32 ActualFFTSize;
 
 			TSlidingBuffer<float> SlidingBuffer;
 			FAlignedFloatBuffer WorkingBuffer;
 			FAlignedFloatBuffer WindowedSamples;
-			FAlignedFloatBuffer FFTOutputRealData;
-			FAlignedFloatBuffer FFTOutputImagData;
-			FAlignedFloatBuffer FFTSpectrumBuffer;
+			FAlignedFloatBuffer ComplexSpectrum;
+			FAlignedFloatBuffer RealSpectrum;
 
 			// Array of arrays to hold lag spectra.
-			TArray< TArray<float> > PreviousSpectra;
+			TArray<FAlignedFloatBuffer> PreviousMelSpectra;
 
 			TArray<float> MelSpectrum;
-			TArray<float> SpectrumDifference;
+			TArray<float> MelSpectrumDifference;
 
 			FWindow Window;
 			TUniquePtr<FContiguousSparse2DKernelTransform> MelTransform;
+			TUniquePtr<IFFTAlgorithm> FFT;
 	};
 
 	/** 

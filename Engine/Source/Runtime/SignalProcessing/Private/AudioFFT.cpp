@@ -173,6 +173,33 @@ namespace Audio
 
 	namespace FFTIntrinsics
 	{
+		float GetScalingExponent(EFFTScaling InScaling)
+		{
+			switch (InScaling)
+			{
+				case EFFTScaling::None:
+					return 0.f;
+
+				case EFFTScaling::MultipliedByFFTSize:
+					return 1.f;
+
+				case EFFTScaling::MultipliedBySqrtFFTSize:
+					return 0.5f;
+
+				case EFFTScaling::DividedByFFTSize:
+					return -1.f;
+
+				case EFFTScaling::DividedBySqrtFFTSize:
+					return -0.5f;
+
+				default:
+				{
+					checkNoEntry();
+					return 0;
+				}
+			}
+		}
+
 		 uint32 NextPowerOf2(uint32 Input)
 		{
 			uint32 Value = 2;
@@ -458,7 +485,7 @@ namespace Audio
 			}
 		}
 
-		void PerformIterativeFFT(const FFTTimeDomainData& InputParams, FFTFreqDomainData& OutputParams)
+		void PerformIterativeFFT(const FFTTimeDomainData_DEPRECATED& InputParams, FFTFreqDomainData_DEPRECATED& OutputParams)
 		{
 			// Separate even and odd elements into real buffer:
 			SeparateIntoCopy(InputParams.Buffer, OutputParams.OutReal, InputParams.NumSamples);
@@ -470,7 +497,7 @@ namespace Audio
 			ComputeButterfliesInPlace(OutputParams.OutReal, OutputParams.OutImag, InputParams.NumSamples);
 		}
 
-		void PerformIterativeIFFT(FFTFreqDomainData& InputParams, FFTTimeDomainData& OutputParams)
+		void PerformIterativeIFFT(FFTFreqDomainData_DEPRECATED& InputParams, FFTTimeDomainData_DEPRECATED& OutputParams)
 		{
 			TArrayView<float> OutImagView(InputParams.OutImag, OutputParams.NumSamples);
 			TArrayView<float> OutputBufferView(OutputParams.Buffer, OutputParams.NumSamples);
@@ -499,7 +526,7 @@ namespace Audio
 #endif
 		}
 
-		void PerformDFT(const FFTTimeDomainData& InputParams, FFTFreqDomainData& OutputParams)
+		void PerformDFT(const FFTTimeDomainData_DEPRECATED& InputParams, FFTFreqDomainData_DEPRECATED& OutputParams)
 		{
 			const float* InputBuffer = InputParams.Buffer;
 			float* OutReal = OutputParams.OutReal;
@@ -524,7 +551,7 @@ namespace Audio
 			}
 		}
 
-		void PerformIDFT(const FFTFreqDomainData& InputParams, FFTTimeDomainData& OutputParams)
+		void PerformIDFT(const FFTFreqDomainData_DEPRECATED& InputParams, FFTTimeDomainData_DEPRECATED& OutputParams)
 		{
 			float* OutputBuffer = OutputParams.Buffer;
 			float* InReal = InputParams.OutReal;
@@ -546,32 +573,262 @@ namespace Audio
 				OutputBuffer[TimeIndex] = RealSum;
 			}
 		}
+
+		void ComputePowerSpectrumNoScaling(const FFTFreqDomainData_DEPRECATED& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
+		{
+			check((FFTSize % 2) == 0);
+
+			if (FFTSize < 1)
+			{
+				// Can't do anything with a zero sized fft.
+				OutBuffer.Reset(0);
+				return;
+			}
+
+			// Spectrum only calculates values for real positive frequencies. 
+			const int32 NumSpectrumValues = (FFTSize / 2) + 1;
+
+			// Resize output buffer
+			OutBuffer.Reset(NumSpectrumValues);
+			OutBuffer.AddUninitialized(NumSpectrumValues);
+
+			TArrayView<float> OutBufferDataView(OutBuffer.GetData(), NumSpectrumValues);
+			TArrayView<const float> RealDataView(InFrequencyData.OutReal, NumSpectrumValues);
+			TArrayView<const float> ImagDataView(InFrequencyData.OutImag, NumSpectrumValues);
+
+			ArrayComplexToPower(RealDataView, ImagDataView, OutBufferDataView);
+		}
+
+	} // namespace FFTIntrinsic
+
+	namespace AudioFFTDeprecated
+	{
+		void CrossCorrelate_DEPRECATED(FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, int32 NumSamples, FrequencyBuffer& OutCorrelation);
+		void CrossCorrelate_DEPRECATED(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, FrequencyBuffer& OutCorrelation);
+		void CrossCorrelate_DEPRECATED(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& OutCorrelation);
+		void CrossCorrelate_DEPRECATED(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, float* OutCorrelation, int32 OutCorrelationSamples);
+		void CrossCorrelate_DEPRECATED(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad);
+		void CrossCorrelate_DEPRECATED(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FAlignedFloatBuffer& OutCorrelation, bool bZeroPad);
+
+
+		void PerformFFT_DEPRECATED(const FFTTimeDomainData_DEPRECATED& InputParams, FFTFreqDomainData_DEPRECATED& OutputParams)
+		{
+			int32 FFTMethod = CVarFFTMethod.GetValueOnAnyThread();
+			if (FFTMethod)
+			{
+				FFTIntrinsics::PerformDFT(InputParams, OutputParams);
+			}
+			else
+			{
+				FFTIntrinsics::PerformIterativeFFT(InputParams, OutputParams);
+			}
+		}
+
+		void PerformIFFT_DEPRECATED(FFTFreqDomainData_DEPRECATED& InputParams, FFTTimeDomainData_DEPRECATED& OutputParams)
+		{
+			int32 FFTMethod = CVarFFTMethod.GetValueOnAnyThread();
+			if (FFTMethod)
+			{
+				FFTIntrinsics::PerformIDFT(InputParams, OutputParams);
+			}
+			else
+			{
+				FFTIntrinsics::PerformIterativeIFFT(InputParams, OutputParams);
+			}
+		}
+
+		void ComputeMagnitudeSpectrum_DEPRECATED(const FFTFreqDomainData_DEPRECATED& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
+		{
+			if (FFTSize < 1)
+			{
+				OutBuffer.Reset();
+				return;
+			}
+
+			FFTIntrinsics::ComputePowerSpectrumNoScaling(InFrequencyData, FFTSize, OutBuffer);
+
+			const int32 NumSpectrumValues = OutBuffer.Num();
+			if (NumSpectrumValues < 1)
+			{
+				return;
+			}
+
+			const float FFTScale = 1.f / FMath::Sqrt(static_cast<float>(FFTSize));
+
+			float* OutBufferData = OutBuffer.GetData();
+
+			for (int32 i = 0; i < NumSpectrumValues; i++)
+			{
+				// TODO: Currently no vector sqrt. utilize fmath for now.
+				OutBufferData[i] = FMath::Sqrt(OutBufferData[i]);
+			}
+
+			if (NumSpectrumValues > 1)
+			{
+				TArrayView<float> OutBufferView(OutBufferData, NumSpectrumValues - 1);
+				ArrayMultiplyByConstantInPlace(OutBufferView, FFTScale);
+			}
+			OutBufferData[NumSpectrumValues - 1] *= FFTScale;
+		}
+
+		void ComputePowerSpectrum_DEPRECATED(const FFTFreqDomainData_DEPRECATED& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
+		{
+			if (FFTSize < 1)
+			{
+				OutBuffer.Reset();
+				return;
+			}
+
+			FFTIntrinsics::ComputePowerSpectrumNoScaling(InFrequencyData, FFTSize, OutBuffer);
+
+			const int32 NumSpectrumValues = OutBuffer.Num();
+			if (NumSpectrumValues < 1)
+			{
+				return;
+			}
+
+			const float FFTScale = 1.f / static_cast<float>(FFTSize);
+
+			float* OutBufferData = OutBuffer.GetData();
+
+			if (NumSpectrumValues > 1)
+			{
+				TArrayView<float> OutBufferDataView(OutBufferData, NumSpectrumValues - 1);
+				ArrayMultiplyByConstantInPlace(OutBufferDataView, FFTScale);
+			}
+			
+			OutBufferData[NumSpectrumValues - 1] *= FFTScale;
+		}
+
+		void CrossCorrelate_DEPRECATED(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FAlignedFloatBuffer& OutCorrelation, bool bZeroPad /*= true*/)
+		{
+			FrequencyBuffer OutputCorrelationFrequencies;
+			CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, OutputCorrelationFrequencies, bZeroPad);
+
+			OutCorrelation.Reset();
+			OutCorrelation.AddUninitialized(OutputCorrelationFrequencies.Real.Num());
+
+			// Perform IFFT into OutCorrelation:
+			FFTFreqDomainData_DEPRECATED FreqDomainData = 
+			{
+				OutputCorrelationFrequencies.Real.GetData(),
+				OutputCorrelationFrequencies.Imag.GetData()
+			};
+
+			FFTTimeDomainData_DEPRECATED TimeDomainData =
+			{
+				OutCorrelation.GetData(),
+				OutCorrelation.Num()
+			};
+
+			AudioFFTDeprecated::PerformIFFT_DEPRECATED(FreqDomainData, TimeDomainData);
+		}
+
+		void CrossCorrelate_DEPRECATED(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad /*= true*/)
+		{
+			const int32 NumSamples = FMath::Max(FirstBuffer.Num(), SecondBuffer.Num());
+
+			if (!bZeroPad)
+			{
+				int32 FFTLength = FFTIntrinsics::NextPowerOf2(NumSamples - 1);
+
+				FirstBuffer.AddZeroed(FFTLength - FirstBuffer.Num());
+				SecondBuffer.AddZeroed(FFTLength - SecondBuffer.Num());
+			}
+			else
+			{
+				checkSlow(FirstBuffer.Num() == SecondBuffer.Num() && FMath::IsPowerOfTwo(FirstBuffer.Num()));
+			}
+
+			CrossCorrelate_DEPRECATED(FirstBuffer.GetData(), SecondBuffer.GetData(), NumSamples, FirstBuffer.Num(), OutCorrelation);
+		}
+
+		void CrossCorrelate_DEPRECATED(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, float* OutCorrelation, int32 OutCorrelationSamples)
+		{
+			FrequencyBuffer OutputCorrelationFrequencies;
+			CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, NumSamples, FFTSize, OutputCorrelationFrequencies);
+
+			checkSlow(FFTSize == OutCorrelationSamples);
+
+			// Perform IFFT into OutCorrelation:
+			FFTFreqDomainData_DEPRECATED FreqDomainData =
+			{
+				OutputCorrelationFrequencies.Real.GetData(),
+				OutputCorrelationFrequencies.Imag.GetData()
+			};
+
+			FFTTimeDomainData_DEPRECATED TimeDomainData =
+			{
+				OutCorrelation,
+				OutCorrelationSamples
+			};
+
+			AudioFFTDeprecated::PerformIFFT_DEPRECATED(FreqDomainData, TimeDomainData);
+		}
+
+		void CrossCorrelate_DEPRECATED(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& OutCorrelation)
+		{
+			FrequencyBuffer FirstBufferFrequencies;
+			FrequencyBuffer SecondBufferFrequencies;
+
+			CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, NumSamples, FFTSize, FirstBufferFrequencies, SecondBufferFrequencies, OutCorrelation);
+		}
+
+		void CrossCorrelate_DEPRECATED(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, FrequencyBuffer& OutCorrelation)
+		{
+			checkSlow(FMath::IsPowerOfTwo(FFTSize));
+			OutCorrelation.InitZeroed(FFTSize);
+			
+			// Perform FFT on First Buffer input:
+			FirstBufferFrequencies.InitZeroed(FFTSize);
+			FFTTimeDomainData_DEPRECATED TimeDomainData =
+			{
+				const_cast<float*>(FirstBuffer), // Note: Because we use the same struct for the IFFT as we do the FFT, we can't make this property const.
+				FFTSize
+			};
+
+			FFTFreqDomainData_DEPRECATED FreqDomainData =
+			{
+				FirstBufferFrequencies.Real.GetData(),
+				FirstBufferFrequencies.Imag.GetData()
+			};
+			
+			AudioFFTDeprecated::PerformFFT_DEPRECATED(TimeDomainData, FreqDomainData);
+
+			// Perform FFT on second buffer of input:
+			SecondBufferFrequencies.InitZeroed(FFTSize);
+			TimeDomainData =
+			{
+				const_cast<float*>(SecondBuffer),
+				FFTSize
+			};
+
+			FreqDomainData = 
+			{
+				SecondBufferFrequencies.Real.GetData(),
+				SecondBufferFrequencies.Imag.GetData()
+			};
+
+			AudioFFTDeprecated::PerformFFT_DEPRECATED(TimeDomainData, FreqDomainData);
+
+			CrossCorrelate_DEPRECATED(FirstBufferFrequencies, SecondBufferFrequencies, NumSamples, OutCorrelation);
+		}
+
+		void CrossCorrelate_DEPRECATED(FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, int32 NumSamples, FrequencyBuffer& OutCorrelation)
+		{
+			FFTIntrinsics::ComplexMultiplyByConjugate(FirstBufferFrequencies, SecondBufferFrequencies, OutCorrelation);
+		}
+
+	} // Namespace AudioFFTDeprecated
+
+	void PerformFFT(const FFTTimeDomainData_DEPRECATED& InputParams, FFTFreqDomainData_DEPRECATED& OutputParams)
+	{
+		AudioFFTDeprecated::PerformFFT_DEPRECATED(InputParams, OutputParams);
 	}
 
-	void PerformFFT(const FFTTimeDomainData& InputParams, FFTFreqDomainData& OutputParams)
+	void PerformIFFT(FFTFreqDomainData_DEPRECATED& InputParams, FFTTimeDomainData_DEPRECATED& OutputParams)
 	{
-		int32 FFTMethod = CVarFFTMethod.GetValueOnAnyThread();
-		if (FFTMethod)
-		{
-			FFTIntrinsics::PerformDFT(InputParams, OutputParams);
-		}
-		else
-		{
-			FFTIntrinsics::PerformIterativeFFT(InputParams, OutputParams);
-		}
-	}
-
-	void PerformIFFT(FFTFreqDomainData& InputParams, FFTTimeDomainData& OutputParams)
-	{
-		int32 FFTMethod = CVarFFTMethod.GetValueOnAnyThread();
-		if (FFTMethod)
-		{
-			FFTIntrinsics::PerformIDFT(InputParams, OutputParams);
-		}
-		else
-		{
-			FFTIntrinsics::PerformIterativeIFFT(InputParams, OutputParams);
-		}
+		AudioFFTDeprecated::PerformIFFT_DEPRECATED(InputParams, OutputParams);
 	}
 
 	// Implementation of fft algorithm interface
@@ -579,7 +836,7 @@ namespace Audio
 	{
 			const int32 FFTSize;
 			const int32 NumOutputFFTElements;
-			FFTFreqDomainData FreqDomainData;
+			FFTFreqDomainData_DEPRECATED FreqDomainData;
 
 			FAlignedFloatBuffer FreqRealBuffer;
 			FAlignedFloatBuffer FreqImagBuffer;
@@ -618,8 +875,8 @@ namespace Audio
 			// OutComplex - Array of floats to store output of fourier transform. Must have (FFTSize() + 2) float elements which represent ((FFTSize() / 2) + 1) complex numbers in interleaved format.
 			virtual void ForwardRealToComplex(const float* RESTRICT InReal, float* RESTRICT OutComplex) override
 			{
-				const FFTTimeDomainData TimeDomainData = {const_cast<float*>(InReal), FFTSize};
-				PerformFFT(TimeDomainData, FreqDomainData);
+				const FFTTimeDomainData_DEPRECATED TimeDomainData = {const_cast<float*>(InReal), FFTSize};
+				AudioFFTDeprecated::PerformFFT_DEPRECATED(TimeDomainData, FreqDomainData);
 
 				// Convert FFT output data to interleaved format.
 				int32 OutPos = 0;
@@ -659,8 +916,8 @@ namespace Audio
 					InFreqPos--;
 				}
 
-				FFTTimeDomainData TimeDomainData = {OutReal, FFTSize};
-				PerformIFFT(FreqDomainData, TimeDomainData);
+				FFTTimeDomainData_DEPRECATED TimeDomainData = {OutReal, FFTSize};
+				AudioFFTDeprecated::PerformIFFT_DEPRECATED(FreqDomainData, TimeDomainData);
 			}
 
 			// BatchForwardRealToComplex
@@ -722,239 +979,69 @@ namespace Audio
 		return MakeUnique<FAudioFFTAlgorithm>(FFTSize);
 	}
 
-	void ComputePowerSpectrumNoScaling(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
+	void ComputePowerSpectrum(const FFTFreqDomainData_DEPRECATED& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
-		check((FFTSize % 2) == 0);
-
-		if (FFTSize < 1)
-		{
-			// Can't do anything with a zero sized fft.
-			OutBuffer.Reset(0);
-			return;
-		}
-
-		// Spectrum only calculates values for real positive frequencies. 
-		const int32 NumSpectrumValues = (FFTSize / 2) + 1;
-
-		// Resize output buffer
-		OutBuffer.Reset(NumSpectrumValues);
-		OutBuffer.AddUninitialized(NumSpectrumValues);
-
-		TArrayView<float> OutBufferDataView(OutBuffer.GetData(), NumSpectrumValues);
-		TArrayView<const float> RealDataView(InFrequencyData.OutReal, NumSpectrumValues);
-		TArrayView<const float> ImagDataView(InFrequencyData.OutImag, NumSpectrumValues);
-
-		ArrayComplexToPower(RealDataView, ImagDataView, OutBufferDataView);
+		AudioFFTDeprecated::ComputePowerSpectrum_DEPRECATED(InFrequencyData, FFTSize, OutBuffer);
 	}
 
-	void ComputePowerSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
+	void ComputeMagnitudeSpectrum(const FFTFreqDomainData_DEPRECATED& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
-		if (FFTSize < 1)
-		{
-			OutBuffer.Reset();
-			return;
-		}
-
-		ComputePowerSpectrumNoScaling(InFrequencyData, FFTSize, OutBuffer);
-
-		const int32 NumSpectrumValues = OutBuffer.Num();
-		if (NumSpectrumValues < 1)
-		{
-			return;
-		}
-
-		const float FFTScale = 1.f / static_cast<float>(FFTSize);
-
-		float* OutBufferData = OutBuffer.GetData();
-
-		if (NumSpectrumValues > 1)
-		{
-			TArrayView<float> OutBufferDataView(OutBufferData, NumSpectrumValues - 1);
-			ArrayMultiplyByConstantInPlace(OutBufferDataView, FFTScale);
-		}
-		
-		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
+		AudioFFTDeprecated::ComputeMagnitudeSpectrum_DEPRECATED(InFrequencyData, FFTSize, OutBuffer);
 	}
 
-	void ComputeMagnitudeSpectrum(const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
-	{
-		if (FFTSize < 1)
-		{
-			OutBuffer.Reset();
-			return;
-		}
-
-		ComputePowerSpectrumNoScaling(InFrequencyData, FFTSize, OutBuffer);
-
-		const int32 NumSpectrumValues = OutBuffer.Num();
-		if (NumSpectrumValues < 1)
-		{
-			return;
-		}
-
-		const float FFTScale = 1.f / FMath::Sqrt(static_cast<float>(FFTSize));
-
-		float* OutBufferData = OutBuffer.GetData();
-
-		for (int32 i = 0; i < NumSpectrumValues; i++)
-		{
-			// TODO: Currently no vector sqrt. utilize fmath for now.
-			OutBufferData[i] = FMath::Sqrt(OutBufferData[i]);
-		}
-
-		if (NumSpectrumValues > 1)
-		{
-			TArrayView<float> OutBufferView(OutBufferData, NumSpectrumValues - 1);
-			ArrayMultiplyByConstantInPlace(OutBufferView, FFTScale);
-		}
-		OutBufferData[NumSpectrumValues - 1] *= FFTScale;
-	}
-
-	void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
+	void ComputeSpectrum(ESpectrumType InSpectrumType, const FFTFreqDomainData_DEPRECATED& InFrequencyData, int32 FFTSize, FAlignedFloatBuffer& OutBuffer)
 	{
 		switch (InSpectrumType)
 		{
 			case ESpectrumType::MagnitudeSpectrum:
-				ComputeMagnitudeSpectrum(InFrequencyData, FFTSize, OutBuffer);
+				AudioFFTDeprecated::ComputeMagnitudeSpectrum_DEPRECATED(InFrequencyData, FFTSize, OutBuffer);
 				break;
 
 			case ESpectrumType::PowerSpectrum:
-				ComputePowerSpectrum(InFrequencyData, FFTSize, OutBuffer);
+				AudioFFTDeprecated::ComputePowerSpectrum_DEPRECATED(InFrequencyData, FFTSize, OutBuffer);
 				break;
 
 			default:
 				checkf(false, TEXT("Unhandled Audio::ESpectrumType"));
 		}
 	}
-	SIGNALPROCESSING_API void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FAlignedFloatBuffer& OutCorrelation, bool bZeroPad /*= true*/)
+
+	void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FAlignedFloatBuffer& OutCorrelation, bool bZeroPad /*= true*/)
 	{
-		FrequencyBuffer OutputCorrelationFrequencies;
-		CrossCorrelate(FirstBuffer, SecondBuffer, OutputCorrelationFrequencies, bZeroPad);
-
-		OutCorrelation.Reset();
-		OutCorrelation.AddUninitialized(OutputCorrelationFrequencies.Real.Num());
-
-		// Perform IFFT into OutCorrelation:
-		FFTFreqDomainData FreqDomainData = 
-		{
-			OutputCorrelationFrequencies.Real.GetData(),
-			OutputCorrelationFrequencies.Imag.GetData()
-		};
-
-		FFTTimeDomainData TimeDomainData =
-		{
-			OutCorrelation.GetData(),
-			OutCorrelation.Num()
-		};
-
-		PerformIFFT(FreqDomainData, TimeDomainData);
+		AudioFFTDeprecated::CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, OutCorrelation, bZeroPad);
 	}
 
-	SIGNALPROCESSING_API void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad /*= true*/)
+	void CrossCorrelate(FAlignedFloatBuffer& FirstBuffer, FAlignedFloatBuffer& SecondBuffer, FrequencyBuffer& OutCorrelation, bool bZeroPad /*= true*/)
 	{
-		const int32 NumSamples = FMath::Max(FirstBuffer.Num(), SecondBuffer.Num());
-
-		if (!bZeroPad)
-		{
-			int32 FFTLength = FFTIntrinsics::NextPowerOf2(NumSamples - 1);
-
-			FirstBuffer.AddZeroed(FFTLength - FirstBuffer.Num());
-			SecondBuffer.AddZeroed(FFTLength - SecondBuffer.Num());
-		}
-		else
-		{
-			checkSlow(FirstBuffer.Num() == SecondBuffer.Num() && FMath::IsPowerOfTwo(FirstBuffer.Num()));
-		}
-
-		CrossCorrelate(FirstBuffer.GetData(), SecondBuffer.GetData(), NumSamples, FirstBuffer.Num(), OutCorrelation);
+		AudioFFTDeprecated::CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, OutCorrelation, bZeroPad);
 	}
 
-	SIGNALPROCESSING_API void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, float* OutCorrelation, int32 OutCorrelationSamples)
+	void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, float* OutCorrelation, int32 OutCorrelationSamples)
 	{
-		FrequencyBuffer OutputCorrelationFrequencies;
-		CrossCorrelate(FirstBuffer, SecondBuffer, NumSamples, FFTSize, OutputCorrelationFrequencies);
-
-		checkSlow(FFTSize == OutCorrelationSamples);
-
-		// Perform IFFT into OutCorrelation:
-		FFTFreqDomainData FreqDomainData =
-		{
-			OutputCorrelationFrequencies.Real.GetData(),
-			OutputCorrelationFrequencies.Imag.GetData()
-		};
-
-		FFTTimeDomainData TimeDomainData =
-		{
-			OutCorrelation,
-			OutCorrelationSamples
-		};
-
-		PerformIFFT(FreqDomainData, TimeDomainData);
+		AudioFFTDeprecated::CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, NumSamples, FFTSize, OutCorrelation, OutCorrelationSamples);
 	}
 
-	SIGNALPROCESSING_API void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& OutCorrelation)
+	void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& OutCorrelation)
 	{
-		FrequencyBuffer FirstBufferFrequencies;
-		FrequencyBuffer SecondBufferFrequencies;
-
-		CrossCorrelate(FirstBuffer, SecondBuffer, NumSamples, FFTSize, FirstBufferFrequencies, SecondBufferFrequencies, OutCorrelation);
+		AudioFFTDeprecated::CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, NumSamples, FFTSize, OutCorrelation);
 	}
 
-	SIGNALPROCESSING_API void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, FrequencyBuffer& OutCorrelation)
+	void CrossCorrelate(const float* FirstBuffer, const float* SecondBuffer, int32 NumSamples, int32 FFTSize, FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, FrequencyBuffer& OutCorrelation)
 	{
-		checkSlow(FMath::IsPowerOfTwo(FFTSize));
-		OutCorrelation.InitZeroed(FFTSize);
-		
-		// Perform FFT on First Buffer input:
-		FirstBufferFrequencies.InitZeroed(FFTSize);
-		FFTTimeDomainData TimeDomainData =
-		{
-			const_cast<float*>(FirstBuffer), // Note: Because we use the same struct for the IFFT as we do the FFT, we can't make this property const.
-			FFTSize
-		};
-
-		FFTFreqDomainData FreqDomainData =
-		{
-			FirstBufferFrequencies.Real.GetData(),
-			FirstBufferFrequencies.Imag.GetData()
-		};
-		
-		PerformFFT(TimeDomainData, FreqDomainData);
-
-		// Perform FFT on second buffer of input:
-		SecondBufferFrequencies.InitZeroed(FFTSize);
-		TimeDomainData =
-		{
-			const_cast<float*>(SecondBuffer),
-			FFTSize
-		};
-
-		FreqDomainData = 
-		{
-			SecondBufferFrequencies.Real.GetData(),
-			SecondBufferFrequencies.Imag.GetData()
-		};
-
-		PerformFFT(TimeDomainData, FreqDomainData);
-
-		CrossCorrelate(FirstBufferFrequencies, SecondBufferFrequencies, NumSamples, OutCorrelation);
+		AudioFFTDeprecated::CrossCorrelate_DEPRECATED(FirstBuffer, SecondBuffer, NumSamples, FFTSize, FirstBufferFrequencies, SecondBufferFrequencies, OutCorrelation);
 	}
 
-	SIGNALPROCESSING_API void CrossCorrelate(FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, int32 NumSamples, FrequencyBuffer& OutCorrelation)
+	void CrossCorrelate(FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, int32 NumSamples, FrequencyBuffer& OutCorrelation)
 	{
-		FFTIntrinsics::ComplexMultiplyByConjugate(FirstBufferFrequencies, SecondBufferFrequencies, OutCorrelation);
-
-		// Normalize our output by the length of the signals:
-		//const float NormalizationFactor = 1.0f / NumSamples;
-		//FFTIntrinsics::ComplexMultiplyInPlaceByConstant(OutCorrelation, NormalizationFactor);
+		AudioFFTDeprecated::CrossCorrelate_DEPRECATED(FirstBufferFrequencies, SecondBufferFrequencies, NumSamples, OutCorrelation);
 	}
 
-	FFFTConvolver::FFFTConvolver()
+	FFFTConvolver_DEPRECATED::FFFTConvolver_DEPRECATED()
 		: BlockSize(0)
 	{
 	}
 
-	void FFFTConvolver::ConvolveBlock(float* InputAudio, int32 NumSamples)
+	void FFFTConvolver_DEPRECATED::ConvolveBlock(float* InputAudio, int32 NumSamples)
 	{
 		checkSlow(NumSamples != 0);
 
@@ -965,21 +1052,21 @@ namespace Audio
 		TimeDomainInputBuffer.AddZeroed(FFTSize);
 		FMemory::Memcpy(TimeDomainInputBuffer.GetData(), InputAudio, NumSamples * sizeof(float));
 
-		FFTTimeDomainData TimeDomainData = 
+		FFTTimeDomainData_DEPRECATED TimeDomainData = 
 		{ 
 			TimeDomainInputBuffer.GetData(), // Buffer
 			TimeDomainInputBuffer.Num()      // FFTSize
 		};
 
-		FFTFreqDomainData FreqDomainData = 
+		FFTFreqDomainData_DEPRECATED FreqDomainData = 
 		{
 			InputFrequencies.Real.GetData(),
 			InputFrequencies.Imag.GetData()
 		};
 
-		PerformFFT(TimeDomainData, FreqDomainData);
+		AudioFFTDeprecated::PerformFFT_DEPRECATED(TimeDomainData, FreqDomainData);
 		FFTIntrinsics::ComplexMultiplyInPlace(FilterFrequencies, InputFrequencies);
-		PerformIFFT(FreqDomainData, TimeDomainData);
+		AudioFFTDeprecated::PerformIFFT_DEPRECATED(FreqDomainData, TimeDomainData);
 
 		// Copy back from our temporary buffer to InputAudio:
 		FMemory::Memcpy(InputAudio, TimeDomainInputBuffer.GetData(), NumSamples * sizeof(float));
@@ -993,7 +1080,7 @@ namespace Audio
 		SetCOLABuffer(TimeDomainInputBuffer.GetData() + COLAOffset, COLASize);
 	}
 
-	void FFFTConvolver::SumInCOLABuffer(float* InputAudio, int32 NumSamples)
+	void FFFTConvolver_DEPRECATED::SumInCOLABuffer(float* InputAudio, int32 NumSamples)
 	{
 		TArrayView<const float> COLABufferView(COLABuffer.GetData(), NumSamples);
 		TArrayView<float> InputAudioView(InputAudio, NumSamples);
@@ -1001,13 +1088,13 @@ namespace Audio
 		ArrayMixIn(COLABufferView, InputAudioView);
 	}
 
-	void FFFTConvolver::SetCOLABuffer(float* InAudio, int32 NumSamples)
+	void FFFTConvolver_DEPRECATED::SetCOLABuffer(float* InAudio, int32 NumSamples)
 	{
 		COLABuffer.SetNumUninitialized(NumSamples, false);
 		FMemory::Memcpy(COLABuffer.GetData(), InAudio, NumSamples * sizeof(float));
 	}
 
-	void FFFTConvolver::ProcessAudio(float* InputAudio, int32 NumSamples)
+	void FFFTConvolver_DEPRECATED::ProcessAudio(float* InputAudio, int32 NumSamples)
 	{
 		checkSlow(BlockSize != 0);
 
@@ -1026,7 +1113,7 @@ namespace Audio
 		}
 	}
 
-	void FFFTConvolver::SetFilter(const float* InWindowReal, const float* InWindowImag, int32 FilterSize, int32 FFTSize)
+	void FFFTConvolver_DEPRECATED::SetFilter(const float* InWindowReal, const float* InWindowImag, int32 FilterSize, int32 FFTSize)
 	{
 		checkSlow(FilterSize != 0);
 
@@ -1046,7 +1133,7 @@ namespace Audio
 		COLABuffer.AddZeroed(BlockSize);
 	}
 
-	void FFFTConvolver::SetFilter(const FrequencyBuffer& InFilterFrequencies, int32 FilterSize)
+	void FFFTConvolver_DEPRECATED::SetFilter(const FrequencyBuffer& InFilterFrequencies, int32 FilterSize)
 	{
 		checkSlow(FilterSize != 0);
 
@@ -1066,7 +1153,7 @@ namespace Audio
 		COLABuffer.AddZeroed(BlockSize);
 	}
 
-	void FFFTConvolver::SetFilter(const float* TimeDomainBuffer, int32 FilterSize)
+	void FFFTConvolver_DEPRECATED::SetFilter(const float* TimeDomainBuffer, int32 FilterSize)
 	{
 		checkSlow(FilterSize != 0);
 
@@ -1078,27 +1165,67 @@ namespace Audio
 		TimeDomainInputBuffer.AddZeroed(FilterFFTSize);
 		FMemory::Memcpy(TimeDomainInputBuffer.GetData(), TimeDomainBuffer, FilterSize * sizeof(float));
 
-		FFTTimeDomainData TimeDomainData =
+		FFTTimeDomainData_DEPRECATED TimeDomainData =
 		{
 			TimeDomainInputBuffer.GetData(),
 			TimeDomainInputBuffer.Num()
 		};
 
-		FFTFreqDomainData FreqDomainData =
+		FFTFreqDomainData_DEPRECATED FreqDomainData =
 		{
 			FilterFrequencies.Real.GetData(),
 			FilterFrequencies.Imag.GetData()
 		};
 
-		PerformFFT(TimeDomainData, FreqDomainData);
+		AudioFFTDeprecated::PerformFFT_DEPRECATED(TimeDomainData, FreqDomainData);
 		BlockSize = FilterSize;
 		InputFrequencies.InitZeroed(FilterFFTSize);
 		COLABuffer.Reset(BlockSize);
 		COLABuffer.AddZeroed(BlockSize);
 	}
 
-	void FFFTConvolver::SetFilter(const FAlignedFloatBuffer& TimeDomainBuffer)
+	void FFFTConvolver_DEPRECATED::SetFilter(const FAlignedFloatBuffer& TimeDomainBuffer)
 	{
 		SetFilter(TimeDomainBuffer.GetData(), TimeDomainBuffer.Num());
 	}
+
+	int32 CeilLog2(int32 InNum)
+	{
+		static constexpr int32 MaxValue = 0x40000000;
+		static constexpr int32 One = 1;
+
+		int32 Result = 0;
+		int32 Value = 1;
+
+		while ((Value < InNum) && (Value < MaxValue))
+		{
+			Result++;
+			Value = One << Result;
+		}
+
+		return Result;
+	}
+
+
+	float GetPowerSpectrumScaling(int32 FFTSize, EFFTScaling InCurrentScaling, EFFTScaling InTargetScaling)
+	{
+		if (!ensureMsgf(FFTSize > 0, TEXT("Invalid FFTSize %d"), FFTSize))
+		{
+			return 1.f;
+		}
+
+		const float ScalingExponentDiff = FFTIntrinsics::GetScalingExponent(InTargetScaling) - FFTIntrinsics::GetScalingExponent(InCurrentScaling);
+		return FMath::Pow(static_cast<float>(FFTSize), ScalingExponentDiff * 2.f);
+	}
+
+	void ScalePowerSpectrumInPlace(int32 FFTSize, EFFTScaling InCurrentScaling, EFFTScaling InTargetScaling, TArrayView<float> InPowerSpectrum)
+	{
+		if (InCurrentScaling != InTargetScaling)
+		{
+			const float Scaling = GetPowerSpectrumScaling(FFTSize, InCurrentScaling, InTargetScaling);
+			ArrayMultiplyByConstantInPlace(InPowerSpectrum, Scaling);
+		}
+	}
+
+
 }
