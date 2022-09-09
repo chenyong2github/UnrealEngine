@@ -171,7 +171,7 @@ void SKeySelector::Construct(const FArguments& InArgs)
 			SAssignNew(KeyComboButton, SComboButton)
 			.OnGetMenuContent(this, &SKeySelector::GetMenuContent)
 			.ContentPadding(0)
-			.ToolTipText(this, &SKeySelector::GetKeyDescription)	// Longer key descriptions can overrun the visible space in the combo button if the parent width is constrained, so we reflect them in the tooltip too.
+			.ToolTipText(this, &SKeySelector::GetKeyDescriptionToolTip)	// Longer key descriptions can overrun the visible space in the combo button if the parent width is constrained, so we reflect them in the tooltip too.
 			.ButtonContent()
 			[
 				SNew(SHorizontalBox)
@@ -205,6 +205,21 @@ FText SKeySelector::GetKeyDescription() const
 	return LOCTEXT("MultipleValues", "Multiple Values");
 }
 
+FText SKeySelector::GetKeyDescriptionToolTip() const
+{
+	if(!bEnabledFromKeyStructCustomization)
+    {
+    	return LOCTEXT("KeySelectorDisabledToolTipText", "This Key cannot be part of the combo trigger so Key selection has been disabled.");
+    }
+    
+	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();
+	if (CurrentKeyValue.IsSet())
+	{
+		return CurrentKeyValue.GetValue().GetDisplayName();
+	}
+	return LOCTEXT("MultipleValues", "Multiple Values");
+}
+
 const FSlateBrush* SKeySelector::GetKeyIconImage() const
 {
 	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();
@@ -222,6 +237,11 @@ const FSlateBrush* SKeySelector::GetKeyIconImage() const
 
 FText SKeySelector::GetKeyTooltip() const
 {
+	if(!bEnabledFromKeyStructCustomization)
+	{
+		return LOCTEXT("KeySelectorDisabledToolTipText", "This Key cannot be part of the combo trigger so Key selection has been disabled.");
+	}
+	
 	TOptional<FKey> CurrentKeyValue = CurrentKey.Get();
 	if (CurrentKeyValue.IsSet())
 	{

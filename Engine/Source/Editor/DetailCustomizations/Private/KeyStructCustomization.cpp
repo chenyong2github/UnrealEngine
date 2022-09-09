@@ -12,7 +12,6 @@
 #include "Layout/Margin.h"
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
-#include "SKeySelector.h"
 #include "SlotBase.h"
 #include "Types/SlateEnums.h"
 #include "UObject/ObjectMacros.h"
@@ -26,6 +25,15 @@ class SWidget;
 
 /* FKeyStructCustomization static interface
  *****************************************************************************/
+
+void FKeyStructCustomization::SetEnableKeySelector(bool bKeySelectorEnabled)
+{
+	bEnableKeySelector = bKeySelectorEnabled;
+	if (KeySelector)
+	{
+		KeySelector->SetEnabledFromKeyStructCustomization(bEnableKeySelector);
+	}
+}
 
 TSharedRef<IPropertyTypeCustomization> FKeyStructCustomization::MakeInstance( )
 {
@@ -61,6 +69,19 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 {
 	PropertyHandle = StructPropertyHandle;
 
+	KeySelector = SNew(SKeySelector)
+		.CurrentKey(this, &FKeyStructCustomization::GetCurrentKey)
+		.OnKeyChanged(this, &FKeyStructCustomization::OnKeyChanged)
+		.Font(StructCustomizationUtils.GetRegularFont())
+		.AllowClear(!StructPropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_NoClear))
+		.FilterBlueprintBindable(false)
+		.IsEnabled_Lambda([this]() -> bool
+	    {
+		    return bEnableKeySelector;
+	    });
+	
+	KeySelector->SetEnabledFromKeyStructCustomization(bEnableKeySelector);
+	
 	// create struct header
 	HeaderRow.NameContent()
 	.MinDesiredWidth(125.0f)
@@ -71,16 +92,7 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)
 		//.AutoWidth()
 		[
-			SNew(SKeySelector)
-			.CurrentKey(this, &FKeyStructCustomization::GetCurrentKey)
-			.OnKeyChanged(this, &FKeyStructCustomization::OnKeyChanged)
-			.Font(StructCustomizationUtils.GetRegularFont())
-			.AllowClear(!StructPropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_NoClear))
-		    .FilterBlueprintBindable(false)
-		    .IsEnabled_Lambda([this]() -> bool
-		    {
-		    	return bEnableKeySelector;
-		    })
+			KeySelector.ToSharedRef()
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(InputSettingsDetails::InputConstants::PropertyPadding)

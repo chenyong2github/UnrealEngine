@@ -75,6 +75,18 @@ public:
 public:
 	void Construct(const FArguments& InArgs);
 
+	/** Sets bool to produce tooltip notifying this key selector it was disabled from KeyStructCustomization */
+	void SetEnabledFromKeyStructCustomization(bool bIsEnabled)
+	{
+		bEnabledFromKeyStructCustomization = bIsEnabled;
+	}
+
+	/** Gets bEnabledFromKeyStructCustomization bool */
+	bool GetSetEnabledFromKeyStructCustomization() const
+	{
+		return bEnabledFromKeyStructCustomization;
+	}
+	
 protected:
 	/** Gets the icon for the key being manipulated */
 	const FSlateBrush* GetKeyIconImage() const;
@@ -83,6 +95,8 @@ protected:
 
 	/** Gets a succinct description for the key being manipulated */
 	FText GetKeyDescription() const;
+	/** Gets a description tooltip for the key being manipulated */
+	FText GetKeyDescriptionToolTip() const;
 	/** Gets a tooltip for the selected key */
 	FText GetKeyTooltip() const;
 
@@ -156,4 +170,5 @@ protected:
 	TArray<FKeyTreeItem>		FilteredKeyTreeRoot;
 
 	bool bListenForNextInput = false;
+	bool bEnabledFromKeyStructCustomization = true;
 };

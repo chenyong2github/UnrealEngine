@@ -60,8 +60,8 @@ void FEnhancedActionMappingCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 	// Pass our header row into the key struct customizeheader method so it populates our row with the key struct header
 	KeyStructCustomization = StaticCastSharedPtr<FKeyStructCustomization>(KeyStructInstance);
 	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
-	KeyStructCustomization->bDisplayIcon = bContainsComboTrigger;
-	KeyStructCustomization->bEnableKeySelector = !bContainsComboTrigger;
+	KeyStructCustomization->SetDisplayIcon(bContainsComboTrigger);
+	KeyStructCustomization->SetEnableKeySelector(!bContainsComboTrigger);
 	KeyStructCustomization->CustomizeHeaderOnlyWithButton(KeyHandle.ToSharedRef(), HeaderRow, CustomizationUtils, RemoveButton);
 }
 
@@ -93,8 +93,8 @@ void FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick() const
 void FEnhancedActionMappingCustomization::OnTriggersChanged() const
 {
 	const bool bContainsComboTrigger = DoesTriggerArrayContainCombo();
-	KeyStructCustomization->bDisplayIcon = bContainsComboTrigger;
-	KeyStructCustomization->bEnableKeySelector = !bContainsComboTrigger;
+	KeyStructCustomization->SetDisplayIcon(bContainsComboTrigger);
+    KeyStructCustomization->SetEnableKeySelector(!bContainsComboTrigger);
 }
 
 bool FEnhancedActionMappingCustomization::DoesTriggerArrayContainCombo() const
