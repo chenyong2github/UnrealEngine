@@ -104,7 +104,9 @@ void UPolyEditPlanarProjectionUVActivity::BeginSetUVs()
 	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
-	EditPreview->InitializeStaticType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
+	FTransform3d WorldTranslation, WorldRotateScale;
+	EditPreview->ApplyTranslationToPreview(WorldTransform, WorldTranslation, WorldRotateScale);
+	EditPreview->InitializeStaticType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldRotateScale);
 
 	UpdatePolyEditPreviewMaterials(*ParentTool, *ActivityContext, *EditPreview, (SetUVProperties->bShowMaterial) ?
 		EPreviewMaterialType::SourceMaterials : EPreviewMaterialType::UVMaterial);
@@ -140,17 +142,28 @@ void UPolyEditPlanarProjectionUVActivity::BeginSetUVs()
 void UPolyEditPlanarProjectionUVActivity::UpdateSetUVS()
 {
 	// align projection frame to line user is drawing out from plane origin
-	FFrame3d PlanarFrame = SurfacePathMechanic->PreviewPathPoint;
-	double UVScale = 1.0 / ActiveSelectionBounds.MaxDim();
+	FFrame3d WorldPlanarFrame = SurfacePathMechanic->PreviewPathPoint;
+	FFrame3d LocalPlanarFrame;
+	double UVScale = 1.0 / ActiveSelectionBounds.MaxDim(); // Note: EditPreview has baked scale, so UVScale is already in world
+	FTransformSRT3d WorldTransform = EditPreview->GetTransform();
 	if (SurfacePathMechanic->HitPath.Num() == 1)
 	{
-		SurfacePathMechanic->InitializePlaneSurface(PlanarFrame);
+		SurfacePathMechanic->InitializePlaneSurface(WorldPlanarFrame);
 
-		FVector3d Delta = PlanarFrame.Origin - SurfacePathMechanic->HitPath[0].Origin;
+		FVector3d Delta = WorldPlanarFrame.Origin - SurfacePathMechanic->HitPath[0].Origin;
 		double Dist = UE::Geometry::Normalize(Delta);
 		UVScale *= FMathd::Lerp(1.0, 25.0, Dist / ActiveSelectionBounds.MaxDim());
-		PlanarFrame = SurfacePathMechanic->HitPath[0];
-		PlanarFrame.ConstrainedAlignAxis(0, Delta, PlanarFrame.Z());
+		WorldPlanarFrame = SurfacePathMechanic->HitPath[0];
+		FVector3d WorldNormal = WorldPlanarFrame.Z();
+		FVector3d LocalNormal = WorldTransform.InverseTransformNormal(WorldNormal);
+		LocalPlanarFrame = FFrame3d(WorldTransform.InverseTransformPosition(WorldPlanarFrame.Origin), LocalNormal);
+		LocalPlanarFrame.ConstrainedAlignAxis(0, WorldTransform.InverseTransformVector(Delta), LocalPlanarFrame.Z());
+	}
+	else
+	{
+		FVector3d WorldNormal = WorldPlanarFrame.Z();
+		FVector3d LocalNormal = WorldTransform.InverseTransformNormal(WorldNormal);
+		LocalPlanarFrame = FFrame3d(WorldTransform.InverseTransformPosition(WorldPlanarFrame.Origin), LocalNormal);
 	}
 
 	EditPreview->UpdateStaticType([&](FDynamicMesh3& Mesh)
@@ -161,7 +174,7 @@ void UPolyEditPlanarProjectionUVActivity::UpdateSetUVS()
 			{
 				AllTriangles.Add(tid);
 			}
-			Editor.SetTriangleUVsFromProjection(AllTriangles, PlanarFrame, UVScale, FVector2f::Zero(), false);
+			Editor.SetTriangleUVsFromProjection(AllTriangles, LocalPlanarFrame, UVScale, FVector2f::Zero(), false);
 		}, false);
 
 }

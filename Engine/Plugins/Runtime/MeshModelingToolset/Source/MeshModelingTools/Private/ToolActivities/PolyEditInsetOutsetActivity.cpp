@@ -121,7 +121,9 @@ bool UPolyEditInsetOutsetActivity::BeginInset()
 	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
-	EditPreview->InitializeInsetType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
+	FTransform3d WorldTranslation, WorldRotateScale;
+	EditPreview->ApplyTranslationToPreview(WorldTransform, WorldTranslation, WorldRotateScale);
+	EditPreview->InitializeInsetType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldRotateScale);
 
 	// Hide the selected triangles (that are being replaced by the inset/outset portion)
 	ActivityContext->Preview->PreviewMesh->SetSecondaryBuffersVisibility(false);

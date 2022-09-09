@@ -40,6 +40,17 @@ void UPlaneDistanceFromHitMechanic::Initialize(FDynamicMesh3&& HitTargetMesh, co
 	PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
 }
 
+// Alternative Initialize() that explicitly specifies what transform to bake
+void UPlaneDistanceFromHitMechanic::Initialize(FDynamicMesh3&& HitTargetMesh, const FFrame3d& PlaneFrameWorld, const FTransform& MeshToPlaneFrame)
+{
+	PreviewHeightFrame = PlaneFrameWorld;
+
+	PreviewHeightTarget = MoveTemp(HitTargetMesh);
+	MeshTransforms::ApplyTransform(PreviewHeightTarget, MeshToPlaneFrame);
+
+	PreviewHeightTargetAABB.SetMesh(&PreviewHeightTarget);
+}
+
 
 
 void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)

@@ -60,6 +60,12 @@ public:
 	virtual void Initialize(UE::Geometry::FDynamicMesh3&& HitTargetMesh, const FFrame3d& PlaneFrameWorld, bool bMeshInWorldCoords);
 
 	/**
+	 * Set the hit target mesh and the plane frame. Distance is measured along Z axis.
+	 * Applies MeshToPlaneFrame to transform the HitTargetMesh to the local space of PlaneFrameWorld
+	 */
+	virtual void Initialize(UE::Geometry::FDynamicMesh3&& HitTargetMesh, const FFrame3d& PlaneFrameWorld, const FTransform& MeshToPlaneFrame);
+
+	/**
 	 * Update the current distance/height based on the input world ray
 	 */
 	virtual void UpdateCurrentDistance(const FRay& WorldRay);

@@ -285,7 +285,7 @@ protected:
 	void InitializePreviewMesh();
 	void ClearPreview();
 
-	void GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
+	UE_NODISCARD FVector3d GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
 	void GenerateExtrudeMesh(UE::Geometry::FDynamicMesh3& PathMesh);
 	void EmitNewObject();
 

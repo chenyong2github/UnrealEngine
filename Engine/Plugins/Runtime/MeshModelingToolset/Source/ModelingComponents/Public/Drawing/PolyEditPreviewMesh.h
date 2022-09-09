@@ -57,16 +57,34 @@ public:
 	void InitializeInsetType(const FDynamicMesh3* SourceMesh, const TArray<int32>& Triangles,
 		const FTransform3d* MeshTransform = nullptr);
 	void UpdateInsetType(double NewOffset, bool bReproject = false, double Softness = 0.0, double AreaScaleT = 1.0, bool bBoundaryOnly = false);
-	void MakeInsetTypeTargetMesh(FDynamicMesh3& TargetMesh);
+	
+	/// @param TargetMeshOut Will be populated with the initial edit patch mesh transformed to world space via the preview mesh transform
+	void MakeInsetTypeTargetMesh(FDynamicMesh3& TargetMeshOut);
 
+	UE_DEPRECATED(5.1, "We are removing this accessor because it was unused.")
 	const FDynamicMesh3& GetInitialPatchMesh() const { return InitialEditPatch; }
+	
+	void ApplyTranslationToPreview(const FTransform& TransformIn, FTransform& TranslationOut, FTransform& RotateScaleOut)
+	{
+		TranslationOut = FTransform(TransformIn.GetTranslation());
+		SetTransform(TranslationOut);
+		RotateScaleOut = TransformIn;
+		RotateScaleOut.SetTranslation(FVector::ZeroVector);
+	}
 
 	// must be non-const because query functions are non-const
-	UE::Geometry::FDynamicMeshAABBTree3& GetInitialPatchMeshSpatial() { return InitialEditPatchBVTree; }
+	UE_DEPRECATED(5.1, "We are removing this accessor and the underlying tree, because they were unused.")
+	UE::Geometry::FDynamicMeshAABBTree3& GetInitialPatchMeshSpatial()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return InitialEditPatchBVTree; 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 protected:
 	TUniquePtr<UE::Geometry::FDynamicSubmesh3> ActiveSubmesh;
 	FDynamicMesh3 InitialEditPatch;
+	UE_DEPRECATED(5.1, "We are removing this tree, because it was unused.")
 	UE::Geometry::FDynamicMeshAABBTree3 InitialEditPatchBVTree;
 
 	TArray<int32> EditVertices;
@@ -77,6 +95,6 @@ protected:
 
 	FVector3d InputDirection;
 
-	FTransform3d MeshTransform;
+	FTransform3d MeshTransform; // Transform that has been baked into the FDynamicMesh3
 	bool bHaveMeshTransform;
 };

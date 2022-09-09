@@ -103,7 +103,9 @@ void UPolyEditCutFacesActivity::BeginCutFaces()
 	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
-	EditPreview->InitializeStaticType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
+	FTransform3d WorldTranslation, WorldRotateScale;
+	EditPreview->ApplyTranslationToPreview(WorldTransform, WorldTranslation, WorldRotateScale);
+	EditPreview->InitializeStaticType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldRotateScale);
 
 	FDynamicMesh3 StaticHitTargetMesh;
 	EditPreview->MakeInsetTypeTargetMesh(StaticHitTargetMesh);
