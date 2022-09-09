@@ -40,7 +40,7 @@ namespace MetasoundFrontendLiteralPrivate
 			{
 				return FString();
 			}
-			return InObject->GetFullName();
+			return InObject->GetPathName();
 		}
 	};
 
