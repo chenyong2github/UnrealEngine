@@ -41,6 +41,7 @@ namespace Horde.Build.Jobs
 	public class JobsController : HordeControllerBase
 	{
 		private readonly IGraphCollection _graphs;
+		private readonly ICommitService _commitService;
 		private readonly IPerforceService _perforce;
 		private readonly StreamService _streamService;
 		private readonly JobService _jobService;
@@ -54,9 +55,10 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobsController(IGraphCollection graphs, IPerforceService perforce, StreamService streamService, JobService jobService, ITemplateCollection templateCollection, IArtifactCollection artifactCollection, IUserCollection userCollection, INotificationService notificationService, AgentService agentService, ILogger<JobsController> logger)
+		public JobsController(IGraphCollection graphs, ICommitService commitService, IPerforceService perforce, StreamService streamService, JobService jobService, ITemplateCollection templateCollection, IArtifactCollection artifactCollection, IUserCollection userCollection, INotificationService notificationService, AgentService agentService, ILogger<JobsController> logger)
 		{
 			_graphs = graphs;
+			_commitService = commitService;
 			_perforce = perforce;
 			_streamService = streamService;
 			_jobService = jobService;
@@ -132,6 +134,9 @@ namespace Horde.Build.Jobs
 			// New groups for the job
 			IGraph graph = await _graphs.AddAsync(template);
 
+			// Get the commits for this stream
+			ICommitCollection commits = _commitService.GetCollection(stream);
+
 			// Get the change to build
 			int change;
 			if (create.Change.HasValue)
@@ -140,19 +145,20 @@ namespace Horde.Build.Jobs
 			}
 			else if (create.ChangeQuery != null)
 			{
-				change = await ExecuteChangeQueryAsync(stream, create.ChangeQuery.TemplateId ?? create.TemplateId, create.ChangeQuery.Target, create.ChangeQuery.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success });
+				change = await ExecuteChangeQueryAsync(stream, create.ChangeQuery.TemplateId ?? create.TemplateId, create.ChangeQuery.Target, create.ChangeQuery.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success }, commits);
 			}
 			else if (create.PreflightChange == null && template.SubmitNewChange != null)
 			{
-				change = await _perforce.CreateNewChangeForTemplateAsync(stream, template);
+				change = await commits.CreateNewAsync(template, HttpContext.RequestAborted);
 			}
 			else
 			{
-				change = await _perforce.GetLatestChangeAsync(stream);
+				change = await commits.GetLatestNumberAsync(HttpContext.RequestAborted);
 			}
 
 			// And get the matching code changelist
-			int codeChange = await _perforce.GetCodeChangeAsync(stream, change);
+			ICommit? lastCodeCommit = await commits.GetLastCodeChange(change, HttpContext.RequestAborted);
+			int codeChange = lastCodeCommit?.Number ?? change;
 
 			// New properties for the job
 			List<string> arguments = create.Arguments ?? template.GetDefaultArguments();
@@ -202,14 +208,15 @@ namespace Horde.Build.Jobs
 		/// <param name="templateId"></param>
 		/// <param name="target"></param>
 		/// <param name="outcomes"></param>
+		/// <param name="commits"></param>
 		/// <returns></returns>
-		async Task<int> ExecuteChangeQueryAsync(IStream stream, TemplateId templateId, string? target, List<JobStepOutcome> outcomes)
+		async Task<int> ExecuteChangeQueryAsync(IStream stream, TemplateId templateId, string? target, List<JobStepOutcome> outcomes, ICommitCollection commits)
 		{
 			IList<IJob> jobs = await _jobService.FindJobsAsync(streamId: stream.Id, templates: new[] { templateId }, target: target, state: new[] { JobStepState.Completed }, outcome: outcomes.ToArray(), count: 1, excludeUserJobs: true);
 			if (jobs.Count == 0)
 			{
 				_logger.LogInformation("Unable to find successful build of {TemplateId} target {Target}. Using latest change instead", templateId, target);
-				return await _perforce.GetLatestChangeAsync(stream);
+				return await commits.GetLatestNumberAsync();
 			}
 			else
 			{

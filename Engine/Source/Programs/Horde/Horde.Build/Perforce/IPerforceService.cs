@@ -85,37 +85,6 @@ namespace Horde.Build.Perforce
 		public ValueTask<IUser> FindOrAddUserAsync(string clusterName, string userName, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Create a new changelist by submitting the given file
-		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="streamName">The stream to query</param>
-		/// <param name="path">Path for the file to submit</param>
-		/// <param name="description">Description for the changelist</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New changelist number</returns>
-		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the code change corresponding to an actual change submitted to a stream
-		/// </summary>
-		/// <param name="stream">Stream to query</param>
-		/// <param name="change">The changelist number to query</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Code change for the latest change</returns>
-		public Task<int> GetCodeChangeAsync(IStream stream, int change, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the latest change for a particular stream
-		/// </summary>
-		/// <param name="stream">Stream to query</param>
-		/// <param name="minChange">The minimum changelist number</param>
-		/// <param name="maxChange">The maximum changelist number</param>
-		/// <param name="results">Number of results to return</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Latest changelist number</returns>
-		public Task<List<ICommit>> GetChangesAsync(IStream stream, int? minChange, int? maxChange, int? results, CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Checks a shelf is valid for the given stream
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
@@ -133,15 +102,6 @@ namespace Horde.Build.Perforce
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Commit details</returns>
 		public Task<ICommit> GetChangeDetailsAsync(IStream stream, int changeNumber, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the latest change for a particular stream
-		/// </summary>
-		/// <param name="stream">Stream to query</param>
-		/// <param name="changeNumbers">Change numbers to query</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Commit details</returns>
-		public Task<List<ICommit>> GetChangeDetailsAsync(IStream stream, IReadOnlyList<int> changeNumbers, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Duplicates a shelved changelist
@@ -187,77 +147,5 @@ namespace Horde.Build.Perforce
 		/// <param name="stream">Stream to create a commit source for</param>
 		/// <returns>Commit source instance</returns>
 		public ICommitCollection GetCommits(IStream stream);
-	}
-
-	/// <summary>
-	/// Extension methods for IPerforceService implementations
-	/// </summary>
-	public static class PerforceServiceExtensions
-	{
-		/// <summary>
-		/// Creates a new change for a template
-		/// </summary>
-		/// <param name="perforce">The Perforce service instance</param>
-		/// <param name="stream">Stream containing the template</param>
-		/// <param name="template">The template being built</param>
-		/// <returns>New changelist number</returns>
-		public static Task<int> CreateNewChangeForTemplateAsync(this IPerforceService perforce, IStream stream, ITemplate template)
-		{
-			string description = (template.SubmitDescription ?? "[Horde] New change for $(TemplateName)").Replace("$(TemplateName)", template.Name, StringComparison.OrdinalIgnoreCase);
-
-			Match match = Regex.Match(template.SubmitNewChange!, @"^(//[^/]+/[^/]+)/(.+)$");
-			if (match.Success)
-			{
-				return perforce.CreateNewChangeAsync(stream.Config.ClusterName, match.Groups[1].Value, match.Groups[2].Value, description);
-			}
-			else
-			{
-				return perforce.CreateNewChangeAsync(stream.Config.ClusterName, stream.Name, template.SubmitNewChange!, description);
-			}
-		}
-
-		/// <summary>
-		/// Gets the latest change for a particular stream
-		/// </summary>
-		/// <param name="perforce">The perforce implementation</param>
-		/// <param name="stream">The stream to query</param>
-		/// <param name="changeNumber">Change number to query</param>
-		/// <returns>Commit details</returns>
-		public static async Task<ICommit> GetChangeDetailsAsync(this IPerforceService perforce, IStream stream, int changeNumber)
-		{
-			List<ICommit> results = await perforce.GetChangeDetailsAsync(stream, new[] { changeNumber });
-			return results[0];
-		}
-
-		/// <summary>
-		/// Gets the latest change for a particular stream
-		/// </summary>
-		/// <param name="perforce">The perforce implementation</param>
-		/// <param name="stream">The stream to query</param>
-		/// <param name="minChange">The minimum changelist number</param>
-		/// <param name="maxChange">The maximum changelist number</param>
-		/// <param name="results">Number of results to return</param>
-		/// <returns>Commit details</returns>
-		public static async Task<List<ICommit>> GetChangeDetailsAsync(this IPerforceService perforce, IStream stream, int? minChange, int? maxChange, int results)
-		{
-			List<ICommit> changes = await perforce.GetChangesAsync(stream, minChange, maxChange, results);
-			return await perforce.GetChangeDetailsAsync(stream, changes.ConvertAll(x => x.Number));
-		}
-
-		/// <summary>
-		/// Get the latest submitted change to the stream
-		/// </summary>
-		/// <param name="perforce">The perforce implementation</param>
-		/// <param name="stream">The stream to query</param>
-		/// <returns>Latest changelist number</returns>
-		public static async Task<int> GetLatestChangeAsync(this IPerforceService perforce, IStream stream)
-		{
-			List<ICommit> changes = await perforce.GetChangesAsync(stream, null, null, 1);
-			if (changes.Count == 0)
-			{
-				throw new Exception($"No changes have been submitted to stream {stream.Name}");
-			}
-			return changes[0].Number;
-		}
 	}
 }

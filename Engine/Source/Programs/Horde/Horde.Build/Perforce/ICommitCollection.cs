@@ -5,9 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Build.Streams;
-using Horde.Build.Users;
-using Horde.Build.Utilities;
+using Horde.Build.Jobs.Templates;
 
 namespace Horde.Build.Perforce
 {
@@ -16,6 +14,15 @@ namespace Horde.Build.Perforce
 	/// </summary>
 	public interface ICommitCollection
 	{
+		/// <summary>
+		/// Creates a new change
+		/// </summary>
+		/// <param name="path">Path to modify in the change</param>
+		/// <param name="description">Description of the change</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New commit information</returns>
+		Task<int> CreateNewAsync(string path, string description, CancellationToken cancellationToken = default);
+
 		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
@@ -30,16 +37,10 @@ namespace Horde.Build.Perforce
 		/// <param name="minChange">The minimum changelist number</param>
 		/// <param name="maxChange">The maximum changelist number</param>
 		/// <param name="maxResults">Maximum number of results to return</param>
+		/// <param name="tags">Tags for the commits to return</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Changelist information</returns>
-		IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Gets the latest change number
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		Task<int> LatestNumberAsync(CancellationToken cancellationToken = default);
+		IAsyncEnumerable<ICommit> FindAsync(int? minChange = null, int? maxChange = null, int? maxResults = null, IReadOnlyList<CommitTag>? tags = null, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -48,14 +49,51 @@ namespace Horde.Build.Perforce
 	public static class CommitCollectionExtensions
 	{
 		/// <summary>
+		/// Creates a new change for a template
+		/// </summary>
+		/// <param name="perforce">The Perforce service instance</param>
+		/// <param name="template">The template being built</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New changelist number</returns>
+		public static Task<int> CreateNewAsync(this ICommitCollection perforce, ITemplate template, CancellationToken cancellationToken)
+		{
+			string description = (template.SubmitDescription ?? "[Horde] New change for $(TemplateName)").Replace("$(TemplateName)", template.Name, StringComparison.OrdinalIgnoreCase);
+			return perforce.CreateNewAsync(template.SubmitNewChange!, description, cancellationToken);
+		}
+
+		/// <summary>
+		/// Gets the last code code equal or before the given change number
+		/// </summary>
+		/// <param name="source">The commit source to query</param>
+		/// <param name="maxChange">Maximum code change to query</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The last code change</returns>
+		public static async ValueTask<ICommit?> GetLastCodeChange(this ICommitCollection source, int? maxChange, CancellationToken cancellationToken = default)
+		{
+			return await source.FindAsync(null, maxChange, 1, new[] { CommitTag.Code }, cancellationToken).FirstOrDefaultAsync(cancellationToken);
+		}
+
+		/// <summary>
 		/// Finds the latest commit from a source
 		/// </summary>
 		/// <param name="source">The commit source to query</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The latest commit</returns>
-		public static async Task<ICommit> LatestAsync(this ICommitCollection source, CancellationToken cancellationToken)
+		public static async Task<ICommit> GetLatestAsync(this ICommitCollection source, CancellationToken cancellationToken = default)
 		{
-			return await source.FindAsync(null, null, 1, cancellationToken).FirstAsync(cancellationToken);
+			return await source.FindAsync(null, null, 1, null, cancellationToken).FirstAsync(cancellationToken);
+		}
+
+		/// <summary>
+		/// Finds the latest commit from a source
+		/// </summary>
+		/// <param name="source">The commit source to query</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The latest commit</returns>
+		public static async Task<int> GetLatestNumberAsync(this ICommitCollection source, CancellationToken cancellationToken = default)
+		{
+			ICommit commit = await GetLatestAsync(source, cancellationToken);
+			return commit.Number;
 		}
 	}
 }

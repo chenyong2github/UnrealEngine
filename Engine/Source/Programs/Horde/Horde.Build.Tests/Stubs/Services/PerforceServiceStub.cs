@@ -231,15 +231,27 @@ namespace Horde.Build.Tests.Stubs.Services
 				_stream = stream;
 			}
 
-			public async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			public async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, IReadOnlyList<CommitTag>? tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 			{
-				foreach (ICommit commit in await _owner.GetChangesAsync(_stream, minChange, maxChange, maxResults, cancellationToken))
+				foreach (ICommit commit in await _owner.GetChangesAsync(_stream, minChange, maxChange, null, cancellationToken))
 				{
+					if (tags != null && tags.Count > 0)
+					{
+						IReadOnlyList<CommitTag> commitTags = await commit.GetTagsAsync(cancellationToken);
+						if (!tags.Any(x => commitTags.Contains(x)))
+						{
+							continue;
+						}
+					}
 					yield return commit;
 				}
 			}
 
-			public Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default) => _owner.GetChangeDetailsAsync(_stream, changeNumber);
+			public async Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default)
+			{
+				List<ICommit> commits = await _owner.GetChangeDetailsAsync(_stream, new[] { changeNumber }, cancellationToken);
+				return commits[0];
+			}
 
 			public async Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
 			{

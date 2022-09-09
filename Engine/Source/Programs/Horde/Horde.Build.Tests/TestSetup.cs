@@ -97,6 +97,7 @@ namespace Horde.Build.Tests
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public AgentSoftwareService AgentSoftwareService => ServiceProvider.GetRequiredService<AgentSoftwareService>();
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
+		public ICommitService CommitService => ServiceProvider.GetRequiredService<ICommitService>();
 		public ComputeService ComputeService => ServiceProvider.GetRequiredService<ComputeService>();
 		public MongoService MongoService => ServiceProvider.GetRequiredService<MongoService>();
 		public ITemplateCollection TemplateCollection => ServiceProvider.GetRequiredService<ITemplateCollection>();
@@ -268,7 +269,7 @@ namespace Horde.Build.Tests
 		private JobsController GetJobsController()
         {
 			ILogger<JobsController> logger = ServiceProvider.GetRequiredService<ILogger<JobsController>>();
-			JobsController jobsCtrl = new JobsController(GraphCollection, PerforceService, StreamService, JobService,
+			JobsController jobsCtrl = new JobsController(GraphCollection, CommitService, PerforceService, StreamService, JobService,
 		        TemplateCollection, ArtifactCollection, UserCollection, NotificationService, AgentService, logger);
 	        jobsCtrl.ControllerContext = GetControllerContext();
 	        return jobsCtrl;

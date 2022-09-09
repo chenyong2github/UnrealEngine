@@ -1054,42 +1054,6 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		/// <inheritdoc/>
-		public async Task<int> GetCodeChangeAsync(IStream stream, int change, CancellationToken cancellationToken)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetCodeChangeAsync").StartActive();
-			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
-			scope.Span.SetTag("StreamName", stream.Name);
-			scope.Span.SetTag("Change", change);
-			
-			int maxChange = change;
-			for (; ; )
-			{
-				// Query for the changes before this point
-				List<ICommit> changes = await GetChangesAsync(stream, null, maxChange, 10, cancellationToken);
-				_logger.LogInformation("Finding last code change in {Stream} before {MaxChange}: {NumResults}", stream.Name, maxChange, changes.Count);
-				if (changes.Count == 0)
-				{
-					return 0;
-				}
-
-				// Get the details for them
-				List<ICommit> detailsList = await GetChangeDetailsAsync(stream, changes.ConvertAll(x => x.Number), cancellationToken);
-				foreach (ICommit details in detailsList.OrderByDescending(x => x.Number))
-				{
-					IReadOnlyList<CommitTag> commitTags = await details.GetTagsAsync(cancellationToken);
-					_logger.LogInformation("Change {Change} = {Flags}", details.Number, String.Join(", ", commitTags.Select(x => x.ToString())));
-					if (commitTags.Contains(CommitTag.Code))
-					{
-						return details.Number;
-					}
-				}
-
-				// Loop round again, adjusting our maximum changelist number
-				maxChange = changes.Min(x => x.Number) - 1;
-			}
-		}
-
 		/// <summary>
 		/// Gets the wildcard filter for a particular range of changes
 		/// </summary>
@@ -1160,32 +1124,73 @@ namespace Horde.Build.Perforce
 		/// </summary>
 		protected class CommitSource : ICommitCollection
 		{
-			protected readonly IPerforceService _perforceService;
+			protected readonly PerforceService _perforceService;
 			protected readonly IStream _stream;
 
-			public CommitSource(IPerforceService perforceService, IStream stream)
+			public CommitSource(PerforceService perforceService, IStream stream)
 			{
 				_perforceService = perforceService;
 				_stream = stream;
 			}
 
-			public virtual async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			public async Task<int> CreateNewAsync(string path, string description, CancellationToken cancellationToken = default)
 			{
-				List<ICommit> commits = await _perforceService.GetChangesAsync(_stream, minChange, maxChange, maxResults, cancellationToken);
-				foreach (ICommit commit in commits)
+				Match match = Regex.Match(path, @"^(//[^/]+/[^/]+)/(.+)$");
+				if (match.Success)
 				{
-					yield return commit;
+					return await _perforceService.CreateNewChangeAsync(_stream.Config.ClusterName, match.Groups[1].Value, match.Groups[2].Value, description, cancellationToken);
+				}
+				else
+				{
+					return await _perforceService.CreateNewChangeAsync(_stream.Config.ClusterName, _stream.Name, path, description, cancellationToken);
+				}
+			}
+
+			public virtual async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, IReadOnlyList<CommitTag>? tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			{
+				int maxBatchResults = 20;
+				if (tags == null && maxResults != null)
+				{
+					maxBatchResults = Math.Min(maxBatchResults, maxResults.Value);
+				}
+
+				int numResults = 0;
+				while (maxResults == null || numResults < maxResults.Value)
+				{
+					List<ICommit> commits = await _perforceService.GetChangesAsync(_stream, minChange, maxChange, maxBatchResults, cancellationToken);
+					if (commits.Count == 0)
+					{
+						break;
+					}
+
+					foreach (ICommit commit in commits)
+					{
+						if (tags != null)
+						{
+							IReadOnlyList<CommitTag> commitTags = await commit.GetTagsAsync(cancellationToken);
+							if (!tags.Any(x => commitTags.Contains(x)))
+							{
+								continue;
+							}
+						}
+
+						yield return commit;
+
+						numResults++;
+
+						if (maxResults != null && numResults >= maxResults.Value)
+						{
+							break;
+						}
+					}
+
+					maxChange = commits[^1].Number;
 				}
 			}
 
 			public virtual Task<ICommit> GetAsync(int changeNumber, CancellationToken cancellationToken = default)
 			{
 				return _perforceService.GetChangeDetailsAsync(_stream, changeNumber, cancellationToken);
-			}
-
-			public virtual Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
-			{
-				return _perforceService.GetLatestChangeAsync(_stream);
 			}
 		}
 

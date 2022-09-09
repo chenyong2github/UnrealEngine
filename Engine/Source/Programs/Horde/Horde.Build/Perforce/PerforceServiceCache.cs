@@ -445,7 +445,7 @@ namespace Horde.Build.Perforce
 				_owner = owner;
 			}
 
-			public override async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			public override async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, IReadOnlyList<CommitTag>? tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 			{
 				CacheState state = await _owner._mongoService.GetSingletonAsync<CacheState>();
 				if (state.Clusters.TryGetValue(_stream.Config.ClusterName, out ClusterState? clusterState))
@@ -454,6 +454,18 @@ namespace Horde.Build.Perforce
 					if (clusterState.MinChanges.TryGetValue(_stream.Id, out minReplicatedChange) && (maxChange == null || maxChange > minReplicatedChange))
 					{
 						FilterDefinition<CachedCommitDoc> filter = Builders<CachedCommitDoc>.Filter.Eq(x => x.StreamId, _stream.Id);
+
+						if (tags != null && tags.Count > 0)
+						{
+							if (tags.Count == 1)
+							{
+								filter &= Builders<CachedCommitDoc>.Filter.AnyEq(x => x.CommitTags, tags[0]);
+							}
+							else
+							{
+								filter &= Builders<CachedCommitDoc>.Filter.AnyIn(x => x.CommitTags, tags);
+							}
+						}
 
 						if (maxChange != null)
 						{
@@ -496,7 +508,7 @@ namespace Horde.Build.Perforce
 
 				if (maxResults == null || maxResults > 0)
 				{
-					await foreach (ICommit commit in base.FindAsync(minChange, maxChange, maxResults, cancellationToken))
+					await foreach (ICommit commit in base.FindAsync(minChange, maxChange, maxResults, tags, cancellationToken))
 					{
 						yield return commit;
 					}
@@ -512,16 +524,6 @@ namespace Horde.Build.Perforce
 					return commit;
 				}
 				return await base.GetAsync(changeNumber, cancellationToken);
-			}
-
-			public override async Task<int> LatestNumberAsync(CancellationToken cancellationToken = default)
-			{
-				CacheState state = await _owner._mongoService.GetSingletonAsync<CacheState>();
-				if (state.Clusters.TryGetValue(_stream.Config.ClusterName, out ClusterState? clusterState))
-				{
-					return clusterState.MaxChange;
-				}
-				return await base.LatestNumberAsync(cancellationToken);
 			}
 		}
 
