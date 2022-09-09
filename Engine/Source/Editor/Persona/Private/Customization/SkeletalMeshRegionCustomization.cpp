@@ -189,7 +189,10 @@ TSharedRef<SWidget> FNiagaraSkeletalMeshRegionMaterialFilterDetails::HandleMater
 
 void FNiagaraSkeletalMeshRegionMaterialFilterDetails::HandleMaterialNameComboBoxSelectionChanged(TSharedPtr<FName> StringItem, ESelectInfo::Type SelectInfo)
 {
-	MaterialNameHandle->SetValue(*StringItem);
+	if (StringItem)
+	{
+		MaterialNameHandle->SetValue(*StringItem);
+	}
 }
 
 void FNiagaraSkeletalMeshRegionMaterialFilterDetails::OnComboOpening()
