@@ -72,6 +72,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(new string[]
 			{
 				Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"),
+				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
 			});
 
 			// WebRTC third party includes (just libyuv for colour format conversions for now)
