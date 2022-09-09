@@ -1218,9 +1218,22 @@ void UPoseSearchFeatureChannel_Trajectory::InitializeSchema(UE::PoseSearch::FSch
 			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+		}
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
 			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 	}
 
@@ -1270,6 +1283,23 @@ void UPoseSearchFeatureChannel_Trajectory::FillWeights(TArray<float>& Weights) c
 			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			for (int32 i = 0; i != FFeatureVectorHelper::EncodeVectorCardinality; ++i)
+			{
+				Weights[DataOffset + i] = Weight * Sample.Weight;
+			}
+			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			for (int32 i = 0; i != FFeatureVectorHelper::EncodeVector2DCardinality; ++i)
+			{
+				Weights[DataOffset + i] = Weight * Sample.Weight;
+			}
+			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
+		}
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
 			for (int32 i = 0; i != FFeatureVectorHelper::EncodeVectorCardinality; ++i)
@@ -1277,6 +1307,14 @@ void UPoseSearchFeatureChannel_Trajectory::FillWeights(TArray<float>& Weights) c
 				Weights[DataOffset + i] = Weight * Sample.Weight;
 			}
 			DataOffset += FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			for (int32 i = 0; i != FFeatureVectorHelper::EncodeVector2DCardinality; ++i)
+			{
+				Weights[DataOffset + i] = Weight * Sample.Weight;
+			}
+			DataOffset += FFeatureVectorHelper::EncodeVector2DCardinality;
 		}
 	}
 
@@ -1319,9 +1357,22 @@ void UPoseSearchFeatureChannel_Trajectory::ComputeMeanDeviations(const Eigen::Ma
 			FFeatureVectorHelper::ComputeMeanDeviations(MinimumMeanDeviation, CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
 		}
 
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
+		}
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
-			FFeatureVectorHelper::ComputeMeanDeviations(MinimumMeanDeviation, CenteredPoseMatrix, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
+			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVectorCardinality);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			FFeatureVectorHelper::SetMeanDeviations(1.f, MeanDeviations, DataOffset, FFeatureVectorHelper::EncodeVector2DCardinality);
 		}
 	}
 
@@ -1395,6 +1446,8 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 			LinearVelocity = (MirroredRootFuture.GetTranslation() - MirroredRootPast.GetTranslation()) / (IndexingContext.SamplingContext->FiniteDelta * 2.0f);
 		}
 
+		const FVector LinearVelocityDirection = LinearVelocity.GetClampedToMaxSize(1.0f);
+		const FVector FacingDirection = MirroredRootPresent.GetRotation().GetForwardVector();
 
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position))
 		{
@@ -1414,9 +1467,22 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 			FFeatureVectorHelper::EncodeVector2D(FeatureVector.EditValues(), DataOffset, FVector2D(LinearVelocity.X, LinearVelocity.Y));
 		}
 
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, LinearVelocityDirection);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			FFeatureVectorHelper::EncodeVector2D(FeatureVector.EditValues(), DataOffset, FVector2D(LinearVelocityDirection.X, LinearVelocityDirection.Y));
+		}
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
-			FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, MirroredRootPresent.GetRotation().GetForwardVector());
+			FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, FacingDirection);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			FFeatureVectorHelper::EncodeVector2D(FeatureVector.EditValues(), DataOffset, FVector2D(FacingDirection.X, FacingDirection.Y));
 		}
 	}
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
@@ -1457,6 +1523,9 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 		check(Sample.Offset >= PreviousOffset);
 		const FTrajectorySample TrajectorySample = FTrajectorySampleRange::IterSampleTrajectory(SearchContext.Trajectory->Samples, SampleDomain, Sample.Offset, NextIterStartIdx);
 
+		const FVector LinearVelocityDirection = TrajectorySample.LinearVelocity.GetClampedToMaxSize(1.0f);
+		const FVector FacingDirection = TrajectorySample.Transform.GetRotation().GetForwardVector();
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position))
 		{
 			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, TrajectorySample.Transform.GetTranslation());
@@ -1475,9 +1544,22 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(UE::PoseSearch::FSearchCon
 			FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, FVector2D(TrajectorySample.LinearVelocity.X, TrajectorySample.LinearVelocity.Y));
 		}
 
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, LinearVelocityDirection);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, FVector2D(LinearVelocityDirection.X, LinearVelocityDirection.Y));
+		}
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
-			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, TrajectorySample.Transform.GetRotation().GetForwardVector());
+			FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, FacingDirection);
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			FFeatureVectorHelper::EncodeVector2D(InOutQuery.EditValues(), DataOffset, FVector2D(FacingDirection.X, FacingDirection.Y));
 		}
 	}
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
@@ -1545,9 +1627,22 @@ struct TrajectoryPositionReconstructor
 				DataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
 			}
 
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+			{
+				DataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+			}
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+			{
+				DataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+			}
+
 			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 			{
 				DataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+			}
+			if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+			{
+				DataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
 			}
 		}
 
@@ -1742,9 +1837,101 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			}
 		}
 
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			FVector TrajectoryVelDirection = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
+
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+
+			TrajectoryVelDirection = DrawParams.RootTransform.TransformVector(TrajectoryVelDirection);
+
+			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+			{
+				DrawDebugLine(DrawParams.World, TrajectoryPos, TrajectoryPos + TrajectoryVelDirection, Color, bPersistent, LifeTime, DepthPriority);
+			}
+			else
+			{
+				const float AdjustedThickness = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ? 0.0f : DrawDebugLineThickness;
+
+				DrawDebugLine(
+					DrawParams.World,
+					TrajectoryPos + TrajectoryVelDirection * DrawDebugSphereSize,
+					TrajectoryPos + TrajectoryVelDirection * DrawDebugSphereSize * 10.0f,
+					Color,
+					bPersistent,
+					LifeTime,
+					DepthPriority,
+					AdjustedThickness
+				);
+			}
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			const FVector2D TrajectoryVelDirection2D = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
+			FVector TrajectoryVelDirection(TrajectoryVelDirection2D.X, TrajectoryVelDirection2D.Y, 0.f);
+
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+
+			TrajectoryVelDirection = DrawParams.RootTransform.TransformVector(TrajectoryVelDirection);
+
+			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+			{
+				DrawDebugLine(DrawParams.World, TrajectoryPos, TrajectoryPos + TrajectoryVelDirection, Color, bPersistent, LifeTime, DepthPriority);
+			}
+			else
+			{
+				const float AdjustedThickness = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ? 0.0f : DrawDebugLineThickness;
+
+				DrawDebugLine(
+					DrawParams.World,
+					TrajectoryPos + TrajectoryVelDirection * DrawDebugSphereSize,
+					TrajectoryPos + TrajectoryVelDirection * DrawDebugSphereSize * 10.0f,
+					Color,
+					bPersistent,
+					LifeTime,
+					DepthPriority,
+					AdjustedThickness
+				);
+			}
+		}
+
 		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
 		{
 			FVector TrajectoryForward = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
+
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
+
+			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
+
+			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+			{
+				DrawDebugLine(DrawParams.World, TrajectoryPos, TrajectoryPos + TrajectoryForward, Color, bPersistent, LifeTime, DepthPriority);
+			}
+			else
+			{
+				const float AdjustedThickness = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ? 0.0f : DrawDebugLineThickness;
+
+				DrawDebugLine(
+					DrawParams.World,
+					TrajectoryPos + TrajectoryForward * DrawDebugSphereSize,
+					TrajectoryPos + TrajectoryForward * DrawDebugSphereSize * 10.0f,
+					Color,
+					bPersistent,
+					LifeTime,
+					DepthPriority,
+					AdjustedThickness
+				);
+			}
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			const FVector2D TrajectoryForward2D = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
+			FVector TrajectoryForward(TrajectoryForward2D.X, TrajectoryForward2D.Y, 0.f);
 
 			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
 			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);

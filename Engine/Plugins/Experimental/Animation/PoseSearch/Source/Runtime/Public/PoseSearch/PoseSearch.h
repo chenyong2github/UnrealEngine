@@ -1273,8 +1273,11 @@ public:
 	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue);
 	static FVector2D DecodeVector2D(TArrayView<const float> Values, int32& DataOffset);
 
-	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calcualted from a cenetered matrix
+	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calculated from a centered matrix
 	static void ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
+
+	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value
+	static void SetMeanDeviations(float Deviation, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
 
 private:
 	static FQuat DecodeQuatInternal(TArrayView<const float> Values, int32 DataOffset);

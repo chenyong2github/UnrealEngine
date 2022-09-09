@@ -2866,6 +2866,14 @@ void FFeatureVectorHelper::ComputeMeanDeviations(float MinMeanDeviation, const E
 	DataOffset += Cardinality;
 }
 
+void FFeatureVectorHelper::SetMeanDeviations(float Deviation, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality)
+{
+	// Fill the feature's corresponding scaling axes with the supplied value
+	MeanDeviations.segment(DataOffset, Cardinality).setConstant(Deviation);
+
+	DataOffset += Cardinality;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FDebugDrawParams
 bool FDebugDrawParams::CanDraw() const
