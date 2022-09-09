@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 
 class UDeformableSolverComponent;
+class FFleshCacheAdapter;
 
 namespace Chaos::Softs
 {
@@ -82,10 +83,11 @@ namespace Chaos::Softs
 	class CHAOS_API FGameThreadAccessor
 	{
 	public:
-		friend class UDeformableSolverComponent;
-#if PLATFORM_WINDOWS
-	protected:
-#endif
+//		friend class UDeformableSolverComponent;
+//		friend class FFleshCacheAdapter;
+//#if PLATFORM_WINDOWS
+//	protected:
+//#endif
 		FGameThreadAccessor() {}
 	};
 
@@ -94,10 +96,11 @@ namespace Chaos::Softs
 	class CHAOS_API FPhysicsThreadAccessor
 	{
 	public:
-		friend class UDeformableSolverComponent;
-#if PLATFORM_WINDOWS
-	protected:
-#endif
+//		friend class UDeformableSolverComponent;
+//		friend class FFleshCacheAdapter;
+//#if PLATFORM_WINDOWS
+//	protected:
+//#endif
 		FPhysicsThreadAccessor() {}
 	};
 

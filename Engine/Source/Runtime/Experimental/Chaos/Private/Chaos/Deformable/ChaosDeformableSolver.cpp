@@ -39,23 +39,25 @@ namespace Chaos::Softs
 	FCriticalSection FDeformableSolver::RemovalMutex;
 	FCriticalSection FDeformableSolver::PackageOutputMutex;
 	FCriticalSection FDeformableSolver::PackageInputMutex;
+	FCriticalSection FDeformableSolver::SolverEnabledMutex;
 
 	FDeformableSolver::FDeformableSolver(FDeformableSolverProperties InProp)
 		: CurrentInputPackage(TUniquePtr < FDeformablePackage >(nullptr))
 		, PreviousInputPackage(TUniquePtr < FDeformablePackage >(nullptr))
 		, Property(InProp)
-
 	{
 		Reset(Property);
 	}
 
 	FDeformableSolver::~FDeformableSolver()
 	{
+		FScopeLock Lock(&InitializationMutex);
 		for (FThreadingProxy* Proxy : UninitializedProxys_Internal)
 		{
 			delete Proxy;
 		}
 		UninitializedProxys_Internal.Empty();
+		EventTeardown.Broadcast();
 	}
 
 
@@ -97,28 +99,6 @@ namespace Chaos::Softs
 			UpdateProxyInputPackages();
 			AdvanceDt(DeltaTime);
 		}
-	}
-
-	bool FDeformableSolver::AdvanceDt(FSolverReal DeltaTime)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_DeformableSolver_Advance);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Advance);
-
-		int32 NumIterations = FMath::Clamp<int32>(Property.NumSolverSubSteps, 0, INT_MAX);
-		if (NumIterations)
-		{
-			FSolverReal SubDeltaTime = DeltaTime / (FSolverReal)NumIterations;
-			if (!FMath::IsNearlyZero(SubDeltaTime))
-			{
-				for (int i = 0; i < NumIterations; ++i)
-				{
-					TickSimulation(SubDeltaTime);
-				}
-				Frame++;
-				return true;
-			}
-		}
-		return false;
 	}
 
 	void FDeformableSolver::InitializeSimulationObjects()
@@ -417,39 +397,6 @@ namespace Chaos::Softs
 	
 	}
 
-
-	void FDeformableSolver::PushInputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
-	{
-		FScopeLock Lock(&PackageInputMutex);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushInputPackage);
-		BufferedInputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
-	}
-
-	TUniquePtr<FDeformablePackage> FDeformableSolver::PullInputPackage()
-	{
-		FScopeLock Lock(&PackageInputMutex);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullInputPackage);
-		if (BufferedInputPackages.Num())
-			return BufferedInputPackages.Pop();
-		return TUniquePtr<FDeformablePackage>(nullptr);
-	}
-
-	void FDeformableSolver::UpdateProxyInputPackages()
-	{
-		if (CurrentInputPackage)
-		{
-			PreviousInputPackage = TUniquePtr < FDeformablePackage >(CurrentInputPackage.Release());
-			CurrentInputPackage = TUniquePtr < FDeformablePackage >(nullptr);
-		}
-
-		TUniquePtr < FDeformablePackage > TailPackage = PullInputPackage();
-		while(TailPackage)
-		{
-			CurrentInputPackage = TUniquePtr < FDeformablePackage >(TailPackage.Release());
-			TailPackage = PullInputPackage();
-		}
-	}
-
 	void FDeformableSolver::RemoveSimulationObjects()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_RemoveSimulationObjects);
@@ -511,11 +458,93 @@ namespace Chaos::Softs
 		}
 	}
 
-	void FDeformableSolver::TickSimulation(FSolverReal DeltaTime)
+	void FDeformableSolver::AdvanceDt(FSolverReal DeltaTime)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_TickSimulation);
+		SCOPE_CYCLE_COUNTER(STAT_DeformableSolver_Advance);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Advance);
+
+		EventPreSolve.Broadcast(DeltaTime);
+
+		int32 NumIterations = FMath::Clamp<int32>(Property.NumSolverSubSteps, 0, INT_MAX);
+		if (bEnableSolver && NumIterations)
+		{
+			FSolverReal SubDeltaTime = DeltaTime / (FSolverReal)NumIterations;
+			if (!FMath::IsNearlyZero(SubDeltaTime))
+			{
+				for (int i = 0; i < NumIterations; ++i)
+				{
+					Update(SubDeltaTime);
+				}
+
+				Frame++;
+				EventPostSolve.Broadcast(DeltaTime);
+			}
+		}
+
+
+
+		{
+			// Update client state
+			FDeformableDataMap OutputBuffers;
+			for (TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> >& BaseProxyPair : Proxies)
+			{
+				UpdateOutputState(*BaseProxyPair.Value);
+				if (FFleshThreadingProxy* Proxy = BaseProxyPair.Value->As<FFleshThreadingProxy>())
+				{
+					OutputBuffers.Add(Proxy->GetOwner(), TSharedPtr<FThreadingProxy::FBuffer>(new FFleshThreadingProxy::FFleshOutputBuffer(*Proxy)));
+
+					if (Property.CacheToFile)
+					{
+						WriteFrame(*Proxy, DeltaTime);
+					}
+				}
+			}
+			PushOutputPackage(Frame, MoveTemp(OutputBuffers));
+		}
+
+
+
+		EventPreBuffer.Broadcast(DeltaTime);
+	}
+
+	void FDeformableSolver::PushInputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
+	{
+		FScopeLock Lock(&PackageInputMutex);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushInputPackage);
+		BufferedInputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
+	}
+
+	TUniquePtr<FDeformablePackage> FDeformableSolver::PullInputPackage()
+	{
+		FScopeLock Lock(&PackageInputMutex);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullInputPackage);
+		if (BufferedInputPackages.Num())
+			return BufferedInputPackages.Pop();
+		return TUniquePtr<FDeformablePackage>(nullptr);
+	}
+
+	void FDeformableSolver::UpdateProxyInputPackages()
+	{
+		if (CurrentInputPackage)
+		{
+			PreviousInputPackage = TUniquePtr < FDeformablePackage >(CurrentInputPackage.Release());
+			CurrentInputPackage = TUniquePtr < FDeformablePackage >(nullptr);
+		}
+
+		TUniquePtr < FDeformablePackage > TailPackage = PullInputPackage();
+		while (TailPackage)
+		{
+			CurrentInputPackage = TUniquePtr < FDeformablePackage >(TailPackage.Release());
+			TailPackage = PullInputPackage();
+		}
+	}
+
+	void FDeformableSolver::Update(FSolverReal DeltaTime)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_Update);
 
 		if (!Proxies.Num()) return;
+
 
 		if (!Property.FixTimeStep)
 		{
@@ -528,23 +557,6 @@ namespace Chaos::Softs
 			Time += Property.TimeStepSize;
 		}
 
-
-		FDeformableDataMap OutputBuffers;
-		for (TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > & BaseProxyPair : Proxies)
-		{
-			UpdateOutputState(*BaseProxyPair.Value);
-			if (FFleshThreadingProxy* Proxy = BaseProxyPair.Value->As<FFleshThreadingProxy>())
-			{
-				OutputBuffers.Add(Proxy->GetOwner(), TSharedPtr<FThreadingProxy::FBuffer>(new FFleshThreadingProxy::FFleshOutputBuffer(*Proxy)));
-
-				if (Property.CacheToFile)
-				{
-					WriteFrame(*Proxy, DeltaTime);
-				}
-			}
-		}
-
-		PushOutputPackage(Frame, MoveTemp(OutputBuffers));
 	}
 
 	void FDeformableSolver::PushOutputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
@@ -572,7 +584,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::RemoveProxy(FThreadingProxy* InProxy)
 	{
-		FScopeLock Lock(&RemovalMutex);
+		FScopeLock LockA(&RemovalMutex);
+		FScopeLock LockB(&InitializationMutex);
 
 		InitializedObjects_External.Remove(InProxy->GetOwner());
 

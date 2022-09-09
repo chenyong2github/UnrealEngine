@@ -20,11 +20,10 @@
 
 namespace Chaos::Softs
 {
-	class CHAOS_API FDeformableSolver
+	class CHAOS_API FDeformableSolver : public FPhysicsSolverEvents
 	{
 		friend class FGameThreadAccess;
 		friend class FPhysicsThreadAccess;
-		friend class FDeformableFun;
 
 	public:
 
@@ -41,9 +40,9 @@ namespace Chaos::Softs
 			/* Simulation Advance */
 			void UpdateProxyInputPackages();
 			void Simulate(FSolverReal DeltaTime);
-			bool AdvanceDt(FSolverReal DeltaTime);
+			void AdvanceDt(FSolverReal DeltaTime);
 			void Reset(const FDeformableSolverProperties&);
-			void TickSimulation(FSolverReal DeltaTime);
+			void Update(FSolverReal DeltaTime);
 			void UpdateOutputState(FThreadingProxy&);
 			TUniquePtr<FDeformablePackage> PullInputPackage();
 			void PushOutputPackage(int32 Frame, FDeformableDataMap&& Package);
@@ -87,6 +86,9 @@ namespace Chaos::Softs
 			void RemoveProxy(FThreadingProxy* InObject);
 			void PushInputPackage(int32 Frame, FDeformableDataMap&& InPackage);
 
+			void SetEnableSolver(bool InbEnableSolver);
+			bool GetEnableSolver();
+
 			TUniquePtr<FDeformablePackage> PullOutputPackage();
 
 		private:
@@ -95,13 +97,16 @@ namespace Chaos::Softs
 
 	protected:
 
+		void SetEnableSolver(bool InbEnableSolver) {FScopeLock Lock(&SolverEnabledMutex); bEnableSolver = InbEnableSolver; }
+		bool GetEnableSolver() const { return bEnableSolver; }
+
 		/* Simulation Advance */
 		int32 GetFrame() const { return Frame; }
 		void UpdateProxyInputPackages();
 		void Simulate(FSolverReal DeltaTime);
-		bool AdvanceDt(FSolverReal DeltaTime);
+		void AdvanceDt(FSolverReal DeltaTime);
 		void Reset(const FDeformableSolverProperties&);
-		void TickSimulation(FSolverReal DeltaTime);
+		void Update(FSolverReal DeltaTime);
 		void UpdateOutputState(FThreadingProxy&);
 		void PushOutputPackage(int32 Frame, FDeformableDataMap&& Package);
 		TUniquePtr<FDeformablePackage> PullInputPackage( );
@@ -140,6 +145,8 @@ namespace Chaos::Softs
 		static FCriticalSection	RemovalMutex; // @todo(flesh) : change to threaded commands to prevent the lock. 
 		static FCriticalSection	PackageOutputMutex;
 		static FCriticalSection	PackageInputMutex;
+		static FCriticalSection	SolverEnabledMutex;
+
 		TArray< FThreadingProxy* > RemovedProxys_Internal;
 		TArray< FThreadingProxy* > UninitializedProxys_Internal;
 		TArray< TUniquePtr<FDeformablePackage>  > BufferedInputPackages;
@@ -166,6 +173,7 @@ namespace Chaos::Softs
 		TUniquePtr <TArray<Chaos::TVec4<int32>>> AllElements;
 		TUniquePtr <FTriangleMesh> SurfaceTriangleMesh;
 
+		bool bEnableSolver = true;
 		FSolverReal Time = 0.f;
 		int32 Frame = 0;
 		bool bSimulationInitialized = false;

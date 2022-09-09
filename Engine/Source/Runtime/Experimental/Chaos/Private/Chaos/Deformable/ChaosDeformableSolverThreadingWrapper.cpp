@@ -39,11 +39,10 @@ namespace Chaos::Softs
 			Solver->Reset(InProps);
 	}
 
-	bool FDeformableSolver::FPhysicsThreadAccess::AdvanceDt(FSolverReal DeltaTime)
+	void FDeformableSolver::FPhysicsThreadAccess::AdvanceDt(FSolverReal DeltaTime)
 	{
 		if (Solver)
-			return Solver->AdvanceDt(DeltaTime);
-		return false;
+			Solver->AdvanceDt(DeltaTime);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::Simulate(FSolverReal DeltaTime)
@@ -113,10 +112,10 @@ namespace Chaos::Softs
 			Solver->RemoveSimulationObjects();
 	}
 
-	void FDeformableSolver::FPhysicsThreadAccess::TickSimulation(FSolverReal DeltaTime)
+	void FDeformableSolver::FPhysicsThreadAccess::Update(FSolverReal DeltaTime)
 	{
 		if(Solver)
-			Solver->TickSimulation(DeltaTime);
+			Solver->Update(DeltaTime);
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::PushOutputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
@@ -142,6 +141,19 @@ namespace Chaos::Softs
 	{
 		if(Solver) 
 			Solver->RemoveProxy(InObject);
+	}
+
+	void FDeformableSolver::FGameThreadAccess::SetEnableSolver(bool InbEnableSolver)
+	{
+		if (Solver)
+			Solver->SetEnableSolver(InbEnableSolver);
+	}
+
+	bool FDeformableSolver::FGameThreadAccess::GetEnableSolver()
+	{
+		if (Solver)
+			return Solver->GetEnableSolver();
+		return false;
 	}
 
 	void  FDeformableSolver::FPhysicsThreadAccess::UpdateOutputState(FThreadingProxy& InProxy)
