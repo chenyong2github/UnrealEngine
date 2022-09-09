@@ -360,6 +360,10 @@ namespace EpicGames.Core
 			{
 				return new JsonSchemaString(JsonSchemaStringFormat.DateTime);
 			}
+			if (type == typeof(TimeSpan))
+			{
+				return new JsonSchemaString();
+			}
 
 			Type[] interfaceTypes = type.GetInterfaces();
 			foreach (Type interfaceType in interfaceTypes)

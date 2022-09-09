@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
 using EpicGames.Horde;
 using EpicGames.Perforce;
 using MongoDB.Bson.Serialization;
@@ -16,6 +17,7 @@ namespace Horde.Build.Perforce
 	/// <summary>
 	/// Constants for known commit tags
 	/// </summary>
+	[JsonSchemaString]
 	[JsonConverter(typeof(CommitTagJsonConverter))]
 	[BsonSerializer(typeof(CommitTagBsonSerializer))]
 	public readonly struct CommitTag : IEquatable<CommitTag>
