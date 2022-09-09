@@ -2140,14 +2140,6 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* World
 		FString ObjectName;
 		FString SubObjectName;
 		FPackageName::SplitFullObjectPath(LevelObjectPath, UnusedClassName, PackageName, ObjectName, SubObjectName);
-		if (!ObjectName.IsEmpty())
-		{
-			ObjectRelativePath = FString(TEXT(".")) + ObjectName;
-			if (!SubObjectName.IsEmpty())
-			{
-				ObjectRelativePath += FString(SUBOBJECT_DELIMITER) + SubObjectName;
-			}
-		}
 	}
 	else if (!FPackageName::TryConvertFilenameToLongPackageName(LevelObjectPath, PackageName))
 	{
@@ -2162,9 +2154,8 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* World
 	{
 		return nullptr;
 	}
-	const FString LongPackageNameObjectPath = ExistingPackageName.ToString() + ObjectRelativePath;
-
-	FLoadLevelInstanceParams Params(World, LongPackageNameObjectPath, FTransform(Rotation, Location));
+	const FString LongPackageName = ExistingPackageName.ToString();
+	FLoadLevelInstanceParams Params(World, LongPackageName, FTransform(Rotation, Location));
 	Params.OptionalLevelNameOverride = OptionalLevelNameOverride.IsEmpty() ? nullptr : &OptionalLevelNameOverride;
 	Params.OptionalLevelStreamingClass = OptionalLevelStreamingClass;
 	Params.bLoadAsTempPackage = bLoadAsTempPackage;

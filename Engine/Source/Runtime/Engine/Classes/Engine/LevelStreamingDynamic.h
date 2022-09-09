@@ -32,7 +32,7 @@ class ENGINE_API ULevelStreamingDynamic : public ULevelStreaming
 	{
 		FLoadLevelInstanceParams(UWorld* InWorld, const FString& InLongPackageName, FTransform InLevelTransform)
 			: World(InWorld)
-			, LongPackageName(InLongPackageName)
+			, LongPackageName(FPackageName::ObjectPathToPackageName(InLongPackageName))
 			, LevelTransform(InLevelTransform) 
 		{}
 
