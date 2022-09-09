@@ -11,7 +11,7 @@
 #include "HairStrandsRendering.h"
 #include "HairStrandsTile.h"
 #include "FogRendering.h"
-#include "TemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
