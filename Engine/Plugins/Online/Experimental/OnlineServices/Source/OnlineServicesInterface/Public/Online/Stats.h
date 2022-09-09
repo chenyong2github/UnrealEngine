@@ -153,8 +153,8 @@ public:
 	virtual TOnlineEvent<void(const FStatsUpdated&)> OnStatsUpdated() = 0;
 
 	/**
-	 * Retrieve cached users' stats, which was retrieved when call QueryStats or BatchQueryStats, or when 
-	 * call UpdateStats for StatsNull impl. When choose to use StatsNull, make sure to listen to OnStatsUpdated
+	 * Retrieve cached users' stats, which was retrieved when call QueryStats or BatchQueryStats, or after 
+	 * calling UpdateStats. When choose to use StatsNull, make sure to listen to OnStatsUpdated
 	 * event and use this function to get all latest local stats and put them into SaveGame
 	 */
 	virtual TOnlineResult<FGetCachedStats> GetCachedStats(FGetCachedStats::Params&& Params) const = 0;

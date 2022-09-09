@@ -48,50 +48,6 @@ void LexFromString(EStatModifyMethod& OutValue, const TCHAR* InStr)
 	}
 }
 
-const FString LexToString(EStatUsageFlags Value)
-{
-	if (Value == EStatUsageFlags::None)
-	{
-		return TEXT("None");
-	}
-
-	TArray<FString> SetFlags;
-	if (EnumHasAllFlags(Value, EStatUsageFlags::Achievement))
-	{
-		SetFlags.Emplace(TEXT("Achievement"));
-	}
-	if (EnumHasAllFlags(Value, EStatUsageFlags::Leaderboard))
-	{
-		SetFlags.Emplace(TEXT("Leaderboard"));
-	}
-	return FString::Join(SetFlags, TEXT("+"));
-}
-
-void LexFromString(EStatUsageFlags& OutValue, const FString& InStr)
-{
-	OutValue = EStatUsageFlags::None;
-	if (InStr != TEXT("None"))
-	{
-		TArray<FString> SplitStrings;
-		InStr.ParseIntoArray(SplitStrings, TEXT("+"));
-		for (const FString& SplitString : SplitStrings)
-		{
-			if (SplitString == TEXT("Achievement"))
-			{
-				OutValue |= EStatUsageFlags::Achievement;
-			}
-			else if (SplitString == TEXT("Leaderboard"))
-			{
-				OutValue |= EStatUsageFlags::Leaderboard;
-			}
-			else
-			{
-				ensureMsgf(false, TEXT("Can't convert %s to EStatUsageFlags"), *SplitString);
-			}
-		}
-	}
-}
-
 FStatsCommon::FStatsCommon(FOnlineServicesCommon& InServices)
 	: TOnlineComponent(TEXT("Stats"), InServices)
 {

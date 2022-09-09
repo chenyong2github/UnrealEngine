@@ -22,27 +22,13 @@ enum class EStatModifyMethod : uint8
 const TCHAR* LexToString(EStatModifyMethod Value);
 void LexFromString(EStatModifyMethod& OutValue, const TCHAR* InStr);
 
-enum class EStatUsageFlags : uint8
-{
-	None = 0,
-	Achievement = 1 << 0,
-	Leaderboard = 1 << 1
-};
-
-ENUM_CLASS_FLAGS(EStatUsageFlags);
-
-const FString LexToString(EStatUsageFlags Value);
-void LexFromString(EStatUsageFlags& OutValue, const FString& InStr);
-
 struct FStatDefinition
 {
 	/* The name of the stat */
 	FString Name;
 	/* Corresponding stat id on the platform if needed */
 	int32 Id = 0;
-	/* What is this stat used for */
-	EStatUsageFlags UsageFlags = EStatUsageFlags::None;
-	/* How the stat will be modified, only useful when EStatUsageFlags::Achievement is set in UsageFlags */
+	/* How the stat will be modified */
 	EStatModifyMethod ModifyMethod = EStatModifyMethod::Set;
 };
 
@@ -56,7 +42,6 @@ namespace Meta {
 BEGIN_ONLINE_STRUCT_META(FStatDefinition)
 	ONLINE_STRUCT_FIELD(FStatDefinition, Name),
 	ONLINE_STRUCT_FIELD(FStatDefinition, Id),
-	ONLINE_STRUCT_FIELD(FStatDefinition, UsageFlags),
 	ONLINE_STRUCT_FIELD(FStatDefinition, ModifyMethod)
 END_ONLINE_STRUCT_META()
 

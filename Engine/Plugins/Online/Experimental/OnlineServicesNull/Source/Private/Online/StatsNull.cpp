@@ -81,11 +81,6 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 					{
 						UserStats.Emplace(UpdateUserStatPair.Key, UpdateUserStatPair.Value);
 					}
-
-					if (EnumHasAnyFlags(StatDefinition->UsageFlags, EStatUsageFlags::Leaderboard))
-					{
-						// TODO: Call LeaderboardsNull to update
-					}
 				}
 			}
 
