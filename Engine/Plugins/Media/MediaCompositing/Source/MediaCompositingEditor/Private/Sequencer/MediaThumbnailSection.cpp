@@ -2,6 +2,7 @@
 
 #include "Sequencer/MediaThumbnailSection.h"
 
+#include "Fonts/FontMeasure.h"
 #include "Styling/AppStyle.h"
 #include "IMediaCache.h"
 #include "IMediaTracks.h"
@@ -138,6 +139,8 @@ int32 FMediaThumbnailSection::OnPaintSection(FSequencerSectionPainter& InPainter
 		DrawSampleStates(InPainter, MediaDuration, SectionSize, CacheRangeSet, FLinearColor(0.07059, 0.32941, 0.07059));
 
 		DrawLoopIndicators(InPainter, MediaDuration, SectionSize);
+
+		DrawMediaInfo(InPainter, MediaPlayer, SectionSize);
 	}
 	InPainter.DrawElements.PopClip();
 
@@ -342,6 +345,42 @@ void FMediaThumbnailSection::DrawSampleStates(FSequencerSectionPainter& InPainte
 	}
 }
 
+
+void FMediaThumbnailSection::DrawMediaInfo(FSequencerSectionPainter& InPainter, 
+	UMediaPlayer* MediaPlayer,FVector2D SectionSize) const
+{
+	// Get tile info.
+	FString TileString;
+	FIntPoint TileNum = MediaPlayer->GetTileNum();
+	int32 TileTotalNum = TileNum.X * TileNum.Y;
+	if (TileTotalNum > 1)
+	{
+		TileString = FText::Format(LOCTEXT("TileNum", "Tiles: {0}"), TileTotalNum).ToString();
+	}
+
+	const ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
+	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	FVector2D TextSize = FontMeasureService->Measure(TileString, SmallLayoutFont);
+
+	FMargin ContentPadding = GetContentPadding();
+	FVector2D TextOffset(ContentPadding.Left + 4, 
+		InPainter.SectionGeometry.Size.Y - (TextSize.Y + ContentPadding.Bottom));
+
+	// Add tile string.
+	if (TileString.Len() > 0)
+	{
+		FSlateDrawElement::MakeText(
+			InPainter.DrawElements,
+			InPainter.LayerId++,
+			InPainter.SectionGeometry.ToPaintGeometry(TextOffset, TextSize),
+			TileString,
+			SmallLayoutFont,
+			DrawEffects,
+			FColor(192, 192, 192, static_cast<uint8>(InPainter.GhostAlpha * 255))
+		);
+	}
+}
 
 UMediaPlayer* FMediaThumbnailSection::GetTemplateMediaPlayer() const
 {

@@ -95,6 +95,15 @@ protected:
 	void DrawSampleStates(FSequencerSectionPainter& InPainter, FTimespan MediaDuration, FVector2D SectionSize, const TRangeSet<FTimespan>& RangeSet, const FLinearColor& Color) const;
 
 	/**
+	 * Draw the info about the current media.
+	 *
+	 * @param InPainter			The object that paints the geometry.
+	 * @param MediaPlayer		The player to get media info from.
+	 * @param SectionSize		The size of the section (in local coordinates).
+	 */
+	void DrawMediaInfo(FSequencerSectionPainter& InPainter, UMediaPlayer* MediaPlayer, FVector2D SectionSize) const;
+
+	/**
 	 * Get the media player that is used by the evaluation template.
 	 *
 	 * @return The media player, or nullptr if not found.
