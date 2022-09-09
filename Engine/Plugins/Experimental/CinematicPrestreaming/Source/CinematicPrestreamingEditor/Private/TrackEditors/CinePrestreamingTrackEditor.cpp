@@ -3,6 +3,7 @@
 #include "TrackEditors/CinePrestreamingTrackEditor.h"
 
 #include "CinePrestreamingData.h"
+#include "Styles/CinePrestreamingEditorStyle.h"
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencerSection.h"
@@ -162,7 +163,7 @@ bool FCinePrestreamingTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Ty
 
 const FSlateBrush* FCinePrestreamingTrackEditor::GetIconBrush() const
 {
-	return FAppStyle::Get().GetBrush("Sequencer.Tracks.DataLayer");
+	return FCinePrestreamingEditorStyle::Get()->GetBrush("Sequencer.Tracks.CinePrestreaming_16");
 }
 
 TSharedRef<ISequencerSection> FCinePrestreamingTrackEditor::MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding)
@@ -178,7 +179,7 @@ void FCinePrestreamingTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddTrack", "Cinematic Prestreaming"),
 		LOCTEXT("AddTrackToolTip", "Adds a new track that can load streaming data used by the renderer to request things in advanced of needing them."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.DataLayer"),
+		FSlateIcon(FCinePrestreamingEditorStyle::Get()->GetStyleSetName(), "Sequencer.Tracks.CinePrestreaming_16"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FCinePrestreamingTrackEditor::HandleAddTrack)));
 }
 

@@ -35,8 +35,8 @@ public:
 		// tab icons
 		Set("LevelSequenceEditor.Tabs.Sequencer", new IMAGE_BRUSH("icon_tab_sequencer_16x", Icon16x16));
 
-		Set("LevelSequenceEditor.PossessNewActor", new IMAGE_BRUSH("Icon_Actor_To_Sequencer_16x", Icon16x16));
-		Set("LevelSequenceEditor.PossessNewActor.Small", new IMAGE_BRUSH("Icon_Actor_To_Sequencer_16x", Icon16x16));
+		Set("LevelSequenceEditor.PossessNewActor", new IMAGE_BRUSH_SVG("ActorToSequencer", Icon16x16));
+		Set("LevelSequenceEditor.PossessNewActor.Small", new IMAGE_BRUSH_SVG("ActorToSequencer", Icon16x16));
 
 		Set("LevelSequenceEditor.CreateNewLevelSequenceInLevel", new IMAGE_BRUSH_SVG("LevelSequence", Icon16x16));
 		Set("LevelSequenceEditor.CreateNewLevelSequenceInLevel.Small", new IMAGE_BRUSH_SVG("LevelSequence", Icon16x16));
