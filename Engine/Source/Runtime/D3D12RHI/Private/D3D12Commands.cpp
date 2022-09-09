@@ -2509,7 +2509,7 @@ void FD3D12CommandContext::RHISubmitCommandsHint()
 	// Clear the state on requested command hint flush and not in scene or viewport rendering
 	if (!IsDrawingSceneOrViewport())
 	{
-		ClearState();
+		ClearState(EClearStateFlags::None);
 	}
 }
 

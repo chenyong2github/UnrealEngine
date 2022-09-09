@@ -123,7 +123,14 @@ public:
 
 	void Finish(TArray<FD3D12CommandListHandle>& CommandLists);
 
-	void ClearState();
+	enum class EClearStateFlags
+	{
+		None = 0,
+		StaticUniformBuffers = 1 << 0,
+		All = StaticUniformBuffers
+	};
+
+	void ClearState(EClearStateFlags Flags = EClearStateFlags::All);
 	void ConditionalClearShaderResource(FD3D12ResourceLocation* Resource);
 	void ClearAllShaderResources();
 

@@ -474,10 +474,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
 		FD3D12Device* Device = Adapter->GetDevice(GPUIndex);
-		Device->GetDefaultCommandContext().ClearState();
+		Device->GetDefaultCommandContext().ClearState(FD3D12CommandContext::EClearStateFlags::None);
 		if (GEnableAsyncCompute)
 		{
-			Device->GetDefaultAsyncComputeContext().ClearState();
+			Device->GetDefaultAsyncComputeContext().ClearState(FD3D12CommandContext::EClearStateFlags::None);
 		}
 	}
 
