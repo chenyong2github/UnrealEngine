@@ -8,7 +8,7 @@
 #include "Misc/App.h"
 #include "HAL/ExceptionHandling.h"
 #include "Misc/SecureHash.h"
-#include "VarargsHelper.h"
+#include "Misc/VarargsHelper.h"
 #include "Mac/CocoaThread.h"
 #include "Misc/EngineVersion.h"
 #include "Mac/MacMallocZone.h"
