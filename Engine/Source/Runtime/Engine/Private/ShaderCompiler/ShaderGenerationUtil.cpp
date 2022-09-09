@@ -2109,6 +2109,8 @@ void FShaderCompileUtilities::GenerateBrdfHeaders(const FName& ShaderFormat)
 FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatform Platform)
 {
 	FGBufferParams Ret = {};
+	Ret.ShaderPlatform = Platform;
+
 #if WITH_EDITOR
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
