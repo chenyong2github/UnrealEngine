@@ -50,6 +50,7 @@ private:
 	TSharedPtr<STextBlock> LODBiasText;
 	TSharedPtr<STextBlock> MethodText;
 	TSharedPtr<STextBlock> NumMipsText;
+	TSharedPtr<STextBlock> NumTilesText;
 	TSharedPtr<STextBlock> ResolutionText;
 	TSharedPtr<STextBlock> ResourceSizeText;
 };
