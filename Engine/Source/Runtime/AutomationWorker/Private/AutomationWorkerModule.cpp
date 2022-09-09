@@ -486,6 +486,17 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 }
 #endif
 
+FString GetRHIForAutomation()
+{
+	// Remove any extra information in () from RHI string
+	FString RHI = FApp::GetGraphicsRHI();
+	int Pos;
+	if (RHI.FindChar(*TEXT("("), Pos))
+	{
+		RHI = RHI.Left(Pos).TrimEnd();
+	}
+	return RHI;
+}
 
 void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
@@ -521,7 +532,8 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 	FName SkipReason;
 	bool bWarn(false);
 	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
-	if (Excludelist->IsTestExcluded(Message.FullTestPath, FApp::GetGraphicsRHI(), &SkipReason, &bWarn))
+	static FString RHI = GetRHIForAutomation();
+	if (Excludelist->IsTestExcluded(Message.FullTestPath, RHI, &SkipReason, &bWarn))
 	{
 		FString SkippingMessage = FString::Format(TEXT("Test Skipped. Name={{0}} Reason={{1}} Path={{2}}"),
 			{ *Message.BeautifiedTestName, *SkipReason.ToString(), *Message.FullTestPath });
