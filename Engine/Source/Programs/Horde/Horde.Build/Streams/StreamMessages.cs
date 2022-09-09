@@ -10,6 +10,7 @@ using Horde.Build.Jobs.Schedules;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Horde.Build.Issues;
+using Horde.Build.Perforce;
 
 namespace Horde.Build.Streams
 {
@@ -192,7 +193,7 @@ namespace Horde.Build.Streams
 		/// </summary>
 		public GetTemplateStepStateResponse(ITemplateStep state, GetThinUserInfoResponse? pausedByUserInfo)
 		{
-			Name = state.Name;			
+			Name = state.Name;
 			PauseTimeUtc = state.PauseTimeUtc;
 			PausedByUserInfo = pausedByUserInfo;
 		}
@@ -278,7 +279,7 @@ namespace Horde.Build.Streams
 			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule) : null;
 			ChainedJobs = (templateRef.Config.ChainedJobs != null && templateRef.Config.ChainedJobs.Count > 0) ? templateRef.Config.ChainedJobs : null;
 			StepStates = stepStates;
-			Acl = (bIncludeAcl && templateRef.Acl != null)? new GetAclResponse(templateRef.Acl) : null;
+			Acl = (bIncludeAcl && templateRef.Acl != null) ? new GetAclResponse(templateRef.Acl) : null;
 		}
 	}
 
@@ -366,12 +367,12 @@ namespace Horde.Build.Streams
 		/// Custom permissions for this object
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
-		
+
 		/// <summary>
 		/// Stream paused for new builds until this date
 		/// </summary>
 		public DateTime? PausedUntil { get; set; }
-		
+
 		/// <summary>
 		/// Reason for stream being paused
 		/// </summary>
@@ -422,6 +423,63 @@ namespace Horde.Build.Streams
 			PausedUntil = pausedUntil;
 			PauseComment = pauseComment;
 			Workflows = workflows;
+		}
+	}
+
+	/// <summary>
+	/// Information about a commit
+	/// </summary>
+	public class GetCommitResponse
+	{
+		/// <summary>
+		/// The source changelist number
+		/// </summary>
+		public int Number { get; set; }
+
+		/// <summary>
+		/// Name of the user that authored this change [DEPRECATED]
+		/// </summary>
+		public string Author { get; set; }
+
+		/// <summary>
+		/// Information about the user that authored this change
+		/// </summary>
+		public GetThinUserInfoResponse AuthorInfo { get; set; }
+
+		/// <summary>
+		/// The description text
+		/// </summary>
+		public string Description { get; set; }
+
+		/// <summary>
+		/// Tags for this commit
+		/// </summary>
+		public List<CommitTag> Tags { get; set; }
+
+		/// <summary>
+		/// List of files that were modified, relative to the stream base
+		/// </summary>
+		public List<string>? Files { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="commit">The commit to construct from</param>
+		/// <param name="author">Author of the change</param>
+		/// <param name="tags">Tags for the commit</param>
+		/// <param name="files">Files modified by the commit</param>
+		public GetCommitResponse(ICommit commit, IUser author, IReadOnlyList<CommitTag> tags, IReadOnlyList<string>? files)
+		{
+			Number = commit.Number;
+			Author = author.Name;
+			AuthorInfo = new GetThinUserInfoResponse(author);
+			Description = commit.Description;
+			Tags = new List<CommitTag>(tags);
+
+			if (files != null)
+			{
+				Files = new List<string>(files);
+			}
 		}
 	}
 }

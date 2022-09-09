@@ -166,7 +166,7 @@ namespace Horde.Build.Streams
 		/// <returns>Http result code</returns>
 		[HttpGet]
 		[Route("/api/v1/streams/{streamId}/changes")]
-		[ProducesResponseType(typeof(List<GetChangeSummaryResponse>), 200)]
+		[ProducesResponseType(typeof(List<GetCommitResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetChangesAsync(StreamId streamId, [FromQuery] int? min = null, [FromQuery] int? max = null, [FromQuery] int results = 50, PropertyFilter? filter = null)
 		{
 			IStream? stream = await _streamService.GetStreamAsync(streamId);
@@ -181,12 +181,12 @@ namespace Horde.Build.Streams
 
 			List<ICommit> commits = await _commitService.GetCollection(stream).FindAsync(min, max, results).ToListAsync();
 
-			List<GetChangeSummaryResponse> responses = new List<GetChangeSummaryResponse>();
+			List<GetCommitResponse> responses = new List<GetCommitResponse>();
 			foreach (ICommit commit in commits)
 			{
 				IUser? author = await _userCollection.GetCachedUserAsync(commit.AuthorId);
 				IReadOnlyList<CommitTag> tags = await commit.GetTagsAsync(HttpContext.RequestAborted);
-				responses.Add(new GetChangeSummaryResponse(commit, author!, tags));
+				responses.Add(new GetCommitResponse(commit, author!, tags, null));
 			}
 			return responses.ConvertAll(x => PropertyFilter.Apply(x, filter));
 		}
@@ -200,7 +200,7 @@ namespace Horde.Build.Streams
 		/// <returns>Http result code</returns>
 		[HttpGet]
 		[Route("/api/v1/streams/{streamId}/changes/{changeNumber}")]
-		[ProducesResponseType(typeof(GetChangeDetailsResponse), 200)]
+		[ProducesResponseType(typeof(GetCommitResponse), 200)]
 		public async Task<ActionResult<object>> GetChangeDetailsAsync(StreamId streamId, int changeNumber, PropertyFilter? filter = null)
 		{
 			IStream? stream = await _streamService.GetStreamAsync(streamId);
@@ -223,7 +223,7 @@ namespace Horde.Build.Streams
 			IReadOnlyList<CommitTag> tags = await changeDetails.GetTagsAsync(HttpContext.RequestAborted);
 			IReadOnlyList<string> files = await changeDetails.GetFilesAsync(CancellationToken.None);
 
-			return PropertyFilter.Apply(new GetChangeDetailsResponse(changeDetails, author!, tags, files), filter);
+			return PropertyFilter.Apply(new GetCommitResponse(changeDetails, author!, tags, files), filter);
 		}
 
 		/// <summary>
