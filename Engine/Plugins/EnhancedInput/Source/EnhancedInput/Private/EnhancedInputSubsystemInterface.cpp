@@ -362,13 +362,16 @@ TArray<FKey> IEnhancedInputSubsystemInterface::QueryKeysMappedToAction(const UIn
 {
 	TArray<FKey> MappedKeys;
 
-	if (const UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	if (Action)
 	{
-		for (const FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
+		if (const UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
 		{
-			if (Mapping.Action == Action)
+			for (const FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
 			{
-				MappedKeys.AddUnique(Mapping.Key);
+				if (Mapping.Action == Action)
+				{
+					MappedKeys.AddUnique(Mapping.Key);
+				}
 			}
 		}
 	}
