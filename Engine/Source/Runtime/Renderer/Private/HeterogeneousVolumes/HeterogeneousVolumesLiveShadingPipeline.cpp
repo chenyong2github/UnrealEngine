@@ -535,7 +535,10 @@ void RenderWithLiveShading(
 			check(LightSceneInfo != nullptr);
 
 			bApplyDirectLighting = (LightSceneInfo != nullptr);
-			bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
+			if (LightSceneInfo)
+			{
+				bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
+			}
 		}
 
 		if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
