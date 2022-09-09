@@ -253,12 +253,18 @@ enum class EStateTreePropertyCopyType : uint8
 
 	/* UInt32 promotions */
 	PromoteUInt32ToInt64,
-    PromoteUInt32ToFloat,	// This is strictly sketchy because of potential data loss, but it is usually OK in the general case
+	PromoteUInt32ToFloat,	// This is strictly sketchy because of potential data loss, but it is usually OK in the general case
+	PromoteUInt32ToDouble,
 
 	/* Float promotions */
-	// LWC_TODO: Float/double should become synonyms in state trees? Certainly BPs.
+	PromoteFloatToInt32,
+	PromoteFloatToInt64,
 	PromoteFloatToDouble,
-	DemoteDoubleToFloat,	// LWC_TODO: This should not ship!
+
+	/* Double promotions */
+	DemoteDoubleToInt32,
+	DemoteDoubleToInt64,
+	DemoteDoubleToFloat,
 };
 
 

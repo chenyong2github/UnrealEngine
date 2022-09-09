@@ -75,11 +75,11 @@ struct STATETREEEDITORMODULE_API FStateTreePropertyBindingCompiler
 
 	/**
 	 * Checks if two property types can are compatible for copying.
-	 * @param InPropertyA First property used in the check.
-	 * @param InPropertyB Second property used in the check.
+	 * @param FromProperty Property to copy from.
+	 * @param ToProperty Property to copy to.
 	 * @return Incompatible if the properties cannot be copied, Compatible if they are trivially copyable, or Promotable if numeric values can be promoted to another numeric type.
 	 */
-	static EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* InPropertyA, const FProperty* InPropertyB);
+	static EPropertyAccessCompatibility GetPropertyCompatibility(const FProperty* FromProperty, const FProperty* ToProperty);
 	
 protected:
 

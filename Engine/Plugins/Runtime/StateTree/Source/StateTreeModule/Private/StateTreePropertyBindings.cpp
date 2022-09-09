@@ -258,6 +258,8 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 			&& TargetStructProperty->Struct == TBaseStructure<FStateTreeStructRef>::Get();
 		break;
 	}
+
+	// Bool promotions		
 	case EStateTreePropertyCopyType::PromoteBoolToByte:
 		bResult = SourceProperty->IsA<FBoolProperty>() && TargetProperty->IsA<FByteProperty>();
 		break;
@@ -276,6 +278,8 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	case EStateTreePropertyCopyType::PromoteBoolToDouble:
 		bResult = SourceProperty->IsA<FBoolProperty>() && TargetProperty->IsA<FDoubleProperty>();
 		break;
+
+	// Byte promotions
 	case EStateTreePropertyCopyType::PromoteByteToInt32:
 		bResult = SourceProperty->IsA<FByteProperty>() && TargetProperty->IsA<FIntProperty>();
 		break;
@@ -291,6 +295,8 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	case EStateTreePropertyCopyType::PromoteByteToDouble:
 		bResult = SourceProperty->IsA<FByteProperty>() && TargetProperty->IsA<FDoubleProperty>();
 		break;
+
+	// Int32 promotions
 	case EStateTreePropertyCopyType::PromoteInt32ToInt64:
 		bResult = SourceProperty->IsA<FIntProperty>() && TargetProperty->IsA<FInt64Property>();
 		break;
@@ -300,17 +306,38 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	case EStateTreePropertyCopyType::PromoteInt32ToDouble:
 		bResult = SourceProperty->IsA<FIntProperty>() && TargetProperty->IsA<FDoubleProperty>();
 		break;
-	case EStateTreePropertyCopyType::PromoteFloatToDouble:
-		bResult = SourceProperty->IsA<FFloatProperty>() && TargetProperty->IsA<FDoubleProperty>();
-		break;
-	case EStateTreePropertyCopyType::DemoteDoubleToFloat:
-		bResult = SourceProperty->IsA<FDoubleProperty>() && TargetProperty->IsA<FFloatProperty>();
-		break;
+
+	// Uint32 promotions
 	case EStateTreePropertyCopyType::PromoteUInt32ToInt64:
 		bResult = SourceProperty->IsA<FUInt32Property>() && TargetProperty->IsA<FInt64Property>();
 		break;
 	case EStateTreePropertyCopyType::PromoteUInt32ToFloat:
 		bResult = SourceProperty->IsA<FUInt32Property>() && TargetProperty->IsA<FFloatProperty>();
+		break;
+	case EStateTreePropertyCopyType::PromoteUInt32ToDouble:
+		bResult = SourceProperty->IsA<FUInt32Property>() && TargetProperty->IsA<FDoubleProperty>();
+		break;
+
+	// Float promotions
+	case EStateTreePropertyCopyType::PromoteFloatToInt32:
+		bResult = SourceProperty->IsA<FFloatProperty>() && TargetProperty->IsA<FIntProperty>();
+		break;
+	case EStateTreePropertyCopyType::PromoteFloatToInt64:
+		bResult = SourceProperty->IsA<FFloatProperty>() && TargetProperty->IsA<FInt64Property>();
+		break;
+	case EStateTreePropertyCopyType::PromoteFloatToDouble:
+		bResult = SourceProperty->IsA<FFloatProperty>() && TargetProperty->IsA<FDoubleProperty>();
+		break;
+
+	// Double promotions
+	case EStateTreePropertyCopyType::DemoteDoubleToInt32:
+		bResult = SourceProperty->IsA<FDoubleProperty>() && TargetProperty->IsA<FIntProperty>();
+		break;
+	case EStateTreePropertyCopyType::DemoteDoubleToInt64:
+		bResult = SourceProperty->IsA<FDoubleProperty>() && TargetProperty->IsA<FInt64Property>();
+		break;
+	case EStateTreePropertyCopyType::DemoteDoubleToFloat:
+		bResult = SourceProperty->IsA<FDoubleProperty>() && TargetProperty->IsA<FFloatProperty>();
 		break;
 	default:
 		UE_LOG(LogStateTree, Error, TEXT("FStateTreePropertyBindings::ValidateCopy: Unhandled copy type %s between '%s' and '%s'"),
@@ -447,6 +474,7 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, uin
 		Target->Set(FStructView(SourceStructProperty->Struct, SourceAddress));
 		break;
 	}
+	// Bool promotions
 	case EStateTreePropertyCopyType::PromoteBoolToByte:
 		*reinterpret_cast<uint8*>(TargetAddress) = (uint8)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
@@ -465,6 +493,8 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, uin
 	case EStateTreePropertyCopyType::PromoteBoolToDouble:
 		*reinterpret_cast<double*>(TargetAddress) = (double)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
+		
+	// Byte promotions	
 	case EStateTreePropertyCopyType::PromoteByteToInt32:
 		*reinterpret_cast<int32*>(TargetAddress) = (int32)*reinterpret_cast<const uint8*>(SourceAddress);
 		break;
@@ -480,6 +510,8 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, uin
 	case EStateTreePropertyCopyType::PromoteByteToDouble:
 		*reinterpret_cast<double*>(TargetAddress) = (double)*reinterpret_cast<const uint8*>(SourceAddress);
 		break;
+
+	// Int32 promotions
 	case EStateTreePropertyCopyType::PromoteInt32ToInt64:
 		*reinterpret_cast<int64*>(TargetAddress) = (int64)*reinterpret_cast<const int32*>(SourceAddress);
 		break;
@@ -489,18 +521,40 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, uin
 	case EStateTreePropertyCopyType::PromoteInt32ToDouble:
 		*reinterpret_cast<double*>(TargetAddress) = (double)*reinterpret_cast<const int32*>(SourceAddress);
 		break;
-	case EStateTreePropertyCopyType::PromoteFloatToDouble:
-		*reinterpret_cast<double*>(TargetAddress) = (double)*reinterpret_cast<const float*>(SourceAddress);
-		break;
-	case EStateTreePropertyCopyType::DemoteDoubleToFloat:
-		*reinterpret_cast<float*>(TargetAddress) = (float)*reinterpret_cast<const double*>(SourceAddress);
-		break;
+
+	// Uint32 promotions
 	case EStateTreePropertyCopyType::PromoteUInt32ToInt64:
 		*reinterpret_cast<int64*>(TargetAddress) = (int64)*reinterpret_cast<const uint32*>(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteUInt32ToFloat:
 		*reinterpret_cast<float*>(TargetAddress) = (float)*reinterpret_cast<const uint32*>(SourceAddress);
 		break;
+	case EStateTreePropertyCopyType::PromoteUInt32ToDouble:
+		*reinterpret_cast<double*>(TargetAddress) = (double)*reinterpret_cast<const uint32*>(SourceAddress);
+		break;
+
+	// Float promotions
+	case EStateTreePropertyCopyType::PromoteFloatToInt32:
+		*reinterpret_cast<int32*>(TargetAddress) = (int32)*reinterpret_cast<const float*>(SourceAddress);
+		break;
+	case EStateTreePropertyCopyType::PromoteFloatToInt64:
+		*reinterpret_cast<int64*>(TargetAddress) = (int64)*reinterpret_cast<const float*>(SourceAddress);
+		break;
+	case EStateTreePropertyCopyType::PromoteFloatToDouble:
+		*reinterpret_cast<double*>(TargetAddress) = (double)*reinterpret_cast<const float*>(SourceAddress);
+		break;
+
+	// Double promotions
+	case EStateTreePropertyCopyType::DemoteDoubleToInt32:
+		*reinterpret_cast<int32*>(TargetAddress) = (int32)*reinterpret_cast<const double*>(SourceAddress);
+		break;
+	case EStateTreePropertyCopyType::DemoteDoubleToInt64:
+		*reinterpret_cast<int64*>(TargetAddress) = (int64)*reinterpret_cast<const double*>(SourceAddress);
+		break;
+	case EStateTreePropertyCopyType::DemoteDoubleToFloat:
+		*reinterpret_cast<float*>(TargetAddress) = (float)*reinterpret_cast<const double*>(SourceAddress);
+		break;
+
 	default:
 		ensureMsgf(false, TEXT("FStateTreePropertyBindings::PerformCopy: Unhandled copy type %s between '%s' and '%s'"),
 			*StaticEnum<EStateTreePropertyCopyType>()->GetValueAsString(Copy.Type), *Copy.SourceLeafProperty->GetNameCPP(), *Copy.TargetLeafProperty->GetNameCPP());

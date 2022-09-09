@@ -329,20 +329,6 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const 
 				return EStateTreePropertyCopyType::PromoteInt32ToDouble;
 			}
 		}
-		else if (SourceProperty->IsA<FFloatProperty>())
-		{
-			if (TargetProperty->IsA<FDoubleProperty>())
-			{
-				return EStateTreePropertyCopyType::PromoteFloatToDouble;
-			}
-		}
-		else if (SourceProperty->IsA<FDoubleProperty>())
-		{
-			if (TargetProperty->IsA<FFloatProperty>())
-			{
-				return EStateTreePropertyCopyType::DemoteDoubleToFloat;
-			}
-		}
 		else if (SourceProperty->IsA<FUInt32Property>())
 		{
 			if (TargetProperty->IsA<FInt64Property>())
@@ -353,9 +339,43 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const 
 			{
 				return EStateTreePropertyCopyType::PromoteUInt32ToFloat;
 			}
+			else if (TargetProperty->IsA<FDoubleProperty>())
+			{
+				return EStateTreePropertyCopyType::PromoteUInt32ToDouble;
+			}
+		}
+		else if (SourceProperty->IsA<FFloatProperty>())
+		{
+			if (TargetProperty->IsA<FIntProperty>())
+			{
+				return EStateTreePropertyCopyType::PromoteFloatToInt32;
+			}
+			else if (TargetProperty->IsA<FInt64Property>())
+			{
+				return EStateTreePropertyCopyType::PromoteFloatToInt64;
+			}
+			else if (TargetProperty->IsA<FDoubleProperty>())
+			{
+				return EStateTreePropertyCopyType::PromoteFloatToDouble;
+			}
+		}
+		else if (SourceProperty->IsA<FDoubleProperty>())
+		{
+			if (TargetProperty->IsA<FIntProperty>())
+			{
+				return EStateTreePropertyCopyType::DemoteDoubleToInt32;
+			}
+			else if (TargetProperty->IsA<FInt64Property>())
+			{
+				return EStateTreePropertyCopyType::DemoteDoubleToInt64;
+			}
+			else if (TargetProperty->IsA<FFloatProperty>())
+			{
+				return EStateTreePropertyCopyType::DemoteDoubleToFloat;
+			}
 		}
 	}
-
+	
 	ensureMsgf(false, TEXT("Couldnt determine property copy type (%s -> %s)"), *SourceProperty->GetNameCPP(), *TargetProperty->GetNameCPP());
 
 	return EStateTreePropertyCopyType::None;
@@ -547,69 +567,100 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 	return true;
 }
 
-EPropertyAccessCompatibility FStateTreePropertyBindingCompiler::GetPropertyCompatibility(const FProperty* InPropertyA, const FProperty* InPropertyB)
+EPropertyAccessCompatibility FStateTreePropertyBindingCompiler::GetPropertyCompatibility(const FProperty* FromProperty, const FProperty* ToProperty)
 {
-	if (InPropertyA == InPropertyB)
+	if (FromProperty == ToProperty)
 	{
 		return EPropertyAccessCompatibility::Compatible;
 	}
 
-	if (InPropertyA == nullptr || InPropertyB == nullptr)
+	if (FromProperty == nullptr || ToProperty == nullptr)
 	{
 		return EPropertyAccessCompatibility::Incompatible;
 	}
 
 	// Special case for object properties since InPropertyA->SameType(InPropertyB) requires both properties to be of the exact same class.
 	// In our case we want to be able to bind a source property if its class is a child of the target property class.
-	if (InPropertyA->IsA<FObjectPropertyBase>() && InPropertyB->IsA<FObjectPropertyBase>())
+	if (FromProperty->IsA<FObjectPropertyBase>() && ToProperty->IsA<FObjectPropertyBase>())
 	{
-		const FObjectPropertyBase* SourceProperty = CastField<FObjectPropertyBase>(InPropertyA);
-		const FObjectPropertyBase* TargetProperty = CastField<FObjectPropertyBase>(InPropertyB);
+		const FObjectPropertyBase* SourceProperty = CastField<FObjectPropertyBase>(FromProperty);
+		const FObjectPropertyBase* TargetProperty = CastField<FObjectPropertyBase>(ToProperty);
 		return (SourceProperty->PropertyClass->IsChildOf(TargetProperty->PropertyClass)) ? EPropertyAccessCompatibility::Compatible : EPropertyAccessCompatibility::Incompatible;
 	}
 
 	// Extract underlying types for enums
-	if (const FEnumProperty* EnumPropertyA = CastField<const FEnumProperty>(InPropertyA))
+	if (const FEnumProperty* EnumPropertyA = CastField<const FEnumProperty>(FromProperty))
 	{
-		InPropertyA = EnumPropertyA->GetUnderlyingProperty();
+		FromProperty = EnumPropertyA->GetUnderlyingProperty();
 	}
 
-	if (const FEnumProperty* EnumPropertyB = CastField<const FEnumProperty>(InPropertyB))
+	if (const FEnumProperty* EnumPropertyB = CastField<const FEnumProperty>(ToProperty))
 	{
-		InPropertyB = EnumPropertyB->GetUnderlyingProperty();
+		ToProperty = EnumPropertyB->GetUnderlyingProperty();
 	}
 
-	if (InPropertyA->SameType(InPropertyB))
+	if (FromProperty->SameType(ToProperty))
 	{
 		return EPropertyAccessCompatibility::Compatible;
 	}
 	else
 	{
 		// Not directly compatible, check for promotions
-		if (InPropertyA->IsA<FBoolProperty>())
+		if (FromProperty->IsA<FBoolProperty>())
 		{
-			if (InPropertyB->IsA<FByteProperty>() || InPropertyB->IsA<FIntProperty>() || InPropertyB->IsA<FUInt32Property>() || InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+			if (ToProperty->IsA<FByteProperty>()
+				|| ToProperty->IsA<FIntProperty>()
+				|| ToProperty->IsA<FUInt32Property>()
+				|| ToProperty->IsA<FInt64Property>()
+				|| ToProperty->IsA<FFloatProperty>()
+				|| ToProperty->IsA<FDoubleProperty>())
 			{
 				return EPropertyAccessCompatibility::Promotable;
 			}
 		}
-		else if (InPropertyA->IsA<FByteProperty>())
+		else if (FromProperty->IsA<FByteProperty>())
 		{
-			if (InPropertyB->IsA<FIntProperty>() || InPropertyB->IsA<FUInt32Property>() || InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+			if (ToProperty->IsA<FIntProperty>()
+				|| ToProperty->IsA<FUInt32Property>()
+				|| ToProperty->IsA<FInt64Property>()
+				|| ToProperty->IsA<FFloatProperty>()
+				|| ToProperty->IsA<FDoubleProperty>())
 			{
 				return EPropertyAccessCompatibility::Promotable;
 			}
 		}
-		else if (InPropertyA->IsA<FIntProperty>())
+		else if (FromProperty->IsA<FIntProperty>())
 		{
-			if (InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+			if (ToProperty->IsA<FInt64Property>()
+				|| ToProperty->IsA<FFloatProperty>()
+				|| ToProperty->IsA<FDoubleProperty>())
 			{
 				return EPropertyAccessCompatibility::Promotable;
 			}
 		}
-		else if (InPropertyA->IsA<FUInt32Property>())
+		else if (FromProperty->IsA<FUInt32Property>())
 		{
-			if (InPropertyB->IsA<FInt64Property>() || InPropertyB->IsA<FFloatProperty>())
+			if (ToProperty->IsA<FInt64Property>()
+				|| ToProperty->IsA<FFloatProperty>()
+				|| ToProperty->IsA<FDoubleProperty>())
+			{
+				return EPropertyAccessCompatibility::Promotable;
+			}
+		}
+		else if (FromProperty->IsA<FFloatProperty>())
+		{
+			if (ToProperty->IsA<FIntProperty>()
+				|| ToProperty->IsA<FInt64Property>()
+				|| ToProperty->IsA<FDoubleProperty>())
+			{
+				return EPropertyAccessCompatibility::Promotable;
+			}
+		}
+		else if (FromProperty->IsA<FDoubleProperty>())
+		{
+			if (ToProperty->IsA<FIntProperty>()
+				|| ToProperty->IsA<FInt64Property>()
+				|| ToProperty->IsA<FFloatProperty>())
 			{
 				return EPropertyAccessCompatibility::Promotable;
 			}

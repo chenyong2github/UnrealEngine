@@ -56,10 +56,10 @@ struct STATETREEMODULE_API FStateTreeCompareFloatConditionInstanceData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Input)
-	float Left = 0.0f;
+	double Left = 0.0;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	float Right = 0.0f;
+	double Right = 0.0;
 };
 STATETREE_POD_INSTANCEDATA(FStateTreeCompareFloatConditionInstanceData);
 
@@ -183,7 +183,7 @@ struct STATETREEMODULE_API FStateTreeCompareDistanceConditionInstanceData
 	FVector Target = FVector(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	float Distance = 0.0f;
+	double Distance = 0.0;
 };
 STATETREE_POD_INSTANCEDATA(FStateTreeCompareDistanceConditionInstanceData);
 

@@ -97,7 +97,7 @@ bool FStateTreeCompareFloatCondition::TestCondition(FStateTreeExecutionContext& 
 {
 	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
 
-	const bool bResult = UE::StateTree::Conditions::CompareNumbers<float>(InstanceData.Left, InstanceData.Right, Operator);
+	const bool bResult = UE::StateTree::Conditions::CompareNumbers<double>(InstanceData.Left, InstanceData.Right, Operator);
 	return bResult ^ bInvert;
 }
 
@@ -179,9 +179,9 @@ bool FStateTreeCompareDistanceCondition::TestCondition(FStateTreeExecutionContex
 {
 	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
 
-	const float Left = FVector::DistSquared(InstanceData.Source, InstanceData.Target);
-	const float Right = FMath::Square(InstanceData.Distance);
-	const bool bResult = UE::StateTree::Conditions::CompareNumbers<float>(Left, Right, Operator);
+	const FVector::FReal Left = FVector::DistSquared(InstanceData.Source, InstanceData.Target);
+	const FVector::FReal Right = FMath::Square(InstanceData.Distance);
+	const bool bResult = UE::StateTree::Conditions::CompareNumbers<FVector::FReal>(Left, Right, Operator);
 	return bResult ^ bInvert;
 }
 
