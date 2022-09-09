@@ -76,9 +76,14 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
 	OwnerActor->GetComponents(PrimitiveComponents);
 
-	// Make no assumptions for custom meshes.  Add all components with collision to the list of collision components
+	// Make no assumptions for custom water bodies: all (non-visualization) primitive components will be included in navigation
 	for (UPrimitiveComponent* Comp : PrimitiveComponents)
 	{
+		if (Comp->IsVisualizationComponent())
+		{
+			continue;
+		}
+
 		CopySharedNavigationSettingsToComponent(Comp);
 
 		Comp->SetMobility(Mobility);
