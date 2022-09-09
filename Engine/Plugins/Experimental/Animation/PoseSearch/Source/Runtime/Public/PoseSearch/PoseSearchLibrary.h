@@ -117,7 +117,6 @@ struct POSESEARCH_API FMotionMatchingState
 POSESEARCH_API void UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const UPoseSearchSearchableAsset* Searchable,
-	const FGameplayTagQuery* DatabaseTagQuery,
 	const FGameplayTagContainer* ActiveTagsContainer,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,

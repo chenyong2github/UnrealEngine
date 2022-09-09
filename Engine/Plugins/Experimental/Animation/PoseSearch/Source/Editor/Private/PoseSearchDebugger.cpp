@@ -736,9 +736,6 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 	check(ActiveView.Rows.Num() == 1);
 	check(ContinuingPoseView.Rows.Num() == 1);
 
-	DatabaseSequenceFilter = State.DatabaseSequenceFilter;
-	DatabaseBlendSpaceFilter = State.DatabaseBlendSpaceFilter;
-
 	SortDatabaseRows();
 	FilterDatabaseRows();
 
@@ -888,9 +885,7 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 	for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 	{
 		bool bPoseIsFromCurrentDb = EnumHasAnyFlags(UnfilteredRow->DatabaseEntryFlags, FTraceMotionMatchingStateDatabaseEntry::EFlags::CurrentDatabase);
-		bool bPassesSequenceFilter = !bPoseIsFromCurrentDb || (UnfilteredRow->AssetType == ESearchIndexAssetType::Sequence && DatabaseSequenceFilter[UnfilteredRow->DbAssetIdx]);
-		bool bPassesBlendSpaceFilter = !bPoseIsFromCurrentDb || (UnfilteredRow->AssetType == ESearchIndexAssetType::BlendSpace && DatabaseBlendSpaceFilter[UnfilteredRow->DbAssetIdx]);
-		bool bPassesAssetFilter = !bAssetFilterEnabled || bPassesSequenceFilter || bPassesBlendSpaceFilter;
+		bool bPassesAssetFilter = !bAssetFilterEnabled || !bPoseIsFromCurrentDb;
 
 		if (bPassesAssetFilter)
 		{

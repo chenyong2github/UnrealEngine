@@ -119,19 +119,13 @@ namespace UE::PoseSearch
 			EItemDropZone DropZone,
 			TSharedPtr<FDatabaseAssetTreeNode> TargetItem);
 
-		int32 FindGroupIndex(TSharedPtr<FDatabaseAssetTreeNode> TargetItem);
-
 		TSharedRef<SWidget> CreateAddNewMenuWidget();
 		TSharedPtr<SWidget> CreateContextMenu();
 		
-		void OnAddGroup(bool bFinalizeChanges = true);
 		void OnAddSequence(bool bFinalizeChanges = true);
 		void OnAddBlendSpace(bool bFinalizeChanges = true);
 
 		void OnDeleteAsset(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
-		void OnRemoveFromGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
-		void OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges = true);
-
 		void CreateCommandList();
 
 		/** Removes existing selected component nodes from the tree*/

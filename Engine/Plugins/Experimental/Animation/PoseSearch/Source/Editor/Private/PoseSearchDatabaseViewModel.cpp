@@ -318,33 +318,16 @@ namespace UE::PoseSearch
 		return AnimationPreviewMode == PreviewMode;
 	}
 
-	void FDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence, int InitialGroupIdx)
+	void FDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence)
 	{
 		FPoseSearchDatabaseSequence& NewDbSequence = PoseSearchDatabase->Sequences.AddDefaulted_GetRef();
 		NewDbSequence.Sequence = AnimSequence;
-
-		if (InitialGroupIdx >= 0)
-		{
-			const FPoseSearchDatabaseGroup& InitialGroup = PoseSearchDatabase->Groups[InitialGroupIdx];
-			NewDbSequence.GroupTags.AddTag(InitialGroup.Tag);
-		}
 	}
 
-	void FDatabaseViewModel::AddBlendSpaceToDatabase(UBlendSpace* BlendSpace, int InitialGroupIdx)
+	void FDatabaseViewModel::AddBlendSpaceToDatabase(UBlendSpace* BlendSpace)
 	{
 		FPoseSearchDatabaseBlendSpace& NewDbBlendSpace = PoseSearchDatabase->BlendSpaces.AddDefaulted_GetRef();
 		NewDbBlendSpace.BlendSpace = BlendSpace;
-
-		if (InitialGroupIdx >= 0)
-		{
-			const FPoseSearchDatabaseGroup& InitialGroup = PoseSearchDatabase->Groups[InitialGroupIdx];
-			NewDbBlendSpace.GroupTags.AddTag(InitialGroup.Tag);
-		}
-	}
-
-	void FDatabaseViewModel::AddGroupToDatabase()
-	{
-		PoseSearchDatabase->Groups.AddDefaulted();
 	}
 
 	void FDatabaseViewModel::DeleteSequenceFromDatabase(int32 SequenceIdx)
@@ -352,49 +335,9 @@ namespace UE::PoseSearch
 		PoseSearchDatabase->Sequences.RemoveAt(SequenceIdx);
 	}
 
-	void FDatabaseViewModel::RemoveSequenceFromGroup(int32 SequenceIdx, int32 GroupIdx)
-	{
-		FPoseSearchDatabaseSequence& DbSequence = PoseSearchDatabase->Sequences[SequenceIdx];
-		FPoseSearchDatabaseGroup& DbGroup = PoseSearchDatabase->Groups[GroupIdx];
-		if (DbGroup.Tag.IsValid())
-		{
-			DbSequence.GroupTags.RemoveTag(DbGroup.Tag);
-		}
-	}
-
 	void FDatabaseViewModel::DeleteBlendSpaceFromDatabase(int32 BlendSpaceIdx)
 	{
 		PoseSearchDatabase->BlendSpaces.RemoveAt(BlendSpaceIdx);
-	}
-
-	void FDatabaseViewModel::RemoveBlendSpaceFromGroup(int32 BlendSpaceIdx, int32 GroupIdx)
-	{
-		FPoseSearchDatabaseBlendSpace& DbBlendSpace = PoseSearchDatabase->BlendSpaces[BlendSpaceIdx];
-		FPoseSearchDatabaseGroup& DbGroup = PoseSearchDatabase->Groups[GroupIdx];
-		if (DbGroup.Tag.IsValid())
-		{
-			DbBlendSpace.GroupTags.RemoveTag(DbGroup.Tag);
-		}
-	}
-
-	void FDatabaseViewModel::DeleteGroup(int32 GroupIdx)
-	{
-		FPoseSearchDatabaseGroup& DbGroup = PoseSearchDatabase->Groups[GroupIdx];
-
-		if (DbGroup.Tag.IsValid())
-		{
-			for (FPoseSearchDatabaseSequence& Sequence : PoseSearchDatabase->Sequences)
-			{
-				Sequence.GroupTags.RemoveTag(DbGroup.Tag);
-			}
-
-			for (FPoseSearchDatabaseBlendSpace& BlendSpace : PoseSearchDatabase->BlendSpaces)
-			{
-				BlendSpace.GroupTags.RemoveTag(DbGroup.Tag);
-			}
-		}
-
-		PoseSearchDatabase->Groups.RemoveAt(GroupIdx);
 	}
 
 	void FDatabaseViewModel::SetSelectedSequenceEnabled(int32 SequenceIndex, bool bEnabled)

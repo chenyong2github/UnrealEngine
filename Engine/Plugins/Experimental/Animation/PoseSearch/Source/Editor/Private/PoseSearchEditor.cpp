@@ -195,7 +195,6 @@ void FEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOn
 void FEditorModule::RegisterPropertyTypeCustomizations()
 {
 	RegisterCustomPropertyTypeLayout("PoseSearchDatabaseSequence", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPoseSearchDatabaseSequenceCustomization::MakeInstance));
-	RegisterCustomPropertyTypeLayout("PoseSearchDatabaseGroup", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPoseSearchDatabaseGroupCustomization::MakeInstance));
 }
 
 void FEditorModule::RegisterObjectCustomizations()

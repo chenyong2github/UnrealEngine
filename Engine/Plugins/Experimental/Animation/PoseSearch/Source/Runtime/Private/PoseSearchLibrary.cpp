@@ -13,56 +13,6 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchLibrary"
 
-namespace UE::PoseSearch
-{
-static void ComputeDatabaseSequenceFilter(
-	const UPoseSearchDatabase* Database, 
-	const FGameplayTagQuery* Query, 
-	TArray<bool>& OutDbSequenceFilter)
-{
-	OutDbSequenceFilter.SetNum(Database->Sequences.Num());
-
-	if (Query)
-	{
-		for (int SeqIdx = 0; SeqIdx < Database->Sequences.Num(); ++SeqIdx)
-		{
-			OutDbSequenceFilter[SeqIdx] = Query->Matches(Database->Sequences[SeqIdx].GroupTags);
-		}
-	}
-	else
-	{
-		for (int SeqIdx = 0; SeqIdx < Database->Sequences.Num(); ++SeqIdx)
-		{
-			OutDbSequenceFilter[SeqIdx] = true;
-		}
-	}
-}
-
-static void ComputeDatabaseBlendSpaceFilter(
-	const UPoseSearchDatabase* Database,
-	const FGameplayTagQuery* Query,
-	TArray<bool>& OutDbBlendSpaceFilter)
-{
-	OutDbBlendSpaceFilter.SetNum(Database->BlendSpaces.Num());
-
-	if (Query)
-	{
-		for (int BlendSpaceIdx = 0; BlendSpaceIdx < Database->BlendSpaces.Num(); ++BlendSpaceIdx)
-		{
-			OutDbBlendSpaceFilter[BlendSpaceIdx] = Query->Matches(Database->BlendSpaces[BlendSpaceIdx].GroupTags);
-		}
-	}
-	else
-	{
-		for (int BlendSpaceIdx = 0; BlendSpaceIdx < Database->BlendSpaces.Num(); ++BlendSpaceIdx)
-		{
-			OutDbBlendSpaceFilter[BlendSpaceIdx] = true;
-		}
-	}
-}
-
-} // namespace UE::PoseSearch
-
 //////////////////////////////////////////////////////////////////////////
 // FMotionMatchingState
 
@@ -219,7 +169,6 @@ static void TraceMotionMatchingState(
 	const UPoseSearchSearchableAsset* Searchable,
 	UE::PoseSearch::FSearchContext& SearchContext,
 	const FMotionMatchingState& MotionMatchingState,
-	const FGameplayTagQuery* DatabaseTagQuery,
 	const FTrajectorySampleRange& Trajectory,
 	const UE::PoseSearch::FSearchResult& LastResult
 )
@@ -359,18 +308,6 @@ static void TraceMotionMatchingState(
 		AnimAngularVelocity = 0.0f;
 	}
 
-	TArray<bool> DatabaseSequenceFilter;
-	ComputeDatabaseSequenceFilter(
-		MotionMatchingState.CurrentSearchResult.Database.Get(),
-		DatabaseTagQuery, 
-		DatabaseSequenceFilter);
-
-	TArray<bool> DatabaseBlendSpaceFilter;
-	ComputeDatabaseBlendSpaceFilter(
-		MotionMatchingState.CurrentSearchResult.Database.Get(),
-		DatabaseTagQuery, 
-		DatabaseBlendSpaceFilter);
-
 	if (EnumHasAnyFlags(MotionMatchingState.Flags, EMotionMatchingFlags::JumpedToFollowUp))
 	{
 		TraceState.Flags |= FTraceMotionMatchingState::EFlags::FollowupAnimation;
@@ -385,8 +322,6 @@ static void TraceMotionMatchingState(
 	TraceState.SimAngularVelocity = SimAngularVelocity;
 	TraceState.AnimLinearVelocity = AnimLinearVelocity;
 	TraceState.AnimAngularVelocity = AnimAngularVelocity;
-	TraceState.DatabaseSequenceFilter = DatabaseSequenceFilter;
-	TraceState.DatabaseBlendSpaceFilter = DatabaseBlendSpaceFilter;
 
 	TraceState.Output(UpdateContext);
 #endif
@@ -395,7 +330,6 @@ static void TraceMotionMatchingState(
 void UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const UPoseSearchSearchableAsset* Searchable,
-	const FGameplayTagQuery* DatabaseTagQuery,
 	const FGameplayTagContainer* ActiveTagsContainer,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,
@@ -433,7 +367,6 @@ void UpdateMotionMatchingState(
 	if (!bCanAdvance || (InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime))
 	{
 		// Build the search context
-		SearchContext.DatabaseTagQuery = DatabaseTagQuery;
 		SearchContext.ActiveTagsContainer = ActiveTagsContainer;
 		SearchContext.Trajectory = &Trajectory;
 		SearchContext.OwningComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
@@ -506,7 +439,6 @@ void UpdateMotionMatchingState(
 		Searchable,
 		SearchContext,
 		InOutMotionMatchingState,
-		DatabaseTagQuery,
 		Trajectory,
 		LastResult
 	);

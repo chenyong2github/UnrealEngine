@@ -98,12 +98,6 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** Search vectors in normalized and unnormalized forms */
 	TArray<float> QueryVector;
 
-	/** If true, groups are being filtered by DatabaseGroupQuery */
-	TArray<bool> DatabaseSequenceFilter;
-
-	/** If true, groups are being filtered by DatabaseGroupQuery */
-	TArray<bool> DatabaseBlendSpaceFilter;
-
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;
 	float SimLinearVelocity = 0.0f;

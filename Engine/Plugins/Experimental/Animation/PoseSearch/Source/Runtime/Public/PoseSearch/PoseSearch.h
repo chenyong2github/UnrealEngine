@@ -598,13 +598,11 @@ public:
 
 	FPoseSearchIndexAsset(
 		ESearchIndexAssetType InType,
-		int32 InSourceGroupIdx, 
 		int32 InSourceAssetIdx, 
 		bool bInMirrored, 
 		const FFloatInterval& InSamplingInterval,
 		FVector InBlendParameters = FVector::Zero())
 		: Type(InType)
-		, SourceGroupIdx(InSourceGroupIdx)
 		, SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
 		, BlendParameters(InBlendParameters)
@@ -615,9 +613,6 @@ public:
 	// at some point we might want to change this to Invalid.
 	UPROPERTY()
 	ESearchIndexAssetType Type = ESearchIndexAssetType::Sequence;
-
-	UPROPERTY()
-	int32 SourceGroupIdx = INDEX_NONE;
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
 	UPROPERTY()
@@ -644,32 +639,6 @@ public:
 	}
 };
 
-USTRUCT()
-struct POSESEARCH_API FGroupSearchIndex
-{
-	GENERATED_BODY()
-
-	UE::PoseSearch::FKDTree KDTree;
-
-	UPROPERTY()
-	TArray<float> PCAProjectionMatrix;
-
-	UPROPERTY()
-	TArray<float> Mean;
-
-	UPROPERTY()
-	int32 StartPoseIndex = 0;
-	
-	UPROPERTY()
-	int32 EndPoseIndex = 0;
-
-	UPROPERTY()
-	int32 GroupIndex = 0;
-
-	UPROPERTY()
-	TArray<float> Weights;
-};
-
 /**
 * A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
 * May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
@@ -688,8 +657,16 @@ struct POSESEARCH_API FPoseSearchIndex
 	UPROPERTY()
 	TArray<float> PCAValues;
 
+	UE::PoseSearch::FKDTree KDTree;
+
 	UPROPERTY()
-	TArray<FGroupSearchIndex> Groups;
+	TArray<float> PCAProjectionMatrix;
+
+	UPROPERTY()
+	TArray<float> Mean;
+
+	UPROPERTY()
+	TArray<float> Weights;
 
 	UPROPERTY()
 	TArray<FPoseSearchPoseMetadata> PoseMetadata;
@@ -711,7 +688,6 @@ struct POSESEARCH_API FPoseSearchIndex
 	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
 
 	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
-	const FGroupSearchIndex* FindGroup(int32 GroupIndex) const;
 
 	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
@@ -769,9 +745,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UAnimSequence> FollowUpSequence = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "Group")
-	FGameplayTagContainer GroupTags;
-
 	FFloatInterval GetEffectiveSamplingRange() const;
 
 	virtual UAnimationAsset* GetAnimationAsset() const override;
@@ -804,9 +777,6 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (ClampMin = "1", UIMin = "1", UIMax = "25"))
 	int32 NumberOfVerticalSamples = 5;
 
-	UPROPERTY(EditAnywhere, Category = "Group")
-	FGameplayTagContainer GroupTags;
-
 	virtual UAnimationAsset* GetAnimationAsset() const override;
 	virtual bool IsLooping() const override;
 
@@ -819,16 +789,6 @@ public:
 		float& HorizontalBlendMax,
 		float& VerticalBlendMin,
 		float& VerticalBlendMax) const;
-};
-
-USTRUCT()
-struct POSESEARCH_API FPoseSearchDatabaseGroup
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FGameplayTag Tag;
 };
 
 USTRUCT()
@@ -1081,9 +1041,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchBlockTransitionParameters BlockTransitionParameters = { 0.0f, 0.2f };
 
-	UPROPERTY(EditAnywhere, Category = "Database")
-	TArray<FPoseSearchDatabaseGroup> Groups;
-
 	// Drag and drop animations here to add them in bulk to Sequences
 	UPROPERTY(EditAnywhere, Category = "Database", DisplayName="Drag And Drop Anims Here")
 	TArray<TObjectPtr<UAnimSequence>> SimpleSequences;
@@ -1132,7 +1089,6 @@ public:
 	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FPoseSearchDatabaseBlendSpace& GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	const FGameplayTagContainer* GetSourceAssetGroupTags(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;
 	
@@ -1210,7 +1166,7 @@ public:
 
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, int32 GroupIdx, const TArrayView<const float>& QueryValues) const;
+	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues) const;
 
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1357,7 +1313,6 @@ struct FPoseIndicesHistory
 struct POSESEARCH_API FSearchContext
 {
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
-	const FGameplayTagQuery* DatabaseTagQuery = nullptr;
 	UE::PoseSearch::FDebugDrawParams DebugDrawParams;
 	UE::PoseSearch::FPoseHistory* History = nullptr;
 	const FTrajectorySampleRange* Trajectory = nullptr;

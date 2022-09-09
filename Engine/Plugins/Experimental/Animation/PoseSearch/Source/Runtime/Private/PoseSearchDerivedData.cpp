@@ -226,21 +226,18 @@ namespace UE::PoseSearch
 		int32 NumValues = 0;
 		int32 NumPCAValues = 0;
 		int32 NumAssets = 0;
-		int32 NumGroups = 0;
 
 		if (Ar.IsSaving())
 		{
 			NumValues = Index.Values.Num();
 			NumPCAValues = Index.PCAValues.Num();
 			NumAssets = Index.Assets.Num();
-			NumGroups = Index.Groups.Num();
 		}
 
 		Ar << Index.NumPoses;
 		Ar << NumValues;
 		Ar << NumPCAValues;
 		Ar << NumAssets;
-		Ar << NumGroups;
 
 		if (Ar.IsLoading())
 		{
@@ -248,7 +245,6 @@ namespace UE::PoseSearch
 			Index.PCAValues.SetNumUninitialized(NumPCAValues);
 			Index.PoseMetadata.SetNumUninitialized(Index.NumPoses);
 			Index.Assets.SetNumUninitialized(NumAssets);
-			Index.Groups.SetNum(NumGroups);
 		}
 
 		if (Index.Values.Num() > 0)
@@ -271,22 +267,14 @@ namespace UE::PoseSearch
 			Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
 		}
 
-		for (int i = 0; i < Index.Groups.Num(); ++i)
-		{
-			FGroupSearchIndex& GroupSearchIndex = Index.Groups[i];
-			Ar << GroupSearchIndex.StartPoseIndex;
-			Ar << GroupSearchIndex.EndPoseIndex;
-			Ar << GroupSearchIndex.GroupIndex;
-			Ar << GroupSearchIndex.Weights;
-			Ar << GroupSearchIndex.Mean;
-			Ar << GroupSearchIndex.PCAProjectionMatrix;
+		Ar << Index.Weights;
+		Ar << Index.Mean;
+		Ar << Index.PCAProjectionMatrix;
 
-			check(GroupSearchIndex.PCAProjectionMatrix.Num() > 0 && GroupSearchIndex.Mean.Num() > 0);
-			check(GroupSearchIndex.PCAProjectionMatrix.Num() % GroupSearchIndex.Mean.Num() == 0);
-			const int NumberOfPrincipalComponents = GroupSearchIndex.PCAProjectionMatrix.Num() / GroupSearchIndex.Mean.Num();
-			float* GroupPCAValues = Index.PCAValues.GetData() + GroupSearchIndex.StartPoseIndex * NumberOfPrincipalComponents;
-			Serialize(Ar, GroupSearchIndex.KDTree, GroupPCAValues);
-		}
+		check(Index.PCAProjectionMatrix.Num() > 0 && Index.Mean.Num() > 0);
+		check(Index.PCAProjectionMatrix.Num() % Index.Mean.Num() == 0);
+		const int NumberOfPrincipalComponents = Index.PCAProjectionMatrix.Num() / Index.Mean.Num();
+		Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 
 		return Ar;
 	}

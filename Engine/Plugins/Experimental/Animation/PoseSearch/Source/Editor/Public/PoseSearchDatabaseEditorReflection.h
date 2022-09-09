@@ -58,17 +58,3 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
-
-UCLASS()
-class UPoseSearchDatabaseGroupReflection : public UPoseSearchDatabaseReflectionBase
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = "Selected Group")
-	FPoseSearchDatabaseGroup Group;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-};

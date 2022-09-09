@@ -304,9 +304,6 @@ private:
 	/** All database poses */
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> UnfilteredDatabaseRows;
 
-	TArrayView<const bool> DatabaseSequenceFilter;
-	TArrayView<const bool> DatabaseBlendSpaceFilter;
-
 	/** Database listing for filtered poses */
 	FTable FilteredDatabaseView;
 

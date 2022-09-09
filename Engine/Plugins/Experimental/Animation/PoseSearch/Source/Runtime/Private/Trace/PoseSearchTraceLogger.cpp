@@ -70,8 +70,6 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 	Ar << State.ElapsedPoseJumpTime;
 	Ar << State.Flags;
 	Ar << State.QueryVector;
-	Ar << State.DatabaseSequenceFilter;
-	Ar << State.DatabaseBlendSpaceFilter;
 	Ar << State.AssetPlayerTime;
 	Ar << State.DeltaTime;
 	Ar << State.SimLinearVelocity;

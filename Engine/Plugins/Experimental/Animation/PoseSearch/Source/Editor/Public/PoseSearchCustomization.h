@@ -14,22 +14,6 @@ class IPropertyHandle;
 class IDetailLayoutBuilder;
 
 /**
- * Customizes FPoseSearchDatabaseGroup to show the name of the group as the header
- */
-class FPoseSearchDatabaseGroupCustomization : public IPropertyTypeCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShareable(new FPoseSearchDatabaseGroupCustomization);
-	}
-
-	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-};
-
-/**
  * Customizes FPoseSearchDatabaseSequence to show the name of the sequence and the groups in the header
  */
 class FPoseSearchDatabaseSequenceCustomization : public IPropertyTypeCustomization

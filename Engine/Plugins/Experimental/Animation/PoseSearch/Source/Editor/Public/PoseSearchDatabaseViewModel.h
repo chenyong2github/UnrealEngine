@@ -94,15 +94,11 @@ namespace UE::PoseSearch
 		void OnSetAnimationPreviewMode(EAnimationPreviewMode PreviewMode);
 		bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
 
-		void AddSequenceToDatabase(UAnimSequence* AnimSequence, int InitialGroupIdx = -1);
-		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace, int InitialGroupIdx = -1);
-		void AddGroupToDatabase();
+		void AddSequenceToDatabase(UAnimSequence* AnimSequence);
+		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace);
 
 		void DeleteSequenceFromDatabase(int32 SequenceIdx);
-		void RemoveSequenceFromGroup(int32 SequenceIdx, int32 GroupIdx); 
 		void DeleteBlendSpaceFromDatabase(int32 BlendSpaceIdx);
-		void RemoveBlendSpaceFromGroup(int32 BlendSpaceIdx, int32 GroupIdx);
-		void DeleteGroup(int32 GroupIdx);
 
 		void SetSelectedSequenceEnabled(int32 SequenceIndex, bool bEnabled);
 		void SetSelectedBlendSpaceEnabled(int32 BlendSpaceIndex, bool bEnabled);

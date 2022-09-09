@@ -104,21 +104,13 @@ namespace UE::PoseSearch
 
 	void SDatabaseAssetListItem::OnAddSequence()
 	{
-		TSharedPtr<FDatabaseAssetTreeNode> NodePtr = WeakAssetTreeNode.Pin();
-		const int32 GroupIdx = NodePtr->Parent.IsValid() ? NodePtr->Parent->SourceAssetIdx : NodePtr->SourceAssetIdx;
-
-		EditorViewModel.Pin()->AddSequenceToDatabase(nullptr, GroupIdx);
-
+		EditorViewModel.Pin()->AddSequenceToDatabase(nullptr);
 		SkeletonView.Pin()->RefreshTreeView(false);
 	}
 
 	void SDatabaseAssetListItem::OnAddBlendSpace()
 	{
-		TSharedPtr<FDatabaseAssetTreeNode> NodePtr = WeakAssetTreeNode.Pin();
-		const int32 GroupIdx = NodePtr->Parent.IsValid() ? NodePtr->Parent->SourceAssetIdx : NodePtr->SourceAssetIdx;
-
-		EditorViewModel.Pin()->AddBlendSpaceToDatabase(nullptr, GroupIdx);
-
+		EditorViewModel.Pin()->AddBlendSpaceToDatabase(nullptr);
 		SkeletonView.Pin()->RefreshTreeView(false);
 	}
 
@@ -154,18 +146,8 @@ namespace UE::PoseSearch
 			}
 			default:
 			{
-				if (Node->SourceAssetIdx == INDEX_NONE)
-				{
-					Name = LOCTEXT("Default", "Default");
-				}
-				else
-				{
-					FPoseSearchDatabaseGroup& Group = Database->Groups[Node->SourceAssetIdx];
-					if (Group.Tag.IsValid())
-					{
-						Name = FText::FromName(Group.Tag.GetTagName());
-					}
-				}
+				Name = LOCTEXT("Default", "Default");
+				break;
 			}
 			}
 		}
@@ -531,16 +513,6 @@ namespace UE::PoseSearch
 		// store selection so we can recover it afterwards (if possible)
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> PreviouslySelectedNodes = TreeView->GetSelectedItems();
 
-		// create all group nodes
-		for (int32 GroupIdx = 0; GroupIdx < Database->Groups.Num(); ++GroupIdx)
-		{
-			TSharedPtr<FDatabaseAssetTreeNode> GroupNode = MakeShared<FDatabaseAssetTreeNode>(
-				GroupIdx,
-				ESearchIndexAssetType::Invalid,
-				ViewModelRef);
-			AllNodes.Add(GroupNode);
-			RootNodes.Add(GroupNode);
-		}
 		TSharedPtr<FDatabaseAssetTreeNode> DefaultGroupNode = MakeShared<FDatabaseAssetTreeNode>(
 			INDEX_NONE,
 			ESearchIndexAssetType::Invalid,
@@ -566,54 +538,14 @@ namespace UE::PoseSearch
 		for (int32 SequenceIdx = 0; SequenceIdx < Database->Sequences.Num(); ++SequenceIdx)
 		{
 			const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[SequenceIdx];
-
-			int32 NumGroups = 0;
-			for (const FGameplayTag& GroupTag : DbSequence.GroupTags)
-			{
-				const int32 GroupIdx = Database->Groups.IndexOfByPredicate(
-					[GroupTag](const FPoseSearchDatabaseGroup& Group)
-				{
-					return Group.Tag == GroupTag;
-				});
-
-				if (GroupIdx != INDEX_NONE)
-				{
-					CreateAssetNode(SequenceIdx, ESearchIndexAssetType::Sequence, GroupIdx);
-					++NumGroups;
-				}
-			}
-
-			if (NumGroups == 0)
-			{
-				CreateAssetNode(SequenceIdx, ESearchIndexAssetType::Sequence, DefaultGroupIdx);
-			}
+			CreateAssetNode(SequenceIdx, ESearchIndexAssetType::Sequence, DefaultGroupIdx);
 		}
 
 		// create all blendspace nodes
 		for (int32 BlendSpaceIdx = 0; BlendSpaceIdx < Database->BlendSpaces.Num(); ++BlendSpaceIdx)
 		{
 			const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->BlendSpaces[BlendSpaceIdx];
-
-			int32 NumGroups = 0;
-			for (const FGameplayTag& GroupTag : DbBlendSpace.GroupTags)
-			{
-				const int32 GroupIdx = Database->Groups.IndexOfByPredicate(
-					[GroupTag](const FPoseSearchDatabaseGroup& Group)
-				{
-					return Group.Tag == GroupTag;
-				});
-
-				if (GroupIdx != INDEX_NONE)
-				{
-					CreateAssetNode(BlendSpaceIdx, ESearchIndexAssetType::BlendSpace, GroupIdx);
-					++NumGroups;
-				}
-			}
-
-			if (NumGroups == 0)
-			{
-				CreateAssetNode(BlendSpaceIdx, ESearchIndexAssetType::BlendSpace, DefaultGroupIdx);
-			}
+			CreateAssetNode(BlendSpaceIdx, ESearchIndexAssetType::BlendSpace, DefaultGroupIdx);
 		}
 
 		TreeView->RequestTreeRefresh();
@@ -723,14 +655,12 @@ namespace UE::PoseSearch
 
 				if (AssetClass->IsChildOf(UAnimSequence::StaticClass()))
 				{
-					const int32 GroupIdx = FindGroupIndex(TargetItem);
-					ViewModel->AddSequenceToDatabase(Cast<UAnimSequence>(Asset), GroupIdx);
+					ViewModel->AddSequenceToDatabase(Cast<UAnimSequence>(Asset));
 					++AddedAssets;
 				}
 				else if (AssetClass->IsChildOf(UBlendSpace::StaticClass()))
 				{
-					const int32 GroupIdx = FindGroupIndex(TargetItem);
-					ViewModel->AddBlendSpaceToDatabase(Cast<UBlendSpace>(Asset), GroupIdx);
+					ViewModel->AddBlendSpaceToDatabase(Cast<UBlendSpace>(Asset));
 					++AddedAssets;
 				}
 			}
@@ -745,22 +675,6 @@ namespace UE::PoseSearch
 
 		FinalizeTreeChanges(false);
 		return FReply::Handled();
-	}
-
-	int32 SDatabaseAssetTree::FindGroupIndex(TSharedPtr<FDatabaseAssetTreeNode> TargetItem)
-	{
-		if (!TargetItem.IsValid())
-		{
-			return INDEX_NONE;
-		}
-
-		if (TargetItem->SourceAssetType == ESearchIndexAssetType::Invalid)
-		{
-			return TargetItem->SourceAssetIdx;
-		}
-
-		check(TargetItem->Parent.IsValid() && TargetItem->Parent->SourceAssetType == ESearchIndexAssetType::Invalid);
-		return TargetItem->Parent->SourceAssetIdx;
 	}
 
 	TSharedRef<SWidget> SDatabaseAssetTree::CreateAddNewMenuWidget()
@@ -781,16 +695,6 @@ namespace UE::PoseSearch
 			LOCTEXT("AddBlendSpaceToDefaultGroupTooltip", "Add new blend space to the default group"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddBlendSpace, true)),
-			NAME_None,
-			EUserInterfaceActionType::Button);
-		AddOptions.EndSection();
-
-		AddOptions.BeginSection("AddOptions", LOCTEXT("GroupAddOptions", "Groups"));
-		AddOptions.AddMenuEntry(
-			LOCTEXT("GroupLabel", "Group"),
-			LOCTEXT("AddNewGroupTooltip", "Add new group"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddGroup, true)),
 			NAME_None,
 			EUserInterfaceActionType::Button);
 		AddOptions.EndSection();
@@ -820,23 +724,11 @@ namespace UE::PoseSearch
 		return MenuBuilder.MakeWidget();
 	}
 
-	void SDatabaseAssetTree::OnAddGroup(bool bFinalizeChanges)
-	{
-		FScopedTransaction Transaction(LOCTEXT("AddGroup", "Add Group"));
-
-		EditorViewModel.Pin()->AddGroupToDatabase();
-
-		if (bFinalizeChanges)
-		{
-			FinalizeTreeChanges();
-		}
-	}
-
 	void SDatabaseAssetTree::OnAddSequence(bool bFinalizeChanges)
 	{
 		FScopedTransaction Transaction(LOCTEXT("AddSequence", "Add Sequence"));
 
-		EditorViewModel.Pin()->AddSequenceToDatabase(nullptr, INDEX_NONE);
+		EditorViewModel.Pin()->AddSequenceToDatabase(nullptr);
 
 		if (bFinalizeChanges)
 		{
@@ -848,7 +740,7 @@ namespace UE::PoseSearch
 	{
 		FScopedTransaction Transaction(LOCTEXT("AddBlendSpaceTransaction", "Add Blend Space"));
 
-		EditorViewModel.Pin()->AddBlendSpaceToDatabase(nullptr, INDEX_NONE);
+		EditorViewModel.Pin()->AddBlendSpaceToDatabase(nullptr);
 
 		if (bFinalizeChanges)
 		{
@@ -872,48 +764,6 @@ namespace UE::PoseSearch
 		{
 			checkNoEntry();
 		}
-
-		if (bFinalizeChanges)
-		{
-			FinalizeTreeChanges();
-		}
-	}
-
-	void SDatabaseAssetTree::OnRemoveFromGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges)
-	{
-		check(Node->Parent->SourceAssetType == ESearchIndexAssetType::Invalid);
-		
-		const int32 GroupIdx = Node->Parent->SourceAssetIdx;
-
-		FScopedTransaction Transaction(LOCTEXT("RemoveFromGroup", "Remove Asset From Group"));
-
-		if (Node->SourceAssetType == ESearchIndexAssetType::Sequence)
-		{
-			EditorViewModel.Pin()->RemoveSequenceFromGroup(Node->SourceAssetIdx, GroupIdx);
-		}
-		else if (Node->SourceAssetType == ESearchIndexAssetType::BlendSpace)
-		{
-			EditorViewModel.Pin()->RemoveBlendSpaceFromGroup(Node->SourceAssetIdx, GroupIdx);
-		}
-		else
-		{
-			checkNoEntry();
-		}
-
-		if (bFinalizeChanges)
-		{
-			FinalizeTreeChanges();
-		}
-	}
-
-	void SDatabaseAssetTree::OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node, bool bFinalizeChanges)
-	{
-		check(Node->SourceAssetType == ESearchIndexAssetType::Invalid);
-
-		FScopedTransaction Transaction(LOCTEXT("DeleteGroup", "Delete Group"));
-
-		const int32 GroupIdx = Node->SourceAssetIdx;
-		EditorViewModel.Pin()->DeleteGroup(GroupIdx);
 
 		if (bFinalizeChanges)
 		{
@@ -1005,19 +855,7 @@ namespace UE::PoseSearch
 			{
 				if (SelectedNode->SourceAssetType != ESearchIndexAssetType::Invalid)
 				{
-					const int32 GroupIdx = SelectedNode->Parent->SourceAssetIdx;
-					if (GroupIdx == INDEX_NONE)
-					{
-						OnDeleteAsset(SelectedNode, false);
-					}
-					else
-					{
-						OnRemoveFromGroup(SelectedNode, false);
-					}
-				}
-				else if (SelectedNode->SourceAssetIdx != INDEX_NONE)
-				{
-					OnDeleteGroup(SelectedNode, false);
+					OnDeleteAsset(SelectedNode, false);
 				}
 			}
 

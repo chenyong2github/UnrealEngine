@@ -514,19 +514,6 @@ namespace UE::PoseSearch
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					SelectionReflections[BlendSpaceSelectionIndex].Add(NewSelectionReflection);
 				}
-				else
-				{
-					if (SelectedItem->SourceAssetIdx != INDEX_NONE)
-					{
-						UPoseSearchDatabaseGroupReflection* NewSelectionReflection =
-							NewObject<UPoseSearchDatabaseGroupReflection>();
-						NewSelectionReflection->AddToRoot();
-						NewSelectionReflection->Group =
-							GetPoseSearchDatabase()->Groups[SelectedItem->SourceAssetIdx];
-						NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
-						SelectionReflections[GroupSelectionIndex].Add(NewSelectionReflection);
-					}
-				}
 			}
 		}
 

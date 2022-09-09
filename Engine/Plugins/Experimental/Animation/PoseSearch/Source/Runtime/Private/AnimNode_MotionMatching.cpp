@@ -83,7 +83,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	UpdateMotionMatchingState(
 		Context,
 		Searchable,
-		bUseDatabaseTagQuery ? &DatabaseTagQuery : nullptr,
 		&ActiveTagsContainer,
 		Trajectory,
 		Settings,

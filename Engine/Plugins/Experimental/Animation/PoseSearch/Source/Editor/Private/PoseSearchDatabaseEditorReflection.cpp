@@ -44,19 +44,4 @@ void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(
 	}
 }
 
-void UPoseSearchDatabaseGroupReflection::PostEditChangeProperty(
-	struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	check(WeakAssetTreeNode.Pin()->SourceAssetType == ESearchIndexAssetType::Invalid);
-
-	UPoseSearchDatabase* Database = WeakAssetTreeNode.Pin()->EditorViewModel.Pin()->GetPoseSearchDatabase();
-	if (IsValid(Database))
-	{
-		Database->Groups[WeakAssetTreeNode.Pin()->SourceAssetIdx] = Group;
-		AssetTreeWidget->FinalizeTreeChanges(true);
-	}
-}
-
 #endif // WITH_EDITOR
