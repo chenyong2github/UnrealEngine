@@ -203,9 +203,14 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	CurrentSearchResult = Result;
 
 	ElapsedPoseJumpTime = 0.0f;
+	
+	// requesting inertial blending only if blendstack is disabled
+	if (Settings.MaxActiveBlends <= 0)
+	{
+		const float JumpBlendTime = ComputeJumpBlendTime(Result, Settings);
+		RequestInertialBlend(Context, JumpBlendTime);
+	}
 
-	const float JumpBlendTime = ComputeJumpBlendTime(Result, Settings);
-	RequestInertialBlend(Context, JumpBlendTime);
 	Flags |= EMotionMatchingFlags::JumpedToPose;
 }
 
