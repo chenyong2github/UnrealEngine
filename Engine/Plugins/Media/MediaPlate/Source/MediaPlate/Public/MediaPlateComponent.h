@@ -262,6 +262,8 @@ private:
 	float TimeWhenPlaybackPaused = 0.0f;
 	/** True if our media should be playing when visible. */
 	bool bWantsToPlayWhenVisible = false;
+	/** True if we should resume where we left off when we open the media. */
+	bool bResumeWhenOpened = false;
 
 	/**
 	 * Plays a media source.
@@ -310,6 +312,12 @@ private:
 	 * Removes ability to have letterboxes.
 	 */
 	void RemoveLetterboxes();
+
+	/**
+	 * Called by the media player when the media opens.
+	 */
+	UFUNCTION()
+	void OnMediaOpened(FString DeviceUrl);
 
 	/**
 	 * Called by the media player when the video ends.
