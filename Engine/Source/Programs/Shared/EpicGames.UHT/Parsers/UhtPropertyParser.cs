@@ -791,9 +791,6 @@ namespace EpicGames.UHT.Parsers
 
 			propertySettings.LineNumber = tokenReader.InputLine;
 
-			// Parse type information including UPARAM that might appear in template arguments
-			PreParseTypeInternal(specifierContext, false);
-
 			UhtCompilerDirective compilerDirective = topScope.HeaderParser.GetCurrentCompositeCompilerDirective();
 			if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditorOnlyData))
 			{
@@ -816,6 +813,9 @@ namespace EpicGames.UHT.Parsers
 					tokenReader.LogError("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead.");
 				}
 			}
+
+			// Parse type information including UPARAM that might appear in template arguments
+			PreParseTypeInternal(specifierContext, false);
 
 			// Swallow inline keywords
 			if (propertySettings.PropertyCategory == UhtPropertyCategory.Return)
