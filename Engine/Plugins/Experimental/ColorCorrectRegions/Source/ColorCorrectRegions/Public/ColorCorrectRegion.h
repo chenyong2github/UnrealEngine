@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Classes/Components/MeshComponent.h"
 #include "Engine/Scene.h"
+#include "Templates/SharedPointer.h"
 #include "ColorCorrectRegion.generated.h"
 
 
@@ -35,11 +36,17 @@ enum class EColorCorrectRegionTemperatureType : uint8
 UENUM(BlueprintType)
 enum class EColorCorrectRegionStencilType : uint8
 {
-	None					UMETA(DisplayName = "Default (Affect all actors)"),
 	ExcludeStencil			UMETA(DisplayName = "Exclude Selected Actors"),
 	IncludeStencil			UMETA(DisplayName = "Affect Only Selected Actors"),
 	MAX
 };
+
+class FStencilData
+{
+public:
+	uint32 AssignedStencil = 0;
+};
+
 
 /**
  * An instance of Color Correction Region. Used to aggregate all active regions.
@@ -107,13 +114,24 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
 	bool Enabled;
 
+	/** Enables or disabled per actor color correction. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Per Actor CC")
+	bool bEnablePerActorCC;
+
 	/** Controls in which way the below targets will be affected by color correction. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Per Actor CC", meta = (editcondition = "bEnablePerActorCC", DisplayName = "Per Actor CC Mode"))
 	EColorCorrectRegionStencilType PerActorColorCorrection;
 
-	/** A list of actors that need to be excluded or included from color correction (Depends on the option above). */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
-	TArray<uint8> StencilIds;
+	/** List of actors that get affected or ignored by Per actor CC. Effect depends on the above option. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Per Actor CC", meta = (editcondition = "bEnablePerActorCC", DisplayName = "Actor Selection"))
+	TSet<TSoftObjectPtr<AActor>> AffectedActors;
+
+	/** 
+	* This is a temporary property that is used to keep track of managed actors for per actor CC.
+	* PerAffectedActorStencilData is managed by FColorCorrectRegionsStencilManager and CCR Subsystem
+	* Its lifetime is aligned with selected level and gets reset often.
+	*/
+	TMap<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>> PerAffectedActorStencilData;
 
 #if WITH_EDITORONLY_DATA
 
@@ -163,6 +181,22 @@ public:
 		return FirstPrimitiveId;
 	};
 
+	TArray<uint32> ConsumeStencilIds() 
+	{ 
+		FScopeLock RegionScopeLock(&StencilIdsCriticalSection);
+		return MoveTemp(StencilIds); 
+	};
+private:
+	/**
+	* AffectedActors property change could potentially invoke a Dialog Window, which should be displayed on Game Thread.
+	*/
+	void HandleAffectedActorsPropertyChange();
+
+	/**
+	* Copy stencil Ids from Primitive components to the StencilId array to be consumed by Scene view extension.
+	*/
+	void TransferStencilIds();
+
 private:
 	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem;
 
@@ -171,4 +205,18 @@ private:
 
 	FTransform PreviousFrameTransform;
 	FPrimitiveComponentId FirstPrimitiveId;
+
+	bool bActorListIsDirty;
+	uint8 ActorListChangeType;
+
+	/**
+	* A list of actors that need to be excluded or included from color correction to be used on render thread.
+	* This list is populated during engine tick and populated with Stencil Ids from Primitive Components of AffectedActors.
+	* The main reason for this is acessing Primitive Components is not thread safe and is better to be accessed on Game thread.
+	* 
+	* Stencil Ids are moved on render thread to avoid locking either threads for too long.
+	*/
+	TArray<uint32> StencilIds;
+	FCriticalSection StencilIdsCriticalSection;
+
 };

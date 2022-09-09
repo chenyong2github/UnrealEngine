@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegion.h"
-#include "ColorCorrectRegionsSubsystem.h"
 #include "Components/BillboardComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "CoreMinimal.h"
-#include "Engine/Classes/Components/MeshComponent.h"
-#include "Engine/Texture2D.h"
+#include "ColorCorrectRegionsSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
+#include "CoreMinimal.h"
+#include "Engine/GameEngine.h"
+#include "Engine/Classes/Components/MeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/Texture2D.h"
+
 
 AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
@@ -22,7 +24,8 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, Temperature(6500)
 	, Tint(0)
 	, Enabled(true)
-	, PerActorColorCorrection(EColorCorrectRegionStencilType::None)
+	, bEnablePerActorCC(false)
+	, PerActorColorCorrection(EColorCorrectRegionStencilType::IncludeStencil)
 	, ColorCorrectRegionsSubsystem(nullptr)
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -118,13 +121,17 @@ bool AColorCorrectRegion::ShouldTickIfViewportsOnly() const
 void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	Super::Tick(DeltaTime);
+
+	HandleAffectedActorsPropertyChange();
+	TransferStencilIds();
+
 	FTransform CurrentFrameTransform = GetTransform();
 	if (!PreviousFrameTransform.Equals(CurrentFrameTransform))
 	{
 		PreviousFrameTransform = CurrentFrameTransform;
 		GetActorBounds(true, BoxOrigin, BoxExtent);
 	}
-
+	
 	// Display Cluster uses HiddenPrimitives to hide Primitive components from view. 
 	// Store component id to be used on render thread.
 	if (const UStaticMeshComponent* FirstMeshComponent = FindComponentByClass<UStaticMeshComponent>())
@@ -141,6 +148,62 @@ void AColorCorrectRegion::Cleanup()
 	ColorCorrectRegionsSubsystem = nullptr;
 }
 
+void AColorCorrectRegion::TransferStencilIds()
+{
+	{
+		TArray<uint32> TempStencilIds;
+		for (TSoftObjectPtr<AActor> StencilActor : AffectedActors)
+		{
+			if (!StencilActor.IsValid())
+			{
+				continue;
+			}
+			TArray<UPrimitiveComponent*> PrimitiveComponents;
+			StencilActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+			for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+			{
+				if (PrimitiveComponent->bRenderCustomDepth)
+				{
+					TempStencilIds.Add(static_cast<uint32>(PrimitiveComponent->CustomDepthStencilValue));
+				}
+			}
+		}
+		{
+			FScopeLock RegionScopeLock(&StencilIdsCriticalSection);
+			StencilIds = MoveTemp(TempStencilIds);
+		}
+	}
+}
+
+void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
+{
+	if (bActorListIsDirty)
+	{
+		bool bEventHandled = false;
+		bActorListIsDirty = false;
+		if (ActorListChangeType == EPropertyChangeType::ArrayAdd
+			|| ActorListChangeType == EPropertyChangeType::ValueSet)
+		{
+			bEventHandled = true;
+			if (ColorCorrectRegionsSubsystem)
+			{
+				ColorCorrectRegionsSubsystem->AssignStencilIdsToPerActorCC(this);
+			}
+		}
+
+		if (ActorListChangeType == EPropertyChangeType::ArrayClear
+			|| ActorListChangeType == EPropertyChangeType::ArrayRemove
+			|| ActorListChangeType == EPropertyChangeType::ValueSet)
+		{
+			bEventHandled = true;
+			if (ColorCorrectRegionsSubsystem)
+			{
+				ColorCorrectRegionsSubsystem->ClearStencilIdsToPerActorCC(this);
+			}
+		}
+	}
+}
+
 #if WITH_EDITOR
 void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -153,6 +216,13 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		{
 			ColorCorrectRegionsSubsystem = World->GetSubsystem<UColorCorrectRegionsSubsystem>();
 		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, AffectedActors))
+	{
+		/** Since there might be Dialogs involved we need to dirty this CCR and handle the rest on Tick. */
+		ActorListChangeType = PropertyChangedEvent.ChangeType;
+		bActorListIsDirty = true;
 	}
 
 	// Reorder all CCRs after the Priority property has changed.

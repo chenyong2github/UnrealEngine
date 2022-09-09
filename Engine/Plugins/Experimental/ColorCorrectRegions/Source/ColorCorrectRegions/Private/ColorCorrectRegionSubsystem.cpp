@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ColorCorrectRegionsSubsystem.h"
+#include "ColorCorrectRegionsModule.h"
+#include "ColorCorrectRegionsSceneViewExtension.h"
+#include "ColorCorrectRegionsStencilManager.h"
 #include "ColorCorrectWindow.h"
+
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 #include "SceneViewExtension.h"
-#include "ColorCorrectRegionsSceneViewExtension.h"
+
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -25,6 +29,7 @@ namespace
 #endif
 	}
 }
+
 void UColorCorrectRegionsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 #if WITH_EDITOR
@@ -154,10 +159,36 @@ void UColorCorrectRegionsSubsystem::SortRegionsByDistance(const FVector& ViewLoc
 
 }
 
+void UColorCorrectRegionsSubsystem::AssignStencilIdsToPerActorCC(AColorCorrectRegion* Region, bool bIgnoreUserNotificaion, bool bSoftAssign)
+{
+	FColorCorrectRegionsStencilManager::AssignStencilIdsToAllActorsForCCR(GetWorld(), Region, bIgnoreUserNotificaion, bSoftAssign);
+}
+
+void UColorCorrectRegionsSubsystem::ClearStencilIdsToPerActorCC(AColorCorrectRegion* Region)
+{
+	FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(GetWorld(), Region);
+}
+
+void UColorCorrectRegionsSubsystem::RefreshStenciIdAssignmentForAllCCR()
+{
+	for (TActorIterator<AColorCorrectRegion> It(GetWorld()); It; ++It)
+	{
+		AColorCorrectRegion* AsRegion = *It;
+		if (IsRegionValid(AsRegion, GetWorld()))
+		{
+			// Uncoment this if you want the invalid actors to be removed automatically.
+			// However after removal, undo/redo will not re-assign this actor back to CCR.
+			//FColorCorrectRegionsStencilManager::ClearInvalidActorsForSelectedRegion(AsRegion);
+			AsRegion->PerAffectedActorStencilData.Empty();
+			FColorCorrectRegionsStencilManager::AssignStencilIdsToAllActorsForCCR(GetWorld(), AsRegion, true, true);
+			FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(GetWorld(), AsRegion);
+		}
+	}
+}
+
 void UColorCorrectRegionsSubsystem::RefreshRegions()
 {
 	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-
 	RegionsPriorityBased.Reset();
 	RegionsDistanceBased.Reset();
 	for (TActorIterator<AColorCorrectRegion> It(GetWorld()); It; ++It)
@@ -175,6 +206,9 @@ void UColorCorrectRegionsSubsystem::RefreshRegions()
 			}
 		}
 	}
+
 	SortRegionsByPriority();
+
+	RefreshStenciIdAssignmentForAllCCR();
 }
 

@@ -32,7 +32,7 @@
 #define CCR_SHADER_DISPLAY_BOUNDING_RECT 0
 #define CLIP_PIXELS_OUTSIDE_AABB 1
 
-#define EXCLUDE_STENCIL 1
+#define EXCLUDE_STENCIL 0
 
 Texture2D<uint> MergedStencilTexture;
 
@@ -79,7 +79,7 @@ struct FExternalExpressions
 	float Intensity;
 
 	float FakeLight;
-	int   ExcludeStencil;
+	uint   ExcludeStencil;
 
 	float4 SceneTexture;
 };

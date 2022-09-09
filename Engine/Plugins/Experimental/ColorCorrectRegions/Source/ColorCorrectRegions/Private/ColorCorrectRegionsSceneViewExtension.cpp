@@ -244,7 +244,7 @@ namespace
 		, const FScreenPassTextureViewportParameters& SceneTextureViewportParams
 		, const FScreenPassTextureViewport& RegionViewport
 		, const FSceneTextureShaderParameters& SceneTextures
-		, const TArray<uint8>& StencilIds
+		, const TArray<uint32>& StencilIds
 		, FScreenPassRenderTarget& OutMergedStencilRenderTarget)
 	{
 		if (StencilIds.Num() == 0)
@@ -270,20 +270,11 @@ namespace
 			Parameters->PostProcessOutput = SceneTextureViewportParams;
 			Parameters->View = View.ViewUniformBuffer;
 
-			const FMatrix& RegionTransformMatrix = Region->GetActorTransform().ToMatrixWithScale();
-
 			FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
 				
 			FRHIResourceCreateInfo CreateInfo(TEXT("CCR_StencilIdBuffer"));
 
-			TArray<uint32> BufferData;
-			BufferData.AddUninitialized(StencilIds.Num());
-			for (int Index = 0; Index < BufferData.Num(); Index++)
-			{
-				BufferData[Index] = StencilIds[Index];
-			}
-
-			Parameters->StencilIds = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("CCR.StencilIdBuffer"), sizeof(uint32), StencilIds.Num(), &BufferData[0], sizeof(uint32) * StencilIds.Num())));
+			Parameters->StencilIds = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("CCR.StencilIdBuffer"), sizeof(uint32), StencilIds.Num(), &StencilIds[0], sizeof(uint32) * StencilIds.Num())));
 			Parameters->StencilIdCount = StencilIds.Num();
 
 			{
@@ -456,9 +447,10 @@ namespace
 			: static_cast<FColorCorrectRegionMaterialPS::ETemperatureType>(Region->TemperatureType);
 
 		FScreenPassRenderTarget MergedStencilRenderTarget;
-		if (Region->PerActorColorCorrection != EColorCorrectRegionStencilType::None)
+		if (Region->bEnablePerActorCC)
 		{
-			StencilMerger(GraphBuilder, Region, GlobalShaderMap, SceneColorRenderTarget, View, SceneTextureViewportParams, RegionViewport, SceneTextures, Region->StencilIds, MergedStencilRenderTarget);
+			TArray<uint32> StencilIds = Region->ConsumeStencilIds();
+			StencilMerger(GraphBuilder, Region, GlobalShaderMap, SceneColorRenderTarget, View, SceneTextureViewportParams, RegionViewport, SceneTextures, StencilIds, MergedStencilRenderTarget);
 		}
 
 		TShaderRef<FColorCorrectGenericPS> PixelShader;

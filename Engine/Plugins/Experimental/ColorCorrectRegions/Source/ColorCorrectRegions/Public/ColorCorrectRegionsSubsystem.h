@@ -83,6 +83,16 @@ public:
 	/** Sorts regions based on distance from the camera. */
 	void SortRegionsByDistance(const FVector& ViewLocation);
 
+	/** Handles Stencil Ids for the selected CCR and corresponding actor. */
+	void AssignStencilIdsToPerActorCC(AColorCorrectRegion* Region, bool bIgnoreUserNotificaion = false, bool bSoftAssign = false);
+	
+	/** Handles removal of Stencil Ids for the selected CCR. */
+	void ClearStencilIdsToPerActorCC(AColorCorrectRegion* Region);
+
+	/** Resets all stencils and re-assigns for each CCR in the scene. */
+	UFUNCTION(BlueprintCallable, meta = (Category = "Color Correct Regions"))
+	void RefreshStenciIdAssignmentForAllCCR();
+
 private:
 
 	/** Repopulates array of region actors. */
