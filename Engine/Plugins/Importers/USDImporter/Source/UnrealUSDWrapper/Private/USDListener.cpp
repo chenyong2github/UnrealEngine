@@ -213,8 +213,6 @@ public:
 	virtual ~FUsdListenerImpl();
 
 	FUsdListener::FOnStageEditTargetChanged OnStageEditTargetChanged;
-	FUsdListener::FOnPrimsChanged OnPrimsChanged;
-	FUsdListener::FOnStageInfoChanged OnStageInfoChanged;
 	FUsdListener::FOnLayersChanged OnLayersChanged;
 	FUsdListener::FOnObjectsChanged OnObjectsChanged;
 
@@ -230,8 +228,6 @@ protected:
 	void HandleStageEditTargetChangedNotice( const pxr::UsdNotice::StageEditTargetChanged& Notice, const pxr::UsdStageWeakPtr& Sender );
 	void HandleLayersChangedNotice( const pxr::SdfNotice::LayersDidChange& Notice );
 	void HandleLayerDirtinessChangedNotice( const pxr::SdfNotice::LayerDirtinessChanged& Notice );
-
-	void EmitDeprecatedEvents( const pxr::UsdNotice::ObjectsChanged & Notice );
 
 private:
 	pxr::TfNotice::Key RegisteredObjectsChangedKey;
@@ -279,16 +275,6 @@ bool FUsdListener::IsBlocked() const
 FUsdListener::FOnStageEditTargetChanged& FUsdListener::GetOnStageEditTargetChanged()
 {
 	return Impl->OnStageEditTargetChanged;
-}
-
-FUsdListener::FOnPrimsChanged& FUsdListener::GetOnPrimsChanged()
-{
-	return Impl->OnPrimsChanged;
-}
-
-FUsdListener::FOnStageInfoChanged& FUsdListener::GetOnStageInfoChanged()
-{
-	return Impl->OnStageInfoChanged;
 }
 
 FUsdListener::FOnLayersChanged& FUsdListener::GetOnLayersChanged()
@@ -344,7 +330,7 @@ FUsdListenerImpl::~FUsdListenerImpl()
 #if USE_USD_SDK
 void FUsdListenerImpl::HandleObjectsChangedNotice( const pxr::UsdNotice::ObjectsChanged& Notice, const pxr::UsdStageWeakPtr& Sender )
 {
-	if ( !OnPrimsChanged.IsBound() && !OnStageInfoChanged.IsBound() && !OnObjectsChanged.IsBound() )
+	if ( !OnObjectsChanged.IsBound() )
 	{
 		return;
 	}
@@ -362,8 +348,6 @@ void FUsdListenerImpl::HandleObjectsChangedNotice( const pxr::UsdNotice::Objects
 		FScopedUnrealAllocs UnrealAllocs;
 		OnObjectsChanged.Broadcast( InfoChanges, ResyncChanges );
 	}
-
-	EmitDeprecatedEvents( Notice );
 }
 
 void FUsdListenerImpl::HandleStageEditTargetChangedNotice( const pxr::UsdNotice::StageEditTargetChanged& Notice, const pxr::UsdStageWeakPtr& Sender )
@@ -425,85 +409,6 @@ void FUsdListenerImpl::HandleLayerDirtinessChangedNotice( const pxr::SdfNotice::
 
 	TArray< FString > LayersNames; // We don't know which layer dirtiness has changed unfortunately so we'll provide an empty list for now.
 	OnLayersChanged.Broadcast(LayersNames);
-}
-
-void FUsdListenerImpl::EmitDeprecatedEvents( const pxr::UsdNotice::ObjectsChanged& Notice )
-{
-	using namespace pxr;
-	using PathRange = UsdNotice::ObjectsChanged::PathRange;
-
-	TMap< FString, bool > PrimsChangedList;
-	TArray< FString > StageChangedFields;
-
-	FScopedUsdAllocs UsdAllocs;
-
-	PathRange PathsToUpdate = Notice.GetResyncedPaths();
-	for ( PathRange::const_iterator It = PathsToUpdate.begin(); It != PathsToUpdate.end(); ++It )
-	{
-		constexpr bool bResync = true;
-		PrimsChangedList.Add( ANSI_TO_TCHAR( It->GetAbsoluteRootOrPrimPath().GetString().c_str() ), bResync );
-	}
-
-	PathsToUpdate = Notice.GetChangedInfoOnlyPaths();
-	for ( PathRange::const_iterator PathToUpdateIt = PathsToUpdate.begin(); PathToUpdateIt != PathsToUpdate.end(); ++PathToUpdateIt )
-	{
-		const FString PrimPath = ANSI_TO_TCHAR( PathToUpdateIt->GetAbsoluteRootOrPrimPath().GetString().c_str() );
-
-		if ( PrimsChangedList.Contains( PrimPath ) )
-		{
-			continue;
-		}
-
-		bool bResync = false;
-
-		// If the layer reloaded, anything could have happened, so we must resync from the layer down
-		const std::vector<const SdfChangeList::Entry*>& Changes = PathToUpdateIt.base()->second;
-		for ( const SdfChangeList::Entry* Change : Changes )
-		{
-			if ( Change && Change->flags.didReloadContent )
-			{
-				bResync = true;
-			}
-		}
-
-		// Change on the stage root
-		bool bIsRootLayer = PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath();
-		if ( bIsRootLayer )
-		{
-			pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
-
-			for ( const pxr::TfToken& ChangedField : ChangedFields )
-			{
-				StageChangedFields.Add( ANSI_TO_TCHAR( ChangedField.GetString().c_str() ) );
-
-				// Force a resync when changing these since it affects all coordinates (the transforms they had when collapsed, etc.)
-				if ( ChangedField == UsdGeomTokens->metersPerUnit || ChangedField == UsdGeomTokens->upAxis )
-				{
-					bResync = true;
-					break;
-				}
-			}
-		}
-
-		// If the change is just about the stage updating some info like startTimeSeconds or framesPerSecond, then we don't
-		// need to refresh all prims. This is important because when undo/redoing, we may resync the movie scene, which shouldn't trigger prim spawning
-		if ( !bIsRootLayer || bResync )
-		{
-			PrimsChangedList.Add( PrimPath, bResync );
-		}
-	}
-
-	if ( PrimsChangedList.Num() > 0 )
-	{
-		FScopedUnrealAllocs UnrealAllocs;
-		OnPrimsChanged.Broadcast( PrimsChangedList );
-	}
-
-	if ( StageChangedFields.Num() > 0 )
-	{
-		FScopedUnrealAllocs UnrealAllocs;
-		OnStageInfoChanged.Broadcast( StageChangedFields );
-	}
 }
 #endif // #if USE_USD_SDK
 

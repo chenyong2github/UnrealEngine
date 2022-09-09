@@ -73,17 +73,6 @@ using std::string;
 
 using namespace pxr;
 
-#ifdef PLATFORM_WINDOWS
-	#define USDWRAPPER_USE_XFORMACHE	1
-#else
-	#define USDWRAPPER_USE_XFORMACHE	0
-#endif
-
-
-#if USDWRAPPER_USE_XFORMACHE
-static TUsdStore< UsdGeomXformCache > XFormCache;
-#endif // USDWRAPPER_USE_XFORMACHE
-
 namespace UnrealIdentifiers
 {
 	static const TfToken AssetPath("unrealAssetPath");
@@ -98,7 +87,6 @@ namespace UnrealIdentifiers
 	 */
 	const TfToken LOD("LOD");
 
-	const TfToken MaterialAssignments = TfToken("unrealMaterials"); // DEPRECATED in favor of MaterialAssignment
 	const TfToken MaterialAssignment = TfToken("unrealMaterial");
 	const TfToken Unreal = TfToken("unreal");
 

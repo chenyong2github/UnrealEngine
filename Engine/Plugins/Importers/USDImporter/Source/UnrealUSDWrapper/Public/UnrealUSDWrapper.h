@@ -394,7 +394,6 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken LOD;
 
 	/* Attribute name when assigning Unreal materials to UsdGeomMeshes */
-	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignments; // DEPRECATED in favor of MaterialAssignment
 	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignment;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Unreal;
 

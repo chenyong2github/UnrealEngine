@@ -107,26 +107,7 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			case UsdUtils::EPrimAssignmentType::None:
 			default:
 			{
-				// Check if there is a material already on the mesh
-				UMaterialInstanceConstant* ExistingMaterialInstance = Cast< UMaterialInstanceConstant >( ExistingAssignments[ GlobalResolvedMaterialIndex ] );
-
-				// Assuming that we own the material instance and that we can change it as we wish, reuse it
-				if ( ExistingMaterialInstance && ExistingMaterialInstance->GetOuter() == GetTransientPackage() )
-				{
-#if WITH_EDITOR
-					UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>( ExistingMaterialInstance->AssetImportData );
-					if ( AssetImportData && AssetImportData->PrimPath == UsdToUnreal::ConvertPath( UsdPrim.GetPrimPath() ) )
-#endif // WITH_EDITOR
-					{
-						// If we have displayColor data on our prim, repurpose this material to show it
-						if ( TOptional<UsdUtils::FDisplayColorMaterial> DisplayColorDescription = UsdUtils::ExtractDisplayColorMaterial( pxr::UsdGeomMesh( UsdPrim ) ) )
-						{
-							UsdToUnreal::ConvertDisplayColor( DisplayColorDescription.GetValue(), *ExistingMaterialInstance );
-						}
-
-						Material = ExistingMaterialInstance;
-					}
-				}
+				ensure( false );
 				break;
 			}
 			}

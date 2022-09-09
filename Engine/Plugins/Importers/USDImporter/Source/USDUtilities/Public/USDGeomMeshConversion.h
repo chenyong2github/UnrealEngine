@@ -166,12 +166,6 @@ namespace UsdToUnreal
 		bool bSkipRootPrimTransformAndVisibility = false,
 		bool bMergeIdenticalMaterialSlots = true
 	);
-
-	/** Configure Material to become a vertex color/displayColor material, according to the given description */
-	USDUTILITIES_API bool ConvertDisplayColor(
-		const UsdUtils::FDisplayColorMaterial& DisplayColorDescription,
-		UMaterialInstanceConstant& Material
-	);
 }
 
 namespace UnrealToUsd

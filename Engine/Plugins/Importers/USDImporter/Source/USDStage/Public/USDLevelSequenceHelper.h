@@ -20,8 +20,6 @@ class USDSTAGE_API FUsdLevelSequenceHelper
 {
 public:
 	FUsdLevelSequenceHelper();
-	UE_DEPRECATED(4.27, "This function is deprecated, use the default constructor and call Init and BindToUsdStageActor(optional) instead.")
-	explicit FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> InStageActor);
 	virtual ~FUsdLevelSequenceHelper();
 
 	// Copy semantics are there for convenience only. Copied FUsdLevelSequenceHelper are empty and require a call to Init().
@@ -46,9 +44,6 @@ public:
 
 	/** Resets the helper, abandoning all managed LevelSequences */
 	void Clear();
-
-	UE_DEPRECATED(4.27, "This function is deprecated, use Init instead.")
-	void InitLevelSequence(const UE::FUsdStage& UsdStage);
 
 	/** Creates the time track for the StageActor */
 	void BindToUsdStageActor(AUsdStageActor* StageActor);

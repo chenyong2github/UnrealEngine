@@ -291,17 +291,9 @@ namespace UE::UsdGeomMeshConversion::Private
 			// This LOD has a single material assignment, just add an unrealMaterials attribute to the mesh prim
 			if ( bHasUEMaterialAssignements && UnrealMaterialsForLOD.size() == 1 )
 			{
-				const bool bHasMaterialAttribute = MaterialPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
-				if ( bHasUEMaterialAssignements )
+				if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
 				{
-					if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
-					{
-						UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ 0 ] );
-					}
-				}
-				else if ( bHasMaterialAttribute )
-				{
-					MaterialPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
+					UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ 0 ] );
 				}
 			}
 			// Multiple material assignments to the same LOD (and so the same mesh prim). Need to create a GeomSubset for each UE mesh section
@@ -1348,31 +1340,6 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 	);
 }
 
-bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription, UMaterialInstanceConstant& Material )
-{
-	FUsdLogManager::LogMessage( EMessageSeverity::Warning, LOCTEXT( "DeprecatedConvertDisplayColor", "Converting existing instances with UsdToUnreal::ConvertDisplayColor is deprecated in favor of just calling UsdUtils::CreateDisplayColorMaterialInstanceConstant instead, and may be removed in a future release." ) );
-
-#if WITH_EDITOR
-	FString ParentPath = DisplayColorDescription.bHasOpacity
-		? TEXT("Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'")
-		: TEXT("Material'/USDImporter/Materials/DisplayColor.DisplayColor'");
-
-	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
-	{
-		UMaterialEditingLibrary::SetMaterialInstanceParent( &Material, ParentMaterial );
-	}
-
-	if ( DisplayColorDescription.bIsDoubleSided )
-	{
-		Material.BasePropertyOverrides.bOverride_TwoSided = true;
-		Material.BasePropertyOverrides.TwoSided = DisplayColorDescription.bIsDoubleSided;
-		Material.PostEditChange();
-	}
-#endif // WITH_EDITOR
-
-	return true;
-}
-
 UMaterialInstanceDynamic* UsdUtils::CreateDisplayColorMaterialInstanceDynamic( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription )
 {
 	FString ParentPath;
@@ -1489,23 +1456,6 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			if ( MaterialAttribute.Get( &UEMaterial, TimeCode ) && UEMaterial.size() > 0)
 			{
 				ValidPackagePath = UsdToUnreal::ConvertString( UEMaterial );
-			}
-		}
-		else if ( pxr::UsdAttribute MaterialsAttribute = UsdPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ) )
-		{
-			pxr::VtStringArray UEMaterials;
-			MaterialsAttribute.Get( &UEMaterials, TimeCode );
-
-			if ( UEMaterials.size() > 0 && UEMaterials[ 0 ].size() > 0 )
-			{
-				ValidPackagePath = UsdToUnreal::ConvertString( UEMaterials[ 0 ] );
-
-				UE_LOG( LogUsd, Warning, TEXT( "String array attribute 'unrealMaterials' is deprecated: Use the singular string 'unrealMaterial' attribute" ) );
-				if ( UEMaterials.size() > 1 )
-				{
-					UE_LOG( LogUsd, Warning, TEXT( "Found more than one Unreal material assigned to Mesh '%s'. The first material ('%s') will be chosen, and the rest ignored." ),
-						*UsdToUnreal::ConvertPath( UsdPrim.GetPath() ), *ValidPackagePath );
-				}
 			}
 		}
 

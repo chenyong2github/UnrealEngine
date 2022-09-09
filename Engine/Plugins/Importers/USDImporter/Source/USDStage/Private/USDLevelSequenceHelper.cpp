@@ -3452,17 +3452,6 @@ public:
 };
 #endif // USE_USD_SDK
 
-
-FUsdLevelSequenceHelper::FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> InStageActor)
-	: FUsdLevelSequenceHelper()
-{
-	if (AUsdStageActor* ValidStageActor = InStageActor.Get())
-	{
-		Init( InStageActor->GetOrLoadUsdStage() );
-		BindToUsdStageActor(ValidStageActor);
-	}
-}
-
 FUsdLevelSequenceHelper::FUsdLevelSequenceHelper()
 {
 	UsdSequencerImpl = MakeUnique<FUsdLevelSequenceHelperImpl>();
@@ -3528,16 +3517,6 @@ void FUsdLevelSequenceHelper::Clear()
 	if ( UsdSequencerImpl.IsValid() )
 	{
 		UsdSequencerImpl->Clear();
-	}
-}
-
-void FUsdLevelSequenceHelper::InitLevelSequence(const UE::FUsdStage& UsdStage)
-{
-	if (UsdSequencerImpl.IsValid() && UsdStage)
-	{
-		UE_LOG(LogUsd, Verbose, TEXT("InitLevelSequence"));
-
-		UsdSequencerImpl->CreateLocalLayersSequences();
 	}
 }
 

@@ -112,16 +112,6 @@ public:
 	DECLARE_EVENT( FUsdListener, FOnStageEditTargetChanged );
 	FOnStageEditTargetChanged& GetOnStageEditTargetChanged();
 
-	using FPrimsChangedList = TMap< FString, bool >;
-	DECLARE_EVENT_OneParam( FUsdListener, FOnPrimsChanged, const FPrimsChangedList& );
-	UE_DEPRECATED( 4.27, "This event is deprecated, prefer FOnObjectsChanged instead" )
-	FOnPrimsChanged& GetOnPrimsChanged();
-
-	using FStageChangedFields = TArray< FString >;
-	DECLARE_EVENT_OneParam( FUsdListener, FOnStageInfoChanged, const FStageChangedFields& );
-	UE_DEPRECATED( 4.27, "This event is deprecated, prefer FOnObjectsChanged instead (stage changes are the same as changes to the pseudoroot a.k.a. '/')" )
-	FOnStageInfoChanged& GetOnStageInfoChanged();
-
 	DECLARE_EVENT_OneParam( FUsdListener, FOnLayersChanged, const TArray< FString >& );
 	FOnLayersChanged& GetOnLayersChanged();
 

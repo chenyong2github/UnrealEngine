@@ -167,15 +167,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "USD")
 	float Time;
 
-	UPROPERTY()
-	float StartTimeCode_DEPRECATED;
-
-	UPROPERTY()
-	float EndTimeCode_DEPRECATED;
-
-	UPROPERTY()
-	float TimeCodesPerSecond_DEPRECATED;
-
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	TObjectPtr<ULevelSequence> LevelSequence;
 
@@ -277,9 +268,6 @@ private:
 	TObjectPtr<UUsdTransactor> Transactor;
 
 public:
-	UE_DEPRECATED( 4.27, "Use the const version if you don't wish to load the stage on-demand, or use GetOrLoadUsdStage if you do" )
-	USDSTAGE_API UE::FUsdStage& GetUsdStage();
-
 	// Loads the stage with RootLayer if its not loaded already, and returns the either the isolated stage (if any) or
 	// the base stage
 	USDSTAGE_API UE::FUsdStage& GetOrLoadUsdStage();

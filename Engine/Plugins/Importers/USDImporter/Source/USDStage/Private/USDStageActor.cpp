@@ -1383,13 +1383,6 @@ void AUsdStageActor::UpdatePrim( const UE::FSdfPath& InUsdPrimPath, bool bResync
 	}
 }
 
-UE::FUsdStage& AUsdStageActor::GetUsdStage()
-{
-	OpenUsdStage();
-
-	return IsolatedStage ? IsolatedStage : UsdStage;
-}
-
 const UE::FUsdStage& AUsdStageActor::GetUsdStage() const
 {
 	return IsolatedStage ? IsolatedStage : UsdStage;
