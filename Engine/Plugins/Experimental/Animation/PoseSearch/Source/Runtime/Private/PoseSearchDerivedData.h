@@ -96,9 +96,6 @@ namespace UE::PoseSearch
 	};
 #endif // WITH_EDITOR
 
-	// Serialization for FPoseSearchIndexPreprocessInfo.
-	FArchive& operator<<(FArchive& Ar, FPoseSearchIndexPreprocessInfo& Info);
-
 	// Serialization for FPoseSearchIndex.
 	FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index);
 }

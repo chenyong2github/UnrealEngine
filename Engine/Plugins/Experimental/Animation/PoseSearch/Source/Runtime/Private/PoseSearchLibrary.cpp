@@ -374,7 +374,6 @@ static void TraceMotionMatchingState(
 	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Searchable);
 	TraceState.ElapsedPoseJumpTime = MotionMatchingState.ElapsedPoseJumpTime;
 	TraceState.QueryVector = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues();
-	TraceState.QueryVectorNormalized = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetNormalizedValues();
 	TraceState.AssetPlayerTime = MotionMatchingState.CurrentSearchResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
 	TraceState.SimLinearVelocity = SimLinearVelocity;

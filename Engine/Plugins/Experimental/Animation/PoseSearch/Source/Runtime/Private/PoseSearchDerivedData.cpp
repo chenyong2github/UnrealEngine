@@ -221,47 +221,6 @@ namespace UE::PoseSearch
 
 #endif // WITH_EDITOR
 
-	FArchive& operator<<(FArchive& Ar, FPoseSearchIndexPreprocessInfo& Info)
-	{
-		int32 NumTransformationMatrix = 0;
-
-		if (Ar.IsSaving())
-		{
-			NumTransformationMatrix = Info.TransformationMatrix.Num();
-		}
-
-		Ar << Info.NumDimensions;
-		Ar << NumTransformationMatrix;
-
-		if (Ar.IsLoading())
-		{
-			Info.TransformationMatrix.SetNumUninitialized(NumTransformationMatrix);
-			Info.InverseTransformationMatrix.SetNumUninitialized(NumTransformationMatrix);
-			Info.SampleMean.SetNumUninitialized(Info.NumDimensions);
-		}
-
-		if (Info.TransformationMatrix.Num() > 0)
-		{
-			Ar.Serialize(
-				&Info.TransformationMatrix[0],
-				Info.TransformationMatrix.Num() * Info.TransformationMatrix.GetTypeSize());
-		}
-
-		if (Info.InverseTransformationMatrix.Num() > 0)
-		{
-			Ar.Serialize(
-				&Info.InverseTransformationMatrix[0],
-				Info.InverseTransformationMatrix.Num() * Info.InverseTransformationMatrix.GetTypeSize());
-		}
-
-		if (Info.SampleMean.Num() > 0)
-		{
-			Ar.Serialize(&Info.SampleMean[0], Info.SampleMean.Num() * Info.SampleMean.GetTypeSize());
-		}
-
-		return Ar;
-	}
-
 	FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	{
 		int32 NumValues = 0;
@@ -311,8 +270,6 @@ namespace UE::PoseSearch
 		{
 			Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
 		}
-
-		Ar << Index.PreprocessInfo;
 
 		for (int i = 0; i < Index.Groups.Num(); ++i)
 		{

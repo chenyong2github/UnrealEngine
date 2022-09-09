@@ -97,7 +97,6 @@ struct POSESEARCH_API FTraceMotionMatchingState
 
 	/** Search vectors in normalized and unnormalized forms */
 	TArray<float> QueryVector;
-	TArray<float> QueryVectorNormalized;
 
 	/** If true, groups are being filtered by DatabaseGroupQuery */
 	TArray<bool> DatabaseSequenceFilter;

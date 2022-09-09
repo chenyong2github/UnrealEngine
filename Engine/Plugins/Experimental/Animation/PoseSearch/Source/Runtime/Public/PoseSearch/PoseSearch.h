@@ -101,7 +101,6 @@ UENUM()
 enum class EPoseSearchDataPreprocessor : int32
 {
 	None,
-	Automatic,
 	Normalize,
 
 	Num UMETA(Hidden),
@@ -503,10 +502,7 @@ public:
 	TObjectPtr<UMirrorDataTable> MirrorDataTable;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Automatic;
-
-	UPROPERTY()
-	EPoseSearchDataPreprocessor EffectiveDataPreprocessor = EPoseSearchDataPreprocessor::Invalid;
+	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
 
 	UPROPERTY()
 	float SamplingInterval = 1.0f / DefaultSampleRate;
@@ -566,38 +562,6 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 // Search index
-
-USTRUCT()
-struct POSESEARCH_API FPoseSearchIndexPreprocessInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	int32 NumDimensions = 0;
-
-	UPROPERTY()
-	TArray<float> TransformationMatrix;
-
-	UPROPERTY()
-	TArray<float> InverseTransformationMatrix;
-
-	UPROPERTY()
-	TArray<float> SampleMean;
-
-	void Reset()
-	{
-		NumDimensions = 0;
-		TransformationMatrix.Reset();
-		InverseTransformationMatrix.Reset();
-		SampleMean.Reset();
-	}
-
-	bool IsValid() const
-	{
-		return NumDimensions > 0;
-	}
-};
-
 
 /**
  * This is kept for each pose in the search index along side the feature vector values and is used to influence the search.
@@ -734,9 +698,6 @@ struct POSESEARCH_API FPoseSearchIndex
 	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
 	UPROPERTY()
-	FPoseSearchIndexPreprocessInfo PreprocessInfo;
-
-	UPROPERTY()
 	TArray<FPoseSearchIndexAsset> Assets;
 
 	// minimum of the database metadata CostAddend: it represents the minimum cost of any search for the associated database (we'll skip the search in case the search result total cost is already less than MinCostAddend)
@@ -756,9 +717,6 @@ struct POSESEARCH_API FPoseSearchIndex
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
 
 	void Reset();
-
-	void Normalize (TArrayView<float> PoseVector) const;
-	void InverseNormalize (TArrayView<float> PoseVector) const;
 
 	// individual cost addends calculation methods
 	float ComputeMirrorMismatchAddend(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -970,7 +928,6 @@ public:
 
 	TArray<float>& EditValues() { return Values; }
 	TArrayView<const float> GetValues() const { return Values; }
-	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 
@@ -978,14 +935,11 @@ public:
 	bool IsInitializedForSchema(const UPoseSearchSchema* Schema) const;
 	bool IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const;
 
-	void Normalize(const FPoseSearchIndex& ForSearchIndex);
-
 private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
 	TArray<float> Values;
-	TArray<float> ValuesNormalized;
 };
 
 

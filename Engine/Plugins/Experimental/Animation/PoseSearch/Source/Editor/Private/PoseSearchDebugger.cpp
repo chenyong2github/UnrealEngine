@@ -1465,7 +1465,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	if (CurrentSearchIndex)
 	{
 		Reflection->ActivePoseVector = CurrentSearchIndex->GetPoseValues(CurrentDbPoseIdx);
-		CurrentSearchIndex->InverseNormalize(Reflection->ActivePoseVector);
 	}
 
 	auto DebuggerView = ParentDebuggerViewPtr.Pin();
@@ -1481,7 +1480,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 				if (SelectedSearchIndex)
 				{
 					Reflection->SelectedPoseVector = SelectedSearchIndex->GetPoseValues(Selected->PoseIdx);
-					SelectedSearchIndex->InverseNormalize(Reflection->SelectedPoseVector);
 				}
 			}
 
