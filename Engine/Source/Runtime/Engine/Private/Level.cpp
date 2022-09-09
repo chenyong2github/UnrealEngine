@@ -79,6 +79,7 @@ Level.cpp: Level-related functions
 #include "UObject/MetaData.h"
 #include "UObject/LinkerLoad.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
+#include "HAL/PlatformFileManager.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -2685,9 +2686,37 @@ void ULevel::OnFolderMarkAsDeleted(UActorFolder* InActorFolder)
 		{
 			FolderLabelToActorFolders.Remove(InActorFolder->GetLabel());
 		}
-		if (GAllowCleanupActorFolders && GetDeletedAndUnreferencedActorFolders().Contains(InActorFolder->GetGuid()))
+		if (GAllowCleanupActorFolders)
 		{
-			RemoveActorFolder(InActorFolder);
+			// Get all unreferenced folders or folders that resolves to the root ("/")
+			for (const FGuid& GuidFolder : GetDeletedAndUnreferencedActorFolders())
+			{
+				// Remove our folder if it's part of these folders
+				if (GuidFolder == InActorFolder->GetGuid())
+				{
+					RemoveActorFolder(InActorFolder);
+				}
+				// Also allow to remove other folders of this list only if their external package is writable
+				else if (UActorFolder* ActorFolder = GetActorFolder(GuidFolder, false))
+				{
+					if (!ActorFolder->GetParent())
+					{
+						if (UPackage* Package = ActorFolder->GetExternalPackage())
+						{
+							FPackagePath PackagePath(Package->GetLoadedPath());
+							if (FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+							{
+								FString FilePath = PackagePath.GetLocalFullPath();
+								const bool bReadOnly = FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*FilePath);
+								if (!bReadOnly)
+								{
+									RemoveActorFolder(ActorFolder);
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -3707,6 +3736,10 @@ TSet<FGuid> ULevel::GetDeletedAndUnreferencedActorFolders() const
 		if (ParentFolder)
 		{
 			FoldersToDelete.Remove(ParentFolder->GetGuid());
+			if (FoldersToDelete.IsEmpty())
+			{
+				break;
+			}
 		}
 	}
 
@@ -3716,7 +3749,7 @@ TSet<FGuid> ULevel::GetDeletedAndUnreferencedActorFolders() const
 		{
 			AActor* Actor = ActorDesc->GetActor();
 			FoldersToDelete.Remove(Actor ? Actor->GetFolderGuid() : ActorDesc->GetFolderGuid());
-			return true;
+			return !FoldersToDelete.IsEmpty();
 		});
 	}
 
@@ -3726,6 +3759,10 @@ TSet<FGuid> ULevel::GetDeletedAndUnreferencedActorFolders() const
 		if (IsValid(Actor))
 		{
 			FoldersToDelete.Remove(Actor->GetFolderGuid());
+			if (FoldersToDelete.IsEmpty())
+			{
+				break;
+			}
 		}
 	}
 
@@ -3737,7 +3774,7 @@ TSet<FGuid> ULevel::GetDeletedAndUnreferencedActorFolders() const
 void ULevel::CleanupDeletedAndUnreferencedActorFolders()
 {
 	// Remove actor folders marked as deleted
-	for (const FGuid GuidFolderToDelete : GetDeletedAndUnreferencedActorFolders())
+	for (const FGuid& GuidFolderToDelete : GetDeletedAndUnreferencedActorFolders())
 	{
 		if (UActorFolder* ActorFolderToDelete = GetActorFolder(GuidFolderToDelete, false /*bSkipDeleted*/))
 		{

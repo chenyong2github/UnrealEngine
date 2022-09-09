@@ -264,7 +264,8 @@ void UActorFolder::FixupParentFolder()
 {
 	if (ParentFolderGuid.IsValid() && !GetOuterULevel()->GetActorFolder(ParentFolderGuid, /*bSkipDeleted*/ false))
 	{
-		UE_LOG(LogLevel, Warning, TEXT("Missing parent actor folder for actor folder %s (%s)"), *FolderLabel, *GetName());
+		// Here we don't warn anymore since there's a supported workflow where we allow to delete actor folders 
+		// even when referenced by other folders (i.e. when the end result remains the root)
 		Modify();
 		ParentFolderGuid.Invalidate();
 	}

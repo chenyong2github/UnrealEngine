@@ -1263,7 +1263,7 @@ void AActor::FixupActorFolder()
 	{
 		if (FolderGuid.IsValid())
 		{
-			UE_LOG(LogLevel, Warning, TEXT("Actor folder %s for actor %s encountered when not using actor folders"), *FolderGuid.ToString(), *GetName());
+			UE_LOG(LogActor, Warning, TEXT("Actor folder %s for actor %s encountered when not using actor folders"), *FolderGuid.ToString(), *GetName());
 			FolderGuid = FGuid();
 		}
 	}
@@ -1286,16 +1286,17 @@ void AActor::FixupActorFolder()
 			}
 		}
 
-		// If still invalid, warn and fallback to root
+		// If still invalid, fallback to root
 		if (!IsActorFolderValid())
 		{
-			UE_LOG(LogLevel, Warning, TEXT("Missing actor folder for actor %s"), *GetName());
+			// Here we don't warn anymore since there's a supported workflow where we allow to delete actor folders 
+			// even when referenced by actors (i.e. when the end result remains the root)
 			SetFolderGuidInternal(FGuid(), /*bBroadcastChange*/ false);
 		}
 
 		if (!FolderPath.IsNone())
 		{
-			UE_LOG(LogLevel, Warning, TEXT("Actor folder path %s for actor %s encountered when using actor folders"), *FolderPath.ToString(), *GetName());
+			UE_LOG(LogActor, Warning, TEXT("Actor folder path %s for actor %s encountered when using actor folders"), *FolderPath.ToString(), *GetName());
 			FolderPath = NAME_None;
 		}
 	}
