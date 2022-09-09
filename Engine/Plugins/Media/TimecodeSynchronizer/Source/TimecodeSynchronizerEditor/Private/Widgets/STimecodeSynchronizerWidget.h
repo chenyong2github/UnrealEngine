@@ -60,7 +60,7 @@ private:
 	FFrameRate CurrentFrameRate;
 	int32 CurrentFrameValue;
 	int32 CurrentFrame;
-	int32 CurrentMasterIndex;
+	int32 CurrentOwnerIndex;
 
 	struct FrameTimeDisplayData
 	{

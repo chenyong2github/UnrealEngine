@@ -195,7 +195,7 @@ UTimecodeSynchronizer::UTimecodeSynchronizer()
 	: FixedFrameRate(30, 1)
 	, TimecodeProviderType(ETimecodeSynchronizationTimecodeType::TimecodeProvider)
 	, TimecodeProvider(nullptr)
-	, MasterSynchronizationSourceIndex(INDEX_NONE)
+	, MainSynchronizationSourceIndex(INDEX_NONE)
 	, PreRollingTimecodeMarginOfErrors(4)
 	, PreRollingTimeout(30.f)
 	, bIsTickEnabled(false)
@@ -204,7 +204,7 @@ UTimecodeSynchronizer::UTimecodeSynchronizer()
 	, bRegistered(false)
 	, PreviousFixedFrameRate(0.f)
 	, bPreviousUseFixedFrameRate(false)
-	, ActiveMasterSynchronizationTimecodedSourceIndex(INDEX_NONE)
+	, ActiveMainSynchronizationTimecodedSourceIndex(INDEX_NONE)
 	, bFailGuard(false)
 	, bAddSourcesGuard(false)
 	, bShouldResetTimecodeProvider(false)
@@ -238,7 +238,7 @@ bool UTimecodeSynchronizer::CanEditChange(const FProperty* InProperty) const
 	{
 		return FrameRateSource == ETimecodeSynchronizationFrameRateSources::CustomFrameRate;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UTimecodeSynchronizer, MasterSynchronizationSourceIndex))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UTimecodeSynchronizer, MainSynchronizationSourceIndex))
 	{
 		return TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource;
 	}
@@ -257,15 +257,15 @@ bool UTimecodeSynchronizer::CanEditChange(const FProperty* InProperty) const
 
 void UTimecodeSynchronizer::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	// Make sure the master source index is valid
+	// Make sure the main source index is valid
 	if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource)
 	{
-		if (!TimeSynchronizationInputSources.IsValidIndex(MasterSynchronizationSourceIndex)
-			|| TimeSynchronizationInputSources[MasterSynchronizationSourceIndex] == nullptr
-			|| !TimeSynchronizationInputSources[MasterSynchronizationSourceIndex]->bUseForSynchronization)
+		if (!TimeSynchronizationInputSources.IsValidIndex(MainSynchronizationSourceIndex)
+			|| TimeSynchronizationInputSources[MainSynchronizationSourceIndex] == nullptr
+			|| !TimeSynchronizationInputSources[MainSynchronizationSourceIndex]->bUseForSynchronization)
 		{
-			MasterSynchronizationSourceIndex = INDEX_NONE;
-			UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("The MasterSynchronizationSourceIndex is not valid."));
+			MainSynchronizationSourceIndex = INDEX_NONE;
+			UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("The MainSynchronizationSourceIndex is not valid."));
 		}
 	}
 
@@ -303,9 +303,9 @@ FFrameTime UTimecodeSynchronizer::GetProviderFrameTime() const
 
 	if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource)
 	{
-		if (SynchronizedSources.IsValidIndex(ActiveMasterSynchronizationTimecodedSourceIndex))
+		if (SynchronizedSources.IsValidIndex(ActiveMainSynchronizationTimecodedSourceIndex))
 		{
-			const FTimecodeSynchronizerActiveTimecodedInputSource& TimecodedInputSource = SynchronizedSources[ActiveMasterSynchronizationTimecodedSourceIndex];
+			const FTimecodeSynchronizerActiveTimecodedInputSource& TimecodedInputSource = SynchronizedSources[ActiveMainSynchronizationTimecodedSourceIndex];
 
 			if (GFrameCounter != LastUpdatedSources)
 			{
@@ -532,7 +532,7 @@ bool UTimecodeSynchronizer::StartSynchronization()
 	}
 	else
 	{
-		if (!ensure(SynchronizedSources.Num() == 0) || !ensure(NonSynchronizedSources.Num() == 0) || !ensure(ActiveMasterSynchronizationTimecodedSourceIndex))
+		if (!ensure(SynchronizedSources.Num() == 0) || !ensure(NonSynchronizedSources.Num() == 0) || !ensure(ActiveMainSynchronizationTimecodedSourceIndex))
 		{
 			UE_LOG(LogTimecodeSynchronizer, Error, TEXT("StartSynchronization called without properly closing sources"));
 			CloseSources();
@@ -547,9 +547,9 @@ bool UTimecodeSynchronizer::StartSynchronization()
 			UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("No sources available to synchronize."));
 			SwitchState(ESynchronizationState::Error);
 		}
-		else if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource && ActiveMasterSynchronizationTimecodedSourceIndex == INDEX_NONE)
+		else if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource && ActiveMainSynchronizationTimecodedSourceIndex == INDEX_NONE)
 		{
-			UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("The Master Synchronization Source could not be found."));
+			UE_LOG(LogTimecodeSynchronizer, Warning, TEXT("The Main Synchronization Source could not be found."));
 			SwitchState(ESynchronizationState::Error);
 		}
 		else
@@ -730,14 +730,14 @@ bool UTimecodeSynchronizer::Tick_TestTimecode()
 
 	if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource)
 	{
-		if (!SynchronizedSources.IsValidIndex(ActiveMasterSynchronizationTimecodedSourceIndex))
+		if (!SynchronizedSources.IsValidIndex(ActiveMainSynchronizationTimecodedSourceIndex))
 		{
-			UE_LOG(LogTimecodeSynchronizer, Error, TEXT("The InputSource '%d' that we try to synchronize on is not valid."), ActiveMasterSynchronizationTimecodedSourceIndex);
+			UE_LOG(LogTimecodeSynchronizer, Error, TEXT("The InputSource '%d' that we try to synchronize on is not valid."), ActiveMainSynchronizationTimecodedSourceIndex);
 			SwitchState(ESynchronizationState::Error);
 			return false;
 		}
 
-		return SynchronizedSources[ActiveMasterSynchronizationTimecodedSourceIndex].IsReady();
+		return SynchronizedSources[ActiveMainSynchronizationTimecodedSourceIndex].IsReady();
 	}
 	else 
 	{
@@ -926,9 +926,9 @@ void UTimecodeSynchronizer::OpenSources()
 				if (InputSource->bUseForSynchronization)
 				{
 					FTimecodeSynchronizerActiveTimecodedInputSource& NewSource = SynchronizedSources.Emplace_GetRef(InputSource);
-					if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource && Index == MasterSynchronizationSourceIndex)
+					if (TimecodeProviderType == ETimecodeSynchronizationTimecodeType::InputSource && Index == MainSynchronizationSourceIndex)
 					{
-						ActiveMasterSynchronizationTimecodedSourceIndex = SynchronizedSources.Num() - 1;
+						ActiveMainSynchronizationTimecodedSourceIndex = SynchronizedSources.Num() - 1;
 					}
 				}
 				else
@@ -943,7 +943,7 @@ void UTimecodeSynchronizer::OpenSources()
 		}
 	}
 
-	// Don't consider dynamic sources for master synchronization index.
+	// Don't consider dynamic sources for the main synchronization index.
 	for (UTimeSynchronizationSource* InputSource : DynamicSources)
 	{
 		if (InputSource != nullptr)
@@ -976,7 +976,7 @@ void UTimecodeSynchronizer::CloseSources()
 
 	SynchronizedSources.Reset();
 	NonSynchronizedSources.Reset();
-	ActiveMasterSynchronizationTimecodedSourceIndex = INDEX_NONE;
+	ActiveMainSynchronizationTimecodedSourceIndex = INDEX_NONE;
 }
 
 void UTimecodeSynchronizer::UpdateSourceStates()

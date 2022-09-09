@@ -312,8 +312,8 @@ public:
 	/** Returns the list of sources that are not actively being used in synchronization. */
 	const TArray<FTimecodeSynchronizerActiveTimecodedInputSource>& GetNonSynchronizedSources() const { return NonSynchronizedSources; }
 	
-	/** Returns the index of the Master Synchronization Source in the Synchronized Sources list. */
-	int32 GetActiveMasterSynchronizationTimecodedSourceIndex() const { return MasterSynchronizationSourceIndex; }
+	/** Returns the index of the Main Synchronization Source in the Synchronized Sources list. */
+	int32 GetActiveMainSynchronizationTimecodedSourceIndex() const { return MainSynchronizationSourceIndex; }
 
 	/**
 	 * Get an event delegate that is invoked when a Asset synchronization event occurred.
@@ -477,7 +477,7 @@ public:
 	 * The source need to be timecoded and flag as bUseForSynchronization
 	 */
 	UPROPERTY(EditAnywhere, Category="Timecode Provider")
-	int32 MasterSynchronizationSourceIndex;
+	int32 MainSynchronizationSourceIndex;
 
 public:
 	/** Enable verification of margin between synchronized time and source time */
@@ -575,7 +575,7 @@ private:
 	bool bPreviousUseFixedFrameRate;
 	
 	/** Index of the active source that drives the synchronized Timecode*/
-	int32 ActiveMasterSynchronizationTimecodedSourceIndex;
+	int32 ActiveMainSynchronizationTimecodedSourceIndex;
 
 	/** An event delegate that is invoked when a synchronization event occurred. */
 	FOnTimecodeSynchronizationEvent SynchronizationEvent;

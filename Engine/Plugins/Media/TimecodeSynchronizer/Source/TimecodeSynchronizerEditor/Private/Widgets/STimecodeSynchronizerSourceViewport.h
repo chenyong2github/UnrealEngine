@@ -50,8 +50,8 @@ private:
 	/** Callback for getting the text of the Current Synchronized Timecode. */
 	FText HandleCurrentTimecodeText() const;
 	
-	/** Callback setuping the text if the source is the master source. */
-	FText HandleIsSourceMasterText() const;
+	/** Callback setuping the text if the source is the main source. */
+	FText HandleIsSourceMainText() const;
 
 	/** Get the attached Input source in TimecodeSynchronization.GetActiveSources() at the AttachedSourceIndex index  */
 	const FTimecodeSynchronizerActiveTimecodedInputSource* GetAttachedSource() const;

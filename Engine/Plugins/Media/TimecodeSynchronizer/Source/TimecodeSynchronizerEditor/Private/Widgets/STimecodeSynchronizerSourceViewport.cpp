@@ -131,13 +131,13 @@ void STimecodeSynchronizerSourceViewport::Construct(const FArguments& InArgs, UT
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Bottom)
 						[
-							// Display if source is the master
+							// Display if source is the owner
 							SNew(STextBlock)
 							.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 							.Font(Font18)
 							.ShadowOffset(FVector2D(1.f, 1.f))
-							.Text(this, &STimecodeSynchronizerSourceViewport::HandleIsSourceMasterText)
-							.ToolTipText(LOCTEXT("OverlayMasterSourceTooltip", "Is this source used as the master"))
+							.Text(this, &STimecodeSynchronizerSourceViewport::HandleIsSourceMainText)
+							.ToolTipText(LOCTEXT("OverlayOwnerSourceTooltip", "Is this source used as the owner"))
 						]
 						
 						+ SHorizontalBox::Slot()
@@ -194,15 +194,15 @@ FText STimecodeSynchronizerSourceViewport::HandleCurrentTimecodeText() const
 	return FText::FromString(FString("Current: ") + FApp::GetTimecode().ToString());
 }
 
-FText STimecodeSynchronizerSourceViewport::HandleIsSourceMasterText() const
+FText STimecodeSynchronizerSourceViewport::HandleIsSourceMainText() const
 {
-	FString Role;
-	if (TimecodeSynchronization && AttachedSourceIndex != INDEX_NONE && bIsSynchronizedSource && TimecodeSynchronization->GetActiveMasterSynchronizationTimecodedSourceIndex() == AttachedSourceIndex)
+	FText Role;
+	if (TimecodeSynchronization && AttachedSourceIndex != INDEX_NONE && bIsSynchronizedSource && TimecodeSynchronization->GetActiveMainSynchronizationTimecodedSourceIndex() == AttachedSourceIndex)
 	{
-		Role = "Master";
+		Role = LOCTEXT("MainLabel", "Main");
 	}
 
-	return FText::FromString(Role);
+	return Role;
 }
 
 const FTimecodeSynchronizerActiveTimecodedInputSource* STimecodeSynchronizerSourceViewport::GetAttachedSource() const
