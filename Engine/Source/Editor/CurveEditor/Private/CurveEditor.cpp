@@ -1582,6 +1582,8 @@ void FCurveEditor::PasteKeys(TSet<FCurveModelID> CurveModelIDs)
 			}
 		}
 	}
+
+	ZoomToFitSelection();
 }
 
 void FCurveEditor::DeleteSelection()
