@@ -20,7 +20,7 @@
 #include "K2Node_InputActionValueAccessor.h"
 #include "K2Node_TemporaryVariable.h"
 #include "K2Node_AssignmentStatement.h"
-
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_GetInputActionValue"
 
@@ -173,6 +173,16 @@ bool UK2Node_GetInputActionValue::IsCompatibleWithGraph(UEdGraph const* Graph) c
 	bool const bIsConstructionScript = (K2Schema != nullptr) ? K2Schema->IsConstructionScript(Graph) : false;
 
 	return (Blueprint != nullptr) && Blueprint->SupportsInputEvents() && !bIsConstructionScript && Super::IsCompatibleWithGraph(Graph);
+}
+
+UObject* UK2Node_GetInputActionValue::GetJumpTargetForDoubleClick() const
+{
+	return const_cast<UObject*>(Cast<UObject>(InputAction));
+}
+
+void UK2Node_GetInputActionValue::JumpToDefinition() const
+{
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(GetJumpTargetForDoubleClick());
 }
 
 void UK2Node_GetInputActionValue::ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const

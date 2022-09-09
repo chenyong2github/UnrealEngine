@@ -27,6 +27,8 @@ class UK2Node_GetInputActionValue : public UK2Node
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
 	virtual bool IsCompatibleWithGraph(UEdGraph const* Graph) const override;
+	virtual UObject* GetJumpTargetForDoubleClick() const override;
+	virtual void JumpToDefinition() const override;
 	//~ End EdGraphNode Interface
 
 	//~ Begin UK2Node Interface
