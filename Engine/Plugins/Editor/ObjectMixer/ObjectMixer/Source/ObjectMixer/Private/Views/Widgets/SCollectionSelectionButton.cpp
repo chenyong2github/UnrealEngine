@@ -49,11 +49,13 @@ void SCollectionSelectionButton::Construct(const FArguments& InArgs, const TShar
 		SNew(SBorder)
 		.Padding(FMargin(16, 4))
 		.BorderImage(this, &SCollectionSelectionButton::GetBorderBrush)
+		.ForegroundColor(this, &SCollectionSelectionButton::GetBorderForeground)
 		[
 			SNew(STextBlock)
 			.TextStyle(FAppStyle::Get(), "SmallText")
 			.Text(FText::FromName(CollectionName))
 			.Visibility(EVisibility::HitTestInvisible)
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];
 }
@@ -212,10 +214,6 @@ const FSlateBrush* SCollectionSelectionButton::GetBorderBrush() const
 		{
 			return &CheckedPressedImage;
 		}
-		else if (bDropIsValid)
-		{
-			return &CheckedValidDropImage;
-		}
 		else if (IsHovered())
 		{
 			return &CheckedHoveredImage;
@@ -228,10 +226,6 @@ const FSlateBrush* SCollectionSelectionButton::GetBorderBrush() const
 	{
 		return &UncheckedPressedImage;
 	}
-	else if (bDropIsValid)
-	{
-		return &UncheckedValidDropImage;
-	}
 	else if (IsHovered())
 	{
 		return &UncheckedHoveredImage;
@@ -239,6 +233,17 @@ const FSlateBrush* SCollectionSelectionButton::GetBorderBrush() const
 
 	return &UncheckedImage;
 			
+}
+
+FSlateColor SCollectionSelectionButton::GetBorderForeground() const
+{
+	if (MainPanelPtr.Pin()->IsCollectionChecked(CollectionName) == ECheckBoxState::Checked ||
+		bIsPressed || IsHovered())
+	{
+		return FStyleColors::White;
+	}
+
+	return FStyleColors::Foreground;
 }
 
 #undef LOCTEXT_NAMESPACE

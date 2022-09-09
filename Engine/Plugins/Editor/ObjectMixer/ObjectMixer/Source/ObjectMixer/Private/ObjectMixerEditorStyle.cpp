@@ -72,20 +72,19 @@ TSharedRef< FSlateStyleSet > FObjectMixerEditorStyle::Create()
 {
 	TSharedRef<FSlateStyleSet> Style = MakeShared<FSlateStyleSet>("ObjectMixerEditor");
 	
-	//Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
+	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("ObjectMixer"));
+	if (ensure(Plugin.IsValid()))
+	{
+		Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
+	}
 
-	//Style->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+	Style->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	// Icons
 	Style->Set("ObjectMixer.ToolbarButton", new IMAGE_BRUSH_SVG("Icons/ObjectMixer", Icon40x40));
 	Style->Set("ObjectMixer.ToolbarButton.Small", new IMAGE_BRUSH_SVG("Icons/ObjectMixer", Icon20x20));
-
-	// Brush
-	Style->Set("ObjectMixerEditor.BrightBorder", new FSlateColorBrush(FStyleColors::Header));
-
-	// Border colors for Results view
-	Style->Set("ObjectMixerEditor.HeaderRowBorder", new FSlateColorBrush(FStyleColors::Black));
-	Style->Set("ObjectMixerEditor.DefaultBorder", new FSlateColorBrush(FStyleColors::Transparent));
+	
+	Style->Set("ObjectMixer.Solo", new IMAGE_BRUSH_SVG("Icons/Solo", Icon16x16));
 	
 	return Style;
 }

@@ -90,10 +90,9 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateWidgetForColumn(const FNa
 				];
 		}
 		
-		return SNew(SBorder)
+		return SNew(SBox)
 				   .HAlign(HAlign_Fill)
 				   .VAlign(VAlign_Center)
-				   .BorderImage(GetBorderImage(PinnedItem->GetRowType()))
 			   [
 				   CellWidget.ToSharedRef()
 			   ];
@@ -289,12 +288,6 @@ const FSlateBrush* SObjectMixerEditorListRow::GetVisibilityBrush() const
 	}
 	
 	return bIsHovered ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
-}
-
-const FSlateBrush* SObjectMixerEditorListRow::GetBorderImage(
-	const FObjectMixerEditorListRow::EObjectMixerEditorListRowType InRowType)
-{
-	return FObjectMixerEditorStyle::Get().GetBrush("ObjectMixerEditor.DefaultBorder");
 }
 
 TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(

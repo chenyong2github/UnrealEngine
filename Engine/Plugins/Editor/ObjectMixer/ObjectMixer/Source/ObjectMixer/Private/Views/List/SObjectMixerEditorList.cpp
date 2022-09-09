@@ -723,7 +723,7 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::Get().GetBrush("MediaAsset.AssetActions.Solo.Small"))
+						.Image(FObjectMixerEditorStyle::Get().GetBrush("ObjectMixer.Solo"))
 						.ToolTipText(LOCTEXT("SoloColumnTooltip", "Solo"))
 					]
 				];

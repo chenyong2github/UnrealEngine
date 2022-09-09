@@ -47,8 +47,6 @@ private:
 	/** Get the brush for this widget */
 	const FSlateBrush* GetVisibilityBrush() const;
 
-	static const FSlateBrush* GetBorderImage(const FObjectMixerEditorListRow::EObjectMixerEditorListRowType InRowType);
-
 	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem);
 
 	void OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty);

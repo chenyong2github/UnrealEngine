@@ -72,7 +72,11 @@ TSharedRef< FSlateStyleSet > FLightMixerStyle::Create()
 {
 	TSharedRef<FSlateStyleSet> Style = MakeShared<FSlateStyleSet>("LightMixer");
 	
-	//Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
+	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("LightMixer"));
+	if (ensure(Plugin.IsValid()))
+	{
+		Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
+	}
 
 	Style->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
