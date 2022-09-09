@@ -1229,6 +1229,7 @@ public:
 	virtual void StartupModule() override
 	{
 #if USE_USD_SDK
+		LLM_SCOPE_BYTAG(Usd);
 
 		// Path to USD base plugins
 		FString UsdPluginsPath = FPaths::Combine( TEXT( ".." ), TEXT( "ThirdParty" ), TEXT( "USD" ), TEXT( "UsdResources" ) );

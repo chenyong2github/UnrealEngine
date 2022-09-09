@@ -15,6 +15,8 @@ class FUsdUtilitiesModule : public IUsdUtilitiesModule
 	virtual void StartupModule() override
 	{
 #if WITH_EDITOR
+		LLM_SCOPE_BYTAG(Usd);
+
 		FMessageLogInitializationOptions InitOptions;
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked< FMessageLogModule >( TEXT("MessageLog") );
 		MessageLogModule.RegisterLogListing( TEXT( "USD" ), NSLOCTEXT( "USDUtilitiesModule", "USDLogListing", "USD" ), InitOptions );

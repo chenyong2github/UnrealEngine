@@ -2,11 +2,13 @@
 
 #include "USDMemory.h"
 
+#include "Async/Async.h"
 #include "Containers/Array.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"
 #include "Misc/ScopeLock.h"
-#include "Async/Async.h"
+
+LLM_DEFINE_TAG( Usd );
 
 class UNREALUSDWRAPPER_API FTlsSlot final
 {
@@ -137,6 +139,8 @@ bool FUsdMemoryManager::DeactivateAllocator( EUsdActiveAllocator Allocator )
 
 void* FUsdMemoryManager::Malloc( SIZE_T Count )
 {
+	LLM_SCOPE_BYTAG(Usd);
+
 	void* Result = nullptr;
 
 #if USD_USES_SYSTEM_MALLOC

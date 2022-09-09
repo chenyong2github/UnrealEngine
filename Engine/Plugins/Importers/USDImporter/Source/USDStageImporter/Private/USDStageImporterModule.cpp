@@ -3,6 +3,7 @@
 #include "USDStageImporterModule.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDMemory.h"
 #include "USDStageImporter.h"
 #include "USDStageImportOptionsCustomization.h"
 
@@ -19,6 +20,8 @@ public:
 	virtual void StartupModule() override
 	{
 #if USE_USD_SDK
+		LLM_SCOPE_BYTAG(Usd);
+
 		IUnrealUSDWrapperModule& UnrealUSDWrapperModule = FModuleManager::Get().LoadModuleChecked< IUnrealUSDWrapperModule >(TEXT("UnrealUSDWrapper"));
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( TEXT( "PropertyEditor" ) );

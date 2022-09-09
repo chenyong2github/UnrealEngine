@@ -2,6 +2,7 @@
 
 #include "USDStageModule.h"
 
+#include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDStageActorCustomization.h"
 
@@ -20,6 +21,8 @@ public:
 	virtual void StartupModule() override
 	{
 #if WITH_EDITOR
+		LLM_SCOPE_BYTAG(Usd);
+
 		// If don't have any active references to our materials they won't be packaged into monolithic builds, and we wouldn't
 		// be able to create dynamic material instances at runtime.
 		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin( TEXT( "USDImporter" ) );

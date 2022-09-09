@@ -222,6 +222,8 @@ public:
 #if USE_USD_SDK
 	static TSharedRef< SDockTab > SpawnUsdStageTab( const FSpawnTabArgs& SpawnTabArgs )
 	{
+		LLM_SCOPE_BYTAG(Usd);
+
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
 			.Label( LOCTEXT( "USDStage", "USD Stage" ) )
@@ -237,6 +239,8 @@ public:
 
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Usd);
+
 		FUsdStageEditorStyle::Initialize();
 
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( "LevelEditor" );

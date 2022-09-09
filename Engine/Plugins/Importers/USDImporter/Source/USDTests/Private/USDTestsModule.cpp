@@ -11,6 +11,7 @@ class FUsdTestsModule : public IUsdTestsModule
 public:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Usd);
 	}
 
 	virtual void ShutdownModule() override

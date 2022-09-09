@@ -21,6 +21,8 @@ class FUsdExporterModule : public IUsdExporterModule
 public:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Usd);
+
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT( "PropertyEditor" ) );
 
 		// We intentionally use the same customization for both of these

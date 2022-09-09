@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/Optional.h"
 #include "Modules/Boilerplate/ModuleBoilerplate.h"
 #include "Templates/SharedPointer.h"
 #include "Misc/ScopeRWLock.h"
 #include "Templates/UnrealTemplate.h"
+
+LLM_DECLARE_TAG_API( Usd, UNREALUSDWRAPPER_API );
 
 /**
  * This file is used to handle memory allocation issues when interacting with the USD SDK.

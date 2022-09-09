@@ -56,6 +56,8 @@ TSharedPtr< FUsdSchemaTranslator > FUsdSchemaTranslatorRegistry::CreateTranslato
 FUsdRenderContextRegistry::FUsdRenderContextRegistry()
 {
 #if USE_USD_SDK
+	LLM_SCOPE_BYTAG(Usd);
+
 	UniversalRenderContext = FName( UsdToUnreal::ConvertToken( pxr::UsdShadeTokens->universalRenderContext ) );
 	Register( UniversalRenderContext );
 
