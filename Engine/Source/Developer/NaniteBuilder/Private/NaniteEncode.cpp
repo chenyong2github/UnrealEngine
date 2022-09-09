@@ -12,7 +12,9 @@
 #include "Containers/StaticBitArray.h"
 
 #define CONSTRAINED_CLUSTER_CACHE_SIZE				32
-#define MIN_PAGE_DISTANCE_FOR_RELATIVE_ENCODING		4		// Don't use relative encoding near root to avoid small dependent batches for little compression win.
+#define MAX_DEPENDENCY_CHAIN_FOR_RELATIVE_ENCODING	6		// Reset dependency chain by forcing direct encoding every time a page has this many levels of dependent relative encodings.
+															// This prevents long chains of dependent dispatches during decode.
+															// As this affects only a small fraction of pages, the compression impact is negligible.
 
 #define FLT_INT_MIN						(-2147483648.0f)	// Smallest float >= INT_MIN
 #define FLT_INT_MAX						2147483520.0f		// Largest float <= INT_MAX
@@ -105,6 +107,7 @@ struct FPage
 	uint32	PartsStartIndex = 0;
 	uint32	PartsNum = 0;
 	uint32	NumClusters = 0;
+	bool	bRelativeEncoding = false;
 
 	FPageSections	GpuSizes;
 };
@@ -1524,51 +1527,97 @@ public:
 	}
 };
 
-static uint32 CalculatePageDistancesToRootRecursive(TArray<uint32>& PageDistances, FResources& Resources, uint32 PageIndex)
+static uint32 MarkRelativeEncodingPagesRecursive(TArray<FPage>& Pages, TArray<uint32>& PageDependentsDepth, const TArray<TArray<uint32>>& PageDependents, uint32 PageIndex)
 {
-	uint32 Distance = PageDistances[PageIndex];
-	if (Distance != MAX_uint32)
+	if (PageDependentsDepth[PageIndex] != MAX_uint32)
 	{
-		return Distance;
+		return PageDependentsDepth[PageIndex];
 	}
 
-	FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
-	const uint32 DependenciesStart = PageStreamingState.DependenciesStart;
-	const uint32 DependenciesNum = PageStreamingState.DependenciesNum;
-	for (uint32 i = 0; i < DependenciesNum; i++)
+	uint32 Depth = 0;
+	for (const uint32 DependentPageIndex : PageDependents[PageIndex])
 	{
-		const uint32 DependencyIndex = Resources.PageDependencies[DependenciesStart + i];
-		const uint32 DependencyDistance = CalculatePageDistancesToRootRecursive(PageDistances, Resources, DependencyIndex);
-		check(DependencyDistance != MAX_uint32);
-		Distance = FMath::Min(Distance, DependencyDistance + 1u);
+		const uint32 DependentDepth = MarkRelativeEncodingPagesRecursive(Pages, PageDependentsDepth, PageDependents, DependentPageIndex);
+		Depth = FMath::Max(Depth, DependentDepth + 1u);
 	}
-	check(Distance != MAX_uint32);
-	PageDistances[PageIndex] = Distance;
-	return Distance;
+
+	FPage& Page = Pages[PageIndex];
+	Page.bRelativeEncoding = true;
+
+	if (Depth >= MAX_DEPENDENCY_CHAIN_FOR_RELATIVE_ENCODING)
+	{
+		// Using relative encoding for this page would make the dependency chain too long. Use direct coding instead and reset depth.
+		Page.bRelativeEncoding = false;
+		Depth = 0;
+	}
+	
+	PageDependentsDepth[PageIndex] = Depth;
+	return Depth;
 }
 
-static TArray<uint32> CalculatePageDistancesToRoot(FResources& Resources)
+static uint32 MarkRelativeEncodingPages(const FResources& Resources, TArray<FPage>& Pages, const TArray<FClusterGroup>& Groups, const TArray<FClusterGroupPart>& Parts)
 {
 	const uint32 NumPages = Resources.PageStreamingStates.Num();
 
-	TArray<uint32> PageDistances;
-	PageDistances.Init(MAX_uint32, NumPages);
+	// Build list of dependents for each page
+	TArray<TArray<uint32>> PageDependents;
+	PageDependents.SetNum(NumPages);
 
-	// Mark roots as distance 0
+	// Memorize how many levels of dependency a given page has
+	TArray<uint32> PageDependentsDepth;
+	PageDependentsDepth.Init(MAX_uint32, NumPages);
+
+	TBitArray<> PageHasOnlyRootDependencies(false, NumPages);
+
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
 	{
-		if (Resources.PageStreamingStates[PageIndex].DependenciesNum == 0)
+		const FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
+
+		bool bHasRootDependency = false;
+		bool bHasStreamingDependency = false;
+		for (uint32 i = 0; i < PageStreamingState.DependenciesNum; i++)
 		{
-			PageDistances[PageIndex] = 0;
+			const uint32 DependencyPageIndex = Resources.PageDependencies[PageStreamingState.DependenciesStart + i];
+			if (Resources.IsRootPage(DependencyPageIndex))
+			{
+				bHasRootDependency = true;
+			}
+			else
+			{
+				PageDependents[DependencyPageIndex].AddUnique(PageIndex);
+				bHasStreamingDependency = true;
+			}
+		}
+
+		PageHasOnlyRootDependencies[PageIndex] = (bHasRootDependency && !bHasStreamingDependency);
+	}
+
+	uint32 NumRelativeEncodingPages = 0;
+	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
+	{
+		FPage& Page = Pages[PageIndex];
+
+		MarkRelativeEncodingPagesRecursive(Pages, PageDependentsDepth, PageDependents, PageIndex);
+		
+		if (Resources.IsRootPage(PageIndex))
+		{
+			// Root pages never use relative encoding
+			Page.bRelativeEncoding = false;
+		}
+		else if (PageHasOnlyRootDependencies[PageIndex])
+		{
+			// Root pages are always resident, so dependencies on them shouldn't count towards dependency chain limit.
+			// If a page only has root dependencies, always code it as relative.
+			Page.bRelativeEncoding = true;
+		}
+
+		if (Page.bRelativeEncoding)
+		{
+			NumRelativeEncodingPages++;
 		}
 	}
 
-	// Calculate distance too all other pages
-	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
-	{
-		PageDistances[PageIndex] = CalculatePageDistancesToRootRecursive(PageDistances, Resources, PageIndex);
-	}
-	return PageDistances;
+	return NumRelativeEncodingPages;
 }
 
 static TArray<TMap<FVariableVertex, FVertexMapEntry>> BuildVertexMaps(const TArray<FPage>& Pages, const TArray<FCluster>& Clusters, const TArray<FClusterGroupPart>& Parts)
@@ -1708,18 +1757,19 @@ static void WritePages(	FResources& Resources,
 	}
 
 	auto PageVertexMaps = BuildVertexMaps(Pages, Clusters, Parts);
-	TArray<uint32> PageDistances = CalculatePageDistancesToRoot(Resources);
 
+	const uint32 NumRelativeEncodingPages = MarkRelativeEncodingPages(Resources, Pages, Groups, Parts);
+	
 	// Process pages
 	TArray< TArray<uint8> > PageResults;
 	PageResults.SetNum(NumPages);
 
-	ParallelFor(TEXT("NaniteEncode.BuildPages.PF"), NumPages, 1, [&Resources, &Pages, &Groups, &Parts, &Clusters, &EncodingInfos, &FixupChunks, &PageVertexMaps, &PageDistances, &PageResults, NumTexCoords](int32 PageIndex)
+	ParallelFor(TEXT("NaniteEncode.BuildPages.PF"), NumPages, 1, [&Resources, &Pages, &Groups, &Parts, &Clusters, &EncodingInfos, &FixupChunks, &PageVertexMaps, &PageResults, NumTexCoords](int32 PageIndex)
 	{
 		const FPage& Page = Pages[PageIndex];
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
 
-		Resources.PageStreamingStates[PageIndex].Flags = (PageDistances[PageIndex] >= MIN_PAGE_DISTANCE_FOR_RELATIVE_ENCODING) ? NANITE_PAGE_FLAG_RELATIVE_ENCODING : 0;
+		Resources.PageStreamingStates[PageIndex].Flags = Page.bRelativeEncoding ? NANITE_PAGE_FLAG_RELATIVE_ENCODING : 0;
 
 		// Add hierarchy fixups
 		{
@@ -2102,7 +2152,7 @@ static void WritePages(	FResources& Resources,
 	UE_LOG(LogStaticMesh, Log, TEXT("  Root: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalRootGPUSize, NumRootPages, TotalRootGPUSize / (float)NumRootPages, TotalRootGPUSize / (float(NumRootPages) * NANITE_ROOT_PAGE_GPU_SIZE) * 100.0f);
 	if(NumStreamingPages > 0)
 	{
-		UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * NANITE_STREAMING_PAGE_GPU_SIZE) * 100.0f);
+		UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages (%d with relative encoding). %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, NumRelativeEncodingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * NANITE_STREAMING_PAGE_GPU_SIZE) * 100.0f);
 	}
 	else
 	{

@@ -23,6 +23,13 @@
 
 #define NANITE_LOG_COMPRESSED_SIZES		0
 
+static TAutoConsoleVariable<bool> CVarBuildImposters(
+	TEXT("r.Nanite.Builder.Imposters"),
+	false,
+	TEXT("Build imposters for small/distant object rendering. For scenes with lots of small or distant objects, imposters can sometimes speed up rendering, but they come at the cost of additional runtime memory and disk footprint overhead."),
+	ECVF_ReadOnly
+);
+
 namespace Nanite
 {
 
@@ -66,9 +73,10 @@ const FString& FBuilderModule::GetVersionString() const
 
 	if (VersionString.IsEmpty())
 	{
-		VersionString = FString::Printf(TEXT("%s%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
+		VersionString = FString::Printf(TEXT("%s%s%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
 										NANITE_USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
-										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""));
+										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
+										CVarBuildImposters.GetValueOnAnyThread() ? TEXT("_IMPOSTERS") : TEXT(""));
 
 #if PLATFORM_CPU_ARM_FAMILY
 		// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given
@@ -497,7 +505,7 @@ static bool BuildNaniteData(
 
 	// Don't trust any input. We only have color if it isn't all white.
 	const bool bHasVertexColor = Channel != 255;
-	const bool bHasImposter = Resources.NumInputMeshes == 1;
+	const bool bHasImposter = CVarBuildImposters.GetValueOnAnyThread() && (Resources.NumInputMeshes == 1);
 
 	Resources.ResourceFlags = 0x0;
 
