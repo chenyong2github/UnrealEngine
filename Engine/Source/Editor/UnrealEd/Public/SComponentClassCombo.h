@@ -81,7 +81,7 @@ public:
 		, CustomizationArgs(InCustomizationArgs)
 	{}
 
-	FComponentClassComboEntry(const FString& InHeadingText, const FString& InComponentName, FName InComponentPath, const UClass* InIconClass, bool InIncludedInFilter)
+	FComponentClassComboEntry(const FString& InHeadingText, const FString& InComponentName, FTopLevelAssetPath InComponentPath, const UClass* InIconClass, bool InIncludedInFilter)
 		: ComponentClass(nullptr)
 		, IconClass(InIconClass)
 		, ComponentName(InComponentName)
@@ -177,7 +177,7 @@ private:
 	// loading occurs when the blueprint is spawned, which should also trigger a refresh
 	// of the component list:
 	FString ComponentName;
-	FName ComponentPath;
+	FTopLevelAssetPath ComponentPath;
 	FString HeadingText;
 	bool bIncludedInFilter;
 	EComponentCreateAction::Type ComponentCreateAction;

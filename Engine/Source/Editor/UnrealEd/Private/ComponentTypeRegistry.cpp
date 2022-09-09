@@ -569,7 +569,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 			FString ClassName = ClassPath.GetAssetName().ToString();
 			ClassName.RemoveFromEnd(TEXT("_C"));
 
-			FComponentClassComboEntryPtr NewEntry(new FComponentClassComboEntry(BlueprintComponents, ClassName, ClassPath.GetAssetName(), IconClass, /*bIncludeInFilter=*/true));
+			FComponentClassComboEntryPtr NewEntry(new FComponentClassComboEntry(BlueprintComponents, ClassName, ClassPath, IconClass, /*bIncludeInFilter=*/true));
 			SortedClassList.Add(NewEntry);
 
 			// Create an unloaded blueprint data object to assist with class filtering
