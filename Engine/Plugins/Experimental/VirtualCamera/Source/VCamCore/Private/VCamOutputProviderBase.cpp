@@ -229,7 +229,7 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 				// Find all VCam Widgets inside the displayed widget and Initialize them with the owning VCam Component
 				if (IsValid(DisplayedWidget->WidgetTree))
 				{
-					DisplayedWidget->WidgetTree->ForEachWidgetAndDescendants([VCamComponent](UWidget* Widget)
+					DisplayedWidget->WidgetTree->ForEachWidget([VCamComponent](UWidget* Widget)
 					{
 						if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
 						{
