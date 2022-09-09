@@ -18,7 +18,8 @@ namespace UnrealBuildTool.Rules
 
 			// NOTE: General rule is not to access the private folder of another module
 			PrivateIncludePaths.AddRange(new string[] {
-				Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4147/Include/third_party/libyuv/include")
+				Path.Combine(EngineDir, "Source/ThirdParty/WebRTC/4147/Include/third_party/libyuv/include"),
+				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[] {
