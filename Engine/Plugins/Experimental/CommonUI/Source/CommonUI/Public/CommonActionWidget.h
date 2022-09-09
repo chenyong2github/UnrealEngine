@@ -32,7 +32,7 @@ public:
 	/** End UWidet */
 	
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
-	FSlateBrush GetIcon() const;
+	virtual FSlateBrush GetIcon() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonActionWidget)
 	FText GetDisplayText() const;
