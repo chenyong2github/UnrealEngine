@@ -12,7 +12,7 @@
 namespace SteamAudio
 {
 	/**
-	 * Maps from UE4 FName identifiers stored on AudioComponents to a unique integer for the Phonon API.
+	 * Maps from UE FName identifiers stored on AudioComponents to a unique integer for the Phonon API.
 	 * The expected number of baked sources for a given scene is quite low (< 1k usually), so this simply
 	 * maps to random integers in (0, INT_MAX).
 	 */

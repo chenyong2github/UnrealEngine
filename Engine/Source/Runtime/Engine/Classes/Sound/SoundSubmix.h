@@ -80,7 +80,7 @@ enum class EFFTWindowType : uint8
 	// No window is applied. Technically a boxcar window.
 	None,
 
-	// Mainlobe width of -3 dB and sidelove attenuation of ~-40 dB. Good for COLA.
+	// Mainlobe width of -3 dB and sidelobe attenuation of ~-40 dB. Good for COLA.
 	Hamming,
 
 	// Mainlobe width of -3 dB and sidelobe attenuation of ~-30dB. Good for COLA.
@@ -353,7 +353,7 @@ public:
 	 *	@param	UpdateRate						How often to retrieve the data from the spectral analyzer and broadcast the event. Max is 30 times per second.
 	 *	@param  InterpMethod                    Method to used for band peak calculation.
 	 *	@param  SpectrumType                    Metric to use when returning spectrum values.
-	 *	@param  DecibelNoiseFloor               Decibel Noise Floor to consider as silence silence when using a Decibel Spectrum Type.
+	 *	@param  DecibelNoiseFloor               Decibel Noise Floor to consider as silence when using a Decibel Spectrum Type.
 	 *	@param  bDoNormalize                    If true, output band values will be normalized between zero and one.
 	 *	@param  bDoAutoRange                    If true, output band values will have their ranges automatically adjusted to the minimum and maximum values in the audio. Output band values will be normalized between zero and one.
 	 *	@param  AutoRangeAttackTime             The time (in seconds) it takes for the range to expand to 90% of a larger range.
@@ -435,7 +435,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Soundfield)
 	TArray<TObjectPtr<USoundfieldEffectBase>> SoundfieldEffectChain;
 
-	// Traverses parent submixes until we find a submix that doesn't inherit it's soundfield format.
+	// Traverses parent submixes until we find a submix that doesn't inherit its soundfield format.
 	FName GetSubmixFormat() const;
 
 	UPROPERTY()
@@ -444,7 +444,7 @@ public:
 	// Traverses parent submixes until we find a submix that specifies encoding settings.
 	const USoundfieldEncodingSettingsBase* GetEncodingSettings() const;
 
-	// This function goes through every child submix and the parent submix to ensure that they have a compatible format with this  submix's format.
+	// This function goes through every child submix and the parent submix to ensure that they have a compatible format with this submix's format.
 	void SanitizeLinks();
 
 protected:

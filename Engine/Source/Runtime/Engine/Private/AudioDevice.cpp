@@ -189,7 +189,7 @@ FAutoConsoleVariableRef CVarSetAudioMaxDistance(
 
 static FAutoConsoleCommandWithWorld GListAvailableSpatialPluginsCommand(
 	TEXT("au.spatialization.ListAvailableSpatialPlugins"),
-	TEXT("This will output a list of currently availible/active spatialization plugins"),
+	TEXT("This will output a list of currently available/active spatialization plugins"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(
 		[](UWorld* InWorld)
 	{

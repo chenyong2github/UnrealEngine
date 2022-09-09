@@ -67,7 +67,7 @@ struct ENGINE_API FReverbSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ReverbSettings)
 	TObjectPtr<USoundEffectSubmixPreset> ReverbPluginEffect;
 
-	/** Volume level of the reverb affect. */
+	/** Volume level of the reverb effect. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ReverbSettings)
 	float Volume;
 
