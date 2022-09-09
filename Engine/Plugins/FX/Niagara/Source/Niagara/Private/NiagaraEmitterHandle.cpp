@@ -225,6 +225,9 @@ void FNiagaraEmitterHandle::ConditionalPostLoad(int32 NiagaraCustomVersion)
 				SetName(Name, *OwningSystem);
 			}
 		}
+
+		// Temporary Workaround - These thumbnails aren't used by the system so remove them here to fix issues with cooked editor data.
+		InstanceEmitter->ThumbnailImage = nullptr;
 	}
 }
 
