@@ -214,6 +214,31 @@ FORCEINLINE bool IsHDR(EPixelFormat PixelFormat)
 	return PixelFormat == PF_FloatRGBA || PixelFormat == PF_BC6H || PixelFormat == PF_R16F || PixelFormat == PF_R32_FLOAT || PixelFormat == PF_A32B32G32R32F;
 }
 
+FORCEINLINE bool IsInteger(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+	case PF_R32_UINT:
+	case PF_R32_SINT:
+	case PF_R16_UINT:
+	case PF_R16_SINT:
+	case PF_R16G16B16A16_UINT:
+	case PF_R16G16B16A16_SINT:
+	case PF_R32G32B32A32_UINT:
+	case PF_R16G16_UINT:
+	case PF_R8_UINT:
+	case PF_R8G8B8A8_UINT:
+	case PF_R32G32_UINT:
+	case PF_R8G8_UINT:
+	case PF_R32G32B32_UINT:
+	case PF_R32G32B32_SINT:
+	case PF_R8_SINT:
+	case PF_R64_UINT:
+		return true;
+	}
+	return false;
+}
+
 /** 
 * Information about a pixel format. The majority of this structure is valid after static init, however RHI does keep
 * some state in here that is initialized by that module and should not be used by general use programs that don't

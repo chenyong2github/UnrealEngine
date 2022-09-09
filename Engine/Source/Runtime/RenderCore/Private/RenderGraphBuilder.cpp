@@ -3893,6 +3893,18 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 
 	const FLinearColor ClobberColor = GetClobberColor();
 
+	const auto ClobberTextureUAV = [&](FRDGTextureUAV* TextureUAV)
+	{
+		if (IsInteger(TextureUAV->GetParent()->Desc.Format))
+		{
+			AddClearUAVPass(*this, TextureUAV, GetClobberBufferValue());
+		}
+		else
+		{
+			AddClearUAVPass(*this, TextureUAV, ClobberColor);
+		}
+	};
+
 	Pass->GetParameters().Enumerate([&](FRDGParameter Parameter)
 	{
 		switch (Parameter.GetType())
@@ -3922,7 +3934,7 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 					{
 						for (int32 MipLevel = 0; MipLevel < Texture->Desc.NumMips; MipLevel++)
 						{
-							AddClearUAVPass(*this, CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
+							ClobberTextureUAV(CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)));
 						}
 					}
 					else if (EnumHasAnyFlags(TextureAccess.GetAccess(), ERHIAccess::RTV))
@@ -3943,13 +3955,13 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 				{
 					if (Texture->Desc.NumMips == 1)
 					{
-						AddClearUAVPass(*this, UAV, ClobberColor);
+						ClobberTextureUAV(UAV);
 					}
 					else
 					{
 						for (int32 MipLevel = 0; MipLevel < Texture->Desc.NumMips; MipLevel++)
 						{
-							AddClearUAVPass(*this, CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)), ClobberColor);
+							ClobberTextureUAV(CreateUAV(FRDGTextureUAVDesc(Texture, MipLevel)));
 						}
 					}
 				}
