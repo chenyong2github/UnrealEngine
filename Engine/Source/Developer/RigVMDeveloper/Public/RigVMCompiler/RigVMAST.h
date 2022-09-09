@@ -497,7 +497,7 @@ public:
 	// returns true if this block contains a given expression
 	// @param InExpression the expression to check
 	// @return true if this block contains a given expression
-	bool Contains(const FRigVMExprAST* InExpression) const;
+	bool Contains(const FRigVMExprAST* InExpression, TMap<const FRigVMExprAST*, bool>* ContainedExpressionsCache = nullptr) const;
 
 	// overload of the type checking mechanism
 	virtual bool IsA(EType InType) const override
