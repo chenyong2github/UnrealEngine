@@ -4,13 +4,11 @@
 #include "HeadlessChaosTestUtility.h"
 
 #include "Chaos/CollisionResolutionTypes.h"
-//#include "Chaos/Collision/PBDCollisionSolver.h"
 #include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/GJK.h"
 #include "Chaos/Pair.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidParticles.h"
-#include "Chaos/PBDCollisionConstraintsPGS.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
 

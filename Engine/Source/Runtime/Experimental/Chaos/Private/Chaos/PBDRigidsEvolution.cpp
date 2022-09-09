@@ -1003,11 +1003,8 @@ namespace Chaos
 	void FPBDRigidsEvolutionBase::SetParticleObjectState(FPBDRigidParticleHandle* Particle, EObjectStateType ObjectState)
 	{
 		const EObjectStateType InitialState = Particle->ObjectState();
-
-		// Should never be called for statics - they cannot change state. Except...
-		// @todo(chaos): We should be able to assert this but FRigidClustering::CreateClusterParticle and ReleaseClusterParticle change the state after creation
-		//check(InitialState != EObjectStateType::Static)
-		//check(ObjectState != EObjectStateType::Static);
+		const bool bWasDynamic = (InitialState == EObjectStateType::Dynamic) || (InitialState == EObjectStateType::Sleeping);
+		const bool bIsDynamic = (ObjectState == EObjectStateType::Dynamic) || (ObjectState == EObjectStateType::Sleeping);
 
 		Particle->SetObjectStateLowLevel(ObjectState);
 
@@ -1031,15 +1028,17 @@ namespace Chaos
 			}
 		}
 
-		// If we switched to/from dynamic the inertia conditioning may need to be refreshed
-		if (Particle->InertiaConditioningEnabled())
+		// If we are now dynamic and enabled, we need to be in the graph if not already there. We may not be
+		// because Kinematic particles are only in the graph if referenced by a constraint.
+		if (bIsDynamic && !bWasDynamic && !Particle->Disabled())
 		{
-			const bool bWasDynamic = (InitialState == EObjectStateType::Dynamic) || (InitialState == EObjectStateType::Sleeping);
-			const bool bIsDynamic = (ObjectState == EObjectStateType::Dynamic) || (ObjectState == EObjectStateType::Sleeping);
-			if (bWasDynamic != bIsDynamic)
-			{
-				Particle->SetInertiaConditioningDirty();
-			}
+			ConstraintGraph.AddParticle(Particle);
+		}
+
+		// If we switched to/from dynamic the inertia conditioning may need to be refreshed
+		if (Particle->InertiaConditioningEnabled() && (bWasDynamic != bIsDynamic))
+		{
+			Particle->SetInertiaConditioningDirty();
 		}
 	}
 
@@ -1066,10 +1065,9 @@ namespace Chaos
 		{
 			Particles.DisableParticle(Particle);
 			RemoveParticleFromAccelerationStructure(*Particle);
-			ConstraintGraph.DisableParticle(Particle);
+			DisableConstraints(Particle);
+			ConstraintGraph.RemoveParticle(Particle);
 		}
-
-		DisableConstraints(InParticles);
 	}
 
 	void FPBDRigidsEvolutionBase::DisableParticleWithRemovalEvent(FGeometryParticleHandle* Particle)

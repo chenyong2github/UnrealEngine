@@ -25,6 +25,13 @@ namespace ChaosTest {
 	template<int32 T_TYPEID>
 	class TMockGraphConstraintHandle;
 
+	struct FMockConstraint
+	{
+		TVec2<FGeometryParticleHandle*> ConstrainedParticles;
+		bool bEnabled;
+		bool bSleeping;
+	};
+
 	/**
 	 * Constraint Container with minimal API required to test the Graph.
 	 * We can pretend we have many constraint containers of different types
@@ -35,12 +42,6 @@ namespace ChaosTest {
 	{
 	public:
 		using FConstraintContainerHandle = TMockGraphConstraintHandle<T_TYPEID>;
-		struct FMockConstraint
-		{
-			TVec2<int32> ConstrainedParticles;
-			bool bEnabled;
-			bool bSleeping;
-		};
 
 		TMockGraphConstraints()
 			: TPBDIndexedConstraintContainer<TMockGraphConstraints<T_TYPEID>>(FConstraintContainerHandle::StaticType())
@@ -48,12 +49,14 @@ namespace ChaosTest {
 			TPBDIndexedConstraintContainer<TMockGraphConstraints<T_TYPEID>>::SetContainerId(T_TYPEID);
 		}
 
+		using FPBDConstraintContainer::GetContainerId;
+
 		//
 		// FConstraintContainer Implementation
 		//
 		virtual int32 GetNumConstraints() const override final { return Constraints.Num(); }
 		virtual void ResetConstraints() override final {}
-		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final {}
+		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
 		virtual void PrepareTick() override final {}
 		virtual void UnprepareTick() override final {}
 
@@ -77,60 +80,38 @@ namespace ChaosTest {
 		void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
 		void ApplyProjectionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
 
-		TVec2<int32> ConstraintParticleIndices(const int32 ConstraintIndex) const
+		TVec2<FGeometryParticleHandle*> ConstrainedParticles(const int32 ConstraintIndex) const
 		{
 			return Constraints[ConstraintIndex].ConstrainedParticles;
 		}
 
-		void AddConstraint(const TVec2<int32>& InConstraintedParticles)
+		void AddConstraint(const TVec2<FGeometryParticleHandle*>& InConstraintedParticles)
 		{
 			Constraints.Emplace(FMockConstraint({ InConstraintedParticles, true, false }));
 			Handles.Emplace(HandleAllocator.AllocHandle(this, Handles.Num()));
 		}
 
-		bool AreConstraintsIndependent(const TPBDRigidParticles<FReal, 3>& InParticles, const TArray<FConstraintHandle*>& InConstraintHandles)
+		// Veryify that all constraints in the set are independen (no two reference the same particle). Used to validate coloring.
+		bool AreConstraintsIndependent(const TArray<FConstraintHandle*>& InConstraintHandles)
 		{
 			bool bIsValid = true;
-			TSet<int32> ParticleSet;
+			TSet<const FGeometryParticleHandle*> ParticleSet;
 			for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
 			{
 				const int32 ConstraintIndex = ConstraintHandle->As<FConstraintContainerHandle>()->GetConstraintIndex();
 				FMockConstraint& Constraint = Constraints[ConstraintIndex];
-				if (ParticleSet.Contains(Constraint.ConstrainedParticles[0]) && !InParticles.HasInfiniteMass(Constraint.ConstrainedParticles[0]))
+				FConstGenericParticleHandle Particle0 = Constraint.ConstrainedParticles[0];
+				FConstGenericParticleHandle Particle1 = Constraint.ConstrainedParticles[1];
+				if (ParticleSet.Contains(Particle0->Handle()) && Particle0->IsDynamic())
 				{
 					bIsValid = false;
 				}
-				if (ParticleSet.Contains(Constraint.ConstrainedParticles[1]) && !InParticles.HasInfiniteMass(Constraint.ConstrainedParticles[1]))
+				if (ParticleSet.Contains(Particle1->Handle()) && Particle1->IsDynamic())
 				{
 					bIsValid = false;
 				}
-				ParticleSet.Add(Constraint.ConstrainedParticles[0]);
-				ParticleSet.Add(Constraint.ConstrainedParticles[1]);
-			}
-			return bIsValid;
-		}
-
-		bool AreConstraintsIndependent(const TArray<TGeometryParticleHandle<FReal, 3>*>& Particles, const TArray<FConstraintHandle*>& InConstraintHandles)
-		{
-			bool bIsValid = true;
-			TSet<TGeometryParticleHandle<FReal, 3>*> ParticleSet;
-			for (FConstraintHandle* ConstraintHandle : InConstraintHandles)
-			{
-				const int32 ConstraintIndex = ConstraintHandle->As<FConstraintContainerHandle>()->GetConstraintIndex();
-				FMockConstraint& Constraint = Constraints[ConstraintIndex];
-				TGeometryParticleHandle<FReal, 3>* Particle0 = Particles[Constraint.ConstrainedParticles[0]];
-				if (ParticleSet.Contains(Particle0) && Particle0->CastToRigidParticle() && Particle0->ObjectState() == EObjectStateType::Dynamic)
-				{
-					bIsValid = false;
-				}
-
-				TGeometryParticleHandle<FReal, 3>* Particle1 = Particles[Constraint.ConstrainedParticles[1]];
-				if (ParticleSet.Contains(Particle1) && Particle1->CastToRigidParticle() && Particle1->ObjectState() == EObjectStateType::Dynamic)
-				{
-					bIsValid = false;
-				}
-				ParticleSet.Add(Particle0);
-				ParticleSet.Add(Particle1);
+				ParticleSet.Add(Particle0->Handle());
+				ParticleSet.Add(Particle1->Handle());
 			}
 			return bIsValid;
 		}
@@ -177,7 +158,7 @@ namespace ChaosTest {
 			return ConcreteContainer()->Constraints[GetConstraintIndex()].bSleeping;
 		}
 
-		virtual FParticlePair GetConstrainedParticles() const override { return FParticlePair(nullptr, nullptr); }
+		virtual FParticlePair GetConstrainedParticles() const override { return ConcreteContainer()->Constraints[GetConstraintIndex()].ConstrainedParticles; }
 
 		static const FConstraintHandleTypeID& StaticType()
 		{
@@ -185,6 +166,15 @@ namespace ChaosTest {
 			return STypeID;
 		}
 	};
+
+	template<int32 T_TYPEID>
+	void TMockGraphConstraints<T_TYPEID>::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	{
+		for (TMockGraphConstraintHandle<T_TYPEID>* Handle : Handles)
+		{
+			IslandManager.AddConstraint(GetContainerId(), Handle, Handle->GetConstrainedParticles());
+		}
+	}
 
 
 	template class TMockGraphConstraints<0>;
@@ -244,13 +234,13 @@ namespace ChaosTest {
 		TMockGraphConstraints<0> ConstraintsOfType0;
 		for (const auto& ConstrainedParticles : ConstrainedParticles0)
 		{
-			ConstraintsOfType0.AddConstraint(ConstrainedParticles);
+			ConstraintsOfType0.AddConstraint({ AllParticles[ConstrainedParticles[0]], AllParticles[ConstrainedParticles[1]] });
 		}
 
 		TMockGraphConstraints<1> ConstraintsOfType1;
 		for (const auto& ConstrainedParticles : ConstrainedParticles1)
 		{
-			ConstraintsOfType0.AddConstraint(ConstrainedParticles);
+			ConstraintsOfType0.AddConstraint({ AllParticles[ConstrainedParticles[0]], AllParticles[ConstrainedParticles[1]] });
 		}
 
 		// Set up the particle graph
@@ -258,34 +248,27 @@ namespace ChaosTest {
 		Graph.AddConstraintContainer(ConstraintsOfType0);
 		Graph.AddConstraintContainer(ConstraintsOfType1);
 
+		for (FGeometryParticleHandle* Particle : AllParticles)
+		{
+			Graph.AddParticle(Particle);
+		}
+
 		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 
-		Graph.ReserveConstraints(ConstraintsOfType0.GetNumConstraints());
-		for (int32 ConstraintIndex = 0; ConstraintIndex < ConstraintsOfType0.GetNumConstraints(); ++ConstraintIndex)
-		{
-			TVec2<int32> Indices = ConstraintsOfType0.ConstraintParticleIndices(ConstraintIndex);
-			Graph.AddConstraint(0, ConstraintsOfType0.Handles[ConstraintIndex], TVec2<TGeometryParticleHandle<FReal, 3>*>(AllParticles[Indices[0]], AllParticles[Indices[1]]));
-		}
+		ConstraintsOfType0.AddConstraintsToGraph(Graph);
+		ConstraintsOfType1.AddConstraintsToGraph(Graph);
 
-		Graph.ReserveConstraints(ConstraintsOfType1.GetNumConstraints());
-		for (int32 ConstraintIndex = 0; ConstraintIndex < ConstraintsOfType1.GetNumConstraints(); ++ConstraintIndex)
-		{
-			TVec2<int32> Indices = ConstraintsOfType1.ConstraintParticleIndices(ConstraintIndex);
-			Graph.AddConstraint(1, ConstraintsOfType1.Handles[ConstraintIndex], TVec2<TGeometryParticleHandle<FReal, 3>*>(AllParticles[Indices[0]], AllParticles[Indices[1]]));
-		}
-		
-		// Generate the constraint/particle islands
-		Graph.UpdateGraph();
 		Graph.UpdateIslands(SOAs);
 		
-		// Islands should be end up with the following particles (note: particle 17 is infinite mass and can appear in multiple islands)
+		// Islands should be end up with the following particles (note: particle 17 is infinite mass and is referenced by multiple islands, but
+		// is not included in the list of island particles)
 		TArray<TSet<TGeometryParticleHandle<FReal, 3>*>> ExpectedIslandParticles = {
 			{AllParticles[0], AllParticles[1], AllParticles[2], AllParticles[3], AllParticles[4], AllParticles[5], AllParticles[6]},
 			{AllParticles[7], AllParticles[8], AllParticles[9], AllParticles[10], AllParticles[11], AllParticles[13], AllParticles[18]},
 			{AllParticles[12]},
-			{AllParticles[14], AllParticles[15], AllParticles[16], AllParticles[17]},
+			{AllParticles[14], AllParticles[15], AllParticles[16]},
 			{AllParticles[19]},
-			{AllParticles[17], AllParticles[20]},
+			{AllParticles[20]},
 		};
 
 		// Get the Island indices which map to the ExpectedIslandParticles
@@ -318,6 +301,8 @@ namespace ChaosTest {
 				EXPECT_TRUE(ExpectedIslandParticles[ExpectedIslandIndex].Contains(CalculatedIslandParticle.GetParticle()));
 			}
 		}
+
+		Graph.Reset();
 	}
 
 	void CheckIslandIntegrity(TArray<TSet<TGeometryParticleHandle<FReal,3>*>>& ExpectedIslandParticles, const TArray<int32> CalculatedIslandIndices, FPBDConstraintGraph& Graph)
@@ -398,6 +383,9 @@ namespace ChaosTest {
 
 		IterationData.Push(Data0);
 
+		// NOTE: only dynamic particles are included in the generated islands
+		// i.e. particle 2 will be absent
+
 		//////////////////////////////////////////////////////////////////////////
 		// Iteration 1
 		FIterationData Data1;
@@ -412,7 +400,7 @@ namespace ChaosTest {
 
 		// Islands should be end up with the following particles
 		Data1.ExpectedIslandParticleIndices = {
-			{0,1,2},
+			{0,1},
 			{3,4,5}
 		};
 
@@ -440,8 +428,8 @@ namespace ChaosTest {
 		};
 
 		Data2.ExpectedIslandParticleIndices = {
-			{0,1,2},
-			{2,3,4,5},
+			{0,1},
+			{3,4,5},
 		};
 
 		Data2.ExpectedIslandEdges = {
@@ -468,7 +456,7 @@ namespace ChaosTest {
 
 		Data3.ExpectedIslandParticleIndices = {
 			{0,1},
-			{2,3},
+			{3},
 			{4,5}
 		};
 
@@ -495,7 +483,7 @@ namespace ChaosTest {
 
 		Data4.ExpectedIslandParticleIndices = {
 			{0,1},
-			{2,3},
+			{3},
 			{4},
 			{5}
 		};
@@ -524,8 +512,8 @@ namespace ChaosTest {
 
 		Data5.ExpectedIslandParticleIndices = {
 			{1},
-			{0,2},
-			{2,3},
+			{0},
+			{3},
 			{4},
 			{5}
 		};
@@ -547,7 +535,11 @@ namespace ChaosTest {
 		for (int Iteration = 0; Iteration < IterationData.Num(); Iteration++)
 		{
 			FIterationData& IterData = IterationData[Iteration];
-			
+
+			FPBDConstraintGraph Graph;
+			//FPBDConstraintColor GraphColor;
+			const int32 ContainerId = 0;
+
 			// convert ExpectedIslandParticleIndices to ExpectedIslandParticles for ease of later comparison
 			for (int32 I = 0; I < IterData.ExpectedIslandParticleIndices.Num(); I++)
 			{
@@ -557,16 +549,10 @@ namespace ChaosTest {
 				for (int32 Index : Set)
 				{
 					HandlesSet.Add(AllParticles[Index]);
+					Graph.AddParticle(AllParticles[Index]);
 				}
 				IterData.ExpectedIslandParticles.Add(HandlesSet);
 			}
-
-			FPBDConstraintGraph Graph;
-			//FPBDConstraintColor GraphColor;
-			const int32 ContainerId = 0;
-
-			// Set up the particle graph
-			Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 
 			// add constraints
 			TMockGraphConstraints<0> ConstraintsOfType0;
@@ -574,28 +560,18 @@ namespace ChaosTest {
 
 			for (const auto& ConstrainedParticles : IterData.ConstrainedParticles)
 			{
-				ConstraintsOfType0.AddConstraint(ConstrainedParticles);
-			}
-
-			Graph.ReserveConstraints(ConstraintsOfType0.GetNumConstraints());
-			for (int32 ConstraintIndex = 0; ConstraintIndex < ConstraintsOfType0.GetNumConstraints(); ++ConstraintIndex)
-			{
-				TVec2<int32> Indices = ConstraintsOfType0.ConstraintParticleIndices(ConstraintIndex);
-				Graph.AddConstraint(ContainerId, ConstraintsOfType0.Handles[ConstraintIndex], TVec2<TGeometryParticleHandle<FReal, 3>*>(AllParticles[Indices[0]], AllParticles[Indices[1]]));
+				ConstraintsOfType0.AddConstraint({ AllParticles[ConstrainedParticles[0]],AllParticles[ConstrainedParticles[1]] });
 			}
 
 			// Generate the constraint/particle islands
-			Graph.UpdateGraph();
+			Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
+
+			ConstraintsOfType0.AddConstraintsToGraph(Graph);
+
 			Graph.UpdateIslands(SOAs);
 
 			// Check the number of islands
 			EXPECT_EQ(IterData.ExpectedIslandParticleIndices.Num(), Graph.NumIslands());
-
-			// Compute levels and colors
-			Graph.GetIslandGraph()->InitSorting();
-
-			Graph.GetIslandGraph()->ComputeLevels();
-			Graph.GetIslandGraph()->ComputeColors(0);
 
 			// Assign color to constraints
 			//GraphColor.InitializeColor(Graph);
@@ -667,16 +643,11 @@ namespace ChaosTest {
 	{
 
 		SOAs.ClearTransientDirty();
+
 		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 
-		Graph.ReserveConstraints(Constraints.GetNumConstraints());
-		for(int32 ConstraintIndex = 0; ConstraintIndex < Constraints.GetNumConstraints(); ++ConstraintIndex)
-		{
-			const TVec2<int32> Indices = Constraints.ConstraintParticleIndices(ConstraintIndex);
-			Graph.AddConstraint(0,Constraints.Handles[ConstraintIndex],TVec2<TGeometryParticleHandle<FReal,3>*>(Particles[Indices[0]],Particles[Indices[1]]));
-		}
+		Constraints.AddConstraintsToGraph(Graph);
 
-		Graph.UpdateGraph();
 		Graph.UpdateIslands(SOAs);
 		for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
 		{
@@ -760,11 +731,16 @@ namespace ChaosTest {
 			TMockGraphConstraints<0> Constraints;
 			for (const auto& ConstrainedParticleIndices : ConstrainedParticles)
 			{
-				Constraints.AddConstraint(ConstrainedParticleIndices);
+				Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 			}
 
 			FPBDConstraintGraph Graph;
 			Graph.AddConstraintContainer(Constraints);
+			for (FGeometryParticleHandle* Particle : Particles)
+			{
+				Graph.AddParticle(Particle);
+			}
+
 			for (int32 LoopIndex = 0; LoopIndex < 5 + PhysicalMaterial->SleepCounterThreshold; ++LoopIndex)
 			{
 				// @todo(chaos): redo this test - sleeping now used a damped velocity rather than current velocity
@@ -796,6 +772,8 @@ namespace ChaosTest {
 				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[4]),bIsDirty);
 				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[5]),bIsDirty);
 			}
+
+			Graph.Reset();
 		}
 	}
 
@@ -848,11 +826,15 @@ namespace ChaosTest {
 			TMockGraphConstraints<0> Constraints;
 			for (const auto& ConstrainedParticleIndices : ConstrainedParticles)
 			{
-				Constraints.AddConstraint(ConstrainedParticleIndices);
+				Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 			}
 
 			FPBDConstraintGraph Graph;
 			Graph.AddConstraintContainer(Constraints);
+			for (FGeometryParticleHandle* Particle : Particles)
+			{
+				Graph.AddParticle(Particle);
+			}
 
 			const int32 WakeUpFrame = 5 + PhysicalMaterial->SleepCounterThreshold;
 			for (int32 LoopIndex = 0; LoopIndex < WakeUpFrame + 5; ++LoopIndex)
@@ -868,7 +850,7 @@ namespace ChaosTest {
 				{
 					for (const auto& ConstrainedParticleIndices : ConstrainedParticlesOnWake)
 					{
-						Constraints.AddConstraint(ConstrainedParticleIndices);
+						Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 					}
 				}
 
@@ -897,6 +879,8 @@ namespace ChaosTest {
 				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[4]),bIsDirty);
 				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[5]),b5IsDirty);
 			}
+
+			Graph.Reset();
 		}
 	}
 
@@ -949,14 +933,18 @@ namespace ChaosTest {
 			TMockGraphConstraints<0> Constraints;
 			for (const auto& ConstrainedParticleIndices : ConstrainedParticles)
 			{
-				Constraints.AddConstraint(ConstrainedParticleIndices);
+				Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 			}
 
 			FPBDConstraintGraph Graph;
 			Graph.AddConstraintContainer(Constraints);
-
+			for (FGeometryParticleHandle* Particle : Particles)
+			{
+				Graph.AddParticle(Particle);
+			}
+			
 			const int32 MergeFrame = 5 + PhysicalMaterial->SleepCounterThreshold;
-			const int32 SleepAfterMergeFrame = MergeFrame + PhysicalMaterial->SleepCounterThreshold + 1;	//first frame after merge must wake up
+			const int32 SleepAfterMergeFrame = MergeFrame + PhysicalMaterial->SleepCounterThreshold;
 			for(int32 LoopIndex = 0; LoopIndex < SleepAfterMergeFrame + 5; ++LoopIndex)
 			{
 				if(LoopIndex == MergeFrame)
@@ -977,7 +965,7 @@ namespace ChaosTest {
 				{
 					for (const auto& ConstrainedParticleIndices : ConstrainedParticlesOnWake)
 					{
-						Constraints.AddConstraint(ConstrainedParticleIndices);
+						Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 					}
 				}
 
@@ -1014,6 +1002,8 @@ namespace ChaosTest {
 				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[4]),bIsDirty);
 				EXPECT_EQ(ContainsHelper(SOAs.GetDirtyParticlesView(),Particles[5]),b5IsDirty);
 			}
+
+			Graph.Reset();
 		}
 	}
 
@@ -1127,23 +1117,22 @@ namespace ChaosTest {
 		TMockGraphConstraints<0> Constraints;
 		for (const auto& ConstrainedParticleIndices : ConstrainedParticles)
 		{
-			Constraints.AddConstraint(ConstrainedParticleIndices);
+			Constraints.AddConstraint({ AllParticles[ConstrainedParticleIndices[0]], AllParticles[ConstrainedParticleIndices[1]] });
 		}
 		
 		// Build the connectivity graph and islands
 		FPBDConstraintGraph Graph;
 		Graph.AddConstraintContainer(Constraints);
 		//FPBDConstraintColor GraphColor;
-		const int32 ContainerId = 0;
-		
-		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
-		Graph.ReserveConstraints(Constraints.GetNumConstraints());
-		for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.GetNumConstraints(); ++ConstraintIndex)
+		for (FGeometryParticleHandle* Particle : AllParticles)
 		{
-			const TVec2<int32>& Indices = Constraints.ConstraintParticleIndices(ConstraintIndex);
-			Graph.AddConstraint(ContainerId, Constraints.Handles[ConstraintIndex], TVec2<TGeometryParticleHandle<FReal, 3>*>(AllParticles[Indices[0]], AllParticles[Indices[1]]) );
+			Graph.AddParticle(Particle);
 		}
-		Graph.UpdateGraph();
+
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
+		
+		Constraints.AddConstraintsToGraph(Graph);
+
 		Graph.UpdateIslands(SOAs);
 
 		// It's a connected grid, so only one island
@@ -1203,6 +1192,8 @@ namespace ChaosTest {
 		//	//EXPECT_LE(MaxIslandColor, MaxNumGreedyColors - 1);
 		//	EXPECT_LE(MaxIslandColor, MaxNumGreedyColors);
 		//}
+
+		Graph.Reset();
 	}
 
 	/**
@@ -1282,10 +1273,6 @@ namespace ChaosTest {
 		TArray<FPBDRigidParticleHandle*> Dynamics = SOAs.CreateDynamicParticles(500);
 		for (auto Dynamic : Dynamics) { AllParticles.Add(Dynamic); }
 
-		// Set up the particle graph
-		FPBDConstraintGraph Graph;
-		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
-		
 		const int32 NumParticles = AllParticles.Num();
 
 		// Put together constraint lists
@@ -1302,61 +1289,86 @@ namespace ChaosTest {
 			ConstrainedParticles2.Add({ (ConstraintIdx * 6) % NumParticles, (ConstraintIdx * 7) % NumParticles });
 		}
 		
+		int32 NextContainerId = 0;
+
 		// Create some position constraints
-		Graph.ReserveConstraints(ConstrainedParticles0.Num());
 		FPBDPositionConstraints PositionConstraints;
+		PositionConstraints.SetContainerId(NextContainerId++);
 		for (const TVec2<int32>& Indices : ConstrainedParticles0)
 		{
 			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
-			auto* NewConstraint = PositionConstraints.AddConstraint(Particle0, FVec3(0, 0, 0 ));
-			Graph.AddConstraint(0, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, nullptr));
+			PositionConstraints.AddConstraint(Particle0, FVec3(0, 0, 0 ));
 		}
 
 		// Create some suspension constraints
-		Graph.ReserveConstraints(ConstrainedParticles1.Num());
 		FPBDSuspensionConstraints SuspensionConstraints;
+		SuspensionConstraints.SetContainerId(NextContainerId++);
 		for (const TVec2<int32>& Indices : ConstrainedParticles1)
 		{
 			FPBDSuspensionSettings Settings;
 			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
 			FPBDRigidParticleHandle* Particle1 = AllParticles[Indices[1]]->CastToRigidParticle();
-			auto* NewConstraint = SuspensionConstraints.AddConstraint(Particle0, FVec3(0, 0, 0), Settings);
-			Graph.AddConstraint(1, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, Particle1));
+			SuspensionConstraints.AddConstraint(Particle0, FVec3(0, 0, 0), Settings);
 		}
 
 		// Create some dynamic spring constraints.
-		Graph.ReserveConstraints(ConstrainedParticles2.Num());
 		FPBDRigidDynamicSpringConstraints SpringConstraints;
+		SpringConstraints.SetContainerId(NextContainerId++);
 		for (const TVec2<int32>& Indices : ConstrainedParticles2)
 		{
 			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
 			FPBDRigidParticleHandle* Particle1 = AllParticles[Indices[1]]->CastToRigidParticle();
-			auto* NewConstraint = SpringConstraints.AddConstraint(FPBDRigidDynamicSpringConstraints::FConstrainedParticlePair(Particle0, Particle1));
-			Graph.AddConstraint(2, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, Particle1));
+			SpringConstraints.AddConstraint(FPBDRigidDynamicSpringConstraints::FConstrainedParticlePair(Particle0, Particle1));
 		}
+
+		// Set up the particle graph
+		FPBDConstraintGraph Graph;
+		Graph.AddConstraintContainer(PositionConstraints);
+		Graph.AddConstraintContainer(SuspensionConstraints);
+		Graph.AddConstraintContainer(SpringConstraints);
+		for (FGeometryParticleHandle* Particle : AllParticles)
+		{
+			Graph.AddParticle(Particle);
+		}
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
 		
+		PositionConstraints.AddConstraintsToGraph(Graph);
+		SuspensionConstraints.AddConstraintsToGraph(Graph);
+		SpringConstraints.AddConstraintsToGraph(Graph);
+
+		Graph.EndTick();
+
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+
 
 		// Add new particles
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> NewDynamics = SOAs.CreateDynamicParticles(20);
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
 
 		// Remove some constraints
+		Graph.RemoveConstraint(PositionConstraints.GetContainerId(), PositionConstraints.GetConstraintHandle(0));
+		Graph.RemoveConstraint(SuspensionConstraints.GetContainerId(), SuspensionConstraints.GetConstraintHandle(0));
+		Graph.RemoveConstraint(SpringConstraints.GetContainerId(), SpringConstraints.GetConstraintHandle(0));
 		PositionConstraints.RemoveConstraint(0);
 		SuspensionConstraints.RemoveConstraint(0);
 		SpringConstraints.RemoveConstraint(0);
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
 		
 		// Add new constraints
-		Graph.ReserveConstraints(ConstrainedParticles1.Num());
 		FPBDJointConstraints JointConstraints;
+		JointConstraints.SetContainerId(NextContainerId++);
 		for (const TVec2<int32>& Indices : ConstrainedParticles1)
 		{
 			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
 			FPBDRigidParticleHandle* Particle1 = AllParticles[Indices[1]]->CastToRigidParticle();
-			auto* NewConstraint = JointConstraints.AddConstraint(FParticlePair(Particle0,Particle1), FRigidTransform3());
-			Graph.AddConstraint(3, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, Particle1));
+			JointConstraints.AddConstraint(FParticlePair(Particle0,Particle1), FRigidTransform3());
 		}
+
+		Graph.AddConstraintContainer(JointConstraints);
+		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
+		JointConstraints.AddConstraintsToGraph(Graph);
+		Graph.EndTick();
+
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
 
 		// Remove a block of particles
@@ -1370,7 +1382,7 @@ namespace ChaosTest {
 		// Disable a block of particles
 		for (int32 Idx = 10; Idx < 20; ++Idx)
 		{
-			Graph.DisableParticle({ Dynamics[Idx] });
+			Graph.RemoveParticle({ Dynamics[Idx] });
 			SOAs.DisableParticle(Dynamics[Idx]);
 		}
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
@@ -1378,11 +1390,12 @@ namespace ChaosTest {
 		// Re-enable the block of particles
 		for (int32 Idx = 10; Idx < 20; ++Idx)
 		{
-			Graph.EnableParticle(Dynamics[Idx], nullptr);
+			Graph.AddParticle(Dynamics[Idx]);
 			SOAs.EnableParticle(Dynamics[Idx]);
 		}
 		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
 		
+		Graph.Reset();
 	}
 
 

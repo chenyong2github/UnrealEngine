@@ -9,7 +9,6 @@
 #include "Chaos/MassProperties.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDCollisionConstraintsPGS.h"
 #include "Chaos/PBDRigidClusteringAlgo.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/UniformGrid.h"
@@ -89,13 +88,7 @@ namespace Chaos
 		}
 
 		// Must do this so that the constraint graph knows about this particle 
-		// prior to calling CreateIslands().  We could call MEvolution.CreateParticle()
-		// which does the same thing, but also calls DirtyParticle(), which is already
-		// done by MEvolution.CreateClusteredParticles(), and will be done again by
-		// MEvolution.EnableParticle().
-		//MEvolution.GetConstraintGraph().AddParticle(NewParticle); // PBDRigidsEvolutionGBF protects GetConstraintGraph().  Bah!
-		MEvolution.CreateParticle(NewParticle); // Doesn't create, just adds to constraint graph
-		MEvolution.EnableParticle(NewParticle, nullptr); // null for parent skips constraint graph EnableParticle()
+		MEvolution.EnableParticle(NewParticle);
 		NewParticle->SetCollisionGroup(INT_MAX);
 		TopLevelClusterParents.Add(NewParticle);
 
@@ -201,7 +194,6 @@ namespace Chaos
 		{
 			NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
 		}
-		MEvolution.CreateParticle(NewParticle);
 		MEvolution.EnableParticle(NewParticle, Parent);
 
 		NewParticle->SetCollisionGroup(INT_MAX);

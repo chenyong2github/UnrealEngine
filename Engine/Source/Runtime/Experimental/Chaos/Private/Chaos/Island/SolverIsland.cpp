@@ -25,7 +25,7 @@ void FPBDIsland::Reuse()
 	check(GetNumConstraints() == 0);
 
 	SetSleepCounter(0);
-	ResetSleepingChanged();
+	SetIsSleepingChanged(false);
 }
 
 void FPBDIsland::UpdateParticles()

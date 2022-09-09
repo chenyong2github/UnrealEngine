@@ -33,6 +33,8 @@ namespace ChaosTest {
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
+			Evolution.EnableParticle(Dynamics[0]);
+
 			TArray<FVec3> Positions = { FVec3(0) };
 			FPBDPositionConstraints PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 1.f);
 			InitEvolutionSettings(Evolution);
@@ -50,6 +52,7 @@ namespace ChaosTest {
 			InitEvolutionSettings(Evolution);
 			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
 			Dynamics[0]->SetGravityEnabled(false);
+			Evolution.EnableParticle(Dynamics[0]);
 
 			TArray<FVec3> Positions = { FVec3(1) };
 			FPBDPositionConstraints PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 0.5f);
@@ -105,6 +108,9 @@ namespace ChaosTest {
 		FPBDJointConstraints JointConstraints;
 		JointConstraints.AddConstraint(JointParticles, FRigidTransform3(JointConstraintPosition, FRotation3::FromIdentity()));
 		Evolution.AddConstraintContainer(JointConstraints);
+
+		Evolution.EnableParticle(Dynamics[0]);
+		Evolution.EnableParticle(Dynamics[1]);
 
 		FReal Dt = 0.1f;
 		for (int32 TimeIndex = 0; TimeIndex < 100; ++TimeIndex)
@@ -167,6 +173,7 @@ namespace ChaosTest {
 			SuspensionConstraints.AddConstraint(DynamicParticle, SuspensionLocalLocationA, SuspensionSettings);
 
 			Evolution.AddConstraintContainer(SuspensionConstraints);
+			Evolution.EnableParticle(DynamicParticle);
 
 			Evolution.AdvanceOneTimeStep(0.1);
 			Evolution.EndFrame(0.1);
@@ -217,6 +224,7 @@ namespace ChaosTest {
 			SuspensionConstraints.AddConstraint(DynamicParticle, SuspensionLocalLocationB, SuspensionSettings);
 
 			Evolution.AddConstraintContainer(SuspensionConstraints);
+			Evolution.EnableParticle(DynamicParticle);
 
 			const FVec3& Pos = Evolution.GetParticleHandles().Handle(0)->X();
 			const FRotation3& Rot = Evolution.GetParticleHandles().Handle(0)->R();
@@ -293,6 +301,7 @@ namespace ChaosTest {
 		}
 
 		Evolution.AddConstraintContainer(SuspensionConstraints);
+		Evolution.EnableParticle(DynamicParticle);
 
 		const FVec3& Pos = Evolution.GetParticleHandles().Handle(0)->X();
 		const FRotation3& Rot = Evolution.GetParticleHandles().Handle(0)->R();

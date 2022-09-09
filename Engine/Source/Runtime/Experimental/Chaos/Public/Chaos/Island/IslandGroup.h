@@ -63,9 +63,10 @@ namespace Chaos
 		FPBDIslandManager& IslandManager;
 
 		// Item counters used to initialize the solver containers
+		static constexpr int32 NumExpectedConstraintTypes = 5;
 		int32 NumParticles;
 		int32 NumConstraints;
-		TArray<int32> NumContainerConstraints;	// Per ContainerId
+		TArray<int32, TInlineAllocator<NumExpectedConstraintTypes>> NumContainerConstraints;	// Per ContainerId
 
 		TArray<FPBDIsland*> Islands;
 	};

@@ -73,6 +73,8 @@ namespace Chaos
 	bool DebugDrawProbeDetection = false;
 	FAutoConsoleVariableRef CVarDebugDrawProbeDetection(TEXT("p.Chaos.Collision.DebugDrawProbeDetection"), DebugDrawProbeDetection, TEXT("Draw probe constraint detection."));
 	
+	extern bool bChaosSolverPersistentGraph;
+
 #if CHAOS_DEBUG_DRAW
 	namespace CVars
 	{
@@ -358,16 +360,66 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
 	{
-		if (GetCollisionsEnabled())
+		// Debugging/diagnosing: if we have collisions disabled, remove all collisions from the graph and don't add any more
+		if (!GetCollisionsEnabled())
 		{
-			for (FPBDCollisionConstraintHandle* ConstraintHandle : GetConstraints())
-			{
-				if (ConstraintHandle->IsEnabled())
+			IslandManager.RemoveConstraints(GetContainerId());
+			return;
+		}
+
+		// If we are running with a persistent graph, remove expired collisions	
+		if (bChaosSolverPersistentGraph)
+		{
+			// Find all expired constraints in the graph
+			TempCollisions.Reset();
+			IslandManager.VisitConstraintsInAwakeIslands(GetContainerId(),
+				[this](FConstraintHandle* ConstraintHandle)
 				{
-					IslandManager.AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
-				}
+					if (FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->As<FPBDCollisionConstraintHandle>())
+					{
+						if (!CollisionHandle->IsEnabled() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
+						{
+							TempCollisions.Add(CollisionHandle);
+						}
+					}
+				});
+
+			// Remove expired constraints
+			for (FPBDCollisionConstraintHandle* CollisionHandle : TempCollisions)
+			{
+				IslandManager.RemoveConstraint(GetContainerId(), CollisionHandle);
 			}
 		}
+
+		// Collect all the new constraints that need to be added to the graph
+		TempCollisions.Reset();
+		for (FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintAllocator.GetConstraints())
+		{
+			FPBDCollisionConstraint& Constraint = ConstraintHandle->GetContact();
+			if (!Constraint.IsInConstraintGraph() && Constraint.IsEnabled())
+			{
+				TempCollisions.Add(ConstraintHandle);
+			}
+		}
+
+		// Sort new constraints into a predictable order. This isn't strictly required, but without it we
+		// can get fairly different behaviour from run to run because the collisions detection order is 
+		// effectively random on multicore machines
+		TempCollisions.Sort(
+			[](const FPBDCollisionConstraintHandle& L, const FPBDCollisionConstraintHandle& R)
+			{
+				const uint64 LKey = L.GetContact().GetParticlePairKey().GetKey();
+				const uint64 RKey = R.GetContact().GetParticlePairKey().GetKey();
+				return LKey < RKey;
+			});
+
+		// Add the new constraints to the graph
+		for (FPBDCollisionConstraintHandle* ConstraintHandle : TempCollisions)
+		{
+			IslandManager.AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+		}
+
+		TempCollisions.Reset();
 	}
 
 	const FPBDCollisionConstraint& FPBDCollisionConstraints::GetConstraint(int32 Index) const

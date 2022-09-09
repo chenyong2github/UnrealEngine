@@ -57,24 +57,28 @@ namespace Chaos
 	private:
 		void GenerateKey(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1)
 		{
-			const bool bIsLocalID0 = Particle0->ParticleID().LocalID != INDEX_NONE;
-			const bool bIsLocalID1 = Particle1->ParticleID().LocalID != INDEX_NONE;
-			const uint32 ID0 = uint32((bIsLocalID0) ? Particle0->ParticleID().LocalID : Particle0->ParticleID().GlobalID);
-			const uint32 ID1 = uint32((bIsLocalID1) ? Particle1->ParticleID().LocalID : Particle1->ParticleID().GlobalID);
+			Key.Key64 = 0;
+			if ((Particle0 != nullptr) && (Particle1 != nullptr))
+			{
+				const bool bIsLocalID0 = Particle0->ParticleID().LocalID != INDEX_NONE;
+				const bool bIsLocalID1 = Particle1->ParticleID().LocalID != INDEX_NONE;
+				const uint32 ID0 = uint32((bIsLocalID0) ? Particle0->ParticleID().LocalID : Particle0->ParticleID().GlobalID);
+				const uint32 ID1 = uint32((bIsLocalID1) ? Particle1->ParticleID().LocalID : Particle1->ParticleID().GlobalID);
 
-			if (ID0 < ID1)
-			{
-				Key.Key32s[0].Key31 = ID0;
-				Key.Key32s[0].IsLocal = bIsLocalID0;
-				Key.Key32s[1].Key31 = ID1;
-				Key.Key32s[1].IsLocal = bIsLocalID1;
-			}
-			else
-			{
-				Key.Key32s[0].Key31 = ID1;
-				Key.Key32s[0].IsLocal = bIsLocalID1;
-				Key.Key32s[1].Key31 = ID0;
-				Key.Key32s[1].IsLocal = bIsLocalID0;
+				if (ID0 < ID1)
+				{
+					Key.Key32s[0].Key31 = ID0;
+					Key.Key32s[0].IsLocal = bIsLocalID0;
+					Key.Key32s[1].Key31 = ID1;
+					Key.Key32s[1].IsLocal = bIsLocalID1;
+				}
+				else
+				{
+					Key.Key32s[0].Key31 = ID1;
+					Key.Key32s[0].IsLocal = bIsLocalID1;
+					Key.Key32s[1].Key31 = ID0;
+					Key.Key32s[1].IsLocal = bIsLocalID0;
+				}
 			}
 		}
 

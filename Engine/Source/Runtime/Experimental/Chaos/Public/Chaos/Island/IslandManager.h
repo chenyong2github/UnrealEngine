@@ -66,12 +66,6 @@ public:
 	void RemoveConstraints();
 
 	/**
-	  * Default island manager constructor
-	  * @param Particles List of particles to be used to fill the graph nodes
-	  */
-	FPBDIslandManager(const TParticleView<FPBDRigidParticles>& PBDRigids);
-
-	/**
 	* Clear the manager and set up the particle-to-graph-node mapping for the specified particles
 	* Should be called before AddConstraint.
 	* @param Particles List of particles to be used to fill the graph nodes
@@ -123,6 +117,11 @@ public:
 	void RemoveConstraint(const uint32 ContainerId, FConstraintHandle* ConstraintHandle);
 
 	/**
+	 * Remove all constraints of the specified type.
+	 */
+	void RemoveConstraints(const uint32 ContainerId);
+
+	/**
 	 * @brief Remove all the constraints of the specified type (ContainerId) belonging to the Particle
 	 * @param Particle the particle to remove the constraints from
 	 * @param ContainerId Container id the constraint is belonging to
@@ -137,13 +136,12 @@ public:
 	int32 ReserveParticles(const int32 NumParticles);
 
 	/**
-	  * Add a particle to the Island graph
-	  * @param AddedParticle Particle to be added to the graph
-	  * @param IslandIndex Potential island index in which the particle will be added
-	  * @param bOnlyDynamic Boolean to add only dynamic particle into the islands
+	  * Add a particle to the graph
+	  * @param ParticleHandle Particle to be added to the graph
+	  * @param ParentParticleHandle Put the ParticleHandle in the same island as the parent with the same sleep state. May be null.
 	  * @return Sparse graph node index
 	  */
-	int32 AddParticle(FGeometryParticleHandle* AddedParticle, const int32 IslandIndex = INDEX_NONE, const bool bOnlyDynamic = true);
+	int32 AddParticle(FGeometryParticleHandle* ParticleHandle, const FGeometryParticleHandle* ParentParticleHandle = nullptr);
 
 	/**
 	  * Remove a particle from the graph
@@ -152,35 +150,37 @@ public:
 	void RemoveParticle(FGeometryParticleHandle* Particle);
 
 	/**
-	  * Adds \p ChildParticle to the constraint graph.  Copies the sleeping
-	  * state and island of \p ParentParticle to \p ChildParticle.  Does nothing
-	  * if \p ParentParticle is not supplied.
-	  * @param ChildParticle Particle on which the sleeping state and island index will be copied
-	  * @param ParentParticle Particle from which the sleeping state and island index will be extracted
-	  */
-	void EnableParticle(FGeometryParticleHandle* ChildParticle, const FGeometryParticleHandle* ParentParticle);
-
-	/**
-	  * Disable a particle and remove it from its island.
-	  * @note: this does not remove any attached constraints - constraints need to be re-added and islands will need to be rebuilt.
-	  * @param Particle Particle to be disabled
-	  */
-	void DisableParticle(FGeometryParticleHandle* Particle);
-
-	/**
 	 * Get the Level for the specified particle (distance to a kinmetic in the graph)
 	*/
 	int32 GetParticleLevel(FGeometryParticleHandle* Particle) const;
 
-	/**
-	  * Remove all the graph edges
-	  */
-	void ResetIslands(const TParticleView<FPBDRigidParticles>& PBDRigids);
 
 	/**
-	 * Process all the particles and constraints in the graph. Assign all t islands.
-	*/
-	void UpdateGraph();
+	  * Call the visitor on all constraints in an awake island. E.g., can be used to check if any constraints
+	  * in the graph are expired and should be removed. However, no constraints should be added or removed
+	  * from the visitor itself - build a list and remove them after.
+	  */
+	template<typename VisitorType>
+	void VisitConstraintsInAwakeIslands(const int32 ContainerId, const VisitorType& Visitor)
+	{
+		for (FGraphEdge& GraphEdge : IslandGraph->GraphEdges)
+		{
+			// If a constraint is not in any island (kinematic-kinematic for example) it is considered asleep.
+			if ((GraphEdge.ItemContainer == ContainerId) && (GraphEdge.IslandIndex != INDEX_NONE))
+			{
+				const FGraphIsland& GraphIsland = IslandGraph->GraphIslands[GraphEdge.IslandIndex];
+				if (!GraphIsland.bIsSleeping)
+				{
+					Visitor(GraphEdge.EdgeItem);
+				}
+			}
+		}
+	}
+
+	/**
+	  * Clear all the islands
+	  */
+	void ResetIslands(const TParticleView<FPBDRigidParticles>& PBDRigids);
 
 	/**
 	  * Pack all the constraints into their assigned islands in sorted order
@@ -293,10 +293,13 @@ public:
 	void GraphIslandAdded(const int32 IslandIndex);
 	void GraphNodeAdded(FGeometryParticleHandle* NodeItem, const int32 NodeIndex);
 	void GraphNodeRemoved(FGeometryParticleHandle* NodeItem);
+	void GraphNodeLevelAssigned(FGraphNode& GraphNode);
 	void GraphEdgeAdded(const FConstraintHandleHolder& EdgeItem, const int32 EdgeIndex);
 	void GraphEdgeRemoved(const FConstraintHandleHolder& EdgeItem);
+	void GraphEdgeLevelAssigned(FGraphEdge& GraphEdge);
 
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+	bool DebugCheckParticlesInGraph(const TParticleView<FPBDRigidParticles>& Particles) const;
 	bool DebugCheckParticleNotInGraph(const FGeometryParticleHandle* ParticleHandle) const;
 	bool DebugParticleConstraintsNotInGraph(const FGeometryParticleHandle* Particle, const int32 ContainerId) const;
 	bool DebugCheckConstraintNotInGraph(const FConstraintHandle* ConstraintHandle) const;
@@ -311,6 +314,17 @@ protected:
 	void DebugCheckIslands() const;
 #endif
 
+	// Add a particle to the graph if it is not already in it. Return the node index if present (added or existing)
+	int32 TryAddParticle(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex);
+
+	// Add a particle to the graph if it is dynamic and not already in it. Return the node index if present, even if not dynamic
+	int32 TryAddParticleIfDynamic(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex);
+
+	// Add a particle to the graph if it is kinematic and not already in it. Return the node index if present, even if dynamic
+	int32 TryAddParticleIfNotDynamic(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex);
+
+	void InitIslands();
+
 	/**
 	* Sync the Islands with the IslandGraph
 	*/
@@ -324,6 +338,8 @@ protected:
 
 	void ValidateIslands() const;
 
+	TArray<FPBDConstraintContainer*>		ConstraintContainers;
+
 	/** List of solver islands in the manager */
 	TSparseArray<TUniquePtr<FPBDIsland>>	Islands;
 
@@ -333,13 +349,8 @@ protected:
 	/** Global graph to deal with merging and splitting of islands */
 	TUniquePtr<GraphType>					IslandGraph;
 
-	int32									MaxNumConstraintContainers;
-
 	/** Maximum particle index that we have in the graph*/
 	int32									MaxParticleIndex = INDEX_NONE;
-
-	/** Sorted list of islands */
-	TArray<int32>							SortedIslands;
 
 	/** Islands are only populated with constraints and particles during the solver phase. Trying to access them outside that is an error we can trap */
 	bool									bIslandsPopulated;

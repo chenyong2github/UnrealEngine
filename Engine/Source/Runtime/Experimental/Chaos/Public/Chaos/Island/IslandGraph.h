@@ -13,7 +13,6 @@ namespace Chaos
 	struct CHAOS_API TIslandGraphNode
 	{
 		/** List of edges connected to the node */
-		// @todo(chaos): should we really have a sparse array here? The implementation probably wastes a lot of memory
 		TSparseArray<int32> NodeEdges;
 
 		/**
@@ -21,14 +20,6 @@ namespace Chaos
 		 * Static/kinematic particles could belong to several islands and this is always INDEX_NONE.
 		 */
 		int32 IslandIndex = INDEX_NONE;
-
-		/**
-		 * List of islands in which the node is referenced. Should only be 1 item for valied nodes(
-		 * Dynamic/Sleeping Particles), and may be more if invalid (Static/Kinematic).
-		 * @note this array is populated externally (see see PopulateIslands in IslandManager.cpp)
-		 * @todo(chaos): should we really have a set here? The implementation probably wastes a lot of memory
-		 */
-		TSet<int32> NodeIslands;
 
 		/** Check if a node is valid (checked for graph partitioning into islands).
 		 * In the context of particles (nodes) and constraints (edges), bValidNode is true when
@@ -108,7 +99,10 @@ namespace Chaos
 		bool bIsPersistent = true;
 
 		/** Boolean to check if an island is sleeping or not */
-		bool bIsSleeping = true;
+		bool bIsSleeping = false;
+
+		/** Boolean to check if an island was sleeping last tick or not */
+		bool bWasSleeping = false;
 
 		/** List of children islands  to be merged */
 		// @todo(chaos): should we really have a set here? The implementation probably wastes a lot of memory
@@ -119,9 +113,6 @@ namespace Chaos
 
 		/** Island Item that is stored per island*/
 		IslandType IslandItem;
-
-		/** Max levels per island */
-		int32 MaxLevels = INDEX_NONE;
 
 		/** Max color per island */
 		int32 MaxColors = INDEX_NONE;
@@ -185,14 +176,12 @@ public:
 
 	/**
 	* Given a node item, update the graph node information (valid,discard...)
-	* @param NodeItem Node Item to be stored in the graph node
+	* @param NodeIndex Sparse Index of the node to update
 	* @param bValidNode Check if a node should be considered for graph partitioning (into islands)
-	* @param IslandIndex Potential island index we want the node to belong to
 	* @param bStationaryNode Boolean to check if a node is steady or not
-	*  @param NodeIndex Index to consider to update the graph node information
 	* @return Node index that has just been added
 	*/
-	void UpdateNode(const NodeType& NodeItem, const bool bValidNode, const int32 IslandIndex, const bool bStationaryNode, const int32 NodeIndex);
+	void UpdateNode(const int32 NodeIndex, const bool bValidNode, const bool bStationaryNode);
 
 	/**
 	 * Remove a node from the graph nodes list
@@ -232,17 +221,14 @@ public:
 	 */
 	void RemoveEdge(const int32 EdgeIndex);
 
+	/**
+	 * Update edge state based on current node state
+	 */
 	void UpdateEdge(const int32 EdgeIndex);
-
 	/**
-	* Remove all the edges from the graph
-	*/
-	void ResetIslands();
-
-	/**
-	* Init the islands (remove edges only for non sleeping islands)
-	*/
-	void InitIslands();
+	 * Remove all non-sleeping edges from the graph
+	 */
+	void RemoveAllAwakeEdges();
 
 	/**
 	 * Get the maximum number of edges that are inside a graph (SparseArray size)
@@ -342,17 +328,20 @@ public:
 
 	/**
 	* Check if at least one of the 2 edge nodes is moving
-	* @param EdgeIndex Index of the edge to check
 	* @return Boolean to check if the edge is moving or not
 	*/
+	bool IsEdgeMoving(const FGraphEdge& GraphEdge)
+	{
+		const bool bFirstNodeMoving = GraphNodes.IsValidIndex(GraphEdge.FirstNode) && !GraphNodes[GraphEdge.FirstNode].bStationaryNode;
+		const bool bSecondNodeMoving = GraphNodes.IsValidIndex(GraphEdge.SecondNode) && !GraphNodes[GraphEdge.SecondNode].bStationaryNode;
+		return bFirstNodeMoving || bSecondNodeMoving;
+	}
+
 	bool IsEdgeMoving(const int32 EdgeIndex)
 	{
 		if(GraphEdges.IsValidIndex(EdgeIndex))
 		{
-			const FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
-			const bool bFirstNodeMoving = GraphNodes.IsValidIndex(GraphEdge.FirstNode) && !GraphNodes[GraphEdge.FirstNode].bStationaryNode;
-			const bool bSecondNodeMoving = GraphNodes.IsValidIndex(GraphEdge.SecondNode) && !GraphNodes[GraphEdge.SecondNode].bStationaryNode;
-			return bFirstNodeMoving || bSecondNodeMoving;
+			return IsEdgeMoving(GraphEdges[EdgeIndex]);
 		}
 		return false;
 	}
@@ -365,6 +354,25 @@ public:
 			Owner->GraphIslandAdded(IslandIndex);
 		}
 		return IslandIndex;
+	}
+
+	void SetNodeLevel(FGraphNode& GraphNode, const int32 LevelIndex)
+	{
+		GraphNode.LevelIndex = LevelIndex;
+		if (Owner != nullptr)
+		{
+			Owner->GraphNodeLevelAssigned(GraphNode);
+		}
+	}
+
+
+	void SetEdgeLevel(FGraphEdge& GraphEdge, const int32 LevelIndex)
+	{
+		GraphEdge.LevelIndex = LevelIndex;
+		if (Owner != nullptr)
+		{
+			Owner->GraphEdgeLevelAssigned(GraphEdge);
+		}
 	}
 
 	FGraphOwner* Owner = nullptr;
@@ -399,9 +407,11 @@ struct TNullIslandGraphOwner
 
 	void GraphNodeAdded(const NodeType& NodeItem, const int32 NodeIndex) {}
 	void GraphNodeRemoved(const NodeType& NodeItem) {}
+	void GraphNodeLevelAssigned(TIslandGraphNode<NodeType>& Node) {}
 
 	void GraphEdgeAdded(const EdgeType& EdgeItem, const int32 EdgeIndex) {}
 	void GraphEdgeRemoved(const EdgeType& EdgeItem) {}
+	void GraphEdgeLevelAssigned(TIslandGraphEdge<EdgeType>& Edge) {}
 };
 
 

@@ -99,6 +99,10 @@ namespace ChaosTest {
 				SphereDynamic->InvI() = TVec3<FRealSingle>(1. / 100000.);
 				Evolution.SetPhysicsMaterial(SphereDynamic, Material);
 				ParticleHandles.Add(SphereDynamic);
+
+				Evolution.EnableParticle(BoxDynamic);
+				Evolution.EnableParticle(SphereDynamic);
+
 #if USE_CONSTRAINTS
 				FVec3 JointLocation(x * Interval, y * Interval, Height * (FReal)0.75);
 				FPBDJointConstraints::FConstraintContainerHandle* NewJoint = Joints.AddConstraint({ BoxDynamic, SphereDynamic }, FRigidTransform3(Offset + JointLocation, FRotation3::FromIdentity()));

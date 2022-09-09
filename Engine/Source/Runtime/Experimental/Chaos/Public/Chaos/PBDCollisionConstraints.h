@@ -269,6 +269,7 @@ private:
 
 	FCollisionConstraintAllocator ConstraintAllocator;
 	int32 NumActivePointConstraints;
+	TArray<FPBDCollisionConstraintHandle*> TempCollisions;	// Reused from tick to tick to build contact lists
 
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;

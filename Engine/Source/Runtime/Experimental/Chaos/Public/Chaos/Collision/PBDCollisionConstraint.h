@@ -273,6 +273,13 @@ namespace Chaos
 		*/
 		static FPBDCollisionConstraint MakeCopy(const FPBDCollisionConstraint& Source);
 
+		/**
+		 * Restore the properties of a collision from the properties of another. Used by the rewind/resim system when restoring
+		 * a collision constraint that was saved (and called MakeCopy).
+		 * This takes care not to overwrite any data maintained for the use of other systems (the ContainerCookie, Graph data, etc)
+		 */
+		void RestoreFrom(const FPBDCollisionConstraint& Source);
+
 		FPBDCollisionConstraint();
 		virtual ~FPBDCollisionConstraint();
 
@@ -647,6 +654,14 @@ namespace Chaos
 					SavedManifoldPoint.ShapeContactPoints[1] = FVec3::Lerp(ManifoldPoint.ContactPoint.ShapeContactPoints[1], ManifoldPoint.ShapeAnchorPoints[1], StaticFrictionRatio);
 				}
 			}
+		}
+
+		/**
+		 *	A key used to uniquely identify the constraint (it is based on the two particle IDs)
+		 */
+		FCollisionParticlePairKey GetParticlePairKey() const
+		{
+			return FCollisionParticlePairKey(GetParticle0(), GetParticle1());
 		}
 
 	public:

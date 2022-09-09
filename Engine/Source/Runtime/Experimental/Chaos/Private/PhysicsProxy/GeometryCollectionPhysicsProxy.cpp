@@ -187,8 +187,6 @@ void PopulateSimulatedParticle(
 	Handle->SetW(Chaos::FVec3(0.f));
 	Handle->SetP(Handle->X());
 	Handle->SetQ(Handle->R());
-	Handle->SetIslandIndex(INDEX_NONE);
-	Handle->SetConstraintGraphIndex(INDEX_NONE);
 	Handle->SetCenterOfMass(FVector3f::ZeroVector);
 	Handle->SetRotationOfMass(FQuat::Identity);
 
@@ -757,7 +755,7 @@ void FGeometryCollectionPhysicsProxy::CreateNonClusteredParticles(Chaos::FPBDRig
 			Handle->GTGeometryParticle() = GTParticles[Idx].Get();
 
 			check(SolverParticleHandles[Idx]->GetParticleType() == Handle->GetParticleType());
-			RigidsSolver->GetEvolution()->CreateParticle(Handle);
+			RigidsSolver->GetEvolution()->RegisterParticle(Handle);
 		}
 	}
 
@@ -909,6 +907,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				{
 					Shape->SetMaterial(Parameters.PhysicalMaterialHandle);
 				}
+
+				RigidsSolver->GetEvolution()->EnableParticle(Handle);
 			}
 		},true);
 
@@ -1299,6 +1299,8 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 	const FVector::FReal MassScale = WorldScale.X * WorldScale.Y * WorldScale.Z;
 	const Chaos::FVec3f ScaledInertia = Chaos::Utilities::ScaleInertia<float>((Chaos::FVec3f)InertiaTensor[CollectionClusterIndex], FVector3f(WorldScale), true);  
 	
+	// NOTE: The particle creation call above (CreateClusterParticle) activates the particle, which does various things including adding
+	// it to the constraint graph. It seems a bit dodgy to be completely changing what the particle is after it has been enabled. Maybe we should fix this.
 	PopulateSimulatedParticle(
 		Parent,
 		Parameters.Shared, 

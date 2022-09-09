@@ -59,6 +59,8 @@ namespace ChaosTest
 			}
 			Evolution.SetPhysicsMaterial(&Particle, MakeSerializable(PhysicalMaterial));
 
+			Evolution.EnableParticle(&Particle);
+
 			return &Particle;
 		}
 

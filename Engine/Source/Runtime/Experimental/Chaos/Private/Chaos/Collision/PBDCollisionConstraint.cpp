@@ -144,8 +144,8 @@ namespace Chaos
 		return Constraint;
 	}
 
-	FPBDCollisionConstraint FPBDCollisionConstraint::MakeCopy(
-		const FPBDCollisionConstraint& Source)
+	// Used by the resim system. Constraints copied this way will later be returned via RestoreFrom()
+	FPBDCollisionConstraint FPBDCollisionConstraint::MakeCopy(const FPBDCollisionConstraint& Source)
 	{
 		// @todo(chaos): The resim cache version probably doesn't need all the data, so maybe try to cut this down?
 		FPBDCollisionConstraint Constraint = Source;
@@ -158,6 +158,22 @@ namespace Chaos
 		Constraint.SetConstraintGraphIndex(INDEX_NONE);
 
 		return Constraint;
+	}
+
+	// Used by the resim system. Restore a constraint from the past that we saved with MakeCopy
+	void FPBDCollisionConstraint::RestoreFrom(const FPBDCollisionConstraint& Source)
+	{
+		// We do not want to overwrite these properties because they are managed by the systems
+		// where the constraint is registsred (allocator, container, graph).
+		const FPBDCollisionConstraintContainerCookie Cookie = ContainerCookie;
+		const int32 ConstraintGraphIndex = GetConstraintGraphIndex();
+
+		// Copy everything
+		*this = Source;
+
+		// Restore the system state
+		ContainerCookie = Cookie;
+		SetConstraintGraphIndex(ConstraintGraphIndex);
 	}
 
 	FPBDCollisionConstraint::FPBDCollisionConstraint()

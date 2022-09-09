@@ -54,6 +54,9 @@ namespace ChaosTest
 		// Make sure the particles would collide if Dynamic wasn't a probe
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
+		Evolution.EnableParticle(Static);
+		Evolution.EnableParticle(Dynamic);
+
 		// 1 step should be enough to cause a collision event
 		Evolution.AdvanceOneTimeStep(Dt);
 		Evolution.EndFrame(Dt);
@@ -101,6 +104,9 @@ namespace ChaosTest
 
 		// Make sure the particles would collide if Dynamic wasn't a probe
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
+
+		Evolution.EnableParticle(Static);
+		Evolution.EnableParticle(Dynamic);
 
 		// 1 step should be enough to cause a collision event
 		Evolution.AdvanceOneTimeStep(Dt);

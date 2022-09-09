@@ -23,8 +23,8 @@ namespace Chaos
 	 * by a FParticlePairMidPhase object. the MidPhase object is what actually calls the Narrow Phase and maintains
 	 * the set of collision constraints for all the shape pairs on the particles.
 	 * 
-	 * Constraints are allocated during the collision detection phase and retained between ticks. An attempt ot create
-	 * a constraint for the same shape pair as seen on the previous tick will return the existing collision constraint, with
+	 * Constraints are allocated during the collision detection phase and retained between ticks. An attempt to create
+	 * a constraint for the same shape pair as seen on the previous tick will return the existing collision constraint with
 	 * all of its data intact.
 	 *
 	 * The allocator also keeps a list of Standard and Swept collision constraints that are active for the current tick.
@@ -36,9 +36,14 @@ namespace Chaos
 	 * counter.
 	 * 
 	 * The Midphase list is pruned at the end of each tick so if particles are destroyed or a particle pair is no longer 
-	 * overlapping.
+	 * overlapping, the collisions will be destroyed.
+	 * 
+	 * When particles are destroyed, we do not immediately destroy the MidPhases (or Collisions) that are associoated with
+	 * the particle. Instead, we clear the particle pointer from them, but leave their destruction to the pruning process.
+	 * This avoids the need to parse collision and midphase lists whenever a particle is disabled.
 	 * 
 	 * NOTE: To reduce RBAN memory use, we do not create any collision blocks until the first call to CreateCollisionConstraint
+	 * (see ConstraintPool initialization)
 	*/
 	class CHAOS_API FCollisionConstraintAllocator
 	{
@@ -136,6 +141,19 @@ namespace Chaos
 		int32 GetCurrentEpoch() const
 		{
 			return CurrentEpoch;
+		}
+
+		/**
+		* Has the constraint expired. An expired constraint is one that was not refreshed this tick.
+		* 
+		* @note Sleeping constrainst will report they are expired, but they should not be deleted until awoken.
+		* We deliberately don't check the sleeping flag here because it adds a cache miss. This function
+		* should be called only when you already know the sleep state (or you must also check IsSleeping())
+		*/
+		bool IsConstraintExpired(const FPBDCollisionConstraint& Constraint)
+		{
+			const bool bIsExpired = Constraint.GetContainerCookie().LastUsedEpoch < CurrentEpoch;
+			return bIsExpired;
 		}
 
 		/**
@@ -363,8 +381,7 @@ namespace Chaos
 
 		FParticlePairMidPhase* FindParticlePairMidPhaseImpl(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticle)
 		{
-			// Find the existing midphase from one of the particle's lists of midphases
-//			FGeometryParticleHandle* SearchParticle2 = (Particle0->ParticleCollisions().Num() <= Particle1->ParticleCollisions().Num()) ? Particle0 : Particle1;
+			check((SearchParticle == Particle0) || (SearchParticle == Particle1));
 
 			const FCollisionParticlePairKey Key = FCollisionParticlePairKey(Particle0, Particle1);
 			return SearchParticle->ParticleCollisions().FindMidPhase(Key.GetKey());
@@ -374,7 +391,7 @@ namespace Chaos
 		{
 			const FCollisionParticlePairKey Key = FCollisionParticlePairKey(Particle0, Particle1);
 
-			// We enqueue a raw pointer and wrap it in a UniquePtr later
+			// We enqueue a raw pointer so that we can use a lock-free queue. We wrap it in a UniquePtr later 
 			FParticlePairMidPhase* MidPhase = new FParticlePairMidPhase();
 			MidPhase->Init(Particle0, Particle1, Key, *this);
 

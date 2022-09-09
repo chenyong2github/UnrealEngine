@@ -471,6 +471,7 @@ namespace Chaos
 		}
 	}
 
+	// This fucntion is called by the resim system to add/replace a collision with one from the history buffer
 	void FSingleShapePairCollisionDetector::SetCollision(const FPBDCollisionConstraint& SourceConstraint)
 	{
 		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
@@ -483,10 +484,8 @@ namespace Chaos
 			Constraint->GetContainerCookie().CreationEpoch = CurrentEpoch;
 		}
 
-		// Copy the constraint over the existing one, taking care to leave the cookie intact
-		const FPBDCollisionConstraintContainerCookie Cookie = Constraint->GetContainerCookie();
-		*Constraint = SourceConstraint;
-		Constraint->GetContainerCookie() = Cookie;
+		// Copy the constraint data over the existing one (ensure we do not replace data required by the graph and the allocator/container)
+		Constraint->RestoreFrom(SourceConstraint);
 
 		// Add the constraint to the active list
 		// If the constraint already existed and was already active, this will do nothing

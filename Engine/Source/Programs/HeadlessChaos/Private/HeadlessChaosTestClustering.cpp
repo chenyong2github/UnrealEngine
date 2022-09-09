@@ -34,12 +34,14 @@ namespace ChaosTest {
 		uint32 BoxId = FirstId++;
 		FPBDRigidParticleHandle* Box2 = AppendClusteredParticleBox(Particles, FVec3((FReal)100, (FReal)100, (FReal)100));
 		uint32 Box2Id = FirstId++;
-		
+
 		Box2->X() = FVec3((FReal)100, (FReal)0, (FReal)0);
 		Box2->P() = Box2->X();
 
+		Evolution.EnableParticle(Box1);
+		Evolution.EnableParticle(Box2);
+
 		Evolution.AdvanceOneTimeStep(0);	//hack to initialize islands
-		//Evolution.InitializeAccelerationStructures();	//make sure islands are created
 		FClusterCreationParameters ClusterParams;
 		
 		TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
@@ -87,6 +89,8 @@ namespace ChaosTest {
 			Box->X() = FVec3((FReal)i * (FReal)100, (FReal)0, (FReal)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
+
+			Evolution.EnableParticle(Box);
 		}
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to generate islands
@@ -206,6 +210,8 @@ namespace ChaosTest {
 			Box->X() = FVec3((FReal)i * (FReal)100, (FReal)0, (FReal)0);
 			Box->P() = Box->X();
 			Boxes.Add(Box);
+
+			Evolution.EnableParticle(Box);
 		}
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to generate islands

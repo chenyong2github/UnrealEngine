@@ -1525,6 +1525,8 @@ namespace ChaosTest
 		Dynamic->I() = TVec3<FRealSingle>(100000.0f);
 		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
+		Evolution.EnableParticle(Dynamic);
+
 		float AccumulatedTime = 0.f;
 		const FReal Dt = 1 / 30.f;
 		for (int i = 0; i < 500; ++i)

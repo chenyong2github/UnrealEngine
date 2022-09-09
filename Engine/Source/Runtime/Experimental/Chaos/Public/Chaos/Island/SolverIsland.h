@@ -162,16 +162,17 @@ namespace Chaos
 		/**
 		* Members accessors
 		*/
-		FORCEINLINE bool IsSleeping() const {return bIsSleeping;}
-		FORCEINLINE void SetIsSleeping(const bool bIsSleepingIn ) { bSleepingChanged = bSleepingChanged || (bIsSleeping != bIsSleepingIn); bIsSleeping = bIsSleepingIn; }
-		FORCEINLINE void ResetSleepingChanged() { bSleepingChanged = false; }
+		FORCEINLINE bool IsSleeping() const { return bIsSleeping; }
+		FORCEINLINE void SetIsSleeping(const bool bInIsSleepingIn) { bIsSleeping = bInIsSleepingIn; }
+		FORCEINLINE bool IsSleepingChanged() const { return bIsSleepingChanged; }
+		FORCEINLINE void SetIsSleepingChanged(const bool bInIsSleepingChanged) { bIsSleepingChanged = bInIsSleepingChanged; }
+
 		FORCEINLINE bool IsPersistent() const { return bIsPersistent; }
 		FORCEINLINE void SetIsPersistent(const bool bIsPersistentIn) { bIsPersistent = bIsPersistentIn; }
 		FORCEINLINE bool NeedsResim() const { return bNeedsResim; }
 		FORCEINLINE void SetNeedsResim(const bool bNeedsResimIn) { bNeedsResim = bNeedsResimIn; }
 		FORCEINLINE int32 GetSleepCounter() const { return SleepCounter; }
 		FORCEINLINE void SetSleepCounter(const int32 SleepCounterIn) { SleepCounter = SleepCounterIn; }
-		FORCEINLINE bool SleepingChanged() const { return bSleepingChanged; }
 		FORCEINLINE void SetIsUsingCache(const bool bIsUsingCacheIn ) { bIsUsingCache = bIsUsingCacheIn; }
 		FORCEINLINE bool IsUsingCache() const { return bIsUsingCache; }
 	
@@ -181,6 +182,30 @@ namespace Chaos
 		void PropagateSleepState(FPBDRigidsSOAs& Particles);
 
 		void UpdateSyncState(FPBDRigidsSOAs& Particles);
+
+		// Debug functionality
+		bool DebugContainsParticle(const FConstGenericParticleHandle& ParticleHandle) const
+		{
+			for (const FPBDIslandParticle& IslandParticle : IslandParticles)
+			{
+				if (IslandParticle.GetParticle() == ParticleHandle->Handle())
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		bool DebugContainsConstraint(FConstraintHandle* ConstraintHandle) const
+		{
+			for (const FPBDIslandConstraint& IslandConstraint : IslandConstraintsByType[ConstraintHandle->GetContainerId()])
+			{
+				if (ConstraintHandle == IslandConstraint.GetConstraint())
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 
 	private:
 
@@ -196,7 +221,7 @@ namespace Chaos
 		bool bIsPersistent = true;
 
 		/** Flag to check if the sleeping state has changed or not */
-		bool bSleepingChanged = false;
+		bool bIsSleepingChanged = false;
 
 		/** Sleep counter to trigger island sleeping */
 		int32 SleepCounter = 0;
@@ -205,7 +230,8 @@ namespace Chaos
 		TArray<FPBDIslandParticle> IslandParticles;
 
 		/** List of all the island constraints handles */
-		TArray<TArray<FPBDIslandConstraint>> IslandConstraintsByType;
+		static constexpr int32 NumExpectedConstraintTypes = 5;
+		TArray<TArray<FPBDIslandConstraint>, TInlineAllocator<NumExpectedConstraintTypes>> IslandConstraintsByType;
 		int32 NumConstraints;
 	
 		/** Check if the island is using the cache or not */

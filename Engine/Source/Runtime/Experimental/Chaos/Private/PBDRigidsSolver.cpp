@@ -1086,7 +1086,7 @@ namespace Chaos
 					Rigid->SetPreObjectStateLowLevel(Rigid->ObjectState());	//created this frame so pre is the initial value
 				}
 				Handle->SetPhysicsProxy(Proxy);
-				GetEvolution()->CreateParticle(Handle);
+				GetEvolution()->RegisterParticle(Handle);
 				Proxy->SetInitialized(GetCurrentFrame());
 			}
 		};

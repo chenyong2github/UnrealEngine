@@ -414,6 +414,7 @@ protected:
 	TGeometryParticleHandleImp()
 		: TParticleHandleBase<T, d>()
 	{
+		SetConstraintGraphIndex(INDEX_NONE);
 	}
 
 	TGeometryParticleHandleImp(TSerializablePtr<TGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FGeometryParticleParameters& Params)
@@ -425,6 +426,7 @@ protected:
 		GeometryParticleDefaultConstruct<T, d>(*this, Params);
 		SetHasBounds(false);
 		SetLightWeightDisabled(false);
+		SetConstraintGraphIndex(INDEX_NONE);
 	}
 
 	template <typename TParticlesType, typename TParams>
@@ -446,6 +448,9 @@ public:
 
 	~TGeometryParticleHandleImp()
 	{
+		// If we weren't removed from the graph, invalid pointer dereferencing is possible
+		check(ConstraintGraphIndex() == INDEX_NONE);
+
 		if (bPersistent)
 		{
 			GeometryParticles->ResetWeakParticleHandle(ParticleIdx);
@@ -708,6 +713,21 @@ public:
 		return GeometryParticles->ParticleCollisions(ParticleIdx);
 	}
 
+	int32 ConstraintGraphIndex() const
+	{ 
+		return GeometryParticles->ConstraintGraphIndex(ParticleIdx);
+	}
+	
+	void SetConstraintGraphIndex(const int32 InGraphIndex)
+	{ 
+		GeometryParticles->ConstraintGraphIndex(ParticleIdx) = InGraphIndex;
+	}
+
+	bool IsInConstraintGraph() const
+	{
+		return ConstraintGraphIndex() != INDEX_NONE;
+	}
+
 protected:
 
 	friend TGeometryParticleHandles<T, d>;
@@ -847,7 +867,6 @@ protected:
 		SetAngularAcceleration(TVector<T, d>(0));
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 		SetIslandIndex(INDEX_NONE);
-		SetConstraintGraphIndex(INDEX_NONE);
 		SetToBeRemovedOnFracture(false);
 		SetSleepType(ESleepType::MaterialSleep);
 		SetInvIConditioning(TVec3<FRealSingle>(1));
@@ -1026,10 +1045,6 @@ public:
 	int32& IslandIndex() { return PBDRigidParticles->IslandIndex(ParticleIdx); }
 	void SetIslandIndex(const int32 InIslandIndex) { PBDRigidParticles->IslandIndex(ParticleIdx) = InIslandIndex; }
 	
-	int32 ConstraintGraphIndex() const { return PBDRigidParticles->ConstraintGraphIndex(ParticleIdx); }
-	int32& ConstraintGraphIndex() { return PBDRigidParticles->ConstraintGraphIndex(ParticleIdx); }
-	void SetConstraintGraphIndex(const int32 InGraphIndex) { PBDRigidParticles->ConstraintGraphIndex(ParticleIdx) = InGraphIndex; }
-
 	bool ToBeRemovedOnFracture() const { return PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx); }
 	bool& ToBeRemovedOnFracture() { return PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx); }
 	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
@@ -1827,6 +1842,21 @@ public:
 				RigidHandle->IslandIndex() = IslandIndex;
 			}
 		}
+	}
+
+	FORCEINLINE int32 ConstraintGraphIndex() const
+	{
+		return MHandle->ConstraintGraphIndex();
+	}
+
+	FORCEINLINE void SetConstraintGraphIndex(const int32 InGraphIndex)
+	{
+		MHandle->SetConstraintGraphIndex(InGraphIndex);
+	}
+
+	FORCEINLINE bool IsInConstraintGraph() const
+	{
+		return MHandle->IsInConstraintGraph();
 	}
 
 	bool ToBeRemovedOnFracture() const 
