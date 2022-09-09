@@ -95,6 +95,10 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 			FAnimAssetTickContext TickContext(InDeltaSeconds, RootMotionMode, bOnlyOneAnimationInGroup, SyncGroup.ValidMarkers);
 			if (PreviousGroup)
 			{
+				// Initialize the anim position ratio from the previous frame's final anim position ratio in case we're not using marker based sync
+				TickContext.SetPreviousAnimationPositionRatio(PreviousGroup->AnimLengthRatio);
+				TickContext.SetAnimationPositionRatio(PreviousGroup->AnimLengthRatio);
+
 				const FMarkerSyncAnimPosition& EndPosition = PreviousGroup->MarkerTickContext.GetMarkerSyncEndPosition();
 				if ( EndPosition.IsValid() &&
 						(EndPosition.PreviousMarkerName == NAME_None || SyncGroup.ValidMarkers.Contains(EndPosition.PreviousMarkerName)) &&
@@ -121,6 +125,22 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				// if it has leader score
 				SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
 				FScopeCycleCounterUObject Scope(GroupLeader.SourceAsset);
+
+				// determine if we are (re)joining the sync group (ie: that we were not part of the sync group on the previous update)
+				bool bIsJoiningSyncGroup = true;
+				if (PreviousGroup)
+				{
+					for (const FAnimTickRecord& PreviousPlayer : PreviousGroup->ActivePlayers)
+					{
+						if (PreviousPlayer.SourceAsset == GroupLeader.SourceAsset && PreviousPlayer.TimeAccumulator == GroupLeader.TimeAccumulator)
+						{
+							bIsJoiningSyncGroup = false;
+							break;
+						}
+					}
+				}
+				TickContext.SetJoiningSyncGroup(bIsJoiningSyncGroup);
+
 				TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
 				TickContext.RootMotionMovementParams.Clear();
 				GroupLeader.SourceAsset->TickAssetPlayer(GroupLeader, InProxy.NotifyQueue, TickContext);
@@ -133,6 +153,8 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				// if we're not using marker based sync, we don't care, get out
 				if (TickContext.CanUseMarkerPosition() == false)
 				{
+					SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
+					SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
 					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
 					break;
 				}
@@ -140,6 +162,8 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				else if (TickContext.MarkerTickContext.IsMarkerSyncEndValid())
 				{
 					// if this leader contains correct position, break
+					SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
+					SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
 					SyncGroup.MarkerTickContext = TickContext.MarkerTickContext;
 					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
 					UE_LOG(LogAnimMarkerSync, Log, TEXT("Previous Sync Group Marker Tick Context :\n%s"), *SyncGroup.MarkerTickContext.ToString());
@@ -148,6 +172,8 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				}
 				else
 				{
+					SyncGroup.PreviousAnimLengthRatio = TickContext.GetPreviousAnimationPositionRatio();
+					SyncGroup.AnimLengthRatio = TickContext.GetAnimationPositionRatio();
 					SyncGroup.GroupLeaderIndex = GroupLeaderIndex;
 					UE_LOG(LogAnimMarkerSync, Log, TEXT("Invalid position from Leader %d. Trying next leader"), GroupLeaderIndex);
 				}
@@ -208,7 +234,8 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				// if we don't have a good leader, no reason to convert to follower
 				// tick as leader
 				TickContext.ConvertToFollower();
-	
+				TickContext.SetJoiningSyncGroup(false);
+
 				for (int32 TickIndex = GroupLeaderIndex + 1; TickIndex < SyncGroup.ActivePlayers.Num(); ++TickIndex)
 				{
 					FAnimTickRecord& AssetPlayer = SyncGroup.ActivePlayers[TickIndex];
@@ -332,6 +359,10 @@ FMarkerSyncAnimPosition FAnimSync::GetSyncGroupPosition(FName InSyncGroupName) c
 		if (SyncGroupInstancePtr->bCanUseMarkerSync && SyncGroupInstancePtr->MarkerTickContext.IsMarkerSyncEndValid())
 		{
 			return SyncGroupInstancePtr->MarkerTickContext.GetMarkerSyncEndPosition();
+		}
+		else
+		{
+			return FMarkerSyncAnimPosition(NAME_None, NAME_None, SyncGroupInstancePtr->AnimLengthRatio);
 		}
 	}
 

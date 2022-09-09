@@ -303,18 +303,18 @@ struct FMarkerSyncAnimPosition
 	GENERATED_USTRUCT_BODY()
 
 	/** The marker we have passed*/
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sync)
 	FName PreviousMarkerName;
 
 	/** The marker we are heading towards */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sync)
 	FName NextMarkerName;
 
 	/** Value between 0 and 1 representing where we are:
 	0   we are at PreviousMarker
 	1   we are at NextMarker
 	0.5 we are half way between the two */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sync)
 	float PositionBetweenMarkers;
 
 	/** Is this a valid Marker Sync Position */
@@ -605,11 +605,19 @@ public:
 
 	FMarkerTickContext MarkerTickContext;
 
+	// Float in 0 - 1 range representing how far through an animation we were before ticking
+	float PreviousAnimLengthRatio;
+
+	// Float in 0 - 1 range representing how far through an animation we are
+	float AnimLengthRatio;
+
 public:
 	FAnimGroupInstance()
 		: GroupLeaderIndex(INDEX_NONE)
 		, bCanUseMarkerSync(false)
 		, MontageLeaderWeight(0.f)
+		, PreviousAnimLengthRatio(0.f)
+		, AnimLengthRatio(0.f)
 	{
 	}
 
@@ -620,6 +628,8 @@ public:
 		bCanUseMarkerSync = false;
 		MontageLeaderWeight = 0.f;
 		MarkerTickContext = FMarkerTickContext();
+		PreviousAnimLengthRatio = 0.f;
+		AnimLengthRatio = 0.f;
 	}
 
 	// Checks the last tick record in the ActivePlayers array to see if it's a better leader than the current candidate.
@@ -792,6 +802,7 @@ public:
 		, bIsMarkerPositionValid(ValidMarkerNames.Num() > 0)
 		, bIsLeader(true)
 		, bOnlyOneAnimationInGroup(bInOnlyOneAnimationInGroup)
+		, bIsJoiningSyncGroup(false)
 	{
 	}
 
@@ -804,6 +815,7 @@ public:
 		, bIsMarkerPositionValid(false)
 		, bIsLeader(true)
 		, bOnlyOneAnimationInGroup(bInOnlyOneAnimationInGroup)
+		, bIsJoiningSyncGroup(false)
 	{
 	}
 
@@ -844,17 +856,15 @@ public:
 		AnimLengthRatio = NormalizedTime;
 	}
 
-	// Returns the previous synchronization point (normalized time; only legal to call if ticking a follower)
+	// Returns the previous synchronization point (normalized time)
 	float GetPreviousAnimationPositionRatio() const
 	{
-		checkSlow(!bIsLeader);
 		return PreviousAnimLengthRatio;
 	}
 
-	// Returns the synchronization point (normalized time; only legal to call if ticking a follower)
+	// Returns the synchronization point (normalized time)
 	float GetAnimationPositionRatio() const
 	{
-		checkSlow(!bIsLeader);
 		return AnimLengthRatio;
 	}
 
@@ -883,6 +893,17 @@ public:
 		return bOnlyOneAnimationInGroup;
 	}
 
+	void SetJoiningSyncGroup(bool bInIsJoiningSyncGroup)
+	{
+		bIsJoiningSyncGroup = bInIsJoiningSyncGroup;
+	}
+
+	// Are we (re)joining the sync group this tick (eg: when initializing or resuming from zero weight)?
+	bool IsJoiningSyncGroup() const
+	{
+		return bIsJoiningSyncGroup;
+	}
+
 	//Root Motion accumulated from this tick context
 	FRootMotionMovementParams RootMotionMovementParams;
 
@@ -907,6 +928,9 @@ private:
 	bool bIsLeader;
 
 	bool bOnlyOneAnimationInGroup;
+
+	// True if the asset player being ticked was not previously part of the sync group (eg: it was inactive and has now reactivated)
+	bool bIsJoiningSyncGroup;
 };
 
 USTRUCT()
