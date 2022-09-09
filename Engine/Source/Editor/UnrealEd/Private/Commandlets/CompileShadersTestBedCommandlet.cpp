@@ -150,28 +150,28 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
 		}
-	}
 
-	// Block on all the jobs submitted above.
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(BlockOnShaderCompiles);
-
-		GShaderCompilingManager->FinishAllCompilation();
-	}
-
-	// Perform cleanup and clear cached data for cooking.
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ClearCachedCookedPlatformData);
-
-		for (const FAssetData& AssetData : MaterialList)
+		// Block on all the jobs submitted above.
 		{
-			if (UMaterial* Material = Cast<UMaterial>(AssetData.GetAsset()))
+			TRACE_CPUPROFILER_EVENT_SCOPE(BlockOnShaderCompiles);
+
+			GShaderCompilingManager->FinishAllCompilation();
+		}
+
+		// Perform cleanup and clear cached data for cooking.
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ClearCachedCookedPlatformData);
+
+			for (const FAssetData& AssetData : MaterialList)
 			{
-				Material->ClearAllCachedCookedPlatformData();
-			}
-			else if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(AssetData.GetAsset()))
-			{
-				MaterialInstance->ClearAllCachedCookedPlatformData();
+				if (UMaterial* Material = Cast<UMaterial>(AssetData.GetAsset()))
+				{
+					Material->ClearAllCachedCookedPlatformData();
+				}
+				else if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(AssetData.GetAsset()))
+				{
+					MaterialInstance->ClearAllCachedCookedPlatformData();
+				}
 			}
 		}
 	}
