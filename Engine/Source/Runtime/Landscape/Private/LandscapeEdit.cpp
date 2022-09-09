@@ -26,6 +26,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "Materials/MaterialExpressionLandscapeLayerSample.h"
 #include "Materials/MaterialExpressionLandscapeLayerBlend.h"
 #include "Materials/MaterialExpressionLandscapeLayerSwitch.h"
+#include "Materials/MaterialExpressionLandscapePhysicalMaterialOutput.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeRender.h"
 #include "LandscapePrivate.h"
@@ -56,7 +57,6 @@ LandscapeEdit.cpp: Landscape editing
 #include "NaniteBuilder.h"
 #include "Rendering/NaniteResources.h"
 #include "Misc/ScopedSlowTask.h"
-
 #include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -94,6 +94,11 @@ static TAutoConsoleVariable<int32> CVarMobileCompressLanscapeWeightMaps(
 	0,
     TEXT("Whether to compress the terrain weight maps for mobile."),
 	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarLandscapeApplyPhysicalMaterialChangesImmediately(
+    TEXT("landscape.ApplyPhysicalMaterialChangesImmediately"),
+	1,
+    TEXT("Applies physical material task changes immediately rather than during the next cook/PIE."));
 
 #if WITH_EDITOR
 
@@ -1674,12 +1679,50 @@ uint32 ULandscapeComponent::CalculatePhysicalMaterialTaskHash() const
 	return Hash;
 }
 
+bool ULandscapeComponent::GetRenderPhysicalMaterials(TArray<UPhysicalMaterial*>& OutPhysicalMaterials) const 
+{
+	bool bReturnValue = false;
+	OutPhysicalMaterials.Reset();
+
+	if (UMaterialInterface* Material = GetLandscapeMaterial())
+	{
+		ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+		{
+			TArray<const UMaterialExpressionLandscapePhysicalMaterialOutput*> Expressions;
+			Material->GetMaterial()->GetAllExpressionsOfType<UMaterialExpressionLandscapePhysicalMaterialOutput>(Expressions);
+			if (Expressions.Num() > 0)
+			{
+				// Assume only one valid physical material output material node
+				for (const FPhysicalMaterialInput& Input : Expressions[0]->Inputs)
+				{
+					OutPhysicalMaterials.Add(Input.PhysicalMaterial);
+					bReturnValue |= (Input.PhysicalMaterial != nullptr);
+				}
+			}
+		}
+	}
+
+	return bReturnValue;
+}
+
 void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 {
 	uint32 Hash = CalculatePhysicalMaterialTaskHash();
 	if (PhysicalMaterialHash != Hash)
 	{
-		PhysicalMaterialTask.Init(this);
+		TArray<UPhysicalMaterial*> PhysicalMaterials;
+		if (GetRenderPhysicalMaterials(PhysicalMaterials))
+		{
+			bool bSuccess = PhysicalMaterialTask.Init(this);
+			check(bSuccess && PhysicalMaterialTask.IsValid());
+		}
+		else
+		{
+			// Clear the renderable physical material properties as we don't need them :
+			CollisionComponent->PhysicalMaterialRenderObjects.Reset();
+			CollisionComponent->PhysicalMaterialRenderData.RemoveBulkData();
+			PhysicalMaterialTask.Release();
+		}
 		PhysicalMaterialHash = Hash;
 	}
 
@@ -1691,8 +1734,12 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 
 			PhysicalMaterialTask.Release();
 
-			// We do not force an update of the physics data here. 
-			// We don't need the information immediately in the editor and update will happen on cook or PIE.
+			// Potentially, we do not force an update of the physics data here (behind a CVar, as we don't necessarily need the 
+			//  information immediately in the editor and update will happen on cook or PIE) :
+			if (CVarLandscapeApplyPhysicalMaterialChangesImmediately.GetValueOnGameThread() != 0)
+			{
+				CollisionComponent->RecreateCollision();
+			}
 		}
 		else
 		{
@@ -1703,6 +1750,8 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 
 void ULandscapeComponent::UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMaterial*> const& InPhysicalMaterials, TArray<uint8> const& InMaterialIds)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeComponent::UpdateCollisionPhysicalMaterialData);
+
 	// Copy the physical material array
 	CollisionComponent->PhysicalMaterialRenderObjects = InPhysicalMaterials;
 

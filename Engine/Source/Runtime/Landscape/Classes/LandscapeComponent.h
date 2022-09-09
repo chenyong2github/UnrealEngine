@@ -629,7 +629,13 @@ public:
 	/** Physical material update task */
 	FLandscapePhysicalMaterialRenderTask PhysicalMaterialTask;
 	uint32 CalculatePhysicalMaterialTaskHash() const;
-#endif
+
+	/**
+	 * Get the physical materials that are configured by the landscape component graphical material.
+	 * Returns false if there are no non-null physical materials. (We probably don't want to use if no physical material connections are bound.)
+	 */
+	bool GetRenderPhysicalMaterials(TArray<UPhysicalMaterial*>& OutPhysicalMaterials) const;
+#endif // WITH_EDITOR
 
 	//~ Begin UObject Interface.	
 	virtual void PostInitProperties() override;	

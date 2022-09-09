@@ -26,8 +26,8 @@ public:
 		Release();
 	}
 
-	/** Initialize the task for a component. A task in progress can safely call Init() again to rekick the task. */
-	void Init(class ULandscapeComponent const* LandscapeComponent);
+	/** Initialize the task for a component. A task in progress can safely call Init() again to rekick the task. Returns false if no physical material needs to be rendered. */
+	bool Init(class ULandscapeComponent const* LandscapeComponent);
 	/** Release the task. After calling this IsValid() will return false until we call Init() again. */
 	void Release();
 
@@ -45,6 +45,9 @@ public:
 	TArray<uint8> const& GetResultIds() const;
 	/** Get the result data. Assumes that IsComplete() is true. This doesn't Release() the data. */
 	TArray <class UPhysicalMaterial* > const& GetResultMaterials() const;
+
+private:
+	void UpdateInternal(bool bInFlush);
 
 private:
 	int32 PoolHandle;
