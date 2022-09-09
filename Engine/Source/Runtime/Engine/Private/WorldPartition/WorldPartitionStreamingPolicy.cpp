@@ -58,27 +58,12 @@ static FAutoConsoleVariableRef CVarBlockOnSlowStreaming(
 	GBlockOnSlowStreaming,
 	TEXT("Set if streaming needs to block when to slow to catchup."));
 
-static int32 GEnableServerStreaming = 0;
-static FAutoConsoleVariableRef CVarEnableServerStreaming(
-	TEXT("wp.Runtime.EnableServerStreaming"),
-	GEnableServerStreaming,
-	TEXT("Set to 1 to enable server streaming, set to 2 to only enable it in PIE."));
-
-static inline bool IsServerStreamingEnabled(bool bIsPIE)
-{
-	switch (GEnableServerStreaming)
-	{
-	case 1:	return true;
-	case 2:	return bIsPIE;
-	}
-	return false;
-}
-
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer) 
 , bCriticalPerformanceRequestedBlockTillOnWorld(false)
 , CriticalPerformanceBlockTillLevelStreamingCompletedEpoch(0)
 , DataLayersStatesServerEpoch(INT_MIN)
+, ServerStreamingEnabledEpoch(INT_MIN)
 , StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
 #if !UE_BUILD_SHIPPING
 , OnScreenMessageStartTime(0.0)
@@ -111,17 +96,11 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 	const FTransform WorldToLocal = WorldPartition->GetInstanceTransform().Inverse();
 	UWorld* World = WorldPartition->GetWorld();
 
-#if WITH_EDITOR
-	const bool bIsPIE = WorldPartition->bIsPIE;
-#else
-	const bool bIsPIE = false;
-#endif
-	const bool bIsServerStreamingEnabled = IsServerStreamingEnabled(bIsPIE);
+	const bool bIsServer = WorldPartition->IsServer();
+	const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
 
 	if (!AWorldPartitionReplay::IsPlaybackEnabled(World) || !WorldPartition->Replay->GetReplayStreamingSources(StreamingSources))
 	{
-		const ENetMode NetMode = World->GetNetMode();
-
 #if WITH_EDITOR
 		if (GEnableSimulationStreamingSource && UWorldPartition::IsSimulating())
 		{
@@ -133,13 +112,13 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 		}
 		else
 #endif
-		if (NetMode == NM_Standalone || NetMode == NM_Client || bIsServerStreamingEnabled || AWorldPartitionReplay::IsRecordingEnabled(World))
+		if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsRecordingEnabled(World))
 		{
 			for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
 			{
 				if (APlayerController* PlayerController = It->Get())
 				{
-					if (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer || PlayerController->IsLocalController())
+					if (bIsServer || PlayerController->IsLocalController())
 					{
 						if (PlayerController->IsStreamingSourceEnabled())
 						{
@@ -257,17 +236,18 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	check(ActivateStreamingCells.IsEmpty());
 	check(LoadStreamingCells.IsEmpty());
 
-	const ENetMode NetMode = World->GetNetMode();
-	const bool bClient = NetMode == NM_Standalone || NetMode == NM_Client;
-	const bool bServer = NetMode == NM_ListenServer || NetMode == NM_DedicatedServer;
-#if WITH_EDITOR
-	const bool bIsPIE = WorldPartition->bIsPIE;
-#else
-	const bool bIsPIE = false;
-#endif
-	const bool bIsServerStreamingEnabled = IsServerStreamingEnabled(bIsPIE);
-	
-	if (bClient || bIsServerStreamingEnabled || AWorldPartitionReplay::IsPlaybackEnabled(World))
+	ON_SCOPE_EXIT
+	{
+		// Reset frame StreamingSourceCells (optimization to avoid reallocation at every call to UpdateStreamingState)
+		FrameActivateCells.Reset();
+		FrameLoadCells.Reset();
+	};
+
+	const bool bIsServer = WorldPartition->IsServer();
+	const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
+	const int32 NewServerStreamingEnabledEpoch = bIsServer ? (bIsServerStreamingEnabled ? 1 : 0) : INT_MIN;
+
+	if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsPlaybackEnabled(World))
 	{
 		// When world partition can't stream, all cells must be unloaded
 		if (WorldPartition->CanStream())
@@ -283,10 +263,12 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		}
 	}
 
-	if (bServer)
+	if (bIsServer)
 	{
 		// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
-		if (!bIsServerStreamingEnabled && DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch())
+		if (!bIsServerStreamingEnabled && 
+			(ServerStreamingEnabledEpoch == NewServerStreamingEnabledEpoch) &&
+			(DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))
 		{
 			// Server as nothing to do early out
 			return; 
@@ -358,9 +340,9 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	}
 		
 	// Remove cells state changes based on client visibility. If any cell gets removed, delay epoch change.
-	auto ProcessClientVisibility = [bClient, &ClientVisibleLevelNames, &bUpdateEpoch](TSet<const UWorldPartitionRuntimeCell*>& Cells)
+	auto ProcessClientVisibility = [bIsServer, &ClientVisibleLevelNames, &bUpdateEpoch](TSet<const UWorldPartitionRuntimeCell*>& Cells)
 	{
-		if (!bClient)
+		if (bIsServer)
 		{
 			for (TSet<const UWorldPartitionRuntimeCell*>::TIterator It = Cells.CreateIterator(); It; ++It)
 			{
@@ -428,14 +410,11 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	// Evaluate streaming performance based on cells that should be activated
 	UpdateStreamingPerformance(ActivateStreamingCells);
 	
-	// Reset frame StreamingSourceCells (optimization to avoid reallocation at every call to UpdateStreamingState)
-	FrameActivateCells.Reset();
-	FrameLoadCells.Reset();
-
 	// Update Epoch if we aren't waiting for clients anymore
 	if (bUpdateEpoch)
 	{
 		DataLayersStatesServerEpoch = AWorldDataLayers::GetDataLayersStateEpoch();
+		ServerStreamingEnabledEpoch = NewServerStreamingEnabledEpoch;
 		UE_LOG(LogWorldPartition, Verbose, TEXT("Server epoch updated"));
 	}
 }
@@ -502,8 +481,12 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingPerformance(const TSet<const
 	
 	if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical)
 	{
-		// This is a first very simple standalone implementation of handling of critical streaming conditions.
-		if (GBlockOnSlowStreaming && !IsInBlockTillLevelStreamingCompleted() && World->GetNetMode() == NM_Standalone)
+		const bool bIsServer = WorldPartition->IsServer();
+		const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
+		const bool bCanBlockOnSlowStreaming = GBlockOnSlowStreaming && (!bIsServer || bIsServerStreamingEnabled);
+
+		// This is a very simple implementation of handling of critical streaming conditions.
+		if (bCanBlockOnSlowStreaming && !IsInBlockTillLevelStreamingCompleted())
 		{
 			World->bRequestedBlockOnAsyncLoading = true;
 			bCriticalPerformanceRequestedBlockTillOnWorld = true;
@@ -542,9 +525,7 @@ bool UWorldPartitionStreamingPolicy::ShouldSkipCellForPerformance(const UWorldPa
 	// When performance is degrading start skipping non blocking cells
 	if (!Cell->GetBlockOnSlowLoading())
 	{
-		UWorld* World = WorldPartition->GetWorld();
-		const ENetMode NetMode = World->GetNetMode();
-		if (NetMode == NM_Standalone || NetMode == NM_Client)
+		if (!WorldPartition->IsServer())
 		{
 			return IsInBlockTillLevelStreamingCompleted(/*bIsCausedByBadStreamingPerformance*/true);
 		}
@@ -555,9 +536,7 @@ bool UWorldPartitionStreamingPolicy::ShouldSkipCellForPerformance(const UWorldPa
 int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
 {
 	// This policy limits the number of concurrent loading streaming cells, except if match hasn't started
-	UWorld* World = WorldPartition->GetWorld();
-	const ENetMode NetMode = World->GetNetMode();
-	if (NetMode == NM_Standalone || NetMode == NM_Client)
+	if (!WorldPartition->IsServer())
 	{
 		return !IsInBlockTillLevelStreamingCompleted() ? (GMaxLoadingStreamingCells - GetCellLoadingCount()) : MAX_int32;
 	}
@@ -685,10 +664,9 @@ bool UWorldPartitionStreamingPolicy::CanAddLoadedLevelToWorld(ULevel* InLevel) c
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::CanAddLoadedLevelToWorld);
 
 	check(WorldPartition->IsInitialized());
-	UWorld* World = WorldPartition->GetWorld();
 
-	// Always allow AddToWorld in DedicatedServer
-	if (World->GetNetMode() == NM_DedicatedServer)
+	// Always allow AddToWorld in Dedicated server and Listen server
+	if (WorldPartition->IsServer())
 	{
 		return true;
 	}
@@ -766,20 +744,18 @@ FVector2D UWorldPartitionStreamingPolicy::GetDrawRuntimeHash2DDesiredFootprint(c
 	return FVector2D::ZeroVector;
 }
 
-void UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
+bool UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
 {
 	if (StreamingSources.Num() > 0 && WorldPartition->RuntimeHash)
 	{
-		WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasSize, Offset);
+		return WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasSize, Offset);
 	}
+	return false;
 }
 
 void UWorldPartitionStreamingPolicy::DrawRuntimeHash3D()
 {
-	UWorld* World = WorldPartition->GetWorld();
-	if (World->GetNetMode() != NM_DedicatedServer
-		&& WorldPartition->IsInitialized()
-		&& WorldPartition->RuntimeHash)
+	if (WorldPartition->IsInitialized() && WorldPartition->RuntimeHash)
 	{
 		WorldPartition->RuntimeHash->Draw3D(StreamingSources);
 	}

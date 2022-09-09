@@ -64,7 +64,20 @@ static FAutoConsoleVariableRef CVarLoadingRangeBugItGo(
 	TEXT("Loading range for BugItGo command."),
 	ECVF_Default
 );
+
+static bool GDebugDedicatedServerStreaming = false;
+static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming(
+	TEXT("wp.Runtime.DebugDedicatedServerStreaming"),
+	GDebugDedicatedServerStreaming,
+	TEXT("Turn on/off to debug of server streaming."));
+
 #endif //WITH_EDITOR
+
+static int32 GEnableServerStreaming = 0;
+static FAutoConsoleVariableRef CVarEnableServerStreaming(
+	TEXT("wp.Runtime.EnableServerStreaming"),
+	GEnableServerStreaming,
+	TEXT("Set to 1 to enable server streaming, set to 2 to only enable it in PIE."));
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
@@ -884,6 +897,28 @@ const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSourc
 	return EmptyStreamingSources;
 }
 
+bool UWorldPartition::IsServer() const
+{
+	if (UWorld* OwningWorld = GetWorld())
+	{
+		const ENetMode NetMode = OwningWorld->GetNetMode();
+		return NetMode == NM_DedicatedServer || NetMode == NM_ListenServer;
+	}
+	return false;
+}
+
+bool UWorldPartition::IsServerStreamingEnabled() const
+{
+	switch (GEnableServerStreaming)
+	{
+	case 1:	return true;
+#if WITH_EDITOR
+	case 2: return bIsPIE;
+#endif
+	}
+	return false;
+}
+
 bool UWorldPartition::IsSimulating()
 {
 #if WITH_EDITOR
@@ -1252,26 +1287,41 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 	return false;
 }
 
-bool UWorldPartition::CanDrawRuntimeHash() const
+bool UWorldPartition::CanDebugDraw() const
 {
-	return GetWorld()->IsGameWorld() || (UWorldPartition::IsSimulating() && StreamingPolicy);
+#if WITH_EDITOR
+	const ENetMode NetMode = GetWorld()->GetNetMode();
+	const bool bIsDedicatedServer = (NetMode == NM_DedicatedServer);
+	const bool bIsClient = (NetMode == NM_Client);
+	if ((bIsDedicatedServer && !GDebugDedicatedServerStreaming) ||
+		(bIsClient && GDebugDedicatedServerStreaming))
+	{
+		return false;
+	}
+
+	if (!bIsDedicatedServer && UWorldPartition::IsSimulating() && StreamingPolicy)
+	{
+		return true;
+	}
+#endif
+	return GetWorld()->IsGameWorld();
 }
 
 FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
 {
-	check(CanDrawRuntimeHash());
+	check(CanDebugDraw());
 	return StreamingPolicy->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
 }
 
-void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
+bool UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
 {
-	check(CanDrawRuntimeHash());
-	StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset);
+	check(CanDebugDraw());
+	return StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset);
 }
 
 void UWorldPartition::DrawRuntimeHash3D()
 {
-	check(CanDrawRuntimeHash());
+	check(CanDebugDraw());
 	StreamingPolicy->DrawRuntimeHash3D();
 }
 

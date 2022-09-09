@@ -1290,8 +1290,10 @@ bool UWorldPartitionRuntimeSpatialHash::ShouldConsiderClientOnlyVisibleCells() c
 	const UWorld* World = GetWorld();
 	if (World->IsGameWorld())
 	{
-		ENetMode NetMode = World->GetNetMode();
-		if (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer)
+		// Dedicated server & Listen server without server streaming won't consider client-only visible cells
+		const ENetMode NetMode = World->GetNetMode();
+		if ((NetMode == NM_DedicatedServer) ||
+			((NetMode == NM_ListenServer) && !GetOuterUWorldPartition()->IsServerStreamingEnabled()))
 		{
 			return false;
 		}
@@ -1543,14 +1545,14 @@ FVector2D UWorldPartitionRuntimeSpatialHash::GetDraw2DDesiredFootprint(const FVe
 	return FVector2D(CanvasSize.X * GetFilteredStreamingGrids().Num(), CanvasSize.Y);
 }
 
-void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, const FVector2D& Offset) const
+bool UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, const FVector2D& Offset) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::Draw2D);
 
 	TArray<const FSpatialHashStreamingGrid*> FilteredStreamingGrids = GetFilteredStreamingGrids();
 	if (FilteredStreamingGrids.Num() == 0 || Sources.Num() == 0)
 	{
-		return;
+		return false;
 	}
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
@@ -1621,6 +1623,8 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 
 		++GridIndex;
 	}
+
+	return true;
 }
 
 void UWorldPartitionRuntimeSpatialHash::Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const
@@ -1650,13 +1654,18 @@ bool UWorldPartitionRuntimeSpatialHash::ContainsRuntimeHash(const FString& Name)
 
 TArray<const FSpatialHashStreamingGrid*> UWorldPartitionRuntimeSpatialHash::GetFilteredStreamingGrids() const
 {
+	const bool bShouldConsiderClientOnlyVisible = ShouldConsiderClientOnlyVisibleCells();
+
 	TArray<const FSpatialHashStreamingGrid*> FilteredStreamingGrids;
 	FilteredStreamingGrids.Reserve(GetNumGrids());
-	ForEachStreamingGrid([&FilteredStreamingGrids](const FSpatialHashStreamingGrid& StreamingGrid)
+	ForEachStreamingGrid([&FilteredStreamingGrids, bShouldConsiderClientOnlyVisible](const FSpatialHashStreamingGrid& StreamingGrid)
 	{
-		if (FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(StreamingGrid.GridName))
+		if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
 		{
-			FilteredStreamingGrids.Add(&StreamingGrid);
+			if (FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(StreamingGrid.GridName))
+			{
+				FilteredStreamingGrids.Add(&StreamingGrid);
+			}
 		}
 	});
 

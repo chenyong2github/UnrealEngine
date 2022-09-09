@@ -176,10 +176,7 @@ void UWorldPartitionSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWo
 {
 	if (RegisteredWorldPartitions.IsEmpty())
 	{
-		if (InWorldPartition->CanDrawRuntimeHash() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
-		{
-			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
-		}
+		DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
 
 		// Enforce some GC settings when using World Partition
 		if (GetWorld()->IsGameWorld())
@@ -236,7 +233,7 @@ void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 	{
 		RegisteredWorldPartition->Tick(DeltaSeconds);
 
-		if (GDrawRuntimeHash3D && RegisteredWorldPartition->CanDrawRuntimeHash())
+		if (GDrawRuntimeHash3D && RegisteredWorldPartition->CanDebugDraw())
 		{
 			RegisteredWorldPartition->DrawRuntimeHash3D();
 		}
@@ -305,14 +302,20 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		return;
 	}
 
+	UWorldPartition* WorldPartition = RegisteredWorldPartitions[GDrawWorldPartitionIndex];
+	if (!WorldPartition->CanDebugDraw())
+	{
+		return;
+	}
+
 	// Filter out views that don't match our world
-	if (Canvas->SceneView->ViewActor != nullptr && 
+	if (!WorldPartition->IsServer() &&
+		Canvas->SceneView->ViewActor != nullptr &&
 		Canvas->SceneView->ViewActor->GetWorld() != GetWorld())
 	{
 		return;
 	}
 
-	UWorldPartition* WorldPartition = RegisteredWorldPartitions[GDrawWorldPartitionIndex];
 	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
 
 	FVector2D CurrentOffset(CanvasTopLeftPadding);
@@ -325,9 +328,11 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CurrentOffset, CanvasMinimumSize);
 
 		FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X, CanvasMaxScreenSize.Y);
-		WorldPartition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset);
-		CurrentOffset.X = CanvasBottomRightPadding.X;
-		CurrentOffset.Y += CanvasMaxScreenSize.Y;
+		if (WorldPartition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset))
+		{
+			CurrentOffset.X = CanvasBottomRightPadding.X;
+			CurrentOffset.Y += CanvasMaxScreenSize.Y;
+		}
 	}
 	
 	if (GDrawStreamingPerfs || GDrawRuntimeHash2D)
@@ -337,12 +342,12 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			if (IsIncrementalPurgePending()) { StatusText += TEXT("(Purging) "); }
 			if (IsIncrementalUnhashPending()) { StatusText += TEXT("(Unhashing) "); }
 			if (IsAsyncLoading()) { StatusText += TEXT("(AsyncLoading) "); }
-			if (StatusText.IsEmpty()) { StatusText = TEXT("(Idle)"); }
+			if (StatusText.IsEmpty()) { StatusText = TEXT("(Idle) "); }
 
-			const ENetMode NetMode = GetWorld()->GetNetMode();
-			if (NetMode == NM_ListenServer)
+			StatusText += FString::Printf(TEXT("(%s) "), *GetDebugStringForWorld(GetWorld()));
+			if (WorldPartition->IsServer())
 			{
-				StatusText += TEXT("(ListenServer)");
+				StatusText += FString::Printf(TEXT("(Server Streaming %s)"), WorldPartition->IsServerStreamingEnabled() ? TEXT("Enabled") : TEXT("Disabled"));
 			}
 			
 			const FString Text = FString::Printf(TEXT("Streaming Status: %s"), *StatusText);

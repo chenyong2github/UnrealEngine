@@ -212,6 +212,8 @@ public:
 	bool SupportsStreaming() const;
 	bool IsStreamingEnabled() const;
 	bool CanStream() const;
+	bool IsServer() const;
+	bool IsServerStreamingEnabled() const;
 
 	bool IsMainWorldPartition() const;
 
@@ -223,9 +225,9 @@ public:
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 
 	// Debugging
-	bool CanDrawRuntimeHash() const;
+	bool CanDebugDraw() const;
 	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
-	void DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset);
+	bool DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset);
 	void DrawRuntimeHash3D();
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
 	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
