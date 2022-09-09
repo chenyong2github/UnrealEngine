@@ -841,6 +841,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMeshStreaming : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Experimental, meta = (
+		ConsoleVariable = "r.HeterogeneousVolumes", DisplayName = "Enable Heterogeneous Volumes",
+		ToolTip = "Enable rendering with the heterogeneous volumes subsystem.",
+		ConfigRestartRequired = false))
+	uint32 bEnableHeterogeneousVolumes : 1;
+
 	UPROPERTY(config, EditAnywhere, Category=Editor, meta=(
 		ConsoleVariable="r.WireframeCullThreshold",DisplayName="Wireframe Cull Threshold",
 		ToolTip="Screen radius at which wireframe objects are culled. Larger values can improve performance when viewing a scene in wireframe."))

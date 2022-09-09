@@ -74,6 +74,7 @@ class FRenderTransmittanceVolumeWithLiveShadingCS : public FMeshMaterialShader
 	{
 		return DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform)
 			&& (Parameters.MaterialParameters.MaterialDomain == MD_Volume)
+			// Restricting compilation to materials bound to Niagara meshes
 			&& Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles;
 	}
 
