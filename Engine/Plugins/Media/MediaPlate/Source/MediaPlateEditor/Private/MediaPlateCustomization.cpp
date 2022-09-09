@@ -66,6 +66,8 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	StaticMeshCategory.SetCategoryVisibility(false);
 
 	IDetailCategoryBuilder& MediaPlateCategory = DetailBuilder.EditCategory("MediaPlate");
+	// Place this at the top.
+	MediaPlateCategory.SetSortOrder(0);
 
 	// Get objects we are editing.
 	TArray<TWeakObjectPtr<UObject>> Objects;
