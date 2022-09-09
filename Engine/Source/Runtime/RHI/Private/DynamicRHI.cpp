@@ -605,7 +605,7 @@ uint64 FDynamicRHI::RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitia
 bool FDynamicRHI::RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateInitializer& LHS, const FGraphicsPipelineStateInitializer& RHS)
 {
 	// first check non pointer objects
-	if (LHS.ImmutableSamplerState != LHS.ImmutableSamplerState ||
+	if (LHS.ImmutableSamplerState != RHS.ImmutableSamplerState ||
 		LHS.PrimitiveType != RHS.PrimitiveType ||
 		LHS.bDepthBounds != RHS.bDepthBounds ||
 		LHS.MultiViewCount != RHS.MultiViewCount ||
