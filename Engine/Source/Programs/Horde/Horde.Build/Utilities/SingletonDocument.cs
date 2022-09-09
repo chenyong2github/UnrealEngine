@@ -5,10 +5,35 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Horde.Build.Server;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Utilities
 {
 	using SingletonId = StringId<SingletonBase>;
+
+	/// <summary>
+	/// Base class for singleton documents
+	/// </summary>
+	public abstract class SingletonBase
+	{
+		/// <summary>
+		/// Unique id for this singleton
+		/// </summary>
+		[BsonId]
+		public SingletonId Id { get; set; }
+
+		/// <summary>
+		/// The revision index of this document
+		/// </summary>
+		public int Revision { get; set; }
+
+		/// <summary>
+		/// Callback to allow the singleton to fix up itself after being read
+		/// </summary>
+		public virtual void PostLoad()
+		{
+		}
+	}
 
 	/// <summary>
 	/// Attribute specifying the unique id for a singleton document

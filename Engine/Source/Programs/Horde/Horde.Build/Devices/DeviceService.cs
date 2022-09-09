@@ -88,49 +88,15 @@ namespace Horde.Build.Devices
 	/// </summary>
 	public sealed class DeviceService : IHostedService, IDisposable
 	{
-		/// <summary>
-		/// The ACL service instance
-		/// </summary>
+		readonly GlobalsService _globalsService;
 		readonly AclService _aclService;
-
-		/// <summary>
-		/// Instance of the notification service
-		/// </summary>
 		readonly INotificationService _notificationService;
-
-		/// <summary>
-		/// Singleton instance of the job service
-		/// </summary>
 		readonly JobService _jobService;
-
-		/// <summary>
-		/// Singleton instance of the stream service
-		/// </summary>
 		readonly StreamService _streamService;
-
-		/// <summary>
-		/// Singleton instance of the project service
-		/// </summary>
 		readonly ProjectService _projectService;
-
-		/// <summary>
-		/// Singleton instance of the mongo service
-		/// </summary>
 		readonly MongoService _mongoService;
-
-		/// <summary>
-		/// The user collection instance
-		/// </summary>
 		IUserCollection UserCollection { get; set; }
-
-		/// <summary>
-		/// Log output writer
-		/// </summary>
 		readonly ILogger<DeviceService> _logger;
-
-		/// <summary>
-		/// Device collection
-		/// </summary>
 		readonly IDeviceCollection _devices;
 		readonly ITicker _ticker;
 		readonly ITicker _telemetryTicker;
@@ -143,9 +109,10 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, MongoService mongoService, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
+		public DeviceService(GlobalsService globalsService, IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, MongoService mongoService, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
 		{
 			UserCollection = userCollection;
+			_globalsService = globalsService;
 			_devices = devices;
 			_jobService = jobService;
 			_projectService = projectService;
@@ -167,7 +134,6 @@ namespace Horde.Build.Devices
 			await _ticker.StartAsync();
 			await _telemetryTicker.StartAsync();
 		}
-		
 
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken cancellationToken)
@@ -190,16 +156,16 @@ namespace Horde.Build.Devices
 		{
 			try
 			{
-				Globals globals = await _mongoService.GetGlobalsAsync();
+				IGlobals globals = await _globalsService.GetAsync();
 
-				if (globals.Devices != null)
+				if (globals.Config.Devices != null)
 				{
 					await _platformMapSingleton.UpdateAsync(platformMap => {
 
 						platformMap.PlatformMap.Clear();
 						platformMap.PerfSpecHighMap.Clear();
 
-						foreach (DevicePlatformConfig platform in globals.Devices.Platforms)
+						foreach (DevicePlatformConfig platform in globals.Config.Devices.Platforms)
 						{
 							DevicePlatformId id = new DevicePlatformId(platform.Id);
 							foreach (string name in platform.Names)

@@ -167,13 +167,13 @@ namespace Horde.Build.Agents
 		/// <param name="agentId">The agent id</param>
 		/// <param name="sessionId">The session id</param>
 		/// <returns>Bearer token for the agent</returns>
-		public string IssueSessionToken(AgentId agentId, SessionId sessionId)
+		public async ValueTask<string> IssueSessionTokenAsync(AgentId agentId, SessionId sessionId)
 		{
 			List<AclClaim> claims = new List<AclClaim>();
 			claims.Add(AclService.AgentRoleClaim);
 			claims.Add(AclService.GetAgentClaim(agentId));
 			claims.Add(AclService.GetSessionClaim(sessionId));
-			return _aclService.IssueBearerToken(claims, null);
+			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
 		/// <summary>

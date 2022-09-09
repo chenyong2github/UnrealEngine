@@ -126,7 +126,7 @@ namespace Horde.Build.Compute
 		readonly RedisMessageQueue<ComputeTaskStatus> _messageQueue;
 		readonly ITicker _expireTasksTicker;
 		readonly IMemoryCache _requirementsCache;
-		readonly LazyCachedValue<Task<Globals>> _globals;
+		readonly LazyCachedValue<Task<IGlobals>> _globals;
 		readonly ILogger _logger;
 
 		static ComputeService()
@@ -137,14 +137,14 @@ namespace Horde.Build.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeService(MongoService mongoService, RedisService redisService, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
+		public ComputeService(GlobalsService globalsService, RedisService redisService, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
 		{
 			_storageClient = storageClient;
 			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redisService.ConnectionPool, "compute/tasks/", logger);
 			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redisService.GetDatabase(), "compute/messages/");
 			_expireTasksTicker = clock.AddTicker<ComputeService>(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, logger);
 			_requirementsCache = new MemoryCache(new MemoryCacheOptions());
-			_globals = new LazyCachedValue<Task<Globals>>(() => mongoService.GetGlobalsAsync(), TimeSpan.FromSeconds(120.0));
+			_globals = new LazyCachedValue<Task<IGlobals>>(async () => await globalsService.GetAsync(), TimeSpan.FromSeconds(120.0));
 			_logger = logger;
 
 			OnLeaseStartedProperties.Add(x => x.TaskRefId);
@@ -231,8 +231,8 @@ namespace Horde.Build.Compute
 
 		async ValueTask<ComputeClusterConfig?> GetClusterAsync(ClusterId clusterId)
 		{
-			Globals globalsInstance = await _globals.GetCached();
-			return globalsInstance.ComputeClusters.FirstOrDefault(x => new ClusterId(x.Id) == clusterId);
+			IGlobals globals = await _globals.GetCached();
+			return globals.Config.Compute.FirstOrDefault(x => new ClusterId(x.Id) == clusterId);
 		}
 
 		/// <inheritdoc/>

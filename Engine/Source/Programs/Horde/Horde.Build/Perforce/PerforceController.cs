@@ -20,9 +20,9 @@ namespace Horde.Build.Perforce
 	public class PerforceController : ControllerBase
 	{
 		/// <summary>
-		/// The database service instance
+		/// The globals service instance
 		/// </summary>
-		private readonly MongoService _mongoService;
+		private readonly GlobalsService _globalsService;
 
 		/// <summary>
 		/// The ACL service instance
@@ -37,9 +37,9 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceController(MongoService mongoService, AclService aclService, PerforceLoadBalancer perforceLoadBalancer)
+		public PerforceController(GlobalsService globalsService, AclService aclService, PerforceLoadBalancer perforceLoadBalancer)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_aclService = aclService;
 			_perforceLoadBalancer = perforceLoadBalancer;
 		}
@@ -75,8 +75,8 @@ namespace Horde.Build.Perforce
 				return Forbid();
 			}
 
-			Globals globals = await _mongoService.GetGlobalsAsync();
-			return globals.PerforceClusters;
+			IGlobals globals = await _globalsService.GetAsync();
+			return globals.Config.PerforceClusters;
 		}
 	}
 

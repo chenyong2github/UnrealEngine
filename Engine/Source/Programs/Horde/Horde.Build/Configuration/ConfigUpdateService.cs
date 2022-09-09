@@ -42,7 +42,7 @@ namespace Horde.Build.Configuration
 		/// </summary>
 		const int Version = 12;
 
-		readonly MongoService _mongoService;
+		readonly GlobalsService _globalsService;
 		readonly ConfigCollection _configCollection;
 		readonly ToolCollection _toolCollection;
 		readonly ProjectService _projectService;
@@ -57,9 +57,9 @@ namespace Horde.Build.Configuration
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigUpdateService(MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
+		public ConfigUpdateService(GlobalsService globalsService, MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_configCollection = configCollection;
 			_perforceService = perforceService;
 			_toolCollection = toolCollection;
@@ -124,23 +124,17 @@ namespace Horde.Build.Configuration
 				}
 				globalConfig = _cachedGlobalConfig;
 
-				Globals globals = await _mongoService.GetGlobalsAsync();
+				IGlobals globals = await _globalsService.GetAsync();
 				if (globals.ConfigRevision == revision)
 				{
 					break;
 				}
 
-				_logger.LogInformation("Updating configuration from {ConfigPath}", globals.ConfigRevision);
+				_logger.LogInformation("Updating configuration from {ConfigPath}", revision);
+				await _configCollection.AddConfigAsync(revision, globalConfig);
 
-				globals.ConfigRevision = revision;
-				globals.PerforceClusters = _cachedGlobalConfig.PerforceClusters;
-				globals.ScheduledDowntime = _cachedGlobalConfig.Downtime;
-				globals.MaxConformCount = _cachedGlobalConfig.MaxConformCount;
-				globals.ComputeClusters = _cachedGlobalConfig.Compute;
-				globals.Devices = _cachedGlobalConfig.Devices;
-				globals.RootAcl = Acl.Merge(null, _cachedGlobalConfig.Acl);
-
-				if (await _mongoService.TryUpdateSingletonAsync(globals))
+				IGlobals? newGlobals = await _globalsService.TryUpdateAsync(globals, revision);
+				if (newGlobals != null)
 				{
 					break;
 				}

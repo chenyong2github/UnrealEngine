@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Agents;
@@ -67,16 +68,16 @@ namespace Horde.Build.Acls
 		public static AclClaim AgentRoleClaim { get; } = new AclClaim(HordeClaimTypes.Role, "agent");
 
 		private readonly Acl _defaultAcl = new();
-		private readonly MongoService _mongoService;
+		private readonly GlobalsService _globalsService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="mongoService">The database service instance</param>
+		/// <param name="globalsService">The database service instance</param>
 		/// <param name="settings">The settings object</param>
-		public AclService(MongoService mongoService, IOptionsMonitor<ServerSettings> settings)
+		public AclService(GlobalsService globalsService, IOptionsMonitor<ServerSettings> settings)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 
             List<AclAction> adminActions = new();
 			foreach (AclAction? action in Enum.GetValues(typeof(AclAction)))
@@ -106,8 +107,8 @@ namespace Horde.Build.Acls
 		/// <returns>Scopes instance</returns>
 		public async Task<Acl> GetRootAcl()
 		{
-			Globals globals = await _mongoService.GetGlobalsAsync();
-			return globals.RootAcl ?? new Acl();
+			IGlobals globals = await _globalsService.GetAsync();
+			return Acl.Merge(new Acl(), globals.Config.Acl) ?? new Acl();
 		}
 
 		/// <summary>
@@ -141,9 +142,9 @@ namespace Horde.Build.Acls
 		/// <param name="claims">List of claims to include</param>
 		/// <param name="expiry">Time that the token expires</param>
 		/// <returns>JWT security token with a claim for creating new agents</returns>
-		public string IssueBearerToken(IEnumerable<AclClaim> claims, TimeSpan? expiry)
+		public async ValueTask<string> IssueBearerTokenAsync(IEnumerable<AclClaim> claims, TimeSpan? expiry)
 		{
-			return IssueBearerToken(claims.Select(x => new Claim(x.Type, x.Value)), expiry);
+			return await IssueBearerTokenAsync(claims.Select(x => new Claim(x.Type, x.Value)), expiry);
 		}
 
 		/// <summary>
@@ -152,11 +153,12 @@ namespace Horde.Build.Acls
 		/// <param name="claims">List of claims to include</param>
 		/// <param name="expiry">Time that the token expires</param>
 		/// <returns>JWT security token with a claim for creating new agents</returns>
-		public string IssueBearerToken(IEnumerable<Claim> claims, TimeSpan? expiry)
+		public async ValueTask<string> IssueBearerTokenAsync(IEnumerable<Claim> claims, TimeSpan? expiry)
 		{
-			SigningCredentials signingCredentials = new(_mongoService.JwtSigningKey, SecurityAlgorithms.HmacSha256);
+			IGlobals globals = await _globalsService.GetAsync();
+			SigningCredentials signingCredentials = new(globals.JwtSigningKey, SecurityAlgorithms.HmacSha256);
 
-			JwtSecurityToken token = new(_mongoService.JwtIssuer, null, claims, null, DateTime.UtcNow + expiry, signingCredentials);
+			JwtSecurityToken token = new(globals.JwtIssuer, null, claims, null, DateTime.UtcNow + expiry, signingCredentials);
 			return new JwtSecurityTokenHandler().WriteToken(token);
 		}
 

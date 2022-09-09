@@ -323,7 +323,7 @@ namespace Horde.Build.Server
 			response.AgentId = agent.Id.ToString();
 			response.SessionId = agent.SessionId.ToString();
 			response.ExpiryTime = Timestamp.FromDateTime(agent.SessionExpiresAt!.Value);
-			response.Token = _agentService.IssueSessionToken(agent.Id, agent.SessionId!.Value);
+			response.Token = await _agentService.IssueSessionTokenAsync(agent.Id, agent.SessionId!.Value);
 			return response;
 		}
 

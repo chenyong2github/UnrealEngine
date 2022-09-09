@@ -210,7 +210,7 @@ namespace Horde.Build.Perforce
 		}
 
 		readonly PerforceLoadBalancer _loadBalancer;
-		readonly LazyCachedValue<Task<Globals>> _cachedGlobals;
+		readonly LazyCachedValue<Task<IGlobals>> _cachedGlobals;
 		readonly ILogger _logger;
 
 		// Useful overrides for local debugging with read-only data
@@ -228,10 +228,10 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceService(PerforceLoadBalancer loadBalancer, MongoService mongoService, IUserCollection userCollection, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
+		public PerforceService(PerforceLoadBalancer loadBalancer, GlobalsService globalsService, IUserCollection userCollection, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
 		{
 			_loadBalancer = loadBalancer;
-			_cachedGlobals = new LazyCachedValue<Task<Globals>>(() => mongoService.GetGlobalsAsync(), TimeSpan.FromSeconds(30.0));
+			_cachedGlobals = new LazyCachedValue<Task<IGlobals>>(async () => await globalsService.GetAsync(), TimeSpan.FromSeconds(30.0));
 			_userCollection = userCollection;
 			_settings = settings.Value;
 			_logger = logger;
@@ -593,9 +593,9 @@ namespace Horde.Build.Perforce
 
 		async Task<PerforceCluster> GetClusterAsync(string? clusterName, string? serverAndPort = null)
 		{
-			Globals globals = await _cachedGlobals.GetCached();
+			IGlobals globals = await _cachedGlobals.GetCached();
 
-			PerforceCluster? cluster = globals.FindPerforceCluster(clusterName, serverAndPort);
+			PerforceCluster? cluster = globals.Config.FindPerforceCluster(clusterName, serverAndPort);
 			if (cluster == null)
 			{
 				throw new Exception($"Unknown Perforce cluster '{clusterName}'");

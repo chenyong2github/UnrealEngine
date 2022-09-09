@@ -39,7 +39,7 @@ namespace Horde.Build.Server
 			private set;
 		}
 
-		readonly MongoService _mongoService;
+		readonly GlobalsService _globalsService;
 		readonly ITicker _ticker;
 		readonly IOptionsMonitor<ServerSettings> _settings;
 		readonly ILogger _logger;
@@ -47,13 +47,13 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="mongoService">The database service instance</param>
+		/// <param name="globalsService">The database service instance</param>
 		/// <param name="clock"></param>
 		/// <param name="settings">The server settings</param>
 		/// <param name="logger">Logger instance</param>
-		public DowntimeService(MongoService mongoService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<DowntimeService> logger)
+		public DowntimeService(GlobalsService globalsService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<DowntimeService> logger)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_settings = settings;
 			_logger = logger;
 
@@ -79,13 +79,13 @@ namespace Horde.Build.Server
 		/// <returns>Async task</returns>
 		async ValueTask TickAsync(CancellationToken stoppingToken)
 		{
-			Globals globals = await _mongoService.GetGlobalsAsync();
+			IGlobals globals = await _globalsService.GetAsync();
 
 			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
-			bool bIsActive = globals.ScheduledDowntime.Any(x => x.IsActive(now));
+			bool bIsActive = globals.Config.Downtime.Any(x => x.IsActive(now));
 
 			DateTimeOffset? next = null;
-			foreach (ScheduledDowntime schedule in globals.ScheduledDowntime)
+			foreach (ScheduledDowntime schedule in globals.Config.Downtime)
 			{
 				DateTimeOffset start = schedule.GetNext(now).StartTime;
 				if (next == null || start < next)

@@ -3,6 +3,7 @@
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Encodings.Web;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols;
 
 namespace Horde.Build.Authentication
 {
@@ -22,53 +24,55 @@ namespace Horde.Build.Authentication
 		/// Default name of the authentication scheme
 		/// </summary>
 		public const string AuthenticationScheme = "ServerJwt";
-		readonly MongoService _mongoService;
 
-		public HordeJwtBearerHandler(ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock, MongoService mongoService, IOptionsMonitorCache<JwtBearerOptions> optionsCache)
-			: base(GetOptionsMonitor(mongoService, optionsCache), logger, encoder, clock)
+		readonly AsyncCachedValue<IGlobals> _globals;
+
+		public HordeJwtBearerHandler(ILoggerFactory logger, UrlEncoder encoder, ISystemClock clock, GlobalsService globalsService, IOptionsMonitorCache<JwtBearerOptions> optionsCache)
+			: base(GetOptionsMonitor(optionsCache), logger, encoder, clock)
 		{
-			_mongoService = mongoService;
+			_globals = new AsyncCachedValue<IGlobals>(async () => await globalsService.GetAsync(), TimeSpan.FromSeconds(30.0));
 		}
 
-		private static IOptionsMonitor<JwtBearerOptions> GetOptionsMonitor(MongoService mongoService, IOptionsMonitorCache<JwtBearerOptions> optionsCache)
+		private static IOptionsMonitor<JwtBearerOptions> GetOptionsMonitor(IOptionsMonitorCache<JwtBearerOptions> optionsCache)
 		{
-			ConfigureNamedOptions<JwtBearerOptions> namedOptions = new ConfigureNamedOptions<JwtBearerOptions>(AuthenticationScheme, options => Configure(options, mongoService));
+			ConfigureNamedOptions<JwtBearerOptions> namedOptions = new ConfigureNamedOptions<JwtBearerOptions>(AuthenticationScheme, options => { });
 			OptionsFactory<JwtBearerOptions> optionsFactory = new OptionsFactory<JwtBearerOptions>(new[] { namedOptions }, Array.Empty<IPostConfigureOptions<JwtBearerOptions>>());
 			return new OptionsMonitor<JwtBearerOptions>(optionsFactory, Array.Empty<IOptionsChangeTokenSource<JwtBearerOptions>>(), optionsCache);
 		}
 
-		private static void Configure(JwtBearerOptions options, MongoService mongoService)
+		protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
 		{
-			options.TokenValidationParameters.ValidateAudience = false;
+			// Get the current state
+			IGlobals globals = await _globals.GetAsync();
 
-			options.TokenValidationParameters.RequireExpirationTime = false;
-			options.TokenValidationParameters.ValidateLifetime = true;
+			Options.TokenValidationParameters.ValidateAudience = false;
 
-			options.TokenValidationParameters.ValidIssuer = mongoService.JwtIssuer;
-			options.TokenValidationParameters.ValidateIssuer = true;
+			Options.TokenValidationParameters.RequireExpirationTime = false;
+			Options.TokenValidationParameters.ValidateLifetime = true;
 
-			options.TokenValidationParameters.ValidateIssuerSigningKey = true;
-			options.TokenValidationParameters.IssuerSigningKey = mongoService.JwtSigningKey;
-		}
+			Options.TokenValidationParameters.ValidIssuer = globals.JwtIssuer;
+			Options.TokenValidationParameters.ValidateIssuer = true;
 
-		protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-		{
+			Options.TokenValidationParameters.ValidateIssuerSigningKey = true;
+			Options.TokenValidationParameters.IssuerSigningKey = globals.JwtSigningKey;
+
 			// Silent fail if this JWT is not issued by the server
 			string? token;
 			if (!JwtUtils.TryGetBearerToken(Request, "Bearer ", out token))
 			{
-				return Task.FromResult(AuthenticateResult.NoResult());
+				return AuthenticateResult.NoResult();
 			}
 
-			// Validate that it's from the correct issuer
+			// Validate that it's from the correct issuer, and silent fail if not. Allows multiple handlers for bearer tokens.
 			JwtSecurityToken? jwtToken;
-			if (!JwtUtils.TryParseJwt(token, out jwtToken) || !String.Equals(jwtToken.Issuer, _mongoService.JwtIssuer, StringComparison.Ordinal))
+			if (!JwtUtils.TryParseJwt(token, out jwtToken) || !String.Equals(jwtToken.Issuer, globals.JwtIssuer, StringComparison.Ordinal))
 			{
-				return Task.FromResult(AuthenticateResult.NoResult());
+				return AuthenticateResult.NoResult();
 			}
 
 			// Pass it to the base class
-			return base.HandleAuthenticateAsync();
+			AuthenticateResult result = await base.HandleAuthenticateAsync();
+			return result;
 		}
 	}
 }

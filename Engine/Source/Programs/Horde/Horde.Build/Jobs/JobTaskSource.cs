@@ -185,7 +185,7 @@ namespace Horde.Build.Jobs
 			}
 		}
 
-		readonly MongoService _mongoService;
+		readonly GlobalsService _globalsService;
 		readonly StreamService _streamService;
 		readonly ILogFileService _logFileService;
 		readonly IAgentCollection _agentsCollection;
@@ -236,9 +236,9 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobTaskSource(MongoService mongoService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
+		public JobTaskSource(GlobalsService globalsService, IAgentCollection agents, IJobCollection jobs, IJobStepRefCollection jobStepRefs, IGraphCollection graphs, IPoolCollection pools, IUgsMetadataCollection ugsMetadataCollection, StreamService streamService, ILogFileService logFileService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<JobTaskSource> logger)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_agentsCollection = agents;
 			_jobs = jobs;
 			_jobStepRefs = jobStepRefs;
@@ -782,7 +782,7 @@ namespace Horde.Build.Jobs
 				leaseName.Append(CultureInfo.InvariantCulture, $" - {job.Name}");
 
 				// Get the global settings
-				Globals globals = await _mongoService.GetGlobalsAsync();
+				IGlobals globals = await _globalsService.GetAsync();
 
 				// Encode the payload
 				ExecuteJobTask? task = await CreateExecuteJobTaskAsync(item._stream, job, batch, agent, item._workspace, item._useAutoSdk, logId);
@@ -850,7 +850,7 @@ namespace Horde.Build.Jobs
 			leaseName.Append(CultureInfo.InvariantCulture, $" - {job.Name}");
 
 			// Get the global settings
-			Globals globals = await _mongoService.GetGlobalsAsync();
+			IGlobals globals = await _globalsService.GetAsync();
 
 			// Encode the payload
 			ExecuteJobTask task = new ExecuteJobTask();
@@ -861,7 +861,7 @@ namespace Horde.Build.Jobs
 
 			List<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces = new List<HordeCommon.Rpc.Messages.AgentWorkspace>();
 
-			PerforceCluster? cluster = globals.FindPerforceCluster(workspace.Cluster);
+			PerforceCluster? cluster = globals.Config.FindPerforceCluster(workspace.Cluster);
 			if (cluster == null)
 			{
 				return null;

@@ -21,9 +21,9 @@ namespace Horde.Build.Agents.Pools
 	public class PoolService
 	{
 		/// <summary>
-		/// The database service instance
+		/// The globals service instance
 		/// </summary>
-		readonly MongoService _mongoService;
+		readonly GlobalsService _globalsService;
 
 		/// <summary>
 		/// Collection of pool documents
@@ -43,12 +43,12 @@ namespace Horde.Build.Agents.Pools
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="mongoService"></param>
+		/// <param name="globalsService"></param>
 		/// <param name="pools">Collection of pool documents</param>
 		/// <param name="clock"></param>
-		public PoolService(MongoService mongoService, IPoolCollection pools, IClock clock)
+		public PoolService(GlobalsService globalsService, IPoolCollection pools, IClock clock)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_pools = pools;
 			_clock = clock;
 		}
@@ -253,7 +253,7 @@ namespace Horde.Build.Agents.Pools
 
 			if (bAddAutoSdkWorkspace)
 			{
-				Globals globals = await _mongoService.GetGlobalsAsync();
+				IGlobals globals = await _globalsService.GetAsync();
 				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globals, workspaces.ToList()));
 			}
 

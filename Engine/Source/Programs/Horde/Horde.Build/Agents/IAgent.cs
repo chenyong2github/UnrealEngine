@@ -663,12 +663,12 @@ namespace Horde.Build.Agents
 		/// <param name="globals"></param>
 		/// <param name="workspaces"></param>
 		/// <returns></returns>
-		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent agent, Globals globals, List<AgentWorkspace> workspaces)
+		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent agent, IGlobals globals, List<AgentWorkspace> workspaces)
 		{
 			HashSet<AgentWorkspace> autoSdkWorkspaces = new HashSet<AgentWorkspace>();
 			foreach (string? clusterName in workspaces.Select(x => x.Cluster).Distinct())
 			{
-				PerforceCluster? cluster = globals.FindPerforceCluster(clusterName);
+				PerforceCluster? cluster = globals.Config.FindPerforceCluster(clusterName);
 				if (cluster != null)
 				{
 					AgentWorkspace? autoSdkWorkspace = GetAutoSdkWorkspace(agent, cluster);

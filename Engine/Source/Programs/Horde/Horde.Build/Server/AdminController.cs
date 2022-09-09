@@ -54,37 +54,17 @@ namespace Horde.Build.Server
 	public class AdminController : HordeControllerBase
 	{
 		readonly AclService _aclService;
-		readonly UpgradeService _upgradeService;
 		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="aclService">The ACL service singleton</param>
-		/// <param name="upgradeService">The upgrade service singelton</param>
 		/// <param name="settings">Server settings</param>
-		public AdminController(AclService aclService, UpgradeService upgradeService, IOptionsMonitor<ServerSettings> settings)
+		public AdminController(AclService aclService, IOptionsMonitor<ServerSettings> settings)
 		{
 			_aclService = aclService;
-			_upgradeService = upgradeService;
 			_settings = settings;
-		}
-
-		/// <summary>
-		/// Upgrade the database to the latest schema
-		/// </summary>
-		/// <param name="fromVersion">The schema version to upgrade from.</param>
-		[HttpPost]
-		[Route("/api/v1/admin/upgradeschema")]
-		public async Task<ActionResult> UpgradeSchemaAsync([FromQuery] int? fromVersion = null)
-		{
-			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid(AclAction.AdminWrite);
-			}
-
-			await _upgradeService.UpgradeSchemaAsync(fromVersion);
-			return Ok();
 		}
 
 		/// <summary>
@@ -100,7 +80,7 @@ namespace Horde.Build.Server
 				return Forbid(AclAction.IssueBearerToken);
 			}
 
-			return _aclService.IssueBearerToken(User.Claims, GetDefaultExpiryTime());
+			return await _aclService.IssueBearerTokenAsync(User.Claims, GetDefaultExpiryTime());
 		}
 
 		/// <summary>
@@ -120,7 +100,7 @@ namespace Horde.Build.Server
 			List<Claim> claims = new List<Claim>();
 			claims.AddRange(roles.Split('+').Select(x => new Claim(ClaimTypes.Role, x)));
 
-			return _aclService.IssueBearerToken(claims, GetDefaultExpiryTime());
+			return await _aclService.IssueBearerTokenAsync(claims, GetDefaultExpiryTime());
 		}
 
 		/// <summary>
@@ -140,7 +120,7 @@ namespace Horde.Build.Server
 			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			claims.Add(AclService.AgentRegistrationClaim);
 
-			return _aclService.IssueBearerToken(claims, null);
+			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
 		/// <summary>
@@ -160,7 +140,7 @@ namespace Horde.Build.Server
 			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			claims.Add(AclService.UploadSoftwareClaim);
 
-			return _aclService.IssueBearerToken(claims, null);
+			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
 		/// <summary>
@@ -180,7 +160,7 @@ namespace Horde.Build.Server
 			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			claims.Add(AclService.DownloadSoftwareClaim);
 
-			return _aclService.IssueBearerToken(claims, null);
+			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
 		/// <summary>
@@ -200,7 +180,7 @@ namespace Horde.Build.Server
 			claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			claims.Add(AclService.ConfigureProjectsClaim);
 
-			return _aclService.IssueBearerToken(claims, null);
+			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
 		/// <summary>
@@ -220,7 +200,7 @@ namespace Horde.Build.Server
 			//Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
 			claims.Add(AclService.StartChainedJobClaim);
 
-			return _aclService.IssueBearerToken(claims, null);
+			return await _aclService.IssueBearerTokenAsync(claims, null);
 		}
 
 		/// <summary>

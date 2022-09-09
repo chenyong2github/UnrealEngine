@@ -38,6 +38,7 @@ namespace Horde.Build.Tasks
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled;
 
 		readonly MongoService _mongoService;
+		readonly GlobalsService _globalsService;
 		readonly IAgentCollection _agentCollection;
 		readonly PoolService _poolService;
 		readonly SingletonDocument<ConformList> _conformList;
@@ -49,9 +50,10 @@ namespace Horde.Build.Tasks
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConformTaskSource(MongoService mongoService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, ILogger<ConformTaskSource> logger)
+		public ConformTaskSource(MongoService mongoService, GlobalsService globalsService, IAgentCollection agentCollection, PoolService poolService, ILogFileService logService, PerforceLoadBalancer perforceLoadBalancer, IClock clock, ILogger<ConformTaskSource> logger)
 		{
 			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_agentCollection = agentCollection;
 			_poolService = poolService;
 			_conformList = new SingletonDocument<ConformList>(mongoService);
@@ -198,12 +200,12 @@ namespace Horde.Build.Tasks
 		/// <inheritdoc/>
 		public async Task<bool> GetWorkspacesAsync(IAgent agent, IList<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces)
 		{
-			Globals globals = await _mongoService.GetGlobalsAsync();
+			IGlobals globals = await _globalsService.GetAsync();
 
 			HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow);
 			foreach (AgentWorkspace conformWorkspace in conformWorkspaces)
 			{
-				PerforceCluster? cluster = globals.FindPerforceCluster(conformWorkspace.Cluster);
+				PerforceCluster? cluster = globals.Config.FindPerforceCluster(conformWorkspace.Cluster);
 				if (cluster == null || !await agent.TryAddWorkspaceMessage(conformWorkspace, cluster, _perforceLoadBalancer, workspaces))
 				{
 					return false;
@@ -228,11 +230,11 @@ namespace Horde.Build.Tasks
 		/// <returns>True if the resource was allocated, false otherwise</returns>
 		private async Task<bool> AllocateConformLeaseAsync(AgentId agentId, IEnumerable<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces, LeaseId leaseId)
 		{
-			Globals globals = await _mongoService.GetGlobalsAsync();
+			IGlobals globals = await _globalsService.GetAsync();
 			for (; ; )
 			{
 				ConformList currentValue = await _conformList.GetAsync();
-				if (globals.MaxConformCount != 0 && currentValue.Entries.Count + currentValue.Servers.Sum(x => x.Entries.Count) >= globals.MaxConformCount)
+				if (globals.Config.MaxConformCount != 0 && currentValue.Entries.Count + currentValue.Servers.Sum(x => x.Entries.Count) >= globals.Config.MaxConformCount)
 				{
 					return false;
 				}
@@ -242,7 +244,7 @@ namespace Horde.Build.Tasks
 				{
 					if (servers.Add(workspace.ServerAndPort))
 					{
-						PerforceCluster? cluster = globals.FindPerforceCluster(workspace.Cluster);
+						PerforceCluster? cluster = globals.Config.FindPerforceCluster(workspace.Cluster);
 						if (cluster == null)
 						{
 							_logger.LogWarning("Unable to find perforce cluster '{Cluster}' for conform", workspace.Cluster);

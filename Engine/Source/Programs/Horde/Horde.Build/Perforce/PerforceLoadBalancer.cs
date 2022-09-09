@@ -137,6 +137,7 @@ namespace Horde.Build.Perforce
 		}
 
 		readonly MongoService _mongoService;
+		readonly GlobalsService _globalsService;
 		readonly ILeaseCollection _leaseCollection;
 		readonly SingletonDocument<PerforceServerList> _serverListSingleton;
 		readonly Random _random = new Random();
@@ -146,9 +147,10 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceLoadBalancer(MongoService mongoService, ILeaseCollection leaseCollection, IClock clock, ILogger<PerforceLoadBalancer> logger)
+		public PerforceLoadBalancer(MongoService mongoService, GlobalsService globalsService, ILeaseCollection leaseCollection, IClock clock, ILogger<PerforceLoadBalancer> logger)
 		{
 			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_leaseCollection = leaseCollection;
 			_serverListSingleton = new SingletonDocument<PerforceServerList>(mongoService);
 			_logger = logger;
@@ -356,13 +358,13 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		async ValueTask TickInternalAsync(CancellationToken cancellationToken)
 		{
-			Globals globals = await _mongoService.GetGlobalsAsync();
+			IGlobals globals = await _globalsService.GetAsync();
 
 			// Set of new server entries
 			List<PerforceServerEntry> newServers = new List<PerforceServerEntry>();
 
 			// Update the state of all the valid servers
-			foreach (PerforceCluster cluster in globals.PerforceClusters)
+			foreach (PerforceCluster cluster in globals.Config.PerforceClusters)
 			{
 				foreach (PerforceServer server in cluster.Servers)
 				{

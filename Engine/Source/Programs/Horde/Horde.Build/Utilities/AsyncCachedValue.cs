@@ -67,6 +67,14 @@ namespace Horde.Build.Utilities
 		}
 
 		/// <summary>
+		/// Invalidates the current value
+		/// </summary>
+		public void Invalidate()
+		{
+			_current = null;
+		}
+
+		/// <summary>
 		/// Tries to get the current value
 		/// </summary>
 		/// <returns>The cached value, if valid</returns>

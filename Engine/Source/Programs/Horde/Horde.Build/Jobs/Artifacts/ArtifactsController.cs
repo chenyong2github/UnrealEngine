@@ -31,9 +31,9 @@ namespace Horde.Build.Jobs.Artifacts
 	public class ArtifactsController : ControllerBase
 	{
 		/// <summary>
-		/// Instance of the database service
+		/// Instance of the globals service
 		/// </summary>
-		private readonly MongoService _mongoService;
+		private readonly GlobalsService _globalsService;
 
 		/// <summary>
 		/// Instance of the artifact collection
@@ -53,9 +53,9 @@ namespace Horde.Build.Jobs.Artifacts
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ArtifactsController(MongoService mongoService, IArtifactCollection artifactCollection, AclService aclService, JobService jobService)
+		public ArtifactsController(GlobalsService globalsService, IArtifactCollection artifactCollection, AclService aclService, JobService jobService)
 		{
-			_mongoService = mongoService;
+			_globalsService = globalsService;
 			_artifactCollection = artifactCollection;
 			_aclService = aclService;
 			_jobService = jobService;
@@ -149,7 +149,7 @@ namespace Horde.Build.Jobs.Artifacts
 				return Forbid();
 			}
 
-			string? downloadCode = code ? (string?)GetDirectDownloadCodeForJob(jobId) : null;
+			string? downloadCode = code ? (string?)await GetDirectDownloadCodeForJobAsync(jobId) : null;
 
 			List<IArtifact> artifacts = await _artifactCollection.GetArtifactsAsync(jobId, stepId?.ToSubResourceId(), null);
 			return artifacts.ConvertAll(x => new GetArtifactResponse(x, downloadCode).ApplyFilter(filter));
@@ -170,10 +170,10 @@ namespace Horde.Build.Jobs.Artifacts
 		/// </summary>
 		/// <param name="jobId">The job id</param>
 		/// <returns>The download code</returns>
-		string GetDirectDownloadCodeForJob(JobId jobId)
+		async ValueTask<string> GetDirectDownloadCodeForJobAsync(JobId jobId)
 		{
 			Claim downloadClaim = GetDirectDownloadClaim(jobId);
-			return _aclService.IssueBearerToken(new[] { downloadClaim }, TimeSpan.FromHours(4.0));
+			return await _aclService.IssueBearerTokenAsync(new[] { downloadClaim }, TimeSpan.FromHours(4.0));
 		}
 
 		/// <summary>
@@ -199,7 +199,7 @@ namespace Horde.Build.Jobs.Artifacts
 				return Forbid();
 			}
 
-			string? downloadCode = code? (string?)GetDirectDownloadCodeForJob(artifact.JobId) : null;
+			string? downloadCode = code? (string?)await GetDirectDownloadCodeForJobAsync(artifact.JobId) : null;
 			return new GetArtifactResponse(artifact, downloadCode).ApplyFilter(filter);
 		}
 
@@ -300,14 +300,16 @@ namespace Horde.Build.Jobs.Artifacts
 		[Route("/api/v1/artifacts/{artifactId}/download")]
 		public async Task<ActionResult> DownloadArtifact(string artifactId, [FromQuery] string code)
 		{
+			IGlobals globals = await _globalsService.GetAsync();
+
 			TokenValidationParameters parameters = new TokenValidationParameters();
 			parameters.ValidateAudience = false;
 			parameters.RequireExpirationTime = true;
 			parameters.ValidateLifetime = true;
-			parameters.ValidIssuer = _mongoService.JwtIssuer;
+			parameters.ValidIssuer = globals.JwtIssuer;
 			parameters.ValidateIssuer = true;
 			parameters.ValidateIssuerSigningKey = true;
-			parameters.IssuerSigningKey = _mongoService.JwtSigningKey;
+			parameters.IssuerSigningKey = globals.JwtSigningKey;
 
 			JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 			ClaimsPrincipal principal = handler.ValidateToken(code, parameters, out _);

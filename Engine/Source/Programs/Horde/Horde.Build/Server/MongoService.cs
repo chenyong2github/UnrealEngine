@@ -228,16 +228,6 @@ namespace Horde.Build.Server
 		ServerSettings Settings { get; }
 
 		/// <summary>
-		/// Name of the JWT issuer
-		/// </summary>
-		public string JwtIssuer { get; }
-
-		/// <summary>
-		/// The signing key for this instance
-		/// </summary>
-		public SymmetricSecurityKey JwtSigningKey { get; }
-
-		/// <summary>
 		/// Logger for this instance
 		/// </summary>
 		readonly ILogger<MongoService> _logger;
@@ -347,26 +337,6 @@ namespace Horde.Build.Server
 
 				SingletonsV1 = GetCollection<BsonDocument>("Singletons");
 				SingletonsV2 = GetCollection<BsonDocument>("SingletonsV2");
-
-				Globals globals = GetGlobalsAsync().Result;
-				while (globals.JwtSigningKey == null)
-				{
-					globals.RotateSigningKey();
-					if (!TryUpdateSingletonAsync(globals).Result)
-					{
-						globals = GetGlobalsAsync().Result;
-					}
-				}
-
-				JwtIssuer = Settings.JwtIssuer ?? Dns.GetHostName();
-				if (String.IsNullOrEmpty(Settings.JwtSecret))
-				{
-					JwtSigningKey = new SymmetricSecurityKey(globals.JwtSigningKey);
-				}
-				else
-				{
-					JwtSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(Settings.JwtSecret));
-				}
 
 				Credentials = GetCollection<Credential>("Credentials");
 			}
@@ -793,15 +763,6 @@ namespace Horde.Build.Server
 				}
 				return attribute;
 			}
-		}
-
-		/// <summary>
-		/// Gets a singleton document by id
-		/// </summary>
-		/// <returns>The globals document</returns>
-		public Task<Globals> GetGlobalsAsync()
-		{
-			return GetSingletonAsync<Globals>(() => new Globals() { SchemaVersion = UpgradeService.LatestSchemaVersion });
 		}
 
 		/// <summary>
