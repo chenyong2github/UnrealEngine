@@ -43,7 +43,7 @@ static void OnDumpPhysicalMaterialMaskData(const TArray< FString >& Arguments)
 	if (Arguments.Num() > 0)
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FAssetData PhysMatMaskAsset = AssetRegistryModule.Get().GetAssetByObjectPath(*Arguments[0]);
+		FAssetData PhysMatMaskAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(Arguments[0]));
 		if (PhysMatMaskAsset.IsValid() == false)
 		{
 			TArray<FAssetData> AssetsInPackage;

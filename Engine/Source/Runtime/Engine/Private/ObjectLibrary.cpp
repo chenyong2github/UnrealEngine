@@ -503,7 +503,7 @@ int32 UObjectLibrary::LoadAssetsFromAssetData()
 		for (int32 AssetIdx = 0; AssetIdx < AssetDataList.Num(); AssetIdx++)
 		{
 			FAssetData& Data = AssetDataList[AssetIdx];
-			AssetsToStream.AddUnique(FSoftObjectPath(Data.PackageName));
+			AssetsToStream.AddUnique(FSoftObjectPath(Data.PackageName, {}, {}));
 		}
 
 		if (AssetsToStream.Num())

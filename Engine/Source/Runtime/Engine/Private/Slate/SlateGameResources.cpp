@@ -232,7 +232,7 @@ void FSlateGameResources::RemoveAsset(const FAssetData& InRemovedAssetData)
 
 bool FSlateGameResources::ShouldCache( const FAssetData& InAssetData )
 {
-	return InAssetData.ObjectPath.ToString().StartsWith( ContentRootDir, ESearchCase::CaseSensitive )
+	return InAssetData.PackageName.ToString().StartsWith( ContentRootDir, ESearchCase::CaseSensitive )
 		&& InAssetData.AssetClassPath == USlateWidgetStyleAsset::StaticClass()->GetClassPathName();
 }
 
