@@ -8,6 +8,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Delegates/IntegerSequence.h"
 #include "Templates/AndOrNot.h"
+#include "Concepts/Insertable.h"
 
 #include "Misc/AssertionMacros.h"
 
@@ -217,6 +218,35 @@ namespace Private
 			static constexpr void(*MoveConstructors[])(void*, void*) = { &TMoveConstructorCaller<Ts>::Construct... };
 			check(TypeIndex < UE_ARRAY_COUNT(MoveConstructors));
 			MoveConstructors[TypeIndex](Target, Source);
+		}
+	};
+
+	/** A utility for loading a specific type from FArchive into a TVariant */
+	template <typename T, typename VariantType>
+	struct TVariantLoadFromArchiveCaller
+	{
+		/** Default construct the type and load it from the FArchive */
+		static void Load(FArchive& Ar, VariantType& OutVariant)
+		{
+			OutVariant.template Emplace<T>();
+			Ar << OutVariant.template Get<T>();
+		}
+	};
+
+	/** A utility for loading a type from FArchive based on an index into a template parameter pack. */
+	template <typename... Ts>
+	struct TVariantLoadFromArchiveLookup
+	{
+		using VariantType = TVariant<Ts...>;
+		static_assert((std::is_default_constructible<Ts>::value && ...), "Each type in TVariant template parameter pack must be default constructible in order to use FArchive serialization");
+		static_assert((TModels<CInsertable<FArchive&>, Ts>::Value && ...), "Each type in TVariant template parameter pack must be able to use operator<< with an FArchive");
+
+		/** Load the type at the specified index from the FArchive and emplace it into the TVariant */
+		static void Load(SIZE_T TypeIndex, FArchive& Ar, VariantType& OutVariant)
+		{
+			static constexpr void(*Loaders[])(FArchive&, VariantType&) = { &TVariantLoadFromArchiveCaller<Ts, VariantType>::Load... };
+			check(TypeIndex < UE_ARRAY_COUNT(Loaders));
+			Loaders[TypeIndex](Ar, OutVariant);
 		}
 	};
 
