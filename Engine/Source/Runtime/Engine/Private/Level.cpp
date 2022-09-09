@@ -2097,7 +2097,9 @@ uint16 ULevel::RegisterStreamableTexture(UTexture* InTexture)
 			InTexture->SetLightingGuid();
 		}
 
-		InTexture->LevelIndex = (int32)RegisterStreamableTexture(InTexture->GetPathName(), InTexture->GetLightingGuid());
+		uint16 RegisteredIndex = RegisterStreamableTexture(InTexture->GetPathName(), InTexture->GetLightingGuid());
+		check(RegisteredIndex != InvalidRegisteredStreamableTexture);
+		InTexture->LevelIndex = (int32)RegisteredIndex;
 	}
 	check(StreamingTextureGuids.IsValidIndex(InTexture->LevelIndex));
 	check(StreamingTextureGuids[InTexture->LevelIndex] == InTexture->GetLightingGuid());
@@ -2107,10 +2109,25 @@ uint16 ULevel::RegisterStreamableTexture(UTexture* InTexture)
 uint16 ULevel::RegisterStreamableTexture(const FString& InTextureName, const FGuid& InTextureGuid)
 {
 	check(StreamingTextures.Num() == StreamingTextureGuids.Num());
-	uint16 Index = StreamingTextureGuids.AddUnique(InTextureGuid);
-	StreamingTextures.AddUnique(FName(*InTextureName));
-	check(StreamingTextures.Num() == StreamingTextureGuids.Num());
-	return Index;
+	const int32 TextureNameIndex = StreamingTextures.Find(FName(InTextureName));
+	const int32 TextureGuidIndex = StreamingTextureGuids.Find(InTextureGuid);
+	if (TextureNameIndex != TextureGuidIndex)
+	{
+		UE_CLOG(TextureNameIndex != INDEX_NONE, LogLevel, Warning, TEXT("Failed to register streamable texture Name = %s Guid = %s: An entry already exists for this Name with a different Guid = %s. Consider rebuilding texture streaming."), *InTextureName, *InTextureGuid.ToString(), *StreamingTextureGuids[TextureNameIndex].ToString());
+		UE_CLOG(TextureGuidIndex != INDEX_NONE, LogLevel, Warning, TEXT("Failed to register streamable texture Name = %s Guid = %s: An entry already exists for this Guid with a different Name = %s. Consider modifying & resaving one of these textures (will change its guid) and rebuiling texture streaming."), *InTextureName, *InTextureGuid.ToString(), *StreamingTextures[TextureGuidIndex].ToString());
+		return InvalidRegisteredStreamableTexture;
+	}
+	else if (TextureNameIndex != INDEX_NONE)
+	{
+		return TextureNameIndex;
+	}
+	else
+	{
+		uint16 Index = StreamingTextureGuids.Add(InTextureGuid);
+		StreamingTextures.Add(FName(*InTextureName));
+		check(StreamingTextures.Num() == StreamingTextureGuids.Num());
+		return Index;
+	}
 }
 
 #endif

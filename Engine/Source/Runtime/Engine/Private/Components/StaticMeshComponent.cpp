@@ -886,7 +886,12 @@ bool UStaticMeshComponent::RemapActorTextureStreamingBuiltDataToLevel(const UAct
 	FGuid TextureGuid;
 	for (FStreamingTextureBuildInfo& BuildInfo : StreamingTextureData)
 	{
-		if (!InActorTextureBuildData->GetStreamableTexture(BuildInfo.TextureLevelIndex, TextureName, TextureGuid))
+		uint16 TextureLevelIndex = InvalidRegisteredStreamableTexture;
+		if (InActorTextureBuildData->GetStreamableTexture(BuildInfo.TextureLevelIndex, TextureName, TextureGuid))
+		{
+			TextureLevelIndex = Level->RegisterStreamableTexture(TextureName, TextureGuid);
+		}
+		if (TextureLevelIndex == InvalidRegisteredStreamableTexture)
 		{
 			// If remapping failed, invalidate built texture streaming data (this should not happen with newly generated texture streaming build data)
 			UE_LOG(LogStaticMesh, Warning, TEXT("Clearing invalid texture streaming built data for %s"), *GetFullName());
@@ -894,7 +899,7 @@ bool UStaticMeshComponent::RemapActorTextureStreamingBuiltDataToLevel(const UAct
 			return false;
 		}
 		// Update BuildInfo's TextureLevelIndex
-		BuildInfo.TextureLevelIndex = Level->RegisterStreamableTexture(TextureName, TextureGuid);
+		BuildInfo.TextureLevelIndex = TextureLevelIndex;
 	}
 	return true;
 }

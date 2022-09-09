@@ -103,6 +103,9 @@ struct FStreamingRenderAssetPrimitiveInfo
 	}
 };
 
+// Invalid streamable texture registration index
+static const uint16 InvalidRegisteredStreamableTexture = (uint16)INDEX_NONE;
+
 /**
  * Interface for texture streaming container
  */
