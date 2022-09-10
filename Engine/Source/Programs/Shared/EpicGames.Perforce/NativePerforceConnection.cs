@@ -564,7 +564,7 @@ namespace EpicGames.Perforce
 				}
 			}
 
-			Logger.LogTrace("Conn {ConnectionId}: {Command} {Args} completed in {Time}ms", _uniqueId, command, String.Join(" ", args), timer.ElapsedMilliseconds);
+			Logger.LogTrace("Conn {ConnectionId}: Request completed in {Time}ms", _uniqueId, timer.ElapsedMilliseconds);
 		}
 
 		/// <summary>

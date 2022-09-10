@@ -486,6 +486,7 @@ namespace Horde.Build.Perforce
 				client.Stream = streamName;
 				await perforce.CreateClientAsync(client, cancellationToken);
 
+				_logger.LogDebug("Created client {ClientName} (user: {User}, root: {Root}, stream: {Stream}, server: {ServerId})", client.Name, client.Owner, client.Root, client.Stream, info.ServerId ?? "unknown");
 				return await CreatePooledConnectionAsync(perforce.Settings.ServerAndPort, perforce.Credentials, client, cancellationToken);
 			}
 		}

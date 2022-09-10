@@ -453,7 +453,7 @@ namespace Horde.Build.Perforce
 				}
 
 				int numResults = 0;
-				_owner._logger.LogDebug("Finding {StreamId} commits from {MinChange} to {MaxChange} (max: {MaxResults}, tags: {Tags})", _stream.Id, minChange ?? -1, maxChange ?? -1, maxResults ?? -1, (tags == null || tags.Count == 0) ? "none" : String.Join("/", tags.Select(x => x.ToString())));
+				_owner._logger.LogDebug("Querying Perforce cache for {StreamId} commits from {MinChange} to {MaxChange} (max: {MaxResults}, tags: {Tags})", _stream.Id, minChange ?? -1, maxChange ?? -1, maxResults ?? -1, (tags == null || tags.Count == 0) ? "none" : String.Join("/", tags.Select(x => x.ToString())));
 
 				CacheState state = await _owner._mongoService.GetSingletonAsync<CacheState>();
 				if (state.Clusters.TryGetValue(_stream.Config.ClusterName, out ClusterState? clusterState))
@@ -506,7 +506,7 @@ namespace Horde.Build.Perforce
 							}
 						}
 
-						_owner._logger.LogDebug("Returned {NumResults} cached results (min: {MinReplicatedChange}, max: {MaxReplicatedChange})", numResults, minReplicatedChange, clusterState.MaxChange);
+						_owner._logger.LogDebug("Found {NumResults} cached results (min-replicated: {MinReplicatedChange}, max-replicated: {MaxReplicatedChange})", numResults, minReplicatedChange, clusterState.MaxChange);
 
 						if (maxResults != null)
 						{
