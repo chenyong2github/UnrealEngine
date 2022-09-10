@@ -9,12 +9,21 @@
 struct FAssetData;
 struct FAssetRegistrySerializationOptions;
 
+// Header containing versioning & data stripping information for a serialized asset registry state.
+struct FAssetRegistryHeader
+{
+	FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion;
+	bool bFilterEditorOnlyData = false; // True if editor only data has been removed/should be removed while saving 
+
+	void SerializeHeader(FArchive& Ar);
+};
+
 /** @see FAssetRegistryWriter */
 class FAssetRegistryReader : public FArchiveProxy
 {
 public:
 	/// @param NumWorkers > 0 for parallel loading
-	FAssetRegistryReader(FArchive& Inner, int32 NumWorkers = 0, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion);
+	FAssetRegistryReader(FArchive& Inner, int32 NumWorkers, FAssetRegistryHeader Header);
 	~FAssetRegistryReader();
 
 	virtual FArchive& operator<<(FName& Value) override;

@@ -164,6 +164,19 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundlesOldVersion(F
 	return LoadBundlesInternal(Ar, Version);
 }
 
+void FAssetRegistryHeader::SerializeHeader(FArchive& Ar)
+{
+	FAssetRegistryVersion::SerializeVersion(Ar, Version);
+	if (Version >= FAssetRegistryVersion::AddedHeader)
+	{
+		Ar << bFilterEditorOnlyData;
+	}
+	else if(Ar.IsLoading())
+	{
+		bFilterEditorOnlyData = false;		
+	}
+}
+
 #if ALLOW_NAME_BATCH_SAVING
 
 FAssetRegistryWriterOptions::FAssetRegistryWriterOptions(const FAssetRegistrySerializationOptions& Options)
@@ -241,10 +254,13 @@ void FAssetRegistryWriter::SerializeTagsAndBundles(const FAssetData& Out)
 
 #endif
 
-FAssetRegistryReader::FAssetRegistryReader(FArchive& Inner, int32 NumWorkers, FAssetRegistryVersion::Type Version)
+FAssetRegistryReader::FAssetRegistryReader(FArchive& Inner, int32 NumWorkers, FAssetRegistryHeader Header)
 	: FArchiveProxy(Inner)
 {
 	check(IsLoading());
+
+	SetFilterEditorOnly(Header.bFilterEditorOnlyData);
+	FArchive::SetFilterEditorOnly(Header.bFilterEditorOnlyData); // Workaround for bug in FArchiveProxy
 
 	if (NumWorkers > 0)
 	{
@@ -259,7 +275,7 @@ FAssetRegistryReader::FAssetRegistryReader(FArchive& Inner, int32 NumWorkers, FA
 	else
 	{
 		Names = LoadNameBatch(Inner);
-		Tags = FixedTagPrivate::LoadStore(*this, Version);
+		Tags = FixedTagPrivate::LoadStore(*this, Header.Version);
 	}
 }
 
@@ -386,7 +402,8 @@ bool FAssetRegistryTagSerializationTest::RunTest(const FString& Parameters)
 
 	{
 		FMemoryReader DataReader(Data);
-		FAssetRegistryReader RegistryReader(DataReader);
+		FAssetRegistryHeader Header;
+		FAssetRegistryReader RegistryReader(DataReader, 0, Header);
 		for (FAssetDataTagMapSharedView& FixedMap : FixedMaps)
 		{
 			FixedMap = LoadTags(RegistryReader);
@@ -398,7 +415,8 @@ bool FAssetRegistryTagSerializationTest::RunTest(const FString& Parameters)
 	// Re-create second fixed tag store to test operator==(FMapHandle, FMapHandle)
 	{
 		FMemoryReader DataReader(Data);
-		FAssetRegistryReader RegistryReader(DataReader);
+		FAssetRegistryHeader Header;
+		FAssetRegistryReader RegistryReader(DataReader, 0, Header);
 
 		for (const FAssetDataTagMapSharedView& FixedMap1 : FixedMaps)
 		{

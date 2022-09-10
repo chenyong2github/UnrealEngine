@@ -33,6 +33,8 @@ namespace UE::AssetRegistry
 	class FAssetRegistryImpl;
 }
 
+struct FAssetRegistryHeader;
+
 /** Load/Save options used to modify how the cache is serialized. These are read out of the AssetRegistry section of Engine.ini and can be changed per platform. */
 struct FAssetRegistrySerializationOptions
 {
@@ -529,7 +531,7 @@ public:
 
 private:
 	template<class Archive>
-	void Load(Archive&& Ar, FAssetRegistryVersion::Type Version, const FAssetRegistryLoadOptions& Options);
+	void Load(Archive&& Ar, const FAssetRegistryHeader& Header, const FAssetRegistryLoadOptions& Options);
 
 	/** Initialize the lookup maps */
 	void SetAssetDatas(TArrayView<FAssetData> AssetDatas, const FAssetRegistryLoadOptions& Options);

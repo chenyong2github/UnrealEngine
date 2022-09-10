@@ -3870,7 +3870,13 @@ FCachePayload LoadCacheFile(FStringView InCacheFilename)
 	{
 		int32 WorkerReduction = 2; // Current worker + preload task
 		int32 Parallelism = FMath::Max(FTaskGraphInterface::Get().GetNumWorkerThreads() - WorkerReduction, 0);
-		FAssetRegistryReader RegistryReader(ChecksummingReader, Parallelism);
+		
+		// The discovery cache is always serialized with a fixed format.
+		// We discard it before this point if it's not the latest version, and it always includes editor-only data.
+		FAssetRegistryHeader Header;
+		Header.Version = FAssetRegistryVersion::LatestVersion;
+		Header.bFilterEditorOnlyData = false;
+		FAssetRegistryReader RegistryReader(ChecksummingReader, Parallelism, Header);
 		return RegistryReader.IsError() ? FCachePayload() : SerializeCacheLoad(RegistryReader);
 	};
 

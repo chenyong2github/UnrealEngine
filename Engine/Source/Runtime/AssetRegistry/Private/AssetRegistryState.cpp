@@ -1043,8 +1043,10 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 #else
 	check(CachedAssets.Num() == NumAssets);
 
-	FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion;
-	FAssetRegistryVersion::SerializeVersion(OriginalAr, Version);
+	FAssetRegistryHeader Header;
+	Header.Version = FAssetRegistryVersion::LatestVersion;
+	Header.bFilterEditorOnlyData = OriginalAr.IsFilterEditorOnly();
+	Header.SerializeHeader(OriginalAr);
 
 	// Set up fixed asset registry writer
 	FAssetRegistryWriter Ar(FAssetRegistryWriterOptions(Options), OriginalAr);
@@ -1163,28 +1165,28 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 
-	FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion;
-	FAssetRegistryVersion::SerializeVersion(OriginalAr, Version);
+	FAssetRegistryHeader Header;
+	Header.SerializeHeader(OriginalAr);
 	if (OutVersion != nullptr)
 	{
-		*OutVersion = Version;
+		*OutVersion = Header.Version;
 	}
 
 	FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NonPackage, ESoftObjectPathSerializeType::AlwaysSerialize);
 
-	if (Version < FAssetRegistryVersion::RemovedMD5Hash)
+	if (Header.Version < FAssetRegistryVersion::RemovedMD5Hash)
 	{
 		// Cannot read states before this version
 		return false;
 	}
-	else if (Version < FAssetRegistryVersion::FixedTags)
+	else if (Header.Version < FAssetRegistryVersion::FixedTags)
 	{
 		FNameTableArchiveReader NameTableReader(OriginalAr);
-		Load(NameTableReader, Version, Options);
+		Load(NameTableReader, Header, Options);
 	}
 	else
 	{
-		FAssetRegistryReader Reader(OriginalAr, Options.ParallelWorkers, Version);
+		FAssetRegistryReader Reader(OriginalAr, Options.ParallelWorkers, Header);
 
 		if (Reader.IsError())
 		{
@@ -1193,7 +1195,7 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 
 		// Load won't resolve asset registry tag values loaded in parallel
 		// and can run before WaitForTasks
-		Load(Reader, Version, Options);
+		Load(Reader, Header, Options);
 
 		Reader.WaitForTasks();
 	}
@@ -1222,8 +1224,10 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 }
 
 template<class Archive>
-void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version, const FAssetRegistryLoadOptions& Options)
+void FAssetRegistryState::Load(Archive&& Ar, const FAssetRegistryHeader& Header, const FAssetRegistryLoadOptions& Options)
 {
+	FAssetRegistryVersion::Type Version = Header.Version;
+
 	// serialize number of objects
 	int32 LocalNumAssets = 0;
 	Ar << LocalNumAssets;
