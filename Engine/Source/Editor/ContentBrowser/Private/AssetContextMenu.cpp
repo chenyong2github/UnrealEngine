@@ -174,7 +174,7 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			FAssetData ItemAssetData;
 			if (SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
 			{
-				ObjectPaths.Add(ItemAssetData.ObjectPath.ToString());
+				ObjectPaths.Add(ItemAssetData.GetObjectPathString());
 			}
 		}
 
@@ -759,7 +759,9 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 				SelectedItemCollectionIds.Add(ItemCollectionId);
 			}
 		}
-		QuickAssetManagement->SetCurrentAssetPaths(SelectedItemCollectionIds);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		QuickAssetManagement->SetCurrentAssetPaths(UE::SoftObjectPath::Private::ConvertObjectPathNames(SelectedItemCollectionIds));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		Section.AddSubMenu(
 			"ManageCollections",

@@ -516,7 +516,9 @@ bool UContentBrowserClassDataSource::TryGetCollectionId(const FContentBrowserIte
 {
 	if (TSharedPtr<const FContentBrowserClassFileItemDataPayload> ClassPayload = GetClassFileItemPayload(InItem))
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OutCollectionId = ClassPayload->GetAssetData().ObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 	return false;
@@ -551,7 +553,9 @@ bool UContentBrowserClassDataSource::Legacy_TryConvertPackagePathToVirtualPath(c
 bool UContentBrowserClassDataSource::Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath)
 {
 	return (InAssetData.AssetClassPath == FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("Class"))) // Ignore non-class class items
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		&& TryConvertInternalPathToVirtual(InUseFolderPaths ? InAssetData.PackagePath : InAssetData.ObjectPath, OutPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UContentBrowserClassDataSource::IsKnownClassPath(const FName InPackagePath) const

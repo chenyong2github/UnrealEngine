@@ -86,6 +86,10 @@ public:
 	 *
 	 * @return True if the collection was modified, false otherwise (see the output log for details on error).
 	 */
+	UFUNCTION(BlueprintCallable, Category="AssetTags", DisplayName="Add Asset To Collection")
+	bool K2_AddAssetToCollection(const FName Name, const FSoftObjectPath& AssetPath);
+
+	UE_DEPRECATED(5.1, "Names containing full asset paths are deprecated. Use Soft Object Path instead.")
 	UFUNCTION(BlueprintCallable, Category="AssetTags")
 	bool AddAssetToCollection(const FName Name, const FName AssetPathName);
 
@@ -119,6 +123,10 @@ public:
 	 *
 	 * @return True if the collection was modified, false otherwise (see the output log for details on error).
 	 */
+	UFUNCTION(BlueprintCallable, Category="AssetTags", DisplayName="Add Assets To Collection")
+	bool K2_AddAssetsToCollection(const FName Name, const TArray<FSoftObjectPath>& AssetPaths);
+	 
+	UE_DEPRECATED(5.1, "Names containing full asset paths are deprecated. Use Soft Object Path instead.")
 	UFUNCTION(BlueprintCallable, Category="AssetTags")
 	bool AddAssetsToCollection(const FName Name, const TArray<FName>& AssetPathNames);
 
@@ -148,10 +156,14 @@ public:
 	 * Remove the given asset from the given collection.
 	 * 
 	 * @param Name Name of the collection to modify.
-	 * @param AssetPathName Asset to remove (its path name, eg) /Game/MyFolder/MyAsset.MyAsset).
+	 * @param AssetPath Asset to remove (its path, eg) /Game/MyFolder/MyAsset.MyAsset).
 	 *
 	 * @return True if the collection was modified, false otherwise (see the output log for details on error).
 	 */
+	UFUNCTION(BlueprintCallable, Category="AssetTags", DisplayName="Remove Asset From Collection")
+	bool K2_RemoveAssetFromCollection(const FName Name, const FSoftObjectPath& AssetPath);
+
+	UE_DEPRECATED(5.1, "Names containing full asset paths are deprecated, use Soft Object Path instead.")
 	UFUNCTION(BlueprintCallable, Category="AssetTags")
 	bool RemoveAssetFromCollection(const FName Name, const FName AssetPathName);
 
@@ -185,6 +197,10 @@ public:
 	 *
 	 * @return True if the collection was modified, false otherwise (see the output log for details on error).
 	 */
+	UFUNCTION(BlueprintCallable, Category="AssetTags", DisplayName="Remove Assets From Collection")
+	bool K2_RemoveAssetsFromCollection(const FName Name, const TArray<FSoftObjectPath>& AssetPaths);
+
+	UE_DEPRECATED(5.1, "Names containing full asset paths are deprecated. Use Soft Object Path instead.")
 	UFUNCTION(BlueprintCallable, Category="AssetTags")
 	bool RemoveAssetsFromCollection(const FName Name, const TArray<FName>& AssetPathNames);
 
@@ -246,6 +262,10 @@ public:
 	 *
 	 * @return Names of the collections that contain the asset.
 	 */
+	UFUNCTION(BlueprintCallable, Category = "AssetTags", DisplayName="Get Collections Containing Asset")
+	TArray<FName> K2_GetCollectionsContainingAsset(const FSoftObjectPath& AssetPath);
+
+	UE_DEPRECATED(5.1, "Names containing full asset paths are deprecated. Use Soft Object Path instead.")
 	UFUNCTION(BlueprintCallable, Category="AssetTags")
 	TArray<FName> GetCollectionsContainingAsset(const FName AssetPathName);
 

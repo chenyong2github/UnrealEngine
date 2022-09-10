@@ -3651,7 +3651,7 @@ bool SAssetView::CanOpenContextMenu() const
 			FAssetData ItemAssetData;
 			if (Item->GetItem().Legacy_TryGetAssetData(ItemAssetData))
 			{
-				ObjectPaths.Add(ItemAssetData.ObjectPath.ToString());
+				ObjectPaths.Add(ItemAssetData.GetObjectPathString());
 			}
 		}
 

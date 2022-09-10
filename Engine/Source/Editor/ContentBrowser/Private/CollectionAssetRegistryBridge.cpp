@@ -91,17 +91,19 @@ public:
 		else
 		{
 			// Keep track of visted redirectors in case we loop.
-			TSet<FName> VisitedRedirectors;
+			TSet<FSoftObjectPath> VisitedRedirectors;
 
 			// Use the asset registry to avoid loading the object
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FAssetData ObjectAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(InObjectPath, true);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			while (ObjectAssetData.IsValid() && ObjectAssetData.IsRedirector())
 			{
 				// Check to see if we've already seen this path before, it's possible we might have found a redirector loop.
-				if ( VisitedRedirectors.Contains(ObjectAssetData.ObjectPath) )
+				if ( VisitedRedirectors.Contains(ObjectAssetData.ToSoftObjectPath()) )
 				{
 					UE_LOG(LogContentBrowser, Error, TEXT("Redirector Loop Found!"));
-					for ( FName Redirector : VisitedRedirectors )
+					for ( const FSoftObjectPath& Redirector : VisitedRedirectors )
 					{
 						UE_LOG(LogContentBrowser, Error, TEXT("Redirector: %s"), *Redirector.ToString());
 					}
@@ -110,7 +112,7 @@ public:
 					break;
 				}
 
-				VisitedRedirectors.Add(ObjectAssetData.ObjectPath);
+				VisitedRedirectors.Add(ObjectAssetData.ToSoftObjectPath());
 
 				// Get the destination object from the meta-data rather than load the redirector object, as 
 				// loading a redirector will also load the object it points to, which could cause a large hitch
@@ -118,7 +120,7 @@ public:
 				if (ObjectAssetData.GetTagValue("DestinationObject", DestinationObjectPath))
 				{
 					ConstructorHelpers::StripObjectClass(DestinationObjectPath);
-					ObjectAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*DestinationObjectPath);
+					ObjectAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(DestinationObjectPath));
 				}
 				else
 				{
@@ -126,7 +128,9 @@ public:
 				}
 			}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			OutNewObjectPath = ObjectAssetData.ObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		return OutNewObjectPath != NAME_None && InObjectPath != OutNewObjectPath;
@@ -179,7 +183,9 @@ void FCollectionAssetRegistryBridge::OnAssetRenamed(const FAssetData& AssetData,
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
 	// Notify the collections manager that an asset has been renamed
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	CollectionManagerModule.Get().HandleObjectRenamed(*OldObjectPath, AssetData.ObjectPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FCollectionAssetRegistryBridge::OnAssetRemoved(const FAssetData& AssetData)
@@ -190,12 +196,16 @@ void FCollectionAssetRegistryBridge::OnAssetRemoved(const FAssetData& AssetData)
 	{
 		// Notify the collections manager that a redirector has been removed
 		// This will attempt to re-save any collections that still have a reference to this redirector in their on-disk collection data
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CollectionManagerModule.Get().HandleRedirectorDeleted(AssetData.ObjectPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
 		// Notify the collections manager that an asset has been removed
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CollectionManagerModule.Get().HandleObjectDeleted(AssetData.ObjectPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 

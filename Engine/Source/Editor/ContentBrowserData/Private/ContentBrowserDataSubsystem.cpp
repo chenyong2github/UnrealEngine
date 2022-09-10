@@ -468,6 +468,20 @@ TArray<FContentBrowserItemPath> UContentBrowserDataSubsystem::GetAliasesForPath(
 	return GetAliasesForPath(InPath.GetInternalPathName());
 }
 
+TArray<FContentBrowserItemPath> UContentBrowserDataSubsystem::GetAliasesForPath(const FSoftObjectPath& InInternalPath) const
+{
+	TArray<FContentBrowserItemPath> Aliases;
+
+	for (const auto& ActiveDataSourcePair : ActiveDataSources)
+	{
+		UContentBrowserDataSource* DataSource = ActiveDataSourcePair.Value;
+		Aliases.Append(DataSource->GetAliasesForPath(InInternalPath));
+	}
+
+	return Aliases;
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TArray<FContentBrowserItemPath> UContentBrowserDataSubsystem::GetAliasesForPath(const FName InInternalPath) const
 {
 	TArray<FContentBrowserItemPath> Aliases;
@@ -480,6 +494,7 @@ TArray<FContentBrowserItemPath> UContentBrowserDataSubsystem::GetAliasesForPath(
 
 	return Aliases;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UContentBrowserDataSubsystem::IsDiscoveringItems(TArray<FText>* OutStatus) const
 {

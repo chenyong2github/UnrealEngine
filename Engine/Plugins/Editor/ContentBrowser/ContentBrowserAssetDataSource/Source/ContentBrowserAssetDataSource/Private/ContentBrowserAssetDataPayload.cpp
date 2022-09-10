@@ -70,9 +70,9 @@ UObject* FContentBrowserAssetFileItemDataPayload::GetAsset(const bool bTryRecach
 	
 	if (!bHasCachedAssetPtr || (bTryRecacheIfNull && !CachedAssetPtr.IsValid()))
 	{
-		if (!AssetData.ObjectPath.IsNone())
+		if (AssetData.IsValid())
 		{
-			CachedAssetPtr = FindObjectSafe<UObject>(nullptr, *FNameBuilder(AssetData.ObjectPath));
+			CachedAssetPtr = FindObjectSafe<UObject>(nullptr, *AssetData.GetObjectPathString());
 		}
 		bHasCachedAssetPtr = true;
 	}
@@ -83,10 +83,10 @@ UObject* FContentBrowserAssetFileItemDataPayload::LoadAsset(TSet<FName> LoadTags
 {
 	if (!bHasCachedAssetPtr || !CachedAssetPtr.IsValid())
 	{
-		if (!AssetData.ObjectPath.IsNone())
+		if (AssetData.IsValid())
 		{
 			FLinkerInstancingContext InstancingContext(MoveTemp(LoadTags));
-			CachedAssetPtr = LoadObject<UObject>(nullptr, *FNameBuilder(AssetData.ObjectPath), nullptr, LOAD_None, nullptr, &InstancingContext);
+			CachedAssetPtr = LoadObject<UObject>(nullptr, *AssetData.GetObjectPathString(), nullptr, LOAD_None, nullptr, &InstancingContext);
 			(void)GetPackage(/*bTryRecacheIfNull*/true); // Also re-cache the package pointer
 		}
 		bHasCachedAssetPtr = true;

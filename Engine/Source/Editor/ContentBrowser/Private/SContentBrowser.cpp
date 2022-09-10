@@ -1568,13 +1568,13 @@ void SContentBrowser::SyncToLegacy(TArrayView<const FAssetData> AssetDataList, T
 	TArray<FAssetData> NewItemsToSync;
 	for (int32 i = 0; i < AssetDataList.Num(); ++i)
 	{
-		if (FolderPermissions->PassesStartsWithFilter(AssetDataList[i].ObjectPath))
+		if (FolderPermissions->PassesStartsWithFilter(AssetDataList[i].GetObjectPathString()))
 		{
 			NewItemsToSync.Add(AssetDataList[i]);
 		}
 		else
 		{
-			TArray<FContentBrowserItemPath> Aliases = ContentBrowserData->GetAliasesForPath(AssetDataList[i].ObjectPath);
+			TArray<FContentBrowserItemPath> Aliases = ContentBrowserData->GetAliasesForPath(*AssetDataList[i].GetObjectPathString());
 			for (const FContentBrowserItemPath& Alias : Aliases)
 			{
 				const FName InternalPath = Alias.GetInternalPathName();
@@ -1656,7 +1656,7 @@ void SContentBrowser::LoadSelectedObjectsIfNeeded()
 	for ( auto AssetIt = SelectedAssets.CreateConstIterator(); AssetIt; ++AssetIt )
 	{
 		const FAssetData& AssetData = *AssetIt;
-		const bool bShowProgressDialog = (!AssetData.IsAssetLoaded() && FEditorFileUtils::IsMapPackageAsset(AssetData.ObjectPath.ToString()));
+		const bool bShowProgressDialog = (!AssetData.IsAssetLoaded() && FEditorFileUtils::IsMapPackageAsset(AssetData.GetObjectPathString()));
 		GWarn->BeginSlowTask(LOCTEXT("LoadingObjects", "Loading Objects..."), bShowProgressDialog);
 
 		(*AssetIt).GetAsset();
@@ -2905,7 +2905,9 @@ void SContentBrowser::OnItemSelectionChanged(const FContentBrowserItem& Selected
 				}
 			}
 
-			CollectionViewPtr->SetSelectedAssetPaths(SelectedCollectionItems);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			CollectionViewPtr->SetSelectedAssetPaths(UE::SoftObjectPath::Private::ConvertObjectPathNames(SelectedCollectionItems));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (AssetSelectionChangedDelegate.IsBound())

@@ -219,8 +219,9 @@ public:
 	 * @param The internal path (or object path) of an asset to get aliases for
 	 * @return All alternative paths that represent the input path (not including the input path itself)
 	 */
-	TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const;
+	TArray<FContentBrowserItemPath> GetAliasesForPath(const FSoftObjectPath& InInternalPath) const;
 	TArray<FContentBrowserItemPath> GetAliasesForPath(const FContentBrowserItemPath InPath) const;
+	TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const;
 
 	/**
 	 * Query whether any data sources are currently discovering content, and retrieve optional status messages that can be shown in the UI.

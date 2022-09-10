@@ -56,6 +56,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Algo/Transform.h"
 
 class SWidget;
 struct FGeometry;
@@ -577,10 +578,13 @@ void ContentBrowserUtils::ConvertLegacySelectionToVirtualPaths(TArrayView<const 
 
 void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilter& InAssetFilter, const TSharedPtr<FPathPermissionList>& InAssetClassPermissionList, const TSharedPtr<FPathPermissionList>& InFolderPermissionList, FContentBrowserDataFilter& OutDataFilter)
 {
-	if (InAssetFilter.ObjectPaths.Num() > 0 || InAssetFilter.TagsAndValues.Num() > 0 || InAssetFilter.bIncludeOnlyOnDiskAssets)
+	if (InAssetFilter.SoftObjectPaths.Num() > 0 || InAssetFilter.TagsAndValues.Num() > 0 || InAssetFilter.bIncludeOnlyOnDiskAssets)
 	{
 		FContentBrowserDataObjectFilter& ObjectFilter = OutDataFilter.ExtraFilters.FindOrAddFilter<FContentBrowserDataObjectFilter>();
-		ObjectFilter.ObjectNamesToInclude = InAssetFilter.ObjectPaths;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// TODO: Modify this API to also use FSoftObjectPath with deprecation
+		ObjectFilter.ObjectNamesToInclude = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(InAssetFilter.SoftObjectPaths);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ObjectFilter.TagsAndValuesToInclude = InAssetFilter.TagsAndValues;
 		ObjectFilter.bOnDiskObjectsOnly = InAssetFilter.bIncludeOnlyOnDiskAssets;
 	}

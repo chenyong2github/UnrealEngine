@@ -427,7 +427,9 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			FARFilter InclusiveFilter;
 			if (Params.ObjectFilter)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				InclusiveFilter.ObjectPaths.Append(Params.ObjectFilter->ObjectNamesToInclude);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				InclusiveFilter.TagsAndValues.Append(Params.ObjectFilter->TagsAndValuesToInclude);
 				InclusiveFilter.bIncludeOnlyOnDiskAssets |= Params.ObjectFilter->bOnDiskObjectsOnly;
 			}
@@ -444,13 +446,13 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			if (Params.CollectionFilter)
 			{
-				TArray<FName> ObjectPathsForCollections;
+				TArray<FSoftObjectPath> ObjectPathsForCollections;
 				if (GetObjectPathsForCollections(Params.CollectionManager, Params.CollectionFilter->SelectedCollections, Params.CollectionFilter->bIncludeChildCollections, ObjectPathsForCollections) && ObjectPathsForCollections.Num() == 0)
 				{
 					// If we had collections but they contained no objects then we can bail as nothing will pass the filter
 					return false;
 				}
-				InclusiveFilter.ObjectPaths.Append(MoveTemp(ObjectPathsForCollections));
+				InclusiveFilter.SoftObjectPaths.Append(MoveTemp(ObjectPathsForCollections));
 			}
 
 #if DO_ENSURE
@@ -583,7 +585,9 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			FARFilter ExclusiveFilter;
 			if (Params.ObjectFilter)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				ExclusiveFilter.ObjectPaths.Append(Params.ObjectFilter->ObjectNamesToExclude);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				ExclusiveFilter.TagsAndValues.Append(Params.ObjectFilter->TagsAndValuesToExclude);
 				ExclusiveFilter.bIncludeOnlyOnDiskAssets |= Params.ObjectFilter->bOnDiskObjectsOnly;
 			}
@@ -657,14 +661,14 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 			}
 			CompiledExclusiveFilter.PackagePaths.Reset();
 		}
-		if (CompiledInclusiveFilter.ObjectPaths.Num() > 0 && CompiledExclusiveFilter.ObjectPaths.Num() > 0)
+		if (CompiledInclusiveFilter.SoftObjectPaths.Num() > 0 && CompiledExclusiveFilter.SoftObjectPaths.Num() > 0)
 		{
-			CompiledInclusiveFilter.ObjectPaths = CompiledInclusiveFilter.ObjectPaths.Difference(CompiledExclusiveFilter.ObjectPaths);
-			if (CompiledInclusiveFilter.ObjectPaths.Num() == 0)
+			CompiledInclusiveFilter.SoftObjectPaths = CompiledInclusiveFilter.SoftObjectPaths.Difference(CompiledExclusiveFilter.SoftObjectPaths);
+			if (CompiledInclusiveFilter.SoftObjectPaths.Num() == 0)
 			{
 				return false;
 			}
-			CompiledExclusiveFilter.ObjectPaths.Reset();
+			CompiledExclusiveFilter.SoftObjectPaths.Reset();
 		}
 		if (CompiledInclusiveFilter.ClassPaths.Num() > 0 && CompiledExclusiveFilter.ClassPaths.Num() > 0)
 		{
@@ -738,7 +742,9 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 						FARFilter CustomSourceAssetsFilter;
 						CustomSourceAssetsFilter.PackageNames = Params.AssetDataFilter->InclusiveFilter.PackageNames.Array();
 						CustomSourceAssetsFilter.PackagePaths = Params.AssetDataFilter->InclusiveFilter.PackagePaths.Array();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						CustomSourceAssetsFilter.ObjectPaths = Params.AssetDataFilter->InclusiveFilter.ObjectPaths.Array();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						CustomSourceAssetsFilter.ClassPaths = Params.AssetDataFilter->InclusiveFilter.ClassPaths.Array();
 						CustomSourceAssetsFilter.TagsAndValues = Params.AssetDataFilter->InclusiveFilter.TagsAndValues;
 						CustomSourceAssetsFilter.bIncludeOnlyOnDiskAssets = Params.AssetDataFilter->InclusiveFilter.bIncludeOnlyOnDiskAssets;
@@ -930,7 +936,9 @@ void UContentBrowserAssetDataSource::EnumerateItemsAtPath(const FName InPath, co
 	if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
 	{
 		FARFilter ARFilter;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ARFilter.ObjectPaths.Add(InternalPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		AssetRegistry->EnumerateAssets(ARFilter, [this, &InCallback](const FAssetData& AssetData)
 		{
 			if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
@@ -1254,7 +1262,9 @@ bool UContentBrowserAssetDataSource::DuplicateItem(const FContentBrowserItemData
 	if (ContentBrowserAssetData::DuplicateItem(AssetTools, this, InItem, SourceAsset, NewAssetData))
 	{
 		FName VirtualizedPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TryConvertInternalPathToVirtual(NewAssetData.ObjectPath, VirtualizedPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FContentBrowserItemData NewItemData(
 			this,
@@ -1575,7 +1585,9 @@ bool UContentBrowserAssetDataSource::TryGetCollectionId(const FContentBrowserIte
 {
 	if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InItem))
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		OutCollectionId = AssetPayload->GetAssetData().ObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 	return false;
@@ -1610,7 +1622,9 @@ bool UContentBrowserAssetDataSource::Legacy_TryConvertPackagePathToVirtualPath(c
 bool UContentBrowserAssetDataSource::Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath)
 {
 	return InAssetData.AssetClassPath != FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("Class")) // Ignore legacy class items
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		&& TryConvertInternalPathToVirtual(InUseFolderPaths ? InAssetData.PackagePath : InAssetData.ObjectPath, OutPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UContentBrowserAssetDataSource::IsKnownContentPath(const FName InPackagePath) const
@@ -1641,15 +1655,20 @@ bool UContentBrowserAssetDataSource::IsRootContentPath(const FName InPackagePath
 	});
 }
 
-bool UContentBrowserAssetDataSource::GetObjectPathsForCollections(ICollectionManager* CollectionManager, TArrayView<const FCollectionNameType> InCollections, const bool bIncludeChildCollections, TArray<FName>& OutObjectPaths)
+bool UContentBrowserAssetDataSource::GetObjectPathsForCollections(ICollectionManager* CollectionManager, TArrayView<const FCollectionNameType> InCollections, const bool bIncludeChildCollections, TArray<FSoftObjectPath>& OutObjectPaths)
 {
 	if (InCollections.Num() > 0)
 	{
 		const ECollectionRecursionFlags::Flags CollectionRecursionMode = bIncludeChildCollections ? ECollectionRecursionFlags::SelfAndChildren : ECollectionRecursionFlags::Self;
 		
+		TArray<FName> TempNames;
 		for (const FCollectionNameType& CollectionNameType : InCollections)
 		{
-			CollectionManager->GetObjectsInCollection(CollectionNameType.Name, CollectionNameType.Type, OutObjectPaths, CollectionRecursionMode);
+			TempNames.Reset();
+			CollectionManager->GetObjectsInCollection(CollectionNameType.Name, CollectionNameType.Type, TempNames, CollectionRecursionMode);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			OutObjectPaths.Append(UE::SoftObjectPath::Private::ConvertObjectPathNames(TempNames));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		return true;
@@ -1669,7 +1688,9 @@ FContentBrowserItemData UContentBrowserAssetDataSource::CreateAssetFolderItem(co
 FContentBrowserItemData UContentBrowserAssetDataSource::CreateAssetFileItem(const FAssetData& InAssetData)
 {
 	FName VirtualizedPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TryConvertInternalPathToVirtual(InAssetData.ObjectPath, VirtualizedPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return ContentBrowserAssetData::CreateAssetFileItem(this, VirtualizedPath, InAssetData);
 }
@@ -2107,7 +2128,9 @@ void UContentBrowserAssetDataSource::OnBeginCreateAsset(const FName InDefaultAss
 		FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, ClassToUse->GetClassPathName());
 
 		FName VirtualizedPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TryConvertInternalPathToVirtual(NewAssetData.ObjectPath, VirtualizedPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FContentBrowserItemData NewItemData(
 			this, 

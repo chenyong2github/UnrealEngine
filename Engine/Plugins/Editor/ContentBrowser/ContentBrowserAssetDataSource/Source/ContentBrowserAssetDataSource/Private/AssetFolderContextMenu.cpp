@@ -236,7 +236,7 @@ void FAssetFolderContextMenu::ExecuteFixUpRedirectorsInFolder()
 		TArray<FString> ObjectPaths;
 		for (const auto& Asset : AssetList)
 		{
-			ObjectPaths.Add(Asset.ObjectPath.ToString());
+			ObjectPaths.Add(Asset.GetObjectPathString());
 		}
 
 		TArray<UObject*> Objects;

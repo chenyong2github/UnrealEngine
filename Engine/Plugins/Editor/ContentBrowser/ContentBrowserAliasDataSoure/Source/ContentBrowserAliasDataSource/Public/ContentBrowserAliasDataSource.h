@@ -19,7 +19,7 @@ class IAssetTools;
 struct FContentBrowserCompiledAssetDataFilter;
 
 /** A unique alias is a pair of SourceObjectPath:AliasPath, eg /Game/MyAsset.MyAsset:/Game/SomeFolder/MyAlias */
-typedef TPair<FName, FName> FContentBrowserUniqueAlias;
+typedef TPair<FSoftObjectPath, FName> FContentBrowserUniqueAlias;
 
 class CONTENTBROWSERALIASDATASOURCE_API FContentBrowserAliasItemDataPayload : public FContentBrowserAssetFileItemDataPayload
 {
@@ -59,7 +59,7 @@ public:
 
 	virtual bool DoesItemPassFilter(const FContentBrowserItemData& InItem, const FContentBrowserDataCompiledFilter& InFilter) override;
 
-	virtual TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const override;
+	virtual TArray<FContentBrowserItemPath> GetAliasesForPath(const FSoftObjectPath& InInternalPath) const override;
 
 	virtual bool GetItemAttribute(const FContentBrowserItemData& InItem, const bool InIncludeMetaData, const FName InAttributeKey, FContentBrowserItemDataAttributeValue& OutAttributeValue) override;
 	virtual bool GetItemAttributes(const FContentBrowserItemData& InItem, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValues& OutAttributeValues) override;
@@ -95,11 +95,16 @@ public:
 	/** Add an alias for a given asset. bInIsFromMetaData should only be true if the alias came from the AliasTagName metadata. */
 	void AddAlias(const FAssetData& Asset, const FName Alias, bool bInIsFromMetaData = false);
 	/** Remove the given alias from the data source */
-	void RemoveAlias(const FName ObjectPath, const FName Alias);
+	void RemoveAlias(const FSoftObjectPath& ObjectPath, const FName Alias);
 	/** Remove all aliases for the given object */
-	void RemoveAliases(const FName ObjectPath);
+	void RemoveAliases(const FSoftObjectPath& ObjectPath);
 	/** Remove all aliases for the given asset */
-	void RemoveAliases(const FAssetData& Asset) { RemoveAliases(Asset.ObjectPath); }
+	void RemoveAliases(const FAssetData& Asset) { RemoveAliases(Asset.GetSoftObjectPath()); }
+
+	UE_DEPRECATED(5.1, "FNames containing full asset paths are deprecated, use FSoftObjectPath instead")
+	void RemoveAlias(const FName ObjectPath, const FName Alias);
+	UE_DEPRECATED(5.1, "FNames containing full asset paths are deprecated, use FSoftObjectPath instead")
+	void RemoveAliases(const FName ObjectPath);
 
 	/** Get all aliases from metadata for the given asset, then calls AddAlias or RemoveAlias for every alias that doesn't match the stored data. */
 	void ReconcileAliasesFromMetaData(const FAssetData& Asset);
@@ -162,9 +167,9 @@ private:
 	/** Alias data keyed by their full alias path, ie /Game/MyData/Aliases/SourceMesh */
 	TMap<FContentBrowserUniqueAlias, FAliasData> AllAliases;
 	/** A list of alias paths to display for each asset, ie /Game/Meshes/SourceMesh.SourceMesh */
-	TMap<FName, TArray<FName>> AliasesForObjectPath;
+	TMap<FSoftObjectPath, TArray<FName>> AliasesForObjectPath;
 	/** A list of alias paths to display for each folder, ie /Game/MyData/Aliases */
 	TMap<FName, TArray<FContentBrowserUniqueAlias>> AliasesInPackagePath;
 	/** A set used for removing duplicate aliases in the same query, stored here to avoid constant reallocation */
-	TSet<FName> AlreadyAddedOriginalAssets;
+	TSet<FSoftObjectPath> AlreadyAddedOriginalAssets;
 };

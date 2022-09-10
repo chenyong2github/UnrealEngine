@@ -26,17 +26,19 @@ TArray<FAssetData> FCollectionDragDropOp::GetAssets() const
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-	TArray<FName> AssetPaths;
+	TArray<FSoftObjectPath> AssetPaths;
 	for (const FCollectionNameType& CollectionNameType : Collections)
 	{
 		TArray<FName> CollectionAssetPaths;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		CollectionManager.GetAssetsInCollection(CollectionNameType.Name, CollectionNameType.Type, CollectionAssetPaths);
-		AssetPaths.Append(CollectionAssetPaths);
+		AssetPaths.Append(UE::SoftObjectPath::Private::ConvertObjectPathNames(CollectionAssetPaths));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	TArray<FAssetData> AssetDatas;
 	AssetDatas.Reserve(AssetPaths.Num());
-	for (const FName& AssetPath : AssetPaths)
+	for (const FSoftObjectPath& AssetPath : AssetPaths)
 	{
 		FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPath);
 		if (AssetData.IsValid())

@@ -43,6 +43,7 @@
 #include "AssetViewUtils.h"
 #include "Dialogs/Dialogs.h"
 #include "SMetaDataView.h"
+#include "Algo/Transform.h"
 
 #include "ObjectTools.h"
 #include "PackageTools.h"
@@ -665,7 +666,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 
 		for (const FAssetData& Asset : SelectedAssets)
 		{
-			const FString AssetPath = Asset.ObjectPath.ToString();
+			const FString AssetPath = Asset.GetObjectPathString();
 
 			if (AssetViewUtils::IsEngineFolder(AssetPath))
 			{
@@ -744,19 +745,19 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				continue;
 			}
 
-			const FString ObjectPath = Asset.ObjectPath.ToString();
+			const FString ObjectPath = Asset.GetObjectPathString();
 			if (FPackageName::IsLocalizedPackage(ObjectPath))
 			{
 				// Get the source path for this asset
 				FString SourceObjectPath;
 				if (FPackageLocalizationUtil::ConvertLocalizedToSource(ObjectPath, SourceObjectPath))
 				{
-					SourceAssetsState.CurrentAssets.Add(*SourceObjectPath);
+					SourceAssetsState.CurrentAssets.Add(FSoftObjectPath(SourceObjectPath));
 				}
 			}
 			else
 			{
-				SourceAssetsState.SelectedAssets.Add(Asset.ObjectPath);
+				SourceAssetsState.SelectedAssets.Add(Asset.GetSoftObjectPath());
 
 				// Get the localized path for this asset and culture
 				FString LocalizedObjectPath;
@@ -764,15 +765,15 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				{
 					// Does this localized asset already exist?
 					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-					FAssetData LocalizedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*LocalizedObjectPath);
+					FAssetData LocalizedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(LocalizedObjectPath));
 
 					if (LocalizedAssetData.IsValid())
 					{
-						LocalizedAssetsStateForCulture.CurrentAssets.Add(*LocalizedObjectPath);
+						LocalizedAssetsStateForCulture.CurrentAssets.Add(FSoftObjectPath(LocalizedObjectPath));
 					}
 					else
 					{
-						LocalizedAssetsStateForCulture.NewAssets.Add(*LocalizedObjectPath);
+						LocalizedAssetsStateForCulture.NewAssets.Add(FSoftObjectPath(LocalizedObjectPath));
 					}
 				}
 			}
@@ -839,7 +840,9 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				LOCTEXT("ShowSourceAsset", "Show Source Asset"),
 				LOCTEXT("ShowSourceAssetTooltip", "Show the source asset in the Content Browser."),
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteFindInAssetTree, SourceAssetsState.CurrentAssets.Array()))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				);
 
 			Section.AddMenuEntry(
@@ -847,7 +850,9 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				LOCTEXT("EditSourceAsset", "Edit Source Asset"),
 				LOCTEXT("EditSourceAssetTooltip", "Edit the source asset."),
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Edit"),
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteOpenEditorsForAssets, SourceAssetsState.CurrentAssets.Array()))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				);
 		}
 	}
@@ -896,7 +901,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 	}
 }
 
-void FAssetFileContextMenu::MakeCreateLocalizedAssetSubMenu(UToolMenu* Menu, TSet<FName> InSelectedSourceAssets, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
+void FAssetFileContextMenu::MakeCreateLocalizedAssetSubMenu(UToolMenu* Menu, TSet<FSoftObjectPath> InSelectedSourceAssets, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
 {
 	FToolMenuSection& Section = Menu->AddSection("Section");
 
@@ -929,7 +934,9 @@ void FAssetFileContextMenu::MakeShowLocalizedAssetSubMenu(UToolMenu* Menu, TArra
 				FText::FromString(LocalizedAssetsStateForCulture.Culture->GetDisplayName()),
 				FText::GetEmpty(),
 				FSlateIcon(),
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteFindInAssetTree, LocalizedAssetsStateForCulture.CurrentAssets.Array()))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				);
 		}
 	}
@@ -948,26 +955,28 @@ void FAssetFileContextMenu::MakeEditLocalizedAssetSubMenu(UToolMenu* Menu, TArra
 				FText::FromString(LocalizedAssetsStateForCulture.Culture->GetDisplayName()),
 				FText::GetEmpty(),
 				FSlateIcon(),
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FUIAction(FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteOpenEditorsForAssets, LocalizedAssetsStateForCulture.CurrentAssets.Array()))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				);
 		}
 	}
 }
 
-void FAssetFileContextMenu::ExecuteCreateLocalizedAsset(TSet<FName> InSelectedSourceAssets, FLocalizedAssetsState InLocalizedAssetsStateForCulture)
+void FAssetFileContextMenu::ExecuteCreateLocalizedAsset(TSet<FSoftObjectPath> InSelectedSourceAssets, FLocalizedAssetsState InLocalizedAssetsStateForCulture)
 {
 	TArray<UPackage*> PackagesToSave;
 	TArray<FAssetData> NewObjects;
 
-	for (const FName& SourceAssetName : InSelectedSourceAssets)
+	for (const FSoftObjectPath& SourceAsset: InSelectedSourceAssets)
 	{
-		if (InLocalizedAssetsStateForCulture.CurrentAssets.Contains(SourceAssetName))
+		if (InLocalizedAssetsStateForCulture.CurrentAssets.Contains(SourceAsset))
 		{
 			// Asset is already localized
 			continue;
 		}
 
-		UObject* SourceAssetObject = LoadObject<UObject>(nullptr, *SourceAssetName.ToString());
+		UObject* SourceAssetObject = LoadObject<UObject>(nullptr, *SourceAsset.ToString());
 		if (!SourceAssetObject)
 		{
 			// Source object cannot be loaded
@@ -1001,12 +1010,12 @@ void FAssetFileContextMenu::ExecuteCreateLocalizedAsset(TSet<FName> InSelectedSo
 	OnShowAssetsInPathsView.ExecuteIfBound(NewObjects);
 }
 
-void FAssetFileContextMenu::ExecuteFindInAssetTree(TArray<FName> InAssets)
+void FAssetFileContextMenu::ExecuteFindInAssetTree(TArray<FSoftObjectPath> InAssets)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	FARFilter ARFilter;
-	ARFilter.ObjectPaths = MoveTemp(InAssets);
+	ARFilter.SoftObjectPaths = InAssets;
 	
 	TArray<FAssetData> FoundLocalizedAssetData;
 	AssetRegistryModule.Get().GetAssets(ARFilter, FoundLocalizedAssetData);
@@ -1014,7 +1023,7 @@ void FAssetFileContextMenu::ExecuteFindInAssetTree(TArray<FName> InAssets)
 	OnShowAssetsInPathsView.ExecuteIfBound(FoundLocalizedAssetData);
 }
 
-void FAssetFileContextMenu::ExecuteOpenEditorsForAssets(TArray<FName> InAssets)
+void FAssetFileContextMenu::ExecuteOpenEditorsForAssets(TArray<FSoftObjectPath> InAssets)
 {
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(InAssets);
 }

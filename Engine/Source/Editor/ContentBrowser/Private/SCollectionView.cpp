@@ -629,7 +629,7 @@ TArray<FCollectionNameType> SCollectionView::GetSelectedCollections() const
 	return RetArray;
 }
 
-void SCollectionView::SetSelectedAssetPaths(const TArray<FName>& SelectedAssets)
+void SCollectionView::SetSelectedAssetPaths(const TArray<FSoftObjectPath>& SelectedAssets)
 {
 	if ( QuickAssetManagement.IsValid() )
 	{
@@ -1324,16 +1324,18 @@ FReply SCollectionView::HandleDragDropOnCollectionItem(TSharedRef<FCollectionIte
 		TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
 		const TArray<FAssetData>& DroppedAssets = DragDropOp->GetAssets();
 
-		TArray<FName> ObjectPaths;
+		TArray<FSoftObjectPath> ObjectPaths;
 		ObjectPaths.Reserve(DroppedAssets.Num());
 		for (const FAssetData& AssetData : DroppedAssets)
 		{
-			ObjectPaths.Add(AssetData.ObjectPath);
+			ObjectPaths.Add(AssetData.GetSoftObjectPath());
 		}
 
 		int32 NumAdded = 0;
 		FText Message;
-		if (CollectionManagerModule.Get().AddToCollection(CollectionItem->CollectionName, CollectionItem->CollectionType, ObjectPaths, &NumAdded))
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (CollectionManagerModule.Get().AddToCollection(CollectionItem->CollectionName, CollectionItem->CollectionType, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(ObjectPaths), &NumAdded))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (DroppedAssets.Num() == 1)
 			{

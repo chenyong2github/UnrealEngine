@@ -42,13 +42,13 @@ void FCollectionAssetManagement::SetCurrentAssets(const TArray<FAssetData>& Curr
 	CurrentAssetPaths.Empty();
 	for (const FAssetData& AssetData : CurrentAssets)
 	{
-		CurrentAssetPaths.Add(AssetData.ObjectPath);
+		CurrentAssetPaths.Add(AssetData.GetSoftObjectPath());
 	}
 
 	UpdateAssetManagementState();
 }
 
-void FCollectionAssetManagement::SetCurrentAssetPaths(const TArray<FName>& CurrentAssets)
+void FCollectionAssetManagement::SetCurrentAssetPaths(const TArray<FSoftObjectPath>& CurrentAssets)
 {
 	CurrentAssetPaths.Empty();
 	CurrentAssetPaths.Append(CurrentAssets);
@@ -60,7 +60,9 @@ void FCollectionAssetManagement::AddCurrentAssetsToCollection(FCollectionNameTyp
 {
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-	const TArray<FName> ObjectPaths = CurrentAssetPaths.Array();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const TArray<FName> ObjectPaths = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(CurrentAssetPaths.Array());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FText ResultText;
 	bool bSuccess = false;
@@ -99,7 +101,9 @@ void FCollectionAssetManagement::RemoveCurrentAssetsFromCollection(FCollectionNa
 {
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-	const TArray<FName> ObjectPaths = CurrentAssetPaths.Array();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const TArray<FName> ObjectPaths = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(CurrentAssetPaths.Array());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FText ResultText;
 	bool bSuccess = false;
@@ -169,7 +173,9 @@ void FCollectionAssetManagement::UpdateAssetManagementState()
 	if (CurrentAssetPaths.Num() == 1)
 	{
 		TArray<FCollectionNameType> MatchedCollections;
-		CollectionManagerModule.Get().GetCollectionsContainingObject(*CurrentAssetPaths.CreateConstIterator(), MatchedCollections, ECollectionRecursionFlags::Self);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().GetCollectionsContainingObject(CurrentAssetPaths.CreateConstIterator()->ToFName(), MatchedCollections, ECollectionRecursionFlags::Self);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		for (const FCollectionNameType& CollectionKey : MatchedCollections)
 		{
@@ -177,7 +183,9 @@ void FCollectionAssetManagement::UpdateAssetManagementState()
 		}
 
 		MatchedCollections.Reset();
-		CollectionManagerModule.Get().GetCollectionsContainingObject(*CurrentAssetPaths.CreateConstIterator(), MatchedCollections, ECollectionRecursionFlags::Children);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().GetCollectionsContainingObject(CurrentAssetPaths.CreateConstIterator()->ToFName(), MatchedCollections, ECollectionRecursionFlags::Children);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		for (const FCollectionNameType& CollectionKey : MatchedCollections)
 		{
@@ -189,7 +197,9 @@ void FCollectionAssetManagement::UpdateAssetManagementState()
 	}
 	else
 	{
-		const TArray<FName> ObjectPaths = CurrentAssetPaths.Array();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const TArray<FName> ObjectPaths = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(CurrentAssetPaths.Array());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		TMap<FCollectionNameType, TArray<FName>> CollectionsAndMatchedObjects;
 		CollectionManagerModule.Get().GetCollectionsContainingObjects(ObjectPaths, CollectionsAndMatchedObjects);
@@ -234,7 +244,9 @@ void FCollectionAssetManagement::HandleAssetsAddedToCollection(const FCollection
 	bool bNeedsUpdate = false;
 	for (const FName& AssetPath : AssetsAdded)
 	{
-		if (CurrentAssetPaths.Contains(AssetPath))
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (CurrentAssetPaths.Contains(FSoftObjectPath(AssetPath)))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			bNeedsUpdate = true;
 			break;
@@ -253,7 +265,9 @@ void FCollectionAssetManagement::HandleAssetsRemovedFromCollection(const FCollec
 	bool bNeedsUpdate = false;
 	for (const FName& AssetPath : AssetsRemoved)
 	{
-		if (CurrentAssetPaths.Contains(AssetPath))
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (CurrentAssetPaths.Contains(FSoftObjectPath(AssetPath)))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			bNeedsUpdate = true;
 			break;

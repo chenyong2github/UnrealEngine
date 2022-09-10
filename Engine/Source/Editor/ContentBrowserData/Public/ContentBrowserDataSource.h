@@ -230,7 +230,10 @@ public:
 	 * @param The internal path (or object path) of an asset to get aliases for
 	 * @return All alternative paths that represent the input path (not including the input path itself)
 	 */
-	virtual TArray<FContentBrowserItemPath> GetAliasesForPath(const FName InInternalPath) const;
+	virtual TArray<FContentBrowserItemPath> GetAliasesForPath(const FSoftObjectPath& InInternalPath) const;
+
+	UE_DEPRECATED(5.1, "FNames containing full asset paths are deprecated. Use FSoftObjectPath instead.")
+	TArray<FContentBrowserItemPath> GetAliasesForPath(FName InInternalPath) const;
 
 	/**
 	 * Query whether this data source instance is currently discovering content, and retrieve an optional status message that can be shown in the UI.

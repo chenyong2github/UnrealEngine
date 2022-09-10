@@ -105,7 +105,7 @@ public:
 	TArray<FCollectionNameType> GetSelectedCollections() const;
 
 	/** Let the collections view know that the list of selected assets has changed, so that it can update the quick asset management check boxes */
-	void SetSelectedAssetPaths(const TArray<FName>& SelectedAssets);
+	void SetSelectedAssetPaths(const TArray<FSoftObjectPath>& SelectedAssets);
 
 	/** Sets the state of the collection view to the one described by the history data */
 	void ApplyHistoryData ( const FHistoryData& History );

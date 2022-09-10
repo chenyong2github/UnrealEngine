@@ -968,7 +968,9 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 				ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
 				TArray<FCollectionNameType> CollectionsContainingObject;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				CollectionManager.GetCollectionsContainingObject(ItemAssetData.ObjectPath, CollectionsContainingObject);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				if (CollectionsContainingObject.Num() > 0)
 				{
