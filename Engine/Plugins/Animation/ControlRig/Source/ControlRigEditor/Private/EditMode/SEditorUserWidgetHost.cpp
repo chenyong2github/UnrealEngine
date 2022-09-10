@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SEditorUserWidgetHost.h"
+#include "EditMode/SEditorUserWidgetHost.h"
 #include "Engine/World.h"
 
 void SEditorUserWidgetHost::Construct(const FArguments& InArgs, UWorld* InWorld)

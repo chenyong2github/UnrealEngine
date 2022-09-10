@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "SControlRigBaseListWidget.h"
+#include "EditMode/SControlRigBaseListWidget.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -36,7 +36,7 @@
 #include "FileHelpers.h"
 #include "Tools/ControlRigPoseMirrorSettings.h"
 #include "ObjectTools.h"
-#include "SControlRigUpdatePose.h"
+#include "EditMode/SControlRigUpdatePose.h"
 #include "EditMode/SControlRigRenamePoseControls.h"
 #include "Dialogs/Dialogs.h"
 #include "ControlRigSequencerEditorLibrary.h"

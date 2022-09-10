@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigCurveContainerCommands.h"
+#include "Editor/RigCurveContainerCommands.h"
 
 #define LOCTEXT_NAMESPACE "CurveContainerCommands"
 

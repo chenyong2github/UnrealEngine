@@ -40,6 +40,7 @@ namespace UnrealBuildTool.Rules
                     "AssetRegistry",
 					"Analytics",
 					"ToolMenus",
+					"GameProjectGeneration",
 				}
 			);
 

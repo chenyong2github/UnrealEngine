@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigConnectionDrawingPolicy.h"
+#include "Graph/ControlRigConnectionDrawingPolicy.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "ControlRig.h"

@@ -14,7 +14,7 @@
 #include "IPythonScriptPlugin.h"
 #include "RigVMPythonUtils.h"
 #include "ControlRigVisualGraphUtils.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 #include "RigVMCompiler/RigVMCodeGenerator.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigCompilerDetails"

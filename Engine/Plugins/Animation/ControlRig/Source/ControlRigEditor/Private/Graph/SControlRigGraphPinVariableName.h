@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "SGraphPin.h"
-#include "SControlRigGraphPinEditableNameValueWidget.h"
+#include "Graph/SControlRigGraphPinEditableNameValueWidget.h"
 
 class SControlRigGraphPinVariableName : public SGraphPin
 {

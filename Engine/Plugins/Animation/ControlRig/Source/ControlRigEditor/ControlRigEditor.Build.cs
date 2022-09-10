@@ -6,10 +6,17 @@ namespace UnrealBuildTool.Rules
     {
         public ControlRigEditor(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.AddRange(
+			PrivateIncludePaths.AddRange(
                 new string[] {
-                    "../../../../Source/Editor/UnrealEd/Private", 
-					"../../../../Source/Developer/MessageLog/Private", //compatibility for FBX importer
+					System.IO.Path.Combine(EngineDirectory,"Plugins/Animation/ControlRig/Source/ControlRig/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Developer/AssetTools/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Developer/MessageLog/Private"), //compatibility for FBX importer
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/Kismet/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/Persona/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/PropertyEditor/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/SceneOutliner/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/UnrealEd/Private"),
+					System.IO.Path.Combine(EngineDirectory,"Source/Runtime/Slate/Private"),
 				}
 			);
 

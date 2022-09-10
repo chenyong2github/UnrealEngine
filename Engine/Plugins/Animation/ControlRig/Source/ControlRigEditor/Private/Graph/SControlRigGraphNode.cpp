@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigGraphNode.h"
+#include "Graph/SControlRigGraphNode.h"
 #include "ControlRig.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraph.h"
@@ -31,7 +31,7 @@
 #include "IDocumentation.h"
 #include "DetailLayoutBuilder.h"
 #include "Styling/AppStyle.h"
-#include "SControlRigGraphPinVariableBinding.h"
+#include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "Slate/SlateTextures.h"
 

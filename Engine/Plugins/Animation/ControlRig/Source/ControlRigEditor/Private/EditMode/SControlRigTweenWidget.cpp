@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigTweenWidget.h"
+#include "EditMode/SControlRigTweenWidget.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -18,7 +18,7 @@
 #include "LevelSequenceEditorBlueprintLibrary.h"
 #include "ILevelSequenceEditorToolkit.h"
 #include "Viewports/InViewportUIDragOperation.h"
-#include "ControlRigEditModeToolkit.h"
+#include "EditMode/ControlRigEditModeToolkit.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigTweenWidget"
 

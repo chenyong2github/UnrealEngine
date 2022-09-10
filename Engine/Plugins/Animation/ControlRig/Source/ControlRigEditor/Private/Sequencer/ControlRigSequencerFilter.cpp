@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigSequencerFilter.h"
+#include "Sequencer/ControlRigSequencerFilter.h"
 #include "ControlRig.h"
 #include "Editor/ControlRigSkeletalMeshComponent.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"

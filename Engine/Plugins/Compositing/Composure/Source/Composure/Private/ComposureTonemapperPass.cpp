@@ -3,8 +3,8 @@
 #include "ComposureTonemapperPass.h"
 #include "ComposurePostProcessBlendable.h"
 
-#include "Classes/Components/SceneCaptureComponent2D.h"
-#include "Classes/Materials/MaterialInstanceDynamic.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "ComposureUtils.h"
 
 /* FComposureTonemapperUtils

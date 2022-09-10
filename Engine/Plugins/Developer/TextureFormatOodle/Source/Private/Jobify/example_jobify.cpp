@@ -39,12 +39,12 @@ etc.
 
 */
 
-#include "example_jobify.h"
+#include "Jobify/example_jobify.h"
 #ifdef USE_OODLEX
 #include "../include/oodle2x.h"
 #endif
 
-#include "ooex.h" // for platform detection
+#include "Jobify/ooex.h" // for platform detection
 
 #include <stdlib.h> 
 #include <stdio.h> 
@@ -62,11 +62,11 @@ int example_jobify_target_parallelism = 0;
 // modern clang & gcc have "__has_include" , could use that instead
 // HAVE_TBB is semi-standard name set by autoconf
 
-#include "example_jobify_linuxtbb.inl"
+#include "Jobify/example_jobify_linuxtbb.inl"
 
 #elif defined(OOEX_PLATFORM_NT)
 
-#include "example_jobify_win32tp.inl"
+#include "Jobify/example_jobify_win32tp.inl"
 
 #elif defined(OOEX_PLATFORM_MAC)
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigGraphNodeComment.h"
+#include "Graph/SControlRigGraphNodeComment.h"
 #include "EdGraphNode_Comment.h"
 #include "Engine/Engine.h"
 #include "PropertyPathHelpers.h"

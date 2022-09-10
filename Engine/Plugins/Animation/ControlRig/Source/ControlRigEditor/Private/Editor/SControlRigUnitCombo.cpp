@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigUnitCombo.h"
+#include "Editor/SControlRigUnitCombo.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SListViewSelectorDropdownMenu.h"

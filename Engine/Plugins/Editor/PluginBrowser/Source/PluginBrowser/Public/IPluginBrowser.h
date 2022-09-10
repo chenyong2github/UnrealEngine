@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Editor/UnrealEd/Public/Features/IPluginsEditorFeature.h"
+#include "Features/IPluginsEditorFeature.h"
 
 /**
  * The public interface to this module

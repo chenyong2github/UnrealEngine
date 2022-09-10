@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigAnimAttributeTabSummoner.h"
-#include "SControlRigAnimAttributeView.h"
+#include "Editor/RigAnimAttributeTabSummoner.h"
+#include "Editor/SControlRigAnimAttributeView.h"
 
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 
 #define LOCTEXT_NAMESPACE "RigAnimAttributeTabSummoner"
 

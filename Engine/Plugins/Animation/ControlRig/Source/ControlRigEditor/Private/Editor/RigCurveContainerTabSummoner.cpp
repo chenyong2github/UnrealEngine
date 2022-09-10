@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigCurveContainerTabSummoner.h"
-#include "SRigCurveContainer.h"
+#include "Editor/RigCurveContainerTabSummoner.h"
+#include "Editor/SRigCurveContainer.h"
 #include "ControlRigEditorStyle.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 
 #define LOCTEXT_NAMESPACE "RigCurveContainerTabSummoner"
 

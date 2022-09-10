@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigSkeletalMeshComponent.h"
+#include "Editor/ControlRigSkeletalMeshComponent.h"
 #include "Sequencer/ControlRigLayerInstance.h" 
 #include "SkeletalDebugRendering.h"
 #include "ControlRig.h"

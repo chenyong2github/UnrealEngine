@@ -10,7 +10,7 @@
 #include "Units/RigUnit.h"
 #include "EdGraphNode_Comment.h"
 #include "GraphEditAction.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"

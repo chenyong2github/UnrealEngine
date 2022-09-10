@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "SControlRigControlViews.h"
+#include "EditMode/SControlRigControlViews.h"
 #include "ControlRig.h"
 #include "Tools/ControlRigPose.h"
 #include "Widgets/Input/SEditableTextBox.h"

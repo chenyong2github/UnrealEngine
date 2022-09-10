@@ -5,7 +5,7 @@
 #include "KismetCompiler.h"
 #include "ControlRigBlueprint.h"
 #include "Units/RigUnit.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraphSchema.h"

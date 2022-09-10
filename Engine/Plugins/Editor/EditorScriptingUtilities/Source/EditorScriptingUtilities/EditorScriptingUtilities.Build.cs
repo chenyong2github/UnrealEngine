@@ -7,6 +7,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public EditorScriptingUtilities(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/UnrealEd/Private"),
+				}
+			);
+
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"AssetRegistry",

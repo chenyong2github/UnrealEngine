@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigSequenceFactory.h"
+#include "Sequencer/ControlRigSequenceFactory.h"
 #include "Sequencer/ControlRigSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"

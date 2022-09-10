@@ -4,7 +4,7 @@
 
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboButton.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 
 DECLARE_DELEGATE_OneParam(FOnRigUnitSelected, UStruct* /*SelectedUnitStruct*/);
 

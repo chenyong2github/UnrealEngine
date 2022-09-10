@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigBaseDockableView.h"
+#include "EditMode/ControlRigBaseDockableView.h"
 #include "AssetRegistry/AssetData.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Styling/CoreStyle.h"

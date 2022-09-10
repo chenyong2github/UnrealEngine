@@ -2,7 +2,7 @@
 
 #include "ControlRigComponent.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_Hierarchy.h"
+#include "Units/Execution/RigUnit_Hierarchy.h"
 
 #include "SkeletalDebugRendering.h"
 #include "Components/InstancedStaticMeshComponent.h"

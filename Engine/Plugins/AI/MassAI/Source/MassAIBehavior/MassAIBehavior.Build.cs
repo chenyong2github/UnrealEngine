@@ -6,12 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public MassAIBehavior(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-			PublicIncludePaths.AddRange(
+			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
-				"Runtime/AIModule/Public",
-				ModuleDirectory + "/Public",
+					"AIModule"
 				}
 			);
 

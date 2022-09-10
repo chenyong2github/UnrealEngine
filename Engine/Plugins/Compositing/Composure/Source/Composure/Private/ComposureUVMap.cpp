@@ -2,8 +2,8 @@
 
 #include "ComposureUVMap.h"
 
-#include "Classes/Materials/MaterialInstanceDynamic.h"
-#include "Classes/Kismet/KismetRenderingLibrary.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Kismet/KismetRenderingLibrary.h"
 
 
 static inline void SetUVMatrix(

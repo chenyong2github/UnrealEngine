@@ -8,7 +8,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "PaperFlipbook.h"
-#include "Editor/EditorWidgets/Public/ITransportControl.h"
+#include "ITransportControl.h"
 
 class SFlipbookEditorViewport;
 class UPaperFlipbookComponent;

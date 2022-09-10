@@ -34,8 +34,8 @@
 #include "Editor/EditorEngine.h"
 
 //Needed to register with Developer Tools Windows Menu
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FLiveLinkCurveDebugUIModule"

@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigEditorMode.h" 
+#include "Editor/ControlRigEditorMode.h" 
 #include "BlueprintEditorTabs.h"
 #include "SBlueprintEditorToolbar.h"
 #include "PersonaModule.h"
 #include "IPersonaToolkit.h"
 #include "PersonaTabs.h"
-#include "RigHierarchyTabSummoner.h"
-#include "RigStackTabSummoner.h"
-#include "RigCurveContainerTabSummoner.h"
-#include "RigInfluenceMapTabSummoner.h"
-#include "RigValidationTabSummoner.h"
-#include "RigAnimAttributeTabSummoner.h"
+#include "Editor/RigHierarchyTabSummoner.h"
+#include "Editor/RigStackTabSummoner.h"
+#include "Editor/RigCurveContainerTabSummoner.h"
+#include "Editor/RigInfluenceMapTabSummoner.h"
+#include "Editor/RigValidationTabSummoner.h"
+#include "Editor/RigAnimAttributeTabSummoner.h"
 #include "ToolMenus.h"
 
 FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>& InControlRigEditor)

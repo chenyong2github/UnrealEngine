@@ -6,7 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ControlRigBaseDockableView.h"
+#include "EditMode/ControlRigBaseDockableView.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Misc/FrameNumber.h"

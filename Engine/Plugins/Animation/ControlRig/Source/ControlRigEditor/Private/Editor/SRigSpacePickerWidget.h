@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "ControlRig.h"
 #include "Rigs/RigHierarchy.h"
-#include "SRigHierarchy.h"
+#include "Editor/SRigHierarchy.h"
 #include "Widgets/Layout/SBox.h"
 #include "Rigs/RigSpaceHierarchy.h"
 #include "IStructureDetailsView.h"

@@ -12,7 +12,7 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Rigs/FKControlRig.h"
 #include "Animation/AnimSequence.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
+#include "Units/Execution/RigUnit_InverseExecution.h"
 #include "Misc/ScopedSlowTask.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Animation/AnimSequenceHelpers.h"

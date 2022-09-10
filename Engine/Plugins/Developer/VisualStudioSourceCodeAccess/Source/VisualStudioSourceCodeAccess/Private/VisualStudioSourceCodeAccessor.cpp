@@ -21,7 +21,7 @@
 //#include "GameProjectGenerationModule.h"
 
 #if WITH_EDITOR
-#include "Developer/HotReload/Public/IHotReload.h"
+#include "IHotReload.h"
 #endif
 
 #include "VisualStudioDTE.h"

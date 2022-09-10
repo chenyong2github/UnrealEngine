@@ -11,7 +11,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetToolsModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Editor/MaterialEditor/Public/IMaterialEditor.h"
+#include "IMaterialEditor.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"

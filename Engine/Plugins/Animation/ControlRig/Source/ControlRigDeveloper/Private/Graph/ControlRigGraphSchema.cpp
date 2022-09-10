@@ -28,13 +28,13 @@
 #include "RigVMCore/RigVMUnknownType.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Algo/Count.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_InteractionExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_PrepareForExecution.h"
+#include "Units/Execution/RigUnit_InverseExecution.h"
+#include "Units/Execution/RigUnit_InteractionExecution.h"
 
 #if WITH_EDITOR
-#include "ControlRigEditor/Private/Editor/SControlRigFunctionLocalizationWidget.h"
+#include "Editor/SControlRigFunctionLocalizationWidget.h"
 #include "Misc/MessageDialog.h"
 #include "Editor/Transactor.h"
 #endif

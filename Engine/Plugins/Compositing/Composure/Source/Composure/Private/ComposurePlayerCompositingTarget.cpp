@@ -3,12 +3,12 @@
 #include "ComposurePlayerCompositingTarget.h"
 #include "ComposurePlayerCompositingCameraModifier.h"
 
-#include "Classes/Camera/PlayerCameraManager.h"
-#include "Classes/GameFramework/PlayerController.h"
-#include "Classes/Engine/TextureRenderTarget2D.h"
-#include "Classes/Engine/LocalPlayer.h"
-#include "Classes/Materials/MaterialInstanceDynamic.h"
-#include "Public/SceneView.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/LocalPlayer.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "SceneView.h"
 
 #include "ComposureUtils.h"
 #include "ComposureInternals.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigEditModeTools.h"
-#include "ControlRigControlsProxy.h"
+#include "EditMode/SControlRigEditModeTools.h"
+#include "EditMode/ControlRigControlsProxy.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "ISequencer.h"
@@ -22,7 +22,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Rigs/FKControlRig.h"
-#include "SControlRigBaseListWidget.h"
+#include "EditMode/SControlRigBaseListWidget.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IControlRigEditorModule.h"
 #include "Framework/Docking/TabManager.h"
@@ -36,8 +36,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "ScopedTransaction.h"
-#include "ControlRigEditModeToolkit.h"
-#include "SControlRigDetails.h"
+#include "EditMode/ControlRigEditModeToolkit.h"
+#include "EditMode/SControlRigDetails.h"
 #include "Editor/Constraints/SConstraintsWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditModeTools"

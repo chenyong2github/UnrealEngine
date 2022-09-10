@@ -3,13 +3,13 @@
 /**
 * Control Rig Edit Mode Toolkit
 */
-#include "ControlRigEditModeToolkit.h"
+#include "EditMode/ControlRigEditModeToolkit.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "EditorModes.h"
 #include "Toolkits/BaseToolkit.h"
 #include "EditorModeManager.h"
-#include "SControlRigEditModeTools.h"
+#include "EditMode/SControlRigEditModeTools.h"
 #include "EditMode/ControlRigEditMode.h"
 #include "Modules/ModuleManager.h"
 #include "EditMode/SControlRigBaseListWidget.h"
@@ -20,9 +20,9 @@
 #include "Toolkits/AssetEditorModeUILayer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "EditMode/ControlRigEditModeSettings.h"
-#include "SControlRigDetails.h"
-#include "SControlRigOutliner.h"
-#include "SControlRigSpacePicker.h"
+#include "EditMode/SControlRigDetails.h"
+#include "EditMode/SControlRigOutliner.h"
+#include "EditMode/SControlRigSpacePicker.h"
 #define LOCTEXT_NAMESPACE "FControlRigEditModeToolkit"
 
 namespace 

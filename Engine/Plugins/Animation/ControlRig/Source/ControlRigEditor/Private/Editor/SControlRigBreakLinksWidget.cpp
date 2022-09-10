@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigBreakLinksWidget.h"
+#include "Editor/SControlRigBreakLinksWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -11,7 +11,7 @@
 #include "Styling/AppStyle.h"
 #include "HAL/ConsoleManager.h"
 #include "RigVMModel/RigVMController.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "Misc/ScopedSlowTask.h"

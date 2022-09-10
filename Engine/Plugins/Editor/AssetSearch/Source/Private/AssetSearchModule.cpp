@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "WorkspaceMenuStructure.h"
 #include "Styling/AppStyle.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SSearchBrowser.h"
 #include "AssetRegistry/AssetRegistryModule.h"

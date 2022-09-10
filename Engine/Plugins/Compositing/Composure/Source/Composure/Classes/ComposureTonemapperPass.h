@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Classes/Engine/Scene.h"
+#include "Engine/Scene.h"
 #include "ComposurePostProcessPass.h"
 #include "ComposurePostProcessingPassProxy.h" // for UComposurePostProcessPassPolicy
 #include "ComposureTonemapperPass.generated.h"

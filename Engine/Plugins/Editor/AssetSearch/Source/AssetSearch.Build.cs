@@ -44,6 +44,7 @@ public class AssetSearch : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"DerivedDataCache",
+				"MaterialEditor",
 			}
 		);
 	}

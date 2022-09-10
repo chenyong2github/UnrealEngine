@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 #include "ControlRigBlueprint.h"
 #include "BlueprintEditorModes.h"
 

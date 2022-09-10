@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigHierarchyTabSummoner.h"
-#include "SRigHierarchy.h"
+#include "Editor/RigHierarchyTabSummoner.h"
+#include "Editor/SRigHierarchy.h"
 #include "ControlRigEditorStyle.h"
-#include "ControlRigEditor.h"
-#include "SRigHierarchy.h"
+#include "Editor/ControlRigEditor.h"
+#include "Editor/SRigHierarchy.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "RigHierarchyTabSummoner"

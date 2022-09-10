@@ -16,7 +16,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/ConfigCacheIni.h"
-#include "OutputLog/Public/OutputLogModule.h"
+#include "OutputLogModule.h"
 
 #include "Widgets/SWindow.h"
 

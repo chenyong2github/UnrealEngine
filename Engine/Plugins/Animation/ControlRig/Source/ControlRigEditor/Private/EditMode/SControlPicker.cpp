@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlPicker.h"
+#include "EditMode/SControlPicker.h"
 #include "Widgets/SCanvas.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"
@@ -15,7 +15,7 @@
 #include "EditMode/ControlRigEditMode.h"
 #include "ControlRig.h"
 #include "EditorModeManager.h"
-#include "SEditorUserWidgetHost.h"
+#include "EditMode/SEditorUserWidgetHost.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 

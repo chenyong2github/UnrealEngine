@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reservekd.
 
-#include "SControlRigGraphPinNameListValueWidget.h"
+#include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "DetailLayoutBuilder.h"
 #include "Framework/Application/SlateUser.h"
 #include "Framework/Application/SlateApplication.h"

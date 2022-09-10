@@ -25,7 +25,7 @@ LLM_DEFINE_TAG(Animation_ControlRig);
 #include "JsonObjectConverter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Algo/Transform.h"
 
 static FCriticalSection GRigHierarchyStackTraceMutex;

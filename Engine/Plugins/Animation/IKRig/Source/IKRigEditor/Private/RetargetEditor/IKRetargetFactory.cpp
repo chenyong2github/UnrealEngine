@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RetargetEditor/IKRetargetFactory.h"
-#include "IKRig/Public/Retargeter/IKRetargeter.h"
+#include "Retargeter/IKRetargeter.h"
 #include "IKRigEditor.h"
 #include "AssetTypeCategories.h"
 #include "ContentBrowserModule.h"

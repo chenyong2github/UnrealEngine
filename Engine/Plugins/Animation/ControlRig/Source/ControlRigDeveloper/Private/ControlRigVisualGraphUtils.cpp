@@ -9,9 +9,9 @@
 
 #include "HAL/PlatformApplicationMisc.h"
 #include "RigVMModel/RigVMNode.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_PrepareForExecution.h"
+#include "Units/Execution/RigUnit_InverseExecution.h"
 
 FAutoConsoleCommandWithWorldAndArgs FCmdControlRigVisualGraphUtilsDumpHierarchy
 (

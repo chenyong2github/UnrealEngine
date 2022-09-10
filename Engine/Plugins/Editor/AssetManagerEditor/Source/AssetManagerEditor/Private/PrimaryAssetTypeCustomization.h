@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
-#include "Editor/PropertyEditor/Public/IPropertyTypeCustomization.h"
+#include "IPropertyTypeCustomization.h"
 #include "SGraphPin.h"
 
 class IPropertyHandle;

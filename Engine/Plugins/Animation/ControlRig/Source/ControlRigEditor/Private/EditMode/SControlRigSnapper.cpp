@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigSnapper.h"
+#include "EditMode/SControlRigSnapper.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -17,11 +17,11 @@
 #include "EditorModeManager.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
-#include "UnrealEd/Public/Selection.h"
+#include "Selection.h"
 #include "Editor.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "LevelEditor.h"
-#include "Editor/SceneOutliner/Private/SSocketChooser.h"
+#include "SSocketChooser.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"

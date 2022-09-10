@@ -7,7 +7,7 @@
 #include "IUATHelperModule.h"
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
-#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "ToolMenus.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Trace/StoreClient.h"

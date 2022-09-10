@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Editor/PropertyEditor/Public/IDetailCustomization.h"
+#include "IDetailCustomization.h"
 #include "SGameplayTagWidget.h"
 
 class IDetailLayoutBuilder;

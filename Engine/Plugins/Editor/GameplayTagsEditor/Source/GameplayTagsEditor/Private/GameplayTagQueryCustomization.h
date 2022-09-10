@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
-#include "Editor/PropertyEditor/Public/IPropertyTypeCustomization.h"
+#include "IPropertyTypeCustomization.h"
 #include "SGameplayTagQueryWidget.h"
 #include "EditorUndoClient.h"
 

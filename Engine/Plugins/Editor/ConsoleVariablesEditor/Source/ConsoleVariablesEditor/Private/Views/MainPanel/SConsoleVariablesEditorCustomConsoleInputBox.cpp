@@ -9,7 +9,7 @@
 #include "Views/MainPanel/SConsoleVariablesEditorMainPanel.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "OutputLog/Public/OutputLogModule.h"
+#include "OutputLogModule.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Views/Widgets/SConsoleVariablesEditorTooltipWidget.h"

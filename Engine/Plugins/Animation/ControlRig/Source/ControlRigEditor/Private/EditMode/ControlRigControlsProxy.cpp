@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigControlsProxy.h"
+#include "EditMode/ControlRigControlsProxy.h"
 #include "EditorModeManager.h"
 #include "EditMode/ControlRigEditMode.h"
 #include "Sequencer/ControlRigSequence.h"

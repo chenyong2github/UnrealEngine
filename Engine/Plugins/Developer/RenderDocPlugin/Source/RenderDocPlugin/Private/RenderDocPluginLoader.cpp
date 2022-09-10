@@ -6,7 +6,7 @@
 
 #include "Internationalization/Internationalization.h"
 
-#include "Developer/DesktopPlatform/Public/DesktopPlatformModule.h"
+#include "DesktopPlatformModule.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif

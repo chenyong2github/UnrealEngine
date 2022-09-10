@@ -3,11 +3,11 @@
 #include "ComposurePostProcessPass.h"
 #include "ComposurePostProcessBlendable.h"
 
-#include "Classes/Components/SceneCaptureComponent2D.h"
-#include "Classes/Materials/Material.h"
-#include "Classes/Materials/MaterialInstanceDynamic.h"
-#include "Classes/Materials/MaterialInterface.h"
-#include "Public/SceneView.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "SceneView.h"
 #include "ComposureInternals.h"
 #include "ComposureUtils.h"
 

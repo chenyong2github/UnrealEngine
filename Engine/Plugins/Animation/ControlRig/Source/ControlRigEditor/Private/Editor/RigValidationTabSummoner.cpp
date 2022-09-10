@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigValidationTabSummoner.h"
-#include "SRigHierarchy.h"
+#include "Editor/RigValidationTabSummoner.h"
+#include "Editor/SRigHierarchy.h"
 #include "ControlRigEditorStyle.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 #include "ControlRigBlueprint.h"
-#include "SControlRigValidationWidget.h"
+#include "Editor/SControlRigValidationWidget.h"
 
 #define LOCTEXT_NAMESPACE "RigValidationTabSummoner"
 

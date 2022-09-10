@@ -15,7 +15,7 @@
 #include "BlueprintNodeTemplateCache.h"
 #include "ControlRigBlueprintUtils.h"
 #include "ScopedTransaction.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 #include "ControlRig.h"
 #include "Settings/ControlRigSettings.h"
 

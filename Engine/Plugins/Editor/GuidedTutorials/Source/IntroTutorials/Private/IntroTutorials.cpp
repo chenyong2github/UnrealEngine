@@ -13,7 +13,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "LevelEditor.h"
 #include "BlueprintEditorModule.h"
-#include "Editor/GameProjectGeneration/Public/GameProjectGenerationModule.h"
+#include "GameProjectGenerationModule.h"
 #include "SourceCodeNavigation.h"
 
 #include "EditorTutorial.h"

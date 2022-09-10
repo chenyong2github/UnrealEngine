@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigSequenceActions.h"
+#include "Sequencer/ControlRigSequenceActions.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Sequencer/ControlRigSequence.h"

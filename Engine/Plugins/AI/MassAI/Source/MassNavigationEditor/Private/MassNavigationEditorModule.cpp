@@ -2,7 +2,7 @@
 
 #include "MassNavigationEditorModule.h"
 #include "Modules/ModuleManager.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "AssetToolsModule.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "MassNavigationEditor"

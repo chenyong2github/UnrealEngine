@@ -2,7 +2,7 @@
 
 #include "RigEditor/IKRigToolkit.h"
 
-#include "Persona/Private/AnimationEditorViewportClient.h"
+#include "AnimationEditorViewportClient.h"
 #include "AnimationEditorPreviewActor.h"
 #include "EditorModeManager.h"
 #include "GameFramework/WorldSettings.h"

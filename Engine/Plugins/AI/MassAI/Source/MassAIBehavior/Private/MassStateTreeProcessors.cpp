@@ -10,7 +10,7 @@
 #include "MassSmartObjectTypes.h"
 #include "MassZoneGraphAnnotationTypes.h"
 #include "MassStateTreeSubsystem.h"
-#include "MassSignals/Public/MassSignalSubsystem.h"
+#include "MassSignalSubsystem.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/World.h"
 #include "MassBehaviorSettings.h"

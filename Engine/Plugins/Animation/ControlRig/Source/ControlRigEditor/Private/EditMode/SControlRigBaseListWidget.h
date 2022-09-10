@@ -18,7 +18,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "IAssetTools.h"
 #include "ContentBrowserDelegates.h"
-#include "SControlRigControlViews.h"
+#include "EditMode/SControlRigControlViews.h"
 
 class UControlRig;
 class FControlRigEditMode;

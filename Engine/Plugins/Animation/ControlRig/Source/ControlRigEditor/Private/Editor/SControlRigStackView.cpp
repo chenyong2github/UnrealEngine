@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigStackView.h"
+#include "Editor/SControlRigStackView.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 #include "ControlRigEditorStyle.h"
 #include "ControlRigStackCommands.h"
 #include "ControlRig.h"

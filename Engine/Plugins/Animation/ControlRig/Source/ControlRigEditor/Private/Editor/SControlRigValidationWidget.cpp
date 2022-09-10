@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigValidationWidget.h"
+#include "Editor/SControlRigValidationWidget.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBar.h"
@@ -13,7 +13,7 @@
 #include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "HAL/ConsoleManager.h"
-#include "MessageLog/Private/UserInterface/SMessageLogListing.h"
+#include "UserInterface/SMessageLogListing.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ControlRigBlueprint.h"
 

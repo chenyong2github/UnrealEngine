@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigAnimAttributeView.h"
-#include "ControlRigEditor.h"
+#include "Editor/SControlRigAnimAttributeView.h"
+#include "Editor/ControlRigEditor.h"
 #include "ControlRigBlueprint.h"
 #include "Engine/Console.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
-#include "Persona/Public/SAnimAttributeView.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
+#include "SAnimAttributeView.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigAnimAttributeView"
 

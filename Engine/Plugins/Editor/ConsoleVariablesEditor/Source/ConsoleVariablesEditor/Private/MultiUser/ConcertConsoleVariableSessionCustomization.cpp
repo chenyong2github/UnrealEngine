@@ -35,7 +35,7 @@
 
 #include "MultiUser/ConsoleVariableSyncData.h"
 
-#include "Core/Public/Modules/ModuleManager.h"
+#include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
 
 #define LOCTEXT_NAMESPACE "ConcertConsoleVariableSessionCustomization"

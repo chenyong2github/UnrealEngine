@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigUpdatePose.h"
+#include "EditMode/SControlRigUpdatePose.h"
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"

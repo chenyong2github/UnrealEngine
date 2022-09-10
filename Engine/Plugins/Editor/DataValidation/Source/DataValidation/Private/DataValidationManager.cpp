@@ -3,7 +3,7 @@
 #include "DataValidationManager.h"
 
 #include "Modules/ModuleManager.h"
-#include "Developer/MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "Logging/MessageLog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "AssetRegistry/AssetRegistryModule.h"

@@ -6,6 +6,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public PluginBrowser(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicIncludePathModuleNames.AddRange(
+				new string[] {
+					"UnrealEd"
+				}
+			);
+
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

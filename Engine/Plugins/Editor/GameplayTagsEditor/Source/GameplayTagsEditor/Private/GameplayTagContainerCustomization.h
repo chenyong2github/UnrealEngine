@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Widgets/SWidget.h"
-#include "Editor/PropertyEditor/Public/IPropertyTypeCustomization.h"
+#include "IPropertyTypeCustomization.h"
 #include "GameplayTagContainerCustomizationOptions.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"

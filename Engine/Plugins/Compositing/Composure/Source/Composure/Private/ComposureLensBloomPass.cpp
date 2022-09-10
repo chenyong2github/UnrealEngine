@@ -3,9 +3,9 @@
 #include "ComposureLensBloomPass.h"
 #include "ComposurePostProcessBlendable.h"
 
-#include "Classes/Components/SceneCaptureComponent2D.h"
-#include "Classes/Materials/Material.h"
-#include "Classes/Materials/MaterialInstanceDynamic.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "ComposureInternals.h"
 #include "ComposureUtils.h"
 

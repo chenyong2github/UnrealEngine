@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigStackTabSummoner.h"
-#include "SControlRigStackView.h"
+#include "Editor/RigStackTabSummoner.h"
+#include "Editor/SControlRigStackView.h"
 #include "ControlRigEditorStyle.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 
 #define LOCTEXT_NAMESPACE "RigStackTabSummoner"
 

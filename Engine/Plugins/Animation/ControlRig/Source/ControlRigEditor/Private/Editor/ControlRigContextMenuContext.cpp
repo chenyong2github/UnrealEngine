@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigContextMenuContext.h"
+#include "Editor/ControlRigContextMenuContext.h"
 
 #include "ControlRigBlueprint.h"
-#include "ControlRigEditor.h"
-#include "Slate/Public/Framework/Application/SlateApplication.h"
+#include "Editor/ControlRigEditor.h"
+#include "Framework/Application/SlateApplication.h"
 
 FString FControlRigRigHierarchyToGraphDragAndDropContext::GetSectionTitle() const
 {

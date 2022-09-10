@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigGraphNodeKnot.h"
+#include "Graph/SControlRigGraphNodeKnot.h"
 #include "Graph/ControlRigGraphSchema.h"
 
 #if WITH_EDITOR

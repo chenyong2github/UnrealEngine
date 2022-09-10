@@ -13,7 +13,7 @@
 #include "Graph/ControlRigGraph.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SEnumCombo.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Styling/AppStyle.h"

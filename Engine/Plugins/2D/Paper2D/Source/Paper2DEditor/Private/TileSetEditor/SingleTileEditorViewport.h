@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EditorViewportClient.h"
 #include "SEditorViewport.h"
-#include "Editor/UnrealEd/Public/SCommonEditorViewportToolbarBase.h"
+#include "SCommonEditorViewportToolbarBase.h"
 
 class FEdModeTileMap;
 class FSingleTileEditorViewportClient;

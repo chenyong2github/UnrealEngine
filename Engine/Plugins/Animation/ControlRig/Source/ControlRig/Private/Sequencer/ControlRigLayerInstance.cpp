@@ -6,7 +6,7 @@
 =============================================================================*/ 
 
 #include "Sequencer/ControlRigLayerInstance.h"
-#include "ControlRigLayerInstanceProxy.h"
+#include "Sequencer/ControlRigLayerInstanceProxy.h"
 
 /////////////////////////////////////////////////////
 // UControlRigLayerInstance

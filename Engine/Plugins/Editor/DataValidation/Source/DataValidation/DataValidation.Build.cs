@@ -6,6 +6,12 @@ public class DataValidation : ModuleRules
 {
 	public DataValidation(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"MessageLog",
+			}
+		);
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core",

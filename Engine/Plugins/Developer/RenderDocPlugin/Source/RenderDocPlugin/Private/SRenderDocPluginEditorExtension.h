@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "Editor/UnrealEd/Public/SViewportToolBar.h"
+#include "SViewportToolBar.h"
 
 class FRenderDocPluginModule;
 class FExtensionBase;

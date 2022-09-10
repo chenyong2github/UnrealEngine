@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Widgets/Views/SListView.h"
 #include "SKismetInspector.h"
-#include "MessageLog/Private/Model/MessageLogListingModel.h"
-#include "MessageLog/Private/Presentation/MessageLogListingViewModel.h"
+#include "Model/MessageLogListingModel.h"
+#include "Presentation/MessageLogListingViewModel.h"
 #include "ControlRigValidationPass.h"
 
 class SControlRigValidationWidget;

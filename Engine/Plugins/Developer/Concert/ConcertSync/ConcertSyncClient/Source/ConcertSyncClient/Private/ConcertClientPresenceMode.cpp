@@ -29,7 +29,7 @@
 #include "IVREditorModule.h"
 #include "VREditorMode.h"
 #include "VREditorInteractor.h"
-#include "Teleporter/VREditorTeleporter.h"
+#include "Editor/VREditor/Teleporter/VREditorTeleporter.h"
 #include "ViewportWorldInteraction.h"
 #endif
 

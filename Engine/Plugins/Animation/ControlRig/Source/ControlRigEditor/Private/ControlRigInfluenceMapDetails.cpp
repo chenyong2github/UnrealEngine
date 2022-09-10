@@ -6,8 +6,8 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "ControlRig.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_PrepareForExecution.h"
 
 #define LOCTEXT_NAMESPACE "RigInfluenceMapDetails"
 

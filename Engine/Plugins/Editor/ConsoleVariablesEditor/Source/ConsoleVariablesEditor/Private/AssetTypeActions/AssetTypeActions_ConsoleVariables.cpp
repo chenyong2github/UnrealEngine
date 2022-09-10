@@ -4,7 +4,7 @@
 
 #include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorStyle.h"
-#include "ConsoleVariablesEditor/Private/ConsoleVariablesEditorModule.h"
+#include "ConsoleVariablesEditorModule.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 

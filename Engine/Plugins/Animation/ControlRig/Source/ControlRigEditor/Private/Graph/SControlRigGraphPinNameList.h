@@ -7,7 +7,7 @@
 #include "Widgets/SWidget.h"
 #include "SGraphPin.h"
 #include "RigVMModel/RigVMPin.h"
-#include "SControlRigGraphPinNameListValueWidget.h"
+#include "Graph/SControlRigGraphPinNameListValueWidget.h"
 
 class SControlRigGraphPinNameList : public SGraphPin
 {

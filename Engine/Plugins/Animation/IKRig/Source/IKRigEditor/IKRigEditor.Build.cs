@@ -7,8 +7,14 @@ namespace UnrealBuildTool.Rules
     public class IKRigEditor : ModuleRules
     {
         public IKRigEditor(ReadOnlyTargetRules Target) : base(Target)
-        {
-            PublicDependencyModuleNames.AddRange(
+		{
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					System.IO.Path.Combine(EngineDirectory,"Source/Editor/Persona/Private"),
+				}
+			);
+
+			PublicDependencyModuleNames.AddRange(
                 new string[]
                 {
 	                "Core",
@@ -50,13 +56,6 @@ namespace UnrealBuildTool.Rules
                     "ApplicationCore",
                 }
             );
-
-            PrivateIncludePathModuleNames.AddRange(
-                new string[]
-                {
-				}
-            );
-
         }
     }
 }

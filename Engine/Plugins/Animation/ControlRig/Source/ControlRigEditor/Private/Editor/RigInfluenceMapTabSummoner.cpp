@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigInfluenceMapTabSummoner.h"
-#include "SRigHierarchy.h"
+#include "Editor/RigInfluenceMapTabSummoner.h"
+#include "Editor/SRigHierarchy.h"
 #include "ControlRigEditorStyle.h"
-#include "ControlRigEditor.h"
+#include "Editor/ControlRigEditor.h"
 #include "SKismetInspector.h"
 #include "ControlRigBlueprint.h"
 

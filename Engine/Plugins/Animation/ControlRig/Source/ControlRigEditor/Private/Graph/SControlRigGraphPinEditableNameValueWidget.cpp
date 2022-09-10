@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SControlRigGraphPinEditableNameValueWidget.h"
+#include "Graph/SControlRigGraphPinEditableNameValueWidget.h"
 #include "DetailLayoutBuilder.h"
 
 #define LOCTEXT_NAMESPACE "GraphPinEditableNameValueWidget"

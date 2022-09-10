@@ -6,9 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public Composure(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
+			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
-                    "../../../../Source/Runtime/Engine/",
+					"Engine",
 				}
 				);
             

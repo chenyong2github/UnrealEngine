@@ -13,7 +13,7 @@
 #include "Selection.h"
 #include "SlateOptMacros.h"
 #include "LevelEditor.h"
-#include "Editor/SceneOutliner/Private/SSocketChooser.h"
+#include "SSocketChooser.h"
 #include "TransformConstraint.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"

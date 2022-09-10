@@ -5,7 +5,7 @@
 #include "Units/RigUnitContext.h"
 #include "ControlRig.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
+#include "Units/Execution/RigUnit_PrepareForExecution.h"
 
 bool FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(
 	const FRigUnitContext& InContext,

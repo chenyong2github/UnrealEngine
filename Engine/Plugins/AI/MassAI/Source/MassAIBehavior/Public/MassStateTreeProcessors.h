@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassSignals/Public/MassSignalProcessorBase.h"
+#include "MassSignalProcessorBase.h"
 #include "MassStateTreeFragments.h"
 #include "MassObserverProcessor.h"
 #include "MassLODTypes.h"

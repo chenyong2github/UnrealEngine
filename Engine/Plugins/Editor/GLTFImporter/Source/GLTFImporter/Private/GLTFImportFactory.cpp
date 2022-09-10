@@ -14,7 +14,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetImportTask.h"
-#include "Editor/UnrealEd/Public/Editor.h"
+#include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "IMessageLogListing.h"
 #include "Interfaces/IMainFrameModule.h"
