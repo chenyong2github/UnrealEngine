@@ -426,7 +426,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 	float Epsilon = 1.0e-7;
 	if (all(Extinction < Epsilon))
 	{
-		RWTransmittanceVolumeTexture[VoxelIndex] = 0.0f;
+		RWTransmittanceVolumeTexture[VoxelIndex] = 1.0f;
 		return;
 	}
 

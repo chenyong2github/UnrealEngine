@@ -189,7 +189,7 @@ void RenderTransmittanceVolumeWithLiveShadingCS(
 		uint3 Rand32Bits = Rand4DPCG32(uint4(VoxelIndex, View.StateFrameIndexMod8)).xyz;
 		VoxelJitter = float3(Rand32Bits) / float(uint(0xffffffff));
 	}
-	//float3 UVW = (VoxelIndex + VectorJitter) / float3(GetTransmittanceVolumeResolution());
+	//float3 UVW = (VoxelIndex + VoxelJitter) / float3(GetTransmittanceVolumeResolution());
 	float3 UVW = (VoxelIndex + 0.5) / float3(GetTransmittanceVolumeResolution());
 
 	float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
@@ -204,7 +204,7 @@ void RenderTransmittanceVolumeWithLiveShadingCS(
 	float Epsilon = 1.0e-7;
 	if (all(Extinction < Epsilon))
 	{
-		RWTransmittanceVolumeTexture[VoxelIndex] = 0.0f;
+		RWTransmittanceVolumeTexture[VoxelIndex] = 1.0f;
 		return;
 	}
 
