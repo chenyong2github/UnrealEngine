@@ -10,13 +10,20 @@ struct STATETREEMODULE_API FStateTreeDelayTaskInstanceData
 {
 	GENERATED_BODY()
 	
-	/** Delay before the task ends. Default (0 or any negative) will run indefinitely so it requires a transition in the state tree to stop it. */
+	/** Delay before the task ends. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (EditCondition = "!bRunForever", ClampMin="0.0"))
+	float Duration = 1.f;
+	
+	/** Adds random range to the Duration. */
+	UPROPERTY(EditAnywhere, Category = Parameter, meta = (EditCondition = "!bRunForever", ClampMin="0.0"))
+	float RandomDeviation = 0.f;
+	
+	/** If true the task will run forever until a transition stops it. */
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	float Duration = 0.f;
+	bool bRunForever = false;
 
-	/** Accumulated time used to stop task if duration is set */
-	UPROPERTY()
-	float Time = 0.f;
+	/** Internal countdown in seconds. */
+	float RemainingTime = 0.f;
 };
 
 /**
@@ -34,5 +41,5 @@ struct STATETREEMODULE_API FStateTreeDelayTask : public FStateTreeTaskCommonBase
 	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
 
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 };

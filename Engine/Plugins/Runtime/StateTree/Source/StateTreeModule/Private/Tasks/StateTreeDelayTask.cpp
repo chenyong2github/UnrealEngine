@@ -8,7 +8,11 @@ EStateTreeRunStatus FStateTreeDelayTask::EnterState(FStateTreeExecutionContext& 
 {
 	InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
 
-	InstanceData.Time = 0.f;
+	if (!InstanceData.bRunForever)
+	{
+		InstanceData.RemainingTime = FMath::FRandRange(
+			FMath::Max(0.0f, InstanceData.Duration - InstanceData.RandomDeviation), (InstanceData.Duration + InstanceData.RandomDeviation));
+	}
 	
 	return EStateTreeRunStatus::Running;
 }
@@ -17,7 +21,15 @@ EStateTreeRunStatus FStateTreeDelayTask::Tick(FStateTreeExecutionContext& Contex
 {
 	InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
 
-	InstanceData.Time += DeltaTime;
+	if (!InstanceData.bRunForever)
+	{
+		InstanceData.RemainingTime -= DeltaTime;
+
+		if (InstanceData.RemainingTime <= 0.f)
+		{
+			return EStateTreeRunStatus::Succeeded;
+		}
+	}
 	
-	return InstanceData.Duration <= 0.0f ? EStateTreeRunStatus::Running : (InstanceData.Time < InstanceData.Duration ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Succeeded);
+	return EStateTreeRunStatus::Running;
 }
