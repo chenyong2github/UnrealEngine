@@ -6,8 +6,6 @@ public class CharacterAI : ModuleRules
 {
     public CharacterAI(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.Add("CharacterAI/Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

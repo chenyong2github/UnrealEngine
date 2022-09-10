@@ -10,11 +10,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public GoogleARCoreBase(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(new string[]
-			{
-				"GoogleARCoreBase/Private",
-			});
-
 			PublicIncludePathModuleNames.Add("TargetPlatform");
 
 			PublicDependencyModuleNames.AddRange(new string[]

@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public DataflowNodes(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("DataflowNodes/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

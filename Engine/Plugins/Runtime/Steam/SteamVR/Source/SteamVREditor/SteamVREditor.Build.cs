@@ -35,9 +35,6 @@ public class SteamVREditor : ModuleRules
 {
 	public SteamVREditor(ReadOnlyTargetRules Target) : base(Target)
     {
-        PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
-        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
-
         PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

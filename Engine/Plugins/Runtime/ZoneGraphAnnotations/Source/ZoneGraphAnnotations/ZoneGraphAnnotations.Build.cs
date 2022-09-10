@@ -15,11 +15,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-			);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",

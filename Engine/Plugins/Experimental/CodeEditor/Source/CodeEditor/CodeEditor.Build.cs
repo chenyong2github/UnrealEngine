@@ -6,11 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public CodeEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

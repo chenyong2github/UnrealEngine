@@ -14,11 +14,5 @@ public class AnimationBudgetAllocator : ModuleRules
 				"EngineSettings"
 			}
 		);
-		        
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "AnimationBudgetAllocator/Private"
-            });
-
     }
 }

@@ -9,11 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public DataRegistryEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"DataRegistryEditor/Private",
-				});
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

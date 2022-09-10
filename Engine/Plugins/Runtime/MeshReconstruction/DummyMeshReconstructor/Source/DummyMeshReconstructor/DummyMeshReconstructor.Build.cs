@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public DummyMeshReconstructor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("DummyMeshReconstructor/Private");
-
 			PublicDependencyModuleNames.AddRange
 			(
 				new string[]

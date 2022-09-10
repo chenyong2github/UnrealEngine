@@ -16,11 +16,5 @@ public class OpenXREditor : ModuleRules
 				"OpenXRInput"
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"OpenXREditor/Private",
-			}
-		);
 	}
 }

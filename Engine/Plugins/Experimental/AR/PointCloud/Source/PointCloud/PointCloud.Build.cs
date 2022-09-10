@@ -6,23 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public PointCloud(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicIncludePaths.AddRange(
-                new string[] {
-                    // ... add public include paths required here ...
-                }
-                );
-
-
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    "PointCloud/Public",
-                    "PointCloud/Private"
-                    // ... add other private include paths required here ...
-                }
-                );
-
-
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "Core",

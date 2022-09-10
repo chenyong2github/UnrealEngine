@@ -12,8 +12,6 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-            PrivateIncludePaths.Add("GeometryCollectionSequencer/Private");
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

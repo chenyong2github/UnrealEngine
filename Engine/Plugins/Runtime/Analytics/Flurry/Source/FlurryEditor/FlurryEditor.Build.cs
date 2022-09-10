@@ -6,8 +6,6 @@ public class FlurryEditor : ModuleRules
 {
     public FlurryEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.Add("FlurryEditor/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

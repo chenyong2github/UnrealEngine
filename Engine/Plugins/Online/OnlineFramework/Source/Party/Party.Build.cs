@@ -20,11 +20,6 @@ public class Party : ModuleRules
 			}
 			);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

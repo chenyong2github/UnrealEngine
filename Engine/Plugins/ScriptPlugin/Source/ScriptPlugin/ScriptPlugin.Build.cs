@@ -8,19 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public ScriptPlugin(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
-				new string[] {					
-					//"Programs/UnrealHeaderTool/Public",
-					// ... add other public include paths required here ...
-				}
-				);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					// ... add other private include paths required here ...
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -45,14 +32,6 @@ namespace UnrealBuildTool.Rules
 				);
 
 			}
-
-
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
-					// ... add any modules that your module loads dynamically here ...
-				}
-				);
 
 			var LuaPath = Path.Combine("..", "Plugins", "ScriptPlugin", "Source", "Lua");				
 			var LuaLibDirectory = Path.Combine(LuaPath, "Lib", Target.Platform.ToString(), "Release");

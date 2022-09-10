@@ -8,11 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public IOSReplayKit(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(new string[]
-				{
-					"IOSReplayKit/Private",
-				});
-
 			PrivateDependencyModuleNames.AddRange(new string[]
 				{
 					"Core",

@@ -13,11 +13,6 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"UnrealEd",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"GooglePADEditor/Private",
-				});
 		}
 	}
 }

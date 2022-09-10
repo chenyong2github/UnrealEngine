@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public AndroidMoviePlayer(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

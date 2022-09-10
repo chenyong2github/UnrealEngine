@@ -6,18 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public ComputeFrameworkEditor(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.AddRange(
-                new string[] {
-					"ComputeFrameworkEditor/Private",
-				}
-            );
-
-            PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-				}
-	        );
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

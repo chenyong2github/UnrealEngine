@@ -8,11 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public AndroidBackgroundService(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(new string[]
-				{
-					"AndroidBackgroundService/Private",
-				});
-
 			PrivateDependencyModuleNames.AddRange(new string[]
 				{
 					"Core",

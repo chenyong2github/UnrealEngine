@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public InputEditor(ReadOnlyTargetRules Target) : base(Target)
         {
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"InputEditor/Private",
-				}
-			);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"EnhancedInput",

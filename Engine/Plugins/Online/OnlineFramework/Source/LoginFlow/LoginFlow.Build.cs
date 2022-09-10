@@ -28,18 +28,6 @@ public class LoginFlow : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-			}
-		);
-
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-			}
-		);
-
 		DynamicallyLoadedModuleNames.AddRange(
 		new string[] {
 				"Analytics",

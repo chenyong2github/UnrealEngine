@@ -6,16 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public AppleVision(ReadOnlyTargetRules Target) : base(Target)
 		{
-
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    "AppleVision/Public",
-                    "AppleVision/Private"
-                    // ... add other private include paths required here ...
-                }
-                );
-
-
             PublicDependencyModuleNames.AddRange(
                 new string[]
                 {

@@ -6,17 +6,6 @@ public class MixedRealityCaptureFramework : ModuleRules
 {
 	public MixedRealityCaptureFramework(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"MixedRealityCaptureFramework/Private"
-			}
-		);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"MediaAssets"

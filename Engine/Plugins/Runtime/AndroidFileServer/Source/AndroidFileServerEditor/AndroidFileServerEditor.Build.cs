@@ -12,11 +12,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"UnrealEd",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"AndroidFileServerEditor/Private",
-				});
 		}
 	}
 }

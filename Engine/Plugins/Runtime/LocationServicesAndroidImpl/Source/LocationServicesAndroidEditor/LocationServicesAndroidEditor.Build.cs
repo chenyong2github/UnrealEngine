@@ -14,8 +14,6 @@ public class LocationServicesAndroidEditor : ModuleRules
 				}
 			);
 
-		PrivateIncludePaths.Add("LocationServicesAndroidEditor/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 
 			{

@@ -13,13 +13,6 @@ public class AndroidPermission : ModuleRules
 				"Runtime/Launch/Public"
 			}
 			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"AndroidPermission/Private",
-			}
-			);
 			
 		
 		PublicDependencyModuleNames.AddRange(

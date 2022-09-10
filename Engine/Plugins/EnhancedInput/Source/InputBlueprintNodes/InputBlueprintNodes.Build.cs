@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public InputBlueprintNodes(ReadOnlyTargetRules Target) : base(Target)
         {
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"InputBlueprintNodes/Private",
-				}
-			);
-
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"BlueprintGraph",

@@ -12,15 +12,7 @@ public class GooglePAD : ModuleRules
 			new string[] {
 				"Runtime/Launch/Public"
 			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"GooglePAD/Private",
-			}
-			);
-			
+			);			
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[]

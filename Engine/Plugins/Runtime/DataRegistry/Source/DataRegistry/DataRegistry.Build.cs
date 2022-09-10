@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public DataRegistry(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("DataRegistry/Private");
-			
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

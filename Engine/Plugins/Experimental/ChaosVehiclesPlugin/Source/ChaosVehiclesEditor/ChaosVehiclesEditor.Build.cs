@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public ChaosVehiclesEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("ChaosVehiclesEditor/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

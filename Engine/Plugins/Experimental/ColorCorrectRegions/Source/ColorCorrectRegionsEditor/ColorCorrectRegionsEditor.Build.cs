@@ -6,16 +6,6 @@ public class ColorCorrectRegionsEditor : ModuleRules
 {
 	public ColorCorrectRegionsEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-			}
-			);
-				
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-		);
-		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -40,12 +30,6 @@ public class ColorCorrectRegionsEditor : ModuleRules
 				"SlateCore",
 				"ColorCorrectRegions",
 				"PlacementMode",
-			}
-		);
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
 			}
 		);
 	}

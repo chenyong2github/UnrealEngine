@@ -13,12 +13,6 @@ namespace UnrealBuildTool.Rules
                 }
 				);
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-                    "NetworkPrediction/Private",
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

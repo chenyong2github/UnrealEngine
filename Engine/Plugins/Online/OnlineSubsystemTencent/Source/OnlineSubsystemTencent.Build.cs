@@ -9,8 +9,6 @@ public class OnlineSubsystemTencent : ModuleRules
 	{
 		PrivateDefinitions.Add("ONLINESUBSYSTEM_TENCENT_PACKAGE=1");
 
-		PrivateIncludePaths.Add("Private");
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

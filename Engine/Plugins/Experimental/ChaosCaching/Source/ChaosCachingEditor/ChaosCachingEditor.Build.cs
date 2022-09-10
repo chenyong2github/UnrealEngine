@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public ChaosCachingEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("ChaosCachingEditor/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

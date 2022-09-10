@@ -15,12 +15,6 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					// ... add other private include paths required here ...
-				}
-				);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -35,13 +29,6 @@ namespace UnrealBuildTool.Rules
 				{
 					// ... add private dependencies that you statically link with here ...
 					"Projects",
-				}
-				);
-
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
-					// ... add any modules that your module loads dynamically here ...
 				}
 				);
 

@@ -6,10 +6,6 @@ public class ChaosNiagara : ModuleRules
 {
 	public ChaosNiagara(ReadOnlyTargetRules Target) : base(Target)
 	{
-        //PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-        PrivateIncludePaths.Add("ChaosNiagara/Private");
-        PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

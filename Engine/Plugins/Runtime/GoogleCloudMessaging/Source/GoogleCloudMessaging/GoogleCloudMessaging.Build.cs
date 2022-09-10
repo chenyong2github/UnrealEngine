@@ -8,11 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public GoogleCloudMessaging(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.AddRange(new string[]
-				{
-					"GoogleCloudMessaging/Private",
-				});
-
 			PrivateDependencyModuleNames.AddRange(new string[]
 				{
 					"Core",

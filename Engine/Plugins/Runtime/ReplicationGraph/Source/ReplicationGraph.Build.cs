@@ -6,8 +6,6 @@ public class ReplicationGraph : ModuleRules
 {
 	public ReplicationGraph(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -18,10 +16,5 @@ public class ReplicationGraph : ModuleRules
 				"PerfCounters"
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Private"
-			});     
-		}
+	}
 }

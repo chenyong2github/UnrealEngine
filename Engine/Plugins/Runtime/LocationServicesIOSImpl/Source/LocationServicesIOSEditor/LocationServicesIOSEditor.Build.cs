@@ -13,8 +13,6 @@ public class LocationServicesIOSEditor : ModuleRules
 				}
 			);
 
-		PrivateIncludePaths.Add("LocationServicesIOSEditor/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] 
 			{

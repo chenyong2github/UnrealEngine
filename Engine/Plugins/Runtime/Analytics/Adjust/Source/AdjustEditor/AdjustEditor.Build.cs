@@ -6,8 +6,6 @@ public class AdjustEditor : ModuleRules
 {
     public AdjustEditor(ReadOnlyTargetRules Target) : base(Target)
     {
-        PrivateIncludePaths.Add("AdjustEditor/Private");
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

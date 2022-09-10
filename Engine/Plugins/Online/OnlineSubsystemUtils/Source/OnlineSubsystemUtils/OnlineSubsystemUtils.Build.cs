@@ -8,12 +8,6 @@ public class OnlineSubsystemUtils : ModuleRules
 	public OnlineSubsystemUtils(ReadOnlyTargetRules Target) : base(Target)
     {
 		PublicDefinitions.Add("ONLINESUBSYSTEMUTILS_PACKAGE=1");
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		PrivateIncludePaths.Add("OnlineSubsystemUtils/Private");
-
-        string EnginePath = Path.GetFullPath(Target.RelativeEnginePath);
-        string RuntimePath = EnginePath + "Source/Runtime/";
 
         bool bIsWindowsPlatformBuild = Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
 

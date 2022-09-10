@@ -9,14 +9,7 @@ namespace UnrealBuildTool.Rules
 	public class GoogleARCoreServices : ModuleRules
 	{
 		public GoogleARCoreServices(ReadOnlyTargetRules Target) : base(Target)
-		{
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-					"GoogleARCoreServices/Private",
-				}
-			);
-			
+		{			
 			PublicDependencyModuleNames.AddRange(
 					new string[]
 					{

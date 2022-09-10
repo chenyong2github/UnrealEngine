@@ -6,13 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public PerformanceMonitor(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.AddRange
-            (
-                new string[] {
-				"PerformanceMonitor/Private",
-			}
-            );
-
             PublicDependencyModuleNames.AddRange
             (
                 new string[] {

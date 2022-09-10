@@ -21,8 +21,6 @@ public class OnlineSubsystemApple : ModuleRules
 			// TODO: Mark.Fitt enable Mac support
 		}
 
-		PrivateIncludePaths.Add("Private");
-
 		PublicDefinitions.Add("ONLINESUBSYSTEMAPPLE_PACKAGE=1");
 		PublicDefinitions.Add("ONLINESUBSYSTEMAPPLE_IDENTITY_ENABLE_SIWA=" + (bSignInWithAppleSupported ? "1" : "0"));
 

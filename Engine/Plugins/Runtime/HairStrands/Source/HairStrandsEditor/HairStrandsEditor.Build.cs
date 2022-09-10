@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public HairStrandsEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add(ModuleDirectory + "/Private");
-			PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

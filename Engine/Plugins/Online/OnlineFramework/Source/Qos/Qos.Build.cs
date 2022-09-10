@@ -7,12 +7,6 @@ public class Qos : ModuleRules
 	public Qos(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDefinitions.Add("QOS_PACKAGE=1");
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-			}
-			);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 

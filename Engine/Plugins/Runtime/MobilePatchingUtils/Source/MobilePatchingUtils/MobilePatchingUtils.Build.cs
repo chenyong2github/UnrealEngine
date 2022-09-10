@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
     {
         public MobilePatchingUtils(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.Add("MobilePatchingUtils/Private");
-
             PublicDependencyModuleNames.AddRange(new string[]
             {
                 "Core",

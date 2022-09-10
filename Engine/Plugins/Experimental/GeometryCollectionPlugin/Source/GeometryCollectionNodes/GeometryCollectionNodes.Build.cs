@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public GeometryCollectionNodes(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("GeometryCollectionNodes/Private");
-            PublicIncludePaths.Add(ModuleDirectory + "/Public");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -6,12 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public NetworkPredictionExtrasLatentLoad(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
-				new string[] {
-                    ModuleDirectory + "/Public",
-				}
-				);
-
 			PrivateIncludePaths.AddRange(
 				new string[] {
                     "NetworkPredictionExtras/Private",
@@ -39,12 +33,6 @@ namespace UnrealBuildTool.Rules
 					"TraceLog",
 					"Engine"
                 }
-				);
-
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
-				}
 				);
 
 			// Only needed for the PIE delegate in FNetworkPredictionModule::StartupModule

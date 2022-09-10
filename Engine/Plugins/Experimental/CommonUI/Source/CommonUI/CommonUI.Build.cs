@@ -35,20 +35,7 @@ public class CommonUI : ModuleRules
 			}
 		);
 
-        PrivateIncludePaths.AddRange(
-			new string[]
-			{
-                "CommonUI/Private",
-			}
-		);
-
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-			}
-		);
-
-        if (Target.Type == TargetType.Editor)
+		if (Target.Type == TargetType.Editor)
         {
             PublicDependencyModuleNames.AddRange(
                 new string[] {

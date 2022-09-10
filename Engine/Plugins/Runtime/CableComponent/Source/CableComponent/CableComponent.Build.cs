@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
         public CableComponent(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePaths.Add("CableComponent/Private");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
