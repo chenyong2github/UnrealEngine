@@ -16,6 +16,7 @@
 #include "RenderGraphResources.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "Templates/PimplPtr.h"
 
 #include "MediaCapture.generated.h"
 
@@ -207,7 +208,6 @@ public:
 
 	/** Default constructor / destructor to use forward declared uniqueptr */
 	virtual ~UMediaCapture();
-	UMediaCapture(FVTableHelper&);
 
 	/**
 	 * Stop the actual capture if there is one.
@@ -491,7 +491,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextureRenderTarget2D> CapturingRenderTarget;
 	
-	TUniquePtr<UE::MediaCaptureData::FFrameManager> FrameManager;
+	TPimplPtr<UE::MediaCaptureData::FFrameManager> FrameManager;
 	int32 NumberOfCaptureFrame = 2;
 	int32 CaptureRequestCount = 0;
 	EMediaCaptureState MediaState = EMediaCaptureState::Stopped;

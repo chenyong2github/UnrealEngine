@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AjaMediaPlayer.h"
-#include "AjaMediaPrivate.h"
+
 
 #include "AJA.h"
+#include "AjaMediaAudioSample.h"
+#include "AjaMediaBinarySample.h"
+#include "AjaMediaPrivate.h"
+#include "AjaMediaSettings.h"
+#include "AjaMediaTextureSample.h"
+#include "Async/Async.h"
+
+#include "Engine/Engine.h"
+#include "GenlockedCustomTimeStep.h"
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
@@ -18,10 +27,6 @@
 #include "Stats/Stats2.h"
 #include "Styling/SlateStyle.h"
 
-#include "AjaMediaAudioSample.h"
-#include "AjaMediaBinarySample.h"
-#include "AjaMediaSettings.h"
-#include "AjaMediaTextureSample.h"
 
 #if WITH_EDITOR
 #include "EngineAnalytics.h"
@@ -95,6 +100,8 @@ FAjaMediaPlayer::~FAjaMediaPlayer()
  */
 bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 {
+	bAddedSynchronizedSamples = false;
+
 	if (!FAja::CanUseAJACard())
 	{
 		UE_LOG(LogAjaMedia, Warning, TEXT("The AjaMediaPlayer can't open URL '%s' because Aja card cannot be used. Are you in a Commandlet? You may override this behavior by launching with -ForceAjaUsage"), *Url);
@@ -598,33 +605,50 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 		}
 		else
 		{
-			auto TextureSample = TextureSamplePool->AcquireShared();
-			if (InVideoFrame.bIsProgressivePicture)
+			bool bEvenField = GFrameCounter % 2 == 0;
+			if (bEvenField && !InVideoFrame.bIsProgressivePicture && !bAddedSynchronizedSamples && UGenlockedCustomTimeStep::CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
 			{
-				if (TextureSample->InitializeProgressive(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
+				// Input must be received on an odd frame count or it flips the fields.
+				if (UGenlockedCustomTimeStep* TimeStep = Cast<UGenlockedCustomTimeStep>(GEngine->GetCustomTimeStep()))
 				{
-					Samples->AddVideo(TextureSample);
+					if (TimeStep->GetSynchronizationState() == ECustomTimeStepSynchronizationState::Synchronized)
+					{
+						// Reinitialize genlock if it it was started on the wrong frame (Must be started so the frames are received on odd frames.
+						AsyncTask(ENamedThreads::GameThread, [TimeStep]() {
+							TimeStep->Shutdown(GEngine);
+							TimeStep->Initialize(GEngine);
+							});
+					}
 				}
 			}
 			else
 			{
-				bool bEven = true;
+				auto TextureSample = TextureSamplePool->AcquireShared();
+				if (InVideoFrame.bIsProgressivePicture)
 
-				if (FMediaIOCorePlayerBase::CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
 				{
-					bEven = GFrameCounterRenderThread % 2 != FMediaIOCorePlayerBase::CVarFlipInterlaceFields.GetValueOnAnyThread();
+					if (TextureSample->InitializeProgressive(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
+					{
+						Samples->AddVideo(TextureSample);
+					}
 				}
-
-				if (TextureSample->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bEven, bIsSRGBInput))
+				else
 				{
-					Samples->AddVideo(TextureSample);
-				}
-
-				auto TextureSampleOdd = TextureSamplePool->AcquireShared();
-				bEven = !bEven;
-				if (TextureSampleOdd->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTimeF2, VideoFrameRate, DecodedTimecodeF2, bEven, bIsSRGBInput))
-				{
-					Samples->AddVideo(TextureSampleOdd);
+					bool bEven = true;
+					if (UGenlockedCustomTimeStep* TimeStep = Cast< UGenlockedCustomTimeStep>(GEngine->GetCustomTimeStep()))
+					{
+						bAddedSynchronizedSamples = TimeStep->GetSynchronizationState() == ECustomTimeStepSynchronizationState::Synchronized;
+					}
+					if (TextureSample->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bEven, bIsSRGBInput))
+					{
+						Samples->AddVideo(TextureSample);
+					}
+					bEven = !bEven;
+					auto TextureSampleOdd = TextureSamplePool->AcquireShared();
+					if (TextureSampleOdd->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTimeF2, VideoFrameRate, DecodedTimecodeF2, bEven, bIsSRGBInput))
+					{
+						Samples->AddVideo(TextureSampleOdd);
+					}
 				}
 			}
 		}

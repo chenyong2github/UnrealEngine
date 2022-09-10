@@ -7,7 +7,6 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/App.h"
 
-
 //~ IAJASyncChannelCallbackInterface implementation
 //--------------------------------------------------------------------
 // Those are called from the AJA thread. There's a lock inside AJA to prevent this object from dying while in this thread.
@@ -473,14 +472,36 @@ bool UAjaCustomTimeStep::WaitForSync()
 
 	const int32 ExpectedSyncCountsPerWait = GetExpectedSyncCountDelta();
 
-	if (bEnableOverrunDetection 
-		&& bIsNewSyncCountValid 
+	if (bIsNewSyncCountValid 
 		&& bIsPreviousSyncCountValid 
 		&& (NewSyncCount != (PreviousSyncCount + ExpectedSyncCountsPerWait)))
 	{
-		UE_LOG(LogAjaMedia, Warning, 
-			TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) dropped."), 
-			NewSyncCount - PreviousSyncCount - ExpectedSyncCountsPerWait);
+		uint32 Difference = NewSyncCount - PreviousSyncCount - ExpectedSyncCountsPerWait;
+		if (IsInterlaced() && UGenlockedCustomTimeStep::CVarExperimentalFieldFlipFix.GetValueOnAnyThread() && Difference % 2 != 0)
+		{
+			// Try not dropping an odd number of frames.
+			bool bSyncSuccess = true;
+			while (Difference % 2 != 0 && bSyncSuccess)
+			{
+				bSyncSuccess = SyncChannel->WaitForSync();
+				if (bSyncSuccess)
+				{
+					SyncChannel->GetSyncCount(NewSyncCount);
+					Difference = NewSyncCount - PreviousSyncCount - ExpectedSyncCountsPerWait;
+				}
+				else
+				{
+					UE_LOG(LogAjaMedia, Error, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. The wait timed out."));
+				}
+			}
+		}
+
+		if (bEnableOverrunDetection)
+		{
+			UE_LOG(LogAjaMedia, Warning, 
+				TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) dropped."), 
+				NewSyncCount - PreviousSyncCount - ExpectedSyncCountsPerWait);
+		}
 	}
 
 	if (bIsNewSyncCountValid)
@@ -530,4 +551,8 @@ void UAjaCustomTimeStep::DetectConfiguration(class UEngine* InEngine, bool bRein
 	}
 }
 
+bool UAjaCustomTimeStep::IsInterlaced() const
+{
+	return MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::Interlaced;
+}
 

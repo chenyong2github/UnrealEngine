@@ -42,7 +42,7 @@ namespace UE::GPUTextureTransfer
 {
 	using TextureTransferPtr = TSharedPtr<class ITextureTransfer>;
 }
-
+ 
 /**
  * Implements a base player for hardware IO cards. 
  *
@@ -63,9 +63,6 @@ class MEDIAIOCORE_API FMediaIOCorePlayerBase
 	, public ITimedDataInput
 	, public TSharedFromThis<FMediaIOCorePlayerBase>
 {
-public:
-	static TAutoConsoleVariable<int32> CVarFlipInterlaceFields;
-	static TAutoConsoleVariable<int32> CVarExperimentalFieldFlipFix;
 public:
 
 	/**

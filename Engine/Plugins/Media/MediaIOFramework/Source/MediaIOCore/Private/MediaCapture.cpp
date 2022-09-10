@@ -758,12 +758,6 @@ UMediaCapture::UMediaCapture(const FObjectInitializer& ObjectInitializer)
 
 UMediaCapture::~UMediaCapture() = default;
 
-UMediaCapture::UMediaCapture(FVTableHelper&)
-{
-
-}
-
-
 void UMediaCapture::BeginDestroy()
 {
 	if (GetState() == EMediaCaptureState::Capturing || GetState() == EMediaCaptureState::Preparing)
@@ -1467,7 +1461,7 @@ void UMediaCapture::InitializeOutputResources(int32 InNumberOfBuffers)
 	}
 
 	// Recreate frame manager which can trigger cleaning up its captured frames if it exists
-	FrameManager = MakeUnique<UE::MediaCaptureData::FFrameManager>();
+	FrameManager = MakePimpl<UE::MediaCaptureData::FFrameManager>();
 
 	bOutputResourcesInitialized = false;
 	NumberOfCaptureFrame = InNumberOfBuffers;

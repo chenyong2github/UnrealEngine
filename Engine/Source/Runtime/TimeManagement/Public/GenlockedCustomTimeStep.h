@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "FixedFrameRateCustomTimeStep.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/FrameRate.h"
 #include "UObject/ObjectMacros.h"
@@ -51,4 +52,7 @@ public:
 	/** Whether this custom time step should autodetect the video format if supported. */
 	UPROPERTY()
 	bool bAutoDetectFormat = false;
+
+	/** Experimental fix for interlace field flipping issue. */
+	static TAutoConsoleVariable<int32> CVarExperimentalFieldFlipFix;
 };

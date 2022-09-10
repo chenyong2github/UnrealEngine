@@ -54,6 +54,7 @@ private:
 	bool Initialize_Internal(class UEngine* InEngine);
 	void OnConfigurationAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> InConfigurations, class UEngine* InEngine, bool bReinitialize);
 	void DetectConfiguration(class UEngine* InEngine, bool bReinitialize);
+	bool IsInterlaced() const;
 
 public:
 	/**

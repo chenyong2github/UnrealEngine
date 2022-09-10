@@ -197,4 +197,7 @@ private:
 
 	/** Autodetected or specified Timecode format. */
 	EMediaIOTimecodeFormat TimecodeFormat = EMediaIOTimecodeFormat::None; 
+
+	/** Whether samples have been added to the queue while the genlocked time step is synchronized. Reset when the time step is closed. */
+	bool bAddedSynchronizedSamples = false;
 };

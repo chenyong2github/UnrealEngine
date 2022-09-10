@@ -357,11 +357,6 @@ namespace BlackmagicMediaPlayerHelpers
 					{
 						bool bEven = true;
 
-						if (FMediaIOCorePlayerBase::CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
-						{
-							bEven = GFrameCounterRenderThread % 2 != FMediaIOCorePlayerBase::CVarFlipInterlaceFields.GetValueOnAnyThread();
-						}
-
 						auto TextureSampleEven = MediaPlayer->TextureSamplePool->AcquireShared();
 
 						if (TextureSampleEven->InitializeWithEvenOddLine(bEven

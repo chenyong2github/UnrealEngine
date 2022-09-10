@@ -3,6 +3,12 @@
 #include "GenlockedCustomTimeStep.h"
 #include "Misc/App.h"
 
+TAutoConsoleVariable<int32> UGenlockedCustomTimeStep::CVarExperimentalFieldFlipFix(
+	TEXT("MediaIO.PreventFieldFlipping"), 1,
+	TEXT("Whether to enable an interlace field flipping fix. (Experimental)"),
+	ECVF_RenderThreadSafe);
+
+
 void UGenlockedCustomTimeStep::UpdateAppTimes(const double& TimeBeforeSync, const double& TimeAfterSync) const
 {
 	// Use fixed delta time to update FApp times.
