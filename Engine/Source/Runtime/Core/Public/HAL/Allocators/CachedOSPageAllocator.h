@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PlatformMemory.h"
 
 struct FCachedOSPageAllocator
 {
