@@ -7,16 +7,23 @@ namespace UnrealBuildTool.Rules
 		public LiveLinkCurveDebugUI(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				"CoreUObject",
-				"Engine",
-				"LiveLinkInterface",
-				"Slate",
-				"SlateCore",
-				"InputCore"
-			}
+				new string[]
+				{
+					"Core",
+					"CoreUObject",
+					"Engine",
+					"LiveLinkInterface",
+					"Slate",
+					"SlateCore",
+					"InputCore"
+				}
+			);
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"WorkspaceMenuStructure"
+				}
 			);
 
 			// DesktopPlatform is only available for Editor and Program targets (running on a desktop platform)

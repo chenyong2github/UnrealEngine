@@ -64,7 +64,7 @@
 #include "PackageTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
-#include "GeomFitUtils.h"
+#include "UnrealEd/Private/GeomFitUtils.h"
 #include "SpeedTreeWind.h"
 #include "StaticMeshAttributes.h"
 #include "ComponentReregisterContext.h"
@@ -72,9 +72,9 @@
 #if WITH_SPEEDTREE
 
 THIRD_PARTY_INCLUDES_START
-#include "ThirdParty/SpeedTree/SpeedTreeSDK-v7.0/Include/Core/Core.h"
-#include "ThirdParty/SpeedTree/SpeedTreeDataBuffer/TreeReader8.h"
-#include "ThirdParty/SpeedTree/SpeedTreeDataBuffer/TreeReader9.h"
+#include "Core/Core.h"
+#include "TreeReader8.h"
+#include "TreeReader9.h"
 THIRD_PARTY_INCLUDES_END
 
 #endif // WITH_SPEEDTREE
