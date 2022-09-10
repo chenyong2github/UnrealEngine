@@ -531,12 +531,12 @@ void RenderWithLiveShading(
 		{
 			LightType = LightSceneInfoCompact[PassIndex].LightType;
 			LightSceneInfo = LightSceneInfoCompact[PassIndex].LightSceneInfo;
-			VisibleLightInfo = &VisibleLightInfos[LightSceneInfo->Id];
 			check(LightSceneInfo != nullptr);
 
 			bApplyDirectLighting = (LightSceneInfo != nullptr);
 			if (LightSceneInfo)
 			{
+				VisibleLightInfo = &VisibleLightInfos[LightSceneInfo->Id];
 				bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
 			}
 		}
