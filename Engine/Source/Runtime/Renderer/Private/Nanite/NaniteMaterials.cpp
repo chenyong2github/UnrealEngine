@@ -30,7 +30,7 @@ static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	ECVF_RenderThreadSafe
 );
 
-static int32 GNaniteMaterialVisibilityAsync = 1;
+static int32 GNaniteMaterialVisibilityAsync = 0;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityAsync(
 	TEXT("r.Nanite.MaterialVisibility.Async"),
 	GNaniteMaterialVisibilityAsync,
