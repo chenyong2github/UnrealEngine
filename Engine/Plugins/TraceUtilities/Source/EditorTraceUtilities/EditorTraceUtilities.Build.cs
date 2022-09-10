@@ -15,7 +15,14 @@ public class EditorTraceUtilities : ModuleRules
             }
         );
 
-        PrivateDependencyModuleNames.AddRange(
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"MessageLog",
+			}
+		);
+
+		PrivateDependencyModuleNames.AddRange(
             new string[]
             {
                 "CoreUObject",
