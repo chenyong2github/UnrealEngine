@@ -9,7 +9,7 @@
 
 void* FCachedOSPageAllocator::AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, FFreePageBlock* First, FFreePageBlock* Last, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex)
 {
-	if (!FPlatformMemory::BinnedPlatformHasMemoryPoolForThisSize(Size) && (Size <= CachedByteLimit / 4))
+	if (!IsOSAllocation(Size, CachedByteLimit))
 	{
 		if (First != Last)
 		{
@@ -95,7 +95,7 @@ void* FCachedOSPageAllocator::AllocateImpl(SIZE_T Size, uint32 CachedByteLimit, 
 
 void FCachedOSPageAllocator::FreeImpl(void* Ptr, SIZE_T Size, uint32 NumCacheBlocks, uint32 CachedByteLimit, FFreePageBlock* First, uint32& FreedPageBlocksNum, SIZE_T& CachedTotal, FCriticalSection* Mutex, bool ThreadIsTimeCritical)
 {
-	if (FPlatformMemory::BinnedPlatformHasMemoryPoolForThisSize(Size) || Size > CachedByteLimit / 4)
+	if (IsOSAllocation(Size, CachedByteLimit))
 	{
 #if UE_ALLOW_OSMEMORYLOCKFREE
 		FScopeUnlock ScopeUnlock(Mutex);

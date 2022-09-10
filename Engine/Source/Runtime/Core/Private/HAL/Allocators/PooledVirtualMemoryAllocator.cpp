@@ -41,14 +41,25 @@ FPooledVirtualMemoryAllocator::FPooledVirtualMemoryAllocator()
 	}
 }
 
-void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHint = 0*/, FCriticalSection* /*Mutex = nullptr*/)
+void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 AllocationHint, FCriticalSection* Mutex)
 {
 	if (Size > Limits::MaxAllocationSizeToPool)
 	{
-		// do not report to LLM here, the platform functions will do that
-		FScopeLock Lock(&OsAllocatorCacheLock);
-		void* Ptr = OsAllocatorCache.Allocate(Size);
-		return Ptr;
+		if (OsAllocatorCache.IsOSAllocation(Size))
+		{
+			// do not report to LLM here, the platform functions will do that
+#if UE_ALLOW_OSMEMORYLOCKFREE
+			FScopeUnlock FScopeUnlock(Mutex);
+#endif
+			return FPlatformMemory::BinnedAllocFromOS(Size);
+		}
+		else
+		{
+			// do not report to LLM here, the platform functions will do that
+			FScopeLock Lock(&OsAllocatorCacheLock);
+			void* Ptr = OsAllocatorCache.Allocate(Size);
+			return Ptr;
+		}
 	}
 	else
 	{
@@ -100,13 +111,24 @@ void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHi
 	}
 };
 
-void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSection* /*Mutex = nullptr*/, bool /*ThreadIsTimeCritical = false*/)
+void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSection* Mutex, bool /*ThreadIsTimeCritical = false*/)
 {
 	if (Size > Limits::MaxAllocationSizeToPool)
 	{
-		// do not report to LLM here, the platform functions will do that
-		FScopeLock Lock(&OsAllocatorCacheLock);
-		OsAllocatorCache.Free(Ptr, Size);
+		if (OsAllocatorCache.IsOSAllocation(Size))
+		{
+			// do not report to LLM here, the platform functions will do that
+#if UE_ALLOW_OSMEMORYLOCKFREE
+			FScopeUnlock FScopeUnlock(Mutex);
+#endif
+			FPlatformMemory::BinnedFreeToOS(Ptr, Size);
+		}
+		else
+		{
+			// do not report to LLM here, the platform functions will do that
+			FScopeLock Lock(&OsAllocatorCacheLock);
+			OsAllocatorCache.Free(Ptr, Size);
+		}
 	}
 	else
 	{
