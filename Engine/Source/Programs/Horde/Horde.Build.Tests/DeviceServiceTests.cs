@@ -95,9 +95,11 @@ namespace Horde.Build.Tests
 				}
 			}
 
-			Globals globals = await MongoService.GetGlobalsAsync();
-			globals.Devices = Devices;
-			Assert.IsTrue(await MongoService.TryUpdateSingletonAsync(globals));
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Devices = Devices;
+
+			await ConfigCollection.AddConfigAsync("globals", globalConfig);
+			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
 
 			// add 4 devices to each platform, split between 2 pools
 			for (int i = 1; i < 4; i++)

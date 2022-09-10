@@ -99,6 +99,7 @@ namespace Horde.Build.Tests
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
 		public ICommitService CommitService => ServiceProvider.GetRequiredService<ICommitService>();
 		public ComputeService ComputeService => ServiceProvider.GetRequiredService<ComputeService>();
+		public GlobalsService GlobalsService => ServiceProvider.GetRequiredService<GlobalsService>();
 		public MongoService MongoService => ServiceProvider.GetRequiredService<MongoService>();
 		public ITemplateCollection TemplateCollection => ServiceProvider.GetRequiredService<ITemplateCollection>();
 		internal PerforceServiceStub PerforceService => (PerforceServiceStub)ServiceProvider.GetRequiredService<IPerforceService>();
@@ -207,6 +208,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<ComputeService>();
 			services.AddSingleton<RequestTrackerService>();
+			services.AddSingleton<GlobalsService>();
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<JobTaskSource>();
 			services.AddSingleton<IDowntimeService, DowntimeServiceStub>();
@@ -226,7 +228,6 @@ namespace Horde.Build.Tests
 			services.AddSingleton<RpcService>();
 			services.AddSingleton<ScheduleService>();
 			services.AddSingleton<StreamService>();
-			services.AddSingleton<UpgradeService>();
 			services.AddSingleton<DeviceService>();
 
 			services.AddSingleton<ConformTaskSource>();

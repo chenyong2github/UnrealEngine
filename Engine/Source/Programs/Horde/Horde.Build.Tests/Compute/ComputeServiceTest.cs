@@ -8,6 +8,7 @@ using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Build.Agents.Pools;
+using Horde.Build.Projects;
 using Horde.Build.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -36,9 +37,11 @@ namespace Horde.Build.Tests.Compute
 		[TestInitialize]
 		public async Task Setup()
 		{
-			Globals globals = await MongoService.GetGlobalsAsync();
-			globals.ComputeClusters.Add(_clusterConfig);
-			Assert.IsTrue(await MongoService.TryUpdateSingletonAsync(globals));
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Compute.Add(_clusterConfig);
+
+			await ConfigCollection.AddConfigAsync("globals", globalConfig);
+			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
 		}
 		
 		[TestMethod]

@@ -35,7 +35,7 @@ namespace Horde.Build.Server
 			public GlobalsService _owner = null!;
 
 			public ObjectId InstanceId { get; set; }
-			public string ConfigRevision { get; set; } = "default";
+			public string ConfigRevision { get; set; } = String.Empty;
 			public byte[]? JwtSigningKey { get; set; }
 			public int? SchemaVersion { get; set; }
 
