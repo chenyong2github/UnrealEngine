@@ -3156,11 +3156,11 @@ struct ENGINE_API FComponentReference : public FBaseComponentReference
 	FComponentReference() : OtherActor(nullptr) {}
 
 	/** 
-	 * Hard Pointer to a different Actor that owns the Component.  
+	 * Weak Pointer to a different Actor that owns the Component.  
 	 * If this is not provided the reference refers to a component on this / the same actor.
 	 */
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Referenced Actor"))
-	TObjectPtr<AActor> OtherActor;
+	TWeakObjectPtr<AActor> OtherActor;
 
 	/** Get the actual component pointer from this reference */
 	class UActorComponent* GetComponent(AActor* OwningActor) const;

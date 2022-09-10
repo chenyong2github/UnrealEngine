@@ -581,7 +581,7 @@ void UCableComponent::SetAttachEndTo(AActor* Actor, FName ComponentProperty, FNa
 
 AActor* UCableComponent::GetAttachedActor() const
 {
-	return AttachEndTo.OtherActor;
+	return AttachEndTo.OtherActor.Get();
 }
 
 USceneComponent* UCableComponent::GetAttachedComponent() const

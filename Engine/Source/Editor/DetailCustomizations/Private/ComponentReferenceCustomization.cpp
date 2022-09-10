@@ -422,7 +422,7 @@ FPropertyAccess::Result FComponentReferenceCustomization::GetValue(FComponentRef
 
 bool FComponentReferenceCustomization::IsComponentReferenceValid(const FComponentReference& Value) const
 {
-	if (!bAllowAnyActor && Value.OtherActor)
+	if (!bAllowAnyActor && Value.OtherActor.IsValid())
 	{
 		return false;
 	}

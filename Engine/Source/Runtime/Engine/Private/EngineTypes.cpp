@@ -165,7 +165,7 @@ UActorComponent* FBaseComponentReference::ExtractComponent(AActor* SearchActor) 
 
 UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
 {
-	AActor* SearchActor = (OtherActor != NULL) ? ToRawPtr(OtherActor) : OwningActor;
+	AActor* SearchActor = (OtherActor.IsValid()) ? OtherActor.Get() : OwningActor;
 	return ExtractComponent(SearchActor);
 }
 
