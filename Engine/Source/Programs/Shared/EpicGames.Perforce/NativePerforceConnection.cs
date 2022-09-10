@@ -256,7 +256,10 @@ namespace EpicGames.Perforce
 			}
 		}
 
+		static int s_nextUniqueId;
+
 		IntPtr _client;
+		readonly int _uniqueId;
 		readonly PinnedBuffer[] _buffers;
 		readonly OnBufferReadyFn _onBufferReadyInst;
 		readonly IntPtr _onBufferReadyFnPtr;
@@ -294,6 +297,8 @@ namespace EpicGames.Perforce
 		{
 			Settings = settings;
 			Logger = logger;
+
+			_uniqueId = Interlocked.Increment(ref s_nextUniqueId);
 
 			_buffers = new PinnedBuffer[bufferCount];
 			for (int idx = 0; idx < bufferCount; idx++)
@@ -527,6 +532,9 @@ namespace EpicGames.Perforce
 
 		private void ExecCommand(string command, List<string> args, byte[]? inputData, string? promptResponse, bool interceptIo)
 		{
+			Stopwatch timer = Stopwatch.StartNew();
+			Logger.LogTrace("Conn {ConnectionId}: {Command} {Args}", _uniqueId, command, String.Join(" ", args));
+
 			List<IntPtr> nativeArgs = new List<IntPtr>();
 			try
 			{
@@ -555,6 +563,8 @@ namespace EpicGames.Perforce
 					Marshal.FreeHGlobal(nativeArgs[idx]);
 				}
 			}
+
+			Logger.LogTrace("Conn {ConnectionId}: {Command} {Args} completed in {Time}ms", _uniqueId, command, String.Join(" ", args), timer.ElapsedMilliseconds);
 		}
 
 		/// <summary>

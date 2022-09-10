@@ -8,6 +8,7 @@ using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Utilities;
+using Serilog.Events;
 using TimeZoneConverter;
 
 namespace Horde.Build
@@ -207,7 +208,12 @@ namespace Horde.Build
 	{
 		/// <inheritdoc cref="RunMode" />
 		public RunMode[]? RunModes { get; set; } = null;
-		
+
+		/// <summary>
+		/// Output level for console
+		/// </summary>
+		public LogEventLevel ConsoleLogLevel { get; set; } = LogEventLevel.Debug;
+
 		/// <summary>
 		/// Main port for serving HTTP. Uses the default Kestrel port (5000) if not specified.
 		/// </summary>

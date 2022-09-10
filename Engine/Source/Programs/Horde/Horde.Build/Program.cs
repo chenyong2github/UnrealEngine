@@ -43,7 +43,7 @@ namespace Horde.Build
 				{
 					theme = AnsiConsoleTheme.Code;
 				}
-				return sinkConfig.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: theme, restrictedToMinimumLevel: LogEventLevel.Debug);
+				return sinkConfig.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: theme, restrictedToMinimumLevel: settings.ConsoleLogLevel);
 			}
 		}
 
@@ -102,7 +102,7 @@ namespace Horde.Build
 
 	class Program
 	{
-		public static SemVer Version => _version;
+		public static SemVer Version => s_version;
 
 		public static DirectoryReference AppDir { get; } = GetAppDir();
 
@@ -112,7 +112,7 @@ namespace Horde.Build
 
 		public static Type[] ConfigSchemas = FindSchemaTypes();
 
-		static SemVer _version;
+		static SemVer s_version;
 
 		static Type[] FindSchemaTypes()
 		{
@@ -132,11 +132,11 @@ namespace Horde.Build
 			FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
 			if (String.IsNullOrEmpty(versionInfo.ProductVersion))
 			{
-				_version = SemVer.Parse("0.0.0");
+				s_version = SemVer.Parse("0.0.0");
 			}
 			else
 			{
-				_version = SemVer.Parse(versionInfo.ProductVersion);
+				s_version = SemVer.Parse(versionInfo.ProductVersion);
 			}
 
 			CommandLineArguments arguments = new CommandLineArguments(args);
@@ -265,10 +265,7 @@ namespace Horde.Build
 				}
 
 				// note: this isn't great, though we need it early in server startup, and this is only hit on first server boot where the grpc cert isn't generated/set 
-				if (settings.ServerPrivateCert == null)
-				{
-					settings.ServerPrivateCert = privateCertFile.ToString();
-				}				
+				settings.ServerPrivateCert ??= privateCertFile.ToString();
 			}
 		}
 	}
