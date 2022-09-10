@@ -223,6 +223,10 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "IAutomationWorkerModule.h"
 #endif	// UE_BUILD_SHIPPING
 
+#if !(UE_BUILD_SHIPPING) || ENABLE_PGO_PROFILE
+#include "ParseExecCommands.h"
+#endif
+
 #if ENABLE_LOC_TESTING
 #include "LocalizationModule.h"
 #endif
@@ -1956,55 +1960,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	}
 
 	// Optionally exec commands passed in the command line.
-	FString ExecCmds;
-	if( FParse::Value(FCommandLine::Get(), TEXT("ExecCmds="), ExecCmds, false) )
-	{
-		// Read the command array, ignoring any commas in single-quotes. 
-		// Convert any single-quotes to double-quotes and skip leading whitespace
-		// This allows passing of strings, e:g -execcmds="exampleCvar '0,1,2,3'"
-		TArray<FString> CommandArray;
-		FString CurrentCommand = "";
-		bool bInQuotes = false;
-		bool bSkippingWhitespace = true;
-		for (int i = 0; i < ExecCmds.Len(); i++)
-		{
-			TCHAR CurrentChar = ExecCmds[i];
-			if (CurrentChar == '\'')
-			{
-				bInQuotes = !bInQuotes;
-				CurrentCommand += "\"";
-			}
-			else if (CurrentChar == ',' && !bInQuotes)
-			{
-				if (CurrentCommand.Len() > 0)
-				{
-					CommandArray.Add(CurrentCommand);
-					CurrentCommand = "";
-				}
-				bSkippingWhitespace = true;
-			}
-			else
-			{
-				if (bSkippingWhitespace)
-				{
-					bSkippingWhitespace = FChar::IsWhitespace(CurrentChar);
-				}
-				if (!bSkippingWhitespace)
-				{
-					CurrentCommand += CurrentChar;
-				}
-			}
-		}
-		if (CurrentCommand.Len() > 0)
-		{
-			CommandArray.Add(CurrentCommand);
-		}
-
-		for( int32 Cx = 0; Cx < CommandArray.Num(); ++Cx )
-		{
-			new(GEngine->DeferredCommands) FString(*CommandArray[Cx]);
-		}
-	}
+	ParseExecCommands::QueueDeferredCommands(ParseExecCommands::ParseExecCmdsFromCommandLine(TEXT("ExecCmds")));
 
 	// optionally set the vsync console variable
 	if( FParse::Param(FCommandLine::Get(), TEXT("vsync")) )
