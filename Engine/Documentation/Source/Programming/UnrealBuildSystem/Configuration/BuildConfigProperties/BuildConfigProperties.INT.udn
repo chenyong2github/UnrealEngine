@@ -32,6 +32,8 @@ $ bUseUBTMakefiles : Enables support for very fast iterative builds by caching t
 
 $ MaxParallelActions : Number of actions that can be executed in parallel. If 0 then code will pick a default based on the number of cores and memory available. Applies to the ParallelExecutor, HybridExecutor, and LocalExecutor
 
+$ bAllCores : Consider logical cores when determining how many total cpu cores are available.
+
 $ bCompactOutput : Instruct the executor to write compact output e.g. only errors, if supported by the executor. This field is used to hold the value when specified from the command line or XML
 
 $ bDebugBuildsActuallyUseDebugCRT : Enables the debug C++ runtime (CRT) for debug builds. By default we always use the release runtime, since the debug version isn't particularly useful when debugging Unreal Engine projects, and linking against the debug CRT libraries forces our third party library dependencies to also be compiled using the debug CRT (and often perform more slowly). Often it can be inconvenient to require a separate copy of the debug versions of third party static libraries simply so that you can debug your program's code.
@@ -279,10 +281,6 @@ $ NumRemoteParallelProcesses : How many processes that will be executed in paral
 $ RemoteProcessOnly : Only run work remotely, for testing
 
 $ RetryFailedRemote : Retry actions locally when failed remotely.
-
-### HybridExecutor
-
-$ MaxLocalActions : Maximum number of actions to execute locally.
 
 ### ParallelExecutor
 
