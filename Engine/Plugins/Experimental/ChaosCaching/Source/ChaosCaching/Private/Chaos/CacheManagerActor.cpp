@@ -44,9 +44,9 @@ void FObservedComponent::ResetRuntimeData(const EStartMode ManagerStartMode)
 void FObservedComponent::PostSerialize(const FArchive& Ar)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (Ar.IsLoading() && ComponentRef.OtherActor)
+	if (Ar.IsLoading() && ComponentRef.OtherActor.IsValid())
 	{
-		SoftComponentRef.OtherActor = ComponentRef.OtherActor;
+		SoftComponentRef.OtherActor = ComponentRef.OtherActor.Get();
 		SoftComponentRef.ComponentProperty = ComponentRef.ComponentProperty;
 		SoftComponentRef.OverrideComponent = ComponentRef.OverrideComponent;
 		SoftComponentRef.PathToComponent = ComponentRef.PathToComponent; 
