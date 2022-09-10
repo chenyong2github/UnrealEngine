@@ -1075,6 +1075,7 @@ public:
 
 	FPoseSearchIndex* GetSearchIndex();
 	const FPoseSearchIndex* GetSearchIndex() const;
+	const FPoseSearchIndex* GetSearchIndexSafe() const;
 	
 	bool GetSkipSearchIfPossible() const;
 	bool IsValidForIndexing() const;
