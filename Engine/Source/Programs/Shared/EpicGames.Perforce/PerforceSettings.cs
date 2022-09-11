@@ -28,6 +28,11 @@ namespace EpicGames.Perforce
 		public string? Password { get; }
 
 		/// <summary>
+		/// Name of the current host
+		/// </summary>
+		public string? HostName { get; }
+
+		/// <summary>
 		/// Name of the client to use
 		/// </summary>
 		public string? ClientName { get; }
@@ -68,6 +73,9 @@ namespace EpicGames.Perforce
 		public string? Password { get; set; }
 
 		/// <inheritdoc/>
+		public string? HostName { get; set; }
+
+		/// <inheritdoc/>
 		public string? ClientName { get; set; }
 
 		/// <inheritdoc/>
@@ -87,6 +95,7 @@ namespace EpicGames.Perforce
 			ServerAndPort = environment.GetValue("P4PORT") ?? "perforce:1666";
 			UserName = environment.GetValue("P4USER") ?? System.Environment.UserName;
 			Password = environment.GetValue("P4PASSWD");
+			HostName = environment.GetValue("P4HOST");
 			ClientName = environment.GetValue("P4CLIENT");
 
 			AssemblyName entryAssemblyName = Assembly.GetEntryAssembly()!.GetName();
@@ -118,6 +127,7 @@ namespace EpicGames.Perforce
 			ServerAndPort = other.ServerAndPort;
 			UserName = other.UserName;
 			Password = other.Password;
+			HostName = other.HostName;
 			ClientName = other.ClientName;
 			AppName = other.AppName;
 			AppVersion = other.AppVersion;

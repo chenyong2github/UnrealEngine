@@ -10,7 +10,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Perforce
@@ -165,6 +164,15 @@ namespace EpicGames.Perforce
 		}
 
 		/// <summary>
+		/// The current host name
+		/// </summary>
+		public string? HostName
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
 		/// The current client name
 		/// </summary>
 		public string? ClientName
@@ -261,6 +269,7 @@ namespace EpicGames.Perforce
 		public PerforceConnection(IPerforceSettings settings, ILogger logger)
 			: this(settings.ServerAndPort, settings.UserName, settings.ClientName, settings.AppName, settings.AppVersion, logger)
 		{
+			HostName = settings.HostName;
 		}
 
 		/// <summary>
@@ -288,6 +297,10 @@ namespace EpicGames.Perforce
 			if (UserName != null)
 			{
 				arguments.Add($"-u{UserName}");
+			}
+			if (HostName != null)
+			{
+				arguments.Add($"-H{HostName}");
 			}
 			if (ClientName != null)
 			{

@@ -36,6 +36,9 @@ namespace EpicGames.Perforce
 			public string? _password;
 
 			[MarshalAs(UnmanagedType.LPStr)]
+			public string? _hostName;
+
+			[MarshalAs(UnmanagedType.LPStr)]
 			public string? _clientName;
 
 			[MarshalAs(UnmanagedType.LPStr)]
@@ -433,6 +436,7 @@ namespace EpicGames.Perforce
 				nativeSettings._serverAndPort = Settings.ServerAndPort;
 				nativeSettings._userName = Settings.UserName;
 				nativeSettings._password = Settings.Password;
+				nativeSettings._hostName = Settings.HostName;
 				nativeSettings._clientName = Settings.ClientName;
 				nativeSettings._appName = Settings.AppName;
 				nativeSettings._appVersion = Settings.AppVersion;

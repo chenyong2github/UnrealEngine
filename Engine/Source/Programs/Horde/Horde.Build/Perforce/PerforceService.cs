@@ -263,6 +263,7 @@ namespace Horde.Build.Perforce
 			PerforceSettings settings = new PerforceSettings(serverAndPort, credentials.UserName);
 			settings.AppName = "Horde.Build";
 			settings.Password = credentials.Password;
+			settings.HostName = clientRecord?.Host;
 			settings.ClientName = clientRecord?.Name ?? "__DOES_NOT_EXIST__";
 			settings.PreferNativeClient = true;
 
