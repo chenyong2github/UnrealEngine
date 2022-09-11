@@ -94,19 +94,20 @@ namespace Horde.Build.Streams
 			{
 				try
 				{
+					Config = await configCollection.GetConfigAsync<StreamConfig>(ConfigRevision);
+				}
+				catch (Exception)
+				{
 					if (Deleted)
 					{
+						logger.LogWarning("Unable to get stream config for {StreamId} at {Revision}; using default.", Id, ConfigRevision);
 						Config = new StreamConfig();
 					}
 					else
 					{
-						Config = await configCollection.GetConfigAsync<StreamConfig>(ConfigRevision);
+						logger.LogError("Unable to get stream config for {StreamId} at {Revision}", Id, ConfigRevision);
+						throw;
 					}
-				}
-				catch (Exception)
-				{
-					logger.LogError("Unable to get stream config for {StreamId} at {Revision}", Id, ConfigRevision);
-					throw;
 				}
 
 				foreach (KeyValuePair<TemplateId, TemplateRefDoc> pair in Templates)
@@ -148,7 +149,11 @@ namespace Horde.Build.Streams
 			{
 				get
 				{
-					_config ??= _owner?.Config?.Templates.First(x => x.Id == Id);
+					if (_config == null && _owner != null && _owner.Config != null)
+					{
+						// This should generally always succeed, but adding a fallback to handle legacy data.
+						_config = _owner.Config.Templates.FirstOrDefault(x => x.Id == Id) ?? new TemplateRefConfig { Id = Id, Name = Id.ToString() };
+					}
 					return _config!;
 				}
 			}
