@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
-#include "Developer/LogVisualizer/Private/SVisualLogger.h"
+#include "SVisualLogger.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "LogVisualizerPublic.h"
 

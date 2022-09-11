@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ScreenComparisonModel.h"
+#include "Models/ScreenComparisonModel.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"

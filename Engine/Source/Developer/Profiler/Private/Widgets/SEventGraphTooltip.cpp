@@ -16,7 +16,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SToolTip.h"
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SEventGraphTooltip"
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TargetDeviceServiceManager.h"
+#include "Services/TargetDeviceServiceManager.h"
 #include "TargetDeviceServicesPrivate.h"
 
 #include "IMessageBus.h"
@@ -12,7 +12,7 @@
 #include "IMessagingModule.h"
 
 #include "ITargetDeviceService.h"
-#include "TargetDeviceService.h"
+#include "Services/TargetDeviceService.h"
 
 
 

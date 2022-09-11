@@ -18,7 +18,7 @@
 #include "Compression/OodleDataCompressionUtil.h"
 
 #if WITH_MIKKTSPACE
-#include "mikktspace.h"
+#include "ThirdParty/MikkTSpace/inc/mikktspace.h"
 #endif
 
 #define NANITE_LOG_COMPRESSED_SIZES		0

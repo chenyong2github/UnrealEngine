@@ -41,14 +41,6 @@ public class SlateReflector : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/SlateReflector/Private",
-				"Developer/SlateReflector/Private/Models",
-				"Developer/SlateReflector/Private/Widgets",
-			}
-		);
-
 		// Editor builds include SessionServices to populate the remote target drop-down for remote widget snapshots
 		if (Target.bCompileAgainstEditor)
 		{

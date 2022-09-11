@@ -3,14 +3,14 @@
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 
-#include "NvTriStrip.h"
-#include "forsythtriangleorderoptimizer.h"
+#include "ThirdParty/nvTriStrip/nvTriStrip-1.0.0/Inc/NvTriStrip.h"
+#include "ThirdParty/ForsythTriOO/Src/forsythtriangleorderoptimizer.h"
 
 #ifdef __clang__
 #define _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS 1
 #endif
 
-#include "nvtess.h"
+#include "ThirdParty/nvtesslib/inc/nvtess.h"
 
 namespace BuildOptimizationThirdParty
 {

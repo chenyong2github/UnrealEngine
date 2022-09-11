@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherProjectPicker.h"
+#include "Widgets/Project/SProjectLauncherProjectPicker.h"
 
 #include "DesktopPlatformModule.h"
 #include "Styling/AppStyle.h"

@@ -6,7 +6,7 @@
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SLeafWidget.h"
-#include "Developer/LogVisualizer/Private/SVisualLoggerTimeline.h"
+#include "SVisualLoggerTimeline.h"
 
 class FPaintArgs;
 class FSlateWindowElementList;

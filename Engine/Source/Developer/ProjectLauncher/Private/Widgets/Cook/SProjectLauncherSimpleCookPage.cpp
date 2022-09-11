@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherSimpleCookPage.h"
+#include "Widgets/Cook/SProjectLauncherSimpleCookPage.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Cook/SProjectLauncherCookByTheBookSettings.h"

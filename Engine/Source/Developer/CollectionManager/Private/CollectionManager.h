@@ -7,7 +7,7 @@
 #include "Misc/Guid.h"
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
-#include "Developer/CollectionManager/Private/Collection.h"
+#include "Collection.h"
 
 class ITextFilterExpressionContext;
 

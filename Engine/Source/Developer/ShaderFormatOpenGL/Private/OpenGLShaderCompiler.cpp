@@ -29,13 +29,13 @@
 #include "GlslBackend.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
-	#include <GL/glcorearb.h>
-	#include <GL/glext.h>
-	#include <GL/wglext.h>
+	#include <ThirdParty/OpenGL/GL/glcorearb.h>
+	#include <ThirdParty/OpenGL/GL/glext.h>
+	#include <ThirdParty/OpenGL/GL/wglext.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #elif PLATFORM_LINUX
-	#include <GL/glcorearb.h>
-	#include <GL/glext.h>
+	#include <ThirdParty/OpenGL/GL/glcorearb.h>
+	#include <ThirdParty/OpenGL/GL/glext.h>
 	#include "SDL.h"
 	#include <stdio.h>
 	#include <wchar.h>

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Filters/FilterBase.h"
-#include "Core/Public/Misc/TextFilter.h"
+#include "Misc/TextFilter.h"
 
 #include "CustomTextFilters.generated.h"
 

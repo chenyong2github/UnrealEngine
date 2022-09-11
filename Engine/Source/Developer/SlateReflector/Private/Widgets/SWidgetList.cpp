@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SWidgetList.h"
+#include "Widgets/SWidgetList.h"
 
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"

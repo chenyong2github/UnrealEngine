@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherArchivePage.h"
+#include "Widgets/Archive/SProjectLauncherArchivePage.h"
 
 #include "Styling/AppStyle.h"
 #include "DesktopPlatformModule.h"

@@ -32,13 +32,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Messaging",
 					"DesktopPlatform",
-				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Developer/LauncherServices/Private",
-					"Developer/LauncherServices/Private/Launcher",
-					"Developer/LauncherServices/Private/Profiles",
+					"DerivedDataCache",
 				});
 		}
 	}

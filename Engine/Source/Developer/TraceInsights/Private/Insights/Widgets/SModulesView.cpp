@@ -14,7 +14,7 @@
 #include "DesktopPlatformModule.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
-#include "TraceServices/Private/Model/ModuleProvider.h"
+#include "Model/ModuleProvider.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

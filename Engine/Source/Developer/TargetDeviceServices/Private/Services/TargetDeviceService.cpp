@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TargetDeviceService.h"
+#include "Services/TargetDeviceService.h"
 
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"

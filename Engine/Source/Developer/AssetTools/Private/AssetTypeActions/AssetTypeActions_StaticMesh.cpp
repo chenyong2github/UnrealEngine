@@ -5,7 +5,7 @@
 #include "AssetTools.h"
 #include "Editor.h"
 #include "EditorSupportDelegates.h"
-#include "Editor/StaticMeshEditor/Public/StaticMeshEditorModule.h"
+#include "StaticMeshEditorModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "FbxMeshUtils.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDeviceBrowserDeviceAdder.h"
+#include "Widgets/Browser/SDeviceBrowserDeviceAdder.h"
 
 #include "Internationalization/Text.h"
 #include "ITargetDeviceServiceManager.h"

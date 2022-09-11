@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherTaskListRow.h"
+#include "Widgets/Progress/SProjectLauncherTaskListRow.h"
 
 #include "SlateOptMacros.h"
 #include "Widgets/SOverlay.h"

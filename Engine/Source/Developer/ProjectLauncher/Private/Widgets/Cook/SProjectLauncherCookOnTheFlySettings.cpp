@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherCookOnTheFlySettings.h"
+#include "Widgets/Cook/SProjectLauncherCookOnTheFlySettings.h"
 
 #include "SlateOptMacros.h"
 #include "Styling/SlateTypes.h"

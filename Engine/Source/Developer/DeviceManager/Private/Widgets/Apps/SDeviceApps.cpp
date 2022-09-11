@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDeviceApps.h"
+#include "Widgets/Apps/SDeviceApps.h"
 
 #include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"

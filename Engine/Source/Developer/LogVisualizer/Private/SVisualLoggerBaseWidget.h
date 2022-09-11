@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Developer/LogVisualizer/Private/SVisualLogger.h"
+#include "SVisualLogger.h"
 #include "LogVisualizerPublic.h"
 
 class SVisualLoggerBaseWidget : public SCompoundWidget

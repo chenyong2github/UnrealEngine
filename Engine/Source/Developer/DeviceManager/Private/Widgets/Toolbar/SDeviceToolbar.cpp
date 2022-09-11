@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDeviceToolbar.h"
+#include "Widgets/Toolbar/SDeviceToolbar.h"
 
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherProfileNameDescEditor.h"
+#include "Widgets/Shared/SProjectLauncherProfileNameDescEditor.h"
 
 #include "Styling/CoreStyle.h"
 #include "Widgets/SBoxPanel.h"

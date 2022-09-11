@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherDeployToDeviceSettings.h"
+#include "Widgets/Deploy/SProjectLauncherDeployToDeviceSettings.h"
 
 #include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"

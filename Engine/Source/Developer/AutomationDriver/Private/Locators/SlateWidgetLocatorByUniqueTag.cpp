@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SlateWidgetLocatorByUniqueTag.h"
+#include "Locators/SlateWidgetLocatorByUniqueTag.h"
 #include "SlateWidgetElement.h"
 #include "IElementLocator.h"
-#include "DriverUniqueTagMetaData.h"
+#include "MetaData/DriverUniqueTagMetaData.h"
 #include "Framework/Application/SlateApplication.h"
 
 class FSlateWidgetLocatorByUniqueTag

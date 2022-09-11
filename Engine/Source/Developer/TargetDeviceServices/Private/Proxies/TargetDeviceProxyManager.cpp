@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TargetDeviceProxyManager.h"
+#include "Proxies/TargetDeviceProxyManager.h"
 
 #include "HAL/PlatformProcess.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 
-#include "TargetDeviceProxy.h"
+#include "Proxies/TargetDeviceProxy.h"
 #include "TargetDeviceServiceMessages.h"
 
 

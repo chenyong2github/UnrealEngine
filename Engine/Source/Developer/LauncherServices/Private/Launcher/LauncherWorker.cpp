@@ -19,7 +19,7 @@
 #include "PlatformInfo.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Profiles/LauncherProfile.h"
-#include "DerivedDataCache/Public/DerivedDataCacheInterface.h"
+#include "DerivedDataCacheInterface.h"
 
 
 #define LOCTEXT_NAMESPACE "LauncherWorker"

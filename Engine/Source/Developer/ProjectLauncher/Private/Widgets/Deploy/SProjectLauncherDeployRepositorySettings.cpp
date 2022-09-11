@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherDeployRepositorySettings.h"
+#include "Widgets/Deploy/SProjectLauncherDeployRepositorySettings.h"
 
 #include "Styling/AppStyle.h"
 #include "DesktopPlatformModule.h"

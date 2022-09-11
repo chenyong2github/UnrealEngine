@@ -17,8 +17,8 @@
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
-	#include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"
-	#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+	#include "AnalyticsEventAttribute.h"
+	#include "Interfaces/IAnalyticsProvider.h"
 #endif // WITH_EDITOR
 
 // Insights

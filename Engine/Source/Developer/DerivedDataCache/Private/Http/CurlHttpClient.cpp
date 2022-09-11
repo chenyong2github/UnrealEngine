@@ -20,7 +20,7 @@
 
 #if WITH_SSL
 #include "Ssl.h"
-#include <openssl/ssl.h>
+#include <ThirdParty/OpenSSL/1.1.1n/include/Win64/VS2015/openssl/ssl.h>
 #endif
 
 #ifndef CURL_NO_OLDIES

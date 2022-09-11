@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_PhysicsAsset.h"
-#include "Editor/PhysicsAssetEditor/Public/PhysicsAssetEditorModule.h"
+#include "PhysicsAssetEditorModule.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 

@@ -20,13 +20,5 @@ public class DesktopWidgets : ModuleRules
                 "InputCore",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/DesktopWidgets/Private",
-				"Developer/DesktopWidgets/Private/Widgets",
-                "Developer/DesktopWidgets/Private/Widgets/Input",
-			}
-		);
 	}
 }

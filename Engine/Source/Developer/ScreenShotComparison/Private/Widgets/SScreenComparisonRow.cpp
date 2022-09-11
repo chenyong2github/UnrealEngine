@@ -20,8 +20,8 @@
 #include "IImageWrapperModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "JsonObjectConverter.h"
-#include "SScreenShotImagePopup.h"
-#include "SAsyncImage.h"
+#include "Widgets/SScreenShotImagePopup.h"
+#include "Widgets/SAsyncImage.h"
 
 #define LOCTEXT_NAMESPACE "SScreenShotBrowser"
 

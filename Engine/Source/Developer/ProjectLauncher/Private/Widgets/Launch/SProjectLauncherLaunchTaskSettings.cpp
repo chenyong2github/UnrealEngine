@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherLaunchTaskSettings.h"
+#include "Widgets/Launch/SProjectLauncherLaunchTaskSettings.h"
 
 #include "Fonts/SlateFontInfo.h"
 #include "Styling/CoreStyle.h"

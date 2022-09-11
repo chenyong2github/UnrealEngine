@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherCookByTheBookSettings.h"
+#include "Widgets/Cook/SProjectLauncherCookByTheBookSettings.h"
 
 #include "DesktopPlatformModule.h"
 #include "Styling/AppStyle.h"

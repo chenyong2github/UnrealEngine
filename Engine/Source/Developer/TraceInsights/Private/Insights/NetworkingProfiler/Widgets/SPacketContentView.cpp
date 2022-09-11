@@ -8,7 +8,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Logging/MessageLog.h"
-#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"

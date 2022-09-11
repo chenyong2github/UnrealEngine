@@ -34,13 +34,5 @@ public class SettingsEditor : ModuleRules
 				"DeveloperSettings"
             }
         );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-                "Developer/SettingsEditor/Private",
-				"Developer/SettingsEditor/Private/Models",
-                "Developer/SettingsEditor/Private/Widgets",
-            }
-		);
 	}
 }

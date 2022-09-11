@@ -7,7 +7,7 @@
 #include "CollectionManagerModule.h"
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"
-#include "Developer/CollectionManager/Private/CollectionManagerLog.h"
+#include "CollectionManagerLog.h"
 
 #define LOCTEXT_NAMESPACE "CollectionManager"
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherLaunchPage.h"
+#include "Widgets/Launch/SProjectLauncherLaunchPage.h"
 
 #include "Styling/AppStyle.h"
 #include "Framework/Commands/UIAction.h"

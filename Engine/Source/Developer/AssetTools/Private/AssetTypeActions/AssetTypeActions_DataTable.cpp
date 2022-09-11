@@ -7,7 +7,7 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "Editor/DataTableEditor/Public/DataTableEditorModule.h"
+#include "DataTableEditorModule.h"
 #include "DesktopPlatformModule.h"
 #include "AssetToolsModule.h"
 

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Editor/PropertyEditor/Public/PropertyHandle.h"
+#include "PropertyHandle.h"
 #include "Framework/SlateDelegates.h"
 
 /**

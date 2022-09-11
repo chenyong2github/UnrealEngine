@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherSimpleDeviceListView.h"
+#include "Widgets/Deploy/SProjectLauncherSimpleDeviceListView.h"
 
 #include "Framework/Docking/TabManager.h"
 #include "ITargetDeviceProxy.h"

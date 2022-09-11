@@ -12,7 +12,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ProfilerFPSAnalyzer.h"
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SHistogram"

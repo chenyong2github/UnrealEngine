@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
-#include "Developer/Merge/Public/Merge.h"
+#include "Merge.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "AssetRegistry/AssetData.h"
 #include "IAssetTypeActions.generated.h"

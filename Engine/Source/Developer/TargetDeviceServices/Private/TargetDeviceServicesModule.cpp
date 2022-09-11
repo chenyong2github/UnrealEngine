@@ -6,8 +6,8 @@
 #include "Modules/ModuleManager.h"
 
 #include "ITargetDeviceServicesModule.h"
-#include "TargetDeviceProxyManager.h"
-#include "TargetDeviceServiceManager.h"
+#include "Proxies/TargetDeviceProxyManager.h"
+#include "Services/TargetDeviceServiceManager.h"
 
 
 DEFINE_LOG_CATEGORY(TargetDeviceServicesLog);

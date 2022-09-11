@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherSettings.h"
+#include "Widgets/Settings/SProjectLauncherSettings.h"
 
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"

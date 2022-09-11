@@ -6,7 +6,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Framework/Application/SlateApplication.h"
 #include "AssetToolsModule.h"
-#include "Editor/CurveTableEditor/Public/CurveTableEditorModule.h"
+#include "CurveTableEditorModule.h"
 #include "DesktopPlatformModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

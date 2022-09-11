@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDeviceBrowserFilterBar.h"
+#include "Widgets/Browser/SDeviceBrowserFilterBar.h"
 
 #include "Styling/AppStyle.h"
 #include "PlatformInfo.h"

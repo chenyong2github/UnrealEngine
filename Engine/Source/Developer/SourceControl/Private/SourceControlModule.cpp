@@ -21,8 +21,8 @@
 #endif
 
 #if WITH_EDITOR
-	#include "Runtime/Engine/Public/EngineAnalytics.h"
-	#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+	#include "EngineAnalytics.h"
+	#include "Interfaces/IAnalyticsProvider.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogSourceControl);

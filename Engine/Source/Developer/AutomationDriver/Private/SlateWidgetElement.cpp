@@ -4,8 +4,8 @@
 #include "IApplicationElement.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "SlateWidgetLocatorByUniqueTag.h"
-#include "DriverUniqueTagMetaData.h"
+#include "Locators/SlateWidgetLocatorByUniqueTag.h"
+#include "MetaData/DriverUniqueTagMetaData.h"
 #include "Framework/MetaData/DriverIdMetaData.h"
 
 #include "Widgets/Text/SRichTextBlock.h"

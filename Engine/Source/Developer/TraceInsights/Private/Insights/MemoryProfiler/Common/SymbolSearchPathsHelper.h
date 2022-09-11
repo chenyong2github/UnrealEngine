@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Internationalization/Text.h"
-#include "TraceServices/Private/Model/ModuleProvider.h"
+#include "Model/ModuleProvider.h"
 
 #define LOCTEXT_NAMESPACE "SymbolSearchPathsHelper"
 

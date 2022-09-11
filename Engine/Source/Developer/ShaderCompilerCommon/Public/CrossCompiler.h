@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../RHI/Public/RHIDefinitions.h"
+#include "RHIDefinitions.h"
 
 // Cross compiler support/common functionality
 extern SHADERCOMPILERCOMMON_API FString CreateCrossCompilerBatchFileContents(

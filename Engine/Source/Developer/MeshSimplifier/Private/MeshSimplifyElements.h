@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Developer/MeshSimplifier/Private/UnrolledLinkList.h"
+#include "UnrolledLinkList.h"
 
 template< typename T > class TSimpTri;
 

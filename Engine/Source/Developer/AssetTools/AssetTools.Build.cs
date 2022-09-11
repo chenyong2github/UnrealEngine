@@ -16,6 +16,12 @@ public class AssetTools : ModuleRules
 			}
 		);
 
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"Merge",
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "CurveAssetEditor",
@@ -70,6 +76,11 @@ public class AssetTools : ModuleRules
                 "AnimationBlueprintEditor",
                 "AnimationModifiers",
 			    "TextureEditor",
+				"DataTableEditor",
+				"Cascade",
+				"PhysicsAssetEditor",
+				"CurveTableEditor",
+				"StaticMeshEditor"
 			}
 		);
 

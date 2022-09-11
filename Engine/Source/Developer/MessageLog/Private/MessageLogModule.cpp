@@ -19,8 +19,8 @@
 #include "Logging/MessageLog.h"
 
 #if WITH_EDITOR
-	#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-	#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+	#include "WorkspaceMenuStructure.h"
+	#include "WorkspaceMenuStructureModule.h"
 #endif
 
 IMPLEMENT_MODULE( FMessageLogModule, MessageLog );

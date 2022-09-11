@@ -61,6 +61,13 @@ public class TraceInsights : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Messaging",
+				"MessageLog",
+			}
+		);
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				System.IO.Path.Combine(EngineDirectory,"Source/Developer/TraceServices/Private"),
 			}
 		);
 	}

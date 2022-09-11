@@ -42,9 +42,9 @@
 
 #if WITH_SSL
 #include "Ssl.h"
-#include <openssl/hmac.h>
-#include <openssl/sha.h>
-#include <openssl/ssl.h>
+#include <ThirdParty/OpenSSL/1.1.1n/include/Win64/VS2015/openssl/hmac.h>
+#include <ThirdParty/OpenSSL/1.1.1n/include/Win64/VS2015/openssl/sha.h>
+#include <ThirdParty/OpenSSL/1.1.1n/include/Win64/VS2015/openssl/ssl.h>
 #endif
 
 #define S3DDC_BACKEND_WAIT_INTERVAL 0.01f

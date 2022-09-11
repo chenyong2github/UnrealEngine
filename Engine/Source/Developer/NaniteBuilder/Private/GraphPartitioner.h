@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Math/Bounds.h"
-#include "metis.h"
+#include "ThirdParty/metis/5.1.0/include/metis.h"
 #include "Async/ParallelFor.h"
 #include "DisjointSet.h"
 

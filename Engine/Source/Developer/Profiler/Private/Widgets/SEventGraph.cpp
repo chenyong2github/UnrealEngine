@@ -21,7 +21,7 @@
 #include "Widgets/SEventGraphTooltip.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SEventGraph"
 

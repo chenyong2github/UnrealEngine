@@ -16,7 +16,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Misc/FilterCollection.h"
 #include "UObject/Object.h"
-#include "Core/Public/Misc/TextFilter.h"
+#include "Misc/TextFilter.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Layout/SScrollBox.h"

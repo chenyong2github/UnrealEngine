@@ -4,7 +4,7 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateTypes.h"
-#include "../Public/OutputLogSettings.h"
+#include "OutputLogSettings.h"
 #include "Styling/StyleColors.h"
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/SlateStyleRegistry.h"

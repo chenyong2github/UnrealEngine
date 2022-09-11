@@ -12,14 +12,6 @@ public class AutomationDriver : ModuleRules
             }
         );
 
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Developer/AutomationDriver/Private",
-                "Developer/AutomationDriver/Private/Locators",
-                "Developer/AutomationDriver/Private/MetaData",
-            }
-        );
-
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",

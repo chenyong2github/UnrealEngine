@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherDeployFileServerSettings.h"
+#include "Widgets/Deploy/SProjectLauncherDeployFileServerSettings.h"
 
 #include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"

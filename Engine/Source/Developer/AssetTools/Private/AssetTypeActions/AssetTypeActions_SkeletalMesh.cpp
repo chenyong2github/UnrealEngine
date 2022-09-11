@@ -22,7 +22,7 @@
 #include "AssetTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "SSkeletonWidget.h"
-#include "Editor/PhysicsAssetEditor/Public/PhysicsAssetEditorModule.h"
+#include "PhysicsAssetEditorModule.h"
 #include "PersonaModule.h"
 #include "ContentBrowserModule.h"
 #include "AnimationEditorUtils.h"

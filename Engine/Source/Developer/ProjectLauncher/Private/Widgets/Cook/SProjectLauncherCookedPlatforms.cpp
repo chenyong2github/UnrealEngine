@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherCookedPlatforms.h"
+#include "Widgets/Cook/SProjectLauncherCookedPlatforms.h"
 
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SSeparator.h"

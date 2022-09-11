@@ -7,8 +7,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Developer/ShaderCompilerCommon/Private/HlslUtils.h"
-#include "Developer/ShaderCompilerCommon/Private/HlslLexer.h"
+#include "HlslUtils.h"
+#include "HlslLexer.h"
 
 namespace CrossCompiler
 {

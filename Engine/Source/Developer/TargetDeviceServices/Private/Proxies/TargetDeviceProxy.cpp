@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TargetDeviceProxy.h"
+#include "Proxies/TargetDeviceProxy.h"
 
 #include "FileMessageAttachment.h"
 #include "HAL/PlatformProcess.h"

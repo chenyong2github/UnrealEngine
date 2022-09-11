@@ -15,27 +15,12 @@ public class DeviceManager : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				
                 "InputCore",
 				"Slate",
 				"SlateCore",
 				"TargetPlatform",
 				"DesktopPlatform",
                 "WorkspaceMenuStructure",
-			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/DeviceManager/Private",
-				"Developer/DeviceManager/Private/Models",
-				"Developer/DeviceManager/Private/Widgets",
-				"Developer/DeviceManager/Private/Widgets/Apps",
-				"Developer/DeviceManager/Private/Widgets/Browser",
-				"Developer/DeviceManager/Private/Widgets/Details",
-				"Developer/DeviceManager/Private/Widgets/Processes",
-				"Developer/DeviceManager/Private/Widgets/Shared",
-				"Developer/DeviceManager/Private/Widgets/Toolbar",
 			}
 		);
 	}

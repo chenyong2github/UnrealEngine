@@ -21,7 +21,7 @@
 #include "DerivedDataSharedString.h"
 #include "Misc/WildcardString.h"
 
-#include "ispc_texcomp.h"
+#include "ThirdParty/Intel/ISPCTexComp/ISPCTextureCompressor-14d998c/ispc_texcomp/ispc_texcomp.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatIntelISPCTexComp, Log, All);
 

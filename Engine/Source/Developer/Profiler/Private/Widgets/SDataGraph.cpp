@@ -24,7 +24,7 @@
 #include "ProfilerDataProvider.h"
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 #include "SSimpleButton.h"
 
 #define LOCTEXT_NAMESPACE "SDataGraph"

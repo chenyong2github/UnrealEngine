@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherDeployTargets.h"
+#include "Widgets/Deploy/SProjectLauncherDeployTargets.h"
 
 #include "Styling/AppStyle.h"
 #include "ITargetDeviceProxyManager.h"

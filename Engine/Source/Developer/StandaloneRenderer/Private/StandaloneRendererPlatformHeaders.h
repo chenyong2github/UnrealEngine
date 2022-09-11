@@ -27,8 +27,8 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <GL/gl.h>
-#include <GL/glext.h>
-#include <GL/wglext.h>
+#include <ThirdParty/OpenGL/GL/glext.h>
+#include <ThirdParty/OpenGL/GL/wglext.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #elif PLATFORM_MAC
 #include <OpenGL/gl.h>
@@ -53,7 +53,7 @@
 
 #elif PLATFORM_LINUX
 //#define GLCOREARB_PROTOTYPES 
-#include <GL/glcorearb.h>
+#include <ThirdParty/OpenGL/GL/glcorearb.h>
 //#include <GL/glext.h>
 #include "SDL.h"
 

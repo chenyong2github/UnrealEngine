@@ -23,13 +23,6 @@ namespace UnrealBuildTool.Rules
 					"Messaging",
 					"MessagingCommon",
 				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Developer/TargetDeviceServices/Private",
-					"Developer/TargetDeviceServices/Private/Proxies",
-					"Developer/TargetDeviceServices/Private/Services",
-				});
 		}
 	}
 }

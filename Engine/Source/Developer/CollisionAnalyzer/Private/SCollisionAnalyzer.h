@@ -9,7 +9,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-#include "Developer/CollisionAnalyzer/Private/CollisionAnalyzer.h"
+#include "CollisionAnalyzer.h"
 
 class SCAQueryDetails;
 class SEditableTextBox;

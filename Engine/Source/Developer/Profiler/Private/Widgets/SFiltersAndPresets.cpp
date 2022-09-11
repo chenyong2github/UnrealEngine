@@ -14,7 +14,7 @@
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SFiltersAndPresets"
 

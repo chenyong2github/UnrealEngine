@@ -36,13 +36,5 @@ public class ScreenShotComparison : ModuleRules
 				"SessionServices",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Developer/ScreenShotComparison/Private",
-				"Developer/ScreenShotComparison/Private/Widgets",
-				"Developer/ScreenShotComparison/Private/Models",
-			}
-		);
 	}
 }

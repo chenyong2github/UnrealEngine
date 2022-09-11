@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDeviceProcesses.h"
+#include "Widgets/Processes/SDeviceProcesses.h"
 
 #include "Styling/AppStyle.h"
 #include "Interfaces/ITargetDevice.h"

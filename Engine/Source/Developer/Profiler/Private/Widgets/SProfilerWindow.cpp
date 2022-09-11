@@ -23,11 +23,11 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #if WITH_EDITOR
-	#include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"
-	#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+	#include "AnalyticsEventAttribute.h"
+	#include "Interfaces/IAnalyticsProvider.h"
 	#include "EngineAnalytics.h"
 #endif // WITH_EDITOR
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SProfilerWindow"

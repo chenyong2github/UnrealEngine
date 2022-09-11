@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LocateBy.h"
-#include "SlateWidgetLocatorByDelegate.h"
-#include "SlateWidgetLocatorByPath.h"
+#include "Locators/SlateWidgetLocatorByDelegate.h"
+#include "Locators/SlateWidgetLocatorByPath.h"
 #include "AutomationDriverTypeDefs.h"
 #include "Framework/Application/SlateApplication.h"
 

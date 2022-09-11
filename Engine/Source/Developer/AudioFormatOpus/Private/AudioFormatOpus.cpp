@@ -12,8 +12,8 @@
 #define OUTSIDE_SPEEX
 
 THIRD_PARTY_INCLUDES_START
-#include "opus_multistream.h"
-#include "speex_resampler.h"
+#include "ThirdParty/libOpus/opus-1.3.1-12/include/opus_multistream.h"
+#include "ThirdParty/libOpus/opus-1.3.1-12/include/speex_resampler.h"
 THIRD_PARTY_INCLUDES_END
 
 /** Use UE memory allocation or Opus */

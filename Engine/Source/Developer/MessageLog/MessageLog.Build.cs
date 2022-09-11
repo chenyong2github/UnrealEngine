@@ -6,15 +6,6 @@ public class MessageLog : ModuleRules
 {
 	public MessageLog(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.AddRange(
-            new string[] {
-				"Developer/MessageLog/Private",
-				"Developer/MessageLog/Private/Presentation",
-				"Developer/MessageLog/Private/UserInterface",
-                "Developer/MessageLog/Private/Model",
-			}
-        );
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -31,7 +22,8 @@ public class MessageLog : ModuleRules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Documentation",
-					"MainFrame"
+					"MainFrame",
+					"WorkspaceMenuStructure"
 				}
 			);		
 		}

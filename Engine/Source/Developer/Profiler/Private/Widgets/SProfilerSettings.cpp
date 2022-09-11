@@ -17,7 +17,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ProfilerManager.h"
-#include "../ProfilerStyle.h"
+#include "Widgets/../ProfilerStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SProfilerSettings"

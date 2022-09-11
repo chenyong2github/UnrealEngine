@@ -6,7 +6,7 @@
 #include "CoreTypes.h"
 #include "UObject/NameTypes.h"
 #include "Internationalization/Text.h"
-#include <Runtime/Core/Public/Memory/SharedBuffer.h>
+#include "Memory/SharedBuffer.h"
 
 namespace TraceServices
 {

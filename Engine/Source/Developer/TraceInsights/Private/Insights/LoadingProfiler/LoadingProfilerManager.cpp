@@ -2,7 +2,7 @@
 
 #include "LoadingProfilerManager.h"
 
-#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/Model/LoadTimeProfiler.h"
 #include "Widgets/Docking/SDockTab.h"

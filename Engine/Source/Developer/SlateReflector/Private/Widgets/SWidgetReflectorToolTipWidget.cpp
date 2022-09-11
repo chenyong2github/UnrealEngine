@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SWidgetReflectorToolTipWidget.h"
+#include "Widgets/SWidgetReflectorToolTipWidget.h"
 
 #include "Layout/Geometry.h"
 #include "Styling/CoreStyle.h"

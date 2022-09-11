@@ -14,8 +14,8 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Developer/AutomationWindow/Private/SAutomationGraphicalResultBox.h"
-#include "Developer/AutomationWindow/Private/SAutomationTestTreeView.h"
+#include "SAutomationGraphicalResultBox.h"
+#include "SAutomationTestTreeView.h"
 
 #if WITH_EDITOR
 #include "AssetRegistry/IAssetRegistry.h"

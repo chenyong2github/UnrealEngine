@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AssetTypeActions_DataTable.h"
-#include "Engine/Classes/Animation/MirrorDataTable.h"
+#include "Animation/MirrorDataTable.h"
 
 class FAssetTypeActions_MirrorDataTable : public FAssetTypeActions_DataTable
 {

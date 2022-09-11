@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SProjectLauncherProjectPage.h"
+#include "Widgets/Project/SProjectLauncherProjectPage.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"

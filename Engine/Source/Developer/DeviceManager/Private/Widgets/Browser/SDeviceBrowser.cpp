@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDeviceBrowser.h"
+#include "Widgets/Browser/SDeviceBrowser.h"
 
 #include "Styling/AppStyle.h"
 #include "Framework/Commands/UICommandList.h"

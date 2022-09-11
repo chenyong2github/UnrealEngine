@@ -7,7 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Developer/ShaderCompilerCommon/Private/HlslUtils.h"
+#include "HlslUtils.h"
 
 class Error;
 

@@ -9,7 +9,7 @@
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
 #include "Logging/MessageLog.h"
-#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "Misc/CString.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

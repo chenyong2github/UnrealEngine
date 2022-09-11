@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
 #include "ToolMenus.h"
 #include "Misc/FeedbackContext.h"
-#include "Editor/Cascade/Public/CascadeModule.h"
+#include "CascadeModule.h"
 #include "Particles/ParticleEmitter.h"
 #include "HAL/PlatformApplicationMisc.h"
 
