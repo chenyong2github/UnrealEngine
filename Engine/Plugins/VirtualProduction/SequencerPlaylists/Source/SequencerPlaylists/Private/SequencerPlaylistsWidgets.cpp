@@ -7,6 +7,7 @@
 #include "SequencerPlaylistPlayer.h"
 #include "SequencerPlaylistsModule.h"
 #include "SequencerPlaylistsStyle.h"
+#include "SequencerPlaylistsSubsystem.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -21,6 +22,7 @@
 #include "LevelSequence.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilter.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "MovieScene.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
@@ -54,10 +56,9 @@ const FName SSequencerPlaylistPanel::ColumnName_Loop(TEXT("Loop"));
 const FName SSequencerPlaylistPanel::ColumnName_HoverDetails(TEXT("HoverDetails"));
 
 
-void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlaylistPlayer* InPlayer)
+void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, TSharedPtr<SDockTab> InContainingTab)
 {
-	check(InPlayer);
-	WeakPlayer = InPlayer;
+	WeakContainingTab = InContainingTab;
 
 	SearchTextFilter = MakeShared<TTextFilter<const FSequencerPlaylistRowData&>>(
 		TTextFilter<const FSequencerPlaylistRowData&>::FItemToStringArray::CreateSP(this, &SSequencerPlaylistPanel::GetSearchStrings));
@@ -105,15 +106,7 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlay
 				[
 					SNew(STextBlock)
 					.Font(FSequencerPlaylistsStyle::Get().GetFontStyle("SequencerPlaylists.TitleFont"))
-					.Text(TAttribute<FText>::CreateLambda([this]()
-						{
-							if (USequencerPlaylist* Playlist = GetCheckedPlaylist())
-							{
-								return FText::FromString(Playlist->GetName());
-							}
-
-							return FText::GetEmpty();
-						}))
+					.Text(TAttribute<FText>::CreateLambda([this]() { return FText::AsCultureInvariant(GetDisplayTitle()); }))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -142,7 +135,7 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlay
 						.Font(FSequencerPlaylistsStyle::Get().GetFontStyle("SequencerPlaylists.DescriptionFont"))
 						.HintText(LOCTEXT("PlaylistDescriptionHint", "<playlist description>"))
 						.Text(TAttribute<FText>::CreateLambda([this]() {
-							if (USequencerPlaylist* Playlist = GetCheckedPlaylist())
+							if (USequencerPlaylist* Playlist = GetPlaylist())
 							{
 								return Playlist->Description;
 							}
@@ -150,7 +143,7 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlay
 							return FText::GetEmpty();
 						}))
 						.OnTextCommitted_Lambda([this](const FText& NewText, ETextCommit::Type CommitType) {
-							if (USequencerPlaylist* Playlist = GetCheckedPlaylist())
+							if (USequencerPlaylist* Playlist = GetPlaylist())
 							{
 								Playlist->Description = NewText;
 							}
@@ -171,8 +164,77 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlay
 			]
 		]
 	];
+}
+
+
+SSequencerPlaylistPanel::~SSequencerPlaylistPanel()
+{
+	GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>()->NotifyEditorClosed(this);
+}
+
+
+FString SSequencerPlaylistPanel::GetDisplayTitle()
+{
+	FString DisplayTitle;
+
+	USequencerPlaylist* WorkingPlaylist = GetPlaylist();
+
+	if (USequencerPlaylist* LoadedFrom = WeakLoadedPlaylist.Get())
+	{
+		DisplayTitle = LoadedFrom->GetName();
+		if (WorkingPlaylist && WorkingPlaylist->GetPackage() && WorkingPlaylist->GetPackage()->IsDirty())
+		{
+			DisplayTitle.AppendChar(TEXT('*'));
+		}
+	}
+	else if (WorkingPlaylist)
+	{
+		DisplayTitle = WorkingPlaylist->GetName();
+	}
+
+	return DisplayTitle;
+}
+
+
+void SSequencerPlaylistPanel::SetPlayer(USequencerPlaylistPlayer* Player)
+{
+	WeakPlayer = Player;
 
 	RegenerateRows();
+}
+
+
+bool SSequencerPlaylistPanel::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjectContexts)
+	{
+		UObject* Object = TransactionObjectPair.Key;
+		while (Object != nullptr)
+		{
+			if (Object->GetClass()->IsChildOf(USequencerPlaylist::StaticClass()))
+			{
+				return true;
+			}
+			Object = Object->GetOuter();
+		}
+	}
+
+	return false;
+}
+
+
+void SSequencerPlaylistPanel::PostUndo(bool bSuccess)
+{
+	if (bSuccess)
+	{
+		RegenerateRows();
+	}
+}
+
+
+void SSequencerPlaylistPanel::PostRedo(bool bSuccess)
+{
+	PostUndo(bSuccess);
 }
 
 
@@ -406,6 +468,18 @@ USequencerPlaylist* SSequencerPlaylistPanel::GetCheckedPlaylist()
 }
 
 
+USequencerPlaylist* SSequencerPlaylistPanel::GetPlaylist()
+{
+	USequencerPlaylistPlayer* Player = WeakPlayer.Get();
+	if (!Player)
+	{
+		return nullptr;
+	}
+
+	return Player->GetPlaylist();
+}
+
+
 void SSequencerPlaylistPanel::RegenerateRows()
 {
 	USequencerPlaylist* Playlist = GetCheckedPlaylist();
@@ -563,7 +637,7 @@ void SSequencerPlaylistPanel::OnSavePlaylist()
 	}
 
 	FString PackageName = WeakLoadedPlaylist->GetPackage()->GetLoadedPath().GetPackageName();
-	SavePlaylist(PackageName);
+	SavePlaylistAs(PackageName);
 }
 
 
@@ -575,10 +649,10 @@ void SSequencerPlaylistPanel::OnSavePlaylistAs()
 		return;
 	}
 
-	SavePlaylist(PackageName);
+	SavePlaylistAs(PackageName);
 }
 
-void SSequencerPlaylistPanel::SavePlaylist(const FString& PackageName)
+void SSequencerPlaylistPanel::SavePlaylistAs(const FString& PackageName)
 {
 	USequencerPlaylist* Playlist = GetCheckedPlaylist();
 	if (!Playlist)
@@ -586,17 +660,11 @@ void SSequencerPlaylistPanel::SavePlaylist(const FString& PackageName)
 		return;
 	}
 
-	FScopedTransaction Transaction(LOCTEXT("SavePlaylistTransaction", "Save Sequencer Playlist"));
-
 	const FString AssetName = FPackageName::GetLongPackageAssetName(PackageName);
 	UPackage* Package = CreatePackage(*PackageName);
 	USequencerPlaylist* NewPlaylist = NewObject<USequencerPlaylist>(Package, *AssetName, RF_Public | RF_Standalone | RF_Transactional);
-
 	if (NewPlaylist)
 	{
-		// Within the transient package; no collision.
-		Playlist->Rename(*NewPlaylist->GetName());
-
 		NewPlaylist->Description = Playlist->Description;
 
 		for (USequencerPlaylistItem* Item : Playlist->Items)
@@ -611,12 +679,26 @@ void SSequencerPlaylistPanel::SavePlaylist(const FString& PackageName)
 	}
 
 	WeakLoadedPlaylist = NewPlaylist;
+	if (Playlist->GetPackage())
+	{
+		Playlist->GetPackage()->ClearDirtyFlag();
+	}
 }
 
 
 void SSequencerPlaylistPanel::OnLoadPlaylist(const FAssetData& InPreset)
 {
 	FSlateApplication::Get().DismissAllMenus();
+	LoadPlaylist(CastChecked<USequencerPlaylist>(InPreset.GetAsset()));
+}
+
+
+void SSequencerPlaylistPanel::LoadPlaylist(USequencerPlaylist* PlaylistToLoad)
+{
+	if (!ensure(PlaylistToLoad))
+	{
+		return;
+	}
 
 	USequencerPlaylist* Playlist = GetCheckedPlaylist();
 	if (!Playlist)
@@ -624,25 +706,20 @@ void SSequencerPlaylistPanel::OnLoadPlaylist(const FAssetData& InPreset)
 		return;
 	}
 
-	USequencerPlaylist* ImportedPlaylist = CastChecked<USequencerPlaylist>(InPreset.GetAsset());
-	if (ImportedPlaylist)
+	Playlist->Description = PlaylistToLoad->Description;
+
+	Playlist->Items.Empty();
+	for (USequencerPlaylistItem* Item : PlaylistToLoad->Items)
 	{
-		FScopedTransaction Transaction(LOCTEXT("LoadPlaylistTransaction", "Load Sequencer Playlist"));
+		Playlist->Items.Add(DuplicateObject<USequencerPlaylistItem>(Item, Playlist));
+	}
 
-		// Within the transient package; no collision.
-		Playlist->Rename(*ImportedPlaylist->GetName());
+	RegenerateRows();
 
-		Playlist->Description = ImportedPlaylist->Description;
-
-		Playlist->Items.Empty();
-		for (USequencerPlaylistItem* Item : ImportedPlaylist->Items)
-		{
-			Playlist->Items.Add(DuplicateObject<USequencerPlaylistItem>(Item, Playlist));
-		}
-
-		RegenerateRows();
-
-		WeakLoadedPlaylist = ImportedPlaylist;
+	WeakLoadedPlaylist = PlaylistToLoad;
+	if (Playlist->GetPackage())
+	{
+		Playlist->GetPackage()->ClearDirtyFlag();
 	}
 }
 
@@ -655,7 +732,6 @@ void SSequencerPlaylistPanel::OnNewPlaylist()
 		return;
 	}
 
-	Playlist->Rename(*MakeUniqueObjectName(GetTransientPackage(), USequencerPlaylist::StaticClass(), "SequencerPlaylist").ToString());
 	Playlist->Description = FText::GetEmpty();
 	Playlist->Items.Empty();
 	RegenerateRows();
@@ -727,7 +803,12 @@ FReply SSequencerPlaylistPanel::HandleClicked_AddSequence()
 		return FReply::Unhandled();
 	}
 
-	Playlist->Items.Add(NewObject<USequencerPlaylistItem_Sequence>(Playlist));
+	FScopedTransaction Transaction(LOCTEXT("AddSequenceTransaction", "Add Sequence Item To Playlist"));
+	Playlist->Modify();
+
+	USequencerPlaylistItem_Sequence* NewItem = NewObject<USequencerPlaylistItem_Sequence>(Playlist);
+	NewItem->SetFlags(RF_Transactional);
+	Playlist->Items.Add(NewItem);
 	RegenerateRows();
 
 	return FReply::Handled();
@@ -780,6 +861,9 @@ FReply SSequencerPlaylistPanel::HandleClicked_Item_Remove(SSequencerPlaylistItem
 	{
 		return FReply::Unhandled();
 	}
+
+	FScopedTransaction Transaction(LOCTEXT("RemoveSequenceTransaction", "Remove Sequence Item From Playlist"));
+	Playlist->Modify();
 
 	ensure(Playlist->Items.RemoveSingle(ItemWidget.GetItem()));
 	RegenerateRows();
@@ -1484,6 +1568,16 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::BuildContextMenu(const TArray<
 		);
 	}
 
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ItemContextEditHeading", "Edit"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ItemContextRemove", "Remove from Playlist"),
+			LOCTEXT("ItemContextRemoveTooltip", "Remove this item from the Playlist"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Delete"),
+			FUIAction(FExecuteAction::CreateLambda([this]() { RemoveClickedDelegate.Execute(*this); }))
+		);
+	}
+
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ItemContextDetailsHeading", "Details"));
 	{
 		FDetailsViewArgs DetailsViewArgs;
@@ -1504,16 +1598,6 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::BuildContextMenu(const TArray<
 		DetailsView->SetIsPropertyVisibleDelegate(IsPropertyVisibleDelegate);
 		DetailsView->SetObjects(SelectedItems);
 		MenuBuilder.AddWidget(DetailsView, FText::GetEmpty(), true);
-	}
-
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ItemContextEditHeading", "Edit"));
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ItemContextRemove", "Remove from Playlist"),
-			LOCTEXT("ItemContextRemoveTooltip", "Remove this item from the Playlist"),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions.Delete"),
-			FUIAction(FExecuteAction::CreateLambda([this]() { RemoveClickedDelegate.Execute(*this); }))
-		);
 	}
 
 	return MenuBuilder.MakeWidget();

@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerPlaylistsModule.h"
+#include "AssetTypeActions_SequencerPlaylist.h"
 #include "SequencerPlaylist.h"
 #include "SequencerPlaylistItem_Sequence.h"
 #include "SequencerPlaylistPlayer.h"
 #include "SequencerPlaylistsLog.h"
 #include "SequencerPlaylistsCommands.h"
 #include "SequencerPlaylistsStyle.h"
+#include "SequencerPlaylistsSubsystem.h"
 #include "SequencerPlaylistsWidgets.h"
 
 #include "ToolMenus.h"
@@ -15,7 +17,9 @@
 #include "WorkspaceMenuStructureModule.h"
 
 
-static const FName SequencerPlaylistsTabName("SequencerPlaylists");
+const FName FSequencerPlaylistsModule::MainTabType("SequencerPlaylists");
+const FName FSequencerPlaylistsModule::AssetEditorTabType("SequencerPlaylistsEditor");
+
 
 DEFINE_LOG_CATEGORY(LogSequencerPlaylists)
 
@@ -26,9 +30,6 @@ DEFINE_LOG_CATEGORY(LogSequencerPlaylists)
 void FSequencerPlaylistsModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-
-	DefaultPlayer.Reset(NewObject<USequencerPlaylistPlayer>());
-	DefaultPlayer->SetPlaylist(NewObject<USequencerPlaylist>());
 
 	RegisterItemPlayer(USequencerPlaylistItem_Sequence::StaticClass(),
 		FSequencerPlaylistItemPlayerFactory::CreateLambda(
@@ -51,11 +52,31 @@ void FSequencerPlaylistsModule::StartupModule()
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSequencerPlaylistsModule::RegisterMenus));
 
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SequencerPlaylistsTabName, FOnSpawnTab::CreateRaw(this, &FSequencerPlaylistsModule::OnSpawnPluginTab))
-		.SetDisplayName(LOCTEXT("TabSpawnerDisplayName", "Playlists"))
+	const FText TabSpawnerDisplayName = LOCTEXT("TabSpawnerDisplayName", "Playlists");
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(MainTabType, FOnSpawnTab::CreateRaw(this, &FSequencerPlaylistsModule::OnSpawnPluginTab))
+		.SetDisplayName(TabSpawnerDisplayName)
 		.SetTooltipText(LOCTEXT("TabSpawnerTooltipText", "Open the Sequencer Playlists tab."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory())
 		.SetIcon(FSlateIcon(FSequencerPlaylistsStyle::GetStyleSetName(), "SequencerPlaylists.TabIcon"));
+
+	// Hidden spawner that permits multiple instances, each spawned without the SaveLayout flag.
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(AssetEditorTabType, FOnSpawnTab::CreateRaw(this, &FSequencerPlaylistsModule::OnSpawnPluginTab))
+		.SetMenuType(ETabSpawnerMenuType::Hidden)
+		.SetDisplayName(TabSpawnerDisplayName)
+		.SetIcon(FSlateIcon(FSequencerPlaylistsStyle::GetStyleSetName(), "SequencerPlaylists.TabIcon"))
+		.SetReuseTabMethod(FOnFindTabToReuse::CreateLambda([] (const FTabId&)
+			{
+				return nullptr;
+			}
+		));
+
+	const FVector2D DefaultPlaylistSize(800.0, 600.0);
+	FTabManager::RegisterDefaultTabWindowSize(MainTabType, DefaultPlaylistSize);
+	FTabManager::RegisterDefaultTabWindowSize(AssetEditorTabType, DefaultPlaylistSize);
+
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
+	AssetTypeActions = MakeShared<FAssetTypeActions_SequencerPlaylist>();
+	AssetTools.RegisterAssetTypeActions(AssetTypeActions.ToSharedRef());
 }
 
 
@@ -72,7 +93,17 @@ void FSequencerPlaylistsModule::ShutdownModule()
 
 	FSequencerPlaylistsCommands::Unregister();
 
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(SequencerPlaylistsTabName);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(MainTabType);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(AssetEditorTabType);
+
+	FTabManager::UnregisterDefaultTabWindowSize(MainTabType);
+	FTabManager::UnregisterDefaultTabWindowSize(AssetEditorTabType);
+
+	if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetTools")))
+	{
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		AssetTools.UnregisterAssetTypeActions(AssetTypeActions.ToSharedRef());
+	}
 }
 
 
@@ -101,17 +132,52 @@ TSharedPtr<ISequencerPlaylistItemPlayer> FSequencerPlaylistsModule::CreateItemPl
 
 TSharedRef<SDockTab> FSequencerPlaylistsModule::OnSpawnPluginTab(const FSpawnTabArgs& SpawnTabArgs)
 {
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
+	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	TSharedRef<SSequencerPlaylistPanel> Panel = SNew(SSequencerPlaylistPanel, DockTab);
+
+	USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>();
+	USequencerPlaylistPlayer* Player = Subsystem->CreatePlayerForEditor(Panel);
+	Panel->SetPlayer(Player);
+
+	DockTab->SetContent(Panel);
+	DockTab->SetLabel(TAttribute<FText>::CreateLambda(
 		[
-			SNew(SSequencerPlaylistPanel, DefaultPlayer.Get())
-		];
+			WeakPanel = TWeakPtr<SSequencerPlaylistPanel>(Panel)
+		]() -> FText
+		{
+			if (TSharedPtr<SSequencerPlaylistPanel> Panel = WeakPanel.Pin())
+			{
+				return FText::AsCultureInvariant(Panel->GetDisplayTitle());
+			}
+
+			return FText::GetEmpty();
+		}
+	));
+
+	return DockTab;
+}
+
+
+TSharedRef<SDockTab> FSequencerPlaylistsModule::SpawnEditorForPlaylist(USequencerPlaylist* Playlist)
+{
+	// ETabIdFlags::SaveLayout flag is unset for tabs other than the one spawned via the menu.
+	FTabId TabId = FTabId(AssetEditorTabType, ETabIdFlags::None);
+
+	TSharedPtr<SDockTab> PlaylistTab = FGlobalTabmanager::Get()->TryInvokeTab(TabId);
+	check(PlaylistTab);
+
+	TSharedRef<SSequencerPlaylistPanel> Panel = StaticCastSharedRef<SSequencerPlaylistPanel>(PlaylistTab->GetContent());
+	Panel->LoadPlaylist(Playlist);
+
+	return PlaylistTab.ToSharedRef();
 }
 
 
 void FSequencerPlaylistsModule::PluginButtonClicked()
 {
-	FGlobalTabmanager::Get()->TryInvokeTab(SequencerPlaylistsTabName);
+	FGlobalTabmanager::Get()->TryInvokeTab(MainTabType);
 }
 
 

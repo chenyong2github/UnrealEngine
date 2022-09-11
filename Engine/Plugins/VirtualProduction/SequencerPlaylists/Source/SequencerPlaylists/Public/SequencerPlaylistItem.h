@@ -6,10 +6,6 @@
 #include "SequencerPlaylistItem.generated.h"
 
 
-class ISequencer;
-class UMovieSceneSection;
-
-
 UCLASS(BlueprintType, Abstract, Within=SequencerPlaylist)
 class USequencerPlaylistItem : public UObject
 {

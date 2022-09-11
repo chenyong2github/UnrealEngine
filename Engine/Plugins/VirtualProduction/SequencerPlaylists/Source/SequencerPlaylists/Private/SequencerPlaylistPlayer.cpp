@@ -50,10 +50,14 @@ void USequencerPlaylistPlayer::BeginDestroy()
 }
 
 
-//static
-USequencerPlaylistPlayer* USequencerPlaylistPlayer::GetDefaultPlayer()
+void USequencerPlaylistPlayer::SetPlaylist(USequencerPlaylist* InPlaylist)
 {
-	return ISequencerPlaylistsModule::Get().GetDefaultPlayer();
+	// Broadcast the event first, so subscribers can still access the previous via GetPlaylist().
+	if (InPlaylist != Playlist)
+	{
+		OnPlaylistSet.Broadcast(this, InPlaylist);
+		Playlist = InPlaylist;
+	}
 }
 
 

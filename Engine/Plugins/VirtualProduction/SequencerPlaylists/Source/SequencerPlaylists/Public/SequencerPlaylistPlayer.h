@@ -3,10 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
 #include "SequencerPlaylistItem.h"
+#include "Templates/SubclassOf.h"
 #include "Templates/UniquePtr.h"
-
 #include "Tickable.h"
 
 #include "SequencerPlaylistPlayer.generated.h"
@@ -15,8 +14,12 @@
 class ISequencer;
 class ISequencerPlaylistItemPlayer;
 class USequencerPlaylist;
+class USequencerPlaylistPlayer;
 class UTakeRecorder;
 class FTickablePlaylist;
+
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerSequencerPlaylistSet, USequencerPlaylistPlayer*, Player, USequencerPlaylist*, Playlist);
 
 
 /** Controls playback of playlist items */
@@ -33,13 +36,17 @@ public:
 	//~ End UObject interface
 
 	UFUNCTION(BlueprintCallable, Category="SequencerPlaylists")
-	void SetPlaylist(USequencerPlaylist* InPlaylist) { Playlist = InPlaylist; }
+	void SetPlaylist(USequencerPlaylist* InPlaylist);
 
 	UFUNCTION(BlueprintPure, Category="SequencerPlaylists")
 	USequencerPlaylist* GetPlaylist() { return Playlist; }
 
-	UFUNCTION(BlueprintPure, meta=(DisplayName="Get Default Sequencer Playlist Player"), Category="SequencerPlaylists")
-	static USequencerPlaylistPlayer* GetDefaultPlayer();
+	UE_DEPRECATED(5.1, "There is no longer a \"default\" player. Open a specific Playlist asset to create a player associated with it.")
+	UFUNCTION(BlueprintPure, meta=(DeprecatedFunction, DeprecationMessage= "There is no longer a \"default\" player. Open a specific Playlist asset to create a player associated with it.", DisplayName="Get Default Sequencer Playlist Player"), Category="SequencerPlaylists")
+	static USequencerPlaylistPlayer* GetDefaultPlayer() { return nullptr; }
+
+	UPROPERTY(BlueprintAssignable, Category="SequencerPlaylists")
+	FOnPlayerSequencerPlaylistSet OnPlaylistSet;
 
 public:
 	UFUNCTION(BlueprintCallable, Category="SequencerPlaylists")
@@ -72,7 +79,7 @@ private:
 	void EnterUnboundedPlayIfNotRecording();
 
 	/**
-	 * Ticked by a tickable game object to performe any necessary time-sliced logic
+	 * Ticked by a tickable game object to perform any necessary time-sliced logic
 	 */
 	void Tick(float DeltaTime);
 
@@ -115,7 +122,7 @@ public:
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FTickablePlaylist, STATGROUP_Tickables);
 	}
 
-	//Make sure it always ticks, otherwise we can miss recording, in particularly when time code is always increasing throughout the system.
+	// Make sure it always ticks, otherwise we can miss recording, particularly when time code is always increasing throughout the system.
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 
 	virtual bool IsTickableInEditor() const override
@@ -125,15 +132,15 @@ public:
 
 	virtual UWorld* GetTickableGameObjectWorld() const override
 	{
-		USequencerPlaylistPlayer* Playlist = WeakPlaylistPlayer.Get();
-		return Playlist ? Playlist->GetWorld() : nullptr;
+		USequencerPlaylistPlayer* Player = WeakPlaylistPlayer.Get();
+		return Player ? Player->GetWorld() : nullptr;
 	}
 
 	virtual void Tick(float DeltaTime) override
 	{
-		if (USequencerPlaylistPlayer* Playlist = WeakPlaylistPlayer.Get())
+		if (USequencerPlaylistPlayer* Player = WeakPlaylistPlayer.Get())
 		{
-			Playlist->Tick(DeltaTime);
+			Player->Tick(DeltaTime);
 		}
 	}
 

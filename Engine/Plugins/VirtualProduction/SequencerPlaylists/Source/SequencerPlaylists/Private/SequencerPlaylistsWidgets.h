@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorUndoClient.h"
 #include "PropertyEditorDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -10,6 +11,7 @@
 
 
 struct FAssetData;
+class SDockTab;
 class SMenuAnchor;
 class SMultiLineEditableTextBox;
 class SSequencerPlaylistItemWidget;
@@ -34,7 +36,9 @@ struct FSequencerPlaylistRowData
 };
 
 
-class SSequencerPlaylistPanel : public SCompoundWidget
+class SSequencerPlaylistPanel
+	: public SCompoundWidget
+	, public FSelfRegisteringEditorUndoClient
 {
 	SLATE_BEGIN_ARGS(SSequencerPlaylistPanel) {}
 	SLATE_END_ARGS()
@@ -48,9 +52,20 @@ public:
 	static const FName ColumnName_Loop;
 	static const FName ColumnName_HoverDetails;
 
-	void Construct(const FArguments& InArgs, USequencerPlaylistPlayer* InPlayer);
+	void Construct(const FArguments& InArgs, TSharedPtr<SDockTab> InContainingTab);
+	virtual ~SSequencerPlaylistPanel();
 
 	bool InPlayMode() const { return bPlayMode; }
+
+	FString GetDisplayTitle();
+	void SetPlayer(USequencerPlaylistPlayer* Player);
+	void LoadPlaylist(USequencerPlaylist* Playlist);
+
+	//~ Begin FEditorUndoClient interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FEditorUndoClient interface
 
 private:
 	TSharedRef<SWidget> Construct_LeftToolbar();
@@ -60,12 +75,13 @@ private:
 	TSharedRef<SWidget> Construct_ItemListView();
 
 	USequencerPlaylist* GetCheckedPlaylist();
+	USequencerPlaylist* GetPlaylist();
 	void RegenerateRows();
 
 	TSharedRef<SWidget> BuildOpenPlaylistMenu();
 	void OnSavePlaylist();
 	void OnSavePlaylistAs();
-	void SavePlaylist(const FString& PackageName);
+	void SavePlaylistAs(const FString& PackageName);
 	void OnLoadPlaylist(const FAssetData& InPreset);
 	void OnNewPlaylist();
 
@@ -94,6 +110,7 @@ private:
 
 	bool bPlayMode = false;
 
+	TWeakPtr<SDockTab> WeakContainingTab;
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<TTextFilter<const FSequencerPlaylistRowData&>> SearchTextFilter;
 	TArray<TSharedPtr<FSequencerPlaylistRowData>> ItemRows;

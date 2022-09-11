@@ -30,6 +30,7 @@ public class SequencerPlaylists : ModuleRules
 			"TakesCore",
 			"ToolWidgets",
 			"MovieSceneTools",
+			"EditorSubsystem",
 		});
 
 		DynamicallyLoadedModuleNames.AddRange(new string[] {

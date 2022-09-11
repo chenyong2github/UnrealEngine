@@ -69,5 +69,6 @@ public:
 
 	virtual bool RegisterItemPlayer(TSubclassOf<USequencerPlaylistItem> ItemClass, FSequencerPlaylistItemPlayerFactory PlayerFactory) = 0;
 
-	virtual USequencerPlaylistPlayer* GetDefaultPlayer() = 0;
+	UE_DEPRECATED(5.1, "There is no longer a \"default\" player. Open a specific Playlist asset to create a player associated with it.")
+	virtual USequencerPlaylistPlayer* GetDefaultPlayer() { return nullptr; }
 };

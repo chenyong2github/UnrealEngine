@@ -10,6 +10,7 @@
 
 class ISequencer;
 class ULevelSequence;
+class UMovieSceneSection;
 class UMovieSceneSubSection;
 class UMovieSceneSubTrack;
 
