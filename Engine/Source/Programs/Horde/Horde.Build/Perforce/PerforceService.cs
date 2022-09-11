@@ -1005,15 +1005,14 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string clusterName, int change, int originalChange, CancellationToken cancellationToken)
+		public async Task<(int? Change, string Message)> SubmitShelvedChangeAsync(IStream stream, int change, int originalChange, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.SubmitShelvedChangeAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
+			scope.Span.SetTag("Stream", stream.Id);
 			scope.Span.SetTag("Change", change);
 			scope.Span.SetTag("OriginalChange", originalChange);
 
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
-			IPerforceServer server = await GetServerAsync(cluster);
+			PerforceCluster cluster = await GetClusterAsync(stream.Config.ClusterName);
 
 			List<DescribeRecord> records;
 			using (IPerforceConnection perforce = await ConnectAsync(cluster, null, cancellationToken))
@@ -1045,7 +1044,7 @@ namespace Horde.Build.Perforce
 				}
 			}
 
-			using (IPerforceConnection perforce = await ConnectAsync(cluster, records[0].User, cancellationToken))
+			using (IPerforceConnection perforce = await ConnectWithStreamClientAsync(stream, records[0].User, cancellationToken))
 			{
 				try
 				{

@@ -1099,7 +1099,7 @@ namespace Horde.Build.Jobs
 					await _perforceService.UpdateChangelistDescription(stream.Config.ClusterName, clonedPreflightChange, x => x.TrimEnd() + $"\n#preflight {job.Id}");
 
 					_logger.LogInformation("Submitting change {Change} (through {ChangeCopy}) after successful completion of {JobId}", job.PreflightChange, clonedPreflightChange, job.Id);
-					(change, message) = await _perforceService.SubmitShelvedChangeAsync(stream.Config.ClusterName, clonedPreflightChange, job.PreflightChange);
+					(change, message) = await _perforceService.SubmitShelvedChangeAsync(stream, clonedPreflightChange, job.PreflightChange);
 
 					_logger.LogInformation("Attempt to submit {Change} (through {ChangeCopy}): {Message}", job.PreflightChange, clonedPreflightChange, message);
 
