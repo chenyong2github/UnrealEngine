@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CameraShakeTrackEditorBase.h"
+#include "TrackEditors/CameraShakeTrackEditorBase.h"
 
 #include "Camera/CameraShakeBase.h"
 #include "Containers/Array.h"

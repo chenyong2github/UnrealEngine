@@ -3,7 +3,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "GameFramework/WorldSettings.h"
 #include "GameFramework/PlayerController.h"
-#include "SceneOutliner/Public/ISceneOutliner.h"
+#include "ISceneOutliner.h"
 #include "LevelEditorViewport.h"
 #include "LevelEditor.h"
 #include "Editor.h"

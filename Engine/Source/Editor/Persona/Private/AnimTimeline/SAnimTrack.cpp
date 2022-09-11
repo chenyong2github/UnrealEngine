@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimTrack.h"
+#include "AnimTimeline/SAnimTrack.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
-#include "SAnimOutliner.h"
-#include "SAnimTrackResizeArea.h"
+#include "AnimTimeline/SAnimOutliner.h"
+#include "AnimTimeline/SAnimTrackResizeArea.h"
 #include "Widgets/SOverlay.h"
 
 void SAnimTrack::Construct(const FArguments& InArgs, const TSharedRef<FAnimTimelineTrack>& InTrack, const TSharedRef<SAnimOutliner>& InOutliner)

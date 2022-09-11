@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 #include "PersonaDelegates.h"
 #include "SAnimTimingPanel.h"
 #include "EditorUndoClient.h"

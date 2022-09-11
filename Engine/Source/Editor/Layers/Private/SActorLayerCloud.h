@@ -17,7 +17,7 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Editor/Layers/Private/ActorLayerViewModel.h"
+#include "ActorLayerViewModel.h"
 
 #define LOCTEXT_NAMESPACE "LayerCloud"
 

@@ -8,9 +8,9 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"Editor/SequenceRecorder/Private/Sections",
+	                "Editor/SceneOutliner/Private",
 				}
-				);
+			);
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]

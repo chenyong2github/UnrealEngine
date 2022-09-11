@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack.h"
-#include "AnimModel.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
+#include "AnimTimeline/AnimModel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -13,7 +13,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Views/STableViewBase.h"
-#include "SAnimOutlinerItem.h"
+#include "AnimTimeline/SAnimOutlinerItem.h"
  
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack"
 

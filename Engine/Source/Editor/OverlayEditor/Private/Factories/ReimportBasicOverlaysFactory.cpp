@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ReimportBasicOverlaysFactory.h"
+#include "Factories/ReimportBasicOverlaysFactory.h"
 #include "BasicOverlays.h"
 #include "OverlaysImporter.h"
 

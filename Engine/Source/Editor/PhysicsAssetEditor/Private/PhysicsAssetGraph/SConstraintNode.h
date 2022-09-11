@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SPhysicsAssetGraphNode.h"
+#include "PhysicsAssetGraph/SPhysicsAssetGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SConstraintNode : public SPhysicsAssetGraphNode

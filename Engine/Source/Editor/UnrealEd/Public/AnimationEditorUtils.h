@@ -12,10 +12,10 @@
 #include "Widgets/SWindow.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimationAsset.h"
-#include "Editor/ContentBrowser/Public/IContentBrowserSingleton.h"
-#include "Editor/ContentBrowser/Public/ContentBrowserModule.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "IAssetTools.h"
+#include "AssetToolsModule.h"
 #include "Engine/SkeletalMesh.h"
 
 class FMenuBuilder;

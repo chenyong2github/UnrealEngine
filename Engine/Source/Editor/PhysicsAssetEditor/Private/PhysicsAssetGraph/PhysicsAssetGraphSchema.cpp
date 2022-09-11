@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsAssetGraphSchema.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphSchema.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
-#include "PhysicsAssetGraph.h"
-#include "PhysicsAssetGraphNode_Bone.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Bone.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "PhysicsAssetConnectionDrawingPolicy.h"
-#include "PhysicsAssetGraphNode_Constraint.h"
-#include "PhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/PhysicsAssetConnectionDrawingPolicy.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Constraint.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraph.h"
 #include "PhysicsAssetEditor.h"
 #include "ToolMenus.h"
 

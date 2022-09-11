@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_MontageSections.h"
+#include "AnimTimeline/AnimTimelineTrack_MontageSections.h"
 #include "Styling/CoreStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
@@ -8,7 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "SCurveEditor.h"
 #include "Styling/AppStyle.h"
-#include "AnimModel_AnimMontage.h"
+#include "AnimTimeline/AnimModel_AnimMontage.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_MontageSections"
 

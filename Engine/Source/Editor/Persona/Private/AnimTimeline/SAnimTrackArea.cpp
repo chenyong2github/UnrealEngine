@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimTrackArea.h"
+#include "AnimTimeline/SAnimTrackArea.h"
 #include "Types/PaintArgs.h"
 #include "Layout/ArrangedChildren.h"
 #include "Rendering/DrawElements.h"
 #include "Layout/LayoutUtils.h"
 #include "Widgets/SWeakWidget.h"
 #include "Styling/AppStyle.h"
-#include "SAnimTrack.h"
-#include "SAnimOutliner.h"
-#include "AnimTimelineTrack.h"
-#include "AnimModel.h"
-#include "AnimTimeSliderController.h"
+#include "AnimTimeline/SAnimTrack.h"
+#include "AnimTimeline/SAnimOutliner.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
+#include "AnimTimeline/AnimModel.h"
+#include "AnimTimeline/AnimTimeSliderController.h"
 
 FAnimTrackAreaSlot::FAnimTrackAreaSlot(const TSharedPtr<SAnimTrack>& InSlotContent)
 	: TAlignmentWidgetSlotMixin<FAnimTrackAreaSlot>(HAlign_Fill, VAlign_Top)

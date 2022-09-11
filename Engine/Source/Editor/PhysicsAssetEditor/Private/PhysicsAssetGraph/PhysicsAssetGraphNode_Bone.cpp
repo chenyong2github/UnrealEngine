@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsAssetGraphNode_Bone.h"
-#include "SBoneNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Bone.h"
+#include "PhysicsAssetGraph/SBoneNode.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
 #define LOCTEXT_NAMESPACE "UPhysicsAssetGraphNode_Bone"

@@ -5,8 +5,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerPublicTypes.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerModule.h"
+#include "SceneOutlinerPublicTypes.h"
+#include "SceneOutlinerModule.h"
 
 #define LOCTEXT_NAMESPACE "PropertySceneOutliner"
 

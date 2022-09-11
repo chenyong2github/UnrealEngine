@@ -6,7 +6,13 @@ public class SequencerWidgets : ModuleRules
 {
 	public SequencerWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePathModuleNames.AddRange(
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"SequencerCore",
+			}
+		   );
+
+		PrivateIncludePathModuleNames.AddRange(
             new string[] {
                 "MovieScene",
             }

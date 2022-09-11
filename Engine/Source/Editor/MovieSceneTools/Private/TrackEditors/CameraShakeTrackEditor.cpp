@@ -9,7 +9,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
-#include "CameraShakeTrackEditorBase.h"
+#include "TrackEditors/CameraShakeTrackEditorBase.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Set.h"
 #include "Containers/SparseArray.h"

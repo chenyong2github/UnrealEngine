@@ -73,6 +73,7 @@ public class DetailCustomizations : ModuleRules
 				"Media",
 				"Landscape",
 				"LandscapeEditor",
+				"Layers",
 				"PropertyEditor",
 				"GameProjectGeneration",
 				"ComponentVisualizers",

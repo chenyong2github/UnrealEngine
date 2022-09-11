@@ -6,7 +6,7 @@
 #include "StructurePropertyNode.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "CategoryPropertyNode.h"
-#include "SPropertyEditorEditInline.h"
+#include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"
 #include "DetailCategoryBuilderImpl.h"
 #include "Modules/ModuleManager.h"
 #include "DetailLayoutHelpers.h"

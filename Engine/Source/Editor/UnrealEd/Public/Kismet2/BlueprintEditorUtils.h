@@ -12,7 +12,7 @@
 #include "Widgets/SWidget.h"
 #include "EdGraph/EdGraph.h"
 #include "K2Node_EditablePinBase.h"
-#include "Editor/ClassViewer/Public/ClassViewerModule.h"
+#include "ClassViewerModule.h"
 #include "EdGraphSchema_K2.h"
 
 class AActor;

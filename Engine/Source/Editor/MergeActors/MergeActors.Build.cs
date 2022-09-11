@@ -6,14 +6,6 @@ public class MergeActors : ModuleRules
 {
 	public MergeActors(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePaths.AddRange(
-            new string[] {
-				"Editor/MergeActors/Private",
-				"Editor/MergeActors/Private/MeshMergingTool",
-				"Editor/MergeActors/Private/MeshProxyTool"
-			}
-        );
-
         PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",

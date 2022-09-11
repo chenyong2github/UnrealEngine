@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_Attributes.h"
+#include "AnimTimeline/AnimTimelineTrack_Attributes.h"
 #include "PersonaUtils.h"
 #include "Widgets/SBoxPanel.h"
 #include "AnimSequenceTimelineCommands.h"
@@ -9,7 +9,7 @@
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
-#include "SAnimOutlinerItem.h"
+#include "AnimTimeline/SAnimOutlinerItem.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_Attributes"
 

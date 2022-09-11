@@ -159,7 +159,7 @@
 #include "Analytics/AnalyticsPrivacySettings.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "AnalyticsEventAttribute.h"
-#include "Developer/SlateReflector/Public/ISlateReflectorModule.h"
+#include "ISlateReflectorModule.h"
 #include "MaterialUtilities.h"
 #include "ActorGroupingUtils.h"
 #include "ILauncherPlatform.h"

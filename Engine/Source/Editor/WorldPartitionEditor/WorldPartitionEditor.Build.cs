@@ -32,5 +32,13 @@ public class WorldPartitionEditor : ModuleRules
 				"AssetTools",
             }
 		);
-    }
+
+		PrivateIncludePathModuleNames.AddRange
+		(
+			new string[]
+			{
+				"WorkspaceMenuStructure",
+			}
+		);
+	}
 }

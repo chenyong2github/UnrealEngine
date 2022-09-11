@@ -21,8 +21,8 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Settings/EditorExperimentalSettings.h"
-#include "TranslationEditor/Public/ITranslationEditor.h"
-#include "LocalizationDashboard/Public/ILocalizationDashboardModule.h"
+#include "ITranslationEditor.h"
+#include "ILocalizationDashboardModule.h"
 #include "AssetSelection.h"
 #include "EditorViewportCommands.h"
 

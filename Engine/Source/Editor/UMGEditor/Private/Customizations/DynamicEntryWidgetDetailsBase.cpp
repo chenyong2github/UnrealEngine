@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DynamicEntryWidgetDetailsBase.h"
+#include "Customizations/DynamicEntryWidgetDetailsBase.h"
 
-#include "Editor/PropertyEditor/Public/DetailLayoutBuilder.h"
-#include "Editor/PropertyEditor/Public/DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 
 const UClass* FDynamicEntryWidgetDetailsBase::GetSelectedEntryClass() const

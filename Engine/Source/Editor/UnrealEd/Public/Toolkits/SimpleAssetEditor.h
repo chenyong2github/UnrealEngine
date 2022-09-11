@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
+#include "PropertyEditorDelegates.h"
 
 class IDetailsView;
 

@@ -6,16 +6,6 @@ public class GraphEditor : ModuleRules
 {
 	public GraphEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/GraphEditor/Private",
-				"Editor/GraphEditor/Private/KismetNodes",
-				"Editor/GraphEditor/Private/KismetPins",
-				"Editor/GraphEditor/Private/MaterialNodes",
-				"Editor/GraphEditor/Private/MaterialPins",
-			}
-		);
-
         PublicIncludePathModuleNames.AddRange(
             new string[] {                
 				"ClassViewer",

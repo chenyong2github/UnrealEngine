@@ -6,16 +6,6 @@ public class AudioEditor : ModuleRules
 {
 	public AudioEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange
-		(
-			new string[]
-			{
-				"Editor/AudioEditor/Private",
-				"Editor/AudioEditor/Private/Factories",
-				"Editor/AudioEditor/Private/AssetTypeActions"
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange
 		(
 			new string[]
@@ -63,7 +53,8 @@ public class AudioEditor : ModuleRules
 		(
 			new string[]
 			{
-				"AssetTools"
+				"AssetTools",
+				"WorkspaceMenuStructure",
 			}
 		);
 

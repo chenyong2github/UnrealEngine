@@ -22,8 +22,8 @@
 #include "Modules/ModuleManager.h"
 #include "IEditableSkeleton.h"
 #include "Editor.h"
-#include "AnimModel.h"
-#include "AnimModel_AnimMontage.h"
+#include "AnimTimeline/AnimModel.h"
+#include "AnimTimeline/AnimModel_AnimMontage.h"
 #include "Preferences/PersonaOptions.h"
 #include "FrameNumberDisplayFormat.h"
 

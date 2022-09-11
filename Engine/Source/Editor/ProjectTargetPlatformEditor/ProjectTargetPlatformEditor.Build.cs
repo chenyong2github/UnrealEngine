@@ -40,12 +40,5 @@ public class ProjectTargetPlatformEditor : ModuleRules
 				"GameProjectGeneration",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Editor/ProjectTargetPlatformEditor/Private/Widgets",
-			}
-		);
 	}
 }

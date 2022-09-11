@@ -127,9 +127,9 @@
 #include "IDocumentation.h"
 #include "Widgets/Docking/SDockTab.h"
 
-#include "Developer/MessageLog/Public/IMessageLogListing.h"
-#include "Developer/MessageLog/Public/MessageLogInitializationOptions.h"
-#include "Developer/MessageLog/Public/MessageLogModule.h"
+#include "IMessageLogListing.h"
+#include "MessageLogInitializationOptions.h"
+#include "MessageLogModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "CanvasTypes.h"
 #include "Engine/Selection.h"

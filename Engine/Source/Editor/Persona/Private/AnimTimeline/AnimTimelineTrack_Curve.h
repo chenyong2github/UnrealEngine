@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 #include "Animation/Skeleton.h"
 #include "EditorUndoClient.h"
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 #include "Animation/AnimData/CurveIdentifier.h"
 
 class SBorder;

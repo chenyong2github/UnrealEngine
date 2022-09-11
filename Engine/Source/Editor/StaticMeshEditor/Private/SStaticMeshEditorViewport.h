@@ -8,7 +8,7 @@
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EditorViewportClient.h"
-#include "Editor/StaticMeshEditor/Private/StaticMeshEditorViewportClient.h"
+#include "StaticMeshEditorViewportClient.h"
 #include "AdvancedPreviewScene.h"
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"

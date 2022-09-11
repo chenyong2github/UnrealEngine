@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SBoneNode.h"
-#include "PhysicsAssetGraphNode_Bone.h"
+#include "PhysicsAssetGraph/SBoneNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Bone.h"
 #include "SGraphPin.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "PhysicsEngine/ShapeElem.h"

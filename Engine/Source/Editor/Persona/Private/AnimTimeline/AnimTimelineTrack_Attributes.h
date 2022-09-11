@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 
 /** Root-level animation timeline track under which per-bone animated attributes are inserted */
 class FAnimTimelineTrack_Attributes : public FAnimTimelineTrack

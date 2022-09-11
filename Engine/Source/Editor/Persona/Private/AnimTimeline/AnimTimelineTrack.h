@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 
 class SAnimOutlinerItem;
 class SWidget;

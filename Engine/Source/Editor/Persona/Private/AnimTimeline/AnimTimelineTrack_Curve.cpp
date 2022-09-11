@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_Curve.h"
+#include "AnimTimeline/AnimTimelineTrack_Curve.h"
 #include "CurveEditor.h"
 #include "SCurveViewerPanel.h"
 #include "RichCurveEditorModel.h"
@@ -15,7 +15,7 @@
 #include "Animation/AnimMontage.h"
 #include "Fonts/FontMeasure.h"
 #include "Animation/AnimSequence.h"
-#include "AnimModel_AnimSequenceBase.h"
+#include "AnimTimeline/AnimModel_AnimSequenceBase.h"
 #include "Preferences/PersonaOptions.h"
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"

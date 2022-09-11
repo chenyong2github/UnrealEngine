@@ -26,7 +26,7 @@
 #include "Settings/WidgetDesignerSettings.h"
 #include "UMGEditorProjectSettings.h"
 #include "WidgetPaletteFavorites.h"
-#include "SLibraryViewModel.h"
+#include "Library/SLibraryViewModel.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

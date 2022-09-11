@@ -20,7 +20,7 @@
 #include "LandscapeEditorDetailCustomization_TargetLayers.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h" 
-#include "Editor/PropertyEditor/Public/VariablePrecisionNumericInterface.h"
+#include "VariablePrecisionNumericInterface.h"
 
 #include "Templates/SharedPointer.h"
 

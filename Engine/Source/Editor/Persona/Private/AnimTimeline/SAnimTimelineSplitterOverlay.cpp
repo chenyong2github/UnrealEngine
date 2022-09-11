@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimTimelineSplitterOverlay.h"
+#include "AnimTimeline/SAnimTimelineSplitterOverlay.h"
 
 #include "Delegates/Delegate.h"
 #include "HAL/PlatformCrt.h"

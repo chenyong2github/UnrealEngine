@@ -6,7 +6,7 @@
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEdMode.h"
+#include "LandscapeEdMode.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"

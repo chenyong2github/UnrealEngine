@@ -45,6 +45,13 @@ namespace UnrealBuildTool.Rules
                     "MessageLog"
 				}
 			);
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"MessageLog"
+				}
+			);
 		}
 	}
 }

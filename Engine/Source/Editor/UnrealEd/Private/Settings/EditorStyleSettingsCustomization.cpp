@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EditorStyleSettingsCustomization.h"
+#include "Settings/EditorStyleSettingsCustomization.h"
 #include "DetailCategoryBuilder.h"
 #include "Styling/StyleColors.h"
 #include "DetailLayoutBuilder.h"

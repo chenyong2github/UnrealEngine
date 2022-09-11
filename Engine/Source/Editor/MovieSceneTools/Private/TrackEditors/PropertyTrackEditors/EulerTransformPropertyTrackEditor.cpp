@@ -4,7 +4,7 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "SequencerUtilities.h"
-#include "TransformPropertySection.h"
+#include "Sections/TransformPropertySection.h"
 #include "MovieSceneToolHelpers.h"
 #include "IKeyArea.h"
 

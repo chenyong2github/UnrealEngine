@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 #include "SAnimTimingPanel.h"
 
 class FAnimTimelineTrack_NotifiesPanel;

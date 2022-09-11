@@ -18,7 +18,7 @@
 #include "Menus/MainMenu.h"
 #include "Frame/RootWindowLocation.h"
 #include "Kismet2/CompilerResultsLog.h"
-#include "Developer/HotReload/Public/IHotReload.h"
+#include "IHotReload.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Input/SEditableTextBox.h"

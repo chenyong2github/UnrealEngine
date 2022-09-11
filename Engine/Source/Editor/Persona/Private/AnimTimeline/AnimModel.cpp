@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
 #include "Preferences/PersonaOptions.h"
 #include "Animation/EditorAnimBaseObj.h"
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 #include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "FAnimModel"

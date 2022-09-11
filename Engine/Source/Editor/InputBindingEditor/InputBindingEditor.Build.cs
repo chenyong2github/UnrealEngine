@@ -30,13 +30,5 @@ public class InputBindingEditor : ModuleRules
 				"SettingsEditor",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"Editor/InputBindingEditor/Private",
-				"Editor/InputBindingEditor/Private/Widgets",
-			}
-		);
 	}
 }

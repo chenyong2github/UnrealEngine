@@ -14,8 +14,8 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "Editor/Layers/Private/LayerCollectionViewModel.h"
-#include "Editor/Layers/Private/SLayersViewRow.h"
+#include "LayerCollectionViewModel.h"
+#include "SLayersViewRow.h"
 #include "LayersDragDropOp.h"
 #include "EditorActorFolders.h"
 

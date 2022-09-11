@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Editor/UnrealEd/Public/SViewportToolBar.h"
+#include "SViewportToolBar.h"
 #include "Layout/Visibility.h"
 #include "SAnimationEditorViewport.h"
 #include "SEditorViewport.h"

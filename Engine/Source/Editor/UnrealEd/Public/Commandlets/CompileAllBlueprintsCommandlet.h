@@ -6,7 +6,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Commandlets/Commandlet.h"
-#include "Editor/KismetCompiler/Public/KismetCompilerModule.h"
+#include "KismetCompilerModule.h"
 
 #include "CompileAllBlueprintsCommandlet.generated.h"
 

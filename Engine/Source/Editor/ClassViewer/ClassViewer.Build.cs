@@ -13,6 +13,7 @@ public class ClassViewer : ModuleRules
 				"EditorWidgets",
 				"GameProjectGeneration",
                 "PropertyEditor",
+				"WorkspaceMenuStructure"
 			}
 		);
 

@@ -5,7 +5,7 @@
 #include "Channels/MovieSceneStringChannel.h"
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
-#include "SequencerKeyEditor.h"
+#include "CurveKeyEditors/SequencerKeyEditor.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"

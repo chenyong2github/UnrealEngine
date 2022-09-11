@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
+#include "LandscapeEditorDetailCustomization_Base.h"
 #include "Widgets/SWidget.h"
 #include "IDetailCustomization.h"
 #include "PropertyHandle.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_Base.h"
 
 class IDetailLayoutBuilder;
 

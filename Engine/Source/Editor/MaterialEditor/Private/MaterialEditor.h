@@ -17,7 +17,7 @@
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "IMaterialEditor.h"
-#include "Editor/PropertyEditor/Public/IDetailsView.h"
+#include "IDetailsView.h"
 #include "SMaterialEditorViewport.h"
 #include "Materials/Material.h"
 #include "Tickable.h"

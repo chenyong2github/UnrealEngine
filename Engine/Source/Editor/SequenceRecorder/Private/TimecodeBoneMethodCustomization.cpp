@@ -4,7 +4,7 @@
 
 #include "AnimationRecorder.h"
 #include "DetailWidgetRow.h"
-#include "Editor/SceneOutliner/Private/SSocketChooser.h"
+#include "SSocketChooser.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"

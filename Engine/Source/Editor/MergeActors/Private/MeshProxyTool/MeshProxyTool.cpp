@@ -24,7 +24,7 @@
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 
-#include "SMeshProxyDialog.h"
+#include "MeshProxyTool/SMeshProxyDialog.h"
 
 #define LOCTEXT_NAMESPACE "MeshProxyTool"
 

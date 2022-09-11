@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MovieSceneSectionHelpers.h"
+#include "Sections/MovieSceneSectionHelpers.h"
 
 #include "Sections/MovieSceneColorSection.h"
 #include "Channels/MovieSceneChannelProxy.h"

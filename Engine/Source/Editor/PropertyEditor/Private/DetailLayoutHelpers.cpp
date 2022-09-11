@@ -10,7 +10,7 @@
 #include "IDetailCustomization.h"
 #include "ObjectPropertyNode.h"
 #include "Modules/ModuleManager.h"
-#include "SPropertyEditorEditInline.h"
+#include "UserInterface/PropertyEditor/SPropertyEditorEditInline.h"
 
 namespace DetailLayoutHelpers
 {

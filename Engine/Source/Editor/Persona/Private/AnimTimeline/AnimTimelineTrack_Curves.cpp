@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_Curves.h"
+#include "AnimTimeline/AnimTimelineTrack_Curves.h"
 #include "PersonaUtils.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -13,7 +13,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
 #include "Animation/AnimMontage.h"
-#include "SAnimOutlinerItem.h"
+#include "AnimTimeline/SAnimOutlinerItem.h"
 #include "Preferences/PersonaOptions.h"
 #include "SListViewSelectorDropdownMenu.h"
 #include "Animation/AnimData/AnimDataModel.h"

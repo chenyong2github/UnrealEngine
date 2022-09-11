@@ -6,6 +6,12 @@ public class GameProjectGeneration : ModuleRules
 {
 	public GameProjectGeneration(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"Editor/AddContentDialog/Private",
+			}
+		);
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"HardwareTargeting",

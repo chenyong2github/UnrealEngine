@@ -32,13 +32,5 @@ public class AddContentDialog : ModuleRules
 				"ToolWidgets",
 			}
 		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/AddContentDialog/Private",
-				"Editor/AddContentDialog/Private/ViewModels",
-				"Editor/AddContentDialog/Private/ContentSourceProviders/FeaturePack",
-			}
-		);
 	}
 }

@@ -12,7 +12,7 @@
 #include "Layout/PaintGeometry.h"
 #include "Math/Vector2D.h"
 #include "MovieSceneSection.h"
-#include "MovieSceneSectionHelpers.h"
+#include "Sections/MovieSceneSectionHelpers.h"
 #include "Rendering/DrawElementPayloads.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/RenderingCommon.h"

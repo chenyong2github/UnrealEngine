@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimModel_AnimSequenceBase.h"
+#include "AnimTimeline/AnimModel_AnimSequenceBase.h"
 #include "SAnimTimingPanel.h"
 
 class UAnimMontage;

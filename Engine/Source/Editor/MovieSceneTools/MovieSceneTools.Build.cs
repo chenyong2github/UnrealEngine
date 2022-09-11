@@ -8,14 +8,9 @@ public class MovieSceneTools : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
             new string[] {
-                "Editor/MovieSceneTools/Private",
-                "Editor/MovieSceneTools/Private/CurveKeyEditors",
-                "Editor/MovieSceneTools/Private/TrackEditors",
-				"Editor/MovieSceneTools/Private/TrackEditors/PropertyTrackEditors",
-                "Editor/MovieSceneTools/Private/TrackEditorThumbnail",
-				"Editor/MovieSceneTools/Private/Sections",
                 "Editor/UnrealEd/Private",	//compatibility for FBX importer
-            }
+                "Editor/SceneOutliner/Private",
+			}
         );
 
 		OverridePackageType = PackageOverrideType.EngineDeveloper;

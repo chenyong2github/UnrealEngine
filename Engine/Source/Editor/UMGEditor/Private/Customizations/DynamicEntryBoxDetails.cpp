@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DynamicEntryBoxDetails.h"
+#include "Customizations/DynamicEntryBoxDetails.h"
 
-#include "Editor/PropertyEditor/Public/DetailLayoutBuilder.h"
-#include "Editor/PropertyEditor/Public/DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
 #include "Components/DynamicEntryBox.h"
 #include "PropertyCustomizationHelpers.h"
 

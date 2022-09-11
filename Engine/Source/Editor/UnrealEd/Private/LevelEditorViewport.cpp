@@ -80,7 +80,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Settings/EditorProjectSettings.h"
-#include "Editor/ContentBrowser/Public/ContentBrowserModule.h"
+#include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentStreaming.h"
 #include "IHeadMountedDisplay.h"

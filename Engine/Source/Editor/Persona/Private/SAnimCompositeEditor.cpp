@@ -7,8 +7,8 @@
 
 #include "SAnimNotifyPanel.h"
 #include "Editor.h"
-#include "AnimModel_AnimComposite.h"
-#include "SAnimTimeline.h"
+#include "AnimTimeline/AnimModel_AnimComposite.h"
+#include "AnimTimeline/SAnimTimeline.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SAnimCompositeEditor

@@ -24,7 +24,7 @@
 #include "OutputLogModule.h"
 #include "WidgetDrawerConfig.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
-#include "OutputLog/Public/OutputLogSettings.h"
+#include "OutputLogSettings.h"
 #include "SOneTimeIndustryQuery.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"

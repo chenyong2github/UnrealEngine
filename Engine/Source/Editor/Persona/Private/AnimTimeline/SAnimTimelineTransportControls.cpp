@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimTimelineTransportControls.h"
+#include "AnimTimeline/SAnimTimelineTransportControls.h"
 #include "EditorWidgetsModule.h"
 #include "AnimationEditorPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ListViewBaseDetails.h"
+#include "Customizations/ListViewBaseDetails.h"
 
-#include "Editor/PropertyEditor/Public/DetailLayoutBuilder.h"
-#include "Editor/PropertyEditor/Public/DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
 #include "Components/ListViewBase.h"
 #include "PropertyCustomizationHelpers.h"
 

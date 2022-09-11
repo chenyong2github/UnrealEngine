@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_Montage.h"
+#include "AnimTimeline/AnimTimelineTrack_Montage.h"
 #include "SAnimMontagePanel.h"
 #include "Animation/AnimComposite.h"
 #include "PersonaUtils.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SBorder.h"
-#include "AnimTimelineTrack_MontagePanel.h"
-#include "AnimModel_AnimMontage.h"
+#include "AnimTimeline/AnimTimelineTrack_MontagePanel.h"
+#include "AnimTimeline/AnimModel_AnimMontage.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Preferences/PersonaOptions.h"

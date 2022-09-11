@@ -7,7 +7,7 @@
 #include "ItemPropertyNode.h"
 #include "ObjectPropertyNode.h"
 
-#include "Editor/SceneOutliner/Public/SceneOutlinerFilters.h"
+#include "SceneOutlinerFilters.h"
 #include "IDetailPropertyRow.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorHelpers.h"

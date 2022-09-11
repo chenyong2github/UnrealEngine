@@ -14,8 +14,8 @@
 #include "EdGraphSchema_K2.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Editor/UnrealEd/Public/Kismet2/CompilerResultsLog.h"
-#include "Editor/KismetCompiler/Public/KismetCompilerModule.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompilerModule.h"
 
 #define LOCTEXT_NAMESPACE "Structure"
 

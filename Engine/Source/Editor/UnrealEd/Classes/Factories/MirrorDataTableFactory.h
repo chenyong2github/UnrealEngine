@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
-#include "Engine/Classes/Animation/MirrorDataTable.h"
+#include "Animation/MirrorDataTable.h"
 #include "MirrorDataTableFactory.generated.h"
 
 class UMirrorDataTable;

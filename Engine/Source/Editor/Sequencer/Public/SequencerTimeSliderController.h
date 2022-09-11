@@ -6,7 +6,7 @@
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "Editor/SequencerWidgets/Public/ITimeSlider.h"
+#include "ITimeSlider.h"
 #include "ISequencerModule.h"
 
 class FSlateWindowElementList;

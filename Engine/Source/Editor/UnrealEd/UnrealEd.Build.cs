@@ -13,13 +13,11 @@ public class UnrealEd : ModuleRules
 		}
 
 		PrivatePCHHeaderFile = "Private/UnrealEdPrivatePCH.h";
-
 		SharedPCHHeaderFile = "Public/UnrealEdSharedPCH.h";
 
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
-				"Editor/UnrealEd/Private/Settings",
 				"Editor/PackagesDialog/Public",
 				"Developer/TargetPlatform/Public",
 			}
@@ -68,7 +66,13 @@ public class UnrealEd : ModuleRules
 				"VirtualTexturingEditor",
 				"TextureBuild",
 				"ToolWidgets",
-				"CSVtoSVG"
+				"CSVtoSVG",
+				"HotReload",
+				"StaticMeshEditor",
+				"WorkspaceMenuStructure",
+				"LandscapeEditor",
+				"Blutility",
+				"SlateReflector"
 			}
 		);
 
@@ -317,6 +321,7 @@ public class UnrealEd : ModuleRules
 				"AssetRegistry",
 				"AssetTagsEditor",
 				"CollectionManager",
+				"ContentBrowser",
 				"BlueprintGraph",
 				"AddContentDialog",
 				"MeshUtilities",
@@ -328,6 +333,8 @@ public class UnrealEd : ModuleRules
 				"Engine",
 				"SourceControl",
 				"UncontrolledChangelists",
+				"PropertyEditor",
+				"ClassViewer",
 			}
 		);
 

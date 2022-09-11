@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LandscapeEditorDetailCustomization_Base.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
 #include "IDetailCustomization.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_Base.h"
 
 class IDetailLayoutBuilder;
 

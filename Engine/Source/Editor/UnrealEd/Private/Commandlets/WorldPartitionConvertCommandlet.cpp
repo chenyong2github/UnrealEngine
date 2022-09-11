@@ -17,7 +17,7 @@
 #include "Engine/LODActor.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "Engine/Public/ActorReferencesUtils.h"
+#include "ActorReferencesUtils.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"

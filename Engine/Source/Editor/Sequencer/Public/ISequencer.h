@@ -8,7 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
-#include "Editor/SequencerWidgets/Public/ITimeSlider.h"
+#include "ITimeSlider.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "HAL/Platform.h"
 #include "IMovieScenePlayer.h"

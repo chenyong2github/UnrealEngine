@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsAssetGraphNode_Constraint.h"
-#include "SConstraintNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Constraint.h"
+#include "PhysicsAssetGraph/SConstraintNode.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 

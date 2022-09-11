@@ -13,14 +13,14 @@
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Misc/TextFilter.h"
-#include "Editor/Layers/Private/ActorsAssignedToSpecificLayersFilter.h"
+#include "ActorsAssignedToSpecificLayersFilter.h"
 #include "ISceneOutlinerColumn.h"
-#include "Editor/Layers/Private/SceneOutlinerLayerContentsColumn.h"
+#include "SceneOutlinerLayerContentsColumn.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
-#include "Editor/Layers/Private/SLayersView.h"
-#include "Editor/Layers/Private/SLayersCommandsMenu.h"
+#include "SLayersView.h"
+#include "SLayersCommandsMenu.h"
 #include "EditorActorFolders.h"
 
 class ISceneOutliner;

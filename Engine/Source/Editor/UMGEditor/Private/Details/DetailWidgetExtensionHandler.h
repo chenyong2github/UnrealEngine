@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "WidgetBlueprintEditor.h"
-#include "Editor/PropertyEditor/Public/IDetailPropertyExtensionHandler.h"
+#include "IDetailPropertyExtensionHandler.h"
 
 class IPropertyHandle;
 

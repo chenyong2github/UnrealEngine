@@ -40,10 +40,10 @@
 
 #include "BlueprintEditorModule.h"
 #include "PropertyEditorModule.h"
-#include "DynamicEntryBoxDetails.h"
-#include "ListViewBaseDetails.h"
+#include "Customizations/DynamicEntryBoxDetails.h"
+#include "Customizations/ListViewBaseDetails.h"
 #include "WidgetBlueprintThumbnailRenderer.h"
-#include "WidgetThumbnailCustomization.h"
+#include "Customizations/WidgetThumbnailCustomization.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

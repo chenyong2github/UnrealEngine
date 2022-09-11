@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_TimingPanel.h"
+#include "AnimTimeline/AnimTimelineTrack_TimingPanel.h"
 #include "SAnimTimingPanel.h"
 #include "Animation/AnimMontage.h"
 #include "PersonaUtils.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AnimModel_AnimMontage.h"
+#include "AnimTimeline/AnimModel_AnimMontage.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_TimingPanel"
 

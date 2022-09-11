@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Editor/PropertyEditor/Public/IPropertyTableCustomColumn.h"
 #include "IPropertyTableColumn.h"
+#include "IPropertyTableCustomColumn.h"
 #include "IPropertyTableUtilities.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"

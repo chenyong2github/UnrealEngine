@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "PropertyNode.h"
 #include "PropertyHandle.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerFwd.h"
+#include "SceneOutlinerFwd.h"
 
 class FEditConditionExpression;
 class FEditConditionContext;

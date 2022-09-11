@@ -5,7 +5,7 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "UMGEditorModule.h"
 #include "Toolkits/IToolkit.h"
-#include "DesignerTabSummoner.h"
+#include "TabFactory/DesignerTabSummoner.h"
 
 void UWidgetEditorModeUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsAssetGraphPanelNodeFactory.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphPanelNodeFactory.h"
 
 #include "EdGraph/EdGraphNode.h"
-#include "PhysicsAssetGraph.h"
-#include "PhysicsAssetGraphNode_Bone.h"
-#include "PhysicsAssetGraphNode_Constraint.h"
-#include "SBoneNode.h"
-#include "SConstraintNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Bone.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Constraint.h"
+#include "PhysicsAssetGraph/SBoneNode.h"
+#include "PhysicsAssetGraph/SConstraintNode.h"
 #include "SGraphNode.h"
 #include "Templates/Casts.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

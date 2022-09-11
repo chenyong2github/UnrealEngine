@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "PropertyHandle.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_Base.h"
+#include "LandscapeEditorDetailCustomization_Base.h"
 
 class IDetailLayoutBuilder;
 

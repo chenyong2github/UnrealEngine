@@ -7,7 +7,7 @@
 #include "Containers/Set.h"
 #include "Containers/SparseArray.h"
 #include "Delegates/Delegate.h"
-#include "Editor/FoliageEdit/Private/FoliageEdMode.h"
+#include "FoliageEdMode.h"
 #include "Framework/Text/SlateHyperlinkRun.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"

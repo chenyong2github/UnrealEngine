@@ -12,13 +12,6 @@ public class DeviceProfileEditor : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/DeviceProfileEditor/Private",
-				"Editor/DeviceProfileEditor/Private/DetailsPanel"
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

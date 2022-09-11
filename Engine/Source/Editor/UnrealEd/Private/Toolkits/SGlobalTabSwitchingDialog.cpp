@@ -18,8 +18,8 @@
 #include "Editor.h"
 
 #include "LevelEditor.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #if PLATFORM_MAC
 #include "Mac/MacApplication.h"

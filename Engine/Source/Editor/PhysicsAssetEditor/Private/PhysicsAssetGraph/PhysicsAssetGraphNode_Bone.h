@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "PhysicsAssetGraphNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode.h"
 
 #include "PhysicsAssetGraphNode_Bone.generated.h"
 

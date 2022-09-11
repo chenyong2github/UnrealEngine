@@ -13,15 +13,15 @@
 #include "LevelEditorViewport.h"
 #include "FileHelpers.h"
 #include "ProjectDescriptor.h"
-#include "Editor/AddContentDialog/Private/IContentSource.h"
+#include "IContentSource.h"
 #include "GameProjectUtils.h"
-#include "Editor/GameProjectGeneration/Private/SProjectDialog.h"
+#include "SProjectDialog.h"
 
 #include "DesktopPlatformModule.h"
 #include "Tests/AutomationTestSettings.h"
 #include "Tests/AutomationEditorCommon.h"
-#include "Editor/GameProjectGeneration/Private/TemplateCategory.h"
-#include "Editor/GameProjectGeneration/Private/TemplateItem.h"
+#include "TemplateCategory.h"
+#include "TemplateItem.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

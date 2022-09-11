@@ -11,6 +11,7 @@ public class EnvironmentLightingViewer : ModuleRules
 				"AssetRegistry",
                 "AssetTools",
 				"EditorWidgets",
+				"WorkspaceMenuStructure"
 			}
 		);
 

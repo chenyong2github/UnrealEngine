@@ -17,22 +17,10 @@ public class PropertyEditor : ModuleRules
 		);
 		
         PublicIncludePathModuleNames.AddRange(
-            new string[] {                
-            }
-        );
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/PropertyEditor/Private/Presentation",
-				"Editor/PropertyEditor/Private/Presentation/PropertyTable",
-				"Editor/PropertyEditor/Private/Presentation/PropertyEditor",
-				"Editor/PropertyEditor/Private/UserInterface",
-				"Editor/PropertyEditor/Private/UserInterface/PropertyTable",
-				"Editor/PropertyEditor/Private/UserInterface/PropertyEditor",
-				"Editor/PropertyEditor/Private/UserInterface/PropertyTree",
-				"Editor/PropertyEditor/Private/UserInterface/PropertyDetails",
+            new string[] {
+				"EditorFramework",
 			}
-		);
+        );
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

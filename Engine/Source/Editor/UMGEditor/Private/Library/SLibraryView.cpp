@@ -31,7 +31,7 @@
 #include "WidgetBlueprintEditorUtils.h"
 
 #include "UMGEditorProjectSettings.h"
-#include "SLibraryView.h"
+#include "Library/SLibraryView.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

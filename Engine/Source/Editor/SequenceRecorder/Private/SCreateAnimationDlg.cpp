@@ -16,10 +16,10 @@
 #include "PropertyEditorModule.h"
 #include "Styling/CoreStyle.h"
 //#include "Persona.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "Editor/ContentBrowser/Public/IContentBrowserSingleton.h"
-#include "Editor/ContentBrowser/Public/ContentBrowserModule.h"
+#include "IAssetTools.h"
+#include "AssetToolsModule.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
 
 #define LOCTEXT_NAMESPACE "SCreateAnimationDlg"
 

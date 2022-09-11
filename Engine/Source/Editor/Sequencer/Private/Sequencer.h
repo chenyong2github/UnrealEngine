@@ -29,7 +29,7 @@
 #include "SequencerSelection.h"
 #include "SequencerSelectionPreview.h"
 #include "SequencerCustomizationManager.h"
-#include "Editor/EditorWidgets/Public/ITransportControl.h"
+#include "ITransportControl.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "Evaluation/MovieScenePlayback.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"

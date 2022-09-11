@@ -6,7 +6,7 @@
 #include "IPersonaPreviewScene.h"
 #include "PersonaModule.h"
 #include "ISkeletonEditorModule.h"
-#include "PhysicsAssetGraphSummoner.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphSummoner.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsAssetEditorActions.h"

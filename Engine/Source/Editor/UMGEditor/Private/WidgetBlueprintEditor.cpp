@@ -63,8 +63,8 @@
 #include "GameProjectGenerationModule.h"
 #include "Tools/ToolCompatible.h"
 
-#include "SPaletteViewModel.h"
-#include "SLibraryViewModel.h"
+#include "Palette/SPaletteViewModel.h"
+#include "Library/SLibraryViewModel.h"
 
 #include "DesktopPlatformModule.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -77,7 +77,7 @@
 #include "TabFactory/AnimationTabSummoner.h"
 #include "TabFactory/DesignerTabSummoner.h"
 #include "ToolPalette/WidgetEditorModeUILayer.h"
-#include "Kismet/Public/BlueprintEditorTabs.h"
+#include "BlueprintEditorTabs.h"
 
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"

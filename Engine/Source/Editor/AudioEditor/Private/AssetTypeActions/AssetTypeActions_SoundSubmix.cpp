@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_SoundSubmix.h"
+#include "AssetTypeActions/AssetTypeActions_SoundSubmix.h"
 
 #include "AudioEditorModule.h"
 #include "Containers/Set.h"

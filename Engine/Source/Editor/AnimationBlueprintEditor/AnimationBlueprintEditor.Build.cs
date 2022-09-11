@@ -15,7 +15,8 @@ public class AnimationBlueprintEditor : ModuleRules
                 "ContentBrowser",
                 "AssetTools",
                 "AnimationEditor",
-            }
+				"MessageLog"
+			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(

@@ -17,6 +17,7 @@ public class CSVtoSVG : ModuleRules
 				"AssetRegistry",
                 "AssetTools",
 				"EditorWidgets",
+				"WorkspaceMenuStructure",
 			}
 		);
 

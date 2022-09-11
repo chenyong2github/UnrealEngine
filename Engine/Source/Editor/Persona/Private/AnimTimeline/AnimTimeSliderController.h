@@ -7,7 +7,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
 #include "ITimeSlider.h"
-#include "SAnimTimeline.h"
+#include "AnimTimeline/SAnimTimeline.h"
 
 class FSlateWindowElementList;
 struct FContextMenuSuppressor;

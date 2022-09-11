@@ -8,7 +8,7 @@
 #include "Widgets/SWidget.h"
 #include "UnrealClient.h"
 #include "IDetailCustomization.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_Base.h"
+#include "LandscapeEditorDetailCustomization_Base.h"
 #include "LandscapeEditorDetailCustomization_Layers.h"
 #include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
 

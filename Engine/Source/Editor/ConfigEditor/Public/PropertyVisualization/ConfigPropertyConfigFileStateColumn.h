@@ -4,9 +4,9 @@
 
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Editor/PropertyEditor/Public/IPropertyTableCustomColumn.h"
 #include "IPropertyTableCellPresenter.h"
 #include "IPropertyTableColumn.h"
+#include "IPropertyTableCustomColumn.h"
 #include "IPropertyTableUtilities.h"
 #include "Internationalization/Text.h"
 #include "Templates/SharedPointer.h"

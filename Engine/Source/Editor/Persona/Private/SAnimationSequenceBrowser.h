@@ -13,7 +13,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Widgets/SToolTip.h"
 #include "PersonaDelegates.h"
-#include "Editor/ContentBrowser/Public/ContentBrowserDelegates.h"
+#include "ContentBrowserDelegates.h"
 #include "EditorAnimUtils.h"
 #include "IAnimationSequenceBrowser.h"
 #include "AssetRegistry/ARFilter.h"

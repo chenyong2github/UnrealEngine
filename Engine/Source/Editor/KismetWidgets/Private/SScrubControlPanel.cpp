@@ -2,7 +2,7 @@
 
 #include "SScrubControlPanel.h"
 
-#include "Editor/EditorWidgets/Public/EditorWidgetsModule.h"
+#include "EditorWidgetsModule.h"
 #include "HAL/PlatformMath.h"
 #include "ITransportControl.h"
 #include "Layout/Children.h"

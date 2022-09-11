@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetTypeActions_SoundEffectPreset.h"
+#include "AssetTypeActions/AssetTypeActions_SoundEffectPreset.h"
 
 #include "Audio/AudioWidgetSubsystem.h"
 #include "Audio/SoundEffectPresetWidgetInterface.h"

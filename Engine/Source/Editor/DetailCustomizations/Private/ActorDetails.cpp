@@ -38,7 +38,7 @@
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailsView.h"
-#include "Editor/Layers/Public/LayersModule.h"
+#include "LayersModule.h"
 #include "LevelEditor.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"

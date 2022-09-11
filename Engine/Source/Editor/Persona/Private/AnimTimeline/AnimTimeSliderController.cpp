@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimeSliderController.h"
+#include "AnimTimeline/AnimTimeSliderController.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Rendering/DrawElements.h"
 #include "Misc/Paths.h"
@@ -15,7 +15,7 @@
 #include "Styling/AppStyle.h"
 #include "MovieSceneTimeHelpers.h"
 #include "CommonFrameRates.h"
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 #include "Preferences/PersonaOptions.h"
 #include "Animation/AnimMontage.h"
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_VectorCurve.h"
+#include "AnimTimeline/AnimTimelineTrack_VectorCurve.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Styling/AppStyle.h"

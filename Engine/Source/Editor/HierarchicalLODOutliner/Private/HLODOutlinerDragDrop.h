@@ -4,8 +4,8 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Editor/HierarchicalLODOutliner/Private/HierarchicalLODType.h"
 #include "HAL/Platform.h"
+#include "HierarchicalLODType.h"
 #include "Input/DragAndDrop.h"
 #include "Internationalization/Text.h"
 #include "Layout/Visibility.h"

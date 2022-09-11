@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 
 /** Animation timeline track inserted for each unique bone containing animated attributes (inserted as child of FAnimTimelineTrack_Attributes) */
 class FAnimTimelineTrack_PerBoneAttributes : public FAnimTimelineTrack

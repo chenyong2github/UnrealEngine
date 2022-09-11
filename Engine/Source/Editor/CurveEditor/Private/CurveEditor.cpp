@@ -2,6 +2,7 @@
 
 #include "CurveEditor.h"
 
+#include "Algo/Transform.h"
 #include "Containers/SparseArray.h"
 #include "CoreGlobals.h"
 #include "CurveEditorCommands.h"
@@ -36,7 +37,6 @@
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameTime.h"
 #include "Modules/ModuleManager.h"
-#include "Runtime/Core/Public/Algo/Transform.h"
 #include "SCurveEditor.h" // for access to LogCurveEditor
 #include "SCurveEditorPanel.h"
 #include "SCurveEditorView.h"

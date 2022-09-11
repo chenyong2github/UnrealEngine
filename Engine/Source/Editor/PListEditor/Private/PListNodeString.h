@@ -4,7 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "Editor/PListEditor/Private/PListNode.h"
+#include "PListNode.h"
 #include "HAL/Platform.h"
 #include "Styling/SlateColor.h"
 #include "Templates/SharedPointer.h"

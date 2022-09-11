@@ -3,7 +3,7 @@
 #include "SDetailRowIndent.h"
 #include "SConstrainedBox.h"
 #include "SDetailTableRowBase.h"
-#include "PropertyEditorConstants.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/Layout/SBox.h"
 
 void SDetailRowIndent::Construct(const FArguments& InArgs, TSharedRef<SDetailTableRowBase> DetailsRow)

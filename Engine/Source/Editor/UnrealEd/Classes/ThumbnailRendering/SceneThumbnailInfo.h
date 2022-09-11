@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Runtime/Engine/Classes/EditorFramework/ThumbnailInfo.h"
+#include "EditorFramework/ThumbnailInfo.h"
 #include "SceneThumbnailInfo.generated.h"
 
 

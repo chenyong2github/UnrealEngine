@@ -161,7 +161,7 @@ private:
 
 
 #if WITH_KISSFFT
-#include "tools/kiss_fftnd.h"
+#include "ThirdParty/Kiss_FFT/kiss_fft129/tools/kiss_fftnd.h"
 #endif
 
 template<typename DataType>

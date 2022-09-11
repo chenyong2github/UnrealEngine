@@ -22,7 +22,7 @@
 #include "AdvancedPreviewScene.h"
 #include "SStaticMeshEditorViewport.h"
 
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
 #include "AI/Navigation/NavCollisionBase.h"
 #include "PhysicsEngine/BodySetup.h"

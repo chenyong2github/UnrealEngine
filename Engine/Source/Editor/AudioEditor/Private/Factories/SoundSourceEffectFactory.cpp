@@ -5,13 +5,13 @@
 #include "ClassViewerModule.h"
 #include "Containers/Array.h"
 #include "Containers/Set.h"
+#include "Factories/SoundFactoryUtility.h"
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/SoundEffectSource.h"
-#include "SoundFactoryUtility.h"
 #include "Templates/SharedPointer.h"
 
 class FFeedbackContext;

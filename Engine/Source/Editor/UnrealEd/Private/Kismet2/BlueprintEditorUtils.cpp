@@ -110,7 +110,7 @@
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Editor/Blutility/Public/IBlutilityModule.h"
+#include "IBlutilityModule.h"
 
 #include "Engine/InheritableComponentHandler.h"
 #include "LevelEditor.h"

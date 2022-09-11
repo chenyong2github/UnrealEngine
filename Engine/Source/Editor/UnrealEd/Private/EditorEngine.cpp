@@ -217,7 +217,7 @@
 
 #include "DynamicResolutionState.h"
 
-#include "Developer/HotReload/Public/IHotReload.h"
+#include "IHotReload.h"
 #include "EditorBuildUtils.h"
 #include "MaterialStatsCommon.h"
 #include "MaterialShaderQualitySettings.h"

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "AssetTypeActions_Base.h"
+#include "AssetTypeCategories.h"
 #include "Containers/Array.h"
-#include "Developer/AssetTools/Public/AssetTypeCategories.h"
 #include "HAL/Platform.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"

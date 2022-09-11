@@ -7,7 +7,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SLevelViewport.h"
-#include "Editor/UnrealEd/Public/SViewportToolBar.h"
+#include "SViewportToolBar.h"
 
 class ACameraActor;
 class FExtender;

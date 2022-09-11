@@ -15,7 +15,7 @@
 #include "IDetailsView.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"

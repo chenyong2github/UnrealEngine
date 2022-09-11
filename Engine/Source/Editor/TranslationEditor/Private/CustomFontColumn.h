@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "Editor/PropertyEditor/Private/UserInterface/PropertyTable/PropertyTableConstants.h"
+#include "UserInterface/PropertyTable/PropertyTableConstants.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/SlateDelegates.h"
 #include "HAL/PlatformCrt.h"

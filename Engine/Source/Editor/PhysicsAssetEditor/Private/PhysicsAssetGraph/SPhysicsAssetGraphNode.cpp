@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SPhysicsAssetGraphNode.h"
+#include "PhysicsAssetGraph/SPhysicsAssetGraphNode.h"
 
 #include "Containers/Array.h"
 #include "Delegates/Delegate.h"
@@ -14,7 +14,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
 #include "Misc/Optional.h"
-#include "PhysicsAssetGraphNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode.h"
 #include "SGraphPin.h"
 #include "SNodePanel.h"
 #include "SlotBase.h"

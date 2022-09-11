@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_TransformCurve.h"
+#include "AnimTimeline/AnimTimelineTrack_TransformCurve.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Styling/AppStyle.h"
@@ -11,7 +11,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
-#include "AnimModel_AnimSequenceBase.h"
+#include "AnimTimeline/AnimModel_AnimSequenceBase.h"
 #include "AnimTimelineClipboard.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_TransformCurve"

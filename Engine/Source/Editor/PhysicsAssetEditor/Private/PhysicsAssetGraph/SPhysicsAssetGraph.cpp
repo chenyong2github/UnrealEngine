@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SPhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/SPhysicsAssetGraph.h"
 #include "GraphEditor.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 
-#include "Editor/UnrealEd/Public/ObjectTools.h"
+#include "ObjectTools.h"
 #include "Engine/Selection.h"
-#include "PhysicsAssetGraph.h"
-#include "PhysicsAssetGraphSchema.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphSchema.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Algo/Transform.h"
-#include "PhysicsAssetGraphNode_Bone.h"
-#include "PhysicsAssetGraphNode_Constraint.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Bone.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Constraint.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "ISkeletonTree.h"

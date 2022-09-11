@@ -5,7 +5,7 @@
 #include "HAL/Platform.h"
 #include "Layout/Margin.h"
 #include "Misc/Attribute.h"
-#include "PropertyEditor.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "PropertyHandle.h"
 #include "SResetToDefaultPropertyEditor.h"
 #include "SlotBase.h"

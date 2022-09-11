@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_Attribute.h"
+#include "AnimTimeline/AnimTimelineTrack_Attribute.h"
 #include "AnimTimeline/SAnimOutlinerItem.h"
 #include "Animation/AnimData/AnimDataModel.h"
 

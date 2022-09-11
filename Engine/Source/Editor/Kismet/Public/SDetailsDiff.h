@@ -2,11 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DiffUtils.h"
+#include "IAssetTypeActions.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SCompoundWidget.h"
-#include "DiffUtils.h"
-#include "Developer/AssetTools/Public/IAssetTypeActions.h"
 
 class FSpawnTabArgs;
 class FTabManager;

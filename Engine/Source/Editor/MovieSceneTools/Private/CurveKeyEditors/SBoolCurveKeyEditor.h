@@ -4,7 +4,7 @@
 
 #include "Channels/MovieSceneBoolChannel.h"
 #include "HAL/Platform.h"
-#include "SequencerKeyEditor.h"
+#include "CurveKeyEditors/SequencerKeyEditor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 

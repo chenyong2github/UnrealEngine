@@ -60,14 +60,7 @@ public class MainFrame : ModuleRules
 				"Settings",
 				"SourceCodeAccess",
 				"LocalizationDashboard", // not required but causes circular depends issues on Linux/Mac
-			}
-		);
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/MainFrame/Private",
-				"Editor/MainFrame/Private/Frame",
-				"Editor/MainFrame/Private/Menus",
+				"HotReload",
 			}
 		);
 

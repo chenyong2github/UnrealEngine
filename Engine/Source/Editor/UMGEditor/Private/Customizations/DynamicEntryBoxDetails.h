@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DynamicEntryWidgetDetailsBase.h"
+#include "Customizations/DynamicEntryWidgetDetailsBase.h"
 
 class IPropertyHandle;
 class UDynamicEntryBoxBase;

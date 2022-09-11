@@ -5,7 +5,7 @@
 #include "PhysicsAssetEditorSharedData.h"
 #include "IPhysicsAssetEditor.h"
 #include "PhysicsAssetEditor.h"
-#include "PhysicsAssetGraphPanelNodeFactory.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphPanelNodeFactory.h"
 #include "EdGraphUtilities.h"
 #include "PhysicsAssetEditorEditMode.h"
 

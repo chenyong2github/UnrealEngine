@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Editor/LevelEditor/Private/SLevelEditor.h"
+#include "SLevelEditor.h"
 
 class UToolMenu;
 

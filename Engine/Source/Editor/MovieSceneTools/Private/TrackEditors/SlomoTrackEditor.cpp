@@ -4,7 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Delegates/Delegate.h"
-#include "FloatPropertyTrackEditor.h"
+#include "TrackEditors/PropertyTrackEditors/FloatPropertyTrackEditor.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencer.h"

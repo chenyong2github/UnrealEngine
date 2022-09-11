@@ -80,6 +80,7 @@ public class Sequencer : ModuleRules
 				"SceneOutliner",
 				"CurveEditor",
 				"Analytics",
+				"SequencerWidgets"
 				}
 			);
 

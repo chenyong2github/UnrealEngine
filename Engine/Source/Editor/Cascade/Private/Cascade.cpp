@@ -53,8 +53,8 @@
 #include "Particles/ParticleSpriteEmitter.h"
 #include "Particles/ParticleModuleRequired.h"
 
-#include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "AnalyticsEventAttribute.h"
+#include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Notifications/NotificationManager.h"

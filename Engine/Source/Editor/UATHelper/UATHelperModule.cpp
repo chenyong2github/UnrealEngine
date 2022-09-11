@@ -21,7 +21,7 @@
 #include "IUATHelperModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
-#include "Editor/MainFrame/Public/Interfaces/IMainFrameModule.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 
 #include "Framework/Notifications/NotificationManager.h"

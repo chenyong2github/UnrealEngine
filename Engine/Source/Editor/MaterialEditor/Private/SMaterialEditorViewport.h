@@ -12,7 +12,7 @@
 #include "EditorViewportClient.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "SEditorViewport.h"
-#include "Editor/UnrealEd/Public/SCommonEditorViewportToolbarBase.h"
+#include "SCommonEditorViewportToolbarBase.h"
 #include "MaterialEditorSettings.h"
 #include "Animation/CurveSequence.h"
 

@@ -9,7 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/NumericTypeInterface.h"
-#include "Editor/SequencerCore/Public/ISequencerInputHandler.h"
+#include "ISequencerInputHandler.h"
 #include "IMovieScenePlayer.h"
 #include "MovieScene.h"
 

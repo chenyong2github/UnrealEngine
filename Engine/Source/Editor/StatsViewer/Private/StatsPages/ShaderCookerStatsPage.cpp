@@ -9,7 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "RHIDefinitions.h"
 #include "RHIShaderFormatDefinitions.inl"
-#include "ShaderCookerStatsPage.h"
+#include "StatsPages/ShaderCookerStatsPage.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"

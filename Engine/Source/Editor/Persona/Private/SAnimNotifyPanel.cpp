@@ -46,7 +46,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "IAnimationEditor.h"
 #include "IAnimationSequenceBrowser.h"
-#include "AnimTimelineTrack_NotifiesPanel.h"
+#include "AnimTimeline/AnimTimelineTrack_NotifiesPanel.h"
 #include "PersonaUtils.h"
 
 // AnimNotify Drawing

@@ -2,7 +2,7 @@
 
 #include "SDetailCategoryTableRow.h"
 
-#include "PropertyEditorConstants.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "SDetailExpanderArrow.h"
 #include "SDetailRowIndent.h"
 #include "Styling/StyleColors.h"

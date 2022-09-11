@@ -17,7 +17,7 @@
 #include "Framework/Commands/Commands.h"
 #include "SAnimTimingPanel.h"
 #include "EditorUndoClient.h"
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 #include "Containers/ArrayView.h"
 
 class FSlateWindowElementList;

@@ -6,6 +6,12 @@ public class LevelEditor : ModuleRules
 {
 	public LevelEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.AddRange(
+			new string[] {
+					"Editor/SceneOutliner/Private",
+			}
+		);
+
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
@@ -18,6 +24,10 @@ public class LevelEditor : ModuleRules
                 "Persona",
 				"DataLayerEditor",
 				"MergeActors",
+				"Layers",
+				"WorldBrowser",
+				"NewLevelDialog",
+				"LocalizationDashboard",
 			}
 		);
 

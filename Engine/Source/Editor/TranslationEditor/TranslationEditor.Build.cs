@@ -6,6 +6,12 @@ public class TranslationEditor : ModuleRules
 {
 	public TranslationEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"Editor/PropertyEditor/Private",
+			}
+		);
+
 		PublicIncludePathModuleNames.Add("LevelEditor");
 		PublicIncludePathModuleNames.Add("WorkspaceMenuStructure");
         

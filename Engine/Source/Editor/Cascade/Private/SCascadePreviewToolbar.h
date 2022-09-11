@@ -7,7 +7,7 @@
    SCascadePreviewViewportToolBar
 -----------------------------------------------------------------------------*/
 
-#include "Editor/UnrealEd/Public/SViewportToolBar.h"
+#include "SViewportToolBar.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 

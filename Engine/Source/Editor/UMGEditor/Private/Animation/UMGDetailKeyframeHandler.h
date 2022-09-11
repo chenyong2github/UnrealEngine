@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WidgetBlueprintEditor.h"
-#include "Editor/PropertyEditor/Public/IDetailKeyframeHandler.h"
+#include "IDetailKeyframeHandler.h"
 
 class IPropertyHandle;
 

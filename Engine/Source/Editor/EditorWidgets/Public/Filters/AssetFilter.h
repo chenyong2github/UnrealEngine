@@ -5,8 +5,8 @@
 #include "Filters/FilterBase.h"
 
 #include "Internationalization/Text.h"
-#include "Core/Public/Math/Color.h"
-#include "Core/Public/UObject/NameTypes.h"
+#include "Math/Color.h"
+#include "UObject/NameTypes.h"
 
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/IAssetRegistry.h"

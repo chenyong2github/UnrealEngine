@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BlueprintEditorProjectSettingsCustomization.h"
+#include "Settings/BlueprintEditorProjectSettingsCustomization.h"
 #include "BlueprintEditorSettings.h"
 #include "Settings/BlueprintEditorProjectSettings.h"
 #include "PropertyHandle.h"

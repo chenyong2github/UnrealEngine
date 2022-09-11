@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsAssetGraphSummoner.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphSummoner.h"
 #include "IDocumentation.h"
 #include "PhysicsAssetEditor.h"
-#include "SPhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/SPhysicsAssetGraph.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Styling/AppStyle.h"
 

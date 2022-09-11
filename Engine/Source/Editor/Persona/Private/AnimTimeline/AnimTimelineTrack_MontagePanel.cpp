@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_MontagePanel.h"
+#include "AnimTimeline/AnimTimelineTrack_MontagePanel.h"
 #include "SAnimMontagePanel.h"
 #include "Animation/AnimComposite.h"
 #include "PersonaUtils.h"
@@ -9,7 +9,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "AnimModel_AnimMontage.h"
+#include "AnimTimeline/AnimModel_AnimMontage.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_MontagePanel"
 

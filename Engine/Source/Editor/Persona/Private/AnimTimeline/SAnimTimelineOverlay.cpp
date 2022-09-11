@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimTimelineOverlay.h"
+#include "AnimTimeline/SAnimTimelineOverlay.h"
 
-#include "AnimTimeSliderController.h"
+#include "AnimTimeline/AnimTimeSliderController.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/Optional.h"
 

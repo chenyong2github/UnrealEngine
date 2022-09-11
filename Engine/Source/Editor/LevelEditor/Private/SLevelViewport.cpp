@@ -79,7 +79,7 @@
 #include "VirtualShadowMapVisualizationMenuCommands.h"
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
-#include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
+#include "WorldBrowserModule.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenus.h"
 #include "Bookmarks/IBookmarkTypeTools.h"

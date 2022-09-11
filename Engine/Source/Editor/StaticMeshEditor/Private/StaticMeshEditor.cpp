@@ -28,12 +28,12 @@
 
 #include "StaticMeshResources.h"
 #include "BusyCursor.h"
-#include "Editor/UnrealEd/Private/GeomFitUtils.h"
+#include "GeomFitUtils.h"
 #include "EditorViewportCommands.h"
 #include "ConvexDecompTool.h"
 
 #include "MeshMergeModule.h"
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Commands/GenericCommands.h"

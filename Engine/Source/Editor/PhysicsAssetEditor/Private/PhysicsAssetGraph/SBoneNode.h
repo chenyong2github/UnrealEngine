@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SPhysicsAssetGraphNode.h"
+#include "PhysicsAssetGraph/SPhysicsAssetGraphNode.h"
 
 class SBoneNode : public SPhysicsAssetGraphNode
 {

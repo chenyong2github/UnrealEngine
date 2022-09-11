@@ -11,6 +11,7 @@ public class StructViewer : ModuleRules
 				"AssetRegistry",
                 "AssetTools",
 				"EditorWidgets",
+				"WorkspaceMenuStructure",
 			}
 		);
 

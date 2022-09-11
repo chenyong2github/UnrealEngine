@@ -18,6 +18,7 @@ public class NaniteTools : ModuleRules
 				"AssetRegistry",
                 "AssetTools",
 				"EditorWidgets",
+				"WorkspaceMenuStructure",
 			}
 		);
 

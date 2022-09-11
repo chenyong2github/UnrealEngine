@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimTimelineTrack_PerBoneAttributes.h"
+#include "AnimTimeline/AnimTimelineTrack_PerBoneAttributes.h"
 #include "Framework/Application/SlateApplication.h"
 #include "AnimTimeline/SAnimOutlinerItem.h"
 

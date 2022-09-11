@@ -23,8 +23,8 @@
 #include "Factories/AnimMontageFactory.h"
 #include "Editor.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "AnimModel_AnimMontage.h"
-#include "SAnimTimeline.h"
+#include "AnimTimeline/AnimModel_AnimMontage.h"
+#include "AnimTimeline/SAnimTimeline.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceEditor"
 

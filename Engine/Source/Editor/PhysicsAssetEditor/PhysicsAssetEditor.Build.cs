@@ -13,12 +13,6 @@ public class PhysicsAssetEditor : ModuleRules
             }
         );
 
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Editor/PhysicsAssetEditor/Private/PhysicsAssetGraph",
-            }
-        );
-
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

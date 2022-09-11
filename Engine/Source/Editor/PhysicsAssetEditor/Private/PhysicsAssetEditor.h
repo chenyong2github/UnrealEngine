@@ -17,7 +17,7 @@
 #include "EditorUndoClient.h"
 #include "Toolkits/IToolkitHost.h"
 #include "IPhysicsAssetEditor.h"
-#include "Editor/PhysicsAssetEditor/Private/PhysicsAssetEditorSharedData.h"
+#include "PhysicsAssetEditorSharedData.h"
 #include "BodySetupEnums.h"
 #include "Containers/ArrayView.h"
 #include "GraphEditor.h"

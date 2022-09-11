@@ -2,9 +2,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HLODOutlinerDragDrop.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/SWidget.h"
-#include "Editor/HierarchicalLODOutliner/Private/HLODOutlinerDragDrop.h"
 
 class UToolMenu;
 

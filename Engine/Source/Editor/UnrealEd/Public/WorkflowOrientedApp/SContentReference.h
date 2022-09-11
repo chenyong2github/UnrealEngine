@@ -11,7 +11,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/SlateDelegates.h"
-#include "Editor/ContentBrowser/Public/IContentBrowserSingleton.h"
+#include "IContentBrowserSingleton.h"
 
 class SBorder;
 class SComboButton;

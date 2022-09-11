@@ -7,9 +7,9 @@
 #include "Styling/SlateColor.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEdMode.h"
+#include "LandscapeEdMode.h"
 #include "PropertyHandle.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_Base.h"
+#include "LandscapeEditorDetailCustomization_Base.h"
 
 class FLandscapeEditorStructCustomization_FLandscapeImportLayer : public FLandscapeEditorStructCustomization_Base
 {

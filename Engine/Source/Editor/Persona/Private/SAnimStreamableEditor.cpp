@@ -3,8 +3,8 @@
 
 #include "SAnimStreamableEditor.h"
 #include "IDocumentation.h"
-#include "AnimModel_AnimSequenceBase.h"
-#include "SAnimTimeline.h"
+#include "AnimTimeline/AnimModel_AnimSequenceBase.h"
+#include "AnimTimeline/SAnimTimeline.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SAnimStreamableEditor

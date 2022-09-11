@@ -10,7 +10,7 @@
 #include "Internationalization/Text.h"
 #include "Layout/Children.h"
 #include "Misc/CString.h"
-#include "PropertyEditor.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 #include "PropertyNode.h"

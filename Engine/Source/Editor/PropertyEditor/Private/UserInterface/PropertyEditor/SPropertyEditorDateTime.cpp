@@ -5,7 +5,7 @@
 #include "Delegates/Delegate.h"
 #include "Internationalization/Text.h"
 #include "Layout/Children.h"
-#include "PropertyEditor.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "PropertyHandle.h"
 #include "UObject/Field.h"
 #include "UObject/UnrealType.h"

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimModel_AnimComposite.h"
+#include "AnimTimeline/AnimModel_AnimComposite.h"
 #include "Animation/AnimComposite.h"
-#include "AnimTimelineTrack.h"
-#include "AnimTimelineTrack_CompositePanel.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
+#include "AnimTimeline/AnimTimelineTrack_CompositePanel.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
 #include "IPersonaPreviewScene.h"

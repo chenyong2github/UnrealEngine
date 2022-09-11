@@ -3,10 +3,10 @@
 
 #include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
+#include "IAssetTypeActions.h"
 #include "Input/Reply.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/SToolTip.h"
-#include "Developer/AssetTools/Public/IAssetTypeActions.h"
 #include "Containers/ArrayView.h"
 #include "ContentBrowserDataLegacyBridge.h"
 

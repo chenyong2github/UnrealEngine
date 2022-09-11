@@ -295,9 +295,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 
 #include "MRUList.h"
 
-
-//#include "../Private/GeomFitUtils.h"
-
 #include "UnrealEdMisc.h"
 #include "EditorDirectories.h"
 #include "Utils.h"

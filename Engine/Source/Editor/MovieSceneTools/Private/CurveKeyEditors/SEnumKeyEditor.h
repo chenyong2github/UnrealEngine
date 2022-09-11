@@ -4,7 +4,7 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SequencerKeyEditor.h"
+#include "CurveKeyEditors/SequencerKeyEditor.h"
 #include "Channels/MovieSceneByteChannel.h"
 
 class SEnumCurveKeyEditor : public SCompoundWidget

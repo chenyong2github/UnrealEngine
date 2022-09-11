@@ -3,6 +3,7 @@
 #include "SGraphNode.h"
 
 #include "BlueprintEditorSettings.h"
+#include "BoneDragDropOp.h"
 #include "Containers/EnumAsByte.h"
 #include "Delegates/Delegate.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
@@ -13,7 +14,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
-#include "Editor/Persona/Public/BoneDragDropOp.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Text/TextLayout.h"
 #include "GameFramework/Actor.h"

@@ -7,10 +7,10 @@
 #include "ScopedTransaction.h"
 #include "Styling/SlateTypes.h"
 #include "Editor.h"
-#include "SequencerKeyEditor.h"
+#include "CurveKeyEditors/SequencerKeyEditor.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Styling/AppStyle.h"
-#include "SequencerKeyEditor.h"
+#include "CurveKeyEditors/SequencerKeyEditor.h"
 
 #define LOCTEXT_NAMESPACE "NumericKeyEditor"
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CollectionManagerTypes.h"
+#include "CollectionViewTypes.h"
 #include "Containers/Array.h"
 #include "Containers/BitArray.h"
 #include "Containers/Map.h"
@@ -10,7 +11,6 @@
 #include "Containers/SparseArray.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
-#include "Editor/ContentBrowser/Private/CollectionViewTypes.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"

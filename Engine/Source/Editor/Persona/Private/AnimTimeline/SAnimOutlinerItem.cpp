@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimOutlinerItem.h"
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/SAnimOutlinerItem.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 #include "Widgets/Text/STextBlock.h"
-#include "SAnimOutliner.h"
+#include "AnimTimeline/SAnimOutliner.h"
 #include "Widgets/SOverlay.h"
-#include "SAnimTrackResizeArea.h"
+#include "AnimTimeline/SAnimTrackResizeArea.h"
 
 SAnimOutlinerItem::~SAnimOutlinerItem()
 {

@@ -19,6 +19,11 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"Analytics",
 					"OutputLog",
+			    }
+			);
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
 					"MessageLog",
 				}
 			);

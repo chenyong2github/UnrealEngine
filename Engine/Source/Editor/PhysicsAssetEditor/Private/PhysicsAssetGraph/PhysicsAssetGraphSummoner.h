@@ -4,7 +4,7 @@
 
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "ISkeletonTree.h"
-#include "SPhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/SPhysicsAssetGraph.h"
 
 class UPhysicsAsset;
 class IEditableSkeleton;

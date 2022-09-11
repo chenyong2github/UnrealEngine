@@ -9,7 +9,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "SourceCodeNavigation.h"
-#include "Developer/HotReload/Public/IHotReload.h"
+#include "IHotReload.h"
 #include "EngineLogs.h"
 #include "Engine/Blueprint.h"
 #include "IMessageLogListing.h"

@@ -10,7 +10,7 @@
 #include "IDetailDragDropHandler.h"
 #include "IDetailPropertyExtensionHandler.h"
 #include "ObjectPropertyNode.h"
-#include "PropertyEditorConstants.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandleImpl.h"
 #include "SConstrainedBox.h"

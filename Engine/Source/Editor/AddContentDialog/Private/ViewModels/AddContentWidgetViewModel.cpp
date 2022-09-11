@@ -2,7 +2,6 @@
 
 #include "ViewModels/AddContentWidgetViewModel.h"
 
-#include "CategoryViewModel.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
 #include "ContentSourceProviderManager.h"
@@ -11,6 +10,7 @@
 #include "IContentSource.h"
 #include "IContentSourceProvider.h"
 #include "Modules/ModuleManager.h"
+#include "ViewModels/CategoryViewModel.h"
 #include "ViewModels/ContentSourceViewModel.h"
 
 

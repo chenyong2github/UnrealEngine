@@ -34,13 +34,5 @@ public class StatsViewer : ModuleRules
 				"PropertyEditor"
 			}
 		);
-
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Editor/StatsViewer/Private",
-				"Editor/StatsViewer/Private/StatsPages",
-                "Editor/StatsViewer/Private/StatsEntries"
-			}
-		);
 	}
 }

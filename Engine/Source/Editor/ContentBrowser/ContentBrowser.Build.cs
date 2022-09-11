@@ -61,6 +61,8 @@ public class ContentBrowser : ModuleRules
 		
 		PublicIncludePathModuleNames.AddRange(
             new string[] {
+				"AssetTools",
+				"CollectionManager",
 				"ContentBrowserData",
             }
         );

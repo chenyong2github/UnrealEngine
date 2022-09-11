@@ -9,7 +9,7 @@
 #include "IContentBrowserSingleton.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "SPaletteViewModel.h"
+#include "Palette/SPaletteViewModel.h"
 
 class FWidgetTemplate;
 class FWidgetBlueprintEditor;

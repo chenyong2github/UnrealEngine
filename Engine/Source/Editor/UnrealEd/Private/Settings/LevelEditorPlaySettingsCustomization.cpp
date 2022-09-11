@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelEditorPlaySettingsCustomization.h"
+#include "Settings/LevelEditorPlaySettingsCustomization.h"
 
 #include "Misc/Attribute.h"
 #include "Layout/Margin.h"
@@ -23,7 +23,7 @@
 #include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Runtime/Engine/Classes/Sound/AudioSettings.h"
+#include "Sound/AudioSettings.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "ToolMenus.h"

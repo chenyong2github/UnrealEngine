@@ -21,7 +21,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
-#include "TransformPropertySection.h"
+#include "Sections/TransformPropertySection.h"
 #include "SequencerUtilities.h"
 #include "MovieSceneToolHelpers.h"
 #include "Animation/AnimData/AnimDataModel.h"

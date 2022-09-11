@@ -2,10 +2,10 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-#include "Editor/HierarchicalLODOutliner/Private/ITreeItem.h"
 #include "Engine/LODActor.h"
 #include "HLODOutlinerDragDrop.h"
 #include "Internationalization/Text.h"
+#include "ITreeItem.h"
 #include "Styling/SlateColor.h"
 #include "Templates/SharedPointer.h"
 #include "TreeItemID.h"

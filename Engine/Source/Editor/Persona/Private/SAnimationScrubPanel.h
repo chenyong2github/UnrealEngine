@@ -8,7 +8,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
 #include "SScrubWidget.h"
-#include "Editor/EditorWidgets/Public/ITransportControl.h"
+#include "ITransportControl.h"
 
 class SScrubControlPanel;
 class UAnimationAsset;

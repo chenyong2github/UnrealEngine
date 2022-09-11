@@ -43,7 +43,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/GenericApplication.h"
-#include "GraphEditor/Private/GraphActionNode.h"
+#include "GraphActionNode.h"
 #include "GraphEditorActions.h"
 #include "GraphEditorDragDropAction.h"
 #include "HAL/PlatformApplicationMisc.h"

@@ -6,6 +6,12 @@ public class MaterialEditor : ModuleRules
 {
 	public MaterialEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"Editor/GraphEditor/Private",
+			}
+		);
+
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] 
 			{
@@ -13,7 +19,8 @@ public class MaterialEditor : ModuleRules
 				"AssetTools",
 				"Kismet",
 				"EditorWidgets",
-            }
+				"MessageLog",
+			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(

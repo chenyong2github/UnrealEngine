@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PhysicsAssetGraph.h"
-#include "PhysicsAssetGraphNode.h"
-#include "PhysicsAssetGraphSchema.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraph.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphSchema.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "IEditableSkeleton.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
-#include "PhysicsAssetGraphNode_Bone.h"
-#include "PhysicsAssetGraphNode_Constraint.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Bone.h"
+#include "PhysicsAssetGraph/PhysicsAssetGraphNode_Constraint.h"
 #include "Algo/Transform.h"
 #include "BoneProxy.h"
 

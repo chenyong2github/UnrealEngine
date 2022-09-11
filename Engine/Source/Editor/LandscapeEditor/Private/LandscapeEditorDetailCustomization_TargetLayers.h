@@ -11,12 +11,12 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEdMode.h"
+#include "LandscapeEdMode.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IDetailCustomization.h"
 #include "AssetThumbnail.h"
 #include "Framework/SlateDelegates.h"
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_Base.h"
+#include "LandscapeEditorDetailCustomization_Base.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;

@@ -42,7 +42,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "JsonObjectConverter.h"
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "Interfaces/IAnalyticsProvider.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Input/SFilePathPicker.h"

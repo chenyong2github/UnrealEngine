@@ -16,13 +16,13 @@
 #include "Engine/StaticMeshSocket.h"
 #include "UnrealEdGlobals.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Editor/StaticMeshEditor/Public/IStaticMeshEditor.h"
+#include "IStaticMeshEditor.h"
 
-#include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
+#include "PropertyEditorModule.h"
 
 #include "ScopedTransaction.h"
 
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Framework/Commands/GenericCommands.h"

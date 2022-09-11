@@ -36,7 +36,7 @@
 
 
 #include "AISystem.h"
-#include "Runtime/Slate/Public/SlateSettings.h"
+#include "SlateSettings.h"
 
 #define LOCTEXT_NAMESPACE "FProjectSettingsViewerModule"
 

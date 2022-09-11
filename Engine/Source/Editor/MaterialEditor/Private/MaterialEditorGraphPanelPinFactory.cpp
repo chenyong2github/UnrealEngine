@@ -4,7 +4,7 @@
 
 #include "Delegates/Delegate.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Editor/GraphEditor/Private/KismetPins/SGraphPinEnum.h"
+#include "KismetPins/SGraphPinEnum.h"
 #include "HAL/PlatformCrt.h"
 #include "KismetPins/SGraphPinBool.h"
 #include "KismetPins/SGraphPinColor.h"

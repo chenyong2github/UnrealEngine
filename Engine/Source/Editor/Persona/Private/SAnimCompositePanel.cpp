@@ -8,7 +8,7 @@
 #include "SAnimSegmentsPanel.h"
 #include "SAnimCompositeEditor.h"
 #include "Widgets/Layout/SExpandableArea.h"
-#include "AnimModel.h"
+#include "AnimTimeline/AnimModel.h"
 #include "AssetToolsModule.h"
 #include "IAssetTypeActions.h"
 #include "Animation/AnimSequence.h"

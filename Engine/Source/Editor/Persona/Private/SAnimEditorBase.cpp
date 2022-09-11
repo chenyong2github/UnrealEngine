@@ -12,8 +12,8 @@
 
 #include "AnimPreviewInstance.h"
 #include "Animation/BlendSpace.h"
-#include "AnimModel.h"
-#include "SAnimTimeline.h"
+#include "AnimTimeline/AnimModel.h"
+#include "AnimTimeline/SAnimTimeline.h"
 
 #define LOCTEXT_NAMESPACE "AnimEditorBase"
 

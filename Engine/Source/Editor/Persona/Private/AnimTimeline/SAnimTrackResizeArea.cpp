@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SAnimTrackResizeArea.h"
-#include "AnimTimelineTrack.h"
+#include "AnimTimeline/SAnimTrackResizeArea.h"
+#include "AnimTimeline/AnimTimelineTrack.h"
 #include "Widgets/Layout/SBox.h"
 
 void SAnimTrackResizeArea::Construct(const FArguments& InArgs, TWeakPtr<FAnimTimelineTrack> InTrack)

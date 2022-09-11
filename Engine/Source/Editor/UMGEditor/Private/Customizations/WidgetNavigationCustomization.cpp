@@ -12,7 +12,7 @@
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "ScopedTransaction.h"
-#include "SFunctionSelector.h"
+#include "Details/SFunctionSelector.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Blueprint/WidgetTree.h"
 #include "WidgetBlueprint.h"

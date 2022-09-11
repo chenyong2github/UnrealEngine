@@ -8,7 +8,7 @@
 #include "Layout/Children.h"
 #include "Layout/Margin.h"
 #include "Misc/Attribute.h"
-#include "PropertyEditor.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 #include "UObject/UnrealType.h"

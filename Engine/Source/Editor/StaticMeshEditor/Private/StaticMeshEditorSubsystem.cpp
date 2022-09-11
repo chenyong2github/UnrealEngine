@@ -36,7 +36,7 @@
 #include "Misc/FeedbackContext.h"
 
 #include "UnrealEdGlobals.h"
-#include "UnrealEd/Private/GeomFitUtils.h"
+#include "GeomFitUtils.h"
 #include "ConvexDecompTool.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Subsystems/UnrealEditorSubsystem.h"

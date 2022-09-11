@@ -6,20 +6,19 @@ public class ConfigEditor : ModuleRules
 {
 	public ConfigEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/ConfigEditor/Private",
-				"Editor/ConfigEditor/Private/PropertyVisualization",
-			}
-		);
-		
 		PublicIncludePaths.AddRange(
 			new string[] {
 				"Editor/ConfigEditor/Public",
 				"Editor/ConfigEditor/Public/PropertyVisualization",
 			}
 		);
-	
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"PropertyEditor",
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

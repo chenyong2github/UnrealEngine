@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AnimTimelineTrack_Curve.h"
+#include "AnimTimeline/AnimTimelineTrack_Curve.h"
 
 struct FVectorCurve;
 class SBorder;

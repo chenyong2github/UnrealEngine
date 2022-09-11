@@ -14,7 +14,7 @@
 #include "Tests/AutomationCommon.h"
 #include "Tests/AutomationEditorCommon.h"
 
-#include "Editor/LandscapeEditor/Private/LandscapeEditorDetailCustomization_NewLandscape.h"
+#include "LandscapeEditorDetailCustomization_NewLandscape.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

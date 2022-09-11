@@ -6,13 +6,13 @@
 #include "EdMode.h"
 #include "EditorModes.h"
 
-#include "Editor/PlacementMode/Public/IPlacementModeModule.h"
-#include "Editor/LandscapeEditor/Public/LandscapeEditorModule.h"
-#include "Editor/MeshPaint/Public/MeshPaintModule.h"
-#include "Editor/ActorPickerMode/Public/ActorPickerMode.h"
-#include "Editor/SceneDepthPickerMode/Public/SceneDepthPickerMode.h"
-#include "Editor/FoliageEdit/Public/FoliageEditModule.h"
-#include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
+#include "IPlacementModeModule.h"
+#include "LandscapeEditorModule.h"
+#include "MeshPaintModule.h"
+#include "ActorPickerMode.h"
+#include "SceneDepthPickerMode.h"
+#include "FoliageEditModule.h"
+#include "VirtualTexturingEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 FEditorModeFactory::FEditorModeFactory(const FEditorModeInfo& InModeInfo)

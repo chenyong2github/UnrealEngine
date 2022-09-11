@@ -38,8 +38,8 @@
 #include "EditorDirectories.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PropertyEditorModule.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Widgets/Docking/SDockTab.h"
 

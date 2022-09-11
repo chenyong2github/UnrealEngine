@@ -38,7 +38,7 @@
 #include "Framework/Commands/Commands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Developer/DerivedDataCache/Public/DerivedDataCacheInterface.h"
+#include "DerivedDataCacheInterface.h"
 #include "Misc/MonitoredProcess.h"
 #include "CookerSettings.h"
 #include "UObject/UObjectIterator.h"

@@ -3,7 +3,6 @@
 #include "ViewModels/ContentSourceViewModel.h"
 
 #include "Brushes/SlateDynamicImageBrush.h"
-#include "CategoryViewModel.h"
 #include "Containers/StringView.h"
 #include "HAL/PlatformCrt.h"
 #include "IContentSource.h"
@@ -14,6 +13,7 @@
 #include "Math/Vector2D.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/NameTypes.h"
+#include "ViewModels/CategoryViewModel.h"
 
 struct FSlateBrush;
 

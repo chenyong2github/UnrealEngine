@@ -7,8 +7,8 @@
 #include "SAnimNotifyPanel.h"
 #include "AnimPreviewInstance.h"
 #include "Editor.h"
-#include "AnimModel_AnimSequenceBase.h"
-#include "SAnimTimeline.h"
+#include "AnimTimeline/AnimModel_AnimSequenceBase.h"
+#include "AnimTimeline/SAnimTimeline.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceEditor"
 

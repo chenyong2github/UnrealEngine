@@ -6,7 +6,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "GraphEditorSettings.h"
 #include "K2Node_PromotableOperator.h"
-#include "SGraphNodeK2Sequence.h"
+#include "KismetNodes/SGraphNodeK2Sequence.h"
 #include "SGraphPin.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"

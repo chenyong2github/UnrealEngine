@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WidgetThumbnailCustomization.h"
+#include "Customizations/WidgetThumbnailCustomization.h"
 
 #include "DesktopPlatformModule.h"
 #include "DetailCategoryBuilder.h"

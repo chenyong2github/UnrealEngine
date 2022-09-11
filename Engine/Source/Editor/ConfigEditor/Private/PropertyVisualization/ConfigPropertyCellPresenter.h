@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-#include "Editor/PropertyEditor/Public/IPropertyTableCellPresenter.h"
 #include "Internationalization/Text.h"
+#include "IPropertyTableCellPresenter.h"
 #include "Templates/SharedPointer.h"
 
 class IPropertyHandle;
