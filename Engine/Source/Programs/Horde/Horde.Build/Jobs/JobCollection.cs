@@ -1447,7 +1447,7 @@ namespace Horde.Build.Jobs
 			JobStepBatchDocument?[] appendToBatches = new JobStepBatchDocument?[graph.Groups.Count];
 			foreach (JobStepBatchDocument batch in job.Batches)
 			{
-				if (batch.CanBeAppendedTo())
+				if (batch.CanBeAppendedTo() && batch.Steps.Count > 0)
 				{
 					INodeGroup group = graph.Groups[batch.GroupIdx];
 					INode firstNode = group.Nodes[batch.Steps[0].NodeIdx];
