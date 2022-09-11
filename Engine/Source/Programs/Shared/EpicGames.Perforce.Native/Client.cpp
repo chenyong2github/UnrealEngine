@@ -32,6 +32,7 @@ struct FSettings
 	const char* ServerAndPort;
 	const char* User;
 	const char* Password;
+	const char* Host;
 	const char* Client;
 	const char* AppName;
 	const char* AppVersion;
@@ -690,6 +691,10 @@ extern "C" NATIVE_API FClient* Client_Create(const FSettings* Settings, FWriteBu
 		if (Settings->Password != nullptr)
 		{
 			Client->ClientApi.SetPassword(Settings->Password);
+		}
+		if (Settings->Host != nullptr)
+		{
+			Client->ClientApi.SetHost(Settings->Host);
 		}
 		if (Settings->Client != nullptr)
 		{
