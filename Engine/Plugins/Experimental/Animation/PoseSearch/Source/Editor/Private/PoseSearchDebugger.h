@@ -222,9 +222,9 @@ private:
 	/** Sorts the database by the current sort predicate, updating the view order */
 	void SortDatabaseRows();
 
-	void FilterDatabaseRows();
+	void PopulateViewRows();
 
-	void ComputeFilteredDatabaseRowsColors();
+	void ComputeViewRowsColors();
 
 	/** Acquires sort predicate for the given column */
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
@@ -244,12 +244,6 @@ private:
 
 	/** Row selection to update model view */
 	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
-
-	/** Informs the widget if asset filtering is enabled */
-	ECheckBoxState IsAssetFilterEnabled() const;
-
-	/** Updates the state of asset filtering */
-	void OnAssetFilterEnabledChanged(ECheckBoxState NewState);
 
 	/** Generates a database row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
@@ -312,9 +306,6 @@ private:
 
 	/** Text used to filter DatabaseView */
 	FText FilterText;
-
-	/** True if only asets that pass the asset group query are being displayed */
-	bool bAssetFilterEnabled = true;
 };
 
 /**

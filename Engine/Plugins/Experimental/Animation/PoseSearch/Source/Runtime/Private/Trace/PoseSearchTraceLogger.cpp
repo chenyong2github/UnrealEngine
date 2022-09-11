@@ -59,7 +59,6 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry)
 FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry)
 {
 	Ar << Entry.DatabaseId;
-	Ar << Entry.Flags;
 	Ar << Entry.PoseEntries;
 	return Ar;
 }

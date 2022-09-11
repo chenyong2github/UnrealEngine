@@ -249,7 +249,6 @@ public:
 	int32 PoseIdx = 0;
 	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
 	FTraceMotionMatchingStatePoseEntry::EFlags PoseEntryFlags = FTraceMotionMatchingStatePoseEntry::EFlags::None;
-	FTraceMotionMatchingStateDatabaseEntry::EFlags DatabaseEntryFlags = FTraceMotionMatchingStateDatabaseEntry::EFlags::None;
 	FString DatabaseName = "";
 	FString DatabasePath = "";
 	FString AssetName = "";
@@ -733,19 +732,15 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 {
 	CreateRows(State);
 
-	check(ActiveView.Rows.Num() == 1);
-	check(ContinuingPoseView.Rows.Num() == 1);
-
 	SortDatabaseRows();
-	FilterDatabaseRows();
 
+	PopulateViewRows();
 
 	//	if (bNewDatabase)
 	// 	{
 	// 		FilteredDatabaseView.ListView->ClearSelection();
 	// 	}
 
-	ComputeFilteredDatabaseRowsColors();
 }
 
 void SDebuggerDatabaseView::RefreshColumns()
@@ -818,7 +813,7 @@ void SDebuggerDatabaseView::OnColumnSortModeChanged(const EColumnSortPriority::T
 	SortColumn = ColumnId;
 	SortMode = InSortMode;
 	SortDatabaseRows();
-	FilterDatabaseRows();
+	PopulateViewRows();
 }
 
 void SDebuggerDatabaseView::OnColumnWidthChanged(const float NewWidth, FName ColumnId) const
@@ -831,9 +826,8 @@ void SDebuggerDatabaseView::OnColumnWidthChanged(const float NewWidth, FName Col
 void SDebuggerDatabaseView::OnFilterTextChanged(const FText& SearchText)
 {
 	FilterText = SearchText;
-	FilterDatabaseRows();
+	PopulateViewRows();
 }
-
 
 void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(
 	TSharedPtr<FDebuggerDatabaseRowData> Row, 
@@ -843,17 +837,6 @@ void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(
 	{
 		OnPoseSelectionChanged.ExecuteIfBound(Row->SourceDatabase.Get(), Row->PoseIdx, Row->AssetTime);
 	}
-}
-
-ECheckBoxState SDebuggerDatabaseView::IsAssetFilterEnabled() const
-{
-	return bAssetFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-void SDebuggerDatabaseView::OnAssetFilterEnabledChanged(ECheckBoxState NewState)
-{
-	bAssetFilterEnabled = NewState == ECheckBoxState::Checked;
-	FilterDatabaseRows();
 }
 
 void SDebuggerDatabaseView::SortDatabaseRows()
@@ -873,8 +856,10 @@ void SDebuggerDatabaseView::SortDatabaseRows()
 	}
 }
 
-void SDebuggerDatabaseView::FilterDatabaseRows()
+void SDebuggerDatabaseView::PopulateViewRows()
 {
+	ActiveView.Rows.Reset();
+	ContinuingPoseView.Rows.Reset();
 	FilteredDatabaseView.Rows.Empty();
 
 	FString FilterString = FilterText.ToString();
@@ -884,15 +869,25 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 
 	for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 	{
-		bool bPoseIsFromCurrentDb = EnumHasAnyFlags(UnfilteredRow->DatabaseEntryFlags, FTraceMotionMatchingStateDatabaseEntry::EFlags::CurrentDatabase);
-		bool bPassesAssetFilter = !bAssetFilterEnabled || !bPoseIsFromCurrentDb;
+		bool bTryAddToFilteredDatabaseViewRows = true;
+		if (EnumHasAnyFlags(UnfilteredRow->PoseEntryFlags, FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose))
+		{
+			ContinuingPoseView.Rows.Add(UnfilteredRow);
+			bTryAddToFilteredDatabaseViewRows = false;
+		}
 
-		if (bPassesAssetFilter)
+		if (EnumHasAnyFlags(UnfilteredRow->PoseEntryFlags, FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose))
+		{
+			ActiveView.Rows.Add(UnfilteredRow);
+			bTryAddToFilteredDatabaseViewRows = false;
+		}
+
+		if (bTryAddToFilteredDatabaseViewRows)
 		{
 			bool bPassesNameFilter = true;
 			if (bHasNameFilter)
 			{
-				bPassesNameFilter = Algo::AllOf(Tokens,[&](FString Token)
+				bPassesNameFilter = Algo::AllOf(Tokens, [&](FString Token)
 				{
 					return UnfilteredRow->AssetName.Contains(Token);
 				});
@@ -905,18 +900,16 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 		}
 	}
 
+	ComputeViewRowsColors();
+
+	ActiveView.ListView->RequestListRefresh();
+	ContinuingPoseView.ListView->RequestListRefresh();
 	FilteredDatabaseView.ListView->RequestListRefresh();
 }
 
 void SDebuggerDatabaseView::CreateRows(const FTraceMotionMatchingStateMessage& State)
 {
 	UnfilteredDatabaseRows.Reset();
-
-	ActiveView.Rows.Reset();
-	ActiveView.Rows.Add(MakeShared<FDebuggerDatabaseRowData>());
-
-	ContinuingPoseView.Rows.Reset();
-	ContinuingPoseView.Rows.Add(MakeShared<FDebuggerDatabaseRowData>());
 
 	for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 	{
@@ -938,7 +931,6 @@ void SDebuggerDatabaseView::CreateRows(const FTraceMotionMatchingStateMessage& S
 					Row->SourceDatabase = Database;
 					Row->DatabaseName = Database->GetName();
 					Row->DatabasePath = Database->GetPathName();
-					Row->DatabaseEntryFlags = DbEntry.Flags;
 					Row->PoseEntryFlags = PoseEntry.Flags;
 					Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
 					Row->AssetTime = Time;
@@ -971,30 +963,15 @@ void SDebuggerDatabaseView::CreateRows(const FTraceMotionMatchingStateMessage& S
 					{
 						checkNoEntry();
 					}
-
-					if (EnumHasAnyFlags(PoseEntry.Flags, FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose))
-					{
-						*ContinuingPoseView.Rows[0] = Row.Get();
-					}
-
-					if (EnumHasAnyFlags(PoseEntry.Flags, FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose))
-					{
-						*ActiveView.Rows[0] = Row.Get();
-					}
 				}
 			}
 		}
 	}
-
-	ActiveView.ListView->RequestListRefresh();
-	ContinuingPoseView.ListView->RequestListRefresh();
 }
 
-void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
+void SDebuggerDatabaseView::ComputeViewRowsColors()
 {
-	FChannelCostRange CostRange;
-	TArray<FChannelCostRange> ChannelCostRanges;
-	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : FilteredDatabaseView.Rows)
+	auto UpdateCostRanges = [](const TSharedRef<FDebuggerDatabaseRowData>& Row, FChannelCostRange& CostRange, TArray<FChannelCostRange>& ChannelCostRanges) -> void
 	{
 		const float Cost = Row->PoseCost.GetTotalCost();
 		CostRange.Min = FMath::Min(CostRange.Min, Cost);
@@ -1011,6 +988,21 @@ void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
 			ChannelCostRanges[ChannelIdx].Min = FMath::Min(ChannelCostRanges[ChannelIdx].Min, Row->PoseCost.ChannelCosts[ChannelIdx]);
 			ChannelCostRanges[ChannelIdx].Max = FMath::Max(ChannelCostRanges[ChannelIdx].Max, Row->PoseCost.ChannelCosts[ChannelIdx]);
 		}
+	};
+
+	FChannelCostRange CostRange;
+	TArray<FChannelCostRange> ChannelCostRanges;
+	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : FilteredDatabaseView.Rows)
+	{
+		UpdateCostRanges(Row, CostRange, ChannelCostRanges);
+	}
+	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : ActiveView.Rows)
+	{
+		UpdateCostRanges(Row, CostRange, ChannelCostRanges);
+	}
+	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : ContinuingPoseView.Rows)
+	{
+		UpdateCostRanges(Row, CostRange, ChannelCostRanges);
 	}
 
 	CostRange.Delta = CostRange.Max - CostRange.Min;
@@ -1033,15 +1025,13 @@ void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
 	{
 		Row->CalculateColors(CostRange, ChannelCostRanges);
 	}
-
-	if (!ActiveView.Rows.IsEmpty())
+	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : ActiveView.Rows)
 	{
-		ActiveView.Rows[0]->CalculateColors(CostRange, ChannelCostRanges);
+		Row->CalculateColors(CostRange, ChannelCostRanges);
 	}
-
-	if (!ContinuingPoseView.Rows.IsEmpty())
+	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : ContinuingPoseView.Rows)
 	{
-		ContinuingPoseView.Rows[0]->CalculateColors(CostRange, ChannelCostRanges);
+		Row->CalculateColors(CostRange, ChannelCostRanges);
 	}
 }
 
@@ -1351,18 +1341,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-				.AutoWidth()
 				.Padding(10, 5, 10, 5)
-				[
-					SNew(SCheckBox)
-					.IsChecked(this, &SDebuggerDatabaseView::IsAssetFilterEnabled)
-					.OnCheckStateChanged(this, &SDebuggerDatabaseView::OnAssetFilterEnabledChanged)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("PoseSearchDebuggerGroupFiltering", "Apply Group Filtering"))
-					]
-				]
-				+ SHorizontalBox::Slot()
 				[
 					SAssignNew(FilterBox, SSearchBox)
 					.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
@@ -1470,7 +1449,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reflection->SimAngularVelocity = State.SimAngularVelocity;
 	Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
 	Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
-
+	 
 	// Query pose
 	Reflection->QueryPoseVector = State.QueryVector;
 

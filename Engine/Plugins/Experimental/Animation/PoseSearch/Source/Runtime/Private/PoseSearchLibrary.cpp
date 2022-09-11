@@ -164,16 +164,15 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	Flags |= EMotionMatchingFlags::JumpedToPose;
 }
 
+#if UE_POSE_SEARCH_TRACE_ENABLED
 static void TraceMotionMatchingState(
 	const FAnimationUpdateContext& UpdateContext,
 	const UPoseSearchSearchableAsset* Searchable,
 	UE::PoseSearch::FSearchContext& SearchContext,
 	const FMotionMatchingState& MotionMatchingState,
 	const FTrajectorySampleRange& Trajectory,
-	const UE::PoseSearch::FSearchResult& LastResult
-)
+	const UE::PoseSearch::FSearchResult& LastResult)
 {
-#if UE_POSE_SEARCH_TRACE_ENABLED
 	using namespace UE::PoseSearch;
 
 	if (!IsTracing(UpdateContext))
@@ -189,8 +188,6 @@ static void TraceMotionMatchingState(
 	const float DeltaTime = UpdateContext.GetDeltaTime();
 
 	FTraceMotionMatchingState TraceState;
-	bool bContinuingPoseTraced = false;
-	bool bCurrentPoseTraced = false;
 	while (!SearchContext.BestCandidates.IsEmpty())
 	{
 		FSearchContext::FPoseCandidate PoseCandidate;
@@ -204,79 +201,44 @@ static void TraceMotionMatchingState(
 		PoseEntry.DbPoseIdx = PoseCandidate.PoseIdx;
 		PoseEntry.Cost = PoseCandidate.Cost;
 
-		if (PoseCandidate.Database == MotionMatchingState.CurrentSearchResult.Database)
-		{
-			DbEntry.Flags |= FTraceMotionMatchingStateDatabaseEntry::EFlags::CurrentDatabase;
-		}
-		
-		if (PoseCandidate == MotionMatchingState.CurrentSearchResult)
-		{
-			PoseEntry.Flags |= FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose;
-			bCurrentPoseTraced = true;
-		}
-
-		if (PoseCandidate == LastResult)
-		{
-			PoseEntry.Flags |= FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose;
-			bContinuingPoseTraced = true;
-		}
-
 		DbEntry.PoseEntries.Add(PoseEntry);
 	}
 
-	if (!bContinuingPoseTraced && LastResult.IsValid())
+	if (MotionMatchingState.CurrentSearchResult.ContinuingPoseCost.IsValid())
 	{
+		check(LastResult.IsValid());
 		const uint64 LastResultDbId = FTraceMotionMatchingState::GetIdFromObject(LastResult.Database.Get());
 
 		int32 LastResultDbIdx = TraceState.DatabaseEntries.AddUnique({LastResultDbId});
 		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[LastResultDbIdx];
 
-		int32 LastResultPoseEntryIdx = DbEntry.PoseEntries.AddUnique({LastResult.PoseIdx});
+		int32 LastResultPoseEntryIdx = DbEntry.PoseEntries.Add({LastResult.PoseIdx});
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[LastResultPoseEntryIdx];
 
-		PoseEntry.Cost = LastResult.PoseCost;
-		PoseEntry.Flags |= FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose;
-		bContinuingPoseTraced = true;
+		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.ContinuingPoseCost;
+		PoseEntry.Flags = FTraceMotionMatchingStatePoseEntry::EFlags::ContinuingPose;
 	}
 
-	if (!bCurrentPoseTraced && MotionMatchingState.CurrentSearchResult.IsValid())
+	if (MotionMatchingState.CurrentSearchResult.PoseCost.IsValid())
 	{
 		const uint64 CurrentResultDbId = FTraceMotionMatchingState::GetIdFromObject(MotionMatchingState.CurrentSearchResult.Database.Get());
 
 		int32 DbEntryIdx = TraceState.DatabaseEntries.AddUnique({CurrentResultDbId});
 		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
-		DbEntry.Flags |= FTraceMotionMatchingStateDatabaseEntry::EFlags::CurrentDatabase;
 
-		int32 PoseEntryIdx = DbEntry.PoseEntries.AddUnique({MotionMatchingState.CurrentSearchResult.PoseIdx});
+		int32 PoseEntryIdx = DbEntry.PoseEntries.Add({MotionMatchingState.CurrentSearchResult.PoseIdx});
 		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[PoseEntryIdx];
 
 		PoseEntry.Cost = MotionMatchingState.CurrentSearchResult.PoseCost;
-		PoseEntry.Flags |= FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose;
-		bCurrentPoseTraced = true;
+		PoseEntry.Flags = FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose;
+
+		TraceState.CurrentDbEntryIdx = DbEntryIdx;
+		TraceState.CurrentPoseEntryIdx = PoseEntryIdx;
 	}
-
-	TraceState.CurrentDbEntryIdx = TraceState.DatabaseEntries.IndexOfByPredicate(
-		[](const auto& DbEntry)
-		{
-			return EnumHasAnyFlags(DbEntry.Flags, FTraceMotionMatchingStateDatabaseEntry::EFlags::CurrentDatabase);
-		});
-
-	if (TraceState.CurrentDbEntryIdx != INDEX_NONE)
-	{
-		TraceState.CurrentPoseEntryIdx = TraceState.DatabaseEntries[TraceState.CurrentDbEntryIdx].PoseEntries.IndexOfByPredicate(
-			[](const auto& PoseEntry)
-			{
-				return EnumHasAnyFlags(PoseEntry.Flags, FTraceMotionMatchingStatePoseEntry::EFlags::CurrentPose);
-			});
-	}
-
-
-	float SimLinearVelocity, SimAngularVelocity, AnimLinearVelocity, AnimAngularVelocity;
 
 	if (DeltaTime > SMALL_NUMBER)
 	{
 		// simulation
-
 		int32 FirstIdx = 0;
 		const FTrajectorySample PrevSample = FTrajectorySampleRange::IterSampleTrajectory(
 			Trajectory.Samples,
@@ -290,22 +252,14 @@ static void TraceMotionMatchingState(
 
 		const FTransform SimDelta = CurrSample.Transform.GetRelativeTransform(PrevSample.Transform);
 
-		SimLinearVelocity = SimDelta.GetTranslation().Size() / DeltaTime;
-		SimAngularVelocity = FMath::RadiansToDegrees(SimDelta.GetRotation().GetAngle()) / DeltaTime;
+		TraceState.SimLinearVelocity = SimDelta.GetTranslation().Size() / DeltaTime;
+		TraceState.SimAngularVelocity = FMath::RadiansToDegrees(SimDelta.GetRotation().GetAngle()) / DeltaTime;
 
 		// animation
-
 		const FTransform AnimDelta = MotionMatchingState.RootMotionTransformDelta;
 
-		AnimLinearVelocity = AnimDelta.GetTranslation().Size() / DeltaTime;
-		AnimAngularVelocity = FMath::RadiansToDegrees(AnimDelta.GetRotation().GetAngle()) / DeltaTime;
-	}
-	else
-	{
-		SimLinearVelocity = 0.0f;
-		SimAngularVelocity = 0.0f;
-		AnimLinearVelocity = 0.0f;
-		AnimAngularVelocity = 0.0f;
+		TraceState.AnimLinearVelocity = AnimDelta.GetTranslation().Size() / DeltaTime;
+		TraceState.AnimAngularVelocity = FMath::RadiansToDegrees(AnimDelta.GetRotation().GetAngle()) / DeltaTime;
 	}
 
 	if (EnumHasAnyFlags(MotionMatchingState.Flags, EMotionMatchingFlags::JumpedToFollowUp))
@@ -318,14 +272,10 @@ static void TraceMotionMatchingState(
 	TraceState.QueryVector = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues();
 	TraceState.AssetPlayerTime = MotionMatchingState.CurrentSearchResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
-	TraceState.SimLinearVelocity = SimLinearVelocity;
-	TraceState.SimAngularVelocity = SimAngularVelocity;
-	TraceState.AnimLinearVelocity = AnimLinearVelocity;
-	TraceState.AnimAngularVelocity = AnimAngularVelocity;
 
 	TraceState.Output(UpdateContext);
-#endif
 }
+#endif
 
 void UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
@@ -354,8 +304,10 @@ void UpdateMotionMatchingState(
 	// Reset State Flags
 	InOutMotionMatchingState.Flags = EMotionMatchingFlags::None;
 
+#if UE_POSE_SEARCH_TRACE_ENABLED
 	// Record Current Pose Index for Debugger
 	const FSearchResult LastResult = InOutMotionMatchingState.CurrentSearchResult;
+#endif
 
 	// Check if we can advance. Includes the case where we can advance but only by switching to a follow up asset.
 	bool bAdvanceToFollowUpAsset = false;
@@ -433,6 +385,7 @@ void UpdateMotionMatchingState(
 
 	InOutMotionMatchingState.PoseIndicesHistory.Update(InOutMotionMatchingState.CurrentSearchResult, DeltaTime, Settings.PoseReselectHistory);
 	
+#if UE_POSE_SEARCH_TRACE_ENABLED
 	// Record debugger details
 	TraceMotionMatchingState(
 		Context,
@@ -440,8 +393,8 @@ void UpdateMotionMatchingState(
 		SearchContext,
 		InOutMotionMatchingState,
 		Trajectory,
-		LastResult
-	);
+		LastResult);
+#endif
 }
 
 const FPoseSearchIndexAsset* FMotionMatchingState::GetCurrentSearchIndexAsset() const

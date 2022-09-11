@@ -55,21 +55,13 @@ POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseE
 
 struct POSESEARCH_API FTraceMotionMatchingStateDatabaseEntry
 {
-	enum class EFlags : uint8
-	{
-		None			= 0,
-		CurrentDatabase	= 1 << 0,
-	};
-
 	// @todo: can we use UPoseSearchDatabase* instead of DatabaseId?
 	//UPoseSearchDatabase const* Database = nullptr;
 	uint64 DatabaseId = 0;
-	EFlags Flags = EFlags::None;
 	TArray<FTraceMotionMatchingStatePoseEntry> PoseEntries;
 
 	bool operator==(const FTraceMotionMatchingStateDatabaseEntry& Other) const { return DatabaseId == Other.DatabaseId; }
 };
-ENUM_CLASS_FLAGS(FTraceMotionMatchingStateDatabaseEntry::EFlags);
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry);
 
 /**

@@ -806,14 +806,14 @@ FPoseSearchCost UPoseSearchSequenceMetaData::ComparePoses(
 	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
 	check(PoseValues.Num() == QueryValues.Num());
 
-	Result.SetDissimilarity(CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), QueryValues.GetData()));
+	const float DissimilarityCost = CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), QueryValues.GetData());
 
 	// @todo: shouldn't we include MirrorMismatchAddend as well?
 	//const float MirrorMismatchAddend = SearchIndex.ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
 	const float NotifyAddend = SearchIndex.ComputeNotifyAddend(PoseIdx);
 	const float ContinuingPoseCostAddend = SearchIndex.ComputeContinuingPoseCostAddend(PoseIdx, PoseComparisonFlags);
 
-	Result.SetCostAddend(NotifyAddend + ContinuingPoseCostAddend);
+	Result.Set(DissimilarityCost, NotifyAddend + ContinuingPoseCostAddend);
 
 	return Result;
 }
@@ -1726,17 +1726,13 @@ FPoseSearchCost UPoseSearchDatabase::ComparePoses(UE::PoseSearch::FSearchContext
 
 	TArrayView<const float> Weights(SearchIndex->Weights);
 
-	Result.SetDissimilarity(CompareFeatureVectors(
-		PoseValues.Num(),
-		PoseValues.GetData(),
-		QueryValues.GetData(),
-		Weights.GetData()));
+	const float DissimilarityCost = CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), QueryValues.GetData(), Weights.GetData());
 
 	const float MirrorMismatchAddend = SearchIndex->ComputeMirrorMismatchAddend(PoseIdx, SearchContext);
 	const float NotifyAddend = SearchIndex->ComputeNotifyAddend(PoseIdx);
 	const float ContinuingPoseCostAddend = SearchIndex->ComputeContinuingPoseCostAddend(PoseIdx, PoseComparisonFlags);
 
-	Result.SetCostAddend(NotifyAddend + MirrorMismatchAddend + ContinuingPoseCostAddend);
+	Result.Set(DissimilarityCost, NotifyAddend + MirrorMismatchAddend + ContinuingPoseCostAddend);
 
 #if UE_POSE_SEARCH_TRACE_ENABLED && WITH_EDITORONLY_DATA
 	if (SearchContext.bIsTracing)
@@ -1873,10 +1869,6 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		}
 	}
 
-	// @todo: implement support for DatabaseTagQuery
-	FPoseSearchCost BestPoseCost;
-	int32 BestPoseIdx = INDEX_NONE;
-
 	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
 
 	TArrayView<const float> QueryValues = Result.ComposedQuery.GetValues();
@@ -1886,15 +1878,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	// evaluating the continuing pose only if it hasn't already being evaluated and the related animation can advance
 	if (IsCurrentResultFromThisDatabase && SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
 	{
-		Result.ContinuingPoseCost = ComparePoses(
-			SearchContext,
-			SearchContext.CurrentResult.PoseIdx,
-			EPoseComparisonFlags::ContinuingPose,
-			QueryValues);
+		Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
+		Result.PoseCost = ComparePoses(SearchContext, Result.PoseIdx, EPoseComparisonFlags::ContinuingPose, QueryValues);
+		Result.ContinuingPoseCost = Result.PoseCost;
 
 		if (GetSkipSearchIfPossible())
 		{
-			SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
+			SearchContext.UpdateCurrentBestCost(Result.PoseCost);
 		}
 	}
 
@@ -1938,10 +1928,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 				EPoseComparisonFlags::None,
 				QueryValues);
 
-			if (PoseCost < BestPoseCost)
+			if (PoseCost < Result.PoseCost)
 			{
-				BestPoseCost = PoseCost;
-				BestPoseIdx = PoseIdx;
+				Result.PoseCost = PoseCost;
+				Result.PoseIdx = PoseIdx;
 			}
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
@@ -1949,25 +1939,17 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 #endif
 		}
 
-		if (GetSkipSearchIfPossible() && BestPoseCost.IsValid())
+		if (GetSkipSearchIfPossible() && Result.PoseCost.IsValid())
 		{
-			SearchContext.UpdateCurrentBestCost(BestPoseCost);
+			SearchContext.UpdateCurrentBestCost(Result.PoseCost);
 		}
 	}
-	else if (Result.ContinuingPoseCost.IsValid())
-	{
-		// if the search were skipped we'll reuse the continuing pose search result and subtract the ContinuingPoseCostAddend from the cost
-		BestPoseCost = Result.ContinuingPoseCost;
-		BestPoseIdx = SearchContext.CurrentResult.PoseIdx;
-		BestPoseCost.SetCostAddend(BestPoseCost.GetCostAddend() - SearchIndex->ComputeContinuingPoseCostAddend(SearchContext.CurrentResult.PoseIdx, EPoseComparisonFlags::ContinuingPose));
-	}
 
-	if (BestPoseIdx != INDEX_NONE)
+	// finalizing Result properties
+	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.PoseCost = BestPoseCost;
-		Result.PoseIdx = BestPoseIdx;
-		Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
-		Result.AssetTime = SearchIndex->GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
+		Result.SearchIndexAsset = SearchIndex->FindAssetForPose(Result.PoseIdx);
+		Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx, Result.SearchIndexAsset);
 		Result.Database = this;
 #if WITH_EDITOR
 		Result.SearchIndexHash = GetSearchIndexHash();
@@ -1998,15 +1980,13 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 		// evaluating the continuing pose only if it hasn't already being evaluated and the related animation can advance
 		if (SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
 		{
-			Result.ContinuingPoseCost = ComparePoses(
-				SearchContext,
-				SearchContext.CurrentResult.PoseIdx,
-				EPoseComparisonFlags::ContinuingPose,
-				QueryValues);
+			Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
+			Result.PoseCost = ComparePoses(SearchContext, Result.PoseIdx, EPoseComparisonFlags::ContinuingPose, QueryValues);
+			Result.ContinuingPoseCost = Result.PoseCost;
 
 			if (GetSkipSearchIfPossible())
 			{
-				SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
+				SearchContext.UpdateCurrentBestCost(Result.PoseCost);
 			}
 		}
 	}
@@ -2015,9 +1995,6 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	size_t* NonSelectableIdxData((size_t*)FMemory_Alloca(NonSelectableIdxDataSize * sizeof(size_t)));
 	const int NonSelectableIdxUsedSize = PopulateNonSelectableIdx(NonSelectableIdxData, NonSelectableIdxDataSize, SearchContext, this);
 	TArrayView<size_t> NonSelectableIdx(NonSelectableIdxData, NonSelectableIdxUsedSize);
-
-	FPoseSearchCost BestPoseCost;
-	int32 BestPoseIdx = INDEX_NONE;
 
 	// since any PoseCost calculated here is at least SearchIndex->MinCostAddend,
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
@@ -2047,10 +2024,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 					EPoseComparisonFlags::None,
 					QueryValues);
 
-				if (PoseCost < BestPoseCost)
+				if (PoseCost < Result.PoseCost)
 				{
-					BestPoseCost = PoseCost;
-					BestPoseIdx = PoseIdx;
+					Result.PoseCost = PoseCost;
+					Result.PoseIdx = PoseIdx;
 				}
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
@@ -2062,25 +2039,17 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 			}
 		}
 
-		if (GetSkipSearchIfPossible() && BestPoseCost.IsValid())
+		if (GetSkipSearchIfPossible() && Result.PoseCost.IsValid())
 		{
-			SearchContext.UpdateCurrentBestCost(BestPoseCost);
+			SearchContext.UpdateCurrentBestCost(Result.PoseCost);
 		}
 	}
-	else if (Result.ContinuingPoseCost.IsValid())
-	{
-		// if the search were skipped we'll reuse the continuing pose search result and subtract the ContinuingPoseCostAddend from the cost
-		BestPoseCost = Result.ContinuingPoseCost;
-		BestPoseIdx = SearchContext.CurrentResult.PoseIdx;
-		BestPoseCost.SetCostAddend(BestPoseCost.GetCostAddend() - SearchIndex->ComputeContinuingPoseCostAddend(SearchContext.CurrentResult.PoseIdx, EPoseComparisonFlags::ContinuingPose));
-	}
 
-	if (BestPoseIdx != INDEX_NONE)
+	// finalizing Result properties
+	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.PoseCost = BestPoseCost;
-		Result.PoseIdx = BestPoseIdx;
-		Result.SearchIndexAsset = SearchIndex->FindAssetForPose(BestPoseIdx);
-		Result.AssetTime = SearchIndex->GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
+		Result.SearchIndexAsset = SearchIndex->FindAssetForPose(Result.PoseIdx);
+		Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx, Result.SearchIndexAsset);
 		Result.Database = this;
 #if WITH_EDITOR
 		Result.SearchIndexHash = GetSearchIndexHash();
@@ -2128,15 +2097,14 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 			const FPoseSearchIndexAsset* PoseSearchIndexAsset = SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx);
 			check(PoseSearchIndexAsset);
 
-			Result.ContinuingPoseCost = Database->ComparePoses(
-				SearchContext,
-				SearchContext.CurrentResult.PoseIdx,
-				EPoseComparisonFlags::ContinuingPose,
-				QueryValues);
+			Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
+			Result.PoseCost = Database->ComparePoses(SearchContext, Result.PoseIdx, EPoseComparisonFlags::ContinuingPose, QueryValues);
+			Result.ContinuingPoseCost = Result.PoseCost;
+			ContinuingCost = Result.PoseCost;
 
 			if (Database->GetSkipSearchIfPossible())
 			{
-				SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
+				SearchContext.UpdateCurrentBestCost(Result.PoseCost);
 			}
 		}
 	}
