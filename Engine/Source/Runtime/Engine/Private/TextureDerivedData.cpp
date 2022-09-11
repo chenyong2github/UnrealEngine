@@ -336,7 +336,7 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 	if(IsValid(Texture.CompositeTexture) && Texture.CompositeTextureMode != CTM_Disabled)
 	{
 		// CompositeTextureMode output changed so force a new DDC key value :
-		CompositeTextureStr += TEXT("_C_");
+		CompositeTextureStr += TEXT("_Composite090802022_");
 		CompositeTextureStr += Texture.CompositeTexture->Source.GetIdString();
 	}
 
@@ -2334,6 +2334,10 @@ static void SerializePlatformData(
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SerializePlatformData"), STAT_Texture_SerializePlatformData, STATGROUP_LoadTime);
 
+	// note: if BuildTexture failed, we still get called here,
+	//	just with a default-constructed PlatformData
+	//	(no mips, sizes=0, PF=Unknown)
+
 	if (Ar.IsFilterEditorOnly())
 	{
 		constexpr int64 PlaceholderDerivedDataSize = 16;
@@ -2505,7 +2509,7 @@ static void SerializePlatformData(
 				FVirtualTextureBuiltData* VTData = PlatformData->VTData;
 				CookTags->Add(Texture, "Size", FString::Printf(TEXT("%dx%d"), VTData->Width, VTData->Height));
 	}
-			else
+			else if ( PlatformData->Mips.Num() > 0 ) // PlatformData->Mips is empty if BuildTexture failed
 			{
 				FString DimensionsStr;
 				FTexture2DMipMap& TopMip = PlatformData->Mips[FirstMipToSerialize];

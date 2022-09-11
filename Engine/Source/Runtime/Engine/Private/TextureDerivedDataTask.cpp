@@ -1234,45 +1234,15 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	if (Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled)
 	{
 		bool bMatchingBlocks = Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks();
-		bool bMatchingAspectRatio = true;
-		bool bOnlyPowerOfTwoSize = true;
-		if (bMatchingBlocks)
-		{
-			for (int32 BlockIdx = 0; BlockIdx < Texture.Source.GetNumBlocks(); ++BlockIdx)
-			{
-				FTextureSourceBlock TextureBlock;
-				Texture.Source.GetBlock(BlockIdx, TextureBlock);
-				FTextureSourceBlock CompositeTextureBlock;
-				Texture.CompositeTexture->Source.GetBlock(BlockIdx, CompositeTextureBlock);
-
-				bMatchingBlocks = bMatchingBlocks && TextureBlock.BlockX == CompositeTextureBlock.BlockX && TextureBlock.BlockY == CompositeTextureBlock.BlockY;
-				bMatchingAspectRatio = bMatchingAspectRatio && TextureBlock.SizeX * CompositeTextureBlock.SizeY == TextureBlock.SizeY * CompositeTextureBlock.SizeX;
-				bOnlyPowerOfTwoSize = bOnlyPowerOfTwoSize && FMath::IsPowerOfTwo(TextureBlock.SizeX) && FMath::IsPowerOfTwo(TextureBlock.SizeY);
-			}
-		}
-
+		
 		if (!bMatchingBlocks)
 		{
-			// Only report the warning for textures with a single block
-			// In the future, we should support composite textures if matching blocks are in a different order
-			// Once that's working, then this warning should be reported in all cases
-			if (Texture.Source.GetNumBlocks() == 1)
-			{
-				UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Composite texture resolution/UDIMs do not match. Composite texture will be ignored"), *TexturePathName);
-			}
-		}
-		else if (!bOnlyPowerOfTwoSize)
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Some blocks (UDIMs) have a non power of two size. Composite texture will be ignored"), *TexturePathName);
-		}
-		else if (!bMatchingAspectRatio)
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Some blocks (UDIMs) have mismatched aspect ratio. Composite texture will be ignored"), *TexturePathName);
+			UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Composite texture UDIM Block counts do not match. Composite texture will be ignored"), *TexturePathName);
+			// note: does not fail, fill not warn again
 		}
 
-		if (bMatchingBlocks && bMatchingAspectRatio && bOnlyPowerOfTwoSize)
+		if ( bMatchingBlocks )
 		{
-			// These are derived from the texture, and the composite texture must match.
 			CompositeTextureData.Init(*Texture.CompositeTexture, (TextureMipGenSettings)BuildSettingsPerLayerFetchOrBuild[0].MipGenSettings, BuildSettingsPerLayerFetchOrBuild[0].bCubemap, BuildSettingsPerLayerFetchOrBuild[0].bTextureArray, BuildSettingsPerLayerFetchOrBuild[0].bVolume, bAllowAsyncLoading);
 		}
 	}
@@ -2341,11 +2311,6 @@ public:
 			check( FImageCoreUtils::ConvertToTextureSourceFormat( RawFormat ) == TSF );
 		}
 
-		const bool bCompositeTextureViable = Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled;
-		bool bMatchingBlocks = bCompositeTextureViable && (Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks());
-		bool bMatchingAspectRatio = bCompositeTextureViable;
-		bool bOnlyPowerOfTwoSize = bCompositeTextureViable;
-
 		int32 BlockSizeX = 0;
 		int32 BlockSizeY = 0;
 		TArray<FIntPoint> BlockSizes;
@@ -2360,16 +2325,6 @@ public:
 				BlockSizeX = FMath::Max(BlockSizeX, SourceBlock.SizeX);
 				BlockSizeY = FMath::Max(BlockSizeY, SourceBlock.SizeY);
 			}
-
-			if (bCompositeTextureViable)
-			{
-				FTextureSourceBlock CompositeTextureBlock;
-				Texture.CompositeTexture->Source.GetBlock(BlockIndex, CompositeTextureBlock);
-
-				bMatchingBlocks = bMatchingBlocks && SourceBlock.BlockX == CompositeTextureBlock.BlockX && SourceBlock.BlockY == CompositeTextureBlock.BlockY;
-				bMatchingAspectRatio = bMatchingAspectRatio && SourceBlock.SizeX * CompositeTextureBlock.SizeY == SourceBlock.SizeY * CompositeTextureBlock.SizeX;
-				bOnlyPowerOfTwoSize = bOnlyPowerOfTwoSize && FMath::IsPowerOfTwo(SourceBlock.SizeX) && FMath::IsPowerOfTwo(SourceBlock.SizeY);
-			}
 		}
 
 		for (int32 BlockIndex = 0; BlockIndex < BlockSizes.Num(); ++BlockIndex)
@@ -2382,24 +2337,19 @@ public:
 				return false;
 			}
 		}
-
+		
+		const bool bCompositeTextureViable = Texture.CompositeTexture && Texture.CompositeTextureMode != CTM_Disabled;
+		bool bMatchingBlocks = bCompositeTextureViable && (Texture.CompositeTexture->Source.GetNumBlocks() == Texture.Source.GetNumBlocks());
+		
 		if (bCompositeTextureViable)
 		{
 			if (!bMatchingBlocks)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Composite texture resolution/UDIMs do not match. Composite texture will be ignored"), *Texture.GetPathName());
-			}
-			else if (!bOnlyPowerOfTwoSize)
-			{
-				UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Some blocks (UDIMs) have a non power of two size. Composite texture will be ignored"), *Texture.GetPathName());
-			}
-			else if (!bMatchingAspectRatio)
-			{
-				UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Some blocks (UDIMs) have mismatched aspect ratio. Composite texture will be ignored"), *Texture.GetPathName());
+				UE_LOG(LogTexture, Warning, TEXT("Issue while building %s : Composite texture UDIM block counts do not match. Composite texture will be ignored"), *Texture.GetPathName());
 			}
 		}
 
-		bOutUseCompositeTexture = bMatchingBlocks && bMatchingAspectRatio && bOnlyPowerOfTwoSize;
+		bOutUseCompositeTexture = bMatchingBlocks;
 
 		// TODO: Add validation equivalent to that found in FTextureCacheDerivedDataWorker::BuildTexture for virtual textures
 		//		 if virtual texture support is added for this code path.
