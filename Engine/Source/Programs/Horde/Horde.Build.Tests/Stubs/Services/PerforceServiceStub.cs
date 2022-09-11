@@ -205,7 +205,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.CompletedTask;
 		}
 
-		public Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken)
+		public Task UpdateChangelistDescription(string clusterName, int change, Func<string, string> description, CancellationToken cancellationToken)
 		{
 			return Task.CompletedTask;
 		}

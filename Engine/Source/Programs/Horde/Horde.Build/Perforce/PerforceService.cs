@@ -836,7 +836,7 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken)
+		public async Task UpdateChangelistDescription(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.UpdateChangelistDescription").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
@@ -848,13 +848,18 @@ namespace Horde.Build.Perforce
 				using (IPerforceConnection perforce = await ConnectAsChangeOwnerAsync(cluster, change, cancellationToken))
 				{
 					ChangeRecord record = await perforce.GetChangeAsync(GetChangeOptions.None, change, cancellationToken);
-					record.Description = description;
-					await perforce.UpdateChangeAsync(UpdateChangeOptions.None, record, cancellationToken);
+
+					string newDescription = updateFunc(record.Description ?? String.Empty);
+					if (!String.Equals(record.Description, newDescription, StringComparison.Ordinal))
+					{
+						record.Description = newDescription;
+						await perforce.UpdateChangeAsync(UpdateChangeOptions.None, record, cancellationToken);
+					}
 				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Unable to update Changelist for CL {Change} to {Description}, {Message}", change, description, ex.Message);
+				_logger.LogError(ex, "Unable to update Changelist for CL {Change}: {Message}", change, ex.Message);
 			}
 		}
 

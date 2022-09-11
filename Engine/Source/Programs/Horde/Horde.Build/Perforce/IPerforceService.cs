@@ -138,15 +138,6 @@ namespace Horde.Build.Perforce
 		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Gets the latest change for a particular stream
-		/// </summary>
-		/// <param name="stream">Stream to query</param>
-		/// <param name="changeNumber">Change numbers to query</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Commit details</returns>
-		public Task<ICommit> GetChangeDetailsAsync(IStream stream, int changeNumber, CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Duplicates a shelved changelist
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
@@ -179,10 +170,10 @@ namespace Horde.Build.Perforce
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
 		/// <param name="change">The change to update</param>
-		/// <param name="description">The new description</param>
+		/// <param name="updateFunc">Function to update the description</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
-		public Task UpdateChangelistDescription(string clusterName, int change, string description, CancellationToken cancellationToken = default);
+		public Task UpdateChangelistDescription(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Creates a commit source for the given stream
