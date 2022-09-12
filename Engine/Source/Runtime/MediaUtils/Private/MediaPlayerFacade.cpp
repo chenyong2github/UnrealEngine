@@ -1492,6 +1492,13 @@ bool FMediaPlayerFacade::BlockOnFetch() const
 		//
 		// V2 blocking logic
 		//
+
+		// If we have any active audio playback we skip any blocking
+		if (HaveAudioPlayback())
+		{
+			return false;
+		}
+
 		float Rate = GetUnpausedRate();
 
 		// If the current sample "out there" is actually overlapping with the current block, we might be good with no new sample
