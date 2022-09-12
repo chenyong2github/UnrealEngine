@@ -707,7 +707,7 @@ static const unsigned char ecdsaSecp384r1Asn1Header[] =
             }
             
             CFIndex CertificateCount = CFArrayGetCount(Certificates);
-            for (int i = 0; CertificateCount; ++i)
+            for (int i = 0; i < CertificateCount; ++i)
             {
                 SecCertificateRef Cert = (SecCertificateRef)CFArrayGetValueAtIndex(Certificates, i);
                 
