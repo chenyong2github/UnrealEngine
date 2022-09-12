@@ -75,7 +75,8 @@ int32 FBlendSpaceUtilities::GetHighestWeightMarkerSyncSample(const TArray<struct
 	{
 		const FBlendSampleData& SampleData = SampleDataList[I];
 		if (SampleData.GetClampedWeight() > HighestWeight &&
-			BlendSamples[SampleData.SampleDataIndex].Animation->AuthoredSyncMarkers.Num() > 0)
+			(BlendSamples[SampleData.SampleDataIndex].Animation != nullptr &&
+			 BlendSamples[SampleData.SampleDataIndex].Animation->AuthoredSyncMarkers.Num() > 0))
 		{
 			HighestWeightIndex = I;
 			HighestWeight = SampleData.GetClampedWeight();
