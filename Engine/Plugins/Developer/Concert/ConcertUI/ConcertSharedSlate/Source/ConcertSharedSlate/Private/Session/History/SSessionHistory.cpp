@@ -74,6 +74,7 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.ColumnVisibilitySnapshot(InArgs._ColumnVisibilitySnapshot)
 		.SaveColumnVisibilitySnapshot(InArgs._SaveColumnVisibilitySnapshot)
 		.SelectionMode(InArgs._SelectionMode)
+		.UndoHistoryReflectionProvider(InArgs._UndoHistoryReflectionProvider)
 		.DarkenMutedActivities(InArgs._DarkenMutedActivities);
 
 	ChildSlot

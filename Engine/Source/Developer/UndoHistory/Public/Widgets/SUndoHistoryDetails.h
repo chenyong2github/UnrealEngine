@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IReflectionDataProvider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
@@ -12,7 +13,7 @@ class UNDOHISTORY_API SUndoHistoryDetails : public SCompoundWidget
 {
 
 public:
-	SLATE_BEGIN_ARGS(SUndoHistoryDetails) { }
+	SLATE_BEGIN_ARGS(SUndoHistoryDetails) {}
 	SLATE_END_ARGS()
 
 public:
@@ -22,7 +23,7 @@ public:
 	 *
 	 * @param InArgs The declaration data for this widget.
 	 */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedRef<UE::UndoHistory::IReflectionDataProvider> InReflectionData = UE::UndoHistory::CreateDefaultReflectionProvider());
 
 	/**
 	 * Set the transaction to be displayed in the details panel.
@@ -48,12 +49,12 @@ private:
 	struct FUndoDetailsTreeNode
 	{
 		FString Name;
-		FString Type;
-		FText ToolTip;
+		TOptional<FString> Type;
+		TOptional<FText> ToolTip;
 		TSharedPtr<FTransactionObjectEvent> TransactionEvent;
 		TArray<FUndoDetailsTreeNodePtr> Children;
 
-		FUndoDetailsTreeNode(FString InName, FString InType, FText InToolTip, TSharedPtr<FTransactionObjectEvent> InTransactionEvent = nullptr)
+		FUndoDetailsTreeNode(FString InName, TOptional<FString> InType, TOptional<FText> InToolTip, TSharedPtr<FTransactionObjectEvent> InTransactionEvent = nullptr)
 			: Name(MoveTemp(InName))
 			, Type(MoveTemp(InType))
 			, ToolTip(MoveTemp(InToolTip))
@@ -64,10 +65,13 @@ private:
 private:
 
 	/** Create a changed object node. */
-	FUndoDetailsTreeNodePtr CreateTreeNode(const FString& InObjectName, const UClass* InObjectClass, const TSharedPtr<FTransactionObjectEvent>& InEvent) const;
+	FUndoDetailsTreeNodePtr CreateTreeNode(const FString& InObjectName, const FSoftClassPath& InObjectClass, const TSharedPtr<FTransactionObjectEvent>& InEvent) const;
 
 	/** Create a tooltip text for a property. */
-	FText CreateToolTipText(EPropertyFlags InFlags) const;
+	TOptional<FText> CreateToolTipText(TOptional<EPropertyFlags> InFlags) const;
+
+	/** Whether the type row will be generated */
+	bool SupportsTypeRow() const;
 
 	/** Callback to handle a change in the filter box. */
 	void OnFilterTextChanged(const FText& InFilterText);
@@ -101,6 +105,9 @@ private:
 
 private:
 
+	/** Gives us information about property data (gives programs the opportunity to inject custom handler since not all reflection data is available in programs). */
+	TSharedPtr<UE::UndoHistory::IReflectionDataProvider> ReflectionData;
+	
 	/** Holds the ChangedObjects TreeView. */
 	TSharedPtr<STreeView<FUndoDetailsTreeNodePtr> > ChangedObjectsTreeView;
 

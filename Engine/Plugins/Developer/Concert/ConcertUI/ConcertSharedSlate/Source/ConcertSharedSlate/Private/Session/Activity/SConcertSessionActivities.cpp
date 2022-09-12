@@ -2,6 +2,15 @@
 
 #include "Session/Activity/SConcertSessionActivities.h"
 
+#include "ConcertFrontendStyle.h"
+#include "ConcertFrontendUtils.h"
+#include "ConcertLogGlobal.h"
+#include "ConcertTransactionEvents.h"
+#include "ConcertWorkspaceData.h"
+#include "Session/Activity/IConcertReflectionDataProvider.h"
+#include "SessionActivityUtils.h"
+#include "SPackageDetails.h"
+
 #include "Algo/Transform.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/TransactionObjectEvent.h"
@@ -22,13 +31,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
 #include "Styling/AppStyle.h"
-#include "ConcertFrontendStyle.h"
-#include "ConcertFrontendUtils.h"
-#include "ConcertLogGlobal.h"
-#include "ConcertTransactionEvents.h"
-#include "ConcertWorkspaceData.h"
-#include "SessionActivityUtils.h"
-#include "SPackageDetails.h"
 
 #include "Session/Activity/PredefinedActivityColumns.h"
 
@@ -238,6 +240,13 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	SearchTextFilter = MakeShared<TTextFilter<const FConcertSessionActivity&>>(TTextFilter<const FConcertSessionActivity&>::FItemToStringArray::CreateSP(this, &SConcertSessionActivities::PopulateSearchStrings));
 	SearchTextFilter->OnChanged().AddSP(this, &SConcertSessionActivities::OnActivityFilterUpdated);
 
+	if (InArgs._UndoHistoryReflectionProvider)
+	{
+		ConcertReflectionDataProvider = InArgs._UndoHistoryReflectionProvider;
+	}
+	const TSharedRef<UE::UndoHistory::IReflectionDataProvider> ReflectionDataProvider =
+		ConcertReflectionDataProvider ? ConcertReflectionDataProvider->ToSharedRef() : UE::UndoHistory::CreateDefaultReflectionProvider();
+	
 	ActiveFilterFlags = QueryActiveActivityFilters();
 	ChildSlot
 	[
@@ -311,7 +320,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 
 					+SScrollBox::Slot()
 					[
-						SAssignNew(TransactionDetailsPanel, SUndoHistoryDetails)
+						SAssignNew(TransactionDetailsPanel, SUndoHistoryDetails, ReflectionDataProvider)
 						.Visibility(EVisibility::Collapsed)
 					]
 
@@ -835,6 +844,10 @@ void SConcertSessionActivities::DisplayTransactionDetails(const FConcertSessionA
 		TransactionDiff.DiffMap.Emplace(TransactionObjectId.ObjectPathName, MoveTemp(Event));
 	}
 
+	if (ConcertReflectionDataProvider)
+	{
+		ConcertReflectionDataProvider.GetValue()->SetTransactionContext(InTransaction);
+	}
 	TransactionDetailsPanel->SetSelectedTransaction(MoveTemp(TransactionDiff));
 	SetDetailsPanelVisibility(TransactionDetailsPanel.Get());
 }

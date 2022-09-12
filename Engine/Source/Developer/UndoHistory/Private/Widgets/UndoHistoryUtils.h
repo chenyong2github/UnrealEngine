@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FUndoHistoryUtils
 {
@@ -12,49 +11,70 @@ public:
 	struct FBasicPropertyInfo
 	{
 		FString PropertyName;
-		FString PropertyType;
-		EPropertyFlags PropertyFlags;
+		TOptional<FString> PropertyType;
+		TOptional<EPropertyFlags> PropertyFlags;
 
-		FBasicPropertyInfo(FString InPropertyName, FString InPropertyType, EPropertyFlags InPropertyFlags)
+		FBasicPropertyInfo(FString InPropertyName, TOptional<FString> InPropertyType, TOptional<EPropertyFlags> InPropertyFlags)
 			: PropertyName(MoveTemp(InPropertyName))
 			, PropertyType(MoveTemp(InPropertyType))
 			, PropertyFlags(InPropertyFlags)
 		{}
 	};
 
-	static TArray<FBasicPropertyInfo> GetChangedPropertiesInfo(const UClass* InObjectClass, const TArray<FName>& InChangedProperties)
+	static TArray<FBasicPropertyInfo> GetChangedPropertiesInfo(const UE::UndoHistory::IReflectionDataProvider& ReflectionData, const FSoftClassPath& InObjectClass, const TArray<FName>& InChangedProperties)
 	{
-		TArray<FBasicPropertyInfo> Properties;
-		FString ClassName;
-
-		if (!InObjectClass)
+		if (ReflectionData.SupportsGetPropertyReflectionData())
 		{
-			return Properties;
+			return GetChangedPropertiesInfoUsingReflectionInterface(ReflectionData, InObjectClass, InChangedProperties);
 		}
-
-		for (TFieldIterator<FProperty> Property(InObjectClass); Property; ++Property)
+		else
 		{
-			if (!InChangedProperties.Contains(Property->GetFName()))
-			{
-				continue;
-			}
+			return GetChangedPropertiesWithoutReflectionInfo(InChangedProperties);
+		}
+	}
 
-			if (CastField<const FObjectProperty>(*Property) || Property->GetClass() == FStructProperty::StaticClass() || Property->GetClass() == FEnumProperty::StaticClass())
+private:
+	
+	static TArray<FBasicPropertyInfo> GetChangedPropertiesInfoUsingReflectionInterface(const UE::UndoHistory::IReflectionDataProvider& ReflectionData, const FSoftClassPath& InObjectClass, const TArray<FName>& InChangedProperties)
+	{
+		using namespace UE::UndoHistory;
+		TArray<FBasicPropertyInfo> Properties;
+		
+		for (const FName& PropertyName : InChangedProperties)
+		{
+			const TOptional<FPropertyReflectionData> PropertyData = ReflectionData.GetPropertyReflectionData(InObjectClass, PropertyName);
+			check(PropertyData);
+
+			FString ClassName;
+			if (PropertyData->PropertyType == UE::UndoHistory::EPropertyType::ObjectProperty
+				|| PropertyData->PropertyType == UE::UndoHistory::EPropertyType::StructProperty 
+				|| PropertyData->PropertyType == UE::UndoHistory::EPropertyType::EnumProperty) 
 			{
-				Property->GetCPPMacroType(ClassName);
+				ClassName = PropertyData->CppMacroType;
 			}
-			else if (Property->GetClass() == FArrayProperty::StaticClass())
+			else if (PropertyData->PropertyType == UE::UndoHistory::EPropertyType::ArrayProperty)
 			{
-				Property->GetCPPMacroType(ClassName);
-				ClassName = FString::Printf(TEXT("TArray<%s>"), *ClassName);
+				ClassName = PropertyData->CppMacroType;
+				ClassName = FString::Printf(TEXT("TArray<%s>"), *ClassName); 
 			}
 			else
 			{
-				ClassName = Property->GetClass()->GetName();
+				ClassName = PropertyData->TypeName;
 				ClassName.RemoveFromEnd("Property");
 			}
 
-			Properties.Emplace(Property->GetName(), MoveTemp(ClassName), Property->GetPropertyFlags());
+			Properties.Emplace(PropertyName.ToString(), MoveTemp(ClassName), PropertyData->PropertyFlags);
+		}
+		
+		return Properties;
+	}
+
+	static TArray<FBasicPropertyInfo> GetChangedPropertiesWithoutReflectionInfo(const TArray<FName>& InChangedProperties)
+	{
+		TArray<FBasicPropertyInfo> Properties;
+		for (const FName& PropertyName : InChangedProperties)
+		{
+			Properties.Emplace(PropertyName.ToString(), TOptional<FString>{}, TOptional<EPropertyFlags>{});
 		}
 		return Properties;
 	}

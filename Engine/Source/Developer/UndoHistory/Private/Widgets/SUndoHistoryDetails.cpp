@@ -85,7 +85,7 @@ public:
 	{ }
 		SLATE_ARGUMENT(TSharedPtr<FTransactionObjectEvent>, TransactionEvent)
 		SLATE_ARGUMENT(FString, Name)
-		SLATE_ARGUMENT(FString, Type)
+		SLATE_ARGUMENT(TOptional<FString>, Type)
 		SLATE_ATTRIBUTE(FText, FilterText)
 	SLATE_END_ARGS()
 
@@ -131,10 +131,10 @@ public:
 							.HighlightText(FilterText)
 					];
 		}
-		else if (ColumnName == TransactionDetailsUI::TypeLabel)
+		else if (ColumnName == TransactionDetailsUI::TypeLabel && ensure(Type))
 		{
 			return SNew(STextBlock)
-				.Text(FText::FromString(Type));
+				.Text(FText::FromString(*Type));
 		}
 		else if (ColumnName == TransactionDetailsUI::ChangeFlagsLabel)
 		{
@@ -213,17 +213,14 @@ private:
 
 	TSharedPtr<FTransactionObjectEvent> TransactionEvent;
 	FString Name;
-	FString Type;
+	TOptional<FString> Type;
 	TAttribute<FText> FilterText;
 
 };
 
-void SUndoHistoryDetails::Construct(const FArguments& InArgs)
+void SUndoHistoryDetails::Construct(const FArguments& InArgs, TSharedRef<UE::UndoHistory::IReflectionDataProvider> InReflectionData)
 {
-	const auto OnGetChildren = [](FUndoDetailsTreeNodePtr InNode, TArray<FUndoDetailsTreeNodePtr> & OutChildren)
-	{
-		OutChildren = InNode->Children;
-	};
+	ReflectionData = MoveTemp(InReflectionData);
 
 	auto FilterDelegate = FTreeItemTextFilter::FItemToStringArray::CreateSP(this, &SUndoHistoryDetails::PopulateSearchStrings);
 	SearchBoxFilter = MakeShared<FTreeItemTextFilter>(FilterDelegate);
@@ -231,7 +228,11 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 	
 	bNeedsRefresh = true;
 	bNeedsExpansion = false;
-
+	
+	const auto OnGetChildren = [](FUndoDetailsTreeNodePtr InNode, TArray<FUndoDetailsTreeNodePtr> & OutChildren)
+	{
+		OutChildren = InNode->Children;
+	};
 	ChildSlot
 		[
 			SNew(SBorder)
@@ -320,6 +321,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 									.DefaultLabel(LOCTEXT("NameColumnHeaderName", "Modified objects and properties"))
 									+ SHeaderRow::Column(TransactionDetailsUI::TypeLabel)
 									.FillWidth(20.0f)
+									.ShouldGenerateWidget(SupportsTypeRow())
 									.DefaultLabel(LOCTEXT("TypeColumnHeaderName", "Type"))
 									+ SHeaderRow::Column(TransactionDetailsUI::ChangeFlagsLabel)
 									.FillWidth(15.0f)
@@ -347,11 +349,10 @@ void SUndoHistoryDetails::SetSelectedTransaction(const FTransactionDiff& InTrans
 
 	for (const auto& ObjectIt : InTransactionDiff.DiffMap)
 	{
-		UClass* ObjectClass = LoadObject<UClass>(nullptr, *ObjectIt.Value->GetOriginalObjectClassPathName().ToString());
-
-		if (ObjectClass)
+		const FSoftClassPath ClassPath = ObjectIt.Value->GetOriginalObjectClassPathName().ToString();
+		if (ReflectionData->HasClassDisplayName(ClassPath))
 		{
-			ChangedObjects.Emplace(CreateTreeNode(ObjectIt.Value->GetOriginalObjectName().ToString(), ObjectClass, ObjectIt.Value));
+			ChangedObjects.Emplace(CreateTreeNode(ObjectIt.Value->GetOriginalObjectName().ToString(), ClassPath, ObjectIt.Value));
 		}
 	}
 
@@ -364,11 +365,14 @@ void SUndoHistoryDetails::Reset()
 	ChangedObjectsTreeView->RequestTreeRefresh();
 }
 
-SUndoHistoryDetails::FUndoDetailsTreeNodePtr SUndoHistoryDetails::CreateTreeNode(const FString& InObjectName, const UClass* InObjectClass, const TSharedPtr<FTransactionObjectEvent>& InEvent) const
+SUndoHistoryDetails::FUndoDetailsTreeNodePtr SUndoHistoryDetails::CreateTreeNode(const FString& InObjectName, const FSoftClassPath& InObjectClass, const TSharedPtr<FTransactionObjectEvent>& InEvent) const
 {
-	FUndoDetailsTreeNodePtr ObjectNode = MakeShared<FUndoDetailsTreeNode>(InObjectName, InObjectClass->GetName(), FText::FromName(InEvent->GetOriginalObjectPathName()), InEvent);
+	const TOptional<FString> ClassName = ReflectionData->GetClassDisplayName(InObjectClass);
+	check(ClassName);
+	
+	FUndoDetailsTreeNodePtr ObjectNode = MakeShared<FUndoDetailsTreeNode>(InObjectName, *ClassName, FText::FromName(InEvent->GetOriginalObjectPathName()), InEvent);
 
-	TArray<FUndoHistoryUtils::FBasicPropertyInfo> BasicPropertyInfo = FUndoHistoryUtils::GetChangedPropertiesInfo(InObjectClass, InEvent->GetChangedProperties());
+	TArray<FUndoHistoryUtils::FBasicPropertyInfo> BasicPropertyInfo = FUndoHistoryUtils::GetChangedPropertiesInfo(*ReflectionData, InObjectClass, InEvent->GetChangedProperties());
 
 	for (const auto& It : BasicPropertyInfo)
 	{
@@ -378,9 +382,14 @@ SUndoHistoryDetails::FUndoDetailsTreeNodePtr SUndoHistoryDetails::CreateTreeNode
 	return ObjectNode;
 }
 
-FText SUndoHistoryDetails::CreateToolTipText(EPropertyFlags InFlags) const
+TOptional<FText> SUndoHistoryDetails::CreateToolTipText(TOptional<EPropertyFlags> InFlags) const
 {
-	TArray<const TCHAR*> Flags = ParsePropertyFlags(InFlags);
+	if (!InFlags)
+	{
+		return {};
+	}
+	
+	TArray<const TCHAR*> Flags = ParsePropertyFlags(*InFlags);
 	FString ToolTipString = "Flags:\n";
 
 	for (int32 Index = 0; Index < Flags.Num(); Index++)
@@ -394,6 +403,11 @@ FText SUndoHistoryDetails::CreateToolTipText(EPropertyFlags InFlags) const
 	}
 
 	return FText::FromString(ToolTipString);
+}
+
+bool SUndoHistoryDetails::SupportsTypeRow() const
+{
+	return ReflectionData->SupportsGetPropertyReflectionData();
 }
 
 void SUndoHistoryDetails::OnFilterTextChanged(const FText& InFilterText)
@@ -459,7 +473,7 @@ TSharedRef<ITableRow> SUndoHistoryDetails::HandleGenerateRow(FUndoDetailsTreeNod
 		.Name(InNode->Name)
 		.Type(InNode->Type)
 		.FilterText(this, &SUndoHistoryDetails::HandleGetFilterHighlightText)
-		.ToolTipText(InNode->ToolTip);
+		.ToolTipText(InNode->ToolTip.Get(FText::GetEmpty()));
 }
 
 FText SUndoHistoryDetails::HandleGetFilterHighlightText() const

@@ -8,6 +8,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+namespace UE::ConcertSharedSlate
+{
+	class IConcertReflectionDataProvider;
+}
+
 class SSearchBox;
 class FConcertSessionActivitiesOptions;
 
@@ -58,7 +63,10 @@ public:
 		
 		/** Optional. How the activities may be selected. Default to Single. */
 		SLATE_ARGUMENT(ESelectionMode::Type, SelectionMode)
-
+	
+		/** Optional. Used by non-editor instances to provide reflection data about transaction activities. */
+		SLATE_ARGUMENT(TSharedPtr<UE::ConcertSharedSlate::IConcertReflectionDataProvider>, UndoHistoryReflectionProvider)
+	
 		/** Optional. Whether to reduce focus to activities by darkening when the activity is muted (default: true). */
 		SLATE_ARGUMENT(bool, DarkenMutedActivities)
 	

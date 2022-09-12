@@ -25,6 +25,11 @@ class SPackageDetails;
 class SUndoHistoryDetails;
 class STextBlock;
 
+namespace UE::ConcertSharedSlate
+{
+	class IConcertReflectionDataProvider;
+}
+
 /** Filters for the concert session activity view. */
 enum class EConcertActivityFilterFlags
 {
@@ -145,6 +150,9 @@ public:
 		/** Optional. How the activities may be selected */
 		SLATE_ARGUMENT(TOptional<ESelectionMode::Type>, SelectionMode)
 
+		/** Optional. Used by non-editor instances to provide reflection data about transaction activities. */
+		SLATE_ARGUMENT(TSharedPtr<UE::ConcertSharedSlate::IConcertReflectionDataProvider>, UndoHistoryReflectionProvider)
+
 		/** Optional. Whether to reduce focus to activities by darkening when the activity is muted (default: true). */
 		SLATE_ARGUMENT(bool, DarkenMutedActivities)
 	SLATE_END_ARGS();
@@ -246,6 +254,9 @@ private:
 
 	/** The list view widget displaying the activities. */
 	TSharedPtr<SListView<TSharedPtr<FConcertSessionActivity>>> ActivityView;
+
+	/** Provides reflection data for SUndoHistoryDetails for non-editor builds. */
+	TOptional<TSharedPtr<UE::ConcertSharedSlate::IConcertReflectionDataProvider>> ConcertReflectionDataProvider; 
 
 	/** Used to overlay a widget over a column widget (add an extra layer above the normal one) */
 	FMakeColumnOverlayWidgetFunc MakeColumnOverlayWidgetFn;
