@@ -2,82 +2,47 @@
 
 #pragma once
 
-#include "OnlineSubsystemTypes.h"
-
-#include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
-#include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
-#include "EOSSharedTypes.h"
 #include "EOSShared.h"
+#include "EOSSharedTypes.h"
 #include "IPAddress.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSubsystemTypes.h"
 
 #define EOS_OSS_STRING_BUFFER_LENGTH 256 + 1 // 256 plus null terminator
 
 class FOnlineSubsystemEOS;
 
+#define EOSPLUS_ID_SEPARATOR TEXT("_+_")
 #define EOS_ID_SEPARATOR TEXT("|")
-#define EMPTY_EASID TEXT("00000000000000000000000000000000")
-#define EMPTY_PUID TEXT("00000000000000000000000000000000")
 #define ID_HALF_BYTE_SIZE 16
 #define EOS_ID_BYTE_SIZE (ID_HALF_BYTE_SIZE * 2)
 
 typedef TSharedPtr<const class FUniqueNetIdEOS> FUniqueNetIdEOSPtr;
 typedef TSharedRef<const class FUniqueNetIdEOS> FUniqueNetIdEOSRef;
 
-static inline FString MakeNetIdStringFromIds(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId)
-{
-	return LexToString(AccountId) + EOS_ID_SEPARATOR + LexToString(UserId);
-}
-
 /**
- * Unique net id wrapper for a EOS account ids. The underlying string is a combination
- * of both account ids concatenated. "<EOS_EpicAccountId>|<EOS_ProductAccountId>"
+ * Unique net id wrapper for a EOS account ids.
  */
-class FUniqueNetIdEOS :
-	public FUniqueNetIdString
+class FUniqueNetIdEOS : public FUniqueNetId
 {
 public:
-	template<typename... TArgs>
-	static FUniqueNetIdEOSRef Create(TArgs&&... Args)
-	{
-		return MakeShareable(new FUniqueNetIdEOS(Forward<TArgs>(Args)...));
-	}
-
-	static const FUniqueNetIdEOS& Cast(const FUniqueNetId& NetId)
-	{
-		check(GetTypeStatic() == NetId.GetType());
-		return *static_cast<const FUniqueNetIdEOS*>(&NetId);
-	}
+	static const FUniqueNetIdEOS& Cast(const FUniqueNetId& NetId);
 
 	/** global static instance of invalid (zero) id */
-	static const FUniqueNetIdEOSRef& EmptyId()
-	{
-		static const FUniqueNetIdEOSRef EmptyId(Create());
-		return EmptyId;
-	}
+	static const FUniqueNetIdEOSRef& EmptyId();
 
-	static FName GetTypeStatic()
-	{
-		static FName NAME_Eos(TEXT("EOS"));
-		return NAME_Eos;
-	}
+	static FName GetTypeStatic();
 
-	virtual FName GetType() const override
-	{
-		return GetTypeStatic();
-	}
-
-	virtual const uint8* GetBytes() const override
-	{
-		return RawBytes;
-	}
-
-	virtual int32 GetSize() const override
-	{
-		return EOS_ID_BYTE_SIZE;
-	}
+	virtual FName GetType() const override;
+	virtual const uint8* GetBytes() const override;
+	virtual int32 GetSize() const override;
+	virtual bool IsValid() const override;
+	virtual uint32 GetTypeHash() const override;
+	virtual FString ToString() const override;
+	virtual FString ToDebugString() const override;
 
 	const EOS_EpicAccountId GetEpicAccountId() const
 	{
@@ -89,126 +54,42 @@ public:
 		return ProductUserId;
 	}
 
-	void UpdateNetIdStr(const FString& InNetIdStr)
-	{
-		UniqueNetIdStr = InNetIdStr;
-		ParseAccountIds();
-	}
-
-	void ParseAccountIds()
-	{
-		if (ensure(UniqueNetIdStr.Contains(EOS_ID_SEPARATOR)))
-		{
-			TArray<FString> AccountIds;
-			UniqueNetIdStr.ParseIntoArray(AccountIds, EOS_ID_SEPARATOR, false);
-
-			FString EpicAccountIdStr = EMPTY_EASID;
-			if (AccountIds.Num() > 0 && AccountIds[0].Len() > 0)
-			{
-				EpicAccountIdStr = AccountIds[0];
-				EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EpicAccountIdStr));
-			}
-			else
-			{
-				EpicAccountId = nullptr;
-			}
-			AddToBuffer(RawBytes, EpicAccountIdStr);
-
-			FString ProductUserIdStr = EMPTY_PUID;
-			if (AccountIds.Num() > 1 && AccountIds[1].Len() > 0)
-			{
-				ProductUserIdStr = AccountIds[1];
-				ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*ProductUserIdStr));
-			}
-			else
-			{
-				ProductUserId = nullptr;
-			}
-			AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
-		}
-		else
-		{
-			UE_LOG_ONLINE(Warning, TEXT("Invalid format for String in FUniqueNetIdEOS constructor. Please use FUniqueNetIdEOS::Create(EOS_EpicAccountId, EOS_ProductUserId) or FUserManagerEOS::MakeNetIdStringFromIds"));
-		}
-	}
-
-	void AddToBuffer(uint8* Buffer, const FString& Source)
-	{
-		check(Source.Len() == 32);
-		for (int32 ReadOffset = 0, WriteOffset = 0; ReadOffset < 32; ReadOffset += 2, WriteOffset++)
-		{
-			FString HexStr = Source.Mid(ReadOffset, 2);
-			// String is in HEX so use the version that takes a base
-			uint8 ToByte = (uint8)FCString::Strtoi(*HexStr, nullptr, 16);
-			Buffer[WriteOffset] = ToByte;
-		}
-	}
-
 private:
-	EOS_EpicAccountId EpicAccountId;
-	EOS_ProductUserId ProductUserId;
+	EOS_EpicAccountId EpicAccountId = nullptr;
+	EOS_ProductUserId ProductUserId = nullptr;
 	uint8 RawBytes[EOS_ID_BYTE_SIZE] = { 0 };
 
-	FUniqueNetIdEOS()
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	friend class FUniqueNetIdEOSRegistry;
+
+	template<typename... TArgs>
+	static FUniqueNetIdEOSRef Create(TArgs&&... Args)
 	{
-		Type = FName("EOS");
+		return MakeShareable(new FUniqueNetIdEOS(Forward<TArgs>(Args)...));
 	}
+
+	FUniqueNetIdEOS() = default;
 	
-	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString()
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		check(Size == EOS_ID_BYTE_SIZE);
-		const FString EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
-		EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EpicAccountIdStr));
-		AddToBuffer(RawBytes, EpicAccountIdStr);
+	explicit FUniqueNetIdEOS(const uint8* Bytes, int32 Size);
+	explicit FUniqueNetIdEOS(EOS_EpicAccountId InEpicAccountId, EOS_ProductUserId InProductUserId);
+};
 
-		const FString ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
-		ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*ProductUserIdStr));
-		AddToBuffer(RawBytes + ID_HALF_BYTE_SIZE, ProductUserIdStr);
+class FUniqueNetIdEOSRegistry
+{
+public:
+	static FUniqueNetIdEOSPtr FindOrAdd(const FString& NetIdStr) { return Get().FindOrAddImpl(NetIdStr); }
+	static FUniqueNetIdEOSPtr FindOrAdd(const uint8* Bytes, int32 Size) { return Get().FindOrAddImpl(Bytes, Size); }
+	static FUniqueNetIdEOSPtr FindOrAdd(EOS_EpicAccountId EpicAccountId, EOS_ProductUserId ProductUserId) { return Get().FindOrAddImpl(EpicAccountId, ProductUserId); }
 
-		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+private:
+	FRWLock Lock;
+	TMap<EOS_EpicAccountId, FUniqueNetIdEOSRef> EasToNetId;
+	TMap<EOS_ProductUserId, FUniqueNetIdEOSRef> PuidToNetId;
 
-		Type = FName("EOS");
-	}
+	static FUniqueNetIdEOSRegistry& Get();
 
-	explicit FUniqueNetIdEOS(EOS_EpicAccountId InEpicAccountId, EOS_ProductUserId InProductUserId)
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString(MakeNetIdStringFromIds(InEpicAccountId, InProductUserId), FName("EOS"))
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		ParseAccountIds();
-	}
-
-	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString(InUniqueNetId, FName("EOS"))
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		ParseAccountIds();
-	}
-
-	explicit FUniqueNetIdEOS(FString&& InUniqueNetId)
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString(MoveTemp(InUniqueNetId))
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		ParseAccountIds();
-		Type = FName("EOS");
-	}
-
-	explicit FUniqueNetIdEOS(const FUniqueNetId& Src)
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString(Src)
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		ParseAccountIds();
-		Type = FName("EOS");
-	}
+	FUniqueNetIdEOSPtr FindOrAddImpl(const FString& NetIdStr);
+	FUniqueNetIdEOSPtr FindOrAddImpl(const uint8* Bytes, int32 Size);
+	FUniqueNetIdEOSPtr FindOrAddImpl(EOS_EpicAccountId EpicAccountId, EOS_ProductUserId ProductUserId);
 };
 
 #ifndef AUTH_ATTR_REFRESH_TOKEN

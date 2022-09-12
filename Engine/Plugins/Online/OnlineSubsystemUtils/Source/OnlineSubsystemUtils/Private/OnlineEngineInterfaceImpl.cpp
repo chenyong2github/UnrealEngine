@@ -123,7 +123,7 @@ FUniqueNetIdWrapper UOnlineEngineInterfaceImpl::CreateUniquePlayerIdWrapper(cons
 	{
 		// No UWorld here, but ok since this is just a factory
 		UWorld* World = nullptr;
-		IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, bIsPrimaryLoaded ? Type : *MappedUniqueNetIdType);
+		IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, bIsMappedUniqueNetIdTypeLoaded ? *MappedUniqueNetIdType : Type);
 		if (IdentityInt.IsValid())
 		{
 			UniqueId = IdentityInt->CreateUniquePlayerId(Str);

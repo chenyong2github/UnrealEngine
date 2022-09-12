@@ -328,7 +328,7 @@ void FOnlineStatsEOS::UpdateStats(const FUniqueNetIdRef LocalUserId, const TArra
 	const EOS_ProductUserId UserId = EOSId.GetProductUserId();
 	if (UserId == nullptr)
 	{
-		UE_LOG_ONLINE_STATS(Error, TEXT("UpdateStats() failed for unknown player (%s)"), *EOSId.UniqueNetIdStr);
+		UE_LOG_ONLINE_STATS(Error, TEXT("UpdateStats() failed for unknown player (%s)"), *EOSId.ToDebugString());
 		Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::InvalidCreds));
 		return;
 	}

@@ -1988,7 +1988,7 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 			}
 			else if (Key == TEXT("OwningUserId"))
 			{
-				OutSession.OwningUserId = FUniqueNetIdEOS::Create(UTF8_TO_TCHAR(Attribute->Data->Value.AsUtf8));
+				OutSession.OwningUserId = FUniqueNetIdEOSRegistry::FindOrAdd(UTF8_TO_TCHAR(Attribute->Data->Value.AsUtf8));
 			}
 			else if (Key == TEXT("OwningUserName"))
 			{
@@ -3174,13 +3174,13 @@ void FOnlineSessionEOS::ReadSessionFromPacket(FNboSerializeFromBufferEOS& Packet
 #endif
 
 	/** Owner of the session */
-	FUniqueNetIdEOSRef OwningUserId = FUniqueNetIdEOS::Create();
-	Packet >> *ConstCastSharedRef<FUniqueNetIdEOS>(OwningUserId)
+	FString OwningUserIdStr;
+	Packet >> OwningUserIdStr
 		>> Session->OwningUserName
 		>> Session->NumOpenPrivateConnections
 		>> Session->NumOpenPublicConnections;
 
-	Session->OwningUserId = OwningUserId;
+	Session->OwningUserId = FUniqueNetIdEOSRegistry::FindOrAdd(OwningUserIdStr);
 
 	// Allocate and read the connection data
 	FOnlineSessionInfoEOS* EOSSessionInfo = new FOnlineSessionInfoEOS();
@@ -4194,7 +4194,7 @@ void FOnlineSessionEOS::CopyLobbyAttributes(const TSharedRef<FLobbyDetailsEOS>& 
 			FString Key = UTF8_TO_TCHAR(Attribute->Data->Key);
 			if (Key == TEXT("OwningUserId"))
 			{
-				OutSession.OwningUserId = FUniqueNetIdEOS::Create(UTF8_TO_TCHAR(Attribute->Data->Value.AsUtf8));
+				OutSession.OwningUserId = FUniqueNetIdEOSRegistry::FindOrAdd(UTF8_TO_TCHAR(Attribute->Data->Value.AsUtf8));
 			}
 			else if (Key == TEXT("OwningUserName"))
 			{

@@ -309,7 +309,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 						Nickname = TEXT("Unknown Player");
 					}
 					const EOS_EpicAccountId AccountId = EOS_EpicAccountId_FromString(EpicIdStr);
-					const FUniqueNetIdEOSRef NetId = FUniqueNetIdEOS::Create(AccountId, Record->UserId);
+					const FUniqueNetIdEOSRef NetId = FUniqueNetIdEOSRegistry::FindOrAdd(AccountId, Record->UserId).ToSharedRef();
 
 					FOnlineStatsRow* Row = new(LambdaReadObject->Rows) FOnlineStatsRow(Nickname, NetId);
 					Row->Rank = Record->Rank;

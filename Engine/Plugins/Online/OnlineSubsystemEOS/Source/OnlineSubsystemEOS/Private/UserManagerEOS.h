@@ -4,6 +4,8 @@
 
 #include "OnlineSubsystemEOSTypes.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
+#include "Interfaces/OnlineFriendsInterface.h"
+#include "Interfaces/OnlinePresenceInterface.h"
 
 #if WITH_EOS_SDK
 	#include "eos_auth_types.h"

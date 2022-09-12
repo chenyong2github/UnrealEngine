@@ -5,6 +5,7 @@
 #include "OnlineSubsystemModule.h"
 #include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemEOS.h"
+#include "OnlineSubsystemEOSTypes.h"
 #include "EOSSettings.h"
 
 #include "Features/IModularFeature.h"
@@ -12,6 +13,7 @@
 
 #include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/LazySingleton.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -115,6 +117,8 @@ void FOnlineSubsystemEOSModule::ShutdownModule()
 
 	delete EOSFactory;
 	EOSFactory = nullptr;
+
+	TLazySingleton<FUniqueNetIdEOSRegistry>::TearDown();
 }
 
 #undef LOCTEXT_NAMESPACE

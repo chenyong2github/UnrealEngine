@@ -39,15 +39,6 @@ public:
  	}
 
 	/**
-	 * Adds EOS Unique Id to the buffer
-	 */
-	friend inline FNboSerializeToBufferEOS& operator<<(FNboSerializeToBufferEOS& Ar, const FUniqueNetIdEOS& UniqueId)
-	{
-		((FNboSerializeToBuffer&)Ar) << UniqueId.UniqueNetIdStr;
-		return Ar;
-	}
-
-	/**
 	 * Adds string Unique Id to the buffer
 	 */
 	friend inline FNboSerializeToBufferEOS& operator<<(FNboSerializeToBufferEOS& Ar, const FUniqueNetIdString& UniqueId)
@@ -77,22 +68,16 @@ public:
  	friend inline FNboSerializeFromBufferEOS& operator>>(FNboSerializeFromBufferEOS& Ar, FOnlineSessionInfoEOS& SessionInfo)
  	{
 		check(SessionInfo.HostAddr.IsValid());
+
+		FString SessionId;
+		Ar >> SessionId;
 		// Skip SessionType (assigned at creation)
-		SessionInfo.SessionId = FUniqueNetIdEOS::Create();
-		Ar >> *ConstCastSharedRef<FUniqueNetIdString>(SessionInfo.SessionId);
 		Ar >> *SessionInfo.HostAddr;
+
+		SessionInfo.SessionId = FUniqueNetIdString::Create(MoveTemp(SessionId), FName("EOS"));
+
 		return Ar;
  	}
-
-	/**
-	 * Reads EOS Unique Id from the buffer
-	 */
-	friend inline FNboSerializeFromBufferEOS& operator>>(FNboSerializeFromBufferEOS& Ar, FUniqueNetIdEOS& UniqueId)
-	{
-		Ar >> UniqueId.UniqueNetIdStr;
-		UniqueId.ParseAccountIds();
-		return Ar;
-	}
 
 	/**
 	 * Reads string Unique Id from the buffer

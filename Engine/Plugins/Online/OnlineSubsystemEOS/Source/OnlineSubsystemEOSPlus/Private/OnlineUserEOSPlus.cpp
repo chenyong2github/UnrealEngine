@@ -5,6 +5,8 @@
 #include "OnlineSubsystemEOSPlus.h"
 #include "EOSSettings.h"
 
+#define EOSPLUS_ID_SEPARATOR TEXT("_+_")
+
 enum class EOSSValue : uint8
 {
 	Null,
@@ -72,7 +74,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 inline FString BuildEOSPlusStringId(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId)
 {
 	FString StrId = InBaseUniqueNetId.IsValid() ? InBaseUniqueNetId->ToString() : TEXT("");
-	StrId += TEXT("_+_");
+	StrId += EOSPLUS_ID_SEPARATOR;
 	StrId += InEOSUniqueNetId.IsValid() ? InEOSUniqueNetId->ToString() : TEXT("");
 	return StrId;
 }
@@ -711,28 +713,29 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* Bytes, int32 Siz
 		UE_LOG_ONLINE(Error, TEXT("Invalid size (%d) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), Size);
 		return nullptr;
 	}
-	// We know that the first EOS_NETID_BYTE_SIZE bytes are the EOS ids, so the rest is the platform id
+
+	// We know that the first EOS_NETID_BYTE_SIZE bytes are the EOS ids
 	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Bytes, EOS_NETID_BYTE_SIZE);
+
+	// The rest is the platform id, which might be missing if the passed bytes is from an EOS id.
 	int32 BaseByteOffset = EOS_NETID_BYTE_SIZE;
 	int32 PlatformIdSize = Size - BaseByteOffset - BASE_NETID_TYPE_SIZE;
-	if (PlatformIdSize < 0)
-	{
-		UE_LOG_ONLINE(Error, TEXT("Invalid size (%d) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), Size);
-		return nullptr;
-	}
-	uint8 OSSType = *(Bytes + BaseByteOffset);
-	BaseByteOffset += BASE_NETID_TYPE_SIZE;
-	FName OSSName = ToOSSName((EOSSValue)OSSType);
-	FName BaseOSSName = EOSPlus->BaseOSS->GetSubsystemName();
 	FUniqueNetIdPtr BaseNetId = nullptr;
-	if (BaseOSSName == OSSName)
-	{
-		BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Bytes + BaseByteOffset, PlatformIdSize);
-	}
-	else
-	{
-		// Just create the pass through version that holds the other platform data but doesn't interpret it
-		BaseNetId = FUniqueNetIdBinary::Create(Bytes + BaseByteOffset, PlatformIdSize, OSSName);
+	if (PlatformIdSize > 0)
+	{	
+		uint8 OSSType = *(Bytes + BaseByteOffset);
+		BaseByteOffset += BASE_NETID_TYPE_SIZE;
+		FName OSSName = ToOSSName((EOSSValue)OSSType);
+		FName BaseOSSName = EOSPlus->BaseOSS->GetSubsystemName();
+		if (BaseOSSName == OSSName)
+		{
+			BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Bytes + BaseByteOffset, PlatformIdSize);
+		}
+		else
+		{
+			// Just create the pass through version that holds the other platform data but doesn't interpret it
+			BaseNetId = FUniqueNetIdBinary::Create(Bytes + BaseByteOffset, PlatformIdSize, OSSName);
+		}
 	}
 	
 	return AddRemotePlayer(BaseNetId, EOSNetId);
@@ -740,17 +743,17 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* Bytes, int32 Siz
 
 FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(const FString& Str)
 {
-	// Split <id>_+_<id2> into two strings
-	int32 FoundAt = Str.Find(TEXT("_+_"));
-	if (FoundAt == -1)
+	// Split <platformid>_+_<eas|eos> into two strings
+	FString BaseNetIdStr;
+	FString EOSNetIdStr;
+	if (!Str.Split(EOSPLUS_ID_SEPARATOR, &BaseNetIdStr, &EOSNetIdStr))
 	{
-		UE_LOG_ONLINE(Error, TEXT("Couldn't parse string (%s) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), *Str);
-		return nullptr;
+		// If we couldn't find the EOSPlus separator, this must be an EOS net id
+		EOSNetIdStr = Str;
 	}
 
 	// BaseNetId will only be valid for platform friends
 	FUniqueNetIdPtr BaseNetId = nullptr;
-	FString BaseNetIdStr = Str.Left(FoundAt);
 	if (!BaseNetIdStr.IsEmpty())
 	{
 		BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(BaseNetIdStr);
@@ -758,7 +761,6 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::CreateUniquePlayerId(const FString& Str)
 
 	// EOSNetId will only be valid for EOS friends
 	FUniqueNetIdPtr EOSNetId = nullptr;
-	FString EOSNetIdStr = Str.Right(Str.Len() - FoundAt - 3);
 	if (!EOSNetIdStr.IsEmpty())
 	{
 		EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(EOSNetIdStr);
