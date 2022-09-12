@@ -155,12 +155,16 @@ public:
 #endif
 
 protected:
+	friend class FLocalVertexFactoryShaderParameters;
+
 	const FDataType& GetData() const { return Data; }
 
 	FDataType Data;
 	TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> UniformBuffer;
 
 	int32 ColorStreamIndex;
+
+	bool bGPUSkinPassThrough = false;
 
 	struct FDebugName
 	{
@@ -215,6 +219,8 @@ class FLocalVertexFactoryShaderParameters : public FLocalVertexFactoryShaderPara
 {
 	DECLARE_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters, NonVirtual);
 public:
+	void Bind(const FShaderParameterMap& ParameterMap);
+
 	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
 		const FSceneView* View,
@@ -226,4 +232,33 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
 	) const; 
+
+private:
+	void GetElementShaderBindingsGPUSkinPassThrough(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const;
+
+	void GetElementShaderBindingsSkinCache(
+		class FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
+		struct FGPUSkinBatchElementUserData* BatchUserData,
+		bool bVerticesInMotion,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const;
+
+	void GetElementShaderBindingsMeshDeformer(
+		class FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
+		bool bVerticesInMotion,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const;
+
+	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePositionBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePreviousPositionBuffer);
+	LAYOUT_FIELD(FShaderParameter, IsGPUSkinPassThrough);
 };

@@ -80,26 +80,23 @@ struct FVertexFactoryInput
 	float4	BlendWeightsExtra	: ATTRIBUTE15;
 #endif // GPUSKIN_UNLIMITED_BONE_INFLUENCE
 
-
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-	// If this changes make sure to update LocalVertexFactory.usf
-#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
+#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+	float4	TexCoords0 : ATTRIBUTE5;
+#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 1
 	float2	TexCoords0 : ATTRIBUTE5;
 #endif
-#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-	float2	TexCoords1 : ATTRIBUTE6;
-#endif
-#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-	float2	TexCoords2 : ATTRIBUTE7;
-#endif
+
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-	float2	TexCoords3 : ATTRIBUTE8;
+	float4	TexCoords1 : ATTRIBUTE6;
+#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 3
+	float2	TexCoords1 : ATTRIBUTE6;
 #endif
 
 	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
 		#error Too many texture coordinate sets defined on GPUSkin vertex input. Max: 4.
 	#endif
-#endif
+#endif // NUM_MATERIAL_TEXCOORDS_VERTEX
 
 #if GPUSKIN_MORPH_BLEND
 	// NOTE: TEXCOORD6,TEXCOORD7 used instead of POSITION1,NORMAL1 since those semantics are not supported by Cg 
@@ -340,16 +337,16 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
-	Result.TexCoords[0] = Input.TexCoords0;
+	Result.TexCoords[0] = Input.TexCoords0.xy;
 #endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-	Result.TexCoords[1] = Input.TexCoords1;
+	Result.TexCoords[1] = Input.TexCoords0.zw;
 #endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-	Result.TexCoords[2] = Input.TexCoords2;
+	Result.TexCoords[2] = Input.TexCoords1.xy;
 #endif
 #if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-	Result.TexCoords[3] = Input.TexCoords3;
+	Result.TexCoords[3] = Input.TexCoords1.zw;
 #endif
 
 #endif

@@ -951,6 +951,15 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, AutoInstancingAttr_Mobile);
 
+	// PreSkinPosition is only used when skin cache is on, in which case skinned mesh uses local vertex factory as pass through.
+	// It is not used by ISM so fill with dummy buffer.
+	extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
+	if (IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
+	{
+		FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
+		Elements.Add(AccessStreamComponent(NullComponent, 14));
+	}
+
 	if(Data.LightMapCoordinateComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent,15));

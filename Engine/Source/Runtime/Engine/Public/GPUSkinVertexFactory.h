@@ -456,16 +456,11 @@ protected:
  */
 class FGPUSkinPassthroughVertexFactory : public FLocalVertexFactory
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FGPUSkinPassthroughVertexFactory);
-
 	typedef FLocalVertexFactory Super;
 
 public:
 	FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
 	~FGPUSkinPassthroughVertexFactory();
-
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	inline int32 GetPositionStreamIndex() const
 	{
@@ -542,7 +537,7 @@ public:
 	}
 
 protected:
-	friend class FGPUSkinVertexPassthroughFactoryShaderParameters;
+	friend class FLocalVertexFactoryShaderParameters;
 
 	// Reference holders for RDG buffers
 	TRefCountPtr<FRDGPooledBuffer> PositionRDG;

@@ -506,7 +506,7 @@ void FStaticMeshVertexBuffer::BindTangentVertexBuffer(const FVertexFactory* Vert
 	}
 }
 
-void FStaticMeshVertexBuffer::BindPackedTexCoordVertexBuffer(const FVertexFactory* VertexFactory, FStaticMeshDataType& Data) const
+void FStaticMeshVertexBuffer::BindPackedTexCoordVertexBuffer(const FVertexFactory* VertexFactory, FStaticMeshDataType& Data, int32 MaxNumTexCoords) const
 {
 	Data.TextureCoordinates.Empty();
 	Data.NumTexCoords = GetNumTexCoords();
@@ -534,8 +534,16 @@ void FStaticMeshVertexBuffer::BindPackedTexCoordVertexBuffer(const FVertexFactor
 
 		uint32 UvStride = UVSizeInBytes * GetNumTexCoords();
 
+		// If the max num of UVs is specified, clamp to that number.
+		int32 ClampedNumTexCoords = GetNumTexCoords();
+		if (MaxNumTexCoords > -1)
+		{
+			ClampedNumTexCoords = FMath::Min<int32>(GetNumTexCoords(), MaxNumTexCoords);
+		}
+		check(ClampedNumTexCoords >= 0);
+
 		int32 UVIndex;
-		for (UVIndex = 0; UVIndex < (int32)GetNumTexCoords() - 1; UVIndex += 2)
+		for (UVIndex = 0; UVIndex < (int32)ClampedNumTexCoords - 1; UVIndex += 2)
 		{
 			Data.TextureCoordinates.Add(FVertexStreamComponent(
 				&TexCoordVertexBuffer,
@@ -547,7 +555,7 @@ void FStaticMeshVertexBuffer::BindPackedTexCoordVertexBuffer(const FVertexFactor
 		}
 
 		// possible last UV channel if we have an odd number
-		if (UVIndex < (int32)GetNumTexCoords())
+		if (UVIndex < (int32)ClampedNumTexCoords)
 		{
 			Data.TextureCoordinates.Add(FVertexStreamComponent(
 				&TexCoordVertexBuffer,

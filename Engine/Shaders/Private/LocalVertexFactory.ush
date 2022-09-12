@@ -8,9 +8,7 @@
 #include "LocalVertexFactoryCommon.ush"
 #include "LightmapData.ush"
 
-#if GPUSKIN_PASS_THROUGH
 #include "GpuSkinCommon.ush"
-#endif
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
@@ -63,6 +61,10 @@ float4 SplineParams[10];
 #define SplineMeshY				SplineParams[9].xyz
 #endif	// USE_SPLINEDEFORM
 
+#ifndef SUPPORT_SKINCACHE
+#define SUPPORT_SKINCACHE 0
+#endif
+
 #ifndef MANUAL_VERTEX_FETCH
 #define MANUAL_VERTEX_FETCH 0
 #endif
@@ -111,46 +113,29 @@ struct FVertexFactoryInput
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	#if !MANUAL_VERTEX_FETCH
-		#if GPUSKIN_PASS_THROUGH
-			// These must match GPUSkinVertexFactory.usf
+		// These used to be packed texcoord arrays, but these cause problems with alighnment on some Vulkan drivers
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+			float4	TexCoords0 : ATTRIBUTE4;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 1
 			float2	TexCoords0 : ATTRIBUTE4;
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-				float2	TexCoords1 : ATTRIBUTE5;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-				float2	TexCoords2 : ATTRIBUTE6;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-				float2	TexCoords3 : ATTRIBUTE7;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
-				#error Too many texture coordinate sets defined on GPUSkin vertex input. Max: 4.
-			#endif
-		#else
-			// These used to be packed texcoord arrays, but these cause problems with alighnment on some Vulkan drivers
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-				float4	TexCoords0 : ATTRIBUTE4;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 1
-				float2	TexCoords0 : ATTRIBUTE4;
-			#endif
+		#endif
 
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-				float4	TexCoords1 : ATTRIBUTE5;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 3
-				float2	TexCoords1 : ATTRIBUTE5;
-			#endif
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+			float4	TexCoords1 : ATTRIBUTE5;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 3
+			float2	TexCoords1 : ATTRIBUTE5;
+		#endif
 
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
-				float4	TexCoords2 : ATTRIBUTE6;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 5
-				float2	TexCoords2 : ATTRIBUTE6;
-			#endif
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
+			float4	TexCoords2 : ATTRIBUTE6;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 5
+			float2	TexCoords2 : ATTRIBUTE6;
+		#endif
 
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
-				float4	TexCoords3 : ATTRIBUTE7;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 7
-				float2	TexCoords3 : ATTRIBUTE7;
-			#endif
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
+			float4	TexCoords3 : ATTRIBUTE7;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 7
+			float2	TexCoords3 : ATTRIBUTE7;
 		#endif
 	#endif
 #elif USE_PARTICLE_SUBUVS && !MANUAL_VERTEX_FETCH
@@ -173,7 +158,7 @@ struct FVertexFactoryInput
 	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 #endif
 
-#if GPUSKIN_PASS_THROUGH && !MANUAL_VERTEX_FETCH
+#if SUPPORT_SKINCACHE && !MANUAL_VERTEX_FETCH
 	float4	PreSkinPosition	: ATTRIBUTE14;
 #endif
 
@@ -181,15 +166,24 @@ struct FVertexFactoryInput
 	float2	LightMapCoordinate : ATTRIBUTE15;
 #endif
 
-#if GPUSKIN_PASS_THROUGH || MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;
-#endif
 };
 
-#if RAYHITGROUPSHADER || COMPUTESHADER
-#if GPUSKIN_PASS_THROUGH
-Buffer<float> GPUSkinCachePositionBuffer;
+#if SUPPORT_SKINCACHE
+uint bIsGPUSkinPassThrough;
 #endif
+
+bool IsGPUSkinPassThrough()
+{
+	#if SUPPORT_SKINCACHE
+		return bIsGPUSkinPassThrough;
+	#else
+		return false;
+	#endif
+}
+
+#if RAYHITGROUPSHADER || COMPUTESHADER
+Buffer<float> GPUSkinCachePositionBuffer;
 
 uint GetNumRayTracingDynamicMeshVerticesIndirect()
 {
@@ -205,9 +199,7 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 
-#if GPUSKIN_PASS_THROUGH || MANUAL_VERTEX_FETCH
 	Input.VertexId = Tri.Indices[VertexIndex];
-#endif
 	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
@@ -239,19 +231,24 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 {
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
 
-	#if GPUSKIN_PASS_THROUGH
+	if (IsGPUSkinPassThrough())
+	{
 		Input.VertexId = TriangleIndex * 3 + VertexIndex;
 		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId;
 		Input.Position.x = GPUSkinCachePositionBuffer[VertexOffset * 3 + 0];
 		Input.Position.y = GPUSkinCachePositionBuffer[VertexOffset * 3 + 1];
 		Input.Position.z = GPUSkinCachePositionBuffer[VertexOffset * 3 + 2];
-	#elif  MANUAL_VERTEX_FETCH
+	}
+	else
+	{
+	#if  MANUAL_VERTEX_FETCH
 		Input.VertexId = TriangleIndex * 3 + VertexIndex;
 		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId * 3;
 		Input.Position.x = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 0];
 		Input.Position.y = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 1];
 		Input.Position.z = LocalVF.VertexFetch_PositionBuffer[VertexOffset + 2];
 	#endif
+	}
 
 	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, PrimitiveId, 0U);
 
@@ -630,43 +627,30 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 			Result.TexCoords[CoordinateIndex] = LocalVF.VertexFetch_TexCoordBuffer[NumFetchTexCoords * (LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId) + ClampedCoordinateIndex];
 		}
 #elif NUM_MATERIAL_TEXCOORDS_VERTEX
-		#if GPUSKIN_PASS_THROUGH
-			Result.TexCoords[0] = Input.TexCoords0.xy;
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-				Result.TexCoords[1] = Input.TexCoords1.xy;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-				Result.TexCoords[2] = Input.TexCoords2.xy;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-				Result.TexCoords[3] = Input.TexCoords3.xy;
-			#endif
-		#else
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
-				Result.TexCoords[0] = Input.TexCoords0.xy;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-				Result.TexCoords[1] = Input.TexCoords0.zw;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-				Result.TexCoords[2] = Input.TexCoords1.xy;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-				Result.TexCoords[3] = Input.TexCoords1.zw;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
-				Result.TexCoords[4] = Input.TexCoords2.xy;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
-				Result.TexCoords[5] = Input.TexCoords2.zw;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 6
-				Result.TexCoords[6] = Input.TexCoords3.xy;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
-				Result.TexCoords[7] = Input.TexCoords3.zw;
-			#endif
-		#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
+		Result.TexCoords[0] = Input.TexCoords0.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		Result.TexCoords[1] = Input.TexCoords0.zw;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+		Result.TexCoords[2] = Input.TexCoords1.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+		Result.TexCoords[3] = Input.TexCoords1.zw;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
+		Result.TexCoords[4] = Input.TexCoords2.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
+		Result.TexCoords[5] = Input.TexCoords2.zw;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 6
+		Result.TexCoords[6] = Input.TexCoords3.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
+		Result.TexCoords[7] = Input.TexCoords3.zw;
+	#endif
 #endif  //MANUAL_VERTEX_FETCH && NUM_MATERIAL_TEXCOORDS_VERTEX
 
 	Result.Particle.Color = half4(1,1,1,1);
@@ -817,13 +801,13 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 	half4 TangentInputZ = Input.TangentZ;
 #endif
 
-#ifdef GPUSKIN_PASS_THROUGH
 	half3 TangentX = TangentInputX;
 	half4 TangentZ = TangentInputZ;
-#else
-	half3 TangentX = TangentBias(TangentInputX);
-	half4 TangentZ = TangentBias(TangentInputZ);
-#endif
+	if (!IsGPUSkinPassThrough())
+	{
+		TangentX = TangentBias(TangentInputX);
+		TangentZ = TangentBias(TangentInputZ);
+	}
 
 	TangentSign = TangentZ.w;
 
@@ -968,7 +952,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	#endif
 #endif	// USE_INSTANCING
 
-#if GPUSKIN_PASS_THROUGH
+	if (IsGPUSkinPassThrough())
+	{
+	#if SUPPORT_SKINCACHE
 	#if MANUAL_VERTEX_FETCH
 		uint PreSkinVertexOffset = LocalVF.PreSkinBaseVertexIndex + Input.VertexId * 3;
 		Intermediates.PreSkinPosition.x = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 0];
@@ -977,9 +963,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	#else
 		Intermediates.PreSkinPosition = Input.PreSkinPosition.xyz;
 	#endif
-#else
-	Intermediates.PreSkinPosition = Input.Position.xyz;
-#endif
+	#endif
+	}
+	else
+	{
+		Intermediates.PreSkinPosition = Input.Position.xyz;	
+	}
 
 	return Intermediates;
 }
@@ -1158,9 +1147,7 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 }
 
 // Information when using pass through to get the previous position, as no matrix is available/needed
-#if GPUSKIN_PASS_THROUGH
 Buffer<float> GPUSkinCachePreviousPositionBuffer;
-#endif
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
@@ -1168,27 +1155,32 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	FLWCMatrix PreviousLocalToWorld = GetInstanceData(Intermediates).PrevLocalToWorld;
 	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(PreviousLocalToWorld, ResolvedView.PrevPreViewTranslation);
 
-#if USE_INSTANCING
-	float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
-	return mul(mul(Input.Position, InstanceTransform), PreviousLocalToWorldTranslated);
-#elif GPUSKIN_PASS_THROUGH
-	uint Offset = Input.VertexId * 3;
-	float3 PreviousPos;
-	PreviousPos.x = GPUSkinCachePreviousPositionBuffer[Offset + 0];
-	PreviousPos.y = GPUSkinCachePreviousPositionBuffer[Offset + 1];
-	PreviousPos.z = GPUSkinCachePreviousPositionBuffer[Offset + 2];
-	return mul(float4(PreviousPos, 1), PreviousLocalToWorldTranslated);
-#elif USE_SPLINEDEFORM
-	// Just like CalcWorldPosition...
-	float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
-
-	// Transform into mesh space
-	float4 LocalPos = float4(mul(Input.Position, SliceTransform), Input.Position.w);
-
-	return mul(LocalPos, PreviousLocalToWorldTranslated);
-#else
-	return mul(Input.Position, PreviousLocalToWorldTranslated);
-#endif	// USE_INSTANCING
+	if (IsGPUSkinPassThrough())
+	{
+		uint Offset = Input.VertexId * 3;
+		float3 PreviousPos;
+		PreviousPos.x = GPUSkinCachePreviousPositionBuffer[Offset + 0];
+		PreviousPos.y = GPUSkinCachePreviousPositionBuffer[Offset + 1];
+		PreviousPos.z = GPUSkinCachePreviousPositionBuffer[Offset + 2];
+		return mul(float4(PreviousPos, 1), PreviousLocalToWorldTranslated);	
+	}
+	else
+	{
+	#if USE_INSTANCING
+		float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
+		return mul(mul(Input.Position, InstanceTransform), PreviousLocalToWorldTranslated);
+	#elif USE_SPLINEDEFORM
+		// Just like CalcWorldPosition...
+		float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
+	
+		// Transform into mesh space
+		float4 LocalPos = float4(mul(Input.Position, SliceTransform), Input.Position.w);
+	
+		return mul(LocalPos, PreviousLocalToWorldTranslated);
+	#else
+		return mul(Input.Position, PreviousLocalToWorldTranslated);
+	#endif	// USE_INSTANCING
+	}
 }
 
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION
