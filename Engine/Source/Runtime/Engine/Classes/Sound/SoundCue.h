@@ -84,7 +84,7 @@ public:
 /**
  * The behavior of audio playback is defined within Sound Cues.
  */
-UCLASS(hidecategories=object, BlueprintType)
+UCLASS(hidecategories=object, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class ENGINE_API USoundCue : public USoundBase
 {
 	GENERATED_UCLASS_BODY()

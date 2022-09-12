@@ -193,7 +193,7 @@ struct FNiagaraRendererExecutionIndex
 };
 
 /** Container for multiple emitters that combine together to create a particle system effect.*/
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class NIAGARA_API UNiagaraSystem : public UFXSystemAsset, public INiagaraParameterDefinitionsSubscriber
 {
 	GENERATED_UCLASS_BODY()

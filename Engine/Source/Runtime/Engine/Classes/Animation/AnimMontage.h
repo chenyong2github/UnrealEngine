@@ -606,7 +606,7 @@ public:
  * If you add new property, please make sure those property has to be copied for children.
  * If it does, please add the copy in the function RefreshParentAssetData
  */
-UCLASS(config=Engine, hidecategories=(UObject, Length), MinimalAPI, BlueprintType)
+UCLASS(config=Engine, hidecategories=(UObject, Length), MinimalAPI, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class UAnimMontage : public UAnimCompositeBase
 {
 	GENERATED_UCLASS_BODY()
