@@ -33,6 +33,40 @@ namespace EpicGames.Slack
 	}
 
 	/// <summary>
+	/// Response from posting a Slack message
+	/// </summary>
+	public class SlackMessageId
+	{
+		/// <summary>
+		/// The channel id. Note that posting messages is more lenient than updating messages, and will accept a user ID as a recipient channel. The actual DM channel this resolves to will be returned in this parameter.
+		/// </summary>
+		public string Channel { get; set; }
+
+		/// <summary>
+		/// Thread containing the message
+		/// </summary>
+		public string? ThreadTs { get; set; }
+
+		/// <summary>
+		/// Timestamp of the message
+		/// </summary>
+		public string Ts { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public SlackMessageId(string channel, string? threadTs, string ts)
+		{
+			Channel = channel;
+			ThreadTs = threadTs;
+			Ts = ts;
+		}
+
+		/// <inheritdoc/>
+		public override string ToString() => (ThreadTs == null) ? $"{Channel}:{Ts}" : $"{Channel}:{ThreadTs}:{Ts}";
+	}
+
+	/// <summary>
 	/// Wrapper around Slack client functionality
 	/// </summary>
 	public class SlackClient
@@ -164,7 +198,8 @@ namespace EpicGames.Slack
 		/// </summary>
 		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
 		/// <param name="message">New message to post</param>
-		public async Task<string> PostMessageAsync(string recipient, SlackMessage message)
+		/// <returns>Identifier for the message. Note that the returned channel value will respond to a concrete channel identifier if a user is specified as recipient, and must be used to update the message.</returns>
+		public async Task<SlackMessageId> PostMessageAsync(string recipient, SlackMessage message)
 		{
 			return await PostOrUpdateMessageAsync(recipient, null, null, message, false);
 		}
@@ -172,40 +207,27 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// Posts a message to a recipient
 		/// </summary>
-		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
-		/// <param name="threadTs">Timestamp of the thread to post the message to</param>
+		/// <param name="threadId">Parent message to post to</param>
 		/// <param name="message">New message to post</param>
 		/// <param name="replyBroadcast">Whether to broadcast the message to the channel</param>
-		public async Task<string> PostMessageAsync(string recipient, string threadTs, SlackMessage message, bool replyBroadcast = false)
+		/// <returns>Identifier for the message. Note that the returned channel value will respond to a concrete channel identifier if a user is specified as recipient, and must be used to update the message.</returns>
+		public async Task<SlackMessageId> PostMessageToThreadAsync(SlackMessageId threadId, SlackMessage message, bool replyBroadcast = false)
 		{
-			return await PostOrUpdateMessageAsync(recipient, null, threadTs, message, replyBroadcast);
+			return await PostOrUpdateMessageAsync(threadId.Channel, null, threadId.Ts, message, replyBroadcast);
 		}
 
 		/// <summary>
 		/// Updates an existing message
 		/// </summary>
-		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
-		/// <param name="ts">The message timestamp</param>
+		/// <param name="id">The message id</param>
 		/// <param name="message">New message to post</param>
-		public async Task UpdateMessageAsync(string recipient, string ts, SlackMessage message)
+		/// <param name="replyBroadcast">For threaded messages, whether to broadcast the message to the channel</param>
+		public async Task UpdateMessageAsync(SlackMessageId id, SlackMessage message, bool replyBroadcast = false)
 		{
-			await PostOrUpdateMessageAsync(recipient, ts, null, message, false);
+			await PostOrUpdateMessageAsync(id.Channel, id.Ts, id.ThreadTs, message, replyBroadcast);
 		}
 
-		/// <summary>
-		/// Updates an existing message
-		/// </summary>
-		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
-		/// <param name="ts">The message timestamp</param>
-		/// <param name="threadTs">Timestamp of the thread to post the message to</param>
-		/// <param name="message">New message to post</param>
-		/// <param name="replyBroadcast">Whether to broadcast the message to the channel</param>
-		public async Task UpdateMessageAsync(string recipient, string ts, string threadTs, SlackMessage message, bool replyBroadcast = false)
-		{
-			await PostOrUpdateMessageAsync(recipient, ts, threadTs, message, replyBroadcast);
-		}
-
-		async Task<string> PostOrUpdateMessageAsync(string recipient, string? ts, string? threadTs, SlackMessage message, bool replyBroadcast)
+		async Task<SlackMessageId> PostOrUpdateMessageAsync(string recipient, string? ts, string? threadTs, SlackMessage message, bool replyBroadcast)
 		{
 			PostMessageRequest request = new PostMessageRequest();
 			request.Channel = recipient;
@@ -238,7 +260,7 @@ namespace EpicGames.Slack
 				throw new SlackException(response.Error ?? "unknown");
 			}
 
-			return response.Ts;
+			return new SlackMessageId(response.Channel ?? recipient, threadTs, response.Ts);
 		}
 
 		class GetPermalinkRequest
@@ -262,12 +284,11 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// Gets a permalink for a message
 		/// </summary>
-		/// <param name="channel">Channel containing the message</param>
-		/// <param name="ts">Message timestamp</param>
+		/// <param name="id">Message identifier</param>
 		/// <returns>Link to the message</returns>
-		public async Task<string> GetPermalinkAsync(string channel, string ts)
+		public async Task<string> GetPermalinkAsync(SlackMessageId id)
 		{
-			string requestUrl = $"{GetPermalinkUrl}?channel={channel}&message_ts={ts}";
+			string requestUrl = $"{GetPermalinkUrl}?channel={id.Channel}&message_ts={id.Ts}";
 			using (HttpRequestMessage sendMessageRequest = new HttpRequestMessage(HttpMethod.Get, requestUrl))
 			{
 				GetPermalinkResponse response = await SendRequestAsync<GetPermalinkResponse>(sendMessageRequest, "");
@@ -301,14 +322,13 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// Adds a reaction to a posted message
 		/// </summary>
-		/// <param name="channel">Channel containing the message</param>
-		/// <param name="ts">Message timestamp</param>
+		/// <param name="messageId">Message to react to</param>
 		/// <param name="name">Name of the reaction to post</param>
-		public async Task AddReactionAsync(string channel, string ts, string name)
+		public async Task AddReactionAsync(SlackMessageId messageId, string name)
 		{
 			ReactionMessage message = new ReactionMessage();
-			message.Channel = channel;
-			message.Ts = ts;
+			message.Channel = messageId.Channel;
+			message.Ts = messageId.Ts;
 			message.Name = name;
 
 			static bool ShouldLogError(SlackResponse response) => !response.Ok && !String.Equals(response.Error, "already_reacted", StringComparison.Ordinal);
@@ -319,14 +339,13 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// Removes a reaction from a posted message
 		/// </summary>
-		/// <param name="channel">Channel containing the message</param>
-		/// <param name="ts">Message timestamp</param>
+		/// <param name="messageId">Message to react to</param>
 		/// <param name="name">Name of the reaction to post</param>
-		public async Task RemoveReactionAsync(string channel, string ts, string name)
+		public async Task RemoveReactionAsync(SlackMessageId messageId, string name)
 		{
 			ReactionMessage message = new ReactionMessage();
-			message.Channel = channel;
-			message.Ts = ts;
+			message.Channel = messageId.Channel;
+			message.Ts = messageId.Ts;
 			message.Name = name;
 
 			static bool ShouldLogError(SlackResponse response) => !response.Ok && !String.Equals(response.Error, "no_reaction", StringComparison.Ordinal);
