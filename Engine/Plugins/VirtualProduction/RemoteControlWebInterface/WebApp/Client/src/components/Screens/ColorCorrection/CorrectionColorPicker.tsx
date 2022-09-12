@@ -66,7 +66,7 @@ export class CorrectionColorPicker extends React.Component<Props, State> {
   }
 
   onHsvWheelMove = (sign: number, hue?: number) => {
-    let { range, color, sensitivity } = this.props;
+    let { range, color, mode, sensitivity } = this.props;
     let rgb = WidgetUtilities.colorToRgb(color, range.max);
 
     const hsv = WidgetUtilities.rgb2Hsv(rgb);
@@ -82,7 +82,7 @@ export class CorrectionColorPicker extends React.Component<Props, State> {
     }
 
     rgb = WidgetUtilities.hsv2rgb(hsv);
-    color = WidgetUtilities.rgbToColor(rgb, range.max);
+    color = WidgetUtilities.rgbToColor(rgb, range.max, mode !== CCRMode.Color);
 
     this.onColorChange(color);
   }
@@ -267,25 +267,26 @@ export class CorrectionColorPicker extends React.Component<Props, State> {
         </div>
         <div className="cc-group" style={style}>
           <div className="body" style={{ width: "calc(100% - 20px)" }}>
-            <div className="mode-selectors">
-              <Tabs onTabChange={this.props.onColorModeChange}
-                    onlyHeader
-                    defaultActiveKey={mode}>
-                {modes.map(mode => <TabPane key={mode}
-                                            id={mode} 
-                                            tab={mode}
-                                            view={() => this.renderModifyIndicator(mode)} />
-                )}
-
-              </Tabs>
-            </div>
+            {section === Section.ColorCorrection &&
+              <div className="mode-selectors">
+                <Tabs onTabChange={this.props.onColorModeChange}
+                      onlyHeader
+                      defaultActiveKey={mode}>
+                  {modes.map(mode => <TabPane key={mode}
+                                              id={mode} 
+                                              tab={mode}
+                                              view={() => this.renderModifyIndicator(mode)} />
+                  )}
+                </Tabs>
+              </div>
+            }
             <div className="color-picker-singleton">
               <div className="color-wheel">
                 <FontAwesomeIcon className="reset-icon" icon={['fas', 'undo']} onClick={() => this.onReset(property, reset)} />
                 {colorMode === ColorMode.Rgb && <div className="color-picker-value" style={this.getValueColor()} />}
                 <ColorPicker value={color}
-                             alpha={mode === CCRMode.Color}
                              mode={colorMode}
+                             alpha={mode === CCRMode.Color}
                              type={this.getPropertyType()}
                              max={range.max}
                              onChange={value => this.onColorChange(value ?? reset)} />
@@ -313,7 +314,7 @@ export class CorrectionColorPicker extends React.Component<Props, State> {
               </div>
               <div className="details-section">
                 <div className="color-property-selection">
-                  {mode !== CCRMode.Color && Object.values(ColorProperty).map(property =>
+                  {section === Section.ColorCorrection && Object.values(ColorProperty).map(property =>
                     <div key={property}
                          onClick={() => this.props.onColorPropertyChange(property)}
                          className={`mode-selector ${property === colorProperty ? 'active' : ''}`}>{property}</div>
