@@ -624,8 +624,8 @@ void FVulkanPendingGfxState::SetUAVForUBResource(uint8 DescriptorSet, uint32 Bin
 		}
 		else if (UAV->SourceTexture)
 		{
-			VkImageLayout Layout = Context.GetLayoutManager().FindLayoutChecked(UAV->TextureView.Image);
-			CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, Layout);
+			const FVulkanImageLayout& Layout = Context.GetLayoutManager().GetFullLayoutChecked(UAV->TextureView.Image);
+			CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, Layout.GetSubresLayout(UAV->FirstArraySlice, UAV->MipLevel));
 		}
 		else
 		{

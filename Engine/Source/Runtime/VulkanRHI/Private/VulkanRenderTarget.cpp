@@ -1257,7 +1257,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		ensure(!NumSamples || NumSamples == ColorEntry.RenderTarget->GetNumSamples());
 		NumSamples = ColorEntry.RenderTarget->GetNumSamples();
 
-		ensure( !bMultiviewRenderTargets || Texture->GetNumberOfArrayLevels() > 1 );
+		ensure(!GetIsMultiView() || !bMultiviewRenderTargets || Texture->GetNumberOfArrayLevels() > 1);
 		bMultiviewRenderTargets = Texture->GetNumberOfArrayLevels() > 1;
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
