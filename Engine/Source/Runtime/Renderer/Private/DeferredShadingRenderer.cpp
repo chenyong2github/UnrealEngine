@@ -2023,8 +2023,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = IsNaniteEnabled();
 
-	FNaniteScopedVisibilityFrame NaniteVisibility(bNaniteEnabled, Scene->NaniteVisibility[ENaniteMeshPass::BasePass]);
-
 	GPU_MESSAGE_SCOPE(GraphBuilder);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -2045,6 +2043,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	};
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
+
+	// GetBinIndexTranslator cannot be called before UpdateAllPrimitiveSceneInfos which can change the number of raster bins
+	FNaniteScopedVisibilityFrame NaniteVisibility(
+		bNaniteEnabled,
+		Scene->NaniteVisibility[ENaniteMeshPass::BasePass],
+		Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinIndexTranslator());
 
 #if RHI_RAYTRACING
 	// Initialize ray tracing flags, in case they weren't initialized in the CreateSceneRenderers code path

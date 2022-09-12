@@ -415,6 +415,31 @@ struct FNaniteRasterEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FNaniteRasterPip
 
 using FNaniteRasterPipelineMap = Experimental::TRobinHoodHashMap<FNaniteRasterPipeline, FNaniteRasterEntry, FNaniteRasterEntryKeyFuncs>;
 
+class FNaniteRasterBinIndexTranslator
+{
+public:
+	FNaniteRasterBinIndexTranslator() = default;
+
+	uint16 Translate(uint16 BinIndex) const
+	{
+		return BinIndex < RegularBinCount ? BinIndex : RevertBinIndex(BinIndex) + RegularBinCount;
+	}
+
+private:
+	friend class FNaniteRasterPipelines;
+
+	uint32 RegularBinCount;
+
+	FNaniteRasterBinIndexTranslator(uint32 InRegularBinCount)
+		: RegularBinCount(InRegularBinCount)
+	{}
+
+	static uint16 RevertBinIndex(uint16 BinIndex)
+	{
+		return MAX_uint16 - BinIndex;
+	}
+};
+
 class FNaniteRasterPipelines
 {
 public:
@@ -442,17 +467,12 @@ public:
 		return PipelineMap;
 	}
 
-	static uint16 TranslateBinIndex(uint16 BinIndex, uint32 RegularBinCount)
+	FNaniteRasterBinIndexTranslator GetBinIndexTranslator() const
 	{
-		return BinIndex < RegularBinCount ? BinIndex : RevertBinIndex(BinIndex) + RegularBinCount;
+		return FNaniteRasterBinIndexTranslator(GetRegularBinCount());
 	}
 
 private:
-	static uint16 RevertBinIndex(uint16 BinIndex)
-	{
-		return MAX_uint16 - BinIndex;
-	}
-
 	TBitArray<> PipelineBins;
 	TBitArray<> PerPixelEvalPipelineBins;
 	FNaniteRasterPipelineMap PipelineMap;
@@ -470,6 +490,7 @@ public:
 	FNaniteVisibilityResults(const FNaniteVisibilityResults& Other)
 	: RasterBinVisibility(Other.RasterBinVisibility)
 	, ShadingDrawVisibility(Other.ShadingDrawVisibility)
+	, BinIndexTranslator(Other.BinIndexTranslator)
 	, TotalRasterBins(Other.TotalRasterBins)
 	, TotalShadingDraws(Other.TotalShadingDraws)
 	, VisibleRasterBins(Other.VisibleRasterBins)
@@ -506,9 +527,15 @@ public:
 		OutNumVisible = IsShadingTestValid() ? VisibleShadingDraws : OutNumTotal;
 	}
 
+	void SetRasterBinIndexTranslator(const FNaniteRasterBinIndexTranslator InTranslator)
+	{
+		BinIndexTranslator = InTranslator;
+	}
+
 private:
 	TBitArray<> RasterBinVisibility;
 	TArray<uint32> ShadingDrawVisibility;
+	FNaniteRasterBinIndexTranslator BinIndexTranslator;
 	uint32 TotalRasterBins		= 0;
 	uint32 TotalShadingDraws	= 0;
 	uint32 VisibleRasterBins	= 0;
@@ -534,7 +561,7 @@ public:
 public:
 	FNaniteVisibility();
 
-	void BeginVisibilityFrame();
+	void BeginVisibilityFrame(const FNaniteRasterBinIndexTranslator InTranslator);
 	void FinishVisibilityFrame();
 
 	FNaniteVisibilityQuery* BeginVisibilityQuery(
@@ -549,19 +576,21 @@ public:
 
 private:
 	TArray<FNaniteVisibilityQuery*, TInlineAllocator<32>> VisibilityQueries;
+	// Translator should remain valid between Begin/FinishVisibilityFrame. That is, no adding or removing raster bins
+	FNaniteRasterBinIndexTranslator BinIndexTranslator;
 	uint8 bCalledBegin : 1;
 };
 
 class FNaniteScopedVisibilityFrame
 {
 public:
-	FNaniteScopedVisibilityFrame(const bool bInEnabled, FNaniteVisibility& InVisibility)
+	FNaniteScopedVisibilityFrame(const bool bInEnabled, FNaniteVisibility& InVisibility, const FNaniteRasterBinIndexTranslator InTranslator)
 	: Visibility(InVisibility)
 	, bEnabled(bInEnabled)
 	{
 		if (bEnabled)
 		{
-			Visibility.BeginVisibilityFrame();
+			Visibility.BeginVisibilityFrame(InTranslator);
 		}
 	}
 

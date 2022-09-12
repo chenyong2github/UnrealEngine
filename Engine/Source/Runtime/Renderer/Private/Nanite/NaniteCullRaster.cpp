@@ -2267,7 +2267,7 @@ FBinningData AddPass_Rasterize(
 	if (bProgrammableRaster)
 	{
 		const FNaniteRasterPipelineMap& Pipelines = RasterPipelines.GetRasterPipelineMap();
-		const uint32 RegularBinCount = RasterPipelines.GetRegularBinCount();
+		const FNaniteRasterBinIndexTranslator BinIndexTranslator = RasterPipelines.GetBinIndexTranslator();
 
 		RasterizerPasses.Reserve(Pipelines.Num());
 		for (auto RasterBinIter = Pipelines.begin(); RasterBinIter != Pipelines.end(); ++RasterBinIter)
@@ -2282,7 +2282,7 @@ FBinningData AddPass_Rasterize(
 			}
 
 			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
-			RasterizerPass.RasterizerBin = uint32(FNaniteRasterPipelines::TranslateBinIndex(RasterEntry.BinIndex, RegularBinCount));
+			RasterizerPass.RasterizerBin = uint32(BinIndexTranslator.Translate(RasterEntry.BinIndex));
 			RasterizerPass.RasterPipeline = RasterEntry.RasterPipeline;
 
 			RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;
