@@ -885,6 +885,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 			ForwardScreenSpaceShadowMask = CreateTextureMSAA(GraphBuilder, Desc, TEXT("ShadowMaskTexture"), GFastVRamConfig.ScreenSpaceShadowMask);
 			if (bIsHairEnable)
 			{
+				Desc.NumSamples = 1;
 				ForwardScreenSpaceShadowMaskSubPixel = CreateTextureMSAA(GraphBuilder, Desc, TEXT("ShadowMaskSubPixelTexture"), GFastVRamConfig.ScreenSpaceShadowMask);
 			}
 		}
@@ -948,8 +949,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 
 		if (bIsHairEnable)
 		{
-			PassParameters->RenderTargets[1] = FRenderTargetBinding(ForwardScreenSpaceShadowMaskSubPixel.Target, ForwardScreenSpaceShadowMaskSubPixel.Resolve, ERenderTargetLoadAction::ELoad);
-			OutForwardScreenSpaceShadowMaskSubPixel = ForwardScreenSpaceShadowMaskSubPixel.Resolve;
+			OutForwardScreenSpaceShadowMaskSubPixel = ForwardScreenSpaceShadowMaskSubPixel.Target;
 		}
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("ResolveScreenSpaceShadowMask"), PassParameters, ERDGPassFlags::Raster, [](FRHICommandList&) {});

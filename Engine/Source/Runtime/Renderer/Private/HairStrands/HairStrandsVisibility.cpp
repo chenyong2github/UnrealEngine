@@ -4679,6 +4679,12 @@ void RenderHairStrandsVisibilityBuffer(
 					SceneDepthTexture);
 			}
 		#endif
+
+			const bool bIsMSAAForwardEnabled = IsForwardShadingEnabled(View.GetShaderPlatform()) && SceneColorTexture->Desc.NumSamples > 1;
+			if (bIsMSAAForwardEnabled)
+			{		
+				VisibilityData.ResolveMaskTexture = nullptr;
+			}
 		}
 	}
 }

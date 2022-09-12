@@ -336,6 +336,7 @@ static void AddHairVisibilityFastResolveMaskPass(
 	FRDGTextureRef DummyTexture;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable);
+		Desc.NumSamples = OutDepthTexture->Desc.NumSamples;
 		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.DummyTexture"));
 	}
 
