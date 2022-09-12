@@ -434,12 +434,11 @@ void UAnimationSharingManager::RegisterActorWithSkeleton(AActor* InActor, const 
 				Component->SetComponentTickEnabled(false);
 				Component->PrimaryComponentTick.bCanEverTick = false;
 				Component->bIgnoreLeaderPoseComponentLOD = true;
-
+				
 				ActorData.ComponentIndices.Add(Data->PerComponentData.Num() - 1);
-
-				const int32 ComponentIndex = Data->PerComponentData.Num() - 1;
-				Data->SetupFollowerComponent(ActorData.CurrentState, ActorIndex);
 			}
+
+			Data->SetupFollowerComponent(ActorData.CurrentState, ActorIndex);
 
 			if (Data->PerStateData[ActorData.CurrentState].bIsOnDemand && ActorData.OnDemandInstanceIndex != INDEX_NONE)
 			{
