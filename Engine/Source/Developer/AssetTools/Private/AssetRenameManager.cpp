@@ -581,7 +581,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		const FString& SubPath = Value.GetSubPathString();
 		for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : RedirectorMap)
 		{
-			if (Pair.Key.GetAssetPathName() == Value.GetAssetPathName())
+			if (Pair.Key.GetAssetPath() == Value.GetAssetPath())
 			{
 				// Same asset, fix sub path. Asset will be fixed by normal serializePath call below
 				const FString& CheckSubPath = Pair.Key.GetSubPathString();
@@ -600,7 +600,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 
 						FString NewSubPath(SubPath);
 						NewSubPath.ReplaceInline(*CheckSubPath, *Pair.Value.GetSubPathString());
-						Value = FSoftObjectPath(Pair.Value.GetAssetPathName(), NewSubPath);
+						Value = FSoftObjectPath(Pair.Value.GetAssetPath(), NewSubPath);
 					}
 					break;
 				}
@@ -699,15 +699,15 @@ void FAssetRenameManager::FindCDOReferences(const TArrayView<FAssetRenameDataWit
 				TWeakObjectPtr<UBlueprint> ObjectAsBP = UBlueprint::GetBlueprintFromClass(Cast<UBlueprintGeneratedClass>(Object));
 
 				// Resolve to the redirected asset path if necessary
-				FName FinalSoftObjPathName = SoftRefObjPath.GetAssetPathName();
+				FSoftObjectPath FinalSoftObjPath = SoftRefObjPath.GetWithoutSubPath();
 			
 				if (!Object.IsValid() && SoftRefObjPath.IsValid())
 				{
-					FName RedirObjectPathName = GRedirectCollector.GetAssetPathRedirection(SoftRefObjPath.GetAssetPathName());
+					FSoftObjectPath RedirObjectPath = GRedirectCollector.GetAssetPathRedirection(SoftRefObjPath.GetWithoutSubPath());
 
-					if (RedirObjectPathName != NAME_None && RedirObjectPathName != FinalSoftObjPathName)
+					if (!RedirObjectPath.IsNull() && RedirObjectPath != FinalSoftObjPath)
 					{
-						FinalSoftObjPathName = RedirObjectPathName;
+						FinalSoftObjPath = RedirObjectPath;
 					}
 				}
 
@@ -717,7 +717,7 @@ void FAssetRenameManager::FindCDOReferences(const TArrayView<FAssetRenameDataWit
 					// Look for loaded references, indirect blueprint refs to their generated class counterparts, or path name matching
 					if ((Object == AssetToRename->Asset) ||
 						(ObjectAsBP != nullptr && ObjectAsBP == AssetToRename->Asset) ||
-						(!FinalSoftObjPathName.IsNone() && FinalSoftObjPathName == AssetToRename->OldObjectPath.GetAssetPathName()))
+						(!FinalSoftObjPath.IsNull() && FinalSoftObjPath == AssetToRename->OldObjectPath.GetWithoutSubPath()))
 					{
 						AssetToRename->bCreateRedirector |= bSetRedirectorFlags;
 
@@ -1215,7 +1215,7 @@ void FAssetRenameManager::RenameReferencingSoftObjectPaths(const TArray<UPackage
 	{
 		if (Pair.Key.IsAsset())
 		{
-			GRedirectCollector.AddAssetPathRedirection(Pair.Key.GetAssetPathName(), Pair.Value.GetAssetPathName());
+			GRedirectCollector.AddAssetPathRedirection(Pair.Key.GetWithoutSubPath(), Pair.Value.GetWithoutSubPath());
 		}
 	}
 
@@ -1328,7 +1328,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 			const FString& SubPath = CachedKey.GetSubPathString();
 
 			// Stop as soon as we're not anymore in the range we're searching
-			if (Pair.Key.GetAssetPathName() != CachedKey.GetAssetPathName())
+			if (Pair.Key.GetWithoutSubPath() != CachedKey.GetWithoutSubPath())
 			{
 				break;
 			}

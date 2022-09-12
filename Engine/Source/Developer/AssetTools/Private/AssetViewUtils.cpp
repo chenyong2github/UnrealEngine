@@ -363,7 +363,7 @@ bool AssetViewUtils::DeleteFolders(const TArray<FString>& PathsToDelete)
 		TArray<FString> ObjectPaths;
 		for ( auto AssetIt = AssetDataList.CreateConstIterator(); AssetIt; ++AssetIt )
 		{
-			ObjectPaths.Add((*AssetIt).ObjectPath.ToString());
+			ObjectPaths.Add((*AssetIt).GetObjectPathString());
 		}
 
 		// Load all the assets in the selected paths
@@ -712,7 +712,7 @@ bool AssetViewUtils::PrepareFoldersForDragDrop(const TArray<FString>& SourcePath
 
 		for ( auto AssetIt = AssetDataList.CreateConstIterator(); AssetIt; ++AssetIt )
 		{
-			ObjectPathsToWarnAbout.Add((*AssetIt).ObjectPath.ToString());
+			ObjectPathsToWarnAbout.Add((*AssetIt).GetObjectPathString());
 		}
 	}
 
@@ -729,7 +729,7 @@ bool AssetViewUtils::PrepareFoldersForDragDrop(const TArray<FString>& SourcePath
 		TArray<FString> ObjectPaths;
 		for ( auto AssetIt = AssetDataList.CreateConstIterator(); AssetIt; ++AssetIt )
 		{
-			ObjectPaths.Add((*AssetIt).ObjectPath.ToString());
+			ObjectPaths.Add((*AssetIt).GetObjectPathString());
 		}
 
 		// Load all assets in this path if needed
@@ -1313,7 +1313,7 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 
 	// Check for an existing asset
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*ObjectPath));
+	FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 	if (ExistingAsset.IsValid())
 	{
 		// An asset of a different type already exists at this location, inform the user and continue

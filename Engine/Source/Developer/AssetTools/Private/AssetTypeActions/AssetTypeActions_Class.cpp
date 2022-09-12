@@ -174,7 +174,7 @@ void FAssetTypeActions_Class::OpenAssetEditor( const TArray<UObject*>& InObjects
 
 TWeakPtr<IClassTypeActions> FAssetTypeActions_Class::GetClassTypeActions(const FAssetData& AssetData) const
 {
-	UClass* Class = FindObject<UClass>(nullptr, *AssetData.ObjectPath.ToString());
+	UClass* Class = FindObject<UClass>(nullptr, *AssetData.GetObjectPathString());
 	if(Class)
 	{
 		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();

@@ -1423,7 +1423,7 @@ void UAssetToolsImpl::CreateUniqueAssetName(const FString& InBasePackageName, co
 		// Use the asset registry if possible to find existing assets without loading them
 		if ( !AssetRegistryModule.Get().IsLoadingAssets() )
 		{
-			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 			if(AssetData.IsValid())
 			{
 				bObjectExists = true;

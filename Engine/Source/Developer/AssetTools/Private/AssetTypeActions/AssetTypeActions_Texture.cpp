@@ -522,7 +522,7 @@ private:
 				[
 						(DetailedInfoText.IsEmpty())
 						? static_cast<TSharedRef<SWidget>>(SNew(STextBlock)
-							.Text(FText::FromName(Asset.ObjectPath)))
+							.Text(FText::FromString(Asset.GetObjectPathString())))
 					: SNew(SButton)
 					.ButtonStyle(FCoreStyle::Get(), "NoBorder")
 					.VAlign(VAlign_Center)
@@ -551,7 +551,7 @@ private:
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Text(FText::FromName(Asset.ObjectPath))
+							.Text(FText::FromString(Asset.GetObjectPathString()))
 						]
 					]
 			    ]
