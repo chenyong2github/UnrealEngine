@@ -36,12 +36,6 @@ public:
 	UPROPERTY()
 	int32 TimeOutCounter = 0;
 
-	UPROPERTY()
-	bool bAdvanceSimulation = false;
-
-	UPROPERTY()
-	float AdvanceDeltaTime = 1.0f / 60.0f;
-
 	UPROPERTY(BlueprintAssignable)
 	FOnCaptureComplete CaptureComplete;
 
@@ -68,6 +62,12 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category=NiagaraSimCache))
 	static UAsyncNiagaraCaptureSimCache* CaptureNiagaraSimCacheUntilComplete(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, int32 CaptureRate = 1, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
+
+	UPROPERTY()
+	bool bAdvanceSimulation = false;
+
+	UPROPERTY()
+	float AdvanceDeltaTime = 1.0f / 60.0f;
 };
 
 UCLASS()
