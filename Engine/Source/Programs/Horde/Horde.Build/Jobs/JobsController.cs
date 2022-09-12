@@ -139,7 +139,7 @@ namespace Horde.Build.Jobs
 
 			// Get the change to build
 			int change;
-			if (create.Change.HasValue)
+			if (create.Change.HasValue && create.Change.Value != -1)
 			{
 				change = create.Change.Value;
 			}
