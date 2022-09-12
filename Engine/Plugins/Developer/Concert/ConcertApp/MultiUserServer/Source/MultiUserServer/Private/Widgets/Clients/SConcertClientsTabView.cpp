@@ -226,7 +226,7 @@ namespace UE::MultiUserServer
 				[this]()
 				{
 					const bool bIsGlobalLogOpen = IsGlobalLogOpen();
-					return bIsGlobalLogOpen ? EVisibility::Hidden : EVisibility::Visible;
+					return bIsGlobalLogOpen ? EVisibility::Collapsed : EVisibility::Visible;
 				})
 			.OnClicked_Lambda([this]()
 			{

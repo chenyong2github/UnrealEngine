@@ -80,8 +80,11 @@ namespace UE::MultiUserServer
 		FOnClientDoubleClicked OnClientDoubleClicked;
 
 		TSharedRef<SWidget> CreateSearchArea(const FArguments& InArgs);
-		TSharedRef<SWidget> CreateKeepDisconnectedClients();
+		TSharedRef<SWidget> CreateOptionsButton();
 		TSharedRef<SWidget> CreateTileView();
+
+		TSharedRef<SWidget> CreateOptionsButtonMenu();
+		void ToggleShouldKeepDisconnected();
 
 		// Model events
 		void OnSessionCreated(const FGuid& SessionId);
@@ -89,7 +92,7 @@ namespace UE::MultiUserServer
 		void OnClientListChanged(TSharedPtr<FClientBrowserItem> Item, IClientBrowserModel::EClientUpdateType UpdateType);
 
 		// Combo button
-		TSharedRef<SWidget> MakeSessionOption();
+		TSharedRef<SWidget> CreateSessionFilterOptionMenu();
 
 		FText GetErrorMessageText() const;
 		
