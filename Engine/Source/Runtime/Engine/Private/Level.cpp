@@ -1157,7 +1157,7 @@ void ULevel::PostLoad()
 				ActorPackage = LoadPackage(ActorPackage, *ActorPackageName, bPackageForPIE ? LOAD_PackageForPIE : LOAD_None, nullptr, &InstancingContext);
 
 				int32 PreviousActorCount = Actors.Num();
-				ForEachObjectWithPackage(ActorPackage, [this, &ActorsSet](UObject* PackageObject)
+				ForEachObjectWithPackage(ActorPackage, [this, &ActorsSet, bPackageForPIE](UObject* PackageObject)
 				{
 					// There might be multiple actors per package in the case where an actor as a child actor component as we put child actor in the same package as their parent
 					if (PackageObject->IsA<AActor>() && !PackageObject->IsTemplate())
@@ -1168,6 +1168,13 @@ void ULevel::PostLoad()
 						{
 							Actors.Add(Actor);
 						}
+					}
+					// In PIE, we make sure to clear RF_Standalone flag on objects in external packages (UMetaData) 
+					// This guarantees that external packages of actors that are destroyed during the PIE session will
+					// properly get GC'ed and will allow future edits/modifications of OFPA actors.
+					if (bPackageForPIE)
+					{
+						PackageObject->ClearFlags(RF_Standalone);
 					}
 					return true;
 				}, false);

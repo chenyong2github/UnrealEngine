@@ -357,6 +357,18 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 			check(LoadProgress->NumPendingLoadRequests);
 			LoadProgress->NumPendingLoadRequests--;
 
+			// In PIE, we make sure to clear RF_Standalone flag on objects in external packages (UMetaData) 
+			// This guarantees that external packages of actors that are destroyed during the PIE session will
+			// properly get GC'ed and will allow future edits/modifications of OFPA actors.
+			if (LoadedPackage && InDestLevel && InDestLevel->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+			{
+				ForEachObjectWithPackage(LoadedPackage, [](UObject* Object)
+				{
+					Object->ClearFlags(RF_Standalone);
+					return true;
+				}, false);
+			}
+
 			AActor* Actor = LoadedPackage ? FindObject<AActor>(LoadedPackage, *ActorName.ToString()) : nullptr;
 
 			if (Actor)
