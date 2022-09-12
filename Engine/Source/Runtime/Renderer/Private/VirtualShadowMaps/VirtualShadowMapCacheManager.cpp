@@ -73,7 +73,8 @@ static FAutoConsoleVariableRef  CVarForceInvalidateDirectionalVSM(
 void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
 	const FMatrix &WorldToLight,
-	FIntPoint PageSpaceLocation,
+	FInt64Point PageSpaceLocation,
+	FInt64Point ClipmapCornerOffset,
 	double LevelRadius,
 	double ViewCenterZ,
 	// NOTE: ViewRadiusZ must be constant for a given clipmap level
@@ -141,12 +142,15 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = PageSpaceLocation;
+
+	Clipmap.PrevClipmapCornerOffset = Clipmap.CurrentClipmapCornerOffset;
+	Clipmap.CurrentClipmapCornerOffset = ClipmapCornerOffset;
 }
 
 void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
 {
 	// Swap previous frame data over.
-	PrevPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
+	PrevPageSpaceLocation = FInt64Point(0, 0);		// Not used for local lights
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
 
 	// Not valid if it was never rendered
@@ -162,7 +166,7 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FV
 	}
 
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
-	CurrentPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
+	CurrentPageSpaceLocation = FInt64Point(0, 0);		// Not used for local lights
 }
 
 void FVirtualShadowMapCacheEntry::Invalidate()

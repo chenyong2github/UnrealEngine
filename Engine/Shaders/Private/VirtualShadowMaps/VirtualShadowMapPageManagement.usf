@@ -493,6 +493,8 @@ void CreateCachedPageMappings(uint VirtualShadowMapId, uint GlobalPageOffset, ui
 		const bool bCacheStaticSeparately = VirtualShadowMapShouldCacheStaticSeparately();
 
 		const uint PrevVirtualShadowMapId = ShadowMapCacheData[VirtualShadowMapId].PrevVirtualShadowMapId;
+		const int OffsetScale = (VSM_LEVEL0_DIM_PAGES_XY >> 2);
+		const int2 ClipmapCornerOffsetDelta = OffsetScale * ShadowMapCacheData[VirtualShadowMapId].ClipmapCornerOffsetDelta;
 		if (PrevVirtualShadowMapId != INDEX_NONE)
 		{
 			const FVirtualShadowMapProjectionShaderData Projection = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
@@ -508,9 +510,7 @@ void CreateCachedPageMappings(uint VirtualShadowMapId, uint GlobalPageOffset, ui
 			if (Projection.LightType == LIGHT_TYPE_DIRECTIONAL)
 			{
 				// Clipmap panning
-				const FVirtualShadowMapProjectionShaderData PrevProjection = DecodeVirtualShadowMapProjectionData(PrevProjectionData, PrevVirtualShadowMapId);
-				const int OffsetScale = (VSM_LEVEL0_DIM_PAGES_XY >> 2);
-				PrevPageAddress += OffsetScale * (PrevProjection.ClipmapCornerOffset - Projection.ClipmapCornerOffset);
+				PrevPageAddress += ClipmapCornerOffsetDelta;
 			}
 
 			if (all(PrevPageAddress >= 0) && all(PrevPageAddress < (uint(VSM_LEVEL0_DIM_PAGES_XY) >> MipLevel)))
@@ -859,7 +859,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 		if (!pPage0.bThisLODValid)
 		{
 			const int OffsetScale = (VSM_LEVEL0_DIM_PAGES_XY >> 2);
-			int2 BaseOffset = OffsetScale * ProjectionData.ClipmapCornerOffset;
+			int2 BaseOffset = OffsetScale * ProjectionData.ClipmapCornerRelativeOffset;
 			int2 BasePage   = int2(Level0Page) - BaseOffset;
 
 			// Search for first mapped page past this one
@@ -869,7 +869,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 				const int ClipmapLevelId = VirtualShadowMapID + int(ClipmapOffset);
 
 				FVirtualShadowMapProjectionShaderData LevelProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelId);								
-				int2 LevelOffset = OffsetScale * LevelProjectionData.ClipmapCornerOffset;
+				int2 LevelOffset = OffsetScale * LevelProjectionData.ClipmapCornerRelativeOffset;
 
 				int2 LevelPage = (BasePage + (LevelOffset << ClipmapOffset)) >> ClipmapOffset;
 

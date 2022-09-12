@@ -97,7 +97,7 @@ struct FVirtualShadowMapProjectionShaderData
 	// Slightly different meaning for clipmaps (includes camera pixel size scaling stuff) and local lights (raw bias)
 	float ResolutionLodBias = 0.0f;
 
-	FIntPoint ClipmapCornerOffset = FIntPoint(0, 0);
+	FIntPoint ClipmapCornerRelativeOffset = FIntPoint(0, 0);
 	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 

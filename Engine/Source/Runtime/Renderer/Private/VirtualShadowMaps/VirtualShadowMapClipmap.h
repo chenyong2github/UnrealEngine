@@ -128,7 +128,10 @@ private:
 		FVirtualShadowMap* VirtualShadowMap;
 		FMatrix ViewToClip;
 		FVector WorldCenter;
-		FIntPoint CornerOffset;
+		//Offset from (0,0) to clipmap corner, in level radii
+		FInt64Point CornerOffset;
+		//Offset from LastLevel-snapped WorldCenter to clipmap corner, in level radii
+		FIntPoint RelativeCornerOffset;
 	};
 	TArray< FLevelData, TInlineAllocator<32> > LevelData;
 

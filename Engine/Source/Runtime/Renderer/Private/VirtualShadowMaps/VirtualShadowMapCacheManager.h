@@ -29,7 +29,8 @@ public:
 
 	void UpdateClipmap(int32 VirtualShadowMapId,
 		const FMatrix &WorldToLight,
-		FIntPoint PageSpaceLocation,
+		FInt64Point PageSpaceLocation,
+		FInt64Point ClipmapCornerOffset,
 		double LevelRadius,
 		double ViewCenterZ,
 		double ViewRadiusZ, 
@@ -38,11 +39,11 @@ public:
 	void Invalidate();
 
 	// Previous frame data
-	FIntPoint PrevPageSpaceLocation = FIntPoint(0, 0);
+	FInt64Point PrevPageSpaceLocation = FInt64Point(0, 0);
 	int32 PrevVirtualShadowMapId = INDEX_NONE;
 
 	// Current frame data
-	FIntPoint CurrentPageSpaceLocation = FIntPoint(0, 0);
+	FInt64Point CurrentPageSpaceLocation = FInt64Point(0, 0);
 	int32 CurrentVirtualShadowMapId = INDEX_NONE;
 
 	struct FClipmapInfo
@@ -50,6 +51,12 @@ public:
 		FMatrix	WorldToLight;
 		double ViewCenterZ;
 		double ViewRadiusZ;
+
+		// Previous frame data
+		FInt64Point PrevClipmapCornerOffset = FInt64Point(0, 0);
+
+		// Current frame data
+		FInt64Point CurrentClipmapCornerOffset = FInt64Point(0, 0);
 	};
 	FClipmapInfo Clipmap;
 };

@@ -10,6 +10,8 @@ struct FShadowMapCacheData
 	// ID of the corresponding virtual shadow map from the previous frame, or INDEX_NONE if
 	// there wasn't one.
 	int PrevVirtualShadowMapId;
+
+	int2 ClipmapCornerOffsetDelta;
 };
 
 StructuredBuffer<FShadowMapCacheData> ShadowMapCacheData;

@@ -122,6 +122,17 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		}
 	}
 
+	const int RadiusLn = GetLevelRadius(LastLevel);
+	const int RadiiPerLevel = 4;
+	FVector SnappedOriginLn = WorldToLightViewRotationMatrix.TransformPosition(WorldOrigin);
+	{
+		FInt64Point OriginSnapUnitsLn(
+			FMath::RoundToInt64(SnappedOriginLn.X / RadiusLn),
+			FMath::RoundToInt64(SnappedOriginLn.Y / RadiusLn));
+		SnappedOriginLn.X = OriginSnapUnitsLn.X * RadiusLn;
+		SnappedOriginLn.Y = OriginSnapUnitsLn.Y * RadiusLn;
+	}
+
 	for (int32 Index = 0; Index < LevelCount; ++Index)
 	{
 		FLevelData& Level = LevelData[Index];
@@ -137,20 +148,29 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		double SnapSize = RawLevelRadius;
 
 		FVector ViewCenter = WorldToLightViewRotationMatrix.TransformPosition(WorldOrigin);
-		FIntPoint CenterSnapUnits(
-			FMath::RoundToInt(ViewCenter.X / SnapSize),
-			FMath::RoundToInt(ViewCenter.Y / SnapSize));
+		FVector2D CenterSnapUnits(
+			FMath::RoundToDouble(ViewCenter.X / SnapSize),
+			FMath::RoundToDouble(ViewCenter.Y / SnapSize));
 		ViewCenter.X = CenterSnapUnits.X * SnapSize;
 		ViewCenter.Y = CenterSnapUnits.Y * SnapSize;
 
-		FIntPoint CornerOffset;
-		CornerOffset.X = -CenterSnapUnits.X + 2;
-		CornerOffset.Y =  CenterSnapUnits.Y + 2;
+		FInt64Point CornerOffset;
+		CornerOffset.X = -(int64_t)CenterSnapUnits.X + (RadiiPerLevel/2);
+		CornerOffset.Y =  (int64_t)CenterSnapUnits.Y + (RadiiPerLevel/2);
 
 		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(ViewCenter);
 
 		Level.WorldCenter = SnappedWorldCenter;
 		Level.CornerOffset = CornerOffset;
+
+		// A relative corner offset is used for LWC reasons.
+		// The reference point is WorldOrigin snapped to a grid of GetLevelRadius(LastLevel),
+		// because points on this grid are guaranteed to also be present on lower levels,
+		// therefore allowing the offsets to represented as factors of level radii without precision loss.
+		const FInt64Point SnappedPageOriginLi(-ViewCenter.X, ViewCenter.Y);
+		const FInt64Point SnappedPageOriginLn(-SnappedOriginLn.X, SnappedOriginLn.Y);
+		const FInt64Point RelativeCornerOffset = SnappedPageOriginLi - SnappedPageOriginLn + ((RadiiPerLevel / 2) * (int64_t)SnapSize);
+		Level.RelativeCornerOffset = FIntPoint(RelativeCornerOffset / SnapSize);
 
 		// Check if we have a cache entry for this level
 		// If we do and it covers our required depth range, we can use cached pages. Otherwise we need to invalidate.
@@ -175,11 +195,12 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		{
 			// We snap to half the size of the VSM at each level
 			check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
-			FIntPoint PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
+			FInt64Point PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
 
 			CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID,
 				WorldToLightRotationMatrix,
 				PageOffset,
+				CornerOffset,
 				RawLevelRadius,
 				ViewCenter.Z,
 				ViewRadiusZ,
@@ -270,7 +291,7 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();
 	Data.ResolutionLodBias = ResolutionLodBias;
-	Data.ClipmapCornerOffset = Level.CornerOffset;
+	Data.ClipmapCornerRelativeOffset = Level.RelativeCornerOffset;
 	Data.LightSourceRadius = GetLightSceneInfo().Proxy->GetSourceRadius();
 	Data.Flags = GForceInvalidateDirectionalVSM ? VSM_PROJ_FLAG_UNCACHED : 0U;
 

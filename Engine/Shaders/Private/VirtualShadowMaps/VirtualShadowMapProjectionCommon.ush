@@ -137,8 +137,8 @@ FVirtualShadowMapClipmapRelativeTransform CalcClipmapRelativeTransform(int Clipm
 	const FVirtualShadowMapProjectionShaderData ProjectionDataA = GetVirtualShadowMapProjectionData(ClipmapId);
 	const FVirtualShadowMapProjectionShaderData ProjectionDataB = GetVirtualShadowMapProjectionData(ClipmapId + LevelOffset);
 
-	float2 OffsetA = float2(ProjectionDataA.ClipmapCornerOffset);
-	float2 OffsetB = float2(ProjectionDataB.ClipmapCornerOffset);
+	float2 OffsetA = float2(ProjectionDataA.ClipmapCornerRelativeOffset);
+	float2 OffsetB = float2(ProjectionDataB.ClipmapCornerRelativeOffset);
 
 	FVirtualShadowMapClipmapRelativeTransform Result;
 	Result.Scale = LevelOffset >= 0 ? rcp(float(1U << LevelOffset)) : float(1U << (-LevelOffset));
@@ -161,8 +161,8 @@ uint2 CalcClipmapOffsetLevelPage(uint2 BasePage, int ClipmapId, uint LevelOffset
 	const FVirtualShadowMapProjectionShaderData ProjectionDataB = GetVirtualShadowMapProjectionData(ClipmapId + LevelOffset);
 
 	const int OffsetScale = (VSM_LEVEL0_DIM_PAGES_XY >> 2);
-	int2 BasePageOffset  = OffsetScale * ProjectionDataA.ClipmapCornerOffset;
-	int2 LevelPageOffset = OffsetScale * ProjectionDataB.ClipmapCornerOffset;
+	int2 BasePageOffset  = OffsetScale * ProjectionDataA.ClipmapCornerRelativeOffset;
+	int2 LevelPageOffset = OffsetScale * ProjectionDataB.ClipmapCornerRelativeOffset;
 	return (BasePage - BasePageOffset + (LevelPageOffset << LevelOffset)) >> LevelOffset;
 }
 
