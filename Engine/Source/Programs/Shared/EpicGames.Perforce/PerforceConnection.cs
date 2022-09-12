@@ -3426,7 +3426,42 @@ namespace EpicGames.Perforce
 			List<string> arguments = new List<string>();
 			arguments.Add($"-e{changeNumber}");
 
-			return (await CommandAsync<SubmitRecord>(connection, "submit", arguments, null, cancellationToken))[0];
+			PerforceResponseList<SubmitRecord> responses = await CommandAsync<SubmitRecord>(connection, "submit", arguments, null, cancellationToken);
+
+			SubmitRecord? success = null;
+			PerforceResponse<SubmitRecord>? error = null;
+			foreach (PerforceResponse<SubmitRecord> response in responses)
+			{
+				if (response.Error != null)
+				{
+					error ??= response;
+				}
+				else if (response.Info != null)
+				{
+					connection.Logger.LogInformation("Submit: {Info}", response.Info.Data);
+				}
+				else if (success == null)
+				{
+					success = response.Data;
+				}
+				else
+				{
+					success.Merge(response.Data);
+				}
+			}
+
+			if (error != null)
+			{
+				return error;
+			}
+			else if (success != null)
+			{
+				return new PerforceResponse<SubmitRecord>(success);
+			}
+			else
+			{
+				return responses[0];
+			}
 		}
 
 		#endregion

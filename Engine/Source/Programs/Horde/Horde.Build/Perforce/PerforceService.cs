@@ -972,7 +972,7 @@ namespace Horde.Build.Perforce
 						change = await perforce.CreateChangeAsync(change, cancellationToken);
 
 						SubmitRecord submit = await perforce.SubmitAsync(change.Number, SubmitOptions.SubmitUnchanged, cancellationToken);
-						return submit.ChangeNumber;
+						return submit.SubmittedChangeNumber;
 					}
 					catch (Exception ex)
 					{
@@ -1049,7 +1049,7 @@ namespace Horde.Build.Perforce
 				try
 				{
 					SubmitRecord submit = await perforce.SubmitShelvedAsync(change, cancellationToken);
-					return (submit.ChangeNumber, records[0].Description);
+					return (submit.SubmittedChangeNumber, records[0].Description);
 				}
 				catch (Exception ex)
 				{
