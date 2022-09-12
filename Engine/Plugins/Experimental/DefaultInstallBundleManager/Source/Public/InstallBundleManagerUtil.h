@@ -23,6 +23,11 @@ namespace InstallBundleManagerUtil
 {
 	DEFAULTINSTALLBUNDLEMANAGER_API TSharedPtr<IInstallBundleSource> MakeBundleSource(EInstallBundleSourceType Type);
 
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
+	DEFAULTINSTALLBUNDLEMANAGER_API TSharedPtr<IInstallBundleSource> MakePlatformBundleSource();
+#endif
+
+
 	// Returns a thread pool with one thread suitible for running in-order journal tasks
 	DEFAULTINSTALLBUNDLEMANAGER_API TSharedPtr<FQueuedThreadPool, ESPMode::ThreadSafe> GetJournalThreadPool();
 
