@@ -30,6 +30,7 @@ public:
 
 	DECLARE_DELEGATE_OneParam(FActorPathConsumer, const FSoftObjectPath& /*OriginalActorPath*/);
 	DECLARE_DELEGATE_OneParam(FActorConsumer, AActor* /*WorldActor*/);
+	DECLARE_MULTICAST_DELEGATE(FSnapshotEvent);
 	
 	/* Captures the current state of the given world. */
 	bool SnapshotWorld(UWorld* TargetWorld);
@@ -75,7 +76,6 @@ public:
 	void DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor);
 
 	
-	
 	/* Sets the name of this snapshot. */
 	UFUNCTION(BlueprintCallable, Category = "Level Snapshots")
 	void SetSnapshotName(const FName& InSnapshotName);
@@ -93,6 +93,9 @@ public:
 
 	const FWorldSnapshotData& GetSerializedData() const { return SerializedData; }
 	const FSnapshotDataCache& GetCache() const { return Cache; }
+
+	FSnapshotEvent& OnPreApplySnapshot() { return OnPreApplySnapshotDelegate; }
+	FSnapshotEvent& OnPostApplySnapshot() { return OnPostApplySnapshotDelegate; }
 
 #if !WITH_EDITOR
 	/**
@@ -182,4 +185,7 @@ private:
 	/** User defined description of the snapshot */
 	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotDescription", EditAnywhere, Category = "Level Snapshots")
 	FString SnapshotDescription;
+
+	FSnapshotEvent OnPreApplySnapshotDelegate;
+	FSnapshotEvent OnPostApplySnapshotDelegate;
 };

@@ -103,6 +103,10 @@ private:
 	UPROPERTY()
 	bool bIsFilterDirty = false;
 
+	/** Whether ActiveSnapshot is currently being restored. Does not allow changing the active snapshot while true.  */
+	UPROPERTY()
+	bool bIsApplyingSnapshot = false;
+
 	/* Converts UserDefinedFilters into ULevelSnapshotsSelectionSet display in results view. */
 	UPROPERTY()
 	TObjectPtr<UFilteredResults> FilterResults;
@@ -113,4 +117,7 @@ private:
 	/* Filter visible in details panel */
 	UPROPERTY()
 	TObjectPtr<UNegatableFilter> EditedFilter;
+
+	void OnPreApplySnapshot() { bIsApplyingSnapshot = true; }
+	void OnPostApplySnapshot() { bIsApplyingSnapshot = false; }
 };

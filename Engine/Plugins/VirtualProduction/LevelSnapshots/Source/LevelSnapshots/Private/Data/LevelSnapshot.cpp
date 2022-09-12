@@ -32,7 +32,7 @@
 void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld);
-	if (TargetWorld == nullptr)
+	if (TargetWorld == nullptr || !ensure(IsInGameThread()))
 	{
 		return;
 	}
@@ -46,7 +46,9 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	
 	EnsureWorldInitialised();
 	
+	OnPreApplySnapshotDelegate.Broadcast();
 	UE::LevelSnapshots::Private::ApplyToWorld(SerializedData, Cache, TargetWorld, GetPackage(), SelectionSet);
+	OnPostApplySnapshotDelegate.Broadcast();
 }
 
 bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)

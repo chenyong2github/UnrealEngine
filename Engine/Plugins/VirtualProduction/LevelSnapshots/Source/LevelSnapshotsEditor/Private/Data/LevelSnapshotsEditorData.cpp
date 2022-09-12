@@ -103,8 +103,25 @@ void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
 void ULevelSnapshotsEditorData::SetActiveSnapshot(ULevelSnapshot* NewActiveSnapshot)
 {
 	SCOPED_SNAPSHOT_EDITOR_TRACE(SetActiveSnapshot);
+
+	if (bIsApplyingSnapshot)
+	{
+		return;
+	}
+
+	if (ActiveSnapshot)
+	{
+		ActiveSnapshot->OnPreApplySnapshot().RemoveAll(this);
+		ActiveSnapshot->OnPostApplySnapshot().RemoveAll(this);
+	}
 	
 	ActiveSnapshot = NewActiveSnapshot;
+	if (ActiveSnapshot)
+	{
+		ActiveSnapshot->OnPreApplySnapshot().AddUObject(this, &ULevelSnapshotsEditorData::OnPreApplySnapshot);
+		ActiveSnapshot->OnPostApplySnapshot().AddUObject(this, &ULevelSnapshotsEditorData::OnPostApplySnapshot);
+	}
+	
 	FilterResults->SetActiveLevelSnapshot(NewActiveSnapshot);
 	OnActiveSnapshotChanged.Broadcast(GetActiveSnapshot());
 }
