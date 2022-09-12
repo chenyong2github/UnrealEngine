@@ -10,6 +10,7 @@
 #include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "ScopedTransaction.h"
+#include "Algo/MinElement.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXMVRFixtureListItem"
@@ -408,7 +409,8 @@ void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor
 			FixtureTypeConstructionParams.Modes = FixtureTypeOfPatchToDuplicate->Modes;
 			FixtureTypeConstructionParams.ParentDMXLibrary = DMXLibrary;
 
-			UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams, FixtureTypeOfPatchToDuplicate->Name);
+			constexpr bool bMarkLibraryDirty = false;
+			UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams, FixtureTypeOfPatchToDuplicate->Name, bMarkLibraryDirty);
 		}
 
 		// Duplicate the Fixture Patch
@@ -425,7 +427,8 @@ void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor
 		ConstructionParams.UniverseID = Universe;
 		ConstructionParams.StartingAddress = Address;
 
-		UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(ConstructionParams, FixturePatchToDuplicate->Name);
+		constexpr bool bMarkLibraryDirty = false;
+		UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(ConstructionParams, FixturePatchToDuplicate->Name, bMarkLibraryDirty);
 		NewFixturePatches.Add(NewFixturePatch);
 
 		Address += ChannelSpan;
@@ -435,6 +438,15 @@ void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor
 
 	if (NewFixturePatches.Num() > 0)
 	{
+		// Select universe and fixture patch
+		const TWeakObjectPtr<UDMXEntityFixturePatch>* FirstFixturePatchPtr = Algo::MinElementBy(NewFixturePatches, [](TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)
+			{
+				return FixturePatch->GetUniverseID();
+			});
+		if (FirstFixturePatchPtr->IsValid())
+		{
+			FixturePatchSharedData->SelectUniverse(FirstFixturePatchPtr->Get()->GetUniverseID());
+		}
 		FixturePatchSharedData->SelectFixturePatches(NewFixturePatches);
 	}
 }

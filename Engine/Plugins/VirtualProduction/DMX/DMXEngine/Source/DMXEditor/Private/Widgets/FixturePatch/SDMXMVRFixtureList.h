@@ -69,8 +69,12 @@ public:
 	/** If a single Row is selected, enters Editing Mode for the Fixture Patch Name of the selected Row */
 	void EnterFixturePatchNameEditingMode();
 
+	/** Processes command bindings for the Key Event */
+	FReply ProcessCommandBindings(const FKeyEvent& InKeyEvent);
+
 protected:
 	//~ Begin SWidget Interface
+	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	//~ End SWidget Interface
 

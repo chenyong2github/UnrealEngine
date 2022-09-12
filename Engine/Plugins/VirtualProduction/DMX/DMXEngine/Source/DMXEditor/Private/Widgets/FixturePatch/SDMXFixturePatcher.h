@@ -28,7 +28,7 @@ enum class ECheckBoxState : uint8;
 /** Widget to assign fixture patches to universes and their channels */
 class SDMXFixturePatcher
 	: public SCompoundWidget
-	, public FEditorUndoClient
+	, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXFixturePatcher)
@@ -49,9 +49,6 @@ public:
 	void RefreshFromLibrary();
 
 protected:
-	/** Called when the active tab changed */
-	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
-
 	// Begin SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
@@ -99,7 +96,7 @@ protected:
 	int32 GetSelectedUniverse() const;
 
 	/** Shows the selected universe only */
-	void ShowSelectedUniverse(bool bForceReconstructWidget = false);
+	void ShowSelectedUniverse();
 
 	/** Shows all universes */
 	void ShowAllPatchedUniverses(bool bForceReconstructWidgets = false);

@@ -96,7 +96,7 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 
 	CreateChannelConnectors();
 
-	SetUniverseID(UniverseID);
+	SetUniverseIDInternal(UniverseID);
 
 	UpdateZOrderOfNodes();
 	UpdatePatchedUniverseReachability();
@@ -112,75 +112,12 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SDMXPatchedUniverse::RequestRefresh()
 {
-	if (RequestRefreshTimerHandle.IsValid())
-	{
-		return;
-	}
-
-	RequestRefreshTimerHandle =
-		GEditor->GetTimerManager()->SetTimerForNextTick(
-			FTimerDelegate::CreateLambda([this]()
-				{
-					RefreshInternal();
-				})
-		);
-}
-
-void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
-{
-	check(NewUniverseID > -1);
-
-	// Find patches in new universe
-	UDMXLibrary* Library = GetDMXLibrary();
-	if (Library)
-	{
-		// Unpatch all nodes
-		TArray<TSharedPtr<FDMXFixturePatchNode>> CachedPatchedNodes = PatchedNodes;
-		for (const TSharedPtr<FDMXFixturePatchNode>& Node : CachedPatchedNodes)
-		{
-			Unpatch(Node);
-		}
-		check(PatchedNodes.Num() == 0);
-
-		// Update what to draw
-		UniverseID = NewUniverseID;
-
-		UpdatePatchedUniverseReachability();
-
-		TArray<UDMXEntityFixturePatch*> PatchesInUniverse;
-		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch) 
-		{
-			if (Patch->GetUniverseID() == UniverseID)
+	GEditor->GetTimerManager()->SetTimerForNextTick(
+		FTimerDelegate::CreateLambda([this]()
 			{
-				PatchesInUniverse.Add(Patch);
-			}
-		});
-		PatchesInUniverse.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
-			{
-				return FixturePatchA.GetEndingChannel() <= FixturePatchB.GetEndingChannel();
-			});
-
-		// Add fixture patches to the grid
-		for (UDMXEntityFixturePatch* FixturePatch : PatchesInUniverse)
-		{
-			TSharedPtr<FDMXFixturePatchNode> Node = FindPatchNode(FixturePatch);
-			if (!Node.IsValid())
-			{
-				Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
-			}
-			check(Node.IsValid());
-
-			Patch(Node, FixturePatch->GetStartingChannel(), false);
-		}
-
-		// Update the channel connectors' Universe ID
-		for (const TSharedPtr<SDMXChannelConnector>& Connector : ChannelConnectors)
-		{
-			Connector->SetUniverseID(NewUniverseID);
-		}
-
-		RequestRefresh();
-	}
+				RefreshInternal();
+			})
+	);
 }
 
 void SDMXPatchedUniverse::SetShowUniverseName(bool bShow)
@@ -392,15 +329,68 @@ void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* Fi
 	else if (!NodePtr && UniverseID == FixturePatch->GetUniverseID())
 	{
 		SharedData->SelectUniverse(UniverseID);
-		SetUniverseID(UniverseID);
 	}
+}
 
-	RequestRefresh();
+void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
+{
+	check(NewUniverseID > -1);
+
+	// Find patches in new universe
+	UDMXLibrary* Library = GetDMXLibrary();
+	if (Library)
+	{
+		// Unpatch all nodes
+		TArray<TSharedPtr<FDMXFixturePatchNode>> CachedPatchedNodes = PatchedNodes;
+		for (const TSharedPtr<FDMXFixturePatchNode>& Node : CachedPatchedNodes)
+		{
+			Unpatch(Node);
+		}
+		check(PatchedNodes.Num() == 0);
+
+		// Update what to draw
+		UniverseID = NewUniverseID;
+
+		UpdatePatchedUniverseReachability();
+
+		TArray<UDMXEntityFixturePatch*> PatchesInUniverse;
+		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
+			{
+				if (Patch->GetUniverseID() == UniverseID)
+				{
+					PatchesInUniverse.Add(Patch);
+				}
+			});
+		PatchesInUniverse.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+			{
+				return FixturePatchA.GetEndingChannel() <= FixturePatchB.GetEndingChannel();
+			});
+
+		// Add fixture patches to the grid
+		for (UDMXEntityFixturePatch* FixturePatch : PatchesInUniverse)
+		{
+			TSharedPtr<FDMXFixturePatchNode> Node = FindPatchNode(FixturePatch);
+			if (!Node.IsValid())
+			{
+				Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
+			}
+			check(Node.IsValid());
+
+			Patch(Node, FixturePatch->GetStartingChannel(), false);
+		}
+
+		// Update the channel connectors' Universe ID
+		for (const TSharedPtr<SDMXChannelConnector>& Connector : ChannelConnectors)
+		{
+			Connector->SetUniverseID(NewUniverseID);
+		}
+
+		RefreshInternal();
+	}
 }
 
 void SDMXPatchedUniverse::RefreshInternal()
 {
-	RequestRefreshTimerHandle.Invalidate();
 	UpdateZOrderOfNodes();
 
 	// Remove old widgets from the grid
@@ -478,17 +468,9 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 				SharedData->SelectFixturePatch(Patch);
 			}
 
-			// SelectFixturePatch calls SetKeyboardFocus at some point; the call to SetKeyboardFocus is not enough for Slate: 
-			// We must also return the widget using FReply.
-			FReply Reply = FReply::Handled();
-			TSharedPtr<SWidget> WidgetThatWasFocusedBy_SelectFixturePatch = FSlateApplication::Get().GetKeyboardFocusedWidget();
-			if(WidgetThatWasFocusedBy_SelectFixturePatch.IsValid())
-			{
-				Reply.SetUserFocus(WidgetThatWasFocusedBy_SelectFixturePatch.ToSharedRef());
-			}
 			if (ensureMsgf(ChannelConnectors.IsValidIndex(Channel - 1), TEXT("Trying to drag Fixture Patch, but the dragged channel is not valid.")))
 			{
-				return Reply.DetectDrag(ChannelConnectors[Channel - 1].ToSharedRef(), EKeys::LeftMouseButton);
+				return FReply::Handled().DetectDrag(ChannelConnectors[Channel - 1].ToSharedRef(), EKeys::LeftMouseButton);
 			}
 		}
 	}

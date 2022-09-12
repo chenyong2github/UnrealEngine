@@ -174,7 +174,6 @@ void SDMXFixturePatchFragment::UpdateIsTopmost()
 	if (FixturePatchNodeGroup.Num() > 1)
 	{
 		UpdateFixturePatchNameText();
-		UE_LOG(LogTemp, Warning, TEXT("%s: I'm top!"), *FixturePatchNameText.ToString());
 	}
 }
 

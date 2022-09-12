@@ -76,12 +76,6 @@ public:
 
 	/** Requests to refresh the Widget on the next tick */
 	void RequestRefresh();
-	
-	/** 
-	 * Shows specified Universe ID in the widget. 
-	 * If the same Universe ID is set anew, refreshes the widget. 
-	 */
-	void SetUniverseID(int32 NewUniverseID);
 
 	/** 
 	 * Patches the node.
@@ -121,6 +115,9 @@ private:
 
 	/** Called when a Fixture Patch changed */
 	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
+
+	/** Shows the universe directly */
+	void SetUniverseIDInternal(int32 NewUniverseID);
 
 	/** Refreshes the widget directly */
 	void RefreshInternal();
@@ -202,9 +199,6 @@ private:
 
 	/** The Fixture Patch Widgets that are currently being displalyed */
 	TArray<TSharedPtr<SDMXFixturePatchFragment>> FixturePatchWidgets;
-
-	/** Timer handle for the Request Refresh Timer */
-	FTimerHandle RequestRefreshTimerHandle;
 
 	/** Shared data for fixture patch editors */
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData;

@@ -385,7 +385,6 @@ void SDMXMVRFixtureList::Construct(const FArguments& InArgs, TWeakPtr<FDMXEditor
 			.OnGenerateRow(this, &SDMXMVRFixtureList::OnGenerateRow)
 			.OnSelectionChanged(this, &SDMXMVRFixtureList::OnSelectionChanged)
 			.OnContextMenuOpening(this, &SDMXMVRFixtureList::OnContextMenuOpening)
-			.ReturnFocusToSelection(false)
 		]
 	];
 
@@ -426,9 +425,9 @@ void SDMXMVRFixtureList::EnterFixturePatchNameEditingMode()
 			}
 		}
 	}
-}
+}	
 
-FReply SDMXMVRFixtureList::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+FReply SDMXMVRFixtureList::ProcessCommandBindings(const FKeyEvent& InKeyEvent)
 {
 	if (CommandList->ProcessCommandBindings(InKeyEvent))
 	{
@@ -436,6 +435,11 @@ FReply SDMXMVRFixtureList::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 	}
 
 	return FReply::Unhandled();
+}
+
+FReply SDMXMVRFixtureList::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return ProcessCommandBindings(InKeyEvent);
 }
 
 void SDMXMVRFixtureList::OnSearchChanged()
@@ -629,6 +633,11 @@ void SDMXMVRFixtureList::OnFixturePatchSharedDataSelectedFixturePatches()
 			ListView->ClearSelection();
 		}
 	}
+
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+		{
+			FSlateApplication::Get().SetKeyboardFocus(AsShared());
+		}));
 }
 
 void SDMXMVRFixtureList::OnFixturePatchSharedDataSelectedUniverse()

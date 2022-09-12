@@ -35,12 +35,17 @@ public:
 	void Construct(const FArguments& InArgs);
 
 public:
-	/** Begin SDMXEntityEditorTab interface */
+	//~ Begin SWidget interface
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//~ End SWidget interface
+
+	// Begin SDMXEntityEditorTab interface
 	void RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType);
 	void SelectEntity(UDMXEntity* InEntity, ESelectInfo::Type InSelectionType = ESelectInfo::Type::Direct);
 	void SelectEntities(const TArray<UDMXEntity*>& InEntities, ESelectInfo::Type SelectionType = ESelectInfo::Type::Direct);
 	TArray<UDMXEntity*> GetSelectedEntities() const;
-	/** ~End SDMXEntityEditorTab interface */
+	// ~End SDMXEntityEditorTab interface 
 
 private:
 	/** Selects the patch */

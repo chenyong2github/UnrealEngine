@@ -29,7 +29,6 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 	FixturePatchSharedData = DMXEditorPtr.Pin()->GetFixturePatchSharedData();
 
 	SetCanTick(false);
-	bCanSupportFocus = false;
 
 	FixturePatchDetailsView = GenerateFixturePatchDetailsView();
 
@@ -74,6 +73,12 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 
 	// Bind to selection changes
 	FixturePatchSharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixturePatchEditor::OnFixturePatchesSelected);
+}
+
+FReply SDMXFixturePatchEditor::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	MVRFixtureList->ProcessCommandBindings(InKeyEvent);
+	return FReply::Handled();
 }
 
 void SDMXFixturePatchEditor::RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType)

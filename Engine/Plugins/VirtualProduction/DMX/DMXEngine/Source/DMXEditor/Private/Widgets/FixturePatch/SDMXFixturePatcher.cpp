@@ -162,12 +162,6 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 		SharedData->SelectUniverse(Patches[0]->GetUniverseID());
 	}		
 
-	// Bind to tabs being switched
-	FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
-
-
-	GEditor->RegisterForUndo(this);
-
 	ShowSelectedUniverse();
 
 }
@@ -183,28 +177,18 @@ void SDMXFixturePatcher::RefreshFromLibrary()
 	RefreshFixturePatchState = EDMXRefreshFixturePatcherState::RefreshFromLibrary;
 }
 
-void SDMXFixturePatcher::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
-{
-	if (!NewlyActivated.IsValid() ||
-		NewlyActivated->GetLayoutIdentifier().TabType == FDMXEditorTabNames::DMXFixturePatchEditor)
-	{
-		RefreshFromLibrary();
-	}
-}
-
 void SDMXFixturePatcher::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	// Refresh if requested
 	if (RefreshFixturePatchState != EDMXRefreshFixturePatcherState::NoRefreshRequested)
 	{
-		const bool bForceReconstructWidget = RefreshFixturePatchState == EDMXRefreshFixturePatcherState::RefreshFromLibrary;
 		if (IsUniverseSelectionEnabled())
 		{
-			ShowSelectedUniverse(bForceReconstructWidget);
+			ShowSelectedUniverse();
 		}
 		else
 		{
-			ShowAllPatchedUniverses(bForceReconstructWidget);
+			ShowAllPatchedUniverses();
 		}
 
 		RefreshFixturePatchState = EDMXRefreshFixturePatcherState::NoRefreshRequested;
@@ -480,43 +464,40 @@ void SDMXFixturePatcher::OnFixturePatchSelectionChanged()
 		return;
 	}
 
-	if (IsUniverseSelectionEnabled())
+	const TSharedPtr<SDMXPatchedUniverse>* const UniverseWidgetPtr = PatchedUniversesByID.Find(SelectedUniverse);
+	if (IsUniverseSelectionEnabled() || !UniverseWidgetPtr)
 	{
-		constexpr bool bReconstructWidget = true;
-		ShowSelectedUniverse(bReconstructWidget);
+		// Refresh if all universes are displayed, or if the Universe was empty previously and now needs to be displayed.
+		ShowSelectedUniverse();
 	}
 	else
 	{
-		const TSharedPtr<SDMXPatchedUniverse>* const UniverseWidgetPtr = PatchedUniversesByID.Find(SelectedUniverse);
-		if (UniverseWidgetPtr)
-		{
-			PatchedUniverseScrollBox->ScrollDescendantIntoView(*UniverseWidgetPtr);
-		}
+		PatchedUniverseScrollBox->ScrollDescendantIntoView(*UniverseWidgetPtr);
 	}
 }
 
 void SDMXFixturePatcher::OnUniverseSelectionChanged()
 {
-	const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
-	if (PatchedUniversesByID.Contains(SelectedUniverse))
-	{
-		return;
-	}
-
 	if (IsUniverseSelectionEnabled())
 	{
-		ShowSelectedUniverse();
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+			{
+				ShowSelectedUniverse();
+			}));
 	}
-	else if(!PatchedUniversesByID.Contains(SharedData->GetSelectedUniverse()))
+	else 
 	{
-		ShowAllPatchedUniverses();
-	}
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+			{
+				ShowAllPatchedUniverses();
 
-	if (!ensureMsgf(PatchedUniversesByID.Contains(SelectedUniverse), TEXT("Tried to scroll universe into view after displaying it, but universe doesn't exist. This is not expected.")))
-	{
-		return;
+				const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
+				if (PatchedUniversesByID.Contains(SelectedUniverse))
+				{
+					PatchedUniverseScrollBox->ScrollDescendantIntoView(PatchedUniversesByID[SelectedUniverse]);
+				}
+			}));
 	}
-	PatchedUniverseScrollBox->ScrollDescendantIntoView(PatchedUniversesByID[SelectedUniverse]);
 }
 
 void SDMXFixturePatcher::SelectUniverse(int32 NewUniverseID)
@@ -530,70 +511,26 @@ int32 SDMXFixturePatcher::GetSelectedUniverse() const
 	return UniverseToSetNextTick != INDEX_NONE ? UniverseToSetNextTick : SharedData->GetSelectedUniverse();
 }
 
-void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
+void SDMXFixturePatcher::ShowSelectedUniverse()
 {
-	int32 SelectedUniverseID = GetSelectedUniverse();
+	PatchedUniverseScrollBox->ClearChildren();
+	PatchedUniversesByID.Reset();
+	
+	const int32 SelectedUniverseID = GetSelectedUniverse();
+	const TSharedRef<SDMXPatchedUniverse> NewPatchedUniverse =
+		SNew(SDMXPatchedUniverse)
+		.DMXEditor(DMXEditorPtr)
+		.UniverseID(SelectedUniverseID)
+		.OnDragEnterChannel(this, &SDMXFixturePatcher::OnDragEnterChannel)
+		.OnDropOntoChannel(this, &SDMXFixturePatcher::OnDropOntoChannel);
 
-	/** Select a patched universe if the selected Universe doesn't contain any universes */
-	UDMXLibrary* DMXLibrary = GetDMXLibrary();
-	if (!DMXLibrary)
-	{
-		return;
-	}
-	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-	const bool bIsSelectedUniversePatched = FixturePatches.ContainsByPredicate([SelectedUniverseID](const UDMXEntityFixturePatch* FixturePatch)
-		{
-			return FixturePatch->GetUniverseID() == SelectedUniverseID;
-		});
-	if (!bIsSelectedUniversePatched && FixturePatches.Num() > 0)
-	{
-		FixturePatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
-			{
-				return FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID();
-			});
-		SelectedUniverseID = FixturePatches[0]->GetUniverseID();
-	}
+	PatchedUniverseScrollBox->AddSlot()
+		.Padding(FMargin(0.0f, 3.0f, 0.0f, 12.0f))			
+		[
+			NewPatchedUniverse
+		];
 
-	// Force reconstruct if requested
-	if (bForceReconstructWidget)
-	{
-		PatchedUniverseScrollBox->ClearChildren();
-		PatchedUniversesByID.Reset();
-	}
-
-	// Create a new patched universe if required
-	if (PatchedUniversesByID.Num() != 1)
-	{
-		const TSharedRef<SDMXPatchedUniverse> NewPatchedUniverse =
-			SNew(SDMXPatchedUniverse)
-			.DMXEditor(DMXEditorPtr)
-			.UniverseID(SelectedUniverseID)
-			.OnDragEnterChannel(this, &SDMXFixturePatcher::OnDragEnterChannel)
-			.OnDropOntoChannel(this, &SDMXFixturePatcher::OnDropOntoChannel);
-
-		PatchedUniverseScrollBox->AddSlot()
-			.Padding(FMargin(0.0f, 3.0f, 0.0f, 12.0f))			
-			[
-				NewPatchedUniverse
-			];
-
-		PatchedUniversesByID.Add(SelectedUniverseID, NewPatchedUniverse);
-	}
-	else
-	{
-		// Update the single, existing universe instance
-		int32 OldUniverseID = -1;
-		for (TPair<int32, TSharedPtr<SDMXPatchedUniverse>> UniverseByID : PatchedUniversesByID)
-		{
-			OldUniverseID = UniverseByID.Key;
-			break;			
-		}
-		check(OldUniverseID != -1);
-				
-		TSharedPtr<SDMXPatchedUniverse> Universe = PatchedUniversesByID.FindAndRemoveChecked(OldUniverseID);
-		PatchedUniversesByID.Add(SelectedUniverseID, Universe);
-		Universe->SetUniverseID(SelectedUniverseID);
-	}	
+	PatchedUniversesByID.Add(SelectedUniverseID, NewPatchedUniverse);
 }
 
 void SDMXFixturePatcher::ShowAllPatchedUniverses(bool bForceReconstructWidget)
@@ -644,11 +581,6 @@ void SDMXFixturePatcher::ShowAllPatchedUniverses(bool bForceReconstructWidget)
 				PatchedUniversesByID.Remove(UniverseByIDKvp.Key);
 				PatchedUniverseScrollBox->RemoveSlot(UniverseByIDKvp.Value.ToSharedRef());
 			}
-			else
-			{
-				// Update universe widgets with patches
-				UniverseByIDKvp.Value->SetUniverseID(UniverseByIDKvp.Key);
-			}
 		}
 
 		// Show last patched universe +1 for convenience of adding patches to a new universe
@@ -689,18 +621,17 @@ void SDMXFixturePatcher::AddUniverse(int32 UniverseID)
 
 void SDMXFixturePatcher::OnToggleDisplayAllUniverses(ECheckBoxState CheckboxState)
 {
-	constexpr bool bForceReconstructWidget = true;
 	const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
 
 	switch (ShowAllUniversesCheckBox->GetCheckedState())
 	{
 	case ECheckBoxState::Checked:
-		ShowAllPatchedUniverses(bForceReconstructWidget);
+		ShowAllPatchedUniverses();
 		return;
 
 	case ECheckBoxState::Unchecked:
 		SelectUniverse(SelectedUniverse);
-		ShowSelectedUniverse(bForceReconstructWidget);
+		ShowSelectedUniverse();
 		return;
 
 	case ECheckBoxState::Undetermined:

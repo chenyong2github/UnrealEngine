@@ -42,12 +42,7 @@ TSharedRef<SWidget> FDMXLibraryEditorTabSummoner::CreateTabBody(const FWorkflowT
 {
 	TSharedPtr<FDMXEditor> DMXEditor = StaticCastSharedPtr<FDMXEditor>(HostingApp.Pin());
 
-	return SNew(SBox)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			DMXEditor->GetDMXLibraryEditorTab()
-		];
+	return DMXEditor->GetDMXLibraryEditorTab();
 }
 
 FText FDMXLibraryEditorTabSummoner::GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
@@ -71,12 +66,7 @@ TSharedRef<SWidget> FDMXEditorFixtureTypesSummoner::CreateTabBody(const FWorkflo
 {
 	TSharedPtr<FDMXEditor> DMXEditor = StaticCastSharedPtr<FDMXEditor>(HostingApp.Pin());
 
-	return SNew(SBox)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			DMXEditor->GetFixtureTypeEditor()
-		];
+	return DMXEditor->GetFixtureTypeEditor();
 }
 
 FDMXEditorFixturePatchSummoner::FDMXEditorFixturePatchSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp)
@@ -95,12 +85,7 @@ TSharedRef<SWidget> FDMXEditorFixturePatchSummoner::CreateTabBody(const FWorkflo
 {
 	TSharedPtr<FDMXEditor> DMXEditor = StaticCastSharedPtr<FDMXEditor>(HostingApp.Pin());
 
-	return SNew(SBox)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			DMXEditor->GetFixturePatchEditor()
-		];
+	return DMXEditor->GetFixturePatchEditor();
 }
 
 #undef LOCTEXT_NAMESPACE
