@@ -41,10 +41,6 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 	// Hide the 'reset to default' option
 	StructPropertyHandle->MarkResetToDefaultCustomized();
 
-	// Create the info content border, so the port can set its info during its construction
-	SAssignNew(InfoContentBorder, SBorder)
-		.BorderImage(FAppStyle::GetBrush("NoBorder"));
-
 	// Add the port selector row
 	EDMXPortSelectorMode PortSelectorMode = IsInputPort() ? EDMXPortSelectorMode::SelectFromAvailableInputs : EDMXPortSelectorMode::SelectFromAvailableOutputs;
 
@@ -61,13 +57,6 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 			SAssignNew(PortSelector, SDMXPortSelector)
 			.Mode(PortSelectorMode)
 			.OnPortSelected(this, &FDMXPortReferenceCustomizationBase::OnPortSelected)
-		];
-
-	// Add the info row
-	ChildBuilder.AddCustomRow(LOCTEXT("PortInfoSearchString", "Info"))
-		.WholeRowContent()
-		[
-			InfoContentBorder.ToSharedRef()
 		];
 
 	// Four possible states here that all need be handled:

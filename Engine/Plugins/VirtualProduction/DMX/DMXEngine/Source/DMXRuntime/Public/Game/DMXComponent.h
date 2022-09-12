@@ -55,7 +55,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SetReceiveDMXFromPatch(bool bReceive);
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "DMX")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "DMX", Meta = (ShowOnlyInnerProperties))
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
 protected:

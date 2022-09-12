@@ -1,27 +1,37 @@
 {
-  "FileVersion": 1,
-  "Version": 1,
-  "VersionName": "1.0",
-  "FriendlyName": "DMX DisplayCluster",
-  "Description": "Allows integration between DMX and DisplayCluster",
-  "Category": "Virtual Production",
-  "CreatedBy": "Epic Games, Inc.",
-  "CreatedByURL": "http://epicgames.com",
-  "DocsURL": "",
-  "MarketplaceURL": "",
-  "SupportURL": "",
-  "CanContainContent": true,
-  "IsBetaVersion": true,
-  "Modules": [
-    {
-      "Name": "DMXDisplayCluster",
-      "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "PlatformAllowList": [
-                                "Win64"
-                            ]
-    }
-   ],
+	"FileVersion": 1,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "DMX DisplayCluster",
+	"Description": "Allows integration between DMX and DisplayCluster",
+	"Category": "Virtual Production",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Modules": [
+		{
+			"Name": "DMXDisplayCluster",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
+			"Name": "DMXDisplayClusterLightCard",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "DMXEngine",
@@ -33,6 +43,10 @@
 		},
 		{
 			"Name": "nDisplay",
+			"Enabled": true
+		},
+		{
+			"Name": "nDisplayModularFeatures",
 			"Enabled": true
 		}
 	]

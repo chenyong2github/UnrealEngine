@@ -56,9 +56,6 @@ private:
 	/** Port selector widget */
 	TSharedPtr<SDMXPortSelector> PortSelector;
 
-	/** Border to hold info content */
-	TSharedPtr<SBorder> InfoContentBorder;
-
 	/** Error text shown when the port couldn't be found, may contain the last error if there is no error - I11t is not a state. */
 	FText ErrorText;
 
