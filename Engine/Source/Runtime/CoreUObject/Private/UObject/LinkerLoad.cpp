@@ -4804,6 +4804,10 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			else
 			{
 				Export.Object->SetLinker(this, Index);
+				if (Export.OuterIndex.IsImport())
+				{
+					Export.Object->SetExternalPackage(LinkerRoot);
+				}
 
 				// If this object was allocated but never loaded (components created by a constructor) make sure it gets loaded
 				// Don't do this for any packages that have previously fully loaded as they may have in memory changes
