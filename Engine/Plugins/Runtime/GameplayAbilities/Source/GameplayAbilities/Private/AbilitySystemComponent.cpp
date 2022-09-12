@@ -1217,6 +1217,10 @@ void UAbilitySystemComponent::InvokeGameplayCueEvent(const FGameplayEffectSpecFo
 
 	FGameplayCueParameters CueParameters(Spec);
 
+	FGameplayEffectQuery EffectQuery;
+	EffectQuery.EffectDefinition = Spec.Def->GetClass();
+	CueParameters.bGameplayEffectActive = Spec.Def->DurationPolicy == EGameplayEffectDurationType::Instant || ActiveGameplayEffects.GetActiveEffectCount(EffectQuery) > 0;
+
 	for (FGameplayEffectCue CueInfo : Spec.Def->GameplayCues)
 	{
 		if (CueInfo.MagnitudeAttribute.IsValid())

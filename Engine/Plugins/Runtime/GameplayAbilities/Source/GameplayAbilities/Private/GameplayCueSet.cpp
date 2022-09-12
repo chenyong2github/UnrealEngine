@@ -305,6 +305,12 @@ bool UGameplayCueSet::HandleGameplayCueNotify_Internal(AActor* TargetActor, int3
 		}
 		else if (AGameplayCueNotify_Actor* InstancedCue = Cast<AGameplayCueNotify_Actor>(CueData.LoadedGameplayCueClass->ClassDefaultObject))
 		{
+			bool bShouldDestroy = false;
+			if (EventType == EGameplayCueEvent::Executed && !Parameters.bGameplayEffectActive && InstancedCue->bAutoDestroyOnRemove)
+			{
+				bShouldDestroy = true;
+			}
+
 			if (InstancedCue->HandlesEvent(EventType))
 			{
 				if (TargetActor)
@@ -318,6 +324,11 @@ bool UGameplayCueSet::HandleGameplayCueNotify_Internal(AActor* TargetActor, int3
 						if (!SpawnedInstancedCue->IsOverride)
 						{
 							HandleGameplayCueNotify_Internal(TargetActor, CueData.ParentDataIdx, EventType, Parameters);
+						}
+
+						if (bShouldDestroy)
+						{
+							SpawnedInstancedCue->HandleGameplayCue(TargetActor, EGameplayCueEvent::Removed, Parameters);
 						}
 					}
 				}

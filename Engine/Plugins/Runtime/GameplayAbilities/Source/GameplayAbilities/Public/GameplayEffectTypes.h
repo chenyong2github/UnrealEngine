@@ -1009,6 +1009,9 @@ struct GAMEPLAYABILITIES_API FGameplayCueParameters
 	UPROPERTY(BlueprintReadWrite, Category = GameplayCue)
 	bool bReplicateLocationWhenUsingMinimalRepProxy = false;
 
+	/** If originating from a GameplayEffect, whether that GameplayEffect is still Active */
+	bool bGameplayEffectActive = true;
+
 	/** Optimized serializer */
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
