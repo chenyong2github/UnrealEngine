@@ -161,6 +161,11 @@ void FFileTreeItem::RefreshAssetInformation()
 	PackageName = FText::FromString(TempPackageName);
 }
 
+FText FFileTreeItem::GetAssetName() const
+{
+	return AssetName;
+}
+
 FText FFileTreeItem::GetAssetName()
 {
 	const FTimespan CurrentTime = FTimespan::FromSeconds(FPlatformTime::Seconds());

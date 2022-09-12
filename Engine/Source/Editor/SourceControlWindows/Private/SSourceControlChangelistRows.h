@@ -30,10 +30,12 @@ class SChangelistTableRow : public STableRow<TSharedPtr<IChangelistTreeItem>>
 public:
 	SLATE_BEGIN_ARGS(SChangelistTableRow)
 		: _TreeItemToVisualize()
+		, _HighlightText()
 		, _OnPostDrop()
 	{
 	}
 		SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_EVENT(FSimpleDelegate, OnPostDrop)
 	SLATE_END_ARGS()
 
@@ -48,9 +50,12 @@ public:
 	FText GetChangelistText() const;
 	FText GetChangelistDescriptionText() const;
 
+	static void PopulateSearchString(const FChangelistTreeItem& Item, TArray<FString>& OutStrings);
+
 protected:
 	//~ Begin STableRow Interface.
 	virtual FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) override;
+	static FString GetChangelistDescription(const FChangelistTreeItem& Item);
 
 private:
 	/** The info about the widget that we are visualizing. */
@@ -67,10 +72,12 @@ class SUncontrolledChangelistTableRow : public STableRow<FChangelistTreeItemPtr>
 public:
 	SLATE_BEGIN_ARGS(SUncontrolledChangelistTableRow)
 		: _TreeItemToVisualize()
+		, _HighlightText()
 		, _OnPostDrop()
 	{
 	}
 		SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_EVENT(FSimpleDelegate, OnPostDrop)
 	SLATE_END_ARGS()
 
@@ -83,7 +90,8 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner);
 
 	FText GetChangelistText() const;
-	FText GetChangelistDescriptionText() const;
+
+	static void PopulateSearchString(const FUncontrolledChangelistTreeItem& Item, TArray<FString>& OutStrings);
 
 protected:
 	//~ Begin STableRow Interface.
@@ -103,10 +111,12 @@ class SFileTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
 {
 public:
 	SLATE_BEGIN_ARGS(SFileTableRow)
-		: _TreeItemToVisualize()
+		: _TreeItemToVisualize(nullptr)
+		, _HighlightText()
 	{
 	}
 		SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
 	SLATE_END_ARGS()
 
@@ -127,6 +137,8 @@ public:
 	FText GetDisplayType() const;
 	FSlateColor GetDisplayColor() const;
 
+	static void PopulateSearchString(const FFileTreeItem& Item, TArray<FString>& OutStrings);
+
 protected:
 	//~ Begin STableRow Interface.
 	virtual void OnDragEnter(FGeometry const& InGeometry, FDragDropEvent const& InDragDropEvent) override;
@@ -136,6 +148,9 @@ protected:
 private:
 	/** The info about the widget that we are visualizing. */
 	FFileTreeItem* TreeItem;
+
+	/** The text to highlight*/
+	TAttribute<FText> HighlightText;
 };
 
 
@@ -144,14 +159,23 @@ class SShelvedFilesTableRow : public STableRow<TSharedPtr<IChangelistTreeItem>>
 {
 public:
 	SLATE_BEGIN_ARGS(SShelvedFilesTableRow)
-		: _Icon(nullptr)
+		: _TreeItemToVisualize()
+		, _HighlightText()
 	{
 	}
-		SLATE_ARGUMENT(const FSlateBrush*, Icon)
-		SLATE_ARGUMENT(FText, Text)
+		SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 	SLATE_END_ARGS()
 
+public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
+	static void PopulateSearchString(const FShelvedChangelistTreeItem& Item, TArray<FString>& OutStrings);
+
+private:
+	FShelvedChangelistTreeItem* TreeItem;
+
+	/** The text to highlight*/
+	TAttribute<FText> HighlightText;
 };
 
 
@@ -161,9 +185,11 @@ class SOfflineFileTableRow : public SMultiColumnTableRow<FChangelistTreeItemPtr>
 public:
 	SLATE_BEGIN_ARGS(SOfflineFileTableRow)
 		: _TreeItemToVisualize()
+		, _HighlightText()
 	{
 	}
 		SLATE_ARGUMENT(FChangelistTreeItemPtr, TreeItemToVisualize)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 	SLATE_END_ARGS()
 
 public:
@@ -183,7 +209,12 @@ public:
 	FText GetDisplayType() const;
 	FSlateColor GetDisplayColor() const;
 
+	static void PopulateSearchString(const FOfflineFileTreeItem& Item, TArray<FString>& OutStrings);
+
 private:
 	/** The info about the widget that we are visualizing. */
 	FOfflineFileTreeItem* TreeItem;
+
+	/** The text to highlight*/
+	TAttribute<FText> HighlightText;
 };

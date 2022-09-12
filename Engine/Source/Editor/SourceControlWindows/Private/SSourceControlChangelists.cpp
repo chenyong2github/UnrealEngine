@@ -9,11 +9,11 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SExpandableArea.h"
 
@@ -31,6 +31,7 @@
 #include "AssetToolsModule.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Algo/AnyOf.h"
 #include "HAL/PlatformTime.h"
 #include "ToolMenus.h"
 
@@ -131,7 +132,7 @@ public:
 			.IsChecked(this, &SExpandableSearchButton::GetToggleButtonState)
 			.OnCheckStateChanged(this, &SExpandableSearchButton::OnToggleButtonStateChanged)
 			.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-			.Padding(4.0f)
+			.Padding(2.0f)
 			.ToolTipText(NSLOCTEXT("ExpandableSearchArea", "ExpandCollapseSearchButton", "Expands or collapses the search text box"))
 			[
 				SNew(SImage)
@@ -187,6 +188,7 @@ public:
 		, _OnNewChangelistTooltip()
 		, _NewButtonVisibility(EVisibility::Visible)
 		, _SearchButtonVisibility(EVisibility::Visible)
+		, _OnSearchTextChanged()
 	{}
 		/** Search box style (used to match the glass icon) */
 		SLATE_STYLE_ARGUMENT(FSearchBoxStyle, Style)
@@ -204,18 +206,21 @@ public:
 		SLATE_ARGUMENT(EVisibility, NewButtonVisibility)
 		/** Make the 'search' button visible or not. */
 		SLATE_ARGUMENT(EVisibility, SearchButtonVisibility)
+		/** Invoked whenever the searched text changes. */
+		SLATE_EVENT(FOnTextChanged, OnSearchTextChanged)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
 	{
-		SearchBox = SNew(SSearchBox);
+		SearchBox = SNew(SSearchBox)
+			.OnTextChanged(InArgs._OnSearchTextChanged);
 
 		ChildSlot
 		[
 			SAssignNew(ExpandableArea, SExpandableArea)
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
 			.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-			.HeaderPadding(FMargin(4.0f, 3.0f))
+			.HeaderPadding(FMargin(4.0f, 2.0f))
 			.AllowAnimatedTransition(false)
 			.HeaderContent()
 			[
@@ -252,11 +257,8 @@ public:
 				.AutoWidth()
 				.Padding(4.0f, 0.0f)
 				[
-					SNew(SBox)
-					.Visibility(InArgs._SearchButtonVisibility)
-					[
-						SNew(SExpandableSearchButton, SearchBox.ToSharedRef())
-					]
+					SNew(SExpandableSearchButton, SearchBox.ToSharedRef())
+						.Visibility(InArgs._SearchButtonVisibility)
 				]
 			]
 			.BodyContent()
@@ -286,6 +288,8 @@ public:
 	}
 
 	bool IsExpanded() const { return ExpandableArea->IsExpanded(); }
+	FText GetSearchedText() const { return SearchBox->GetText(); }
+	TSharedPtr<SSearchBox> GetSearchBox() { return SearchBox; }
 
 private:
 	TSharedPtr<SExpandableArea> ExpandableArea;
@@ -314,14 +318,29 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 		.ChangelistView(ChangelistTreeView.ToSharedRef())
 		.OnNewChangelist_Lambda([this](){ OnNewChangelist(); return FReply::Handled(); })
 		.OnNewChangelistTooltip(LOCTEXT("Create_New_Changelist", "Create a new changelist."))
-		.SearchButtonVisibility(EVisibility::Collapsed); // Functionality is planned but not fully implemented yet.
+		.SearchButtonVisibility(EVisibility::Visible)
+		.OnSearchTextChanged(this, &SSourceControlChangelistsWidget::OnChangelistSearchTextChanged);
 
 	UncontrolledChangelistExpandableArea = SNew(SExpandableChangelistArea)
 		.HeaderText_Lambda([this]() { return FText::Format(LOCTEXT("SourceControl_UncontrolledChangeLists", "Uncontrolled Changelists ({0})"), UncontrolledChangelistTreeNodes.Num()); })
 		.ChangelistView(UncontrolledChangelistTreeView.ToSharedRef())
 		.OnNewChangelist_Lambda([this]() { OnNewUncontrolledChangelist(); return FReply::Handled(); })
 		.OnNewChangelistTooltip(LOCTEXT("Create_New_Uncontrolled_Changelist", "Create a new uncontrolled changelist."))
-		.SearchButtonVisibility(EVisibility::Collapsed); // Functionality is planned but not fully implemented yet.
+		.SearchButtonVisibility(EVisibility::Visible) // Functionality is planned but not fully implemented yet.
+		.OnSearchTextChanged(this, &SSourceControlChangelistsWidget::OnUncontrolledChangelistSearchTextChanged);
+
+	ChangelistTextFilter = MakeShared<TTextFilter<const IChangelistTreeItem&>>(TTextFilter<const IChangelistTreeItem&>::FItemToStringArray::CreateSP(this, &SSourceControlChangelistsWidget::PopulateItemSearchStrings));
+	ChangelistTextFilter->OnChanged().AddSP(this, &SSourceControlChangelistsWidget::OnRefresh);
+
+	UncontrolledChangelistTextFilter = MakeShared<TTextFilter<const IChangelistTreeItem&>>(TTextFilter<const IChangelistTreeItem&>::FItemToStringArray::CreateSP(this, &SSourceControlChangelistsWidget::PopulateItemSearchStrings));
+	UncontrolledChangelistTextFilter->OnChanged().AddSP(this, &SSourceControlChangelistsWidget::OnRefresh);
+
+	FileTextFilter = MakeShared<TTextFilter<const IChangelistTreeItem&>>(TTextFilter<const IChangelistTreeItem&>::FItemToStringArray::CreateSP(this, &SSourceControlChangelistsWidget::PopulateItemSearchStrings));
+	FileTextFilter->OnChanged().AddSP(this, &SSourceControlChangelistsWidget::OnRefresh);
+
+	// Min/Max prevents making the Changelist Area too small and consequently prevent the file search box to go over the 'refresh' button.
+	const float MinChangelistAreaRatio = 0.2f;
+	const float MaxFileAreaRation = 1.0f - MinChangelistAreaRatio;
 
 	ChildSlot
 	[
@@ -333,13 +352,37 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4)
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
+				SNew(SOverlay) // To align the file search box with the Changelist/File splitter, to compute ratio on the same width.
+				+SOverlay::Slot()
 				[
-					MakeToolBar()
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						MakeToolBar()
+					]
+				]
+
+				+SOverlay::Slot() // That slots has the same width than the SSplitter and use the same left/right ratio to keep the search box over the file section.
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.FillWidth(TAttribute<float>::CreateLambda([this, MinChangelistAreaRatio]() { return FMath::Max(MinChangelistAreaRatio, ChangelistAreaSize / (ChangelistAreaSize + FileAreaSize)); }))
+					.VAlign(VAlign_Center)
+					[
+						SNew(SSpacer) // This spacer uses the same width as the Changelist area on the left. They are kept in sync.
+					]
+
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.FillWidth(TAttribute<float>::CreateLambda([this, MaxFileAreaRation]() { return FMath::Min(MaxFileAreaRation, FileAreaSize / (ChangelistAreaSize + FileAreaSize)); }))
+					[
+						SAssignNew(FileSearchBox, SSearchBox)
+						.HintText(LOCTEXT("Search_Files", "Search the files..."))
+						.OnTextChanged(this, &SSourceControlChangelistsWidget::OnFileSearchTextChanged)
+					]
 				]
 			]
 		]
@@ -367,9 +410,11 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 				// Left slot: Changelists and uncontrolled changelists areas
 				+SSplitter::Slot()
 				.Resizable(true)
-				.Value(0.30)
+				.SizeRule(SSplitter::FractionOfParent)
+				.Value_Lambda([this, MinChangelistAreaRatio]() { return FMath::Max(MinChangelistAreaRatio, ChangelistAreaSize); })
+				.OnSlotResized_Lambda([this](float Size) { ChangelistAreaSize = Size; })
 				[
-					SNew(SOverlay) // Visible when both Controlled and Uncontrolled changelists are enabled (Need to add a splitter)
+					SNew(SOverlay) // Visible when both Controlled and Uncontrolled changelists are enabled (Need to split vertical space)
 					+SOverlay::Slot()
 					[
 						SNew(SSplitter)
@@ -413,11 +458,11 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 				// Right slot: Files associated to the selected the changelist/uncontrolled changelist.
 				+SSplitter::Slot()
 				.Resizable(true)
+				.SizeRule(SSplitter::FractionOfParent)
+				.Value_Lambda([this, MaxFileAreaRation]() { return FMath::Min(MaxFileAreaRation, FileAreaSize); })
+				.OnSlotResized_Lambda([this](float Size) { FileAreaSize = Size; })
 				[
-					SNew(SScrollBorder, FileTreeView.ToSharedRef())
-					[
-						FileTreeView.ToSharedRef()
-					]
+					FileTreeView.ToSharedRef()
 				]
 			]
 		]
@@ -632,28 +677,57 @@ void SSourceControlChangelistsWidget::OnRefresh()
 
 	for (const TSharedRef<ISourceControlChangelistState>& ChangelistState : ChangelistsStates)
 	{
-		// Add a changelist.
 		TSharedRef<IChangelistTreeItem> ChangelistNode = MakeShared<FChangelistTreeItem>(ChangelistState);
-		ChangelistTreeNodes.Add(ChangelistNode);
-
-		for (const TSharedRef<ISourceControlState>& FileState : ChangelistState->GetFilesStates())
-		{
-			ChangelistNode->AddChild(MakeShared<FFileTreeItem>(FileState, bBeautifyPaths));
-			SlowTask.EnterProgressFrame();
-			bBeautifyPaths &= !SlowTask.ShouldCancel();
-		}
-
+		TSharedPtr<IChangelistTreeItem> ShelvedFilesNode;
+		bool bShelvedFilesNodeFilteredOut = true;
+		bool bSearchForcedChangelistNodeExpansion = false;
 		if (ChangelistState->GetShelvedFilesStates().Num() > 0)
 		{
-			// Add a shelved files node under the changelist.
-			TSharedRef<IChangelistTreeItem> ShelvedFilesNode = MakeShared<FShelvedChangelistTreeItem>();
-			ChangelistNode->AddChild(ShelvedFilesNode);
+			ShelvedFilesNode = MakeShared<FShelvedChangelistTreeItem>();
+			bShelvedFilesNodeFilteredOut = !ChangelistTextFilter->PassesFilter(*ShelvedFilesNode);
+			bSearchForcedChangelistNodeExpansion = !bShelvedFilesNodeFilteredOut && !ChangelistTextFilter->GetRawFilterText().IsEmpty();
+		}
+		
+		// Check if the 'changelist' node must be kept.
+		if (!ChangelistTextFilter->PassesFilter(*ChangelistNode) && bShelvedFilesNodeFilteredOut)
+		{
+			continue; // Both the changelist and the shelved nodes are filtered out.
+		}
 
-			for (const TSharedRef<ISourceControlState>& ShelvedFileState : ChangelistState->GetShelvedFilesStates())
+		// Add the changelist.
+		ChangelistTreeNodes.Add(ChangelistNode);
+		if (bSearchForcedChangelistNodeExpansion)
+		{
+			ChangelistTreeView->SetItemExpansion(ChangelistNode, /*bShouldExpand*/true);
+		}
+
+		// Add the changelist files.
+		for (const TSharedRef<ISourceControlState>& FileState : ChangelistState->GetFilesStates())
+		{
+			TSharedRef<FFileTreeItem> FileItem = MakeShared<FFileTreeItem>(FileState, bBeautifyPaths);
+			if (FileTextFilter->PassesFilter(*FileItem))
 			{
-				ShelvedFilesNode->AddChild(MakeShared<FShelvedFileTreeItem>(ShelvedFileState, bBeautifyPaths));
+				ChangelistNode->AddChild(FileItem);
 				SlowTask.EnterProgressFrame();
 				bBeautifyPaths &= !SlowTask.ShouldCancel();
+			}
+		}
+
+		if (ShelvedFilesNode)
+		{
+			// Add a shelved files node under the changelist node.
+			ChangelistNode->AddChild(ShelvedFilesNode.ToSharedRef());
+
+			// Add the shelved files.
+			for (const TSharedRef<ISourceControlState>& ShelvedFileState : ChangelistState->GetShelvedFilesStates())
+			{
+				TSharedRef<FShelvedFileTreeItem> ShelvedFileItem = MakeShared<FShelvedFileTreeItem>(ShelvedFileState, bBeautifyPaths);
+				if (FileTextFilter->PassesFilter(*ShelvedFileItem))
+				{
+					ShelvedFilesNode->AddChild(ShelvedFileItem);
+					SlowTask.EnterProgressFrame();
+					bBeautifyPaths &= !SlowTask.ShouldCancel();
+				}
 			}
 		}
 
@@ -665,20 +739,32 @@ void SSourceControlChangelistsWidget::OnRefresh()
 	{
 		// Add an uncontrolled changelist.
 		TSharedRef<IChangelistTreeItem> UncontrolledChangelistNode = MakeShared<FUncontrolledChangelistTreeItem>(UncontrolledChangelistState);
+		if (!UncontrolledChangelistTextFilter->PassesFilter(*UncontrolledChangelistNode))
+		{
+			continue;
+		}
 		UncontrolledChangelistTreeNodes.Add(UncontrolledChangelistNode);
 
 		for (const TSharedRef<ISourceControlState>& FileState : UncontrolledChangelistState->GetFilesStates())
 		{
-			UncontrolledChangelistNode->AddChild(MakeShared<FFileTreeItem>(FileState, bBeautifyPaths));
-			SlowTask.EnterProgressFrame();
-			bBeautifyPaths &= !SlowTask.ShouldCancel();
+			TSharedRef<FFileTreeItem> UncontrolledFileItem = MakeShared<FFileTreeItem>(FileState, bBeautifyPaths);
+			if (FileTextFilter->PassesFilter(*UncontrolledFileItem))
+			{
+				UncontrolledChangelistNode->AddChild(UncontrolledFileItem);
+				SlowTask.EnterProgressFrame();
+				bBeautifyPaths &= !SlowTask.ShouldCancel();
+			}
 		}
 
 		for (const FString& Filename : UncontrolledChangelistState->GetOfflineFiles())
 		{
-			UncontrolledChangelistNode->AddChild(MakeShared<FOfflineFileTreeItem>(Filename));
-			SlowTask.EnterProgressFrame();
-			bBeautifyPaths &= !SlowTask.ShouldCancel();
+			TSharedRef<FOfflineFileTreeItem> OfflineFileItem = MakeShared<FOfflineFileTreeItem>(Filename);
+			if (FileTextFilter->PassesFilter(*OfflineFileItem))
+			{
+				UncontrolledChangelistNode->AddChild(OfflineFileItem);
+				SlowTask.EnterProgressFrame();
+				bBeautifyPaths &= !SlowTask.ShouldCancel();
+			}
 		}
 
 		SlowTask.EnterProgressFrame();
@@ -2296,9 +2382,28 @@ TSharedRef<STreeView<FChangelistTreeItemPtr>> SSourceControlChangelistsWidget::C
 			+SHeaderRow::Column(SourceControlFileViewColumnId::Icon)
 			.DefaultLabel(FText::GetEmpty())
 			.FillSized(18)
+			.HeaderContentPadding(FMargin(0))
 			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumnId::Icon)
 			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumnId::Icon)
 			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged)
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.Padding(1, 0)
+				[
+					SNew(SBox)
+					.WidthOverride(16)
+					.HeightOverride(16)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Visibility_Lambda([this](){ return GetColumnSortMode(SourceControlFileViewColumnId::Icon) == EColumnSortMode::None ? EVisibility::Visible : EVisibility::Collapsed; })
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("SourceControl.ChangelistsTab"))
+						.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
+					]
+				]
+			]
 
 			+SHeaderRow::Column(SourceControlFileViewColumnId::Name)
 			.DefaultLabel(LOCTEXT("Name", "Name"))
@@ -2330,33 +2435,38 @@ TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(TSharedPtr<
 	case IChangelistTreeItem::Changelist:
 		return SNew(SChangelistTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem)
+			.HighlightText_Lambda([this]() { return ChangelistExpandableArea->GetSearchedText(); })
 			.OnPostDrop(this, &SSourceControlChangelistsWidget::OnRefresh);
 
 	case IChangelistTreeItem::UncontrolledChangelist:
 		return SNew(SUncontrolledChangelistTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem)
+			.HighlightText_Lambda([this]() { return UncontrolledChangelistExpandableArea->GetSearchedText(); })
 			.OnPostDrop(this, &SSourceControlChangelistsWidget::OnRefresh);
 
 	case IChangelistTreeItem::File:
 		return SNew(SFileTableRow, OwnerTable)
 			.TreeItemToVisualize(InTreeItem)
+			.HighlightText_Lambda([this]() { return FileSearchBox->GetText(); })
 			.OnDragDetected(this, &SSourceControlChangelistsWidget::OnFilesDragged);
 
 	case IChangelistTreeItem::OfflineFile:
 		return SNew(SOfflineFileTableRow, OwnerTable)
-			.TreeItemToVisualize(InTreeItem);
+			.TreeItemToVisualize(InTreeItem)
+			.HighlightText_Lambda([this]() { return FileSearchBox->GetText(); });
 
 	case IChangelistTreeItem::ShelvedChangelist:
 		return SNew(SShelvedFilesTableRow, OwnerTable)
-			.Icon(FAppStyle::GetBrush("SourceControl.ShelvedChangelist"))
-			.Text(static_cast<const FShelvedChangelistTreeItem*>(InTreeItem.Get())->GetDisplayText());
+			.TreeItemToVisualize(InTreeItem)
+			.HighlightText_Lambda([this]() { return ChangelistExpandableArea->GetSearchedText(); });
 
 	case IChangelistTreeItem::ShelvedFile:
 		return SNew(SFileTableRow, OwnerTable)
-			.TreeItemToVisualize(InTreeItem);
+			.TreeItemToVisualize(InTreeItem)
+			.HighlightText_Lambda([this]() { return FileSearchBox->GetText(); });
 
 	default:
-		check(false);
+		checkNoEntry();
 	};
 
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable);
@@ -2667,6 +2777,54 @@ void SSourceControlChangelistsWidget::SortFileView()
 		}
 		return false;
 	});
+}
+
+void SSourceControlChangelistsWidget::OnChangelistSearchTextChanged(const FText& InFilterText)
+{
+	ChangelistTextFilter->SetRawFilterText(InFilterText);
+	ChangelistExpandableArea->GetSearchBox()->SetError(ChangelistTextFilter->GetFilterErrorText());
+}
+
+void SSourceControlChangelistsWidget::OnUncontrolledChangelistSearchTextChanged(const FText& InFilterText)
+{
+	UncontrolledChangelistTextFilter->SetRawFilterText(InFilterText);
+	UncontrolledChangelistExpandableArea->GetSearchBox()->SetError(UncontrolledChangelistTextFilter->GetFilterErrorText());
+}
+
+void SSourceControlChangelistsWidget::OnFileSearchTextChanged(const FText& InFilterText)
+{
+	FileTextFilter->SetRawFilterText(InFilterText);
+	FileSearchBox->SetError(FileTextFilter->GetFilterErrorText());
+}
+
+void SSourceControlChangelistsWidget::PopulateItemSearchStrings(const IChangelistTreeItem& Item, TArray<FString>& OutStrings)
+{
+	switch (Item.GetTreeItemType())
+	{
+	case IChangelistTreeItem::Changelist:
+		SChangelistTableRow::PopulateSearchString(static_cast<const FChangelistTreeItem&>(Item), OutStrings);
+		break;
+
+	case IChangelistTreeItem::ShelvedChangelist:
+		SShelvedFilesTableRow::PopulateSearchString(static_cast<const FShelvedChangelistTreeItem&>(Item), OutStrings);
+		break;
+
+	case IChangelistTreeItem::UncontrolledChangelist:
+		SUncontrolledChangelistTableRow::PopulateSearchString(static_cast<const FUncontrolledChangelistTreeItem&>(Item), OutStrings);
+		break;
+
+	case IChangelistTreeItem::File:
+	case IChangelistTreeItem::ShelvedFile:
+		SFileTableRow::PopulateSearchString(static_cast<const FFileTreeItem&>(Item), OutStrings);
+		break;
+
+	case IChangelistTreeItem::OfflineFile:
+		SOfflineFileTableRow::PopulateSearchString(static_cast<const FOfflineFileTreeItem&>(Item), OutStrings);
+		break;
+
+	default:
+		checkNoEntry();
+	}
 }
 
 void SSourceControlChangelistsWidget::SaveExpandedAndSelectionStates(FExpandedAndSelectionStates& OutStates)

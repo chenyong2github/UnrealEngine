@@ -5,6 +5,7 @@
 #include "ISourceControlModule.h"
 #include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Algo/Transform.h"
@@ -47,6 +48,7 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 			[
 				SNew(STextBlock)
 				.Text(this, &SChangelistTableRow::GetChangelistText)
+				.HighlightText(InArgs._HighlightText)
 			]
 			+SHorizontalBox::Slot() // Files count.
 			.Padding(4, 0, 4, 0)
@@ -55,14 +57,21 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 				SNew(STextBlock)
 				.Text(FText::Format(INVTEXT("({0})"), TreeItem->GetFileCount()))
 			]
-			+SHorizontalBox::Slot()
+			+SHorizontalBox::Slot() // Description.
 			.Padding(2, 0, 0, 0)
 			.AutoWidth()
 			[
 				SNew(STextBlock)
 				.Text(this, &SChangelistTableRow::GetChangelistDescriptionText)
+				.HighlightText(InArgs._HighlightText)
 			]
 		], InOwner);
+}
+
+void SChangelistTableRow::PopulateSearchString(const FChangelistTreeItem& Item, TArray<FString>& OutStrings)
+{
+	OutStrings.Emplace(Item.GetDisplayText().ToString()); // The changelist number
+	OutStrings.Emplace(GetChangelistDescription(Item));   // The changelist description.
 }
 
 FText SChangelistTableRow::GetChangelistText() const
@@ -72,12 +81,17 @@ FText SChangelistTableRow::GetChangelistText() const
 
 FText SChangelistTableRow::GetChangelistDescriptionText() const
 {
-	FString DescriptionString = TreeItem->GetDescriptionText().ToString();
+	return FText::FromString(GetChangelistDescription(*TreeItem));
+}
+
+FString SChangelistTableRow::GetChangelistDescription(const FChangelistTreeItem& Item)
+{
+	FString DescriptionString = Item.GetDescriptionText().ToString();
 	// Here we'll both remove \r\n (when edited from the dialog) and \n (when we get it from the SCC)
 	DescriptionString.ReplaceInline(TEXT("\r"), TEXT(""));
 	DescriptionString.ReplaceInline(TEXT("\n"), TEXT(" "));
 	DescriptionString.TrimEndInline();
-	return FText::FromString(DescriptionString);
+	return DescriptionString;
 }
 
 FReply SChangelistTableRow::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
@@ -139,7 +153,7 @@ void SUncontrolledChangelistTableRow::Construct(const FArguments& InArgs, const 
 			FAppStyle::GetBrush(TreeItem->UncontrolledChangelistState->GetSmallIconName()) :
 			FAppStyle::GetBrush("SourceControl.Changelist");
 
-	SetToolTipText(GetChangelistDescriptionText());
+	SetToolTipText(GetChangelistText());
 
 	STableRow<FChangelistTreeItemPtr>::Construct(
 		STableRow<FChangelistTreeItemPtr>::FArguments()
@@ -161,6 +175,7 @@ void SUncontrolledChangelistTableRow::Construct(const FArguments& InArgs, const 
 			[
 				SNew(STextBlock)
 				.Text(this, &SUncontrolledChangelistTableRow::GetChangelistText)
+				.HighlightText(InArgs._HighlightText)
 			]
 			+SHorizontalBox::Slot() // Files/Offline file count.
 			.Padding(4, 0, 4, 0)
@@ -172,20 +187,16 @@ void SUncontrolledChangelistTableRow::Construct(const FArguments& InArgs, const 
 		], InOwner);
 }
 
+void SUncontrolledChangelistTableRow::PopulateSearchString(const FUncontrolledChangelistTreeItem& Item, TArray<FString>& OutStrings)
+{
+	OutStrings.Emplace(Item.GetDisplayText().ToString());
+}
+
 FText SUncontrolledChangelistTableRow::GetChangelistText() const
 {
 	return TreeItem->GetDisplayText();
 }
 
-FText SUncontrolledChangelistTableRow::GetChangelistDescriptionText() const
-{
-	FString DescriptionString = TreeItem->GetDescriptionText().ToString();
-	// Here we'll both remove \r\n (when edited from the dialog) and \n (when we get it from the SCC)
-	DescriptionString.ReplaceInline(TEXT("\r"), TEXT(""));
-	DescriptionString.ReplaceInline(TEXT("\n"), TEXT(" "));
-	DescriptionString.TrimEndInline();
-	return FText::FromString(DescriptionString);
-}
 
 FReply SUncontrolledChangelistTableRow::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
@@ -210,6 +221,8 @@ void SFileTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableV
 {
 	TreeItem = static_cast<FFileTreeItem*>(InArgs._TreeItemToVisualize.Get());
 
+	HighlightText = InArgs._HighlightText;
+
 	FSuperRowType::FArguments Args = FSuperRowType::FArguments()
 		.OnDragDetected(InArgs._OnDragDetected)
 		.ShowSelection(true);
@@ -230,24 +243,34 @@ TSharedRef<SWidget> SFileTableRow::GenerateWidgetForColumn(const FName& ColumnId
 	else if (ColumnId == SourceControlFileViewColumnId::Name)
 	{
 		return SNew(STextBlock)
-			.Text(this, &SFileTableRow::GetDisplayName);
+			.Text(this, &SFileTableRow::GetDisplayName)
+			.HighlightText(HighlightText);
 	}
 	else if (ColumnId == SourceControlFileViewColumnId::Path)
 	{
 		return SNew(STextBlock)
 			.Text(this, &SFileTableRow::GetDisplayPath)
-			.ToolTipText(this, &SFileTableRow::GetFilename);
+			.ToolTipText(this, &SFileTableRow::GetFilename)
+			.HighlightText(HighlightText);
 	}
 	else if (ColumnId == SourceControlFileViewColumnId::Type)
 	{
 		return SNew(STextBlock)
 			.Text(this, &SFileTableRow::GetDisplayType)
-			.ColorAndOpacity(this, &SFileTableRow::GetDisplayColor);
+			.ColorAndOpacity(this, &SFileTableRow::GetDisplayColor)
+			.HighlightText(HighlightText);
 	}
 	else
 	{
 		return SNullWidget::NullWidget;
 	}
+}
+
+void SFileTableRow::PopulateSearchString(const FFileTreeItem& Item, TArray<FString>& OutStrings)
+{
+	OutStrings.Emplace(Item.GetAssetName().ToString()); // Name
+	OutStrings.Emplace(Item.GetAssetPath().ToString()); // Path
+	OutStrings.Emplace(Item.GetAssetType().ToString()); // Type
 }
 
 FText SFileTableRow::GetDisplayName() const
@@ -290,6 +313,8 @@ void SFileTableRow::OnDragLeave(FDragDropEvent const& InDragDropEvent)
 
 void SShelvedFilesTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
+	TreeItem = static_cast<FShelvedChangelistTreeItem*>(InArgs._TreeItemToVisualize.Get());
+
 	STableRow<FChangelistTreeItemPtr>::Construct(
 		STableRow<FChangelistTreeItemPtr>::FArguments()
 		.Content()
@@ -301,23 +326,30 @@ void SShelvedFilesTableRow::Construct(const FArguments& InArgs, const TSharedRef
 				.Padding(5, 0, 0, 0)
 				[
 					SNew(SImage)
-					.Image(InArgs._Icon)
+					.Image(FAppStyle::GetBrush("SourceControl.ShelvedChangelist"))
 				]
 				+SHorizontalBox::Slot()
 				.Padding(2.0f, 1.0f)
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(InArgs._Text)
+					.Text(TreeItem->GetDisplayText())
+					.HighlightText(InArgs._HighlightText)
 				]
 		],
 		InOwnerTableView);
+}
+
+void SShelvedFilesTableRow::PopulateSearchString(const FShelvedChangelistTreeItem& Item, TArray<FString>& OutStrings)
+{
+	OutStrings.Emplace(Item.GetDisplayText().ToString());
 }
 
 
 void SOfflineFileTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
 {
 	TreeItem = static_cast<FOfflineFileTreeItem*>(InArgs._TreeItemToVisualize.Get());
+	HighlightText = InArgs._HighlightText;
 
 	FSuperRowType::FArguments Args = FSuperRowType::FArguments().ShowSelection(true);
 	FSuperRowType::Construct(Args, InOwner);
@@ -338,24 +370,34 @@ TSharedRef<SWidget> SOfflineFileTableRow::GenerateWidgetForColumn(const FName& C
 	else if (ColumnId == SourceControlFileViewColumnId::Name)
 	{
 		return SNew(STextBlock)
-			.Text(this, &SOfflineFileTableRow::GetDisplayName);
+			.Text(this, &SOfflineFileTableRow::GetDisplayName)
+			.HighlightText(HighlightText);
 	}
 	else if (ColumnId == SourceControlFileViewColumnId::Path)
 	{
 		return SNew(STextBlock)
 			.Text(this, &SOfflineFileTableRow::GetDisplayPath)
-			.ToolTipText(this, &SOfflineFileTableRow::GetFilename);
+			.ToolTipText(this, &SOfflineFileTableRow::GetFilename)
+			.HighlightText(HighlightText);
 	}
 	else if (ColumnId == SourceControlFileViewColumnId::Type)
 	{
 		return SNew(STextBlock)
 			.Text(this, &SOfflineFileTableRow::GetDisplayType)
-			.ColorAndOpacity(this, &SOfflineFileTableRow::GetDisplayColor);
+			.ColorAndOpacity(this, &SOfflineFileTableRow::GetDisplayColor)
+			.HighlightText(HighlightText);
 	}
 	else
 	{
 		return SNullWidget::NullWidget;
 	}
+}
+
+void SOfflineFileTableRow::PopulateSearchString(const FOfflineFileTreeItem& Item, TArray<FString>& OutStrings)
+{
+	OutStrings.Emplace(Item.GetDisplayName().ToString()); // Name
+	OutStrings.Emplace(Item.GetDisplayPath().ToString()); // Path
+	OutStrings.Emplace(Item.GetDisplayType().ToString()); // Type
 }
 
 FText SOfflineFileTableRow::GetDisplayName() const

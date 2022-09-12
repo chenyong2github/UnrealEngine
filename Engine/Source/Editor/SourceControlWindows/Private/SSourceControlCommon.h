@@ -144,8 +144,11 @@ struct FFileTreeItem : public IChangelistTreeItem
 	/** Updates informations based on AssetData */
 	void RefreshAssetInformation();
 
-	/** Returns the asset name of the item */
+	/** Returns the asset name of the item. This might update the asset names from the asset registry. */
 	FText GetAssetName();
+
+	/** Returns the asset name. This returns the currently cached asset name.*/
+	FText GetAssetName() const;
 
 	/** Returns the asset path of the item */
 	FText GetAssetPath() const { return AssetPath; }

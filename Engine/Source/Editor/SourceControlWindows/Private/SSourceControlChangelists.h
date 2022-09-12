@@ -9,9 +9,11 @@
 
 #include "ISourceControlProvider.h"
 #include "SSourceControlCommon.h"
+#include "Misc/TextFilter.h"
 
 class FChangelistGroupTreeItem;
 class SExpandableChangelistArea;
+class SSearchBox;
 
 class SChangelistTree : public STreeView<FChangelistTreeItemPtr>
 {
@@ -58,6 +60,11 @@ private:
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
 	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
 	void SortFileView();
+
+	void OnChangelistSearchTextChanged(const FText& InFilterText);
+	void OnUncontrolledChangelistSearchTextChanged(const FText& InFilterText);
+	void OnFileSearchTextChanged(const FText& InFilterText);
+	void PopulateItemSearchStrings(const IChangelistTreeItem& Item, TArray<FString>& OutStrings);
 
 	FReply OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
 
@@ -197,6 +204,11 @@ private:
 	EColumnSortMode::Type PrimarySortMode = EColumnSortMode::Ascending;
 	EColumnSortMode::Type SecondarySortMode = EColumnSortMode::None;
 
+	TSharedPtr<TTextFilter<const IChangelistTreeItem&>> ChangelistTextFilter;
+	TSharedPtr<TTextFilter<const IChangelistTreeItem&>> UncontrolledChangelistTextFilter;
+	TSharedPtr<TTextFilter<const IChangelistTreeItem&>> FileTextFilter;
+	TSharedPtr<SSearchBox> FileSearchBox;
+
 	void StartRefreshStatus();
 	void TickRefreshStatus(double InDeltaTime);
 	void EndRefreshStatus();
@@ -204,4 +216,7 @@ private:
 	FText RefreshStatus;
 	bool bIsRefreshing = false;
 	double RefreshStatusStartSecs;
+
+	float ChangelistAreaSize = 0.3; // [0.0f, 1.0f]
+	float FileAreaSize = 0.7;
 };
