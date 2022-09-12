@@ -117,14 +117,6 @@ struct FVirtualShadowMapHZBMetadata
 	uint32		  TargetLayerIndex = INDEX_NONE;
 };
 
-// Scene data buffers sized and imported into the graph builder
-// Persistent, not ping-ponged
-struct FVirtualShadowMapSceneData
-{
-	FRDGBufferRef InvalidatingInstancesBuffer;
-	int32 NumInvalidatingInstanceSlots = -1;
-};
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, NumFullShadowMaps)
 	SHADER_PARAMETER(uint32, NumSinglePageShadowMaps)
@@ -327,13 +319,6 @@ public:
 	FRDGBufferRef CachedPageInfosRDG = nullptr;
 	FRDGBufferRef PhysicalPageMetaDataRDG = nullptr;
 
-	// TODO: make transient - Buffer that stores flags marking each page that received dynamic geo.
-	FRDGBufferRef DynamicCasterPageFlagsRDG = nullptr;
-
-	// References to scene data imported into the graph builder for this frame
-	// NOTE: The underlying data is owned by FVirtualShadowMapCacheManager.
-	FVirtualShadowMapSceneData SceneData;
-	
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
 	FRDGBufferRef PageRectBoundsRDG = nullptr;
@@ -342,7 +327,8 @@ public:
 
 	FRDGBufferRef DirtyPageFlagsRDG = nullptr; // Dirty flags that are cleared after render passes
 	bool bHZBBuiltThisFrame = false;
-	FRDGBufferRef CumulativeDirtyPageFlagsRDG = nullptr; // Cumulative dirty flags for whole frame
+
+	FRDGBufferRef StaticInvalidatingPrimitivesRDG = nullptr;
 
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;

@@ -720,6 +720,7 @@ public:
 	static constexpr int32 InvalidRayTracingGroupId = -1;
 
 	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
+	inline bool AnyMaterialHasWorldPositionOffset() const { return bAnyMaterialHasWorldPositionOffset; }
 	
 	/** Returns true if this proxy can change transform so that we should cache previous transform for calculating velocity. */
 	inline bool HasDynamicTransform() const { return IsMovable() || bIsBeingMovedByEditor; }
@@ -1233,8 +1234,11 @@ protected:
 	/** Whether the primitive should evaluate any World Position Offset. */
 	uint8 bEvaluateWorldPositionOffset : 1;
 
-	/** Whether the primitive has any materials with World Position Offset. */
+	/** Whether the primitive has any materials with World Position Offset, and some conditions around velocity are met. */
 	uint8 bHasWorldPositionOffsetVelocity : 1;
+
+	/** Whether the primitive has any materials with World Position Offset. */
+	uint8 bAnyMaterialHasWorldPositionOffset : 1;
 
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;

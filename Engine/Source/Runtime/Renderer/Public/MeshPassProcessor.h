@@ -1294,8 +1294,11 @@ public:
 enum class EFVisibleMeshDrawCommandFlags : uint8
 {
 	Default = 0U,
+	/** If set, the FMaterial::MaterialUsesWorldPositionOffset_RenderThread() indicates that WPO is active for the given material. */
+	MaterialUsesWorldPositionOffset = 1U << 0U,
+
 	/** If set, the FMaterial::MaterialModifiesMeshPosition_RenderThread() indicates that WPO or something similar is active for the given material. */
-	MaterialMayModifyPosition = 1U << 0U,
+	MaterialMayModifyPosition UE_DEPRECATED(5.1, "Use MaterialUsesWorldPositionOffset, MaterialMayModifyPosition is now an alias for this and no longer represents MaterialModifiesMeshPosition_RenderThread().")  =  MaterialUsesWorldPositionOffset,
 
 	/** If set, the mesh draw command supports primitive ID steam (required for dynamic instancing and GPU-Scene instance culling). */
 	HasPrimitiveIdStreamIndex = 1U << 1U,
@@ -1306,7 +1309,7 @@ enum class EFVisibleMeshDrawCommandFlags : uint8
 	/** If set, requires that instances preserve their original draw order in the draw command */
 	PreserveInstanceOrder = 1U << 3U,
 
-	All = MaterialMayModifyPosition | HasPrimitiveIdStreamIndex | ForceInstanceCulling | PreserveInstanceOrder,
+	All = MaterialUsesWorldPositionOffset | HasPrimitiveIdStreamIndex | ForceInstanceCulling | PreserveInstanceOrder,
 	NumBits = 4U
 };
 ENUM_CLASS_FLAGS(EFVisibleMeshDrawCommandFlags);

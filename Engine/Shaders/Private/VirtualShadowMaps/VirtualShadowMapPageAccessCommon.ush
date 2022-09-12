@@ -22,7 +22,13 @@
 
 // Stored in the physical meta data flags and must be higher than the  VSM_*_FLAG
 // The light was marked to not be cached (even though caching is enabled)
-#define VSM_PHYSICAL_FLAG_VIEW_UNCACHED (1U << 4) 
+#define VSM_PHYSICAL_FLAG_VIEW_UNCACHED		(1U << 4) 
+#define VSM_PHYSICAL_FLAG_DIRTY				(1U << 5) 
+
+
+// bit-offset for storing another set of page flags used to track invalidation in the physical page metadata flags.
+#define VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT 8U
+
 
 // NOTE: Bits for the hierarchical page flags are stored in the same uints as the regular mip tail,
 // offset based on the Hmip level. For instance, at the 1x1 level the first 4 bits store the page

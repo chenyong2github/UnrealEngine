@@ -157,7 +157,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.ReceivesDecals(Proxy->ReceivesDecals())
 		.CacheShadowAsStatic(PrimitiveSceneInfo->ShouldCacheShadowAsStatic())
 		.OutputVelocity(bOutputVelocity)
-		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset())
+		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset() && Proxy->AnyMaterialHasWorldPositionOffset())
 		.CastContactShadow(Proxy->CastsContactShadow())
 		.CastShadow(Proxy->CastsDynamicShadow())
 		.CastHiddenShadow(Proxy->CastsHiddenShadow())

@@ -149,8 +149,6 @@ struct FVirtualShadowMapArrayFrameData
 	TRefCountPtr<FRDGPooledBuffer>				ProjectionData;
 	TRefCountPtr<FRDGPooledBuffer>				PageRectBounds;
 
-	TRefCountPtr<FRDGPooledBuffer>				DynamicCasterPageFlags;
-
 	TRefCountPtr<FRDGPooledBuffer>				PhysicalPageMetaData;
 
 	TRefCountPtr<IPooledRenderTarget>			HZBPhysical;
@@ -176,9 +174,6 @@ public:
 	// Called by VirtualShadowMapArray to potentially resize the HZB physical pool
 	TRefCountPtr<IPooledRenderTarget> SetHZBPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedSize, const EPixelFormat Format);
 	void FreeHZBPhysicalPool();
-
-	// Called by VirtualShadowMapArray to resize and clear the invalidating instances buffer
-	FVirtualShadowMapSceneData InitializeSceneDataForFrame(FRDGBuilder& GraphBuilder);
 
 	// Invalidate the cache for all shadows, causing any pages to be rerendered
 	void Invalidate();
@@ -298,8 +293,6 @@ public:
 private:
 	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& Instances, int32 TotalInstanceCount, const FGPUScene& GPUScene);
 
-	void ProcessGPUInstanceInvalidations(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene);
-
 	void ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray);
 
 	template<typename Allocator>
@@ -321,14 +314,6 @@ private:
 	// we store the physical pool here.
 	TRefCountPtr<IPooledRenderTarget> PhysicalPagePool;
 	TRefCountPtr<IPooledRenderTarget> HZBPhysicalPagePool;
-
-	// Buffer that stores flags marking each instance that needs to be invalidated the subsequent frame (handled by the cache manager).
-	// This covers things like WPO or GPU-side updates, and any other case where we determine an instance needs to invalidate its footprint. 
-	// Buffer of uints, organized as as follows: InvalidatingInstancesRDG[0] == count, InvalidatingInstancesRDG[1+MaxInstanceCount:1+MaxInstanceCount+MaxInstanceCount/32] == flags, 
-	// InvalidatingInstancesRDG[1:MaxInstanceCount] == growing compact array of instances that need invaldation
-	TRefCountPtr<FRDGPooledBuffer> InvalidatingInstancesBuffer;
-	int32 NumInvalidatingInstanceSlots = -1;
-	bool bGPUInstanceInvalidationsProcessedThisFrame = false;
 
 	// Index the Cache entries by the light ID
 	TMap< uint64, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > CacheEntries;

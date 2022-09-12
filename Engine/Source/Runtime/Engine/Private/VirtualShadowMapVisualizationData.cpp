@@ -52,6 +52,13 @@ void FVirtualShadowMapVisualizationData::Initialize()
 			VIRTUAL_SHADOW_MAP_VISUALIZE_SMRT_RAY_COUNT);
 
 		AddVisualizationMode(
+			TEXT("dirty"),
+			LOCTEXT("DirtyPage", "Dirty Page"),
+			LOCTEXT("DirtyPageDebugDesc", "Show the pages marked as dirty, as well as WPO/GPU-driven invalidaitons."),
+			FModeType::Advanced,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_DIRTY_PAGE);
+
+		AddVisualizationMode(
 			TEXT("debug"),
 			LOCTEXT("GeneralDebug", "General Debug"),
 			LOCTEXT("GeneralDebugDesc", "General-purpose debug for use during shader development"),

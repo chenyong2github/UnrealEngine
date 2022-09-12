@@ -201,7 +201,7 @@ public:
 	// TODO: bit-pack
 	struct FDrawCommandDesc
 	{
-		uint32 bMaterialMayModifyPosition;
+		uint32 bMaterialUsesWorldPositionOffset;
 	};
 
 	struct FPayloadData

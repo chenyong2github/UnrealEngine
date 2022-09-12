@@ -188,12 +188,17 @@ bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, b
 	return false;
 }
 
-uint GetPageFlagMaskForRendering(FInstanceSceneData InstanceData, FNaniteView NaniteView, bool bHasMoved)
+uint GetPageFlagMaskForRendering(bool bShouldCacheInstanceAsStatic, bool bHasMoved)
 {
 	// Clustered that have moved must be rendered into any allocated page
 	// Otherwise they must be rendered only into uncached pages that match their "static/dynamic" instance type	
 	const uint PageFlagMask = 
 		bHasMoved ? VSM_ALLOCATED_FLAG :
-		(ShouldCacheInstanceAsStatic(InstanceData, NaniteView) ?  VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG);
+		(bShouldCacheInstanceAsStatic ?  VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG);
 	return PageFlagMask;
+}
+
+uint GetPageFlagMaskForRendering(FInstanceSceneData InstanceData, FNaniteView NaniteView, bool bHasMoved)
+{
+	return GetPageFlagMaskForRendering(ShouldCacheInstanceAsStatic(InstanceData, NaniteView), bHasMoved);
 }

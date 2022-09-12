@@ -532,15 +532,17 @@ void CreateCachedPageMappings(uint VirtualShadowMapId, uint GlobalPageOffset, ui
 					// This should probably always be true but just in case...
 					if ((PrevMetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
 					{
+						// Distant lights block GPU-GPU invalidations (and all others) as they are round-robin invalidated
+						const bool bDoDynamicInvalidation = bDynamicPageInvalidation && !Projection.bCurrentDistantLight;
 						// Check if moving geometry has invalidated the cached page(s)
-						uint DynamicCasterPageFlags = bDynamicPageInvalidation ? PrevDynamicCasterPageFlags[PrevGlobalOffset] : 0;
+						uint InvalidationFlags = bDoDynamicInvalidation ? (PrevMetaData.Flags >> VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT) : 0U;
 				
 						bool bDynamicValid = bCacheStaticSeparately ? 
-							(DynamicCasterPageFlags & VSM_DYNAMIC_UNCACHED_FLAG) == 0 :
-							(DynamicCasterPageFlags == 0);
+							(InvalidationFlags & VSM_DYNAMIC_UNCACHED_FLAG) == 0 :
+							(InvalidationFlags == 0);
 						bool bStaticValid = bCacheStaticSeparately ? 
-							((DynamicCasterPageFlags & VSM_STATIC_UNCACHED_FLAG) == 0) :
-							(DynamicCasterPageFlags == 0);
+							((InvalidationFlags & VSM_STATIC_UNCACHED_FLAG) == 0) :
+							(InvalidationFlags == 0);
 
 						// Stats
 						if (!bStaticValid)
@@ -1153,8 +1155,6 @@ void InitializePhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, ui
 
 RWBuffer<uint> OutMergePagesIndirectArgsBuffer;
 RWStructuredBuffer<uint> OutPhysicalPagesToMerge;
-StructuredBuffer<uint> CumulativeDirtyPageFlags;
-
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void SelectPagesToMergeCS(uint PhysicalPageIndex : SV_DispatchThreadID)
@@ -1170,7 +1170,8 @@ void SelectPagesToMergeCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0U && (MetaData.Flags & VSM_PHYSICAL_FLAG_VIEW_UNCACHED) == 0U)
 	{
 		bool bFullyCached = (MetaData.Flags & (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG)) == 0U;
-		bool bPageDirty = CumulativeDirtyPageFlags[PhysicalPageIndex] != 0U;
+		// TODO: Only mark for static?
+		bool bPageDirty = (MetaData.Flags & VSM_PHYSICAL_FLAG_DIRTY) != 0U;
 
 		if (!bFullyCached || bPageDirty)
 		{
@@ -1196,11 +1197,44 @@ void MergeStaticPhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, u
 
 // Indirect HZB building:
 
+RWStructuredBuffer<uint> DirtyPageFlagsInOut;
+
+bool UpdateAndClearDirtyFlags(uint PhysicalPageIndex, inout FPhysicalPageMetaData MetaData)
+{
+	bool bPageDirty = DirtyPageFlagsInOut[PhysicalPageIndex] != 0U;
+	bool bInvalidatesDynamic = DirtyPageFlagsInOut[PhysicalPageIndex + VirtualShadowMap.MaxPhysicalPages] != 0U;
+	bool bInvalidatesStatic = DirtyPageFlagsInOut[PhysicalPageIndex + 2U * VirtualShadowMap.MaxPhysicalPages] != 0U;
+
+	MetaData = OutPhysicalPageMetaData[PhysicalPageIndex];
+
+	// clear the dirty/invalidation flags
+	DirtyPageFlagsInOut[PhysicalPageIndex] = 0U;
+	DirtyPageFlagsInOut[PhysicalPageIndex + VirtualShadowMap.MaxPhysicalPages] = 0U;
+	DirtyPageFlagsInOut[PhysicalPageIndex + 2U * VirtualShadowMap.MaxPhysicalPages] = 0U;
+
+	uint CacheFlags = (bInvalidatesStatic ? VSM_STATIC_UNCACHED_FLAG : 0U) | (bInvalidatesDynamic ? VSM_DYNAMIC_UNCACHED_FLAG : 0U);
+
+	// Update the page metadata to mark the pages as uncached, which allows the page merging to pick them up.
+	// Also mark bits for invalidation (need own set of bits to avoid being merged with the input state at the start of the frame - e.g., fresh pages are already uncached)
+	MetaData.Flags |= (bPageDirty ? VSM_PHYSICAL_FLAG_DIRTY : 0U) | (CacheFlags << VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT);
+	OutPhysicalPageMetaData[PhysicalPageIndex] = MetaData;
+
+	return bPageDirty;
+}
+
+[numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
+void UpdateAndClearDirtyFlagsCS(uint PhysicalPageIndex : SV_DispatchThreadID)
+{
+	if (PhysicalPageIndex >= VirtualShadowMap.MaxPhysicalPages)
+	{
+		return;
+	}
+	FPhysicalPageMetaData MetaData;
+	UpdateAndClearDirtyFlags(PhysicalPageIndex, MetaData);
+}
+
 RWBuffer<uint> OutPagesForHZBIndirectArgsBuffer;
 RWStructuredBuffer<uint> OutPhysicalPagesForHZB;
-RWStructuredBuffer<uint> DirtyPageFlagsInOut;
-RWStructuredBuffer<uint> CumulativeDirtyPageFlagsInOut;
-
 uint bFirstBuildThisFrame;
 uint bForceFullHZBUpdate;
 
@@ -1212,13 +1246,11 @@ void SelectPagesForHZBAndUpdateDirtyFlagsCS(uint PhysicalPageIndex : SV_Dispatch
 		return;
 	}
 
-	uint DirtyFlag = DirtyPageFlagsInOut[PhysicalPageIndex];
-
-	FPhysicalPageMetaData MetaData = PhysicalPageMetaData[PhysicalPageIndex];
+	FPhysicalPageMetaData MetaData;
+	bool bPageDirty = UpdateAndClearDirtyFlags(PhysicalPageIndex, MetaData);
 
 	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
 	{
-		bool bPageDirty = DirtyFlag != 0U;
 		// rebuild the HZB if the page is rendered to or it is freshly allocated, but only the first time for a given frame.
 		if (bForceFullHZBUpdate || bPageDirty || (bFirstBuildThisFrame != 0 && MetaData.Age == 0U))
 		{
@@ -1233,11 +1265,6 @@ void SelectPagesForHZBAndUpdateDirtyFlagsCS(uint PhysicalPageIndex : SV_Dispatch
 			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
 		}
 	}
-	// Update all the dirtied pages for the frame.
-	CumulativeDirtyPageFlagsInOut[PhysicalPageIndex] = CumulativeDirtyPageFlagsInOut[PhysicalPageIndex] | DirtyFlag;
-
-	// clear the dirty flag
-	DirtyPageFlagsInOut[PhysicalPageIndex] = 0U;
 }
 
 

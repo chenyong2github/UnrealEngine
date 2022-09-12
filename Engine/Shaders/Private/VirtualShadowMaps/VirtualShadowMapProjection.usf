@@ -493,6 +493,34 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 			float3 PageColor = IntToColor(vPage.x + (vPage.y << 10U));
 			Output = 0.55f*CacheColor + 0.25f*PageColor + 0.2f*Result.ShadowFactor.xxx;
 		}
+		else if (VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_DIRTY_PAGE)
+		{
+			float3 PageColor = IntToColor(vPage.x + (vPage.y << 10U)) * 0.4f;
+			float3 DirtyColor = PageColor;
+			if (bValidPageAddress)
+			{
+				bool bDirty = (pPageMeta.Flags & VSM_PHYSICAL_FLAG_DIRTY) != 0U;
+				uint InvalidationFlags = pPageMeta.Flags >> VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT;
+				bool bUncachedDynamic = (InvalidationFlags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
+				bool bUncachedStatic = (InvalidationFlags & VSM_STATIC_UNCACHED_FLAG) != 0;
+
+				//DirtyColor = float3(0, 1, 0);
+				if (bDirty)
+				{
+					DirtyColor.x = 1.0f;
+				}
+				if (bUncachedDynamic)
+				{
+					DirtyColor.y = 1.0f;
+				}
+				if (bUncachedStatic)
+				{
+					DirtyColor.z = 1.0f;
+				}
+				PageColor = lerp(PageColor, DirtyColor, 0.8f);
+			}
+			Output = 0.8f * PageColor + 0.2f * Result.ShadowFactor.xxx;
+		}
 		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_GENERAL_DEBUG )
 		{
 			Output = 0.8f*Result.GeneralDebug + 0.2f*Result.ShadowFactor.xxx;

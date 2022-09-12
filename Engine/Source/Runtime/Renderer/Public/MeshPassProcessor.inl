@@ -59,9 +59,9 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	FMeshDrawCommand SharedMeshDrawCommand;
 	EFVisibleMeshDrawCommandFlags SharedFlags = EFVisibleMeshDrawCommandFlags::Default;
 
-	if (MaterialResource.MaterialModifiesMeshPosition_RenderThread())
+	if (MaterialResource.MaterialUsesWorldPositionOffset_RenderThread())
 	{
-		SharedFlags |= EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition;
+		SharedFlags |= EFVisibleMeshDrawCommandFlags::MaterialUsesWorldPositionOffset;
 	}
 
 	SharedMeshDrawCommand.SetStencilRef(DrawRenderState.GetStencilRef());

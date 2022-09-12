@@ -1178,7 +1178,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 		const FMeshDrawCommand* RESTRICT MeshDrawCommand = VisibleMeshDrawCommand.MeshDrawCommand;
 
 		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
-		const bool bMaterialMayModifyPosition = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition);
+		const bool bMaterialUsesWorldPositionOffset = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialUsesWorldPositionOffset);
 		const bool bForceInstanceCulling = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::ForceInstanceCulling);
 		const bool bPreserveInstanceOrder = bOrderPreservationEnabled && EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::PreserveInstanceOrder);
 		const bool bUseIndirectDraw = bAlwaysUseIndirectDraws || bForceInstanceCulling || (VisibleMeshDrawCommand.NumRuns > 0 || MeshDrawCommand->NumInstances > 1);
@@ -1213,7 +1213,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 				DrawCmd.bUseIndirect = bUseIndirectDraw;
 				
 				CurrentIndirectArgsOffset = AllocateIndirectArgs(MeshDrawCommand);
-				DrawCommandDescs.Emplace(FDrawCommandDesc{bMaterialMayModifyPosition});
+				DrawCommandDescs.Emplace(FDrawCommandDesc{bMaterialUsesWorldPositionOffset });
 
 				if (bUseIndirectDraw)
 				{

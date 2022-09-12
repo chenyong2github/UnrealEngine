@@ -236,7 +236,12 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	bool bVisible		= true;
 
 #if VIRTUAL_TEXTURE_TARGET
-	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, DynamicData.bHasMoved);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+	const bool bMaterialInvalidates = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+	const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
+
+	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
+	const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
 
 	// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
 	uint4 RectPages = uint4(1U,1U,0U,0U);
@@ -327,11 +332,11 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 		// Clip rect to the mapped pages.
 		uint4 RectPagesMapped = RectPages.zwxy;
-		for( uint y = RectPages.y; y <= RectPages.w; y++ )
+		for( uint Y = RectPages.y; Y <= RectPages.w; ++Y )
 		{
-			for( uint x = RectPages.x; x <= RectPages.z; x++ )
+			for( uint X = RectPages.x; X <= RectPages.z; ++X )
 			{
-				uint2 vPage = uint2(x,y);
+				uint2 vPage = uint2(X,Y);
 				uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, NaniteView.TargetMipLevel, vPage );
 				uint PageFlag = VirtualShadowMap.PageFlags[ PageFlagOffset ];
 				if ((PageFlag & PageFlagMask) != 0)
@@ -344,9 +349,17 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 					//       Alternatively store a separate flag array for static & dynamic and deal with how to use that later.
 					if (!bWasOccluded)
 					{
+						// TODO: Use shared function
 						FShadowPhysicalPage PhysPage = ShadowGetPhysicalPage(PageFlagOffset);
 						// Mark the page dirty so we regenerate HZB, etc.
-						OutDirtyPageFlags[VSMPhysicalPageAddressToIndex(PhysPage.PhysicalAddress)] = 1U;
+						uint PhysPageIndex = VSMPhysicalPageAddressToIndex(PhysPage.PhysicalAddress);
+						OutDirtyPageFlags[PhysPageIndex] = 1U;
+						if (bMaterialInvalidates)
+						{
+							uint Offset = VirtualShadowMap.MaxPhysicalPages * (bShouldCacheAsStatic ? 2U : 1U);
+							// Store invalidation flags after the dirty flags.
+							OutDirtyPageFlags[Offset + PhysPageIndex] = 1U;
+						}
 					}
 				}
 			}
@@ -509,7 +522,10 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 #if VIRTUAL_TEXTURE_TARGET
-	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, DynamicData.bHasMoved);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+	const bool bMaterialInvalidates = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+	const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
+	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 #endif
 
 	// Depth clipping should only be disabled with orthographic projections

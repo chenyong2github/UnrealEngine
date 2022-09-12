@@ -18,7 +18,7 @@ bool ShouldCacheInstanceAsStatic(FInstanceSceneData InstanceData, bool bIsViewUn
 	// This flag should be stable and not change, which is a requirement.
 	uint Flags = GetPrimitiveData(InstanceData.PrimitiveId).Flags;
 	//return (Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW) != 0;
-	return (!bIsViewUncached) && (Flags & PRIMITIVE_SCENE_DATA_FLAG_SHOULD_CACHE_SHADOW) != 0u;
+	return (!bIsViewUncached) && (Flags & PRIMITIVE_SCENE_DATA_FLAG_CACHE_SHADOW_AS_STATIC) != 0u;
 #endif
 }
 

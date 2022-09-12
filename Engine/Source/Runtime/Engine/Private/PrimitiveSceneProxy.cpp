@@ -241,6 +241,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bShouldUpdateGPUSceneTransforms(true)
 ,	bEvaluateWorldPositionOffset(true)
 ,	bHasWorldPositionOffsetVelocity(false)
+,	bAnyMaterialHasWorldPositionOffset(false)
 ,	bSupportsDistanceFieldRepresentation(false)
 ,	bSupportsMeshCardRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
@@ -389,27 +390,30 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	FObjectCacheEventSink::NotifyUsedMaterialsChanged_Concurrent(InComponent, UsedMaterialsForVerification);
 #endif
 
-	bAlwaysHasVelocity = CVarVelocityForceOutput.GetValueOnAnyThread();
-
-	if (!bAlwaysHasVelocity && InComponent->SupportsWorldPositionOffsetVelocity() && VertexDeformationOutputsVelocity())
+	bAnyMaterialHasWorldPositionOffset = false;
 	{
 		// Find if we have any WPO materials.
 		ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 
 		TArray<UMaterialInterface*> UsedMaterials;
 		InComponent->GetUsedMaterials(UsedMaterials);
-
 		for (const UMaterialInterface* MaterialInterface : UsedMaterials)
 		{
 			if (MaterialInterface)
 			{
 				if (MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset)
 				{
-					bHasWorldPositionOffsetVelocity = true;
+					bAnyMaterialHasWorldPositionOffset = true;
 					break;
 				}
 			}
 		}
+	}
+
+	bAlwaysHasVelocity = CVarVelocityForceOutput.GetValueOnAnyThread();
+	if (!bAlwaysHasVelocity && InComponent->SupportsWorldPositionOffsetVelocity() && VertexDeformationOutputsVelocity() && bAnyMaterialHasWorldPositionOffset)
+	{
+		bHasWorldPositionOffsetVelocity = true;
 	}
 }
 
@@ -511,7 +515,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.ReceivesDecals(bReceivesDecals)
 				.CacheShadowAsStatic(PrimitiveSceneInfo ? PrimitiveSceneInfo->ShouldCacheShadowAsStatic() : false)
 				.OutputVelocity(bOutputVelocity)
-				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset())
+				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
 				.LightmapUVIndex(GetLightMapCoordinateIndex())
