@@ -180,6 +180,7 @@ public:
 		UVProjectionIndex.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionIndex"), SPF_Optional);
 		UVProjectionPlaneSize.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionPlaneSize"), SPF_Optional);
 		UVProjectionPlaneDistance.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionPlaneDistance"), SPF_Optional);
+		UVProjectionPlaneOffset.Bind(Initializer.ParameterMap, TEXT("ProjectionParameters_UVProjectionPlaneOffset"), SPF_Optional);
 	}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -204,12 +205,14 @@ public:
 		ShaderBindings.Add(UVProjectionIndex, ShaderElementData.ProjectionTypeSettings.UVProjectionIndex);
 		ShaderBindings.Add(UVProjectionPlaneSize, ShaderElementData.ProjectionTypeSettings.UVProjectionPlaneSize);
 		ShaderBindings.Add(UVProjectionPlaneDistance, ShaderElementData.ProjectionTypeSettings.UVProjectionPlaneDistance);
+		ShaderBindings.Add(UVProjectionPlaneOffset, FVector3f(ShaderElementData.ProjectionTypeSettings.UVProjectionPlaneOffset));
 	}
 
 private:
 	LAYOUT_FIELD(FShaderParameter, UVProjectionIndex);
 	LAYOUT_FIELD(FShaderParameter, UVProjectionPlaneSize);
 	LAYOUT_FIELD(FShaderParameter, UVProjectionPlaneDistance);
+	LAYOUT_FIELD(FShaderParameter, UVProjectionPlaneOffset);
 };
 
 using FMeshPerspectiveProjectionVS = FMeshProjectionVS<EDisplayClusterMeshProjectionType::Linear>;

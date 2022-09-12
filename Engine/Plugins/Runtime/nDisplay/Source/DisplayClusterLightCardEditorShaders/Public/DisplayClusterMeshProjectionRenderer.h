@@ -69,6 +69,9 @@ struct DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionTyp
 
 	/** The distance from the view origin of the plane the UVs are projected to, in view space */
 	float UVProjectionPlaneDistance = 100.0f;
+
+	/** A translation offset for the UV projection plane */
+	FVector UVProjectionPlaneOffset = FVector::ZeroVector;
 };
 
 /** Settings for producing a single render. */

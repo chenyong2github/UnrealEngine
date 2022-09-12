@@ -718,8 +718,8 @@ void FDisplayClusterLightCardEditorHelper::GetSceneViewInitOptions(
 	const FMatrix* InRotationMatrix,
 	float InDPIScale)
 {
-	OutViewInitOptions.ViewLocation = (ProjectionMode == EDisplayClusterMeshProjectionType::UV) ? FVector::ZeroVector : InLocation;
-	OutViewInitOptions.ViewRotation = (ProjectionMode == EDisplayClusterMeshProjectionType::UV) ? FRotator::ZeroRotator : InRotation;
+	OutViewInitOptions.ViewLocation = InLocation;
+	OutViewInitOptions.ViewRotation = InRotation;
 	OutViewInitOptions.ViewOrigin = OutViewInitOptions.ViewLocation;
 
 	FIntPoint ViewportSize = InViewportSize;

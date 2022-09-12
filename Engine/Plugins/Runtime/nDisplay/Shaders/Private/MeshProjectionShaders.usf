@@ -66,6 +66,7 @@ void PerspectiveVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 uint ProjectionParameters_UVProjectionIndex;
 float ProjectionParameters_UVProjectionPlaneSize;
 float ProjectionParameters_UVProjectionPlaneDistance;
+float3 ProjectionParameters_UVProjectionPlaneOffset;
 
 void UVProjectionVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 {
@@ -87,7 +88,8 @@ void UVProjectionVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 	
 	UV = GetUV(Output.FactoryInterpolants, UVIndex);
 	
-	const float3 PlanePosition = float3(ProjectionParameters_UVProjectionPlaneSize * (UV.x - 0.5),ProjectionParameters_UVProjectionPlaneSize * (0.5 - UV.y), ProjectionParameters_UVProjectionPlaneDistance);
+	const float3 PlanePosition = ProjectionParameters_UVProjectionPlaneOffset + 
+		float3(ProjectionParameters_UVProjectionPlaneSize * (UV.x - 0.5), ProjectionParameters_UVProjectionPlaneSize * (0.5 - UV.y), ProjectionParameters_UVProjectionPlaneDistance);
 	
 	Output.Azimuth = UVIndex;
 	Output.Position = mul(float4(PlanePosition, 1.0), ResolvedView.ViewToClip);

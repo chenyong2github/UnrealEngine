@@ -62,6 +62,7 @@ public:
 	virtual void TrackingStarted(const FInputEventState& InInputState, bool bIsDraggingWidget, bool bNudge) override;
 	virtual void TrackingStopped() override;
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
+	virtual void BeginCameraMovement(bool bHasMovement) override;
 	virtual EMouseCursor::Type GetCursor(FViewport* Viewport,int32 X,int32 Y) override;
 	virtual ELevelViewportType GetViewportType() const override { return LVT_Perspective; }
 	virtual bool HasDropPreviewActors() const override { return DropPreviewLightCards.Num() > 0; }
@@ -218,6 +219,18 @@ private:
 	/** Checks if the location is approaching the edge of the view space */
 	bool IsLocationCloseToEdge(const FVector& InPosition, const FViewport* InViewport = nullptr, const FSceneView* InView = nullptr, FVector2D* OutPercentageToEdge = nullptr);
 
+	/** Called each tick to ensure the viewport camera is in the appropriate place based on the projection mode */
+	void FixCameraTransform();
+
+	/** Saves the current camera transform for the current projection mode */
+	void SaveProjectionCameraTransform();
+
+	/** Restores the saved camera transform for the current projection mode */
+	void RestoreProjectionCameraTransform();
+
+	/** Resets the stored camera transforms to default values for each projection mode */
+	void ResetCameraProjectionTransforms();
+
 	/** Resets the camera FOVs */
 	void ResetFOVs();
 
@@ -315,6 +328,9 @@ private:
 
 	/** Stores each projection mode's field of view separately */
 	TArray<float> ProjectionFOVs;
+
+	/** Stores each projecion mode's camera transforms separately so they can be restored when the projection mode is selected  */
+	TArray<FViewportCameraTransform> ProjectionCameraTransforms;
 
 	/** The increment to change the FOV by when using the scroll wheel */
 	float FOVScrollIncrement = 5.0f;

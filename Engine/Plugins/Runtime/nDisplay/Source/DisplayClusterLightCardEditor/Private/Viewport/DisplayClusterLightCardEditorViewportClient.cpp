@@ -113,6 +113,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	SetShowStats(true);
 
 	ResetFOVs();
+	ResetCameraProjectionTransforms();
 
 	//This seems to be needed to get the correct world time in the preview.
 	SetIsSimulateInEditorViewport(true);
@@ -123,6 +124,9 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	
 	SetProjectionMode(static_cast<EDisplayClusterMeshProjectionType>(Settings->ProjectionMode),
 		static_cast<ELevelViewportType>(Settings->RenderViewportType));
+
+	const int32 CameraSpeed = 3;
+	SetCameraSpeedSetting(CameraSpeed);
 }
 
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
@@ -154,7 +158,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	// Camera position is locked to a specific location
-	ResetCamera(/* bLocationOnly */ true);
+	FixCameraTransform();
 
 	CalcEditorWidgetTransform(CachedEditorWidgetWorldTransform);
 
@@ -340,6 +344,10 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 			RenderSettings.ProjectionTypeSettings.UVProjectionIndex = 1;
 			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
 			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneDistance = ADisplayClusterLightCardActor::UVPlaneDefaultDistance;
+
+			// Compute the UV plane offset to allow panning. Need to convert to view space, since the UV projection assumes all coordinates are in view space
+			const FMatrix WorldToViewTransform = FMatrix(FVector::ZAxisVector, FVector::XAxisVector, FVector::YAxisVector, FVector::ZeroVector);
+			RenderSettings.ProjectionTypeSettings.UVProjectionPlaneOffset = -WorldToViewTransform.TransformVector(GetViewTransform().GetLocation());
 		}
 
 		GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
@@ -746,6 +754,7 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 
 	FSceneView* View = CalcSceneView(&ViewFamily);
 	const FVector ViewOrigin = View->ViewLocation;
+	const FVector OriginOffset = ProjectionMode == EDisplayClusterMeshProjectionType::UV ? ViewOrigin : FVector::ZeroVector;
 
 	TArray<FVector> MouseWorldDirections; // directions from view origin
 
@@ -755,7 +764,7 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 
 	for (int32 PointIdx = 0; PointIdx < MousePositions.Num(); ++PointIdx)
 	{
-		ProjectionHelper->CalculateOriginAndDirectionFromPixelPosition(MousePositions[PointIdx], *View, FVector::ZeroVector, ScreenOrigin, ScreenDirection);
+		ProjectionHelper->CalculateOriginAndDirectionFromPixelPosition(MousePositions[PointIdx], *View, OriginOffset, ScreenOrigin, ScreenDirection);
 		MouseWorldDirections[PointIdx] = ScreenDirection;
 	}
 
@@ -1040,6 +1049,56 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 	}
 
 	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
+}
+
+void FDisplayClusterLightCardEditorViewportClient::BeginCameraMovement(bool bHasMovement)
+{
+	// A little bit of hackery here. FEditorViewportClient doesn't provide many ways to change how camera movement happens (e.g. what keys or mouse movements do what),
+	// but it does call BeginCameraMovement before it actually applies any of the movement stored in CameraUserImpulseData, so we can perform our own camera movement 
+	// impulses here. For most projection modes, we simply zero out any camera translation impulses since the user isn't generally allowed to move the camera away from
+	// the view origin. The UV projection mode is the exception, where the user is allowed to pan the camera around
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+	{
+		bool bIsLeftRightKeyPressed = false;
+		bool bIsForwardBackKeyPressed = false;
+
+		for (uint32 Index = 0; Index < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++Index)
+		{
+			EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(Index);
+			bIsForwardBackKeyPressed |= Viewport->KeyState(FViewportNavigationCommands::Get().Forward->GetActiveChord(ChordIndex)->Key);
+			bIsForwardBackKeyPressed |= Viewport->KeyState(FViewportNavigationCommands::Get().Backward->GetActiveChord(ChordIndex)->Key);
+
+			bIsLeftRightKeyPressed |= Viewport->KeyState(FViewportNavigationCommands::Get().Left->GetActiveChord(ChordIndex)->Key);
+			bIsLeftRightKeyPressed |= Viewport->KeyState(FViewportNavigationCommands::Get().Right->GetActiveChord(ChordIndex)->Key);
+		}
+
+		bIsForwardBackKeyPressed |= Viewport->KeyState(EKeys::Up);
+		bIsForwardBackKeyPressed |= Viewport->KeyState(EKeys::Down);
+		bIsLeftRightKeyPressed |= Viewport->KeyState(EKeys::Left);
+		bIsLeftRightKeyPressed |= Viewport->KeyState(EKeys::Right);
+
+		// The editor viewport client is hardcoded to move left/right and forward/back using WSAD and arrows, but for UV, we want the arrow keys to 
+		// control up/down instead of forward/back. If the up/down keys are pressed, reroute the forward/back impulses to the up/down impulse data
+		if (bIsForwardBackKeyPressed)
+		{
+			CameraUserImpulseData->MoveUpDownImpulse = CameraUserImpulseData->MoveForwardBackwardImpulse;
+			CameraUserImpulseData->MoveForwardBackwardImpulse = 0.0f;
+		}
+		else if (!bIsForwardBackKeyPressed && !bIsLeftRightKeyPressed)
+		{
+			// Zero out all camera movement if WASD or arrow keys are not pressed, to keep the control scheme cleaner
+			CameraUserImpulseData->MoveForwardBackwardImpulse = 0.0f;
+			CameraUserImpulseData->MoveRightLeftImpulse = 0.0f;
+			CameraUserImpulseData->MoveUpDownImpulse = 0.0f;
+		}
+	}
+	else
+	{
+		// Always zero out the camera's movement impulses so that the user cannot move the view using any keyboard chords
+		CameraUserImpulseData->MoveForwardBackwardImpulse = 0.0f;
+		CameraUserImpulseData->MoveRightLeftImpulse = 0.0f;
+		CameraUserImpulseData->MoveUpDownImpulse = 0.0f;
+	}
 }
 
 EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FViewport* InViewport, int32 X, int32 Y)
@@ -1516,6 +1575,8 @@ void FDisplayClusterLightCardEditorViewportClient::SetEditorWidgetMode(FDisplayC
 
 void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode, ELevelViewportType InViewportType)
 {
+	SaveProjectionCameraTransform();
+
 	ProjectionMode = InProjectionMode;
 	RenderViewportType = InViewportType;
 
@@ -1529,17 +1590,10 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 	ProjectionHelper->SetProjectionMode(ProjectionMode);
 	ProjectionHelper->SetIsOrthographic(InViewportType != LVT_Perspective);
 
-	if (ProjectionMode == EDisplayClusterMeshProjectionType::Linear || ProjectionMode == EDisplayClusterMeshProjectionType::UV)
-	{
-		// TODO: Do we want to cache the perspective rotation and restore it when the user switches back?
-		SetViewRotation(FVector::ForwardVector.Rotation());
-		EditorWidget->SetWidgetScale(1.f);
-	}
-	else if (ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal)
-	{
-		SetViewRotation(FVector::UpVector.Rotation());
-		EditorWidget->SetWidgetScale(0.5f);
-	}
+	RestoreProjectionCameraTransform();
+
+	const float WidgetScale = ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal ? 0.5f : 1.0f;
+	EditorWidget->SetWidgetScale(WidgetScale);
 
 	ProjectionOriginComponent = FindProjectionOriginComponent(RootActorProxy.Get());
 
@@ -1598,6 +1652,7 @@ void FDisplayClusterLightCardEditorViewportClient::ResetCamera(bool bLocationOnl
 	SetProjectionMode(GetProjectionMode(), GetRenderViewportType());
 
 	ResetFOVs();
+	ResetCameraProjectionTransforms();
 }
 
 void FDisplayClusterLightCardEditorViewportClient::CycleCoordinateSystem()
@@ -2036,7 +2091,7 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetUVLightCardTranslatio
 	const FPlane UVProjectionPlane(ViewOrigin + FVector::ForwardVector * UVProjectionPlaneDistance, -FVector::ForwardVector);
 	const FVector PlaneIntersection = FMath::RayPlaneIntersection(Origin, Direction, UVProjectionPlane);
 
-	const FVector DesiredLocation = ((PlaneIntersection - DragWidgetOffset) - ViewOrigin);
+	const FVector DesiredLocation = PlaneIntersection - DragWidgetOffset;
 	const FVector2D DesiredUVLocation = FVector2D(DesiredLocation.Y / UVProjectionPlaneSize + 0.5f, 0.5f - DesiredLocation.Z / UVProjectionPlaneSize);
 
 	const FVector2D UVDelta = DesiredUVLocation - LightCard->UVCoordinates;
@@ -2415,6 +2470,76 @@ bool FDisplayClusterLightCardEditorViewportClient::IsLocationCloseToEdge(const F
 	}
 
 	return false;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::FixCameraTransform()
+{
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+	{
+		// While in UV projection mode, the camera is not allowed to be rotated, but is allowed to be panned
+		SetViewRotation(FVector::ForwardVector.Rotation());
+
+		// Clamp the panning to ensure that the UV plane isn't accidentally dragged offscreen
+		const float PlaneSize = 0.5f * ADisplayClusterLightCardActor::UVPlaneDefaultSize;
+		const FVector ViewLocation = GetViewTransform().GetLocation();
+		const FVector ClampedLocation = FVector(0.0f, FMath::Clamp(ViewLocation.Y, -PlaneSize, PlaneSize), FMath::Clamp(ViewLocation.Z, -PlaneSize, PlaneSize));
+
+		SetViewLocation(ClampedLocation);
+	}
+	else
+	{
+		// All other projection modes besides UV are not allowed to move the camera's position, but can be rotated freely
+		ResetCamera(/* bLocationOnly */ true);
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::SaveProjectionCameraTransform()
+{
+	int32 ProjectionModeIndex = (int32)ProjectionMode;
+	if (ProjectionCameraTransforms.Num() > ProjectionModeIndex)
+	{
+		FViewportCameraTransform CameraTransform;
+		CameraTransform.SetRotation(GetViewRotation());
+
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			CameraTransform.SetLocation(GetViewLocation());
+		}
+
+		ProjectionCameraTransforms[ProjectionModeIndex] = CameraTransform;
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::RestoreProjectionCameraTransform()
+{
+	int32 ProjectionModeIndex = (int32)ProjectionMode;
+	if (ProjectionCameraTransforms.Num() > ProjectionModeIndex)
+	{
+		const FViewportCameraTransform& CameraTransform = ProjectionCameraTransforms[ProjectionModeIndex];
+		SetViewRotation(CameraTransform.GetRotation());
+
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			SetViewLocation(CameraTransform.GetLocation());
+		}
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::ResetCameraProjectionTransforms()
+{
+	constexpr int32 MaxProjections = 3;
+	if (ProjectionCameraTransforms.Num() < MaxProjections)
+	{
+		ProjectionCameraTransforms.AddDefaulted(MaxProjections - ProjectionCameraTransforms.Num());
+	}
+
+	ProjectionCameraTransforms[static_cast<int32>(EDisplayClusterMeshProjectionType::Linear)].SetRotation(FVector::ForwardVector.Rotation());
+	ProjectionCameraTransforms[static_cast<int32>(EDisplayClusterMeshProjectionType::Azimuthal)].SetRotation(FVector::UpVector.Rotation());
+	ProjectionCameraTransforms[static_cast<int32>(EDisplayClusterMeshProjectionType::UV)].SetRotation(FVector::ForwardVector.Rotation());
+
+	ProjectionCameraTransforms[static_cast<int32>(EDisplayClusterMeshProjectionType::UV)].SetLocation(FVector::ZeroVector);
+
+	RestoreProjectionCameraTransform();
 }
 
 void FDisplayClusterLightCardEditorViewportClient::ResetFOVs()
