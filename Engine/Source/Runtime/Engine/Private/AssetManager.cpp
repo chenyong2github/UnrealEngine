@@ -565,12 +565,8 @@ int32 UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLi
 		else
 		{
 			// Search for all blueprints and then check derived classes later
-			TArray<UClass*> BlueprintCoreDerivedClasses;
-			GetDerivedClasses(UBlueprintCore::StaticClass(), BlueprintCoreDerivedClasses);
-			for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
-			{
-				ARFilter.ClassPaths.Add(BPCoreClass->GetClassPathName());
-			}
+			ARFilter.ClassPaths.Add(UBlueprintCore::StaticClass()->GetClassPathName());
+			ARFilter.bRecursiveClasses = true;
 
 			GetAssetRegistry().GetDerivedClassNames(CompiledRules.AssetClassNames, TSet<FTopLevelAssetPath>(), CompiledRules.DerivedClassNames);
 		}
