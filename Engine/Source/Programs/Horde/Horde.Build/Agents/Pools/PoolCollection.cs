@@ -44,6 +44,7 @@ namespace Horde.Build.Agents.Pools
 			public TimeSpan? ScaleInCooldown { get; set; }
 			public PoolSizeStrategy? SizeStrategy { get; set; }
 			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? s_defaultStrategy!.Value;
+			public List<PoolSizeStrategyInfo> SizeStrategies { get; set; } = new ();
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
 			public JobQueueSettings? JobQueueSettings { get; set; }
 			public ComputeQueueAwsMetricSettings? ComputeQueueAwsMetricSettings { get; set; }
@@ -51,7 +52,8 @@ namespace Horde.Build.Agents.Pools
 
 			// Read-only wrappers
 			IReadOnlyList<AgentWorkspace> IPool.Workspaces => Workspaces;
-			IReadOnlyDictionary<string, string> IPool.Properties => Properties;			
+			IReadOnlyDictionary<string, string> IPool.Properties => Properties;
+			IReadOnlyList<PoolSizeStrategyInfo> IPool.SizeStrategies => SizeStrategies;
 
 			public PoolDocument()
 			{
@@ -74,6 +76,7 @@ namespace Horde.Build.Agents.Pools
 				ScaleOutCooldown = other.ScaleOutCooldown;
 				ScaleInCooldown = other.ScaleInCooldown;
 				SizeStrategy = other.SizeStrategy;
+				SizeStrategies.AddRange(other.SizeStrategies);
 				LeaseUtilizationSettings = other.LeaseUtilizationSettings;
 				JobQueueSettings = other.JobQueueSettings;
 				ComputeQueueAwsMetricSettings = other.ComputeQueueAwsMetricSettings;
@@ -228,6 +231,7 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? scaleOutCooldown,
 			TimeSpan? scaleInCooldown, 
 			PoolSizeStrategy? sizeStrategy,
+			List<PoolSizeStrategyInfo>? newSizeStrategies,
 			LeaseUtilizationSettings? leaseUtilizationSettings,
 			JobQueueSettings? jobQueueSettings, 
 			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings, 
@@ -328,6 +332,10 @@ namespace Horde.Build.Agents.Pools
 			else if (useDefaultStrategy != null && useDefaultStrategy.Value)
 			{
 				transaction.Set(x => x.SizeStrategy, null);
+			}
+			if (newSizeStrategies != null)
+			{
+				transaction.Set(x => x.SizeStrategies, newSizeStrategies);				
 			}
 
 			if (leaseUtilizationSettings != null)

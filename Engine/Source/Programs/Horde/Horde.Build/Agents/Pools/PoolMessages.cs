@@ -246,6 +246,11 @@ namespace Horde.Build.Agents.Pools
 		/// Pool sizing strategy
 		/// </summary>
 		public PoolSizeStrategy? SizeStrategy { get; set; }
+		
+		/// <summary>
+		/// Pool sizing strategy
+		/// </summary>
+		public List<PoolSizeStrategy>? SizeStrategies { get; set; }
 
 		/// <summary>
 		/// Set pool to use default strategy

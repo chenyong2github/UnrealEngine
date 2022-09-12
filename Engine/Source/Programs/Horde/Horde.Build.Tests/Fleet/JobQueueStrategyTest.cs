@@ -142,8 +142,9 @@ namespace Horde.Build.Tests.Fleet
 				IJob job = await AddPlaceholderJob(graph, stream.Id, nodeForAgentType1);
 				await JobCollection.TryUpdateBatchAsync(job, graph, job.Batches[0].Id, null, JobStepBatchState.Ready, null);
 			}
-			
-			return (new (JobCollection, GraphCollection, StreamService, Clock), poolSize);
+
+			JobQueueSettings settings = new ();
+			return (new (JobCollection, GraphCollection, StreamService, Clock, settings), poolSize);
 		}
 		
 		private async Task<IJob> AddPlaceholderJob(IGraph graph, StreamId streamId, string nodeNameToExecute)

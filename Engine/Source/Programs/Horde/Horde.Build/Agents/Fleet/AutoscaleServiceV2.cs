@@ -4,9 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
+using Horde.Build.Jobs;
+using Horde.Build.Jobs.Graphs;
+using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -25,12 +30,12 @@ namespace Horde.Build.Agents.Fleet
 	/// </summary>
 	public sealed class AutoscaleServiceV2 : IHostedService, IDisposable
 	{
-		private IPoolSizeStrategy _leaseUtilizationStrategy;
-		private IPoolSizeStrategy _jobQueueStrategy;
-		private IPoolSizeStrategy _noOpStrategy;
-		private IPoolSizeStrategy _computeQueueAwsMetricStrategy;
 		private readonly IAgentCollection _agentCollection;
+		private readonly IGraphCollection _graphCollection;
+		private readonly IJobCollection _jobCollection;
+		private readonly ILeaseCollection _leaseCollection;
 		private readonly IPoolCollection _poolCollection;
+		private readonly StreamService _streamService;
 		private readonly IFleetManager _fleetManager;
 		private readonly IDogStatsd _dogStatsd;
 		private readonly IClock _clock;
@@ -44,24 +49,24 @@ namespace Horde.Build.Agents.Fleet
 		/// Constructor
 		/// </summary>
 		public AutoscaleServiceV2(
-			LeaseUtilizationStrategy leaseUtilizationStrategy,
-			JobQueueStrategy jobQueueStrategy,
-			NoOpPoolSizeStrategy noOpStrategy,
-			ComputeQueueAwsMetricStrategy computeQueueAwsMetricStrategy,
 			IAgentCollection agentCollection,
+			IGraphCollection graphCollection,
+			IJobCollection jobCollection,
+			ILeaseCollection leaseCollection,
 			IPoolCollection poolCollection,
+			StreamService streamService,
 			IFleetManager fleetManager,
 			IDogStatsd dogStatsd,
 			IClock clock,
 			IOptions<ServerSettings> settings,
 			ILogger<AutoscaleServiceV2> logger)
 		{
-			_leaseUtilizationStrategy = leaseUtilizationStrategy;
-			_jobQueueStrategy = jobQueueStrategy;
-			_noOpStrategy = noOpStrategy;
-			_computeQueueAwsMetricStrategy = computeQueueAwsMetricStrategy;
 			_agentCollection = agentCollection;
+			_graphCollection = graphCollection;
+			_jobCollection = jobCollection;
+			_leaseCollection = leaseCollection;
 			_poolCollection = poolCollection;
+			_streamService = streamService;
 			_fleetManager = fleetManager;
 			_dogStatsd = dogStatsd;
 			_clock = clock;
@@ -97,7 +102,9 @@ namespace Horde.Build.Agents.Fleet
 			Stopwatch stopwatch = Stopwatch.StartNew();
 			using IScope _ = GlobalTracer.Instance.BuildSpan("AutoscaleService.TickAsync").StartActive();
 			
-			await BatchResizePools(false);
+			List<PoolSizeData> input = await GetPoolSizeDataAsync();
+			List<PoolSizeData> output = await CalculateDesiredPoolSizesAsync(input);
+			await ResizePoolsAsync(output);
 
 			stopwatch.Stop();
 			_logger.LogInformation("Autoscaling pools took {ElapsedTime} ms", stopwatch.ElapsedMilliseconds);
@@ -109,50 +116,34 @@ namespace Horde.Build.Agents.Fleet
 			Stopwatch stopwatch = Stopwatch.StartNew();
 			using IScope _ = GlobalTracer.Instance.BuildSpan("AutoscaleService.TickHighFrequency").StartActive();
 			
-			await BatchResizePools(true);
-			
+			// TODO: Re-enable high frequency scaling (only used for experimental scaling of remote execution agents at the moment)
+			await Task.Delay(0, stoppingToken);
+
 			stopwatch.Stop();
 			_logger.LogInformation("Autoscaling pools (high frequency) took {ElapsedTime} ms", stopwatch.ElapsedMilliseconds);
 		}
-		
-		private async Task BatchResizePools(bool onlyHighFrequency)
+
+		internal async Task<List<PoolSizeData>> CalculateDesiredPoolSizesAsync(List<PoolSizeData> poolSizeDatas)
 		{
-			// Group pools by strategy type to ensure they can be called once (more optimal)
-			Dictionary<PoolSizeStrategy, List<PoolSizeData>> poolSizeDataByStrategy = await GetPoolSizeDataByStrategyType();
-
-			if (onlyHighFrequency)
+			List<PoolSizeData> result = new();
+			foreach (PoolSizeData psd in poolSizeDatas)
 			{
-				poolSizeDataByStrategy = poolSizeDataByStrategy
-					.Where(x => x.Key.SupportsHighFrequency())
-					.ToDictionary(i => i.Key, i => i.Value);
-			}
-			
-			foreach ((PoolSizeStrategy strategyType, List<PoolSizeData> currentData) in poolSizeDataByStrategy)
-			{
-				List<PoolSizeData> newData = await GetPoolSizeStrategy(strategyType).CalcDesiredPoolSizesAsync(currentData);
-				await ResizePools(newData);
-			}
-		}
-
-		internal async Task<Dictionary<PoolSizeStrategy, List<PoolSizeData>>> GetPoolSizeDataByStrategyType()
-		{
-			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true);
-			List<IAgent> GetAgentsInPool(PoolId poolId) => agents.FindAll(a => a.GetPools().Any(p => p == poolId));
-			List<IPool> pools = await _poolCollection.GetAsync();
-
-			Dictionary<PoolSizeStrategy, List<PoolSizeData>> result = new();
-			foreach (PoolSizeStrategy strategyType in Enum.GetValues<PoolSizeStrategy>())
-			{
-				result[strategyType] = pools
-					.Where(x => x.SizeStrategy == strategyType)
-					.Select(x => new PoolSizeData(x, GetAgentsInPool(x.Id), null))
-					.ToList();
+				result.Add((await CreatePoolSizeStrategy(psd.Pool).CalcDesiredPoolSizesAsync(new List<PoolSizeData> { psd }))[0]);
 			}
 
 			return result;
 		}
 
-		internal async Task ResizePools(List<PoolSizeData> poolSizeDatas)
+		internal async Task<List<PoolSizeData>> GetPoolSizeDataAsync()
+		{
+			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true);
+			List<IAgent> GetAgentsInPool(PoolId poolId) => agents.FindAll(a => a.GetPools().Any(p => p == poolId));
+			List<IPool> pools = await _poolCollection.GetAsync();
+
+			return pools.Select(pool => new PoolSizeData(pool, GetAgentsInPool(pool.Id), null)).ToList();
+		}
+
+		internal async Task ResizePoolsAsync(List<PoolSizeData> poolSizeDatas)
 		{
 			foreach (PoolSizeData poolSizeData in poolSizeDatas.OrderByDescending(x => x.Agents.Count))
 			{
@@ -223,35 +214,63 @@ namespace Horde.Build.Agents.Fleet
 		}
 
 		/// <summary>
-		/// Backdoor for tests to override strategies with test doubles
-		/// These cannot supplied in the constructor since the DI requires concrete implementations.
+		/// Instantiate a sizing strategy for the given pool
+		/// Can resolve either from the list of strategies or the old legacy way
 		/// </summary>
-		/// <param name="leaseUtilizationStrategy"></param>
-		/// <param name="jobQueueStrategy"></param>
-		/// <param name="noOpStrategy"></param>
-		/// <param name="computeQueueAwsMetricStrategy"></param>
-		internal void OverridePoolSizeStrategiesDuringTesting(
-			IPoolSizeStrategy leaseUtilizationStrategy,
-			IPoolSizeStrategy jobQueueStrategy,
-			IPoolSizeStrategy noOpStrategy,
-			IPoolSizeStrategy computeQueueAwsMetricStrategy)
+		/// <param name="pool">Pool to use</param>
+		/// <returns>A pool sizing strategy with parameters set</returns>
+		/// <exception cref="ArgumentException"></exception>
+		public IPoolSizeStrategy CreatePoolSizeStrategy(IPool pool)
 		{
-			_leaseUtilizationStrategy = leaseUtilizationStrategy;
-			_jobQueueStrategy = jobQueueStrategy;
-			_noOpStrategy = noOpStrategy;
-			_computeQueueAwsMetricStrategy = computeQueueAwsMetricStrategy;
-		}
-		
-		private IPoolSizeStrategy GetPoolSizeStrategy(PoolSizeStrategy type)
-		{
-			return type switch
+	
+			IEnumerable<string> GetPropValues(string name)
 			{
-				PoolSizeStrategy.LeaseUtilization => _leaseUtilizationStrategy,
-				PoolSizeStrategy.JobQueue => _jobQueueStrategy,
-				PoolSizeStrategy.NoOp => _noOpStrategy,
-				PoolSizeStrategy.ComputeQueueAwsMetric => _computeQueueAwsMetricStrategy,
-				_ => throw new Exception($"Unknown strategy: {type}")
-			};
+				return name switch
+				{
+					"dayOfWeek" => new List<string> { _clock.UtcNow.DayOfWeek.ToString().ToLower() },
+					_ => Array.Empty<string>()
+				};
+			}
+
+			if (pool.SizeStrategies.Count > 0)
+			{
+				foreach (PoolSizeStrategyInfo info in pool.SizeStrategies)
+				{
+					if (info.Condition == null || info.Condition.Evaluate(GetPropValues))
+					{
+						switch (info.Type)
+						{
+							case PoolSizeStrategy.JobQueue:
+								JobQueueSettings? settings = JsonSerializer.Deserialize<JobQueueSettings>(info.Config);
+								if (settings == null) throw new ArgumentException("Unable to deserialize pool sizing config");
+								return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, settings);
+							
+							case PoolSizeStrategy.LeaseUtilization:
+								// No settings for lease utilization strategy
+								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock);
+							
+							case PoolSizeStrategy.NoOp:
+								return new NoOpPoolSizeStrategy();
+							
+							default:
+								throw new ArgumentException("Invalid pool size strategy type " + info.Type);
+						}
+					}
+				}
+			}
+
+			// These is the legacy way of creating and configuring strategies (list-based approach above is preferred)
+			switch (pool.SizeStrategy)
+			{
+				case PoolSizeStrategy.JobQueue:
+					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, pool.JobQueueSettings);
+				case PoolSizeStrategy.LeaseUtilization:
+					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock);
+				case PoolSizeStrategy.NoOp:
+					return new NoOpPoolSizeStrategy();
+				default:
+					throw new ArgumentException("Unknown pool size strategy " + pool.SizeStrategy);
+			}
 		}
 	}
 }

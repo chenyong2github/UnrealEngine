@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Jobs;
@@ -36,6 +37,14 @@ namespace Horde.Build.Agents.Fleet
 		public double ScaleInFactor { get; set; } = 0.9;
 
 		/// <summary>
+		/// Constructor used for JSON serialization
+		/// </summary>
+		[JsonConstructor]
+		public JobQueueSettings()
+		{
+		}
+		
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="scaleOutFactor"></param>
@@ -55,6 +64,8 @@ namespace Horde.Build.Agents.Fleet
 	/// </summary>
 	public class JobQueueStrategy : IPoolSizeStrategy
 	{
+		internal JobQueueSettings Settings { get; }
+		
 		private readonly IJobCollection _jobs;
 		private readonly IGraphCollection _graphs;
 		private readonly StreamService _streamService;
@@ -82,14 +93,16 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="graphs"></param>
 		/// <param name="streamService"></param>
 		/// <param name="clock"></param>
+		/// <param name="settings"></param>
 		/// <param name="samplePeriod">Time period for each sample</param>
-		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, TimeSpan? samplePeriod = null)
+		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, JobQueueSettings? settings = null, TimeSpan? samplePeriod = null)
 		{
 			_jobs = jobs;
 			_graphs = graphs;
 			_streamService = streamService;
 			_clock = clock;
 			_samplePeriod = samplePeriod ?? _samplePeriod;
+			Settings = settings ?? _defaultPoolSettings;
 		}
 
 		/// <inheritdoc/>

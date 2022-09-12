@@ -33,9 +33,16 @@ namespace Horde.Build.Utilities
 		}
 
 		/// <inheritdoc/>
-		public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Condition value)
+		public void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Condition? value)
 		{
-			context.Writer.WriteString(value.ToString());
+			if (value == null)
+			{
+				context.Writer.WriteNull();				
+			}
+			else
+			{
+				context.Writer.WriteString(value.ToString());				
+			}
 		}
 	}
 }

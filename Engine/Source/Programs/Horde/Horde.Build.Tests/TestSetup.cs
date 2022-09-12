@@ -95,6 +95,7 @@ namespace Horde.Build.Tests
 		public IDeviceCollection DeviceCollection => ServiceProvider.GetRequiredService<IDeviceCollection>();
 
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
+		public AutoscaleServiceV2 AutoscaleServiceV2 => ServiceProvider.GetRequiredService<AutoscaleServiceV2>();
 		public AgentSoftwareService AgentSoftwareService => ServiceProvider.GetRequiredService<AgentSoftwareService>();
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
 		public ICommitService CommitService => ServiceProvider.GetRequiredService<ICommitService>();
@@ -203,6 +204,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<AgentService>();
 			services.AddSingleton<AgentSoftwareService>();
 			services.AddSingleton<AutoscaleService>();
+			services.AddSingleton<AutoscaleServiceV2>();
 			services.AddSingleton<AwsReuseFleetManager, AwsReuseFleetManager>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<ConfigCollection>();

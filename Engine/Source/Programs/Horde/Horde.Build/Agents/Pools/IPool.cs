@@ -12,6 +12,44 @@ namespace Horde.Build.Agents.Pools
 	using PoolId = StringId<IPool>;
 
 	/// <summary>
+	/// Metadata for configuring and picking a pool sizing strategy
+	/// </summary>
+	public class PoolSizeStrategyInfo
+	{
+		/// <summary>
+		/// Strategy implementation to use
+		/// </summary>
+		public PoolSizeStrategy Type { get; set; }
+		
+		/// <summary>
+		/// Condition if this strategy should be enabled (right now, using date/time as a distinguishing factor)
+		/// </summary>
+		public Condition? Condition { get; set; }
+
+		/// <summary>
+		/// Configuration for the strategy, serialized as JSON
+		/// </summary>
+		public string Config { get; set; } = "";
+
+		/// <summary>
+		/// Empty constructor for JSON serialization
+		/// </summary>
+		public PoolSizeStrategyInfo()
+		{
+		}
+		
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public PoolSizeStrategyInfo(PoolSizeStrategy type, Condition? condition, string config)
+		{
+			Type = type;
+			Condition = condition;
+			Config = config;
+		}
+	}
+	
+	/// <summary>
 	/// A pool of machines
 	/// </summary>
 	public interface IPool
@@ -90,6 +128,11 @@ namespace Horde.Build.Agents.Pools
 		/// Pool sizing strategy to be used for this pool
 		/// </summary>
 		public PoolSizeStrategy SizeStrategy { get; }
+
+		/// <summary>
+		/// List of pool sizing strategies for this pool. The first strategy with a matching condition will be picked.
+		/// </summary>
+		public IReadOnlyList<PoolSizeStrategyInfo> SizeStrategies { get; }
 		
 		/// <summary>
 		/// Settings for lease utilization pool sizing strategy (if used)
