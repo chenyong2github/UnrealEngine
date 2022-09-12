@@ -224,7 +224,7 @@ bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
 
 	FNetSerializationContext Context(&Writer);
 
-	Context.SetNetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
+	Context.SetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 
 	FConnectionInfo& Connection = GetConnectionInfo(ConnectionId);
 
@@ -266,7 +266,7 @@ void FReplicationSystemTestNode::DeliverTo(FReplicationSystemTestNode& Dest, uin
 		Reader.InitBits(Packet.PacketBuffer, Packet.BitCount);
 		FNetSerializationContext Context(&Reader);
 
-		Context.SetNetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
+		Context.SetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 
 		Dest.RecvUpdate(RemoteConnectionId, Context);
 

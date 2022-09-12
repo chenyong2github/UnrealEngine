@@ -32,12 +32,12 @@ public:
 
 	FNetBitStreamReader* GetBitStreamReader() { return BitStreamReader; }
 	FNetBitStreamWriter* GetBitStreamWriter() { return BitStreamWriter; }
-	FNetTraceCollector* GetTraceCollector() { return TraceCollector; }
 
 	FNetSerializationContext MakeSubContext(FNetBitStreamWriter*) const;
 	FNetSerializationContext MakeSubContext(FNetBitStreamReader*) const;
 
-	void SetNetTraceCollector(FNetTraceCollector* InTraceCollector) { TraceCollector = InTraceCollector; }
+	void SetTraceCollector(FNetTraceCollector* InTraceCollector) { TraceCollector = InTraceCollector; }
+	FNetTraceCollector* GetTraceCollector() { return TraceCollector; }
 
 	bool HasError() const { return ErrorContext.HasError(); }
 	bool HasErrorOrOverflow() const;

@@ -1312,7 +1312,7 @@ void FReplicationReader::ProcessHugeObjectAttachment(FNetSerializationContext& C
 	FNetBitStreamReader HugeObjectReader;
 	HugeObjectReader.InitBits(NetObjectBlob.GetRawData().GetData(), NetObjectBlob.GetRawDataBitCount());
 	FNetSerializationContext HugeObjectSerializationContext = Context.MakeSubContext(&HugeObjectReader);
-	HugeObjectSerializationContext.SetNetTraceCollector(HugeObjectTraceCollector);
+	HugeObjectSerializationContext.SetTraceCollector(HugeObjectTraceCollector);
 
 	UE_NET_TRACE_NAMED_SCOPE(HugeObjectTraceScope, HugeObjectState, HugeObjectReader, HugeObjectTraceCollector, ENetTraceVerbosity::Trace);
 

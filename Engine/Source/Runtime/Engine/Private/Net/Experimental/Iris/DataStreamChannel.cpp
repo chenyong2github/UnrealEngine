@@ -103,7 +103,7 @@ void UDataStreamChannel::ReceivedBunch(FInBunch& Bunch)
 	FNetSerializationContext SerializationContext(&BitReader);
 
 	// For packet stats
-	SerializationContext.SetNetTraceCollector(Connection->GetInTraceCollector());
+	SerializationContext.SetTraceCollector(Connection->GetInTraceCollector());
 
 	DataStreamManager->ReadData(SerializationContext);
 
@@ -207,7 +207,7 @@ void UDataStreamChannel::Tick()
 #if UE_NET_TRACE_ENABLED	
 		// For Iris we can use the connection trace collector as long as we make sure that the packet is prepared 
 		FNetTraceCollector* Collector = Connection->GetOutTraceCollector();
-		SerializationContext.SetNetTraceCollector(Collector);
+		SerializationContext.SetTraceCollector(Collector);
 		UE_NET_TRACE_BEGIN_BUNCH(Collector);
 #endif
 

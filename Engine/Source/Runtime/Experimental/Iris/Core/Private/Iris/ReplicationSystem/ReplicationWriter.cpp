@@ -2088,7 +2088,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 	const uint32 MaxHugeObjectPayLoadBytes = HugeObjectPayload.Num() * sizeof(HugeObjectStorageType);
 	HugeObjectWriter.InitBytes(HugeObjectPayload.GetData(), MaxHugeObjectPayLoadBytes);
 	FNetSerializationContext HugeObjectSerializationContext = Context.MakeSubContext(&HugeObjectWriter);
-	HugeObjectSerializationContext.SetNetTraceCollector(nullptr);
+	HugeObjectSerializationContext.SetTraceCollector(nullptr);
 
 	// Huge object header needed for the receiving side to be able to process this correctly.
 	FNetObjectBlob::FHeader HugeObjectHeader = {};

@@ -137,7 +137,7 @@ TRefCountPtr<FNetBlob> FNetBlobAssembler::Assemble(FNetSerializationContext& Con
 		BitReader.InitBits(Payload.GetData(), BitWriter.GetPosBits());
 
 		FNetSerializationContext ReadContext = Context.MakeSubContext(&BitReader);
-		ReadContext.SetNetTraceCollector(nullptr);
+		ReadContext.SetTraceCollector(nullptr);
 
 		if (NetHandle.IsValid())
 		{
