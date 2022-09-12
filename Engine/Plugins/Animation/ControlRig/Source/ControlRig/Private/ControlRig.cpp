@@ -147,6 +147,14 @@ void UControlRig::BeginDestroy()
 	// on destruction clear out the initialized snapshots
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
+		for (TPair<uint32, TObjectPtr<URigVM>>& Pair : InitializedVMSnapshots)
+		{
+			if (IsValid(Pair.Value))
+			{
+				TObjectPtr<URigVM> VMSnapshot = Pair.Value;
+				VMSnapshot->RemoveFromRoot();				
+			}
+		}
 		InitializedVMSnapshots.Reset();
 	}
 
@@ -195,7 +203,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	// recompute the hash used to differentiate VMs based on their memory layout 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		CachedMemoryHash = INDEX_NONE;
+		CachedMemoryHash = 0;
 
 		if(VM)
 		{
@@ -643,6 +651,14 @@ void UControlRig::InstantiateVMFromCDO()
 		{
 			ensure(false);
 		}
+	}
+
+	if(VM)
+	{
+		CachedMemoryHash = HashCombine(
+			VM->GetLiteralMemory()->GetMemoryHash(),
+			VM->GetWorkMemory()->GetMemoryHash()
+		);
 	}
 
 	RequestInit();
@@ -1482,7 +1498,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject());
 
 				bool bIsValidSnapshot = false;
-				if(SnapshotHash != INDEX_NONE)
+				if(SnapshotHash != 0)
 				{
 					TObjectPtr<URigVM>* InitializedVMSnapshotPtr = CDO->InitializedVMSnapshots.Find(SnapshotHash);
 					if(InitializedVMSnapshotPtr && !InitializedVMSnapshotPtr->IsNull())
@@ -3403,9 +3419,9 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 
 uint32 UControlRig::GetHashForInitializeVMSnapShot()
 {
-	if(CachedMemoryHash == INDEX_NONE)
+	if(CachedMemoryHash == 0)
 	{
-		return INDEX_NONE;
+		return 0;
 	}
 	
 	uint32 Hash = GetHierarchy()->GetNameHash();

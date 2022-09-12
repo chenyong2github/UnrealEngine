@@ -165,9 +165,10 @@ struct RIGVM_API FRigVMExternalVariable
 		else if (const FStructProperty *StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			const UScriptStruct* StructType = StructProperty->Struct;
-			if (StructType->GetCppStructOps() && StructType->GetCppStructOps()->HasGetTypeHash())
+			// UserDefinedStruct overrides GetStructTypeHash to work without valid CppStructOps
+			if (StructType->IsA<UUserDefinedStruct>() || (StructType->GetCppStructOps() && StructType->GetCppStructOps()->HasGetTypeHash()))
 			{
-				return StructType->GetCppStructOps()->GetStructTypeHash(InMemory);
+				return StructType->GetStructTypeHash(InMemory);
 			}
 			else
 			{
