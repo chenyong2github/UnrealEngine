@@ -322,7 +322,7 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(FName Operation, const 
 					const bool bClassTypesMatch = ParamType.PinCategory == UEdGraphSchema_K2::PC_Class && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class;
 
 					// Give a point for each function parameter that matches up with a pin to consider
-					if ((!CheckedPins.Contains(Pin) || bIsSinglePin) && (bObjectTypesMatch || bClassTypesMatch || Schema->ArePinTypesCompatible(Pin->PinType, ParamType)))
+					if ((!CheckedPins.Contains(Pin) || bIsSinglePin) && (bObjectTypesMatch || bClassTypesMatch || Schema->ArePinTypesEquivalent(ParamType, Pin->PinType)))
 					{
 						// Are the directions compatible? 
 						// If we are a comparison or only a single pin then we don't care about the direction
