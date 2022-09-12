@@ -1044,7 +1044,7 @@ namespace Horde.Build.Perforce
 				}
 			}
 
-			using (IPerforceConnection perforce = await ConnectWithStreamClientAsync(stream, records[0].User, cancellationToken))
+			using (IPerforceConnection perforce = await ConnectAsChangeOwnerAsync(cluster, change, cancellationToken))
 			{
 				try
 				{
