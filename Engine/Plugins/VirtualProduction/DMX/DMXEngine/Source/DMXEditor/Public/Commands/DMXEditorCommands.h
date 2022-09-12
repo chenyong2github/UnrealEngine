@@ -20,6 +20,7 @@ public:
 	TSharedPtr<FUICommandInfo> GoToDocumentation;
 
 	// DMX Library related
+	TSharedPtr<FUICommandInfo> ImportDMXLibrary;
 	TSharedPtr<FUICommandInfo> ExportDMXLibrary;
 
 	TSharedPtr<FUICommandInfo> AddNewEntityFixtureType;

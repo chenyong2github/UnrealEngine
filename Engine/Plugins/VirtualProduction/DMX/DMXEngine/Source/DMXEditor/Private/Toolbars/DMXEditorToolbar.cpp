@@ -26,20 +26,24 @@ FSlateIcon FDMXEditorToolbar::GetStatusImage() const
 	return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Status.Good");
 }
 
-FText FDMXEditorToolbar::GetStatusTooltip() const
-{
-	return LOCTEXT("Default_Status", "Good to go");
-}
-
 void FDMXEditorToolbar::FillDMXLibraryToolbar(FToolBarBuilder& ToolbarBuilder)
 {
 	ToolbarBuilder.BeginSection("DMXLibraryToolbar");
+	{
 		ToolbarBuilder.AddToolBarButton(
-		FDMXEditorCommands::Get().ExportDMXLibrary,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.DMXLibraryToolbar.Export"));
+			FDMXEditorCommands::Get().ImportDMXLibrary,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.DMXLibraryToolbar.Import"));
+
+		ToolbarBuilder.AddToolBarButton(
+			FDMXEditorCommands::Get().ExportDMXLibrary,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FDMXEditorStyle::Get().GetStyleSetName(), "Icons.DMXLibraryToolbar.Export"));
+	}
 	ToolbarBuilder.EndSection();
 }
 

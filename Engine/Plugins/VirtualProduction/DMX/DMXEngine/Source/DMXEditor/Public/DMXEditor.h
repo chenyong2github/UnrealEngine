@@ -89,7 +89,8 @@ public:
 	TSharedPtr<FDMXEditorToolbar> GetToolbarBuilder() { return Toolbar; }
 
 	void RegisterToolbarTab(const TSharedRef<class FTabManager>& TabManager);
-	
+
+
 protected:
 	/** Creates the widgets that go into the tabs (note: does not create the tabs themselves) **/
 	virtual void CreateDefaultTabContents(UDMXLibrary* DMXLibrary);
@@ -104,7 +105,10 @@ protected:
 	virtual void RegisterApplicationModes(UDMXLibrary* DMXLibrary, bool bShouldOpenInDefaultsMode, bool bNewlyCreated = false);
 
 private:
-	/** Exports the DMX Library */
+	/** Imports the DMX Library from an MVR File */
+	void ImportDMXLibrary() const;
+
+	/** Exports the DMX Library as MVR File */
 	void ExportDMXLibrary() const;
 
 	//~ Generate Editor widgets for tabs

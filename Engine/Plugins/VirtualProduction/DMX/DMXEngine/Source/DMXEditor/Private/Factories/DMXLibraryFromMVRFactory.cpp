@@ -29,8 +29,7 @@
 
 #define LOCTEXT_NAMESPACE "DMXLibraryFromMVRFactory"
 
-const FName UDMXLibraryFromMVRFactory::MVRFileExtension = "MVR";
-const FName UDMXLibraryFromMVRFactory::GDTFFileExtension = "GDTF";
+const FString UDMXLibraryFromMVRFactory::MVRFileExtension = TEXT("MVR");
 
 UDMXLibraryFromMVRFactory::UDMXLibraryFromMVRFactory()
 {
@@ -55,7 +54,7 @@ UObject* UDMXLibraryFromMVRFactory::FactoryCreateFile(UClass* InClass, UObject* 
 	check(DMXEditorSettings);
 	DMXEditorSettings->LastMVRImportPath = FPaths::GetPath(InFilename);
 
-	UDMXLibrary* NewDMXLibrary = CreateDMXLibraryAsset(Parent, Flags, InFilename);
+	UDMXLibrary* NewDMXLibrary = CreateDMXLibraryAsset(Parent, InName, Flags, InFilename);
 	if (!NewDMXLibrary)
 	{
 		UE_LOG(LogDMXEditor, Error, TEXT("Failed to create DMX Library for MVR '%s'."), *InFilename);
@@ -100,8 +99,7 @@ UObject* UDMXLibraryFromMVRFactory::FactoryCreateFile(UClass* InClass, UObject* 
 bool UDMXLibraryFromMVRFactory::FactoryCanImport(const FString& Filename)
 {
 	const FString TargetExtension = FPaths::GetExtension(Filename);
-
-	if (TargetExtension.Equals(UDMXLibraryFromMVRFactory::MVRFileExtension.ToString(), ESearchCase::IgnoreCase))
+	if (TargetExtension.Equals(UDMXLibraryFromMVRFactory::MVRFileExtension, ESearchCase::IgnoreCase))
 	{
 		return true;
 	}
@@ -109,29 +107,78 @@ bool UDMXLibraryFromMVRFactory::FactoryCanImport(const FString& Filename)
 	return false;
 }
 
-UDMXLibrary* UDMXLibraryFromMVRFactory::CreateDMXLibraryAsset(UObject* Parent, EObjectFlags Flags, const FString& InFilename)
+bool UDMXLibraryFromMVRFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	constexpr bool bRemovePathFromDesiredName = true;
-	const FString BaseFileName = FPaths::GetBaseFilename(InFilename, bRemovePathFromDesiredName);
-	const FString PackageName = Parent->GetName();
-	FString AssetName = ObjectTools::SanitizeObjectName(BaseFileName);
-	if (PackageName.Contains(AssetName))
+	UDMXMVRAssetImportData* MVRAssetImportData = GetMVRAssetImportData(Obj);
+	if (!MVRAssetImportData)
 	{
-		AssetName = AssetName + TEXT("_DMXLibrary");
+		return false;
+	}
+	
+	const FString SourceFilename = MVRAssetImportData->GetFilePathAndName();
+	OutFilenames.Add(SourceFilename);
+	return true;
+}
+
+void UDMXLibraryFromMVRFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+{
+	UDMXMVRAssetImportData* MVRAssetImportData = GetMVRAssetImportData(Obj);
+	if (!ensureMsgf(MVRAssetImportData, TEXT("Invalid MVR Asset Import Data for General Scene Description %s.")))
+	{
+		return;
 	}
 
-	FString DMXLibraryAssetName;
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(PackageName / AssetName, TEXT(""), DMXLibraryPackageName, DMXLibraryAssetName);
+	if (!ensureMsgf(NewReimportPaths.Num() == 1, TEXT("Unexpected, more than one or no new reimport path when reimporting DMX Library from MVR.")))
+	{
+		return;
+	}
 
-	UPackage* Package = CreatePackage(*DMXLibraryPackageName);
-	check(Package);
-	Package->FullyLoad();
+	MVRAssetImportData->SetSourceFile(NewReimportPaths[0]);
+}
 
+EReimportResult::Type UDMXLibraryFromMVRFactory::Reimport(UObject* Obj)
+{
+	UDMXMVRAssetImportData* MVRAssetImportData = GetMVRAssetImportData(Obj);
+	if (!ensureMsgf(MVRAssetImportData, TEXT("Invalid MVR Asset Import Data for General Scene Description.")))
+	{
+		return EReimportResult::Failed;
+	}
+	const FString SourceFilename = MVRAssetImportData->GetFilePathAndName();
+
+	UDMXLibrary* DMXLibrary = Cast<UDMXLibrary>(Obj);
+	if (!ensureMsgf(DMXLibrary, TEXT("Invalid DMX Library when trying to reimport DMX Library.")))
+	{
+		return EReimportResult::Failed;
+	}
+	if (!DMXLibrary->GetEntities().IsEmpty())
+	{
+		const FText MessageText = LOCTEXT("MVRReimportDialog", "DMX Library already contains data. Reimporting MVR will clear existing data. Do you want to proceed?");
+		if (FMessageDialog::Open(EAppMsgType::YesNo, MessageText) == EAppReturnType::No)
+		{
+			return EReimportResult::Cancelled;
+		}
+	}
+
+	bool bOutCanceled = false;
+	if (ImportObject(Obj->GetClass(), Obj->GetOuter(), *Obj->GetName(), RF_Public | RF_Standalone, SourceFilename, nullptr, bOutCanceled))
+	{
+		return EReimportResult::Succeeded;
+	}
+
+	return bOutCanceled ? EReimportResult::Cancelled : EReimportResult::Failed;
+}
+
+int32 UDMXLibraryFromMVRFactory::GetPriority() const
+{
+	return ImportPriority;
+}
+
+UDMXLibrary* UDMXLibraryFromMVRFactory::CreateDMXLibraryAsset(UObject* Parent, const FName& Name, EObjectFlags Flags, const FString& InFilename)
+{
 	UImportSubsystem* ImportSubsystem = GEditor->GetEditorSubsystem<UImportSubsystem>();
-	ImportSubsystem->BroadcastAssetPreImport(this, UDMXLibrary::StaticClass(), Parent, *DMXLibraryAssetName, *MVRFileExtension.ToString());
+	ImportSubsystem->BroadcastAssetPreImport(this, UDMXLibrary::StaticClass(), Parent, Name, *MVRFileExtension);
 
-	UDMXLibrary* NewDMXLibrary = NewObject<UDMXLibrary>(Package, *DMXLibraryAssetName, Flags | RF_Public);
+	UDMXLibrary* NewDMXLibrary = NewObject<UDMXLibrary>(Parent, Name, Flags | RF_Public);
 	if (!NewDMXLibrary)
 	{
 		return nullptr;
@@ -144,7 +191,7 @@ UDMXLibrary* UDMXLibraryFromMVRFactory::CreateDMXLibraryAsset(UObject* Parent, E
 
 TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription& GeneralSceneDescription)
 {
-	const FString Path = FPaths::GetPath(DMXLibraryPackageName) + TEXT("/GDTFs");
+	const FString Path = FPaths::GetPath(Parent->GetName()) + TEXT("/GDTFs");
 
 	TArray<FAssetData> ExistingGDTFAssets;
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -314,6 +361,23 @@ void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TA
 	}
 
 	DMXLibrary->UpdateGeneralSceneDescription();
+}
+
+UDMXMVRAssetImportData* UDMXLibraryFromMVRFactory::GetMVRAssetImportData(UObject* DMXLibraryObject) const
+{
+	UDMXLibrary* DMXLibrary = Cast<UDMXLibrary>(DMXLibraryObject);
+	if (!DMXLibrary)
+	{
+		return nullptr;
+	}
+
+	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = DMXLibrary->GetLazyGeneralSceneDescription();
+	if (!ensureMsgf(GeneralSceneDescription, TEXT("Invalid General Scene Description in DMX Library.")))
+	{
+		return nullptr;
+	}
+
+	return GeneralSceneDescription->GetMVRAssetImportData();
 }
 
 #undef LOCTEXT_NAMESPACE

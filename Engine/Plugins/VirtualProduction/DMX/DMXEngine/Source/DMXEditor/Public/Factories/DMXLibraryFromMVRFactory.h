@@ -4,17 +4,21 @@
 
 #include "Factories/Factory.h"
 
+#include "EditorReimportHandler.h"
+
 #include "DMXLibraryFromMVRFactory.generated.h"
 
 class FDMXZipper;
 class UDMXImportGDTF;
 class UDMXLibrary;
+class UDMXMVRAssetImportData;
 class UDMXMVRGeneralSceneDescription;
 
 
 UCLASS()
 class DMXEDITOR_API UDMXLibraryFromMVRFactory 
 	: public UFactory
+	, public FReimportHandler
 {
 	GENERATED_BODY()
 
@@ -27,14 +31,19 @@ public:
 	//~ End UFactory Interface	
 
 	/** File extention for MVR files */
-	static const FName MVRFileExtension;
+	static const FString MVRFileExtension;
 
-	/** File extention for GDTF files */
-	static const FName GDTFFileExtension;
+protected:
+	//~ Begin FReimportHandler Interface
+	virtual bool CanReimport(UObject* Obj, TArray<FString>& OutFilenames) override;
+	virtual void SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths) override;
+	virtual EReimportResult::Type Reimport(UObject* Obj) override;
+	virtual int32 GetPriority() const override;
+	//~ End FReimportHandler Interface
 
 private:
 	/** Creates a DMX Library asset. Returns nullptr if the library could not be created */
-	UDMXLibrary* CreateDMXLibraryAsset(UObject* Parent, EObjectFlags Flags, const FString& InFilename);
+	UDMXLibrary* CreateDMXLibraryAsset(UObject* Parent, const FName& Name, EObjectFlags Flags, const FString& InFilename);
 
 	/** Creates GDTF assets from the MVR */
 	TArray<UDMXImportGDTF*> CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription& GeneralSceneDescription);
@@ -42,6 +51,6 @@ private:
 	/** Initializes the DMX Library from the General Scene Description and GDTF assets */
 	void InitDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFAssets, UDMXMVRGeneralSceneDescription* GeneralSceneDescription) const;
 
-	/** The DMX Library Package Name, initialized when the DMX Library Asset is created */
-	FString DMXLibraryPackageName;
+	/** Returns the MVR Asset Import Data for the Object, or nullptr if it cannot be obtained */
+	UDMXMVRAssetImportData* GetMVRAssetImportData(UObject* DMXLibraryObject) const;
 };
