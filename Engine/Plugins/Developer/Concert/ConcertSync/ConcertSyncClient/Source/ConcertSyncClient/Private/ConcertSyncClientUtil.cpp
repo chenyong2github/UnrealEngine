@@ -252,7 +252,7 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 	// TODO: If a case arises where we need to go the other direction and get
 	// an object with a non-partitioned path from a partitioned path, a
 	// different mechanism for that would be needed here.
-	if (UObject* ExistingObjectOuter = FSoftObjectPath(ObjectOuterPathToFind).ResolveObject())
+	if (UObject* ExistingObjectOuter = FSoftObjectPath(ObjectOuterPathToFind.ToString()).ResolveObject())
 	{
 		// We need the object class to find or create the object
 		if (UClass* ObjectClass = FindOrLoadClass(InObjectId.ObjectClassPathName))
@@ -302,7 +302,7 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 	// Find the outer for the new object.
 	// As above, we use FSoftObjectPath::ResolveObject() here to account for
 	// the possibility of world partitioning.
-	if (UObject* NewObjectOuter = FSoftObjectPath(ObjectOuterPathToCreate).ResolveObject())
+	if (UObject* NewObjectOuter = FSoftObjectPath(ObjectOuterPathToCreate.ToString()).ResolveObject())
 	{
 		// We need the object class to find or create the object
 		if (UClass* ObjectClass = FindOrLoadClass(InObjectId.ObjectClassPathName))

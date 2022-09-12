@@ -3052,7 +3052,7 @@ static void AddChunkInfoToAssetRegistry(TMap<FPackageId, TArray<FIoStoreTocChunk
 		TagsAndValues.Add("Stage_ChunkCount", LexToString(ChunkCount));
 		TagsAndValues.Add("Stage_ChunkSize", LexToString(Size));
 		TagsAndValues.Add("Stage_ChunkCompressedSize", LexToString(CompressedSize));
-		AssetRegistry.AddTagsToAssetData(FSoftObjectPath(AssetData->ObjectPath), MoveTemp(TagsAndValues));
+		AssetRegistry.AddTagsToAssetData(AssetData->GetSoftObjectPath(), MoveTemp(TagsAndValues));
 
 		// We assign a package's chunks to a single asset, remove it from the list so that
 		// at the end we can track how many chunks don't get assigned.

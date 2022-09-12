@@ -12098,14 +12098,14 @@ TArray<FAssetData> URigVMController::GetAffectedAssets(ERigVMControllerBulkEditT
 
 	URigVMGraph* Graph = GetGraph();
 	TSoftObjectPtr<URigVMGraph> GraphPtr = Graph;
-	const FString ThisAssetPath = GraphPtr.ToSoftObjectPath().GetAssetPathName().ToString();
+	const FString ThisAssetPath = GraphPtr.ToSoftObjectPath().GetAssetPath().ToString();
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	for(int32 FunctionReferenceIndex = 0; FunctionReferenceIndex < FunctionReferencePtrs.Num(); FunctionReferenceIndex++)
 	{
 		TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr = FunctionReferencePtrs[FunctionReferenceIndex];
-		const FString AssetPath = FunctionReferencePtr.ToSoftObjectPath().GetAssetPathName().ToString();
+		const FString AssetPath = FunctionReferencePtr.ToSoftObjectPath().GetAssetPath().ToString();
 		if(AssetPath.StartsWith(TEXT("/Engine/Transient")))
 		{
 			continue;
@@ -12119,7 +12119,7 @@ TArray<FAssetData> URigVMController::GetAffectedAssets(ERigVMControllerBulkEditT
 			continue;
 		}
 					
-		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 		if(AssetData.IsValid())
 		{
 			VisitedAssets.Add(AssetPath, Assets.Add(AssetData));

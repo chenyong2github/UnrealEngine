@@ -80,7 +80,7 @@ void FSourceFilterPresets::LoadPresetCommand(const TArray<FString>& Arguments)
 			// Retrieve specific asset data at user index
 			if (PresetAssetData.IsValidIndex(Index))
 			{
-				LoadPreset(PresetAssetData[Index].ObjectPath.ToString());
+				LoadPreset(PresetAssetData[Index].GetObjectPathString());
 			}
 			else
 			{
