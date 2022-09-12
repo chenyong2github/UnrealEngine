@@ -87,7 +87,10 @@ public:
 	void AssignStencilIdsToPerActorCC(AColorCorrectRegion* Region, bool bIgnoreUserNotificaion = false, bool bSoftAssign = false);
 	
 	/** Handles removal of Stencil Ids for the selected CCR. */
-	void ClearStencilIdsToPerActorCC(AColorCorrectRegion* Region);
+	void ClearStencilIdsToPerActorCC(AColorCorrectRegion* Region);	
+	
+	/** Handles cases when stencil Id has been changed from outside by the user manually. */
+	void CheckAssignedActorsValidity(AColorCorrectRegion* Region);
 
 	/** Resets all stencils and re-assigns for each CCR in the scene. */
 	UFUNCTION(BlueprintCallable, meta = (Category = "Color Correct Regions"))

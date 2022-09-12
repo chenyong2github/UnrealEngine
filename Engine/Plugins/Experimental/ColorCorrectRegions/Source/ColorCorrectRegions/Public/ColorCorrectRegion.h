@@ -181,10 +181,10 @@ public:
 		return FirstPrimitiveId;
 	};
 
-	TArray<uint32> ConsumeStencilIds() 
+	TArray<uint32> GetCopyStencilIds() 
 	{ 
 		FScopeLock RegionScopeLock(&StencilIdsCriticalSection);
-		return MoveTemp(StencilIds); 
+		return StencilIds; 
 	};
 private:
 	/**
@@ -213,10 +213,11 @@ private:
 	* A list of actors that need to be excluded or included from color correction to be used on render thread.
 	* This list is populated during engine tick and populated with Stencil Ids from Primitive Components of AffectedActors.
 	* The main reason for this is acessing Primitive Components is not thread safe and is better to be accessed on Game thread.
-	* 
-	* Stencil Ids are moved on render thread to avoid locking either threads for too long.
 	*/
 	TArray<uint32> StencilIds;
 	FCriticalSection StencilIdsCriticalSection;
+
+	// This is for optimization purposes that would let us check assigned actors component's stencil ids ever few once in a while.
+	float TimeWaited = 0;
 
 };

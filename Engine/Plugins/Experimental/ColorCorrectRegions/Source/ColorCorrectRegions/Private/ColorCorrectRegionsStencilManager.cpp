@@ -10,8 +10,17 @@
 
 
 
-#define STENCILID_MIN 127
-#define STENCILID_MAX 255
+static TAutoConsoleVariable<int32> CVarStencilIdRangeMin(
+	TEXT("r.CCR.StencilIdRangeMin"),
+	127,
+	TEXT("The lower boundary of stencil Ids that are reserved by CCR.\n\
+		By default this value is set to 127. Must be within the range of [0, 255]."));
+
+static TAutoConsoleVariable<int32> CVarStencilIdRangeMax(
+	TEXT("r.CCR.StencilIdRangeMax"),
+	255,
+	TEXT("The upper boundary of stencil Ids that are reserved by CCR. \n\
+		By default this value is set to 255. Must be within the range of [0, 255].\n"));
 
 namespace
 {
@@ -59,16 +68,21 @@ namespace
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
 		ActorToAssignStencilTo->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+
+		uint8 StencilIdMin = FMath::Min(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
+		uint8 StencilIdMax = FMath::Max(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
 		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 		{
 			// If the stencil id is already assigned and not by another CCR then we need to notify the user.
-			if ((PrimitiveComponent->bRenderCustomDepth && PrimitiveComponent->CustomDepthStencilValue < STENCILID_MIN))
+			if ((PrimitiveComponent->bRenderCustomDepth && PrimitiveComponent->CustomDepthStencilValue < StencilIdMin))
 			{
 				EAppReturnType::Type Answer = EAppReturnType::No;
 				if (!bIgnoreUserNotification)
 				{
-					Answer = FMessageDialog::Open(EAppMsgType::YesNo,
-						FText::FromString(FString::Printf(TEXT("The actor %s already has Custom Depth Stencil Id assigned. \nThis operation will overwrite the current value and could potentially affect the visuals.\nAre you sure?"), *ActorToAssignStencilTo->GetName())));
+					auto Text = FString::Printf(TEXT("The actor \'%s\' already has Custom Depth Stencil Id assigned that is out of range.\
+													\nWould you like for Color Correct Regions to manage Stencil Id?\
+													\nThe value will be reassigned to within managed range [%d %d]."), *ActorToAssignStencilTo->GetName(), StencilIdMin, StencilIdMax);
+					Answer = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(Text));
 
 				}
 				if (Answer == EAppReturnType::No)
@@ -97,6 +111,7 @@ namespace
 	*/
 	static void ClearStencilIdFromActor(TSoftObjectPtr<AActor> ActorToAssignStencilTo)
 	{
+		uint8 StencilIdMin = FMath::Min(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
 		if (ActorToAssignStencilTo.IsValid())
 		{
 			TArray<UPrimitiveComponent*> PrimitiveComponents;
@@ -105,7 +120,7 @@ namespace
 			for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 			{
 				// If the stencil id is within our range then it is managed by us, so we should reset this to default.
-				if (PrimitiveComponent->bRenderCustomDepth && PrimitiveComponent->CustomDepthStencilValue >= STENCILID_MIN)
+				if (PrimitiveComponent->bRenderCustomDepth && PrimitiveComponent->CustomDepthStencilValue >= StencilIdMin)
 				{
 					PrimitiveComponent->SetRenderCustomDepth(false);
 					PrimitiveComponent->CustomDepthStencilValue = 0;
@@ -141,7 +156,9 @@ namespace
 
 void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRegion(UWorld* CurrentWorld, AColorCorrectRegion* Region, TSoftObjectPtr<AActor> ActorToAssignStencilTo, bool bIgnoreUserNotifications, bool bSoftAssign)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.StencilManager.AssignStencilNumberToActorForSelectedRegion %s"), *Region->GetName()));
 	verify(ActorToAssignStencilTo.IsValid());
+	
 	TArray<FStencilData> StencilDatas;
 
 	ULevel* CurrentLevel = CurrentWorld->GetCurrentLevel();
@@ -173,6 +190,9 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 
 	bool bUsedByAnotherCCR = StencilDataToUse.IsValid();
 
+	uint8 StencilIdMin = FMath::Min(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
+	uint8 StencilIdMax = FMath::Max(CVarStencilIdRangeMin.GetValueOnAnyThread(), CVarStencilIdRangeMax.GetValueOnAnyThread());
+
 	/*
 	* If the actor is not used by any other CCR, it means that we need to see if we can group up stencil id
 	* for that actor with another, that already belongs to the current CCR,
@@ -182,7 +202,7 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 	*/
 	if (!StencilDataToUse.IsValid())
 	{
-		StencilDataToUse = MakeShared<FStencilData>();
+		StencilDataToUse = MakeShared<FStencilData>();		
 		bAssignNewStencilId = true;
 
 		if (Region->PerAffectedActorStencilData.Num() > 0)
@@ -191,8 +211,8 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 			{
 				if (!IsActorAssignedToOtherCCR(Region, ActorDataPair.Key, AllCCRsInCurrentLevel))
 				{
-					if (ActorDataPair.Value->AssignedStencil >= STENCILID_MIN
-						&& ActorDataPair.Value->AssignedStencil <= STENCILID_MAX)
+					if (ActorDataPair.Value->AssignedStencil >= StencilIdMin
+						&& ActorDataPair.Value->AssignedStencil <= StencilIdMax)
 					{
 						// we reuse stencil Id of another actor which is assigned to the same CCR. 
 						bAssignNewStencilId = false;
@@ -217,8 +237,9 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 
 	if (bAssignNewStencilId)
 	{
-		uint8 NextAvailableStencilId = STENCILID_MIN;
-		while (NextAvailableStencilId <= STENCILID_MAX)
+		uint8 NextAvailableStencilId = StencilIdMin;
+
+		while (NextAvailableStencilId <= StencilIdMax)
 		{
 			if (!AllUsedIds.Contains(NextAvailableStencilId))
 			{
@@ -226,10 +247,10 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 			}
 			NextAvailableStencilId++;
 		}
-		if (NextAvailableStencilId > STENCILID_MAX)
+		if (NextAvailableStencilId > StencilIdMax)
 		{
 			UE_LOG(ColorCorrectRegions, Error, TEXT("Run out of Custom Depth Stencil ID values to be used. The maximum stencil ID is assigned. This may yeild unexpected results. "));
-			NextAvailableStencilId = STENCILID_MAX;
+			NextAvailableStencilId = StencilIdMax;
 		}
 		StencilDataToUse->AssignedStencil = NextAvailableStencilId;
 		AssignStencilIdToActor(Region, bUsedByAnotherCCR || bIgnoreUserNotifications, bSoftAssign, ActorToAssignStencilTo, StencilDataToUse);
@@ -238,6 +259,7 @@ void FColorCorrectRegionsStencilManager::AssignStencilNumberToActorForSelectedRe
 
 void FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(UWorld* CurrentWorld, AColorCorrectRegion* Region)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.StencilManager.RemoveStencilNumberForSelectedRegion %s"), *Region->GetName()));
 	TSet<TSoftObjectPtr<AActor>> ActorsToCleanup;
 
 	// Accumulate all CCRs that were removed.
@@ -309,7 +331,47 @@ void FColorCorrectRegionsStencilManager::AssignStencilIdsToAllActorsForCCR(UWorl
 	}
 }
 
+void FColorCorrectRegionsStencilManager::CheckAssignedActorsValidity(AColorCorrectRegion* Region)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.StencilManager.CheckAssignedActorsValidity %s"), *Region->GetName()));
 
-#undef STENCILID_MIN
-#undef STENCILID_MAX
+	if (Region->PerAffectedActorStencilData.Num() > 0)
+	{
+		TMap<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>> ActorsToUpdate;
+		for (const TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>>& StencilDataPair : Region->PerAffectedActorStencilData)
+		{
+			TSoftObjectPtr<AActor> Actor = StencilDataPair.Key;
+			if (Actor.IsValid())
+			{
+				TArray<UPrimitiveComponent*> PrimitiveComponents;
 
+				Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+				for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+				{
+					if (PrimitiveComponent->CustomDepthStencilValue != StencilDataPair.Value->AssignedStencil || !PrimitiveComponent->bRenderCustomDepth)
+					{
+						auto Text = FString::Printf(TEXT("Custom Stencil Id for Actor: '%s', Component: '%s' is managed by Color Correct Region '%s' and has been modified manually. Would you like to change it back?"), *Actor->GetName(), *PrimitiveComponent->GetName(), *Region->GetName());
+						EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(Text));
+						if (Answer == EAppReturnType::No)
+						{
+							// Update our stored value and then update other components with the new stencil Id value.
+							StencilDataPair.Value->AssignedStencil = PrimitiveComponent->CustomDepthStencilValue;
+						}
+						ActorsToUpdate.Add(StencilDataPair.Key, StencilDataPair.Value);
+						break;
+					}
+				}
+			}
+		}
+
+		for (const TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>>& ActorToUpdate : ActorsToUpdate)
+		{
+			Region->PerAffectedActorStencilData.Remove(ActorToUpdate.Key);
+
+			// Assign stencil values without notifying the user.
+			AssignStencilIdToActor(Region, true, false, ActorToUpdate.Key, ActorToUpdate.Value);
+
+		}
+	}
+	
+}

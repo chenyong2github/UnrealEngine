@@ -449,7 +449,7 @@ namespace
 		FScreenPassRenderTarget MergedStencilRenderTarget;
 		if (Region->bEnablePerActorCC)
 		{
-			TArray<uint32> StencilIds = Region->ConsumeStencilIds();
+			TArray<uint32> StencilIds = Region->GetCopyStencilIds();
 			StencilMerger(GraphBuilder, Region, GlobalShaderMap, SceneColorRenderTarget, View, SceneTextureViewportParams, RegionViewport, SceneTextures, StencilIds, MergedStencilRenderTarget);
 		}
 

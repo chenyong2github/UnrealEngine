@@ -122,8 +122,31 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 {
 	Super::Tick(DeltaTime);
 
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.TickActor %s"), *GetName()));
+
 	HandleAffectedActorsPropertyChange();
 	TransferStencilIds();
+
+	// Check to make sure that no ids have been changed externally.
+	{
+		TimeWaited += DeltaTime;
+		const float WaitTimeInSecs = 1.0;
+
+		if (!ColorCorrectRegionsSubsystem)
+		{
+			if (const UWorld* World = GetWorld())
+			{
+				ColorCorrectRegionsSubsystem = World->GetSubsystem<UColorCorrectRegionsSubsystem>();
+			}
+		}
+		
+		if (ColorCorrectRegionsSubsystem && TimeWaited >= WaitTimeInSecs)
+		{
+			ColorCorrectRegionsSubsystem->CheckAssignedActorsValidity(this);
+			TimeWaited = 0;
+		}
+
+	}
 
 	FTransform CurrentFrameTransform = GetTransform();
 	if (!PreviousFrameTransform.Equals(CurrentFrameTransform))

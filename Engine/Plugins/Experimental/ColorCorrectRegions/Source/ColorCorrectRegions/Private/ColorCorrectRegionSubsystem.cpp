@@ -169,6 +169,11 @@ void UColorCorrectRegionsSubsystem::ClearStencilIdsToPerActorCC(AColorCorrectReg
 	FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(GetWorld(), Region);
 }
 
+void UColorCorrectRegionsSubsystem::CheckAssignedActorsValidity(AColorCorrectRegion* Region)
+{
+	FColorCorrectRegionsStencilManager::CheckAssignedActorsValidity(Region);
+}
+
 void UColorCorrectRegionsSubsystem::RefreshStenciIdAssignmentForAllCCR()
 {
 	for (TActorIterator<AColorCorrectRegion> It(GetWorld()); It; ++It)
