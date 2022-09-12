@@ -107,6 +107,7 @@ namespace UE::RivermaxCore::Private
 
 		Options = InOptions;
 		Listener = &InListener;
+		FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(Options.PixelFormat);
 
 		InitTaskFuture = Async(EAsyncExecution::TaskGraph, [this]()
 		{
@@ -402,7 +403,7 @@ namespace UE::RivermaxCore::Private
 									FRivermaxInputVideoFrameDescriptor Descriptor;
 									Descriptor.Width = Options.Resolution.X;
 									Descriptor.Height = Options.Resolution.Y;
-									Descriptor.Stride = Options.Stride;
+									Descriptor.Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
 									FRivermaxInputVideoFrameReception NewFrame;
 									NewFrame.VideoBuffer = StreamData.CurrentFrame;
 									Listener->OnVideoFrameReceived(Descriptor, NewFrame);
@@ -461,7 +462,8 @@ namespace UE::RivermaxCore::Private
 
 		FRivermaxInputVideoFrameDescriptor Descriptor;
 		FRivermaxInputVideoFrameRequest Request;
-		Descriptor.VideoBufferSize = Options.Resolution.Y * Options.Stride;
+		const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.VideoBufferSize = Options.Resolution.Y * Stride;
 		Listener->OnVideoFrameRequested(Descriptor, Request);
 		StreamData.CurrentFrame = Request.VideoBuffer;
 		StreamData.WritingOffset = 0;

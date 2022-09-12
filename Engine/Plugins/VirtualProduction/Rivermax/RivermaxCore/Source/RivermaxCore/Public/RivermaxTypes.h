@@ -5,18 +5,10 @@
 #include "CoreMinimal.h"
 
 #include "Misc/FrameRate.h"
+#include "RivermaxFormats.h"
 
 namespace UE::RivermaxCore
 {
-	enum class RIVERMAXCORE_API ERivermaxOutputPixelFormat
-	{
-		RMAX_8BIT_YCBCR,
-		RMAX_8BIT_RGB,
-		RMAX_10BIT_YCBCR,
-		RMAX_10BIT_RGB,
-		RMAX_16F_RGB,
-	};
-
 	struct RIVERMAXCORE_API FRivermaxStreamOptions
 	{
 		/** Desired stream resolution */
@@ -35,13 +27,13 @@ namespace UE::RivermaxCore
 		uint32 Port = 50000;
 
 		/** Desired stream pixel format */
-		ERivermaxOutputPixelFormat PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_YCBCR;
+		ESamplingType PixelFormat = ESamplingType::RGB_10bit;
 
 		/** Sample count to buffer. */
 		int32 NumberOfBuffers = 2;
 
-		/** Stride in bytes for a row */
-		uint32 Stride = 0;
+		/** Resolution aligning with pgroup of sampling type */
+		FIntPoint AlignedResolution = FIntPoint::ZeroValue;
 	};
 
 	enum class RIVERMAXCORE_API ERivermaxStreamType : uint8

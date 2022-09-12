@@ -119,7 +119,7 @@ namespace  UE::RivermaxMedia
 		std::atomic<bool> bPauseRequested;
 
 		/** Pixel format provided by media source */
-		ERivermaxMediaSourePixelFormat DesiredPixelFormat = ERivermaxMediaSourePixelFormat::RGB_10bit;
+		ERivermaxMediaSourcePixelFormat DesiredPixelFormat = ERivermaxMediaSourcePixelFormat::RGB_10bit;
 	};
 }
 

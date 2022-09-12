@@ -132,7 +132,7 @@ namespace UE::RivermaxCore::Private
 		const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
 
 		bool bConfiguredSuccessfully = false;
-		if (TimeSource == ERivermaxTimeSource::PTP)
+		if (Settings->TimeSource == ERivermaxTimeSource::PTP)
 		{
 			Config.clock_configurations.clock_type = rmax_clock_types::RIVERMAX_PTP_CLOCK;
 

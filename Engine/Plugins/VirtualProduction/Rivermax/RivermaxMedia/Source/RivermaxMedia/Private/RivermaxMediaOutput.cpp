@@ -29,7 +29,7 @@ EPixelFormat URivermaxMediaOutput::GetRequestedPixelFormat() const
 	EPixelFormat Result = EPixelFormat::PF_A2B10G10R10;
 	switch (PixelFormat)
 	{
-	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV:
+	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
 		Result = EPixelFormat::PF_B8G8R8A8; //To be updated to use compute shader
 		break;
 	default: // All pixel formats use output buffer as their output so no need for a texture format
@@ -44,10 +44,10 @@ EMediaCaptureConversionOperation URivermaxMediaOutput::GetConversionOperation(EM
 	EMediaCaptureConversionOperation Result = EMediaCaptureConversionOperation::CUSTOM;
 	switch (PixelFormat)
 	{
-	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV:
+	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422:
 		Result = EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT;
 		break;
-	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YCBCR_422:
+	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 	case ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:

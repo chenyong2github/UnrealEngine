@@ -110,7 +110,7 @@ namespace UE::RivermaxCore::Private
 		std::atomic<bool> bIsShuttingDown;
 		TFuture<void> InitTaskFuture;
 		double LastLoggingTimestamp = 0.0;
-
+		FVideoFormatInfo FormatInfo;
 	};
 }
 

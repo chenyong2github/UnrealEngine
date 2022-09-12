@@ -12,7 +12,7 @@
  * Native data format.
  */
 UENUM()
-enum class ERivermaxMediaSourePixelFormat : uint8
+enum class ERivermaxMediaSourcePixelFormat : uint8
 {
 	YUV422_8bit UMETA(DisplayName = "8bit YUV422"),
 	YUV422_10bit UMETA(DisplayName = "10bit YUV422"),
@@ -38,7 +38,7 @@ public:
 	FFrameRate FrameRate = {24,1};
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	ERivermaxMediaSourePixelFormat PixelFormat = ERivermaxMediaSourePixelFormat::YUV422_8bit;
+	ERivermaxMediaSourcePixelFormat PixelFormat = ERivermaxMediaSourcePixelFormat::RGB_10bit;
 
 	/** Network card interface to use to receive data */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")

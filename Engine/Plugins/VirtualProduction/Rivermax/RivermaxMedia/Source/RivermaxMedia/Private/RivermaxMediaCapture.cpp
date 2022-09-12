@@ -8,6 +8,7 @@
 #include "RenderGraphUtils.h"
 #include "RivermaxMediaLog.h"
 #include "RivermaxMediaOutput.h"
+#include "RivermaxMediaUtils.h"
 #include "RivermaxShaders.h"
 #include "RivermaxTypes.h"
 #include "Slate/SceneViewport.h"
@@ -49,50 +50,54 @@ namespace RivermaxMediaCaptureAnalytics
 
 namespace UE::RivermaxMediaCaptureUtil
 {
+	FIntPoint GetAlignedResolution(const UE::RivermaxCore::FVideoFormatInfo& InFormatInfo, const FIntPoint& InSize)
+	{
+		// We need to adjust horizontal resolution if it's not aligned to pgroup pixel coverage
+		// RTP header has to describe a full pgroup even if it's outside of effective resolution.
+		const uint32 PixelAlignment = InFormatInfo.PixelGroupCoverage;
+		const uint32 AlignedHorizontalResolution = InSize.X % PixelAlignment ? InSize.X + (PixelAlignment - InSize.X % PixelAlignment) : InSize.X;
+		return FIntPoint(AlignedHorizontalResolution, InSize.Y);
+	}
+
 	void GetOutputEncodingInfo(ERivermaxMediaOutputPixelFormat InPixelFormat, const FIntPoint& InSize, uint32& OutBytesPerElement, uint32& ElementsPerRow)
 	{
+		using namespace UE::RivermaxCore;
+
+		const ESamplingType SamplingType = UE::RivermaxMediaUtils::Private::MediaOutputPixelFormatToRivermaxSamplingType(InPixelFormat);
+		const FVideoFormatInfo Info = FStandardVideoFormat::GetVideoFormatInfo(SamplingType);
+
+		// Compute horizontal byte count (stride) of aligned resolution
+		const uint32 PixelAlignment = Info.PixelGroupCoverage;
+		const FIntPoint AlignedResolution = GetAlignedResolution(Info, InSize);
+		const uint32 PixelGroupCount = AlignedResolution.X / PixelAlignment;
+		const uint32 HorizontalByteCount = PixelGroupCount * Info.PixelGroupSize;
+
 		switch (InPixelFormat)
 		{
-		case ERivermaxMediaOutputPixelFormat::PF_10BIT_YCBCR_422:
+		case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 		{
-			// 2 RGB pixels per YUV pixels and 4 YUV pixels per entry in the buffer
-			constexpr uint32 RGBPixelsPerYUVPixels = 2;
-			const uint32 EncodedHorizontalResolution = InSize.X / RGBPixelsPerYUVPixels;
-			constexpr uint32 BytesPerYUVPixels = 5; //5 bytes per pixels for YUV422 10bits
-			const uint32 HorizontalByteCount = EncodedHorizontalResolution * BytesPerYUVPixels;
 			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToYUV10Bit422LittleEndianCS::FYUV10Bit422LEBuffer);
-			ElementsPerRow = HorizontalByteCount / OutBytesPerElement;
 			break;
 		}
 		case ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB:
 		{
-			// 2 RGB pixels per YUV pixels and 4 YUV pixels per entry in the buffer
-			constexpr uint32 BytesPerRGBPixels = 3; //3 bytes per pixels RGB8
-			const uint32 HorizontalByteCount = InSize.X * BytesPerRGBPixels;
 			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToRGB8BitCS::FRGB8BitBuffer);
-			ElementsPerRow = HorizontalByteCount / OutBytesPerElement;
 			break;
 		}
 		case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
 		{
-			// 2 RGB pixels per YUV pixels and 4 YUV pixels per entry in the buffer
-			constexpr uint32 PixelPerGroup = 4;
-			constexpr uint32 BytesPerGroup = (PixelPerGroup * 3 * 10) / 8;
-			const uint32 HorizontalByteCount = (InSize.X / PixelPerGroup) * BytesPerGroup;
 			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToRGB10BitCS::FRGB10BitBuffer);
-			ElementsPerRow = HorizontalByteCount / OutBytesPerElement;
 			break;
 		}
 		case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
 		{
-			constexpr uint32 PixelPerGroup = 2;
-			constexpr uint32 BytesPerGroup = (PixelPerGroup * 3 * 16) / 8;
-			const uint32 HorizontalByteCount = (InSize.X / PixelPerGroup) * BytesPerGroup;
-			OutBytesPerElement = BytesPerGroup;
-			ElementsPerRow = HorizontalByteCount / OutBytesPerElement;
+			OutBytesPerElement = sizeof(UE::RivermaxShaders::FRGBToRGB16fCS::FRGB16fBuffer);
 			break;
 		}
 		}
+
+		// Shader encoding might not align with pixel group size so we need to have enough elements to represent the last pixel group
+		ElementsPerRow = FMath::CeilToInt32((float)HorizontalByteCount / OutBytesPerElement);
 	}
 }
 
@@ -210,44 +215,9 @@ bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput,
 	OutOptions.FrameRate = InMediaOutput->FrameRate;
 	OutOptions.NumberOfBuffers = InMediaOutput->NumberOfTextureBuffers;
 
-	switch (InMediaOutput->PixelFormat)
-	{
-	case ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV:
-	{
-		OutOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_YCBCR;
-		OutOptions.Stride = InMediaOutput->Resolution.X / 2 * 4; // 4 bytes for a group of 2 pixels
-		break;
-	}
-	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YCBCR_422:
-	{
-		OutOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_10BIT_YCBCR;
-		OutOptions.Stride = InMediaOutput->Resolution.X / 2 * 5; // 5 bytes for a group of 2 pixels (40bits / 8 = 5)
-		break;
-	}
-	case ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB:
-	{
-		OutOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_RGB;
-		OutOptions.Stride = InMediaOutput->Resolution.X * 3; //3 bytes per pixel
-		break;
-	}
-	case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
-	{
-		OutOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_10BIT_RGB;
-		OutOptions.Stride = InMediaOutput->Resolution.X / 4 * 15; //15 bytes for a group of 4 pixels (4 * 30bits / 8 = 15)
-		break;
-	}
-	case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
-	{
-		OutOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_16F_RGB;
-		OutOptions.Stride = InMediaOutput->Resolution.X * 6; //3x 16bits per pixel (6 bytes)
-		break;
-	}
-	default:
-	{
-		UE_LOG(LogRivermaxMedia, Error, TEXT("Desired pixel format (%s) is not a valid Rivermax pixel format"), *StaticEnum<ERivermaxMediaOutputPixelFormat>()->GetValueAsString(InMediaOutput->PixelFormat));
-		return false;
-	}
-	}
+	OutOptions.PixelFormat = UE::RivermaxMediaUtils::Private::MediaOutputPixelFormatToRivermaxSamplingType(InMediaOutput->PixelFormat);
+	const FVideoFormatInfo Info = FStandardVideoFormat::GetVideoFormatInfo(OutOptions.PixelFormat);
+	OutOptions.AlignedResolution = UE::RivermaxMediaCaptureUtil::GetAlignedResolution(Info, InMediaOutput->Resolution);
 
 	return true;
 }
@@ -266,7 +236,7 @@ void URivermaxMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseDa
 	NewFrame.FrameIdentifier = InBaseData.SourceFrameNumber;
 	if (RivermaxStream->PushVideoFrame(NewFrame) == false)
 	{
-		UE_LOG(LogRivermaxMedia, Warning, TEXT("Failed to pushed captured frame"));
+		UE_LOG(LogRivermaxMedia, VeryVerbose, TEXT("Failed to pushed captured frame"));
 	}
 }
 
@@ -282,7 +252,7 @@ FIntPoint URivermaxMediaCapture::GetCustomOutputSize(const FIntPoint& InSize) co
 	uint32 BytesPerElement = 0;
 	uint32 ElementsPerRow = 0;
 	UE::RivermaxMediaCaptureUtil::GetOutputEncodingInfo(RivermaxOutput->PixelFormat, InSize, BytesPerElement, ElementsPerRow);
-	return FIntPoint(ElementsPerRow, InSize.Y);;
+	return FIntPoint(ElementsPerRow, InSize.Y);
 }
 
 EMediaCaptureResourceType URivermaxMediaCapture::GetCustomOutputResourceType() const
@@ -291,7 +261,7 @@ EMediaCaptureResourceType URivermaxMediaCapture::GetCustomOutputResourceType() c
 
 	switch (RivermaxOutput->PixelFormat)
 	{
-	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YCBCR_422:
+	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 	case ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB:
 	case ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB:
@@ -328,7 +298,7 @@ void URivermaxMediaCapture::OnCustomCapture_RenderingThread(FRDGBuilder& GraphBu
 	
 	switch (RivermaxOutput->PixelFormat)
 	{
-	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YCBCR_422:
+	case ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422:
 	{
 		TShaderMapRef<FRGBToYUV10Bit422LittleEndianCS> ComputeShader(GlobalShaderMap);
 		FRGBToYUV10Bit422LittleEndianCS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InSourceTexture, SourceSize, ViewRect, DesiredOutputSize, MediaShaders::RgbToYuvRec709Scaled, MediaShaders::YUVOffset10bits, bDoLinearToSRGB, OutputBuffer);

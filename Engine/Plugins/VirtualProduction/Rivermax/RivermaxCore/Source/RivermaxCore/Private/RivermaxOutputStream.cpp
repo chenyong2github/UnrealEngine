@@ -15,35 +15,69 @@
 namespace UE::RivermaxCore::Private
 {
 	static TAutoConsoleVariable<int32> CVarRivermaxWakeupOffset(
-		TEXT("Rivermax.AlignmentOffset"), 0,
-		TEXT("Offset from alignment point to wake up in nanoseconds"),
+		TEXT("Rivermax.WakeupOffset"), 0,
+		TEXT("Wakeup is done on alignment point. This offset will be substracted from it to wake up earlier. Units: nanoseconds"),
 		ECVF_Default);
 
-	uint32 FindPayloadSize(const FRivermaxStreamOptions& InOptions, uint32 InBytesPerLine)
+	static TAutoConsoleVariable<int32> CVarRivermaxScheduleOffset(
+		TEXT("Rivermax.ScheduleOffset"), 0,
+		TEXT("Scheduling is done at alignment point plus TRO. This offset will be added to it to delay or schedule earlier. Units: nanoseconds"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarRivermaxOutputShowStats(
+		TEXT("Rivermax.ShowOutputStats"), 0,
+		TEXT("Enable stats logging at fixed interval"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<float> CVarRivermaxOutputShowStatsInterval(
+		TEXT("Rivermax.ShowStatsInterval"), 1.0,
+		TEXT("Interval at which to show stats in seconds"),
+		ECVF_Default);
+
+
+	bool FindPayloadSize(const FRivermaxStreamOptions& InOptions, uint32 InBytesPerLine, const FVideoFormatInfo& FormatInfo, uint16& OutPayloadSize)
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
 
-		// If stride per line is small then our minimal payload size, send one line per packet.
-		if (InBytesPerLine <= MaxPayloadSize)
+		// For now, we only find a payload size that can be equal across one line
+		// Support for last payload of a line being smaller is there but is causing issue
+		// We fail to output if we receive a resolution for which we can't find an equal payload size
+		int32 TestPoint = InBytesPerLine / MaxPayloadSize;
+		if (TestPoint == 0)
 		{
-			return InBytesPerLine;
+			if (InBytesPerLine > MinPayloadSize)
+			{
+				if (InBytesPerLine % FormatInfo.PixelGroupSize == 0)
+				{
+					OutPayloadSize = InBytesPerLine;
+					return true;
+				}
+			}
+			return false;
 		}
 
-		uint32 PacketDivider = 2; //Start with 2 packets per line as 1 is too big already
-		static constexpr uint32 MaxPacketCountPerLine = 50; 
-		while (PacketDivider <= MaxPacketCountPerLine)
+		bool bContinue = true;
+		while (bContinue)
 		{
-			const uint32 TestPayloadSize = InBytesPerLine / PacketDivider;
-			const bool bIsFlushInLine = InBytesPerLine % PacketDivider == 0;
-			if (bIsFlushInLine && TestPayloadSize < MaxPayloadSize)
+			const int32 TestSize = InBytesPerLine / TestPoint;
+			if (TestSize < MinPayloadSize)
 			{
-				return TestPayloadSize;
+				return false;
 			}
 
-			++PacketDivider;
+			if (TestSize <= MaxPayloadSize)
+			{
+				if ((TestSize % FormatInfo.PixelGroupSize) == 0 && (InBytesPerLine % TestPoint) == 0)
+				{
+					OutPayloadSize = TestSize;
+					return true;
+				}
+			}
+
+			++TestPoint;
 		}
 
-		return 0;
+		return false;
 	}
 
 	uint32 FindChunksPerLine(const FRivermaxStreamOptions& InOptions)
@@ -86,7 +120,14 @@ namespace UE::RivermaxCore::Private
 
 		Options = InOptions;
 		Listener = &InListener;
-		AlignmentPointSchedulingLeadTimeNanosec = CVarRivermaxWakeupOffset.GetValueOnGameThread();
+		FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(Options.PixelFormat);
+
+		// Verify resolution for sampling type
+		if (Options.AlignedResolution.X % FormatInfo.PixelGroupCoverage != 0)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Can't create Rivermax Output Stream. Aligned horizontal resolution of %d doesn't align with pixel group coverage of %d."), Options.AlignedResolution.X, FormatInfo.PixelGroupCoverage);
+			return false;
+		}
 
 		Async(EAsyncExecution::TaskGraph, [this]()
 		{
@@ -100,43 +141,44 @@ namespace UE::RivermaxCore::Private
 			InitializeBuffers();
 
 			// Initialize internal memory and rivermax configuration 
-			InitializeMemory();
-
-			// Initialize rivermax output stream with desired config
-			const uint32 NumberPacketsPerFrame = StreamMemory.PacketsInFrameField;
-			const uint32 MediaBlockIndex = 0;
-			rmax_stream_id NewId;
-			rmax_qos_attr QOSAttributes = { 0, 0 }; //todo
-
-			rmax_buffer_attr BufferAttributes;
-			BufferAttributes.chunk_size_in_strides = StreamMemory.ChunkSizeInStrides;
-			BufferAttributes.data_stride_size = StreamMemory.PayloadSize; //Stride between chunks. 
-			BufferAttributes.app_hdr_stride_size = StreamMemory.HeaderStrideSize; 
-			BufferAttributes.mem_block_array = StreamMemory.MemoryBlocks.GetData();
-			BufferAttributes.mem_block_array_len = StreamMemory.MemoryBlocks.Num();
-
-			rmax_status_t Status = rmax_out_create_stream(SDPDescription.GetData(), &BufferAttributes, &QOSAttributes, NumberPacketsPerFrame, MediaBlockIndex, &NewId);
-			if (Status == RMAX_OK)
+			if(InitializeMemory())
 			{
-				struct sockaddr_in SourceAddress;
-				struct sockaddr_in DestinationAddress;
-				Status = rmax_out_query_address(NewId, MediaBlockIndex, &SourceAddress, &DestinationAddress);
+				// Initialize rivermax output stream with desired config
+				const uint32 NumberPacketsPerFrame = StreamMemory.PacketsPerFrame;
+				const uint32 MediaBlockIndex = 0;
+				rmax_stream_id NewId;
+				rmax_qos_attr QOSAttributes = { 0, 0 }; //todo
+
+				rmax_buffer_attr BufferAttributes;
+				BufferAttributes.chunk_size_in_strides = StreamMemory.ChunkSizeInStrides;
+				BufferAttributes.data_stride_size = StreamMemory.PayloadSize; //Stride between chunks. 
+				BufferAttributes.app_hdr_stride_size = StreamMemory.HeaderStrideSize;
+				BufferAttributes.mem_block_array = StreamMemory.MemoryBlocks.GetData();
+				BufferAttributes.mem_block_array_len = StreamMemory.MemoryBlocks.Num();
+
+				rmax_status_t Status = rmax_out_create_stream(SDPDescription.GetData(), &BufferAttributes, &QOSAttributes, NumberPacketsPerFrame, MediaBlockIndex, &NewId);
 				if (Status == RMAX_OK)
 				{
-					StreamId = NewId;
+					struct sockaddr_in SourceAddress;
+					struct sockaddr_in DestinationAddress;
+					Status = rmax_out_query_address(NewId, MediaBlockIndex, &SourceAddress, &DestinationAddress);
+					if (Status == RMAX_OK)
+					{
+						StreamId = NewId;
 
-					// Todo add event manager to avoid spinning
+						StreamData.FrameFieldTimeIntervalNs = 1E9 / Options.FrameRate.AsDecimal();
+						InitializeStreamTimingSettings();
 
-					StreamData.FrameFieldTimeIntervalNs = 1E9 / Options.FrameRate.AsDecimal();
-					InitializeStreamTimingSettings();
+						UE_LOG(LogRivermax, Display, TEXT("Output started to send %dx%d using %d payloads of size %d"), Options.AlignedResolution.X, Options.AlignedResolution.Y, StreamMemory.PacketsInLine, StreamMemory.PayloadSize);
 
-					bIsActive = true;
-					RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
+						bIsActive = true;
+						RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
+					}
 				}
-			}
-			else
-			{
-				UE_LOG(LogRivermax, Warning, TEXT("Failed to create Rivermax output stream. Status: %d"), Status);
+				else
+				{
+					UE_LOG(LogRivermax, Warning, TEXT("Failed to create Rivermax output stream. Status: %d"), Status);
+				}
 			}
 
 			Listener->OnInitializationCompleted(bIsActive);
@@ -168,7 +210,9 @@ namespace UE::RivermaxCore::Private
 	{
 		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
 		{
-			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, NewFrame.Height * Options.Stride);
+			const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, NewFrame.Height * Stride);
+
 			AvailableFrame->bIsVideoBufferReady = true;
 
 			//If Frame ready to be sent
@@ -250,42 +294,53 @@ namespace UE::RivermaxCore::Private
 			Stats.MemoryBlockSentCounter++;
 			Stats.TotalStrides += StreamMemory.ChunkSizeInStrides;
 			StreamData.bHasFrameFirstChunkBeenFetched = false;
-			UE_LOG(LogRivermax, Verbose, TEXT("Stats: BlockSent: %d. CommitImmediate: %d. CommitRetries: %d. "), Stats.MemoryBlockSentCounter, Stats.CommitImmediate, Stats.CommitRetries);
-
 		}
 	}
 
 	void FRivermaxOutputStream::InitializeBuffers()
 	{
+		const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		const int32 FrameAllocSize = Options.AlignedResolution.Y * Stride;
 		AvailableFrames.Reserve(Options.NumberOfBuffers);
 		for (int32 Index = 0; Index < Options.NumberOfBuffers; ++Index)
 		{
 			TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index);
-			Frame->VideoBuffer = static_cast<uint8*>(FMemory::Malloc(Options.Resolution.Y * Options.Stride));
+
+			constexpr uint32 CacheLineSize = PLATFORM_CACHE_LINE_SIZE;
+			Frame->VideoBuffer = static_cast<uint8*>(FMemory::Malloc(FrameAllocSize, CacheLineSize));
 			AvailableFrames.Add(MoveTemp(Frame));
 		}
 	}
 
-	void FRivermaxOutputStream::InitializeMemory()
+	bool FRivermaxOutputStream::InitializeMemory()
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
 
 		//2110 stream type
 		//We need to use the fullframe allocated size to compute the payload size.
 
-		const uint32 EffectiveBytesPerLine = Options.Stride;
-		const uint32 BytesPerLine = Options.Stride;
-		StreamMemory.PayloadSize = FindPayloadSize(Options, BytesPerLine); 
-		StreamMemory.DataStrideSize = BytesPerLine;//todo align cache line?
+		const int32 BytesPerLine = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		const uint32 EffectiveBytesPerLine = BytesPerLine;
+
+		const bool bFoundPayload = FindPayloadSize(Options, BytesPerLine, FormatInfo, StreamMemory.PayloadSize);
+		if (bFoundPayload == false)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Could not find payload size for desired resolution %dx%d for desired pixel format"), Options.AlignedResolution.X, Options.AlignedResolution.Y);
+			return false;
+		}
+
+		StreamMemory.PixelGroupPerPacket = StreamMemory.PayloadSize / FormatInfo.PixelGroupSize;
+		StreamMemory.PixelsPerPacket = StreamMemory.PixelGroupPerPacket * FormatInfo.PixelGroupCoverage;
+		StreamMemory.PacketsInLine = FMath::CeilToInt32((float)Options.AlignedResolution.X / StreamMemory.PixelsPerPacket);
+
 		StreamMemory.LinesInChunk = FindChunksPerLine(Options);
 
-		StreamMemory.PacketsInLine =  FMath::RoundToInt32(BytesPerLine / (float)StreamMemory.PayloadSize);
 		StreamMemory.ChunkSizeInStrides = StreamMemory.LinesInChunk * StreamMemory.PacketsInLine;
 
 		StreamMemory.FramesFieldPerMemoryBlock = 1;
-		StreamMemory.PacketsInFrameField =  StreamMemory.PacketsInLine * Options.Resolution.Y;
-		StreamMemory.PacketsPerMemoryBlock = StreamMemory.PacketsInFrameField * StreamMemory.FramesFieldPerMemoryBlock;
-		StreamMemory.ChunksPerFrameField = StreamMemory.PacketsInFrameField / StreamMemory.ChunkSizeInStrides;
+		StreamMemory.PacketsPerFrame =  StreamMemory.PacketsInLine * Options.Resolution.Y;
+		StreamMemory.PacketsPerMemoryBlock = StreamMemory.PacketsPerFrame * StreamMemory.FramesFieldPerMemoryBlock;
+		StreamMemory.ChunksPerFrameField = StreamMemory.PacketsPerFrame / StreamMemory.ChunkSizeInStrides;
 		StreamMemory.ChunksPerMemoryBlock = StreamMemory.FramesFieldPerMemoryBlock * StreamMemory.ChunksPerFrameField;
 		StreamMemory.MemoryBlockCount = Options.NumberOfBuffers;
 		StreamMemory.StridesPerMemoryBlock = StreamMemory.ChunkSizeInStrides * StreamMemory.ChunksPerMemoryBlock;
@@ -294,13 +349,15 @@ namespace UE::RivermaxCore::Private
 		StreamMemory.RTPHeaders.SetNumZeroed(StreamMemory.PacketsPerMemoryBlock);
 		StreamMemory.PayloadSizes.SetNumUninitialized(StreamMemory.PacketsPerMemoryBlock);
 		StreamMemory.HeaderSizes.SetNumUninitialized(StreamMemory.PacketsPerMemoryBlock);
-		StreamMemory.HeaderStrideSize = BytesPerHeader;
+		StreamMemory.HeaderStrideSize = RTPHeaderSize;
 		for (int32 PayloadSizeIndex = 0; PayloadSizeIndex < StreamMemory.PayloadSizes.Num(); ++PayloadSizeIndex)
 		{
 			//Go through each chunk to have effective payload size to be sent (last one of each line could be smaller)
 			if ((PayloadSizeIndex + 1) % StreamMemory.PacketsInLine == 0)
 			{
-				StreamMemory.PayloadSizes[PayloadSizeIndex] = EffectiveBytesPerLine - ((StreamMemory.PacketsInLine - 1) * StreamMemory.PayloadSize);
+				const uint32 LeftOver = EffectiveBytesPerLine - ((StreamMemory.PacketsInLine - 1) * StreamMemory.PayloadSize);
+				StreamMemory.PayloadSizes[PayloadSizeIndex] = LeftOver;
+				check(LeftOver % FormatInfo.PixelGroupSize == 0);
 			}
 			else
 			{
@@ -318,6 +375,8 @@ namespace UE::RivermaxCore::Private
 			Block.data_ptr = AvailableFrames[BlockIndex]->VideoBuffer;
 			Block.app_hdr_ptr = &StreamMemory.RTPHeaders[BlockIndex];
 		}
+
+		return true;
 	}
 
 	void FRivermaxOutputStream::InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame)
@@ -415,6 +474,7 @@ namespace UE::RivermaxCore::Private
 		if (StreamType == ERivermaxStreamType::VIDEO_2110_20_STREAM)
 		{
 			//SRD means Sample Row Data
+			
 			// build SRD header - 8-14 bytes
 		   /* 0                   1                   2                   3
 			0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -426,7 +486,7 @@ namespace UE::RivermaxCore::Private
 			OutHeader.RawHeader[12] = (StreamData.SequenceNumber >> 24) & 0xff;  // high 16 bit of seq Extended Sequence Number
 			OutHeader.RawHeader[13] = (StreamData.SequenceNumber >> 16) & 0xff;  // high 16 bit of seq Extended Sequence Number
 
-			const uint16 CurrentPayloadSize = StreamMemory.PayloadSizes[StreamData.SequenceNumber % StreamMemory.PacketsInFrameField];
+			const uint16 CurrentPayloadSize = StreamMemory.PayloadSizes[StreamData.SequenceNumber % StreamMemory.PacketsPerFrame];
 			*(uint16*)&OutHeader.RawHeader[14] = ByteSwap(CurrentPayloadSize);  // SRD Length
 		
 			uint16 number_of_rows = Options.Resolution.Y; //todo divide by 2 if interlaced
@@ -435,14 +495,19 @@ namespace UE::RivermaxCore::Private
 			OutHeader.RawHeader[16] |= (0 << 7); //todo when fields are sent for interlace
 
 			// we never have continuation
+
+			// Write out current offset in pixels
 			*(uint16*)&OutHeader.RawHeader[18] = ByteSwap(CurrentFrame->SRDOffset);  // SRD Offset
-			uint16 group_size = (uint16)((StreamMemory.PayloadSize /*- 20*/) / 2.5); // todo: need to support pgroup definition per sampling format to fully be compliant
-			CurrentFrame->SRDOffset = (CurrentFrame->SRDOffset + group_size) % (group_size * StreamMemory.PacketsInLine);
+
+			// Update SRD offset in pixel for next round
+			uint16 PixelsPerPacket = (uint16)((StreamMemory.PayloadSize * FormatInfo.PixelGroupCoverage) / FormatInfo.PixelGroupSize);
+			CurrentFrame->SRDOffset = (CurrentFrame->SRDOffset + PixelsPerPacket) % (PixelsPerPacket * StreamMemory.PacketsInLine);
 		}
 
-		if (++CurrentFrame->PacketCounter == StreamMemory.PacketsInFrameField)
+		if (++CurrentFrame->PacketCounter == StreamMemory.PacketsPerFrame)
 		{
 			OutHeader.RawHeader[1] |= 0x80; // last packet in frame (Marker)
+
 			// ST2210-20: the timestamp SHOULD be the same for each packet of the frame/field.
 			const double ticks = (MediaClockSampleRate / (Options.FrameRate.AsDecimal()));
 			//if (set.video_type != VIDEO_TYPE::PROGRESSIVE) {
@@ -528,18 +593,17 @@ namespace UE::RivermaxCore::Private
 		// Get next alignment point based on the frame number we are aligning with
 		const uint64 NextAlignmentNano = UE::RivermaxCore::GetAlignmentPointFromFrameNumber(NextFrameNumber, Options.FrameRate);
 
-		// Add Tro offset to next alignment point
+		// Add Tro offset to next alignment point and configurable offset
 		StreamData.NextAlignmentPointNanosec = NextAlignmentNano;
-		StreamData.NextScheduleTimeNanosec = NextAlignmentNano + TransmitOffsetNanosec;
+		StreamData.NextScheduleTimeNanosec = NextAlignmentNano + TransmitOffsetNanosec + CVarRivermaxScheduleOffset.GetValueOnAnyThread();
 		StreamData.NextAlignmentPointFrameNumber = NextFrameNumber;
 
 		// Offset wakeup if desired to give more time for scheduling. 
-		const uint64 WakeupTime = NextAlignmentNano - AlignmentPointSchedulingLeadTimeNanosec;
+		const uint64 WakeupTime = NextAlignmentNano - CVarRivermaxWakeupOffset.GetValueOnAnyThread();
 
 		// Used to know if we schedule blindly in the future or based on previous data
 		StreamData.bHasValidNextFrameNumber = bHasValidTimings;
 		
-
 		uint64 WaitTimeNanosec = WakeupTime - CurrentTimeNanosec;
 
 		// Wakeup can be smaller than current time with controllable offset
@@ -628,7 +692,7 @@ namespace UE::RivermaxCore::Private
 	{
 		uint8* HeaderRawPtr = reinterpret_cast<uint8*>(CurrentFrame->HeaderPtr);
 		check(HeaderRawPtr);
-		for (uint32 StrideIndex = 0; StrideIndex < StreamMemory.ChunkSizeInStrides && CurrentFrame->PacketCounter < StreamMemory.PacketsInFrameField; ++StrideIndex)
+		for (uint32 StrideIndex = 0; StrideIndex < StreamMemory.ChunkSizeInStrides && CurrentFrame->PacketCounter < StreamMemory.PacketsPerFrame; ++StrideIndex)
 		{
 			uint8* NextHeaderRawPtr = HeaderRawPtr + (StrideIndex * StreamMemory.HeaderStrideSize);
 			BuildRTPHeader(*reinterpret_cast<FRTPHeader*>(NextHeaderRawPtr));
@@ -646,8 +710,6 @@ namespace UE::RivermaxCore::Private
 		rmax_status_t Status;
 		do
 		{
-			// todo configure timeout
-			
 			//Only first chunk gets scheduled with a timestamp. Following chunks are queued after it using 0
 			uint64 ScheduleTime = CurrentFrame->ChunkNumber == 0 ? StreamData.NextScheduleTimeNanosec : 0;
 			const rmax_commit_flags_t CommitFlags{};
@@ -655,6 +717,7 @@ namespace UE::RivermaxCore::Private
 			{
 				IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
 				const uint64 CurrentTimeNanosec = RivermaxModule.GetRivermaxManager()->GetTime();
+				TRACE_BOOKMARK(TEXT("Sched A: %llu, C: %llu"), StreamData.NextAlignmentPointNanosec, CurrentTimeNanosec);
 				if (ScheduleTime <= CurrentTimeNanosec)
 				{
 					ScheduleTime = 0;
@@ -671,6 +734,7 @@ namespace UE::RivermaxCore::Private
 			else if (Status == RMAX_ERR_HW_SEND_QUEUE_FULL)
 			{
 				Stats.CommitRetries++;
+				TRACE_CPUPROFILER_EVENT_SCOPE(CommitNextChunks::QUEUEFULL);
 			}
 			else if(Status == RMAX_ERR_HW_COMPLETION_ISSUE)
 			{
@@ -695,11 +759,12 @@ namespace UE::RivermaxCore::Private
 
 	uint32 FRivermaxOutputStream::Run()
 	{
+		ReadyToSendEvent->Wait();
 		while (bIsActive)
 		{
+			ShowStats();
 			Process_AnyThread();
 		}
-
 
 		DestroyStream();
 
@@ -763,15 +828,26 @@ namespace UE::RivermaxCore::Private
 				InitializeNextFrame(CurrentFrame);		
 				
 				// Since we want to resend last frame, we need to fast forward chunk pointer to re-point to the one we just sent
-				rmax_status_t Status = rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
-				if (Status != RMAX_OK)
+				rmax_status_t Status;
+				do 
 				{
-					// If we don't go in error, we end up with misaligned chunk vs frame pointer to write. 
-					ensure(false);
-					UE_LOG(LogRivermax, Error, TEXT("Invalid error happened while trying to skip chunks. Status: %d."), Status);
-					Listener->OnStreamError();
-					bIsActive = false;
-				}
+					Status = rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
+					if (Status != RMAX_OK)
+					{
+						if (Status == RMAX_ERR_NO_FREE_CHUNK)
+						{
+							// Wait until there are enough free chunk to be skipped
+							UE_LOG(LogRivermax, Warning, TEXT("No chunks ready to skip. Waiting"));
+						}
+						else
+						{ 
+							ensure(false);
+							UE_LOG(LogRivermax, Error, TEXT("Invalid error happened while trying to skip chunks. Status: %d."), Status);
+							Listener->OnStreamError();
+							bIsActive = false;
+						}
+					}
+				} while (Status != RMAX_OK && bIsActive);
 			}
 		}
 
@@ -784,7 +860,7 @@ namespace UE::RivermaxCore::Private
 
 		double FrameIntervalNs = StreamData.FrameFieldTimeIntervalNs;
 		const bool bIsProgressive = true;//todo MediaConfiguration.IsProgressive() 
-		uint32 PacketsInFrameField = StreamMemory.PacketsInFrameField;
+		uint32 PacketsInFrameField = StreamMemory.PacketsPerFrame;
 		if (bIsProgressive == false)
 		{
 			FrameIntervalNs *= 2;
@@ -832,7 +908,7 @@ namespace UE::RivermaxCore::Private
 
 			// Need to reinvestigate the implication of this and possibly add cvar to control it runtime
 			const double TRSNano = (FrameIntervalNs * RActive) / PacketsInFrameField;
-			TransmitOffsetNanosec = (uint64)((TRODefaultMultiplier * FrameIntervalNs) - (VideoTROModification * TRSNano));
+			TransmitOffsetNanosec = (uint64)((TRODefaultMultiplier * FrameIntervalNs));
 		}
 	}
 
@@ -852,5 +928,17 @@ namespace UE::RivermaxCore::Private
 		return MediaTime + MediaSubTime;
 	}
 
+	void FRivermaxOutputStream::ShowStats()
+	{
+		if (CVarRivermaxOutputShowStats.GetValueOnAnyThread() != 0)
+		{
+			const double CurrentTime = FPlatformTime::Seconds();
+			if (CurrentTime - LastStatsShownTimestamp > CVarRivermaxOutputShowStatsInterval.GetValueOnAnyThread())
+			{
+				LastStatsShownTimestamp = CurrentTime;
+				UE_LOG(LogRivermax, Log, TEXT("Stats: FrameSent: %d. CommitImmediate: %d. CommitRetries: %d. ChunkRetries: %d"), Stats.MemoryBlockSentCounter, Stats.CommitImmediate, Stats.CommitRetries, Stats.ChunkRetries);
+			}
+		}
+	}
 }
 

@@ -26,7 +26,10 @@ namespace UE::RivermaxCore::Private
 	struct FRivermaxOutputStreamMemory
 	{
 		uint16 PayloadSize = 0;
-		uint32 DataStrideSize = 1280;
+		uint32 PixelGroupPerPacket = 0;
+		uint32 PixelsPerPacket = 0;
+		uint32 PixelsPerFrame = 0;
+
 		uint32 HeaderStrideSize = 20;
 		uint32 LinesInChunk = 4;
 
@@ -34,7 +37,7 @@ namespace UE::RivermaxCore::Private
 		uint32 ChunkSizeInStrides = 0;
 
 		uint32 FramesFieldPerMemoryBlock = 0;
-		uint32 PacketsInFrameField = 0;
+		uint32 PacketsPerFrame = 0;
 		uint32 PacketsPerMemoryBlock = 0;
 		uint32 ChunksPerFrameField = 0;
 		uint32 ChunksPerMemoryBlock = 0;
@@ -108,7 +111,7 @@ namespace UE::RivermaxCore::Private
 
 	private:
 		void InitializeBuffers();
-		void InitializeMemory();
+		bool InitializeMemory();
 		void InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame);
 		TSharedPtr<FRivermaxOutputFrame> GetNextFrameToSend();
 		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
@@ -120,6 +123,7 @@ namespace UE::RivermaxCore::Private
 		void CommitNextChunks();
 		void PrepareNextFrame();
 		void InitializeStreamTimingSettings();
+		void ShowStats();
 		uint32 GetTimestampFromTime(uint64 InTimeNanosec, double InMediaClockRate) const;
 
 	private:
@@ -149,8 +153,11 @@ namespace UE::RivermaxCore::Private
 		/** TRoffset time calculated based on ST2110 - 21 Gapped(for now) method. This is added to next alignment point */
 		uint64 TransmitOffsetNanosec = 0;
 
-		/** Offset substracted to next alignment point (wake up) to move the start of scheduling */
-		uint64 AlignmentPointSchedulingLeadTimeNanosec = 0;
+		/** Format info for the active stream */
+		FVideoFormatInfo FormatInfo;
+
+		/** Timestamp at which we logged stats */
+		double LastStatsShownTimestamp = 0.0;
 	};
 }
 

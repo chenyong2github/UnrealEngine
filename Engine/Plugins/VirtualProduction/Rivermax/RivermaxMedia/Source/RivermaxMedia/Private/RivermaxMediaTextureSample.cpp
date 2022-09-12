@@ -27,21 +27,21 @@ bool FRivermaxMediaTextureSample::IsOutputSrgb() const
 	return false;
 }
 
-bool FRivermaxMediaTextureSample::ConfigureSample(uint32 InWidth, uint32 InHeight, uint32 InStride, ERivermaxMediaSourePixelFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
+bool FRivermaxMediaTextureSample::ConfigureSample(uint32 InWidth, uint32 InHeight, uint32 InStride, ERivermaxMediaSourcePixelFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput)
 {
 	EMediaTextureSampleFormat VideoSampleFormat;
 	switch (InSampleFormat)
 	{
-		case ERivermaxMediaSourePixelFormat::RGB_10bit:
+		case ERivermaxMediaSourcePixelFormat::RGB_10bit:
 			// Falls through
-		case ERivermaxMediaSourePixelFormat::YUV422_10bit:
+		case ERivermaxMediaSourcePixelFormat::YUV422_10bit:
 		{
 			VideoSampleFormat = EMediaTextureSampleFormat::CharBGR10A2;
 			break;
 		}
-		case ERivermaxMediaSourePixelFormat::YUV422_8bit:
+		case ERivermaxMediaSourcePixelFormat::YUV422_8bit:
 			// Falls through
-		case ERivermaxMediaSourePixelFormat::RGB_8bit:
+		case ERivermaxMediaSourcePixelFormat::RGB_8bit:
 			// Falls through
 		default:
 		{

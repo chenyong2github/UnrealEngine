@@ -13,12 +13,14 @@
 #include "RivermaxMediaOutput.h"
 #include "RivermaxMediaSourceOptions.h"
 #include "RivermaxMediaTextureSample.h"
+#include "RivermaxMediaUtils.h"
 #include "RivermaxTypes.h"
 #include "Stats/Stats2.h"
 
 #if WITH_EDITOR
 #include "EngineAnalytics.h"
 #endif
+
 
 #define LOCTEXT_NAMESPACE "FRivermaxMediaPlayer"
 
@@ -67,7 +69,7 @@ namespace UE::RivermaxMedia
 		//Video related options
 		{
 			bIsSRGBInput = Options->GetMediaOption(RivermaxMediaOption::SRGBInput, bIsSRGBInput);
-			DesiredPixelFormat = (ERivermaxMediaSourePixelFormat)Options->GetMediaOption(RivermaxMediaOption::PixelFormat, (int64)ERivermaxMediaSourePixelFormat::RGB_8bit);
+			DesiredPixelFormat = (ERivermaxMediaSourcePixelFormat)Options->GetMediaOption(RivermaxMediaOption::PixelFormat, (int64)ERivermaxMediaSourcePixelFormat::RGB_8bit);
 		}
 
 		{
@@ -278,6 +280,8 @@ namespace UE::RivermaxMedia
 
 	bool FRivermaxMediaPlayer::ConfigureStream(const IMediaOptions* Options)
 	{
+		using namespace UE::RivermaxCore;
+
 		// Resolve interface address
 		IRivermaxCoreModule* Module = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
 		if (Module == nullptr)
@@ -298,38 +302,13 @@ namespace UE::RivermaxMedia
 		StreamOptions.Resolution = VideoTrackFormat.Dim;
 		StreamOptions.FrameRate = VideoFrameRate;
 
-		switch (DesiredPixelFormat)
-		{
-		case ERivermaxMediaSourePixelFormat::YUV422_8bit:
-		{
-			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_YCBCR;
-			StreamOptions.Stride = StreamOptions.Resolution.X / 2 * 4; // 4 bytes for a group of 2 pixels
-			break;
-		}
-		case ERivermaxMediaSourePixelFormat::YUV422_10bit:
-		{
-			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_10BIT_YCBCR;
-			StreamOptions.Stride = StreamOptions.Resolution.X / 2 * 5; // 5 bytes for a group of 2 pixels (40bits / 8 = 5)
-			break;
-		}
-		case ERivermaxMediaSourePixelFormat::RGB_8bit:
-		{
-			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_RGB;
-			StreamOptions.Stride = StreamOptions.Resolution.X * 3; //3 bytes per pixel
-			break;
-		}
-		case ERivermaxMediaSourePixelFormat::RGB_10bit:
-		{
-			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_10BIT_RGB;
-			StreamOptions.Stride = StreamOptions.Resolution.X / 4 * 15; //15 bytes for a group of 4 pixels (4 * 30bits / 8 = 15)
-			break;
-		}
-		default:
-		{
-			UE_LOG(LogRivermaxMedia, Error, TEXT("Desired pixel format (%s) is not a valid Rivermax pixel format"), *StaticEnum<ERivermaxMediaSourePixelFormat>()->GetValueAsString(DesiredPixelFormat));
-			return false;
-		}
-		}
+		// We need to adjust horizontal resolution if it's not aligned to pgroup pixel coverage
+		// RTP header has to describe a full pgroup even if it's outside of effective resolution.
+		StreamOptions.PixelFormat = UE::RivermaxMediaUtils::Private::MediaSourcePixelFormatToRivermaxSamplingType(DesiredPixelFormat);
+		const FVideoFormatInfo FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(StreamOptions.PixelFormat);
+		const uint32 PixelAlignment = FormatInfo.PixelGroupCoverage;
+		const uint32 AlignedHorizontalResolution = StreamOptions.Resolution.X % PixelAlignment ? StreamOptions.Resolution.X + (PixelAlignment - StreamOptions.Resolution.X % PixelAlignment) : StreamOptions.Resolution.X;
+		StreamOptions.AlignedResolution = FIntPoint(AlignedHorizontalResolution, StreamOptions.Resolution.Y);
 
 		return true;
 	}

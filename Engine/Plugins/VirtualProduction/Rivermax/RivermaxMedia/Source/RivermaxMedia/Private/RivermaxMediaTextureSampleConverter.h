@@ -17,7 +17,7 @@ class FRivermaxMediaTextureSampleConverter : public IMediaTextureSampleConverter
 public:
 
 	/** Configures settings to convert incoming sample */
-	void Setup(ERivermaxMediaSourePixelFormat InPixelFormat, TWeakPtr<FRivermaxMediaTextureSample> InSample, bool bInDoSRGBToLinear);
+	void Setup(ERivermaxMediaSourcePixelFormat InPixelFormat, TWeakPtr<FRivermaxMediaTextureSample> InSample, bool bInDoSRGBToLinear);
 
 	//~ Begin IMediaTextureSampleConverter interface
 	virtual bool Convert(FTexture2DRHIRef& InDstTexture, const FConversionHints& Hints) override;
@@ -27,7 +27,7 @@ public:
 private:
 
 	/** Incoming pixel format used to know how to handle the input buffer */
-	ERivermaxMediaSourePixelFormat InputPixelFormat = ERivermaxMediaSourePixelFormat::RGB_10bit;
+	ERivermaxMediaSourcePixelFormat InputPixelFormat = ERivermaxMediaSourcePixelFormat::RGB_10bit;
 
 	/** Sample holding the buffer to convert */
 	TWeakPtr<FRivermaxMediaTextureSample> Sample;

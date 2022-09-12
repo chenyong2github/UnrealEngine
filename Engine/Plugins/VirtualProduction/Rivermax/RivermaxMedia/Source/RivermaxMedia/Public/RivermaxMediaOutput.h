@@ -13,8 +13,8 @@
 UENUM()
 enum class ERivermaxMediaOutputPixelFormat : uint8
 {
-	PF_8BIT_YUV UMETA(DisplayName = "8bit YUV"),
-	PF_10BIT_YCBCR_422 UMETA(DisplayName = "10bit YCbCr 4:2:2"),
+	PF_8BIT_YUV422 UMETA(DisplayName = "8bit YUV422"),
+	PF_10BIT_YUV422 UMETA(DisplayName = "10bit YUV422"),
 	PF_8BIT_RGB UMETA(DisplayName = "8bit RGB"),
 	PF_10BIT_RGB UMETA(DisplayName = "10bit RGB"),
 	PF_FLOAT16_RGB UMETA(DisplayName = "16bit Float RGB")
@@ -57,7 +57,7 @@ public:
 	FFrameRate FrameRate = {24,1};
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
-	ERivermaxMediaOutputPixelFormat PixelFormat = ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV;
+	ERivermaxMediaOutputPixelFormat PixelFormat = ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Format")
 	FString InterfaceAddress;

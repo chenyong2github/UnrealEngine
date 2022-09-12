@@ -5,10 +5,10 @@
 #include "RenderGraphBuilder.h"
 #include "RivermaxShaders.h"
 #include "RivermaxMediaTextureSample.h"
+#include "RivermaxMediaUtils.h"
 
 
-
-void FRivermaxMediaTextureSampleConverter::Setup(ERivermaxMediaSourePixelFormat InPixelFormat, TWeakPtr<FRivermaxMediaTextureSample> InSample, bool bInDoSRGBToLinear)
+void FRivermaxMediaTextureSampleConverter::Setup(ERivermaxMediaSourcePixelFormat InPixelFormat, TWeakPtr<FRivermaxMediaTextureSample> InSample, bool bInDoSRGBToLinear)
 {
 	InputPixelFormat = InPixelFormat;
 	Sample = InSample;
@@ -17,7 +17,10 @@ void FRivermaxMediaTextureSampleConverter::Setup(ERivermaxMediaSourePixelFormat 
 
 bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinationTexture, const FConversionHints& Hints)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxSampleConverter::Convert);
+
 	using namespace UE::RivermaxShaders;
+	using namespace UE::RivermaxCore;
 
 	TSharedPtr<FRivermaxMediaTextureSample> SamplePtr = Sample.Pin();
 	if (SamplePtr.IsValid() == false)
@@ -33,17 +36,15 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 	//Configure shader and add conversion pass based on desired pixel format
 	switch (InputPixelFormat)
 	{
-	case ERivermaxMediaSourePixelFormat::YUV422_8bit:
+	case ERivermaxMediaSourcePixelFormat::YUV422_8bit:
 	{
 		break;
 	}
-	case ERivermaxMediaSourePixelFormat::YUV422_10bit:
+	case ERivermaxMediaSourcePixelFormat::YUV422_10bit:
 	{
-		constexpr uint32 PixelPerGroup = 2;
-		constexpr uint32 BytesPerGroup = 5;
-		const uint32 HorizontalByteCount = (InDestinationTexture->GetDesc().Extent.X / PixelPerGroup) * BytesPerGroup;
+		TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxSampleConverter::YUV10ShaderSetup);
 		const int32 BytesPerElement = sizeof(FYUV10Bit422ToRGBACS::FYUV10Bit422LEBuffer);
-		const int32 ElementsPerRow = HorizontalByteCount / BytesPerElement;
+		const int32 ElementsPerRow = FMath::CeilToInt32(SamplePtr->GetStride() / (float)BytesPerElement);
 		const int32 ElementCount = ElementsPerRow * InDestinationTexture->GetDesc().Extent.Y;
 
 		FYUV10Bit422ToRGBACS::FPermutationDomain PermutationVector;
@@ -68,13 +69,11 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			, GroupCount);
 		break;
 	}
-	case ERivermaxMediaSourePixelFormat::RGB_8bit:
+	case ERivermaxMediaSourcePixelFormat::RGB_8bit:
 	{
-		constexpr uint32 PixelPerGroup = 1;
-		constexpr uint32 BytesPerGroup = (PixelPerGroup * 3 * 8) / 8;
-		const uint32 HorizontalByteCount = (InDestinationTexture->GetDesc().Extent.X / PixelPerGroup) * BytesPerGroup;
+		TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxSampleConverter::RGB8ShaderSetup);
 		const int32 BytesPerElement = sizeof(FRGB8BitToRGBA8CS::FRGB8BitBuffer);
-		const int32 ElementsPerRow = HorizontalByteCount / BytesPerElement;
+		const int32 ElementsPerRow = FMath::CeilToInt32(SamplePtr->GetStride() / (float)BytesPerElement);
 		const int32 ElementCount = ElementsPerRow * InDestinationTexture->GetDesc().Extent.Y;
 
 		FRGB8BitToRGBA8CS::FPermutationDomain PermutationVector;
@@ -97,13 +96,12 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			, GroupCount);
 		break;
 	}
-	case ERivermaxMediaSourePixelFormat::RGB_10bit:
+	case ERivermaxMediaSourcePixelFormat::RGB_10bit:
 	{
-		constexpr uint32 PixelPerGroup = 4;
-		constexpr uint32 BytesPerGroup = (PixelPerGroup * 3 * 10) / 8;
-		const uint32 HorizontalByteCount = (InDestinationTexture->GetDesc().Extent.X / PixelPerGroup) * BytesPerGroup;
+		TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxSampleConverter::RGB10ShaderSetup);
+
 		const int32 BytesPerElement = sizeof(FRGBToRGB10BitCS::FRGB10BitBuffer);
-		const int32 ElementsPerRow = HorizontalByteCount / BytesPerElement;
+		const int32 ElementsPerRow = FMath::CeilToInt32(SamplePtr->GetStride() / (float)BytesPerElement);
 		const int32 ElementCount = ElementsPerRow * InDestinationTexture->GetDesc().Extent.Y;
 		
 		FRGB10BitToRGBA10CS::FPermutationDomain PermutationVector;
