@@ -49,7 +49,7 @@ public:
 
 	TOptional<ULevelSnapshot*> GetSelectedLevelSnapshot() const;
 
-	void OnSnapshotSelected(const TOptional<ULevelSnapshot*>& InLevelSnapshot);
+	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
 	void RefreshResults(const bool bSnapshotHasChanged = false);
 	FReply OnClickApplyToWorld();
 

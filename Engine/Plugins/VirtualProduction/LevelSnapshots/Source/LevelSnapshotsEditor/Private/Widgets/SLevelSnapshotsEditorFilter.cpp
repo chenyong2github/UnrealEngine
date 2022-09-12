@@ -45,7 +45,7 @@ SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
 {
 	if (ensure(EditorData.IsValid()))
 	{
-		EditorData->OnEditedFiterChanged.Remove(ActiveFilterChangedDelegateHandle);
+		EditorData->OnEditedFilterChanged.Remove(ActiveFilterChangedDelegateHandle);
 	}
 
 	if (SnapshotFilter.IsValid())
@@ -125,7 +125,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 	// Hightlight & unhighlight filter when being edited
 	FilterNamePtr->SetOnClicked(FOnClicked::CreateRaw(this, &SLevelSnapshotsEditorFilter::OnSelectFilterForEdit));
 	
-	ActiveFilterChangedDelegateHandle = InEditorData->OnEditedFiterChanged.AddRaw(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged);
+	ActiveFilterChangedDelegateHandle = InEditorData->OnEditedFilterChanged.AddSP(this, &SLevelSnapshotsEditorFilter::OnActiveFilterChanged);
 	OnFilterDestroyedDelegateHandle = InFilter->OnFilterDestroyed.AddLambda([this](UNegatableFilter* Filter)
 	{
 		if (EditorData.IsValid() && EditorData->IsEditingFilter(Filter))
@@ -211,7 +211,7 @@ FReply SLevelSnapshotsEditorFilter::OnSelectFilterForEdit()
 	if (EditorData->IsEditingFilter(SnapshotFilter.Get()))
 	{
 		bShouldHighlightFilter = false;
-		EditorData->SetEditedFilter(TOptional<UNegatableFilter*>());
+		EditorData->SetEditedFilter(nullptr);
 	}
 	else
 	{
@@ -241,13 +241,13 @@ FReply SLevelSnapshotsEditorFilter::OnRemoveFilter()
 	return FReply::Handled();
 }
 
-void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter)
+void SLevelSnapshotsEditorFilter::OnActiveFilterChanged(UNegatableFilter* NewFilter)
 {
-	if (!SnapshotFilter.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
+	if (SnapshotFilter.IsValid()) // This can actually become stale after a save: UI rebuilds next tick but object was already destroyed.
 	{
-		return;
+		bShouldHighlightFilter = NewFilter && NewFilter == SnapshotFilter.Get();
 	}
-	bShouldHighlightFilter = NewFilter.IsSet() && *NewFilter == SnapshotFilter.Get();
+	
 }
 
 

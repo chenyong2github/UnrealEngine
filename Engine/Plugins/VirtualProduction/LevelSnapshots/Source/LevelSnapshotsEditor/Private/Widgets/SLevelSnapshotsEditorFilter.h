@@ -51,7 +51,7 @@ private:
 	FReply OnNegateFilter();
 	FReply OnRemoveFilter();
 	
-	void OnActiveFilterChanged(const TOptional<UNegatableFilter*>& NewFilter);
+	void OnActiveFilterChanged(UNegatableFilter* NewFilter);
 
 	/* Used to remove this filter */
 	FOnClickRemoveFilter OnClickRemoveFilter;

@@ -332,9 +332,9 @@ TOptional<ULevelSnapshot*> SLevelSnapshotsEditorResults::GetSelectedLevelSnapsho
 	return ensure(EditorDataPtr.IsValid()) ? EditorDataPtr->GetActiveSnapshot() : TOptional<ULevelSnapshot*>();
 }
 
-void SLevelSnapshotsEditorResults::OnSnapshotSelected(const TOptional<ULevelSnapshot*>& InLevelSnapshot)
+void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot)
 {	
-	if (InLevelSnapshot.IsSet() && InLevelSnapshot.GetValue())
+	if (InLevelSnapshot)
 	{
 		UpdateSnapshotNameText(InLevelSnapshot);
 		
@@ -1009,25 +1009,25 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_AddedActors(FLevelSn
 
 bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_RemovedActors(FLevelSnapshotsEditorResultsRowPtr RemovedActorsHeader)
 {
-	check(RemovedActorsHeader);
-	check (EditorDataPtr.IsValid());
-	check (EditorDataPtr->GetActiveSnapshot().IsSet());
+	if (!ensure(RemovedActorsHeader && EditorDataPtr.IsValid() && EditorDataPtr->GetActiveSnapshot() != nullptr))
+	{
+		return false;
+	}
 	
-	TObjectPtr<ULevelSnapshot> ActiveSnapshot = EditorDataPtr->GetActiveSnapshot().GetValue();
-	check(ActiveSnapshot);
-	
+	const TObjectPtr<ULevelSnapshot> ActiveSnapshot = EditorDataPtr->GetActiveSnapshot();
 	for (const FSoftObjectPath& ActorPath : FilterListData.GetRemovedOriginalActorPaths_AllowedByFilter())
 	{
-		FString ActorName = ActiveSnapshot->GetActorLabel(ActorPath);
-		
-		// Create group
+		const FString ActorName = ActiveSnapshot->GetActorLabel(ActorPath);
 		FLevelSnapshotsEditorResultsRowPtr NewActorRow = MakeShared<FLevelSnapshotsEditorResultsRow>(
-			FLevelSnapshotsEditorResultsRow(
-				FText::FromString(ActorName), FLevelSnapshotsEditorResultsRow::RemovedActorToAdd, ECheckBoxState::Checked, SharedThis(this), RemovedActorsHeader));
+			FText::FromString(ActorName),
+			FLevelSnapshotsEditorResultsRow::RemovedActorToAdd,
+			ECheckBoxState::Checked,
+			SharedThis(this),
+			RemovedActorsHeader
+		);
+		
 		NewActorRow->InitRemovedActorRow(ActorPath);
-
 		RemovedActorsHeader->AddToChildRows(NewActorRow);
-
 		TreeViewRemovedActorGroupObjects.Add(NewActorRow);
 	}
 

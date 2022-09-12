@@ -348,10 +348,10 @@ void FLevelSnapshotsEditorResultsRow::GenerateModifiedActorGroupChildren(FProper
 	}
 
 	// Custom subobjects handled by external ICustomObjectSnapshotSerializer implementation
-	TMap<UObject*, UObject*> WorldToSnapshotCustomSubobjects;
-	
-	ULevelSnapshot* ActiveSnapshot = ResultsViewPtr.IsValid() && ResultsViewPtr.Pin()->GetEditorDataPtr() && ResultsViewPtr.Pin()->GetEditorDataPtr()->GetActiveSnapshot().IsSet() ? 
-		ResultsViewPtr.Pin()->GetEditorDataPtr()->GetActiveSnapshot().GetValue() : nullptr;
+	const TSharedPtr<SLevelSnapshotsEditorResults> ResultsViewPin = ResultsViewPtr.Pin();
+	ULevelSnapshot* ActiveSnapshot = ResultsViewPin && ResultsViewPin->GetEditorDataPtr()->GetActiveSnapshot()
+		? ResultsViewPtr.Pin()->GetEditorDataPtr()->GetActiveSnapshot()
+		: nullptr;
 
 	const TFunction<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedCustomSnapshotSubobject = [](UObject* UnmatchedCustomSnapshotSubobject)
 	{
@@ -359,6 +359,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateModifiedActorGroupChildren(FProper
 		// If the row is checked when the snapshot is applied, call FPropertySelectionMap::AddCustomEditorSubobjectToRecreate
 	};
 
+	TMap<UObject*, UObject*> WorldToSnapshotCustomSubobjects;
 	const TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleMatchedCustomSubobjectPair = [&WorldToSnapshotCustomSubobjects, ActiveSnapshot, &HandleMatchedCustomSubobjectPair, &HandleUnmatchedCustomSnapshotSubobject](UObject* SnapshotSubobject, UObject* EditorWorldSubobject)
 	{
 		check(EditorWorldSubobject);

@@ -61,8 +61,8 @@ void ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(
 	ULevelSnapshot* Snapshot,
 	UObject* SnapshotRootObject,
 	UObject* WorldRootObject,
-	TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleCustomSubobjectPair,
-	TFunction<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedSnapshotSubobject)
+	TFunctionRef<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleCustomSubobjectPair,
+	TFunctionRef<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedSnapshotSubobject)
 {
 	UE::LevelSnapshots::Private::ForEachMatchingCustomSubobjectPair(Snapshot->GetSerializedData(), SnapshotRootObject, WorldRootObject, HandleCustomSubobjectPair, HandleUnmatchedSnapshotSubobject);
 }

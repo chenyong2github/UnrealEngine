@@ -79,7 +79,7 @@ SLevelSnapshotsEditorFilters::~SLevelSnapshotsEditorFilters()
 	if (ULevelSnapshotsEditorData* Data = GetEditorData())
 	{
 		Data->OnUserDefinedFiltersChanged.Remove(OnUserDefinedFiltersChangedHandle);
-		Data->OnEditedFiterChanged.Remove(OnEditedFilterChangedHandle);
+		Data->OnEditedFilterChanged.Remove(OnEditedFilterChangedHandle);
 		Data->GetUserDefinedFilters()->OnFilterModified.Remove(OnFilterModifiedHandle);
 	}
 }
@@ -223,11 +223,11 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, ULevelSna
 		}
 		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 		
-		GetEditorData()->SetEditedFilter(TOptional<UNegatableFilter*>());
+		GetEditorData()->SetEditedFilter(nullptr);
 		RefreshGroups();
 	});
 
-	OnEditedFilterChangedHandle = GetEditorData()->OnEditedFiterChanged.AddLambda([this](const TOptional<UNegatableFilter*>& ActiveFilter)
+	OnEditedFilterChangedHandle = GetEditorData()->OnEditedFilterChanged.AddLambda([this](const TOptional<UNegatableFilter*>& ActiveFilter)
 	{
 		FilterDetailsView->SetObject(ActiveFilter.IsSet() ? ActiveFilter.GetValue() : nullptr);
 	});
