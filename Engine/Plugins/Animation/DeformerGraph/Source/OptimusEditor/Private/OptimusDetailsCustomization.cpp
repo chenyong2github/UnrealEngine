@@ -1593,7 +1593,7 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	.ValueContent()
 	[
 		SNew(SComboBox<FComponentHandle>)
-		.IsEnabled(Binding)
+		.IsEnabled(Binding && !Binding->IsPrimaryBinding())
 		.OptionsSource(&ComponentHandles)
 		.InitiallySelectedItem(SelectedComponentHandle)
 		.OnGenerateWidget_Lambda([](const FComponentHandle InComponentHandle)

@@ -269,18 +269,15 @@ void UOptimusDeformerInstance::SetInstanceSettings(UOptimusDeformerInstanceSetti
 }
 
 
-void UOptimusDeformerInstance::SetupFromDeformer(
-	UOptimusDeformer* InDeformer,
-	const bool bInRefreshBindings
-	)
+void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 {
 	// If we're doing a recompile, ditch all stored render resources.
 	ReleaseResources();
 
-	// Update the component bindings before creating data providers. The bindings are in the same order
-	// as the component bindings in the deformer.
+	// Update the component bindings before creating data providers. 
+	// The bindings are in the same order as the component bindings in the deformer.
 	UOptimusDeformerInstanceSettings* InstanceSettingsPtr = InstanceSettings.Get(); 
-	if (bInRefreshBindings && InstanceSettingsPtr)
+	if (InstanceSettingsPtr)
 	{
 		InstanceSettingsPtr->RefreshComponentBindings(InDeformer, MeshComponent.Get());
 	}

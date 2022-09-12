@@ -154,15 +154,7 @@ public:
 	 * Needs to be called after the UOptimusDeformer creates this instance, and whenever the instance is invalidated.
 	 * Invalidation happens whenever any bound Data Providers become invalid.
 	 */
-	void SetupFromDeformer(
-		UOptimusDeformer* InDeformer,
-		const bool bInRefreshBindings = false
-		);
-
-	void SetupFromDeformerAndRefreshBindings(UOptimusDeformer* InDeformer)
-	{
-		SetupFromDeformer(InDeformer, true);
-	}
+	void SetupFromDeformer(UOptimusDeformer* InDeformer);
 
 	/** Set the value of a boolean variable. */
 	UFUNCTION(BlueprintPure, Category="Deformer", meta=(DisplayName="Set Variable (bool)"))

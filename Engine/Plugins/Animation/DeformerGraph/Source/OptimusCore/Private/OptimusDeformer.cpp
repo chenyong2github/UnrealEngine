@@ -2308,7 +2308,7 @@ UMeshDeformerInstance* UOptimusDeformer::CreateInstance(
 	Instance->SetupFromDeformer(this);
 
 	// Make sure all the instances know when we finish compiling so they can update their local state to match.
-	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer, true);
+	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer);
 	ConstantValueUpdateDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetConstantValueDirect);
 	SetAllInstancesCanbeActiveDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetCanBeActive);
 
