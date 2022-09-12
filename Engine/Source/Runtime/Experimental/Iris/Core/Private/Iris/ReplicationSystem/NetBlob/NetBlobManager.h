@@ -46,7 +46,14 @@ public:
 	bool SendRPC(const UObject* Object, const UObject* SubObject, const UFunction* Function, const void* Parameters);
 	bool SendRPC(uint32 ConnectionId, const UObject* Object, const UObject* SubObject, const UFunction* Function, const void* Parameters);
 
-	void ProcessNetObjectAttachmentSendQueue();
+	enum class EProcessMode 
+	{
+		ProcessObjectsGoingOutOfScope,
+		ProcessObjectsInScope,
+	};
+
+	void ProcessNetObjectAttachmentSendQueue(EProcessMode ProcessMode);
+	void ResetNetObjectAttachmentSendQueue();
 
 	FNetBlobHandlerManager& GetNetBlobHandlerManager() { return BlobHandlerManager; }
 	const FNetBlobHandlerManager& GetNetBlobHandlerManager() const { return BlobHandlerManager; }
@@ -76,8 +83,10 @@ private:
 		// Multicast
 		void Enqueue(FInternalNetHandle OwnerIndex, FInternalNetHandle SubObjectIndex, const TRefCountPtr<FNetObjectAttachment>& Attachment);
 
-		void ProcessQueue(FReplicationConnections* Connections);
-
+		void PrepareProcessQueue(FReplicationConnections* InConnections, const FNetHandleManager* NetHandleManager);
+		void ProcessQueue(EProcessMode ProcessMode);
+		void ResetProcessQueue();
+	
 	private:
 		struct FNetObjectAttachmentQueueEntry
 		{
@@ -93,6 +102,25 @@ private:
 		FNetBlobManager* Manager;
 		FQueue AttachmentQueue;
 		bool bHasMulticastAttachments;
+
+		struct FProcessQueueContext
+		{
+			FNetBitArray AttachmentsToObjectsGoingOutOfScope;
+			FNetBitArray AttachmentsToObjectsInScope;
+
+			TArray<uint32> ConnectionIds;
+			FReplicationConnections* Connections = nullptr;
+			const FNetHandleManager* NetHandleManager = nullptr;
+
+			void Reset()
+			{
+				Connections = nullptr;
+				NetHandleManager = nullptr;
+			}
+
+			bool IsValid() const { return NetHandleManager != nullptr; }
+		};
+		FProcessQueueContext ProcessContext;
 	};
 
 

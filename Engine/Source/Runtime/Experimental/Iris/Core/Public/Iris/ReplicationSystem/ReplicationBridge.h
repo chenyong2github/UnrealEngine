@@ -38,6 +38,7 @@ namespace UE::Net
 		class FReplicationSystemImpl;
 		class FReplicationSystemInternal;
 		class FReplicationWriter;
+		struct FChangeMaskCache;
 	}
 
 	typedef TArray<FNetDependencyInfo, TInlineAllocator<32> > FNetDependencyInfoArray;
@@ -224,6 +225,12 @@ private:
 	void CallDetachInstanceFromRemote(FNetHandle Handle, bool bTearOff, bool bShouldDestroyInstance);
 
 private:
+
+	void InternalFlushStateData(UE::Net::FNetSerializationContext& SerializationContext, UE::Net::Private::FChangeMaskCache& ChangeMaskCache, UE::Net::FNetBitStreamWriter& ChangeMaskWriter, uint32 InternalObjectIndex);
+
+	// Internal method to copy state data for Handle
+	void InternalFlushStateData(FNetHandle Handle);
+
 	// Internal method to copy state data for Handle and any SubObjects and mark them as being torn-off
 	void InternalTearOff(FNetHandle OwnerHandle);
 

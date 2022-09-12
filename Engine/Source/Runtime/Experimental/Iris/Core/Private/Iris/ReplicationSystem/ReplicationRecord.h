@@ -34,11 +34,11 @@ public:
 		uint32 Index : 20;								// Index in the ReplicationInfo array, effectively identifying the object
 		uint32 ReplicatedObjectState : 5;				// Encode EReplicatedObjectState using as few bits as we can
 		uint32 HasChangeMask : 1;						// Do we have a changeMask? 
-		uint32 HasDirtySubObjects : 1;
 		uint32 HasAttachments : 1;						// If this flag is set there's an associated AttachmentRecord
 		uint32 WroteTearOff : 1;						// If this flag is set, we wrote TearOff
 		uint32 WroteDestroySubObject : 1;				// If this flag is set, we wrote DestroySubObject
 		uint32 NewBaselineIndex : 2;					// This is a new Baseline pending ack
+		uint32 UnusedFlag : 1;
 		ReplicationRecordIndex NextIndex;				// Points to next older record index
 		uint16 Padding : 16;
 	};
@@ -70,6 +70,7 @@ public:
 
 	// Get the info for the provided index
 	inline FRecordInfo* GetInfoForIndex(ReplicationRecordIndex Index);
+	inline const FRecordInfo* GetInfoForIndex(ReplicationRecordIndex Index) const;
 
 	// PeekInfo . If the info indicates there's an attachment record one should call DequeueAttachmentRecord() as well.
 	inline const FRecordInfo& PeekInfo() const { return RecordInfos.Peek(); }
@@ -125,7 +126,12 @@ FReplicationRecord::FReplicationRecord()
 
 FReplicationRecord::FRecordInfo* FReplicationRecord::GetInfoForIndex(ReplicationRecordIndex Index)
 {
-	return (Index != InvalidReplicationRecordIndex) ? &RecordInfos.PokeAtOffset((Index - FrontIndex) & ReplicationRecordIndexMask) : nullptr;
+	return (Index != InvalidReplicationRecordIndex) ? &RecordInfos.PokeAtOffsetNoCheck((Index - FrontIndex) & ReplicationRecordIndexMask) : nullptr;
+}
+
+const FReplicationRecord::FRecordInfo* FReplicationRecord::GetInfoForIndex(ReplicationRecordIndex Index) const
+{
+	return (Index != InvalidReplicationRecordIndex) ? &RecordInfos.PeekAtOffsetNoCheck((Index - FrontIndex) & ReplicationRecordIndexMask) : nullptr;
 }
 
 // $IRIS TODO. To simplify (?) we could have one public facing struct and one or more internal structs.

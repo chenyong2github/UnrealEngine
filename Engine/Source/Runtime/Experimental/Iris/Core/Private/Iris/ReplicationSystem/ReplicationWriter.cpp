@@ -77,10 +77,7 @@ const TCHAR* FReplicationWriter::LexToString(const EReplicatedObjectState State)
 		TEXT("PendingCreate"),
 		TEXT("WaitOnCreateConfirmation"),
 		TEXT("Created"),
-		TEXT("PendingFlush"),
 		TEXT("WaitOnFlush"),
-		TEXT("Flushed"),
-		TEXT("Hibernating"),
 		TEXT("PendingTearOff"),
 		TEXT("SubObjectPendingDestroy"),
 		TEXT("CancelPendingDestroy"),
@@ -116,12 +113,17 @@ void FReplicationWriter::FReplicationInfo::SetState(EReplicatedObjectState NewSt
 		break;
 		case EReplicatedObjectState::PendingTearOff:
 		{
-			check(CurrentState == EReplicatedObjectState::PendingTearOff || CurrentState == EReplicatedObjectState::WaitOnCreateConfirmation || CurrentState == EReplicatedObjectState::Created || CurrentState == EReplicatedObjectState::WaitOnDestroyConfirmation);
+			check(CurrentState == EReplicatedObjectState::PendingTearOff || CurrentState == EReplicatedObjectState::WaitOnFlush || CurrentState == EReplicatedObjectState::WaitOnCreateConfirmation || CurrentState == EReplicatedObjectState::Created || CurrentState == EReplicatedObjectState::WaitOnDestroyConfirmation);
 		}
 		break;
 		case EReplicatedObjectState::SubObjectPendingDestroy:
 		{
-			check(CurrentState == EReplicatedObjectState::PendingDestroy || CurrentState == EReplicatedObjectState::SubObjectPendingDestroy || CurrentState == EReplicatedObjectState::WaitOnCreateConfirmation || CurrentState == EReplicatedObjectState::Created || CurrentState == EReplicatedObjectState::WaitOnDestroyConfirmation);
+			check(CurrentState == EReplicatedObjectState::PendingDestroy || CurrentState == EReplicatedObjectState::SubObjectPendingDestroy || CurrentState == EReplicatedObjectState::WaitOnCreateConfirmation || CurrentState == EReplicatedObjectState::Created || CurrentState == EReplicatedObjectState::WaitOnFlush || CurrentState == EReplicatedObjectState::WaitOnDestroyConfirmation);
+		}
+		break;
+		case EReplicatedObjectState::WaitOnFlush:
+		{
+			check(CurrentState != EReplicatedObjectState::Invalid);
 		}
 		break;
 		case EReplicatedObjectState::PendingDestroy:
@@ -432,6 +434,7 @@ void FReplicationWriter::StartReplication(uint32 InternalIndex)
 	Info.IsDestructionInfo = bIsDestructionInfo;
 	Info.IsCreationConfirmed = 0U;
 	Info.TearOff = Data.bTearOff;
+	Info.FlushFlags = GetDefaultFlushFlags();
 	Info.SubObjectPendingDestroy = 0U;
 	Info.IsDeltaCompressionEnabled = BaselineManager->GetDeltaCompressionStatus(InternalIndex) == ENetObjectDeltaCompressionStatus::Allow ? 1U : 0U;
 	Info.LastAckedBaselineIndex = FDeltaCompressionBaselineManager::InvalidBaselineIndex;
@@ -510,6 +513,92 @@ void FReplicationWriter::WriteNetHandleId(FNetBitStreamWriter& Writer, FNetHandl
 	Writer.WriteBits(Handle.GetId(), FNetHandle::IdBits);
 }
 
+uint32 FReplicationWriter::GetDefaultFlushFlags() const
+{
+	// By default we currently always flush if we have pending reliable attachments when EndReplication is called for a NetObject.
+	return EFlushFlags::FlushFlags_FlushReliable;
+}
+
+uint32 FReplicationWriter::GetFlushStatus(uint32 InternalIndex, const FReplicationInfo& Info, uint32 InFlushFlags) const
+{
+	uint32 FlushFlags = EFlushFlags::FlushFlags_None;
+
+	if (InFlushFlags == EFlushFlags::FlushFlags_None)
+	{
+		return FlushFlags;
+	}
+
+	if (!!(InFlushFlags & EFlushFlags::FlushFlags_FlushState) && (Info.HasDirtyChangeMask || HasInFlightStateChanges(InternalIndex, Info) || IsObjectPartOfActiveHugeObject(InternalIndex, Info)))
+	{
+		FlushFlags |= EFlushFlags::FlushFlags_FlushState;
+	}
+
+	if (!!(InFlushFlags & EFlushFlags::FlushFlags_FlushReliable) && !Attachments.IsAllReliableSentAndAcked(ENetObjectAttachmentType::Normal, InternalIndex))
+	{
+		FlushFlags |= EFlushFlags::FlushFlags_FlushReliable;
+	}
+
+	if (!Info.IsSubObject && FlushFlags != FlushFlags_All)
+	{
+		// Check status of SubObjects as well.
+		for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(InternalIndex))
+		{
+			const FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
+			FlushFlags |= GetFlushStatus(SubObjectIndex, SubObjectInfo, InFlushFlags);
+
+			if (FlushFlags == FlushFlags_All)
+			{
+				break;
+			}
+		}
+	}
+
+	return FlushFlags;
+}
+
+void FReplicationWriter::SetPendingDestroyOrSubObjectPendingDestroyState(uint32 InternalIndex, FReplicationInfo& Info)
+{
+	if (Info.IsSubObject)
+	{
+		// Subobject destroyed before its owner is explicitly replicated as state data.
+		FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+		if (ObjectData.IsSubObject())
+		{
+			// If owner is not pending destroy we mark the state of the SubObject to SubObjectPendingDestroy and mark owner as having dirty subobjects which will 
+			// destroy the subobject using the replicated state path of the owner.
+			FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
+			if (OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
+			{
+				ObjectsWithDirtyChanges.SetBit(ObjectData.SubObjectRootIndex);
+				OwnerInfo.HasDirtySubObjects = 1U;
+
+				SetState(InternalIndex, EReplicatedObjectState::SubObjectPendingDestroy);
+				ObjectsPendingDestroy.SetBit(InternalIndex);
+				Info.SubObjectPendingDestroy = 1U;
+				return;
+			}
+		}
+	}
+	else if (Info.HasDirtySubObjects)
+	{
+		// If the owner is destroyed, all subobjects in the EReplicatedObjectState::SubObjectPendingDestroy state must also be marked as PendingDestroy as owner no longer will be replicated
+		for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(InternalIndex))
+		{
+			FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
+			if (SubObjectInfo.GetState() == EReplicatedObjectState::SubObjectPendingDestroy)
+			{
+				SubObjectInfo.SetState(EReplicatedObjectState::PendingDestroy);
+				SubObjectInfo.SubObjectPendingDestroy = 0U;
+			}
+		}
+	}
+				
+	ObjectsPendingDestroy.SetBit(InternalIndex);
+	ObjectsWithDirtyChanges.ClearBit(InternalIndex);
+	SetState(InternalIndex, EReplicatedObjectState::PendingDestroy);				
+	Info.HasDirtyChangeMask = 0U;
+}
+
 void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 {
 	IRIS_PROFILER_SCOPE(FReplicationWriter_ScopeUpdate);
@@ -517,13 +606,21 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 	auto NewObjectFunctor = [this](uint32 Index)
 	{
 		// We can only start replicating an object that is not currently replicated
-		// Later on we will support "cancelling" destroy objects that are flushing state data
 		FReplicationInfo& Info = GetReplicationInfo(Index);
 		const EReplicatedObjectState State = Info.GetState();
 
 		if (State == EReplicatedObjectState::Invalid)
 		{
 			StartReplication(Index);
+		}
+		else if (State == EReplicatedObjectState::WaitOnFlush)
+		{			
+			if (ensureAlwaysMsgf(!!Info.TearOff, TEXT("We cannot cancel flush for an object pending tearoff.")))
+			{
+				// If we are waiting on flush but are re-added to scope we reset flush flags to default.
+				Info.FlushFlags = GetDefaultFlushFlags();
+				SetState(Index, EReplicatedObjectState::Created);
+			}
 		}
 		else if (State == EReplicatedObjectState::WaitOnDestroyConfirmation || State == EReplicatedObjectState::CancelPendingDestroy)
 		{
@@ -591,50 +688,24 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 				ObjectsPendingDestroy.SetBit(Index);
 				SetState(Index, EReplicatedObjectState::WaitOnDestroyConfirmation);
 			}
-			else if (State < EReplicatedObjectState::PendingDestroy)
+			else if (const uint32 FlushFlags = GetFlushStatus(Index, Info, Info.FlushFlags))
 			{
-				// Handle special inlined destroy path for subobjects
-				if (Info.IsSubObject)
-				{
-					FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(Index);
-					if (ObjectData.IsSubObject())
-					{
-						// If owner is not pending destroy we mark it as dirty so that we can replicate subobject destruction properly
-						// We might get away with not doing this if owner or subobject does not have any unconfirmed changes in flight.
-						FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
-						if (OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
-						{
-							ObjectsWithDirtyChanges.SetBit(ObjectData.SubObjectRootIndex);
-							OwnerInfo.HasDirtySubObjects = 1U;
+				// Store info about what we need to flush
+				Info.FlushFlags = FlushFlags;
+				SetState(Index, EReplicatedObjectState::WaitOnFlush);
 
-							SetState(Index, EReplicatedObjectState::SubObjectPendingDestroy);
-							ObjectsPendingDestroy.SetBit(Index);
-							Info.SubObjectPendingDestroy = 1U;			
-			
-							return;
-						}
-					}
-				}
-				// Subobject owner should try to fixup any objects in SubObjectPendingDestroyState
-				else if (Info.HasDirtySubObjects)
+				// If we do not have any state data to flush we can clear the has dirty states flag
+				if ((FlushFlags & FlushFlags_FlushState) == 0U)
 				{
-					for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(Index))
-					{
-						FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
-						if (SubObjectInfo.GetState() == EReplicatedObjectState::SubObjectPendingDestroy)
-						{
-							SubObjectInfo.SetState(EReplicatedObjectState::PendingDestroy);
-							SubObjectInfo.SubObjectPendingDestroy = 0U;
-						}
-					}
+					Info.HasDirtyChangeMask = 0U;
 				}
-				
 
-				SetState(Index, EReplicatedObjectState::PendingDestroy);
+				// Mark object as pending destroy so that we can poll the flush status in WriteObjectPendingDestroy
 				ObjectsPendingDestroy.SetBit(Index);
-				ObjectsWithDirtyChanges.ClearBit(Index);
-
-				Info.HasDirtyChangeMask = 0U;
+			}
+			else
+			{
+				SetPendingDestroyOrSubObjectPendingDestroyState(Index, Info);
 			}
 		}
 		else if (State == EReplicatedObjectState::PermanentlyDestroyed)
@@ -651,11 +722,13 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 	ObjectsInScope.Combine(ObjectsPendingDestroy, FNetBitArrayBase::AndNotOp);
 }
 
-void FReplicationWriter::InternalUpdateDirtyChangeMasks(const FChangeMaskCache& CachedChangeMasks, uint32 bTearOff)
+void FReplicationWriter::InternalUpdateDirtyChangeMasks(const FChangeMaskCache& CachedChangeMasks, EFlushFlags ExtraFlushFlags, bool bMarkForTearOff)
 {
 	IRIS_PROFILER_SCOPE(FReplicationWriter_UpdateDirtyChangeMasks);
 
+	const uint32 MarkForTearOff = bMarkForTearOff ? 1U : 0U;
 	const ChangeMaskStorageType* StoragePtr = CachedChangeMasks.Storage.GetData();
+
 	for (const auto& Entry : CachedChangeMasks.Indices)
 	{
 		if (!ObjectsInScope.GetBit(Entry.InternalIndex))
@@ -669,7 +742,10 @@ void FReplicationWriter::InternalUpdateDirtyChangeMasks(const FChangeMaskCache& 
 		if (Entry.bMarkSubObjectOwnerDirty == 0U)
 		{		
 			// Mark object for TearOff, that is that we will stop replication as soon as the tear-off is acknowledged
-			Info.TearOff = bTearOff;
+			Info.TearOff = MarkForTearOff;
+
+			// Update flush flags
+			Info.FlushFlags = Info.FlushFlags | ExtraFlushFlags;
 
 			// Merge in dirty changes
 			if (Entry.bHasDirtyChangeMask)
@@ -685,10 +761,6 @@ void FReplicationWriter::InternalUpdateDirtyChangeMasks(const FChangeMaskCache& 
 				// Mark changemask as dirty
 				Info.HasDirtyChangeMask = 1U;
 			}
-
-			// In order to support flush behavior of tear off objects we should make sure to include everything in the final state https://jira.it.epicgames.com/browse/UENET-1079
-			// We should walk the list of any in-flight changes and include them to the changemask to ensure that
-			// all states are included with the tear-off
 		}
 		else
 		{
@@ -827,6 +899,12 @@ void FReplicationWriter::HandleDeliveredRecord(const FReplicationRecord::FRecord
 				else
 				{
 					SetState(InternalIndex, EReplicatedObjectState::Created);
+
+					// Tear-off is marked as a flush
+					if (Info.TearOff)
+					{
+						SetState(InternalIndex, EReplicatedObjectState::WaitOnFlush);
+					}
 				}
 			}
 			Info.IsCreationConfirmed = 1U;
@@ -890,6 +968,61 @@ void FReplicationWriter::HandleDeliveredRecord(const FReplicationRecord::FRecord
 	if (RecordInfo.HasAttachments)
 	{
 		Attachments.OnPacketDelivered(ENetObjectAttachmentType::Normal, InternalIndex, AttachmentRecord);
+	}
+
+	// Must process WaitOnflush after attachments in order to correctly evaluate flush-status if needed
+	if (Info.GetState() == EReplicatedObjectState::WaitOnFlush)
+	{
+		bool bStillPendingFlush = false;
+		if (RecordInfo.HasChangeMask && !!(Info.FlushFlags & EFlushFlags::FlushFlags_FlushState))
+		{
+			bStillPendingFlush |= (Info.HasDirtyChangeMask || HasInFlightStateChanges(ReplicationRecord.GetInfoForIndex(RecordInfo.NextIndex)) || IsObjectPartOfActiveHugeObject(InternalIndex, Info));
+		}
+
+		if (RecordInfo.HasAttachments && !!(Info.FlushFlags & FlushFlags_FlushReliable))
+		{
+			bStillPendingFlush |= !Attachments.IsAllReliableSentAndAcked(ENetObjectAttachmentType::Normal, InternalIndex);
+		}
+
+		// This is a bit blunt as subobjects might be "acked" later but in this case it will be captured in WriteObjectsPendingDestroy
+		if (!bStillPendingFlush && !Info.IsSubObject)
+		{
+			// Check status of SubObjects as well.
+			for (uint32 SubObjectIndex : NetHandleManager->GetSubObjects(InternalIndex))
+			{
+				const FReplicationInfo& SubObjectInfo = GetReplicationInfo(SubObjectIndex);
+				if (GetFlushStatus(SubObjectIndex, SubObjectInfo, Info.FlushFlags) != FlushFlags_None)
+				{
+					bStillPendingFlush = true;
+					break;
+				}
+			}
+		}
+
+		if (!bStillPendingFlush)
+		{
+			if (Info.TearOff)
+			{
+				SetState(InternalIndex, EReplicatedObjectState::PendingTearOff);
+				ObjectsWithDirtyChanges.SetBit(InternalIndex);
+
+				// Must also mark owner dirty to make sure that we send the tearoff
+				if (Info.IsSubObject)
+				{
+					FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+					if (ObjectData.IsSubObject())
+					{
+						FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
+						ObjectsWithDirtyChanges.SetBit(ObjectData.SubObjectRootIndex);
+						OwnerInfo.HasDirtySubObjects = 1U;
+					}
+				}
+			}
+			else
+			{
+				SetPendingDestroyOrSubObjectPendingDestroyState(InternalIndex, Info);
+			}
+		}
 	}
 }
 
@@ -1024,11 +1157,9 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 			// Give slight priority bump
 			SchedulingPriorities[InternalIndex] += FReplicationWriter::LostStatePriorityBump;
 
-			// Check uncached flag in order to catch if object was added as a subobject or dependent object after data was sent
-			const bool bIsSubObjectOrDependentObject = NetHandleManager->GetSubObjectInternalIndices().GetBit(InternalIndex);
-			if (bIsSubObjectOrDependentObject)
+			if (Info.IsSubObject)
 			{
-				// If this object is a subobject, mark owner dirty as well as subobjects always should be scheduled together with parent
+				// Mark owner dirty as well as subobjects only are scheduled together with owner
 				const FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectData(InternalIndex);
 				uint32 SubObjectOwnerInternalIndex = ObjectData.SubObjectRootIndex;
 
@@ -1188,7 +1319,6 @@ void FReplicationWriter::HandleDroppedRecord(const FReplicationRecord::FRecordIn
 
 		// Object is created, update lost state data unless object are currently being flushed/teared-off or destroyed
 		case EReplicatedObjectState::Created:
-		case EReplicatedObjectState::PendingFlush:
 		case EReplicatedObjectState::WaitOnFlush:
 		{
 			HandleDroppedRecord<EReplicatedObjectState::Created>(CurrentState, RecordInfo, Info, AttachmentRecord);
@@ -1288,7 +1418,7 @@ void FReplicationWriter::CreateObjectRecord(const FNetBitArrayView* ChangeMask, 
 	RecordInfo.ReplicatedObjectState = ObjectInfo.AttachmentType == ENetObjectAttachmentType::HugeObject ? uint8(EReplicatedObjectState::HugeObject) : (uint8)Info.GetState();
 	RecordInfo.HasChangeMask = ChangeMask ? 1U : 0U;
 	RecordInfo.HasAttachments = (ObjectInfo.AttachmentRecord != 0 ? 1U : 0U);
-	RecordInfo.WroteTearOff = Info.TearOff;
+	RecordInfo.WroteTearOff = ObjectInfo.bSentTearOff;
 	RecordInfo.WroteDestroySubObject = Info.SubObjectPendingDestroy;
 	
 	// If we wrote a new baseline we need to store it in the record
@@ -1354,6 +1484,17 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 			continue;
 		}
 
+		if (Info.GetState() == EReplicatedObjectState::WaitOnFlush)
+		{
+			if (GetFlushStatus(InternalIndex, Info, Info.FlushFlags) != EFlushFlags::FlushFlags_None)
+			{
+				continue;
+			}
+			
+			// Object and subobjects are now flushed and can be destroyed
+			SetPendingDestroyOrSubObjectPendingDestroyState(InternalIndex, Info);
+		}
+		
 		if (ObjectData.IsSubObject())
 		{
 			if (Info.SubObjectPendingDestroy)
@@ -1396,7 +1537,7 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 		check(Info.GetState() == EReplicatedObjectState::PendingDestroy);
 
 		// We do not support destroying an object that is currently being sent as a huge object.
-		if (IsDestroyObjectPartOfActiveHugeObject(InternalIndex, Info))
+		if (IsObjectPartOfActiveHugeObject(InternalIndex, Info))
 		{
 			UE_LOG(LogIris, Warning, TEXT("Skipping writing destroy for object ( InternalIndex: %u ) which is part of active huge object."), InternalIndex);
 			bWroteAllDestroyedObjects = false;
@@ -1465,8 +1606,7 @@ bool FReplicationWriter::CanSendObject(uint32 InternalIndex) const
 	// Don't send more recent state that could arrive before the huge state. We only need to check the parent.
 	if (IsActiveHugeObject(InternalIndex))
 	{
-		const bool bIsSubObjectOrDependentObject = NetHandleManager->GetSubObjectInternalIndices().GetBit(InternalIndex);
-		if (!bIsSubObjectOrDependentObject)
+		if (!Info.IsSubObject)
 		{
 			return false;
 		}
@@ -1584,12 +1724,15 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 	const bool bWriteAttachments = bHasAttachments & !!(WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_Attachments);
 	BatchEntry.bHasUnsentAttachments = bHasAttachments;
 
+	// Check if we must defer tearoff until after flush
+	const bool bSentTearOff = Info.TearOff && (GetFlushStatus(InternalIndex, Info, Info.FlushFlags) == EFlushFlags::FlushFlags_None);
+
 	Context.SetIsInitState(bIsInitialState);
 
 	// Update flag since dependent objects might change their status after creation
 	Info.IsSubObject = ObjectData.IsSubObject();
 
-	if (bHasState | bWriteAttachments | Info.TearOff | Info.SubObjectPendingDestroy)
+	if (bHasState | bWriteAttachments | bSentTearOff | Info.SubObjectPendingDestroy)
 	{
 		const FNetHandle NetHandle = ObjectData.Handle;
 #if UE_NET_TRACE_ENABLED
@@ -1612,16 +1755,15 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 			WriteNetHandleId(Writer, NetHandle);
 		}
 
-		// TearOff
-		Writer.WriteBool(Info.TearOff);
+		// Store position of header bits
+		const uint32 ReplicatedDestroyHeaderBitPos = Writer.GetPosBits();
 
-		// SubObject pending destroy
-		if (Writer.WriteBool(Info.SubObjectPendingDestroy))
+		// We only need to write this for actual replicated objects
+		const bool bWriteReplicatedDestroyHeader = !bIsObjectIndexForAttachment;
+		if (bWriteReplicatedDestroyHeader)
 		{
-			UE_NET_TRACE_SCOPE(SubObjectPendingDestroy, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
-			// Write bit indicating if the static instance should be destroyed or not (could skip the bit for dynamic objects)
-			const bool bShouldDestroyInstance = ObjectData.Handle.IsDynamic() || NetHandleManager->GetIsDestroyedStartupObject(InternalIndex);
-			Writer.WriteBool(bShouldDestroyInstance);
+			// Write destroy header bits, we always want to write the same number of bits to be able to update the header afterwards we know what data made it into the packet
+			Writer.WriteBits(0U, ReplicatedDestroyHeaderFlags_BitCount);
 		}
 
 		if (Writer.WriteBool(bHasState))
@@ -1825,6 +1967,29 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 		{
 			return EWriteObjectStatus::BitStreamOverflow;
 		}
+
+		if (bWriteReplicatedDestroyHeader)
+		{
+			// Rewrite destroy header if necessary	
+			if (bSentTearOff || Info.SubObjectPendingDestroy)
+			{
+				uint32 ReplicatedDestroyHeaderFlags = 0U;
+
+				// TearOff			
+				ReplicatedDestroyHeaderFlags |= bSentTearOff ? ReplicatedDestroyHeaderFlags_TearOff : ReplicatedDestroyHeaderFlags_None;
+
+				// Write SubObject destroy
+				if (Info.SubObjectPendingDestroy)
+				{
+					ReplicatedDestroyHeaderFlags |= ReplicatedDestroyHeaderFlags_EndReplication;
+					const bool bShouldDestroyInstance = ObjectData.Handle.IsDynamic() || NetHandleManager->GetIsDestroyedStartupObject(InternalIndex);					
+					ReplicatedDestroyHeaderFlags |= bShouldDestroyInstance ? ReplicatedDestroyHeaderFlags_DestroyInstance : ReplicatedDestroyHeaderFlags_None;
+				}
+
+				FNetBitStreamWriteScope WriteScope(Writer, ReplicatedDestroyHeaderBitPos);
+				Writer.WriteBits(ReplicatedDestroyHeaderFlags, ReplicatedDestroyHeaderFlags_BitCount);
+			}
+		}
 	}
 
 	// Success so far. Fill in batch entry. Keep index to update info later as the array can resize.
@@ -1836,7 +2001,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 		FinalBatchEntry.bIsInitialState = bIsInitialState;
 		FinalBatchEntry.InternalIndex = InternalIndex;
 		FinalBatchEntry.bHasDirtySubObjects = false;
-		FinalBatchEntry.bSentTearOff = Info.TearOff;
+		FinalBatchEntry.bSentTearOff = bSentTearOff;
 		FinalBatchEntry.bSentDestroySubObject = Info.SubObjectPendingDestroy;
 		FinalBatchEntry.NewBaselineIndex = CreatedBaselineIndex;
 	}
@@ -2327,10 +2492,17 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 		{
 			SetState(BatchObjectInfo.InternalIndex, EReplicatedObjectState::WaitOnCreateConfirmation);
 		}
-		else if (BatchObjectInfo.bSentTearOff)
+		else if (Info.TearOff)
 		{
-			SetState(BatchObjectInfo.InternalIndex, EReplicatedObjectState::PendingTearOff);
-			SetState(BatchObjectInfo.InternalIndex, EReplicatedObjectState::WaitOnDestroyConfirmation);
+			if (BatchObjectInfo.bSentTearOff)
+			{
+				SetState(BatchObjectInfo.InternalIndex, EReplicatedObjectState::PendingTearOff);
+				SetState(BatchObjectInfo.InternalIndex, EReplicatedObjectState::WaitOnDestroyConfirmation);
+			}
+			else
+			{
+				SetState(BatchObjectInfo.InternalIndex, EReplicatedObjectState::WaitOnFlush);
+			}
 		}
 		else if (BatchObjectInfo.bSentDestroySubObject)
 		{			
@@ -2701,6 +2873,28 @@ void FReplicationWriter::InvalidateBaseline(uint32 InternalIndex, FReplicationIn
 	Info.PendingBaselineIndex = FDeltaCompressionBaselineManager::InvalidBaselineIndex;
 }
 
+bool FReplicationWriter::HasInFlightStateChanges(const FReplicationRecord::FRecordInfo* RecordInfo) const
+{
+	while (RecordInfo)
+	{
+		if (RecordInfo->HasChangeMask)
+		{
+			return true;
+		}
+		RecordInfo = ReplicationRecord.GetInfoForIndex(RecordInfo->NextIndex);
+	};
+
+	return false;
+}
+
+bool FReplicationWriter::HasInFlightStateChanges(uint32 InternalIndex, const FReplicationInfo& Info) const
+{
+	const FReplicationRecord::FRecordInfoList& RecordInfoList = ReplicatedObjectsRecordInfoLists[InternalIndex];
+	const FReplicationRecord::FRecordInfo* CurrentRecordInfo = ReplicationRecord.GetInfoForIndex(RecordInfoList.FirstRecordIndex);
+
+	return HasInFlightStateChanges(CurrentRecordInfo);
+}
+
 bool FReplicationWriter::PatchupObjectChangeMaskWithInflightChanges(uint32 InternalIndex, FReplicationInfo& Info)
 {
 	bool bInFlightChangesAdded = false;
@@ -2732,7 +2926,7 @@ void FReplicationWriter::SetNetExports(FNetExports& InNetExports)
 	NetExports = &InNetExports;
 }
 
-bool FReplicationWriter::IsDestroyObjectPartOfActiveHugeObject(uint32 InternalIndex, const FReplicationInfo& Info) const
+bool FReplicationWriter::IsObjectPartOfActiveHugeObject(uint32 InternalIndex, const FReplicationInfo& Info) const
 {
 	if (HugeObjectContext.SendStatus == EHugeObjectSendStatus::Idle)
 	{

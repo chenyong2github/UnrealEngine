@@ -150,13 +150,13 @@ UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObjectWithDynamicSt
 	return CreatedObject;
 }
 
-void FReplicationSystemTestNode::DestroyObject(UReplicatedTestObject* Object)
+void FReplicationSystemTestNode::DestroyObject(UReplicatedTestObject* Object, EEndReplicationFlags EndReplicationFlags)
 {
 	// Destroy handle
 	check(Object && Object->NetHandle.IsValid());
 
-	// Destroy the handle
-	ReplicationBridge->EndReplication(Object);
+	// End replication for the handle
+	ReplicationBridge->EndReplication(Object, EndReplicationFlags);
 
 	// Release ref
 	CreatedObjects.Remove(TStrongObjectPtr<UObject>(Object));
@@ -277,7 +277,7 @@ void FReplicationSystemTestNode::DeliverTo(FReplicationSystemTestNode& Dest, uin
 	else
 	{
 		UE_NET_TRACE_PACKET_DROPPED(Dest.GetNetTraceId(), RemoteConnectionId, Packet.PacketId, ENetTracePacketType::Incoming);
-		UE_NET_TRACE_PACKET_DROPPED(GetNetTraceId(), RemoteConnectionId, Packet.PacketId, ENetTracePacketType::Outgoing);
+		UE_NET_TRACE_PACKET_DROPPED(GetNetTraceId(), LocalConnectionId, Packet.PacketId, ENetTracePacketType::Outgoing);
 	}
 
 	// If this triggers an assert, ensure that SendTo() actually wrote any packets before.

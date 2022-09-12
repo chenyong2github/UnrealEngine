@@ -225,6 +225,11 @@ bool FNetObjectAttachmentSendQueue::IsAllSentAndAcked() const
 	return UnreliableQueue.IsEmpty() && (ReliableQueue == nullptr || ReliableQueue->IsAllSentAndAcked());
 }
 
+bool FNetObjectAttachmentSendQueue::IsAllReliableSentAndAcked() const
+{
+	return ReliableQueue == nullptr || ReliableQueue->IsAllSentAndAcked();
+}
+
 bool FNetObjectAttachmentSendQueue::IsSafeToDestroy() const
 {
 	return UnreliableQueue.IsEmpty() && (ReliableQueue == nullptr || ReliableQueue->IsSafeToDestroy());
@@ -469,7 +474,18 @@ bool FNetObjectAttachmentsWriter::IsAllSentAndAcked(ENetObjectAttachmentType Typ
 	const FNetObjectAttachmentSendQueue* Queue = GetQueue(Type, ObjectIndex);
 	if (Queue == nullptr)
 	{
-		return false;
+		return true;
+	}
+
+	return Queue->IsAllSentAndAcked();
+}
+
+bool FNetObjectAttachmentsWriter::IsAllReliableSentAndAcked(ENetObjectAttachmentType Type, uint32 ObjectIndex) const
+{
+	const FNetObjectAttachmentSendQueue* Queue = GetQueue(Type, ObjectIndex);
+	if (Queue == nullptr)
+	{
+		return true;
 	}
 
 	return Queue->IsAllSentAndAcked();

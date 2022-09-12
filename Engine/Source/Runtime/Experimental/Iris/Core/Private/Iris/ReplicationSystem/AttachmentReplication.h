@@ -63,6 +63,8 @@ public:
 
 	bool IsAllSentAndAcked() const;
 
+	bool IsAllReliableSentAndAcked() const;
+
 	void SetUnreliableQueueCapacity(uint32 QueueCapacity);
 
 private:
@@ -109,6 +111,10 @@ public:
 	bool HasUnsentAttachments(ENetObjectAttachmentType Type, uint32 ObjectIndex) const;
 	// Whether all queued attachments have been sent and that all reliable ones have been acked.
 	bool IsAllSentAndAcked(ENetObjectAttachmentType Type, uint32 ObjectIndex) const;
+
+	// Whether all queued reliable attachments have been sent and acked
+	bool IsAllReliableSentAndAcked(ENetObjectAttachmentType Type, uint32 ObjectIndex) const;
+
 	// Whether the queue can be destroyed without causing issues if more attachments are queued to this instance.
 	bool IsSafeToDestroy(ENetObjectAttachmentType Type, uint32 ObjectIndex) const;
 

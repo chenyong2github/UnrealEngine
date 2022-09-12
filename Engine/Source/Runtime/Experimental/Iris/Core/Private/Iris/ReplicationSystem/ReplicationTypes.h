@@ -27,4 +27,13 @@ struct FReplicationParameters
 #endif
 };
 
+enum EReplicatedDestroyHeaderFlags : uint32
+{
+	ReplicatedDestroyHeaderFlags_None						= 0U,
+	ReplicatedDestroyHeaderFlags_TearOff					= 1U << 0U,
+	ReplicatedDestroyHeaderFlags_EndReplication				= ReplicatedDestroyHeaderFlags_TearOff << 1U,
+	ReplicatedDestroyHeaderFlags_DestroyInstance			= ReplicatedDestroyHeaderFlags_EndReplication << 1U,
+	ReplicatedDestroyHeaderFlags_BitCount					= 3U
+};
+
 }

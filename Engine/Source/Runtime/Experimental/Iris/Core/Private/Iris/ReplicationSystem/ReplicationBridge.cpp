@@ -515,6 +515,12 @@ void UReplicationBridge::EndReplication(FNetHandle Handle, EEndReplicationFlags 
 				InternalAddDestructionInfo(Handle, *Parameters);
 			}
 
+			// If the flush flag is set, we have to explicitly copy the final state and propagate pending changes as we do not expect the source object to be kept alive after the call to EndReplication
+			if (EnumHasAnyFlags(EndReplicationFlags, EEndReplicationFlags::Flush))
+			{
+				InternalFlushStateData(Handle);
+			}
+
 			DestroyLocalNetHandle(Handle);	
 		}
 	}
@@ -632,6 +638,79 @@ void UReplicationBridge::TearOff(FNetHandle Handle, bool bIsImmediate)
 	}	
 }
 
+void UReplicationBridge::InternalFlushStateData(UE::Net::FNetSerializationContext& SerializationContext, UE::Net::Private::FChangeMaskCache& ChangeMaskCache, UE::Net::FNetBitStreamWriter& ChangeMaskWriter, uint32 InternalObjectIndex)
+{
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
+	if (InternalObjectIndex == FNetHandleManager::InvalidInternalIndex)
+	{
+		return;
+	}
+
+	FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+
+	// Copy state data, if object already is torn off there is nothing to do
+	if (ObjectData.bTearOff)
+	{
+		return;
+	}
+
+	for (FInternalNetHandle SubObjectInternalIndex : NetHandleManager->GetChildSubObjects(InternalObjectIndex))
+	{
+		InternalFlushStateData(SerializationContext, ChangeMaskCache, ChangeMaskWriter, SubObjectInternalIndex);
+	}
+
+	if (EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll | EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
+	{
+		CallPreSendUpdateSingleHandle(ObjectData.Handle);
+	} 
+
+	FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, ChangeMaskCache, *NetHandleManager, SerializationContext, InternalObjectIndex);
+}
+
+void UReplicationBridge::InternalFlushStateData(FNetHandle Handle)
+{
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
+	IRIS_PROFILER_SCOPE(InternalFlushStateData);
+
+	const uint32 InternalObjectIndex = NetHandleManager->GetInternalIndex(Handle);
+	if (InternalObjectIndex == FNetHandleManager::InvalidInternalIndex)
+	{
+		return;
+	}
+
+	FNetHandleManager::FReplicatedObjectData& ObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(InternalObjectIndex);
+
+	FChangeMaskCache ChangeMaskCache;
+	FNetBitStreamWriter ChangeMaskWriter;
+
+	// Setup context
+	FNetSerializationContext SerializationContext;
+	FInternalNetSerializationContext InternalContext(ReplicationSystem);
+	SerializationContext.SetInternalContext(&InternalContext);
+
+	InternalFlushStateData(SerializationContext, ChangeMaskCache, ChangeMaskWriter, InternalObjectIndex);
+
+	// Iterate over connections and propagate dirty changemasks to all connections already scoping this object
+	if (ChangeMaskCache.Indices.Num() > 0)
+	{
+		FReplicationConnections& Connections = ReplicationSystem->GetReplicationSystemInternal()->GetConnections();
+
+		auto&& UpdateDirtyChangeMasks = [&Connections, &ChangeMaskCache](uint32 ConnectionId)
+		{
+			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);			
+
+			const bool bMarkForTearOff = false;
+			Conn->ReplicationWriter->ForceUpdateDirtyChangeMasks(ChangeMaskCache, FReplicationWriter::FlushFlags_FlushState, bMarkForTearOff);
+		};
+		const FNetBitArray& ValidConnections = Connections.GetValidConnections();
+		ValidConnections.ForAllSetBits(UpdateDirtyChangeMasks);		
+	}
+}
+
 void UReplicationBridge::InternalTearOff(FNetHandle Handle)
 {
 	using namespace UE::Net;
@@ -641,7 +720,7 @@ void UReplicationBridge::InternalTearOff(FNetHandle Handle)
 
 	const uint32 InternalObjectIndex = NetHandleManager->GetInternalIndex(Handle);
 
-	if (!InternalObjectIndex)
+	if (InternalObjectIndex == FNetHandleManager::InvalidInternalIndex)
 	{
 		return;
 	}
@@ -681,8 +760,9 @@ void UReplicationBridge::InternalTearOff(FNetHandle Handle)
 			// Iterate over connections and propagate dirty changemasks to all connections already scoping this object
 			auto UpdateDirtyChangeMasks = [&Connections, &ChangeMaskCache](uint32 ConnectionId)
 			{
-				FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);			
-				Conn->ReplicationWriter->TearOffAndUpdateDirtyChangeMasks(ChangeMaskCache);
+				FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
+				const bool bMarkForTearOff = true;
+				Conn->ReplicationWriter->ForceUpdateDirtyChangeMasks(ChangeMaskCache, FReplicationWriter::FlushFlags_None, bMarkForTearOff);
 			};
 			const FNetBitArray& ValidConnections = Connections.GetValidConnections();
 			ValidConnections.ForAllSetBits(UpdateDirtyChangeMasks);		
