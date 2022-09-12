@@ -1127,6 +1127,11 @@ USmartObjectComponent* USmartObjectSubsystem::GetSmartObjectComponent(const FSma
 	return (IsValid(MainCollection) ? MainCollection->GetSmartObjectComponent(ClaimHandle.SmartObjectHandle) : nullptr);
 }
 
+USmartObjectComponent* USmartObjectSubsystem::GetSmartObjectComponentByRequestResult(const FSmartObjectRequestResult& Result) const
+{
+	return (IsValid(MainCollection) ? MainCollection->GetSmartObjectComponent(Result.SmartObjectHandle) : nullptr);
+}
+
 void USmartObjectSubsystem::InitializeRuntime()
 {
 	const UWorld& World = GetWorldRef();

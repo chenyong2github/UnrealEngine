@@ -192,6 +192,16 @@ public:
 	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectClaimHandle& ClaimHandle) const;
 
 	/**
+	 * Returns the component associated to the  given request result
+	 * In some scenarios the component may no longer exist
+	 * but its smart object data could (e.g. streaming)
+	 * @param Result A request result returned by any of the Find methods .
+	 * @return A pointer to the USmartObjectComponent* associated to the handle.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	USmartObjectComponent* GetSmartObjectComponentByRequestResult(const FSmartObjectRequestResult& Result) const;
+
+	/**
 	 * Spatial lookup
 	 * @return First valid smart object in range. Not the closest one, just the one
 	 *		that happens to be retrieved first from space partition
