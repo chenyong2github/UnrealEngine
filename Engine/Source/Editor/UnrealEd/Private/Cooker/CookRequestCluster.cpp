@@ -446,25 +446,30 @@ bool FRequestCluster::Contains(FPackageData* PackageData) const
 	return OwnedPackageDatas.Contains(PackageData);
 }
 
-void FRequestCluster::ClearAndDetachOwnedPackageDatas(TArray<FPackageData*>& OutRequestsToLoad, TArray<TPair<FPackageData*, ESuppressCookReason>>& OutRequestsToDemote)
+void FRequestCluster::ClearAndDetachOwnedPackageDatas(TArray<FPackageData*>& OutRequestsToLoad,
+	TArray<TPair<FPackageData*, ESuppressCookReason>>& OutRequestsToDemote,
+	TMap<FPackageData*, TArray<FPackageData*>>& OutRequestGraph)
 {
 	if (bStartAsyncComplete)
 	{
 		check(!GraphSearch);
 		OutRequestsToLoad = MoveTemp(Requests);
 		OutRequestsToDemote = MoveTemp(RequestsToDemote);
+		OutRequestGraph = MoveTemp(RequestGraph);
 		check(OutRequestsToLoad.Num() + OutRequestsToDemote.Num() == OwnedPackageDatas.Num())
 	}
 	else
 	{
 		OutRequestsToLoad = OwnedPackageDatas.Array();
 		OutRequestsToDemote.Reset();
+		OutRequestGraph.Reset();
 	}
 	InRequests.Empty();
 	Requests.Empty();
 	RequestsToDemote.Empty();
 	OwnedPackageDatas.Empty();
 	GraphSearch.Reset();
+	RequestGraph.Reset();
 	NextRequest = 0;
 }
 
@@ -551,6 +556,7 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 	Algo::TopologicalSort(NewRequests, GetElementDependencies, Algo::ETopologicalSort::AllowCycles);
 	Requests = MoveTemp(NewRequests);
 
+	RequestGraph = MoveTemp(GraphSearch->GetGraphEdges());
 	GraphSearch.Reset();
 	bDependenciesComplete = true;
 }

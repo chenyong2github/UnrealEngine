@@ -2381,8 +2381,9 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 		{
 			TArray<FPackageData*> RequestsToLoad;
 			TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
-			RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote);
-			AssignRequests(RequestsToLoad, RequestQueue);
+			TMap<FPackageData*, TArray<FPackageData*>> RequestGraph;
+			RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote, RequestGraph);
+			AssignRequests(RequestsToLoad, RequestQueue, MoveTemp(RequestGraph));
 			for (TPair<FPackageData*, ESuppressCookReason>& Pair : RequestsToDemote)
 			{
 				DemoteToIdle(*Pair.Key, ESendFlags::QueueAdd, Pair.Value);
@@ -2420,7 +2421,8 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 	OutNumPushed += NumInBatch;
 }
 
-void UCookOnTheFlyServer::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, UE::Cook::FRequestQueue& RequestQueue)
+void UCookOnTheFlyServer::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, UE::Cook::FRequestQueue& RequestQueue,
+	TMap<UE::Cook::FPackageData*, TArray<UE::Cook::FPackageData*>>&& RequestGraph)
 {
 	using namespace UE::Cook;
 
@@ -2432,7 +2434,7 @@ void UCookOnTheFlyServer::AssignRequests(TArrayView<UE::Cook::FPackageData*> Req
 			return;
 		}
 		TArray<FWorkerId> Assignments;
-		CookDirector->AssignRequests(Requests, Assignments);
+		CookDirector->AssignRequests(Requests, Assignments, MoveTemp(RequestGraph));
 		check(Assignments.Num() == NumRequests);
 		for (int32 Index = 0; Index < NumRequests; ++Index)
 		{
@@ -8592,7 +8594,8 @@ void UCookOnTheFlyServer::CancelAllQueues()
 	{
 		TArray<FPackageData*> RequestsToLoad;
 		TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
-		RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote);
+		TMap<FPackageData*, TArray<FPackageData*>> UnusedRequestGraph;
+		RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote, UnusedRequestGraph);
 		for (FPackageData* PackageData : RequestsToLoad)
 		{
 			DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
@@ -9668,7 +9671,7 @@ void UCookOnTheFlyServer::BeginCookEditorSystems()
 namespace UE::Cook
 {
 
-/** MultiprocessCook collector for FEDLCookChecker data. */
+/** CookMultiprocess collector for FEDLCookChecker data. */
 class FEDLMPCollector : public IMPCollector
 {
 public:

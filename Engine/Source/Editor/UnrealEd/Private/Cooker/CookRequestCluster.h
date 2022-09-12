@@ -77,7 +77,8 @@ public:
 	 * If called before Process sets bOutComplete=true, all packages are put in OutRequestToLoad and are unsorted.
 	 */
 	void ClearAndDetachOwnedPackageDatas(TArray<FPackageData*>& OutRequestsToLoad,
-		TArray<TPair<FPackageData*, ESuppressCookReason>>& OutRequestsToDemote);
+		TArray<TPair<FPackageData*, ESuppressCookReason>>& OutRequestsToDemote,
+		TMap<FPackageData*, TArray<FPackageData*>>& OutRequestGraph);
 
 	/**
 	 * Create clusters(s) for all the given name or packagedata requests and append them to OutClusters.
@@ -319,6 +320,7 @@ private:
 	TArray<const ITargetPlatform*> Platforms;
 	TArray<ICookedPackageWriter*> PackageWriters;
 	FPackageDataSet OwnedPackageDatas;
+	TMap<FPackageData*, TArray<FPackageData*>> RequestGraph;
 	FString DLCPath;
 	TUniquePtr<FGraphSearch> GraphSearch; // Needs to be dynamic-allocated because of large alignment
 	UCookOnTheFlyServer& COTFS;

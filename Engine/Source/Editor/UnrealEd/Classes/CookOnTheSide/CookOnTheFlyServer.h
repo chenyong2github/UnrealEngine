@@ -445,9 +445,10 @@ private:
 	void PumpRequests(UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
 	/**
 	 * Assign the requests found in PumpRequests; either pushing them to ReadyRequests if SingleProcess Cook or
-	 * to CookWorkers if MultiProcess.
+	 * to CookWorkers if MultiProcess. Input Requests have been sorted by leaf to root load order.
 	 */
-	void AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, UE::Cook::FRequestQueue& RequestQueue);
+	void AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, UE::Cook::FRequestQueue& RequestQueue,
+		TMap<UE::Cook::FPackageData*, TArray<UE::Cook::FPackageData*>>&& RequestGraph);
 	/**
 	 * Multiprocess cook: Notify the CookDirector that a package it assigned to a worker was demoted
 	 * due to e.g. cancelled cook and should be removed from the CookWorker.

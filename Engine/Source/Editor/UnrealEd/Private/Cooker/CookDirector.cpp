@@ -8,6 +8,7 @@
 #include "CookWorkerServer.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CoreGlobals.h"
+#include "LoadBalanceCookBurden.h"
 #include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -26,39 +27,26 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS)
 	WorkersStalledStartTimeSeconds = MAX_flt;
 	WorkersStalledWarnTimeSeconds = MAX_flt;
 
-	ParseDesiredNumRemoteWorkers();
-	WorkerConnectPort = Sockets::COOKDIRECTOR_DEFAULT_REQUEST_CONNECTION_PORT;
-	FParse::Value(FCommandLine::Get(), TEXT("-CookDirectorListenPort="), WorkerConnectPort);
-	ParseShowWorkerOption();
-
-	if (DesiredNumRemoteWorkers > 0)
-	{
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
-		if (!SocketSubsystem)
-		{
-			UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: platform does not support network sockets. CookWorkers will be disabled."));
-			DesiredNumRemoteWorkers = 0;
-		}
-	}
-
-	if (DesiredNumRemoteWorkers > 0)
-	{
-		TryCreateWorkerConnectSocket();
-	}
-	UE_LOG(LogCook, Display, TEXT("MultiprocessCook is enabled with %d CookWorker processes."), DesiredNumRemoteWorkers);
+	ParseConfig();
+	ResetCookWorkerCount();
+	UE_LOG(LogCook, Display, TEXT("CookMultiprocess is enabled with %d CookWorker processes."), CookWorkerCount);
 }
 
-void FCookDirector::ParseDesiredNumRemoteWorkers()
+void FCookDirector::ParseConfig()
 {
-	DesiredNumRemoteWorkers = 4;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("CookWorkerCount"), DesiredNumRemoteWorkers, GEditorIni);
-	FParse::Value(FCommandLine::Get(), TEXT("-CookWorkerCount="), DesiredNumRemoteWorkers);
-}
-
-void FCookDirector::ParseShowWorkerOption()
-{
-	FString Text;
 	const TCHAR* CommandLine = FCommandLine::Get();
+	FString Text;
+
+	// CookWorkerCount
+	RequestedCookWorkerCount = 3;
+	GConfig->GetInt(TEXT("CookSettings"), TEXT("CookWorkerCount"), RequestedCookWorkerCount, GEditorIni);
+	FParse::Value(CommandLine, TEXT("-CookWorkerCount="), RequestedCookWorkerCount);
+
+	// CookDirectorListenPort
+	WorkerConnectPort = Sockets::COOKDIRECTOR_DEFAULT_REQUEST_CONNECTION_PORT;
+	FParse::Value(CommandLine, TEXT("-CookDirectorListenPort="), WorkerConnectPort);
+
+	// ShowCookWorker
 	if (!FParse::Value(CommandLine, TEXT("-ShowCookWorker="), Text))
 	{
 		if (FParse::Param(CommandLine, TEXT("ShowCookWorker")))
@@ -66,7 +54,6 @@ void FCookDirector::ParseShowWorkerOption()
 			Text = TEXT("SeparateWindows");
 		}
 	}
-
 	if (Text == TEXT("CombinedLogs")) { ShowWorkerOption = EShowWorker::CombinedLogs; }
 	else if (Text == TEXT("SeparateLogs")) { ShowWorkerOption = EShowWorker::SeparateLogs; }
 	else if (Text == TEXT("SeparateWindows")) { ShowWorkerOption = EShowWorker::SeparateWindows; }
@@ -78,6 +65,38 @@ void FCookDirector::ParseShowWorkerOption()
 		}
 		ShowWorkerOption = EShowWorker::CombinedLogs;
 	}
+
+	// LoadBalanceAlgorithm
+	LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden;
+	if (FParse::Value(CommandLine, TEXT("-CookLoadBalance="), Text))
+	{
+		if (Text == TEXT("Striped")) { LoadBalanceAlgorithm = ELoadBalanceAlgorithm::Striped; }
+		else if (Text == TEXT("CookBurden")) { LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden; }
+		else
+		{
+			UE_LOG(LogCook, Warning, TEXT("Invalid selection \"%s\" for -CookLoadBalance."), *Text);
+		}
+	}
+}
+
+void FCookDirector::ResetCookWorkerCount()
+{
+	CookWorkerCount = RequestedCookWorkerCount;
+	if (CookWorkerCount > 0)
+	{
+		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
+		if (!SocketSubsystem)
+		{
+			UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: platform does not support network sockets. CookWorkers will be disabled."));
+			CookWorkerCount = 0;
+		}
+	}
+
+	if (CookWorkerCount > 0)
+	{
+		TryCreateWorkerConnectSocket();
+	}
+
 }
 
 FCookDirector::~FCookDirector()
@@ -98,7 +117,8 @@ FCookDirector::~FCookDirector()
 	Sockets::CloseSocket(WorkerConnectSocket);
 }
 
-void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, TArray<FWorkerId>& OutAssignments)
+void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, TArray<FWorkerId>& OutAssignments,
+	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph)
 {
 	InitializeWorkers();
 
@@ -125,9 +145,8 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 	check(MaxRemoteIndex >= 0);
 	SortedWorkers.Sort([](const FCookWorkerServer& A, const FCookWorkerServer& B) { return A.GetWorkerId() < B.GetWorkerId(); });
 
-	// Call a LoadBalancing algorithm to split the requests among the LocalWorker and RemoteWorkers
-	// MPCOOKTODO: Implement LoadBalanceGreedy
-	LoadBalanceStriped(SortedWorkers, Requests, OutAssignments);
+	// Call the LoadBalancing algorithm to split the requests among the LocalWorker and RemoteWorkers
+	LoadBalance(SortedWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
 
 	// Split the output array of WorkerId assignments into a batch for each of the RemoteWorkers 
 	TArray<TArray<FPackageData*>> RemoteBatches; // Indexed by WorkerId.GetRemoteIndex()
@@ -275,7 +294,7 @@ void FCookDirector::ShutdownCookSession()
 	PendingConnections.Reset();
 
 	// Restore the FCookDirector to its original state so that it is ready for a new session
-	ParseDesiredNumRemoteWorkers();
+	ResetCookWorkerCount();
 }
 
 void FCookDirector::Register(IMPCollector* Collector)
@@ -364,6 +383,10 @@ FGuid FWorkerConnectMessage::MessageType(TEXT("302096E887DA48F7B079FAFAD0EE5695"
 
 bool FCookDirector::TryCreateWorkerConnectSocket()
 {
+	if (WorkerConnectSocket)
+	{
+		return true;
+	}
 	FString ErrorReason;
 	TSharedPtr<FInternetAddr> ListenAddr;
 	WorkerConnectSocket = Sockets::CreateListenSocket(WorkerConnectPort, ListenAddr, WorkerConnectAuthority,
@@ -372,7 +395,7 @@ bool FCookDirector::TryCreateWorkerConnectSocket()
 	{
 		UE_LOG(LogCook, Error, TEXT("CookDirector could not create listen socket, CookWorkers will be disabled. Reason: %s."),
 			*ErrorReason);
-		DesiredNumRemoteWorkers = 0;
+		CookWorkerCount = 0;
 		return false;
 	}
 	return true;
@@ -381,7 +404,7 @@ bool FCookDirector::TryCreateWorkerConnectSocket()
 
 void FCookDirector::InitializeWorkers()
 {
-	if (RemoteWorkers.Num() >= DesiredNumRemoteWorkers)
+	if (RemoteWorkers.Num() >= CookWorkerCount)
 	{
 		return;
 	}
@@ -400,7 +423,7 @@ void FCookDirector::InitializeWorkers()
 	}
 	// Add RemoteWorkers, pulling the RemoteIndex id from the UnusedRemoteIndexes if any exist
 	// otherwise use the next integer because all indexes up to RemoteWorkers.Num() are in use.
-	while (RemoteWorkers.Num() < DesiredNumRemoteWorkers)
+	while (RemoteWorkers.Num() < CookWorkerCount)
 	{
 		int32 RemoteIndex;
 		if (UnusedRemoteIndexes.Num())
@@ -586,7 +609,8 @@ bool FDirectorConnectionInfo::TryParseCommandLine()
 	return true;
 }
 
-void FCookDirector::LoadBalanceStriped(TArrayView<FCookWorkerServer*> SortedWorkers, TArrayView<FPackageData*> Requests, TArray<FWorkerId>& OutAssignments)
+void FCookDirector::LoadBalance(TConstArrayView<FCookWorkerServer*> SortedWorkers, TArrayView<FPackageData*> Requests,
+	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments)
 {
 	TArray<FWorkerId> AllWorkers;
 	int32 NumAllWorkers = SortedWorkers.Num() + 1;
@@ -597,12 +621,16 @@ void FCookDirector::LoadBalanceStriped(TArrayView<FCookWorkerServer*> SortedWork
 		AllWorkers.Add(Worker->GetWorkerId());
 	}
 	OutAssignments.Reset(Requests.Num());
-	int32 AllWorkersIndex = 0;
-	for (FPackageData* Request : Requests)
+
+	switch (LoadBalanceAlgorithm)
 	{
-		OutAssignments.Add(AllWorkers[AllWorkersIndex]);
-		AllWorkersIndex = (AllWorkersIndex + 1) % NumAllWorkers;
+	case ELoadBalanceAlgorithm::Striped:
+		return LoadBalanceStriped(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
+	case ELoadBalanceAlgorithm::CookBurden:
+		return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
 	}
+	checkNoEntry();
+	return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
 }
 
 void FCookDirector::AbortWorker(FWorkerId WorkerId)
@@ -615,7 +643,7 @@ void FCookDirector::AbortWorker(FWorkerId WorkerId)
 	{
 		return;
 	}
-	--DesiredNumRemoteWorkers;
+	--CookWorkerCount;
 	TSet<FPackageData*> PackagesToReassign;
 	RemoteWorker->AbortAssignments(PackagesToReassign);
 	if (!RemoteWorker->IsShuttingDown())

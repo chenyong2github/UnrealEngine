@@ -34,8 +34,12 @@ public:
 	FCookDirector(UCookOnTheFlyServer& InCOTFS);
 	~FCookDirector();
 
-	/** Assign the given requests out to CookWorkers (or keep on local COTFS), return the list of assignments. */
-	void AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, TArray<FWorkerId>& OutAssignments);
+	/**
+	 * Assign the given requests out to CookWorkers (or keep on local COTFS), return the list of assignments.
+	 * Input requests have been sorted by leaf to root load order.
+	 */
+	void AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, TArray<FWorkerId>& OutAssignments,
+		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph);
 	/** Notify the CookWorker that owns the cook of the package that the Director wants to take it back. */
 	void RemoveFromWorker(FPackageData& PackageData);
 	/** Periodic tick function. Sends/Receives messages to CookWorkers. */
@@ -77,9 +81,9 @@ private:
 		UE::CompactBinaryTCP::FReceiveBuffer Buffer;
 	};
 	/** Helper for constructor parsing. */
-	void ParseDesiredNumRemoteWorkers();
-	/** Helper for constructor parsing. */
-	void ParseShowWorkerOption();
+	void ParseConfig();
+	/** Sets CookWorkerCount for a new session */
+	void ResetCookWorkerCount();
 	/** Initialization helper: create the listen socket. */
 	bool TryCreateWorkerConnectSocket();
 	/** Initialization helper: add the local Server for a remote worker, worker process not yet created. */
@@ -90,9 +94,10 @@ private:
 	void TickWorkerShutdowns();
 	/** Get the commandline to launch a worker process with. */
 	FString GetWorkerCommandLine(FWorkerId WorkerId);
-	/** Simple assignment that divides requests evenly without considering dependencies or load burden. */
-	void LoadBalanceStriped(TArrayView<FCookWorkerServer*> SortedWorkers, TArrayView<FPackageData*> Requests,
-		TArray<FWorkerId>& OutAssignments);
+	/** Calls the configured LoadBalanceAlgorithm. Input Requests have been sorted by leaf to root load order. */
+	void LoadBalance(TConstArrayView<FCookWorkerServer*> Workers, TArrayView<FPackageData*> Requests,
+		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
+
 	/** Move the given worker from active workers to the list of workers shutting down. */
 	void AbortWorker(FWorkerId WorkerId);
 	/**
@@ -102,6 +107,11 @@ private:
 	void SetWorkersStalled(bool bInWorkersStalled);
 
 private:
+	enum class ELoadBalanceAlgorithm
+	{
+		Striped,
+		CookBurden,
+	};
 	TMap<int32, TUniquePtr<FCookWorkerServer>> RemoteWorkers;
 	TMap<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>> ShuttingDownWorkers;
 	TMap<FGuid, TRefCountPtr<IMPCollector>> MessageHandlers;
@@ -111,10 +121,12 @@ private:
 	FSocket* WorkerConnectSocket = nullptr;
 	double WorkersStalledStartTimeSeconds = 0.;
 	double WorkersStalledWarnTimeSeconds = 0.;
-	int32 DesiredNumRemoteWorkers = 0;
+	int32 RequestedCookWorkerCount = 0;
+	int32 CookWorkerCount = 0;
 	int32 WorkerConnectPort = 0;
 	bool bWorkersStalled = false;
 	EShowWorker ShowWorkerOption = EShowWorker::CombinedLogs;
+	ELoadBalanceAlgorithm LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden;
 
 	friend class UE::Cook::FCookWorkerServer;
 };
