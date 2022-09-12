@@ -151,6 +151,13 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 
 	// Create the immutable metrics.
 	Store->Set(TEXT("Platform"), FString(FPlatformProperties::IniPlatformName()));
+#if PLATFORM_MAC
+#if PLATFORM_MAC_ARM64
+    Store->Set(TEXT("UEBuildArch"), TEXT("AppleSilicon"));
+#else
+    Store->Set(TEXT("UEBuildArch"), TEXT("Intel(Mac)"));
+#endif
+#endif
 	Store->Set(TEXT("OSMajor"), OSMajor);
 	Store->Set(TEXT("OSMinor"), OSMinor);
 	Store->Set(TEXT("OSVersion"), FPlatformMisc::GetOSVersion());
