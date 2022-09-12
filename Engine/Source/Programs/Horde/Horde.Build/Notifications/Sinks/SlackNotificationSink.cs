@@ -2035,6 +2035,9 @@ namespace Horde.Build.Notifications.Sinks
 					id = await _slackClient.PostMessageToThreadAsync(threadId, message);
 				}
 
+				state.Channel = id.Channel;
+				state.Ts = id.Ts;
+
 				await UpdateMessageStateAsync(state.Id, id);
 			}
 			else if (!String.IsNullOrEmpty(state.Ts))

@@ -231,8 +231,8 @@ namespace EpicGames.Slack
 		{
 			PostMessageRequest request = new PostMessageRequest();
 			request.Channel = recipient;
-			request.Ts = ts;
-			request.ThreadTs = threadTs;
+			request.Ts = String.IsNullOrEmpty(ts)? null : ts;
+			request.ThreadTs = String.IsNullOrEmpty(threadTs)? null : threadTs;
 			request.Text = message.Text;
 			request.Blocks = message.Blocks;
 			request.Markdown = message.Markdown;
