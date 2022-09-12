@@ -713,19 +713,7 @@ static const unsigned char ecdsaSecp384r1Asn1Header[] =
                 SecTrustEvaluateWithError(CertTrust, nil);
                 TCFRef<SecKeyRef> CertPubKey;
 
-				if (@available(macOS 11, *))
-				{
-					CertPubKey = SecTrustCopyKey(CertTrust);
-				}
-				else
-				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					// warning: 'SecTrustCopyPublicKey' is deprecated: first deprecated in iOS 14.0 [-Wdeprecated-declarations]
-
-					CertPubKey = SecTrustCopyPublicKey(CertTrust);
-
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				}
+				CertPubKey = SecTrustCopyKey(CertTrust);
 
 				TCFRef<CFDataRef> CertPubKeyData = SecKeyCopyExternalRepresentation(CertPubKey, NULL);
                 if (!CertPubKeyData)

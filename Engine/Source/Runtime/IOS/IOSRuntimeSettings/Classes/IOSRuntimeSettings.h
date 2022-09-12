@@ -30,9 +30,6 @@ enum class EPowerUsageFrameRateLock : uint8
 UENUM()
 	enum class EIOSVersion : uint8
 {
-    /** iOS 14 */
-    IOS_14 = 14 UMETA(DisplayName = "14.0"),
-    
     /** iOS 15 */
     IOS_15 = 15 UMETA(DisplayName = "15.0"),
     
@@ -44,9 +41,7 @@ UENUM()
 enum class EIOSMetalShaderStandard : uint8
 {
     /** Metal Shader 2.3 is the minimum as of UE5.0*/
-    IOSMetalSLStandard_Minimum = 0 UMETA(DisplayName="Minimum, Currently v2.3 (iOS 14.0/tvOS 14.0)"),
-    /** Metal Shaders Compatible With iOS 14.0/tvOS 14.0 or later (std=ios-metal2.3) */
-    IOSMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (iOS 14.0/tvOS 14.0)"),
+    IOSMetalSLStandard_Minimum = 0 UMETA(DisplayName="Minimum, Currently v2.4 (iOS 15.0/tvOS 15.0)"),
     /** Metal Shaders Compatible With iOS 15.0/tvOS 15.0 or later (std=ios-metal2.4) */
     IOSMetalSLStandard_2_4 = 7 UMETA(DisplayName="Metal v2.4 (iOS 15.0/tvOS 15.0)"),
     /** Metal Shaders Compatible With iOS 16.0/tvOS 16.0 or later (std=metal3.0) */

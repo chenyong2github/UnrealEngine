@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 
 		protected override void GetValidSoftwareVersionRange(out string MinVersion, out string? MaxVersion)
 		{
-			MinVersion = "11.0.0";
+			MinVersion = "12.0.0";
 			MaxVersion = null;
 		}
 	}

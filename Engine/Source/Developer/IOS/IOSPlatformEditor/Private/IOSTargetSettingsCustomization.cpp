@@ -1906,7 +1906,7 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 
     if (MinOSPropertyHandle.IsValid())
     {
-        uint8 IOSVersion = (uint8)EIOSVersion::IOS_14;
+        uint8 IOSVersion = (uint8)EIOSVersion::IOS_15;
         if (MinOSPropertyHandle.IsValid())
         {
             MinOSPropertyHandle->GetValue(IOSVersion);
@@ -1934,9 +1934,9 @@ void FIOSTargetSettingsCustomization::UpdateOSVersionWarning()
 		
 		if (bMRTEnabled)
 		{
-			if (EnumValue < (uint8)EIOSVersion::IOS_14)
+			if (EnumValue < (uint8)EIOSVersion::IOS_15)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_14);
+				SetMinVersion((int32)EIOSVersion::IOS_15);
 			}
 		}
 		else
@@ -1954,9 +1954,6 @@ void FIOSTargetSettingsCustomization::UpdateOSVersionWarning()
     switch (ShaderStandard)
     {
         case (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum:
-        case (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3:
-            if (EnumValue < (uint8)EIOSVersion::IOS_14) {IOSVersionWarningTextBox->SetError(TEXT("iOS14 is the Minimum for Metal 2.3")); return;}
-            break;
         case (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_4:
             if (EnumValue < (uint8)EIOSVersion::IOS_15) {IOSVersionWarningTextBox->SetError(TEXT("iOS15 is the Minimum for Metal 2.4")); return;}
             break;
@@ -1977,13 +1974,13 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_14)
+			if (EnumValue < (uint8)EIOSVersion::IOS_15)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_14);
+				SetMinVersion((int32)EIOSVersion::IOS_15);
 			}
 			
 			ShaderVersionPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3)
+			if (EnumValue < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_4)
 			{
 				SetShaderStandard((int32)EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum);
 			}

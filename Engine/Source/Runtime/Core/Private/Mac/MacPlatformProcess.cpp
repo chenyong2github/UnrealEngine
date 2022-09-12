@@ -527,10 +527,7 @@ FProcHandle FMacPlatformProcess::CreateProcInternal(const TCHAR* URL, const TCHA
 
 	if (OptionalWorkingDirectory)
 	{
-		if (@available(macOS 10.15, *))
-		{
-			posix_spawn_file_actions_addchdir_np(&FileActions, TCHAR_TO_UTF8(OptionalWorkingDirectory));
-		}
+		posix_spawn_file_actions_addchdir_np(&FileActions, TCHAR_TO_UTF8(OptionalWorkingDirectory));
 	}
 
 	posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);

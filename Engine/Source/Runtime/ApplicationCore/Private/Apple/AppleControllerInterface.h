@@ -138,7 +138,7 @@ protected:
 		bool bHasReferenceAttitude;
 #endif
 
-		// Workaround for unreliable buttonMenu behavior in iOS/tvOS 14
+		// Workaround for unreliable buttonMenu behavior since iOS/tvOS 14
         bool bPauseWasPressed;
 	};
 	

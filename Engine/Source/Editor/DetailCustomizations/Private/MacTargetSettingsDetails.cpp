@@ -122,19 +122,19 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 		FriendlyRHIName = LOCTEXT("OpenGLES31", "OpenGLES 3.1 (Mobile)");
 		break;
 	case SP_METAL:
-		FriendlyRHIName = LOCTEXT("Metal", "iOS Metal Mobile Renderer (ES3.1, Metal 2.3+, iOS 14.0 or later)");
+		FriendlyRHIName = LOCTEXT("Metal", "iOS Metal Mobile Renderer (ES3.1, Metal 2.4+, iOS 15.0 or later)");
 		break;
 	case SP_METAL_MRT:
-		FriendlyRHIName = LOCTEXT("MetalMRT", "iOS Metal Desktop Renderer (SM5, Metal 2.3+, iOS 14.0 or later)");
+		FriendlyRHIName = LOCTEXT("MetalMRT", "iOS Metal Desktop Renderer (SM5, Metal 2.4+, iOS 15.0 or later)");
 		break;
 	case SP_METAL_TVOS:
-		FriendlyRHIName = LOCTEXT("MetalTV", "tvOS Metal Mobile Renderer (ES3.1, Metal 2.3+, tvOS 14.0 or later)");
+		FriendlyRHIName = LOCTEXT("MetalTV", "tvOS Metal Mobile Renderer (ES3.1, Metal 2.4+, tvOS 15.0 or later)");
 		break;
 	case SP_METAL_MRT_TVOS:
-		FriendlyRHIName = LOCTEXT("MetalMRTTV", "tvOS Metal Desktop Renderer (SM5, Metal 2.3+, tvOS 14.0 or later)");
+		FriendlyRHIName = LOCTEXT("MetalMRTTV", "tvOS Metal Desktop Renderer (SM5, Metal 2.4+, tvOS 15.0 or later)");
 		break;
 	case SP_METAL_SM5:
-		FriendlyRHIName = LOCTEXT("MetalSM5", "Mac Metal Desktop Renderer (SM5, Metal 2.3+, macOS BigSur 11.0 or later)");
+		FriendlyRHIName = LOCTEXT("MetalSM5", "Mac Metal Desktop Renderer (SM5, Metal 2.4+, macOS Monterey 12.0 or later)");
 		break;
 	case SP_METAL_MACES3_1:
 		FriendlyRHIName = LOCTEXT("MetalES3.1", "Mac Metal High-End Mobile Preview (ES3.1)");
@@ -343,8 +343,8 @@ bool FMacTargetSettingsDetails::HandlePostExternalIconCopy(const FString& InChos
 }
 
 static uint32 GMacTargetSettingsMinOSVers[][3] = {
-	{11, 0,0},
-    {12, 0,0}
+	{12,0,0},
+    {13,0,0}
 };
 
 TSharedRef<SWidget> FMacTargetSettingsDetails::OnGetShaderVersionContent()
@@ -393,9 +393,9 @@ void FMacTargetSettingsDetails::SetShaderStandard(int32 Value)
     }
     
     ShaderVersionWarningTextBox->SetError(TEXT(""));
-    if (Value < 6) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+    if (Value < 7) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
     {
-        ShaderVersionWarningTextBox->SetError(TEXT("Metal Shader Standard is 2.3 on UE5.1"));
+        ShaderVersionWarningTextBox->SetError(TEXT("Metal Shader Standard is 2.4 on UE5.1"));
     }
 }
 
@@ -407,9 +407,9 @@ void FMacTargetSettingsDetails::UpdateShaderStandardWarning()
     if (ShaderVersionPropertyHandle->IsValidHandle())
     {
         ShaderVersionPropertyHandle->GetValue(EnumValue);
-        if (EnumValue < 6)
+        if (EnumValue < 7)
         {
-            SetShaderStandard(6); // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+            SetShaderStandard(7); // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
         }
     }
 }

@@ -277,22 +277,19 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		return;
 	}
 
-	if (FPlatformMisc::MacOSXVersionCompare(11, 0 ,0) < 0)
-	{
-		// this message can be suppressed with r.WarnOfBadDrivers=0
-		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
-									 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
+	// this message can be suppressed with r.WarnOfBadDrivers=0
+	FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+								 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Body", "Please update to the latest version of macOS for best performance and stability.").ToString(),
+								 *NSLOCTEXT("MessageDialog", "UpdateMacOSX_Title", "Update macOS").ToString());
 		
 #if !UE_BUILD_SHIPPING
-		if (CVarBadDriverWarningIsFatal.GetValueOnGameThread())
-		{
-			// Force a fatal error depending on CVar
-			UE_LOG(LogRHI, Fatal, TEXT("Fatal crash requested when graphics drivers are out of date.\n")
-				TEXT("To prevent this crash, please update macOS."));
-		}
-#endif
+	if (CVarBadDriverWarningIsFatal.GetValueOnGameThread())
+	{
+		// Force a fatal error depending on CVar
+		UE_LOG(LogRHI, Fatal, TEXT("Fatal crash requested when graphics drivers are out of date.\n")
+			TEXT("To prevent this crash, please update macOS."));
 	}
+#endif
 }
 #endif // PLATFORM_WINDOWS
 
