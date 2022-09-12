@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -289,19 +289,19 @@ public class DeploymentContext //: ProjectParams
 
 	/// <summary>
 	/// List of directories to allow staging, even if they contain restricted folder names
-	/// This list is read from the +WhitelistDirectories=... array in the [Staging] section of *Game.ini files
+	/// This list is read from the +AllowedDirectories=... array in the [Staging] section of *Game.ini files
 	/// </summary>
 	public List<StagedDirectoryReference> DirectoriesAllowList = new List<StagedDirectoryReference>();
 
 	/// <summary>
 	/// Set of config files which are allow listed to be staged. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
-	/// leaking in packaged builds. This list is read from the +WhitelistConfigFiles=... array in the [Staging] section of *Game.ini files.
+	/// leaking in packaged builds. This list is read from the +AllowedConfigFiles=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
 	public HashSet<StagedFileReference> ConfigFilesAllowList = new HashSet<StagedFileReference>();
 
 	/// <summary>
 	/// Set of config files which are denied from staging. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
-	/// leaking in packaged builds. This list is read from the +BlacklistConfigFiles=... array in the [Staging] section of *Game.ini files.
+	/// leaking in packaged builds. This list is read from the +DeniedConfigFiles=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
 	public HashSet<StagedFileReference> ConfigFilesDenyList = new HashSet<StagedFileReference>();
 
@@ -328,7 +328,7 @@ public class DeploymentContext //: ProjectParams
 
 	/// <summary>
 	/// List of localization targets that are not included in staged build. By default, all project Content/Localization targets are automatically staged.
-	/// This list is read from the +BlacklistLocalizationTargets=... array in the [Staging] section of *Game.ini files.
+	/// This list is read from the +DisallowedLocalizationTargets=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
 	public List<string> LocalizationTargetsDenyList = new List<string>();
 
@@ -573,7 +573,7 @@ public class DeploymentContext //: ProjectParams
 
 		// Read the list of directories to allow (prevent from warning about from restricted folders)
 		List<string> DirectoriesAllowListStrings;
-		if (GameConfig.GetArray("Staging", "WhitelistDirectories", out DirectoriesAllowListStrings))
+		if (GameConfig.GetArray("Staging", "AllowedDirectories", out DirectoriesAllowListStrings))
 		{
 			foreach(string AllowedDir in DirectoriesAllowListStrings)
 			{
@@ -582,7 +582,7 @@ public class DeploymentContext //: ProjectParams
 		}
 
 		List<string> LocTargetsDenyListStrings;
-		if (GameConfig.GetArray("Staging", "BlacklistLocalizationTargets", out LocTargetsDenyListStrings))
+		if (GameConfig.GetArray("Staging", "DisallowedLocalizationTargets", out LocTargetsDenyListStrings))
 		{
 			foreach (string DeniedLocTarget in LocTargetsDenyListStrings)
 			{
@@ -591,8 +591,8 @@ public class DeploymentContext //: ProjectParams
 		}
 
 		// Read the list of files which are allow listed to be staged
-		ReadConfigFileList(GameConfig, "Staging", "WhitelistConfigFiles", ConfigFilesAllowList);
-		ReadConfigFileList(GameConfig, "Staging", "BlacklistConfigFiles", ConfigFilesDenyList);
+		ReadConfigFileList(GameConfig, "Staging", "AllowedConfigFiles", ConfigFilesAllowList);
+		ReadConfigFileList(GameConfig, "Staging", "DeniedConfigFiles", ConfigFilesDenyList);
 
 		// Grab the game ini data
 		String PackagingIniPath = "/Script/UnrealEd.ProjectPackagingSettings";

@@ -10763,7 +10763,7 @@ void UCookOnTheFlyServer::RegisterLocalizationChunkDataGenerator()
 	TArray<FString> LocalizationTargetsToChunk = PackagingSettings->LocalizationTargetsToChunk;
 	{
 		TArray<FString> BlocklistLocalizationTargets;
-		GConfig->GetArray(TEXT("Staging"), TEXT("BlacklistLocalizationTargets"), BlocklistLocalizationTargets, GGameIni);
+		GConfig->GetArray(TEXT("Staging"), TEXT("DisallowedLocalizationTargets"), BlocklistLocalizationTargets, GGameIni);
 		if (BlocklistLocalizationTargets.Num() > 0)
 		{
 			LocalizationTargetsToChunk.RemoveAll([&BlocklistLocalizationTargets](const FString& InLocalizationTarget)
