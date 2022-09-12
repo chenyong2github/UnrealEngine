@@ -1307,8 +1307,14 @@ FElectraHTTPStreamApple::FChallengeResponse FElectraHTTPStreamApple::ReceivedCha
 			// the chain starts with the server's cert itself, so walk backwards to optimize for roots first
 			TArray<TArray<uint8, TFixedAllocator<ISslCertificateManager::PUBLIC_KEY_DIGEST_SIZE>>> CertDigests;
 
-                        CFArrayRef Certificates = SecTrustCopyCertificateChain(RemoteTrust);
-                        CFIndex CertificateCount = CFArrayGetCount(Certificates);
+            CFArrayRef Certificates = SecTrustCopyCertificateChain(RemoteTrust);
+            if (Certificates == nil)
+            {
+                UE_LOG(LogHttp, Error, TEXT("No certificate could be copied in the certificate chain used to evaluate trust."));
+                return;
+            }
+            
+            CFIndex CertificateCount = CFArrayGetCount(Certificates);
 			for (int i = 0; CertificateCount; ++i)
 			{
 				SecCertificateRef Cert = SecTrustGetCertificateAtIndex(RemoteTrust, i);

@@ -700,8 +700,13 @@ static const unsigned char ecdsaSecp384r1Asn1Header[] =
             TArray<TArray<uint8, TFixedAllocator<ISslCertificateManager::PUBLIC_KEY_DIGEST_SIZE>>> CertDigests;
             
             CFArrayRef Certificates = SecTrustCopyCertificateChain(RemoteTrust);
+            if (Certificates == nil)
+            {
+                UE_LOG(LogHttp, Error, TEXT("No certificate could be copied in the certificate chain used to evaluate trust."));
+                return;
+            }
+            
             CFIndex CertificateCount = CFArrayGetCount(Certificates);
-
             for (int i = 0; CertificateCount; ++i)
             {
                 SecCertificateRef Cert = (SecCertificateRef)CFArrayGetValueAtIndex(Certificates, i);
