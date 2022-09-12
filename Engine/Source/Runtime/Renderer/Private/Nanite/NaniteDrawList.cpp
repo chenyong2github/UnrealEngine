@@ -185,21 +185,20 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 			FNaniteCommandInfo CommandInfo = ShadingCommands.Register(Command.MeshDrawCommand, Command.CommandHash, InstructionCount);
 			AddShadingCommand(*PrimitiveSceneInfo, CommandInfo, ENaniteMeshPass::Type(MeshPass), Command.SectionIndex);
 
-			FNaniteVisibility::FPrimitiveReferences& PrimitiveReferences = Visibility.PrimitiveReferences.FindOrAdd(PrimitiveSceneInfo);
-			PrimitiveReferences.ShadingDraws.Add(Command.CommandHash.AsUInt());
+			FNaniteVisibility::PrimitiveDrawType& ShadingDraws = Visibility.GetShadingDrawReferences(PrimitiveSceneInfo);
+			ShadingDraws.Add(Command.CommandHash.AsUInt());
 		}
 
 		for (const FDeferredPipelines& PipelinesCommand : DeferredPipelines[MeshPass])
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PipelinesCommand.PrimitiveSceneInfo;
-			FNaniteVisibility::FPrimitiveReferences& PrimitiveReferences = Visibility.PrimitiveReferences.FindOrAdd(PrimitiveSceneInfo);
-			check(PrimitiveReferences.RasterBins.Num() == 0);
+			FNaniteVisibility::PrimitiveBinsType& RasterBins = Visibility.GetRasterBinReferences(PrimitiveSceneInfo);
 
 			for (const FDeferredPipeline& Pipeline : PipelinesCommand.Pipelines)
 			{
 				const FNaniteRasterBin RasterBin = RasterPipelines.Register(Pipeline.RasterPipeline);
 				AddRasterBin(*PrimitiveSceneInfo, RasterBin, ENaniteMeshPass::Type(MeshPass), Pipeline.SectionIndex);
-				PrimitiveReferences.RasterBins.Add(RasterBin.BinIndex);
+				RasterBins.Add(RasterBin.BinIndex);
 			}
 		}
 	}

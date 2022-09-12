@@ -665,7 +665,7 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 			RasterPipelines.Unregister(RasterBin);
 		}
 
-		Visibility.PrimitiveReferences.Remove(this);
+		Visibility.RemoveReferences(this);
 
 		NanitePassRasterBins.Reset();
 		NanitePassCommandInfo.Reset();

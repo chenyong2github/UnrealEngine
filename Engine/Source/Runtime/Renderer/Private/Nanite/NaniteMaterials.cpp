@@ -22,7 +22,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDummyDepthDecompressParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 END_SHADER_PARAMETER_STRUCT()
 
-static int32 GNaniteMaterialVisibility = 0;
+static int32 GNaniteMaterialVisibility = 1;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	TEXT("r.Nanite.MaterialVisibility"),
 	GNaniteMaterialVisibility,
@@ -30,7 +30,7 @@ static FAutoConsoleVariableRef CVarNaniteMaterialVisibility(
 	ECVF_RenderThreadSafe
 );
 
-static int32 GNaniteMaterialVisibilityAsync = 0;
+static int32 GNaniteMaterialVisibilityAsync = 1;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityAsync(
 	TEXT("r.Nanite.MaterialVisibility.Async"),
 	GNaniteMaterialVisibilityAsync,
@@ -598,9 +598,9 @@ void DrawBasePass(
 			MaterialDepthStencil
 		);
 
-		GraphBuilder.AddSetupTask([PassParameters, &MaterialCommands, &MaterialPassCommands, &RasterResults]
+		GraphBuilder.AddSetupTask([PassParameters, &MaterialCommands, &MaterialPassCommands, VisibilityResults = RasterResults.VisibilityResults /* Intentional copy */]
 		{
-			BuildNaniteMaterialPassCommands(ExtractRenderTargetsInfo(PassParameters->RenderTargets), MaterialCommands, RasterResults.VisibilityResults, MaterialPassCommands);
+			BuildNaniteMaterialPassCommands(ExtractRenderTargetsInfo(PassParameters->RenderTargets), MaterialCommands, VisibilityResults, MaterialPassCommands);
 		});
 
 		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(View.ShaderMap);
@@ -1783,42 +1783,28 @@ static void PerformNaniteVisibility(
 {
 	SCOPED_NAMED_EVENT(PerformNaniteVisibility, FColor::Magenta);
 
-	struct FNaniteVisibilityWorkItem
-	{
-		const FPrimitiveSceneInfo* SceneInfo = nullptr;
-		const FNaniteVisibility::FPrimitiveReferences* References = nullptr;
-	};
-
-	TArray<FNaniteVisibilityWorkItem, SceneRenderingAllocator> WorkItems;
-	WorkItems.Reserve(PrimitiveReferences.Num());
-
-	for (FNaniteVisibility::PrimitiveMapType::TConstIterator It(PrimitiveReferences); It; ++It)
-	{
-		FNaniteVisibilityWorkItem WorkItem;
-		WorkItem.SceneInfo = It->Key;
-		WorkItem.References = &It->Value;
-		WorkItems.Emplace(WorkItem);
-	}
-
 	const bool bRunAsync = GNaniteMaterialVisibilityAsync != 0;
 	if (bRunAsync)
 	{
-		ParallelForTemplate(WorkItems.Num(), [Query, &WorkItems, BinIndexTranslator](int32 WorkItemIndex)
+		TArray<FNaniteVisibility::FPrimitiveReferences, SceneRenderingAllocator> ReferencesList;
+		PrimitiveReferences.GenerateValueArray(ReferencesList);
+
+		ParallelForTemplate(ReferencesList.Num(), [Query, ReferencesList = MoveTemp(ReferencesList), BinIndexTranslator](int32 ReferencesIndex)
 		{
 			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			SCOPED_NAMED_EVENT(PerformNaniteVisibility, FColor::Magenta);
 
-			FNaniteVisibilityWorkItem& WorkItem = WorkItems[WorkItemIndex];
+			const FNaniteVisibility::FPrimitiveReferences& References = ReferencesList[ReferencesIndex];
 
-			const bool bShouldTest = IsVisibilityTestNeeded(Query, *WorkItem.References, BinIndexTranslator);
+			const bool bShouldTest = IsVisibilityTestNeeded(Query, References, BinIndexTranslator);
 			if (bShouldTest)
 			{
-				const bool bPrimitiveVisible = IsNanitePrimitiveVisible(Query, WorkItem.SceneInfo);
+				const bool bPrimitiveVisible = IsNanitePrimitiveVisible(Query, References.SceneInfo);
 				if (bPrimitiveVisible)
 				{
 					if (Query->bCullRasterBins)
 					{
-						for (const uint16 RasterBinIndex : WorkItem.References->RasterBins)
+						for (const uint16 RasterBinIndex : References.RasterBins)
 						{
 							Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBinIndex))].Store(true);
 						}
@@ -1827,7 +1813,7 @@ static void PerformNaniteVisibility(
 					if (Query->bCullShadingBins)
 					{
 						FScopeLock ScopeLock(&Query->ShadingDrawCriticalSection); // TODO: Improve
-						Query->ShadingDrawVisibility.Append(WorkItem.References->ShadingDraws);
+						Query->ShadingDrawVisibility.Append(References.ShadingDraws);
 					}
 				}
 			}
@@ -1835,17 +1821,19 @@ static void PerformNaniteVisibility(
 	}
 	else
 	{
-		for (const FNaniteVisibilityWorkItem& WorkItem : WorkItems)
+		for (FNaniteVisibility::PrimitiveMapType::TConstIterator It(PrimitiveReferences); It; ++It)
 		{
-			const bool bShouldTest = IsVisibilityTestNeeded(Query, *WorkItem.References, BinIndexTranslator);
+			const FNaniteVisibility::FPrimitiveReferences& References = It->Value;
+
+			const bool bShouldTest = IsVisibilityTestNeeded(Query, References, BinIndexTranslator);
 			if (bShouldTest)
 			{
-				const bool bPrimitiveVisible = IsNanitePrimitiveVisible(Query, WorkItem.SceneInfo);
+				const bool bPrimitiveVisible = IsNanitePrimitiveVisible(Query, References.SceneInfo);
 				if (bPrimitiveVisible)
 				{
 					if (Query->bCullRasterBins)
 					{
-						for (const uint16 RasterBinIndex : WorkItem.References->RasterBins)
+						for (const uint16 RasterBinIndex : References.RasterBins)
 						{
 							Query->RasterBinVisibility[int32(BinIndexTranslator.Translate(RasterBinIndex))] = true;
 						}
@@ -1853,7 +1841,7 @@ static void PerformNaniteVisibility(
 
 					if (Query->bCullShadingBins)
 					{
-						Query->ShadingDrawVisibility.Append(WorkItem.References->ShadingDraws);
+						Query->ShadingDrawVisibility.Append(References.ShadingDraws);
 					}
 				}
 			}
@@ -2000,4 +1988,23 @@ void FNaniteVisibility::FinishVisibilityQuery(FNaniteVisibilityQuery* Query, FNa
 
 		Query->bFinished = true;
 	}
+}
+
+FNaniteVisibility::PrimitiveBinsType& FNaniteVisibility::GetRasterBinReferences(const FPrimitiveSceneInfo* SceneInfo)
+{
+	FNaniteVisibility::FPrimitiveReferences& References = PrimitiveReferences.FindOrAdd(SceneInfo);
+	References.SceneInfo = SceneInfo;
+	return References.RasterBins;
+}
+
+FNaniteVisibility::PrimitiveDrawType& FNaniteVisibility::GetShadingDrawReferences(const FPrimitiveSceneInfo* SceneInfo)
+{
+	FNaniteVisibility::FPrimitiveReferences& References = PrimitiveReferences.FindOrAdd(SceneInfo);
+	References.SceneInfo = SceneInfo;
+	return References.ShadingDraws;
+}
+
+void FNaniteVisibility::RemoveReferences(const FPrimitiveSceneInfo* SceneInfo)
+{
+	PrimitiveReferences.Remove(SceneInfo);
 }

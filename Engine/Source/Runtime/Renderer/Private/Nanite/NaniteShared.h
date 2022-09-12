@@ -545,12 +545,15 @@ private:
 
 class FNaniteVisibility
 {
+	friend class FNaniteVisibilityTask;
+
 public:
 	typedef TArray<uint16, TInlineAllocator<1>> PrimitiveBinsType;
 	typedef TArray<uint32, TInlineAllocator<1>> PrimitiveDrawType;
 
 	struct FPrimitiveReferences
 	{
+		const FPrimitiveSceneInfo* SceneInfo = nullptr;
 		PrimitiveBinsType RasterBins;
 		PrimitiveDrawType ShadingDraws;
 	};
@@ -571,12 +574,15 @@ public:
 
 	void FinishVisibilityQuery(FNaniteVisibilityQuery* Query, FNaniteVisibilityResults& OutResults) const;
 
-	PrimitiveMapType PrimitiveReferences;
+	PrimitiveBinsType& GetRasterBinReferences(const FPrimitiveSceneInfo* SceneInfo);
+	PrimitiveDrawType& GetShadingDrawReferences(const FPrimitiveSceneInfo* SceneInfo);
+	void RemoveReferences(const FPrimitiveSceneInfo* SceneInfo);
 
 private:
-	TArray<FNaniteVisibilityQuery*, TInlineAllocator<32>> VisibilityQueries;
 	// Translator should remain valid between Begin/FinishVisibilityFrame. That is, no adding or removing raster bins
 	FNaniteRasterBinIndexTranslator BinIndexTranslator;
+	TArray<FNaniteVisibilityQuery*, TInlineAllocator<32>> VisibilityQueries;
+	PrimitiveMapType PrimitiveReferences;
 	uint8 bCalledBegin : 1;
 };
 
