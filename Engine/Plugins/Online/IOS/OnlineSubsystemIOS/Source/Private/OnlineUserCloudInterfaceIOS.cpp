@@ -84,7 +84,12 @@
 			CKModifyRecordsOperation *modifyRecords = [[CKModifyRecordsOperation alloc] initWithRecordsToSave:@[record] recordIDsToDelete:nil];
 			modifyRecords.savePolicy = CKRecordSaveAllKeys;
 			modifyRecords.qualityOfService = NSQualityOfServiceUserInitiated;
-			modifyRecords.perRecordCompletionBlock = handler;
+			
+//			modifyRecords.perRecordCompletionBlock = handler; /* Deprecated iOS15. */
+			// Since only 1 record is being saved per run, use the global completion block instead */
+			modifyRecords.modifyRecordsCompletionBlock = ^(NSArray<CKRecord *> *savedRecords, NSArray<CKRecordID *> *deletedRecordIDs, NSError *operationError) {
+				handler([savedRecords firstObject], operationError);
+			};
 			[DB addOperation : modifyRecords];
 
 			return true;
@@ -118,7 +123,7 @@
 			CKQuery* query = [[[CKQuery alloc] initWithRecordType:@"file" predicate:[NSPredicate predicateWithFormat : @"TRUEPREDICATE"]] autorelease];
 			CKQueryOperation* queryOp = [[CKQueryOperation alloc] initWithQuery:query];
 			queryOp.desiredKeys = @[@"record.recordID.recordName"];
-			queryOp.recordFetchedBlock = fetch;
+//			queryOp.recordFetchedBlock = fetch;  /* Deprecated in iOS15.  Now performs once all records are loaded */
 			queryOp.queryCompletionBlock = complete;
 			queryOp.resultsLimit = CKQueryOperationMaximumResults;
 			[DB addOperation : queryOp];

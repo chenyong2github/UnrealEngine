@@ -8,6 +8,7 @@
 #include "OnlineAsyncTaskManager.h"
 #include "Net/RepLayout.h"
 #include "Interfaces/TurnBasedMatchInterface.h"
+#include <GameKit/GKLocalPlayer.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogTurnBasedInterfaceIOS, Verbose, All);
 
@@ -399,7 +400,8 @@ void FOnlineTurnBasedIOS::LoadAllMatches(FLoadTurnBasedMatchesSignature MatchesL
 		for (GKTurnBasedMatch* match in matches)
 		{
 			NSArray* playerIdentifierArray = FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(match);
-			[GKPlayer loadPlayersForIdentifiers : playerIdentifierArray withCompletionHandler : ^ (NSArray *players, NSError *nameLoadError)
+			GKLocalPlayer* GKLocalUser = [GKLocalPlayer localPlayer];
+			[GKLocalUser loadFriendsWithIdentifiers:(NSArray<NSString *> *)playerIdentifierArray completionHandler:^(NSArray<GKPlayer *> *players, NSError *nameLoadError)
 			{
 				if (!nameLoadError)
 				{
@@ -431,7 +433,8 @@ void FOnlineTurnBasedIOS::LoadMatchWithID(FString MatchID, FLoadTurnBasedMatchWi
 		if (!error)
 		{
 			NSArray* playerIdentifierArray = FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(match);
-			[GKPlayer loadPlayersForIdentifiers : playerIdentifierArray withCompletionHandler : ^ (NSArray *players, NSError *nameLoadError)
+			GKLocalPlayer* GKLocalUser = [GKLocalPlayer localPlayer];
+			[GKLocalUser loadFriendsWithIdentifiers:(NSArray<NSString *> *)playerIdentifierArray completionHandler:^(NSArray<GKPlayer *> *players, NSError *nameLoadError)
 			{
 				if (!nameLoadError)
 				{
@@ -542,23 +545,25 @@ void FOnlineTurnBasedIOS::OnMatchEnded(FString MatchID)
 void FOnlineTurnBasedIOS::OnMatchReceivedTurnEvent(FString MatchID, bool BecameActive, void* Match)
 {
 	GKTurnBasedMatch* IOSTurnBasedMatch = (GKTurnBasedMatch*)Match;
-    NSArray* playerIdentifierArray = FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(IOSTurnBasedMatch);
-    [GKPlayer loadPlayersForIdentifiers : playerIdentifierArray withCompletionHandler : ^ (NSArray *players, NSError *nameLoadError)
-    {
-        if (!nameLoadError)
-        {
-            FTurnBasedMatchPtr PreviousMatchPtr = GetMatchWithID(MatchID);
-            if (PreviousMatchPtr.IsValid())
-            {
-                MatchArray.Remove(PreviousMatchPtr.ToSharedRef());
-            }
-
-            FTurnBasedMatchRef NewMatch = MakeShareable(new FTurnBasedMatchIOS(IOSTurnBasedMatch, players));
-            MatchArray.Add(NewMatch);
-            dispatch_async(dispatch_get_main_queue(), ^
-            {
-                [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-                {
+	
+	NSArray* PlayerIdentifierArray = FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(IOSTurnBasedMatch);
+	GKLocalPlayer* GKLocalUser = [GKLocalPlayer localPlayer];
+	[GKLocalUser loadFriendsWithIdentifiers:(NSArray<NSString *> *)PlayerIdentifierArray completionHandler:^(NSArray<GKPlayer *> *Players, NSError *NameLoadError)
+	{
+		if (!NameLoadError)
+		{
+			FTurnBasedMatchPtr PreviousMatchPtr = GetMatchWithID(MatchID);
+			if (PreviousMatchPtr.IsValid())
+			{
+				MatchArray.Remove(PreviousMatchPtr.ToSharedRef());
+			}
+			
+			FTurnBasedMatchRef NewMatch = MakeShareable(new FTurnBasedMatchIOS(IOSTurnBasedMatch, Players));
+			MatchArray.Add(NewMatch);
+			dispatch_async(dispatch_get_main_queue(), ^
+						   {
+				[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+				 {
 					if (TurnBasedMatchInterfaceObject)
 					{
 						TArray<uint8> MatchData;
@@ -574,12 +579,12 @@ void FOnlineTurnBasedIOS::OnMatchReceivedTurnEvent(FString MatchID, bool BecameA
 					{
 						EventDelegate.Pin()->OnMatchReceivedTurnEvent(MatchID, BecameActive, Match);
 					}
-                    return true;
-                }];
-
-            });
-        }
-    }];
+					return true;
+				}];
+				
+			});
+		}
+	}];
 }
 
 NSArray* FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(GKTurnBasedMatch* match)

@@ -23,8 +23,20 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 {
 	OwningApplication = Application;
 	Definition = InDefinition;
-        
-        Window = (UIWindow *)[[[[UIApplication sharedApplication] connectedScenes] allObjects] firstObject];
+	
+	NSArray<UIScene*> *windowScenes = [[[UIApplication sharedApplication] connectedScenes] allObjects];
+	
+	// TODO: iOS only has one window scene (as of iOS15), however, iPadOS15(?) might have more than one with an external monitor (maybe?).
+	//       Need to investigate and check if looping through windowScene will be required.
+	UIWindowScene *windowScene = (UIWindowScene*)[windowScenes firstObject];
+	for (UIWindow *currentWindow in windowScene.windows)
+	{
+		if (currentWindow.isKeyWindow)
+		{
+			Window = currentWindow;
+			break;
+		}
+	}
 
 #if !PLATFORM_TVOS
 	if(InParent.Get() != NULL)

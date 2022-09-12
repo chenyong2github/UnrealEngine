@@ -4,6 +4,7 @@
 #include "OnlineTurnBasedInterfaceIOS.h"
 #include "Interfaces/OnlineTurnBasedInterface.h"
 #include "OnlineSubsystemIOS.h"
+#include <GameKit/GKLocalPlayer.h>
 
 @interface FTurnBasedMatchmakerDelegateIOS()
 {
@@ -41,7 +42,7 @@
 
 			NSMutableArray* playerIdentifierArray = [NSMutableArray array];
 			for (GKTurnBasedParticipant* participant in match.participants) {
-                NSString* PlayerIDString = nil;
+				NSString* PlayerIDString = nil;
 				if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
 				{
 					PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
@@ -52,8 +53,12 @@
 				}
 				[playerIdentifierArray addObject : PlayerIDString];
 			}
-			[GKPlayer loadPlayersForIdentifiers : playerIdentifierArray withCompletionHandler : ^ (NSArray *players, NSError *nameLoadError) {
-				if (nameLoadError) {
+			
+			GKLocalPlayer* GKLocalUser = [GKLocalPlayer localPlayer];
+			[GKLocalUser loadFriendsWithIdentifiers:(NSArray<NSString *> *)playerIdentifierArray completionHandler:^(NSArray<GKPlayer *> *players, NSError *nameLoadError)
+			{
+				if (nameLoadError)
+				{
 					[self turnBasedMatchmakerViewController : viewController didFailWithError : nameLoadError];
 					return;
 				}
