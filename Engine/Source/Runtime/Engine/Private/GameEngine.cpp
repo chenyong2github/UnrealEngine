@@ -62,6 +62,7 @@
 #include "DynamicResolutionState.h"
 #include "MoviePlayerProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
 #include "CustomResourcePool.h"
@@ -242,6 +243,7 @@ void UGameEngine::CreateGameViewportWidget( UGameViewportClient* GameViewportCli
 
 void UGameEngine::CreateGameViewport( UGameViewportClient* GameViewportClient )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateGameViewport);
 	check(GameViewportWindow.IsValid());
 
 	if( !GameViewportWidget.IsValid() )
@@ -1101,6 +1103,7 @@ public:
 
 void UGameEngine::Init(IEngineLoop* InEngineLoop)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGameEngine::Init);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UGameEngine Init"), STAT_GameEngineStartup, STATGROUP_LoadTime);
 
 	if (!GIsEditor)
@@ -1120,11 +1123,15 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 #endif
 
 	// Load and apply user game settings
-	GetGameUserSettings()->LoadSettings();
-	GetGameUserSettings()->ApplyNonResolutionSettings();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitGameUserSettings);
+		GetGameUserSettings()->LoadSettings();
+		GetGameUserSettings()->ApplyNonResolutionSettings();
+	}
 
 	// Create game instance.  For GameEngine, this should be the only GameInstance that ever gets created.
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitGameInstance);
 		FSoftClassPath GameInstanceClassName = GetDefault<UGameMapsSettings>()->GameInstanceClass;
 		UClass* GameInstanceClass = (GameInstanceClassName.IsValid() ? LoadObject<UClass>(NULL, *GameInstanceClassName.ToString()) : UGameInstance::StaticClass());
 		
@@ -1158,6 +1165,7 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 	UGameViewportClient* ViewportClient = NULL;
 	if(GIsClient)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitGameViewPortClient);
 		ViewportClient = NewObject<UGameViewportClient>(this, GameViewportClientClass);
 		ViewportClient->Init(*GameInstance->GetWorldContext(), GameInstance);
 		GameViewport = ViewportClient;
@@ -1169,6 +1177,7 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 	// Attach the viewport client to a new viewport.
 	if(ViewportClient)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AttachGameViewport);
 		// This must be created before any gameplay code adds widgets
 		bool bWindowAlreadyExists = GameViewportWindow.IsValid();
 		if (!bWindowAlreadyExists)
@@ -1190,6 +1199,7 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 			UE_LOG(LogEngine, Fatal,TEXT("%s"),*Error);
 		}
 
+		TRACE_CPUPROFILER_EVENT_SCOPE(BroadcastOnViewPortCreated);
 		UGameViewportClient::OnViewportCreated().Broadcast();
 	}
 
@@ -1201,6 +1211,7 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 
 void UGameEngine::Start()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGameEngine::Start);
 	UE_LOG(LogInit, Display, TEXT("Starting Game."));
 
 	GameInstance->StartGameInstance();

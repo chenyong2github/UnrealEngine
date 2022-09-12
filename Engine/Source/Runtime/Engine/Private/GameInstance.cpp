@@ -31,6 +31,7 @@
 #include "Net/ReplayPlaylistTracker.h"
 #include "ReplaySubsystem.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -85,6 +86,7 @@ UEngine* UGameInstance::GetEngine() const
 
 void UGameInstance::Init()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGameInstance::Init);
 	ReceiveInit();
 
 	if (!IsRunningCommandlet())
@@ -572,6 +574,7 @@ UGameViewportClient* UGameInstance::GetGameViewportClient() const
 
 void UGameInstance::StartGameInstance()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGameInstance::StartGameInstance);
 	UEngine* const Engine = GetEngine();
 
 	// Create default URL.

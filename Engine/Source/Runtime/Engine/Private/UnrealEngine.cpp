@@ -1803,6 +1803,7 @@ void UEngine::PerformGarbageCollectionAndCleanupActors()
 //
 void UEngine::Init(IEngineLoop* InEngineLoop)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEngine::Init);
 	UE_LOG(LogEngine, Log, TEXT("Initializing Engine..."));
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Engine Initialized"), STAT_EngineStartup, STATGROUP_LoadTime);
 
@@ -17914,6 +17915,7 @@ static FAutoConsoleCommand SetupThreadConfigCmd(
 
 void InitThreadConfig()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InitThreadConfig);
 	GetDefaultThreadConfigs();
 
 	if (GConfig)
