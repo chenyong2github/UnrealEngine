@@ -46,6 +46,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "Shadows/ShadowSceneRenderer.h"
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowDepths);
 
@@ -101,12 +102,6 @@ static TAutoConsoleVariable<int32> CVarNaniteShadowsUseHZB(
 	TEXT("Enables HZB for Nanite shadows."),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarNaniteShadowsLODBias(
-	TEXT("r.Shadow.NaniteLODBias"),
-	1.0f,
-	TEXT("LOD bias for nanite geometry in shadows. 0 = full detail. >0 = reduced detail."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarNaniteShadowsUpdateStreaming(
 	TEXT("r.Shadow.NaniteUpdateStreaming"),
 	1,
@@ -130,12 +125,6 @@ namespace Nanite
 	extern bool IsStatFilterActive(const FString& FilterName);
 	extern bool IsStatFilterActiveForLight(const FLightSceneProxy* LightProxy);
 	extern FString GetFilterNameForLight(const FLightSceneProxy* LightProxy);
-}
-
-// Multiply PackedView.LODScale by return value when rendering Nanite shadows
-static float ComputeNaniteShadowsLODScaleFactor()
-{
-	return FMath::Pow(2.0f, -CVarNaniteShadowsLODBias.GetValueOnRenderThread());
 }
 
 void SetupShadowDepthPassUniformBuffer(
@@ -1385,7 +1374,7 @@ static void RenderShadowDepthAtlasNanite(
 		Initializer.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices();
 		Initializer.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
 		Initializer.RasterContextSize = AtlasSize;
-		Initializer.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+		Initializer.LODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
 		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
 		Initializer.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
 		
@@ -1634,173 +1623,11 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled)
 {
-	if (SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() == 0 &&
-		SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() == 0)
+	if (ShadowSceneRenderer)
 	{
-		return;
+		ShadowSceneRenderer->RenderVirtualShadowMaps(GraphBuilder, bNaniteEnabled, CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0, GNaniteProgrammableRasterShadows != 0);
 	}
-
-	FVirtualShadowMapArrayCacheManager *CacheManager = VirtualShadowMapArray.CacheManager;
-
-	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
-	const bool bVSMUseHZB = VirtualShadowMapArray.UseHzbOcclusion();
-
-	const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
-	const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
-
-	Nanite::FSharedContext SharedContext{};
-	SharedContext.FeatureLevel = FeatureLevel;
-	SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
-	SharedContext.Pipeline = Nanite::EPipeline::Shadows;
-
-	if (bNaniteEnabled)
-	{
-		const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
-
-		{
-			RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
-
-			check(VirtualShadowMapArray.PhysicalPagePoolRDG != nullptr);
-
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
-				GraphBuilder,
-				SharedContext,
-				VirtualShadowSize,
-				false,
-				Nanite::EOutputBufferMode::DepthOnly,
-				false,	// Clear entire texture
-				nullptr, 0,
-				VirtualShadowMapArray.PhysicalPagePoolRDG );
-
-			const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-
-			const FViewInfo& SceneView = Views[0];
-
-			auto FilterAndRenderVirtualShadowMaps = [
-				&SortedShadowsForShadowDepthPass = SortedShadowsForShadowDepthPass,
-					&SharedContext,
-					&RasterContext,
-					&VirtualShadowMapArray = VirtualShadowMapArray,
-					&GraphBuilder,
-					&SceneView,
-					bUpdateStreaming,
-					bVSMUseHZB,
-					Scene = Scene,
-					CacheManager = CacheManager,
-					PrevHZBPhysical,
-					VirtualShadowViewRect
-			](bool bShouldClampToNearPlane, const FString &VirtualFilterName)
-			{
-				TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
-
-				// Add any clipmaps first to the ortho rendering pass
-				if (bShouldClampToNearPlane)
-				{
-					for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps)
-					{
-						VirtualShadowMapArray.AddRenderViews(
-							Clipmap,
-							ComputeNaniteShadowsLODScaleFactor(),
-							PrevHZBPhysical.IsValid(),
-							bVSMUseHZB,
-							bShouldClampToNearPlane,
-							VirtualShadowViews);
 					}
-				}
-
-				for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
-				{
-					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->HasVirtualShadowMap())
-					{
-						if (ProjectedShadowInfo->bShouldRenderVSM)
-						{
-							VirtualShadowMapArray.AddRenderViews(
-								ProjectedShadowInfo,
-								ComputeNaniteShadowsLODScaleFactor(),
-								PrevHZBPhysical.IsValid(),
-								bVSMUseHZB,
-								bShouldClampToNearPlane,
-								VirtualShadowViews);
-						}
-					}
-				}
-
-				if (VirtualShadowViews.Num() > 0)
-				{
-					int32 NumPrimaryViews = VirtualShadowViews.Num();
-					VirtualShadowMapArray.CreateMipViews( VirtualShadowViews );
-
-					Nanite::FRasterState RasterState;
-					if (bShouldClampToNearPlane)
-					{
-						RasterState.bNearClip = false;
-					}
-
-					FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
-
-					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
-					CullingConfig.bUpdateStreaming		= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
-					CullingConfig.bTwoPassOcclusion		= VirtualShadowMapArray.UseTwoPassHzbOcclusion();
-					CullingConfig.bProgrammableRaster	= GNaniteProgrammableRasterShadows != 0;
-					CullingConfig.SetViewFlags(SceneView);
-
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
-						GraphBuilder,
-						SharedContext,
-						*Scene,
-						PrevHZBPhysical,
-						VirtualShadowViewRect,
-						CullingConfig
-					);
-
-					const bool bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
-
-					Nanite::CullRasterize(
-						GraphBuilder,
-						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-						VisibilityResults,
-						*Scene,
-						SceneView,
-						VirtualShadowViews,
-						NumPrimaryViews,
-						SharedContext,
-						CullingContext,
-						RasterContext,
-						RasterState,
-						nullptr,
-						&VirtualShadowMapArray,
-						bExtractStats
-					);
-				}
-			};
-
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "DirectionalLights");
-				static FString VirtualFilterName = TEXT("VSM_Directional");
-				FilterAndRenderVirtualShadowMaps(true, VirtualFilterName);
-			}
-
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "LocalLights");
-				static FString VirtualFilterName = TEXT("VSM_Local");
-				FilterAndRenderVirtualShadowMaps(false, VirtualFilterName);
-			}
-
-			if (bVSMUseHZB)
-			{
-				VirtualShadowMapArray.UpdateHZB(GraphBuilder);
-			}
-		}
-	}
-
-	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
-	{
-		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, Views);
-	}
-
-	// If separate static/dynamic caching is enabled, we may need to merge some pages after rendering
-	VirtualShadowMapArray.MergeStaticPhysicalPages(GraphBuilder);
-}
 
 void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
 {
@@ -1976,7 +1803,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(CubemapFaceIndex);
 						Params.ViewRect = ShadowViewRect;
 						Params.RasterContextSize = TargetSize;
-						Params.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
+						Params.LODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
 						Params.PrevViewMatrices = Params.ViewMatrices;
 						Params.HZBTestViewRect = ShadowViewRect;
 						UpdatePackedViewParamsFromPrevShadowState(Params, PrevShadowState);

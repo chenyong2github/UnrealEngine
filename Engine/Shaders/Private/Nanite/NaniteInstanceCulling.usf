@@ -14,10 +14,6 @@
 #include "NaniteWritePixel.ush"
 #include "NaniteImposter.ush"
 
-#ifndef NEAR_CLIP
-#define NEAR_CLIP 1
-#endif
-
 void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, uint ImposterIndex, FScreenRect Rect )
 {
 	// High bit flags it as an imposter
@@ -498,9 +494,6 @@ void InstanceCullVSM(
 	}
 #endif
 
-	// Depth clipping should only be disabled with orthographic projections
-	const bool bNearClip = ( NEAR_CLIP != 0 );
-
 #if DEBUG_FLAGS
 	const bool bSkipBoxCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
 	const bool bSkipBoxCullHZB		= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
@@ -564,8 +557,9 @@ void InstanceCullVSM(
 		FNaniteView NaniteView = GetNaniteView( PrimaryViewId );
 			
 		// Depth clipping should only be disabled with orthographic projections
-		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
+		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
+		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
 
 		const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);			

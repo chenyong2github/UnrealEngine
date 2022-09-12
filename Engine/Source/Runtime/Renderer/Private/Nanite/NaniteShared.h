@@ -124,7 +124,6 @@ struct FVisualizeResult
 struct FRasterState
 {
 	bool bReverseCulling = false;
-	bool bNearClip = true;
 };
 
 struct FBinningData

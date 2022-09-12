@@ -27,6 +27,11 @@ public:
 	FShadowSceneRenderer(FDeferredShadingSceneRenderer& InSceneRenderer);
 
 	/**
+	 * Multiply PackedView.LODScale by return value when rendering Nanite shadows.
+	 */
+	static float ComputeNaniteShadowsLODScaleFactor();
+
+	/**
 	 * Add a cube/spot light for processing this frame.
 	 * TODO: Don't use legacy FProjectedShadowInfo or other params, instead info should flow from persistent setup & update.
 	 * TODO: Return reference to FLocalLightShadowFrameSetup ?
@@ -37,6 +42,10 @@ public:
 	 * Call after view-dependent setup has been processed (InitView etc) but before any rendering activity has been kicked off.
 	 */
 	void PostInitDynamicShadowsSetup();
+
+	/**
+	 */
+	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster);
 
 private:
 	/**

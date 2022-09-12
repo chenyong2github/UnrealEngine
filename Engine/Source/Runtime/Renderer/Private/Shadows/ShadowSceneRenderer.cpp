@@ -26,12 +26,27 @@ static TAutoConsoleVariable<int32> CVarDistantLightMode(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarNaniteShadowsLODBias(
+	TEXT("r.Shadow.NaniteLODBias"),
+	1.0f,
+	TEXT("LOD bias for nanite geometry in shadows. 0 = full detail. >0 = reduced detail."),
+	ECVF_RenderThreadSafe);
+
+namespace Nanite
+{
+	extern bool IsStatFilterActive(const FString& FilterName);
+}
 
 FShadowSceneRenderer::FShadowSceneRenderer(FDeferredShadingSceneRenderer& InSceneRenderer)
 	: SceneRenderer(InSceneRenderer)
 	, Scene(*InSceneRenderer.Scene)
 	, VirtualShadowMapArray(InSceneRenderer.VirtualShadowMapArray)
 {
+}
+
+float FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor()
+{
+	return FMath::Pow(2.0f, -CVarNaniteShadowsLODBias.GetValueOnRenderThread());
 }
 
 TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FShadowSceneRenderer::AddLocalLightShadow(const FWholeSceneProjectedShadowInitializer& ProjectedShadowInitializer, FProjectedShadowInfo* ProjectedShadowInfo, FLightSceneInfo* LightSceneInfo, float MaxScreenRadius)
@@ -92,6 +107,126 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 	UpdateDistantLightPriorityRender();
 
 	PostSetupDebugRender();
+}
+
+void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster)
+{
+	const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualShadowMapShadows = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
+	TArray<TSharedPtr<FVirtualShadowMapClipmap>, SceneRenderingAllocator>& VirtualShadowMapClipmaps = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
+
+	if (VirtualShadowMapShadows.Num() == 0 && VirtualShadowMapClipmaps.Num() == 0)
+	{
+		return;
+	}
+
+	FVirtualShadowMapArrayCacheManager* CacheManager = VirtualShadowMapArray.CacheManager;
+
+	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
+	const bool bVSMUseHZB = VirtualShadowMapArray.UseHzbOcclusion();
+
+	const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
+	const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
+
+	Nanite::FSharedContext SharedContext{};
+	SharedContext.FeatureLevel = SceneRenderer.FeatureLevel;
+	SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+	SharedContext.Pipeline = Nanite::EPipeline::Shadows;
+
+	if (bNaniteEnabled)
+	{
+		const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
+
+		RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
+
+		check(VirtualShadowMapArray.PhysicalPagePoolRDG != nullptr);
+
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
+			GraphBuilder,
+			SharedContext,
+			VirtualShadowSize,
+			false,
+			Nanite::EOutputBufferMode::DepthOnly,
+			false,	// Clear entire texture
+			nullptr, 0,
+			VirtualShadowMapArray.PhysicalPagePoolRDG);
+
+		const FViewInfo& SceneView = SceneRenderer.Views[0];
+
+		static FString VirtualFilterName = TEXT("VirtualShadowMaps");
+
+		TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
+
+		for (FProjectedShadowInfo* ProjectedShadowInfo : VirtualShadowMapShadows)
+		{
+			if (ProjectedShadowInfo->bShouldRenderVSM)
+			{
+				VirtualShadowMapArray.AddRenderViews(
+					ProjectedShadowInfo,
+					ComputeNaniteShadowsLODScaleFactor(),
+					PrevHZBPhysical.IsValid(),
+					bVSMUseHZB,
+					ProjectedShadowInfo->ShouldClampToNearPlane(),
+					VirtualShadowViews);
+			}
+		}
+
+		if (VirtualShadowViews.Num() > 0)
+		{
+			int32 NumPrimaryViews = VirtualShadowViews.Num();
+			VirtualShadowMapArray.CreateMipViews(VirtualShadowViews);
+
+			Nanite::FRasterState RasterState;
+
+			FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
+
+			Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+			CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
+			CullingConfig.bTwoPassOcclusion = VirtualShadowMapArray.UseTwoPassHzbOcclusion();
+			CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
+			CullingConfig.SetViewFlags(SceneView);
+
+			Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+				GraphBuilder,
+				SharedContext,
+				Scene,
+				PrevHZBPhysical,
+				VirtualShadowViewRect,
+				CullingConfig
+			);
+
+			const bool bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
+
+			Nanite::CullRasterize(
+				GraphBuilder,
+				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+				VisibilityResults,
+				Scene,
+				SceneView,
+				VirtualShadowViews,
+				NumPrimaryViews,
+				SharedContext,
+				CullingContext,
+				RasterContext,
+				RasterState,
+				nullptr,
+				&VirtualShadowMapArray,
+				bExtractStats
+			);
+		}
+
+		if (bVSMUseHZB)
+		{
+			VirtualShadowMapArray.UpdateHZB(GraphBuilder);
+		}
+	}
+
+	if (UseNonNaniteVirtualShadowMaps(SceneRenderer.ShaderPlatform, SceneRenderer.FeatureLevel))
+	{
+		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, VirtualShadowMapShadows, SceneRenderer.Views);
+	}
+
+	// If separate static/dynamic caching is enabled, we may need to merge some pages after rendering
+	VirtualShadowMapArray.MergeStaticPhysicalPages(GraphBuilder);
 }
 
 void FShadowSceneRenderer::UpdateDistantLightPriorityRender()
