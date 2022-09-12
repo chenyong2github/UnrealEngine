@@ -13,22 +13,25 @@ public class OutputLog : ModuleRules
                 "InputCore",
 				"Slate",
 				"SlateCore",
-                "TargetPlatform",
-                "DesktopPlatform",
+				"TargetPlatform",
+				"DesktopPlatform",
 				"ToolWidgets", 
 			}
 		);
 
 		if (Target.bBuildEditor)
-        {
-            PrivateDependencyModuleNames.AddRange(
+		{
+			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"EditorFramework",
 					"StatusBar",
 					"UnrealEd",
 				}
 			);
+		}
 
+		if (Target.bBuildEditor || Target.bBuildDeveloperTools)
+		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"WorkspaceMenuStructure",
