@@ -46,14 +46,6 @@ public class OpenVDB : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// TODO: OpenVDB requires Boost, which is not currently available
-			// for arm64, so both Boost and OpenVDB need to be built
-			// specifically for arm64 before we can support it here.
-			if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
-			{
-				return;
-			}
-
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"Unix",

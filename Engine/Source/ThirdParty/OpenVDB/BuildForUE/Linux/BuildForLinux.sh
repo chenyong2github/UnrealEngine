@@ -177,6 +177,8 @@ CMAKE_ARGS=(
 if [[ $ARCH_NAME == x86_64* ]]
 then
     CMAKE_ARGS+=(-DBoost_ARCHITECTURE="-x64")
+else
+    CMAKE_ARGS+=(-DBoost_ARCHITECTURE="-a64")
 fi
 
 NUM_CPU=`grep -c ^processor /proc/cpuinfo`
