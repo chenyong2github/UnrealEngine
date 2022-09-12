@@ -64,6 +64,11 @@ public:
 		const FString UniqueNetIdStr = FString::Printf(TEXT("0%I64X"), UniqueNetId);
 		return OSS_UNIQUEID_REDACT(*this, UniqueNetIdStr);
 	}
+
+	virtual uint32 GetTypeHash() const override
+	{
+		return ::GetTypeHash(UniqueNetId);
+	}
 	//~ End FUniqueNetId Interface
 
 	/** global static instance of invalid (zero) id */
@@ -71,12 +76,6 @@ public:
 	{
 		static const FUniqueNetIdRef EmptyId(Create());
 		return EmptyId;
-	}
-
-	/** Needed for TMap::GetTypeHash() */
-	friend uint32 GetTypeHash(const FUniqueNetIdFacebook& A)
-	{
-		return GetTypeHash(A.UniqueNetId);
 	}
 
 private:

@@ -51,11 +51,6 @@ public:
 		return *static_cast<const FUniqueNetIdEOS*>(&NetId);
 	}
 
-	friend uint32 GetTypeHash(const FUniqueNetIdEOS& A)
-	{
-		return ::GetTypeHash(A.UniqueNetIdStr);
-	}
-
 	/** global static instance of invalid (zero) id */
 	static const FUniqueNetIdEOSRef& EmptyId()
 	{

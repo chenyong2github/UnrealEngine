@@ -168,10 +168,9 @@ public:
 		return FUniqueNetIdSteam(SteamID).ToDebugString();
 	}
 
-	/** Needed for TMap::GetTypeHash() */
-	friend uint32 GetTypeHash(const FUniqueNetIdSteam& A)
+	virtual uint32 GetTypeHash() const override
 	{
-		return GetTypeHash(A.UniqueNetId);
+		return ::GetTypeHash(UniqueNetId);
 	}
 
 	/** global static instance of invalid (zero) id */

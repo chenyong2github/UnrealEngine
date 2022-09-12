@@ -87,10 +87,9 @@ public:
 		return TEXT("ovrID:") + OSS_UNIQUEID_REDACT(*this, UniqueNetIdStr);
 	}
 
-	/** Needed for TMap::GetTypeHash() */
-	friend uint32 GetTypeHash(const FUniqueNetIdOculus& A)
+	virtual uint32 GetTypeHash() const override
 	{
-		return GetTypeHash((uint64)A.ID);
+		return ::GetTypeHash((uint64)ID);
 	}
 
 	/** global static instance of invalid (zero) id */

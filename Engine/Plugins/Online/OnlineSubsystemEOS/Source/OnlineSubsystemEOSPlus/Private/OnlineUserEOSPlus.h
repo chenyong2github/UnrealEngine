@@ -114,18 +114,8 @@ public:
 	}
 	virtual FString ToDebugString() const override
 	{
+		// TODO OSS_UNIQUEID_REDACT
 		return ToString();
-	}
-
-	/** Needed for TMap::GetTypeHash() */
-	friend uint32 GetTypeHash(const FUniqueNetIdBinary& A)
-	{
-		uint32 Hash = 0;
-		for (uint8 CurrentByte : A.RawBytes)
-		{
-			Hash = HashCombine(Hash, GetTypeHash(CurrentByte));
-		}
-		return Hash;
 	}
 
 protected:

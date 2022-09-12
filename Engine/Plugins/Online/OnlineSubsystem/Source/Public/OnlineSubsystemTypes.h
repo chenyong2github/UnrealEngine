@@ -876,10 +876,9 @@ public:
 		}
 	}
 
-	/** Needed for TMap::GetTypeHash() */
-	friend uint32 GetTypeHash(const FUniqueNetIdString& A)
+	virtual uint32 GetTypeHash() const override
 	{
-		return ::GetTypeHash(A.UniqueNetIdStr);
+		return ::GetTypeHash(UniqueNetIdStr);
 	}
 
 public:

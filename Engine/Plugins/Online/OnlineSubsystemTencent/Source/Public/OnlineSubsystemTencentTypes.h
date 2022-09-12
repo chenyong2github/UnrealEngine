@@ -122,11 +122,10 @@ public:
 		}
 	}
 
-	/** Needed for TMap::GetTypeHash() */
-	friend uint32 GetTypeHash(const FUniqueNetIdRail& A)
+	virtual uint32 GetTypeHash() const override
 	{
 		uint64 id = A.RailID.get_id();
-		return GetTypeHash(id);
+		return ::GetTypeHash(id);
 	}
 
 	/** Convenience cast to RailID */

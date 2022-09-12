@@ -184,6 +184,11 @@ public:
 	 */
 	virtual FString ToDebugString() const = 0;
 
+	virtual uint32 GetTypeHash() const
+	{
+		return CityHash32(reinterpret_cast<const char*>(GetBytes()), GetSize());
+	}
+
 	/**
 	 * @return hex encoded string representation of unique id
 	 */
@@ -198,7 +203,7 @@ public:
 
 	friend inline uint32 GetTypeHash(const FUniqueNetId& Value)
 	{
-		return CityHash32(reinterpret_cast<const char*>(Value.GetBytes()), Value.GetSize());
+		return Value.GetTypeHash();
 	}
 };
 
