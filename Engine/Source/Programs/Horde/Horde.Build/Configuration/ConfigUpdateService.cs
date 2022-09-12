@@ -379,7 +379,7 @@ namespace Horde.Build.Configuration
 						}
 
 						Uri fileUri = new Uri($"{PerforceScheme}://{perforcePath.Key}{file.DepotFile}");
-						revisions[fileUri] = $"ver={Version},chg={file.ChangeNumber},path={fileUri}";
+						revisions[fileUri] = $"ver={Version},chg={file.HeadChange},path={fileUri}";
 					}
 				}
 			}
