@@ -157,6 +157,9 @@ typedef FOnProductsRequestResponse::FDelegate FOnProductsRequestResponseDelegate
 /** collection of available products attaced through a store kit request */
 @property (nonatomic, strong) NSArray *AvailableProducts;
 
+/** Pump any events that are enqueued on the observer. */
+-(void)pumpObserverEventQueue;
+
 -(FDelegateHandle)AddOnProductRequestResponse: (const FOnProductsRequestResponseDelegate&) Delegate;
 -(FDelegateHandle)AddOnTransactionComplete: (const FOnTransactionCompleteIOSDelegate&) Delegate;
 -(FDelegateHandle)AddOnTransactionRestored: (const FOnTransactionRestoredIOSDelegate&) Delegate;

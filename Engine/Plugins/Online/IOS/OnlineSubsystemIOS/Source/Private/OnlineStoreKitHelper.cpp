@@ -120,7 +120,74 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)onPaymentTransactionObserverEventReceived
 {
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+	{
+		[self pumpObserverEventQueue];
+
+		return true;
+	}];
 }
+
+-(void)pumpObserverEventQueue
+{
+	FPaymentTransactionObserver* Observer = [FPaymentTransactionObserver sharedInstance];
+
+	FPaymentTransactionObserverEvent ObserverEvent;
+	while ([Observer getEventQueue].Dequeue(ObserverEvent))
+	{
+		switch (ObserverEvent.Type)
+		{
+		case EPaymentTransactionObserverEventType::UpdatedTransaction:
+			[self updatedTransaction : ObserverEvent.Transaction];
+			break;
+		case EPaymentTransactionObserverEventType::RemovedTransaction:
+			[self removedTransaction : ObserverEvent.Transaction];
+			break;
+		case EPaymentTransactionObserverEventType::RestoreCompletedTransactionsFailed:
+			[self restoreCompletedTransactionsFailedWithError : ObserverEvent.ErrorCode];
+			break;
+		case EPaymentTransactionObserverEventType::RestoreCompletedTransactionsFinished:
+			[self restoreCompletedTransactionsFinished];
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+-(void)updatedTransaction : (SKPaymentTransaction*)transaction
+{
+	UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::updatedTransaction"));
+
+	// Parse the generic transaction update into appropriate execution paths
+	switch ([transaction transactionState])
+	{
+	case SKPaymentTransactionStatePurchased:
+		if (FParse::Param(FCommandLine::Get(), TEXT("disableiosredeem")))
+		{
+			UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::completeTransaction (disabled)"));
+		}
+		else
+		{
+			[self completeTransaction : transaction] ;
+		}
+		break;
+	case SKPaymentTransactionStateFailed:
+		[self failedTransaction : transaction] ;
+		break;
+	case SKPaymentTransactionStateRestored:
+		[self restoreTransaction : transaction] ;
+		break;
+	case SKPaymentTransactionStatePurchasing:
+		[self purchaseInProgress : transaction] ;
+		break;
+	case SKPaymentTransactionStateDeferred:
+		[self purchaseDeferred : transaction] ;
+		break;
+	default:
+		UE_LOG_ONLINE_STOREV2(Warning, TEXT("FStoreKitHelper unhandled state: %d"), [transaction transactionState]);
+		break;
+	}}
 
 -(void)removedTransaction : (SKPaymentTransaction*)transaction
 {

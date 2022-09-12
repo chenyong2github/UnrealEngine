@@ -223,7 +223,8 @@ void FOnlinePurchaseIOS::GetReceipts(const FUniqueNetId& UserId, TArray<FPurchas
 	OutReceipts.Empty();
 
 	// Add the cached list of user purchases
-	const TArray<TSharedRef<FPurchaseReceipt>>* UserCompletedTransactions = CompletedTransactions.Find(UserId.ToString());
+    const FString UserIdStr = IOSUSER;
+	const TArray<TSharedRef<FPurchaseReceipt>>* UserCompletedTransactions = CompletedTransactions.Find(UserIdStr);
 	if (UserCompletedTransactions != nullptr)
 	{
 		for (int32 Idx = 0; Idx < UserCompletedTransactions->Num(); Idx++)
