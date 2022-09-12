@@ -354,6 +354,15 @@ struct ENGINE_API FInputKeyParams
 		, bIsGamepadOverride(bGamepadOverride)
 	{};
 
+	FInputKeyParams(FKey InKey, FVector InDelta, float InDeltaTime, int32 InNumSamples, bool bGamepadOverride = false, FInputDeviceId InInputDevice = INPUTDEVICEID_NONE)
+		: Key(InKey)
+		, InputDevice(InInputDevice)
+		, NumSamples(InNumSamples)
+		, DeltaTime(InDeltaTime)
+		, Delta(InDelta)
+		, bIsGamepadOverride(bGamepadOverride)
+	{};
+
 	/** The key that has been pressed */
 	FKey Key = EKeys::Invalid;
 

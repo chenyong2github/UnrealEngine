@@ -779,7 +779,7 @@ void InjectKey(T* InjectVia, FKey Key, const FInputActionValue& Value, float Del
 	// TODO: Multi axis FKey support
 	if (Key.IsAnalog())
 	{
-		InjectVia->InputKey(FInputKeyParams(Key, static_cast<double>(Value.Get<float>()), DeltaTime, 1, Key.IsGamepadKey()));
+		InjectVia->InputKey(FInputKeyParams(Key, Value.Get<FVector>(), DeltaTime, 1, Key.IsGamepadKey()));
 	}
 	else
 	{
