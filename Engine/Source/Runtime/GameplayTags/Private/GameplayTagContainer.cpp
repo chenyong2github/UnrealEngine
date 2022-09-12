@@ -102,12 +102,12 @@ void SerializeTagNetIndexPacked(FArchive& Ar, FGameplayTagNetIndex& Value, const
 		{
 			uint32 SecondData = 0;
 			Ar.SerializeBits(&SecondData, SecondSegment);
-			Value = (SecondData << FirstSegment);
+			Value = IntCastChecked<uint16, uint32>(SecondData << FirstSegment);
 			Value |= (FirstData & BitMasks[FirstSegment]);
 		}
 		else
 		{
-			Value = FirstData;
+			Value = IntCastChecked<uint16, uint32>(FirstData);
 		}
 
 	}
@@ -966,7 +966,7 @@ bool FGameplayTagContainer::NetSerialize(FArchive& Ar, class UPackageMap* Map, b
 
 	if (Ar.IsSaving())
 	{
-		uint8 NumTags = GameplayTags.Num();
+		uint8 NumTags = IntCastChecked<uint8, int32>(GameplayTags.Num());
 		uint8 MaxSize = (1 << NumBitsForContainerSize) - 1;
 		if (!ensureMsgf(NumTags <= MaxSize, TEXT("TagContainer has %d elements when max is %d! Tags: %s"), NumTags, MaxSize, *ToStringSimple()))
 		{
@@ -1220,7 +1220,7 @@ bool FGameplayTag::NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, boo
 
 			uint32 NetIndex32 = NetIndex;
 			Ar.SerializeIntPacked(NetIndex32);
-			NetIndex = NetIndex32;
+			NetIndex = IntCastChecked<uint16, uint32>(NetIndex32);
 
 			if (Ar.IsLoading())
 			{
@@ -1850,7 +1850,7 @@ FGameplayTagQueryExpression& FGameplayTagQueryExpression::AddTag(FName TagName)
 void FGameplayTagQueryExpression::EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary) const
 {
 	// emit exprtype
-	TokenStream.Add(ExprType);
+	TokenStream.Add(static_cast<uint8>(ExprType));
 
 	// emit exprdata
 	switch (ExprType)
@@ -1923,7 +1923,7 @@ static void TagPackingTest()
 		{
 			for (int32 NetIndex=0; NetIndex < FMath::Pow(2.f, TotalNetIndexBits); ++NetIndex)
 			{
-				FGameplayTagNetIndex NI = NetIndex;
+				FGameplayTagNetIndex NI = IntCastChecked<uint16, int32>(NetIndex);
 
 				FNetBitWriter	BitWriter(nullptr, 1024 * 8);
 				SerializeTagNetIndexPacked(BitWriter, NI, NetIndexBitsPerComponent, TotalNetIndexBits);

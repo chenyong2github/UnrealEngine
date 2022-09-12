@@ -1393,13 +1393,13 @@ public:
 
 		// position the entry and exit nodes somewhere sane
 		{
-			const FVector2D EntryPos = GetNodePosition(GraphXBounds.X - 1, 0);
-			EntryNode->NodePosX = EntryPos.X;
-			EntryNode->NodePosY = EntryPos.Y;
+			const FVector2D EntryPos = GetNodePosition(static_cast<int32>(GraphXBounds.X - 1), 0);
+			EntryNode->NodePosX = static_cast<int32>(EntryPos.X);
+			EntryNode->NodePosY = static_cast<int32>(EntryPos.Y);
 
-			const FVector2D ExitPos = GetNodePosition(GraphXBounds.Y + 1, 0);
-			ExitNode->NodePosX = ExitPos.X;
-			ExitNode->NodePosY = ExitPos.Y;
+			const FVector2D ExitPos = GetNodePosition(static_cast<int32>(GraphXBounds.Y + 1), 0);
+			ExitNode->NodePosX = static_cast<int32>(ExitPos.X);
+			ExitNode->NodePosY = static_cast<int32>(ExitPos.Y);
 		}
 				
 		bool bHasErrors = ((MessageLog.NumErrors - StartingErrorCount) > 0);

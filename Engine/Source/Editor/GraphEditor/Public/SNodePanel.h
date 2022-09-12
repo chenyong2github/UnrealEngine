@@ -783,7 +783,7 @@ public:
 	void RestoreViewSettings(const FVector2D& InViewOffset, float InZoomAmount, const FGuid& InBookmarkGuid = FGuid());
 
 	/** Get the grid snap size */
-	static float GetSnapGridSize();
+	static uint32 GetSnapGridSize();
 
 	/** 
 	 * Zooms out to fit either all nodes or only the selected ones.

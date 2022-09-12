@@ -760,24 +760,24 @@ FReply SGraphPanel::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InK
 		const bool bIsModifierActive = InKeyEvent.IsCommandDown() || InKeyEvent.IsAltDown() || InKeyEvent.IsShiftDown() || InKeyEvent.IsControlDown();
 		if (!bIsModifierActive)
 		{
-			if( InKeyEvent.GetKey() == EKeys::Up  ||InKeyEvent.GetKey() ==  EKeys::NumPadEight )
+			if( InKeyEvent.GetKey() == EKeys::Up || InKeyEvent.GetKey() == EKeys::NumPadEight )
 			{
-				UpdateSelectedNodesPositions(FVector2D(0.0f,-GetSnapGridSize()));
+				UpdateSelectedNodesPositions(FVector2D(0.0f,-1.0f * GetSnapGridSize()));
 				return FReply::Handled();
 			}
-			if( InKeyEvent.GetKey() ==  EKeys::Down || InKeyEvent.GetKey() ==  EKeys::NumPadTwo )
+			if( InKeyEvent.GetKey() == EKeys::Down || InKeyEvent.GetKey() == EKeys::NumPadTwo )
 			{
 				UpdateSelectedNodesPositions(FVector2D(0.0f,GetSnapGridSize()));
 				return FReply::Handled();
 			}
-			if( InKeyEvent.GetKey() ==  EKeys::Right || InKeyEvent.GetKey() ==  EKeys::NumPadSix )
+			if( InKeyEvent.GetKey() == EKeys::Right || InKeyEvent.GetKey() == EKeys::NumPadSix )
 			{
 				UpdateSelectedNodesPositions(FVector2D(GetSnapGridSize(),0.0f));
 				return FReply::Handled();
 			}
-			if( InKeyEvent.GetKey() ==  EKeys::Left || InKeyEvent.GetKey() ==  EKeys::NumPadFour )
+			if( InKeyEvent.GetKey() == EKeys::Left || InKeyEvent.GetKey() == EKeys::NumPadFour )
 			{
-				UpdateSelectedNodesPositions(FVector2D(-GetSnapGridSize(),0.0f));
+				UpdateSelectedNodesPositions(FVector2D(-1.0f * GetSnapGridSize(),0.0f));
 				return FReply::Handled();
 			}
 		}

@@ -1332,7 +1332,7 @@ void SNodePanel::RestoreViewSettings(const FVector2D& InViewOffset, float InZoom
 	CurrentBookmarkGuid = InBookmarkGuid;
 }
 
-float SNodePanel::GetSnapGridSize()
+uint32 SNodePanel::GetSnapGridSize()
 {
 	return GetDefault<UEditorStyleSettings>()->GridSnapSize;
 }

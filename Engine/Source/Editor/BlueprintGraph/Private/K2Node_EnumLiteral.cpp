@@ -137,7 +137,7 @@ void UK2Node_EnumLiteral::ExpandNode(class FKismetCompilerContext& CompilerConte
 		bSuccess = Index != INDEX_NONE;
 		if (bSuccess)
 		{
-			NewInputPin->DefaultValue = FString::FromInt(Enum->GetValueByIndex(Index));
+			NewInputPin->DefaultValue = FString::FromInt(IntCastChecked<int32, int64>(Enum->GetValueByIndex(Index)));
 		}
 
 		UK2Node_CastByteToEnum* CastByte = CompilerContext.SpawnIntermediateNode<UK2Node_CastByteToEnum>(this, SourceGraph);

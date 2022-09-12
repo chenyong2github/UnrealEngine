@@ -516,8 +516,8 @@ UK2Node_CustomEvent* UK2Node_CustomEvent::CreateFromFunction(FVector2D GraphPosi
 			}
 		}
 
-		CustomEventNode->NodePosX = GraphPosition.X;
-		CustomEventNode->NodePosY = GraphPosition.Y;
+		CustomEventNode->NodePosX = static_cast<int32>(GraphPosition.X);
+		CustomEventNode->NodePosY = static_cast<int32>(GraphPosition.Y);
 		CustomEventNode->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 	}
 

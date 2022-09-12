@@ -660,7 +660,7 @@ public:
 	void BreakAllNodeLinks();
 
 	/** Snap this node to a specified grid size */
-	void SnapToGrid(float GridSnapSize);
+	void SnapToGrid(uint32 GridSnapSize);
 
 	/** Clear error flag */
 	void ClearCompilerMessage()

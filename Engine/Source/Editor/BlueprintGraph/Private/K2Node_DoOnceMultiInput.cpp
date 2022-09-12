@@ -69,7 +69,7 @@ FText UK2Node_DoOnceMultiInput::GetNameForPin(int32 PinIndex, bool In)
 {
 	check(PinIndex < GetMaxInputPinsNum());
 	FString Name;
-	Name.AppendChar(TCHAR('A') + PinIndex);
+	Name.AppendChar(TCHAR('A') + static_cast<TCHAR>(PinIndex));
 	
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("Identifier"), FText::FromString(Name));

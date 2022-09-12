@@ -168,7 +168,7 @@ FReply SGraphNodeResizable::OnMouseMove(const FGeometry& MyGeometry, const FPoin
 		DragSize.X += DeltaNodeSize.X;
 		DragSize.Y += DeltaNodeSize.Y;
 		// apply snap
-		const float SnapSize = SNodePanel::GetSnapGridSize();
+		const uint32 SnapSize = SNodePanel::GetSnapGridSize();
 		FVector2D SnappedSize;
 		SnappedSize.X = SnapSize * FMath::RoundToFloat( DragSize.X/SnapSize );
 		SnappedSize.Y = SnapSize * FMath::RoundToFloat( DragSize.Y/SnapSize );

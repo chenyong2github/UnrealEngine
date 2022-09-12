@@ -323,7 +323,7 @@ bool UBlueprintNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter con
 }
 
 //------------------------------------------------------------------------------
-UEdGraphNode* UBlueprintNodeSpawner::SpawnEdGraphNode(TSubclassOf<UEdGraphNode> InNodeClass, UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location, FCustomizeNodeDelegate PostSpawnDelegate) const
+UEdGraphNode* UBlueprintNodeSpawner::SpawnEdGraphNode(TSubclassOf<UEdGraphNode> InNodeClass, UEdGraph* ParentGraph, const FBindingSet& Bindings, FVector2D Location, FCustomizeNodeDelegate PostSpawnDelegate) const
 {
 	UEdGraphNode* NewNode = nullptr;
 	if (InNodeClass != nullptr)
@@ -334,8 +334,8 @@ UEdGraphNode* UBlueprintNodeSpawner::SpawnEdGraphNode(TSubclassOf<UEdGraphNode> 
 
 		// position the node before invoking PostSpawnDelegate (in case it 
 		// wishes to modify this positioning)
-		NewNode->NodePosX = Location.X;
-		NewNode->NodePosY = Location.Y;
+		NewNode->NodePosX = static_cast<int32>(Location.X);
+		NewNode->NodePosY = static_cast<int32>(Location.Y);
 
 		bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 		PostSpawnDelegate.ExecuteIfBound(NewNode, bIsTemplateNode);

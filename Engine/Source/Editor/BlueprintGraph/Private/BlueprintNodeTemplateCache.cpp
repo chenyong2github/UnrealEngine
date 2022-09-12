@@ -46,7 +46,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogBlueprintNodeCache, Log, All);
 namespace BlueprintNodeTemplateCacheImpl
 {
 	/** */
-	static int32 ActiveMemFootprint   = 0;
+	static int64 ActiveMemFootprint   = 0;
 	/** Used to track the average blueprint size (so that we can try to predict when a blueprint would fail to be cached) */
 	static int32 MadeBlueprintCount   = 0;
 	static int32 AverageBlueprintSize = 0;
@@ -171,11 +171,6 @@ static UEdGraph* BlueprintNodeTemplateCacheImpl::FindCompatibleGraph(UBlueprint*
 static UBlueprint* BlueprintNodeTemplateCacheImpl::MakeCompatibleBlueprint(TSubclassOf<UBlueprint> BlueprintClass, UClass* ParentClass, TSubclassOf<UBlueprintGeneratedClass> GeneratedClassType)
 {
 	EBlueprintType BlueprintType = BPTYPE_Normal;
-	// @TODO: BPTYPE_LevelScript requires a level outer, which we don't want to have here... can we get away without it?
-// 	if (BlueprintClass->IsChildOf<ULevelScriptBlueprint>())
-// 	{
-// 		BlueprintType = BPTYPE_LevelScript;
-// 	}
 
 	if (GeneratedClassType == nullptr)
 	{
@@ -183,8 +178,8 @@ static UBlueprint* BlueprintNodeTemplateCacheImpl::MakeCompatibleBlueprint(TSubc
 	}
 
 	UPackage* BlueprintOuter = GetTransientPackage();
-	FString const DesiredName = FString::Printf(TEXT("PROTO_BP_%s"), *BlueprintClass->GetName());
-	FName   const BlueprintName = MakeUniqueObjectName(BlueprintOuter, BlueprintClass, FName(*DesiredName));
+	const FString DesiredName = FString::Printf(TEXT("PROTO_BP_%s"), *BlueprintClass->GetName());
+	const FName BlueprintName = MakeUniqueObjectName(BlueprintOuter, BlueprintClass, FName(*DesiredName));
 
 	BlueprintClass = FBlueprintEditorUtils::FindFirstNativeClass(BlueprintClass);
 	UBlueprint* NewBlueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, BlueprintOuter, BlueprintName, BlueprintType, BlueprintClass, GeneratedClassType);
@@ -192,11 +187,17 @@ static UBlueprint* BlueprintNodeTemplateCacheImpl::MakeCompatibleBlueprint(TSubc
 
 	++MadeBlueprintCount;
 
-	float const AproxBlueprintSize = ApproximateMemFootprint(NewBlueprint);
+	const float AproxBlueprintSize = static_cast<float>(ApproximateMemFootprint(NewBlueprint));
+	const float MadeBlueprintCountFloat = static_cast<float>(MadeBlueprintCount);
+
 	// track the average blueprint size, so that we can attempt to predict 
 	// whether a  blueprint will fail to be cached (when the cache is near full)
-	AverageBlueprintSize = AverageBlueprintSize * ((float)(MadeBlueprintCount-1) / MadeBlueprintCount) + 
-		(AproxBlueprintSize / MadeBlueprintCount) + 0.5f;
+	AverageBlueprintSize = 
+		static_cast<int32>(
+			(AverageBlueprintSize * ((MadeBlueprintCountFloat - 1.0f) / MadeBlueprintCountFloat)) +
+			(AproxBlueprintSize / MadeBlueprintCountFloat) +
+			0.5f
+		);
 
 	return NewBlueprint;
 }
@@ -237,9 +238,9 @@ bool BlueprintNodeTemplateCacheImpl::IsTemplateOuter(UEdGraph* ParentGraph)
 //------------------------------------------------------------------------------
 static int32 BlueprintNodeTemplateCacheImpl::GetCacheCapSize()
 {
-	UBlueprintEditorSettings const* BpSettings = GetDefault<UBlueprintEditorSettings>();
+	const UBlueprintEditorSettings* BpSettings = GetDefault<UBlueprintEditorSettings>();
 	// have to convert from MB to bytes
-	return (BpSettings->NodeTemplateCacheCapMB * 1024.f * 1024.f) + 0.5f;
+	return (static_cast<int32>(BpSettings->NodeTemplateCacheCapMB) << 20);
 }
 
 //------------------------------------------------------------------------------
@@ -462,9 +463,9 @@ void FBlueprintNodeTemplateCache::ClearCachedTemplate(UBlueprintNodeSpawner cons
 }
 
 //------------------------------------------------------------------------------
-int32 FBlueprintNodeTemplateCache::GetEstimateCacheSize() const
+int64 FBlueprintNodeTemplateCache::GetEstimateCacheSize() const
 {
-	int32 TotalEstimatedSize = ApproximateObjectMem;
+	int64 TotalEstimatedSize = ApproximateObjectMem;
 	TotalEstimatedSize += TemplateOuters.GetAllocatedSize();
 	TotalEstimatedSize += NodeTemplateCache.GetAllocatedSize();
 	TotalEstimatedSize += sizeof(*this);
@@ -473,7 +474,7 @@ int32 FBlueprintNodeTemplateCache::GetEstimateCacheSize() const
 }
 
 //------------------------------------------------------------------------------
-int32 FBlueprintNodeTemplateCache::RecalculateCacheSize()
+int64 FBlueprintNodeTemplateCache::RecalculateCacheSize()
 {
 	ApproximateObjectMem = 0;
 	for (UBlueprint* Blueprint : TemplateOuters)
