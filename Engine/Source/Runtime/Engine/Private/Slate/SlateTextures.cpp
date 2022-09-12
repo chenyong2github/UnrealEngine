@@ -73,6 +73,8 @@ void FSlateTexture2DRHIRef::InitDynamicRHI()
 			const uint32 BlocksY = GPixelFormats[PixelFormat].GetBlockCountForHeight(Height);
 			const uint32 DataStride = BlocksX * GPixelFormats[PixelFormat].BlockBytes;
 
+			checkf((uint32)TextureData->GetRawBytes().Num() >= DataStride * BlocksY, TEXT("Not enough bytes in source TextureData to complete copy operation"));
+
 			if (Stride == DataStride)
 			{
 				FMemory::Memcpy(DestTextureData, SourceTextureData, Stride * BlocksY);
