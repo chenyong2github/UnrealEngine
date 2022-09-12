@@ -21,7 +21,7 @@
 	#include "AudioCompressionSettings.h"
 #endif // WITH_ENGINE
 #include "Windows/WindowsPlatformProperties.h"
-
+#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "TGenericWindowsTargetPlatform"
 
@@ -271,18 +271,22 @@ public:
 	{
 		if (UsesRayTracing())
 		{
-			// Only D3D12 and Vulkan can possibly support ray tracing
 			TCHAR const* RelevantSettings[] = 
 			{
-				TEXT("TargetedRHIs"),
-				TEXT("D3D12TargetedShaderFormats"),
 				TEXT("VulkanTargetedShaderFormats")
 			};
 
 			GetAllTargetedShaderFormatsInternal(RelevantSettings, OutFormats);
 
-			// We always support ray tracing shaders when cooking for SM6, however we may skip them for SM5 based on project settings.
+			// We always support ray tracing shaders when cooking for D3D12 SM6, however we may skip them for SM5 based on project settings.
 			OutFormats.AddUnique(FName(TEXT("PCD3D_SM6")));
+
+			static IConsoleVariable* RequireSM6CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.RequireSM6"));
+			const bool bRequireSM6 = RequireSM6CVar && RequireSM6CVar->GetBool();
+			if (!bRequireSM6)
+			{
+				OutFormats.AddUnique(FName(TEXT("PCD3D_SM5")));
+			}
 		}
 	}
 
