@@ -49,18 +49,17 @@ public class Boost : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// TODO: Boost needs to be built specifically for arm64 before we
-			// can support it here.
+			string BoostLibPath = Path.Combine(BoostPath, "lib", "Unix", Target.Architecture);
+
+			string BoostLibArchSuffix = "x64";
 			if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
 			{
-				return;
+				BoostLibArchSuffix = "a64";
 			}
-
-			string BoostLibPath = Path.Combine(BoostPath, "lib", "Unix", Target.Architecture);
 
 			foreach (string BoostLib in BoostLibraries)
 			{
-				string BoostLibName = "libboost_" + BoostLib + "-mt-x64";
+				string BoostLibName = "libboost_" + BoostLib + "-mt-" + BoostLibArchSuffix;
 				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".a"));
 
 				// Declare all version variations of the shared libraries as
