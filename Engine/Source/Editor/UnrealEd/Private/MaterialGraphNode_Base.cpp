@@ -283,13 +283,29 @@ void UMaterialGraphNode_Base::ReconstructNode()
 		UEdGraphPin* NewPin = nullptr;
 		if (OldPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 		{
-			if (OldPin->Direction == EGPD_Input) NewPin = GetExecInputPin();
-			else NewPin = GetExecOutputPin(OldPin->SourceIndex);
+			if (OldPin->Direction == EGPD_Input) 
+			{
+				NewPin = GetExecInputPin();
+			}
+			else 
+			{
+				NewPin = GetExecOutputPin(OldPin->SourceIndex);
+			}
 		}
 		else
 		{
-			if (OldPin->Direction == EGPD_Input) NewPin = GetInputPin(OldPin->PinName);
-			else NewPin = GetOutputPin(OldPin->SourceIndex);
+			if (OldPin->Direction == EGPD_Input)
+			{
+				NewPin = GetInputPin(OldPin->PinName);
+				if (NewPin == nullptr)
+				{
+					NewPin = GetInputPin(OldPin->SourceIndex);
+				}
+			}
+			else 
+			{
+				NewPin = GetOutputPin(OldPin->SourceIndex);
+			}
 		}
 		if (NewPin)
 		{
