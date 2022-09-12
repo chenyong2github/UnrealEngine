@@ -510,7 +510,6 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 	uint4 NodeData = GetGroupNodeData(FetchIndex);
 	
 	FCandidateNode CandidateNode = UnpackCandidateNode(NodeData, bIsPostPass);
-	uint CandidateNodesOffset = 0;
 
 	FNaniteView NaniteView = GetNaniteView( CandidateNode.ViewId );
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -612,26 +611,22 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 		}
 	}
 
-	BRANCH
-	if(bVisible)
-	{
-		BRANCH
-		if (!bWasOccluded)
-		{
-			if(!HierarchyNodeSlice.bLeaf)
-			{
-				WaveInterlockedAddScalar_( GroupNumCandidateNodes, 1, CandidateNodesOffset );
-			}
-		}
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		else
-		{
-			if( bLoaded )
-			{
-				InterlockedOr( GroupOccludedBitmask[ LocalNodeIndex ], 1u << ChildIndex );
-			}
-		}
+	BRANCH
+	if(bVisible && bWasOccluded && bLoaded)
+	{
+		InterlockedOr( GroupOccludedBitmask[ LocalNodeIndex ], 1u << ChildIndex );
+	}
 #endif
+
+	bVisible = bVisible && !bWasOccluded;
+
+	uint CandidateNodesOffset = 0;
+
+	BRANCH
+	if(bVisible && !HierarchyNodeSlice.bLeaf)
+	{
+		WaveInterlockedAddScalar_( GroupNumCandidateNodes, 1, CandidateNodesOffset );
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -645,7 +640,7 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 	AllMemoryBarrierWithGroupSync();
 
 	// GPU might not be filled, so latency is important here. Kick new jobs as soon as possible.
-	bool bOutputChild = bVisible && bLoaded && !bWasOccluded;
+	bool bOutputChild = bVisible && bLoaded;
 	if( bOutputChild && !HierarchyNodeSlice.bLeaf)
 	{
 		CandidateNodesOffset += GroupCandidateNodesOffset;
@@ -720,7 +715,7 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 		InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeCount, -(int)BatchSize);
 	}
 
-	if( bVisible && !bWasOccluded && HierarchyNodeSlice.bLeaf )
+	if( bVisible && HierarchyNodeSlice.bLeaf )
 	{
 		RequestPageRange(RuntimeResourceID, HierarchyNodeSlice.StartPageIndex, HierarchyNodeSlice.NumPages, NaniteView.StreamingPriorityCategory, StreamingPriority);
 	}
