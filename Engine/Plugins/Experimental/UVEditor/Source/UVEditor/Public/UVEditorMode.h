@@ -132,6 +132,11 @@ private:
 	TArray<FString> UVAssetNames;
 };
 
+namespace UVEditorModeChange
+{
+	class FApplyChangesChange;
+}
+
 /**
  * The UV editor mode is the mode used in the UV asset editor. It holds most of the inter-tool state.
  * We put things in a mode instead of directly into the asset editor in case we want to someday use the mode
@@ -141,6 +146,8 @@ UCLASS(Transient)
 class UUVEditorMode : public UEdMode
 {
 	GENERATED_BODY()
+
+	friend UVEditorModeChange::FApplyChangesChange;
 public:
 	const static FEditorModeID EM_UVEditorModeId;
 
