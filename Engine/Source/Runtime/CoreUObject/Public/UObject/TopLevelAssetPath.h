@@ -11,7 +11,10 @@
 #include "Serialization/StructuredArchiveNameHelpers.h"
 #include "Serialization/StructuredArchiveSlots.h"
 #include "Templates/TypeHash.h"
+#include "Traits/IsCharType.h"
 #include "UObject/NameTypes.h"
+
+#include <type_traits>
 
 class CORE_API FString;
 class UObject;
@@ -46,29 +49,31 @@ struct COREUOBJECT_API FTopLevelAssetPath
 
 	/** Construct from string / string view / raw string of a supported character type. */
 	explicit FTopLevelAssetPath(const FString& Path) { TrySetPath(FStringView(Path)); }
-	template<typename CharType>
+	template<typename CharType, typename = typename std::enable_if<TIsCharType<CharType>::Value>::type>
 	explicit FTopLevelAssetPath(TStringView<CharType> Path) { TrySetPath(Path); }
-	template<typename CharType>
+	template<typename CharType, typename = typename std::enable_if<TIsCharType<CharType>::Value>::type>
 	explicit FTopLevelAssetPath(const CharType* Path) { TrySetPath(TStringView<CharType>(Path)); }
 
-	/** Construct from an existing object in memory */
-	explicit FTopLevelAssetPath(const UObject* InObject);
+	/** Construct from an existing object. Creates an empty path if the object is not a package or the direct inner of a package. */
+	explicit FTopLevelAssetPath(const UObject* InObject) { TrySetPath(InObject); }
 
 	/** Assign from the same types we can construct from */
 	FTopLevelAssetPath& operator=(const FString& Path) { TrySetPath(FStringView(Path)); return *this; }
 	template<typename CharType>
 	FTopLevelAssetPath& operator=(TStringView<CharType> Path) { TrySetPath(Path); return *this; }
-	template<typename CharType>
+	template<typename CharType, typename = typename std::enable_if<TIsCharType<CharType>::Value>::type>
 	FTopLevelAssetPath& operator=(const CharType* Path) { TrySetPath(TStringView<CharType>(Path)); return *this; }
 	FTopLevelAssetPath& operator=(TYPE_OF_NULLPTR) { Reset(); return *this; }
 
 	/** Sets asset path of this reference based on components. */
 	bool TrySetPath(FName InPackageName, FName InAssetName);
+	/** Sets asset path to path of existing object. Sets an empty path and returns false if the object is not a package or the direct inner of a package. */
+	bool TrySetPath(const UObject* InObject);
 	/** Sets asset path of this reference based on a string path. Resets this object and returns false if the string is empty or does not represent a top level asset path. */
 	bool TrySetPath(FWideStringView Path);
 	bool TrySetPath(FUtf8StringView Path);
 	bool TrySetPath(FAnsiStringView Path);
-	template<typename CharType>
+	template<typename CharType,	typename = typename std::enable_if<TIsCharType<CharType>::Value>::type>
 	bool TrySetPath(const CharType* Path) { return TrySetPath(TStringView<CharType>(Path)); }
 	bool TrySetPath(const FString& Path) { return TrySetPath(FStringView(Path)); }
 

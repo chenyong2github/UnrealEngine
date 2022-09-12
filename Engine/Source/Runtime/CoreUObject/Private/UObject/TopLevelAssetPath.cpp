@@ -19,29 +19,6 @@
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath)
 #endif
 
-FTopLevelAssetPath::FTopLevelAssetPath(const UObject* InObject)
-{
-	if (InObject == nullptr)
-	{
-		PackageName = AssetName = FName();
-	}
-	else if (!InObject->GetOuter())
-	{
-		check(Cast<UPackage>(InObject) != nullptr);
-		PackageName = InObject->GetFName();
-		AssetName = FName();
-	}
-	else if (!InObject->IsAsset() || InObject->GetOuter()->GetOuter() != nullptr)
-	{
-		PackageName = AssetName = FName();
-	}
-	else
-	{
-		PackageName = InObject->GetOuter()->GetFName();
-		AssetName = InObject->GetFName();
-	}
-}
-
 void FTopLevelAssetPath::AppendString(FStringBuilderBase& Builder) const
 {
 	if (!IsNull())
@@ -85,6 +62,33 @@ bool FTopLevelAssetPath::TrySetPath(FName InPackageName, FName InAssetName)
 	PackageName = InPackageName;
 	AssetName = InAssetName;
 	return !PackageName.IsNone();
+}
+
+bool FTopLevelAssetPath::TrySetPath(const UObject* InObject)
+{
+	if (InObject == nullptr)
+	{
+		Reset();
+		return false;
+	}
+	else if (!InObject->GetOuter())
+	{
+		check(Cast<UPackage>(InObject) != nullptr);
+		PackageName = InObject->GetFName();
+		AssetName = FName();
+		return true;
+	}
+	else if (InObject->GetOuter()->GetOuter() != nullptr)
+	{
+		Reset();
+		return false;
+	}
+	else
+	{
+		PackageName = InObject->GetOuter()->GetFName();
+		AssetName = InObject->GetFName();
+		return true;
+	}
 }
 
 bool FTopLevelAssetPath::TrySetPath(FWideStringView Path)
