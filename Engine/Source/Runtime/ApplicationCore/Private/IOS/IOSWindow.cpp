@@ -23,16 +23,8 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 {
 	OwningApplication = Application;
 	Definition = InDefinition;
-    
-    NSArray         *allWindows = [[UIApplication sharedApplication]windows];
-    for (UIWindow   *currentWindow in allWindows)
-    {
-        if (currentWindow.isKeyWindow)
-        {
-			Window = currentWindow;
-            break;
-        }
-    }
+        
+        Window = (UIWindow *)[[[[UIApplication sharedApplication] connectedScenes] allObjects] firstObject];
 
 #if !PLATFORM_TVOS
 	if(InParent.Get() != NULL)

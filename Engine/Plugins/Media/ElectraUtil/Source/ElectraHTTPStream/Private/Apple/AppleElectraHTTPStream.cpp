@@ -1307,8 +1307,9 @@ FElectraHTTPStreamApple::FChallengeResponse FElectraHTTPStreamApple::ReceivedCha
 			// the chain starts with the server's cert itself, so walk backwards to optimize for roots first
 			TArray<TArray<uint8, TFixedAllocator<ISslCertificateManager::PUBLIC_KEY_DIGEST_SIZE>>> CertDigests;
 
-			CFIndex NumCerts = SecTrustGetCertificateCount(RemoteTrust);
-			for(int i = static_cast<int>(NumCerts) - 1; i >= 0; i--)
+                        CFArrayRef Certificates = SecTrustCopyCertificateChain(RemoteTrust);
+                        CFIndex CertificateCount = CFArrayGetCount(Certificates);
+			for (int i = 0; CertificateCount; ++i)
 			{
 				SecCertificateRef Cert = SecTrustGetCertificateAtIndex(RemoteTrust, i);
 

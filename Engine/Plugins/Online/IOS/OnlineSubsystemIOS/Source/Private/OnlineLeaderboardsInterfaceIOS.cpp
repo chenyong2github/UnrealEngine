@@ -7,6 +7,7 @@
 // GameCenter includes
 #include <GameKit/GKLeaderboard.h>
 #include <GameKit/GKScore.h>
+#include <GameKit/GKLocalPlayer.h>
 
 FOnlineLeaderboardsIOS::FOnlineLeaderboardsIOS(FOnlineSubsystemIOS* InSubsystem)
 {
@@ -161,7 +162,8 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< FUniqueNetIdRef >& P
 		}
 
 		// Kick off a game center read request for the list of users
-		[GKPlayer loadPlayersForIdentifiers:FriendIds withCompletionHandler:^(NSArray *players, NSError *Error)
+                 GKLocalPlayer* GKLocalUser = [GKLocalPlayer localPlayer];
+                 [GKLocalUser loadFriendsWithIdentifiers:(NSArray<NSString *> *)FriendIds completionHandler:^(NSArray<GKPlayer *> *players, NSError *Error)
 		 {
 			bool bWasSuccessful = (Error == nil) && [players count] > 0;
 			if (bWasSuccessful)
