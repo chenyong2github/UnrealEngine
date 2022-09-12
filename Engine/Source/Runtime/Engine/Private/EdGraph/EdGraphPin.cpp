@@ -771,6 +771,11 @@ FString UEdGraphPin::GetDefaultAsString() const
 	}
 }
 
+bool UEdGraphPin::IsDefaultAsStringEmpty() const
+{
+	return DefaultObject.IsNullNoResolve() && DefaultTextValue.IsEmpty() && DefaultValue.IsEmpty();
+}
+
 FText UEdGraphPin::GetDefaultAsText() const
 {
 	if (DefaultObject)

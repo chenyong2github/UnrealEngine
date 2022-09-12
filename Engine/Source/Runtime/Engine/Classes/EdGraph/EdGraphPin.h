@@ -469,6 +469,11 @@ public:
 	 */
 	ENGINE_API FString GetDefaultAsString() const;
 
+	/**
+	 * Returns true if GetDefaultAsString will return an empty string.
+	 */
+	ENGINE_API bool IsDefaultAsStringEmpty() const;
+
 	/** Returns a human readable FText representation of the string/object/text default value */
 	ENGINE_API FText GetDefaultAsText() const;
 
