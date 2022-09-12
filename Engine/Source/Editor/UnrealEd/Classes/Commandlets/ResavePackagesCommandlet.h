@@ -108,6 +108,9 @@ protected:
 	/** Only save packages containing FPayloadTrailers **/
 	bool bOnlyPayloadTrailers;
 
+	/** Only save packages without a FPayloadTrailer **/
+	bool bSkipPayloadTrailers;
+
 	/** Should we build navigation data for the packages we are saving? **/
 	bool bShouldBuildNavigationData;
 
