@@ -304,6 +304,9 @@ private:
 	/** Internal helper which processes a given state and adds its contents to the current registry */
 	void CachePathsFromState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState);
 
+	/** Adds ClassPath-> ParentPath to CachedBPInheritanceMap. Applies CoreRedirects to NotYetRedirectedParentPath. */
+	void AddCachedBPClassParent(const FTopLevelAssetPath& ClassPath, const FTopLevelAssetPath& NotYetRedirectedParentPath);
+
 	/** Updates OutBuffer from loaded classes and registered-in-CachedBPInheritanceMap blueprint classes */
 	void UpdateInheritanceBuffer(Impl::FClassInheritanceBuffer& OutBuffer) const;
 
