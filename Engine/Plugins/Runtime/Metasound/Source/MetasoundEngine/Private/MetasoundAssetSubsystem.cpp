@@ -30,7 +30,7 @@ namespace Metasound
 			bool bSuccess = true;
 
 			OutInfo.Type = EMetasoundFrontendClassType::External;
-			OutInfo.AssetPath = InAssetData.ObjectPath;
+			OutInfo.AssetPath = InAssetData.GetSoftObjectPath();
 
 			FString AssetClassID;
 			bSuccess &= InAssetData.GetTagValue(AssetTags::AssetClassID, AssetClassID);
@@ -207,8 +207,8 @@ Metasound::Frontend::FNodeRegistryKey UMetaSoundAssetSubsystem::AddOrUpdateAsset
 	{
 		UObject* Object = nullptr;
 
-		FSoftObjectPath Path(InAssetData.ObjectPath);
-		if (!FPackageName::GetPackageMountPoint(InAssetData.ObjectPath.ToString()).IsNone())
+		FSoftObjectPath Path = InAssetData.ToSoftObjectPath();
+		if (!FPackageName::GetPackageMountPoint(InAssetData.GetObjectPathString()).IsNone())
 		{
 			if (InAssetData.IsAssetLoaded())
 			{
@@ -233,7 +233,7 @@ Metasound::Frontend::FNodeRegistryKey UMetaSoundAssetSubsystem::AddOrUpdateAsset
 		const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
 		if (NodeRegistryKey::IsValid(RegistryKey))
 		{
-			PathMap.FindOrAdd(RegistryKey) = InAssetData.ObjectPath;
+			PathMap.FindOrAdd(RegistryKey) = InAssetData.GetSoftObjectPath();
 		}
 
 		return RegistryKey;
@@ -421,7 +421,7 @@ void UMetaSoundAssetSubsystem::RenameAsset(const FAssetData& InAssetData, bool b
 void UMetaSoundAssetSubsystem::ResetAssetClassDisplayName(const FAssetData& InAssetData)
 {
 	UObject* Object = nullptr;
-	FSoftObjectPath Path(InAssetData.ObjectPath);
+	FSoftObjectPath Path = InAssetData.GetSoftObjectPath();
 	if (InAssetData.IsAssetLoaded())
 	{
 		Object = Path.ResolveObject();

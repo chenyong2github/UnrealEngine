@@ -608,14 +608,14 @@ namespace Metasound
 		{
 		}
 
-		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, FName InAssetPath)
+		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, const FSoftObjectPath& InAssetPath)
 			: ClassName(InClass.Metadata.GetClassName())
 			, Type(EMetasoundFrontendClassType::External) // Overridden as it is considered the same as an external class in the registry
 			, AssetClassID(FGuid(ClassName.Name.ToString()))
 			, AssetPath(InAssetPath)
 			, Version(InClass.Metadata.GetVersion())
 		{
-			ensure(!AssetPath.IsNone());
+			ensure(!AssetPath.IsNull());
 #if WITH_EDITORONLY_DATA
 			for (const FMetasoundFrontendClassInput& Input : InClass.Interface.Inputs)
 			{

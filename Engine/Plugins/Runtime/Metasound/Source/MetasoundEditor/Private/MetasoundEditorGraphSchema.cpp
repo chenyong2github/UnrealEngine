@@ -1666,7 +1666,7 @@ void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAsset
 				break;
 			}
 
-			if (MetaSoundAsset->AddingReferenceCausesLoop(FSoftObjectPath(Data.ObjectPath)))
+			if (MetaSoundAsset->AddingReferenceCausesLoop(Data.GetSoftObjectPath()))
 			{
 				OutOkIcon = false;
 				OutTooltipText = TEXT("Cannot add an asset that would create a reference loop.");
@@ -1749,7 +1749,7 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>&
 				continue;
 			}
 
-			if (MetaSoundAsset->AddingReferenceCausesLoop(FSoftObjectPath(DroppedAsset.ObjectPath)))
+			if (MetaSoundAsset->AddingReferenceCausesLoop(DroppedAsset.GetSoftObjectPath()))
 			{
 				continue;
 			}

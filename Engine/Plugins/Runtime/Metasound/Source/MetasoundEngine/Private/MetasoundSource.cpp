@@ -575,7 +575,7 @@ void UMetaSoundSource::InitResources()
 
 Metasound::Frontend::FNodeClassInfo UMetaSoundSource::GetAssetClassInfo() const
 {
-	return { GetDocumentChecked().RootGraph, *GetPathName() };
+	return { GetDocumentChecked().RootGraph, FSoftObjectPath(this) };
 }
 
 bool UMetaSoundSource::IsPlayable() const

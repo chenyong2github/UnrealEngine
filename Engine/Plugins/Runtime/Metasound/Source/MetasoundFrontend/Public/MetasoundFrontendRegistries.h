@@ -66,7 +66,7 @@ namespace Metasound
 			FGuid AssetClassID;
 
 			// Path to asset containing graph if external type and references asset class.
-			FName AssetPath;
+			FSoftObjectPath AssetPath;
 
 			// Version of the registered class
 			FMetasoundFrontendVersionNumber Version;
@@ -85,7 +85,7 @@ namespace Metasound
 			FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata);
 
 			// Constructor used to generate NodeClassInfo from an asset
-			FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, FName InAssetPath);
+			FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, const FSoftObjectPath& InAssetPath);
 
 			// Loads the asset from the provided path, ensuring that the class is of type graph.
 			UObject* LoadAsset() const

@@ -1006,7 +1006,7 @@ namespace Metasound
 
 							FARFilter Filter;
 							Filter.bRecursiveClasses = false;
-							Filter.ObjectPaths.Add(*ObjectPath);
+							Filter.SoftObjectPaths.Add(FSoftObjectPath(ObjectPath));
 
 							TArray<FAssetData> AssetData;
 							AssetRegistryModule.Get().GetAssets(Filter, AssetData);

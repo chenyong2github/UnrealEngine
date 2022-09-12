@@ -121,8 +121,7 @@ namespace Metasound
 					{
 						if (const USoundBase* Sound = PreviewComponent->Sound)
 						{
-							const FName SoundName = *Sound->GetPathName();
-							return SoundName == InSourcePath.GetAssetPathName();
+							return FSoftObjectPath(Sound) == InSourcePath;
 						}
 					}
 				}

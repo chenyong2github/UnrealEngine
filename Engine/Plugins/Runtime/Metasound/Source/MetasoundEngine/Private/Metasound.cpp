@@ -113,7 +113,7 @@ void UMetaSoundPatch::SetRegistryAssetClassInfo(const Metasound::Frontend::FNode
 
 Metasound::Frontend::FNodeClassInfo UMetaSoundPatch::GetAssetClassInfo() const
 {
-	return { GetDocumentChecked().RootGraph, *GetPathName() };
+	return { GetDocumentChecked().RootGraph, FSoftObjectPath(this) };
 }
 
 void UMetaSoundPatch::SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys)
