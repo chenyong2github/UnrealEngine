@@ -912,7 +912,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	// Store the original file so we can undo this later
 	FConfigFileBackup& BackupFile = BackupIniFile(FileName, ConfigFile);
 	// Merge the string into the config file
-	ConfigFile->CombineFromBuffer(IniData);
+	ConfigFile->CombineFromBuffer(IniData, FileName);
 	TArray<UClass*> Classes;
 	TArray<UObject*> PerObjectConfigObjects;
 	int32 StartIndex = 0;

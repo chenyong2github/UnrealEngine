@@ -402,7 +402,12 @@ public:
 	bool operator!=( const FConfigFile& Other ) const;
 
 	CORE_API bool Combine( const FString& Filename);
-	CORE_API void CombineFromBuffer(const FString& Buffer);
+	CORE_API void CombineFromBuffer(const FString& Buffer, const FString& FileHint);
+	UE_DEPRECATED(5.1, "Use CombineFromBuffer that takes FileHint")
+	CORE_API void CombineFromBuffer(const FString& Buffer)
+	{
+		CombineFromBuffer(Buffer, TEXT("Unknown file, using deprecated function"));
+	}
 	CORE_API void Read( const FString& Filename );
 
 	/** Whether to write a temp file then move it to it's destination when saving. */
@@ -511,7 +516,12 @@ public:
 	 * @param Filename Name of the .ini file the contents came from
 	 * @param Contents Contents of the .ini file
 	 */
-	CORE_API void ProcessInputFileContents(FStringView Contents);
+	CORE_API void ProcessInputFileContents(FStringView Contents, const FString& FileHint);
+	UE_DEPRECATED(5.1, "Use ProcessInputFileContents that takes FileHint")
+	CORE_API void ProcessInputFileContents(const FString& Buffer)
+	{
+		ProcessInputFileContents(Buffer, TEXT("Unknown file, using deprecated function"));
+	}
 
 
 	/** Adds any properties that exist in InSourceFile that this config file is missing */

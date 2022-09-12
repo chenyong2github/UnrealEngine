@@ -26,14 +26,19 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Async/Async.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Logging/MessageLog.h"
 #include <limits>
 
 namespace
 {
 	FString CurrentIniVersionStr = TEXT("CurrentIniVersion");
+
+	TMap<FString, FString> SectionRemap;
+	TMap<FString, TMap<FString, FString>> KeyRemap;
 }
 
 DEFINE_LOG_CATEGORY(LogConfig);
+#define LOCTEXT_NAMESPACE "ConfigCache"
 
 /*-----------------------------------------------------------------------------
 FConfigValue
@@ -614,7 +619,7 @@ bool FConfigFile::Combine(const FString& Filename)
 			Combine(FPaths::GetPath(Filename) / TheLine);
 		}
 
-		CombineFromBuffer(Text);
+		CombineFromBuffer(Text, Filename);
 		return true;
 	}
 	else
@@ -634,14 +639,94 @@ ValueType& FindOrAddHeterogeneous(TMap<KeyType, ValueType>& Map, const AltKeyTyp
 	return Existing ? *Existing : Map.Emplace(KeyType(Key));
 }
 
-void FConfigFile::CombineFromBuffer(const FString& Buffer)
+namespace
+{
+
+// either show an editor warning, or just write to log for non-editor
+void LogOrEditorWarning(const FText& Msg, const FString& PartialKey, const FString& File)
+{
+	if (GIsEditor)
+	{
+		static TSet<FString> AlreadyWarnedKeys;
+		
+		FString AbsPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*File);
+		
+		// make sure we haven't warned about this yet
+		FString Key = PartialKey + AbsPath;
+		if (AlreadyWarnedKeys.Contains(Key))
+		{
+			return;
+		}
+		AlreadyWarnedKeys.Add(Key);
+		
+		FMessageLog EditorErrors("EditorErrors");
+		TSharedRef<FTokenizedMessage> Message = EditorErrors.Message(EMessageSeverity::Warning);
+		if (File.EndsWith(TEXT(".ini")))
+		{
+			Message->AddToken(FURLToken::Create(FString::Printf(TEXT("file://%s"), *AbsPath), LOCTEXT("DeprecatedConfig_URLCLick", "Click to open file")));
+		}
+		Message->AddToken(FTextToken::Create(Msg));
+		EditorErrors.Notify();
+	}
+
+	// always spit to log
+	UE_LOG(LogConfig, Warning, TEXT("%s"), *Msg.ToString());
+}
+
+// warn about a section name that's deprecated
+void WarnAboutSectionRemap(const FString& OldValue, const FString& NewValue, const FString& File)
+{
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("OldValue"), FText::FromString(OldValue));
+	Arguments.Add(TEXT("NewValue"), FText::FromString(NewValue));
+	Arguments.Add(TEXT("File"), FText::FromString(File));
+	FText Msg = FText::Format(LOCTEXT("DeprecatedConfig", "Found a deprecated ini section name in {File}. Search for [{OldValue}] and replace with [{NewValue}]"), Arguments);
+	
+	FString Key = OldValue;
+	if (!IsInGameThread())
+	{
+		AsyncTask( ENamedThreads::GameThread, [Msg, Key, File]() { LogOrEditorWarning(Msg, Key, File); });
+	}
+	else
+	{
+		LogOrEditorWarning(Msg, Key, File);
+	}
+}
+
+// warn about a key that's deprecated
+static void WarnAboutKeyRemap(const FString& OldValue, const FString& NewValue, const FString& Section, const FString& File)
+{
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("OldValue"), FText::FromString(OldValue));
+	Arguments.Add(TEXT("NewValue"), FText::FromString(NewValue));
+	Arguments.Add(TEXT("Section"), FText::FromString(Section));
+	Arguments.Add(TEXT("File"), FText::FromString(File));
+	FText Msg = FText::Format(LOCTEXT("DeprecatedConfig", "Found a deprecated ini section name in {File}. Search for [{OldValue}] and replace with [{NewValue}]"), Arguments);
+	
+	FString Key = OldValue+Section;
+	if (!IsInGameThread())
+	{
+		AsyncTask( ENamedThreads::GameThread, [Msg, Key, File]() { LogOrEditorWarning(Msg, Key, File); });
+	}
+	else
+	{
+		LogOrEditorWarning(Msg, Key, File);
+	}
+}
+
+}
+
+void FConfigFile::CombineFromBuffer(const FString& Buffer, const FString& FileHint)
 {
 	const TCHAR* Ptr = *Buffer;
 	FConfigSection* CurrentSection = nullptr;
-	TStringBuilder<64> CurrentSectionName;
+	FString CurrentSectionName;
+	TMap<FString, FString>* CurrentKeyRemap = nullptr;
 	TStringBuilder<128> TheLine;
 	FString ProcessedValue;
 	bool Done = false;
+	
+	
 	while( !Done )
 	{
 		// Advance past new line characters
@@ -675,9 +760,24 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 			// If we don't have an existing section by this name, add one
 			CurrentSection = FindOrAddSection( Start );
 			CurrentSectionName = Start;
+			
+			// lookup to see if there is an entry in the SectionName remap
+			const FString* FoundRemap;
+			if ((FoundRemap = SectionRemap.Find(CurrentSectionName)) != nullptr)
+			{
+				// show warning in editor
+				WarnAboutSectionRemap(CurrentSectionName, *FoundRemap, FileHint);
+				
+				CurrentSectionName = *FoundRemap;
+			}
+			// look to see if there is a set of key remaps for this section
+			CurrentKeyRemap = KeyRemap.Find(CurrentSectionName);
 
 			// make sure the CurrentSection has any of the special ArrayOfStructKeys added
-			FixupArrayOfStructKeysForSection(CurrentSection, Start, PerObjectConfigArrayOfStructKeys);
+			if (PerObjectConfigArrayOfStructKeys.Num() > 0)
+			{
+				FixupArrayOfStructKeysForSection(CurrentSection, CurrentSectionName, PerObjectConfigArrayOfStructKeys);
+			}
 		}
 
 		// Otherwise, if we're currently inside a section, and we haven't reached the end of the stream
@@ -726,6 +826,20 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 					Start[FCString::Strlen(Start)-1] = TEXT('\0');
 				}
 
+				const TCHAR* KeyName = Start;
+				// look up for key remap
+				if (CurrentKeyRemap != nullptr)
+				{
+					const FString* FoundRemap;
+					if ((FoundRemap = CurrentKeyRemap->Find(KeyName)) != nullptr)
+					{
+						WarnAboutKeyRemap(KeyName, *FoundRemap, CurrentSectionName, FileHint);
+
+						// the Remap will not ever reallocate, so we can just point right into the FString
+						KeyName = **FoundRemap;
+					}
+				}
+				
 				// Strip leading whitespace from the property value
 				while ( *Value && FChar::IsWhitespace(*Value) )
 				{
@@ -750,7 +864,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 					ProcessedValue = Value;
 				}
 
-				const FName Key(Start);
+				const FName Key(KeyName);
 				if (Cmd == '+')
 				{
 					// Add if not already present.
@@ -778,7 +892,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				else if (Cmd == '*')
 				{
 					// track a key to show uniqueness for arrays of structs
-					TMap<FName, FString>& POCKeys = FindOrAddHeterogeneous(PerObjectConfigArrayOfStructKeys, CurrentSectionName.ToView());
+					TMap<FName, FString>& POCKeys = FindOrAddHeterogeneous(PerObjectConfigArrayOfStructKeys, CurrentSectionName);
 					POCKeys.Add(Key, MoveTemp(ProcessedValue));
 				}
 				else
@@ -818,10 +932,12 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
  * 
  * @param Contents Contents of the .ini file
  */
-void FConfigFile::ProcessInputFileContents(FStringView Contents)
+void FConfigFile::ProcessInputFileContents(FStringView Contents, const FString& FileHint)
 {
 	const TCHAR* Ptr = Contents.Len() > 0 ? Contents.GetData() : nullptr;
 	FConfigSection* CurrentSection = nullptr;
+	FString CurrentSectionName;
+	TMap<FString, FString>* CurrentKeyRemap = nullptr;
 	TStringBuilder<128> TheLine;
 	bool Done = false;
 	while( !Done && Ptr != nullptr )
@@ -853,8 +969,20 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 			Start++;
 			Start[FCString::Strlen(Start)-1] = TEXT('\0');
 
+			// lookup to see if there is an entry in the SectionName remap
+			CurrentSectionName = Start;
+			const FString* FoundRemap;
+			if ((FoundRemap = SectionRemap.Find(CurrentSectionName)) != nullptr)
+			{
+				WarnAboutSectionRemap(CurrentSectionName, *FoundRemap, FileHint);
+				
+				CurrentSectionName = *FoundRemap;
+			}
+			// look to see if there is a set of key remaps for this section
+			CurrentKeyRemap = KeyRemap.Find(CurrentSectionName);
+
 			// If we don't have an existing section by this name, add one
-			CurrentSection = FindOrAddSection( Start );
+			CurrentSection = FindOrAddSection(CurrentSectionName);
 		}
 
 		// Otherwise, if we're currently inside a section, and we haven't reached the end of the stream
@@ -882,6 +1010,20 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 				while( *Start && FChar::IsWhitespace(Start[FCString::Strlen(Start)-1]) )
 					Start[FCString::Strlen(Start)-1] = TEXT('\0');
 
+				const TCHAR* KeyName = Start;
+				// look up for key remap
+				if (CurrentKeyRemap != nullptr)
+				{
+					const FString* FoundRemap;
+					if ((FoundRemap = CurrentKeyRemap->Find(KeyName)) != nullptr)
+					{
+						WarnAboutKeyRemap(KeyName, *FoundRemap, CurrentSectionName, FileHint);
+						
+						// the Remap will not ever reallocate, so we can just point right into the FString
+						KeyName = **FoundRemap;
+					}
+				}
+
 				// Strip leading whitespace from the property value
 				while ( *Value && FChar::IsWhitespace(*Value) )
 					Value++;
@@ -897,12 +1039,12 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 					FParse::QuotedString(Value, ProcessedValue);
 
 					// Add this pair to the current FConfigSection
-					CurrentSection->Add(Start, *ProcessedValue);
+					CurrentSection->Add(KeyName, *ProcessedValue);
 				}
 				else
 				{
 					// Add this pair to the current FConfigSection
-					CurrentSection->Add(Start, Value);
+					CurrentSection->Add(KeyName, Value);
 				}
 			}
 		}
@@ -930,7 +1072,7 @@ void FConfigFile::Read( const FString& Filename )
 		if (LoadConfigFileWrapper(*FinalFileName, Text, bFoundOverride))
 		{
 			// process the contents of the string
-			ProcessInputFileContents(Text);
+			ProcessInputFileContents(Text, Filename);
 		}
 		else
 		{
@@ -1160,11 +1302,11 @@ void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
 	if (SourceConfigFile)
 	{
 		SourceConfigFile->SourceIniHierarchy.AddDynamicLayer(Filename);
-		SourceConfigFile->CombineFromBuffer(ConfigContent);
+		SourceConfigFile->CombineFromBuffer(ConfigContent, Filename);
 	}
 
 	SourceIniHierarchy.AddDynamicLayer(Filename);
-	CombineFromBuffer(ConfigContent);
+	CombineFromBuffer(ConfigContent, Filename);
 
 	// Disable saving since dynamic layers are only for runtime
 	NoSave = true;
@@ -3560,6 +3702,33 @@ static void LoadRemainingConfigFiles(FConfigContext& Context)
 	}
 }
 
+static void InitializeConfigRemap()
+{
+	// read in the single remap file
+	FConfigFile RemapFile;
+	FConfigContext Context = FConfigContext::ReadSingleIntoLocalFile(RemapFile);
+	Context.Load(*FPaths::Combine(FPaths::EngineDir(), TEXT("Config/ConfigRedirects.ini")));
+	
+	for (const TPair<FString, FConfigSection>& Section : RemapFile)
+	{
+		if (Section.Key == TEXT("SectionNameRemap"))
+		{
+			for (const TPair<FName, FConfigValue>& Line : Section.Value)
+			{
+				SectionRemap.Add(Line.Key.ToString(), Line.Value.GetSavedValue());
+			}
+		}
+		else
+		{
+			TMap<FString, FString>& KeyRemaps = KeyRemap.FindOrAdd(Section.Key);
+			for (const TPair<FName, FConfigValue>& Line : Section.Value)
+			{
+				KeyRemaps.Add(Line.Key.ToString(), Line.Value.GetSavedValue());
+			}
+		}
+	}
+}
+
 void FConfigCacheIni::InitializeConfigSystem()
 {
 	// assign the G***Ini strings for the known ini's
@@ -3568,6 +3737,9 @@ void FConfigCacheIni::InitializeConfigSystem()
 		ENUMERATE_KNOWN_INI_FILES(ASSIGN_GLOBAL_INI_STRING);
 	#undef ASSIGN_GLOBAL_INI_STRING
 
+	
+	InitializeConfigRemap();
+	
 #if WITH_EDITOR
 	AsyncInitializeConfigForPlatforms();
 #endif
@@ -4273,3 +4445,5 @@ const TCHAR* ConvertValueFromHumanFriendlyValue(const TCHAR* Value)
 {
 	return UE::ConfigUtilities::ConvertValueFromHumanFriendlyValue(Value);
 }
+
+#undef LOCTEXT_NAMESPACE

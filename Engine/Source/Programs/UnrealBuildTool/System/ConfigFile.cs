@@ -139,6 +139,65 @@ namespace UnrealBuildTool
 		/// </summary>
 		Dictionary<string, ConfigFileSection> Sections = new Dictionary<string, ConfigFileSection>(StringComparer.InvariantCultureIgnoreCase);
 
+
+		// Remap of config names/sections
+		static private Dictionary<string, string> SectionNameRemap = new();
+		static private Dictionary<string, Dictionary<string, string>> SectionKeyRemap = new();
+		static private HashSet<string> WarnedKeys = new(StringComparer.InvariantCultureIgnoreCase);
+
+		static private string Remap(Dictionary<string, string>? Remap, string Key, string Context)
+		{
+			if (Remap != null)
+			{
+				string? Remapped;
+				if (Remap.TryGetValue(Key, out Remapped))
+				{
+					if (!WarnedKeys.Contains(Key))
+					{
+						WarnedKeys.Add(Key);
+						Log.Logger.LogWarning($"DEPRECATION: '{Key}', {Context}, has been deprecated. Using '{Remapped}' instead. It is recommended you update your .ini files as soon as possible, and replace {Key} with {Remapped}");
+					}
+					return Remapped;
+				}
+			}
+			return Key;
+		}
+
+
+		/// <summary>
+		/// Static (class) constructor which is called before any ConfigFile instance is created
+		/// </summary>
+		static ConfigFile()
+		{
+			// read the special ConfigRemap.ini file into sections
+			FileReference ConfigRemapFile = FileReference.Combine(UnrealBuildBase.Unreal.EngineDirectory, "Config", "ConfigRedirects.ini");
+			Dictionary<string, ConfigFileSection> Sections = new(StringComparer.InvariantCultureIgnoreCase);
+			ReadIntoSections(ConfigRemapFile, Sections, ConfigLineAction.Set);
+			
+			// walk over the sections, where all but the special SectionNameRemap section is a section of keys to remap in that same section
+			foreach (KeyValuePair<string, ConfigFileSection> Pair in Sections)
+			{
+				// remember a remap for section names
+				if (Pair.Key.Equals("SectionNameRemap", StringComparison.InvariantCultureIgnoreCase))
+				{
+					foreach (ConfigLine Line in Pair.Value.Lines)
+					{
+						SectionNameRemap.Add(Line.Key, Line.Value);
+					}
+				}
+				else
+				{
+					// any other section is rmembered by the section name here, and each key/value pair is a remap for the given section
+					Dictionary<string, string> KeyRemap = new(StringComparer.InvariantCultureIgnoreCase);
+					SectionKeyRemap.Add(Pair.Key, KeyRemap);
+					foreach (ConfigLine Line in Pair.Value.Lines)
+					{
+						KeyRemap.Add(Line.Key, Line.Value);
+					}
+				}
+			}
+		}
+
 		/// <summary>
 		/// Constructs a new, empty config file
 		/// </summary>
@@ -154,10 +213,17 @@ namespace UnrealBuildTool
 		/// <param name="DefaultAction">The default action to take when encountering arrays without a '+' prefix</param>
 		public ConfigFile(FileReference Location, ConfigLineAction DefaultAction = ConfigLineAction.Set)
 		{
+			ReadIntoSections(Location, Sections, DefaultAction);
+		}
+
+		private static void ReadIntoSections(FileReference Location, Dictionary<string, ConfigFileSection> Sections, ConfigLineAction DefaultAction)
+		{
 			using (StreamReader Reader = new StreamReader(Location.FullName))
 			{
 				ConfigFileSection? CurrentSection = null;
-				for(; ;)
+				Dictionary<string, string>? CurrentRemap = null;
+
+				for (; ;)
 				{
 					string? Line = Reader.ReadLine();
 					if (Line == null)
@@ -210,7 +276,12 @@ namespace UnrealBuildTool
 								if(Line[EndIdx - 1] == ']')
 								{
 									string SectionName = Line.Substring(StartIdx + 1, EndIdx - StartIdx - 2);
-									if(!Sections.TryGetValue(SectionName, out CurrentSection))
+									
+									// lookup remaps
+									SectionName = Remap(SectionNameRemap, SectionName, $"which is a config section in '{Location.FullName}'");
+									SectionKeyRemap.TryGetValue(SectionName, out CurrentRemap);
+
+									if (!Sections.TryGetValue(SectionName, out CurrentSection))
 									{
 										CurrentSection = new ConfigFileSection(SectionName);
 										Sections.Add(SectionName, CurrentSection);
@@ -222,7 +293,7 @@ namespace UnrealBuildTool
 							// Otherwise add it to the current section or add a new one
 							if(CurrentSection != null)
 							{
-								TryAddConfigLine(CurrentSection, Line, StartIdx, EndIdx, DefaultAction);
+								TryAddConfigLine(CurrentSection, CurrentRemap, Location.FullName, Line, StartIdx, EndIdx, DefaultAction);
 								break;
 							}
 
@@ -244,10 +315,15 @@ namespace UnrealBuildTool
 
 			// Break into individual settings of the form [Section]:Key=Value
 			string[] SettingLines = IniText.Split(new char[] { ',' });
+			Dictionary<string, string>? CurrentRemap;
 			foreach (string Setting in SettingLines)
 			{
 				// Locate and break off the section name
 				string SectionName = Setting.Remove(Setting.IndexOf(':')).Trim(new char[] { '[', ']' });
+				// lookup remaps
+				Remap(SectionNameRemap, SectionName, $"which is a config section (found in a string in code - search your .ini files for it, the source file is unknown)");
+				SectionKeyRemap.TryGetValue(SectionName, out CurrentRemap);
+
 				if (SectionName.Length > 0)
 				{
 					ConfigFileSection? CurrentSection = null;
@@ -260,7 +336,7 @@ namespace UnrealBuildTool
 					if (CurrentSection != null)
 					{
 						string IniKeyValue = Setting.Substring(Setting.IndexOf(':') + 1);
-						TryAddConfigLine(CurrentSection, IniKeyValue, 0, IniKeyValue.Length, DefaultAction);
+						TryAddConfigLine(CurrentSection, CurrentRemap, "unknown source file", IniKeyValue, 0, IniKeyValue.Length, DefaultAction);
 					}
 				}
 			}
@@ -270,12 +346,14 @@ namespace UnrealBuildTool
 		/// Try to parse a key/value pair from the given line, and add it to a config section
 		/// </summary>
 		/// <param name="Section">The section to receive the parsed config line</param>
+		/// <param name="KeyRemap">Optional map to change names of keys on read</param> 
+		/// <param name="Filename">Optional map to change names of keys on read</param> 
 		/// <param name="Line">Text to parse</param>
 		/// <param name="StartIdx">Index of the first non-whitespace character in this line</param>
 		/// <param name="EndIdx">Index of the last (exclusive) non-whitespace character in this line</param>
 		/// <param name="DefaultAction">The default action to take if '+' or '-' is not specified on a config line</param>
 		/// <returns>True if the line was parsed correctly, false otherwise</returns>
-		static bool TryAddConfigLine(ConfigFileSection Section, string Line, int StartIdx, int EndIdx, ConfigLineAction DefaultAction)
+		static bool TryAddConfigLine(ConfigFileSection Section, Dictionary<string, string>? KeyRemap, string Filename, string Line, int StartIdx, int EndIdx, ConfigLineAction DefaultAction)
 		{
 			// Find the '=' character separating key and value
 			int EqualsIdx = Line.IndexOf('=', StartIdx, EndIdx - StartIdx);
@@ -343,6 +421,10 @@ namespace UnrealBuildTool
 			// Add it to the config section
 			string Key = Line.Substring(KeyStartIdx, KeyEndIdx - KeyStartIdx);
 			string Value = Line.Substring(ValueStartIdx, ValueEndIdx - ValueStartIdx);
+
+			// remap the key if needed
+			Key = Remap(KeyRemap, Key, $"which is a config key in section [{Section.Name}], in '{Filename}'");
+
 			Section.Lines.Add(new ConfigLine(Action, Key, Value));
 			return true;
 		}

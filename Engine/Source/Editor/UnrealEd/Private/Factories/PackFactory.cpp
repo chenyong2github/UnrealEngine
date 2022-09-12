@@ -184,7 +184,7 @@ namespace PackFactoryHelper
 	void ProcessPackConfig(const FString& ConfigString, FPackConfigParameters& ConfigParameters)
 	{
 		FConfigFile PackConfig;
-		PackConfig.ProcessInputFileContents(ConfigString);
+		PackConfig.ProcessInputFileContents(ConfigString, TEXT("Unknown (see PackFactoryHelper::ProcessPackConfig)"));
 
 		// Input Settings
 		static FArrayProperty* ActionMappingsProp = FindFieldChecked<FArrayProperty>(UInputSettings::StaticClass(), UInputSettings::GetActionMappingsPropertyName());

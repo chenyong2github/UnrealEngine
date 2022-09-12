@@ -83,7 +83,7 @@ bool FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(int32 Index, FConfig
 	FString IniContents;
 	if (FFileHelper::LoadFileToString(IniContents, *IniFilenames[Index]))
 	{
-		IniFile.ProcessInputFileContents(IniContents);
+		IniFile.ProcessInputFileContents(IniContents, IniFilenames[Index]);
 
 		// platform extension paths are different (engine/platforms/platform/config, not engine/config/platform)
 		if (IniFilenames[Index].StartsWith(FPaths::EnginePlatformExtensionsDir()))
