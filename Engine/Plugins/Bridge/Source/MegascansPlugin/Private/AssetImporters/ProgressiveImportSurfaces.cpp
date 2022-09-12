@@ -73,7 +73,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		if (bIsNormal)
 		{
 			FString InstancePath = AssetMetaData.materialInstances[0].instancePath;
-			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*InstancePath));
+			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(InstancePath));
 			FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetData, ImportData->AssetId, "decal-normal", nullptr);
 			return;
 		}
@@ -87,13 +87,13 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		if (ImportData->ProgressiveStage == 1)
 		{
 			FString InstancePath = AssetMetaData.materialInstances[0].instancePath;
-			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*InstancePath));
+			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(InstancePath));
 			FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetData, ImportData->AssetId, TEXT("decal-stage-1"), nullptr);
 		}
 		if (ImportData->ProgressiveStage == 4)
 		{
 			 FString MInstanceHighPath = AssetMetaData.materialInstances[0].instancePath;
-			 FAssetData MInstanceHighData = AssetRegistry.GetAssetByObjectPath(FName(*MInstanceHighPath));
+			 FAssetData MInstanceHighData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(MInstanceHighPath));
 			 FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(MInstanceHighData, ImportData->AssetId, TEXT("decal-stage-4"), nullptr);
 		}
 
@@ -103,7 +103,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	if (bIsNormal)
 	{
 		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath;
-		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
+		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(MInstancePath));
 
 		if (!MInstanceData.IsValid()) return;
 
@@ -132,7 +132,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	if (ImportData->ProgressiveStage == 1)
 	{
 		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath;
-		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
+		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(MInstancePath));
 
 		if (!MInstanceData.IsValid())
 		{
@@ -165,7 +165,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 			}
 		}		
 
-		FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FName(*TexturePath));
+		FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(TexturePath));
 
 		if (!TextureData.IsValid()) return;
 
@@ -186,7 +186,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 			}
 		}		
 
-		FAssetData NormalData = AssetRegistry.GetAssetByObjectPath(FName(*NormalPath));
+		FAssetData NormalData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(NormalPath));
 
 		if (!NormalData.IsValid()) return;
 
@@ -197,7 +197,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	else if (ImportData->ProgressiveStage == 4)
 	{	
 		FString MInstanceHighPath = AssetMetaData.materialInstances[0].instancePath;
-		FAssetData MInstanceHighData = AssetRegistry.GetAssetByObjectPath(FName(*MInstanceHighPath));
+		FAssetData MInstanceHighData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(MInstanceHighPath));
 
 		if (!MInstanceHighData.IsValid()) return;
 
@@ -329,7 +329,7 @@ void FImportProgressiveSurfaces::HandleNormalMaterialLoad(FAssetData AssetInstan
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-		FAssetData OverridenInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*OverridenInstance->GetPathName()));
+		FAssetData OverridenInstanceData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(OverridenInstance));
 		SpawnMaterialPreviewActor(AssetMetaData.assetID, LocationOffset, true, OverridenInstanceData);
 		return;
 	}

@@ -151,7 +151,7 @@ void FMaterialBlend::ConvertToVirtualTextures(FUAssetMeta AssetMetaData)
 
     for (FTexturesList TextureMeta : AssetMetaData.textureSets)
     {
-        FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FName(*TextureMeta.path));
+        FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(TextureMeta.path));
 
         if (!TextureData.IsValid())
             return;

@@ -93,7 +93,7 @@ UMaterialInstanceConstant *FMaterialUtils::CreateMaterialOverride(FUAssetMeta As
         if (UMaterialEditingLibrary::GetMaterialInstanceTextureParameterValue(OverrideInstance, FName(*Texture.type)))
         {
 
-            FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FName(*Texture.path));
+            FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(Texture.path));
 
             UTexture *TextureAsset = Cast<UTexture>(TextureData.GetAsset());
             if (UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(OverrideInstance, FName(*Texture.type), TextureAsset))
@@ -115,7 +115,7 @@ void FMaterialUtils::ApplyMaterialInstance(FUAssetMeta AssetMetaData, UMaterialI
 
     for (FMeshInfo MeshMeta : AssetMetaData.meshList)
     {
-        FAssetData MeshData = AssetRegistry.GetAssetByObjectPath(FName(*MeshMeta.path));
+        FAssetData MeshData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(MeshMeta.path));
         UStaticMesh *AssetMesh = Cast<UStaticMesh>(MeshData.GetAsset());
         AssetMesh->SetMaterial(0, CastChecked<UMaterialInterface>(MaterialInstance));
 
@@ -150,7 +150,7 @@ bool FMaterialUtils::ShouldOverrideMaterial(const FString &AssetType)
 TArray<AStaticMeshActor *> FMaterialUtils::ApplyMaterialToSelection(const FString &InstancePath)
 {
     IAssetRegistry &AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-    FAssetData InstanceData = AssetRegistry.GetAssetByObjectPath(FName(*InstancePath));
+    FAssetData InstanceData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(InstancePath));
     UMaterialInstanceConstant *MaterialInstance = Cast<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(InstancePath));
 
     USelection *SelectedActors = GEditor->GetSelectedActors();

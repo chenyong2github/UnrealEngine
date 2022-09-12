@@ -618,7 +618,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
 				FString AssetPackagePath = FPaths::Combine(TEXT("/Game"), StrippedFilePath);
 
-				FAssetData GameAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*AssetPackagePath));
+				FAssetData GameAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPackagePath));
 				
 				if (GameAssetData.IsAssetLoaded())
 				{					
@@ -729,7 +729,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
     AssetRegistryModule.Get().ScanPathsSynchronous(AssetsBasePath, true);
 
-    FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*BPPath));
+    FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(BPPath));
 
     // As part of our discussion to fix this, here was the explanation about why the asset has to be loaded:
     // "In UE4 we came across this issue where even if we did call the syncfolder on content browser, it would still
@@ -1030,7 +1030,7 @@ void FImportDHI::CopyCommonFiles(TArray<FString> AssetsList, const FString& Comm
 				// Create a path like /Game/Metahumans/MetaHumans/Common/Common/MetaHuman_ControlRig.MetaHuman_ControlRig
 				FString GameAssetPath = TEXT("/Game/") + AssetRelativePath + TEXT(".") + AssetName;
 
-				FAssetData GameAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*GameAssetPath));
+				FAssetData GameAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(GameAssetPath));
 
 				if (GameAssetData.IsAssetLoaded())
 				{
@@ -1151,7 +1151,7 @@ TArray<FString> FImportDHI::CharactersOpenEditors()
 
 	for (FString CharacterInProject : CharactersInProject)
 	{
-		FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*CharacterInProject));
+		FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(CharacterInProject));
 
 		if (CharacterAssetData.IsAssetLoaded())
 		{
@@ -1172,7 +1172,7 @@ void FImportDHI::CloseAssetEditors(TArray<FString> CharactersOpenInEditors)
 
 	for (FString CharacterAsset : CharactersOpenInEditors)
 	{
-		FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*CharacterAsset));
+		FAssetData CharacterAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(CharacterAsset));
 		
 		UObject* CharacterObject = CharacterAssetData.GetAsset();
 
@@ -1188,7 +1188,7 @@ void FImportDHI::RecompileAllCharacters()
 
 	for (FString CharacterInProject : CharactersInProject)
 	{
-		FAssetData GameAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*CharacterInProject));
+		FAssetData GameAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(CharacterInProject));
 		UObject* ItemObject = GameAssetData.GetAsset();
 
 		if (UBlueprint* BPObject = Cast<UBlueprint>(ItemObject))
