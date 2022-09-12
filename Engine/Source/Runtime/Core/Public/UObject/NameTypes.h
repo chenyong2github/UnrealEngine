@@ -1056,6 +1056,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 */
 	static FString NameToDisplayString( const FString& InDisplayName, const bool bIsBool );
 
+	/**
+	 * Add/remove an exemption to the formatting applied by NameToDisplayString.
+	 * Example: exempt the compound word "MetaHuman" to ensure its not reformatted
+	 * as "Meta Human".
+	 */
+	static void AddNameToDisplayStringExemption(const FString& InExemption);
+	static void RemoveNameToDisplayStringExemption(const FString& InExemption);
+
 	/** Get the EName that this FName represents or nullptr */
 	const EName* ToEName() const;
 

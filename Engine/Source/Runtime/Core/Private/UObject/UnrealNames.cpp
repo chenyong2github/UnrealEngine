@@ -36,6 +36,7 @@
 #include "Hash/CityHash.h"
 #include "Templates/AlignmentTemplates.h"
 #include "Templates/Greater.h"
+#include "Misc/AsciiSet.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
@@ -2401,6 +2402,9 @@ FString FNameEntrySerialized::GetPlainNameString() const
 	FName statics.
 -----------------------------------------------------------------------------*/
 
+static TArray<FString> NameToDisplayStringExemptions;
+static FRWLock NameToDisplayStringExemptionLock;
+
 int32 FName::GetNameEntryMemorySize()
 {
 	return GetNamePool().NumBlocks() * FNameEntryAllocator::BlockSizeBytes;
@@ -2464,6 +2468,14 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 	// Copy the characters out so that we can modify the string in place
 	const TArray< TCHAR, FString::AllocatorType >& Chars = InDisplayName.GetCharArray();
 
+	// Characters that can follow the end of a word
+	constexpr FAsciiSet EndOfWord(" .,;:?!)");
+
+	FReadScopeLock Lock(NameToDisplayStringExemptionLock);
+
+	const FStringView DisplayNameStringView = InDisplayName;
+	const int32 DisplayNameLength = InDisplayName.Len();
+
 	// This is used to indicate that we are in a run of uppercase letter and/or digits.  The code attempts to keep
 	// these characters together as breaking them up often looks silly (i.e. "Draw Scale 3 D" as opposed to "Draw Scale 3D"
 	bool bInARun = false;
@@ -2488,6 +2500,38 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 		{
 			// Check if next character is uppercase as it may be a user created string that doesn't follow the rules of Unreal variables
 			if (Chars.Num() > 1 && FChar::IsUpper(Chars[1]))
+			{
+				continue;
+			}
+		}
+
+		// If this is the start of a word, check if its an exempt word from formatting
+		if (CharIndex == 0 || bWasSpace || bWasOpenParen)
+		{
+			bool bExemptionFound = false;
+
+			for (const FString& Exemption : NameToDisplayStringExemptions)
+			{
+				if (DisplayNameStringView.Mid(CharIndex).StartsWith(Exemption, ESearchCase::CaseSensitive)) // exempt word
+				{
+					bExemptionFound = true;
+
+					OutDisplayName += Exemption;
+
+					const int32 ExceptionLength = Exemption.Len();
+
+					if (CharIndex + ExceptionLength < DisplayNameLength && !EndOfWord.Contains(Chars[CharIndex + ExceptionLength]))
+					{
+						OutDisplayName += TEXT(' ');
+						bWasSpace = true;
+					}
+
+					CharIndex += ExceptionLength - 1;
+					break;
+				}
+			}
+
+			if (bExemptionFound)
 			{
 				continue;
 			}
@@ -2586,6 +2630,20 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 	}
 
 	return OutDisplayName;
+}
+
+void FName::AddNameToDisplayStringExemption(const FString& InExemption)
+{
+	FWriteScopeLock Lock(NameToDisplayStringExemptionLock);
+
+	NameToDisplayStringExemptions.Add(InExemption);
+}
+
+void FName::RemoveNameToDisplayStringExemption(const FString& InExemption)
+{
+	FWriteScopeLock Lock(NameToDisplayStringExemptionLock);
+
+	NameToDisplayStringExemptions.Remove(InExemption);
 }
 
 const EName* FName::ToEName() const
