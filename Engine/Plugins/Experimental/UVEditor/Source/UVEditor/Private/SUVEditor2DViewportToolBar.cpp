@@ -284,7 +284,9 @@ TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeTransformToolBar(const TShar
 	}
 	ToolbarBuilder.EndSection();
 
-	return ToolbarBuilder.MakeWidget();
+	TSharedRef<SWidget> TransformBar = ToolbarBuilder.MakeWidget();
+	TransformBar->SetEnabled(TAttribute<bool>::CreateLambda([this]() {return Viewport2DClient->AreWidgetButtonsEnabled(); }));
+	return TransformBar;
 }
 
 // The following methods again mimic the patterns found in the STransformViewportToolbar.cpp,

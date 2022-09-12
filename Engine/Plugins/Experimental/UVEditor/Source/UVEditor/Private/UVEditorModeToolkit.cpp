@@ -47,7 +47,16 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 		.Text(FText::GetEmpty())
 		.Visibility(EVisibility::Collapsed)
 	]
-
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	[
+		SAssignNew(ModeWarningArea, STextBlock)
+		.AutoWrapText(true)
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+		.ColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.15f, 0.15f))) //TODO: This probably needs to not be hardcoded
+		.Text(FText::GetEmpty())
+		.Visibility(EVisibility::Collapsed)
+	]
 	+ SVerticalBox::Slot()
 	[
 		SAssignNew(ToolDetailsContainer, SBorder)
@@ -432,5 +441,44 @@ void FUVEditorModeToolkit::ClearWarning()
 	ToolWarningArea->SetVisibility(EVisibility::Collapsed);
 }
 
+void FUVEditorModeToolkit::PostModeWarning(const FText& Message)
+{
+	if (Message.IsEmpty())
+	{
+		ClearModeWarning();
+	}
+	else
+	{
+		ModeWarningArea->SetText(Message);
+		ModeWarningArea->SetVisibility(EVisibility::Visible);
+	}
+}
+
+void FUVEditorModeToolkit::ClearModeWarning()
+{
+	ModeWarningArea->SetText(FText());
+	ModeWarningArea->SetVisibility(EVisibility::Collapsed);
+}
+
+void FUVEditorModeToolkit::UpdatePIEWarnings()
+{
+	if (bShowPIEWarning)
+	{
+		PostModeWarning(LOCTEXT("ModelingModeToolkitPIEWarning", "UV Editor functionality is limited during Play in Editor sessions. End the current Play in Editor session to continue using the editor."));
+	}
+	else
+	{
+		ClearModeWarning();
+	}
+}
+
+void FUVEditorModeToolkit::EnableShowPIEWarning(bool bEnable)
+{
+	if (bShowPIEWarning != bEnable)
+	{
+		bShowPIEWarning = bEnable;
+		UpdatePIEWarnings();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

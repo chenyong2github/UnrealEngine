@@ -35,6 +35,9 @@ public:
 	/** Creates a widget where the visible UDIMs can be changed. */
 	virtual TSharedRef<SWidget> CreateUDIMSettingsWidget();
 
+	/** Enables or diables the Play in Editor mode warning for the editor */
+	virtual void EnableShowPIEWarning(bool bEnable);
+
 	// FModeToolkit
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
@@ -61,10 +64,15 @@ public:
 	virtual void PostWarning(const FText& Message);
 	virtual void ClearWarning();
 
+	// set/clear mode-level warning message area. These messages don't get cleared on tool shutdown.
+	virtual void PostModeWarning(const FText& Message);
+	virtual void ClearModeWarning();
+
 protected:
 	const static TArray<FName> PaletteNames_Standard;
 
 	TSharedRef<SWidget> CreateDisplaySettingsWidget(UObject* SettingsObject) const;
+	void UpdatePIEWarnings();
 
 	// FModeToolkit
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
@@ -80,6 +88,9 @@ protected:
 	// A place for tools to write out any warnings
 	TSharedPtr<STextBlock> ToolWarningArea;
 
+	// A place for the mode to write out any warnings
+	TSharedPtr<STextBlock> ModeWarningArea;
+
 	// A container for the tool settings that is populated by the DetailsView managed
 	// in FModeToolkit
 	TSharedPtr<SBorder> ToolDetailsContainer;
@@ -93,6 +104,7 @@ protected:
 	FText ActiveToolName;
 	const FSlateBrush* ActiveToolIcon;
 	FStatusBarMessageHandle ActiveToolMessageHandle;
+	bool bShowPIEWarning;
 
 	void UpdateActiveToolProperties();
 	void InvalidateCachedDetailPanelState(UObject* ChangedObject);

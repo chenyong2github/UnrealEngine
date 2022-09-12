@@ -264,6 +264,23 @@ void UUVEditorMode::Enter()
 {
 	Super::Enter();
 
+	BeginPIEDelegateHandle = FEditorDelegates::PreBeginPIE.AddLambda([this](bool bSimulating)
+	{	
+		SetSimulationWarning(true);
+	});
+
+	EndPIEDelegateHandle = FEditorDelegates::EndPIE.AddLambda([this](bool bSimulating)
+	{
+		ActivateDefaultTool();
+		SetSimulationWarning(false);
+	});
+
+	CancelPIEDelegateHandle = FEditorDelegates::CancelPIE.AddLambda([this]()
+	{
+		ActivateDefaultTool();
+		SetSimulationWarning(false);
+	});
+
 	// Our mode needs to get Render and DrawHUD calls, but doesn't implement the legacy interface that
 	// causes those to be called. Instead, we'll hook into the tools context's Render and DrawHUD calls.
 	GetInteractiveToolsContext()->OnRender.AddUObject(this, &UUVEditorMode::Render);
@@ -766,6 +783,10 @@ void UUVEditorMode::Exit()
 		LivePreviewITC->OnDrawHUD.RemoveAll(this);
 	}
 
+	FEditorDelegates::PreBeginPIE.Remove(BeginPIEDelegateHandle);
+	FEditorDelegates::EndPIE.Remove(EndPIEDelegateHandle);
+	FEditorDelegates::CancelPIE.Remove(CancelPIEDelegateHandle);
+
 	Super::Exit();
 }
 
@@ -1261,6 +1282,15 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 		ToolInput->UnwrapPreview->Tick(DeltaTime);
 	}
 
+}
+
+void UUVEditorMode::SetSimulationWarning(bool bEnabled)
+{
+	if (Toolkit.IsValid())
+	{
+		FUVEditorModeToolkit* UVEditorModeToolkit = StaticCast<FUVEditorModeToolkit*>(Toolkit.Get());
+		UVEditorModeToolkit->EnableShowPIEWarning(bEnabled);
+	}
 }
 
 int32 UUVEditorMode::GetNumUVChannels(int32 AssetID) const
