@@ -336,7 +336,7 @@ void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProces
 {
 	// figure out dependencies
 	FProcessorDependencySolver Solver(InProcessorInstances, GroupName, DependencyGraphFileName);
-	TArray<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups;
+	TArray<FMassProcessorOrderInfo> SortedProcessorsAndGroups;
 	Solver.ResolveDependencies(SortedProcessorsAndGroups);
 
 	Populate(SortedProcessorsAndGroups);
@@ -344,7 +344,7 @@ void UMassCompositeProcessor::SetProcessors(TArrayView<UMassProcessor*> InProces
 	BuildFlatProcessingGraph(SortedProcessorsAndGroups);
 }
 
-void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups)
+void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FMassProcessorOrderInfo> SortedProcessorsAndGroups)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BuildFlatProcessingGraph);
 
@@ -353,7 +353,7 @@ void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FProcesso
 	TMap<FName, int32> NameToDependencyIndex;
 	NameToDependencyIndex.Reserve(SortedProcessorsAndGroups.Num());
 	TArray<int32> SuperGroupDependency;
-	for (const FProcessorDependencySolver::FOrderInfo& Element : SortedProcessorsAndGroups)
+	for (const FMassProcessorOrderInfo& Element : SortedProcessorsAndGroups)
 	{
 		NameToDependencyIndex.Add(Element.Name, FlatProcessingGraph.Num());
 
@@ -397,15 +397,15 @@ void UMassCompositeProcessor::BuildFlatProcessingGraph(TConstArrayView<FProcesso
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-void UMassCompositeProcessor::Populate(TConstArrayView<FProcessorDependencySolver::FOrderInfo> OrderedProcessors)
+void UMassCompositeProcessor::Populate(TConstArrayView<FMassProcessorOrderInfo> OrderedProcessors)
 {
 	ChildPipeline.Processors.Reset();
 
 	const FMassProcessingPhaseConfig& PhaseConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
 
-	for (const FProcessorDependencySolver::FOrderInfo& ProcessorInfo : OrderedProcessors)
+	for (const FMassProcessorOrderInfo& ProcessorInfo : OrderedProcessors)
 	{
-		if (ensureMsgf(ProcessorInfo.NodeType == EDependencyNodeType::Processor, TEXT("Encountered unexpected EDependencyNodeType while populating %s"), *GetGroupName().ToString()))
+		if (ensureMsgf(ProcessorInfo.NodeType == FMassProcessorOrderInfo::EDependencyNodeType::Processor, TEXT("Encountered unexpected FMassProcessorOrderInfo::EDependencyNodeType while populating %s"), *GetGroupName().ToString()))
 		{
 			checkSlow(ProcessorInfo.Processor);
 			

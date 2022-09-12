@@ -22,7 +22,7 @@ static FName GetProcessorName()
 struct FDependencySolverBase : FAITestBase
 {
 	TArray<UMassTestProcessorBase*> Processors;
-	TArray<FProcessorDependencySolver::FOrderInfo> Result;
+	TArray<FMassProcessorOrderInfo> Result;
 	
 	virtual bool SetUp() override
 	{
@@ -153,7 +153,7 @@ struct FDeepGroup : FDependencySolverBase
 		// dump all the group information from the Result collection for easier ordering testing
 		for (int32 i = 0; i < Result.Num(); ++i)
 		{
-			if (Result[i].NodeType != EDependencyNodeType::Processor)
+			if (Result[i].NodeType != FMassProcessorOrderInfo::EDependencyNodeType::Processor)
 			{
 				Result.RemoveAt(i--, 1, /*bAllowShrinking=*/false);
 			}
@@ -212,7 +212,7 @@ struct FComplexScenario : FDependencySolverBase
 
 		for (int32 i = 0; i < Result.Num(); ++i)
 		{
-			AITEST_EQUAL("We expect only processor nodes in the results", Result[i].NodeType, EDependencyNodeType::Processor);
+			AITEST_EQUAL("We expect only processor nodes in the results", Result[i].NodeType, FMassProcessorOrderInfo::EDependencyNodeType::Processor);
 		}
 
 		AITEST_TRUE("D is the only fully dependency-less processor so should be first", Result[0].Name == GetProcessorName<UMassTestProcessor_D>());		

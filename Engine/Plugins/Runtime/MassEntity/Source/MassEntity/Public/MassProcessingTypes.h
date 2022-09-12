@@ -125,3 +125,19 @@ enum class EMassProcessingPhase : uint8
 	FrameEnd,
 	MAX,
 };
+
+struct FMassProcessorOrderInfo
+{
+	enum class EDependencyNodeType : uint8
+	{
+		Invalid,
+		Processor,
+		GroupStart,
+		GroupEnd
+	};
+
+	FName Name = TEXT("");
+	UMassProcessor* Processor = nullptr;
+	EDependencyNodeType NodeType = EDependencyNodeType::Invalid;
+	TArray<FName> Dependencies;
+};

@@ -9,14 +9,6 @@
 
 class UMassProcessor;
 
-enum class EDependencyNodeType : uint8
-{
-	Invalid,
-	Processor,
-	GroupStart,
-	GroupEnd
-};
-
 namespace EMassAccessOperation
 {
 	constexpr uint32 Read = 0;
@@ -119,16 +111,9 @@ private:
 	};
 
 public:
-	struct FOrderInfo
-	{
-		FName Name = TEXT("");
-		UMassProcessor* Processor = nullptr;
-		EDependencyNodeType NodeType = EDependencyNodeType::Invalid;
-		TArray<FName> Dependencies;
-	};
 
 	MASSENTITY_API FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName = FString());
-	MASSENTITY_API void ResolveDependencies(TArray<FOrderInfo>& OutResult);
+	MASSENTITY_API void ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult);
 
 	MASSENTITY_API static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);
 
@@ -145,7 +130,7 @@ protected:
 	
 	void CreateNodes(UMassProcessor& Processor);
 	void BuildDependencies();
-	void Solve(TArray<FProcessorDependencySolver::FOrderInfo>& OutResult);
+	void Solve(TArray<FMassProcessorOrderInfo>& OutResult);
 	void LogNode(const FNode& Node, int Indent = 0);
 	
 	// @todo due to fundamental change to how nodes are organized the graph generation needs reimplementation

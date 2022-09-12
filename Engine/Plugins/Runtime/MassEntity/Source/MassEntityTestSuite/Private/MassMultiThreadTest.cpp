@@ -28,7 +28,7 @@ struct FMTTestBase : FEntityTestBase
 	using Super = FExecutionTestBase;
 	UMassCompositeProcessor* CompositeProcessor = nullptr;
 	TArray<UMassTestProcessorBase*> Processors;
-	TArray<FProcessorDependencySolver::FOrderInfo> Result;
+	TArray<FMassProcessorOrderInfo> Result;
 	FGraphEventRef FinishEvent;
 	TArray<FMassEntityHandle> Entities;
 

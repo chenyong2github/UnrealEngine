@@ -843,7 +843,7 @@ void FProcessorDependencySolver::DumpGraph(FArchive& LogFile) const
 
 #endif // 0; disabled the graph building for now, leaving the old code here for reference
 
-void FProcessorDependencySolver::Solve(TArray<FProcessorDependencySolver::FOrderInfo>& OutResult)
+void FProcessorDependencySolver::Solve(TArray<FMassProcessorOrderInfo>& OutResult)
 {
 	using UE::Mass::Private::NameViewToString;
 
@@ -929,12 +929,12 @@ void FProcessorDependencySolver::Solve(TArray<FProcessorDependencySolver::FOrder
 		// at this point we expect SortedNodeIndices to only point to regular processors (i.e. no groups)
 		if (ensure(AllNodes[NodeIndex].Processor != nullptr))
 		{
-			OutResult.Add({ AllNodes[NodeIndex].Name, AllNodes[NodeIndex].Processor, EDependencyNodeType::Processor, DependencyNames });
+			OutResult.Add({ AllNodes[NodeIndex].Name, AllNodes[NodeIndex].Processor, FMassProcessorOrderInfo::EDependencyNodeType::Processor, DependencyNames });
 		}
 	}
 }
 
-void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependencySolver::FOrderInfo>& OutResult)
+void FProcessorDependencySolver::ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult)
 {
 	if (Processors.Num() == 0)
 	{
@@ -978,7 +978,7 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 	Solve(OutResult);
 
 	UE_LOG(LogMass, Verbose, TEXT("Dependency order:"));
-	for (const FProcessorDependencySolver::FOrderInfo& Info : OutResult)
+	for (const FMassProcessorOrderInfo& Info : OutResult)
 	{
 		UE_LOG(LogMass, Verbose, TEXT("\t%s"), *Info.Name.ToString());
 	}

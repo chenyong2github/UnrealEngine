@@ -7,7 +7,6 @@
 #include "MassProcessingTypes.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "MassCommandBuffer.h"
-#include "MassProcessorDependencySolver.h"
 #include "MassProcessor.generated.h"
 
 
@@ -174,7 +173,7 @@ public:
 
 	virtual void CopyAndSort(const FMassProcessingPhaseConfig& PhaseConfig, const FString& DependencyGraphFileName = FString());
 	virtual void SetProcessors(TArrayView<UMassProcessor*> InProcessorInstances, const FString& DependencyGraphFileName = FString());
-	virtual void BuildFlatProcessingGraph(TConstArrayView<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups);
+	virtual void BuildFlatProcessingGraph(TConstArrayView<FMassProcessorOrderInfo> SortedProcessorsAndGroups);
 
 	/** adds SubProcessor to an appropriately named group. If RequestedGroupName == None then SubProcessor
 	 *  will be added directly to ChildPipeline. If not then the indicated group will be searched for in ChildPipeline 
@@ -194,7 +193,7 @@ protected:
 	/**
 	 *  Adds processors in OrderedProcessors to ChildPipeline and builds flat processing graph that's being used in multithreaded mode.
 	 */
-	void Populate(TConstArrayView<FProcessorDependencySolver::FOrderInfo> OrderedProcessors);
+	void Populate(TConstArrayView<FMassProcessorOrderInfo> OrderedProcessors);
 
 	/** RequestedGroupName can indicate a multi-level group name, like so: A.B.C
 	 *  We need to extract the highest-level group name ('A' in the example), and see if it already exists. 
