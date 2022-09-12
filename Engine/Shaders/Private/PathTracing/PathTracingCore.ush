@@ -67,6 +67,8 @@ RWTexture2D<float4> NormalTexture;
 RaytracingAccelerationStructure TLAS;
 uint SceneVisibleLightCount;
 
+Buffer<float> StartingExtinctionCoefficient;
+
 struct FPathState
 {                                   // packed size
 	uint2 PixelIndex;               //  4 bytes
@@ -818,7 +820,7 @@ FPathState CreatePathState(int2 PixelIndex)
 	// path state variables (these cary information between bounces)
 	Output.PathThroughput = 1.0;
 	Output.PathRoughness = 0;
-	Output.SigmaT = 0; // TODO: figure out the right start value for camera rays
+	Output.SigmaT = float3(StartingExtinctionCoefficient[0], StartingExtinctionCoefficient[1], StartingExtinctionCoefficient[2]);
 
 	return Output;
 }

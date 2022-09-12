@@ -16,7 +16,6 @@
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_SKY_MATERIALS          (1 << 0) // Indicates that the AHS/CHS should skip processing if the material is tagged as sky
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY         (1 << 1) // Indicates that this is a path tracer visibility ray (which supports material evaluation for transparent shadows and fake caustics)
 
-
 #define PATH_TRACING_PAYLOAD_NORMAL_BITS  24
 
 // shading model extensions beyond the default count
@@ -178,6 +177,7 @@ struct FPathTracingPayload : FMinimalPayload
 			   ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT || 
 			   ShadingModelID == SHADINGMODELID_HAIR ||
 			   ShadingModelID == SHADINGMODELID_MEDIUM ||
+			   ShadingModelID == SHADINGMODELID_SINGLELAYERWATER ||	
 			   IsMaterialSolidGlass();
 	}
 

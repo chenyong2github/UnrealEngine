@@ -742,6 +742,9 @@ class FPathTracingRG : public FGlobalShader
 		// scene decals
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRayTracingDecals, DecalParameters)
 
+		// camera ray starting extinction coefficient
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, StartingExtinctionCoefficient)
+
 		// Used by multi-GPU rendering and TDR-avoidance tiling
 		SHADER_PARAMETER(FIntPoint, TilePixelOffset)
 		SHADER_PARAMETER(FIntPoint, TileTextureOffset)
@@ -759,6 +762,24 @@ class FPathTracingRG : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FPathTracingRG, "/Engine/Private/PathTracing/PathTracing.usf", "PathTracingMainRG", SF_RayGen);
+
+class FPathTracingInitExtinctionCoefficientRG : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingInitExtinctionCoefficientRG)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingInitExtinctionCoefficientRG, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, RWStartingExtinctionCoefficient)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FPathTracingInitExtinctionCoefficientRG, "/Engine/Private/PathTracing/PathTracingInitExtinctionCoefficient.usf", "PathTracingInitExtinctionCoefficientRG", SF_RayGen);
 
 class FPathTracingIESAtlasCS : public FGlobalShader
 {
@@ -1901,6 +1922,11 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingRG>(PermutationVector);
 			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 		}
+
+		{
+			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingInitExtinctionCoefficientRG>();
+			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+		}		
 	}
 }
 
@@ -2049,6 +2075,43 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			View.ViewState->PathTracingInvalidate();
 		}
 		
+	}
+
+	// prepare extinction coefficient for camera rays
+	FRDGBufferRef StartingExtinctionCoefficient = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), 3), TEXT("PathTracer.StartingExtinctionCoefficient"));
+	FRDGBufferUAVRef StartingExtinctionCoefficientUAV = GraphBuilder.CreateUAV(StartingExtinctionCoefficient, PF_R32_FLOAT);
+
+	if (View.IsUnderwater())
+	{
+		auto RayGenShader = GetGlobalShaderMap(View.FeatureLevel)->GetShader<FPathTracingInitExtinctionCoefficientRG>();
+
+		FPathTracingInitExtinctionCoefficientRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingInitExtinctionCoefficientRG::FParameters>();
+		PassParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->RWStartingExtinctionCoefficient = StartingExtinctionCoefficientUAV;
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Path Tracer Init Sigma"),
+			PassParameters,
+			ERDGPassFlags::Compute,
+			[PassParameters, RayGenShader, &View](FRHIRayTracingCommandList& RHICmdList)
+			{
+				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
+				
+				RHICmdList.RayTraceDispatch(
+					View.RayTracingMaterialPipeline,
+					RayGenShader.GetRayTracingShader(),
+					RayTracingSceneRHI, GlobalResources,
+					1, 1
+				);
+			});
+	}
+	else
+	{
+		AddClearUAVPass(GraphBuilder, StartingExtinctionCoefficientUAV, 0);
 	}
 
 	// prepare atmosphere optical depth lookup texture (if needed)
@@ -2244,6 +2307,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 							PassParameters->TLAS = Scene->RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
 							PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 							PassParameters->PathTracingData = Config.PathTracingData;
+							PassParameters->StartingExtinctionCoefficient = GraphBuilder.CreateSRV(StartingExtinctionCoefficient, PF_R32_FLOAT);
 							if (PreviousPassParameters == nullptr)
 							{
 								// upload sky/lights data
