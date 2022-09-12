@@ -48,30 +48,6 @@ class UMLDeformerModel;
 
 #define MLDEFORMER_GRAPH_DISPATCH_END() }
 
-#define MLDEFORMER_GRAPH_IMPLEMENT_BASICS(InterfaceClassName, DataProviderClassName, DataProviderProxyClassName, ParameterStructType, HLSLText, DisplayName) \
-	FString InterfaceClassName::GetDisplayName() const \
-	{ \
-		return DisplayName; \
-	} \
-	void InterfaceClassName::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const \
-	{ \
-		InOutBuilder.AddNestedStruct<ParameterStructType>(UID); \
-	} \
-	void InterfaceClassName::GetHLSL(FString& OutHLSL) const \
-	{ \
-		OutHLSL += HLSLText; \
-	} \
-	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const \
-	{ \
-		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
-		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InBinding); \
-		return Provider; \
-	} \
-	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \
-	{ \
-		return new DataProviderProxyClassName(DeformerComponent); \
-	}
-
 #if WITH_EDITORONLY_DATA
 	#define MLDEFORMER_EDITORDATA_ONLY(Statement, ElseStatement) Statement
 #else

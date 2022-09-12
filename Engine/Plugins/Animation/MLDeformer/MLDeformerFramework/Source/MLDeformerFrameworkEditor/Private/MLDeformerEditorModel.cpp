@@ -253,8 +253,7 @@ namespace UE::MLDeformer
 
 		PreviewScene->DeselectAll();
 		PreviewScene->SetPreviewAnimationAsset(nullptr);
-		PreviewScene->SetPreviewAnimationBlueprint(nullptr, nullptr);
-		PreviewScene->SetPreviewMesh(nullptr);
+		//PreviewScene->SetPreviewMesh(nullptr);
 		PreviewScene->SetPreviewMeshComponent(nullptr);
 		PreviewScene->SetActor(nullptr);
 

@@ -25,6 +25,9 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerComponent
 public:
 	// UObject overrides.
 	void BeginDestroy() override;
+#if WITH_EDITOR
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	// ~END UObject overrides.
 
 	// UActorComponent overrides.
@@ -61,10 +64,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
 	void SetWeight(float NormalizedWeightValue)					{ Weight = FMath::Clamp<float>(NormalizedWeightValue, 0.0f, 1.0f);  }
-
-#if WITH_EDITOR
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
 	/**
 	 * Get the ML Deformer asset that is used by this component.

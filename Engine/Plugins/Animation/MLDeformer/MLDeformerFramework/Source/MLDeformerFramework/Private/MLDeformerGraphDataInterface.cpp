@@ -44,14 +44,32 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMLDeformerGraphDataInterfaceParameters, )
 	MLDEFORMER_SHADER_PARAMETERS()
 END_SHADER_PARAMETER_STRUCT()
 
-MLDEFORMER_GRAPH_IMPLEMENT_BASICS(
-	UMLDeformerGraphDataInterface,
-	UMLDeformerGraphDataProvider,
-	UE::MLDeformer::FMLDeformerGraphDataProviderProxy,
-	FMLDeformerGraphDataInterfaceParameters,
-	TEXT("#include \"/Plugin/MLDeformerFramework/Private/MLDeformerGraphDataInterface.ush\"\n"),
-	TEXT("ML Deformer"))
+FString UMLDeformerGraphDataInterface::GetDisplayName() const
+{
+	return TEXT("ML Deformer");
+}
 
+void UMLDeformerGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const \
+{
+	InOutBuilder.AddNestedStruct<FMLDeformerGraphDataInterfaceParameters>(UID);
+}
+
+void UMLDeformerGraphDataInterface::GetHLSL(FString& OutHLSL) const
+{
+	OutHLSL += TEXT("#include \"/Plugin/MLDeformerFramework/Private/MLDeformerGraphDataInterface.ush\"\n");
+}
+
+UComputeDataProvider* UMLDeformerGraphDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
+{
+	UMLDeformerGraphDataProvider* Provider = NewObject<UMLDeformerGraphDataProvider>();
+	Provider->DeformerComponent = Cast<UMLDeformerComponent>(InBinding);
+	return Provider;
+}
+
+FComputeDataProviderRenderProxy* UMLDeformerGraphDataProvider::GetRenderProxy()
+{
+	return new UE::MLDeformer::FMLDeformerGraphDataProviderProxy(DeformerComponent);
+}
 
 bool UMLDeformerGraphDataProvider::IsValid() const
 {

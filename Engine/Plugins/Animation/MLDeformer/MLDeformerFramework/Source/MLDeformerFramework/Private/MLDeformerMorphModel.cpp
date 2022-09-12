@@ -9,11 +9,14 @@
 
 #define LOCTEXT_NAMESPACE "MLDeformerMorphModel"
 
+TAtomic<int32> UMLDeformerMorphModel::NextFreeMorphSetID(0);
+
 UMLDeformerMorphModel::UMLDeformerMorphModel(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	MorphTargetSet = MakeShared<FExternalMorphSet>();
 	MorphTargetSet->Name = GetClass()->GetFName();
+	ExternalMorphSetID = NextFreeMorphSetID++;
 }
 
 void UMLDeformerMorphModel::Serialize(FArchive& Archive)
@@ -58,9 +61,6 @@ void UMLDeformerMorphModel::PostMLDeformerComponentInit(UMLDeformerModelInstance
 	USkeletalMeshComponent* SkelMeshComponent = ModelInstance->GetSkeletalMeshComponent();
 	if (SkelMeshComponent && SkelMeshComponent->GetSkeletalMeshAsset())
 	{	
-		// If this triggers, please set the ExternalMorphSetID in your model's constructor to a value that represents your model type.
-		checkf(ExternalMorphSetID != -1, TEXT("Please configure your ExternalMorphSetID member to a unique ID."));
-
 		// Register the morph set. This overwrites the existing one for this model, if it already exists.
 		// Only add to LOD 0 for now.
 		const int32 LOD = 0;
@@ -129,6 +129,12 @@ void UMLDeformerMorphModel::BeginDestroy()
 		MorphTargetSet.Reset();
 	}
 	Super::BeginDestroy();
+}
+
+FExternalMorphSetWeights* UMLDeformerMorphModel::FindExternalMorphWeights(int32 LOD, USkinnedMeshComponent* SkinnedMeshComponent) const
+{
+	check(SkinnedMeshComponent);
+	return SkinnedMeshComponent->GetExternalMorphWeights(LOD).MorphSets.Find(ExternalMorphSetID);
 }
 
 #undef LOCTEXT_NAMESPACE

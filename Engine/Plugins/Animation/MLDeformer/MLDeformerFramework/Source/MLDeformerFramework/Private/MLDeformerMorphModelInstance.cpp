@@ -16,14 +16,10 @@ void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
 		return;
 	}
 
-	const int32 ExternalMorphSetID = MorphModel->GetExternalMorphSetID();
-	// If this check fails please set this member to some value larger than 0 in your model's constructor.
-	checkf(ExternalMorphSetID != -1, TEXT("Please set the ExternalMorphSetID member value to a unique value for your model type."));
-
 	// Grab the weight data for this morph set.
 	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
 	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
-	FExternalMorphSetWeights* WeightData = SkeletalMeshComponent->GetExternalMorphWeights(LOD).MorphSets.Find(ExternalMorphSetID);
+	FExternalMorphSetWeights* WeightData = MorphModel->FindExternalMorphWeights(LOD, SkeletalMeshComponent);
 	if (WeightData == nullptr)
 	{
 		return;
@@ -31,19 +27,21 @@ void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
 
 	// If our model is active, we want to run the neural network and update the morph weights
 	// with the values that the neural net calculated for us.
-	if (ModelWeight > 0.0f)
+	const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
+	if (ModelWeight > 0.0f && NeuralNetwork != nullptr)
 	{
 		// Perform the neural network inference, which updates the output tensor.
+		// This takes most CPU time inside this method.
 		UMLDeformerModelInstance::RunNeuralNetwork(ModelWeight);
 
 		// Get the output tensor, read the values and use them as morph target weights inside the skeletal mesh component.
-		const UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
 		const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
 		const int32 NumNetworkWeights = OutputTensor.Num();
 		const int32 NumMorphTargets = WeightData->Weights.Num();;
 
 		// If we have the expected amount of weights.
 		// +1 because we always have an extra morph target that represents the means, with fixed weight of 1.
+		// Therefore, the neural network output tensor will contain one less float than the number of morph targets in our morph set.
 		if (NumMorphTargets == NumNetworkWeights + 1)
 		{
 			// Set the first morph target, which represents the means, to a weight of 1.0, as it always needs to be fully active.
@@ -52,16 +50,13 @@ void UMLDeformerMorphModelInstance::RunNeuralNetwork(float ModelWeight)
 			// Update all generated morph target weights with the values calculated by our neural network.
 			for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
 			{
-				WeightData->Weights[MorphIndex + 1] = OutputTensor.At<float>(MorphIndex) * ModelWeight;
+				const float OutputTensorValue = OutputTensor.At<float>(MorphIndex);
+				WeightData->Weights[MorphIndex + 1] = OutputTensorValue * ModelWeight;
 			}
 		}
 	}
 	else
 	{
-		// Reset all weights to zero.
-		for (float& Weight : WeightData->Weights)
-		{
-			Weight = 0.0f;
-		}
+		WeightData->ZeroWeights();
 	}
 }

@@ -805,7 +805,11 @@ void FAnimationEditorPreviewScene::ClearSelectedBone()
 	TGuardValue<bool> RecursionGuard(bSelecting, true);
 
 	SelectedBoneIndex = INDEX_NONE;
-	SkeletalMeshComponent->BonesOfInterest.Empty();
+
+	if (SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent->BonesOfInterest.Empty();
+	}
 
 	OnSelectedBoneChanged.Broadcast(NAME_None, ESelectInfo::Direct);
 

@@ -7,6 +7,8 @@
 #include "MLDeformerMorphModel.generated.h"
 
 struct FExternalMorphSet;
+struct FExternalMorphSetWeights;
+class USkinnedMeshComponent;
 
 UCLASS()
 class MLDEFORMERFRAMEWORK_API UMLDeformerMorphModel
@@ -40,23 +42,60 @@ public:
 
 	/**
 	 * Set the per vertex deltas, as a set of floats. Each vertex delta must have 3 floats.
+	 * These deltas are used to generate compressed morph targets internally. You typically call this method from inside
+	 * the python training script once your morph target deltas have been generated there.
 	 * Concatenate all deltas into one buffer, so like this [morphdeltas_target0, morphdeltas_target1, ..., morphdeltas_targetN].
 	 * The vertex ordering should be: [(x, y, z), (x, y, z), (x, y, z)].
+	 * This is the same as SetMorphTargetDeltas, except that this takes an array of floats instead of vectors.
 	 * @param Deltas The array of floats that contains the deltas. The number of items in the array must be equal to (NumMorphs * NumBaseMeshVerts * 3).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformerMorphModel")
 	void SetMorphTargetDeltaFloats(const TArray<float>& Deltas);
 
+	/**
+	 * Set the morph target model deltas as an array of 3D vectors.
+	 * These deltas are used to generate compressed morph targets internally. You typically call this method from inside
+	 * the python training script once your morph target deltas have been generated there.
+	 * Concatenate all deltas into one buffer, so like this [morphdeltas_target0, morphdeltas_target1, ..., morphdeltas_targetN].
+	 * This is the same as SetMorphTargetDeltaFloats, except that it takes vectors instead of floats.
+	 * @param Deltas The array of 3D vectors that contains the vertex deltas. The number of items in the array must be equal to (NumMorphs * NumBaseMeshVerts).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformerMorphModel")
 	void SetMorphTargetDeltas(const TArray<FVector3f>& Deltas);
 
+	/**
+	 * Get the morph target delta vectors array.
+	 * The layout of this array is [morphdeltas_target0, morphdeltas_target1, ..., morphdeltas_targetN].
+	 * So the total number of items in the array returned equals (NumMorphTargets * NumBaseMeshVerts).
+	 */
 	const TArray<FVector3f>& GetMorphTargetDeltas() const	{ return MorphTargetDeltas; }
+
+	/**
+	 * Get the external morph target set ID for this model.
+	 * This basically identifies the set of morph targets that belong to this model.
+	 * Different models on the same skeletal mesh gives each model its own unique ID.
+	 * You can use this ID to find the weight values for a specific model instance, inside the USkinnedMeshComponent class.
+	 * @return The unique ID of the morph target set for this model.
+	 * @see USkinnedMeshComponent::GetExternalMorphWeights.
+	 * @see FindExternalMorphWeights.
+	 */
 	int32 GetExternalMorphSetID() const						{ return ExternalMorphSetID; }
-	void SetExternalMorphSetID(int32 ID)					{ check(ID != -1);  ExternalMorphSetID = ID; }
+
+	/**
+	 * Get the weights for the external morph target set that belongs to this model.
+	 * @param LOD The LOD level to get the weights for.
+	 * @param SkinnedMeshComponent The skinned mesh component that we have to search in.
+	 * @return A pointer to the weight data, or nullptr in case we cannot find the weight data.
+	 */
+	FExternalMorphSetWeights* FindExternalMorphWeights(int32 LOD, USkinnedMeshComponent* SkinnedMeshComponent) const;
+
+	/**
+	 * Get the morph target set.
+	 */
 	TSharedPtr<FExternalMorphSet> GetMorphTargetSet() const { return MorphTargetSet; }
 
 	/**
-	 * Get the start index into the array of deltas, for a given morph target.
+	 * Get the start index into the array of deltas (vectors3's), for a given morph target.
 	 * This does not perform a bounds check to see if MorphTargetIndex is in a valid range, so be aware.
 	 * @param MorphTargetIndex The morph target index.
 	 * @return The start index, or INDEX_NONE in case there are no deltas.
@@ -64,6 +103,9 @@ public:
 	int32 GetMorphTargetDeltaStartIndex(int32 MorphTargetIndex) const;
 
 protected:
+	/** The next free morph target set ID. This is used to generate unique ID's for each morph model. */
+	static TAtomic<int32> NextFreeMorphSetID;
+
 	/** The compressed morph target data, ready for the GPU. */
 	TSharedPtr<FExternalMorphSet> MorphTargetSet;
 

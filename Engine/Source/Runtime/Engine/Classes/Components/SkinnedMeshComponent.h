@@ -112,11 +112,8 @@ namespace EBoneSpaces
 	};
 }
 
-/** Struct used to indicate one active morph target that should be applied to this USkeletalMesh when rendered. */
-
 /** WeightIndex is an into the MorphTargetWeights array */
 using FMorphTargetWeightMap = TMap<const UMorphTarget* /* MorphTarget */, int32 /* WeightIndex */>;
-
 
 /** An external morph target set. External morph targets are managed by systems outside of the skinned meshes. */
 struct ENGINE_API FExternalMorphSet
@@ -128,6 +125,7 @@ struct ENGINE_API FExternalMorphSet
 	FMorphTargetVertexInfoBuffers MorphBuffers;
 };
 
+/** The map of external morph sets registered on the skinned mesh component. */
 using FExternalMorphSets = TMap<int32, TSharedPtr<FExternalMorphSet>>;
 
 /** The weight data for a specific external morph set. */
@@ -136,8 +134,11 @@ struct ENGINE_API FExternalMorphSetWeights
 	/** Update the number of active morph targets. */
 	void UpdateNumActiveMorphTargets();
 
+	/** Set all weights to 0. Optionally set the NumActiveMorphTargets to zero as well. */
+	void ZeroWeights(bool bZeroNumActiveMorphTargets=true);
+
 	/** The debug name. */
-	FName Name = FName(TEXT("Unknown"));
+	FName Name = FName(TEXT("Unknown ExternalMorphSetWeights"));
 
 	/** The weights, which can also be negative and go beyond 1.0 or -1.0. */
 	TArray<float> Weights;
@@ -233,7 +234,6 @@ struct FVertexOffsetUsage
  *
  * @see USkeletalMeshComponent
 */
-
 UCLASS(hidecategories=Object, config=Engine, editinlinenew, abstract)
 class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface
 {

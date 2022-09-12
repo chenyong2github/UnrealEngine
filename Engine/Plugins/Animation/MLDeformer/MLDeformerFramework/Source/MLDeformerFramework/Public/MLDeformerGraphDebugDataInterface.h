@@ -36,56 +36,6 @@ class USkeletalMeshComponent;
 	Parameters->PositionGroundTruthBuffer = GroundTruthBufferSRV; \
 	Parameters->VertexMapBuffer = VertexMapBufferSRV;
 
-#define MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS(InterfaceClassName, DataProviderClassName, ParameterStructType, HLSLText, DisplayName) \
-	FString InterfaceClassName::GetDisplayName() const \
-	{ \
-		return DisplayName; \
-	} \
-	void InterfaceClassName::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const \
-	{ \
-		InOutBuilder.AddNestedStruct<ParameterStructType>(UID); \
-	} \
-	void InterfaceClassName::GetHLSL(FString& OutHLSL) const \
-	{ \
-		OutHLSL += HLSLText; \
-	} \
-	UComputeDataProvider* InterfaceClassName::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const \
-	{ \
-		DataProviderClassName* Provider = NewObject<DataProviderClassName>(); \
-		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InBinding); \
-		if (Provider->DeformerComponent) \
-		{ \
-			Provider->DeformerAsset = Provider->DeformerComponent->GetDeformerAsset(); \
-		} \
-		MLDEFORMER_EDITORDATA_ONLY( \
-			if (Provider->DeformerAsset != nullptr) \
-			{ \
-				Provider->Init(); \
-			} \
-		,) \
-		return Provider; \
-	}
-
-#define MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS_WITH_PROXY(InterfaceClassName, DataProviderClassName, DataProviderProxyClassName, ParameterStructType, HLSLText, DisplayName) \
-	MLDEFORMER_GRAPH_IMPLEMENT_DEBUG_BASICS(InterfaceClassName, DataProviderClassName, ParameterStructType, HLSLText, DisplayName) \
-	FComputeDataProviderRenderProxy* DataProviderClassName::GetRenderProxy() \
-	{ \
-		MLDEFORMER_EDITORDATA_ONLY( \
-			DataProviderProxyClassName* Proxy = new DataProviderProxyClassName(DeformerComponent, DeformerAsset, this); \
-			if (DeformerAsset) \
-			{ \
-				const float SampleTime = DeformerComponent->GetModelInstance()->GetSkeletalMeshComponent()->GetPosition(); \
-				UMLDeformerModel* Model = DeformerAsset->GetModel(); \
-				Model->SampleGroundTruthPositions(SampleTime, Proxy->GetGroundTruthPositions()); \
-				Proxy->HandleZeroGroundTruthPositions(); \
-				return Proxy; \
-			} \
-			return nullptr; \
-			, \
-			return nullptr; \
-		) \
-	}
-
 /** 
  * Compute Framework Data Interface for MLDeformer debugging data. 
  * This interfaces to editor only data, and so will only give valid results in that context.

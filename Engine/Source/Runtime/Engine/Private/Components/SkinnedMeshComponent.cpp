@@ -342,6 +342,19 @@ void FExternalMorphSetWeights::UpdateNumActiveMorphTargets()
 	}
 }
 
+void FExternalMorphSetWeights::ZeroWeights(bool bZeroNumActiveMorphTargets)
+{
+	for (int32 Index = 0; Index < Weights.Num(); ++Index)
+	{
+		Weights[Index] = 0.0f;
+	}
+
+	if (bZeroNumActiveMorphTargets)
+	{
+		NumActiveMorphTargets = 0;
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 void FExternalMorphWeightData::UpdateNumActiveMorphTargets()
