@@ -30,6 +30,7 @@ struct FShadowMapCacheData
 	int32 PrevVirtualShadowMapId = INDEX_NONE;
 
 	FIntPoint ClipmapCornerOffsetDelta = FIntPoint(0, 0);
+	int32 Padding[1];
 };
 
 

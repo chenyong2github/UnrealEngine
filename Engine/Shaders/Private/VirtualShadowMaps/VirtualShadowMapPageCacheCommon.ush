@@ -12,6 +12,7 @@ struct FShadowMapCacheData
 	int PrevVirtualShadowMapId;
 
 	int2 ClipmapCornerOffsetDelta;
+	int Padding[1];
 };
 
 StructuredBuffer<FShadowMapCacheData> ShadowMapCacheData;
