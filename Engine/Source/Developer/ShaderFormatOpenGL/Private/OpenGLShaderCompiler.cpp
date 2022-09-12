@@ -3051,6 +3051,17 @@ static bool CompileToGlslWithShaderConductor(
 		bCompilationFailed = true;
 	}
 
+	// Reduce arrays with const accessors to structs, which will then be packed to an array by GL cross compile
+	if(!bCompilationFailed && !Options.bDisableOptimizations && (Version == GLSL_ES3_1_ANDROID || Version == GLSL_150_ES3_1))
+	{
+		const char* OptArgs[] = { "--reduce-const-array-to-struct" };
+		if (!CompilerContext.OptimizeSpirv(SpirvData, OptArgs, UE_ARRAY_COUNT(OptArgs)))
+		{
+			UE_LOG(LogOpenGLShaderCompiler, Error, TEXT("Failed to apply reduce-const-array-to-struct for Android"));
+			return false;
+		} 
+	}
+
 	if (!bCompilationFailed)
 	{
 		ReflectionData ReflectData;
@@ -3363,6 +3374,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 			}
 		}
 
+		CCFlags |= HLSLCC_NoValidation;
 		FGlslCodeBackend* BackEnd = CreateBackend(Version, CCFlags, HlslCompilerTarget);
 
 		bool bDefaultPrecisionIsHalf = (CCFlags & HLSLCC_UseFullPrecisionInPS) == 0;
