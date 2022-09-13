@@ -15,7 +15,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SComboBox.h"
 #include "SAutomationGraphicalResultBox.h"
-#include "SAutomationTestTreeView.h"
+#include "Widgets/Views/STreeView.h"
 
 #if WITH_EDITOR
 #include "AssetRegistry/IAssetRegistry.h"
@@ -114,7 +114,7 @@ public:
 	static TArray<FString> SaveExpandedTestNames(TSet<TSharedPtr<IAutomationReport>> ExpandedItems);
 
 	// Expanded the given item if its name is in the array of strings given.
-	static void ExpandItemsInList(TSharedPtr<SAutomationTestTreeView<TSharedPtr<IAutomationReport>>> InTestTable, TSharedPtr<IAutomationReport> InReport, TArray<FString> ItemsToExpand);
+	static void ExpandItemsInList(TSharedPtr<STreeView<TSharedPtr<IAutomationReport>>> InTestTable, TSharedPtr<IAutomationReport> InReport, TArray<FString> ItemsToExpand);
 
 protected:
 
@@ -569,11 +569,8 @@ private:
 	/** Must maintain a widget size so the header and row icons can line up. */
 	const float ColumnWidth;
 
-	/** Global checkbox to enable/disable all visible tests. */
-	TSharedPtr< SCheckBox > HeaderCheckbox;
-
 	/** The list of all valid tests. */
-	TSharedPtr< SAutomationTestTreeView< TSharedPtr< IAutomationReport > > > TestTable;
+	TSharedPtr< STreeView< TSharedPtr< IAutomationReport > > > TestTable;
 	
 	/** Widget for header platform icons. */
 	TSharedPtr< SHorizontalBox > PlatformsHBox;
@@ -648,9 +645,6 @@ private:
 
 	/** Holds a pointer to the preset text box. */
 	TSharedPtr<SEditableTextBox> PresetTextBox;
-
-	/** Hold a pointer to the test tables header row. */
-	TSharedPtr<SHeaderRow> TestTableHeaderRow;
 
 	/** List of expanded test items to preserve during a refresh */
 	TArray<FString> SavedExpandedItems;
