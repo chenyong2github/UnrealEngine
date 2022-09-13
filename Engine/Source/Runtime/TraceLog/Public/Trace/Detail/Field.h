@@ -34,7 +34,7 @@ class FEventNode;
 
 ////////////////////////////////////////////////////////////////////////////////
 enum DisabledField {};
-	
+
 template <typename Type> struct TFieldType;
 
 template <> struct TFieldType<DisabledField>{ enum { Tid = 0,						Size = 0 }; };
@@ -144,7 +144,7 @@ enum class EIndexPack
 		: FieldDesc(Name, Tid, Offset, Size) \
 		{ \
 		}
-	
+
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset, typename Type>
 struct TField<InIndex, InOffset, Type[]>
@@ -187,7 +187,7 @@ public:
 		check(ReferencedUid != 0);
 	}
 };
-	
+
 ////////////////////////////////////////////////////////////////////////////////
 template <int InIndex, int InOffset, typename Type>
 struct TField

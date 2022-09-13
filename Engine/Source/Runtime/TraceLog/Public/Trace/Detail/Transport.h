@@ -39,7 +39,7 @@ struct FTidPacketBase
 	enum : uint16
 	{
 		EncodedMarker = 0x8000,
-		PartialMarker = 0x4000,
+		PartialMarker = 0x4000, // now unused. fragmented aux-data has an event header
 		ThreadIdMask  = PartialMarker - 1,
 	};
 

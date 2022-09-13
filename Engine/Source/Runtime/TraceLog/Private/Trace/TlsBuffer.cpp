@@ -4,17 +4,19 @@
 
 #if UE_TRACE_ENABLED
 
+#include "HAL/Platform.h" // for PLATFORM_BREAK
 #include "Platform.h"
 #include "Trace/Detail/Atomic.h"
 #include "Trace/Detail/Writer.inl"
 #include "Trace/Trace.inl"
+#include "WriteBufferRedirect.h"
 
 namespace UE {
 namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-void				Writer_TailAppend(uint32, uint8* __restrict, uint32, bool);
+void				Writer_TailAppend(uint32, uint8* __restrict, uint32);
 FWriteBuffer*		Writer_AllocateBlockFromPool();
 uint32				Writer_GetThreadId();
 void				Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);
@@ -32,7 +34,7 @@ UE_TRACE_EVENT_END()
 
 ////////////////////////////////////////////////////////////////////////////////
 #define T_ALIGN alignas(PLATFORM_CACHE_LINE_SIZE)
-static FWriteBuffer						GNullWriteBuffer	= { {}, 0, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer };
+static FWriteBuffer						GNullWriteBuffer	= { {}, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer, nullptr, nullptr, 0, 0, 0 };
 thread_local FWriteBuffer*				GTlsWriteBuffer		= &GNullWriteBuffer;
 static FWriteBuffer* __restrict			GActiveThreadList;	// = nullptr;
 T_ALIGN static FWriteBuffer* volatile	GNewThreadList;		// = nullptr;
@@ -49,22 +51,46 @@ TRACELOG_API FWriteBuffer* Writer_GetBuffer()
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-static FWriteBuffer* Writer_NextBufferInternal()
+static FWriteBuffer* Writer_NextBufferInternal(FWriteBuffer* CurrentBuffer)
 {
-	FWriteBuffer* NextBuffer = Writer_AllocateBlockFromPool();
+	// TraceData is used to catch traced events that occur when allocating
+	// memory. Such events should be tightly controlled and kept to a minimum.
+	// There is not a lot of buffer space available in TraceData to avoid
+	// exhausting available stack and leave usable space in the new buffer.
+	TWriteBufferRedirect<320> TraceData;
 
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	if (CurrentBuffer->ThreadId == decltype(TraceData)::ActiveRedirection)
+	{
+		// If we've reached this point we're are in an unrecoverable situation.
+		// Allocating memory results in so many trace events that there is
+		// insufficient space to store them. We can't allocate more space, because
+		// that would result in more traced events, and so on...
+		PLATFORM_BREAK();
+	}
+#endif
+
+	FWriteBuffer* NextBuffer = Writer_AllocateBlockFromPool();
 	NextBuffer->Cursor = (uint8*)NextBuffer - NextBuffer->Size;
-	NextBuffer->Committed = NextBuffer->Cursor;
 	NextBuffer->Reaped = NextBuffer->Cursor;
 	NextBuffer->EtxOffset = 0 - int32(sizeof(FWriteBuffer));
 	NextBuffer->NextBuffer = nullptr;
 
-	FWriteBuffer* CurrentBuffer = GTlsWriteBuffer;
+	// Add any capture events into the buffer.
+	if (uint32 RedirectSize = TraceData.GetSize())
+	{
+		memcpy(NextBuffer->Cursor, TraceData.GetData(), RedirectSize);
+		NextBuffer->Cursor += RedirectSize;
+	}
+
+	TraceData.Abandon();
+
+	NextBuffer->Committed = NextBuffer->Cursor;
+
 	if (CurrentBuffer == &GNullWriteBuffer)
 	{
 		NextBuffer->ThreadId = uint16(Writer_GetThreadId());
 		NextBuffer->PrevTimestamp = TimeGetTimestamp();
-		NextBuffer->Partial = 0;
 
 		GTlsWriteBuffer = NextBuffer;
 
@@ -86,7 +112,6 @@ static FWriteBuffer* Writer_NextBufferInternal()
 		CurrentBuffer->NextBuffer = NextBuffer;
 		NextBuffer->ThreadId = CurrentBuffer->ThreadId;
 		NextBuffer->PrevTimestamp = CurrentBuffer->PrevTimestamp;
-		NextBuffer->Partial = 0;
 
 		GTlsWriteBuffer = NextBuffer;
 
@@ -99,24 +124,10 @@ static FWriteBuffer* Writer_NextBufferInternal()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TRACELOG_API FWriteBuffer* Writer_NextBuffer(int32 Size)
+TRACELOG_API FWriteBuffer* Writer_NextBuffer()
 {
 	FWriteBuffer* CurrentBuffer = GTlsWriteBuffer;
-	if (CurrentBuffer != &GNullWriteBuffer)
-	{
-		CurrentBuffer->Cursor -= Size;
-	}
-
-	FWriteBuffer* NextBuffer = Writer_NextBufferInternal();
-
-	if (Size >= NextBuffer->Size)
-	{
-		// Someone is trying to write an event that is far too large
-		return nullptr;
-	}
-
-	NextBuffer->Cursor += Size;
-	return NextBuffer;
+	return Writer_NextBufferInternal(CurrentBuffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -131,9 +142,7 @@ static bool Writer_DrainBuffer(uint32 ThreadId, FWriteBuffer* Buffer)
 		GTraceStatistics.BytesTraced += SizeToReap;
 #endif
 
-		bool bPartial = (Buffer->Partial == 1);
-		bPartial &= UPTRINT(Buffer->Reaped + Buffer->Size) == UPTRINT(Buffer);
-		Writer_TailAppend(ThreadId, Buffer->Reaped, SizeToReap, bPartial);
+		Writer_TailAppend(ThreadId, Buffer->Reaped, SizeToReap);
 		Buffer->Reaped = Committed;
 	}
 

@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "Algo/BinarySearch.h"
 #include "Algo/Sort.h"
+#include "Algo/StableSort.h"
 #include "Containers/ArrayView.h"
 #include "CoreGlobals.h"
 #include "HAL/UnrealMemory.h"
@@ -53,14 +54,105 @@ struct FAuxData
 	uint32			DataSize;
 	uint16			FieldIndex;
 	int8			FieldSizeAndType;
-	bool			bSigned;
+	uint8			bSigned		: 1;
+	uint8			bFragmented	: 1;
+	uint8			bOwnsData	: 1;
+	uint8			_Unused		: 5;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAuxDataCollector
-: public TArray<FAuxData, TInlineAllocator<8>>
+	: public TArray<FAuxData, TInlineAllocator<8>>
 {
+	using	Super = TArray<FAuxData, TInlineAllocator<8>>;
+
+			~FAuxDataCollector() { Reset(); }
+	void	Add(const FAuxData& Data);
+	void	Defragment(FAuxData& Head);
+	void	Reset();
 };
+
+////////////////////////////////////////////////////////////////////////////////
+void FAuxDataCollector::Add(const FAuxData& Data)
+{
+	if (Num() == 0)
+	{
+		Super::Add(Data);
+		return;
+	}
+
+	FAuxData* Prev = &Last();
+	if (Prev->FieldIndex != Data.FieldIndex)
+	{
+		Super::Add(Data);
+		return;
+	}
+
+	while (Prev > GetData())
+	{
+		if (Prev[-1].FieldIndex != Data.FieldIndex)
+		{
+			break;
+		}
+
+		--Prev;
+	}
+
+	Prev->bFragmented = 1;
+	Super::Add(Data);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAuxDataCollector::Defragment(FAuxData& Data)
+{
+	check(Data.bFragmented);
+
+	uint32 Size = Data.DataSize;
+	for (FAuxData* Read = &Data + 1;;)
+	{
+		Size += Read->DataSize;
+
+		++Read;
+		if (Read > &Last() || Read->FieldIndex != Data.FieldIndex)
+		{
+			break;
+		}
+	}
+
+	uint8* Buffer = (uint8*)(FMemory::Malloc(Size));
+
+	uint8* Write = Buffer;
+	uint8* End = Buffer + Size;
+	for (FAuxData* Read = &Data;; ++Read)
+	{
+		FMemory::Memcpy(Write, Read->Data, Read->DataSize);
+		Write += Read->DataSize;
+		if (Write >= End)
+		{
+			break;
+		}
+	}
+
+	Data.Data = Buffer;
+	Data.DataSize = Size;
+	Data.bOwnsData = 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAuxDataCollector::Reset()
+{
+	for (const FAuxData& AuxData : *this)
+	{
+		if (!AuxData.bOwnsData)
+		{
+			continue;
+		}
+
+		FMemory::Free((void*)(AuxData.Data));
+	}
+
+	Super::Reset();
+}
 
 
 
@@ -657,6 +749,11 @@ const FAuxData* FEventDataInfo::GetAuxData(uint32 FieldIndex) const
 	{
 		if (Data.FieldIndex == FieldIndex)
 		{
+			if (Data.bFragmented)
+			{
+				Info->AuxCollector->Defragment(Data);
+			}
+
 			const FDispatch::FField& Field = Info->Dispatch.Fields[FieldIndex];
 			Data.FieldSizeAndType = Field.SizeAndType;
 			Data.bSigned = (Field.Class & UE::Trace::Protocol0::Field_Signed) != 0;
@@ -2455,7 +2552,7 @@ int32 FProtocol2Stage::OnDataAux(FStreamReader& Reader, FAuxDataCollector& Colle
 		}
 
 		// Attach to event
-		FAuxData AuxData;
+		FAuxData AuxData = {};
 		AuxData.Data = Header->Data;
 		AuxData.DataSize = uint32(BlockSize - sizeof(*Header));
 		AuxData.FieldIndex = uint16(Header->FieldIndex & Protocol1::FAuxHeader::FieldMask);
@@ -3298,10 +3395,10 @@ int32 FProtocol5Stage::ParseEventsWithAux(FStreamReader& Reader, EventDescArray&
 			if (EventDesc.bHasAux)
 			{
 				AuxKeyStack.Add(uint16(AuxKey));
-				bUnsorted = true;
-
-				++AuxKey; // Add a gap for aux-blocks to sort into
 			}
+
+			// This event maybe in the middle of an earlier event's aux data blocks.
+			bUnsorted = true;
 		}
 
 		OutEventDescs.Add(EventDesc);
@@ -3322,7 +3419,7 @@ int32 FProtocol5Stage::ParseEventsWithAux(FStreamReader& Reader, EventDescArray&
 	{
 		uint32 NumDescs = OutEventDescs.Num() - FirstDescIndex;
 		TArrayView<FEventDesc> DescsView(OutEventDescs.GetData() + FirstDescIndex, NumDescs);
-		Algo::Sort(
+		Algo::StableSort(
 			DescsView,
 			[] (const FEventDesc& Lhs, const FEventDesc& Rhs)
 			{
@@ -3641,7 +3738,7 @@ int32 FProtocol5Stage::DispatchEvents(
 
 				const auto* AuxHeader = ((FAuxHeader*)(Cursor->Data)) - 1;
 
-				FAuxData AuxData;
+				FAuxData AuxData = {};
 				AuxData.Data = AuxHeader->Data;
 				AuxData.DataSize = (AuxHeader->Pack >> FAuxHeader::SizeShift);
 				AuxData.FieldIndex = AuxHeader->FieldIndex_Size & FAuxHeader::FieldMask;

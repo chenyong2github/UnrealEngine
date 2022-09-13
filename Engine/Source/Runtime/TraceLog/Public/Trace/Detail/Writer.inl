@@ -11,8 +11,7 @@ namespace Private {
 ////////////////////////////////////////////////////////////////////////////////
 struct FWriteBuffer
 {
-	uint8						Overflow[6];
-	uint16						Size;
+	uint8						Overflow[8];
 	uint64						PrevTimestamp;
 	FWriteBuffer* __restrict	NextThread;
 	FWriteBuffer* __restrict	NextBuffer;
@@ -20,13 +19,13 @@ struct FWriteBuffer
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
 	int32 volatile				EtxOffset;
-	int16						Partial;
+	uint16						Size;
 	uint16						ThreadId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 TRACELOG_API uint64				TimeGetTimestamp();
-TRACELOG_API FWriteBuffer*		Writer_NextBuffer(int32);
+TRACELOG_API FWriteBuffer*		Writer_NextBuffer();
 TRACELOG_API FWriteBuffer*		Writer_GetBuffer();
 
 ////////////////////////////////////////////////////////////////////////////////

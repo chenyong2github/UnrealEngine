@@ -8,6 +8,7 @@
 
 #include "Atomic.h"
 #include "EventNode.h"
+#include "HAL/Platform.h" // for PLATFORM_BREAK
 #include "LogScope.h"
 #include "Protocol.h"
 #include "Writer.inl"
@@ -59,13 +60,23 @@ inline void FLogScope::EnterPrelude(uint32 Size)
 	uint32 AllocSize = sizeof(HeaderType) + Size;
 
 	Buffer = Writer_GetBuffer();
-	Buffer->Cursor += AllocSize;
-	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
+	if (UNLIKELY(Buffer->Cursor + AllocSize > (uint8*)Buffer))
 	{
-		Buffer = Writer_NextBuffer(AllocSize);
+		Buffer = Writer_NextBuffer();
 	}
 
-	Ptr = Buffer->Cursor - Size;
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	if (AllocSize >= Buffer->Size)
+	{
+		// This situation is terminal. Someone's trying to trace an event that
+		// is far too large. This should never happen as 'maximum_field_count *
+		// largest_field_size' won't exceed Buffer.Size.
+		PLATFORM_BREAK();
+	}
+#endif
+
+	Ptr = Buffer->Cursor + sizeof(HeaderType);
+	Buffer->Cursor += AllocSize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +136,7 @@ inline FScopedLogScope::~FScopedLogScope()
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(LeaveUid))))
 	{
-		Buffer = Writer_NextBuffer(0);
+		Buffer = Writer_NextBuffer();
 	}
 
 	Buffer->Cursor[0] = LeaveUid;
@@ -156,7 +167,7 @@ inline FScopedStampedLogScope::~FScopedStampedLogScope()
 
 	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(Stamp))))
 	{
-		Buffer = Writer_NextBuffer(0);
+		Buffer = Writer_NextBuffer();
 	}
 
 	Stamp <<= 8;
@@ -193,7 +204,7 @@ FORCENOINLINE auto FLogScope::ScopedEnter()
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(EnterUid))))
 	{
-		Buffer = Writer_NextBuffer(0);
+		Buffer = Writer_NextBuffer();
 	}
 
 	Buffer->Cursor[0] = EnterUid;
@@ -213,7 +224,7 @@ FORCENOINLINE auto FLogScope::ScopedStampedEnter()
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor) < int32(sizeof(Stamp))))
 	{
-		Buffer = Writer_NextBuffer(0);
+		Buffer = Writer_NextBuffer();
 	}
 
 	Stamp = Writer_GetTimestamp(Buffer);

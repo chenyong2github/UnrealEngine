@@ -199,7 +199,7 @@ FTidPacketBase* FPacketRing::AppendImpl(uint32 InSize)
 static FPacketRing GPacketRing; // = {};
 
 ////////////////////////////////////////////////////////////////////////////////
-void Writer_TailAppend(uint32 ThreadId, uint8* __restrict Data, uint32 Size, bool bPartial)
+void Writer_TailAppend(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
 	// Perhaps tail tracing is disabled?
 	if (!GPacketRing.IsActive())
@@ -216,7 +216,6 @@ void Writer_TailAppend(uint32 ThreadId, uint8* __restrict Data, uint32 Size, boo
 	}
 
 	ThreadId &= FTidPacketBase::ThreadIdMask;
-	ThreadId |= bPartial ? FTidPacketBase::PartialMarker : 0;
 
 	// Smaller buffers usually aren't redundant enough to benefit from being
 	// compressed. They often end up being larger.
@@ -310,10 +309,6 @@ static void StressRingPacket()
 	{
 		FTidPacket* Packet = Ring.Append<FTidPacket>((Bits & 0x1f) + 6);
 		Packet->ThreadId = i;
-		if ((Bits & 0x15) == 0)
-		{
-			Packet->ThreadId |= FTidPacketBase::PartialMarker;
-		}
 
 		Ring.IterateRanges([] (const FPacketRing::FRange&)
 		{

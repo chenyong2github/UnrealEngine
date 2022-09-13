@@ -26,7 +26,7 @@ template<typename IdType>
 struct TEventRef 
 {
 	using ReferenceType = IdType;
-	
+
 	TEventRef(IdType InId, uint32 InTypeId)
 		: Id(InId)
 		, RefTypeId(InTypeId)
@@ -37,7 +37,7 @@ struct TEventRef
 	uint32 RefTypeId;
 
 	uint64 GetHash() const;
-	
+
 private:
 	TEventRef() = delete;
 };
@@ -47,13 +47,13 @@ inline uint64 TEventRef<uint8>::GetHash() const
 {
 	return (uint64(RefTypeId) << 32) | Id;
 }
-	
+
 template <>
 inline uint64 TEventRef<uint16>::GetHash() const
 {
 	return (uint64(RefTypeId) << 32) | Id;
 }
-	
+
 template <>
 inline uint64 TEventRef<uint32>::GetHash() const
 {

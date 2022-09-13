@@ -138,10 +138,8 @@ void Writer_MemorySetHooks(decltype(AllocHook) Alloc, decltype(FreeHook) Free)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
+void* Writer_MemoryAllocateNoRedirect(SIZE_T Size, uint32 Alignment)
 {
-	TWriteBufferRedirect<1 << 10> TraceData;
-
 	void* Ret = nullptr;
 
 #if TRACE_PRIVATE_STOMP
@@ -187,8 +185,26 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
+{
+	TWriteBufferRedirect<1 << 10> TraceData;
+
+	void* Ret = Writer_MemoryAllocateNoRedirect(Size, Alignment);
+
+	if (TraceData.GetSize())
+	{
+		uint32 ThreadId = Writer_GetThreadId();
+		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
+	}
+
+	return Ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void Writer_MemoryFree(void* Address, uint32 Size)
 {
+	TWriteBufferRedirect<1 << 10> TraceData;
+
 #if TRACE_PRIVATE_STOMP
 	if (Address == nullptr)
 	{
@@ -203,8 +219,6 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 	DWORD Unused;
 	VirtualProtect(MemInfo.BaseAddress, MemInfo.RegionSize, PAGE_READONLY, &Unused);
 #else // TRACE_PRIVATE_STOMP
-	TWriteBufferRedirect<1 << 10> TraceData;
-
 	if (FreeHook != nullptr)
 	{
 		FreeHook(Address, Size);
@@ -222,6 +236,12 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 #if TRACE_PRIVATE_STATISTICS
 	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint64(-int64(Size)));
 #endif
+
+	if (TraceData.GetSize())
+	{
+		uint32 ThreadId = Writer_GetThreadId();
+		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
+	}
 }
 
 
@@ -653,12 +673,13 @@ static void Writer_InternalInitializeImpl()
 		return;
 	}
 
-	GInitialized = true;
 	GStartCycle = TimeGetTimestamp();
 
 	Writer_InitializeSharedBuffers();
 	Writer_InitializePool();
 	Writer_InitializeControl();
+
+	GInitialized = true;
 
 	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
 		<< NewTrace.StartCycle(GStartCycle)

@@ -15,7 +15,8 @@ template <typename CallbackType>
 static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback)
 {
 	static_assert(
-		sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader) + sizeof(uint8 /*AuxDataTerminal*/),
+		// "1+" is so we've at least space to write one byte of payload
+		sizeof(Private::FWriteBuffer::Overflow) >= 1 + sizeof(FAuxHeader) + sizeof(uint8 /*AuxDataTerminal*/),
 		"FWriteBuffer::Overflow is not large enough"
 	);
 
@@ -25,41 +26,59 @@ static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback
 		return;
 	}
 
-	// Header
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	auto* Header = (FAuxHeader*)(Buffer->Cursor);
-	Header->Pack = Size << FAuxHeader::SizeShift;
-	Header->Pack |= Index << FAuxHeader::FieldShift;
-	Header->Uid = uint8(EKnownEventUids::AuxData) << EKnownEventUids::_UidShift;
-	Buffer->Cursor += sizeof(FAuxHeader);
 
-	// Array data
-	bool bCommit = ((uint8*)Header == Buffer->Committed);
+	// We are writing fields of an event. The event writing will move Commited
+	// along. However, if we're writing a second aux field where the first fetched
+	// a new buffer then it is a different buffer to the one the event's written
+	// into, thus it is us that needs to update Committed.
+	bool bCommit = (Buffer->Cursor == Buffer->Committed);
+
+	// Do we have enough space to write at least [header][overflow-1] bytes of payload?
+	int32 Remaining = int32(ptrdiff_t((uint8*)Buffer - Buffer->Cursor));
+	auto NextBuffer = [&Buffer, &Remaining, &bCommit] ()
+	{
+		if (bCommit)
+		{
+			AtomicStoreRelease(&(uint8* volatile&)(Buffer->Committed), Buffer->Cursor);
+		}
+		bCommit = true;
+
+		Buffer = Writer_NextBuffer();
+		Remaining = int32(ptrdiff_t((uint8*)Buffer - Buffer->Cursor));
+	};
+
+	if (Remaining <= 0)
+	{
+		NextBuffer();
+	}
+
 	while (true)
 	{
-		if (Buffer->Cursor >= (uint8*)Buffer)
-		{
-			if (bCommit)
-			{
-				AtomicStoreRelease(&(uint8* volatile&)(Buffer->Committed), Buffer->Cursor);
-			}
-
-			Buffer = Writer_NextBuffer(0);
-			Buffer->Partial = 1;
-
-			bCommit = true;
-		}
-
-		int32 Remaining = int32((uint8*)Buffer - Buffer->Cursor);
+		// -1 to leave space to later write aux-term without bounds checking
+		Remaining += sizeof(FWriteBuffer::Overflow) - 1;
 		int32 SegmentSize = (Remaining < Size) ? Remaining : Size;
+
+		// Write header
+		auto* Header = (FAuxHeader*)(Buffer->Cursor);
+		Header->Pack = SegmentSize << FAuxHeader::SizeShift;
+		Header->Pack |= Index << FAuxHeader::FieldShift;
+		Header->Uid = uint8(EKnownEventUids::AuxData) << EKnownEventUids::_UidShift;
+		Buffer->Cursor += sizeof(FAuxHeader);
+		Remaining -= sizeof(FAuxHeader);
+
+		// Write payload data
 		Callback(Buffer->Cursor, SegmentSize);
 		Buffer->Cursor += SegmentSize;
 
+		// Bounds check
 		Size -= SegmentSize;
 		if (Size <= 0)
 		{
 			break;
 		}
+
+		NextBuffer();
 	}
 
 	if (bCommit)
