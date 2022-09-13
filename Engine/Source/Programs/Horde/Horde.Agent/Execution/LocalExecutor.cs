@@ -29,16 +29,14 @@ namespace Horde.Agent.Execution
 
 		protected override Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			Dictionary<string, string> envVars = new Dictionary<string, string>();
-			return SetupAsync(step, _localWorkspaceDir, null, envVars, logger, cancellationToken);
+			return SetupAsync(step, _localWorkspaceDir, null, logger, cancellationToken);
 		}
 
 		protected override Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (_settings.RunSteps)
 			{
-				Dictionary<string, string> envVars = new Dictionary<string, string>();
-				return ExecuteAsync(step, _localWorkspaceDir, null, envVars, logger, cancellationToken);
+				return ExecuteAsync(step, _localWorkspaceDir, null,  logger, cancellationToken);
 			}
 			else
 			{

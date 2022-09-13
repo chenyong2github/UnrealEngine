@@ -150,6 +150,8 @@ namespace Horde.Agent.Execution
 		protected IRpcConnection _rpcConnection;
 		protected Dictionary<string, string> _remapAgentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+		protected Dictionary<string, string> _envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
 		public BuildGraphExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName)
 		{
 			_rpcConnection = rpcConnection;
@@ -176,6 +178,11 @@ namespace Horde.Agent.Execution
 			if (_agentType == null)
 			{
 				_agentType = new GetAgentTypeResponse();
+			}
+
+			foreach (KeyValuePair<string, string> envVar in _agentType.Environment)
+			{
+				_envVars[envVar.Key] = envVar.Value;
 			}
 
 			logger.LogInformation("Configured as agent type {AgentType}", _agentTypeName);
@@ -351,7 +358,7 @@ namespace Horde.Agent.Execution
 
 		protected abstract Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken);
 
-		protected virtual async Task<bool> SetupAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, IReadOnlyDictionary<string, string> envVars, ILogger logger, CancellationToken cancellationToken)
+		protected virtual async Task<bool> SetupAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, ILogger logger, CancellationToken cancellationToken)
 		{
 			FileReference definitionFile = FileReference.Combine(workspaceDir, "Engine", "Saved", "Horde", "Exported.json");
 
@@ -384,7 +391,7 @@ namespace Horde.Agent.Execution
 				arguments.Append($" CopyUAT -WithLauncher -TargetDir=\"{buildDir}\"");
 			}
 
-			int result = await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), envVars, step.Credentials, logger, cancellationToken);
+			int result = await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), logger, cancellationToken);
 			if (result != 0)
 			{
 				return false;
@@ -574,7 +581,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		protected async Task<bool> ExecuteAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, IReadOnlyDictionary<string, string> envVars, ILogger logger, CancellationToken cancellationToken)
+		protected async Task<bool> ExecuteAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, ILogger logger, CancellationToken cancellationToken)
 		{
 			StringBuilder arguments = new StringBuilder("BuildGraph");
 			if (_preprocessScript)
@@ -605,20 +612,10 @@ namespace Horde.Agent.Execution
 				}
 			}
 
-			if (step.EnvVars != null && step.EnvVars.Count > 0)
-			{
-				Dictionary<string, string> newEnvVars = new Dictionary<string, string>(envVars);
-				foreach (KeyValuePair<string, string> envVar in step.EnvVars)
-				{
-					newEnvVars[envVar.Key] = envVar.Value;
-				}
-				envVars = newEnvVars;
-			}
-
-			return await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), envVars, step.Credentials, logger, cancellationToken) == 0;
+			return await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), logger, cancellationToken) == 0;
 		}
 
-		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, IReadOnlyDictionary<string, string> envVars, IReadOnlyDictionary<string, string> credentials, ILogger logger, CancellationToken cancellationToken)
+		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, ILogger logger, CancellationToken cancellationToken)
 		{
 			int result;
 			using (IScope scope = GlobalTracer.Instance.BuildSpan("BuildGraph").StartActive())
@@ -630,15 +627,15 @@ namespace Horde.Agent.Execution
 
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					result = await ExecuteCommandAsync(step, workspaceDir, Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe", $"/C \"\"{workspaceDir}\\Engine\\Build\\BatchFiles\\RunUAT.bat\" {arguments}\"", envVars, credentials, logger, cancellationToken);
+					result = await ExecuteCommandAsync(step, workspaceDir, Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe", $"/C \"\"{workspaceDir}\\Engine\\Build\\BatchFiles\\RunUAT.bat\" {arguments}\"", logger, cancellationToken);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 				{
-					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/bash", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", envVars, credentials, logger, cancellationToken);
+					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/bash", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", logger, cancellationToken);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 				{
-					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/sh", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", envVars, credentials, logger, cancellationToken);
+					result = await ExecuteCommandAsync(step, workspaceDir, "/bin/sh", $"\"{workspaceDir}/Engine/Build/BatchFiles/RunUAT.sh\" {arguments}", logger, cancellationToken);
 				}
 				else
 				{
@@ -755,64 +752,73 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		async Task<int> ExecuteCommandAsync(BeginStepResponse step, DirectoryReference workspaceDir, string fileName, string arguments, IReadOnlyDictionary<string, string> envVars, IReadOnlyDictionary<string, string> credentials, ILogger logger, CancellationToken cancellationToken)
+		async Task<int> ExecuteCommandAsync(BeginStepResponse step, DirectoryReference workspaceDir, string fileName, string arguments, ILogger logger, CancellationToken cancellationToken)
 		{
-			Dictionary<string, string> newEnvironment = new Dictionary<string, string>();
-			foreach (object? envVar in Environment.GetEnvironmentVariables())
+			// Combine all the supplied environment variables together
+			Dictionary<string, string> newEnvVars = new Dictionary<string, string>(_envVars, StringComparer.Ordinal);
+			foreach (KeyValuePair<string, string> envVar in step.EnvVars)
 			{
-				System.Collections.DictionaryEntry entry = (System.Collections.DictionaryEntry)envVar!;
-				string key = entry.Key.ToString()!;
-				if (!newEnvironment.ContainsKey(key))
-				{
-					newEnvironment[key] = entry.Value!.ToString()!;
-				}
+				newEnvVars[envVar.Key] = envVar.Value;
 			}
-			foreach (KeyValuePair<string, string> envVar in _agentType.Environment)
+			foreach (KeyValuePair<string, string> envVar in step.Credentials)
 			{
-				logger.LogInformation("Setting env var: {Key}={Value}", envVar.Key, envVar.Value);
-				newEnvironment[envVar.Key] = envVar.Value;
-			}
-			foreach (KeyValuePair<string, string> envVar in envVars)
-			{
-				logger.LogInformation("Setting env var: {Key}={Value}", envVar.Key, envVar.Value);
-				newEnvironment[envVar.Key] = envVar.Value;
-			}
-			foreach (KeyValuePair<string, string> envVar in credentials)
-			{
-				logger.LogInformation("Setting env var: {Key}=[redacted]", envVar.Key);
-				newEnvironment[envVar.Key] = envVar.Value;
+				newEnvVars[envVar.Key] = envVar.Value;
 			}
 
-			newEnvironment["IsBuildMachine"] = "1";
+			// Add all the other Horde-specific variables
+			newEnvVars["IsBuildMachine"] = "1";
 
 			DirectoryReference logDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Logs");
 			FileUtils.ForceDeleteDirectoryContents(logDir);
-			newEnvironment["uebp_LogFolder"] = logDir.FullName;
+			newEnvVars["uebp_LogFolder"] = logDir.FullName;
 
 			DirectoryReference telemetryDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "Telemetry");
 			FileUtils.ForceDeleteDirectoryContents(telemetryDir);
-			newEnvironment["UE_TELEMETRY_DIR"] = telemetryDir.FullName;
+			newEnvVars["UE_TELEMETRY_DIR"] = telemetryDir.FullName;
 
 			DirectoryReference testDataDir = DirectoryReference.Combine(workspaceDir, "Engine", "Programs", "AutomationTool", "Saved", "TestData");
 			FileUtils.ForceDeleteDirectoryContents(testDataDir);
-			newEnvironment["UE_TESTDATA_DIR"] = testDataDir.FullName;
+			newEnvVars["UE_TESTDATA_DIR"] = testDataDir.FullName;
 
-			newEnvironment["UE_HORDE_JOBID"] = _jobId;
-			newEnvironment["UE_HORDE_BATCHID"] = _batchId;
-			newEnvironment["UE_HORDE_STEPID"] = step.StepId;
+			newEnvVars["UE_HORDE_JOBID"] = _jobId;
+			newEnvVars["UE_HORDE_BATCHID"] = _batchId;
+			newEnvVars["UE_HORDE_STEPID"] = step.StepId;
 
 			// Enable structured logging output
-			newEnvironment["UE_LOG_JSON_TO_STDOUT"] = "1";
+			newEnvVars["UE_LOG_JSON_TO_STDOUT"] = "1";
 
 			// Pass the location of the cleanup script to the job
 			FileReference cleanupScript = GetCleanupScript(workspaceDir);
-			newEnvironment["UE_HORDE_CLEANUP"] = cleanupScript.FullName;
+			newEnvVars["UE_HORDE_CLEANUP"] = cleanupScript.FullName;
 
 			// Disable the S3DDC. This is technically a Fortnite-specific setting, but affects a large number of branches and is hard to retrofit. 
 			// Setting here for now, since it's likely to be temporary.
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				newEnvironment["UE-S3DataCachePath"] = "None";
+				newEnvVars["UE-S3DataCachePath"] = "None";
+			}
+
+			// Log all the environment variables to the log
+			HashSet<string> credentialKeys = new HashSet<string>(newEnvVars.Select(x => x.Key), StringComparer.OrdinalIgnoreCase);
+			foreach (KeyValuePair<string, string> envVar in newEnvVars.OrderBy(x => x.Key))
+			{
+				string value = "[redacted]";
+				if (!credentialKeys.Contains(envVar.Key))
+				{
+					value = envVar.Value;
+				}
+				logger.LogInformation("Setting env var: {Key}={Value}", envVar.Key, value);
+			}
+
+			// Add all the old environment variables into the list
+			foreach (object? envVar in Environment.GetEnvironmentVariables())
+			{
+				System.Collections.DictionaryEntry entry = (System.Collections.DictionaryEntry)envVar!;
+				string key = entry.Key.ToString()!;
+				if (!newEnvVars.ContainsKey(key))
+				{
+					newEnvVars[key] = entry.Value!.ToString()!;
+				}
 			}
 
 			// Clear out the telemetry directory
@@ -829,7 +835,7 @@ namespace Horde.Agent.Execution
 				await ExecuteCleanupScriptAsync(cleanupScript, filter, logger);
 				try
 				{
-					exitCode = await ExecuteProcessAsync(fileName, arguments, newEnvironment, filter, logger, cancellationToken);
+					exitCode = await ExecuteProcessAsync(fileName, arguments, newEnvVars, filter, logger, cancellationToken);
 				}
 				finally
 				{
