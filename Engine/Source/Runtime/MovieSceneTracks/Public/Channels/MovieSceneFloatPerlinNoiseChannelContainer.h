@@ -21,7 +21,7 @@ public:
 
 	bool SupportsOverride(FName DefaultChannelTypeName) const override;
 	void ImportEntityImpl(
-			const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, 
+			const FMovieSceneChannelOverrideEntityImportParams& OverrideParams, 
 			const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
 
 	const FMovieSceneChannel* GetChannel() const override { return &PerlinNoiseChannel; }

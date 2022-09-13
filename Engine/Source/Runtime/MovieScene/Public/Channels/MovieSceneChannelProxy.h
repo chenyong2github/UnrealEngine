@@ -274,6 +274,12 @@ public:
 	FMovieSceneChannel* GetChannel(FName ChannelTypeName, int32 ChannelIndex) const;
 
 	/**
+	 * Returns the total number of channels
+	 * @return The total number of channels
+	 */
+	int32 NumChannels() const;
+
+	/**
 	 * Make a channel handle out for the specified index and channel type name
 	 *
 	 * @return A handle to the supplied channel that will become nullptr when the proxy is reallocated, or nullptr if the index or channel type name are invalid.

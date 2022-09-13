@@ -62,6 +62,12 @@ public:
 	bool ContainsChannel(FName ChannelName) const;
 
 	/**
+	 * Returns the number of override channels in this registry
+	 * @return	The number of override channels
+	 */
+	int32 NumChannels() const;
+
+	/**
 	 * Returns the channel override for a given name, or nullptr if not found
 	 * @param ChannelName	Name of the channel
 	 * @return	The channel override container
@@ -93,7 +99,7 @@ public:
 	/**
 	* Forward ImportEntityImpl calls to an overriden channel
 	*/
-	void ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity);
+	void ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParams& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity);
 
 	/**
 	* Called when overridden channels should populate evaluation field
@@ -151,6 +157,32 @@ void AddChannelProxy(
 	}
 }
 
+/**
+ * Utility function for making a channel proxy with one channel that is maybe overriden by another channel.
+ */
+template<typename ChannelType, typename ExtendedEditorDataType>
+TSharedPtr<FMovieSceneChannelProxy> MakeChannelProxy(
+	const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry,
+	ChannelType& DefaultChannel,
+	const FMovieSceneChannelMetaData& InMetaData, ExtendedEditorDataType&& InExtendedEditorData)
+{
+	// When there's only one channel, it usually has no name. Create a channel proxy by hand if
+	// you need a named singled channel.
+	const FName ChannelName(NAME_None);
+	FMovieSceneChannelProxyData ProxyData;
+	UMovieSceneChannelOverrideContainer* OverrideContainer = GetChannelOverride(OverrideRegistry, ChannelName);
+	if (OverrideContainer)
+	{
+		FMovieSceneChannelHandle ChannelHandle = OverrideContainer->AddChannelProxy(ChannelName, ProxyData, InMetaData);
+		ProxyData.SetExtendedEditorData<ChannelType>(ChannelHandle, InExtendedEditorData);
+	}
+	else
+	{
+		ProxyData.Add(DefaultChannel, InMetaData, InExtendedEditorData);
+	}
+	return MakeShared<FMovieSceneChannelProxy>(MoveTemp(ProxyData));
+}
+
 #else
 
 /**
@@ -170,6 +202,28 @@ void AddChannelProxy(
 	{
 		ProxyData.Add(DefaultChannel);
 	}
+}
+
+/**
+ * Utility function for making a channel proxy with one channel that is maybe overriden by another channel.
+ */
+template<typename ChannelType>
+TSharedPtr<FMovieSceneChannelProxy> MakeChannelProxy(
+	const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry,
+	ChannelType& DefaultChannel)
+{
+	const FName ChannelName(NAME_None);
+	FMovieSceneChannelProxyData ProxyData;
+	UMovieSceneChannelOverrideContainer* OverrideContainer = GetChannelOverride(OverrideRegistry, ChannelName);
+	if (OverrideContainer)
+	{
+		OverrideContainer->AddChannelProxy(ChannelName, ProxyData);
+	}
+	else
+	{
+		ProxyData.Add(DefaultChannel);
+	}
+	return MakeShared<FMovieSceneChannelProxy>(MoveTemp(ProxyData));
 }
 
 #endif

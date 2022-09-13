@@ -421,9 +421,7 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 		{
 			if (EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight))
 			{
-				TMovieSceneChannelOverrideResultComponentEntityImportParams<double> OverrideParams;
-				OverrideParams.ChannelName = ChannelOverrideName;
-				OverrideParams.ResultComponent = BuiltInComponentTypes->WeightResult;
+				FMovieSceneChannelOverrideEntityImportParams OverrideParams(ChannelOverrideName, BuiltInComponentTypes->WeightResult);
 				OverrideRegistry->ImportEntityImpl(OverrideParams, Params, OutImportedEntity);
 			}
 		}
@@ -431,9 +429,7 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 		{
 			if (ActiveChannelsMask[ChannelOverrideIndex])
 			{
-				TMovieSceneChannelOverrideResultComponentEntityImportParams<double> OverrideParams;
-				OverrideParams.ChannelName = ChannelOverrideName;
-				OverrideParams.ResultComponent = BuiltInComponentTypes->DoubleResult[ChannelOverrideIndex];
+				FMovieSceneChannelOverrideEntityImportParams OverrideParams(ChannelOverrideName, BuiltInComponentTypes->DoubleResult[ChannelOverrideIndex]);
 				OverrideRegistry->ImportEntityImpl(OverrideParams, Params, OutImportedEntity);
 			}
 		}

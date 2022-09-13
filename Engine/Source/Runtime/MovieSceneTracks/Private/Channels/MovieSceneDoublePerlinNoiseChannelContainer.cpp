@@ -11,19 +11,19 @@ bool UMovieSceneDoublePerlinNoiseChannelContainer::SupportsOverride(FName Defaul
 	return FMovieSceneDoubleChannel::StaticStruct()->GetFName() == DefaultChannelTypeName;
 }
 
-void UMovieSceneDoublePerlinNoiseChannelContainer::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
+void UMovieSceneDoublePerlinNoiseChannelContainer::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParams& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
-	const auto& DoubleResultParams = OverrideParams.CastThis<TMovieSceneChannelOverrideResultComponentEntityImportParams<double>>();
+	TComponentTypeID<double> ResultComponent = OverrideParams.ResultComponent.ReinterpretCast<double>();
 
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
 		.Add(TracksComponents->DoublePerlinNoiseChannel, PerlinNoiseChannel.GetParams())
-		.Add(DoubleResultParams.ResultComponent, TNumericLimits<double>::Max())
+		.Add(ResultComponent, TNumericLimits<double>::Max())
 	);
 }
 

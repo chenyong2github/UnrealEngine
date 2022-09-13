@@ -335,19 +335,25 @@ void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieS
 {
 	using namespace UE::MovieScene;
 
+	int32 NumOverridenChannels = 0;
 	IMovieSceneChannelOverrideProvider* RegistryProvider = Cast<IMovieSceneChannelOverrideProvider>(&Section);
 	if (RegistryProvider)
 	{
 		if (UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry = RegistryProvider->GetChannelOverrideRegistry(false))
 		{
+			NumOverridenChannels = OverrideRegistry->NumChannels();
 			OverrideRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, Section);
 		}
 	}
 
-	// Add the default entity for this section.
-	const int32 EntityIndex   = OutFieldBuilder->FindOrAddEntity(&Section, SectionPropertyValueImportingID);
-	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
-	OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	const int32 NumChannels = Section.GetChannelProxy().NumChannels();
+	if (NumChannels > NumOverridenChannels)
+	{
+		// Add the default entity for this section.
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(&Section, SectionPropertyValueImportingID);
+		const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	}
 
 	// Check if this section is animating a property with an edit-condition. If so, we need to also animate a boolean toggle
 	// that will be set to true while the main property is animated.

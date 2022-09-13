@@ -20,6 +20,11 @@ bool UMovieSceneSectionChannelOverrideRegistry::ContainsChannel(FName ChannelNam
 	return Overrides.Contains(ChannelName);
 }
 
+int32 UMovieSceneSectionChannelOverrideRegistry::NumChannels() const
+{
+	return Overrides.Num();
+}
+
 UMovieSceneChannelOverrideContainer* UMovieSceneSectionChannelOverrideRegistry::GetChannel(FName ChannelName) const
 {
 	return Overrides.FindRef(ChannelName);
@@ -30,14 +35,13 @@ void UMovieSceneSectionChannelOverrideRegistry::RemoveChannel(FName ChannelName)
 	Overrides.Remove(ChannelName);
 }
 
-void UMovieSceneSectionChannelOverrideRegistry::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
+void UMovieSceneSectionChannelOverrideRegistry::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParams& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
-	using namespace UE::MovieScene;
-
-	check(OverrideParams.IsValid());
-	FName ChannelName = OverrideParams.GetPtr()->ChannelName;
-	check(!ChannelName.IsNone());
-	Overrides[ChannelName]->ImportEntityImpl(OverrideParams, ImportParams, OutImportedEntity);
+	TObjectPtr<UMovieSceneChannelOverrideContainer>* ContainerPtr = Overrides.Find(OverrideParams.ChannelName);
+	if (ensure(ContainerPtr))
+	{
+		(*ContainerPtr)->ImportEntityImpl(OverrideParams, ImportParams, OutImportedEntity);
+	}
 }
 
 void UMovieSceneSectionChannelOverrideRegistry::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection)

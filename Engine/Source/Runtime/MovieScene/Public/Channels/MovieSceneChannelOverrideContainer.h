@@ -22,57 +22,18 @@ struct FMovieSceneChannelProxyData;
 struct FMovieSceneEntityComponentFieldBuilder;
 
 /**
- * Base structure for entity import parameters of a channel override.
+ * Entity import parameters for a channel override.
  */
-struct IMovieSceneChannelOverrideEntityImportParams
+struct FMovieSceneChannelOverrideEntityImportParams
 {
 	FName ChannelName;
-};
-
-/*
- * Handle for storing channel override import parameters.
- *
- * These parameters carry type-specific information, such as the result component in which the channel
- * override should throw output values.
- */
-struct FMovieSceneChannelOverrideEntityImportParamsHandle : 
-	TInlineValue<IMovieSceneChannelOverrideEntityImportParams, sizeof(FName) + 16>
-{
-	using Super = TInlineValue<IMovieSceneChannelOverrideEntityImportParams, sizeof(FName) + 16>;
-
-	FMovieSceneChannelOverrideEntityImportParamsHandle()
-		: Super()
-	{
-	}
-
-	template<typename T>
-	FMovieSceneChannelOverrideEntityImportParamsHandle(T&& In)
-		: Super(In)
-	{
-	}
-
-	template<typename T>
-	const T& CastThis() const
-	{
-		return *static_cast<const T*>(this->GetPtr());
-	}
-};
-
-/**
- * Entity import parameters for channel overrides that just need an untyped result component.
- */
-struct FMovieSceneChannelOverrideResultComponentEntityImportParams : IMovieSceneChannelOverrideEntityImportParams
-{
 	UE::MovieScene::FComponentTypeID ResultComponent;
-};
 
-/**
- * Entity import parameters for channel overrides that need a typed result component.
- */
-template<typename ComponentType>
-struct TMovieSceneChannelOverrideResultComponentEntityImportParams : IMovieSceneChannelOverrideEntityImportParams
-{
-	UE::MovieScene::TComponentTypeID<ComponentType> ResultComponent;
+	FMovieSceneChannelOverrideEntityImportParams()
+	{}
+	FMovieSceneChannelOverrideEntityImportParams(FName InChannelName, UE::MovieScene::FComponentTypeID InResultComponent)
+		: ChannelName(InChannelName), ResultComponent(InResultComponent)
+	{}
 };
 
 /**
@@ -90,7 +51,7 @@ public:
 
 	/** Imports the entity for this channel */
 	virtual void ImportEntityImpl(
-			const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, 
+			const FMovieSceneChannelOverrideEntityImportParams& OverrideParams, 
 			const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity) {};
 
 	/** Gets the underlying channel */

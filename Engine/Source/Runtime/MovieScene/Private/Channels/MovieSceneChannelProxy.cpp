@@ -4,6 +4,16 @@
 #include "Algo/BinarySearch.h"
 
 
+int32 FMovieSceneChannelProxy::NumChannels() const
+{
+	int32 Num = 0;
+	for (const FMovieSceneChannelEntry& Entry : Entries)
+	{
+		Num += Entry.GetChannels().Num();
+	}
+	return Num;
+}
+
 FMovieSceneChannelHandle FMovieSceneChannelProxy::MakeHandle(FName ChannelTypeName, int32 Index)
 {
 	TWeakPtr<FMovieSceneChannelProxy> WeakProxy = AsShared();

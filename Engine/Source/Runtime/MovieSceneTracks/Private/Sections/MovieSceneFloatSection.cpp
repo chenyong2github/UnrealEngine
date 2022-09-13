@@ -30,13 +30,15 @@ UMovieSceneFloatSection::UMovieSceneFloatSection( const FObjectInitializer& Obje
 
 EMovieSceneChannelProxyType UMovieSceneFloatSection::CacheChannelProxy()
 {
+	using namespace UE::MovieScene;
+
 #if WITH_EDITOR
 
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve, FMovieSceneChannelMetaData(), TMovieSceneExternalValue<float>::Make());
+	ChannelProxy = MakeChannelProxy(OverrideRegistry, FloatCurve, FMovieSceneChannelMetaData(), TMovieSceneExternalValue<float>::Make());
 
 #else
 
-	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve);
+	ChannelProxy = MakeChannelProxy(OverrideRegistry, FloatCurve);
 
 #endif
 
@@ -53,7 +55,7 @@ void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 {
 	using namespace UE::MovieScene;
 
-	if (!FloatCurve.HasAnyData())
+	if (!FloatCurve.HasAnyData() && (!OverrideRegistry || OverrideRegistry->NumChannels() == 0))
 	{
 		return;
 	}
@@ -62,7 +64,9 @@ void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
 	FPropertyTrackWithOverridableChannelsEntityImportHelper(TracksComponents->Float, this)
-		.Add(Components->FloatChannel[0], FName("FloatChannel"), &FloatCurve)
+		.Add(Components->FloatChannel[0], &FloatCurve,
+				// NAME_None below because we don't specify any names in CacheChannelProxy
+				FMovieSceneChannelOverrideEntityImportParams(NAME_None, Components->DoubleResult[0]))
 		.Commit(this, Params, OutImportedEntity);
 }
 
@@ -77,7 +81,8 @@ UMovieSceneSectionChannelOverrideRegistry* UMovieSceneFloatSection::GetChannelOv
 
 UE::MovieScene::FChannelOverrideProviderTraitsHandle UMovieSceneFloatSection::GetChannelOverrideProviderTraits() const
 {
-	UE::MovieScene::TSingleChannelOverrideProviderTraits<FMovieSceneFloatChannel> Traits(FName("FloatChannel"));
+	// NAME_None because we don't specify any names in CacheChannelProxy
+	UE::MovieScene::TSingleChannelOverrideProviderTraits<FMovieSceneFloatChannel> Traits(NAME_None);
 	return UE::MovieScene::FChannelOverrideProviderTraitsHandle(Traits);
 }
 
