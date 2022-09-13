@@ -78,6 +78,9 @@ CORE_API class FDerivedDataCacheInterface* GetDerivedDataCache();
 /** Returns the derived data cache interface, or fatal error if it is not available. */
 CORE_API class FDerivedDataCacheInterface& GetDerivedDataCacheRef();
 
+/** Returns the derived data cache interface if it is available and initialized, otherwise null. */
+CORE_API class FDerivedDataCacheInterface* TryGetDerivedDataCache();
+
 /**
  * Return the Target Platform Manager interface, if it is available, otherwise return nullptr.
  *

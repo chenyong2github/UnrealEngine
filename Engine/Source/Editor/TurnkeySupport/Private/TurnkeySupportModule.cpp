@@ -362,9 +362,13 @@ public:
 		{
 			BuildCookRunParams += TEXT(" -SkipCookingEditorContent");
 		}
-		if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+		if (FDerivedDataCacheInterface* DDC = TryGetDerivedDataCache())
 		{
-			BuildCookRunParams += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
+			const TCHAR* GraphName = DDC->GetGraphName();
+			if (FCString::Strcmp(GraphName, DDC->GetDefaultGraphName()))
+			{
+				BuildCookRunParams += FString::Printf(TEXT(" -DDC=%s"), DDC->GetGraphName());
+			}
 		}
 		if (FApp::IsEngineInstalled())
 		{

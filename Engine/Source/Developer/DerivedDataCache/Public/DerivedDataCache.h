@@ -373,6 +373,9 @@ UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetChunkRequest& Out
 /** Returns a reference to the cache. Asserts if not available. */
 UE_API ICache& GetCache();
 
+/** Returns a pointer to the cache. Null if not available or not created. */
+UE_API ICache* TryGetCache();
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // UE::DerivedData

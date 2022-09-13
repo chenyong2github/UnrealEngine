@@ -642,9 +642,13 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 				UATCommand += TEXT(" -zenstore -fileserver -skipserver");
 			}
 
-			if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+			if (FDerivedDataCacheInterface* DDC = TryGetDerivedDataCache())
 			{
-				UATCommand += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
+				const TCHAR* GraphName = DDC->GetGraphName();
+				if (FCString::Strcmp(GraphName, DDC->GetDefaultGraphName()))
+				{
+					UATCommand += FString::Printf(TEXT(" -DDC=%s"), GraphName);
+				}
 			}
 
 			if (InProfile->IsPackingWithUnrealPak())

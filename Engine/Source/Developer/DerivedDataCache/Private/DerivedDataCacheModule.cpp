@@ -35,6 +35,11 @@ public:
 		return &GDerivedDataLegacyCache;
 	}
 
+	FDerivedDataCacheInterface* const* GetCache() final
+	{
+		return &GDerivedDataLegacyCache;
+	}
+
 	void CreateCacheOnce()
 	{
 		FScopeLock Lock(&CreateLock);
@@ -109,6 +114,11 @@ ICache& GetCache()
 	ICache* Cache = Private::GDerivedDataCache;
 	checkf(Cache, TEXT("Failed to create derived data cache."));
 	return *Cache;
+}
+
+ICache* TryGetCache()
+{
+	return Private::GDerivedDataCache;
 }
 
 IBuild& GetBuild()

@@ -120,6 +120,18 @@ FDerivedDataCacheInterface& GetDerivedDataCacheRef()
 	return *Cache;
 }
 
+FDerivedDataCacheInterface* TryGetDerivedDataCache()
+{
+	if (IDerivedDataCacheModule* Module = FModuleManager::GetModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
+	{
+		if (FDerivedDataCacheInterface* const* Cache = Module->GetCache())
+		{
+			return *Cache;
+		}
+	}
+	return nullptr;
+}
+
 class ITargetPlatformManagerModule* GetTargetPlatformManager(bool bFailOnInitErrors)
 {
 	static class ITargetPlatformManagerModule* SingletonInterface = NULL;

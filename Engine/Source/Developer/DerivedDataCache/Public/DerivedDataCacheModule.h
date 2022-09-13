@@ -25,4 +25,13 @@ public:
 	 * the destruction of the cache without polling this function or monitoring the module lifetime.
 	 */
 	virtual FDerivedDataCacheInterface* const* CreateOrGetCache() = 0;
+
+	/**
+	 * Returns a pointer to the cache, which may be null.
+	 *
+	 * This returns a non-null pointer to a cache which may be null and becomes null when the module
+	 * shuts down and destroys the cache. This extra level of indirection allows a caller to observe
+	 * the destruction of the cache without polling this function or monitoring the module lifetime.
+	 */
+	virtual FDerivedDataCacheInterface* const* GetCache() = 0;
 };
