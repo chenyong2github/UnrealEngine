@@ -70,6 +70,12 @@ namespace Horde.Build.Issues
 		DateTime? QuarantineTimeUtc { get; }
 
 		/// <summary>
+		/// User who force closed the issue
+		/// </summary>
+		IUser? ForceClosedBy { get; }
+
+
+		/// <summary>
 		/// Determines whether the given user should be notified about the given issue
 		/// </summary>
 		/// <returns>True if the user should be notified for this change</returns>

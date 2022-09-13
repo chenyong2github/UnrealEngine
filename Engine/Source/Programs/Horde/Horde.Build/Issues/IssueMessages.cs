@@ -530,6 +530,11 @@ namespace Horde.Build.Issues
 		public DateTime? QuarantineTimeUtc { get; set; }
 
 		/// <summary>
+		/// User who force closed the issue
+		/// </summary>
+		public GetThinUserInfoResponse? ForceClosedByUserInfo { get; set; }
+
+		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="details">Issue to construct from</param>
@@ -589,6 +594,7 @@ namespace Horde.Build.Issues
 			ExternalIssueKey = details.ExternalIssueKey;
 			QuarantinedByUserInfo = details.QuarantinedBy != null ? new GetThinUserInfoResponse(details.QuarantinedBy) : null;
 			QuarantineTimeUtc = details.QuarantineTimeUtc;
+			ForceClosedByUserInfo = details.ForceClosedBy != null ? new GetThinUserInfoResponse(details.ForceClosedBy) : null;
 		}
 	}
 
