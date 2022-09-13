@@ -1215,14 +1215,14 @@ bool FAssetManagerEditorModule::GetStringValueForCustomColumn(const FAssetData& 
 		if (CurrentRegistrySource->bIsEditor)
 		{
 			// The in-memory data is wrong, ask the asset manager
-			AssetManager.GetPackageChunkIds(AssetData.PackageName, CurrentRegistrySource->TargetPlatform, AssetData.ChunkIDs, FoundChunks);
+			AssetManager.GetPackageChunkIds(AssetData.PackageName, CurrentRegistrySource->TargetPlatform, AssetData.GetChunkIDs(), FoundChunks);
 		}
 		else
 		{
 			FAssetData PlatformData = CurrentRegistrySource->GetAssetByObjectPath(AssetData.GetSoftObjectPath());
 			if (PlatformData.IsValid())
 			{
-				FoundChunks = MoveTemp(PlatformData.ChunkIDs);
+				FoundChunks = PlatformData.GetChunkIDs();
 			}
 		}
 		
@@ -1625,12 +1625,13 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 
 				RegistryState->EnumerateAllAssets([&RegistryState, this](const FAssetData& AssetData)
 				{
-					if (AssetData.ChunkIDs.Num() > 0)
+					const FAssetData::FChunkArrayView ChunkIDs = AssetData.GetChunkIDs();
+					if (!ChunkIDs.IsEmpty())
 					{
 						TArray<FAssetIdentifier> ManagerAssets;
 						RegistryState->GetReferencers(AssetData.PackageName, ManagerAssets, UE::AssetRegistry::EDependencyCategory::Manage);
 
-						for (int32 ChunkId : AssetData.ChunkIDs)
+						for (int32 ChunkId : ChunkIDs)
 						{
 							FPrimaryAssetId ChunkAssetId = UAssetManager::CreatePrimaryAssetIdFromChunkId(ChunkId);
 							

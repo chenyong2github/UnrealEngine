@@ -982,14 +982,14 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 					if (AssetData)
 					{
 						FString GuidString;
-
-						if (AssetData->ChunkIDs.Num() > 1)
+						const FAssetData::FChunkArrayView ChunkIDs = AssetData->GetChunkIDs();
+						if (ChunkIDs.Num() > 1)
 						{
 							UE_LOG(LogAssetRegistryGenerator, Error, TEXT("Encrypted root asset '%s' exists in two chunks. Only secondary assets should be shared between chunks."), *AssetData->GetObjectPathString());
 						}
-						else if (AssetData->ChunkIDs.Num() == 1)
+						else if (ChunkIDs.Num() == 1)
 						{
-							int32 ChunkID = AssetData->ChunkIDs[0];
+							int32 ChunkID = ChunkIDs[0];
 							FGuid Guid;
 
 							if (GuidCache.Contains(ChunkID))
@@ -1005,7 +1005,7 @@ void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetSt
 							{
 								FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 								TagsAndValues.Add(UAssetManager::GetEncryptionKeyAssetTagName(), Guid.ToString());
-								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
+								FAssetData NewAssetData = FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName, AssetData->AssetClassPath, TagsAndValues, ChunkIDs, AssetData->PackageFlags);
 								NewAssetData.TaggedAssetBundles = AssetData->TaggedAssetBundles;
 								TargetState.UpdateAssetData(AssetData, MoveTemp(NewAssetData));
 							}
@@ -1377,7 +1377,7 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 	// Copy ExplicitChunkIDs and other data from the AssetRegistry into the maps we use during finalization
 	State.EnumerateAllAssets([&](const FAssetData& AssetData)
 	{
-		for (int32 ChunkID : AssetData.ChunkIDs)
+		for (int32 ChunkID : AssetData.GetChunkIDs())
 		{
 			if (ChunkID < 0)
 			{
@@ -1390,7 +1390,7 @@ void FAssetRegistryGenerator::FinalizeChunkIDs(const TSet<FName>& InCookedPackag
 
 		// Clear the Asset's chunk id list. We will fill it with the final IDs to use later on.
 		// Chunk Ids are safe to modify in place so do a const cast
-		const_cast<FAssetData&>(AssetData).ChunkIDs.Empty();
+		const_cast<FAssetData&>(AssetData).ClearChunkIDs();
 
 		// Update whether the owner package contains a map
 		if ((AssetData.PackageFlags & PKG_ContainsMap) != 0)
@@ -2008,9 +2008,10 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 		const FAssetPackageData* PackageData = State.GetAssetPackageData(AssetData.PackageName);
 
 		// Add only assets that have actually been cooked and belong to any chunk and that have a file size
-		if (PackageData != nullptr && AssetData.ChunkIDs.Num() > 0 && PackageData->DiskSize > 0)
+		const FAssetData::FChunkArrayView ChunkIDs = AssetData.GetChunkIDs();
+		if (PackageData != nullptr && ChunkIDs.Num() > 0 && PackageData->DiskSize > 0)
 		{
-			for (int32 PakchunkIndex : AssetData.ChunkIDs)
+			for (int32 PakchunkIndex : ChunkIDs)
 			{
 				const int64 FileSize = PackageData->DiskSize;
 				FString SoftChain;
@@ -2031,7 +2032,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 
 				// Build "other chunks" string or None if not part of
 				TmpStringChunks.Empty(64);
-				for (int32 OtherChunk : AssetData.ChunkIDs)
+				for (int32 OtherChunk : ChunkIDs)
 				{
 					if (OtherChunk != PakchunkIndex)
 					{
@@ -2046,7 +2047,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 					*AssetData.AssetClassPath.ToString(),
 					bHardChunk ? TEXT("Hard") : *SoftChain,
 					FileSize,
-					AssetData.ChunkIDs.Num() == 1 ? TEXT("None") : *TmpStringChunks
+					ChunkIDs.Num() == 1 ? TEXT("None") : *TmpStringChunks
 				);
 
 				// Write line to all chunks file and individual chunks files if requested
@@ -2323,7 +2324,7 @@ void FAssetRegistryGenerator::FixupPackageDependenciesForChunks(FSandboxPlatform
 			for (const FAssetData* AssetData : State.GetAssetsByPackageName(Asset.Key))
 			{
 				// Chunk Ids are safe to modify in place
-				const_cast<FAssetData*>(AssetData)->ChunkIDs.AddUnique(PakchunkIndex);
+				const_cast<FAssetData*>(AssetData)->AddChunkID(PakchunkIndex);
 			}
 		}
 	}

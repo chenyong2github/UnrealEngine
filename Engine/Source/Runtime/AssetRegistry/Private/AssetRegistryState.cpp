@@ -2,6 +2,7 @@
 
 #include "AssetRegistry/AssetRegistryState.h"
 
+#include "Algo/Compare.h"
 #include "Algo/Sort.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistryArchive.h"
@@ -192,7 +193,7 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 		bool bRemoveDependencyData = true;
 
 		if (bIsFilteredByChunkId &&
-			!AssetData->ChunkIDs.ContainsByPredicate([&](int32 ChunkId) { return ChunksToKeep.Contains(ChunkId); }))
+			!AssetData->GetChunkIDs().ContainsByPredicate([&](int32 ChunkId) { return ChunksToKeep.Contains(ChunkId); }))
 		{
 			bRemoveAssetData = true;
 		}
@@ -224,7 +225,7 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 		FAssetRegistryState::FilterTags(AssetData->TagsAndValues, NewTagsAndValues, Options.CookFilterlistTagsByClass.Find(AssetData->AssetClassPath), Options);
 
 		FAssetData* NewAssetData = new FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName,
-			AssetData->AssetClassPath, NewTagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
+			AssetData->AssetClassPath, NewTagsAndValues, AssetData->GetChunkIDs(), AssetData->PackageFlags);
 
 		NewAssetData->TaggedAssetBundles = AssetData->TaggedAssetBundles;
 
@@ -486,7 +487,7 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 		bool bRemoveDependencyData = true;
 
 		if (bIsFilteredByChunkId &&
-			!AssetData->ChunkIDs.ContainsByPredicate([&](int32 ChunkId) { return ChunksToKeep.Contains(ChunkId); }))
+			!AssetData->GetChunkIDs().ContainsByPredicate([&](int32 ChunkId) { return ChunksToKeep.Contains(ChunkId); }))
 		{
 			bRemoveAssetData = true;
 		}
@@ -1440,7 +1441,6 @@ SIZE_T FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 	for (const FAssetData* AssetData : CachedAssets)
 	{
 		AssetDataSize += sizeof(*AssetData);
-		AssetDataSize += AssetData->ChunkIDs.GetAllocatedSize();
 		TagMemoryUsage.Include(AssetData->TagsAndValues);
 		if (AssetData->TaggedAssetBundles.IsValid())
 		{
@@ -1899,10 +1899,11 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, FAssetData&& Ne
 		// so we can skip the more expensive compares if the inequality is already known
 		// This is not possible for keyfields - we have to take action on those even if inequality is already known -
 		// so we start with whether bKeyFieldIsModified
+		// TODO: this is horrifying, don't submit like this
 		*bOutModified = bKeyFieldIsModified ||
 			AssetData->AssetName != NewAssetData.AssetName ||
 			AssetData->PackageFlags != NewAssetData.PackageFlags ||
-			AssetData->ChunkIDs != NewAssetData.ChunkIDs ||
+			!AssetData->HasSameChunkIDs(NewAssetData) ||
 			(AssetData->TaggedAssetBundles.IsValid() != NewAssetData.TaggedAssetBundles.IsValid() ||
 				(AssetData->TaggedAssetBundles.IsValid() &&
 					AssetData->TaggedAssetBundles.Get() != NewAssetData.TaggedAssetBundles.Get() && // First check whether the pointers are the same

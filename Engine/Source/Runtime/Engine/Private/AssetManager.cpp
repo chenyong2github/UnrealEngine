@@ -2124,7 +2124,7 @@ bool UAssetManager::FindMissingChunkList(const TArray<FSoftObjectPath>& AssetLis
 		GetAssetDataForPath(Asset, FoundData);
 		TSet<int32> FoundChunks, MissingChunks, ErrorChunks;
 
-		for (int32 PakchunkId : FoundData.ChunkIDs)
+		for (int32 PakchunkId : FoundData.GetChunkIDs())
 		{
 			if (!ChunkLocationCache.Contains(PakchunkId))
 			{

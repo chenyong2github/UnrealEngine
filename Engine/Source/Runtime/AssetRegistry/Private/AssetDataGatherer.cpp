@@ -3953,9 +3953,9 @@ SIZE_T FAssetDataGatherer::GetAllocatedSize() const
 	for (FAssetData* Value : AssetResults)
 	{
 		Result += sizeof(*Value);
-		Result += Value->ChunkIDs.GetAllocatedSize();
 		TagMemoryUsage.Include(Value->TagsAndValues);
 	}
+	Result += FAssetData::GetChunkArrayRegistryAllocatedSize();
 	Result += TagMemoryUsage.GetFixedSize() + TagMemoryUsage.GetLooseSize();
 
 	Result += GetArrayRecursiveAllocatedSize(DependencyResults);

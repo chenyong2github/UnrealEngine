@@ -3048,7 +3048,7 @@ EAssetAvailability::Type GetAssetAvailability(const FAssetData& AssetData)
 	EChunkLocation::Type BestLocation = EChunkLocation::DoesNotExist;
 
 	// check all chunks to see which has the best locality
-	for (int32 PakchunkId : AssetData.ChunkIDs)
+	for (int32 PakchunkId : AssetData.GetChunkIDs())
 	{
 		EChunkLocation::Type ChunkLocation = ChunkInstall->GetPakchunkLocation(PakchunkId);
 
@@ -3102,7 +3102,7 @@ float GetAssetAvailabilityProgress(const FAssetData& AssetData, EAssetAvailabili
 	float BestProgress = MAX_FLT;
 
 	// check all chunks to see which has the best time remaining
-	for (int32 PakchunkID : AssetData.ChunkIDs)
+	for (int32 PakchunkID : AssetData.GetChunkIDs())
 	{
 		float Progress = ChunkInstall->GetChunkProgress(PakchunkID, ChunkReportType);
 
@@ -3162,12 +3162,13 @@ void PrioritizeAssetInstall(const FAssetData& AssetData)
 {
 	IPlatformChunkInstall* ChunkInstall = FPlatformMisc::GetPlatformChunkInstall();
 
-	if (AssetData.ChunkIDs.Num() == 0)
+	const TConstArrayView<int32> ChunkIDs = AssetData.GetChunkIDs();
+	if (ChunkIDs.Num() == 0)
 	{
 		return;
 	}
 
-	ChunkInstall->PrioritizePakchunk(AssetData.ChunkIDs[0], EChunkPriority::Immediate);
+	ChunkInstall->PrioritizePakchunk(ChunkIDs[0], EChunkPriority::Immediate);
 }
 
 }

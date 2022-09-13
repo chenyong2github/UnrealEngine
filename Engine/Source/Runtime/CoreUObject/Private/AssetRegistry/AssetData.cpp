@@ -4,6 +4,7 @@
 
 #include "Algo/IsSorted.h"
 #include "Algo/Sort.h"
+#include "Algo/Unique.h"
 #include "AssetRegistry/ARFilter.h"
 #include "Containers/Set.h"
 #include "HAL/CriticalSection.h"
@@ -99,6 +100,140 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> ParseAssetBundles(const
 
 }}} // end namespace UE::AssetData::Private
 
+namespace UE::AssetRegistry
+{
+
+class FChunkArrayRegistryEntry
+{
+public:
+	FChunkArrayRegistryEntry(FAssetData::FChunkArray&& InChunkArray)
+		: ChunkArray(MoveTemp(InChunkArray))
+	{
+	}
+
+	bool operator==(const FChunkArrayRegistryEntry& OtherEntry) const
+	{
+		const int32 ThisNum = ChunkArray.Num();
+		if (ThisNum != OtherEntry.ChunkArray.Num())
+		{
+			return false;
+		}
+
+		// Arrays are guaranteed to be sorted/unique when an entry is created
+		for (int32 Index = 0; Index < ThisNum; ++Index)
+		{
+			if (ChunkArray[Index] != OtherEntry.ChunkArray[Index])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	FAssetData::FChunkArrayView GetChunkIDs() const
+	{
+		return ChunkArray;
+	}
+
+	friend uint32 GetTypeHash(const FChunkArrayRegistryEntry& InEntry)
+	{
+		uint32 Hash = 0;
+		for (int32 ChunkID : InEntry.ChunkArray)
+		{
+			Hash = HashCombineFast(Hash, GetTypeHash(ChunkID));
+		}
+		return Hash;
+	}
+
+	SIZE_T GetAllocatedSize() const
+	{
+		return ChunkArray.GetAllocatedSize();
+	}
+
+private:
+	/* Array of chunk IDs that's guaranteed to be unique and sorted in ascending order. */
+	FAssetData::FChunkArray ChunkArray;
+};
+
+class FChunkArrayRegistry
+{
+public:
+	FChunkArrayRegistryHandle FindOrAdd(const FAssetData::FChunkArrayView& InChunkIDs)
+	{
+		// Make a copy so we can sort it inside; these are very small arrays generally
+		FAssetData::FChunkArray ChunkArray = FAssetData::FChunkArray(InChunkIDs);
+		return FindOrAdd(MoveTemp(ChunkArray));
+	}
+
+	FChunkArrayRegistryHandle FindOrAdd(FAssetData::FChunkArray&& InChunkIDs)
+	{
+		// Sort and remove duplicates before inserting
+		Algo::Sort(InChunkIDs);
+		return FindOrAddSorted(MoveTemp(InChunkIDs));
+	}
+
+	FChunkArrayRegistryHandle FindOrAddSorted(FAssetData::FChunkArray&& InChunkIDs)
+	{
+		// Make sure we have no duplicates on top of being sorted
+		InChunkIDs.SetNum(Algo::Unique(InChunkIDs));
+
+		FChunkArrayRegistryHandle Index;
+		if (!InChunkIDs.IsEmpty())
+		{
+			FChunkArrayRegistryEntry Entry(MoveTemp(InChunkIDs));
+			const uint32 Hash = GetTypeHash(Entry);
+			{
+				const FReadScopeLock ReadLock(Lock);
+				Index = ChunkArrays.FindIdByHash(Hash, Entry);
+			}
+
+			if (!Index.IsValidId())
+			{
+				// Two threads may hit this point simultaneously and race to insert, and if we just emplace, the second thread will
+				// replace the array inserted by the first. We never want this to happen since that would invalidate array views produced
+				// since, so we have to do the look-up again. Insertions should be rare in general, so the cost shouldn't be noticeable.
+				const FWriteScopeLock WriteLock(Lock);
+				Index = ChunkArrays.FindIdByHash(Hash, Entry);
+				if (!Index.IsValidId())
+				{
+					Index = ChunkArrays.EmplaceByHash(Hash, MoveTemp(Entry));
+				}
+			}
+		}
+		return Index;
+	}
+
+	FAssetData::FChunkArrayView GetChunkIDs(FChunkArrayRegistryHandle ChunkArrayRegistryHandle) const
+	{
+		FAssetData::FChunkArrayView ChunkIDs;
+		if (ChunkArrayRegistryHandle.IsValidId())
+		{
+			FReadScopeLock ReadLock(Lock);
+			ChunkIDs = ChunkArrays[ChunkArrayRegistryHandle].GetChunkIDs();
+		}
+		return ChunkIDs;
+	}
+
+	SIZE_T GetAllocatedSize() const
+	{
+		SIZE_T AllocatedSize = sizeof(*this);
+		AllocatedSize += ChunkArrays.GetAllocatedSize();
+		for (const FChunkArrayRegistryEntry& Entry : ChunkArrays)
+		{
+			AllocatedSize += Entry.GetAllocatedSize();
+		}
+		return AllocatedSize;
+	}
+
+private:
+	// We will only ever add elements to this set, so we can return persistent indices
+	TSet<FChunkArrayRegistryEntry> ChunkArrays;
+	mutable FRWLock Lock;
+} GChunkArrayRegistry;
+
+} // namespace UE::AssetRegistry
+
 FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetName, FName InAssetClass, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
 	: FAssetData(InPackageName, InPackagePath, InAssetName, FAssetData::TryConvertShortClassNameToPathName(InAssetClass), InTags, InChunkIDs, InPackageFlags)
 {
@@ -115,7 +250,6 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 	, AssetName(InAssetName)
 	, AssetClassPath(InAssetClassPathName)
 	, PackageFlags(InPackageFlags)
-	, ChunkIDs(MoveTemp(InChunkIDs))
 {
 	SetTagsAndAssetBundles(MoveTemp(InTags));
 
@@ -125,13 +259,14 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ObjectPath = FName(FStringView(ObjectPathStr));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	SetChunkIDs(InChunkIDs);
 }
 
 FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FTopLevelAssetPath InAssetClassPathName, FAssetDataTagMap InTags, TArrayView<const int32> InChunkIDs, uint32 InPackageFlags)
 	: PackageName(*InLongPackageName)
 	, AssetClassPath(InAssetClassPathName)
 	, PackageFlags(InPackageFlags)
-	, ChunkIDs(MoveTemp(InChunkIDs))
 {
 	using namespace UE::AssetRegistry::Private;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -152,6 +287,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		OptionalOuterPath = FName(Parts.OuterPath);
 	}
 #endif
+
+	SetChunkIDs(InChunkIDs);
 }
 
 FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCreationFlags)
@@ -189,8 +326,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			InAsset->GetAssetRegistryTags(*this);
 		}
 
-		ChunkIDs = Package->GetChunkIDs();
 		PackageFlags = Package->GetPackageFlags();
+		SetChunkIDs(Package->GetChunkIDs());
 	}
 }
 
@@ -259,6 +396,68 @@ bool FAssetData::IsTopLevelAsset(UObject* Object)
 		return false;
 	}
 	return Outer->IsA<UPackage>();
+}
+
+FAssetData::FChunkArrayView FAssetData::GetChunkIDs() const
+{
+#if !UE_STRIP_DEPRECATED_PROPERTIES
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Modifying the chunk IDs directly is no longer supported; use AddChunkID/SetChunkIDs/ClearChunkIDs instead
+	if (!ChunkIDs.IsEmpty())
+	{
+		UE_LOG(LogAssetData, Error, TEXT("Modifying FAssetData::ChunkIDs directly is no longer supported; use AddChunkID/SetChunkIDs/ClearChunkIDs instead."));
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+
+	return UE::AssetRegistry::GChunkArrayRegistry.GetChunkIDs(ChunkArrayRegistryHandle);
+}
+
+void FAssetData::SetChunkIDs(FChunkArray&& InChunkIDs)
+{
+	ChunkArrayRegistryHandle = UE::AssetRegistry::GChunkArrayRegistry.FindOrAdd(MoveTemp(InChunkIDs));
+}
+
+void FAssetData::SetChunkIDs(const FChunkArrayView& InChunkIDs)
+{
+	ChunkArrayRegistryHandle = UE::AssetRegistry::GChunkArrayRegistry.FindOrAdd(InChunkIDs);
+}
+
+void FAssetData::AddChunkID(int32 ChunkID)
+{
+	// Chunk arrays are guaranteed to be sorted/unique when coming back from registry, so maintain that here
+	const FChunkArrayView CurrentChunkIDs = GetChunkIDs();
+	const int32 NumChunkIDs = CurrentChunkIDs.Num();
+	const int32 InsertIndex = Algo::LowerBound(CurrentChunkIDs, ChunkID);
+	if (CurrentChunkIDs.IsValidIndex(InsertIndex) && (CurrentChunkIDs[InsertIndex] == ChunkID))
+	{
+		return;
+	}
+
+	// Build the new array in parts to save having to shift/reallocate unnecessarily
+	const FChunkArrayView BeforeInserted = CurrentChunkIDs.Left(InsertIndex);
+	const FChunkArrayView AfterInserted = CurrentChunkIDs.RightChop(InsertIndex);
+	FChunkArray NewChunkIDs;
+	NewChunkIDs.Reserve(NumChunkIDs + 1);
+	NewChunkIDs.Append(BeforeInserted.GetData(), BeforeInserted.Num());
+	NewChunkIDs.Add(ChunkID);
+	NewChunkIDs.Append(AfterInserted.GetData(), AfterInserted.Num());
+	ChunkArrayRegistryHandle = UE::AssetRegistry::GChunkArrayRegistry.FindOrAddSorted(MoveTemp(NewChunkIDs));
+}
+
+void FAssetData::ClearChunkIDs()
+{
+	SetChunkIDs(FChunkArray());
+}
+
+bool FAssetData::HasSameChunkIDs(const FAssetData& OtherAssetData) const
+{
+	return ChunkArrayRegistryHandle == OtherAssetData.ChunkArrayRegistryHandle;
+}
+
+SIZE_T FAssetData::GetChunkArrayRegistryAllocatedSize()
+{
+	return UE::AssetRegistry::GChunkArrayRegistry.GetAllocatedSize();
 }
 
 void FAssetData::SetTagsAndAssetBundles(FAssetDataTagMap&& Tags)
@@ -364,16 +563,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SerializeTagsAndBundles(Ar, *this, Version);
 
-	if (Ar.IsSaving() && ChunkIDs.Num() > 1)
+	FAssetData::FChunkArray SerializedChunkIDs;
+	if (Ar.IsSaving())
 	{
-		TArray<int32> SortedChunkIDs(ChunkIDs);
-		Algo::Sort(SortedChunkIDs);
-		Ar << SortedChunkIDs;
+		SerializedChunkIDs = GetChunkIDs();
+		Ar << SerializedChunkIDs;
 	}
 	else
 	{
-		Ar << ChunkIDs;
+		Ar << SerializedChunkIDs;
+		check(Algo::IsSorted(SerializedChunkIDs));
+		ChunkArrayRegistryHandle = UE::AssetRegistry::GChunkArrayRegistry.FindOrAddSorted(MoveTemp(SerializedChunkIDs));
 	}
+
 	Ar << PackageFlags;
 
 	// Rebuild deprecated ObjectPath field 

@@ -110,6 +110,11 @@ private:
 	FAssetRegistryVersion() {}
 };
 
+namespace UE::AssetRegistry
+{
+	using FChunkArrayRegistryHandle = FSetElementId;
+}
+
 namespace UE::AssetRegistry::Private
 {
 	struct FAssetPathParts
@@ -163,6 +168,11 @@ public:
 	FName AssetClass;
 	/** The path of the asset's class, e.g. /Script/Engine.StaticMesh */
 	FTopLevelAssetPath AssetClassPath;
+
+private:
+	UE::AssetRegistry::FChunkArrayRegistryHandle ChunkArrayRegistryHandle;
+
+public:
 	/** Asset package flags */
 	uint32 PackageFlags = 0;
 
@@ -188,10 +198,27 @@ public:
 	 */
 	TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> TaggedAssetBundles;
 
+	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
+#if !UE_STRIP_DEPRECATED_PROPERTIES
+	UE_DEPRECATED(5.1, "Use SetChunkIDs/GetChunkIDs/AddChunkID instead.")
+	TArray<int32, TInlineAllocator<2>> ChunkIDs;
+#endif
+
 	COREUOBJECT_API void SetTagsAndAssetBundles(FAssetDataTagMap&& Tags);
 
-	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
-	TArray<int32, TInlineAllocator<2>> ChunkIDs;
+	// These are usually very small arrays and we can preallocate two elements for the same cost as one on 64-bit systems
+	using FChunkArray = TArray<int32, TInlineAllocator<2>>;
+	using FChunkArrayView = TConstArrayView<int32>;
+
+	COREUOBJECT_API FChunkArrayView GetChunkIDs() const;
+	COREUOBJECT_API void SetChunkIDs(FChunkArray&& InChunkIDs);
+	COREUOBJECT_API void SetChunkIDs(const FChunkArrayView& InChunkIDs);
+	COREUOBJECT_API void AddChunkID(int32 ChunkID);
+	COREUOBJECT_API void ClearChunkIDs();
+	COREUOBJECT_API bool HasSameChunkIDs(const FAssetData& OtherAssetData) const;
+
+	/** Returns overhead of the chunk array registry that's used to manage chunk ID arrays. */
+	static COREUOBJECT_API SIZE_T GetChunkArrayRegistryAllocatedSize();
 
 public:	
 PRAGMA_DISABLE_DEPRECATION_WARNINGS // Compilers can complain about deprecated members in compiler generated code
@@ -322,7 +349,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void Shrink()
 	{
-		ChunkIDs.Shrink();
 		TagsAndValues.Shrink();
 	}
 
@@ -598,9 +624,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UE_LOG(LogAssetData, Log, TEXT("            %s : %s"), *TagValue.Key.ToString(), *TagValue.Value.AsString());
 		}
 
-		UE_LOG(LogAssetData, Log, TEXT("        ChunkIDs: %d"), ChunkIDs.Num());
+		const TConstArrayView<int32> CurrentChunkIDs = GetChunkIDs();
+		UE_LOG(LogAssetData, Log, TEXT("        ChunkIDs: %d"), CurrentChunkIDs.Num());
 
-		for (int32 Chunk: ChunkIDs)
+		for (int32 Chunk : CurrentChunkIDs)
 		{
 			UE_LOG(LogAssetData, Log, TEXT("                 %d"), Chunk);
 		}
