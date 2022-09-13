@@ -606,6 +606,13 @@ namespace Horde.Build.Issues
 				newQuarantinedById = request.QuarantinedById.Length > 0 ? new UserId(request.QuarantinedById) : UserId.Empty;
 			}
 
+			UserId? newForceClosedById = null;
+			if (request.ForceClosedById != null)
+			{
+				newForceClosedById = request.ForceClosedById.Length > 0 ? new UserId(request.ForceClosedById) : UserId.Empty;
+			}
+
+
 			List<ObjectId>? addSpans = null;
 			if (request.AddSpans != null && request.AddSpans.Count > 0)
 			{
@@ -620,7 +627,7 @@ namespace Horde.Build.Issues
 
 			using (IDisposable scope = _issueCollection.GetLogger(issueId).BeginScope("User {UserId}", User.GetUserId() ?? UserId.Empty))
 			{
-				if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById))
+				if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById, newForceClosedById))
 				{
 					return NotFound();
 				}

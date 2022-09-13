@@ -397,8 +397,9 @@ namespace Horde.Build.Issues
 		/// <param name="removeSpanIds">Remove spans from this issue</param>
 		/// <param name="externalIssueKey">Key for external issue tracking</param>
 		/// <param name="quarantinedById">User who has quarantined the issue</param>
+		/// <param name="forceClosedById">User who has force closed the issue</param>
 		/// <returns>True if the issue was updated</returns>
-		public async Task<bool> UpdateIssueAsync(int id, string? summary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null, UserId? quarantinedById = null)
+		public async Task<bool> UpdateIssueAsync(int id, string? summary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null, UserId? quarantinedById = null, UserId? forceClosedById = null)
 		{
 			IIssue? issue;
 			for (; ; )
@@ -409,7 +410,7 @@ namespace Horde.Build.Issues
 					return false;
 				}
 
-				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: summary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, newExternalIssueKey: externalIssueKey, newQuarantinedById: quarantinedById);
+				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: summary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, newExternalIssueKey: externalIssueKey, newQuarantinedById: quarantinedById, newForceClosedById: forceClosedById);
 				if (issue != null)
 				{
 					break;
@@ -420,6 +421,28 @@ namespace Horde.Build.Issues
 
 			List<IIssue> updateIssues = new List<IIssue>();
 			updateIssues.Add(issue);
+
+			if (forceClosedById != null)
+			{
+				List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(issue.Id);
+
+				foreach (IIssueSpan span in spans)
+				{
+					if (span.NextSuccess != null)
+					{
+						continue;
+					}
+
+					IIssueStep? step = span.LastFailure ?? span.FirstFailure;
+
+					if (step == null)
+					{
+						continue;
+					}
+
+					await _issueCollection.TryUpdateSpanAsync(span, newNextSuccess: new NewIssueStepData(step.Change, step.Severity, step.JobName, step.JobId, step.BatchId, step.StepId, step.StepTime, step.LogId, step.Annotations, step.PromoteByDefault));
+				}				
+			}
 
 			if (addSpanIds != null)
 			{

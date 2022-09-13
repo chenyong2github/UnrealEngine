@@ -122,6 +122,9 @@ namespace Horde.Build.Issues
 			[BsonIgnoreIfNull]
 			public DateTime? QuarantineTimeUtc { get; set; }
 
+			[BsonIgnoreIfNull]
+			public UserId? ForceClosedByUserId { get; set; }
+
 			[BsonConstructor]
 			private Issue()
 			{
@@ -628,6 +631,18 @@ namespace Horde.Build.Issues
 				}
 			}
 
+			if (newIssue.ForceClosedByUserId != oldIssue.ForceClosedByUserId)
+			{
+				if (newIssue.ForceClosedByUserId != null)
+				{
+					issueLogger.LogInformation("Forced closed by {UserId}", newIssue.ForceClosedByUserId);
+				}
+				else
+				{
+					issueLogger.LogInformation("Force closed cleared");
+				}
+			}
+
 			string oldFingerprints = oldIssue.FingerprintsDesc;
 			string newFingerprints = newIssue.FingerprintsDesc;
 			if (oldFingerprints != newFingerprints)
@@ -845,13 +860,18 @@ namespace Horde.Build.Issues
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssue?> TryUpdateIssueAsync(IIssue issue, IssueSeverity? newSeverity = null, string? newSummary = null, string? newUserSummary = null, string? newDescription = null, bool? newManuallyPromoted = null, UserId? newOwnerId = null, UserId? newNominatedById = null, bool? newAcknowledged = null, UserId? newDeclinedById = null, int? newFixChange = null, UserId? newResolvedById = null, List<ObjectId>? newExcludeSpanIds = null, DateTime? newLastSeenAt = null, string? newExternaIssueKey = null, UserId? newQuarantinedById = null)
+		public async Task<IIssue?> TryUpdateIssueAsync(IIssue issue, IssueSeverity? newSeverity = null, string? newSummary = null, string? newUserSummary = null, string? newDescription = null, bool? newManuallyPromoted = null, UserId? newOwnerId = null, UserId? newNominatedById = null, bool? newAcknowledged = null, UserId? newDeclinedById = null, int? newFixChange = null, UserId? newResolvedById = null, List<ObjectId>? newExcludeSpanIds = null, DateTime? newLastSeenAt = null, string? newExternaIssueKey = null, UserId? newQuarantinedById = null, UserId? newForceClosedById = null)
 		{
 			Issue issueDocument = (Issue)issue;
 
 			if (newDeclinedById != null && newDeclinedById == issueDocument.OwnerId)
 			{
 				newOwnerId = UserId.Empty;
+			}
+
+			if (issue.ResolvedById == null && (newForceClosedById != null && newResolvedById == null))
+			{
+				newResolvedById = newForceClosedById;
 			}
 
 			DateTime utcNow = DateTime.UtcNow;
@@ -1002,6 +1022,19 @@ namespace Horde.Build.Issues
 					updates.Add(Builders<Issue>.Update.Set(x => x.QuarantineTimeUtc, DateTime.UtcNow));
 				}
 			}
+
+			if (newForceClosedById != null)
+			{
+				if (newForceClosedById.Value == UserId.Empty)
+				{
+					updates.Add(Builders<Issue>.Update.Unset(x => x.ForceClosedByUserId));
+				}
+				else
+				{
+					updates.Add(Builders<Issue>.Update.Set(x => x.ForceClosedByUserId, newForceClosedById.Value));					
+				}
+			}
+
 
 			if (newExternaIssueKey != null)
 			{

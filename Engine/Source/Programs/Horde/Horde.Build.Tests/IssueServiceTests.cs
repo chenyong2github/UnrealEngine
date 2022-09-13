@@ -1988,6 +1988,75 @@ namespace Horde.Build.Tests
 
 		}
 
+		[TestMethod]
+		public async Task ForceIssueCloseTest()
+		{
+			int issueId;
+
+			// #1
+			// Scenario: Warning in first step
+			// Expected: Default issue is created
+			{
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
+
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+
+				issueId = issues[0].Id;				
+			}
+
+			// #2
+			// Scenario: bob resolved issue
+			// Expected: Issue is marked resolved, however not verified
+			{
+				// resolved by bob
+				await IssueService.UpdateIssueAsync(issueId, resolvedById: _bobId);
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+				IIssue issue = (await IssueCollection.GetIssueAsync(issueId))!;
+				Assert.AreEqual(issue.ResolvedById, _bobId);
+				Assert.IsNull(issue.VerifiedAt);
+			}
+
+			// #3
+			// Scenario: Job is force closed
+			// Expected: Existing issue is closed and verified, bob remains the resolver
+			{
+				// force closed by jerry
+				await IssueService.UpdateIssueAsync(issueId, forceClosedById: _jerryId);
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+
+				IIssue issue = (await IssueCollection.GetIssueAsync(issueId))!;
+				Assert.AreEqual(issue.ResolvedById, _bobId);
+				Assert.AreEqual(issue.ForceClosedByUserId, _jerryId);
+				Assert.IsNotNull(issue.VerifiedAt);
+			}
+
+			// #4
+			// Scenario: Job fails 25 hours after it is force closed
+			// Expected: A new issue is created
+			{				
+				IJob job = CreateJob(_mainStreamId, 125, "Test Build", _graph, TimeSpan.FromHours(25));
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
+
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+
+				Assert.AreEqual(2, issues[0].Id);
+			}
+
+		}
+
 
 		private async Task ParseAsync(LogId logId, string[] lines)
 		{

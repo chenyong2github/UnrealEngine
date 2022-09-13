@@ -882,6 +882,12 @@ namespace Horde.Build.Issues
 		/// Id of user quarantining issue
 		/// </summary>
 		public string? QuarantinedById { get; set; }
+
+		/// <summary>
+		/// Id of user who is forcibly closing this issue, skipping verification checks.  This is useful for when a failing step has been removed for example
+		/// </summary>
+		public string? ForceClosedById { get; set; }
+
 	}
 
 	/// <summary>
