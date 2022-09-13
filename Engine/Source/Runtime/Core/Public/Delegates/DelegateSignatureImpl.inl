@@ -976,6 +976,9 @@ public:
 	}
 };
 
+template <typename DelegateSignature>
+using TTSMulticastDelegate = TMulticastDelegate<DelegateSignature, FDefaultTSDelegateUserPolicy>;
+
 
 /**
  * Dynamic delegate template class (UObject-based, serializable).  You'll use the various DECLARE_DYNAMIC_DELEGATE

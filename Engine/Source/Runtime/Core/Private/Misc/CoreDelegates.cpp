@@ -9,10 +9,10 @@
 //////////////////////////////////////////////////////////////////////////
 // FCoreDelegates
 
-TArray<FCoreDelegates::FHotFixDelegate> FCoreDelegates::HotFixDelegates;
-TArray<FCoreDelegates::FResolvePackageNameDelegate> FCoreDelegates::PackageNameResolvers;
+TArray<TDelegate<void(void*, int32)>> FCoreDelegates::HotFixDelegates;
+TArray<TDelegate<bool(const FString&, FString&)>> FCoreDelegates::PackageNameResolvers;
 
-FCoreDelegates::FHotFixDelegate& FCoreDelegates::GetHotfixDelegate(EHotfixDelegates::Type HotFix)
+TDelegate<void(void*, int32)>& FCoreDelegates::GetHotfixDelegate(EHotfixDelegates::Type HotFix)
 {
 	if (HotFix >= HotFixDelegates.Num())
 	{
@@ -21,51 +21,51 @@ FCoreDelegates::FHotFixDelegate& FCoreDelegates::GetHotfixDelegate(EHotfixDelega
 	return HotFixDelegates[HotFix];
 }
 
-FCoreDelegates::FOnPreMainInit& FCoreDelegates::GetPreMainInitDelegate()
+TMulticastDelegate<void()>& FCoreDelegates::GetPreMainInitDelegate()
 {
-	static FOnPreMainInit StaticDelegate;
+	static TMulticastDelegate<void()> StaticDelegate;
 	return StaticDelegate;
 }
 
-FCoreDelegates::FOnMountAllPakFiles FCoreDelegates::OnMountAllPakFiles;
-FCoreDelegates::FMountPak FCoreDelegates::MountPak;
-FCoreDelegates::FOnUnmountPak FCoreDelegates::OnUnmountPak;
-FCoreDelegates::FOnOptimizeMemoryUsageForMountedPaks FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks;
+TDelegate<int32(const TArray<FString>&)> FCoreDelegates::OnMountAllPakFiles;
+TDelegate<IPakFile*(const FString&, int32)> FCoreDelegates::MountPak;
+TDelegate<bool(const FString&)> FCoreDelegates::OnUnmountPak;
+TDelegate<void()> FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks;
 
-FCoreDelegates::FOnPakFileMounted2 FCoreDelegates::OnPakFileMounted2;
-FCoreDelegates::FNewFileAddedDelegate FCoreDelegates::NewFileAddedDelegate;
-FCoreDelegates::FNoPakFilesMountedDelegate FCoreDelegates::NoPakFilesMountedDelegate;
-FCoreDelegates::FOnFileOpenedForReadFromPakFile FCoreDelegates::OnFileOpenedForReadFromPakFile;
+TMulticastDelegate<void(const IPakFile&)> FCoreDelegates::OnPakFileMounted2;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::NewFileAddedDelegate;
+TMulticastDelegate<void()> FCoreDelegates::NoPakFilesMountedDelegate;
+TMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnFileOpenedForReadFromPakFile;
 
-FCoreDelegates::FOnUserLoginChangedEvent FCoreDelegates::OnUserLoginChangedEvent;
+TMulticastDelegate<void(bool, int32, int32)> FCoreDelegates::OnUserLoginChangedEvent;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FCoreDelegates::FOnUserControllerConnectionChange FCoreDelegates::OnControllerConnectionChange;
-FCoreDelegates::FOnUserControllerPairingChange FCoreDelegates::OnControllerPairingChange;
+TMulticastDelegate<void(bool, FPlatformUserId, int32)> FCoreDelegates::OnControllerConnectionChange;
+TMulticastDelegate<void(int32, FPlatformUserId, FPlatformUserId)> FCoreDelegates::OnControllerPairingChange;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-FCoreDelegates::FOnSafeFrameChangedEvent FCoreDelegates::OnSafeFrameChangedEvent;
-FCoreDelegates::FOnHandleSystemEnsure FCoreDelegates::OnHandleSystemEnsure;
-FCoreDelegates::FOnHandleSystemError FCoreDelegates::OnHandleSystemError;
+TMulticastDelegate<void()> FCoreDelegates::OnSafeFrameChangedEvent;
+TMulticastDelegate<void()> FCoreDelegates::OnHandleSystemEnsure;
+TMulticastDelegate<void()> FCoreDelegates::OnHandleSystemError;
 
-FCoreDelegates::FOnActorLabelChanged FCoreDelegates::OnActorLabelChanged;
+TMulticastDelegate<void(AActor*)> FCoreDelegates::OnActorLabelChanged;
 
-FCoreDelegates::FRegisterMovieStreamerDelegate FCoreDelegates::RegisterMovieStreamerDelegate;
-FCoreDelegates::FUnRegisterMovieStreamerDelegate FCoreDelegates::UnRegisterMovieStreamerDelegate;
+TMulticastDelegate<void(FCoreDelegates::FMovieStreamerPtr)> FCoreDelegates::RegisterMovieStreamerDelegate;
+TMulticastDelegate<void(FCoreDelegates::FMovieStreamerPtr)> FCoreDelegates::UnRegisterMovieStreamerDelegate;
 
-FCoreDelegates::FRegisterEncryptionKeyMulticastDelegate& FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate()
+TMulticastDelegate<void(const FGuid&, const FAES::FAESKey&)>& FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate()
 {
-	static FRegisterEncryptionKeyMulticastDelegate RegisterEncryptionKeyDelegate;
+	static TMulticastDelegate<void(const FGuid&, const FAES::FAESKey&)> RegisterEncryptionKeyDelegate;
 	return RegisterEncryptionKeyDelegate;
 }
 
-FCoreDelegates::FPakEncryptionKeyDelegate& FCoreDelegates::GetPakEncryptionKeyDelegate()
+TDelegate<void(uint8[32])>& FCoreDelegates::GetPakEncryptionKeyDelegate()
 {
-	static FPakEncryptionKeyDelegate PakEncryptionKeyDelegate;
+	static TDelegate<void(uint8[32])> PakEncryptionKeyDelegate;
 	return PakEncryptionKeyDelegate;
 }
 
-FCoreDelegates::FPakSigningKeysDelegate& FCoreDelegates::GetPakSigningKeysDelegate()
+TDelegate<void(TArray<uint8>&, TArray<uint8>&)>& FCoreDelegates::GetPakSigningKeysDelegate()
 {
-	static FPakSigningKeysDelegate PakSigningKeysDelegate;
+	static TDelegate<void(TArray<uint8>&, TArray<uint8>&)> PakSigningKeysDelegate;
 	return PakSigningKeysDelegate;
 }
 
@@ -76,7 +76,7 @@ FCoreDelegates::FPakSigningKeysDelegate& FCoreDelegates::GetPakSigningKeysDelega
     FSimpleMulticastDelegate FCoreDelegates::PostSlateModal;
 #endif	//WITH_EDITOR
 #if ALLOW_OTHER_PLATFORM_CONFIG
-	FCoreDelegates::FGatherDeviceProfileCVars FCoreDelegates::GatherDeviceProfileCVars;
+	TDelegate<FCoreDelegates::FCVarKeyValueMap(const FString&)> FCoreDelegates::GatherDeviceProfileCVars;
 #endif
 FSimpleMulticastDelegate FCoreDelegates::OnShutdownAfterError;
 FSimpleMulticastDelegate FCoreDelegates::OnInit;
@@ -87,116 +87,117 @@ FSimpleMulticastDelegate FCoreDelegates::OnFEngineLoopInitComplete;
 FSimpleMulticastDelegate FCoreDelegates::OnExit;
 FSimpleMulticastDelegate FCoreDelegates::OnPreExit;
 FSimpleMulticastDelegate FCoreDelegates::OnEnginePreExit;
-FCoreDelegates::FGatherAdditionalLocResPathsDelegate FCoreDelegates::GatherAdditionalLocResPathsCallback;
+TMulticastDelegate<void(TArray<FString>&)> FCoreDelegates::GatherAdditionalLocResPathsCallback;
 FSimpleMulticastDelegate FCoreDelegates::ColorPickerChanged;
 FSimpleMulticastDelegate FCoreDelegates::OnBeginFrame;
 FSimpleMulticastDelegate FCoreDelegates::OnSamplingInput;
 FSimpleMulticastDelegate FCoreDelegates::OnEndFrame;
 FSimpleMulticastDelegate FCoreDelegates::OnBeginFrameRT;
 FSimpleMulticastDelegate FCoreDelegates::OnEndFrameRT;
-FCoreDelegates::FOnModalMessageBox FCoreDelegates::ModalErrorMessage;
-FCoreDelegates::FOnInviteAccepted FCoreDelegates::OnInviteAccepted;
-FCoreDelegates::FWorldOriginOffset FCoreDelegates::PreWorldOriginOffset;
-FCoreDelegates::FWorldOriginOffset FCoreDelegates::PostWorldOriginOffset;
-FCoreDelegates::FStarvedGameLoop FCoreDelegates::StarvedGameLoop;
-FCoreDelegates::FOnTemperatureChange FCoreDelegates::OnTemperatureChange;
-FCoreDelegates::FOnLowPowerMode FCoreDelegates::OnLowPowerMode;
+TDelegate<EAppReturnType::Type(EAppMsgType::Type, const FText&, const FText&)> FCoreDelegates::ModalErrorMessage;
+TMulticastDelegate<void(const FString&, const FString&)> FCoreDelegates::OnInviteAccepted;
+TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> FCoreDelegates::PreWorldOriginOffset;
+TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> FCoreDelegates::PostWorldOriginOffset;
+TDelegate<void()> FCoreDelegates::StarvedGameLoop;
+TMulticastDelegate<void(FCoreDelegates::ETemperatureSeverity)> FCoreDelegates::OnTemperatureChange;
+TMulticastDelegate<void(bool)> FCoreDelegates::OnLowPowerMode;
 
-FCoreDelegates::FApplicationLifetimeDelegate FCoreDelegates::ApplicationWillDeactivateDelegate;
-FCoreDelegates::FApplicationLifetimeDelegate FCoreDelegates::ApplicationHasReactivatedDelegate;
-FCoreDelegates::FApplicationLifetimeDelegate FCoreDelegates::ApplicationWillEnterBackgroundDelegate;
-FCoreDelegates::FApplicationLifetimeDelegate FCoreDelegates::ApplicationHasEnteredForegroundDelegate;
-FCoreDelegates::FApplicationLifetimeDelegate FCoreDelegates::ApplicationWillTerminateDelegate;
-FCoreDelegates::FApplicationLifetimeDelegate FCoreDelegates::ApplicationShouldUnloadResourcesDelegate;
-FCoreDelegates::FBackgroundTickDelegate FCoreDelegates::MobileBackgroundTickDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationWillDeactivateDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationHasReactivatedDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationWillEnterBackgroundDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationHasEnteredForegroundDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationWillTerminateDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationShouldUnloadResourcesDelegate;
+TMulticastDelegate<void(float)> FCoreDelegates::MobileBackgroundTickDelegate;
 
-FCoreDelegates::FApplicationStartupArgumentsDelegate FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate;
+TMulticastDelegate<void(const TArray<FString>&)> FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate;
 
-FCoreDelegates::FUserMusicInterruptDelegate FCoreDelegates::UserMusicInterruptDelegate;
-FCoreDelegates::FAudioRouteChangedDelegate FCoreDelegates::AudioRouteChangedDelegate;
-FCoreDelegates::FAudioMuteDelegate FCoreDelegates::AudioMuteDelegate;
-FCoreDelegates::FApplicationRequestAudioState FCoreDelegates::ApplicationRequestAudioState;
+TMulticastDelegate<void(bool)> FCoreDelegates::UserMusicInterruptDelegate;
+TMulticastDelegate<void(bool)> FCoreDelegates::AudioRouteChangedDelegate;
+TMulticastDelegate<void(bool, int)> FCoreDelegates::AudioMuteDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationRequestAudioState;
 
-FCoreDelegates::FApplicationRegisteredForRemoteNotificationsDelegate FCoreDelegates::ApplicationRegisteredForRemoteNotificationsDelegate;
-FCoreDelegates::FApplicationRegisteredForUserNotificationsDelegate FCoreDelegates::ApplicationRegisteredForUserNotificationsDelegate;
-FCoreDelegates::FApplicationFailedToRegisterForRemoteNotificationsDelegate FCoreDelegates::ApplicationFailedToRegisterForRemoteNotificationsDelegate;
-FCoreDelegates::FApplicationReceivedRemoteNotificationDelegate FCoreDelegates::ApplicationReceivedRemoteNotificationDelegate;
-FCoreDelegates::FApplicationReceivedLocalNotificationDelegate FCoreDelegates::ApplicationReceivedLocalNotificationDelegate;
+TMulticastDelegate<void(TArray<uint8>)> FCoreDelegates::ApplicationRegisteredForRemoteNotificationsDelegate;
+TMulticastDelegate<void(int)> FCoreDelegates::ApplicationRegisteredForUserNotificationsDelegate;
+TMulticastDelegate<void(FString)> FCoreDelegates::ApplicationFailedToRegisterForRemoteNotificationsDelegate;
+TMulticastDelegate<void(FString, int)> FCoreDelegates::ApplicationReceivedRemoteNotificationDelegate;
+TMulticastDelegate<void(FString, int, int)> FCoreDelegates::ApplicationReceivedLocalNotificationDelegate;
 
-FCoreDelegates::FApplicationPerformFetchDelegate FCoreDelegates::ApplicationPerformFetchDelegate;
-FCoreDelegates::FApplicationBackgroundSessionEventDelegate FCoreDelegates::ApplicationBackgroundSessionEventDelegate;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationPerformFetchDelegate;
+TMulticastDelegate<void(FString)> FCoreDelegates::ApplicationBackgroundSessionEventDelegate;
 
-FCoreDelegates::FCountPreLoadConfigFileRespondersDelegate FCoreDelegates::CountPreLoadConfigFileRespondersDelegate;
-FCoreDelegates::FPreLoadConfigFileDelegate FCoreDelegates::PreLoadConfigFileDelegate;
-FCoreDelegates::FPreSaveConfigFileDelegate FCoreDelegates::PreSaveConfigFileDelegate;
-FCoreDelegates::FOnFConfigFileCreated FCoreDelegates::OnFConfigCreated;
-FCoreDelegates::FOnFConfigFileDeleted FCoreDelegates::OnFConfigDeleted;
-FCoreDelegates::FOnConfigValueRead FCoreDelegates::OnConfigValueRead;
-FCoreDelegates::FOnConfigSectionRead FCoreDelegates::OnConfigSectionRead;
-FCoreDelegates::FOnConfigSectionRead FCoreDelegates::OnConfigSectionNameRead;
-FCoreDelegates::FOnConfigSectionsChanged FCoreDelegates::OnConfigSectionsChanged;
-FCoreDelegates::FOnApplyCVarFromIni FCoreDelegates::OnApplyCVarFromIni;
-FCoreDelegates::FOnSystemResolutionChanged FCoreDelegates::OnSystemResolutionChanged;
+TTSMulticastDelegate<void(const TCHAR*, int32&)> FCoreDelegates::CountPreLoadConfigFileRespondersDelegate;
+TTSMulticastDelegate<void(const TCHAR*, FString&)> FCoreDelegates::PreLoadConfigFileDelegate;
+TTSMulticastDelegate<void(const TCHAR*, const FString&, int32&)> FCoreDelegates::PreSaveConfigFileDelegate;
+TTSMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigCreated;
+TTSMulticastDelegate<void(const FConfigFile*)> FCoreDelegates::OnFConfigDeleted;
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigValueRead;
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionRead;
+TTSMulticastDelegate<void(const TCHAR*, const TCHAR*)> FCoreDelegates::OnConfigSectionNameRead;
+TTSMulticastDelegate<void(const FString&, const TSet<FString>&)> FCoreDelegates::OnConfigSectionsChanged;
+
+TMulticastDelegate<void(const TCHAR*, const TCHAR*, uint32, bool)> FCoreDelegates::OnApplyCVarFromIni;
+TMulticastDelegate<void(uint32, uint32)> FCoreDelegates::OnSystemResolutionChanged;
 
 #if WITH_EDITOR
-FCoreDelegates::FOnTargetPlatformChangedSupportedFormats FCoreDelegates::OnTargetPlatformChangedSupportedFormats;
-FCoreDelegates::FOnFeatureLevelDisabled FCoreDelegates::OnFeatureLevelDisabled;
+TMulticastDelegate<void(const ITargetPlatform*)> FCoreDelegates::OnTargetPlatformChangedSupportedFormats;
+TMulticastDelegate<void(int, const FName&)> FCoreDelegates::OnFeatureLevelDisabled;
 #endif 
 
-FCoreDelegates::FStatCheckEnabled FCoreDelegates::StatCheckEnabled;
-FCoreDelegates::FStatEnabled FCoreDelegates::StatEnabled;
-FCoreDelegates::FStatDisabled FCoreDelegates::StatDisabled;
-FCoreDelegates::FStatDisableAll FCoreDelegates::StatDisableAll;
+TMulticastDelegate<void(const TCHAR*, bool&, bool&)> FCoreDelegates::StatCheckEnabled;
+TMulticastDelegate<void(const TCHAR*)> FCoreDelegates::StatEnabled;
+TMulticastDelegate<void(const TCHAR*)> FCoreDelegates::StatDisabled;
+TMulticastDelegate<void(const bool)> FCoreDelegates::StatDisableAll;
 
-FCoreDelegates::FApplicationLicenseChange FCoreDelegates::ApplicationLicenseChange;
-FCoreDelegates::FPlatformChangedLaptopMode FCoreDelegates::PlatformChangedLaptopMode;
+TMulticastDelegate<void()> FCoreDelegates::ApplicationLicenseChange;
+TMulticastDelegate<void(EConvertibleLaptopMode)> FCoreDelegates::PlatformChangedLaptopMode;
 
-FCoreDelegates::FVRHeadsetRecenter FCoreDelegates::VRHeadsetTrackingInitializingAndNeedsHMDToBeTrackedDelegate;
-FCoreDelegates::FVRHeadsetRecenter FCoreDelegates::VRHeadsetTrackingInitializedDelegate;
-FCoreDelegates::FVRHeadsetRecenter FCoreDelegates::VRHeadsetRecenter;
-FCoreDelegates::FVRHeadsetLost FCoreDelegates::VRHeadsetLost;
-FCoreDelegates::FVRHeadsetReconnected FCoreDelegates::VRHeadsetReconnected;
-FCoreDelegates::FVRHeadsetConnectCanceled FCoreDelegates::VRHeadsetConnectCanceled;
-FCoreDelegates::FVRHeadsetPutOnHead FCoreDelegates::VRHeadsetPutOnHead;
-FCoreDelegates::FVRHeadsetRemovedFromHead FCoreDelegates::VRHeadsetRemovedFromHead;
-FCoreDelegates::FVRControllerRecentered FCoreDelegates::VRControllerRecentered;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetTrackingInitializingAndNeedsHMDToBeTrackedDelegate;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetTrackingInitializedDelegate;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetRecenter;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetLost;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetReconnected;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetConnectCanceled;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetPutOnHead;
+TMulticastDelegate<void()> FCoreDelegates::VRHeadsetRemovedFromHead;
+TMulticastDelegate<void()> FCoreDelegates::VRControllerRecentered;
 
-FCoreDelegates::FOnUserActivityStringChanged FCoreDelegates::UserActivityStringChanged;
-FCoreDelegates::FOnGameSessionIDChange FCoreDelegates::GameSessionIDChanged;
-FCoreDelegates::FOnGameStateClassChange FCoreDelegates::GameStateClassChanged;
-FCoreDelegates::FOnCrashOverrideParamsChanged FCoreDelegates::CrashOverrideParamsChanged;
-FCoreDelegates::FOnIsVanillaProductChanged FCoreDelegates::IsVanillaProductChanged;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::UserActivityStringChanged;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::GameSessionIDChanged;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::GameStateClassChanged;
+TMulticastDelegate<void(const FCrashOverrideParameters&)> FCoreDelegates::CrashOverrideParamsChanged;
+TMulticastDelegate<void(bool)> FCoreDelegates::IsVanillaProductChanged;
 
-FCoreDelegates::FOnAsyncLoadingFlush FCoreDelegates::OnAsyncLoadingFlush;
-FCoreDelegates::FOnAsyncLoadingFlushUpdate FCoreDelegates::OnAsyncLoadingFlushUpdate;
-FCoreDelegates::FOnAsyncLoadPackage FCoreDelegates::OnAsyncLoadPackage;
-FCoreDelegates::FOnSyncLoadPackage FCoreDelegates::OnSyncLoadPackage;
-FCoreDelegates::FRenderingThreadChanged FCoreDelegates::PostRenderingThreadCreated;
-FCoreDelegates::FRenderingThreadChanged FCoreDelegates::PreRenderingThreadDestroyed;
+TMulticastDelegate<void()> FCoreDelegates::OnAsyncLoadingFlush;
+TMulticastDelegate<void()> FCoreDelegates::OnAsyncLoadingFlushUpdate;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::OnAsyncLoadPackage;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::OnSyncLoadPackage;
+TMulticastDelegate<void()> FCoreDelegates::PostRenderingThreadCreated;
+TMulticastDelegate<void()> FCoreDelegates::PreRenderingThreadDestroyed;
 
-FCoreDelegates::FApplicationReceivedOnScreenOrientationChangedNotificationDelegate FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate;
+TMulticastDelegate<void(int32)> FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate;
 
-FCoreDelegates::FConfigReadyForUse FCoreDelegates::ConfigReadyForUse;
+TTSMulticastDelegate<void()> FCoreDelegates::ConfigReadyForUse;
 
-FCoreDelegates::FIsLoadingMovieCurrentlyPlaying FCoreDelegates::IsLoadingMovieCurrentlyPlaying;
+TDelegate<bool()> FCoreDelegates::IsLoadingMovieCurrentlyPlaying;
 
-FCoreDelegates::FShouldLaunchUrl FCoreDelegates::ShouldLaunchUrl;
+TDelegate<bool(const TCHAR*)> FCoreDelegates::ShouldLaunchUrl;
 
-FCoreDelegates::FOnActivatedByProtocol FCoreDelegates::OnActivatedByProtocol;
+TMulticastDelegate<void(const FString&, FPlatformUserId)> FCoreDelegates::OnActivatedByProtocol;
 
-FCoreDelegates::FOnGCFinishDestroyTimeExtended FCoreDelegates::OnGCFinishDestroyTimeExtended;
+TMulticastDelegate<void(const FString&)> FCoreDelegates::OnGCFinishDestroyTimeExtended;
 
-FCoreDelegates::FAccesExtraBinaryConfigData FCoreDelegates::AccessExtraBinaryConfigData;
+TTSMulticastDelegate<void(FCoreDelegates::FExtraBinaryConfigData&)> FCoreDelegates::AccessExtraBinaryConfigData;
 
-FCoreDelegates::FPreloadPackageShaderMaps FCoreDelegates::PreloadPackageShaderMaps;
-FCoreDelegates::FReleasePreloadedPackageShaderMaps FCoreDelegates::ReleasePreloadedPackageShaderMaps;
-FCoreDelegates::FOnLogVerbosityChanged FCoreDelegates::OnLogVerbosityChanged;
+TDelegate<void(TArrayView<const FSHAHash>, FCoreDelegates::FAttachShaderReadRequestFunc)> FCoreDelegates::PreloadPackageShaderMaps;
+TDelegate<void(TArrayView<const FSHAHash>)> FCoreDelegates::ReleasePreloadedPackageShaderMaps;
+TMulticastDelegate<void(const FLogCategoryName&, ELogVerbosity::Type, ELogVerbosity::Type)> FCoreDelegates::OnLogVerbosityChanged;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FCoreDelegates::FCreatePackageStore FCoreDelegates::CreatePackageStore;
+TDelegate<TSharedPtr<class IPackageStore>()> FCoreDelegates::CreatePackageStore;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-FCoreDelegates::FApplicationNetworkInitializationChanged FCoreDelegates::ApplicationNetworkInitializationChanged;
+TMulticastDelegate<void(bool)> FCoreDelegates::ApplicationNetworkInitializationChanged;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCrashOverrideParameters::~FCrashOverrideParameters()
@@ -225,13 +226,13 @@ FSimpleMulticastDelegate& FCoreDelegates::GetOutOfMemoryDelegate()
 }
 
 /**	 Implemented as a function to address global ctor issues */
-FCoreDelegates::FGPUOutOfMemoryDelegate& FCoreDelegates::GetGPUOutOfMemoryDelegate()
+TMulticastDelegate<void(const uint64, const uint64)>& FCoreDelegates::GetGPUOutOfMemoryDelegate()
 {
-	static FGPUOutOfMemoryDelegate OnGPUOOM;
+	static TMulticastDelegate<void(const uint64, const uint64)> OnGPUOOM;
 	return OnGPUOOM;
 }
 
-FCoreDelegates::FGetOnScreenMessagesDelegate FCoreDelegates::OnGetOnScreenMessages;
+TMulticastDelegate<void(FCoreDelegates::FSeverityMessageMap&)> FCoreDelegates::OnGetOnScreenMessages;
 
 typedef void(*TSigningKeyFunc)(TArray<uint8>&, TArray<uint8>&);
 typedef void(*TEncryptionKeyFunc)(unsigned char[32]);
@@ -254,5 +255,5 @@ CORE_API void RegisterEncryptionKeyCallback(TEncryptionKeyFunc InCallback)
 
 FSimpleMulticastDelegate FCoreDelegates::OnParentBeginFork;
 FSimpleMulticastDelegate FCoreDelegates::OnParentPreFork;
-FCoreDelegates::FProcessForkDelegate FCoreDelegates::OnPostFork;
+TMulticastDelegate<void(EForkProcessRole /* ProcessRole */)> FCoreDelegates::OnPostFork;
 FSimpleMulticastDelegate FCoreDelegates::OnChildEndFramePostFork;

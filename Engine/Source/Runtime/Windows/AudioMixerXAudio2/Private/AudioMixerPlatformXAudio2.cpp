@@ -699,7 +699,7 @@ namespace Audio
 
 #if PLATFORM_NEEDS_SUSPEND_ON_BACKGROUND
 
-		auto UnregisterLambda = [](FDelegateHandle& InHandle, FCoreDelegates::FApplicationLifetimeDelegate& InDelegate) 
+		auto UnregisterLambda = [](FDelegateHandle& InHandle, TMulticastDelegate<void()>& InDelegate)
 		{
 			if (InHandle.IsValid())
 			{

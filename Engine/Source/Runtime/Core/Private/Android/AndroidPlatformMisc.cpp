@@ -593,7 +593,7 @@ void FAndroidMisc::PlatformTearDown()
 	StopTraceMarkers();
 #endif
 
-	auto RemoveBinding = [](FCoreDelegates::FApplicationLifetimeDelegate& ApplicationLifetimeDelegate, FDelegateHandle& DelegateBinding)
+	auto RemoveBinding = [](TMulticastDelegate<void()>& ApplicationLifetimeDelegate, FDelegateHandle& DelegateBinding)
 	{
 		if (DelegateBinding.IsValid())
 		{

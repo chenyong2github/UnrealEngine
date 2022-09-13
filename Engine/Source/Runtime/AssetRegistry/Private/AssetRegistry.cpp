@@ -840,7 +840,7 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 
 	if (Context.bRedirectorsNeedSubscribe)
 	{
-		FCoreDelegates::FResolvePackageNameDelegate PackageResolveDelegate;
+		TDelegate<bool(const FString&, FString&)> PackageResolveDelegate;
 		PackageResolveDelegate.BindUObject(this, &UAssetRegistryImpl::OnResolveRedirect);
 		FCoreDelegates::PackageNameResolvers.Add(PackageResolveDelegate);
 	}
