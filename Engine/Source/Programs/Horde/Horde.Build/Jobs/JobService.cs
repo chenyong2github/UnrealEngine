@@ -175,23 +175,9 @@ namespace Horde.Build.Jobs
 		/// <param name="name">Name of the job</param>
 		/// <param name="change">The change to build</param>
 		/// <param name="codeChange">The corresponding code changelist</param>
-		/// <param name="preflightChange">Optional changelist to preflight</param>
-		/// <param name="clonedPreflightChange">Duplicated preflight change</param>
-		/// <param name="preflightDescription">Description for the preflight</param>
-		/// <param name="startedByUserId">Id of the user that started the job</param>
-		/// <param name="priority">Priority of the job</param>
-		/// <param name="autoSubmit">Whether to automatically submit the preflighted change on completion</param>
-		/// <param name="updateIssues">Whether to update issues when this job completes</param>
-		/// <param name="promoteIssuesByDefault">Whether to promote issues from this job by default</param>
-		/// <param name="jobTriggers">List of downstream job triggers</param>
-		/// <param name="showUgsBadges">Whether to show badges in UGS for this job</param>
-		/// <param name="showUgsAlerts">Whether to show alerts in UGS for this job</param>
-		/// <param name="notificationChannel">Notification Channel for this job</param>
-		/// <param name="notificationChannelFilter">Notification Channel filter for this job</param>
-		/// <param name="arguments">Arguments for the job</param>
-		/// <param name="environment">Additional environment variables to set, in the form X = Y</param>
+		/// <param name="options">Options for the new job</param>
 		/// <returns>Unique id representing the job</returns>
-		public async Task<IJob> CreateJobAsync(JobId? jobId, IStream stream, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, int? preflightChange, int? clonedPreflightChange, string? preflightDescription, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, List<ChainedJobTemplateConfig>? jobTriggers, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, IReadOnlyList<string> arguments, IReadOnlyDictionary<string, string>? environment)
+		public async Task<IJob> CreateJobAsync(JobId? jobId, IStream stream, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, CreateJobOptions options)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.CreateJobAsync").StartActive();
 			traceScope.Span.SetTag("JobId", jobId);
@@ -202,67 +188,62 @@ namespace Horde.Build.Jobs
 			traceScope.Span.SetTag("Name", name);
 			traceScope.Span.SetTag("Change", change);
 			traceScope.Span.SetTag("CodeChange", codeChange);
-			traceScope.Span.SetTag("PreflightChange", preflightChange);
-			traceScope.Span.SetTag("ClonedPreflightChange", clonedPreflightChange);
-			traceScope.Span.SetTag("StartedByUserId", startedByUserId.ToString());
-			traceScope.Span.SetTag("Priority", priority.ToString());
-			traceScope.Span.SetTag("ShowUgsBadges", showUgsBadges);
-			traceScope.Span.SetTag("NotificationChannel", notificationChannel ?? "null");
-			traceScope.Span.SetTag("NotificationChannelFilter", notificationChannelFilter ?? "null");
-			traceScope.Span.SetTag("Arguments", String.Join(',', arguments));
+			traceScope.Span.SetTag("PreflightChange", options.PreflightChange);
+			traceScope.Span.SetTag("ClonedPreflightChange", options.ClonedPreflightChange);
+			traceScope.Span.SetTag("StartedByUserId", options.StartedByUserId.ToString());
+			traceScope.Span.SetTag("Priority", options.Priority.ToString());
+			traceScope.Span.SetTag("ShowUgsBadges", options.ShowUgsBadges);
+			traceScope.Span.SetTag("NotificationChannel", options.NotificationChannel ?? "null");
+			traceScope.Span.SetTag("NotificationChannelFilter", options.NotificationChannelFilter ?? "null");
+			traceScope.Span.SetTag("Arguments", String.Join(',', options.Arguments));
 
-			if (autoSubmit != null)
+			if (options.AutoSubmit != null)
 			{
-				traceScope.Span.SetTag("AutoSubmit", autoSubmit.Value);
+				traceScope.Span.SetTag("AutoSubmit", options.AutoSubmit.Value);
 			}
-			if (updateIssues != null)
+			if (options.UpdateIssues != null)
 			{
-				traceScope.Span.SetTag("UpdateIssues", updateIssues.Value);
+				traceScope.Span.SetTag("UpdateIssues", options.UpdateIssues.Value);
 			}
-			if (jobTriggers != null)
+			if (options.JobTriggers != null)
 			{
-				traceScope.Span.SetTag("JobTriggers.Count", jobTriggers.Count);
+				traceScope.Span.SetTag("JobTriggers.Count", options.JobTriggers.Count);
 			}
 
 			JobId jobIdValue = jobId ?? Horde.Build.Utilities.ObjectId<IJob>.GenerateNewId();
 			using IDisposable scope = _logger.BeginScope("CreateJobAsync({JobId})", jobIdValue);
 
-			if (preflightChange != null && ShouldClonePreflightChange(stream.Id))
+			if (options.PreflightChange != null && ShouldClonePreflightChange(stream.Id))
 			{
-				clonedPreflightChange = await CloneShelvedChangeAsync(stream.Config.ClusterName, clonedPreflightChange ?? preflightChange.Value);
+				options.ClonedPreflightChange = await CloneShelvedChangeAsync(stream.Config.ClusterName, options.ClonedPreflightChange ?? options.PreflightChange.Value);
 			}
 
-			_logger.LogInformation("Creating job at CL {Change}, code CL {CodeChange}, preflight CL {PreflightChange}, cloned CL {ClonedPreflightChange}", change, codeChange, preflightChange, clonedPreflightChange);
+			_logger.LogInformation("Creating job at CL {Change}, code CL {CodeChange}, preflight CL {PreflightChange}, cloned CL {ClonedPreflightChange}", change, codeChange, options.PreflightChange, options.ClonedPreflightChange);
 
 			Dictionary<string, string> properties = new Dictionary<string, string>();
 			properties["Change"] = change.ToString(CultureInfo.InvariantCulture);
 			properties["CodeChange"] = codeChange.ToString(CultureInfo.InvariantCulture);
-			properties["PreflightChange"] = preflightChange?.ToString(CultureInfo.InvariantCulture) ?? String.Empty;
-			properties["ClonedPreflightChange"] = clonedPreflightChange?.ToString(CultureInfo.InvariantCulture) ?? String.Empty;
+			properties["PreflightChange"] = options.PreflightChange?.ToString(CultureInfo.InvariantCulture) ?? String.Empty;
+			properties["ClonedPreflightChange"] = options.ClonedPreflightChange?.ToString(CultureInfo.InvariantCulture) ?? String.Empty;
 			properties["StreamId"] = stream.Id.ToString();
 			properties["TemplateId"] = templateRefId.ToString();
 			properties["JobId"] = jobIdValue.ToString();
 
-			List<string> expandedArguments = new List<string>();
-			if (arguments != null)
+			for(int idx = 0; idx < options.Arguments.Count; idx++)
 			{
-				foreach (string argument in arguments)
-				{
-					string expandedArgument = StringUtils.ExpandProperties(argument, properties);
-					expandedArguments.Add(expandedArgument);
-				}
+				options.Arguments[idx] = StringUtils.ExpandProperties(options.Arguments[idx], properties);
 			}
 
 			name = StringUtils.ExpandProperties(name, properties);
 
-			IJob newJob = await _jobs.AddAsync(jobIdValue, stream.Id, templateRefId, templateHash, graph, name, change, codeChange, preflightChange, clonedPreflightChange, preflightDescription, startedByUserId, priority, autoSubmit, updateIssues, promoteIssuesByDefault, jobTriggers, showUgsBadges, showUgsAlerts, notificationChannel, notificationChannelFilter, expandedArguments, environment);
+			IJob newJob = await _jobs.AddAsync(jobIdValue, stream.Id, templateRefId, templateHash, graph, name, change, codeChange, options);
 			_jobTaskSource.UpdateQueuedJob(newJob, graph);
 
 			await _jobTaskSource.UpdateUgsBadges(newJob, graph, new List<(LabelState, LabelOutcome)>());
 
-			if (startedByUserId != null)
+			if (options.StartedByUserId != null)
 			{
-				await _userCollection.UpdateSettingsAsync(startedByUserId.Value, addPinnedJobIds: new[] { newJob.Id });
+				await _userCollection.UpdateSettingsAsync(options.StartedByUserId.Value, addPinnedJobIds: new[] { newJob.Id });
 			}
 
 			await AbortAnyDuplicateJobs(newJob);
@@ -1317,7 +1298,11 @@ namespace Horde.Build.Jobs
 					IGraph triggerGraph = await _graphs.AddAsync(template);
 					_logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", chainedJobId, newJob.Id);
 
-					await CreateJobAsync(chainedJobId, stream, jobTrigger.TemplateRefId, templateRef.Hash, triggerGraph, templateRef.Config.Name, newJob.Change, newJob.CodeChange, newJob.PreflightChange, newJob.ClonedPreflightChange, newJob.PreflightDescription, newJob.StartedByUserId, template.Priority, null, newJob.UpdateIssues, newJob.PromoteIssuesByDefault, templateRef.Config.ChainedJobs, false, false, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, template.Arguments, null);
+					CreateJobOptions options = new CreateJobOptions(templateRef.Config);
+					options.PreflightChange = newJob.PreflightChange;
+					options.PreflightDescription = newJob.PreflightDescription;
+
+					await CreateJobAsync(chainedJobId, stream, jobTrigger.TemplateRefId, templateRef.Hash, triggerGraph, templateRef.Config.Name, newJob.Change, newJob.CodeChange, options);
 					return newJob;
 				}
 

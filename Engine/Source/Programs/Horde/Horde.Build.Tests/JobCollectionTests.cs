@@ -77,11 +77,11 @@ namespace Horde.Build.Tests
 
 			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> arguments = new List<string>();
-			arguments.Add("-Target=Publish Client");
-			arguments.Add("-Target=Post-Publish Client");
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Publish Client");
+			options.Arguments.Add("-Target=Post-Publish Client");
 
-			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, null, false, false, null, null, arguments, null);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, options);
 
 			job = await StartBatch(job, baseGraph, 0);
 			job = await RunStep(job, baseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
@@ -152,11 +152,11 @@ namespace Horde.Build.Tests
 
 			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> arguments = new List<string>();
-			arguments.Add("-Target=Step 1");
-			arguments.Add("-Target=Step 3");
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Step 1");
+			options.Arguments.Add("-Target=Step 3");
 
-			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, null, false, false, null, null, arguments, null);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, options);
 
 			job = await StartBatch(job, baseGraph, 0);
 			job = await RunStep(job, baseGraph, 0, 0, JobStepOutcome.Success); // Setup Build
@@ -208,11 +208,11 @@ namespace Horde.Build.Tests
 
 			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> arguments = new List<string>();
-			arguments.Add("-Target=Step 1");
-			arguments.Add("-Target=Step 3");
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Step 1");
+			options.Arguments.Add("-Target=Step 3");
 
-			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, null, false, false, null, null, arguments, null);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, options);
 			Assert.AreEqual(1, job.Batches.Count);
 
 			job = await StartBatch(job, baseGraph, 0);
@@ -259,11 +259,11 @@ namespace Horde.Build.Tests
 
 			IGraph baseGraph = await GraphCollection.AddAsync(templateMock.Object);
 
-			List<string> arguments = new List<string>();
-			arguments.Add("-Target=Step 1");
-			arguments.Add("-Target=Step 3");
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Step 1");
+			options.Arguments.Add("-Target=Step 3");
 
-			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, null, null, null, null, null, null, null, null, null, false, false, null, null, arguments, null);
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), baseGraph, "Test job", 123, 123, options);
 			Assert.AreEqual(1, job.Batches.Count);
 
 			// First retry

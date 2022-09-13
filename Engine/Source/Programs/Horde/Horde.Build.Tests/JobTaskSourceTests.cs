@@ -132,10 +132,12 @@ namespace Horde.Build.Tests
 			}
 
 			// create a new job
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Step That Depends on Paused Step;Step That Depends on Update Version Files");
+
 			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), Stream.Id,
 				fixture.TemplateRefId1, fixture.Template.Id, graph, "Test Paused Step Job",
-				1000, 1000, null, null, null, null, Priority.Highest, null, null, null, null, false,
-				false, null, null, new List<string> { "-Target=" + "Step That Depends on Paused Step;Step That Depends on Update Version Files" }, null);
+				1000, 1000, options);
 
 			// validate
 			Assert.AreEqual(0, JobTaskSource.GetQueueForTesting().Count);

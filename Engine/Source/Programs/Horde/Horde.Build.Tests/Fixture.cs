@@ -99,21 +99,7 @@ namespace Horde.Build.Tests
 				name: "hello1",
 				change: 1000001,
 				codeChange: 1000002,
-				preflightChange: 1001,
-				clonedPreflightChange: null,
-				preflightDescription: null,
-				startedByUserId: null,
-				priority: Priority.Normal,
-				null,
-				null,
-				null,
-				null,
-				false,
-				false,
-				null,
-				null,
-				arguments: new List<string>(),
-				null
+				new CreateJobOptions { PreflightChange = 1001 }
 			);
 			Job1 = (await jobService.GetJobAsync(Job1.Id))!;
 
@@ -126,21 +112,7 @@ namespace Horde.Build.Tests
 				name: "hello2",
 				change: 2000001,
 				codeChange: 2000002,
-				preflightChange: null,
-				clonedPreflightChange: null,
-				preflightDescription: null,
-				startedByUserId: null,
-				priority: Priority.Normal,
-				null,
-				null,
-				null,
-				null,
-				false,
-				false,
-				null,
-				null,
-				arguments: new List<string>(),
-				null
+				new CreateJobOptions()
 			);
 			Job2 = (await jobService.GetJobAsync(Job2.Id))!;
 

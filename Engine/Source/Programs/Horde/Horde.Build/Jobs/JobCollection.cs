@@ -303,7 +303,7 @@ namespace Horde.Build.Jobs
 				GraphHash = null!;
 			}
 
-			public JobDocument(JobId id, StreamId streamId, TemplateId templateId, ContentHash templateHash, ContentHash graphHash, string name, int change, int codeChange, int preflightChange, int clonedPreflightChange, string? preflightDescription, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, DateTime createTimeUtc, List<ChainedJobDocument> chainedJobs, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, List<string>? arguments, IReadOnlyDictionary<string, string>? environment)
+			public JobDocument(JobId id, StreamId streamId, TemplateId templateId, ContentHash templateHash, ContentHash graphHash, string name, int change, int codeChange, CreateJobOptions options, DateTime createTimeUtc)
 			{
 				Id = id;
 				StreamId = streamId;
@@ -313,25 +313,27 @@ namespace Horde.Build.Jobs
 				Name = name;
 				Change = change;
 				CodeChange = codeChange;
-				PreflightChange = preflightChange;
-				ClonedPreflightChange = clonedPreflightChange;
-				PreflightDescription = preflightDescription;
-				StartedByUserId = startedByUserId;
-				Priority = priority ?? HordeCommon.Priority.Normal;
-				AutoSubmit = autoSubmit ?? false;
-				UpdateIssues = updateIssues ?? (startedByUserId == null && preflightChange == 0);
-				PromoteIssuesByDefault = promoteIssuesByDefault ?? false;
+				PreflightChange = options.PreflightChange ?? 0;
+				ClonedPreflightChange = options.ClonedPreflightChange ?? 0;
+				PreflightDescription = options.PreflightDescription;
+				StartedByUserId = options.StartedByUserId;
+				Priority = options.Priority ?? HordeCommon.Priority.Normal;
+				AutoSubmit = options.AutoSubmit ?? false;
+				UpdateIssues = options.UpdateIssues ?? (options.StartedByUserId == null && options.PreflightChange == 0);
+				PromoteIssuesByDefault = options.PromoteIssuesByDefault ?? false;
 				CreateTimeUtc = createTimeUtc;
-				ChainedJobs = chainedJobs;
-				ShowUgsBadges = showUgsBadges;
-				ShowUgsAlerts = showUgsAlerts;
-				NotificationChannel = notificationChannel;
-				NotificationChannelFilter = notificationChannelFilter;
-				Arguments = arguments ?? Arguments;
-				if (environment != null)
+				ChainedJobs.AddRange(options.JobTriggers.Select(x => new ChainedJobDocument(x)));
+				ShowUgsBadges = options.ShowUgsBadges;
+				ShowUgsAlerts = options.ShowUgsAlerts;
+				NotificationChannel = options.NotificationChannel;
+				NotificationChannelFilter = options.NotificationChannelFilter;
+				Arguments.AddRange(options.Arguments);
+
+				foreach (KeyValuePair<string, string> pair in options.Environment)
 				{
-					Environment = new Dictionary<string, string>(environment);
+					Environment[pair.Key] = pair.Value;
 				}
+
 				NextSubResourceId = SubResourceId.Random();
 				UpdateTimeUtc = createTimeUtc;
 			}
@@ -406,19 +408,9 @@ namespace Horde.Build.Jobs
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, int? preflightChange, int? clonedPreflightChange, string? preflightDescription, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, List<ChainedJobTemplateConfig>? chainedJobs, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, List<string>? arguments, IReadOnlyDictionary<string, string>? environment)
+		public async Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, CreateJobOptions options)
 		{
-			List<ChainedJobDocument> jobTriggers = new List<ChainedJobDocument>();
-			if (chainedJobs == null)
-			{
-				jobTriggers = new List<ChainedJobDocument>();
-			}
-			else
-			{
-				jobTriggers = chainedJobs.ConvertAll(x => new ChainedJobDocument(x));
-			}
-
-			JobDocument newJob = new JobDocument(jobId, streamId, templateRefId, templateHash, graph.Id, name, change, codeChange, preflightChange ?? 0, clonedPreflightChange ?? 0, preflightDescription, startedByUserId, priority, autoSubmit, updateIssues, promoteIssuesByDefault, DateTime.UtcNow, jobTriggers, showUgsBadges, showUgsAlerts, notificationChannel, notificationChannelFilter, arguments, environment);
+			JobDocument newJob = new JobDocument(jobId, streamId, templateRefId, templateHash, graph.Id, name, change, codeChange, options, DateTime.UtcNow);
 			CreateBatches(newJob, graph, _logger);
 
 			await _jobs.InsertOneAsync(newJob);

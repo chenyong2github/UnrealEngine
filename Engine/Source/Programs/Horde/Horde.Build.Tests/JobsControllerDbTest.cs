@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Microsoft.AspNetCore.Mvc;
@@ -23,10 +24,14 @@ namespace Horde.Build.Tests
 			await CreateFixtureAsync();
 
 			ActionResult<List<object>> res = await JobsController.FindJobsAsync();
-	        Assert.AreEqual(2, res.Value!.Count);
-	        Assert.AreEqual("hello2", (res.Value[0] as GetJobResponse)!.Name);
-	        Assert.AreEqual("hello1", (res.Value[1] as GetJobResponse)!.Name);
-	        
+
+			List<GetJobResponse> responses = res.Value!.ConvertAll(x => (GetJobResponse)x);
+			responses.SortBy(x => x.Change);
+
+			Assert.AreEqual(2, responses.Count);
+			Assert.AreEqual("hello1", responses[0].Name);
+			Assert.AreEqual("hello2", responses[1].Name);
+
 	        res = await JobsController.FindJobsAsync(includePreflight: false);
 	        Assert.AreEqual(1, res.Value!.Count);
 	        Assert.AreEqual("hello2", (res.Value[0] as GetJobResponse)!.Name);

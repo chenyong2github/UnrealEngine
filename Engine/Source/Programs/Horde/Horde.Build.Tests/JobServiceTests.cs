@@ -60,7 +60,11 @@ namespace Horde.Build.Tests
 			IStream? stream = await StreamService.GetStreamAsync(streamId);
 			stream = await CreateOrReplaceStreamAsync(new StreamId("ue5-main"), stream, projectId, streamConfig);
 
-			IJob job = await JobService.CreateJobAsync(null, stream!, templateRefId1, template.Id, graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, null, stream!.Templates[templateRefId1].Config.ChainedJobs, true, true, null, null, new List<string>(), null);
+			CreateJobOptions options = new CreateJobOptions();
+			options.PreflightChange = 999;
+			options.JobTriggers.AddRange(stream!.Templates[templateRefId1].Config.ChainedJobs!);
+
+			IJob job = await JobService.CreateJobAsync(null, stream!, templateRefId1, template.Id, graph, "Hello", 1234, 1233, options);
 			Assert.AreEqual(1, job.ChainedJobs.Count);
 
 			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
@@ -153,6 +157,12 @@ namespace Horde.Build.Tests
 		private async Task<IJob> CreatePreflightJob(Fixture fixture, string templateRefId, string templateHash, string startedByUserName, int preflightChange, string[] arguments)
 		{
 			IUser user = await UserCollection.FindOrAddUserByLoginAsync(startedByUserName);
+
+			CreateJobOptions options = new CreateJobOptions();
+			options.PreflightChange = preflightChange;
+			options.StartedByUserId = user.Id;
+			options.Arguments.AddRange(arguments);
+
 			return await JobService.CreateJobAsync(
 				jobId: JobId.GenerateNewId(),
 				stream: fixture!.Stream!,
@@ -162,21 +172,7 @@ namespace Horde.Build.Tests
 				name: "hello1",
 				change: 1000001,
 				codeChange: 1000002,
-				preflightChange: preflightChange,
-				clonedPreflightChange: null,
-				preflightDescription: null,
-				startedByUserId: user.Id,
-				priority: Priority.Normal,
-				null,
-				null,
-				null,
-				null,
-				false,
-				false,
-				null,
-				null,
-				arguments: new List<string>(arguments),
-				null
+				options
 			);
 		}
 		
@@ -232,7 +228,11 @@ namespace Horde.Build.Tests
 
 			graph = await GraphCollection.AppendAsync(graph, new List<NewGroup> { groupA, groupB });
 
-			IJob job = await JobService.CreateJobAsync(null, stream!, new TemplateId("temp"), template.Id, graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=Pak" }, null);
+			CreateJobOptions options = new CreateJobOptions();
+			options.PreflightChange = 999;
+			options.Arguments.Add("-Target=Pak");
+
+			IJob job = await JobService.CreateJobAsync(null, stream!, new TemplateId("temp"), template.Id, graph, "Hello", 1234, 1233, options);
 
 			job = Deref(await JobService.UpdateBatchAsync(job, job.Batches[0].Id, LogId.GenerateNewId(), JobStepBatchState.Running));
 			job = Deref(await JobService.UpdateStepAsync(job, job.Batches[0].Id, job.Batches[0].Steps[0].Id, JobStepState.Running));

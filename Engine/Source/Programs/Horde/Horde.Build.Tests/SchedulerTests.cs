@@ -445,7 +445,11 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(0, jobs2.Count);
 
 			// Create a job and fail it
-			IJob job1 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" }, null);
+			CreateJobOptions options1 = new CreateJobOptions();
+			options1.PreflightChange = 999;
+			options1.Arguments.Add("-Target=TriggerNext");
+
+			IJob job1 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", 1234, 1233, options1);
 			SubResourceId batchId1 = job1.Batches[0].Id;
 			SubResourceId stepId1 = job1.Batches[0].Steps[0].Id;
 			job1 = Deref(await JobService.UpdateBatchAsync(job1, batchId1, LogId.GenerateNewId(), JobStepBatchState.Running));
@@ -461,7 +465,11 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(0, jobs3.Count);
 
 			// Create a job and make it succeed
-			IJob job2 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", 1234, 1233, 999, null, null, null, null, null, null, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" }, null);
+			CreateJobOptions options2 = new CreateJobOptions();
+			options2.PreflightChange = 999;
+			options2.Arguments.Add("-Target=TriggerNext");
+
+			IJob job2 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", 1234, 1233, options2);
 			SubResourceId batchId2 = job2.Batches[0].Id;
 			SubResourceId stepId2 = job2.Batches[0].Steps[0].Id;
 			job2 = Deref(await JobService.UpdateBatchAsync(job2, batchId2, LogId.GenerateNewId(), JobStepBatchState.Running));
@@ -531,7 +539,10 @@ namespace Horde.Build.Tests
 			{
 				int codeChange = (change < 1233) ? 1230 : 1233;
 
-				IJob job1 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", change, codeChange, null, null, null, null, null, null, false, null, null, true, true, null, null, new List<string> { "-Target=TriggerNext" }, null);
+				CreateJobOptions options1 = new CreateJobOptions();
+				options1.Arguments.Add("-Target=TriggerNext");
+
+				IJob job1 = await JobService.CreateJobAsync(null, stream, newTemplateRefId1, _template.Id, graphA, "Hello", change, codeChange, options1);
 				for (int batchIdx = 0; batchIdx < job1.Batches.Count; batchIdx++)
 				{
 					SubResourceId batchId1 = job1.Batches[batchIdx].Id;

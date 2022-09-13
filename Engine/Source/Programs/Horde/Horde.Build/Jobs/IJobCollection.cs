@@ -28,6 +28,110 @@ namespace Horde.Build.Jobs
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
+	/// Options for creating a new job
+	/// </summary>
+	public class CreateJobOptions
+	{
+		/// <summary>
+		/// Optional changelist to preflight
+		/// </summary>
+		public int? PreflightChange { get; set; }
+
+		/// <summary>
+		/// Optional cloned preflight changelist
+		/// </summary>
+		public int? ClonedPreflightChange { get; set; }
+
+		/// <summary>
+		/// Description for the change being preflighted
+		/// </summary>
+		public string? PreflightDescription { get; set; }
+
+		/// <summary>
+		/// User that started the job
+		/// </summary>
+		public UserId? StartedByUserId { get; set; }
+
+		/// <summary>
+		/// Priority of the job
+		/// </summary>
+		public Priority? Priority { get; set; }
+
+		/// <summary>
+		/// Whether to automatically submit the preflighted change on completion
+		/// </summary>
+		public bool? AutoSubmit { get; set; }
+
+		/// <summary>
+		/// Whether to update issues based on the outcome of this job
+		/// </summary>
+		public bool? UpdateIssues { get; set; }
+
+		/// <summary>
+		/// Whether to promote issues based on the outcome of this job by default
+		/// </summary>
+		public bool? PromoteIssuesByDefault { get; set; }
+
+		/// <summary>
+		/// List of downstream job triggers
+		/// </summary>
+		public List<ChainedJobTemplateConfig> JobTriggers { get; } = new List<ChainedJobTemplateConfig>();
+
+		/// <summary>
+		/// Whether to show badges in UGS for this job
+		/// </summary>
+		public bool ShowUgsBadges { get; set; }
+
+		/// <summary>
+		/// Whether to show alerts in UGS for this job
+		/// </summary>
+		public bool ShowUgsAlerts { get; set; }
+
+		/// <summary>
+		/// Notification channel for this job
+		/// </summary>
+		public string? NotificationChannel { get; set; }
+
+		/// <summary>
+		/// Notification channel filter for this job
+		/// </summary>
+		public string? NotificationChannelFilter { get; set; }
+
+		/// <summary>
+		/// Arguments for the job
+		/// </summary>
+		public List<string> Arguments { get; } = new List<string>();
+
+		/// <summary>
+		/// Environment variables for the job
+		/// </summary>
+		public Dictionary<string, string> Environment { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// Default constructor
+		/// </summary>
+		public CreateJobOptions()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public CreateJobOptions(TemplateRefConfig templateRefConfig)
+		{
+			PromoteIssuesByDefault = templateRefConfig.PromoteIssuesByDefault;
+			if (templateRefConfig.ChainedJobs != null)
+			{
+				JobTriggers.AddRange(templateRefConfig.ChainedJobs);
+			}
+			ShowUgsBadges = templateRefConfig.ShowUgsBadges;
+			ShowUgsAlerts = templateRefConfig.ShowUgsAlerts;
+			NotificationChannel = templateRefConfig.NotificationChannel;
+			NotificationChannelFilter = templateRefConfig.NotificationChannelFilter;
+		}
+	}
+
+	/// <summary>
 	/// Interface for a collection of job documents
 	/// </summary>
 	public interface IJobCollection
@@ -43,23 +147,9 @@ namespace Horde.Build.Jobs
 		/// <param name="name">Name of the job</param>
 		/// <param name="change">The change to build</param>
 		/// <param name="codeChange">The corresponding code changelist number</param>
-		/// <param name="preflightChange">Optional changelist to preflight</param>
-		/// <param name="clonedPreflightChange">Optional cloned preflight changelist</param>
-		/// <param name="preflightDescription">Description for the change being preflighted</param>
-		/// <param name="startedByUserId">User that started the job</param>
-		/// <param name="priority">Priority of the job</param>
-		/// <param name="autoSubmit">Whether to automatically submit the preflighted change on completion</param>
-		/// <param name="updateIssues">Whether to update issues based on the outcome of this job</param>
-		/// <param name="promoteIssuesByDefault">Whether to promote issues based on the outcome of this job by default</param>
-		/// <param name="jobTriggers">List of downstream job triggers</param>
-		/// <param name="showUgsBadges">Whether to show badges in UGS for this job</param>
-		/// <param name="showUgsAlerts">Whether to show alerts in UGS for this job</param>
-		/// <param name="notificationChannel">Notification channel for this job</param>
-		/// <param name="notificationChannelFilter">Notification channel filter for this job</param>
-		/// <param name="arguments">Arguments for the job</param>
-		/// <param name="environment">Additional environment variables for the job</param>
+		/// <param name="options">Additional options for the new job</param>
 		/// <returns>The new job document</returns>
-		Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, int? preflightChange, int? clonedPreflightChange, string? preflightDescription, UserId? startedByUserId, Priority? priority, bool? autoSubmit, bool? updateIssues, bool? promoteIssuesByDefault, List<ChainedJobTemplateConfig>? jobTriggers, bool showUgsBadges, bool showUgsAlerts, string? notificationChannel, string? notificationChannelFilter, List<string>? arguments, IReadOnlyDictionary<string, string>? environment);
+		Task<IJob> AddAsync(JobId jobId, StreamId streamId, TemplateId templateRefId, ContentHash templateHash, IGraph graph, string name, int change, int codeChange, CreateJobOptions options);
 
 		/// <summary>
 		/// Gets a job with the given unique id

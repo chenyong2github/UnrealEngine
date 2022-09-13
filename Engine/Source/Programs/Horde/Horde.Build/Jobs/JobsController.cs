@@ -189,8 +189,23 @@ namespace Horde.Build.Jobs
 				updateIssues = create.UpdateIssues.Value;
 			}
 
+			// Create options for the new job
+			CreateJobOptions options = new CreateJobOptions(templateRef.Config);
+			options.PreflightChange = create.PreflightChange;
+			options.PreflightDescription = shelfInfo?.Description;
+			options.StartedByUserId = User.GetUserId();
+			options.Priority = priority;
+			options.AutoSubmit = create.AutoSubmit;
+			options.UpdateIssues = updateIssues;
+			options.Arguments.AddRange(arguments);
+
+			foreach ((string key, string value) in environment)
+			{
+				options.Environment[key] = value;
+			}
+
 			// Create the job
-			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, shelfInfo?.Description, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.Config.ChainedJobs, templateRef.Config.ShowUgsBadges, templateRef.Config.ShowUgsAlerts, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, arguments, environment);
+			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, options);
 			await UpdateNotificationsAsync(job.Id, new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(job.Id.ToString());
 		}

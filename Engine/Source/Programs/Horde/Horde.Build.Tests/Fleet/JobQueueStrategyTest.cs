@@ -149,10 +149,12 @@ namespace Horde.Build.Tests.Fleet
 		
 		private async Task<IJob> AddPlaceholderJob(IGraph graph, StreamId streamId, string nodeNameToExecute)
 		{
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add($"-Target={nodeNameToExecute}");
+
 			IJob job = await JobCollection.AddAsync(ObjectId<IJob>.GenerateNewId(), streamId,
 				new StringId<ITemplateRef>("bogusTemplateRefId"), ContentHash.Empty, graph, "bogusJobName",
-				1000, 1000, null, null, null, null, null, null, null, null, null, false,
-				false, null, null, new List<string> { "-Target=" + nodeNameToExecute }, null);
+				1000, 1000, options);
 
 			return job;
 		}
