@@ -55,7 +55,7 @@ namespace UE::RivermaxMediaCaptureUtil
 		// We need to adjust horizontal resolution if it's not aligned to pgroup pixel coverage
 		// RTP header has to describe a full pgroup even if it's outside of effective resolution.
 		const uint32 PixelAlignment = InFormatInfo.PixelGroupCoverage;
-		const uint32 AlignedHorizontalResolution = InSize.X % PixelAlignment ? InSize.X + (PixelAlignment - InSize.X % PixelAlignment) : InSize.X;
+		const uint32 AlignedHorizontalResolution = (InSize.X % PixelAlignment) ? InSize.X + (PixelAlignment - (InSize.X % PixelAlignment)) : InSize.X;
 		return FIntPoint(AlignedHorizontalResolution, InSize.Y);
 	}
 

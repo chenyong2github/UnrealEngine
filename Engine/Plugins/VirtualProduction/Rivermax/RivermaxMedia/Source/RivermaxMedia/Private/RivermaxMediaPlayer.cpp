@@ -307,7 +307,7 @@ namespace UE::RivermaxMedia
 		StreamOptions.PixelFormat = UE::RivermaxMediaUtils::Private::MediaSourcePixelFormatToRivermaxSamplingType(DesiredPixelFormat);
 		const FVideoFormatInfo FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(StreamOptions.PixelFormat);
 		const uint32 PixelAlignment = FormatInfo.PixelGroupCoverage;
-		const uint32 AlignedHorizontalResolution = StreamOptions.Resolution.X % PixelAlignment ? StreamOptions.Resolution.X + (PixelAlignment - StreamOptions.Resolution.X % PixelAlignment) : StreamOptions.Resolution.X;
+		const uint32 AlignedHorizontalResolution = (StreamOptions.Resolution.X % PixelAlignment) ? StreamOptions.Resolution.X + (PixelAlignment - (StreamOptions.Resolution.X % PixelAlignment)) : StreamOptions.Resolution.X;
 		StreamOptions.AlignedResolution = FIntPoint(AlignedHorizontalResolution, StreamOptions.Resolution.Y);
 
 		return true;
