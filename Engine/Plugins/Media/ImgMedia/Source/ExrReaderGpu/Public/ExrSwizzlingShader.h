@@ -5,16 +5,9 @@
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 
 #include "CoreMinimal.h"
-#include "UObject/ConstructorHelpers.h"
-#include "RHI.h"
-#include "Runtime/RenderCore/Public/ShaderParameterUtils.h"
-#include "Runtime/RenderCore/Public/RenderResource.h"
-#include "Runtime/RenderCore/Public/RenderGraphResources.h"
-
-// FScreenPassTextureViewportParameters and FScreenPassTextureInput
-#include "Runtime/Renderer/Private/ScreenPass.h"
-#include "Runtime/Renderer/Private/SceneTextureParameters.h"
-
+#include "GlobalShader.h"
+#include "ShaderParameterUtils.h"
+#include "ShaderParameterStruct.h"
 
 // The vertex shader used by DrawScreenPass to draw a rectangle.
 class EXRREADERGPU_API FExrSwizzleVS : public FGlobalShader

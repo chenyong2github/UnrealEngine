@@ -13,21 +13,10 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
-					"TimeManagement",
-					"RHI",
 					"RenderCore",
-					"Renderer",
-					"Slate",
-					"SlateCore",
 					"Projects",
 					"Engine",
 				});
-
-			if (Target.Type == TargetType.Editor)
-			{
-				PublicDependencyModuleNames.Add("UnrealEd");
-				PrivateDependencyModuleNames.Add("UnrealEd");
-			}
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
