@@ -205,7 +205,7 @@ namespace Audio
 		{
 			CurrentBuffer.MixBufferToChannels(2);
 		}
-
+	
 		CurrentOperation.Reset(new FAsyncSoundWavePCMWriterTask(this, ESoundWavePCMWriteTaskType::GenerateAndWriteSoundWave, OnSuccess));
 		CurrentOperation->StartBackgroundTask();
 
@@ -362,10 +362,16 @@ namespace Audio
 
 	bool FSoundWavePCMWriter::IsDone()
 	{
-		return (CurrentState == ESoundWavePCMWriterState::Suceeded
+		bool bCurrentOperationDone = true;
+		if (CurrentOperation.IsValid())
+		{
+			bCurrentOperationDone = CurrentOperation->IsDone();
+		}
+
+		return ((CurrentState == ESoundWavePCMWriterState::Suceeded
 			|| CurrentState == ESoundWavePCMWriterState::Failed
 			|| CurrentState == ESoundWavePCMWriterState::Cancelled
-			|| CurrentState == ESoundWavePCMWriterState::Idle);
+			|| CurrentState == ESoundWavePCMWriterState::Idle) && bCurrentOperationDone);
 	}
 
 	void FSoundWavePCMWriter::Reset()
@@ -683,5 +689,4 @@ namespace Audio
 	}
 
 }
-
 
