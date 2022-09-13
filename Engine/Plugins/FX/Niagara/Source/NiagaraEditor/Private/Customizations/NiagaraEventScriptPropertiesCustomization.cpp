@@ -56,6 +56,7 @@ void FNiagaraEventScriptPropertiesCustomization::CustomizeChildren(TSharedRef<IP
 	HandleMaxEvents = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, MaxEventsPerFrame));
 	HandleUseRandomSpawnNumber = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, bRandomSpawnNumber));
 	HandleMinSpawnNumber = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, MinSpawnNumber));
+	HandleUpdateInitialValues = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FNiagaraEventScriptProperties, UpdateAttributeInitialValues));
 
 	ResolveEmitterName();
 
@@ -180,6 +181,27 @@ void FNiagaraEventScriptPropertiesCustomization::CustomizeChildren(TSharedRef<IP
 				SpawnRow.ValueWidget.Widget = SpawnValueWidget
 			];
 	}
+
+	// Add bool saying if event spawn scripts should update the initial value of particle attributes.
+	{
+		FText SrcTxt = LOCTEXT("UpdateAttributeInitialValues", "Update Initial Values");
+		FDetailWidgetRow& InitialValuseRow = ChildBuilder.AddCustomRow(SrcTxt);
+		TSharedRef<SWidget> InitialValuseWidget = HandleUpdateInitialValues->CreatePropertyValueWidget();
+		TAttribute<bool> EnabledAttribute(this, &FNiagaraEventScriptPropertiesCustomization::GetUpdateInitialValuesEnabled);
+		InitialValuseRow.IsEnabled(EnabledAttribute);
+
+		FSimpleDelegate OnUpdateInitialValuesChangedDelegate = FSimpleDelegate::CreateSP(this, &FNiagaraEventScriptPropertiesCustomization::OnUpdateInitialValuesChanged);
+		HandleUpdateInitialValues->SetOnPropertyValueChanged(OnUpdateInitialValuesChangedDelegate);
+
+		InitialValuseRow.NameWidget
+			[
+				HandleUpdateInitialValues->CreatePropertyNameWidget()
+			];
+		InitialValuseRow.ValueWidget
+			[
+				InitialValuseRow.ValueWidget.Widget = InitialValuseWidget
+			];
+	}
 }
 
 void FNiagaraEventScriptPropertiesCustomization::PostUndo(bool bSuccess)
@@ -281,6 +303,21 @@ bool FNiagaraEventScriptPropertiesCustomization::GetUseRandomSpawnNumber() const
 EVisibility FNiagaraEventScriptPropertiesCustomization::GetMinSpawnNumberVisible() const
 {
 	return GetUseRandomSpawnNumber() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+bool FNiagaraEventScriptPropertiesCustomization::GetUpdateInitialValuesEnabled() const
+{
+	uint8 Value = 255;
+	if (HandleExecutionMode->GetValue(Value) && Value == (uint8)EScriptExecutionMode::SpawnedParticles)
+	{
+		return true;
+	}
+	return false;
+}
+
+void FNiagaraEventScriptPropertiesCustomization::OnUpdateInitialValuesChanged()
+{
+	UNiagaraSystem::RequestCompileForEmitter(Emitter.ResolveWeakPtr());
 }
 
 void FNiagaraEventScriptPropertiesCustomization::ResolveEmitterName()

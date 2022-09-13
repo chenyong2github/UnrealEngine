@@ -624,7 +624,7 @@ void UNiagaraEmitter::PostLoad()
 	for (FVersionedNiagaraEmitterData& Data : VersionData)
 	{
 #if WITH_EDITORONLY_DATA
-		Data.PostLoad(*this, IsCooked);
+		Data.PostLoad(*this, IsCooked, NiagaraVer);
 		Data.GPUComputeScript->OnGPUScriptCompiled().RemoveAll(this);
 		Data.GPUComputeScript->OnGPUScriptCompiled().AddUObject(this, &UNiagaraEmitter::RaiseOnEmitterGPUCompiled);
 		if (UE5MainVer < FUE5MainStreamObjectVersion::FixGpuAlwaysRunningUpdateScriptNoneInterpolated)
@@ -639,7 +639,7 @@ void UNiagaraEmitter::PostLoad()
 			}
 		}
 #else
-		Data.PostLoad(*this, true);
+		Data.PostLoad(*this, true, NiagaraVer);
 #endif
 	}
 
@@ -650,12 +650,24 @@ void UNiagaraEmitter::PostLoad()
 #endif
 }
 
-void FVersionedNiagaraEmitterData::PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked)
+void FVersionedNiagaraEmitterData::PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked, int32 NiagaraVer)
 {
 #if STATS
 	StatDatabase.Init();
 #endif
 	RuntimeEstimation.Init();
+
+#if WITH_EDITORONLY_DATA
+	//Force old data to not update Initial values to maintain existing behavior.
+	//New data and anything resaved will update Initial. values with writes from Event scripts. 
+	if (NiagaraVer < FNiagaraCustomVersion::EventSpawnsUpdateInitialAttributeValues)
+	{
+		for (FNiagaraEventScriptProperties& EventScript : EventHandlerScriptProps)
+		{
+			EventScript.UpdateAttributeInitialValues = false;
+		}
+	}
+#endif
 
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
 	if (EditorParameters == nullptr)

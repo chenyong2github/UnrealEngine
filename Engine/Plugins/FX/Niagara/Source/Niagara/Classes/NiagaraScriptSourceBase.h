@@ -60,6 +60,7 @@ public:
 	NIAGARA_API static const FString CpuScriptDefine;
 	NIAGARA_API static const FString GpuScriptDefine;
 	NIAGARA_API static const FString EventSpawnDefine;
+	NIAGARA_API static const FString EventSpawnInitialAttribWritesDefine;
 
 	FNiagaraCompileOptions() : TargetUsage(ENiagaraScriptUsage::Function), TargetUsageBitmask(0)
 	{

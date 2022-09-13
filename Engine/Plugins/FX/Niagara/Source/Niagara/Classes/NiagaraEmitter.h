@@ -165,6 +165,7 @@ struct FNiagaraEventScriptProperties : public FNiagaraEmitterScriptProperties
 		MaxEventsPerFrame = 0;
 		bRandomSpawnNumber = false;
 		MinSpawnNumber = 0;
+		UpdateAttributeInitialValues = true;
 	}
 	
 	/** Controls which particles have the event script run on them.*/
@@ -194,6 +195,10 @@ struct FNiagaraEventScriptProperties : public FNiagaraEmitterScriptProperties
 	/** The minimum spawn number when random spawn is used. Spawn Number is used as the maximum range. */
 	UPROPERTY(EditAnywhere, Category = "Event Handler Options")
 	uint32 MinSpawnNumber;
+	
+	/** Should Event Spawn Scripts modify the Initial values for particle attributes they modify. */
+	UPROPERTY(EditAnywhere, Category = "Event Handler Options", meta = (EditCondition="ExecutionMode==EScriptExecutionMode::SpawnedParticles"))
+	bool UpdateAttributeInitialValues;
 };
 
 /** Legacy struct for spawn count scale overrides. This is now done in FNiagaraEmitterScalabilityOverrides*/
@@ -344,7 +349,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	FNiagaraParameterStore RendererBindings;
 
 	void CopyFrom(const FVersionedNiagaraEmitterData& Source);
-	void PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked);
+	void PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked, int32 NiagaraVer);
 	void PostInitProperties(UNiagaraEmitter* Outer);
 	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
 	bool UsesScript(const UNiagaraScript* Script) const;

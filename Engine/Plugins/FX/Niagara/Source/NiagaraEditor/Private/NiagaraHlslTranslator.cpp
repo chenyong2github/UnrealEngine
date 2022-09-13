@@ -626,7 +626,7 @@ void FHlslNiagaraTranslator::BuildMissingDefaults()
 {
 	AddBodyComment(TEXT("// Begin HandleMissingDefaultValues"));
 
-	if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic())
+	if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic() || TranslationStages[ActiveStageIdx].bShouldUpdateInitialAttributeValues)
 	{
 		// First go through all the variables that we did not write the defaults for yet. For spawn scripts, this usually
 		// means variables that reference other variables but are not themselves used within spawn.
@@ -652,21 +652,24 @@ void FHlslNiagaraTranslator::BuildMissingDefaults()
 
 		DeferredVariablesMissingDefault.Empty();
 
-		// Now go through and initialize any "Particles.Initial." variables
-		for (FNiagaraVariable& Var : InitialNamespaceVariablesMissingDefault)
+		if (TranslationStages[ActiveStageIdx].bShouldUpdateInitialAttributeValues)
 		{
-			if (FNiagaraParameterMapHistory::IsInitialValue(Var))
+			// Now go through and initialize any "Particles.Initial." variables
+			for (FNiagaraVariable& Var : InitialNamespaceVariablesMissingDefault)
 			{
-				FNiagaraVariable SourceForInitialValue = FNiagaraParameterMapHistory::GetSourceForInitialValue(Var);
-				FString ParameterMapInstanceName = GetParameterMapInstanceName(0);
-				FString Value = FString::Printf(TEXT("%s.%s = %s.%s;\n"), *ParameterMapInstanceName, *GetSanitizedSymbolName(Var.GetName().ToString()),
-					*ParameterMapInstanceName, *GetSanitizedSymbolName(SourceForInitialValue.GetName().ToString()));
-				AddBodyChunk(Value);
-				continue;
+				if (FNiagaraParameterMapHistory::IsInitialValue(Var))
+				{
+					FNiagaraVariable SourceForInitialValue = FNiagaraParameterMapHistory::GetSourceForInitialValue(Var);
+					FString ParameterMapInstanceName = GetParameterMapInstanceName(0);
+					FString Value = FString::Printf(TEXT("%s.%s = %s.%s;\n"), *ParameterMapInstanceName, *GetSanitizedSymbolName(Var.GetName().ToString()),
+						*ParameterMapInstanceName, *GetSanitizedSymbolName(SourceForInitialValue.GetName().ToString()));
+					AddBodyChunk(Value);
+					continue;
+				}
 			}
+			InitialNamespaceVariablesMissingDefault.Empty();
 		}
 
-		InitialNamespaceVariablesMissingDefault.Empty();
 	}
 
 	AddBodyComment(TEXT("// End HandleMissingDefaultValues\n\n"));
@@ -1168,6 +1171,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[1].NumIterations = 1;
 		TranslationStages[0].bWritesParticles = true;
 		TranslationStages[1].bWritesParticles = true;
+		TranslationStages[0].bShouldUpdateInitialAttributeValues = true;
 		ParamMapHistories.AddDefaulted(2);
 		ParamMapSetVariablesToChunks.AddDefaulted(2);
 		ParamMapHistoriesSourceInOtherHistories.AddDefaulted(2);
@@ -1188,6 +1192,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[1].NumIterations = 1;
 		TranslationStages[0].bWritesParticles = true;
 		TranslationStages[1].bWritesParticles = true;
+		TranslationStages[0].bShouldUpdateInitialAttributeValues = true;
 		ParamMapHistories.AddDefaulted(2);
 		ParamMapHistoriesSourceInOtherHistories.AddDefaulted(2);
 		ParamMapSetVariablesToChunks.AddDefaulted(2);
@@ -1390,6 +1395,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].SimulationStageIndex = 0;
 		TranslationStages[0].NumIterations = 1;
 		TranslationStages[0].bWritesParticles = true;
+		TranslationStages[0].bShouldUpdateInitialAttributeValues = TranslationStages[0].ShouldDoSpawnOnlyLogic() || (IsEventSpawnScript() && CompileOptions.AdditionalDefines.Contains(FNiagaraCompileOptions::EventSpawnInitialAttribWritesDefine));
 
 		if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSimulationStageScript)
 		{
@@ -1637,7 +1643,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].OutputNode->Compile(ThisTranslator, OutputChunks);
 		ActiveHistoryForFunctionCalls.EndUsage();
 
-		if (IsSpawnScript())
+		bool bIsEventSpawn = IsEventSpawnScript();
+		if (IsSpawnScript() || TranslationStages[0].bShouldUpdateInitialAttributeValues)
 		{
 			BuildMissingDefaults();
 		}
@@ -4825,8 +4832,12 @@ bool FHlslNiagaraTranslationStage::ShouldDoSpawnOnlyLogic() const
 	{
 		return true;
 	}
-	
-	return (ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript) && (ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset);
+	if((ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript) && (ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset))
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool FHlslNiagaraTranslationStage::IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InTargetUsage, uint32 InTargetBitmask)
@@ -4843,7 +4854,7 @@ bool FHlslNiagaraTranslationStage::IsExternalConstantNamespace(const FNiagaraVar
 
 bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar, const FNiagaraVariable& InVar) const
 {
-	if (InHistory.IsPrimaryDataSetOutput(InAliasedVar, ScriptUsage) && UNiagaraScript::IsSpawnScript(ScriptUsage))
+	if (InHistory.IsPrimaryDataSetOutput(InAliasedVar, ScriptUsage) && (UNiagaraScript::IsSpawnScript(ScriptUsage) || bShouldUpdateInitialAttributeValues))
 	{
 		return true;
 	}
@@ -4882,7 +4893,7 @@ void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistor
 			const FNiagaraVariable& Var = History.Variables[i];
 			const FNiagaraVariable& AliasedVar = History.VariablesWithOriginalAliasesIntact[i];
 			// Only add primary data set outputs at the top of the script if in a spawn script, otherwise they should be left alone.
-			if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic())
+			if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic() || TranslationStages[ActiveStageIdx].bShouldUpdateInitialAttributeValues)
 			{
 				if (TranslationStages[ActiveStageIdx].IsRelevantToSpawnForStage(History, AliasedVar, Var) &&
 					!UniqueVars.Contains(Var))
@@ -4898,7 +4909,7 @@ void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistor
 
 	// Only add primary data set outputs at the top of the script if in a spawn script, otherwise they should be left alone.
 	// Above we added all the known from the spawn script, now let's add for all the others.
-	if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic())
+	if (TranslationStages[ActiveStageIdx].ShouldDoSpawnOnlyLogic() || TranslationStages[ActiveStageIdx].bShouldUpdateInitialAttributeValues)
 	{
 		// Go through all referenced parameter maps and pull in any variables that are 
 		// in the primary data set output namespaces.
@@ -5386,6 +5397,10 @@ bool FHlslNiagaraTranslator::IsSpawnScript() const
 	return false;
 }
 
+bool FHlslNiagaraTranslator::IsEventSpawnScript()const 
+{
+	return UNiagaraScript::IsParticleEventScript(CompileOptions.TargetUsage) && CompileOptions.AdditionalDefines.Contains(FNiagaraCompileOptions::EventSpawnDefine);
+}
 
 bool FHlslNiagaraTranslator::RequiresInterpolation() const
 {

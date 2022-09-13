@@ -361,7 +361,7 @@ public:
 	ENiagaraScriptUsage ScriptUsage;
 	FGuid UsageId;
 	UNiagaraNodeOutput* OutputNode = nullptr;
-	FString PassNamespace ;
+	FString PassNamespace;
 	bool bInterpolatePreviousParams = false;
 	bool bCopyPreviousParams = true;
 	ENiagaraCodeChunkMode ChunkModeIndex = (ENiagaraCodeChunkMode)-1;
@@ -385,6 +385,7 @@ public:
 	bool bOverrideGpuDispatchType = false;
 	ENiagaraGpuDispatchType OverrideGpuDispatchType = ENiagaraGpuDispatchType::OneD;
 	bool bOverrideGpuDispatchNumThreads = false;
+	bool bShouldUpdateInitialAttributeValues = false;
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
 	TArray<FNiagaraVariable> SetParticleAttributes;
 	FString CustomReadFunction;
@@ -678,6 +679,7 @@ public:
 
 	int32 MakeStaticVariableDirect(const UEdGraphPin* InDefaultPin);
 
+	bool IsEventSpawnScript()const;
 
 private:
 	void InitializeParameterMapDefaults(int32 ParamMapHistoryIdx);

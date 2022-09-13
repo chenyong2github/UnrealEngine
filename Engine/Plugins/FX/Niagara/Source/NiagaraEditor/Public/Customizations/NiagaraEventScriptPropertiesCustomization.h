@@ -72,6 +72,7 @@ protected:
 	bool GetSpawnNumberEnabled() const;
 	bool GetUseRandomSpawnNumber() const;
 	EVisibility GetMinSpawnNumberVisible() const;
+	bool GetUpdateInitialValuesEnabled() const;
 	void ResolveEmitterName();
 	void ComputeErrorVisibility();
 	EVisibility GetErrorVisibility() const;
@@ -79,6 +80,9 @@ protected:
 	FText GetErrorTextTooltip() const;
 
 	TArray<FName> GetEventNames(const FVersionedNiagaraEmitter& Emitter) const;
+
+	void OnUpdateInitialValuesChanged();
+
 private:
 	TSharedPtr<IPropertyHandle> HandleSrcID;
 	TSharedPtr<IPropertyHandle> HandleEventName;
@@ -87,6 +91,7 @@ private:
 	TSharedPtr<IPropertyHandle> HandleMaxEvents;
 	TSharedPtr<IPropertyHandle> HandleUseRandomSpawnNumber;
 	TSharedPtr<IPropertyHandle> HandleMinSpawnNumber;
+	TSharedPtr<IPropertyHandle> HandleUpdateInitialValues;
 
 	TWeakObjectPtr<UNiagaraSystem> System;
 	FVersionedNiagaraEmitterWeakPtr Emitter;

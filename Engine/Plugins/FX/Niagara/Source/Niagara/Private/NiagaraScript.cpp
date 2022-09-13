@@ -107,6 +107,14 @@ static FAutoConsoleVariableRef CVarGNiagaraScriptStripByteCodeOnLoad(
 	ECVF_Default
 );
 
+static int32 GbNiagaraEventSpawnsUpdateInitialAttributeValues = 1;
+static FAutoConsoleVariableRef CVarNiagaraEventSpawnsUpdateInitialAttributeValues(
+	TEXT("fx.Niagara.EventSpawnsUpdateAttributeInitialValues"),
+	GbNiagaraEventSpawnsUpdateInitialAttributeValues,
+	TEXT("If > 0 Niagara Event Spawn Scripts will update the Initial.* values for particle attributes. \n"),
+	ECVF_Default
+);
+
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), Usage(ENiagaraScriptUsage::Function), FrameLastWriteId(-1), bWritten(false)
 {
 }
@@ -1114,6 +1122,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				if (EventScriptProps->ExecutionMode == EScriptExecutionMode::SpawnedParticles)
 				{
 					Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::EventSpawnDefine);
+
+					if (EventScriptProps->UpdateAttributeInitialValues && GbNiagaraEventSpawnsUpdateInitialAttributeValues)
+					{
+						Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::EventSpawnInitialAttribWritesDefine);
+					}
 				}
 			}
 		}
@@ -3102,10 +3115,10 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 		{
 			const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
-			CacheResourceShadersForCooking(LegacyShaderPlatform, CachedScriptResourcesForPlatform, TargetPlatform);
+				CacheResourceShadersForCooking(LegacyShaderPlatform, CachedScriptResourcesForPlatform, TargetPlatform);
+			}
 		}
 	}
-}
 
 bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
@@ -3259,9 +3272,9 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 
-			CacheShadersForResources(ScriptResource.Get(), true);
-			ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
-		}
+				CacheShadersForResources(ScriptResource.Get(), true);
+				ScriptResourcesByFeatureLevel[CacheFeatureLevel] = ScriptResource.Get();
+			}
 		else
 		{
 			ScriptResource->Invalidate();
