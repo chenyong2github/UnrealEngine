@@ -187,9 +187,8 @@ void USoundWaveProcedural::Serialize(FArchive& Ar)
 	USoundBase::Serialize(Ar);
 
 #if WITH_EDITORONLY_DATA
-	// Due to the above "skipping" USoundWave version in the
-	// heirarchy, this is required to version modulators properly
-	// here as well.
+	// Due to "skipping" USoundWave::Serialize above, modulation
+	// versioning is required to be called explicitly here.
 	if (Ar.IsLoading())
 	{
 		ModulationSettings.VersionModulators();
