@@ -1065,7 +1065,22 @@ public:
 		}
 		virtual void ConstructForTests(void* Dest) override
 		{
-			Construct(Dest);
+			check(!TTraits::WithZeroConstructor); // don't call this if we have indicated it is not necessary
+			// that could have been an if statement, but we might as well force optimization above the virtual call
+			// could also not attempt to call the constructor for types where this is not possible, but I didn't do that here
+#if CHECK_PUREVIRTUALS
+			if constexpr (!TStructOpsTypeTraits<CPPSTRUCT>::WithPureVirtual)
+#endif
+			{
+				if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithNoInitConstructor)
+				{
+					new (Dest) CPPSTRUCT(ForceInit);
+				}
+				else
+				{
+					new (Dest) CPPSTRUCT;
+				}
+			}
 		}
 		virtual bool HasDestructor() override
 		{
