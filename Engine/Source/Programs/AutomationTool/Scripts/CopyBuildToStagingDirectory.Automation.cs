@@ -3161,10 +3161,18 @@ namespace AutomationScripts
 					}
 				}
 
-				string WriteBackMetadataToAssetRegistry;
-				if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "WriteBackMetadataToAssetRegistry", out WriteBackMetadataToAssetRegistry))
+
+				if (Params.WriteBackMetadataToAssetRegistry.Length != 0)
 				{
-					AdditionalArgs += " -WriteBackMetadataToAssetRegistry=" + WriteBackMetadataToAssetRegistry;
+					AdditionalArgs += " -WriteBackMetadataToAssetRegistry=" + Params.WriteBackMetadataToAssetRegistry;
+				}
+				else
+				{
+					string WriteBackMetadataToAssetRegistry;
+					if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "WriteBackMetadataToAssetRegistry", out WriteBackMetadataToAssetRegistry))
+					{
+						AdditionalArgs += " -WriteBackMetadataToAssetRegistry=" + WriteBackMetadataToAssetRegistry;
+					}
 				}
 
 

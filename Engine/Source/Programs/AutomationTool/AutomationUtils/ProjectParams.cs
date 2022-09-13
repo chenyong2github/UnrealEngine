@@ -373,6 +373,7 @@ namespace AutomationTool
 			this.DeviceNames = InParams.DeviceNames;
 			this.ServerDevice = InParams.ServerDevice;
             this.NullRHI = InParams.NullRHI;
+			this.WriteBackMetadataToAssetRegistry = InParams.WriteBackMetadataToAssetRegistry;
             this.FakeClient = InParams.FakeClient;
             this.EditorTest = InParams.EditorTest;
             this.RunAutomationTests = InParams.RunAutomationTests;
@@ -934,6 +935,7 @@ namespace AutomationTool
 			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
+			this.WriteBackMetadataToAssetRegistry = ParseParamValueIfNotSpecified(Command, WriteBackMetadataToAssetRegistry, "WriteBackMetadataToAssetRegistry", String.Empty);
 
 			// -trace can be used with or without a value
 			if (Trace != null || GetParamValueIfNotSpecified(Command, null, false, "trace"))
@@ -2109,6 +2111,9 @@ namespace AutomationTool
         [Help("nullrhi", "add -nullrhi to the client commandlines")]
         public bool NullRHI;
 
+        [Help("WriteBackMetadataToAssetRegistry", "Passthru to iostore staging, see IoStoreUtilities.cpp")]
+        public string WriteBackMetadataToAssetRegistry;
+
         /// <summary>
         /// Run:adds ?fake to the server URL
         /// </summary>
@@ -3113,6 +3118,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("Package={0}", Package);
 				CommandUtils.LogLog("ForcePackageData={0}", ForcePackageData);
 				CommandUtils.LogLog("NullRHI={0}", NullRHI);
+				CommandUtils.LogLog("WriteBackMetadataToAssetRegistry={0}", WriteBackMetadataToAssetRegistry);
 				CommandUtils.LogLog("FakeClient={0}", FakeClient);
                 CommandUtils.LogLog("EditorTest={0}", EditorTest);
                 CommandUtils.LogLog("RunAutomationTests={0}", RunAutomationTests); 
