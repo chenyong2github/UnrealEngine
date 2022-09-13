@@ -58,7 +58,7 @@ public:
 
 	~FComponentReregisterContext()
 	{
-		if( Component.IsValid() )
+		if( Component.IsValid() && World.IsValid() )
 		{
 			ReRegister(Component.Get(), World.Get());
 		}
