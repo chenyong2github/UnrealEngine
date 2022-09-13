@@ -60,7 +60,8 @@
 	[
 		"TP_SIM_BlankBP_Preview.png"
 	],
-	"AdditionalFeaturePacks": [
+	"AdditionalFeaturePacks": 
+	[
 		{
 			"MountName": "SimBlank",
 			"DetailLevels":

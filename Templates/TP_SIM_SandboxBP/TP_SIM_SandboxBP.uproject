@@ -18,6 +18,10 @@
 		{
 			"Name": "GeoReferencing",
 			"Enabled": true
+		},
+		{
+			"Name": "ChaosVehiclesPlugin",
+			"Enabled": true
 		}
 	]
 }

@@ -75,6 +75,27 @@
 			[
 				"Standard"
 			]
+		},
+		{
+			"MountName": "LevelPrototyping",
+			"DetailLevels":
+			[
+				"High"
+			]
+		},
+		{
+			"MountName": "Vehicles",
+			"DetailLevels":
+			[
+				"Standard"
+			]
+		},
+		{
+			"MountName": "Characters",
+			"DetailLevels":
+			[
+				"High"
+			]
 		}
 	]
 }
