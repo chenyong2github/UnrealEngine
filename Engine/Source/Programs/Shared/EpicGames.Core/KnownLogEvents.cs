@@ -241,6 +241,13 @@ namespace EpicGames.Core
 		public static EventId Systemic_HostDownIOException { get; } = new EventId(764);
 
 		/// <summary>
+		/// Microsoft SignTool cannot reach specified timestamp server 
+		/// 
+		/// Signing performs a looping retry using different servers and throws when all retries attemps have been exhausted.
+		/// </summary>
+		public static EventId Systemic_SignToolTimeStampServer { get; } = new EventId(765);
+
+		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
 		/// </summary>
 		public static EventId Systemic_Max { get; } = new EventId(799);
