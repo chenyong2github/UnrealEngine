@@ -119,7 +119,7 @@ static bool BuildNanite(
 
 	FMeshDescription MeshDescription = *SourceModel.GetOrCacheMeshDescription();
 
-	FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
+	FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
 	FStaticMeshLODResources& StaticMeshLOD = LODResources[0];
 
 	// compute tangents, lightmap UVs, etc
