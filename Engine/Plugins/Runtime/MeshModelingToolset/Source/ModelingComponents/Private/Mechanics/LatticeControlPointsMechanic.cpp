@@ -253,6 +253,8 @@ void ULatticeControlPointsMechanic::RebuildDrawables()
 
 void ULatticeControlPointsMechanic::UpdateDrawables()
 {
+	UpdateGizmoVisibility();
+
 	for (int32 PointIndex = 0; PointIndex < ControlPoints.Num(); ++PointIndex)
 	{
 		const FVector3d& P = ControlPoints[PointIndex];
@@ -466,7 +468,6 @@ void ULatticeControlPointsMechanic::UpdateGizmoLocation()
 
 	if (SelectedPointIDs.Num() == 0)
 	{
-		PointTransformGizmo->SetVisibility(false);
 		PointTransformGizmo->ReinitializeGizmoTransform(FTransform());
 	}
 	else
@@ -476,9 +477,9 @@ void ULatticeControlPointsMechanic::UpdateGizmoLocation()
 			NewGizmoLocation += ControlPoints[PointID];
 		}
 		NewGizmoLocation /= (double)SelectedPointIDs.Num();
-
-		PointTransformGizmo->SetVisibility(true);
 	}
+
+	UpdateGizmoVisibility();
 
 	FTransform NewTransform(FQuat(LocalToWorldTransform.GetRotation()), (FVector)NewGizmoLocation);
 	PointTransformGizmo->ReinitializeGizmoTransform(NewTransform);
@@ -487,6 +488,33 @@ void ULatticeControlPointsMechanic::UpdateGizmoLocation()
 	FVector GizmoScale{ 1.0, 1.0, 1.0 };
 	PointTransformGizmo->SetNewChildScale(GizmoScale);
 }
+
+
+void ULatticeControlPointsMechanic::UpdateGizmoVisibility()
+{
+	if (!PointTransformGizmo)
+	{
+		return;
+	}
+
+	if (SelectedPointIDs.Num() == 0)
+	{
+		PointTransformGizmo->SetVisibility(false);
+	}
+	else if (bIsDraggingRectangle)
+	{
+		PointTransformGizmo->SetVisibility(false);
+	}
+	else if (ShouldHideGizmo.IsBound() && ShouldHideGizmo.Execute())
+	{
+		PointTransformGizmo->SetVisibility(false);
+	}
+	else
+	{
+		PointTransformGizmo->SetVisibility(true);
+	}
+}
+
 
 bool ULatticeControlPointsMechanic::DeselectPoint(int32 PointID)
 {
@@ -594,12 +622,8 @@ void ULatticeControlPointsMechanic::OnUpdateModifierState(int ModifierID, bool b
 void ULatticeControlPointsMechanic::OnDragRectangleStarted()
 {
 	PreDragSelection = SelectedPointIDs;
-
-	// Hide gizmo while dragging
-	if (PointTransformGizmo)
-	{
-		PointTransformGizmo->SetVisibility(false);
-	}
+	bIsDraggingRectangle = true;
+	UpdateGizmoVisibility();
 }
 
 void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangle& Rectangle)
@@ -644,7 +668,9 @@ void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangl
 void ULatticeControlPointsMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
 {
 	using namespace LatticeControlPointMechanicLocals;
-	
+
+	bIsDraggingRectangle = false;
+
 	ParentTool->GetToolManager()->BeginUndoTransaction(LatticePointSelectionTransactionText);
 
 	if (!IsEqual(PreDragSelection, SelectedPointIDs))
@@ -727,8 +753,7 @@ void FLatticeControlPointsMechanicSelectionChange::Apply(UObject* Object)
 	Mechanic->PointTransformGizmo->ReinitializeGizmoTransform(NewTransform);
 	Mechanic->PointTransformGizmo->SetNewChildScale(FVector{ 1.0, 1.0, 1.0 });	// Clear the child scale
 
-	bool bAnyPointSelected = (Mechanic->SelectedPointIDs.Num() > 0);
-	Mechanic->PointTransformGizmo->SetVisibility(bAnyPointSelected);
+	Mechanic->UpdateGizmoVisibility();
 	Mechanic->OnSelectionChanged.Broadcast();
 }
 
@@ -750,8 +775,7 @@ void FLatticeControlPointsMechanicSelectionChange::Revert(UObject* Object)
 	Mechanic->PointTransformGizmo->ReinitializeGizmoTransform(PreviousTransform);
 	Mechanic->PointTransformGizmo->SetNewChildScale(FVector{ 1.0, 1.0, 1.0 });	// Clear the child scale
 
-	bool bAnyPointSelected = (Mechanic->SelectedPointIDs.Num() > 0);
-	Mechanic->PointTransformGizmo->SetVisibility(bAnyPointSelected);
+	Mechanic->UpdateGizmoVisibility();
 	Mechanic->OnSelectionChanged.Broadcast();
 }
 

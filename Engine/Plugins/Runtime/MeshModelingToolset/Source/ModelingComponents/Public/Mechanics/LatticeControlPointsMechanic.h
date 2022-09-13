@@ -102,6 +102,9 @@ public:
 
 	void UpdatePointLocations(const TMap<int32, FVector3d>& NewLocations);
 
+	DECLARE_DELEGATE_RetVal(bool, FShouldHideGizmo);
+	FShouldHideGizmo ShouldHideGizmo;
+
 protected:
 
 	TArray<FVector3d> ControlPoints;
@@ -167,6 +170,7 @@ protected:
 	// Support for selection
 	UPROPERTY()
 	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
+	bool bIsDraggingRectangle = false;
 	TSet<int32> SelectedPointIDs;
 	TSet<int32> PreDragSelection;
 	TArray<int32> CurrentDragSelection;
@@ -188,6 +192,7 @@ protected:
 	void SelectPoint(int32 PointID);
 	bool DeselectPoint(int32 PointID);
 	void UpdateGizmoLocation();
+	void UpdateGizmoVisibility();
 
 	void RebuildDrawables();
 

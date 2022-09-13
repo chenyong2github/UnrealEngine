@@ -245,6 +245,20 @@ void ULatticeDeformerTool::Setup()
 	ControlPointsMechanic->SetCoordinateSystem(Settings->GizmoCoordinateSystem);
 	ControlPointsMechanic->UpdateSetPivotMode(Settings->bSetPivotMode);
 
+
+	ControlPointsMechanic->ShouldHideGizmo = ULatticeControlPointsMechanic::FShouldHideGizmo::CreateLambda([this]()->bool
+	{
+		for (int32 VID : ControlPointsMechanic->GetSelectedPointIDs())
+		{
+			if (!ConstrainedLatticePoints.Contains(VID))
+			{
+				return false;	// found a selected point that is not constrained
+			}
+		}
+		return true;
+	});
+
+
 	StartPreview();
 }
 
