@@ -1180,6 +1180,8 @@ void FControlRigSpaceChannelHelpers::CompensateIfNeeded(
 
 						if (ExistingValue != PreviousValue) //if they are the same no need to do anything
 						{
+							TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+							
 							//find global value at current time
 							TArray<FTransform> ControlRigParentWorldTransforms({FTransform::Identity});
 							TArray<FTransform> ControlWorldTransforms;
