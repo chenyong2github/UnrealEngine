@@ -72,6 +72,13 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		Rear
 	};
 	
+	enum EExternalTorqueCombineMethod : uint8
+	{
+		None = 0,
+		Override,
+		Additive
+	};
+
 	FSimpleWheelConfig() 
 		: Offset(FVector(2.f, 1.f, 0.f))
 		, WheelMass(20.f) // [Kg]
@@ -89,6 +96,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, TorqueRatio(0.f)
 		, AxleType(EAxleType::UndefinedAxle)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
+		, ExternalTorqueCombineMethod(EExternalTorqueCombineMethod::None)
 		, FrictionMultiplier(2.0f)
 		, LateralSlipGraphMultiplier(1.0f)
 		, CorneringStiffness(1000.0f)
@@ -127,6 +135,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 	EAxleType AxleType;
 
 	EFrictionCombineMethod FrictionCombineMethod; //#todo: use this variable
+	EExternalTorqueCombineMethod ExternalTorqueCombineMethod;
 
 	float FrictionMultiplier;
 	float LateralSlipGraphMultiplier;
@@ -191,6 +200,22 @@ public:
 	void SetDriveTorque(float EngineTorqueIn)
 	{
 		DriveTorque = EngineTorqueIn;
+	}
+
+	void SetTorqueCombineMethod(FSimpleWheelConfig::EExternalTorqueCombineMethod InCombineMethod)
+	{
+		ExternalTorqueCombineMethod = InCombineMethod;
+	}
+
+	void SetBrakeTorqueOverride(float BrakeTorqueIn, bool bEngineBrakingIn = false)
+	{
+		ExternalBrakeTorque = BrakeTorqueIn;
+		bEngineBraking = bEngineBrakingIn;
+	}
+
+	void SetDriveTorqueOverride(float EngineTorqueIn)
+	{
+		ExternalDriveTorque = EngineTorqueIn;
 	}
 
 	/** Set the vehicle's speed at the wheels location in local wheel coords */
@@ -401,6 +426,7 @@ public:
 	float MaxSteeringAngle;
 	float MaxBrakeTorque;
 	float HandbrakeTorque;
+	FSimpleWheelConfig::EExternalTorqueCombineMethod ExternalTorqueCombineMethod;
 
 	float Re;		// [cm] Effective Wheel Radius could change dynamically if get a flat?, tire shreds
 	float Omega;	// [radians/sec] Wheel Rotation Angular Velocity
@@ -415,6 +441,9 @@ public:
 	float SteeringAngle;			// [degrees ATM]
 	float SurfaceFriction;
 	float MaxOmega;
+
+	float ExternalDriveTorque;		// [N.m]
+	float ExternalBrakeTorque;		// [N.m]
 
 	FVector ForceFromFriction;
 	float MassPerWheel;

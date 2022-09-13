@@ -55,6 +55,17 @@ class UChaosWheeledVehicleMovementComponent;
 		Rear
 	};
 
+	UENUM()
+	enum class ETorqueCombineMethod : uint8
+	{
+		/** External torque value has no effect - default **/
+		None = 0,
+		/** completely replace existing torques, can set and forget will apply same torque every frame until zeroed */
+		Override,
+		/** Combine external torque with existing torques, must set external torque every frame */
+		Additive
+	};
+
 	UCLASS(BlueprintType, Blueprintable)
 		class CHAOSVEHICLES_API UChaosVehicleWheel : public UObject
 	{
@@ -133,6 +144,10 @@ class UChaosWheeledVehicleMovementComponent;
 		/** Straight Line Traction Control Enabled */
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bTractionControlEnabled;
+
+		/** Determines how the SetDriveTorque/SetBrakeTorque inputs are combined with the internal torques */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		ETorqueCombineMethod ExternalTorqueCombineMethod;
 
 		UPROPERTY(EditAnywhere, Category = Setup)
 		FRuntimeFloatCurve LateralSlipGraph;
@@ -339,6 +354,7 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 			PWheelConfig.SlipThreshold = this->SlipThreshold;
 			PWheelConfig.SkidThreshold = this->SkidThreshold;
+			PWheelConfig.ExternalTorqueCombineMethod = static_cast<Chaos::FSimpleWheelConfig::EExternalTorqueCombineMethod>(this->ExternalTorqueCombineMethod);
 
 			PWheelConfig.LateralSlipGraph.Empty();
 			float NumSamples = 20;

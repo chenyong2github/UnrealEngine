@@ -21,6 +21,7 @@ namespace Chaos
 		, MaxSteeringAngle(SetupIn->MaxSteeringAngle)
 		, MaxBrakeTorque(SetupIn->MaxBrakeTorque)
 		, HandbrakeTorque(SetupIn->HandbrakeTorque)
+		, ExternalTorqueCombineMethod(SetupIn->ExternalTorqueCombineMethod)
 		, Re(SetupIn->WheelRadius)
 		, Omega(0.f)
 		, Sx(0.f)
@@ -32,6 +33,8 @@ namespace Chaos
 		, AngularPosition(0.f)
 		, SteeringAngle(0.f)
 		, SurfaceFriction(1.f)
+		, ExternalDriveTorque(0.0f)
+		, ExternalBrakeTorque(0.0f)
 		, ForceFromFriction(FVector::ZeroVector)
 		, MassPerWheel(250.f)
 		, SlipVelocity(0.f)
@@ -54,6 +57,21 @@ namespace Chaos
 
 		// X is longitudinal direction, Y is lateral
 		SlipAngle = FVehicleUtility::CalculateSlipAngle(GroundVelocityVector.Y, GroundVelocityVector.X);
+
+		if (ExternalTorqueCombineMethod == FSimpleWheelConfig::EExternalTorqueCombineMethod::Override)
+		{ 
+			// Set and forget or per frame torque override
+			DriveTorque = ExternalDriveTorque;
+			BrakeTorque = ExternalBrakeTorque;
+		}
+		else if (ExternalTorqueCombineMethod == FSimpleWheelConfig::EExternalTorqueCombineMethod::Additive)
+		{
+			// per frame torque added to engine torque
+			DriveTorque += ExternalDriveTorque;
+			BrakeTorque += ExternalBrakeTorque;
+			ExternalDriveTorque = 0.0f;
+			ExternalBrakeTorque = 0.0f;
+		}
 
 		// The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
 		// a couple of places where the results are wrong if Cm is used. This is one of them, the simulated radius

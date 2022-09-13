@@ -48,6 +48,7 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	WheelLoadRatio = 0.5f;
 	RollbarScaling = 0.15f;
 	SweepType = ESweepType::SimpleSweep;
+	ExternalTorqueCombineMethod = ETorqueCombineMethod::None;
 }
 
 
