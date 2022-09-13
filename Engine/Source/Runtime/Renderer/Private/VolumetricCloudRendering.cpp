@@ -230,7 +230,7 @@ static bool ShouldUseComputeForCloudTracing(const FStaticFeatureLevel InFeatureL
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
 {
-	if (Scene && Scene->HasVolumetricCloud() && EngineShowFlags.Atmosphere)
+	if (Scene && Scene->HasVolumetricCloud() && EngineShowFlags.Atmosphere && EngineShowFlags.Cloud)
 	{
 		const FVolumetricCloudRenderSceneInfo* VolumetricCloud = Scene->GetVolumetricCloudSceneInfo();
 		check(VolumetricCloud);
