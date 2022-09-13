@@ -287,7 +287,6 @@ void FNDIHairStrandsBuffer::Transfer(FRDGBuilder& GraphBuilder, const TStaticArr
 		
 		ParamsScaleBuffer.Initialize(GraphBuilder, TEXT("ParamsScaleBuffer"), EPixelFormat::PF_R32_FLOAT, sizeof(float), ScaleCount);
 		GraphBuilder.QueueBufferUpload(ParamsScaleBuffer.GetOrCreateBuffer(GraphBuilder), ParamsScale.GetData(), ScaleBytes);
-		ParamsScaleBuffer.EndGraphUsage();
 	}
 }
 
