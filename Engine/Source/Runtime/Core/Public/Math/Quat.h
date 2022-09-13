@@ -1350,7 +1350,20 @@ FORCEINLINE bool TQuat<T>::ContainsNaN() const
 			!FMath::IsFinite(W)
 	);
 }
-
+	
+/**
+ * Creates a hash value from an FQuat.
+ *
+ * @param Quat the quat to create a hash value for
+ * @return The hash value from the components
+ */
+template<typename T>
+FORCEINLINE uint32 GetTypeHash(const TQuat<T>& Quat)
+{
+	// Note: this assumes there's no padding in Quat that could contain uncompared data.
+	static_assert(sizeof(TQuat<T>) == sizeof(T[4]), "Unexpected padding in TQuat");
+	return FCrc::MemCrc_DEPRECATED(&Quat, sizeof(Quat));
+}
 
 } // namespace UE::Math
 } // namespace UE

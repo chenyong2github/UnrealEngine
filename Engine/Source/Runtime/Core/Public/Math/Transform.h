@@ -59,3 +59,23 @@ inline bool FTransform3d::SerializeFromMismatchedTag(FName StructTag, FArchive& 
 	}
 	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Transform, Transform3d, Transform3f);
 }
+
+namespace UE::Math
+{
+	/**
+	 * Creates a hash value from an FTransform.
+	 *
+	 * @param Transform the transform to create a hash value for
+	 * @return The hash value from the components
+	 */
+	template<typename T>
+	inline uint32 GetTypeHash(const TTransform<T>& Transform)
+	{
+		uint32 Hash = GetTypeHash(Transform.GetTranslation());
+		Hash = HashCombineFast(Hash, GetTypeHash(Transform.GetRotation()));
+		Hash = HashCombineFast(Hash, GetTypeHash(Transform.GetScale3D()));
+
+		return Hash;
+	}
+	
+}
