@@ -103,6 +103,7 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 		FString LevelName = TEXT("Level Name");
 		FString SequenceName = TEXT("Sequence Name");
 		FString JobName = TEXT("Job Name");
+		FString JobComment = TEXT("Job Comment");
 		double FrameRate = 0.0;
 
 		if (InOutFormatArgs.InJob)
@@ -110,7 +111,8 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 			LevelName = InOutFormatArgs.InJob->Map.GetAssetName();
 			SequenceName = InOutFormatArgs.InJob->Sequence.GetAssetName();
 			JobName = InOutFormatArgs.InJob->JobName;
-			
+			JobComment = InOutFormatArgs.InJob->Comment;
+
 			// FrameRate is a combination of Output Settings and Sequence so we do it here instead of in OutputSetting
 			FrameRate = GetEffectiveFrameRate(Cast<ULevelSequence>(InOutFormatArgs.InJob->Sequence.TryLoad())).AsDecimal();
 		}
@@ -124,6 +126,7 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/levelName"), LevelName);
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceName"), SequenceName);
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), JobName);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/jobComment"), JobComment);
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/frameRate"), FString::SanitizeFloat(FrameRate));
 
 		// Normally these are filled when resolving the file name by the job (so that the time is shared), but stub them in here so
