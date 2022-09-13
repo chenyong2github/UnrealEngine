@@ -2914,6 +2914,9 @@ export type GetIssueResponse = {
 	/** The UTC time when the issue was quarantined */
 	quarantineTimeUtc?: Date | string;
 
+	/** User info for who force closed the issue */
+	forceClosedByUserInfo?: GetThinUserInfoResponse;
+
 }
 
 /**Request an issue to be updated */
@@ -2957,6 +2960,9 @@ export type UpdateIssueRequest = {
 
 	/** Id of user quarantining issue */
 	quarantinedById?: string;
+
+	/** Id of user force closing the issue */
+	forceClosedById?: string;
 
 }
 
