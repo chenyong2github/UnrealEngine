@@ -533,6 +533,51 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 }
 
 /**
+ * TGPUSkinVertexFactory does not support manual vertex fetch yet so worst case element set is returned to make sure the PSO can be compiled
+ */
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinVertexFactory<BoneInfluenceType>::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	check(VertexInputStreamType == EVertexInputStreamType::Default);
+
+	// Position
+	Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 0, false));
+
+	// Normals
+	Elements.Add(FVertexElement(1, 0, VET_PackedNormal, 1, 0, false));
+	Elements.Add(FVertexElement(2, 0, VET_PackedNormal, 2, 0, false));
+	
+	// Bone data
+	uint32 BaseStreamIndex = 3;
+	if (BoneInfluenceType == UnlimitedBoneInfluence)
+	{
+		// Blend offset count
+		Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UInt, 3, 0, false));
+	}
+	else
+	{
+		// Blend indices
+		Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UByte4, 3, 0, false));
+		Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UByte4, 14, 0, false));
+
+		// Blend weights
+		Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UByte4N, 4, 0, false));
+		Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UByte4N, 15, 0, false));
+	}
+
+	// Texcoords
+	Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_Half4, 5, 0, false));
+	Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_Half4, 6, 0, false));
+
+	// Color
+	Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_Color, 13, 0, false));
+
+	// Attribute ID
+	Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UInt, 16, 0, true));
+
+}
+
+/**
 * Add the vertex declaration elements for the streams.
 * @param InData - Type with stream components.
 * @param OutElements - Vertex declaration list to modify.
@@ -764,6 +809,7 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinVertexFactory, SF_Ve
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials 
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 
@@ -773,7 +819,6 @@ FGPUSkinPassthroughVertexFactory
 FGPUSkinPassthroughVertexFactory::FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
 	: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory")
 {
-	bSupportsManualVertexFetch = true;
 	bGPUSkinPassThrough = true;
 }
 
@@ -1010,6 +1055,16 @@ bool TGPUSkinMorphVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(con
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinMorphVertexFactory<BoneInfluenceType>::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	Super::GetPSOPrecacheVertexFetchElements(VertexInputStreamType, Elements);
+
+	// Morph blend data
+	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 9, 0, false));
+	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 10, 0, false));
+}
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
 void TGPUSkinMorphVertexFactory<BoneInfluenceType>::SetData(const FGPUSkinDataType* InData)
 {
 	const FGPUSkinMorphDataType* InMorphData = (const FGPUSkinMorphDataType*)(InData);
@@ -1085,6 +1140,7 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinMorphVertexFactory, 
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 
@@ -1330,6 +1386,7 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinAPEXClothVertexFacto
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinAPEXClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 
@@ -1352,6 +1409,7 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TMultipleInfluenceClothVerte
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TMultipleInfluenceClothVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE

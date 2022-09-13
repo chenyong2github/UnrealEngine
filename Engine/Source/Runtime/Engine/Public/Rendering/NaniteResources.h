@@ -340,6 +340,27 @@ public:
 	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }
 };
 
+
+class FVertexFactory final : public ::FVertexFactory
+{
+	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
+
+public:
+	FVertexFactory(ERHIFeatureLevel::Type FeatureLevel) : ::FVertexFactory(FeatureLevel)
+	{
+	}
+	~FVertexFactory()
+	{
+		ReleaseResource();
+	}
+
+	virtual void InitRHI() override final;
+
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+};
+
 class FVertexFactoryResource : public FRenderResource
 {
 public:

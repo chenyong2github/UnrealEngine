@@ -123,6 +123,8 @@ enum class EVertexFactoryFlags : uint32
 	SupportsRayTracingProceduralPrimitive = 1u << 11,
 	SupportsLightmapBaking                = 1u << 12,
 	SupportsPSOPrecaching				  = 1u << 13,
+	SupportsManualVertexFetch			  = 1u << 14,
+	DoesNotSupportNullPixelShader		  = 1u << 15,
 };
 ENUM_CLASS_FLAGS(EVertexFactoryFlags);
 
@@ -344,6 +346,7 @@ public:
 		const struct FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams);
+	typedef void (*GetPSOPrecacheVertexFetchElementsType)(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
 	typedef bool (*ShouldCacheType)(const FVertexFactoryShaderPermutationParameters&);
 	typedef void (*ModifyCompilationEnvironmentType)(const FVertexFactoryShaderPermutationParameters&, FShaderCompilerEnvironment&);
@@ -376,6 +379,7 @@ public:
 		ConstructParametersType InConstructParameters,
 		GetParameterTypeLayoutType InGetParameterTypeLayout,
 		GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
+		GetPSOPrecacheVertexFetchElementsType InGetPSOPrecacheVertexFetchElements,
 		ShouldCacheType InShouldCache,
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
 		ValidateCompiledResultType InValidateCompiledResult
@@ -402,7 +406,7 @@ public:
 		const struct FMeshBatchElement& BatchElement,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const { (*GetParameterTypeElementShaderBindings)(ShaderFrequency, Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); }
-	void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements) const { }
+	void GetShaderPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements) const { return (*GetPSOPrecacheVertexFetchElements)(VertexInputStreamType, Elements); }
 
 	EVertexFactoryFlags GetFlags() const
 	{
@@ -426,8 +430,15 @@ public:
 	bool SupportsRayTracing() const                    { return HasFlags(EVertexFactoryFlags::SupportsRayTracing); }
 	bool SupportsRayTracingDynamicGeometry() const     { return HasFlags(EVertexFactoryFlags::SupportsRayTracingDynamicGeometry); }
 	bool SupportsRayTracingProceduralPrimitive() const { return HasFlags(EVertexFactoryFlags::SupportsRayTracingProceduralPrimitive); }
-	bool SupportsLightmapBaking() const                { return HasFlags(EVertexFactoryFlags::SupportsLightmapBaking); }	
-	bool SupportsPSOPrecaching() const				   { return HasFlags(EVertexFactoryFlags::SupportsPSOPrecaching); }
+	bool SupportsLightmapBaking() const                { return HasFlags(EVertexFactoryFlags::SupportsLightmapBaking); }
+	bool SupportsPSOPrecaching() const                 { return HasFlags(EVertexFactoryFlags::SupportsPSOPrecaching); }
+	bool SupportsNullPixelShader() const			   { return !HasFlags(EVertexFactoryFlags::DoesNotSupportNullPixelShader); }
+
+	bool SupportsManualVertexFetch(ERHIFeatureLevel::Type InFeatureLevel) const 
+	{
+		check(InFeatureLevel != ERHIFeatureLevel::Num);
+		return HasFlags(EVertexFactoryFlags::SupportsManualVertexFetch) && (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
+	}
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
@@ -489,6 +500,7 @@ private:
 	ConstructParametersType ConstructParameters;
 	GetParameterTypeLayoutType GetParameterTypeLayout;
 	GetParameterTypeElementShaderBindingsType GetParameterTypeElementShaderBindings;
+	GetPSOPrecacheVertexFetchElementsType GetPSOPrecacheVertexFetchElements;
 	ShouldCacheType ShouldCacheRef;
 	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 	ValidateCompiledResultType ValidateCompiledResultRef;
@@ -529,6 +541,7 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	&ConstructVertexFactoryParameters<FactoryClass>, \
 	&GetVertexFactoryParametersLayout<FactoryClass>, \
 	&GetVertexFactoryParametersElementShaderBindings<FactoryClass>, \
+	FactoryClass::GetPSOPrecacheVertexFetchElements, \
 	FactoryClass::ShouldCompilePermutation, \
 	FactoryClass::ModifyCompilationEnvironment, \
 	FactoryClass::ValidateCompiledResult
@@ -631,6 +644,11 @@ public:
 	*/
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors) {}
 
+	/**
+	* Can be overridden by FVertexFactory subclasses which have EVertexFactoryFlags::SupportsPSOPrecaching set - this function will only be called when that flag is set
+	*/
+	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements) { checkNoEntry(); }
+
 	// FRenderResource interface.
 	virtual void ReleaseRHI();
 
@@ -657,7 +675,10 @@ public:
 	virtual bool SupportsPositionAndNormalOnlyStream() const { return !!PositionAndNormalStream.Num(); }
 
 	/** Indicates whether the vertex factory supports a null pixel shader. */
-	virtual bool SupportsNullPixelShader() const { return true; }
+	bool SupportsNullPixelShader() const
+	{
+		return GetType()->SupportsNullPixelShader();
+	}
 
 #if WITH_EDITORONLY_DATA
 	virtual bool IsCoarseProxyMesh() const { return false; }
@@ -669,8 +690,7 @@ public:
 
 	inline bool SupportsManualVertexFetch(const FStaticFeatureLevel InFeatureLevel) const
 	{ 
-		check(InFeatureLevel != ERHIFeatureLevel::Num);
-		return bSupportsManualVertexFetch && (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
+		return GetType()->SupportsManualVertexFetch(InFeatureLevel);
 	}
 
 	inline int32 GetPrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType) const
@@ -742,8 +762,6 @@ protected:
 	/* VF can explicitly set this to false to avoid errors without decls; this is for VFs that fetch from buffers directly (e.g. Niagara) */
 	bool bNeedsDeclaration = true;
 	
-	bool bSupportsManualVertexFetch = false;
-
 	static constexpr int32 PrimitiveIdStreamStride = 0;
 
 private:

@@ -180,6 +180,14 @@ void FNiagaraSpriteVertexFactory::ModifyCompilationEnvironment(const FVertexFact
 }
 
 /**
+* Get vertex elements used when during PSO precaching materials using this vertex factory type
+*/
+void FNiagaraSpriteVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	GParticleSpriteVertexDeclaration.VertexDeclarationRHI->GetInitializer(Elements);
+}
+
+/**
  *	Initialize the Render Hardware Interface for this vertex factory
  */
 void FNiagaraSpriteVertexFactory::InitRHI()
@@ -214,6 +222,7 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraSpriteVertexFactory,"/Plugin/FX/Niagara/Pr
 	| EVertexFactoryFlags::SupportsDynamicLighting
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 /////////////////////////////////////////////////////////////////////////////
@@ -230,4 +239,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraSpriteVertexFactoryEx,"/Plugin/FX/Niagara/
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );

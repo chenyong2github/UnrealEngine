@@ -272,6 +272,56 @@ bool FMeshParticleVertexFactory::ShouldCompilePermutation(const FVertexFactorySh
 	return (Parameters.MaterialParameters.bIsUsedWithMeshParticles || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
+/**
+ * FMeshParticleVertexFactory does not support manual vertex fetch yet so worst case element set is returned to make sure the PSO can be compiled
+ */
+void FMeshParticleVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	check(VertexInputStreamType == EVertexInputStreamType::Default);
+
+	// Per vertex data
+	{
+		// Position
+		Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 0, false));
+
+		// Normals
+		Elements.Add(FVertexElement(1, 0, VET_PackedNormal, 1, 0, false));
+		Elements.Add(FVertexElement(2, 0, VET_PackedNormal, 2, 0, false));
+
+		// Color
+		Elements.Add(FVertexElement(3, 0, VET_Color, 3, 0, false));
+
+		// Texcoords
+		Elements.Add(FVertexElement(4, 0, VET_Half2, 4, 0, false));
+		Elements.Add(FVertexElement(5, 0, VET_Half2, 5, 0, false));
+		Elements.Add(FVertexElement(6, 0, VET_Half2, 6, 0, false));
+		Elements.Add(FVertexElement(7, 0, VET_Half2, 7, 0, false));
+	}
+
+	// Per instance data
+	{
+		// Instance transforms
+		Elements.Add(FVertexElement(8, 0, VET_Float4, 8, 0, true));
+		Elements.Add(FVertexElement(9, 0, VET_Float4, 9, 0, true));
+		Elements.Add(FVertexElement(10, 0, VET_Float4, 10, 0, true));
+
+		// SubUVs
+		Elements.Add(FVertexElement(11, 0, VET_Short4, 11, 0, true));
+
+		// SubUVLerpAndRelTime
+		Elements.Add(FVertexElement(12, 0, VET_Float2, 12, 0, true));
+
+		// Dynamic parameter
+		Elements.Add(FVertexElement(13, 0, VET_Float4, 13, 0, true));
+
+		// Particle Color
+		Elements.Add(FVertexElement(14, 0, VET_Float4, 14, 0, true));
+
+		// Particle Velocity
+		Elements.Add(FVertexElement(15, 0, VET_Float4, 15, 0, true));
+	}
+}
+
 void FMeshParticleVertexFactory::SetData(const FDataType& InData)
 {
 	check(IsInRenderingThread());
@@ -284,5 +334,6 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FMeshParticleVertexFactory, SF_Vertex, F
 IMPLEMENT_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactory,"/Engine/Private/MeshParticleVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMeshParticleUniformParameters,"MeshParticleVF");

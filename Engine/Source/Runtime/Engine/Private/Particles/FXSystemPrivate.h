@@ -116,6 +116,74 @@ struct FNewParticle
 	FVector2f Offset;
 };
 
+
+/**
+ * Vertex factory for render sprites from GPU simulated particles.
+ */
+class FGPUSpriteVertexFactory : public FParticleVertexFactoryBase
+{
+	DECLARE_VERTEX_FACTORY_TYPE(FGPUSpriteVertexFactory);
+
+public:
+	FGPUSpriteVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
+		: FParticleVertexFactoryBase(InFeatureLevel)
+	{
+	}
+
+	/** Emitter uniform buffer. */
+	FRHIUniformBuffer* EmitterUniformBuffer;
+	/** Emitter uniform buffer for dynamic parameters. */
+	FUniformBufferRHIRef EmitterDynamicUniformBuffer;
+	/** Buffer containing unsorted particle indices. */
+	FRHIShaderResourceView* UnsortedParticleIndicesSRV;
+	/** Texture containing positions for all particles. */
+	FRHITexture2D* PositionTextureRHI;
+	/** Texture containing velocities for all particles. */
+	FRHITexture2D* VelocityTextureRHI;
+	/** Texture containint attributes for all particles. */
+	FRHITexture2D* AttributesTextureRHI;
+	/** LWC tile offset, will be 0,0,0 for localspace emitters. */
+	FVector3f LWCTile;
+
+	FGPUSpriteVertexFactory()
+		: FParticleVertexFactoryBase(PVFT_MAX, ERHIFeatureLevel::Num)
+		, UnsortedParticleIndicesSRV(0)
+		, PositionTextureRHI(nullptr)
+		, VelocityTextureRHI(nullptr)
+		, AttributesTextureRHI(nullptr)
+		, LWCTile(FVector3f::ZeroVector)
+	{}
+
+	/**
+	 * Constructs render resources for this vertex factory.
+	 */
+	virtual void InitRHI() override;
+	virtual bool RendersPrimitivesAsCameraFacingSprites() const override { return true; }
+
+	/**
+	 * Set the source vertex buffer that contains particle indices.
+	 */
+	void SetUnsortedParticleIndicesSRV(FRHIShaderResourceView* VertexBuffer)
+	{
+		UnsortedParticleIndicesSRV = VertexBuffer;
+	}
+
+	/**
+	 * Should we cache the material's shadertype on this platform with this vertex factory?
+	 */
+	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+
+	/**
+	 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
+	 */
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+
+	/**
+	 * Get vertex elements used when during PSO precaching materials using this vertex factory type
+	 */
+	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+};
+
 /*-----------------------------------------------------------------------------
 	FX system declaration.
 -----------------------------------------------------------------------------*/

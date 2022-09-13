@@ -138,6 +138,14 @@ void FNiagaraRibbonVertexFactory::ModifyCompilationEnvironment(const FVertexFact
 }
 
 /**
+* Get vertex elements used when during PSO precaching materials using this vertex factory type
+*/
+void FNiagaraRibbonVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	GNiagaraRibbonVertexDeclaration.VertexDeclarationRHI->GetInitializer(Elements);
+}
+
+/**
 *	Initialize the Render Hardware Interface for this vertex factory
 */
 void FNiagaraRibbonVertexFactory::InitRHI()
@@ -191,4 +199,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraRibbonVertexFactory, "/Plugin/FX/Niagara/P
 	| EVertexFactoryFlags::SupportsDynamicLighting
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );

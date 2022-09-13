@@ -117,6 +117,14 @@ void FParticleBeamTrailVertexFactory::ModifyCompilationEnvironment(const FVertex
 }
 
 /**
+ * Get vertex elements used when during PSO precaching materials using this vertex factory type
+ */
+void FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	GParticleBeamTrailVertexDeclaration.VertexDeclarationRHI->GetInitializer(Elements);
+}
+
+/**
  *	Initialize the Render Hardware Interface for this vertex factory
  */
 void FParticleBeamTrailVertexFactory::InitRHI()
@@ -164,4 +172,5 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FParticleBeamTrailVertexFactory, SF_Vert
 IMPLEMENT_VERTEX_FACTORY_TYPE(FParticleBeamTrailVertexFactory,"/Engine/Private/ParticleBeamTrailVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );

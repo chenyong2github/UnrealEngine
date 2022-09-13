@@ -234,6 +234,14 @@ void FParticleSpriteVertexFactory::ModifyCompilationEnvironment(const FVertexFac
 }
 
 /**
+ * Get vertex elements used when during PSO precaching materials using this vertex factory type
+ */
+void FParticleSpriteVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	GParticleSpriteVertexDeclarationInstanced.VertexDeclarationRHI->GetInitializer(Elements);
+}
+
+/**
  *	Initialize the Render Hardware Interface for this vertex factory
  */
 void FParticleSpriteVertexFactory::InitRHI()
@@ -294,4 +302,5 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FParticleSpriteVertexFactory, SF_Pixel, 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FParticleSpriteVertexFactory,"/Engine/Private/ParticleSpriteVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );

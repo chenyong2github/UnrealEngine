@@ -646,92 +646,52 @@ struct FGPUSpriteMeshDataUserData  : public FOneFrameResource
 };
 
 /**
- * Vertex factory for render sprites from GPU simulated particles.
+ * Return the vertex elements from the fixed GGPUSpriteVertexDeclaration used by this factory
  */
-class FGPUSpriteVertexFactory : public FParticleVertexFactoryBase
+void FGPUSpriteVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements) 
+{ 
+	GGPUSpriteVertexDeclaration.VertexDeclarationRHI->GetInitializer(Elements);
+}
+
+/**
+ * Constructs render resources for this vertex factory.
+ */
+void FGPUSpriteVertexFactory::InitRHI()
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FGPUSpriteVertexFactory);
+	FVertexStream Stream;
 
-public:
-	FGPUSpriteVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
-		: FParticleVertexFactoryBase(InFeatureLevel)
-	{
-	}
+	// No streams should currently exist.
+	check(Streams.Num() == 0);
 
-	/** Emitter uniform buffer. */
-	FRHIUniformBuffer* EmitterUniformBuffer;
-	/** Emitter uniform buffer for dynamic parameters. */
-	FUniformBufferRHIRef EmitterDynamicUniformBuffer;
-	/** Buffer containing unsorted particle indices. */
-	FRHIShaderResourceView* UnsortedParticleIndicesSRV;
-	/** Texture containing positions for all particles. */
-	FRHITexture2D* PositionTextureRHI;
-	/** Texture containing velocities for all particles. */
-	FRHITexture2D* VelocityTextureRHI;
-	/** Texture containint attributes for all particles. */
-	FRHITexture2D* AttributesTextureRHI;
-	/** LWC tile offset, will be 0,0,0 for localspace emitters. */
-	FVector3f LWCTile;
+	// Stream 0: Global particle texture coordinate buffer.
+	Stream.VertexBuffer = &GParticleTexCoordVertexBuffer;
+	Stream.Stride = sizeof(FVector2f);
+	Stream.Offset = 0;
+	Streams.Add( Stream );
 
-	FGPUSpriteVertexFactory()
-		: FParticleVertexFactoryBase(PVFT_MAX, ERHIFeatureLevel::Num)
-		, UnsortedParticleIndicesSRV(0)
-		, PositionTextureRHI(nullptr)
-		, VelocityTextureRHI(nullptr)
-		, AttributesTextureRHI(nullptr)
-		, LWCTile(FVector3f::ZeroVector)
-	{}
+	// Set the declaration.
+	SetDeclaration(GGPUSpriteVertexDeclaration.VertexDeclarationRHI);
+}
 
-	/**
-	 * Constructs render resources for this vertex factory.
-	 */
-	virtual void InitRHI() override
-	{
-		FVertexStream Stream;
+/**
+ * Should we cache the material's shadertype on this platform with this vertex factory?
+ */
+bool FGPUSpriteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	return (Parameters.MaterialParameters.bIsUsedWithParticleSprites || Parameters.MaterialParameters.bIsSpecialEngineMaterial) && SupportsGPUParticles(Parameters.Platform);
+}
 
-		// No streams should currently exist.
-		check( Streams.Num() == 0 );
+/**
+ * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
+ */
+void FGPUSpriteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FParticleVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("PARTICLES_PER_INSTANCE"), MAX_PARTICLES_PER_INSTANCE);
 
-		// Stream 0: Global particle texture coordinate buffer.
-		Stream.VertexBuffer = &GParticleTexCoordVertexBuffer;
-		Stream.Stride = sizeof(FVector2f);
-		Stream.Offset = 0;
-		Streams.Add( Stream );
-
-		// Set the declaration.
-		SetDeclaration( GGPUSpriteVertexDeclaration.VertexDeclarationRHI );
-	}
-
-	virtual bool RendersPrimitivesAsCameraFacingSprites() const override { return true; }
-
-	/**
-	 * Set the source vertex buffer that contains particle indices.
-	 */
-	void SetUnsortedParticleIndicesSRV(FRHIShaderResourceView* VertexBuffer )
-	{
-		UnsortedParticleIndicesSRV = VertexBuffer;
-	}
-
-	/**
-	 * Should we cache the material's shadertype on this platform with this vertex factory? 
-	 */
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
-	{
-		return (Parameters.MaterialParameters.bIsUsedWithParticleSprites || Parameters.MaterialParameters.bIsSpecialEngineMaterial) && SupportsGPUParticles(Parameters.Platform);
-	}
-
-	/**
-	 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
-	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FParticleVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("PARTICLES_PER_INSTANCE"), MAX_PARTICLES_PER_INSTANCE);
-
-		// Set a define so we can tell in MaterialTemplate.usf when we are compiling a sprite vertex factory
-		OutEnvironment.SetDefine(TEXT("PARTICLE_SPRITE_FACTORY"),TEXT("1"));
-	}
-};
+	// Set a define so we can tell in MaterialTemplate.usf when we are compiling a sprite vertex factory
+	OutEnvironment.SetDefine(TEXT("PARTICLE_SPRITE_FACTORY"), TEXT("1"));
+}
 
 void FGPUSpriteVertexFactoryShaderParametersVS::GetElementShaderBindings(
 	const FSceneInterface* Scene,
@@ -788,6 +748,7 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSpriteVertexFactory, SF_Pixel, FGPUS
 IMPLEMENT_VERTEX_FACTORY_TYPE(FGPUSpriteVertexFactory,"/Engine/Private/ParticleGPUSpriteVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 /*-----------------------------------------------------------------------------

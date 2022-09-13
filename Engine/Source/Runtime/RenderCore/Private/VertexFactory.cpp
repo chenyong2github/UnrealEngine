@@ -80,6 +80,7 @@ FVertexFactoryType::FVertexFactoryType(
 	ConstructParametersType InConstructParameters,
 	GetParameterTypeLayoutType InGetParameterTypeLayout,
 	GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
+	GetPSOPrecacheVertexFetchElementsType InGetPSOPrecacheVertexFetchElements,
 	ShouldCacheType InShouldCache,
 	ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
 	ValidateCompiledResultType InValidateCompiledResult
@@ -92,6 +93,7 @@ FVertexFactoryType::FVertexFactoryType(
 	ConstructParameters(InConstructParameters),
 	GetParameterTypeLayout(InGetParameterTypeLayout),
 	GetParameterTypeElementShaderBindings(InGetParameterTypeElementShaderBindings),
+	GetPSOPrecacheVertexFetchElements(InGetPSOPrecacheVertexFetchElements),
 	ShouldCacheRef(InShouldCache),
 	ModifyCompilationEnvironmentRef(InModifyCompilationEnvironment),
 	ValidateCompiledResultRef(InValidateCompiledResult),
@@ -111,7 +113,7 @@ FVertexFactoryType::FVertexFactoryType(
 	checkf(!bInitializedSerializationHistory, TEXT("VF type was loaded after engine init, use ELoadingPhase::PostConfigInit on your module to cause it to load earlier."));
 
 	// Add this vertex factory type to the global list.
-	GlobalListLink.LinkHead(GetTypeList());
+	GlobalListLink.LinkHead(GetTypeList()); 
 	GetVFTypeMap().Add(HashedName, this);
 
 	if (IsUsedWithMaterials())

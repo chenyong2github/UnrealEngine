@@ -32,8 +32,7 @@ public:
 	FHairStrandsVertexFactory(FHairGroupInstance* Instance, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
 		: FVertexFactory(InFeatureLevel)
 		, DebugName(InDebugName)
-	{
-		bSupportsManualVertexFetch = true;
+	{		
 		Data.Instance = Instance;
 	}
 

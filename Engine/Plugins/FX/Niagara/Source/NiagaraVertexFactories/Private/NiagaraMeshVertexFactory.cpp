@@ -69,13 +69,15 @@ IMPLEMENT_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersPS);
 void FNiagaraMeshVertexFactory::InitRHI()
 {
 	FVertexDeclarationElementList Elements;
-
+		
+	if (Data.PositionComponent.VertexBuffer != NULL)
 	{
-		if (Data.PositionComponent.VertexBuffer != NULL)
-		{
-			Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
-		}
+		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
+	}
 
+	const bool bUseManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());
+	if (!bUseManualVertexFetch)
+	{
 		// only tangent,normal are used by the stream. the binormal is derived in the shader
 		uint8 TangentBasisAttributes[2] = { 1, 2 };
 		for (int32 AxisIndex = 0; AxisIndex < 2; AxisIndex++)
@@ -113,7 +115,7 @@ void FNiagaraMeshVertexFactory::InitRHI()
 				Elements.Add(AccessStreamComponent(
 					Data.TextureCoordinates[CoordinateIndex],
 					BaseTexCoordAttribute + CoordinateIndex
-					));
+				));
 			}
 
 			for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < MAX_TEXCOORDS; CoordinateIndex++)
@@ -121,23 +123,23 @@ void FNiagaraMeshVertexFactory::InitRHI()
 				Elements.Add(AccessStreamComponent(
 					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
 					BaseTexCoordAttribute + CoordinateIndex
-					));
+				));
 			}
 		}
+	}
 
 #if NIAGARA_ENABLE_GPU_SCENE_MESHES
-		if (bAddPrimitiveIDElement)
-		{
-			// TODO: Support GPU Scene on mobile? Maybe only for CPU particles?
-			AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xFF);
-		}
+	if (bAddPrimitiveIDElement)
+	{
+		// TODO: Support GPU Scene on mobile? Maybe only for CPU particles?
+		AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xFF);
+	}
 #endif
 
-		//if (Streams.Num() > 0)
-		{
-			InitDeclaration(Elements);
-			check(IsValidRef(GetDeclaration()));
-		}
+	//if (Streams.Num() > 0)
+	{
+		InitDeclaration(Elements);
+		check(IsValidRef(GetDeclaration()));
 	}
 }
 
@@ -184,6 +186,14 @@ void FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactor
 	}
 }
 
+void FNiagaraMeshVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 0, false));
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
+	Elements.Add(FVertexElement(1, 0, VET_UInt, 13, 0, true));
+#endif
+}
+
 void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 {
 	check(IsInRenderingThread());
@@ -195,11 +205,15 @@ void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 	#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
 		| EVertexFactoryFlags::SupportsDynamicLighting \
 		| EVertexFactoryFlags::SupportsRayTracing \
-		| EVertexFactoryFlags::SupportsPrimitiveIdStream)
+		| EVertexFactoryFlags::SupportsPrimitiveIdStream \
+		| EVertexFactoryFlags::SupportsManualVertexFetch \
+		| EVertexFactoryFlags::SupportsPSOPrecaching)
 #else
 	#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
 		| EVertexFactoryFlags::SupportsDynamicLighting \
-		| EVertexFactoryFlags::SupportsRayTracing)
+		| EVertexFactoryFlags::SupportsRayTracing \
+		| EVertexFactoryFlags::SupportsManualVertexFetch \
+		| EVertexFactoryFlags::SupportsPSOPrecaching)
 #endif
 #define NIAGARA_MESH_VF_FLAGS_EX (NIAGARA_MESH_VF_FLAGS | EVertexFactoryFlags::SupportsPrecisePrevWorldPos)
 

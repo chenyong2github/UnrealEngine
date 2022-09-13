@@ -383,65 +383,57 @@ void FResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) cons
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(PageDependencies.GetAllocatedSize());
 }
 
-class FVertexFactory final : public ::FVertexFactory
+void FVertexFactory::InitRHI()
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
+	LLM_SCOPE_BYTAG(Nanite);
 
-public:
-	FVertexFactory(ERHIFeatureLevel::Type FeatureLevel) : ::FVertexFactory(FeatureLevel)
-	{
-	}
+	FVertexStream VertexStream;
+	VertexStream.VertexBuffer = &GScreenRectangleVertexBuffer;
+	VertexStream.Offset = 0;
 
-	~FVertexFactory()
-	{
-		ReleaseResource();
-	}
+	Streams.Add(VertexStream);
 
-	virtual void InitRHI() override final
-	{
-		LLM_SCOPE_BYTAG(Nanite);
+	SetDeclaration(GFilterVertexDeclaration.VertexDeclarationRHI);
+}
 
-		FVertexStream VertexStream;
-		VertexStream.VertexBuffer = &GScreenRectangleVertexBuffer;
-		VertexStream.Offset = 0;
+bool FVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	bool bShouldCompile =
+		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
+		IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
+		IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
+		Parameters.ShaderType->GetFrequency() == SF_Pixel &&
+		DoesPlatformSupportNanite(Parameters.Platform);
 
-		Streams.Add(VertexStream);
+	return bShouldCompile;
+}
 
-		SetDeclaration(GFilterVertexDeclaration.VertexDeclarationRHI);
-	}
+void FVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	::FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("IS_NANITE_SHADING_PASS"), 1);
+	OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
+	OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
+	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
 
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
-	{
-		bool bShouldCompile = 
-			(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
-			IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
-			IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
-			Parameters.ShaderType->GetFrequency() == SF_Pixel &&
-			DoesPlatformSupportNanite(Parameters.Platform);
+	// Get data from GPUSceneParameters rather than View.
+	// TODO: Profile this vs view uniform buffer path
+	//OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+}
 
-		return bShouldCompile;
-	}
+void FVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	GFilterVertexDeclaration.VertexDeclarationRHI->GetInitializer(Elements);
+}
 
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		::FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("IS_NANITE_SHADING_PASS"), 1);
-		OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
-		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
-		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
-		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
-
-		// Get data from GPUSceneParameters rather than View.
-		// TODO: Profile this vs view uniform buffer path
-		//OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-	}
-};
 IMPLEMENT_VERTEX_FACTORY_TYPE(Nanite::FVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush",
 	  EVertexFactoryFlags::UsedWithMaterials
 	| EVertexFactoryFlags::SupportsStaticLighting
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 	| EVertexFactoryFlags::SupportsNaniteRendering
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 #if WITH_EDITOR

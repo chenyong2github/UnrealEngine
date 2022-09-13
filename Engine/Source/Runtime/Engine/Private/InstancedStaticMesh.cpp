@@ -808,6 +808,15 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 }
 
+/**
+ * Get vertex elements used when during PSO precaching materials using this vertex factory type
+ */
+void FInstancedStaticMeshVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	// Fallback to local vertex factory because manual vertex fetch is supported but special case handling might be needed when 
+	// ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES is disabled (does that code path still work?)
+	FLocalVertexFactory::GetPSOPrecacheVertexFetchElements(VertexInputStreamType, Elements);
+}
 
 /**
  * Copy the data from another vertex factory
@@ -867,62 +876,84 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
-	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
-
-	// only tangent,normal are used by the stream. the binormal is derived in the shader
-	uint8 TangentBasisAttributes[2] = { 1, 2 };
-	for(int32 AxisIndex = 0;AxisIndex < 2;AxisIndex++)
-	{
-		if(Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
-		{
-			Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex],TangentBasisAttributes[AxisIndex]));
-		}
-	}
-
-	if (Data.ColorComponentsSRV == nullptr)
-	{
-		Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
-		Data.ColorIndexMask = 0;
-	}
-
-	if(Data.ColorComponent.VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.ColorComponent,3));
-	}
-	else
-	{
-		//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
-		//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
-		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-		Elements.Add(AccessStreamComponent(NullColorComponent, 3));
-	}
-
-	if(Data.TextureCoordinates.Num())
-	{
-		const int32 BaseTexCoordAttribute = 4;
-		for(int32 CoordinateIndex = 0;CoordinateIndex < Data.TextureCoordinates.Num();CoordinateIndex++)
-		{
-			Elements.Add(AccessStreamComponent(
-				Data.TextureCoordinates[CoordinateIndex],
-				BaseTexCoordAttribute + CoordinateIndex
-				));
-		}
-
-		for(int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < (InstancedStaticMeshMaxTexCoord + 1) / 2; CoordinateIndex++)
-		{
-			Elements.Add(AccessStreamComponent(
-				Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
-				BaseTexCoordAttribute + CoordinateIndex
-				));
-		}
-	}
-	
 	// on mobile with GPUScene enabled instanced attributes[8-12] are used for a general auto-instancing
 	// so we add them only for desktop or if mobile has GPUScene disabled
 	// FIXME mobile: instanced attributes encode some editor related data as well (selection etc), need to split it into separate SRV as it's not supported with auto-instancing
 	uint8 AutoInstancingAttr_Mobile = 8;
 	const bool bMobileUsesGPUScene = MobileSupportsGPUScene();
-	
+
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
+	const bool bUseManualVertexFetch = GetType()->SupportsManualVertexFetch(GetFeatureLevel());
+
+	if (!bUseManualVertexFetch)
+	{
+		// only tangent,normal are used by the stream. the binormal is derived in the shader
+		uint8 TangentBasisAttributes[2] = { 1, 2 };
+		for (int32 AxisIndex = 0; AxisIndex < 2; AxisIndex++)
+		{
+			if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
+			{
+				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex]));
+			}
+		}
+
+		if (Data.ColorComponentsSRV == nullptr)
+		{
+			Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+			Data.ColorIndexMask = 0;
+		}
+
+		if (Data.ColorComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3));
+		}
+		else
+		{
+			//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+			//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
+			FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
+			Elements.Add(AccessStreamComponent(NullColorComponent, 3));
+		}
+
+		if (Data.TextureCoordinates.Num())
+		{
+			const int32 BaseTexCoordAttribute = 4;
+			for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); CoordinateIndex++)
+			{
+				Elements.Add(AccessStreamComponent(
+					Data.TextureCoordinates[CoordinateIndex],
+					BaseTexCoordAttribute + CoordinateIndex
+				));
+			}
+
+			for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < (InstancedStaticMeshMaxTexCoord + 1) / 2; CoordinateIndex++)
+			{
+				Elements.Add(AccessStreamComponent(
+					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
+					BaseTexCoordAttribute + CoordinateIndex
+				));
+			}
+		}
+
+		// PreSkinPosition is only used when skin cache is on, in which case skinned mesh uses local vertex factory as pass through.
+		// It is not used by ISM so fill with dummy buffer.
+		extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
+		if (IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
+		{
+			FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
+			Elements.Add(AccessStreamComponent(NullComponent, 14));
+		}
+
+		if (Data.LightMapCoordinateComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15));
+		}
+		else if (Data.TextureCoordinates.Num())
+		{
+			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15));
+		}
+	}
+
 	if (GetFeatureLevel() > ERHIFeatureLevel::ES3_1 || !bMobileUsesGPUScene)
 	{
 		// toss in the instanced location stream
@@ -942,33 +973,15 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 
 		if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
 		{
-			Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent,12));
+			Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent, 12));
 		}
 
 		// Do not add general auto-instancing attributes for mobile
 		AutoInstancingAttr_Mobile = 0xff;
 	}
-	
+
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, AutoInstancingAttr_Mobile);
 
-	// PreSkinPosition is only used when skin cache is on, in which case skinned mesh uses local vertex factory as pass through.
-	// It is not used by ISM so fill with dummy buffer.
-	extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
-	if (IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
-	{
-		FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
-		Elements.Add(AccessStreamComponent(NullComponent, 14));
-	}
-
-	if(Data.LightMapCoordinateComponent.VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent,15));
-	}
-	else if(Data.TextureCoordinates.Num())
-	{
-		Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0],15));
-	}
-		
 	// we don't need per-vertex shadow or lightmap rendering
 	InitDeclaration(Elements);
 
@@ -1001,6 +1014,9 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
 	| EVertexFactoryFlags::SupportsLightmapBaking
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
+	| (ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES ? EVertexFactoryFlags::DoesNotSupportNullPixelShader : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsManualVertexFetch
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()

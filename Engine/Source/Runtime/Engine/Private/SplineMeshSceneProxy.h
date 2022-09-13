@@ -22,7 +22,6 @@ public:
 	FSplineMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
 		: FLocalVertexFactory(InFeatureLevel, "FSplineMeshVertexFactory")
 	{
-		bSupportsManualVertexFetch = false;
 	}
 
 	/** Should we cache the material's shadertype on this platform with this vertex factory? */
@@ -30,6 +29,9 @@ public:
 
 	/** Modify compile environment to enable spline deformation */
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+
+	/** Get vertex elements used when during PSO precaching materials using this vertex factory type */
+	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
 	/** Copy the data from another vertex factory */
 	void Copy(const FSplineMeshVertexFactory& Other)

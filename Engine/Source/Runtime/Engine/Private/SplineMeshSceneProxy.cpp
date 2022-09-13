@@ -27,6 +27,41 @@ void FSplineMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactory
 	OutEnvironment.SetDefine(TEXT("USE_SPLINEDEFORM"), TEXT("1"));
 }
 
+/**
+ * FSplineMeshVertexFactory does not support manual vertex fetch yet so worst case element set is returned to make sure the PSO can be compiled
+ */
+void FSplineMeshVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	if (VertexInputStreamType == EVertexInputStreamType::PositionOnly || VertexInputStreamType == EVertexInputStreamType::PositionAndNormalOnly)
+	{
+		FLocalVertexFactory::GetPSOPrecacheVertexFetchElements(VertexInputStreamType, Elements);
+	}
+	else
+	{
+		// Position
+		Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 12, false));
+
+		// Normals
+		Elements.Add(FVertexElement(1, 0, VET_PackedNormal, 1, 0, false));
+		Elements.Add(FVertexElement(2, 0, VET_PackedNormal, 2, 0, false));
+
+		// Color
+		Elements.Add(FVertexElement(3, 0, VET_Color, 3, 0, false));
+
+		// Texcoords
+		Elements.Add(FVertexElement(4, 0, VET_Float4, 4, 0, false));
+		Elements.Add(FVertexElement(5, 0, VET_Float4, 5, 0, false));
+		Elements.Add(FVertexElement(6, 0, VET_Float4, 6, 0, false));
+		Elements.Add(FVertexElement(7, 0, VET_Float4, 7, 0, false));
+
+		// Lightmap coords
+		Elements.Add(FVertexElement(8, 0, VET_Float2, 15, 0, false));
+		
+		// Primitive ID
+		Elements.Add(FVertexElement(9, 0, VET_UInt, 13, 0, true));
+	}
+}
+
 FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) :
 	FStaticMeshSceneProxy(InComponent, false)
 {

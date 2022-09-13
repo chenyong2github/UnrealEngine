@@ -214,8 +214,6 @@ FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, u
 	: FVertexFactory(InFeatureLevel)
 	, DebugName(InDebugName)
 {
-	bSupportsManualVertexFetch = RHISupportsManualVertexFetch(InShaderPlatform);
-
 	Data.Instance = Instance;
 	Data.LODIndex = LODIndex;
 	Data.GeometryType = GeometryType;
@@ -249,6 +247,12 @@ void FHairCardsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* T
 		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(PrimitiveId).Member instead of Primitive.Member."), Type->GetName()));
 	}
 	#endif
+}
+
+void FHairCardsVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	// Manual vertex fetch is available for this factory so only primitive ID stream is used
+	Elements.Add(FVertexElement(1, 0, VET_UInt, 13, 0, true));
 }
 
 void FHairCardsVertexFactory::SetData(const FDataType& InData)
@@ -370,4 +374,6 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FHairCardsVertexFactory,"/Engine/Private/HairStran
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
+	| EVertexFactoryFlags::SupportsPSOPrecaching
+	| EVertexFactoryFlags::SupportsManualVertexFetch
 );

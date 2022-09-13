@@ -212,7 +212,6 @@ void FHairStrandsVertexFactory::InitResources()
 
 	bIsInitialized = true;
 	bNeedsDeclaration = false;
-	bSupportsManualVertexFetch = true;
 
 	// We create different streams based on feature level
 	check(HasValidFeatureLevel());
@@ -262,4 +261,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FHairStrandsVertexFactory, "/Engine/Private/HairSt
 	| (VF_STRANDS_SUPPORT_GPU_SCENE ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
 	| EVertexFactoryFlags::SupportsRayTracing
 	| (VF_STRANDS_PROCEDURAL_INTERSECTOR ? EVertexFactoryFlags::SupportsRayTracingProceduralPrimitive : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsManualVertexFetch
 );

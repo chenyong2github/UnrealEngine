@@ -24,6 +24,8 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory, "/Engine/Private
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
+	| EVertexFactoryFlags::SupportsManualVertexFetch
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
 
 bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
@@ -76,6 +78,33 @@ void FGeometryCollectionVertexFactory::ValidateCompiledResult(const FVertexFacto
 		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
 	{
 		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(Parameters).Member instead of Primitive.Member."), Type->GetName()));
+	}
+}
+
+void FGeometryCollectionVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 0, false));
+
+	switch (VertexInputStreamType)
+	{
+	case EVertexInputStreamType::Default:
+	{
+		Elements.Add(FVertexElement(1, 0, VET_UInt, 13, 0, true));
+		break;
+	}
+	case EVertexInputStreamType::PositionOnly:
+	{
+		Elements.Add(FVertexElement(1, 0, VET_UInt, 1, 0, true));
+		break;
+	}
+	case EVertexInputStreamType::PositionAndNormalOnly:
+	{
+		Elements.Add(FVertexElement(1, 0, VET_PackedNormal, 2, 0, false));
+		Elements.Add(FVertexElement(2, 0, VET_UInt, 1, 0, true));
+		break;
+	}
+	default:
+		checkNoEntry();
 	}
 }
 

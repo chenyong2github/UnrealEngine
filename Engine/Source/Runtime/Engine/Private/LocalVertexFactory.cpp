@@ -339,6 +339,36 @@ void FLocalVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type,
 	}
 }
 
+/**
+* Return the vertex elements used when manual vertex fetch is used
+*/
+void FLocalVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
+{
+	Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 12, false));
+
+	switch (VertexInputStreamType)
+	{
+	case EVertexInputStreamType::Default:
+	{
+		Elements.Add(FVertexElement(1, 0, VET_UInt, 13, 0, true));
+		break;
+	}
+	case EVertexInputStreamType::PositionOnly:
+	{
+		Elements.Add(FVertexElement(1, 0, VET_UInt, 1, 0, true));
+		break;
+	}
+	case EVertexInputStreamType::PositionAndNormalOnly:
+	{
+		Elements.Add(FVertexElement(1, 4, VET_PackedNormal, 2, 0, false));
+		Elements.Add(FVertexElement(2, 0, VET_UInt, 1, 0, true));
+		break;
+	}
+	default:
+		checkNoEntry();
+	}
+}
+
 void FLocalVertexFactory::SetData(const FDataType& InData)
 {
 	check(IsInRenderingThread());
@@ -388,6 +418,7 @@ void FLocalVertexFactory::InitRHI()
 	// VertexFactory needs to be able to support max possible shader platform and feature level
 	// in case if we switch feature level at runtime.
 	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	const bool bUseManualVertexFetch = SupportsManualVertexFetch(GMaxRHIFeatureLevel);
 
 	// If the vertex buffer containing position is not the same vertex buffer containing the rest of the data,
 	// then initialize PositionStream and PositionDeclaration.
@@ -416,73 +447,76 @@ void FLocalVertexFactory::InitRHI()
 	FVertexDeclarationElementList Elements;
 	if (Data.PositionComponent.VertexBuffer != nullptr)
 	{
-		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
+		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 	}
 
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 8);
 
-	// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
-	uint8 TangentBasisAttributes[2] = { 1, 2 };
-	for (int32 AxisIndex = 0;AxisIndex < 2;AxisIndex++)
+	if (!bUseManualVertexFetch)
 	{
-		if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != nullptr)
+		// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
+		uint8 TangentBasisAttributes[2] = { 1, 2 };
+		for (int32 AxisIndex = 0; AxisIndex < 2; AxisIndex++)
 		{
-			Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex],TangentBasisAttributes[AxisIndex]));
+			if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != nullptr)
+			{
+				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex]));
+			}
 		}
-	}
 
-	if (Data.ColorComponentsSRV == nullptr)
-	{
-		Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
-		Data.ColorIndexMask = 0;
-	}
-
-	ColorStreamIndex = -1;
-	if (Data.ColorComponent.VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.ColorComponent,3));
-		ColorStreamIndex = Elements.Last().StreamIndex;
-	}
-	else
-	{
-		// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
-		// This wastes 4 bytes per vertex, but prevents having to compile out twice the number of vertex factories.
-		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-		Elements.Add(AccessStreamComponent(NullColorComponent, 3));
-		ColorStreamIndex = Elements.Last().StreamIndex;
-	}
-
-	if (Data.TextureCoordinates.Num())
-	{
-		const int32 BaseTexCoordAttribute = 4;
-		for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); ++CoordinateIndex)
+		if (Data.ColorComponentsSRV == nullptr)
 		{
-			Elements.Add(AccessStreamComponent(
-				Data.TextureCoordinates[CoordinateIndex],
-				BaseTexCoordAttribute + CoordinateIndex
+			Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+			Data.ColorIndexMask = 0;
+		}
+
+		ColorStreamIndex = -1;
+		if (Data.ColorComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3));
+			ColorStreamIndex = Elements.Last().StreamIndex;
+		}
+		else
+		{
+			// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+			// This wastes 4 bytes per vertex, but prevents having to compile out twice the number of vertex factories.
+			FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
+			Elements.Add(AccessStreamComponent(NullColorComponent, 3));
+			ColorStreamIndex = Elements.Last().StreamIndex;
+		}
+
+		if (Data.TextureCoordinates.Num())
+		{
+			const int32 BaseTexCoordAttribute = 4;
+			for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); ++CoordinateIndex)
+			{
+				Elements.Add(AccessStreamComponent(
+					Data.TextureCoordinates[CoordinateIndex],
+					BaseTexCoordAttribute + CoordinateIndex
 				));
-		}
+			}
 
-		for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < MAX_STATIC_TEXCOORDS / 2; ++CoordinateIndex)
-		{
-			Elements.Add(AccessStreamComponent(
-				Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
-				BaseTexCoordAttribute + CoordinateIndex
+			for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < MAX_STATIC_TEXCOORDS / 2; ++CoordinateIndex)
+			{
+				Elements.Add(AccessStreamComponent(
+					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
+					BaseTexCoordAttribute + CoordinateIndex
 				));
+			}
 		}
-	}
 
-	// Fill PreSkinPosition slot for GPUSkinPassThrough vertex factory, or else use a dummy buffer.
-	FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
-	Elements.Add(AccessStreamComponent(Data.PreSkinPositionComponent.VertexBuffer ? Data.PreSkinPositionComponent : NullComponent, 14));
+		// Fill PreSkinPosition slot for GPUSkinPassThrough vertex factory, or else use a dummy buffer.
+		FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
+		Elements.Add(AccessStreamComponent(Data.PreSkinPositionComponent.VertexBuffer ? Data.PreSkinPositionComponent : NullComponent, 14));
 
-	if (Data.LightMapCoordinateComponent.VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent,15));
-	}
-	else if (Data.TextureCoordinates.Num())
-	{
-		Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0],15));
+		if (Data.LightMapCoordinateComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15));
+		}
+		else if (Data.TextureCoordinates.Num())
+		{
+			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15));
+		}
 	}
 
 	check(Streams.Num() > 0);
@@ -519,4 +553,6 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FLocalVertexFactory,"/Engine/Private/LocalVertexFa
 	| EVertexFactoryFlags::SupportsRayTracing
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
 	| EVertexFactoryFlags::SupportsLightmapBaking
+	| EVertexFactoryFlags::SupportsManualVertexFetch
+	| EVertexFactoryFlags::SupportsPSOPrecaching
 );

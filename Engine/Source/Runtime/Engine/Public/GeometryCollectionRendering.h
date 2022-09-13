@@ -63,7 +63,6 @@ public:
 	, LooseParameterUniformBuffer(nullptr)
 	, EnableLooseParameter(EnableLooseParameter)
 	{
-		bSupportsManualVertexFetch = true;
 	}
 
 	// Data includes what we need for transform and everything in local vertex factory too
@@ -86,6 +85,8 @@ public:
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
+
+	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
 	//
 	// Set the data on the vertex factory
