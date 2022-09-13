@@ -205,7 +205,6 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 				NSLOCTEXT("UnrealEd", "Appearance_UserSettingsDescription", "Customize the look of the editor."),
 				Settings
 			);
-			
 
 			StyleSettingsPtr->OnImport().BindUObject(Settings, &UEditorStyleSettings::OnImportBegin);
 			StyleSettingsPtr->OnExport().BindUObject(Settings, &UEditorStyleSettings::OnExportBegin);
