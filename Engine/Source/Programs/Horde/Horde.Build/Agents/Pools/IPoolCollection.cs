@@ -28,6 +28,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="sizeStrategies">Pool sizing strategies</param>
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
@@ -44,6 +45,7 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? conformInterval = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
+			List<PoolSizeStrategyInfo>? sizeStrategies = null,
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,

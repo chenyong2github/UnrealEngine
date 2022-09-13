@@ -113,6 +113,7 @@ namespace Horde.Build.Agents.Pools
 			TimeSpan? conformInterval,
 			TimeSpan? scaleOutCooldown,
 			TimeSpan? scaleInCooldown,
+			List<PoolSizeStrategyInfo>? sizeStrategies,
 			PoolSizeStrategy? sizeStrategy,
 			LeaseUtilizationSettings? leaseUtilizationSettings,
 			JobQueueSettings? jobQueueSettings,
@@ -141,6 +142,10 @@ namespace Horde.Build.Agents.Pools
 			pool.LeaseUtilizationSettings = leaseUtilizationSettings;
 			pool.JobQueueSettings = jobQueueSettings;
 			pool.ComputeQueueAwsMetricSettings = computeQueueAwsMetricSettings;
+			if (sizeStrategies != null)
+			{
+				pool.SizeStrategies = sizeStrategies;
+			}
 			await _pools.InsertOneAsync(pool);
 			return pool;
 		}
