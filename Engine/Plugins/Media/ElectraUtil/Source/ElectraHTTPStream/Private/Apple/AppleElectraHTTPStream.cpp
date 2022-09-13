@@ -1315,9 +1315,9 @@ FElectraHTTPStreamApple::FChallengeResponse FElectraHTTPStreamApple::ReceivedCha
 			}
 			
 			CFIndex CertificateCount = CFArrayGetCount(Certificates);
-			for (int i = 0; CertificateCount; ++i)
+			for (int i = 0; i < CertificateCount; ++i)
 			{
-				SecCertificateRef Cert = SecTrustGetCertificateAtIndex(RemoteTrust, i);
+				SecCertificateRef Cert = (SecCertificateRef)CFArrayGetValueAtIndex(Certificates, i);
 
 				// this is not great, but the only way to extract a public key from a SecCertificateRef
 				// is to create an individual SecTrustRef for each cert that only contains itself and then

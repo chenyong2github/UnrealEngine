@@ -1687,7 +1687,7 @@ void FVideoDecoderH265::ProcessOutput(bool bFlush)
 					long ax = NextImage.SourceInfo->AspectX;
 					long ay = NextImage.SourceInfo->AspectY;
 					// If there is aspect ratio information on the image itself and it's valid, use that instead.
-					NSDictionary* Dict = (NSDictionary*)CVBufferGetAttachments(ImageBufferRef, kCVAttachmentMode_ShouldPropagate);
+					NSDictionary* Dict = (NSDictionary*)CVBufferCopyAttachments(ImageBufferRef, kCVAttachmentMode_ShouldPropagate);
 					if (Dict)
 					{
 						NSDictionary* AspectDict = (NSDictionary*)Dict[(__bridge NSString*)kCVImageBufferPixelAspectRatioKey];
