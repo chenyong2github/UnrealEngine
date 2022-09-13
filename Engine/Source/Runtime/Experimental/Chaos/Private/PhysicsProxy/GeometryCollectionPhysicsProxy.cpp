@@ -520,7 +520,6 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 							// defer if any of the children is a cluster with no collision yet generated 
 							if (GameThreadCollection.Implicits[ChildIndex] == nullptr && GameThreadCollection.Children[ChildIndex].Num() > 0)
 							{
-								ParentToPotentiallyFix.Add(ParentToFixIndex);
 								bAllChildrenHaveCollision = false;
 								break;
 							}
