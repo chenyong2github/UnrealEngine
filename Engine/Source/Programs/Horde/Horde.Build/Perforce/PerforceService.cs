@@ -746,17 +746,16 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken)
+		public async Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(IStream stream, int changeNumber, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CheckPreflightAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("StreamName", streamName);
+			scope.Span.SetTag("ClusterName", stream.Config.ClusterName);
+			scope.Span.SetTag("StreamName", stream.Name);
 			scope.Span.SetTag("ChangeNumber", changeNumber);
 
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
-			IPerforceServer server = await GetServerAsync(cluster);
+			PerforceCluster cluster = await GetClusterAsync(stream.Config.ClusterName);
 
-			using (IPerforceConnection perforce = await ConnectAsync(cluster, null, cancellationToken))
+			using (IPooledPerforceConnection perforce = await ConnectAsync(cluster, null, cancellationToken))
 			{
 				PerforceResponse<DescribeRecord> response = await perforce.TryDescribeAsync(DescribeOptions.Shelved, -1, changeNumber, cancellationToken);
 				if(response.Error != null)
@@ -777,16 +776,16 @@ namespace Horde.Build.Perforce
 					return (CheckShelfResult.NoShelvedFiles, null);
 				}
 
-				StreamRecord stream = await perforce.GetStreamAsync(streamName, true, cancellationToken);
-				PerforceViewMap viewMap = PerforceViewMap.Parse(stream.View);
+				PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(stream, cancellationToken);
+				List<string> mappedFiles = new List<string>();
 
-				bool bHasMappedFile = false;
 				bool bHasUnmappedFile = false;
 				foreach (DescribeFileRecord shelvedFile in change.Files)
 				{
-					if (viewMap.TryMapFile(shelvedFile.DepotFile, StringComparison.OrdinalIgnoreCase, out string _))
+					string mappedFile;
+					if (viewMap.TryMapFile(shelvedFile.DepotFile, StringComparison.OrdinalIgnoreCase, out mappedFile))
 					{
-						bHasMappedFile = true;
+						mappedFiles.Add(mappedFile);
 					}
 					else
 					{
@@ -796,10 +795,20 @@ namespace Horde.Build.Perforce
 
 				if (bHasUnmappedFile)
 				{
-					return (bHasMappedFile ? CheckShelfResult.MixedStream : CheckShelfResult.WrongStream, null);
+					return ((mappedFiles.Count > 0)? CheckShelfResult.MixedStream : CheckShelfResult.WrongStream, null);
 				}
 
-				return (CheckShelfResult.Ok, change.Description);
+				List<CommitTag> tags = new List<CommitTag>();
+				foreach (CommitTagConfig tagConfig in stream.Config.CommitTags)
+				{
+					FileFilter filter = tagConfig.CreateFileFilter();
+					if (mappedFiles.Any(x => filter.Matches(x)))
+					{
+						tags.Add(tagConfig.Name);
+					}
+				}
+
+				return (CheckShelfResult.Ok, new ShelfInfo(change.Description, tags));
 			}
 		}
 

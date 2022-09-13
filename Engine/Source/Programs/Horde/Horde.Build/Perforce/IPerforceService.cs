@@ -45,6 +45,31 @@ namespace Horde.Build.Perforce
 	}
 
 	/// <summary>
+	/// Information about a shelved change
+	/// </summary>
+	public class ShelfInfo
+	{
+		/// <summary>
+		/// Description for the change
+		/// </summary>
+		public string Description { get; set; }
+
+		/// <summary>
+		/// Tags for the change
+		/// </summary>
+		public List<CommitTag> Tags { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public ShelfInfo(string description, List<CommitTag> tags)
+		{
+			Description = description;
+			Tags = tags;
+		}
+	}
+
+	/// <summary>
 	/// A connection returned by the Perforce service
 	/// </summary>
 	public interface IPooledPerforceConnection : IPerforceConnection, IDisposable
@@ -130,12 +155,11 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Checks a shelf is valid for the given stream
 		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="streamName">The stream to query</param>
+		/// <param name="stream">The stream to query</param>
 		/// <param name="changeNumber">Shelved changelist number</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Whether the shelf is valid, plus the description for it</returns>
-		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken = default);
+		public Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(IStream stream, int changeNumber, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Duplicates a shelved changelist

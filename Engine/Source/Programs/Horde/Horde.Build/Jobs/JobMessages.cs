@@ -68,7 +68,17 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Parameters to use when selecting the change to execute at.
 		/// </summary>
-		public ChangeQueryConfig? ChangeQuery { get; set; }
+		[Obsolete]
+		public ChangeQueryConfig? ChangeQuery
+		{
+			get => (ChangeQueries != null && ChangeQueries.Count > 0) ? ChangeQueries[0] : null;
+			set => ChangeQueries = (value == null) ? null : new List<ChangeQueryConfig> { value };
+		}
+			
+		/// <summary>
+		/// List of change queries to evaluate
+		/// </summary>
+		public List<ChangeQueryConfig>? ChangeQueries { get; set; }
 
 		/// <summary>
 		/// The preflight changelist number

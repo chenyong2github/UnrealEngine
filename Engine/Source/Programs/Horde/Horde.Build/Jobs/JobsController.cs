@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Acls;
@@ -128,46 +129,11 @@ namespace Horde.Build.Jobs
 				}
 			}
 
-			// Get the priority of the new job
-			Priority priority = create.Priority ?? template.Priority ?? Priority.Normal;
-
-			// New groups for the job
-			IGraph graph = await _graphs.AddAsync(template);
-
-			// Get the commits for this stream
-			ICommitCollection commits = _commitService.GetCollection(stream);
-
-			// Get the change to build
-			int change;
-			if (create.Change.HasValue && create.Change.Value != -1)
-			{
-				change = create.Change.Value;
-			}
-			else if (create.ChangeQuery != null)
-			{
-				change = await ExecuteChangeQueryAsync(stream, create.ChangeQuery.TemplateId ?? create.TemplateId, create.ChangeQuery.Target, create.ChangeQuery.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success }, commits);
-			}
-			else if (create.PreflightChange == null && template.SubmitNewChange != null)
-			{
-				change = await commits.CreateNewAsync(template, HttpContext.RequestAborted);
-			}
-			else
-			{
-				change = await commits.GetLatestNumberAsync(HttpContext.RequestAborted);
-			}
-
-			// And get the matching code changelist
-			ICommit? lastCodeCommit = await commits.GetLastCodeChange(change, HttpContext.RequestAborted);
-			int codeChange = lastCodeCommit?.Number ?? change;
-
-			// New properties for the job
-			List<string> arguments = create.Arguments ?? template.GetDefaultArguments();
-
 			// Check the preflight change is valid
-			string? preflightDescription = null;
+			ShelfInfo? shelfInfo = null;
 			if (create.PreflightChange != null)
 			{
-				(CheckShelfResult result, preflightDescription) = await _perforce.CheckShelfAsync(stream.Config.ClusterName, stream.Name, create.PreflightChange.Value);
+				(CheckShelfResult result, shelfInfo) = await _perforce.CheckShelfAsync(stream, create.PreflightChange.Value, HttpContext.RequestAborted);
 				switch (result)
 				{
 					case CheckShelfResult.Ok:
@@ -185,6 +151,25 @@ namespace Horde.Build.Jobs
 				}
 			}
 
+			// Get the priority of the new job
+			Priority priority = create.Priority ?? template.Priority ?? Priority.Normal;
+
+			// New groups for the job
+			IGraph graph = await _graphs.AddAsync(template);
+
+			// Get the commits for this stream
+			ICommitCollection commits = _commitService.GetCollection(stream);
+
+			// Get the change to build
+			int change = await GetChangeToBuildAsync(create, stream, template, shelfInfo, commits, HttpContext.RequestAborted);
+
+			// And get the matching code changelist
+			ICommit? lastCodeCommit = await commits.GetLastCodeChange(change, HttpContext.RequestAborted);
+			int codeChange = lastCodeCommit?.Number ?? change;
+
+			// New properties for the job
+			List<string> arguments = create.Arguments ?? template.GetDefaultArguments();
+
 			bool? updateIssues = null;
 			if (template.UpdateIssues)
 			{
@@ -196,33 +181,37 @@ namespace Horde.Build.Jobs
 			}
 
 			// Create the job
-			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, preflightDescription, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.Config.ChainedJobs, templateRef.Config.ShowUgsBadges, templateRef.Config.ShowUgsAlerts, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, arguments);
+			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, shelfInfo?.Description, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.Config.ChainedJobs, templateRef.Config.ShowUgsBadges, templateRef.Config.ShowUgsAlerts, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, arguments);
 			await UpdateNotificationsAsync(job.Id, new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(job.Id.ToString());
 		}
 
-		/// <summary>
-		/// Evaluate a change query to determine which CL to run a job at
-		/// </summary>
-		/// <param name="stream"></param>
-		/// <param name="templateId"></param>
-		/// <param name="target"></param>
-		/// <param name="outcomes"></param>
-		/// <param name="commits"></param>
-		/// <returns></returns>
-		async Task<int> ExecuteChangeQueryAsync(IStream stream, TemplateId templateId, string? target, List<JobStepOutcome> outcomes, ICommitCollection commits)
+		async ValueTask<int> GetChangeToBuildAsync(CreateJobRequest create, IStream stream, ITemplate template, ShelfInfo? shelfInfo, ICommitCollection commits, CancellationToken cancellationToken)
 		{
-			IList<IJob> jobs = await _jobService.FindJobsAsync(streamId: stream.Id, templates: new[] { templateId }, target: target, state: new[] { JobStepState.Completed }, outcome: outcomes.ToArray(), count: 1, excludeUserJobs: true);
-			if (jobs.Count == 0)
+			// If there's an explicit change specified, use that
+			if (create.Change.HasValue && create.Change.Value != -1)
 			{
-				_logger.LogInformation("Unable to find successful build of {TemplateId} target {Target}. Using latest change instead", templateId, target);
-				return await commits.GetLatestNumberAsync();
+				return create.Change.Value;
 			}
-			else
+
+			// Evaluate the change queries
+			if (create.ChangeQueries != null && create.ChangeQueries.Count > 0)
 			{
-				_logger.LogInformation("Last successful build of {TemplateId} target {Target} was job {JobId} at change {Change}", templateId, target, jobs[0].Id, jobs[0].Change);
-				return jobs[0].Change;
+				int? change = await _jobService.EvaluateChangeQueriesAsync(stream, create.ChangeQueries, shelfInfo?.Tags, commits, cancellationToken);
+				if (change != null)
+				{
+					return change.Value;
+				}
 			}
+
+			// If we need to submit a new change, do that
+			if (create.PreflightChange == null && template.SubmitNewChange != null)
+			{
+				return await commits.CreateNewAsync(template, cancellationToken);
+			}
+
+			// Otherwise return the latest change
+			return await commits.GetLatestNumberAsync(cancellationToken);
 		}
 
 		/// <summary>

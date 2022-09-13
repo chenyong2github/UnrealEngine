@@ -145,7 +145,7 @@ namespace Horde.Build.Tests.Stubs.Services
 			return Task.FromResult(results);
 		}
 
-		public Task<(CheckShelfResult, string?)> CheckShelfAsync(string clusterName, string streamName, int changeNumber, CancellationToken cancellationToken)
+		public Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(IStream stream, int changeNumber, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}
@@ -163,26 +163,6 @@ namespace Horde.Build.Tests.Stubs.Services
 		public static Task<string> CreateTicket()
 		{
 			return Task.FromResult("bogus-ticket");
-		}
-
-		public Task<int> GetCodeChangeAsync(IStream stream, int change, CancellationToken cancellationToken)
-		{
-			int codeChange = 0;
-
-			SortedDictionary<int, Commit>? streamChanges;
-			if (Changes.TryGetValue(stream.Id, out streamChanges))
-			{
-				foreach (Commit details in streamChanges.Values)
-				{
-					if (details.Number <= change && details.Files.Any(x => x.EndsWith(".h", StringComparison.OrdinalIgnoreCase) || x.EndsWith(".cpp", StringComparison.OrdinalIgnoreCase)))
-					{
-						codeChange = details.Number;
-						break;
-					}
-				}
-			}
-
-			return Task.FromResult(codeChange);
 		}
 
 		public Task<int> CreateNewChangeAsync(string clusterName, string streamName, string path, string description, CancellationToken cancellationToken)

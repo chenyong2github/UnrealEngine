@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
@@ -417,6 +418,74 @@ namespace Horde.Build.Jobs
 				}
 			}
 			return null;
+		}
+
+		/// <summary>
+		/// Evaluate a change query to determine which CL to run a job at
+		/// </summary>
+		/// <returns></returns>
+		public async Task<int?> EvaluateChangeQueriesAsync(IStream stream, List<ChangeQueryConfig> queries, List<CommitTag>? commitTags, ICommitCollection commits, CancellationToken cancellationToken)
+		{
+			foreach (ChangeQueryConfig query in queries)
+			{
+				int? change = await EvaluateChangeQueryAsync(stream, query, commitTags, commits, cancellationToken);
+				if (change != null)
+				{
+					return change;
+				}
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Evaluate a change query to determine which CL to run a job at
+		/// </summary>
+		/// <returns></returns>
+		public async ValueTask<int?> EvaluateChangeQueryAsync(IStream stream, ChangeQueryConfig query, List<CommitTag>? commitTags, ICommitCollection commits, CancellationToken cancellationToken)
+		{
+			if (query.Condition == null || query.Condition.Evaluate(propertyName => GetTagPropertyValues(propertyName, commitTags)))
+			{
+				// Find the last change with the listed tag
+				if (query.CommitTag != null)
+				{
+					ICommit? taggedCommit = await commits.FindAsync(null, null, 1, new[] { query.CommitTag.Value }, cancellationToken).FirstOrDefaultAsync(cancellationToken);
+					if (taggedCommit != null)
+					{
+						_logger.LogInformation("Last commit with tag '{Tag}' was {Change}", query.CommitTag.Value, taggedCommit.Number);
+						return taggedCommit.Number;
+					}
+				}
+
+				// Find the job with the given result
+				if (query.Target != null && query.TemplateId != null)
+				{
+					List<JobStepOutcome> outcomes = query.Outcomes ?? new List<JobStepOutcome> { JobStepOutcome.Success };
+
+					IList<IJob> jobs = await FindJobsAsync(streamId: stream.Id, templates: new[] { query.TemplateId.Value }, target: query.Target, state: new[] { JobStepState.Completed }, outcome: outcomes.ToArray(), count: 1, excludeUserJobs: true);
+					if (jobs.Count > 0)
+					{
+						_logger.LogInformation("Last successful build of {TemplateId} target {Target} was job {JobId} at change {Change}", query.TemplateId, query.Target, jobs[0].Id, jobs[0].Change);
+						return jobs[0].Change;
+					}
+				}
+			}
+			return null;
+		}
+
+		static IEnumerable<string> GetTagPropertyValues(string propertyName, List<CommitTag>? commitTags)
+		{
+			const string TagPrefix = "tag.";
+			if (propertyName.StartsWith(TagPrefix, StringComparison.Ordinal) && commitTags != null)
+			{
+				string tagName = propertyName.Substring(TagPrefix.Length);
+				foreach (CommitTag commitTag in commitTags)
+				{
+					if (tagName.Equals(commitTag.Text, StringComparison.OrdinalIgnoreCase))
+					{
+						yield return "1";
+					}
+				}
+			}
 		}
 
 		/// <summary>

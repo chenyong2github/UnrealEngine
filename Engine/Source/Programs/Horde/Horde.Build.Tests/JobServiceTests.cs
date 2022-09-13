@@ -2,21 +2,26 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Common;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Logs;
+using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Microsoft.CodeAnalysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests
@@ -72,6 +77,49 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(chainedJob!.CodeChange, job!.CodeChange);
 			Assert.AreEqual(chainedJob!.PreflightChange, job!.PreflightChange);
 			Assert.AreEqual(chainedJob!.StartedByUserId, job!.StartedByUserId);
+		}
+
+		[TestMethod]
+		public async Task ChangeQueryTestAsync()
+		{
+			ProjectId projectId = new ProjectId("ue5");
+			const string ProjectConfigRevision = "projectconfig";
+			await ConfigCollection.AddConfigAsync(ProjectConfigRevision, new ProjectConfig { Name = "UE4" });
+			IProject? project = await ProjectService.Collection.AddOrUpdateAsync(projectId, ProjectConfigRevision, 0);
+			Assert.IsNotNull(project);
+
+			StreamId streamId = new StreamId("ue5-main");
+			const string StreamConfigRevision = "streamconfig";
+			await ConfigCollection.AddConfigAsync(StreamConfigRevision, new StreamConfig { });
+			IStream? stream = await CreateOrReplaceStreamAsync(streamId, null, projectId, new StreamConfig());
+			Assert.IsNotNull(stream);
+
+			IUser user = await UserCollection.FindOrAddUserByLoginAsync("Bob");
+
+			PerforceService.AddChange(streamId, 1000, user, "", new[] { "Foo.cpp" });
+			PerforceService.AddChange(streamId, 1001, user, "", new[] { "Bar.cpp" });
+			PerforceService.AddChange(streamId, 1002, user, "", new[] { "Baz.cpp" });
+			PerforceService.AddChange(streamId, 1003, user, "", new[] { "Foo.uasset" });
+			PerforceService.AddChange(streamId, 1004, user, "", new[] { "Foo.uasset" });
+
+			ICommitCollection commits = PerforceService.GetCommits(stream);
+
+			{
+				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Code }, null, commits, CancellationToken.None);
+				Assert.AreEqual(1002, change);
+			}
+			{
+				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Content }, null, commits, CancellationToken.None);
+				Assert.AreEqual(1004, change);
+			}
+			{
+				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Content, Condition = "tag.code == 1" }, new List<CommitTag> { CommitTag.Code }, commits, CancellationToken.None);
+				Assert.AreEqual(1004, change);
+			}
+			{
+				int? change = await JobService.EvaluateChangeQueryAsync(stream, new ChangeQueryConfig { CommitTag = CommitTag.Content, Condition = "tag.content == 1" }, new List<CommitTag> { CommitTag.Code }, commits, CancellationToken.None);
+				Assert.IsNull(change);
+			}
 		}
 
 		[TestMethod]

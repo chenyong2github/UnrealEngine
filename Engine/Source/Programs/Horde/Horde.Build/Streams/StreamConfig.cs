@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Datadog.Trace;
 using EpicGames.Core;
+using EpicGames.Horde.Common;
 using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Agents.Pools;
@@ -464,6 +465,16 @@ namespace Horde.Build.Streams
 		/// Whether to match a job that produced warnings
 		/// </summary>
 		public List<JobStepOutcome>? Outcomes { get; set; }
+
+		/// <summary>
+		/// Finds the last commit with this tag
+		/// </summary>
+		public CommitTag? CommitTag { get; set; }
+
+		/// <summary>
+		/// Condition to evaluate before deciding to use this query. May query tags in a preflight.
+		/// </summary>
+		public Condition? Condition { get; set; }
 	}
 
 	/// <summary>
@@ -479,7 +490,17 @@ namespace Horde.Build.Streams
 		/// <summary>
 		/// Query for the change to use
 		/// </summary>
-		public ChangeQueryConfig? Change { get; set; }
+		[Obsolete("Use ChangeQueries instead")]
+		public ChangeQueryConfig? Change
+		{
+			get => (ChangeQueries != null && ChangeQueries.Count > 0) ? ChangeQueries[0] : null;
+			set => ChangeQueries = ((value == null) ? null : new List<ChangeQueryConfig> { value });
+		}
+
+		/// <summary>
+		/// List of queries to execute to determine the base change for this preflight
+		/// </summary>
+		public List<ChangeQueryConfig>? ChangeQueries { get; set; }
 	}
 
 	/// <summary>
