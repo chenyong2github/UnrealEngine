@@ -28,6 +28,8 @@ void FImgMediaSceneViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSce
 
 void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FImgMediaSceneViewExtension::BeginRenderViewFamily);
+
 	if (LastFrameNumber != InViewFamily.FrameNumber)
 	{
 		CachedViewInfos.Reset();

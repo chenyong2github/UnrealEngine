@@ -292,6 +292,12 @@ public:
 
 protected:
 
+	void SubscribeEndFrame();
+	void UnsubscribeEndFrame();
+
+	/** End frame callback registered with core delegates to receive view infos. */
+	void OnEndFrame();
+
 	/** Array of objects that are using our img sequence. */
 	TArray<FImgMediaMipMapObjectInfo*> Objects;
 
@@ -312,4 +318,7 @@ protected:
 
 	/** True if the cached mipmap data has been calculated this frame. */
 	bool bIsCacheValid;
+
+	/** OnEndFrame core delegate handle. */
+	FDelegateHandle OnEndFrameHandle;
 };

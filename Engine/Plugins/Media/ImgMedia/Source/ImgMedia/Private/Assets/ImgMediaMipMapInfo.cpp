@@ -13,6 +13,7 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/CoreDelegates.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -665,6 +666,7 @@ namespace {
 
 FImgMediaMipMapInfo::FImgMediaMipMapInfo()
 	: bIsCacheValid(false)
+	, OnEndFrameHandle()
 {
 }
 
@@ -696,6 +698,8 @@ void FImgMediaMipMapInfo::AddObject(AActor* InActor, float InMipMapBias, EMediaT
 				break;
 			}
 		}
+
+		SubscribeEndFrame();
 	}
 }
 
@@ -715,6 +719,11 @@ void FImgMediaMipMapInfo::RemoveObject(AActor* InActor)
 				{
 					Objects.RemoveAtSwap(Index);
 					delete Info;
+
+					if (Objects.IsEmpty())
+					{
+						UnsubscribeEndFrame();
+					}
 					break;
 				}
 			}
@@ -772,6 +781,8 @@ void FImgMediaMipMapInfo::ClearAllObjects()
 	}
 
 	Objects.Empty();
+
+	UnsubscribeEndFrame();
 }
 
 
@@ -835,9 +846,68 @@ bool FImgMediaMipMapInfo::HasObjects() const
 
 void FImgMediaMipMapInfo::Tick(float DeltaTime)
 {
+	if (!HasObjects())
+	{
+		return;
+	}
+
+	// Display debug?
+	if (CVarImgMediaMipMapDebugEnable.GetValueOnGameThread() && GEngine != nullptr)
+	{
+		FScopeLock Lock(&InfoCriticalSection);
+
+		TSet<int32> VisibleMips;
+		int32 NumVisibleTiles = 0;
+
+		for (const auto& MipTiles : CachedVisibleTiles)
+		{
+			VisibleMips.Add(MipTiles.Key);
+
+			const FImgMediaTileSelection& TileSelection = MipTiles.Value;
+			NumVisibleTiles += TileSelection.NumVisibleTiles();
+		}
+
+		if (VisibleMips.Num() > 0)
+		{
+			auto VisibleMipsIt = VisibleMips.CreateConstIterator();
+			FString Mips = FString::FromInt(*VisibleMipsIt);
+
+			for (++VisibleMipsIt; VisibleMipsIt; ++VisibleMipsIt)
+			{
+				Mips += FString(TEXT(", ")) + FString::FromInt(*VisibleMipsIt);
+			}
+
+			GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, *FString::Printf(TEXT("%s Mip Level(s): [%s]"), *SequenceInfo.Name.ToString(), *Mips));
+			GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, *FString::Printf(TEXT("%s Num Tile(s): %d"), *SequenceInfo.Name.ToString(), NumVisibleTiles));
+		}
+	}
+}
+
+void FImgMediaMipMapInfo::SubscribeEndFrame()
+{
+	if (!OnEndFrameHandle.IsValid())
+	{
+		OnEndFrameHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FImgMediaMipMapInfo::OnEndFrame);
+	}
+}
+
+void FImgMediaMipMapInfo::UnsubscribeEndFrame()
+{
+	if (OnEndFrameHandle.IsValid())
+	{
+		FCoreDelegates::OnEndFrame.Remove(OnEndFrameHandle);
+		OnEndFrameHandle.Reset();
+
+		bIsCacheValid = false;
+	}
+}
+
+void FImgMediaMipMapInfo::OnEndFrame()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FImgMediaMipMapInfo::OnEndFrame);
 	FScopeLock Lock(&InfoCriticalSection);
 
-	// Let the cache update this frame.
+	// Let the cache update.
 	bIsCacheValid = false;
 
 	if (HasObjects())
@@ -846,35 +916,6 @@ void FImgMediaMipMapInfo::Tick(float DeltaTime)
 		if (SVE.IsValid())
 		{
 			ViewInfos = SVE->GetViewInfos();
-		}
-
-		// Display debug?
-		if (CVarImgMediaMipMapDebugEnable.GetValueOnGameThread() && GEngine != nullptr)
-		{
-			TSet<int32> VisibleMips;
-			int32 NumVisibleTiles = 0;
-
-			for (const auto& MipTiles : CachedVisibleTiles)
-			{
-				VisibleMips.Add(MipTiles.Key);
-
-				const FImgMediaTileSelection& TileSelection = MipTiles.Value;
-				NumVisibleTiles += TileSelection.NumVisibleTiles();
-			}
-
-			if (VisibleMips.Num() > 0)
-			{
-				auto VisibleMipsIt = VisibleMips.CreateConstIterator();
-				FString Mips = FString::FromInt(*VisibleMipsIt);
-				
-				for (++VisibleMipsIt; VisibleMipsIt; ++VisibleMipsIt)
-				{
-					Mips += FString(TEXT(", ")) + FString::FromInt(*VisibleMipsIt);
-				}
-
-				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, *FString::Printf(TEXT("%s Mip Level(s): [%s]"), *SequenceInfo.Name.ToString(), *Mips));
-				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, *FString::Printf(TEXT("%s Num Tile(s): %d"), *SequenceInfo.Name.ToString(), NumVisibleTiles));
-			}
 		}
 	}
 }
