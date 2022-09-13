@@ -576,6 +576,29 @@ void USynthComponent::SetOutputToBusOnly(bool bInOutputToBusOnly)
 	}
 }
 
+void USynthComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel/* = 1.0f*/, float StartTime/* = 0.0f*/, const EAudioFaderCurve FadeCurve/* = EAudioFaderCurve::Linear*/) const
+{
+	if(AudioComponent)
+	{
+		AudioComponent->FadeIn(FadeInDuration, FadeVolumeLevel, StartTime, FadeCurve);
+	}
+}
+
+void USynthComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve/* = EAudioFaderCurve::Linear*/) const
+{
+	if(AudioComponent)
+	{
+		AudioComponent->FadeOut(FadeOutDuration, FadeVolumeLevel, FadeCurve);
+	}
+}
+
+void USynthComponent::AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve/* = EAudioFaderCurve::Linear*/) const
+{
+	if(AudioComponent)
+	{
+		AudioComponent->AdjustVolume(AdjustVolumeDuration, AdjustVolumeLevel, FadeCurve);
+	}
+}
 
 void USynthComponent::SynthCommand(TFunction<void()> Command)
 {
