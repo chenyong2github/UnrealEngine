@@ -749,7 +749,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	FString LevelLongPackageName;
 	if (FPackageName::SearchForPackageOnDisk(Tokens[0], nullptr, &LevelLongPackageName))
 	{
-		LevelConfigFilename = FPaths::ChangeExtension(LevelLongPackageName, TEXT("ini"));
+		LevelConfigFilename = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ChangeExtension(LevelLongPackageName, TEXT("ini")));
 
 		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*LevelConfigFilename))
 		{
