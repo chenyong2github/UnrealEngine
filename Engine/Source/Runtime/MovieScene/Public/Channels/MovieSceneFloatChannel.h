@@ -169,6 +169,10 @@ struct MOVIESCENE_API FMovieSceneFloatChannel : public FMovieSceneChannel
 	 */
 	void Set(TArray<FFrameNumber> InTimes, TArray<FMovieSceneFloatValue> InValues);
 
+	/**
+	 * Set the channel's times and values to the requested values, but does not allocate key handles
+	 */
+	void SetKeysOnly(TArrayView<FFrameNumber> InTimes, TArrayView<FMovieSceneFloatValue> InValues);
 public:
 
 	// ~ FMovieSceneChannel Interface

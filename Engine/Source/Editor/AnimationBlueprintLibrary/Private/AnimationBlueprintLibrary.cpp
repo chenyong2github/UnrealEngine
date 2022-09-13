@@ -61,6 +61,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UnrealNames.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintLibrary"
 
@@ -2230,7 +2231,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 		return false;
 	}
 
-	const UAnimDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
+	const IAnimationDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
 	if (!AnimDataModel)
 	{
 		return false;
@@ -2419,7 +2420,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeSubframeAttributeAtTime
 		return false;
 	}
 
-	const UAnimDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
+	const IAnimationDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
 	if (!AnimDataModel)
 	{
 		return false;

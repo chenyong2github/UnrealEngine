@@ -23,7 +23,7 @@
 #include "Animation/AttributeCurve.h"
 
 #if WITH_EDITOR
-#include "AnimData/AnimDataModel.h"
+#include "AnimData/IAnimationDataModel.h"
 #endif // WITH_EDITOR
 
 #include "AnimSequence.generated.h"
@@ -233,21 +233,11 @@ protected:
 	UPROPERTY()
 	FFrameRate SamplingFrameRate;
 
-	/**
-	 * In the future, maybe keeping RawAnimSequenceTrack + TrackMap as one would be good idea to avoid inconsistent array size
-	 * TrackToSkeletonMapTable(i) should contains  track mapping data for RawAnimationData(i). 
-	 */
-	UE_DEPRECATED(5.0, "TrackToSkeletonMapTable has been deprecated see FBoneAnimationTrack::BoneTreeIndex")
-	UPROPERTY()
-	TArray<struct FTrackToSkeletonMap> TrackToSkeletonMapTable;
-
-	/**
-	 * Raw uncompressed keyframe data. 
-	 */
 	UE_DEPRECATED(5.0, "RawAnimationData has been deprecated see FBoneAnimationTrack::InternalTrackData")
 	TArray<struct FRawAnimSequenceTrack> RawAnimationData;
 
-	// Update this if the contents of RawAnimationData changes;
+	// Update this if the contents of RawAnimationData changes
+	UE_DEPRECATED(5.1, "RawDataGuid has been deprecated see GenerateGuidFromModel instead")
 	UPROPERTY()
 	FGuid RawDataGuid;
 
@@ -262,7 +252,6 @@ protected:
 	 * Source RawAnimationData. Only can be overridden by when transform curves are added first time OR imported
 	 */
 	TArray<struct FRawAnimSequenceTrack> SourceRawAnimationData_DEPRECATED;
-
 public:
 
 	/**
@@ -370,10 +359,6 @@ public:
 	UPROPERTY()
 	FString SourceFileTimestamp_DEPRECATED;
 
-	UE_DEPRECATED(5.0, "bNeedsRebake has been deprecated, transform curves are now baked during compression")
-	UPROPERTY(transient)
-	bool bNeedsRebake;
-
 	// Track whether we have updated markers so cached data can be updated
 	int32 MarkerDataUpdateCounter;
 #endif // WITH_EDITORONLY_DATA
@@ -394,6 +379,9 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual void ClearAllCachedCookedPlatformData() override;
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -415,24 +403,10 @@ public:
 	virtual void RefreshCacheData() override;
 	virtual EAdditiveAnimationType GetAdditiveAnimType() const override { return AdditiveAnimType; }
 	virtual int32 GetNumberOfSampledKeys() const override;
-	virtual const FFrameRate& GetSamplingFrameRate() const override { return TargetFrameRate; }
+	virtual FFrameRate GetSamplingFrameRate() const override { return TargetFrameRate; }
 	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const override;
 	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const override;
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const override;
-
-#if WITH_EDITOR
-	UE_DEPRECATED(5.0, "MarkRawDataAsModified has been deprecated, any (Raw Data) modification should be applied using the UAnimDataController API instead. This will handle updating the GUID instead.")
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void MarkRawDataAsModified(bool bForceNewRawDatGuid = true) override
-	{
-		Super::MarkRawDataAsModified();
-		bUseRawDataOnly = true;
-		RawDataGuid = bForceNewRawDatGuid ? FGuid::NewGuid() : GenerateGuidFromRawData();
-		FlagDependentAnimationsAsRawDataOnly();
-		UpdateDependentStreamingAnimations();
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 	//~ End UAnimSequenceBase Interface
 
 	// Extract Root Motion transform from the animation
@@ -473,9 +447,7 @@ public:
 #if WITH_EDITORONLY_DATA
 protected:
 	void UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName);
-#endif
 private:
-#if WITH_EDITORONLY_DATA
 	void UpdateRetargetSourceAsset();
 
 	/** Updates the stored sampling frame-rate using the sequence length and number of sampling keys */
@@ -527,7 +499,9 @@ public:
 	 * @param	Time			Time on track to interpolate to.
 	 * @param	bUseRawData		If true, use raw animation data instead of compressed data.
 	 */
+	UE_DEPRECATED(5.1, "Use other GetBoneTransform signature")
 	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, float Time, bool bUseRawData) const;
+	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, double Time, bool bUseRawData) const;
 
 	/**
 	 * Get Bone Transform of the Time given, relative to Parent for the Track Given
@@ -594,8 +568,8 @@ protected:
     void SerializeCompressedData(FArchive& Ar, bool bDDCData);
 #if WITH_EDITOR
 	void SetCompressionComplete();
+	virtual void OnAnimModelLoaded() override;
 #endif
-
 public:
 	bool IsCompressedDataValid() const;
 	bool IsCurveCompressedDataValid() const;
@@ -705,6 +679,7 @@ public:
 	void UpdateDependentStreamingAnimations() const;
 
 	// Generate a GUID from a hash of our own raw data
+	UE_DEPRECATED(5.1, "GenerateGuidFromRawData has been deprecated use IAnimationDataModel::GenerateGuid instead")
 	FGuid GenerateGuidFromRawData() const;
 
 	// Should we be always using our raw data (i.e is our compressed data stale)
@@ -712,9 +687,12 @@ public:
 	void SetUseRawDataOnly(bool bInUseRawDataOnly) { bUseRawDataOnly = bInUseRawDataOnly; }
 
 	// Return this animations guid for the raw data
+	UE_DEPRECATED(5.1, "GetRawDataGuid has been deprecated use GenerateGuidFromModel instead")
 	FGuid GetRawDataGuid() const
 	{ 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return RawDataGuid;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/** Resets Bone Animation, Curve data and Notify tracks **/
@@ -744,18 +722,13 @@ private:
 	 */ 
 	virtual void RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConvertSpaces ) override;
 
-	/**
-	 * Remap NaN tracks from the RawAnimation data and recompress
-	 */	
-	void RemoveNaNTracks();
-
 	/** Retargeting functions */
 	bool ConvertAnimationDataToRiggingData(FAnimSequenceTrackContainer & RiggingAnimationData);
 	bool ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer & RiggingAnimationData);
 	int32 GetSpaceBasedAnimationData(TArray< TArray<FTransform> > & AnimationDataInComponentSpace, FAnimSequenceTrackContainer * RiggingAnimationData) const;
+#endif
 
 public:
-#endif
 	/** Refresh sync marker data*/
 	void RefreshSyncMarkerDataFromAuthored();
 
@@ -816,13 +789,15 @@ protected:
 protected:
 #if WITH_EDITOR
 	// Begin UAnimSequenceBase virtual overrides
-	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload) override;
+	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload) override;
 	virtual void PopulateModel() override;
 	// End UAnimSequenceBase virtual overrides
 
 	void EnsureValidRawDataGuid();
 	void RecompressAnimationData();
 	void ResampleAnimationTrackData();
+	void CalculateNumberOfSampledKeys();
+	void ClearResampledAnimationTrackData();
 
 	void DeleteBoneAnimationData();
 	void DeleteDeprecatedRawAnimationData();
@@ -867,4 +842,5 @@ public:
 	friend class FCustomAttributeCustomization;
 	friend class FAnimSequenceTestBase;
 	friend struct UE::Anim::Compression::FScopedCompressionGuard;
+	friend class FAnimDataControllerTestBase;
 };

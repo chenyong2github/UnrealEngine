@@ -1043,7 +1043,7 @@ void UPoseSearchDatabase::AddRawSequenceToWriter(UAnimSequence* Sequence, UE::Po
 	if (Sequence)
 	{
 		FName SequenceName = Sequence->GetFName();
-		FGuid SequenceGuid = Sequence->GetRawDataGuid();
+		FGuid SequenceGuid = Sequence->GetDataModel()->GenerateGuid();
 		KeyBuilder << SequenceName;
 		KeyBuilder << SequenceGuid;
 		KeyBuilder << Sequence->bLoop;
@@ -3627,7 +3627,7 @@ void FBlendSpaceSampler::ProcessRootTransform()
 
 		FDeltaTimeRecord DeltaTimeRecord;
 		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-		FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Input.bLoopable);
+		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, Input.bLoopable);
 
 		for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
 		{
@@ -4229,7 +4229,7 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 
 		FDeltaTimeRecord DeltaTimeRecord;
 		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-		FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Sample.Clip->IsLoopable());
+		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, Sample.Clip->IsLoopable());
 
 		Sample.Clip->ExtractPose(ExtractionCtx, Entry->AnimPoseData);
 

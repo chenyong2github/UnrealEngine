@@ -36,7 +36,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "AnimTimeline/SAnimTimelineTransportControls.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "AnimTimeline/AnimTimeSliderController.h"

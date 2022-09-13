@@ -89,11 +89,7 @@ UAnimCurveCompressionCodec_UniformIndexable::UAnimCurveCompressionCodec_UniformI
 bool UAnimCurveCompressionCodec_UniformIndexable::Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult)
 {
 	const int32 NumCurves = AnimSeq.RawFloatCurves.Num();
-	const float Duration = AnimSeq.SequenceLength;
-
-	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumberOfKeys);
-	const float SampleRate = Helper.KeysPerSecond();
-	const int32 NumSamples = FMath::RoundToInt(Duration * SampleRate) + 1;
+	const int32 NumSamples = AnimSeq.NumberOfKeys;
 
 	int32 BufferSize = 0;
 	BufferSize += sizeof(int32);	// NumSamples
@@ -113,7 +109,7 @@ bool UAnimCurveCompressionCodec_UniformIndexable::Compress(const FCompressibleAn
 	BufferOffset += sizeof(float);
 
 	*NumSamplesPtr = NumSamples;
-	*SampleRatePtr = SampleRate;
+	*SampleRatePtr = AnimSeq.SampledFrameRate.AsDecimal();
 
 	if (NumCurves > 0 && NumSamples > 0)
 	{
@@ -123,12 +119,12 @@ bool UAnimCurveCompressionCodec_UniformIndexable::Compress(const FCompressibleAn
 		// Write out samples by curve so that we can more easily index curve keys
 
 		// Curve 0 Key 0, Curve 0 Key 1, Curve 0 Key N, Curve 1 Key 0, Curve 1 Key 1, Curve 1 Key N, Curve M Key 0, ...
-		const float InvSampleRate = 1.0f / SampleRate;
 		for (const FFloatCurve& Curve : AnimSeq.RawFloatCurves)
 		{
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 			{
-				const float SampleTime = FMath::Clamp(SampleIndex * InvSampleRate, 0.0f, Duration);
+				const double FrameSampleTime = AnimSeq.SampledFrameRate.AsSeconds(SampleIndex);
+				const float SampleTime = FMath::Clamp(FrameSampleTime, 0.0f, AnimSeq.SequenceLength);
 				const float SampleValue = Curve.FloatCurve.Eval(SampleTime);
 
 				(*AnimatedSamplesPtr) = SampleValue;

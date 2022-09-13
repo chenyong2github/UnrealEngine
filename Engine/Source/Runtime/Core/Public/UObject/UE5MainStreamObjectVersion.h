@@ -280,6 +280,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Replace FNames for class/actor paths with FSoftObjectPath
 		WorldPartitionActorDescActorAndClassPaths,
 
+		// Reintroducing AnimationDataModelInterface_BackedOut changes
+		ReintroduceAnimationDataModelInterface,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

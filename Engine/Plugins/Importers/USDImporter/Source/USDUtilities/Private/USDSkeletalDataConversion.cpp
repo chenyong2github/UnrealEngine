@@ -433,11 +433,11 @@ namespace SkelDataConversionImpl
 		Skeleton->AddSmartNameAndModify( USkeleton::AnimCurveMappingName, CurveName, NewName );
 
 		const bool bShouldTransact = false;
-		const UAnimDataModel* DataModel = Sequence->GetDataModel();
+		const IAnimationDataModel* DataModel = Sequence->GetDataModel();
 		IAnimationDataController& Controller = Sequence->GetController();
 
-		FAnimationCurveIdentifier CurveId( NewName, ERawCurveTrackTypes::RCT_Float );
-		const FFloatCurve* Curve = DataModel->FindFloatCurve( CurveId );
+		FAnimationCurveIdentifier CurveId(NewName, ERawCurveTrackTypes::RCT_Float);
+		const FFloatCurve* Curve = DataModel->FindFloatCurve(CurveId);
 		if ( !Curve )
 		{
 			// If curve doesn't exist, add one
@@ -1998,6 +1998,7 @@ bool UsdToUnreal::ConvertSkelAnim(
 	// it will also create a transaction when importing into UE assets, and the level sequence assets can emit some warnings about it
 	const bool bShouldTransact = false;
 	Controller.OpenBracket( LOCTEXT( "ImportUSDAnimData_Bracket", "Importing USD Animation Data" ), bShouldTransact );
+	Controller.InitializeModel();
 	Controller.ResetModel( bShouldTransact );
 
 	// Bake the animation for each frame.
@@ -2253,8 +2254,11 @@ bool UsdToUnreal::ConvertSkelAnim(
 	OutSkeletalAnimationAsset->ImportFileFramerate = LayerTimeCodesPerSecond;
 	OutSkeletalAnimationAsset->ImportResampleFramerate = LayerTimeCodesPerSecond;
 
-	Controller.SetPlayLength( LayerSequenceLengthSeconds, bShouldTransact );
-	Controller.SetFrameRate( FFrameRate( LayerTimeCodesPerSecond, 1 ), bShouldTransact );
+
+	const FFrameRate FrameRate(LayerTimeCodesPerSecond, 1);
+	Controller.SetFrameRate(FrameRate, bShouldTransact);
+	const FFrameNumber FrameNumber = FrameRate.AsFrameNumber(LayerSequenceLengthSeconds);
+	Controller.SetNumberOfFrames(FrameNumber, bShouldTransact);
 	Controller.NotifyPopulated(); // This call is important to get the controller to not use the sampling frequency as framerate
 	Controller.CloseBracket( bShouldTransact );
 

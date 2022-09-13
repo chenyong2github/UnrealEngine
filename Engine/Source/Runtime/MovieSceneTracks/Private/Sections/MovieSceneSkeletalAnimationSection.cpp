@@ -465,7 +465,7 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 		//but if not first find first
 		int32 RootIndex = INDEX_NONE;
 #if WITH_EDITOR
-		const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+		const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
 		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 		const int32 NumTracks = BoneAnimationTracks.Num();
 		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
@@ -525,7 +525,7 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 		Params.Weight.Evaluate(CurrentTime, ManualWeight);
 		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
 		bIsAdditive = false;
-		float CurrentTimeSeconds = static_cast<float>(MapTimeToAnimation(CurrentTime, FrameRate));
+		const double CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
 		bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
 
 		if (TempRootBoneIndex.IsSet())

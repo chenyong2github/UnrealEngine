@@ -2,7 +2,7 @@
 
 #include "AnimTimeline/AnimTimelineTrack_Attribute.h"
 #include "AnimTimeline/SAnimOutlinerItem.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_CustomBoneAttributes"
 

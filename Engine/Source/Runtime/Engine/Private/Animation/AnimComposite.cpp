@@ -144,10 +144,10 @@ bool UAnimComposite::ContainRecursive(TArray<UAnimCompositeBase*>& CurrentAccumu
 void UAnimComposite::SetCompositeLength(float InLength)
 {
 #if WITH_EDITOR		
-	Controller->SetPlayLength(InLength);
+	Controller->SetNumberOfFrames(DataModelInterface->GetFrameRate().AsFrameNumber(InLength));
 #else
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SetSequenceLength(InLength);
+	SequenceLength = InLength;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	
 }

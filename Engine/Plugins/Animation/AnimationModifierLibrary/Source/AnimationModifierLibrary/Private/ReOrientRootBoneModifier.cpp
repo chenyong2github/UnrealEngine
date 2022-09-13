@@ -31,7 +31,7 @@ void UReOrientRootBoneModifier::ReOrientRootBone_Internal(UAnimSequence* Animati
 	}
 
 	IAnimationDataController& Controller = Animation->GetController();
-	const UAnimDataModel* Model = Animation->GetDataModel();
+	const IAnimationDataModel* Model = Animation->GetDataModel();
 
 	if (Model == nullptr)
 	{

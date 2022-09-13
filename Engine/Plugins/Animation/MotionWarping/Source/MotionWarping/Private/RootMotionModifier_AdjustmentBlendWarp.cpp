@@ -37,7 +37,7 @@ void URootMotionModifier_AdjustmentBlendWarp::ExtractBoneTransformAtTime(FTransf
 	const float TrackLength = (EndTime - ActualStartTime);
 	const float TimePercent = (Time - ActualStartTime) / (EndTime - ActualStartTime);
 	const float RemappedTime = TimePercent * TrackLength;
-	FAnimationUtils::ExtractTransformFromTrack(RemappedTime, TotalFrames, TrackLength, Result.AnimationTracks[TrackIndex], EAnimInterpolationType::Linear, OutTransform);
+	FAnimationUtils::ExtractTransformFromTrack(Result.AnimationTracks[TrackIndex], static_cast<double>(RemappedTime), TotalFrames, TrackLength, EAnimInterpolationType::Linear, OutTransform);
 }
 
 void URootMotionModifier_AdjustmentBlendWarp::ExtractBoneTransformAtFrame(FTransform& OutTransform, int32 TrackIndex, int32 Frame) const

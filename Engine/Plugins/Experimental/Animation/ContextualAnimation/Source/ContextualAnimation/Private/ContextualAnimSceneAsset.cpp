@@ -32,7 +32,7 @@ static void ExtractPoseIgnoringForceRootLock(UAnimSequenceBase* AnimSequenceBase
 	{
 		if (AnimMontage->SlotAnimTracks.Num() > 0)
 		{
-			const float ClampedTime = FMath::Clamp(Time, 0.f, AnimSequenceBase->GetPlayLength());
+			const float ClampedTime = FMath::Clamp(Time, 0.f, AnimMontage->CalculateSequenceLength());
 			if (FAnimSegment* Segment = AnimMontage->SlotAnimTracks[0].AnimTrack.GetSegmentAtTime(ClampedTime))
 			{
 				AnimSequence = Cast<UAnimSequence>(Segment->GetAnimReference());

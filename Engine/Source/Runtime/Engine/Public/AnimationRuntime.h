@@ -545,6 +545,9 @@ public:
 	 * The reason why you can provide a FramesPerSecond value is because this can be slightly more accurate than calculating it, in case super high precision is needed.
 	 **/
 	static void GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const int32 NumKeys, const double SequenceLength, double FramesPerSecond=-1.0);
+	
+	/** Get KeyIndices using FFrameRate::AsFrameTime to calculate the keys and alpha value **/
+	static void GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const FFrameRate& FrameRate, const int32 NumberOfKeys);
 
 	/** 
 	 *	Utility for taking an array of bone indices and ensuring that all parents are present 

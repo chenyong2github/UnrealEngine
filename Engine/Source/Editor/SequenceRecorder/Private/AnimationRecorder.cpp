@@ -247,9 +247,11 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	LastFrame = 0;
 
 	IAnimationDataController& Controller = AnimationObject->GetController();
-	Controller.SetModel(AnimationObject->GetDataModel());
+	Controller.SetModel(AnimationObject->GetDataModelInterface());
 
 	Controller.OpenBracket(LOCTEXT("StartRecord_Bracket", "Starting Animation Recording"));
+
+	Controller.InitializeModel();
 
 	const bool bKeepNotifiesAndCurves = CVarKeepNotifyAndCurvesOnAnimationRecord->GetInt() == 0 ? false : true;
 	if (bKeepNotifiesAndCurves)
@@ -365,8 +367,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		int32 NumKeys = LastFrame.Value + 1;
 
 		// can't use TimePassed. That is just total time that has been passed, not necessarily match with frame count
-		Controller.SetPlayLength( (NumKeys>1) ? RecordingRate.AsSeconds(LastFrame): RecordingRate.AsSeconds(1) );
 		Controller.SetFrameRate(RecordingRate);
+		Controller.SetNumberOfFrames( FMath::Max(LastFrame.Value,1) );
 
 		ProcessNotifies();
 
@@ -527,7 +529,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 			FSavePackageArgs SaveArgs;
 			SaveArgs.TopLevelFlags = RF_Standalone;
 			SaveArgs.SaveFlags = SAVE_NoError;
-			UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
+			UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs);
 
 			ElapsedTime = FPlatformTime::Seconds() - StartTime;
 			UE_LOG(LogAnimation, Log, TEXT("Animation Recorder saved %s in %0.2f seconds"), *PackageName, ElapsedTime);
@@ -567,7 +569,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 			FAssetRegistryModule::AssetCreated(AnimationObject);
 		}
 
-		AnimationObject = NULL;
+		AnimationObject = nullptr;
 		PreviousSpacesBases.Empty();
 		PreviousAnimCurves.Empty();
 

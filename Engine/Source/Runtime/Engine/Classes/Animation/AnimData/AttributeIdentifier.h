@@ -80,7 +80,6 @@ protected:
 	FSoftObjectPath ScriptStructPath;
 
 	friend class UAnimationAttributeIdentifierExtensions;
-	friend class UAnimDataController;
 };
 
 template<>

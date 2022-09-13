@@ -16,7 +16,7 @@
 #include "AnimTimeline/SAnimOutlinerItem.h"
 #include "Preferences/PersonaOptions.h"
 #include "SListViewSelectorDropdownMenu.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_Notifies"
 

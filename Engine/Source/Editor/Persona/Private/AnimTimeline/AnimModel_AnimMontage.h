@@ -62,7 +62,7 @@ public:
 	void ToggleSectionTimingDisplay();
 
 protected:	
-	virtual void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad) override;
+	virtual void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& PayLoad) override;
 
 private:
 	/** The anim montage we wrap */

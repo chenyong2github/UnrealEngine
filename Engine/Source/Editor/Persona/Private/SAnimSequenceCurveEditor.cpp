@@ -17,7 +17,7 @@
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SAnimSequenceCurveEditor"
@@ -123,7 +123,7 @@ void FRichCurveEditorModelNamed::CurveHasChanged()
 	}
 }
 
-void FRichCurveEditorModelNamed::OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload)
+void FRichCurveEditorModelNamed::OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload)
 {
 	NotifyCollector.Handle(NotifyType);
 
@@ -368,7 +368,7 @@ SAnimSequenceCurveEditor::~SAnimSequenceCurveEditor()
 {
 	if(AnimSequence)
 	{
-		AnimSequence->GetDataModel()->GetModifiedEvent().RemoveAll(this);		
+		AnimSequence->GetDataModel()->GetModifiedEvent().RemoveAll(this);
 	}
 }
 
@@ -440,7 +440,7 @@ void SAnimSequenceCurveEditor::Construct(const FArguments& InArgs, const TShared
 	];
 }
 
-void SAnimSequenceCurveEditor::OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload)
+void SAnimSequenceCurveEditor::OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload)
 {
 	auto StopEditingCurve = [this, NotifyType, &Payload, Model]()
 	{

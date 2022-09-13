@@ -52,7 +52,7 @@ namespace UnFbx
 		// set time correctly
 		FbxTime ExportedStartTime, ExportedStopTime;
 		ExportedStartTime.SetSecondDouble(0.f);
-		ExportedStopTime.SetSecondDouble(AnimSeq->GetPlayLength());
+		ExportedStopTime.SetSecondDouble(AnimSeq->GetDataModel()->GetFrameRate().AsSeconds(AnimSeq->GetDataModel()->GetNumberOfFrames()));
 
 		FbxTimeSpan ExportedTimeSpan;
 		ExportedTimeSpan.Set(ExportedStartTime, ExportedStopTime);
@@ -69,6 +69,14 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 									 float AnimEndOffset,
 									 float AnimPlayRate,
 									 float StartTime)
+{
+	ExportAnimSequenceToFbx(AnimSeq, SkelMesh, BoneNodes, InAnimLayer,
+		AnimSeq->GetDataModel()->GetFrameRate().AsFrameTime(AnimStartOffset),
+		AnimSeq->GetDataModel()->GetFrameRate().AsFrameTime(AnimSeq->GetPlayLength() - AnimEndOffset),
+		AnimPlayRate, StartTime);
+}
+
+void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, TArray<FbxNode*>& BoneNodes, FbxAnimLayer* InAnimLayer, FFrameTime StartFrameTime, FFrameTime EndFrameTime, float FrameRateScale, float StartTime)
 {
 	// stack allocator for extracting curve
 	FMemMark Mark(FMemStack::Get());
@@ -112,7 +120,7 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 		}
 	}
 
-	ExportCustomAnimCurvesToFbx(CustomCurveMap, AnimSeq, AnimStartOffset, AnimEndOffset, AnimPlayRate, StartTime);
+	ExportCustomAnimCurvesToFbx(CustomCurveMap, AnimSeq, StartFrameTime, EndFrameTime, FrameRateScale, StartTime);
 
 	TArray<const FAnimatedBoneAttribute*> CustomAttributes;
 
@@ -120,10 +128,10 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 	for(int32 BoneIndex = 0; BoneIndex < BoneNodes.Num(); ++BoneIndex)
 	{
 		FbxNode* CurrentBoneNode = BoneNodes[BoneIndex];
-		int32 BoneTreeIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkelMesh, BoneIndex);
-		int32 BoneTrackIndex = Skeleton->GetRawAnimationTrackIndex(BoneTreeIndex, AnimSeq);
-		FName BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
-		
+		const int32 BoneTreeIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkelMesh, BoneIndex);
+		const int32 BoneTrackIndex = Skeleton->GetRawAnimationTrackIndex(BoneTreeIndex, AnimSeq);
+		const FName BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
+
 		CustomAttributes.Reset();
 		AnimSeq->GetDataModel()->GetAttributesForBone(BoneName, CustomAttributes);
 
@@ -207,7 +215,7 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 			Curve->KeyModifyBegin();
 		}
 
-		auto ExportLambda = [&](float AnimTime, FbxTime ExportTime, bool bLastKey) {
+		auto ExportLambda = [&](double AnimTime, FbxTime ExportTime, bool bLastKey) {
 			FTransform BoneAtom;
 			AnimSeq->GetBoneTransform(BoneAtom, BoneTrackIndex, AnimTime, true);
 			FbxAMatrix FbxMatrix = Converter.ConvertMatrix(BoneAtom.ToMatrixWithScale());
@@ -265,7 +273,7 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 			}
 		};
 
-		IterateInsideAnimSequence(AnimSeq, AnimStartOffset, AnimEndOffset, AnimPlayRate, StartTime, ExportLambda);
+		IterateInsideAnimSequence(AnimSeq, StartFrameTime, EndFrameTime, FrameRateScale, StartTime, ExportLambda);
 
 		for (FbxAnimCurve* Curve : Curves)
 		{
@@ -287,6 +295,15 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 
 void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>& CustomCurves, const UAnimSequence* AnimSeq, 
 	float AnimStartOffset, float AnimEndOffset, float AnimPlayRate, float StartTime, float ValueScale)
+{
+	ExportCustomAnimCurvesToFbx(CustomCurves, AnimSeq,
+		AnimSeq->GetDataModel()->GetFrameRate().AsFrameTime(AnimStartOffset),
+		AnimSeq->GetDataModel()->GetFrameRate().AsFrameTime(AnimSeq->GetPlayLength() - AnimEndOffset),
+		AnimPlayRate, StartTime, ValueScale);
+}
+	
+void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>& CustomCurves, const UAnimSequence* AnimSeq,
+	FFrameTime AnimStartOffset, FFrameTime AnimEndOffset, float FrameRateScale, float StartTime, float ValueScale /*= 1.f*/)
 {
 	// stack allocator for extracting curve
 	FMemMark Mark(FMemStack::Get());
@@ -336,7 +353,7 @@ void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>&
 		}
 	};
 
-	IterateInsideAnimSequence(AnimSeq, AnimStartOffset, AnimEndOffset, AnimPlayRate, StartTime, ExportLambda);
+	IterateInsideAnimSequence(AnimSeq, AnimStartOffset, AnimEndOffset, FrameRateScale, StartTime, ExportLambda);
 
 	for (auto CustomCurve : CustomCurves)
 	{
@@ -346,10 +363,21 @@ void FFbxExporter::ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>&
 
 void FFbxExporter::IterateInsideAnimSequence(const UAnimSequence* AnimSeq, float AnimStartOffset, float AnimEndOffset, float AnimPlayRate, float StartTime, TFunctionRef<void(float, FbxTime, bool)> IterationLambda)
 {
-	float AnimTime = AnimStartOffset;
-	float AnimEndTime = (AnimSeq->GetPlayLength() - AnimEndOffset);
-	double TimePerKey = AnimSeq->GetDataModel()->GetFrameRate().AsInterval();
-	const float AnimTimeIncrement = TimePerKey * AnimPlayRate;
+	IterateInsideAnimSequence(AnimSeq,
+		AnimSeq->GetDataModel()->GetFrameRate().AsFrameTime(AnimStartOffset),
+		AnimSeq->GetDataModel()->GetFrameRate().AsFrameTime(AnimSeq->GetPlayLength() - AnimEndOffset),
+		AnimPlayRate,
+		AnimPlayRate,
+		[IterationLambda](double T, FbxTime FT, bool B) -> void
+		{
+			IterationLambda((float)T, FT, B);
+		});
+}
+
+void FFbxExporter::IterateInsideAnimSequence(const UAnimSequence* AnimSeq, FFrameTime StartFrameTime, FFrameTime EndFrameTime, float FrameRateScale, float StartTime, TFunctionRef<void(double, FbxTime, bool)> IterationLambda)
+{
+	const double TimePerKey = AnimSeq->GetDataModel()->GetFrameRate().AsInterval();
+	const double AnimTimeIncrement = TimePerKey * FrameRateScale;
 	uint32 AnimFrameIndex = 0;
 
 	FbxTime ExportTime;
@@ -360,15 +388,16 @@ void FFbxExporter::IterateInsideAnimSequence(const UAnimSequence* AnimSeq, float
 
 	// Step through each frame and add custom curve data
 	bool bLastKey = false;
+	FFrameTime FrameTime = StartFrameTime;
+	const FFrameRate& FrameRate = AnimSeq->GetDataModel()->GetFrameRate();
 	while (!bLastKey)
 	{
-		bLastKey = (AnimTime + KINDA_SMALL_NUMBER) > AnimEndTime;
-
-		IterationLambda(AnimTime, ExportTime, bLastKey);
+		bLastKey = FrameTime > EndFrameTime;
+		IterationLambda(FrameRate.AsSeconds(FrameTime), ExportTime, bLastKey);
 
 		ExportTime += ExportTimeIncrement;
 		AnimFrameIndex++;
-		AnimTime = AnimStartOffset + ((float)AnimFrameIndex * AnimTimeIncrement);
+		FrameTime += FFrameTime::FromDecimal(FrameRateScale);
 	}
 }
 
@@ -423,9 +452,9 @@ void FFbxExporter::CorrectAnimTrackInterpolation( TArray<FbxNode*>& BoneNodes, F
 
 FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, bool bExportSkelMesh, const TCHAR* MeshName, FbxNode* ActorRootNode, const TArray<UMaterialInterface*>* OverrideMaterials /*= nullptr*/ )
 {
-	if( Scene == NULL || AnimSeq == NULL || SkelMesh == NULL )
+	if( Scene == nullptr || AnimSeq == nullptr || SkelMesh == nullptr )
 	{
- 		return NULL;
+ 		return nullptr;
 	}
 
 
@@ -451,10 +480,14 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 			SkelMesh,
 			BoneNodes,
 			AnimLayer,
-			0.f,		// AnimStartOffset
-			0.f,		// AnimEndOffset
-			1.f,		// AnimPlayRate
-			0.f);		// StartTime
+			// Start frame to export
+			FFrameTime(0),
+			// Final frame to export
+			FFrameTime(AnimSeq->GetDataModel()->GetNumberOfFrames()),
+			// Frame rate scale
+			1.f,
+			// FBX StartTime
+			0.f);
 
 		CorrectAnimTrackInterpolation(BoneNodes, AnimLayer);
 	}

@@ -4,6 +4,7 @@
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
 #include "HAL/ThreadSingleton.h"
+#include "Animation/AnimSequenceHelpers.h"
 #if INTEL_ISPC
 #include "BonePose.ispc.generated.h"
 
@@ -136,17 +137,6 @@ bool FMeshPose::IsNormalized() const
 	return true;
 }
 
-struct FRetargetTracking
-{
-	const FCompactPoseBoneIndex PoseBoneIndex;
-	const int32 SkeletonBoneIndex;
-
-	FRetargetTracking(const FCompactPoseBoneIndex InPoseBoneIndex, const int32 InSkeletonBoneIndex)
-		: PoseBoneIndex(InPoseBoneIndex), SkeletonBoneIndex(InSkeletonBoneIndex)
-	{
-	}
-};
-
 FTransform ExtractTransformForKey(int32 Key, const FRawAnimSequenceTrack &TrackToExtract)
 {
 	static const FVector DefaultScale3D = FVector(1.f);
@@ -165,23 +155,16 @@ FTransform ExtractTransformForKey(int32 Key, const FRawAnimSequenceTrack &TrackT
 	}
 }
 
-struct FBuildRawPoseScratchArea : public TThreadSingleton<FBuildRawPoseScratchArea>
-{
-	TArray<FRetargetTracking> RetargetTracking;
-	TArray<FVirtualBoneCompactPoseData> VirtualBoneCompactPoseData;
-};
-
-
 template<bool bInterpolateT>
 void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimationData, const TArray<struct FTrackToSkeletonMap>& TrackToSkeletonMapTable, FCompactPose& InOutPose, int32 KeyIndex1, int32 KeyIndex2, float Alpha, float TimePerKey, const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves)
 {
 	const int32 NumTracks = InAnimationData.Num();
 	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
 
-	TArray<FRetargetTracking>& RetargetTracking = FBuildRawPoseScratchArea::Get().RetargetTracking;
+	TArray<UE::Anim::Retargeting::FRetargetTracking>& RetargetTracking = UE::Anim::FBuildRawPoseScratchArea::Get().RetargetTracking;
 	RetargetTracking.Reset(NumTracks);
 
-	TArray<FVirtualBoneCompactPoseData>& VBCompactPoseData = FBuildRawPoseScratchArea::Get().VirtualBoneCompactPoseData;
+	TArray<FVirtualBoneCompactPoseData>& VBCompactPoseData =  UE::Anim::FBuildRawPoseScratchArea::Get().VirtualBoneCompactPoseData;
 	VBCompactPoseData = RequiredBones.GetVirtualBoneCompactPoseData();
 
 	FCompactPose Key2Pose;
@@ -254,7 +237,7 @@ void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimati
 					}
 				}
 
-				RetargetTracking.Add(FRetargetTracking(PoseBoneIndex, SkeletonBoneIndex));
+				RetargetTracking.Add(UE::Anim::Retargeting::FRetargetTracking(PoseBoneIndex, SkeletonBoneIndex));
 			}
 		}
 	}
@@ -332,7 +315,9 @@ void BuildPoseFromRawData(
 {
 	int32 KeyIndex1, KeyIndex2;
 	float Alpha;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, InTime, NumFrames, SequenceLength);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (Interpolation == EAnimInterpolationType::Step)
 	{
@@ -368,11 +353,10 @@ void BuildPoseFromRawData(
 
 	if (!bDisableRetargeting)
 	{
-		const TArray<FRetargetTracking>& RetargetTracking = FBuildRawPoseScratchArea::Get().RetargetTracking;
+		const TArray<UE::Anim::Retargeting::FRetargetTracking>& RetargetTracking = UE::Anim::FBuildRawPoseScratchArea::Get().RetargetTracking;
 
-		USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
-
-		for (const FRetargetTracking& RT : RetargetTracking)
+		const USkeleton* Skeleton = RequiredBones.GetSkeletonAsset();
+		for (const UE::Anim::Retargeting::FRetargetTracking& RT : RetargetTracking)
 		{
 			FAnimationRuntime::RetargetBoneTransform(Skeleton, SourceName, RetargetTransforms, InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
 		}

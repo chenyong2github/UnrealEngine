@@ -964,7 +964,9 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 	TArray<FKeyHandle> AllHandlesByIndex;
 	TArray<FKeyHandle> KeepHandles;
 
-	if (KeyHandlesToIndices.Num() != 0)
+	// If we have no handles to start with do not bother generating any
+	const bool bHasKeyHandles = KeyHandlesToIndices.Num() != 0;
+	if (bHasKeyHandles)
 	{
 		check(KeyHandlesToIndices.Num() == Keys.Num());
 		AllHandlesByIndex.AddZeroed(Keys.Num());
@@ -975,11 +977,6 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 			AllHandlesByIndex[HandleIndexPair.Value] = HandleIndexPair.Key;
 		}
 	}
-	else
-	{
-		AllHandlesByIndex.AddDefaulted(Keys.Num());
-	}
-	
 
 	{
 		TArray<FRichCurveKey> NewKeys;
@@ -989,7 +986,11 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 		for(int32 StartKeepIndex = 0; StartKeepIndex <= ActualStartKeepKey; ++StartKeepIndex)
 		{
 			NewKeys.Add(Keys[StartKeepIndex]);
-			KeepHandles.Add(AllHandlesByIndex[StartKeepIndex]);
+			
+			if (bHasKeyHandles)
+			{
+				KeepHandles.Add(AllHandlesByIndex[StartKeepIndex]);
+			}
 		}
 
 		//Add keys up to the first end keep key if they are not redundant
@@ -1050,7 +1051,11 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 			{
 				MostRecentKeepKeyIndex = TestIndex;
 				NewKeys.Add(Keys[TestIndex]);
-				KeepHandles.Add(AllHandlesByIndex[TestIndex]);
+
+				if(bHasKeyHandles)
+				{
+					KeepHandles.Add(AllHandlesByIndex[TestIndex]);
+				}
 			}
 		}
 
@@ -1058,16 +1063,22 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 		for (int32 EndKeepIndex = ActualEndKeepKey; EndKeepIndex < Keys.Num(); ++EndKeepIndex)
 		{
 			NewKeys.Add(Keys[EndKeepIndex]);
-			KeepHandles.Add(AllHandlesByIndex[EndKeepIndex]);
+			if (bHasKeyHandles)
+			{
+				KeepHandles.Add(AllHandlesByIndex[EndKeepIndex]);
+			}
 		}
 		Keys = MoveTemp(NewKeys); //Do this at the end of scope, guaranteed that NewKeys is going away
 	}
 
 	AutoSetTangents();
 
-	// Rebuild KeyHandlesToIndices
-	check(Keys.Num() == KeepHandles.Num());
-	KeyHandlesToIndices.Initialize(KeepHandles);
+	if (bHasKeyHandles)
+	{
+		// Rebuild KeyHandlesToIndices
+		check(Keys.Num() == KeepHandles.Num());
+		KeyHandlesToIndices.Initialize(KeepHandles);
+	}
 }
 
 void FRichCurve::RemapTimeValue(float& InTime, float& CycleValueOffset) const
@@ -1144,7 +1155,7 @@ float FRichCurve::Eval(float InTime, float InDefaultValue) const
 	{
 		// If no keys in curve, return the Default value.
 	} 
-	else if (NumKeys < 2 || (InTime <= Keys[0].Time))
+	else if (NumKeys < 2 || (InTime < Keys[0].Time))
 	{
 		if (PreInfinityExtrap == RCCE_Linear && NumKeys > 1)
 		{
@@ -1168,7 +1179,7 @@ float FRichCurve::Eval(float InTime, float InDefaultValue) const
 			InterpVal = Keys[0].Value;
 		}
 	}
-	else if (InTime < Keys[NumKeys - 1].Time)
+	else if (InTime <= Keys[NumKeys - 1].Time)
 	{
 		// perform a lower bound to get the second of the interpolation nodes
 		int32 first = 1;
@@ -1177,8 +1188,8 @@ float FRichCurve::Eval(float InTime, float InDefaultValue) const
 
 		while (count > 0)
 		{
-			int32 step = count / 2;
-			int32 middle = first + step;
+			const int32 step = count / 2;
+			const int32 middle = first + step;
 
 			if (InTime >= Keys[middle].Time)
 			{
@@ -1264,13 +1275,10 @@ static ERichCurveCompressionFormat FindRichCurveCompressionFormat(const FRichCur
 	{
 		if (Key.InterpMode == RCIM_Cubic)
 		{
-			if (Key.TangentMode != RCTM_Auto && Key.TangentMode != RCTM_None)
+			if (Key.TangentWeightMode != RCTWM_WeightedNone)
 			{
-				if (Key.TangentWeightMode != RCTWM_WeightedNone)
-				{
-					bIsWeighted = true;
-					break;
-				}
+				bIsWeighted = true;
+				break;
 			}
 		}
 		if (Key.InterpMode != RefKey.InterpMode)
@@ -1448,10 +1456,10 @@ static ERichCurveKeyTimeCompressionFormat FindRichCurveKeyFormat(const FRichCurv
 
 void FRichCurve::CompressCurve(FCompressedRichCurve& OutCurve, float ErrorThreshold, float SampleRate) const
 {
-	ERichCurveCompressionFormat CompressionFormat = FindRichCurveCompressionFormat(*this);
+	const ERichCurveCompressionFormat CompressionFormat = FindRichCurveCompressionFormat(*this);
 	OutCurve.CompressionFormat = CompressionFormat;
 
-	ERichCurveKeyTimeCompressionFormat KeyFormat = FindRichCurveKeyFormat(*this, ErrorThreshold, SampleRate, CompressionFormat);
+	const ERichCurveKeyTimeCompressionFormat KeyFormat = FindRichCurveKeyFormat(*this, ErrorThreshold, SampleRate, CompressionFormat);
 	OutCurve.KeyTimeCompressionFormat = KeyFormat;
 
 	OutCurve.PreInfinityExtrap = PreInfinityExtrap;
@@ -1977,7 +1985,7 @@ FORCEINLINE_DEBUGGABLE static float InterpEval(float InTime, const KeyTimeAdapte
 	float CycleValueOffset = 0.0;
 
 	const float FirstKeyTime = KeyTimeAdapter.GetTime(0);
-	if (InTime <= FirstKeyTime)
+	if (InTime < FirstKeyTime)
 	{
 		if (PreInfinityExtrap != RCCE_Linear && PreInfinityExtrap != RCCE_Constant)
 		{
@@ -1990,7 +1998,7 @@ FORCEINLINE_DEBUGGABLE static float InterpEval(float InTime, const KeyTimeAdapte
 	}
 
 	const float LastKeyTime = KeyTimeAdapter.GetTime(NumKeys - 1);
-	if (InTime >= LastKeyTime)
+	if (InTime > LastKeyTime)
 	{
 		if (PostInfinityExtrap != RCCE_Linear && PostInfinityExtrap != RCCE_Constant)
 		{
@@ -2032,6 +2040,14 @@ FORCEINLINE_DEBUGGABLE static float InterpEval(float InTime, const KeyTimeAdapte
 	const KeyDataHandle KeyValueHandle0 = KeyDataAdapter.GetKeyDataHandle(First - 1);
 	const float KeyValue0 = KeyDataAdapter.GetKeyValue(KeyValueHandle0);
 
+	auto IsItNotWeighted = [KeyDataAdapter](KeyDataHandle Handle0, KeyDataHandle Handle1) -> bool
+	{
+		const ERichCurveTangentWeightMode Mode0 = KeyDataAdapter.GetKeyTangentWeightMode(Handle0);
+		const ERichCurveTangentWeightMode Mode1 = KeyDataAdapter.GetKeyTangentWeightMode(Handle1);
+		
+		return (Mode0 == RCTWM_WeightedNone || Mode0 == RCTWM_WeightedArrive) && (Mode1 == RCTWM_WeightedNone || Mode1 == RCTWM_WeightedLeave);
+	};
+
 	// const value here allows the code to be stripped statically if the data is uniform
 	// which it is most of the time
 	const ERichCurveCompressionFormat KeyInterpMode0 = KeyDataAdapter.GetKeyInterpMode(First - 1);
@@ -2049,7 +2065,7 @@ FORCEINLINE_DEBUGGABLE static float InterpEval(float InTime, const KeyTimeAdapte
 		{
 			InterpolatedValue = FMath::Lerp(P0, P3, Alpha);
 		}
-		else if (KeyInterpMode0 != RCCF_Weighted || KeyDataAdapter.GetKeyInterpMode(First) != RCCF_Weighted)
+		else if (IsItNotWeighted(KeyValueHandle0, KeyValueHandle1))
 		{
 			const float OneThird = 1.0f / 3.0f;
 			const float ScaledDiff = Diff * OneThird;

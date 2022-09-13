@@ -43,7 +43,8 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::MakeTimelineWidgetContainer()
 	// zoom to fit now we have a view
 	CurveEditor->ZoomToFit(EAxisList::Y);
 
-	auto ColorLambda = [this]()
+	FLinearColor CurveColor = FloatCurve->GetCurveTypeFlag(AACF_Metadata) ? FloatCurve->GetColor().Desaturate(0.25f) : FloatCurve->GetColor().Desaturate(0.75f);
+	auto ColorLambda = [this, CurveColor]()
 	{
 		if(GetModel()->IsTrackSelected(AsShared()))
 		{
@@ -51,14 +52,14 @@ TSharedRef<SWidget> FAnimTimelineTrack_FloatCurve::MakeTimelineWidgetContainer()
 		}
 		else
 		{
-			return FloatCurve->GetCurveTypeFlag(AACF_Metadata) ? FloatCurve->GetColor().Desaturate(0.25f) : FloatCurve->GetColor().Desaturate(0.75f);
+			return CurveColor;
 		}
 	};
 
 	return
 		SAssignNew(TimelineWidgetContainer, SBorder)
 		.Padding(0.0f)
-		.BorderImage_Lambda([this](){ return FloatCurve->GetCurveTypeFlag(AACF_Metadata) ? FAppStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay") : FAppStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"); })
+		.BorderImage(FloatCurve->GetCurveTypeFlag(AACF_Metadata) ? FAppStyle::GetBrush("Sequencer.Section.SelectedSectionOverlay") : FAppStyle::GetBrush("AnimTimeline.Outliner.DefaultBorder"))
 		.BorderBackgroundColor_Lambda(ColorLambda)
 		[
 			CurveWidget
@@ -255,14 +256,13 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
           
 			FAnimationCurveIdentifier NewCurveId(NewSmartName, ERawCurveTrackTypes::RCT_Float);
 			Controller.RenameCurve(CurveId, NewCurveId);
-			Controller.RemoveBoneTracksMissingFromSkeleton(AnimSequenceBase->GetSkeleton());           
 		}
 	}
 }
 
 FText FAnimTimelineTrack_FloatCurve::GetLabel() const
 {
-	return FAnimTimelineTrack_FloatCurve::GetFloatCurveName(GetModel(), FloatCurve->Name);
+	return FAnimTimelineTrack_FloatCurve::GetFloatCurveName(GetModel(), CurveName);
 }
 
 void FAnimTimelineTrack_FloatCurve::Copy(UAnimTimelineClipboardContent* InOutClipboard) const
@@ -328,11 +328,7 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 		PersonaUtils::MakeTrackButton(LOCTEXT("EditCurveButtonText", "Curve"), FOnGetContent::CreateSP(this, &FAnimTimelineTrack_FloatCurve::BuildCurveTrackMenu), MakeAttributeSP(this, &FAnimTimelineTrack_FloatCurve::IsHovered))
 	];
 
-	auto GetValue = [this]()
-	{
-		return FloatCurve->Color;
-	};
-
+	FLinearColor CurveColor = FloatCurve->Color;
 	auto SetValue = [this](FLinearColor InNewColor)
 	{
 		UAnimSequenceBase* AnimSequenceBase = GetModel()->GetAnimSequenceBase();
@@ -345,11 +341,11 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 		}
 	};
 
-	auto OnGetMenuContent = [this, GetValue, SetValue]()
+	auto OnGetMenuContent = [this, CurveColor, SetValue]()
 	{
 		// Open a color picker
 		return SNew(SColorPicker)
-			.TargetColorAttribute_Lambda(GetValue)
+			.TargetColorAttribute(CurveColor)
 			.UseAlpha(false)
 			.DisplayInlineVersion(true)
 			.OnColorCommitted_Lambda(SetValue)
@@ -382,7 +378,7 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 		.ButtonContent()
 		[
 			SNew(SColorBlock)
-			.Color_Lambda(GetValue)
+			.Color(CurveColor)
 			.ShowBackgroundForAlpha(false)
 			.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Ignore)
 			.Size(FVector2D(OutlinerRightPadding - 2.0f, OutlinerRightPadding))

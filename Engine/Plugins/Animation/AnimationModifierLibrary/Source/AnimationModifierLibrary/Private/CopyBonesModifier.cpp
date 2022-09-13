@@ -20,7 +20,7 @@ void UCopyBonesModifier::OnApply_Implementation(UAnimSequence* Animation)
 	}
 
 	IAnimationDataController& Controller = Animation->GetController();
-	const UAnimDataModel* Model = Animation->GetDataModel();
+	const IAnimationDataModel* Model = Animation->GetDataModel();
 
 	if (Model == nullptr)
 	{

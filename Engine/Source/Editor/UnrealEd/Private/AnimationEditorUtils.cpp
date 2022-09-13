@@ -524,12 +524,18 @@ namespace AnimationEditorUtils
 				
 				if (!NewAsset)
 				{
-					NewAsset = Cast<UAnimationAsset>(AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), AssetClass, NULL));
+					NewAsset = Cast<UAnimationAsset>(AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), AssetClass, nullptr));
 				}
 				
 				if(NewAsset)
 				{
 					NewAsset->SetSkeleton(Skeleton);
+
+					if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(NewAsset))
+					{
+						SequenceBase->GetController().InitializeModel();
+					}
+					
 					if (SkeletalMesh)
 					{
 						NewAsset->SetPreviewMesh(SkeletalMesh);
@@ -900,7 +906,7 @@ namespace AnimationEditorUtils
 			if (UAnimGraphNode_Base* TargetNode = Cast<UAnimGraphNode_Base>(PoseWatch->Node))
 			{
 				UAnimBlueprint* AnimBlueprint = AnimBlueprintIfKnown ? AnimBlueprintIfKnown : Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(TargetNode));
-				if ((AnimBlueprint != NULL) && (AnimBlueprint->GeneratedClass != NULL))
+				if ((AnimBlueprint != nullptr) && (AnimBlueprint->GeneratedClass != nullptr))
 				{
 					if (UAnimBlueprintGeneratedClass* AnimBPGenClass = Cast<UAnimBlueprintGeneratedClass>(*AnimBlueprint->GeneratedClass))
 					{

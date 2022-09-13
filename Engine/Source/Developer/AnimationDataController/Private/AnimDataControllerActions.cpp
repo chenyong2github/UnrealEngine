@@ -3,7 +3,7 @@
 #include "AnimDataControllerActions.h"
 #include "AnimDataController.h"
 
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "UObject/StrongObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "AnimDataControllerActions"
@@ -16,13 +16,13 @@ namespace Anim {
 
 TUniquePtr<FChange> FAnimDataBaseAction::Execute(UObject* Object)
 {
-	UAnimDataModel* Model = Cast<UAnimDataModel>(Object);
-	checkf(Model != nullptr, TEXT("Invalid UAnimDataModel Object"));
+	const TScriptInterface<IAnimationDataModel> DataModelInterface(Object);
+	checkf(DataModelInterface, TEXT("Invalid IAnimationDataModel Object"));
 
-	TStrongObjectPtr<UAnimDataController> Controller(NewObject<UAnimDataController>());
-	Controller->SetModel(Model);
+	const TScriptInterface<IAnimationDataController> Controller = DataModelInterface->GetController();
+	Controller->SetModel(DataModelInterface);
 
-	return ExecuteInternal(Model, Controller.Get());
+	return ExecuteInternal(DataModelInterface.GetInterface(), Controller.GetInterface());
 }
 
 FString FAnimDataBaseAction::ToString() const
@@ -30,7 +30,7 @@ FString FAnimDataBaseAction::ToString() const
 	return ToStringInternal();
 }
 
-TUniquePtr<FChange> FOpenBracketAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FOpenBracketAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	Controller->NotifyBracketOpen();
 	return MakeUnique<FCloseBracketAction>(Description);
@@ -41,7 +41,7 @@ FString FOpenBracketAction::ToStringInternal() const
 	return FString::Printf(TEXT("Open Bracket: %s"), *Description);
 }
 
-TUniquePtr<FChange> FCloseBracketAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FCloseBracketAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	Controller->NotifyBracketClosed();
 	return MakeUnique<FOpenBracketAction>(Description);
@@ -52,17 +52,16 @@ FString FCloseBracketAction::ToStringInternal() const
 	return TEXT("Closing Bracket");
 }
 
-FAddTrackAction::FAddTrackAction(const FBoneAnimationTrack& Track, int32 InTrackIndex)
+FAddTrackAction::FAddTrackAction(const FBoneAnimationTrack& Track)
 {
 	Name = Track.Name;
 	BoneTreeIndex = Track.BoneTreeIndex;
 	Data = Track.InternalTrackData;
-	TrackIndex = InTrackIndex;
 }
 
-TUniquePtr<FChange> FAddTrackAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddTrackAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
-	Controller->InsertBoneTrack(Name, TrackIndex, false);
+	Controller->AddBoneTrack(Name, false);
 	
 	if (Data.PosKeys.Num() || Data.RotKeys.Num() || Data.ScaleKeys.Num())
 	{
@@ -70,7 +69,7 @@ TUniquePtr<FChange> FAddTrackAction::ExecuteInternal(UAnimDataModel* Model, UAni
 	}
 	
 	const FBoneAnimationTrack& AddedTrack = Model->GetBoneTrackByName(Name);
-	return MakeUnique<FRemoveTrackAction>(AddedTrack, TrackIndex);
+	return MakeUnique<FRemoveTrackAction>(Name);
 }
 
 FString FAddTrackAction::ToStringInternal() const
@@ -78,17 +77,16 @@ FString FAddTrackAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddTrackAction_Description", "Adding animation bone track '{0}'."), FText::FromName(Name)).ToString();
 }
 
-FRemoveTrackAction::FRemoveTrackAction(const FBoneAnimationTrack& Track, int32 InTrackIndex)
+FRemoveTrackAction::FRemoveTrackAction(const FName& TrackName)
 {
-	Name = Track.Name;
-	TrackIndex = InTrackIndex;
+	Name = TrackName;
 }
 
-TUniquePtr<FChange> FRemoveTrackAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FRemoveTrackAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FBoneAnimationTrack& Track = Model->GetBoneTrackByName(Name);
 
-	TUniquePtr<FChange> InverseAction = MakeUnique<FAddTrackAction>(Track, TrackIndex);
+	TUniquePtr<FChange> InverseAction = MakeUnique<FAddTrackAction>(Track);
 	Controller->RemoveBoneTrack(Name, false);
 	return InverseAction;
 }
@@ -105,7 +103,7 @@ FSetTrackKeysAction::FSetTrackKeysAction(const FBoneAnimationTrack& Track)
 	TrackData = Track.InternalTrackData;
 }
 
-TUniquePtr<FChange> FSetTrackKeysAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetTrackKeysAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FBoneAnimationTrack& Track = Model->GetBoneTrackByName(Name);
 	TUniquePtr<FChange> InverseAction = MakeUnique<FSetTrackKeysAction>(Track);
@@ -119,29 +117,29 @@ FString FSetTrackKeysAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetTrackKeysAction_Description", "Setting keys for animation bone track '{0}'."), FText::FromName(Name)).ToString();
 }
 
-FResizePlayLengthAction::FResizePlayLengthAction(const UAnimDataModel* InModel, float t0, float t1) : T0(t0), T1(t1)
+FResizePlayLengthInFramesAction::FResizePlayLengthInFramesAction(const IAnimationDataModel* InModel, FFrameNumber F0, FFrameNumber F1) : Frame0(F0), Frame1(F1)
 {
-	Length = InModel->GetPlayLength();
+	Length = InModel->GetNumberOfFrames();
 }
 
-TUniquePtr<FChange> FResizePlayLengthAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FResizePlayLengthInFramesAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
-	TUniquePtr<FChange> InverseAction = MakeUnique<FResizePlayLengthAction>(Model, T0, T1);
-	Controller->ResizePlayLength(Length, T0, T1, false);
+	TUniquePtr<FChange> InverseAction = MakeUnique<FResizePlayLengthInFramesAction>(Model, Frame0, Frame1);
+	Controller->ResizeNumberOfFrames(Length, Frame0, Frame1, false);
 	return InverseAction;
 }
 
-FString FResizePlayLengthAction::ToStringInternal() const
+FString FResizePlayLengthInFramesAction::ToStringInternal() const
 {
-	return FText::Format(LOCTEXT("ResizePlayLengthAction_Description", "Resizing play length to {0}."), FText::AsNumber(Length)).ToString();
+	return FText::Format(LOCTEXT("ResizePlayLengthInFramesAction_Description", "Resizing play length to {0} frames."), FText::AsNumber(Length.Value)).ToString();
 }
 
-FSetFrameRateAction::FSetFrameRateAction(const UAnimDataModel* InModel)
+FSetFrameRateAction::FSetFrameRateAction(const IAnimationDataModel* InModel)
 {
 	FrameRate = InModel->GetFrameRate();
 }
 
-TUniquePtr<FChange> FSetFrameRateAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetFrameRateAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FChange> InverseAction = MakeUnique<FSetFrameRateAction>(Model);
 	Controller->SetFrameRate(FrameRate, false);
@@ -153,7 +151,7 @@ FString FSetFrameRateAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetFrameRateAction_Description", "Setting Frame Rate to {0}."), FrameRate.ToPrettyText()).ToString();
 }
 
-TUniquePtr<FChange> FAddCurveAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FChange> InverseAction = MakeUnique<FRemoveCurveAction>(CurveId);
 
@@ -170,7 +168,7 @@ FString FAddCurveAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddCurveAction_Description", "Adding {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FRemoveCurveAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FRemoveCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FChange> InverseAction;	
 
@@ -198,7 +196,7 @@ FString FRemoveCurveAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("RemoveCurveAction_Description", "Removing {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FSetCurveFlagsAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetCurveFlagsAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FAnimCurveBase& Curve = Model->GetCurve(CurveId);
 
@@ -218,7 +216,7 @@ FString FSetCurveFlagsAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetCurveFlagsAction_Description", "Setting flags for {0} curve '{1}'."), FText::FromString(CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FRenameCurveAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FRenameCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	Controller->RenameCurve(CurveId, NewCurveId, false);
 	return MakeUnique<FRenameCurveAction>(NewCurveId, CurveId);
@@ -236,7 +234,7 @@ FScaleCurveAction::FScaleCurveAction(const FAnimationCurveIdentifier& InCurveId,
 	ensure(CurveType == ERawCurveTrackTypes::RCT_Float);
 }
 
-TUniquePtr<FChange> FScaleCurveAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FScaleCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const float InverseFactor = 1.0f / Factor;
 
@@ -255,7 +253,7 @@ FString FScaleCurveAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("ScaleCurveAction_Description", "Scaling {0} curve '{1}'."), FText::FromString(CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FAddFloatCurveAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddFloatCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FChange> InverseAction = MakeUnique<FRemoveCurveAction>(CurveId);
 
@@ -288,7 +286,7 @@ FAddTransformCurveAction::FAddTransformCurveAction(const FAnimationCurveIdentifi
 	SubCurveKeys[8] = InTransformCurve.ScaleCurve.FloatCurves[2].GetConstRefOfKeys();
 }
 
-TUniquePtr<FChange> FAddTransformCurveAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddTransformCurveAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FChange> InverseAction = MakeUnique<FRemoveCurveAction>(CurveId);
 
@@ -296,10 +294,10 @@ TUniquePtr<FChange> FAddTransformCurveAction::ExecuteInternal(UAnimDataModel* Mo
 
 	for (int32 SubCurveIndex = 0; SubCurveIndex < 3; ++SubCurveIndex)
 	{
-		const ETransformCurveChannel Channel = (ETransformCurveChannel)SubCurveIndex;
+		const ETransformCurveChannel Channel = static_cast<ETransformCurveChannel>(SubCurveIndex);
 		for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 		{
-			const EVectorCurveChannel Axis = (EVectorCurveChannel)ChannelIndex;
+			const EVectorCurveChannel Axis = static_cast<EVectorCurveChannel>(ChannelIndex);
 			FAnimationCurveIdentifier TargetCurveIdentifier = CurveId;
 			UAnimationCurveIdentifierExtensions::GetTransformChildCurveIdentifier(TargetCurveIdentifier, Channel, Axis);
 			Controller->SetCurveKeys(TargetCurveIdentifier, SubCurveKeys[(SubCurveIndex * 3) + ChannelIndex], false);
@@ -314,7 +312,7 @@ FString FAddTransformCurveAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddTransformCurveAction_Description", "Adding transform curve '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FAddRichCurveKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddRichCurveKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FChange> InverseAction = MakeUnique<FRemoveRichCurveKeyAction>(CurveId, Key.Time);
 	Controller->SetCurveKey(CurveId, Key, false);
@@ -329,7 +327,7 @@ FString FAddRichCurveKeyAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddNamedRichCurveKeyAction_Description", "Adding key to {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FSetRichCurveKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetRichCurveKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FRichCurve& RichCurve = Model->GetRichCurve(CurveId);
 
@@ -350,7 +348,7 @@ FString FSetRichCurveKeyAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetNamedRichCurveKeyAction_Description", "Setting key for {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FRemoveRichCurveKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FRemoveRichCurveKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {	
 	const FRichCurve& RichCurve = Model->GetRichCurve(CurveId);
 
@@ -371,7 +369,7 @@ FString FRemoveRichCurveKeyAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("RemoveNamedRichCurveKeyAction_Description", "Removing key from {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FSetRichCurveKeysAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetRichCurveKeysAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FRichCurve& RichCurve = Model->GetRichCurve(CurveId);
 
@@ -390,7 +388,7 @@ FString FSetRichCurveKeysAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetNamedRichCurveKeysAction_Description", "Replacing keys for {0} curve '{1}'."), FText::FromString(CurveId.CurveType == ERawCurveTrackTypes::RCT_Float ? FloatLabel : TransformLabel), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
-TUniquePtr<FChange> FSetCurveColorAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetCurveColorAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FAnimCurveBase& AnimationCurve = Model->GetCurve(CurveId);
 	const FLinearColor CurrentColor = AnimationCurve.Color;
@@ -410,7 +408,7 @@ FAddAtributeAction::FAddAtributeAction(const FAnimatedBoneAttribute& InAttribute
 	Keys = InAttribute.Curve.GetConstRefOfKeys();
 }
 
-TUniquePtr<FChange> FAddAtributeAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddAtributeAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {	
 	TArray<const void*> VoidValues;
 	Algo::Transform(Keys, VoidValues, [](const FAttributeKey& Key)
@@ -435,7 +433,7 @@ FString FAddAtributeAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddAttributeAction_Description", "Adding attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
 }
 
-TUniquePtr<FChange> FRemoveAtributeAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FRemoveAtributeAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FAnimatedBoneAttribute& Attribute = Model->GetAttribute(AttributeId);
 	TUniquePtr<FAddAtributeAction> InverseAction = MakeUnique<FAddAtributeAction>(Attribute);
@@ -450,7 +448,7 @@ FString FRemoveAtributeAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("RemoveAttributeAction_Description", "Removing attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
 }
 
-TUniquePtr<FChange> FAddAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FAddAtributeKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), AttributeId.GetType(), false);
 
@@ -462,7 +460,7 @@ FString FAddAtributeKeyAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddAttributeKeyAction_Description", "Adding key to attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
 }
 
-TUniquePtr<FChange> FSetAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetAtributeKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FAnimatedBoneAttribute& Attribute = Model->GetAttribute(AttributeId);
 
@@ -480,7 +478,7 @@ FString FSetAtributeKeyAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetAttributeKeyAction_Description", "Setting key on attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
 }
 
-TUniquePtr<FChange> FRemoveAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FRemoveAtributeKeyAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	const FAnimatedBoneAttribute& Attribute = Model->GetAttribute(AttributeId);
 
@@ -504,7 +502,7 @@ FSetAtributeKeysAction::FSetAtributeKeysAction(const FAnimatedBoneAttribute& InA
 	Keys = InAttribute.Curve.GetConstRefOfKeys();
 }
 
-TUniquePtr<FChange> FSetAtributeKeysAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+TUniquePtr<FChange> FSetAtributeKeysAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
 	TUniquePtr<FSetAtributeKeysAction> InverseAction = MakeUnique<FSetAtributeKeysAction>(Model->GetAttribute(AttributeId));
 

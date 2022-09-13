@@ -11,7 +11,7 @@
 #include "SequenceRecorderUtils.h"
 #include "Algo/Transform.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "Animation/AnimSequence.h"
 
 TSharedPtr<IMovieSceneSectionRecorder> FMovieScene3DTransformSectionRecorderFactory::CreateSectionRecorder(const FActorRecordingSettings& InActorRecordingSettings) const

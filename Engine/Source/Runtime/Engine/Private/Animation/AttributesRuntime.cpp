@@ -28,12 +28,17 @@ namespace UE { namespace Anim {
 #if WITH_EDITOR
 void Attributes::GetAttributeValue(FStackAttributeContainer& OutAttributes, const FCompactPoseBoneIndex& PoseBoneIndex, const FAnimatedBoneAttribute& Attribute, const FAnimExtractContext& ExtractionContext)
 {
+	GetAttributeValue(OutAttributes, PoseBoneIndex, Attribute, ExtractionContext.CurrentTime);
+}
+
+void Attributes::GetAttributeValue(FStackAttributeContainer& OutAttributes, const FCompactPoseBoneIndex& PoseBoneIndex, const FAnimatedBoneAttribute& Attribute, double CurrentTime)
+{
 	// Evaluating a single attribute into a stack-based container
 	if (Attribute.Identifier.IsValid())
 	{
 		uint8* AttributeDataPtr = OutAttributes.FindOrAdd(Attribute.Identifier.GetType(), FAttributeId(Attribute.Identifier.GetName(), PoseBoneIndex));
 		check(AttributeDataPtr)
-		Attribute.Curve.EvaluateToPtr(Attribute.Identifier.GetType(), ExtractionContext.CurrentTime, AttributeDataPtr);
+		Attribute.Curve.EvaluateToPtr(Attribute.Identifier.GetType(), CurrentTime, AttributeDataPtr);
 	}
 }
 #endif // WITH_EDITOR

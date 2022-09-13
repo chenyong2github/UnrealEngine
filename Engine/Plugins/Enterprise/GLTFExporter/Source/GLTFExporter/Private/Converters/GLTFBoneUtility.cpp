@@ -78,7 +78,7 @@ void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequenc
 
 	for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 	{
-		const FAnimExtractContext ExtractionContext(FrameTimestamps[Frame]); // TODO: set bExtractRootMotion?
+		const FAnimExtractContext ExtractionContext(static_cast<double>(FrameTimestamps[Frame])); // TODO: set bExtractRootMotion?
 		AnimSequence->GetBonePose(PoseData, ExtractionContext, bUseRawData);
 		Pose.CopyBonesTo(OutBoneTransformsByFrame[Frame]);
 	}

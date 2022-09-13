@@ -53,6 +53,16 @@ void FMovieSceneFloatChannel::Set(TArray<FFrameNumber> InTimes, TArray<FMovieSce
 	FMovieSceneFloatChannelImpl::Set(this, InTimes, InValues);
 }
 
+void FMovieSceneFloatChannel::SetKeysOnly(TArrayView<FFrameNumber> InTimes, TArrayView<FMovieSceneFloatValue> InValues)
+{
+	check(InTimes.Num() == InValues.Num());
+
+	Times = MoveTemp(InTimes);
+	Values = MoveTemp(InValues);
+
+	KeyHandles.Reset();
+}
+
 void FMovieSceneFloatChannel::AutoSetTangents(float Tension)
 {
 	FMovieSceneFloatChannelImpl::AutoSetTangents(this, Tension);

@@ -247,7 +247,7 @@ public:
 	* @param	Pose					Anim Pose to hold the evaluated data
 	*/
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "Animation|Pose")
-	static void GetAnimPoseAtTime(const UAnimSequenceBase* AnimationSequenceBase, float Time, FAnimPoseEvaluationOptions EvaluationOptions, FAnimPose& Pose);
+	static void GetAnimPoseAtTime(const UAnimSequenceBase* AnimationSequenceBase, double Time, FAnimPoseEvaluationOptions EvaluationOptions, FAnimPose& Pose);
 
 	/**
 	* Evaluates an Animation Sequence Base at different time intervals to generate a valid Anim Pose instances
@@ -257,7 +257,7 @@ public:
 	* @param	EvaluationOptions		Options determining the way the pose should be evaluated
 	* @param	InOutPoses				Anim Poses holding the evaluated data (number matches TimeIntervals)
 	*/
-	static void GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* AnimationSequenceBase, TArray<float> TimeIntervals, FAnimPoseEvaluationOptions EvaluationOptions, TArray<FAnimPose>& InOutPoses);
+	static void GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* AnimationSequenceBase, TArray<double> TimeIntervals, FAnimPoseEvaluationOptions EvaluationOptions, TArray<FAnimPose>& InOutPoses);
 
 	/**
 	* Evaluates an Animation Sequence Base to generate a valid Anim Pose instance

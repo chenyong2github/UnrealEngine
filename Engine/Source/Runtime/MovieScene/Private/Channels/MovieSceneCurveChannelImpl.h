@@ -27,6 +27,18 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 
 	/** Evaluate this channel with the frame resolution */
 	static bool Evaluate(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
+
+	/** Structure used to store the result of UE::MovieScene::EvaluateTime for a given channel/key distribution*/
+	struct FTimeEvaluationCache
+	{
+		float InterpValue = 0.f;
+		int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
+		int32 CachedNumFrames = INDEX_NONE;
+		FFrameTime CacheFrameTime;
+	};
+	/** Evaluate this channel at provided FrameTime, using or populating cached time to frame-number(s) calculation */
+	static bool EvaluateWithCache(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime, CurveValueType& OutValue);
+	
 	 /*
 	  * Populate the specified array with times and values that represent the smooth interpolation of 
 	  * the given channel across the specified range

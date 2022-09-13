@@ -794,7 +794,7 @@ void UBlendSpace::ResetToRefPose(FCompactPose& OutPose) const
 	}
 }
 
-static const FAnimExtractContext DefaultBlendSpaceExtractionContext = { 0.f, true, {}, false };
+static const FAnimExtractContext DefaultBlendSpaceExtractionContext = { 0.0, true, {}, false };
 
 void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve) const
 {
@@ -896,7 +896,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 
 					FAnimationPoseData ChildAnimationPoseData = { Pose, ChildrenCurves[I], ChildrenAttributes[I] };
 					// first one always fills up the source one
-					Sample.Animation->GetAnimationPose(ChildAnimationPoseData, FAnimExtractContext(Time, ExtractionContext.bExtractRootMotion, BlendSampleDataCache[I].DeltaTimeRecord, ExtractionContext.bLooping));
+					Sample.Animation->GetAnimationPose(ChildAnimationPoseData, FAnimExtractContext(static_cast<double>(Time), ExtractionContext.bExtractRootMotion, BlendSampleDataCache[I].DeltaTimeRecord, ExtractionContext.bLooping));
 				}
 				else
 				{
@@ -1622,7 +1622,7 @@ FVector UBlendSpace::GetNormalizedBlendInput(const FVector& BlendInput) const
 
 const FEditorElement* UBlendSpace::GetGridSampleInternal(int32 Index) const
 {
-	return GridSamples.IsValidIndex(Index) ? &GridSamples[Index] : NULL;
+	return GridSamples.IsValidIndex(Index) ? &GridSamples[Index] : nullptr;
 }
 
 // When using CriticallyDampedSmoothing, how to go from the interpolation speed to the smooth

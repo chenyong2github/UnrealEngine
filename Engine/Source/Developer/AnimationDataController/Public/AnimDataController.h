@@ -15,22 +15,7 @@
 
 #include "AnimDataController.generated.h"
 
-#if WITH_EDITOR
-
-#endif // WITH_EDITOR
-
-struct FAnimationCurveIdentifier;
-struct FAnimationAttributeIdentifier;
-
-namespace UE {
-namespace Anim {
-	class FOpenBracketAction;
-	class FCloseBracketAction;
-	
-	static const int32 DefaultCurveFlags = EAnimAssetCurveFlags::AACF_Editable;
-}}
-
-     UCLASS(BlueprintType)
+UCLASS(BlueprintType)
 class ANIMATIONDATACONTROLLER_API UAnimDataController : public UObject, public IAnimationDataController
 {
 	GENERATED_BODY()
@@ -44,15 +29,18 @@ public:
 
 #if WITH_EDITOR
 	/** Begin IAnimationDataController overrides */
-	virtual void SetModel(UAnimDataModel* InModel)  override;
-    virtual UAnimDataModel* GetModel() override { return Model.Get(); }
-	virtual const UAnimDataModel* const GetModel() const override { return Model.Get(); }
+	virtual void SetModel(TScriptInterface<IAnimationDataModel> InModel) override;
+    virtual TScriptInterface<IAnimationDataModel> GetModelInterface() const override { return ModelInterface; }
+	virtual const IAnimationDataModel* const GetModel() const override { return Model.Get(); }
 	virtual void OpenBracket(const FText& InTitle, bool bShouldTransact = true) override;
 	virtual void CloseBracket(bool bShouldTransact = true) override;
+	virtual void SetNumberOfFrames(FFrameNumber Length, bool bShouldTransact = true) override;
+	virtual void ResizeNumberOfFrames(FFrameNumber NewLength, FFrameNumber T0, FFrameNumber T1, bool bShouldTransact = true) override;
+	virtual void ResizeInFrames(FFrameNumber Length, FFrameNumber T0, FFrameNumber T1, bool bShouldTransact = true) override;
+	virtual void SetFrameRate(FFrameRate FrameRate, bool bShouldTransact = true) override;
 	virtual void SetPlayLength(float Length, bool bShouldTransact = true) override;
 	virtual void ResizePlayLength(float NewLength, float T0, float T1, bool bShouldTransact = true) override;
 	virtual void Resize(float Length, float T0, float T1, bool bShouldTransact = true) override;
-	virtual void SetFrameRate(FFrameRate FrameRate, bool bShouldTransact = true) override;
 	virtual int32 AddBoneTrack(FName BoneName, bool bShouldTransact = true) override;
 	virtual int32 InsertBoneTrack(FName BoneName, int32 DesiredIndex, bool bShouldTransact = true) override;
 	virtual bool RemoveBoneTrack(FName BoneName, bool bShouldTransact = true) override;
@@ -96,6 +84,9 @@ public:
 	}
     virtual bool RemoveAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, bool bShouldTransact = true) override;	
 	virtual bool DuplicateAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, const FAnimationAttributeIdentifier& NewAttributeIdentifier, bool bShouldTransact = true) override;
+	virtual void UpdateWithSkeleton(USkeleton* TargetSkeleton, bool bShouldTransact = true) override;
+	virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> InModel) override;
+	virtual void InitializeModel() override {}
 protected:
 	virtual void NotifyBracketOpen() override;
 	virtual void NotifyBracketClosed() override;
@@ -106,53 +97,22 @@ private:
 	bool SetAttributeKey_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, const UScriptStruct* TypeStruct, bool bShouldTransact = true);
 	bool SetAttributeKeys_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, const UScriptStruct* TypeStruct, bool bShouldTransact = true);
 
-	/** Returns whether or not the supplied curve type is supported by the controller functionality */
-	const bool IsSupportedCurveType(ERawCurveTrackTypes CurveType) const;
-	/** Returns the string representation of the provided curve enum type value */
-	FString GetCurveTypeValueName(ERawCurveTrackTypes InType) const;
-	
 	/** Resizes the curve/attribute data stored on the model according to the provided new length and time at which to insert or remove time */
 	void ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
 	void ResizeAttributes(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
-
-	/** Ensures that a valid model is currently targeted */
-	void ValidateModel() const;
-
-	/** Verifies whether or not the Model's outer object is (or is derived from) the specified UClass */
-	bool CheckOuterClass(UClass* InClass) const;
-
-	/** Helper functionality to output script-based warnings and errors */
-	void Report(ELogVerbosity::Type InVerbosity, const FText& InMessage) const;
-
-	template <typename FmtType, typename... Types>
-    void ReportWarningf(const FmtType& Fmt, Types... Args) const
-	{	
-		Report(ELogVerbosity::Warning, FText::Format(Fmt, Args...));
-	}
-
-	template <typename FmtType, typename... Types>
-    void ReportErrorf(const FmtType& Fmt, Types... Args) const
-	{
-		Report(ELogVerbosity::Error, FText::Format(Fmt, Args...));
-	}
-
-	template <typename FmtType, typename... Types>
-	void Reportf(ELogVerbosity::Type InLogType, const FmtType& Fmt, Types... Args) const
-	{	
-		Report(InLogType, FText::Format(Fmt, Args...));
-	}
 #endif // WITH_EDITOR
 
 private: 
 #if WITH_EDITOR
 	int32 BracketDepth;
-
-	UE::FChangeTransactor ChangeTransactor;	
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TWeakObjectPtr<UAnimDataModel> Model;
+	
+	UPROPERTY(transient)
+	TScriptInterface<IAnimationDataModel> ModelInterface;
 #endif // WITH_EDITORONLY_DATA
 
 	friend class FAnimDataControllerTestBase;

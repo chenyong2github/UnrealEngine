@@ -63,6 +63,16 @@ void FMovieSceneDoubleChannel::Set(TArray<FFrameNumber> InTimes, TArray<FMovieSc
 	FMovieSceneDoubleChannelImpl::Set(this, InTimes, InValues);
 }
 
+void FMovieSceneDoubleChannel::SetKeysOnly(TArrayView<FFrameNumber> InTimes, TArrayView<FMovieSceneDoubleValue> InValues)
+{
+	check(InTimes.Num() == InValues.Num());
+
+	Times = MoveTemp(InTimes);
+	Values = MoveTemp(InValues);
+
+	KeyHandles.Reset();
+}
+
 void FMovieSceneDoubleChannel::AutoSetTangents(float Tension)
 {
 	FMovieSceneDoubleChannelImpl::AutoSetTangents(this, Tension);

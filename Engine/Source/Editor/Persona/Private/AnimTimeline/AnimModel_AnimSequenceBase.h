@@ -59,8 +59,8 @@ protected:
 	/** Refresh attribute tracks */
 	void RefreshAttributeTracks();
 
-	/** Callback for any change made to the UAnimDataModel embedded in the AnimSequenceBase instance this represents */
-	virtual void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad);
+	/** Callback for any change made to the IAnimationDataModel embedded in the AnimSequenceBase instance this represents */
+	virtual void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& PayLoad);
 
 private:
 	/** UI handlers */

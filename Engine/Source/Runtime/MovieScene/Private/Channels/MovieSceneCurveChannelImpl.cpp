@@ -302,6 +302,12 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::EvaluateExtrapolation(const Chann
 template<typename ChannelType>
 bool TMovieSceneCurveChannelImpl<ChannelType>::Evaluate(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue) 
 {
+	return EvaluateWithCache(InChannel, nullptr, InTime, OutValue);
+}
+
+template<typename ChannelType>
+bool TMovieSceneCurveChannelImpl<ChannelType>::EvaluateWithCache(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime, CurveValueType& OutValue) 
+{
 	using namespace UE::MovieScene;
 
 	const int32 NumKeys = InChannel->Times.Num();
@@ -362,7 +368,27 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::Evaluate(const ChannelType* InCha
 	// Evaluate the curve data
 	float Interp = 0.f;
 	int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
-	UE::MovieScene::EvaluateTime(InChannel->Times, Params.Time, Index1, Index2, Interp);
+
+	// Initialize cache if not yet performed
+	if(InOutEvaluationCache && InOutEvaluationCache->CachedNumFrames == INDEX_NONE)
+	{
+		UE::MovieScene::EvaluateTime(InChannel->Times, Params.Time, InOutEvaluationCache->Index1, InOutEvaluationCache->Index2, InOutEvaluationCache->InterpValue);
+		InOutEvaluationCache->CachedNumFrames = InChannel->Times.Num();
+		InOutEvaluationCache->CacheFrameTime = Params.Time;
+	}
+
+	// If cache matches contained number of frames, copy data out rather than evaluating time data again
+	if (InOutEvaluationCache && InOutEvaluationCache->CachedNumFrames == InChannel->Times.Num() && InOutEvaluationCache->CacheFrameTime == Params.Time)
+	{
+		Interp = InOutEvaluationCache->InterpValue;
+		Index1 = InOutEvaluationCache->Index1;
+		Index2 = InOutEvaluationCache->Index2;
+	}
+	else
+	{
+		UE::MovieScene::EvaluateTime(InChannel->Times, Params.Time, Index1, Index2, Interp);
+	}
+	
 	const int CheckBothLinear = GSequencerLinearCubicInterpolation;
 
 	if (Index1 == INDEX_NONE)

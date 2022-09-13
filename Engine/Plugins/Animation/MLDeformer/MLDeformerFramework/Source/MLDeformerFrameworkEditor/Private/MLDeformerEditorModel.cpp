@@ -253,7 +253,8 @@ namespace UE::MLDeformer
 
 		PreviewScene->DeselectAll();
 		PreviewScene->SetPreviewAnimationAsset(nullptr);
-		//PreviewScene->SetPreviewMesh(nullptr);
+		PreviewScene->SetPreviewAnimationBlueprint(nullptr, nullptr);
+		PreviewScene->SetPreviewMesh(nullptr);
 		PreviewScene->SetPreviewMeshComponent(nullptr);
 		PreviewScene->SetActor(nullptr);
 
@@ -1067,7 +1068,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		const UAnimDataModel* DataModel = Model->GetAnimSequence()->GetDataModel();
+		const IAnimationDataModel* DataModel = Model->GetAnimSequence()->GetDataModel();
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
@@ -1157,7 +1158,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		const UAnimDataModel* DataModel = Model->GetAnimSequence()->GetDataModel();
+		const IAnimationDataModel* DataModel = Model->GetAnimSequence()->GetDataModel();
 		if (!DataModel)
 		{
 			UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));

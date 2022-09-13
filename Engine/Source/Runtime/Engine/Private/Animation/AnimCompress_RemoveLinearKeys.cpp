@@ -113,8 +113,8 @@ void FilterLinearKeysTemplate(
 	// generate new arrays we will fill with the final keys
 	TArray<KeyType> NewKeys;
 	TArray<float> NewTimes;
-	NewKeys.Empty(KeyCount);
-	NewTimes.Empty(KeyCount);
+	NewKeys.Reset(KeyCount);
+	NewTimes.Reset(KeyCount);
 
 	// Only bother doing anything if we have some keys!
 	if(KeyCount > 0)
@@ -122,8 +122,8 @@ void FilterLinearKeysTemplate(
 		int32 LowKey = 0;
 		int32 HighKey = KeyCount-1;
 
-		TArray<uint32> KnownParentTimes;
-		KnownParentTimes.Empty(KeyCount);
+		TArray<bool> KnownParentTimes;
+		KnownParentTimes.SetNumUninitialized(KeyCount);
 		const int32 ParentKeyCount = ParentTimes ? ParentTimes->Num() : 0;
 		for (int32 TimeIndex = 0, ParentTimeIndex = 0; TimeIndex < KeyCount; TimeIndex++)
 		{
@@ -132,15 +132,15 @@ void FilterLinearKeysTemplate(
 				ParentTimeIndex++;
 			}
 
-			KnownParentTimes.Add((ParentTimeIndex < ParentKeyCount) && (Times[TimeIndex] == (*ParentTimes)[ParentTimeIndex]));
+			KnownParentTimes[TimeIndex] = (ParentTimeIndex < ParentKeyCount) && (Times[TimeIndex] == (*ParentTimes)[ParentTimeIndex]);
 		}
 
 		TArray<FTransform> CachedInvRawBases;
-		CachedInvRawBases.Empty(KeyCount);
+		CachedInvRawBases.SetNumUninitialized(KeyCount);
 		for (int32 FrameIndex = 0; FrameIndex < KeyCount; ++FrameIndex)
 		{
 			const FTransform& RawBase = RawWorldBones[(BoneIndex*NumFrames) + FrameIndex];
-			CachedInvRawBases.Add(RawBase.Inverse());
+			CachedInvRawBases[FrameIndex] = RawBase.Inverse();
 		}
 		
 		// copy the low key (this one is a given)
@@ -304,20 +304,19 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 {
 	const FBoneData& Bone		= CompressibleAnimData.BoneData[BoneIndex];
 	const int32 NumKeys		= CompressibleAnimData.NumberOfKeys;
-	const float SequenceLength	= CompressibleAnimData.SequenceLength;
 	const int32 FrameStart		= (BoneIndex*NumKeys);
 	const int32 TrackIndex = FAnimationUtils::GetAnimTrackIndexForSkeletonBone(BoneIndex, CompressibleAnimData.TrackToSkeletonMapTable);
 	
 	check(OutputWorldBones.Num() >= (FrameStart+NumKeys));
 
-	const float TimePerFrame = SequenceLength / (float)(NumKeys-1);
+	const FFrameRate& SamplingRate = CompressibleAnimData.SampledFrameRate;
 
 	if( TrackIndex != INDEX_NONE )
 	{
 		// get the local-space bone transforms using the animation solver
 		for ( int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex )
 		{
-			float Time = (float)KeyIndex * TimePerFrame;
+			const double Time = SamplingRate.AsSeconds(KeyIndex);
 			FTransform LocalAtom;
 
 			FAnimationUtils::ExtractTransformFromCompressionData(CompressibleAnimData, OutCompressedData, Time, TrackIndex, UseRaw, LocalAtom);
@@ -417,9 +416,10 @@ void UAnimCompress_RemoveLinearKeys::UpdateBoneAtomList(
 	TArray<FTransform>& BoneAtoms)
 {
 	BoneAtoms.Reset(NumFrames);
+	const FFrameRate& SamplingRate = CompressibleAnimData.SampledFrameRate;
 	for ( int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex )
 	{
-		float Time = (float)FrameIndex * TimePerFrame;
+		const double Time = SamplingRate.AsSeconds(FrameIndex);
 		FTransform LocalAtom;
 		FAnimationUtils::ExtractTransformFromCompressionData(CompressibleAnimData, OutCompressedData, Time, TrackIndex, false, LocalAtom);
 
@@ -465,11 +465,10 @@ void UAnimCompress_RemoveLinearKeys::ConvertFromRelativeSpace(FCompressibleAnimD
 		// make sure scale key exists
 		if (RawTrack.ScaleKeys.Num() > 0)
 		{
-			const FVector3f DefaultScale(1.f);
-			const FVector3f& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : DefaultScale;
+			const FVector3f& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : FVector3f::OneVector;
 			for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
 			{
-				RawTrack.ScaleKeys[ScaleIndex] = RefBoneScale * (DefaultScale + RawTrack.ScaleKeys[ScaleIndex]);
+				RawTrack.ScaleKeys[ScaleIndex] = RefBoneScale * (FVector3f::OneVector + RawTrack.ScaleKeys[ScaleIndex]);
 			}
 		}
 	}
@@ -515,7 +514,8 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(FCompressibleAnimDat
 		// scale key
 		if (RawTrack.ScaleKeys.Num() > 0)
 		{
-			const FVector3f InvRefBoneScale = (FVector3f)FTransform::GetSafeScaleReciprocal((FVector)BasePoseTrack.ScaleKeys[0]);
+        	const FVector3f& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : FVector3f::OneVector;
+			const FVector3f InvRefBoneScale = (FVector3f)FTransform::GetSafeScaleReciprocal((FVector)RefBoneScale);
 
 			// transform scale keys.
 			for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
@@ -563,7 +563,8 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
 		// scale key
 		if (ScaleData.Num() > 0)
 		{
-			const FVector3f InvRefBoneScale = (FVector3f)FTransform::GetSafeScaleReciprocal((FVector)BasePoseTrack.ScaleKeys[0]);
+        	const FVector3f& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : FVector3f::OneVector;
+			const FVector3f InvRefBoneScale = (FVector3f)FTransform::GetSafeScaleReciprocal((FVector)RefBoneScale);
 
 			// convert the new scale tracks to additive space
 			FScaleTrack& ScaleTrack = ScaleData[TrackIndex];
@@ -879,7 +880,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 			}
 
 			// Determine if a guidance track should be used to aid in choosing keys to retain
-			TArray<float>* GuidanceTrack = NULL;
+			TArray<float>* GuidanceTrack = nullptr;
 			float GuidanceScale = 1.0f;
 			if (GuideTrackIndex != INDEX_NONE)
 			{

@@ -4,279 +4,75 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "AnimDataNotifications.h"
-#include "Animation/AttributeCurve.h"
+
+#include "IAnimationDataModel.h"
 
 #include "AnimDataModel.generated.h"
-
-/**
- * Structure encapsulating a single bone animation track.
- */
-USTRUCT(BlueprintType)
-struct ENGINE_API FBoneAnimationTrack
-{
-	GENERATED_BODY()
-
-	/** Internally stored data representing the animation bone data */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	FRawAnimSequenceTrack InternalTrackData;
-
-	/** Index corresponding to the bone this track corresponds to within the target USkeleton */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	int32 BoneTreeIndex = INDEX_NONE;
-
-	/** Name of the bone this track corresponds to */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	FName Name;
-};
-
-/**
- * Structure encapsulating animated curve data. Currently only contains Float and Transform curves.
- */
-USTRUCT(BlueprintType)
-struct ENGINE_API FAnimationCurveData
-{
-	GENERATED_BODY()
-
-	/** Float-based animation curves */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	TArray<FFloatCurve>	FloatCurves;
-
-	/** FTransform-based animation curves, used for animation layer editing */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	TArray<FTransformCurve>	TransformCurves;
-};
-
-/**
- * Structure encapsulating animated (bone) attribute data.
- */
-USTRUCT(BlueprintType)
-struct ENGINE_API FAnimatedBoneAttribute
-{
-	GENERATED_BODY()
-
-	/** Identifier to reference this attribute by */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	FAnimationAttributeIdentifier Identifier;	
-
-	/** Curve containing the (animated) attribute data */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	FAttributeCurve Curve;
-};
-
-struct FTrackToSkeletonMap;
-struct FAnimationCurveIdentifier;
 
 /**
  * The Model represents the source data for animations. It contains both bone animation data as well as animated curves.
  * They are currently only a sub-object of a AnimSequenceBase instance. The instance derives all runtime data from the source data. 
  */
 UCLASS(BlueprintType, meta=(DebugTreeLeaf))
-class ENGINE_API UAnimDataModel : public UObject
+class ENGINE_API UAnimDataModel : public UObject, public IAnimationDataModel
 {
 	GENERATED_BODY()
 public:
-
-	/** Begin UAnimDataModel overrides */
+	/** Begin UObject overrides */
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool IsEditorOnly() const override { return true; }
-	/** End UAnimDataModel overrides */
-
-	/**
-	* @return	Total length of play-able animation data 
-	*/
-	UFUNCTION(BlueprintPure, Category=AnimationDataModel)
-	float GetPlayLength() const;
+	/** End UObject overrides */
 	
-	/**
-	* @return	Total number of frames of animation data stored 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	int32 GetNumberOfFrames() const;
+	/** Begin IAnimationDataModel overrides */
+	virtual double GetPlayLength() const override;
+	virtual int32 GetNumberOfFrames() const override;
+	virtual int32 GetNumberOfKeys() const override;
+	virtual FFrameRate GetFrameRate() const override;
+	virtual const TArray<FBoneAnimationTrack>& GetBoneAnimationTracks() const override;
+	virtual const FBoneAnimationTrack& GetBoneTrackByIndex(int32 TrackIndex) const override;
+	virtual const FBoneAnimationTrack& GetBoneTrackByName(FName TrackName) const override;
+	virtual const FBoneAnimationTrack* FindBoneTrackByName(FName Name) const override;
+	virtual const FBoneAnimationTrack* FindBoneTrackByIndex(int32 BoneIndex) const override;
+	virtual int32 GetBoneTrackIndex(const FBoneAnimationTrack& Track) const override;
+	virtual int32 GetBoneTrackIndexByName(FName TrackName) const override;
+	virtual bool IsValidBoneTrackIndex(int32 TrackIndex) const override;
+	virtual int32 GetNumBoneTracks() const override;
+	virtual void GetBoneTrackNames(TArray<FName>& OutNames) const override;
 
-	/**
-	* @return	Total number of animation data keys stored 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	int32 GetNumberOfKeys() const;
+	virtual const FAnimCurveBase* FindCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FFloatCurve* FindFloatCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FTransformCurve* FindTransformCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FRichCurve* FindRichCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FAnimationCurveData& GetCurveData() const override;
+	virtual int32 GetNumberOfTransformCurves() const override;
+	virtual int32 GetNumberOfFloatCurves() const override;
+	virtual const TArray<struct FFloatCurve>& GetFloatCurves() const override;
+	virtual const TArray<struct FTransformCurve>& GetTransformCurves() const override;	
+	virtual const FAnimCurveBase& GetCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FFloatCurve& GetFloatCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FTransformCurve& GetTransformCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual const FRichCurve& GetRichCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
+	virtual TArrayView<const FAnimatedBoneAttribute> GetAttributes() const override;
+	virtual int32 GetNumberOfAttributes() const override;
+	virtual int32 GetNumberOfAttributesForBoneIndex(const int32 BoneIndex) const override;
+	virtual void GetAttributesForBone(const FName& BoneName, TArray<const FAnimatedBoneAttribute*>& OutBoneAttributes) const override;
+	virtual const FAnimatedBoneAttribute& GetAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const override;
+	virtual const FAnimatedBoneAttribute* FindAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const override;
+	virtual UAnimSequence* GetAnimationSequence() const override;
+	virtual FAnimDataModelModifiedEvent& GetModifiedEvent() override { return ModifiedEvent; }
+	virtual FGuid GenerateGuid() const override;
+#if WITH_EDITOR
+	virtual void Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim::DataModel::FEvaluationContext& EvaluationContext) const override;
+#endif
+	virtual TScriptInterface<IAnimationDataController> GetController() override;
+	virtual bool HasBeenPopulated() const override { return bPopulated; }
+protected:
+	virtual IAnimationDataModel::FModelNotifier& GetNotifier() override;
+	virtual FAnimDataModelModifiedDynamicEvent& GetModifiedDynamicEvent() override { return ModifiedEventDynamic; }
+	virtual void OnNotify(const EAnimDataModelNotifyType& NotifyType, const FAnimDataModelNotifPayload& Payload) override {}
+	/** End IAnimationDataModel overrides */
 
-	/**
-	* @return	Frame rate at which the animation data is key-ed 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	const FFrameRate& GetFrameRate() const;
-	
-	/**
-	* @return	Array containg all bone animation tracks 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	const TArray<FBoneAnimationTrack>& GetBoneAnimationTracks() const;
-	
-	/**
-	* @return	Bone animation track for the provided index
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	const FBoneAnimationTrack& GetBoneTrackByIndex(int32 TrackIndex) const;
-
-	/**
-	* @return	Bone animation track for the provided (bone) name
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	const FBoneAnimationTrack& GetBoneTrackByName(FName TrackName) const;
-	
-	/**
-	* @return	Bone animation track for the provided (bone) name if found, otherwise returns a nullptr 
-	*/
-	const FBoneAnimationTrack* FindBoneTrackByName(FName Name) const;
-
-	/**
-	* @return	Bone animation track for the provided index if valid, otherwise returns a nullptr 
-	*/
-	const FBoneAnimationTrack* FindBoneTrackByIndex(int32 BoneIndex) const;
-
-	/**
-	* @return	Internal track index for the provided bone animation track if found, otherwise returns INDEX_NONE 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	int32 GetBoneTrackIndex(const FBoneAnimationTrack& Track) const;
-
-	/**
-	* @return	Internal track index for the provided (bone) name if found, otherwise returns INDEX_NONE 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	int32 GetBoneTrackIndexByName(FName TrackName) const;
-
-	/**
-	* @return	Whether or not the provided track index is valid 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	bool IsValidBoneTrackIndex(int32 TrackIndex) const;
-
-	/**
-	* @return	Total number of bone animation tracks
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	const int32 GetNumBoneTracks() const;
-
-	/**
-	* Populates the provided array with all contained (bone) track names
-	*
-	* @param	OutNames	[out] Array containing all bone track names
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	void GetBoneTrackNames(TArray<FName>& OutNames) const;
-
-	/** Returns all contained curve animation data */
-	const FAnimationCurveData& GetCurveData() const;
-
-	/**
-	* @return	Total number of stored FTransform curves
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	int32 GetNumberOfTransformCurves() const;
-
-	/**
-	* @return	Total number of stored float curves
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	int32 GetNumberOfFloatCurves() const;
-
-	/**
-	* @return	Array containing all stored float curves 
-	*/
-	const TArray<struct FFloatCurve>& GetFloatCurves() const;
-
-	/**
-	* @return	Array containing all stored FTransform curves 
-	*/
-	const TArray<struct FTransformCurve>& GetTransformCurves() const;
-
-	/**
-	* @return	Curve ptr for the provided identifier if valid, otherwise returns a nullptr 
-	*/
-	const FAnimCurveBase* FindCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Float Curve ptr for the provided identifier if valid, otherwise returns a nullptr
-	*/
-	const FFloatCurve* FindFloatCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Transform Curve ptr for the provided identifier if valid, otherwise returns a nullptr
-	*/
-	const FTransformCurve* FindTransformCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Rich curve ptr for the provided identifier if valid, otherwise returns a nullptr
-	*/
-	const FRichCurve* FindRichCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Curve object for the provided identifier if valid
-	*/
-	const FAnimCurveBase& GetCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Float Curve object for the provided identifier if valid
-	*/
-	const FFloatCurve& GetFloatCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Transform Curve object for the provided identifier if valid
-	*/
-	const FTransformCurve& GetTransformCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-
-	/**
-	* @return	Rich Curve object for the provided identifier if valid
-	*/
-	const FRichCurve& GetRichCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
-		
-	/**
-	* @return	Animated (bone) attributes stored
-	*/
-	TArrayView<const FAnimatedBoneAttribute> GetAttributes() const;
-
-	/**
-	* @return	Number of animated (bone) attributes stored
-	*/
-	int32 GetNumberOfAttributes() const;
-
-	/**
-	* @return	Number of animated (bone) attributes stored for the specified bone index
-	*/
-	int32 GetNumberOfAttributesForBoneIndex(const int32 BoneIndex) const;
-
-	/**
-	* @return	All animated (bone) attributes stored for the specified bone name
-	*/
-	void GetAttributesForBone(const FName& BoneName, TArray<const FAnimatedBoneAttribute*>& OutBoneAttributes) const;
-
-	/**
-	* @return	Animated (bone) attribute object for the provided identifier if valid
-	*/
-	const FAnimatedBoneAttribute& GetAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const;
-
-	/**
-	* @return	Animated (bone) attribute ptr for the provided identifier if valid, otherwise returns a nullptr 
-	*/
-	const FAnimatedBoneAttribute* FindAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const;
-		
-	/**
-	* @return	The outer UAnimSequence object if found, otherwise returns a nullptr 
-	*/
-	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
-	UAnimSequence* GetAnimationSequence() const;
-
-	/**
-	* @return	Multicast delegate which is broadcasted to propagated changes to any internal data, see FAnimDataModelModifiedEvent and EAnimDataModelNotifyType
-	*/
-	FAnimDataModelModifiedEvent& GetModifiedEvent() { return ModifiedEvent; }
-
-	/**
-	* @return	GUID representing the contained data and state 
-	*/
-	FGuid GenerateGuid() const;
 private:
 	/** Helper functionality used by UAnimDataController to retrieve mutable data */ 
 	FBoneAnimationTrack* FindMutableBoneTrackByName(FName Name);
@@ -286,77 +82,10 @@ private:
 	FAnimCurveBase* FindMutableCurveById(const FAnimationCurveIdentifier& CurveIdentifier);	   
 	FRichCurve* GetMutableRichCurve(const FAnimationCurveIdentifier& CurveIdentifier);
 
-	/**
-	* Broadcasts a new EAnimDataModelNotifyType with the provided payload data alongside it.
-	*
-	* @param	NotifyType			Type of notify to broadcast
-	* @param	PayloadData			Typed payload data
-	*/
-	template<typename T>
-	void Notify(EAnimDataModelNotifyType NotifyType, const T& PayloadData)
-	{
-		UScriptStruct* TypeScriptStruct = T::StaticStruct();
-
-		const FAnimDataModelNotifPayload Payload((int8*)&PayloadData, TypeScriptStruct);
-		ModifiedEvent.Broadcast(NotifyType, this, Payload);
-
-		if (ModifiedEventDynamic.IsBound())
-		{
-			ModifiedEventDynamic.Broadcast(NotifyType, this, Payload);
-		}
-
-		// Only regenerate transient data when not in a bracket, or at the end of one
-		{
-			if (NotifyType == EAnimDataModelNotifyType::BracketOpened)
-			{
-				++BracketCounter;
-			}
-			if (NotifyType == EAnimDataModelNotifyType::BracketClosed)
-			{
-				--BracketCounter;
-			}
-
-			check(BracketCounter >= 0);
-		}
-	}
-
-	/**
-	* Broadcasts a new EAnimDataModelNotifyType alongside of an empty payload.
-	*
-	* @param	NotifyType			Type of notify to broadcast
-	*/
-	void Notify(EAnimDataModelNotifyType NotifyType)
-	{
-		FEmptyPayload EmptyPayload;
-		const FAnimDataModelNotifPayload Payload((int8*)&EmptyPayload, FEmptyPayload::StaticStruct());
-
-		ModifiedEvent.Broadcast(NotifyType, this, Payload);
-
-		if (ModifiedEventDynamic.IsBound())
-		{
-			ModifiedEventDynamic.Broadcast(NotifyType, this, Payload);
-		}
-
-		// Only regenerate transient data when not in a bracket, or at the end of one
-		{
-			if (NotifyType == EAnimDataModelNotifyType::BracketOpened)
-			{
-				++BracketCounter;
-			}
-			if (NotifyType == EAnimDataModelNotifyType::BracketClosed)
-			{
-				--BracketCounter;
-			}
-
-			check(BracketCounter >= 0);
-		}
-	}
-
 private:
-
 	UPROPERTY(Transient)
 	int32 BracketCounter = 0;
-private:
+
 	/** Dynamic delegate event allows scripting to register to any broadcasted notify. */
 	UPROPERTY(BlueprintAssignable, Transient, Category = AnimationDataModel, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))
 	FAnimDataModelModifiedDynamicEvent ModifiedEventDynamic;
@@ -369,6 +98,7 @@ private:
 	TArray<FBoneAnimationTrack> BoneAnimationTracks;
 
 	/** Total playable length of the contained animation data */
+	UE_DEPRECATED(5.1, "PlayLength is deprecated use GetPlayLength instead, as it is now calculated with Number of Frames * FrameRate instead of stored as a value")
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Data Model", meta = (AllowPrivateAccess = "true"))
 	float PlayLength;
 	
@@ -390,7 +120,12 @@ private:
 	
 	/** Container with all animated (bone) attribute data */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Data Model", meta = (AllowPrivateAccess = "true"))
-	TArray<FAnimatedBoneAttribute> AnimatedBoneAttributes;	
+	TArray<FAnimatedBoneAttribute> AnimatedBoneAttributes;
+
+	UPROPERTY()
+	bool bPopulated = false;
+
+	TUniquePtr<IAnimationDataModel::FModelNotifier> Notifier;
 
 	friend class UAnimDataController;
 	friend class FAnimDataControllerTestBase;

@@ -469,7 +469,7 @@ SAnimationSequenceBrowser::~SAnimationSequenceBrowser()
 
 	if(ViewportClient.IsValid())
 	{
-		ViewportClient->Viewport = NULL;
+		ViewportClient->Viewport = nullptr;
 	}
 }
 
@@ -700,7 +700,7 @@ void SAnimationSequenceBrowser::GetSelectedPackages(const TArray<FAssetData>& As
 {
 	for (int32 AssetIdx = 0; AssetIdx < Assets.Num(); ++AssetIdx)
 	{
-		UPackage* Package = FindPackage(NULL, *Assets[AssetIdx].PackageName.ToString());
+		UPackage* Package = FindPackage(nullptr, *Assets[AssetIdx].PackageName.ToString());
 
 		if ( Package )
 		{
@@ -1014,7 +1014,7 @@ void SAnimationSequenceBrowser::Construct(const FArguments& InArgs, const TShare
 	// Making Skeleton to be private, and now GET_MEMBER_NAME_CHECKED doesn't work
 	AssetRegistryTagsToIgnore.Add(TEXT("Skeleton"));
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	AssetRegistryTagsToIgnore.Add(GET_MEMBER_NAME_CHECKED(UAnimSequenceBase, SequenceLength));
+	AssetRegistryTagsToIgnore.Add(TEXT("SequenceLength"));
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	AssetRegistryTagsToIgnore.Add(GET_MEMBER_NAME_CHECKED(UAnimSequenceBase, RateScale));
 }
@@ -1066,7 +1066,7 @@ FReply SAnimationSequenceBrowser::OnMouseDownHistory( const FGeometry& MyGeometr
 
 TSharedRef<SWidget> SAnimationSequenceBrowser::CreateHistoryMenu(bool bInBackHistory) const
 {
-	FMenuBuilder MenuBuilder(true, NULL);
+	FMenuBuilder MenuBuilder(true, nullptr);
 	if(bInBackHistory)
 	{
 		int32 HistoryIdx = CurrentAssetHistoryIndex - 1;

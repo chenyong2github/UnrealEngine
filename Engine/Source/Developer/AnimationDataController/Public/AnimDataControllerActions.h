@@ -3,14 +3,15 @@
 #pragma once
 
 #include "Misc/Change.h"
+#include "Misc/CoreMiscDefines.h"
 
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "Animation/AnimTypes.h" 
 #include "Misc/FrameRate.h"
 
 class UObject;
-class UAnimDataModel;
-class UAnimDataController;
+class IAnimationDataModel;
+class IAnimationDataController;
 
 #if WITH_EDITOR
 
@@ -19,11 +20,11 @@ namespace UE {
 namespace Anim {
 
 /**
-* UAnimDataController instanced FChange-based objects used for storing mutations to an UAnimDataModel within the Transaction Buffer.
-* Each Action class represents an (invertable) operation mutating an UAnimDataModel object utilizing a UAnimDataController. Allowing 
+* UAnimDataController instanced FChange-based objects used for storing mutations to an IAnimationDataModel within the Transaction Buffer.
+* Each Action class represents an (invertable) operation mutating an IAnimationDataModel object utilizing a UAnimDataController. Allowing 
 * for a more granular approach to undo/redo-ing changes while also allowing for script-based interoperability.
 */
-class FAnimDataBaseAction : public FSwapChange
+class ANIMATIONDATACONTROLLER_API FAnimDataBaseAction : public FSwapChange
 {
 public:
 	virtual TUniquePtr<FChange> Execute(UObject* Object) final;
@@ -31,78 +32,76 @@ public:
 	virtual FString ToString() const override;
 
 protected:
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) = 0;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) = 0;
 	virtual FString ToStringInternal() const = 0;
 };
 
-class FOpenBracketAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FOpenBracketAction : public FAnimDataBaseAction
 {
 public:
 	explicit FOpenBracketAction(const FString& InDescription) : Description(InDescription) {}
 	virtual ~FOpenBracketAction() {}
 protected:
 	FOpenBracketAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FString Description;
 };
 
-class FCloseBracketAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FCloseBracketAction : public FAnimDataBaseAction
 {
 public:
 	explicit FCloseBracketAction(const FString& InDescription) : Description(InDescription) {}
 	virtual ~FCloseBracketAction() {}
 protected:
 	FCloseBracketAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FString Description;
 };
 
-class FAddTrackAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddTrackAction : public FAnimDataBaseAction
 {
 public:
-	explicit FAddTrackAction(const FBoneAnimationTrack& Track, int32 TrackIndex);
+	explicit FAddTrackAction(const FBoneAnimationTrack& Track);
 	virtual ~FAddTrackAction() {}
 protected:
 	FAddTrackAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FName Name;
 	int32 BoneTreeIndex;
 	FRawAnimSequenceTrack Data;
-	int32 TrackIndex;
 };
 
-class FRemoveTrackAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FRemoveTrackAction : public FAnimDataBaseAction
 {
 public:
-	explicit FRemoveTrackAction(const FBoneAnimationTrack& Track, int32 TrackIndex);
+	explicit FRemoveTrackAction(const FName& TrackName);
 	virtual ~FRemoveTrackAction() {}
 protected:
 	FRemoveTrackAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FName Name;
-	int32 TrackIndex;
 };
 
-class FSetTrackKeysAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetTrackKeysAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetTrackKeysAction(const FBoneAnimationTrack& Track);
 	virtual ~FSetTrackKeysAction() {}
 protected:
 	FSetTrackKeysAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -112,37 +111,37 @@ protected:
 	FRawAnimSequenceTrack TrackData;
 };
 
-class FResizePlayLengthAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FResizePlayLengthInFramesAction : public FAnimDataBaseAction
 {
 public:
-	explicit FResizePlayLengthAction(const UAnimDataModel* InModel, float t0, float t1);
-	virtual ~FResizePlayLengthAction() {}
+	explicit FResizePlayLengthInFramesAction(const IAnimationDataModel* InModel, FFrameNumber F0, FFrameNumber F1);
+	virtual ~FResizePlayLengthInFramesAction() override {}
 protected:
-	FResizePlayLengthAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	FResizePlayLengthInFramesAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
-	float Length;
-	float T0;
-	float T1;
+	FFrameNumber Length;
+	FFrameNumber Frame0;
+	FFrameNumber Frame1;
 };
 
-class FSetFrameRateAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetFrameRateAction : public FAnimDataBaseAction
 {
 public:
-	explicit FSetFrameRateAction(const UAnimDataModel* InModel);
-	virtual ~FSetFrameRateAction() {}
+	explicit FSetFrameRateAction(const IAnimationDataModel* InModel);
+	virtual ~FSetFrameRateAction() override {}
 protected:
 	FSetFrameRateAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FFrameRate FrameRate;
 };
 
-class FAddCurveAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddCurveAction : public FAnimDataBaseAction
 {
 public:
 	explicit FAddCurveAction(const FAnimationCurveIdentifier& InCurveId, int32 InFlags) : CurveId(InCurveId), Flags(InFlags) {}
@@ -150,7 +149,7 @@ public:
 	virtual ~FAddCurveAction() {}
 protected:
 	FAddCurveAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -158,14 +157,14 @@ protected:
 	int32 Flags;
 };
 
-class FAddFloatCurveAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddFloatCurveAction : public FAnimDataBaseAction
 {
 public:
 	explicit FAddFloatCurveAction(const FAnimationCurveIdentifier& InCurveId, int32 InFlags, const TArray<FRichCurveKey>& InKeys, const FLinearColor& InColor) : CurveId(InCurveId), Flags(InFlags), Keys(InKeys), Color(InColor) {}
 	virtual ~FAddFloatCurveAction() {}
 protected:
 	FAddFloatCurveAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -175,14 +174,14 @@ protected:
 	FLinearColor Color;
 };
 
-class FAddTransformCurveAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddTransformCurveAction : public FAnimDataBaseAction
 {
 public:
 	explicit FAddTransformCurveAction(const FAnimationCurveIdentifier& InCurveId, int32 InFlags, const FTransformCurve& InTransformCurve);
 	virtual ~FAddTransformCurveAction() {}
 protected:
 	FAddTransformCurveAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -192,28 +191,28 @@ protected:
 	TArray<FRichCurveKey> SubCurveKeys[9];
 };
 
-class FRemoveCurveAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FRemoveCurveAction : public FAnimDataBaseAction
 {
 public:
 	explicit FRemoveCurveAction(const FAnimationCurveIdentifier& InCurveId) : CurveId(InCurveId) {}
 	virtual ~FRemoveCurveAction() {}
 protected:
 	FRemoveCurveAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FAnimationCurveIdentifier CurveId;
 };
 
-class FSetCurveFlagsAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetCurveFlagsAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetCurveFlagsAction(const FAnimationCurveIdentifier& InCurveId, int32 InFlags, ERawCurveTrackTypes InCurveType) : CurveId(InCurveId), Flags(InFlags), CurveType(InCurveType) {}
 	virtual ~FSetCurveFlagsAction() {}
 protected:
 	FSetCurveFlagsAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -222,14 +221,14 @@ protected:
 	ERawCurveTrackTypes CurveType;
 };
 
-class FRenameCurveAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FRenameCurveAction : public FAnimDataBaseAction
 {
 public:
 	explicit FRenameCurveAction(const FAnimationCurveIdentifier& InCurveId, const FAnimationCurveIdentifier& InNewCurveId) : CurveId(InCurveId), NewCurveId(InNewCurveId) {}
 	virtual ~FRenameCurveAction() {}
 protected:
 	FRenameCurveAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -237,14 +236,14 @@ protected:
 	FAnimationCurveIdentifier NewCurveId;
 };
 
-class FScaleCurveAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FScaleCurveAction : public FAnimDataBaseAction
 {
 public:
 	explicit FScaleCurveAction(const FAnimationCurveIdentifier& InCurveId, float InOrigin, float InFactor, ERawCurveTrackTypes InCurveType);
 	virtual ~FScaleCurveAction() {}
 protected:
 	FScaleCurveAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -254,14 +253,14 @@ protected:
 	float Factor;
 };
 
-class FAddRichCurveKeyAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddRichCurveKeyAction : public FAnimDataBaseAction
 {
 public:
 	explicit FAddRichCurveKeyAction(const FAnimationCurveIdentifier& InCurveId, const FRichCurveKey& InKey) : CurveId(InCurveId), Key(InKey) {}
 	virtual ~FAddRichCurveKeyAction() {}
 protected:
 	FAddRichCurveKeyAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -270,14 +269,14 @@ protected:
 	FRichCurveKey Key;
 };
 
-class FSetRichCurveKeyAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetRichCurveKeyAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetRichCurveKeyAction(const FAnimationCurveIdentifier& InCurveId, const FRichCurveKey& InKey) : CurveId(InCurveId), Key(InKey) {}
 	virtual ~FSetRichCurveKeyAction() {}
 protected:
 	FSetRichCurveKeyAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -285,14 +284,14 @@ protected:
 	FRichCurveKey Key;
 };
 
-class FRemoveRichCurveKeyAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FRemoveRichCurveKeyAction : public FAnimDataBaseAction
 {
 public:
 	explicit FRemoveRichCurveKeyAction(const FAnimationCurveIdentifier& InCurveId, const float InTime) : CurveId(InCurveId), Time(InTime) {}
 	virtual ~FRemoveRichCurveKeyAction() {}
 protected:
 	FRemoveRichCurveKeyAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -300,14 +299,14 @@ protected:
 	float Time;
 };
 
-class FSetRichCurveKeysAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetRichCurveKeysAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetRichCurveKeysAction(const FAnimationCurveIdentifier& InCurveId, const TArray<FRichCurveKey>& InKeys) : CurveId(InCurveId), Keys(InKeys) {}
 	virtual ~FSetRichCurveKeysAction() {}
 protected:
 	FSetRichCurveKeysAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -315,14 +314,14 @@ protected:
 	TArray<FRichCurveKey> Keys;
 };
 
-class FSetCurveColorAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetCurveColorAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetCurveColorAction(const FAnimationCurveIdentifier& InCurveId, const FLinearColor& InColor) : CurveId(InCurveId), Color(InColor) {}
 	virtual ~FSetCurveColorAction() {}
 protected:
 	FSetCurveColorAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -330,14 +329,14 @@ protected:
 	FLinearColor Color;
 };
 
-class FAddAtributeAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddAtributeAction : public FAnimDataBaseAction
 {
 public:
 	explicit FAddAtributeAction(const FAnimatedBoneAttribute& InAttribute);
 	virtual ~FAddAtributeAction() {}
 protected:
 	FAddAtributeAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -345,28 +344,28 @@ protected:
 	TArray<FAttributeKey> Keys;
 };
 
-class FRemoveAtributeAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FRemoveAtributeAction : public FAnimDataBaseAction
 {
 public:
 	explicit FRemoveAtributeAction(const FAnimationAttributeIdentifier& InAttributeId) : AttributeId(InAttributeId) {}
 	virtual ~FRemoveAtributeAction() {}
 protected:
 	FRemoveAtributeAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
 	FAnimationAttributeIdentifier AttributeId;
 };
 
-class FAddAtributeKeyAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FAddAtributeKeyAction : public FAnimDataBaseAction
 {
 public:
 	explicit FAddAtributeKeyAction(const FAnimationAttributeIdentifier& InAttributeId, const FAttributeKey& InKey) : AttributeId(InAttributeId), Key(InKey) {}
 	virtual ~FAddAtributeKeyAction() {}
 protected:
 	FAddAtributeKeyAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -374,14 +373,14 @@ protected:
 	FAttributeKey Key;
 };
 
-class FSetAtributeKeyAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetAtributeKeyAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetAtributeKeyAction(const FAnimationAttributeIdentifier& InAttributeId, const FAttributeKey& InKey) : AttributeId(InAttributeId), Key(InKey) {}
 	virtual ~FSetAtributeKeyAction() {}
 protected:
 	FSetAtributeKeyAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -389,14 +388,14 @@ protected:
 	FAttributeKey Key;
 };
 
-class FRemoveAtributeKeyAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FRemoveAtributeKeyAction : public FAnimDataBaseAction
 {
 public:
 	explicit FRemoveAtributeKeyAction(const FAnimationAttributeIdentifier& InAttributeId, float InTime) : AttributeId(InAttributeId), Time(InTime) {}
 	virtual ~FRemoveAtributeKeyAction() {}
 protected:
 	FRemoveAtributeKeyAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:
@@ -404,14 +403,14 @@ protected:
 	float Time;
 };
 
-class FSetAtributeKeysAction : public FAnimDataBaseAction
+class ANIMATIONDATACONTROLLER_API FSetAtributeKeysAction : public FAnimDataBaseAction
 {
 public:
 	explicit FSetAtributeKeysAction(const FAnimatedBoneAttribute& InAttribute);
 	virtual ~FSetAtributeKeysAction() {}
 protected:
 	FSetAtributeKeysAction() {}
-	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual TUniquePtr<FChange> ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller) override;
 	virtual FString ToStringInternal() const override;
 
 protected:

@@ -205,7 +205,7 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 	}
 
 	FString AnimSequenceVersion;
-	if ( UAnimDataModel* DataModel = AnimSequence->GetDataModel() )
+	if ( IAnimationDataModel* DataModel = AnimSequence->GetDataModel() )
 	{
 		FSHA1 SHA1;
 

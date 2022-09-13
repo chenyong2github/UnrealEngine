@@ -69,10 +69,22 @@ struct ENGINE_API FAnimationCurveIdentifier
 
 		return *this;
 	}
+	
+	friend uint32 GetTypeHash(const FAnimationCurveIdentifier& CurveId)
+	{
+		return HashCombine(HashCombine(HashCombine((uint32)CurveId.Channel, (uint32)CurveId.Axis), (uint32)CurveId.CurveType), GetTypeHash(CurveId.InternalName.DisplayName));
+	}
 
+	UPROPERTY()
 	FSmartName InternalName;
+	
+	UPROPERTY()
 	ERawCurveTrackTypes CurveType;
+
+	UPROPERTY()
 	ETransformCurveChannel Channel;
+	
+	UPROPERTY()
 	EVectorCurveChannel Axis;
 };
 

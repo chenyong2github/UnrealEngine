@@ -1492,6 +1492,46 @@ void FAnimationRuntime::GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKey
 	OutAlpha = (float)Alpha;
 }
 
+void FAnimationRuntime::GetKeyIndicesFromTime(int32& OutKeyIndex1, int32& OutKeyIndex2, float& OutAlpha, const double Time, const FFrameRate& FrameRate, const int32 NumberOfKeys)
+{
+	// Check for 1-frame, before-first-frame and after-last-frame cases.
+	if (Time <= 0.0 || NumberOfKeys == 1)
+	{
+		OutKeyIndex1 = 0;
+		OutKeyIndex2 = 0;
+		OutAlpha = 0.0f;
+		return;
+	}
+
+	const FFrameTime FrameTime = FrameRate.AsFrameTime(Time);
+	const FFrameTime LastFrameTimeIndex = FFrameTime(NumberOfKeys - 1);
+	if (FrameTime >= LastFrameTimeIndex)
+	{
+		OutKeyIndex1 = LastFrameTimeIndex.FrameNumber.Value;
+		OutKeyIndex2 = 0;
+		OutAlpha = 0.0f;
+		return;
+	}
+
+	// Find the integer part (ensuring within range) and that gives us the 'starting' key index.
+	const int32 KeyIndex1 = FMath::Clamp<int32>(FrameTime.GetFrame().Value, 0, NumberOfKeys - 1); 
+
+	// The alpha (fractional part) is then just the remainder.
+	const float Alpha = FrameTime.GetSubFrame();
+
+	int32 KeyIndex2 = KeyIndex1 + 1;
+
+	// If we have gone over the end, do different things in case of looping
+	if (KeyIndex2 == NumberOfKeys)
+	{
+		KeyIndex2 = KeyIndex1;
+	}
+
+	OutKeyIndex1 = KeyIndex1;
+	OutKeyIndex2 = KeyIndex2;
+	OutAlpha = Alpha;
+}
+
 FTransform FAnimationRuntime::GetComponentSpaceRefPose(const FCompactPoseBoneIndex& CompactPoseBoneIndex, const FBoneContainer& BoneContainer)
 {
 	FCompactPoseBoneIndex CurrentIndex = CompactPoseBoneIndex;

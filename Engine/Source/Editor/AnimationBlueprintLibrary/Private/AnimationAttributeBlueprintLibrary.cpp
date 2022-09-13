@@ -148,14 +148,14 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execSetAttributeKeys)
 }
 
 
-bool UAnimationAttributeBlueprintLibrary::GetAttributeKey(UAnimDataModel* AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, int32& Value)
+bool UAnimationAttributeBlueprintLibrary::GetAttributeKey(TScriptInterface<IAnimationDataModel> AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, int32& Value)
 {
 	// We should never hit this! Stubbed to avoid NoExport on the class.
 	check(0);
 	return false;
 }
 
-bool UAnimationAttributeBlueprintLibrary::Generic_GetAttributeKey(UAnimDataModel* AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, UScriptStruct* ScriptStruct, void* ValuePtr)
+bool UAnimationAttributeBlueprintLibrary::Generic_GetAttributeKey(TScriptInterface<IAnimationDataModel> AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, UScriptStruct* ScriptStruct, void* ValuePtr)
 {
 	const FAnimatedBoneAttribute* AttributePtr = AnimationDataModel->FindAttribute(AttributeIdentifier);
 
@@ -181,7 +181,7 @@ bool UAnimationAttributeBlueprintLibrary::Generic_GetAttributeKey(UAnimDataModel
 
 DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKey)
 {
-	P_GET_OBJECT(UAnimDataModel, AnimationDataModel);
+	P_GET_TINTERFACE(IAnimationDataModel, AnimationDataModel);
 	P_GET_STRUCT_REF(FAnimationAttributeIdentifier, AttributeIdentifier);
 	P_GET_PROPERTY(FFloatProperty, TimeInterval);
 
@@ -203,7 +203,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKey)
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
 
-	if (!AnimationDataModel)
+	if (!AnimationDataModel.GetObject())
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation, 
@@ -225,14 +225,14 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKey)
 }
 
 
-bool UAnimationAttributeBlueprintLibrary::GetAttributeKeys(UAnimDataModel* AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, TArray<float>& OutTimes, TArray<int32>& OutValues)
+bool UAnimationAttributeBlueprintLibrary::GetAttributeKeys(TScriptInterface<IAnimationDataModel> AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, TArray<float>& OutTimes, TArray<int32>& OutValues)
 {
 	// We should never hit this! Stubbed to avoid NoExport on the class.
 	check(0);
 	return false;
 }
 
-bool UAnimationAttributeBlueprintLibrary::Generic_GetAttributeKeys(UAnimDataModel* AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, TArray<float>& Times, void* ValuesArray, const FArrayProperty* ValuesArrayProperty)
+bool UAnimationAttributeBlueprintLibrary::Generic_GetAttributeKeys(TScriptInterface<IAnimationDataModel> AnimationDataModel, const FAnimationAttributeIdentifier& AttributeIdentifier, TArray<float>& Times, void* ValuesArray, const FArrayProperty* ValuesArrayProperty)
 {
 	const FAnimatedBoneAttribute* AttributePtr = AnimationDataModel->FindAttribute(AttributeIdentifier);
 
@@ -266,7 +266,7 @@ bool UAnimationAttributeBlueprintLibrary::Generic_GetAttributeKeys(UAnimDataMode
 
 DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKeys)
 {
-	P_GET_OBJECT(UAnimDataModel, AnimationDataModel);
+	P_GET_TINTERFACE(IAnimationDataModel, AnimationDataModel);
 	P_GET_STRUCT_REF(FAnimationAttributeIdentifier, AttributeIdentifier);
 	P_GET_TARRAY_REF(float, TimeIntervals);
 
@@ -288,7 +288,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKeys)
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
 	
-	if (!AnimationDataModel)
+	if (!AnimationDataModel.GetObject())
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation, 

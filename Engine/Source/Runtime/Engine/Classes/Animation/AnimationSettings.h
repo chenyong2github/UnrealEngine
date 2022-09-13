@@ -100,8 +100,14 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Mirroring)
 	TArray<FMirrorFindReplaceExpression> MirrorFindReplaceExpressions;
 
+	/** Project specific default frame-rate used when (re)initializing any animation based data */
+	UPROPERTY(config, EditAnywhere, Category = AnimationData)
+	FFrameRate DefaultFrameRate;
 public:
 	static UAnimationSettings * Get() { return CastChecked<UAnimationSettings>(UAnimationSettings::StaticClass()->GetDefaultObject()); }
+
+	/** Returns the project specific default frame-rate */
+	const FFrameRate& GetDefaultFrameRate() const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

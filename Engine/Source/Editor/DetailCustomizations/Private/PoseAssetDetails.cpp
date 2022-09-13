@@ -696,7 +696,7 @@ bool FPoseAssetDetails::IsUpdateSourceEnabled() const
 	const UAnimSequence* AnimSequenceSelected = Cast<UAnimSequence>(ObjectSet);
 	if (AnimSequenceSelected && PoseAsset.IsValid())
 	{
-		return (PoseAsset->SourceAnimation && PoseAsset->SourceAnimation->GetRawDataGuid() != PoseAsset->SourceAnimationRawDataGUID);		
+		return (PoseAsset->SourceAnimation && PoseAsset->SourceAnimation->GetDataModel()->GenerateGuid() != PoseAsset->SourceAnimationRawDataGUID);		
 	}
 
 	return false;

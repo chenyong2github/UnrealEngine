@@ -321,8 +321,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 			UE_LOG(LogAnimationCompression, Warning, TEXT("When compressing %s: no key-reduced data"), *CompressibleAnimData.Name);
 		}
 
-		AnimData.CompressedTrackOffsets.Empty(NumTracks * 4);
-		AnimData.CompressedTrackOffsets.AddUninitialized(NumTracks * 4);
+		AnimData.CompressedTrackOffsets.SetNumUninitialized(NumTracks * 4);
 
 		// just empty it since there is chance this can be 0
 		AnimData.CompressedScaleOffsets.Empty();
@@ -333,7 +332,8 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 			AnimData.CompressedScaleOffsets.AddUninitialized(NumTracks);
 		}
 
-		AnimData.CompressedByteStream.Empty();
+		const int32 MaxSize = CompressibleAnimData.RawAnimationData.Num() * CompressibleAnimData.NumberOfKeys * sizeof(FVector3f) + sizeof(FQuat4f) + sizeof(FVector3f);
+		AnimData.CompressedByteStream.Reset(MaxSize);
 
 		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 		{
@@ -991,12 +991,12 @@ void UAnimCompress::SeparateRawDataIntoTracks(
 {
 	const int32 NumTracks = RawAnimData.Num();
 
-	OutTranslationData.Empty( NumTracks );
-	OutRotationData.Empty( NumTracks );
-	OutScaleData.Empty( NumTracks );
-	OutTranslationData.AddZeroed( NumTracks );
-	OutRotationData.AddZeroed( NumTracks );
-	OutScaleData.AddZeroed( NumTracks );
+	OutTranslationData.Reset( NumTracks );
+	OutRotationData.Reset( NumTracks );
+	OutScaleData.Reset( NumTracks );
+	OutTranslationData.SetNumZeroed( NumTracks );
+	OutRotationData.SetNumZeroed( NumTracks );
+	OutScaleData.SetNumZeroed( NumTracks );
 
 	// only compress scale if it has valid scale keys
 	bool bCompressScaleKeys = false;
@@ -1020,65 +1020,78 @@ void UAnimCompress::SeparateRawDataIntoTracks(
 		}
 
 		// Copy over position keys.
-		for ( int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex )
-		{
-			TranslationTrack.PosKeys.Add( RawTrack.PosKeys[PosIndex] );
-		}
+		TranslationTrack.PosKeys = RawTrack.PosKeys;
 
 		// Copy over rotation keys.
-		for ( int32 RotIndex = 0; RotIndex < RawTrack.RotKeys.Num(); ++RotIndex )
-		{
-			RotationTrack.RotKeys.Add( RawTrack.RotKeys[RotIndex] );
-		}
+		RotationTrack.RotKeys = RawTrack.RotKeys;
 
 		// Set times for the translation track.
-		if ( TranslationTrack.PosKeys.Num() > 1 )
+		const int32 NumPosKeys = TranslationTrack.PosKeys.Num();
+		TranslationTrack.Times.SetNumUninitialized(NumPosKeys);
+		if ( NumPosKeys > 1 )
 		{
-			const float PosFrameInterval = SequenceLength / static_cast<float>(TranslationTrack.PosKeys.Num()-1);
-			for ( int32 PosIndex = 0; PosIndex < TranslationTrack.PosKeys.Num(); ++PosIndex )
+			const float PosFrameInterval = SequenceLength / static_cast<float>(NumPosKeys-1);
+			for ( int32 PosIndex = 0; PosIndex < NumPosKeys; ++PosIndex )
 			{
-				TranslationTrack.Times.Add( PosIndex * PosFrameInterval );
+				TranslationTrack.Times[PosIndex] = PosIndex * PosFrameInterval;
 			}
 		}
 		else
 		{
-			TranslationTrack.Times.Add( 0.f );
+			TranslationTrack.Times[0] = 0.f;
 		}
 
 		// Set times for the rotation track.
-		if ( RotationTrack.RotKeys.Num() > 1 )
+		const int32 NumRotKeys = RotationTrack.RotKeys.Num();
+		RotationTrack.Times.SetNumUninitialized(NumRotKeys);
+		if ( NumRotKeys > 1 )
 		{
-			const float RotFrameInterval = SequenceLength / static_cast<float>(RotationTrack.RotKeys.Num()-1);
-			for ( int32 RotIndex = 0; RotIndex < RotationTrack.RotKeys.Num(); ++RotIndex )
+			// If # of keys match between translation and rotation, re-use the timing values
+			if (NumRotKeys == NumPosKeys)
 			{
-				RotationTrack.Times.Add( RotIndex * RotFrameInterval );
+				RotationTrack.Times = TranslationTrack.Times;
 			}
+			else
+			{
+				const float RotFrameInterval = SequenceLength / static_cast<float>(NumRotKeys-1);
+				for ( int32 RotIndex = 0; RotIndex < NumRotKeys; ++RotIndex )
+				{
+					RotationTrack.Times[RotIndex] = RotIndex * RotFrameInterval;
+				}
+			}
+		
 		}
 		else
 		{
-			RotationTrack.Times.Add( 0.f );
+			RotationTrack.Times[0] = 0.f;
 		}
 
 		if (bHasScale)
 		{
 			// Copy over scalekeys.
-			for ( int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex )
-			{
-				ScaleTrack.ScaleKeys.Add( RawTrack.ScaleKeys[ScaleIndex] );
-			}
-					
+			ScaleTrack.ScaleKeys = RawTrack.ScaleKeys;
 			// Set times for the rotation track.
-			if ( ScaleTrack.ScaleKeys.Num() > 1 )
+			const int32 NumScaleKeys = ScaleTrack.ScaleKeys.Num();
+			ScaleTrack.Times.SetNumUninitialized(NumScaleKeys);
+			if ( NumScaleKeys > 1 )
 			{
-				const float ScaleFrameInterval = SequenceLength / static_cast<float>(ScaleTrack.ScaleKeys.Num()-1);
-				for ( int32 ScaleIndex = 0; ScaleIndex < ScaleTrack.ScaleKeys.Num(); ++ScaleIndex )
+				// If # of keys match between translation and scale, re-use the timing values
+				if (NumScaleKeys == NumPosKeys)
 				{
-					ScaleTrack.Times.Add( ScaleIndex * ScaleFrameInterval );
+					ScaleTrack.Times = TranslationTrack.Times;
+				}
+				else
+				{
+					const float ScaleFrameInterval = SequenceLength / static_cast<float>(NumScaleKeys-1);
+					for ( int32 ScaleIndex = 0; ScaleIndex < NumScaleKeys; ++ScaleIndex )
+					{
+						ScaleTrack.Times[ScaleIndex] = ScaleIndex * ScaleFrameInterval;
+					}
 				}
 			}
 			else
 			{
-				ScaleTrack.Times.Add( 0.f );
+				ScaleTrack.Times[0] = 0.f;
 			}
 		}
 

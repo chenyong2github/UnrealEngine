@@ -1,44 +1,50 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimData/AnimDataModel.h"
+
+#include "AnimationRuntime.h"
+#include "AnimEncoding.h"
 #include "UObject/NameTypes.h"
 
 #include "Animation/AnimSequence.h"
 
 #include "Algo/Transform.h"
 #include "Algo/Accumulate.h"
+#include "Animation/AnimSequenceHelpers.h"
 #include "Animation/SmartName.h"
+#include "Animation/AttributesRuntime.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+
+#if WITH_EDITOR
+#include "IAnimationDataControllerModule.h"
+#include "Modules/ModuleManager.h"
+#endif // WITH_EDITOR
+
+#define LOCTEXT_NAMESPACE "AnimDataModel"
 
 void UAnimDataModel::PostLoad()
 {
 	UObject::PostLoad();
 
-	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AnimationDataModelInterface_BackedOut &&
-		GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::BackoutAnimationDataModelInterface)
-	{
-		UE_LOG(LogAnimation, Fatal, TEXT("This package was saved with a version that had to be backed out and is no longer able to be loaded."));
-	}
-
-
 	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ForceUpdateAnimationAssetCurveTangents)
 	{
 		// Forcefully AutoSetTangents to fix-up any imported sequences pre the fix for flattening first/last key leave/arrive tangents
-		Notify(EAnimDataModelNotifyType::BracketOpened);
+		GetNotifier().Notify(EAnimDataModelNotifyType::BracketOpened);
 		for (FFloatCurve& FloatCurve : CurveData.FloatCurves)
 		{
 			FloatCurve.FloatCurve.AutoSetTangents();
 			FCurvePayload Payload;
 			Payload.Identifier = FAnimationCurveIdentifier(FloatCurve.Name.UID, ERawCurveTrackTypes::RCT_Float);
-			Notify(EAnimDataModelNotifyType::CurveChanged, Payload);
+			GetNotifier().Notify(EAnimDataModelNotifyType::CurveChanged, Payload);
 		}
-		Notify(EAnimDataModelNotifyType::BracketClosed);
+		GetNotifier().Notify(EAnimDataModelNotifyType::BracketClosed);
 	}
+
+	const bool bHasBoneTracks = BoneAnimationTracks.Num() > 0;
 
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SingleFrameAndKeyAnimModel)
 	{
-		const bool bHasBoneTracks = BoneAnimationTracks.Num() > 0;
 		if (bHasBoneTracks)
 		{
 			// Number of keys was used directly rather than Max(Value,2), as a single _frame_ animation should always have two _keys_ 
@@ -59,17 +65,47 @@ void UAnimDataModel::PostLoad()
 					AddKey(BoneTrack.InternalTrackData.ScaleKeys);
 				}
 
-				Notify(EAnimDataModelNotifyType::TrackChanged);
+				GetNotifier().Notify(EAnimDataModelNotifyType::TrackChanged);
 			}
 		}
-	}	
+	}
+	
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ReintroduceAnimationDataModelInterface)
+	{		
+		const double NumFramesAsSeconds = FrameRate.AsSeconds(NumberOfFrames);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const float CachedPlayLength = PlayLength;
+		if (static_cast<float>(NumFramesAsSeconds) != PlayLength)
+		{
+			if (bHasBoneTracks)
+			{
+				// Number of keys was rounded up from sequence length, so set play length from stored number of bone keys 
+				const int32 ActualNumKeys = bHasBoneTracks ? FMath::Min(BoneAnimationTracks[0].InternalTrackData.PosKeys.Num(), NumberOfKeys) : NumberOfKeys;
+				if (ActualNumKeys != NumberOfKeys)
+				{
+					PlayLength = FrameRate.AsSeconds(ActualNumKeys - 1);
+					NumberOfFrames = ActualNumKeys - 1;
+					NumberOfKeys = ActualNumKeys;
+
+					IAnimationDataController::ReportObjectWarningf(this, LOCTEXT("AnimDataModelPlayLengthAlteredToBones", "Playable length {0} has been updated according to number of frames {1} and frame-rate {2}, new length: {3}"), FText::AsNumber(CachedPlayLength), FText::AsNumber(GetNumberOfFrames()), FrameRate.ToPrettyText(), FText::AsNumber(PlayLength));
+				}
+			}
+			else
+			{
+				// No way to determine 'correct' length so set current PlayLength value to # of frames * frame-rate
+				PlayLength = FrameRate.AsSeconds(NumberOfFrames);
+			}
+			GetNotifier().Notify(EAnimDataModelNotifyType::Populated);
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 }
 
 void UAnimDataModel::PostDuplicate(bool bDuplicateForPIE)
 {
 	UObject::PostDuplicate(bDuplicateForPIE);
 
-	Notify(EAnimDataModelNotifyType::Populated);
+	GetNotifier().Notify(EAnimDataModelNotifyType::Populated);
 }
 
 const TArray<FBoneAnimationTrack>& UAnimDataModel::GetBoneAnimationTracks() const
@@ -85,7 +121,7 @@ const FBoneAnimationTrack& UAnimDataModel::GetBoneTrackByIndex(int32 TrackIndex)
 
 const FBoneAnimationTrack& UAnimDataModel::GetBoneTrackByName(FName TrackName) const
 {
-	const FBoneAnimationTrack* TrackPtr = BoneAnimationTracks.FindByPredicate([TrackName](FBoneAnimationTrack& Track)
+	const FBoneAnimationTrack* TrackPtr = BoneAnimationTracks.FindByPredicate([TrackName](const FBoneAnimationTrack& Track)
 	{
 		return Track.Name == TrackName;
 	});
@@ -97,7 +133,7 @@ const FBoneAnimationTrack& UAnimDataModel::GetBoneTrackByName(FName TrackName) c
 
 const FBoneAnimationTrack* UAnimDataModel::FindBoneTrackByIndex(int32 BoneIndex) const
 {
-	const FBoneAnimationTrack* TrackPtr = BoneAnimationTracks.FindByPredicate([BoneIndex](FBoneAnimationTrack& Track)
+	const FBoneAnimationTrack* TrackPtr = BoneAnimationTracks.FindByPredicate([BoneIndex](const FBoneAnimationTrack& Track)
 	{
 		return Track.BoneTreeIndex == BoneIndex;
 	});
@@ -107,7 +143,7 @@ const FBoneAnimationTrack* UAnimDataModel::FindBoneTrackByIndex(int32 BoneIndex)
 
 int32 UAnimDataModel::GetBoneTrackIndex(const FBoneAnimationTrack& Track) const
 {
-	return BoneAnimationTracks.IndexOfByPredicate([&Track](const FBoneAnimationTrack SearchTrack)
+	return BoneAnimationTracks.IndexOfByPredicate([&Track](const FBoneAnimationTrack& SearchTrack)
 	{
 		return SearchTrack.Name == Track.Name;
 	});
@@ -123,9 +159,9 @@ int32 UAnimDataModel::GetBoneTrackIndexByName(FName TrackName) const
 	return INDEX_NONE;
 }
 
-float UAnimDataModel::GetPlayLength() const
+double UAnimDataModel::GetPlayLength() const
 {
-	return PlayLength;
+	return FrameRate.AsSeconds(NumberOfFrames);
 }
 
 int32 UAnimDataModel::GetNumberOfFrames() const
@@ -138,7 +174,7 @@ int32 UAnimDataModel::GetNumberOfKeys() const
 	return NumberOfKeys;
 }
 
-const FFrameRate& UAnimDataModel::GetFrameRate() const
+FFrameRate UAnimDataModel::GetFrameRate() const
 {
 	return FrameRate;
 }
@@ -148,19 +184,20 @@ bool UAnimDataModel::IsValidBoneTrackIndex(int32 TrackIndex) const
 	return BoneAnimationTracks.IsValidIndex(TrackIndex);
 }
 
-const int32 UAnimDataModel::GetNumBoneTracks() const
+int32 UAnimDataModel::GetNumBoneTracks() const
 {
 	return BoneAnimationTracks.Num();
 }
 
 UAnimSequence* UAnimDataModel::GetAnimationSequence() const
 {
-	return Cast<UAnimSequence>(GetOuter());
+	UObject* AnimObject = static_cast<UObject*>(FindObjectWithOuter(GetOuter(), UAnimSequence::StaticClass()));
+	return CastChecked<UAnimSequence>(AnimObject ? AnimObject : GetOuter());
 }
 
 void UAnimDataModel::GetBoneTrackNames(TArray<FName>& OutNames) const
 {
-	Algo::Transform(BoneAnimationTracks, OutNames, [](FBoneAnimationTrack Track)
+	Algo::Transform(BoneAnimationTracks, OutNames, [](const FBoneAnimationTrack& Track)
 	{
 		return Track.Name; 
 	});
@@ -169,6 +206,16 @@ void UAnimDataModel::GetBoneTrackNames(TArray<FName>& OutNames) const
 const FAnimationCurveData& UAnimDataModel::GetCurveData() const
 {
 	return CurveData;
+}
+
+IAnimationDataModel::FModelNotifier& UAnimDataModel::GetNotifier()
+{
+	if (!Notifier)
+	{
+		Notifier.Reset(new IAnimationDataModel::FModelNotifier(this));
+	}
+	
+	return *Notifier.Get();
 }
 
 int32 UAnimDataModel::GetNumberOfTransformCurves() const
@@ -306,7 +353,6 @@ int32 UAnimDataModel::GetNumberOfAttributesForBoneIndex(const int32 BoneIndex) c
 
 void UAnimDataModel::GetAttributesForBone(const FName& BoneName, TArray<const FAnimatedBoneAttribute*>& OutBoneAttributes) const
 {
-	// Sum up total number of attributes with provided bone name
 	Algo::TransformIf(AnimatedBoneAttributes, OutBoneAttributes, [BoneName](const FAnimatedBoneAttribute& Attribute) -> bool
 	{
 		return Attribute.Identifier.GetBoneName() == BoneName;
@@ -385,7 +431,7 @@ FGuid UAnimDataModel::GenerateGuid() const
     {
     	UpdateWithData(Curve.Name.UID);
 
-    	auto UpdateWithComponent = [&Sha, &UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
+    	auto UpdateWithComponent = [&UpdateWithFloatCurve](const FVectorCurve& VectorCurve)
     	{
     		for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
     		{
@@ -412,6 +458,252 @@ FGuid UAnimDataModel::GenerateGuid() const
 	
 	return Guid;
 }
+
+TScriptInterface<IAnimationDataController> UAnimDataModel::GetController()
+{
+	TScriptInterface<IAnimationDataController> Controller = nullptr;
+#if WITH_EDITOR
+	IAnimationDataControllerModule& ControllerModule = FModuleManager::Get().GetModuleChecked<IAnimationDataControllerModule>("AnimationDataController");
+	Controller = ControllerModule.GetController();
+	Controller->SetModel(this);
+#endif // WITH_EDITOR
+
+	return Controller;
+}
+
+#if WITH_EDITOR
+FTransform ExtractTransformForKeyIndex(int32 Key, const FRawAnimSequenceTrack& TrackToExtract)
+{
+	static const FVector DefaultScale3D = FVector(1.f);
+	const bool bHasScaleKey = TrackToExtract.ScaleKeys.Num() > 0;
+
+	const int32 PosKeyIndex = FMath::Min(Key, TrackToExtract.PosKeys.Num() - 1);
+	const int32 RotKeyIndex = FMath::Min(Key, TrackToExtract.RotKeys.Num() - 1);
+	if (bHasScaleKey)
+	{
+		const int32 ScaleKeyIndex = FMath::Min(Key, TrackToExtract.ScaleKeys.Num() - 1);
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), FVector(TrackToExtract.ScaleKeys[ScaleKeyIndex]));
+	}
+	else
+	{
+		return FTransform(FQuat(TrackToExtract.RotKeys[RotKeyIndex]), FVector(TrackToExtract.PosKeys[PosKeyIndex]), DefaultScale3D);
+	}
+}
+
+template<bool bInterpolateT>
+void ExtractPose(const TArray<FBoneAnimationTrack>& BoneAnimationTracks, const TMap<FName, const FTransformCurve*>& OverrideBoneTransforms, FCompactPose& InOutPose, const int32 KeyIndex1, const int32 KeyIndex2, float Alpha, float TimePerKey, UE::Anim::Retargeting::FRetargetingScope& RetargetingScope)
+{
+	const int32 NumAnimationTracks = BoneAnimationTracks.Num();
+	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
+
+	TArray<FVirtualBoneCompactPoseData>& VBCompactPoseData = UE::Anim::FBuildRawPoseScratchArea::Get().VirtualBoneCompactPoseData;
+	VBCompactPoseData = RequiredBones.GetVirtualBoneCompactPoseData();
+
+	FCompactPose Key2Pose;
+	if (bInterpolateT)
+	{
+		Key2Pose.CopyBonesFrom(InOutPose);
+	}
+
+	for (const FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
+	{
+		const int32 SkeletonBoneIndex = AnimationTrack.BoneTreeIndex;
+		// not sure it's safe to assume that SkeletonBoneIndex can never be INDEX_NONE
+		if ((SkeletonBoneIndex != INDEX_NONE) && (SkeletonBoneIndex < MAX_BONES))
+		{
+			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
+			if (PoseBoneIndex != INDEX_NONE)
+			{
+				for (int32 Idx = 0; Idx < VBCompactPoseData.Num(); ++Idx)
+				{
+					FVirtualBoneCompactPoseData& VB = VBCompactPoseData[Idx];
+					if (PoseBoneIndex == VB.VBIndex)
+					{
+						// Remove this bone as we have written data for it (false so we dont resize allocation)
+						VBCompactPoseData.RemoveAtSwap(Idx, 1, false);
+						break; //Modified TArray so must break here
+					}
+				}
+				
+				// extract animation
+				const FRawAnimSequenceTrack& TrackToExtract = AnimationTrack.InternalTrackData;
+				auto OverrideTransform = OverrideBoneTransforms.Find(AnimationTrack.Name);
+				{
+					// Bail out (with rather wacky data) if data is empty for some reason.
+					if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
+					{
+						InOutPose[PoseBoneIndex].SetIdentity();
+
+						if (bInterpolateT)
+						{
+							Key2Pose[PoseBoneIndex].SetIdentity();
+						}
+					}
+					else
+					{
+						InOutPose[PoseBoneIndex] = ExtractTransformForKeyIndex(KeyIndex1, TrackToExtract);
+
+						if (bInterpolateT)
+						{
+							Key2Pose[PoseBoneIndex] = ExtractTransformForKeyIndex(KeyIndex2, TrackToExtract);
+						}
+					}
+				}
+
+				if (OverrideTransform)
+				{
+					{
+						const FTransform PoseOneAdditive = (*OverrideTransform)->Evaluate(KeyIndex1 * TimePerKey, 1.f);
+						const FTransform PoseOneLocalTransform = InOutPose[PoseBoneIndex];
+						InOutPose[PoseBoneIndex].SetRotation(PoseOneLocalTransform.GetRotation() * PoseOneAdditive.GetRotation());
+						InOutPose[PoseBoneIndex].SetTranslation(PoseOneLocalTransform.TransformPosition(PoseOneAdditive.GetTranslation()));
+						InOutPose[PoseBoneIndex].SetScale3D(PoseOneLocalTransform.GetScale3D() * PoseOneAdditive.GetScale3D());
+					}
+					
+
+					if (bInterpolateT)
+					{
+						const FTransform PoseTwoAdditive = (*OverrideTransform)->Evaluate(KeyIndex2 * TimePerKey, 1.f);
+						const FTransform PoseTwoLocalTransform = Key2Pose[PoseBoneIndex];						
+						Key2Pose[PoseBoneIndex].SetRotation(PoseTwoLocalTransform.GetRotation() * PoseTwoAdditive.GetRotation());
+						Key2Pose[PoseBoneIndex].SetTranslation(PoseTwoLocalTransform.TransformPosition(PoseTwoAdditive.GetTranslation()));
+						Key2Pose[PoseBoneIndex].SetScale3D(PoseTwoLocalTransform.GetScale3D() * PoseTwoAdditive.GetScale3D());
+					}
+				}
+				RetargetingScope.AddTrackedBone(PoseBoneIndex, SkeletonBoneIndex);
+			}
+		}
+	}
+
+	//Build Virtual Bones
+	if (VBCompactPoseData.Num() > 0)
+	{
+		FCSPose<FCompactPose> CSPose1;
+		CSPose1.InitPose(InOutPose);
+
+		FCSPose<FCompactPose> CSPose2;
+		if (bInterpolateT)
+		{
+			CSPose2.InitPose(Key2Pose);
+		}
+
+		for (FVirtualBoneCompactPoseData& VB : VBCompactPoseData)
+		{
+			FTransform Source = CSPose1.GetComponentSpaceTransform(VB.SourceIndex);
+			FTransform Target = CSPose1.GetComponentSpaceTransform(VB.TargetIndex);
+			InOutPose[VB.VBIndex] = Target.GetRelativeTransform(Source);
+
+			if (bInterpolateT)
+			{
+				FTransform Source2 = CSPose2.GetComponentSpaceTransform(VB.SourceIndex);
+				FTransform Target2 = CSPose2.GetComponentSpaceTransform(VB.TargetIndex);
+				Key2Pose[VB.VBIndex] = Target2.GetRelativeTransform(Source2);
+			}
+		}
+	}
+
+	if (bInterpolateT)
+	{
+		for (FCompactPoseBoneIndex BoneIndex : InOutPose.ForEachBoneIndex())
+		{
+			InOutPose[BoneIndex].Blend(InOutPose[BoneIndex], Key2Pose[BoneIndex], Alpha);
+		}
+	}
+}
+
+void UAnimDataModel::Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim::DataModel::FEvaluationContext& EvaluationContext) const
+{
+	const float SequenceLength = GetPlayLength();
+
+	const double Time = EvaluationContext.SampleFrameRate.AsSeconds(EvaluationContext.SampleTime);
+	const EAnimInterpolationType& InterpolationType = EvaluationContext.InterpolationType;
+	FCompactPose& OutPose = InOutPoseData.GetPose();
+	
+	// Generate keys to interpolate between
+	int32 KeyIndex1, KeyIndex2;
+	float Alpha;
+	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, Time, FrameRate, NumberOfKeys);
+
+	if (InterpolationType == EAnimInterpolationType::Step)
+	{
+		// Force stepping between keys
+		Alpha = 0.f;
+	}
+
+	bool bShouldInterpolate = true;
+
+	if (Alpha < UE_KINDA_SMALL_NUMBER)
+	{
+		Alpha = 0.f;
+		bShouldInterpolate = false;
+	}
+	else if (Alpha > 1.f - UE_KINDA_SMALL_NUMBER)
+	{
+		bShouldInterpolate = false;
+		KeyIndex1 = KeyIndex2;
+	}
+
+	// Evaluate animation float curve data
+	FBlendedCurve& Curves = InOutPoseData.GetCurve();
+	if (Curves.NumValidCurveCount > 0)
+	{
+		// evaluate the curve data at the CurrentTime and add to Instance
+		for (const FFloatCurve& Curve : CurveData.FloatCurves)
+		{
+			if (Curves.IsEnabled(Curve.Name.UID))
+			{
+				float Value = Curve.Evaluate(Time);
+				Curves.Set(Curve.Name.UID, Value);
+			}
+		}
+	}
+
+	const double TimePerFrame = FrameRate.AsInterval();
+	TMap<FName, const FTransformCurve*> ActiveCurves;
+
+	if (!OutPose.GetBoneContainer().ShouldUseSourceData())
+	{
+		for (const FTransformCurve& Curve : GetTransformCurves())
+		{
+			// if disabled, do not handle
+			if (Curve.GetCurveTypeFlag(AACF_Disabled))
+			{
+				continue;
+			}
+
+			// Add or retrieve curve
+			const FName& CurveName = Curve.Name.DisplayName;
+
+			// note we're not checking Curve.GetCurveTypeFlags() yet
+			ActiveCurves.FindOrAdd(CurveName, &Curve);
+		}
+	}
+
+	{		
+		UE::Anim::Retargeting::FRetargetingScope RetargetingScope(OutPose, EvaluationContext);
+		if (bShouldInterpolate)
+		{		
+			ExtractPose<true>(GetBoneAnimationTracks(), ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
+		}
+		else
+		{
+			ExtractPose<false>(GetBoneAnimationTracks(), ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
+		}
+	}
+	
+
+	const FBoneContainer& RequiredBones = InOutPoseData.GetPose().GetBoneContainer();
+	for (const FAnimatedBoneAttribute& Attribute : AnimatedBoneAttributes)
+	{
+		const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(Attribute.Identifier.GetBoneIndex());
+		// Only add attribute if the bone its tied to exists in the currently evaluated set of bones
+		if(PoseBoneIndex.IsValid())
+		{
+			UE::Anim::Attributes::GetAttributeValue(InOutPoseData.GetAttributes(), PoseBoneIndex, Attribute, EvaluationContext.SampleFrameRate.AsSeconds(EvaluationContext.SampleTime));
+		}
+	}	
+}
+#endif // WITH_EDITOR
 
 FRichCurve* UAnimDataModel::GetMutableRichCurve(const FAnimationCurveIdentifier& CurveIdentifier)
 {
@@ -451,7 +743,7 @@ FRichCurve* UAnimDataModel::GetMutableRichCurve(const FAnimationCurveIdentifier&
 
 FBoneAnimationTrack* UAnimDataModel::FindMutableBoneTrackByName(FName Name)
 {
-	return BoneAnimationTracks.FindByPredicate([Name](FBoneAnimationTrack& Track)
+	return BoneAnimationTracks.FindByPredicate([Name](const FBoneAnimationTrack& Track)
 	{
 		return Track.Name == Name;
 	});
@@ -459,7 +751,7 @@ FBoneAnimationTrack* UAnimDataModel::FindMutableBoneTrackByName(FName Name)
 
 const FBoneAnimationTrack* UAnimDataModel::FindBoneTrackByName(FName Name) const
 {
-	return BoneAnimationTracks.FindByPredicate([Name](FBoneAnimationTrack& Track)
+	return BoneAnimationTracks.FindByPredicate([Name](const FBoneAnimationTrack& Track)
 	{
 		return Track.Name == Name;
 	});
@@ -467,7 +759,7 @@ const FBoneAnimationTrack* UAnimDataModel::FindBoneTrackByName(FName Name) const
 
 FBoneAnimationTrack& UAnimDataModel::GetMutableBoneTrackByName(FName Name)
 {
-	FBoneAnimationTrack* TrackPtr = BoneAnimationTracks.FindByPredicate([Name](FBoneAnimationTrack& Track)
+	FBoneAnimationTrack* TrackPtr = BoneAnimationTracks.FindByPredicate([Name](const FBoneAnimationTrack& Track)
 	{
 		return Track.Name == Name;
 	});
@@ -516,3 +808,4 @@ FAnimCurveBase* UAnimDataModel::FindMutableCurveById(const FAnimationCurveIdenti
 	return nullptr;
 }
 
+#undef LOCTEXT_NAMESPACE // "AnimDataModel"

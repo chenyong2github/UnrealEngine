@@ -2673,11 +2673,11 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	}
 	ControlRig->Modify();
 
-	const int32 NumberOfFrames = FrameRate.AsFrameTime(Length).CeilToFrame().Value + 1;
+	const int32 NumberOfKeys = AnimSequence->GetDataModel()->GetNumberOfKeys();
 	FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
 	int32 ExtraProgress = bKeyReduce ? FloatChannels.Num() : 0;
 	
-	FScopedSlowTask Progress(NumberOfFrames + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
+	FScopedSlowTask Progress(NumberOfKeys + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
 	Progress.MakeDialog(true);
 
 	//Make sure we are reset and run construction event  before evaluating
@@ -2699,9 +2699,8 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	SourceCurves.ResetValues();
 	ControlRig->Execute(EControlRigState::Update, TEXT("Setup"));
 	*/
-	const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+	const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
-	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 
 	// copy the hierarchy from the CDO into the target control rig.
 	// this ensures that the topology version matches in case of a dynamic hierarchy
@@ -2725,10 +2724,10 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	ControlRig->RequestConstruction();
 	ControlRig->Evaluate_AnyThread();
 
-	for (int32 Index = 0; Index < NumberOfFrames; ++Index)
+	for (int32 Index = 0; Index < NumberOfKeys; ++Index)
 	{
 		const float SequenceSecond = AnimSequence->GetTimeAtFrame(Index);
-		FFrameNumber FrameNumber = StartFrame + (FrameRateInFrameNumber * Index);
+		const FFrameNumber FrameNumber = StartFrame + (FMath::Max(FrameRateInFrameNumber.Value, 1) * Index);
 
 		ControlRig->GetHierarchy()->ResetPoseToInitial();
 		ControlRig->GetHierarchy()->ResetCurveValues();

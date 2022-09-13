@@ -10,7 +10,7 @@
 #include "ScopedTransaction.h"
 #include "Animation/BlendSpace.h"
 #include "AnimationEditorPreviewScene.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AnimationScrubPanel"
@@ -373,7 +373,7 @@ bool SAnimationScrubPanel::DoesSyncViewport() const
 {
 	UAnimSingleNodeInstance* PreviewInstance = GetPreviewInstance();
 
-	return (( LockedSequence==NULL && PreviewInstance ) || ( LockedSequence && PreviewInstance && PreviewInstance->GetCurrentAsset() == LockedSequence ));
+	return (( LockedSequence==nullptr && PreviewInstance ) || ( LockedSequence && PreviewInstance && PreviewInstance->GetCurrentAsset() == LockedSequence ));
 }
 
 void SAnimationScrubPanel::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -387,7 +387,7 @@ void SAnimationScrubPanel::Tick( const FGeometry& AllottedGeometry, const double
 class UAnimSingleNodeInstance* SAnimationScrubPanel::GetPreviewInstance() const
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetPreviewScene()->GetPreviewMeshComponent();
-	return PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn()? PreviewMeshComponent->PreviewInstance : NULL;
+	return PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn()? PreviewMeshComponent->PreviewInstance : nullptr;
 }
 
 float SAnimationScrubPanel::GetScrubValue() const
@@ -424,20 +424,20 @@ UAnimInstance* SAnimationScrubPanel::GetAnimInstanceWithBlueprint() const
 	{
 		UAnimInstance* Instance = DebugComponent->GetAnimInstance();
 
-		if ((Instance != NULL) && (Instance->GetClass()->ClassGeneratedBy != NULL))
+		if ((Instance != nullptr) && (Instance->GetClass()->ClassGeneratedBy != nullptr))
 		{
 			return Instance;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 bool SAnimationScrubPanel::GetAnimBlueprintDebugData(UAnimInstance*& Instance, FAnimBlueprintDebugData*& DebugInfo) const
 {
 	Instance = GetAnimInstanceWithBlueprint();
 
-	if (Instance != NULL)
+	if (Instance != nullptr)
 	{
 		// Avoid updating the instance if we're replaying the past
 		if (UAnimBlueprintGeneratedClass* AnimBlueprintClass = Cast<UAnimBlueprintGeneratedClass>(Instance->GetClass()))

@@ -578,7 +578,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 	if (SkeletalMesh)
 	{
 		// Touch pre edit change
-		SkeletalMesh->PreEditChange(NULL);
+		SkeletalMesh->PreEditChange(nullptr);
 
 		// Retrieve the imported resource structure and allocate a new LOD model
 		FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
@@ -654,12 +654,15 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		IAnimationDataController& Controller = Sequence->GetController();
 
 		Controller.OpenBracket(LOCTEXT("ImportAsSkeletalMesh", "Importing Alembic Animation"));
+		Controller.InitializeModel();
 
-		Controller.SetPlayLength(AbcFile->GetImportLength());
-		Controller.SetFrameRate( FFrameRate(AbcFile->GetFramerate(), 1));
+		const FFrameRate FrameRate(AbcFile->GetFramerate(), 1);
+		Controller.SetFrameRate(FrameRate);	
+		const FFrameNumber FrameNumber = FrameRate.AsFrameNumber(AbcFile->GetImportLength());
+		Controller.SetNumberOfFrames(FrameNumber);
 
-		Sequence->ImportFileFramerate = AbcFile->GetFramerate();
-		Sequence->ImportResampleFramerate = 1.0f / (float)AbcFile->GetFramerate();
+		Sequence->ImportFileFramerate = FrameRate.AsDecimal();
+		Sequence->ImportResampleFramerate = FrameRate.AsInterval();
 
 		{
 #if WITH_EDITOR
@@ -1821,7 +1824,7 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 	}
 
 	// Compute the required bones for this model.
-	USkeletalMesh::CalculateRequiredBones(LODModel, RefSkeleton, NULL);
+	USkeletalMesh::CalculateRequiredBones(LODModel, RefSkeleton, nullptr);
 
 	return true;
 }
