@@ -240,12 +240,26 @@ public:
 	/* Get the retarget profile by name (may be null) */
 	const FRetargetProfile* GetProfileByName(const FName& ProfileName) const;
 
+	/** BLUEPRINT GETTERS */
+
+	/** Returns the chain settings associated with a given Goal in an IK Retargeter Asset using the given profile name (optional) */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetAsset)
+	static FTargetChainSettings GetChainUsingGoalFromRetargetAsset(
+		const UIKRetargeter* RetargetAsset,
+		const FName IKGoalName);
+	
 	/** Returns the chain settings associated with a given target chain in an IK Retargeter Asset using the given profile name (optional) */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetAsset)
 	static FTargetChainSettings GetChainSettingsFromRetargetAsset(
 		const UIKRetargeter* RetargetAsset,
 		const FName TargetChainName,
 		const FName OptionalProfileName);
+
+	/** Returns the chain settings associated with a given target chain in the supplied Retarget Profile. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetProfile)
+	static FTargetChainSettings GetChainSettingsFromRetargetProfile(
+		UPARAM(ref) FRetargetProfile& RetargetProfile,
+		const FName TargetChainName);
 
 	/** Returns the root settings in an IK Retargeter Asset using the given profile name (optional) */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetAsset)
@@ -254,11 +268,28 @@ public:
 		const FName OptionalProfileName,
 		FTargetRootSettings& OutSettings);
 
-	/** Returns the chain settings associated with a given target chain in the supplied Retarget Profile. */
+	/** Returns the root settings in the supplied Retarget Profile. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetProfile)
-	static FTargetChainSettings GetChainSettingsFromRetargetProfile(
+	static FTargetRootSettings GetRootSettingsFromRetargetProfile(UPARAM(ref) FRetargetProfile& RetargetProfile);
+
+	/** Returns the global settings in an IK Retargeter Asset using the given profile name (optional) */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetAsset)
+	static void GetGlobalSettingsFromRetargetAsset(
+		const UIKRetargeter* RetargetAsset,
+		const FName OptionalProfileName,
+		FRetargetGlobalSettings& OutSettings);
+
+	/** Returns the global settings in the supplied Retarget Profile. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category=RetargetProfile)
+	static FRetargetGlobalSettings GetGlobalSettingsFromRetargetProfile(UPARAM(ref) FRetargetProfile& RetargetProfile);
+
+	/** BLUEPRINT SETTERS */
+
+	/** Set the global settings in a retarget profile (will set bApplyGlobalSettings to true). */
+	UFUNCTION(BlueprintCallable, Category=RetargetProfile)
+	static void SetGlobalSettingsInRetargetProfile(
 		UPARAM(ref) FRetargetProfile& RetargetProfile,
-		const FName TargetChainName);
+		const FRetargetGlobalSettings& GlobalSettings);
 
 	/** Set the root settings in a retarget profile (will set bApplyRootSettings to true). */
 	UFUNCTION(BlueprintCallable, Category=RetargetProfile)

@@ -787,38 +787,55 @@ void FRetargetChainSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 	// determine the current setup state of the chain (is it ready for FK and/or IK?)
 	// FK: it can only run FK retarget if it's mapped to a source chain
 	// IK: can only run IK if FK is setup AND it's mapped to a goal that is connected to a solver (in the target IK rig)
-	auto CheckChainSetupForIKAndFK([this](const TObjectPtr<URetargetChainSettings> ChainSettings, bool& OutFKSetup, bool&OutIKSetup)
+	auto CheckChainSetupForIKAndFK([this](
+		const TObjectPtr<URetargetChainSettings> ChainSettings,
+		bool& OutFKSetup,
+		bool& OutIKSetup,
+		bool& OutIKConnected)
 	{
 		OutFKSetup = true;
 		OutIKSetup = true;
+		OutIKConnected = true;
 		
 		if (ChainSettings->SourceChain == NAME_None || ChainSettings->TargetChain == NAME_None)
 		{
 			OutFKSetup = false;
 			OutIKSetup = false;
+			OutIKConnected = false;
+			return;
 		}
 
-		if (!Controller->AssetController->IsChainRunningIK(ChainSettings.Get()))
+		const FName ChainGoal = Controller->AssetController->GetChainGoal(ChainSettings.Get());
+		if (ChainGoal == NAME_None)
 		{
 			OutIKSetup = false;
+		}
+
+		if (!Controller->AssetController->IsChainGoalConnectedToASolver(ChainGoal))
+		{
+			OutIKConnected = false;
 		}
 	});
 
 	// get the FK and IK status of the first selected chain
 	bool bFirstChainFKSetup;
 	bool bFirstChainIKSetup;
-	CheckChainSetupForIKAndFK(ChainSettingsObjects[0].Get(), bFirstChainFKSetup, bFirstChainIKSetup);
+	bool bFirstChainIKConnected;
+	CheckChainSetupForIKAndFK(ChainSettingsObjects[0].Get(), bFirstChainFKSetup, bFirstChainIKSetup, bFirstChainIKConnected);
 
 	// check to see if there is a mix of chains with valid FK or IK setups
 	bool bIsFKSetupMultipleValues = false;
 	bool bIsIKSetupMultipleValues = false;
+	bool bIsIKConnectedMultipleValues = false;
 	for (const TWeakObjectPtr<URetargetChainSettings> ChainSettings : ChainSettingsObjects)
 	{
 		bool bIsFKSetup;
 		bool bIsIKSetup;
-		CheckChainSetupForIKAndFK(ChainSettings.Get(), bIsFKSetup, bIsIKSetup);
+		bool bIsIKConnected;
+		CheckChainSetupForIKAndFK(ChainSettings.Get(), bIsFKSetup, bIsIKSetup, bIsIKConnected);
 		bIsFKSetupMultipleValues = bIsFKSetup != bFirstChainFKSetup ? true : bIsFKSetupMultipleValues;
 		bIsIKSetupMultipleValues = bIsIKSetup != bFirstChainIKSetup ? true : bIsIKSetupMultipleValues;
+		bIsIKConnectedMultipleValues = bIsIKConnected != bFirstChainIKConnected ? true : bIsIKConnectedMultipleValues;
 	}
 
 	// are we editing multiple chains?
@@ -898,9 +915,24 @@ void FRetargetChainSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 
 	// IK settings
 	const FText NoIKGoalWarning = LOCTEXT( "IKDisabled_Label", "Disabled: No IK Goal specified." );
+	const FText IKNotConnectedWarning = LOCTEXT( "IKDisconnected_Label", "Disabled: IK Goal is not connected to any solvers." );
 	const FText IKEnabledMultipleValuesWarning = LOCTEXT( "IKDisabledMultipleValues_Label", "Some selected chain(s) do not have an IK Goal." );
+	const bool bIKIsConnected = bFirstChainIKConnected && !bIsIKConnectedMultipleValues;
 	const bool bIKEditingEnabled = bFirstChainIKSetup && !bIsIKSetupMultipleValues;
-	const FText IKWarningToUse = !bFKEditingEnabled ? FKNotMappedWarning : !bIKEditingEnabled ? NoIKGoalWarning : FText();
+	FText IKWarningToUse = FText();
+	if (!bFKEditingEnabled)
+	{
+		IKWarningToUse = FKNotMappedWarning;
+	}
+	else if (!bIKEditingEnabled)
+	{
+		IKWarningToUse = NoIKGoalWarning;
+	}
+	else if (!bIKIsConnected)
+	{
+		IKWarningToUse = IKNotConnectedWarning;
+	}
+	
 	AddSettingsSection(
 		DetailBuilder,
 		SettingsCategory,
@@ -909,7 +941,7 @@ void FRetargetChainSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 		LOCTEXT("IKGroup_Label", "IK"),
 		FTargetChainIKSettings::StaticStruct(),
 		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainIKSettings, EnableIK),
-		bIKEditingEnabled,
+		bIKEditingEnabled && bIKIsConnected,
 		IKWarningToUse);
 
 	// Plant settings
@@ -970,7 +1002,7 @@ void FRetargetChainSettingsCustomization::AddSettingsSection(
 				.OnCheckStateChanged_Lambda([this, IsEnabledProperty](ECheckBoxState State)
 				{
 					IsEnabledProperty->SetValue(State == ECheckBoxState::Checked);
-					Controller->OnRetargeterNeedsInitialized(Controller->AssetController->GetAsset());
+					Controller->HandleRetargeterNeedsInitialized(Controller->AssetController->GetAsset());
 				})
 			];
 	}
@@ -1092,7 +1124,7 @@ void FRetargetGlobalSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 
 	auto GetPropertyHandle = [&DetailBuilder, &StructPropertyPath](const FString& PropertyName)
 	{
-		const FString EnableWarpingPropertyName = GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bIKWarping);
+		const FString EnableWarpingPropertyName = GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bWarping);
 		const FString PropertyPath = FString::Printf(TEXT("%s.%s"), *StructPropertyPath, *PropertyName);
 		return DetailBuilder.GetProperty(*PropertyPath);
 	};
@@ -1109,11 +1141,12 @@ void FRetargetGlobalSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 	AlphaGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bEnableIK)));
 
 	// stride warping group
-	IDetailGroup& WarpingGroup = SettingsCategory.AddGroup("Warping", LOCTEXT("Warping_Label", "Stride Warping"), false, true);
+	const FText WarpingTitleLabel = LOCTEXT("Warping_Label", "Stride Warping");
+	IDetailGroup& WarpingGroup = SettingsCategory.AddGroup("Warping", WarpingTitleLabel, false, true);
 
 	// header with "enable" checkbox that disables whole group
-	const TSharedRef<IPropertyHandle> EnableWarpingPropertyHandle = GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bIKWarping));
-	WarpingGroup.HeaderProperty(EnableWarpingPropertyHandle);
+	const TSharedRef<IPropertyHandle> EnableWarpingPropertyHandle = GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bWarping));
+	WarpingGroup.HeaderProperty(EnableWarpingPropertyHandle).DisplayName(WarpingTitleLabel);
 	
 	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([EnableWarpingPropertyHandle]()
 	{

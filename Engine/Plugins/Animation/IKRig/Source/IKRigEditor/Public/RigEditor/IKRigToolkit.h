@@ -10,7 +10,7 @@
 #include "IKRigMode.h"
 #include "IPersonaPreviewScene.h"
 #include "PersonaAssetEditorToolkit.h"
-#include "SIKRigSkeleton.h"
+#include "SIKRigHierarchy.h"
 
 namespace IKRigEditorModes
 {

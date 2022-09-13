@@ -324,13 +324,25 @@ const TArray<TObjectPtr<URetargetChainSettings>>& UIKRetargeterController::GetCh
 	return Asset->ChainSettings;
 }
 
-bool UIKRetargeterController::IsChainRunningIK(const TObjectPtr<URetargetChainSettings> ChainSettings) const
+FName UIKRetargeterController::GetChainGoal(const TObjectPtr<URetargetChainSettings> ChainSettings) const
 {
 	if (ChainSettings.IsNull())
 	{
-		return false;
+		return NAME_None;
 	}
 	
+	UIKRigDefinition* TargetIKRig = GetIKRigWriteable(ERetargetSourceOrTarget::Target);
+	if (!TargetIKRig)
+	{
+		return NAME_None;
+	}
+	
+	const UIKRigController* IKRigController = UIKRigController::GetIKRigController(TargetIKRig);
+	return IKRigController->GetRetargetChainGoal(ChainSettings->TargetChain);
+}
+
+bool UIKRetargeterController::IsChainGoalConnectedToASolver(const FName& GoalName) const
+{
 	UIKRigDefinition* TargetIKRig = GetIKRigWriteable(ERetargetSourceOrTarget::Target);
 	if (!TargetIKRig)
 	{
@@ -338,8 +350,7 @@ bool UIKRetargeterController::IsChainRunningIK(const TObjectPtr<URetargetChainSe
 	}
 	
 	const UIKRigController* IKRigController = UIKRigController::GetIKRigController(TargetIKRig);
-	const FName ChainGoalName = IKRigController->GetRetargetChainGoal(ChainSettings->TargetChain);
-	return IKRigController->IsGoalConnectedToAnySolver(ChainGoalName);
+	return IKRigController->IsGoalConnectedToAnySolver(GoalName);
 }
 
 void UIKRetargeterController::AddRetargetPose(

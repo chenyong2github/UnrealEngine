@@ -81,11 +81,6 @@ private:
 
 	// get the scale and offset associated with the currently edited skeletal mesh component
 	void GetEditedComponentScaleAndOffset(float& OutScale, FVector& OutOffset) const;
-	
-	// render skeleton in viewport
-	void RenderSkeleton(
-		FPrimitiveDrawInterface* PDI,
-		const FIKRetargetEditorController* Controller);
 
 	UE::Widget::EWidgetMode CurrentWidgetMode;
 

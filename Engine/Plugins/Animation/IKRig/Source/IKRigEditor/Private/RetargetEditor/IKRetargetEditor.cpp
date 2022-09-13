@@ -81,6 +81,7 @@ void FIKRetargetEditor::InitAssetEditor(
 	GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
 	FIKRetargetDefaultMode* DefaultMode = GetEditorModeManager().GetActiveModeTyped<FIKRetargetDefaultMode>(FIKRetargetDefaultMode::ModeName);
 	DefaultMode->SetEditorController(EditorController);
+	GetEditorModeManager().DeactivateMode(FIKRetargetDefaultMode::ModeName);
 
 	// give edit pose mode a pointer to the editor controller
 	GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
@@ -271,12 +272,12 @@ TStatId FIKRetargetEditor::GetStatId() const
 
 void FIKRetargetEditor::PostUndo(bool bSuccess)
 {
-	EditorController->OnRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
+	EditorController->HandleRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
 }
 
 void FIKRetargetEditor::PostRedo(bool bSuccess)
 {
-	EditorController->OnRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
+	EditorController->HandleRetargeterNeedsInitialized(EditorController->AssetController->GetAsset());
 }
 
 void FIKRetargetEditor::HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport)
@@ -343,6 +344,14 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	EditorController->SourceSkelMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
 	EditorController->TargetSkelMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
 
+	// hide skeletons, we want to do custom rendering
+	EditorController->SourceSkelMeshComponent->SkeletonDrawMode = ESkeletonDrawMode::Hidden;
+	EditorController->TargetSkelMeshComponent->SkeletonDrawMode = ESkeletonDrawMode::Hidden;
+
+	// don't want selectable meshes as it gets in the way of bone selection
+	EditorController->SourceSkelMeshComponent->bSelectable = false;
+	EditorController->TargetSkelMeshComponent->bSelectable = false;
+	
 	// setup an apply an anim instance to the skeletal mesh component
 	EditorController->SourceAnimInstance = NewObject<UIKRetargetAnimInstance>(EditorController->SourceSkelMeshComponent, TEXT("IKRetargetSourceAnimScriptInstance"));
 	EditorController->TargetAnimInstance = NewObject<UIKRetargetAnimInstance>(EditorController->TargetSkelMeshComponent, TEXT("IKRetargetTargetAnimScriptInstance"));
@@ -359,10 +368,6 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorController->SourceSkelMeshComponent);
 	InPersonaPreviewScene->SetPreviewMesh(SourceMesh);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
-
-	// SetPreviewMesh() sets this flag true, which the render uses to filter out objects for selection highlighting...
-	// but since we want to be able to select the mesh in this viewport, we have to set it back to false
-	EditorController->SourceSkelMeshComponent->bCanHighlightSelectedSections = false;
 	
 	InPersonaPreviewScene->AddComponent(EditorController->SourceSkelMeshComponent, FTransform::Identity);
 	InPersonaPreviewScene->AddComponent(EditorController->TargetSkelMeshComponent, FTransform::Identity);
@@ -442,6 +447,9 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 		USkeletalMesh* TargetMesh = EditorController->GetSkeletalMesh(ERetargetSourceOrTarget::Target);
 		EditorController->SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
 		EditorController->TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
+
+		// reset bone selections in case of incompatible indices
+		EditorController->ClearSelection();
 	
 		// apply mesh to the preview scene
 		TSharedRef<IPersonaPreviewScene> PreviewScene = GetPersonaToolkit()->GetPreviewScene();

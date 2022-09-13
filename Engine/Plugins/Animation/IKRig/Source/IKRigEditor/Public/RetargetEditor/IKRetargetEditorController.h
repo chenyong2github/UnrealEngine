@@ -39,6 +39,15 @@ enum class ESelectionEdit : uint8
 	Replace	// replace selection entirely
 };
 
+enum class ERetargetSelectionType : uint8
+{
+	BONE,
+	CHAIN,
+	MESH,
+	ROOT,
+	NONE
+};
+
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
 class FIKRetargetEditorController : public TSharedFromThis<FIKRetargetEditorController>, FGCObject
 {
@@ -53,13 +62,13 @@ public:
 	/** Bind callbacks to this IK Rig */
 	void BindToIKRigAsset(UIKRigDefinition* InIKRig);
 	/** callback when IK Rig asset requires reinitialization */
-	void OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
+	void HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain has been renamed */
-	void OnRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const;
+	void HandleRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const;
 	/** callback when IK Rig asset's retarget chain has been removed */
-	void OnRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
+	void HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
 	/** callback when IK Retargeter asset requires reinitialization */
-	void OnRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const;
+	void HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const;
 	
 	/** all modifications to the data model should go through this controller */
 	TObjectPtr<UIKRetargeterController> AssetController;
@@ -164,13 +173,13 @@ public:
 	void EditBoneSelection(
 		const TArray<FName>& InBoneNames,
 		ESelectionEdit EditMode,
-		const bool bFromHierarchyView);
-	const TArray<FName>& GetSelectedBones() const {return SelectedBones; };
+		const bool bFromHierarchyView = false);
+	const TArray<FName>& GetSelectedBones() const {return SelectedBoneNames[CurrentlyEditingSourceOrTarget]; };
 	/* END bone selection */
 	
 	/** SELECTION - MESHES (viewport view) */
 	void SetSelectedMesh(UPrimitiveComponent* InComponent);
-	UPrimitiveComponent* GetSelectedMesh();
+	UPrimitiveComponent* GetSelectedMesh() const;
 	void AddOffsetToMeshComponent(const FVector& Offset, USceneComponent* MeshComponent) const;
 	/* END mesh selection */
 
@@ -249,6 +258,9 @@ public:
 	virtual FString GetReferencerName() const override { return TEXT("Retarget Editor"); };
 	/** END FGCObject interface */
 
+	/** render the skeleton's in the viewport (either source or target) */
+	void RenderSkeleton(FPrimitiveDrawInterface* PDI, ERetargetSourceOrTarget SourceOrTarget) const;
+
 private:
 
 	/** asset properties tab */
@@ -274,10 +286,10 @@ private:
 	bool bIsRootSelected;
 	UPrimitiveComponent* SelectedMesh;
 	TArray<FName> SelectedChains;
-	TArray<FName> SelectedBones;
+	TMap<ERetargetSourceOrTarget, TArray<FName>> SelectedBoneNames;
+	ERetargetSelectionType LastSelectedItem;
 	UPROPERTY()
 	TMap<FName,TObjectPtr<UIKRetargetBoneDetails>> AllBoneDetails;
-
 
 	/** to remove delegates when editor is closed */
 	FDelegateHandle ReInitDelegateHandle;

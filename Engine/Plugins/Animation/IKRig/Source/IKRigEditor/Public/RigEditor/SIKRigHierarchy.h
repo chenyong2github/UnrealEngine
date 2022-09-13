@@ -13,7 +13,7 @@
 #include "SIKRigSolverStack.h"
 
 class FIKRigEditorController;
-class SIKRigSkeleton;
+class SIKRigHierarchy;
 class FIKRigEditorToolkit;
 class USkeletalMesh;
 class UIKRigBoneDetails;
@@ -24,14 +24,10 @@ class FIKRigTreeElement : public TSharedFromThis<FIKRigTreeElement>
 {
 public:
 	
-	FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType, const TSharedRef<FIKRigEditorController>& InEditorController);
-
-	TSharedRef<ITableRow> MakeTreeRowWidget(
-		TSharedRef<FIKRigEditorController> InEditorController,
-		const TSharedRef<STableViewBase>& InOwnerTable,
-		TSharedRef<FIKRigTreeElement> InRigTreeElement,
-		TSharedRef<FUICommandList> InCommandList,
-		TSharedPtr<SIKRigSkeleton> InHierarchy);
+	FIKRigTreeElement(
+		const FText& InKey,
+		IKRigTreeElementType InType,
+		const TSharedRef<FIKRigEditorController>& InEditorController);
 
 	FText Key;
 	IKRigTreeElementType ElementType;
@@ -65,6 +61,9 @@ public:
 	/** get the underlying object */
 	TWeakObjectPtr< UObject > GetObject() const;
 
+	/** get the name of the retarget chain this element belongs to (or NAME_None if not in a chain) */
+	FName GetChainName() const;
+
 private:
 	/** centralized editor controls */
 	TWeakPtr<FIKRigEditorController> EditorController;
@@ -73,36 +72,79 @@ private:
 	mutable TObjectPtr<UIKRigBoneDetails> OptionalBoneDetails = nullptr;
 };
 
-class SIKRigSkeletonItem : public STableRow<TSharedPtr<FIKRigTreeElement>>
+class SIKRigHierarchyItem : public SCompoundWidget
 {
-public:
-	
-	void Construct(
-		const FArguments& InArgs,
-		TSharedRef<FIKRigEditorController> InEditorController,
-		const TSharedRef<STableViewBase>& OwnerTable,
-		TSharedRef<FIKRigTreeElement> InRigTreeElement,
-		TSharedRef<FUICommandList> InCommandList,
-		TSharedPtr<SIKRigSkeleton> InHierarchy);
+	SLATE_BEGIN_ARGS(SIKRigHierarchyItem) {}
+	SLATE_ARGUMENT(TWeakPtr<FIKRigEditorController>, EditorController)
+	SLATE_ARGUMENT(TWeakPtr<FIKRigTreeElement>, TreeElement)
+	SLATE_ARGUMENT(TWeakPtr<SIKRigHierarchy>, HierarchyView)
+	SLATE_END_ARGS()
 
+	void Construct(const FArguments& InArgs);
+	
 private:
 
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage) const;
 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	FText GetName() const;
-
-	TWeakPtr<FIKRigTreeElement> WeakRigTreeElement;
+	
+	TWeakPtr<FIKRigTreeElement> WeakTreeElement;
 	TWeakPtr<FIKRigEditorController> EditorController;
-	TWeakPtr<SIKRigSkeleton> SkeletonView;
+	TWeakPtr<SIKRigHierarchy> HierarchyView;
 };
 
 class FIKRigSkeletonDragDropOp : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FIKRigSkeletonDragDropOp, FDecoratedDragDropOp)
-    static TSharedRef<FIKRigSkeletonDragDropOp> New(TWeakPtr<FIKRigTreeElement> InElement);
+	static TSharedRef<FIKRigSkeletonDragDropOp> New(TWeakPtr<FIKRigTreeElement> InElement);
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 	TWeakPtr<FIKRigTreeElement> Element;
+};
+
+class SIKRigSkeletonRow : public SMultiColumnTableRow<TSharedPtr<FIKRigTreeElement>>
+{
+public:
+
+	SLATE_BEGIN_ARGS(SIKRigSkeletonRow) {}
+	SLATE_ARGUMENT(TSharedPtr<FIKRigEditorController>, EditorController)
+	SLATE_ARGUMENT(TSharedPtr<FIKRigTreeElement>, TreeElement)
+	SLATE_ARGUMENT(TSharedPtr<SIKRigHierarchy>, HierarchyView)
+	SLATE_END_ARGS()
+
+	void Construct(
+		const FArguments& InArgs,
+		const TSharedRef<STableViewBase>& InOwnerTable)
+	{
+		OwnerTable = InOwnerTable;
+		WeakTreeElement = InArgs._TreeElement;
+		EditorController = InArgs._EditorController;
+		HierarchyView = InArgs._HierarchyView;
+		
+		SMultiColumnTableRow<TSharedPtr<FIKRigTreeElement>>::Construct(
+			FSuperRowType::FArguments()
+			.OnDragDetected(this, &SIKRigSkeletonRow::HandleDragDetected)
+			.OnCanAcceptDrop(this, &SIKRigSkeletonRow::HandleCanAcceptDrop)
+			.OnAcceptDrop(this, &SIKRigSkeletonRow::HandleAcceptDrop)
+			,InOwnerTable);
+	}
+
+	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the list view. */
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
+	/** End SMultiColumnTableRow */
+
+	/** drag and drop */
+	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FIKRigTreeElement> TargetItem);
+	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FIKRigTreeElement> TargetItem);
+	/** END drag and drop */
+
+private:
+
+	TSharedPtr<STableViewBase> OwnerTable;
+	TWeakPtr<FIKRigTreeElement> WeakTreeElement;
+	TWeakPtr<FIKRigEditorController> EditorController;
+	TWeakPtr<SIKRigHierarchy> HierarchyView;
 };
 
 struct FIKRigHierarchyFilterOptions
@@ -124,13 +166,13 @@ struct FIKRigHierarchyFilterOptions
 
 typedef SBaseHierarchyTreeView<FIKRigTreeElement> SIKRigSkeletonTreeView;
 
-class SIKRigSkeleton : public SCompoundWidget, public FEditorUndoClient
+class SIKRigHierarchy : public SCompoundWidget, public FEditorUndoClient
 {
 public:
-	SLATE_BEGIN_ARGS(SIKRigSkeleton) {}
+	SLATE_BEGIN_ARGS(SIKRigHierarchy) {}
 	SLATE_END_ARGS()
 
-    ~SIKRigSkeleton() {};
+    ~SIKRigHierarchy() {};
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController);
 
@@ -150,6 +192,13 @@ public:
 	TArray<TSharedPtr<FIKRigTreeElement>> GetSelectedItems() const;
 	bool HasSelectedItems() const;
 	/** END selection state queries */
+
+	/** determine if the element is connected to the selected solver */
+	bool IsElementConnectedToSolver(TWeakPtr<FIKRigTreeElement> TreeElement, int32 SolverIndex);
+	/** determine if the element is connected to ANY solver */
+	bool IsElementConnectedToAnySolver(TWeakPtr<FIKRigTreeElement> TreeElement);
+	/** determine if the element is an excluded bone*/
+	bool IsElementExcludedBone(TWeakPtr<FIKRigTreeElement> TreeElement);
 
 private:
 	/** SWidget interface */
@@ -237,7 +286,6 @@ private:
 	
 	/** tree view callbacks */
 	void RefreshTreeView(bool IsInitialSetup=false);
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FIKRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void HandleGetChildrenForTree(TSharedPtr<FIKRigTreeElement> InItem, TArray<TSharedPtr<FIKRigTreeElement>>& OutChildren);
 	void OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 	TSharedRef< SWidget > CreateAddNewMenu();
@@ -249,13 +297,7 @@ private:
 	void FillContextMenu(FMenuBuilder& MenuBuilder);
 	/** END tree view callbacks */
 
-	/** drag and drop */
-	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FIKRigTreeElement> TargetItem);
-	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FIKRigTreeElement> TargetItem);
-	/** END drag and drop */
-
-	friend SIKRigSkeletonItem;
+	friend SIKRigHierarchyItem;
 	friend FIKRigEditorController;
 	friend SIKRigSolverStack;
 	friend SIKRigRetargetChainList;

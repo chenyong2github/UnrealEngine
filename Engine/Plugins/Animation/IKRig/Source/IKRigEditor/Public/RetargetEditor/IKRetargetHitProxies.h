@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HitProxies.h"
+#include "IKRetargetAnimInstanceProxy.h"
 
 // allow bone selection to edit retarget pose
 struct HIKRetargetEditorBoneProxy : public HHitProxy
@@ -11,10 +12,17 @@ struct HIKRetargetEditorBoneProxy : public HHitProxy
 	DECLARE_HIT_PROXY();
 
 	FName BoneName;
+	int32 BoneIndex;
+	ERetargetSourceOrTarget SourceOrTarget;
 	
-	HIKRetargetEditorBoneProxy(const FName& InBoneName)
-		: HHitProxy(HPP_World)
-		, BoneName(InBoneName) {}
+	HIKRetargetEditorBoneProxy(
+		const FName& InBoneName,
+		const int32 InBoneIndex,
+		ERetargetSourceOrTarget InSourceOrTarget)
+		: HHitProxy(HPP_World),
+		BoneName(InBoneName),
+		BoneIndex(InBoneIndex),
+		SourceOrTarget(InSourceOrTarget){}
 
 	virtual EMouseCursor::Type GetMouseCursor()
 	{
@@ -26,7 +34,6 @@ struct HIKRetargetEditorBoneProxy : public HHitProxy
 		return true;
 	}
 };
-
 
 // select chains/goals to edit chain settings
 struct HIKRetargetEditorChainProxy : public HHitProxy

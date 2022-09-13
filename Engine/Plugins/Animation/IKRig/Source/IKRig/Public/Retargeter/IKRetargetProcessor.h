@@ -37,14 +37,14 @@ struct IKRIG_API FRetargetSkeleton
 		const TArray<FBoneChain>& BoneChains,
 		const FName InRetargetPoseName,
 		const FIKRetargetPose* RetargetPose,
-		const FName& RetargetRootBone);
+		const FName RetargetRootBone);
 
 	void Reset();
 
 	void GenerateRetargetPose(
 		const FName InRetargetPoseName,
 		const FIKRetargetPose* InRetargetPose,
-		const FName& RetargetRootBone);
+		const FName RetargetRootBone);
 
 	int32 FindBoneIndexByName(const FName InName) const;
 
@@ -99,9 +99,9 @@ struct FTargetSkeleton : public FRetargetSkeleton
 	void Initialize(
 		USkeletalMesh* InSkeletalMesh,
 		const TArray<FBoneChain>& BoneChains,
-		const FName& InRetargetPoseName,
+		const FName InRetargetPoseName,
 		const FIKRetargetPose* RetargetPose,
-		const FName& RetargetRootBone);
+		const FName RetargetRootBone);
 
 	void Reset();
 
@@ -130,6 +130,7 @@ struct IKRIG_API FResolvedBoneChain
 
 struct FRootSource
 {
+	FName BoneName;
 	int32 BoneIndex;
 	FQuat InitialRotation;
 	float InitialHeightInverse;
@@ -141,6 +142,7 @@ struct FRootSource
 
 struct FRootTarget
 {
+	FName BoneName;
 	int32 BoneIndex;
 	FVector InitialPosition;
 	FQuat InitialRotation;
@@ -176,6 +178,48 @@ struct FRootRetargeter
 	{
 		return FVector(Settings.ScaleHorizontal, Settings.ScaleHorizontal, Settings.ScaleVertical);
 	}
+};
+
+struct FPoleVectorMatcher
+{
+	EAxis::Type SourcePoleAxis;
+	EAxis::Type TargetPoleAxis;
+	float TargetToSourceAngularOffsetAtRefPose;
+	TArray<int32> AllChildrenWithinChain;
+
+	bool Initialize(
+		const TArray<int32>& SourceIndices,
+		const TArray<int32>& TargetIndices,
+		const TArray<FTransform> &SourceGlobalPose,
+		const TArray<FTransform> &TargetGlobalPose,
+		const FRetargetSkeleton& TargetSkeleton);
+
+	void MatchPoleVector(
+		const FTargetChainSettings& Settings,
+		const TArray<int32>& SourceIndices,
+		const TArray<int32>& TargetIndices,
+		const TArray<FTransform> &SourceGlobalPose,
+		TArray<FTransform> &OutTargetGlobalPose,
+		FRetargetSkeleton& TargetSkeleton);
+	
+private:
+
+	EAxis::Type CalculateBestPoleAxisForChain(
+		const TArray<int32>& BoneIndices,
+		const TArray<FTransform>& GlobalPose);
+	
+	static FVector CalculatePoleVector(
+		const EAxis::Type& PoleAxis,
+		const TArray<int32>& BoneIndices,
+		const TArray<FTransform>& GlobalPose);
+
+	static EAxis::Type GetMostDifferentAxis(
+		const FTransform& Transform,
+		const FVector& InNormal);
+
+	static FVector GetChainNormal(
+		const TArray<int32>& BoneIndices,
+		const TArray<FTransform>& GlobalPose);
 };
 
 struct FChainFK
@@ -245,8 +289,15 @@ struct FChainDecoderFK : public FChainFK
 		const FTargetSkeleton& TargetSkeleton,
 		TArray<FTransform> &InOutGlobalPose);
 
-private:
+	void MatchPoleVector(
+		const FTargetChainSettings& Settings,
+		const TArray<int32>& TargetBoneIndices,
+		FChainEncoderFK& SourceChain,
+		const FTargetSkeleton& TargetSkeleton,
+		TArray<FTransform> &InOutGlobalPose);
 
+private:
+	
 	FTransform GetTransformAtParam(
 		const TArray<FTransform>& Transforms,
 		const TArray<float>& InParams,
@@ -344,11 +395,9 @@ struct FRetargetChainPair
 	FTargetChainSettings Settings;
 	
 	TArray<int32> SourceBoneIndices;
-	
 	TArray<int32> TargetBoneIndices;
 	
 	FName SourceBoneChainName;
-	
 	FName TargetBoneChainName;
 
 	virtual ~FRetargetChainPair() = default;
@@ -372,8 +421,8 @@ private:
 struct FRetargetChainPairFK : FRetargetChainPair
 {
 	FChainEncoderFK FKEncoder;
-
 	FChainDecoderFK FKDecoder;
+	FPoleVectorMatcher PoleVectorMatcher;
 	
 	virtual bool Initialize(
         const FBoneChain& SourceBoneChain,
@@ -386,9 +435,7 @@ struct FRetargetChainPairFK : FRetargetChainPair
 struct FRetargetChainPairIK : FRetargetChainPair
 {
 	FChainRetargeterIK IKChainRetargeter;
-	
 	FName IKGoalName;
-	
 	FName PoleVectorGoalName;
 
 	virtual bool Initialize(
@@ -529,6 +576,9 @@ private:
 
 	/** The Source/Target pair of Root Bones retargeted with scaled translation */
 	FRootRetargeter RootRetargeter;
+
+	/** The currently used global settings (driven either by source asset or a profile) */
+	FRetargetGlobalSettings GlobalSettings;
 	
 	/** Initializes the FRootRetargeter */
 	bool InitializeRoots();
@@ -552,6 +602,12 @@ private:
 		const TMap<FName, float>& SpeedValuesFromCurves,
 		const float DeltaTime);
 
+	/** Internal retarget phase for the pole matching feature of FK chains. */
+	void RunPoleVectorMatching(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
+
 	/** Runs in the after the base IK retarget to apply stride warping to IK goals. */
 	void RunStrideWarping(const TArray<FTransform>& InTargeGlobalPose);
+
+	/** Does a partial reinitialization (at runtime) whenever the retarget pose is swapped to a different one. */
+	void ApplyNewRetargetPose(const FName NewRetargetPoseName, ERetargetSourceOrTarget SourceOrTarget);
 };

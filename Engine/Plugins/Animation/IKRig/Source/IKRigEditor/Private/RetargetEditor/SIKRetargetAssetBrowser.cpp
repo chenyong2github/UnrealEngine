@@ -66,8 +66,8 @@ void SIKRetargetAssetBrowser::RefreshView()
 	AssetPickerConfig.bShowTypeInColumnView = true;
 	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SIKRetargetAssetBrowser::OnShouldFilterAsset);
 	AssetPickerConfig.DefaultFilterMenuExpansion = EAssetTypeCategories::Animation;
-	
 	AssetPickerConfig.OnAssetDoubleClicked = FOnAssetSelected::CreateSP(this, &SIKRetargetAssetBrowser::OnAssetDoubleClicked);
+	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP(this, &SIKRetargetAssetBrowser::OnGetAssetContextMenu);
 	AssetPickerConfig.GetCurrentSelectionDelegates.Add(&GetCurrentSelectionDelegate);
 	AssetPickerConfig.bAllowNullSelection = false;
 
@@ -81,10 +81,50 @@ void SIKRetargetAssetBrowser::RefreshView()
 
 	// Also hide the type column by default (but allow users to enable it, so don't use bShowTypeInColumnView)
 	AssetPickerConfig.HiddenColumnNames.Add(TEXT("Class"));
+	AssetPickerConfig.HiddenColumnNames.Add(TEXT("Has Virtualized Data"));
 
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-
+	const FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 	AssetBrowserBox->SetContent(ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig));
+}
+
+TSharedPtr<SWidget> SIKRetargetAssetBrowser::OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets) const
+{
+	if (SelectedAssets.Num() <= 0)
+	{
+		return nullptr;
+	}
+
+	UObject* SelectedAsset = SelectedAssets[0].GetAsset();
+	if (SelectedAsset == nullptr)
+	{
+		return nullptr;
+	}
+	
+	FMenuBuilder MenuBuilder(true, MakeShared<FUICommandList>());
+
+	MenuBuilder.BeginSection(TEXT("Asset"), LOCTEXT("AssetSectionLabel", "Asset"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Browse", "Browse to Asset"),
+			LOCTEXT("BrowseTooltip", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser.Small"),
+			FUIAction(
+				FExecuteAction::CreateLambda([SelectedAsset] ()
+				{
+					if (SelectedAsset)
+					{
+						const TArray<FAssetData>& Assets = { SelectedAsset };
+						const FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+						ContentBrowserModule.Get().SyncBrowserToAssets(Assets);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([] () { return true; })
+			)
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 FReply SIKRetargetAssetBrowser::OnExportButtonClicked()
@@ -282,7 +322,7 @@ void SBatchExportDialog::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						.Padding(2, 1)
 						[
-							SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Prefix", "Prefix:"))
+							SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Prefix", "Add Prefix:"))
 						]
 
 						+SHorizontalBox::Slot()
@@ -315,7 +355,7 @@ void SBatchExportDialog::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						.Padding(2, 1)
 						[
-							SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Suffix", "Suffix:"))
+							SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Suffix", "Add Suffix:"))
 						]
 
 						+SHorizontalBox::Slot()
@@ -344,62 +384,61 @@ void SBatchExportDialog::Construct(const FArguments& InArgs)
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
-						.AutoWidth()
+						.HAlign(HAlign_Right)
 						.VAlign(VAlign_Center)
-						.Padding(2, 1)
 						[
-							SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Search", "Search:"))
-						]
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.Padding(2, 1)
+							[
+								SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Search", "Search for:"))
+							]
 
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(SEditableTextBox)
-							.Text_Lambda([this]
-							{
-								return FText::FromString(BatchContext.NameRule.ReplaceFrom);
-							})
-							.MinDesiredWidth(TextInputWidths)
-							.OnTextChanged_Lambda([this](const FText& InText)
-							{
-								BatchContext.NameRule.ReplaceFrom = InText.ToString();
-								UpdateExampleText();
-							})
-							.IsReadOnly(false)
-							.RevertTextOnEscape(true)
+							+SHorizontalBox::Slot()
+							[
+								SNew(SEditableTextBox)
+								.Text_Lambda([this]
+								{
+									return FText::FromString(BatchContext.NameRule.ReplaceFrom);
+								})
+								.MinDesiredWidth(TextInputWidths)
+								.OnTextChanged_Lambda([this](const FText& InText)
+								{
+									BatchContext.NameRule.ReplaceFrom = InText.ToString();
+									UpdateExampleText();
+								})
+								.IsReadOnly(false)
+								.RevertTextOnEscape(true)
+							]
 						]
-					]
-
-					+SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(2, 1)
-					.HAlign(HAlign_Right)
-					[
-						SNew(SHorizontalBox)
+						
 						+SHorizontalBox::Slot()
-						.AutoWidth()
+						.HAlign(HAlign_Right)
 						.VAlign(VAlign_Center)
-						.Padding(2, 1)
 						[
-							SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Replace", "Replace:"))
-						]
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.Padding(2, 1)
+							[
+								SNew(STextBlock).Text(LOCTEXT("DuplicateAndRetarget_Replace", "Replace with:"))
+							]
 
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(SEditableTextBox)
-							.Text_Lambda([this]
-							{
-								return FText::FromString(BatchContext.NameRule.ReplaceTo);
-							})
-							.MinDesiredWidth(TextInputWidths)
-							.OnTextChanged_Lambda([this](const FText& InText)
-							{
-								BatchContext.NameRule.ReplaceTo = InText.ToString();
-								UpdateExampleText();
-							})
-							.IsReadOnly(false)
-							.RevertTextOnEscape(true)
+							+SHorizontalBox::Slot()
+							[
+								SNew(SEditableTextBox)
+								.Text_Lambda([this]
+								{
+									return FText::FromString(BatchContext.NameRule.ReplaceTo);
+								})
+								.MinDesiredWidth(TextInputWidths)
+								.OnTextChanged_Lambda([this](const FText& InText)
+								{
+									BatchContext.NameRule.ReplaceTo = InText.ToString();
+									UpdateExampleText();
+								})
+								.IsReadOnly(false)
+								.RevertTextOnEscape(true)
+							]
 						]
 					]
 

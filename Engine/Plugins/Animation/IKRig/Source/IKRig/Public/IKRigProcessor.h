@@ -87,6 +87,8 @@ public:
 
 	/** Get access to the internal goal data (read only) */
 	const FIKRigGoalContainer& GetGoalContainer() const;
+	/** Get the bone associated with a goal */
+	const FGoalBone* GetGoalBone(const FName& GoalName) const;
 	
 	/** Get read/write access to the internal skeleton data */
 	FIKRigSkeleton& GetSkeletonWriteable();

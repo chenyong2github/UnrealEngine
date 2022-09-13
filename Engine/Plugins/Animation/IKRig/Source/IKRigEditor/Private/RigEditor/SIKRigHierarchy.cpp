@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigEditor/SIKRigSkeleton.h"
+#include "RigEditor/SIKRigHierarchy.h"
 
+#include "IKRigProcessor.h"
 #include "IKRigSolver.h"
 #include "Engine/SkeletalMesh.h"
 #include "IPersonaToolkit.h"
@@ -19,7 +20,10 @@
 #include "Preferences/PersonaOptions.h"
 #include "Widgets/Input/SSearchBox.h"
 
-#define LOCTEXT_NAMESPACE "SIKRigSkeleton"
+#define LOCTEXT_NAMESPACE "SIKRigHierarchy"
+
+static const FName IKRigElementColumnName(TEXT("ElementName"));
+static const FName IKRigChainColumnName(TEXT("RetargetChainName"));
 
 FIKRigTreeElement::FIKRigTreeElement(const FText& InKey, IKRigTreeElementType InType,
 									 const TSharedRef<FIKRigEditorController>& InEditorController)
@@ -28,16 +32,6 @@ FIKRigTreeElement::FIKRigTreeElement(const FText& InKey, IKRigTreeElementType In
 	, EditorController(InEditorController)
 	, OptionalBoneDetails(nullptr)
 {}
-
-TSharedRef<ITableRow> FIKRigTreeElement::MakeTreeRowWidget(
-	TSharedRef<FIKRigEditorController> InEditorController,
-	const TSharedRef<STableViewBase>& InOwnerTable,
-	TSharedRef<FIKRigTreeElement> InRigTreeElement,
-	TSharedRef<FUICommandList> InCommandList,
-	TSharedPtr<SIKRigSkeleton> InSkeleton)
-{
-	return SNew(SIKRigSkeletonItem, InEditorController, InOwnerTable, InRigTreeElement, InCommandList, InSkeleton);
-}
 
 void FIKRigTreeElement::RequestRename()
 {
@@ -65,49 +59,58 @@ TWeakObjectPtr< UObject > FIKRigTreeElement::GetObject() const
 			OptionalBoneDetails = Controller->CreateBoneDetails(AsShared());
 		}
 		return OptionalBoneDetails;
-		break;
 	case IKRigTreeElementType::BONE_SETTINGS:
 		return Controller->AssetController->GetSettingsForBone(BoneSettingBoneName, BoneSettingsSolverIndex);
-		break;
 	case IKRigTreeElementType::GOAL:
 		return Controller->AssetController->GetGoal(GoalName);
-		break;
 	case IKRigTreeElementType::SOLVERGOAL:
 		if (const UIKRigSolver* SolverWithEffector = Controller->AssetController->GetSolver(EffectorIndex))
 		{
 			return SolverWithEffector->GetGoalSettings(EffectorGoalName);
 		}
-		break;
 	default:
 		return nullptr;
-		break;
 	}
-	
-	return nullptr;
 }
 
-void SIKRigSkeletonItem::Construct(
-	const FArguments& InArgs,
-	TSharedRef<FIKRigEditorController> InEditorController,
-    const TSharedRef<STableViewBase>& OwnerTable,
-    TSharedRef<FIKRigTreeElement> InRigTreeElement,
-    TSharedRef<FUICommandList> InCommandList,
-    TSharedPtr<SIKRigSkeleton> InSkeleton)
+FName FIKRigTreeElement::GetChainName() const
 {
-	WeakRigTreeElement = InRigTreeElement;
-	EditorController = InEditorController;
-	SkeletonView = InSkeleton;
+	const UIKRigController* AssetController = EditorController.Pin()->AssetController;
+	const FIKRigSkeleton* Skeleton  = EditorController.Pin()->GetCurrentIKRigSkeleton();
+	
+	switch(ElementType)
+	{
+	case IKRigTreeElementType::BONE:
+		return AssetController->GetRetargetChainFromBone(BoneName, Skeleton);
+	case IKRigTreeElementType::BONE_SETTINGS:
+		return AssetController->GetRetargetChainFromBone(BoneSettingBoneName, Skeleton);
+	case IKRigTreeElementType::GOAL:
+		return AssetController->GetRetargetChainFromGoal(GoalName);
+	case IKRigTreeElementType::SOLVERGOAL:
+		return AssetController->GetRetargetChainFromGoal(EffectorGoalName);
+	default:
+		return NAME_None;
+	}
+}
 
+void SIKRigHierarchyItem::Construct(const FArguments& InArgs)
+{
+	WeakTreeElement = InArgs._TreeElement;
+	EditorController = InArgs._EditorController;
+	HierarchyView = InArgs._HierarchyView;
+
+	TSharedPtr<FIKRigTreeElement> TreeElement = WeakTreeElement.Pin();
+	
 	// is this element affected by the selected solver?
 	bool bIsConnectedToSelectedSolver;
-	const int32 SelectedSolver = InEditorController->GetSelectedSolverIndex();
+	const int32 SelectedSolver = EditorController.Pin()->GetSelectedSolverIndex();
 	if (SelectedSolver == INDEX_NONE)
 	{
-		bIsConnectedToSelectedSolver = InEditorController->IsElementConnectedToAnySolver(InRigTreeElement);
+		bIsConnectedToSelectedSolver = HierarchyView.Pin()->IsElementConnectedToAnySolver(WeakTreeElement);
 	}
 	else
 	{
-		bIsConnectedToSelectedSolver = InEditorController->IsElementConnectedToSolver(InRigTreeElement, SelectedSolver);
+		bIsConnectedToSelectedSolver = HierarchyView.Pin()->IsElementConnectedToSolver(WeakTreeElement, SelectedSolver);
 	}
 
 	// determine text style
@@ -129,10 +132,10 @@ void SIKRigSkeletonItem::Construct(
 
 	// determine which icon to use for tree element
 	const FSlateBrush* Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
-	switch(InRigTreeElement->ElementType)
+	switch(TreeElement->ElementType)
 	{
 		case IKRigTreeElementType::BONE:
-			if (!InEditorController->IsElementExcludedBone(InRigTreeElement))
+			if (!HierarchyView.Pin()->IsElementExcludedBone(WeakTreeElement))
 			{
 				Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
 			}
@@ -153,75 +156,57 @@ void SIKRigSkeletonItem::Construct(
 		default:
 			checkNoEntry();
 	}
-	 
-	TSharedPtr<SHorizontalBox> HorizontalBox;
-	STableRow<TSharedPtr<FIKRigTreeElement>>::Construct(
-        STableRow<TSharedPtr<FIKRigTreeElement>>::FArguments()
-        .ShowWires(true)
-        .OnDragDetected(InSkeleton.Get(), &SIKRigSkeleton::OnDragDetected)
-        .OnCanAcceptDrop(InSkeleton.Get(), &SIKRigSkeleton::OnCanAcceptDrop)
-        .OnAcceptDrop(InSkeleton.Get(), &SIKRigSkeleton::OnAcceptDrop)
-        .Content()
-        [
-            SAssignNew(HorizontalBox, SHorizontalBox)
-            + SHorizontalBox::Slot()
-            .MaxWidth(18)
-            .FillWidth(1.0)
-            .HAlign(HAlign_Left)
-            .VAlign(VAlign_Center)
-            [
-                SNew(SImage)
-                .Image(Brush)
-            ]
-        ], OwnerTable);
+
+	TSharedPtr<SHorizontalBox> RowBox;
+
+	ChildSlot
+	[
+		SAssignNew(RowBox, SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.MaxWidth(18)
+		.FillWidth(1.0)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(Brush)
+		]
+	];
 	
-	if (InRigTreeElement->ElementType == IKRigTreeElementType::BONE)
+	if (TreeElement->ElementType == IKRigTreeElementType::BONE)
 	{
-		HorizontalBox->AddSlot()
+		RowBox->AddSlot()
         .AutoWidth()
         .VAlign(VAlign_Center)
         [
 			SNew(STextBlock)
-			.Text(this, &SIKRigSkeletonItem::GetName)
+			.Text(this, &SIKRigHierarchyItem::GetName)
 			.Font(TextFont)
 			.ColorAndOpacity(TextColor)
         ];
-
-		if (InEditorController->AssetController->GetRetargetRoot() == InRigTreeElement->BoneName)
-		{	
-			HorizontalBox->AddSlot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("RetargetRootLabel", " (Retarget Root)"))
-				.Font(ItalicText.Font)
-				.ColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.9f, 0.5f))
-			];
-		}
 	}
 	else
 	{
 		TSharedPtr< SInlineEditableTextBlock > InlineWidget;
-		HorizontalBox->AddSlot()
+		RowBox->AddSlot()
         .AutoWidth()
         .VAlign(VAlign_Center)
         [
 	        SAssignNew(InlineWidget, SInlineEditableTextBlock)
-		    .Text(this, &SIKRigSkeletonItem::GetName)
+		    .Text(this, &SIKRigHierarchyItem::GetName)
 		    .Font(TextFont)
 			.ColorAndOpacity(TextColor)
-			.OnVerifyTextChanged(this, &SIKRigSkeletonItem::OnVerifyNameChanged)
-		    .OnTextCommitted(this, &SIKRigSkeletonItem::OnNameCommitted)
+			.OnVerifyTextChanged(this, &SIKRigHierarchyItem::OnVerifyNameChanged)
+		    .OnTextCommitted(this, &SIKRigHierarchyItem::OnNameCommitted)
 		    .MultiLine(false)
         ];
-		InRigTreeElement->OnRenameRequested.BindSP(InlineWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+		TreeElement->OnRenameRequested.BindSP(InlineWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
 	}
 }
 
-void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const
+void SIKRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
-	check(WeakRigTreeElement.IsValid());
+	check(WeakTreeElement.IsValid());
 
 	if (!(InCommitType == ETextCommit::OnEnter || InCommitType == ETextCommit::OnUserMovedFocus))
 	{
@@ -234,29 +219,74 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 		return; 
 	}
 	
-	const FText OldText = WeakRigTreeElement.Pin()->Key;
-	const FName OldName = WeakRigTreeElement.Pin()->GoalName;
+	const FText OldText = WeakTreeElement.Pin()->Key;
+	const FName OldName = WeakTreeElement.Pin()->GoalName;
 	const FName PotentialNewName = FName(InText.ToString());
 	const FName NewName = Controller->AssetController->RenameGoal(OldName, PotentialNewName);
 	if (NewName != NAME_None)
 	{
-		WeakRigTreeElement.Pin()->Key = FText::FromName(NewName);
-		WeakRigTreeElement.Pin()->GoalName = NewName;
+		WeakTreeElement.Pin()->Key = FText::FromName(NewName);
+		WeakTreeElement.Pin()->GoalName = NewName;
 	}
 	
 	Controller->RefreshAllViews();
-	SkeletonView.Pin()->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
+	HierarchyView.Pin()->ReplaceItemInSelection(OldText, WeakTreeElement.Pin()->Key);
 }
 
-bool SIKRigSkeletonItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage) const
+bool SIKRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage) const
 {
 	// TODO let the user know when/why the goal can't be renamed 
 	return true;
 }
 
-FText SIKRigSkeletonItem::GetName() const
+FText SIKRigHierarchyItem::GetName() const
 {
-	return WeakRigTreeElement.Pin()->Key;
+	return WeakTreeElement.Pin()->Key;
+}
+
+TSharedRef<SWidget> SIKRigSkeletonRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	// the actual bone/goal/settings element in the hierarchy
+	if (ColumnName == IKRigElementColumnName)
+	{
+		return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew( SExpanderArrow, SharedThis(this) )
+			.ShouldDrawWires(true)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SIKRigHierarchyItem)
+			.EditorController(EditorController)
+			.HierarchyView(HierarchyView)
+			.TreeElement(WeakTreeElement)
+		];
+	}
+
+	// the column of chain names for each hierarchy element
+	if (ColumnName == IKRigChainColumnName)
+	{
+		const FName ChainName = WeakTreeElement.Pin()->GetChainName();
+		const FText ChainText = ChainName == NAME_None ? FText::FromString("") : FText::FromName(ChainName);
+		const FSlateFontInfo Font = ChainName != "(Retarget Root)" ? FAppStyle::Get().GetFontStyle("NormalFont") : FAppStyle::Get().GetFontStyle("BoldFont");
+		
+		TSharedPtr< SHorizontalBox > RowBox;
+		SAssignNew(RowBox, SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock).Text(ChainText).Font(Font)
+		];
+
+		return RowBox.ToSharedRef();
+	}
+	
+	return SNullWidget::NullWidget;
+	
 }
 
 TSharedRef<FIKRigSkeletonDragDropOp> FIKRigSkeletonDragDropOp::New(TWeakPtr<FIKRigTreeElement> InElement)
@@ -278,10 +308,84 @@ TSharedPtr<SWidget> FIKRigSkeletonDragDropOp::GetDefaultDecorator() const
         ];
 }
 
-void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
+FReply SIKRigSkeletonRow::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = HierarchyView.Pin()->GetSelectedItems();
+	if (SelectedItems.Num() != 1)
+	{
+		return FReply::Unhandled();
+	}
+
+	const TSharedPtr<FIKRigTreeElement> DraggedElement = SelectedItems[0];
+	if (DraggedElement->ElementType != IKRigTreeElementType::GOAL)
+	{
+		return FReply::Unhandled();
+	}
+	
+	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	{
+		const TSharedRef<FIKRigSkeletonDragDropOp> DragDropOp = FIKRigSkeletonDragDropOp::New(DraggedElement);
+		return FReply::Handled().BeginDragDrop(DragDropOp);
+	}
+
+	return FReply::Unhandled();
+}
+
+TOptional<EItemDropZone> SIKRigSkeletonRow::HandleCanAcceptDrop(
+	const FDragDropEvent& DragDropEvent,
+	EItemDropZone DropZone,
+    TSharedPtr<FIKRigTreeElement> TargetItem)
+{
+	TOptional<EItemDropZone> ReturnedDropZone;
+	
+	const TSharedPtr<FIKRigSkeletonDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FIKRigSkeletonDragDropOp>();
+	if (DragDropOp.IsValid())
+	{
+		if (TargetItem.Get()->ElementType == IKRigTreeElementType::BONE)
+        {
+        	ReturnedDropZone = EItemDropZone::BelowItem;	
+        }
+	}
+	
+	return ReturnedDropZone;
+}
+
+FReply SIKRigSkeletonRow::HandleAcceptDrop(
+	const FDragDropEvent& DragDropEvent,
+	EItemDropZone DropZone,
+    TSharedPtr<FIKRigTreeElement> TargetItem)
+{
+	const TSharedPtr<FIKRigSkeletonDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FIKRigSkeletonDragDropOp>();
+	if (!DragDropOp.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Handled();
+	}
+
+	const FIKRigTreeElement& DraggedElement = *DragDropOp.Get()->Element.Pin().Get();
+	ensure(DraggedElement.ElementType == IKRigTreeElementType::GOAL);		// drag only supported for goals
+	ensure(TargetItem.Get()->ElementType == IKRigTreeElementType::BONE);	// drop only supported for bones
+
+	// re-parent the goal to a different bone
+	const UIKRigController* AssetController = Controller->AssetController;
+	const bool bWasReparented = AssetController->SetGoalBone(DraggedElement.GoalName, TargetItem.Get()->BoneName);
+	if (bWasReparented)
+	{
+		Controller->RefreshAllViews();
+	}
+	
+	return FReply::Handled();
+}
+
+void SIKRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
 {
 	EditorController = InEditorController;
-	EditorController.Pin()->SetSkeletonsView(SharedThis(this));
+	EditorController.Pin()->SetHierarchyView(SharedThis(this));
 	TextFilter = MakeShareable(new FTextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString));
 	CommandList = MakeShared<FUICommandList>();
 	BindCommands();
@@ -301,7 +405,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 			.Padding(FMargin(6.f, 0.0))
 			[
 				SNew(SPositiveActionButton)
-				.OnGetMenuContent(this, &SIKRigSkeleton::CreateAddNewMenu)
+				.OnGetMenuContent(this, &SIKRigHierarchy::CreateAddNewMenu)
 				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 			]
 
@@ -310,7 +414,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 			[
 				SNew(SSearchBox)
 				.SelectAllTextWhenFocused(true)
-				.OnTextChanged( this, &SIKRigSkeleton::OnFilterTextChanged )
+				.OnTextChanged( this, &SIKRigHierarchy::OnFilterTextChanged )
 				.HintText(LOCTEXT( "SearchBoxHint", "Filter Hierarchy Tree..."))
 			]
 
@@ -323,7 +427,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 				.ForegroundColor(FSlateColor::UseStyle())
 				.ContentPadding(2.0f)
-				.OnGetMenuContent( this, &SIKRigSkeleton::CreateFilterMenuWidget )
+				.OnGetMenuContent( this, &SIKRigHierarchy::CreateFilterMenuWidget )
 				.ToolTipText(LOCTEXT( "FilterMenuLabel", "Filter hierarchy tree options."))
 				.HasDownArrow(true)
 				.ButtonContent()
@@ -334,7 +438,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 				]
 			]
 		]
-
+		
         +SVerticalBox::Slot()
         .Padding(0.0f, 0.0f)
         [
@@ -345,24 +449,44 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
                 SAssignNew(TreeView, SIKRigSkeletonTreeView)
                 .TreeItemsSource(&RootElements)
                 .SelectionMode(ESelectionMode::Multi)
-                .OnGenerateRow(this, &SIKRigSkeleton::MakeTableRowWidget)
-                .OnGetChildren(this, &SIKRigSkeleton::HandleGetChildrenForTree)
-                .OnSelectionChanged(this, &SIKRigSkeleton::OnSelectionChanged)
-                .OnContextMenuOpening(this, &SIKRigSkeleton::CreateContextMenu)
-                .OnMouseButtonClick(this, &SIKRigSkeleton::OnItemClicked)
-                .OnMouseButtonDoubleClick(this, &SIKRigSkeleton::OnItemDoubleClicked)
-                .OnSetExpansionRecursive(this, &SIKRigSkeleton::OnSetExpansionRecursive)
+                .OnGenerateRow_Lambda( [this](
+					TSharedPtr<FIKRigTreeElement> InItem,
+					const TSharedRef<STableViewBase>& OwnerTable) -> TSharedRef<ITableRow>
+                {
+                	return SNew(SIKRigSkeletonRow, OwnerTable)
+                	.EditorController(EditorController.Pin().ToSharedRef())
+                	.TreeElement(InItem)
+                	.HierarchyView(SharedThis(this));
+                })
+                .OnGetChildren(this, &SIKRigHierarchy::HandleGetChildrenForTree)
+                .OnSelectionChanged(this, &SIKRigHierarchy::OnSelectionChanged)
+                .OnContextMenuOpening(this, &SIKRigHierarchy::CreateContextMenu)
+                .OnMouseButtonClick(this, &SIKRigHierarchy::OnItemClicked)
+                .OnMouseButtonDoubleClick(this, &SIKRigHierarchy::OnItemDoubleClicked)
+                .OnSetExpansionRecursive(this, &SIKRigHierarchy::OnSetExpansionRecursive)
                 .HighlightParentNodesForSelection(false)
                 .ItemHeight(24)
+                .HeaderRow
+				(
+					SNew(SHeaderRow)
+					
+					+ SHeaderRow::Column(IKRigElementColumnName)
+					.DefaultLabel(LOCTEXT("IKRigElementColumnLabel", "Rig Element"))
+					.FillWidth(0.7f)
+						
+					+ SHeaderRow::Column(IKRigChainColumnName)
+					.DefaultLabel(LOCTEXT("IKRigChainColumnLabel", "Retarget Chain"))
+					.FillWidth(0.3f)
+				)
             ]
         ]
     ];
 
-	const bool IsInitialSetup = true;
+	constexpr bool IsInitialSetup = true;
 	RefreshTreeView(IsInitialSetup);
 }
 
-void SIKRigSkeleton::AddSelectedItemFromViewport(
+void SIKRigHierarchy::AddSelectedItemFromViewport(
 	const FName& ItemName,
 	IKRigTreeElementType ItemType,
 	const bool bReplace)
@@ -426,7 +550,7 @@ void SIKRigSkeleton::AddSelectedItemFromViewport(
 	}
 }
 
-void SIKRigSkeleton::AddItemToSelection(const TSharedPtr<FIKRigTreeElement>& InItem)
+void SIKRigHierarchy::AddItemToSelection(const TSharedPtr<FIKRigTreeElement>& InItem)
 {
 	TreeView->SetItemSelection(InItem, true, ESelectInfo::Direct);
     
@@ -443,12 +567,12 @@ void SIKRigSkeleton::AddItemToSelection(const TSharedPtr<FIKRigTreeElement>& InI
 	TreeView->RequestScrollIntoView(InItem);
 }
 
-void SIKRigSkeleton::RemoveItemFromSelection(const TSharedPtr<FIKRigTreeElement>& InItem)
+void SIKRigHierarchy::RemoveItemFromSelection(const TSharedPtr<FIKRigTreeElement>& InItem)
 {
 	TreeView->SetItemSelection(InItem, false, ESelectInfo::Direct);
 }
 
-void SIKRigSkeleton::ReplaceItemInSelection(const FText& OldName, const FText& NewName)
+void SIKRigHierarchy::ReplaceItemInSelection(const FText& OldName, const FText& NewName)
 {
 	for (const TSharedPtr<FIKRigTreeElement>& Item : AllElements)
 	{
@@ -465,7 +589,7 @@ void SIKRigSkeleton::ReplaceItemInSelection(const FText& OldName, const FText& N
 	}
 }
 
-void SIKRigSkeleton::GetSelectedBoneChains(TArray<FBoneChain>& OutChains)
+void SIKRigHierarchy::GetSelectedBoneChains(TArray<FBoneChain>& OutChains)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -501,80 +625,148 @@ void SIKRigSkeleton::GetSelectedBoneChains(TArray<FBoneChain>& OutChains)
 	}
 }
 
-TArray<TSharedPtr<FIKRigTreeElement>> SIKRigSkeleton::GetSelectedItems() const
+TArray<TSharedPtr<FIKRigTreeElement>> SIKRigHierarchy::GetSelectedItems() const
 {
 	return TreeView->GetSelectedItems();
 }
 
-bool SIKRigSkeleton::HasSelectedItems() const
+bool SIKRigHierarchy::HasSelectedItems() const
 {
 	return TreeView->GetNumItemsSelected() > 0;
 }
 
-void SIKRigSkeleton::BindCommands()
+bool SIKRigHierarchy::IsElementConnectedToSolver(TWeakPtr<FIKRigTreeElement> InTreeElement, int32 SolverIndex)
+{
+	const UIKRigController* AssetController = EditorController.Pin()->AssetController;
+	const TSharedPtr<FIKRigTreeElement> TreeElement = InTreeElement.Pin();
+	
+	if (!AssetController->GetSolverArray().IsValidIndex(SolverIndex))
+	{
+		return false; // not a valid solver index
+	}
+
+	const UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
+	if (TreeElement->ElementType == IKRigTreeElementType::BONE)
+	{
+		// is this bone affected by this solver?
+		return Solver->IsBoneAffectedBySolver(TreeElement->BoneName, AssetController->GetIKRigSkeleton());
+	}
+
+	if (TreeElement->ElementType == IKRigTreeElementType::BONE_SETTINGS)
+	{
+		// is this bone setting belonging to the solver?
+		return (Solver->GetBoneSetting(TreeElement->BoneSettingBoneName) != nullptr);
+	}
+
+	if (TreeElement->ElementType == IKRigTreeElementType::GOAL)
+	{
+		// is goal connected to the solver?
+		return AssetController->IsGoalConnectedToSolver(TreeElement->GoalName, SolverIndex);
+	}
+
+	if (TreeElement->ElementType == IKRigTreeElementType::SOLVERGOAL)
+	{
+		// is this an effector for this solver?
+		return TreeElement->EffectorIndex == SolverIndex;
+	}
+
+	checkNoEntry();
+	return false;
+}
+
+bool SIKRigHierarchy::IsElementConnectedToAnySolver(TWeakPtr<FIKRigTreeElement> InTreeElement)
+{
+	const UIKRigController* AssetController = EditorController.Pin()->AssetController;
+	const TSharedPtr<FIKRigTreeElement> TreeElement = InTreeElement.Pin();
+	
+	const int32 NumSolvers = AssetController->GetNumSolvers();
+	for (int32 SolverIndex=0; SolverIndex<NumSolvers; ++SolverIndex)
+	{
+		if (IsElementConnectedToSolver(TreeElement, SolverIndex))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SIKRigHierarchy::IsElementExcludedBone(TWeakPtr<FIKRigTreeElement> TreeElement)
+{
+	if (TreeElement.Pin()->ElementType != IKRigTreeElementType::BONE)
+	{
+		return false;
+	}
+	
+	// is this bone excluded?
+	const UIKRigController* AssetController = EditorController.Pin()->AssetController;
+	return AssetController->GetBoneExcluded(TreeElement.Pin()->BoneName);
+}
+
+void SIKRigHierarchy::BindCommands()
 {
 	const FIKRigSkeletonCommands& Commands = FIKRigSkeletonCommands::Get();
 
 	CommandList->MapAction(Commands.NewGoal,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleNewGoal),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanAddNewGoal));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleNewGoal),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanAddNewGoal));
 	
 	CommandList->MapAction(Commands.DeleteElement,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleDeleteElement),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanDeleteElement));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleDeleteElement),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanDeleteElement));
 
 	CommandList->MapAction(Commands.ConnectGoalToSolver,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleConnectGoalToSolver),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanConnectGoalToSolvers));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleConnectGoalToSolver),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanConnectGoalToSolvers));
 
 	CommandList->MapAction(Commands.DisconnectGoalFromSolver,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleDisconnectGoalFromSolver),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanDisconnectGoalFromSolvers));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleDisconnectGoalFromSolver),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanDisconnectGoalFromSolvers));
 
 	CommandList->MapAction(Commands.SetRootBoneOnSolver,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetRootBoneOnSolvers),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetRootBoneOnSolvers));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleSetRootBoneOnSolvers),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanSetRootBoneOnSolvers));
 
 	CommandList->MapAction(Commands.SetEndBoneOnSolver,
-	FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetEndBoneOnSolvers),
-	FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetEndBoneOnSolvers),
+	FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleSetEndBoneOnSolvers),
+	FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanSetEndBoneOnSolvers),
 	FIsActionChecked(),
-	FIsActionButtonVisible::CreateSP(this, &SIKRigSkeleton::HasEndBoneCompatibleSolverSelected));
+	FIsActionButtonVisible::CreateSP(this, &SIKRigHierarchy::HasEndBoneCompatibleSolverSelected));
 
 	CommandList->MapAction(Commands.AddBoneSettings,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleAddBoneSettings),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanAddBoneSettings));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleAddBoneSettings),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanAddBoneSettings));
 
 	CommandList->MapAction(Commands.RemoveBoneSettings,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleRemoveBoneSettings),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanRemoveBoneSettings));
+        FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleRemoveBoneSettings),
+        FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanRemoveBoneSettings));
 
 	CommandList->MapAction(Commands.ExcludeBone,
-		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleExcludeBone),
-		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanExcludeBone));
+		FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleExcludeBone),
+		FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanExcludeBone));
 
 	CommandList->MapAction(Commands.IncludeBone,
-		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleIncludeBone),
-		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanIncludeBone));
+		FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleIncludeBone),
+		FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanIncludeBone));
 
 	CommandList->MapAction(Commands.NewRetargetChain,
-		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleNewRetargetChain),
-		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanAddNewRetargetChain));
+		FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleNewRetargetChain),
+		FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanAddNewRetargetChain));
 
 	CommandList->MapAction(Commands.SetRetargetRoot,
-		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetRetargetRoot),
-		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetRetargetRoot));
+		FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleSetRetargetRoot),
+		FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanSetRetargetRoot));
 
 	CommandList->MapAction(Commands.ClearRetargetRoot,
-		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleClearRetargetRoot),
-		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanClearRetargetRoot));
+		FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleClearRetargetRoot),
+		FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanClearRetargetRoot));
 
 	CommandList->MapAction(Commands.RenameGoal,
-	FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleRenameGoal),
-		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanRenameGoal));
+	FExecuteAction::CreateSP(this, &SIKRigHierarchy::HandleRenameGoal),
+		FCanExecuteAction::CreateSP(this, &SIKRigHierarchy::CanRenameGoal));
 }
 
-void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
+void SIKRigHierarchy::FillContextMenu(FMenuBuilder& MenuBuilder)
 {
 	const FIKRigSkeletonCommands& Actions = FIKRigSkeletonCommands::Get();
 
@@ -617,7 +809,7 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 }
 
-void SIKRigSkeleton::HandleNewGoal() const
+void SIKRigHierarchy::HandleNewGoal() const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -648,7 +840,7 @@ void SIKRigSkeleton::HandleNewGoal() const
 	Controller->AddNewGoals(GoalNames, BoneNames);
 }
 
-bool SIKRigSkeleton::CanAddNewGoal() const
+bool SIKRigHierarchy::CanAddNewGoal() const
 {
 	// is anything selected?
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
@@ -669,7 +861,7 @@ bool SIKRigSkeleton::CanAddNewGoal() const
 	return true;
 }
 
-void SIKRigSkeleton::HandleDeleteElement()
+void SIKRigHierarchy::HandleDeleteElement()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -702,7 +894,7 @@ void SIKRigSkeleton::HandleDeleteElement()
 	// update all views
 	Controller->RefreshAllViews();
 }
-bool SIKRigSkeleton::CanDeleteElement() const
+bool SIKRigHierarchy::CanDeleteElement() const
 {
 	// is anything selected?
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
@@ -724,33 +916,33 @@ bool SIKRigSkeleton::CanDeleteElement() const
 	return true;
 }
 
-void SIKRigSkeleton::HandleConnectGoalToSolver()
+void SIKRigHierarchy::HandleConnectGoalToSolver()
 {
 	const bool bConnect = true; //connect
 	ConnectSelectedGoalsToSelectedSolvers(bConnect);
 }
 
-void SIKRigSkeleton::HandleDisconnectGoalFromSolver()
+void SIKRigHierarchy::HandleDisconnectGoalFromSolver()
 {
 	const bool bConnect = false; //disconnect
 	ConnectSelectedGoalsToSelectedSolvers(bConnect);
 }
 
-bool SIKRigSkeleton::CanConnectGoalToSolvers() const
+bool SIKRigHierarchy::CanConnectGoalToSolvers() const
 {
 	const bool bCountOnlyConnected = false;
 	const int32 NumDisconnected = GetNumSelectedGoalToSolverConnections(bCountOnlyConnected);
 	return NumDisconnected > 0;
 }
 
-bool SIKRigSkeleton::CanDisconnectGoalFromSolvers() const
+bool SIKRigHierarchy::CanDisconnectGoalFromSolvers() const
 {
 	const bool bCountOnlyConnected = true;
 	const int32 NumConnected = GetNumSelectedGoalToSolverConnections(bCountOnlyConnected);
 	return NumConnected > 0;
 }
 
-void SIKRigSkeleton::ConnectSelectedGoalsToSelectedSolvers(bool bConnect)
+void SIKRigHierarchy::ConnectSelectedGoalsToSelectedSolvers(bool bConnect)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -787,7 +979,7 @@ void SIKRigSkeleton::ConnectSelectedGoalsToSelectedSolvers(bool bConnect)
 	RefreshTreeView();
 }
 
-int32 SIKRigSkeleton::GetNumSelectedGoalToSolverConnections(bool bCountOnlyConnected) const
+int32 SIKRigHierarchy::GetNumSelectedGoalToSolverConnections(bool bCountOnlyConnected) const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -816,7 +1008,7 @@ int32 SIKRigSkeleton::GetNumSelectedGoalToSolverConnections(bool bCountOnlyConne
 	return NumMatched;
 }
 
-void SIKRigSkeleton::HandleSetRootBoneOnSolvers()
+void SIKRigHierarchy::HandleSetRootBoneOnSolvers()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -847,7 +1039,7 @@ void SIKRigSkeleton::HandleSetRootBoneOnSolvers()
 	RefreshTreeView();
 }
 
-bool SIKRigSkeleton::CanSetRootBoneOnSolvers()
+bool SIKRigHierarchy::CanSetRootBoneOnSolvers()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -878,7 +1070,7 @@ bool SIKRigSkeleton::CanSetRootBoneOnSolvers()
 	return false;
 }
 
-void SIKRigSkeleton::HandleSetEndBoneOnSolvers()
+void SIKRigHierarchy::HandleSetEndBoneOnSolvers()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -909,7 +1101,7 @@ void SIKRigSkeleton::HandleSetEndBoneOnSolvers()
 	RefreshTreeView();
 }
 
-bool SIKRigSkeleton::CanSetEndBoneOnSolvers() const
+bool SIKRigHierarchy::CanSetEndBoneOnSolvers() const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -940,12 +1132,12 @@ bool SIKRigSkeleton::CanSetEndBoneOnSolvers() const
 	return false;
 }
 
-bool SIKRigSkeleton::HasEndBoneCompatibleSolverSelected() const
+bool SIKRigHierarchy::HasEndBoneCompatibleSolverSelected() const
 {
 	return CanSetEndBoneOnSolvers();
 }
 
-void SIKRigSkeleton::HandleAddBoneSettings()
+void SIKRigHierarchy::HandleAddBoneSettings()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -979,7 +1171,7 @@ void SIKRigSkeleton::HandleAddBoneSettings()
 	RefreshTreeView();
 }
 
-bool SIKRigSkeleton::CanAddBoneSettings()
+bool SIKRigHierarchy::CanAddBoneSettings()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1013,7 +1205,7 @@ bool SIKRigSkeleton::CanAddBoneSettings()
 	return false;
 }
 
-void SIKRigSkeleton::HandleRemoveBoneSettings()
+void SIKRigHierarchy::HandleRemoveBoneSettings()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1045,7 +1237,7 @@ void SIKRigSkeleton::HandleRemoveBoneSettings()
 	RefreshTreeView();
 }
 
-bool SIKRigSkeleton::CanRemoveBoneSettings()
+bool SIKRigHierarchy::CanRemoveBoneSettings()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1079,7 +1271,7 @@ bool SIKRigSkeleton::CanRemoveBoneSettings()
 	return false;
 }
 
-void SIKRigSkeleton::HandleExcludeBone()
+void SIKRigHierarchy::HandleExcludeBone()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1099,7 +1291,7 @@ void SIKRigSkeleton::HandleExcludeBone()
 	RefreshTreeView();
 }
 
-bool SIKRigSkeleton::CanExcludeBone()
+bool SIKRigHierarchy::CanExcludeBone()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1121,7 +1313,7 @@ bool SIKRigSkeleton::CanExcludeBone()
 	return false;
 }
 
-void SIKRigSkeleton::HandleIncludeBone()
+void SIKRigHierarchy::HandleIncludeBone()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1141,7 +1333,7 @@ void SIKRigSkeleton::HandleIncludeBone()
 	RefreshTreeView();
 }
 
-bool SIKRigSkeleton::CanIncludeBone()
+bool SIKRigHierarchy::CanIncludeBone()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1163,7 +1355,7 @@ bool SIKRigSkeleton::CanIncludeBone()
 	return false;
 }
 
-void SIKRigSkeleton::HandleNewRetargetChain()
+void SIKRigHierarchy::HandleNewRetargetChain()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1174,14 +1366,14 @@ void SIKRigSkeleton::HandleNewRetargetChain()
 	Controller->CreateNewRetargetChains();
 }
 
-bool SIKRigSkeleton::CanAddNewRetargetChain()
+bool SIKRigHierarchy::CanAddNewRetargetChain()
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
 	return !SelectedBones.IsEmpty();
 }
 
-void SIKRigSkeleton::HandleSetRetargetRoot()
+void SIKRigHierarchy::HandleSetRetargetRoot()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1206,14 +1398,14 @@ void SIKRigSkeleton::HandleSetRetargetRoot()
 	Controller->RefreshAllViews();
 }
 
-bool SIKRigSkeleton::CanSetRetargetRoot()
+bool SIKRigHierarchy::CanSetRetargetRoot()
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
 	return !SelectedBones.IsEmpty();
 }
 
-void SIKRigSkeleton::HandleClearRetargetRoot()
+void SIKRigHierarchy::HandleClearRetargetRoot()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1225,7 +1417,7 @@ void SIKRigSkeleton::HandleClearRetargetRoot()
 	Controller->RefreshAllViews();
 }
 
-bool SIKRigSkeleton::CanClearRetargetRoot()
+bool SIKRigHierarchy::CanClearRetargetRoot()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1236,7 +1428,7 @@ bool SIKRigSkeleton::CanClearRetargetRoot()
 	return Controller->AssetController->GetRetargetRoot() != NAME_None;
 }
 
-bool SIKRigSkeleton::IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& SelectedBoneItems, const FName& BoneName)
+bool SIKRigHierarchy::IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& SelectedBoneItems, const FName& BoneName)
 {
 	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedBoneItems)
 	{
@@ -1248,7 +1440,7 @@ bool SIKRigSkeleton::IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& Se
 	return false;
 }
 
-void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const
+void SIKRigHierarchy::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const
 {
 	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
@@ -1260,7 +1452,7 @@ void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& Out
 	}
 }
 
-void SIKRigSkeleton::GetSelectedBoneNames(TArray<FName>& OutSelectedBoneNames) const
+void SIKRigHierarchy::GetSelectedBoneNames(TArray<FName>& OutSelectedBoneNames) const
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedBones;
 	GetSelectedBones(OutSelectedBones);
@@ -1271,7 +1463,7 @@ void SIKRigSkeleton::GetSelectedBoneNames(TArray<FName>& OutSelectedBoneNames) c
 	}
 }
 
-void SIKRigSkeleton::GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const
+void SIKRigHierarchy::GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const
 {
 	OutSelectedGoals.Reset();
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
@@ -1284,14 +1476,14 @@ void SIKRigSkeleton::GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& Out
 	}
 }
 
-int32 SIKRigSkeleton::GetNumSelectedGoals()
+int32 SIKRigHierarchy::GetNumSelectedGoals()
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedGoals;
 	GetSelectedGoals(OutSelectedGoals);
 	return OutSelectedGoals.Num();
 }
 
-void SIKRigSkeleton::GetSelectedGoalNames(TArray<FName>& OutSelectedGoalNames) const
+void SIKRigHierarchy::GetSelectedGoalNames(TArray<FName>& OutSelectedGoalNames) const
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedGoals;
 	GetSelectedGoals(OutSelectedGoals);
@@ -1302,7 +1494,7 @@ void SIKRigSkeleton::GetSelectedGoalNames(TArray<FName>& OutSelectedGoalNames) c
 	}
 }
 
-bool SIKRigSkeleton::IsGoalSelected(const FName& GoalName)
+bool SIKRigHierarchy::IsGoalSelected(const FName& GoalName)
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedGoals;
 	GetSelectedGoals(OutSelectedGoals);
@@ -1316,7 +1508,7 @@ bool SIKRigSkeleton::IsGoalSelected(const FName& GoalName)
 	return false;
 }
 
-void SIKRigSkeleton::HandleRenameGoal() const
+void SIKRigHierarchy::HandleRenameGoal() const
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedGoals;
 	GetSelectedGoals(SelectedGoals);
@@ -1328,14 +1520,14 @@ void SIKRigSkeleton::HandleRenameGoal() const
 	SelectedGoals[0]->RequestRename();
 }
 
-bool SIKRigSkeleton::CanRenameGoal() const
+bool SIKRigHierarchy::CanRenameGoal() const
 {
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedGoals;
 	GetSelectedGoals(SelectedGoals);
 	return SelectedGoals.Num() == 1;
 }
 
-TSharedRef<SWidget> SIKRigSkeleton::CreateFilterMenuWidget()
+TSharedRef<SWidget> SIKRigHierarchy::CreateFilterMenuWidget()
 {
 	const FUIAction FilterShowAllAction = FUIAction(
 		FExecuteAction::CreateLambda([this]
@@ -1465,13 +1657,13 @@ TSharedRef<SWidget> SIKRigSkeleton::CreateFilterMenuWidget()
 	return MenuBuilder.MakeWidget();
 }
 
-void SIKRigSkeleton::OnFilterTextChanged(const FText& SearchText)
+void SIKRigHierarchy::OnFilterTextChanged(const FText& SearchText)
 {
 	TextFilter->SetFilterText(SearchText);
 	RefreshTreeView();
 }
 
-void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
+void SIKRigHierarchy::RefreshTreeView(bool IsInitialSetup /*=false*/)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1557,7 +1749,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 			}
 			
 			const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
-			const FText BoneSettingDisplayName = FText::Format(LOCTEXT("BoneSettings", "{0} settings for {1}"), BoneDisplayName, SolverDisplayName);
+			const FText BoneSettingDisplayName = FText::Format(LOCTEXT("BoneSettings", "{0} bone settings."), SolverDisplayName);
 			TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(BoneSettingDisplayName, IKRigTreeElementType::BONE_SETTINGS, ControllerRef);
 			SettingsItem->BoneSettingBoneName = BoneName;
 			SettingsItem->BoneSettingsSolverIndex = SolverIndex;
@@ -1621,7 +1813,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 				
 				// make new element for effector
 				const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
-				const FText EffectorDisplayName = FText::Format(LOCTEXT("GoalSettingsForSolver", "{0} settings for solver {1}"), FText::FromName(Goal->GoalName), SolverDisplayName);
+				const FText EffectorDisplayName = FText::Format(LOCTEXT("GoalSettingsForSolver", "{0} goal settings."), SolverDisplayName);
 				TSharedPtr<FIKRigTreeElement> EffectorItem = MakeShared<FIKRigTreeElement>(EffectorDisplayName, IKRigTreeElementType::SOLVERGOAL, ControllerRef);
 				EffectorItem->EffectorIndex = SolverIndex;
 				EffectorItem->EffectorGoalName = Goal->GoalName;
@@ -1696,21 +1888,14 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 	TreeView->RequestTreeRefresh();
 }
 
-TSharedRef<ITableRow> SIKRigSkeleton::MakeTableRowWidget(
-	TSharedPtr<FIKRigTreeElement> InItem,
-	const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return InItem->MakeTreeRowWidget(EditorController.Pin().ToSharedRef(), OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this));
-}
-
-void SIKRigSkeleton::HandleGetChildrenForTree(
+void SIKRigHierarchy::HandleGetChildrenForTree(
 	TSharedPtr<FIKRigTreeElement> InItem,
 	TArray<TSharedPtr<FIKRigTreeElement>>& OutChildren)
 {
 	OutChildren = InItem.Get()->Children;
 }
 
-void SIKRigSkeleton::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
+void SIKRigHierarchy::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1725,7 +1910,7 @@ void SIKRigSkeleton::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection,
 	// NOTE: we may want to set the last selected item here
 }
 
-TSharedRef<SWidget> SIKRigSkeleton::CreateAddNewMenu()
+TSharedRef<SWidget> SIKRigHierarchy::CreateAddNewMenu()
 {
 	constexpr bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
@@ -1733,7 +1918,7 @@ TSharedRef<SWidget> SIKRigSkeleton::CreateAddNewMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-TSharedPtr<SWidget> SIKRigSkeleton::CreateContextMenu()
+TSharedPtr<SWidget> SIKRigHierarchy::CreateContextMenu()
 {
 	constexpr bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
@@ -1741,7 +1926,7 @@ TSharedPtr<SWidget> SIKRigSkeleton::CreateContextMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SIKRigSkeleton::OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem)
+void SIKRigHierarchy::OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -1767,7 +1952,7 @@ void SIKRigSkeleton::OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem)
 	Controller->SetLastSelectedType(EIKRigSelectionType::Hierarchy);
 }
 
-void SIKRigSkeleton::OnItemDoubleClicked(TSharedPtr<FIKRigTreeElement> InItem)
+void SIKRigHierarchy::OnItemDoubleClicked(TSharedPtr<FIKRigTreeElement> InItem)
 {
 	if (TreeView->IsItemExpanded(InItem))
 	{
@@ -1779,12 +1964,12 @@ void SIKRigSkeleton::OnItemDoubleClicked(TSharedPtr<FIKRigTreeElement> InItem)
 	}
 }
 
-void SIKRigSkeleton::OnSetExpansionRecursive(TSharedPtr<FIKRigTreeElement> InItem, bool bShouldBeExpanded)
+void SIKRigHierarchy::OnSetExpansionRecursive(TSharedPtr<FIKRigTreeElement> InItem, bool bShouldBeExpanded)
 {
 	SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
-void SIKRigSkeleton::SetExpansionRecursive(
+void SIKRigHierarchy::SetExpansionRecursive(
 	TSharedPtr<FIKRigTreeElement> InElement,
 	bool bTowardsParent,
     bool bShouldBeExpanded)
@@ -1807,81 +1992,7 @@ void SIKRigSkeleton::SetExpansionRecursive(
     }
 }
 
-FReply SIKRigSkeleton::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView.Get()->GetSelectedItems();
-	if (SelectedItems.Num() != 1)
-	{
-		return FReply::Unhandled();
-	}
-
-	const TSharedPtr<FIKRigTreeElement> DraggedElement = SelectedItems[0];
-	if (DraggedElement->ElementType != IKRigTreeElementType::GOAL)
-	{
-		return FReply::Unhandled();
-	}
-	
-	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
-	{
-		const TSharedRef<FIKRigSkeletonDragDropOp> DragDropOp = FIKRigSkeletonDragDropOp::New(DraggedElement);
-		return FReply::Handled().BeginDragDrop(DragDropOp);
-	}
-
-	return FReply::Unhandled();
-}
-
-TOptional<EItemDropZone> SIKRigSkeleton::OnCanAcceptDrop(
-	const FDragDropEvent& DragDropEvent,
-	EItemDropZone DropZone,
-    TSharedPtr<FIKRigTreeElement> TargetItem)
-{
-	TOptional<EItemDropZone> ReturnedDropZone;
-	
-	const TSharedPtr<FIKRigSkeletonDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FIKRigSkeletonDragDropOp>();
-	if (DragDropOp.IsValid())
-	{
-		if (TargetItem.Get()->ElementType == IKRigTreeElementType::BONE)
-        {
-        	ReturnedDropZone = EItemDropZone::BelowItem;	
-        }
-	}
-	
-	return ReturnedDropZone;
-}
-
-FReply SIKRigSkeleton::OnAcceptDrop(
-	const FDragDropEvent& DragDropEvent,
-	EItemDropZone DropZone,
-    TSharedPtr<FIKRigTreeElement> TargetItem)
-{
-	const TSharedPtr<FIKRigSkeletonDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FIKRigSkeletonDragDropOp>();
-	if (!DragDropOp.IsValid())
-	{
-		return FReply::Unhandled();
-	}
-	
-	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return FReply::Handled();
-	}
-
-	const FIKRigTreeElement& DraggedElement = *DragDropOp.Get()->Element.Pin().Get();
-	ensure(DraggedElement.ElementType == IKRigTreeElementType::GOAL);		// drag only supported for goals
-	ensure(TargetItem.Get()->ElementType == IKRigTreeElementType::BONE);	// drop only supported for bones
-
-	// re-parent the goal to a different bone
-	UIKRigController* AssetController = Controller->AssetController;
-	const bool bWasReparented = AssetController->SetGoalBone(DraggedElement.GoalName, TargetItem.Get()->BoneName);
-	if (bWasReparented)
-	{
-		Controller->RefreshAllViews();
-	}
-	
-	return FReply::Handled();
-}
-
-FReply SIKRigSkeleton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+FReply SIKRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
 

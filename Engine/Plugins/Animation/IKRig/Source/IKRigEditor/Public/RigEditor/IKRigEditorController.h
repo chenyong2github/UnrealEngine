@@ -15,7 +15,7 @@ class SIKRigOutputLog;
 class UIKRigAnimInstance;
 class FIKRigEditorToolkit;
 class SIKRigSolverStack;
-class SIKRigSkeleton;
+class SIKRigHierarchy;
 class UIKRigController;
 class FSolverStackElement;
 class FIKRigTreeElement;
@@ -115,6 +115,8 @@ public:
 
 	/** get the currently active processor running the IK Rig in the editor */
 	UIKRigProcessor* GetIKRigProcessor() const;
+	/** get the currently running IKRig skeleton (if there is a running processor) */
+	const FIKRigSkeleton* GetCurrentIKRigSkeleton() const;
 
 	/** callback when IK Rig requires re-initialization */
 	void OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig);
@@ -159,17 +161,6 @@ public:
 	
 	/** create new retarget chains from selected bones (or single empty chain if no selection) */
 	void CreateNewRetargetChains();
-	/** show user the new retarget chain they are about to create (provides option to edit name) */
-	void PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const;
-	/** prompt user if they want to add a goal to a newly mirrored chain */
-	void PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const;
-	
-	/** determine if the element is connected to the selected solver */
-	bool IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex);
-	/** determine if the element is connected to ANY solver */
-	bool IsElementConnectedToAnySolver(TSharedRef<FIKRigTreeElement> TreeElement);
-	/** determine if the element is an excluded bone*/
-	bool IsElementExcludedBone(TSharedRef<FIKRigTreeElement> TreeElement);
 	
 	/** show single transform of bone in details view */
 	void ShowDetailsForBone(const FName BoneName) const;
@@ -191,11 +182,24 @@ public:
 	/** set details tab view */
 	void SetDetailsView(const TSharedPtr<class IDetailsView>& InDetailsView);
 	/** set skeleton tab view */
-	void SetSkeletonsView(const TSharedPtr<SIKRigSkeleton>& InSkeletonView){ SkeletonView = InSkeletonView; };
+	void SetHierarchyView(const TSharedPtr<SIKRigHierarchy>& InSkeletonView){ SkeletonView = InSkeletonView; };
 	/** set solver stack tab view */
 	void SetSolverStackView(const TSharedPtr<SIKRigSolverStack>& InSolverStackView){ SolverStackView = InSolverStackView; };
 	/** set retargeting tab view */
 	void SetRetargetingView(const TSharedPtr<SIKRigRetargetChainList>& InRetargetingView){ RetargetingView = InRetargetingView; };
+	/** set output log view */
+	void SetOutputLogView(const TSharedPtr<SIKRigOutputLog>& InOutputLogView){ OutputLogView = InOutputLogView; };
+
+	/** right after importing a skeleton, we ask user what solver they want to use */
+	bool PromptToAddDefaultSolver() const;
+	/** show user the new retarget chain they are about to create (provides option to edit name) */
+	void PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const;
+	/** prompt user if they want to add a goal to a newly created chain */
+	UIKRigEffectorGoal* PromptToAddGoalToNewChain(const FBoneChain& BoneChain) const;
+	/** prompt user if they want to add a goal to a newly mirrored chain */
+	void PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const;
+	/** right after creating a goal, we ask user if they want it assigned to a retarget chain */
+	void PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const;
 
 	/** play preview animation on running anim instance in editor (before IK) */
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
@@ -237,12 +241,6 @@ public:
 	
 private:
 	
-	/** right after importing a skeleton, we ask user what solver they want to use */
-	bool PromptToAddSolver() const;
-
-	/** right after creating a goal, we ask user if they want it assigned to a retarget chain */
-	void PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const;
-
 	/** Initializes editor's solvers instances */
 	void InitializeSolvers() const;
 
@@ -250,7 +248,7 @@ private:
 	TSharedPtr<IDetailsView> DetailsView;
 
 	/** the skeleton tree view */
-	TSharedPtr<SIKRigSkeleton> SkeletonView;
+	TSharedPtr<SIKRigHierarchy> SkeletonView;
 	
 	/** the solver stack view */
 	TSharedPtr<SIKRigSolverStack> SolverStackView;

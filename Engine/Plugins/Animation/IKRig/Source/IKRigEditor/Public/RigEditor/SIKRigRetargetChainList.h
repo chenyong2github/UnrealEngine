@@ -172,7 +172,7 @@ private:
 	void SortChainList();
 
 	/** mirror the selected chains (right-click menu callback) */
-	void MirrorSelectedChains();
+	void MirrorSelectedChains() const;
 
 	friend SIKRigRetargetChainRow;
 	friend FIKRigEditorController;

@@ -141,6 +141,19 @@ void UIKRigProcessor::Initialize(
 		Solvers.Add(Solver);
 	}
 
+	// validate retarget chains
+	const TArray<FBoneChain>& Chains = InRigAsset->GetRetargetChains();
+	TArray<int32> OutBoneIndices;
+	for (const FBoneChain& Chain : Chains)
+	{
+		if (!Skeleton.ValidateChainAndGetBones(Chain, OutBoneIndices))
+		{
+			Log.LogWarning(FText::Format(
+				LOCTEXT("InvalidRetargetChain", "Invalid Retarget Chain: '{0}'. End bone is not a child of the start bone in Skeletal Mesh, '{1}'."),
+				FText::FromString(Chain.ChainName.ToString()), FText::FromString(SkeletalMesh->GetName())));
+		}
+	}
+
 	Log.LogInfo(FText::Format(
 				LOCTEXT("SuccessfulInit", "IK Rig, '{0}' ready to run on {1}."),
 				FText::FromString(InRigAsset->GetName()), FText::FromString(SkeletalMesh->GetName())));
@@ -350,6 +363,11 @@ const FIKRigGoalContainer& UIKRigProcessor::GetGoalContainer() const
 {
 	check(bInitialized);
 	return GoalContainer;
+}
+
+const FGoalBone* UIKRigProcessor::GetGoalBone(const FName& GoalName) const
+{
+	return GoalBones.Find(GoalName);
 }
 
 FIKRigSkeleton& UIKRigProcessor::GetSkeletonWriteable()

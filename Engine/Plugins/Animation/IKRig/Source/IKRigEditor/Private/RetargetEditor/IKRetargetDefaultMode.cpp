@@ -10,6 +10,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "RetargetEditor/IKRetargetEditor.h"
 #include "RetargetEditor/IKRetargetHitProxies.h"
+#include "ReferenceSkeleton.h"
 
 
 #define LOCTEXT_NAMESPACE "IKRetargetDefaultMode"
@@ -18,14 +19,47 @@ FName FIKRetargetDefaultMode::ModeName("IKRetargetAssetDefaultMode");
 
 bool FIKRetargetDefaultMode::GetCameraTarget(FSphere& OutTarget) const
 {
-	// target skeletal mesh
-	if (const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin())
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
 	{
-		if (Controller->SourceSkelMeshComponent)
+		return false;
+	}	
+
+	// target the selected bones
+	const TArray<FName>& SelectedBoneNames = Controller->GetSelectedBones();
+	if (!SelectedBoneNames.IsEmpty())
+	{
+		TArray<FVector> TargetPoints;
+		const UDebugSkelMeshComponent* SkeletalMeshComponent = Controller->GetSkeletalMeshComponent(Controller->GetSourceOrTarget());
+		const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetReferenceSkeleton();
+		TArray<int32> ChildrenIndices;
+		for (const FName& SelectedBoneName : SelectedBoneNames)
 		{
-			OutTarget = Controller->SourceSkelMeshComponent->Bounds.GetSphere();
-			return true;
+			const int32 BoneIndex = RefSkeleton.FindBoneIndex(SelectedBoneName);
+			if (BoneIndex == INDEX_NONE)
+			{
+				continue;
+			}
+
+			TargetPoints.Add(SkeletalMeshComponent->GetBoneTransform(BoneIndex).GetLocation());
+			ChildrenIndices.Reset();
+			//RefSkeleton.GetDirectChildBones(BoneIndex, ChildrenIndices);
+			for (const int32 ChildIndex : ChildrenIndices)
+			{
+				TargetPoints.Add(SkeletalMeshComponent->GetBoneTransform(ChildIndex).GetLocation());
+			}
 		}
+		
+		// create a sphere that contains all the target points
+		OutTarget = FSphere(&TargetPoints[0], TargetPoints.Num());
+		return true;
+	}
+
+	// target the selected mesh
+	if (const UPrimitiveComponent* SelectedMesh = Controller->GetSelectedMesh())
+	{
+		OutTarget = SelectedMesh->Bounds.GetSphere();
+		return true;
 	}
 	
 	return false;
@@ -47,15 +81,6 @@ void FIKRetargetDefaultMode::Initialize()
 	{
 		return; 
 	}
-	
-	// register selection callback overrides
-	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
-	PrimitiveComponents.Add(Controller->SourceSkelMeshComponent);
-	PrimitiveComponents.Add(Controller->TargetSkelMeshComponent);
-	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-	{
-		PrimitiveComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FIKRetargetDefaultMode::ComponentSelectionOverride);
-	}
 
 	// update offsets on preview meshes
 	Controller->AddOffsetToMeshComponent(FVector::ZeroVector, Controller->SourceSkelMeshComponent);
@@ -73,12 +98,18 @@ void FIKRetargetDefaultMode::Render(const FSceneView* View, FViewport* Viewport,
 		return;
 	}
 	
-	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
-	if (Controller->GetRetargeterMode() == ERetargeterOutputMode::EditRetargetPose)
-	{
-		return;
-	}
-	
+	const FIKRetargetEditorController* Controller = EditorController.Pin().Get();
+
+	// render source and target skeletons
+	Controller->RenderSkeleton(PDI, ERetargetSourceOrTarget::Source);
+	Controller->RenderSkeleton(PDI, ERetargetSourceOrTarget::Target);
+
+	// render all the chain and root debug proxies
+	RenderDebugProxies(PDI, Controller);
+}
+
+void FIKRetargetDefaultMode::RenderDebugProxies(FPrimitiveDrawInterface* PDI, const FIKRetargetEditorController* Controller) const
+{
 	const UIKRetargeter* Asset = Controller->AssetController->GetAsset();
 	if (!Asset->bDebugDraw)
 	{
@@ -304,10 +335,10 @@ bool FIKRetargetDefaultMode::HandleClick(FEditorViewportClient* InViewportClient
 	}
 
 	// did we click on a bone in the viewport?
-	const bool bHitBone = HitProxy && HitProxy->IsA(HPersonaBoneHitProxy::StaticGetType());
+	const bool bHitBone = HitProxy && HitProxy->IsA(HIKRetargetEditorBoneProxy::StaticGetType());
 	if (bLeftButtonClicked && bHitBone)
 	{
-		const HPersonaBoneHitProxy* BoneProxy = static_cast<HPersonaBoneHitProxy*>(HitProxy);
+		const HIKRetargetEditorBoneProxy* BoneProxy = static_cast<HIKRetargetEditorBoneProxy*>(HitProxy);
 		const TArray BoneNames{BoneProxy->BoneName};
 		constexpr bool bFromHierarchy = false;
 		Controller->EditBoneSelection(BoneNames, EditMode, bFromHierarchy);
@@ -436,11 +467,6 @@ void FIKRetargetDefaultMode::Enter()
 
 	// record which skeleton is being viewed/edited
 	SkeletonMode = Controller->GetSourceOrTarget();
-
-	// allow selection of meshes in this mode
-	Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(true);
-	Controller->SourceSkelMeshComponent->bSelectable = true;
-	Controller->TargetSkelMeshComponent->bSelectable = true;
 }
 
 void FIKRetargetDefaultMode::Exit()
@@ -450,28 +476,8 @@ void FIKRetargetDefaultMode::Exit()
 	{
 		return; 
 	}
-
-	// editor can be closed while in edit mode
-	if (Controller->Editor.IsValid())
-	{
-		// disable selection in other modes
-		Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(false);
-		Controller->SourceSkelMeshComponent->bSelectable = false;
-		Controller->TargetSkelMeshComponent->bSelectable = false;
-	}
-
-	IPersonaEditMode::Exit();
-}
-
-bool FIKRetargetDefaultMode::ComponentSelectionOverride(const UPrimitiveComponent* InComponent) const
-{
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return false; 
-	}
 	
-	return InComponent == Controller->GetSelectedMesh();
+	IPersonaEditMode::Exit();
 }
 
 UDebugSkelMeshComponent* FIKRetargetDefaultMode::GetCurrentlyEditedMesh() const
@@ -503,15 +509,6 @@ void FIKRetargetDefaultMode::Tick(FEditorViewportClient* ViewportClient, float D
 	if (!bIsInitialized)
 	{
 		Initialize();
-	}
-
-	// update skeleton drawing mode
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (Controller.IsValid())
-	{
-		const bool bEditingSource = Controller->GetSourceOrTarget() == ERetargetSourceOrTarget::Source;
-		Controller->SourceSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::Default : ESkeletonDrawMode::GreyedOut;
-		Controller->TargetSkelMeshComponent->SkeletonDrawMode = !bEditingSource ? ESkeletonDrawMode::Default : ESkeletonDrawMode::GreyedOut;
 	}
 }
 

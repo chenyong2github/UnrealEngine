@@ -16,7 +16,7 @@ class IPropertyHandle;
 class UIKRigSolver;
 
 #if WITH_EDITORONLY_DATA
-UENUM(BlueprintType)
+UENUM()
 enum class EIKRigGoalPreviewMode : uint8
 {
 	Additive		UMETA(DisplayName = "Additive"),
@@ -128,7 +128,7 @@ public:
 #endif
 };
 
-USTRUCT(Blueprintable)
+USTRUCT()
 struct IKRIG_API FBoneChain
 {
 	GENERATED_BODY()
@@ -155,7 +155,7 @@ struct IKRIG_API FBoneChain
 	FName IKGoalName;
 };
 
-USTRUCT(Blueprintable)
+USTRUCT()
 struct IKRIG_API FRetargetDefinition
 {
 	GENERATED_BODY()

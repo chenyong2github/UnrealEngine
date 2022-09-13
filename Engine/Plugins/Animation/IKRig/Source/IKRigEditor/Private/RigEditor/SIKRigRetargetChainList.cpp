@@ -604,6 +604,9 @@ void SIKRigRetargetChainList::RefreshView()
 	}
 
 	ListView->RequestListRefresh();
+
+	// refresh the tree to show updated chain column info
+	Controller->RefreshTreeView();
 }
 
 TSharedRef<ITableRow> SIKRigRetargetChainList::MakeListRowWidget(
@@ -640,7 +643,7 @@ FReply SIKRigRetargetChainList::OnKeyDown(const FGeometry& MyGeometry, const FKe
 			return FReply::Unhandled();
 		}
 
-		UIKRigController* AssetController = Controller->AssetController;
+		const UIKRigController* AssetController = Controller->AssetController;
 		AssetController->RemoveRetargetChain(SelectedItems[0]->ChainName);
 
 		RefreshView();
@@ -692,7 +695,7 @@ void SIKRigRetargetChainList::SortChainList()
 	}
 }
 
-void SIKRigRetargetChainList::MirrorSelectedChains()
+void SIKRigRetargetChainList::MirrorSelectedChains() const
 {
 	const TArray<FName> SelectedChainNames = GetSelectedChains();
 	if (SelectedChainNames.IsEmpty())
@@ -713,7 +716,7 @@ void SIKRigRetargetChainList::MirrorSelectedChains()
 		}
 		
 		TArray<int32> BonesInChainIndices;
-		const bool bIsChainValid = IKRigSkeleton.GetBonesInChain(*Chain, BonesInChainIndices);
+		const bool bIsChainValid = IKRigSkeleton.ValidateChainAndGetBones(*Chain, BonesInChainIndices);
 		if (!bIsChainValid)
 		{
 			continue;

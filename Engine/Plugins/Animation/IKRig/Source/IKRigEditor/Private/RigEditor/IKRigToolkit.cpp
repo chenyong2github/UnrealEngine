@@ -192,12 +192,14 @@ void FIKRigEditorToolkit::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBu
 
 void FIKRigEditorToolkit::PostUndo(bool bSuccess)
 {
+	EditorController->ClearOutputLog();
 	EditorController->AssetController->BroadcastNeedsReinitialized();
 	EditorController->RefreshAllViews();
 }
 
 void FIKRigEditorToolkit::PostRedo(bool bSuccess)
 {
+	EditorController->ClearOutputLog();
 	EditorController->AssetController->BroadcastNeedsReinitialized();
 	EditorController->RefreshAllViews();
 }

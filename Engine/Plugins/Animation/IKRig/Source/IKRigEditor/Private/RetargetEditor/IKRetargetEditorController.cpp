@@ -6,13 +6,16 @@
 #include "AssetToolsModule.h"
 #include "EditorModeManager.h"
 #include "IContentBrowserSingleton.h"
+#include "SkeletalDebugRendering.h"
 #include "Widgets/Input/SButton.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/PoseAsset.h"
+#include "Preferences/PersonaOptions.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetEditPoseMode.h"
 #include "RetargetEditor/IKRetargetEditor.h"
+#include "RetargetEditor/IKRetargetHitProxies.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 #include "RetargetEditor/SIKRetargetHierarchy.h"
 #include "Retargeter/IKRetargeter.h"
@@ -33,6 +36,10 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	PoseExporter = MakeShared<FIKRetargetPoseExporter>();
 	PoseExporter->Initialize(SharedThis(this));
 
+	SelectedBoneNames.Add(ERetargetSourceOrTarget::Source);
+	SelectedBoneNames.Add(ERetargetSourceOrTarget::Target);
+	LastSelectedItem = ERetargetSelectionType::NONE;
+
 	// clean the asset before editing
 	const bool bForceReinitialization = false;
 	AssetController->CleanChainMapping(bForceReinitialization);
@@ -43,13 +50,14 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	BindToIKRigAsset(AssetController->GetAsset()->GetTargetIKRigWriteable());
 
 	// bind callback when retargeter needs reinitialized
-	ReInitDelegateHandle = AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnRetargeterNeedsInitialized);
+	ReInitDelegateHandle = AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleRetargeterNeedsInitialized);
 }
 
 void FIKRetargetEditorController::Close() const
 {
 	AssetController->OnRetargeterNeedsInitialized().Remove(ReInitDelegateHandle);
 
+	
 	if (UIKRigController* IKRigController = UIKRigController::GetIKRigController(BoundToIKRig))
 	{
 		IKRigController->OnIKRigNeedsInitialized().Remove(ReInitDelegateHandle);
@@ -70,13 +78,13 @@ void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
 	UIKRigController* Controller = UIKRigController::GetIKRigController(InIKRig);
 	if (!Controller->OnIKRigNeedsInitialized().IsBoundToObject(this))
 	{
-		ReInitIKDelegateHandle = Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnIKRigNeedsInitialized);
-		RenameChainDelegateHandle = Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRenamed);
-		RemoveChainDelegateHandle = Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRemoved);
+		ReInitIKDelegateHandle = Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::HandleIKRigNeedsInitialized);
+		RenameChainDelegateHandle = Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRenamed);
+		RemoveChainDelegateHandle = Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::HandleRetargetChainRemoved);
 	}
 }
 
-void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
+void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
 {
 	UIKRetargeter* Retargeter = AssetController->GetAsset();
 	
@@ -90,24 +98,24 @@ void FIKRetargetEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* Modi
 	}
 
 	// the target anim instance has the RetargetPoseFromMesh node which needs reinitialized with new asset version
-	OnRetargeterNeedsInitialized(Retargeter);
+	HandleRetargeterNeedsInitialized(Retargeter);
 }
 
-void FIKRetargetEditorController::OnRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const
+void FIKRetargetEditorController::HandleRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const
 {
 	check(ModifiedIKRig)
 	
 	AssetController->OnRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
 }
 
-void FIKRetargetEditorController::OnRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const
+void FIKRetargetEditorController::HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const
 {
 	check(ModifiedIKRig)
 	AssetController->OnRetargetChainRemoved(ModifiedIKRig, InChainRemoved);
 	RefreshAllViews();
 }
 
-void FIKRetargetEditorController::OnRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const
+void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const
 {
 	// clear the output log
 	ClearOutputLog();
@@ -335,6 +343,11 @@ void FIKRetargetEditorController::ClearOutputLog() const
 
 void FIKRetargetEditorController::RefreshAllViews() const
 {
+	//if (!Editor.IsValid())
+	//{
+	//	return;
+	//}
+	
 	Editor.Pin()->RegenerateMenusAndToolbars();
 	RefreshDetailsView();
 	RefreshChainsView();
@@ -463,38 +476,28 @@ void FIKRetargetEditorController::SetSourceOrTargetMode(ERetargetSourceOrTarget 
 	{
 		return;
 	}
-
-	// clear the selection on old skeleton
-	ClearSelection();
 	
 	// store the new skeleton mode
 	CurrentlyEditingSourceOrTarget = NewMode;
 
-	switch (GetRetargeterMode())
+	// if we switch source/target while in edit mode we need to re-enter that mode
+	if (GetRetargeterMode() == ERetargeterOutputMode::EditRetargetPose)
 	{
-		case ERetargeterOutputMode::EditRetargetPose:
+		FEditorModeTools& EditorModeManager = Editor.Pin()->GetEditorModeManager();
+		FIKRetargetEditPoseMode* EditMode = EditorModeManager.GetActiveModeTyped<FIKRetargetEditPoseMode>(FIKRetargetEditPoseMode::ModeName);
+		if (EditMode)
 		{
-			FEditorModeTools& EditorModeManager = Editor.Pin()->GetEditorModeManager();
-			FIKRetargetEditPoseMode* EditMode = EditorModeManager.GetActiveModeTyped<FIKRetargetEditPoseMode>(FIKRetargetEditPoseMode::ModeName);
-			if (EditMode)
-			{
-				// FIKRetargetEditPoseMode::Enter() is reentrant and written so we can switch between editing
-				// source / target skeleton without having to enter/exit the mode; just call Enter() again
-				EditMode->Enter();
-			}
-			break;
+			// FIKRetargetEditPoseMode::Enter() is reentrant and written so we can switch between editing
+			// source / target skeleton without having to enter/exit the mode; just call Enter() again
+			EditMode->Enter();
 		}
-		case ERetargeterOutputMode::ShowRetargetPose:
-		case ERetargeterOutputMode::RunRetarget:
-		{
-			// toggle visibility of currently active skeleton
-			const bool bEditingSource = NewMode == ERetargetSourceOrTarget::Source;
-			SourceSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::Default : ESkeletonDrawMode::GreyedOut;
-			TargetSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::GreyedOut : ESkeletonDrawMode::Default;
-			break;
-		}
-		default:
-			checkNoEntry();
+	}
+
+	// make sure details panel updates with selected bone on OTHER skeleton
+	if (LastSelectedItem == ERetargetSelectionType::BONE)
+	{
+		const TArray<FName>& SelectedBones = GetSelectedBones();
+		EditBoneSelection(SelectedBones, ESelectionEdit::Replace);
 	}
 	
 	RefreshAllViews();
@@ -503,13 +506,13 @@ void FIKRetargetEditorController::SetSourceOrTargetMode(ERetargetSourceOrTarget 
 void FIKRetargetEditorController::SetSelectedMesh(UPrimitiveComponent* InMeshComponent)
 {
 	SelectedMesh = InMeshComponent;
-	SourceSkelMeshComponent->PushSelectionToProxy();
-	TargetSkelMeshComponent->PushSelectionToProxy();
-	SourceSkelMeshComponent->MarkRenderStateDirty();
-	TargetSkelMeshComponent->MarkRenderStateDirty();
+	if (SelectedMesh)
+	{
+		LastSelectedItem = ERetargetSelectionType::MESH;
+	}
 }
 
-UPrimitiveComponent* FIKRetargetEditorController::GetSelectedMesh()
+UPrimitiveComponent* FIKRetargetEditorController::GetSelectedMesh() const
 {
 	return SelectedMesh;
 }
@@ -526,6 +529,8 @@ void FIKRetargetEditorController::EditBoneSelection(
 		return;
 	}
 
+	LastSelectedItem = ERetargetSelectionType::BONE;
+
 	// deselect mesh
 	SetSelectedMesh(nullptr);
 	SetRootSelected(false);
@@ -536,7 +541,7 @@ void FIKRetargetEditorController::EditBoneSelection(
 		{
 			for (const FName& BoneName : InBoneNames)
 			{
-				SelectedBones.AddUnique(BoneName);
+				SelectedBoneNames[CurrentlyEditingSourceOrTarget].AddUnique(BoneName);
 			}
 			
 			break;
@@ -545,37 +550,18 @@ void FIKRetargetEditorController::EditBoneSelection(
 		{
 			for (const FName& BoneName : InBoneNames)
 			{
-				SelectedBones.Remove(BoneName);
+				SelectedBoneNames[CurrentlyEditingSourceOrTarget].Remove(BoneName);
 			}
 			break;
 		}
 		case ESelectionEdit::Replace:
 		{
-			SelectedBones = InBoneNames;
+			SelectedBoneNames[CurrentlyEditingSourceOrTarget] = InBoneNames;
 			break;
 		}
 		default:
 			checkNoEntry();
 	}
-
-	// convert to bone indices
-	const FReferenceSkeleton& RefSkeleton = DebugComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
-	TArray<int32> SelectedBoneIndices;
-	for (const FName& Bone : SelectedBones)
-	{
-		int32 BoneIndex = RefSkeleton.FindBoneIndex(Bone);
-		SelectedBoneIndices.Add(BoneIndex);
-		
-		if (BoneIndex == INDEX_NONE)
-		{
-			ensureMsgf(false, TEXT("Incoming selection list is not compatible with the currently edited skeleton."));
-			SelectedBoneIndices.Reset();
-			break;
-		}
-	}
-	
-	// apply selection to debug mesh component so rendering knows
-	DebugComponent->BonesOfInterest = SelectedBoneIndices;
 
 	// update hierarchy view
 	if (!bFromHierarchyView)
@@ -584,14 +570,14 @@ void FIKRetargetEditorController::EditBoneSelection(
 	}
 
 	// update details
-	if (SelectedBones.IsEmpty())
+	if (SelectedBoneNames[CurrentlyEditingSourceOrTarget].IsEmpty())
 	{
 		SetDetailsObject(AssetController->GetAsset());
 	}
 	else
 	{
 		TArray<UObject*> SelectedBoneDetails;
-		for (const FName& SelectedBone : SelectedBones)
+		for (const FName& SelectedBone : SelectedBoneNames[CurrentlyEditingSourceOrTarget])
 		{
 			TObjectPtr<UIKRetargetBoneDetails> BoneDetails = GetOrCreateBoneDetailsObject(SelectedBone);
 			SelectedBoneDetails.Add(BoneDetails);
@@ -608,6 +594,8 @@ void FIKRetargetEditorController::EditChainSelection(
 	// deselect others
 	SetSelectedMesh(nullptr);
 	SetRootSelected(false);
+
+	LastSelectedItem = ERetargetSelectionType::CHAIN;
 	
 	// update selection set based on edit mode
 	switch (EditMode)
@@ -670,17 +658,20 @@ void FIKRetargetEditorController::EditChainSelection(
 void FIKRetargetEditorController::SetRootSelected(const bool bIsSelected)
 {
 	bIsRootSelected = bIsSelected;
-
-	if (bIsSelected)
+	if (!bIsSelected)
 	{
-		URetargetRootSettings* RootSettings = AssetController->GetAsset()->GetRootSettingsUObject();
-		if (RootSettings->EditorController.Get() != this)
-		{
-			RootSettings->EditorController = SharedThis(this);	
-		}
-		
-		SetDetailsObject(RootSettings);
+		return;
 	}
+	
+	URetargetRootSettings* RootSettings = AssetController->GetAsset()->GetRootSettingsUObject();
+	if (RootSettings->EditorController.Get() != this)
+	{
+		RootSettings->EditorController = SharedThis(this);	
+	}
+	
+	SetDetailsObject(RootSettings);
+
+	LastSelectedItem = ERetargetSelectionType::ROOT;
 }
 
 void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
@@ -699,13 +690,16 @@ void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
 	// clear bone selection
 	if (!bKeepBoneSelection)
 	{
-		const TArray<FName> Empty;
-		constexpr bool bFromHierarchy = false;
-		EditBoneSelection(Empty, ESelectionEdit::Replace, bFromHierarchy);
+		SetSelectedMesh(nullptr);
+		SetRootSelected(false);
+		SelectedBoneNames[ERetargetSourceOrTarget::Source].Reset();
+		SelectedBoneNames[ERetargetSourceOrTarget::Target].Reset();
 
 		// show global details
 		SetDetailsObject(AssetController->GetAsset());
 	}
+
+	LastSelectedItem = ERetargetSelectionType::NONE;
 
 	RefreshDetailsView();
 }
@@ -1002,7 +996,7 @@ void FIKRetargetEditorController::HandleResetAllBones() const
 void FIKRetargetEditorController::HandleResetSelectedBones() const
 {
 	const FName CurrentPose = AssetController->GetCurrentRetargetPoseName(CurrentlyEditingSourceOrTarget);
-	AssetController->ResetRetargetPose(CurrentPose, GetSelectedBones(), GetSourceOrTarget());
+	AssetController->ResetRetargetPose(CurrentPose, GetSelectedBones(), CurrentlyEditingSourceOrTarget);
 }
 
 void FIKRetargetEditorController::HandleResetSelectedAndChildrenBones() const
@@ -1017,7 +1011,7 @@ void FIKRetargetEditorController::HandleResetSelectedAndChildrenBones() const
 	
 	// get list of all children of selected bones
 	TArray<int32> AllChildrenIndices;
-	for (const FName& SelectedBone : SelectedBones)
+	for (const FName& SelectedBone : SelectedBoneNames[CurrentlyEditingSourceOrTarget])
 	{
 		const int32 SelectedBoneIndex = RefSkeleton.FindBoneIndex(SelectedBone);
 		AllChildrenIndices.Add(SelectedBoneIndex);
@@ -1033,7 +1027,7 @@ void FIKRetargetEditorController::HandleResetSelectedAndChildrenBones() const
 	}
 
 	// merge total list of all selected bones and their children
-	TArray<FName> BonesToReset = SelectedBones;
+	TArray<FName> BonesToReset = SelectedBoneNames[CurrentlyEditingSourceOrTarget];
 	for (const int32 ChildIndex : AllChildrenIndices)
 	{
 		BonesToReset.AddUnique(RefSkeleton.GetBoneName(ChildIndex));
@@ -1138,7 +1132,104 @@ void FIKRetargetEditorController::AddReferencedObjects(FReferenceCollector& Coll
 	{
 		Collector.AddReferencedObject(Pair.Value);
 	}
-};
+}
+
+void FIKRetargetEditorController::RenderSkeleton(FPrimitiveDrawInterface* PDI, ERetargetSourceOrTarget InSourceOrTarget) const
+{
+	const UDebugSkelMeshComponent* MeshComponent = GetSkeletalMeshComponent(InSourceOrTarget);
+	const FTransform ComponentTransform = MeshComponent->GetComponentTransform();
+	const FReferenceSkeleton& RefSkeleton = MeshComponent->GetReferenceSkeleton();
+	const int32 NumBones = RefSkeleton.GetNum();
+
+	// get world transforms of bones
+	TArray<FBoneIndexType> RequiredBones;
+	RequiredBones.AddUninitialized(NumBones);
+	TArray<FTransform> WorldTransforms;
+	WorldTransforms.AddUninitialized(NumBones);
+	for (int32 Index=0; Index<NumBones; ++Index)
+	{
+		RequiredBones[Index] = Index;
+		WorldTransforms[Index] = MeshComponent->GetBoneTransform(Index, ComponentTransform);
+	}
+	
+	const UIKRetargeter* Asset = AssetController->GetAsset();
+	const float BoneDrawSize = Asset->BoneDrawSize;
+	const float MaxDrawRadius = MeshComponent->Bounds.SphereRadius * 0.01f;
+	const float BoneRadius = FMath::Min(1.0f, MaxDrawRadius) * BoneDrawSize;
+	const bool bIsSelectable = InSourceOrTarget == GetSourceOrTarget();
+	const FLinearColor DefaultColor = bIsSelectable ? GetMutableDefault<UPersonaOptions>()->DefaultBoneColor : GetMutableDefault<UPersonaOptions>()->DisabledBoneColor;
+	
+	UPersonaOptions* ConfigOption = UPersonaOptions::StaticClass()->GetDefaultObject<UPersonaOptions>();
+	
+	FSkelDebugDrawConfig DrawConfig;
+	DrawConfig.BoneDrawMode = (EBoneDrawMode::Type)ConfigOption->DefaultBoneDrawSelection;
+	DrawConfig.BoneDrawSize = BoneRadius;
+	DrawConfig.bAddHitProxy = bIsSelectable;
+	DrawConfig.bForceDraw = false;
+	DrawConfig.DefaultBoneColor = DefaultColor;
+	DrawConfig.AffectedBoneColor = GetMutableDefault<UPersonaOptions>()->AffectedBoneColor;
+	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
+	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
+
+	TArray<TRefCountPtr<HHitProxy>> HitProxies;
+	TArray<int32> SelectedBones;
+	
+	// create hit proxies and selection set only for the currently active skeleton
+	if (bIsSelectable)
+	{
+		HitProxies.Reserve(NumBones);
+		for (int32 Index = 0; Index < NumBones; ++Index)
+		{
+			HitProxies.Add(new HIKRetargetEditorBoneProxy(RefSkeleton.GetBoneName(Index), Index, InSourceOrTarget));
+		}
+
+		// record selected bone indices
+		for (const FName& SelectedBoneName : SelectedBoneNames[InSourceOrTarget])
+		{
+			int32 SelectedBoneIndex = RefSkeleton.FindBoneIndex(SelectedBoneName);
+			SelectedBones.Add(SelectedBoneIndex);
+		}
+	}
+
+	// generate bone colors, blue on selected chains
+	TArray<FLinearColor> BoneColors;
+	{
+		// set all to default color
+		BoneColors.Init(DefaultColor, RefSkeleton.GetNum());
+
+		// highlight selected chains in blue
+		const TArray<FName>& SelectedChainNames = GetSelectedChains();
+		const FLinearColor HighlightedColor = FLinearColor::Blue;
+		const bool bIsSource = InSourceOrTarget == ERetargetSourceOrTarget::Source;
+		if (const UIKRetargetProcessor* Processor = GetRetargetProcessor())
+		{
+			const TArray<FRetargetChainPairFK>& FKChains = Processor->GetFKChainPairs();
+			for (const FRetargetChainPairFK& FKChain : FKChains)
+			{
+				if (SelectedChainNames.Contains(FKChain.TargetBoneChainName))
+				{
+					const TArray<int32>& BoneIndices = bIsSource ? FKChain.SourceBoneIndices : FKChain.TargetBoneIndices;
+					for (const int32& BoneIndex : BoneIndices)
+					{
+						BoneColors[BoneIndex] = HighlightedColor;
+					}	
+				}
+			}
+		}
+	}
+
+	SkeletalDebugRendering::DrawBones(
+		PDI,
+		ComponentTransform.GetLocation(),
+		RequiredBones,
+		RefSkeleton,
+		WorldTransforms,
+		SelectedBones,
+		BoneColors,
+		HitProxies,
+		DrawConfig
+	);
+}
 
 FText FIKRetargetEditorController::GetCurrentPoseName() const
 {

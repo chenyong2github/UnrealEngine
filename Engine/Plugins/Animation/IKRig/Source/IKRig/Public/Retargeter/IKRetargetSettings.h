@@ -144,7 +144,7 @@ struct FTargetChainIKSettings
 	float Extension = 1.0f;
 
 	/** Is this IK goal affected by the stride warping (in Global Settings). Typically this is true for all feet, but not for hands.  */
-	UPROPERTY(EditAnywhere, Category = Warping, meta = (DisplayName = "Affected by IK Warping"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping, meta = (DisplayName = "Affected by IK Warping"))
 	bool bAffectedByIKWarping = true;
 };
 
@@ -256,7 +256,7 @@ enum class EWarpingDirectionSource
 	Chain,
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct IKRIG_API FRetargetGlobalSettings
 {
 	GENERATED_USTRUCT_BODY()
@@ -282,8 +282,8 @@ struct IKRIG_API FRetargetGlobalSettings
 	/** Enable IK Warping.
 	 * These options allow for global modifications to all IK Goals that have "Affected by IK Warping" turned on (the default).
 	 * "Affected by IK Warping" can be found in the IK settings of a retarget chain. */
-	UPROPERTY(EditAnywhere, Category = Warping)
-	bool bIKWarping = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping)
+	bool bWarping = false;
 
 	/** Defines the source used to determine the forward direction as the character animates in world space. Default is "Goals".
 	 * This method uses various positions on the character to create a "best fit" global rotation that approximates the facing direction of the character over time.
@@ -292,32 +292,32 @@ struct IKRIG_API FRetargetGlobalSettings
 	 * Goals: uses the positions of the IK goals to approximate the facing direction. This is best used on characters with a vertical spine, like bipeds.
 	 * Chain: uses the positions of the bones in a retarget chain to approximate the facing direction. This is best for characters with a horizontal spine, like quadrupeds.
 	 */
-	UPROPERTY(EditAnywhere, Category = Warping)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping)
 	EWarpingDirectionSource DirectionSource = EWarpingDirectionSource::Goals;
 	
 	/** The world space axis that represents the forward facing direction for your character. By default, in Unreal, this is +Y.  */
-	UPROPERTY(EditAnywhere, Category = Warping)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping)
 	EBasicAxis ForwardDirection = EBasicAxis::Y;
 
 	/** When using the "Chain" option as a Direction Source, this defines the chain to use to determine the facing direction of the character.
 	 * Typically this would be the chain that contains the Spine bones. */
-	UPROPERTY(EditAnywhere, Category = Warping, meta=(EditCondition="DirectionSource == EWarpingDirectionSource::Chain"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping, meta=(EditCondition="DirectionSource == EWarpingDirectionSource::Chain"))
 	FName DirectionChain;
 
 	/** Range 0 to Inf. Default 1. Warps IK goal positions in the forward direction. Useful for stride warping.
 	 * Values below 1 will create smaller, squashed strides. Values greater than 1 will create stretched, longer strides.*/
-	UPROPERTY(EditAnywhere, Category = Warping, meta = (UIMin = "0.0", UIMax = "5.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping, meta = (UIMin = "0.0", UIMax = "5.0"))
 	float WarpForwards = 1.0f;
 
 	/** Range -+Inf. Default is 0. A static offset in world units to move the IK goals perpendicular to the forward direction.
 	 * Values less than zero will move the goals towards the center-line of the character. Values greater than zero push the goals outwards.*/
-	UPROPERTY(EditAnywhere, Category = Warping, meta = (UIMin = "-10.0", UIMax = "100.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping, meta = (UIMin = "-10.0", UIMax = "100.0"))
 	float SidewaysOffset = 0.0f;
 
 	/** Range 0 to +Inf. Default is 1.0f.
 	 * Values below 1 pull all the goals towards the average of all the goals (towards each other).
 	 * Values greater than 1 push the goals apart.*/
-	UPROPERTY(EditAnywhere, Category = Warping, meta = (UIMin = "0.0", UIMax = "2.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Warping, meta = (UIMin = "0.0", UIMax = "2.0"))
 	float WarpSplay = 1.0f;
 
 	static FVector GetAxisVector(const EBasicAxis& Axis)

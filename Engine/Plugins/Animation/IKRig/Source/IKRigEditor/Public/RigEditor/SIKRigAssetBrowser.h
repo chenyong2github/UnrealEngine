@@ -26,7 +26,8 @@ private:
 	
 	void OnAssetDoubleClicked(const FAssetData& AssetData);
 	bool OnShouldFilterAsset(const struct FAssetData& AssetData);
-
+	TSharedPtr<SWidget> OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets) const;
+	
 	/** Used to get the currently selected assets */
 	FGetCurrentSelectionDelegate GetCurrentSelectionDelegate;
 		

@@ -93,7 +93,7 @@ public:
 	/** The the Bone associated with the given Goal. */
 	FName GetBoneForGoal(const FName& GoalName) const;
 	/** The the Goal associated with the given Bone (may be null. */
-	const UIKRigEffectorGoal* GetGoalForBone(const FName& BoneName) const;
+	UIKRigEffectorGoal* GetGoalForBone(const FName& BoneName) const;
 	/** Connect the given Goal to the given Solver. This creates an "Effector" with settings specific to this Solver.*/
 	bool ConnectGoalToSolver(const UIKRigEffectorGoal& Goal, int32 SolverIndex) const;
 	/** Disconnect the given Goal from the given Solver. This removes the Effector that associates the Goal with the Solver.*/
@@ -106,8 +106,8 @@ public:
 	int32 GetGoalIndex(const FName& InGoalName, const ENameCase CompareMethod = ENameCase::IgnoreCase) const;
 	/** Get the name of Goal at the given index. */
 	FName GetGoalName(const int32& GoalIndex) const;
-	/** Get read-only access to the list of Goals. */
-	const TArray<UIKRigEffectorGoal*>& GetAllGoals() const;
+	/** Get access to the list of Goals. */
+	TArray<UIKRigEffectorGoal*>& GetAllGoals() const;
 	/** Get read-only access to the Goal at the given index. */
 	const UIKRigEffectorGoal* GetGoal(int32 GoalIndex) const;
 	/** Get read-write access to the Goal with the given name. */
@@ -178,8 +178,16 @@ public:
 	void SortRetargetChains() const;
 	/** Make unique name for a retargeting bone chain. Adds a numbered suffix to make it unique.*/
 	FName GetUniqueRetargetChainName(const FName& NameToMakeUnique) const;
-	/** Returns true if this is a valid chain. Produces array of bone indices between start and end (inclusive). */
-	bool ValidateChain(const FName& ChainName, TSet<int32>& OutChainIndices) const;
+	/** Returns true if this is a valid chain. Produces array of bone indices between start and end (inclusive).
+	 * Optionally provide a runtime skeleton from an IKRigProcessor to get indices for a running instance (otherwise uses stored hierarchy in asset)*/
+	bool ValidateChain(
+		const FName& ChainName,
+		const FIKRigSkeleton* OptionalSkeleton,
+		TSet<int32>& OutChainIndices) const;
+	/** Get the name of the retarget chain that contains the given Bone. Returns NAME_None if Bone not in a Chain. */
+	FName GetRetargetChainFromBone(const FName& BoneName, const FIKRigSkeleton* OptionalSkeleton) const;
+	/** Get the name of the retarget chain that contains the given Goal. Returns NAME_None if Goal not in a Chain. */
+	FName GetRetargetChainFromGoal(const FName& GoalName) const;
 	/** END retarget chains */
 
 	// force all currently connected processors to reinitialize using latest asset state

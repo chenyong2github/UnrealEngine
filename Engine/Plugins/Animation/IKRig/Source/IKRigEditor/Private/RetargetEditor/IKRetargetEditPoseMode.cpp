@@ -55,73 +55,8 @@ void FIKRetargetEditPoseMode::Render(const FSceneView* View, FViewport* Viewport
 		return;
 	}
 
-	RenderSkeleton(PDI, Controller);
-}
-
-void FIKRetargetEditPoseMode::RenderSkeleton(
-	FPrimitiveDrawInterface* PDI,
-	const FIKRetargetEditorController* Controller)
-{
-	const UDebugSkelMeshComponent* MeshComponent = Controller->GetSkeletalMeshComponent(SourceOrTarget);
-	FTransform ComponentTransform = MeshComponent->GetComponentTransform();
-	const FReferenceSkeleton& RefSkeleton = MeshComponent->GetReferenceSkeleton();
-	const int32 NumBones = RefSkeleton.GetNum();
-
-	// get world transforms of bones
-	TArray<FBoneIndexType> RequiredBones;
-	RequiredBones.AddUninitialized(NumBones);
-	TArray<FTransform> WorldTransforms;
-	WorldTransforms.AddUninitialized(NumBones);
-	for (int32 Index=0; Index<NumBones; ++Index)
-	{
-		RequiredBones[Index] = Index;
-		WorldTransforms[Index] = MeshComponent->GetBoneTransform(Index, ComponentTransform);
-	}
-	
-	const UIKRetargeter* Asset = Controller->AssetController->GetAsset();
-	const float BoneDrawSize = Asset->BoneDrawSize;
-	const float MaxDrawRadius = Controller->TargetSkelMeshComponent->Bounds.SphereRadius * 0.01f;
-	const float BoneRadius = FMath::Min(1.0f, MaxDrawRadius) * BoneDrawSize;
-	
-	UPersonaOptions* ConfigOption = UPersonaOptions::StaticClass()->GetDefaultObject<UPersonaOptions>();
-	
-	FSkelDebugDrawConfig DrawConfig;
-	DrawConfig.BoneDrawMode = (EBoneDrawMode::Type)ConfigOption->DefaultBoneDrawSelection;
-	DrawConfig.BoneDrawSize = BoneRadius;
-	DrawConfig.bAddHitProxy = true;
-	DrawConfig.bForceDraw = false;
-	DrawConfig.DefaultBoneColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
-	DrawConfig.AffectedBoneColor = GetMutableDefault<UPersonaOptions>()->AffectedBoneColor;
-	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
-	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
-
-	TArray<TRefCountPtr<HHitProxy>> HitProxies;
-	HitProxies.Reserve(NumBones);
-	for (int32 Index = 0; Index < NumBones; ++Index)
-	{
-		HitProxies.Add(new HIKRetargetEditorBoneProxy(RefSkeleton.GetBoneName(Index)));
-	}
-
-	// record selected bone indices
-	const TArray<FName>& SelectedBoneNames = Controller->GetSelectedBones();
-	TArray<int32> SelectedBones;
-	for (const FName& SelectedBoneName : SelectedBoneNames)
-	{
-		int32 SelectedBoneIndex = RefSkeleton.FindBoneIndex(SelectedBoneName);
-		SelectedBones.Add(SelectedBoneIndex);
-	}
-
-	SkeletalDebugRendering::DrawBones(
-		PDI,
-		ComponentTransform.GetLocation(),
-		RequiredBones,
-		RefSkeleton,
-		WorldTransforms,
-		SelectedBones,
-		TArray<FLinearColor>(),
-		HitProxies,
-		DrawConfig
-	);
+	Controller->RenderSkeleton(PDI, ERetargetSourceOrTarget::Source);
+	Controller->RenderSkeleton(PDI, ERetargetSourceOrTarget::Target);
 }
 
 bool FIKRetargetEditPoseMode::AllowWidgetMove()
@@ -424,10 +359,6 @@ void FIKRetargetEditPoseMode::Enter()
 	
 	// record skeleton to edit (must be constant between enter/exit)
 	SourceOrTarget = Controller->GetSourceOrTarget();
-	// hide skeleton we're editing so that we can draw our own editable version of it
-	const bool bEditingSource = SourceOrTarget == ERetargetSourceOrTarget::Source;
-	Controller->SourceSkelMeshComponent->SkeletonDrawMode = bEditingSource ? ESkeletonDrawMode::Hidden : ESkeletonDrawMode::GreyedOut;
-	Controller->TargetSkelMeshComponent->SkeletonDrawMode = !bEditingSource ? ESkeletonDrawMode::Hidden : ESkeletonDrawMode::GreyedOut;
 }
 
 void FIKRetargetEditPoseMode::Exit()

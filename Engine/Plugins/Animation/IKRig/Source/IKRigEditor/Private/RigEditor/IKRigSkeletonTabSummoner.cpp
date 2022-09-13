@@ -5,7 +5,7 @@
 #include "IDocumentation.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/IKRigToolkit.h"
-#include "RigEditor/SIKRigSkeleton.h"
+#include "RigEditor/SIKRigHierarchy.h"
 
 #define LOCTEXT_NAMESPACE "IKRigSkeletonTabSummoner"
 
@@ -31,7 +31,7 @@ TSharedPtr<SToolTip> FIKRigSkeletonTabSummoner::CreateTabToolTipWidget(const FWo
 
 TSharedRef<SWidget> FIKRigSkeletonTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	return SNew(SIKRigSkeleton, IKRigEditor.Pin()->GetController());
+	return SNew(SIKRigHierarchy, IKRigEditor.Pin()->GetController());
 }
 
 #undef LOCTEXT_NAMESPACE 

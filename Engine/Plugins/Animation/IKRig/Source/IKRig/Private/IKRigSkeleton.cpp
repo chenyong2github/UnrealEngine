@@ -370,8 +370,10 @@ void FIKRigSkeleton::GetChainsInList(const TArray<int32>& SelectedBones, TArray<
     }
 }
 
-bool FIKRigSkeleton::GetBonesInChain(const FBoneChain& BoneChain, TArray<int32>& OutBoneIndices) const
+bool FIKRigSkeleton::ValidateChainAndGetBones(const FBoneChain& BoneChain, TArray<int32>& OutBoneIndices) const
 {
+	OutBoneIndices.Reset();
+	
 	// validate start and end bones exist and are not the root
 	const int32 StartIndex = GetBoneIndexFromName(BoneChain.StartBone.BoneName);
 	const int32 EndIndex = GetBoneIndexFromName(BoneChain.EndBone.BoneName);

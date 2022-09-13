@@ -89,15 +89,23 @@ void FAnimNode_PreviewRetargetPose::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
 		RootTransform.AddToTranslation(RetargetPose->GetRootTranslationDelta());
+		
 		// update local transform of retarget root
 		const int32 ParentIndex = RefSkeleton.GetParentIndex(RootBoneIndex);
-		if (ParentIndex != INDEX_NONE)
+		if (ParentIndex == INDEX_NONE)
+		{
+			RetargetLocalPose[RootBoneIndex] = RootTransform;
+		}
+		else
 		{
 			const FTransform& ChildGlobalTransform = RetargetGlobalPose[RootBoneIndex];
 			const FTransform& ParentGlobalTransform = RetargetGlobalPose[ParentIndex];
 			RetargetLocalPose[RootBoneIndex] = ChildGlobalTransform.GetRelativeTransform(ParentGlobalTransform);
 		}
 	}
+
+	// update GLOBAL space pose after root translation (for editor to query)
+	FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, RetargetLocalPose, RetargetGlobalPose);
 	
 	// copy to the compact output pose
 	const int32 NumBones = Output.Pose.GetNumBones();

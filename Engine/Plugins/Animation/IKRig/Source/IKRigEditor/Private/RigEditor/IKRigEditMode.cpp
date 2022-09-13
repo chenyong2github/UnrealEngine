@@ -35,35 +35,36 @@ bool FIKRigEditMode::GetCameraTarget(FSphere& OutTarget) const
 	Controller->GetSelectedGoalNames(OutGoalNames);
 	Controller->GetSelectedBoneNames(OutBoneNames);
 	
-	if (!OutGoalNames.IsEmpty() || !OutBoneNames.IsEmpty())
+	if (!(OutGoalNames.IsEmpty() && OutBoneNames.IsEmpty()))
 	{
-		TArray<FVector> GoalPoints;
+		TArray<FVector> TargetPoints;
 
 		// get goal locations
 		for (const FName& GoalName : OutGoalNames)
 		{			
-			GoalPoints.Add(Controller->AssetController->GetGoal(GoalName)->CurrentTransform.GetLocation());
+			TargetPoints.Add(Controller->AssetController->GetGoal(GoalName)->CurrentTransform.GetLocation());
 		}
 
 		// get bone locations
-		const FIKRigSkeleton& FIKRigSkeleton = Controller->AssetController->GetIKRigSkeleton();
+		const FIKRigSkeleton* CurrentIKRigSkeleton = Controller->GetCurrentIKRigSkeleton();
+		const FIKRigSkeleton& Skeleton = CurrentIKRigSkeleton ? *CurrentIKRigSkeleton : Controller->AssetController->GetIKRigSkeleton();
 		for (const FName& BoneName : OutBoneNames)
 		{
-			const int32 BoneIndex = FIKRigSkeleton.GetBoneIndexFromName(BoneName);
+			const int32 BoneIndex = Skeleton.GetBoneIndexFromName(BoneName);
 			if (BoneIndex != INDEX_NONE)
 			{
 				TArray<int32> Children;
-				FIKRigSkeleton.GetChildIndices(BoneIndex, Children);
-				for (int32 ChildIndex: Children)
+				Skeleton.GetChildIndices(BoneIndex, Children);
+				for (const int32 ChildIndex: Children)
 				{
-					GoalPoints.Add(FIKRigSkeleton.CurrentPoseGlobal[ChildIndex].GetLocation());
+					TargetPoints.Add(Skeleton.CurrentPoseGlobal[ChildIndex].GetLocation());
 				}
-				GoalPoints.Add(FIKRigSkeleton.CurrentPoseGlobal[BoneIndex].GetLocation());
+				TargetPoints.Add(Skeleton.CurrentPoseGlobal[BoneIndex].GetLocation());
 			}
 		}
 
 		// create a sphere that contains all the goal points
-		OutTarget = FSphere(&GoalPoints[0], GoalPoints.Num());
+		OutTarget = FSphere(&TargetPoints[0], TargetPoints.Num());
 		return true;
 	}
 
@@ -212,6 +213,7 @@ void FIKRigEditMode::GetBoneColors(
 {
 	const FLinearColor DefaultColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
 	const FLinearColor HighlightedColor = FLinearColor::Blue;
+	const FLinearColor ErrorColor = FLinearColor::Red;
 
 	// set all to default color
 	OutBoneColors.SetNum(RefSkeleton.GetNum());
@@ -262,15 +264,14 @@ void FIKRigEditMode::GetBoneColors(
 				return;
 			}
 
+			const FIKRigSkeleton& Skeleton = Processor->GetSkeleton();
 			for (const FName& SelectedChainName : SelectedChainNames)
 			{
 				TSet<int32> OutChainBoneIndices;
-				if (Controller->AssetController->ValidateChain(SelectedChainName, OutChainBoneIndices))
+				const bool bIsValid = Controller->AssetController->ValidateChain(SelectedChainName, &Skeleton, OutChainBoneIndices);
+				for (const int32 IndexOfBoneInChain : OutChainBoneIndices)
 				{
-					for (const int32 IndexOfBoneInChain : OutChainBoneIndices)
-					{
-						OutBoneColors[IndexOfBoneInChain] = HighlightedColor;
-					}
+					OutBoneColors[IndexOfBoneInChain] = bIsValid ? HighlightedColor : ErrorColor;
 				}
 			}
 		}

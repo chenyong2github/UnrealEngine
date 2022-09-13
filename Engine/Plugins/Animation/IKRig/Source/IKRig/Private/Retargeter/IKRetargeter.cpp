@@ -305,6 +305,44 @@ const FRetargetProfile* UIKRetargeter::GetProfileByName(const FName& ProfileName
 	return Profiles.Find(ProfileName);
 }
 
+FTargetChainSettings UIKRetargeter::GetChainUsingGoalFromRetargetAsset(
+	const UIKRetargeter* RetargetAsset,
+	const FName IKGoalName)
+{
+	FTargetChainSettings EmptySettings;
+
+	if (!RetargetAsset)
+	{
+		return EmptySettings;
+	}
+
+	const UIKRigDefinition* IKRig = RetargetAsset->GetTargetIKRig();
+	if (!IKRig)
+	{
+		return EmptySettings;
+	}
+
+	const TArray<FBoneChain>& RetargetChains = IKRig->GetRetargetChains();
+	const FBoneChain* ChainWithGoal = nullptr;
+	for (const FBoneChain& RetargetChain : RetargetChains)
+	{
+		if (RetargetChain.IKGoalName == IKGoalName)
+		{
+			ChainWithGoal = &RetargetChain;
+			break;
+		}
+	}
+
+	if (!ChainWithGoal)
+	{
+		return EmptySettings;
+	}
+
+	// found a chain using the specified goal, return a copy of it's settings
+	const FTargetChainSettings* ChainSettings = RetargetAsset->GetChainSettingsByName(ChainWithGoal->ChainName);
+	return ChainSettings ? *ChainSettings : EmptySettings;
+}
+
 FTargetChainSettings UIKRetargeter::GetChainSettingsFromRetargetAsset(
 	const UIKRetargeter* RetargetAsset,
 	const FName TargetChainName,
@@ -379,6 +417,56 @@ void UIKRetargeter::GetRootSettingsFromRetargetAsset(
 
 	// return the base root settings
 	OutSettings =  RetargetAsset->GetRootSettingsUObject()->Settings;
+}
+
+FTargetRootSettings UIKRetargeter::GetRootSettingsFromRetargetProfile(FRetargetProfile& RetargetProfile)
+{
+	return RetargetProfile.RootSettings;
+}
+
+void UIKRetargeter::GetGlobalSettingsFromRetargetAsset(
+	const UIKRetargeter* RetargetAsset,
+	const FName OptionalProfileName,
+	FRetargetGlobalSettings& OutSettings)
+{
+	if (!RetargetAsset)
+	{
+		OutSettings = FRetargetGlobalSettings();
+		return;
+	}
+	
+	// optionally get the root settings from a profile
+	if (OptionalProfileName != NAME_None)
+	{
+		if (const FRetargetProfile* RetargetProfile = RetargetAsset->GetProfileByName(OptionalProfileName))
+		{
+			if (RetargetProfile->bApplyGlobalSettings)
+			{
+				OutSettings = RetargetProfile->GlobalSettings;
+				return;
+			}
+		}
+		
+		// could not find profile, so return default settings
+		OutSettings = FRetargetGlobalSettings();
+		return;
+	}
+
+	// return the base root settings
+	OutSettings = RetargetAsset->GetGlobalSettings();
+}
+
+FRetargetGlobalSettings UIKRetargeter::GetGlobalSettingsFromRetargetProfile(FRetargetProfile& RetargetProfile)
+{
+	return RetargetProfile.GlobalSettings;
+}
+
+void UIKRetargeter::SetGlobalSettingsInRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FRetargetGlobalSettings& GlobalSettings)
+{
+	RetargetProfile.GlobalSettings = GlobalSettings;
+	RetargetProfile.bApplyGlobalSettings = true;
 }
 
 void UIKRetargeter::SetRootSettingsInRetargetProfile(

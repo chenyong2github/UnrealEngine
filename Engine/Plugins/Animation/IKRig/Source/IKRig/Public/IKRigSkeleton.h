@@ -112,7 +112,7 @@ struct IKRIG_API FIKRigSkeleton
 	void GetChainsInList(const TArray<int32>& SelectedBones, TArray<FBoneChain>& OutChains) const;
 
 	// get indices of bones in this chain, ordered from tip to root. returns false if chain is invalid.
-	bool GetBonesInChain(const FBoneChain& Chain, TArray<int32>& OutBoneIndices) const;
+	bool ValidateChainAndGetBones(const FBoneChain& Chain, TArray<int32>& OutBoneIndices) const;
 
 	// given a set of bones, returns a set of indices of bones that are mirrored across X axis (YZ plane)
 	// return false if any of the bones do not have a mirrored pair within the MaxDistanceThreshold

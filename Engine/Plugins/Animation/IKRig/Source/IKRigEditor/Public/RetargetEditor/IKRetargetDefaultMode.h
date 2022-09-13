@@ -55,8 +55,7 @@ public:
 	/** END FEdMode interface */
 
 private:
-	
-	bool ComponentSelectionOverride(const UPrimitiveComponent* InComponent) const;
+	void RenderDebugProxies(FPrimitiveDrawInterface* PDI, const FIKRetargetEditorController* Controller) const;
 	static void ApplyOffsetToMeshTransform(const FVector& Offset, USceneComponent* Component);
 
 	// the skeleton currently being edited

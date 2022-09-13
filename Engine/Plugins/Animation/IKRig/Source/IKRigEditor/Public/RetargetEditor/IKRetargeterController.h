@@ -63,8 +63,10 @@ public:
 	void SetSourceChainForTargetChain(URetargetChainSettings* ChainMap, FName SourceChainToMapTo) const;
 	/** Get read-only access to the list of chain mappings */
 	const TArray<TObjectPtr<URetargetChainSettings>>& GetChainMappings() const;
-	/** Get whether the given chain has a valid IK goal assigned to it */
-	bool IsChainRunningIK(const TObjectPtr<URetargetChainSettings> ChainSettings) const;
+	/** Get the name of the goal assigned to a chain */
+	FName GetChainGoal(const TObjectPtr<URetargetChainSettings> ChainSettings) const;
+	/** Get whether the given chain's IK goal is connected to a solver */
+	bool IsChainGoalConnectedToASolver(const FName& GoalName) const;
 	/** END RETARGET CHAIN MAPPING */
 
 	/** RETARGET POSE EDITING

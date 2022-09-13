@@ -367,7 +367,10 @@ FName UIKRigController::GetUniqueRetargetChainName(const FName& NameToMakeUnique
 	return FName(NameToMakeUnique, Number);
 }
 
-bool UIKRigController::ValidateChain(const FName& ChainName, TSet<int32>& OutChainIndices) const
+bool UIKRigController::ValidateChain(
+	const FName& ChainName,
+	const FIKRigSkeleton* OptionalSkeleton,
+	TSet<int32>& OutChainIndices) const
 {
 	const FBoneChain* Chain = Asset->GetRetargetChainByName(ChainName);
 	if (!Chain)
@@ -375,21 +378,33 @@ bool UIKRigController::ValidateChain(const FName& ChainName, TSet<int32>& OutCha
 		return false; // chain doesn't exist
 	}
 
-	const FIKRigSkeleton &Skeleton = GetIKRigSkeleton();
+	const FIKRigSkeleton &Skeleton = OptionalSkeleton ? *OptionalSkeleton : GetIKRigSkeleton();
 	const int32 StartBoneIndex = Skeleton.GetBoneIndexFromName(Chain->StartBone.BoneName);
 	const int32 EndBoneIndex = Skeleton.GetBoneIndexFromName(Chain->EndBone.BoneName);
-	
-	if (StartBoneIndex == INDEX_NONE)
+
+	const bool bHasStartBone = StartBoneIndex != INDEX_NONE;
+	const bool bHasEndBone = StartBoneIndex != INDEX_NONE;
+
+	// chain has neither start nor end bone
+	if (!bHasStartBone && !bHasEndBone)
 	{
-		return false; // no start bone specified, not allowed
+		return false;
 	}
 
-	if (EndBoneIndex == INDEX_NONE)
+	// has only a start bone, this is a single bone "chain" which is fine
+	if (bHasStartBone && !bHasEndBone)
 	{
 		OutChainIndices.Add(StartBoneIndex);
-		return true; // no end bone specified, this is a single bone "chain" which is fine
+		return true; 
 	}
 
+	// has only a end bone, not valid
+	if (!bHasStartBone && bHasEndBone)
+	{
+		OutChainIndices.Add(EndBoneIndex);
+		return false; 
+	}
+	
 	// this chain has a start AND an end bone so we must verify that end bone is child of start bone
 	int32 NextBoneIndex = EndBoneIndex;
 	while (true)
@@ -404,9 +419,58 @@ bool UIKRigController::ValidateChain(const FName& ChainName, TSet<int32>& OutCha
 		if (NextBoneIndex == INDEX_NONE)
 		{
 			// oops, we walked all the way past the root without finding the start bone
+			OutChainIndices.Reset();
+			OutChainIndices.Add(EndBoneIndex);
+			OutChainIndices.Add(StartBoneIndex);
 			return false;
 		}
 	}
+}
+
+FName UIKRigController::GetRetargetChainFromBone(const FName& BoneName, const FIKRigSkeleton* OptionalSkeleton) const
+{
+	const FIKRigSkeleton& Skeleton = OptionalSkeleton ? *OptionalSkeleton : GetIKRigSkeleton();
+	const int32 BoneIndex = Skeleton.GetBoneIndexFromName(BoneName);
+
+	if (BoneName == GetRetargetRoot())
+	{
+		return FName("Retarget Root");
+	}
+	
+	const TArray<FBoneChain>& Chains = GetRetargetChains();
+	TSet<int32> OutBoneIndices;
+	for (const FBoneChain& Chain : Chains)
+	{
+		OutBoneIndices.Reset();
+		if (ValidateChain(Chain.ChainName, OptionalSkeleton, OutBoneIndices))
+		{
+			if (OutBoneIndices.Contains(BoneIndex))
+			{
+				return Chain.ChainName;
+			}
+		}
+	}
+
+	return NAME_None;
+}
+
+FName UIKRigController::GetRetargetChainFromGoal(const FName& GoalName) const
+{
+	if (GoalName == NAME_None)
+	{
+		return NAME_None;
+	}
+	
+	const TArray<FBoneChain>& Chains = GetRetargetChains();
+	for (const FBoneChain& Chain : Chains)
+	{
+		if (Chain.IKGoalName == GoalName)
+		{
+			return Chain.ChainName;
+		}
+	}
+
+	return NAME_None;
 }
 
 // -------------------------------------------------------
@@ -677,7 +741,7 @@ UIKRigEffectorGoal* UIKRigController::AddNewGoal(const FName& GoalName, const FN
 		return nullptr; // goal already exists!
 	}
 	
-	FScopedTransaction Transaction(LOCTEXT("AddSetting_Label", "Add Bone Setting"));
+	FScopedTransaction Transaction(LOCTEXT("AddNewGoal_Label", "Add New Goal"));
 	Asset->Modify();
 
 	UIKRigEffectorGoal* NewGoal = NewObject<UIKRigEffectorGoal>(Asset, UIKRigEffectorGoal::StaticClass(), NAME_None, RF_Transactional);
@@ -688,6 +752,12 @@ UIKRigEffectorGoal* UIKRigController::AddNewGoal(const FName& GoalName, const FN
 	// set initial transform
 	NewGoal->InitialTransform = GetRefPoseTransformOfBone(NewGoal->BoneName);
 	NewGoal->CurrentTransform = NewGoal->InitialTransform;
+
+	// connect the new goal to all the solvers
+	for (int32 SolverIndex=0; SolverIndex<GetNumSolvers(); ++SolverIndex)
+	{
+		ConnectGoalToSolver(*NewGoal, SolverIndex);
+	}
  
 	BroadcastNeedsReinitialized();
 	BroadcastGoalsChange();
@@ -869,10 +939,10 @@ FName UIKRigController::GetBoneForGoal(const FName& GoalName) const
 	return NAME_None;
 }
 
-const UIKRigEffectorGoal* UIKRigController::GetGoalForBone(const FName& BoneName) const
+UIKRigEffectorGoal* UIKRigController::GetGoalForBone(const FName& BoneName) const
 {
-	const TArray<UIKRigEffectorGoal*>& AllGoals = GetAllGoals();
-	for (const UIKRigEffectorGoal* Goal : AllGoals)
+	TArray<UIKRigEffectorGoal*>& AllGoals = GetAllGoals();
+	for (UIKRigEffectorGoal* Goal : AllGoals)
 	{
 		if (Goal->BoneName == BoneName)
 		{
@@ -947,7 +1017,7 @@ bool UIKRigController::IsGoalConnectedToAnySolver(const FName& GoalName) const
 	return false;
 }
 
-const TArray<UIKRigEffectorGoal*>& UIKRigController::GetAllGoals() const
+TArray<UIKRigEffectorGoal*>& UIKRigController::GetAllGoals() const
 {
 	return Asset->Goals;
 }

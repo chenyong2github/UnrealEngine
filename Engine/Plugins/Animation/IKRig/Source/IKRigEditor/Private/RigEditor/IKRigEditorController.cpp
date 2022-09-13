@@ -9,12 +9,13 @@
 #include "Dialogs/Dialogs.h"
 
 #include "RigEditor/IKRigController.h"
-#include "RigEditor/SIKRigSkeleton.h"
+#include "RigEditor/SIKRigHierarchy.h"
 #include "RigEditor/SIKRigSolverStack.h"
 #include "RigEditor/IKRigAnimInstance.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "RigEditor/SIKRigAssetBrowser.h"
 #include "RigEditor/SIKRigOutputLog.h"
+#include "Solvers/IKRig_PBIKSolver.h"
 
 #if WITH_EDITOR
 
@@ -198,8 +199,10 @@ void FRetargetChainAnalyzer::AssignBestGuessName(FBoneChain& Chain, const FIKRig
 	ChainToBonesMap.Add(FString("Ring"), {"ring"});
 	ChainToBonesMap.Add(FString("Pinky"), {"pinky"});
 
+	ChainToBonesMap.Add(FString("Root"), {"root"});
+
 	TArray<int32> BonesInChainIndices;
-	const bool bIsChainValid = IKRigSkeleton.GetBonesInChain(Chain, BonesInChainIndices);
+	const bool bIsChainValid = IKRigSkeleton.ValidateChainAndGetBones(Chain, BonesInChainIndices);
 	if (!bIsChainValid)
 	{
 		Chain.ChainName = GetDefaultChainName();
@@ -319,6 +322,19 @@ UIKRigProcessor* FIKRigEditorController::GetIKRigProcessor() const
 	return nullptr;
 }
 
+const FIKRigSkeleton* FIKRigEditorController::GetCurrentIKRigSkeleton() const
+{
+	if (const UIKRigProcessor* Processor = GetIKRigProcessor())
+	{
+		if (Processor->IsInitialized())
+		{
+			return &Processor->GetSkeleton();	
+		}
+	}
+
+	return nullptr;
+}
+
 void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
 {
 	if (ModifiedIKRig != AssetController->GetAsset())
@@ -326,6 +342,8 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 		return;
 	}
 
+	ClearOutputLog();
+	
 	AnimInstance->SetProcessorNeedsInitialized();
 
 	// Initialize editor's instances on request
@@ -383,8 +401,11 @@ void FIKRigEditorController::ClearOutputLog() const
 {
 	if (OutputLogView.IsValid())
 	{
-		OutputLogView->ClearLog();
-		GetIKRigProcessor()->Log.Clear();
+		OutputLogView.Get()->ClearLog();
+		if (const UIKRigProcessor* Processor = GetIKRigProcessor())
+		{
+			Processor->Log.Clear();
+		}
 	}
 }
 
@@ -393,17 +414,7 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 	check(GoalNames.Num() == BoneNames.Num());
 
 	// add a default solver if there isn't one already
-	if (AssetController->GetNumSolvers() == 0)
-	{
-		if (!PromptToAddSolver())
-		{
-			return; // user cancelled
-		}
-	}
-
-	// get selected solvers
-	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	GetSelectedSolvers(SelectedSolvers);
+	PromptToAddDefaultSolver();
 
 	// create goals
 	FName LastCreatedGoalName = NAME_None;
@@ -417,12 +428,6 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 		if (!NewGoal)
 		{
 			continue; // already exists
-		}
-		
-		// connect the new goal to all the selected solvers
-		for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
-		{
-			AssetController->ConnectGoalToSolver(*NewGoal, SolverElement->IndexInStack);	
 		}
 
 		// ask user if they want to assign this goal to a chain (if there is one on this bone)
@@ -609,7 +614,7 @@ void FIKRigEditorController::CreateNewRetargetChains()
 	RefreshAllViews();
 }
 
-bool FIKRigEditorController::PromptToAddSolver() const
+bool FIKRigEditorController::PromptToAddDefaultSolver() const
 {
 	if (AssetController->GetNumSolvers() > 0)
 	{
@@ -642,7 +647,17 @@ bool FIKRigEditorController::PromptToAddSolver() const
 		SolverTypes.Add(SolverType);
 	}
 
+	// select "full body IK" by default
 	TSharedPtr<FIKRigSolverTypeAndName> SelectedSolver = SolverTypes[0];
+	for (TSharedPtr<FIKRigSolverTypeAndName>& SolverType :SolverTypes)
+	{
+		if (SolverType->SolverType == UIKRigPBIKSolver::StaticClass())
+		{
+			SelectedSolver = SolverType;
+			break;
+		}
+	}
+	
 	TSharedRef<SComboBox<TSharedPtr<FIKRigSolverTypeAndName>>> SolverOptionBox = SNew(SComboBox<TSharedPtr<FIKRigSolverTypeAndName>>)
 	.OptionsSource(&SolverTypes)
 	.OnGenerateWidget_Lambda([](TSharedPtr<FIKRigSolverTypeAndName> Item)
@@ -658,7 +673,7 @@ bool FIKRigEditorController::PromptToAddSolver() const
 		SNew(STextBlock)
 		.MinDesiredWidth(200)
 		.Text_Lambda([&SelectedSolver]()
-			{
+		{
 			return SelectedSolver->NiceName;
 		})
 	];
@@ -670,8 +685,8 @@ bool FIKRigEditorController::PromptToAddSolver() const
 			SolverOptionBox
 		]
 		.Buttons({
-			SCustomDialog::FButton(LOCTEXT("OK", "OK")),
-			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+			SCustomDialog::FButton(LOCTEXT("AddSolver", "Add Solver")),
+			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
 	});
 
 	if (AddSolverDialog->ShowModal() != 0)
@@ -685,104 +700,6 @@ bool FIKRigEditorController::PromptToAddSolver() const
 	}
 
 	return true;
-}
-
-void FIKRigEditorController::PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const
-{
-	const TArray<FBoneChain>& AllRetargetChains = AssetController->GetRetargetChains();
-	FName ChainToAddGoalTo = NAME_None;
-	for (const FBoneChain& Chain : AllRetargetChains)
-	{
-		if (Chain.EndBone == NewGoal->BoneName)
-		{
-			ChainToAddGoalTo = Chain.ChainName;
-		}
-	}
-
-	if (ChainToAddGoalTo == NAME_None)
-	{
-		return;
-	}
-
-	TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
-		.Title(FText(LOCTEXT("AddGoalToNewChainTitle", "Add Goal to Retarget Chain")))
-		.Content()
-		[
-			SNew(STextBlock)
-			.Text(FText::Format(LOCTEXT("AddNewGoalToChainLabel", "Add new goal, {0} to retarget chain, {1}?"), FText::FromName(NewGoal->GoalName), FText::FromName(ChainToAddGoalTo)))
-		]
-		.Buttons({
-			SCustomDialog::FButton(LOCTEXT("OK", "OK")),
-			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
-	});
-
-	if (AddGoalToChainDialog->ShowModal() != 0)
-	{
-		return; // cancel button pressed, or window closed
-	}
-
-	AssetController->SetRetargetChainGoal(ChainToAddGoalTo, NewGoal->GoalName);
-}
-
-bool FIKRigEditorController::IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex)
-{
-	if (!AssetController->GetSolverArray().IsValidIndex(SolverIndex))
-	{
-		return false; // not a valid solver index
-	}
-
-	const UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
-	if (TreeElement->ElementType == IKRigTreeElementType::BONE)
-	{
-		// is this bone affected by this solver?
-		return Solver->IsBoneAffectedBySolver(TreeElement->BoneName, AssetController->GetIKRigSkeleton());
-	}
-
-	if (TreeElement->ElementType == IKRigTreeElementType::BONE_SETTINGS)
-	{
-		// is this bone setting belonging to the solver?
-		return (Solver->GetBoneSetting(TreeElement->BoneSettingBoneName) != nullptr);
-	}
-
-	if (TreeElement->ElementType == IKRigTreeElementType::GOAL)
-	{
-		// is goal connected to the solver?
-		return AssetController->IsGoalConnectedToSolver(TreeElement->GoalName, SolverIndex);
-	}
-
-	if (TreeElement->ElementType == IKRigTreeElementType::SOLVERGOAL)
-	{
-		// is this an effector for this solver?
-		return TreeElement->EffectorIndex == SolverIndex;
-	}
-
-	checkNoEntry();
-	return false;
-}
-
-bool FIKRigEditorController::IsElementConnectedToAnySolver(TSharedRef<FIKRigTreeElement> TreeElement)
-{
-	const int32 NumSolvers = AssetController->GetNumSolvers();
-	for (int32 SolverIndex=0; SolverIndex<NumSolvers; ++SolverIndex)
-	{
-		if (IsElementConnectedToSolver(TreeElement, SolverIndex))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool FIKRigEditorController::IsElementExcludedBone(TSharedRef<FIKRigTreeElement> TreeElement)
-{
-	if (TreeElement->ElementType != IKRigTreeElementType::BONE)
-	{
-		return false;
-	}
-	
-	// is this bone excluded?
-	return AssetController->GetBoneExcluded(TreeElement->BoneName);
 }
 
 void FIKRigEditorController::ShowDetailsForBone(const FName BoneName) const
@@ -920,6 +837,43 @@ void FIKRigEditorController::SetDetailsView(const TSharedPtr<IDetailsView>& InDe
 	ShowEmptyDetails();
 }
 
+void FIKRigEditorController::PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const
+{
+	const TArray<FBoneChain>& AllRetargetChains = AssetController->GetRetargetChains();
+	FName ChainToAddGoalTo = NAME_None;
+	for (const FBoneChain& Chain : AllRetargetChains)
+	{
+		if (Chain.EndBone == NewGoal->BoneName)
+		{
+			ChainToAddGoalTo = Chain.ChainName;
+		}
+	}
+
+	if (ChainToAddGoalTo == NAME_None)
+	{
+		return;
+	}
+
+	TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
+		.Title(FText(LOCTEXT("AddGoalToNewChainTitle", "Add Goal to Retarget Chain")))
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(FText::Format(LOCTEXT("AddNewGoalToChainLabel", "Add new goal, {0} to retarget chain, {1}?"), FText::FromName(NewGoal->GoalName), FText::FromName(ChainToAddGoalTo)))
+		]
+		.Buttons({
+			SCustomDialog::FButton(LOCTEXT("AddGoal", "Add Goal")),
+			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
+	});
+
+	if (AddGoalToChainDialog->ShowModal() != 0)
+	{
+		return; // cancel button pressed, or window closed
+	}
+
+	AssetController->SetRetargetChainGoal(ChainToAddGoalTo, NewGoal->GoalName);
+}
+
 void FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const
 {
 	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FIKRigRetargetChainSettings::StaticStruct(), (uint8*)&BoneChain));
@@ -929,8 +883,18 @@ void FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneC
 	SGenericDialogWidget::FArguments DialogArguments;
 	DialogArguments.OnOkPressed_Lambda([&BoneChain, this] ()
 	{
+		// prompt to add a goal to the chain (skipped if already has a goal)
+		UIKRigEffectorGoal* NewGoal = PromptToAddGoalToNewChain(BoneChain);
+
 		// add the retarget chain
 		AssetController->AddRetargetChain(BoneChain);
+
+		// ask user if they want to assign this goal to a chain (if there is one on this bone)
+		if (NewGoal)
+		{
+			PromptToAddGoalToChain(NewGoal);
+		}
+		
 		RefreshAllViews();
 	});
 
@@ -939,6 +903,44 @@ void FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneC
 		KismetInspector,
 		DialogArguments,
 		true);
+}
+
+UIKRigEffectorGoal* FIKRigEditorController::PromptToAddGoalToNewChain(const FBoneChain& BoneChain) const
+{
+	// check if there is already a goal on the end bone of this chain, if there is, then we're done
+	UIKRigEffectorGoal* ExistingGoal = AssetController->GetGoalForBone(BoneChain.EndBone.BoneName);
+	if (ExistingGoal)
+	{
+		return ExistingGoal;
+	}
+
+	// ask user if they want to add a goal to the end of this chain
+	const TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
+		.Title(FText(LOCTEXT("AddGoalToNewChainTitleLabel", "Add Goal to New Chain")))
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(FText::Format(
+				LOCTEXT("AddGoalToNewChainLabel", "Add goal to end bone, {0} of new chain, {1}?"),
+				FText::FromName(BoneChain.IKGoalName), 
+				FText::FromName(BoneChain.EndBone.BoneName)))
+		]
+		.Buttons({
+			SCustomDialog::FButton(LOCTEXT("AddGoal", "Add Goal")),
+			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
+	});
+
+	if (AddGoalToChainDialog->ShowModal() != 0)
+	{
+		return nullptr; // cancel button pressed, or window closed
+	}
+
+	// add a default solver if there isn't one already
+	PromptToAddDefaultSolver();
+
+	// add the goal
+	const FName NewGoalName = FName(FText::Format(LOCTEXT("GoalOnNewChainName", "{0}_Goal"), FText::FromName(BoneChain.ChainName)).ToString());
+	return AssetController->AddNewGoal(NewGoalName, BoneChain.EndBone.BoneName);
 }
 
 void FIKRigEditorController::PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const
@@ -951,8 +953,8 @@ void FIKRigEditorController::PromptToAddGoalToNewlyMirroredChain(const FBoneChai
 			.Text(FText::Format(LOCTEXT("AddGoalToMirroredChainLabel", "Mirror goal, {0} on chain, {1}?"), FText::FromName(OldChain.IKGoalName), FText::FromName(OldChain.IKGoalName)))
 		]
 		.Buttons({
-			SCustomDialog::FButton(LOCTEXT("Ok", "OK")),
-			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+			SCustomDialog::FButton(LOCTEXT("AddGoal", "Add Goal")),
+			SCustomDialog::FButton(LOCTEXT("Skip", "Skip"))
 	});
 
 	if (AddGoalToChainDialog->ShowModal() != 0)
@@ -960,8 +962,10 @@ void FIKRigEditorController::PromptToAddGoalToNewlyMirroredChain(const FBoneChai
 		return; // cancel button pressed, or window closed
 	}
 
-	UIKRigEffectorGoal* OldGoal = AssetController->GetGoal(OldChain.IKGoalName);
+	const UIKRigEffectorGoal* OldGoal = AssetController->GetGoal(OldChain.IKGoalName);
 	const FName NewGoalName = FName(OldChain.IKGoalName.ToString() + "_Mirrored");
+	// add a default solver if there isn't one already
+	PromptToAddDefaultSolver();
 	UIKRigEffectorGoal* NewGoal = AssetController->AddNewGoal(NewGoalName, MirroredChain.EndBone.BoneName);
 
 	// connect to the same solvers
