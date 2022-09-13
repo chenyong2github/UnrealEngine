@@ -24,11 +24,15 @@
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureCubeFactoryNode.h"
 #include "InterchangeTextureCubeNode.h"
+#include "InterchangeTextureCubeArrayFactoryNode.h"
+#include "InterchangeTextureCubeArrayNode.h"
 #include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureLightProfileFactoryNode.h"
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "InterchangeTranslatorBase.h"
+#include "InterchangeVolumeTextureNode.h"
+#include "InterchangeVolumeTextureFactoryNode.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/EditorBulkData.h"
@@ -129,9 +133,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	UClass* GetSupportedFactoryNodeClass(const UInterchangeFactoryBaseNode* AssetNode)
 	{
 		UClass* TextureCubeFactoryClass = UInterchangeTextureCubeFactoryNode::StaticClass();
+		UClass* TextureCubeArrayFactoryClass = UInterchangeTextureCubeArrayFactoryNode::StaticClass();
 		UClass* Texture2DFactoryClass = UInterchangeTexture2DFactoryNode::StaticClass();
 		UClass* Texture2DArrayFactoryClass = UInterchangeTexture2DArrayFactoryNode::StaticClass();
 		UClass* TextureLightProfileFactoryClass = UInterchangeTextureLightProfileFactoryNode::StaticClass();
+		UClass* VolumeTextureFactoryClass = UInterchangeVolumeTextureFactoryNode::StaticClass();
 		UClass* AssetClass = AssetNode->GetClass();
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 		if (AssetClass->IsChildOf(Texture2DArrayFactoryClass))
@@ -142,9 +148,17 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			return TextureCubeFactoryClass;
 		}
+		else if (AssetClass->IsChildOf(TextureCubeArrayFactoryClass))
+		{
+			return TextureCubeArrayFactoryClass;
+		}
 		else if (AssetClass->IsChildOf(TextureLightProfileFactoryClass))
 		{
 			return TextureLightProfileFactoryClass;
+		}
+		else if (AssetClass->IsChildOf(VolumeTextureFactoryClass))
+		{
+			return VolumeTextureFactoryClass;
 		}
 		else if (AssetClass->IsChildOf(Texture2DFactoryClass))
 		{
@@ -154,9 +168,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		while (AssetClass)
 		{
 			if (AssetClass == TextureCubeFactoryClass
+				|| AssetClass == TextureCubeArrayFactoryClass
 				|| AssetClass == Texture2DFactoryClass
 				|| AssetClass == Texture2DArrayFactoryClass
-				|| AssetClass == TextureLightProfileFactoryClass)
+				|| AssetClass == TextureLightProfileFactoryClass
+				|| AssetClass == VolumeTextureFactoryClass)
 			{
 				return AssetClass;
 			}
@@ -171,12 +187,14 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	using FTextureFactoryNodeVariant = TVariant<FEmptyVariantState
 		, UInterchangeTexture2DFactoryNode*
 		, UInterchangeTextureCubeFactoryNode*
+		, UInterchangeTextureCubeArrayFactoryNode*
 		, UInterchangeTexture2DArrayFactoryNode*
-		, UInterchangeTextureLightProfileFactoryNode*>;
+		, UInterchangeTextureLightProfileFactoryNode*
+		, UInterchangeVolumeTextureFactoryNode*>;
 
 	FTextureFactoryNodeVariant GetAsTextureFactoryNodeVariant(UInterchangeFactoryBaseNode* AssetNode, UClass* SupportedFactoryNodeClass)
 	{
-		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		if (AssetNode)
 		{
@@ -195,6 +213,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTextureCubeFactoryNode*>(), static_cast<UInterchangeTextureCubeFactoryNode*>(AssetNode));
 			}
 
+			if (SupportedFactoryNodeClass == UInterchangeTextureCubeArrayFactoryNode::StaticClass())
+			{
+				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTextureCubeArrayFactoryNode*>(), static_cast<UInterchangeTextureCubeArrayFactoryNode*>(AssetNode));
+			}
+
 			if (SupportedFactoryNodeClass == UInterchangeTexture2DArrayFactoryNode::StaticClass())
 			{
 				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTexture2DArrayFactoryNode*>(), static_cast<UInterchangeTexture2DArrayFactoryNode*>(AssetNode));
@@ -203,6 +226,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			if (SupportedFactoryNodeClass == UInterchangeTextureLightProfileFactoryNode::StaticClass())
 			{
 				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTextureLightProfileFactoryNode*>(), static_cast<UInterchangeTextureLightProfileFactoryNode*>(AssetNode));
+			}
+
+			if (SupportedFactoryNodeClass == UInterchangeVolumeTextureFactoryNode::StaticClass())
+			{
+				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeVolumeTextureFactoryNode*>(), static_cast<UInterchangeVolumeTextureFactoryNode*>(AssetNode));
 			}
 		}
 
@@ -230,7 +258,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 	UInterchangeTextureFactoryNode* GetTextureFactoryNodeFromVariant(const FTextureFactoryNodeVariant& FactoryNodeVariant)
 	{
-		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		if (UInterchangeTexture2DFactoryNode* const* TextureFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
 		{
@@ -240,6 +268,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		if (UInterchangeTextureCubeFactoryNode* const* TextureCubeFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTextureCubeFactoryNode*>())
 		{
 			return *TextureCubeFactoryNode;
+		}
+
+		if (UInterchangeTextureCubeArrayFactoryNode* const* TextureCubeArrayFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTextureCubeArrayFactoryNode*>())
+		{
+			return *TextureCubeArrayFactoryNode;
 		}
 
 		if (UInterchangeTexture2DArrayFactoryNode* const* Texture2DArrayFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTexture2DArrayFactoryNode*>())
@@ -252,20 +285,27 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			return *TextureLightProfileFactoryNode;
 		}
 
+		if (UInterchangeVolumeTextureFactoryNode* const* VolumeTextureFactoryNode = FactoryNodeVariant.TryGet<UInterchangeVolumeTextureFactoryNode*>())
+		{
+			return *VolumeTextureFactoryNode;
+		}
+
 		return nullptr;
 	}
 
 	using FTextureNodeVariant = TVariant<FEmptyVariantState
 		, const UInterchangeTexture2DNode*
 		, const UInterchangeTextureCubeNode*
+		, const UInterchangeTextureCubeArrayNode*
 		, const UInterchangeTexture2DArrayNode*
-		, const UInterchangeTextureLightProfileNode*>;
+		, const UInterchangeTextureLightProfileNode*
+		, const UInterchangeVolumeTextureNode*>;
 
 	FTextureNodeVariant GetTextureNodeVariantFromFactoryVariant(const FTextureFactoryNodeVariant& FactoryVariant, const UInterchangeBaseNodeContainer* NodeContainer)
 	{
-		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
-		static_assert(TVariantSize<FTextureNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		FString TextureNodeUniqueID;
 
@@ -277,6 +317,10 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			(*TextureCubeFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
 		}
+		else if (UInterchangeTextureCubeArrayFactoryNode* const* TextureCubeArrayFactoryNode = FactoryVariant.TryGet<UInterchangeTextureCubeArrayFactoryNode*>())
+		{
+			(*TextureCubeArrayFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
+		}
 		else if (UInterchangeTexture2DArrayFactoryNode* const* Texture2DArrayFactoryNode = FactoryVariant.TryGet<UInterchangeTexture2DArrayFactoryNode*>())
 		{
 			(*Texture2DArrayFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
@@ -285,12 +329,21 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			(*TextureLightProfileFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
 		}
+		else if (UInterchangeVolumeTextureFactoryNode* const* VolumeTextureFactoryNode = FactoryVariant.TryGet<UInterchangeVolumeTextureFactoryNode*>())
+		{
+			(*VolumeTextureFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
+		}
 
 		if (const UInterchangeBaseNode* TranslatedNode = NodeContainer->GetNode(TextureNodeUniqueID))
 		{
 			if (const UInterchangeTextureCubeNode* TextureCubeTranslatedNode = Cast<UInterchangeTextureCubeNode>(TranslatedNode))
 			{
 				return FTextureNodeVariant(TInPlaceType<const UInterchangeTextureCubeNode*>(), TextureCubeTranslatedNode);
+			}
+
+			if (const UInterchangeTextureCubeArrayNode* TextureCubeArrayTranslatedNode = Cast<UInterchangeTextureCubeArrayNode>(TranslatedNode))
+			{
+				return FTextureNodeVariant(TInPlaceType<const UInterchangeTextureCubeArrayNode*>(), TextureCubeArrayTranslatedNode);
 			}
 
 			if (const UInterchangeTexture2DArrayNode* Texture2DArrayTranslatedNode = Cast<UInterchangeTexture2DArrayNode>(TranslatedNode))
@@ -307,6 +360,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			{
 				return FTextureNodeVariant(TInPlaceType<const UInterchangeTexture2DNode*>(), TextureTranslatedNode);
 			}
+
+			if (const UInterchangeVolumeTextureNode* TextureTranslatedNode = Cast<UInterchangeVolumeTextureNode>(TranslatedNode))
+			{
+				return FTextureNodeVariant(TInPlaceType<const UInterchangeVolumeTextureNode*>(), TextureTranslatedNode);
+			}
 		}
 
 		return {};
@@ -314,7 +372,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 	bool HasPayloadKey(const FTextureNodeVariant& TextureNodeVariant)
 	{
-		static_assert(TVariantSize<FTextureNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		if (const UInterchangeTexture2DNode* const* TextureNode =  TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
 		{
@@ -324,6 +382,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		if (const UInterchangeTextureCubeNode* const* TextureCubeNode = TextureNodeVariant.TryGet<const UInterchangeTextureCubeNode*>())
 		{
 			return (*TextureCubeNode)->GetPayLoadKey().IsSet();
+		}
+
+		if (const UInterchangeTextureCubeArrayNode* const* TextureCubeArrayNode = TextureNodeVariant.TryGet<const UInterchangeTextureCubeArrayNode*>())
+		{
+			return (*TextureCubeArrayNode)->GetPayLoadKey().IsSet();
 		}
 
 		if (const UInterchangeTexture2DArrayNode* const* Texture2DArrayNode = TextureNodeVariant.TryGet<const UInterchangeTexture2DArrayNode*>())
@@ -336,12 +399,17 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			return (*TextureLightProfileNode)->GetPayLoadKey().IsSet();
 		}
 
+		if (const UInterchangeVolumeTextureNode* const* VolumeTextureNode = TextureNodeVariant.TryGet<const UInterchangeVolumeTextureNode*>())
+		{
+			return (*VolumeTextureNode)->GetPayLoadKey().IsSet();
+		}
+
 		return false;
 	}
 
 	TOptional<FString> GetPayloadKey(const FTextureNodeVariant& TextureNodeVariant)
 	{
-		static_assert(TVariantSize<FTextureNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		if (const UInterchangeTexture2DNode* const* TextureNode =  TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
 		{
@@ -353,6 +421,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			return (*TextureCubeNode)->GetPayLoadKey();
 		}
 
+		if (const UInterchangeTextureCubeArrayNode* const* TextureCubeArrayNode = TextureNodeVariant.TryGet<const UInterchangeTextureCubeArrayNode*>())
+		{
+			return (*TextureCubeArrayNode)->GetPayLoadKey();
+		}
+
 		if (const UInterchangeTexture2DArrayNode* const* Texture2DArrayNode = TextureNodeVariant.TryGet<const UInterchangeTexture2DArrayNode*>())
 		{
 			return (*Texture2DArrayNode)->GetPayLoadKey();
@@ -361,6 +434,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		if (const UInterchangeTextureLightProfileNode* const* TextureLightProfileNode = TextureNodeVariant.TryGet<const UInterchangeTextureLightProfileNode*>())
 		{
 			return (*TextureLightProfileNode)->GetPayLoadKey();
+		}
+
+		if (const UInterchangeVolumeTextureNode* const* VolumeTextureNode = TextureNodeVariant.TryGet<const UInterchangeVolumeTextureNode*>())
+		{
+			return (*VolumeTextureNode)->GetPayLoadKey();
 		}
 
 		return {};
@@ -457,11 +535,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const FTextureFactoryNodeVariant& FactoryNodeVariant, const UInterchangeTranslatorBase* Translator)
 	{
-		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
 
-		static_assert(TVariantSize<FTextureNodeVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+		static_assert(TVariantSize<FTextureNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
 		// Standard texture 2D payload
 		if (const UInterchangeTexture2DNode* const* TextureNode =  TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
@@ -503,8 +581,9 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			}
 		}
 
-		// Cube or array texture payload 
-		if (TextureNodeVariant.IsType<const UInterchangeTextureCubeNode*>() || TextureNodeVariant.IsType<const UInterchangeTexture2DArrayNode*>())
+		// Cube, array, cube array or volume texture payload 
+		if (TextureNodeVariant.IsType<const UInterchangeTextureCubeNode*>() || TextureNodeVariant.IsType<const UInterchangeTexture2DArrayNode*>()
+			|| TextureNodeVariant.IsType<const UInterchangeTextureCubeArrayNode*>() || TextureNodeVariant.IsType<const UInterchangeVolumeTextureNode*>())
 		{
 			if (const IInterchangeSlicedTexturePayloadInterface* SlicedTextureTranslator = Cast<IInterchangeSlicedTexturePayloadInterface>(Translator))
 			{
@@ -678,6 +757,72 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
+	bool CanSetupTextureCubeArraySourceData(FTexturePayloadVariant& TexturePayload)
+	{
+		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+
+		if (TOptional<FImportSlicedImage>* SlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			if (SlicedImage->IsSet())
+			{
+				return (*SlicedImage)->IsValid() && (*SlicedImage)->NumSlice > 6;
+			}
+		}
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				return (*Image)->IsValid();
+			}
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (LightProfile->IsSet())
+			{
+				return (*LightProfile)->IsValid();
+			}
+		}
+
+		return false;
+	}
+
+	void SetupTextureCubeArraySourceDataFromPayload(UTextureCubeArray* TextureCubeArray, FProcessedPayload& ProcessedPayload)
+	{
+		if (TOptional<FImportSlicedImage>* OptionalSlicedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			if (OptionalSlicedImage->IsSet())
+			{
+				FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
+
+				if (SlicedImage.NumSlice > 6)
+				{
+					SetupTextureSourceDataFromBulkData_Editor(TextureCubeArray, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
+				}
+			}
+		}
+		else if (TOptional<FImportImage>* OptionalImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (OptionalImage->IsSet())
+			{
+				FImportImage& Image = OptionalImage->GetValue();
+				SetupTextureSourceDataFromBulkData_Editor(TextureCubeArray, Image, MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (OptionalLightProfile->IsSet())
+			{
+				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+				SetupTextureSourceDataFromBulkData_Editor(TextureCubeArray, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else
+		{
+			// The TexturePayload should be validated before calling this function
+			checkNoEntry();
+		}
+	}
+
 	bool CanSetupTexture2DArraySourceData(FTexturePayloadVariant& TexturePayload)
 	{
 		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
@@ -732,6 +877,69 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			{
 				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
 				SetupTextureSourceDataFromBulkData_Editor(Texture2DArray, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else
+		{
+			// The TexturePayload should be validated before calling this function
+			checkNoEntry();
+		}
+	}
+
+	bool CanSetupVolumeTextureSourceData(FTexturePayloadVariant& TexturePayload)
+	{
+		static_assert(TVariantSize<FTexturePayloadVariant>::Value == 5, "Please update the code below and this assert to reflect the change to the variant type.");
+
+		if (TOptional<FImportSlicedImage>* SlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			if (SlicedImage->IsSet())
+			{
+				return (*SlicedImage)->IsValid();
+			}
+		}
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				return (*Image)->IsValid();
+			}
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (LightProfile->IsSet())
+			{
+				return (*LightProfile)->IsValid();
+			}
+		}
+
+		return false;
+	}
+
+	void SetupVolumeTextureSourceDataFromPayload(UVolumeTexture* VolumeTexture, FProcessedPayload& ProcessedPayload)
+	{
+		if (TOptional<FImportSlicedImage>* OptionalSlicedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			if (OptionalSlicedImage->IsSet())
+			{
+				FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
+
+				SetupTextureSourceDataFromBulkData_Editor(VolumeTexture, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else if (TOptional<FImportImage>* OptionalImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (OptionalImage->IsSet())
+			{
+				FImportImage& Image = OptionalImage->GetValue();
+				SetupTextureSourceDataFromBulkData_Editor(VolumeTexture, Image, MoveTemp(ProcessedPayload.PayloadAndId));
+			}
+		}
+		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (OptionalLightProfile->IsSet())
+			{
+				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+				SetupTextureSourceDataFromBulkData_Editor(VolumeTexture, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else
@@ -1121,9 +1329,17 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			SetupTextureCubeSourceDataFromPayload(TextureCube, ProcessedPayload);
 		}
+		else if (UTextureCubeArray* TextureCubeArray = Cast<UTextureCubeArray>(Texture))
+		{
+			SetupTextureCubeArraySourceDataFromPayload(TextureCubeArray, ProcessedPayload);
+		}
 		else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
 		{
 			SetupTexture2DArraySourceDataFromPayload(Texture2DArray, ProcessedPayload);
+		}
+		else if (UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture))
+		{
+			SetupVolumeTextureSourceDataFromPayload(VolumeTexture, ProcessedPayload);
 		}
 #endif // WITH_EDITOR
 		else
@@ -1334,9 +1550,17 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	{
 		bCanSetup = CanSetupTextureCubeSourceData(TexturePayload);
 	}
+	else if (UTextureCubeArray* TextureCubeArray = Cast<UTextureCubeArray>(Texture))
+	{
+		bCanSetup = CanSetupTextureCubeArraySourceData(TexturePayload);
+	}
 	else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
 	{
 		bCanSetup = CanSetupTexture2DArraySourceData(TexturePayload);
+	}
+	else if (UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture))
+	{
+		bCanSetup = CanSetupVolumeTextureSourceData(TexturePayload);
 	}
 #endif // WITH_EDITOR
 

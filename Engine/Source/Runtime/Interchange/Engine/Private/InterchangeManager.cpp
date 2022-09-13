@@ -1320,30 +1320,45 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 
 	check(AsyncHelper.IsValid());
 	
+	constexpr bool bLogWarningsAndErrors = true;
+
 	bool bSucceeded = false;
 	{
 		TSharedPtr<FImportAsyncHelper> AsyncHelperPtr = AsyncHelper.Pin();
 		
-		for (UInterchangeResult* Result : AsyncHelperPtr->AssetImportResult->GetResults()->GetResults())
+		auto ForEachResult = [&bSucceeded, bLogWarningsAndErrors](TArray<UInterchangeResult*>&& Results)
 		{
-			if (Result && Result->GetResultType() == EInterchangeResultType::Success)
+			if (!bSucceeded || bLogWarningsAndErrors)
 			{
-				bSucceeded = true;
-				break;
-			}
-		}
-
-		if (!bSucceeded)
-		{
-			for (UInterchangeResult* Result : AsyncHelperPtr->SceneImportResult->GetResults()->GetResults())
-			{
-				if (Result && Result->GetResultType() == EInterchangeResultType::Success)
+				for (UInterchangeResult* Result : Results)
 				{
-					bSucceeded = true;
-					break;
+					if (!Result)
+					{
+						continue;
+					}
+
+					if (Result->GetResultType() == EInterchangeResultType::Success)
+					{
+						bSucceeded = true;
+					}
+					else if (bLogWarningsAndErrors)
+					{
+						switch (Result->GetResultType())
+						{
+						case EInterchangeResultType::Warning:
+							UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Result->ToJson());
+							break;
+						case EInterchangeResultType::Error:
+							UE_LOG(LogInterchangeEngine, Error, TEXT("%s"), *Result->ToJson());
+							break;
+						}
+					}
 				}
 			}
-		}
+		};
+
+		ForEachResult(AsyncHelperPtr->AssetImportResult->GetResults()->GetResults());
+		ForEachResult(AsyncHelperPtr->SceneImportResult->GetResults()->GetResults());
 	}
 
 	ImportTasks.RemoveSingle(AsyncHelper.Pin());

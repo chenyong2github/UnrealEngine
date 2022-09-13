@@ -290,7 +290,7 @@ namespace UE { namespace DDS
 		// 
 		// On error, returns nullptr. If a non-null OutError is supplied, error information
 		// is written there.
-		IMAGECORE_API static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr);
+		IMAGECORE_API static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr, bool bHeaderOnly = false);
 		
 		// is this buffer a DDS ?
 		IMAGECORE_API static bool IsADDS(const uint8* InDDS, int64 InDDSSize);

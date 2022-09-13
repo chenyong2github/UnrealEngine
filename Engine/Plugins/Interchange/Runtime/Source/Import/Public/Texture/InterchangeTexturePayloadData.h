@@ -39,7 +39,7 @@ namespace UE
 			void Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);
 			void Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData = nullptr);
 
-			int64 GetMipSize(int32 InMipIndex) const;
+			virtual int64 GetMipSize(int32 InMipIndex) const;
 			virtual int64 ComputeBufferSize() const;
 
 			TArrayView64<uint8> GetArrayViewOfRawData();

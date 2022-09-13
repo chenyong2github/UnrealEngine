@@ -7,22 +7,19 @@
 #include "Engine/TextureLightProfile.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangeTexture2DArrayFactoryNode.h"
-#include "InterchangeTexture2DArrayFactoryNode.h"
-#include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTexture2DFactoryNode.h"
 #include "InterchangeTexture2DNode.h"
-#include "InterchangeTexture2DNode.h"
+#include "InterchangeTextureCubeArrayFactoryNode.h"
+#include "InterchangeTextureCubeArrayNode.h"
 #include "InterchangeTextureCubeFactoryNode.h"
-#include "InterchangeTextureCubeFactoryNode.h"
-#include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureLightProfileFactoryNode.h"
-#include "InterchangeTextureLightProfileFactoryNode.h"
-#include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
+#include "InterchangeVolumeTextureNode.h"
+#include "InterchangeVolumeTextureFactoryNode.h"
 #include "Misc/Paths.h"
 #include "Engine/Texture.h"
 
@@ -46,6 +43,11 @@ namespace UE::Interchange::Private
 			return UInterchangeTextureCubeFactoryNode::StaticClass();
 		}
 
+		if (UInterchangeTextureCubeArrayNode::StaticClass() == NodeClass)
+		{
+			return UInterchangeTextureCubeArrayFactoryNode::StaticClass();
+		}
+
 		if (UInterchangeTexture2DArrayNode::StaticClass() == NodeClass)
 		{
 			return UInterchangeTexture2DArrayFactoryNode::StaticClass();
@@ -54,6 +56,11 @@ namespace UE::Interchange::Private
 		if (UInterchangeTextureLightProfileNode::StaticClass() == NodeClass)
 		{
 			return UInterchangeTextureLightProfileFactoryNode::StaticClass();
+		}
+
+		if (UInterchangeVolumeTextureNode::StaticClass() == NodeClass)
+		{
+			return UInterchangeVolumeTextureFactoryNode::StaticClass();
 		}
 
 		return nullptr;

@@ -716,7 +716,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 }
 
 
-/* static */ FDDSFile* FDDSFile::CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError *OutError)
+/* static */ FDDSFile* FDDSFile::CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError *OutError, bool bHeaderOnly)
 {
 	// If no OutError passed in, redirect it to dummy storage on stack.
 	EDDSError DummyError;
@@ -771,7 +771,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 	FDDSFile* DDS = new FDDSFile();
 
 	*OutError = ParseHeader(DDS, &DDSHeader, &DDS10Header);
-	if (*OutError == EDDSError::OK)
+	if (*OutError == EDDSError::OK && !bHeaderOnly)
 	{
 		*OutError = ReadPayload(DDS, ReadCursor, ReadEnd);
 	}
