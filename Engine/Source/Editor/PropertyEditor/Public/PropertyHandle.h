@@ -7,7 +7,6 @@
 #include "Widgets/SWidget.h"
 #include "PropertyEditorModule.h"
 #include "UObject/PropertyPortFlags.h"
-#include "Templates/Function.h"
 
 struct FAssetData;
 class IPropertyHandleArray;
@@ -743,7 +742,7 @@ public:
 	virtual FPropertyAccess::Result GetNumElements( uint32& OutNumItems ) const = 0;
 
 	/**
-	 * @return a handle to the element at the specified index                                                              
+	 * @return a handle to the element at the specified index
 	 */
 	virtual TSharedRef<IPropertyHandle> GetElement( int32 Index ) const = 0;
 
@@ -755,7 +754,7 @@ public:
 
 
 	/**
-	 * Sets a delegate to call when the number of elements changes                                                  
+	 * Sets a delegate to call when the number of elements changes
 	 */
 	virtual void SetOnNumElementsChanged( FSimpleDelegate& InOnNumElementsChanged ) = 0;
 };
@@ -797,9 +796,9 @@ public:
 	virtual FPropertyAccess::Result GetNumElements(uint32& OutNumElements) = 0;
 
 	/**
-	 * Iterates over all set elements using the provided function
+	 * @return a handle to the element at the specified index
 	 */
-	virtual void IterateElements(TFunctionRef<void(TSharedRef<IPropertyHandle>)> Func) = 0;
+	virtual TSharedRef<IPropertyHandle> GetElement(int32 Index) const = 0;
 
 
 	/**

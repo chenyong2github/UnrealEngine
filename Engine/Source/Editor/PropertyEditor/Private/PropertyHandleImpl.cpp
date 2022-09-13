@@ -30,7 +30,6 @@
 #include "PropertyPathHelpers.h"
 #include "PropertyTextUtilities.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "Templates/Function.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
@@ -4862,17 +4861,10 @@ FPropertyAccess::Result FPropertyHandleSet::GetNumElements(uint32& OutNumChildre
 	return FPropertyAccess::Success;
 }
 
-void FPropertyHandleSet::IterateElements(TFunctionRef<void(TSharedRef<IPropertyHandle>)> Func)
+TSharedRef<IPropertyHandle> FPropertyHandleSet::GetElement(int32 Index) const
 {
-	uint32 NumChildren = 0;
-	GetNumChildren(NumChildren);
-
-	for (uint32 Index = 0; Index < NumChildren; ++Index)
-	{
-		TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetChildNode(Index);
-		TSharedRef<IPropertyHandle> ChildHandle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), Implementation->GetNotifyHook(), Implementation->GetPropertyUtilities()).ToSharedRef();
-		Func(ChildHandle);
-	}
+	TSharedPtr<FPropertyNode> PropertyNode = Implementation->GetChildNode(Index);
+	return PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), Implementation->GetNotifyHook(), Implementation->GetPropertyUtilities()).ToSharedRef();
 }
 
 void FPropertyHandleSet::SetOnNumElementsChanged(FSimpleDelegate& OnChildrenChanged)

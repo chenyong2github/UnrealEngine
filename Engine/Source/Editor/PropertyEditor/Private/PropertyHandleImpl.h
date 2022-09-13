@@ -706,7 +706,7 @@ public:
 	virtual FPropertyAccess::Result Empty() override;
 	virtual FPropertyAccess::Result DeleteItem(int32 Index) override;
 	virtual FPropertyAccess::Result GetNumElements(uint32& OutNumElements) override;
-	virtual void IterateElements(TFunctionRef<void(TSharedRef<IPropertyHandle>)> Func) override;
+	virtual TSharedRef<IPropertyHandle> GetElement(int32 Index) const override;
 
 	virtual void SetOnNumElementsChanged(FSimpleDelegate& InOnNumElementsChanged) override;
 	virtual bool HasDocumentation() override { return true; }

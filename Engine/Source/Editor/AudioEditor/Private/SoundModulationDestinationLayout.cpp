@@ -381,13 +381,17 @@ namespace ModDestinationLayoutUtils
 						.Font(IDetailLayoutBuilder::GetDetailFontBold())
 						.Text(TAttribute<FText>::Create([ModSet = ModulatorsHandle->AsSet(), StructPropertyHandle]()
 						{
+							uint32 NumElements = 0;
+							ModSet->GetNumElements(NumElements);
+
 							FText MismatchedText = FText::GetEmpty();
-							ModSet->IterateElements([&MismatchedText, &StructPropertyHandle](TSharedRef<IPropertyHandle> ModulatorHandle)
+							for (int32 i = 0; i < (int32)NumElements; ++i)
 							{
+								TSharedRef<IPropertyHandle> SetMemberHandle = ModSet->GetElement(i);
 								FName ModParamName;
 								FName DestName;
 								FName ModName;
-								if (ModDestinationLayoutUtils::IsParamMismatched(ModulatorHandle, StructPropertyHandle, &ModParamName, &DestName, &ModName))
+								if (ModDestinationLayoutUtils::IsParamMismatched(SetMemberHandle, StructPropertyHandle, &ModParamName, &DestName, &ModName))
 								{
 									MismatchedText = FText::Format(
 										LOCTEXT("ModulationDestinationLayout_UnitMismatchesFormat", "{0}{1} ({2})\n"),
@@ -396,7 +400,7 @@ namespace ModDestinationLayoutUtils
 										FText::FromName(ModParamName)
 									);
 								}
-							});
+							}
 
 							return MismatchedText;
 						}))
@@ -410,14 +414,19 @@ namespace ModDestinationLayoutUtils
 					return Visibility;
 				}
 
+				uint32 NumElements = 0;
+				ModSet->GetNumElements(NumElements);
+
 				bool bIsMismatched = false;
-				ModSet->IterateElements([&bIsMismatched, &StructPropertyHandle](TSharedPtr<IPropertyHandle> ModulatorHandle)
+				for (int32 i = 0; i < (int32)NumElements; ++i)
 				{
-					if (ModDestinationLayoutUtils::IsParamMismatched(ModulatorHandle->AsShared(), StructPropertyHandle))
+					TSharedRef<IPropertyHandle> SetMemberHandle = ModSet->GetElement(i);
+					if (ModDestinationLayoutUtils::IsParamMismatched(SetMemberHandle, StructPropertyHandle))
 					{
 						bIsMismatched = true;
 					}
-				});
+				}
+
 				return bIsMismatched ? EVisibility::Visible : EVisibility::Hidden;
 			}));
 	}
