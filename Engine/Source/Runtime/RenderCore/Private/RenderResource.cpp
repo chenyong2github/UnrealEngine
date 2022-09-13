@@ -1178,3 +1178,7 @@ bool IsRayTracingEnabled()
 	return GUseRayTracing;
 }
 
+bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform)
+{
+	return IsRayTracingEnabled() && ShouldCompileRayTracingCallableShadersForProject(ShaderPlatform);
+}

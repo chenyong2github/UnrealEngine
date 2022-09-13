@@ -684,6 +684,9 @@ FORCEINLINE bool ShouldCompileRayTracingCallableShadersForProject(EShaderPlatfor
 // Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options.
 // This function may only be called at runtime, never during cooking.
 extern RENDERCORE_API bool IsRayTracingEnabled();
+// Returns 'true' when running on RT-capable machine, RT support is enabled for the project and by game graphics options, ShaderPlatform supports RT and ShaderPlatform has RT enabled for the project
+// This function may only be called at runtime, never during cooking.
+RENDERCORE_API bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform);
 
 enum class ERTAccelerationStructureBuildPriority
 {
