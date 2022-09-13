@@ -119,6 +119,9 @@ namespace Metasound
 			virtual void DrawSpline(const FDrawConnectionData& InData);
 			virtual void DrawConnectionSpline(int32 InLayerId, const FDrawConnectionData& InData);
 
+			// Copied from FConnectionDrawingPolicy::ApplyHoverDeemphasis, with modification to only apply thickness emphasis when not playing
+			void ApplyHoverDeemphasisMetaSound(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, const bool bIsPlaying, /*inout*/ float& Thickness, /*inout*/ FLinearColor& WireColor);
+
 			const TSharedPtr<const FEditor> GetEditor() const;
 			TSharedPtr<FEditor> GetEditor();
 

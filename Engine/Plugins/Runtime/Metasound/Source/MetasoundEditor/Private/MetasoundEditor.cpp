@@ -1832,15 +1832,6 @@ namespace Metasound
 			return MetasoundGraphEditor->GetSelectedNodes().Num() == 1;
 		}
 
-		void FEditor::DeleteInput()
-		{
-		}
-
-		bool FEditor::CanDeleteInput() const
-		{
-			return true;
-		}
-
 		void FEditor::OnCreateComment()
 		{
 			if (MetasoundGraphEditor.IsValid())
@@ -1874,10 +1865,6 @@ namespace Metasound
 				GraphEditorCommands->MapAction(FEditorCommands::Get().AddInput,
 					FExecuteAction::CreateSP(this, &FEditor::AddInput),
 					FCanExecuteAction::CreateSP(this, &FEditor::CanAddInput));
-
-				GraphEditorCommands->MapAction(FEditorCommands::Get().DeleteInput,
-					FExecuteAction::CreateSP(this, &FEditor::DeleteInput),
-					FCanExecuteAction::CreateSP(this, &FEditor::CanDeleteInput));
 
 				// Editing Commands
 				GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,

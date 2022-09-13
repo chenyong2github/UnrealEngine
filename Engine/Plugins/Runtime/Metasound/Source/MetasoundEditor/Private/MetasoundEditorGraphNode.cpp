@@ -13,6 +13,7 @@
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorGraphValidation.h"
 #include "MetasoundEditorModule.h"
@@ -532,16 +533,7 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 {
 	using namespace Metasound::Editor;
 
-	if (Context->Pin)
-	{
-		// If on an input that can be deleted, show option
-		if (Context->Pin->Direction == EGPD_Input)
-		{
-			FToolMenuSection& Section = Menu->AddSection("MetasoundEditorGraphDeleteInput");
-			Section.AddMenuEntry(FEditorCommands::Get().DeleteInput);
-		}
-	}
-	else if (Context->Node)
+	if (Context->Node)
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("MetasoundEditorGraphNodeAlignment");
@@ -586,6 +578,22 @@ FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const
 	return FString::Printf(TEXT("%s%s"), UMetaSoundPatch::StaticClass()->GetPrefixCPP(), *UMetaSoundPatch::StaticClass()->GetName());
 }
 
+bool UMetasoundEditorGraphMemberNode::ClampFloatLiteral(const UMetasoundEditorGraphMemberDefaultFloat* DefaultFloatLiteral, FMetasoundFrontendLiteral& LiteralValue)
+{
+	bool bClampedFloatLiteral = false;
+	if (DefaultFloatLiteral->ClampDefault)
+	{
+		float LiteralFloatValue = 0.0f;
+		float ClampedFloatValue = 0.0f;
+
+		LiteralValue.TryGet(LiteralFloatValue);
+		ClampedFloatValue = FMath::Clamp(LiteralFloatValue, DefaultFloatLiteral->Range.X, DefaultFloatLiteral->Range.Y);
+		bClampedFloatLiteral = !FMath::IsNearlyEqual(ClampedFloatValue, LiteralFloatValue);
+		LiteralValue.Set(ClampedFloatValue);
+	}
+	return bClampedFloatLiteral;
+}
+
 void UMetasoundEditorGraphOutputNode::PinDefaultValueChanged(UEdGraphPin* InPin)
 {
 	using namespace Metasound::Editor;
@@ -593,27 +601,43 @@ void UMetasoundEditorGraphOutputNode::PinDefaultValueChanged(UEdGraphPin* InPin)
 
 	if (InPin && InPin->Direction == EGPD_Input)
 	{
-		GetMetasoundChecked().Modify();
-
+		UObject& MetaSound = GetMetasoundChecked();
+		MetaSound.Modify();
+		
 		FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(InPin);
 		if (InputHandle->IsValid())
 		{
 			FMetasoundFrontendLiteral LiteralValue;
 			if (FGraphBuilder::GetPinLiteral(*InPin, LiteralValue))
 			{
-				InputHandle->SetLiteral(LiteralValue);
-			}
-
-			if (Output)
-			{
-				UMetasoundEditorGraphMemberDefaultLiteral* Literal = Output->GetLiteral();
-				if (ensure(Literal))
+				if (Output)
 				{
-					Literal->SetFromLiteral(LiteralValue);
-				}
+					UMetasoundEditorGraphMemberDefaultLiteral* Literal = Output->GetLiteral();
+					if (ensure(Literal))
+					{
+						// Clamp float literal if necessary 
+						bool bClampedFloatLiteral = false;
+						if (const UMetasoundEditorGraphMemberDefaultFloat* DefaultFloatLiteral = Cast<UMetasoundEditorGraphMemberDefaultFloat>(Literal))
+						{
+							bClampedFloatLiteral = ClampFloatLiteral(DefaultFloatLiteral, LiteralValue);
+						}
 
-				constexpr bool bPostTransaction = false;
-				Output->UpdateFrontendDefaultLiteral(bPostTransaction);
+						Literal->SetFromLiteral(LiteralValue);
+
+						constexpr bool bPostTransaction = false;
+						Output->UpdateFrontendDefaultLiteral(bPostTransaction);
+
+						// Update graph node if it was clamped
+						if (bClampedFloatLiteral)
+						{
+							FGraphBuilder::RegisterGraphWithFrontend(MetaSound);
+							if (FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&MetaSound))
+							{
+								MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1141,7 +1165,8 @@ void UMetasoundEditorGraphVariableNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 
 	if (Pin && Pin->Direction == EGPD_Input)
 	{
-		GetMetasoundChecked().Modify();
+		UObject& MetaSound = GetMetasoundChecked();
+		MetaSound.Modify();
 
 		FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
 		if (InputHandle->IsValid())
@@ -1149,23 +1174,37 @@ void UMetasoundEditorGraphVariableNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 			FMetasoundFrontendLiteral LiteralValue;
 			if (FGraphBuilder::GetPinLiteral(*Pin, LiteralValue))
 			{
-				InputHandle->SetLiteral(LiteralValue);
-			}
-
-			// If this is the mutator node, synchronize the variable default literal with this default.
-			FNodeHandle MutatorNode = Variable->GetVariableHandle()->FindMutatorNode();
-			if (MutatorNode->IsValid())
-			{
-				if (MutatorNode->GetID() == NodeID)
+				// If this is the mutator node, synchronize the variable default literal with this default.
+				FNodeHandle MutatorNode = Variable->GetVariableHandle()->FindMutatorNode();
+				if (MutatorNode->IsValid())
 				{
-					UMetasoundEditorGraphMemberDefaultLiteral* Literal = Variable->GetLiteral();
-					if (ensure(Literal))
+					if (MutatorNode->GetID() == NodeID)
 					{
-						Literal->SetFromLiteral(LiteralValue);
-					}
+						UMetasoundEditorGraphMemberDefaultLiteral* Literal = Variable->GetLiteral();
+						if (ensure(Literal))
+						{
+							// Clamp float literal if necessary 
+							bool bClampedFloatLiteral = false;
+							if (const UMetasoundEditorGraphMemberDefaultFloat* DefaultFloatLiteral = Cast<UMetasoundEditorGraphMemberDefaultFloat>(Literal))
+							{
+								bClampedFloatLiteral = ClampFloatLiteral(DefaultFloatLiteral, LiteralValue);
+							}
+							Literal->SetFromLiteral(LiteralValue);
 
-					constexpr bool bPostTransaction = false;
-					Variable->UpdateFrontendDefaultLiteral(bPostTransaction);
+							constexpr bool bPostTransaction = false;
+							Variable->UpdateFrontendDefaultLiteral(bPostTransaction);
+
+							if (bClampedFloatLiteral)
+							{
+								// Update graph node if it was clamped
+								FGraphBuilder::RegisterGraphWithFrontend(MetaSound);
+								if (FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&MetaSound))
+								{
+									MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+								}
+							}
+						}
+					}
 				}
 			}
 		}

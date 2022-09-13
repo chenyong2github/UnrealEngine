@@ -411,6 +411,41 @@ namespace Metasound
 			{
 				OutParams.WireThickness = Settings->TraceReleaseWireThickness;
 			}
+
+			const bool bDeemphasizeUnhoveredPins = HoveredPins.Num() > 0;
+			if (bDeemphasizeUnhoveredPins)
+			{
+				const bool bIsPlaying = GetEditor()->IsPlaying();
+				ApplyHoverDeemphasisMetaSound(OutputPin, InputPin, bIsPlaying, /*inout*/ OutParams.WireThickness, /*inout*/ OutParams.WireColor);
+			}
+		}
+
+		void FGraphConnectionDrawingPolicy::ApplyHoverDeemphasisMetaSound(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, const bool bIsPlaying, /*inout*/ float& Thickness, /*inout*/ FLinearColor& WireColor)
+		{
+			//@TODO: Move these parameters into the settings object
+			const float FadeInBias = 0.75f; // Time in seconds before the fading starts to occur
+			const float FadeInPeriod = 0.6f; // Time in seconds after the bias before the fade is fully complete
+			const float TimeFraction = FMath::SmoothStep(0.0f, FadeInPeriod, (float)(FSlateApplication::Get().GetCurrentTime() - LastHoverTimeEvent - FadeInBias));
+
+			const float LightFraction = 0.25f;
+			const FLinearColor DarkenedColor(0.0f, 0.0f, 0.0f, 0.5f);
+			const FLinearColor LightenedColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+			const bool bContainsBoth = HoveredPins.Contains(InputPin) && HoveredPins.Contains(OutputPin);
+			const bool bContainsOutput = HoveredPins.Contains(OutputPin);
+			const bool bEmphasize = bContainsBoth || (bContainsOutput && (InputPin == nullptr));
+			if (bEmphasize)
+			{
+				if (!bIsPlaying)
+				{
+					Thickness = FMath::Lerp(Thickness, Thickness * ((Thickness < 2.5f) ? 3.5f : 2.5f), TimeFraction);
+				}
+				WireColor = FMath::Lerp<FLinearColor>(WireColor, LightenedColor, LightFraction * TimeFraction);
+			}
+			else
+			{
+				WireColor = FMath::Lerp<FLinearColor>(WireColor, DarkenedColor, HoverDeemphasisDarkFraction * TimeFraction);
+			}
 		}
 
 		void FGraphConnectionDrawingPolicy::DrawConnection(int32 LayerId, const FVector2D& Start, const FVector2D& End, const FConnectionParams& Params)

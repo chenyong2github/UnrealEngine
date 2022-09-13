@@ -21,6 +21,7 @@ class UMetaSoundPatch;
 class UMetasoundEditorGraphOutput;
 class UMetasoundEditorGraphMember;
 class UMetasoundEditorGraphVariable;
+class UMetasoundEditorGraphMemberDefaultFloat;
 
 namespace Metasound
 {
@@ -147,6 +148,10 @@ public:
 	{
 		return true;
 	}
+protected:
+	// Clamp float literal value based on the given default float literal. 
+	// Returns whether the literal was clamped. 
+	static bool ClampFloatLiteral(const UMetasoundEditorGraphMemberDefaultFloat* DefaultFloatLiteral, FMetasoundFrontendLiteral& LiteralValue);
 };
 
 /** Node that represents a graph output */
