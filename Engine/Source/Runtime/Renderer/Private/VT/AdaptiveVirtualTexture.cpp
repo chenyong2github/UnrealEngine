@@ -99,6 +99,20 @@ public:
 		return VirtualTexture->ProducePageData(RHICmdList, FeatureLevel, Flags, ProducerHandle, LayerMask, vLevel, vAddress, RequestHandle, TargetLayers);
 	}
 
+	virtual void GatherProducePageDataTasks(
+		FVirtualTextureProducerHandle const& ProducerHandle,
+		FGraphEventArray& InOutTasks) const override
+	{
+		VirtualTexture->GatherProducePageDataTasks(ProducerHandle, InOutTasks);
+	}
+
+	virtual void GatherProducePageDataTasks(
+		uint64 RequestHandle,
+		FGraphEventArray& InOutTasks) const override
+	{
+		VirtualTexture->GatherProducePageDataTasks(RequestHandle, InOutTasks);
+	}
+
 private:
 	IVirtualTexture* VirtualTexture;
 	FIntPoint AddressOffset;

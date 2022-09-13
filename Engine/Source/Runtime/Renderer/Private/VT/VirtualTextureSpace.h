@@ -103,6 +103,8 @@ public:
 #endif // WITH_EDITOR
 
 private:
+	FUintPoint GetRequiredPageTableAllocationSize() const;
+
 	static const uint32 TextureCapacity = (VIRTUALTEXTURE_SPACE_MAXLAYERS + LayersPerPageTableTexture - 1u) / LayersPerPageTableTexture;
 
 	struct FTextureEntry
