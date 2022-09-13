@@ -1211,6 +1211,10 @@ void InterpolateAndIntegrate(
 
 		const uint32 ClassificationScaleFactor = Strata::IsStrataEnabled() ? 2u : 1u;
 		FRDGBufferRef IntegrateIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(ClassificationScaleFactor * (uint32)EScreenProbeIntegrateTileClassification::Num), TEXT("Lumen.ScreenProbeGather.IntegrateIndirectArgs"));
+		if (Strata::IsStrataEnabled())
+		{
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(IntegrateIndirectArgs, PF_R32_UINT), 0u);
+		}
 
 		const FIntPoint ViewportIntegrateTileDimensions(
 			FMath::DivideAndRoundUp(View.ViewRect.Size().X, GScreenProbeIntegrateTileSize), 
