@@ -67,6 +67,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	bool bRemoveCurveOnRevert;
 
+	/** Whether to extract the bone transforms relative to the first frame in the animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bRelativeToFirstFrame;
+
 	/** Whether to extract the bone pose in component space or local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	bool bComponentSpace;
@@ -82,6 +86,10 @@ public:
 	/** Right operand for the math operation selected */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "MathOperation != EMotionExtractor_MathOperation::None"))
 	float Modifier;
+
+	/** Whether we want a normalized value (0 - 1) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bNormalize;
 
 	/** Rate used to sample the animation */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (ClampMin = "1"))
