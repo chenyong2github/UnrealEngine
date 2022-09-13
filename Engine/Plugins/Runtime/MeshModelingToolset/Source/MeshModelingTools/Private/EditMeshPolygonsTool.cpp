@@ -1038,7 +1038,11 @@ void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 		LinearDeformer.ClearSolution(Mesh);
 	}
 
-	Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
+	Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get(),
+		// It's important to use the fast update path for the gizmo manipulations that only
+		// affect positions.
+		UPreviewMesh::ERenderUpdateMode::FastUpdate,
+		EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 
 	GetToolManager()->PostInvalidation();
 }
