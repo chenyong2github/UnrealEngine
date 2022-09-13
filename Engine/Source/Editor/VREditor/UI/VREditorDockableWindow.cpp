@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorDockableWindow.h"
+#include "UI/VREditorDockableWindow.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/Material.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "VREditorUISystem.h"
+#include "UI/VREditorUISystem.h"
 #include "VREditorMode.h"
 #include "VREditorWidgetComponent.h"
 #include "ViewportWorldInteraction.h"

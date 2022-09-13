@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "VREditorDockableWindow.h"
+#include "UI/VREditorDockableWindow.h"
 #include "VREditorDockableCameraWindow.generated.h"
 
 /**

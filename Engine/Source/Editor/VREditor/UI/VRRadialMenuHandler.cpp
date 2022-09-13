@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VRRadialMenuHandler.h"
+#include "UI/VRRadialMenuHandler.h"
 
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -28,11 +28,11 @@
 #include "UnrealEdGlobals.h"
 
 #include "VREditorMode.h"
-#include "VREditorUISystem.h"
+#include "UI/VREditorUISystem.h"
 #include "VREditorBaseActor.h"
-#include "VREditorBaseUserWidget.h"
-#include "VREditorFloatingUI.h"
-#include "VREditorDockableWindow.h"
+#include "UI/VREditorBaseUserWidget.h"
+#include "UI/VREditorFloatingUI.h"
+#include "UI/VREditorDockableWindow.h"
 #include "ViewportInteractionTypes.h"
 #include "IHeadMountedDisplay.h"
 #include "ViewportWorldInteraction.h"
@@ -53,9 +53,9 @@
 #include "ContentBrowserModule.h"
 
 // World Outliner
-#include "Editor/SceneOutliner/Public/ISceneOutliner.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerPublicTypes.h"
-#include "Editor/SceneOutliner/Public/SceneOutlinerModule.h"
+#include "ISceneOutliner.h"
+#include "SceneOutlinerPublicTypes.h"
+#include "SceneOutlinerModule.h"
 
 // Actor Details, Modes
 #include "SEditorViewport.h"
@@ -80,7 +80,7 @@
 #include "VREditorActions.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "ISequencer.h"
-#include "Editor/LevelEditor/Private/SLevelEditor.h"
+#include "SLevelEditor.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "UMGStyle.h"
 

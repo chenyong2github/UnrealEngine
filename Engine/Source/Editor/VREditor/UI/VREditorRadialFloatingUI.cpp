@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorRadialFloatingUI.h"
-#include "VREditorUISystem.h"
-#include "VREditorBaseUserWidget.h"
+#include "UI/VREditorRadialFloatingUI.h"
+#include "UI/VREditorUISystem.h"
+#include "UI/VREditorBaseUserWidget.h"
 #include "VREditorMode.h"
 #include "Components/WidgetComponent.h"
 #include "VREditorWidgetComponent.h"

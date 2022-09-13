@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorAutoScaler.h"
+#include "Teleporter/VREditorAutoScaler.h"
 #include "VREditorMode.h"
 #include "ViewportInteractionTypes.h"
 #include "ViewportWorldInteraction.h"

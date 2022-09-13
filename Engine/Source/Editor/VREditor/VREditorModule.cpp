@@ -11,7 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "HeadMountedDisplayTypes.h"
-#include "VREditorFloatingUI.h"
+#include "UI/VREditorFloatingUI.h"
 
 
 DEFINE_LOG_CATEGORY(LogVREditor);

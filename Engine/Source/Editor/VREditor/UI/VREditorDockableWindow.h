@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "VREditorFloatingUI.h"
+#include "UI/VREditorFloatingUI.h"
 #include "ViewportDragOperation.h"
 #include "ViewportInteractableInterface.h"
 #include "VREditorDockableWindow.generated.h"

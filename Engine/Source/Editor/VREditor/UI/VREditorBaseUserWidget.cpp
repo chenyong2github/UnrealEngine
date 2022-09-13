@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorBaseUserWidget.h"
-#include "VREditorFloatingUI.h"
+#include "UI/VREditorBaseUserWidget.h"
+#include "UI/VREditorFloatingUI.h"
 
 UVREditorBaseUserWidget::UVREditorBaseUserWidget( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer ),

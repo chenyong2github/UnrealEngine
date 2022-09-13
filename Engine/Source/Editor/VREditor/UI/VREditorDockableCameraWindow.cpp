@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorDockableCameraWindow.h"
+#include "UI/VREditorDockableCameraWindow.h"
 #include "VREditorCameraWidgetComponent.h"
 
 AVREditorDockableCameraWindow::AVREditorDockableCameraWindow(const FObjectInitializer& ObjectInitializer) :

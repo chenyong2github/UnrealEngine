@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorTeleporter.h"
+#include "Teleporter/VREditorTeleporter.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/EngineTypes.h"
@@ -12,7 +12,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ViewportInteractionTypes.h"
 #include "ViewportWorldInteraction.h"
-#include "VREditorTeleporter.h"
+#include "Teleporter/VREditorTeleporter.h"
 #include "VREditorMode.h"
 #include "VREditorAssetContainer.h"
 #include "VREditorInteractor.h"

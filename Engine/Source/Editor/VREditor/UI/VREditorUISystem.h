@@ -7,7 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Widgets/SOverlay.h"
-#include "VRRadialMenuHandler.h"
+#include "UI/VRRadialMenuHandler.h"
 #include "EditorWorldExtension.h"
 #include "VREditorUISystem.generated.h"
 

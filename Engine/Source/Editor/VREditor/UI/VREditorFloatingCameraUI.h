@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWidget.h"
-#include "VREditorFloatingUI.h"
+#include "UI/VREditorFloatingUI.h"
 #include "VREditorFloatingCameraUI.generated.h"
 
 class UVREditorBaseUserWidget;

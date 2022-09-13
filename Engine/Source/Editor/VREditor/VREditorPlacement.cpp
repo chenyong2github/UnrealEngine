@@ -17,8 +17,8 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Sound/SoundCue.h"
 #include "Editor.h"
-#include "VREditorUISystem.h"
-#include "VREditorFloatingUI.h"
+#include "UI/VREditorUISystem.h"
+#include "UI/VREditorFloatingUI.h"
 #include "VREditorInteractor.h"
 
 // For actor placement

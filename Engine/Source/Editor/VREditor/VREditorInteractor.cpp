@@ -20,13 +20,13 @@
 #include "VREditorActions.h"
 #include "VREditorAssetContainer.h"
 #include "VREditorMode.h"
-#include "VREditorDockableWindow.h"
+#include "UI/VREditorDockableWindow.h"
 #include "VREditorFloatingText.h"
-#include "VREditorFloatingUI.h"
 #include "VREditorModule.h"
+#include "UI/VREditorFloatingUI.h"
 #include "VREditorPlacement.h"
-#include "VREditorRadialFloatingUI.h"
-#include "VREditorUISystem.h"
+#include "UI/VREditorRadialFloatingUI.h"
+#include "UI/VREditorUISystem.h"
 #include "VRModeSettings.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::Left/RightHandSourceId and GetHandEnumForSourceName()
 

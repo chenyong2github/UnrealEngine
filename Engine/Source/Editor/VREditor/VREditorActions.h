@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "VREditorUISystem.h"
+#include "UI/VREditorUISystem.h"
 #include "Styling/SlateTypes.h"
 #include "InputCoreTypes.h"
 #include "Editor.h"

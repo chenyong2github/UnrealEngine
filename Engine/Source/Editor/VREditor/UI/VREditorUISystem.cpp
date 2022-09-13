@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VREditorUISystem.h"
+#include "UI/VREditorUISystem.h"
 #include "Misc/CommandLine.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericApplication.h"
@@ -33,11 +33,11 @@
 
 #include "VREditorMode.h"
 #include "VREditorBaseActor.h"
-#include "VREditorBaseUserWidget.h"
-#include "VREditorFloatingUI.h"
-#include "VREditorRadialFloatingUI.h"
-#include "VREditorDockableWindow.h"
-#include "VREditorDockableCameraWindow.h"
+#include "UI/VREditorBaseUserWidget.h"
+#include "UI/VREditorFloatingUI.h"
+#include "UI/VREditorRadialFloatingUI.h"
+#include "UI/VREditorDockableWindow.h"
+#include "UI/VREditorDockableCameraWindow.h"
 #include "ViewportInteractionTypes.h"
 #include "IHeadMountedDisplay.h"
 #include "ViewportWorldInteraction.h"
@@ -89,7 +89,7 @@
 #include "VRModeSettings.h"
 #include "SequencerSettings.h"
 #include "Engine/Selection.h"
-#include "VREditorFloatingCameraUI.h"
+#include "UI/VREditorFloatingCameraUI.h"
 #include "ScopedTransaction.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "EditorModes.h"
