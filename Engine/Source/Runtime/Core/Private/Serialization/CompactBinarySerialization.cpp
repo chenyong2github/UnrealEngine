@@ -184,39 +184,39 @@ FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	ECbFieldType FieldType;
 	uint64 FieldSize = 1;
 
-	// Read in small increments until the total field size is known, to avoid reading too far.
-	for (;;)
+	for (const int64 StartPos = Ar.Tell(); !Ar.IsError() && FieldSize > 0;)
 	{
+		// Read in small increments until the total field size is known, to avoid reading too far.
 		const int32 ReadSize = int32(FieldSize - HeaderBytes.Num());
 		const int32 ReadOffset = HeaderBytes.AddUninitialized(ReadSize);
 		Ar.Serialize(HeaderBytes.GetData() + ReadOffset, ReadSize);
-		if (TryMeasureCompactBinary(MakeMemoryView(HeaderBytes), FieldType, FieldSize))
+
+		if (!Ar.IsError() && TryMeasureCompactBinary(MakeMemoryView(HeaderBytes), FieldType, FieldSize))
 		{
+			if (FieldSize <= uint64(Ar.TotalSize() - StartPos))
+			{
+				FUniqueBuffer Buffer = Allocator(FieldSize);
+				checkf(Buffer.GetSize() == FieldSize, TEXT("Allocator returned a buffer of size %" UINT64_FMT " bytes "
+					"when %" UINT64_FMT " bytes were requested."), Buffer.GetSize(), FieldSize);
+
+				FMutableMemoryView View = Buffer.GetView().CopyFrom(MakeMemoryView(HeaderBytes));
+				if (!View.IsEmpty())
+				{
+					// Read the remainder of the field.
+					Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));
+				}
+
+				if (!Ar.IsError() && ValidateCompactBinary(Buffer, ECbValidateMode::Default) == ECbValidateError::None)
+				{
+					return FCbField(Buffer.MoveToShared());
+				}
+			}
 			break;
-		}
-		if (FieldSize == 0)
-		{
-			Ar.SetError();
-			return FCbField();
 		}
 	}
 
-	// Allocate the buffer, copy the header, and read the remainder of the field.
-	FUniqueBuffer Buffer = Allocator(FieldSize);
-	checkf(Buffer.GetSize() == FieldSize,
-		TEXT("Allocator returned a buffer of size %" UINT64_FMT " bytes when %" UINT64_FMT " bytes were requested."),
-		Buffer.GetSize(), FieldSize);
-	FMutableMemoryView View = Buffer.GetView().CopyFrom(MakeMemoryView(HeaderBytes));
-	if (!View.IsEmpty())
-	{
-		Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));
-	}
-	if (ValidateCompactBinary(Buffer, ECbValidateMode::Default) != ECbValidateError::None)
-	{
-		Ar.SetError();
-		return FCbField();
-	}
-	return FCbField(Buffer.MoveToShared());
+	Ar.SetError();
+	return FCbField();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
