@@ -415,3 +415,55 @@ FQuat FControlRigMathLibrary::FindQuatBetweenNormals(const FVector& A, const FVe
 	Result.Normalize();
 	return Result;
 }
+
+FVector FControlRigMathLibrary::GetEquivalentEulerAngle(const FVector& InEulerAngle, const EEulerRotationOrder& InOrder)
+{
+	FVector TheOtherAngle;
+
+	switch (InOrder)
+	{
+	case EEulerRotationOrder::XYZ:
+		TheOtherAngle.X = InEulerAngle.X + 180;
+		TheOtherAngle.Y = 180 - InEulerAngle.Y;
+		TheOtherAngle.Z = InEulerAngle.Z + 180;
+		break;
+	case EEulerRotationOrder::XZY:
+		TheOtherAngle.X = InEulerAngle.X + 180;
+		TheOtherAngle.Z = 180 - InEulerAngle.Z;
+		TheOtherAngle.Y = InEulerAngle.Y + 180;
+		break;
+	case EEulerRotationOrder::YXZ:
+		TheOtherAngle.Y = InEulerAngle.Y + 180;
+		TheOtherAngle.X = 180 - InEulerAngle.X;
+		TheOtherAngle.Z = InEulerAngle.Z + 180;
+		break;
+	case EEulerRotationOrder::YZX:
+		TheOtherAngle.Y = InEulerAngle.Y + 180;
+		TheOtherAngle.Z = 180 - InEulerAngle.Z;
+		TheOtherAngle.X = InEulerAngle.X + 180;
+		break;
+	case EEulerRotationOrder::ZXY:
+		TheOtherAngle.Z = InEulerAngle.Z + 180;
+		TheOtherAngle.X = 180 - InEulerAngle.X;
+		TheOtherAngle.Y = InEulerAngle.Y + 180;
+		break;
+	case EEulerRotationOrder::ZYX:
+		TheOtherAngle.Z = InEulerAngle.Z + 180;
+		TheOtherAngle.Y = 180 - InEulerAngle.Y;
+		TheOtherAngle.X = InEulerAngle.X + 180;
+		break;
+	};
+
+	TheOtherAngle.UnwindEuler();
+	
+	return TheOtherAngle;
+}
+
+FVector& FControlRigMathLibrary::ChooseBetterEulerAngleForAxisFilter(const FVector& Base, FVector& A, FVector& B)
+{
+	// simply compare the sum of difference should be enough
+	float Diff1 = (A - Base).GetAbs().Dot(FVector::OneVector);
+	float Diff2 = (B - Base).GetAbs().Dot(FVector::OneVector);
+
+	return Diff1 < Diff2 ? A : B;
+}

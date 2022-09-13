@@ -77,4 +77,10 @@ public:
 	static FVector ClampSpatially(const FVector& Value, EAxis::Type Axis, EControlRigClampSpatialMode::Type Type, float Minimum, float Maximum, FTransform Space);
 	static FQuat FindQuatBetweenVectors(const FVector& A, const FVector& B);
 	static FQuat FindQuatBetweenNormals(const FVector& A, const FVector& B);
+
+	// See - "Computing Euler angles from a rotation matrix" by Gregory G. Slabaugh
+	// Each spatial orientation can be mapped to two equivalent euler angles within range (-180, 180)
+	static FVector GetEquivalentEulerAngle(const FVector& InEulerAngle, const EEulerRotationOrder& InOrder);
+	
+	static FVector& ChooseBetterEulerAngleForAxisFilter(const FVector& Base, FVector& A, FVector& B);
 };

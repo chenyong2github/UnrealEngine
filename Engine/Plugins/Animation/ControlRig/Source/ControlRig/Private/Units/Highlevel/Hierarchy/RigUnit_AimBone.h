@@ -3,6 +3,9 @@
 #pragma once
 
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
+
+#include "Units/Highlevel/Hierarchy/RigUnit_TransformConstraint.h"
+
 #include "RigUnit_AimBone.generated.h"
 
 USTRUCT()
@@ -356,4 +359,141 @@ struct CONTROLRIG_API FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY()
 	FCachedRigElement SecondaryCachedSpace;
+};
+
+
+USTRUCT()
+struct CONTROLRIG_API FRigUnit_AimConstraint_WorldUp
+{
+	GENERATED_BODY()
+
+	FRigUnit_AimConstraint_WorldUp()
+	{
+		Target = FVector(0.f, 0.f, 1.f);
+		Kind = EControlRigVectorKind::Direction;
+		Space = FRigElementKey(NAME_None, ERigElementType::None);
+	}
+
+	/**
+	 * The target to aim at - can be a direction or location based on the Kind setting
+	 */
+	UPROPERTY(meta = (Input))
+	FVector Target;
+
+	/**
+	 * The kind of target this is representing - can be a direction or a location
+	 */
+	UPROPERTY(meta = (DisplayName="Target is ", Input))
+	EControlRigVectorKind Kind;
+
+	/**
+	 * The space in which the target is expressed, use None to indicate world space
+	 */
+	UPROPERTY(meta = (DisplayName = "Target Space", Input))
+	FRigElementKey Space;
+};
+
+
+USTRUCT()
+struct FRigUnit_AimConstraint_AdvancedSettings
+{
+	GENERATED_BODY()
+
+	FRigUnit_AimConstraint_AdvancedSettings()
+		:RotationOrderForFilter(EEulerRotationOrder::XZY)
+	{}
+	
+	/**
+	*	Settings related to debug drawings
+	*/
+	UPROPERTY(meta = (Input,DetailsOnly))
+	FRigUnit_AimBone_DebugSettings DebugSettings;
+	
+	/**
+	*	Rotation is converted to euler angles using the specified order such that individual axes can be filtered.
+	*/
+	UPROPERTY(meta = (Input))
+	EEulerRotationOrder RotationOrderForFilter;	
+};
+
+/**
+ * Orients an item such that its aim axis points towards a global target.
+ * Note: This node operates in global space!
+ */
+USTRUCT(meta=(DisplayName="Aim Constraint", Category="Hierarchy", Keywords="Lookat"))
+struct CONTROLRIG_API FRigUnit_AimConstraintLocalSpaceOffset: public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_AimConstraintLocalSpaceOffset()
+		: Child(FRigElementKey())
+		, bMaintainOffset(true)
+		, Filter(FFilterOptionPerAxis())
+		, AimAxis(FVector(1.0f,0.0f,0.0f))
+		, UpAxis(FVector(0.0f,0.0f,1.0f))
+		, WorldUp(FRigUnit_AimConstraint_WorldUp())
+		, AdvancedSettings(FRigUnit_AimConstraint_AdvancedSettings())
+		, Weight(1.0f)
+	{
+		Parents.Add(FConstraintParent());
+	};
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The name of the item to apply aim
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+
+	/**
+	 *	Maintains the offset between child and weighted average of parents based on initial transforms
+	 */
+	UPROPERTY(meta = (Input))
+	bool bMaintainOffset;
+
+	/**
+	 * Filters the final rotation by axes based on the euler rotation order defined in the node's advanced settings
+	 * If flipping is observed, try adjusting the rotation order
+	 */
+	UPROPERTY(meta = (Input))
+	FFilterOptionPerAxis Filter;
+
+	/**
+	 * Child is rotated so that its AimAxis points to the parents
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FVector AimAxis;
+
+	/**
+	 * Child is rotated around the AimAxis so that its UpAxis points to/Aligns with the WorldUp target 
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FVector UpAxis;
+
+	/**
+	 * Defines how Child should rotate around the AimAxis. This is the aim target for the UpAxis
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigUnit_AimConstraint_WorldUp WorldUp;
+	
+	UPROPERTY(meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+
+	UPROPERTY(meta = (Input))
+	FRigUnit_AimConstraint_AdvancedSettings AdvancedSettings;
+	
+	UPROPERTY(meta = (Input))
+	float Weight;
+	
+	UPROPERTY()
+	FCachedRigElement WorldUpSpaceCache; 
+
+	UPROPERTY()
+	FCachedRigElement ChildCache;
+
+	UPROPERTY()
+	TArray<FCachedRigElement> ParentCaches;
+	
 };
