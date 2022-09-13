@@ -539,6 +539,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
 	ParentMetasound.Modify();
+	MetasoundGraph->Modify();
 
 	FMetasoundFrontendLiteral DefaultValue;
 	FGraphBuilder::GetPinLiteral(*FromPin, DefaultValue);
@@ -566,6 +567,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 					}
 
 					FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+					MetasoundEditor->ClearSelectionAndSelectNode(EdGraphNode);
 					return EdGraphNode;
 				}
 			}
@@ -757,6 +759,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGrap
 	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
 	ParentMetasound.Modify();
+	MetasoundGraph->Modify();
 
 	const FString OutputName = OutputHandle->GetName().ToString();
 	const FVertexName NewNodeName = FGraphBuilder::GenerateUniqueNameByClassType(ParentMetasound, EMetasoundFrontendClassType::Output, OutputName);
@@ -891,13 +894,14 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewFromSelected::PerformAction(UEdGrap
 	return nullptr;
 }
 
-FMetasoundGraphSchemaAction_NewReroute::FMetasoundGraphSchemaAction_NewReroute(const FLinearColor& InIconColor)
+FMetasoundGraphSchemaAction_NewReroute::FMetasoundGraphSchemaAction_NewReroute(const FLinearColor* InIconColor, bool bInShouldTransact /* = true */)
 	: FMetasoundGraphSchemaAction(
 		FText(),
 		LOCTEXT("RerouteName", "Add Reroute Node..."),
 		LOCTEXT("RerouteTooltip", "Reroute Node (reroutes wires)"),
 		Metasound::Editor::EPrimaryContextGroup::Common)
-	, IconColor(InIconColor)
+	, IconColor(InIconColor ? *InIconColor : FLinearColor::White)
+	, bShouldTransact(bInShouldTransact)
 {
 }
 
@@ -1102,7 +1106,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 			}
 
 			const FLinearColor IconColor = GetPinTypeColor(FromPin->PinType);
-			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_NewReroute>(IconColor));
+			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_NewReroute>(&IconColor));
 		}
 
 		if (FromPin->Direction == EGPD_Output)
@@ -1131,7 +1135,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_MutatorNode>());
 
 			const FLinearColor IconColor = GetPinTypeColor(FromPin->PinType);
-			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_NewReroute>(IconColor));
+			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_NewReroute>(&IconColor));
 		}
 	}
 	else
@@ -1325,6 +1329,8 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 
 void UMetasoundEditorGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const
 {
+	using namespace Metasound::Editor;
+
 	if (!PinA || !PinB)
 	{
 		return;
@@ -1337,9 +1343,19 @@ void UMetasoundEditorGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA,
 	UMetasoundEditorGraph* ParentGraph = Cast<UMetasoundEditorGraph>(PinA->GetOwningNode()->GetGraph());
 	if (ParentGraph->IsEditable())
 	{
+		const FName DataType = FGraphBuilder::GetPinDataType(PinA);
+		const FScopedTransaction Transaction(FText::Format(LOCTEXT("AddConnectNewRerouteNode", "Add & Connect {0} Reroute Node"), FText::FromName(DataType)));
+
+		UMetasoundEditorGraph* MetaSoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
+		UObject& ParentMetasound = MetaSoundGraph->GetMetasoundChecked();
+		ParentMetasound.Modify();
+		ParentGraph->Modify();
+
 		UEdGraphPin* OutputPin = PinA->Direction == EGPD_Output ? PinA : PinB;
-		const FLinearColor IconColor = GetPinTypeColor(OutputPin->PinType);
-		TSharedPtr<FMetasoundGraphSchemaAction_NewReroute> RerouteAction = MakeShared<FMetasoundGraphSchemaAction_NewReroute>(IconColor);
+
+		const FLinearColor* IconColor = nullptr;
+		constexpr bool bShouldTransact = false;
+		TSharedPtr<FMetasoundGraphSchemaAction_NewReroute> RerouteAction = MakeShared<FMetasoundGraphSchemaAction_NewReroute>(IconColor, bShouldTransact);
 
 		UEdGraphNode& Node = *PinA->GetOwningNode();
 		UEdGraphNode* NewNode = RerouteAction->PerformAction(Node.GetGraph(), OutputPin, GraphPosition, true);

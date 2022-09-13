@@ -47,6 +47,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
@@ -66,6 +67,7 @@
 struct FGraphActionNode;
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
+
 
 namespace Metasound
 {
@@ -2410,10 +2412,36 @@ namespace Metasound
 					}
 					else
 					{
-						FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
-						if (!NewHandle->IsValid())
+						FMetasoundFrontendClass FrontendClass;
+						const FMetasoundFrontendClassName ClassName = ExternalNode->GetClassName();
+						if (ClassName == FRerouteNodeTemplate::ClassName)
 						{
-							NodesToRemove.Add(GraphNode);
+							bool bIsValid = false;
+							if (!ExternalNode->Pins.IsEmpty())
+							{
+								const FName DataType = FGraphBuilder::GetPinDataType(ExternalNode->Pins.Last());
+								if (!DataType.IsNone())
+								{
+									const FNodeRegistryKey& RerouteTemplateKey = FRerouteNodeTemplate::GetRegistryKey();
+									FMetasoundFrontendNodeInterface NodeInterface = FRerouteNodeTemplate::CreateNodeInterfaceFromDataType(DataType);
+
+									FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle()->AddTemplateNode(RerouteTemplateKey, MoveTemp(NodeInterface));
+									bIsValid = NodeHandle->IsValid();
+								}
+							}
+
+							if (!bIsValid)
+							{
+								NodesToRemove.Add(GraphNode);
+							}
+						}
+						else
+						{
+							FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
+							if (!NewHandle->IsValid())
+							{
+								NodesToRemove.Add(GraphNode);
+							}
 						}
 					}
 				}

@@ -1376,6 +1376,10 @@ namespace Metasound
 
 		FNodeHandle FGraphController::AddNode(const FMetasoundFrontendClassMetadata& InClassMetadata, FGuid InNodeGuid)
 		{
+			ensureAlwaysMsgf(InClassMetadata.GetType() != EMetasoundFrontendClassType::Template,
+				TEXT("Cannot implement '%s' template node using 'AddNode'. Template nodes must always "
+				"be added using AddTemplateNode function and supply the interface to be implemented"),
+				*InClassMetadata.GetClassName().ToString());
 			return AddNode(NodeRegistryKey::CreateKey(InClassMetadata), InNodeGuid);
 		}
 

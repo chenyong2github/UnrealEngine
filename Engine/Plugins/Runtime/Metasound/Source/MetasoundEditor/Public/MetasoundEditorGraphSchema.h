@@ -389,8 +389,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewReroute : public FMeta
 	GENERATED_USTRUCT_BODY();
 
 	FMetasoundGraphSchemaAction_NewReroute() = default;
-
-	FMetasoundGraphSchemaAction_NewReroute(const FLinearColor& InIconColor);
+	FMetasoundGraphSchemaAction_NewReroute(const FLinearColor* InIconColor, bool bInShouldTransact = true);
 
 	virtual ~FMetasoundGraphSchemaAction_NewReroute() = default;
 
@@ -406,6 +405,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewReroute : public FMeta
 
 private:
 	FLinearColor IconColor;
+	bool bShouldTransact = true;
 };
 
 /** Action to create new comment */
