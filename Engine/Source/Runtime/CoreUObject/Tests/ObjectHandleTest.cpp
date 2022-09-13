@@ -3,6 +3,7 @@
 #if WITH_LOW_LEVEL_TESTS
 
 #include "UObject/ObjectHandle.h"
+#include "UObject/ObjectPtr.h"
 
 #include "HAL/PlatformProperties.h"
 #include "ObjectRefTrackingTestBase.h"
@@ -192,11 +193,16 @@ DISABLED_TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Re
 	TestResolveFailure("/Engine/Test/ObjectPtrDefaultSerialize/Transient", "DefaultSerializeObject_DoesNotExist");
 }
 
-
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Script Target", "[CoreUObject][ObjectHandle]")
 {
 	// Confirm we successfully resolve a correct reference to engine content
 	TestResolvableNonNull("/Script/CoreUObject", "MetaData");
+}
+
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetClass", "[CoreUObject][ObjectHandle][.Engine]")
+{
+	TObjectPtr<UObject> Ptr = nullptr;
+	TEST_TRUE(TEXT("TObjectPtr.GetClass should return null on a null object"), Ptr.GetClass() == nullptr);
 }
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE

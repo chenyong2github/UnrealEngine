@@ -338,7 +338,8 @@ inline UClass* ResolveObjectHandleClass(FObjectHandle Handle)
 {
 	if (IsObjectHandleResolved(Handle))
 	{
-		return ReadObjectHandlePointerNoCheck(Handle)->GetClass();
+		UObject* Obj = ReadObjectHandlePointerNoCheck(Handle);
+		return Obj != nullptr ? Obj->GetClass() : nullptr;
 	}
 	else
 	{
