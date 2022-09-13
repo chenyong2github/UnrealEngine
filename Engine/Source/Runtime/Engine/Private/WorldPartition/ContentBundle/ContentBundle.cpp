@@ -26,7 +26,8 @@ void FContentBundle::DoInitialize()
 	InitializeForPIE();
 #else
 	FString StreamingObjectPathName = FPaths::RemoveDuplicateSlashes(GetDescriptor()->GetPackageRoot() + TEXT("/_GENERATED_/") + TEXT("StreamingObject"));
-	if (ExternalStreamingObjectPackage = LoadPackage(nullptr, *StreamingObjectPathName, LOAD_None))
+	ExternalStreamingObjectPackage = LoadPackage(nullptr, *StreamingObjectPathName, LOAD_None);
+	if (ExternalStreamingObjectPackage != nullptr)
 	{
 		if (UObject* Object = StaticFindObjectFast(URuntimeHashExternalStreamingObjectBase::StaticClass(), ExternalStreamingObjectPackage, TEXT("StreamingObject")))
 		{

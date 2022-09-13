@@ -1,13 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if WITH_EDITOR
-
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
+
+#if WITH_EDITOR
 #include "WorldPartition/ContentBundle/WorldDataLayerReference.h"
 #include "WorldPartition/ContentBundle/ContentBundleBase.h"
+#endif
 
 #include "ContentBundleEditor.generated.h"
+
+#if WITH_EDITOR
 
 class URuntimeHashExternalStreamingObjectBase;
 class UWorldPartitionRuntimeCell;
@@ -86,6 +91,8 @@ private:
 	bool bIsBeingEdited;
 };
 
+#endif
+
 UCLASS()
 class UContentBundleUnsavedActorMonitor : public UObject
 {
@@ -94,6 +101,7 @@ class UContentBundleUnsavedActorMonitor : public UObject
 public:
 	~UContentBundleUnsavedActorMonitor();
 
+#if WITH_EDITOR
 	void Initialize(FContentBundleEditor& InContentBundleEditor);
 	void Uninitialize();
 
@@ -109,16 +117,19 @@ public:
 	bool IsMonitoring(const AActor* Actor) const { return UnsavedActors.Contains(Actor); }
 
 	const TArray<TWeakObjectPtr<AActor>>& GetUnsavedActors() const { return UnsavedActors; }
+#endif
 
 private:
+#if WITH_EDITOR
 	void OnActorDeleted(AActor* InActor);
+#endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<TWeakObjectPtr<AActor>> UnsavedActors;
+		TArray<TWeakObjectPtr<AActor>> UnsavedActors;
 #endif
 
+#if WITH_EDITOR
 	FContentBundleEditor* ContentBundle;
-};
-
 #endif
+};

@@ -414,11 +414,17 @@ void FContentBundleEditor::OnUnsavedActorDeleted(AActor* Actor)
 	}
 }
 
+#endif
+
 UContentBundleUnsavedActorMonitor::~UContentBundleUnsavedActorMonitor()
 {
+#if WITH_EDITOR
 	check(UnsavedActors.IsEmpty());
 	check(ContentBundle == nullptr);
+#endif
 }
+
+#if WITH_EDITOR
 
 void UContentBundleUnsavedActorMonitor::Initialize(FContentBundleEditor& InContentBundleEditor)
 {
