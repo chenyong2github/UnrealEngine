@@ -24,4 +24,6 @@ public:
 	TSharedPtr<FUICommandInfo> ZoomOut;
 
 	TSharedPtr<FUICommandInfo> ExportWaveform;
+	TSharedPtr<FUICommandInfo> ExportFormatMono;
+	TSharedPtr<FUICommandInfo> ExportFormatStereo;
 };

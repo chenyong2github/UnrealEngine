@@ -43,6 +43,8 @@ public:
 	void PostRedo(bool bSuccess) override;
 	bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
 
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
+
 private:
 	bool SetupAudioComponent();
 	bool SetUpTransportController();
@@ -56,6 +58,8 @@ private:
 	/**	Toolbar Setup */
 	bool RegisterToolbar();
 	bool BindCommands();
+	TSharedRef<SWidget> GenerateExportOptionsMenu();
+
 
 	/**	Details tabs set up */
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);

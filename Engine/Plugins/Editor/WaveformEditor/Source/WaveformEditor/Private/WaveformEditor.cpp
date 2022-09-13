@@ -14,6 +14,7 @@
 #include "WaveformEditorLog.h"
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorStyle.h"
+#include "WaveformEditorToolMenuContext.h"
 #include "WaveformEditorWaveWriter.h"
 #include "WaveformTransformationsRenderManager.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -243,13 +244,48 @@ bool FWaveformEditor::RegisterToolbar()
 			LOCTEXT("WaveformEditorRender", ""),
 			LOCTEXT("WaveformEditorRenderButtonTooltip", "Exports the edited waveform to a USoundWave asset"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.SetViewModeAbsolute")
-		);
+		);	
 
 		ExportSection.AddEntry(ExportEntry);
+
+		ExportSection.AddDynamicEntry("ExportOptions", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection) {
+				UWaveformEditorToolMenuContext* Context = InSection.FindContext<UWaveformEditorToolMenuContext>();
+				
+				if (Context && Context->WaveformEditor.IsValid())
+				{
+					FToolMenuEntry ExportOptionsEntry = FToolMenuEntry::InitComboButton(
+						"ExportsOptionsCombo",
+						FToolUIActionChoice(FUIAction()),
+						FNewToolMenuChoice(FOnGetContent::CreateSP(Context->WaveformEditor.Pin().Get(), &FWaveformEditor::GenerateExportOptionsMenu)),
+						LOCTEXT("ExportsOptions_Label", "Export Options"),
+						LOCTEXT("ExportsOptions_ToolTip", "Export options for this waveform"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.SetViewModeAbsolute"),
+						true
+					);
+
+					InSection.AddEntry(ExportOptionsEntry);
+				}				
+			}
+		));
 
 	}
 
 	return true;
+}
+
+TSharedRef<SWidget> FWaveformEditor::GenerateExportOptionsMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
+	
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ChannelSection_Label", "Export Channel Format"));
+	{
+		MenuBuilder.AddMenuEntry(FWaveformEditorCommands::Get().ExportFormatMono);
+		MenuBuilder.AddMenuEntry(FWaveformEditorCommands::Get().ExportFormatStereo);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 bool FWaveformEditor::BindCommands()
@@ -289,6 +325,18 @@ bool FWaveformEditor::BindCommands()
 		Commands.ExportWaveform,
 		FExecuteAction::CreateSP(this, &FWaveformEditor::ExportWaveform),
 		FCanExecuteAction::CreateSP(WaveWriter.ToSharedRef(), &FWaveformEditorWaveWriter::CanCreateSoundWaveAsset));
+
+	ToolkitCommands->MapAction(
+		Commands.ExportFormatMono,
+		FExecuteAction::CreateLambda([this] { (WaveWriter->SetExportChannelsFormat(WaveformEditorWaveWriter::EChannelFormat::Mono)); }),
+		FCanExecuteAction::CreateLambda([this] {return WaveWriter.IsValid(); }),
+		FIsActionChecked::CreateLambda([this] {return WaveWriter->GetExportChannelsFormat() == WaveformEditorWaveWriter::EChannelFormat::Mono; }));
+
+	ToolkitCommands->MapAction(
+		Commands.ExportFormatStereo,
+		FExecuteAction::CreateLambda([this] { (WaveWriter->SetExportChannelsFormat(WaveformEditorWaveWriter::EChannelFormat::Stereo)); }),
+		FCanExecuteAction::CreateLambda([this] {return WaveWriter.IsValid(); }),
+		FIsActionChecked::CreateLambda([this] {return WaveWriter->GetExportChannelsFormat() == WaveformEditorWaveWriter::EChannelFormat::Stereo; }));
 
 	return true;
 }
@@ -379,6 +427,15 @@ bool FWaveformEditor::MatchesContext(const FTransactionContext& InContext, const
 	}
 
 	return bShoouldUndo;
+}
+
+void FWaveformEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UWaveformEditorToolMenuContext* Context = NewObject<UWaveformEditorToolMenuContext>();
+	Context->WaveformEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 bool FWaveformEditor::SetUpDetailsViews()
