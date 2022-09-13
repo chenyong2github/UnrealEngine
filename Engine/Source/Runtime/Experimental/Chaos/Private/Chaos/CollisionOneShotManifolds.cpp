@@ -93,7 +93,7 @@ namespace Chaos
 	{
 		// Forward delarations we need from CollisionRestitution.cpp
 
-		FContactPoint BoxBoxContactPoint(const FImplicitBox3& Box1, const FImplicitBox3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM, const FReal ShapePadding);
+		FContactPoint BoxBoxContactPoint(const FImplicitBox3& Box1, const FImplicitBox3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM);
 
 		//////////////////////////
 		// Box Box

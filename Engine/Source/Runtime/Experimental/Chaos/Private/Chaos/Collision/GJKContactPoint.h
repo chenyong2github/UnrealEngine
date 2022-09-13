@@ -12,7 +12,7 @@
 namespace Chaos
 {
 	template <typename GeometryA, typename GeometryB>
-	FContactPoint GJKContactPoint2(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FVec3& InitialDir, const FReal ShapePadding)
+	FContactPoint GJKContactPoint2(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, const FVec3& InitialDir)
 	{
 		FContactPoint Contact;
 
@@ -23,9 +23,7 @@ namespace Chaos
 		// Slightly increased epsilon to reduce error in normal for almost touching objects.
 		const FReal Epsilon = 3.e-3f;
 
-		const FReal ThicknessA = 0.5f * ShapePadding;
-		const FReal ThicknessB = 0.5f * ShapePadding;
-		if (GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon))
+		if (GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, FReal(0), FReal(0), InitialDir, Epsilon))
 		{
 			// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
 			Contact.ShapeContactPoints[0] = ClosestA;
@@ -38,9 +36,9 @@ namespace Chaos
 	}
 
 	template <typename GeometryA, typename GeometryB>
-	FContactPoint GJKContactPoint(const GeometryA& A, const FRigidTransform3& ATM, const GeometryB& B, const FRigidTransform3& BTM, const FVec3& InitialDir, const FReal ShapePadding)
+	FContactPoint GJKContactPoint(const GeometryA& A, const FRigidTransform3& ATM, const GeometryB& B, const FRigidTransform3& BTM, const FVec3& InitialDir)
 	{
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
-		return GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
+		return GJKContactPoint2(A, B, ATM, BToATM, InitialDir);
 	}
 }

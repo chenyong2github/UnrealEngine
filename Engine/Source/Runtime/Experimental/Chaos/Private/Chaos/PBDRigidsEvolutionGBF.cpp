@@ -706,7 +706,7 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 				ChildParticle->Handle()->ParticleCollisions().VisitCollisions(
 					[&](const FPBDCollisionConstraint* VisitedConstraint)
 					{
-						if (VisitedConstraint->GetCCDType() != ECollisionCCDType::Disabled)
+						if (VisitedConstraint->GetCCDEnabled())
 						{
 							return;
 						}

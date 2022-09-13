@@ -325,9 +325,9 @@ inline FPBDCollisionConstraint& FPBDCollisionConstraintHandle::GetContact()
 	return *GetConstraint();
 }
 
-inline ECollisionCCDType FPBDCollisionConstraintHandle::GetCCDType() const
+inline bool FPBDCollisionConstraintHandle::GetCCDEnabled() const
 {
-	return GetContact().GetCCDType();
+	return GetContact().GetCCDEnabled();
 }
 
 inline void FPBDCollisionConstraintHandle::SetEnabled(bool InEnabled)

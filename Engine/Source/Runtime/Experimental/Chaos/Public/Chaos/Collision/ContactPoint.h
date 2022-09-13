@@ -26,20 +26,36 @@ namespace Chaos
 		VertexVertex,
 	};
 
+
 	/**
-	 * @brief Data returned by the low-level collision functions
+	 * The value used for Phi (contact separation) to indicate that it is unset/invalid.
+	 */
+	template<typename T>
+	constexpr T InvalidPhi() 
+	{ 
+		return TNumericLimits<T>::Max();
+	}
+
+	/**
+	 * Data returned by the low-level collision functions.
+	 * 
+	 * @note All data is invalid/uninitialized when IsSet() is false.
+	 * @see FContactPoint, FContactPointf
 	*/
-	class CHAOS_API FContactPoint
+	template<typename T>
+	class CHAOS_API TContactPoint
 	{
 	public:
+		using FRealType = T;
+
 		// Shape-space contact points on the two bodies
-		FVec3 ShapeContactPoints[2];
+		TVec3<FRealType> ShapeContactPoints[2];
 
 		// Shape-space contact normal on the second shape with direction that points away from shape 1
-		FVec3 ShapeContactNormal;
+		TVec3<FRealType> ShapeContactNormal;
 
 		// Contact separation (negative for overlap)
-		FReal Phi;
+		FRealType Phi;
 
 		// Face index of the shape we hit. Only valid for Heightfield and Trimesh contact points, otherwise INDEX_NONE
 		int32 FaceIndex;
@@ -47,29 +63,42 @@ namespace Chaos
 		// Whether this is a vertex-plane contact, edge-edge contact etc.
 		EContactPointType ContactType;
 
-		FContactPoint()
-			: Phi(TNumericLimits<FReal>::Max())
+		TContactPoint()
+			: Phi(InvalidPhi<FRealType>())
 			, FaceIndex(INDEX_NONE)
 			, ContactType(EContactPointType::Unknown)
 		{
 		}
 
+		template<typename U>
+		TContactPoint(const TContactPoint<U>& Other)
+			: ShapeContactPoints{ TVec3<FRealType>(Other.ShapeContactPoints[0]), TVec3<FRealType>(Other.ShapeContactPoints[1]) }
+			, ShapeContactNormal{ TVec3<FRealType>(Other.ShapeContactNormal) }
+			, Phi(FRealType(Other.Phi))
+			, FaceIndex(Other.FaceIndex)
+			, ContactType(Other.ContactType)
+		{
+		}
+
 		// Whether the contact point has been set up with contact data
-		bool IsSet() const { return (Phi != TNumericLimits<FReal>::Max()); }
+		bool IsSet() const 
+		{ 
+			return (Phi != InvalidPhi<FRealType>());
+		}
 
 		// Switch the shape indices. For use when calling a collision detection method which takes shape types in the opposite order to what you want.
-		// @todo(chaos): remove or fix this function
-		// WARNING: this function can no longer be used in isolation as it could when we were calculating world-space contact data. For this to
-		// work correctly, the normal must either already be in the space of the first shape, or will need to be transformed after.
-		// Alternatively we could start using EContactPointType to indicate normal ownership
-		FContactPoint& SwapShapes()
-		{
-			if (IsSet())
-			{
-				Swap(ShapeContactPoints[0], ShapeContactPoints[1]);
-				ShapeContactNormal = -ShapeContactNormal;
-			}
-			return *this;
-		}
+		// WARNING: this function is not "general purporse" and only works when ShapeContactPoints are both in the smae space, because
+		// the normal is in the space of the second body and negating it does not otherwise transform it to be relative to the other body. 
+		// However, it is useful in the cases where we perform collision detection in the space of one of the bodies before transforming into 
+		// shape space, whcih is actually most of the time.
+		//TContactPoint<FRealType>& SwapShapes()
+		//{
+		//	if (IsSet())
+		//	{
+		//		Swap(ShapeContactPoints[0], ShapeContactPoints[1]);
+		//		ShapeContactNormal = -ShapeContactNormal;
+		//	}
+		//	return *this;
+		//}
 	};
 }

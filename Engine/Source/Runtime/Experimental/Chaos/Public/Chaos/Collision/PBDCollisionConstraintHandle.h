@@ -73,7 +73,7 @@ namespace Chaos
 		UE_DEPRECATED(4.27, "Use GetContact()")
 		FPBDCollisionConstraint& GetSweptPointContact() { return GetContact(); }
 
-		ECollisionCCDType GetCCDType() const;
+		bool GetCCDEnabled() const;
 
 		virtual void SetEnabled(bool InEnabled) override final;
 

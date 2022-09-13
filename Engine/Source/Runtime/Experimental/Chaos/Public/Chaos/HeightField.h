@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Array.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "ImplicitObject.h"
 #include "Box.h"
 #include "TriangleMeshImplicitObject.h"
@@ -16,7 +17,6 @@
 namespace Chaos
 {
 	class FHeightfieldRaycastVisitor;
-	class FContactPoint;
 	struct FMTDInfo;
 }
 

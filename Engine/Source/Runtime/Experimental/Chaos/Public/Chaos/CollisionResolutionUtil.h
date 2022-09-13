@@ -8,7 +8,6 @@
 namespace Chaos
 {
 	class FBVHParticles;
-	class FContactPoint;
 	class FImplicitObject;
 	class FPBDCollisionConstraint;
 

@@ -55,7 +55,7 @@ namespace Chaos
 			// Run GJK to find separating distance if available
 			// NOTE: Sphere is treated as a point (its core shape), Convex margin is ignored so we are using the outer non-shrunken hull.
 			// Sphere is also created in the space of the convex to eliminate the transform in the Support call (per GJK iteration).
-			const FVec3 SpherePosConvex = SphereToConvexTransform.TransformPosition(Sphere.GetCenter());
+			const FVec3 SpherePosConvex = SphereToConvexTransform.TransformPositionNoScale(Sphere.GetCenter());
 			const FReal SphereRadius = Sphere.GetRadius();
 
 			// A point in the Minkowski Sum (A-B) in a likely direction
@@ -83,7 +83,7 @@ namespace Chaos
 			{
 				// Results so far are all in convex-space and for a point rather than a sphere. Convert them.
 				PosConvex = SpherePosConvex - Phi * NormalConvex;
-				PosSphere = Sphere.GetCenter() + SphereToConvexTransform.InverseTransformVector(-SphereRadius * NormalConvex);
+				PosSphere = Sphere.GetCenter() + SphereToConvexTransform.InverseTransformVectorNoScale(-SphereRadius * NormalConvex);
 				Phi = Phi - SphereRadius;
 
 				FContactPoint ContactPoint;
@@ -98,35 +98,19 @@ namespace Chaos
 		return FContactPoint();
 	}
 
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FImplicitConvex3& Convex, const FRigidTransform3& SphereToConvexTransform)
-	{
-		return SphereConvexContactPointImpl(Sphere, Convex, SphereToConvexTransform);
-	}
-
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const TImplicitObjectInstanced<FImplicitConvex3>& Convex, const FRigidTransform3& SphereToConvexTransform)
-	{
-		return SphereConvexContactPointImpl(Sphere, Convex, SphereToConvexTransform);
-	}
-
-	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const TImplicitObjectScaled<FImplicitConvex3>& Convex, const FRigidTransform3& SphereToConvexTransform)
-	{
-		return SphereConvexContactPointImpl(Sphere, Convex, SphereToConvexTransform);
-	}
-
-
 	FContactPoint SphereConvexContactPoint(const FImplicitSphere3& Sphere, const FImplicitObject& Object, const FRigidTransform3& SphereToConvexTransform)
 	{
 		if (const TImplicitObjectInstanced<FImplicitConvex3>* InstancedConvex = Object.template GetObject<const TImplicitObjectInstanced<FImplicitConvex3>>())
 		{
-			return SphereConvexContactPoint(Sphere, *InstancedConvex, SphereToConvexTransform);
+			return SphereConvexContactPointImpl(Sphere, *InstancedConvex, SphereToConvexTransform);
 		}
 		else if (const TImplicitObjectScaled<FImplicitConvex3>* ScaledConvex = Object.template GetObject<const TImplicitObjectScaled<FImplicitConvex3>>())
 		{
-			return SphereConvexContactPoint(Sphere, *ScaledConvex, SphereToConvexTransform);
+			return SphereConvexContactPointImpl(Sphere, *ScaledConvex, SphereToConvexTransform);
 		}
 		else if (const FImplicitConvex3* Convex = Object.template GetObject<const FImplicitConvex3>())
 		{
-			return SphereConvexContactPoint(Sphere, *Convex, SphereToConvexTransform);
+			return SphereConvexContactPointImpl(Sphere, *Convex, SphereToConvexTransform);
 		}
 		return FContactPoint();
 	}

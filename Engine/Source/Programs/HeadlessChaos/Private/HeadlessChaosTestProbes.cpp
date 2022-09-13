@@ -119,7 +119,7 @@ namespace ChaosTest
 		// with CCD, make sure the constraint doesn't actually think it's CCD
 		for (FPBDCollisionConstraint* const Constraint : Evolution.GetCollisionConstraints().GetConstraints())
 		{
-			EXPECT_EQ(Constraint->GetCCDType(), ECollisionCCDType::Disabled);
+			EXPECT_EQ(Constraint->GetCCDEnabled(), false);
 		}
 
 		// Make sure that the velocity of the dynamic body wasn't affected

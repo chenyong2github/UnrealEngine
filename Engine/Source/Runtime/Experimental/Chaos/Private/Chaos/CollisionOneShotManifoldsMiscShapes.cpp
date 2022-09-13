@@ -60,7 +60,7 @@ namespace Chaos
 			// @todo(chaos): support manifold maintenance
 			Constraint.ResetActiveManifoldContacts();
 
-			FContactPoint ContactPoint = SphereSphereContactPoint(SphereA, SphereATransform, SphereB, SphereBTransform, Constraint.GetCullDistance(), Constraint.GetRestitutionPadding());
+			FContactPoint ContactPoint = SphereSphereContactPoint(SphereA, SphereATransform, SphereB, SphereBTransform, Constraint.GetCullDistance());
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint);
@@ -83,7 +83,7 @@ namespace Chaos
 			// @todo(chaos): support manifold maintenance
 			Constraint.ResetActiveManifoldContacts();
 
-			FContactPoint ContactPoint = SpherePlaneContactPoint(Sphere, SphereTransform, Plane, PlaneTransform, Constraint.GetRestitutionPadding());
+			FContactPoint ContactPoint = SpherePlaneContactPoint(Sphere, SphereTransform, Plane, PlaneTransform);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint);
@@ -100,7 +100,7 @@ namespace Chaos
 			// @todo(chaos): support manifold maintenance
 			Constraint.ResetActiveManifoldContacts();
 
-			FContactPoint ContactPoint = SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, Constraint.GetRestitutionPadding());
+			FContactPoint ContactPoint = SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint);
@@ -123,7 +123,7 @@ namespace Chaos
 			Constraint.ResetActiveManifoldContacts();
 
 			// Build a multi-point manifold
-			const FReal NetCullDistance = Sphere.GetRadius() + Capsule.GetRadius() + Constraint.GetCullDistance() + Constraint.GetRestitutionPadding();
+			const FReal NetCullDistance = Sphere.GetRadius() + Capsule.GetRadius() + Constraint.GetCullDistance();
 			const FReal NetCullDistanceSq = FMath::Square(NetCullDistance);
 
 			// Transform the sphere into capsule space and find the closest point on the capsule line segment
@@ -142,7 +142,7 @@ namespace Chaos
 				{
 					const FReal NearPosDistance = FMath::Sqrt(NearPosDistanceSq);
 					const FVec3 NearPosDir = NearPosDelta / NearPosDistance;
-					const FReal NearPhi = NearPosDistance - Sphere.GetRadius() - Capsule.GetRadius() - Constraint.GetRestitutionPadding();
+					const FReal NearPhi = NearPosDistance - Sphere.GetRadius() - Capsule.GetRadius();
 
 					FContactPoint NearContactPoint;
 					NearContactPoint.ShapeContactPoints[0] = SphereToCapsuleTransform.InverseTransformPositionNoScale(SpherePos - Sphere.GetRadius() * NearPosDir);
@@ -197,7 +197,7 @@ namespace Chaos
 						{
 							const FVec3 EndCapPos0 = Capsule.GetX1() + CapsuleOrthogonal * Capsule.GetRadius();
 							const FReal EndCapDistance0 = (SpherePos - EndCapPos0).Size();
-							const FReal EndCapPhi0 = EndCapDistance0 - Sphere.GetRadius() - Constraint.GetRestitutionPadding();
+							const FReal EndCapPhi0 = EndCapDistance0 - Sphere.GetRadius();
 							
 							if (EndCapPhi0 < Constraint.GetCullDistance())
 							{
@@ -219,7 +219,7 @@ namespace Chaos
 						{
 							const FVec3 EndCapPos1 = Capsule.GetX2() + CapsuleOrthogonal * Capsule.GetRadius();
 							const FReal EndCapDistance1 = (SpherePos - EndCapPos1).Size();
-							const FReal EndCapPhi1 = EndCapDistance1 - Sphere.GetRadius() - Constraint.GetRestitutionPadding();
+							const FReal EndCapPhi1 = EndCapDistance1 - Sphere.GetRadius();
 
 							if (EndCapPhi1 < Constraint.GetCullDistance())
 							{
@@ -350,7 +350,7 @@ namespace Chaos
 			// @todo(chaos): support manifold maintenance
 			Constraint.ResetActiveManifoldContacts();
 
-			FContactPoint ContactPoint = SphereTriangleMeshContactPoint(Sphere, SphereWorldTransform, TriangleMesh, TriMeshWorldTransform, Constraint.GetCullDistance(), 0.0f);
+			FContactPoint ContactPoint = SphereTriangleMeshContactPoint(Sphere, SphereWorldTransform, TriangleMesh, TriMeshWorldTransform, Constraint.GetCullDistance());
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint);
@@ -364,7 +364,7 @@ namespace Chaos
 			ensure(SphereTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 			ensure(HeightfieldTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
-			FContactPoint ContactPoint = SphereHeightFieldContactPoint(Sphere, SphereTransform, Heightfield, HeightfieldTransform, Constraint.GetCullDistance(), 0.0f);
+			FContactPoint ContactPoint = SphereHeightFieldContactPoint(Sphere, SphereTransform, Heightfield, HeightfieldTransform, Constraint.GetCullDistance());
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint);

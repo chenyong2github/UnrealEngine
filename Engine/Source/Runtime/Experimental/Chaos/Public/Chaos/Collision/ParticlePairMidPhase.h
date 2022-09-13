@@ -131,21 +131,21 @@ namespace Chaos
 		FGeometryParticleHandle* Particle1;
 		const FPerShapeData* Shape0;
 		const FPerShapeData* Shape1;
-		EContactShapesType ShapePairType;
-		FReal SphereBoundsCheckSize;
+		FRealSingle SphereBoundsCheckSize;
 		int32 LastUsedEpoch;
+		EContactShapesType ShapePairType;
 		union FFlags
 		{
 			FFlags() : Bits(0) {}
 			struct 
 			{
-				uint32 bEnableAABBCheck : 1;
-				uint32 bEnableOBBCheck0 : 1;
-				uint32 bEnableOBBCheck1 : 1;
-				uint32 bEnableManifoldUpdate : 1;
-				uint32 bIsProbe : 1;
+				uint8 bEnableAABBCheck : 1;
+				uint8 bEnableOBBCheck0 : 1;
+				uint8 bEnableOBBCheck1 : 1;
+				uint8 bEnableManifoldUpdate : 1;
+				uint8 bIsProbe : 1;
 			};
-			uint32 Bits;
+			uint8 Bits;
 		} Flags;
 	};
 

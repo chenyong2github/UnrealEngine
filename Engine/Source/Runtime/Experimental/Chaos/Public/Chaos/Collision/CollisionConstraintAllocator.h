@@ -485,7 +485,7 @@ namespace Chaos
 			checkSlow(ActiveConstraints.Find(CollisionConstraint) == INDEX_NONE);
 			Cookie.ConstraintIndex = ActiveConstraints.Add(CollisionConstraint);
 
-			if (CollisionConstraint->GetCCDType() == ECollisionCCDType::Enabled)
+			if (CollisionConstraint->GetCCDEnabled())
 			{
 				checkSlow(ActiveSweptConstraints.Find(CollisionConstraint) == INDEX_NONE);
 				Cookie.SweptConstraintIndex = ActiveSweptConstraints.Add(CollisionConstraint);

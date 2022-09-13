@@ -251,11 +251,11 @@ namespace Chaos
 					continue;
 				}
 
-				const FVec3 WorldContactPoint0 = ShapeWorldTransform0.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);
-				const FVec3 WorldContactPoint1 = ShapeWorldTransform1.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);
+				const FVec3 WorldContactPoint0 = ShapeWorldTransform0.TransformPositionNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactPoints[0]));
+				const FVec3 WorldContactPoint1 = ShapeWorldTransform1.TransformPositionNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactPoints[1]));
 				const FVec3 WorldContactPoint = FReal(0.5) * (WorldContactPoint0 + WorldContactPoint1);
 
-				const FSolverVec3 WorldContactNormal = FSolverVec3(ShapeWorldTransform1.TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal));
+				const FSolverVec3 WorldContactNormal = FSolverVec3(ShapeWorldTransform1.TransformVectorNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactNormal)));
 				const FSolverVec3 RelativeContactPosition0 = FSolverVec3(WorldContactPoint - Body0.P());
 				const FSolverVec3 RelativeContactPosition1 = FSolverVec3(WorldContactPoint - Body1.P());
 				const FSolverReal TargetPhi = FSolverReal(ManifoldPoint.TargetPhi);
@@ -333,8 +333,6 @@ namespace Chaos
 		*/
 		void ScatterOutput(const FReal Dt)
 		{
-			FVec3 AccumulatedImpulse = FVec3(0);
-
 			Constraint->ResetSolverResults();
 
 			// NOTE: We only put the non-pruned manifold points into the solver so the ManifoldPointIndex and
@@ -342,9 +340,9 @@ namespace Chaos
 			int32 SolverManifoldPointIndex = 0;
 			for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < Constraint->NumManifoldPoints(); ++ManifoldPointIndex)
 			{
-				FSolverVec3 NetPushOut = FVec3(0);
-				FSolverVec3 NetImpulse = FVec3(0);
-				FReal StaticFrictionRatio = FReal(0);
+				FSolverVec3 NetPushOut = FSolverVec3(0);
+				FSolverVec3 NetImpulse = FSolverVec3(0);
+				FRealSingle StaticFrictionRatio = FRealSingle(0);
 
 				if (!Constraint->GetManifoldPoint(ManifoldPointIndex).Flags.bDisabled)
 				{
@@ -370,7 +368,7 @@ namespace Chaos
 					NetPushOut, 
 					NetImpulse, 
 					StaticFrictionRatio,
-					Dt);
+					FRealSingle(Dt));
 			}
 
 			Unbind();

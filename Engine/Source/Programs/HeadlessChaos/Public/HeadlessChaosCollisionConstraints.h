@@ -81,7 +81,7 @@ public:
 
 	void Update(FPBDCollisionConstraint& Constraint)
 	{
-		if (Constraint.GetCCDType() == ECollisionCCDType::Disabled)
+		if (!Constraint.GetCCDEnabled())
 		{
 			// Dt is not important for the tests that use this function
 			const FReal Dt = FReal(1) / FReal(30);

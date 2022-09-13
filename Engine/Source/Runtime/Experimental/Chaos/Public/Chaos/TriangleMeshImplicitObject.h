@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Array.h"
+#include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObjectScaled.h"
@@ -27,7 +28,6 @@ namespace Chaos
 	template <typename QueryGeomType>
 	struct FTriangleMeshOverlapVisitorNoMTD;
 	class FTriangleMeshImplicitObject;
-	class FContactPoint;
 	FArchive& operator<<(FArchive& Ar, FAABBVectorized& Bounds);
 
 	struct CHAOS_API FTrimeshBVH

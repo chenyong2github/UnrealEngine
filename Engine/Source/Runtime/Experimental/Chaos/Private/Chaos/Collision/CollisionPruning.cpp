@@ -41,7 +41,7 @@ namespace Chaos
 						if (bIsEdgeContact)
 						{
 							const FRigidTransform3& EdgeTransform = (EdgeOtherShapeIndex == 0) ? EdgeCollision.GetShapeWorldTransform0() : EdgeCollision.GetShapeWorldTransform1();
-							const FVec3 EdgePos = EdgeTransform.TransformPositionNoScale(EdgeManifoldPoint.ContactPoint.ShapeContactPoints[EdgeOtherShapeIndex]);
+							const FVec3 EdgePos = EdgeTransform.TransformPositionNoScale(FVec3(EdgeManifoldPoint.ContactPoint.ShapeContactPoints[EdgeOtherShapeIndex]));
 
 							// Loop over plane collisions
 							ECollisionVisitorResult PlaneResult = ParticleCollisions.VisitConstCollisions(
@@ -58,8 +58,8 @@ namespace Chaos
 											if (PlaneManifoldPoint.ContactPoint.ContactType == PlaneContactType)
 											{
 												// If the edge position is in the plane, disable it
-												const FVec3 PlanePos = PlaneTransform.TransformPositionNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[PlaneOtherShapeIndex]);
-												const FVec3 PlaneNormal = PlaneCollision.GetShapeWorldTransform1().TransformVectorNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactNormal);
+												const FVec3 PlanePos = PlaneTransform.TransformPositionNoScale(FVec3(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[PlaneOtherShapeIndex]));
+												const FVec3 PlaneNormal = PlaneCollision.GetShapeWorldTransform1().TransformVectorNoScale(FVec3(PlaneManifoldPoint.ContactPoint.ShapeContactNormal));
 
 												const FVec3 EdgePlaneDelta = EdgePos - PlanePos;
 												const FReal EdgePlaneDistance = FVec3::DotProduct(EdgePlaneDelta, PlaneNormal);
@@ -223,8 +223,8 @@ namespace Chaos
 						{
 							const FManifoldPoint& ManifoldPoint = Collision.GetManifoldPoint(ManifoldPointIndex);
 
-							const FVec3 ContactPos = ContactTransform.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[OtherShapeIndex]);
-							const FVec3 ContactNormal = Collision.GetShapeWorldTransform1().TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);
+							const FVec3 ContactPos = ContactTransform.TransformPositionNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactPoints[OtherShapeIndex]));
+							const FVec3 ContactNormal = Collision.GetShapeWorldTransform1().TransformVectorNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactNormal));
 
 							ContactGroupContainer.Add(Collision, ManifoldPointIndex, ContactPos, ContactNormal);
 						}

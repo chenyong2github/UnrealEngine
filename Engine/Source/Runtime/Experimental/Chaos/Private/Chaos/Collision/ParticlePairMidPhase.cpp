@@ -120,9 +120,9 @@ namespace Chaos
 		, Particle1(InParticle1)
 		, Shape0(InShape0)
 		, Shape1(InShape1)
-		, ShapePairType(InShapePairType)
 		, SphereBoundsCheckSize(0)
 		, LastUsedEpoch(-1)
+		, ShapePairType(InShapePairType)
 		, Flags()
 	{
 		const FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();
@@ -146,7 +146,7 @@ namespace Chaos
 
 		if (bAllowBoundsChecked && bIsSphere0 && bIsSphere1)
 		{
-			SphereBoundsCheckSize = Implicit0->GetMargin() + Implicit1->GetMargin();	// Sphere-Sphere bounds test
+			SphereBoundsCheckSize = FRealSingle(Implicit0->GetMargin() + Implicit1->GetMargin());	// Sphere-Sphere bounds test
 		}
 
 		// Do not try to reuse manifold points for capsules or spheres (against anything)
@@ -168,8 +168,8 @@ namespace Chaos
 		, Particle1(R.Particle1)
 		, Shape0(R.Shape0)
 		, Shape1(R.Shape1)
-		, ShapePairType(R.ShapePairType)
 		, SphereBoundsCheckSize(R.SphereBoundsCheckSize)
+		, ShapePairType(R.ShapePairType)
 		, Flags(R.Flags)
 	{
 	}
@@ -191,11 +191,11 @@ namespace Chaos
 		}
 
 		// World-space sphere bounds check
-		if (SphereBoundsCheckSize > FReal(0))
+		if (SphereBoundsCheckSize > FRealSingle(0))
 		{
 			const FVec3 Separation = ShapeWorldBounds0.GetCenter() - ShapeWorldBounds1.GetCenter();
 			const FReal SeparationSq = Separation.SizeSquared();
-			const FReal CullDistanceSq = FMath::Square(CullDistance + SphereBoundsCheckSize);
+			const FReal CullDistanceSq = FMath::Square(CullDistance + FReal(SphereBoundsCheckSize));
 			if (SeparationSq > CullDistanceSq)
 			{
 				return false;
@@ -212,8 +212,8 @@ namespace Chaos
 		const bool bCollidedLastTick = IsUsedSince(LastEpoch);
 		if ((Flags.bEnableOBBCheck0 || Flags.bEnableOBBCheck1) && !bCollidedLastTick)
 		{
-			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(Particle0);
-			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(Particle1);
+			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(GetParticle0());
+			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(GetParticle1());
 			const FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();
 			const FImplicitObject* Implicit1 = Shape1->GetLeafGeometry();
 
@@ -262,7 +262,7 @@ namespace Chaos
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
 		check(!Constraint.IsValid());
 
-		Constraint = CreateShapePairConstraint(Particle0, Shape0, Particle1, Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, MidPhase.GetCollisionAllocator());
+		Constraint = CreateShapePairConstraint(GetParticle0(), Shape0, GetParticle1(), Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, MidPhase.GetCollisionAllocator());
 
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = false;
@@ -295,8 +295,8 @@ namespace Chaos
 
 			const FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();
 			const FImplicitObject* Implicit1 = Shape1->GetLeafGeometry();
-			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(Particle0);
-			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(Particle1);
+			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(GetParticle0());
+			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(GetParticle1());
 			const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			const int32 LastEpoch = CurrentEpoch - 1;
 			const bool bWasUpdatedLastTick = IsUsedSince(LastEpoch);
@@ -380,8 +380,8 @@ namespace Chaos
 
 			const FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();
 			const FImplicitObject* Implicit1 = Shape1->GetLeafGeometry();
-			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(Particle0);
-			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(Particle1);
+			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(GetParticle0());
+			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(GetParticle1());
 
 			// Update the world shape transforms on the constraint (we cannot just give it the PerShapeData 
 			// pointer because of Unions - see FMultiShapePairCollisionDetector)
@@ -394,8 +394,8 @@ namespace Chaos
 			Constraint->ResetManifold();
 			Constraint->ResetActiveManifoldContacts();
 
-			FConstGenericParticleHandle P0 = Particle0;
-			FConstGenericParticleHandle P1 = Particle1;
+			FConstGenericParticleHandle P0 = GetParticle0();
+			FConstGenericParticleHandle P1 = GetParticle1();
 			// For kinematic particles, X = P (at TOI=1), we need to compute P-V*dt to get position at TOI=0. 
 			const FVec3 StartX0 = P0->ObjectState() == EObjectStateType::Kinematic ? P0->P() - P0->V() * Dt : P0->X();
 			const FVec3 StartX1 = P1->ObjectState() == EObjectStateType::Kinematic ? P1->P() - P1->V() * Dt : P1->X();
@@ -467,7 +467,7 @@ namespace Chaos
 			// We have skipped collision detection for this particle because it was asleep, so we need to update the transforms...
 			// NOTE: this relies on the shape world transforms being up-to-date. They are usually updated in Integarte which
 			// is also skipped for sleeping particles, so they must be updated manually when waking partciles (see IslandManager)
-			Constraint->SetShapeWorldTransforms(Shape0->GetLeafWorldTransform(Particle0), Shape1->GetLeafWorldTransform(Particle1));
+			Constraint->SetShapeWorldTransforms(Shape0->GetLeafWorldTransform(GetParticle0()), Shape1->GetLeafWorldTransform(GetParticle1()));
 		}
 	}
 

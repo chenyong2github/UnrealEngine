@@ -7,6 +7,9 @@
 
 namespace Chaos
 {
+	template<typename T> class TContactPoint;
+	using FContactPoint = TContactPoint<FReal>;
+	using FContactPointf = TContactPoint<FRealSingle>;
 
 	/** Specifies the type of work we should do*/
 	enum class ECollisionUpdateType
@@ -24,7 +27,7 @@ namespace Chaos
 	};
 
 	/** The shape types involved in a contact constraint. Used to look up the collision detection function */
-	enum class EContactShapesType
+	enum class EContactShapesType : int8
 	{
 		Unknown,
 		SphereSphere,
@@ -53,28 +56,9 @@ namespace Chaos
 		NumShapesTypes
 	};
 
-	enum class EContactManifoldType
-	{
-		None,			// No manifold - run collision detection whenever we need latest contact
-		OneShot,		// A manifold is created once and reused. The manifold consists of a plane attached to one shape and a set of points on the other
-		Incremental,	// Run collision detection whenever we need the latest contact point, but keep track of and match contact points
-	};
-
 	//
 	//
 	//
-
-	struct CHAOS_API FRigidBodyContactConstraintPGS
-	{
-		FRigidBodyContactConstraintPGS() : AccumulatedImpulse(0.f) {}
-		TGeometryParticleHandle<FReal, 3>* Particle;
-		TGeometryParticleHandle<FReal, 3>* Levelset;
-		TArray<FVec3> Normal;
-		TArray<FVec3> Location;
-		TArray<FReal> Phi;
-		FVec3 AccumulatedImpulse;
-	};
-
 
 	//TODO: move into a better forward declare location
 	class FPBDCollisionConstraintHandle;

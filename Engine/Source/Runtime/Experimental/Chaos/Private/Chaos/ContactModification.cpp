@@ -87,7 +87,7 @@ namespace Chaos
 	void FContactPairModifier::ModifyTargetSeparation(FReal TargetSeparation, int32 ContactPointIdx)
 	{	
 		FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ContactPointIdx);
-		ManifoldPoint.TargetPhi = TargetSeparation;
+		ManifoldPoint.TargetPhi = FRealSingle(TargetSeparation);
 	}
 
 	FVec3 FContactPairModifier::GetWorldNormal(int32 ContactPointIdx) const
@@ -97,7 +97,7 @@ namespace Chaos
 		TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 		FManifoldPoint& ManifoldPoint = ManifoldPoints[ContactPointIdx];
 
-		return ShapeTransform1.TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);
+		return ShapeTransform1.TransformVectorNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactNormal));
 	}
 
 	void FContactPairModifier::ModifyWorldNormal(const FVec3& Normal, int32 ContactPointIdx)
@@ -112,7 +112,7 @@ namespace Chaos
 		const FVec3 ShapeNormal = ShapeTransform1.InverseTransformVectorNoScale(Normal);
 
 		ManifoldPoint.ContactPoint.ShapeContactNormal = ShapeNormal;
-		ManifoldPoint.ContactPoint.Phi = FVec3::DotProduct(WorldContactPoint0 - WorldContactPoint1, Normal);
+		ManifoldPoint.ContactPoint.Phi = FRealSingle(FVec3::DotProduct(WorldContactPoint0 - WorldContactPoint1, Normal));
 
 		Modifier->MarkConstraintForManifoldUpdate(*Constraint);
 	}
@@ -124,8 +124,8 @@ namespace Chaos
 
 		TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 		FManifoldPoint& ManifoldPoint = ManifoldPoints[ContactPointIdx];
-		OutLocation0 = ShapeTransform0.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);
-		OutLocation1 = ShapeTransform1.TransformPositionNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);
+		OutLocation0 = ShapeTransform0.TransformPositionNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactPoints[0]));
+		OutLocation1 = ShapeTransform1.TransformPositionNoScale(FVec3(ManifoldPoint.ContactPoint.ShapeContactPoints[1]));
 	}
 
 	FVec3 FContactPairModifier::GetWorldContactLocation(int32 ContactPointIdx) const

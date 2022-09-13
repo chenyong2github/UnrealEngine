@@ -187,7 +187,7 @@ namespace Chaos
 	}
 
 	template <typename GeometryA, typename GeometryB>
-	FContactPoint GJKImplicitContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const GeometryB& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint GJKImplicitContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const GeometryB& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
 		FContactPoint Contact;
 		const FRigidTransform3 AToBTM = ATransform.GetRelativeTransform(BTransform);
@@ -269,12 +269,12 @@ namespace Chaos
 	}
 
 
-	FContactPoint SphereSphereContactPoint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint SphereSphereContactPoint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal CullDistance)
 	{
 		FContactPoint Result;
 
-		const FReal R1 = Sphere1.GetRadius() + 0.5f * ShapePadding;
-		const FReal R2 = Sphere2.GetRadius() + 0.5f * ShapePadding;
+		const FReal R1 = Sphere1.GetRadius();
+		const FReal R2 = Sphere2.GetRadius();
 
 		// World-space contact
 		const FVec3 Center1 = Sphere1Transform.TransformPosition(Sphere1.GetCenter());
@@ -296,17 +296,17 @@ namespace Chaos
 		return Result;
 	}
 
-	FContactPoint SpherePlaneContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const TPlane<FReal, 3>& Plane, const FRigidTransform3& PlaneTransform, const FReal ShapePadding)
+	FContactPoint SpherePlaneContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const TPlane<FReal, 3>& Plane, const FRigidTransform3& PlaneTransform)
 	{
 		FContactPoint Result;
 
-		FReal SphereRadius = Sphere.GetRadius() + 0.5f * ShapePadding;
+		FReal SphereRadius = Sphere.GetRadius();
 
 		FVec3 SpherePosWorld = SphereTransform.TransformPosition(Sphere.GetCenter());
 		FVec3 SpherePosPlane = PlaneTransform.InverseTransformPosition(SpherePosWorld);
 
 		FVec3 NormalPlane;
-		FReal Phi = Plane.PhiWithNormal(SpherePosPlane, NormalPlane) - SphereRadius - 0.5f * ShapePadding;	// Adding plane's share of padding
+		FReal Phi = Plane.PhiWithNormal(SpherePosPlane, NormalPlane) - SphereRadius;	// Adding plane's share of padding
 		FVec3 NormalWorld = PlaneTransform.TransformVector(NormalPlane);
 		FVec3 Location = SpherePosWorld - SphereRadius * NormalWorld;
 
@@ -318,7 +318,7 @@ namespace Chaos
 		return Result;
 	}
 
-	FContactPoint SphereBoxContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const FImplicitBox3& Box, const FRigidTransform3& BoxTransform, const FReal ShapePadding)
+	FContactPoint SphereBoxContactPoint(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const FImplicitBox3& Box, const FRigidTransform3& BoxTransform)
 	{
 		FContactPoint Result;
 
@@ -327,10 +327,10 @@ namespace Chaos
 
 		FVec3 NormalBox;																	// Box-space normal
 		FReal PhiToSphereCenter = Box.PhiWithNormal(SphereBox, NormalBox);
-		FReal Phi = PhiToSphereCenter - Sphere.GetRadius() - ShapePadding;
+		FReal Phi = PhiToSphereCenter - Sphere.GetRadius();
 
 		FVec3 NormalWorld = BoxTransform.TransformVectorNoScale(NormalBox);
-		FVec3 LocationWorld = SphereWorld - (Sphere.GetRadius() + 0.5f * ShapePadding) * NormalWorld;
+		FVec3 LocationWorld = SphereWorld - (Sphere.GetRadius()) * NormalWorld;
 
 		Result.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(LocationWorld);
 		Result.ShapeContactPoints[1] = BoxTransform.InverseTransformPosition(LocationWorld - Phi * NormalWorld);
@@ -339,7 +339,7 @@ namespace Chaos
 		return Result;
 	}
 
-	FContactPoint SphereCapsuleContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FCapsule& B, const FRigidTransform3& BTransform, const FReal ShapePadding)
+	FContactPoint SphereCapsuleContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FCapsule& B, const FRigidTransform3& BTransform)
 	{
 		FContactPoint Result;
 
@@ -352,7 +352,7 @@ namespace Chaos
 		FReal DeltaLen = Delta.Size();
 		if (DeltaLen > UE_KINDA_SMALL_NUMBER)
 		{
-			FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
+			FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius());
 			FVec3 Dir = Delta / DeltaLen;
 			FVec3 LocationA = A1 + Dir * A.GetRadius();
 			FVec3 LocationB = P2 - Dir * B.GetRadius();
@@ -368,9 +368,9 @@ namespace Chaos
 	}
 
 	template <typename TriMeshType>
-	FContactPoint SphereTriangleMeshContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint SphereTriangleMeshContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
-		return GJKImplicitContactPoint<TSphere<FReal, 3>>(TSphere<FReal, 3>(A), ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<TSphere<FReal, 3>>(TSphere<FReal, 3>(A), ATransform, B, BTransform, CullDistance);
 	}
 
 	template<typename TriMeshType>
@@ -389,33 +389,33 @@ namespace Chaos
 		return FContactPoint();
 	}
 
-	FContactPoint BoxHeightFieldContactPoint(const FImplicitBox3& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint BoxHeightFieldContactPoint(const FImplicitBox3& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
-		return GJKImplicitContactPoint<FImplicitBox3>(A, ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<FImplicitBox3>(A, ATransform, B, BTransform, CullDistance);
 	}
 
 	template <typename TriMeshType>
-	FContactPoint BoxTriangleMeshContactPoint(const FImplicitBox3& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint BoxTriangleMeshContactPoint(const FImplicitBox3& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
-		return GJKImplicitContactPoint<TBox<FReal, 3>>(A, ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<TBox<FReal, 3>>(A, ATransform, B, BTransform, CullDistance);
 	}
 
-	FContactPoint SphereHeightFieldContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint SphereHeightFieldContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
-		return GJKImplicitContactPoint<TSphere<FReal, 3>>(TSphere<FReal, 3>(A), ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<TSphere<FReal, 3>>(TSphere<FReal, 3>(A), ATransform, B, BTransform, CullDistance);
 	}
 
-	FContactPoint CapsuleHeightFieldContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint CapsuleHeightFieldContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
 		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_CapsuleHeightFieldContactPoint, ConstraintsDetailedStats);
-		return GJKImplicitContactPoint<FCapsule>(A, ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<FCapsule>(A, ATransform, B, BTransform, CullDistance);
 	}
 
 	template <typename TriMeshType>
-	FContactPoint CapsuleTriangleMeshContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint CapsuleTriangleMeshContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
 		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_CapsuleTriangleMeshContactPoint, ConstraintsDetailedStats);
-		return GJKImplicitContactPoint<FCapsule>(A, ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<FCapsule>(A, ATransform, B, BTransform, CullDistance);
 	}
 
 	template <typename TriMeshType>
@@ -435,13 +435,13 @@ namespace Chaos
 		return FContactPoint();
 	}
 
-	FContactPoint ConvexHeightFieldContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint ConvexHeightFieldContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
 		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConvexHeightFieldContactPoint, ConstraintsDetailedStats);
-		return GJKImplicitContactPoint<FConvex>(A, ATransform, B, BTransform, CullDistance, ShapePadding);
+		return GJKImplicitContactPoint<FConvex>(A, ATransform, B, BTransform, CullDistance);
 	}
 
-	FContactPoint ConvexTriangleMeshContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const FImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding)
+	FContactPoint ConvexTriangleMeshContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const FImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance)
 	{
 		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConvexTriangleMeshContactPoint, ConstraintsDetailedStats);
 
@@ -450,7 +450,7 @@ namespace Chaos
 			[&](auto BConcretePtr)
 			{
 				check(BConcretePtr != nullptr);
-				return GJKImplicitContactPoint<FConvex>(A, ATransform, *BConcretePtr, BTransform, CullDistance, ShapePadding);
+				return GJKImplicitContactPoint<FConvex>(A, ATransform, *BConcretePtr, BTransform, CullDistance);
 			});
 	}
 
@@ -471,7 +471,7 @@ namespace Chaos
 		return FContactPoint();
 	}
 
-	FContactPoint CapsuleCapsuleContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const FCapsule& B, const FRigidTransform3& BTransform, const FReal ShapePadding)
+	FContactPoint CapsuleCapsuleContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const FCapsule& B, const FRigidTransform3& BTransform)
 	{
 		FContactPoint Result;
 
@@ -486,7 +486,7 @@ namespace Chaos
 		FReal DeltaLen = Delta.Size();
 		if (DeltaLen > UE_KINDA_SMALL_NUMBER)
 		{
-			FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
+			FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius());
 			FVec3 Dir = Delta / DeltaLen;
 			FVec3 Normal = -Dir;
 			FVec3 LocationA = P1 + Dir * A.GetRadius();
@@ -501,9 +501,9 @@ namespace Chaos
 		return Result;
 	}
 
-	FContactPoint CapsuleBoxContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const FImplicitBox3& B, const FRigidTransform3& BTransform, const FVec3& InitialDir, const FReal ShapePadding)
+	FContactPoint CapsuleBoxContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const FImplicitBox3& B, const FRigidTransform3& BTransform, const FVec3& InitialDir)
 	{
-		return GJKContactPoint(A, ATransform, B, BTransform, InitialDir, ShapePadding);
+		return GJKContactPoint(A, ATransform, B, BTransform, InitialDir);
 	}
 
 
@@ -516,10 +516,10 @@ namespace Chaos
 	template FContactPoint CapsuleTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const FCapsule& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
 	template FContactPoint ConvexTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitObject& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
 	template FContactPoint ConvexTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const FImplicitObject& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
-	template FContactPoint BoxTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitBox3& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
-	template FContactPoint BoxTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const FImplicitBox3& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
-	template FContactPoint SphereTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
-	template FContactPoint SphereTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
-	template FContactPoint CapsuleTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FCapsule& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
-	template FContactPoint CapsuleTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const FCapsule& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
+	template FContactPoint BoxTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitBox3& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance);
+	template FContactPoint BoxTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const FImplicitBox3& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance);
+	template FContactPoint SphereTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance);
+	template FContactPoint SphereTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance);
+	template FContactPoint CapsuleTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FCapsule& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance);
+	template FContactPoint CapsuleTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const FCapsule& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance);
 }
