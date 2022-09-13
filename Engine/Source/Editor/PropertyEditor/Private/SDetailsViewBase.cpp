@@ -113,24 +113,38 @@ void SDetailsViewBase::SetRootExpansionStates(const bool bExpand, const bool bRe
 	}
 }
 
-void SDetailsViewBase::SetNodeExpansionState(TSharedRef<FDetailTreeNode> InTreeNode, bool bIsItemExpanded, bool bRecursive)
+void SDetailsViewBase::SetNodeExpansionState(TSharedRef<FDetailTreeNode> InTreeNode, bool bExpand, bool bRecursive)
 {
 	TArray< TSharedRef<FDetailTreeNode> > Children;
 	InTreeNode->GetChildren(Children);
 
 	if (Children.Num())
 	{
-		RequestItemExpanded(InTreeNode, bIsItemExpanded);
+		RequestItemExpanded(InTreeNode, bExpand);
 		const bool bShouldSaveState = true;
-		InTreeNode->OnItemExpansionChanged(bIsItemExpanded, bShouldSaveState);
+		InTreeNode->OnItemExpansionChanged(bExpand, bShouldSaveState);
 
 		if (bRecursive)
 		{
-			for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
-					{
-				TSharedRef<FDetailTreeNode> Child = Children[ChildIndex];
+			TArray<FString> TypesToIgnoreForRecursiveExpansion;
+			GConfig->GetArray(TEXT("DetailPropertyExpansion"), TEXT("TypesToIgnoreForRecursiveExpansion"), TypesToIgnoreForRecursiveExpansion, GEditorPerProjectIni);
 
-				SetNodeExpansionState(Child, bIsItemExpanded, bRecursive);
+			for (const TSharedRef<FDetailTreeNode>& Child : Children)
+			{
+				if (bExpand)
+				{
+					const FProperty* ChildProperty = Child->GetPropertyNode().IsValid() ? Child->GetPropertyNode()->GetProperty() : nullptr;
+					if (ChildProperty != nullptr)
+					{
+						if (TypesToIgnoreForRecursiveExpansion.Contains(ChildProperty->GetClass()->GetName()))
+						{
+							continue;
+						}
+					}
+				}
+
+
+				SetNodeExpansionState(Child, bExpand, bRecursive);
 			}
 		}
 	}
