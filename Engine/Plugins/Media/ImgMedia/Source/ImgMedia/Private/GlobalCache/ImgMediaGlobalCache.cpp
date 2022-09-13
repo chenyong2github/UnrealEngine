@@ -127,6 +127,13 @@ void FImgMediaGlobalCache::AddFrame(const FString& FileName, const FName& Sequen
 	}
 }
 
+bool FImgMediaGlobalCache::Contains(const FName& Sequence, int32 Index)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	return MapFrameToEntry.Contains(TPair<FName, int32>(Sequence, Index));
+}
+
 TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* FImgMediaGlobalCache::FindAndTouch(const FName& Sequence, int32 Index)
 {
 	FScopeLock Lock(&CriticalSection);

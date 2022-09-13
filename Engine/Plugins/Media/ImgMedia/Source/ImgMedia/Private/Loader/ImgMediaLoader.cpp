@@ -52,15 +52,21 @@ namespace ImgMediaLoader
 	}
 	
 	// Check if the existing tiles contain all of the requested ones. (Is existing a superset of requested?)
-	bool ContainsMipTiles(const TMap<int32, FImgMediaTileSelection>& ExistingTiles, const TMap<int32, FImgMediaTileSelection>& RequestedTiles)
+	bool ContainsMipTiles(const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& ExistingFrame, const TMap<int32, FImgMediaTileSelection>& RequestedTiles)
 	{
 		for (auto Iter = RequestedTiles.CreateConstIterator(); Iter; ++Iter)
 		{
 			const int32 RequestedMipLevel = Iter.Key();
 			const FImgMediaTileSelection& RequestedSelection = Iter.Value();
 
-			if (const FImgMediaTileSelection* ExistingSelection = ExistingTiles.Find(RequestedMipLevel))
+			if (const FImgMediaTileSelection* ExistingSelection = ExistingFrame->MipTilesPresent.Find(RequestedMipLevel))
 			{
+				if (ExistingSelection->GetDimensions().GetMax() < RequestedSelection.GetDimensions().GetMax())
+				{
+					// If an empty 1x1 frame was cached but we're now requesting a fully tiled frame.
+					return false;
+				}
+
 				if (!ExistingSelection->Contains(RequestedSelection))
 				{
 					// Requested tile selection is not present.
@@ -681,19 +687,27 @@ IQueuedWork* FImgMediaLoader::GetWork()
 {
 	FScopeLock Lock(&CriticalSection);
 
-	TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
-	int32 FrameNumber = INDEX_NONE;
-
-	// Find a visible pending frame.
-	while (!PendingFrameNumbers.IsEmpty() && DesiredMipsAndTiles.IsEmpty())
+	if (PendingFrameNumbers.IsEmpty())
 	{
-		FrameNumber = PendingFrameNumbers.Pop(false);
-		GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
+		return nullptr;
 	}
 
-	// No selection is visible (or pending frames was empty), so we don't queue any work.
+	int32 FrameNumber = PendingFrameNumbers.Pop(false);
+
+	TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
+	GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
+
 	if (DesiredMipsAndTiles.IsEmpty())
 	{
+		// Still provide the cache with an empty frame to prevent blocking playback from stalling.
+		bool bIsFrameAlreadyCached = UseGlobalCache ? GlobalCache->Contains(SequenceName, FrameNumber) : Frames.Contains(FrameNumber);
+
+		if (!bIsFrameAlreadyCached)
+		{
+			AddEmptyFrame(FrameNumber);
+		}
+
+		// No selection was visible, so we don't queue any work.
 		return nullptr;
 	}
 
@@ -1292,7 +1306,7 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 			TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
 			GetDesiredMipTiles(FrameNumber, DesiredMipsAndTiles);
 
-			NeedFrame = !ImgMediaLoader::ContainsMipTiles((*FramePtr)->MipTilesPresent, DesiredMipsAndTiles);
+			NeedFrame = !ImgMediaLoader::ContainsMipTiles(*FramePtr, DesiredMipsAndTiles);
 		}
 		
 		if ((NeedFrame) && !QueuedFrameNumbers.Contains(FrameNumber))
@@ -1331,7 +1345,7 @@ void FImgMediaLoader::AddEmptyFrame(int32 FrameNumber)
 	Frame->Info.NumChannels = NumChannels;
 	Frame->Info.bHasTiles = false;
 	Frame->Format = EMediaTextureSampleFormat::FloatRGB;
-	Frame->Stride = Frame ->Info.Dim.X * PixelSize;
+	Frame->Stride = Frame->Info.Dim.X * PixelSize;
 	for (int32 Level = 0; Level < GetNumMipLevels(); ++Level)
 	{
 		Frame->MipTilesPresent.Emplace(Level, FImgMediaTileSelection(1, 1, true));

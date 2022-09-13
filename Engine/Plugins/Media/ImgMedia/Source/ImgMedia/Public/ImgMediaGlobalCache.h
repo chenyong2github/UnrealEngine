@@ -51,6 +51,14 @@ public:
 	void AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, bool HasMipMaps);
 
 	/**
+	 * Check whether the entry with the specified sequence and index is present.
+	 *
+	 * @param	Sequence		Indentifying name of this sequence.
+	 * @param	Index			Index of frame to touch.
+	 */
+	bool Contains(const FName& Sequence, int32 Index);
+
+	/**
 	 * Find the entry with the specified sequence and index and mark it as the most recently used.
 	 *
 	 * @param	Sequence		Indentifying name of this sequence.
