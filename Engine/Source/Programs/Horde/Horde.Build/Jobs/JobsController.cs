@@ -129,6 +129,9 @@ namespace Horde.Build.Jobs
 				}
 			}
 
+			// Environment variables for the job
+			Dictionary<string, string> environment = new Dictionary<string, string>();
+
 			// Check the preflight change is valid
 			ShelfInfo? shelfInfo = null;
 			if (create.PreflightChange != null)
@@ -148,6 +151,12 @@ namespace Horde.Build.Jobs
 						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} contains files from multiple streams", create.PreflightChange);
 					default:
 						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} cannot be preflighted ({Result})", create.PreflightChange, result);
+				}
+
+				if (shelfInfo!.Tags != null)
+				{
+					string tagList = String.Join(";", shelfInfo.Tags.Select(x => x.ToString()));
+					environment.Add("UE_HORDE_PREFLIGHT_TAGS", tagList);
 				}
 			}
 
@@ -181,7 +190,7 @@ namespace Horde.Build.Jobs
 			}
 
 			// Create the job
-			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, shelfInfo?.Description, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.Config.ChainedJobs, templateRef.Config.ShowUgsBadges, templateRef.Config.ShowUgsAlerts, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, arguments);
+			IJob job = await _jobService.CreateJobAsync(null, stream, templateRefId, template.Id, graph, name, change, codeChange, create.PreflightChange, null, shelfInfo?.Description, User.GetUserId(), priority, create.AutoSubmit, updateIssues, false, templateRef.Config.ChainedJobs, templateRef.Config.ShowUgsBadges, templateRef.Config.ShowUgsAlerts, templateRef.Config.NotificationChannel, templateRef.Config.NotificationChannelFilter, arguments, environment);
 			await UpdateNotificationsAsync(job.Id, new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(job.Id.ToString());
 		}

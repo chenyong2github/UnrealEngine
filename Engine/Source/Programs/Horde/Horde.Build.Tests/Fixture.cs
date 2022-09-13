@@ -112,7 +112,8 @@ namespace Horde.Build.Tests
 				false,
 				null,
 				null,
-				arguments: new List<string>()
+				arguments: new List<string>(),
+				null
 			);
 			Job1 = (await jobService.GetJobAsync(Job1.Id))!;
 
@@ -138,7 +139,8 @@ namespace Horde.Build.Tests
 				false,
 				null,
 				null,
-				arguments: new List<string>()
+				arguments: new List<string>(),
+				null
 			);
 			Job2 = (await jobService.GetJobAsync(Job2.Id))!;
 

@@ -635,6 +635,11 @@ namespace Horde.Build.Server
 				response.EnvVars.Add("UE_HORDE_TEMPLATENAME", templateName);
 				response.EnvVars.Add("UE_HORDE_STEPNAME", node.Name);
 
+				if (job.Environment != null)
+				{
+					response.EnvVars.Add(job.Environment);
+				}
+
 				IJobStepRef? lastStep = await _jobStepRefCollection.GetPrevStepForNodeAsync(job.StreamId, job.TemplateId, node.Name, job.Change);
 				if (lastStep != null)
 				{

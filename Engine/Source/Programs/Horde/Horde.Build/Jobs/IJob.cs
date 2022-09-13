@@ -667,6 +667,11 @@ namespace Horde.Build.Jobs
 		public IReadOnlyList<string> Arguments { get; }
 
 		/// <summary>
+		/// Environment variables for the job
+		/// </summary>
+		public IReadOnlyDictionary<string, string> Environment { get; }
+
+		/// <summary>
 		/// Issues associated with this job
 		/// </summary>
 		public IReadOnlyList<int> Issues { get; }
