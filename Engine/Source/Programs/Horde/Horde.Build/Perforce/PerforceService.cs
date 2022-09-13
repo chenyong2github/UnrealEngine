@@ -799,7 +799,7 @@ namespace Horde.Build.Perforce
 				}
 
 				List<CommitTag> tags = new List<CommitTag>();
-				foreach (CommitTagConfig tagConfig in stream.Config.CommitTags)
+				foreach (CommitTagConfig tagConfig in stream.Config.GetAllCommitTags())
 				{
 					FileFilter filter = tagConfig.CreateFileFilter();
 					if (mappedFiles.Any(x => filter.Matches(x)))
