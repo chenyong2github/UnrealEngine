@@ -35,4 +35,5 @@ public:
 	* @returns Landscape-specific data associated with given world.
 	*/
 	LANDSCAPE_API static ULandscapeInfoMap& GetLandscapeInfoMap(const UWorld* World);
+	LANDSCAPE_API static ULandscapeInfoMap* FindLandscapeInfoMap(const UWorld* World);
 };

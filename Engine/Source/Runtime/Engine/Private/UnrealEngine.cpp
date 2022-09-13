@@ -11618,7 +11618,7 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
 	{
-		LandscapeSubsystem->DisplayBuildMessages(Canvas, MessageX, MessageY);
+		LandscapeSubsystem->DisplayMessages(Canvas, MessageX, MessageY);
 	}
 #endif
 

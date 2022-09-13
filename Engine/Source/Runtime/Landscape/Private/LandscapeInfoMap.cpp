@@ -52,3 +52,10 @@ ULandscapeInfoMap& ULandscapeInfoMap::GetLandscapeInfoMap(const UWorld* World)
 
 	return *FoundObject;
 }
+
+ULandscapeInfoMap* ULandscapeInfoMap::FindLandscapeInfoMap(const UWorld* World)
+{
+	ULandscapeInfoMap* FoundObject = nullptr;
+	World->PerModuleDataObjects.FindItemByClass(&FoundObject);
+	return FoundObject;
+}

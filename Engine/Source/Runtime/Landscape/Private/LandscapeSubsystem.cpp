@@ -9,6 +9,7 @@
 #include "LandscapeProxy.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
+#include "LandscapeInfoMap.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
@@ -17,6 +18,10 @@
 #include "LandscapeConfigHelper.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
+
+#if WITH_EDITOR
+#include "FileHelpers.h"
+#endif
 
 static int32 GUseStreamingManagerForCameras = 1;
 static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
@@ -217,6 +222,97 @@ void ULandscapeSubsystem::BuildNanite()
 	}
 }
 
+void ULandscapeSubsystem::ForEachLandscapeInfo(TFunctionRef<bool(ULandscapeInfo*)> ForEachLandscapeInfoFunc) const
+{
+	if (ULandscapeInfoMap* LandscapeInfoMap = ULandscapeInfoMap::FindLandscapeInfoMap(GetWorld()))
+	{
+		for (const auto& Pair : LandscapeInfoMap->Map)
+		{
+			if (ULandscapeInfo* LandscapeInfo = Pair.Value)
+			{
+				if (!ForEachLandscapeInfoFunc(LandscapeInfo))
+				{
+					return;
+				}
+			}
+		}
+	}
+}
+
+bool ULandscapeSubsystem::IsDirtyOnlyInModeEnabled()
+{
+	return ULandscapeInfo::IsDirtyOnlyInModeEnabled();
+}
+
+void ULandscapeSubsystem::SaveModifiedLandscapes()
+{	
+	TSet<UPackage*> SetDirtyPackages;
+	TSet<FName> PackagesToSave;
+
+	const bool bSkipDirty = false;
+
+	// Gather list of packages to save and make them dirty so they are considered by FEditorFileUtils::SaveDirtyPackages.
+	ForEachLandscapeInfo([&](ULandscapeInfo* LandscapeInfo)
+	{
+		for(UPackage* ModifiedPackage : LandscapeInfo->GetModifiedPackages())
+		{
+			PackagesToSave.Add(ModifiedPackage->GetFName());
+			if (!ModifiedPackage->IsDirty())
+			{
+				SetDirtyPackages.Add(ModifiedPackage);
+				ModifiedPackage->SetDirtyFlag(true);
+			}
+		}
+		return true;
+	});
+
+	const bool bPromptUserToSave = true;
+	const bool bSaveMapPackages = true;
+	const bool bSaveContentPackages = true;
+	const bool bFastSave = false;
+	const bool bNotifyNoPackagesSaved = false;
+	const bool bCanBeDeclined = true;
+
+	FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr,
+		[PackagesToSave](UPackage* DirtyPackage)
+		{
+			if (PackagesToSave.Contains(DirtyPackage->GetFName()))
+			{
+				return false;
+			}
+			return true;
+		});
+
+	// If Package wasn't saved it is still in the LandscapeInfo ModifiedPackage list, set its dirty flag back to false.
+	ForEachLandscapeInfo([&](ULandscapeInfo* LandscapeInfo)
+	{
+		for (UPackage* ModifiedPackage : LandscapeInfo->GetModifiedPackages())
+		{
+			if (SetDirtyPackages.Contains(ModifiedPackage))
+			{
+				ModifiedPackage->SetDirtyFlag(false);
+			}
+		}
+		return true;
+	});
+}
+
+bool ULandscapeSubsystem::HasModifiedLandscapes() const
+{
+	bool bHasModifiedLandscapes = false;
+	ForEachLandscapeInfo([&](ULandscapeInfo* LandscapeInfo)
+	{
+		if (LandscapeInfo->GetModifiedPackageCount() > 0)
+		{
+			bHasModifiedLandscapes = true;
+			return false;
+		}
+		return true;
+	});
+	
+	return bHasModifiedLandscapes;
+}
+
 bool ULandscapeSubsystem::IsGridBased() const
 {
 	return UWorld::IsPartitionedWorld(GetWorld());
@@ -245,7 +341,7 @@ ALandscapeProxy* ULandscapeSubsystem::FindOrAddLandscapeProxy(ULandscapeInfo* La
 	return FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(LandscapeInfo, SectionBase);
 }
 
-void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, float& YPos)
+void ULandscapeSubsystem::DisplayMessages(FCanvas* Canvas, float& XPos, float& YPos)
 {
 	const int32 FontSizeY = 20;
 	FCanvasTextItem SmallTextItem(FVector2D(0, 0), FText::GetEmpty(), GEngine->GetSmallFont(), FLinearColor::White);
@@ -254,7 +350,7 @@ void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, flo
 	if (int32 OutdatedGrassMapCount = GetOutdatedGrassMapCount())
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "GRASS MAPS NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
+		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: GRASS MAPS NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
 		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
 		YPos += FontSizeY;
 	}
@@ -262,7 +358,7 @@ void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, flo
 	if (int32 ComponentsNeedingGITextureBaking = GetOutdatedGIBakedTextureComponentsCount())
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE BAKED TEXTURES NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);
+		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_TEXTURES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: BAKED TEXTURES NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsNeedingGITextureBaking);
 		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
 		YPos += FontSizeY;
 	}
@@ -270,9 +366,27 @@ void ULandscapeSubsystem::DisplayBuildMessages(FCanvas* Canvas, float& XPos, flo
 	if (int32 ComponentsWithOudatedPhysicalMaterial = GetOudatedPhysicalMaterialComponentsCount())
 	{
 		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_PHYSICALMATERIAL_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE PHYSICAL MATERIAL NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsWithOudatedPhysicalMaterial);
+		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_PHYSICALMATERIAL_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: PHYSICAL MATERIAL NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsWithOudatedPhysicalMaterial);
 		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
 		YPos += FontSizeY;
+	}
+
+	if (ULandscapeInfoMap* LandscapeInfoMap = ULandscapeInfoMap::FindLandscapeInfoMap(GetWorld()))
+	{
+		int32 ModifiedNotDirtyCount = 0;
+		ForEachLandscapeInfo([&ModifiedNotDirtyCount](ULandscapeInfo* LandscapeInfo)
+		{
+			ModifiedNotDirtyCount += LandscapeInfo->GetModifiedPackageCount();
+			return true;
+		});
+				
+		if (ModifiedNotDirtyCount > 0)
+		{
+			SmallTextItem.SetColor(FLinearColor::Red);
+			SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_NEED_TO_BE_SAVED", "LANDSCAPE: NEED TO BE SAVED ({0} {0}|plural(one=object,other=objects))"), ModifiedNotDirtyCount);
+			Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
+			YPos += FontSizeY;
+		}
 	}
 }
 

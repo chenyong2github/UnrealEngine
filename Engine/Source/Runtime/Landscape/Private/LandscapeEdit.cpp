@@ -6005,11 +6005,13 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 		}
 	}
 
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+
 	bool bMarkPackageDirty = DataInterface == nullptr ? true : DataInterface->GetShouldDirtyPackage();
 	if (InSaveToTransactionBuffer)
 	{
-		Modify(bMarkPackageDirty);
-		TargetProxy->Modify(bMarkPackageDirty);
+		LandscapeInfo->ModifyObject(this, bMarkPackageDirty);
+		LandscapeInfo->ModifyObject(TargetProxy, bMarkPackageDirty);
 	}
 
 	if (!InForceReallocate)
@@ -6143,7 +6145,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 		// No suitable weightmap texture
 		if (CurrentWeightmapTexture == nullptr)
 		{
-			MarkPackageDirty();
+			LandscapeInfo->MarkObjectDirty(this);
 
 			// Weightmap is sized the same as the component
 			int32 WeightmapSize = (SubsectionSizeQuads + 1) * NumSubsections;

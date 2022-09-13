@@ -175,6 +175,12 @@ static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
 	LiveRebuildNaniteOnModification,
 	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed"));
 
+static int32 GLandscapeDirtyOnlyInModeEnabled = 0;
+static FAutoConsoleVariableRef CVarLandscapeDirtyOnlyInModeEnabled(
+	TEXT("landscape.DirtyOnlyInMode"),
+	GLandscapeDirtyOnlyInModeEnabled,
+	TEXT("Set to 1 to avoid Landscape being dirtied when not in Landscape mode."));
+
 #endif
 
 int32 GRenderNaniteLandscape = 1;
@@ -859,6 +865,9 @@ void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) co
 
 ULandscapeInfo::ULandscapeInfo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, bDirtyOnlyInMode(false)
+#endif
 	, XYComponentBounds(MAX_int32, MAX_int32, MIN_int32, MIN_int32)
 {
 }
@@ -2833,6 +2842,11 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		UpdateNaniteRepresentation();
 		UpdateRenderingMethod();
 	}
+
+	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+	{
+		LandscapeInfo->OnModifiedPackageSaved(GetPackage());
+	}
 #endif // WITH_EDITOR
 }
 
@@ -3612,6 +3626,109 @@ void ALandscape::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	//		}
 	//	}
 	//}
+}
+
+bool ULandscapeInfo::IsDirtyOnlyInModeEnabled()
+{
+	return GLandscapeDirtyOnlyInModeEnabled > 0;
+}
+
+FLandscapeDirtyOnlyInModeScope::FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo)
+	: LandscapeInfo(InLandscapeInfo)
+	, bDirtyOnlyInModePrevious(InLandscapeInfo->bDirtyOnlyInMode)
+{
+	LandscapeInfo->bDirtyOnlyInMode = ULandscapeInfo::IsDirtyOnlyInModeEnabled();
+}
+
+FLandscapeDirtyOnlyInModeScope::~FLandscapeDirtyOnlyInModeScope()
+{
+	LandscapeInfo->bDirtyOnlyInMode = bDirtyOnlyInModePrevious;
+}
+
+void ULandscapeInfo::OnModifiedPackageSaved(UPackage* InPackage)
+{
+	ModifiedPackages.Remove(InPackage);
+}
+
+TArray<UPackage*> ULandscapeInfo::GetModifiedPackages() const
+{
+	TArray<UPackage*> LocalModifiedPackages;
+	LocalModifiedPackages.Reserve(ModifiedPackages.Num());
+	for (const TWeakObjectPtr<UPackage>& WeakPackagePtr : ModifiedPackages)
+	{
+		if (UPackage* Package = WeakPackagePtr.Get())
+		{
+			LocalModifiedPackages.Add(Package);
+		}
+	}
+
+	return LocalModifiedPackages;
+}
+
+int32 ULandscapeInfo::GetModifiedPackageCount() const
+{
+	int32 ModifiedPackageCount = 0;
+
+	for (const TWeakObjectPtr<UPackage>& WeakPackagePtr : ModifiedPackages)
+	{
+		if (UPackage* Package = WeakPackagePtr.Get())
+		{
+			ModifiedPackageCount++;
+		}
+	}
+
+	return ModifiedPackageCount;
+}
+
+void ULandscapeInfo::MarkObjectDirty(UObject* InObject)
+{
+	check(InObject && (InObject->IsA<ALandscapeProxy>() || InObject->GetTypedOuter<ALandscapeProxy>() != nullptr));
+		
+	if (bDirtyOnlyInMode)
+	{
+		ALandscape* LocalLandscapeActor = LandscapeActor.Get();
+		check(LocalLandscapeActor);
+		if (LocalLandscapeActor->HasLandscapeEdMode())
+		{
+			InObject->MarkPackageDirty();
+		}
+		else
+		{
+			ModifiedPackages.Add(InObject->GetPackage());
+		}
+	}
+	else
+	{
+		InObject->MarkPackageDirty();
+	}
+}
+
+void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
+{
+	check(InObject && (InObject->IsA<ALandscapeProxy>() || InObject->GetTypedOuter<ALandscapeProxy>() != nullptr));
+	
+	if (!bAlwaysMarkDirty)
+	{
+		InObject->Modify(false);
+	}
+	else if(!bDirtyOnlyInMode)
+	{
+		InObject->Modify(true);
+	}
+	else
+	{
+		ALandscape* LocalLandscapeActor = LandscapeActor.Get();
+		check(LocalLandscapeActor);
+		if (LocalLandscapeActor->HasLandscapeEdMode())
+		{
+			InObject->Modify(true);
+		}
+		else
+		{
+			InObject->Modify(false);
+			ModifiedPackages.Add(InObject->GetPackage());
+		}
+	}
 }
 
 ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const

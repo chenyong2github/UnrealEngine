@@ -44,6 +44,21 @@ struct FLandscapeAddCollision
 };
 #endif // WITH_EDITORONLY_DATA
 
+class ULandscapeInfo;
+
+#if WITH_EDITOR
+struct FLandscapeDirtyOnlyInModeScope
+{
+	FLandscapeDirtyOnlyInModeScope() = delete;
+	FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo);
+	~FLandscapeDirtyOnlyInModeScope();
+
+private:
+	ULandscapeInfo* LandscapeInfo;
+	bool bDirtyOnlyInModePrevious;
+};
+#endif
+
 USTRUCT()
 struct FLandscapeInfoLayerSettings
 {
@@ -149,6 +164,13 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<TScriptInterface<ILandscapeSplineInterface>> SplineActors;
+
+	// Not a property since this shouldn't be modified through transactions (no undo/redo)
+	TSet<TWeakObjectPtr<UPackage>> ModifiedPackages;
+
+	bool bDirtyOnlyInMode;
+
+	friend struct FLandscapeDirtyOnlyInModeScope;
 #endif // WITH_EDITORONLY_DATA
 
 	TSet<ULandscapeComponent*> SelectedComponents;
@@ -225,6 +247,14 @@ public:
 	 */
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxyForLevel(ULevel* Level) const;
 
+	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
+
+	LANDSCAPE_API void OnModifiedPackageSaved(UPackage* InPackage);
+	LANDSCAPE_API int32 GetModifiedPackageCount() const;
+	LANDSCAPE_API TArray<UPackage*> GetModifiedPackages() const;
+
+	LANDSCAPE_API void ModifyObject(UObject* InObject, bool bAlwaysMarkDirty = true);
+	LANDSCAPE_API void MarkObjectDirty(UObject* InObject);
 #endif //WITH_EDITOR
 
 	/**

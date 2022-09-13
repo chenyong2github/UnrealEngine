@@ -5246,7 +5246,7 @@ bool ALandscape::ResolveLayersTexture(
 						bChanged = true;
 
 						// We're about to modify the texture's source data, the texture needs to know so that it can handle properly update cached platform data (additionally, the package needs to be dirtied) :
-						InOutputTexture->Modify();
+						GetLandscapeInfo()->ModifyObject(InOutputTexture);
 					}
 				}
 
@@ -7803,6 +7803,9 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
+	// Make sure Update doesn't dirty Landscape packages when not in Landscape Ed Mode
+	FLandscapeDirtyOnlyInModeScope DirtyOnlyInMode(LandscapeInfo);
+
 	// If we went from local merge to global merge or vice versa, we need to reinitialize layers : 
 	bool bUseLocalMerge = SupportsEditLayersLocalMerge();
 	if (bLandscapeLayersAreUsingLocalMerge != bUseLocalMerge)
@@ -8994,12 +8997,12 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bInUpda
 					// Was never computed
 					if (Component->SplineHash == 0)
 					{
-						Component->Modify(); // mark package dirty
+						LandscapeInfo->ModifyObject(Component);
 						Component->SplineHash = DefaultSplineHash;
 					}
 
 					PreviousHashes.Add(Component, Component->SplineHash);
-					Component->Modify(false);
+					LandscapeInfo->ModifyObject(Component, false);
 					Component->SplineHash = DefaultSplineHash;
 				});
 			}
@@ -9022,13 +9025,13 @@ void ALandscape::UpdateLandscapeSplines(const FGuid& InTargetLayer, bool bInUpda
 					uint32 NewHash = Pair.Key->ComputeLayerHash();
 					if (NewHash != Pair.Value)
 					{
-						Pair.Key->MarkPackageDirty();
+						LandscapeInfo->MarkObjectDirty(Pair.Key);
 					}
 					Pair.Key->SplineHash = NewHash;
 				}
 				else if (Pair.Key->SplineHash == DefaultSplineHash && Pair.Value != DefaultSplineHash)
 				{
-					Pair.Key->MarkPackageDirty();
+					LandscapeInfo->MarkObjectDirty(Pair.Key);
 				}
 			}
 		}
