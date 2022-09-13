@@ -264,7 +264,7 @@ public:
 		for (auto ObjIter=ObjectList.CreateConstIterator(); ObjIter; ++ObjIter)
 		{
 			const FAssetData& Asset = *ObjIter;
-			FString Filename = Asset.ObjectPath.ToString();
+			FString Filename = Asset.GetObjectPathString();
 			//convert to full paths
 			Filename = FPackageName::LongPackageNameToFilename(Filename);
 			if (FAutomationTestFramework::Get().ShouldTestContent(Filename))
@@ -274,7 +274,7 @@ public:
 				{
 					FString BeautifiedFilename = Asset.AssetName.ToString();
 					OutBeautifiedNames.Add(BeautifiedFilename);
-					OutTestCommands.Add(Asset.ObjectPath.ToString());
+					OutTestCommands.Add(Asset.GetObjectPathString());
 				}
 			}
 		}

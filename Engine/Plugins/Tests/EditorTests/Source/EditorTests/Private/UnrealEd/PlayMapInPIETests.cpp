@@ -115,7 +115,7 @@ public:
 					{
 						if (!IsDeveloperDirectoryIncluded && MapPackageName.Find(TEXT("/Game/Developers")) == 0) continue;
 
-						FString MapAssetPath = MapAsset.ObjectPath.ToString();
+						FString MapAssetPath = MapAsset.GetObjectPathString();
 
 						OutBeautifiedNames.Add(MapPackageName.RightChop(6).Replace(TEXT("/"), TEXT("."))); // Remove "/Game/" from the name and use dot syntax
 						OutTestCommands.Add(MapAssetPath + TEXT(";") + MapPackageName);
@@ -214,7 +214,7 @@ void OpenMap(const TArray<FString>& Args)
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-	FAssetData MapAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+	FAssetData MapAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 
 	if (MapAssetData.IsValid())
 	{

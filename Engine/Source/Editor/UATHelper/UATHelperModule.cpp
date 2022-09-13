@@ -204,12 +204,12 @@ private:
 				{
 					// Generate qualified asset path and query the registry
 					AssetPath = LongPackageName + TEXT(".") + FPackageName::GetShortName(LongPackageName);
-					FName AssetPathName(*AssetPath, FNAME_Find);
-					if (!AssetPathName.IsNone())
+					FSoftObjectPath SoftAssetPath(AssetPath);
+					if (!SoftAssetPath.IsNull())
 					{
 						static const FName AssetRegistryModuleName(TEXT("AssetRegistry"));
 						FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryModuleName);
-						AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(AssetPathName, true);
+						AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(SoftAssetPath, true);
 					}
 				}
 			}
