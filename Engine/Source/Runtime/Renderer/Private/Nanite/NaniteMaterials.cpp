@@ -1789,7 +1789,8 @@ static void PerformNaniteVisibility(
 		TArray<FNaniteVisibility::FPrimitiveReferences, SceneRenderingAllocator> ReferencesList;
 		PrimitiveReferences.GenerateValueArray(ReferencesList);
 
-		ParallelForTemplate(ReferencesList.Num(), [Query, ReferencesList = MoveTemp(ReferencesList), BinIndexTranslator](int32 ReferencesIndex)
+		const int32 ReferenceCount = ReferencesList.Num();
+		ParallelForTemplate(ReferenceCount, [Query, ReferencesList = MoveTemp(ReferencesList), BinIndexTranslator](int32 ReferencesIndex)
 		{
 			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			SCOPED_NAMED_EVENT(PerformNaniteVisibility, FColor::Magenta);
