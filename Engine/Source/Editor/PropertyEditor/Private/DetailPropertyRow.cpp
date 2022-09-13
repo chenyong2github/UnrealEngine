@@ -786,15 +786,6 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 
 			NameWidget = CustomTypeWidget->ValueWidget.Widget;
 		}
-		else if (InCustomRow.IsValid())
-		{
-			NameWidget = 
-				SNew( SBox )
-				.IsEnabled( IsEnabledAttrib )
-				[
-					InCustomRow->NameWidget.Widget
-				];
-		}
 		else
 		{
 			NameWidget =
