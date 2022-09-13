@@ -984,6 +984,7 @@ namespace Horde.Build.Perforce
 						change = await perforce.CreateChangeAsync(change, cancellationToken);
 
 						SubmitRecord submit = await perforce.SubmitAsync(change.Number, SubmitOptions.SubmitUnchanged, cancellationToken);
+						_logger.LogInformation("Submitted new changelist with {DepotPath}: CL {Change}", depotPath, submit.SubmittedChangeNumber);
 						return submit.SubmittedChangeNumber;
 					}
 					catch (Exception ex)
@@ -1153,8 +1154,8 @@ namespace Horde.Build.Perforce
 			{
 				using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CommitSource.FindAsync").StartActive();
 				scope.Span.SetTag("ClusterName", _stream.Config.ClusterName);
-				scope.Span.SetTag("MinChange", minChange ?? -1);
-				scope.Span.SetTag("MaxChange", maxChange ?? -1);
+				scope.Span.SetTag("MinChange", minChange ?? -2);
+				scope.Span.SetTag("MaxChange", maxChange ?? -2);
 				scope.Span.SetTag("MaxResults", maxResults ?? -1);
 
 				using (PooledConnectionHandle perforce = await _perforceService.ConnectWithStreamClientAsync(_stream, null, cancellationToken))
