@@ -30,7 +30,14 @@ bool GForceBufferedFiles = false;
 static FPath
 MakeExtendedAbsolutePath(const FPath& InAbsolutePath)
 {
-	UNSYNC_ASSERT(InAbsolutePath.is_absolute());
+	if (InAbsolutePath.empty())
+	{
+		return FPath();
+	}
+
+	UNSYNC_ASSERTF(InAbsolutePath.is_absolute(),
+		L"Input path '%ls' must be absolute",
+		InAbsolutePath.wstring().c_str());
 
 #if UNSYNC_PLATFORM_WINDOWS
 	const std::wstring& InFilenameString = InAbsolutePath.native();

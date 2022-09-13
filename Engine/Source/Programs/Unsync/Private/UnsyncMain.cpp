@@ -786,6 +786,7 @@ main(int argc, char** argv)
 #endif	// UNSYNC_PLATFORM_WINDOWS
 
 	GExePath = std::filesystem::weakly_canonical(GExePath);
+	GExePath = GetAbsoluteNormalPath(GExePath);
 
 #if UNSYNC_PLATFORM_UNIX
 	std::vector<char*> ArgvUtf8;

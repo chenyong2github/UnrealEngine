@@ -281,6 +281,7 @@ CountLeadingZeros64(uint64 X)
 }
 
 FPath NormalizeFilenameUtf8(const std::string& InFilename);
+FPath GetAbsoluteNormalPath(const FPath& InPath);
 
 const FBuffer& GetSystemRootCerts();
 

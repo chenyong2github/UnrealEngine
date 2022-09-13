@@ -307,6 +307,15 @@ NormalizeFilenameUtf8(const std::string& InFilename)
 	return AbsoluteNormalPath;
 }
 
+FPath
+GetAbsoluteNormalPath(const FPath& InPath)
+{
+	FPath NormalPath = InPath.lexically_normal();
+	FPath AbsoluteNormalPath = std::filesystem::absolute(NormalPath);
+	return AbsoluteNormalPath;
+}
+
+
 const FBuffer&
 GetSystemRootCerts()
 {
