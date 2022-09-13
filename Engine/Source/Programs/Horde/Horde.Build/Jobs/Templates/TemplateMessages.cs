@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using EpicGames.Core;
+using Horde.Build.Streams;
 using HordeCommon;
 
 namespace Horde.Build.Jobs.Templates
@@ -429,6 +430,11 @@ namespace Horde.Build.Jobs.Templates
 		/// Description for new changelists
 		/// </summary>
 		public string? SubmitDescription { get; set; }
+
+		/// <summary>
+		/// Default change to build at. Each object has a condition parameter which can evaluated by the server to determine which change to use.
+		/// </summary>
+		public List<ChangeQueryConfig>? DefaultChange { get; set; }
 
 		/// <summary>
 		/// Fixed arguments for the new job
