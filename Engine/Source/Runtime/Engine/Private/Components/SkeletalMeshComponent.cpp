@@ -1776,7 +1776,8 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 				FBoneIndexType CurBoneIndex = OutRequiredBones[i];
 
 				// Current bone visible?
-				if (EditableBoneVisibilityStates[CurBoneIndex] == BVS_Visible)
+				if (EditableBoneVisibilityStates[CurBoneIndex] == BVS_Visible || 
+					VisibilityBasedAnimTickOption == EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones)
 				{
 					OutRequiredBones[VisibleBoneWriteIndex++] = CurBoneIndex;
 				}
