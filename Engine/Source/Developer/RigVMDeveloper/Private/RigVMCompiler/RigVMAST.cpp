@@ -3246,7 +3246,7 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 
 			// If the pin has subpins, and it has a source pin, the subpins can be safely ignored
 			URigVMPin* Pin = InPinProxy.GetSubjectChecked<URigVMPin>();
-			if (!SourcePinProxy.IsValid())
+			//if (!SourcePinProxy.IsValid())
 			{
 				for (URigVMPin* SubPin : Pin->GetSubPins())
 				{
