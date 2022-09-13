@@ -80,10 +80,19 @@ FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
 		Setup->GetGeometryDDCKey(SetupGeometryKey);
 	}
 
-	return FString::Printf(TEXT("%s_%s_REAL%d"),
-		*RequestedFormat.ToString(),
-		*SetupGeometryKey,
-		(int)sizeof(Chaos::FReal));
+	FString OutSuffix = FString::Printf(TEXT("%s_%s_REAL%d"),
+										*RequestedFormat.ToString(),
+										*SetupGeometryKey,
+										(int)sizeof(Chaos::FReal));
+
+#if PLATFORM_CPU_ARM_FAMILY
+	// Separate out arm keys as x64 and arm64 clang do not generate the same data for a given
+	// input. Add the arm specifically so that a) we avoid rebuilding the current DDC and
+	// b) we can remove it once we get arm64 to be consistent.
+	OutSuffix.Append(TEXT("_arm64"));
+#endif
+
+	return OutSuffix;
 }
 
 bool FChaosDerivedDataCooker::IsBuildThreadsafe() const
