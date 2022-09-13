@@ -89,8 +89,8 @@ private:
 	TMap<FCompactPoseBoneIndex, int32, FDefaultSetAllocator, TCompactPoseBoneIndexMapKeyFuncs<int32>> CompactPoseToRigIndices;
 
 	/** Cached functions used to update goals using custom properties to avoid looking for then when evaluating */
-	using UpdateFunction = std::function<void(const UObject*)>;
-	TArray<UpdateFunction> UpdateFunctions;
+	using PropertyUpdateFunction = TFunction<void(const UObject*)>;
+	TArray<PropertyUpdateFunction> UpdateFunctions;
 
 	UPROPERTY(Transient)
 	float ActualAlpha;
