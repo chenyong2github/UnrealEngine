@@ -36,6 +36,7 @@ struct FVSMCullingBatchInfo
 	uint NumPrimaryViews;
 	uint PrimitiveRevealedOffset;
 	uint PrimitiveRevealedNum;
+	uint2 padding; // avoid error: cannot instantiate StructuredBuffer with given packed alignment; 'VK_EXT_scalar_block_layout' not supported
 };
 
 #if ENABLE_BATCH_MODE
