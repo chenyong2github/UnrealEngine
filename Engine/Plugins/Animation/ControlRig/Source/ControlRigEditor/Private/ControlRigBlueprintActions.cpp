@@ -20,6 +20,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ScopedTransaction.h"
 #include "LevelSequenceActor.h"
+#include "EditorDirectories.h"
 #include "EngineUtils.h"
 #include "ISequencer.h"
 #include "ILevelSequenceEditorToolkit.h"
@@ -31,6 +32,7 @@
 #include "MovieSceneToolsProjectSettings.h"
 #include "SBlueprintDiff.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
 #include "Sequencer/ControlRigParameterTrackEditor.h"
 
@@ -299,10 +301,15 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 	ULevelSequence* Sequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
 	if (Sequence == nullptr)
 	{
-		ALevelSequenceActor* LevelSequenceActor = nullptr;
-
 		FString SequenceName = FString::Printf(TEXT("%s_Take1"), *InAsset->GetName());
-		FString PackagePath = TEXT("/Game");
+		
+		FString PackagePath;
+		const FString DefaultDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::NEW_ASSET);
+		FPackageName::TryConvertFilenameToLongPackageName(DefaultDirectory, PackagePath);
+		if (PackagePath.IsEmpty())
+		{
+			PackagePath = TEXT("/Game");
+		}
 
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		FString UniquePackageName;
@@ -319,20 +326,13 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 		FFrameRate TickResolution = Sequence->GetMovieScene()->GetTickResolution();
 		Sequence->GetMovieScene()->SetPlaybackRange((ProjectSettings->DefaultStartTime*TickResolution).FloorToFrame(), (ProjectSettings->DefaultDuration*TickResolution).FloorToFrame().Value);
 
-		UActorFactory* ActorFactory = GEditor->FindActorFactoryForActorClass(ALevelSequenceActor::StaticClass());
-		if (!ensure(ActorFactory))
+		if (UActorFactory* ActorFactory = GEditor->FindActorFactoryForActorClass(ALevelSequenceActor::StaticClass()))
 		{
-			return;
+			if (ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(GEditor->UseActorFactory(ActorFactory, FAssetData(Sequence), &FTransform::Identity)))
+			{
+				LevelSequenceActor->SetSequence(Sequence);
+			}
 		}
-
-		AActor* NewActor = GEditor->UseActorFactory(ActorFactory, FAssetData(Sequence), &FTransform::Identity);
-		if (NewActor == nullptr)
-		{
-			return;
-		}
-
-		LevelSequenceActor = CastChecked<ALevelSequenceActor>(NewActor);
-		LevelSequenceActor->SetSequence(Sequence);
 	}
  
 	if (Sequence == nullptr)
