@@ -160,6 +160,8 @@ namespace LowLevelTests
 		[AutoParam(0)]
 		public int Sleep;
 
+		public bool AttachToDebugger;
+
 		public string Build;
 
 		[AutoParam("")]
@@ -206,6 +208,7 @@ namespace LowLevelTests
 			TestApp = Globals.Params.ParseValue("testapp=", "");
 
 			Tags = Params.ParseValue("tags=", null);
+			AttachToDebugger = Params.ParseParam("attachtodebugger");
 
 			string PlatformArgString = Params.ParseValue("platform=", null);
 			Platform = string.IsNullOrEmpty(PlatformArgString) ? BuildHostPlatform.Current.Platform : UnrealTargetPlatform.Parse(PlatformArgString);
@@ -231,14 +234,16 @@ namespace LowLevelTests
 		private LowLevelTestsBuildSource BuildSource { get; set; }
 		private string Tags { get; set; }
 		private int Sleep { get; set; }
+		private bool AttachToDebugger { get; set; }
 
 		public UnrealDeviceReservation UnrealDeviceReservation { get; private set; }
 
-		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource, string InTags, int InSleep)
+		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource, string InTags, int InSleep, bool InAttachToDebugger)
 		{
 			BuildSource = InBuildSource;
 			Tags = InTags;
 			Sleep = InSleep;
+			AttachToDebugger = InAttachToDebugger;
 			UnrealDeviceReservation = new UnrealDeviceReservation();
 		}
 
@@ -262,7 +267,7 @@ namespace LowLevelTests
 
 			// TargetDevice<Platform> classes have a hard dependency on UnrealAppConfig instead of IAppConfig.
 			// More refactoring needed to support non-packaged applications that can be run natively from a path on the device.
-			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig(Tags, Sleep);
+			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig(Tags, Sleep, AttachToDebugger);
 
 			IEnumerable<ITargetDevice> DevicesToInstallOn = UnrealDeviceReservation.ReservedDevices.ToArray();
 			ITargetDevice Device = DevicesToInstallOn.Where(D => D.IsConnected && D.Platform == BuildSource.Platform).First();
@@ -437,13 +442,26 @@ namespace LowLevelTests
 		protected static string GetExecutable(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InTestApp, string InBuildPath, string FileRegEx)
 		{
 			IEnumerable<string> Executables = DirectoryUtils.FindFiles(InBuildPath, new Regex(FileRegEx));
+			string ParentDirPath;
+			string BuildExecutableName;
 			foreach (string Executable in Executables)
 			{
-				if (InBuildPath.ToLower().Contains(InPlatform.ToString().ToLower()))
+				ParentDirPath = Directory.GetParent(Executable).FullName;
+				BuildExecutableName = Path.GetFileNameWithoutExtension(Executable);
+
+				if (ParentDirPath.ToLower().Contains(InPlatform.ToString().ToLower()))
 				{
-					if (InBuildPath.ToLower().Contains(InTestApp.ToString().ToLower()))
+					if (ParentDirPath.ToLower().Contains(InTestApp.ToString().ToLower()))
 					{
-						if (InConfiguration == UnrealTargetConfiguration.Development || InBuildPath.ToLower().Contains(InConfiguration.ToString().ToLower()))
+						// Executable name must not contain any configuration or platform name
+						if (InConfiguration == UnrealTargetConfiguration.Development)
+						{
+							if (BuildExecutableName.CompareTo(InTestApp) == 0 && !BuildExecutableName.Contains(InPlatform.ToString()))
+							{
+								return Path.GetRelativePath(InBuildPath, Executable);
+							}
+						}
+						else if (BuildExecutableName.Contains(InTestApp) && BuildExecutableName.Contains(InPlatform.ToString()))
 						{
 							return Path.GetRelativePath(InBuildPath, Executable);
 						}
@@ -560,7 +578,7 @@ namespace LowLevelTests
 				.First();
 		}
 
-		public UnrealAppConfig GetUnrealAppConfig(string InTags, int InSleep)
+		public UnrealAppConfig GetUnrealAppConfig(string InTags, int InSleep, bool InAttachToDebugger)
 		{
 			if (CachedConfig == null)
 			{
@@ -574,10 +592,7 @@ namespace LowLevelTests
 				CachedConfig.Sandbox = "LowLevelTests";
 				CachedConfig.FilesToCopy = new List<UnrealFileToCopy>();
 				// Set reporting options, filters etc
-				if (TestApp == "LowLevelTests" || TestApp == "LowLevelTestsTests")
-				{
-					CachedConfig.CommandLineParams.AddRawCommandline("--durations=yes");
-				}
+				CachedConfig.CommandLineParams.AddRawCommandline("--durations=no");
 				CachedConfig.CommandLineParams.AddRawCommandline("--reporter=console");
 				CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--out={0}", LowLevelTestsReporting.GetTargetReportPath(Platform, TestApp, BuildPath)));
 				CachedConfig.CommandLineParams.AddRawCommandline("--filenames-as-tags");
@@ -590,6 +605,11 @@ namespace LowLevelTests
 					CachedConfig.CommandLineParams.AddRawCommandline(String.Format("--sleep={0}", InSleep));
 				}
 				CachedConfig.CommandLineParams.AddRawCommandline("--debug");
+				CachedConfig.CommandLineParams.AddRawCommandline("--log");
+				if (InAttachToDebugger)
+				{
+					CachedConfig.CommandLineParams.AddRawCommandline("--attach-to-debugger");
+				}
 			}
 			return CachedConfig;
 		}

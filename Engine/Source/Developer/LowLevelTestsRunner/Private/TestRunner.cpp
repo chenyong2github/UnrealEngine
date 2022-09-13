@@ -78,6 +78,7 @@ private:
 	bool bDebugMode = false;
 	bool bMultiThreaded = false;
 	bool bWaitForInputToTerminate = false;
+	bool bAttachToDebugger = false;
 	int32 SleepOnInitSeconds = 0;
 };
 
@@ -153,6 +154,10 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			bWaitForInputToTerminate = true;
 		}
+		else if (Arg == ANSITEXTVIEW("--attach-to-debugger"))
+		{
+			bAttachToDebugger = true;
+		}
 		else
 		{
 			CatchArgs.Add(Arg.GetData());
@@ -174,6 +179,16 @@ void FTestRunner::SleepOnInit() const
 
 void FTestRunner::GlobalSetup() const
 {
+	if (bAttachToDebugger)
+	{
+		FPlatformMisc::LocalPrint(TEXT("Waiting for debugger..."));
+		while (!FPlatformMisc::IsDebuggerPresent())
+		{
+			FPlatformProcess::Sleep(0.1f);
+		}
+		UE_DEBUG_BREAK();
+	}
+
 	if (!bGlobalSetup)
 	{
 		return;
