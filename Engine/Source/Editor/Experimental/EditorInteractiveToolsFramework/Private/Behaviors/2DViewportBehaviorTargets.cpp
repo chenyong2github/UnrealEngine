@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UVEditor2DViewportBehaviorTargets.h"
+#include "Behaviors/2DViewportBehaviorTargets.h"
+#include "EditorViewportClient.h"
 
-#include "UVEditor2DViewportClient.h"
-
-// FUVEditor2DScrollBehaviorTarget
-
-FUVEditor2DScrollBehaviorTarget::FUVEditor2DScrollBehaviorTarget(FUVEditor2DViewportClient* ViewportClientIn)
+FEditor2DScrollBehaviorTarget::FEditor2DScrollBehaviorTarget(FEditorViewportClient* ViewportClientIn)
 	: ViewportClient(ViewportClientIn)
 {
 }
 
-FInputRayHit FUVEditor2DScrollBehaviorTarget::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+FInputRayHit FEditor2DScrollBehaviorTarget::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
 	// Verify that ray is facing the proper direction
 	if (PressPos.WorldRay.Direction.Z * PressPos.WorldRay.Origin.Z < 0)
@@ -21,7 +18,7 @@ FInputRayHit FUVEditor2DScrollBehaviorTarget::CanBeginClickDragSequence(const FI
 	return FInputRayHit();
 }
 
-void FUVEditor2DScrollBehaviorTarget::OnClickPress(const FInputDeviceRay& PressPos)
+void FEditor2DScrollBehaviorTarget::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	if (ensure(PressPos.WorldRay.Direction.Z * PressPos.WorldRay.Origin.Z < 0))
 	{
@@ -36,7 +33,7 @@ void FUVEditor2DScrollBehaviorTarget::OnClickPress(const FInputDeviceRay& PressP
 	}
 }
 
-void FUVEditor2DScrollBehaviorTarget::OnClickDrag(const FInputDeviceRay& DragPos)
+void FEditor2DScrollBehaviorTarget::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	if (ensure(DragPos.WorldRay.Direction.Z * DragPos.WorldRay.Origin.Z < 0))
 	{
@@ -57,25 +54,25 @@ void FUVEditor2DScrollBehaviorTarget::OnClickDrag(const FInputDeviceRay& DragPos
 	}
 }
 
-void FUVEditor2DScrollBehaviorTarget::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void FEditor2DScrollBehaviorTarget::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 }
 
-void FUVEditor2DScrollBehaviorTarget::OnTerminateDragSequence()
+void FEditor2DScrollBehaviorTarget::OnTerminateDragSequence()
 {
 }
 
 
 
-// FUVEditor2DMouseWheelZoomBehaviorTarget
+// FEditor2DMouseWheelZoomBehaviorTarget
 
-FUVEditor2DMouseWheelZoomBehaviorTarget::FUVEditor2DMouseWheelZoomBehaviorTarget(FUVEditor2DViewportClient* ViewportClientIn)
+FEditor2DMouseWheelZoomBehaviorTarget::FEditor2DMouseWheelZoomBehaviorTarget(FEditorViewportClient* ViewportClientIn)
 	: ViewportClient(ViewportClientIn)
 {
 	SetZoomAmount(DEFAULT_ZOOM_AMOUNT);
 }
 
-FInputRayHit FUVEditor2DMouseWheelZoomBehaviorTarget::ShouldRespondToMouseWheel(const FInputDeviceRay& CurrentPos)
+FInputRayHit FEditor2DMouseWheelZoomBehaviorTarget::ShouldRespondToMouseWheel(const FInputDeviceRay& CurrentPos)
 {
 	// Always allowed to zoom with mouse wheel
 	FInputRayHit ToReturn;
@@ -83,7 +80,7 @@ FInputRayHit FUVEditor2DMouseWheelZoomBehaviorTarget::ShouldRespondToMouseWheel(
 	return ToReturn;
 }
 
-void FUVEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollUp(const FInputDeviceRay& CurrentPos)
+void FEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollUp(const FInputDeviceRay& CurrentPos)
 {
 	FVector OriginalLocation = ViewportClient->GetViewLocation();
 	double TToPlane = -OriginalLocation.Z / CurrentPos.WorldRay.Direction.Z;
@@ -101,7 +98,7 @@ void FUVEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollUp(const FInputD
 	}
 }
 
-void FUVEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollDown(const FInputDeviceRay& CurrentPos)
+void FEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollDown(const FInputDeviceRay& CurrentPos)
 {
 	FVector OriginalLocation = ViewportClient->GetViewLocation();
 	double TToPlane = -OriginalLocation.Z / CurrentPos.WorldRay.Direction.Z;
@@ -116,7 +113,7 @@ void FUVEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollDown(const FInpu
 	}
 }
 
-void FUVEditor2DMouseWheelZoomBehaviorTarget::SetZoomAmount(double PercentZoomIn)
+void FEditor2DMouseWheelZoomBehaviorTarget::SetZoomAmount(double PercentZoomIn)
 {
 	check(PercentZoomIn < 100 && PercentZoomIn >= 0);
 
@@ -127,18 +124,18 @@ void FUVEditor2DMouseWheelZoomBehaviorTarget::SetZoomAmount(double PercentZoomIn
 	ZoomOutProportion = ZoomInProportion / (1 - ZoomInProportion);
 }
 
-void FUVEditor2DMouseWheelZoomBehaviorTarget::SetZoomLimits(double ZoomInLimitIn, double ZoomOutLimitIn)
+void FEditor2DMouseWheelZoomBehaviorTarget::SetZoomLimits(double ZoomInLimitIn, double ZoomOutLimitIn)
 {
 	ZoomInLimit = ZoomInLimitIn;
 	ZoomOutLimit = ZoomOutLimitIn;
 }
 
-void FUVEditor2DMouseWheelZoomBehaviorTarget::SetCameraFarPlaneWorldZ(double CameraFarPlaneWorldZIn)
+void FEditor2DMouseWheelZoomBehaviorTarget::SetCameraFarPlaneWorldZ(double CameraFarPlaneWorldZIn)
 {
 	CameraFarPlaneWorldZ = CameraFarPlaneWorldZIn;
 }
 
-void FUVEditor2DMouseWheelZoomBehaviorTarget::SetCameraNearPlaneProportionZ(double CameraNearPlaneProportionZIn)
+void FEditor2DMouseWheelZoomBehaviorTarget::SetCameraNearPlaneProportionZ(double CameraNearPlaneProportionZIn)
 {
 	CameraNearPlaneProportionZ = CameraNearPlaneProportionZIn;
 }

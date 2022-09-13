@@ -172,14 +172,14 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 	// numerically) than both the gizmo default and the tool default.
 	static constexpr int DEFAULT_VIEWPORT_BEHAVIOR_PRIORITY = 150;
 
-	ScrollBehaviorTarget = MakeUnique<FUVEditor2DScrollBehaviorTarget>(this);
+	ScrollBehaviorTarget = MakeUnique<FEditor2DScrollBehaviorTarget>(this);
 	UClickDragInputBehavior* ScrollBehavior = NewObject<UClickDragInputBehavior>();
 	ScrollBehavior->Initialize(ScrollBehaviorTarget.Get());
 	ScrollBehavior->SetDefaultPriority(DEFAULT_VIEWPORT_BEHAVIOR_PRIORITY);
 	ScrollBehavior->SetUseRightMouseButton();
 	BehaviorSet->Add(ScrollBehavior);
 
-	ZoomBehaviorTarget = MakeUnique<FUVEditor2DMouseWheelZoomBehaviorTarget>(this);
+	ZoomBehaviorTarget = MakeUnique<FEditor2DMouseWheelZoomBehaviorTarget>(this);
 	ZoomBehaviorTarget->SetCameraFarPlaneWorldZ(FUVEditorUXSettings::CameraFarPlaneWorldZ);
 	ZoomBehaviorTarget->SetCameraNearPlaneProportionZ(FUVEditorUXSettings::CameraNearPlaneProportionZ);
 	ZoomBehaviorTarget->SetZoomLimits(0.001, 100000);

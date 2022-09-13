@@ -7,16 +7,17 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "VectorTypes.h"
 
-class FUVEditor2DViewportClient;
+// TODO: Replace with a context object to avoid dependency on FEditorViewportClient (JIRA UE-163677)
+class FEditorViewportClient;
 
 /**
  * Allows click-dragging to move the camera in the XY plane.
  */
-class FUVEditor2DScrollBehaviorTarget : public IClickDragBehaviorTarget
+class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditor2DScrollBehaviorTarget : public IClickDragBehaviorTarget
 {
 public:
 
-	FUVEditor2DScrollBehaviorTarget(FUVEditor2DViewportClient* ViewportClientIn);
+	FEditor2DScrollBehaviorTarget(FEditorViewportClient* ViewportClientIn);
 
 	// IClickDragBehaviorTarget
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
@@ -26,7 +27,9 @@ public:
 	virtual void OnTerminateDragSequence() override;
 
 protected:
-	FUVEditor2DViewportClient* ViewportClient = nullptr;
+
+	// TODO: Replace with a context object to avoid dependency on FEditorViewportClient (JIRA UE-163677)
+	FEditorViewportClient* ViewportClient = nullptr;
 	FVector3d OriginalCameraLocation;
 	FVector3d DragStart;
 };
@@ -35,11 +38,11 @@ protected:
  * Allows the mouse wheel to move the camera forwards/backwards relative to the XY plane,
  * in the direction pointed to by the mouse.
  */
-class FUVEditor2DMouseWheelZoomBehaviorTarget : public IMouseWheelBehaviorTarget
+class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditor2DMouseWheelZoomBehaviorTarget : public IMouseWheelBehaviorTarget
 {
 public:
 
-	FUVEditor2DMouseWheelZoomBehaviorTarget(FUVEditor2DViewportClient* ViewportClientIn);
+	FEditor2DMouseWheelZoomBehaviorTarget(FEditorViewportClient* ViewportClientIn);
 
 	// IMouseWheelBehaviorTarget
 	virtual FInputRayHit ShouldRespondToMouseWheel(const FInputDeviceRay& CurrentPos);
@@ -61,7 +64,9 @@ public:
 
 	inline static const double DEFAULT_ZOOM_AMOUNT = 20;
 protected:
-	FUVEditor2DViewportClient* ViewportClient = nullptr;
+
+	// TODO: Replace with a context object to avoid dependency on (JIRA UE-163677)
+	FEditorViewportClient* ViewportClient = nullptr;
 	double ZoomInProportion;
 	double ZoomOutProportion;
 	double ZoomInLimit;

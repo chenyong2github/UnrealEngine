@@ -6,7 +6,7 @@
 
 #include "EditorViewportClient.h"
 #include "InputBehaviorSet.h"
-#include "UVEditor2DViewportBehaviorTargets.h" // FUVEditor2DScrollBehaviorTarget, FUVEditor2DMouseWheelZoomBehaviorTarget
+#include "Behaviors/2DViewportBehaviorTargets.h" // FEditor2DScrollBehaviorTarget, FEditor2DMouseWheelZoomBehaviorTarget
 #include "ContextObjects/UVToolViewportButtonsAPI.h" // UUVToolViewportButtonsAPI::ESelectionMode
 
 class UCanvas;
@@ -79,6 +79,6 @@ protected:
 	// Note that it's generally less hassle if the unique ptr types are complete here,
 	// not forward declared, else we get compile errors if their destruction shows up
 	// anywhere in the header.
-	TUniquePtr<FUVEditor2DScrollBehaviorTarget> ScrollBehaviorTarget;
-	TUniquePtr<FUVEditor2DMouseWheelZoomBehaviorTarget> ZoomBehaviorTarget;
+	TUniquePtr<FEditor2DScrollBehaviorTarget> ScrollBehaviorTarget;
+	TUniquePtr<FEditor2DMouseWheelZoomBehaviorTarget> ZoomBehaviorTarget;
 };
