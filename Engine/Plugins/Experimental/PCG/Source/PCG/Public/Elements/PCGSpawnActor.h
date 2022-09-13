@@ -35,6 +35,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option==EPCGSpawnActorOption::NoMerging"))
 	bool bForceDisableActorParsing = true;
 
+	/** Warning: inheriting parent actor tags work only in non-collapsed actor hierarchies */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option!=EPCGSpawnActorOption::CollapseActors"))
+	bool bInheritActorTags = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option!=EPCGSpawnActorOption::CollapseActors"))
+	TArray<FName> TagsToAddOnActors;
+
 	//~Begin UCPGSettings interface
 	virtual UPCGNode* CreateNode() const override;
 
@@ -76,4 +83,7 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+
+private:
+	TArray<FName> GetNewActorTags(FPCGContext* Context, AActor* TargetActor, bool bInheritActorTags, const TArray<FName>& AdditionalTags) const;
 };

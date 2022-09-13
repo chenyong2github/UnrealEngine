@@ -7,6 +7,7 @@
 #include "PCGManagedResource.h"
 
 #include "Data/PCGPointData.h"
+#include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
@@ -182,12 +183,15 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 					SpawnParams.Owner = TargetActor;
 					SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+					TArray<FName> NewActorTags = GetNewActorTags(Context, TargetActor, Settings->bInheritActorTags, Settings->TagsToAddOnActors);
+
+					// Create managed resource for actor tracking
 					UPCGManagedActors* ManagedActors = NewObject<UPCGManagedActors>(Context->SourceComponent);
 
 					for (const FPCGPoint& Point : Points)
 					{
 						AActor* GeneratedActor = TargetActor->GetWorld()->SpawnActor(Settings->TemplateActorClass, &Point.Transform, SpawnParams);
-						GeneratedActor->Tags.Add(PCGHelpers::DefaultPCGActorTag);
+						GeneratedActor->Tags.Append(NewActorTags);
 						GeneratedActor->AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
 
 						ManagedActors->GeneratedActors.Add(GeneratedActor);
@@ -239,6 +243,38 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	return true;
+}
+
+TArray<FName> FPCGSpawnActorElement::GetNewActorTags(FPCGContext* Context, AActor* TargetActor, bool bInheritActorTags, const TArray<FName>& AdditionalTags) const
+{
+	TArray<FName> NewActorTags;
+	// Prepare actor tags
+	if (bInheritActorTags)
+	{
+		// Special case: if the current target actor is a partition, we'll reach out
+		// and find the original actor tags
+		if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(TargetActor))
+		{
+			if (UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(Context->SourceComponent))
+			{
+				check(OriginalComponent->GetOwner());
+				NewActorTags = OriginalComponent->GetOwner()->Tags;
+			}
+		}
+		else
+		{
+			NewActorTags = TargetActor->Tags;
+		}
+	}
+
+	NewActorTags.AddUnique(PCGHelpers::DefaultPCGActorTag);
+
+	for (const FName& AdditionalTag : AdditionalTags)
+	{
+		NewActorTags.AddUnique(AdditionalTag);
+	}
+
+	return NewActorTags;
 }
 
 #if WITH_EDITOR
