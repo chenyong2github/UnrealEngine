@@ -362,32 +362,23 @@ public:
 	DECLARE_DELEGATE_OneParam(FExtendContextMenu, FMenuBuilder&)
 
 	/** Makes a status bar widget displaying the activity shown and the standard view options button. */
-	TSharedRef<SWidget> MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed, TOptional<FExtendContextMenu> ExtendMenu = {});
-	
-	/** Makes a widgets saying how many operations are shown with respect to those filtered out. */
-	TSharedRef<SWidget> MakeDisplayedActivityCountWidget(TAttribute<int32> Total, TAttribute<int32> Displayed);
+	TSharedRef<SWidget> MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed);
 	
 	/** Makes a standard View Options widget, displaying the eye ball icon and showing the possible options. */
-	TSharedRef<SWidget> MakeViewOptionsWidget(TOptional<FExtendContextMenu> ExtendMenu = {});
-	
+	TSharedRef<SWidget> MakeViewOptionsComboButton(TOptional<FExtendContextMenu> ExtendMenu = {});
 	/** Returns a Menu widgets containing the available options. */
 	TSharedRef<SWidget> MakeMenuWidget(TOptional<FExtendContextMenu> ExtendMenu = {});
 
 	/** Returns the time format option. */
 	ETimeFormat GetTimeFormat() const { return bDisplayRelativeTime ? ETimeFormat::Relative : ETimeFormat::Absolute; }
-
 	/** Returns whether the connection activities are listed in SConcertSessionActivities. */
 	EVisibility GetConnectionActivitiesVisibility() const { return bDisplayConnectionActivities ? EVisibility::Visible : EVisibility::Hidden; }
-
 	/** Returns whether the lock activities are listed in SConcertSessionActivities. */
 	EVisibility GetLockActivitiesVisibility() const { return bDisplayLockActivities ? EVisibility::Visible : EVisibility::Hidden; }
-
 	/** Returns whether the package activities are listed in SConcertSessionActivities. */
 	EVisibility GetPackageActivitiesVisibility() const { return bDisplayPackageActivities ? EVisibility::Visible : EVisibility::Hidden; }
-
 	/** Returns whether the transaction activities are listed in SConcertSessionActivities. */
 	EVisibility GetTransactionActivitiesVisibility() const { return bDisplayTransactionActivities ? EVisibility::Visible : EVisibility::Hidden; }
-
 	/** Returns whether the ignored activities are listed in SConcertSessionActivities. */
 	EVisibility GetIgnoredActivitiesVisibility() const { return bDisplayIgnoredActivities ? EVisibility::Visible : EVisibility::Hidden; }
 
@@ -396,34 +387,24 @@ public:
 
 	/** Enables the 'connection activity' filter check box. (Show Connection Activities). */
 	bool bEnableConnectionActivityFiltering = true;
-
 	/** Enables the 'lock activity' filter check box. (Show Lock Activities).*/
 	bool bEnableLockActivityFiltering = true;
-
 	/** Enables the 'package activity' filter check box (Show Package Activities). */
 	bool bEnablePackageActivityFiltering = true;
-
 	/** Enables the 'transaction activity' filter check box (Show Transaction Activities). */
 	bool bEnableTransactionActivityFiltering = true;
-
 	/** Enables the 'ignored activity' filter check box (Show Unrecoverable Activities). */
 	bool bEnableIgnoredActivityFiltering = false;
-
 	/** Controls whether the time is displayed as absolute or relative. (Display Relative Time). */
 	bool bDisplayRelativeTime = true;
-
 	/** If connection filtering is enabled, controls whether connection activities are filtered out. */
 	bool bDisplayConnectionActivities = false;
-
 	/** If lock filtering is enabled, controls whether lock activities are filtered out. */
 	bool bDisplayLockActivities = false;
-
 	/** If package filtering is enabled, controls whether package activities are filtered out. */
 	bool bDisplayPackageActivities = true;
-
 	/** If transaction filtering is enabled, controls whether transaction activities are filtered out.*/
 	bool bDisplayTransactionActivities = true;
-
 	/** If ignored activity filtering is enabled, controls whether ignored activities are filtered out.*/
 	bool bDisplayIgnoredActivities = false;
 };

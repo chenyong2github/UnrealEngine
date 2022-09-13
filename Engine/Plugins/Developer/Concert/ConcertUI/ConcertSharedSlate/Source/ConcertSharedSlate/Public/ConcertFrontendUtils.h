@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "ConcertFrontendStyle.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -144,6 +146,20 @@ namespace ConcertFrontendUtils
 		return TimeFormat == ETimeFormat::Relative
 			? FormatRelativeTime(Time, CurrTime)
 			: FText::AsDateTime(Time);
+	}
+
+	static TSharedRef<SComboButton> CreateViewOptionsComboButton(FOnGetContent GetMenuContentDelegate)
+	{
+		return SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon")
+			.OnGetMenuContent(MoveTemp(GetMenuContentDelegate))
+			.HasDownArrow(false)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+			];
 	}
 };
 

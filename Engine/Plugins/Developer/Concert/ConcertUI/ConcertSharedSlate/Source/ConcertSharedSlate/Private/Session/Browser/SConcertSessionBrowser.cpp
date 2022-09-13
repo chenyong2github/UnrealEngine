@@ -101,13 +101,24 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent(const FArguments&
 			// The search text.
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(0.f, 4.f)
+			.Padding(0.f, 4.f, 0.f, 4.f)
 			[
-				SAssignNew(SearchBox, SSearchBox)
-				.HintText(LOCTEXT("SearchHint", "Search Session"))
-				.OnTextChanged(this, &SConcertSessionBrowser::OnSearchTextChanged)
-				.OnTextCommitted(this, &SConcertSessionBrowser::OnSearchTextCommitted)
-				.DelayChangeNotificationsWhileTyping(true)
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SAssignNew(SearchBox, SSearchBox)
+					.HintText(LOCTEXT("SearchHint", "Search Session"))
+					.OnTextChanged(this, &SConcertSessionBrowser::OnSearchTextChanged)
+					.OnTextCommitted(this, &SConcertSessionBrowser::OnSearchTextCommitted)
+					.DelayChangeNotificationsWhileTyping(true)
+				]
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					ConcertFrontendUtils::CreateViewOptionsComboButton(FOnGetContent::CreateSP(this, &SConcertSessionBrowser::MakeViewOptionsComboButtonMenu))
+				]
 			]
 
 			// Session list.
@@ -130,7 +141,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent(const FArguments&
 			.AutoHeight()
 			.Padding(FMargin(2.0f, 0.0f))
 			[
-				MakeSessionViewOptionsBar()
+				MakeSessionTableFooter()
 			]
 		];
 }
@@ -374,7 +385,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 		.OnGenerateRow(this, &SConcertSessionBrowser::OnGenerateSessionRowWidget)
 		.SelectionMode(ESelectionMode::Multi)
 		.OnSelectionChanged(this, &SConcertSessionBrowser::OnSessionSelectionChanged)
-		.OnContextMenuOpening(this, &SConcertSessionBrowser::MakeContextualMenu)
+		.OnContextMenuOpening(this, &SConcertSessionBrowser::MakeTableContextualMenu)
 		.HeaderRow(
 			SAssignNew(SessionHeaderRow, SHeaderRow)
 			.OnHiddenColumnsListChanged_Lambda([this, SaveCallback = InArgs._SaveColumnVisibilitySnapshot]()
@@ -406,29 +417,25 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ServerColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ServerColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
-			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::ServerColName); })
-
+			
 			+SHeaderRow::Column(ConcertBrowserUtils::ProjectColName)
 			.DefaultLabel(LOCTEXT("ProjectCol", "Project"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ProjectColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ProjectColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
-			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::ProjectColName); })
-
+			
 			+SHeaderRow::Column(ConcertBrowserUtils::VersionColName)
 			.DefaultLabel(LOCTEXT("Version", "Version"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::VersionColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::VersionColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
-			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::VersionColName); })
-
+			
 			+SHeaderRow::Column(ConcertBrowserUtils::LastModifiedColName)
 			.DefaultLabel(LOCTEXT("LastModified", "Last Modified"))
 			.DefaultTooltip(LOCTEXT("LastModifiedTooltip", "The local time the session's directory was last modified"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::LastModifiedColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::LastModifiedColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
-			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::LastModifiedColName); })
 			);
 
 	RestoreColumnVisibilityState(SessionHeaderRow.ToSharedRef(), InArgs._ColumnVisibilitySnapshot);
@@ -441,7 +448,7 @@ EColumnSortMode::Type SConcertSessionBrowser::GetColumnSortMode(const FName Colu
 	{
 		return PrimarySortMode;
 	}
-	else if (ColumnId == SecondarySortedColumn)
+	if (ColumnId == SecondarySortedColumn)
 	{
 		return SecondarySortMode;
 	}
@@ -496,7 +503,7 @@ void SConcertSessionBrowser::SortSessionList()
 		{
 			return true;
 		}
-		else if (Rhs->Type == FConcertSessionItem::EType::NewSession)
+		if (Rhs->Type == FConcertSessionItem::EType::NewSession)
 		{
 			return false;
 		}
@@ -505,23 +512,23 @@ void SConcertSessionBrowser::SortSessionList()
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->Type < Rhs->Type : Lhs->Type > Rhs->Type;
 		}
-		else if (ColName == ConcertBrowserUtils::SessionColName)
+		if (ColName == ConcertBrowserUtils::SessionColName)
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->SessionName < Rhs->SessionName : Lhs->SessionName > Rhs->SessionName;
 		}
-		else if (ColName == ConcertBrowserUtils::ServerColName)
+		if (ColName == ConcertBrowserUtils::ServerColName)
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->ServerName < Rhs->ServerName : Lhs->ServerName > Rhs->ServerName;
 		}
-		else if (ColName == ConcertBrowserUtils::ProjectColName)
+		if (ColName == ConcertBrowserUtils::ProjectColName)
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectName < Rhs->ProjectName : Lhs->ProjectName > Rhs->ProjectName;
 		}
-		else if (ColName == ConcertBrowserUtils::VersionColName)
+		if (ColName == ConcertBrowserUtils::VersionColName)
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectVersion < Rhs->ProjectVersion : Lhs->ProjectVersion > Rhs->ProjectVersion;
 		}
-		else if (ColName == ConcertBrowserUtils::LastModifiedColName)
+		if (ColName == ConcertBrowserUtils::LastModifiedColName)
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->LastModified < Rhs->LastModified : Lhs->LastModified > Rhs->LastModified;
 		}
@@ -539,7 +546,7 @@ void SConcertSessionBrowser::SortSessionList()
 		{
 			return true; // Lhs must be before Rhs based on the primary sort order.
 		}
-		else if (Compare(Rhs, Lhs, PrimarySortedColumn, PrimarySortMode)) // Invert operands order (goal is to check if operands are equal or not)
+		if (Compare(Rhs, Lhs, PrimarySortedColumn, PrimarySortMode)) // Invert operands order (goal is to check if operands are equal or not)
 		{
 			return false; // Rhs must be before Lhs based on the primary sort.
 		}
@@ -729,72 +736,8 @@ void SConcertSessionBrowser::RemoveSessionRow(const TSharedPtr<FConcertSessionIt
 	SessionsView->RequestListRefresh();
 }
 
-TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
+TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableFooter()
 {
-	auto AddFilterMenu = [this]()
-	{
-		FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DisplayLastModifiedInRelativeTime", "Display Relative Time"),
-			TAttribute<FText>::CreateLambda([this]()
-			{
-				const bool bIsVisible = SessionHeaderRow->IsColumnVisible(ConcertBrowserUtils::LastModifiedColName);
-				return bIsVisible
-					? LOCTEXT("DisplayLastModifiedInRelativeTime.Tooltip.Visible", "Display the Last Modified column in relative time?")
-					: LOCTEXT("DisplayLastModifiedInRelativeTime.Tooltip.Hidden", "Disabled because the Last Modified column is hidden.");
-			}),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::LastModifiedCheckBoxMenuName),
-				FCanExecuteAction::CreateLambda([this] { return SessionHeaderRow->IsColumnVisible(ConcertBrowserUtils::LastModifiedColName); }),
-				FIsActionChecked::CreateLambda([this] { return PersistentSettings->LastModifiedTimeFormat == ETimeFormat::Relative; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-		MenuBuilder.AddSeparator();
-		
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ActiveSessions_Label", "Active Sessions"),
-			LOCTEXT("ActiveSessions_Tooltip", "Displays Active Sessions"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::ActiveSessionsCheckBoxMenuName),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateLambda([this] { return PersistentSettings->bShowActiveSessions; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ArchivedSessions_Label", "Archived Sessions"),
-			LOCTEXT("ArchivedSessions_Tooltip", "Displays Archived Sessions"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::ArchivedSessionsCheckBoxMenuName),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateLambda([this] { return PersistentSettings->bShowArchivedSessions; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DefaultServer_Label", "Default Server Sessions"),
-			LOCTEXT("DefaultServer_Tooltip", "Displays Sessions Hosted By the Default Server"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::DefaultServerCheckBoxMenuName),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateLambda([this] { return PersistentSettings->bShowDefaultServerSessionsOnly; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddSeparator();
-		UE::ConcertSharedSlate::AddEntriesForShowingHiddenRows(SessionHeaderRow.ToSharedRef(), MenuBuilder);
-		return MenuBuilder.MakeWidget();
-	};
-
 	return SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
 		.AutoWidth()
@@ -840,37 +783,6 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		.FillWidth(1.0)
 		[
 			SNew(SSpacer)
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SComboButton)
-			.ComboButtonStyle(FAppStyle::Get(), "ComboButton")
-			.ForegroundColor(FStyleColors::Foreground)
-			.ContentPadding(0)
-			.OnGetMenuContent_Lambda(AddFilterMenu)
-			.HasDownArrow(true)
-			.ContentPadding(FMargin(1, 0))
-			.ButtonContent()
-			[
-				SNew(SHorizontalBox)
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.Visible")) // The eye ball image.
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2, 0, 0, 0)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock).Text(LOCTEXT("ViewOptions", "View Options"))
-				]
-			]
 		];
 }
 
@@ -907,12 +819,13 @@ void SConcertSessionBrowser::OnFilterMenuChecked(const FName MenuName)
 	PersistentSettings->SaveConfig();
 }
 
-TSharedPtr<SWidget> SConcertSessionBrowser::MakeContextualMenu()
+TSharedPtr<SWidget> SConcertSessionBrowser::MakeTableContextualMenu()
 {
 	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
 	if (SelectedItems.Num() == 0 || (SelectedItems[0]->Type != FConcertSessionItem::EType::ActiveSession && SelectedItems[0]->Type != FConcertSessionItem::EType::ArchivedSession))
 	{
-		return nullptr; // No menu for editable rows.
+		// If clicking the header row, show the options for hiding them
+		return UE::ConcertSharedSlate::MakeTableContextMenu(SessionHeaderRow.ToSharedRef(), {}, true);
 	}
 
 	TSharedPtr<FConcertSessionItem> Item = SelectedItems[0];
@@ -976,6 +889,68 @@ TSharedPtr<SWidget> SConcertSessionBrowser::MakeContextualMenu()
 		EUserInterfaceActionType::Button);
 
 	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SConcertSessionBrowser::MakeViewOptionsComboButtonMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DisplayLastModifiedInRelativeTime", "Display Relative Time"),
+		TAttribute<FText>::CreateLambda([this]()
+		{
+			const bool bIsVisible = SessionHeaderRow->IsColumnVisible(ConcertBrowserUtils::LastModifiedColName);
+			return bIsVisible
+				? LOCTEXT("DisplayLastModifiedInRelativeTime.Tooltip.Visible", "Display the Last Modified column in relative time?")
+				: LOCTEXT("DisplayLastModifiedInRelativeTime.Tooltip.Hidden", "Disabled because the Last Modified column is hidden.");
+		}),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::LastModifiedCheckBoxMenuName),
+			FCanExecuteAction::CreateLambda([this] { return SessionHeaderRow->IsColumnVisible(ConcertBrowserUtils::LastModifiedColName); }),
+			FIsActionChecked::CreateLambda([this] { return PersistentSettings->LastModifiedTimeFormat == ETimeFormat::Relative; })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+	MenuBuilder.AddSeparator();
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ActiveSessions_Label", "Active Sessions"),
+		LOCTEXT("ActiveSessions_Tooltip", "Displays Active Sessions"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::ActiveSessionsCheckBoxMenuName),
+			FCanExecuteAction::CreateLambda([] { return true; }),
+			FIsActionChecked::CreateLambda([this] { return PersistentSettings->bShowActiveSessions; })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ArchivedSessions_Label", "Archived Sessions"),
+		LOCTEXT("ArchivedSessions_Tooltip", "Displays Archived Sessions"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::ArchivedSessionsCheckBoxMenuName),
+			FCanExecuteAction::CreateLambda([] { return true; }),
+			FIsActionChecked::CreateLambda([this] { return PersistentSettings->bShowArchivedSessions; })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("DefaultServer_Label", "Default Server Sessions"),
+		LOCTEXT("DefaultServer_Tooltip", "Displays Sessions Hosted By the Default Server"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::DefaultServerCheckBoxMenuName),
+			FCanExecuteAction::CreateLambda([] { return true; }),
+			FIsActionChecked::CreateLambda([this] { return PersistentSettings->bShowDefaultServerSessionsOnly; })),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
 
 	return MenuBuilder.MakeWidget();
 }

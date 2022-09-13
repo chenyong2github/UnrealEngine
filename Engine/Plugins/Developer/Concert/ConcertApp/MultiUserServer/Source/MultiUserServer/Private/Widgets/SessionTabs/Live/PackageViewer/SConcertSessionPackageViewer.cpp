@@ -53,11 +53,21 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(1, 1)
 		[
-			SAssignNew(SearchBox, SSearchBox)
-			.HintText(LOCTEXT("SearchHint", "Search..."))
-			.OnTextChanged(this, &SConcertSessionPackageViewer::OnSearchTextChanged)
-			.OnTextCommitted(this, &SConcertSessionPackageViewer::OnSearchTextCommitted)
-			.DelayChangeNotificationsWhileTyping(true)
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			[
+				SAssignNew(SearchBox, SSearchBox)
+				.HintText(LOCTEXT("SearchHint", "Search..."))
+				.OnTextChanged(this, &SConcertSessionPackageViewer::OnSearchTextChanged)
+				.OnTextCommitted(this, &SConcertSessionPackageViewer::OnSearchTextCommitted)
+				.DelayChangeNotificationsWhileTyping(true)
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				ActivityListViewOptions->MakeViewOptionsComboButton()
+			]
 		]
 
 		+SVerticalBox::Slot()
@@ -70,12 +80,8 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		[
 			ActivityListViewOptions->MakeStatusBar(
 				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetTotalActivityNum),
-				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum),
-				FConcertSessionActivitiesOptions::FExtendContextMenu::CreateLambda([this](FMenuBuilder& MenuBuilder)
-				{
-					MenuBuilder.AddSeparator();
-					AddEntriesForShowingHiddenRows(ActivityListView->GetHeaderRow().ToSharedRef(), MenuBuilder);
-				}))
+				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum)
+				)
 		]
 	];
 }

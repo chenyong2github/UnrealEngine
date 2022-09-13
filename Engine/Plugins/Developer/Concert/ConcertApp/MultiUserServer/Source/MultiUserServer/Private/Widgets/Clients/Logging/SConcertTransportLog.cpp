@@ -63,7 +63,7 @@ namespace UE::MultiUserServer
 								FFilterWidgetArgs()
 								.RightOfSearchBar
 								(
-									CreateViewOptionsButton()
+									ConcertFrontendUtils::CreateViewOptionsComboButton(FOnGetContent::CreateSP(this, &SConcertTransportLog::CreateViewOptionsMenu))
 								)
 							)
 							: SNullWidget::NullWidget
@@ -89,7 +89,7 @@ namespace UE::MultiUserServer
 		PagedLogList->OnPageViewChanged().AddSP(this, &SConcertTransportLog::OnPageViewChanged);
 		
 		UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().AddSP(this, &SConcertTransportLog::OnColumnVisibilitySettingsChanged);
-		UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), UMultiUserServerColumnVisibilitySettings::GetSettings()->GetTransportLogColumnVisibility());
+		ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), UMultiUserServerColumnVisibilitySettings::GetSettings()->GetTransportLogColumnVisibility());
 		
 		ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().AddSP(this, &SConcertTransportLog::OnConcertLoggingEnabledChanged);
 		OnConcertLoggingEnabledChanged(ConcertTransportEvents::IsLoggingEnabled());
@@ -111,20 +111,6 @@ namespace UE::MultiUserServer
 			return Entry->Log.MessageId == MessageId && FilterFunc(*Entry);
 		});
 		ScrollToLog(Index);
-	}
-
-	TSharedRef<SWidget> SConcertTransportLog::CreateViewOptionsButton()
-	{
-		return SNew(SComboButton)
-			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon")
-			.OnGetMenuContent(this, &SConcertTransportLog::CreateViewOptionsMenu)
-			.HasDownArrow(false)
-			.ButtonContent()
-			[
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
-			];
 	}
 
 	TSharedRef<SWidget> SConcertTransportLog::CreateTableView()

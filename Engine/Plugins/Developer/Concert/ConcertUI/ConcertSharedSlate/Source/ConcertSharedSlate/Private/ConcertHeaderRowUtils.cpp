@@ -20,32 +20,6 @@
 
 namespace UE::ConcertSharedSlate
 {
-	TSharedRef<SWidget> MakeHideColumnContextMenu(const TSharedRef<SHeaderRow>& HeaderRow, const FName ForColumnID)
-	{
-		constexpr bool bInShouldCloseWindowAfterMenuSelection = true;
-		FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr);
-		AddHideColumnEntry(HeaderRow, ForColumnID, MenuBuilder);
-		return MenuBuilder.MakeWidget();
-	}
-
-	void AddHideColumnEntry(const TSharedRef<SHeaderRow>& HeaderRow, const FName ForColumnID, FMenuBuilder& MenuBuilder)
-	{
-		const SHeaderRow::FColumn* FoundColumn = Algo::FindByPredicate(HeaderRow->GetColumns(), [ForColumnID](const SHeaderRow::FColumn& Column){ return  Column.ColumnId == ForColumnID; });
-		check(FoundColumn);
-
-		TWeakPtr<SHeaderRow> WeakHeaderRow = HeaderRow;
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("HideColumn", "Hide column"),
-			FText::Format(LOCTEXT("HideColumn_Tooltip", "Hides the {0} column. You can unhide it using the eye-icon."), FoundColumn->DefaultText.Get()),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([WeakHeaderRow, ForColumnID](){ WeakHeaderRow.Pin()->SetShowGeneratedColumn(ForColumnID, !WeakHeaderRow.Pin()->IsColumnVisible(ForColumnID)); }),
-				FCanExecuteAction::CreateLambda([] { return true; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-			);
-	}
-
 	TSharedRef<SWidget> MakeTableContextMenu(const TSharedRef<SHeaderRow>& HeaderRow, TMap<FName, bool> ColumnsVisibleByDefault, bool bDefaultVisibility)
 	{
 		FMenuBuilder MenuBuilder(true, nullptr);

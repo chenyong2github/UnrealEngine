@@ -64,9 +64,8 @@ namespace UE::MultiUserServer
 
 	TSharedRef<SWidget> SPackageTransmissionTable::CreateViewOptionsButton()
 	{
-		return SNew(SComboButton)
-			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon")
-			.OnGetMenuContent_Lambda([this]()
+		return ConcertFrontendUtils::CreateViewOptionsComboButton(
+			FOnGetContent::CreateLambda([this]()
 			{
 				FMenuBuilder MenuBuilder(true, nullptr);
 
@@ -107,14 +106,7 @@ namespace UE::MultiUserServer
 				);
 				
 				return MenuBuilder.MakeWidget();
-			})
-			.HasDownArrow(false)
-			.ButtonContent()
-			[
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
-			];
+			}));
 	}
 
 	TSharedRef<SWidget> SPackageTransmissionTable::CreateTableView()

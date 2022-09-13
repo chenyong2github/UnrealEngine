@@ -126,7 +126,7 @@ private:
 	TSharedRef<SWidget> MakeControlBar(const FArguments& InArgs);
 	TSharedRef<SWidget> MakeButtonBar(const FArguments& InArgs);
 	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
-	TSharedRef<SWidget> MakeSessionViewOptionsBar();
+	TSharedRef<SWidget> MakeSessionTableFooter();
 	TSharedRef<ITableRow> OnGenerateSessionRowWidget(TSharedPtr<FConcertSessionItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
 	// Creates row widgets for session list view, validates user inputs and forward user requests for processing to a delegate function implemented by this class.
@@ -137,7 +137,8 @@ private:
 	TSharedRef<ITableRow> MakeSaveSessionRowWidget(const TSharedPtr<FConcertSessionItem>& ArchivedItem, const TSharedRef<STableViewBase>& OwnerTable);
 
 	// Creates the contextual menu when right clicking a session list view row.
-	TSharedPtr<SWidget> MakeContextualMenu();
+	TSharedPtr<SWidget> MakeTableContextualMenu();
+	TSharedRef<SWidget> MakeViewOptionsComboButtonMenu();
 
 	// The buttons above the session view.
 	bool IsNewButtonEnabledInternal() const;

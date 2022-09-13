@@ -74,7 +74,6 @@ namespace UE::MultiUserServer
 		bool bIsUpdatingColumnVisibility = false;
 
 		// Table view creation
-		TSharedRef<SWidget> CreateViewOptionsButton();
 		TSharedRef<SWidget> CreateTableView();
 		TSharedRef<SHeaderRow> CreateHeaderRow();
 		TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const;

@@ -79,11 +79,23 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					.Padding(0, 1, 0, 2)
 					[
-						SAssignNew(SearchBox, SSearchBox)
-						.HintText(LOCTEXT("SearchHint", "Search..."))
-						.OnTextChanged(this, &SConcertSessionRecovery::OnSearchTextChanged)
-						.OnTextCommitted(this, &SConcertSessionRecovery::OnSearchTextCommitted)
-						.DelayChangeNotificationsWhileTyping(true)
+						SNew(SHorizontalBox)
+
+						+SHorizontalBox::Slot()
+						.FillWidth(1.f)
+						[
+							SAssignNew(SearchBox, SSearchBox)
+							.HintText(LOCTEXT("SearchHint", "Search..."))
+							.OnTextChanged(this, &SConcertSessionRecovery::OnSearchTextChanged)
+							.OnTextCommitted(this, &SConcertSessionRecovery::OnSearchTextCommitted)
+							.DelayChangeNotificationsWhileTyping(true)
+						]
+						
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							ActivityViewOptions->MakeViewOptionsComboButton()
+						]
 					]
 
 					// Activity List
@@ -106,7 +118,8 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 					[
 						ActivityViewOptions->MakeStatusBar(
 							TAttribute<int32>(ActivityView.Get(), &SConcertSessionActivities::GetTotalActivityNum),
-							TAttribute<int32>(ActivityView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum))
+							TAttribute<int32>(ActivityView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum)
+							)
 					]
 				]
 			]

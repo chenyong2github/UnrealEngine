@@ -22,16 +22,8 @@ namespace UE::ConcertSharedSlate
 {
 	DECLARE_DELEGATE_OneParam(FSaveColumnVisibilitySnapshot, const FColumnVisibilitySnapshot& /*Snapshot*/);
 
-	// TODO DP: Remove MakeHideColumnContextMenu and AddHideColumnEntry once the UX pass is done
-	
-	/**
-	 * Creates a widget for hiding a SHeaderRow::FColumn when it is right-clicked.
-	 */
-	CONCERTSHAREDSLATE_API TSharedRef<SWidget> MakeHideColumnContextMenu(const TSharedRef<SHeaderRow>& HeaderRow, const FName ForColumnID);
-	CONCERTSHAREDSLATE_API void AddHideColumnEntry(const TSharedRef<SHeaderRow>& HeaderRow, const FName ForColumnID, FMenuBuilder& MenuBuilder);
-
 	/** Util function that can be directly fed into SListView::OnContextMenuOpening */
-	CONCERTSHAREDSLATE_API TSharedRef<SWidget> MakeTableContextMenu(const TSharedRef<SHeaderRow>& HeaderRow, TMap<FName, bool> ColumnsVisibleByDefault, bool bDefaultVisibility = true);
+	CONCERTSHAREDSLATE_API TSharedRef<SWidget> MakeTableContextMenu(const TSharedRef<SHeaderRow>& HeaderRow, TMap<FName, bool> ColumnsVisibleByDefault = {}, bool bDefaultVisibility = true);
 
 	/**
 	 * Adds an entry for "Show all", "Hide all", and "Restore column visibility".

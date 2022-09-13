@@ -246,7 +246,8 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	}
 	const TSharedRef<UE::UndoHistory::IReflectionDataProvider> ReflectionDataProvider =
 		ConcertReflectionDataProvider ? ConcertReflectionDataProvider->ToSharedRef() : UE::UndoHistory::CreateDefaultReflectionProvider();
-	
+
+	CreateHeaderRow(InArgs);
 	ActiveFilterFlags = QueryActiveActivityFilters();
 	ChildSlot
 	[
@@ -273,7 +274,8 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 					.AllowOverscroll(EAllowOverscroll::No)
 					.OnListViewScrolled(this, &SConcertSessionActivities::OnListViewScrolled)
 					.OnSelectionChanged(this, &SConcertSessionActivities::OnListViewSelectionChanged)
-					.HeaderRow(CreateHeaderRow(InArgs))
+					.HeaderRow(HeaderRow)
+					.OnContextMenuOpening_Lambda([this](){ return UE::ConcertSharedSlate::MakeTableContextMenu(HeaderRow.ToSharedRef(), {}, true); })
 				]
 			]
 
@@ -402,11 +404,6 @@ TSharedRef<SHeaderRow> SConcertSessionActivities::CreateHeaderRow(const FArgumen
 		
 		// SHeaderRow owns the columns and deletes them when destroyed
 		FActivityColumn* ManagedByHeaderRow = new FActivityColumn(MoveTemp(Column));
-		const bool bCanBeHidden = !ManagedByHeaderRow->ShouldGenerateWidget.IsSet(); 
-		if (bCanBeHidden)
-		{
-			ManagedByHeaderRow->OnGetMenuContent = FOnGetContent::CreateLambda([this, ColumnId = Column.ColumnId](){ return MakeHideColumnContextMenu(HeaderRow.ToSharedRef(), ColumnId); });
-		}
 		HeaderRow->AddColumn(*ManagedByHeaderRow);
 	}
 
@@ -868,34 +865,7 @@ void SConcertSessionActivities::SetDetailsPanelVisibility(const SWidget* Visible
 	LoadingDetailsPanel->SetVisibility(VisiblePanel == LoadingDetailsPanel.Get() ? EVisibility::Visible : EVisibility::Collapsed);
 }
 
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed, TOptional<FExtendContextMenu> ExtendMenu)
-{
-	return SNew(SHorizontalBox)
-
-	// Operation count.
-	+SHorizontalBox::Slot()
-	.AutoWidth()
-	.VAlign(VAlign_Center)
-	[
-		MakeDisplayedActivityCountWidget(MoveTemp(Total), MoveTemp(Displayed))
-	]
-
-	// Gap Filler
-	+SHorizontalBox::Slot()
-	.FillWidth(1.0)
-	[
-		SNew(SSpacer)
-	]
-
-	// View option
-	+SHorizontalBox::Slot()
-	.AutoWidth()
-	[
-		MakeViewOptionsWidget(ExtendMenu)
-	];
-}
-
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeDisplayedActivityCountWidget(TAttribute<int32> Total, TAttribute<int32> Displayed)
+TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed)
 {
 	return SNew(STextBlock)
 		.Text_Lambda([Total = MoveTemp(Total), Displayed = MoveTemp(Displayed)]()
@@ -904,37 +874,15 @@ TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeDisplayedActivityCount
 			{
 				return FText::Format(LOCTEXT("OperationCount", "{0} operations"), Total.Get());
 			}
-			else
-			{
-				return FText::Format(LOCTEXT("PartialOperationCount", "Showing {0} of {1} {1}|plural(one=operation,other=operations)"), Displayed.Get(), Total.Get());
-			}
+			return FText::Format(LOCTEXT("PartialOperationCount", "Showing {0} of {1} {1}|plural(one=operation,other=operations)"), Displayed.Get(), Total.Get());
 		});
 }
 
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget(TOptional<FExtendContextMenu> ExtendMenu)
+TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsComboButton(TOptional<FExtendContextMenu> ExtendMenu)
 {
-	return SNew(SComboButton)
-	.OnGetMenuContent(this, &FConcertSessionActivitiesOptions::MakeMenuWidget, MoveTemp(ExtendMenu))
-	.HasDownArrow(true)
-	.ButtonContent()
-	[
-		SNew(SHorizontalBox)
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.Visible")) // The eye ball image.
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2, 0, 0, 0)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock).Text(LOCTEXT("ViewOptions", "View Options"))
-		]
-	];
+	return ConcertFrontendUtils::CreateViewOptionsComboButton(
+		FOnGetContent::CreateRaw(this, &FConcertSessionActivitiesOptions::MakeMenuWidget, MoveTemp(ExtendMenu))
+		);
 }
 
 TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeMenuWidget(TOptional<FExtendContextMenu> ExtendMenu)

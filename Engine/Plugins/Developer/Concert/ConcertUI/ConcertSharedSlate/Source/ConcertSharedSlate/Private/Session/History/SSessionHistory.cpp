@@ -11,6 +11,7 @@
 #include "Session/Activity/SConcertSessionActivities.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/ToolBarStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 
@@ -77,20 +78,23 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.UndoHistoryReflectionProvider(InArgs._UndoHistoryReflectionProvider)
 		.DarkenMutedActivities(InArgs._DarkenMutedActivities);
 
+	
+	TSharedPtr<SVerticalBox> ButtonExtension;
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+
 		+SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(1, 1)
+		[
+			SAssignNew(ButtonExtension, SVerticalBox)
+		]
+		
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2, 0, 2, 4)
 		[
 			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				InArgs._SearchButtonArea.Widget
-			]
 
 			+SHorizontalBox::Slot()
 			.FillWidth(1.f)
@@ -100,6 +104,12 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 				.OnTextChanged(this, &SSessionHistory::OnSearchTextChanged)
 				.OnTextCommitted(this, &SSessionHistory::OnSearchTextCommitted)
 				.DelayChangeNotificationsWhileTyping(true)
+			]
+			
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				ActivityListViewOptions->MakeViewOptionsComboButton()
 			]
 		]
 
@@ -121,14 +131,29 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		[
 			ActivityListViewOptions->MakeStatusBar(
 				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetTotalActivityNum),
-				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum),
-				FConcertSessionActivitiesOptions::FExtendContextMenu::CreateLambda([this](FMenuBuilder& MenuBuilder)
-				{
-					MenuBuilder.AddSeparator();
-					AddEntriesForShowingHiddenRows(ActivityListView->GetHeaderRow().ToSharedRef(), MenuBuilder);
-				}))
+				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum)
+				)
 		]
 	];
+
+	const bool bHasExtensions = InArgs._SearchButtonArea.Widget != SNullWidget::NullWidget;
+	if (bHasExtensions)
+	{
+		ButtonExtension->AddSlot()
+			.AutoHeight()
+			[
+				InArgs._SearchButtonArea.Widget
+			];
+		
+		ButtonExtension->AddSlot()
+			.AutoHeight()
+			.Padding(0, 3)
+			[
+				SNew(SSeparator)
+				.Thickness(2.f)
+				.SeparatorImage(&FCoreStyle::Get().GetWidgetStyle<FToolBarStyle>("ToolBar").SeparatorBrush)
+			];
+	}
 }
 
 void SSessionHistory::ReloadActivities(TMap<FGuid, FConcertClientInfo> InEndpointClientInfoMap, TArray<FConcertSessionActivity> InFetchedActivities)
