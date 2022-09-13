@@ -41,12 +41,17 @@ struct FHitGroupSystemRootConstants
 	// Offset into HitGroupSystemIndexBuffer
 	UINT_TYPE IndexBufferOffsetInBytes;
 
+	// First primitive of the segment (as set in FRayTracingGeometrySegment)
+	UINT_TYPE FirstPrimitive;
+
 	// User-provided constant assigned to the hit group
 	UINT_TYPE UserData;
 
 	// Index of the first geometry instance that belongs to the current batch.
 	// Can be used to emulate SV_InstanceID in ray tracing shaders.
 	UINT_TYPE BaseInstanceIndex;
+
+	UINT_TYPE Pad0;
 
 	// Helper functions
 

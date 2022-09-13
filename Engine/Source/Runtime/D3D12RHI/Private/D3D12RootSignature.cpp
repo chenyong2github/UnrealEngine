@@ -170,10 +170,12 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		//          FHitGroupSystemRootConstants:
 		// 4 bytes: index/vertex fetch configuration as root constant (bitfield defining index and vertex formats)
 		// 4 bytes: index buffer offset in bytes
+		// 4 bytes: first primitive of the segment (as set in FRayTracingGeometrySegment)
 		// 4 bytes: hit group user data
+		// 4 bytes: index of the first instance that belongs to the current batch.
 		// 4 bytes: unused padding to ensure the next parameter is aligned to 8-byte boundary
 		// -----------
-		// 32 bytes
+		// 40 bytes
 
 		check(RootParameterCount == 0 && RootParametersSize == 0); // We expect system RT parameters to come first
 

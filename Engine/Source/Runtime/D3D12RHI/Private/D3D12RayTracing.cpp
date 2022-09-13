@@ -3805,6 +3805,7 @@ void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 		{
 			SystemParameters.IndexBuffer = IndexBuffer->ResourceLocation.GetGPUVirtualAddress();
 			SystemParameters.RootConstants.IndexBufferOffsetInBytes = Initializer.IndexBufferOffset + IndexStride * Segment.FirstPrimitive * FD3D12RayTracingGeometry::IndicesPerPrimitive;
+			SystemParameters.RootConstants.FirstPrimitive = Segment.FirstPrimitive;
 		}
 
 		HitGroupSystemParametersForThisGPU.Add(SystemParameters);
@@ -4433,7 +4434,7 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 			for (int32 i = 0; i < P.Segments.Num(); ++i)
 			{
 				checkf(P.Segments[i].MaxVertices <= Geometry->Initializer.Segments[i].MaxVertices,
-					TEXT("Maximum number of vertices in a segment (%u) must not be smaller than what was declared during FRHIRayTracingGeometry creation (%u), as this controls BLAS memory allocation."),
+					TEXT("Maximum number of vertices in a segment (%u) must not be larger than what was declared during FRHIRayTracingGeometry creation (%u), as this controls BLAS memory allocation."),
 					P.Segments[i].MaxVertices, Geometry->Initializer.Segments[i].MaxVertices
 				);
 
