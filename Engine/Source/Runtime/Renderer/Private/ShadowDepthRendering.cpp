@@ -2019,12 +2019,12 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 	const bool bShouldCastShadow = Material.ShouldCastDynamicShadows();
 
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 
 	ERasterizerCullMode FinalCullMode;
 
 	{
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
 		const bool bTwoSided = Material.IsTwoSided() || PrimitiveSceneProxy->CastsShadowAsTwoSided();
 
@@ -2074,11 +2074,12 @@ void FShadowDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 
 FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	const FScene* Scene,
+	ERHIFeatureLevel::Type InFeatureLevel,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FShadowDepthType InShadowDepthType,
 	FMeshPassDrawListContext* InDrawListContext,
 	EMeshPass::Type InMeshPassTargetType)
-	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(InMeshPassTargetType, Scene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, ShadowDepthType(InShadowDepthType)
 	, MeshPassTargetType(InMeshPassTargetType)
 {
@@ -2097,10 +2098,11 @@ FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 
 FShadowDepthType CSMShadowDepthType(true, false);
 
-FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
+FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	return new FShadowDepthPassMeshProcessor(
 		Scene,
+		FeatureLevel,
 		InViewIfDynamicMeshCommand,
 		CSMShadowDepthType,
 		InDrawListContext,
@@ -2109,13 +2111,14 @@ FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(const FScene* Scene, const
 
 FRegisterPassProcessorCreateFunction RegisterCSMShadowDepthPass(&CreateCSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::CSMShadowDepth, EMeshPassFlags::CachedMeshCommands);
 
-FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
+FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	// Only create the mesh pass processor if VSMs are not enabled as this prevents wasting time caching the SM draw commands
 	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
 	{
 		return new FShadowDepthPassMeshProcessor(
 			Scene,
+			FeatureLevel,
 			InViewIfDynamicMeshCommand,
 			CSMShadowDepthType,
 			InDrawListContext,

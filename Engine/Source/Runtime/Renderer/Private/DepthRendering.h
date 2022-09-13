@@ -169,7 +169,10 @@ class FDepthPassMeshProcessor : public FSceneRenderingAllocatorObject<FDepthPass
 {
 public:
 
-	FDepthPassMeshProcessor(const FScene* Scene, 
+	FDepthPassMeshProcessor(
+		EMeshPass::Type InMeshPassType,
+		const FScene* Scene, 
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		const FMeshPassProcessorRenderState& InPassDrawRenderState, 
 		const bool InbRespectUseAsOccluderFlag,

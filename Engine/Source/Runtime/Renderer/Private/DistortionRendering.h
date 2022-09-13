@@ -67,6 +67,7 @@ public:
 
 	FDistortionMeshProcessor(
 		const FScene* Scene, 
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		const FMeshPassProcessorRenderState& InPassDrawRenderState, 
 		const FMeshPassProcessorRenderState& InDistortionPassStateNoDepthTest,

@@ -125,6 +125,7 @@ class FMeshDecalMeshProcessor : public FMeshPassProcessor
 {
 public:
 	FMeshDecalMeshProcessor(const FScene* Scene, 
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		EDecalRenderStage InPassDecalStage, 
 		EDecalRenderTargetMode InRenderTargetMode,
@@ -160,11 +161,12 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(DeferredDecals);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDeferredDecalUniformParameters, "DeferredDecal", DeferredDecals);
 
 FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene, 
+	ERHIFeatureLevel::Type FeatureLevel,
 	const FSceneView* InViewIfDynamicMeshCommand, 
 	EDecalRenderStage InPassDecalStage, 
 	EDecalRenderTargetMode InRenderTargetMode,
 	FMeshPassDrawListContext* InDrawListContext)
-	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::Num, Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDecalStage(InPassDecalStage)
 	, RenderTargetMode(InRenderTargetMode)
 {
@@ -215,8 +217,8 @@ bool FMeshDecalMeshProcessor::TryAddMeshBatch(
 			if (bShouldRender)
 			{
 				const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-				ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-				ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+				ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+				ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
 				if (ViewIfDynamicMeshCommand->Family->UseDebugViewPS())
 				{
@@ -335,6 +337,7 @@ void DrawDecalMeshCommands(
 
 		FMeshDecalMeshProcessor PassMeshProcessor(
 			View.Family->Scene->GetRenderScene(),
+			View.GetFeatureLevel(),
 			&View,
 			DecalRenderStage,
 			RenderTargetMode,
@@ -399,6 +402,7 @@ void RenderMeshDecalsMobile(FRHICommandListImmediate& RHICmdList, const FViewInf
 	{
 		FMeshDecalMeshProcessor PassMeshProcessor(
 			View.Family->Scene->GetRenderScene(),
+			View.GetFeatureLevel(),
 			&View,
 			DecalRenderStage,
 			RenderTargetMode,

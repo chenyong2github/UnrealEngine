@@ -249,7 +249,7 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 	bool bTranslucentBasePass,
 	FMeshPassDrawListContext* InDrawListContext
 )
-	: FMeshPassProcessor(InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::DebugViewMode, InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, DebugViewMode(DVSM_None)
 	, ViewModeParam(INDEX_NONE)
 	, DebugViewModeInterface(nullptr)
@@ -300,8 +300,8 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	Shaders.TryGetPixelShader(DebugViewModePassShaders.PixelShader);
 
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *BatchMaterial, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *BatchMaterial, OverrideSettings);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(*BatchMaterial, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(*BatchMaterial, OverrideSettings);
 
 	FMeshPassProcessorRenderState DrawRenderState;
 
@@ -546,9 +546,9 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 	ShaderBindings.Add(Shader.VisualizeModeParameter, DebugViewMode);
 }
 
-FMeshPassProcessor* CreateDebugViewModePassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
+FMeshPassProcessor* CreateDebugViewModePassProcessor(ERHIFeatureLevel::Type InFeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	const ERHIFeatureLevel::Type FeatureLevel = Scene ? Scene->GetFeatureLevel() : (InViewIfDynamicMeshCommand ? InViewIfDynamicMeshCommand->GetFeatureLevel() : GMaxRHIFeatureLevel);
+	const ERHIFeatureLevel::Type FeatureLevel = InViewIfDynamicMeshCommand ? InViewIfDynamicMeshCommand->GetFeatureLevel() : InFeatureLevel;
 	return new FDebugViewModeMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, false, InDrawListContext);
 }
 

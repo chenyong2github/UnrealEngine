@@ -2122,6 +2122,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 
 	FShadowDepthPassMeshProcessor* MeshPassProcessor = new FShadowDepthPassMeshProcessor(
 		Renderer.Scene,
+		Renderer.Scene->GetFeatureLevel(),
 		ShadowDepthView,
 		GetShadowDepthType(),
 		nullptr,
@@ -2257,7 +2258,9 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 				}
 
 				FDepthPassMeshProcessor DepthPassMeshProcessor(
+					EMeshPass::DepthPass,
 					Renderer.Scene,
+					Renderer.Scene->GetFeatureLevel(),
 					&View,
 					DrawRenderState,
 					false,

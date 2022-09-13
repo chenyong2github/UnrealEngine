@@ -154,7 +154,7 @@ private:
 		MaterialShaders.TryGetPixelShader(Shaders.PixelShader);
 
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource, OverrideSettings);
+		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MaterialResource, OverrideSettings);
 		ERasterizerCullMode MeshCullMode = CM_None;
 
 		FMeshMaterialShaderElementData ShaderElementData;

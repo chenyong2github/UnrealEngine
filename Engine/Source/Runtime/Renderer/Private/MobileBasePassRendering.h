@@ -445,6 +445,7 @@ public:
 	};
 
 	FMobileBasePassMeshProcessor(
+		EMeshPass::Type InMeshPassType,
 		const FScene* InScene,
 		ERHIFeatureLevel::Type InFeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand,

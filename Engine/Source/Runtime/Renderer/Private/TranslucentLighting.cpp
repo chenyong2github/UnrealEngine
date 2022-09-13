@@ -382,7 +382,7 @@ FTranslucencyDepthPassMeshProcessor::FTranslucencyDepthPassMeshProcessor(const F
 	const FMeshPassProcessorRenderState& InPassDrawRenderState,
 	const FProjectedShadowInfo* InShadowInfo,
 	FMeshPassDrawListContext* InDrawListContext)
-	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::Num, Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
 	, ShadowInfo(InShadowInfo)
 	, ShadowDepthType(InShadowInfo->GetShadowDepthType())
@@ -403,8 +403,8 @@ bool FTranslucencyDepthPassMeshProcessor::TryAddMeshBatch(
 	const float MaterialTranslucentShadowStartOffset = Material.GetTranslucentShadowStartOffset();
 	const bool MaterialCastDynamicShadowAsMasked = Material.GetCastDynamicShadowAsMasked();
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 
 	// Only render translucent meshes into the Fourier opacity maps

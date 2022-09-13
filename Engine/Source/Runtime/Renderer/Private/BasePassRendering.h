@@ -592,6 +592,7 @@ public:
 	};
 
 	FBasePassMeshProcessor(
+		EMeshPass::Type InMeshPassType,
 		const FScene* InScene,
 		ERHIFeatureLevel::Type InFeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand,

@@ -296,6 +296,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 					{
 						FBasePassMeshProcessor PassMeshProcessor(
+							EMeshPass::BasePass,
 							Scene,
 							View.GetFeatureLevel(),
 							&View,
@@ -319,6 +320,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 					{
 						FMobileBasePassMeshProcessor PassMeshProcessor(
+							EMeshPass::TranslucencyAll,
 							Scene,
 							View.GetFeatureLevel(),
 							&View,
@@ -376,6 +378,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 							[&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 						{
 							FBasePassMeshProcessor PassMeshProcessor(
+								EMeshPass::BasePass,
 								Scene,
 								View.GetFeatureLevel(),
 								&View,
@@ -398,6 +401,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 						DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 						{
 							FMobileBasePassMeshProcessor PassMeshProcessor(
+								EMeshPass::BasePass,
 								Scene,
 								View.GetFeatureLevel(),
 								&View,

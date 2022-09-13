@@ -207,8 +207,8 @@ bool FHairRasterMeshProcessor::TryAddMeshBatch(
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 	{
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-		const ERasterizerCullMode MeshCullMode = RasterPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(MeshBatch, Material, OverrideSettings) : CM_None;
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = RasterPassType == EHairStrandsRasterPassType::FrontDepth ? ComputeMeshCullMode(Material, OverrideSettings) : CM_None;
 
 		if (RasterPassType == EHairStrandsRasterPassType::FrontDepth)
 			return Process<FDeepShadowDepthMeshVS, FDeepShadowDepthMeshPS>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
@@ -286,7 +286,7 @@ FHairRasterMeshProcessor::FHairRasterMeshProcessor(
 	const FMeshPassProcessorRenderState& InPassDrawRenderState,
 	FDynamicPassMeshDrawListContext* InDrawListContext,
 	const EHairStrandsRasterPassType PType)
-	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::Num, Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, RasterPassType(PType)
 	, PassDrawRenderState(InPassDrawRenderState)
 {

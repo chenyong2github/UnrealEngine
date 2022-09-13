@@ -145,7 +145,7 @@ class FLumenFrontLayerTranslucencyGBufferMeshProcessor : public FSceneRenderingA
 {
 public:
 
-	FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
+	FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
@@ -225,8 +225,8 @@ void FLumenFrontLayerTranslucencyGBufferMeshProcessor::AddMeshBatch(const FMeshB
 						ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
 						const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-						const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-						const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+						const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+						const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 						const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader, PassShaders.PixelShader);
 
 						BuildMeshDrawCommands(
@@ -258,12 +258,12 @@ void FLumenFrontLayerTranslucencyGBufferMeshProcessor::AddMeshBatch(const FMeshB
 	}
 }
 
-FLumenFrontLayerTranslucencyGBufferMeshProcessor::FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
-	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+FLumenFrontLayerTranslucencyGBufferMeshProcessor::FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::LumenFrontLayerTranslucencyGBuffer, Scene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
 {}
 
-FMeshPassProcessor* CreateLumenFrontLayerTranslucencyGBufferPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
+FMeshPassProcessor* CreateLumenFrontLayerTranslucencyGBufferPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -273,7 +273,7 @@ FMeshPassProcessor* CreateLumenFrontLayerTranslucencyGBufferPassProcessor(const 
 
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-	return new FLumenFrontLayerTranslucencyGBufferMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
+	return new FLumenFrontLayerTranslucencyGBufferMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterLumenFrontLayerTranslucencyGBufferPass(&CreateLumenFrontLayerTranslucencyGBufferPassProcessor, EShadingPath::Deferred, EMeshPass::LumenFrontLayerTranslucencyGBuffer, EMeshPassFlags::MainView);

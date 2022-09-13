@@ -250,7 +250,7 @@ FRenderTraceMeshProcessor::FRenderTraceMeshProcessor(
 	const FScene* Scene, 
 	const FSceneView* InViewIfDynamicMeshCommand, 
 	FMeshPassDrawListContext* InDrawListContext)
-	: FMeshPassProcessor(Scene, InViewIfDynamicMeshCommand->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::Num, Scene, InViewIfDynamicMeshCommand->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 {
 	PassDrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 	PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<>::GetRHI());
@@ -288,7 +288,7 @@ void FRenderTraceMeshProcessor::AddMeshBatch(
 			Shaders.TryGetPixelShader(PassShaders.PixelShader);
 
 			const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-			const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
+			const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(*Material, OverrideSettings);
 			const ERasterizerCullMode MeshCullMode = CM_None;
 
 			FPhysicalMaterialSamplerShaderElementData ShaderElementData;

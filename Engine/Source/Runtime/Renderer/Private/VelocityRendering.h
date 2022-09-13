@@ -61,7 +61,9 @@ class FVelocityMeshProcessor : public FMeshPassProcessor
 {
 public:
 	FVelocityMeshProcessor(
+		EMeshPass::Type MeshPassType,
 		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand,
 		const FMeshPassProcessorRenderState& InPassDrawRenderState,
 		FMeshPassDrawListContext* InDrawListContext);
@@ -91,6 +93,7 @@ class FOpaqueVelocityMeshProcessor : public FSceneRenderingAllocatorObject<FOpaq
 public:
 	FOpaqueVelocityMeshProcessor(
 		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand,
 		const FMeshPassProcessorRenderState& InPassDrawRenderState,
 		FMeshPassDrawListContext* InDrawListContext);
@@ -126,6 +129,7 @@ class FTranslucentVelocityMeshProcessor : public FSceneRenderingAllocatorObject<
 public:
 	FTranslucentVelocityMeshProcessor(
 		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand,
 		const FMeshPassProcessorRenderState& InPassDrawRenderState,
 		FMeshPassDrawListContext* InDrawListContext);

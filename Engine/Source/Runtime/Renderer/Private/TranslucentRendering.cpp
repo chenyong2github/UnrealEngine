@@ -1089,6 +1089,7 @@ static void RenderViewTranslucencyInner(
 					[&View, &DrawRenderState, TranslucencyPass](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 				{
 					FBasePassMeshProcessor PassMeshProcessor(
+						EMeshPass::Num,
 						View.Family->Scene->GetRenderScene(),
 						View.GetFeatureLevel(),
 						&View,
@@ -1115,6 +1116,7 @@ static void RenderViewTranslucencyInner(
 					[&View, &DrawRenderState, TranslucencyPass](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 				{
 					FBasePassMeshProcessor PassMeshProcessor(
+						EMeshPass::Num,
 						View.Family->Scene->GetRenderScene(),
 						View.GetFeatureLevel(),
 						&View,

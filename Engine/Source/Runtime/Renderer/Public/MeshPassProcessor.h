@@ -1935,7 +1935,11 @@ public:
 	const FSceneView* ViewIfDynamicMeshCommand;
 	FMeshPassDrawListContext* DrawListContext;
 		
-	RENDERER_API FMeshPassProcessor(/*EMeshPass::Type InMeshPassType,*/ const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
+	UE_DEPRECATED(5.1, "FMeshPassProcessor constructor without EMeshPass::Type is deprecated.")
+	FMeshPassProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext) :
+		FMeshPassProcessor(EMeshPass::Num, InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext) { }
+
+	RENDERER_API FMeshPassProcessor(EMeshPass::Type InMeshPassType, const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual ~FMeshPassProcessor() {}
 
@@ -1963,8 +1967,21 @@ public:
 	};
 
 	RENDERER_API static FMeshDrawingPolicyOverrideSettings ComputeMeshOverrideSettings(const FMeshBatch& Mesh);
-	RENDERER_API static ERasterizerFillMode ComputeMeshFillMode(const FMeshBatch& Mesh, const FMaterial& InMaterialResource, const FMeshDrawingPolicyOverrideSettings& InOverrideSettings);
-	RENDERER_API static ERasterizerCullMode ComputeMeshCullMode(const FMeshBatch& Mesh, const FMaterial& InMaterialResource, const FMeshDrawingPolicyOverrideSettings& InOverrideSettings);
+
+	UE_DEPRECATED(5.1, "ComputeMeshFillMode with FMeshBatch is deprecated.")
+	static ERasterizerFillMode ComputeMeshFillMode(const FMeshBatch& Mesh, const FMaterial& InMaterialResource, const FMeshDrawingPolicyOverrideSettings& InOverrideSettings)
+	{
+		return ComputeMeshFillMode(InMaterialResource, InOverrideSettings);
+	}
+
+	UE_DEPRECATED(5.1, "ComputeMeshCullMode with FMeshBatch is deprecated.")
+	RENDERER_API static ERasterizerCullMode ComputeMeshCullMode(const FMeshBatch& Mesh, const FMaterial& InMaterialResource, const FMeshDrawingPolicyOverrideSettings& InOverrideSettings)
+	{
+		return ComputeMeshCullMode(InMaterialResource, InOverrideSettings);
+	}
+
+	RENDERER_API static ERasterizerFillMode ComputeMeshFillMode(const FMaterial& InMaterialResource, const FMeshDrawingPolicyOverrideSettings& InOverrideSettings);
+	RENDERER_API static ERasterizerCullMode ComputeMeshCullMode(const FMaterial& InMaterialResource, const FMeshDrawingPolicyOverrideSettings& InOverrideSettings);
 
 	template<typename PassShadersType, typename ShaderElementDataType>
 	void BuildMeshDrawCommands(
@@ -2033,7 +2050,8 @@ namespace PSOCollectorStats
 
 #endif // PSO_PRECACHING_VALIDATE
 
-typedef FMeshPassProcessor* (*PassProcessorCreateFunction)(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
+typedef FMeshPassProcessor* (*DeprecatedPassProcessorCreateFunction)(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
+typedef FMeshPassProcessor* (*PassProcessorCreateFunction)(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
 
 enum class EMeshPassFlags
 {
@@ -2046,12 +2064,29 @@ ENUM_CLASS_FLAGS(EMeshPassFlags);
 class FPassProcessorManager
 {
 public:
-	static PassProcessorCreateFunction GetCreateFunction(EShadingPath ShadingPath, EMeshPass::Type PassType)
+
+	static FMeshPassProcessor* CreateMeshPassProcessor(EShadingPath ShadingPath, EMeshPass::Type PassType, ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
+	{
+		check(ShadingPath < EShadingPath::Num&& PassType < EMeshPass::Num);
+		uint32 ShadingPathIdx = (uint32)ShadingPath;
+		checkf(JumpTable[ShadingPathIdx][PassType] || DeprecatedJumpTable[ShadingPathIdx][PassType], TEXT("Pass type %u create function was never registered for shading path %u.  Use a FRegisterPassProcessorCreateFunction to register a create function for this enum value."), (uint32)PassType, ShadingPathIdx);
+		if (JumpTable[ShadingPathIdx][PassType])
+		{
+			return JumpTable[ShadingPathIdx][PassType](FeatureLevel, Scene, InViewIfDynamicMeshCommand, InDrawListContext);
+		}
+		else
+		{
+			return DeprecatedJumpTable[ShadingPathIdx][PassType](Scene, InViewIfDynamicMeshCommand, InDrawListContext);
+		}
+	}
+
+	UE_DEPRECATED(5.1, "GetCreateFunction is deprecated. Use CreateMeshPassProcessor above.")
+	static DeprecatedPassProcessorCreateFunction GetCreateFunction(EShadingPath ShadingPath, EMeshPass::Type PassType)
 	{
 		check(ShadingPath < EShadingPath::Num && PassType < EMeshPass::Num);
 		uint32 ShadingPathIdx = (uint32)ShadingPath;
-		checkf(JumpTable[ShadingPathIdx][PassType], TEXT("Pass type %u create function was never registered for shading path %u.  Use a FRegisterPassProcessorCreateFunction to register a create function for this enum value."), (uint32)PassType, ShadingPathIdx);
-		return JumpTable[ShadingPathIdx][PassType];
+		checkf(DeprecatedJumpTable[ShadingPathIdx][PassType], TEXT("Pass type %u create function was never registered for shading path %u.  Use a FRegisterPassProcessorCreateFunction to register a create function for this enum value."), (uint32)PassType, ShadingPathIdx);
+		return DeprecatedJumpTable[ShadingPathIdx][PassType];
 	}
 
 	static EMeshPassFlags GetPassFlags(EShadingPath ShadingPath, EMeshPass::Type PassType)
@@ -2066,6 +2101,7 @@ public:
 
 private:
 	RENDERER_API static PassProcessorCreateFunction JumpTable[(uint32)EShadingPath::Num][EMeshPass::Num];
+	RENDERER_API static DeprecatedPassProcessorCreateFunction DeprecatedJumpTable[(uint32)EShadingPath::Num][EMeshPass::Num];
 	RENDERER_API static EMeshPassFlags Flags[(uint32)EShadingPath::Num][EMeshPass::Num];
 	friend class FRegisterPassProcessorCreateFunction;
 };
@@ -2079,6 +2115,16 @@ public:
 	{
 		uint32 ShadingPathIdx = (uint32)ShadingPath;
 		FPassProcessorManager::JumpTable[ShadingPathIdx][PassType] = CreateFunction;
+		FPassProcessorManager::Flags[ShadingPathIdx][PassType] = PassFlags;
+	}
+
+	UE_DEPRECATED(5.1, "FRegisterPassProcessorCreateFunction with DeprecatedPassProcessorCreateFunction is deprecated. Use new PassProcessorCreateFunction with extra ERHIFeatureLevel::Type argument.")
+	FRegisterPassProcessorCreateFunction(DeprecatedPassProcessorCreateFunction CreateFunction, EShadingPath InShadingPath, EMeshPass::Type InPassType, EMeshPassFlags PassFlags)
+		: ShadingPath(InShadingPath)
+		, PassType(InPassType)
+	{
+		uint32 ShadingPathIdx = (uint32)ShadingPath;
+		FPassProcessorManager::DeprecatedJumpTable[ShadingPathIdx][PassType] = CreateFunction;
 		FPassProcessorManager::Flags[ShadingPathIdx][PassType] = PassFlags;
 	}
 

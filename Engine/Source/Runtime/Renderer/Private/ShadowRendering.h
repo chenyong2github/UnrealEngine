@@ -124,6 +124,7 @@ public:
 
 	FShadowDepthPassMeshProcessor(
 		const FScene* Scene, 
+		ERHIFeatureLevel::Type InFeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		FShadowDepthType InShadowDepthType,
 		FMeshPassDrawListContext* InDrawListContext,

@@ -64,7 +64,7 @@ class FUVLightCardPassProcessor : public FMeshPassProcessor
 {
 public:
 	FUVLightCardPassProcessor(const FSceneView* InView, FMeshPassDrawListContext* InDrawListContext)
-		: FMeshPassProcessor(nullptr, GMaxRHIFeatureLevel, InView, InDrawListContext)
+		: FMeshPassProcessor(EMeshPass::Num, nullptr, GMaxRHIFeatureLevel, InView, InDrawListContext)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 		DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI());
@@ -94,8 +94,8 @@ public:
 		Shaders.TryGetPixelShader(PassShaders.PixelShader);
 
 		FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
 		FMeshMaterialShaderElementData ShaderElementData;
 		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
