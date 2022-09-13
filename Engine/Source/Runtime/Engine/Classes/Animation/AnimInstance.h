@@ -1622,6 +1622,7 @@ protected:
 	friend struct FAnimNode_LinkedAnimLayer;
 	friend struct FAnimInstanceProxy;
 	
+public:
 	/** Return whether this AnimNotifyState should be triggered */
 	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const;
 
