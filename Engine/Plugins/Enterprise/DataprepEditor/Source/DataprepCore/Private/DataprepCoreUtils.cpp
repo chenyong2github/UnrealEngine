@@ -751,7 +751,7 @@ void FDataprepCoreUtils::DeleteTemporaryFolders(const FString& BaseTemporaryPath
 		ObjectsToDelete.Reserve( AssetDataList.Num() );
 		for(const FAssetData& AssetData : AssetDataList)
 		{
-			FSoftObjectPath ObjectPath( AssetData.ObjectPath.ToString() );
+			FSoftObjectPath ObjectPath( AssetData.GetSoftObjectPath() );
 
 			if(UObject* Object = ObjectPath.ResolveObject())
 			{

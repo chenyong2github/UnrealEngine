@@ -715,7 +715,7 @@ const FAssetData& FDataprepSpawnActorsAtLocationDetails::GetAssetData() const
 {
 	if (DataprepOperation->SelectedAsset)
 	{
-		if (!DataprepOperation->SelectedAsset->GetPathName().Equals(CachedAssetData.ObjectPath.ToString(), ESearchCase::CaseSensitive))
+		if (FSoftObjectPath(DataprepOperation->SelectedAsset) == CachedAssetData.GetSoftObjectPath())
 		{
 			// This always uses the exact object pointed at
 			CachedAssetData = FAssetData(DataprepOperation->SelectedAsset, true);

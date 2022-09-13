@@ -512,7 +512,7 @@ bool FDatasmithImporterUtils::CanCreateAsset(const FString& AssetPathName, const
 		case EAssetCreationStatus::CS_ClassMismatch:
 		{
 			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*AssetPathName);
+			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(AssetPathName));
 
 			const FString FoundClassName(AssetData.GetClass()->GetFName().ToString());
 			const FString ExpectedClassName(AssetClass->GetFName().ToString());
@@ -547,7 +547,7 @@ FDatasmithImporterUtils::EAssetCreationStatus FDatasmithImporterUtils::CanCreate
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
-	const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*AssetPathName);
+	const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(AssetPathName));
 
 	// Asset does not exist yet. Safe to import
 	if (!AssetData.IsValid())

@@ -1761,7 +1761,7 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 
 	auto ElementNeedsReimport = [&](const FString& FullyQualifiedName, TSharedRef<IDatasmithElement> Element, const FString& SourcePath) -> bool
 	{
-		const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*FullyQualifiedName);
+		const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(FullyQualifiedName));
 		const FAssetDataTagMapSharedView::FFindTagResult ImportDataStr = AssetData.TagsAndValues.FindTag(TEXT("AssetImportData"));
 		FString CurrentRelativeFileName;
 
@@ -1820,7 +1820,7 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 		// If the mesh element does not need to be re-imported, register its name
 		else
 		{
-			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( *AssetName);
+			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( FSoftObjectPath(AssetName) );
 			ImportContext.AssetsContext.StaticMeshNameProvider.AddExistingName( FPaths::GetBaseFilename( AssetData.PackageName.ToString() ) );
 		}
 	}
@@ -1847,7 +1847,7 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 		// If the texture element does not need to be re-imported, register its name
 		else
 		{
-			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( *AssetName);
+			const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath( FSoftObjectPath(AssetName) );
 			ImportContext.AssetsContext.TextureNameProvider.AddExistingName( FPaths::GetBaseFilename( AssetData.PackageName.ToString() ) );
 		}
 	}
