@@ -31,8 +31,7 @@ static_assert(EHandKeypoint::LittleTip == static_cast<EHandKeypoint>(XR_HAND_JOI
 //static TAutoConsoleVariable<int32> CVarEnableOpenXRHandTrackingDebug(TEXT("OpenXR.debug.EnableEyetrackingDebug"), 1, TEXT("0 - Eyetracking debug visualizations are disabled. 1 - Eyetracking debug visualizations are enabled."));
 
 class FOpenXRHandTrackingModule :
-	public IOpenXRHandTrackingModule,
-	public IOpenXRExtensionPlugin
+	public IOpenXRHandTrackingModule
 {
 public:
 	FOpenXRHandTrackingModule()
@@ -43,7 +42,6 @@ public:
 	virtual void StartupModule() override
 	{
 		IOpenXRHandTrackingModule::StartupModule();
-		RegisterOpenXRExtensionModularFeature();
 
 		// HACK: Generic Application might not be instantiated at this point so we create the input device with a
 		// dummy message handler. When the Generic Application creates the input device it passes a valid message
