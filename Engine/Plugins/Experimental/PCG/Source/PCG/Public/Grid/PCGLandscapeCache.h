@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Serialization/BulkData.h"
+
 #include "PCGLandscapeCache.generated.h"
 
 class ALandscapeProxy;
@@ -12,61 +14,67 @@ class UPCGPointData;
 class UPCGMetadata;
 struct FPCGPoint;
 
-USTRUCT()
-struct FPCGLandscapeCacheLayer
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, Category = "Cache")
-	FName Name;
-
-	UPROPERTY()
-	TArray<uint8> Data;
-};
-
-USTRUCT()
 struct FPCGLandscapeCacheEntry
 {
-	GENERATED_BODY()
-public:
-#if WITH_EDITOR
-	void BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent, UObject* Owner);
-#endif
+	friend class UPCGLandscapeCache;
 
+public:
 	void GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 	void GetPointHeightOnly(int32 PointIndex, FPCGPoint& OutPoint) const;
 	void GetInterpolatedPoint(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 	void GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint) const;
 
-	// TODO: this isn't really needed
-	UPROPERTY()
+private:
+	// Private API for UPCGLandscapeCache usage
+	bool TouchAndLoad(int32 Touch) const;
+	void Unload();
+	int32 GetMemorySize() const;
+
+#if WITH_EDITOR
+	void BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent);
+#endif
+
+	// Serialize called from the landscape cache
+	void Serialize(FArchive& Ar, UObject* Owner, int32 BulkIndex);
+
+	// Internal usage methods
+	void SerializeToBulkData();
+	void SerializeFromBulkData() const;
+
+	// Serialized data
 	TWeakObjectPtr<const ULandscapeComponent> Component = nullptr;
-
-	UPROPERTY()
-	TArray<FVector> PositionsAndNormals;
-
-	UPROPERTY()
-	TArray<FPCGLandscapeCacheLayer> LayerData;
-
-	UPROPERTY()
+	TArray<FName> LayerDataNames;
 	FVector PointHalfSize = FVector::One();
-
-	UPROPERTY()
 	int32 Stride = 0;
+
+	// Data built in editor or loaded from the bulk data
+	mutable FByteBulkData BulkData;
+
+	// Data stored in the BulkData
+	mutable TArray<FVector> PositionsAndNormals;
+	mutable TArray<TArray<uint8>> LayerData;
+
+	// Transient data
+	mutable FCriticalSection DataLock;
+	mutable int32 Touch = 0;
+	mutable bool bDataLoaded = false;
 };
 
-USTRUCT()
-struct FPCGLandscapeCache
+UCLASS()
+class UPCGLandscapeCache : public UObject
 {
 	GENERATED_BODY()
 public:
-	FPCGLandscapeCache() = default;
-	~FPCGLandscapeCache();
-	FPCGLandscapeCache(UObject* InOwner);
+	UPCGLandscapeCache();
+	~UPCGLandscapeCache();
 
-	void SetOwner(UObject* InOwner, bool bUpdateCachedLayerNames = true);
+	//~Begin UObject interface
+	virtual void Serialize(FArchive& Archive) override;
+	//~End UObject interface
+
 	void PrimeCache();
 	void ClearCache();
+	void Tick(float DeltaSeconds);
 
 	const FPCGLandscapeCacheEntry* GetCacheEntry(ULandscapeComponent* LandscapeComponent, const FIntPoint& ComponentKey);
 	TArray<FName> GetLayerNames(ALandscapeProxy* Landscape);
@@ -80,16 +88,15 @@ private:
 	void CacheLayerNames();
 #endif
 
-	// TODO: need to have an indirection for multiple landscape support
-	UPROPERTY(VisibleAnywhere, Category = "Cache")
-	TMap<FIntPoint, FPCGLandscapeCacheEntry> CachedData;
+	TMap<TPair<FGuid, FIntPoint>, FPCGLandscapeCacheEntry*> CachedData;
 
 	//TODO: separate by landscape
 	UPROPERTY(VisibleAnywhere, Category = "Cache")
 	TSet<FName> CachedLayerNames;
 
-	// Transient by design
-	UObject* Owner = nullptr;
+	std::atomic<int32> CacheMemorySize = 0;
+	std::atomic<int32> CacheTouch = 0;
+	float TimeSinceLastCleanupInSeconds = 0;
 
 #if WITH_EDITOR
 	TSet<TWeakObjectPtr<ALandscapeProxy>> Landscapes;
@@ -98,13 +105,4 @@ private:
 #if WITH_EDITOR
 	FRWLock CacheLock;
 #endif
-};
-
-template<>
-struct TStructOpsTypeTraits<FPCGLandscapeCache> : public TStructOpsTypeTraitsBase2< FPCGLandscapeCache>
-{
-	enum
-	{
-		WithCopy = false
-	};
 };

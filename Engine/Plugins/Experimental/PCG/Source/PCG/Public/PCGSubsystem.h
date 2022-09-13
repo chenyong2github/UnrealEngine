@@ -16,7 +16,7 @@ class APCGPartitionActor;
 class APCGWorldActor;
 class UPCGGraph;
 struct FPCGDataCollection;
-struct FPCGLandscapeCache;
+class UPCGLandscapeCache;
 
 class IPCGElement;
 typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
@@ -56,7 +56,7 @@ public:
 	void RegisterPCGWorldActor(APCGWorldActor* InActor);
 	void UnregisterPCGWorldActor(APCGWorldActor* InActor);
 
-	FPCGLandscapeCache* GetLandscapeCache();
+	UPCGLandscapeCache* GetLandscapeCache();
 
 	// Schedule graph (owner -> graph)
 	FPCGTaskId ScheduleComponent(UPCGComponent* PCGComponent, bool bSave, const TArray<FPCGTaskId>& Dependencies);

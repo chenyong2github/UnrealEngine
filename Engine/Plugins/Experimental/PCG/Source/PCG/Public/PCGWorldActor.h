@@ -18,7 +18,6 @@ public:
 	APCGWorldActor(const FObjectInitializer& ObjectInitializer);
 
 	//~Begin AActor Interface
-	virtual void Serialize(FArchive& InArchive) override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 
@@ -43,8 +42,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = WorldPartition)
 	uint32 PartitionGridSize;
 
+	/** Contains all the PCG data required to query the landscape complete. Serialized in cooked builds only */
 	UPROPERTY(VisibleAnywhere, Category = CachedData)
-	FPCGLandscapeCache LandscapeCache;
+	TObjectPtr<UPCGLandscapeCache> LandscapeCache = nullptr;
 
 	/** Disable creation of Partition Actors on the Z axis. Can improve performances if 3D partitioning is not needed. */
 	UPROPERTY(config, EditAnywhere, Category = WorldPartition)

@@ -20,12 +20,24 @@
 #include "LandscapeDataAccess.h"
 #include "Landscape.h"
 #include "Kismet/GameplayStatics.h"
+#include "Serialization/BufferReader.h"
+#include "Serialization/BufferWriter.h"
+
+static TAutoConsoleVariable<float> CVarLandscapeCacheGCFrequency(
+	TEXT("pcg.LandscapeCacheGCFrequency"),
+	10,
+	TEXT("Rate at which to release landscape cache data, in seconds"));
+
+static TAutoConsoleVariable<int32> CVarLandscapeCacheSizeThreshold(
+	TEXT("pcg.LandscapeCacheSizeThreshold"),
+	64,
+	TEXT("Memory Threhold at which we start cleaning up the landscape cache"));
 
 #if WITH_EDITOR
-void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent, UObject* Owner)
+void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::BuildCacheData);
-	check(Owner && !Component.Get() && InComponent && PositionsAndNormals.Num() == 0);
+	check(!Component.Get() && InComponent && PositionsAndNormals.Num() == 0 && !bDataLoaded);
 	Component = InComponent;
 
 	ALandscape* Landscape = Component->GetLandscapeActor();
@@ -72,20 +84,21 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 		FLandscapeComponentDataInterface CDI(InComponent, 0, /*bUseEditingLayer=*/true);
 		if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/true))
 		{
-			FPCGLandscapeCacheLayer& PCGLayer = LayerData.Emplace_GetRef();
-			PCGLayer.Name = Layer.LayerName;
-			PCGLayer.Data = LayerCache;
+			LayerDataNames.Add(Layer.LayerName);
+			LayerData.Add(LayerCache);
 		}
 
 		LayerCache.Reset();
 	}
+	
+	bDataLoaded = true;
 }
 #endif // WITH_EDITOR
 
 void FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::GetPoint);
-	check(PointIndex >= 0 && 2 * PointIndex < PositionsAndNormals.Num());
+	check(bDataLoaded && PointIndex >= 0 && 2 * PointIndex < PositionsAndNormals.Num());	
 
 	const FVector& Position = PositionsAndNormals[2 * PointIndex];
 	const FVector& Normal = PositionsAndNormals[2 * PointIndex + 1];
@@ -102,14 +115,18 @@ void FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UP
 	
 	if (OutMetadata && !LayerData.IsEmpty())
 	{
+		check(LayerData.Num() == LayerDataNames.Num());
 		OutPoint.MetadataEntry = OutMetadata->AddEntry();
 
-		for (const FPCGLandscapeCacheLayer& Layer : LayerData)
+		for(int32 LayerIndex = 0; LayerIndex < LayerData.Num(); ++LayerIndex)
 		{
-			if (FPCGMetadataAttributeBase* Attribute = OutMetadata->GetMutableAttribute(Layer.Name))
+			const FName& CurrentLayerName = LayerDataNames[LayerIndex];
+			const TArray<uint8>& CurrentLayerData = LayerData[LayerIndex];
+
+			if (FPCGMetadataAttributeBase* Attribute = OutMetadata->GetMutableAttribute(CurrentLayerName))
 			{
 				check(Attribute->GetTypeId() == PCG::Private::MetadataTypes<float>::Id);
-				static_cast<FPCGMetadataAttribute<float>*>(Attribute)->SetValue(OutPoint.MetadataEntry, (float)Layer.Data[PointIndex] / 255.0f);
+				static_cast<FPCGMetadataAttribute<float>*>(Attribute)->SetValue(OutPoint.MetadataEntry, (float)CurrentLayerData[PointIndex] / 255.0f);
 			}
 		}
 	}
@@ -118,7 +135,7 @@ void FPCGLandscapeCacheEntry::GetPoint(int32 PointIndex, FPCGPoint& OutPoint, UP
 void FPCGLandscapeCacheEntry::GetPointHeightOnly(int32 PointIndex, FPCGPoint& OutPoint) const
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLandscapeCacheEntry::GetPointHeightOnly);
-	check(PointIndex >= 0 && 2 * PointIndex < PositionsAndNormals.Num());
+	check(bDataLoaded && PointIndex >= 0 && 2 * PointIndex < PositionsAndNormals.Num());
 
 	const FVector& Position = PositionsAndNormals[2 * PointIndex];
 	
@@ -130,6 +147,8 @@ void FPCGLandscapeCacheEntry::GetPointHeightOnly(int32 PointIndex, FPCGPoint& Ou
 
 void FPCGLandscapeCacheEntry::GetInterpolatedPoint(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	check(bDataLoaded);
+
 	const int32 X0Y0 = FMath::FloorToInt(LocalPoint.X) + FMath::FloorToInt(LocalPoint.Y) * Stride;
 	const int32 X1Y0 = X0Y0 + 1;
 	const int32 X0Y1 = X0Y0 + Stride;
@@ -171,13 +190,18 @@ void FPCGLandscapeCacheEntry::GetInterpolatedPoint(const FVector2D& LocalPoint, 
 	{
 		OutPoint.MetadataEntry = OutMetadata->AddEntry();
 
-		for (const FPCGLandscapeCacheLayer& Layer : LayerData)
+		check(LayerData.Num() == LayerDataNames.Num());
+
+		for(int32 LayerIndex = 0; LayerIndex < LayerData.Num(); ++LayerIndex)
 		{
-			if (FPCGMetadataAttributeBase* Attribute = OutMetadata->GetMutableAttribute(Layer.Name))
+			const FName& CurrentLayerName = LayerDataNames[LayerIndex];
+			const TArray<uint8>& CurrentLayerData = LayerData[LayerIndex];
+
+			if (FPCGMetadataAttributeBase* Attribute = OutMetadata->GetMutableAttribute(CurrentLayerName))
 			{
 				check(Attribute->GetTypeId() == PCG::Private::MetadataTypes<float>::Id);
-				float Y0Data = FMath::Lerp((float)Layer.Data[X0Y0] / 255.0f, (float)Layer.Data[X1Y0] / 255.0f, XFactor);
-				float Y1Data = FMath::Lerp((float)Layer.Data[X0Y1] / 255.0f, (float)Layer.Data[X1Y1] / 255.0f, XFactor);
+				float Y0Data = FMath::Lerp((float)CurrentLayerData[X0Y0] / 255.0f, (float)CurrentLayerData[X1Y0] / 255.0f, XFactor);
+				float Y1Data = FMath::Lerp((float)CurrentLayerData[X0Y1] / 255.0f, (float)CurrentLayerData[X1Y1] / 255.0f, XFactor);
 				float Data = FMath::Lerp(Y0Data, Y1Data, YFactor);
 
 				static_cast<FPCGMetadataAttribute<float>*>(Attribute)->SetValue(OutPoint.MetadataEntry, Data);
@@ -188,6 +212,8 @@ void FPCGLandscapeCacheEntry::GetInterpolatedPoint(const FVector2D& LocalPoint, 
 
 void FPCGLandscapeCacheEntry::GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint) const
 {
+	check(bDataLoaded);
+
 	const int32 X0Y0 = FMath::FloorToInt(LocalPoint.X) + FMath::FloorToInt(LocalPoint.Y) * Stride;
 	const int32 X1Y0 = X0Y0 + 1;
 	const int32 X0Y1 = X0Y0 + Stride;
@@ -213,53 +239,248 @@ void FPCGLandscapeCacheEntry::GetInterpolatedPointHeightOnly(const FVector2D& Lo
 	OutPoint.Seed = UPCGBlueprintHelpers::ComputeSeedFromPosition(Position);
 }
 
-FPCGLandscapeCache::FPCGLandscapeCache(UObject* InOwner)
-	: Owner(InOwner)
+bool FPCGLandscapeCacheEntry::TouchAndLoad(int32 InTouch) const
 {
-	check(Owner);
+	Touch = InTouch; // technically, this could be an atomic, but we don't need this to be very precise
+
+#if WITH_EDITOR
+	check(bDataLoaded);
+	return false; // In editor, we're "always" loaded since it's created on the fly
+#else
+	if (!bDataLoaded)
+	{
+		FScopeLock ScopeDataLock(&DataLock);
+		if (!bDataLoaded)
+		{
+			SerializeFromBulkData();
+			return true;
+		}
+	}
+
+	return false;
+#endif
+}
+
+void FPCGLandscapeCacheEntry::Unload()
+{
+	check(bDataLoaded);
+	PositionsAndNormals.Reset();
+	PositionsAndNormals.Shrink();
+	LayerData.Reset();
+	LayerData.Shrink();
+	bDataLoaded = false;
+	Touch = 0;
+}
+
+int32 FPCGLandscapeCacheEntry::GetMemorySize() const
+{
+	check(bDataLoaded);
+	int32 MemSize = PositionsAndNormals.GetAllocatedSize();
+	for (const TArray<uint8>& Layer : LayerData)
+	{
+		MemSize += Layer.GetAllocatedSize();
+	}
+
+	return MemSize;
+}
+
+void FPCGLandscapeCacheEntry::SerializeToBulkData()
+{
+	// Move data from local arrays to the bulk data
+	BulkData.Lock(LOCK_READ_WRITE);
+
+	int32 NumBytes = 0;
+	// Number of entries in the array + size of the array
+	NumBytes += sizeof(int32) + PositionsAndNormals.Num() * PositionsAndNormals.GetTypeSize();
+
+	// Number of layers
+	NumBytes += sizeof(int32); 
+	for (TArray<uint8>& CurrentLayerData : LayerData)
+	{
+		// Number of entries in the layer data array + size of the array
+		NumBytes += sizeof(int32) + CurrentLayerData.Num() * CurrentLayerData.GetTypeSize();
+	}
+
+	uint8* Dest = (uint8*)BulkData.Realloc(NumBytes);
+	FBufferWriter Ar(Dest, NumBytes);
+	Ar.SetIsPersistent(true);
+
+	Ar << PositionsAndNormals;
+	
+	int32 LayerDataCount = LayerData.Num();
+	Ar << LayerDataCount;
+
+	for (TArray<uint8>& CurrentLayerData : LayerData)
+	{
+		Ar << CurrentLayerData;
+	}
+
+	BulkData.Unlock();
+}
+
+void FPCGLandscapeCacheEntry::SerializeFromBulkData() const
+{
+	check(!bDataLoaded);
+
+	// Note: this call is not threadsafe by itself, it is meant to be called from a locked region
+	uint8* Data = nullptr;
+	BulkData.GetCopy((void**)&Data);
+	int32 DataSize = BulkData.GetBulkDataSize();
+
+	FBufferReader Ar(Data, DataSize, /*bInFreeOnClose=*/true, /*bIsPersistent=*/true);
+
+	Ar << PositionsAndNormals;
+
+	int32 LayerCount = 0;
+	Ar << LayerCount;
+
+	LayerData.SetNum(LayerCount);
+
+	for (int32 LayerIndex = 0; LayerIndex < LayerCount; ++LayerIndex)
+	{
+		Ar << LayerData[LayerIndex];
+	}
+
+	bDataLoaded = true;
+}
+
+void FPCGLandscapeCacheEntry::Serialize(FArchive& Archive, UObject* Owner, int32 Index)
+{
+	check(bDataLoaded || Archive.IsLoading());
+
+	if (bDataLoaded && Archive.IsSaving() && Archive.IsCooking())
+	{
+		SerializeToBulkData();
+	}
+
+	Archive << Component;
+	Archive << PointHalfSize;
+	Archive << Stride;
+	Archive << LayerDataNames;
+
+	// We force it not inline that means bulk data won't automatically be loaded when we deserialize
+	// later but only when we explicitly take action to load it
+	BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+	BulkData.Serialize(Archive, Owner, Index);
+}
+
+UPCGLandscapeCache::UPCGLandscapeCache()
+{
 #if WITH_EDITOR
 	SetupLandscapeCallbacks();
 	CacheLayerNames();
 #endif
 }
 
-void FPCGLandscapeCache::SetOwner(UObject* InOwner, bool bUpdateCachedNames)
+UPCGLandscapeCache::~UPCGLandscapeCache()
 {
-	check(!Owner || Owner == InOwner || InOwner == nullptr);
-	Owner = InOwner;
-#if WITH_EDITOR
-	if (InOwner)
-	{
-		SetupLandscapeCallbacks();
-	}
-	else
-	{
-		TeardownLandscapeCallbacks();
-	}
-
-	if (bUpdateCachedNames)
-	{
-		CacheLayerNames();
-	}
-#endif
-}
-
-FPCGLandscapeCache::~FPCGLandscapeCache()
-{
+	ClearCache();
 #if WITH_EDITOR
 	TeardownLandscapeCallbacks();
 #endif
 }
 
-void FPCGLandscapeCache::PrimeCache()
+void UPCGLandscapeCache::Serialize(FArchive& Archive)
 {
-#if WITH_EDITOR
-	if (!Owner)
+	Super::Serialize(Archive);
+
+	if (Archive.IsSaving() && !Archive.IsCooking())
 	{
-		return;
+		ClearCache();
 	}
 
-	UWorld* World = Owner->GetWorld();
+	// Serialize cache entries
+	int32 NumEntries = (Archive.IsLoading() ? 0 : CachedData.Num());
+	Archive << NumEntries;
+
+	if (Archive.IsLoading())
+	{
+		CachedData.Reserve(NumEntries);
+
+		for (int32 EntryIndex = 0; EntryIndex < NumEntries; ++EntryIndex)
+		{
+			TPair<FGuid, FIntPoint> Key;
+			Archive << Key;
+
+			FPCGLandscapeCacheEntry* Entry = new FPCGLandscapeCacheEntry();
+			Entry->Serialize(Archive, this, EntryIndex);
+
+			CachedData.Add(Key, Entry);
+		}
+	}
+	else
+	{
+		int32 EntryIndex = 0;
+		for (auto& CacheEntry : CachedData)
+		{
+			Archive << CacheEntry.Key;
+			CacheEntry.Value->Serialize(Archive, this, EntryIndex++);
+		}
+	}
+}
+
+void UPCGLandscapeCache::Tick(float DeltaSeconds)
+{
+#if !WITH_EDITOR
+	// Important implementation note:
+	// If the threshold is too low, it could lead to some issues - namely the check(bDataLoaded) in the cache entries
+	// as we currently do not have a state in the landscape cache to know whether something is still under use.
+	// It is possible to do so however, by adding a scoped variable + a counter, so we could safely remove these from
+	// the cleanup process done below, but at this point in time it doesn't seem to be needed or likely,
+	// since we do not keep (wrt time-slicing) the landscape cache entry pointers at any point in the PCG landscape data implementation
+	TimeSinceLastCleanupInSeconds += DeltaSeconds;
+
+	if (TimeSinceLastCleanupInSeconds >= CVarLandscapeCacheGCFrequency.GetValueOnAnyThread())
+	{
+		TimeSinceLastCleanupInSeconds = 0;
+
+		const int32 MemoryThresholdInBytes = CVarLandscapeCacheSizeThreshold.GetValueOnAnyThread() * 1024 * 1024;
+
+		if (CacheMemorySize > MemoryThresholdInBytes)
+		{
+			TArray<FPCGLandscapeCacheEntry*> LoadedEntries;
+			for (TPair<TPair<FGuid, FIntPoint>, FPCGLandscapeCacheEntry*>& CacheEntry : CachedData)
+			{
+				if (CacheEntry.Value->bDataLoaded)
+				{
+					LoadedEntries.Add(CacheEntry.Value);
+				}
+			}
+
+			Algo::Sort(LoadedEntries, [](const FPCGLandscapeCacheEntry* A, const FPCGLandscapeCacheEntry* B)
+			{
+				return A->Touch < B->Touch;
+			});
+
+			// Go through the oldest data and free them until we're under the threshold
+			int32 EntryIndex = 0;
+			int32 HighestTouchUnloaded = 0;
+			while(EntryIndex < LoadedEntries.Num() && CacheMemorySize > MemoryThresholdInBytes)
+			{
+				CacheMemorySize -= LoadedEntries[EntryIndex]->GetMemorySize();
+				HighestTouchUnloaded = LoadedEntries[EntryIndex]->Touch;
+				LoadedEntries[EntryIndex]->Unload();
+				check(LoadedEntries[EntryIndex]->GetMemorySize()==0);
+				++EntryIndex;
+			}
+
+			// Adjust touch on the other loaded entries so we can keep Touch bounded
+			while (EntryIndex < LoadedEntries.Num())
+			{
+				LoadedEntries[EntryIndex++]->Touch -= HighestTouchUnloaded;
+			}
+
+			CacheTouch -= HighestTouchUnloaded;
+		}
+	}
+#endif // !WITH_EDITOR
+}
+
+void UPCGLandscapeCache::PrimeCache()
+{
+#if WITH_EDITOR
+	UWorld* World = GetWorld();
+
 	if (!World)
 	{
 		return;
@@ -273,6 +494,9 @@ void FPCGLandscapeCache::PrimeCache()
 			// Build per-component information
 			LandscapeInfo->ForAllLandscapeProxies([this, LandscapeInfo](const ALandscapeProxy* LandscapeProxy)
 			{
+				check(LandscapeProxy);
+				const FGuid LandscapeGuid = LandscapeProxy->GetLandscapeGuid();
+
 				for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
 				{
 					if (!LandscapeComponent)
@@ -280,11 +504,14 @@ void FPCGLandscapeCache::PrimeCache()
 						continue;
 					}
 
-					FIntPoint ComponentKey(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
+					FIntPoint Coordinate(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
+					TPair<FGuid, FIntPoint> ComponentKey(LandscapeGuid, Coordinate);
 
 					if (!CachedData.Contains(ComponentKey))
 					{
-						CachedData.Add(ComponentKey).BuildCacheData(LandscapeInfo, LandscapeComponent, Owner);
+						FPCGLandscapeCacheEntry* NewEntry = new FPCGLandscapeCacheEntry();
+						NewEntry->BuildCacheData(LandscapeInfo, LandscapeComponent);
+						CachedData.Add(ComponentKey, NewEntry);
 					}
 				}
 			});
@@ -295,43 +522,64 @@ void FPCGLandscapeCache::PrimeCache()
 #endif
 }
 
-void FPCGLandscapeCache::ClearCache()
+void UPCGLandscapeCache::ClearCache()
 {
+	for (TPair<TPair<FGuid, FIntPoint>, FPCGLandscapeCacheEntry*>& CacheEntry : CachedData)
+	{
+		delete CacheEntry.Value;
+		CacheEntry.Value = nullptr;
+	}
+
 	CachedData.Reset();
 }
 
-const FPCGLandscapeCacheEntry* FPCGLandscapeCache::GetCacheEntry(ULandscapeComponent* LandscapeComponent, const FIntPoint& ComponentKey)
+const FPCGLandscapeCacheEntry* UPCGLandscapeCache::GetCacheEntry(ULandscapeComponent* LandscapeComponent, const FIntPoint& ComponentCoordinate)
 {
-	const FPCGLandscapeCacheEntry* FoundEntry = nullptr;
+	const FPCGLandscapeCacheEntry* CacheEntry = nullptr;
+	TPair<FGuid, FIntPoint> ComponentKey(LandscapeComponent && LandscapeComponent->GetLandscapeProxy() ? LandscapeComponent->GetLandscapeProxy()->GetLandscapeGuid() : FGuid(), ComponentCoordinate);
 
 	{
 #if WITH_EDITOR
 		FReadScopeLock ScopeLock(CacheLock);
 #endif
-		FoundEntry = CachedData.Find(ComponentKey);
+		if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
+		{
+			CacheEntry = *FoundEntry;
+		}
 	}
 
 #if WITH_EDITOR
-	if (!FoundEntry && LandscapeComponent && LandscapeComponent->GetLandscapeInfo())
+	if (!CacheEntry && LandscapeComponent && LandscapeComponent->GetLandscapeInfo())
 	{
-		check(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads == ComponentKey.X && LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads == ComponentKey.Y);
-		// Create entry
-		FPCGLandscapeCacheEntry NewEntry;
-		NewEntry.BuildCacheData(LandscapeComponent->GetLandscapeInfo(), LandscapeComponent, Owner);
-
-		// Try to store it
+		FWriteScopeLock ScopeLock(CacheLock);
+		if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
 		{
-			FWriteScopeLock ScopeLock(CacheLock);
-			CachedData.FindOrAdd(ComponentKey, NewEntry);
-			FoundEntry = CachedData.Find(ComponentKey);
+			CacheEntry = *FoundEntry;
+		}
+		else
+		{
+			check(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads == ComponentKey.Value.X && LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads == ComponentKey.Value.Y);
+			FPCGLandscapeCacheEntry* NewEntry = new FPCGLandscapeCacheEntry();
+			NewEntry->BuildCacheData(LandscapeComponent->GetLandscapeInfo(), LandscapeComponent);
+
+			CacheEntry = NewEntry;
+			CachedData.Add(ComponentKey, NewEntry);
 		}
 	}
 #endif
-	
-	return FoundEntry;
+
+	if (CacheEntry)
+	{
+		if (CacheEntry->TouchAndLoad(CacheTouch++))
+		{
+			CacheMemorySize += CacheEntry->GetMemorySize();
+		}
+	}
+
+	return CacheEntry;
 }
 
-TArray<FName> FPCGLandscapeCache::GetLayerNames(ALandscapeProxy* Landscape)
+TArray<FName> UPCGLandscapeCache::GetLayerNames(ALandscapeProxy* Landscape)
 {
 #if WITH_EDITOR
 	FReadScopeLock ScopeLock(CacheLock);
@@ -340,17 +588,12 @@ TArray<FName> FPCGLandscapeCache::GetLayerNames(ALandscapeProxy* Landscape)
 }
 
 #if WITH_EDITOR
-void FPCGLandscapeCache::SetupLandscapeCallbacks()
+void UPCGLandscapeCache::SetupLandscapeCallbacks()
 {
 	// Remove previous callbacks, if any
 	TeardownLandscapeCallbacks();
 
-	if (!Owner)
-	{
-		return;
-	}
-
-	UWorld* World = Owner->GetWorld();
+	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
@@ -365,11 +608,11 @@ void FPCGLandscapeCache::SetupLandscapeCallbacks()
 		ALandscapeProxy* Landscape = CastChecked<ALandscapeProxy>(FoundLandscape);
 
 		Landscapes.Add(Landscape);
-		Landscape->OnComponentDataChanged.AddRaw(this, &FPCGLandscapeCache::OnLandscapeChanged);
+		Landscape->OnComponentDataChanged.AddUObject(this, &UPCGLandscapeCache::OnLandscapeChanged);
 	}
 }
 
-void FPCGLandscapeCache::TeardownLandscapeCallbacks()
+void UPCGLandscapeCache::TeardownLandscapeCallbacks()
 {
 	for (TWeakObjectPtr<ALandscapeProxy> LandscapeWeakPtr : Landscapes)
 	{
@@ -380,7 +623,7 @@ void FPCGLandscapeCache::TeardownLandscapeCallbacks()
 	}
 }
 
-void FPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams)
+void UPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams)
 {
 	if (!Landscapes.Contains(Landscape))
 	{
@@ -390,12 +633,18 @@ void FPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FL
 	CacheLock.WriteLock();
 
 	// Just remove these from the cache, they'll be added back on demand
-	ChangeParams.ForEachComponent([this](const ULandscapeComponent* LandscapeComponent)
+	ChangeParams.ForEachComponent([this, Landscape](const ULandscapeComponent* LandscapeComponent)
 	{
 		if (LandscapeComponent)
 		{
-			FIntPoint ComponentKey(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
-			CachedData.Remove(ComponentKey);
+			FIntPoint Coordinate(LandscapeComponent->SectionBaseX / LandscapeComponent->ComponentSizeQuads, LandscapeComponent->SectionBaseY / LandscapeComponent->ComponentSizeQuads);
+			TPair<FGuid, FIntPoint> ComponentKey(Landscape->GetLandscapeGuid(), Coordinate);
+
+			if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
+			{
+				delete *FoundEntry;
+				CachedData.Remove(ComponentKey);
+			}
 		}
 	});
 
@@ -404,7 +653,7 @@ void FPCGLandscapeCache::OnLandscapeChanged(ALandscapeProxy* Landscape, const FL
 	CacheLock.WriteUnlock();
 }
 
-void FPCGLandscapeCache::CacheLayerNames()
+void UPCGLandscapeCache::CacheLayerNames()
 {
 	CachedLayerNames.Reset();
 
@@ -417,7 +666,7 @@ void FPCGLandscapeCache::CacheLayerNames()
 	}
 }
 
-void FPCGLandscapeCache::CacheLayerNames(ALandscapeProxy* Landscape)
+void UPCGLandscapeCache::CacheLayerNames(ALandscapeProxy* Landscape)
 {
 	check(Landscape);
 

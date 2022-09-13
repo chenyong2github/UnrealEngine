@@ -9,7 +9,7 @@
 
 class ALandscapeProxy;
 class ULandscapeInfo;
-struct FPCGLandscapeCache;
+class UPCGLandscapeCache;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGLandscapeData : public UPCGSurfaceData
@@ -55,5 +55,5 @@ protected:
 private:
 	// Transient data
 	ULandscapeInfo* LandscapeInfo = nullptr;
-	FPCGLandscapeCache* LandscapeCache = nullptr;
+	UPCGLandscapeCache* LandscapeCache = nullptr;
 };

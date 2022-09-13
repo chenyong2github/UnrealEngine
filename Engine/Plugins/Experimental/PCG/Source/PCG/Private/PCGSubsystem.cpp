@@ -93,6 +93,12 @@ void UPCGSubsystem::Tick(float DeltaSeconds)
 
 	// If we have any tasks to execute, schedule some
 	GraphExecutor->Execute();
+
+	// Lose references to landscape cache as needed
+	if (UPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
+	{
+		LandscapeCache->Tick(DeltaSeconds);
+	}
 }
 
 APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
@@ -139,10 +145,10 @@ void UPCGSubsystem::UnregisterPCGWorldActor(APCGWorldActor* InActor)
 	}
 }
 
-FPCGLandscapeCache* UPCGSubsystem::GetLandscapeCache()
+UPCGLandscapeCache* UPCGSubsystem::GetLandscapeCache()
 {
 	APCGWorldActor* LandscapeCacheOwner = GetPCGWorldActor();
-	return LandscapeCacheOwner ? &LandscapeCacheOwner->LandscapeCache : nullptr;
+	return LandscapeCacheOwner ? LandscapeCacheOwner->LandscapeCache.Get() : nullptr;
 }
 
 FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bSave, const TArray<FPCGTaskId>& Dependencies)
@@ -1322,7 +1328,7 @@ void UPCGSubsystem::FlushCache()
 
 void UPCGSubsystem::BuildLandscapeCache()
 {
-	if (FPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
+	if (UPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
 	{
 		PCGWorldActor->Modify();
 		LandscapeCache->PrimeCache();
@@ -1335,7 +1341,7 @@ void UPCGSubsystem::BuildLandscapeCache()
 
 void UPCGSubsystem::ClearLandscapeCache()
 {
-	if (FPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
+	if (UPCGLandscapeCache* LandscapeCache = GetLandscapeCache())
 	{
 		LandscapeCache->ClearCache();
 	}

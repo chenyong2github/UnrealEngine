@@ -18,31 +18,20 @@ APCGWorldActor::APCGWorldActor(const FObjectInitializer& ObjectInitializer)
 #endif
 
 	PartitionGridSize = DefaultPartitionGridSize;
-	LandscapeCache.SetOwner(this);
-}
-
-void APCGWorldActor::Serialize(FArchive& InArchive)
-{
-	if (InArchive.IsSaving() && !InArchive.IsCooking() && !(GetWorld() && GetWorld()->GetWorldPartition()))
-	{
-		LandscapeCache.ClearCache();
-	}
-
-	Super::Serialize(InArchive);
+	LandscapeCache = ObjectInitializer.CreateDefaultSubobject<UPCGLandscapeCache>(this, TEXT("LandscapeCache"));
 }
 
 #if WITH_EDITOR
 void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
-	LandscapeCache.PrimeCache();
+	LandscapeCache->PrimeCache();
 }
 #endif
 
 void APCGWorldActor::PostLoad()
 {
 	Super::PostLoad();
-	LandscapeCache.SetOwner(this, /*bUpdateCachedNames=*/false);
 	RegisterToSubsystem();
 }
 
