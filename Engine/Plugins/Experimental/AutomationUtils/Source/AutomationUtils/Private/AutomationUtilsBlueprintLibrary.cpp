@@ -363,8 +363,6 @@ void UAutomationUtilsBlueprintLibrary::TakeGameplayAutomationScreenshot(const FS
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		UMaterialInterface::SubmitRemainingJobsForWorld(CurrentWorld);
-		//Finish Compiling all shaders and other async assets
-		FAssetCompilingManager::Get().FinishAllCompilation();
 	}
 
 	//Stream in everything

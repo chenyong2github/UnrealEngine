@@ -540,10 +540,6 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 	// This way we will never render with the default material.
 	UMaterialInterface::SubmitRemainingJobsForWorld(GetWorld());
 
-	// Flush all assets still being compiled asynchronously.
-	// A progressbar is already in place so the user can get feedback while waiting for everything to settle.
-	FAssetCompilingManager::Get().FinishAllCompilation();
-
 	// Flush streaming managers
 	{
 		UMoviePipelineGameOverrideSetting* GameOverrideSettings = FindOrAddSettingForShot<UMoviePipelineGameOverrideSetting>(ActiveShotList[CurrentShotIndex]);

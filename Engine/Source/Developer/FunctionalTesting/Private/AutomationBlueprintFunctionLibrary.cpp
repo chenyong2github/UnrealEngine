@@ -710,7 +710,6 @@ void UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot()
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		UMaterialInterface::SubmitRemainingJobsForWorld(CurrentWorld);
-		FAssetCompilingManager::Get().FinishAllCompilation();
 		FModuleManager::GetModuleChecked<IAutomationControllerModule>("AutomationController").GetAutomationController()->ResetAutomationTestTimeout(TEXT("shader compilation"));
 	}
 
