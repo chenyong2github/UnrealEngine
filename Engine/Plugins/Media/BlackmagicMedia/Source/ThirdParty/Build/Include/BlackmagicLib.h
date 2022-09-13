@@ -254,7 +254,7 @@ namespace BlackmagicDesign
 
 		virtual void OnFrameReceived(const FFrameReceivedInfo&) = 0;
 		virtual void OnFrameFormatChanged(const FFormatInfo& NewFormat) = 0;
-		virtual void OnInterlacedOddFieldEvent() = 0;
+		virtual void OnInterlacedOddFieldEvent(long long FrameNumber) = 0;
 	};
 
 	/* IOutputEventCallback definition

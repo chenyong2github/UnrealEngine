@@ -144,7 +144,7 @@ namespace BlackmagicTimecodeProviderHelpers
 			State = ETimecodeProviderSynchronizationState::Error;
 		}
 
-		virtual void OnInterlacedOddFieldEvent() override
+		virtual void OnInterlacedOddFieldEvent(int64 FrameNumber) override
 		{
 			FScopeLock Lock(&CallbackLock);
 			Timecode.Frames++;

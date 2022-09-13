@@ -104,7 +104,7 @@ namespace BlackmagicCustomTimeStepHelpers
 
 			if (bEnableOverrunDetection && bIsPreviousSyncCountValid && SyncCountDelta != ExpectedSyncCountDelta)
 			{
-				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), CurrentSyncCount - PreviousSyncCount - ExpectedSyncCountDelta);
+				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), SyncCountDelta - ExpectedSyncCountDelta);
 			}
 
 			bIsPreviousSyncCountValid = true;
@@ -211,8 +211,10 @@ namespace BlackmagicCustomTimeStepHelpers
 			}
 		}
 
-		virtual void OnInterlacedOddFieldEvent() override
+		virtual void OnInterlacedOddFieldEvent(int64 FrameNumber) override
 		{
+			CurrentSyncCount = FrameNumber;
+
 			if (WaitSyncEvent)
 			{
 				WaitSyncEvent->Trigger();
