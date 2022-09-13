@@ -604,17 +604,31 @@ namespace Horde.Build.Streams
 				}
 			}
 
+			HashSet<TemplateId> undefinedTemplates = new();
 			// Check that all the templates are referenced by a tab
 			foreach (JobsTabConfig jobsTab in config.Tabs.OfType<JobsTabConfig>())
 			{
 				if (jobsTab.Templates != null)
 				{
 					remainingTemplates.ExceptWith(jobsTab.Templates);
+					foreach (TemplateId templateId in jobsTab.Templates)
+					{
+						if (config.Templates.Find(x => x.Id == templateId) == null)
+						{
+							undefinedTemplates.Add(templateId);
+						}
+					}
+					
 				}
 			}
 			if (remainingTemplates.Count > 0)
 			{
 				throw new InvalidStreamException(String.Join("\n", remainingTemplates.Select(x => $"Template '{x}' is not listed on any tab for {streamId}")));
+			}
+
+			if (undefinedTemplates.Count > 0)
+			{
+				throw new InvalidStreamException(String.Join("\n", undefinedTemplates.Select(x => $"Template '{x}' is not defined for {streamId}")));
 			}
 
 			// Check that all the agent types reference valid workspace names
