@@ -467,6 +467,14 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 	);
 
 	TViewModelPtr<FChannelModel> Channel = Model.ImplicitCast();
+	if (!Channel)
+	{
+		TOptional<FViewModelChildren> TopLevelChannels = Model->FindChildList(FTrackModel::GetTopLevelChannelType());
+		if (TopLevelChannels.IsSet())
+		{
+			Channel = TopLevelChannels->FindFirstChildOfType<FChannelModel>();
+		}
+	}
 	if (Channel)
 	{
 		FSequencerChannelPaintArgs ChannelPaintArgs = {
