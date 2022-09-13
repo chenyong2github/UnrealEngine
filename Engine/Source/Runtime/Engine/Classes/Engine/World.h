@@ -1845,6 +1845,9 @@ public:
 	/** All levels information from which our world is composed */
 	UPROPERTY()
 	TObjectPtr<class UWorldComposition> WorldComposition;
+
+	UPROPERTY()
+	TObjectPtr<class UContentBundleManager> ContentBundleManager;
 	
 	/** Whether we flushing level streaming state */ 
 	EFlushLevelStreamingType FlushLevelStreamingType;

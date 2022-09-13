@@ -1,0 +1,124 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#if WITH_EDITOR
+
+#include "CoreMinimal.h"
+#include "WorldPartition/ContentBundle/WorldDataLayerReference.h"
+#include "WorldPartition/ContentBundle/ContentBundleBase.h"
+
+#include "ContentBundleEditor.generated.h"
+
+class URuntimeHashExternalStreamingObjectBase;
+class UWorldPartitionRuntimeCell;
+
+class ENGINE_API FContentBundleEditor : public FContentBundleBase
+{
+	friend class UContentBundleUnsavedActorMonitor;
+
+public:
+	FContentBundleEditor(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld);
+
+	//~ Begin IContentBundle Interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
+	virtual bool IsValid() const override;
+	//~ End IContentBundle Interface
+
+	const FGuid& GetGuid() const { return Guid; }
+
+	void StartEditing();
+	void StopEditing();
+	bool IsBeingEdited() const { return bIsBeingEdited; }
+
+	void InjectBaseContent();
+	void RemoveBaseContent();
+
+	bool AddActor(AActor* InActor);
+	bool ContainsActor(const AActor* InActor) const;
+	bool GetActors(TArray<AActor*>& Actors);
+	bool HasUserPlacedActors() const;
+	uint32 GetActorCount() const;
+	uint32 GetUnsavedActorAcount() const;
+
+	void ReferenceAllActors();
+	void UnreferenceAllActors();
+
+	void GenerateStreaming();
+
+	URuntimeHashExternalStreamingObjectBase* GetStreamingObject() const { return ExternalStreamingObject; }
+
+protected:
+	//~ Begin IContentBundle Interface
+	virtual void DoInitialize() override;
+	virtual void DoUninitialize() override;
+	virtual void DoInjectContent() override;
+	virtual void DoRemoveContent() override;
+	//~ End IContentBundle Interface
+
+private:
+	void OnUnsavedActorDeleted(AActor* Actor);
+
+	void BroadcastChanged();
+	bool BuildContentBundleContainerPackagePath(FString& ContainerPackagePath) const;
+	UPackage* CreateActorPackage(const FName& ActorName) const;
+	FName BuildWorlDataLayersName() const;
+
+	void RegisterDelegates();
+	void UnregisterDelegates();
+	
+	void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
+	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
+
+	class UContentBundleUnsavedActorMonitor* UnsavedActorMonitor;
+
+	TWeakObjectPtr<UActorDescContainer> ActorDescContainer;
+	FWorldDataLayersReference WorldDataLayersActorReference;
+
+	TArray<FWorldPartitionReference> ForceLoadedActors;
+
+	TSet<const UWorldPartitionRuntimeCell*> ContentBundleCells;
+	TMap<uint32, const UWorldPartitionRuntimeCell*> CookPackageIdsToCell;
+	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject;
+
+	FGuid Guid;
+
+	bool bIsBeingEdited;
+};
+
+UCLASS()
+class UContentBundleUnsavedActorMonitor : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	~UContentBundleUnsavedActorMonitor();
+
+	void Initialize(FContentBundleEditor& InContentBundleEditor);
+	void Uninitialize();
+
+	void StartListenOnActorEvents();
+	void StopListeningOnActorEvents();
+
+	void MonitorActor(AActor* InActor);
+	bool StopMonitoringActor(AActor* InActor);
+
+	uint32 GetActorCount() const { return UnsavedActors.Num(); }
+
+	bool IsMonitoringActors() const { return !UnsavedActors.IsEmpty(); }
+	bool IsMonitoring(const AActor* Actor) const { return UnsavedActors.Contains(Actor); }
+
+	const TArray<TWeakObjectPtr<AActor>>& GetUnsavedActors() const { return UnsavedActors; }
+
+private:
+	void OnActorDeleted(AActor* InActor);
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> UnsavedActors;
+#endif
+
+	FContentBundleEditor* ContentBundle;
+};
+
+#endif
