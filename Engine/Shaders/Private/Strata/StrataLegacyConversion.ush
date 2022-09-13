@@ -476,14 +476,15 @@ FStrataData StrataConvertLegacyMaterialStatic(
 		#if STRATA_INLINE_SHADING
 			Out.InlinedBSDF.Coverage = Opacity;
 		#endif
+	#elif MATERIALBLENDING_ALPHAHOLDOUT
+		// The MATERIALBLENDING_ALPHAHOLDOUT case needs to be before the MATERIALBLENDING_TRANSLUCENT case, as alphaholdout material have both cases defined
+		Out = GetStrataUnlitBSDF(0.0f, GreyTransmittance);
 	#elif MATERIALBLENDING_TRANSLUCENT
 		// Uses (Luminance, black transmittance) for translucency blending. Opacity is controled using coverage
 		Out = GetStrataUnlitBSDF(Emissive * Opacity, 0.0f);
 		#if STRATA_INLINE_SHADING
 			Out.InlinedBSDF.Coverage = Opacity;
 		#endif
-	#elif MATERIALBLENDING_ALPHAHOLDOUT
-		Out = GetStrataUnlitBSDF(0.0f, 1.0f);
 	#elif MATERIALBLENDING_ADDITIVE
 		// Emissive is weighted by opacity in the legacy material.
 		Out = GetStrataUnlitBSDF(Emissive * Opacity, 1.0f);

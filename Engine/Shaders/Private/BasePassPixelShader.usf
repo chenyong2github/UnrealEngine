@@ -1859,7 +1859,8 @@ void FPixelShaderInOut_MainPS(
 			half3 FoggedColor = lerp(float3(1, 1, 1), DualBlendSurfaceTransmittancePreCoverage, Fogging.aaa* DualBlendSurfaceCoverage);
 			Out.MRT[0] = half4(FoggedColor, 1.0f);
 		#elif STRATA_BLENDING_ALPHAHOLDOUT
-			Out.MRT[0] = half4(0.0f.xxx, Opacity);
+			float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
+			Out.MRT[0] = half4(0.0f.xxx, AdjustedAlpha);
 			Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
 		#else
 			// Pre multipled alpha blending
