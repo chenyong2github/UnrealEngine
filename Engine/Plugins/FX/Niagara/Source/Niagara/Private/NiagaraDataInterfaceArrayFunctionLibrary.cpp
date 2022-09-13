@@ -23,19 +23,21 @@ void SetNiagaraVariantArray(UNiagaraComponent* NiagaraComponent, FName OverrideN
 	}
 
 	TDataInterace* VariantDataInterface = CastChecked<TDataInterace>(DuplicateObject(ExistingDataInterface, NiagaraComponent));
-	auto* ExistingProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ExistingDataInterface->GetProxy());
-	VariantDataInterface->GetArrayReference() = ExistingProxy->GetArrayData();
+	auto* ExistingProxy = static_cast<typename TDataInterace::FProxyType*>(ExistingDataInterface->GetProxy());
+	auto* VariantProxy = static_cast<typename TDataInterace::FProxyType*>(VariantDataInterface->GetProxy());
+	TArray<TArrayType> TempArrayCopy = ExistingProxy->template GetArrayDataCopy<TArrayType>();
+	VariantProxy->template SetArrayData<TArrayType>(MakeArrayView<TArrayType>(TempArrayCopy.GetData(), TempArrayCopy.Num()));
 	NiagaraComponent->SetParameterOverride(FNiagaraVariableBase(FNiagaraTypeDefinition(TDataInterace::StaticClass()), OverrideName), FNiagaraVariant(VariantDataInterface));
 #endif
 }
 
 // If / when we share user parameter UObjects we will need to make this per instance which introduces some tricky things about allocating before the instance is active
 template<typename TArrayType, typename TDataInterace>
-void SetNiagaraArray(UNiagaraComponent* NiagaraComponent, FName OverrideName, const TArray<TArrayType>& InArray)
+void SetNiagaraArray(UNiagaraComponent* NiagaraComponent, FName OverrideName, TConstArrayView<TArrayType> InArray)
 {
 	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraComponent, OverrideName))
 	{
-		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+		auto* ArrayProxy = static_cast<typename TDataInterace::FProxyType*>(ArrayDI->GetProxy());
 		ArrayProxy->SetArrayData(InArray);
 		SetNiagaraVariantArray<TArrayType, TDataInterace>(NiagaraComponent, OverrideName, ArrayDI);
 	}
@@ -46,8 +48,8 @@ TArray<TArrayType> GetNiagaraArray(UNiagaraComponent* NiagaraComponent, FName Ov
 {
 	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraComponent, OverrideName))
 	{
-		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
-		return ArrayProxy->GetArrayData();
+		auto* ArrayProxy = static_cast<typename TDataInterace::FProxyType*>(ArrayDI->GetProxy());
+		return ArrayProxy->template GetArrayDataCopy<TArrayType>();
 	}
 	return TArray<TArrayType>();
 }
@@ -57,7 +59,7 @@ void SetNiagaraArrayValue(UNiagaraComponent* NiagaraComponent, FName OverrideNam
 {
 	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraComponent, OverrideName))
 	{
-		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+		auto* ArrayProxy = static_cast<typename TDataInterace::FProxyType*>(ArrayDI->GetProxy());
 		ArrayProxy->SetArrayValue(Index, Value, bSizeToFit);
 		SetNiagaraVariantArray<TArrayType, TDataInterace>(NiagaraComponent, OverrideName, ArrayDI);
 	}
@@ -68,8 +70,8 @@ TArrayType GetNiagaraArrayValue(UNiagaraComponent* NiagaraComponent, FName Overr
 {
 	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraComponent, OverrideName))
 	{
-		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
-		return ArrayProxy->GetArrayValue(Index);
+		auto* ArrayProxy = static_cast<typename TDataInterace::FProxyType*>(ArrayDI->GetProxy());
+		return ArrayProxy->template GetArrayValue<TArrayType>(Index);
 	}
 	//-TODO: Should be DefaultValue
 	return TArrayType();
@@ -136,6 +138,11 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(UNiagaraCom
 	SetNiagaraArray<int32, UNiagaraDataInterfaceArrayInt32>(NiagaraComponent, OverrideName, ArrayData);
 }
 
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayUInt8(UNiagaraComponent* NiagaraComponent, FName OverrideName, const TArray<int32>& ArrayData)
+{
+	SetNiagaraArray<int32, UNiagaraDataInterfaceArrayUInt8>(NiagaraComponent, OverrideName, ArrayData);
+}
+
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayBool(UNiagaraComponent* NiagaraComponent, FName OverrideName, const TArray<bool>& ArrayData)
 {
 	SetNiagaraArray<bool, UNiagaraDataInterfaceArrayBool>(NiagaraComponent, OverrideName, ArrayData);
@@ -193,6 +200,11 @@ TArray<int32> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayInt32(UN
 	return GetNiagaraArray<int32, UNiagaraDataInterfaceArrayInt32>(NiagaraComponent, OverrideName);
 }
 
+TArray<int32> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayUInt8(UNiagaraComponent* NiagaraComponent, FName OverrideName)
+{
+	return GetNiagaraArray<int32, UNiagaraDataInterfaceArrayUInt8>(NiagaraComponent, OverrideName);
+}
+
 TArray<bool> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayBool(UNiagaraComponent* NiagaraComponent, FName OverrideName)
 {
 	return GetNiagaraArray<bool, UNiagaraDataInterfaceArrayBool>(NiagaraComponent, OverrideName);
@@ -240,6 +252,11 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayQuatValue(UNiagar
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32Value(UNiagaraComponent* NiagaraComponent, FName OverrideName, int Index, int32 Value, bool bSizeToFit)
 {
 	SetNiagaraArrayValue<int32, UNiagaraDataInterfaceArrayInt32>(NiagaraComponent, OverrideName, Index, Value, bSizeToFit);
+}
+
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayUInt8Value(UNiagaraComponent* NiagaraComponent, FName OverrideName, int Index, int32 Value, bool bSizeToFit)
+{
+	SetNiagaraArrayValue<int32, UNiagaraDataInterfaceArrayUInt8>(NiagaraComponent, OverrideName, Index, Value, bSizeToFit);
 }
 
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayBoolValue(UNiagaraComponent* NiagaraComponent, FName OverrideName, int Index, const bool& Value, bool bSizeToFit)
@@ -291,7 +308,39 @@ int32 UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayInt32Value(UNiag
 	return GetNiagaraArrayValue<int32, UNiagaraDataInterfaceArrayInt32>(NiagaraComponent, OverrideName, Index);
 }
 
+int32 UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayUInt8Value(UNiagaraComponent* NiagaraComponent, FName OverrideName, int Index)
+{
+	return GetNiagaraArrayValue<int32, UNiagaraDataInterfaceArrayUInt8>(NiagaraComponent, OverrideName, Index);
+}
+
 bool UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayBoolValue(UNiagaraComponent* NiagaraComponent, FName OverrideName, int Index)
 {
 	return GetNiagaraArrayValue<bool, UNiagaraDataInterfaceArrayBool>(NiagaraComponent, OverrideName, Index);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// None BP compatable set functions
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector2D(UNiagaraComponent* NiagaraSystem, FName OverrideName, TConstArrayView<FVector2f> ArrayData)
+{
+	SetNiagaraArray<FVector2f, UNiagaraDataInterfaceArrayFloat2>(NiagaraSystem, OverrideName, ArrayData);
+}
+
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(UNiagaraComponent* NiagaraSystem, FName OverrideName, TConstArrayView<FVector3f> ArrayData)
+{
+	SetNiagaraArray<FVector3f, UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName, ArrayData);
+}
+
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector4(UNiagaraComponent* NiagaraSystem, FName OverrideName, TConstArrayView<FVector4f> ArrayData)
+{
+	SetNiagaraArray<FVector4f, UNiagaraDataInterfaceArrayFloat4>(NiagaraSystem, OverrideName, ArrayData);
+}
+
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayQuat(UNiagaraComponent* NiagaraSystem, FName OverrideName, TConstArrayView<FQuat4f> ArrayData)
+{
+	SetNiagaraArray<FQuat4f, UNiagaraDataInterfaceArrayQuat>(NiagaraSystem, OverrideName, ArrayData);
+}
+
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayUInt8(UNiagaraComponent* NiagaraSystem, FName OverrideName, TConstArrayView<uint8> ArrayData)
+{
+	SetNiagaraArray<uint8, UNiagaraDataInterfaceArrayUInt8>(NiagaraSystem, OverrideName, ArrayData);
 }

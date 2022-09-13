@@ -40,27 +40,25 @@ struct FNDIArrayImplHelper<FVector2f> : public FNDIArrayImplHelperBase<FVector2f
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec2Def(); }
 	static const FVector2f GetDefaultValue() { return FVector2f::ZeroVector; }
-};
 
-// LWC_TODO: This is represented as an FVector2f internally (array is converted to floats during PushToRenderThread)
-template<>
-struct FNDIArrayImplHelper<FVector2d> : public FNDIArrayImplHelper<FVector2f>
-{
-	static void CopyToGpuMemory(void* Dest, const FVector2d* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FVector2f* Dest, const FVector2f* Src, int32 NumElements)
 	{
-		FVector2f* TypedDest = reinterpret_cast<FVector2f*>(Dest);
-		while (NumElements--)
+		FMemory::Memcpy(Dest, Src, NumElements * sizeof(FVector2f));
+	}
+
+	static void CopyCpuToCpuMemory(FVector2f* Dest, const FVector2D* Src, int32 NumElements)
+	{
+		for ( int32 i=0; i < NumElements; ++i )
 		{
-			*TypedDest++ = FVector2f(*Src++);
+			Dest[i] = FVector2f(Src[i]);
 		}
 	}
 
-	static void CopyToCpuMemory(void* Dest, const FVector2f* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FVector2D* Dest, const FVector2f* Src, int32 NumElements)
 	{
-		FVector2d* TypedDest = reinterpret_cast<FVector2d*>(Dest);
-		while (NumElements--)
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FVector2d(*Src++);
+			Dest[i] = FVector2D(Src[i]);
 		}
 	}
 };
@@ -81,28 +79,25 @@ struct FNDIArrayImplHelper<FVector3f> : public FNDIArrayImplHelperBase<FVector3f
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec3Def(); }
 	static const FVector3f GetDefaultValue() { return FVector3f::ZeroVector; }
-};
 
-// LWC_TODO: This is represented as an FVector3f internally (array is converted to floats during PushToRenderThread)
-template<>
-struct FNDIArrayImplHelper<FVector3d> : public FNDIArrayImplHelper<FVector3f>
-{
-	static void CopyToGpuMemory(void* Dest, const FVector3d* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FVector3f* Dest, const FVector3f* Src, int32 NumElements)
 	{
-		FVector3f* TypedDest = reinterpret_cast<FVector3f*>(Dest);
-		while (NumElements--)
+		FMemory::Memcpy(Dest, Src, NumElements * sizeof(FVector3f));
+	}
+
+	static void CopyCpuToCpuMemory(FVector3f* Dest, const FVector* Src, int32 NumElements)
+	{
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FVector3f(*Src++);
+			Dest[i] = FVector3f(Src[i]);
 		}
 	}
 
-
-	static void CopyToCpuMemory(void* Dest, const FVector3f* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FVector* Dest, const FVector3f* Src, int32 NumElements)
 	{
-		FVector3d* TypedDest = reinterpret_cast<FVector3d*>(Dest);
-		while (NumElements--)
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FVector3d(*Src++);
+			Dest[i] = FVector(Src[i]);
 		}
 	}
 };
@@ -114,6 +109,14 @@ struct FNDIArrayImplHelper<FNiagaraPosition> : public FNDIArrayImplHelper<FVecto
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetPositionDef(); }
 	static const FNiagaraPosition GetDefaultValue() { return FVector3f::ZeroVector; }
+
+	static void CopyCpuToCpuMemory(FVector3f* Dest, const FNiagaraPosition* Src, int32 NumElements)
+	{
+		for (int32 i = 0; i < NumElements; ++i)
+		{
+			Dest[i] = Src[i];
+		}
+	}
 };
 
 template<>
@@ -132,27 +135,25 @@ struct FNDIArrayImplHelper<FVector4f> : public FNDIArrayImplHelperBase<FVector4f
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec4Def(); }
 	static const FVector4f GetDefaultValue() { return FVector4f(ForceInitToZero); }
-};
 
-// LWC_TODO: This is represented as an FVector4f internally (array is converted to floats during PushToRenderThread)
-template<>
-struct FNDIArrayImplHelper<FVector4d> : public FNDIArrayImplHelper<FVector4f>
-{
-	static void CopyToGpuMemory(void* Dest, const FVector4d* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FVector4f* Dest, const FVector4f* Src, int32 NumElements)
 	{
-		FVector4f* TypedDest = reinterpret_cast<FVector4f*>(Dest);
-		while (NumElements--)
+		FMemory::Memcpy(Dest, Src, NumElements * sizeof(FVector4f));
+	}
+
+	static void CopyCpuToCpuMemory(FVector4f* Dest, const FVector4* Src, int32 NumElements)
+	{
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FVector4f(*Src++);
+			Dest[i] = FVector4f(Src[i]);
 		}
 	}
 
-	static void CopyToCpuMemory(void* Dest, const FVector4f* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FVector4* Dest, const FVector4f* Src, int32 NumElements)
 	{
-		FVector4d* TypedDest = reinterpret_cast<FVector4d*>(Dest);
-		while (NumElements--)
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FVector4d(*Src++);
+			Dest[i] = FVector4(Src[i]);
 		}
 	}
 };
@@ -191,104 +192,122 @@ struct FNDIArrayImplHelper<FQuat4f> : public FNDIArrayImplHelperBase<FQuat4f>
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetQuatDef(); }
 	static const FQuat4f GetDefaultValue() { return FQuat4f::Identity; }
-};
 
-// LWC_TODO: This is represented as an FQuat4f internally (array is converted to floats during PushToRenderThread)
-template<>
-struct FNDIArrayImplHelper<FQuat4d> : public FNDIArrayImplHelper<FQuat4f>
-{
-	static void CopyToGpuMemory(void* Dest, const FQuat4d* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FQuat4f* Dest, const FQuat4f* Src, int32 NumElements)
 	{
-		FQuat4f* TypedDest = reinterpret_cast<FQuat4f*>(Dest);
-		while (NumElements--)
+		FMemory::Memcpy(Dest, Src, NumElements * sizeof(FQuat4f));
+	}
+
+	static void CopyCpuToCpuMemory(FQuat4f* Dest, const FQuat* Src, int32 NumElements)
+	{
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FQuat4f(*Src++);
+			Dest[i] = FQuat4f(Src[i]);
 		}
 	}
 
-	static void CopyToCpuMemory(void* Dest, const FQuat4f* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(FQuat* Dest, const FQuat4f* Src, int32 NumElements)
 	{
-		FQuat4d* TypedDest = reinterpret_cast<FQuat4d*>(Dest);
-		while (NumElements--)
+		for (int32 i = 0; i < NumElements; ++i)
 		{
-			*TypedDest++ = FQuat4d(*Src++);
+			Dest[i] = FQuat(Src[i]);
 		}
 	}
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Float Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Float Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayFloat : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayFloat, float, FloatData)
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<float> FloatData;
-
-	TArray<float>& GetArrayReference() { return FloatData; }
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 2D Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 2D Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayFloat2 : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
-	TArray<FVector2D> FloatData;	// LWC_TODO: Should be FVector2f, but only FVector2D is blueprint accessible
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat2, FVector2f, FloatData)
 
-	TArray<FVector2D>& GetArrayReference() { return FloatData; }
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
+	TArray<FVector2D> FloatData;
+#endif
+
+	UPROPERTY()
+	TArray<FVector2f> InternalFloatData;
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayFloat3 : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
-	TArray<FVector> FloatData;		// LWC_TODO: Should be FVector3f, but only FVector is blueprint accessible
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat3, FVector3f, FloatData)
 
-	TArray<FVector>& GetArrayReference() { return FloatData; }
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
+	TArray<FVector> FloatData;
+#endif
+
+	UPROPERTY()
+	TArray<FVector3f> InternalFloatData;
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Position Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Position Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayPosition : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayPosition, FNiagaraPosition, PositionData)
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FNiagaraPosition> PositionData;
-
-	TArray<FNiagaraPosition>& GetArrayReference() { return PositionData; }
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 4 Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 4 Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayFloat4 : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
-	TArray<FVector4> FloatData;		// LWC_TODO: Should be FVector4f, but only FVector4 is blueprint accessible
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat4, FVector4f, FloatData)
 
-	TArray<FVector4>& GetArrayReference() { return FloatData; }
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
+	TArray<FVector4> FloatData;
+#endif
+
+	UPROPERTY()
+	TArray<FVector4f> InternalFloatData;
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Color Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Color Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayColor : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayColor, FLinearColor, ColorData)
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FLinearColor> ColorData;
-
-	TArray<FLinearColor>& GetArrayReference() { return ColorData; }
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Quaternion Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Quaternion Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayQuat : public UNiagaraDataInterfaceArray
 {
-	GENERATED_UCLASS_BODY()
 public:
+	GENERATED_BODY()
+	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayQuat, FQuat4f, QuatData)
+
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
 	TArray<FQuat> QuatData;
+#endif
 
-	TArray<FQuat>& GetArrayReference() { return QuatData; }
+	UPROPERTY()
+	TArray<FQuat4f> InternalQuatData;
 };

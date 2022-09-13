@@ -11,11 +11,44 @@
 #include "NiagaraSystemInstance.h"
 
 #include "Async/Async.h"
+#include "Containers/ArrayView.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Helpers
+
+#define NDIARRAY_GENERATE_BODY(CLASSNAME, TYPENAME, MEMBERNAME) \
+	using FProxyType = FNDIArrayProxyImpl<TYPENAME, CLASSNAME>; \
+	virtual void PostInitProperties() override \
+	{ \
+		Proxy.Reset(new FProxyType(this)); \
+		Super::PostInitProperties(); \
+	} \
+	TArray<TYPENAME>& GetArrayReference() { return MEMBERNAME; }
+
+#if WITH_EDITORONLY_DATA
+	#define NDIARRAY_GENERATE_BODY_LWC(CLASSNAME, TYPENAME, MEMBERNAME) \
+		using FProxyType = FNDIArrayProxyImpl<TYPENAME, CLASSNAME>; \
+		virtual void PostInitProperties() override \
+		{ \
+			Super::PostInitProperties(); \
+			Proxy.Reset(new FProxyType(this)); \
+		} \
+		virtual void PostLoad() override \
+		{ \
+			Super::PostLoad(); \
+			GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(MakeArrayView(MEMBERNAME)); \
+		} \
+		virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override \
+		{ \
+			Super::PostEditChangeProperty(PropertyChangedEvent); \
+			GetProxyAs<FProxyType>()->template SetArrayData<decltype(MEMBERNAME)::ElementType>(MakeArrayView(MEMBERNAME)); \
+		} \
+		TArray<TYPENAME>& GetArrayReference() { return Internal##MEMBERNAME; }
+#else
+	#define NDIARRAY_GENERATE_BODY_LWC(CLASSNAME, TYPENAME, MEMBERNAME) NDIARRAY_GENERATE_BODY(CLASSNAME, TYPENAME, Internal##MEMBERNAME)
+#endif
 
 template<typename TArrayType>
 struct FNDIArrayImplHelperBase
@@ -36,12 +69,17 @@ struct FNDIArrayImplHelperBase
 	//static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetFloatDef(); }
 	//static const TArrayType GetDefaultValue();
 
-	static void CopyToGpuMemory(void* Dest, const TArrayType* Src, int32 NumElements)
+	static void CopyCpuToCpuMemory(TArrayType* Dest, const TArrayType* Src, int32 NumElements)
 	{
 		FMemory::Memcpy(Dest, Src, NumElements * sizeof(TArrayType));
 	}
 
-	static void CopyToCpuMemory(void* Dest, const void* Src, int32 NumElements)
+	static void CopyCpuToGpuMemory(void* Dest, const TArrayType* Src, int32 NumElements)
+	{
+		FMemory::Memcpy(Dest, Src, NumElements * sizeof(TArrayType));
+	}
+
+	static void CopyGpuToCpuMemory(void* Dest, const void* Src, int32 NumElements)
 	{
 		FMemory::Memcpy(Dest, Src, NumElements * sizeof(TArrayType));
 	}
@@ -170,11 +208,11 @@ struct FNDIArrayInstanceData_RenderThread
 			uint8* GPUMemory = reinterpret_cast<uint8*>(RHILockBuffer(ArrayBuffer, 0, ArrayNumBytes, RLM_WriteOnly));
 			if (InArrayData.Num() > 0)
 			{
-				T::CopyToGpuMemory(GPUMemory, InArrayData.GetData(), InArrayData.Num());
+				T::CopyCpuToGpuMemory(GPUMemory, InArrayData.GetData(), InArrayData.Num());
 			}
 
 			const TArrayType DefaultValue = TArrayType(FNDIArrayImplHelper<TArrayType>::GetDefaultValue());
-			T::CopyToGpuMemory(GPUMemory + (sizeof(TVMArrayType) * NumElements), &DefaultValue, 1);
+			T::CopyCpuToGpuMemory(GPUMemory + (sizeof(TVMArrayType) * NumElements), &DefaultValue, 1);
 
 			RHIUnlockBuffer(ArrayBuffer);
 		}
@@ -427,7 +465,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 				if ( NumElements > 0 )
 				{
 					ArrayData.AddUninitialized(NumElements);
-					FNDIArrayImplHelper<TArrayType>::CopyToCpuMemory(ArrayData.GetData(), reinterpret_cast<const TVMArrayType*>(ReadbackData[1].Key), NumElements);
+					FNDIArrayImplHelper<TArrayType>::CopyGpuToCpuMemory(ArrayData.GetData(), reinterpret_cast<const TVMArrayType*>(ReadbackData[1].Key), NumElements);
 				}
 
 				AsyncTask(
@@ -440,7 +478,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 							return;
 						}
 
-						Proxy->SetArrayData(SystemInstanceID, ArrayData);
+						Proxy->SetInstanceArrayData(SystemInstanceID, ArrayData);
 					}
 				);
 			}
@@ -450,11 +488,13 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 
 	//////////////////////////////////////////////////////////////////////////
 	// BP user parameter accessors, should remove if we every start to share the object between instances
-	void SetArrayData(const TArray<TArrayType>& InArrayData)
+	template<typename TFromArrayType>
+	void SetArrayData(TConstArrayView<TFromArrayType> InArrayData)
 	{
 		if (PerInstanceData_GameThread.IsEmpty())
 		{
-			Owner->GetArrayReference() = InArrayData;
+			Owner->GetArrayReference().SetNumUninitialized(InArrayData.Num());
+			FNDIArrayImplHelper<TArrayType>::CopyCpuToCpuMemory(Owner->GetArrayReference().GetData(), InArrayData.GetData(), InArrayData.Num());
 		}
 		else
 		{
@@ -464,19 +504,25 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 			InstanceData->bIsModified = false;
 			InstanceData->bIsRenderDirty = bShouldSyncToGpu;
 			InstanceData->ArrayData.Empty();
-			Owner->GetArrayReference() = InArrayData;
+			Owner->GetArrayReference().SetNum(InArrayData.Num());
+			FNDIArrayImplHelper<TArrayType>::CopyCpuToCpuMemory(Owner->GetArrayReference().GetData(), InArrayData.GetData(), InArrayData.Num());
 		}
 	}
 
-	TArray<TArrayType> GetArrayData()
+	template<typename TToArrayType>
+	TArray<TToArrayType> GetArrayDataCopy()
 	{
 		ensure(PerInstanceData_GameThread.Num() <= 1);
 		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.IsEmpty() ? nullptr : PerInstanceData_GameThread.CreateConstIterator().Value();
 		FReadArrayRef ArrayRef(Owner, InstanceData);
-		return ArrayRef.GetArray();
+		TArray<TToArrayType> OutArray;
+		OutArray.SetNum(ArrayRef.GetArray().Num());
+		FNDIArrayImplHelper<TArrayType>::CopyCpuToCpuMemory(OutArray.GetData(), ArrayRef.GetArray().GetData(), ArrayRef.GetArray().Num());
+		return OutArray;
 	}
 
-	void SetArrayValue(int Index, const TArrayType& Value, bool bSizeToFit)
+	template<typename TFromArrayType>
+	void SetArrayValue(int Index, const TFromArrayType& Value, bool bSizeToFit)
 	{
 		ensure(PerInstanceData_GameThread.Num() <= 1);
 		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.IsEmpty() ? nullptr : PerInstanceData_GameThread.CreateConstIterator().Value();
@@ -490,10 +536,11 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 			ArrayRef.GetArray().AddDefaulted(Index + 1 - ArrayRef.GetArray().Num());
 		}
 
-		ArrayRef.GetArray()[Index] = Value;
+		FNDIArrayImplHelper<TArrayType>::CopyCpuToCpuMemory(ArrayRef.GetArray().GetData() + Index, &Value, 1);
 	}
 
-	TArrayType GetArrayValue(int Index)
+	template<typename TToArrayType>
+	TToArrayType GetArrayValue(int Index)
 	{
 		TArrayType ValueOut = TArrayType(FNDIArrayImplHelper<TArrayType>::GetDefaultValue());
 
@@ -506,12 +553,14 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 			ValueOut = ArrayRef.GetArray()[Index];
 		}
 
-		return ValueOut;
+		TToArrayType ToValueOut;
+		FNDIArrayImplHelper<TArrayType>::CopyCpuToCpuMemory(&ToValueOut, &ValueOut, 1);
+		return ToValueOut;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// VM accessors to ensure we maintain per correctness for shared data interfaces
-	void SetArrayData(FNiagaraSystemInstanceID InstanceID, const TArray<TArrayType>& InArrayData)
+	void SetInstanceArrayData(FNiagaraSystemInstanceID InstanceID, const TArray<TArrayType>& InArrayData)
 	{
 		if ( FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.FindRef(InstanceID) )
 		{
