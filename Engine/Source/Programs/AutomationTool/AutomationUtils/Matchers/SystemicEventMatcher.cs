@@ -46,6 +46,10 @@ namespace AutomationUtils.Matchers
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MissingXgeControlWorker);
 			}
+			if (cursor.Contains("SignTool Error: The specified timestamp server either could not be reached or"))
+			{
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Normal, LogLevel.Information, KnownLogEvents.Systemic_SignToolTimeStampServer);
+			}
 
 			return null;
 		}
