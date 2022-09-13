@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/ContentBundle/WorldDataLayerReference.h"
@@ -11,6 +12,8 @@
 #endif
 
 #include "ContentBundleEditor.generated.h"
+
+class AActor;
 
 #if WITH_EDITOR
 
@@ -114,7 +117,7 @@ public:
 	uint32 GetActorCount() const { return UnsavedActors.Num(); }
 
 	bool IsMonitoringActors() const { return !UnsavedActors.IsEmpty(); }
-	bool IsMonitoring(const AActor* Actor) const { return UnsavedActors.Contains(Actor); }
+	bool IsMonitoring(const AActor* Actor) const;
 
 	const TArray<TWeakObjectPtr<AActor>>& GetUnsavedActors() const { return UnsavedActors; }
 #endif
@@ -126,7 +129,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-		TArray<TWeakObjectPtr<AActor>> UnsavedActors;
+	TArray<TWeakObjectPtr<AActor>> UnsavedActors;
 #endif
 
 #if WITH_EDITOR

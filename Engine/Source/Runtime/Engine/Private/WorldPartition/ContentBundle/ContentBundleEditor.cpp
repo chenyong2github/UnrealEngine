@@ -474,6 +474,11 @@ bool UContentBundleUnsavedActorMonitor::StopMonitoringActor(AActor* InActor)
 	return false;
 }
 
+bool UContentBundleUnsavedActorMonitor::IsMonitoring(const AActor* Actor) const
+{ 
+	return UnsavedActors.Contains(Actor); 
+}
+
 void UContentBundleUnsavedActorMonitor::OnActorDeleted(AActor* InActor)
 {
 	if (StopMonitoringActor(InActor))
