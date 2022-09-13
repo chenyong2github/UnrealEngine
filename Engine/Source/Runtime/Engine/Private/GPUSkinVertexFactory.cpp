@@ -507,7 +507,8 @@ bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FV
 {
 	bool bUnlimitedBoneInfluences = (BoneInfluenceType == UnlimitedBoneInfluence && GCVarUnlimitedBoneInfluences);
 	return ShouldWeCompileGPUSkinVFShaders(Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) &&
-		  ((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
+		  (((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsUsedWithMorphTargets) && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) 
+			  || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
@@ -530,6 +531,13 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 	OutEnvironment.SetDefine(TEXT("GPU_SKINNED_MESH_FACTORY"), 1);
 
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
+
+	// Mobile doesn't support motion blur, don't use previous frame morph delta for mobile.
+	const bool bIsMobile = IsMobilePlatform(Parameters.Platform);
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_USE_PREVIOUS"), !bIsMobile);
+
+	// Whether the material supports morph targets
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"), Parameters.MaterialParameters.bIsUsedWithMorphTargets || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
 /**
@@ -575,6 +583,9 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::GetPSOPrecacheVertexFetchElements
 	// Attribute ID
 	Elements.Add(FVertexElement(BaseStreamIndex++, 0, VET_UInt, 16, 0, true));
 
+	// Morph blend data
+	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 9, 0, false));
+	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 10, 0, false));
 }
 
 /**
@@ -662,6 +673,14 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FVertexDeclarat
 
 	// Primitive Id
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, OutElements, 16, 0xff);
+
+	// If the mesh is not a morph target, bind null component to morph delta stream.
+	FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
+	FVertexElement DeltaPositionElement = AccessStreamComponent(Data->bMorphTarget ? Data->DeltaPositionComponent : NullComponent, 9);
+	// Cache delta stream index (position & tangentZ share the same stream)
+	MorphDeltaStreamIndex = DeltaPositionElement.StreamIndex;
+	OutElements.Add(DeltaPositionElement);
+	OutElements.Add(FVertexFactory::AccessStreamComponent(Data->bMorphTarget ? Data->DeltaTangentZComponent : NullComponent, 10));
 }
 
 /**
@@ -691,6 +710,22 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ReleaseDynamicRHI()
 {
 	FVertexFactory::ReleaseDynamicRHI();
 	ShaderData.ReleaseBoneData();
+}
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinVertexFactory<BoneInfluenceType>::UpdateMorphVertexStream(const FMorphVertexBuffer* MorphVertexBuffer)
+{
+	if (MorphVertexBuffer && this->Streams.IsValidIndex(MorphDeltaStreamIndex))
+	{
+		this->Streams[MorphDeltaStreamIndex].VertexBuffer = MorphVertexBuffer;
+	}
+}
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+const FMorphVertexBuffer* TGPUSkinVertexFactory<BoneInfluenceType>::GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const
+{
+	check(Data.IsValid());
+	return Data->MorphVertexBufferPool ? &Data->MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious, FrameNumber) : nullptr;
 }
 
 /*-----------------------------------------------------------------------------
@@ -731,6 +766,8 @@ public:
 		InputWeightIndexSize.Bind(ParameterMap, TEXT("InputWeightIndexSize"));
 		InputWeightStream.Bind(ParameterMap, TEXT("InputWeightStream"));
 		NumBoneInfluencesParam.Bind(ParameterMap, TEXT("NumBoneInfluencesParam"));
+		IsMorphTarget.Bind(ParameterMap, TEXT("bIsMorphTarget"));
+		PreviousMorphBufferParameter.Bind(ParameterMap, TEXT("PreviousMorphBuffer"));
 	}
 
 	void GetElementShaderBindings(
@@ -789,6 +826,22 @@ public:
 			uint32 NumInfluences = ((const FGPUBaseSkinVertexFactory*)VertexFactory)->GetNumBoneInfluences();
 			ShaderBindings.Add(NumBoneInfluencesParam, NumInfluences);
 		}
+
+		ShaderBindings.Add(IsMorphTarget, (uint32)(((const FGPUBaseSkinVertexFactory*)VertexFactory)->IsMorphTarget() ? 1 : 0));
+
+		// Mobile doesn't support motion blur, don't use previous frame morph delta for mobile.
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+		const bool bIsMobile = IsMobilePlatform(ShaderPlatform);
+		if (!bIsMobile)
+		{
+			const FMorphVertexBuffer* MorphVertexBuffer = nullptr;
+			const auto* GPUSkinVertexFactory = (const FGPUBaseSkinVertexFactory*)VertexFactory;
+			MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(!View->Family->bWorldIsPaused, View->Family->FrameNumber);
+			if (MorphVertexBuffer)
+			{
+				ShaderBindings.Add(PreviousMorphBufferParameter, MorphVertexBuffer->GetSRV());
+			}
+		}
 	}
 
 private:
@@ -798,7 +851,8 @@ private:
 	LAYOUT_FIELD(FShaderParameter, InputWeightIndexSize);
 	LAYOUT_FIELD(FShaderResourceParameter, InputWeightStream);
 	LAYOUT_FIELD(FShaderParameter, NumBoneInfluencesParam);
-
+	LAYOUT_FIELD(FShaderParameter, IsMorphTarget);
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousMorphBufferParameter);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FGPUSkinVertexFactoryShaderParameters);
@@ -973,175 +1027,6 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 
 	InternalUpdateVertexDeclaration(SourceVertexFactory);
 }
-
-
-/*-----------------------------------------------------------------------------
-	TGPUSkinMorphVertexFactoryShaderParameters
------------------------------------------------------------------------------*/
-/** Shader parameters for use with TGPUSkinMorphVertexFactory */
-class FGPUSkinMorphVertexFactoryShaderParameters : public FGPUSkinVertexFactoryShaderParameters
-{
-	DECLARE_TYPE_LAYOUT(FGPUSkinMorphVertexFactoryShaderParameters, NonVirtual);
-public:
-
-	/**
-	* Bind shader constants by name
-	* @param	ParameterMap - mapping of named shader constants to indices
-	*/
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		FGPUSkinVertexFactoryShaderParameters::Bind(ParameterMap);
-		PreviousMorphBufferParameter.Bind(ParameterMap, TEXT("PreviousMorphBuffer"));
-	}
-
-	void GetElementShaderBindings(
-		const FSceneInterface* Scene,
-		const FSceneView* View,
-		const FMeshMaterialShader* Shader,
-		const EVertexInputStreamType InputStreamType,
-		ERHIFeatureLevel::Type FeatureLevel,
-		const FVertexFactory* VertexFactory,
-		const FMeshBatchElement& BatchElement,
-		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const
-	{
-		FGPUSkinVertexFactoryShaderParameters::GetElementShaderBindings(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
-
-		// Mobile doesn't support motion blur, don't use previous frame morph delta for mobile.
-		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
-		const bool bIsMobile = IsMobilePlatform(ShaderPlatform);
-		if (!bIsMobile)
-		{
-			const FMorphVertexBuffer* MorphVertexBuffer = nullptr;
-			const auto* GPUSkinVertexFactory = (const FGPUBaseSkinVertexFactory*)VertexFactory;
-			MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(!View->Family->bWorldIsPaused, View->Family->FrameNumber);
-			if (MorphVertexBuffer)
-			{
-				ShaderBindings.Add(PreviousMorphBufferParameter, MorphVertexBuffer->GetSRV());
-			}
-		}
-	}
-
-protected:
-	LAYOUT_FIELD(FShaderResourceParameter, PreviousMorphBufferParameter);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FGPUSkinMorphVertexFactoryShaderParameters);
-
-
-/*-----------------------------------------------------------------------------
-TGPUSkinMorphVertexFactory
------------------------------------------------------------------------------*/
-
-/**
-* Modify compile environment to enable the morph blend codepath
-* @param OutEnvironment - shader compile environment to modify
-*/
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment( const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
-{
-	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"),TEXT("1"));
-	// Mobile doesn't support motion blur, don't use previous frame morph delta for mobile.
-	const bool bIsMobile = IsMobilePlatform(Parameters.Platform);
-	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_USE_PREVIOUS"), !bIsMobile);
-}
-
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-bool TGPUSkinMorphVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
-{
-	return (Parameters.MaterialParameters.bIsUsedWithMorphTargets || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
-		&& Super::ShouldCompilePermutation(Parameters);
-}
-
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
-{
-	Super::GetPSOPrecacheVertexFetchElements(VertexInputStreamType, Elements);
-
-	// Morph blend data
-	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 9, 0, false));
-	Elements.Add(FVertexElement(Elements.Num(), 0, VET_Float3, 10, 0, false));
-}
-
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::SetData(const FGPUSkinDataType* InData)
-{
-	const FGPUSkinMorphDataType* InMorphData = (const FGPUSkinMorphDataType*)(InData);
-	check(InMorphData);
-
-	if (!this->Data)
-	{
-		MorphDataPtr = new FGPUSkinMorphDataType();
-		this->Data = TUniquePtr<FGPUSkinDataType>(MorphDataPtr);
-	}
-
-	*MorphDataPtr = *InMorphData;
-	FGPUBaseSkinVertexFactory::UpdateRHI();
-}
-
-/**
-* Add the decl elements for the streams
-* @param InData - type with stream components
-* @param OutElements - vertex decl list to modify
-*/
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::AddVertexElements(FVertexDeclarationElementList& OutElements)
-{
-	// add the base gpu skin elements
-	Super::AddVertexElements(OutElements);
-	// add the morph delta elements
-	check(MorphDataPtr);
-	FVertexElement DeltaPositionElement = FVertexFactory::AccessStreamComponent(MorphDataPtr->DeltaPositionComponent, 9);
-	// Cache delta stream index (position & tangentZ share the same stream)
-	MorphDeltaStreamIndex = DeltaPositionElement.StreamIndex;
-	OutElements.Add(DeltaPositionElement);
-	OutElements.Add(FVertexFactory::AccessStreamComponent(MorphDataPtr->DeltaTangentZComponent, 10));
-}
-
-/**
-* Creates declarations for each of the vertex stream components and
-* initializes the device resource
-*/
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::InitRHI()
-{
-	// list of declaration items
-	FVertexDeclarationElementList Elements;	
-	AddVertexElements(Elements);
-
-	// create the actual device decls
-	FVertexFactory::InitDeclaration(Elements);
-}
-
-/**
-* Update morph delta stream with the updated morph vertex buffer
-*/
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::UpdateMorphVertexStream(const FMorphVertexBuffer* MorphVertexBuffer)
-{
-	if (MorphVertexBuffer && this->Streams.IsValidIndex(MorphDeltaStreamIndex))
-	{
-		this->Streams[MorphDeltaStreamIndex].VertexBuffer = MorphVertexBuffer;
-	}
-}
-
-template <GPUSkinBoneInfluenceType BoneInfluenceType>
-const FMorphVertexBuffer* TGPUSkinMorphVertexFactory<BoneInfluenceType>::GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const
-{
-	FGPUSkinMorphDataType* MorphData = (FGPUSkinMorphDataType*)(this->Data.Get());
-	check(MorphData);
-	return MorphData->MorphVertexBufferPool ? &MorphData->MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious, FrameNumber) : nullptr;
-}
-
-IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinMorphVertexFactory, SF_Vertex, FGPUSkinMorphVertexFactoryShaderParameters);
-
-/** bind morph target gpu skin vertex factory to its shader file and its shader parameters */
-IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush",
-	  EVertexFactoryFlags::UsedWithMaterials
-	| EVertexFactoryFlags::SupportsDynamicLighting
-	| EVertexFactoryFlags::SupportsPSOPrecaching
-);
 
 
 /*-----------------------------------------------------------------------------

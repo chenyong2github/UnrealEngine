@@ -8,6 +8,7 @@
 #include "VertexFactoryCommon.ush"
 #include "GpuSkinCommon.ush"
 
+// Whether the material supports morph targets
 #ifndef GPUSKIN_MORPH_BLEND
 #define GPUSKIN_MORPH_BLEND 0
 #endif
@@ -38,6 +39,21 @@
 #define MAX_INFLUENCES_PER_STREAM	4
 
 #define FIXED_VERTEX_INDEX 0xFFFF
+
+// Whether this is a morph target
+#if GPUSKIN_MORPH_BLEND
+uint bIsMorphTarget;
+#endif
+
+bool IsMorphTarget()
+{
+#if GPUSKIN_MORPH_BLEND
+	return bIsMorphTarget;
+#else
+	// When Morph targets are not supported on the material, always return false so the associated shader code can be compiled out.
+	return false;
+#endif
+}
 
 // if the per bone motion blur is enabled for this draw call
 uint PerBoneMotionBlur;
@@ -118,7 +134,7 @@ struct FVertexFactoryInput
 	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
-#if !GPUSKIN_MORPH_BLEND && GPUSKIN_APEX_CLOTH
+#if GPUSKIN_APEX_CLOTH
 // .x = Draw Index Buffer offset, .y = Offset into Cloth Vertex Buffer
 uint2 GPUSkinApexClothStartIndexOffset;
 
@@ -621,11 +637,17 @@ FBoneMatrix CalcPreviousBoneMatrix( FVertexFactoryInput Input )
 /** transform position by weighted sum of skinning matrices */
 float3 SkinPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
-#if GPUSKIN_MORPH_BLEND
-	float3 Position = MorphPosition(Input, Intermediates);
-#else
-	float3 Position = Intermediates.UnpackedPosition;
-#endif
+	float3 Position;
+	if (IsMorphTarget())
+	{
+	#if GPUSKIN_MORPH_BLEND
+		Position = MorphPosition(Input, Intermediates);
+	#endif
+	}
+	else
+	{
+		Position = Intermediates.UnpackedPosition;
+	}
 
 	// Note the use of mul(Matrix,Vector), bone matrices are stored transposed
 	// for tighter packing.
@@ -637,11 +659,17 @@ float3 SkinPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Inte
 /** transform position by weighted sum of skinning matrices */
 float3 SkinPreviousPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
-#if GPUSKIN_MORPH_BLEND
-	float3 Position = MorphPreviousPosition(Input, Intermediates);
-#else
-	float3 Position = Intermediates.UnpackedPosition;
-#endif
+	float3 Position;
+	if (IsMorphTarget())
+	{
+	#if GPUSKIN_MORPH_BLEND
+		Position = MorphPreviousPosition(Input, Intermediates);
+	#endif
+	}
+	else
+	{
+		Position = Intermediates.UnpackedPosition;
+	}
 
 	FBoneMatrix BlendMatrix = Intermediates.BlendMatrix;
 	
@@ -669,15 +697,7 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 	// -1..1 .xyz:normal, .w:contains sign of tangent basis determinant (left or right handed)
 	half4 LocalTangentZ = Input.TangentZ;
 
-#if GPUSKIN_MORPH_BLEND
-	// calc new normal by offseting it with the delta
-	LocalTangentZ.xyz = normalize(LocalTangentZ.xyz + Input.DeltaTangentZ);
-	// derive the new tangent by orthonormalizing the new normal against
-	// the base tangent vector (assuming these are normalized)
-	LocalTangentX = normalize(LocalTangentX - dot(LocalTangentX, LocalTangentZ.xyz) * LocalTangentZ.xyz);
-#else
-	#if GPUSKIN_APEX_CLOTH
-
+#if GPUSKIN_APEX_CLOTH
 	float3x3 ClothTangent = float3x3(1,0,0, 0,1,0, 0,0,1);
 	float TempClothBlendWeight = 0.0f;
 
@@ -763,10 +783,19 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 
 		TempClothBlendWeight *= SimulWeight;
 	}
-	
-	#endif // GPUSKIN_APEX_CLOTH
+#else
+	if (IsMorphTarget())
+	{
+#if GPUSKIN_MORPH_BLEND
+		// calc new normal by offseting it with the delta
+		LocalTangentZ.xyz = normalize(LocalTangentZ.xyz + Input.DeltaTangentZ);
+		// derive the new tangent by orthonormalizing the new normal against
+		// the base tangent vector (assuming these are normalized)
+		LocalTangentX = normalize(LocalTangentX - dot(LocalTangentX, LocalTangentZ.xyz) * LocalTangentZ.xyz);
+#endif
+	}
+#endif // GPUSKIN_APEX_CLOTH
 
-#endif // GPUSKIN_MORPH_BLEND
 
 	// Note the use of mul(Matrix,Vector), bone matrices are stored transposed
 	// for tighter packing.
