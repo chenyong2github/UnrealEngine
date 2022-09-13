@@ -67,6 +67,8 @@ struct FPerforceExe
 
 #if PLATFORM_MAC
 		FPlatformProcess::ExecProcess(TEXT("/usr/bin/mdfind"), TEXT("\"kMDItemFSName = 'p4' && kMDItemContentType = 'public.unix-executable'\""), &ReturnCode, &OutResults, &OutErrors);
+		// in case it returns multiple p4's, pick the first one
+		OutResults = Split(OutResults, LINE_TERMINATOR)[0];
 #elif PLATFORM_LINUX
 		FPlatformProcess::ExecProcess(TEXT("which"), TEXT("p4"), &ReturnCode, &OutResults, &OutErrors);
 #endif // PLATFORM_MAC

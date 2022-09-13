@@ -1317,7 +1317,7 @@ bool FMacPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe, bool bW
 	pipe(pipefd);
 
 	fcntl(pipefd[0], F_SETFL, O_NONBLOCK);
-	fcntl(pipefd[1], F_SETFL, O_NONBLOCK);
+	//fcntl(pipefd[1], F_SETFL, O_NONBLOCK);
 
 	// create an NSFileHandle from the descriptor
 	ReadPipe = [[NSFileHandle alloc] initWithFileDescriptor: pipefd[0]];
