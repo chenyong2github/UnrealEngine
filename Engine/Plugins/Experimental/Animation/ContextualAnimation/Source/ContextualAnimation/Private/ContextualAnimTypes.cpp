@@ -542,6 +542,34 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	return true;
 }
 
+bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
+{
+	const int32 NumSets = SceneAsset.GetNumAnimSetsInSection(SectionIdx);
+	for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
+	{
+		if (TryCreateBindings(SceneAsset, SectionIdx, AnimSetIdx, Params, OutBindings))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings)
+{
+	const int32 NumSets = SceneAsset.GetNumAnimSetsInSection(SectionIdx);
+	for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
+	{
+		if (TryCreateBindings(SceneAsset, SectionIdx, AnimSetIdx, Primary, Secondary, OutBindings))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FContextualAnimSceneBindings::CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const
 {
 	if (IsValid())

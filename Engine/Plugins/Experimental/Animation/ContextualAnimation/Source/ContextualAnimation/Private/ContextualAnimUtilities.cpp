@@ -324,17 +324,7 @@ bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings(const UConte
 	}
 
 	const int32 SectionIdx = 0; // Always start from the first section
-	const int32 NumSets = SceneAsset->GetNumAnimSetsInSection(SectionIdx);
-	for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
-	{
-		OutBindings.Reset();
-		if(FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, SectionIdx, AnimSetIdx, Params, OutBindings))
-		{
-			return true;
-		}
-	}
-	
-	return false;
+	return FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, SectionIdx, Params, OutBindings);
 }
 
 bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindingsForTwoActors(const UContextualAnimSceneAsset* SceneAsset, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings)
@@ -346,17 +336,7 @@ bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindingsForTwoActors(
 	}
 
 	const int32 SectionIdx = 0; // Always start from the first section
-	const int32 NumSets = SceneAsset->GetNumAnimSetsInSection(SectionIdx);
-	for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
-	{
-		OutBindings.Reset();
-		if (FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, SectionIdx, AnimSetIdx, Primary, Secondary, OutBindings))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, SectionIdx, Primary, Secondary, OutBindings);
 }
 
 // SceneBindings Blueprint Interface
