@@ -75,6 +75,15 @@ static TAutoConsoleVariable<int32> GCVarAsyncPipelineCompile(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+bool GRunPSOCreateTasksOnRHIT = false;
+static FAutoConsoleVariableRef CVarCreatePSOsOnRHIThread(
+	TEXT("r.pso.CreateOnRHIThread"),
+	GRunPSOCreateTasksOnRHIT,
+	TEXT("0: Run PSO creation on task threads\n")
+	TEXT("1: Run PSO creation on RHI thread."),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarPSOEvictionTime(
 	TEXT("r.pso.evictiontime"),
 	60,
@@ -1435,9 +1444,11 @@ public:
 
 	ENamedThreads::Type GetDesiredThread()
 	{
+		ENamedThreads::Type DesiredThread = GRunPSOCreateTasksOnRHIT && IsRunningRHIInSeparateThread() ? ENamedThreads::RHIThread : CPrio_FCompilePipelineStateTask.Get();
+
 		// On Mac the compilation is handled using external processes, so engine threads have very little work to do
 		// and it's better to leave more CPU time to these extrenal processes and other engine threads.
-		return PLATFORM_MAC ? ENamedThreads::AnyBackgroundThreadNormalTask : CPrio_FCompilePipelineStateTask.Get();
+		return PLATFORM_MAC ? ENamedThreads::AnyBackgroundThreadNormalTask : DesiredThread;
 	}
 };
 
