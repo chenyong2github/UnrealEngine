@@ -550,7 +550,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		// Load more cells depending on the user's settings
 		// Skipped when running from a commandlet and for subpartitions
-		if (IsMainWorldPartition() && !IsRunningCommandlet())
+		if (IsMainWorldPartition() && IsStreamingEnabled() && !IsRunningCommandlet())
 		{
 			// Load last loaded regions
 			if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEnableLoadingOfLastLoadedRegions())
