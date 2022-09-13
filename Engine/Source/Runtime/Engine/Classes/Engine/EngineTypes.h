@@ -651,6 +651,7 @@ public:
 	bool IsLit() const														{ return !IsUnlit(); }
 	bool IsValid() const													{ return (ShadingModelField > 0) && (ShadingModelField < (1 << MSM_NUM)); }
 	uint16 GetShadingModelField() const										{ return ShadingModelField; }
+	void SetShadingModelField(uint16 InShadingModelField)					{ ShadingModelField = InShadingModelField; }
 	int32 CountShadingModels() const										{ return FMath::CountBits(ShadingModelField); }
 	EMaterialShadingModel GetFirstShadingModel() const						{ check(IsValid()); return (EMaterialShadingModel)FMath::CountTrailingZeros(ShadingModelField); }
 
