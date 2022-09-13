@@ -780,6 +780,12 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 				InWorld->GetModel()->Modify();
 				NewBrush->Modify();
 				bspBrushCSG( NewBrush, InWorld->GetModel(), DWord1, Brush_Add, CSG_None, true, true, true );
+
+				if (FParse::Command(&Str, TEXT("SELECTNEWBRUSH")))
+				{
+					SelectNone(false, true);
+					SelectActor(NewBrush, true, true);
+				}
 			}
 			InWorld->InvalidateModelGeometry( InWorld->GetCurrentLevel() );
 		}
@@ -790,12 +796,6 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 		{
 			ULevel::LevelDirtiedEvent.Broadcast();
 			RebuildStaticNavigableGeometry(InWorld->GetCurrentLevel());
-		}
-
-		if(FParse::Command(&Str,TEXT("SELECTNEWBRUSH")))
-		{
-			SelectNone(false, true);
-			SelectActor(NewBrush, true, true);
 		}
 
 		return true;

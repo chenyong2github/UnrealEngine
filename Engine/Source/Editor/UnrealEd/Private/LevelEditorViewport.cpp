@@ -1042,6 +1042,19 @@ static bool AreAllDroppedObjectsBrushBuilders(const TArray<UObject*>& DroppedObj
 	return true;
 }
 
+static bool AreAnyDroppedObjectsBrushBuilders(const TArray<UObject*>& DroppedObjects)
+{
+	for (UObject* DroppedObject : DroppedObjects)
+	{
+		if (DroppedObject->IsA(UBrushBuilder::StaticClass()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FLevelEditorViewportClient::DropObjectsOnBackground(FViewportCursorLocation& Cursor, const TArray<UObject*>& DroppedObjects, EObjectFlags ObjectFlags, TArray<AActor*>& OutNewActors, bool bCreateDropPreview, bool bSelectActors, UActorFactory* FactoryToUse)
 {
 	if (DroppedObjects.Num() == 0)
@@ -1645,7 +1658,13 @@ bool FLevelEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 Mo
 				//Viewport->InvalidateHitProxy();
 			}
 			// Dropping the actors rather than a preview? Probably want to select them all then. 
-			else if(!bCreateDropPreview && SelectActors && OutNewActors.Num() > 0)
+			else if(!bCreateDropPreview && SelectActors && OutNewActors.Num() > 0
+
+				// If we're dropping bsp brushes, that geometry actually gets created later, in 
+				// FBrushBuilderDragDropOp::OnDrop(), so we don't want to select the (preview) builder brush.
+				// (for reference, this function gets called via CurWidget.Widget->OnDrop() in FSlateApplication::RoutePointerUpEvent,
+				// whereas the FBrushBuilderDragDropOp::OnDrop() gets called via SlateUser->NotifyPointerReleased).
+				&& !AreAnyDroppedObjectsBrushBuilders(DroppedObjects))
 			{
 				for (auto It = OutNewActors.CreateConstIterator(); It; ++It)
 				{
