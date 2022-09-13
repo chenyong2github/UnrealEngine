@@ -172,7 +172,12 @@ FString UAnimGraphNode_CustomProperty::GetPinTargetVariableName(const UEdGraphPi
 
 FString UAnimGraphNode_CustomProperty::GetPinTargetVariableName(FName InPinName) const
 {
-	return TEXT("__CustomProperty_") + InPinName.ToString() + TEXT("_") + NodeGuid.ToString();
+	return GetPinTargetVariableNameBase(InPinName) + NodeGuid.ToString();
+}
+
+FString UAnimGraphNode_CustomProperty::GetPinTargetVariableNameBase(FName InPinName) const
+{
+	return TEXT("__CustomProperty_") + InPinName.ToString() + TEXT("_");
 }
 
 FText UAnimGraphNode_CustomProperty::GetPropertyTypeText(FProperty* Property)
@@ -381,6 +386,45 @@ void UAnimGraphNode_CustomProperty::PinConnectionListChanged(UEdGraphPin* Pin)
 	{
 		// If we have links, clear any bindings
 		PropertyBindings.Remove(*GetPinTargetVariableName(Pin));
+	}
+}
+
+void UAnimGraphNode_CustomProperty::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+	
+	const FString NewGUID = NodeGuid.ToString();
+	
+	TMap<FName, FAnimGraphNodePropertyBinding> NewBindings;
+	
+	// Update any bindings to point at the newly-generated property name
+	for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : PropertyBindings)
+	{
+		FString BindingNameString = BindingPair.Key.ToString();
+		FAnimGraphNodePropertyBinding Binding = BindingPair.Value;
+
+		// Check pins
+		for (UEdGraphPin* Pin : Pins)
+		{
+			FString PinTargetVariableNameBase = GetPinTargetVariableNameBase(Pin->GetFName());
+			if(BindingNameString.StartsWith(PinTargetVariableNameBase))
+			{
+				// Replace GUID with this node's if it differs
+				FString OldGUID = BindingNameString.RightChop(PinTargetVariableNameBase.Len());
+				if(OldGUID != NewGUID)
+				{
+					FName PropertyName = *(BindingNameString.Replace(*OldGUID, *NewGUID));
+					Binding.PropertyName = PropertyName;
+					NewBindings.Add(PropertyName, Binding);
+				}
+				break;
+			}
+		}
+	}
+
+	if(NewBindings.Num() > 0)
+	{
+		PropertyBindings = NewBindings;
 	}
 }
 

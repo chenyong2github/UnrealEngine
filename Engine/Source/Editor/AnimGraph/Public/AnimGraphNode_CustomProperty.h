@@ -25,6 +25,7 @@ public:
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	
 	// IClassVariableCreator interface
 	virtual void CreateClassVariablesFromBlueprint(IAnimBlueprintVariableCreationContext& InCreationContext) override;
@@ -99,4 +100,7 @@ protected:
 	
 	// Sets the visibility of the specified pin, reconstructs the node if it changes
 	void SetCustomPinVisibility(bool bInVisible, int32 InOptionalPinIndex);
+
+	// Helper function for GetPinTargetVariableName
+	FString GetPinTargetVariableNameBase(FName InPinName) const;
 };
