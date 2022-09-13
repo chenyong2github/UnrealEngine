@@ -50,7 +50,7 @@ protected:
 	TArray<FGameplayTag> QueryTags;
 
 	UPROPERTY(Transient)
-	UAbilitySystemComponent* CachedAbilitySystemComponent = nullptr;
+	TObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
 	
 	/** Array of handles for our gameplay tag query delegates */
 	TArray<TTuple<FGameplayTag, FDelegateHandle>> GameplayTagEventHandles;
