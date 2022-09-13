@@ -3087,9 +3087,14 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineClass<UNavigationSystemBase>(NavigationSystemClassName, NavigationSystemClass);
 	LoadEngineClass<UNavigationSystemConfig>(NavigationSystemConfigClassName, NavigationSystemConfigClass);
 	LoadEngineClass<UAvoidanceManager>(AvoidanceManagerClassName, AvoidanceManagerClass);
-	LoadEngineClass<UPhysicsCollisionHandler>(PhysicsCollisionHandlerClassName, PhysicsCollisionHandlerClass);
 	LoadEngineClass<UGameUserSettings>(GameUserSettingsClassName, GameUserSettingsClass);
 	LoadEngineClass<ALevelScriptActor>(LevelScriptActorClassName, LevelScriptActorClass);
+
+	// It is valid for physics collision handler to be None
+	if (PhysicsCollisionHandlerClassName.IsValid())
+	{
+		LoadEngineClass<UPhysicsCollisionHandler>(PhysicsCollisionHandlerClassName, PhysicsCollisionHandlerClass);
+	}
 
 	// set the font object pointers, unless on server
 	if (!IsRunningDedicatedServer())
