@@ -111,6 +111,22 @@ namespace ShaderStage
 	}
 };
 
+namespace VulkanBindless
+{
+	enum EDescriptorSets
+	{
+		BindlessSamplerSet = 0,
+		BindlessResourceSet = 1,
+
+		NumBindlessSets = 2,
+		MaxNumSets = ShaderStage::EStage::MaxNumSets + NumBindlessSets
+	};
+
+	// Prefix used to declare arrays of samplers/resources for bindless
+	static constexpr const TCHAR* kBindlessResourceArrayPrefix = TEXT("ResourceDescriptorHeap_");
+	static constexpr const TCHAR* kBindlessSamplerArrayPrefix = TEXT("SamplerDescriptorHeap_");
+};
+
 namespace EVulkanBindingType
 {
 	enum EType : uint8

@@ -20,8 +20,11 @@ public:
 
 	VkSampler Sampler;
 	uint32 SamplerId;
+	FRHIDescriptorHandle BindlessHandle;
 
 	static void SetupSamplerCreateInfo(const FSamplerStateInitializerRHI& Initializer, FVulkanDevice& InDevice, VkSamplerCreateInfo& OutSamplerInfo);
+
+	virtual FRHIDescriptorHandle GetBindlessHandle() const override final { return BindlessHandle; }
 
 private:
 	bool bIsImmutable;

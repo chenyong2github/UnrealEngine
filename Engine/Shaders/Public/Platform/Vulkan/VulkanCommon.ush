@@ -35,3 +35,18 @@ void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongTy
 	InterlockedMax(Dest[Coord], Value);
 }
 #endif
+
+#if PLATFORM_SUPPORTS_BINDLESS
+	// While we use descriptor indexing, declare unbounded resource arrays
+	COMPILER_DEFINE VULKAN_HEAP_NAME(Prefix, Type) Prefix##Type
+	COMPILER_DEFINE VULKAN_SAMPLER_HEAP(Type) VULKAN_HEAP_NAME(VULKAN_BINDLESS_SAMPLER_ARRAY_PREFIX,Type)
+	COMPILER_DEFINE VULKAN_RESOURCE_HEAP(Type) VULKAN_HEAP_NAME(VULKAN_BINDLESS_RESOURCE_ARRAY_PREFIX,Type)
+
+	// todo-jn: bindless resource heaps
+	COMPILER_DEFINE GetResourceFromHeap(Type, Index) VULKAN_RESOURCE_HEAP(Type)[Index]
+
+	// bindless sampler heaps (specify a register so AUTO_BINDLESS macros aren't applied on them)
+	SamplerState VULKAN_SAMPLER_HEAP(SamplerState)[] : register(s0, space1000);
+	SamplerComparisonState VULKAN_SAMPLER_HEAP(SamplerComparisonState)[] : register(s0, space1000);
+	COMPILER_DEFINE GetSamplerFromHeap(Type, Index) VULKAN_SAMPLER_HEAP(Type)[Index]
+#endif

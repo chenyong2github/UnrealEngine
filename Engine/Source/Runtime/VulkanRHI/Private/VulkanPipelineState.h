@@ -25,6 +25,8 @@ public:
 	FVulkanCommonPipelineDescriptorState(FVulkanDevice* InDevice)
 		: VulkanRHI::FDeviceChild(InDevice)
 	{
+		bBindlessSamplers = (RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled);
+		bBindlessResources = (RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled);
 	}
 
 	virtual ~FVulkanCommonPipelineDescriptorState() {}
@@ -104,8 +106,11 @@ public:
 
 	inline void SetSamplerState(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanSamplerState* Sampler)
 	{
-		check(Sampler && Sampler->Sampler != VK_NULL_HANDLE);
-		MarkDirty(DSWriter[DescriptorSet].WriteSampler(BindingIndex, *Sampler));
+		if (!bBindlessSamplers)
+		{
+			check(Sampler && Sampler->Sampler != VK_NULL_HANDLE);
+			MarkDirty(DSWriter[DescriptorSet].WriteSampler(BindingIndex, *Sampler));
+		}
 	}
 
 	inline void SetInputAttachment(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanTextureView& TextureView, VkImageLayout Layout)
@@ -148,10 +153,12 @@ protected:
 	}
 	inline void Bind(VkCommandBuffer CmdBuffer, VkPipelineLayout PipelineLayout, VkPipelineBindPoint BindPoint)
 	{
+		// Bindless will sneak in two sets before the others
+		const uint32 FirstSet = Device->SupportsBindless() ? VulkanBindless::NumBindlessSets : 0;
 		VulkanRHI::vkCmdBindDescriptorSets(CmdBuffer,
 			BindPoint,
 			PipelineLayout,
-			0, DescriptorSetHandles.Num(), DescriptorSetHandles.GetData(),
+			FirstSet, DescriptorSetHandles.Num(), DescriptorSetHandles.GetData(),
 			(uint32)DynamicOffsets.Num(), DynamicOffsets.GetData());
 	}
 
@@ -177,6 +184,9 @@ protected:
 	
 	mutable FVulkanDSetsKey DSetsKey;
 	mutable bool bIsDSetsKeyDirty = true;
+
+	bool bBindlessSamplers = false;
+	bool bBindlessResources = false;
 };
 
 

@@ -11,6 +11,7 @@
 class FVulkanDescriptorSetCache;
 class FVulkanDescriptorPool;
 class FVulkanDescriptorPoolsManager;
+class FVulkanBindlessDescriptorManager;
 class FVulkanCommandListContextImmediate;
 class FVulkanTransientHeapCache;
 class FVulkanDeviceExtension;
@@ -312,6 +313,11 @@ public:
 		return DeviceMemoryManager.HasUnifiedMemory();
 	}
 
+	inline bool SupportsBindless() const
+	{
+		return (BindlessDescriptorManager != nullptr);
+	}
+
 	inline uint64 GetTimestampValidBitsMask() const
 	{
 		return TimestampValidBitsMask;
@@ -377,6 +383,11 @@ public:
 	inline FVulkanDescriptorPoolsManager& GetDescriptorPoolsManager()
 	{
 		return *DescriptorPoolsManager;
+	}
+
+	inline FVulkanBindlessDescriptorManager* GetBindlessDescriptorManager()
+	{
+		return BindlessDescriptorManager;
 	}
 
 	inline TMap<uint32, FSamplerStateRHIRef>& GetSamplerMap()
@@ -514,6 +525,8 @@ private:
 	FVulkanDescriptorSetCache* DescriptorSetCache = nullptr;
 	// Active on >= SM4
 	FVulkanDescriptorPoolsManager* DescriptorPoolsManager = nullptr;
+
+	FVulkanBindlessDescriptorManager* BindlessDescriptorManager = nullptr;
 
 	FVulkanShaderFactory ShaderFactory;
 

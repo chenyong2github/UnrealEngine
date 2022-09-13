@@ -899,7 +899,6 @@ static void BuildShaderOutput(
 
 	FOLDVulkanCodeHeader OLDHeader;
 
-	FShaderParameterMap& ParameterMap = ShaderOutput.ParameterMap;
 	EShaderFrequency Frequency = (EShaderFrequency)ShaderOutput.Target.Frequency;
 
 	TBitArray<> UsedUniformBufferSlots;
@@ -1031,7 +1030,9 @@ static void BuildShaderOutput(
 			ShaderOutput
 		);
 
-		NEWEntryTypes.Add(PackedGlobal.Name, FVulkanShaderHeader::PackedGlobal);
+		FString ParamName = PackedGlobal.Name;
+		UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(ParamName);
+		NEWEntryTypes.Add(ParamName, FVulkanShaderHeader::PackedGlobal);
 
 		uint32& Size = PackedGlobalArraySize.FindOrAdd((CrossCompiler::EPackedTypeName)PackedGlobal.PackedType);
 		Size = FMath::Max<uint32>(BytesPerComponent * (PackedGlobal.Offset + PackedGlobal.Count), Size);
@@ -1197,7 +1198,7 @@ static void BuildShaderOutput(
 			if (!SharedSamplerStates.Contains(SamplerState))
 			{
 				// ParameterMap does not use a TMultiMap, so we cannot push the same entry to it more than once!  if we try to, we've done something wrong...
-				check(!ParameterMap.ContainsParameterAllocation(*SamplerState));
+				check(!ShaderOutput.ParameterMap.ContainsParameterAllocation(*SamplerState));
 
 				HandleReflectedShaderSampler(SamplerState, Sampler.Offset, VulkanBindingIndex, Sampler.Count, ShaderOutput);
 
@@ -1352,9 +1353,29 @@ FCompilerInfo::FCompilerInfo(const FShaderCompilerInput& InInput, const FString&
 static void GatherSpirvReflectionBindings(
 	spv_reflect::ShaderModule&	Reflection,
 	FSpirvReflectBindings&		OutBindings,
-	const EShaderFrequency		ShaderFrequency)
+	const EShaderFrequency		ShaderFrequency,
+	const bool					bSupportsBindless)
 {
-	SpvReflectResult SpvResult = SPV_REFLECT_RESULT_NOT_READY;
+	// Change descriptor set numbers
+	TArray<SpvReflectDescriptorSet*> DescriptorSets;
+	uint32 NumDescriptorSets = 0;
+
+	// If bindless is supported, then offset the descriptor set to fit the bindless heaps at the beginning
+	const uint32 DescSetNo = bSupportsBindless ? VulkanBindless::NumBindlessSets + ShaderStage::GetStageForFrequency(ShaderFrequency) : ShaderStage::GetStageForFrequency(ShaderFrequency);
+
+	SpvReflectResult SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, nullptr);
+	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+	if (NumDescriptorSets > 0)
+	{
+		DescriptorSets.SetNum(NumDescriptorSets);
+		SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, DescriptorSets.GetData());
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		for (const SpvReflectDescriptorSet* DescSet : DescriptorSets)
+		{
+			Reflection.ChangeDescriptorSetNumber(DescSet, DescSetNo);
+		}
+	}
 
 	OutBindings.GatherInputAttributes(Reflection);
 	OutBindings.GatherOutputAttributes(Reflection);
@@ -1370,23 +1391,29 @@ static void GatherSpirvReflectionBindings(
 		OutBindings.AssignInputAttributeLocationsBySemanticIndex(Reflection, CrossCompiler::FShaderConductorContext::GetIdentifierTable().InputAttribute);
 	}
 
-	// Change descriptor set numbers
-	TArray<SpvReflectDescriptorSet*> DescriptorSets;
-	uint32 NumDescriptorSets = 0;
-
-	SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, nullptr);
-	check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
-	if (NumDescriptorSets > 0)
+	// Patch resource heaps descriptor set numbers
+	if (bSupportsBindless)
 	{
-		DescriptorSets.SetNum(NumDescriptorSets);
-		SpvResult = Reflection.EnumerateDescriptorSets(&NumDescriptorSets, DescriptorSets.GetData());
-		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
-
-		for (const SpvReflectDescriptorSet* DescSet : DescriptorSets)
+		// Move the bindless heap to its dedicated descriptor set and remove it from our regular binding arrays
+		auto MoveBindlessHeaps = [&](TArray<SpvReflectDescriptorBinding*>& BindingArray, const TCHAR* HeapPrefix, uint32 BinldessDescSetNo)
 		{
-			const uint32 DescSetNo = ShaderStage::GetStageForFrequency(ShaderFrequency);
-			Reflection.ChangeDescriptorSetNumber(DescSet, DescSetNo);
-		}
+			for (int32 Index = BindingArray.Num() - 1; Index >= 0; --Index)
+			{
+				const SpvReflectDescriptorBinding* pBinding = BindingArray[Index];
+				FString BindingName(ANSI_TO_TCHAR(pBinding->name));
+				if (BindingName.StartsWith(HeapPrefix))
+				{
+					const uint32 Binding = 0;  // single bindless heap per descriptor set
+					Reflection.ChangeDescriptorBindingNumbers(pBinding, Binding, BinldessDescSetNo);
+					BindingArray.RemoveAtSwap(Index);
+				}
+			}
+		};
+
+		// Remove sampler heaps from binding arrays
+		MoveBindlessHeaps(OutBindings.Samplers, VulkanBindless::kBindlessSamplerArrayPrefix, VulkanBindless::BindlessSamplerSet);
+
+		// todo-jn: Remove resource heaps from binding arrays
 	}
 }
 
@@ -1493,8 +1520,10 @@ static bool BuildShaderOutputFromSpirv(
 		check(Result == SPV_REFLECT_RESULT_SUCCESS);
 	}
 
+	const bool bSupportsBindless = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
+
 	FSpirvReflectBindings Bindings;
-	GatherSpirvReflectionBindings(Reflection, Bindings, static_cast<EShaderFrequency>(Input.Target.Frequency));
+	GatherSpirvReflectionBindings(Reflection, Bindings, static_cast<EShaderFrequency>(Input.Target.Frequency), bSupportsBindless);
 
 	// Register how often a sampler-state is used
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.TextureSRVs)
@@ -1832,7 +1861,7 @@ static bool BuildShaderOutputFromSpirv(
 	}
 
 	// For Android run an additional pass to patch spirv to be compatible across drivers
-	if(IsAndroidShaderPlatform(Input.Target.GetPlatform()))
+	if (IsAndroidShaderPlatform(Input.Target.GetPlatform()))
 	{
 		const char* OptArgs[] = { "--android-driver-patch" };
 		if (!CompilerContext.OptimizeSpirv(Spirv.Data, OptArgs, UE_ARRAY_COUNT(OptArgs)))
@@ -2118,6 +2147,7 @@ static bool CompileWithShaderConductor(
 	const FShaderCompilerInput& Input = CompilerInfo.Input;
 
 	const bool bIsRayTracingShader = Input.IsRayTracingShader();
+	const bool bHasBindless = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
 	const bool bRewriteHlslSource = !bIsRayTracingShader;
 	const bool bDebugDump = CompilerInfo.bDebugDump;
 
@@ -2288,6 +2318,13 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	{
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS"), 1);
 	}
+	else
+	{
+		check(!Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations));
+	}
+
+	AdditionalDefines.SetDefine(TEXT("VULKAN_BINDLESS_SAMPLER_ARRAY_PREFIX"), VulkanBindless::kBindlessSamplerArrayPrefix);
+	AdditionalDefines.SetDefine(TEXT("VULKAN_BINDLESS_RESOURCE_ARRAY_PREFIX"), VulkanBindless::kBindlessResourceArrayPrefix);
 
 	// Preprocess the shader.
 	FString PreprocessedShaderSource;

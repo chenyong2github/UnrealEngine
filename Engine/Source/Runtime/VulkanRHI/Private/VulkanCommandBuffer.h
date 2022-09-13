@@ -365,6 +365,11 @@ public:
 		return Context;
 	}
 
+	FVulkanQueue* GetQueue()
+	{
+		return Queue;
+	}
+
 private:
 	struct FQueryPoolReset
 	{

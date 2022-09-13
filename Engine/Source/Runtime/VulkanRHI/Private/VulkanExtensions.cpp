@@ -401,12 +401,17 @@ public:
 
 	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
 	{
-		ExtensionFlags.HasEXTDescriptorIndexing = DescriptorIndexingFeatures.runtimeDescriptorArray; // :todo-jn: add resource specific checks
+		bFullySupported = (DescriptorIndexingFeatures.runtimeDescriptorArray == VK_TRUE) &&
+			(DescriptorIndexingFeatures.descriptorBindingPartiallyBound == VK_TRUE) &&
+			(DescriptorIndexingFeatures.descriptorBindingUpdateUnusedWhilePending == VK_TRUE) &&
+			(DescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount == VK_TRUE);
+
+		ExtensionFlags.HasEXTDescriptorIndexing = bFullySupported ? 1 : 0;
 	}
 
 	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
 	{
-		if (DescriptorIndexingFeatures.runtimeDescriptorArray == VK_TRUE)
+		if (bFullySupported)
 		{
 			AddToPNext(DeviceCreateInfo, DescriptorIndexingFeatures);
 		}
@@ -414,6 +419,7 @@ public:
 
 private:
 	VkPhysicalDeviceDescriptorIndexingFeaturesEXT DescriptorIndexingFeatures;
+	bool bFullySupported = false;
 };
 
 

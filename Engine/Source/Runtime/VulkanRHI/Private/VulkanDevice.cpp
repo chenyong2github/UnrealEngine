@@ -16,6 +16,7 @@
 #include "VulkanTransientResourceAllocator.h"
 #include "VulkanExtensions.h"
 #include "VulkanRayTracing.h"
+#include "VulkanDescriptorSets.h"
 
 TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar(
 	TEXT("r.Vulkan.AllowAsyncCompute"),
@@ -1074,6 +1075,20 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	DescriptorPoolsManager = new FVulkanDescriptorPoolsManager();
 	DescriptorPoolsManager->Init(this);
 
+	if (RHISupportsBindless(GMaxRHIShaderPlatform) &&
+		OptionalDeviceExtensions.HasEXTDescriptorIndexing &&
+		(GpuProps.limits.maxBoundDescriptorSets >= VulkanBindless::MaxNumSets))
+	{
+		const bool bBindlessResources = RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
+		const bool bBindlessSamplers = RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
+
+		if (bBindlessResources || bBindlessSamplers)
+		{
+			BindlessDescriptorManager = new FVulkanBindlessDescriptorManager(this);
+			BindlessDescriptorManager->Init();
+		}
+	}
+
 	PipelineStateCache = new FVulkanPipelineStateCacheManager(this);
 
 	TArray<FString> CacheFilenames = FVulkanPlatform::GetPSOCacheFilenames();
@@ -1181,6 +1196,12 @@ void FVulkanDevice::Destroy()
 	
 	delete DescriptorPoolsManager;
 	DescriptorPoolsManager = nullptr;
+
+	if (BindlessDescriptorManager)
+	{
+		delete BindlessDescriptorManager;
+		BindlessDescriptorManager = nullptr;
+	}
 
 	// No need to delete as it's stored in SamplerMap
 	DefaultSampler = nullptr;

@@ -252,12 +252,12 @@ void FVulkanCmdBuffer::End()
 
 	for (PendingQuery& Query : PendingTimestampQueries)
 	{
-		uint64 Index = Query.Index;
-		VkBuffer BufferHandle = Query.BufferHandle;
-		VkQueryPool PoolHandle = Query.PoolHandle;
-		VkQueryResultFlags BlockingFlags = Query.bBlocking ?  VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
-		uint32 Width = (Query.bBlocking ? 1 : 2);
-		uint32 Stride = sizeof(uint64) * Width;
+		const uint64 Index = Query.Index;
+		const VkBuffer BufferHandle = Query.BufferHandle;
+		const VkQueryPool PoolHandle = Query.PoolHandle;
+		const VkQueryResultFlags BlockingFlags = Query.bBlocking ?  VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
+		const uint32 Width = (Query.bBlocking ? 1 : 2);
+		const uint32 Stride = sizeof(uint64) * Width;
 
 		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, Stride * Index, Stride, VK_QUERY_RESULT_64_BIT | BlockingFlags);
 		VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
@@ -279,7 +279,7 @@ inline void FVulkanCmdBuffer::InitializeTimings(FVulkanCommandListContext* InCon
 
 			// Upload cb's can be submitted multiple times in a single frame, so we use an expanded pool to catch timings
 			// Any overflow will wrap
-			uint32 PoolSize = bIsUploadOnly ? 256 : 32;
+			const uint32 PoolSize = bIsUploadOnly ? 256 : 32;
 			Timing->Initialize(PoolSize);
 		}
 	}
@@ -323,6 +323,22 @@ void FVulkanCmdBuffer::Begin()
 		}
 	}
 	check(!CurrentDescriptorPoolSetContainer);
+
+	if (!bIsUploadOnly && Device->SupportsBindless())
+	{
+		FVulkanBindlessDescriptorManager* BindlessDescriptorManager = Device->GetBindlessDescriptorManager();
+		FVulkanQueue* Queue = GetOwner()->GetMgr().GetQueue();
+		const VkPipelineStageFlags SupportedStages = Queue->GetSupportedStageBits();
+		if (SupportedStages & VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
+		{
+			BindlessDescriptorManager->BindDescriptorSets(CommandBufferHandle, VK_PIPELINE_BIND_POINT_GRAPHICS);
+		}
+		if (SupportedStages & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+		{
+			BindlessDescriptorManager->BindDescriptorSets(CommandBufferHandle, VK_PIPELINE_BIND_POINT_COMPUTE);
+		}
+		// todo-jn: bindless : raytracing
+	}
 
 	bNeedsDynamicStateSet = true;
 }
