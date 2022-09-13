@@ -43,6 +43,7 @@ namespace GlobalDistanceField
  **/
 extern void UpdateGlobalDistanceFieldVolume(
 	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
 	FViewInfo& View, 
 	FScene* Scene, 
 	float MaxOcclusionDistance, 

@@ -630,23 +630,24 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		View.InitRHIResources();
 	}
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, UpdateGPUScene);
-		FRDGExternalAccessQueue ExternalAccessQueue;
 
 		Scene->GPUScene.Update(GraphBuilder, *Scene, ExternalAccessQueue);
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, Views[ViewIndex], ExternalAccessQueue);
 		}
-
-		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 
 	if (bRequiresDistanceField)
 	{
-		PrepareDistanceFieldScene(GraphBuilder, false);
+		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
 	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
 
 	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 

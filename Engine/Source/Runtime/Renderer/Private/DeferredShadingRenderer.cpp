@@ -2345,6 +2345,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, UpdateGPUScene);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
@@ -2353,8 +2355,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			GraphBuilder.SetFlushResourcesRHI();
 		}
-
-		FRDGExternalAccessQueue ExternalAccessQueue;
 
 		Scene->GPUScene.Update(GraphBuilder, *Scene, ExternalAccessQueue);
 
@@ -2367,8 +2367,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 			Scene->GPUScene.DebugRender(GraphBuilder, *Scene, View);
 		}
-
-		ExternalAccessQueue.Submit(GraphBuilder);
 
 		InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 
@@ -2522,7 +2520,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	PrepareDistanceFieldScene(GraphBuilder, false);
+	PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
+	ExternalAccessQueue.Submit(GraphBuilder);
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const EShaderPlatform Platform = GetViewFamilyInfo(Views).GetShaderPlatform();

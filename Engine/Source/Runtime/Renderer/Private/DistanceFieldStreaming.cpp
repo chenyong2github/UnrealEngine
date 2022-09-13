@@ -852,7 +852,7 @@ void FDistanceFieldSceneData::ProcessReadRequests(
 	AssetDataUploads.Append(DistanceFieldAssetMipAdds);
 }
 
-void FDistanceFieldSceneData::ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap)
+FRDGTexture* FDistanceFieldSceneData::ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap)
 {
 	// Mask should be set in FSceneRenderer::PrepareDistanceFieldScene before calling this
 	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
@@ -903,7 +903,10 @@ void FDistanceFieldSceneData::ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder
 
 		BrickTextureDimensionsInBricks = DesiredBrickTextureDimensionsInBricks;
 		DistanceFieldBrickVolumeTexture = GraphBuilder.ConvertToExternalTexture(DistanceFieldBrickVolumeTextureRDG);
+		return DistanceFieldBrickVolumeTextureRDG;
 	}
+
+	return GraphBuilder.RegisterExternalTexture(DistanceFieldBrickVolumeTexture);
 }
 
 static FIntVector CalculateDesiredSize(FIntVector CurrentSize, FIntVector RequiredSize)
@@ -1277,7 +1280,8 @@ void FDistanceFieldSceneData::UploadAllAssetData(FRDGBuilder& GraphBuilder, FRDG
 }
 
 void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
-	FRDGBuilder& GraphBuilder, 
+	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
 	const FViewInfo& View,
 	FScene* Scene,
 	bool bLumenEnabled,
@@ -1293,8 +1297,6 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	check(GraphBuilder.RHICmdList.GetGPUMask() == FRHIGPUMask::All());
 
 	TArray<FDistanceFieldAssetMipId> AssetDataUploads;
-
-	FRDGExternalAccessQueue ExternalAccessQueue;
 
 	for (FSetElementId AssetSetId : DistanceFieldAssetRemoves)
 	{
@@ -1375,7 +1377,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	}
 
 	// Now that DistanceFieldAtlasBlockAllocator has been modified, potentially resize the atlas
-	ResizeBrickAtlasIfNeeded(GraphBuilder, GlobalShaderMap);
+	FRDGTextureRef DistanceFieldBrickVolumeTextureRDG = ResizeBrickAtlasIfNeeded(GraphBuilder, GlobalShaderMap);
 
 	const uint32 NumAssets = AssetStateArray.GetMaxIndex();
 	const int32 AssetDataStrideFloat4s = DistanceField::NumMips * AssetDataMipStrideFloat4s;
@@ -1511,8 +1513,6 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 
 		if (NumBrickUploads > 0)
 		{
-			FRDGTextureRef DistanceFieldBrickVolumeTextureRDG = GraphBuilder.RegisterExternalTexture(DistanceFieldBrickVolumeTexture, TEXT("DistanceFields.DistanceFieldBrickVolumeTexture"));
-
 			// GRHIMaxDispatchThreadGroupsPerDimension can be MAX_int32 so we need to do this math in 64-bit.
 			const int32 MaxBrickUploadsPerPass = (int32)FMath::Min<int64>((int64)GRHIMaxDispatchThreadGroupsPerDimension.Z * FScatterUploadDistanceFieldAtlasCS::GetGroupSize() / DistanceField::BrickSize, MAX_int32);
 
@@ -1537,8 +1537,6 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 					PassParameters,
 					FComputeShaderUtils::GetGroupCount(FIntVector(DistanceField::BrickSize, DistanceField::BrickSize, NumBrickUploadsThisPass * DistanceField::BrickSize), FScatterUploadDistanceFieldAtlasCS::GetGroupSize()));
 			}
-
-			DistanceFieldBrickVolumeTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, DistanceFieldBrickVolumeTextureRDG);
 		}
 	}
 	
@@ -1560,8 +1558,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 		GDistanceFieldAtlasLogStats = 0;
 	}
 
+	ExternalAccessQueue.Add(DistanceFieldBrickVolumeTextureRDG, ERHIAccess::SRVMask, ERHIPipeline::All);
 	ExternalAccessQueue.Add(AssetDataBufferRDG, ERHIAccess::SRVMask, ERHIPipeline::All);
-	ExternalAccessQueue.Submit(GraphBuilder);
 }
 
 void FDistanceFieldSceneData::ListMeshDistanceFields(bool bDumpAssetStats) const

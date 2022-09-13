@@ -1827,6 +1827,7 @@ IMPLEMENT_GLOBAL_SHADER(FGlobalDistanceFieldDebugCS, "/Engine/Private/DistanceFi
  **/
 void UpdateGlobalDistanceFieldVolume(
 	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
 	FViewInfo& View,
 	FScene* Scene,
 	float MaxOcclusionDistance,
@@ -2712,8 +2713,6 @@ void UpdateGlobalDistanceFieldVolume(
 				}
 			}
 
-			FRDGExternalAccessQueue ExternalAccessQueue;
-
 			for (int32 CacheType = StartCacheType; CacheType < GDF_Num; CacheType++)
 			{
 				if (PageTableLayerTextures[CacheType])
@@ -2756,8 +2755,6 @@ void UpdateGlobalDistanceFieldVolume(
 			{
 				GlobalDistanceFieldInfo.MipTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, MipTexture);
 			}
-
-			ExternalAccessQueue.Submit(GraphBuilder);
 		}
 
 		if (CVarGlobalDistanceFieldDebug.GetValueOnRenderThread() != 0 && GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)

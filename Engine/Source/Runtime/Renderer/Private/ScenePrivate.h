@@ -1962,14 +1962,16 @@ public:
 	void ListMeshDistanceFields(bool bDumpAssetStats) const;
 
 	void UpdateDistanceFieldObjectBuffers(
-		FRDGBuilder& GraphBuilder, 
+		FRDGBuilder& GraphBuilder,
+		FRDGExternalAccessQueue& ExternalAccessQueue,
 		FScene* Scene,
 		const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds,
 		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
 		TArray<FSetElementId>& DistanceFieldAssetRemoves);
 
 	void UpdateDistanceFieldAtlas(
-		FRDGBuilder& GraphBuilder, 
+		FRDGBuilder& GraphBuilder,
+		FRDGExternalAccessQueue& ExternalAccessQueue,
 		const FViewInfo& View,
 		FScene* Scene,
 		bool bLumenEnabled,
@@ -2104,7 +2106,7 @@ private:
 		TArray<FDistanceFieldReadRequest>& ReadRequestsToUpload,
 		TArray<FDistanceFieldReadRequest>& ReadRequestsToCleanUp);
 
-	void ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
+	FRDGTexture* ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
 
 	bool ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap, FRDGTexture*& OutTexture);
 
