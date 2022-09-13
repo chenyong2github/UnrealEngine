@@ -419,17 +419,15 @@ FRayTracingLocalShaderBindings* FMeshDrawShaderBindings::SetRayTracingShaderBind
 
 	// Measure parameter memory requirements
 
-	int32 MaxUniformBufferUsed = -1;
+	int32 MaxUniformBufferIndex = -1;
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBufferParameters; UniformBufferIndex++)
 	{
 		FShaderUniformBufferParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
 		const FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
-		MaxUniformBufferUsed = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferUsed);
+		MaxUniformBufferIndex = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferIndex);
 	}
 
-	const uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
-
-	check(NumUniformBuffersToSet == NumUniformBufferParameters);
+	const uint32 NumUniformBuffersToSet = MaxUniformBufferIndex + 1;
 
 	const TMemoryImageArray<FShaderLooseParameterBufferInfo>& LooseParameterBuffers = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers;
 	uint32 LooseParameterDataSize = 0;
@@ -447,6 +445,12 @@ FRayTracingLocalShaderBindings* FMeshDrawShaderBindings::SetRayTracingShaderBind
 			LooseParameterDataSize = FMath::Max<uint32>(LooseParameterDataSize, LooseParameter.BaseIndex + LooseParameter.Size);
 		}
 	}
+
+	checkf(MaxUniformBufferIndex + 1 == NumUniformBufferParameters + LooseParameterBuffers.Num(),
+		TEXT("Highest index of a uniform buffer was %d, but there were %d uniform buffer parameters and %d loose parameters"),
+		MaxUniformBufferIndex,
+		NumUniformBufferParameters,
+		LooseParameterBuffers.Num());
 
 	// Allocate and fill bindings
 
