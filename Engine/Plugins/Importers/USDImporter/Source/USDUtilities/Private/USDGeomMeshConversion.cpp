@@ -1466,7 +1466,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			if ( SoftObjectPath.IsValid() )
 			{
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( "AssetRegistry" );
-				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath( *ValidPackagePath );
+				FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath( SoftObjectPath );
 				if ( AssetData.IsValid() && AssetData.GetClass()->IsChildOf( UMaterialInterface::StaticClass() ) )
 				{
 					return ValidPackagePath;

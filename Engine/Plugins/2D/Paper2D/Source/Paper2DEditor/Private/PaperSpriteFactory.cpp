@@ -70,7 +70,7 @@ UObject* UPaperSpriteFactory::FactoryCreateNew(UClass* Class, UObject* InParent,
 		for (const FString& NameToTest : NamesToTest)
 		{
 			const FString ObjectPathToTest = PackagePath / (NameToTest + FString(TEXT(".")) + NameToTest);
-			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathToTest);
+			FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPathToTest));
 
 			if (AssetData.IsValid())
 			{

@@ -258,7 +258,7 @@ TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FS
 					PreviewActorObjectPath.Reset();
 					if (PreviewActor != nullptr)
 					{
-						PreviewActorObjectPath = AssetData.ObjectPath.ToString();
+						PreviewActorObjectPath = AssetData.GetObjectPathString();
 					}
 
 					SmartObjectViewportClient->SetPreviewActor(PreviewActor);
@@ -289,7 +289,7 @@ TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FS
 					PreviewMeshObjectPath.Reset();
 					if (PreviewMesh != nullptr)
 					{
-						PreviewMeshObjectPath = AssetData.ObjectPath.ToString();
+						PreviewMeshObjectPath = AssetData.GetObjectPathString();
 					}
 
 					FScopedTransaction Transaction(LOCTEXT("SetPreviewMesh", "Set Preview Mesh"));

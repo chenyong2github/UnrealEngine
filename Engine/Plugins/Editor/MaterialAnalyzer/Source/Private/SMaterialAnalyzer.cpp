@@ -47,28 +47,28 @@ const FAssetData* FindParentAssetData(const FAssetData* InAssetData, const TArra
 {
 	check(InAssetData != nullptr);
 	static const FName NAME_Parent = TEXT("Parent");
-	FString ParentPath = InAssetData->GetTagValueRef<FString>(NAME_Parent);
+	FString ParentPathString = InAssetData->GetTagValueRef<FString>(NAME_Parent);
 
 	int32 FirstCut = INDEX_NONE;
-	ParentPath.FindChar(L'\'', FirstCut);
+	ParentPathString.FindChar(L'\'', FirstCut);
 
-	FName ParentPathName = NAME_None;
+	FSoftObjectPath ParentPath;
 
 	if(FirstCut != INDEX_NONE)
 	{
-		ParentPathName = FName(*ParentPath.Mid(FirstCut + 1, ParentPath.Len() - FirstCut - 2));
+		ParentPath = ParentPathString.Mid(FirstCut + 1, ParentPathString.Len() - FirstCut - 2);
 	}
 	else
 	{
-		ParentPathName = FName(*ParentPath);
+		ParentPath = ParentPathString;
 	}
 
-	if(ParentPathName.IsValid() && !ParentPathName.IsNone())
+	if(ParentPath.IsValid())
 	{
 		return ArrayToSearch.FindByPredicate(
 			[&](FAssetData& Entry)
 		{
-			return Entry.ObjectPath == ParentPathName;
+			return Entry.GetSoftObjectPath() == ParentPath;
 		}
 		);
 	}
@@ -248,7 +248,7 @@ void SMaterialAnalyzer::OnAssetSelected(const FAssetData& AssetData)
 		// Add the new tree root
 		FAnalyzedMaterialNodeRef* NewRoot = AllMaterialTreeRoots.FindByPredicate([&](FAnalyzedMaterialNodeRef& Entry)
 		{
-			return Entry->ObjectPath == ParentAssetData->ObjectPath;
+			return Entry->ObjectPath == ParentAssetData->GetSoftObjectPath();
 		});
 		check(NewRoot != nullptr);
 
@@ -545,7 +545,7 @@ int32 SMaterialAnalyzer::GetTotalNumberOfMaterialNodes()
 
 FString SMaterialAnalyzer::GetCurrentAssetPath() const
 {
-	return CurrentlySelectedAsset.IsValid() ? CurrentlySelectedAsset.ObjectPath.ToString() : FString("");
+	return CurrentlySelectedAsset.IsValid() ? CurrentlySelectedAsset.GetObjectPathString() : FString("");
 }
 
 void SMaterialAnalyzer::BuildBasicMaterialTree()
@@ -614,17 +614,17 @@ FAnalyzedMaterialNodePtr FBuildBasicMaterialTreeAsyncTask::FindOrMakeBranchNode(
 	check(ChildData != nullptr);
 	FAnalyzedMaterialNodeRef* OutNode = nullptr;
 
-	FName ChildName = ChildData->ObjectPath;
+	FSoftObjectPath ChildPath = ChildData->GetSoftObjectPath();
 
 	TArray<FAnalyzedMaterialNodeRef>& NodesToSearch = ParentNode.IsValid() ? ParentNode->GetChildNodes() : MaterialTreeRoot;
 
-	OutNode = NodesToSearch.FindByPredicate([&](FAnalyzedMaterialNodeRef& Entry) { return Entry->ObjectPath == ChildName; });
+	OutNode = NodesToSearch.FindByPredicate([&](FAnalyzedMaterialNodeRef& Entry) { return Entry->ObjectPath == ChildPath; });
 
 	if (OutNode == nullptr)
 	{
 		FAnalyzedMaterialNode ChildNode;
 		ChildNode.Path = ChildData->AssetName.ToString();
-		ChildNode.ObjectPath = ChildData->ObjectPath;
+		ChildNode.ObjectPath = ChildData->GetSoftObjectPath();
 		ChildNode.Parent = ParentNode;
 		ChildNode.AssetData = *ChildData;
 		NodesToSearch.Add(FAnalyzedMaterialNodeRef(new FAnalyzedMaterialNode(ChildNode)));
@@ -956,7 +956,7 @@ void FAnalyzeForIdenticalPermutationsAsyncTask::DoWork()
 void FAnalyzeForIdenticalPermutationsAsyncTask::GatherSuggestions()
 {
 	Suggestions.Empty();
-	for (TPair<uint32, TArray<FName>>& IdenticalPermutations : MaterialPermutationHashToMaterialObjectPath)
+	for (TPair<uint32, TArray<FSoftObjectPath>>& IdenticalPermutations : MaterialPermutationHashToMaterialObjectPath)
 	{
 		if (IdenticalPermutations.Value.Num() > 1)
 		{

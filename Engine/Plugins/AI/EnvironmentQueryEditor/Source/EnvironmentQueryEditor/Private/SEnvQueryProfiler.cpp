@@ -217,7 +217,7 @@ static UObject* FindQueryObjectByName(FName StatName)
 		const FString MatchObjectName = FString(".") + AssetPathName;
 		for (int32 Idx = 0; Idx < Assets.Num(); Idx++)
 		{
-			const FString AssetNameStr = Assets[Idx].ObjectPath.ToString();
+			const FString AssetNameStr = Assets[Idx].GetObjectPathString();
 			if (AssetNameStr.EndsWith(MatchObjectName))
 			{
 				QueryOb = Assets[Idx].GetAsset();

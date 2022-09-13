@@ -896,7 +896,7 @@ void UGameplayCueManager::BuildCuesToAddToGlobalSet(const TArray<FAssetData>& As
 			const FString GeneratedClassTag = Data.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
 			if (GeneratedClassTag.IsEmpty())
 			{
-				ABILITY_LOG(Warning, TEXT("Unable to find GeneratedClass value for AssetData %s"), *Data.ObjectPath.ToString());
+				ABILITY_LOG(Warning, TEXT("Unable to find GeneratedClass value for AssetData %s"), *Data.GetObjectPathString());
 				continue;
 			}
 
@@ -1111,7 +1111,7 @@ void UGameplayCueManager::HandleAssetRenamed(const FAssetData& Data, const FStri
 
 				for (UGameplayCueSet* Set : GetGlobalCueSets())
 				{
-					Set->UpdateCueByStringRefs(String + TEXT("_C"), Data.ObjectPath.ToString() + TEXT("_C"));
+					Set->UpdateCueByStringRefs(String + TEXT("_C"), Data.GetObjectPathString() + TEXT("_C"));
 				}
 				OnGameplayCueNotifyAddOrRemove.Broadcast();
 			}

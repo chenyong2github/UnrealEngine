@@ -58,7 +58,7 @@ void UGeometryScriptLibrary_CreateNewAssetFunctions::CreateUniqueNewAssetPathNam
 		UniqueAssetPathAndName = FPaths::Combine(AssetFolderPath, UniqueAssetName);
 
 		// if asset does not exist at this path, we can use it
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*UniqueAssetPathAndName);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(UniqueAssetPathAndName));
 		if (AssetData.IsValid() == false)
 		{
 			Outcome = EGeometryScriptOutcomePins::Success;

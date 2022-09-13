@@ -47,7 +47,7 @@ int32 UStateTreeCompileAllCommandlet::Main(const FString& Params)
 	int32 Counter = 0;
 	for (const FAssetData& Asset : StateTreeAssetList)
 	{
-		const FString ObjectPath = Asset.ObjectPath.ToString();
+		const FString ObjectPath = Asset.GetObjectPathString();
 		UE_LOG(LogStateTreeCompile, Display, TEXT("Loading and Compiling: '%s' [%d/%d]..."), *ObjectPath, Counter+1, StateTreeAssetList.Num());
 
 		UStateTree* StateTree = Cast<UStateTree>(StaticLoadObject(Asset.GetClass(), /*Outer*/nullptr, *ObjectPath, /*FileName*/nullptr, LOAD_NoWarn));

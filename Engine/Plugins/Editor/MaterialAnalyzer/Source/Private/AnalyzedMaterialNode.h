@@ -160,7 +160,7 @@ public:
 	}
 
 	FString Path;
-	FName ObjectPath;
+	FSoftObjectPath ObjectPath;
 	FAnalyzedMaterialNodePtr Parent;
 	FAssetData AssetData;
 

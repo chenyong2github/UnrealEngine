@@ -419,7 +419,7 @@ void PopuplateInAssetData()
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
 	FString SurfaceInstancePath = TEXT("/Game/MSPresets/M_MS_Surface_Material/M_MS_Surface_Material.M_MS_Surface_Material");
-	FAssetData SurfaceInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*SurfaceInstancePath));
+	FAssetData SurfaceInstanceData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(SurfaceInstancePath));
 
 	for (int32 i = 0; i < Types.Num(); i++)
 	{
@@ -495,7 +495,7 @@ void RemoveSphereForAsset()
 {
 	for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->InAssetData.Num(); i++)
 	{
-		if (FBridgeUIManager::BrowserBinding->InAssetData[i].ObjectPath.ToString().Contains("Sphere"))
+		if (FBridgeUIManager::BrowserBinding->InAssetData[i].GetObjectPathString().Contains("Sphere"))
 		{
 			FBridgeUIManager::BrowserBinding->InAssetData.RemoveAt(i);
 			break;
@@ -559,7 +559,7 @@ void UBrowserBinding::DragStarted(TArray<FString> ImageUrls, TArray<FString> IDs
 						// Loop over InAssetData
 						for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->InAssetData.Num(); i++)
 						{
-							if (FBridgeUIManager::BrowserBinding->InAssetData[i].ObjectPath.ToString().Contains(AssetId))
+							if (FBridgeUIManager::BrowserBinding->InAssetData[i].GetObjectPathString().Contains(AssetId))
 							{
 								FBridgeUIManager::BrowserBinding->InAssetData.RemoveAt(i);
 								break;

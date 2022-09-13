@@ -158,7 +158,7 @@ public:
 
 	TArray<FAnalyzedMaterialNodeRef> MaterialQueue;
 
-	TMap<uint32, TArray<FName>> MaterialPermutationHashToMaterialObjectPath;
+	TMap<uint32, TArray<FSoftObjectPath>> MaterialPermutationHashToMaterialObjectPath;
 
 	int32 AssetCount;
 
