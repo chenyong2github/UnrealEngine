@@ -75,7 +75,7 @@ void FNiagaraMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 	}
 
-	const bool bUseManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());
+	const bool bUseManualVertexFetch = SupportsManualVertexFetch(GMaxRHIFeatureLevel);
 	if (!bUseManualVertexFetch)
 	{
 		// only tangent,normal are used by the stream. the binormal is derived in the shader
