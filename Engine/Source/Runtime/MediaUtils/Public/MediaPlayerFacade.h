@@ -24,6 +24,7 @@
 #include "Misc/Guid.h"
 #include "Misc/Optional.h"
 #include "Misc/Timespan.h"
+#include "Misc/Variant.h"
 #include "Templates/Atomic.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
@@ -234,6 +235,15 @@ public:
 	FString GetInfo() const;
 
 	/**
+	 * Get information about the media that is playing.
+	 * 
+	 * @param	InfoName		Name of the information we want.
+	 * @returns					Requested information, or empty if not available.
+	 * @see						UMediaPlayer::GetMediaInfo.
+	 */
+	FVariant GetMediaInfo(FName InfoName) const;
+
+	/**
 	 * Get the human readable name of the currently loaded media source.
 	 *
 	 * @return Media source name, or empty text if no media is opened
@@ -311,11 +321,6 @@ public:
 	 * @see SetRate, SupportsRate
 	 */
 	TRangeSet<float> GetSupportedRates(bool Unthinned = true) const;
-
-	/**
-	 * Get the number of tiles in each frame.
-	 */
-	virtual FIntPoint GetTileNum() const;
 
 	/**
 	 * Get the media's current playback time.

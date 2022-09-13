@@ -9,6 +9,7 @@
 #include "Math/MathFwd.h"
 #include "Misc/Paths.h"
 #include "Misc/Timespan.h"
+#include "Misc/Variant.h"
 
 class FArchive;
 
@@ -182,6 +183,18 @@ public:
 	}
 
 	/**
+	 * Get information about the media that is playing.
+	 *
+	 * @param	InfoName		Name of the information we want.
+	 * @returns					Requested information, or empty if not available.
+	 * @see						UMediaPlayer::GetMediaInfo.
+	 */
+	virtual FVariant GetMediaInfo(FName InfoName) const
+	{
+		return FVariant();
+	}
+
+	/**
 	 * Get the human readable name of the currently loaded media source.
 	 *
 	 * Depending on the type of media source, this might be the name of a file,
@@ -202,14 +215,6 @@ public:
 		}
 
 		return FText::FromString(FPaths::GetBaseFilename(Url));
-	}
-
-	/**
-	 * Get the number of tiles in each frame.
-	 */
-	virtual FIntPoint GetTileNum() const
-	{
-		return FIntPoint::ZeroValue;
 	}
 
 	/**

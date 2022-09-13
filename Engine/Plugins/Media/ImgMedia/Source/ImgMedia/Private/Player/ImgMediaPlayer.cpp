@@ -157,6 +157,24 @@ FString FImgMediaPlayer::GetInfo() const
 }
 
 
+FVariant FImgMediaPlayer::GetMediaInfo(FName InfoName) const
+{
+	FVariant Variant;
+
+	// Source num tiles?
+	if (InfoName == UMediaPlayer::MediaInfoNameSourceNumTiles.Resolve())
+	{
+		if (Loader.IsValid())
+		{
+			FIntPoint TileNum(Loader->GetNumTilesX(), Loader->GetNumTilesY());
+			Variant = TileNum;
+		}
+	}
+
+	return Variant;
+}
+
+
 FGuid FImgMediaPlayer::GetPlayerPluginGUID() const
 {
 	static FGuid PlayerPluginGUID(0x0e4a60c0, 0x2c5947ea, 0xb233562a, 0x57e5761c);
@@ -287,18 +305,6 @@ bool FImgMediaPlayer::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& /*Ar
 	return false; // not supported
 }
 
-FIntPoint FImgMediaPlayer::GetTileNum() const
-{
-	FIntPoint TileNum = FIntPoint::ZeroValue;
-
-	if (Loader.IsValid())
-	{
-		TileNum.X = Loader->GetNumTilesX();
-		TileNum.Y = Loader->GetNumTilesY();
-	}
-	
-	return TileNum;
-}
 
 void FImgMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 {

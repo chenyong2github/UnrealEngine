@@ -148,7 +148,8 @@ void SMediaPlateEditorMediaDetails::UpdateDetails()
 		{
 			FrameRate = MediaPlayer->GetVideoTrackFrameRate(INDEX_NONE, INDEX_NONE);
 			Format = MediaPlayer->GetVideoTrackType(INDEX_NONE, INDEX_NONE);
-			FIntPoint NumTiles = MediaPlayer->GetTileNum();
+			FIntPoint NumTiles(EForceInit::ForceInitToZero);
+			MediaPlayer->GetMediaInfo<FIntPoint>(NumTiles, UMediaPlayer::MediaInfoNameSourceNumTiles.Resolve());
 			NumTotalTiles = NumTiles.X * NumTiles.Y;
 		}
 

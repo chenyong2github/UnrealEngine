@@ -54,6 +54,7 @@ public:
 	virtual IMediaCache& GetCache() override;
 	virtual IMediaControls& GetControls() override;
 	virtual FString GetInfo() const override;
+	virtual FVariant GetMediaInfo(FName InfoName) const override;
 	virtual FGuid GetPlayerPluginGUID() const override;
 	virtual IMediaSamples& GetSamples() override;
 	virtual FString GetStats() const override;
@@ -62,7 +63,6 @@ public:
 	virtual IMediaView& GetView() override;
 	virtual bool Open(const FString& Url, const IMediaOptions* Options) override;
 	virtual bool Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archive, const FString& OriginalUrl, const IMediaOptions* Options) override;
-	virtual FIntPoint GetTileNum() const override;
 	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
 	virtual bool FlushOnSeekStarted() const;
 	virtual bool FlushOnSeekCompleted() const;

@@ -351,7 +351,8 @@ void FMediaThumbnailSection::DrawMediaInfo(FSequencerSectionPainter& InPainter,
 {
 	// Get tile info.
 	FString TileString;
-	FIntPoint TileNum = MediaPlayer->GetTileNum();
+	FIntPoint TileNum(EForceInit::ForceInitToZero);
+	MediaPlayer->GetMediaInfo<FIntPoint>(TileNum, UMediaPlayer::MediaInfoNameSourceNumTiles.Resolve());
 	int32 TileTotalNum = TileNum.X * TileNum.Y;
 	if (TileTotalNum > 1)
 	{
