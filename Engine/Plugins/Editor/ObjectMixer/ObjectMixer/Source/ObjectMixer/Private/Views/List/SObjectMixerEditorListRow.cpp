@@ -62,13 +62,15 @@ void SObjectMixerEditorListRow::Construct(
 
 TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
+	check(Item.IsValid());
+
 	const FObjectMixerEditorListRowPtr PinnedItem =
 		HybridRowIndex != INDEX_NONE ? Item.Pin()->GetChildRows()[HybridRowIndex] : Item.Pin();
 
 	if (const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, PinnedItem))
 	{
 		if (InColumnName == SObjectMixerEditorList::ItemNameColumnName)
-		{
+		{			
 			// The first column gets the tree expansion arrow for this row
 			return SNew(SBox)
 				.MinDesiredHeight(20)
@@ -295,7 +297,11 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 {
 	check(PinnedItem.IsValid());
 	
-	const bool bIsRowTypeNone = PinnedItem->GetRowType() == FObjectMixerEditorListRow::None;
+	if (PinnedItem->GetRowType() == FObjectMixerEditorListRow::None)
+	{
+		return SNullWidget::NullWidget;
+	}
+	
 	const bool bIsHybridRow = HybridRowIndex != INDEX_NONE;
 	
 	if (InColumnName.IsEqual(SObjectMixerEditorList::ItemNameColumnName))
@@ -314,7 +320,8 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 		];
 
 		bool bNeedsStandardTextBlock = true;
-		const FText DisplayName = PinnedItem->GetDisplayName();
+		const FText DisplayName = PinnedItem->GetDisplayName(bIsHybridRow);
+		
 		if (TObjectPtr<UObject> Object = PinnedItem->GetObject())
 		{
 			if (UClass* ActorClass = Object->GetClass())
@@ -340,6 +347,16 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 
 		if (bNeedsStandardTextBlock)
 		{
+			FText TooltipText = DisplayName;
+
+			if (const UObjectMixerObjectFilter* Filter = PinnedItem->GetObjectFilter())
+			{
+				if (const TObjectPtr<UObject> Object = PinnedItem->GetObject())
+				{
+					TooltipText = Filter->GetRowTooltipText(Object, bIsHybridRow);
+				}
+			}
+			
 			HBox->AddSlot()
 			.Padding(FMargin(10.0, 0, 0, 0))
 			[
@@ -347,7 +364,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 				.Visibility(EVisibility::Visible)
 				.Justification(ETextJustify::Left)
 				.Text(DisplayName)
-				.ToolTipText(DisplayName)
+				.ToolTipText(TooltipText)
 			];
 		}
 		

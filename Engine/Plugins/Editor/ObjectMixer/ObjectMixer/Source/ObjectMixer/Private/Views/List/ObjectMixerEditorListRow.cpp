@@ -218,7 +218,7 @@ bool FObjectMixerEditorListRow::MatchSearchTokensToSearchTerms(
 		{			
 			if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 			{
-				CachedSearchTerms += Filter->GetRowDisplayName(Object, GetTreeViewMode()).ToString();
+				CachedSearchTerms += Filter->GetRowDisplayName(Object).ToString();
 			}
 		}
 	}
@@ -333,7 +333,7 @@ bool FObjectMixerEditorListRow::HasVisibleChildRowWidgets() const
 	return false;
 }
 
-FText FObjectMixerEditorListRow::GetDisplayName()
+FText FObjectMixerEditorListRow::GetDisplayName(const bool bIsHybridRow) const
 {
 	if (!GetDisplayNameOverride().IsEmpty())
 	{
@@ -344,7 +344,7 @@ FText FObjectMixerEditorListRow::GetDisplayName()
 	{
 		if (const TObjectPtr<UObject> Object = GetObject())
 		{
-			return Filter->GetRowDisplayName(Object, GetTreeViewMode());
+			return Filter->GetRowDisplayName(Object, bIsHybridRow);
 		}
 	}
 
@@ -427,7 +427,7 @@ bool FObjectMixerEditorListRow::GetObjectVisibility()
 	
 	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 	{
-		return Filter->GetRowEditorVisibility(GetObject(), GetTreeViewMode());
+		return Filter->GetRowEditorVisibility(GetObject());
 	}
 
 	return false;
@@ -437,7 +437,7 @@ void FObjectMixerEditorListRow::SetObjectVisibility(const bool bNewIsVisible, co
 {
 	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 	{
-		Filter->OnSetRowEditorVisibility(GetObject(), bNewIsVisible, GetTreeViewMode());
+		Filter->OnSetRowEditorVisibility(GetObject(), bNewIsVisible);
 
 		if (bIsRecursive)
 		{

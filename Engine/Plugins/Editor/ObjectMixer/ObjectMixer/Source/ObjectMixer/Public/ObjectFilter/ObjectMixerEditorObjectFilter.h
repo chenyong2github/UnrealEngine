@@ -59,29 +59,30 @@ public:
 	/**
 	 * Get the text to display for the object name/label.
 	 * This is useful if one of your classes is a component type and you want the label of the component's owning actor, for example.
-	 * If not overridden, this returns the object's name.
-	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy).
+	 * If not overridden, this returns the actor's label if it's an actor and the object's name for all other objects.
+	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent.
 	 */
-	virtual FText GetRowDisplayName(
-		UObject* InObject, EObjectMixerTreeViewMode InViewMode) const;
+	virtual FText GetRowDisplayName(UObject* InObject, const bool bIsHybridRow = false) const;
+
+	/**
+	 * Get the text to display for the row's tooltip when hovering over it.
+	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent. (unused)
+	 */
+	virtual FText GetRowTooltipText(UObject* InObject, const bool bIsHybridRow = false) const;
 
 	/**
 	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
-	virtual bool GetRowEditorVisibility(
-		UObject* InObject, EObjectMixerTreeViewMode InViewMode) const;
+	virtual bool GetRowEditorVisibility(UObject* InObject) const;
 
 	/**
 	 * Controls what happens when the row's visibility icon is clicked.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we set the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
-	virtual void OnSetRowEditorVisibility(
-		UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const;
+	virtual void OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const;
 
 	/**
 	 * Specify a list of property names corresponding to columns you want to show by default.
@@ -185,46 +186,53 @@ public:
 	/**
 	 * Get the text to display for the object name/label.
 	 * This is useful if one of your classes is a component type and you want the label of the component's owning actor, for example.
-	 * If not overridden, this returns the object's name.
-	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy).
+	 * If not overridden, this returns the actor's label if it's an actor and the object's name for all other objects.
+	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	FText GetRowDisplayName(
-		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::Folders) const override;
+	FText GetRowDisplayName(UObject* InObject, const bool bIsHybridRow) const override;
 	
-	FText GetRowDisplayName_Implementation(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
+	FText GetRowDisplayName_Implementation(UObject* InObject, const bool bIsHybridRow) const
 	{
-		return Super::GetRowDisplayName(InObject, InViewMode);
+		return Super::GetRowDisplayName(InObject, bIsHybridRow);
+	}
+
+	/**
+	 * Get the text to display for the row's tooltip when hovering over it.
+	 * @param bIsHybridRow If true, this row represents a single matching component condensed into a single row with its actor parent. (unused)
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
+	FText GetRowTooltipText(UObject* InObject, const bool bIsHybridRow) const override;
+	
+	FText GetRowTooltipText_Implementation(UObject* InObject, const bool bIsHybridRow) const
+	{
+		return Super::GetRowTooltipText(InObject, bIsHybridRow);
 	}
 	
 	/**
 	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	bool GetRowEditorVisibility(
-		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::Folders) const override;
+	bool GetRowEditorVisibility(UObject* InObject) const override;
 
-	bool GetRowEditorVisibility_Implementation(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
+	bool GetRowEditorVisibility_Implementation(UObject* InObject) const
 	{
-		return Super::GetRowEditorVisibility(InObject, InViewMode);
+		return Super::GetRowEditorVisibility(InObject);
 	}
 	
 	/**
 	 * Controls what happens when the row's visibility icon is clicked.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we set the Editor Visibility of the object's AActor outer (unless it's an actor itself).
-	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	void OnSetRowEditorVisibility(
-		UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::Folders) const override;
+	void OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const override;
 
-	void OnSetRowEditorVisibility_Implementation(UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const
+	void OnSetRowEditorVisibility_Implementation(UObject* InObject, bool bNewIsVisible) const
 	{
-		return Super::OnSetRowEditorVisibility(InObject, bNewIsVisible, InViewMode);
+		return Super::OnSetRowEditorVisibility(InObject, bNewIsVisible);
 	}
 	
 	/**

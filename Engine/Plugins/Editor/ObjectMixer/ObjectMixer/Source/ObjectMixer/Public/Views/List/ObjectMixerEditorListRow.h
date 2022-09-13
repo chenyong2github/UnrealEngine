@@ -132,7 +132,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	[[nodiscard]] bool HasVisibleChildRowWidgets() const;
 
-	[[nodiscard]] FText GetDisplayName();
+	[[nodiscard]] FText GetDisplayName(const bool bIsHybridRow = false) const;
 
 	[[nodiscard]] const FText& GetDisplayNameOverride() const
 	{

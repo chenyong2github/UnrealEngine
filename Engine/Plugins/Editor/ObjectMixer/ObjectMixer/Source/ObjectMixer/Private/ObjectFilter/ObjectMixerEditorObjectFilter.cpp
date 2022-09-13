@@ -5,23 +5,53 @@
 #include "GameFramework/Actor.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
-FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
+FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, const bool bIsHybridRow) const
 {
 	if (IsValid(InObject))
 	{
-		if (InViewMode == EObjectMixerTreeViewMode::NoFolders || InViewMode == EObjectMixerTreeViewMode::Folders)
-		{
-			if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
-			{
-				return FText::Format(INVTEXT("{0} ({1})"), FText::FromString(Outer->GetActorLabel()), FText::FromString(InObject->GetName()));
-			}
-		}
-
 		if (const AActor* AsActor = Cast<AActor>(InObject))
 		{
 			return FText::FromString(AsActor->GetActorLabel());
 		}
-		else if (const UActorComponent* AsActorComponent = Cast<UActorComponent>(InObject))
+
+		if (bIsHybridRow)
+		{
+			if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
+			{
+				return FText::FromString(Outer->GetActorLabel());
+			}
+		}
+		
+		if (const UActorComponent* AsActorComponent = Cast<UActorComponent>(InObject))
+		{
+			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(AsActorComponent);
+			if (ComponentName != NAME_None)
+			{
+				return FText::FromName(ComponentName);
+			}
+		}
+		
+		return FText::FromString(InObject->GetName());
+	}
+
+	return FText::GetEmpty();
+}
+
+FText UObjectMixerObjectFilter::GetRowTooltipText(UObject* InObject, const bool bIsHybridRow) const
+{
+	if (IsValid(InObject))
+	{
+		if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
+		{
+			return FText::Format(INVTEXT("{0} ({1})"), FText::FromString(Outer->GetActorLabel()), FText::FromString(InObject->GetName()));
+		}
+		
+		if (const AActor* AsActor = Cast<AActor>(InObject))
+		{
+			return FText::FromString(AsActor->GetActorLabel());
+		}
+		
+		if (const UActorComponent* AsActorComponent = Cast<UActorComponent>(InObject))
 		{
 			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(AsActorComponent);
 			if (ComponentName != NAME_None)
@@ -45,7 +75,7 @@ FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, EObjectMixe
 	return FText::GetEmpty();
 }
 
-bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
+bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject) const
 {
 	if (IsValid(InObject))
 	{
@@ -62,7 +92,7 @@ bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject, EObject
 	return false;
 }
 
-void UObjectMixerObjectFilter::OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const
+void UObjectMixerObjectFilter::OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const
 {
 	if (IsValid(InObject))
 	{
