@@ -32,7 +32,5 @@ namespace UE::MultiUserServer
 		
 		TSharedPtr<IPackageTransmissionEntrySource> PackageEntrySource;
 		TAttribute<uint32> TotalUnfilteredNum;
-		
-		TSharedRef<SWidget> MakeViewOptionsMenuWidget(FExtendContextMenu ExtendViewOptions);
 	};
 }

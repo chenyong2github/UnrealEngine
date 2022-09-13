@@ -46,6 +46,86 @@ namespace UE::ConcertSharedSlate
 			);
 	}
 
+	TSharedRef<SWidget> MakeTableContextMenu(const TSharedRef<SHeaderRow>& HeaderRow, TMap<FName, bool> ColumnsVisibleByDefault, bool bDefaultVisibility)
+	{
+		FMenuBuilder MenuBuilder(true, nullptr);
+		AddDefaultControlEntries(HeaderRow, MenuBuilder, ColumnsVisibleByDefault, bDefaultVisibility);
+		MenuBuilder.AddSeparator();
+		AddEntriesForShowingHiddenRows(HeaderRow, MenuBuilder);
+		return MenuBuilder.MakeWidget();
+	}
+
+	void AddDefaultControlEntries(const TSharedRef<SHeaderRow>& HeaderRow, FMenuBuilder& MenuBuilder, TMap<FName, bool> ColumnsVisibleByDefault, bool bDefaultVisibility)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SelectAll", "Show all"),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([WeakHeaderRow = TWeakPtr<SHeaderRow>(HeaderRow)]()
+				{
+					const TSharedPtr<SHeaderRow> HeaderRowPin = WeakHeaderRow.Pin();
+					if (!ensure(HeaderRowPin))
+					{
+						return;
+					}
+					
+					for (const SHeaderRow::FColumn& Column : HeaderRowPin->GetColumns())
+					{
+						HeaderRowPin->SetShowGeneratedColumn(Column.ColumnId, true);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([] { return true; })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("HideAll", "Hide all"),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([WeakHeaderRow = TWeakPtr<SHeaderRow>(HeaderRow)]()
+				{
+					const TSharedPtr<SHeaderRow> HeaderRowPin = WeakHeaderRow.Pin();
+					if (!ensure(HeaderRowPin))
+					{
+						return;
+					}
+					
+					for (const SHeaderRow::FColumn& Column : HeaderRowPin->GetColumns())
+					{
+						HeaderRowPin->SetShowGeneratedColumn(Column.ColumnId, false);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([] { return true; })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RestoreDefaultColumnVisibility", "Restore column visibility"),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([WeakHeaderRow = TWeakPtr<SHeaderRow>(HeaderRow), ColumnsVisibleByDefault, bDefaultVisibility]
+				{
+					const TSharedPtr<SHeaderRow> HeaderRowPin = WeakHeaderRow.Pin();
+					if (!ensure(HeaderRowPin))
+					{
+						return;
+					}
+					
+					for (const SHeaderRow::FColumn& Column : HeaderRowPin->GetColumns())
+					{
+						const bool* IsVisible = ColumnsVisibleByDefault.Find(Column.ColumnId);
+						HeaderRowPin->SetShowGeneratedColumn(Column.ColumnId, IsVisible ? *IsVisible : bDefaultVisibility);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([] { return true; })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+
 	void AddEntriesForShowingHiddenRows(const TSharedRef<SHeaderRow>& HeaderRow, FMenuBuilder& MenuBuilder)
 	{
 		for (int32 ColumnIndex = 0; ColumnIndex < HeaderRow->GetColumns().Num(); ++ColumnIndex)

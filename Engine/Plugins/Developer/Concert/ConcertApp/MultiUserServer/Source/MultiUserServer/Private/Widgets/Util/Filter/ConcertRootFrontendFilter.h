@@ -12,6 +12,15 @@
 
 namespace UE::MultiUserServer
 {
+	struct FFilterWidgetArgs
+	{
+		TSharedPtr<SWidget> _RightOfSearchBar;
+		FMargin _RightOfSearchBarPadding{ 4.f, 0.f, 4.f, 0.f };
+
+		FFilterWidgetArgs& RightOfSearchBar(TSharedPtr<SWidget> Widget) { _RightOfSearchBar = Widget; return *this; }
+		FFilterWidgetArgs& RightOfSearchBarPadding(FMargin Widget) { _RightOfSearchBarPadding = Widget; return *this; }
+	};
+	
 	/** A filter that contains multiple UI filters */
 	template<typename TFilterType, typename TTextSearchFilterType>
 	class TConcertFrontendRootFilter 
@@ -50,16 +59,17 @@ namespace UE::MultiUserServer
 				Filter->OnChanged().AddRaw(this, &TConcertFrontendRootFilter<TFilterType, TTextSearchFilterType>::BroadcastOnChanged);
 			}
 		}
-
+		
 		/** Builds the widget view for all contained filters */
-		TSharedRef<SWidget> BuildFilterWidgets()
+		TSharedRef<SWidget> BuildFilterWidgets(const FFilterWidgetArgs& InArgs = {})
 		{
-			return SNew(SVerticalBox)
+			TSharedPtr<SHorizontalBox> TopRow;
+			const TSharedRef<SVerticalBox> Result = SNew(SVerticalBox)
 
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
+					SAssignNew(TopRow, SHorizontalBox)
 
 					// Filter button
 					+SHorizontalBox::Slot()
@@ -81,8 +91,19 @@ namespace UE::MultiUserServer
 				.AutoHeight()
 				[
 					FilterBar.ToSharedRef()
-				]
-			;
+				];
+
+			if (InArgs._RightOfSearchBar)
+			{
+				TopRow->AddSlot()
+				.AutoWidth()
+				.Padding(InArgs._RightOfSearchBarPadding)
+				[
+					InArgs._RightOfSearchBar.ToSharedRef()
+				];
+			}
+			
+			return Result;
 		}
 	
 		//~ Begin IFilter Interface

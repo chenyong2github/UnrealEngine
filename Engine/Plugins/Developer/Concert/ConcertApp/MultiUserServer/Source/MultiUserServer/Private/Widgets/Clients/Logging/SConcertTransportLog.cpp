@@ -57,7 +57,16 @@ namespace UE::MultiUserServer
 					.AutoHeight()
 					.VAlign(VAlign_Top)
 					[
-						InArgs._Filter ? InArgs._Filter->BuildFilterWidgets() : SNullWidget::NullWidget
+						InArgs._Filter
+							? InArgs._Filter->BuildFilterWidgets
+							(
+								FFilterWidgetArgs()
+								.RightOfSearchBar
+								(
+									CreateViewOptionsButton()
+								)
+							)
+							: SNullWidget::NullWidget
 					]
 
 					+SVerticalBox::Slot()
@@ -71,7 +80,6 @@ namespace UE::MultiUserServer
 					.AutoHeight()
 					[
 						SNew(SConcertTransportLogFooter, PagedLogList.ToSharedRef())
-						.ExtendViewOptions(this, &SConcertTransportLog::ExtendViewOptions)
 					]
 				]
 			]
@@ -105,13 +113,29 @@ namespace UE::MultiUserServer
 		ScrollToLog(Index);
 	}
 
+	TSharedRef<SWidget> SConcertTransportLog::CreateViewOptionsButton()
+	{
+		return SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon")
+			.OnGetMenuContent(this, &SConcertTransportLog::CreateViewOptionsMenu)
+			.HasDownArrow(false)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+			];
+	}
+
 	TSharedRef<SWidget> SConcertTransportLog::CreateTableView()
 	{
+		CreateHeaderRow();
 		return SAssignNew(LogView, SListView<TSharedPtr<FConcertLogEntry>>)
 			.ListItemsSource(&PagedLogList->GetPageView())
 			.OnGenerateRow(this, &SConcertTransportLog::OnGenerateActivityRowWidget)
+			.OnContextMenuOpening_Lambda([this](){ return ConcertSharedSlate::MakeTableContextMenu(HeaderRow.ToSharedRef(), GetDefaultColumnVisibilities(), true); })
 			.SelectionMode(ESelectionMode::Multi)
-			.HeaderRow(CreateHeaderRow());
+			.HeaderRow(HeaderRow);
 	}
 
 	TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
@@ -165,12 +189,7 @@ namespace UE::MultiUserServer
 			SHeaderRow::FColumn::FArguments Args = SHeaderRow::FColumn::FArguments()
 				.ColumnId(ColumnId)
 				.DefaultLabel(FText::FromString(PropertyName))
-				.HAlignCell(HAlign_Center)
-				// Add option to hide
-				.OnGetMenuContent_Lambda([this, ColumnId]()
-				{
-					return UE::ConcertSharedSlate::MakeHideColumnContextMenu(HeaderRow.ToSharedRef(), ColumnId);
-				});
+				.HAlignCell(HAlign_Center);
 			
 			if (const float* ManualSize = ManuallySizeColumns.Find(ColumnId))
 			{
@@ -220,22 +239,30 @@ namespace UE::MultiUserServer
 
 	void SConcertTransportLog::RestoreDefaultColumnVisiblities()
 	{
-		ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+		const TMap<FName, bool> DefaultVisibilities = GetDefaultColumnVisibilities();
+		ForEachPropertyColumn([this, &DefaultVisibilities](const FProperty& Property, FName ColumnId)
 		{
-			const TSet<FName> HiddenByDefault = {
-				GET_MEMBER_NAME_CHECKED(FConcertLog, Frame),
-				GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId),
-				GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex),
-				GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId),
-				GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadTypename),
-				GET_MEMBER_NAME_CHECKED(FConcertLog, StringPayload)
-			};
-			HeaderRow->SetShowGeneratedColumn(ColumnId, !HiddenByDefault.Contains(ColumnId));
+			const bool* Visibility = DefaultVisibilities.Find(ColumnId);
+			HeaderRow->SetShowGeneratedColumn(ColumnId, Visibility ? *Visibility : true);
 		});
 	}
 
-	void SConcertTransportLog::ExtendViewOptions(FMenuBuilder& MenuBuilder)
+	TMap<FName, bool> SConcertTransportLog::GetDefaultColumnVisibilities() const
 	{
+		return {
+			{ GET_MEMBER_NAME_CHECKED(FConcertLog, Frame), false },
+			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId), false },
+			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex), false },
+			{ GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId), false },
+			{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadTypename), false },
+			{ GET_MEMBER_NAME_CHECKED(FConcertLog, StringPayload), false}
+		};
+	}
+
+	TSharedRef<SWidget> SConcertTransportLog::CreateViewOptionsMenu()
+	{
+		FMenuBuilder MenuBuilder(true, nullptr);
+		
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScroll", "Auto Scroll"),
 			LOCTEXT("AutoScroll_Tooltip", "Automatically scroll as new logs arrive (affects last page)"),
@@ -266,51 +293,7 @@ namespace UE::MultiUserServer
 				EUserInterfaceActionType::ToggleButton
 			);
 
-		MenuBuilder.AddSeparator();
-		MenuBuilder.AddMenuEntry(
-				LOCTEXT("SelectAll", "Show all"),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda([this]()
-					{
-						ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
-						{
-							HeaderRow->SetShowGeneratedColumn(ColumnId, true);
-						});
-					}),
-					FCanExecuteAction::CreateLambda([] { return true; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		MenuBuilder.AddMenuEntry(
-				LOCTEXT("HideAll", "Hide all"),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda([this]()
-					{
-						ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
-						{
-							HeaderRow->SetShowGeneratedColumn(ColumnId, false);
-						});
-					}),
-					FCanExecuteAction::CreateLambda([] { return true; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		MenuBuilder.AddMenuEntry(
-				LOCTEXT("RestoreDefaultColumnVisibility", "Restore columns visibility"),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SConcertTransportLog::RestoreDefaultColumnVisiblities),
-					FCanExecuteAction::CreateLambda([] { return true; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		MenuBuilder.AddSeparator();
-		UE::ConcertSharedSlate::AddEntriesForShowingHiddenRows(HeaderRow.ToSharedRef(), MenuBuilder);
+		return MenuBuilder.MakeWidget();
 	}
 
 	void SConcertTransportLog::OnFilterMenuChecked()
@@ -345,7 +328,7 @@ namespace UE::MultiUserServer
 	void SConcertTransportLog::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
 	{
 		TGuardValue<bool> GuardValue(bIsUpdatingColumnVisibility, true);
-		UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), ColumnSnapshot);
+		ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), ColumnSnapshot);
 	}
 
 	void SConcertTransportLog::OnConcertLoggingEnabledChanged(bool bNewEnabled)

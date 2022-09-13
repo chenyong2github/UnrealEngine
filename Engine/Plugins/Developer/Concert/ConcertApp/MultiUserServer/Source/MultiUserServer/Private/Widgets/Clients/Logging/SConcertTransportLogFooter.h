@@ -20,12 +20,10 @@ namespace UE::MultiUserServer
 	public:
 	
 		DECLARE_DELEGATE_OneParam(FExtendContextMenu, FMenuBuilder&)
+			SLATE_BEGIN_ARGS(SConcertTransportLogFooter) {}
+		SLATE_END_ARGS()
 
-		SLATE_BEGIN_ARGS(SConcertTransportLogFooter) {}
-		SLATE_EVENT(FExtendContextMenu, ExtendViewOptions)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, TSharedRef<FPagedFilteredConcertLogList> InPagedLogList);
+		void Construct(const FArguments& InArgs, TSharedRef<FPagedFilteredConcertLogList> InPagedLogList);
 
 	private:
 
@@ -36,7 +34,5 @@ namespace UE::MultiUserServer
 		TSharedPtr<SSpinBox<FPagedFilteredConcertLogList::FPageCount>> CurrentPage;
 		/** Displays the number of pages */
 		TSharedPtr<STextBlock> PageCounterText;
-
-		TSharedRef<SWidget> MakeViewOptionsMenuWidget(FExtendContextMenu ExtendViewOptions);
 	};
 }

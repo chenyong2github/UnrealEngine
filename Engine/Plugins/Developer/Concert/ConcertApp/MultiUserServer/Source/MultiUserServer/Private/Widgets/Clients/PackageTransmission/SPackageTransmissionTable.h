@@ -36,6 +36,8 @@ namespace UE::MultiUserServer
 
 		void Construct(const FArguments& InArgs, TSharedRef<IPackageTransmissionEntrySource> InPackageEntrySource, TSharedRef<FPackageTransmissionEntryTokenizer> InTokenizer);
 		virtual ~SPackageTransmissionTable() override;
+
+		TSharedRef<SWidget> CreateViewOptionsButton();
 		
 	private:
 
@@ -57,8 +59,8 @@ namespace UE::MultiUserServer
 		TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FPackageTransmissionEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 		
 		void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
-		void ExtendViewOptions(FMenuBuilder& MenuBuilder);
-		void RestoreDefaultColumnVisibilities(); 
+		void RestoreDefaultColumnVisibilities() const;
+		TMap<FName, bool> GetDefaultColumnVisibilities() const;
 		
 		void OnPackageEntriesModified(const TSet<FPackageTransmissionId>& Set) const;
 		void OnPackageArrayChanged(uint32 NumAdded) const;

@@ -16,7 +16,8 @@ namespace UE::MultiUserServer
 
 	FString FPackageTransmissionEntryTokenizer::TokenizeTime(const FPackageTransmissionEntry& Entry) const
 	{
-		return ConcertFrontendUtils::FormatTime(Entry.LocalStartTime, UMultiUserServerPackageTransmissionSettings::GetSettings()->TimestampTimeFormat).ToString();
+		const FDateTime LocalNow = FDateTime::Now();
+		return ConcertFrontendUtils::FormatTime(Entry.LocalStartTime, UMultiUserServerPackageTransmissionSettings::GetSettings()->TimestampTimeFormat, &LocalNow).ToString();
 	}
 
 	FString FPackageTransmissionEntryTokenizer::TokenizeOrigin(const FPackageTransmissionEntry& Entry) const

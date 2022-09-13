@@ -139,10 +139,10 @@ namespace ConcertFrontendUtils
 		return LOCTEXT("Now", "Now");
 	}
 
-	static FText FormatTime(const FDateTime& Time, ETimeFormat TimeFormat)
+	static FText FormatTime(const FDateTime& Time, ETimeFormat TimeFormat, const FDateTime* CurrTime = nullptr)
 	{
 		return TimeFormat == ETimeFormat::Relative
-			? FormatRelativeTime(Time)
+			? FormatRelativeTime(Time, CurrTime)
 			: FText::AsDateTime(Time);
 	}
 };

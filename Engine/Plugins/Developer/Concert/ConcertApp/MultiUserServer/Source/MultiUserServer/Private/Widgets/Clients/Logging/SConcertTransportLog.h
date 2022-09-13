@@ -74,6 +74,7 @@ namespace UE::MultiUserServer
 		bool bIsUpdatingColumnVisibility = false;
 
 		// Table view creation
+		TSharedRef<SWidget> CreateViewOptionsButton();
 		TSharedRef<SWidget> CreateTableView();
 		TSharedRef<SHeaderRow> CreateHeaderRow();
 		TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
@@ -81,7 +82,9 @@ namespace UE::MultiUserServer
 		static void ForEachPropertyColumn(TFunctionRef<void(const FProperty& ColumnPropertyId, FName ColumnId)> Callback);
 
 		void RestoreDefaultColumnVisiblities();
-		void ExtendViewOptions(FMenuBuilder& MenuBuilder);
+		TMap<FName, bool> GetDefaultColumnVisibilities() const;
+		
+		TSharedRef<SWidget> CreateViewOptionsMenu();
 		void OnFilterMenuChecked();
 		void OnPageViewChanged(const TArray<TSharedPtr<FConcertLogEntry>>&);
 		void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);

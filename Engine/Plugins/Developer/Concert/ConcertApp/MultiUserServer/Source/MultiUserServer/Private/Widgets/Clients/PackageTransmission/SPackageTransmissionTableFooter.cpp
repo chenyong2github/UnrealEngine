@@ -4,10 +4,6 @@
 
 #include "Model/IPackageTransmissionEntrySource.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -48,43 +44,7 @@ namespace UE::MultiUserServer
 			[
 				SNew(SSpacer)
 			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(SComboButton)
-					.OnGetMenuContent(this, &SPackageTransmissionTableFooter::MakeViewOptionsMenuWidget, InArgs._ExtendViewOptions)
-					.HasDownArrow(true)
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.Visible")) // The eye ball image.
-						]
-
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(2, 0, 0, 0)
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock).Text(LOCTEXT("ViewOptions", "View Options"))
-						]
-					]
-			]
 		];
-	}
-
-	TSharedRef<SWidget> SPackageTransmissionTableFooter::MakeViewOptionsMenuWidget(FExtendContextMenu ExtendViewOptions)
-	{
-		FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
-
-		ExtendViewOptions.Execute(MenuBuilder);
-		return MenuBuilder.MakeWidget();
 	}
 }
 

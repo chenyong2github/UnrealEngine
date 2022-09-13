@@ -38,5 +38,8 @@ namespace UE::MultiUserServer
 		
 		FCanScrollToLog CanScrollToLogDelegate;
 		FScrollToLog ScrollToLogDelegate;
+		
+		TSharedRef<SWidget> CreateOptionsButton();
+		TSharedRef<SWidget> CreateOptionsButtonMenu();
 	};
 }

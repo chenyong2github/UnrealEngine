@@ -10,6 +10,8 @@
 #include "SPackageTransmissionTableRow.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Settings/MultiUserServerPackageTransmissionSettings.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
@@ -42,7 +44,6 @@ namespace UE::MultiUserServer
 			.AutoHeight()
 			[
 				SNew(SPackageTransmissionTableFooter, PackageEntrySource.ToSharedRef())
-				.ExtendViewOptions(this, &SPackageTransmissionTable::ExtendViewOptions)
 				.TotalUnfilteredNum(InArgs._TotalUnfilteredNum)
 			]
 		];
@@ -61,13 +62,70 @@ namespace UE::MultiUserServer
 		PackageEntrySource->OnPackageEntriesAdded().RemoveAll(this);
 	}
 
+	TSharedRef<SWidget> SPackageTransmissionTable::CreateViewOptionsButton()
+	{
+		return SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon")
+			.OnGetMenuContent_Lambda([this]()
+			{
+				FMenuBuilder MenuBuilder(true, nullptr);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("DisplayTimestampInRelativeTime", "Display Relative Time"),
+					TAttribute<FText>::CreateLambda([this]()
+					{
+						const bool bIsVisible = HeaderRow->IsColumnVisible(SPackageTransmissionTableRow::TimeColumn);
+						return bIsVisible
+							? LOCTEXT("DisplayTimestampInRelativeTime.Tooltip.Visible", "Display the Last Modified column in relative time?")
+							: LOCTEXT("DisplayTimestampInRelativeTime.Tooltip.Hidden", "Disabled because the Timestamp column is hidden.");
+					}),
+					FSlateIcon(),
+					FUIAction(
+					FExecuteAction::CreateLambda([]()
+						{
+							UMultiUserServerPackageTransmissionSettings* Settings = UMultiUserServerPackageTransmissionSettings::GetSettings();
+				
+							switch (Settings->TimestampTimeFormat)
+							{
+							case ETimeFormat::Relative:
+								Settings->TimestampTimeFormat = ETimeFormat::Absolute;
+								break;
+							case ETimeFormat::Absolute: 
+								Settings->TimestampTimeFormat = ETimeFormat::Relative;
+								break;
+							default:
+								checkNoEntry();
+							}
+
+							Settings->SaveConfig();
+						}),
+						FCanExecuteAction::CreateLambda([this] { return HeaderRow->IsColumnVisible(SPackageTransmissionTableRow::TimeColumn); }),
+						FIsActionChecked::CreateLambda([this] { return UMultiUserServerPackageTransmissionSettings::GetSettings()->TimestampTimeFormat == ETimeFormat::Relative; })
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+				
+				return MenuBuilder.MakeWidget();
+			})
+			.HasDownArrow(false)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+			];
+	}
+
 	TSharedRef<SWidget> SPackageTransmissionTable::CreateTableView()
 	{
+		CreateHeaderRow();
 		return SAssignNew(TableView, SListView<TSharedPtr<FPackageTransmissionEntry>>)
 			.ListItemsSource(&PackageEntrySource->GetEntries())
+			.OnContextMenuOpening_Lambda([this]() { return ConcertSharedSlate::MakeTableContextMenu(HeaderRow.ToSharedRef(), GetDefaultColumnVisibilities()); })
 			.OnGenerateRow(this, &SPackageTransmissionTable::OnGenerateActivityRowWidget)
 			.SelectionMode(ESelectionMode::Multi)
-			.HeaderRow(CreateHeaderRow());
+			.HeaderRow(HeaderRow);
 	}
 
 	TSharedRef<SHeaderRow> SPackageTransmissionTable::CreateHeaderRow()
@@ -78,7 +136,7 @@ namespace UE::MultiUserServer
 			if (!bIsUpdatingColumnVisibility)
 			{
 				UMultiUserServerColumnVisibilitySettings::GetSettings()->SetPackageTransmissionColumnVisibility(
-				UE::ConcertSharedSlate::SnapshotColumnVisibilityState(HeaderRow.ToSharedRef())
+				ConcertSharedSlate::SnapshotColumnVisibilityState(HeaderRow.ToSharedRef())
 				);
 			}
 		});
@@ -95,13 +153,6 @@ namespace UE::MultiUserServer
 			if (bCannotHide)
 			{
 				Args.ShouldGenerateWidget(bCannotHide);
-			}
-			else
-			{
-				Args.OnGetMenuContent_Lambda([this]()
-				{
-					return ConcertSharedSlate::MakeHideColumnContextMenu(HeaderRow.ToSharedRef(), SPackageTransmissionTableRow::TimeColumn);
-				});
 			}
 			
 			HeaderRow->AddColumn(Args);
@@ -127,65 +178,29 @@ namespace UE::MultiUserServer
 		ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), ColumnSnapshot);
 	}
 
-	void SPackageTransmissionTable::ExtendViewOptions(FMenuBuilder& MenuBuilder)
+	void SPackageTransmissionTable::RestoreDefaultColumnVisibilities() const
 	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("SelectAll", "Show all"),
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					for(FName ColumnId : SPackageTransmissionTableRow::AllColumns)
-					{
-						HeaderRow->SetShowGeneratedColumn(ColumnId, true);
-					}
-				}),
-				FCanExecuteAction::CreateLambda([] { return true; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("HideAll", "Hide all"),
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					for(FName ColumnId : SPackageTransmissionTableRow::AllColumns)
-					{
-						HeaderRow->SetShowGeneratedColumn(ColumnId, false);
-					}
-				}),
-				FCanExecuteAction::CreateLambda([] { return true; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-		MenuBuilder.AddMenuEntry(
-				LOCTEXT("RestoreDefaultColumnVisibility", "Restore columns visibility"),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SPackageTransmissionTable::RestoreDefaultColumnVisibilities),
-					FCanExecuteAction::CreateLambda([] { return true; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		MenuBuilder.AddSeparator();
-		ConcertSharedSlate::AddEntriesForShowingHiddenRows(HeaderRow.ToSharedRef(), MenuBuilder);
+		const TMap<FName, bool> DefaultVisibilities = GetDefaultColumnVisibilities();
+		for (auto DefaultVisibilitiesIt = DefaultVisibilities.CreateConstIterator(); DefaultVisibilitiesIt; ++DefaultVisibilitiesIt)
+		{
+			HeaderRow->SetShowGeneratedColumn(DefaultVisibilitiesIt->Key, DefaultVisibilitiesIt->Value);
+		}
 	}
-
-	void SPackageTransmissionTable::RestoreDefaultColumnVisibilities()
+	
+	TMap<FName, bool> SPackageTransmissionTable::GetDefaultColumnVisibilities() const
 	{
+		TMap<FName, bool> Result;
 		const TSet<FName> HiddenByDefault = {
 			SPackageTransmissionTableRow::OriginColumn,
 			SPackageTransmissionTableRow::DestinationColumn,
 			SPackageTransmissionTableRow::PackagePathColumn
 		};
+		
 		for (FName ColumnName : SPackageTransmissionTableRow::AllColumns)
 		{
-			HeaderRow->SetShowGeneratedColumn(ColumnName, !HiddenByDefault.Contains(ColumnName));
+			Result.Add(ColumnName, !HiddenByDefault.Contains(ColumnName));
 		}
+		return Result;
 	}
 
 	void SPackageTransmissionTable::OnPackageEntriesModified(const TSet<FPackageTransmissionId>& Set) const

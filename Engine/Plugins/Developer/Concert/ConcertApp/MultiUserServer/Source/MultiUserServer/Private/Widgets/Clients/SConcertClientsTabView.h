@@ -50,7 +50,7 @@ namespace UE::MultiUserServer
 
 		/** Whether it is possible to call ScrollToLog. */
 		bool CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc, FText& ErrorMessage) const;
-		/** Scrolls to the log in the global log tab. */
+		/** Scrolls to the log in the server log tab. */
 		void ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const;
 		
 		bool IsGlobalLogOpen() const;
@@ -74,7 +74,7 @@ namespace UE::MultiUserServer
 
 		TSharedPtr<SConcertNetworkBrowser> ClientBrowser;
 
-		/** The widget inside of the global log tab */
+		/** The widget inside of the server log tab */
 		TSharedPtr<SConcertTransportLog> GlobalTransportLog;
 		
 		void CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs);

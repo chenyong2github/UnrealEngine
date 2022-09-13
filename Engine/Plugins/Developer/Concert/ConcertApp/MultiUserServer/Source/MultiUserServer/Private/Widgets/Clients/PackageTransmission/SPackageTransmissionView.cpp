@@ -9,6 +9,8 @@
 
 #include "Widgets/SBoxPanel.h"
 
+#define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SPackageTransmissionView"
+
 namespace UE::MultiUserServer
 {
 	void SPackageTransmissionView::Construct(const FArguments& InArgs, TSharedRef<IPackageTransmissionEntrySource> InPackageEntrySource, TSharedRef<FPackageTransmissionEntryTokenizer> InTokenizer)
@@ -16,6 +18,12 @@ namespace UE::MultiUserServer
 		PackageEntrySource = MoveTemp(InPackageEntrySource);
 		RootFilter = MakeFilter(InTokenizer);
 		FilteredModel = MakeShared<FFilteredPackageTransmissionModel>(PackageEntrySource.ToSharedRef(), RootFilter.ToSharedRef());
+
+		const TSharedRef<SPackageTransmissionTable> Table = SNew(SPackageTransmissionTable, FilteredModel.ToSharedRef(), InTokenizer)
+			.HighlightText_Lambda([this](){ return RootFilter->GetTextSearchFilter()->GetSearchText(); })
+			.CanScrollToLog(InArgs._CanScrollToLog)
+			.ScrollToLog(InArgs._ScrollToLog)
+			.TotalUnfilteredNum_Lambda([this](){ return PackageEntrySource->GetEntries().Num(); });
 		
 		ChildSlot
 		[
@@ -29,19 +37,22 @@ namespace UE::MultiUserServer
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					RootFilter->BuildFilterWidgets()
+					RootFilter->BuildFilterWidgets
+					(
+						FFilterWidgetArgs().RightOfSearchBar
+						(
+							Table->CreateViewOptionsButton()
+						)
+					)
 				]
 				
 				+SVerticalBox::Slot()
 				[
-					SNew(SPackageTransmissionTable, FilteredModel.ToSharedRef(), InTokenizer)
-					.HighlightText_Lambda([this](){ return RootFilter->GetTextSearchFilter()->GetSearchText(); })
-					.CanScrollToLog(InArgs._CanScrollToLog)
-					.ScrollToLog(InArgs._ScrollToLog)
-					.TotalUnfilteredNum_Lambda([this](){ return PackageEntrySource->GetEntries().Num(); })
+					Table
 				]
 			]
 		];
 	}
 }
 
+#undef LOCTEXT_NAMESPACE 

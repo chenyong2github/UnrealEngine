@@ -152,7 +152,7 @@ namespace UE::MultiUserServer
 		InTabManager->RegisterTabSpawner(ClientBrowserTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnClientBrowserTab))
 			.SetDisplayName(LOCTEXT("ClientBrowserTabLabel", "Clients"));
 		InTabManager->RegisterTabSpawner(GlobalLogTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnGlobalLogTab))
-			.SetDisplayName(LOCTEXT("GlobalLogTabLabel", "Global Log"));
+			.SetDisplayName(LOCTEXT("ServerLogTabLabel", "Server Log"));
 		InLayout->AddArea
 			(
 				FTabManager::NewPrimaryArea()
@@ -208,7 +208,7 @@ namespace UE::MultiUserServer
 	TSharedRef<SDockTab> SConcertClientsTabView::SpawnGlobalLogTab(const FSpawnTabArgs& InTabArgs)
 	{
 		return SNew(SDockTab)
-			.Label(LOCTEXT("GlobalLogTabLabel", "Global Log"))
+			.Label(LOCTEXT("ServerLogTabLabel", "Server Log"))
 			.TabRole(PanelTab)
 			[
 				SAssignNew(GlobalTransportLog, SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
@@ -220,7 +220,7 @@ namespace UE::MultiUserServer
 	{
 		return SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-			.ToolTipText(LOCTEXT("OpenGlobalLogTooltip", "Opens the Global Log which logs all incoming networked messages."))
+			.ToolTipText(LOCTEXT("OpenGlobalLogTooltip", "Opens the Server Log which logs all incoming networked messages."))
 			.ContentPadding(FMargin(1, 0))
 			.Visibility_Lambda(
 				[this]()
@@ -249,7 +249,7 @@ namespace UE::MultiUserServer
 					.Padding(4.0, 0.0f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("OpenGlobalLog", "Open Global Log"))
+						.Text(LOCTEXT("OpenServerLog", "Open Server Log"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 			];
