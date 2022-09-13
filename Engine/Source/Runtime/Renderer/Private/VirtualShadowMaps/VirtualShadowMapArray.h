@@ -227,6 +227,11 @@ public:
 		return GetNumFullShadowMaps() + GetNumSinglePageShadowMaps();
 	}
 
+	/**
+	 * Get configured LOD bias for the local lights (maps to cvar, 
+	 */
+	float GetResolutionLODBiasLocal() const;
+
 	// Raw size of the physical pool, including both static and dynamic pages (if enabled)
 	FIntPoint GetPhysicalPoolSize() const;
 	// Size of HZB (level 0)

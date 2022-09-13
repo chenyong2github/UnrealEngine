@@ -479,6 +479,11 @@ FVirtualShadowMap* FVirtualShadowMapArray::Allocate(bool bSinglePageShadowMap)
 	return SM;
 }
 
+float FVirtualShadowMapArray::GetResolutionLODBiasLocal() const
+{
+	return CVarResolutionLodBiasLocal.GetValueOnRenderThread();
+}
+
 FVirtualShadowMapArray::~FVirtualShadowMapArray()
 {
 }
@@ -1176,7 +1181,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			}
 		}
 
-		const float ResolutionLodBiasLocal = CVarResolutionLodBiasLocal.GetValueOnRenderThread();
+		const float ResolutionLodBiasLocal = GetResolutionLODBiasLocal();
 
 		for (FProjectedShadowInfo* ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)
 		{

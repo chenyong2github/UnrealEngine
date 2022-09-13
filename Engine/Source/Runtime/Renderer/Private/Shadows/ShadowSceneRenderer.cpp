@@ -64,7 +64,7 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FShadowSceneRenderer::AddLocalLi
 	//       Also possible to feed back from gpu - which would be more accurate wrt partially visible lights (e.g., a spot going through the ground).
 	//       Of course this creates jumps if visibility changes, which may or may not create unsolvable artifacts.
 	const bool bIsDistantLight = CVarDistantLightMode.GetValueOnRenderThread() != 0
-		&& (MaxScreenRadius <= FVirtualShadowMap::PageSize || CVarDistantLightMode.GetValueOnRenderThread() == 2);
+		&& (MaxScreenRadius <= float(FVirtualShadowMap::PageSize) * FMath::Exp2(VirtualShadowMapArray.GetResolutionLODBiasLocal()) || CVarDistantLightMode.GetValueOnRenderThread() == 2);
 
 
 	const int32 NumMaps = ProjectedShadowInitializer.bOnePassPointLightShadow ? 6 : 1;
