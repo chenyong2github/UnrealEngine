@@ -1107,7 +1107,7 @@ void UControlRigBlueprint::HandlePackageDone()
 
 						// find all control rigs matching the reference node
 						FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(
-							Pair.Value[ReferenceIndex].ToSoftObjectPath().GetAssetPathName());
+							Pair.Value[ReferenceIndex].ToSoftObjectPath().GetWithoutSubPath());
 
 						// if the asset has never been loaded - make sure to load it once and mark as dirty
 						if(AssetData.IsValid() && !AssetData.IsAssetLoaded())
@@ -2475,7 +2475,7 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecurs
 TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 {
 	TArray<FAssetData> Dependents;
-	TArray<FName> AssetPaths;
+	TArray<FSoftObjectPath> AssetPaths;
 
 	if(URigVMFunctionLibrary* FunctionLibrary = RigVMClient.GetFunctionLibrary())
 	{
@@ -2489,8 +2489,8 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 				TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> References = FunctionLibrary->GetReferencesForFunction(FunctionName);
 				for(const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference : References)
 				{
-					const FName AssetPath = Reference.ToSoftObjectPath().GetAssetPathName();
-					if(AssetPath.ToString().StartsWith(TEXT("/Engine/Transient")))
+					const FSoftObjectPath AssetPath = Reference.ToSoftObjectPath();
+					if(AssetPath.GetLongPackageName().StartsWith(TEXT("/Engine/Transient")))
 					{
 						continue;
 					}
@@ -2499,7 +2499,7 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 					{
 						AssetPaths.Add(AssetPath);
 
-						const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*AssetPath.ToString());
+						const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPath);
 						if(AssetData.IsValid())
 						{
 							Dependents.Add(AssetData);

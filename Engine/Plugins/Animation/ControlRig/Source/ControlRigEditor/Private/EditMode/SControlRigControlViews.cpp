@@ -40,8 +40,7 @@ void FControlRigView::CaptureThumbnail(UObject* Asset)
 
 		TArray<FAssetData> SelectedAssets;
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		FName PathName = *Asset->GetPathName();
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(PathName);
+		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(Asset));
 		SelectedAssets.Emplace(AssetData);
 		AssetViewUtils::CaptureThumbnailFromViewport(Viewport, SelectedAssets);
 
@@ -137,7 +136,7 @@ void SControlRigAssetEditableTextBox::OnNameTextCommitted(const FText& NewText, 
 		{
 
 			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*Asset->GetPathName()));
+			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(Asset.Get()));
 			const FString PackagePath = FPackageName::GetLongPackagePath(Asset->GetOutermost()->GetName());
 
 			//Need to save asset before renaming else may lose snapshot

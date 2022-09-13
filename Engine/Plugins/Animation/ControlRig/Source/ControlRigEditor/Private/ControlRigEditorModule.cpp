@@ -502,7 +502,7 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 											FString PreviewSkeletalMesh = AssetData.GetTagValueRef<FString>(TEXT("PreviewSkeletalMesh"));
 											if (PreviewSkeletalMesh.Len() > 0)
 											{
-												FAssetData SkelMeshData = AssetRegistry.GetAssetByObjectPath(FName(*PreviewSkeletalMesh));
+												FAssetData SkelMeshData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(PreviewSkeletalMesh));
 												FString PreviewSkeleton = SkelMeshData.GetTagValueRef<FString>(TEXT("Skeleton"));
 												if (PreviewSkeleton == SkeletonName)
 												{
@@ -553,8 +553,8 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 										if (bChildOfObjectClass && bMatchesFlags)
 										{
 											FString GeneratedClassPathString = InUnloadedClassData->GetClassPathName().ToString();
-											FName BlueprintPath = FName(*GeneratedClassPathString.LeftChop(2)); // Chop off _C
-											FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(BlueprintPath);
+											FString BlueprintPath = GeneratedClassPathString.LeftChop(2); // Chop off _C
+											FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(BlueprintPath));
 											return MatchesFilter(AssetData);
 
 										}

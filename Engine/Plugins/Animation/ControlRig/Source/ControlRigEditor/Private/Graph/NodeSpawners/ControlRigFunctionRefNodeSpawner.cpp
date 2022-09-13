@@ -84,7 +84,9 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFromAssetData(const FAssetData& InAssetData, const FControlRigPublicFunctionData& InPublicFunction)
 {
 	UControlRigFunctionRefNodeSpawner* NodeSpawner = NewObject<UControlRigFunctionRefNodeSpawner>(GetTransientPackage());
-	NodeSpawner->ReferencedAssetObjectPath = InAssetData.ObjectPath;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NodeSpawner->ReferencedAssetObjectPath = InAssetData.ToSoftObjectPath().ToFName();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NodeSpawner->ReferencedPublicFunctionData = InPublicFunction;
 	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
 	NodeSpawner->bIsLocalFunction = false;
@@ -108,7 +110,7 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 		}
 	}
 
-	const FString ObjectPathString = InAssetData.ObjectPath.ToString();
+	const FString ObjectPathString = InAssetData.GetObjectPathString();
 	if(MenuSignature.Tooltip.IsEmpty())
 	{
 		MenuSignature.Tooltip = FText::FromString(ObjectPathString);
