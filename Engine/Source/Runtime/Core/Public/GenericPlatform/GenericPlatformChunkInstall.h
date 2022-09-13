@@ -205,12 +205,6 @@ public:
 	 */
 	virtual void RemoveChunkInstallDelegate( FDelegateHandle Delegate ) = 0;
 
-	UE_DEPRECATED(4.18, "Call AddChunkInstallDelegate instead, which is now bound for all chunk ids")
-	virtual FDelegateHandle SetChunkInstallDelgate( uint32 ChunkID, FPlatformChunkInstallCompleteDelegate Delegate ) = 0;
-
-	UE_DEPRECATED(4.18, "Call RemoveChunkInstallDelegate instead")
-	virtual void RemoveChunkInstallDelgate( uint32 ChunkID, FDelegateHandle Delegate ) = 0;
-
 
 	UE_DEPRECATED(5.2, "Call SupportsNamedChunkInstall instead")
 	virtual bool SupportsIntelligentInstall() = 0;
@@ -391,16 +385,6 @@ public:
 	virtual void RemoveChunkInstallDelegate(FDelegateHandle Delegate) override
 	{
 		InstallDelegate.Remove(Delegate);
-	}
-
-	virtual FDelegateHandle SetChunkInstallDelgate(uint32 ChunkID, FPlatformChunkInstallCompleteDelegate Delegate) override
-	{
-		return FDelegateHandle();
-	}
-
-	virtual void RemoveChunkInstallDelgate(uint32 ChunkID, FDelegateHandle Delegate) override
-	{
-		return;
 	}
 
 	virtual bool SupportsIntelligentInstall() override

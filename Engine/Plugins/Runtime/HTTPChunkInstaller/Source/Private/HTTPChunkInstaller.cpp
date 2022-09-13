@@ -1179,12 +1179,6 @@ bool FHTTPChunkInstall::Tick(float DeltaSeconds)
 			{
 				// No more manifests relating to the chunk ID are left to install.
 				// Inform any listeners that the install has been completed.
-				FPlatformChunkInstallCompleteMultiDelegate* FoundDelegate = DelegateMap.Find(InstallingChunkID);
-				if (FoundDelegate)
-				{
-					FoundDelegate->Broadcast(InstallingChunkID);
-				}
-
 				InstallDelegate.Broadcast(InstallingChunkID, true);
 			}
 			EndInstall();
@@ -1518,33 +1512,6 @@ bool FHTTPChunkInstall::PrioritizeChunk(uint32 ChunkID, EChunkPriority::Type Pri
 		PriorityQueue.Sort();
 	}
 	return true;
-}
-
-FDelegateHandle FHTTPChunkInstall::SetChunkInstallDelgate(uint32 ChunkID, FPlatformChunkInstallCompleteDelegate Delegate)
-{
-	FPlatformChunkInstallCompleteMultiDelegate* FoundDelegate = DelegateMap.Find(ChunkID);
-	if (FoundDelegate)
-	{
-		return FoundDelegate->Add(Delegate);
-	}
-	else
-	{
-		FPlatformChunkInstallCompleteMultiDelegate MC;
-		auto RetVal = MC.Add(Delegate);
-		DelegateMap.Add(ChunkID, MC);
-		return RetVal;
-	}
-	return FDelegateHandle();
-}
-
-void FHTTPChunkInstall::RemoveChunkInstallDelgate(uint32 ChunkID, FDelegateHandle Delegate)
-{
-	FPlatformChunkInstallCompleteMultiDelegate* FoundDelegate = DelegateMap.Find(ChunkID);
-	if (!FoundDelegate)
-	{
-		return;
-	}
-	FoundDelegate->Remove(Delegate);
 }
 
 void FHTTPChunkInstall::BeginChunkInstall(uint32 ChunkID,IBuildManifestPtr ChunkManifest, IBuildManifestPtr PrevInstallChunkManifest)

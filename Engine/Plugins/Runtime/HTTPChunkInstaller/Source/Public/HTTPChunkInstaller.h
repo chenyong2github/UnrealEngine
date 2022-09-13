@@ -50,8 +50,6 @@ public:
 	}
 	
 	virtual bool PrioritizeChunk( uint32 ChunkID, EChunkPriority::Type Priority ) override;
-	virtual FDelegateHandle SetChunkInstallDelgate(uint32 ChunkID, FPlatformChunkInstallCompleteDelegate Delegate) override;
-	virtual void RemoveChunkInstallDelgate(uint32 ChunkID, FDelegateHandle Delegate) override;
 
 	virtual bool DebugStartNextChunk()
 	{
@@ -81,8 +79,6 @@ private:
 	void OSSInstallComplete(const IBuildInstallerRef& Installer);
 
 	virtual EChunkLocation::Type GetChunkLocation(uint32 ChunkID) override;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FPlatformChunkInstallCompleteMultiDelegate, uint32);
 
 	enum struct ChunkInstallState
 	{
@@ -134,7 +130,6 @@ private:
 	TMultiMap<uint32, IBuildManifestPtr>						InstalledManifests;
 	TMultiMap<uint32, IBuildManifestPtr>						PrevInstallManifests;
 	TMultiMap<uint32, IBuildManifestPtr>						RemoteManifests;
-	TMap<uint32, FPlatformChunkInstallCompleteMultiDelegate>	DelegateMap;
 	TSet<FString>												ManifestsInMemory;
 	TSet<uint32>												ExpectedChunks;
 	TArray<FCloudHeader>										TitleFilesToRead;
