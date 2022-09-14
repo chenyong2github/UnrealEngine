@@ -59,6 +59,8 @@ private:
 	 */
 	void SaveToINI();
 
+	static const FString& GetConfigFilename();
+
 public:
 
 	/** 
