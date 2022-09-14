@@ -21,6 +21,7 @@
 #include "UnrealEdGlobals.h"
 #include "EditMode/ControlRigEditMode.h"
 #include "Tools/ControlRigPose.h"
+#include "EditorDirectories.h"
 #include "EditorModeManager.h"
 
 #include "IContentBrowserSingleton.h"
@@ -42,6 +43,8 @@
 #include "ControlRigSequencerEditorLibrary.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
+#include "Misc/PackageName.h"
+#include "AssetToolsModule.h"
 
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
@@ -693,19 +696,39 @@ FString SPathDialogWithAllowList::GetAssetPath()
 
 void SControlRigBaseListWidget::Construct(const FArguments& InArgs)
 {
-
 	FControlRigEditMode* EditMode = GetEditMode();
 	BindCommands();
 
-
 	const UControlRigPoseProjectSettings* PoseSettings = GetDefault<UControlRigPoseProjectSettings>();
 
-	TArray<FString> PosesDirectories = PoseSettings->GetAssetPaths();
-	if (PosesDirectories.Num() > 0)
+	// Find the asset root of the current map to append relative pose folder paths to
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	FString RootPath = TEXT("/Game");
+	if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
 	{
+		const FString EditorWorldPackageName = EditorWorld->GetPackage()->GetName();
+		if (!EditorWorldPackageName.StartsWith(TEXT("/Temp/")))
+		{
+			FString NewPackageFolder = FPackageName::GetLongPackagePath(EditorWorldPackageName);
+			if (AssetTools.GetWritableFolderPermissionList()->PassesStartsWithFilter(NewPackageFolder))
+			{
+				RootPath = NewPackageFolder;
+			}
+		}
+	}
+
+	TArray<FString> PosesDirectories = PoseSettings->GetAssetPaths();
+	for (FString& PoseDirectory : PosesDirectories)
+	{
+		// If relative, make it absolute to the root of the current map
+		if (FPaths::IsRelative(PoseDirectory))
+		{
+			PoseDirectory = RootPath / PoseDirectory;
+		}
+
 		if (CurrentlySelectedInternalPath.IsEmpty())
 		{
-			CurrentlySelectedInternalPath = PosesDirectories[0];
+			CurrentlySelectedInternalPath = PoseDirectory;
 		}
 	}
 

@@ -4,7 +4,7 @@
 UControlRigPoseProjectSettings::UControlRigPoseProjectSettings()
 {
 	FDirectoryPath RootSaveDir;
- 	RootSaveDir.Path = TEXT("/Game/ControlRig/Pose");
+ 	RootSaveDir.Path = TEXT("ControlRig/Pose");
 	RootSaveDirs.Add(RootSaveDir);
 }
 
