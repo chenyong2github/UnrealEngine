@@ -67,11 +67,17 @@
 		},
 		{
 			"Name": "DataPrepEditor",
-			"Enabled": true
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		},
 		{
 			"Name": "InterchangeEditor",
-			"Enabled": true
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		},
 		{
 			"Name": "VariantManagerContent",
