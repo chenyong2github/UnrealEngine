@@ -99,15 +99,6 @@ The used value of the meshing parameter is value * MeshingParameterFactor \n\
 Default value is 1.\n"),
 ECVF_Default);
 
-
-static bool bGAliasSewByColor = false;
-FAutoConsoleVariableRef GAliasSewByColor(
-	TEXT("ds.CADTranslator.Alias.SewByColor"),
-	bGAliasSewByColor,
-	TEXT("Enable Sew action merges BReps according to their material i.e. only BReps associated with same material can be merged together.\
-Default is disable\n"),
-ECVF_Default);
-
 uint32 GetTypeHash(const FImportParameters& ImportParameters)
 {
 	uint32 ParametersHash = ::GetTypeHash(ImportParameters.bGDisableCADKernelTessellation);
