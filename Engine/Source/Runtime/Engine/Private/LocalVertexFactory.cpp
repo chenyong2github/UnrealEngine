@@ -195,6 +195,9 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 	}
 	else
 	{
+		// Bind null SRV as not used by non-passthrough vertex factory
+		ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, GNullVertexBuffer.VertexBufferSRV);
+
 		// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
 		FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
 
@@ -325,7 +328,10 @@ void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShade
 	// See UE-139634 for the case that lead to this.
 	OutEnvironment.SetDefine(TEXT("RAY_TRACING_DYNAMIC_MESH_IN_LOCAL_SPACE"), TEXT("1"));
 
-	OutEnvironment.SetDefine(TEXT("SUPPORT_SKINCACHE"), IsGPUSkinCacheAvailable(Parameters.Platform));
+	if (Parameters.VertexFactoryType->SupportsGPUSkinPassThrough())
+	{
+		OutEnvironment.SetDefine(TEXT("SUPPORT_GPUSKIN_PASSTHROUGH"), IsGPUSkinCacheAvailable(Parameters.Platform));
+	}
 }
 
 void FLocalVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
@@ -555,4 +561,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FLocalVertexFactory,"/Engine/Private/LocalVertexFa
 	| EVertexFactoryFlags::SupportsLightmapBaking
 	| EVertexFactoryFlags::SupportsManualVertexFetch
 	| EVertexFactoryFlags::SupportsPSOPrecaching
+	| EVertexFactoryFlags::SupportsGPUSkinPassThrough
 );

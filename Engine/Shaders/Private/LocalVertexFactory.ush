@@ -61,8 +61,8 @@ float4 SplineParams[10];
 #define SplineMeshY				SplineParams[9].xyz
 #endif	// USE_SPLINEDEFORM
 
-#ifndef SUPPORT_SKINCACHE
-#define SUPPORT_SKINCACHE 0
+#ifndef SUPPORT_GPUSKIN_PASSTHROUGH
+#define SUPPORT_GPUSKIN_PASSTHROUGH 0
 #endif
 
 #ifndef MANUAL_VERTEX_FETCH
@@ -158,7 +158,7 @@ struct FVertexFactoryInput
 	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 #endif
 
-#if SUPPORT_SKINCACHE && !MANUAL_VERTEX_FETCH
+#if SUPPORT_GPUSKIN_PASSTHROUGH && !MANUAL_VERTEX_FETCH
 	float4	PreSkinPosition	: ATTRIBUTE14;
 #endif
 
@@ -169,13 +169,13 @@ struct FVertexFactoryInput
 	uint VertexId : SV_VertexID;
 };
 
-#if SUPPORT_SKINCACHE
+#if SUPPORT_GPUSKIN_PASSTHROUGH
 uint bIsGPUSkinPassThrough;
 #endif
 
 bool IsGPUSkinPassThrough()
 {
-	#if SUPPORT_SKINCACHE
+	#if SUPPORT_GPUSKIN_PASSTHROUGH
 		return bIsGPUSkinPassThrough;
 	#else
 		return false;
@@ -954,7 +954,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	if (IsGPUSkinPassThrough())
 	{
-	#if SUPPORT_SKINCACHE
+	#if SUPPORT_GPUSKIN_PASSTHROUGH
 	#if MANUAL_VERTEX_FETCH
 		uint PreSkinVertexOffset = LocalVF.PreSkinBaseVertexIndex + Input.VertexId * 3;
 		Intermediates.PreSkinPosition.x = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 0];
@@ -1146,8 +1146,10 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 	return Intermediates.TangentToWorld[2];
 }
 
+#if SUPPORT_GPUSKIN_PASSTHROUGH
 // Information when using pass through to get the previous position, as no matrix is available/needed
 Buffer<float> GPUSkinCachePreviousPositionBuffer;
+#endif
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
@@ -1155,6 +1157,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	FLWCMatrix PreviousLocalToWorld = GetInstanceData(Intermediates).PrevLocalToWorld;
 	float4x4 PreviousLocalToWorldTranslated = LWCMultiplyTranslation(PreviousLocalToWorld, ResolvedView.PrevPreViewTranslation);
 
+#if SUPPORT_GPUSKIN_PASSTHROUGH
 	if (IsGPUSkinPassThrough())
 	{
 		uint Offset = Input.VertexId * 3;
@@ -1165,6 +1168,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 		return mul(float4(PreviousPos, 1), PreviousLocalToWorldTranslated);	
 	}
 	else
+#endif // SUPPORT_GPUSKIN_PASSTHROUGH
 	{
 	#if USE_INSTANCING
 		float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
