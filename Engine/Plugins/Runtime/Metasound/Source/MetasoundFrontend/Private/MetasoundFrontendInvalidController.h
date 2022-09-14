@@ -60,7 +60,7 @@ namespace Metasound
 			virtual FGuid GetID() const override { return Metasound::FrontendInvalidID; }
 			virtual const FName& GetDataType() const override { return Invalid::GetInvalidName(); }
 			virtual const FVertexName& GetName() const override { return Invalid::GetInvalidName(); }
-			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override { return EMetasoundFrontendVertexAccessType::Reference; }
+			virtual EMetasoundFrontendVertexAccessType GetVertexAccessType() const override { return EMetasoundFrontendVertexAccessType::Unset; }
 
 #if WITH_EDITOR
 			virtual FText GetDisplayName() const override { return FText::GetEmpty(); }
