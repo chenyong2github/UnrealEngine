@@ -1289,7 +1289,7 @@ VkPipelineCache FVulkanAndroidPlatform::PrecompilePSO(FVulkanDevice* Device, VkG
 					PipelineCacheCreateInfo.pInitialData = CompiledProgramBinary.GetData();
 					PipelineCacheCreateInfo.initialDataSize = CompiledProgramBinary.Num();
 					VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineCache(Device->GetInstanceHandle(), &PipelineCacheCreateInfo, VULKAN_CPU_ALLOCATOR, &PipelineCache));
-
+					AfterSize = CompiledProgramBinary.Num();
 					return PipelineCache;
 				}
 

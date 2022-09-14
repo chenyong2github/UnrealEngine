@@ -76,7 +76,7 @@ public:
 		bool bEnableValidation = false;
 		for (uint32_t Idx; Idx < InstanceLayers.size(); ++Idx)
 		{
-			bEnableValidation = true;//strcmp(InstanceLayers[Idx], "VK_LAYER_KHRONOS_validation") == 0;
+			bEnableValidation = strcmp(InstanceLayers[Idx], "VK_LAYER_KHRONOS_validation") == 0;
 
 			if (bEnableValidation)
 			{
@@ -276,7 +276,7 @@ public:
 		GraphicsPipelineCreateInfo PipelineCreateInfo;
 		VkGraphicsPipelineCreateInfo CreateInfo;
 
-		__android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "CompileGFXPSO: VSSize %d, PSSize %d, PSOSize %d", (uint32_t)VSSize, (uint32_t)PSSize, (uint32_t)PSOSize);
+		//__android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "CompileGFXPSO: VSSize %d, PSSize %d, PSOSize %d", (uint32_t)VSSize, (uint32_t)PSSize, (uint32_t)PSOSize);
 
 		if (bSinglePSOPerCache && PSOCacheData)
 		{

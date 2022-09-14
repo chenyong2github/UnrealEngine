@@ -1347,6 +1347,7 @@ VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPi
 	bool bWantPSOSize = false;
 	FGfxPipelineDesc* GfxEntry = &PSO->Desc;
 	uint64 ShaderHash = 0;
+	bool bValidateServicePSO = false;
 	if (bUseLRU)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_VulkanPSOLRUSizeLookup);
@@ -1386,6 +1387,17 @@ VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPi
 		{
 			Pipeline[0] = VK_NULL_HANDLE;
 			Result = VK_SUCCESS;
+
+			// enable bValidateServicePSO to compare PSOService result against engine's result.
+			//bValidateServicePSO = true;
+			if(bValidateServicePSO)
+			{
+				Result = VK_ERROR_INITIALIZATION_FAILED;
+				bWantPSOSize = true;
+				VulkanRHI::vkDestroyPipelineCache(Device->GetInstanceHandle(), LocalPipelineCache, VULKAN_CPU_ALLOCATOR);
+				LocalPipelineCache = VK_NULL_HANDLE;
+			}
+
 			if(bWantPSOSize)
 			{
 				PSOSize = AfterSize;
@@ -1408,6 +1420,15 @@ VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPi
 			ZeroVulkanStruct(PipelineCacheInfo, VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
 			VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineCache(Device->GetInstanceHandle(), &PipelineCacheInfo, VULKAN_CPU_ALLOCATOR, &LocalPipelineCache));
 			Result = VulkanRHI::vkCreateGraphicsPipelines(Device->GetInstanceHandle(), LocalPipelineCache, 1, &PipelineInfo, VULKAN_CPU_ALLOCATOR, Pipeline);
+			if (bValidateServicePSO)
+			{
+				size_t Diff = 0;
+				if (ensure(LocalPipelineCache != VK_NULL_HANDLE))
+				{
+					VulkanRHI::vkGetPipelineCacheData(Device->GetInstanceHandle(), LocalPipelineCache, &Diff, nullptr);
+				}
+				UE_CLOG(Diff != PSOSize, LogVulkanRHI, Warning, TEXT("PSO service size mismatches engine size! [PSOService = %d, Game Process = %d]"), PSOSize, Diff);
+			}
 		}
 		else
 		{
