@@ -11,9 +11,15 @@ using Horde.Build.Users;
 using Horde.Build.Utilities;
 using Horde.Build.Issues;
 using Horde.Build.Perforce;
+using Horde.Build.Projects;
+using Horde.Build.Jobs;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace Horde.Build.Streams
 {
+	using JobId = ObjectId<IJob>;
+	using StreamId = StringId<IStream>;
+	using ProjectId = StringId<IProject>;
 	using TemplateId = StringId<ITemplateRef>;
 
 	/// <summary>
@@ -429,6 +435,132 @@ namespace Horde.Build.Streams
 			PausedUntil = pausedUntil;
 			PauseComment = pauseComment;
 			Workflows = workflows;
+		}
+	}
+
+	/// <summary>
+	/// Response describing a stream
+	/// </summary>
+	public class GetStreamResponseV2
+	{
+		readonly IStream _stream;
+
+		/// <inheritdoc cref="IStream.Id"/>
+		public StreamId Id => _stream.Id;
+
+		/// <inheritdoc cref="IStream.ProjectId"/>
+		public ProjectId ProjectId => _stream.ProjectId;
+
+		/// <inheritdoc cref="IStream.Name"/>
+		public string Name => _stream.Name;
+
+		/// <inheritdoc cref="IStream.Name"/>
+		public string ConfigRevision => _stream.ConfigRevision;
+
+		/// <inheritdoc cref="IStream.Config"/>
+		public StreamConfig? Config { get; }
+
+		/// <inheritdoc cref="IStream.Deleted"/>
+		public bool Deleted => _stream.Deleted;
+
+		/// <inheritdoc cref="IStream.Templates"/>
+		public List<GetTemplateRefResponseV2> Templates { get; }
+
+		/// <inheritdoc cref="IStream.PausedUntil"/>
+		public DateTime? PausedUntil => _stream.PausedUntil;
+
+		/// <inheritdoc cref="IStream.PauseComment"/>
+		public string? PauseComment => _stream.PauseComment;
+
+		internal GetStreamResponseV2(IStream stream, bool config, List<GetTemplateRefResponseV2> templates)
+		{
+			_stream = stream;
+			Templates = templates;
+
+			if (config)
+			{
+				Config = stream.Config;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Job template in a stream
+	/// </summary>
+	public class GetTemplateRefResponseV2
+	{
+		readonly ITemplateRef _templateRef;
+
+		/// <inheritdoc cref="ITemplateRef.Id"/>
+		public TemplateId Id => _templateRef.Id;
+
+		/// <inheritdoc cref="ITemplateRef.Hash"/>
+		public ContentHash Hash => _templateRef.Hash;
+
+		/// <inheritdoc cref="ITemplateRef.Schedule"/>
+		public GetTemplateScheduleResponseV2? Schedule { get; }
+
+		/// <inheritdoc cref="ITemplateRef.StepStates"/>
+		public List<GetTemplateStepResponseV2>? StepStates { get; }
+
+		internal GetTemplateRefResponseV2(ITemplateRef templateRef, List<GetTemplateStepResponseV2>? stepStates)
+		{
+			_templateRef = templateRef;
+
+			StepStates = stepStates;
+
+			if (templateRef.Schedule != null)
+			{
+				Schedule = new GetTemplateScheduleResponseV2(templateRef.Schedule);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Schedule for a template
+	/// </summary>
+	public class GetTemplateScheduleResponseV2
+	{
+		readonly ITemplateSchedule _schedule;
+
+		/// <inheritdoc cref="ITemplateSchedule.LastTriggerChange"/>
+		public int LastTriggerChange => _schedule.LastTriggerChange;
+
+		/// <inheritdoc cref="ITemplateSchedule.LastTriggerTimeUtc"/>
+		public DateTime LastTriggerTimeUtc => _schedule.LastTriggerTimeUtc;
+
+		/// <inheritdoc cref="ITemplateSchedule.LastTriggerTimeUtc"/>
+		public IReadOnlyList<JobId> ActiveJobs => _schedule.ActiveJobs;
+
+		internal GetTemplateScheduleResponseV2(ITemplateSchedule schedule)
+		{
+			_schedule = schedule;
+		}
+	}
+
+	/// <summary>
+	/// State information for a step in the stream
+	/// </summary>
+	public class GetTemplateStepResponseV2
+	{
+		readonly ITemplateStep _step;
+
+		/// <inheritdoc cref="ITemplateStep.Name"/>
+		public string Name => _step.Name;
+
+		/// <inheritdoc cref="ITemplateStep.PausedByUserId"/>
+		public GetThinUserInfoResponse PausedByUserInfo { get; }
+
+		/// <inheritdoc cref="ITemplateStep.PauseTimeUtc"/>
+		public DateTime PauseTimeUtc => _step.PauseTimeUtc;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetTemplateStepResponseV2(ITemplateStep step, GetThinUserInfoResponse pausedByUserInfo)
+		{
+			_step = step;
+			PausedByUserInfo = pausedByUserInfo;
 		}
 	}
 

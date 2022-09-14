@@ -80,6 +80,34 @@ namespace Horde.Build.Streams
 		}
 
 		/// <summary>
+		/// Query all the streams for a particular project.
+		/// </summary>
+		/// <param name="projectIds">Unique id of the project to query</param>
+		/// <param name="filter">Filter for the properties to return</param>
+		/// <returns>Information about all the projects</returns>
+		[HttpGet]
+		[Route("/api/v2/streams")]
+		[ProducesResponseType(typeof(List<GetStreamResponse>), 200)]
+		public async Task<ActionResult<List<object>>> GetStreamsAsyncV2([FromQuery(Name = "ProjectId")] string[] projectIds, [FromQuery] PropertyFilter? filter = null)
+		{
+			ProjectId[] projectIdValues = Array.ConvertAll(projectIds, x => new ProjectId(x));
+
+			List<IStream> streams = await _streamService.GetStreamsAsync(projectIdValues);
+			ProjectPermissionsCache permissionsCache = new ProjectPermissionsCache();
+
+			List<GetStreamResponseV2> responses = new List<GetStreamResponseV2>();
+			foreach (IStream stream in streams)
+			{
+				if (await _streamService.AuthorizeAsync(stream, AclAction.ViewStream, User, permissionsCache))
+				{
+					GetStreamResponseV2 response = await CreateGetStreamResponseAsyncV2(stream, false, permissionsCache);
+					responses.Add(response);
+				}
+			}
+			return responses.OrderBy(x => x.Id).Select(x => PropertyFilter.Apply(x, filter)).ToList();
+		}
+
+		/// <summary>
 		/// Retrieve information about a specific stream.
 		/// </summary>
 		/// <param name="streamId">Id of the stream to get information about</param>
@@ -103,6 +131,33 @@ namespace Horde.Build.Streams
 			}
 
 			return PropertyFilter.Apply(await CreateGetStreamResponse(stream, permissionsCache), filter);
+		}
+
+		/// <summary>
+		/// Retrieve information about a specific stream.
+		/// </summary>
+		/// <param name="streamId">Id of the stream to get information about</param>
+		/// <param name="config">Whether to include config data for the stream</param>
+		/// <param name="filter">Filter for the properties to return</param>
+		/// <returns>Information about the requested project</returns>
+		[HttpGet]
+		[Route("/api/v2/streams/{streamId}")]
+		[ProducesResponseType(typeof(GetStreamResponseV2), 200)]
+		public async Task<ActionResult<object>> GetStreamAsyncV2(StreamId streamId, [FromQuery] bool config = true, [FromQuery] PropertyFilter? filter = null)
+		{
+			IStream? stream = await _streamService.GetStreamAsync(streamId);
+			if (stream == null)
+			{
+				return NotFound(streamId);
+			}
+
+			ProjectPermissionsCache permissionsCache = new ProjectPermissionsCache();
+			if (!await _streamService.AuthorizeAsync(stream, AclAction.ViewStream, User, permissionsCache))
+			{
+				return Forbid(AclAction.ViewStream, streamId);
+			}
+
+			return PropertyFilter.Apply(await CreateGetStreamResponseAsyncV2(stream, config, permissionsCache), filter);
 		}
 
 		/// <summary>
@@ -153,6 +208,39 @@ namespace Horde.Build.Streams
 			}
 
 			return stream.ToApiResponse(bIncludeAcl, apiTemplateRefs);
+		}
+
+		/// <summary>
+		/// Create a stream response object, including all the templates
+		/// </summary>
+		/// <param name="stream">Stream to create response for</param>
+		/// <param name="config">Whether to include config data in the response</param>
+		/// <param name="cache">Permissions cache</param>
+		/// <returns>Response object</returns>
+		async Task<GetStreamResponseV2> CreateGetStreamResponseAsyncV2(IStream stream, bool config, ProjectPermissionsCache cache)
+		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("CreateGetStreamResponseAsyncV2").StartActive();
+			scope.Span.SetTag("streamId", stream.Id);
+
+			List<GetTemplateRefResponseV2> templateRefResponses = new List<GetTemplateRefResponseV2>();
+			foreach (ITemplateRef templateRef in stream.Templates.Values)
+			{
+				List<GetTemplateStepResponseV2>? templateStepResponses = null;
+				if (templateRef.StepStates != null && templateRef.StepStates.Count > 0)
+				{
+					templateStepResponses = new List<GetTemplateStepResponseV2>();
+					foreach (ITemplateStep templateStep in templateRef.StepStates)
+					{
+						GetThinUserInfoResponse? pausedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(templateStep.PausedByUserId));
+						templateStepResponses.Add(new GetTemplateStepResponseV2(templateStep, pausedByUserInfo));
+					}
+				}
+
+				GetTemplateRefResponseV2 templateRefResponse = new GetTemplateRefResponseV2(templateRef, templateStepResponses);
+				templateRefResponses.Add(templateRefResponse);
+			}
+
+			return new GetStreamResponseV2(stream, config, templateRefResponses);
 		}
 
 		/// <summary>
