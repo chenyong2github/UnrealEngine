@@ -28,7 +28,7 @@ class FRenderTransmittanceVolumeWithLiveShadingCS : public FMeshMaterialShader
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
 
 		// Shadow data
-		SHADER_PARAMETER(float, ShadowStepFactor)
+		SHADER_PARAMETER(float, ShadowStepSize)
 
 		// Object data
 		SHADER_PARAMETER(FMatrix44f, LocalToWorld)
@@ -139,7 +139,7 @@ class FRenderSingleScatteringWithLiveShadingCS : public FMeshMaterialShader
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
 
 		// Shadow data
-		SHADER_PARAMETER(float, ShadowStepFactor)
+		SHADER_PARAMETER(float, ShadowStepSize)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 
@@ -334,7 +334,7 @@ void RenderTransmittanceVolumeWithLiveShading(
 		PassParameters->MaxTraceDistance = HeterogeneousVolumes::GetMaxTraceDistance();
 		PassParameters->MaxShadowTraceDistance = HeterogeneousVolumes::GetMaxShadowTraceDistance();
 		PassParameters->StepSize = HeterogeneousVolumes::GetStepSize();
-		PassParameters->ShadowStepFactor = HeterogeneousVolumes::GetShadowStepFactor();
+		PassParameters->ShadowStepSize = HeterogeneousVolumes::GetShadowStepSize();
 		PassParameters->MaxStepCount = HeterogeneousVolumes::GetMaxStepCount();
 		PassParameters->bJitter = HeterogeneousVolumes::ShouldJitter();
 
@@ -420,7 +420,7 @@ void RenderSingleScatteringWithLiveShading(
 		}
 		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
 		PassParameters->LightType = LightType;
-		PassParameters->ShadowStepFactor = HeterogeneousVolumes::GetShadowStepFactor();
+		PassParameters->ShadowStepSize = HeterogeneousVolumes::GetShadowStepSize();
 
 		// Object data
 		FMatrix44f LocalToWorld = FMatrix44f(PrimitiveSceneProxy->GetLocalToWorld());

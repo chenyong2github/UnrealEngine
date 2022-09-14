@@ -1097,7 +1097,7 @@ void RenderWithPreshading(
 		SparseVoxelUniformBufferParameters->MaxTraceDistance = HeterogeneousVolumes::GetMaxTraceDistance();
 		SparseVoxelUniformBufferParameters->MaxShadowTraceDistance = HeterogeneousVolumes::GetMaxShadowTraceDistance();
 		SparseVoxelUniformBufferParameters->StepSize = HeterogeneousVolumes::GetStepSize();
-		SparseVoxelUniformBufferParameters->ShadowStepFactor = HeterogeneousVolumes::GetShadowStepFactor();
+		SparseVoxelUniformBufferParameters->ShadowStepSize = HeterogeneousVolumes::GetShadowStepSize();
 	}
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer = GraphBuilder.CreateUniformBuffer(SparseVoxelUniformBufferParameters);
 

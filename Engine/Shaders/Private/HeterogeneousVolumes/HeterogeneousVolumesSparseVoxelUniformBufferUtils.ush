@@ -35,9 +35,9 @@ float GetStepSize()
 	return SparseVoxelUniformBuffer.StepSize;
 }
 
-float GetShadowStepFactor()
+float GetShadowStepSize()
 {
-	return SparseVoxelUniformBuffer.ShadowStepFactor;
+	return SparseVoxelUniformBuffer.ShadowStepSize;
 }
 
 uint3 GetVolumeResolution()

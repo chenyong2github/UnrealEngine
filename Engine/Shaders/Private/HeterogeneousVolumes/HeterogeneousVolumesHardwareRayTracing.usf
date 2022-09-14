@@ -130,7 +130,7 @@ RAY_TRACING_ENTRY_ANY_HIT(SparseVoxelsAnyHitShader,
 	{
 		float3 Transmittance = Payload.GetTransmittance();
 
-		float StepSize = GetStepSize() * GetShadowStepFactor();
+		float StepSize = GetShadowStepSize();
 		float HitSpan = Payload.HitT[1] - Payload.HitT[0];
 		int StepCount = max(HitSpan / StepSize, 1);
 		StepSize = HitSpan / StepCount;
@@ -458,8 +458,8 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 	float LocalRayTMax = length(LocalRayDirection);
 	LocalRayDirection /= LocalRayTMax;
 
-	float Jitter = bJitter ? InterleavedGradientNoise(VoxelIndex.xy, VoxelIndex.z) : 0.5;
-	float StepSize = GetStepSize() * GetShadowStepFactor();
+	float RayBias = 0.5;
+	float StepSize = GetShadowStepSize();
 	int bApplyEmissionAndTransmittance = 0;
 	int bApplyDirectLighting = 0;
 	int bApplyShadowTransmittance = 0;
@@ -474,7 +474,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
 		WorldRayOrigin,
 		WorldRayDirection,
 		// Ray-step attributes
-		Jitter,
+		RayBias,
 		StepSize,
 		MaxStepCount,
 		// Lighting

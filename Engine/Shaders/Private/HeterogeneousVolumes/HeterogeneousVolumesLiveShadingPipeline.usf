@@ -40,7 +40,7 @@ int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
 int bApplyShadowTransmittance;
 int LightType;
-float ShadowStepFactor;
+float ShadowStepSize;
 
 // Ray data
 float MaxTraceDistance;
@@ -114,9 +114,9 @@ float GetStepSize()
 	return StepSize;
 }
 
-float GetShadowStepFactor()
+float GetShadowStepSize()
 {
-	return ShadowStepFactor;
+	return ShadowStepSize;
 }
 
 float GetMaxTraceDistance()
@@ -236,8 +236,8 @@ void RenderTransmittanceVolumeWithLiveShadingCS(
 	float LocalRayTMax = length(LocalRayDirection);
 	LocalRayDirection /= LocalRayTMax;
 
-	float RayJitter = length(VoxelJitter);
-	float StepSize = GetStepSize() * GetShadowStepFactor();
+	float RayBias = 0.5;
+	float StepSize = GetShadowStepSize();
 	int bApplyEmissionAndTransmittance = 0;
 	int bApplyDirectLighting = 0;
 	int bApplyShadowTransmittance = 0;
@@ -252,7 +252,7 @@ void RenderTransmittanceVolumeWithLiveShadingCS(
 		WorldRayOrigin,
 		WorldRayDirection,
 		// Ray-step attributes
-		RayJitter,
+		RayBias,
 		StepSize,
 		MaxStepCount,
 		// Lighting

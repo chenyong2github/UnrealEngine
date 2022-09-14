@@ -94,10 +94,10 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingVolumeResol
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarHeterogeneousVolumesShadowStepFactor(
-	TEXT("r.HeterogeneousVolumes.ShadowStepFactor"),
+static TAutoConsoleVariable<float> CVarHeterogeneousVolumesShadowStepSize(
+	TEXT("r.HeterogeneousVolumes.ShadowStepSize"),
 	8.0,
-	TEXT("The ray-marching step-size factor for shadow rays (Default = 8.0)"),
+	TEXT("The ray-marching step-size for shadow rays (Default = 8.0)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -198,9 +198,9 @@ namespace HeterogeneousVolumes
 		return VolumeResolution;
 	}
 
-	float GetShadowStepFactor()
+	float GetShadowStepSize()
 	{
-		return CVarHeterogeneousVolumesShadowStepFactor.GetValueOnRenderThread();
+		return CVarHeterogeneousVolumesShadowStepSize.GetValueOnRenderThread();
 	}
 
 	float GetMaxTraceDistance()

@@ -85,7 +85,7 @@ uint CalcStepCount(inout FRayMarchingContext Context)
 {
 	// Instead using the active ray-span, use the maximal ray-span so the stepsize is uniform among all rays
 	//float HitSpan = length(Hit1 - Hit0)
-	float HitSpan = length(GetLocalBoundsExtent());
+	float HitSpan = length(2.0 * GetLocalBoundsExtent());
 	float StepSize = Context.StepSize;
 	uint StepCount = max(ceil(HitSpan / StepSize), 1);
 	if (StepCount > Context.MaxStepCount)
@@ -106,8 +106,8 @@ void RayMarchTransmittance(
 {
 	for (uint StepIndex = 0; StepIndex < StepCount; ++StepIndex)
 	{
-		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
-		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * (RayMarchingContext.Jitter + StepIndex));
+		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * (RayMarchingContext.Jitter + StepIndex));
 
 		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 		float3 Extinction = SampleExtinction(SampleContext);
@@ -127,6 +127,7 @@ float3 ComputeTransmittance(
 )
 {
 #if HARDWARE_RAY_TRACING
+	//  TODO: Incorporpate ray jitter
 	return ComputeTransmittanceHardwareRayTracing(RayMarchingContext.WorldRayOrigin, RayMarchingContext.WorldRayDirection, RayMarchingContext.LocalRayTMin, RayMarchingContext.LocalRayTMax);
 #else // HARDWARE_RAY_TRACING
 
@@ -160,8 +161,8 @@ void RayMarchEmissionAbsorption(
 {
 	for (uint StepIndex = 0; StepIndex < StepCount; ++StepIndex)
 	{
-		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
-		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * (RayMarchingContext.Jitter + StepIndex));
+		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * (RayMarchingContext.Jitter + StepIndex));
 
 		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 		float3 Extinction = SampleExtinction(SampleContext);
@@ -185,13 +186,13 @@ void RayMarchSingleScattering(
 {
 	for (uint StepIndex = 0; StepIndex < StepCount; ++StepIndex)
 	{
-		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
-		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * (RayMarchingContext.Jitter + StepIndex));
+		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * (RayMarchingContext.Jitter + StepIndex));
 		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 
 		if (RayMarchingContext.bApplyEmissionAndTransmittance)
 		{
-			float3 Emission = SampleEmission(SampleContext);
+			float3 Emission = SampleEmission(SampleContext);// +10;
 			Radiance += Emission * RayMarchingContext.StepSize * Transmittance;
 		}
 
@@ -272,9 +273,8 @@ void RayMarchSingleScattering(
 						float LocalShadowRayTMax = length(LocalShadowRayDirection);
 						LocalShadowRayDirection /= LocalShadowRayTMax;
 
-						//float ShadowJitter = InterleavedGradientNoise(PixelCoord, StepIndex);
-						float ShadowJitter = 0.0;
-						float ShadowStepSize = GetStepSize() * GetShadowStepFactor();
+						float ShadowBias = 0.5;
+						float ShadowStepSize = GetShadowStepSize();
 						int bApplyEmissionAndTransmittance = 0;
 						int bApplyDirectLighting = 0;
 						int bApplyShadowTransmittance = 0;
@@ -286,7 +286,7 @@ void RayMarchSingleScattering(
 							LocalShadowRayTMax,
 							WorldPosition, // WorldShadowRayOrigin
 							normalize(ToLight), // WorldShadowRayDirection
-							ShadowJitter,
+							ShadowBias,
 							ShadowStepSize,
 							RayMarchingContext.MaxStepCount,
 							bApplyEmissionAndTransmittance,

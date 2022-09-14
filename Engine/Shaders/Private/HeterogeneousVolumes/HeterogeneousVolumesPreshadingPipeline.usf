@@ -481,8 +481,8 @@ void RenderTransmittanceVolumeWithPreshadingCS(
 	LocalRayDirection /= LocalRayTMax;
 
 	// Build ray-marching context
-	float RayJitter = length(VoxelJitter);
-	float StepSize = GetStepSize() * GetShadowStepFactor();
+	float RayJitter = 0.5;
+	float StepSize = GetShadowStepSize();
 	int bApplyEmissionAndTransmittance = 0;
 	int bApplyDirectLighting = 0;
 	int bApplyShadowTransmittance = 0;

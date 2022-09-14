@@ -28,7 +28,7 @@ namespace HeterogeneousVolumes
 	FIntVector GetVolumeResolution();
 	FIntVector GetTransmittanceVolumeResolution();
 
-	float GetShadowStepFactor();
+	float GetShadowStepSize();
 	float GetMaxTraceDistance();
 	float GetMaxShadowTraceDistance();
 	float GetStepSize();
@@ -83,7 +83,7 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FSparseVoxelUniformBufferParameters, )
 	SHADER_PARAMETER(float, MaxTraceDistance)
 	SHADER_PARAMETER(float, MaxShadowTraceDistance)
 	SHADER_PARAMETER(float, StepSize)
-	SHADER_PARAMETER(float, ShadowStepFactor)
+	SHADER_PARAMETER(float, ShadowStepSize)
 END_UNIFORM_BUFFER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTransmittanceVolumeParameters, )
