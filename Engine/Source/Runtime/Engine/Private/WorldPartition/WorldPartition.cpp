@@ -309,7 +309,11 @@ bool UWorldPartition::IsValidPackageName(const FString& InPackageName)
 		// Remove PIE prefix
 		FString PackageName = UWorld::RemovePIEPrefix(InPackageName);
 		// Test if package is a valid world partition PIE package
-		return GeneratedStreamingPackageNames.Contains(PackageName);
+		// return GeneratedStreamingPackageNames.Contains(PackageName);
+		// @todo_ow: Can't rely on GeneratedStreamingPackageNames until Content Bundles return their generated packages 
+		//           in FContentBundleContainer::OnPreGenerateStreaming. For now world partition memory packages will 
+		//           return true so that server streaming works (see ValidateLevelVisibility in NetConnection.cpp)
+		return true;
 	}
 	return false;
 }
