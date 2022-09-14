@@ -14,6 +14,11 @@
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineDebugSettings.h"
 #include "MoviePipelineBlueprintLibrary.h"
+#include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformFileManager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+
 
 // Forward Declare
 namespace UE
@@ -193,6 +198,18 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 		if (FPaths::IsRelative(FinalFilePath))
 		{
 			FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
+		}
+
+		FPaths::NormalizeFilename(FinalFilePath);
+		FPaths::CollapseRelativeDirectories(FinalFilePath);
+
+		FString FinalFileDirectory = FPaths::GetPath(FinalFilePath);
+
+		// Ensure the output directory is created
+		IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+		if (!FileManager.CreateDirectoryTree(*FinalFileDirectory))
+		{
+			UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("Failed to create directory for output path '%s'"), *FinalFileDirectory);
 		}
 
 		// Manipulate the in/out data in case scripting tries to get access to the files. It's not a perfect solution
