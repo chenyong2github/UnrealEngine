@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					{
 						"DatasmithImporter",
 						"DesktopPlatform",
+						"InputCore",
 						"InterchangeEditorPipelines",
 						"Slate",
 						"SlateCore",

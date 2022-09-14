@@ -14,16 +14,21 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : true,
 	"Installed" : false,
+	"PlatformAllowList": [
+		"Win64",
+		"Linux",
+		"Mac"
+	],
 	"Modules": [
 		{
 			"Name": "DatasmithInterchange",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"Win64",
-				"Linux",
-				"Mac"
-			]
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DatasmithInterchangeScripting",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

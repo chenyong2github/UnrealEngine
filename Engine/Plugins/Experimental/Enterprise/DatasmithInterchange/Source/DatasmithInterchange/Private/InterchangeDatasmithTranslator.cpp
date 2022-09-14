@@ -32,6 +32,8 @@
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeVariantSetNode.h"
 
+#include "Misc/App.h"
+
 #define LOCTEXT_NAMESPACE "DatasmithInterchange"
 
 bool UInterchangeDatasmithTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
@@ -52,13 +54,14 @@ bool UInterchangeDatasmithTranslator::CanImportSourceData(const UInterchangeSour
 	return ExternalSource.IsValid() && ExternalSource->IsAvailable();
 }
 
+#pragma optimize("",off)
 bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
 	using namespace UE::DatasmithImporter;
 	using namespace UE::DatasmithInterchange;
 
 	// TODO: This code should eventually go into UInterchangeTranslatorBase once the FExternalSource module gets integrated into Interchange
-	FString FilePath = SourceData->GetFilename();
+	FString FilePath = FPaths::ConvertRelativePathToFull(SourceData->GetFilename());
 	FileName = FPaths::GetCleanFilename(FilePath);
 	const FSourceUri FileNameUri = FSourceUri::FromFilePath(FilePath);
 	const_cast<UInterchangeDatasmithTranslator*>(this)->LoadedExternalSource = IExternalSourceModule::GetOrCreateExternalSource(FileNameUri);
@@ -72,6 +75,26 @@ bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& B
 	if (!ensure(Class))
 	{
 		return false;
+	}
+
+	// Temporary: Update the tessellation options of the associated translator
+	{
+		const TSharedPtr<IDatasmithTranslator>& DatasmithTranslator = LoadedExternalSource->GetAssetTranslator();
+
+		const FString OptionFilePath = BuildConfigFilePath(FilePath);
+
+		if (DatasmithTranslator.IsValid() && FPaths::FileExists(OptionFilePath))
+		{
+			TArray<TObjectPtr<UDatasmithOptionsBase>> ImportOptions;
+			DatasmithTranslator->GetSceneImportOptions(ImportOptions);
+
+			for (TObjectPtr<UDatasmithOptionsBase>& Option : ImportOptions)
+			{
+				Option->LoadConfig(nullptr, *OptionFilePath);
+			}
+
+			DatasmithTranslator->SetSceneImportOptions(ImportOptions);
+		}
 	}
 
 	StartTime = FPlatformTime::Cycles64();
@@ -271,6 +294,8 @@ bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& B
 	}
 
 	// Level variant sets
+	// Note: Variants are not supported yet in game play mode
+	if(!FApp::IsGame()) 
 	{
 		const int32 LevelVariantSetCount = DatasmithScene->GetLevelVariantSetsCount();
 
@@ -292,6 +317,7 @@ bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& B
 
 	return true;
 }
+#pragma optimize("",on)
 
 void UInterchangeDatasmithTranslator::HandleDatasmithActor(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithActorElement>& ActorElement, const UInterchangeSceneNode* ParentNode) const
 {
@@ -569,12 +595,12 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeDatasmit
 
 TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeDatasmithTranslator::GetAnimationCurvePayloadData(const FString& PayLoadKey) const
 {
-	return GetAnimationCurvePayloadData<UE::Interchange::FAnimationCurvePayloadData>(PayLoadKey);
+	return GetAnimationPayloadDataAsCurve<UE::Interchange::FAnimationCurvePayloadData>(PayLoadKey);
 }
 
 TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchangeDatasmithTranslator::GetAnimationStepCurvePayloadData(const FString& PayLoadKey) const
 {
-	return GetAnimationCurvePayloadData<UE::Interchange::FAnimationStepCurvePayloadData>(PayLoadKey);
+	return GetAnimationPayloadDataAsCurve<UE::Interchange::FAnimationStepCurvePayloadData>(PayLoadKey);
 }
 
 TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterchangeDatasmithTranslator::GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
@@ -645,5 +671,12 @@ void UInterchangeDatasmithTranslator::ImportFinish()
 
 	UE_LOG(LogInterchangeDatasmith, Log, TEXT("Imported %s in [%d min %.3f s]"), *FileName, ElapsedMin, ElapsedSeconds);
 }
+
+FString UInterchangeDatasmithTranslator::BuildConfigFilePath(const FString& FilePath)
+{
+	const FString OptionFileName = FMD5::HashAnsiString(*(FPaths::ConvertRelativePathToFull(FilePath) + TEXT("_Config"))) + TEXT(".ini");
+	return  FPaths::Combine(FPlatformProcess::UserTempDir(), OptionFileName);
+}
+
 
 #undef LOCTEXT_NAMESPACE

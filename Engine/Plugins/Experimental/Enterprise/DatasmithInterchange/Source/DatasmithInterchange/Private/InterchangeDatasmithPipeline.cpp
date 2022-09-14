@@ -67,30 +67,21 @@ void UInterchangeDatasmithPipeline::ExecutePreImportPipeline(UInterchangeBaseNod
 		return;
 	}
 
-	if (TexturePipeline)
+	auto ExecutePreImportPipelineFunc = [this,SourceDatas](UInterchangePipelineBase* Pipeline)
 	{
-		TexturePipeline->ScriptedExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
-	}
+		if (Pipeline)
+		{
+			Pipeline->SetResultsContainer(this->Results);
+			Pipeline->ScriptedExecutePreImportPipeline(this->BaseNodeContainer, SourceDatas);
+		}
+	};
 
-	if (MaterialPipeline)
-	{
-		MaterialPipeline->ScriptedExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
-	}
-
-	if (MeshPipeline)
-	{
-		MeshPipeline->ScriptedExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
-	}
-
-	if (LevelPipeline)
-	{
-		LevelPipeline->ScriptedExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
-	}
-
-	if (AnimationPipeline)
-	{
-		AnimationPipeline->ScriptedExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
-	}
+	ensure(!Results.IsNull());
+	ExecutePreImportPipelineFunc(TexturePipeline);
+	ExecutePreImportPipelineFunc(MaterialPipeline);
+	ExecutePreImportPipelineFunc(MeshPipeline);
+	ExecutePreImportPipelineFunc(LevelPipeline);
+	ExecutePreImportPipelineFunc(AnimationPipeline);
 
 	const UInterchangeDatasmithSceneNode* DatasmithSceneNode = DatasmithSceneNodes[0];
 	const FString PackageSubPath = DatasmithSceneNode->GetDisplayLabel();

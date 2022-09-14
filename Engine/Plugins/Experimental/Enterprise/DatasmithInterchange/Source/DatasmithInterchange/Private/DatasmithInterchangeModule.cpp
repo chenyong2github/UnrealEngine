@@ -24,11 +24,15 @@
 
 #if WITH_EDITOR
 #include "DatasmithImporterModule.h"
+#include "DatasmithUtils.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
 #include "EditorDirectories.h"
 #include "IDesktopPlatform.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "ObjectTools.h"
+#include "Styling/SlateIconFinder.h"
+#include "UI/DatasmithImportOptionsWindow.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
 #endif //WITH_EDITOR
@@ -88,6 +92,8 @@ private:
 
 	void OnImportInterchange();
 
+	bool DisplayOptionsDialog(const FString& FilePath, const FString& PackagePath, const TArray<TObjectPtr<UDatasmithOptionsBase>>& ImportOptions);
+		
 	bool Import(const FString& FilePath, const FString& ContentPath);
 #endif //WITH_EDITOR
 };
@@ -99,7 +105,8 @@ void FDatasmithInterchangeModule::ExtendDatasmitMenuOptions(FToolMenuSection& Su
 		TEXT("InterchangeImportFile"),
 		LOCTEXT("DatasmithInterchangeFileImport", "Interchange Import..."), // label
 		LOCTEXT("DatasmithInterchangeFileImportTooltip", "Experimental: Import Unreal Datasmith file using Interchange"), // description
-		FSlateIcon(),
+		FSlateIcon(FSlateIconFinder::FindIcon("Datasmith.Import")),
+		//FSlateIcon(FDatasmithStyle::GetStyleSetName(), TEXT("Datasmith.Import")),
 		FUIAction(FExecuteAction::CreateRaw(this, &FDatasmithInterchangeModule::OnImportInterchange))
 	);
 }
@@ -152,6 +159,60 @@ void FDatasmithInterchangeModule::OnImportInterchange()
 	}
 }
 
+bool FDatasmithInterchangeModule::DisplayOptionsDialog(const FString& FilePath, const FString& PackagePath, const TArray<TObjectPtr<UDatasmithOptionsBase>>& ImportOptionsPtr)
+{
+	if (ImportOptionsPtr.Num() == 0)
+	{
+		return true;
+	}
+
+	TSharedPtr<SWindow> ParentWindow;
+
+	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+		ParentWindow = MainFrame.GetParentWindow();
+	}
+
+	TArray<UObject*> ImportOptions;
+	ImportOptions.SetNum(ImportOptionsPtr.Num());
+	for (int32 Index = 0; Index < ImportOptionsPtr.Num(); ++Index)
+	{
+		ImportOptions[Index] = ImportOptionsPtr[Index];
+	}
+
+	TSharedRef<SWindow> Window = SNew(SWindow)
+		.Title(LOCTEXT("DatasmithImportSettingsTitle", "Datasmith Import Options"))
+		.SizingRule(ESizingRule::Autosized);
+
+	float SceneVersion = FDatasmithUtils::GetDatasmithFormatVersionAsFloat();
+	FString FileSDKVersion = FDatasmithUtils::GetEnterpriseVersionAsString();
+
+	TSharedPtr<SDatasmithOptionsWindow> OptionsWindow;
+	Window->SetContent
+	(
+		SAssignNew(OptionsWindow, SDatasmithOptionsWindow)
+		.ImportOptions(ImportOptions)
+		.WidgetWindow(Window)
+		// note: Spacing in text below is intentional for text alignment
+		.FileNameText(FText::Format(LOCTEXT("DatasmithImportSettingsFileName", "  Import File  :    {0}"), FText::FromString(FPaths::GetCleanFilename(FilePath))))
+		.FilePathText(FText::FromString(FilePath))
+		.FileFormatVersion(SceneVersion)
+		.FileSDKVersion(FText::FromString(FileSDKVersion))
+		.PackagePathText(FText::Format(LOCTEXT("DatasmithImportSettingsPackagePath", "  Import To   :    {0}"), FText::FromString(PackagePath)))
+		.ProceedButtonLabel(LOCTEXT("DatasmithOptionWindow_ImportCurLevel", "Import"))
+		.ProceedButtonTooltip(LOCTEXT("DatasmithOptionWindow_ImportCurLevel_ToolTip", "Import the file through Interchange and add to the current Level"))
+		.CancelButtonLabel(LOCTEXT("DatasmithOptionWindow_Cancel", "Cancel"))
+		.CancelButtonTooltip(LOCTEXT("DatasmithOptionWindow_Cancel_ToolTip", "Cancel importing this file"))
+		.MinDetailHeight(320.f)
+		.MinDetailWidth(450.f)
+	);
+
+	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+
+	return OptionsWindow->ShouldImport();
+}
+
 bool FDatasmithInterchangeModule::Import(const FString& FilePath, const FString& ContentPath)
 {
 	UE::Interchange::FScopedSourceData ScopedSourceData(FilePath);
@@ -160,6 +221,31 @@ bool FDatasmithInterchangeModule::Import(const FString& FilePath, const FString&
 	{
 		return false;
 	}
+
+	{
+		FDatasmithSceneSource DatasmithSource;
+		DatasmithSource.SetSourceFile(FilePath);
+
+		TSharedPtr<IDatasmithTranslator> Translator = FDatasmithTranslatorManager::Get().SelectFirstCompatible(DatasmithSource);
+		if (Translator)
+		{
+			TArray<TObjectPtr<UDatasmithOptionsBase>> ImportOptions;
+			Translator->GetSceneImportOptions(ImportOptions);
+
+			bool bShouldImport = DisplayOptionsDialog(FilePath, ContentPath, ImportOptions);
+			if (!bShouldImport)
+			{
+				return false;
+			}
+
+			const FString OptionFilePath = UInterchangeDatasmithTranslator::BuildConfigFilePath(FilePath);
+			for (TObjectPtr<UDatasmithOptionsBase>& Option : ImportOptions)
+			{
+				Option->SaveConfig(CPF_Config, *OptionFilePath);
+			}
+		}
+	}
+
 
 	FImportAssetParameters ImportAssetParameters;
 	ImportAssetParameters.bIsAutomated = false;

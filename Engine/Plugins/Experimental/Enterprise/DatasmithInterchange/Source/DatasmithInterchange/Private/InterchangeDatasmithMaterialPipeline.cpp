@@ -33,7 +33,7 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchang
 {
 	using namespace UE::DatasmithInterchange;
 
-	TArray< UInterchangeDatasmithMaterialNode*> ReferenceMaterials;
+	TArray< UInterchangeDatasmithMaterialNode*> InstancedMaterials;
 	TArray<UInterchangeShaderNode*> ShaderNodes;
 
 	//Find all translated node we need for this pipeline
@@ -41,7 +41,7 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchang
 		{
 			if (UInterchangeDatasmithMaterialNode* MaterialNode = Cast<UInterchangeDatasmithMaterialNode>(Node))
 			{
-				ReferenceMaterials.Add(MaterialNode);
+				InstancedMaterials.Add(MaterialNode);
 			}
 			else if (UInterchangeShaderNode* ShaderNode = Cast<UInterchangeShaderNode>(Node))
 			{
@@ -53,7 +53,7 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchang
 
 	UpdateMaterialFactoryNodes(ShaderNodes);
 
-	for (UInterchangeDatasmithMaterialNode* MaterialNode : ReferenceMaterials)
+	for (UInterchangeDatasmithMaterialNode* MaterialNode : InstancedMaterials)
 	{
 		PreImportMaterialNode(NodeContainer, MaterialNode);
 	}
@@ -133,7 +133,8 @@ void UInterchangeDatasmithMaterialPipeline::PreImportMaterialNode(UInterchangeBa
 	MaterialFactoryNode->SetCustomParent(PackagePath);
 
 #if WITH_EDITOR
-	MaterialFactoryNode->SetCustomInstanceClassName(UMaterialInstanceConstant::StaticClass()->GetPathName());
+	const UClass* MaterialClass = FApp::IsGame() ? UMaterialInstanceDynamic::StaticClass() : UMaterialInstanceConstant::StaticClass();
+	MaterialFactoryNode->SetCustomInstanceClassName(MaterialClass->GetPathName());
 #else
 	MaterialFactoryNode->SetCustomInstanceClassName(UMaterialInstanceDynamic::StaticClass()->GetPathName());
 #endif

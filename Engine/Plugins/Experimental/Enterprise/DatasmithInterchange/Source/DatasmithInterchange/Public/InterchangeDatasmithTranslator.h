@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#include "InterchangeDatasmithUtils.h"
-
 #include "Animation/InterchangeAnimationPayloadInterface.h"
 #include "InterchangeTranslatorBase.h"
 #include "Mesh/InterchangeStaticMeshPayloadInterface.h"
@@ -45,8 +43,15 @@ namespace UE::DatasmithImporter
 	class FExternalSource;
 }
 
+namespace UE::DatasmithInterchange::AnimUtils
+{
+	typedef TPair<float, TSharedPtr<IDatasmithBaseAnimationElement>> FAnimationPayloadDesc;
+	extern bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, UE::Interchange::FAnimationCurvePayloadData& PayLoadData);
+	extern bool GetAnimationPayloadData(const IDatasmithBaseAnimationElement& AnimationElement, float FrameRate, UE::Interchange::FAnimationStepCurvePayloadData& PayLoadData);
+}
+
 UCLASS(BlueprintType, Experimental)
-class UInterchangeDatasmithTranslator : public UInterchangeTranslatorBase
+class DATASMITHINTERCHANGE_API UInterchangeDatasmithTranslator : public UInterchangeTranslatorBase
 	, public IInterchangeTexturePayloadInterface
 	, public IInterchangeStaticMeshPayloadInterface
 	, public IInterchangeAnimationPayloadInterface
@@ -88,6 +93,9 @@ public:
 	virtual TFuture<TOptional<UE::Interchange::FVariantSetPayloadData>> GetVariantSetPayloadData(const FString& PayloadKey) const override;
 	/* IInterchangeVariantSetPayloadInterface End */
 
+	/** Returns a unique file path to */ 
+	static FString BuildConfigFilePath(const FString& FilePath);
+
 private:
 
 	void HandleDatasmithActor(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithActorElement>& ActorElement, const UInterchangeSceneNode* ParentNode) const;
@@ -99,7 +107,7 @@ private:
 	TSharedPtr<UE::DatasmithImporter::FExternalSource> LoadedExternalSource;
 
 	template<typename T>
-	TFuture<TOptional<T>> GetAnimationCurvePayloadData(const FString& PayLoadKey) const
+	TFuture<TOptional<T>> GetAnimationPayloadDataAsCurve(const FString& PayLoadKey) const
 	{
 		using namespace UE::DatasmithInterchange::AnimUtils;
 
