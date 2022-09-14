@@ -2150,7 +2150,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 	// Now take a look at any of the variables that were actually written to / read from in this stage.
 	TArray<FNiagaraVariable> ReadVars;
 	TArray<FNiagaraVariable> WriteVars;
-
+	TArray<FNiagaraVariable> AllVars;
 	for (int32 ParamHistoryIdx = 0; ParamHistoryIdx < ParamMapHistories.Num(); ParamHistoryIdx++)
 	{
 		if (InWhichStage != ParamHistoryIdx && TranslationStage.ShouldDoSpawnOnlyLogic() == false)
@@ -2166,6 +2166,20 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 					ReadVars.Emplace(Var);
 				if (ParamMapHistories[ParamHistoryIdx].PerVariableWriteHistory[i].Num() > 0 && !WriteVars.Contains(Var))
 					WriteVars.Emplace(Var);
+			}
+		}
+	}
+
+	for (int32 ParamHistoryIdx = 0; ParamHistoryIdx < ParamMapHistories.Num(); ParamHistoryIdx++)
+	{		
+		for (int32 i = 0; i < ParamMapHistories[ParamHistoryIdx].Variables.Num(); i++)
+		{
+			const FNiagaraVariable& Var = ParamMapHistories[ParamHistoryIdx].Variables[i];
+
+			if (Var.IsInNameSpace(TranslationStage.IterationSource))
+			{
+				if (!AllVars.Contains(Var))
+					AllVars.Emplace(Var);
 			}
 		}
 	}
@@ -2337,7 +2351,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 				AttributeHLSLNames.Emplace(TEXT("Map.") + GetSanitizedSymbolName(Var.GetName().ToString()));
 			}
 
-			if (CDO->GenerateIterationSourceNamespaceWriteAttributesHLSL(DIInstanceInfo, IterationSourceVar, MakeArrayView(Sig.Inputs), MakeArrayView(WriteVars), MakeArrayView(AttributeHLSLNames), bSpawnOnly, bPartialWrites, GeneratedErrors, AttributeWriteGeneratedHLSL) && AttributeWriteGeneratedHLSL.Len() > 0)
+			if (CDO->GenerateIterationSourceNamespaceWriteAttributesHLSL(DIInstanceInfo, IterationSourceVar, MakeArrayView(Sig.Inputs), MakeArrayView(WriteVars), MakeArrayView(AttributeHLSLNames), MakeArrayView(AllVars), bSpawnOnly, bPartialWrites, GeneratedErrors, AttributeWriteGeneratedHLSL) && AttributeWriteGeneratedHLSL.Len() > 0)
 			{
 				Sig.Name = *FString::Printf(TEXT("TeardownFromIterationSource_%s_GeneratedWriteAttributes"), *GetSanitizedFunctionNameSuffix(TranslationStage.PassNamespace));
 				FNiagaraFunctionSignature SignatureOut = Sig;
