@@ -102,7 +102,7 @@ namespace AutomationTool
 			{
 				AppName = "xbuild";
 				CommandLine = (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine) + " /verbosity:quiet /nologo";
-				// Pass #define MONO to all the automation scripts (see XboxOne)
+				// Pass #define MONO to all the automation scripts
 				CommandLine += " /p:DefineConstants=MONO";
 				CommandLine += " /p:DefineConstants=__MonoCS__";
 				// Some projects have TargetFrameworkProfile=Client which causes warnings on Linux
