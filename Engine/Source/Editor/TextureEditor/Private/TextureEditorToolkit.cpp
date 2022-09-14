@@ -260,8 +260,6 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	SpecifiedFace = 0;
 	bUseSpecifiedFace = false;
 
-	SavedCompressionSetting = false;
-
 	// Start at whatever the last used zoom mode, volume view mode and cubemap view mode were
 	const UTextureEditorSettings& Settings = *GetDefault<UTextureEditorSettings>();
 	ZoomMode = Settings.ZoomMode;
@@ -2396,12 +2394,6 @@ void FTextureEditorToolkit::HandleReimportManagerPostReimport( UObject* InObject
 		return;
 	}
 
-	if (!bSuccess)
-	{
-		// Failed, restore the compression flag
-		Texture->DeferCompression = SavedCompressionSetting;
-	}
-
 	// Re-enable viewport rendering now that the texture should be in a known state again
 	TextureViewport->EnableRendering();
 }
@@ -2414,10 +2406,6 @@ void FTextureEditorToolkit::HandleReimportManagerPreReimport( UObject* InObject 
 	{
 		return;
 	}
-
-	// Prevent the texture from being compressed immediately, so the user can see the results
-	SavedCompressionSetting = Texture->DeferCompression;
-	Texture->DeferCompression = true;
 
 	// Disable viewport rendering until the texture has finished re-importing
 	TextureViewport->DisableRendering();
