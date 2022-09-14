@@ -151,8 +151,6 @@ namespace MoviePipeline
 	void BuildSectionHierarchyRecursive(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, const FMovieSceneSequenceID InSequenceId, const FMovieSceneSequenceID InChildId, TSharedPtr<FCameraCutSubSectionHierarchyNode> OutSubsectionHierarchy);
 	/** Gets the inner and outer names for the shot by resolving camera bindings/shot names, etc. Not neccessairly the final names. */
 	TTuple<FString, FString> GetNameForShot(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InSubSectionHierarch);
-	/** Examine the local sequence and see how much overlap the camera cut has with the start of the playback range. Converts to Root space. */
-	TRange<FFrameNumber> GetCameraWarmUpRangeFromSequence(UMovieSceneSequence* InSequence, FFrameNumber InSectionEnd, FMovieSceneTimeTransform InInnerToOuterTransform);
 	/** Given a leaf node, either caches the value of the hierarchy or restores it. Used to save the state before soloing a shot. */
 	void SaveOrRestoreSubSectionHierarchy(TSharedPtr<FCameraCutSubSectionHierarchyNode> InLeaf, const bool bInSave);
 	/** Given a leaf node, appropriately sets the IsActive flags for the whole hierarchy chain up to root for soloing a shot. */

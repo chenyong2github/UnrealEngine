@@ -674,7 +674,27 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			{
 				InnerToOuterTransform = SubSequenceData->RootToSequenceTransform.InverseFromAllFirstWarps();
 			}
-			Entity.CameraCutWarmUpRange = MoviePipeline::GetCameraWarmUpRangeFromSequence(InSequence, LeafNode->MovieScene->GetPlaybackRange().GetLowerBoundValue(), InnerToOuterTransform);
+
+			// To make the camera cut range detection more consistent, we'll convert the start of this Entity into root sequence space, and then we'll convert the start of the
+			// camera cut into root sequence space, and the difference between them is the range to use. This is a more reliable way than looking at the actual Playback Range.
+			TRange<FFrameNumber> EntityRangeInMaster = Entity.Range;
+			TRange<FFrameNumber> CameraCutRangeInMaster = EntityRangeInMaster;
+			if (LeafNode->CameraCutSection.IsValid())
+			{
+				CameraCutRangeInMaster = LeafNode->CameraCutSection->GetRange() * InnerToOuterTransform;
+			}
+
+			TRange<FFrameNumber> CameraCutWarmUpRange = TRange<FFrameNumber>::Empty();
+			if (EntityRangeInMaster.GetLowerBound().IsClosed() && CameraCutRangeInMaster.GetLowerBound().IsClosed())
+			{
+				CameraCutWarmUpRange = TRange<FFrameNumber>(CameraCutRangeInMaster.GetLowerBound(), EntityRangeInMaster.GetLowerBound());
+			}
+			if (CameraCutRangeInMaster.IsDegenerate())
+			{
+				CameraCutRangeInMaster = TRange<FFrameNumber>::Empty();
+			}
+
+			Entity.CameraCutWarmUpRange = CameraCutWarmUpRange;
 			Entity.LeafNode = LeafNode;
 			Entity.Name = MoviePipeline::GetNameForShot(SequenceHierarchyCache, InSequence, LeafNode);
 			Entity.InnerToOuterTransform = InnerToOuterTransform;

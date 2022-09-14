@@ -147,6 +147,11 @@ void UMoviePipeline::TickProducingFrames()
 		// again after the warm-up frames.
 		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 
+		// If we're not emulating the first frame motion blur, we back up by an extra frame so that we can fall through to regular frame-advance logic.
+		// However this causes the Sequencer to initially jump to/evaluate the wrong frame (where objects may not be spawned) and we need cameras, etc.
+		// spawned so we can cache current viewpoints. So we store how much we're going to go back so that we can temporarily add it to the sequence eval
+		// time, and then the actual eval will go forward as usual later.
+		FFrameNumber SequencerEvalOffset = FFrameNumber(0);
 		if (!CurrentCameraCut->ShotInfo.bEmulateFirstFrameMotionBlur)
 		{
 			FFrameTime TicksToEndOfPreviousFrame;
@@ -176,11 +181,12 @@ void UMoviePipeline::TickProducingFrames()
 			TicksToEndOfPreviousFrame += FFrameRate::TransformTime(FFrameTime(FFrameNumber(CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution());
 			AccumulatedTickSubFrameDeltas -= TicksToEndOfPreviousFrame.GetSubFrame();
 			CurrentCameraCut->ShotInfo.CurrentTickInMaster = CurrentCameraCut->ShotInfo.CurrentTickInMaster - TicksToEndOfPreviousFrame.FloorToFrame();
+			SequencerEvalOffset = TicksToEndOfPreviousFrame.FloorToFrame();
 		}
 
 		// Jump to the first frame of the sequence that we will be playing from. This doesn't take into account camera timing offset or temporal sampling, but that is
 		// proably okay as it means the first frame (frame 0) is exactly evaluated which is easier to preview effects in the editor instead of -.25 of a frame.
-		FFrameNumber CurrentMasterSeqTick = CurrentCameraCut->ShotInfo.CurrentTickInMaster;
+		FFrameNumber CurrentMasterSeqTick = CurrentCameraCut->ShotInfo.CurrentTickInMaster + SequencerEvalOffset;
 		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
 
 		// We tell it to jump so that things responding to different scrub-types work correctly.
@@ -207,9 +213,11 @@ void UMoviePipeline::TickProducingFrames()
 			FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
 
 			// Cache data for all the sidecar cameras too.
-			GetSidecarCameraViewPoints(CurrentCameraCut, FrameInfo.CurrSidecarViewLocations, FrameInfo.CurrSidecarViewRotations);
+			bool bSuccess = GetSidecarCameraViewPoints(CurrentCameraCut, FrameInfo.CurrSidecarViewLocations, FrameInfo.CurrSidecarViewRotations);
 			FrameInfo.PrevSidecarViewLocations = FrameInfo.CurrSidecarViewLocations;
 			FrameInfo.PrevSidecarViewRotations = FrameInfo.CurrSidecarViewRotations;
+
+			ensureMsgf(bSuccess, TEXT("Failed to evaluate camera to create cur/prev camera locations. No camera actor found on Eval Tick: %d"), CurrentMasterSeqTick.Value);
 		}
 
 		// We can safely fall through to the below states as they're OK to process the same frame we set up.

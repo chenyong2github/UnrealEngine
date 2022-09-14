@@ -572,28 +572,6 @@ namespace MoviePipeline
 		return TTuple<FString, FString>(InnerName, OuterName);
 	}
 
-	TRange<FFrameNumber> GetCameraWarmUpRangeFromSequence(UMovieSceneSequence* InSequence, FFrameNumber InSectionEnd, FMovieSceneTimeTransform InInnerToOuterTransform)
-	{
-		if (!ensureAlways(InSequence && InSequence->GetMovieScene()))
-		{
-			return TRange<FFrameNumber>::Empty();
-		}
-
-		UMovieSceneCameraCutTrack* CamTrack = Cast<UMovieSceneCameraCutTrack>(InSequence->GetMovieScene()->GetCameraCutTrack());
-		if (CamTrack && CamTrack->GetAllSections().Num() > 0)
-		{
-			UMovieSceneCameraCutSection* ValidCameraCutSection = CastChecked<UMovieSceneCameraCutSection>(CamTrack->GetAllSections()[0]);
-			if (ValidCameraCutSection->GetRange().HasLowerBound())
-			{
-				FFrameNumber CameraCutSectionStart = (ValidCameraCutSection->GetRange().GetLowerBoundValue() * InInnerToOuterTransform).FloorToFrame();
-
-				return TRange<FFrameNumber>(CameraCutSectionStart, InSectionEnd);
-			}
-		}
-
-		return TRange<FFrameNumber>::Empty();
-	}
-
 	void BuildSectionHierarchyRecursive(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, const FMovieSceneSequenceID InSequenceId, const FMovieSceneSequenceID InChildId, TSharedPtr<FCameraCutSubSectionHierarchyNode> OutSubsectionHierarchy)
 	{
 		const FMovieSceneSequenceHierarchyNode* SequenceNode = InHierarchy.FindNode(InSequenceId);
