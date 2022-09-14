@@ -7,6 +7,7 @@
 #include "SSequencer.h"
 #include "Tools/EditToolDragOperations.h"
 #include "SequencerContextMenus.h"
+#include "SequencerNodeTree.h"
 #include "MVVM/Views/STrackAreaView.h"
 #include "Tools/SequencerEditTool_Movement.h"
 #include "Tools/SequencerEditTool_Selection.h"
@@ -218,9 +219,59 @@ TOptional<FFrameNumber> FKeyBarHotspot::GetTime() const
 	return Time;
 }
 
+bool FKeyBarHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime)
+{
+	TArrayView<const FSequencerSelectedKey> FirstKey(&LeadingKeys.Last(), 1);
+
+	if (FirstKey.Num() == 0 || !FirstKey[0].Section)
+	{
+		return false;
+	}
+
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+
+	TSharedPtr<FSectionModel> SectionModel = Sequencer->GetNodeTree()->GetSectionModel(FirstKey[0].Section);
+	if (!SectionModel)
+	{
+		return false;
+	}
+	
+	FSectionContextMenu::BuildMenu(MenuBuilder, MenuExtender, *Sequencer, MouseDownTime);
+
+	TSharedPtr<IObjectBindingExtension> ObjectBinding = SectionModel->FindAncestorOfType<IObjectBindingExtension>();
+	SectionModel->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid());
+
+	return true;
+}
+
 FCursorReply FKeyBarHotspot::GetCursor() const
 {
 	return FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
+}
+
+void FKeyBarHotspot::HandleMouseSelection(FHotspotSelectionManager& SelectionManager)
+{
+	TArrayView<const FSequencerSelectedKey> FirstKey(&LeadingKeys.Last(), 1);
+
+	if (FirstKey.Num() == 0 || !FirstKey[0].Section)
+	{
+		return;
+	}
+
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+
+	TSharedPtr<FSectionModel> SectionModel = Sequencer->GetNodeTree()->GetSectionModel(FirstKey[0].Section);
+	if (!SectionModel)
+	{
+		return;
+	}
+
+	// Base-class only handles RMB selection so that the other handles and interactive controls
+	// that act as hotspots and still operate correctly with Left click
+	if (SectionModel && SelectionManager.MouseEvent->GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		SelectionManager.SelectModelExclusive(SectionModel);
+	}
 }
 
 TSharedPtr<ISequencerEditToolDragOperation> FKeyBarHotspot::InitiateDrag(const FPointerEvent& MouseEvent)

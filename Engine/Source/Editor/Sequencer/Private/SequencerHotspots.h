@@ -79,10 +79,11 @@ struct FKeyHotspot
 
 /** A hotspot representing a key bar */
 struct FKeyBarHotspot
-	: ITrackAreaHotspot
+	: ITrackAreaHotspot, IMouseHandlerHotspot
 	, TSharedFromThis<FKeyBarHotspot>
+
 {
-	UE_SEQUENCER_DECLARE_CASTABLE(FKeyBarHotspot, ITrackAreaHotspot);
+	UE_SEQUENCER_DECLARE_CASTABLE(FKeyBarHotspot, ITrackAreaHotspot, IMouseHandlerHotspot);
 
 	FKeyBarHotspot(const TRange<FFrameTime>& InRange, TArray<FSequencerSelectedKey>&& InLeadingKeys, TArray<FSequencerSelectedKey>&& InTrailingKeys, TWeakPtr<FSequencer> InWeakSequencer)
 		: LeadingKeys(MoveTemp(InLeadingKeys))
@@ -93,8 +94,12 @@ struct FKeyBarHotspot
 
 	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override;
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply GetCursor() const override;
+
+	/** IMouseHandlerHotspot */
+	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
 
 	/** The keys that are part of this hotspot */
 	TArray<FSequencerSelectedKey> LeadingKeys;
