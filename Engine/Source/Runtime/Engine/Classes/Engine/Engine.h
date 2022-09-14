@@ -2607,6 +2607,9 @@ private:
 	*/
 	void OnExternalUIChange(bool bInIsOpening);
 
+	/** Returns GetTimeBetweenGarbageCollectionPasses but tweaked if its an idle server or not */
+	float GetTimeBetweenGarbageCollectionPasses(bool bHasPlayersConnected) const;
+
 protected:
 
 	/**

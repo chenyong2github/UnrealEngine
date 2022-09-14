@@ -1615,46 +1615,67 @@ void UEngine::PreGarbageCollect()
 	SendWorldEndOfFrameUpdates();
 }
 
+float GetLowMemoryGCTimer(const float DefaultTimeBetweenGC)
+{
+	float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
+#if !UE_BUILD_SHIPPING
+	MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
+#endif
+	if (MBFree <= GLowMemoryMemoryThresholdMB)
+	{
+		if (GLowMemoryTimeBetweenPurgingPendingKillObjects < DefaultTimeBetweenGC)
+		{
+			return GLowMemoryTimeBetweenPurgingPendingKillObjects;
+		}
+
+		// Go even faster if there are levels that need to be unloaded
+		if (GLowMemoryTimeBetweenPurgingPendingLevels < DefaultTimeBetweenGC && FLevelStreamingGCHelper::GetNumLevelsPendingPurge() > 0)
+		{
+			return GLowMemoryTimeBetweenPurgingPendingLevels;
+		}
+	}
+
+	return DefaultTimeBetweenGC;
+}
+
 float UEngine::GetTimeBetweenGarbageCollectionPasses() const
+{
+	bool bAtLeastOnePlayerConnected = false;
+
+	if (IsRunningDedicatedServer())
+	{
+		for (const FWorldContext& Context : WorldList)
+		{
+			if (UWorld* World = Context.World())
+			{
+				if (World->NetDriver && World->NetDriver->ClientConnections.Num() > 0)
+				{
+					bAtLeastOnePlayerConnected = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return GetTimeBetweenGarbageCollectionPasses(bAtLeastOnePlayerConnected);
+}
+
+float UEngine::GetTimeBetweenGarbageCollectionPasses(bool bHasPlayersConnected) const
 {
 	float TimeBetweenGC = GTimeBetweenPurgingPendingKillObjects;
 
 	if (IsRunningDedicatedServer())
 	{
-		bool bAtLeastOnePlayerConnected = false;
-
-		ForEachObjectOfClass(UWorld::StaticClass(),[&bAtLeastOnePlayerConnected](UObject* WorldObj)
-		{
-			UWorld* World = CastChecked<UWorld>(WorldObj);
-			bAtLeastOnePlayerConnected = bAtLeastOnePlayerConnected || ((World->NetDriver != nullptr) && World->NetDriver->ClientConnections.Num() > 0);
-		});
-
-		if (!bAtLeastOnePlayerConnected)
+		if (!bHasPlayersConnected)
 		{
 			TimeBetweenGC *= GTimeBetweenPurgingPendingKillObjectsOnIdleServerMultiplier;
 		}
 	}
 
 	// Do more frequent GCs if we're under the low memory threshold (if enabled)
-	if ( GLowMemoryMemoryThresholdMB > 0.0 )
+	if (GLowMemoryMemoryThresholdMB > 0.0)
 	{
-		float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
-#if !UE_BUILD_SHIPPING
-		MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
-#endif
-		if (MBFree <= GLowMemoryMemoryThresholdMB)
-		{
-			if (GLowMemoryTimeBetweenPurgingPendingKillObjects < TimeBetweenGC)
-			{
-				TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingKillObjects;
-			}
-
-			// Go even faster if there are levels that need to be unloaded
-			if (GLowMemoryTimeBetweenPurgingPendingLevels < TimeBetweenGC && FLevelStreamingGCHelper::GetNumLevelsPendingPurge() > 0)
-			{
-				TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingLevels;
-			}
-		}
+		TimeBetweenGC = GetLowMemoryGCTimer(TimeBetweenGC);
 	}
 
 	return TimeBetweenGC;
@@ -1711,17 +1732,38 @@ void UEngine::ConditionalCollectGarbage()
 			}
 			else
 			{
+				const bool bTestForPlayers = IsRunningDedicatedServer();
 				bool bHasAWorldBegunPlay = false;
-				ForEachObjectOfClass(UWorld::StaticClass(), [&bHasAWorldBegunPlay](UObject* World)
+				bool bHasPlayersConnected = false;
+
+				// Look for conditions in the worlds that would change the GC frequency
+				for (const FWorldContext& Context : WorldList)
 				{
-					bHasAWorldBegunPlay = bHasAWorldBegunPlay || CastChecked<UWorld>(World)->HasBegunPlay();
-				});
+					if (UWorld* World = Context.World())
+					{
+						if (World->HasBegunPlay())
+						{
+							bHasAWorldBegunPlay = true;
+						}
+
+						if (bTestForPlayers && World->NetDriver && World->NetDriver->ClientConnections.Num() > 0)
+						{
+							bHasPlayersConnected = true;
+						}
+
+						// If we found the conditions we wanted, no need to continue iterating
+						if (bHasAWorldBegunPlay && (!bTestForPlayers || bHasPlayersConnected))
+						{
+							break;
+						}
+					}
+				}
 
 				if (bHasAWorldBegunPlay)
 				{
 					TimeSinceLastPendingKillPurge += FApp::GetDeltaTime();
 
-					const float TimeBetweenPurgingPendingKillObjects = GetTimeBetweenGarbageCollectionPasses();
+					const float TimeBetweenPurgingPendingKillObjects = GetTimeBetweenGarbageCollectionPasses(bHasPlayersConnected);
 
 					// See if we should delay garbage collect for this frame
 					if (bShouldDelayGarbageCollect)
