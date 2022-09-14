@@ -926,7 +926,7 @@ static bool SaveWorld(UWorld* World,
 				AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(NewPackageName) , true);
 			}
 
-			if (RenamedWorldPartition)
+			if (RenamedWorldPartition && RenamedWorldPartition->IsStreamingEnabled())
 			{
 				if (LoadedEditorRegions.Num())
 				{
