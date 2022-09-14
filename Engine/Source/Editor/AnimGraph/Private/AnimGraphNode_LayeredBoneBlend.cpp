@@ -9,6 +9,8 @@
 
 #include "DetailLayoutBuilder.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
+
 /////////////////////////////////////////////////////
 // UAnimGraphNode_LayeredBoneBlend
 
@@ -193,4 +195,20 @@ void UAnimGraphNode_LayeredBoneBlend::ValidateAnimNodeDuringCompilation(class US
  		Node.RebuildPerBoneBlendWeights(ForSkeleton);
  	}
 }
+
+void UAnimGraphNode_LayeredBoneBlend::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::AnimLayeredBoneBlendMasks)
+	{
+		if (Node.BlendMode == ELayeredBoneBlendMode::BlendMask && Node.BlendMasks.Num() != Node.BlendPoses.Num())
+		{
+			Node.BlendMasks.SetNum(Node.BlendPoses.Num());
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

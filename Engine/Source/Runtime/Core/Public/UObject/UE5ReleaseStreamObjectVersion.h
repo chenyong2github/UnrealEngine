@@ -121,6 +121,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// For Blueprint real numbers, ensure that legacy float data is serialized as single-precision
 		SerializeFloatPinDefaultValuesAsSinglePrecision,
 
+		// Upgrade the BlendMasks array in existing LayeredBoneBlend nodes
+		AnimLayeredBoneBlendMasks,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
