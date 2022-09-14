@@ -321,18 +321,25 @@ bool FMeshBoundaryLoops::Compute()
 			bool bSubloopsOK = ExtractSubloops(loop_verts, loop_edges, bowties, subloops);
 			if (bSubloopsOK == false)
 			{
-				goto CATASTROPHIC_ABORT;
-			}
-			for (FEdgeLoop& loop : subloops.Loops)
-			{
-				Loops.Add(loop);
-			}
-			if (subloops.Spans.Num() > 0)
-			{
-				bFellBackToSpansOnFailure = true;
-				for (FEdgeSpan& span : subloops.Spans)
+				if (FailureBehavior == EFailureBehaviors::Abort)
 				{
-					Spans.Add(span);
+					goto CATASTROPHIC_ABORT;
+				}
+
+				if (subloops.Spans.Num() > 0)
+				{
+					bFellBackToSpansOnFailure = true;
+					for (FEdgeSpan& span : subloops.Spans)
+					{
+						Spans.Add(span);
+					}
+				}
+			}
+			else
+			{
+				for (FEdgeLoop& loop : subloops.Loops)
+				{
+					Loops.Add(loop);
 				}
 			}
 		}

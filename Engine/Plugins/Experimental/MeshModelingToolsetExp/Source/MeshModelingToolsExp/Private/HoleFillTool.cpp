@@ -12,8 +12,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "MeshBoundaryLoops.h"
 #include "MeshOpPreviewHelpers.h"
-#include "Selection/PolygonSelectionMechanic.h"
-
+#include "Selection/BoundarySelectionMechanic.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
@@ -45,12 +44,12 @@ void UHoleFillToolActions::PostAction(EHoleFillToolActions Action)
 
 void UHoleFillStatisticsProperties::Initialize(const UHoleFillTool& HoleFillTool)
 {
-	if (HoleFillTool.Topology == nullptr)
+	if (!HoleFillTool.BoundaryLoops.IsValid())
 	{
 		return;
 	}
 
-	int Initial = HoleFillTool.Topology->Edges.Num();
+	int Initial = HoleFillTool.BoundaryLoops->Loops.Num();
 	int Selected = 0;
 	int Successful = 0;
 	int Failed = 0;
@@ -65,12 +64,12 @@ void UHoleFillStatisticsProperties::Initialize(const UHoleFillTool& HoleFillTool
 
 void UHoleFillStatisticsProperties::Update(const UHoleFillTool& HoleFillTool, const FHoleFillOp& Op)
 {
-	if (HoleFillTool.Topology == nullptr)
+	if (!HoleFillTool.BoundaryLoops.IsValid())
 	{
 		return;
 	}
 
-	int Initial = HoleFillTool.Topology->Edges.Num();
+	int Initial = HoleFillTool.BoundaryLoops->Loops.Num();
 	int Selected = Op.Loops.Num();
 	int Failed = Op.NumFailedLoops;
 	int Successful = Selected - Failed;
@@ -159,12 +158,30 @@ void UHoleFillTool::Setup()
 	MeshSpatial.SetMesh(OriginalMesh.Get());
 
 	// initialize topology
-	Topology = MakeUnique<FBasicTopology>(OriginalMesh.Get(), false);
-	bool bTopologyOK = Topology->RebuildTopology();
+	constexpr bool bAutoComputeLoops = true;
+	BoundaryLoops = MakeUnique<UE::Geometry::FMeshBoundaryLoops>(OriginalMesh.Get(), bAutoComputeLoops);
+	const bool bLoopsOK = !BoundaryLoops->bAborted;
+
+	if (bLoopsOK && BoundaryLoops->Spans.Num() > 0)
+	{
+		// Boundary loop finding finished but some boundaries were too degenerate to form simple loops (this might be due to the 
+		// presence of bowtie vertices on boundaries, for example)
+		// Since this tool can tolerate failing to fill a boundary loop, just convert the spans to loops and let them fail
+		for (const FEdgeSpan& Span : BoundaryLoops->Spans)
+		{
+			FEdgeLoop SpanLoop(OriginalMesh.Get());
+			if (SpanLoop.InitializeFromVertices(Span.Vertices))
+			{
+				BoundaryLoops->Loops.Add(SpanLoop);
+			}
+		}
+		BoundaryLoops->Spans.Empty();
+	}
+
 
 	// Set up selection mechanic to find and select edges
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
+	SelectionMechanic = NewObject<UBoundarySelectionMechanic>(this);
 	SelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false;
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->Properties->bSelectEdges = true;
@@ -173,7 +190,7 @@ void UHoleFillTool::Setup()
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
 		(FTransform3d)TargetComponent->GetWorldTransform(),
 		GetTargetWorld(),
-		Topology.Get(),
+		BoundaryLoops.Get(),
 		[this]() { return &MeshSpatial; }
 	);
 	// allow toggling selection without modifier key
@@ -191,7 +208,7 @@ void UHoleFillTool::Setup()
 	SetupPreview();
 	InvalidatePreviewResult();
 
-	if (!bTopologyOK)
+	if (!bLoopsOK)
 	{
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("LoopFindError", "Error finding hole boundary loops."),
@@ -201,7 +218,7 @@ void UHoleFillTool::Setup()
 		SetToolPropertySourceEnabled(SmoothHoleFillProperties, false);
 		SetToolPropertySourceEnabled(Actions, false);
 	}
-	else if (Topology->Edges.Num() == 0)
+	else if (BoundaryLoops->Loops.Num() == 0)
 	{
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("NoHoleNotification", "This mesh has no holes to fill."),
@@ -371,7 +388,7 @@ void UHoleFillTool::ApplyAction(EHoleFillToolActions ActionType)
 void UHoleFillTool::SelectAll()
 {
 	FGroupTopologySelection NewSelection;
-	for (int32 i = 0; i < Topology->Edges.Num(); ++i)
+	for (int32 i = 0; i < BoundaryLoops->Loops.Num(); ++i)
 	{
 		NewSelection.SelectedEdgeIDs.Add(i);
 	}
@@ -403,12 +420,9 @@ void UHoleFillTool::UpdateActiveBoundaryLoopSelection()
 	ActiveBoundaryLoopSelection.Reserve(NumEdges);
 	for (int32 EdgeID : ActiveSelection.SelectedEdgeIDs)
 	{
-		if (Topology->IsBoundaryEdge(EdgeID))
-		{
-			FSelectedBoundaryLoop& Loop = ActiveBoundaryLoopSelection.Emplace_GetRef();
-			Loop.EdgeTopoID = EdgeID;
-			Loop.EdgeIDs = Topology->GetGroupEdgeEdges(EdgeID);
-		}
+		FSelectedBoundaryLoop& Loop = ActiveBoundaryLoopSelection.Emplace_GetRef();
+		Loop.EdgeTopoID = EdgeID;
+		Loop.EdgeIDs = BoundaryLoops->Loops[EdgeID].Edges;
 	}
 }
 
@@ -425,16 +439,16 @@ void UHoleFillTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UHoleFillTool::GetLoopsToFill(TArray<FEdgeLoop>& OutLoops) const
 {
 	OutLoops.Reset();
-	FMeshBoundaryLoops BoundaryLoops(OriginalMesh.Get());
+	check(BoundaryLoops.IsValid());
 
 	for (const FSelectedBoundaryLoop& FillEdge : ActiveBoundaryLoopSelection)
 	{
 		if (OriginalMesh->IsBoundaryEdge(FillEdge.EdgeIDs[0]))		// may no longer be boundary due to previous fill
 		{
-			int32 LoopID = BoundaryLoops.FindLoopContainingEdge(FillEdge.EdgeIDs[0]);
+			int32 LoopID = BoundaryLoops->FindLoopContainingEdge(FillEdge.EdgeIDs[0]);
 			if (LoopID >= 0)
 			{
-				OutLoops.Add(BoundaryLoops.Loops[LoopID]);
+				OutLoops.Add(BoundaryLoops->Loops[LoopID]);
 			}
 		}
 	}

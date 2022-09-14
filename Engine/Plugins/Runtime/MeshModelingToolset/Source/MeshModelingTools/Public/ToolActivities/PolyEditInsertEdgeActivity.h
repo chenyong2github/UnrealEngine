@@ -12,10 +12,10 @@
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
 #include "Operations/GroupEdgeInserter.h"
-#include "Selection/GroupTopologySelector.h"
+#include "Selection/MeshTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
-
+#include "GroupTopology.h"
 #include "PolyEditInsertEdgeActivity.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMeshChange);
@@ -107,7 +107,7 @@ protected:
 	bool bIsRunning = false;
 
 	FTransform TargetTransform;
-	TSharedPtr<FGroupTopologySelector, ESPMode::ThreadSafe> TopologySelector;
+	TSharedPtr<FMeshTopologySelector, ESPMode::ThreadSafe> TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;
 	TArray<FVector3d> PreviewPoints;
@@ -116,7 +116,7 @@ protected:
 
 	FToolDataVisualizer ExistingEdgesRenderer;
 	FToolDataVisualizer PreviewEdgeRenderer;
-	FGroupTopologySelector::FSelectionSettings TopologySelectorSettings;
+	FMeshTopologySelector::FSelectionSettings TopologySelectorSettings;
 
 
 	// Inputs from user interaction:
@@ -137,7 +137,7 @@ protected:
 
 	bool bShowingBaseMesh = false;
 	bool bLastComputeSucceeded = false;
-	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
+	TSharedPtr<UE::Geometry::FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
 	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> LatestOpChangedTids;
 
 	int32 CurrentChangeStamp = 0;

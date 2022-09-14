@@ -11,7 +11,7 @@
 #include "InteractiveToolBuilder.h" //UInteractiveToolBuilder
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
-#include "Selection/GroupTopologySelector.h"
+#include "Selection/MeshTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
 
@@ -140,7 +140,7 @@ protected:
 	bool bIsRunning = false;
 
 	FTransform TargetTransform;
-	TSharedPtr<FGroupTopologySelector, ESPMode::ThreadSafe> TopologySelector;
+	TSharedPtr<FMeshTopologySelector, ESPMode::ThreadSafe> TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;
 
@@ -152,7 +152,7 @@ protected:
 
 	FToolDataVisualizer PreviewEdgeRenderer;
 	FToolDataVisualizer ProblemTopologyRenderer;
-	FGroupTopologySelector::FSelectionSettings TopologySelectorSettings;
+	FMeshTopologySelector::FSelectionSettings TopologySelectorSettings;
 	float ProblemVertTickWidth = 8;
 
 	void SetupPreview();
@@ -178,6 +178,6 @@ protected:
 
 	// Copied over on op completion
 	bool bLastComputeSucceeded = false;
-	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
+	TSharedPtr<UE::Geometry::FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
 	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> LatestOpChangedTids;
 };

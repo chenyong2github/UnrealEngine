@@ -109,7 +109,8 @@ void UPolyEditInsertEdgeLoopActivity::Setup(UInteractiveTool* ParentToolIn)
 
 	ActivityContext = ParentTool->GetToolManager()->GetContextObjectStore()->FindContext<UPolyEditActivityContext>();
 
-	TopologySelector = ActivityContext->SelectionMechanic->GetTopologySelector();
+	// TODO: When the deprecated function GetTopologySelector is removed from UPolygonSelectionMechanic, we can remove the UMeshTopologySelectionMechanic:: prefix here
+	TopologySelector = ActivityContext->SelectionMechanic->UMeshTopologySelectionMechanic::GetTopologySelector();
 
 	ActivityContext->OnUndoRedo.AddWeakLambda(this, [this](bool bGroupTopologyModified)
 	{

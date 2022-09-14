@@ -158,7 +158,7 @@ void UEditMeshPolygonsSelectionModeToolBuilder::InitializeNewTool(USingleSelecti
 		PolyTool->SetToSelectionModeInterface();
 
 		UPolygonSelectionMechanic* SelectionMechanic = PolyTool->SelectionMechanic;
-		UPolygonSelectionMechanicProperties* SelectionProps = SelectionMechanic->Properties;
+		UMeshTopologySelectionMechanicProperties* SelectionProps = SelectionMechanic->Properties;
 		SelectionProps->bSelectFaces = SelectionProps->bSelectEdges = SelectionProps->bSelectVertices = false;
 		SelectionProps->bSelectEdgeLoops = SelectionProps->bSelectEdgeRings = false;
 
