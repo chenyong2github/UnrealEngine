@@ -123,7 +123,7 @@ void AMediaPlate::ApplyCurrentMaterial()
 
 void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 {
-	if (Material != nullptr && StaticMeshComponent != nullptr)
+	if (GEditor != nullptr && Material != nullptr && StaticMeshComponent != nullptr)
 	{
 		UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
 		UMaterialInterface* Result = nullptr;
