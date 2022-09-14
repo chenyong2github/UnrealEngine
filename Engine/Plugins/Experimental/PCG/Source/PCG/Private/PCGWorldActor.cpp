@@ -18,14 +18,14 @@ APCGWorldActor::APCGWorldActor(const FObjectInitializer& ObjectInitializer)
 #endif
 
 	PartitionGridSize = DefaultPartitionGridSize;
-	LandscapeCache = ObjectInitializer.CreateDefaultSubobject<UPCGLandscapeCache>(this, TEXT("LandscapeCache"));
+	LandscapeCacheObject = ObjectInitializer.CreateDefaultSubobject<UPCGLandscapeCache>(this, TEXT("LandscapeCache"));
 }
 
 #if WITH_EDITOR
 void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
-	LandscapeCache->PrimeCache();
+	LandscapeCacheObject->PrimeCache();
 }
 #endif
 

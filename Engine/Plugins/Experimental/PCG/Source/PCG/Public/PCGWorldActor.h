@@ -43,8 +43,8 @@ public:
 	uint32 PartitionGridSize;
 
 	/** Contains all the PCG data required to query the landscape complete. Serialized in cooked builds only */
-	UPROPERTY(VisibleAnywhere, Category = CachedData)
-	TObjectPtr<UPCGLandscapeCache> LandscapeCache = nullptr;
+	UPROPERTY(VisibleAnywhere, Category = CachedData, meta = (DisplayName="Landscape Cache"))
+	TObjectPtr<UPCGLandscapeCache> LandscapeCacheObject = nullptr;
 
 	/** Disable creation of Partition Actors on the Z axis. Can improve performances if 3D partitioning is not needed. */
 	UPROPERTY(config, EditAnywhere, Category = WorldPartition)

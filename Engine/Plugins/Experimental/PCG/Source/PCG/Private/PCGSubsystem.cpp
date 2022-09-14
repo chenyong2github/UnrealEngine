@@ -148,7 +148,7 @@ void UPCGSubsystem::UnregisterPCGWorldActor(APCGWorldActor* InActor)
 UPCGLandscapeCache* UPCGSubsystem::GetLandscapeCache()
 {
 	APCGWorldActor* LandscapeCacheOwner = GetPCGWorldActor();
-	return LandscapeCacheOwner ? LandscapeCacheOwner->LandscapeCache.Get() : nullptr;
+	return LandscapeCacheOwner ? LandscapeCacheOwner->LandscapeCacheObject.Get() : nullptr;
 }
 
 FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bSave, const TArray<FPCGTaskId>& Dependencies)
