@@ -16,6 +16,14 @@
 // which are public in the temp struct and private in the actual FTopLevelAssetPath.
 // If UHT compiles with UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath) the generated code will fail to compile trying to access private struct members
 #if !HACK_HEADER_GENERATOR
+template<>
+struct TStructOpsTypeTraits<FTopLevelAssetPath> : public TStructOpsTypeTraitsBase2<FTopLevelAssetPath>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
+};
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TopLevelAssetPath)
 #endif
 
@@ -158,6 +166,32 @@ bool FTopLevelAssetPath::TrySetPath(FAnsiStringView Path)
 	TStringBuilder<FName::StringBufferSize> Wide;
 	Wide << Path;
 	return TrySetPath(Wide);
+}
+
+bool FTopLevelAssetPath::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	if (Tag.Type == NAME_NameProperty)
+	{
+		FName Name;
+		Slot << Name;
+		
+		FNameBuilder NameBuilder(Name);
+		TrySetPath(NameBuilder.ToView());
+
+		return true;
+	}
+	
+	if (Tag.Type == NAME_StrProperty)
+	{
+		FString String;
+		Slot << String;
+
+		TrySetPath(String);
+		
+		return true;
+	}
+
+	return false;
 }
 
 

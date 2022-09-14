@@ -16,6 +16,7 @@
 
 #include <type_traits>
 
+struct FPropertyTag;
 class CORE_API FString;
 class UObject;
 
@@ -165,6 +166,8 @@ struct COREUOBJECT_API FTopLevelAssetPath
 	{
 		return HashCombineFast(GetTypeHash(This.PackageName), GetTypeHash(This.AssetName));
 	}
+
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 private:
 	/** Name of the package containing the asset e.g. /Path/To/Package */
