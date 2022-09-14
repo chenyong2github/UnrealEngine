@@ -994,6 +994,10 @@ void UPrimitiveComponent::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
 
+	// This causes other issues with blueprint components (FORT-506503)
+	// See UStaticMeshComponent::Serialize for a workaround.
+	// CollisionProfile serialization needs some cleanup (UE-163199)
+	// 
 	// as temporary fix for the bug TTP 299926
 	// permanent fix is coming
 	if (Ar.IsLoading() && IsTemplate())

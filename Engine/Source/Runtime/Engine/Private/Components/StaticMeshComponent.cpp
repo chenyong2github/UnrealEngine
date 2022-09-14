@@ -388,6 +388,21 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	}
 
 	NotifyIfStaticMeshChanged();
+
+	// NOTE: Must come after NotifyIfStaticMeshChanged to avoid an ensure in GetStaticMesh during cook.
+	// If the component has bUseDefaultCollision set to true and we are a Blueprint component, then our BodyInstance will 
+	// be saved with the CollisionProfile data copied from our StaticMesh, but the CollisionProfileName will be unchanged 
+	// and can be anything. But! UPrimitiveComponent::Serialize calls BodyInstance.FixupData which will replace the loaded 
+	// profile data with the named profile data. This would get replaced again (with the correct values) in OnRegister, 
+	// but we need the profile to be set up correctly immediately after load because, if the component is a blueprint 
+	// component, the blueprint may attempt to write into the CollisionProfile's ResponsesArray at an index that no longer 
+	// exists (e.g., the StaticMesh is BlockAll which has 8 elements by default, but the Component is NoCollision which has 2).
+	// See FORT-506503 for more context
+	if (Ar.IsLoading() && IsTemplate() && bUseDefaultCollision)
+	{
+		UpdateCollisionFromStaticMesh();
+		BodyInstance.FixupData(this);
+	}
 }
 
 void UStaticMeshComponent::PostApplyToComponent()
