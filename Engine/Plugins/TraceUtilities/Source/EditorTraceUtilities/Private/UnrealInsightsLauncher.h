@@ -6,6 +6,8 @@
 
 class FUnrealInsightsLauncher : public TSharedFromThis<FUnrealInsightsLauncher>
 {
+	friend class FLogMessageOnGameThreadTask;
+
 public:
 	FUnrealInsightsLauncher();
 	~FUnrealInsightsLauncher();
@@ -83,6 +85,9 @@ private:
 
 	/// Logs an error message to the MessageLog window
 	void LogMessage(const FText& Message);
+
+	/// Logs an error message to the MessageLog window using a task that is ran on the Game Thread.
+	void LogMessageOnGameThread(const FText& Message);
 
 private:
 	/** The name of the Unreal Insights log listing. */
