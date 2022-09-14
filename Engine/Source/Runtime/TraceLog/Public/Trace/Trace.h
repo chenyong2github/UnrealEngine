@@ -81,7 +81,8 @@ using OnConnectFunc = void(void);
 
 struct FInitializeDesc
 {
-	uint32			TailSizeBytes		= 4 << 20;
+	uint32			TailSizeBytes		= 4 << 20;  // Set to 0 to disable the tail buffer
+	uint32			ThreadSleepTimeInMS = 0;
 	bool			bUseWorkerThread	= true;
 	bool			bUseImportantCache	= true;
 	OnConnectFunc*	OnConnectionFunc	= nullptr;

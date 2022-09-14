@@ -587,6 +587,7 @@ void Writer_CallbackOnConnect()
 ////////////////////////////////////////////////////////////////////////////////
 static UPTRINT			GWorkerThread;		// = 0;
 static volatile bool	GWorkerThreadQuit;	// = false;
+static uint32			GSleepTimeInMS = 17;
 static volatile unsigned int	GUpdateInProgress = 1;	// Don't allow updates until initialized
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -630,8 +631,7 @@ static void Writer_WorkerThread()
 	{
 		Writer_WorkerUpdate();
 
-		const uint32 SleepMs = 17;
-		ThreadSleep(SleepMs);
+		ThreadSleep(GSleepTimeInMS);
 	}
 }
 
@@ -759,6 +759,11 @@ void Writer_Initialize(const FInitializeDesc& Desc)
 		Writer_InitializeCache();
 	}
 
+	if (Desc.ThreadSleepTimeInMS != 0)
+	{
+		GSleepTimeInMS = Desc.ThreadSleepTimeInMS;
+	}
+
 	if (Desc.bUseWorkerThread)
 	{
 		Writer_WorkerCreate();
@@ -784,10 +789,7 @@ void Writer_Update()
 	{
 		Writer_WorkerUpdate();
 	}
-
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)

@@ -28,6 +28,9 @@ public:
 	 */
 	DECLARE_MULTICAST_DELEGATE(FOnConnection);
 
+	/** Callback whenever a trace file is created */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTraceFileCreated, const TCHAR* FileNameAndPath);
+
 	enum class EConnectionType
 	{
 		/**
@@ -117,6 +120,12 @@ public:
 	static void EnableChannels();
 
 	/**
+	* Disable channels to stop recording traces with them.
+	* @param Channels List of channels (or a preset) to disable. If null it will disable all active channels.
+	*/
+	static void DisableChannels(const TCHAR* Channels = nullptr);
+
+	/**
 	 *  Returns the destination string that is currently being traced to.
 	 *  Contains either a file path or network address. Points to an empty string if tracing is disabled.
 	 */
@@ -146,5 +155,12 @@ public:
 	 * @param Callback Delegate to call on new connections.
 	 */
 	static FOnConnection OnConnection;
+
+	/**
+	 * Delegate that triggers when a trace file is created. Useful if you need to collect all trace files
+     * created during a session.
+	 * The full file name and path is passed to the delegate.
+	 */
+	static FOnTraceFileCreated OnTraceFileCreated;
 	
 };

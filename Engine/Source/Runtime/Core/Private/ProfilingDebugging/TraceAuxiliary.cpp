@@ -56,6 +56,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 const TCHAR* GDefaultChannels = TEXT("cpu,gpu,frame,log,bookmark");
 const TCHAR* GMemoryChannels = TEXT("memtag,memalloc,callstack,module");
+const TCHAR* GTraceConfigSection = TEXT("Trace.Config");
 
 ////////////////////////////////////////////////////////////////////////////////
 CSV_DEFINE_CATEGORY(Trace, true);
@@ -516,7 +517,11 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path, const FTraceAuxiliary::
 		return false;
 	}
 
-	if (!UE::Trace::WriteTo(*NativePath))
+	if (UE::Trace::WriteTo(*NativePath))
+	{
+		FTraceAuxiliary::OnTraceFileCreated.Broadcast(*NativePath);
+	}
+	else
 	{
 		if (FPathViews::Equals(NativePath, FStringView(Path)))
 		{
@@ -644,6 +649,30 @@ void FTraceAuxiliaryImpl::StartEndFramePump()
 void OnConnectionCallback()
 {
 	FTraceAuxiliary::OnConnection.Broadcast();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+static void SetupInitFromConfig(UE::Trace::FInitializeDesc& OutDesc)
+{
+	if (!GConfig)
+	{
+		return;
+	}
+
+	int32 SleepTimeConfig = 0;
+	if (GConfig->GetInt(GTraceConfigSection, TEXT("SleepTimeInMS"), SleepTimeConfig, GEngineIni))
+	{
+		if (SleepTimeConfig > 0)
+		{
+			OutDesc.ThreadSleepTimeInMS = SleepTimeConfig;
+		}
+	}
+
+	int32 TailSizeBytesConfig = 0;
+	if (GConfig->GetInt(GTraceConfigSection, TEXT("TailSizeBytes"), TailSizeBytesConfig, GEngineIni))
+	{
+		OutDesc.TailSizeBytes = TailSizeBytesConfig;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1160,7 +1189,9 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 	FTraceAuxiliary::FOptions Opts;
 	Opts.bTruncateFile = FParse::Param(CommandLine, TEXT("tracefiletrunc"));
 
-	if (FParse::Param(FCommandLine::Get(), TEXT("nothreading")) || FParse::Param(FCommandLine::Get(), TEXT("notracethreading")))
+	const bool bWorkerThreadAllowed = FGenericPlatformProcess::SupportsMultithreading() || FForkProcessHelper::IsForkedMultithreadInstance();
+
+	if (!bWorkerThreadAllowed || FParse::Param(FCommandLine::Get(), TEXT("notracethreading")))
 	{
 		Opts.bNoWorkerThread = true;
 	}
@@ -1217,6 +1248,7 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 
 ////////////////////////////////////////////////////////////////////////////////
 FTraceAuxiliary::FOnConnection FTraceAuxiliary::OnConnection;
+FTraceAuxiliary::FOnTraceFileCreated FTraceAuxiliary::OnTraceFileCreated;
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, FOptions* Options, const FLogCategoryAlias& LogCategory)
@@ -1236,7 +1268,10 @@ bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCH
 	// Make sure the worker thread is started unless explicitly opt out.
 	if (!Options || !Options->bNoWorkerThread)
 	{
-		GTraceAuxiliary.StartWorkerThread();
+		if (FGenericPlatformProcess::SupportsMultithreading() || FForkProcessHelper::IsForkedMultithreadInstance())
+		{
+			GTraceAuxiliary.StartWorkerThread();
+		}
 	}
 
 	if (Channels)
@@ -1406,6 +1441,8 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 
 	// Initialize Trace
 	UE::Trace::FInitializeDesc Desc;
+	SetupInitFromConfig(Desc);
+	
 	Desc.bUseWorkerThread = false;
 	Desc.bUseImportantCache = (FParse::Param(CommandLine, TEXT("tracenocache")) == false);
 	Desc.OnConnectionFunc = &OnConnectionCallback;
@@ -1496,6 +1533,13 @@ void FTraceAuxiliary::EnableChannels()
 {
 #if UE_TRACE_ENABLED
 	GTraceAuxiliary.EnableCommandlineChannels();
+#endif
+}
+
+void FTraceAuxiliary::DisableChannels(const TCHAR* Channels)
+{
+#if UE_TRACE_ENABLED
+	GTraceAuxiliary.DisableChannels(Channels);
 #endif
 }
 
