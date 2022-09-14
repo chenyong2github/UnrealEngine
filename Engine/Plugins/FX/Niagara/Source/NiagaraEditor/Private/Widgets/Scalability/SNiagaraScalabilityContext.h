@@ -17,11 +17,11 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UNiagaraSystemScalabilityViewModel& InScalabilityViewModel);
-
+	virtual ~SNiagaraScalabilityContext() override;
+	
 	void SetObject(UObject* Object);
 
 	void UpdateScalabilityContent();
-
 private:
 	bool FilterScalabilityProperties(const FPropertyAndParent& InPropertyAndParent) const;
 	TWeakObjectPtr<UNiagaraSystemScalabilityViewModel> ScalabilityViewModel;
