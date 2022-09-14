@@ -34,25 +34,11 @@
 			"Name": "OptimusEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
-		},
-		{
-			"Name": "OptimusTools",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "ComputeFramework",
-			"Enabled": true
-		},
-		{
-			"Name": "MeshModelingToolsetExp",
-			"Enabled": true
-		},
-		{
-			"Name": "ModelingToolsEditorMode",
 			"Enabled": true
 		}
 	]
