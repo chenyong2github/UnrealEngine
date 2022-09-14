@@ -93,14 +93,22 @@ namespace EpicGames.Perforce
 		/// <returns>Path to the executable</returns>
 		public static string GetExecutable()
 		{
-			string perforceFileName;
-			if (RuntimePlatform.IsWindows)
+			string perforceFileName = "p4.exe";
+			if (!RuntimePlatform.IsWindows)
 			{
-				perforceFileName = "p4.exe";
-			}
-			else
-			{
-				perforceFileName = File.Exists("/usr/local/bin/p4") ? "/usr/local/bin/p4" : "/usr/bin/p4";
+				string[] p4Paths = { 
+					"/usr/bin/p4", // Default path
+					"/opt/homebrew/bin/p4", // Apple Silicon Homebrew Path
+					"/usr/local/bin/p4", // Apple Intel Homebrew Path
+					"/home/linuxbrew/.linuxbrew/bin/p4" }; // Linux Homebrew path
+				foreach (string path in p4Paths)
+				{
+					if (File.Exists(path))
+					{
+						perforceFileName = path;
+						break;
+					}
+				}
 			}
 			return perforceFileName;
 		}

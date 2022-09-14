@@ -87,10 +87,19 @@ namespace AutomationTool
 			{
 				if (P4ExePath == null)
 				{
-					P4ExePath = "/usr/bin/p4";
-					if (!File.Exists(P4ExePath))
+					string[] p4Paths = { 
+						"/usr/bin/p4", // Default path
+						"/opt/homebrew/bin/p4", // Apple Silicon Homebrew Path
+						"/usr/local/bin/p4" // Apple Intel Homebrew Path
+					};
+					
+					foreach (string path in p4Paths)
 					{
-						P4ExePath = "/usr/local/bin/p4";
+						if (File.Exists(path))
+						{
+							P4ExePath = path;
+							break;
+						}
 					}
 				}
 				return P4ExePath;
