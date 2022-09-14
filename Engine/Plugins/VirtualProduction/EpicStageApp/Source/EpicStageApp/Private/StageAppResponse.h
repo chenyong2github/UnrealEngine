@@ -77,6 +77,12 @@ struct FRCPreviewRenderCompletedEvent
 	FString ImageBase64 = "";
 
 	/**
+	 * The resolution of the image included with this message.
+	 */
+	UPROPERTY()
+	FIntPoint Resolution = FIntPoint(1024, 1024);
+
+	/**
 	 * A list of projected positions within the preview render for each rendered actor.
 	 */
 	UPROPERTY()
