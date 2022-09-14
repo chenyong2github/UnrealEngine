@@ -5050,8 +5050,8 @@ bool MakeBinaryConfig(const TCHAR* CmdLine)
 
 	TArray<FString> KeyDenyListStrings;
 	TArray<FString> SectionsDenyList;
-	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), KeyDenyListStrings, GGameIni);
-	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniSectionBlacklist"), SectionsDenyList, GGameIni);
+	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyDenylist"), KeyDenyListStrings, GGameIni);
+	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniSectionDenylist"), SectionsDenyList, GGameIni);
 	TArray<FName> KeysDenyList;
 	for (const FString& Key : KeyDenyListStrings)
 	{
@@ -5083,7 +5083,7 @@ bool MakeBinaryConfig(const TCHAR* CmdLine)
 
 	// check the deny list removed itself
 	KeyDenyListStrings.Empty();
-	Config.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), KeyDenyListStrings, GGameIni);
+	Config.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyDenylist"), KeyDenyListStrings, GGameIni);
 	check(KeyDenyListStrings.Num() == 0);
 
 	// allow delegates to modify the config data with some tagged binary data

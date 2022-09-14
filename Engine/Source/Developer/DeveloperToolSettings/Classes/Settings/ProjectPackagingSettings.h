@@ -543,13 +543,21 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay)
 	TArray<FString> CompressedChunkWildcard;
 
-	/** List of ini file keys to strip when packaging */
+	UE_DEPRECATED(5.1, "This property is no longer supported. Use IniKeyDenylist.")
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	TArray<FString> IniKeyBlacklist;
 
-	/** List of ini file sections to strip when packaging */
+	/** List of ini file keys to strip when packaging */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	TArray<FString> IniKeyDenylist;
+
+	UE_DEPRECATED(5.1, "This property is no longer supported. Use IniSectionDenylist.")
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	TArray<FString> IniSectionBlacklist;
+
+	/** List of ini file sections to strip when packaging */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	TArray<FString> IniSectionDenylist;
 
 	/**
 	 * List of specific files to include with GenerateEarlyDownloaderPakFile

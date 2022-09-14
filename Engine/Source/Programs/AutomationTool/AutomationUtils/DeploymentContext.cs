@@ -598,8 +598,8 @@ public class DeploymentContext //: ProjectParams
 		String PackagingIniPath = "/Script/UnrealEd.ProjectPackagingSettings";
 
 		// Read the config deny lists
-		GameConfig.GetArray(PackagingIniPath, "IniKeyBlacklist", out IniKeyDenyList);
-		GameConfig.GetArray(PackagingIniPath, "IniSectionBlacklist", out IniSectionDenyList);
+		GameConfig.GetArray(PackagingIniPath, "IniKeyDenylist", out IniKeyDenyList);
+		GameConfig.GetArray(PackagingIniPath, "IniSectionDenylist", out IniSectionDenyList);
 
 		// TODO: Drive these lists from a config file
 		IniSuffixAllowList = new List<string>
