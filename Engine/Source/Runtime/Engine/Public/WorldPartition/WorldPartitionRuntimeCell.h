@@ -38,7 +38,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InContentBundleGuid)
 #if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
@@ -46,6 +46,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 		, ContainerTransform(InContainerTransform)
 		, ContainerPackage(InContainerPackage)
 		, WorldPackage(InWorldPackage)
+		, ContentBundleGuid(InContentBundleGuid)
 		, LoadedPath(InPath)
 #endif
 	{}
@@ -86,6 +87,12 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	 */
 	UPROPERTY()
 	FName WorldPackage;
+
+	/**
+	 * Content Bundle Id
+	 */
+	UPROPERTY()
+	FGuid ContentBundleGuid;
 
 	/**
 	* Loaded actor path (when cooking or pie)
