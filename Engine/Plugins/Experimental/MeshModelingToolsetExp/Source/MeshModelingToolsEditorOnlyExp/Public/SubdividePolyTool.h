@@ -110,5 +110,8 @@ protected:
 	bool CheckGroupTopology(FText& Message);
 
 	void CapSubdivisionLevel(ESubdivisionScheme Scheme, int DesiredLevel);
+
+	// Tool message when no explicit parameter-related warnings are being pushed.  
+	FText PersistentErrorMessage;
 };
 
