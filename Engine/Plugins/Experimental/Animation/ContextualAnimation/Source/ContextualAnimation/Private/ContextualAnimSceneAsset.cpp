@@ -684,93 +684,94 @@ FTransform UContextualAnimSceneAsset::GetAlignmentTransform(int32 SectionIdx, in
 	return FTransform::Identity;
 }
 
-static FContextualAnimPoint GetContextualAnimPoint(const FContextualAnimTrack& AnimTrack, const FTransform& ToWorldTransform, int32 SampleRate, EContextualAnimPointType Type)
+static FContextualAnimPoint GetContextualAnimPoint(const FContextualAnimTrack& PrimaryAnimTrack, const FContextualAnimTrack& SecondaryAnimTrack, const FContextualAnimSceneBindingContext& PrimaryContext, int32 SampleRate, EContextualAnimPointType Type)
 {
 	check(SampleRate > 0);
 
-	if (AnimTrack.Animation)
+	if (SecondaryAnimTrack.Animation)
 	{
 		const float Interval = 1.f / SampleRate;
 
 		float T1 = 0.f;
 		if(Type == EContextualAnimPointType::SyncFrame)
 		{
-			T1 = AnimTrack.GetSyncTimeForWarpSection(0);
+			T1 = SecondaryAnimTrack.GetSyncTimeForWarpSection(0);
 		}
 		else if(Type == EContextualAnimPointType::LastFrame)
 		{
-			T1 = FMath::Max(AnimTrack.Animation->GetPlayLength() - Interval, 0.f);
+			T1 = FMath::Max(SecondaryAnimTrack.Animation->GetPlayLength() - Interval, 0.f);
 		}
 
 		float T2 = T1 + Interval;
 
-		const FTransform RootTransform1 = AnimTrack.GetAlignmentTransformAtTime(T1);
-		const FTransform RootTransform2 = AnimTrack.GetAlignmentTransformAtTime(T2);
-		const float Delta = (RootTransform2.GetTranslation() - RootTransform1.GetTranslation()).Size();
+		const float Delta = (SecondaryAnimTrack.GetRootTransformAtTime(T2).GetTranslation() - SecondaryAnimTrack.GetRootTransformAtTime(T1).GetTranslation()).Size();
 		const float Speed = Delta / Interval;
 
-		return FContextualAnimPoint(RootTransform1 * ToWorldTransform, Speed, AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.AnimTrackIdx);
+		const FTransform SecondaryRelativeToPivot = SecondaryAnimTrack.GetAlignmentTransformAtTime(T1);
+		const FTransform PrimaryRelativeToPivot = PrimaryAnimTrack.GetAlignmentTransformAtTime(T1);
+		const FTransform FinalTransform = SecondaryRelativeToPivot.GetRelativeTransform(PrimaryRelativeToPivot) * PrimaryContext.GetTransform();
+
+		return FContextualAnimPoint(SecondaryAnimTrack.Role, FinalTransform, Speed, SecondaryAnimTrack.SectionIdx, SecondaryAnimTrack.AnimSetIdx, SecondaryAnimTrack.AnimTrackIdx);
 	}
 	else
 	{
-		return FContextualAnimPoint(ToWorldTransform, 0.f, AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.AnimTrackIdx);
+		return FContextualAnimPoint(SecondaryAnimTrack.Role, FTransform::Identity, 0.f, SecondaryAnimTrack.SectionIdx, SecondaryAnimTrack.AnimSetIdx, SecondaryAnimTrack.AnimTrackIdx);
 	}
 }
 
-void UContextualAnimSceneAsset::GetAlignmentPointsForRoleInSection(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Primary, TArray<FContextualAnimPoint>& OutResult) const
+void UContextualAnimSceneAsset::GetAlignmentPointsForSecondaryRole(EContextualAnimPointType Type, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, TArray<FContextualAnimPoint>& OutResult) const
 {
 	if (Sections.IsValidIndex(SectionIdx))
 	{
 		OutResult.Reset(Sections[SectionIdx].AnimSets.Num());
-		for (const FContextualAnimSet& Set : Sections[SectionIdx].AnimSets)
-		{
-			for (const FContextualAnimTrack& AnimTrack : Set.Tracks)
+
+		for (const FContextualAnimSet& AnimSet : Sections[SectionIdx].AnimSets)
+		{			
+			const FContextualAnimTrack* PrimaryAnimTrack = AnimSet.Tracks.FindByPredicate([this](const FContextualAnimTrack& AnimTrack){ return AnimTrack.Role == PrimaryRole; });
+			const FContextualAnimTrack* SecondaryAnimTrack = AnimSet.Tracks.FindByPredicate([this](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role != PrimaryRole; });
+			
+			if(PrimaryAnimTrack && SecondaryAnimTrack)
 			{
-				if (AnimTrack.Role == Role)
-				{
-					OutResult.Add(GetContextualAnimPoint(AnimTrack, Primary.GetTransform(), GetSampleRate(), Type));
-					break;
-				}
+				OutResult.Add(GetContextualAnimPoint(*PrimaryAnimTrack, *SecondaryAnimTrack, Primary, GetSampleRate(), Type));
 			}
 		}
 	}
 }
 
-void UContextualAnimSceneAsset::GetAlignmentPointsForRoleInSectionConsideringSelectionCriteria(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Querier, const FContextualAnimSceneBindingContext& Primary, EContextualAnimCriterionToConsider CriterionToConsider, TArray<FContextualAnimPoint>& OutResult) const
+void UContextualAnimSceneAsset::GetAlignmentPointsForSecondaryRoleConsideringSelectionCriteria(EContextualAnimPointType Type, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier, EContextualAnimCriterionToConsider CriterionToConsider, TArray<FContextualAnimPoint>& OutResult) const
 {
 	if (Sections.IsValidIndex(SectionIdx))
 	{
 		OutResult.Reset(Sections[SectionIdx].AnimSets.Num());
-		for (const FContextualAnimSet& Set : Sections[SectionIdx].AnimSets)
+
+		for (const FContextualAnimSet& AnimSet : Sections[SectionIdx].AnimSets)
 		{
-			for (const FContextualAnimTrack& AnimTrack : Set.Tracks)
+			const FContextualAnimTrack* PrimaryAnimTrack = AnimSet.Tracks.FindByPredicate([this](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role == PrimaryRole; });
+			const FContextualAnimTrack* SecondaryAnimTrack = AnimSet.Tracks.FindByPredicate([this](const FContextualAnimTrack& AnimTrack) { return AnimTrack.Role != PrimaryRole; });
+
+			if (PrimaryAnimTrack && SecondaryAnimTrack)
 			{
-				if (AnimTrack.Role == Role)
+				bool bSuccess = true;
+				for (const UContextualAnimSelectionCriterion* Criterion : SecondaryAnimTrack->SelectionCriteria)
 				{
-					bool bSuccess = true;
-					for (const UContextualAnimSelectionCriterion* Criterion : AnimTrack.SelectionCriteria)
+					if (Criterion)
 					{
-						if (Criterion)
+						if ((CriterionToConsider == EContextualAnimCriterionToConsider::All) ||
+							(CriterionToConsider == EContextualAnimCriterionToConsider::Spatial && Criterion->Type == EContextualAnimCriterionType::Spatial) ||
+							(CriterionToConsider == EContextualAnimCriterionToConsider::Other && Criterion->Type == EContextualAnimCriterionType::Other))
 						{
-							if ((CriterionToConsider == EContextualAnimCriterionToConsider::All) ||
-								(CriterionToConsider == EContextualAnimCriterionToConsider::Spatial && Criterion->Type == EContextualAnimCriterionType::Spatial) ||
-								(CriterionToConsider == EContextualAnimCriterionToConsider::Other && Criterion->Type == EContextualAnimCriterionType::Other))
+							if (!Criterion->DoesQuerierPassCondition(Primary, Querier))
 							{
-								if (!Criterion->DoesQuerierPassCondition(Primary, Querier))
-								{
-									bSuccess = false;
-									break;
-								}
+								bSuccess = false;
+								break;
 							}
 						}
 					}
+				}
 
-					if (bSuccess)
-					{
-						OutResult.Add(GetContextualAnimPoint(AnimTrack, Primary.GetTransform(), GetSampleRate(), Type));
-					}
-
-					break;
+				if (bSuccess)
+				{
+					OutResult.Add(GetContextualAnimPoint(*PrimaryAnimTrack, *SecondaryAnimTrack, Primary, GetSampleRate(), Type));
 				}
 			}
 		}

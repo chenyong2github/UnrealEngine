@@ -85,7 +85,7 @@ UGameplayTask_MoveToContextualAnim* UGameplayTask_MoveToContextualAnim::EnterCon
 
 	// Get pathing entry point from the contextual animation.
 	TArray<FContextualAnimPoint> Points;
-	SceneAsset->GetAlignmentPointsForRoleInSection(EContextualAnimPointType::FirstFrame, SceneParams.SectionIdx, InteractorRole, PrimaryRoleBinding->GetContext(), Points);
+	SceneAsset->GetAlignmentPointsForSecondaryRole(EContextualAnimPointType::FirstFrame, SceneParams.SectionIdx, PrimaryRoleBinding->GetContext(), Points);
 	if (Points.Num() == 0)
 	{
 		UE_VLOG_UELOG(Interactor, LogGameplayTasks, Error, TEXT("Can't create task: unable to find alignment points."));

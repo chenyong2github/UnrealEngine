@@ -100,24 +100,27 @@ struct FContextualAnimPoint
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
+	FName Role = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
 	FTransform Transform;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
 	float Speed = 0.f;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
 	int32 SectionIdx = INDEX_NONE;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
 	int32 AnimSetIdx = INDEX_NONE;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
 	int32 AnimTrackIdx = INDEX_NONE;
 
 	FContextualAnimPoint(){}
-	FContextualAnimPoint(const FTransform& InTransform, float InSpeed, int32 InSectionIdx, int32 InAnimSetIdx, int32 InAnimTrackIdx)
-		: Transform(InTransform), Speed(InSpeed), SectionIdx(InSectionIdx), AnimSetIdx(InAnimSetIdx), AnimTrackIdx(InAnimTrackIdx)
+	FContextualAnimPoint(const FName& InRole, const FTransform& InTransform, float InSpeed, int32 InSectionIdx, int32 InAnimSetIdx, int32 InAnimTrackIdx)
+		: Role(InRole), Transform(InTransform), Speed(InSpeed), SectionIdx(InSectionIdx), AnimSetIdx(InAnimSetIdx), AnimTrackIdx(InAnimTrackIdx)
 	{}
 };
 
@@ -200,9 +203,11 @@ public:
 
 	const FContextualAnimIKTargetDefContainer& GetIKTargetDefsForRoleInSection(int32 SectionIdx, const FName& Role) const;
 
-	void GetAlignmentPointsForRoleInSection(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Primary, TArray<FContextualAnimPoint>& OutResult) const;
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	void GetAlignmentPointsForSecondaryRole(EContextualAnimPointType Type, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, TArray<FContextualAnimPoint>& OutResult) const;
 
-	void GetAlignmentPointsForRoleInSectionConsideringSelectionCriteria(EContextualAnimPointType Type, int32 SectionIdx, const FName& Role, const FContextualAnimSceneBindingContext& Querier, const FContextualAnimSceneBindingContext& Primary, EContextualAnimCriterionToConsider CriterionToConsider, TArray<FContextualAnimPoint>& OutResult) const;
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	void GetAlignmentPointsForSecondaryRoleConsideringSelectionCriteria(EContextualAnimPointType Type, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier, EContextualAnimCriterionToConsider CriterionToConsider, TArray<FContextualAnimPoint>& OutResult) const;
 
 public:
 

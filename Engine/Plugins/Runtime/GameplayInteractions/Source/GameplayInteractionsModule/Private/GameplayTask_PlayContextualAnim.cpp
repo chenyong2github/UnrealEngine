@@ -280,7 +280,7 @@ void UGameplayTask_PlayContextualAnim::TransitionToSection()
 		{
 			TArray<FContextualAnimPoint> Points;
 			const int32 ExitSectionIdx = SceneAsset->GetSectionIndex(ExitSectionName);
-			SceneAsset->GetAlignmentPointsForRoleInSection(EContextualAnimPointType::LastFrame, ExitSectionIdx, InteractorRole, PrimaryRoleBinding->GetContext(), Points);
+			SceneAsset->GetAlignmentPointsForSecondaryRole(EContextualAnimPointType::LastFrame, ExitSectionIdx, PrimaryRoleBinding->GetContext(), Points);
 			if (Points.Num())
 			{
 				SafeExitPoint = Points[0].Transform;
