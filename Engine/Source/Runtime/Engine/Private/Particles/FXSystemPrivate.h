@@ -11,6 +11,7 @@
 #include "VectorField.h"
 #include "ParticleSortingGPU.h"
 #include "GPUSortManager.h"
+#include "ParticleVertexFactory.h"
 
 class FCanvas;
 class FGlobalDistanceFieldParameterData;
