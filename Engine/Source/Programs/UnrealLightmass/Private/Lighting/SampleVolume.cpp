@@ -581,7 +581,7 @@ void FStaticLightingSystem::ProcessVolumeSamplesTask(const FVolumeSamplesTaskDes
 
 /** 
  * Interpolates lighting from the volume lighting samples to a vertex. 
- * This mirrors FPrecomputedLightVolume::InterpolateIncidentRadiance in UE4, used for visualizing interpolation from the lighting volume on surfaces.
+ * This mirrors FPrecomputedLightVolume::InterpolateIncidentRadiance in UE5, used for visualizing interpolation from the lighting volume on surfaces.
  */
 FGatheredLightSample FStaticLightingSystem::InterpolatePrecomputedVolumeIncidentRadiance(const FStaticLightingVertex& Vertex, float SampleRadius, FCoherentRayCache& RayCache, bool bDebugThisTexel) const
 {

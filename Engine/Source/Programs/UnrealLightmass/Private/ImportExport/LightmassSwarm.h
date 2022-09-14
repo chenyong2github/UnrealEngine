@@ -25,7 +25,7 @@ namespace Lightmass
 #define SWARM_ENABLE_CHANNEL_WRITES	1
 
 /** Flags to use when opening the different kinds of output channels */
-/** MUST PAIR APPROPRIATELY WITH THE SAME FLAGS IN UE4 */
+/** MUST PAIR APPROPRIATELY WITH THE SAME FLAGS IN UE5 */
 static const int32 LM_TEXTUREMAPPING_CHANNEL_FLAGS	= NSwarm::SWARM_JOB_CHANNEL_WRITE;
 static const int32 LM_VOLUMESAMPLES_CHANNEL_FLAGS		= NSwarm::SWARM_JOB_CHANNEL_WRITE;
 static const int32 LM_PRECOMPUTEDVISIBILITY_CHANNEL_FLAGS	= NSwarm::SWARM_JOB_CHANNEL_WRITE;
@@ -35,7 +35,7 @@ static const int32 LM_MESHAREALIGHT_CHANNEL_FLAGS		= NSwarm::SWARM_JOB_CHANNEL_W
 static const int32 LM_DEBUGOUTPUT_CHANNEL_FLAGS		= NSwarm::SWARM_JOB_CHANNEL_WRITE;
 
 /** Flags to use when opening the different kinds of input channels */
-/** MUST PAIR APPROPRIATELY WITH THE SAME FLAGS IN UE4 */
+/** MUST PAIR APPROPRIATELY WITH THE SAME FLAGS IN UE5 */
 #if LM_COMPRESS_INPUT_DATA
 	static const int32 LM_SCENE_CHANNEL_FLAGS			= NSwarm::SWARM_JOB_CHANNEL_READ | NSwarm::SWARM_CHANNEL_MISC_ENABLE_COMPRESSION;
 	static const int32 LM_STATICMESH_CHANNEL_FLAGS	= NSwarm::SWARM_CHANNEL_READ | NSwarm::SWARM_CHANNEL_MISC_ENABLE_COMPRESSION;
@@ -206,25 +206,25 @@ public:
 	bool	RequestTask( FGuid& TaskGuid, uint32 WaitTime = uint32(-1) );
 
 	/**
-	 * Accepts a requested task. This will also notify UE4.
+	 * Accepts a requested task. This will also notify UE5.
 	 * @param TaskGuid	The task that is being accepted
 	 */
 	void	AcceptTask( const FGuid& TaskGuid );
 
 	/**
-	 * Rejects a requested task. This will also notify UE4.
+	 * Rejects a requested task. This will also notify UE5.
 	 * @param TaskGuid	The task that is being rejected
 	 */
 	void	RejectTask( const FGuid& TaskGuid );
 
 	/**
-	 * Tells Swarm that the task is completed and all results have been fully exported. This will also notify UE4.
+	 * Tells Swarm that the task is completed and all results have been fully exported. This will also notify UE5.
 	 * @param TaskGuid	A guid that identifies the task that has been completed
 	 */
 	void	TaskCompleted( const FGuid& TaskGuid );
 
 	/**
-	 * Tells Swarm that the task has failed. This will also notify UE4.
+	 * Tells Swarm that the task has failed. This will also notify UE5.
 	 * @param TaskGuid	A guid that identifies the task that has failed
 	 */
 	void	TaskFailed( const FGuid& TaskGuid );

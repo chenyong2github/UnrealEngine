@@ -49,9 +49,9 @@ void appHandleCriticalError()
 #if !UE_BUILD_DEBUG
 		{
 			TCHAR ReportDumpVersion[] = TEXT("4");
-			TCHAR ReportDumpFilename[] = TEXT("UE4AutoReportDump.txt");
+			TCHAR ReportDumpFilename[] = TEXT("UE5AutoReportDump.txt");
 			TCHAR AutoReportExe[] = TEXT("../DotNET/AutoReporter.exe");
-			TCHAR IniDumpFilename[] = TEXT("UE4AutoReportIniDump.txt");
+			TCHAR IniDumpFilename[] = TEXT("UE5AutoReportIniDump.txt");
 
 			FArchive* AutoReportFile = IFileManager::Get().CreateFileWriter(ReportDumpFilename);
 			if (AutoReportFile != NULL)

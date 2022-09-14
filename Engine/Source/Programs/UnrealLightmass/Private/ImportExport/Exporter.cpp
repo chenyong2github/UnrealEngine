@@ -95,7 +95,7 @@ namespace Lightmass
 
 	/** 
 	 * Exports information about mesh area lights back to Unreal, 
-	 * So that UE4 can create dynamic lights to approximate the mesh area light's influence on dynamic objects.
+	 * So that UE5 can create dynamic lights to approximate the mesh area light's influence on dynamic objects.
 	 */
 	void FLightmassSolverExporter::ExportMeshAreaLightData(const TIndirectArray<FMeshAreaLight>& MeshAreaLights, float MeshAreaLightGeneratedDynamicLightSurfaceOffset) const
 	{

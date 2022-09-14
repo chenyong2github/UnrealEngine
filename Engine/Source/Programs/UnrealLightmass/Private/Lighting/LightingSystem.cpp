@@ -118,7 +118,7 @@ FStaticLightingMappingContext::~FStaticLightingMappingContext()
  * Initializes this static lighting system, and builds static lighting based on the provided options.
  * @param InOptions		- The static lighting build options.
  * @param InScene		- The scene containing all the lights and meshes
- * @param InExporter	- The exporter used to send completed data back to UE4
+ * @param InExporter	- The exporter used to send completed data back to UE5
  * @param InNumThreads	- Number of concurrent threads to use for lighting building
  */
 FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOptions, FScene& InScene, FLightmassSolverExporter& InExporter, int32 InNumThreads)

@@ -21,7 +21,7 @@ protected:
 	 *
 	 * @param Key Key of object
 	 * @param Version Version of object to load
-	 * @param Extension Type of object to load (@todo UE4: This could be removed if Version could imply extension)
+	 * @param Extension Type of object to load (@todo UE5: This could be removed if Version could imply extension)
 	 * @return The object that was loaded or found, or NULL if the Guid failed
 	 */
 	template <class ObjType, class LookupMapType, class KeyType>
@@ -64,7 +64,7 @@ public:
 	 *
 	 * @param Guid Guid of object
 	 * @param Version Version of object to load
-	 * @param Extension Type of object to load (@todo UE4: This could be removed if Version could imply extension)
+	 * @param Extension Type of object to load (@todo UE5: This could be removed if Version could imply extension)
 	 * @return The object that was loaded or found, or NULL if the Guid failed
 	 */
 	template <class ObjType, class LookupMapType>
@@ -78,7 +78,7 @@ public:
 	 *
 	 * @param Hash Id of object
 	 * @param Version Version of object to load
-	 * @param Extension Type of object to load (@todo UE4: This could be removed if Version could imply extension)
+	 * @param Extension Type of object to load (@todo UE5: This could be removed if Version could imply extension)
 	 * @return The object that was loaded or found, or NULL if the Guid failed
 	 */
 	template <class ObjType, class LookupMapType>
@@ -179,7 +179,7 @@ bool FLightmassImporter::ImportGuidArray( ArrayType& Array, int32 Count, const L
  *
  * @param Key Key of object
  * @param Version Version of object to load
- * @param Extension Type of object to load (@todo UE4: This could be removed if Version could imply extension)
+ * @param Extension Type of object to load (@todo UE5: This could be removed if Version could imply extension)
  * @return The object that was loaded or found, or NULL if the Guid failed
  */
 template <class ObjType, class LookupMapType, class KeyType>

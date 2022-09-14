@@ -251,7 +251,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 	// we floor the min and max because we need to see which integer wrap of UVs it falls into
 	// so, if we had range .2 to .8, the floors would both go to 0, then add 1 to account for that one
 	// if we have range -.2 to .3, we need space for the -1 .. 0 wrap, and the 0 to 1 wrap (ie 2 iterations)
-	// @todo UE4: Actually, if the Min was used to modify the UV when looping through the Corners array,
+	// @todo UE5: Actually, if the Min was used to modify the UV when looping through the Corners array,
 	// we wouldn't need full integer ranges
 	const int32 NumIterationsX = (FMath::FloorToInt(MaxUV.X) - FMath::FloorToInt(MinUV.X)) + 1;
 	const int32 NumIterationsY = (FMath::FloorToInt(MaxUV.Y) - FMath::FloorToInt(MinUV.Y)) + 1;
