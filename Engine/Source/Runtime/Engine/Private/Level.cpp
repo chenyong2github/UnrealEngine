@@ -1738,10 +1738,6 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 
 	if (OwningWorld)
 	{
-	}
-
-	if (OwningWorld)
-	{
 		OwningWorld->SetAllowDeferredPhysicsStateCreation(false);
 	}
 
