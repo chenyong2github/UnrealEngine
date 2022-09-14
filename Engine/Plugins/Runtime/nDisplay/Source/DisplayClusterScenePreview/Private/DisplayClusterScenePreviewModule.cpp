@@ -437,9 +437,19 @@ void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& Rende
 
 	if (ADisplayClusterRootActor* RootActor = InternalGetRendererRootActor(RendererConfig))
 	{
-		RendererConfig.Renderer->AddActor(RootActor, [](const UPrimitiveComponent* PrimitiveComponent)
+		TArray<FString> ProjectionMeshNames;
+
+		if (UDisplayClusterConfigurationData* Config = RootActor->GetConfigData())
 		{
-			return !PrimitiveComponent->bHiddenInGame || PrimitiveComponent->IsA<UDisplayClusterScreenComponent>();
+			Config->GetReferencedMeshNames(ProjectionMeshNames);
+		}
+
+		RendererConfig.Renderer->AddActor(RootActor, [&ProjectionMeshNames](const UPrimitiveComponent* PrimitiveComponent)
+		{
+			// Filter out any primitive component that isn't a projection mesh (a static mesh that has a Mesh projection configured for it) or a screen component
+			const bool bIsProjectionMesh = PrimitiveComponent->IsA<UStaticMeshComponent>() && ProjectionMeshNames.Contains(PrimitiveComponent->GetName());
+			const bool bIsScreen = PrimitiveComponent->IsA<UDisplayClusterScreenComponent>();
+			return bIsProjectionMesh || bIsScreen;
 		});
 
 		if (RendererConfig.bAutoUpdateLightcards)
