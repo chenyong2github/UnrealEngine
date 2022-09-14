@@ -75,8 +75,11 @@ void FNiagaraMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 	}
 
-	const bool bUseManualVertexFetch = SupportsManualVertexFetch(GMaxRHIFeatureLevel);
-	if (!bUseManualVertexFetch)
+	// Can't use GetFeatureLevel() on FNiagaraMeshVertexFactory because it's never set during creation
+	// This needs to be fixed and then the unused stream components don't have to be added when
+	// manual vertex fetch is used - can't use GMaxRHIFeatureLevel to check for support because then ES3.1 preview won't work anymore
+	//const bool bUseManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());
+	//if (!bUseManualVertexFetch)
 	{
 		// only tangent,normal are used by the stream. the binormal is derived in the shader
 		uint8 TangentBasisAttributes[2] = { 1, 2 };
