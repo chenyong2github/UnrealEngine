@@ -103,9 +103,6 @@ public:
 	TObjectPtr<UMaterialInterface> IslandFalloffMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	TObjectPtr<UMaterialInterface> FinalizeVelocityHeightMaterial = nullptr;
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
 	TObjectPtr<UMaterialInterface> JumpStepMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
@@ -142,9 +139,6 @@ public:
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	TObjectPtr<UMaterialInstanceDynamic> IslandFalloffMID = nullptr;
-
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	TObjectPtr<UMaterialInstanceDynamic> FinalizeVelocityHeightMID = nullptr;
 	// MIDs End
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Transient, meta=(Category="Debug"))
@@ -192,6 +186,16 @@ public:
 	UPROPERTY()
 	bool bNeedsForceUpdate = false;
 
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This material is now useless, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone).")
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> FinalizeVelocityHeightMaterial_DEPRECATED = nullptr;
+
+	UE_DEPRECATED(5.1, "This material instance is now useless, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone).")
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> FinalizeVelocityHeightMID_DEPRECATED = nullptr;
+#endif // WITH_EDITORONLY_DATA
+
 	AWaterBrushManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Serialize(FArchive& Ar) override;
@@ -204,8 +208,6 @@ public:
 	virtual void BlueprintWaterBodyChanged_Native(AActor* Actor) override;
 	virtual void Initialize_Native(FTransform const& InLandscapeTransform, FIntPoint const& InLandscapeSize, FIntPoint const& InLandscapeRenderTargetSize) override;
 	virtual UTextureRenderTarget2D*  Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName) override;
-		
-	virtual void BlueprintGetRenderTargets_Native(UTextureRenderTarget2D* InHeightRenderTarget, /*out*/ UTextureRenderTarget2D*& OutVelocityRenderTarget) override;
 		
 	virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies) override;
 
@@ -320,7 +322,6 @@ private:
 
 private:
 	bool bKillCache = false;
-	int32 LastRenderedVelocityRTIndex = 0;
 	// HACK [jonathan.bard] : shouldn't be needed anymore once deprecation is done : 
 	FDelegateHandle OnWorldPostInitHandle;
 	FDelegateHandle OnLevelAddedToWorldHandle;

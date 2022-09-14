@@ -198,7 +198,6 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 	if (bAffectsLandscape || bForceUpdateBrush)
 	{
 		RequestLandscapeUpdate();
-		MarkRenderTargetsDirty();
 	}
 
 	if (bRebuildWaterMesh)
@@ -208,11 +207,6 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 			WaterSubsystem->MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags::UpdateWaterMesh);
 		}
 	}
-}
-
-void AWaterLandscapeBrush::MarkRenderTargetsDirty()
-{
-	bRenderTargetsDirty = true;
 }
 
 void AWaterLandscapeBrush::OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams)
@@ -229,8 +223,6 @@ void AWaterLandscapeBrush::OnActorsAffectingLandscapeChanged()
 	{
 		WaterSubsystem->MarkAllWaterZonesForRebuild();
 	}
-
-	MarkRenderTargetsDirty();
 }
 
 bool AWaterLandscapeBrush::IsActorAffectingLandscape(AActor* Actor) const
@@ -445,7 +437,7 @@ void AWaterLandscapeBrush::ClearActorCache(AActor* InActor)
 
 void AWaterLandscapeBrush::BlueprintGetRenderTargets_Implementation(UTextureRenderTarget2D* InHeightRenderTarget, UTextureRenderTarget2D*& OutVelocityRenderTarget)
 {
-	BlueprintGetRenderTargets_Native(InHeightRenderTarget, OutVelocityRenderTarget);
+	// Deprecated
 }
 
 void AWaterLandscapeBrush::SetTargetLandscape(ALandscape* InTargetLandscape)
@@ -475,7 +467,6 @@ void AWaterLandscapeBrush::SetTargetLandscape(ALandscape* InTargetLandscape)
 
 void AWaterLandscapeBrush::OnFullHeightmapRenderDone(UTextureRenderTarget2D* InHeightmapRenderTarget)
 {
-	bRenderTargetsDirty = false;
 	// #todo_water [roey]: This needs to be changed when the WaterZone can maintain it's own list of "ground actors" so that we don't needlessly update all water zones.
 	if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 	{
@@ -519,12 +510,12 @@ void AWaterLandscapeBrush::ForceUpdate()
 
 void AWaterLandscapeBrush::BlueprintOnRenderTargetTexturesUpdated_Implementation(UTexture2D* VelocityTexture)
 {
-	BlueprintOnRenderTargetTexturesUpdated_Native(VelocityTexture);
+	// Deprecated
 }
 
 void AWaterLandscapeBrush::ForceWaterTextureUpdate()
 {
-	MarkRenderTargetsDirty();
+	// Deprecated
 }
 
 #if WITH_EDITOR

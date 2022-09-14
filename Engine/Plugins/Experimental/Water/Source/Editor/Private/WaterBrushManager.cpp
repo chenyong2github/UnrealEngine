@@ -344,8 +344,6 @@ void AWaterBrushManager::ForceUpdate()
 	bKillCache = true;	
 	ClearCurveCache();
 	ALandscapeBlueprintBrushBase::RequestLandscapeUpdate();
-	// Regenerate the water depth velocity RT : 
-	MarkRenderTargetsDirty();	
 }
 
 void AWaterBrushManager::SingleJumpStep()
@@ -442,38 +440,6 @@ void AWaterBrushManager::CacheBrushDistanceField(const FBrushActorRenderContext&
 	BrushActorRenderContext.CacheContainer->Cache.CacheIsValid = true;
 }
 
-void AWaterBrushManager::BlueprintGetRenderTargets_Native(UTextureRenderTarget2D* InHeightRenderTarget, /*out*/ UTextureRenderTarget2D*& OutVelocityRenderTarget)
-{
-	// Use the last velocity RT rendered to as input and the other one as input :
-	FBrushRenderContext RenderContext;
-	RenderContext.VelocityRTIndex = LastRenderedVelocityRTIndex;
-
-	UTextureRenderTarget2D* VelocityRead = VelocityPingPongRead(RenderContext);
-	UTextureRenderTarget2D* VelocityWrite = VelocityPingPongWrite(RenderContext);
-
-	if ((VelocityRead == nullptr) || (VelocityWrite == nullptr))
-	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Velocity Render Target for Water Brush. Aborting BlueprintGetRenderTargets."));
-		return;
-	}
-
-	if (FinalizeVelocityHeightMID == nullptr)
-	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Finalize Velocity Height material for Water Brush. Aborting BlueprintGetRenderTargets."));
-		return;
-	}
-
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Blueprint Get Render Targets called : finalizing VelocityHeightTexture (read: %s, write: %s)"), *VelocityRead->GetName(), *VelocityWrite->GetName());
-	FinalizeVelocityHeightMID->UMaterialInstanceDynamic::SetTextureParameterValue(FName(TEXT("CombinedVelocityAndHeight")), VelocityRead);
-	FinalizeVelocityHeightMID->UMaterialInstanceDynamic::SetTextureParameterValue(FName(TEXT("LandscapeHeight")), InHeightRenderTarget);
-
-	UKismetRenderingLibrary::ClearRenderTarget2D(this, VelocityWrite, FLinearColor(0.000000, 0.000000, 0.000000, 1.000000));
-	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, VelocityWrite, FinalizeVelocityHeightMID);
-
-	// TODO [jonathan.bard] : if SkipTextureGenerationProcess was implemented, this would be OutVelocityRenderTarget = SkipTextureGenerationProcess ? VelocityPingPongRead(); : nullptr;
-	OutVelocityRenderTarget = VelocityWrite;
-}
-
 void AWaterBrushManager::GetRenderDependencies(TSet<UObject*>& OutDependencies)
 {
 	Super::GetRenderDependencies(OutDependencies);
@@ -488,7 +454,6 @@ void AWaterBrushManager::GetRenderDependencies(TSet<UObject*>& OutDependencies)
 	AddDependencyIfValid(DrawCanvasMaterial, OutDependencies);
 	AddDependencyIfValid(CompositeWaterBodyTextureMaterial, OutDependencies);
 	AddDependencyIfValid(IslandFalloffMaterial, OutDependencies);
-	AddDependencyIfValid(FinalizeVelocityHeightMaterial, OutDependencies);
 	AddDependencyIfValid(JumpStepMaterial, OutDependencies);
 	AddDependencyIfValid(FindEdgesMaterial, OutDependencies);
 	AddDependencyIfValid(BlurEdgesMaterial, OutDependencies);
@@ -516,8 +481,6 @@ void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 
 		// The landscape transform has changed, let's re-draw everything (no need to request a landscape update because we're in the middle of one) :
 		bKillCache = true;
-		// Of course we also need to regenerate the water depth velocity RT : 
-		MarkRenderTargetsDirty();
 	}
 }
 
@@ -1319,7 +1282,6 @@ bool AWaterBrushManager::CreateMIDs()
 	WeightmapMID = FWaterUtils::GetOrCreateTransientMID(WeightmapMID, TEXT("WeightmapMID"), WeightmapMaterial);
 	DistanceFieldCacheMID = FWaterUtils::GetOrCreateTransientMID(DistanceFieldCacheMID, TEXT("DistanceFieldCacheMID"), DistanceFieldCacheMaterial);
 	CompositeWaterBodyTextureMID = FWaterUtils::GetOrCreateTransientMID(CompositeWaterBodyTextureMID, TEXT("CompositeWaterBodyTextureMID"), CompositeWaterBodyTextureMaterial);
-	FinalizeVelocityHeightMID = FWaterUtils::GetOrCreateTransientMID(FinalizeVelocityHeightMID, TEXT("FinalizeVelocityHeightMID"), FinalizeVelocityHeightMaterial);
 	DrawCanvasMID = FWaterUtils::GetOrCreateTransientMID(DrawCanvasMID, TEXT("DrawCanvasMID"), DrawCanvasMaterial);
 
 	if ((BrushAngleFalloffMID == nullptr)
@@ -1328,7 +1290,6 @@ bool AWaterBrushManager::CreateMIDs()
 		|| (WeightmapMID == nullptr)
 		|| (DistanceFieldCacheMID == nullptr)
 		|| (CompositeWaterBodyTextureMID == nullptr)
-		|| (FinalizeVelocityHeightMID == nullptr)
 		|| (DrawCanvasMID == nullptr))
 	{
 		UE_LOG(LogWaterEditor, Error, TEXT("Invalid water brush materials."));
@@ -1376,7 +1337,6 @@ void AWaterBrushManager::SetupDefaultMaterials()
 	DrawCanvasMaterial = WaterEditorSettings->GetDefaultDrawCanvasMaterial();
 	CompositeWaterBodyTextureMaterial = WaterEditorSettings->GetDefaultCompositeWaterBodyTextureMaterial();
 	IslandFalloffMaterial = WaterEditorSettings->GetDefaultBrushIslandFalloffMaterial();
-	FinalizeVelocityHeightMaterial = WaterEditorSettings->GetDefaultFinalizeVelocityHeightMaterial();
 
 	JumpStepMaterial = WaterEditorSettings->GetDefaultJumpFloodStepMaterial();
 	BlurEdgesMaterial = WaterEditorSettings->GetDefaultBlurEdgesMaterial();
@@ -1385,7 +1345,6 @@ void AWaterBrushManager::SetupDefaultMaterials()
 
 UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(AWaterBrushManager_Render_Native);
 	TRACE_CPUPROFILER_EVENT_SCOPE(AWaterBrushManager::Render_Native);
 
 	LandscapeRTRef = InCombinedResult;
@@ -1425,7 +1384,7 @@ UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UT
 
 	for (AWaterBody* WaterBody : WaterBodies)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(RenderWaterBody);
+		TRACE_CPUPROFILER_EVENT_SCOPE(RenderWaterBody);
 		FBrushActorRenderContext BrushActorRenderContext(WaterBody);
 		RenderBrushActorContext(BrushRenderContext, BrushActorRenderContext);
 	}
@@ -1436,16 +1395,13 @@ UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UT
 
 	for (AWaterBodyIsland* WaterBodyIsland : WaterbodyIslands)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(RenderWaterIsland);
+		TRACE_CPUPROFILER_EVENT_SCOPE(RenderWaterIsland);
 		FBrushActorRenderContext BrushActorRenderContext(WaterBodyIsland);
 		RenderBrushActorContext(BrushRenderContext, BrushActorRenderContext);
 	}
 
 	// Render Completed
 	UTextureRenderTarget2D* ReturnRT = InIsHeightmap ? HeightPingPongRead(BrushRenderContext) : WeightPingPongRead(BrushRenderContext);
-
-	// Remember the last rendered velocity texture so that we can return the right version when the brush asks for it : 
-	LastRenderedVelocityRTIndex = BrushRenderContext.VelocityRTIndex;
 
 	bKillCache = false;
 

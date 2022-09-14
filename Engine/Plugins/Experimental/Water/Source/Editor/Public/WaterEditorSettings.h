@@ -202,8 +202,10 @@ public:
 	UMaterialInterface* GetDefaultCompositeWaterBodyTextureMaterial() const;
 	FSoftObjectPath GetDefaultCompositeWaterBodyTextureMaterialPath() const { return DefaultCompositeWaterBodyTextureMaterial.ToSoftObjectPath(); }
 
-	UMaterialInterface* GetDefaultFinalizeVelocityHeightMaterial() const;
-	FSoftObjectPath GetDefaultFinalizeVelocityHeightMaterialPath() const { return DefaultFinalizeVelocityHeightMaterial.ToSoftObjectPath(); }
+	UE_DEPRECATED(5.1, "This material is not needed anymore : the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)")
+	UMaterialInterface* GetDefaultFinalizeVelocityHeightMaterial() const { return nullptr; }
+	UE_DEPRECATED(5.1, "This material is not needed anymore : the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)")
+	FSoftObjectPath GetDefaultFinalizeVelocityHeightMaterialPath() const { return FSoftObjectPath(); }
 
 	UMaterialInterface* GetDefaultJumpFloodStepMaterial() const;
 	FSoftObjectPath GetDefaultJumpFloodStepMaterialPath() const { return DefaultJumpFloodStepMaterial.ToSoftObjectPath(); }
@@ -282,9 +284,6 @@ private:
 
 	UPROPERTY(EditAnywhere, config, Category = Brush)
 	TSoftObjectPtr<UMaterialInterface> DefaultCompositeWaterBodyTextureMaterial;
-
-	UPROPERTY(EditAnywhere, config, Category = Brush)
-	TSoftObjectPtr<UMaterialInterface> DefaultFinalizeVelocityHeightMaterial;
 
 	UPROPERTY(EditAnywhere, config, Category = Brush)
 	TSoftObjectPtr<UMaterialInterface> DefaultJumpFloodStepMaterial;

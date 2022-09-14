@@ -67,15 +67,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Cache")
 	void ClearActorCache(AActor* InActor);
 
-	UFUNCTION(BlueprintNativeEvent, Category = "Cache", meta = (CallInEditor = "true"))
+	UFUNCTION(BlueprintNativeEvent, Category = "Cache", meta = (CallInEditor = "true", DeprecatedFunction, DeprecationMessage = "This event isn't called anymore, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)."))
 	void BlueprintGetRenderTargets(UTextureRenderTarget2D* InHeightRenderTarget, UTextureRenderTarget2D*& OutVelocityRenderTarget);
+	UE_DEPRECATED(5.1, "This function isn't called anymore, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)")
 	virtual void BlueprintGetRenderTargets_Native(UTextureRenderTarget2D* InHeightRenderTarget, UTextureRenderTarget2D*& OutVelocityRenderTarget) {}
 
-	UFUNCTION(BlueprintNativeEvent, Category = "Cache", meta = (CallInEditor = "true"))
+	UFUNCTION(BlueprintNativeEvent, Category = "Cache", meta = (CallInEditor = "true", DeprecatedFunction, DeprecationMessage = "This event isn't called anymore, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)."))
 	void BlueprintOnRenderTargetTexturesUpdated(UTexture2D* VelocityTexture);
+	UE_DEPRECATED(5.1, "This function isn't called anymore, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)")
 	virtual void BlueprintOnRenderTargetTexturesUpdated_Native(UTexture2D* VelocityTexture) {}
 
-	UFUNCTION(BlueprintCallable, Category = "Cache")
+	UE_DEPRECATED(5.1, "This function is now useless, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone).")
+	UFUNCTION(BlueprintCallable, Category = "Cache", meta = (CallInEditor = "true", DeprecatedFunction, DeprecationMessage = "This function is now useless, the WaterVelocityTexture is now regenerated at runtime (WaterInfoTexture in AWaterZone)."))
 	void ForceWaterTextureUpdate();
 
 	void SetTargetLandscape(ALandscape* InTargetLandscape);
@@ -103,14 +106,6 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient)
-	TObjectPtr<UBillboardComponent> ActorIcon;
-#endif // WITH_EDITORONLY_DATA
-
-protected:
-	void MarkRenderTargetsDirty();
-
 private:
 	template<class T>
 	friend class FGetActorsOfType;
@@ -129,6 +124,13 @@ private:
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);
 
+public:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	TObjectPtr<UBillboardComponent> ActorIcon;
+#endif // WITH_EDITORONLY_DATA
+
+private:
 	TArray<TWeakInterfacePtr<IWaterBrushActorInterface>> ActorsAffectingLandscape;
 	FDelegateHandle OnWorldPostInitHandle;
 	FDelegateHandle OnLevelAddedToWorldHandle;
@@ -143,6 +145,4 @@ private:
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, AdvancedDisplay, meta = (Category = "Debug"))
 	TMap<TWeakObjectPtr<AActor>, TObjectPtr<UObject>> Cache;
-
-	bool bRenderTargetsDirty = false;
 };
