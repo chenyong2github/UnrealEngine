@@ -1522,7 +1522,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 					Mesh.DepthPriorityGroup = (ESceneDepthPriorityGroup)Proxy->GetDepthPriorityGroup(View);
 
 					FMeshBatchElement& BatchElement = Mesh.Elements[0];
-					BatchElement.PrimitiveUniformBuffer = SourceData->bUseLocalSpace ? Proxy->GetUniformBuffer() : Proxy->GetWorldSpacePrimitiveUniformBuffer();
+					BatchElement.PrimitiveUniformBuffer = ((SourceData == nullptr) || SourceData->bUseLocalSpace) ? Proxy->GetUniformBuffer() : Proxy->GetWorldSpacePrimitiveUniformBuffer();
 					BatchElement.FirstIndex = Section.FirstIndex;
 					BatchElement.MinVertexIndex = Section.MinVertexIndex;
 					BatchElement.MaxVertexIndex = Section.MaxVertexIndex;
