@@ -348,7 +348,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TWeakObjectPtr<ALandscapeProxy> TrackedLandscape = nullptr;
+	TArray<TWeakObjectPtr<ALandscapeProxy>> TrackedLandscapes;
 #endif
 
 #if WITH_EDITORONLY_DATA

@@ -111,16 +111,19 @@ namespace PCGHelpers
 		}
 	}
 
-	ALandscape* GetAnyLandscape(UWorld* InWorld)
+	TArray<TWeakObjectPtr<ALandscapeProxy>> GetAllLandscapeProxies(UWorld* InWorld)
 	{
-		for (TObjectIterator<ALandscape> It; It; ++It)
+		TArray<TWeakObjectPtr<ALandscapeProxy>> LandscapeProxies;
+
+		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
 		{
 			if (It->GetWorld() == InWorld)
 			{
-				return *It;
+				LandscapeProxies.Add(*It);
 			}
 		}
-		return nullptr;
+
+		return LandscapeProxies;
 	}
 
 	ALandscape* GetLandscape(UWorld* InWorld, const FBox& InBounds)
@@ -146,6 +149,30 @@ namespace PCGHelpers
 		}
 
 		return Landscape;
+	}
+
+	TArray<TWeakObjectPtr<ALandscapeProxy>> GetLandscapeProxies(UWorld* InWorld, const FBox& InBounds)
+	{
+		TArray<TWeakObjectPtr<ALandscapeProxy>> LandscapeProxies;
+
+		if (!InBounds.IsValid)
+		{
+			return LandscapeProxies;
+		}
+
+		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
+		{
+			if (It->GetWorld() == InWorld)
+			{
+				const FBox LandscapeBounds = GetLandscapeBounds(*It);
+				if (LandscapeBounds.IsValid && LandscapeBounds.Intersect(InBounds))
+				{
+					LandscapeProxies.Add(*It);
+				}
+			}
+		}
+
+		return LandscapeProxies;
 	}
 
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld)

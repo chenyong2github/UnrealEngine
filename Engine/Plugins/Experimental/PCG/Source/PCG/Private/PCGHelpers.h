@@ -31,7 +31,8 @@ namespace PCGHelpers
 	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape);
 
 	ALandscape* GetLandscape(UWorld* InWorld, const FBox& InActorBounds);
-	ALandscape* GetAnyLandscape(UWorld* InWorld);
+	TArray<TWeakObjectPtr<ALandscapeProxy>> GetLandscapeProxies(UWorld* InWorld, const FBox& InActorBounds);
+	TArray<TWeakObjectPtr<ALandscapeProxy>> GetAllLandscapeProxies(UWorld* InWorld);
 
 	bool IsRuntimeOrPIE();
 

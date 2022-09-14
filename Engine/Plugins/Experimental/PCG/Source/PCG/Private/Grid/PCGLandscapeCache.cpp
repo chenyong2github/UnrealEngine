@@ -48,7 +48,7 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 
 	// Get landscape default layer (heightmap/tangents/normal)
 	{
-		FLandscapeComponentDataInterface CDI(InComponent, 0);
+		FLandscapeComponentDataInterface CDI(InComponent, 0, /*bWorkInEditingLayer=*/false);
 		FVector WorldPos;
 		FVector WorldTangentX;
 		FVector WorldTangentY;
@@ -81,8 +81,8 @@ void FPCGLandscapeCacheEntry::BuildCacheData(ULandscapeInfo* LandscapeInfo, ULan
 			continue;
 		}
 
-		FLandscapeComponentDataInterface CDI(InComponent, 0, /*bUseEditingLayer=*/true);
-		if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/true))
+		FLandscapeComponentDataInterface CDI(InComponent, 0, /*bWorkInEditingLayer=*/false);
+		if (CDI.GetWeightmapTextureData(LayerInfo, LayerCache, /*bUseEditingLayer=*/false))
 		{
 			LayerDataNames.Add(Layer.LayerName);
 			LayerData.Add(LayerCache);
@@ -364,20 +364,14 @@ void FPCGLandscapeCacheEntry::Serialize(FArchive& Archive, UObject* Owner, int32
 	BulkData.Serialize(Archive, Owner, Index);
 }
 
-UPCGLandscapeCache::UPCGLandscapeCache()
-{
-#if WITH_EDITOR
-	SetupLandscapeCallbacks();
-	CacheLayerNames();
-#endif
-}
-
-UPCGLandscapeCache::~UPCGLandscapeCache()
+void UPCGLandscapeCache::BeginDestroy()
 {
 	ClearCache();
 #if WITH_EDITOR
 	TeardownLandscapeCallbacks();
 #endif
+
+	Super::BeginDestroy();
 }
 
 void UPCGLandscapeCache::Serialize(FArchive& Archive)
@@ -421,7 +415,14 @@ void UPCGLandscapeCache::Serialize(FArchive& Archive)
 
 void UPCGLandscapeCache::Tick(float DeltaSeconds)
 {
-#if !WITH_EDITOR
+#if WITH_EDITOR
+	if (!bInitialized && GetWorld())
+	{
+		SetupLandscapeCallbacks();
+		CacheLayerNames();
+		bInitialized = true;
+	}
+#else
 	// Important implementation note:
 	// If the threshold is too low, it could lead to some issues - namely the check(bDataLoaded) in the cache entries
 	// as we currently do not have a state in the landscape cache to know whether something is still under use.

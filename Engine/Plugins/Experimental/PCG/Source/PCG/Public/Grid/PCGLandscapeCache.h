@@ -65,10 +65,8 @@ class UPCGLandscapeCache : public UObject
 {
 	GENERATED_BODY()
 public:
-	UPCGLandscapeCache();
-	~UPCGLandscapeCache();
-
 	//~Begin UObject interface
+	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Archive) override;
 	//~End UObject interface
 
@@ -97,6 +95,7 @@ private:
 	std::atomic<int32> CacheMemorySize = 0;
 	std::atomic<int32> CacheTouch = 0;
 	float TimeSinceLastCleanupInSeconds = 0;
+	bool bInitialized = false;
 
 #if WITH_EDITOR
 	TSet<TWeakObjectPtr<ALandscapeProxy>> Landscapes;

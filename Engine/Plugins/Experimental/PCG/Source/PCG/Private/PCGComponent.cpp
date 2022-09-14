@@ -759,7 +759,7 @@ void UPCGComponent::SetupCallbacksOnCreation()
 	SetupActorCallbacks();
 	SetupTrackingCallbacks();
 
-	if (TrackedLandscape.IsValid())
+	if(!TrackedLandscapes.IsEmpty())
 	{
 		SetupLandscapeTracking();
 	}
@@ -1150,7 +1150,7 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 void UPCGComponent::OnActorMoved(AActor* InActor)
 {
 	const bool bOwnerMoved = (InActor == GetOwner());
-	const bool bLandscapeMoved = (InActor && InActor == TrackedLandscape);
+	const bool bLandscapeMoved = (InActor && TrackedLandscapes.Contains(InActor));
 
 	if (bOwnerMoved || bLandscapeMoved)
 	{
@@ -1189,11 +1189,11 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)
 {
 	TeardownLandscapeTracking();
-	TrackedLandscape = nullptr;
+	TrackedLandscapes.Reset();
 
 	if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(GetOwner()))
 	{
-		TrackedLandscape = Landscape;
+		TrackedLandscapes.Add(Landscape);
 	}
 	else if (InputType == EPCGComponentInput::Landscape || GraphUsesLandscapePin())
 	{
@@ -1204,12 +1204,12 @@ void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)
 				UPCGData* ActorData = GetActorPCGData();
 				if (const UPCGSpatialData* ActorSpatialData = Cast<const UPCGSpatialData>(ActorData))
 				{
-					TrackedLandscape = PCGHelpers::GetLandscape(World, ActorSpatialData->GetBounds());
+					TrackedLandscapes = PCGHelpers::GetLandscapeProxies(World, ActorSpatialData->GetBounds());
 				}
 			}
 			else
 			{
-				TrackedLandscape = PCGHelpers::GetAnyLandscape(World);
+				TrackedLandscapes = PCGHelpers::GetAllLandscapeProxies(World);
 			}
 		}
 	}
@@ -1219,28 +1219,34 @@ void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)
 
 void UPCGComponent::SetupLandscapeTracking()
 {
-	if (TrackedLandscape.IsValid())
+	for (TWeakObjectPtr<ALandscapeProxy> LandscapeProxy : TrackedLandscapes)
 	{
-		TrackedLandscape->OnComponentDataChanged.AddUObject(this, &UPCGComponent::OnLandscapeChanged);
+		if (LandscapeProxy.IsValid())
+		{
+			LandscapeProxy->OnComponentDataChanged.AddUObject(this, &UPCGComponent::OnLandscapeChanged);
+		}
 	}
 }
 
 void UPCGComponent::TeardownLandscapeTracking()
 {
-	if (TrackedLandscape.IsValid())
+	for (TWeakObjectPtr<ALandscapeProxy> LandscapeProxy : TrackedLandscapes)
 	{
-		TrackedLandscape->OnComponentDataChanged.RemoveAll(this);
+		if (LandscapeProxy.IsValid())
+		{
+			LandscapeProxy->OnComponentDataChanged.RemoveAll(this);
+		}
 	}
 }
 
 void UPCGComponent::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams)
 {
-	if (Landscape == TrackedLandscape)
+	if(TrackedLandscapes.Contains(Landscape))
 	{
 		// Check if there is an overlap in the changed components vs. the current actor data
 		EPCGComponentDirtyFlag DirtyFlag = EPCGComponentDirtyFlag::None;
 
-		if (GetOwner() == TrackedLandscape)
+		if (GetOwner() == Landscape)
 		{
 			DirtyFlag = EPCGComponentDirtyFlag::Actor;
 		}
