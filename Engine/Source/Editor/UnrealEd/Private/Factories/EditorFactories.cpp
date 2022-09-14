@@ -4508,7 +4508,7 @@ bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bA
 		const FText VTMessage = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? FText() :
 			NSLOCTEXT("UnrealEd","Warning_LargeTextureVTDisabled", "\nWarning: Virtual Textures are disabled in this project.");
 
-		if ( EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo, FText::Format(
+		if ( EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo, EAppReturnType::Yes, FText::Format(
 				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported non-VT texture size: {2} x {3}{4}"),
 				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolutionNonVT), FText::AsNumber(MaximumSupportedResolutionNonVT), VTMessage) ) )
 		{

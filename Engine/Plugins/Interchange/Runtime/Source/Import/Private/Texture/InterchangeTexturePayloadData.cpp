@@ -10,26 +10,78 @@
 
 bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FText* OutErrorMessage)
 {
-	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
+	// VT res is currently limited by pixel count fitting in int32
+	const int64 MaximumSupportedVirtualTextureResolution = 32768;
 
-	// In theory this value could be much higher, but various UE image code currently uses 32bit size/offset values
-	const int32 MaximumSupportedVirtualTextureResolution = 16 * 1024;
+	// Get the non-VT size limit :
+	int64 MaximumSupportedResolutionNonVT = (int64)UTexture::GetMaximumDimensionOfNonVT();
 
-	// Calculate the maximum supported resolution utilizing the global max texture mip count
-	// (Note, have to subtract 1 because 1x1 is a valid mip-size; this means a GMaxTextureMipCount of 4 means a max resolution of 8x8, not 2^4 = 16x16)
-	const int32 MaximumSupportedResolution = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? MaximumSupportedVirtualTextureResolution : (1 << (GMaxTextureMipCount - 1));
+	// limit on current rendering RHI : == GetMax2DTextureDimension()
+	const int64 CurrentRHIMaxResolution = int64(1) << (GMaxTextureMipCount - 1);
 
-	// Check if the texture is above the supported resolution and prompt the user if they wish to continue if it is
-	if (Width > MaximumSupportedResolution || Height > MaximumSupportedResolution)
+	// MaximumSupportedResolutionNonVT is only a popup/warning , not a hard limit
+	MaximumSupportedResolutionNonVT = FMath::Min(MaximumSupportedResolutionNonVT, CurrentRHIMaxResolution);
+
+	// No zero-size textures :
+	if (Width == 0 || Height == 0)
 	{
-		if ((Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
+		if (OutErrorMessage)
 		{
-			if (OutErrorMessage)
+			*OutErrorMessage = NSLOCTEXT("Interchange", "Warning_TextureSizeZero", "Texture has zero width or height");
+		}
+
+		return false;
+	}
+
+	bool bTextureTooLargeOrInvalidResolution = false;
+
+	// Dimensions must fit in signed int32
+	//  could be negative here if it was over 2G and int32 was used earlier
+	if (Width < 0 || Height < 0 || Width > MAX_int32 || Height > MAX_int32)
+	{
+		bTextureTooLargeOrInvalidResolution = true;
+	}
+
+	// pixel count must fit in int32 :
+	//  mip surface could still be larger than 2 GB, that's allowed
+	//	eg. 16k RGBA float = 4 GB
+	if (Width * Height > MAX_int32)
+	{
+		bTextureTooLargeOrInvalidResolution = true;
+	}
+
+	if ((Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
+	{
+		bTextureTooLargeOrInvalidResolution = true;
+	}
+
+	if (bTextureTooLargeOrInvalidResolution)
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = FText::Format(
+				NSLOCTEXT("Interchange", "Warning_TextureSizeTooLargeOrInvalid", "Texture is too large to import or it has an invalid resolution. The current maximum is {0} pixels"),
+				FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution)));
+		}
+
+		return false;
+	}
+
+	if (Width > MaximumSupportedResolutionNonVT || Height > MaximumSupportedResolutionNonVT)
+	{
+		const TConsoleVariableData<int32>* CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
+		check(CVarVirtualTexturesEnabled != nullptr);
+
+		if (!CVarVirtualTexturesEnabled->GetValueOnAnyThread())
+		{
+			const FText VTMessage = NSLOCTEXT("Interchange", "Warning_LargeTextureVTDisabled", "\nWarning: Virtual Textures are disabled in this project.");
+
+			if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::Yes, FText::Format(
+				NSLOCTEXT("Interchange", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported non-VT texture size: {2} x {3}{4}"),
+				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolutionNonVT), FText::AsNumber(MaximumSupportedResolutionNonVT), VTMessage)))
 			{
-				*OutErrorMessage = NSLOCTEXT("Interchange", "Warning_TextureSizeTooLarge", "Texture is too large to import");
+				return false;
 			}
-			
-			return false;
 		}
 	}
 
