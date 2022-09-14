@@ -75,6 +75,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, FLightCloudTransmittanceParameters& OutParameters);
 
+bool LightHasCloudShadow(const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo);
+
 /** Contains render data created render side for a FVolumetricCloudSceneProxy objects. */
 class FVolumetricCloudRenderSceneInfo
 {

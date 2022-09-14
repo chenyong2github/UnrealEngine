@@ -43,6 +43,13 @@ static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("")
 );
 
+int32 GNaniteAsyncRasterizeShadowDepths = 1;
+static FAutoConsoleVariableRef CVarNaniteAsyncRasterizeShadowDepths(
+	TEXT("r.Nanite.AsyncRasterization.ShadowDepths"),
+	GNaniteAsyncRasterizeShadowDepths,
+	TEXT("Whether to run Nanite SW rasterization on a compute pipe if possible.")
+);
+
 int32 GNaniteComputeRasterization = 1;
 static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
 	TEXT("r.Nanite.ComputeRasterization"),
@@ -2671,6 +2678,11 @@ FRasterContext InitRasterContext(
 
 	if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
 	{
+		if (!GNaniteAsyncRasterizeShadowDepths && RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
+		{
+			RasterContext.RasterScheduling = ERasterScheduling::HardwareThenSoftware;
+		}
+
 		// TODO: There may be a better way to do this...
 		if ( RasterContext.DepthBuffer->Desc.Dimension == ETextureDimension::Texture2DArray )
 		{

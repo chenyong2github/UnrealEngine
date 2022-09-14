@@ -410,7 +410,8 @@ void FDeferredShadingSceneRenderer::RenderLumenFrontLayerTranslucencyReflections
 			ELumenReflectionPass::FrontLayerTranslucency,
 			nullptr,
 			&ReflectionGBuffer,
-			LumenReflectionCompositeParameters);
+			LumenReflectionCompositeParameters,
+			ERDGPassFlags::Compute);
 
 		View.LumenFrontLayerTranslucency.bEnabled = true;
 		View.LumenFrontLayerTranslucency.RelativeDepthThreshold = GLumenFrontLayerRelativeDepthThreshold;

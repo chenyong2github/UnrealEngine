@@ -140,7 +140,8 @@ extern void GenerateBRDF_PDF(
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef& BRDFProbabilityDensityFunctionSH,
-	FScreenProbeParameters& ScreenProbeParameters);
+	FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags);
 
 extern void GenerateImportanceSamplingRays(
 	FRDGBuilder& GraphBuilder,
@@ -149,7 +150,8 @@ extern void GenerateImportanceSamplingRays(
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
-	FScreenProbeParameters& ScreenProbeParameters);
+	FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags);
 
 extern void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder,
@@ -163,7 +165,8 @@ extern void TraceScreenProbes(
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
-	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	ERDGPassFlags ComputePassFlags);
 
 void RenderHardwareRayTracingScreenProbe(
 	FRDGBuilder& GraphBuilder,
@@ -182,7 +185,8 @@ extern void FilterScreenProbes(
 	const FSceneTextures& SceneTextures,
 	const FScreenProbeParameters& ScreenProbeParameters,
 	bool bRenderDirectLighting,
-	FScreenProbeGatherParameters& GatherParameters);
+	FScreenProbeGatherParameters& GatherParameters,
+	ERDGPassFlags ComputePassFlags);
 
 extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder,
@@ -190,7 +194,8 @@ extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
-	const FScreenProbeParameters& ScreenProbeParameters);
+	const FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags);
 
 namespace LumenScreenProbeGatherRadianceCache
 {

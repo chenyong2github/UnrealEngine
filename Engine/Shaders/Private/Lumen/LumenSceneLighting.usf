@@ -475,18 +475,42 @@ float3 CombineFinalLighting(float3 Albedo, float3 Emissive, float3 DirectLightin
 	return FinalLighting;
 }
 
-void CombineLumenSceneLightingPS(
-	FCardVSToPS CardInterpolants,
-	out float4 OutFinalLighting : SV_Target0)
+SamplerState BilinearClampedSampler;
+StructuredBuffer<uint> CardTiles;
+RWTexture2D<float3> RWFinalLightingAtlas;
+float2 IndirectLightingAtlasHalfTexelSize;
+
+[numthreads(CARD_TILE_SIZE, CARD_TILE_SIZE, 1)]
+void CombineLumenSceneLightingCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	float3 Albedo = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	float3 DirectLighting = Texture2DSampleLevel(DirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	float3 IndirectLighting = Texture2DSampleLevel(IndirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.IndirectLightingAtlasUV, 0).xyz;
+	uint CardTileIndex = GroupId.x;
+	uint2 TexelCoordInTile = GroupThreadId.xy;
+
+	FCardTileData CardTile = UnpackCardTileData(CardTiles[CardTileIndex]);
+
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+	uint2 CoordInCardPage = CARD_TILE_SIZE * CardTile.TileCoord + TexelCoordInTile;
+	uint2 AtlasCoord = CardPage.PhysicalAtlasCoord + CoordInCardPage;
+	float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (CoordInCardPage + 0.5);
+
+#if RADIOSITY_ATLAS_DOWNSAMPLE_FACTOR == 1
+	float2 IndirectLightingAtlasUV = AtlasUV;
+#else
+	// When sampling from a downsampled Indirect Lighting atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
+	float2 IndirectLightingAtlasUV = clamp(AtlasUV, CardPage.PhysicalAtlasUVRect.xy + IndirectLightingAtlasHalfTexelSize, CardPage.PhysicalAtlasUVRect.zw - IndirectLightingAtlasHalfTexelSize);
+#endif
+	
+	float3 Albedo = Texture2DSampleLevel(AlbedoAtlas, BilinearClampedSampler, AtlasUV, 0).xyz;
+	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, BilinearClampedSampler, AtlasUV, 0).xyz;
+	float3 DirectLighting = Texture2DSampleLevel(DirectLightingAtlas, BilinearClampedSampler, AtlasUV, 0).xyz;
+	float3 IndirectLighting = Texture2DSampleLevel(IndirectLightingAtlas, BilinearClampedSampler, IndirectLightingAtlasUV, 0).xyz;
 
 	float3 FinalLighting = CombineFinalLighting(Albedo, Emissive, DirectLighting, IndirectLighting);
-
-	OutFinalLighting = float4(FinalLighting, 0);
+	RWFinalLightingAtlas[AtlasCoord] = FinalLighting;
 }
 
 void ClearLumenCardsPS(

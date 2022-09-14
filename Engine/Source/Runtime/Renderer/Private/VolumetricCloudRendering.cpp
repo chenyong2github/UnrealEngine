@@ -2562,3 +2562,19 @@ bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FSc
 
 	return bLight0CloudShadowEnabled || bLight1CloudShadowEnabled;
 }
+
+bool LightHasCloudShadow(const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo)
+{
+	const FLightSceneInfo* Light0 = Scene->AtmosphereLights[0];
+	const FLightSceneInfo* Light1 = Scene->AtmosphereLights[1];
+
+	if (Scene->GetVolumetricCloudSceneInfo()
+		&& (View.VolumetricCloudShadowRenderTarget[0] || View.VolumetricCloudShadowRenderTarget[1])
+		&& ((Light0 && Light0->Proxy == LightSceneInfo->Proxy && Light0->Proxy->GetCloudShadowOnSurfaceStrength() > 0.f)
+			|| (Light1 && Light1->Proxy == LightSceneInfo->Proxy && Light1->Proxy->GetCloudShadowOnSurfaceStrength() > 0.f)))
+	{
+		return true;
+	}
+
+	return false;
+}

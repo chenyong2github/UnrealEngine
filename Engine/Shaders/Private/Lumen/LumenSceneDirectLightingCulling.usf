@@ -104,6 +104,11 @@ void InitializeCardTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThread
 		RWDispatchCardTilesIndirectArgs[0] = (NumCardTiles + 63) / 64;
 		RWDispatchCardTilesIndirectArgs[1] = 1;
 		RWDispatchCardTilesIndirectArgs[2] = 1;
+
+		// One thread group per card tile
+		RWDispatchCardTilesIndirectArgs[3] = NumCardTiles;
+		RWDispatchCardTilesIndirectArgs[4] = 1;
+		RWDispatchCardTilesIndirectArgs[5] = 1;
 	}
 }
 
@@ -206,6 +211,8 @@ RWStructuredBuffer<uint> RWLightTileAllocator;
 RWStructuredBuffer<uint2> RWLightTiles;
 RWStructuredBuffer<uint> RWLightTileAllocatorPerLight;
 RWStructuredBuffer<uint> RWLightAllocatorPerTile;
+RWStructuredBuffer<uint> RWLightTileAllocatorForPerCardTileDispatch;
+RWStructuredBuffer<uint> RWLightTileOffsetNumPerCardTile;
 
 uint MaxLightsPerTile;
 uint NumLights;
@@ -227,6 +234,7 @@ void BuildLightTilesCS(
 	{
 		FCardTileData CardTile = UnpackCardTileData(CardTiles[CardTileIndex]);
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+		uint PackedOffsetNum = 0;
 
 		if (CardPage.CardIndex >= 0)
 		{
@@ -252,16 +260,17 @@ void BuildLightTilesCS(
 				if (bLightAffectsCard)
 				{
 					// Write light tile
-					FLightTile LightTile;
+					FLightTileForCompactionPass LightTile;
 					LightTile.LightIndex = LightIndex;
 					LightTile.ViewIndex = ViewIndex;
-					LightTile.CardPageIndex = CardTile.CardPageIndex;
-					LightTile.TileCoord = CardTile.TileCoord;
+					LightTile.bHasShadowMask = LumenLight.bHasShadowMask;
+					LightTile.CardTileIndex = CardTileIndex;
+					LightTile.CulledLightIndex = NumCulledLightsPerTile;
 
 					// Add to global light tile array
 					uint CardTileIndex = 0;
 					InterlockedAdd(RWLightTileAllocator[0], 1, CardTileIndex);
-					RWLightTiles[CardTileIndex] = PackLightTile(LightTile);
+					RWLightTiles[CardTileIndex] = PackLightTileForCompactionPass(LightTile);
 
 					InterlockedAdd(RWLightTileAllocatorPerLight[LightIndex * NumViews + ViewIndex], 1);
 
@@ -273,7 +282,16 @@ void BuildLightTilesCS(
 					}
 				}
 			}
+
+			if (NumCulledLightsPerTile > 0)
+			{
+				uint CardLightTilesOffset;
+				InterlockedAdd(RWLightTileAllocatorForPerCardTileDispatch[0], NumCulledLightsPerTile, CardLightTilesOffset);
+				PackedOffsetNum = (NumCulledLightsPerTile << 24) | CardLightTilesOffset;
+			}
 		}
+
+		RWLightTileOffsetNumPerCardTile[CardTileIndex] = PackedOffsetNum;
 	}
 }
 
@@ -302,10 +320,12 @@ void ComputeLightTileOffsetsPerLightCS(uint3 DispatchThreadId : SV_DispatchThrea
 }
 
 RWStructuredBuffer<uint2> RWCompactedLightTiles;
+RWStructuredBuffer<uint2> RWLightTilesPerCardTile;
 RWStructuredBuffer<uint> RWCompactedLightTileAllocatorPerLight;
 StructuredBuffer<uint> LightTileAllocator;
 StructuredBuffer<uint2> LightTiles;
 StructuredBuffer<uint> LightTileOffsetsPerLight;
+StructuredBuffer<uint> LightTileOffsetNumPerCardTile;
 
 /**
  * Compact card tile array
@@ -317,13 +337,31 @@ void CompactLightTilesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	if (LightTileIndex < LightTileAllocator[0])
 	{
-		const FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
+		FLightTileForCompactionPass LightTile = UnpackLightTileForCompactionPass(LightTiles[LightTileIndex]);
 
 		uint CompactedLightTileIndex = 0;
 		InterlockedAdd(RWCompactedLightTileAllocatorPerLight[LightTile.LightIndex * NumViews + LightTile.ViewIndex], 1, CompactedLightTileIndex);
 		CompactedLightTileIndex += LightTileOffsetsPerLight[LightTile.LightIndex * NumViews + LightTile.ViewIndex];
 
-		RWCompactedLightTiles[CompactedLightTileIndex] = PackLightTile(LightTile);
+		uint CardTileIndex = LightTile.CardTileIndex;
+		FCardTileData CardTile = UnpackCardTileData(CardTiles[CardTileIndex]);
+		
+		FLightTileForShadowMaskPass TileForLight;
+		TileForLight.LightIndex = LightTile.LightIndex;
+		TileForLight.ViewIndex = LightTile.ViewIndex;
+		TileForLight.CardPageIndex = CardTile.CardPageIndex;
+		TileForLight.TileCoord = CardTile.TileCoord;
+		uint2 PackedLightTile = PackLightTileForShadowMaskPass(TileForLight);
+		RWCompactedLightTiles[CompactedLightTileIndex] = PackedLightTile;
+
+		uint PackedOffsetNum = LightTileOffsetNumPerCardTile[CardTileIndex];
+		uint LightTileOffset = (PackedOffsetNum & 0x00ffffff) + LightTile.CulledLightIndex;
+		FLightTileForLightPass TileForCardTile;
+		TileForCardTile.LightIndex = LightTile.LightIndex;
+		TileForCardTile.ViewIndex = LightTile.ViewIndex;
+		TileForCardTile.ShadowMaskIndex = LightTile.bHasShadowMask ? CompactedLightTileIndex : 0xffffffff;
+		PackedLightTile = PackLightTileForLightPass(TileForCardTile);
+		RWLightTilesPerCardTile[LightTileOffset] = PackedLightTile;
 	}
 }
 
@@ -395,7 +433,7 @@ void RasterizeToLightTilesVS(
 
 	if (LightTileIndex < NumLightTiles)
 	{
-		FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
+		FLightTileForShadowMaskPass LightTile = UnpackLightTileForShadowMaskPass(LightTiles[LightTileIndex]);
 		FLumenCardPageData CardPage = GetLumenCardPageData(LightTile.CardPageIndex);
 
 		float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * CARD_TILE_SIZE * (LightTile.TileCoord + TexCoord);

@@ -18,6 +18,7 @@
 #include "ScreenSpaceDenoise.h"
 #include "Lumen/LumenProbeHierarchy.h"
 #include "Lumen/LumenSceneRendering.h"
+#include "Lumen/LumenTracingUtils.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "IndirectLightRendering.h"
 #include "ScreenSpaceRayTracing.h"
@@ -74,6 +75,66 @@ public:
 		MeshDrawCommands.Reset();
 		MeshDrawPrimitiveIds.Reset();
 		NumCardTexelsToCapture = 0;
+	}
+};
+
+enum class ELumenIndirectLightingSteps
+{
+	None = 0,
+	ScreenProbeGather = 1u << 0,
+	Reflections = 1u << 1,
+	StoreDepthHistory = 1u << 2,
+	Composite = 1u << 3,
+	All = ScreenProbeGather | Reflections | StoreDepthHistory | Composite
+};
+ENUM_CLASS_FLAGS(ELumenIndirectLightingSteps)
+
+struct FAsyncLumenIndirectLightingOutputs
+{
+	struct FViewOutputs
+	{
+		FSSDSignalTextures IndirectLightingTextures;
+		FLumenMeshSDFGridParameters MeshSDFGridParameters;
+		LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
+		FLumenReflectionCompositeParameters ReflectionCompositeParameters;
+	};
+
+	TArray<FViewOutputs, TInlineAllocator<1>> ViewOutputs;
+	ELumenIndirectLightingSteps StepsLeft = ELumenIndirectLightingSteps::All;
+	bool bHasDrawnBeforeLightingDecals = false;
+
+	void Resize(int32 NewNum)
+	{
+		ViewOutputs.SetNumZeroed(NewNum);
+	}
+
+	void DoneAsync(bool bAsyncReflections)
+	{
+		check(StepsLeft == ELumenIndirectLightingSteps::All);
+
+		EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::ScreenProbeGather | ELumenIndirectLightingSteps::StoreDepthHistory);
+		if (bAsyncReflections)
+		{
+			EnumRemoveFlags(StepsLeft, ELumenIndirectLightingSteps::Reflections);
+		}
+	}
+
+	void DonePreLights()
+	{
+		if (StepsLeft == ELumenIndirectLightingSteps::All)
+		{
+			StepsLeft = ELumenIndirectLightingSteps::None;
+		}
+		else
+		{
+			StepsLeft = ELumenIndirectLightingSteps::Composite;
+		}
+	}
+
+	void DoneComposite()
+	{
+		StepsLeft = ELumenIndirectLightingSteps::None;
 	}
 };
 
@@ -460,7 +521,8 @@ private:
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
 		const class FLumenCardTracingInputs& TracingInputs,
-		const FLumenCardUpdateContext& CardUpdateContext);
+		const FLumenCardUpdateContext& CardUpdateContext,
+		ERDGPassFlags ComputePassFlags);
 	
 	void RenderRadiosityForLumenScene(
 		FRDGBuilder& GraphBuilder,
@@ -468,7 +530,8 @@ private:
 		const class FLumenCardTracingInputs& TracingInputs,
 		FRDGTextureRef RadiosityAtlas,
 		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
-		const FLumenCardUpdateContext& CardUpdateContext);
+		const FLumenCardUpdateContext& CardUpdateContext,
+		ERDGPassFlags ComputePassFlags);
 
 	void ClearLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
@@ -487,9 +550,15 @@ private:
 	LumenRadianceCache::FUpdateInputs GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View, 
-		const FLumenCardTracingInputs& TracingInputs);
+		const FLumenCardTracingInputs& TracingInputs,
+		ERDGPassFlags ComputePassFlags);
 
-	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
+	void ComputeLumenTranslucencyGIVolume(
+		FRDGBuilder& GraphBuilder,
+		FViewInfo& View,
+		const FLumenCardTracingInputs& TracingInputs,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		ERDGPassFlags ComputePassFlags);
 
 	void CreateIndirectCapsuleShadows();
 
@@ -528,6 +597,16 @@ private:
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos);
 
+	/** Dispatch async Lumen work if possible. */
+	void DispatchAsyncLumenIndirectLightingWork(
+		FRDGBuilder& GraphBuilder,
+		class FCompositionLighting& CompositionLighting,
+		FSceneTextures& SceneTextures,
+		const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
+		FRDGTextureRef LightingChannelsTexture,
+		bool bHasLumenLights,
+		FAsyncLumenIndirectLightingOutputs& Outputs);
+
 	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
@@ -535,7 +614,9 @@ private:
 		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
 		bool bHasLumenLights,
-		bool bIsVisualizePass);
+		bool bCompositeRegularLumenOnly,
+		bool bIsVisualizePass,
+		FAsyncLumenIndirectLightingOutputs& AsyncLumenIndirectLightingOutputs);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
 	void RenderDeferredReflectionsAndSkyLighting(
@@ -595,7 +676,8 @@ private:
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-		class FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters);
+		class FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters,
+		ERDGPassFlags ComputePassFlags);
 
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
@@ -609,7 +691,8 @@ private:
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		class FLumenScreenSpaceBentNormalParameters& ScreenBentNormalParameters,
-		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters);
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters,
+		ERDGPassFlags ComputePassFlags);
 
 	void StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View);
 
@@ -618,7 +701,8 @@ private:
 		const FSceneTextures& SceneTextures,
 		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FViewInfo& View,
-		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters);
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters,
+		ERDGPassFlags ComputePassFlags);
 
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
@@ -645,7 +729,8 @@ private:
 		ELumenReflectionPass ReflectionPass,
 		const FTiledReflection* TiledReflectionInput,
 		const class FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
-		FLumenReflectionCompositeParameters& OutCompositeParameters);
+		FLumenReflectionCompositeParameters& OutCompositeParameters,
+		ERDGPassFlags ComputePassFlags);
 
 	void RenderLumenFrontLayerTranslucencyReflections(
 		FRDGBuilder& GraphBuilder,

@@ -72,6 +72,7 @@
 #include "GPUMessaging.h"
 #include "RectLightTextureManager.h"
 #include "Lumen/LumenFrontLayerTranslucency.h"
+#include "Lumen/LumenSceneLighting.h"
 #include "Containers/ChunkedArray.h"
 #include "Async/ParallelFor.h"
 #include "Shadows/ShadowSceneRenderer.h"
@@ -2790,9 +2791,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Early occlusion queries
 	const bool bOcclusionBeforeBasePass = ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || bIsEarlyDepthComplete);
 
-#if RHI_RAYTRACING
 	bool bRayTracingSceneReady = false;
-#endif
 
 	if (bOcclusionBeforeBasePass)
 	{
@@ -2896,10 +2895,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		TranslucencyLightingVolumeTextures.Init(GraphBuilder, Views, ERDGPassFlags::AsyncCompute);
 	}
 
+	FRDGBufferRef DynamicGeometryScratchBuffer = nullptr;
 #if RHI_RAYTRACING
 	// Async AS builds can potentially overlap with BasePass.  We only need to update ray tracing scene for the first view family,
 	// if multiple are rendered in a single scene render call.
-	FRDGBufferRef DynamicGeometryScratchBuffer = nullptr;
 	if (bShouldUpdateRayTracingScene)
 	{
 		DispatchRayTracingWorldUpdates(GraphBuilder, DynamicGeometryScratchBuffer);
@@ -2909,6 +2908,22 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		bRayTracingSceneReady = true;
 	}
 #endif
+
+	if (!bHasRayTracedOverlay && !LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags))
+	{
+#if RHI_RAYTRACING
+		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
+		if (!bRayTracingSceneReady && Lumen::UseHardwareRayTracedSceneLighting(ViewFamily))
+		{
+			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
+			bRayTracingSceneReady = true;
+		}
+#endif
+
+		LLM_SCOPE_BYTAG(Lumen);
+		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+		RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
+	}
 
 	{
 		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);
@@ -3048,9 +3063,24 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	SetupRayTracingLightDataForViews(GraphBuilder);
 #endif // RHI_RAYTRACING
 
+	// Copy lighting channels out of stencil before deferred decals which overwrite those values
+	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
+
+	FAsyncLumenIndirectLightingOutputs AsyncLumenIndirectLightingOutputs;
+	const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
+
 	// Shadows, lumen and fog after base pass
 	if (!bHasRayTracedOverlay)
 	{
+		DispatchAsyncLumenIndirectLightingWork(
+			GraphBuilder,
+			CompositionLighting,
+			SceneTextures,
+			LumenFrameTemporaries,
+			LightingChannelsTexture,
+			bHasLumenLights,
+			AsyncLumenIndirectLightingOutputs);
+
 		// If forward shading is enabled, we rendered shadow maps earlier already
 		if (!IsForwardShadingEnabled(ShaderPlatform))
 		{
@@ -3076,8 +3106,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 #endif // RHI_RAYTRACING
 
+		if (LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags))
 		{
 			LLM_SCOPE_BYTAG(Lumen);
+			BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 			RenderLumenSceneLighting(GraphBuilder, LumenFrameTemporaries);
 		}
 	}
@@ -3130,9 +3162,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterVelocity));
 	}
 
-	// Copy lighting channels out of stencil before deferred decals which overwrite those values
-	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
-
 	// Pre-lighting composition lighting stage
 	// e.g. deferred decals, SSAO
 	{
@@ -3144,7 +3173,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 		}
 
-		CompositionLighting.ProcessAfterBasePass(GraphBuilder);
+		const FCompositionLighting::EProcessAfterBasePassMode Mode = AsyncLumenIndirectLightingOutputs.bHasDrawnBeforeLightingDecals ?
+			FCompositionLighting::EProcessAfterBasePassMode::SkipBeforeLightingDecals : FCompositionLighting::EProcessAfterBasePassMode::All;
+
+		CompositionLighting.ProcessAfterBasePass(GraphBuilder, Mode);
 	}
 
 	// Rebuild scene textures to include velocity, custom depth, and SSAO.
@@ -3174,11 +3206,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderLighting);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
 
-		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-
-		const bool bHasLumenLights = SortedLightSet.LumenLightStart < SortedLightSet.SortedLights.Num();
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, bHasLumenLights, /* bIsVisualizePass = */ false);
+
+		RenderDiffuseIndirectAndAmbientOcclusion(
+			GraphBuilder,
+			SceneTextures,
+			LumenFrameTemporaries,
+			LightingChannelsTexture,
+			bHasLumenLights,
+			/* bCompositeRegularLumenOnly = */ false,
+			/* bIsVisualizePass = */ false,
+			AsyncLumenIndirectLightingOutputs);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		if (bAllowStaticLighting)
@@ -3209,9 +3247,20 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		InjectTranslucencyLightingVolumeAmbientCubemap(GraphBuilder, Views, TranslucencyLightingVolumeTextures);
 		FilterTranslucencyLightingVolume(GraphBuilder, Views, TranslucencyLightingVolumeTextures);
 
+		// Do DiffuseIndirectComposite after Lights so that async Lumen work can overlap
+		RenderDiffuseIndirectAndAmbientOcclusion(
+			GraphBuilder,
+			SceneTextures,
+			LumenFrameTemporaries,
+			LightingChannelsTexture,
+			bHasLumenLights,
+			/* bCompositeRegularLumenOnly = */ true,
+			/* bIsVisualizePass = */ false,
+			AsyncLumenIndirectLightingOutputs);
+
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
 		RenderDeferredReflectionsAndSkyLighting(GraphBuilder, SceneTextures, DynamicBentNormalAOTexture);
-		
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Renders debug visualizations for global illumination plugins
 		RenderGlobalIlluminationPluginVisualizations(GraphBuilder, LightingChannelsTexture);
@@ -3542,7 +3591,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bRenderDeferredLighting)
 	{
 		RenderLumenMiscVisualizations(GraphBuilder, SceneTextures, LumenFrameTemporaries);
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, false, /* bIsVisualizePass = */ true);
+		RenderDiffuseIndirectAndAmbientOcclusion(
+			GraphBuilder,
+			SceneTextures,
+			LumenFrameTemporaries,
+			LightingChannelsTexture,
+			/* bHasLumenLights = */ false,
+			/* bCompositeRegularLumenOnly = */ false,
+			/* bIsVisualizePass = */ true,
+			AsyncLumenIndirectLightingOutputs);
 	}
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)

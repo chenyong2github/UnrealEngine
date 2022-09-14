@@ -1200,7 +1200,8 @@ void InterpolateAndIntegrate(
 	FLumenScreenSpaceBentNormalParameters ScreenSpaceBentNormalParameters,
 	bool bRenderDirectLighting,
 	FRDGTextureRef DiffuseIndirect,
-	FRDGTextureRef RoughSpecularIndirect)
+	FRDGTextureRef RoughSpecularIndirect,
+	ERDGPassFlags ComputePassFlags)
 {
 	const bool bApplyScreenBentNormal = ScreenSpaceBentNormalParameters.UseScreenBentNormal != 0 && LumenScreenProbeGather::ApplyScreenBentNormalDuringIntegration();
 	const bool bUseTileClassification = GLumenScreenProbeIntegrationTileClassification != 0 && LumenScreenProbeGather::GetDiffuseIntegralMethod() != 2;
@@ -1263,6 +1264,7 @@ void InterpolateAndIntegrate(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						View.StrataViewData.BSDFTileDispatchIndirectBuffer,
@@ -1273,6 +1275,7 @@ void InterpolateAndIntegrate(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("TileClassificationMark"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						FIntVector(ViewportIntegrateTileDimensions.X, ViewportIntegrateTileDimensions.Y, 1));
@@ -1312,6 +1315,7 @@ void InterpolateAndIntegrate(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("TileClassificationBuildLists(Overflow)"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer, 0u);
@@ -1321,6 +1325,7 @@ void InterpolateAndIntegrate(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("TileClassificationBuildLists"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						FComputeShaderUtils::GetGroupCount(ViewportIntegrateTileDimensions, 8));
@@ -1375,6 +1380,7 @@ void InterpolateAndIntegrate(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("%s%s", GetClassificationModeString((EScreenProbeIntegrateTileClassification)ClassificationMode), bOverflow ? TEXT("(Overflow)") : TEXT("")),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				IntegrateIndirectArgs,
@@ -1431,6 +1437,7 @@ void InterpolateAndIntegrate(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Integrate"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), GScreenProbeIntegrateTileSize));
@@ -1443,7 +1450,8 @@ void UpdateHistoryScreenProbeGather(
 	const FSceneTextures& SceneTextures,
 	bool bPropagateGlobalLightingChange,
 	FRDGTextureRef& DiffuseIndirect,
-	FRDGTextureRef& RoughSpecularIndirect)
+	FRDGTextureRef& RoughSpecularIndirect,
+	ERDGPassFlags ComputePassFlags)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	
@@ -1570,6 +1578,7 @@ void UpdateHistoryScreenProbeGather(
 							FComputeShaderUtils::AddPass(
 								GraphBuilder,
 								RDG_EVENT_NAME("TemporalReprojection(Overflow)"),
+								ComputePassFlags,
 								ComputeShader,
 								PassParameters,
 								View.StrataViewData.BSDFTileDispatchIndirectBuffer,
@@ -1580,6 +1589,7 @@ void UpdateHistoryScreenProbeGather(
 							FComputeShaderUtils::AddPass(
 								GraphBuilder,
 								RDG_EVENT_NAME("TemporalReprojection(%ux%u)", View.ViewRect.Width(), View.ViewRect.Height()),
+								ComputePassFlags,
 								ComputeShader,
 								PassParameters,
 								FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenProbeTemporalReprojectionCS::GetGroupSize()));
@@ -1673,7 +1683,8 @@ static void ScreenGatherMarkUsedProbes(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	FScreenProbeParameters& ScreenProbeParameters,
-	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
@@ -1686,6 +1697,7 @@ static void ScreenGatherMarkUsedProbes(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("MarkRadianceProbes(ScreenProbes) %ux%u", PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.X, PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.Y),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		PassParameters->ScreenProbeParameters.ProbeIndirectArgs,
@@ -1695,7 +1707,8 @@ static void ScreenGatherMarkUsedProbes(
 static void HairStrandsMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	check(View.HairStrandsViewData.VisibilityData.TileData.IsValid());
 	const uint32 TileMip = 3u; // 8x8 tiles
@@ -1718,6 +1731,7 @@ static void HairStrandsMarkUsedProbes(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("MarkRadianceProbes(HairStrands,Tile)"),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		View.HairStrandsViewData.VisibilityData.TileData.TilePerThreadIndirectDispatchBuffer,
@@ -1738,7 +1752,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 	bool& bLumenUseDenoiserComposite,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters)
+	FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -1753,7 +1768,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 
 	if (GLumenIrradianceFieldGather != 0)
 	{
-		Outputs = RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, FrameTemporaries, View, TranslucencyVolumeRadianceCacheParameters);
+		Outputs = RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, FrameTemporaries, View, TranslucencyVolumeRadianceCacheParameters, ComputePassFlags);
 	}
 	else
 	{
@@ -1769,11 +1784,12 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 			MeshSDFGridParameters, 
 			RadianceCacheParameters, 
 			ScreenSpaceBentNormalParameters,
-			TranslucencyVolumeRadianceCacheParameters);
+			TranslucencyVolumeRadianceCacheParameters,
+			ComputePassFlags);
 	}
 
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, *Scene->GetLumenSceneData(View), FrameTemporaries);
-	ComputeLumenTranslucencyGIVolume(GraphBuilder, View, TracingInputs, TranslucencyVolumeRadianceCacheParameters);
+	ComputeLumenTranslucencyGIVolume(GraphBuilder, View, TracingInputs, TranslucencyVolumeRadianceCacheParameters, ComputePassFlags);
 
 	return Outputs;
 }
@@ -1790,7 +1806,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters,
-	LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters)
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
@@ -1892,6 +1909,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("UniformPlacement DownsampleFactor=%u", ScreenProbeParameters.ScreenProbeDownsampleFactor),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(ScreenProbeParameters.ScreenProbeViewSize, FScreenProbeDownsampleDepthUniformCS::GetGroupSize()));
@@ -1910,9 +1928,9 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.ScreenTileAdaptiveProbeHeader = GraphBuilder.CreateTexture(ScreenTileAdaptiveProbeHeaderDesc, TEXT("Lumen.ScreenProbeGather.ScreenTileAdaptiveProbeHeader"));
 	ScreenProbeParameters.ScreenTileAdaptiveProbeIndices = GraphBuilder.CreateTexture(ScreenTileAdaptiveProbeIndicesDesc, TEXT("Lumen.ScreenProbeGather.ScreenTileAdaptiveProbeIndices"));
 
-	uint32 ClearValues[4] = {0, 0, 0, 0};
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeHeader)), ClearValues);
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NumAdaptiveScreenProbes), 0);
+	FUintVector4 ClearValues(0, 0, 0, 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeHeader)), ClearValues, ComputePassFlags);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NumAdaptiveScreenProbes), 0, ComputePassFlags);
 
 	const uint32 AdaptiveProbeMinDownsampleFactor = FMath::Clamp(GLumenScreenProbeGatherAdaptiveProbeMinDownsampleFactor, 1, 64);
 
@@ -1943,6 +1961,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("AdaptivePlacement DownsampleFactor=%u", PlacementDownsampleFactor),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(FIntPoint::DivideAndRoundDown(View.ViewRect.Size(), (int32)PlacementDownsampleFactor), FScreenProbeAdaptivePlacementCS::GetGroupSize()));
@@ -1951,8 +1970,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	}
 	else
 	{
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(AdaptiveScreenProbeData), 0);
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeIndices)), ClearValues);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(AdaptiveScreenProbeData), 0, ComputePassFlags);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeIndices)), ClearValues, ComputePassFlags);
 	}
 
 	FRDGBufferRef ScreenProbeIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>((uint32)EScreenProbeIndirectArgs::Max), TEXT("Lumen.ScreenProbeGather.ScreenProbeIndirectArgs"));
@@ -1967,6 +1986,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SetupAdaptiveProbeIndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -1978,24 +1998,25 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;
-	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
+	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters, ComputePassFlags);
 
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs(View);
 
 	if (LumenScreenProbeGather::UseRadianceCache(View))
 	{
-		FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbesCallbacks;
+		FMarkUsedRadianceCacheProbes GraphicsMarkUsedRadianceCacheProbesCallbacks;
+		FMarkUsedRadianceCacheProbes ComputeMarkUsedRadianceCacheProbesCallbacks;
 
-		MarkUsedRadianceCacheProbesCallbacks.AddLambda([](
+		ComputeMarkUsedRadianceCacheProbesCallbacks.AddLambda([ComputePassFlags](
 			FRDGBuilder& GraphBuilder, 
 			const FViewInfo& View, 
 			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 			{
-				MarkUsedProbesForVisualize(GraphBuilder, View, RadianceCacheMarkParameters);
+				MarkUsedProbesForVisualize(GraphBuilder, View, RadianceCacheMarkParameters, ComputePassFlags);
 			});
 
 		// Mark radiance caches for screen probes
-		MarkUsedRadianceCacheProbesCallbacks.AddLambda([&SceneTextures, &ScreenProbeParameters](
+		ComputeMarkUsedRadianceCacheProbesCallbacks.AddLambda([&SceneTextures, &ScreenProbeParameters, ComputePassFlags](
 			FRDGBuilder& GraphBuilder, 
 			const FViewInfo& View, 
 			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
@@ -2005,13 +2026,14 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 					View,
 					SceneTextures,
 					ScreenProbeParameters,
-					RadianceCacheMarkParameters);
+					RadianceCacheMarkParameters,
+					ComputePassFlags);
 			});
 
 		// Mark radiance caches for hair strands
 		if (HairStrands::HasViewHairStrandsData(View))
 		{
-			MarkUsedRadianceCacheProbesCallbacks.AddLambda([](
+			ComputeMarkUsedRadianceCacheProbesCallbacks.AddLambda([ComputePassFlags](
 				FRDGBuilder& GraphBuilder,
 				const FViewInfo& View,
 				const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
@@ -2019,7 +2041,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 					HairStrandsMarkUsedProbes(
 						GraphBuilder,
 						View,
-						RadianceCacheMarkParameters);
+						RadianceCacheMarkParameters,
+						ComputePassFlags);
 				});
 		}
 
@@ -2028,7 +2051,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			const FSceneRenderer& SceneRenderer = *this;
 			FViewInfo& ViewNonConst = View;
 
-			MarkUsedRadianceCacheProbesCallbacks.AddLambda([&SceneTextures, &SceneRenderer, &ViewNonConst](
+			GraphicsMarkUsedRadianceCacheProbesCallbacks.AddLambda([&SceneTextures, &SceneRenderer, &ViewNonConst](
 				FRDGBuilder& GraphBuilder,
 				const FViewInfo& View,
 				const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
@@ -2050,9 +2073,10 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			RadianceCacheInputs,
 			FRadianceCacheConfiguration(),
 			View,
-			&ScreenProbeParameters,
-			BRDFProbabilityDensityFunctionSH,
-			MarkUsedRadianceCacheProbesCallbacks));
+			nullptr,
+			nullptr,
+			MoveTemp(GraphicsMarkUsedRadianceCacheProbesCallbacks),
+			MoveTemp(ComputeMarkUsedRadianceCacheProbesCallbacks)));
 
 		OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
 			View.ViewState->Lumen.RadianceCacheState,
@@ -2062,10 +2086,11 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		{
 			LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 				GraphBuilder,
-				View, 
-				TracingInputs);
+				View,
+				TracingInputs,
+				ComputePassFlags);
 
-			if (TranslucencyVolumeRadianceCacheUpdateInputs.MarkUsedRadianceCacheProbes.IsBound())
+			if (TranslucencyVolumeRadianceCacheUpdateInputs.IsAnyCallbackBound())
 			{
 				InputArray.Add(TranslucencyVolumeRadianceCacheUpdateInputs);
 				OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
@@ -2079,7 +2104,9 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			InputArray,
 			OutputArray,
 			Scene,
-			LumenCardRenderer.bPropagateGlobalLightingChange);
+			ViewFamily.EngineShowFlags,
+			LumenCardRenderer.bPropagateGlobalLightingChange,
+			ComputePassFlags);
 
 		if (Lumen::UseLumenTranslucencyRadianceCacheReflections(View))
 		{
@@ -2101,7 +2128,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			RadianceCacheParameters,
 			BRDFProbabilityDensityFunction,
 			BRDFProbabilityDensityFunctionSH,
-			ScreenProbeParameters);
+			ScreenProbeParameters,
+			ComputePassFlags);
 	}
 
 	if (bRenderDirectLighting)
@@ -2130,6 +2158,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("GenerateLightSamples"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				PassParameters->ScreenProbeParameters.ProbeIndirectArgs,
@@ -2162,14 +2191,15 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		TracingInputs,
 		RadianceCacheParameters,
 		ScreenProbeParameters,
-		MeshSDFGridParameters);
+		MeshSDFGridParameters,
+		ComputePassFlags);
 	
 	FScreenProbeGatherParameters GatherParameters;
-	FilterScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, bRenderDirectLighting, GatherParameters);
+	FilterScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, bRenderDirectLighting, GatherParameters, ComputePassFlags);
 
 	if (LumenScreenProbeGather::UseScreenSpaceBentNormal(ViewFamily.EngineShowFlags))
 	{
-		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, SceneTextures, LightingChannelsTexture, ScreenProbeParameters);
+		ScreenSpaceBentNormalParameters = ComputeScreenSpaceBentNormal(GraphBuilder, Scene, View, SceneTextures, LightingChannelsTexture, ScreenProbeParameters, ComputePassFlags);
 	}
 
 	const FIntPoint EffectiveResolution = Strata::GetStrataTextureResolution(SceneTextures.Config.Extent);
@@ -2188,7 +2218,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		ScreenSpaceBentNormalParameters,
 		bRenderDirectLighting,
 		DiffuseIndirect,
-		RoughSpecularIndirect);
+		RoughSpecularIndirect,
+		ComputePassFlags);
 
 	// Set for DiffuseIndirectComposite
 	ScreenSpaceBentNormalParameters.UseScreenBentNormal = ScreenSpaceBentNormalParameters.UseScreenBentNormal != 0 && !LumenScreenProbeGather::ApplyScreenBentNormalDuringIntegration();
@@ -2202,6 +2233,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	{
 		if (GLumenScreenProbeUseHistoryNeighborhoodClamp)
 		{
+			// TODO: Pass through ComputePassFlags
 			FRDGTextureRef CompressedDepthTexture;
 			FRDGTextureRef CompressedShadingModelTexture;
 			{
@@ -2258,7 +2290,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				SceneTextures,
 				LumenCardRenderer.bPropagateGlobalLightingChange,
 				DiffuseIndirect,
-				RoughSpecularIndirect);
+				RoughSpecularIndirect,
+				ComputePassFlags);
 
 			DenoiserOutputs.Textures[0] = DiffuseIndirect;
 			DenoiserOutputs.Textures[1] = RoughSpecularIndirect;

@@ -226,6 +226,14 @@ FAutoConsoleVariableRef GVarLumenReflectionsVisualizeTracingCoherency(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenReflectionsAsyncCompute = 0;
+FAutoConsoleVariableRef CVarLumenReflectionsAsyncCompute(
+	TEXT("r.Lumen.Reflections.AsyncCompute"),
+	GLumenReflectionsAsyncCompute,
+	TEXT("Whether to run Lumen reflection passes on the compute pipe if possible."),
+	ECVF_RenderThreadSafe
+	);
+
 TRefCountPtr<FRDGPooledBuffer> GVisualizeReflectionTracesData;
 
 FRDGBufferRef SetupVisualizeReflectionTraces(FRDGBuilder& GraphBuilder, FLumenReflectionsVisualizeTracesParameters& VisualizeTracesParameters)
@@ -568,7 +576,8 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 	const FMinimalSceneTextures& SceneTextures,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenNeedRayTracedReflectionsParameters& NeedRayTracedReflectionsParameters,
-	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer)
+	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
+	ERDGPassFlags ComputePassFlags)
 {
 	FLumenReflectionTileParameters ReflectionTileParameters;
 
@@ -641,6 +650,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					View.StrataViewData.BSDFTileDispatchIndirectBuffer, 0u);
@@ -650,6 +660,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("TileClassificationMark(%dx%d)", View.ViewRect.Size().X, View.ViewRect.Size().Y),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					FIntVector(ResolveTileViewportDimensions.X, ResolveTileViewportDimensions.Y, 1));
@@ -686,6 +697,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TileClassificationBuildLists(Overflow)"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer, 0u);
@@ -695,6 +707,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TileClassificationBuildLists"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(ResolveTileViewportDimensions, FReflectionTileClassificationBuildListsCS::GetGroupSize()));
@@ -734,6 +747,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("TileClassificationBuildTracingLists"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(TracingTileViewportDimensions, FReflectionTileClassificationBuildListsCS::GetGroupSize()));
@@ -756,7 +770,8 @@ void UpdateHistoryReflections(
 	FRDGTextureRef ResolvedReflections,
 	FRDGTextureRef ResolveVariance,
 	FRDGTextureRef FinalSpecularIndirect,
-	FRDGTextureRef AccumulatedResolveVariance)
+	FRDGTextureRef AccumulatedResolveVariance,
+	ERDGPassFlags ComputePassFlags)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -833,6 +848,7 @@ void UpdateHistoryReflections(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("Temporal Reprojection"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				ReflectionTileParameters.ResolveIndirectArgs,
@@ -858,6 +874,7 @@ void UpdateHistoryReflections(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Passthrough"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ReflectionTileParameters.ResolveIndirectArgs,
@@ -898,7 +915,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ELumenReflectionPass ReflectionPass,
 	const FTiledReflection* ExternalTiledReflection,
 	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
-	FLumenReflectionCompositeParameters& OutCompositeParameters)
+	FLumenReflectionCompositeParameters& OutCompositeParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
@@ -979,7 +997,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	}
 	else
 	{
-		ReflectionTileParameters = ReflectionTileClassification(GraphBuilder, View, SceneTextures, ReflectionTracingParameters, NeedRayTracedReflectionsParameters, FrontLayerReflectionGBuffer);
+		ReflectionTileParameters = ReflectionTileClassification(GraphBuilder, View, SceneTextures, ReflectionTracingParameters, NeedRayTracedReflectionsParameters, FrontLayerReflectionGBuffer, ComputePassFlags);
 	}
 
 	const bool bUseRadianceCache = GLumenReflectionsUseRadianceCache != 0 && RadianceCacheParameters.RadianceProbeIndirectionTexture != nullptr;
@@ -1014,6 +1032,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("GenerateRays%s", bUseRadianceCache ? TEXT(" RadianceCache") : TEXT("")),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ReflectionTileParameters.TracingIndirectArgs,
@@ -1047,7 +1066,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		ReflectionTileParameters,
 		MeshSDFGridParameters,
 		bUseRadianceCache,
-		RadianceCacheParameters);
+		RadianceCacheParameters,
+		ComputePassFlags);
 	
 	if (VisualizeTracesData)
 	{
@@ -1100,6 +1120,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ReflectionResolve"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ReflectionTileParameters.ResolveIndirectArgs,
@@ -1114,7 +1135,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		FRDGTextureRef AccumulatedResolveVariance = GraphBuilder.CreateTexture(ResolveVarianceDesc, TEXT("Lumen.Reflections.AccumulatedResolveVariance"));
 
 		//@todo - only clear tiles not written to by history pass
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SpecularIndirect)), FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SpecularIndirect)), FLinearColor(0.0f, 0.0f, 0.0f, 0.0f), ComputePassFlags);
 		
 		UpdateHistoryReflections(
 			GraphBuilder,
@@ -1125,7 +1146,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			ResolvedSpecularIndirect,
 			ResolveVariance,
 			SpecularIndirect,
-			AccumulatedResolveVariance);
+			AccumulatedResolveVariance,
+			ComputePassFlags);
 
 		if (bUseBilaterialFilter)
 		{
@@ -1150,6 +1172,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("BilateralFilter"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				ReflectionTileParameters.ResolveIndirectArgs,

@@ -425,7 +425,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClearBufferUAVParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value, ERDGPassFlags ComputePassFlags)
 {
 	check(BufferUAV);
 
@@ -435,15 +435,15 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetSize()),
 		Parameters,
-		ERDGPassFlags::Compute,
+		ComputePassFlags,
 		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
-	{
-		RHICmdList.ClearUAVUint(BufferUAV->GetRHI(), FUintVector4(Value, Value, Value, Value));
-		BufferUAV->MarkResourceAsUsed();
-	});
+		{
+			RHICmdList.ClearUAVUint(BufferUAV->GetRHI(), FUintVector4(Value, Value, Value, Value));
+			BufferUAV->MarkResourceAsUsed();
+		});
 }
 
-void AddClearUAVFloatPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, float Value)
+void AddClearUAVFloatPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, float Value, ERDGPassFlags ComputePassFlags)
 {
 	FClearBufferUAVParameters* Parameters = GraphBuilder.AllocParameters<FClearBufferUAVParameters>();
 	Parameters->BufferUAV = BufferUAV;
@@ -451,19 +451,19 @@ void AddClearUAVFloatPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV,
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetSize()),
 		Parameters,
-		ERDGPassFlags::Compute,
+		ComputePassFlags,
 		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
-	{
-		RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4f(Value, Value, Value, Value));
-		BufferUAV->MarkResourceAsUsed();
-	});
+		{
+			RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4f(Value, Value, Value, Value));
+			BufferUAV->MarkResourceAsUsed();
+		});
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearTextureUAVParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FUintVector4& ClearValues)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FUintVector4& ClearValues, ERDGPassFlags ComputePassFlags)
 {
 	check(TextureUAV);
 
@@ -479,19 +479,19 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 			Texture->Desc.Extent.X, Texture->Desc.Extent.Y,
 			int32(TextureUAV->Desc.MipLevel)),
 		Parameters,
-		ERDGPassFlags::Compute,
+		ComputePassFlags,
 		[&Parameters, TextureUAV, ClearValues](FRHIComputeCommandList& RHICmdList)
-	{
-		const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
+		{
+			const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
 
-		FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
+			FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
 
-		RHICmdList.ClearUAVUint(RHITextureUAV, ClearValues);
-		TextureUAV->MarkResourceAsUsed();
-	});
+			RHICmdList.ClearUAVUint(RHITextureUAV, ClearValues);
+			TextureUAV->MarkResourceAsUsed();
+		});
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4f& ClearValues)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4f& ClearValues, ERDGPassFlags ComputePassFlags)
 {
 	check(TextureUAV);
 
@@ -503,61 +503,61 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ClearTextureFloat(%s) %dx%d", TextureUAV->GetParent()->Name, TextureDesc.Extent.X, TextureDesc.Extent.Y),
 		Parameters,
-		ERDGPassFlags::Compute,
+		ComputePassFlags,
 		[&Parameters, TextureUAV, ClearValues](FRHIComputeCommandList& RHICmdList)
-	{
-		const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
+		{
+			const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
 
-		FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
+			FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
 
-		RHICmdList.ClearUAVFloat(RHITextureUAV, ClearValues);
-		TextureUAV->MarkResourceAsUsed();
-	});
+			RHICmdList.ClearUAVFloat(RHITextureUAV, ClearValues);
+			TextureUAV->MarkResourceAsUsed();
+		});
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4])
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, FUintVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
+	AddClearUAVPass(GraphBuilder, TextureUAV, FUintVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]), ComputePassFlags);
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4])
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4], ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
+	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]), ComputePassFlags);
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
+	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A), ComputePassFlags);
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, uint32 Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, uint32 Value, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, { Value, Value , Value , Value });
+	AddClearUAVPass(GraphBuilder, TextureUAV, { Value, Value , Value , Value }, ComputePassFlags);
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, float Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, float Value, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, { Value, Value , Value , Value });
+	AddClearUAVPass(GraphBuilder, TextureUAV, { Value, Value , Value , Value }, ComputePassFlags);
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector& Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector& Value, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, { (float)Value.X, (float)Value.Y , (float)Value.Z , 0.f });	// LWC_TODO: Precision loss?
+	AddClearUAVPass(GraphBuilder, TextureUAV, { (float)Value.X, (float)Value.Y , (float)Value.Z , 0.f }, ComputePassFlags);	// LWC_TODO: Precision loss?
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FIntPoint& Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FIntPoint& Value, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, { uint32(Value.X), uint32(Value.Y), 0u, 0u });
+	AddClearUAVPass(GraphBuilder, TextureUAV, { uint32(Value.X), uint32(Value.Y), 0u, 0u }, ComputePassFlags);
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector2D& Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector2D& Value, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, { (float)Value.X,(float)Value.Y , 0.f, 0.f });	// LWC_TODO: Precision loss?
+	AddClearUAVPass(GraphBuilder, TextureUAV, { (float)Value.X,(float)Value.Y , 0.f, 0.f }, ComputePassFlags);	// LWC_TODO: Precision loss?
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4d& Value)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4d& Value, ERDGPassFlags ComputePassFlags)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(Value));								// LWC_TODO: Precision loss?
+	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(Value), ComputePassFlags);								// LWC_TODO: Precision loss?
 }
 
 class FClearUAVRectsPS : public FGlobalShader

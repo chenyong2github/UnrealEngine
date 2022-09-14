@@ -37,6 +37,14 @@ uint PackShadowTrace(FShadowTrace ShadowTrace)
 	return PackedValue;
 }
 
+#define SHADOW_MASK_RAY_BITS 8
+#define SHADOW_MASK_RAY_BITS_MASK ((1u << SHADOW_MASK_RAY_BITS) - 1)
+#define SHADOW_MASK_CARD_TILE_DWORDS (SHADOW_MASK_RAY_BITS * CARD_TILE_SIZE * CARD_TILE_SIZE / 32)
+#define SHADOW_FACTOR_BITS 7
+#define SHADOW_FACTOR_BITS_MASK ((1u << SHADOW_FACTOR_BITS) - 1)
+#define SHADOW_FACTOR_COMPLETE_BITS 1
+#define SHADOW_FACTOR_COMPLETE_BITS_MASK (((1u << SHADOW_FACTOR_COMPLETE_BITS) - 1) << SHADOW_FACTOR_BITS)
+
 struct FShadowMaskRay
 {
 	float ShadowFactor;
@@ -45,44 +53,45 @@ struct FShadowMaskRay
 
 void ReadShadowMaskRayRW(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
 {
-	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
+	uint BitOffset = SHADOW_MASK_RAY_BITS * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
 
-	uint ShadowMask = RWShadowMaskTiles[4 * CardTileIndex + BitOffset / 32];
-	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
+	uint ShadowMask = RWShadowMaskTiles[SHADOW_MASK_CARD_TILE_DWORDS * CardTileIndex + BitOffset / 32];
+	ShadowMask = ShadowMask >> (BitOffset % 32);
 
-	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
-	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
+	ShadowMaskRay.ShadowFactor = float(ShadowMask & SHADOW_FACTOR_BITS_MASK) / SHADOW_FACTOR_BITS_MASK;
+	ShadowMaskRay.bShadowFactorComplete = (ShadowMask & SHADOW_FACTOR_COMPLETE_BITS_MASK) != 0;
 }
 
 void ReadShadowMaskRay(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
 {
-	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
+	uint BitOffset = SHADOW_MASK_RAY_BITS * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
 
-	uint ShadowMask = ShadowMaskTiles[4 * CardTileIndex + BitOffset / 32];
-	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
+	uint ShadowMask = ShadowMaskTiles[SHADOW_MASK_CARD_TILE_DWORDS * CardTileIndex + BitOffset / 32];
+	ShadowMask = ShadowMask >> (BitOffset % 32);
 
-	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
-	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
+	ShadowMaskRay.ShadowFactor = float(ShadowMask & SHADOW_FACTOR_BITS_MASK) / SHADOW_FACTOR_BITS_MASK;
+	ShadowMaskRay.bShadowFactorComplete = (ShadowMask & SHADOW_FACTOR_COMPLETE_BITS_MASK) != 0;
 }
 
-void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCardTile)
+void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCardTile, const bool bClearExistingMask)
 {
+	uint Mask = uint(Ray.ShadowFactor * SHADOW_FACTOR_BITS_MASK);
+
 	if (Ray.bShadowFactorComplete)
 	{
-		uint Mask = 0;
-		if (Ray.ShadowFactor <= 0.5f)
-		{
-			// Set first bit
-			Mask |= 0x1;
-		}
-		if (Ray.bShadowFactorComplete)
-		{
-			// Set second bit
-			Mask |= 0x2;
-		}
+		Mask |= SHADOW_FACTOR_COMPLETE_BITS_MASK;
+	}
 
-		uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
-		InterlockedOr(RWShadowMaskTiles[4 * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
+	uint BitOffset = SHADOW_MASK_RAY_BITS * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
+
+	if (bClearExistingMask)
+	{
+		InterlockedAnd(RWShadowMaskTiles[SHADOW_MASK_CARD_TILE_DWORDS * CardTileIndex + BitOffset / 32], ~(SHADOW_MASK_RAY_BITS_MASK << (BitOffset % 32)));
+	}
+
+	if (Mask != 0)
+	{
+		InterlockedOr(RWShadowMaskTiles[SHADOW_MASK_CARD_TILE_DWORDS * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
 	}
 }
 
@@ -149,10 +158,10 @@ struct FLumenPackedLight
 	float ProxyRadius;
 
 	float3 ProxyDirection;
-	float CosConeAngle;
-
-	float SinConeAngle;
-	float3 Padding;
+	uint bHasShadowMask_RectLightAtlasMaxLevel;
+	
+	float2 SinCosConeAngleOrRectLightAtlasUVScale;
+	float2 RectLightAtlasUVOffset;
 };
 
 struct FLumenLight
@@ -167,6 +176,7 @@ struct FLumenLight
 	float SinConeAngle;
 
 	uint VirtualShadowMapId;
+	uint bHasShadowMask;
 	uint Type;
 };
 
@@ -195,6 +205,9 @@ FLumenLight LoadLumenLight(uint LightIndex, float3 PreViewTranslation)
 	DeferredLightData.ShadowedBits = 0;
 	DeferredLightData.RectLightBarnCosAngle = PackedLight.RectLightBarnCosAngle;
 	DeferredLightData.RectLightBarnLength = PackedLight.RectLightBarnLength;
+	DeferredLightData.RectLightAtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
+	DeferredLightData.RectLightAtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
+	DeferredLightData.RectLightAtlasMaxLevel = asfloat(BitFieldExtractU32(PackedLight.bHasShadowMask_RectLightAtlasMaxLevel, 31, 0));
 	DeferredLightData.bInverseSquared = PackedLight.FalloffExponent == 0.0f;
 	DeferredLightData.bRadialLight = PackedLight.LightType != LIGHT_TYPE_DIRECTIONAL;
 	DeferredLightData.bSpotLight = PackedLight.LightType == LIGHT_TYPE_SPOT;
@@ -206,9 +219,34 @@ FLumenLight LoadLumenLight(uint LightIndex, float3 PreViewTranslation)
 	LumenLight.ProxyPosition = PackedLight.ProxyPosition;
 	LumenLight.ProxyRadius = PackedLight.ProxyRadius;
 	LumenLight.ProxyDirection = PackedLight.ProxyDirection;
-	LumenLight.CosConeAngle = PackedLight.CosConeAngle;
-	LumenLight.SinConeAngle = PackedLight.SinConeAngle;
+	LumenLight.CosConeAngle = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale.y;
+	LumenLight.SinConeAngle = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale.x;
 	LumenLight.VirtualShadowMapId = PackedLight.VirtualShadowMapId;
+	LumenLight.bHasShadowMask = BitFieldExtractU32(PackedLight.bHasShadowMask_RectLightAtlasMaxLevel, 1, 31);
 	LumenLight.Type = PackedLight.LightType;
 	return LumenLight;
 }
+
+#if LIGHT_FUNCTION
+/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
+float3 LightFunctionParameters2;
+
+float GetLightFunction(float3 TranslatedWorldPosition) 
+{
+	float4 LightVector = mul(float4(TranslatedWorldPosition, 1), LightFunctionTranslatedWorldToLight);
+	float3 LightFunction = GetLightFunctionColor(LightVector.xyz / LightVector.w, TranslatedWorldPosition);
+
+	float GreyScale = dot(LightFunction, .3333f).x;
+
+	// Calculate radial view distance for stable fading
+	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
+
+	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
+	// Fade to disabled based on LightFunctionFadeDistance
+	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, DistanceFadeAlpha);
+
+	// Fade to disabled based on ShadowFadeFraction
+	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, LightFunctionParameters.y);
+	return GreyScale;
+}
+#endif

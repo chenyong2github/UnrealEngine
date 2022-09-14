@@ -435,7 +435,8 @@ void SetupVisualizeTraces(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	const FScreenProbeParameters& ScreenProbeParameters)
+	const FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	FRDGBufferRef VisualizeTracesData = nullptr;
 
@@ -467,6 +468,7 @@ void SetupVisualizeTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SetupVisualizeTraces"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(FIntPoint(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution), FScreenProbeSetupVisualizeTracesCS::GetGroupSize()));
@@ -499,12 +501,13 @@ FCompactedTraceParameters CompactTraces(
 	bool bCullByDistanceFromCamera,
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance,
-	bool bRenderDirectLighting)
+	bool bRenderDirectLighting,
+	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute)
 {
 	FRDGBufferRef CompactedTraceTexelAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("Lumen.ScreenProbeGather.CompactedTraceTexelAllocator"));
 	FRDGBufferUAVRef CompactedTraceTexelAllocatorUAV = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT), 0, ComputePassFlags);
 
 	const FIntPoint ScreenProbeTraceBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 	const int32 NumCompactedTraceTexelDataElements = ScreenProbeTraceBufferSize.X * ScreenProbeTraceBufferSize.Y;
@@ -530,6 +533,7 @@ FCompactedTraceParameters CompactTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CompactTraces"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -553,6 +557,7 @@ FCompactedTraceParameters CompactTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CompactLightSampleTraces"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -573,6 +578,7 @@ FCompactedTraceParameters CompactTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SetupCompactedTracesIndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -597,7 +603,8 @@ void TraceScreenProbes(
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
-	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
@@ -610,6 +617,7 @@ void TraceScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ClearTraces %ux%u", ScreenProbeParameters.ScreenProbeTracingOctahedronResolution, ScreenProbeParameters.ScreenProbeTracingOctahedronResolution),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -626,6 +634,7 @@ void TraceScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ClearLightSampleTraces %ux%u", ScreenProbeParameters.ScreenProbeLightSampleResolutionXY, ScreenProbeParameters.ScreenProbeLightSampleResolutionXY),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -693,6 +702,7 @@ void TraceScreenProbes(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TraceScreen(%s)%s", bHasHairStrands ? TEXT("Scene, HairStrands") : TEXT("Scene"), bTraceLightSamples ? TEXT("(LightSamples)") : TEXT("")),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				ScreenProbeParameters.ProbeIndirectArgs,
@@ -707,6 +717,8 @@ void TraceScreenProbes(
 
 	if (bUseHardwareRayTracing)
 	{
+		check(ComputePassFlags == ERDGPassFlags::Compute);
+
 		FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 			GraphBuilder,
 			View,
@@ -735,7 +747,8 @@ void TraceScreenProbes(
 			FrameTemporaries,
 			TracingInputs,
 			IndirectTracingParameters,
-			/* out */ MeshSDFGridParameters);
+			/* out */ MeshSDFGridParameters,
+			ComputePassFlags);
 
 		const bool bTraceMeshSDFs = MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
 		const bool bTraceHeightfields = Lumen::UseHeightfieldTracing(*View.Family, *Scene->GetLumenSceneData(View));
@@ -749,7 +762,8 @@ void TraceScreenProbes(
 				true,
 				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 				IndirectTracingParameters.MaxMeshSDFTraceDistance,
-				bRenderDirectLighting);
+				bRenderDirectLighting,
+				ComputePassFlags);
 
 			auto TraceMeshSDFs = [&](bool bTraceLightSamples)
 			{
@@ -787,6 +801,7 @@ void TraceScreenProbes(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("TraceMeshSDFs(%s)%s", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene"), bTraceLightSamples ? TEXT("(LightSamples)") : TEXT("")),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					CompactedTraceParameters.IndirectArgs,
@@ -812,7 +827,8 @@ void TraceScreenProbes(
 		0.0f,
 		// Make sure the shader runs on all misses to apply radiance cache + skylight
 		IndirectTracingParameters.MaxTraceDistance * 2,
-		bRenderDirectLighting);
+		bRenderDirectLighting,
+		ComputePassFlags);
 
 	auto TraceVoxels = [&](bool bTraceLightSamples)
 	{
@@ -850,6 +866,7 @@ void TraceScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("%s%s%s", bUseHardwareRayTracing ? TEXT("RadianceCacheInterpolate") : TEXT("TraceVoxels"), bNeedTraceHairVoxel ? TEXT(" and HairStrands") : TEXT(""), bTraceLightSamples ? TEXT("(LightSamples)") : TEXT("")),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			CompactedTraceParameters.IndirectArgs,
@@ -866,6 +883,6 @@ void TraceScreenProbes(
 
 	if (GLumenScreenProbeGatherVisualizeTraces)
 	{
-		SetupVisualizeTraces(GraphBuilder, Scene, View, ScreenProbeParameters);
+		SetupVisualizeTraces(GraphBuilder, Scene, View, ScreenProbeParameters, ComputePassFlags);
 	}
 }

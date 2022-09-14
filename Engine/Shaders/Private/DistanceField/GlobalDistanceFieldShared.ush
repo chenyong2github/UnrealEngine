@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
 #if IS_MATERIAL_SHADER

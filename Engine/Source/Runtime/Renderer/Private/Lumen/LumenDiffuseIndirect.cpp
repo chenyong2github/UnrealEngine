@@ -147,6 +147,13 @@ FAutoConsoleVariableRef CVarCardGridDistributionZScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenDiffuseIndirectAsyncCompute = 0;
+static FAutoConsoleVariableRef CVarLumenDiffuseIndirectAsyncCompute(
+	TEXT("r.Lumen.DiffuseIndirect.AsyncCompute"),
+	GLumenDiffuseIndirectAsyncCompute,
+	TEXT("Whether to run lumen diffuse indirect passes on the compute pipe if possible."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 bool Lumen::UseMeshSDFTracing(const FSceneViewFamily& ViewFamily)
 {
 	return GLumenTraceMeshSDFs != 0 
@@ -281,7 +288,8 @@ void CullForCardTracing(
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FLumenCardTracingInputs TracingInputs,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
-	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -306,5 +314,6 @@ void CullForCardTracing(
 		CardGridSizeZ,
 		ZParams,
 		GraphBuilder,
-		MeshSDFGridParameters);
+		MeshSDFGridParameters,
+		ComputePassFlags);
 }

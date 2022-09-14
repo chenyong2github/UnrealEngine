@@ -32,7 +32,16 @@ uint PackCardTileData(FCardTileData CardTile)
 	return PackedTile;
 }
 
-struct FLightTile
+struct FLightTileForCompactionPass
+{
+	uint LightIndex;
+	uint ViewIndex;
+	uint bHasShadowMask;
+	uint CardTileIndex;
+	uint CulledLightIndex;
+};
+
+struct FLightTileForShadowMaskPass
 {
 	uint LightIndex;
 	uint ViewIndex;
@@ -40,24 +49,67 @@ struct FLightTile
 	uint2 TileCoord;
 };
 
-FLightTile UnpackLightTile(uint2 PackedTile)
+struct FLightTileForLightPass
 {
-	FLightTile Tile;
-	Tile.LightIndex = PackedTile.x & 0x0FFFFFFF;
-	Tile.ViewIndex = (PackedTile.x >> 28) & 0xF;
-	Tile.CardPageIndex = PackedTile.y & 0xFFFFFF;
-	Tile.TileCoord.x = (PackedTile.y >> 24) & 0xF;
-	Tile.TileCoord.y = (PackedTile.y >> 28) & 0xF;
+	uint LightIndex;
+	uint ViewIndex;
+	uint ShadowMaskIndex;
+};
+
+FLightTileForCompactionPass UnpackLightTileForCompactionPass(uint2 PackedTile)
+{
+	FLightTileForCompactionPass Tile;
+	Tile.LightIndex = BitFieldExtractU32(PackedTile.x, 28, 0);
+	Tile.ViewIndex = BitFieldExtractU32(PackedTile.x, 3, 28);
+	Tile.bHasShadowMask = BitFieldExtractU32(PackedTile.x, 1, 31);
+	Tile.CardTileIndex = BitFieldExtractU32(PackedTile.y, 24, 0);
+	Tile.CulledLightIndex = BitFieldExtractU32(PackedTile.y, 8, 24);
 	return Tile;
 }
 
-uint2 PackLightTile(FLightTile Tile)
+FLightTileForShadowMaskPass UnpackLightTileForShadowMaskPass(uint2 PackedTile)
+{
+	FLightTileForShadowMaskPass Tile;
+	Tile.LightIndex = BitFieldExtractU32(PackedTile.x, 28, 0);
+	Tile.ViewIndex = BitFieldExtractU32(PackedTile.x, 4, 28);
+	Tile.CardPageIndex = BitFieldExtractU32(PackedTile.y, 24, 0);
+	Tile.TileCoord.x = BitFieldExtractU32(PackedTile.y, 4, 24);
+	Tile.TileCoord.y = BitFieldExtractU32(PackedTile.y, 4, 28);
+	return Tile;
+}
+
+FLightTileForLightPass UnpackLightTileForLightPass(uint2 PackedTile)
+{
+	FLightTileForLightPass Tile;
+	Tile.LightIndex = BitFieldExtractU32(PackedTile.x, 28, 0);
+	Tile.ViewIndex = BitFieldExtractU32(PackedTile.x, 4, 28);
+	Tile.ShadowMaskIndex = PackedTile.y;
+	return Tile;
+}
+
+uint2 PackLightTileForCompactionPass(FLightTileForCompactionPass Tile)
 {
 	uint2 PackedTile;
-	PackedTile.x = Tile.LightIndex | (Tile.ViewIndex << 28);		
+	PackedTile.x = Tile.LightIndex | (Tile.ViewIndex << 28) | (Tile.bHasShadowMask << 31);
+	PackedTile.y = Tile.CardTileIndex | (Tile.CulledLightIndex << 24);
+	return PackedTile;
+}
+
+uint2 PackLightTileForShadowMaskPass(FLightTileForShadowMaskPass Tile)
+{
+	uint2 PackedTile;
+	PackedTile.x = Tile.LightIndex | (Tile.ViewIndex << 28);
 	PackedTile.y = Tile.CardPageIndex;
 	PackedTile.y |= (Tile.TileCoord.x << 24);
 	PackedTile.y |= (Tile.TileCoord.y << 28);
+	return PackedTile;
+}
+
+uint2 PackLightTileForLightPass(FLightTileForLightPass Tile)
+{
+	uint2 PackedTile;
+	PackedTile.x = Tile.LightIndex | (Tile.ViewIndex << 28);
+	PackedTile.y = Tile.ShadowMaskIndex;
 	return PackedTile;
 }
 

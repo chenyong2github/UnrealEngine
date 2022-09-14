@@ -230,7 +230,8 @@ IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByVisualizeCS, "/Engine/Private/L
 void MarkUsedProbesForVisualize(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	extern int32 GVisualizeLumenSceneTraceRadianceCache;
 
@@ -245,6 +246,7 @@ void MarkUsedProbesForVisualize(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("MarkRadianceProbes(Visualize)"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -1101,7 +1103,9 @@ void UpdateRadianceCaches(
 	const TInlineArray<FUpdateInputs>& InputArray,
 	TInlineArray<FUpdateOutputs>& OutputArray,
 	const FScene* Scene,
-	bool bPropagateGlobalLightingChange)
+	const FEngineShowFlags& EngineShowFlags,
+	bool bPropagateGlobalLightingChange,
+	ERDGPassFlags ComputePassFlags)
 {
 	if (GRadianceCacheUpdate != 0)
 	{
@@ -1173,7 +1177,7 @@ void UpdateRadianceCaches(
 
 				if (GRadianceCacheForceFullUpdate)
 				{
-					AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SetupOutputs.FinalIrradianceAtlas)), FLinearColor::Black);
+					AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SetupOutputs.FinalIrradianceAtlas)), FLinearColor::Black, ComputePassFlags);
 				}
 
 				const FIntPoint ProbeOcclusionAtlasSize(RadianceCacheInputs.ProbeAtlasResolutionInProbes * (RadianceCacheInputs.OcclusionProbeResolution + 2 * (1 << RadianceCacheInputs.FinalRadianceAtlasMaxMip)));
@@ -1222,7 +1226,7 @@ void UpdateRadianceCaches(
 
 				if (GRadianceCacheForceFullUpdate)
 				{
-					AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SetupOutputs.FinalRadianceAtlas)), FLinearColor::Black);
+					AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SetupOutputs.FinalRadianceAtlas)), FLinearColor::Black, ComputePassFlags);
 				}
 			}
 
@@ -1245,10 +1249,10 @@ void UpdateRadianceCaches(
 			}
 
 			GetInterpolationParametersNoResources(GraphBuilder, RadianceCacheState, RadianceCacheInputs, RadianceCacheParameters);
-		
+
 			const FIntVector RadianceProbeIndirectionTextureSize = FIntVector(
-				RadianceCacheInputs.RadianceProbeClipmapResolution * RadianceCacheInputs.NumRadianceProbeClipmaps, 
-				RadianceCacheInputs.RadianceProbeClipmapResolution, 
+				RadianceCacheInputs.RadianceProbeClipmapResolution * RadianceCacheInputs.NumRadianceProbeClipmaps,
+				RadianceCacheInputs.RadianceProbeClipmapResolution,
 				RadianceCacheInputs.RadianceProbeClipmapResolution);
 
 			FRDGTextureDesc ProbeIndirectionDesc = FRDGTextureDesc::Create3D(
@@ -1259,14 +1263,16 @@ void UpdateRadianceCaches(
 
 			RadianceCacheParameters.RadianceProbeIndirectionTexture = GraphBuilder.CreateTexture(FRDGTextureDesc(ProbeIndirectionDesc), TEXT("Lumen.RadianceCache.RadianceProbeIndirectionTexture"));
 
-			SetupOutputs.bPersistentCache = !GRadianceCacheForceFullUpdate 
-				&& View.ViewState 
+			SetupOutputs.bPersistentCache = !GRadianceCacheForceFullUpdate
+				&& View.ViewState
 				&& IsValidRef(RadianceCacheState.RadianceProbeIndirectionTexture)
 				&& RadianceCacheState.RadianceProbeIndirectionTexture->GetDesc().GetSize() == RadianceProbeIndirectionTextureSize
 				&& !bResizedHistoryState
 				&& !bPropagateGlobalLightingChange;
 		}
-		
+
+		const bool bLumenSceneLightingAsync = Lumen::GetLumenSceneLightingComputePassFlags(EngineShowFlags) == ERDGPassFlags::AsyncCompute;
+
 		// Clear each clipmap indirection entry to invalid probe index
 		for (int32 RadianceCacheIndex = 0; RadianceCacheIndex < InputArray.Num(); RadianceCacheIndex++)
 		{
@@ -1280,9 +1286,15 @@ void UpdateRadianceCaches(
 
 			const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(Outputs.RadianceCacheParameters.RadianceProbeIndirectionTexture->Desc.GetSize(), FClearProbeIndirectionCS::GetGroupSize());
 
+			// Do clear on graphics if there is any graphics mark pass and LumenSeneLighting is async so the mark pass is not blocked.
+			// If LumenSceneLighting isn't async, it will block graphics mark passes anyway. May as well finish the clear early on the compute pipe.
+			// TODO: Is it possible to move graphics mark passes and their clears before LumenSceneLighting without heavy code change?
+			const ERDGPassFlags ClearPassFlags = Inputs.GraphicsMarkUsedRadianceCacheProbes.IsBound() && bLumenSceneLightingAsync ? ERDGPassFlags::Compute : ComputePassFlags;
+
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ClearProbeIndirectionCS"),
+				ClearPassFlags,
 				ComputeShader,
 				PassParameters,
 				GroupSize);
@@ -1297,7 +1309,8 @@ void UpdateRadianceCaches(
 			FRadianceCacheMarkParameters RadianceCacheMarkParameters = GetMarkParameters(RadianceProbeIndirectionTextureMarkUAV, Outputs.RadianceCacheState, Inputs.RadianceCacheInputs);
 
 			// Mark indirection entries around positions that will be sampled by dependent features as used
-			Inputs.MarkUsedRadianceCacheProbes.Broadcast(GraphBuilder, Inputs.View, RadianceCacheMarkParameters);
+			Inputs.GraphicsMarkUsedRadianceCacheProbes.Broadcast(GraphBuilder, Inputs.View, RadianceCacheMarkParameters);
+			Inputs.ComputeMarkUsedRadianceCacheProbes.Broadcast(GraphBuilder, Inputs.View, RadianceCacheMarkParameters);
 		}
 
 		TInlineArray<FRDGBufferRef> ProbeFreeListAllocator(InputArray.Num());
@@ -1357,6 +1370,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("ClearProbeFreeList"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);
@@ -1410,6 +1424,7 @@ void UpdateRadianceCaches(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("UpdateCacheForUsedProbes"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						GroupSize);
@@ -1491,6 +1506,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("ClearRadianceCacheUpdateResources"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);
@@ -1541,6 +1557,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("AllocateUsedProbes"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);
@@ -1573,6 +1590,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("SelectMaxPriorityBucket"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					FIntVector(1, 1, 1));
@@ -1623,6 +1641,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("AllocateProbeTraces"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);
@@ -1681,6 +1700,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("SetupProbeIndirectArgsCS"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);
@@ -1714,6 +1734,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("ComputeProbeWorldOffsets"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					PassParameters->IndirectArgs,
@@ -1755,6 +1776,7 @@ void UpdateRadianceCaches(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("ClearProbePDFs"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						PassParameters->ClearProbePDFsIndirectArgs,
@@ -1788,6 +1810,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("ScatterScreenProbeBRDFToRadianceProbes"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					Inputs.ScreenProbeParameters->ProbeIndirectArgs,
@@ -1846,6 +1869,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("GenerateProbeTraceTiles"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					PassParameters->GenerateProbeTraceTilesIndirectArgs,
@@ -1889,6 +1913,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("SetupTraceFromProbesCS"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);
@@ -1923,6 +1948,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("SortTraceTiles"),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					PassParameters->SortProbeTraceTilesIndirectArgs,
@@ -1994,6 +2020,7 @@ void UpdateRadianceCaches(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("TraceFromProbes Res=%ux%u", RadianceCacheInputs.RadianceProbeResolution, RadianceCacheInputs.RadianceProbeResolution),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					PassParameters->TraceProbesIndirectArgs,
@@ -2036,6 +2063,7 @@ void UpdateRadianceCaches(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("FilterProbeRadiance Res=%ux%u", RadianceCacheInputs.RadianceProbeResolution, RadianceCacheInputs.RadianceProbeResolution),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						PassParameters->FilterProbesIndirectArgs,
@@ -2080,6 +2108,7 @@ void UpdateRadianceCaches(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("CalculateProbeIrradiance Res=%ux%u", RadianceCacheInputs.IrradianceProbeResolution, RadianceCacheInputs.IrradianceProbeResolution),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						GenerateProbeTraceTilesIndirectArgs[RadianceCacheIndex],
@@ -2101,6 +2130,7 @@ void UpdateRadianceCaches(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("PrepareProbeOcclusion Res=%ux%u", RadianceCacheInputs.OcclusionProbeResolution, RadianceCacheInputs.OcclusionProbeResolution),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						PrepareProbeOcclusionIndirectArgs[RadianceCacheIndex],
@@ -2143,6 +2173,7 @@ void UpdateRadianceCaches(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("FixupBordersAndGenerateMips"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						FixupProbeBordersIndirectArgs[RadianceCacheIndex],

@@ -189,7 +189,8 @@ extern void CullMeshObjectsToViewGrid(
 	int32 GridSizeZ,
 	FVector ZParams,
 	FRDGBuilder& GraphBuilder,
-	FLumenMeshSDFGridParameters& OutGridParameters);
+	FLumenMeshSDFGridParameters& OutGridParameters,
+	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
 
 extern void CullMeshSDFObjectsToProbes(
 	FRDGBuilder& GraphBuilder,
@@ -209,7 +210,8 @@ extern void CullForCardTracing(
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FLumenCardTracingInputs TracingInputs,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
-	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
 
 extern void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters);
 extern void SetupLumenDiffuseTracingParametersForProbe(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);

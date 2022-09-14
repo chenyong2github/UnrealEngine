@@ -577,7 +577,8 @@ static void MarkRadianceProbesUsedByTranslucencyVolume(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
-	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	FMarkRadianceProbesUsedByTranslucencyVolumeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByTranslucencyVolumeCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
@@ -593,6 +594,7 @@ static void MarkRadianceProbesUsedByTranslucencyVolume(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("MarkRadianceProbesUsedByTranslucencyVolume"),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		GroupSize);
@@ -607,7 +609,8 @@ void TraceVoxelsTranslucencyVolume(
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
 	FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters,
 	FRDGTextureRef VolumeTraceRadiance,
-	FRDGTextureRef VolumeTraceHitDistance)
+	FRDGTextureRef VolumeTraceHitDistance,
+	ERDGPassFlags ComputePassFlags)
 {
 	FTranslucencyVolumeTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTranslucencyVolumeTraceVoxelsCS::FParameters>();
 	PassParameters->RWVolumeTraceRadiance = GraphBuilder.CreateUAV(VolumeTraceRadiance);
@@ -631,6 +634,7 @@ void TraceVoxelsTranslucencyVolume(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("%s %ux%u", bTraceFromVolume ? TEXT("TraceVoxels") : TEXT("RadianceCacheInterpolate"), GTranslucencyVolumeTracingOctahedronResolution, GTranslucencyVolumeTracingOctahedronResolution),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		GroupSize);
@@ -639,7 +643,8 @@ void TraceVoxelsTranslucencyVolume(
 LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
-	const FLumenCardTracingInputs& TracingInputs)
+	const FLumenCardTracingInputs& TracingInputs,
+	ERDGPassFlags ComputePassFlags)
 {
 	const FLumenTranslucencyLightingVolumeParameters VolumeParameters = GetTranslucencyLightingVolumeParameters(View);
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs(View);
@@ -651,7 +656,7 @@ LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslu
 
 	if (GLumenTranslucencyVolume && GLumenTranslucencyVolumeRadianceCache)
 	{
-		MarkUsedRadianceCacheProbesCallbacks.AddLambda([VolumeParameters](
+		MarkUsedRadianceCacheProbesCallbacks.AddLambda([VolumeParameters, ComputePassFlags](
 			FRDGBuilder& GraphBuilder, 
 			const FViewInfo& View, 
 			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
@@ -660,7 +665,8 @@ LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslu
 					GraphBuilder,
 					View,
 					VolumeParameters,
-					RadianceCacheMarkParameters);
+					RadianceCacheMarkParameters,
+					ComputePassFlags);
 			});
 	}
 
@@ -671,7 +677,8 @@ LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslu
 		View,
 		nullptr,
 		nullptr,
-		MarkUsedRadianceCacheProbesCallbacks);
+		FMarkUsedRadianceCacheProbes(),
+		MoveTemp(MarkUsedRadianceCacheProbesCallbacks));
 
 	return RadianceCacheUpdateInputs;
 }
@@ -680,7 +687,8 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View, 
 	const FLumenCardTracingInputs& TracingInputs,
-	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters)
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	if (GLumenTranslucencyVolume)
 	{
@@ -694,9 +702,10 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
 				GraphBuilder,
 				View, 
-				TracingInputs);
+				TracingInputs,
+				ComputePassFlags);
 
-			if (TranslucencyVolumeRadianceCacheUpdateInputs.MarkUsedRadianceCacheProbes.IsBound())
+			if (TranslucencyVolumeRadianceCacheUpdateInputs.IsAnyCallbackBound())
 			{
 				InputArray.Add(TranslucencyVolumeRadianceCacheUpdateInputs);
 				OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
@@ -708,7 +717,9 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 					InputArray,
 					OutputArray,
 					Scene,
-					LumenCardRenderer.bPropagateGlobalLightingChange);
+					ViewFamily.EngineShowFlags,
+					LumenCardRenderer.bPropagateGlobalLightingChange,
+					ComputePassFlags);
 			}
 		}
 
@@ -737,6 +748,8 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 			if (Lumen::UseHardwareRayTracedTranslucencyVolume(ViewFamily) && GLumenTranslucencyVolumeTraceFromVolume != 0)
 			{
+				check(ComputePassFlags == ERDGPassFlags::Compute);
+
 				HardwareRayTraceTranslucencyVolume(
 					GraphBuilder,
 					View,
@@ -750,7 +763,17 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			else
 			{
 				const bool bDynamicSkyLight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
-				TraceVoxelsTranslucencyVolume(GraphBuilder, View, bDynamicSkyLight, TracingInputs, RadianceCacheParameters, VolumeParameters, TraceSetupParameters, VolumeTraceRadiance, VolumeTraceHitDistance);
+				TraceVoxelsTranslucencyVolume(
+					GraphBuilder,
+					View,
+					bDynamicSkyLight,
+					TracingInputs,
+					RadianceCacheParameters,
+					VolumeParameters,
+					TraceSetupParameters,
+					VolumeTraceRadiance,
+					VolumeTraceHitDistance,
+					ComputePassFlags);
 			}
 
 			if (GTranslucencyVolumeSpatialFilter)
@@ -778,6 +801,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("SpatialFilter"),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						GroupSize);
@@ -846,6 +870,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("Integrate %ux%ux%u", TranslucencyGridSize.X, TranslucencyGridSize.Y, TranslucencyGridSize.Z),
+					ComputePassFlags,
 					ComputeShader,
 					PassParameters,
 					GroupSize);

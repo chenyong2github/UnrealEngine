@@ -200,7 +200,8 @@ namespace LumenRadiosity
 		FRDGTextureRef RadiosityAtlas,
 		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
 		const FLumenCardTracingInputs& TracingInputs,
-		const FLumenCardUpdateContext& CardUpdateContext);
+		const FLumenCardUpdateContext& CardUpdateContext,
+		ERDGPassFlags ComputePassFlags);
 
 	uint32 GetRadiosityProbeSpacing(const FViewInfo& View)
 	{
@@ -598,7 +599,8 @@ void LumenRadiosity::AddRadiosityPass(
 	FRDGTextureRef RadiosityAtlas,
 	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenCardUpdateContext& CardUpdateContext)
+	const FLumenCardUpdateContext& CardUpdateContext,
+	ERDGPassFlags ComputePassFlags)
 {
 	const FViewInfo& FirstView = Views[0];
 
@@ -642,7 +644,7 @@ void LumenRadiosity::AddRadiosityPass(
 	const uint32 MaxCardTiles = CardUpdateContext.MaxUpdateTiles;
 	FRDGBufferRef CardTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), Views.Num()), TEXT("Lumen.Radiosity.CardTileAllocator"));
 	FRDGBufferRef CardTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxCardTiles * Views.Num()), TEXT("Lumen.Radiosity.CardTiles"));
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CardTileAllocator), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CardTileAllocator), 0, ComputePassFlags);
 
 	// Setup common radiosity tracing parameters
 	FLumenRadiosityTexelTraceParameters RadiosityTexelTraceParameters;
@@ -692,6 +694,7 @@ void LumenRadiosity::AddRadiosityPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("BuildRadiosityTiles"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			CardUpdateContext.DispatchCardPageIndicesIndirectArgs,
@@ -718,6 +721,7 @@ void LumenRadiosity::AddRadiosityPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("IndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -856,6 +860,7 @@ void LumenRadiosity::AddRadiosityPass(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("DistanceFieldTracing %ux%u probes at %u spacing", HemisphereProbeResolution, HemisphereProbeResolution, ProbeSpacing),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				RadiosityIndirectArgs,
@@ -894,6 +899,7 @@ void LumenRadiosity::AddRadiosityPass(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("SpatialFilterProbes"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				RadiosityIndirectArgs,
@@ -948,6 +954,7 @@ void LumenRadiosity::AddRadiosityPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ConvertToSH"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			RadiosityIndirectArgs,
@@ -983,6 +990,7 @@ void LumenRadiosity::AddRadiosityPass(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Integrate"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			RadiosityIndirectArgs,
@@ -1003,7 +1011,8 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef RadiosityAtlas,
 	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
-	const FLumenCardUpdateContext& CardUpdateContext)
+	const FLumenCardUpdateContext& CardUpdateContext,
+	ERDGPassFlags ComputePassFlags)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -1016,6 +1025,9 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
 
+		FLumenCardTileUpdateContext CardTileUpdateContext;
+		Lumen::SpliceCardPagesIntoTiles(GraphBuilder, Views[0].ShaderMap, CardUpdateContext, TracingInputs.LumenCardSceneUniformBuffer, CardTileUpdateContext, ComputePassFlags);
+
 		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
 
 		LumenRadiosity::AddRadiosityPass(
@@ -1027,7 +1039,8 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			RadiosityAtlas,
 			RadiosityNumFramesAccumulatedAtlas,
 			TracingInputs,
-			CardUpdateContext);
+			CardUpdateContext,
+			ComputePassFlags);
 
 		// Update Final Lighting
 		Lumen::CombineLumenSceneLighting(
@@ -1035,7 +1048,9 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			Views[0],
 			GraphBuilder,
 			TracingInputs,
-			CardUpdateContext);
+			CardUpdateContext,
+			CardTileUpdateContext,
+			ComputePassFlags);
 	}
 	else
 	{

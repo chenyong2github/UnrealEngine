@@ -93,7 +93,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 		uint ShadowTraceIndex = ShadowTraceGroup * 64 + ShadowTraceIndexOffset;
 		FShadowTrace ShadowTrace = UnpackShadowTrace(ShadowTraces[ShadowTraceIndex]);
 		uint2 CoordInCardTile = ShadowTrace.LightTileCoord;	
-		const FLightTile LightTile = UnpackLightTile(LightTiles[ShadowTrace.LightTileIndex]);
+		const FLightTileForShadowMaskPass LightTile = UnpackLightTileForShadowMaskPass(LightTiles[ShadowTrace.LightTileIndex]);
 
 		if (LightTile.ViewIndex != ViewIndex)
 		{
@@ -237,12 +237,12 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						bRayOccluded = IsRayOccluded(RayResult);
 					}
 
-					ShadowMaskRay.ShadowFactor = bRayOccluded ? 0.0f : 1.0f;
+					ShadowMaskRay.ShadowFactor *= bRayOccluded ? 0.0f : 1.0f;
 				}
 
 				ShadowMaskRay.bShadowFactorComplete = true;
 
-				WriteShadowMaskRay(ShadowMaskRay, ShadowTrace.LightTileIndex, CoordInCardTile);
+				WriteShadowMaskRay(ShadowMaskRay, ShadowTrace.LightTileIndex, CoordInCardTile, true);
 			}
 		}
 	}

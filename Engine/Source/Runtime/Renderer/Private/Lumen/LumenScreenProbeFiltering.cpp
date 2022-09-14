@@ -421,7 +421,8 @@ void FilterScreenProbes(
 	const FSceneTextures& SceneTextures,
 	const FScreenProbeParameters& ScreenProbeParameters,
 	bool bRenderDirectLighting,
-	FScreenProbeGatherParameters& GatherParameters)
+	FScreenProbeGatherParameters& GatherParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	const FIntPoint ScreenProbeGatherBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolution;
 	FRDGTextureDesc ScreenProbeRadianceDesc(FRDGTextureDesc::Create2D(ScreenProbeGatherBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
@@ -451,6 +452,7 @@ void FilterScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CompositeTraces"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -479,6 +481,7 @@ void FilterScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CalculateMoving"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -531,6 +534,7 @@ void FilterScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("TemporallyAccumulateRadiance"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -567,6 +571,7 @@ void FilterScreenProbes(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("FilterRadianceWithGather"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				ScreenProbeParameters.ProbeIndirectArgs,
@@ -658,6 +663,7 @@ void FilterScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ScreenProbeConvertToIrradiance Format:%d", (int32)ScreenProbeIrradianceFormat),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -680,6 +686,7 @@ void FilterScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("FixupBorders"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -702,6 +709,7 @@ void FilterScreenProbes(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("GenerateMip"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(ScreenProbeParameters.ScreenProbeAtlasViewSize * MipSize, FScreenProbeGenerateMipLevelCS::GetGroupSize()));

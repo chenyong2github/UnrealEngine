@@ -11,6 +11,7 @@
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/TemporalAA.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
+#include "CompositionLighting/CompositionLighting.h"
 #include "PostProcess/PostProcessing.h" // for FPostProcessVS
 #include "RendererModule.h" 
 #include "RayTracing/RaytracingOptions.h"
@@ -24,6 +25,7 @@
 #include "RendererUtils.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Lumen/LumenTracingUtils.h"
+#include "Lumen/LumenSceneLighting.h"
 
 // This is the project default dynamic global illumination, NOT the scalability setting (see r.Lumen.DiffuseIndirect.Allow for scalability)
 // Must match EDynamicGlobalIlluminationMethod
@@ -780,13 +782,114 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 	OutCommonDiffuseParameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
 }
 
+void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
+	FRDGBuilder& GraphBuilder,
+	FCompositionLighting& CompositionLighting,
+	FSceneTextures& SceneTextures,
+	const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
+	FRDGTextureRef LightingChannelsTexture,
+	bool bHasLumenLights,
+	FAsyncLumenIndirectLightingOutputs& Outputs)
+{
+	extern int32 GLumenDiffuseIndirectAsyncCompute;
+	extern int32 GLumenVisualizeIndirectDiffuse;
+	extern int32 GLumenScreenProbeTemporalFilter;
+	extern int32 GLumenScreenProbeUseHistoryNeighborhoodClamp;
+	extern int32 GLumenReflectionsAsyncCompute;
+	extern FLumenGatherCvarState GLumenGatherCvars;
+
+	// TODO: Lots of passes but all seem to be compute. May be able to use async compute
+	bool bLumenUseDenoiserComposite = GLumenScreenProbeTemporalFilter && GLumenScreenProbeUseHistoryNeighborhoodClamp;
+
+	if (!GSupportsEfficientAsyncCompute
+		|| !GLumenDiffuseIndirectAsyncCompute
+		|| GLumenVisualizeIndirectDiffuse
+		|| ViewFamily.EngineShowFlags.VisualizeLightCulling
+		|| bLumenUseDenoiserComposite
+		// Not much point to run Lumen async since most of the savings comes from overlapping with ShadowDepths
+		|| LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags)
+		// TODO: Inline raytracing may also benefit from async compute
+		|| Lumen::UseHardwareRayTracing(ViewFamily))
+	{
+		return;
+	}
+
+	// Decals may modify GBuffers so they need to be done first. Can decals read velocities and/or custom depth? If so, they need to be rendered earlier too.
+	CompositionLighting.ProcessAfterBasePass(GraphBuilder, FCompositionLighting::EProcessAfterBasePassMode::OnlyBeforeLightingDecals);
+	Outputs.bHasDrawnBeforeLightingDecals = true;
+
+	LLM_SCOPE_BYTAG(Lumen);
+	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
+	
+	Outputs.DoneAsync(GLumenReflectionsAsyncCompute != 0);
+	Outputs.Resize(Views.Num());
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+		FAsyncLumenIndirectLightingOutputs::FViewOutputs& ViewOutputs = Outputs.ViewOutputs[ViewIndex];
+
+		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && !ViewPipelineState.bUseLumenProbeHierarchy)
+		{
+			ViewOutputs.IndirectLightingTextures = RenderLumenFinalGather(
+				GraphBuilder,
+				SceneTextures,
+				LumenFrameTemporaries,
+				LightingChannelsTexture,
+				View,
+				&View.PrevViewInfo,
+				bHasLumenLights,
+				bLumenUseDenoiserComposite,
+				ViewOutputs.MeshSDFGridParameters,
+				ViewOutputs.RadianceCacheParameters,
+				ViewOutputs.ScreenBentNormalParameters,
+				ERDGPassFlags::AsyncCompute);
+
+			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+			{
+				if (GLumenReflectionsAsyncCompute != 0)
+				{
+					ViewOutputs.IndirectLightingTextures.Textures[2] = RenderLumenReflections(
+						GraphBuilder,
+						View,
+						SceneTextures,
+						LumenFrameTemporaries,
+						ViewOutputs.MeshSDFGridParameters,
+						ViewOutputs.RadianceCacheParameters,
+						ELumenReflectionPass::Opaque,
+						nullptr,
+						nullptr,
+						ViewOutputs.ReflectionCompositeParameters,
+						ERDGPassFlags::AsyncCompute);
+				}
+			}
+			else
+			{
+				const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+				ViewOutputs.IndirectLightingTextures.Textures[1] = SystemTextures.Black;
+				ViewOutputs.IndirectLightingTextures.Textures[2] = SystemTextures.Black;
+			}
+
+			// Lumen needs its own depth history because things like Translucency velocities write to depth
+			StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
+		}
+	}
+}
+
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,
 	const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
 	bool bHasLumenLights,
-	bool bIsVisualizePass)
+	bool bCompositeRegularLumenOnly,
+	bool bIsVisualizePass,
+	FAsyncLumenIndirectLightingOutputs& AsyncLumenIndirectLightingOutputs)
 {
 	using namespace HybridIndirectLighting;
 
@@ -805,14 +908,27 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	uint32 ViewIndex = 0;
-	for (FViewInfo& View : Views)
+	auto ShouldSkipView = [bCompositeRegularLumenOnly, &AsyncLumenIndirectLightingOutputs](const FPerViewPipelineState& ViewPipelineState)
 	{
-		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		const bool bOnlyCompositeStepLeft = AsyncLumenIndirectLightingOutputs.StepsLeft == ELumenIndirectLightingSteps::Composite;
+		const bool bRegularLumenView = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && ! ViewPipelineState.bUseLumenProbeHierarchy;
 
-		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex++);
+		return bCompositeRegularLumenOnly != (bOnlyCompositeStepLeft && bRegularLumenView);
+	};
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+
+		if (ShouldSkipView(ViewPipelineState))
+		{
+			continue;
+		}
 
 		int32 DenoiseMode = CVarDiffuseIndirectDenoiser.GetValueOnRenderThread();
 
@@ -869,42 +985,75 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			FLumenMeshSDFGridParameters MeshSDFGridParameters;
 			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
+			const ELumenIndirectLightingSteps StepsLeft = AsyncLumenIndirectLightingOutputs.StepsLeft;
+			const bool bDoComposite = StepsLeft == ELumenIndirectLightingSteps::All || StepsLeft == ELumenIndirectLightingSteps::Composite;
 
-			DenoiserOutputs = RenderLumenFinalGather(
-				GraphBuilder, 
-				SceneTextures,
-				LumenFrameTemporaries,
-				LightingChannelsTexture,
-				View,
-				&View.PrevViewInfo,
-				bHasLumenLights,
-				bLumenUseDenoiserComposite,
-				MeshSDFGridParameters,
-				RadianceCacheParameters,
-				ScreenBentNormalParameters);
-
-			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+			if (EnumHasAnyFlags(StepsLeft, ELumenIndirectLightingSteps::ScreenProbeGather))
 			{
-				DenoiserOutputs.Textures[2] = RenderLumenReflections(
+				DenoiserOutputs = RenderLumenFinalGather(
 					GraphBuilder,
-					View,
 					SceneTextures,
 					LumenFrameTemporaries,
+					LightingChannelsTexture,
+					View,
+					&View.PrevViewInfo,
+					bHasLumenLights,
+					bLumenUseDenoiserComposite,
 					MeshSDFGridParameters,
 					RadianceCacheParameters,
-					ELumenReflectionPass::Opaque,
-					nullptr,
-					nullptr,
-					LumenReflectionCompositeParameters);
-			}
-			else
-			{
-				DenoiserOutputs.Textures[1] = SystemTextures.Black;
-				DenoiserOutputs.Textures[2] = SystemTextures.Black;
+					ScreenBentNormalParameters,
+					ERDGPassFlags::Compute);
 			}
 
-			// Lumen needs its own depth history because things like Translucency velocities write to depth
-			StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
+			if (EnumHasAnyFlags(StepsLeft, ELumenIndirectLightingSteps::Reflections))
+			{
+				auto& ViewOutputs = AsyncLumenIndirectLightingOutputs.ViewOutputs;
+				const auto& MeshSDFGridParams = bDoComposite ? MeshSDFGridParameters : ViewOutputs[ViewIndex].MeshSDFGridParameters;
+				const auto& RadianceCacheParams = bDoComposite ? RadianceCacheParameters : ViewOutputs[ViewIndex].RadianceCacheParameters;
+				auto& ReflectionCompositeParams = bDoComposite ? LumenReflectionCompositeParameters : ViewOutputs[ViewIndex].ReflectionCompositeParameters;
+				auto& OutTextures = bDoComposite ? DenoiserOutputs : ViewOutputs[ViewIndex].IndirectLightingTextures;
+
+				if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+				{
+					OutTextures.Textures[2] = RenderLumenReflections(
+						GraphBuilder,
+						View,
+						SceneTextures,
+						LumenFrameTemporaries,
+						MeshSDFGridParams,
+						RadianceCacheParams,
+						ELumenReflectionPass::Opaque,
+						nullptr,
+						nullptr,
+						ReflectionCompositeParams,
+						ERDGPassFlags::Compute);
+				}
+				else
+				{
+					OutTextures.Textures[1] = SystemTextures.Black;
+					OutTextures.Textures[2] = SystemTextures.Black;
+				}
+			}
+
+			if (EnumHasAnyFlags(StepsLeft, ELumenIndirectLightingSteps::StoreDepthHistory))
+			{
+				// Lumen needs its own depth history because things like Translucency velocities write to depth
+				StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
+			}
+
+			if (!bDoComposite)
+			{
+				continue;
+			}
+			else if (bCompositeRegularLumenOnly)
+			{
+				FAsyncLumenIndirectLightingOutputs::FViewOutputs& ViewOutputs = AsyncLumenIndirectLightingOutputs.ViewOutputs[ViewIndex];
+				DenoiserOutputs = ViewOutputs.IndirectLightingTextures;
+				MeshSDFGridParameters = ViewOutputs.MeshSDFGridParameters;
+				RadianceCacheParameters = ViewOutputs.RadianceCacheParameters;
+				ScreenBentNormalParameters = ViewOutputs.ScreenBentNormalParameters;
+				LumenReflectionCompositeParameters = ViewOutputs.ReflectionCompositeParameters;
+			}
 		}
 		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Plugin)
 		{
@@ -1347,6 +1496,15 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			}
 		} // if (IsAmbientCubemapPassRequired(View))
 	} // for (FViewInfo& View : Views)
+
+	if (bCompositeRegularLumenOnly)
+	{
+		AsyncLumenIndirectLightingOutputs.DoneComposite();
+	}
+	else
+	{
+		AsyncLumenIndirectLightingOutputs.DonePreLights();
+	}
 }
 
 static void AddSkyReflectionPass(

@@ -595,7 +595,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				ELumenReflectionPass::SingleLayerWater,
 				&TiledScreenSpaceReflection,
 				nullptr,
-				LumenReflectionCompositeParameters);
+				LumenReflectionCompositeParameters,
+				ERDGPassFlags::Compute);
 		}
 		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR 
 			&& CVarWaterSingleLayerRTR.GetValueOnRenderThread() != 0 

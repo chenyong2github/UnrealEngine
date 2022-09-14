@@ -23,7 +23,14 @@ public:
 
 	void ProcessBeforeBasePass(FRDGBuilder& GraphBuilder, FDBufferTextures& DBufferTextures);
 
-	void ProcessAfterBasePass(FRDGBuilder& GraphBuilder);
+	enum class EProcessAfterBasePassMode
+	{
+		OnlyBeforeLightingDecals,
+		SkipBeforeLightingDecals,
+		All
+	};
+
+	void ProcessAfterBasePass(FRDGBuilder& GraphBuilder, EProcessAfterBasePassMode Mode);
 
 private:
 	void TryInit();

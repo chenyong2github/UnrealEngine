@@ -77,7 +77,8 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	const FViewInfo& View, 
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
-	const FScreenProbeParameters& ScreenProbeParameters)
+	const FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	FLumenScreenSpaceBentNormalParameters OutParameters;
 
@@ -142,6 +143,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ScreenSpaceBentNormal(Rays=%u, Overflow)", NumPixelRays),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				View.StrataViewData.BSDFTileDispatchIndirectBuffer,
@@ -152,6 +154,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ScreenSpaceBentNormal(Rays=%u)", NumPixelRays),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceBentNormalCS::GetGroupSize()));

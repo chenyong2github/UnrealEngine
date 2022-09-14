@@ -14,82 +14,45 @@
 #include "../VolumeLightingCommon.ush"
 #define FILTER_DIRECTIONAL_LIGHT_SHADOWING 1
 #include "../ForwardShadowingCommon.ush"
-#include "/Engine/Generated/Material.ush"
-#include "../LightFunctionCommon.ush"
-#if USE_CLOUD_TRANSMITTANCE
-	#include "../VolumetricCloudCommon.ush"
-#endif
 #include "LumenSceneDirectLighting.ush"
 
-/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
-float3 LightFunctionParameters2;
 
-float GetLightFunction(float3 TranslatedWorldPosition) 
+FDeferredLightData GetLumenDirectLightingLightData(uint LightIndex, float3 PreViewTranslation)
 {
-	float4 LightVector = mul(float4(TranslatedWorldPosition, 1), LightFunctionTranslatedWorldToLight);
-	float3 LightFunction = GetLightFunctionColor(LightVector.xyz / LightVector.w, TranslatedWorldPosition);
+	FDeferredLightData Out;
 
-	float GreyScale = dot(LightFunction, .3333f).x;
-
-	// Calculate radial view distance for stable fading
-	float ViewDistance = length(PrimaryView.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
-
-	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
-	// Fade to disabled based on LightFunctionFadeDistance
-	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, DistanceFadeAlpha);
-
-	// Fade to disabled based on ShadowFadeFraction
-	GreyScale = lerp(LightFunctionParameters2.y, GreyScale, LightFunctionParameters.y);
-	return GreyScale;
+#if USE_LIGHT_UNIFORM_BUFFER
+	Out = LoadLightData(LIGHT_TYPE);
+#else
+	FLumenLight LumenLight = LoadLumenLight(LightIndex, PreViewTranslation);
+	Out = LumenLight.DeferredLightData;
+	Out.bRectLight = HAS_RECT_LIGHTS && Out.bRectLight;
+#endif
+	return Out;
 }
 
-uint UseIESProfile;
-
-void LumenCardDirectLightingPS(
-	FCardVSToPS CardInterpolants,
-	out float4 OutColor : SV_Target0,
-	float4 SvPosition : SV_Position)
+float3 GetIrradianceForLight(
+	uint LightIndex,
+	FLumenSurfaceCacheData SurfaceCacheData,
+	float3 PreViewTranslation,
+	float ShadowFactor)
 {
-	FShadowMaskRay ShadowMaskRay;
-	ShadowMaskRay.bShadowFactorComplete = true;
-	ShadowMaskRay.ShadowFactor = 1.0f;
+	FDeferredLightData LightData = GetLumenDirectLightingLightData(LightIndex, PreViewTranslation);
 
-	FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
-	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-	FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(Card, CardInterpolants.CardUV, CardInterpolants.AtlasUV);
+	float3 WorldNormal = SurfaceCacheData.WorldNormal;
+	float3 WorldPosition = SurfaceCacheData.WorldPosition;
+	float3 TranslatedWorldPosition = WorldPosition + PreViewTranslation;
 
-	#if SHADOW_MASK
+	float3 LightColor = LightData.Color;
+	float3 L = LightData.Direction;
+	float3 ToLight = L;
+	float3 AreaLightFalloffColor = 1;
+	float CombinedAttenuation = 1;
+
+	if (LightData.bRadialLight)
 	{
-		uint2 CoordInCardTile = SvPosition.xy % CARD_TILE_SIZE;
-		ReadShadowMaskRay(CardInterpolants.CardTileIndex, CoordInCardTile, ShadowMaskRay);
-	}
-	#endif
-
-	float3 Irradiance = 0.0f;
-
-	if (SurfaceCacheData.bValid && ShadowMaskRay.ShadowFactor > 0.0f)
-	{
-		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
-
-		float3 WorldNormal = SurfaceCacheData.WorldNormal;
-		float3 WorldPosition = SurfaceCacheData.WorldPosition;
-		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
-
-		float3 LightColor = DeferredLightUniforms.Color;
-		float3 L = LightData.Direction;
-		float3 ToLight = L;
-		float3 AreaLightFalloffColor = 1;
-
-#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
-		float CombinedAttenuation = 1;
-#else
-		float LightMask = 1;
-		if (LightData.bRadialLight)
-		{
-			LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
-		}
-
-		float3 Attenuation;
+		float LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
+		float Attenuation;
 
 		if (LightData.bRectLight)
 		{
@@ -112,37 +75,77 @@ void LumenCardDirectLightingPS(
 			Attenuation = IntegrateLight(Capsule, LightData.bInverseSquared);
 		}
 
-		float CombinedAttenuation = Attenuation * LightMask;
+		CombinedAttenuation = Attenuation * LightMask;
+	}
+
+	float NoL = saturate(dot(WorldNormal, L));
+	float3 Irradiance = LightColor * AreaLightFalloffColor * (CombinedAttenuation * NoL * ShadowFactor);
+
+	return Irradiance;
+}
+
+#ifndef HAS_MULTIPLE_VIEWS
+#define HAS_MULTIPLE_VIEWS 0
 #endif
 
-		if (CombinedAttenuation > 0)
+RWTexture2D<float3> RWDirectLightingAtlas;
+StructuredBuffer<uint> CardTiles;
+StructuredBuffer<uint> LightTileOffsetNumPerCardTile;
+StructuredBuffer<uint2> LightTilesPerCardTile;
+
+[numthreads(CARD_TILE_SIZE, CARD_TILE_SIZE, 1)]
+void LumenCardBatchDirectLightingCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint CardTileIndex = GroupId.x;
+	uint2 TexelCoordInTile = GroupThreadId.xy;
+
+	uint PackedOffsetNum = LightTileOffsetNumPerCardTile[CardTileIndex];
+	uint LightTilesOffset = BitFieldExtractU32(PackedOffsetNum, 24, 0);
+	uint NumLightTiles = BitFieldExtractU32(PackedOffsetNum, 8, 24);
+
+	FCardTileData CardTile = UnpackCardTileData(CardTiles[CardTileIndex]);
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+
+	uint2 CoordInCardPage = CARD_TILE_SIZE * CardTile.TileCoord + TexelCoordInTile;
+	uint2 AtlasCoord = CardPage.PhysicalAtlasCoord + CoordInCardPage;
+
+	float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (CoordInCardPage + 0.5);
+	float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (CoordInCardPage + 0.5);
+
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+	FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(Card, CardUV, AtlasUV);
+
+	if (NumLightTiles == 0 || !SurfaceCacheData.bValid)
+	{
+		RWDirectLightingAtlas[AtlasCoord] = 0;
+		return;
+	}
+
+	float3 Irradiance = 0.0f;
+
+	for (uint CulledLightIndex = 0; CulledLightIndex < NumLightTiles; ++CulledLightIndex)
+	{
+		FLightTileForLightPass LightTile = UnpackLightTileForLightPass(LightTilesPerCardTile[LightTilesOffset + CulledLightIndex]);
+
+		FShadowMaskRay ShadowMaskRay;
+		ShadowMaskRay.bShadowFactorComplete = true;
+		ShadowMaskRay.ShadowFactor = 1.0f;
+
+		if (LightTile.ShadowMaskIndex != 0xffffffff)
 		{
-			if (dot(WorldNormal, L) > 0)
-			{
-				#if LIGHT_FUNCTION
-				{
-					ShadowMaskRay.ShadowFactor *= GetLightFunction(TranslatedWorldPosition);
-				}
-				#endif
+			ReadShadowMaskRay(LightTile.ShadowMaskIndex, TexelCoordInTile, ShadowMaskRay);
+		}
 
-				#if USE_CLOUD_TRANSMITTANCE
-				{
-					float OutOpticalDepth = 0.0f;
-					ShadowMaskRay.ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(TranslatedWorldPosition, CloudShadowmapTranslatedWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
-				}
-				#endif
+		if (ShadowMaskRay.ShadowFactor > 0.0f)
+		{
+			uint ViewIndex = HAS_MULTIPLE_VIEWS ? LightTile.ViewIndex : 0;
+			Irradiance += GetIrradianceForLight(LightTile.LightIndex, SurfaceCacheData, LWCHackToFloat(PreViewTranslation[ViewIndex]).xyz, ShadowMaskRay.ShadowFactor);
 
-				if (UseIESProfile > 0)
-				{
-					ShadowMaskRay.ShadowFactor *= ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
-				}
-
-				float NoL = saturate(dot(WorldNormal, L));
-				Irradiance = LightColor * AreaLightFalloffColor * (CombinedAttenuation * NoL * ShadowMaskRay.ShadowFactor);
-				//Irradiance = bShadowFactorValid ? float3(0, 1, 0) : float3(0.2f, 0.0f, 0.0f);
-			}
+			//Irradiance += bShadowFactorValid ? float3(0, 1, 0) : float3(0.2f, 0.0f, 0.0f);
 		}
 	}
 
-	OutColor = float4(Irradiance, 0);
+	RWDirectLightingAtlas[AtlasCoord] = Irradiance;
 }

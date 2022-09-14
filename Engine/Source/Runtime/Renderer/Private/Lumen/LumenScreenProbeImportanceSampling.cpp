@@ -242,7 +242,8 @@ void GenerateBRDF_PDF(
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef& BRDFProbabilityDensityFunctionSH,
-	FScreenProbeParameters& ScreenProbeParameters)
+	FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
@@ -272,6 +273,7 @@ void GenerateBRDF_PDF(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ComputeBRDF_PDF"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				ScreenProbeParameters.ProbeIndirectArgs,
@@ -289,7 +291,8 @@ void GenerateImportanceSamplingRays(
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef BRDFProbabilityDensityFunction,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
-	FScreenProbeParameters& ScreenProbeParameters)
+	FScreenProbeParameters& ScreenProbeParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	const uint32 MaxImportanceSamplingOctahedronResolution = ScreenProbeParameters.ScreenProbeTracingOctahedronResolution * (1 << GLumenScreenProbeImportanceSamplingNumLevels);
 	ScreenProbeParameters.ImportanceSampling.MaxImportanceSamplingOctahedronResolution = MaxImportanceSamplingOctahedronResolution;
@@ -357,6 +360,7 @@ void GenerateImportanceSamplingRays(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ComputeLightingPDF"),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				ScreenProbeParameters.ProbeIndirectArgs,
@@ -390,6 +394,7 @@ void GenerateImportanceSamplingRays(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("GenerateRays %ux%u", GenerateRaysGroupSize, GenerateRaysGroupSize),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,

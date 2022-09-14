@@ -40,17 +40,17 @@ struct FRadianceCacheConfiguration
 
 namespace LumenRadianceCache
 {
-	template<typename T>
-	class TInlineArray : public TArray<T, TInlineAllocator<4>>
+	template<typename T, uint32 NumInlineElements = 4>
+	class TInlineArray : public TArray<T, TInlineAllocator<NumInlineElements>>
 	{
 	public:
 		TInlineArray()
 		{}
 
 		TInlineArray(int32 InNum) :
-			TArray<T, TInlineAllocator<4>>()
+			TArray<T, TInlineAllocator<NumInlineElements>>()
 		{
-			TArray<T, TInlineAllocator<4>>::AddZeroed(InNum);
+			TArray<T, TInlineAllocator<NumInlineElements>>::AddZeroed(InNum);
 		}
 	};
 
@@ -64,7 +64,9 @@ namespace LumenRadianceCache
 		const FViewInfo& View;
 		const FScreenProbeParameters* ScreenProbeParameters;
 		FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH;
-		FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbes;
+
+		FMarkUsedRadianceCacheProbes GraphicsMarkUsedRadianceCacheProbes;
+		FMarkUsedRadianceCacheProbes ComputeMarkUsedRadianceCacheProbes;
 
 		FUpdateInputs(
 			const FLumenCardTracingInputs& InTracingInputs,
@@ -73,15 +75,22 @@ namespace LumenRadianceCache
 			const FViewInfo& InView,
 			const FScreenProbeParameters* InScreenProbeParameters,
 			FRDGBufferSRVRef InBRDFProbabilityDensityFunctionSH,
-			FMarkUsedRadianceCacheProbes InMarkUsedRadianceCacheProbes) :
+			FMarkUsedRadianceCacheProbes&& InGraphicsMarkUsedRadianceCacheProbes,
+			FMarkUsedRadianceCacheProbes&& InComputeMarkUsedRadianceCacheProbes) :
 			TracingInputs(InTracingInputs),
 			RadianceCacheInputs(InRadianceCacheInputs),
 			Configuration(InConfiguration),
 			View(InView),
 			ScreenProbeParameters(InScreenProbeParameters),
 			BRDFProbabilityDensityFunctionSH(InBRDFProbabilityDensityFunctionSH),
-			MarkUsedRadianceCacheProbes(InMarkUsedRadianceCacheProbes)
+			GraphicsMarkUsedRadianceCacheProbes(MoveTemp(InGraphicsMarkUsedRadianceCacheProbes)),
+			ComputeMarkUsedRadianceCacheProbes(MoveTemp(InComputeMarkUsedRadianceCacheProbes))
 		{}
+
+		bool IsAnyCallbackBound() const
+		{
+			return ComputeMarkUsedRadianceCacheProbes.IsBound() || GraphicsMarkUsedRadianceCacheProbes.IsBound();
+		}
 	};
 
 	// The outputs of a Radiance Cache update
@@ -109,7 +118,9 @@ namespace LumenRadianceCache
 		const TInlineArray<FUpdateInputs>& InputArray,
 		TInlineArray<FUpdateOutputs>& OutputArray,
 		const FScene* Scene,
-		bool bPropagateGlobalLightingChange);
+		const FEngineShowFlags& EngineShadowFlags,
+		bool bPropagateGlobalLightingChange,
+		ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
 }
 
 extern void RenderLumenHardwareRayTracingRadianceCache(
@@ -132,4 +143,9 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	FRDGTextureUAVRef RadianceProbeAtlasTextureUAV,
 	FRDGTextureUAVRef DepthProbeTextureUAV);
 
-extern void MarkUsedProbesForVisualize(FRDGBuilder& GraphBuilder, const FViewInfo& View, const class LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters);
+extern void MarkUsedProbesForVisualize(FRDGBuilder& GraphBuilder, const FViewInfo& View, const class LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters, ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
+
+namespace Lumen
+{
+	ERDGPassFlags GetLumenSceneLightingComputePassFlags(const FEngineShowFlags& EngineShowFlags);
+}

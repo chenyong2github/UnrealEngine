@@ -391,7 +391,8 @@ FCompactedReflectionTraceParameters CompactTraces(
 	const FLumenCardTracingInputs& TracingInputs,
 	bool bCullByDistanceFromCamera,
 	float CompactionTracingEndDistanceFromCamera,
-	float CompactionMaxTraceDistance)
+	float CompactionMaxTraceDistance,
+	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute)
 {
 	FRDGBufferRef CompactedTraceTexelAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Reflections.CompactedTraceTexelAllocator"));
 	const int32 NumCompactedTraceTexelDataElements = ReflectionTracingParameters.ReflectionTracingBufferSize.X * ReflectionTracingParameters.ReflectionTracingBufferSize.Y;
@@ -415,6 +416,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SetupCompactionIndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -445,6 +447,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			bWaveOps ? RDG_EVENT_NAME("CompactTracesOrderedWaveOps %u", CompactionThreadGroupSize) : RDG_EVENT_NAME("CompactTraces"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ReflectionCompactionIndirectArgs,
@@ -469,6 +472,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SetupCompactedTracesIndirectArgs"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -595,7 +599,8 @@ void TraceReflections(
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters,
 	bool bUseRadianceCache,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters)
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	{
 		FReflectionClearTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionClearTracesCS::FParameters>();
@@ -608,6 +613,7 @@ void TraceReflections(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ClearTraces"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ReflectionTileParameters.TracingIndirectArgs,
@@ -664,6 +670,7 @@ void TraceReflections(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("TraceScreen(%s)", bHasHairStrands ? TEXT("Scene, HairStrands") : TEXT("Scene")),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			ReflectionTileParameters.TracingIndirectArgs,
@@ -712,7 +719,8 @@ void TraceReflections(
 					FrameTemporaries,
 					TracingInputs,
 					IndirectTracingParameters,
-					/* out */ MeshSDFGridParameters);
+					/* out */ MeshSDFGridParameters,
+					ComputePassFlags);
 			}
 
 			const bool bTraceMeshSDFs = MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
@@ -728,7 +736,8 @@ void TraceReflections(
 					TracingInputs,
 					true,
 					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-					IndirectTracingParameters.MaxMeshSDFTraceDistance);
+					IndirectTracingParameters.MaxMeshSDFTraceDistance,
+					ComputePassFlags);
 
 				{
 					FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
@@ -757,6 +766,7 @@ void TraceReflections(
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
 						RDG_EVENT_NAME("TraceMeshSDFs(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
+						ComputePassFlags,
 						ComputeShader,
 						PassParameters,
 						CompactedTraceParameters.IndirectArgs,
@@ -774,7 +784,8 @@ void TraceReflections(
 			TracingInputs,
 			false,
 			0.0f,
-			IndirectTracingParameters.MaxTraceDistance);
+			IndirectTracingParameters.MaxTraceDistance,
+			ComputePassFlags);
 
 		{
 			FReflectionTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceVoxelsCS::FParameters>();
@@ -800,6 +811,7 @@ void TraceReflections(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TraceVoxels(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
+				ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				CompactedTraceParameters.IndirectArgs,

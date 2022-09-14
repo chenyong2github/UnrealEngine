@@ -665,7 +665,8 @@ void CompactCulledObjectArray(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	FObjectCullingContext& Context)
+	FObjectCullingContext& Context,
+	ERDGPassFlags ComputePassFlags)
 {
 	Context.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.NumCullGridCells), TEXT("Lumen.GridCulledMeshSDFObjectStartOffsetArray"));
 	Context.GridCulledHeightfieldObjectStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.NumCullGridCells), TEXT("Lumen.GridCulledHeightfieldObjectStartOffsetArray"));
@@ -674,8 +675,8 @@ void CompactCulledObjectArray(
 	FRDGBufferRef CulledHeightfieldObjectAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.CulledHeightfieldObjectAllocator"));
 	FRDGBufferRef CompactCulledObjectsIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.CompactCulledObjectsIndirectArguments"));
 
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CulledMeshSDFObjectAllocator, PF_R32_UINT), 0);
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CulledHeightfieldObjectAllocator, PF_R32_UINT), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CulledMeshSDFObjectAllocator, PF_R32_UINT), 0, ComputePassFlags);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CulledHeightfieldObjectAllocator, PF_R32_UINT), 0, ComputePassFlags);
 
 	{
 		FComputeCulledObjectsStartOffsetCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeCulledObjectsStartOffsetCS::FParameters>();
@@ -701,6 +702,7 @@ void CompactCulledObjectArray(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("ComputeCulledObjectsStartOffsetCS"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(GroupSize, 1, 1));
@@ -709,8 +711,8 @@ void CompactCulledObjectArray(
 	FRDGBufferUAVRef NumGridCulledMeshSDFObjectsUAV = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
 	FRDGBufferUAVRef NumGridCulledHeightfieldObjectsUAV = GraphBuilder.CreateUAV(Context.NumGridCulledHeightfieldObjects, PF_R32_UINT);
 
-	AddClearUAVPass(GraphBuilder, NumGridCulledMeshSDFObjectsUAV, 0);
-	AddClearUAVPass(GraphBuilder, NumGridCulledHeightfieldObjectsUAV, 0);
+	AddClearUAVPass(GraphBuilder, NumGridCulledMeshSDFObjectsUAV, 0, ComputePassFlags);
+	AddClearUAVPass(GraphBuilder, NumGridCulledHeightfieldObjectsUAV, 0, ComputePassFlags);
 
 	{
 		FCompactCulledObjectsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompactCulledObjectsCS::FParameters>();
@@ -739,6 +741,7 @@ void CompactCulledObjectArray(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CompactCulledObjects"),
+			ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			CompactCulledObjectsIndirectArguments,
@@ -882,7 +885,8 @@ void CullMeshSDFObjectsToProbes(
 		GraphBuilder,
 		Scene,
 		View,
-		Context);
+		Context,
+		ERDGPassFlags::Compute);
 
 	FillGridParameters(
 		GraphBuilder,
@@ -1030,7 +1034,8 @@ void CullMeshObjectsToViewGrid(
 	int32 GridSizeZ,
 	FVector ZParams,
 	FRDGBuilder& GraphBuilder,
-	FLumenMeshSDFGridParameters& OutGridParameters)
+	FLumenMeshSDFGridParameters& OutGridParameters,
+	ERDGPassFlags ComputePassFlags)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -1123,7 +1128,8 @@ void CullMeshObjectsToViewGrid(
 		GraphBuilder,
 		Scene,
 		View,
-		Context);
+		Context,
+		ComputePassFlags);
 
 	FillGridParameters(
 		GraphBuilder,

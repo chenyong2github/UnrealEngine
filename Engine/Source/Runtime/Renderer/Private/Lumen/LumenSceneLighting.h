@@ -184,6 +184,20 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBufferRef LumenPackedLights,
 	FRDGBufferUAVRef ShadowMaskTilesUAV);
 
+enum class ELumenDispatchCardTilesIndirectArgsOffset
+{
+	OneThreadPerCardTile = 0 * sizeof(FRHIDispatchIndirectParameters),
+	OneGroupPerCardTile = 1 * sizeof(FRHIDispatchIndirectParameters),
+	Num = 2
+};
+
+struct FLumenCardTileUpdateContext
+{
+	FRDGBufferRef CardTileAllocator;
+	FRDGBufferRef CardTiles;
+	FRDGBufferRef DispatchCardTilesIndirectArgs;
+};
+
 namespace Lumen
 {
 	void SetDirectLightingDeferredLightUniformBuffer(
@@ -196,7 +210,9 @@ namespace Lumen
 		const FViewInfo& View,
 		FRDGBuilder& GraphBuilder,
 		const FLumenCardTracingInputs& TracingInputs,
-		const FLumenCardUpdateContext& CardUpdateContext);
+		const FLumenCardUpdateContext& CardUpdateContext,
+		const FLumenCardTileUpdateContext& CardTileUpdateContext,
+		ERDGPassFlags ComputePassFlags);
 
 	void BuildCardUpdateContext(
 		FRDGBuilder& GraphBuilder,
@@ -204,7 +220,16 @@ namespace Lumen
 		const TArray<FViewInfo>& Views,
 		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
-		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);
+		FLumenCardUpdateContext& IndirectLightingCardUpdateContext,
+		ERDGPassFlags ComputePassFlags);
+
+	void SpliceCardPagesIntoTiles(
+		FRDGBuilder& GraphBuilder,
+		const FGlobalShaderMap* GloablShaderMap,
+		const FLumenCardUpdateContext& CardUpdateContext,
+		const TRDGUniformBufferRef<FLumenCardScene>& LumenCardSceneUniformBuffer,
+		FLumenCardTileUpdateContext& OutCardTileUpdateContext,
+		ERDGPassFlags ComputePassFlags);
 
 	inline EPixelFormat GetDirectLightingAtlasFormat() { return PF_FloatR11G11B10; }
 	inline EPixelFormat GetIndirectLightingAtlasFormat() { return PF_FloatR11G11B10; }
@@ -220,6 +245,7 @@ namespace LumenSceneDirectLighting
 	float GetGlobalSDFShadowRayBias();
 	float GetHardwareRayTracingShadowRayBias();
 	bool UseVirtualShadowMaps();
+	bool AllowShadowMaps(const FEngineShowFlags& EngineShowFlags);
 }
 
 namespace LumenSurfaceCache
