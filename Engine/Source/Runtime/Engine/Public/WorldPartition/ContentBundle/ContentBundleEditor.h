@@ -40,7 +40,6 @@ public:
 	bool IsBeingEdited() const { return bIsBeingEdited; }
 
 	void InjectBaseContent();
-	void RemoveBaseContent();
 
 	bool AddActor(AActor* InActor);
 	bool ContainsActor(const AActor* InActor) const;

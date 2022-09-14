@@ -128,10 +128,6 @@ bool UContentBundleEditionSubmodule::ActivateContentBundleEditing(TSharedPtr<FCo
 		EditingContentBundle = ContentBundleEditor;
 
 		ContentBundleEditor->StartEditing();
-		if (ContentBundleStatus == EContentBundleStatus::ReadyToInject)
-		{
-			ContentBundleEditor->InjectBaseContent();
-		}
 
 		ActorEditorContextClientChanged.Broadcast(this);
 

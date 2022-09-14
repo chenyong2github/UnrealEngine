@@ -145,34 +145,9 @@ void FContentBundleMode::RegisterContextMenu()
 								}),
 							FCanExecuteAction::CreateLambda([this, SceneOutliner]
 								{
-									if (TSharedPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundlePin(SceneOutliner))
-									{
-										return SelectedContentBundleEditor->IsBeingEdited() && SelectedContentBundleEditor->GetStatus() == EContentBundleStatus::ReadyToInject;
-									}
 									return false;
 								})
 							));
-
-					Section.AddMenuEntry("RemoveBaseContentMenuEntry", LOCTEXT("RemoveBaseContent", "Remove Base Content"), FText(), FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateLambda([this, SceneOutliner]
-								{
-									if (TSharedPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundlePin(SceneOutliner))
-									{
-										SelectedContentBundleEditor->RemoveBaseContent();
-									}
-								}),
-							FCanExecuteAction::CreateLambda([this, SceneOutliner]
-								{
-									if (TSharedPtr<FContentBundleEditor> SelectedContentBundleEditor = GetSelectedContentBundlePin(SceneOutliner))
-									{
-										return SelectedContentBundleEditor->IsBeingEdited() && SelectedContentBundleEditor->GetStatus() == EContentBundleStatus::ContentInjected && !SelectedContentBundleEditor->HasUserPlacedActors();
-									}
-									return false;
-								})
-									));
-
-					
 				}
 
 				{

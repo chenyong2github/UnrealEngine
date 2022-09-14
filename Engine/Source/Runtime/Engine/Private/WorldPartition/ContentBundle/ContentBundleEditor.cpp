@@ -129,6 +129,12 @@ bool FContentBundleEditor::AddActor(AActor* InActor)
 		return false;
 	}
 
+	if (GetStatus() == EContentBundleStatus::ReadyToInject)
+	{
+		UE_LOG(LogContentBundle, Verbose, TEXT("[CB: %s] Adding first actor to content bundle."), *GetDescriptor()->GetDisplayName());
+		SetStatus(EContentBundleStatus::ContentInjected);
+	}
+
 	check(GetStatus() == EContentBundleStatus::ContentInjected);
 
 	FName ActorPackageNameInContentBundle(*ULevel::GetActorPackageName(ActorDescContainer->GetExternalActorPath(), EActorPackagingScheme::Reduced, InActor->GetName()));
@@ -260,20 +266,6 @@ void FContentBundleEditor::InjectBaseContent()
 	BroadcastChanged();
 }
 
-void FContentBundleEditor::RemoveBaseContent()
-{
-	check(!HasUserPlacedActors());
-	check(GetStatus() == EContentBundleStatus::ContentInjected);
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Removing Base Content"), *GetDescriptor()->GetDisplayName());
-
-	GetInjectedWorld()->DestroyActor(WorldDataLayersActorReference.Get());
-	WorldDataLayersActorReference.Reset();
-
-	SetStatus(EContentBundleStatus::ReadyToInject);
-
-	BroadcastChanged();
-}
-
 void FContentBundleEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	FContentBundleBase::AddReferencedObjects(Collector);
@@ -390,12 +382,7 @@ void FContentBundleEditor::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDes
 	{
 		if (GetStatus() == EContentBundleStatus::ContentInjected)
 		{
-			RemoveBaseContent();
-		}
-		else
-		{
-			// If content is not injected, then RemoveContent was already called and we are deleting the WorldDataLayers
-			check(ActorDesc->GetActorNativeClass() == AWorldDataLayers::StaticClass() && GetStatus() == EContentBundleStatus::ReadyToInject);
+			SetStatus(EContentBundleStatus::ReadyToInject);
 		}
 	}
 
@@ -410,7 +397,7 @@ void FContentBundleEditor::OnUnsavedActorDeleted(AActor* Actor)
 
 	if (!HasUserPlacedActors())
 	{
-		RemoveBaseContent();
+		SetStatus(EContentBundleStatus::ReadyToInject);
 	}
 }
 
