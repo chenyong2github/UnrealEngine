@@ -80,6 +80,7 @@ public:
 
 	virtual void SetNodes(DirectLink::IReferenceResolutionProvider& ResolutionProvider, const TArray<DirectLink::FSceneGraphId>& NodeIds) override
 	{
+		Inner.Reset(NodeIds.Num());
 		Algo::Transform(NodeIds, Inner, [&](DirectLink::FSceneGraphId NodeId)
 		{
 			// #ue_directlink_quality validate type through property "type" ?
