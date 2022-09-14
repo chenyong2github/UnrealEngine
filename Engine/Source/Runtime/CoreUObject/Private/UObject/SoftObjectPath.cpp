@@ -463,6 +463,15 @@ bool SerializeFromMismatchedTagTemplate(FString& Output, const FPropertyTag& Tag
 		}
 		return true;
 	}
+	else if (Tag.Type == NAME_NameProperty)
+	{
+		FName Name;
+		Slot << Name;
+
+		FNameBuilder NameBuilder(Name);
+		Output = NameBuilder.ToView();
+		return true;
+	}
 	else if (Tag.Type == NAME_StrProperty)
 	{
 		FString String;
