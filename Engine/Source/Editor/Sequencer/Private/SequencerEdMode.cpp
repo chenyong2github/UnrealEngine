@@ -41,6 +41,9 @@
 #include "SnappingUtils.h"
 #include "SequencerNodeTree.h"
 #include "SequencerSettings.h"
+#include "UnrealEdGlobals.h"
+#include "UnrealEdMisc.h"
+#include "Editor/UnrealEdEngine.h"
 
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
 
@@ -249,6 +252,14 @@ USequencerSettings* FSequencerEdMode:: GetSequencerSettings() const
 	return nullptr;
 }
 
+bool FSequencerEdMode::IsMovingCamera(FViewport* InViewport) const
+{
+	const bool LeftMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
+	const bool bIsAltKeyDown = InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt);
+	const USequencerSettings* SequencerSettings = GetSequencerSettings();
+
+	return ((SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false) && LeftMouseButtonDown && bIsAltKeyDown);
+}
 bool FSequencerEdMode::IsDoingDrag(FViewport* InViewport) const
 {
 	const USequencerSettings* SequencerSettings = GetSequencerSettings();
@@ -282,6 +293,11 @@ bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FV
 		}
 		return true;
 	}
+	else if (IsMovingCamera(InViewport))
+	{
+		InViewportClient->SetCurrentWidgetAxis(EAxisList::None);
+		return true;
+	}
 	else if (IsDoingDrag(InViewport))
 	{
 		DragToolHandler.MakeDragTool(InViewportClient);
@@ -292,6 +308,10 @@ bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FV
 bool FSequencerEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	if (IsPressingMoveTimeSlider(InViewport))
+	{
+		return true;
+	}
+	else if (IsMovingCamera(InViewport))
 	{
 		return true;
 	}
@@ -308,9 +328,22 @@ bool FSequencerEdMode::InputDelta(FEditorViewportClient* InViewportClient, FView
 	{
 		return true;
 	}
+	else if (IsMovingCamera(InViewport))
+	{
+		if (InDrag.IsNearlyZero() == false || InRot.IsNearlyZero() == false || InScale.IsNearlyZero() == false)
+		{
+			InViewportClient->SetCurrentWidgetAxis(EAxisList::None);
+			InViewportClient->PeformDefaultCameraMovement(InDrag, InRot, InScale);
+			GUnrealEd->UpdatePivotLocationForSelection();
+		}
+
+		return true;
+	}
 	else if (IsDoingDrag(InViewport))
 	{
 		return DragToolHandler.InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
+		GUnrealEd->UpdatePivotLocationForSelection();
+
 	}
 	return FEdMode::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
 }

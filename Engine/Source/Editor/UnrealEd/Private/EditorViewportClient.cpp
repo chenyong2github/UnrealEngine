@@ -2265,48 +2265,7 @@ void FEditorViewportClient::UpdateMouseDelta()
 
 			if( !bInputHandledByGizmos )
 			{
-				if ( ShouldOrbitCamera() )
-				{
-					bool bHasMovement = !DragDelta.IsNearlyZero();
-
-					BeginCameraMovement(bHasMovement);
-
-					FVector TempDrag;
-					FRotator TempRot;
-					InputAxisForOrbit( Viewport, DragDelta, TempDrag, TempRot );
-				}
-				else
-				{
-					// Disable orbit camera
-					const bool bEnable=false;
-					ToggleOrbitCamera(bEnable);
-
-					if ( ShouldPanOrDollyCamera() )
-					{
-						bool bHasMovement = !Drag.IsNearlyZero() || !Rot.IsNearlyZero();
-
-						BeginCameraMovement(bHasMovement);
-
-						if( !IsOrtho())
-						{
-							const float CameraSpeed = GetCameraSpeed();
-							Drag *= CameraSpeed;
-						}
-						MoveViewportCamera( Drag, Rot );
-
-						if ( IsPerspective() && LeftMouseButtonDown && !MiddleMouseButtonDown && !RightMouseButtonDown )
-						{
-							FEditorViewportStats::Using(FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_DOLLY);
-						}
-						else
-						{
-							if ( !Drag.IsZero() )
-							{
-								FEditorViewportStats::Using(IsPerspective() ? FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_PAN : FEditorViewportStats::CAT_ORTHOGRAPHIC_MOUSE_PAN);
-							}
-						}
-					}
-				}
+				PeformDefaultCameraMovement(Drag, Rot, Scale);
 			}
 
 			// Clean up
@@ -2317,6 +2276,56 @@ void FEditorViewportClient::UpdateMouseDelta()
 	}
 }
 
+void FEditorViewportClient::PeformDefaultCameraMovement(FVector& Drag, FRotator& Rot, FVector& Scale)
+{
+	FVector DragDelta = MouseDeltaTracker->GetDelta();
+	if (ShouldOrbitCamera())
+	{
+		bool bHasMovement = !DragDelta.IsNearlyZero();
+
+		BeginCameraMovement(bHasMovement);
+
+		FVector TempDrag;
+		FRotator TempRot;
+		InputAxisForOrbit(Viewport, DragDelta, TempDrag, TempRot);
+	}
+	else
+	{
+		// Disable orbit camera
+		const bool bEnable = false;
+		ToggleOrbitCamera(bEnable);
+
+		if (ShouldPanOrDollyCamera())
+		{
+			bool bHasMovement = !Drag.IsNearlyZero() || !Rot.IsNearlyZero();
+
+			BeginCameraMovement(bHasMovement);
+
+			if (!IsOrtho())
+			{
+				const float CameraSpeed = GetCameraSpeed();
+				Drag *= CameraSpeed;
+			}
+			MoveViewportCamera(Drag, Rot);
+
+			const bool LeftMouseButtonDown = Viewport->KeyState(EKeys::LeftMouseButton);
+			const bool MiddleMouseButtonDown = Viewport->KeyState(EKeys::MiddleMouseButton);
+			const bool RightMouseButtonDown = Viewport->KeyState(EKeys::RightMouseButton);
+
+			if (IsPerspective() && LeftMouseButtonDown && !MiddleMouseButtonDown && !RightMouseButtonDown)
+			{
+				FEditorViewportStats::Using(FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_DOLLY);
+			}
+			else
+			{
+				if (!Drag.IsZero())
+				{
+					FEditorViewportStats::Using(IsPerspective() ? FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_PAN : FEditorViewportStats::CAT_ORTHOGRAPHIC_MOUSE_PAN);
+				}
+			}
+		}
+	}
+}
 
 static bool IsOrbitRotationMode( FViewport* Viewport )
 {

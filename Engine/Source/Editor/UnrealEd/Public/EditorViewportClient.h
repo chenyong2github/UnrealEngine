@@ -487,6 +487,8 @@ public:
 			ViewTransform.SetLocation(OrbitMatrix.GetOrigin());
 		}
 	}
+	/** Perform default camera movement that would normally happen* This can be used by systems to override how the camera is triggered*/
+	void PeformDefaultCameraMovement(FVector& Drag, FRotator& Rot, FVector& Scale);
 
 	/** Sets ortho zoom amount */
 	void SetOrthoZoom( float InOrthoZoom ) 

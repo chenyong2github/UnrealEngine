@@ -214,9 +214,9 @@ public:
 	void SetShowSelectedNodesOnly(bool Visible);
 	FOnShowSelectedNodesOnlyChanged& GetOnShowSelectedNodesOnlyChanged() { return OnShowSelectedNodesOnlyChangedEvent; }
 
-	/** Gets whether left mouse drag does marquee select instead of camera orbit */
+	/** Gets whether left mouse drag does marquee select instead of camera orbit and ALT always moves the camera */
 	bool GetLeftMouseDragDoesMarquee() const;
-	/** Sets whether left mouse drag does marquee select instead of camera orbit */
+	/** Sets whether left mouse drag does marquee select instead of camera orbit and ALT always moves the camera */
 	void SetLeftMouseDragDoesMarque(bool bDoMarque);
 
 	/** Get zoom in/out position (mouse position or current time). */
