@@ -247,8 +247,8 @@ const TArray<FSourceControlStateRef>& FConcertSourceControlChangelistStateProxy:
 
 FSourceControlChangelistRef FConcertSourceControlChangelistStateProxy::GetChangelist() const
 {
-	static const FSourceControlChangelistRef DummyResult;
-	return ActualState.IsValid() ? ActualState->GetChangelist() : DummyResult;
+	static ISourceControlChangelist DummyCL;
+	return ActualState.IsValid() ? ActualState->GetChangelist() : DummyCL.AsShared();
 }
 
 FConcertSourceControlProxy::FConcertSourceControlProxy()
