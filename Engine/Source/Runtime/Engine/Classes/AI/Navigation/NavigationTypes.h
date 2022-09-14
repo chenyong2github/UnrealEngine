@@ -675,7 +675,7 @@ namespace NavMeshMemory
 		public:
 			typedef FDefaultAllocator::ForAnyElementType Super;
 		private:
-			int32 AllocatedSize;
+			int64 AllocatedSize;
 		public:
 
 			ForAnyElementType()
@@ -702,7 +702,7 @@ namespace NavMeshMemory
 
 			FORCEINLINE_DEBUGGABLE void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
 			{
-				const int32 NewSize = NumElements * NumBytesPerElement;
+				const int64 NewSize = NumElements * NumBytesPerElement;
 				INC_DWORD_STAT_BY(STAT_NavigationMemory, NewSize - AllocatedSize);
 				AllocatedSize = NewSize;
 
