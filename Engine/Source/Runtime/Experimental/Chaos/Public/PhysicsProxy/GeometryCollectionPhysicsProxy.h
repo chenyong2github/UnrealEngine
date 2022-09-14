@@ -384,8 +384,15 @@ public:
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
 
-	void SetInitializedForReplication() { bInitializedForReplication = true; }
-	bool GetInitializedForReplication() const { return bInitializedForReplication; }
+	enum class EReplicationMode: uint8
+	{
+		Unknown,
+		Server,
+		Client,
+	};
+
+	void SetReplicationMode(EReplicationMode Mode) { ReplicationMode = Mode; }
+	EReplicationMode GetReplicationMode() const { return ReplicationMode; }
 
 	void UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter);
 	
@@ -473,7 +480,7 @@ private:
 	bool IsObjectLoading; // Indicate when loaded
 	bool IsObjectDeleting; // Indicatge when pending deletion
 
-	bool bInitializedForReplication = false;	//Indicates that initialization for replication has finished
+	EReplicationMode ReplicationMode = EReplicationMode::Unknown;	
 
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 	TMap<Chaos::FGeometryParticle*, int32> GTParticlesToTransformGroupIndex;

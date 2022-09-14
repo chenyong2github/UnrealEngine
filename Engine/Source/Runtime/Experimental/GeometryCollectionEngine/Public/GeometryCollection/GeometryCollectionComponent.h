@@ -1000,7 +1000,7 @@ protected:
 	bool bEnableReplication;
 
 	/** 
-	 * Enables use of ReplicationAbandonClusterLevel to stop providing network updates to
+	 * Enables use of ReplicationAbandonAfterLevel to stop providing network updates to
 	 * clients when the updated particle is of a level higher then specified.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Network)
@@ -1012,8 +1012,15 @@ protected:
 	 * gameplay relevant to cut down on required bandwidth to update a collection.
 	 * @see bEnableAbandonAfterLevel
 	 */ 
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "GeometryCollection now uses ReplicationAbandonAfterLevel instead of ReplicationAbandonClusterLevel."))
+	int32 ReplicationAbandonClusterLevel_DEPRECATED;
+
+	/**
+	* If replicating - the cluster level after which replication will not happen 
+	* @see bEnableAbandonAfterLevel
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Network)
-	int32 ReplicationAbandonClusterLevel;
+	int32 ReplicationAbandonAfterLevel;
 
 	UPROPERTY(Replicated)
 	FGeometryCollectionRepData RepData;
@@ -1105,6 +1112,7 @@ private:
 	/** One off activation is processed in the same order as server so remember the last one we processed */
 	int32 OneOffActivatedProcessed = 0;
 	int32 VersionProcessed = INDEX_NONE;
+	double LastHardsnapTimeInMs = 0;
 
 	/** True if GeometryCollection transforms have changed from previous tick. */
 	bool bIsMoving;
