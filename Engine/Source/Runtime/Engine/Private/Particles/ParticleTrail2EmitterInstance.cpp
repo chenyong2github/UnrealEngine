@@ -3601,7 +3601,7 @@ void FParticleAnimTrailEmitterInstance::UpdateBoundingBox(float DeltaTime)
 
 			DECLARE_PARTICLE_PTR(FirstParticle, ParticleData + ParticleStride * ParticleIndices[0]);
 			FAnimTrailTypeDataPayload*	FirstPayload = ((FAnimTrailTypeDataPayload*)((uint8*)FirstParticle + TypeDataOffset));
-			FVector PrevParticleLocation = FirstParticle->Location;
+			FVector PrevParticleLocation = FirstParticle->Location + PositionOffsetThisTick;
 			float PrevParticleLength = FirstPayload->Length;
 
 			bool bSkipDoubleSpawnUpdate = !SpriteTemplate->bUseLegacySpawningBehavior;

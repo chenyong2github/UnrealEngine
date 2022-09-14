@@ -29,7 +29,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FMeshParticleUniformParameters, ENGINE_API
 	SHADER_PARAMETER( uint32, TexCoordWeightA )
 	SHADER_PARAMETER( uint32, TexCoordWeightB )
 	SHADER_PARAMETER( uint32, PrevTransformAvailable )
-	SHADER_PARAMETER( float, DeltaSeconds)
+	SHADER_PARAMETER( float, DeltaSeconds )
+	SHADER_PARAMETER( uint32, bUseLocalSpace )
+	SHADER_PARAMETER( FVector3f, LWCTile )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FMeshParticleUniformParameters> FMeshParticleUniformBufferRef;
 

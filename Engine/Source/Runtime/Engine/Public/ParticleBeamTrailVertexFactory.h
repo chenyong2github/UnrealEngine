@@ -21,6 +21,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FParticleBeamTrailUniformParameters, ENGIN
 	SHADER_PARAMETER( FVector4f, CameraRight )
 	SHADER_PARAMETER( FVector4f, CameraUp )
 	SHADER_PARAMETER( FVector4f, ScreenAlignment )
+	SHADER_PARAMETER( uint32, bUseLocalSpace)
+	SHADER_PARAMETER( FVector3f, LWCTile)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FParticleBeamTrailUniformParameters> FParticleBeamTrailUniformBufferRef;
 

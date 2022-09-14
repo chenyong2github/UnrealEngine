@@ -6401,7 +6401,12 @@ void UParticleSystemComponent::ApplyWorldOffset(const FVector& InOffset, bool bW
 {
 	Super::ApplyWorldOffset(InOffset, bWorldShift);
 
-	OldPosition+= InOffset;
+	// Trigger a reset as the offset applying below does not work correctly with all emitter types
+	// Niagara also resets so having Cascade follow the same path makes it consistent also
+	bResetTriggered = true;
+
+#if 0
+	OldPosition += InOffset;
 	
 	for (auto It = EmitterInstances.CreateIterator(); It; ++It)
 	{
@@ -6411,6 +6416,7 @@ void UParticleSystemComponent::ApplyWorldOffset(const FVector& InOffset, bool bW
 			EmitterInstance->ApplyWorldOffset(InOffset, bWorldShift);
 		}
 	}
+#endif
 }
 
 void UParticleSystemComponent::ResetToDefaults()

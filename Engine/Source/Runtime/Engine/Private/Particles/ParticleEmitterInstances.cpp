@@ -2843,6 +2843,7 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 		NewReplayData->RequiredModule = LODLevel->RequiredModule->CreateRendererResource();
 		NewReplayData->MaterialInterface = NULL;	// Must be set by derived implementation
 		NewReplayData->InvDeltaSeconds = (LastDeltaTime > UE_KINDA_SMALL_NUMBER) ? (1.0f / LastDeltaTime) : 0.0f;
+		NewReplayData->LWCTile = LODLevel->RequiredModule->bUseLocalSpace ? FVector3f::Zero() : Component->GetLWCTile();
 
 		NewReplayData->MaxDrawCount =
 			(LODLevel->RequiredModule->bUseMaxDrawCount == true) ? LODLevel->RequiredModule->MaxDrawCount : -1;

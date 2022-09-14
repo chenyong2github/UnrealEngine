@@ -1390,6 +1390,7 @@ struct FDynamicSpriteEmitterReplayDataBase
 	FVector3f							NormalsSphereCenter;
 	FVector3f							NormalsCylinderDirection;
 	float							InvDeltaSeconds;
+	FVector3f						LWCTile;
 	int32							MaxDrawCount;
 	int32							OrbitModuleOffset;
 	int32							DynamicParameterDataOffset;
