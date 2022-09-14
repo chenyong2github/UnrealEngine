@@ -364,7 +364,10 @@ void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdLis
 
 void FDirectionalLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	Scene.SetupRayTracingScene();
+	if (!Scene.SetupRayTracingScene())
+	{
+		return;
+	}
 	
 	FVector3f XAxis, YAxis;
 	FVector3f(Direction).FindBestAxisVectors(XAxis, YAxis);
@@ -461,7 +464,10 @@ void FDirectionalLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImm
 
 void FSpotLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	Scene.SetupRayTracingScene();
+	if (!Scene.SetupRayTracingScene())
+	{
+		return;
+	}
 	
 	FVector3f XAxis, YAxis;
 	FVector3f(Direction).FindBestAxisVectors(XAxis, YAxis);
@@ -577,7 +583,10 @@ void FSpotLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate&
 
 void FPointLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	Scene.SetupRayTracingScene();
+	if (!Scene.SetupRayTracingScene())
+	{
+		return;
+	}
 
 	const float ClampedResolutionScale = 1.0f;
 	const float StaticShadowDepthMapTransitionSampleDistanceX = 10;
@@ -667,7 +676,10 @@ void FPointLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate
 
 void FRectLightRenderState::RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& Scene)
 {
-	Scene.SetupRayTracingScene();
+	if (!Scene.SetupRayTracingScene())
+	{
+		return;
+	}
 
 	const float ClampedResolutionScale = 1.0f;
 	const float StaticShadowDepthMapTransitionSampleDistanceX = 10;

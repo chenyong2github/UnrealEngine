@@ -1637,7 +1637,14 @@ void FSceneRenderState::BackgroundTick()
 		int32 IntPercentage = FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples);
 		IntPercentage = FMath::Max(IntPercentage, 0);
 		// With high number of samples (like 8192) double precision isn't enough to prevent fake 100%s
-		IntPercentage = FMath::Min(IntPercentage, SamplesTaken < TotalSamples ? 99 : 100);
+		if (SamplesTaken < TotalSamples)
+		{
+			IntPercentage = FMath::Min(IntPercentage, 99);
+		}
+		else
+		{
+			IntPercentage = 100;
+		}
 
 		FPlatformAtomics::InterlockedExchange(&Percentage, IntPercentage);
 	}
@@ -1915,6 +1922,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			RectLight.AllocateMapBuildData(LightingScenario ? LightingScenario : RectLight.ComponentUObject->GetOwner()->GetLevel());
 		}
 
+		if (RenderState.VolumetricLightmapRenderer->NumTotalBricks > 0)
 		{
 			ULevel* SubLevelStorageLevel = LightingScenario ? LightingScenario : ToRawPtr(World->PersistentLevel);
 			UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
