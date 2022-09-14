@@ -55,7 +55,7 @@ public:
 		const TSharedPtr<SRemoteControlPanel>& RemoteControlPanel = InActionPanel->GetRemoteControlPanel();
 		check(RemoteControlPanel);
 
-		SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), RemoteControlPanel.ToSharedRef());
+		SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InActionPanel, RemoteControlPanel.ToSharedRef());
 
 		ActionPanelWeakPtr = InActionPanel;
 		BehaviourItemWeakPtr = InBehaviourItem;
@@ -113,6 +113,12 @@ public:
 	virtual int32 Num() const override
 	{
 		return ActionItems.Num();
+	}
+
+	/** The number of Controllers currently selected*/
+	virtual int32 NumSelectedLogicItems() const override
+	{
+		return ListView->GetNumItemsSelected();
 	}
 
 	/** Whether the Actions List View currently has focus.*/

@@ -2201,7 +2201,7 @@ void SRemoteControlPanel::DeleteEntity_Execute()
 	// If the user focus is currently active on a Logic panel then route the Delete command to it and return.
 	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
-		ActiveLogicPanel->DeleteSelectedPanelItem();
+		ActiveLogicPanel->RequestDeleteSelectedItem();
 
 		return; // handled
 	}
@@ -2233,7 +2233,7 @@ bool SRemoteControlPanel::CanDeleteEntity() const
 {
 	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
-		return true; // User has focus on a logic panel
+		return ActiveLogicPanel->GetSelectedLogicItem() != nullptr; // User has focus on a logic panel
 	}
 
 	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)

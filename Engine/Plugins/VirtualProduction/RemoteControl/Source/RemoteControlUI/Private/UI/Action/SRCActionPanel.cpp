@@ -145,16 +145,16 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 				]
 			];
 		
-		// Empty All Button
-		TSharedRef<SWidget> EmptyAllButton = SNew(SButton)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Empty All Actions")))
+	// Delete Selected Action Button
+		TSharedRef<SWidget> DeleteSelectedActionButton = SNew(SButton)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete Selected Action")))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
-			.ToolTipText(LOCTEXT("EmptyAllToolTip", "Deletes all the actions."))
-			.OnClicked(this, &SRCActionPanel::RequestDeleteAllItems)
-			.Visibility_Lambda([this]() { return ActionPanelList.IsValid() && !ActionPanelList->IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.ToolTipText(LOCTEXT("DeleteSelectedActionToolTip", "Deletes all selected Action."))
+			.OnClicked(this, &SRCActionPanel::RequestDeleteSelectedItem)
+			.IsEnabled_Lambda([this]() { return ActionPanelList.IsValid() && ActionPanelList->NumSelectedLogicItems() > 0; })
 			[
 				SNew(SBox)
 				.WidthOverride(RCPanelStyle->IconSize.X)
@@ -168,7 +168,7 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 
 		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewActionButton);
 		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, AddAllActionsButton);
-		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, EmptyAllButton);
+		ActionDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedActionButton);
 
 		// Duplicate Dock Panel
 		TSharedPtr<SRCMinorPanel> DuplicateDockPanel = SNew(SRCMinorPanel)
@@ -569,6 +569,25 @@ FText SRCActionPanel::GetPasteItemMenuEntrySuffix()
 	return FText::GetEmpty();
 }
 
+FReply SRCActionPanel::RequestDeleteSelectedItem()
+{
+	if (!ActionPanelList.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const FText WarningMessage = LOCTEXT("DeleteActionWarning", "Delete the selected Actions?");
+
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
+
+	if (UserResponse == EAppReturnType::Yes)
+	{
+		DeleteSelectedPanelItem();
+	}
+
+	return FReply::Handled();
+}
+
 FReply SRCActionPanel::RequestDeleteAllItems()
 {
 	if (!ActionPanelList.IsValid())
@@ -576,7 +595,7 @@ FReply SRCActionPanel::RequestDeleteAllItems()
 		return FReply::Unhandled();
 	}
 
-	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllWarning", "You are about to delete '{0}' actions. This action might not be undone.\nAre you sure you want to proceed?"), ActionPanelList->Num());
+	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllWarning", "You are about to delete {0} actions. Are you sure you want to proceed?"), ActionPanelList->Num());
 
 	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
 

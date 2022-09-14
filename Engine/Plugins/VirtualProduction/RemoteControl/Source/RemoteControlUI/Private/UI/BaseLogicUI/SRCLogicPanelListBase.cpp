@@ -9,8 +9,9 @@
 
 #define LOCTEXT_NAMESPACE "SRCLogicPanelListBase"
 
-void SRCLogicPanelListBase::Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel)
+void SRCLogicPanelListBase::Construct(const FArguments& InArgs, const TSharedRef<SRCLogicPanelBase>& InLogicParentPanel, const TSharedRef<SRemoteControlPanel>& InPanel)
 {
+	LogicPanelWeakPtr = InLogicParentPanel;
 	RemoteControlPanelWeakPtr = InPanel;
 }
 
@@ -54,12 +55,27 @@ TSharedPtr<SWidget> SRCLogicPanelListBase::GetContextMenuWidget()
 	// 3. Delete
 	MenuBuilder.AddMenuEntry(Commands.DeleteEntity);
 
+	// 4. Delete All
+	FUIAction Action(FExecuteAction::CreateSP(this, &SRCLogicPanelListBase::RequestDeleteAllItems));
+
+	MenuBuilder.AddMenuEntry(LOCTEXT("DeleteAll", "Delete All"),
+		LOCTEXT("ContextMenuEditTooltip", "Delete all the rows in this list"),
+		FSlateIcon(), Action);
+
 	MenuBuilder.EndSection();
 
 	TSharedPtr<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 	ContextMenuWidgetCached = MenuWidget;
 
 	return MenuWidget;
+}
+
+void SRCLogicPanelListBase::RequestDeleteAllItems()
+{
+	if (TSharedPtr<SRCLogicPanelBase> LogicParentPanel = LogicPanelWeakPtr.Pin())
+	{
+		LogicParentPanel->RequestDeleteAllItems();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

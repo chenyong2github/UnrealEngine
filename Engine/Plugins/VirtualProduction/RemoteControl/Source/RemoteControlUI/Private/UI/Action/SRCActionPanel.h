@@ -70,6 +70,8 @@ public:
 	}
 
 protected:
+	/** Warns user before deleting a selected panel item. */
+	virtual FReply RequestDeleteSelectedItem() override;
 
 	/** Warns user before deleting all items in a panel. */
 	virtual FReply RequestDeleteAllItems() override;

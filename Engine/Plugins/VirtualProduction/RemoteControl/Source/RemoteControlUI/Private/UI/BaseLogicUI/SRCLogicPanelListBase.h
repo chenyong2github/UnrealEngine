@@ -12,6 +12,7 @@
 #include "UI/Controller/RCControllerModel.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SRCLogicPanelBase;
 class SRemoteControlPanel;
 
 /*
@@ -30,13 +31,16 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel);
+	void Construct(const FArguments& InArgs, const TSharedRef<SRCLogicPanelBase>& InLogicParentPanel, const TSharedRef<SRemoteControlPanel>& InPanel);
 
 	/** Returns true if the underlying list is valid and empty. */
 	virtual bool IsEmpty() const = 0;
 	
 	/** Returns number of items in the list. */
 	virtual int32 Num() const = 0;
+
+	/** The number of items currently selected in a Logic list panel */
+	virtual int32 NumSelectedLogicItems() const = 0;
 
 	/** Whether the List View currently has focus.*/
 	virtual bool IsListFocused() const = 0;
@@ -70,6 +74,9 @@ private:
 
 	/** Removes the given UI model item from the list of UI models for this panel list*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) = 0;
+
+	/** Requests the parent logic panel to delete all items in this list*/
+	void RequestDeleteAllItems();
 
 protected:
 	TWeakPtr<SWidget> ContextMenuWidgetCached;
@@ -113,4 +120,7 @@ protected:
 
 	/** The parent Remote Control Panel widget*/
 	TWeakPtr<SRemoteControlPanel> RemoteControlPanelWeakPtr;
+
+	/** The parent Logic Panel*/
+	TWeakPtr<SRCLogicPanelBase> LogicPanelWeakPtr;
 };

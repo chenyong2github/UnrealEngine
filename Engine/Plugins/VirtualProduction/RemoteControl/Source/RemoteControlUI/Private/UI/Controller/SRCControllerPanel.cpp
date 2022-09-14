@@ -68,16 +68,16 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 			GetControllerMenuContentWidget()
 		];
 
-	// Empty All Button
-	TSharedRef<SWidget> EmptyAllButton = SNew(SButton)
-		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Empty Controllers")))
+	// Delete Selected Controller Button
+	TSharedRef<SWidget> DeleteSelectedControllerButton = SNew(SButton)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete Selected Controller")))
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.ForegroundColor(FSlateColor::UseForeground())
 		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
-		.ToolTipText(LOCTEXT("EmptyAllToolTip", "Deletes all the controllers."))
-		.OnClicked(this, &SRCControllerPanel::RequestDeleteAllItems)
-		.Visibility_Lambda([this]() { return ControllerPanelList.IsValid() && !ControllerPanelList->IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+		.ToolTipText(LOCTEXT("DeleteSelectedControllerToolTip", "Deletes the selected controller."))
+		.OnClicked(this, &SRCControllerPanel::RequestDeleteSelectedItem)
+		.IsEnabled_Lambda([this]() { return ControllerPanelList.IsValid() && ControllerPanelList->NumSelectedLogicItems() > 0; })
 		[
 			SNew(SBox)
 			.WidthOverride(RCPanelStyle->IconSize.X)
@@ -90,7 +90,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 		];
 
 	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewControllerButton);
-	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Right, EmptyAllButton);
+	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedControllerButton);
 
 	ChildSlot
 		.Padding(RCPanelStyle->PanelPadding)
@@ -221,6 +221,25 @@ void SRCControllerPanel::DuplicateController(URCController* InController)
 	}
 }
 
+FReply SRCControllerPanel::RequestDeleteSelectedItem()
+{
+	if (!ControllerPanelList.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const FText WarningMessage = LOCTEXT("DeleteSelectedItemlWarning", "Delete the selected Controller?");
+
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
+
+	if (UserResponse == EAppReturnType::Yes)
+	{
+		DeleteSelectedPanelItem();
+	}
+
+	return FReply::Handled();
+}
+
 FReply SRCControllerPanel::RequestDeleteAllItems()
 {
 	if (!ControllerPanelList.IsValid())
@@ -228,7 +247,7 @@ FReply SRCControllerPanel::RequestDeleteAllItems()
 		return FReply::Unhandled();
 	}
 
-	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllWarning", "You are about to delete '{0}' controllers. This action might not be undone.\nAre you sure you want to proceed?"), ControllerPanelList->Num());
+	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllWarning", "You are about to delete {0} controllers. Are you sure you want to proceed?"), ControllerPanelList->Num());
 
 	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
 
@@ -355,7 +374,7 @@ FReply SRCControllerPanel::OnClickEmptyButton()
 {
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		FScopedTransaction Transaction(LOCTEXT("Empty Controllers", "EmptyControllers"));
+		FScopedTransaction Transaction(LOCTEXT("EmptyControllers", "Empty Controllers"));
 		Preset->Modify();
 
 		Preset->ResetVirtualProperties();

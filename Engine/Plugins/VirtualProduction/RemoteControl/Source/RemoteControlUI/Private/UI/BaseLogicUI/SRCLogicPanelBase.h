@@ -56,7 +56,8 @@ public:
 	/** Provides an item suffix for the Paste context menu to provide users with useful context on the nature of the item being pasted */
 	virtual FText GetPasteItemMenuEntrySuffix() { return FText::GetEmpty(); }
 
-protected:
+	/** Warns user before deleting a selected panel item. */
+	virtual FReply RequestDeleteSelectedItem() = 0;
 
 	/** Warns user before deleting all items in a panel. */
 	virtual FReply RequestDeleteAllItems() = 0;

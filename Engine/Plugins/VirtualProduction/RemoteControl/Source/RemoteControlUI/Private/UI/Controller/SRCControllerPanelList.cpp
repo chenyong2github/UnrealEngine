@@ -161,7 +161,7 @@ private:
 
 void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel, const TSharedRef<SRemoteControlPanel> InRemoteControlPanel)
 {
-	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InRemoteControlPanel);
+	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InControllerPanel, InRemoteControlPanel);
 	
 	ControllerPanelWeakPtr = InControllerPanel;
 	
@@ -225,6 +225,11 @@ bool SRCControllerPanelList::IsEmpty() const
 int32 SRCControllerPanelList::Num() const
 {
 	return NumControllerItems();
+}
+
+int32 SRCControllerPanelList::NumSelectedLogicItems() const
+{
+	return ListView->GetNumItemsSelected();
 }
 
 void SRCControllerPanelList::Reset()

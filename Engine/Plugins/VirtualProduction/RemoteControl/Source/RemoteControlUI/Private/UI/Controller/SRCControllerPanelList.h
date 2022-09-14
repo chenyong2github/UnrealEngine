@@ -74,6 +74,9 @@ public:
 	/** Returns number of items in the list. */
 	virtual int32 Num() const override;
 
+	/** The number of Controllers currently selected*/
+	virtual int32 NumSelectedLogicItems() const override;
+
 	/** Whether the Controllers List View currently has focus.*/
 	virtual bool IsListFocused() const override;
 

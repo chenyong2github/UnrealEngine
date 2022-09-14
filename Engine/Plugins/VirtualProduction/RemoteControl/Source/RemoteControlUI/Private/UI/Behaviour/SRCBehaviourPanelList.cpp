@@ -34,7 +34,7 @@ namespace FRemoteControlBehaviourColumns
 
 void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBehaviourPanel> InBehaviourPanel, TSharedPtr<FRCControllerModel> InControllerItem, const TSharedRef<SRemoteControlPanel> InRemoteControlPanel)
 {
-	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InRemoteControlPanel);
+	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InBehaviourPanel, InRemoteControlPanel);
 	
 	BehaviourPanelWeakPtr = InBehaviourPanel;
 	ControllerItemWeakPtr = InControllerItem;
@@ -84,6 +84,11 @@ bool SRCBehaviourPanelList::IsEmpty() const
 int32 SRCBehaviourPanelList::Num() const
 {
 	return BehaviourItems.Num();
+}
+
+int32 SRCBehaviourPanelList::NumSelectedLogicItems() const
+{
+	return ListView->GetNumItemsSelected();
 }
 
 void SRCBehaviourPanelList::AddNewLogicItem(UObject* InLogicItem)

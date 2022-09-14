@@ -111,16 +111,16 @@ void SRCBehaviourPanel::UpdateWrappedWidget(TSharedPtr<FRCControllerModel> InCon
 				GetBehaviourMenuContentWidget()
 			];
 
-		// Empty All Button
-		TSharedRef<SWidget> EmptyAllButton = SNew(SButton)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Empty Behaviors")))
+		// Delete Selected Behaviour Button
+		TSharedRef<SWidget> DeleteSelectedBehaviourButton = SNew(SButton)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete Selected Behaviour")))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
-			.ToolTipText(LOCTEXT("EmptyAllToolTip", "Deletes all the behaviors."))
-			.OnClicked(this, &SRCBehaviourPanel::RequestDeleteAllItems)
-			.Visibility_Lambda([this]() { return BehaviourPanelList.IsValid() && !BehaviourPanelList->IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.ToolTipText(LOCTEXT("DeleteSelectedBehaviourToolTip", "Deletes the selected behaviour."))
+			.OnClicked(this, &SRCBehaviourPanel::RequestDeleteSelectedItem)
+			.IsEnabled_Lambda([this]() { return BehaviourPanelList.IsValid() && BehaviourPanelList->NumSelectedLogicItems(); })
 			[
 				SNew(SBox)
 				.WidthOverride(RCPanelStyle->IconSize.X)
@@ -133,7 +133,7 @@ void SRCBehaviourPanel::UpdateWrappedWidget(TSharedPtr<FRCControllerModel> InCon
 			];
 
 		BehaviourDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewBehaviourButton);
-		BehaviourDockPanel->AddHeaderToolbarItem(EToolbar::Right, EmptyAllButton);
+		BehaviourDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteSelectedBehaviourButton);
 
 		WrappedBoxWidget->SetContent(BehaviourDockPanel.ToSharedRef());
 	}
@@ -218,6 +218,7 @@ FReply SRCBehaviourPanel::OnClickEmptyButton()
 		if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
 		{
 			FScopedTransaction Transaction(LOCTEXT("EmptyBehaviours", "Empty Behaviours"));
+			Controller->Modify();
 
 			Controller->EmptyBehaviours();
 		}
@@ -346,6 +347,25 @@ URCController* SRCBehaviourPanel::GetParentController()
 	return nullptr;
 }
 
+FReply SRCBehaviourPanel::RequestDeleteSelectedItem()
+{
+	if (!BehaviourPanelList.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const FText WarningMessage = LOCTEXT("DeleteBehaviourlWarning", "Delete the selected Behaviours?");
+
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
+
+	if (UserResponse == EAppReturnType::Yes)
+	{
+		DeleteSelectedPanelItem();
+	}
+
+	return FReply::Handled();
+}
+
 FReply SRCBehaviourPanel::RequestDeleteAllItems()
 {
 	if (!BehaviourPanelList.IsValid())
@@ -353,7 +373,7 @@ FReply SRCBehaviourPanel::RequestDeleteAllItems()
 		return FReply::Unhandled();
 	}
 
-	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllWarning", "You are about to delete '{0}' behaviors. This action might not be undone.\nAre you sure you want to proceed?"), BehaviourPanelList->Num());
+	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllWarning", "You are about to delete {0} behaviors. Are you sure you want to proceed?"), BehaviourPanelList->Num());
 
 	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
 
