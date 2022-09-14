@@ -1085,6 +1085,11 @@ namespace UnrealBuildTool
 		public List<FileReference>? EnabledUhtPlugins;
 
 		/// <summary>
+		/// Collection of all required C++ UHT plugins without a C# version
+		/// </summary>
+		public List<string>? RequiredUhtCppPlugins;
+
+		/// <summary>
 		/// All application binaries; may include binaries not built by this target.
 		/// </summary>
 		public List<UEBuildBinary> Binaries = new List<UEBuildBinary>();
@@ -1856,8 +1861,8 @@ namespace UnrealBuildTool
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
 			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, 
-				Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin, bHasRequiredProjectScriptPlugin, UbtPlugins?.ToArray(), EnabledUbtPlugins?.ToArray(), 
-				EnabledUhtPlugins?.ToArray());
+				Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin, UbtPlugins?.ToArray(), EnabledUbtPlugins?.ToArray(), 
+				EnabledUhtPlugins?.ToArray(), RequiredUhtCppPlugins?.ToArray());
 			Makefile.IsTestTarget = Rules.IsTestTarget;
 			TargetMakefileBuilder MakefileBuilder = new TargetMakefileBuilder(Makefile, Logger);
 
@@ -3772,7 +3777,11 @@ namespace UnrealBuildTool
 					bHasProjectScriptPlugin = true;
 					if (!bUbtPluginFound)
 					{
-						bHasRequiredProjectScriptPlugin = true;
+						if (RequiredUhtCppPlugins == null)
+						{
+							RequiredUhtCppPlugins = new();
+						}
+						RequiredUhtCppPlugins.Add(Plugin.Name);
 					}
 				}
 

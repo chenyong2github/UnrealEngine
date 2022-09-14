@@ -936,7 +936,33 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static void ExecuteHeaderToolIfNecessary(BuildConfiguration BuildConfiguration, FileReference? ProjectFile, TargetMakefile Makefile, string TargetName, ISourceFileWorkingSet WorkingSet, ILogger Logger)
 		{
-			if (!BuildConfiguration.bUseBuiltInUnrealHeaderTool || Makefile.bHasRequiredProjectScriptPlugin || TargetName.Equals("UnrealHeaderTool", StringComparison.InvariantCultureIgnoreCase))
+			if (!BuildConfiguration.bUseBuiltInUnrealHeaderTool)
+			{
+				if (BuildConfiguration.bWarnOnCppUnrealHeaderTool)
+				{
+					Logger.LogWarning("WARNING: C++ UHT being used because 'bUseBuiltInUnrealHeaderTool' is false.  C++ UHT has been deprecated and will be removed in 5.2");
+				}
+				else
+				{
+					Logger.LogInformation("DEPRECATED: C++ UHT being used because 'bUseBuiltInUnrealHeaderTool' is false.  C++ UHT has been deprecated and will be removed in 5.2");
+				}
+			}
+			if (Makefile.RequiredUhtCppPlugins?.Length > 0)
+			{
+				foreach (string PluginName in Makefile.RequiredUhtCppPlugins)
+				{
+					if (BuildConfiguration.bWarnOnCppUnrealHeaderTool)
+					{
+						Logger.LogWarning("WARNING: C++ UHT being used because '{PluginName}' does not have a C# version.  C++ UHT has been deprecated and will be removed in 5.2", PluginName);
+					}
+					else
+					{
+						Logger.LogInformation("DEPRECATED: C++ UHT being used because '{PluginName}' does not have a C# version.  C++ UHT has been deprecated and will be removed in 5.2", PluginName);
+					}
+				}
+			}
+
+			if (!BuildConfiguration.bUseBuiltInUnrealHeaderTool || Makefile.RequiredUhtCppPlugins?.Length > 0 || TargetName.Equals("UnrealHeaderTool", StringComparison.InvariantCultureIgnoreCase))
 			{
 				ExecuteExternalHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, WorkingSet, Logger);
 			}

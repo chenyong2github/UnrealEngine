@@ -101,7 +101,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 32;
+		public const int CurrentVersion = 33;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -182,6 +182,11 @@ namespace UnrealBuildTool
 		/// Collection of UHT C# plugins contained in enabled plugins (target assembly file)
 		/// </summary>
 		public FileReference[]? EnabledUhtPlugins;
+
+		/// <summary>
+		/// Collection of UHT C++ plugins that have no C# version
+		/// </summary>
+		public string[]? RequiredUhtCppPlugins;
 
 		/// <summary>
 		/// The array of command-line arguments. The makefile will be invalidated whenever these change.
@@ -302,13 +307,13 @@ namespace UnrealBuildTool
 		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
-		/// <param name="bHasRequiredProjectScriptPlugin">If true, we have a script plugin without a matching UBT plugin</param>
 		/// <param name="UbtPlugins">Collection of UBT plugins</param>
 		/// <param name="EnabledUbtPlugins">Collection of UBT plugins</param>
 		/// <param name="EnabledUhtPlugins">Collection of UBT plugins for UHT</param>
+		/// <param name="RequiredUhtCppPlugins">Collection of required C++ UHT plugins that don't have a C# version</param>
 		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, 
 			TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin,
-			bool bHasRequiredProjectScriptPlugin, FileReference[]? UbtPlugins, FileReference[]? EnabledUbtPlugins, FileReference[]? EnabledUhtPlugins)
+			FileReference[]? UbtPlugins, FileReference[]? EnabledUbtPlugins, FileReference[]? EnabledUhtPlugins, string[]? RequiredUhtCppPlugins)
 		{
 			this.CreateTimeUtc = UnrealBuildTool.StartTimeUtc;
 			this.ModifiedTimeUtc = CreateTimeUtc;
@@ -321,10 +326,10 @@ namespace UnrealBuildTool
 			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
 			this.bHasProjectScriptPlugin = bHasProjectScriptPlugin;
-			this.bHasRequiredProjectScriptPlugin = bHasRequiredProjectScriptPlugin;
 			this.UbtPlugins = UbtPlugins;
 			this.EnabledUbtPlugins = EnabledUbtPlugins;
 			this.EnabledUhtPlugins = EnabledUhtPlugins;
+			this.RequiredUhtCppPlugins = RequiredUhtCppPlugins;
 			this.Actions = new List<IExternalAction>();
 			this.OutputItems = new List<FileItem>();
 			this.ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
@@ -362,10 +367,10 @@ namespace UnrealBuildTool
 			ConfigValueTracker = new ConfigValueTracker(Reader);
 			bDeployAfterCompile = Reader.ReadBool();
 			bHasProjectScriptPlugin = Reader.ReadBool();
-			bHasRequiredProjectScriptPlugin = Reader.ReadBool();
 			UbtPlugins = Reader.ReadArray(() => Reader.ReadFileReference())!;
 			EnabledUbtPlugins = Reader.ReadArray(() => Reader.ReadFileReference())!;
 			EnabledUhtPlugins = Reader.ReadArray(() => Reader.ReadFileReference())!;
+			RequiredUhtCppPlugins = Reader.ReadArray(() => Reader.ReadString())!;
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString())!;
 			UHTAdditionalArguments = Reader.ReadArray(() => Reader.ReadString())!;
 			PreBuildScripts = Reader.ReadArray(() => Reader.ReadFileReference())!;
@@ -407,10 +412,10 @@ namespace UnrealBuildTool
 			ConfigValueTracker.Write(Writer);
 			Writer.WriteBool(bDeployAfterCompile);
 			Writer.WriteBool(bHasProjectScriptPlugin);
-			Writer.WriteBool(bHasRequiredProjectScriptPlugin);
 			Writer.WriteArray(UbtPlugins, Item => Writer.WriteFileReference(Item));
 			Writer.WriteArray(EnabledUbtPlugins, Item => Writer.WriteFileReference(Item));
 			Writer.WriteArray(EnabledUhtPlugins, Item => Writer.WriteFileReference(Item));
+			Writer.WriteArray(RequiredUhtCppPlugins, Item => Writer.WriteString(Item));
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(UHTAdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(PreBuildScripts, Item => Writer.WriteFileReference(Item));
