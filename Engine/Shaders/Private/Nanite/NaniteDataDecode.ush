@@ -189,7 +189,10 @@ struct FNaniteFullscreenVSToPS
 	ByteAddressBuffer				HierarchyBuffer;
 #endif
 
-uint4 PackVisibleCluster(FVisibleCluster VisibleCluster, bool bHasPageData)
+RWByteAddressBuffer					OutInstanceDynamicData;
+
+
+uint4 PackVisibleCluster(uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData)
 {
 	uint4 RawData = 0;
 	uint BitPos = 0;
