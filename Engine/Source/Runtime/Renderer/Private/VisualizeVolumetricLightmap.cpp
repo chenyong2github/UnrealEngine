@@ -101,9 +101,7 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 		return;
 	}
 
-	const FPrecomputedVolumetricLightmap* VolumetricLightmap = Scene->VolumetricLightmapSceneData.GetLevelVolumetricLightmap();
-
-	if (!VolumetricLightmap)
+	if (!Scene->VolumetricLightmapSceneData.HasData())
 	{
 		return;
 	}

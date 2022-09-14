@@ -282,7 +282,7 @@ void GetIndirectLightingCacheParameters(
 {
 	// FCachedVolumeIndirectLightingPolicy, FCachedPointIndirectLightingPolicy
 	{
-		if (VolumetricLightmapSceneData)
+		if (VolumetricLightmapSceneData && VolumetricLightmapSceneData->HasData())
 		{
 			FVolumetricLightmapInterpolation* Interpolation = VolumetricLightmapSceneData->CPUInterpolationCache.Find(VolumetricLightmapLookupPosition);
 
