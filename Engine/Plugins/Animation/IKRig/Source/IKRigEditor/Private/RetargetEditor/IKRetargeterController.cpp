@@ -39,6 +39,7 @@ UIKRetargeter* UIKRetargeterController::GetAsset() const
 void UIKRetargeterController::SetSourceIKRig(UIKRigDefinition* SourceIKRig)
 {
 	Asset->SourceIKRigAsset = SourceIKRig;
+	Asset->SourcePreviewMesh = Asset->SourceIKRigAsset->PreviewSkeletalMesh;
 }
 
 USkeletalMesh* UIKRetargeterController::GetPreviewMesh(const ERetargetSourceOrTarget& SourceOrTarget) const
