@@ -1466,6 +1466,9 @@ void FDisplayClusterLightCardEditorHelper::UpdateNormalMapMesh()
 				NormalMapMeshComponent.Get()->SetMaterial(Index, MaterialInterface);
 			}
 		}
+
+		NorthNormalMap.MorphProceduralMesh(NormalMapMeshComponent.Get());
+		SouthNormalMap.MorphProceduralMesh(NormalMapMeshComponent.Get());
 	}
 }
 
