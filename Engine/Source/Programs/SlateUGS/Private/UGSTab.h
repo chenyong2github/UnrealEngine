@@ -72,7 +72,9 @@ public:
 	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
 	UGSTabManager* GetTabManager();
 	TSharedPtr<UGSCore::FUserSettings> GetUserSettings() const;
+	bool ShouldSyncPrecompiledEditor() const;
 
+	void UpdateGameTabBuildList();
 	void RefreshBuildList();
 	void CancelSync();
 
@@ -84,14 +86,12 @@ private:
 
 	TMap<FString, FString> GetWorkspaceVariables() const;
 	UGSCore::EBuildConfig GetEditorBuildConfig() const;
-	bool ShouldSyncPrecompiledEditor() const;
 	TMap<FGuid, UGSCore::FCustomConfigObject> GetDefaultBuildStepObjects(const FString& EditorTargetName);
 
 	// Allows the queuing of functions from threads to be run on the main thread
 	void QueueMessageForMainThread(TFunction<void()> Function);
 
 	bool ShouldIncludeInReviewedList(const TSet<int>& PromotedChangeNumbers, int ChangeNumber) const;
-	void UpdateGameTabBuildList();
 
 	// Core functions
 	bool SetupWorkspace();

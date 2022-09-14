@@ -81,12 +81,11 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 				StatusCircle
 			];
 	}
-	
+
 	if (ColumnId == HordeTableColumnType)
 	{
-		// Todo: replace with real data
-		bool bIsCode = FMath::RandBool();
-		bool bIsContent = FMath::RandBool();
+		bool bIsCode    = CurrentItem->ChangeType.bContainsCode;
+		bool bIsContent = CurrentItem->ChangeType.bContainsContent;
 
 		TSharedRef<SHorizontalBox> TypeBadges = SNew(SHorizontalBox);
 
@@ -116,7 +115,7 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 
 		return TypeBadges;
 	}
-	
+
 	TSharedRef<STextBlock> TextItem = SNew(STextBlock);
 	if (ColumnId == HordeTableColumnChange)
 	{
@@ -161,6 +160,14 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 				.Text(FText::FromString("Editor Linux"))
 				.BadgeState(static_cast<EBadgeState>(FMath::RandRange(0, 4)))
 			];
+	}
+
+	if (CurrentItem->bSyncingPrecompiled)
+	{
+		if (!CurrentItem->bHasZippedBinaries)
+		{
+			TextItem->SetColorAndOpacity(FLinearColor(0.1f, 0.1f, 0.1f));
+		}
 	}
 
 	if (CurrentItem->bCurrentlySynced)

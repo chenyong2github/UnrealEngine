@@ -422,6 +422,12 @@ bool FPerforceMonitor::UpdateChangeTypes()
 			OnUpdateMetadata();
 		}
 	}
+
+	if (OnChangeTypeQueryFinished)
+	{
+		OnChangeTypeQueryFinished();
+	}
+
 	return true;
 }
 

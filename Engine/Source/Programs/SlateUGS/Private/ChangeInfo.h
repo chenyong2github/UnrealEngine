@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UGSCore/EventMonitor.h"
+#include "UGSCore/PerforceMonitor.h"
 
 struct FChangeInfo
 {
@@ -12,6 +13,9 @@ struct FChangeInfo
 	UGSCore::EReviewVerdict ReviewStatus = UGSCore::EReviewVerdict::Unknown;
 	int Changelist = 0;
 	bool bCurrentlySynced = false;
+	bool bSyncingPrecompiled = false;
+	bool bHasZippedBinaries = false;
+	UGSCore::FChangeType ChangeType;
 	FText Author;
 	FString Description;
 

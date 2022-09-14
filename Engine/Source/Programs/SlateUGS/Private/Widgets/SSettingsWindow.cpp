@@ -245,6 +245,9 @@ void SSettingsWindow::HandleSyncCompiledEditor(ECheckBoxState InCheck)
 	{
 		UserSettings->bSyncPrecompiledEditor = bNewValue;
 		UserSettings->Save();
+
+		// If we update this setting, update the build list to refresh filtering
+		Tab->UpdateGameTabBuildList();
 	}
 }
 

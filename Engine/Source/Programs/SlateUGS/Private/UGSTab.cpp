@@ -500,6 +500,16 @@ void UGSTab::UpdateGameTabBuildList()
 					}
 				}
 
+				bool bHasZippedBinaries = false;
+				FString Temp;
+				if (PerforceMonitor->TryGetArchivePathForChangeNumber(Change.Number, Temp))
+				{
+					bHasZippedBinaries = true;
+				}
+
+				UGSCore::FChangeType ChangeType;
+				PerforceMonitor->TryGetChangeType(Change.Number, ChangeType);
+
 				if (ChangeIdx == 0 ||
 					Changes[ChangeIdx - 1]->Date.GetDayOfYear() != Changes[ChangeIdx]->Date.GetDayOfYear())
 				{
@@ -520,6 +530,9 @@ void UGSTab::UpdateGameTabBuildList()
 					Status,
 					Change.Number,
 					bCurrentSyncedChange,
+					ShouldSyncPrecompiledEditor(),
+					bHasZippedBinaries,
+					ChangeType,
 					FText::FromString(FormatUserName(Change.User)),
 					Change.Description
 				}));
@@ -537,7 +550,14 @@ bool UGSTab::IsSyncing() const
 
 FString UGSTab::GetSyncProgress() const
 {
-	return Workspace->GetCurrentProgress().Key;
+	TTuple<FString, float> CurrentProgress = Workspace->GetCurrentProgress();
+
+	if (CurrentProgress.Value > 0.0f)
+	{
+		return FString::Printf(TEXT("%s %.2f%%"), *CurrentProgress.Key, CurrentProgress.Value * 100.0f);
+	}
+
+	return CurrentProgress.Key;
 }
 
 TArray<UGSCore::FWorkspaceSyncCategory> UGSTab::GetSyncCategories(SyncCategoryType CategoryType) const
@@ -697,7 +717,8 @@ bool UGSTab::SetupWorkspace()
 	PerforceMonitor = MakeShared<UGSCore::FPerforceMonitor>(PerforceClient.ToSharedRef(), BranchClientPath, SelectedClientFileName, SelectedProjectIdentifier, ProjectLogBaseName + ".p4.log");
 	PerforceMonitor->OnUpdate = [this]{ QueueMessageForMainThread([this] { UpdateGameTabBuildList(); }); };
 
-	//PerforceMonitor->OnUpdateMetadata = [this]{ printf("PerforceMonitor->OnUpdateMetadata %i\n", PerforceMonitor->HasZippedBinaries()); }; //MessageQueue.Add([this]{ UpdateBuildMetadata(); }); };
+	//PerforceMonitor->OnUpdateMetadata = [this]{ QueueMessageForMainThread([this] { UpdateGameTabBuildList(); }); }; //MessageQueue.Add([this]{ UpdateBuildMetadata(); }); };
+	PerforceMonitor->OnChangeTypeQueryFinished = [this]{ QueueMessageForMainThread([this] { UpdateGameTabBuildList(); }); };
 	PerforceMonitor->OnStreamChange = [this]{ printf("PerforceMonitor->OnStreamChange\n"); }; // MessageQueue.Add([this]{ Owner->StreamChanged(this); }); };
 
 	/* TODO figure out if this is even working, and if so how to correctly use this

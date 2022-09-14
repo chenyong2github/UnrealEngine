@@ -25,6 +25,7 @@ public:
 
 	TFunction<void()> OnUpdate;
 	TFunction<void()> OnUpdateMetadata;
+	TFunction<void()> OnChangeTypeQueryFinished;
 	TFunction<void()> OnStreamChange;
 
 	FPerforceMonitor(const TSharedRef<FPerforceConnection>& InPerforce, const FString& InBranchClientPath, const FString& InSelectedClientFileName, const FString& InSelectedProjectIdentifier, const FString& InLogPath);
