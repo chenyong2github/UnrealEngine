@@ -161,8 +161,17 @@ FVariant FImgMediaPlayer::GetMediaInfo(FName InfoName) const
 {
 	FVariant Variant;
 
+	// Source num mips?
+	if (InfoName == UMediaPlayer::MediaInfoNameSourceNumMips.Resolve())
+	{
+		if (Loader.IsValid())
+		{
+			int32 NumMips = Loader->GetNumMipLevels();
+			Variant = NumMips;
+		}
+	}
 	// Source num tiles?
-	if (InfoName == UMediaPlayer::MediaInfoNameSourceNumTiles.Resolve())
+	else if (InfoName == UMediaPlayer::MediaInfoNameSourceNumTiles.Resolve())
 	{
 		if (Loader.IsValid())
 		{
