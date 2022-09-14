@@ -8,7 +8,7 @@
 #include "DatasmithFacadeScene.h"
 
 // Imath third party library.
-#include "ThirdParty/Imath/Deploy/Imath-3.1.3/include/Imath/ImathMatrixAlgo.h"
+#include "Imath/ImathMatrixAlgo.h"
 
 
 FDatasmithFacadeActor::FDatasmithFacadeActor(

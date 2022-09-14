@@ -20,7 +20,7 @@
 #include "Misc/Paths.h"
 
 THIRD_PARTY_INCLUDES_START
-	#include "ThirdParty/nvTextureTools/nvTextureTools-2.0.8/src/src/nvtt/nvtt.h"
+	#include "nvtt/nvtt.h"
 THIRD_PARTY_INCLUDES_END
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatDXT, Log, All);

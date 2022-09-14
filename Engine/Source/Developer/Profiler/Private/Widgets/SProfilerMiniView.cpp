@@ -12,7 +12,7 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ProfilerSession.h"
-#include "Widgets/../ProfilerStyle.h"
+#include "ProfilerStyle.h"
 
 
 SProfilerMiniView::SProfilerMiniView()

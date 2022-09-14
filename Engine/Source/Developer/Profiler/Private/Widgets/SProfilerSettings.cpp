@@ -6,6 +6,7 @@
 
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Paths.h"
+#include "ProfilerStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
@@ -17,7 +18,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ProfilerManager.h"
-#include "Widgets/../ProfilerStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SProfilerSettings"

@@ -10,8 +10,8 @@
 
 #if WITH_OGGVORBIS
 	#pragma pack(push, 8)
-	#include "ThirdParty/Vorbis/libvorbis-1.3.2/include/vorbis/vorbisenc.h"
-	#include "ThirdParty/Vorbis/libvorbis-1.3.2/include/vorbis/vorbisfile.h"
+	#include "vorbis/vorbisenc.h"
+	#include "vorbis/vorbisfile.h"
 	#pragma pack(pop)
 #endif
 

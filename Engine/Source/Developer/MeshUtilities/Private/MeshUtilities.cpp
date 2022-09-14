@@ -34,7 +34,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "ImageUtils.h"
 #include "LayoutUV.h"
-#include "ThirdParty/MikkTSpace/inc/mikktspace.h"
+#include "mikktspace.h"
 #include "Misc/FbxErrors.h"
 #include "Components/SplineMeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"

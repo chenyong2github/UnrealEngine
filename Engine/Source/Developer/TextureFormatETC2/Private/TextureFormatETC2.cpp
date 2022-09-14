@@ -20,9 +20,9 @@
 #ifndef __unix__
 #define __unix__ 0
 #endif
-#include "ThirdParty/etc2comp/EtcLib/Etc/Etc.h"
-#include "ThirdParty/etc2comp/EtcLib/EtcCodec/EtcErrorMetric.h"
-#include "ThirdParty/etc2comp/EtcLib/Etc/EtcImage.h"
+#include "Etc.h"
+#include "EtcErrorMetric.h"
+#include "EtcImage.h"
 
 // Workaround for: error LNK2019: unresolved external symbol __imp___std_init_once_begin_initialize referenced in function "void __cdecl std::call_once
 // https://developercommunity.visualstudio.com/t/-imp-std-init-once-complete-unresolved-external-sy/1684365

@@ -27,7 +27,7 @@
 	#include "Interfaces/IAnalyticsProvider.h"
 	#include "EngineAnalytics.h"
 #endif // WITH_EDITOR
-#include "Widgets/../ProfilerStyle.h"
+#include "ProfilerStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SProfilerWindow"

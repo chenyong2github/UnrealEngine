@@ -11,10 +11,10 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ProfilerSession.h"
+#include "ProfilerStyle.h"
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SFiltersAndPresets"
 

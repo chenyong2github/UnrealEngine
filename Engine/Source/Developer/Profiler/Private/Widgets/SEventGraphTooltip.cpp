@@ -6,6 +6,7 @@
 
 #include "Misc/Paths.h"
 #include "Fonts/SlateFontInfo.h"
+#include "ProfilerStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -16,7 +17,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SToolTip.h"
-#include "Widgets/../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SEventGraphTooltip"
 

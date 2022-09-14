@@ -6,8 +6,8 @@
 #include "kDOP.h"
 
 #if USE_EMBREE
-	#include <ThirdParty/Intel/Embree/Embree3122/Win64/include/embree3/rtcore.h>
-	#include <ThirdParty/Intel/Embree/Embree3122/Win64/include/embree3/rtcore_ray.h>
+	#include <embree3/rtcore.h>
+	#include <embree3/rtcore_ray.h>
 #else
 	typedef void* RTCDevice;
 	typedef void* RTCScene;
