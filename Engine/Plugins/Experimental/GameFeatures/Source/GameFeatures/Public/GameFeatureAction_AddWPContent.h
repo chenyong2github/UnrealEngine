@@ -16,7 +16,7 @@ class UContentBundleDescriptor;
  *
  */
 UCLASS(meta = (DisplayName = "Add World Partition Content"))
-class UGameFeatureAction_AddWPContent : public UGameFeatureAction
+class GAMEFEATURES_API UGameFeatureAction_AddWPContent : public UGameFeatureAction
 {
 	GENERATED_UCLASS_BODY()
 
@@ -29,6 +29,8 @@ public:
 	//~ End UGameFeatureAction interface
 
 	UGameFeatureData* GetGameFeatureData() const;
+
+	const UContentBundleDescriptor* GetContentBundleDescriptor() const { return ContentBundleDescriptor; }
 
 private:
 	UPROPERTY(EditAnywhere, Category = ContentBundle)

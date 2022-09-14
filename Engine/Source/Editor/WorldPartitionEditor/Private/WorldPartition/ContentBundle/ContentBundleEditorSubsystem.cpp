@@ -112,7 +112,7 @@ TSharedRef<SWidget> UContentBundleEditionSubmodule::GetActorEditorContextWidget(
 	return OutWidget;
 }
 
-void UContentBundleEditionSubmodule::ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor)
+bool UContentBundleEditionSubmodule::ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor)
 {
 	EContentBundleStatus ContentBundleStatus = ContentBundleEditor->GetStatus();
 	bool bCanActivateEditing = ContentBundleStatus == EContentBundleStatus::ContentInjected || ContentBundleStatus == EContentBundleStatus::ReadyToInject;
@@ -138,10 +138,24 @@ void UContentBundleEditionSubmodule::ActivateContentBundleEditing(TSharedPtr<FCo
 		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Content Bundle is being edited"), *ContentBundleEditor->GetDescriptor()->GetDisplayName());
 
 		GetSubsystem()->NotifyContentBundleChanged(ContentBundleEditor.Get());
+
+		return true;
 	}
+	return false;
 }
 
-void UContentBundleEditionSubmodule::DeactivateCurrentContentBundleEditing()
+bool UContentBundleEditionSubmodule::DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor)
+{
+	if (IsEditingContentBundle(ContentBundleEditor.Get()))
+	{
+		DeactivateCurrentContentBundleEditing();
+		return true;
+	}
+
+	return false;
+}
+
+bool UContentBundleEditionSubmodule::DeactivateCurrentContentBundleEditing()
 {
 	if (TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = EditingContentBundle.Pin())
 	{
@@ -153,7 +167,11 @@ void UContentBundleEditionSubmodule::DeactivateCurrentContentBundleEditing()
 		GetSubsystem()->NotifyContentBundleChanged(ContentBundleEditorPin.Get());
 
 		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Content Bundle is no longer being edited"), *ContentBundleEditorPin->GetDescriptor()->GetDisplayName());
+
+		return true;
 	}
+
+	return false;
 }
 
 void UContentBundleEditionSubmodule::PushContentBundleEditing()
@@ -225,6 +243,21 @@ TArray<TSharedPtr<FContentBundleEditor>> UContentBundleEditorSubsystem::GetEdito
 	return EditorContentBundles;
 }
 
+TSharedPtr<FContentBundleEditor> UContentBundleEditorSubsystem::GetEditorContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const
+{
+	if (UContentBundleManager* ContentBundleManager = GetWorld()->ContentBundleManager)
+	{
+		return ContentBundleManager->GetEditorContentBundle(ContentBundleDescriptor, GetWorld());
+	}
+
+	return nullptr;
+}
+
+bool UContentBundleEditorSubsystem::HasContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const
+{
+	return GetEditorContentBundle(ContentBundleDescriptor) != nullptr;
+}
+
 void UContentBundleEditorSubsystem::SelectActors(FContentBundleEditor& EditorContentBundle)
 {
 	SelectActorsInternal(EditorContentBundle, true);
@@ -243,6 +276,21 @@ void UContentBundleEditorSubsystem::ReferenceAllActors(FContentBundleEditor& Edi
 void UContentBundleEditorSubsystem::UnreferenceAllActors(FContentBundleEditor& EditorContentBundle)
 {
 	EditorContentBundle.UnreferenceAllActors();
+}
+
+bool UContentBundleEditorSubsystem::ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor)  const
+{
+	return ContentBundleEditionSubModule->ActivateContentBundleEditing(ContentBundleEditor);
+}
+
+bool UContentBundleEditorSubsystem::DectivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const
+{
+	return ContentBundleEditionSubModule->DeactivateContentBundleEditing(ContentBundleEditor);
+}
+
+bool UContentBundleEditorSubsystem::IsContentBundleEditingActivated(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const
+{
+	return ContentBundleEditionSubModule->IsEditingContentBundle(ContentBundleEditor.Get());
 }
 
 void UContentBundleEditorSubsystem::SelectActorsInternal(FContentBundleEditor& EditorContentBundle, bool bSelect)

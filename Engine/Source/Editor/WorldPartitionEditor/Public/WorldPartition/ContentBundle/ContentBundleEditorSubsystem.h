@@ -11,7 +11,7 @@
 #include "ContentBundleEditorSubsystem.generated.h"
 
 class FContentBundleEditor;
-class FContentBundleEditor;
+class UContentBundleDescriptor;
 class UContentBundleEditorSubsystem;
 
 UCLASS(Within = ContentBundleEditorSubsystem)
@@ -53,8 +53,9 @@ public:
 	virtual FOnActorEditorContextClientChanged& GetOnActorEditorContextClientChanged() override { return ActorEditorContextClientChanged; }
 	//~ End IActorEditorContextClient interface
 
-	void ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
-	void DeactivateCurrentContentBundleEditing();
+	bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
+	bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor);
+	bool DeactivateCurrentContentBundleEditing();
 	bool IsEditingContentBundle() const { return EditingContentBundle.IsValid(); }
 	bool IsEditingContentBundle(const FContentBundleEditor* ContentBundleEditor) const { return EditingContentBundle.Pin().Get() == ContentBundleEditor; }
 
@@ -76,7 +77,7 @@ private:
 };
 
 UCLASS()
-class UContentBundleEditorSubsystem : public UEditorSubsystem, public IContentBundleEditorSubsystemInterface
+class WORLDPARTITIONEDITOR_API UContentBundleEditorSubsystem : public UEditorSubsystem, public IContentBundleEditorSubsystemInterface
 {
 	GENERATED_BODY()
 
@@ -103,12 +104,19 @@ public:
 	TSharedPtr<FContentBundleEditor> GetEditorContentBundleForActor(const AActor* Actor);
 
 	TArray<TSharedPtr<FContentBundleEditor>> GetEditorContentBundles();
+	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const;
+
+	bool HasContentBundle(const UContentBundleDescriptor* ContentBundleDescriptor) const;
 
 	void SelectActors(FContentBundleEditor& EditorContentBundle);
 	void DeselectActors(FContentBundleEditor& EditorContentBundle);
 
 	void ReferenceAllActors(FContentBundleEditor& EditorContentBundle);
 	void UnreferenceAllActors(FContentBundleEditor& EditorContentBundle);
+
+	bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
+	bool DectivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
+	bool IsContentBundleEditingActivated(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
 
 	DECLARE_EVENT_OneParam(UContentBundleEditorSubsystem, FOnContentBundleChanged, const FContentBundleEditor*);
 	FOnContentBundleChanged& OnContentBundleChanged() { return ContentBundleChanged; }
