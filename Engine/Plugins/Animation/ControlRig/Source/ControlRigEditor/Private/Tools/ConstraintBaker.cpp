@@ -94,71 +94,6 @@ namespace
 	}
 }
 
-void FConstraintBaker::GetHandleTransforms(
-	UWorld* InWorld,
-	const TSharedPtr<ISequencer>& InSequencer,
-	const UTransformableHandle* InHandle,
-	const TArray<FFrameNumber>& InFrames,
-	const bool bLocal,
-	TArray<FTransform>& OutTransforms)
-{
-	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
-	static constexpr bool bSorted = true;
-	TArray<TObjectPtr<UTickableConstraint>> Constraints = Controller.GetParentConstraints(InHandle->GetHash(), bSorted);
-
-	TArray<UTickableTransformConstraint*> TransformConstraints;
-	for (const TObjectPtr<UTickableConstraint>& Constraint: Constraints)
-	{
-		if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint.Get()))
-		{
-			TransformConstraints.Add(TransformConstraint);
-		}
-	}
-	
-	return GetHandleTransforms(InSequencer, InHandle, TransformConstraints, InFrames, bLocal, OutTransforms);
-}
-
-void FConstraintBaker::GetHandleTransforms(
-	const TSharedPtr<ISequencer>& InSequencer,
-	const UTransformableHandle* InHandle,
-	const TArray<UTickableTransformConstraint*>& InConstraintsToEvaluate,
-	const TArray<FFrameNumber>& InFrames,
-	const bool bLocal,
-	TArray<FTransform>& OutTransforms)
-{
-	// if (InConstraintsToEvaluate.IsEmpty())
-	// {
-	// 	return;
-	// }
-	
-	const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-	
-	const FFrameRate TickResolution = MovieScene->GetTickResolution();
-	const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
-
-	OutTransforms.SetNum(InFrames.Num());
-	for (int32 Index = 0; Index < InFrames.Num(); ++Index)
-	{
-		const FFrameNumber& FrameNumber = InFrames[Index];
-	
-		// evaluate animation
-		const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime (FrameNumber), TickResolution);
-		const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
-
-		InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
-	
-		// evaluate constraints
-		for (const UTickableTransformConstraint* Constraint: InConstraintsToEvaluate)
-		{
-			Constraint->Evaluate();
-		}
-	
-		// evaluate ControlRig?
-		// ControlRig->Evaluate_AnyThread();
-		
-		OutTransforms[Index] = bLocal ? InHandle->GetLocalTransform() : InHandle->GetGlobalTransform();
-	}
-}
 
 void FConstraintBaker::AddTransformKeys(
 	const TSharedPtr<ISequencer>& InSequencer,
@@ -167,6 +102,7 @@ void FConstraintBaker::AddTransformKeys(
 	const TArray<FTransform>& InTransforms,
 	const EMovieSceneTransformChannel& InChannels)
 {
+
 	if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InHandle))
 	{
 		return BakeComponent(InSequencer, ComponentHandle, InFrames, InTransforms, InChannels); 
@@ -190,8 +126,9 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 	}
 	
 	// compute transforms
-	TArray<FTransform> Transforms;
-	GetHandleTransforms(InSequencer, InConstraint->ChildTRSHandle, { InConstraint }, InFrames, true, Transforms);
+	FCompensationEvaluator Evaluator(InConstraint);
+	Evaluator.ComputeLocalTransformsForBaking(InWorld, InSequencer, InFrames);
+	TArray<FTransform>& Transforms = Evaluator.ChildLocals;
 
 	if (InFrames.Num() != Transforms.Num())
 	{

@@ -11,6 +11,8 @@
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneDoubleChannel.h"
+#include "Components/SkeletalMeshComponent.h"
+
 /**
  * UTransformableHandle
  */
@@ -42,6 +44,34 @@ bool UTransformableComponentHandle::IsValid() const
 	return Component.IsValid();
 }
 
+//need to tick any skelmesh component, sibling or parent
+void UTransformableComponentHandle::TickForBaking()
+{
+	if (!Component.IsValid())
+	{
+		return;
+	}
+
+	const AActor* Parent = Component->GetOwner();
+	while (Parent)
+	{
+		TArray<USkeletalMeshComponent*> MeshComps;
+		Parent->GetComponents(MeshComps, true);
+
+		for (USkeletalMeshComponent* MeshComp : MeshComps)
+		{
+			MeshComp->TickAnimation(0.03f, false);
+			MeshComp->RefreshBoneTransforms();
+			MeshComp->RefreshFollowerComponents();
+			MeshComp->UpdateComponentToWorld();
+			MeshComp->FinalizeBoneTransform();
+			MeshComp->MarkRenderTransformDirty();
+			MeshComp->MarkRenderDynamicDataDirty();
+		}
+
+		Parent = Parent->GetAttachParentActor();
+	}
+}
 void UTransformableComponentHandle::SetGlobalTransform(const FTransform& InGlobal) const
 {
 	if (Component.IsValid())

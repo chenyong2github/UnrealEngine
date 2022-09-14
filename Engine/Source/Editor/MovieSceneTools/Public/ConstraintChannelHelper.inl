@@ -253,8 +253,8 @@ void FMovieSceneConstraintChannelHelper::DeleteTransformKeys(
 		TMovieSceneChannelData<typename ChannelType::ChannelValueType> Data = Channel->GetData();
 		const TArrayView<const FFrameNumber> Times = Data.GetTimes();
 		
-		const int32 KeyIndex = Algo::UpperBound(Times, InTime);
-		if (Times.IsValidIndex(KeyIndex))
+		const int32 KeyIndex = Algo::LowerBound(Times, InTime);
+		if (Times.IsValidIndex(KeyIndex) && Times[KeyIndex] == InTime)
 		{
 			Data.RemoveKey(KeyIndex);
 		}

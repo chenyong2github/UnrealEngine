@@ -10,6 +10,7 @@ class UControlRig;
 class ISequencer;
 class UMovieScene3DTransformSection;
 class UMovieSceneControlRigParameterSection;
+class IMovieSceneConstrainedSection;
 class UMovieSceneSection;
 class UTransformableHandle;
 class UTickableTransformConstraint;
@@ -39,9 +40,9 @@ public:
 		UTickableTransformConstraint* InConstraint,
 		const bool bAllTimes = false);
 	static void CompensateIfNeeded(
-		const UControlRig* ControlRig,
+		UWorld* InWorld,
 		const TSharedPtr<ISequencer>& InSequencer,
-		const UMovieSceneControlRigParameterSection* Section,
+		IMovieSceneConstrainedSection* Section,
 		const TOptional<FFrameNumber>& OptionalTime);
 
 	/** @todo documentation. */

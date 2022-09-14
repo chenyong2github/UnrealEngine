@@ -18,14 +18,6 @@ public:
 	/** Bake constraint over specified frames, frames must be in order*/
 	static void Bake(UWorld* InWorld, UTickableTransformConstraint* InConstraint, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
 
-	/** Stores InHandle local (or global) transforms at InFrames. */
-	static void GetHandleTransforms(
-		UWorld* InWorld,
-		const TSharedPtr<ISequencer>& InSequencer,
-		const UTransformableHandle* InHandle,
-		const TArray<FFrameNumber>& InFrames,
-		const bool bLocal,
-		TArray<FTransform>& OutTransforms);
 	
 	/** Add InTransforms keys at InFrames into the InHandle transform animation channels. */
 	static void AddTransformKeys(
@@ -37,13 +29,5 @@ public:
 	
 private:
 
-	/** Evaluates the constraint at each frames and stores the resulting child transforms. */
-	static void GetHandleTransforms(
-		const TSharedPtr<ISequencer>& InSequencer,
-		const UTransformableHandle* InHandle,
-		const TArray<UTickableTransformConstraint*>& InConstraintsToEvaluate,
-		const TArray<FFrameNumber>& InFrames,
-		const bool bLocal,
-		TArray<FTransform>& OutTransforms);
 };
 

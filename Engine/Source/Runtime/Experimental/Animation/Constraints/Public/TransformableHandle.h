@@ -56,6 +56,9 @@ public:
 	/** Gets the local transform of the underlying transformable object in it's parent space. */
 	virtual FTransform GetLocalTransform() const PURE_VIRTUAL(GetLocalTransform, return FTransform::Identity;);
 
+	/** Performan any special ticking needed for this handle, by default it does nothing
+	todo need to see if we need to tick control rig also*/
+	virtual void TickForBaking() {};
 	/** Get the array of float channels for the specified section*/
 	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const PURE_VIRTUAL(GetFloatChannels, return TArrayView<FMovieSceneFloatChannel*>(); );
 	/** Get the array of double channels for the specified section*/
@@ -126,7 +129,8 @@ public:
 	virtual FTransform GetGlobalTransform() const override;
 	/** Gets the local transform of Component in it's attachment. */
 	virtual FTransform GetLocalTransform() const override;
-
+	/** Tick the component*/
+	virtual void TickForBaking() override;
 	/** Returns the target object containing the tick function (e.i. Component). */
 	virtual UObject* GetPrerequisiteObject() const override;
 	/** Returns Component's tick function. */

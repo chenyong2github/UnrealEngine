@@ -71,7 +71,7 @@ void UTickableConstraint::SetActive(const bool bIsActive)
 	ConstraintTick.SetTickFunctionEnable(bIsActive);
 }
 
-void UTickableConstraint::Evaluate() const
+void UTickableConstraint::Evaluate(bool bTickHandlesAlso) const
 {
 	ConstraintTick.EvaluateFunctions();
 }
@@ -388,7 +388,6 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 	}
 
 	Manager->Modify();
-
 	Manager->Constraints.Emplace(InConstraint);
 
 	InConstraint->ConstraintTick.RegisterFunction(InConstraint->GetFunction());
@@ -599,4 +598,13 @@ TArray< TObjectPtr<UTickableConstraint> > FConstraintsManagerController::GetAllC
 	});
 	
 	return SortedConstraints;
+}
+
+void FConstraintsManagerController::EvaluateAllConstraints() const
+{
+	TArray< TObjectPtr<UTickableConstraint>>Constraints = GetAllConstraints(true);
+	for (const UTickableConstraint* InConstraint : Constraints)
+	{
+		InConstraint->Evaluate(true);
+	}
 }

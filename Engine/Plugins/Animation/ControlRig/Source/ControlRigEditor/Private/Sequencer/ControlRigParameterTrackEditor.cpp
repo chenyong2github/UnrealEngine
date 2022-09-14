@@ -3352,7 +3352,7 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRigHandle(US
 
 				// compensate constraints
 				FConstraintChannelHelper::CompensateIfNeeded(
-					SectionControlRig, GetSequencer(), ParamSection, OptionalKeyTime);
+					SectionControlRig->GetWorld(), GetSequencer(), ParamSection, OptionalKeyTime);
 			}
 		}
 	}

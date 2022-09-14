@@ -19,6 +19,7 @@
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "LevelEditorViewport.h"
 #include "Sections/MovieSceneConstrainedSection.h"
+#include "MovieSceneToolsModule.h"
 
 
 /*
@@ -59,7 +60,7 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
 	};
 
-	const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
 
@@ -69,7 +70,14 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 	ChildLocals.SetNum(NumFrames + 1);
 	ChildGlobals.SetNum(NumFrames + 1);
 	SpaceGlobals.SetNum(NumFrames + 1);
-
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StartBaking(MovieScene);
+		}
+	}
 	for (int32 Index = 0; Index < NumFrames + 1; ++Index)
 	{
 		const FFrameNumber FrameNumber = (Index == 0) ? InFrames[0] - 1 : InFrames[Index - 1];
@@ -78,14 +86,31 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 		const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime(FrameNumber), TickResolution);
 		const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
 
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PreEvaluation(MovieScene, FrameNumber);
+			}
+		}
 		InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
 
 		// evaluate constraints
 		for (const UTickableTransformConstraint* InConstraint : Constraints)
 		{
-			InConstraint->Evaluate();
+			if (InConstraint)
+			{
+				InConstraint->Evaluate(true);
+			}
 		}
 
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PostEvaluation(MovieScene, FrameNumber);
+			}
+		}
 		// evaluate ControlRig?
 		// ControlRig->Evaluate_AnyThread();
 
@@ -141,8 +166,91 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 			}
 		}
 	}
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StopBaking(MovieScene);
+		}
+	}
 }
+void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames)
+{
+	if (InFrames.IsEmpty())
+	{
+		return;
+	}
 
+	const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
+
+	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	const FFrameRate TickResolution = MovieScene->GetTickResolution();
+	const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
+
+	const int32 NumFrames = InFrames.Num();
+
+	ChildLocals.SetNum(NumFrames);
+	ChildGlobals.SetNum(NumFrames);
+	SpaceGlobals.SetNum(NumFrames);
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StartBaking(MovieScene);
+		}
+	}
+	for (int32 Index = 0; Index < NumFrames; ++Index)
+	{
+		const FFrameNumber& FrameNumber = InFrames[Index];
+
+		// evaluate animation
+		const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime(FrameNumber), TickResolution);
+		const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
+
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PreEvaluation(MovieScene, FrameNumber);
+			}
+		}
+		InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
+
+		// evaluate constraints
+		for (const UTickableTransformConstraint* InConstraint : Constraints)
+		{
+			InConstraint->Evaluate(true);
+		}
+
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PostEvaluation(MovieScene, FrameNumber);
+			}
+		}
+
+		// evaluate ControlRig?
+		// ControlRig->Evaluate_AnyThread();
+
+		FTransform& ChildLocal = ChildLocals[Index];
+		FTransform& ChildGlobal = ChildGlobals[Index];
+		FTransform& SpaceGlobal = SpaceGlobals[Index];
+
+		// store child transforms        	
+		ChildLocal = Handle->GetLocalTransform();
+		ChildGlobal = Handle->GetGlobalTransform();
+	}
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StopBaking(MovieScene);
+		}
+	}
+
+}
 void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 	UWorld* InWorld,
 	const TSharedPtr<ISequencer>& InSequencer,
@@ -172,7 +280,7 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
 	};
 
-	const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
 
@@ -181,7 +289,14 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 	ChildLocals.SetNum(NumFrames);
 	ChildGlobals.SetNum(NumFrames);
 	SpaceGlobals.SetNum(NumFrames);
-
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StartBaking(MovieScene);
+		}
+	}
 	for (int32 Index = 0; Index < NumFrames; ++Index)
 	{
 		const FFrameNumber& FrameNumber = InFrames[Index];
@@ -190,14 +305,27 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 		const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime(FrameNumber), TickResolution);
 		const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
 
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PreEvaluation(MovieScene, FrameNumber);
+			}
+		}
 		InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
 
 		// evaluate constraints
 		for (const UTickableTransformConstraint* InConstraint : Constraints)
 		{
-			InConstraint->Evaluate();
+			InConstraint->Evaluate(true);
 		}
-
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PostEvaluation(MovieScene, FrameNumber);
+			}
+		}
 		// evaluate ControlRig?
 		// ControlRig->Evaluate_AnyThread();
 
@@ -215,6 +343,13 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 			SpaceGlobal = LastConstraint->GetParentGlobalTransform();
 			ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
 				ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
+		}
+	}
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StopBaking(MovieScene);
 		}
 	}
 }
@@ -240,29 +375,57 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
 	};
 
-	auto EvaluateAt = [InSequencer, &Constraints](const FFrameNumber InFrame)
+	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 	{
-		const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+		if (BakeHelper)
+		{
+			BakeHelper->StartBaking(MovieScene);
+		}
+	}
+	auto EvaluateAt = [InSequencer, &Constraints, &BakeHelpers](const FFrameNumber InFrame)
+	{
+
+		UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 		const FFrameRate TickResolution = MovieScene->GetTickResolution();
 		const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
 
 		const FMovieSceneEvaluationRange EvaluationRange0 = FMovieSceneEvaluationRange(FFrameTime(InFrame), TickResolution);
 		const FMovieSceneContext Context0 = FMovieSceneContext(EvaluationRange0, PlaybackStatus).SetHasJumped(true);
 
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PreEvaluation(MovieScene, InFrame);
+			}
+		}
 		InSequencer->GetEvaluationTemplate().Evaluate(Context0, *InSequencer);
 
 		for (const UTickableTransformConstraint* InConstraint : Constraints)
 		{
-			InConstraint->Evaluate();
+			InConstraint->Evaluate(true);
+		}
+
+		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+		{
+			if (BakeHelper)
+			{
+				BakeHelper->PostEvaluation(MovieScene, InFrame);
+			}
 		}
 
 		// ControlRig->Evaluate_AnyThread();
 	};
 
+
 	// allocate
 	ChildLocals.SetNum(1);
 	ChildGlobals.SetNum(1);
 	SpaceGlobals.SetNum(1);
+
+	
 
 	// evaluate at InTime and store global
 	EvaluateAt(InTime);
@@ -272,6 +435,14 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 	EvaluateAt(InTime - 1);
 	ChildLocals[0] = Handle->GetLocalTransform();
 
+
+	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+	{
+		if (BakeHelper)
+		{
+			BakeHelper->StopBaking(MovieScene);
+		}
+	}
 	// if constraint at T-1 then switch to its space
 	if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
 	{

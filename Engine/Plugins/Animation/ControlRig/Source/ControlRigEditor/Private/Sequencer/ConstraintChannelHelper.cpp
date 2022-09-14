@@ -374,29 +374,58 @@ void FConstraintChannelHelper::Compensate(UTickableTransformConstraint* InConstr
 	{
 		return;
 	}
-
-	const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle);
-	if (!ControlHandle)
-	{
-		return;
-	}
-
 	const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	if (const UMovieSceneControlRigParameterSection* Section = GetControlSection(ControlHandle, Sequencer))
-	{
-		const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-		const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
-		const FFrameNumber Time = FrameTime.GetFrame();
 
-		const TOptional<FFrameNumber> OptTime = bAllTimes ? TOptional<FFrameNumber>() : TOptional<FFrameNumber>(Time);
-		CompensateIfNeeded(ControlHandle->ControlRig.Get(), Sequencer, Section, OptTime);
+	IMovieSceneConstrainedSection* Section = nullptr;
+	UWorld* World = nullptr;
+	if (const UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(InConstraint->ChildTRSHandle))
+	{
+
+		AActor* Actor = ComponentHandle->Component->GetOwner();
+		if (!Actor)
+		{
+			return;
+		}
+		World = Actor->GetWorld();
+		const FTransform LocalTransform = ComponentHandle->GetLocalTransform();
+		const FGuid Guid = Sequencer->GetHandleToObject(Actor, true);
+		if (!Guid.IsValid())
+		{
+			return;
+		}
+
+		if (UMovieScene3DTransformSection* TransformSection = MovieSceneToolHelpers::GetTransformSection(Sequencer.Get(), Guid, LocalTransform))
+		{
+			Section = TransformSection;
+		}
 	}
+
+	if (const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle))
+	{
+		UControlRig* ControlRig = ControlHandle->ControlRig.LoadSynchronous();
+		if (!ControlRig)
+		{
+			return;
+		}
+		World = ControlRig->GetWorld();
+		if (UMovieSceneControlRigParameterSection* ControlSection = GetControlSection(ControlHandle,Sequencer))
+		{
+			Section = ControlSection;
+		}
+	}
+
+	const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+	const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+	const FFrameNumber Time = FrameTime.GetFrame();
+
+	const TOptional<FFrameNumber> OptTime = bAllTimes ? TOptional<FFrameNumber>() : TOptional<FFrameNumber>(Time);
+	CompensateIfNeeded(World, Sequencer, Section, OptTime);
 }
 
 void FConstraintChannelHelper::CompensateIfNeeded(
-	const UControlRig* ControlRig,
+	UWorld* InWorld,
 	const TSharedPtr<ISequencer>& InSequencer,
-	const UMovieSceneControlRigParameterSection* Section,
+	IMovieSceneConstrainedSection* Section,
 	const TOptional<FFrameNumber>& OptionalTime)
 {
 	if (FMovieSceneConstraintChannelHelper::bDoNotCompensate)
@@ -422,16 +451,12 @@ void FConstraintChannelHelper::CompensateIfNeeded(
 		return OptionalTimeArray;
 	};
 
-	// keyframe context
-	FRigControlModifiedContext KeyframeContext;
-	KeyframeContext.SetKey = EControlRigSetKey::Always;
-	const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
-
 	bool bNeedsEvaluation = false;
 
 	// gather all transform constraints
+	TArray<FConstraintAndActiveChannel>& ConstraintChannels = Section->GetConstraintsChannels();
 	TArray<FConstraintAndActiveChannel> TransformConstraintsChannels;
-	Algo::CopyIf(Section->GetConstraintsChannels(), TransformConstraintsChannels,
+	Algo::CopyIf(ConstraintChannels, TransformConstraintsChannels,
 		[](const FConstraintAndActiveChannel& InChannel)
 		{
 			return InChannel.Constraint.IsValid() && InChannel.Constraint->IsA<UTickableTransformConstraint>();
@@ -458,7 +483,7 @@ void FConstraintChannelHelper::CompensateIfNeeded(
 				// if switching from active to inactive then we must add a key at T-1 in the constraint space
 				// if switching from inactive to active then we must add a key at T-1 in the previous constraint or parent space
 				FCompensationEvaluator Evaluator(Constraint);
-				Evaluator.ComputeCompensation(ControlRig->GetWorld(), InSequencer, Time);
+				Evaluator.ComputeCompensation(InWorld, InSequencer, Time);
 				const TArray<FTransform>& LocalTransforms = Evaluator.ChildLocals;
 
 				const EMovieSceneTransformChannel ChannelsToKey = Constraint->GetChannelsToKey();

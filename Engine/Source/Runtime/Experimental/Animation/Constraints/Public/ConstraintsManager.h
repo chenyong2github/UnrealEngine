@@ -77,15 +77,15 @@ public:
 	/** Returns the actual function that the tick function needs to evaluate. */
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const PURE_VIRTUAL(GetFunction, return {};);
 
+	/** Evaluates the constraint in a context where it's mot done thru the ConstraintTick's tick function. */
+	virtual void Evaluate(bool bTickHandlesAlso = false) const;
+
 	/** Tick function that will be registered and evaluated. */
 	UPROPERTY()
 	FConstraintTickFunction ConstraintTick;
 
 	/** Sets the Active value and enable/disable the tick function. */
 	void SetActive(const bool bIsActive);
-	
-	/** Evaluates the constraint in a context where it's mot done thru the ConstraintTick's tick function. */
-	void Evaluate() const;
 	
 	/** @todo document */
 	virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
@@ -204,7 +204,8 @@ public:
 		// unique name (we may want to use another approach here to manage uniqueness)
 		const FName Name = MakeUniqueObjectName(Manager, TConstraint::StaticClass(), InBaseName);
 
-		TConstraint* NewConstraint = NewObject<TConstraint>(Manager, Name, RF_Transactional);		
+		TConstraint* NewConstraint = NewObject<TConstraint>(Manager, Name, RF_Transactional);
+		NewConstraint->Modify();
 		return NewConstraint;
 	}
 
@@ -241,6 +242,9 @@ public:
 	void SetConstraintsDependencies(
 		const FName& InNameToTickBefore,
 		const FName& InNameToTickAfter) const;
+
+	/** Go through each constraint in order and evaluate and tick them*/
+	void EvaluateAllConstraints() const;
 	
 private:
 	/** Delegeate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/

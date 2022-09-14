@@ -78,6 +78,7 @@
 #include "Channels/MovieSceneByteChannel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "ConstraintsManager.h"
 
 /* FSkelMeshRecorder
  ***********/
@@ -3766,6 +3767,14 @@ static void TickFrame(const FFrameNumber& FrameNumber,float DeltaTime, UMovieSce
 	// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the sequence
 	int32 Index = FrameNumber.Value;
 	AnimTrackAdapter.UpdateAnimation(Index);
+
+	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+	if (World)
+	{
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+		Controller.EvaluateAllConstraints();
+	}
+
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 	{
 		if (BakeHelper)
@@ -4252,6 +4261,10 @@ static void GetSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovieSc
 					}
 					Player->GetEvaluationTemplate().Evaluate(Context, *Player);
 
+
+					const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(Actor->GetWorld());
+					Controller.EvaluateAllConstraints();
+					
 					for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 					{
 						if (BakeHelper)
@@ -4264,7 +4277,7 @@ static void GetSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovieSc
 					while (Parent)
 					{
 						TArray<USkeletalMeshComponent*> MeshComps;
-						ActorSelection.Actor->GetComponents(MeshComps, true);
+						Parent->GetComponents(MeshComps, true);
 
 						for (USkeletalMeshComponent* MeshComp : MeshComps)
 						{
