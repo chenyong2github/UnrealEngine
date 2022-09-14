@@ -10,9 +10,9 @@ UE_THIRD_PARTY_DIR="$UE_ENGINE_DIR/Source/ThirdParty"
 cd $SCRIPT_DIR
 
 # Download library source if not present
-if [ ! -f "v2.1.0.zip" ]; then
-    curl -L -O https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.1.0.zip
-fi
+# if [ ! -f "v2.1.0.zip" ]; then
+#     curl -L -O https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.1.0.zip
+# fi
 
 # Remove previously extracted build library folder
 if [ -d "$OCIO_LIB_NAME" ]; then
@@ -20,10 +20,14 @@ if [ -d "$OCIO_LIB_NAME" ]; then
     rm -rf "$OCIO_LIB_NAME"
 fi
 
-echo "Extracting $OCIO_LIB_NAME.zip..."
-unzip "v2.1.0.zip" -d .
+# echo "Extracting $OCIO_LIB_NAME.zip..."
+# unzip "v2.1.0.zip" -d .
+
+git clone --depth 1 --branch v2.1.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git $OCIO_LIB_NAME
 
 pushd $OCIO_LIB_NAME
+
+git apply --ignore-space-change --ignore-whitespace ../hlsl_fixes.patch
 
 UE_C_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
 UE_CXX_FLAGS="-mmacosx-version-min=10.9 -arch x86_64 -arch arm64"
