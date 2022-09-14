@@ -61,9 +61,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera", meta=(ReturnDisplayName="Name"))
 	FName GetStackEntryName() const;
 
-	// Allows a modifier to return Input Mapping Context which will get automatically registered with the input system
-	// The Input Priority of the mapping context will be set by reference
-	virtual const UInputMappingContext* GetInputMappingContext(int32& InputPriority) const;
+	// If an Input Mapping Context is specified then that Context will be automatically added to the input system when this Modifier is Initialized 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="VCam Input", meta=(EditCondition="bRegisterForInput"))
+	TObjectPtr<UInputMappingContext> InputMappingContext = nullptr;
+
+	// If an Input Mapping Context is provided then this value defines the priority level that the context is added to the input system with
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="VCam Input", meta=(EditCondition="bRegisterForInput"))
+	int32 InputContextPriority = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VCam Connection Points")
 	TMap<FName, FVCamModifierConnectionPoint> ConnectionPoints;
@@ -84,7 +88,6 @@ class VCAMCORE_API UVCamBlueprintModifier : public UVCamModifier
 public:
 	virtual void Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent=nullptr) override;
 	virtual void Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime) override;
-	virtual const UInputMappingContext* GetInputMappingContext(int32& InputPriority) const override;
 	
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
 	void OnInitialize(UVCamModifierContext* Context);
@@ -92,7 +95,8 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
 	void OnApply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime);
 
-	// Allows a modifier to return Input Mapping Context which will get automatically registered with the input system
+	// This function is deliberately non-working to force cleanup of Input Contexts
+	// Please move any previous values to the new properties in Class Defaults
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
-	void GetInputMappingContextAndPriority(UInputMappingContext*& InputMappingContext, int32& InputPriority) const;
+	void GetInputMappingContextAndPriority() const;
 };

@@ -410,8 +410,8 @@ void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 {
 	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
 	{
-		int32 InputPriority;
-		const UInputMappingContext* IMC = Modifier->GetInputMappingContext(InputPriority);
+		const int32 InputPriority = Modifier->InputContextPriority;
+		const UInputMappingContext* IMC = Modifier->InputMappingContext;
 		if (IsValid(IMC))
 		{
 			if (!EnhancedInputSubsystemInterface->HasMappingContext(IMC))

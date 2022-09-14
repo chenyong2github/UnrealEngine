@@ -29,18 +29,6 @@ void UVCamBlueprintModifier::Apply(UVCamModifierContext* Context, UCineCameraCom
 	}
 }
 
-const UInputMappingContext* UVCamBlueprintModifier::GetInputMappingContext(int32& InputPriority) const
-{
-	// Forward the call to the Blueprint implementation
-	{
-		FEditorScriptExecutionGuard ScriptGuard;
-
-		UInputMappingContext* MappingContext = nullptr;
-		GetInputMappingContextAndPriority(MappingContext, InputPriority);
-		return MappingContext;
-	}
-}
-
 void UVCamModifier::Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent /* = nullptr */)
 {
 	// Binds any dynamic input delegates to the provided input component
@@ -118,11 +106,6 @@ FName UVCamModifier::GetStackEntryName() const
 		return StackEntry->Name;
 	}
 	return NAME_None;
-}
-
-const UInputMappingContext* UVCamModifier::GetInputMappingContext(int32& InputPriority) const
-{
-	return nullptr;
 }
 
 FModifierStackEntry* UVCamModifier::GetCorrespondingStackEntry() const
