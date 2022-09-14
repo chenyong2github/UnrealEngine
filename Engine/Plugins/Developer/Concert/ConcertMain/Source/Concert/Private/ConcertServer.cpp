@@ -595,7 +595,7 @@ void FConcertServer::UpdateLastModified(TArray<FConcertSessionInfo>& SessionInfo
 {
 	for (int32 i = 0; i < SessionInfos.Num(); ++i)
 	{
-		SessionInfos[i].LastModified = SessionCreationTimes[i];
+		SessionInfos[i].SetLastModified(SessionCreationTimes[i]);
 	}
 }
 

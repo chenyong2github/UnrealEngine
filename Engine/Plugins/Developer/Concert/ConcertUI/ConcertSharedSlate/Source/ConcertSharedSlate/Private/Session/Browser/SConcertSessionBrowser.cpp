@@ -177,7 +177,7 @@ static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
 		Session.SessionInfo.Settings.ProjectName,
 		Version.ToString(),
 		Session.ServerInfo.ServerFlags,
-		Session.SessionInfo.LastModified,
+		Session.SessionInfo.GetLastModified(),
 		{}
 	};
 }
