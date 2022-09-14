@@ -20,11 +20,11 @@ class MESHMODELINGTOOLSEXP_API UMeshAnalysisProperties : public UInteractiveTool
 public:
 
 	/** In meters squared */
-	UPROPERTY(VisibleAnywhere, Category = MeshAnalysis)
+	UPROPERTY(VisibleAnywhere, Category = MeshAnalysis, meta = (NoResetToDefault))
 	FString SurfaceArea;
 
 	/** In cubic meters */
-	UPROPERTY(VisibleAnywhere, Category = MeshAnalysis)
+	UPROPERTY(VisibleAnywhere, Category = MeshAnalysis, meta = (NoResetToDefault))
 	FString Volume;
 
 	void Update(const FDynamicMesh3& Mesh, const FTransform& Transform);

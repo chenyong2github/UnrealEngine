@@ -18,13 +18,13 @@ class MESHMODELINGTOOLSEXP_API UMeshStatisticsProperties : public UInteractiveTo
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = MeshStatistics)
+	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, meta = (NoResetToDefault))
 	FString Mesh;
 
-	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, AdvancedDisplay)
+	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, AdvancedDisplay, meta = (NoResetToDefault))
 	FString UV;
 
-	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, AdvancedDisplay)
+	UPROPERTY(VisibleAnywhere, Category = MeshStatistics, AdvancedDisplay, meta = (NoResetToDefault))
 	FString Attributes;
 
 	void Update(const FDynamicMesh3& Mesh);
