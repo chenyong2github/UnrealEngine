@@ -166,14 +166,11 @@ public:
 	void Start()
 	{
 		Thread = CreateThread(NULL, 0, StaticThreadProc, this, 0, NULL);
-		if (ensure(Thread))
-		{
-			SetThreadDescription(Thread, TEXT("LogConsoleHwnd"));
-		}
 	}
 
 	static DWORD WINAPI StaticThreadProc(LPVOID lpParameter)
 	{
+		FWindowsPlatformProcess::SetThreadName(TEXT("LogConsoleHwnd"));
 		return ((FConsoleWindow*)lpParameter)->ThreadProc();
 	}
 
