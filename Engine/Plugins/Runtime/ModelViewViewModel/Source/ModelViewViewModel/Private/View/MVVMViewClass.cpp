@@ -167,8 +167,7 @@ FString FMVVMViewClass_CompiledBinding::ToString() const
 
 void UMVVMViewClass::Construct(UUserWidget* UserWidget)
 {
-	check(UserWidget->GetExtension<UMVVMView>() == nullptr);
-
+	ensure(UserWidget->GetExtension<UMVVMView>() == nullptr);
 	UMVVMView* View = UserWidget->AddExtension<UMVVMView>();
 	if (ensure(View))
 	{

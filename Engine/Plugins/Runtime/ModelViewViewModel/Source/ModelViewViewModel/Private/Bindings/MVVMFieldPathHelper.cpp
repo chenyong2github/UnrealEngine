@@ -415,7 +415,7 @@ TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSour
 		check(InSource.GetObjectVariant().GetUObject());
 
 		UFunction* Function = InSource.GetFieldVariant().GetFunction();
-		if (InSource.GetObjectVariant().GetUObject()->GetClass()->IsChildOf(Function->GetOuterUClass()))
+		if (!InSource.GetObjectVariant().GetUObject()->GetClass()->IsChildOf(Function->GetOuterUClass()))
 		{
 			return MakeError();
 		}

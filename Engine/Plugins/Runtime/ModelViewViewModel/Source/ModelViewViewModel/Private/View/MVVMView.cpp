@@ -142,7 +142,7 @@ void UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 						EnableLibraryBinding(Binding, Index);
 					}
 				}
-				else
+				else if (bConstructed)
 				{
 					// Enabled the default bindings
 					for (int32 Index = 0; Index < CompiledBindings.Num(); ++Index)
