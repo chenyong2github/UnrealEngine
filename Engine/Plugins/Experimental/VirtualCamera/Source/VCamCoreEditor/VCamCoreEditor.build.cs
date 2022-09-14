@@ -27,7 +27,11 @@ public class VCamCoreEditor : ModuleRules
 				"SlateCore",
 				"CinematicCamera",
 				"LiveLinkInterface",
-				"VCamCore"
+				"VCamCore",
+				"EnhancedInput",
+				"PropertyEditor",
+				"UMG", 
+				"UMGEditor"
 			}
 		);
 	}

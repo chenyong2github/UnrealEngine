@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "VCamObjectWithInputFactory.h"
 
-#include "VCamModifierFactory.generated.h"
+#include "VCamWidgetFactory.generated.h"
 
 UCLASS()
-class VCAMCOREEDITOR_API UVCamModifierFactory : public UVCamObjectWithInputFactory
+class VCAMCOREEDITOR_API UVCamWidgetFactory : public UVCamObjectWithInputFactory
 {
 	GENERATED_BODY()
 public:
-	UVCamModifierFactory();
+	UVCamWidgetFactory();
 	
 	//~ Begin UFactory Interface
 	virtual FText GetDisplayName() const override;
