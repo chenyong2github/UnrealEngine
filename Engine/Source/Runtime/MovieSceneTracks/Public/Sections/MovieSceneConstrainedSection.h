@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/NameTypes.h"
+#include "UObject/Interface.h"
 #include "MovieSceneSection.h"
 #include "ConstraintsManager.h"
 #include "ConstraintChannel.h"

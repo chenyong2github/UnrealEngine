@@ -8,6 +8,7 @@
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Misc/FrameRate.h"
+#include "Misc/GeneratedTypeName.h"
 
 #if WITH_EDITOR
 
