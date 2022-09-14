@@ -274,6 +274,37 @@ void URCRangeMapBehaviour::Execute()
 	}
 }
 
+URCAction* URCRangeMapBehaviour::DuplicateAction(URCAction* InAction, URCBehaviour* InBehaviour)
+{
+	URCRangeMapBehaviour* InBehaviourRangeMap = Cast< URCRangeMapBehaviour>(InBehaviour);
+	if (!ensureMsgf(InBehaviourRangeMap, TEXT("Expected Behaviour of the same type (Range Map) For CopyAction operation!")))
+	{
+		return nullptr;
+	}
+
+	URCAction* NewAction = Super::DuplicateAction(InAction, InBehaviour);
+	if (ensure(NewAction))
+	{
+		// Copy action specific data residing in Range Map Behaviour:
+		if (FRCRangeMapStep* RangeMapStepData = RangeMapActionContainer.Find(InAction))
+		{
+			URCVirtualPropertySelfContainer* ActionValueProperty = nullptr;
+			if (URCPropertyAction* PropertyAction = Cast<URCPropertyAction>(NewAction))
+			{
+				ActionValueProperty = PropertyAction->PropertySelfContainer;
+			}
+
+			if(ensureAlways(ActionValueProperty))
+			{
+				FRCRangeMapStep NewData(RangeMapStepData->StepValue, ActionValueProperty);
+				InBehaviourRangeMap->RangeMapActionContainer.Add(NewAction, NewData);
+			}
+		}
+	}
+
+	return NewAction;
+}
+
 URCAction* URCRangeMapBehaviour::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
 	double InStepValue = 0.0;

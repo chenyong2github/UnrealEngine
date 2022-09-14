@@ -60,6 +60,9 @@ public:
 
 	/** Executes the Behaviour */
 	virtual void Execute() override;
+
+	/** Duplicates an Action belonging to us into a given target behaviour*/
+	virtual URCAction* DuplicateAction(URCAction* InAction, URCBehaviour* InBehaviour) override;
 	//~ End URCBehaviour interface
 
 	/** Refresh function being called whenever either the Controller or the Properties of the Behaviour Details Panel change */

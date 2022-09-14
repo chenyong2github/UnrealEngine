@@ -33,10 +33,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
 
-#if WITH_EDITOR
-#include "ScopedTransaction.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "SRCActionPanel"
 
 TSharedPtr<SBox> SRCActionPanel::NoneSelectedWidget = SNew(SBox)
@@ -309,6 +305,8 @@ URCAction* SRCActionPanel::AddAction(const TSharedRef<const FRemoteControlField>
 
 			URCAction* NewAction = BehaviourItem->AddAction(InRemoteControlField);
 
+			AddNewActionToList(NewAction);
+
 			// Broadcast new Action to other panels
 			if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
 			{
@@ -427,6 +425,148 @@ bool SRCActionPanel::IsListFocused() const
 void SRCActionPanel::DeleteSelectedPanelItem()
 {
 	ActionPanelList->DeleteSelectedPanelItem();
+}
+
+TSharedPtr<FRCLogicModeBase> SRCActionPanel::GetSelectedLogicItem()
+{
+	if(ActionPanelList)
+	{
+		return ActionPanelList->GetSelectedLogicItem();
+	}
+
+	return nullptr;
+}
+
+void SRCActionPanel::DuplicateAction(URCAction* InAction)
+{
+	URCBehaviour* BehaviourTarget = nullptr;
+	URCBehaviour* BehaviourSource = nullptr;
+
+	// Behaviour Target - The Behaviour into which the input Action is to copied
+	if (const TSharedPtr<FRCBehaviourModel> BehaviourItem = SelectedBehaviourItemWeakPtr.Pin())
+	{
+		BehaviourTarget = BehaviourItem->GetBehaviour();
+		if (!ensure(BehaviourTarget))
+		{
+			return;
+		}
+	}
+	
+	// Behaviour Source - The Behaviour holding the input Action
+	if (InAction)
+	{
+		BehaviourSource = InAction->GetParentBehaviour();
+		if (!ensure(BehaviourSource))
+		{
+			return;
+		}
+	}
+
+	URCAction* NewAction = BehaviourSource->DuplicateAction(InAction, BehaviourTarget);
+
+	AddNewActionToList(NewAction);
+
+	// Broadcast new Action to other panels
+	if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		RemoteControlPanel->OnActionAdded.Broadcast(NewAction);
+	}
+}
+
+void SRCActionPanel::AddNewActionToList(URCAction* NewAction)
+{
+	if(ActionPanelList.IsValid())
+	{
+		ActionPanelList->AddNewLogicItem(NewAction);
+	}
+}
+
+void SRCActionPanel::DuplicateSelectedPanelItem()
+{
+	if (!ensure(ActionPanelList.IsValid()))
+	{
+		return;
+	}
+
+	if (const TSharedPtr<FRCActionModel> ActionItem = StaticCastSharedPtr<FRCActionModel>(ActionPanelList->GetSelectedLogicItem()))
+	{
+		DuplicateAction(ActionItem->GetAction());
+	}
+}
+
+void SRCActionPanel::CopySelectedPanelItem()
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		if (TSharedPtr<FRCActionModel> ActionItem = StaticCastSharedPtr<FRCActionModel>(ActionPanelList->GetSelectedLogicItem()))
+		{
+			RemoteControlPanel->SetLogicClipboardItem(ActionItem->GetAction(), SharedThis(this));
+		}
+	}
+}
+
+void SRCActionPanel::PasteItemFromClipboard()
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		if (RemoteControlPanel->LogicClipboardItemSource == SharedThis(this))
+		{
+			if(URCAction* Action = Cast<URCAction>(RemoteControlPanel->GetLogicClipboardItem()))
+			{
+				DuplicateAction(Action);
+			}
+		}
+	}
+}
+
+bool SRCActionPanel::CanPasteClipboardItem(UObject* InLogicClipboardItem)
+{
+	URCAction* LogicClipboardAction = Cast<URCAction>(InLogicClipboardItem);
+
+	URCBehaviour* BehaviourSource = nullptr;
+	URCBehaviour* BehaviourTarget = nullptr;
+
+	if (LogicClipboardAction)
+	{
+		BehaviourSource = LogicClipboardAction->GetParentBehaviour();
+		if (!BehaviourSource)
+		{
+			return false;
+		}
+	}
+
+	if (TSharedPtr<FRCBehaviourModel> BehaviourItemTarget = SelectedBehaviourItemWeakPtr.Pin())
+	{
+		BehaviourTarget = BehaviourItemTarget->GetBehaviour();
+		if (!BehaviourTarget)
+		{
+			return false;
+		}
+	}
+
+	// Copy-paste is allowed between compatible Behaviour types only
+	//
+	return BehaviourSource->GetClass() == BehaviourTarget->GetClass();
+}
+
+FText SRCActionPanel::GetPasteItemMenuEntrySuffix()
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		// This function should only have been called if we were the source of the item copied.
+		if (ensure(RemoteControlPanel->LogicClipboardItemSource == SharedThis(this)))
+		{
+			if (URCAction* Action = Cast<URCAction>(RemoteControlPanel->GetLogicClipboardItem()))
+			{
+				if (URCBehaviour* Behaviour = Action->GetParentBehaviour())
+				{
+					return FText::Format(FText::FromString("Action {0}"), Behaviour->GetDisplayName());
+				}
+			}
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 FReply SRCActionPanel::RequestDeleteAllItems()

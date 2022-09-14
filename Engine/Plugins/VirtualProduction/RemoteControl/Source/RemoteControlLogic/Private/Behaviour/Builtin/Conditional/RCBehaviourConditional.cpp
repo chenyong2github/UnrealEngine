@@ -126,6 +126,31 @@ void URCBehaviourConditional::Execute()
 	}
 }
 
+URCAction* URCBehaviourConditional::DuplicateAction(URCAction* InAction, URCBehaviour* InBehaviour)
+{
+	URCBehaviourConditional* InBehaviourConditional = Cast<URCBehaviourConditional>(InBehaviour);
+	if (!ensureMsgf(InBehaviourConditional, TEXT("Expected Behaviour of the same type (Conditional) For CopyAction operation!")))
+	{
+		return nullptr;
+	}
+
+	URCAction* NewAction = Super::DuplicateAction(InAction, InBehaviour);
+	if (ensure(NewAction))
+	{
+		// Copy Action specific data residing in Conditional Behaviour:
+		if (FRCBehaviourCondition* ConditionData = this->Conditions.Find(InAction))
+		{
+			// Virtual Property for the Comparand
+			Comparand = NewObject<URCVirtualPropertySelfContainer>(InBehaviourConditional);
+			Comparand->DuplicatePropertyWithCopy(ConditionData->Comparand);
+
+			InBehaviourConditional->OnActionAdded(NewAction, ConditionData->ConditionType, Comparand);
+		}
+	}
+
+	return NewAction;
+}
+
 void URCBehaviourConditional::OnActionAdded(URCAction* Action, const ERCBehaviourConditionType InConditionType, const TObjectPtr<URCVirtualPropertySelfContainer> InComparand)
 {
 	FRCBehaviourCondition Condition(InConditionType, InComparand);

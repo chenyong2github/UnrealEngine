@@ -102,10 +102,20 @@ public:
 
 	/** Copy this virtual property's data onto a given FProperty
 	* 
-	* * @param InTargetProperty - The property onto which our value is to be copied
-	* * @param InTargetValuePtr - The memory location for the target property
+	* @param InTargetProperty - The property onto which our value is to be copied
+	* @param InTargetValuePtr - The memory location for the target property
+	* 
+	* @return true if copied successfully
 	*/
 	bool CopyCompleteValue(const FProperty* InTargetProperty, uint8* InTargetValuePtr);
+
+	/** Copy this virtual property's data onto a given Virtual Property
+	*
+	* @param InVirtualProperty - The virtual property onto which our value is to be copied
+	* 
+	* @return true if copied successfully
+	*/
+	bool CopyCompleteValue(URCVirtualPropertyBase* InVirtualProperty);
 	
 	/** Get Bool value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")

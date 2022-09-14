@@ -32,11 +32,9 @@ namespace FRemoteControlBehaviourColumns
 	const FName Behaviours = TEXT("Behaviors");
 }
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBehaviourPanel> InBehaviourPanel, TSharedPtr<FRCControllerModel> InControllerItem)
+void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBehaviourPanel> InBehaviourPanel, TSharedPtr<FRCControllerModel> InControllerItem, const TSharedRef<SRemoteControlPanel> InRemoteControlPanel)
 {
-	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments());
+	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InRemoteControlPanel);
 	
 	BehaviourPanelWeakPtr = InBehaviourPanel;
 	ControllerItemWeakPtr = InControllerItem;
@@ -48,6 +46,7 @@ void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBe
 		.OnSelectionChanged(this, &SRCBehaviourPanelList::OnTreeSelectionChanged)
 		.OnGenerateRow(this, &SRCBehaviourPanelList::OnGenerateWidgetForList)
 		.ListViewStyle(&RCPanelStyle->TableViewStyle)
+		.OnContextMenuOpening(this, &SRCLogicPanelListBase::GetContextMenuWidget)
 		.HeaderRow(
 			SNew(SHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
@@ -69,7 +68,7 @@ void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBe
 	RemoteControlPanel->OnBehaviourAdded.AddSP(this, &SRCBehaviourPanelList::OnBehaviourAdded);
 	RemoteControlPanel->OnEmptyBehaviours.AddSP(this, &SRCBehaviourPanelList::OnEmptyBehaviours);
 
-	if (URCController* Controller = Cast< URCController>(InControllerItem->GetVirtualProperty()))
+	if (URCController* Controller = Cast<URCController>(InControllerItem->GetVirtualProperty()))
 	{
 		Controller->OnBehaviourListModified.AddSP(this, &SRCBehaviourPanelList::OnBehaviourListModified);
 	}
@@ -87,13 +86,53 @@ int32 SRCBehaviourPanelList::Num() const
 	return BehaviourItems.Num();
 }
 
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void SRCBehaviourPanelList::AddNewLogicItem(UObject* InLogicItem)
+{
+	AddBehaviourToList(Cast<URCBehaviour>(InLogicItem));
+
+	RequestRefresh();
+}
+
+void SRCBehaviourPanelList::AddBehaviourToList(URCBehaviour* InBehaviour)
+{
+	if (!BehaviourPanelWeakPtr.IsValid())
+	{
+		return;
+	}
+
+	const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = BehaviourPanelWeakPtr.Pin()->GetRemoteControlPanel();
+
+	if (URCIsEqualBehaviour* IsEqualBehaviour = Cast<URCIsEqualBehaviour>(InBehaviour))
+	{
+		BehaviourItems.Add(MakeShared<FRCIsEqualBehaviourModel>(IsEqualBehaviour));
+	}
+	else if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(InBehaviour))
+	{
+		BehaviourItems.Add(MakeShared<FRCBehaviourConditionalModel>(ConditionalBehaviour));
+	}
+	else if (URCSetAssetByPathBehaviour* SetAssetByPathBehaviour = Cast<URCSetAssetByPathBehaviour>(InBehaviour))
+	{
+		BehaviourItems.Add(MakeShared<FRCSetAssetByPathBehaviourModel>(SetAssetByPathBehaviour));
+	}
+	else if (URCBehaviourBind* BindBehaviour = Cast<URCBehaviourBind>(InBehaviour))
+	{
+		BehaviourItems.Add(MakeShared<FRCBehaviourBindModel>(BindBehaviour, RemoteControlPanel));
+	}
+	else if (URCRangeMapBehaviour* RangeMapBehaviour = Cast<URCRangeMapBehaviour>(InBehaviour))
+	{
+		BehaviourItems.Add(MakeShared<FRCRangeMapBehaviourModel>(RangeMapBehaviour));
+	}
+	else
+	{
+		BehaviourItems.Add(MakeShared<FRCBehaviourModel>(InBehaviour, RemoteControlPanel));
+	}
+}
+
+
 
 void SRCBehaviourPanelList::Reset()
 {
 	BehaviourItems.Empty();
-
-	const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = BehaviourPanelWeakPtr.IsValid() ? BehaviourPanelWeakPtr.Pin()->GetRemoteControlPanel() : nullptr;
 
 	if (TSharedPtr<FRCControllerModel> ControllerItem = ControllerItemWeakPtr.Pin())
 	{
@@ -101,30 +140,7 @@ void SRCBehaviourPanelList::Reset()
 		{
 			for (URCBehaviour* Behaviour : Controller->Behaviours)
 			{
-				if (URCIsEqualBehaviour* IsEqualBehaviour = Cast<URCIsEqualBehaviour>(Behaviour))
-				{
-					BehaviourItems.Add(MakeShared<FRCIsEqualBehaviourModel>(IsEqualBehaviour));
-				}
-				else if (URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(Behaviour))
-				{
-					BehaviourItems.Add(MakeShared<FRCBehaviourConditionalModel>(ConditionalBehaviour));
-				}
-				else if (URCSetAssetByPathBehaviour* SetAssetByPathBehaviour = Cast<URCSetAssetByPathBehaviour>(Behaviour))
-				{
-					BehaviourItems.Add(MakeShared<FRCSetAssetByPathBehaviourModel>(SetAssetByPathBehaviour));
-				}
-				else if (URCBehaviourBind* BindBehaviour = Cast<URCBehaviourBind>(Behaviour))
-				{
-					BehaviourItems.Add(MakeShared<FRCBehaviourBindModel>(BindBehaviour, RemoteControlPanel));
-				}
-				else if (URCRangeMapBehaviour* RangeMapBehaviour = Cast<URCRangeMapBehaviour>(Behaviour))
-				{
-					BehaviourItems.Add(MakeShared<FRCRangeMapBehaviourModel>(RangeMapBehaviour));
-				}
-				else
-				{
-					BehaviourItems.Add(MakeShared<FRCBehaviourModel>(Behaviour, RemoteControlPanel));
-				}
+				AddBehaviourToList(Behaviour);
 			}
 		}
 	}
@@ -222,12 +238,17 @@ void SRCBehaviourPanelList::OnBehaviourListModified()
 
 bool SRCBehaviourPanelList::IsListFocused() const
 {
-	return ListView->HasAnyUserFocus().IsSet();
+	return ListView->HasAnyUserFocus().IsSet() || ContextMenuWidgetCached.IsValid();;
 }
 
 void SRCBehaviourPanelList::DeleteSelectedPanelItem()
 {
 	DeleteItemFromLogicPanel<FRCBehaviourModel>(BehaviourItems, ListView->GetSelectedItems());
+}
+
+void SRCBehaviourPanelList::RequestRefresh()
+{
+	ListView->RequestListRefresh();
 }
 
 #undef LOCTEXT_NAMESPACE

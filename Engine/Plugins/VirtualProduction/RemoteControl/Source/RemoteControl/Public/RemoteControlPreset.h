@@ -635,6 +635,9 @@ public:
 	/** Removes a given Virtual Property (by Name) from the Remote Control preset */
 	bool RemoveVirtualProperty(const FName& InPropertyName);
 
+	/** Duplicates a given Virtual Property from the Remote Control preset */
+	URCVirtualPropertyInContainer* DuplicateVirtualProperty(URCVirtualPropertyInContainer* InVirtualProperty);
+
 	/** Removes all virtual properties held by this Remote Control preset*/
 	void ResetVirtualProperties();
 

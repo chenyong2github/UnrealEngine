@@ -13,6 +13,7 @@ class IPropertyRowGenerator;
 class ITableRow;
 class ITableBase;
 class SRCControllerPanel;
+class SRemoteControlPanel;
 class STableViewBase;
 class URCController;
 class URemoteControlPreset;
@@ -65,7 +66,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel);
+	void Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel, const TSharedRef<SRemoteControlPanel> InRemoteControlPanel);
 
 	/** Returns true if the underlying list is valid and empty. */
 	virtual bool IsEmpty() const override;
@@ -79,9 +80,15 @@ public:
 	/** Deletes currently selected items from the list view*/
 	virtual void DeleteSelectedPanelItem() override;
 
+	/** Returns the UI item currently selected by the user (if any)*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() override
+	{
+		return GetSelectedControllerItem();
+	}
+
 	void EnterRenameMode();
 
-	int32 GetNumControllerItems() const
+	int32 NumControllerItems() const
 	{
 		return ControllerItems.Num();
 	}
@@ -92,6 +99,18 @@ public:
 	/** Given an item to move and an anchor row this function moves the item to the position of the anchor
 	* and pushes all other rows below */
 	void ReorderControllerItem(TSharedRef<FRCControllerModel> ItemToMove, TSharedRef<FRCControllerModel> AnchorItem);
+
+	/** Returns the currently selected Controller UI Item*/
+	TSharedPtr<FRCControllerModel> GetSelectedControllerItem() const
+	{
+		return SelectedControllerItemWeakPtr.Pin();
+	}
+
+	/** Requests the panel to refresh its contents from the latest list of Controllers*/
+	void RequestRefresh()
+	{
+		Reset();
+	}
 
 private:
 

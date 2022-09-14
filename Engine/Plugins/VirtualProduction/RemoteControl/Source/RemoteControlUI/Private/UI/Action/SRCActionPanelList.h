@@ -31,6 +31,8 @@
 
 #define LOCTEXT_NAMESPACE "SRCActionPanelList"
 
+class FRCActionModel;
+
 /*
 * ~ SRCActionPanelList ~
 *
@@ -50,7 +52,10 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRCActionPanel> InActionPanel, TSharedPtr<FRCBehaviourModel> InBehaviourItem)
 	{
-		SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments());
+		const TSharedPtr<SRemoteControlPanel>& RemoteControlPanel = InActionPanel->GetRemoteControlPanel();
+		check(RemoteControlPanel);
+
+		SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), RemoteControlPanel.ToSharedRef());
 
 		ActionPanelWeakPtr = InActionPanel;
 		BehaviourItemWeakPtr = InBehaviourItem;
@@ -62,7 +67,7 @@ public:
 			.OnGenerateRow(this, &SRCActionPanelList::OnGenerateWidgetForList)
 			.OnSelectionChanged(this, &SRCActionPanelList::OnSelectionChanged)
 			.ListViewStyle(&RCPanelStyle->TableViewStyle)
-			.OnContextMenuOpening(this, &SRCActionPanelList::GetContextMenuWidget)
+			.OnContextMenuOpening(this, &SRCLogicPanelListBase::GetContextMenuWidget)
 			.HeaderRow(ActionType::GetHeaderRow());
 
 		ChildSlot
@@ -79,12 +84,8 @@ public:
 			];
 
 		// Add delegates
-		const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = InActionPanel->GetRemoteControlPanel();
-		if (ensure(RemoteControlPanel))
-		{
-			RemoteControlPanel->OnActionAdded.AddSP(this, &SRCActionPanelList::OnActionAdded);
-			RemoteControlPanel->OnEmptyActions.AddSP(this, &SRCActionPanelList::OnEmptyActions);
-		}
+		RemoteControlPanel->OnActionAdded.AddSP(this, &SRCActionPanelList::OnActionAdded);
+		RemoteControlPanel->OnEmptyActions.AddSP(this, &SRCActionPanelList::OnEmptyActions);
 
 		if (URCBehaviour* Behaviour = InBehaviourItem->GetBehaviour())
 		{
@@ -117,13 +118,25 @@ public:
 	/** Whether the Actions List View currently has focus.*/
 	virtual bool IsListFocused() const override
 	{
-		return ListView->HasAnyUserFocus().IsSet();
+		return ListView->HasAnyUserFocus().IsSet() || ContextMenuWidgetCached.IsValid();
 	}
 
 	/** Deletes currently selected items from the list view*/
 	virtual void DeleteSelectedPanelItem() override
 	{
 		DeleteItemFromLogicPanel<ActionType>(ActionItems, ListView->GetSelectedItems());
+	}
+
+	/** Returns the UI item currently selected by the user (if any)*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() override
+	{
+		return GetSelectedActionItem();
+	}
+
+	/** The currently selected Action item*/
+	TSharedPtr<FRCActionModel> GetSelectedActionItem()
+	{
+		return SelectedActionItem;
 	}
 
 	/** Fetches the parent Action panel*/
@@ -155,6 +168,51 @@ public:
 		return nullptr;
 	}
 
+	virtual void AddNewLogicItem(UObject* InLogicItem) override
+	{
+		AddRowToList(Cast<URCAction>(InLogicItem));
+
+		RequestRefresh();
+	}
+
+	void AddRowToList(URCAction* InAction)
+	{
+		if (!ensure(InAction))
+		{
+			return;
+		}
+
+		if (TSharedPtr<SRCActionPanel> ActionPanel = GetActionPanel())
+		{
+			if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ActionPanel->GetRemoteControlPanel())
+			{
+				if (TSharedPtr<FRCBehaviourModel> BehaviourItem = BehaviourItemWeakPtr.Pin())
+				{
+					TSharedPtr<ActionType> ActionItem = ActionType::GetModelByActionType(InAction, BehaviourItem, RemoteControlPanel);
+
+					if (ensure(ActionItem.IsValid()))
+					{
+						ActionItems.Add(ActionItem);
+					}
+				}
+			}
+		}
+	}
+
+	void RequestRefresh()
+	{
+		ListView->RequestListRefresh();
+	}
+
+	/** Allows Logic panels to add special functionality to the Context Menu based on context */
+	virtual void AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder) override
+	{
+		if (SelectedActionItem)
+		{
+			SelectedActionItem->AddSpecialContextMenuOptions(MenuBuilder);
+		}
+	}
+
 private:
 
 	/** OnGenerateRow delegate for the Actions List View*/
@@ -174,7 +232,9 @@ private:
 	/** Responds to the selection of a newly created action. Resets UI state*/
 	void OnActionAdded(URCAction* InAction)
 	{
-		Reset();
+		// Historical note: Previously we used to call Reset here after adding an Action
+		// This is now covered by use of AddRowToList function (invoked from SRCActionPanel)
+		// @todo: This improvement needs to be done for "Remove Action" as well.
 	}
 
 	/** Responds to the removal of all actions. Rests UI state*/
@@ -186,28 +246,20 @@ private:
 	/** Refreshes the list from the latest state of the data model*/
 	virtual void Reset() override
 	{
-		if (TSharedPtr<SRCActionPanel> ActionPanel = GetActionPanel())
+		ActionItems.Empty();
+
+		if (TSharedPtr<FRCBehaviourModel> BehaviourItem = BehaviourItemWeakPtr.Pin())
 		{
-			if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ActionPanel->GetRemoteControlPanel())
+			if (URCBehaviour* Behaviour = Cast<URCBehaviour>(BehaviourItem->GetBehaviour()))
 			{
-				ActionItems.Empty();
-
-				if (TSharedPtr<FRCBehaviourModel> BehaviourItem = BehaviourItemWeakPtr.Pin())
+				for (URCAction* Action : Behaviour->ActionContainer->GetActions())
 				{
-					if (URCBehaviour* Behaviour = Cast<URCBehaviour>(BehaviourItem->GetBehaviour()))
-					{
-						for (URCAction* Action : Behaviour->ActionContainer->GetActions())
-						{
-							TSharedPtr<ActionType> ActionItem = ActionType::GetModelByActionType(Action, BehaviourItem, RemoteControlPanel);
-
-							ActionItems.Add(ActionItem);
-						}
-					}
+					AddRowToList(Action);
 				}
-
-				ListView->RebuildList();
 			}
 		}
+
+		ListView->RebuildList();
 	}
 
 	/** Handles broadcasting of a successful remove item operation.*/
@@ -345,17 +397,6 @@ private:
 		return false;
 	}
 
-	/** Context menu for Actions panel list */
-	TSharedPtr<SWidget> GetContextMenuWidget()
-	{
-		if (SelectedActionItem)
-		{
-			return SelectedActionItem->GetContextMenuWidget();
-		}
-
-		return SNullWidget::NullWidget;
-	}
-
 	/** OnSelectionChanged delegate for Actions List View */
 	void OnSelectionChanged(TSharedPtr<ActionType> InItem, ESelectInfo::Type)
 	{
@@ -370,7 +411,7 @@ private:
 private:
 
 	/** The currently selected Action item*/
-	TSharedPtr<ActionType> SelectedActionItem;
+	TSharedPtr<FRCActionModel> SelectedActionItem;
 
 	/** The parent Action Panel widget*/
 	TWeakPtr<SRCActionPanel> ActionPanelWeakPtr;

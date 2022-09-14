@@ -39,6 +39,15 @@ void FRemoteControlCommands::RegisterCommands()
 
 	// Rename Entity
 	UI_COMMAND(RenameEntity, "Rename", "Rename the selected  group/exposed entity.", EUserInterfaceActionType::Button, FInputChord(EKeys::F2));
+
+	// Copy Item
+	UI_COMMAND(CopyItem, "Copy", "Copy the selected UI item", EUserInterfaceActionType::Button, FInputChord(EKeys::C, EModifierKey::Control));
+
+	// Paste Item
+	UI_COMMAND(PasteItem, "Paste", "Paste the selected UI item", EUserInterfaceActionType::Button, FInputChord(EKeys::V, EModifierKey::Control));
+
+	// Duplicate Item
+	UI_COMMAND(DuplicateItem, "Duplicate", "Duplicate the selected UI item", EUserInterfaceActionType::Button, FInputChord(EKeys::D, EModifierKey::Control));
 }
 
 #undef LOCTEXT_NAMESPACE

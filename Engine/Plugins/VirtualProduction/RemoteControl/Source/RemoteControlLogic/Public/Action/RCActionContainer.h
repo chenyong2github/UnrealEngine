@@ -9,6 +9,7 @@
 
 class URemoteControlPreset;
 class URCAction;
+class URCBehaviour;
 class URCController;
 class URCFunctionAction;
 class URCPropertyAction;
@@ -40,7 +41,7 @@ public:
 	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
 	/** Add remote control property action  */
-	URCAction* AddAction(TRCActionUniquenessTest IsUnique, const TSharedRef<const FRemoteControlField> InRemoteControlField);
+	URCAction* AddAction(TRCActionUniquenessTest InUniquenessTest, const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
 	/** Find Action by given exposed filed id */
 	URCAction* FindActionByFieldId(const FGuid InFieldId) const;
@@ -78,6 +79,9 @@ public:
 
 	/** Delegate that notifies changes to the list of actions to a single listener*/
 	FOnActionsListModified OnActionsListModified;
+
+	/** Derive the parent Behaviour holding this Action Container */
+	URCBehaviour* GetParentBehaviour();
 
 private:
 	/** Add remote control property action  */

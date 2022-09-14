@@ -89,4 +89,15 @@ void URCController::ExecuteBehaviours()
 	}
 }
 
+URCBehaviour* URCController::DuplicateBehaviour(URCController* InController, URCBehaviour* InBehaviour)
+{
+	URCBehaviour* NewBehaviour = DuplicateObject<URCBehaviour>(InBehaviour, InController);
+
+	NewBehaviour->ControllerWeakPtr = InController;
+
+	InController->Behaviours.Add(NewBehaviour);
+
+	return NewBehaviour;
+}
+
 #undef LOCTEXT_NAMESPACE /* RCController */ 

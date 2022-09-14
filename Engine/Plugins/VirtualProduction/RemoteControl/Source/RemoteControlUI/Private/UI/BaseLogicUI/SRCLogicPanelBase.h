@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FRCLogicModeBase;
 class SRemoteControlPanel;
 class URemoteControlPreset;
 
@@ -36,6 +37,24 @@ public:
 
 	/** "Delete Item" UI command implementation for panels*/
 	virtual void DeleteSelectedPanelItem() = 0;
+
+	/** "Duplicate Item" UI command implementation for panels*/
+	virtual void DuplicateSelectedPanelItem() {}
+
+	/** "Copy Item" UI command implementation for panels*/
+	virtual void CopySelectedPanelItem() {}
+
+	/** "Paste Item" UI command implementation for panels*/
+	virtual void PasteItemFromClipboard() {}
+
+	/** Whether a given clipboard item can be successfully pasted into this panel */
+	virtual bool CanPasteClipboardItem(UObject* InLogicClipboardItem) { return true; }
+
+	/** Returns the UI item currently selected by the user (if any). To be implemented per child panel*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() = 0;
+
+	/** Provides an item suffix for the Paste context menu to provide users with useful context on the nature of the item being pasted */
+	virtual FText GetPasteItemMenuEntrySuffix() { return FText::GetEmpty(); }
 
 protected:
 

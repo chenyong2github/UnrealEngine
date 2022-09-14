@@ -55,4 +55,19 @@ public:
 	 * Holds the information about UI Command that  renames selected group/exposed entity.
 	 */
 	TSharedPtr< FUICommandInfo > RenameEntity;
+
+	/**
+	 * UI Command for copying a UI item in the Remote Control preset. Currently used for Logic panel
+	 */
+	TSharedPtr< FUICommandInfo > CopyItem;
+
+	/**
+	 * UI Command for pasting a UI item in the Remote Control preset. Currently used for Logic panel
+	 */
+	TSharedPtr< FUICommandInfo > PasteItem;
+
+	/**
+	 * UI Command for duplicating a UI item in the Remote Control preset. Currently used for Logic panel
+	 */
+	TSharedPtr< FUICommandInfo > DuplicateItem;
 };

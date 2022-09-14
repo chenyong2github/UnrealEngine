@@ -38,7 +38,7 @@ public:
 	virtual URCVirtualPropertyInContainer* AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr);
 
 	/**
-	 * Duplicates property from give Property.
+	 * Duplicates a property from given FProperty.
 	 * That will add property to Property Bag and Create Remote Control Virtual Property
 	 *
 	 * @param InPropertyName				Name of the property
@@ -50,7 +50,7 @@ public:
 	virtual URCVirtualPropertyInContainer* DuplicateProperty(const FName& InPropertyName, const FProperty* InSourceProperty, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass);
 
 	/**
-	 * Duplicates property from give Property and copy the property value
+	 * Duplicates a property from a given FProperty and copies the property value
 	 * That will add property to Property Bag and Create Remote Control Virtual Property
 	 *
 	 * @param InPropertyName				Name of the property
@@ -61,6 +61,17 @@ public:
 	 * @return Virtual Property Object
 	 */
 	virtual URCVirtualPropertyInContainer* DuplicatePropertyWithCopy(const FName& InPropertyName, const FProperty* InSourceProperty, const uint8* InSourceContainerPtr, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass);
+
+	/**
+	 * Given a virtual property this funciton duplicates it (via DuplicateObject)
+	 * and syncs the internal Controller Container and PropertyBag containers as well.
+	 *
+	 * @param InVirtualProperty				Virtual Property to be duplicated
+	 *
+	 * @return Virtual Property Object
+	 */
+	virtual URCVirtualPropertyInContainer* DuplicateVirtualProperty(URCVirtualPropertyInContainer* InVirtualProperty);
+
 
 	/**
 	 * Removes a property from the container by name if it exists.
@@ -100,6 +111,11 @@ public:
 	 */
 	static FName GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject, const URCVirtualPropertyContainerBase* InContainer);
 
+	/**
+	* Generates unique name for the property for specified property container
+	*/
+	static FName GenerateUniquePropertyName(const FName& InPropertyName, const URCVirtualPropertyContainerBase* InContainer);
+
 #if WITH_EDITOR
 	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI. */
 	virtual void PostEditUndo();
@@ -128,7 +144,6 @@ public:
 
 	/** Delegate that notifies changes to the virtual property container*/
 	FOnVirtualPropertyContainerModified OnVirtualPropertyContainerModifiedDelegate;
-
 };
 
 

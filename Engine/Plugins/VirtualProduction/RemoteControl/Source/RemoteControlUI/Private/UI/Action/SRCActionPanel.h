@@ -5,6 +5,7 @@
 #include "UI/BaseLogicUI/SRCLogicPanelBase.h"
 
 struct FRCPanelStyle;
+class FRCActionModel;
 struct FRemoteControlField;
 class FRCBehaviourModel;
 class SBox;
@@ -39,6 +40,24 @@ public:
 	/** Delete Item UI command implementation for this panel */
 	virtual void DeleteSelectedPanelItem() override;
 
+	/** Returns the UI item currently selected by the user (if any)*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() override;
+
+	/** "Duplicate Item" UI command implementation for Action panel*/
+	virtual void DuplicateSelectedPanelItem() override;
+
+	/** "Copy Item" UI command implementation for Action panel*/
+	virtual void CopySelectedPanelItem() override;
+
+	/** "Paste Item" UI command implementation for Action panel*/
+	virtual void PasteItemFromClipboard() override;
+
+	/** Whether a given clipboard item can be successfully pasted into this panel */
+	virtual bool CanPasteClipboardItem(UObject* InLogicClipboardItem) override;
+
+	/** Provides an item suffix for the Paste context menu to provide users with useful context on the nature of the item being pasted */
+	virtual FText GetPasteItemMenuEntrySuffix() override;
+
 	/** Adds an Action for the currently active Behaviour and broadcasts to parent panels */
 	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
@@ -56,7 +75,6 @@ protected:
 	virtual FReply RequestDeleteAllItems() override;
 
 private:
-
 	/** Determines the visibility Add All Button. */
 	EVisibility HandleAddAllButtonVisibility() const;
 
@@ -94,6 +112,10 @@ private:
 	void OnRemoteControlFieldDeleted(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition);
 
 private:
+
+	void DuplicateAction(URCAction* InAction);
+
+	void AddNewActionToList(URCAction* NewAction);
 
 	/** The parent Behaviour that this Action panel is associated with */
 	TWeakPtr<FRCBehaviourModel> SelectedBehaviourItemWeakPtr;

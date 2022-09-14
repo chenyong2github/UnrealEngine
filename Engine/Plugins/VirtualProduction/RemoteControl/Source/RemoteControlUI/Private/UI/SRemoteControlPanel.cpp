@@ -1257,6 +1257,21 @@ void SRemoteControlPanel::BindRemoteControlCommands()
 		Commands.RenameEntity,
 		FExecuteAction::CreateSP(this, &SRemoteControlPanel::RenameEntity_Execute),
 		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanRenameEntity));
+
+	ActionList.MapAction(
+		Commands.CopyItem,
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::CopyItem_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanCopyItem));
+
+	ActionList.MapAction(
+		Commands.PasteItem,
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::PasteItem_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanPasteItem));
+
+	ActionList.MapAction(
+		Commands.DuplicateItem,
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::DuplicateItem_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanDuplicateItem));
 }
 
 void SRemoteControlPanel::UnbindRemoteControlCommands()
@@ -2184,7 +2199,7 @@ void SRemoteControlPanel::DeleteEntity_Execute()
 	// ~ Delete Logic Item ~
 	// 
 	// If the user focus is currently active on a Logic panel then route the Delete command to it and return.
-	if (TSharedPtr<class SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
 		ActiveLogicPanel->DeleteSelectedPanelItem();
 
@@ -2216,7 +2231,7 @@ void SRemoteControlPanel::DeleteEntity_Execute()
 
 bool SRemoteControlPanel::CanDeleteEntity() const
 {
-	if (TSharedPtr<class SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
 		return true; // User has focus on a logic panel
 	}
@@ -2257,6 +2272,75 @@ bool SRemoteControlPanel::CanRenameEntity() const
 	{
 		// Do not allow default group to be renamed.
 		return !Preset->Layout.IsDefaultGroup(SelectedEntity->GetRCId());
+	}
+
+	return false;
+}
+
+void SRemoteControlPanel::SetLogicClipboardItem(UObject* InItem, TSharedPtr<SRCLogicPanelBase> InSourcePanel)
+{
+	LogicClipboardItem = InItem;
+	LogicClipboardItemSource = InSourcePanel;
+}
+
+void SRemoteControlPanel::CopyItem_Execute()
+{
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	{
+		ActiveLogicPanel->CopySelectedPanelItem();
+	}
+}
+
+bool SRemoteControlPanel::CanCopyItem() const
+{
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	{
+		return ActiveLogicPanel->GetSelectedLogicItem().IsValid();
+	}
+
+	return false;
+}
+
+void SRemoteControlPanel::PasteItem_Execute()
+{
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	{
+		ActiveLogicPanel->PasteItemFromClipboard();
+	}
+}
+
+bool SRemoteControlPanel::CanPasteItem() const
+{
+	if(LogicClipboardItem)
+	{
+		if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+		{
+			// Currently we only support pasting items between panels of exactly the same type.
+			if (LogicClipboardItemSource == ActiveLogicPanel)
+			{
+				return ActiveLogicPanel->CanPasteClipboardItem(LogicClipboardItem);
+			}
+		}
+	}
+
+	return false;
+}
+
+void SRemoteControlPanel::DuplicateItem_Execute()
+{
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	{
+		ActiveLogicPanel->DuplicateSelectedPanelItem();
+
+		return;
+	}
+}
+
+bool SRemoteControlPanel::CanDuplicateItem() const
+{
+	if (TSharedPtr<SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
+	{
+		return ActiveLogicPanel->GetSelectedLogicItem().IsValid();
 	}
 
 	return false;

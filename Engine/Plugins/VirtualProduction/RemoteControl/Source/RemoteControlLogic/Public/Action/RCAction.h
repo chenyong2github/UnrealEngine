@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RCAction.generated.h"
 
+class URCBehaviour;
 class URemoteControlPreset;
 
 /**
@@ -20,6 +21,11 @@ public:
 	virtual void Execute() const {}
 
 	FName GetExposedFieldLabel() const;
+
+	virtual void CopyTo(URCAction* Action) {}
+
+	/** Returns the parent Behaviour associated with this Action */
+	URCBehaviour* GetParentBehaviour();
 
 public:
 	/** Exposed Property or Function field Id*/

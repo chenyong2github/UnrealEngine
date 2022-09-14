@@ -574,6 +574,16 @@ bool URemoteControlPreset::RemoveVirtualProperty(const FName& InPropertyName)
 	return false;
 }
 
+URCVirtualPropertyInContainer* URemoteControlPreset::DuplicateVirtualProperty(URCVirtualPropertyInContainer* InVirtualProperty)
+{
+	if (ensure(ControllerContainer))
+	{
+		return ControllerContainer->DuplicateVirtualProperty(InVirtualProperty);
+	}
+
+	return nullptr;
+}
+
 void URemoteControlPreset::ResetVirtualProperties()
 {
 	if (ensure(ControllerContainer))

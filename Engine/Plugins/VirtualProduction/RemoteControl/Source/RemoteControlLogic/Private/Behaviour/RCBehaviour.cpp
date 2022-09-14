@@ -6,8 +6,10 @@
 #include "Action/RCFunctionAction.h"
 #include "Action/RCPropertyAction.h"
 #include "Behaviour/RCBehaviourNode.h"
+#include "Controller/RCController.h"
 #include "Engine/Blueprint.h"
 #include "RemoteControlField.h"
+#include "RemoteControlPreset.h"
 
 URCBehaviour::URCBehaviour()
 {
@@ -35,6 +37,19 @@ URCAction* URCBehaviour::AddAction(const TSharedRef<const FRemoteControlField> I
 #endif
 
 	return ActionContainer->AddAction(InRemoteControlField);
+}
+
+URCAction* URCBehaviour::DuplicateAction(URCAction* InAction, URCBehaviour* InBehaviour)
+{
+	URCAction* NewAction = DuplicateObject<URCAction>(InAction, InBehaviour->ActionContainer);
+	if(ensure(NewAction))
+	{
+		InBehaviour->ActionContainer->AddAction(NewAction);
+
+		return NewAction;
+	}
+
+	return nullptr;
 }
 
 int32 URCBehaviour::GetNumActions() const
@@ -121,4 +136,5 @@ const FText& URCBehaviour::GetBehaviorDescription()
 
 	return GetDefault<URCBehaviourNode>(BehaviourNodeClass)->BehaviorDescription;
 }
+
 #endif

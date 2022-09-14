@@ -8,6 +8,7 @@
 
 #include "UObject/WeakFieldPtr.h"
 
+class FMenuBuilder;
 class FRCBehaviourModel;
 struct FRCPanelStyle;
 class IDetailTreeNode;
@@ -49,6 +50,9 @@ public:
 	/** Color code for this Action. Customized per action type*/
 	virtual FLinearColor GetActionTypeColor() const = 0;
 
+	/** Allows Logic panels to add special functionality to the Context Menu based on context */
+	virtual void AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder);
+
 	/** OnGenerateRow delegate for the Actions List View*/
 	TSharedRef<ITableRow> OnGenerateWidgetForList(TSharedPtr<FRCActionModel> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -58,11 +62,14 @@ public:
 	/** Chooses the appropriate Action model for the current class and field type*/
 	static TSharedPtr<FRCActionModel> GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
 
-	/** Context menu for Actions panel list */
-	virtual TSharedPtr<SWidget> GetContextMenuWidget();
-
 	/** Invoked when this Action item no longer has focus*/
 	virtual void OnSelectionExit();
+
+	/** Returns the Behaviour Item associated with us*/
+	TSharedPtr<FRCBehaviourModel> GetParentBehaviour()
+	{
+		return BehaviourItemWeakPtr.Pin();
+	}
 
 protected:
 	/** The Action (data model) associated with us*/

@@ -231,6 +231,11 @@ bool URCVirtualPropertyBase::CopyCompleteValue(const FProperty* InTargetProperty
 
 }
 
+bool URCVirtualPropertyBase::CopyCompleteValue(URCVirtualPropertyBase* InVirtualProperty)
+{
+	return CopyCompleteValue(InVirtualProperty->GetProperty(), InVirtualProperty->GetValuePtr());
+}
+
 struct FRCVirtualPropertyCastHelpers
 {
 	template<typename TPropertyType, typename TValueType>

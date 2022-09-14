@@ -44,6 +44,9 @@ public:
 	/** Add a Logic action using a remote control field as input */
 	virtual URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
+	/** Duplicates an Action belonging to us into a given target behaviour*/
+	virtual URCAction* DuplicateAction(URCAction* InAction, URCBehaviour* InBehaviour);
+
 	/** Get number of action associated with behaviour */
 	int32 GetNumActions() const;
 

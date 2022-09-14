@@ -66,7 +66,10 @@ public:
 	virtual void Initialize() override;
 
 	/** Execute the behaviour */
-	virtual void Execute() override;	
+	virtual void Execute() override;
+
+	/** Duplicates an Action belonging to us into a given target behaviour*/
+	virtual URCAction* DuplicateAction(URCAction* InAction, URCBehaviour* InBehaviour) override;
 
 	//~ End URCBehaviour interface
 

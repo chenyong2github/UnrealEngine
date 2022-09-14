@@ -2,6 +2,7 @@
 
 #include "Action/RCPropertyAction.h"
 
+#include "Action/RCActionContainer.h"
 #include "Controller/RCController.h"
 #include "IRemoteControlModule.h"
 #include "IRemoteControlPropertyHandle.h"
@@ -16,6 +17,17 @@
 URCPropertyAction::URCPropertyAction()
 {
 	PropertySelfContainer = CreateDefaultSubobject<URCVirtualPropertySelfContainer>(FName("VirtualPropertySelfContainer"));
+}
+
+URCBehaviour* URCAction::GetParentBehaviour()
+{
+	URCActionContainer* ActionContainer = Cast<URCActionContainer>(GetOuter());
+	if (ensure(ActionContainer))
+	{
+		return ActionContainer->GetParentBehaviour();
+	}
+
+	return nullptr;
 }
 
 void URCPropertyAction::Execute() const

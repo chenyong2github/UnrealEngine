@@ -39,7 +39,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 	TSharedPtr<SRCMinorPanel> ControllerDockPanel = SNew(SRCMinorPanel)
 		.HeaderLabel(LOCTEXT("ControllersLabel", "Controller"))
 		[
-			SAssignNew(ControllerPanelList, SRCControllerPanelList, SharedThis(this))
+			SAssignNew(ControllerPanelList, SRCControllerPanelList, SharedThis(this), InPanel)
 		];
 
 	// Add New Controller Button
@@ -131,6 +131,93 @@ void SRCControllerPanel::DeleteSelectedPanelItem()
 	if (ControllerPanelList)
 	{
 		ControllerPanelList->DeleteSelectedPanelItem();
+	}
+}
+
+void SRCControllerPanel::DuplicateSelectedPanelItem()
+{
+	if (ControllerPanelList)
+	{
+		if(TSharedPtr<FRCControllerModel> ControllerItem = ControllerPanelList->GetSelectedControllerItem())
+		{
+			if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
+			{
+				DuplicateController(Controller);
+			}
+		}
+	}
+}
+
+void SRCControllerPanel::CopySelectedPanelItem()
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		if (TSharedPtr<FRCControllerModel> ControllerItem = ControllerPanelList->GetSelectedControllerItem())
+		{
+			if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
+			{
+				RemoteControlPanel->SetLogicClipboardItem(Controller, SharedThis(this));
+			}
+		}
+	}
+}
+
+void SRCControllerPanel::PasteItemFromClipboard()
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		if(RemoteControlPanel->LogicClipboardItemSource == SharedThis(this))
+		{
+			if (URCController* Controller = Cast<URCController>(RemoteControlPanel->GetLogicClipboardItem()))
+			{
+				DuplicateController(Controller);
+			}
+		}
+	}
+}
+
+FText SRCControllerPanel::GetPasteItemMenuEntrySuffix()
+{
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+	{
+		// This function should only have been called if we were the source of the item copied.
+		if (ensure(RemoteControlPanel->LogicClipboardItemSource == SharedThis(this)))
+		{
+			if (URCController* Controller = Cast<URCController>(RemoteControlPanel->GetLogicClipboardItem()))
+			{
+				return FText::Format(FText::FromString("Controller {0}"), FText::FromName(Controller->DisplayName));
+			}
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+TSharedPtr<FRCLogicModeBase> SRCControllerPanel::GetSelectedLogicItem()
+{
+	if (ControllerPanelList)
+	{
+		return ControllerPanelList->GetSelectedControllerItem();
+	}
+
+	return nullptr;
+}
+
+void SRCControllerPanel::DuplicateController(URCController* InController)
+{
+	if (!ensure(InController))
+	{
+		return;
+	}
+
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		if (URCController* NewController = Cast<URCController>(Preset->DuplicateVirtualProperty(InController)))
+		{
+			NewController->SetDisplayIndex(ControllerPanelList->NumControllerItems());
+
+			ControllerPanelList->RequestRefresh();
+		}
 	}
 }
 
@@ -246,7 +333,7 @@ void SRCControllerPanel::OnAddControllerClicked(const EPropertyBagPropertyType I
 
 		if (ControllerPanelList.IsValid())
 		{
-			NewVirtualProperty->DisplayIndex = ControllerPanelList->GetNumControllerItems();
+			NewVirtualProperty->DisplayIndex = ControllerPanelList->NumControllerItems();
 		}
 
 		// Refresh list

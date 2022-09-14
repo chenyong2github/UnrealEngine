@@ -48,6 +48,9 @@ public:
 		ExecuteBehaviours();
 	}
 
+	/** Duplicates an existing behaviour and adds it to the behaviour set of a given Controller */
+	static URCBehaviour* DuplicateBehaviour(URCController* InController, URCBehaviour* InBehaviour);
+
 	/** Delegate that notifies changes to the list of behaviours*/
 	FOnBehaviourListModified OnBehaviourListModified;
 

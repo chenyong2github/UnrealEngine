@@ -232,14 +232,8 @@ FLinearColor FRCPropertyActionType::GetPropertyTypeColor() const
 	return TypeColor;
 }
 
-TSharedPtr<SWidget> FRCActionModel::GetContextMenuWidget()
+void FRCActionModel::AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder)
 {
-	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
-
-	FMenuBuilder MenuBuilder(true, MainFrame.GetMainFrameCommandBindings());
-
-	MenuBuilder.BeginSection("Common");
-
 	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = PanelWeakPtr.Pin())
 	{
 		// 1. Edit (if available)
@@ -247,20 +241,7 @@ TSharedPtr<SWidget> FRCActionModel::GetContextMenuWidget()
 		{
 			EditableVirtualPropertyWidget->AddEditContextMenuOption(MenuBuilder);
 		}
-
-		// 2. Delete
-		if (TSharedPtr<SRCActionPanel> ActionPanelList = RemoteControlPanel->GetLogicActionPanel())
-		{
-			FUIAction Action(FExecuteAction::CreateSP(ActionPanelList.Get(), &SRCActionPanel::DeleteSelectedPanelItem));
-			MenuBuilder.AddMenuEntry(LOCTEXT("ContextMenuEdit", "Delete"),
-				LOCTEXT("ContextMenuEditTooltip", "Delete the selected action"),
-				FSlateIcon(), Action);
-		}
 	}
-
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
 }
 
 void FRCActionModel::OnSelectionExit()

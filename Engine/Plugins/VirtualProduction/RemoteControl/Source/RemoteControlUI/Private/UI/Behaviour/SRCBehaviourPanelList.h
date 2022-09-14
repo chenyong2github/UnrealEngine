@@ -11,6 +11,7 @@ class FRCBehaviourModel;
 class ITableRow;
 class ITableBase;
 class SRCBehaviourPanel;
+class SRemoteControlPanel;
 class STableViewBase;
 class URemoteControlPreset;
 template <typename ItemType> class SListView;
@@ -31,7 +32,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct(const FArguments& InArgs, const TSharedRef<SRCBehaviourPanel> InBehaviourPanel, TSharedPtr<FRCControllerModel> InControllerItem);
+	void Construct(const FArguments& InArgs, const TSharedRef<SRCBehaviourPanel> InBehaviourPanel, TSharedPtr<FRCControllerModel> InControllerItem, const TSharedRef<SRemoteControlPanel> InRemoteControlPanel);
 	
 	/** Returns true if the underlying list is valid and empty. */
 	virtual bool IsEmpty() const override;
@@ -45,7 +46,24 @@ public:
 	/** Deletes currently selected items from the list view*/
 	virtual void DeleteSelectedPanelItem() override;
 
+	/** Returns the UI item currently selected by the user (if any)*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() override
+	{
+		return GetSelectedBehaviourItem();
+	}
+
+	TSharedPtr<FRCBehaviourModel> GetSelectedBehaviourItem()
+	{
+		return SelectedBehaviourItemWeakPtr.Pin();
+	}
+
+	void RequestRefresh();
+
+	virtual void AddNewLogicItem(UObject* InLogicItem) override;
+
 private:
+
+	void AddBehaviourToList(URCBehaviour* InBehaviour);
 
 	/** OnGenerateRow delegate for the Behaviours List View */
 	TSharedRef<ITableRow> OnGenerateWidgetForList( TSharedPtr<FRCBehaviourModel> InItem, const TSharedRef<STableViewBase>& OwnerTable );

@@ -6,8 +6,10 @@
 #include "UI/BaseLogicUI/SRCLogicPanelBase.h"
 
 enum class EPropertyBagPropertyType : uint8;
+class FRCControllerModel;
 struct FRCPanelStyle;
 class SRCControllerPanel;
+class URCController;
 
 /*
 * ~ SRCControllerPanel ~
@@ -33,6 +35,21 @@ public:
 	/** Delete Item UI command implementation for this panel */
 	virtual void DeleteSelectedPanelItem() override;
 
+	/** "Duplicate Item" UI command implementation for Controller panel*/
+	virtual void DuplicateSelectedPanelItem() override;
+
+	/** "Copy Item" UI command implementation for Controller panel*/
+	virtual void CopySelectedPanelItem() override;
+
+	/** "Paste Item" UI command implementation for Controller panel*/
+	virtual void PasteItemFromClipboard() override;
+
+	/** Provides an item suffix for the Paste context menu to provide users with useful context on the nature of the item being pasted */
+	virtual FText GetPasteItemMenuEntrySuffix() override;
+
+	/** Returns the UI item currently selected by the user (if any)*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() override;
+
 	void EnterRenameMode();
 
 protected:
@@ -41,6 +58,8 @@ protected:
 	virtual FReply RequestDeleteAllItems() override;
 
 private:
+	/** Duplicates a given Controller object*/
+	void DuplicateController(URCController* InController);
 
 	/** Builds a menu containing the list of all possible Controllers*/
 	TSharedRef<SWidget> GetControllerMenuContentWidget() const;

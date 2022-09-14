@@ -2,8 +2,10 @@
 
 #include "SRCControllerPanelList.h"
 
+#include "Commands/RemoteControlCommands.h"
 #include "Controller/RCControllerContainer.h"
 #include "IDetailTreeNode.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "IPropertyRowGenerator.h"
 #include "RCControllerModel.h"
 #include "RCVirtualProperty.h"
@@ -157,11 +159,9 @@ private:
 	};
 } 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel)
+void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel, const TSharedRef<SRemoteControlPanel> InRemoteControlPanel)
 {
-	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments());
+	SRCLogicPanelListBase::Construct(SRCLogicPanelListBase::FArguments(), InRemoteControlPanel);
 	
 	ControllerPanelWeakPtr = InControllerPanel;
 	
@@ -172,6 +172,7 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 		.OnSelectionChanged(this, &SRCControllerPanelList::OnTreeSelectionChanged)
 		.OnGenerateRow(this, &SRCControllerPanelList::OnGenerateWidgetForList)
 		.SelectionMode(ESelectionMode::Single) // Current setup supports only single selection (and related display) of a Controller in the list
+		.OnContextMenuOpening(this, &SRCLogicPanelListBase::GetContextMenuWidget)
 		.HeaderRow(
 			SNew(SHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
@@ -207,7 +208,6 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 		RemoteControlPanel->OnEmptyControllers.AddSP(this, &SRCControllerPanelList::OnEmptyControllers);
 
 		Preset->OnVirtualPropertyContainerModified().AddSP(this, &SRCControllerPanelList::OnControllerContainerModified);
-
 	}
 
 	FPropertyRowGeneratorArgs Args;
@@ -217,8 +217,6 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 	Reset();
 }
 
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
 bool SRCControllerPanelList::IsEmpty() const
 {
 	return ControllerItems.IsEmpty();
@@ -226,7 +224,7 @@ bool SRCControllerPanelList::IsEmpty() const
 
 int32 SRCControllerPanelList::Num() const
 {
-	return ControllerItems.Num();
+	return NumControllerItems();
 }
 
 void SRCControllerPanelList::Reset()
@@ -397,7 +395,7 @@ int32 SRCControllerPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InM
 
 bool SRCControllerPanelList::IsListFocused() const
 {
-	return ListView->HasAnyUserFocus().IsSet();
+	return ListView->HasAnyUserFocus().IsSet() || ContextMenuWidgetCached.IsValid();
 }
 
 void SRCControllerPanelList::DeleteSelectedPanelItem()

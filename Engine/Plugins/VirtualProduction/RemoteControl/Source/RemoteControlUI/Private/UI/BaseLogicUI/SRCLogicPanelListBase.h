@@ -12,6 +12,8 @@
 #include "UI/Controller/RCControllerModel.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SRemoteControlPanel;
+
 /*
 * ~ SRCLogicPanelListBase ~
 *
@@ -28,7 +30,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel);
 
 	/** Returns true if the underlying list is valid and empty. */
 	virtual bool IsEmpty() const = 0;
@@ -41,6 +43,18 @@ public:
 
 	/** Deletes currently selected items from the list view*/
 	virtual void DeleteSelectedPanelItem()  = 0;
+
+	/** Returns the UI item currently selected by the user (if any). To be implemented per child panel*/
+	virtual TSharedPtr<FRCLogicModeBase> GetSelectedLogicItem() = 0;
+
+	/** Provides a common entry point for adding Logic related data objects (UObjects) to their repsective panels*/
+	virtual void AddNewLogicItem(UObject* InLogicItem) {}
+
+	/** Builds the right-click context menu populated with generic actions (based on UI Commands) */
+	TSharedPtr<SWidget> GetContextMenuWidget();
+
+	/** Allows Logic panels to add special functionality to the Context Menu based on context */
+	virtual void AddSpecialContextMenuOptions(FMenuBuilder& MenuBuilder) {};
 
 private:
 
@@ -58,6 +72,7 @@ private:
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) = 0;
 
 protected:
+	TWeakPtr<SWidget> ContextMenuWidgetCached;
 
 	/** Helper function for handling common Delete Item functionality across all child panels (Actions/Behaviours/Controllers)
 	* Currently invoked from each Panel List child class with appropriate template class*/
@@ -95,4 +110,7 @@ protected:
 			Reset();
 		}
 	}
+
+	/** The parent Remote Control Panel widget*/
+	TWeakPtr<SRemoteControlPanel> RemoteControlPanelWeakPtr;
 };

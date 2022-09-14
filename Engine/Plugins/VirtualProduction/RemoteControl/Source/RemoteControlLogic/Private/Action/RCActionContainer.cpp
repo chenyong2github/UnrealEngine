@@ -2,6 +2,7 @@
 
 #include "Action/RCActionContainer.h"
 
+#include "Behaviour/RCBehaviour.h"
 #include "Controller/RCController.h"
 #include "IRemoteControlModule.h"
 #include "RCVirtualProperty.h"
@@ -42,9 +43,9 @@ URCAction* URCActionContainer::AddAction(const TSharedRef<const FRemoteControlFi
 }
 
 
-URCAction* URCActionContainer::AddAction(TRCActionUniquenessTest IsUnique, const TSharedRef<const FRemoteControlField> InRemoteControlField)
+URCAction* URCActionContainer::AddAction(TRCActionUniquenessTest InUniquenessTest, const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
-	if (!IsUnique(Actions))
+	if (!InUniquenessTest(Actions))
 	{
 		return nullptr;
 	}
@@ -61,6 +62,11 @@ URCAction* URCActionContainer::AddAction(TRCActionUniquenessTest IsUnique, const
 	}
 
 	return NewAction;
+}
+
+URCBehaviour* URCActionContainer::GetParentBehaviour()
+{
+	return Cast<URCBehaviour>(GetOuter());
 }
 
 URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const FRemoteControlProperty> InRemoteControlProperty)

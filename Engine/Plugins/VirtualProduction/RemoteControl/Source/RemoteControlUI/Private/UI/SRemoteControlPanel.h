@@ -33,11 +33,12 @@ class SClassViewer;
 class SComboButton;
 struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
-class SRemoteControlPanel;
 class SRCActionPanel;
+class SRCLogicPanelBase;
 class SRCPanelDrawer;
 class SRCPanelExposedEntitiesList;
 class SRCPanelFilter;
+class SRemoteControlPanel;
 class SSearchBox;
 class STextBlock;
 class URemoteControlPreset;
@@ -146,6 +147,15 @@ public:
 	TSharedPtr<SRCActionPanel> GetLogicActionPanel()
 	{
 		return ActionPanel;
+	}
+
+	/** For Copy UI command - Sets the logic clipboard item and source */
+	void SetLogicClipboardItem(UObject* InItem, TSharedPtr<SRCLogicPanelBase> SourcePanel);
+
+	/** Fetches the last UI item copied to Logic clipboard by the user */
+	UObject* GetLogicClipboardItem()
+	{
+		return LogicClipboardItem;
 	}
 
 private:
@@ -291,6 +301,24 @@ private:
 
 	/** Called to test if user is able to rename a group/exposed entity. */
 	bool CanRenameEntity() const;
+
+	/** Called when user attempts to Copy a logic UI item. */
+	void CopyItem_Execute();
+
+	/** Called to test if user is able to Copy a logic UI item. */
+	bool CanCopyItem() const;
+
+	/** Called when user attempts to Paste a logic UI item. */
+	void PasteItem_Execute();
+
+	/** Called to test if user is able to Paste a logic UI item. */
+	bool CanPasteItem() const;
+
+	/** Called when user attempts to Duplicate a logic UI item. */
+	void DuplicateItem_Execute();
+
+	/** Called to test if user is able to Duplicate a logic UI item. */
+	bool CanDuplicateItem() const;
 	
 	// Exposed Entities filtering. (Filters the Exposed Entities view)
 	void OnSearchTextChanged(const FText& InFilterText);
@@ -307,7 +335,7 @@ private:
 	void SaveSettings();
 
 	/** Retrieves active logic panel. */
-	TSharedPtr<class SRCLogicPanelBase> GetActiveLogicPanel() const;
+	TSharedPtr<SRCLogicPanelBase> GetActiveLogicPanel() const;
 
 private:
 	static const FName DefaultRemoteControlPanelToolBarName;
@@ -394,6 +422,14 @@ private:
 	/** Action panel UI widget for Remote Control Logic*/
 	TSharedPtr<class SRCActionPanel> ActionPanel;
 
+	/** LogicClipboardItem - Holds the latest item copied from a Logic panel
+	* 
+	* Note: We track UObjects (Data Model) here rather than the UI Models as the latter are swept away the moment the user navigates to a different Controller.
+	* For example if the user copies an action from a behaviour in a given Controller but then navigates to another Controller, we can no longer rely on the previous UI objects
+	* as they would have been discarded in favor of a new data set for the actively selected Controller */
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> LogicClipboardItem;
+
 public:
 
 	static const float MinimumPanelWidth;
@@ -406,4 +442,7 @@ public:
 	FOnEmptyControllers OnEmptyControllers;
 	FOnEmptyBehaviours OnEmptyBehaviours;
 	FOnEmptyActions OnEmptyActions;
+
+	/** The panel from which the latest Logic UI item was copied*/
+	TSharedPtr<SRCLogicPanelBase> LogicClipboardItemSource;
 };

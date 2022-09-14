@@ -18,7 +18,8 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(cons
 	const FName PropertyName = GenerateUniquePropertyName(InPropertyName, InValueType, InValueTypeObject, this);
 	Bag.AddProperty(PropertyName, InValueType, InValueTypeObject);
 
-	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(InPropertyName);
+	// Ensure that the property has been succcefully added to the Bag
+	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(PropertyName);
 	if (!ensure(BagPropertyDesc))
 	{
 		return nullptr;
@@ -39,8 +40,9 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(cons
 
 URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicateProperty(const FName& InPropertyName, const FProperty* InSourceProperty, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass)
 {
+	// Ensure that the property being duplicated is not already a part of the Bag (not to be confused with a similar looking ensure performed above in AddProperty, this is the exact inverse!)
 	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(InPropertyName);
-	if (ensure(!BagPropertyDesc))
+	if (!ensure(!BagPropertyDesc))
 	{
 		return nullptr;
 	}
@@ -78,6 +80,31 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicatePropert
 	ensure(Bag.SetValue(InPropertyName, InSourceProperty, InSourceContainerPtr) == EPropertyBagResult::Success);
 
 	return VirtualPropertyInContainer;
+}
+
+URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicateVirtualProperty(URCVirtualPropertyInContainer* InVirtualProperty)
+{
+	if (URCVirtualPropertyInContainer* NewVirtualProperty = DuplicateObject<URCVirtualPropertyInContainer>(InVirtualProperty, InVirtualProperty->GetOuter()))
+	{
+		NewVirtualProperty->PropertyName = GenerateUniquePropertyName(InVirtualProperty->PropertyName, this);
+
+		// Sync Property Bag
+		Bag.AddProperty(NewVirtualProperty->PropertyName, InVirtualProperty->GetProperty());
+
+		// Ensure that the property has been successfully added to the Bag
+		const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(NewVirtualProperty->PropertyName);
+		if (!ensure(BagPropertyDesc))
+		{
+			return nullptr;
+		}
+
+		// Sync Virtual Properties List
+		VirtualProperties.Add(NewVirtualProperty);
+
+		return NewVirtualProperty;
+	}
+
+	return nullptr;
 }
 
 bool URCVirtualPropertyContainerBase::RemoveProperty(const FName& InPropertyName)
@@ -162,6 +189,17 @@ TSharedPtr<FStructOnScope> URCVirtualPropertyContainerBase::CreateStructOnScope(
 
 FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject, const URCVirtualPropertyContainerBase* InContainer)
 {
+	FName BaseName = InPropertyName;
+	if (BaseName.IsNone())
+	{
+		BaseName = URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(InValueType, InValueTypeObject);
+	}
+
+	return GenerateUniquePropertyName(BaseName, InContainer);
+}
+
+FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& InPropertyName, const URCVirtualPropertyContainerBase* InContainer)
+{
 	auto GetFinalName = [](const FString& InPrefix, const int32 InIndex = 0)
 	{
 		FString FinalName = InPrefix;
@@ -174,13 +212,10 @@ FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& I
 		return FinalName;
 	};
 
-
-	FName DefaultName = URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(InValueType, InValueTypeObject);
-	
 	int32 Index = 0;
-	const FString InitialName = InPropertyName.IsNone() ? DefaultName.ToString() : InPropertyName.ToString();
+	const FString InitialName = InPropertyName.ToString();
 	FString FinalName = InitialName;
-	
+
 	// Recursively search for an available name by incrementing suffix till we find one.
 	const FPropertyBagPropertyDesc* PropertyDesc = InContainer->Bag.FindPropertyDescByName(*FinalName);
 	while (PropertyDesc)
