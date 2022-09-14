@@ -95,7 +95,11 @@ bool UInterchangeStaticMeshFactoryNode::GetCustomBuildNanite(bool& AttributeValu
 
 bool UInterchangeStaticMeshFactoryNode::SetCustomBuildNanite(const bool& AttributeValue, bool bAddApplyDelegate /*= true*/)
 {
+#if WITH_EDITORONLY_DATA
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeStaticMeshFactoryNode, BuildNanite, bool);
+#else
+	return false;
+#endif
 }
 
 int32 UInterchangeStaticMeshFactoryNode::GetSocketUidCount() const

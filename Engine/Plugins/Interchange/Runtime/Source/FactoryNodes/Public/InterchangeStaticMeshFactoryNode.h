@@ -207,7 +207,9 @@ private:
 
 protected:
 	
+#if WITH_EDITORONLY_DATA
 	IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(BuildNanite, bool, UStaticMesh, TEXT("NaniteSettings.bEnabled"));
+#endif
 
 	bool ApplyCustomBuildReversedIndexBufferToAsset(UObject* Asset) const;
 	bool FillCustomBuildReversedIndexBufferFromAsset(UObject* Asset);
