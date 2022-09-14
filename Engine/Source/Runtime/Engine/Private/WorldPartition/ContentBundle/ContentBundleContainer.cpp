@@ -56,7 +56,7 @@ void FContentBundleContainer::Initialize()
 
 #if WITH_EDITOR
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
-	//WorldPartition->OnPreGenerateStreaming.AddRaw(this, &FContentBundleContainer::OnPreGenerateStreaming); // PHILTODO
+	WorldPartition->OnPreGenerateStreaming.AddRaw(this, &FContentBundleContainer::OnPreGenerateStreaming);
 #endif
 }
 
@@ -66,7 +66,7 @@ void FContentBundleContainer::Deinitialize()
 
 #if WITH_EDITOR
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
-	//WorldPartition->OnPreGenerateStreaming.RemoveAll(this);
+	WorldPartition->OnPreGenerateStreaming.RemoveAll(this);
 #endif
 
 	UnregisterContentBundleClientEvents();
