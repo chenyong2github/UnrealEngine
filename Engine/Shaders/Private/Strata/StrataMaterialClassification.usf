@@ -102,6 +102,20 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsOpaqueRoughRefraction = OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled > 0.0f;
 	#endif
 
+		uint OptimisedLegacyMode = ((PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT)) & HEADER_SINGLE_OPTLEGACYMODE_BIT_MASK);
+		if (bIsSingle && OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP)
+		{
+			bContainsScreenSpaceSubsurfaceScattering = true;
+
+			const uint PackedSSSWOpacity7bits = (PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) & 0x7F;
+
+			FStrataSubsurfaceHeader SSSHeader = (FStrataSubsurfaceHeader)0;
+			StrataSubSurfaceHeaderSetSSSType(SSSHeader, SSS_TYPE_WRAP);
+			StrataSubSurfaceHeaderSetWrapOpacity(SSSHeader, UnpackR7(PackedSSSWOpacity7bits));
+
+			StrataStoreSubsurfaceHeader(MaterialTextureArrayUAV, FirstSliceStoringStrataSSSData, PixelCoord, SSSHeader.Bytes);
+		}
+
 		// Fine grain test for clearing based on CMask data
 	#if PERMUTATION_CMASK
 		// Fine grain check if clear is needed

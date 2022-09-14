@@ -39,7 +39,7 @@
 // The thin lighting model is used when the thickness becomes strictly lower than 0.1 millimeter
 #define STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM 0.01f
 
-#define STRATA_BASE_PASS_MRT_OUTPUT_COUNT	2
+#define STRATA_BASE_PASS_MRT_OUTPUT_COUNT	3
 
 #define STRATA_SSS_DATA_UINT_COUNT		2
 

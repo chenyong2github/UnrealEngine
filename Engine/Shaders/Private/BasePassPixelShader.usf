@@ -1643,6 +1643,7 @@ void FPixelShaderInOut_MainPS(
 		// Generate the strata material data to write out
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
 		FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(StrataStruct.MaterialTextureArrayUAVWithoutRTs);
+		bool bForceSkipSSSData = false;
 		PackStrataOut(
 			RWStrataMaterialContainer,
 			StrataStruct.MaterialTextureArrayUAVWithoutRTs,
@@ -1650,7 +1651,7 @@ void FPixelShaderInOut_MainPS(
 			Settings,
 			StrataAddressing,
 			StrataPixelHeader, StrataData, MaterialParameters.CameraVector, WorldBentNormal0, bStrataSubsurfaceEnable, EmissiveLuminance,
-			SSSData, TopLayerData, OpaqueRoughRefractionData
+			SSSData, TopLayerData, OpaqueRoughRefractionData, bForceSkipSSSData
 	#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 			,MaterialParameters
 			,Interpolants
@@ -1661,12 +1662,13 @@ void FPixelShaderInOut_MainPS(
 		);
 
 		// Write out MRT data
-	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 2
+	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 3
 	#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been update but not StrataOutput
 	#endif
 		Out.StrataOutput[0] = RWStrataMaterialContainer.MaterialRenderTargets[0];
 		Out.StrataOutput[1] = RWStrataMaterialContainer.MaterialRenderTargets[1];
-		Out.StrataOutput[2] = StrataPackTopLayerData(TopLayerData);
+		Out.StrataOutput[2] = RWStrataMaterialContainer.MaterialRenderTargets[2];
+		Out.StrataOutput[3] = StrataPackTopLayerData(TopLayerData);
 	#if STRATA_OUTPUT_ROUGH_REFRACTION
 		OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = true; // As long as we output to rough refraction, we want it to be enabled for the tiling process.
 	#if STRATA_USES_CONVERSION_FROM_LEGACY
@@ -1685,7 +1687,7 @@ void FPixelShaderInOut_MainPS(
 
 		// Only write SSS data if needed
 		BRANCH
-		if(StrataSubSurfaceHeaderGetIsValid(SSSData.Header))
+		if(!bForceSkipSSSData && StrataSubSurfaceHeaderGetIsValid(SSSData.Header))
 		{
 			StrataStoreSubsurfaceHeader(StrataStruct.MaterialTextureArrayUAVWithoutRTs, StrataStruct.FirstSliceStoringStrataSSSDataWithoutMRT, PixelPos, SSSData.Header.Bytes);
 			if (StrataSubSurfaceHeaderHasExtras(SSSData.Header))

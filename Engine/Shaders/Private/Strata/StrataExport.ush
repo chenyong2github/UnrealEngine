@@ -110,7 +110,8 @@ void PackStrataOut(
 	inout float3 EmissiveColor,
 	inout FStrataSubsurfaceData SSSData,
 	inout FStrataTopLayerData TopLayerData,
-	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData
+	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData,
+	inout bool bForceSkipSSSData
 #if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 	,
 	in FMaterialPixelParameters MaterialParameters,
@@ -163,6 +164,7 @@ void PackStrataOut(
 			OpaqueRoughRefractionData.VarianceCm = StandardDeviationCmForThickness * StandardDeviationCmForThickness;
 		}
 
+		uint OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_NONE;
 		bool bIsSimpleMaterial = true;
 		bool bIsSingleMaterial = true;
 		bool bIsOnlySlab = true;
@@ -221,7 +223,6 @@ void PackStrataOut(
 
 						const bool bSSSMask = BSDF.bIsBottom;	// SSS and Thin can only be on the bottom layer, so ignoring bIsSimpleVolume here.
 						SetHasSubsurface(StrataPixelHeader, (bSSSMask && bHasSSS));
-
 						break;
 					}
 
@@ -302,6 +303,61 @@ void PackStrataOut(
 			bIsSimpleMaterial = bIsSimpleMaterial && BSDFVisibleCount == 1;
 			bIsSingleMaterial = bIsSingleMaterial && BSDFVisibleCount == 1;
 			SetMaterialMode(StrataPixelHeader, bIsSimpleMaterial ? HEADER_MATERIALMODE_SLAB_SIMPLE : bIsSingleMaterial ? HEADER_MATERIALMODE_SLAB_SINGLE : HEADER_MATERIALMODE_SLAB_COMPLEX);
+
+			if (bIsSingleMaterial)
+			{
+			#define BSDF StrataTree.BSDFs[0]
+				const uint SingleHasHaziness		= 0x01;
+				const uint SingleHasClearCoat		= 0x02;
+				const uint SingleHasCloth			= 0x04;
+				const uint SingleIsThin				= 0x08;
+				const uint SingleIsSimpleVolume		= 0x10;
+				const uint SingleIsWrap				= 0x20;
+				// No need to add anisotropy since it is not supported by the simple mode.
+
+				uint OptimisedModeMask = 0;
+				if (BSDF_GETHASHAZINESS(BSDF))
+				{
+					OptimisedModeMask |= SingleHasHaziness; // Regular haziness should disable non haziness/clearcoat fast path
+
+					FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
+					if (Haziness.bSimpleClearCoat)
+					{
+						OptimisedModeMask |= SingleHasClearCoat;
+					}
+				}
+				if (BSDF_GETHASFUZZ(BSDF))
+				{
+					OptimisedModeMask |= SingleHasCloth;
+				}
+				if (BSDF_GETISTHIN(BSDF))
+				{
+					OptimisedModeMask |= SingleIsThin;
+				}
+				if (BSDF_GETISSIMPLEVOLUME(BSDF))
+				{
+					OptimisedModeMask |= SingleIsSimpleVolume;
+				}
+				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_WRAP)
+				{
+					OptimisedModeMask |= SingleIsWrap;
+				}
+
+				if (((OptimisedModeMask & SingleHasClearCoat) == SingleHasClearCoat) || ((OptimisedModeMask & SingleHasClearCoat) == (SingleHasHaziness | SingleHasClearCoat)))
+				{
+					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_CLEARCOAT;
+				}
+				else if ((OptimisedModeMask & SingleHasCloth) == SingleHasCloth)
+				{
+					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_CLOTH;
+				}
+				else if ((OptimisedModeMask & SingleIsWrap) == SingleIsWrap)
+				{
+					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP;
+					bForceSkipSSSData = true;
+				}
+			#undef BSDF
+			}
 		}
 
 		// Now evaluate Specular Occlusion and Indirect Irradiance.
@@ -456,9 +512,93 @@ void PackStrataOut(
 						// Data0 (Header_State|Header_AO|Header_BSDFTypes|BSDF_State)
 						uint Out = 0;
 						HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
+
 						Out = Out & HEADER_SINGLEENCODING_MASK;
-						Out = Out | ((BSDF.State & BSDF_SINGLEENCODING_MASK) << HEADER_SINGLEENCODING_BIT_COUNT);
-						STRATA_STORE_UINT1(Out);
+						Out = Out | ((OptimisedLegacyMode & HEADER_SINGLE_OPTLEGACYMODE_BIT_MASK)	<< (HEADER_SINGLEENCODING_BIT_COUNT));
+
+						BRANCH
+						if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_NONE)
+						{
+							Out = Out | ((BSDF.State & BSDF_SINGLEENCODING_MASK) << (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT));
+							STRATA_STORE_UINT1(Out);
+						}
+						// With this special path, there is 32-8-8-3= 13bits available for packing on the header.
+						// Because we use 3 UINT MRT, this means that a total of 13+32+32 = 77 bits.
+						else if(OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_CLEARCOAT)
+						{
+							const uint PackedDiffuse20Bits	= PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF), Dither);
+							const uint PackedF024Bits		= PackRGBA8(float4(SLAB_F0(BSDF), 0.0f));
+							const uint PackedClearCoat16Bits= SLAB_HAZINESS(BSDF);
+							const uint PackedRoughness8Bits = PackR8(SLAB_ROUGHNESS(BSDF));
+
+							// MRT0 
+							#if (32 - (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) < 8
+							#error Not Enough space to store roughness in Slab - Single - Header.
+							#endif
+							STRATA_STORE_UINT1(Out					| ((PackedRoughness8Bits & 0xFF) << 24));
+							// MRT1 20 PackedDiffuse and 8 high bits from PackedClearCoat
+							STRATA_STORE_UINT1(PackedDiffuse20Bits	| ((PackedClearCoat16Bits & 0xFF00) << 12));
+							// MRT2 24 PackedF0      and 8 low  bits from PackedClearCoat
+							STRATA_STORE_UINT1(PackedF024Bits		| (PackedClearCoat16Bits << 24));
+
+							// Ensure the rest of the BSDF is not stored with the regular path
+							BSDF.State = 0;
+						}
+						else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_CLOTH)
+						{
+							const uint PackedDiffuse20Bits	= PackR7G7B6Gamma2(	SLAB_DIFFUSEALBEDO(BSDF)	, Dither);
+							const uint PackedF020Bits		= PackR7G7B6Gamma2(	SLAB_F0(BSDF)				, Dither);
+							const uint PackedFuzzColor20bits= PackR7G7B6Gamma2(	SLAB_FUZZ_COLOR(BSDF)		, Dither);
+							const uint PackedFuzzAmount8bits= PackR8(			SLAB_FUZZ_AMOUNT(BSDF));
+							// Roughness is stored in the TopLayer texture.
+
+							// MRT0 
+							#if (32 - (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) < 8
+							#error Not Enough space to store fuzz amount in slab in Slab - Single - Header.
+							#endif
+							STRATA_STORE_UINT1(Out					| ((PackedFuzzAmount8bits & 0xFF) << (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)));
+							// MRT1 20 PackedDiffuse and 8 high bits from PackedClearCoat
+							STRATA_STORE_UINT1(PackedDiffuse20Bits	| ((PackedFuzzColor20bits & 0xFFC00) << 10));
+							// MRT2 24 PackedF0      and 8 low  bits from PackedClearCoat
+							STRATA_STORE_UINT1(PackedF020Bits		| ((PackedFuzzColor20bits & 0x3FF) << 20));
+
+							// Ensure the rest of the BSDF is not stored with the regular path
+							BSDF.State = 0;
+						}
+						else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP)
+						{
+							const float SSSWOpacity = StrataSubSurfaceGetWrapOpacityFromAnisotropy(SLAB_SSSPHASEANISOTROPY(BSDF));
+
+							const uint PackedDiffuse20Bits		= PackR7G7B6Gamma2(	SLAB_DIFFUSEALBEDO(BSDF)	, Dither);
+							const uint PackedF020Bits			= PackR7G7B6Gamma2(	SLAB_F0(BSDF)				, Dither);
+							const uint PackedSSSWOpacity7bits	= PackR7(			SSSWOpacity					, 0.5);	// We should not dither here because it would have a large scale effect.
+							const uint PackedSSSMFP30bits		= PackR10G10B10F(	SLAB_SSSMFP(BSDF));
+							// Roughness is stored in the TopLayer texture.
+
+							const uint PackedSSSMFP12BitsA = (PackedSSSMFP30bits      ) & 0xFFF; // 12 lower bits
+							const uint PackedSSSMFP12BitsB = (PackedSSSMFP30bits >> 12) & 0xFFF; // next 12 lower bits
+							const uint PackedSSSMFP6BitsC  = (PackedSSSMFP30bits >> 24) & 0x03F; // 6 higher bits
+
+							// MRT0 
+							#if (32 - (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) < (7+6)
+							#error Not Enough space to store wrapped SSS opacity in slab in Slab - Single - Header.
+							#endif
+							STRATA_STORE_UINT1(Out					| ((PackedSSSWOpacity7bits & 0x7F) << (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) | (PackedSSSMFP6BitsC << (7 + HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)));
+							// MRT1 20 PackedDiffuse and 8 high bits from PackedClearCoat
+							STRATA_STORE_UINT1(PackedDiffuse20Bits  | (PackedSSSMFP12BitsA << 20));
+							// MRT2 24 PackedF0      and 8 low  bits from PackedClearCoat
+							STRATA_STORE_UINT1(PackedF020Bits		| (PackedSSSMFP12BitsB << 20));
+
+							// Ensure the rest of the BSDF is not stored with the regular path
+							BSDF.State = 0;
+						}
+						// else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_xxx)
+						//
+						// STRATA_TODO
+						// - Fast cloth
+						// - Fast subsurface
+						// - Fast diffusion with profile
+						// - Anisotropy as an option for Disney and clear coat as for current UE5?
 
 						#if (HEADER_SIMPLEENCODING_BIT_COUNT) > 32
 						#error Strata fast path header is > 32bits
@@ -539,7 +679,7 @@ void PackStrataOut(
 					}
 
 					// Layout1 & Layout2
-					if (!bFastEncodedBSDF && !bHasFastWaterEncoding)
+					if (!bFastEncodedBSDF && !bHasFastWaterEncoding && OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_NONE)
 					{
 						const uint BSDFType = BSDF_GETTYPE(BSDF);
 						switch (BSDF_GETTYPE(BSDF))
@@ -578,7 +718,7 @@ void PackStrataOut(
 									StrataSubSurfaceHeaderSetSSSType(SSSData.Header, BSDF_GETSSSTYPE(BSDF));
 									if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_WRAP)
 									{
-										StrataSubSurfaceHeaderSetWrap(SSSData.Header, SLAB_SSSMFP(BSDF), SLAB_SSSPHASEANISOTROPY(BSDF));
+										StrataSubSurfaceHeaderSetWrap(SSSData.Header, SLAB_SSSPHASEANISOTROPY(BSDF));
 									}
 									else if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 									{

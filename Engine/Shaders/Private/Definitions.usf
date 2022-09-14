@@ -50,6 +50,10 @@
 #define MATERIALBLENDING_ALPHAHOLDOUT					0
 #endif
 
+#ifndef MATERIAL_IS_STRATA
+#define MATERIAL_IS_STRATA								0
+#endif
+
 #ifndef STRATA_BLENDING_OPAQUE
 #define STRATA_BLENDING_OPAQUE							0
 #endif

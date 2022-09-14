@@ -169,7 +169,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 
 			Print(Context, TEXT("Slab "), FontBSDFType);
 			Newline(Context, RectMax);
-			Print(Context, TEXT(" NormalID Aniso TopLayer Scattering SingleScatt. IsThin WeightV "), FontBSDFStateName);
+			Print(Context, TEXT(" NormalID Aniso TopLayer Scattering SimpleVolume IsThin WeightV "), FontBSDFStateName);
 			if (!bGreyWeightV)
 			{
 				Print(Context, TEXT("           "), FontBSDFStateName);
@@ -441,6 +441,24 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		Print(Context, TEXT("BSDF"), FontBSDFCount);
 		Print(Context, TEXT(" - "), FontWhite);
 		PrintPixelType(Context, Header, FontLightRed);
+		if (bIsSingleMaterial)
+		{
+		#if STRATA_DEFERRED_SHADING
+			uint OptimisedLegacyMode = (Header.SharedLocalBasesTypes_PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT)) & HEADER_SINGLE_OPTLEGACYMODE_BIT_MASK;
+			if (OptimisedLegacyMode ==SINGLE_OPTLEGACYMODE_CLEARCOAT)
+			{
+				Print(Context, TEXT(" - Legecy Clear-Coat"), FontLightRed);
+			}
+			else if (OptimisedLegacyMode ==SINGLE_OPTLEGACYMODE_CLOTH)
+			{
+				Print(Context, TEXT(" - Legecy Cloth"), FontLightRed);
+			}
+			else if (OptimisedLegacyMode ==SINGLE_OPTLEGACYMODE_SSSWRAP)
+			{
+				Print(Context, TEXT(" - Legecy SSS-Wrap"), FontLightRed);
+			}		
+		#endif
+		}
 		Newline(Context, RectMax);
 
 		Print(Context, TEXT(" AO    IndIrr TopRoughness PreShadow ZeroShadow ContacShadow Ind.Occluder HasSSS"), FontHeaderStateName);
@@ -492,7 +510,7 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		const bool bHasSSSData = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 
 		const uint TopLayerDataBytes = 4;	// bytes 
-		const uint SSSDataBytes = 8;	    // bytes 
+		const uint SSSDataBytes = 8; // bIsSingleMaterial&& ? 0 : 8;	    // bytes  TODO accessor to OPT mode
 
 		const uint HeaderSize =  FootPrint_PostHeader - FootPrint_Start;
 		const uint BSDFsSize  =  FootPrint_PostBSDFs - FootPrint_PostHeader;
