@@ -4,6 +4,7 @@
 #include "ConstraintsManager.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneBoundObjectInstantiator.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
 
