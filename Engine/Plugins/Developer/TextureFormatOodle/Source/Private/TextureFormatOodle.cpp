@@ -1119,11 +1119,8 @@ public:
 		// for BC6 we just leave that alone
 		// for all others we must convert to 8 bit to get Gamma correction
 		
-		EGammaSpace Gamma = InBuildSettings.GetDestGammaSpace();		
-		// note in unreal if Gamma == Pow22 due to legacy Gamma,
-		//	we still want to encode to sRGB
-		// (CopyTo does that even without this change, but let's make it explicit)
-		if ( Gamma == EGammaSpace::Pow22 ) Gamma = EGammaSpace::sRGB;
+		// Dest Gamma is either sRGB or Linear, never Pow22
+		EGammaSpace Gamma = InBuildSettings.GetDestGammaSpace();
 
 		if ( ( OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U || OodleBCN == OodleTex_BC6U ) &&
 			Gamma != EGammaSpace::Linear )
