@@ -648,10 +648,11 @@ void FWidget::DrawColoredSphere(FPrimitiveDrawInterface* PDI, const FVector& Cen
 	MeshBuilder.Draw(PDI, FScaleMatrix(Radii) * FRotationMatrix(Orientation) * FTranslationMatrix(Center), MaterialRenderProxy, DepthPriority, bDisableBackfaceCulling);
 }
 //CVAR for the arcball size, so animators can adjust it
+//DEPRECRATREDin 5.1, since changing the size will cause hit test problems.
 static TAutoConsoleVariable<float> CVarArcballSize(
 	TEXT("r.Editor.ArcballSize"),
 	1.0,
-	TEXT("Custom Size of the Arcball, size of 1.0 means same size as gizmo)"),
+	TEXT("DEPRECRATED in 5.1)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -702,7 +703,7 @@ void FWidget::Render_Rotate( const FSceneView* View,FPrimitiveDrawInterface* PDI
 		{
 			FVector Center = InLocation;
 			FRotator Orientation = FRotator::ZeroRotator;
-			const float ArcballSize = CVarArcballSize.GetValueOnGameThread();
+			const float ArcballSize = 1.0f; //always constant, otherwise can cause hit testing issues
 
 			const float InnerDistance = (INNER_AXIS_CIRCLE_RADIUS * ArcballSize * Scale) + GetDefault<ULevelEditorViewportSettings>()->TransformWidgetSizeAdjustment;
 			FVector Radii(InnerDistance, InnerDistance, InnerDistance);
