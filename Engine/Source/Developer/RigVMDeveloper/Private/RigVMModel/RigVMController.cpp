@@ -8564,6 +8564,11 @@ bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSi
 		AddedPins++;
 	}
 
+	if (!InDefaultValue.IsEmpty() && InDefaultValue != TEXT("()"))
+	{
+		SetPinDefaultValue(Pin, InDefaultValue, false, bSetupUndoRedo, true, !bSuspendNotifications);
+	}
+
 	if (bSetupUndoRedo)
 	{
 		if (RemovedPins > 0 || AddedPins > 0)
