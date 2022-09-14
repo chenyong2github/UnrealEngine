@@ -18,6 +18,7 @@ void FGlobalLLTModule::GlobalSetup()
 {
 	InitTaskGraph();
 	InitThreadPool(true);
+	InitPlatformFile();
 #if WITH_COREUOBJECT
 	InitCoreUObject();
 #endif

@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformOutputDevices.h"
+#include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Logging/LogSuppressionInterface.h"
 #include "Misc/CommandLine.h"
@@ -104,4 +106,10 @@ void CleanupTaskGraphAndDependencies()
 void CleanupPlatform()
 {
 	FPlatformMisc::PlatformTearDown();
+}
+
+void InitPlatformFile()
+{
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	PlatformFile.InitializeAfterProjectFilePath();
 }
