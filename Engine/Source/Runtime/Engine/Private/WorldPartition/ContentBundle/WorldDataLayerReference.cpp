@@ -61,7 +61,7 @@ const AWorldDataLayers* FWorldDataLayersReference::Get() const
 		const FWorldPartitionReference& WorldDataLayerReference = WorldDataLayersVariant.Get<FWorldPartitionReference>();
 		if (WorldDataLayerReference.IsValid())
 		{
-			return CastChecked<AWorldDataLayers>(WorldDataLayerReference->GetActor());
+			return Cast<AWorldDataLayers>(WorldDataLayerReference->GetActor());
 		}
 		return nullptr;
 	}
