@@ -3,6 +3,14 @@
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
 
+float GLumenSkylightLeakingRoughness = 0.3f;
+FAutoConsoleVariableRef CVarLumenSkylightLeakingRoughness(
+	TEXT("r.Lumen.SkylightLeaking.Roughness"),
+	GLumenSkylightLeakingRoughness,
+	TEXT("Roughness used to sample the skylight leaking cubemap.  A value of 0 gives no prefiltering of the skylight leaking, while larger values can be useful to hide sky features in the leaking."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -65,6 +73,7 @@ void GetLumenCardTracingParameters(
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 	
 	TracingParameters.SkylightLeaking = View.FinalPostProcessSettings.LumenSkylightLeaking;
+	TracingParameters.SkylightLeakingRoughness = GLumenSkylightLeakingRoughness;
 	TracingParameters.InvFullSkylightLeakingDistance = 1.0f / FMath::Clamp<float>(View.FinalPostProcessSettings.LumenFullSkylightLeakingDistance, .1f, Lumen::GetMaxTraceDistance(View));
 
 	// GPUScene

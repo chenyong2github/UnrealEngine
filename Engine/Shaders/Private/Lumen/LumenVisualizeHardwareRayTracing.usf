@@ -544,6 +544,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 			Result.Radiance = TraceResult.Lighting;
 		}
 
+		//Result.Radiance += GetSkylightLeaking(Ray.Direction, Result.TraceHitDistance);
+
 		Result.Radiance *= View.PreExposure;
 
 		// The overview outputs after the tonemapper to overwrite editor primitives and must apply its own tonemapping

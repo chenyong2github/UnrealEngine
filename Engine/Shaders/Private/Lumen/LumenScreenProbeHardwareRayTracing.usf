@@ -237,9 +237,9 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		{
 			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * Result.TraceHitDistance;
 			bMoving = IsTraceMoving(TranslatedWorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition, Result.WorldVelocity);
-
-			Result.Radiance += GetSkylightLeaking(Ray.Direction, TraceHitDistance);
 		}
+
+		Result.Radiance += GetSkylightLeaking(Ray.Direction, TraceHitDistance);
 
 		RWTraceRadiance[ScreenProbeTraceCoord] = Result.Radiance * View.PreExposure;
 		RWTraceHit[ScreenProbeTraceCoord] = EncodeProbeRayDistance(min(Result.TraceHitDistance, MaxTraceDistance), Result.bIsHit, bMoving);

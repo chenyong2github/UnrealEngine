@@ -219,6 +219,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 #endif // DIM_PACK_TRACE_DATA
 
 #if DIM_WRITE_FINAL_LIGHTING
+		Result.Radiance += GetSkylightLeaking(Ray.Direction, Result.TraceHitDistance);
 		Result.Radiance *= View.PreExposure;
 
 		float MaxLighting = max3(Result.Radiance.x, Result.Radiance.y, Result.Radiance.z);

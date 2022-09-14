@@ -124,6 +124,7 @@ void VisualizeQuadsCS(
 	ApplySkylightToTraceResult(CameraVector, TraceResult);
 #endif
 
+	//TraceResult.Lighting += GetSkylightLeaking(CameraVector, TraceResult.OpaqueHitDistance);
 	TraceResult.Lighting *= View.PreExposure;
 
 	float4 FinalColor = 0.0f;

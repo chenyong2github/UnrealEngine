@@ -122,6 +122,8 @@ void ReflectionTraceScreenTexturesCS(
 
 			bHit = bHit && !bUncertain;
 
+			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), HitUVz)), MaxTraceDistance);
+
 			if (bHit)
 			{
 				float2 HitScreenUV = HitUVz.xy;
@@ -164,6 +166,8 @@ void ReflectionTraceScreenTexturesCS(
 					HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
 					float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
+					Lighting += GetSkylightLeaking(RayData.Direction, HitDistance) * View.PreExposure;
+
 					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
 
 					if (MaxLighting > MaxRayIntensity)
@@ -179,7 +183,6 @@ void ReflectionTraceScreenTexturesCS(
 				}
 			}
 
-			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), HitUVz)), MaxTraceDistance);
 			RWTraceHit[ReflectionTracingCoord.CoordFlatten] = EncodeRayDistance(HitDistance, bHit);
 		}
 	}
@@ -453,6 +456,8 @@ void TraceMeshSDFs(
 
 	Transparency = lerp(Transparency, 1, DistanceFade);
 
+	Lighting += GetSkylightLeaking(RayData.Direction, OpaqueHitDistance) * View.PreExposure;
+
 	float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
 
 	if (MaxLighting > MaxRayIntensity)
@@ -577,6 +582,8 @@ void TraceVoxels(
 			ApplySkylightToTraceResult(RayData.Direction, TraceResult);
 		}
 	}
+
+	TraceResult.Lighting += GetSkylightLeaking(RayData.Direction, TraceResult.OpaqueHitDistance);
 
 	TraceResult.Lighting *= View.PreExposure;
 	float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
