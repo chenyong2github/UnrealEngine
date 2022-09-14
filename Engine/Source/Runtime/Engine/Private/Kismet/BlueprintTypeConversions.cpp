@@ -74,9 +74,11 @@ ConversionFunctionT FindConversionFunction(const FProperty* InFromProperty, cons
 		const UScriptStruct* InFromStruct = InFromStructProperty->Struct;
 		const UScriptStruct* InToStruct = InToStructProperty->Struct;
 
-		TOptional<ConversionFunctionPairT> ConversionPair = FStructConversionTable::Get().GetConversionFunction(InFromStruct, InToStruct);
-		check(ConversionPair.IsSet());
-		Result = ConversionPair->Get<0>();
+		// Only core struct types will have a specialized conversion function (eg: FVector)
+		if (TOptional<ConversionFunctionPairT> ConversionPair = FStructConversionTable::Get().GetConversionFunction(InFromStruct, InToStruct))
+		{
+			Result = ConversionPair->Get<0>();
+		}
 	}
 
 	return Result;
