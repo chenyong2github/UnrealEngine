@@ -146,7 +146,7 @@ namespace UE::PoseSearch
 			}
 			default:
 			{
-				Name = LOCTEXT("Default", "Default");
+				Name = FText::FromString(Database->GetName());
 				break;
 			}
 			}

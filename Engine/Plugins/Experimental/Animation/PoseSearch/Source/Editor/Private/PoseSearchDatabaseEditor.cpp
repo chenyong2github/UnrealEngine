@@ -514,6 +514,25 @@ namespace UE::PoseSearch
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					SelectionReflections[BlendSpaceSelectionIndex].Add(NewSelectionReflection);
 				}
+				else
+				{
+					UPoseSearchDatabaseReflection* NewSelectionReflection =
+						NewObject<UPoseSearchDatabaseReflection>();
+					NewSelectionReflection->AddToRoot();
+
+					const FPoseSearchIndex* SearchIndex = GetPoseSearchDatabase()->GetSearchIndex();
+					if (SearchIndex)
+					{
+						NewSelectionReflection->SearchIndex = *SearchIndex;
+					}
+					else
+					{
+						NewSelectionReflection->SearchIndex = FPoseSearchIndex();
+					}
+
+					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+					SelectionReflections[GroupSelectionIndex].Add(NewSelectionReflection);
+				}
 			}
 		}
 

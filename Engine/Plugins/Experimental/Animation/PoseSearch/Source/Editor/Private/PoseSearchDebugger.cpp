@@ -1707,8 +1707,6 @@ void SDebuggerView::DrawFeatures(
 	DrawParams.DefaultLifeTime = 0.0f; // Single frame render
 	DrawParams.Mesh = Mesh;
 
-	const TObjectPtr<UPoseSearchDebuggerReflection>& Reflection = DetailsView->GetReflection();
-
 	auto SetDrawFlags = [](FDebugDrawParams& InDrawParams, const FPoseSearchDebuggerFeatureDrawOptions& Options)
 	{
 		InDrawParams.Flags = EDebugDrawFlags::None;
@@ -1731,11 +1729,12 @@ void SDebuggerView::DrawFeatures(
 		}
 	};
 
+	const TObjectPtr<UPoseSearchDebuggerReflection> Reflection = DetailsView->GetReflection();
 
 	// Draw query vector
 	{
 		DrawParams.Database = ViewModel.Get()->GetCurrentDatabase();
-		SetDrawFlags(DrawParams, Reflection->QueryDrawOptions);
+		SetDrawFlags(DrawParams, Reflection ? Reflection->QueryDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
 		EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
 		DrawFeatureVector(DrawParams, State.QueryVector);
 		EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
@@ -1748,7 +1747,7 @@ void SDebuggerView::DrawFeatures(
 		TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DatabaseRows->GetSelectedItems();
 	
 		// Red for non-active database view
-		SetDrawFlags(DrawParams, Reflection->SelectedPoseDrawOptions);
+		SetDrawFlags(DrawParams, Reflection ? Reflection->SelectedPoseDrawOptions : FPoseSearchDebuggerFeatureDrawOptions());
 
 		// Draw any selected database vectors
 		for (const TSharedRef<FDebuggerDatabaseRowData>& Row : SelectedRows)
@@ -1793,11 +1792,11 @@ void SDebuggerView::DrawFeatures(
 	// Draw skeleton
 	{
 		FSkeletonDrawParams SkeletonDrawParams;
-		if (Reflection->bDrawSelectedSkeleton)
+		if (Reflection && Reflection->bDrawSelectedSkeleton)
 		{
 			SkeletonDrawParams.Flags |= ESkeletonDrawFlags::SelectedPose;
 		}
-		if (Reflection->bDrawActiveSkeleton)
+		if (Reflection && Reflection->bDrawActiveSkeleton)
 		{
 			SkeletonDrawParams.Flags |= ESkeletonDrawFlags::ActivePose;
 		}

@@ -58,3 +58,13 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
+
+UCLASS()
+class UPoseSearchDatabaseReflection : public UPoseSearchDatabaseReflectionBase
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, Category = "Selected Database Search Index")
+	FPoseSearchIndex SearchIndex;
+};

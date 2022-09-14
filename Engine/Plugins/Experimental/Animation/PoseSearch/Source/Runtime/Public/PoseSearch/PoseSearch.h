@@ -102,6 +102,7 @@ enum class EPoseSearchDataPreprocessor : int32
 {
 	None,
 	Normalize,
+	NormalizeOnlyByDeviation,
 
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -648,7 +649,7 @@ struct POSESEARCH_API FPoseSearchIndex
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(Category = Info, VisibleAnywhere)
 	int32 NumPoses = 0;
 
 	UPROPERTY()
@@ -657,15 +658,23 @@ struct POSESEARCH_API FPoseSearchIndex
 	UPROPERTY()
 	TArray<float> PCAValues;
 
+	// @todo: editor only data?
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	float PCAExplainedVariance = 0.f;
+	
+	// @todo: editor only data?
+	UPROPERTY(Category = Info, VisibleAnywhere)
+	TArray<float> Variance;
+
 	UE::PoseSearch::FKDTree KDTree;
 
-	UPROPERTY()
+	UPROPERTY(Category = Info, VisibleAnywhere)
 	TArray<float> PCAProjectionMatrix;
 
-	UPROPERTY()
+	UPROPERTY(Category = Info, VisibleAnywhere)
 	TArray<float> Mean;
 
-	UPROPERTY()
+	UPROPERTY(Category = Info, VisibleAnywhere) 
 	TArray<float> Weights;
 
 	UPROPERTY()
@@ -678,7 +687,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	TArray<FPoseSearchIndexAsset> Assets;
 
 	// minimum of the database metadata CostAddend: it represents the minimum cost of any search for the associated database (we'll skip the search in case the search result total cost is already less than MinCostAddend)
-	UPROPERTY()
+	UPROPERTY(Category = Info, VisibleAnywhere)
 	float MinCostAddend = -MAX_FLT;
 
 	bool IsValid() const;
@@ -1036,17 +1045,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Database")
 	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces;
 
-	UPROPERTY(EditAnywhere, Category = "Performance", meta = (ClampMin = "1", ClampMax = "64", UIMin = "1", UIMax = "64"))
-	int32 NumberOfPrincipalComponents = 4;
-
-	UPROPERTY(EditAnywhere, Category = "Performance", meta = (ClampMin = "1", ClampMax = "256", UIMin = "1", UIMax = "256"))
-	int32 KDTreeMaxLeafSize = 8;
-	
-	UPROPERTY(EditAnywhere, Category = "Performance", meta = (ClampMin = "1", ClampMax = "600", UIMin = "1", UIMax = "600"))
-	int32 KDTreeQueryNumNeighbors = 100;
-
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	EPoseSearchMode PoseSearchMode = EPoseSearchMode::BruteForce;
+
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "64", UIMin = "1", UIMax = "64"))
+	int32 NumberOfPrincipalComponents = 4;
+
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "256", UIMin = "1", UIMax = "256"))
+	int32 KDTreeMaxLeafSize = 8;
+	
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "600", UIMin = "1", UIMax = "600"))
+	int32 KDTreeQueryNumNeighbors = 100;
 
 	// if true, this database search will be skipped if cannot decrease the pose cost, and poses will not be listed into the PoseSearchDebugger
 	UPROPERTY(EditAnywhere, Category = "Performance")
@@ -1100,7 +1109,7 @@ private:
 
 public:
 	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
-	bool TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex);
+	bool TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex) const;
 
 private:
 	FPoseSearchDatabaseDerivedData* PrivateDerivedData;
@@ -1425,7 +1434,7 @@ POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenc
 * 
 * @return Whether the index was built successfully
 */
-POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex);
+POSESEARCH_API bool BuildIndex(const UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex);
 
 } // namespace UE::PoseSearch
 

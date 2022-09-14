@@ -324,7 +324,7 @@ class SDebuggerDetailsView : public SCompoundWidget
 	void Update(const FTraceMotionMatchingStateMessage& State) const;
 
 	/** Get a const version of our reflection object */
-	const TObjectPtr<UPoseSearchDebuggerReflection>& GetReflection() const { return Reflection; }
+	const TObjectPtr<UPoseSearchDebuggerReflection> GetReflection() const { return Reflection; }
 	
 private:
 	/** Update our details view object with new state information */

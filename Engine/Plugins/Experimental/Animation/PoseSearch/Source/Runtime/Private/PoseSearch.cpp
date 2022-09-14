@@ -1331,7 +1331,7 @@ static FVector BlendParameterForSampleRanges(
 		0.0f);
 }
 
-bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex)
+bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex) const
 {
 	OutSearchIndex.Assets.Empty();
 	
@@ -4283,7 +4283,8 @@ void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const floa
 
 void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx)
 {
-	if (PoseIdx != INDEX_NONE && DrawParams.CanDraw())
+	// if we're editing the schema while in PIE with Rewind Debugger active, PoseIdx could be out of bound / stale
+	if (DrawParams.CanDraw() && PoseIdx >= 0 && PoseIdx < DrawParams.GetSearchIndex()->NumPoses)
 	{
 		DrawFeatureVector(DrawParams, DrawParams.GetSearchIndex()->GetPoseValues(PoseIdx));
 	}
@@ -4366,24 +4367,33 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 		Channel->FillWeights(SearchIndex.Weights);
 	}
 
-	// normalizing weights: the idea behind this step is to be able to compare poses from databases using different schemas
-	RowMajorVectorMap MapWeights(SearchIndex.Weights.GetData(), 1, NumDimensions);
-	const float WeightsSum = MapWeights.sum();
-	if (!FMath::IsNearlyZero(WeightsSum))
+	Eigen::VectorXd ChannelsMeanDeviations = ComputeChannelsMeanDeviations(Database->GetSearchIndex());
+	SearchIndex.Variance.Init(1.f, NumDimensions);
+	for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
 	{
-		MapWeights *= (1.0f / WeightsSum);
+		const float ChannelsMeanDeviation = ChannelsMeanDeviations[Dimension];
+		SearchIndex.Variance[Dimension] = ChannelsMeanDeviation * ChannelsMeanDeviation;
 	}
 
-	if (Database->GetSearchIndex()->Schema->DataPreprocessor == EPoseSearchDataPreprocessor::Normalize)
-	{
-		Eigen::VectorXd ChannelsMeanDeviations = ComputeChannelsMeanDeviations(Database->GetSearchIndex());
+	EPoseSearchDataPreprocessor DataPreprocessor = Database->GetSearchIndex()->Schema->DataPreprocessor;
 
+	if (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize)
+	{
+		// normalizing user weights: the idea behind this step is to be able to compare poses from databases using different schemas
+		RowMajorVectorMap MapWeights(SearchIndex.Weights.GetData(), 1, NumDimensions);
+		const float WeightsSum = MapWeights.sum();
+		if (!FMath::IsNearlyZero(WeightsSum))
+		{
+			MapWeights *= (1.0f / WeightsSum);
+		}
+	}
+
+	if (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize || DataPreprocessor == EPoseSearchDataPreprocessor::NormalizeOnlyByDeviation)
+	{
 		for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
 		{
 			// the idea here is to premultiply the weights by the inverse of the variance (proportional to the square of the deviation) to have a "weighted Mahalanobis" distance
-			const float ChannelsMeanDeviation = ChannelsMeanDeviations[Dimension];
-			const float ChannelsVariance = ChannelsMeanDeviation * ChannelsMeanDeviation;
-			SearchIndex.Weights[Dimension] /= ChannelsVariance;
+			SearchIndex.Weights[Dimension] /= SearchIndex.Variance[Dimension];
 		}
 	}
 }
@@ -4411,7 +4421,6 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UP
 
 	// use the mean to center the data points
 	const RowMajorMatrix CenteredValues = WeightedValues.rowwise() - Mean;
-
 
 	// estimating the covariance matrix (with dimensionality of NumDimensions, NumDimensions)
 	// formula: https://en.wikipedia.org/wiki/Covariance_matrix#Estimation
@@ -4463,7 +4472,7 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UP
 	// calculating the total variance knowing that eigen values measure variance along the principal components:
 	const float TotalVariance = EigenValues.sum();
 	// and explained variance as ratio between AccumulatedVariance and TotalVariance: https://ro-che.info/articles/2017-12-11-pca-explained-variance
-	const float ExplainedVariance = TotalVariance > UE_KINDA_SMALL_NUMBER ? AccumulatedVariance / TotalVariance : 0.f;
+	SearchIndex.PCAExplainedVariance = TotalVariance > UE_KINDA_SMALL_NUMBER ? AccumulatedVariance / TotalVariance : 0.f;
 
 	MapPCAValues = CenteredValues * PCAProjectionMatrix;
 
@@ -4489,12 +4498,14 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPo
 	if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
 	{
 		// testing the KDTree is returning the proper searches for all the points in pca space
+		int32 NumberOfFailingPoints = 0;
 		for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
 		{
-			constexpr size_t NumResults = 10;
-			size_t ResultIndexes[NumResults + 1] = { 0 };
-			float ResultDistanceSqr[NumResults + 1] = { 0 };
-			FKDTree::KNNResultSet ResultSet(NumResults, ResultIndexes, ResultDistanceSqr);
+			TArray<size_t> ResultIndexes;
+			TArray<float> ResultDistanceSqr;
+			ResultIndexes.SetNum(Database->KDTreeQueryNumNeighbors + 1);
+			ResultDistanceSqr.SetNum(Database->KDTreeQueryNumNeighbors + 1);
+			FKDTree::KNNResultSet ResultSet(Database->KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
 			SearchIndex.KDTree.FindNeighbors(ResultSet, &SearchIndex.PCAValues[PointIndex * NumberOfPrincipalComponents]);
 
 			size_t ResultIndex = 0;
@@ -4506,17 +4517,24 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPo
 					break;
 				}
 			}
-			check(ResultIndex < ResultSet.Num());
+			if (ResultIndex == ResultSet.Num())
+			{
+				++NumberOfFailingPoints;
+			}
 		}
 
+		check(NumberOfFailingPoints == 0);
+
 		// testing the KDTree is returning the proper searches for all the original points transformed in pca space
+		NumberOfFailingPoints = 0;
 		const int32 NumDimensions = Database->Schema->SchemaCardinality;
 		for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
 		{
-			constexpr size_t NumResults = 10;
-			size_t ResultIndexes[NumResults + 1] = { 0 };
-			float ResultDistanceSqr[NumResults + 1] = { 0 };
-			FKDTree::KNNResultSet ResultSet(NumResults, ResultIndexes, ResultDistanceSqr);
+			TArray<size_t> ResultIndexes;
+			TArray<float> ResultDistanceSqr;
+			ResultIndexes.SetNum(Database->KDTreeQueryNumNeighbors + 1);
+			ResultDistanceSqr.SetNum(Database->KDTreeQueryNumNeighbors + 1);
+			FKDTree::KNNResultSet ResultSet(Database->KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
 
 			const RowMajorVectorMapConst MapValues(&SearchIndex.Values[PointIndex * NumDimensions], 1, NumDimensions);
 			const RowMajorVectorMapConst MapWeights(SearchIndex.Weights.GetData(), 1, NumDimensions);
@@ -4538,8 +4556,13 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPo
 					break;
 				}
 			}
-			check(ResultIndex < ResultSet.Num());
+			if (ResultIndex == ResultSet.Num())
+			{
+				++NumberOfFailingPoints;
+			}
 		}
+
+		check(NumberOfFailingPoints == 0);
 	}
 }
 
@@ -4609,7 +4632,7 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 
 struct FDatabaseIndexingContext
 {
-	UPoseSearchDatabase* Database = nullptr;
+	const UPoseSearchDatabase* Database = nullptr;
 	FPoseSearchIndex* SearchIndex = nullptr;
 
 	FAssetSamplingContext SamplingContext;
@@ -4844,7 +4867,7 @@ void FDatabaseIndexingContext::JoinIndex()
 	check(TotalFloats == TotalPoses * Database->Schema->SchemaCardinality);
 }
 
-bool BuildIndex(UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex)
+bool BuildIndex(const UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex)
 {
 	check(Database);
 
