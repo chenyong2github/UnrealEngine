@@ -121,7 +121,18 @@ namespace UE::PoseSearch
 
 		TSharedRef<SWidget> CreateAddNewMenuWidget();
 		TSharedPtr<SWidget> CreateContextMenu();
-		
+
+		TSharedRef<SWidget> GenerateFilterBoxWidget();
+
+		FText GetFilterText() const;
+		void OnAssetFilterTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
+
+		void SetAssetFilterString(FString InString) { AssetFilterString = InString; }
+		FString GetAssetFilterString() const { return AssetFilterString; }
+
+		//String Filter For Database View
+		FString AssetFilterString;
+
 		void OnAddSequence(bool bFinalizeChanges = true);
 		void OnAddBlendSpace(bool bFinalizeChanges = true);
 
@@ -131,6 +142,9 @@ namespace UE::PoseSearch
 		/** Removes existing selected component nodes from the tree*/
 		bool CanDeleteNodes() const;
 		void OnDeleteNodes();
+
+		void OnEnableNodes();
+		void OnDisableNodes();
 
 		friend SDatabaseAssetListItem;
 

@@ -4320,37 +4320,40 @@ static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchI
 
 	using namespace Eigen;
 
-	check(SearchIndex->IsValid() && !SearchIndex->IsEmpty());
+	check(SearchIndex->IsValid());
 
 	const int32 NumPoses = SearchIndex->NumPoses;
 	const int32 NumDimensions = SearchIndex->Schema->SchemaCardinality;
-
-	// Map input buffer
-	auto PoseMatrixSourceMap = RowMajorMatrixMapConst(
-		SearchIndex->Values.GetData(),
-		NumPoses,		// rows
-		NumDimensions	// cols
-	);
-
-	// @todo: evaluate removing the cast to double
-	
-	// Copy row major float matrix to column major double matrix
-	MatrixXd PoseMatrix = PoseMatrixSourceMap.transpose().cast<double>();
-	checkSlow(PoseMatrix.rows() == NumDimensions);
-	checkSlow(PoseMatrix.cols() == NumPoses);
-
-	// Mean center
-	VectorXd SampleMean = PoseMatrix.rowwise().mean();
-	PoseMatrix = PoseMatrix.colwise() - SampleMean;
 
 	// Compute per Channel average distances
 	VectorXd MeanDeviations(NumDimensions);
 	MeanDeviations.setConstant(1.0);
 
-	for (int ChannelIdx = 0; ChannelIdx != SearchIndex->Schema->Channels.Num(); ++ChannelIdx)
+	if (NumPoses > 0)
 	{
-		const UPoseSearchFeatureChannel* Channel = SearchIndex->Schema->Channels[ChannelIdx].Get();
-		Channel->ComputeMeanDeviations(PoseMatrix, MeanDeviations);
+		// Map input buffer
+		auto PoseMatrixSourceMap = RowMajorMatrixMapConst(
+			SearchIndex->Values.GetData(),
+			NumPoses,		// rows
+			NumDimensions	// cols
+		);
+
+		// @todo: evaluate removing the cast to double
+
+		// Copy row major float matrix to column major double matrix
+		MatrixXd PoseMatrix = PoseMatrixSourceMap.transpose().cast<double>();
+		checkSlow(PoseMatrix.rows() == NumDimensions);
+		checkSlow(PoseMatrix.cols() == NumPoses);
+
+		// Mean center
+		VectorXd SampleMean = PoseMatrix.rowwise().mean();
+		PoseMatrix = PoseMatrix.colwise() - SampleMean;
+
+		for (int ChannelIdx = 0; ChannelIdx != SearchIndex->Schema->Channels.Num(); ++ChannelIdx)
+		{
+			const UPoseSearchFeatureChannel* Channel = SearchIndex->Schema->Channels[ChannelIdx].Get();
+			Channel->ComputeMeanDeviations(PoseMatrix, MeanDeviations);
+		}
 	}
 
 	return MeanDeviations;
