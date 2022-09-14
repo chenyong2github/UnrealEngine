@@ -439,6 +439,25 @@ namespace Horde.Build.Streams
 	}
 
 	/// <summary>
+	/// Returns the configuration data for a stream
+	/// </summary>
+	public class GetStreamConfigResponseV2
+	{
+		readonly IStream _stream;
+
+		/// <inheritdoc cref="IStream.ConfigRevision"/>
+		public string Revision => _stream.ConfigRevision;
+
+		/// <inheritdoc cref="IStream.Config"/>
+		public StreamConfig Config => _stream.Config;
+
+		internal GetStreamConfigResponseV2(IStream stream)
+		{
+			_stream = stream;
+		}
+	}
+
+	/// <summary>
 	/// Response describing a stream
 	/// </summary>
 	public class GetStreamResponseV2
@@ -457,9 +476,6 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="IStream.Name"/>
 		public string ConfigRevision => _stream.ConfigRevision;
 
-		/// <inheritdoc cref="IStream.Config"/>
-		public StreamConfig? Config { get; }
-
 		/// <inheritdoc cref="IStream.Deleted"/>
 		public bool Deleted => _stream.Deleted;
 
@@ -472,15 +488,10 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="IStream.PauseComment"/>
 		public string? PauseComment => _stream.PauseComment;
 
-		internal GetStreamResponseV2(IStream stream, bool config, List<GetTemplateRefResponseV2> templates)
+		internal GetStreamResponseV2(IStream stream, List<GetTemplateRefResponseV2> templates)
 		{
 			_stream = stream;
 			Templates = templates;
-
-			if (config)
-			{
-				Config = stream.Config;
-			}
 		}
 	}
 
