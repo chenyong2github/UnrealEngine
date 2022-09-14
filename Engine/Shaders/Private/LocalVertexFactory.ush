@@ -13,18 +13,6 @@
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
 #if USE_INSTANCE_CULLING || USE_INSTANCING
-	#ifndef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-		#error "USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED should have been defined"
-	#endif
-	#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-#else
-	#ifndef USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
-		#error "USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL should have been defined"
-	#endif
-	#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
-#endif
-
-#if USE_INSTANCE_CULLING || USE_INSTANCING
 	#if USE_DITHERED_LOD_TRANSITION
 		float4 InstancingViewZCompareZero;  // w contains random lod scale 
 		float4 InstancingViewZCompareOne;
@@ -333,7 +321,6 @@ struct FVertexFactoryIntermediates
 
 #if USE_INSTANCE_CULLING
 	float4 HitProxyId;
-	float PerInstanceRandom;
 	float IsSelected;
 	float IsVisible;
 #endif
@@ -347,8 +334,8 @@ struct FVertexFactoryIntermediates
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING
 	float4 InstanceLightmapAndShadowMapUVBias;
-	// x = per-instance random, y = per-instance fade out amount, z = hide/show flag, w dither fade cutoff
-	float4 PerInstanceParams;
+	// x = per-instance fade out amount, y = hide/show flag, z dither fade cutoff
+	float3 PerInstanceParams;
 #endif
 
 	float3 PreSkinPosition;
@@ -524,6 +511,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.CustomDataCount  = Interpolants.CustomDataCount;
 #endif
 
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+	Result.PerInstanceRandom = Interpolants.PerInstanceRandom;
+#endif
+
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS
 	Result.InstanceLocalToWorld = GetInstanceLocalToWorld(Interpolants);
 #endif
@@ -611,6 +602,9 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 		Result.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
 		Result.CustomDataCount = Intermediates.SceneData.InstanceData.CustomDataCount;
+	#endif
+	#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+		Result.PerInstanceRandom = Intermediates.SceneData.InstanceData.RandomID;
 	#endif
 #endif
 
@@ -861,7 +855,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 #if USE_INSTANCE_CULLING
 	Intermediates.InstanceLightmapAndShadowMapUVBias = Intermediates.SceneData.InstanceData.LightMapAndShadowMapUVBias;
-	Intermediates.PerInstanceRandom = Intermediates.SceneData.InstanceData.RandomID;
+
 #if USE_EDITOR_SHADERS
 	Intermediates.IsSelected = Intermediates.SceneData.InstanceData.EditorData.bIsSelected ? 1.0f : 0.0f;
 	Intermediates.HitProxyId = float4(Intermediates.SceneData.InstanceData.EditorData.HitProxyId, 0.0f);
@@ -872,30 +866,29 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	{
 		// This repackaging is stupid-seeming but these params are propably packed off to some interpolator or something
-		Intermediates.PerInstanceParams.x = Intermediates.PerInstanceRandom;
 		
-		// PerInstanceParams.y: per-instance fade out amount
+		// PerInstanceParams.x: per-instance fade out amount
 		float3 InstanceTranslatedLocation = TransformLocalToTranslatedWorld(GetInstanceData(Intermediates).LocalBoundsCenter, GetInstanceData(Intermediates).LocalToWorld).xyz;
-		Intermediates.PerInstanceParams.y = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
+		Intermediates.PerInstanceParams.x = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
 		
 		// InstancingFadeOutParams.z,w are RenderSelected and RenderDeselected respectively.
 
-		// PerInstanceParams.z = hide / show flag, 
+		// PerInstanceParams.y = hide / show flag, 
 		Intermediates.IsVisible = lerp(InstancingFadeOutParams.w, InstancingFadeOutParams.z, Intermediates.IsSelected);
-		Intermediates.PerInstanceParams.z = Intermediates.IsVisible;
+		Intermediates.PerInstanceParams.y = Intermediates.IsVisible;
 
-		// PerInstanceParams.w dither fade cutoff
+		// PerInstanceParams.z dither fade cutoff
 	#if USE_DITHERED_LOD_TRANSITION
-		float RandomLOD = InstancingViewZCompareZero.w * Intermediates.PerInstanceParams.x;
+		float RandomLOD = InstancingViewZCompareZero.w * Intermediates.SceneData.InstanceData.RandomID;
 		float ViewZZero = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginZero.xyz) + RandomLOD;
 		float ViewZOne = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginOne.xyz) + RandomLOD;
-		Intermediates.PerInstanceParams.w =
+		Intermediates.PerInstanceParams.z =
 			dot(float3(ViewZZero.xxx > InstancingViewZCompareZero.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginZero.w +
 			dot(float3(ViewZOne.xxx > InstancingViewZCompareOne.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginOne.w;
-		Intermediates.PerInstanceParams.z *= abs(Intermediates.PerInstanceParams.w) < .999;
-		Intermediates.IsVisible = Intermediates.PerInstanceParams.z;
+		Intermediates.PerInstanceParams.y *= abs(Intermediates.PerInstanceParams.z) < .999;
+		Intermediates.IsVisible = Intermediates.PerInstanceParams.y;
 	#else
-		Intermediates.PerInstanceParams.w = 0;
+		Intermediates.PerInstanceParams.z = 0;
 	#endif
 	}
 #endif // USE_INSTANCE_CULLING
@@ -928,27 +921,25 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.TangentToWorldSign = TangentSign * GetInstanceData(Intermediates).DeterminantSign;
 
 #if USE_INSTANCING
-	// x = per-instance random, y = per-instance fade out factor, z = zero or one depending of if it is shown at all, w is dither cutoff 
+	// x = per-instance fade out factor, y = zero or one depending of if it is shown at all, z is dither cutoff 
 
-	// PerInstanceParams.z stores a hide/show flag for this instance
+	// PerInstanceParams.y stores a hide/show flag for this instance
 	float SelectedValue = GetInstanceSelected(Intermediates);
 	// GPUCULL_TODO: This can't be right
-	//Intermediates.PerInstanceParams.x = Intermediates.PerInstanceRandom;
-	Intermediates.PerInstanceParams.x = GetInstanceRandom(Intermediates);
 	float3 InstanceTranslatedLocation = TransformLocalToTranslatedWorld(GetInstanceOrigin(Intermediates), PrimitiveData.LocalToWorld).xyz;
-	Intermediates.PerInstanceParams.y = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
+	Intermediates.PerInstanceParams.x = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
 	// InstancingFadeOutParams.z,w are RenderSelected and RenderDeselected respectively.
-	Intermediates.PerInstanceParams.z = InstancingFadeOutParams.z * SelectedValue + InstancingFadeOutParams.w * (1-SelectedValue);
+	Intermediates.PerInstanceParams.y = InstancingFadeOutParams.z * SelectedValue + InstancingFadeOutParams.w * (1-SelectedValue);
 	#if USE_DITHERED_LOD_TRANSITION
-		float RandomLOD = InstancingViewZCompareZero.w * Intermediates.PerInstanceParams.x;
+		float RandomLOD = InstancingViewZCompareZero.w * Intermediates.SceneData.InstanceData.RandomID;
 		float ViewZZero = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginZero.xyz) + RandomLOD;
 		float ViewZOne = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginOne.xyz) + RandomLOD;
-		Intermediates.PerInstanceParams.w = 
+		Intermediates.PerInstanceParams.z = 
 			dot(float3(ViewZZero.xxx > InstancingViewZCompareZero.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginZero.w +
 			dot(float3(ViewZOne.xxx > InstancingViewZCompareOne.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginOne.w;
-		Intermediates.PerInstanceParams.z *= abs(Intermediates.PerInstanceParams.w) < .999;
+		Intermediates.PerInstanceParams.y *= abs(Intermediates.PerInstanceParams.z) < .999;
 	#else
-		Intermediates.PerInstanceParams.w = 0;
+		Intermediates.PerInstanceParams.z = 0;
 	#endif
 #endif	// USE_INSTANCING
 
@@ -991,7 +982,7 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	FLWCMatrix LocalToWorld = GetInstanceData(Intermediates).LocalToWorld;
 
 #if USE_INSTANCING
-	return CalcWorldPosition(Input.Position, GetInstanceTransform(Intermediates), LocalToWorld) * Intermediates.PerInstanceParams.z;
+	return CalcWorldPosition(Input.Position, GetInstanceTransform(Intermediates), LocalToWorld) * Intermediates.PerInstanceParams.y;
 #elif USE_INSTANCE_CULLING
 	// Scale to zero if not visible, seems a bit wild but whatever
 	return CalcWorldPosition(Input.Position, LocalToWorld) * Intermediates.IsVisible;
@@ -1081,6 +1072,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 	Interpolants.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
 	Interpolants.CustomDataCount  = Intermediates.SceneData.InstanceData.CustomDataCount;
+#endif
+
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+	Interpolants.PerInstanceRandom = Intermediates.SceneData.InstanceData.RandomID;
 #endif
 
 #if INSTANCED_STEREO
@@ -1231,6 +1226,10 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 #if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 		O.InterpolantsVSToPS.CustomDataOffset = a.InterpolantsVSToPS.CustomDataOffset;
 		O.InterpolantsVSToPS.CustomDataCount  = a.InterpolantsVSToPS.CustomDataCount;
+#endif
+
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+		O.InterpolantsVSToPS.PerInstanceRandom = a.InterpolantsVSToPS.PerInstanceRandom;
 #endif
 
 		// Do we really need to interpolate TangentToWorld2 here? It should be replaced by the

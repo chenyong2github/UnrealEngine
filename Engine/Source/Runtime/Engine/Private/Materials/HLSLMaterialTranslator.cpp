@@ -11581,7 +11581,7 @@ void FHLSLMaterialTranslator::GenerateCustomAttributeCode(int32 OutputIndex, int
 	*/
 int32 FHLSLMaterialTranslator::PerInstanceRandom()
 {
-	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Vertex)
+	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Vertex && ShaderFrequency != SF_RayHitGroup)
 	{
 		return NonVertexOrPixelShaderExpressionError();
 	}

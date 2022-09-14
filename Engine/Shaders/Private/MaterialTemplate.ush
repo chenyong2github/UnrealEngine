@@ -109,20 +109,6 @@
 	#define USE_INSTANCE_CULLING 0
 #endif
 
-#ifndef USE_DITHERED_LOD_TRANSITION
-	#if USE_INSTANCING || USE_INSTANCE_CULLING
-		#ifndef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-			#error "USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED should have been defined"
-		#endif
-		#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-	#else
-		#ifndef USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
-			#error "USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL should have been defined"
-		#endif
-		#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
-	#endif
-#endif
-
 #ifndef USE_STENCIL_LOD_DITHER
 	#define USE_STENCIL_LOD_DITHER	USE_STENCIL_LOD_DITHER_DEFAULT
 #endif
@@ -397,8 +383,12 @@ struct FMaterialPixelParameters
 	float2	LightmapUVs_DDY;
 #endif
 
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+	half PerInstanceRandom;
+#endif
+
 #if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
-	half4 PerInstanceParams;
+	half3 PerInstanceParams;
 #endif
 
 	// Index into View.PrimitiveSceneData
@@ -520,6 +510,11 @@ struct FMaterialVertexParameters
 	uint CustomDataOffset;
 	uint CustomDataCount;
 #endif
+
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+	float PerInstanceRandom;
+#endif
+
 	
 #if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS
 	FLWCMatrix InstanceLocalToWorld;
@@ -528,7 +523,7 @@ struct FMaterialVertexParameters
 #if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
 	/** Per-instance properties. */
 	float3 InstanceLocalPosition;
-	float4 PerInstanceParams;
+	float3 PerInstanceParams;
 #if !USE_INSTANCE_CULLING
 	uint InstanceId;
 #endif
@@ -1277,8 +1272,8 @@ FLWCVector3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 {
-#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
-	return Parameters.PerInstanceParams.x;
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+	return Parameters.PerInstanceRandom;
 #else
 	return 0.0;
 #endif
@@ -1287,8 +1282,8 @@ float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 {
-#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
-	return Parameters.PerInstanceParams.x;
+#if USES_PER_INSTANCE_RANDOM && VF_USE_PRIMITIVE_SCENE_DATA
+	return Parameters.PerInstanceRandom;
 #else
 	return 0.0;
 #endif
@@ -1298,7 +1293,7 @@ float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 float GetPerInstanceFadeAmount(FMaterialPixelParameters Parameters)
 {
 #if USE_INSTANCING || USE_INSTANCE_CULLING
-	return float(Parameters.PerInstanceParams.y);
+	return float(Parameters.PerInstanceParams.x);
 #else
 	return float(1.0);
 #endif
@@ -1308,7 +1303,7 @@ float GetPerInstanceFadeAmount(FMaterialPixelParameters Parameters)
 float GetPerInstanceFadeAmount(FMaterialVertexParameters Parameters)
 {
 #if USE_INSTANCING || USE_INSTANCE_CULLING
-	return float(Parameters.PerInstanceParams.y);
+	return float(Parameters.PerInstanceParams.x);
 #else
 	return float(1.0);
 #endif
@@ -1989,7 +1984,7 @@ float3 GetSpeedTreeVertexOffsetInner(FMaterialVertexParameters Parameters, int G
 		float3 LocalPosition = Parameters.InstanceLocalPosition;
 
 		// skip if this instance is hidden
-		if (Parameters.PerInstanceParams.z < 1.f)
+		if (Parameters.PerInstanceParams.y < 1.f)
 		{
 			return float3(0,0,0);
 		}
@@ -2831,7 +2826,7 @@ float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING
 	// skip if this instance is hidden
-	if (Parameters.PerInstanceParams.z < 1.f)
+	if (Parameters.PerInstanceParams.y < 1.f)
 	{
 		return float3(0, 0, 0);
 	}
@@ -2857,7 +2852,7 @@ float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Paramete
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING
 	// skip if this instance is hidden
-	if (Parameters.PerInstanceParams.z < 1.f)
+	if (Parameters.PerInstanceParams.y < 1.f)
 	{
 		return float3(0, 0, 0);
 	}
@@ -3126,7 +3121,7 @@ void ClipLODTransition(FMaterialPixelParameters Parameters, float DitherFactor)
 #if (USE_INSTANCING  || USE_INSTANCE_CULLING) && USE_DITHERED_LOD_TRANSITION
 void ClipLODTransition(FMaterialPixelParameters Parameters)
 {
-	ClipLODTransition(Parameters, Parameters.PerInstanceParams.w);
+	ClipLODTransition(Parameters, Parameters.PerInstanceParams.z);
 }
 #elif USE_DITHERED_LOD_TRANSITION && !USE_STENCIL_LOD_DITHER
 void ClipLODTransition(FMaterialPixelParameters Parameters)

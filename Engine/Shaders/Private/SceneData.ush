@@ -46,6 +46,18 @@
 	#define VF_USE_PRIMITIVE_SCENE_DATA 0
 #endif
 
+#ifndef USE_DITHERED_LOD_TRANSITION
+	#if USE_INSTANCING || USE_INSTANCE_CULLING
+		#ifdef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
+			#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
+        #endif	
+	#else
+		#ifdef USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
+			#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
+		#endif
+	#endif
+#endif
+
 // Must match PrimitiveUniformShaderParameters.h
 #define PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS							0x1
 #define PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL			0x2
@@ -442,7 +454,7 @@ struct FInstanceSceneData
 	uint     LastUpdateSceneFrameNumber;
 	uint     NaniteRuntimeResourceID;
 	uint     NaniteHierarchyOffset;
-#if 1//USES_PER_INSTANCE_RANDOM
+#if USES_PER_INSTANCE_RANDOM || USE_DITHERED_LOD_TRANSITION
 	float    RandomID;
 #endif
 #if ENABLE_PER_INSTANCE_CUSTOM_DATA
@@ -911,7 +923,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		InstanceData.CustomDataOffset			= Offsets.CustomData;
 	#endif
 		InstanceData.LastUpdateSceneFrameNumber	= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
-	#if 1//USES_PER_INSTANCE_RANDOM
+	#if USES_PER_INSTANCE_RANDOM || USE_DITHERED_LOD_TRANSITION
 		InstanceData.RandomID					= LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w;
 	#endif
 
@@ -1125,7 +1137,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	InstanceData.Flags = InstanceFlags;
 	InstanceData.PrimitiveId = asuint(InstanceOrigin.w);
 	
-#if USES_PER_INSTANCE_RANDOM
+#if USES_PER_INSTANCE_RANDOM || USE_DITHERED_LOD_TRANSITION
 	InstanceData.RandomID = InstanceTransform3.w;
 #endif
 

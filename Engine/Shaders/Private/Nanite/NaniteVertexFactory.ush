@@ -161,8 +161,7 @@ void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParame
 	VertexParameters.CustomDataCount		= InstanceData.CustomDataCount;
 #endif
 #if USES_PER_INSTANCE_RANDOM
-	// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
-	VertexParameters.PerInstanceParams		= float4(InstanceData.RandomID, 0.0f, 0.0f, 0.0f);
+	VertexParameters.PerInstanceRandom      = InstanceData.RandomID;
 #endif
 
 	VertexParameters.SceneData.PrimitiveId 	= InstanceData.PrimitiveId;
@@ -513,8 +512,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData I
 	Result.Particle.Color = half4(1, 1, 1, 1);
 
 #if USES_PER_INSTANCE_RANDOM
-	// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
-	Result.PerInstanceParams = float4(InstanceData.RandomID, 0.0f, 0.0f, 0.0f);
+	Result.PerInstanceRandom = InstanceData.RandomID;
 #endif
 
 #if NEEDS_LIGHTMAP_COORDINATE
