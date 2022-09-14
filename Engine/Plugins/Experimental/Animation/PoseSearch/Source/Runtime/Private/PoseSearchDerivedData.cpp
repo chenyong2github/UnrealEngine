@@ -267,7 +267,7 @@ namespace UE::PoseSearch
 			Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
 		}
 
-		Ar << Index.Weights;
+		Ar << Index.WeightsSqrt;
 		Ar << Index.Mean;
 		Ar << Index.PCAProjectionMatrix;
 

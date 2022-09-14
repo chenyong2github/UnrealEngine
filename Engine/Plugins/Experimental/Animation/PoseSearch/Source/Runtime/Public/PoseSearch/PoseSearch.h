@@ -664,7 +664,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	
 	// @todo: editor only data?
 	UPROPERTY(Category = Info, VisibleAnywhere)
-	TArray<float> Variance;
+	TArray<float> Deviation;
 
 	UE::PoseSearch::FKDTree KDTree;
 
@@ -674,8 +674,13 @@ struct POSESEARCH_API FPoseSearchIndex
 	UPROPERTY(Category = Info, VisibleAnywhere)
 	TArray<float> Mean;
 
+	// we store weights square roots to reduce numerical errors when CompareFeatureVectors 
+	// ((VA - VB) * VW).square().sum()
+	// instead of
+	// ((VA - VB).square() * VW).sum()
+	// since (VA - VB).square() could lead to big numbers, and VW being multiplied by the variance of the dataset
 	UPROPERTY(Category = Info, VisibleAnywhere) 
-	TArray<float> Weights;
+	TArray<float> WeightsSqrt;
 
 	UPROPERTY()
 	TArray<FPoseSearchPoseMetadata> PoseMetadata;
@@ -694,7 +699,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < NumPoses; }
 	bool IsEmpty() const;
 
-	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
+	TConstArrayView<const float> GetPoseValues(int32 PoseIdx) const;
 
 	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
 
@@ -1193,7 +1198,7 @@ public:
 	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
 
 protected:
-	FPoseSearchCost ComparePoses(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, const TArrayView<const float>& QueryValues) const;
+	FPoseSearchCost ComparePoses(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<const float> QueryValues) const;
 
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
