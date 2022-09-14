@@ -271,7 +271,7 @@ void SDeviceProcesses::ReloadProcessList(bool FullyReload)
 void SDeviceProcesses::UpdateProcessTree()
 {
 	// update process tree
-	TMap<uint32, TSharedPtr<FDeviceProcessesProcessTreeNode>> NewProcessMap;
+	SDeviceProcesses::ProcessMapType NewProcessMap;
 
 	for (int32 ProcessIndex = 0; ProcessIndex < RunningProcesses.Num(); ++ProcessIndex)
 	{
@@ -296,10 +296,10 @@ void SDeviceProcesses::UpdateProcessTree()
 	// build process tree
 	if (ShowProcessTree)
 	{
-		for (TMap<uint32, TSharedPtr<FDeviceProcessesProcessTreeNode>>::TConstIterator It(ProcessMap); It; ++It)
+		for (SDeviceProcesses::ProcessMapType::TConstIterator It(ProcessMap); It; ++It)
 		{
 			TSharedPtr<FDeviceProcessesProcessTreeNode> Node = It.Value();
-			TSharedPtr<FDeviceProcessesProcessTreeNode> Parent = ProcessMap.FindRef(Node->GetProcessInfo().ParentId);
+			TSharedPtr<FDeviceProcessesProcessTreeNode> Parent = ProcessMap.FindRef((int64)Node->GetProcessInfo().ParentId);
 
 			if (Parent.IsValid())
 			{
@@ -312,7 +312,7 @@ void SDeviceProcesses::UpdateProcessTree()
 	// filter process list
 	ProcessList.Reset();
 
-	for (TMap<uint32, TSharedPtr<FDeviceProcessesProcessTreeNode>>::TConstIterator It(ProcessMap); It; ++It)
+	for (SDeviceProcesses::ProcessMapType::TConstIterator It(ProcessMap); It; ++It)
 	{
 		TSharedPtr<FDeviceProcessesProcessTreeNode> Node = It.Value();
 

@@ -71,8 +71,8 @@ void SDeviceBrowserDeviceAdder::Construct(const FArguments& InArgs, const TShare
 				.HAlign(HAlign_Left)
 				[
 					SNew(SBox)
-						.WidthOverride(24)
-						.HeightOverride(24)
+						.WidthOverride(24.f)
+						.HeightOverride(24.f)
 						[
 							SNew(SImage)
 								.Image((PlatformInfo) ? FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)) : FStyleDefaults::GetNoBrush())

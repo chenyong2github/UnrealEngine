@@ -60,6 +60,6 @@ struct FMarqueeRect
 	/** @return This marquee rectangle as a well-formed SlateRect */
 	FSlateRect ToSlateRect() const
 	{
-		return FSlateRect( FMath::Min(StartPoint.X, EndPoint.X), FMath::Min(StartPoint.Y, EndPoint.Y), FMath::Max(StartPoint.X, EndPoint.X), FMath::Max( StartPoint.Y, EndPoint.Y ) );
+		return FSlateRect( FVector2D(FMath::Min(StartPoint.X, EndPoint.X), FMath::Min(StartPoint.Y, EndPoint.Y)), FVector2D(FMath::Max(StartPoint.X, EndPoint.X), FMath::Max( StartPoint.Y, EndPoint.Y )) );
 	}
 };

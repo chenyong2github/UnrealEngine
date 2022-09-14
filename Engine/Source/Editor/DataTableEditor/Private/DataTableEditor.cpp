@@ -690,7 +690,7 @@ void FDataTableEditor::RefreshRowNumberColumnWidth()
 
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
 	{
-		const float RowNumberWidth = FontMeasure->Measure(FString::FromInt(RowData->RowNum), CellTextStyle.Font).X + CellPadding;
+		const float RowNumberWidth = (float)FontMeasure->Measure(FString::FromInt(RowData->RowNum), CellTextStyle.Font).X + CellPadding;
 		RowNumberColumnWidth = FMath::Max(RowNumberColumnWidth, RowNumberWidth);
 	}
 
@@ -715,7 +715,7 @@ void FDataTableEditor::RefreshRowNameColumnWidth()
 
 	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
 	{
-		const float RowNameWidth = FontMeasure->Measure(RowData->DisplayName, CellTextStyle.Font).X + CellPadding;
+		const float RowNameWidth = (float)FontMeasure->Measure(RowData->DisplayName, CellTextStyle.Font).X + CellPadding;
 		RowNameColumnWidth = FMath::Max(RowNameColumnWidth, RowNameWidth);
 	}
 	

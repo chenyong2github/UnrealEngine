@@ -263,7 +263,7 @@ private:
 	/** Gets the component of a vector in the direction of scrolling based on the Orientation property. */
 	FORCEINLINE float GetScrollComponentFromVector(FVector2D Vector) const
 	{
-		return Orientation == Orient_Vertical ? Vector.Y : Vector.X;
+		return float(Orientation == Orient_Vertical ? Vector.Y : Vector.X);
 	}
 
 	/** Sets the component of a vector in the direction of scrolling based on the Orientation property. */

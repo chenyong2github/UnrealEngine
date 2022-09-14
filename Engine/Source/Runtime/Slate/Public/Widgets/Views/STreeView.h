@@ -747,7 +747,7 @@ public:
 			int32 NumPinnedItems = (this->GetNumPinnedItems() < CurrentMaxPinnedItems) ? this->GetNumPinnedItems() : CurrentMaxPinnedItems;
 
 			// This is the first item that would be visible, if there were no pinned rows
-			int32 FirstItem = Results.NewScrollOffset - NumPinnedItems;
+			int32 FirstItem = FMath::TruncToInt32(Results.NewScrollOffset - NumPinnedItems);
 
 			// We find items that have a hierarchy big enough to cover themselves, but select the smallest among them
 			int32 MinSpaceOccupied = TNumericLimits<int32>::Max();

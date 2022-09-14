@@ -45,6 +45,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, const TSharedRef<FDeviceManagerModel>& InModel);
 
+	typedef TMap<int64, TSharedPtr<FDeviceProcessesProcessTreeNode>> ProcessMapType;
+
 protected:
 
 	/**
@@ -79,7 +81,7 @@ private:
 	TArray<TSharedPtr<FDeviceProcessesProcessTreeNode>> ProcessList;
 
 	/** Holds the collection of process nodes. */
-	TMap<uint32, TSharedPtr<FDeviceProcessesProcessTreeNode>> ProcessMap;
+	ProcessMapType ProcessMap;
 
 	/** Holds the application tree view. */
 	TSharedPtr<STreeView<TSharedPtr<FDeviceProcessesProcessTreeNode>>> ProcessTreeView;
