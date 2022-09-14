@@ -1589,6 +1589,12 @@ namespace AutomationScripts
 					return SC.StageTargetConfigurations.Any(x => x != UnrealTargetConfiguration.Test && x != UnrealTargetConfiguration.Shipping);
 				}
 
+				// this is needed for all targets
+				if (NormalizedPath == "configredirects.ini")
+				{
+					return true;
+				}
+
 				if (NormalizedPath == "locgatherconfig.ini")
 				{
 					return false;
