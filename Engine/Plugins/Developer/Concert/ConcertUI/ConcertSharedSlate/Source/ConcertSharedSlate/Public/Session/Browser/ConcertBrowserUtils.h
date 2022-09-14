@@ -6,7 +6,7 @@
 
 #include "ConcertMessageData.h"
 #include "IConcertSessionBrowserController.h"
-#include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 
 #include "Internationalization/Regex.h"
 #include "Layout/Visibility.h"
@@ -19,12 +19,10 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
 
 namespace ConcertBrowserUtils
 {
 	// Defines the sessions list view column tag names.
-	static const FName IconColName(TEXT("Icon"));
 	static const FName SessionColName(TEXT("Session"));
 	static const FName ServerColName(TEXT("Server"));
 	static const FName ProjectColName(TEXT("Project"));
@@ -103,13 +101,13 @@ namespace ConcertBrowserUtils
 	}
 
 	/** Helper function to split an array of FConcertSessionItems into multiple requests and execute*/
-	inline void RequestItemDeletion(IConcertSessionBrowserController& Controller, const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems)
+	inline void RequestItemDeletion(IConcertSessionBrowserController& Controller, const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems)
 	{
 		using FServerAdminEndpointId = FGuid;
 		using FSessionId = FGuid;
 			
 		TMap<FServerAdminEndpointId, TArray<FSessionId>> Requests;
-		for (const TSharedPtr<FConcertSessionItem>& Item : SessionItems)
+		for (const TSharedPtr<FConcertSessionTreeItem>& Item : SessionItems)
 		{
 			Requests.FindOrAdd(Item->ServerAdminEndpointId).Add(Item->SessionId);
 		}

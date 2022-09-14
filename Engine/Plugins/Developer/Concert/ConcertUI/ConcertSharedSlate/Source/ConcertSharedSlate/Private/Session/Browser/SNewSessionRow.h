@@ -6,11 +6,12 @@
 #include "ConcertHeaderRowUtils.h"
 #include "ConcertMessageData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
 #include "Styling/SlateBrush.h"
 
-class FConcertSessionItem;
+class FConcertSessionTreeItem;
 class SEditableTextBox;
 class SHeaderRow;
 class SWidget;
@@ -18,14 +19,14 @@ class SWidget;
 /**
  * The type of row used in the session list view to edit a new session (the session name + server).
  */
-class SNewSessionRow : public SMultiColumnTableRow<TSharedPtr<FConcertSessionItem>>
+class SNewSessionRow : public SMultiColumnTableRow<TSharedPtr<FConcertSessionTreeItem>>
 {
 public:
 	using FGetServersFunc = TFunction<TArray<FConcertServerInfo>()>;
 	// Should remove the editable 'new' row and creates the sessions.
-	using FAcceptFunc = TFunction<void(const TSharedPtr<FConcertSessionItem>&)>;
+	using FAcceptFunc = TFunction<void(const TSharedPtr<FConcertSessionTreeItem>&)>;
 	// Should just remove the editable 'new' row.
-	using FDeclineFunc = TFunction<void(const TSharedPtr<FConcertSessionItem>&)>; 
+	using FDeclineFunc = TFunction<void(const TSharedPtr<FConcertSessionTreeItem>&)>; 
 
 	SLATE_BEGIN_ARGS(SNewSessionRow) // Needed to use Args because Construct() is limited to 5 arguments and 6 were required.
 		: _GetServerFunc()
@@ -39,9 +40,11 @@ public:
 
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ATTRIBUTE(FString, DefaultServerURL)
+	
+		SLATE_ATTRIBUTE(FMargin, Padding)
 	SLATE_END_ARGS()
 	
-	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionItem> InItem, const TSharedRef<STableViewBase>& InOwnerTableView);
+	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionTreeItem> InItem, const TSharedRef<STableViewBase>& InOwnerTableView);
 	virtual ~SNewSessionRow() override;
 	
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
@@ -70,7 +73,7 @@ private:
 	UE::ConcertSharedSlate::FColumnVisibilityTransaction TemporaryColumnShower;
 	
 	/** Holds the new item to fill with session name and server. */
-	TWeakPtr<FConcertSessionItem> Item;
+	TWeakPtr<FConcertSessionTreeItem> Item;
 	/** Servers displayed in the server combo box. */
 	TArray<TSharedPtr<FConcertServerInfo>> Servers;
 

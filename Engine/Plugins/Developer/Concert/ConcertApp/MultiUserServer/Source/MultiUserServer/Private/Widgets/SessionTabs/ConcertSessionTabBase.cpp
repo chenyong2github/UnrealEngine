@@ -7,6 +7,7 @@
 #include "Window/ConcertServerTabs.h"
 
 #include "Framework/Docking/TabManager.h"
+#include "Styling/SlateBrush.h"
 #include "Widgets/Docking/SDockTab.h"
 
 namespace UE::ConcertServerUI::Private
@@ -72,7 +73,8 @@ void FConcertSessionTabBase::EnsureInitDockTab()
 					);
 			})
 			.TabRole(MajorTab);
-		
+
+		DockTab->SetTabIcon(GetTabIconBrush());
 		CreateDockContent(DockTab.ToSharedRef());
 	}
 }

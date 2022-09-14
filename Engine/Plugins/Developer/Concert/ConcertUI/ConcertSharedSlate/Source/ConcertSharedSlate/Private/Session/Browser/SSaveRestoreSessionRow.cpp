@@ -2,8 +2,9 @@
 
 #include "SSaveRestoreSessionRow.h"
 
+#include "ConcertFrontendStyle.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 
 #include "Styling/AppStyle.h"
 
@@ -11,7 +12,6 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/Regex.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -21,7 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 
-void SSaveRestoreSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionItem> InNode, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SSaveRestoreSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionTreeItem> InNode, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	Item = MoveTemp(InNode);
 	AcceptFunc = InArgs._OnAcceptFunc;
@@ -32,12 +32,11 @@ void SSaveRestoreSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FCon
 	DeclineFunc.CheckCallable();
 
 	// Construct base class
-	SMultiColumnTableRow<TSharedPtr<FConcertSessionItem>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+	SMultiColumnTableRow<TSharedPtr<FConcertSessionTreeItem>>::Construct(FSuperRowType::FArguments().Padding(InArgs._Padding), InOwnerTableView);
 
 	// This rows are needed to correctly display the row
 	TemporaryColumnShower
 		.SetHeaderRow(InOwnerTableView->GetHeaderRow())
-		.SaveVisibilityAndSet(ConcertBrowserUtils::IconColName, true)
 		.SaveVisibilityAndSet(ConcertBrowserUtils::SessionColName, true)
 		.SaveVisibilityAndSet(ConcertBrowserUtils::ServerColName, true)
 		.SaveVisibilityAndSet(ConcertBrowserUtils::ProjectColName, true);
@@ -55,9 +54,9 @@ TBitArray<> SSaveRestoreSessionRow::GetWiresNeededByDepth() const
 	return Bits;
 }
 
-FText SSaveRestoreSessionRow::GetDefaultName(const FConcertSessionItem& InItem) const
+FText SSaveRestoreSessionRow::GetDefaultName(const FConcertSessionTreeItem& InItem) const
 {
-	if (InItem.Type == FConcertSessionItem::EType::SaveSession)
+	if (InItem.Type == FConcertSessionTreeItem::EType::SaveSession)
 	{
 		return FText::Format(LOCTEXT("DefaultName", "{0}.{1}"), FText::FromString(InItem.SessionName), FText::FromString(FDateTime::UtcNow().ToString()));
 	}
@@ -75,48 +74,62 @@ FText SSaveRestoreSessionRow::GetDefaultName(const FConcertSessionItem& InItem) 
 
 TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
-	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	TSharedPtr<FConcertSessionTreeItem> ItemPin = Item.Pin();
 
-	if (ColumnName == ConcertBrowserUtils::IconColName)
+	if (ColumnName == ConcertBrowserUtils::SessionColName)
 	{
-		return SNew(SHorizontalBox)
+		return SNew( SHorizontalBox )
+
 			+SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(8, 0)
+			.Padding(6, 0, 0, 0)
 			[
-				SNew(SExpanderArrow, SharedThis(this))
-				.StyleSet(&FAppStyle::Get())
-				.ShouldDrawWires(true)
-			];
-	}
-	else if (ColumnName == ConcertBrowserUtils::SessionColName)
-	{
-		return SNew(SHorizontalBox)
-
-			// 'Restore as/Save as' text
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(2.0, 0.0)
-			[
-				SNew(STextBlock).Text(ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreAs", "Restore as:") : LOCTEXT("ArchiveAs", "Archive as:"))
+				SNew( SExpanderArrow, SharedThis(this) ).IndentAmount(12)
 			]
 
-			// Editable text.
 			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(0, 0, 2, 0))
+			.FillWidth(1.0f)
 			[
-				SAssignNew(EditableSessionName, SEditableTextBox)
-				.HintText(ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreSessionHint", "Enter a session name") : LOCTEXT("ArchivSessionHint", "Enter an archive name"))
-				.OnTextCommitted(this, &SSaveRestoreSessionRow::OnSessionNameCommitted)
-				.OnKeyDownHandler(this, &SSaveRestoreSessionRow::OnKeyDownHandler)
-				.OnTextChanged(this, &SSaveRestoreSessionRow::OnSessionNameChanged)
-				.Text(GetDefaultName(*ItemPin))
-				.SelectAllTextWhenFocused(true)
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(8, 0)
+				[
+					SNew(SExpanderArrow, SharedThis(this))
+					.IndentAmount(4)
+					.StyleSet(&FAppStyle::Get())
+					.ShouldDrawWires(true)
+				]
+				
+				// 'Restore as/Save as' text
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(2.0, 0.0)
+				[
+					SNew(STextBlock)
+					.Text(ItemPin->Type == FConcertSessionTreeItem::EType::RestoreSession ? LOCTEXT("RestoreAs", "Restore as:") : LOCTEXT("ArchiveAs", "Archive as:"))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", FConcertFrontendStyle::Get()->GetFloat("Concert.SessionBrowser.FontSize")))
+				]
+
+				// Editable text.
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(0, 0, 2, 0))
+				[
+					SAssignNew(EditableSessionName, SEditableTextBox)
+					.HintText(ItemPin->Type == FConcertSessionTreeItem::EType::RestoreSession ? LOCTEXT("RestoreSessionHint", "Enter a session name") : LOCTEXT("ArchivSessionHint", "Enter an archive name"))
+					.OnTextCommitted(this, &SSaveRestoreSessionRow::OnSessionNameCommitted)
+					.OnKeyDownHandler(this, &SSaveRestoreSessionRow::OnKeyDownHandler)
+					.OnTextChanged(this, &SSaveRestoreSessionRow::OnSessionNameChanged)
+					.Text(GetDefaultName(*ItemPin))
+					.SelectAllTextWhenFocused(true)
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", FConcertFrontendStyle::Get()->GetFloat("Concert.SessionBrowser.FontSize")))
+				]
 			];
 	}
-	else if (ColumnName == ConcertBrowserUtils::ServerColName)
+	if (ColumnName == ConcertBrowserUtils::ServerColName)
 	{
 		// 'Server' text block.
 		return SNew(SHorizontalBox)
@@ -129,11 +142,12 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 				// Server.
 				SNew(STextBlock)
 				.Text(FText::FromString(ItemPin->ServerName))
+				.Font(FCoreStyle::GetDefaultFontStyle("Regular", FConcertFrontendStyle::Get()->GetFloat("Concert.SessionBrowser.FontSize")))
 				.HighlightText(HighlightText)
 			]
 		];
 	}
-	else if (ColumnName == ConcertBrowserUtils::ProjectColName)
+	if (ColumnName == ConcertBrowserUtils::ProjectColName)
 	{
 		return SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -149,7 +163,7 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 				[
 					ConcertBrowserUtils::MakePositiveActionButton(
 						FAppStyle::GetBrush("Icons.Check"),
-						ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreCheckIconTooltip", "Restore the session") : LOCTEXT("ArchiveCheckIconTooltip", "Archive the session"),
+						ItemPin->Type == FConcertSessionTreeItem::EType::RestoreSession ? LOCTEXT("RestoreCheckIconTooltip", "Restore the session") : LOCTEXT("ArchiveCheckIconTooltip", "Archive the session"),
 						TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }), // Enabled?
 						FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnAccept))
 				]
@@ -188,7 +202,7 @@ void SSaveRestoreSessionRow::OnSessionNameChanged(const FText& NewName)
 
 void SSaveRestoreSessionRow::OnSessionNameCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
-	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	TSharedPtr<FConcertSessionTreeItem> ItemPin = Item.Pin();
 	if (CommitType == ETextCommit::Type::OnEnter)
 	{
 		OnAccept();
@@ -198,7 +212,7 @@ void SSaveRestoreSessionRow::OnSessionNameCommitted(const FText& NewText, ETextC
 FReply SSaveRestoreSessionRow::OnAccept()
 {
 	// Read the session name given by the user.
-	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	TSharedPtr<FConcertSessionTreeItem> ItemPin = Item.Pin();
 	FString Name = EditableSessionName->GetText().ToString(); // Archive name or restored session name.
 
 	// Ensure the user provided a name.

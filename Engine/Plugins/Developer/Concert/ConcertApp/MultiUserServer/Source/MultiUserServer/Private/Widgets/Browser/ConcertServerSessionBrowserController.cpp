@@ -6,10 +6,11 @@
 #include "ConcertServerStyle.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
-#include "Framework/Docking/TabManager.h"
 #include "SConcertServerSessionBrowser.h"
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"
+
+#include "Framework/Docking/TabManager.h"
 #include "Misc/AsyncTaskNotification.h"
-#include "Session/Browser/ConcertSessionItem.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -271,7 +272,7 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	void FConcertServerSessionBrowserController::OpenSession(const TSharedPtr<FConcertSessionItem>& SessionItem)
+	void FConcertServerSessionBrowserController::OpenSession(const TSharedPtr<FConcertSessionTreeItem>& SessionItem)
 	{
 		Owner.Pin()->OpenSessionTab(SessionItem->SessionId);
 	}

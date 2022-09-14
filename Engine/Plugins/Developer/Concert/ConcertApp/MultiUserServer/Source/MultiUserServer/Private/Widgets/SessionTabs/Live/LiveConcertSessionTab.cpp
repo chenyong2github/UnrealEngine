@@ -2,11 +2,11 @@
 
 #include "LiveConcertSessionTab.h"
 
+#include "ConcertFrontendStyle.h"
 #include "IConcertSession.h"
 #include "LiveServerSessionHistoryController.h"
 #include "PackageViewer/ConcertSessionPackageViewerController.h"
 #include "SConcertLiveSessionTabView.h"
-#include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #include "Widgets/Docking/SDockTab.h"
 
@@ -34,6 +34,11 @@ void FLiveConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& InDoc
 		{
 			OnConnectedClientsClicked.ExecuteIfBound(InspectedSession);
 		}));
+}
+
+const FSlateBrush* FLiveConcertSessionTab::GetTabIconBrush() const
+{
+	return FConcertFrontendStyle::Get()->GetBrush("Concert.ActiveSession.Icon");
 }
 
 void FLiveConcertSessionTab::OnOpenTab()

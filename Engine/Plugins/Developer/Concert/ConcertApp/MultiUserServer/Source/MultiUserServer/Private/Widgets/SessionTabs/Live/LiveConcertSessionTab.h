@@ -33,6 +33,7 @@ protected:
 
 	//~ Begin FAbstractConcertSessionTab Interface
 	virtual void CreateDockContent(const TSharedRef<SDockTab>& InDockTab) override;
+	virtual const FSlateBrush* GetTabIconBrush() const override;
 	virtual void OnOpenTab() override;
 	//~ End FAbstractConcertSessionTab Interface
 	

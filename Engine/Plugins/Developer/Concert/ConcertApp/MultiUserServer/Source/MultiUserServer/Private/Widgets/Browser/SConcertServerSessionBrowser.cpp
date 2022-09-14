@@ -4,7 +4,7 @@
 
 #include "MultiUserServerModule.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 #include "Session/Browser/SConcertSessionBrowser.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
@@ -46,7 +46,7 @@ namespace UE::MultiUserServer
 			});
 	}
 
-	void SConcertServerSessionBrowser::RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems) 
+	void SConcertServerSessionBrowser::RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems) 
 	{
 		const FText Message = [this, &SessionItems]()
 		{
@@ -60,13 +60,13 @@ namespace UE::MultiUserServer
 				
 			switch (SessionItems[0]->Type)
 			{
-			case FConcertSessionItem::EType::ActiveSession:
+			case FConcertSessionTreeItem::EType::ActiveSession:
 				return FText::Format(
 					LOCTEXT("DeletedActiveDescription", "There {0}|plural(one=is,other=are) {0} connected {0}|plural(one=client,other=clients) in the current session.\nDeleting a session will force all connected clients to disconnect.\n\nDelete {1}?"),
 					Controller.Pin()->GetNumConnectedClients(SessionItems[0]->SessionId),
 					FText::FromString(SessionItems[0]->SessionName)
 				);
-			case FConcertSessionItem::EType::ArchivedSession:
+			case FConcertSessionTreeItem::EType::ArchivedSession:
 				return FText::Format(
 					LOCTEXT("DeleteArchivedDescription", "Deleting a session will cause all associated data to be removed.\n\nDelete {0}?"),
 					FText::FromString(SessionItems[0]->SessionName)
@@ -79,7 +79,7 @@ namespace UE::MultiUserServer
 		DeleteSessionsWithFakeModalQuestion(Message, SessionItems);
 	}
 
-	void SConcertServerSessionBrowser::DeleteSessionsWithFakeModalQuestion(const FText& Message, const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems)
+	void SConcertServerSessionBrowser::DeleteSessionsWithFakeModalQuestion(const FText& Message, const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems)
 	{
 		auto DeleteArchived = [WeakController = TWeakPtr<FConcertServerSessionBrowserController>(Controller), SessionItems]()
 		{

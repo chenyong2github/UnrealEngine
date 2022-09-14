@@ -49,7 +49,7 @@ namespace UE::MultiUserServer
 	
 		TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 
-		void RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems);
-		void DeleteSessionsWithFakeModalQuestion(const FText& Message, const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems);
+		void RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems);
+		void DeleteSessionsWithFakeModalQuestion(const FText& Message, const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems);
 	};
 }

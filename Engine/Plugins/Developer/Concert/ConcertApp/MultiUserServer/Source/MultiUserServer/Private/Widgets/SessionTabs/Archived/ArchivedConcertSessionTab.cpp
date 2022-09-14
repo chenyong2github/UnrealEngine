@@ -3,6 +3,7 @@
 #include "Widgets/SessionTabs/Archived/ArchivedConcertSessionTab.h"
 
 #include "ArchivedSessionHistoryController.h"
+#include "ConcertFrontendStyle.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSessionDatabase.h"
 #include "HistoryEdition/ActivityNode.h"
@@ -53,6 +54,11 @@ void FArchivedConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& I
 			.UnmuteActivities_Raw(this, &FArchivedConcertSessionTab::OnRequestUnmuteActivities)
 			.CanUnmuteActivities_Raw(this, &FArchivedConcertSessionTab::CanUnmuteActivities)
 		);
+}
+
+const FSlateBrush* FArchivedConcertSessionTab::GetTabIconBrush() const
+{
+	return FConcertFrontendStyle::Get()->GetBrush("Concert.ArchivedSession.Icon");
 }
 
 void FArchivedConcertSessionTab::OnRequestDeleteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const

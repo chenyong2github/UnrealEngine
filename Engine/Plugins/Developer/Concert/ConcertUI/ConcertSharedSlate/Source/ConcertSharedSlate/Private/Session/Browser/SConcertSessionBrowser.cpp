@@ -6,18 +6,20 @@
 #include "ConcertHeaderRowUtils.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
-#include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/Items/ConcertArchivedGroupTreeItem.h"
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 #include "Session/Browser/IConcertSessionBrowserController.h"
 #include "Session/Browser/SNewSessionRow.h"
 #include "Session/Browser/SSaveRestoreSessionRow.h"
 #include "Session/Browser/SSessionRow.h"
+#include "Session/Browser/SSessionGroupRow.h"
 
 #include "Algo/ForEach.h"
 #include "Algo/Find.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/TextFilter.h"
+#include "Session/Browser/Items/ConcertActiveGroupTreeItem.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -61,13 +63,21 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<ICon
 
 	// Setup search filter.
 	SearchedText = InSearchText; // Reload a previous search text (in any). Useful to remember searched text between join/leave sessions, but not persistent if the tab is closed.
-	SearchTextFilter = MakeShared<TTextFilter<const FConcertSessionItem&>>(TTextFilter<const FConcertSessionItem&>::FItemToStringArray::CreateSP(this, &SConcertSessionBrowser::PopulateSearchStrings));
+	SearchTextFilter = MakeShared<TTextFilter<const FConcertSessionTreeItem&>>(TTextFilter<const FConcertSessionTreeItem&>::FItemToStringArray::CreateSP(this, &SConcertSessionBrowser::PopulateSearchStrings));
 	SearchTextFilter->OnChanged().AddSP(this, &SConcertSessionBrowser::RefreshSessionList);
+
+	auto GetSessions = [this]() { return Sessions; };
+	ActiveSessionsGroupItem = MakeShared<FConcertActiveGroupTreeItem>(GetSessions);
+	ArchivedSessionsGroupItem = MakeShared<FConcertArchivedGroupTreeItem>(GetSessions);
+	TreeItemSource = { ActiveSessionsGroupItem, ArchivedSessionsGroupItem };
 
 	ChildSlot
 	[
 		MakeBrowserContent(InArgs)
 	];
+	// By default have them expanded
+	SessionsView->SetItemExpansion(ActiveSessionsGroupItem, true);
+	SessionsView->SetItemExpansion(ArchivedSessionsGroupItem, true);
 
 	if (!SearchedText->IsEmpty())
 	{
@@ -146,21 +156,27 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent(const FArguments&
 		];
 }
 
+
+void SConcertSessionBrowser::OnGetChildren(TSharedPtr<FConcertTreeItem> InItem, TArray<TSharedPtr<FConcertTreeItem>>& OutChildren)
+{
+	return InItem->GetChildren(OutChildren);
+}
+
 namespace UE::SessionBrowser::Private
 {
 
 template <typename SessionType>
-constexpr FConcertSessionItem::EType GetEType()
+constexpr FConcertSessionTreeItem::EType GetEType()
 {
 	if constexpr(std::is_same<IConcertSessionBrowserController::FActiveSessionInfo,SessionType>::value)
 	{
-		return FConcertSessionItem::EType::ActiveSession;
+		return FConcertSessionTreeItem::EType::ActiveSession;
 	}
-	return FConcertSessionItem::EType::ArchivedSession;
+	return FConcertSessionTreeItem::EType::ArchivedSession;
 }
 
 template <typename SessionType>
-static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
+static FConcertSessionTreeItem GenerateSessionItem(const SessionType& Session)
 {
 	FText Version = LOCTEXT("ConcertEmptyVersion", "Unset");
 	if (Session.SessionInfo.VersionInfos.Num()>0)
@@ -168,7 +184,7 @@ static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
 		const FConcertSessionVersionInfo& VersionInfo = Session.SessionInfo.VersionInfos.Last();
 		Version = VersionInfo.AsText();
 	}
-	return FConcertSessionItem{
+	return FConcertSessionTreeItem(
 		GetEType<SessionType>(),
 		Session.ServerInfo.AdminEndpointId,
 		Session.SessionInfo.SessionId,
@@ -179,7 +195,7 @@ static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
 		Session.ServerInfo.ServerFlags,
 		Session.SessionInfo.GetLastModified(),
 		{}
-	};
+	);
 }
 
 }
@@ -187,17 +203,17 @@ static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
 void SConcertSessionBrowser::RefreshSessionList()
 {
 	// Remember the selected instances (if any).
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
-	TArray<TSharedPtr<FConcertSessionItem>> ReselectedItems;
-	TSharedPtr<FConcertSessionItem> NewEditableRowParent;
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
+	TArray<TSharedPtr<FConcertSessionTreeItem>> ReselectedItems;
+	TSharedPtr<FConcertSessionTreeItem> NewEditableRowParent;
 
 	// Predicate returning true if the specified item should be re-selected.
-	auto IsSelected = [&SelectedItems](const FConcertSessionItem& Item)
+	auto IsSelected = [&SelectedItems](const FConcertSessionTreeItem& Item)
 	{
-		return SelectedItems.ContainsByPredicate([Item](const TSharedPtr<FConcertSessionItem>& Visited) { return *Visited == Item; });
+		return SelectedItems.ContainsByPredicate([Item](const TSharedPtr<FConcertSessionTreeItem>& Visited) { return *Visited == Item; });
 	};
 	// Matches the object instances before the update to the new instance after the update.
-	auto ReconcileObjectInstances = [&](TSharedPtr<FConcertSessionItem> NewItem)
+	auto ReconcileObjectInstances = [&](TSharedPtr<FConcertSessionTreeItem> NewItem)
 	{
 		if (IsSelected(*NewItem))
 		{
@@ -210,15 +226,15 @@ void SConcertSessionBrowser::RefreshSessionList()
 	};
 	auto ConvertSession = [&](const auto& Session)
 	{
-		FConcertSessionItem NewItem = UE::SessionBrowser::Private::GenerateSessionItem(Session);
+		FConcertSessionTreeItem NewItem = UE::SessionBrowser::Private::GenerateSessionItem(Session);
 		if (!IsFilteredOut(NewItem))
 		{
-			Sessions.Emplace(
-				MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
-			ReconcileObjectInstances(Sessions.Last());
+			const TSharedPtr<FConcertSessionTreeItem> Item = MakeShared<FConcertSessionTreeItem>(MoveTemp(NewItem));
+			AddSession(Item);
+			ReconcileObjectInstances(Item);
 		}
 	};
-	Sessions.Reset();
+	ResetSessions();
 
 	TArray<IConcertSessionBrowserController::FActiveSessionInfo> ActiveSessions = GetController()->GetActiveSessions();
 	TArray<IConcertSessionBrowserController::FArchivedSessionInfo> ArchivedSessions = GetController()->GetArchivedSessions();
@@ -229,20 +245,20 @@ void SConcertSessionBrowser::RefreshSessionList()
 	EditableSessionRowParent = NewEditableRowParent;
 	if (EditableSessionRow.IsValid())
 	{
-		if (EditableSessionRow->Type == FConcertSessionItem::EType::NewSession)
+		if (EditableSessionRow->Type == FConcertSessionTreeItem::EType::NewSession)
 		{
-			Sessions.Insert(EditableSessionRow, 0); // Always put 'new session' row at the top.
+			InsertSessionAtBeginning(EditableSessionRow); // Always put 'new session' row at the top.
 		}
 		else if (EditableSessionRowParent.IsValid())
 		{
-			Sessions.Add(EditableSessionRow); // SortSessionList() called below will ensure the correct parent/child order.
+			AddSession(EditableSessionRow); // SortSessionList() called below will ensure the correct parent/child order.
 		}
 	}
 
 	// Restore previous selection.
 	if (ReselectedItems.Num())
 	{
-		for (const TSharedPtr<FConcertSessionItem>& Item : ReselectedItems)
+		for (const TSharedPtr<FConcertSessionTreeItem>& Item : ReselectedItems)
 		{
 			SessionsView->SetItemSelection(Item, true);
 		}
@@ -257,6 +273,111 @@ TSharedPtr<IConcertSessionBrowserController> SConcertSessionBrowser::GetControll
 	TSharedPtr<IConcertSessionBrowserController> Result = Controller.Pin();
 	check(Result);
 	return Result;
+}
+
+bool SConcertSessionBrowser::IsGroupItem(const TSharedPtr<FConcertTreeItem>& TreeItem) const
+{
+	return TreeItem == ActiveSessionsGroupItem || TreeItem == ArchivedSessionsGroupItem;
+}
+
+void SConcertSessionBrowser::ResetSessions()
+{
+	Sessions.Reset();
+}
+
+void SConcertSessionBrowser::AddSession(TSharedPtr<FConcertSessionTreeItem> Session)
+{
+	Sessions.Add(Session);
+}
+
+void SConcertSessionBrowser::InsertSessionAtBeginning(TSharedPtr<FConcertSessionTreeItem> NewSession)
+{
+	
+	Sessions.Insert(NewSession, 0);
+}
+
+void SConcertSessionBrowser::InsertSessionAfterParent(TSharedPtr<FConcertSessionTreeItem> NewSession, TSharedPtr<FConcertSessionTreeItem> Parent)
+{
+	const int32 TreeParentIndex = Sessions.IndexOfByKey(Parent);
+	if (TreeParentIndex != INDEX_NONE)
+	{
+		Sessions.Insert(NewSession, TreeParentIndex + 1);
+	}
+}
+
+SConcertSessionBrowser::EInsertPosition SConcertSessionBrowser::InsertSessionAfterParentIfAvailableOrAtBeginning(TSharedPtr<FConcertSessionTreeItem> NewSession, TSharedPtr<FConcertSessionTreeItem> Parent)
+{
+	const int32 ParentIndex = Sessions.IndexOfByKey(Parent);
+	const bool bPlaceAfterParent = ParentIndex != INDEX_NONE; 
+	Sessions.Insert(NewSession, bPlaceAfterParent ? ParentIndex + 1 : 0);
+	return bPlaceAfterParent ? EInsertPosition::AfterParent : EInsertPosition::AtBeginning;
+}
+
+void SConcertSessionBrowser::RemoveSession(TSharedPtr<FConcertSessionTreeItem> Session)
+{
+	Sessions.RemoveSingle(Session);
+}
+
+void SConcertSessionBrowser::SortSessionList()
+{
+	check(!PrimarySortedColumn.IsNone()); // Should always have a primary column. User cannot clear this one.
+
+	auto Compare = [this](const TSharedPtr<FConcertSessionTreeItem>& Lhs, const TSharedPtr<FConcertSessionTreeItem>& Rhs, const FName& ColName, EColumnSortMode::Type SortMode)
+	{
+		if (Lhs->Type == FConcertSessionTreeItem::EType::NewSession) // Always keep editable 'new session' row at the top.
+		{
+			return true;
+		}
+		if (Rhs->Type == FConcertSessionTreeItem::EType::NewSession)
+		{
+			return false;
+		}
+
+		if (ColName == ConcertBrowserUtils::SessionColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->SessionName < Rhs->SessionName : Lhs->SessionName > Rhs->SessionName;
+		}
+		if (ColName == ConcertBrowserUtils::ServerColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->ServerName < Rhs->ServerName : Lhs->ServerName > Rhs->ServerName;
+		}
+		if (ColName == ConcertBrowserUtils::ProjectColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectName < Rhs->ProjectName : Lhs->ProjectName > Rhs->ProjectName;
+		}
+		if (ColName == ConcertBrowserUtils::VersionColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectVersion < Rhs->ProjectVersion : Lhs->ProjectVersion > Rhs->ProjectVersion;
+		}
+		if (ColName == ConcertBrowserUtils::LastModifiedColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->LastModified < Rhs->LastModified : Lhs->LastModified > Rhs->LastModified;
+		}
+		else
+		{
+			// Did you add a new column?
+			checkNoEntry();
+			return false;
+		}
+	};
+
+	Sessions.Sort([&](const TSharedPtr<FConcertSessionTreeItem>& Lhs, const TSharedPtr<FConcertSessionTreeItem>& Rhs)
+	{
+		if (Compare(Lhs, Rhs, PrimarySortedColumn, PrimarySortMode))
+		{
+			return true; // Lhs must be before Rhs based on the primary sort order.
+		}
+		if (Compare(Rhs, Lhs, PrimarySortedColumn, PrimarySortMode)) // Invert operands order (goal is to check if operands are equal or not)
+		{
+			return false; // Rhs must be before Lhs based on the primary sort.
+		}
+		else // Lhs == Rhs on the primary column, need to order accoding the secondary column if one is set.
+		{
+			return SecondarySortedColumn.IsNone() ? false : Compare(Lhs, Rhs, SecondarySortedColumn, SecondarySortMode);
+		}
+	});
+
+	EnsureEditableParentChildOrder();
 }
 
 void SConcertSessionBrowser::OnSearchTextChanged(const FText& InFilterText)
@@ -276,18 +397,18 @@ void SConcertSessionBrowser::OnSearchTextCommitted(const FText& InFilterText, ET
 	}
 }
 
-void SConcertSessionBrowser::PopulateSearchStrings(const FConcertSessionItem& Item, TArray<FString>& OutSearchStrings) const
+void SConcertSessionBrowser::PopulateSearchStrings(const FConcertSessionTreeItem& Item, TArray<FString>& OutSearchStrings) const
 {
 	OutSearchStrings.Add(Item.ServerName);
 	OutSearchStrings.Add(Item.SessionName);
 }
 
-bool SConcertSessionBrowser::IsFilteredOut(const FConcertSessionItem& Item) const
+bool SConcertSessionBrowser::IsFilteredOut(const FConcertSessionTreeItem& Item) const
 {
 	bool bIsDefaultServer = LastDefaultServerUrl.IsEmpty() || Item.ServerName == LastDefaultServerUrl;
 
-	return (!PersistentSettings->bShowActiveSessions && (Item.Type == FConcertSessionItem::EType::ActiveSession || Item.Type == FConcertSessionItem::EType::SaveSession)) ||
-		   (!PersistentSettings->bShowArchivedSessions && (Item.Type == FConcertSessionItem::EType::ArchivedSession || Item.Type == FConcertSessionItem::EType::RestoreSession)) ||
+	return (!PersistentSettings->bShowActiveSessions && (Item.Type == FConcertSessionTreeItem::EType::ActiveSession || Item.Type == FConcertSessionTreeItem::EType::SaveSession)) ||
+		   (!PersistentSettings->bShowArchivedSessions && (Item.Type == FConcertSessionTreeItem::EType::ArchivedSession || Item.Type == FConcertSessionTreeItem::EType::RestoreSession)) ||
 		   (PersistentSettings->bShowDefaultServerSessionsOnly && !bIsDefaultServer) ||
 		   !SearchTextFilter->PassesFilter(Item);
 }
@@ -375,14 +496,15 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 {
 	using namespace UE::ConcertSharedSlate;
 
-	PrimarySortedColumn = ConcertBrowserUtils::IconColName;
+	PrimarySortedColumn = ConcertBrowserUtils::SessionColName;
 	PrimarySortMode = EColumnSortMode::Ascending;
-	SecondarySortedColumn = ConcertBrowserUtils::SessionColName;
+	SecondarySortedColumn = FName();
 	SecondarySortMode = EColumnSortMode::Ascending;
 
-	SessionsView = SNew(SListView<TSharedPtr<FConcertSessionItem>>)
-		.ListItemsSource(&Sessions)
+	SessionsView = SNew(STreeView<TSharedPtr<FConcertTreeItem>>)
+		.TreeItemsSource(&TreeItemSource)
 		.OnGenerateRow(this, &SConcertSessionBrowser::OnGenerateSessionRowWidget)
+		.OnGetChildren(this, &SConcertSessionBrowser::OnGetChildren)
 		.SelectionMode(ESelectionMode::Multi)
 		.OnSelectionChanged(this, &SConcertSessionBrowser::OnSessionSelectionChanged)
 		.OnContextMenuOpening(this, &SConcertSessionBrowser::MakeTableContextualMenu)
@@ -397,16 +519,9 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 				}
 			})
 
-			+SHeaderRow::Column(ConcertBrowserUtils::IconColName)
-			.DefaultLabel(FText::GetEmpty())
-			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::IconColName)
-			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::IconColName)
-			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
-			.FixedWidth(20)
-			.ShouldGenerateWidget(true)
-
 			+SHeaderRow::Column(ConcertBrowserUtils::SessionColName)
 			.DefaultLabel(LOCTEXT("SessioName", "Session"))
+			.FillWidth(2.f)
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::SessionColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::SessionColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
@@ -414,24 +529,28 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 
 			+SHeaderRow::Column(ConcertBrowserUtils::ServerColName)
 			.DefaultLabel(LOCTEXT("Server", "Server"))
+			.FillWidth(1.f)
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ServerColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ServerColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
 			
 			+SHeaderRow::Column(ConcertBrowserUtils::ProjectColName)
 			.DefaultLabel(LOCTEXT("ProjectCol", "Project"))
+			.FillWidth(1.f)
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ProjectColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ProjectColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
 			
 			+SHeaderRow::Column(ConcertBrowserUtils::VersionColName)
 			.DefaultLabel(LOCTEXT("Version", "Version"))
+			.FillWidth(1.f)
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::VersionColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::VersionColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
 			
 			+SHeaderRow::Column(ConcertBrowserUtils::LastModifiedColName)
 			.DefaultLabel(LOCTEXT("LastModified", "Last Modified"))
+			.FillWidth(1.f)
 			.DefaultTooltip(LOCTEXT("LastModifiedTooltip", "The local time the session's directory was last modified"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::LastModifiedColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::LastModifiedColName)
@@ -493,121 +612,58 @@ void SConcertSessionBrowser::OnColumnSortModeChanged(const EColumnSortPriority::
 	SessionsView->RequestListRefresh();
 }
 
-void SConcertSessionBrowser::SortSessionList()
-{
-	check(!PrimarySortedColumn.IsNone()); // Should always have a primary column. User cannot clear this one.
-
-	auto Compare = [this](const TSharedPtr<FConcertSessionItem>& Lhs, const TSharedPtr<FConcertSessionItem>& Rhs, const FName& ColName, EColumnSortMode::Type SortMode)
-	{
-		if (Lhs->Type == FConcertSessionItem::EType::NewSession) // Always keep editable 'new session' row at the top.
-		{
-			return true;
-		}
-		if (Rhs->Type == FConcertSessionItem::EType::NewSession)
-		{
-			return false;
-		}
-
-		if (ColName == ConcertBrowserUtils::IconColName)
-		{
-			return SortMode == EColumnSortMode::Ascending ? Lhs->Type < Rhs->Type : Lhs->Type > Rhs->Type;
-		}
-		if (ColName == ConcertBrowserUtils::SessionColName)
-		{
-			return SortMode == EColumnSortMode::Ascending ? Lhs->SessionName < Rhs->SessionName : Lhs->SessionName > Rhs->SessionName;
-		}
-		if (ColName == ConcertBrowserUtils::ServerColName)
-		{
-			return SortMode == EColumnSortMode::Ascending ? Lhs->ServerName < Rhs->ServerName : Lhs->ServerName > Rhs->ServerName;
-		}
-		if (ColName == ConcertBrowserUtils::ProjectColName)
-		{
-			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectName < Rhs->ProjectName : Lhs->ProjectName > Rhs->ProjectName;
-		}
-		if (ColName == ConcertBrowserUtils::VersionColName)
-		{
-			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectVersion < Rhs->ProjectVersion : Lhs->ProjectVersion > Rhs->ProjectVersion;
-		}
-		if (ColName == ConcertBrowserUtils::LastModifiedColName)
-		{
-			return SortMode == EColumnSortMode::Ascending ? Lhs->LastModified < Rhs->LastModified : Lhs->LastModified > Rhs->LastModified;
-		}
-		else
-		{
-			// Did you add a new column?
-			checkNoEntry();
-			return false;
-		}
-	};
-
-	Sessions.Sort([&](const TSharedPtr<FConcertSessionItem>& Lhs, const TSharedPtr<FConcertSessionItem>& Rhs)
-	{
-		if (Compare(Lhs, Rhs, PrimarySortedColumn, PrimarySortMode))
-		{
-			return true; // Lhs must be before Rhs based on the primary sort order.
-		}
-		if (Compare(Rhs, Lhs, PrimarySortedColumn, PrimarySortMode)) // Invert operands order (goal is to check if operands are equal or not)
-		{
-			return false; // Rhs must be before Lhs based on the primary sort.
-		}
-		else // Lhs == Rhs on the primary column, need to order accoding the secondary column if one is set.
-		{
-			return SecondarySortedColumn.IsNone() ? false : Compare(Lhs, Rhs, SecondarySortedColumn, SecondarySortMode);
-		}
-	});
-
-	EnsureEditableParentChildOrder();
-}
-
 void SConcertSessionBrowser::EnsureEditableParentChildOrder()
 {
 	// This is for Archiving or Restoring a session. We keep the editable row below the session to archive or restore and visually link them with small wires in UI.
 	if (EditableSessionRowParent.IsValid())
 	{
 		check(EditableSessionRow.IsValid());
-		Sessions.Remove(EditableSessionRow);
-
-		int32 ParentIndex = Sessions.IndexOfByKey(EditableSessionRowParent);
-		if (ParentIndex != INDEX_NONE)
-		{
-			Sessions.Insert(EditableSessionRow, ParentIndex + 1); // Insert the 'child' below its parent.
-		}
+		RemoveSession(EditableSessionRow);
+		
+		InsertSessionAfterParent(EditableSessionRow, EditableSessionRowParent); // Insert the 'child' below its parent.
 	}
 }
 
-TSharedRef<ITableRow> SConcertSessionBrowser::OnGenerateSessionRowWidget(TSharedPtr<FConcertSessionItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionBrowser::OnGenerateSessionRowWidget(TSharedPtr<FConcertTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	switch (Item->Type)
+	if (IsGroupItem(Item))
 	{
-		case FConcertSessionItem::EType::ActiveSession:
-			return MakeActiveSessionRowWidget(Item, OwnerTable);
+		return MakeGroupRowWidget(Item, OwnerTable);
+	}
 
-		case FConcertSessionItem::EType::ArchivedSession:
-			return MakeArchivedSessionRowWidget(Item, OwnerTable);
+	const TSharedPtr<FConcertSessionTreeItem> SessionItem = StaticCastSharedPtr<FConcertSessionTreeItem>(Item);
+	switch (SessionItem->Type)
+	{
+		case FConcertSessionTreeItem::EType::ActiveSession:
+			return MakeActiveSessionRowWidget(SessionItem, OwnerTable);
 
-		case FConcertSessionItem::EType::NewSession:
-			return MakeNewSessionRowWidget(Item, OwnerTable);
+		case FConcertSessionTreeItem::EType::ArchivedSession:
+			return MakeArchivedSessionRowWidget(SessionItem, OwnerTable);
 
-		case FConcertSessionItem::EType::RestoreSession:
-			return MakeRestoreSessionRowWidget(Item, OwnerTable);
+		case FConcertSessionTreeItem::EType::NewSession:
+			return MakeNewSessionRowWidget(SessionItem, OwnerTable);
+
+		case FConcertSessionTreeItem::EType::RestoreSession:
+			return MakeRestoreSessionRowWidget(SessionItem, OwnerTable);
 
 		default:
-			check(Item->Type == FConcertSessionItem::EType::SaveSession);
-			return MakeSaveSessionRowWidget(Item, OwnerTable);
+			check(SessionItem->Type == FConcertSessionTreeItem::EType::SaveSession);
+			return MakeSaveSessionRowWidget(SessionItem, OwnerTable);
 	}
 }
 
-TSharedRef<ITableRow> SConcertSessionBrowser::MakeActiveSessionRowWidget(const TSharedPtr<FConcertSessionItem>& ActiveItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionBrowser::MakeActiveSessionRowWidget(const TSharedPtr<FConcertSessionTreeItem>& ActiveItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	const TOptional<FConcertSessionInfo> SessionInfo = GetController()->GetActiveSessionInfo(ActiveItem->ServerAdminEndpointId, ActiveItem->SessionId);
 
 	// Add an 'Active Session' row. Clicking the row icon joins the session.
 	return SNew(SSessionRow, ActiveItem, OwnerTable)
-		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { OnLiveSessionDoubleClicked.ExecuteIfBound(Item); })
-		.OnRenameFunc([this](const TSharedPtr<FConcertSessionItem>& Item, const FString& NewName) { RequestRenameSession(Item, NewName); })
-		.IsDefaultSession([this](TSharedPtr<FConcertSessionItem> ItemPin)
+		.Padding(FConcertFrontendStyle::Get()->GetMargin("Concert.SessionRowPadding"))
+		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item) { OnLiveSessionDoubleClicked.ExecuteIfBound(Item); })
+		.OnRenameFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item, const FString& NewName) { RequestRenameSession(Item, NewName); })
+		.IsDefaultSession([this](TSharedPtr<FConcertSessionTreeItem> ItemPin)
 		{
-			return ItemPin->Type == FConcertSessionItem::EType::ActiveSession
+			return ItemPin->Type == FConcertSessionTreeItem::EType::ActiveSession
 				&& DefaultSessionName.IsSet() && ItemPin->SessionName == DefaultSessionName.Get()
 				&& DefaultServerUrl.IsSet() && ItemPin->ServerName == DefaultServerUrl.Get();
 		})
@@ -616,17 +672,18 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeActiveSessionRowWidget(const T
 		.IsSelected_Lambda([this, ActiveItem]() { return SessionsView->GetSelectedItems().Num() == 1 && SessionsView->GetSelectedItems()[0] == ActiveItem; });
 }
 
-TSharedRef<ITableRow> SConcertSessionBrowser::MakeArchivedSessionRowWidget(const TSharedPtr<FConcertSessionItem>& ArchivedItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionBrowser::MakeArchivedSessionRowWidget(const TSharedPtr<FConcertSessionTreeItem>& ArchivedItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	const TOptional<FConcertSessionInfo> SessionInfo = GetController()->GetArchivedSessionInfo(ArchivedItem->ServerAdminEndpointId, ArchivedItem->SessionId);
 
 	// Add an 'Archived Session' row. Clicking the row icon adds a 'Restore as' row to the table.
 	return SNew(SSessionRow, ArchivedItem, OwnerTable)
-		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { OnArchivedSessionDoubleClicked.Execute(Item); })
-		.OnRenameFunc([this](const TSharedPtr<FConcertSessionItem>& Item, const FString& NewName) { RequestRenameSession(Item, NewName); })
-		.IsDefaultSession([this](TSharedPtr<FConcertSessionItem> ItemPin)
+		.Padding(FConcertFrontendStyle::Get()->GetMargin("Concert.SessionRowPadding"))
+		.OnDoubleClickFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item) { OnArchivedSessionDoubleClicked.Execute(Item); })
+		.OnRenameFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item, const FString& NewName) { RequestRenameSession(Item, NewName); })
+		.IsDefaultSession([this](TSharedPtr<FConcertSessionTreeItem> ItemPin)
 		{
-			return ItemPin->Type == FConcertSessionItem::EType::ActiveSession
+			return ItemPin->Type == FConcertSessionTreeItem::EType::ActiveSession
 				&& DefaultSessionName.IsSet() && ItemPin->SessionName == DefaultSessionName.Get()
 				&& DefaultServerUrl.IsSet() && ItemPin->ServerName == DefaultServerUrl.Get();
 		})
@@ -635,66 +692,75 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeArchivedSessionRowWidget(const
 		.IsSelected_Lambda([this, ArchivedItem]() { return SessionsView->GetSelectedItems().Num() == 1 && SessionsView->GetSelectedItems()[0] == ArchivedItem; });
 }
 
-TSharedRef<ITableRow> SConcertSessionBrowser::MakeNewSessionRowWidget(const TSharedPtr<FConcertSessionItem>& NewItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionBrowser::MakeNewSessionRowWidget(const TSharedPtr<FConcertSessionTreeItem>& NewItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	// Add an editable 'New Session' row in the table to let user pick a name and a server.
 	TAttribute<FString> DefaultServerUrlArg = DefaultServerUrl.IsSet()
 		? TAttribute<FString>::Create([this](){ return DefaultServerUrl.Get(); }) : TAttribute<FString>();
 	return SNew(SNewSessionRow, NewItem, OwnerTable)
+		.Padding(FConcertFrontendStyle::Get()->GetMargin("Concert.SessionRowPadding"))
 		.GetServerFunc([this]() { return GetController()->GetServers(); }) // Let the row pull the servers for the combo box.
-		.OnAcceptFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { RequestCreateSession(Item); }) // Accepting creates the session.
-		.OnDeclineFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { RemoveSessionRow(Item); })  // Declining removes the editable 'new session' row from the view.
+		.OnAcceptFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item) { RequestCreateSession(Item); }) // Accepting creates the session.
+		.OnDeclineFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item) { RemoveSessionRow(Item); })  // Declining removes the editable 'new session' row from the view.
 		.HighlightText(this, &SConcertSessionBrowser::HighlightSearchText)
 		.DefaultServerURL(DefaultServerUrlArg);
 }
 
-TSharedRef<ITableRow> SConcertSessionBrowser::MakeSaveSessionRowWidget(const TSharedPtr<FConcertSessionItem>& SaveItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionBrowser::MakeSaveSessionRowWidget(const TSharedPtr<FConcertSessionTreeItem>& SaveItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	// Add an editable 'Save Session' row in the table to let the user enter an archive name.
 	return SNew(SSaveRestoreSessionRow, SaveItem, OwnerTable)
-		.OnAcceptFunc([this](const TSharedPtr<FConcertSessionItem>& Item, const FString& ArchiveName) { RequestArchiveSession(Item, ArchiveName); }) // Accepting archive the session.
-		.OnDeclineFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { RemoveSessionRow(Item); }) // Declining removes the editable 'save session as' row from the view.
+		.Padding(FConcertFrontendStyle::Get()->GetMargin("Concert.SessionRowPadding"))
+		.OnAcceptFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item, const FString& ArchiveName) { RequestArchiveSession(Item, ArchiveName); }) // Accepting archive the session.
+		.OnDeclineFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item) { RemoveSessionRow(Item); }) // Declining removes the editable 'save session as' row from the view.
 		.HighlightText(this, &SConcertSessionBrowser::HighlightSearchText);
 }
 
-TSharedRef<ITableRow> SConcertSessionBrowser::MakeRestoreSessionRowWidget(const TSharedPtr<FConcertSessionItem>& RestoreItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionBrowser::MakeGroupRowWidget(const TSharedPtr<FConcertTreeItem>& Item, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	const bool bIsActive = Item == ActiveSessionsGroupItem;
+	return SNew(SSessionGroupRow, OwnerTable)
+		.Padding(FConcertFrontendStyle::Get()->GetMargin("Concert.SessionRowPadding"))
+		.GroupType(bIsActive ? SSessionGroupRow::EGroupType::Active : SSessionGroupRow::EGroupType::Archived);
+}
+
+TSharedRef<ITableRow> SConcertSessionBrowser::MakeRestoreSessionRowWidget(const TSharedPtr<FConcertSessionTreeItem>& RestoreItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	// Add an editable 'Restore Session' row in the table to let the user enter a session name.
 	return SNew(SSaveRestoreSessionRow, RestoreItem, OwnerTable)
-		.OnAcceptFunc([this](const TSharedPtr<FConcertSessionItem>& Item, const FString& SessionName) { RequestRestoreSession(Item, SessionName); }) // Accepting restores the session.
-		.OnDeclineFunc([this](const TSharedPtr<FConcertSessionItem>& Item) { RemoveSessionRow(Item); }) // Declining removes the editable 'restore session as' row from the view.
+		.Padding(FConcertFrontendStyle::Get()->GetMargin("Concert.SessionRowPadding"))
+		.OnAcceptFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item, const FString& SessionName) { RequestRestoreSession(Item, SessionName); }) // Accepting restores the session.
+		.OnDeclineFunc([this](const TSharedPtr<FConcertSessionTreeItem>& Item) { RemoveSessionRow(Item); }) // Declining removes the editable 'restore session as' row from the view.
 		.HighlightText(this, &SConcertSessionBrowser::HighlightSearchText);
 }
 
 void SConcertSessionBrowser::InsertNewSessionEditableRowInternal()
 {
 	// Insert a 'new session' editable row.
-	FConcertSessionItem Item{FConcertSessionItem::EType::NewSession};
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(MoveTemp(Item)), nullptr);
+	FConcertSessionTreeItem Item;
+	Item.Type = FConcertSessionTreeItem::EType::NewSession;
+	InsertEditableSessionRow(MakeShared<FConcertSessionTreeItem>(MoveTemp(Item)), nullptr);
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
-void SConcertSessionBrowser::InsertRestoreSessionAsEditableRowInternal(const TSharedPtr<FConcertSessionItem>& ArchivedItem)
+void SConcertSessionBrowser::InsertRestoreSessionAsEditableRowInternal(const TSharedPtr<FConcertSessionTreeItem>& ArchivedItem)
 {
 	// Insert the 'restore session as ' editable row just below the 'archived' item to restore.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(ArchivedItem->MakeCopyAsType(FConcertSessionItem::EType::RestoreSession)), ArchivedItem);
+	InsertEditableSessionRow(MakeShared<FConcertSessionTreeItem>(ArchivedItem->MakeCopyAsType(FConcertSessionTreeItem::EType::RestoreSession)), ArchivedItem);
 }
-	PRAGMA_ENABLE_OPTIMIZATION
 
-void SConcertSessionBrowser::InsertArchiveSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& LiveItem)
+void SConcertSessionBrowser::InsertArchiveSessionAsEditableRow(const TSharedPtr<FConcertSessionTreeItem>& LiveItem)
 {
 	// Insert the 'save session as' editable row just below the 'active' item to save.
-	InsertEditableSessionRow(MakeShared<FConcertSessionItem>(LiveItem->MakeCopyAsType(FConcertSessionItem::EType::SaveSession)), LiveItem);
+	InsertEditableSessionRow(MakeShared<FConcertSessionTreeItem>(LiveItem->MakeCopyAsType(FConcertSessionTreeItem::EType::SaveSession)), LiveItem);
 }
 
-void SConcertSessionBrowser::InsertEditableSessionRow(TSharedPtr<FConcertSessionItem> EditableItem, TSharedPtr<FConcertSessionItem> ParentItem)
+void SConcertSessionBrowser::InsertEditableSessionRow(TSharedPtr<FConcertSessionTreeItem> EditableItem, TSharedPtr<FConcertSessionTreeItem> ParentItem)
 {
 	// Insert the new row below its parent (if any).
-	int32 ParentIndex = Sessions.IndexOfByKey(ParentItem);
-	Sessions.Insert(EditableItem, ParentIndex != INDEX_NONE ? ParentIndex + 1 : 0);
+	const EInsertPosition InsertPosition = InsertSessionAfterParentIfAvailableOrAtBeginning(EditableItem, ParentItem);
 
 	// Ensure there is only one editable row at the time, removing the row being edited (if any).
-	Sessions.Remove(EditableSessionRow);
+	RemoveSession(EditableSessionRow);
 	EditableSessionRow = EditableItem;
 	EditableSessionRowParent = ParentItem;
 
@@ -705,7 +771,7 @@ void SConcertSessionBrowser::InsertEditableSessionRow(TSharedPtr<FConcertSession
 	// NOTE: Ideally, I would only use RequestScrollIntoView() to scroll the new item into view, but it did not work. If an item was added into an hidden part,
 	//       it was not always scrolled correctly into view. RequestNavigateToItem() worked much better, except when inserting the very first row in the list, in
 	//       such case calling the function would give the focus to the list view (showing a white dashed line around it).
-	if (ParentIndex == INDEX_NONE)
+	if (InsertPosition == EInsertPosition::AtBeginning)
 	{
 		SessionsView->ScrollToTop(); // Item is inserted at 0. (New session)
 	}
@@ -715,14 +781,14 @@ void SConcertSessionBrowser::InsertEditableSessionRow(TSharedPtr<FConcertSession
 	}
 }
 
-void SConcertSessionBrowser::RemoveSessionRow(const TSharedPtr<FConcertSessionItem>& Item)
+void SConcertSessionBrowser::RemoveSessionRow(const TSharedPtr<FConcertSessionTreeItem>& Item)
 {
-	Sessions.Remove(Item);
+	RemoveSession(Item);
 
 	// Don't keep the editable row if its 'parent' is removed. (if the session to restore or archive gets deleted in the meantime)
 	if (Item == EditableSessionRowParent)
 	{
-		Sessions.Remove(EditableSessionRow);
+		RemoveSession(EditableSessionRow);
 		EditableSessionRow.Reset();
 	}
 
@@ -746,9 +812,9 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableFooter()
 			SNew(STextBlock).Text_Lambda([this]()
 			{
 				// Don't count the 'New Session', 'Restore Session' and 'Archive Session' editable row, they are transient rows used for inline input only.
-				int32 DisplayedSessionNum = Sessions.Num() - (EditableSessionRow.IsValid() ? 1 : 0);
-				int32 AvailableSessionNum = GetController()->GetActiveSessions().Num() + GetController()->GetArchivedSessions().Num();
-				int32 ServerNum = GetController()->GetServers().Num();
+				const int32 DisplayedSessionNum = Sessions.Num() - (EditableSessionRow.IsValid() ? 1 : 0);
+				const int32 AvailableSessionNum = GetController()->GetActiveSessions().Num() + GetController()->GetArchivedSessions().Num();
+				const int32 ServerNum = GetController()->GetServers().Num();
 
 				// If all discovered session are displayed (none excluded by a filter).
 				if (DisplayedSessionNum == AvailableSessionNum)
@@ -821,25 +887,30 @@ void SConcertSessionBrowser::OnFilterMenuChecked(const FName MenuName)
 
 TSharedPtr<SWidget> SConcertSessionBrowser::MakeTableContextualMenu()
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
-	if (SelectedItems.Num() == 0 || (SelectedItems[0]->Type != FConcertSessionItem::EType::ActiveSession && SelectedItems[0]->Type != FConcertSessionItem::EType::ArchivedSession))
+	if (SessionsView->GetSelectedItems().Num() == 0)
 	{
 		// If clicking the header row, show the options for hiding them
 		return UE::ConcertSharedSlate::MakeTableContextMenu(SessionHeaderRow.ToSharedRef(), {}, true);
 	}
 
-	TSharedPtr<FConcertSessionItem> Item = SelectedItems[0];
+	const TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
+	if (SelectedItems.Num() == 0)
+	{
+		// If you click the groups then the context menu should not contain anything
+		return nullptr;
+	}
+	TSharedPtr<FConcertSessionTreeItem> Item = SelectedItems[0];
 
 	TSharedRef<FExtender> Extender = MakeShared<FExtender>();
 	ExtendSessionContextMenu.ExecuteIfBound(Item, Extender.Get());
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr, Extender);
 
 	// Section title.
-	MenuBuilder.BeginSection(SessionContextMenuExtensionHooks::ManageSession, Item->Type == FConcertSessionItem::EType::ActiveSession ?
+	MenuBuilder.BeginSection(SessionContextMenuExtensionHooks::ManageSession, Item->Type == FConcertSessionTreeItem::EType::ActiveSession ?
 		LOCTEXT("ActiveSessionSection", "Active Session"):
 		LOCTEXT("ArchivedSessionSection", "Archived Session"));
 
-	if (Item->Type == FConcertSessionItem::EType::ActiveSession)
+	if (Item->Type == FConcertSessionTreeItem::EType::ActiveSession)
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CtxMenuArchive", "Archive"),
@@ -955,7 +1026,15 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeViewOptionsComboButtonMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SConcertSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcertSessionItem> SelectedSession, ESelectInfo::Type SelectInfo)
+void SConcertSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcertTreeItem> SelectedSession, ESelectInfo::Type SelectInfo)
+{
+	if (!IsGroupItem(SelectedSession))
+	{
+		OnSessionSelectionChanged(StaticCastSharedPtr<FConcertSessionTreeItem>(SelectedSession), SelectInfo);
+	}
+}
+
+void SConcertSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcertSessionTreeItem> SelectedSession, ESelectInfo::Type SelectInfo)
 {
 	// Cancel editing the row to create, archive or restore a session (if any), unless the row was selected in code.
 	if (EditableSessionRow.IsValid() && SelectInfo != ESelectInfo::Direct)
@@ -978,38 +1057,38 @@ bool SConcertSessionBrowser::IsNewButtonEnabledInternal() const
 
 bool SConcertSessionBrowser::IsRestoreButtonEnabledInternal() const
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
-	return SelectedItems.Num() == 1 && SelectedItems[0]->Type == FConcertSessionItem::EType::ArchivedSession;
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
+	return SelectedItems.Num() == 1 && SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ArchivedSession;
 }
 
 bool SConcertSessionBrowser::IsArchiveButtonEnabledInternal() const
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
-	return SelectedItems.Num() == 1 && SelectedItems[0]->Type == FConcertSessionItem::EType::ActiveSession;
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
+	return SelectedItems.Num() == 1 && SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ActiveSession;
 }
 
 bool SConcertSessionBrowser::IsRenameButtonEnabledInternal() const
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
 	if (SelectedItems.Num() != 1)
 	{
 		return false;
 	}
 
-	return (SelectedItems[0]->Type == FConcertSessionItem::EType::ActiveSession && GetController()->CanRenameActiveSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId)) ||
-	       (SelectedItems[0]->Type == FConcertSessionItem::EType::ArchivedSession && GetController()->CanRenameArchivedSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId));
+	return (SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ActiveSession && GetController()->CanRenameActiveSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId)) ||
+	       (SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ArchivedSession && GetController()->CanRenameArchivedSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId));
 }
 
 bool SConcertSessionBrowser::IsDeleteButtonEnabledInternal() const
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
 	if (SelectedItems.Num() == 0)
 	{
 		return false;
 	}
 
-	return (SelectedItems[0]->Type == FConcertSessionItem::EType::ActiveSession && GetController()->CanDeleteActiveSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId)) ||
-	       (SelectedItems[0]->Type == FConcertSessionItem::EType::ArchivedSession && GetController()->CanDeleteArchivedSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId));
+	return (SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ActiveSession && GetController()->CanDeleteActiveSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId)) ||
+	       (SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ArchivedSession && GetController()->CanDeleteArchivedSession(SelectedItems[0]->ServerAdminEndpointId, SelectedItems[0]->SessionId));
 }
 
 FReply SConcertSessionBrowser::OnNewButtonClicked()
@@ -1020,7 +1099,7 @@ FReply SConcertSessionBrowser::OnNewButtonClicked()
 
 FReply SConcertSessionBrowser::OnRestoreButtonClicked()
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
+	const TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
 	if (SelectedItems.Num() == 1)
 	{
 		InsertRestoreSessionAsEditableRowInternal(SelectedItems[0]);
@@ -1031,7 +1110,7 @@ FReply SConcertSessionBrowser::OnRestoreButtonClicked()
 
 FReply SConcertSessionBrowser::OnArchiveButtonClicked()
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
+	const TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
 	if (SelectedItems.Num() == 1)
 	{
 		InsertArchiveSessionAsEditableRow(SelectedItems[0]);
@@ -1042,11 +1121,11 @@ FReply SConcertSessionBrowser::OnArchiveButtonClicked()
 
 FReply SConcertSessionBrowser::OnDeleteButtonClicked()
 {
-	RequestDeleteSessions(SessionsView->GetSelectedItems());
+	RequestDeleteSessions(GetSelectedItems());
 	return FReply::Handled();
 }
 
-void SConcertSessionBrowser::OnBeginEditingSessionName(TSharedPtr<FConcertSessionItem> Item)
+void SConcertSessionBrowser::OnBeginEditingSessionName(TSharedPtr<FConcertSessionTreeItem> Item)
 {
 	Item->OnBeginEditSessionNameRequest.Broadcast(); // Signal the row widget to enter in edit mode.
 }
@@ -1076,18 +1155,20 @@ FReply SConcertSessionBrowser::OnKeyDown(const FGeometry& MyGeometry, const FKey
 
 	if (InKeyEvent.GetKey() == EKeys::Delete && !EditableSessionRow.IsValid()) // Delete selected row(s) unless the selected row is an 'editable' one.
 	{
-		RequestDeleteSessions(SessionsView->GetSelectedItems());
+		RequestDeleteSessions(GetSelectedItems());
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::Escape && EditableSessionRow.IsValid()) // Cancel 'new session', 'archive session' or 'restore session' action.
+	
+	if (InKeyEvent.GetKey() == EKeys::Escape && EditableSessionRow.IsValid()) // Cancel 'new session', 'archive session' or 'restore session' action.
 	{
 		RemoveSessionRow(EditableSessionRow);
 		check(!EditableSessionRow.IsValid() && !EditableSessionRowParent.IsValid()); // Expect to be cleared by RemoveSessionRow().
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::F2 && !EditableSessionRow.IsValid())
+	
+	if (InKeyEvent.GetKey() == EKeys::F2 && !EditableSessionRow.IsValid())
 	{
-		TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
+		TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = GetSelectedItems();
 		if (SelectedItems.Num() == 1)
 		{
 			SelectedItems[0]->OnBeginEditSessionNameRequest.Broadcast(); // Broadcast the request.
@@ -1097,31 +1178,43 @@ FReply SConcertSessionBrowser::OnKeyDown(const FGeometry& MyGeometry, const FKey
 	return FReply::Unhandled();
 }
 
-void SConcertSessionBrowser::RequestCreateSession(const TSharedPtr<FConcertSessionItem>& NewItem)
+TArray<TSharedPtr<FConcertSessionTreeItem>> SConcertSessionBrowser::GetSelectedItems() const
+{
+	TArray<TSharedPtr<FConcertSessionTreeItem>> Result;
+	const TArray<TSharedPtr<FConcertTreeItem>> Selected = SessionsView->GetSelectedItems();
+	Algo::ForEachIf(
+		Selected,
+		[this](const TSharedPtr<FConcertTreeItem>& Item){ return !IsGroupItem(Item); },
+		[&Result](const TSharedPtr<FConcertTreeItem>& Item){ Result.Add(StaticCastSharedPtr<FConcertSessionTreeItem>(Item)); }
+		);
+	return Result;
+}
+
+void SConcertSessionBrowser::RequestCreateSession(const TSharedPtr<FConcertSessionTreeItem>& NewItem)
 {
 	GetController()->CreateSession(NewItem->ServerAdminEndpointId, NewItem->SessionName, NewItem->ProjectName);
 	RemoveSessionRow(NewItem); // The row used to edit the session name and pick the server.
 }
 
-void SConcertSessionBrowser::RequestArchiveSession(const TSharedPtr<FConcertSessionItem>& SaveItem, const FString& ArchiveName)
+void SConcertSessionBrowser::RequestArchiveSession(const TSharedPtr<FConcertSessionTreeItem>& SaveItem, const FString& ArchiveName)
 {
 	GetController()->ArchiveSession(SaveItem->ServerAdminEndpointId, SaveItem->SessionId, ArchiveName, FConcertSessionFilter());
 	RemoveSessionRow(SaveItem); // The row used to edit the archive name.
 }
 
-void SConcertSessionBrowser::RequestRestoreSession(const TSharedPtr<FConcertSessionItem>& RestoreItem, const FString& SessionName)
+void SConcertSessionBrowser::RequestRestoreSession(const TSharedPtr<FConcertSessionTreeItem>& RestoreItem, const FString& SessionName)
 {
 	GetController()->RestoreSession(RestoreItem->ServerAdminEndpointId, RestoreItem->SessionId, SessionName, FConcertSessionFilter());
 	RemoveSessionRow(RestoreItem); // The row used to edit the restore as name.
 }
 
-void SConcertSessionBrowser::RequestRenameSession(const TSharedPtr<FConcertSessionItem>& RenamedItem, const FString& NewName)
+void SConcertSessionBrowser::RequestRenameSession(const TSharedPtr<FConcertSessionTreeItem>& RenamedItem, const FString& NewName)
 {
-	if (RenamedItem->Type == FConcertSessionItem::EType::ActiveSession)
+	if (RenamedItem->Type == FConcertSessionTreeItem::EType::ActiveSession)
 	{
 		GetController()->RenameActiveSession(RenamedItem->ServerAdminEndpointId, RenamedItem->SessionId, NewName);
 	}
-	else if (RenamedItem->Type == FConcertSessionItem::EType::ArchivedSession)
+	else if (RenamedItem->Type == FConcertSessionTreeItem::EType::ArchivedSession)
 	{
 		GetController()->RenameArchivedSession(RenamedItem->ServerAdminEndpointId, RenamedItem->SessionId, NewName);
 	}
@@ -1131,7 +1224,7 @@ void SConcertSessionBrowser::RequestRenameSession(const TSharedPtr<FConcertSessi
 	RenamedItem->SessionName = NewName;
 }
 
-void SConcertSessionBrowser::RequestDeleteSessions(const TArray<TSharedPtr<FConcertSessionItem>>& ItemsToDelete)
+void SConcertSessionBrowser::RequestDeleteSessions(const TArray<TSharedPtr<FConcertSessionTreeItem>>& ItemsToDelete)
 {
 	if (!AskUserToDeleteSessions.IsBound() || AskUserToDeleteSessions.Execute(ItemsToDelete))
 	{

@@ -18,7 +18,7 @@
 #include "Algo/TiedTupleOutput.h"
 
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"
 #include "Session/Browser/IConcertSessionBrowserController.h"
 #include "Session/Browser/SConcertSessionBrowser.h"
 
@@ -1013,14 +1013,14 @@ private:
 	// Layout the 'session|details' split view.
 	TSharedRef<SWidget> MakeBrowserContent(TSharedPtr<FText> InSearchText);
 	void ExtendControlButtons(FExtender& Extender);
-	void ExtendSessionContextMenu(const TSharedPtr<FConcertSessionItem>& Item, FExtender& Extender);
+	void ExtendSessionContextMenu(const TSharedPtr<FConcertSessionTreeItem>& Item, FExtender& Extender);
 	TSharedRef<SWidget> MakeUserAndSettings();
 	TSharedRef<SWidget> MakeOverlayedTableView(const TSharedRef<SWidget>& TableView);
 	
 	// Layouts the session detail panel.
-	TSharedRef<SWidget> MakeSessionDetails(TSharedPtr<FConcertSessionItem> Item);
-	TSharedRef<SWidget> MakeActiveSessionDetails(TSharedPtr<FConcertSessionItem> Item);
-	TSharedRef<SWidget> MakeArchivedSessionDetails(TSharedPtr<FConcertSessionItem> Item);
+	TSharedRef<SWidget> MakeSessionDetails(TSharedPtr<FConcertSessionTreeItem> Item);
+	TSharedRef<SWidget> MakeActiveSessionDetails(TSharedPtr<FConcertSessionTreeItem> Item);
+	TSharedRef<SWidget> MakeArchivedSessionDetails(TSharedPtr<FConcertSessionTreeItem> Item);
 	TSharedRef<ITableRow> OnGenerateClientRowWidget(TSharedPtr<FConcertSessionClientInfo> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void PopulateSessionInfoGrid(SGridPanel& Grid, const FConcertSessionInfo& SessionInfo);
 
@@ -1037,12 +1037,12 @@ private:
 
 	// SConcertSessionBrowser extensions
 	FReply OnJoinButtonClicked();
-	void RequestJoinSession(const TSharedPtr<FConcertSessionItem>& ActiveItem);
+	void RequestJoinSession(const TSharedPtr<FConcertSessionTreeItem>& ActiveItem);
 
 	// Manipulates the sessions view (the array and the UI).
-	void OnSessionSelectionChanged(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	void OnSessionDoubleClicked(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	bool ConfirmDeleteSessionWithDialog(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems) const;
+	void OnSessionSelectionChanged(const TSharedPtr<FConcertSessionTreeItem>& SessionItem);
+	void OnSessionDoubleClicked(const TSharedPtr<FConcertSessionTreeItem>& SessionItem);
+	bool ConfirmDeleteSessionWithDialog(const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems) const;
 
 	// Update server/session/clients lists.
 	EActiveTimerReturnType TickDiscovery(double InCurrentTime, float InDeltaTime);
@@ -1296,9 +1296,9 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 		}));
 }
 
-void SConcertClientSessionBrowser::ExtendSessionContextMenu(const TSharedPtr<FConcertSessionItem>& Item, FExtender& Extender)
+void SConcertClientSessionBrowser::ExtendSessionContextMenu(const TSharedPtr<FConcertSessionTreeItem>& Item, FExtender& Extender)
 {
-	if (Item->Type == FConcertSessionItem::EType::ActiveSession)
+	if (Item->Type == FConcertSessionTreeItem::EType::ActiveSession)
 	{
 		Extender.AddMenuExtension(
 			SConcertSessionBrowser::SessionContextMenuExtensionHooks::ManageSession,
@@ -1403,8 +1403,8 @@ void SConcertClientSessionBrowser::UpdateDiscovery()
 	}
 
 	// If an active session is selected.
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedSession = SessionBrowser->GetSelectedItems();
-	if (SelectedSession.Num() && SelectedSession[0]->Type == FConcertSessionItem::EType::ActiveSession)
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedSession = SessionBrowser->GetSelectedItems();
+	if (SelectedSession.Num() && SelectedSession[0]->Type == FConcertSessionTreeItem::EType::ActiveSession)
 	{
 		// Ensure to poll its clients.
 		uint32 CachedClientListVersion = Controller->TickClientsDiscovery(SelectedSession[0]->ServerAdminEndpointId, SelectedSession[0]->SessionId);
@@ -1448,17 +1448,17 @@ void SConcertClientSessionBrowser::RefreshClientList(const TArray<FConcertSessio
 	ClientsView->RequestListRefresh();
 }
 
-TSharedRef<SWidget> SConcertClientSessionBrowser::MakeSessionDetails(TSharedPtr<FConcertSessionItem> Item)
+TSharedRef<SWidget> SConcertClientSessionBrowser::MakeSessionDetails(TSharedPtr<FConcertSessionTreeItem> Item)
 {
 	const FConcertSessionInfo* SessionInfo = nullptr;
 
 	if (Item.IsValid())
 	{
-		if (Item->Type == FConcertSessionItem::EType::ActiveSession || Item->Type == FConcertSessionItem::EType::SaveSession)
+		if (Item->Type == FConcertSessionTreeItem::EType::ActiveSession || Item->Type == FConcertSessionTreeItem::EType::SaveSession)
 		{
 			return MakeActiveSessionDetails(Item);
 		}
-		else if (Item->Type == FConcertSessionItem::EType::ArchivedSession)
+		else if (Item->Type == FConcertSessionTreeItem::EType::ArchivedSession)
 		{
 			return MakeArchivedSessionDetails(Item);
 		}
@@ -1467,7 +1467,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeSessionDetails(TSharedPtr<
 	return NoSessionSelectedPanel.ToSharedRef();
 }
 
-TSharedRef<SWidget> SConcertClientSessionBrowser::MakeActiveSessionDetails(TSharedPtr<FConcertSessionItem> Item)
+TSharedRef<SWidget> SConcertClientSessionBrowser::MakeActiveSessionDetails(TSharedPtr<FConcertSessionTreeItem> Item)
 {
 	const TOptional<FConcertSessionInfo> SessionInfo = Controller->GetActiveSessionInfo(Item->ServerAdminEndpointId, Item->SessionId);
 	if (!SessionInfo)
@@ -1580,7 +1580,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeActiveSessionDetails(TShar
 	return Widget;
 }
 
-TSharedRef<SWidget> SConcertClientSessionBrowser::MakeArchivedSessionDetails(TSharedPtr<FConcertSessionItem> Item)
+TSharedRef<SWidget> SConcertClientSessionBrowser::MakeArchivedSessionDetails(TSharedPtr<FConcertSessionTreeItem> Item)
 {
 	const TOptional<FConcertSessionInfo> SessionInfo = Controller->GetArchivedSessionInfo(Item->ServerAdminEndpointId, Item->SessionId);
 	if (!SessionInfo)
@@ -1686,7 +1686,7 @@ TSharedRef<ITableRow> SConcertClientSessionBrowser::OnGenerateClientRowWidget(TS
 	];
 }
 
-void SConcertClientSessionBrowser::OnSessionSelectionChanged(const TSharedPtr<FConcertSessionItem>& SelectedSession)
+void SConcertClientSessionBrowser::OnSessionSelectionChanged(const TSharedPtr<FConcertSessionTreeItem>& SelectedSession)
 {
 	// Clear the list of clients (if any)
 	Clients.Reset();
@@ -1695,14 +1695,14 @@ void SConcertClientSessionBrowser::OnSessionSelectionChanged(const TSharedPtr<FC
 	SessionDetailsView->SetContent(MakeSessionDetails(SelectedSession));
 }
 
-void SConcertClientSessionBrowser::OnSessionDoubleClicked(const TSharedPtr<FConcertSessionItem>& SelectedSession)
+void SConcertClientSessionBrowser::OnSessionDoubleClicked(const TSharedPtr<FConcertSessionTreeItem>& SelectedSession)
 {
 	switch (SelectedSession->Type)
 	{
-	case FConcertSessionItem::EType::ActiveSession: 
+	case FConcertSessionTreeItem::EType::ActiveSession: 
 		RequestJoinSession(SelectedSession);
 		break;
-	case FConcertSessionItem::EType::ArchivedSession:
+	case FConcertSessionTreeItem::EType::ArchivedSession:
 		SessionBrowser->InsertRestoreSessionAsEditableRow(SelectedSession);
 		break;
 	default: 
@@ -1710,12 +1710,12 @@ void SConcertClientSessionBrowser::OnSessionDoubleClicked(const TSharedPtr<FConc
 	}
 }
 
-bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems) const
+bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems) const
 {
 	TSet<FString> SessionNames;
 	TSet<FString> UniqueServers;
 
-	Algo::Transform(SessionItems, Algo::TieTupleAdd(SessionNames, UniqueServers), [](const TSharedPtr<FConcertSessionItem>& Item)
+	Algo::Transform(SessionItems, Algo::TieTupleAdd(SessionNames, UniqueServers), [](const TSharedPtr<FConcertSessionTreeItem>& Item)
 	{
 		return MakeTuple(Item->SessionName, Item->ServerName);
 	});
@@ -1738,8 +1738,8 @@ bool SConcertClientSessionBrowser::IsLaunchServerButtonEnabled() const
 
 bool SConcertClientSessionBrowser::IsJoinButtonEnabled() const
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionBrowser->GetSelectedItems();
-	return SelectedItems.Num() == 1 && SelectedItems[0]->Type == FConcertSessionItem::EType::ActiveSession;
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = SessionBrowser->GetSelectedItems();
+	return SelectedItems.Num() == 1 && SelectedItems[0]->Type == FConcertSessionTreeItem::EType::ActiveSession;
 }
 
 bool SConcertClientSessionBrowser::IsAutoJoinButtonEnabled() const
@@ -1791,7 +1791,7 @@ FReply SConcertClientSessionBrowser::OnCancelAutoJoinButtonClicked()
 
 FReply SConcertClientSessionBrowser::OnJoinButtonClicked()
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionBrowser->GetSelectedItems();
+	TArray<TSharedPtr<FConcertSessionTreeItem>> SelectedItems = SessionBrowser->GetSelectedItems();
 	if (SelectedItems.Num() == 1)
 	{
 		RequestJoinSession(SelectedItems[0]);
@@ -1799,7 +1799,7 @@ FReply SConcertClientSessionBrowser::OnJoinButtonClicked()
 	return FReply::Handled();
 }
 
-void SConcertClientSessionBrowser::RequestJoinSession(const TSharedPtr<FConcertSessionItem>& LiveItem)
+void SConcertClientSessionBrowser::RequestJoinSession(const TSharedPtr<FConcertSessionTreeItem>& LiveItem)
 {
 	Controller->JoinSession(LiveItem->ServerAdminEndpointId, LiveItem->SessionId);
 }

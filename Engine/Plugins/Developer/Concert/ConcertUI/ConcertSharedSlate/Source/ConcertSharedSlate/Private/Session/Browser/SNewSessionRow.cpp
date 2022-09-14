@@ -2,15 +2,15 @@
 
 #include "SNewSessionRow.h"
 
+#include "ConcertFrontendStyle.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
-#include "Session/Browser/ConcertSessionItem.h"		
+#include "Session/Browser/Items/ConcertSessionTreeItem.h"		
 
 #include "Styling/AppStyle.h"
 
 #include "Algo/ForEach.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -20,7 +20,7 @@
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"
 
-void SNewSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionItem> InItem, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SNewSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionTreeItem> InItem, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	Item = MoveTemp(InItem);
 	GetServersFunc = InArgs._GetServerFunc;
@@ -34,12 +34,11 @@ void SNewSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSess
 	DeclineFunc.CheckCallable();
 
 	// Construct base class
-	SMultiColumnTableRow<TSharedPtr<FConcertSessionItem>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+	SMultiColumnTableRow<TSharedPtr<FConcertSessionTreeItem>>::Construct(FSuperRowType::FArguments().Padding(InArgs._Padding), InOwnerTableView);
 	
 	// This rows are needed to correctly display the row
 	TemporaryColumnShower
 		.SetHeaderRow(InOwnerTableView->GetHeaderRow())
-		.SaveVisibilityAndSet(ConcertBrowserUtils::IconColName, true)
 		.SaveVisibilityAndSet(ConcertBrowserUtils::SessionColName, true)
 		.SaveVisibilityAndSet(ConcertBrowserUtils::ServerColName, true)
 		.SaveVisibilityAndSet(ConcertBrowserUtils::VersionColName, true)
@@ -68,33 +67,50 @@ void SNewSessionRow::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
-	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	TSharedPtr<FConcertSessionTreeItem> ItemPin = Item.Pin();
 
-	if (ColumnName == ConcertBrowserUtils::IconColName)
+	if (ColumnName == ConcertBrowserUtils::SessionColName)
 	{
-		// 'New' icon
-		return SNew(SBox)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
+		return SNew( SHorizontalBox )
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(6, 0, 0, 0)
 			[
-				SNew(SImage)
-				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
+				SNew( SExpanderArrow, SharedThis(this) ).IndentAmount(12)
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(0, 0, 2, 0))
+				[
+					SNew(SHorizontalBox)
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Padding(1.f, 1.f, 4.f, 1.f)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
+					]
+					
+					+SHorizontalBox::Slot()
+					[
+						SAssignNew(EditableSessionName, SEditableTextBox)
+						.HintText(LOCTEXT("EnterSessionNameHint", "Enter a session name"))
+						.OnTextCommitted(this, &SNewSessionRow::OnSessionNameCommitted)
+						.OnKeyDownHandler(this, &SNewSessionRow::OnKeyDownHandler)
+						.OnTextChanged(this, &SNewSessionRow::OnSessionNameChanged)
+					]
+				]
 			];
 	}
-	else if (ColumnName == ConcertBrowserUtils::SessionColName)
-	{
-		return SNew(SBox)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(0, 0, 2, 0))
-			[
-				SAssignNew(EditableSessionName, SEditableTextBox)
-				.HintText(LOCTEXT("EnterSessionNameHint", "Enter a session name"))
-				.OnTextCommitted(this, &SNewSessionRow::OnSessionNameCommitted)
-				.OnKeyDownHandler(this, &SNewSessionRow::OnKeyDownHandler)
-				.OnTextChanged(this, &SNewSessionRow::OnSessionNameChanged)
-			];
-	}
-	else if (ColumnName == ConcertBrowserUtils::ServerColName)
+	if (ColumnName == ConcertBrowserUtils::ServerColName)
 	{
 		return SNew(SHorizontalBox)
 
@@ -112,7 +128,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				]
 			];
 	}
-	else if (ColumnName == ConcertBrowserUtils::VersionColName)
+	if (ColumnName == ConcertBrowserUtils::VersionColName)
 	{
 		return SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -144,7 +160,7 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				]
 			];
 	}
-	else if (ColumnName == ConcertBrowserUtils::ProjectColName)
+	if (ColumnName == ConcertBrowserUtils::ProjectColName)
 	{
 		FText ProjectName = FText::AsCultureInvariant(FApp::GetProjectName());
 		return SNew(SBox)
@@ -281,6 +297,7 @@ TSharedRef<SWidget> SNewSessionRow::MakeSelectedServerWidget()
 			SNew(STextBlock)
 			.Text(this, &SNewSessionRow::GetSelectedServerText)
 			.HighlightText(HighlightText)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", FConcertFrontendStyle::Get()->GetFloat("Concert.SessionBrowser.FontSize")))
 		]
 		+SHorizontalBox::Slot()
 		.AutoWidth()
@@ -336,7 +353,7 @@ FText SNewSessionRow::GetSelectedServerIgnoreVersionTooltip() const
 
 FReply SNewSessionRow::OnAccept()
 {
-	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
+	TSharedPtr<FConcertSessionTreeItem> ItemPin = Item.Pin();
 	FString NewSessionName = EditableSessionName->GetText().ToString();
 	FText InvalidNameErrorMsg = ConcertSettingsUtils::ValidateSessionName(NewSessionName);
 

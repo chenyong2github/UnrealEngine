@@ -7,6 +7,7 @@
 class IConcertSyncServer;
 class SDockTab;
 class SWindow;
+struct FSlateBrush;
 
 /** Shared functionality for a tab that manages a session */
 class FConcertSessionTabBase : public TSharedFromThis<FConcertSessionTabBase>
@@ -22,6 +23,7 @@ public:
 protected:
 
 	virtual void CreateDockContent(const TSharedRef<SDockTab>& DockTab) = 0;
+	virtual const FSlateBrush* GetTabIconBrush() const = 0;
 	virtual void OnOpenTab() = 0;
 	
 	FGuid GetSessionID() const { return InspectedSessionID; }

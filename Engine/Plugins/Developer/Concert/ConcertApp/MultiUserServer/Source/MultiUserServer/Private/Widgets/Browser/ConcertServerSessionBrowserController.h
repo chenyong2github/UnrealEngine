@@ -9,7 +9,7 @@
 
 class IConcertServerSession;
 class IConcertServer;
-class FConcertSessionItem;
+class FConcertSessionTreeItem;
 class FSpawnTabArgs;
 class SDockTab;
 
@@ -75,7 +75,7 @@ namespace UE::MultiUserServer
 		void RefreshSessionList();
 
 		// Session actions
-		void OpenSession(const TSharedPtr<FConcertSessionItem>& SessionItem);
+		void OpenSession(const TSharedPtr<FConcertSessionTreeItem>& SessionItem);
 		void RenameActiveSessionInternal(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName);
 		void RenameArchivedSessionInternal(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName);
 		void RenameSessionInternal(const FGuid& SessionId, const FString& NewName, const FConcertSessionInfo& SessionInfo);
