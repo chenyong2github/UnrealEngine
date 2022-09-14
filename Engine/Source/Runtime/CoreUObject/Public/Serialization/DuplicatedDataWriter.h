@@ -46,6 +46,7 @@ private:
 	virtual FArchive& operator<<(UObject*& Object) override;
 	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
 	virtual FArchive& operator<<(FField*& Field) override;
+	virtual FArchive& operator<<(FObjectPtr& Object) override;
 
 	virtual void Serialize(void* Data,int64 Num)
 	{

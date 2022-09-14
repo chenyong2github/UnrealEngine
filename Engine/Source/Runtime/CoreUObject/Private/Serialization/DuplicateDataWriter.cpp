@@ -78,6 +78,22 @@ FArchive& FDuplicateDataWriter::operator<<(UObject*& Object)
 	return *this;
 }
 
+
+FArchive& FDuplicateDataWriter::operator<<(FObjectPtr& ObjectPtr)
+{
+	if (ObjectPtr.IsResolved())
+	{
+		UObject* Object = ObjectPtr.Get();
+		*this << Object;
+	}
+	else
+	{
+		FObjectHandle& Handle = ObjectPtr.GetHandleRef();
+		Serialize(&Handle, sizeof(FObjectHandle));
+	}
+	return *this;
+}
+
 FArchive& FDuplicateDataWriter::operator<<(FLazyObjectPtr& LazyObjectPtr)
 {
 	if ( (GetPortFlags() & PPF_DuplicateForPIE) == 0 )

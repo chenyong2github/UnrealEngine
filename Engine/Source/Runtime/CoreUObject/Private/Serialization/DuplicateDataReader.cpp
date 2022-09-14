@@ -76,6 +76,23 @@ FArchive& FDuplicateDataReader::operator<<( UObject*& Object )
 	return *this;
 }
 
+FArchive& FDuplicateDataReader::operator<<(FObjectPtr& ObjectPtr)
+{
+	FObjectHandle& Handle  = ObjectPtr.GetHandleRef();
+	Serialize(&Handle, sizeof(FObjectHandle));
+
+	if (!IsObjectHandleNull(Handle) && IsObjectHandleResolved(Handle))
+	{
+		UObject* SourceObject = ReadObjectHandlePointerNoCheck(Handle);
+		FDuplicatedObject ObjectInfo = DuplicatedObjectAnnotation.GetAnnotation(SourceObject);
+		if (!ObjectInfo.IsDefault())
+		{
+			ObjectPtr = ObjectInfo.DuplicatedObject.GetEvenIfUnreachable();
+		}
+	}
+	return *this;
+}
+
 FArchive& FDuplicateDataReader::operator<<(FLazyObjectPtr& LazyObjectPtr)
 {
 	FArchive& Ar = *this;

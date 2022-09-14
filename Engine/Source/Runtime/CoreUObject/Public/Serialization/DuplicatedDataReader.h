@@ -30,10 +30,11 @@ private:
 
 	//~ Begin FArchive Interface.
 
-	virtual FArchive& operator<<(FName& N);
-	virtual FArchive& operator<<(UObject*& Object);
-	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr);
-	virtual FArchive& operator<<(FSoftObjectPath& SoftObjectPath);
+	virtual FArchive& operator<<(FName& N) override;
+	virtual FArchive& operator<<(UObject*& Object) override;
+	virtual FArchive& operator<<(FObjectPtr& Object) override;
+	virtual FArchive& operator<<(FLazyObjectPtr& LazyObjectPtr) override;
+	virtual FArchive& operator<<(FSoftObjectPath& SoftObjectPath) override;
 	
 	void SerializeFail();
 
