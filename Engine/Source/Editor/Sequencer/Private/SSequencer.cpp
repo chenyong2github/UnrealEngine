@@ -1929,14 +1929,12 @@ void SSequencer::FillAdvancedMenu(FMenuBuilder& MenuBuilder)
 
 				UMovieSceneSequence* RootSequence = Template.GetRootSequence();
 
-				// Destroy the old template
-				Template.Finish(*SequencerPin);
 				// Set the new emulation mode
 				Template.SetEmulatedNetworkMask(InMode, *SequencerPin);
 				// Since sequencer owns its own compiled data manager, it's ok to override the mask here and reset everything
 				Template.GetCompiledDataManager()->SetEmulatedNetworkMask(InMode);
 				// Reinitialize the template again
-				Template.Initialize(*RootSequence, *SequencerPin, Template.GetCompiledDataManager());
+				Template.Initialize(*RootSequence, *SequencerPin, Template.GetCompiledDataManager(), Template.GetRunner());
 			}
 		};
 		auto IsNetworkModeChecked = [WeakSequencer = SequencerPtr](EMovieSceneServerClientMask InMode)

@@ -33,8 +33,10 @@ UUMGSequencePlayer::UUMGSequencePlayer(const FObjectInitializer& ObjectInitializ
 	Animation = nullptr;
 	bIsEvaluating = false;
 	bIsStopping = false;
+	bIsBeginningPlay = false;
 	bCompleteOnPostEvaluation = false;
 	UserTag = NAME_None;
+	BlockedDeltaTimeCompensation = 0.f;
 }
 
 void UUMGSequencePlayer::InitSequencePlayer(UWidgetAnimation& InAnimation, UUserWidget& InUserWidget)
@@ -71,10 +73,17 @@ UMovieSceneEntitySystemLinker* UUMGSequencePlayer::ConstructEntitySystemLinker()
 
 void UUMGSequencePlayer::Tick(float DeltaTime)
 {
-	if (bIsStopping)
+	if (bIsStopping || bIsBeginningPlay || bIsEvaluating)
 	{
+		if (bIsEvaluating)
+		{
+			BlockedDeltaTimeCompensation += DeltaTime;
+		}
 		return;
 	}
+
+	DeltaTime += BlockedDeltaTimeCompensation;
+	BlockedDeltaTimeCompensation = 0.f;
 
 	if ( PlayerStatus == EMovieScenePlayerStatus::Playing )
 	{
@@ -177,56 +186,52 @@ void UUMGSequencePlayer::UpdateInternal(FFrameTime LastTimePosition, FFrameTime 
 				PlayerStatus);
 		Context.SetHasJumped(bHasJumped);
 
-		UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
-		const bool bIsSequenceBlocking = EnumHasAnyFlags(MovieSceneSequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation);
-
-		const bool bIsRunningWithTickManager = CVarUserWidgetUseParallelAnimation.GetValueOnGameThread();
-
-		if (bIsRunningWithTickManager)
+		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
+		if (Runner)
 		{
-			UUserWidget* Widget = UserWidget.Get();
-			UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
+			UE::MovieScene::ERunnerUpdateFlags UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::None;
+			FSimpleDelegate OnComplete;
 
-			if (!TickManager)
+			if (bCompleteOnPostEvaluation)
 			{
-				return;
+				bIsStopping = true;
+				bCompleteOnPostEvaluation = false;
+
+				OnComplete = FSimpleDelegate::CreateUObject(this, &UUMGSequencePlayer::HandleLatentStop);
+				UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::Flush;
 			}
 
-			if (!bIsSequenceBlocking)
+			Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MoveTemp(OnComplete), UpdateFlags);
+
+			if (Runner == SynchronousRunner || !UE::UMG::GAsyncAnimationControlFlow)
 			{
-				// Queue an evaluation of this player's widget animation, to be evaluated later by our
-				// global tick manager as part of a glorious multi-threaded job fest.
-				FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-				Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
-				// WARNING: the evalution hasn't run yet so don't run any stateful code after this point
-				// unless you know it's OK to do so. Most likely, you want to run stateful code in the
-				// PostEvaluation method, or queue up a latent action.
+				Runner->Flush();
+				ApplyLatentActions();
 			}
-			else
-			{
-				// Synchronous evaluation. Sucks for performance.
-				RootTemplateInstance.Evaluate(Context, *this);
-				// The latent actions will be run by the tick manager.
-			}
-		}
-		else
-		{
-			// Synchronous evaluation. Sucks for performance.
-			RootTemplateInstance.Evaluate(Context, *this);
-			ApplyLatentActions();
 		}
 	}
 }
 
 void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bInRestoreState)
 {
-	RootTemplateInstance.Initialize(*Animation, *this, nullptr);
+	UUserWidget* Widget = UserWidget.Get();
+	UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
+
+	TSharedPtr<FMovieSceneEntitySystemRunner> RunnerToUse = TickManager ? TickManager->GetRunner() : nullptr;
+	if (EnumHasAnyFlags(Animation->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		SynchronousRunner = MakeShared<FMovieSceneEntitySystemRunner>();
+		RunnerToUse = SynchronousRunner;
+	}
+
+	RootTemplateInstance.Initialize(*Animation, *this, nullptr, RunnerToUse);
 
 	if (bInRestoreState)
 	{
 		RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
 	}
 
+	bIsBeginningPlay = true;
 	bRestoreState = bInRestoreState;
 	PlaybackSpeed = FMath::Abs(InPlaybackSpeed);
 	PlayMode = InPlayMode;
@@ -262,19 +267,24 @@ void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int3
 
 	PlayerStatus = EMovieScenePlayerStatus::Playing;
 
-	UUserWidget* Widget = UserWidget.Get();
-	UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
-
 	// Playback assumes the start frame has already been evaulated, so we also want to evaluate any events on the start frame here.
-	if (TickManager && RootTemplateInstance.IsValid())
+	if (RunnerToUse)
 	{
 		const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + TimeCursorPosition, AnimationResolution), PlayerStatus);
 
+		auto OnBegunPlay = [this]
+		{
+			this->bIsBeginningPlay = false;
+		};
+
 		// We queue an update instead of immediately flushing the entire linker so that we don't incur a cascade of flushes on frames when multiple animations are played
 		// In rare cases where the linker must be flushed immediately PreTick, the queue should be manually flushed 
+		RunnerToUse->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), FSimpleDelegate::CreateWeakLambda(this, OnBegunPlay), UE::MovieScene::ERunnerUpdateFlags::Flush);
 
-		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+		if (RunnerToUse == SynchronousRunner || !UE::UMG::GAsyncAnimationControlFlow)
+		{
+			RunnerToUse->Flush();
+		}
 	}
 }
 
@@ -314,16 +324,15 @@ void UUMGSequencePlayer::Pause()
 	PlayerStatus = EMovieScenePlayerStatus::Stopped;
 
 	// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
-	const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + TimeCursorPosition, AnimationResolution), PlayerStatus);
-	if (RootTemplateInstance.HasEverUpdated())
+	TSharedPtr<FMovieSceneEntitySystemRunner> RunnerToUpdate = RootTemplateInstance.HasEverUpdated() ? RootTemplateInstance.GetRunner() : nullptr;
+	if (RunnerToUpdate)
 	{
-		UUserWidget* Widget = UserWidget.Get();
-		UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
+		const FMovieSceneContext Context(FMovieSceneEvaluationRange(AbsolutePlaybackStart + TimeCursorPosition, AbsolutePlaybackStart + TimeCursorPosition, AnimationResolution), PlayerStatus);
+		RunnerToUpdate->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Flush);
 
-		if (TickManager)
+		if (RunnerToUpdate == SynchronousRunner || !UE::UMG::GAsyncAnimationControlFlow)
 		{
-			FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-			Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+			RunnerToUpdate->Flush();
 		}
 	}
 }
@@ -338,9 +347,16 @@ void UUMGSequencePlayer::Reverse()
 
 void UUMGSequencePlayer::Stop()
 {
+	using namespace UE::MovieScene;
+
 	if (NeedsQueueLatentAction())
 	{
 		QueueLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UUMGSequencePlayer::Stop));
+		return;
+	}
+
+	if (PlayerStatus == EMovieScenePlayerStatus::Stopped)
+	{
 		return;
 	}
 
@@ -375,33 +391,35 @@ void UUMGSequencePlayer::Stop()
 	// Prevent any other updates
 	bIsStopping = true;
 
-	if (bIsAsync)
+	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 	{
+		// It would be better if we did not have to actively re-evaluate the animation at the start time when Stop is called
+		// so we don't have to queue an additional update, but this has to be included for legacy reasons.
+		Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), FSimpleDelegate::CreateUObject(this, &UUMGSequencePlayer::HandleLatentStop), UE::MovieScene::ERunnerUpdateFlags::Flush);
 
-		TickManager->AddLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UUMGSequencePlayer::HandleLatentStop));
-		TickManager->GetRunner().QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
-	}
-	else
-	{
-		RootTemplateInstance.Evaluate(Context, *this);
-		HandleLatentStop();
+		if (Runner == SynchronousRunner || !UE::UMG::GAsyncAnimationControlFlow)
+		{
+			Runner->Flush();
+		}
 	}
 }
 
 void UUMGSequencePlayer::HandleLatentStop()
 {
-	// Linker may not necessarily be valid here if we have already torn down the sequence
-	if (UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker())
+	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 	{
-		UE::MovieScene::FSequenceInstance* RootInstance = RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root);
-		// Finish the root instance
-		if (RootInstance)
-		{
-			RootInstance->Finish(Linker);
-		}
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+
+		// Even if our request to Finish the instance was queued, we can wait until the next flush for those effects to be seen
+		// This will most likely happen immediately anyway since the runner will keep looping until its queue is empty,
+		// And we are already inside an active evaluation
 	}
 
-	RootTemplateInstance.OnFinish();
+	PlayerStatus = EMovieScenePlayerStatus::Stopped;
+
+	// This isn't really necessary because UMG animations cannot have director instances
+	// but it is here for completeness
+	RootTemplateInstance.ResetDirectorInstances();
 
 	if (bRestoreState)
 	{
@@ -469,14 +487,6 @@ void UUMGSequencePlayer::PreEvaluation(const FMovieSceneContext& Context)
 void UUMGSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
 {
 	bIsEvaluating = false;
-
-	if (bCompleteOnPostEvaluation)
-	{
-		bCompleteOnPostEvaluation = false;
-
-		PlayerStatus = EMovieScenePlayerStatus::Stopped;
-		HandleLatentStop();
-	}
 }
 
 bool UUMGSequencePlayer::NeedsQueueLatentAction() const
@@ -533,6 +543,12 @@ void UUMGSequencePlayer::RemoveEvaluationData()
 
 	if (SequenceInstance && Linker)
 	{
+		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
+		if (Runner && Runner->IsCurrentlyEvaluating())
+		{
+			Runner->FlushOutstanding();
+		}
+
 		SequenceInstance->Ledger.UnlinkEverything(Linker);
 		SequenceInstance->InvalidateCachedData(Linker);
 	}

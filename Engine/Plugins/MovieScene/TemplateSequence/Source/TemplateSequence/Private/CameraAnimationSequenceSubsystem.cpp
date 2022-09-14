@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntityMutations.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneMasterInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
@@ -212,13 +213,19 @@ UCameraAnimationSequenceSubsystem::~UCameraAnimationSequenceSubsystem()
 {
 }
 
+void UCameraAnimationSequenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Runner = MakeShared<FMovieSceneEntitySystemRunner>();
+}
+
 void UCameraAnimationSequenceSubsystem::Deinitialize()
 {
 	// We check if the runner still has a valid pointer on the linker because the linker could
 	// have been GC'ed just now, which would make DetachFromLinker complain.
-	if (Runner.GetLinker())
+	if (Runner->GetLinker())
 	{
-		Runner.DetachFromLinker();
+		Runner->DetachFromLinker();
+		Runner = nullptr;
 	}
 	Linker = nullptr;
 
@@ -230,9 +237,14 @@ UMovieSceneEntitySystemLinker* UCameraAnimationSequenceSubsystem::GetLinker(bool
 	if (!Linker && bAutoCreate)
 	{
 		Linker = CreateLinker(this, TEXT("CameraAnimationSequenceSubsystemLinker"));
-		Runner.AttachToLinker(Linker);
+		Runner->AttachToLinker(Linker);
 	}
 	return Linker;
+}
+
+TSharedPtr<FMovieSceneEntitySystemRunner> UCameraAnimationSequenceSubsystem::GetRunner() const
+{
+	return Runner;
 }
 
 #undef LOCTEXT_NAMESPACE

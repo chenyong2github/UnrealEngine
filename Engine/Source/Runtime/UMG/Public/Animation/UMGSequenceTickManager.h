@@ -40,7 +40,7 @@ public:
 	UUMGSequenceTickManager(const FObjectInitializer& Init);
 
 	UMovieSceneEntitySystemLinker* GetLinker() { return Linker; }
-	FMovieSceneEntitySystemRunner& GetRunner() { return Runner; }
+	TSharedPtr<FMovieSceneEntitySystemRunner> GetRunner() { return Runner; }
 
 	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void ClearLatentActions(UObject* Object);
@@ -69,10 +69,11 @@ private:
 	UPROPERTY(transient)
 	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
-	FMovieSceneEntitySystemRunner Runner;
+	TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 
-	bool bIsTicking;
 	FDelegateHandle SlateApplicationPreTickHandle, SlateApplicationPostTickHandle;
 
 	FMovieSceneLatentActionManager LatentActionManager;
+
+	bool bIsTicking;
 };

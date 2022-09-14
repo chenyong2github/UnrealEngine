@@ -153,6 +153,7 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 	{
 		PreAnimatedState.Initialize(this);
 
+		FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &UMovieSceneEntitySystemLinker::HandlePreGarbageCollection);
 		FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UMovieSceneEntitySystemLinker::HandlePostGarbageCollection);
 
 		EntityManager.SetDebugName(GetName() + TEXT("[Entity Manager]"));
@@ -315,11 +316,13 @@ bool UMovieSceneEntitySystemLinker::HasStructureChangedSinceLastRun() const
 
 bool UMovieSceneEntitySystemLinker::StartEvaluation(FMovieSceneEntitySystemRunner& InRunner)
 {
-	if (ActiveRunners.Num() == 0 || ActiveRunners.Last().bIsReentrancyAllowed)
+
+	if (ActiveRunners.Num() == 0 || ActiveRunnerReentrancyFlags[ActiveRunners.Num()-1])
 	{
 		// Default to re-entrancy being forbidden. The runner will allow re-entrancy at specific spots
 		// in the evaluation loop, via a "re-entrancy window".
-		ActiveRunners.Emplace(FActiveRunnerInfo{ &InRunner, false });
+		ActiveRunners.Emplace(&InRunner);
+		ActiveRunnerReentrancyFlags.Add(false);
 		return true;
 	}
 		
@@ -331,7 +334,7 @@ FMovieSceneEntitySystemRunner* UMovieSceneEntitySystemLinker::GetActiveRunner() 
 {
 	if (ActiveRunners.Num() > 0)
 	{
-		return ActiveRunners.Last().Runner;
+		return ActiveRunners.Last();
 	}
 	return nullptr;
 }
@@ -345,11 +348,19 @@ void UMovieSceneEntitySystemLinker::PostInstantation(FMovieSceneEntitySystemRunn
 
 void UMovieSceneEntitySystemLinker::EndEvaluation(FMovieSceneEntitySystemRunner& InRunner)
 {
-	if (ensureMsgf((ActiveRunners.Num() > 0 && ActiveRunners.Last().Runner == &InRunner),
+	if (ensureMsgf((ActiveRunners.Num() > 0 && ActiveRunners.Last() == &InRunner),
 				TEXT("Trying end the evaluation of a runner that's not the latest one to run.")))
 	{
+		const int32 LastIndex = ActiveRunners.Num()-1;
+		ensureAlways(ActiveRunnerReentrancyFlags[LastIndex] == false);
+
 		ActiveRunners.Pop();
+		ActiveRunnerReentrancyFlags.RemoveAt(LastIndex);
 	}
+}
+
+void UMovieSceneEntitySystemLinker::HandlePreGarbageCollection()
+{
 }
 
 void UMovieSceneEntitySystemLinker::HandlePostGarbageCollection()
@@ -387,7 +398,7 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 	// the next time a runner gets flushed
 	LastInstantiationVersion = 0;
 
-	// Allow any other system to tag garbage
+	// Allow any other system to cleanup garbage
 	Events.CleanTaggedGarbage.Broadcast(this);
 
 	auto RouteCleanTaggedGarbage = [](UMovieSceneEntitySystem* System){ System->CleanTaggedGarbage(); };
@@ -413,11 +424,22 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 		EntityManager.AddComponent(EntityID, BuiltInComponents->Tags.HasUnresolvedBinding);
 	}
 
+	// Remove NeedsLink off any NeedsUnLink entities - these tags are incompatible. Any such entities should get cleaned up
+	// through a binding to Events.CleanTaggedGarbage rather than through the usual NeedsUnlink methods
+	FRemoveSingleMutation RemoveNeedsLink(BuiltInComponents->Tags.NeedsLink);
+	EntityManager.MutateAll(FEntityComponentFilter().All({ BuiltInComponents->Tags.NeedsLink, NeedsUnlink }), RemoveNeedsLink);
+
 	// Free the entities
 	TSet<FMovieSceneEntityID> FreedEntities;
 	EntityManager.FreeEntities(FEntityComponentFilter().All({ NeedsUnlink }), &FreedEntities);
 
 	InstanceRegistry->CleanupLinkerEntities(FreedEntities);
+
+	// If we have any runners part-way through an evaluation, we need to reset them so that they re-evaluate from the start
+	for (int32 Index = ActiveRunners.Num()-1; Index >= 0; --Index)
+	{
+		ActiveRunners[Index]->ResetFlushState();
+	}
 }
 
 void UMovieSceneEntitySystemLinker::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
@@ -563,26 +585,10 @@ void UMovieSceneEntitySystemLinker::AutoLinkRelevantSystems()
 		LinkRelevantSystems();
 	}
 }
-
 void UMovieSceneEntitySystemLinker::AutoUnlinkIrrelevantSystems()
 {
 	if (AutoLinkMode == UE::MovieScene::EAutoLinkRelevantSystems::Enabled)
 	{
 		UnlinkIrrelevantSystems();
-	}
-}
-
-FMovieSceneEntitySystemEvaluationReentrancyWindow::FMovieSceneEntitySystemEvaluationReentrancyWindow(UMovieSceneEntitySystemLinker& InLinker)
-	: Linker(InLinker)
-{
-	CurrentLevel = Linker.ActiveRunners.Num() - 1;
-	Linker.ActiveRunners[CurrentLevel].bIsReentrancyAllowed = true;
-}
-
-FMovieSceneEntitySystemEvaluationReentrancyWindow::~FMovieSceneEntitySystemEvaluationReentrancyWindow()
-{
-	if (ensure(Linker.ActiveRunners.IsValidIndex(CurrentLevel)))
-	{
-		Linker.ActiveRunners[CurrentLevel].bIsReentrancyAllowed = false;
 	}
 }

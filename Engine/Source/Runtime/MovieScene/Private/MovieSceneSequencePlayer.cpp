@@ -254,15 +254,6 @@ void UMovieSceneSequencePlayer::PlayInternal()
 			}
 		}
 
-		// Start playing
-		// @todo Sequencer playback: Should we recreate the instance every time?
-		// We must not recreate the instance since it holds stateful information (such as which objects it has spawned). Recreating the instance would break any 
-		// @todo: Is this still the case now that eval state is stored (correctly) in the player?
-		if (!RootTemplateInstance.IsValid())
-		{
-			RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
-		}
-
 		// Update now
 		if (PlaybackSettings.bRestoreState)
 		{
@@ -333,43 +324,40 @@ void UMovieSceneSequencePlayer::Pause()
 		PauseOnFrame.Reset();
 		LastTickGameTimeSeconds.Reset();
 
+		auto FinishPause = [this]
+		{
+			this->RunLatentActions();
+			this->UpdateNetworkSyncProperties();
+
+			UMovieSceneSequence* MovieSceneSequence = this->RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
+			if (MovieSceneSequence)
+			{
+				UE_LOG(LogMovieScene, Verbose, TEXT("Pause - MovieSceneSequence: %s"), *MovieSceneSequence->GetName());
+			}
+
+			if (this->OnPause.IsBound())
+			{
+				this->OnPause.Broadcast();
+			}
+		};
+
 		// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
+		if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 		{
 			FMovieSceneEvaluationRange CurrentTimeRange = PlayPosition.GetCurrentPositionAsRange();
 			const FMovieSceneContext Context(CurrentTimeRange, EMovieScenePlayerStatus::Stopped);
-			RootTemplateInstance.Evaluate(Context, *this);
+
+			Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), FSimpleDelegate::CreateWeakLambda(this, FinishPause));
 		}
-
-		RunLatentActions();
-
-		UpdateNetworkSyncProperties();
-
-		UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
-		if (MovieSceneSequence)
+		else
 		{
-			UE_LOG(LogMovieScene, Verbose, TEXT("Pause - MovieSceneSequence: %s"), *MovieSceneSequence->GetName());
-		}
-
-		if (OnPause.IsBound())
-		{
-			OnPause.Broadcast();
+			FinishPause();
 		}
 	}
 }
 
 void UMovieSceneSequencePlayer::Scrub()
 {
-	// @todo Sequencer playback: Should we recreate the instance every time?
-	// We must not recreate the instance since it holds stateful information (such as which objects it has spawned). Recreating the instance would break any 
-	// @todo: Is this still the case now that eval state is stored (correctly) in the player?
-	if (ensureAsRuntimeWarning(Sequence != nullptr))
-	{
-		if (!RootTemplateInstance.IsValid())
-		{
-			RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
-		}
-	}
-
 	Status = EMovieScenePlayerStatus::Scrubbing;
 	TimeController->StopPlaying(GetCurrentTime());
 
@@ -417,41 +405,53 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 			RestorePreAnimatedState();
 		}
 
-		if (RootTemplateInstance.IsValid())
+		// Lambda that is invoked when the request to finish this sequence has been fulfilled
+		auto OnFlushed = [this, TimeToResetTo]
 		{
-			RootTemplateInstance.Finish(*this);
-		}
-
-		if (OldMaxTickRate.IsSet())
-		{
-			GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
-			OldMaxTickRate.Reset();
-		}
-
-		if (HasAuthority())
-		{
-			// Explicitly handle Stop() events through an RPC call
-			RPC_OnStopEvent(TimeToResetTo);
-		}
-		UpdateNetworkSyncProperties();
-
-		OnStopped();
-
-		if (RootTemplateInstance.IsValid())
-		{
-			UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
-			if (MovieSceneSequence)
+			if (this->OldMaxTickRate.IsSet())
 			{
-				UE_LOG(LogMovieScene, Verbose, TEXT("Stop - MovieSceneSequence: %s"), *MovieSceneSequence->GetName());
+				GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
+				this->OldMaxTickRate.Reset();
+			}
+
+			if (this->HasAuthority())
+			{
+				// Explicitly handle Stop() events through an RPC call
+				this->RPC_OnStopEvent(TimeToResetTo);
+			}
+			this->UpdateNetworkSyncProperties();
+
+			this->OnStopped();
+
+			if (this->RootTemplateInstance.IsValid())
+			{
+				UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
+				if (MovieSceneSequence)
+				{
+					UE_LOG(LogMovieScene, Verbose, TEXT("Stop - MovieSceneSequence: %s"), *MovieSceneSequence->GetName());
+				}
+			}
+
+			if (this->OnStop.IsBound())
+			{
+				this->OnStop.Broadcast();
+			}
+
+			this->RunLatentActions();
+		};
+
+		// Add the post eval callback that will be invoked when QueueFinalUpdate has been flushed
+		PostEvaluationCallbacks.Add(FOnEvaluationCallback::CreateWeakLambda(this, OnFlushed));
+
+		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
+		if (Runner)
+		{
+			// Finish but do not destroy
+			if (!Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish))
+			{
+				Runner->Flush();
 			}
 		}
-
-		if (OnStop.IsBound())
-		{
-			OnStop.Broadcast();
-		}
-
-		RunLatentActions();
 	}
 	else if (RootTemplateInstance.IsValid() && RootTemplateInstance.HasEverUpdated())
 	{
@@ -459,7 +459,16 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		{
 			RestorePreAnimatedState();
 		}
-		RootTemplateInstance.Finish(*this);
+
+		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
+		if (Runner)
+		{
+			// Finish but do not destroy
+			if (!Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish))
+			{
+				Runner->Flush();
+			}
+		}
 	}
 }
 
@@ -850,7 +859,15 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 	RegisteredTickInterval = TickInterval;
 	TickManager->RegisterTickClient(RegisteredTickInterval.GetValue(), this);
 
-	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
+	TSharedPtr<FMovieSceneEntitySystemRunner> RunnerToUse = TickManager->GetRunner(RegisteredTickInterval.GetValue());
+	if (EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		SynchronousRunner = MakeShared<FMovieSceneEntitySystemRunner>();
+		RunnerToUse = SynchronousRunner;
+	}
+
+	check(RunnerToUse);
+	RootTemplateInstance.Initialize(*Sequence, *this, nullptr, RunnerToUse);
 
 	LatentActionManager.ClearLatentActions();
 
@@ -1149,22 +1166,13 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 	FMovieSceneContext Context(InRange, PlayerStatus);
 	Context.SetHasJumped(Args.bHasJumped);
 
-	if (!Args.bIsAsync)
+	TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
+	if (Runner)
 	{
-		// Evaluate the sequence synchronously.
-		RootTemplateInstance.Evaluate(Context, *this);
-	}
-	else if (CurrentRunner)
-	{
-		CurrentRunner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
-	}
-	else if (TickManager)
-	{
-		// Look up the runner based on our tick interval
-		FMovieSceneEntitySystemRunner* Runner = TickManager->GetRunner(RegisteredTickInterval.GetValue());
-		if (ensure(Runner))
+		Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+		if (Runner == SynchronousRunner || !Args.bIsAsync)
 		{
-			Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+			Runner->Flush();
 		}
 	}
 }
@@ -1742,9 +1750,10 @@ void UMovieSceneSequencePlayer::RunLatentActions()
 	}
 	else
 	{
+		check(SynchronousRunner);
 		LatentActionManager.RunLatentActions([this]
 		{
-			this->RootTemplateInstance.GetEntitySystemRunner().Flush();
+			this->SynchronousRunner->Flush();
 		});
 	}
 }

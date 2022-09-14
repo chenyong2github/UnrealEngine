@@ -401,7 +401,7 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 				BakeHelper->PreEvaluation(MovieScene, InFrame);
 			}
 		}
-		InSequencer->GetEvaluationTemplate().Evaluate(Context0, *InSequencer);
+		InSequencer->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context0, *InSequencer);
 
 		for (const UTickableTransformConstraint* InConstraint : Constraints)
 		{

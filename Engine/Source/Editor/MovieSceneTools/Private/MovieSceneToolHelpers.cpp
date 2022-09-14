@@ -4257,9 +4257,9 @@ static void GetSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovieSc
 					FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Player->GetPlaybackStatus()).SetHasJumped(true);
 					if (Index == 0) // similar with baking first time in we need to evaluate twice (think due to double buffering that happens with skel mesh components).
 					{
-						Player->GetEvaluationTemplate().Evaluate(Context, *Player);
+						Player->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *Player);
 					}
-					Player->GetEvaluationTemplate().Evaluate(Context, *Player);
+					Player->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *Player);
 
 
 					const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(Actor->GetWorld());

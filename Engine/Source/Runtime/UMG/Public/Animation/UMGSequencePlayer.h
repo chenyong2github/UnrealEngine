@@ -113,6 +113,8 @@ private:
 	UPROPERTY()
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;
 
+	TSharedPtr<FMovieSceneEntitySystemRunner> SynchronousRunner;
+
 	/** The resolution at which all FFrameNumbers are stored */
 	FFrameRate AnimationResolution;
 
@@ -127,6 +129,9 @@ private:
 
 	/** Time at which to end the animation after looping */
 	FFrameTime EndTime;
+
+	/** A compensation for delta-time we were not able to evaluate with due to ongoing budgeted evaluation */
+	float BlockedDeltaTimeCompensation;
 
 	/** Status of the player (e.g play, stopped) */
 	EMovieScenePlayerStatus::Type PlayerStatus;
@@ -164,6 +169,9 @@ private:
 
 	/** Set to true when this player is in the process of being stopped */
 	bool bIsStopping : 1;
+
+	/** Set to true when this player has just started playing, but hasn't finished evaluating yet */
+	bool bIsBeginningPlay : 1;
 
 	/** Set to true if we need to run the finishing logic in post-evaluation */
 	bool bCompleteOnPostEvaluation : 1;

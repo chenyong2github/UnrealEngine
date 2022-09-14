@@ -1712,7 +1712,7 @@ void FLevelSequenceAnimTrackAdapter::UpdateAnimation( int32 LocalFrame )
 
 	FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), MovieScenePlayer->GetPlaybackStatus()).SetHasJumped(true);
 
-	MovieScenePlayer->GetEvaluationTemplate().Evaluate( Context, *MovieScenePlayer );
+	MovieScenePlayer->GetEvaluationTemplate().EvaluateSynchronousBlocking( Context, *MovieScenePlayer );
 }
 
 float FLevelSequenceAnimTrackAdapter::GetFrameRate() const

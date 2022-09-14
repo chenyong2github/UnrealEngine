@@ -766,6 +766,9 @@ protected:
 	/** (Optional) Externally supplied time controller */
 	TSharedPtr<FMovieSceneTimeController> TimeController;
 
+	/** (Optional) Synchronous runner to use when no tick manager is in use */
+	TSharedPtr<FMovieSceneEntitySystemRunner> SynchronousRunner;
+
 private:
 
 	/** The event that will be broadcast every time the sequence is updated */

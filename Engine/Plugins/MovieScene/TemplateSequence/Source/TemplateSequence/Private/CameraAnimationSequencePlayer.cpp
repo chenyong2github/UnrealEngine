@@ -325,7 +325,11 @@ void UCameraAnimationSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 
 	PlayPosition.Reset(StartFrame);
 
-	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
+	UCameraAnimationSequenceSubsystem* Subsystem = UCameraAnimationSequenceSubsystem::GetCameraAnimationSequenceSubsystem(GetWorld());
+	ensureMsgf(Subsystem, TEXT("Unable to locate a valid camera animation sub-system. Camera anim sequences will not play."));
+
+	TSharedPtr<FMovieSceneEntitySystemRunner> Runner = Subsystem ? Subsystem->GetRunner() : nullptr;
+	RootTemplateInstance.Initialize(*Sequence, *this, nullptr, Runner);
 }
 
 void UCameraAnimationSequencePlayer::Play(bool bLoop, bool bRandomStartTime)
@@ -384,9 +388,16 @@ void UCameraAnimationSequencePlayer::Update(FFrameTime NewPosition)
 		}
 	}
 
-	const FMovieSceneEvaluationRange Range = PlayPosition.PlayTo(NewPosition);
-	const FMovieSceneContext Context(Range, Status);
-	RootTemplateInstance.Evaluate(Context, *this);
+	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
+	{
+		const FMovieSceneEvaluationRange Range = PlayPosition.PlayTo(NewPosition);
+		const FMovieSceneContext Context(Range, Status);
+
+		Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+
+		// @todo: we should really only call flush _once_ for all camera anim sequences
+		Runner->Flush();
+	}
 
 	if (bShouldStop)
 	{
@@ -405,9 +416,13 @@ void UCameraAnimationSequencePlayer::Stop()
 
 	PlayPosition.Reset(StartFrame);
 
-	if (RootTemplateInstance.IsValid())
+	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 	{
-		RootTemplateInstance.Finish(*this);
+		if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish))
+		{
+			// @todo: we should really only call flush _once_ for all camera anim sequences
+			Runner->Flush();
+		}
 	}
 }
 

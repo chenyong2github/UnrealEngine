@@ -397,7 +397,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	ActiveTemplateIDs.Add(MovieSceneSequenceID::Root);
 	ActiveTemplateStates.Add(true);
-	RootTemplateInstance.Initialize(*InitParams.RootSequence, *this, CompiledDataManager);
+
+	Runner = MakeShared<FMovieSceneEntitySystemRunner>();
+	RootTemplateInstance.Initialize(*InitParams.RootSequence, *this, CompiledDataManager, Runner);
 
 	RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
 
@@ -582,11 +584,10 @@ FSequencer::FSequencer()
 
 FSequencer::~FSequencer()
 {
-	RootTemplateInstance.Finish(*this);
-
-	if (RootTemplateInstance.GetEntitySystemRunner().IsAttachedToLinker())
+	if (Runner->IsAttachedToLinker())
 	{
-		RootTemplateInstance.GetEntitySystemRunner().Flush();
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->Flush();
 	}
 
 	if (GEditor)
@@ -626,11 +627,10 @@ void FSequencer::Close()
 		OldMaxTickRate.Reset();
 	}
 
-	RootTemplateInstance.Finish(*this);
-
-	if (RootTemplateInstance.GetEntitySystemRunner().IsAttachedToLinker())
+	if (Runner->IsAttachedToLinker())
 	{
-		RootTemplateInstance.GetEntitySystemRunner().Flush();
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->Flush();
 	}
 
 	RestorePreAnimatedState();
@@ -974,11 +974,10 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 		}
 	}
 
-	RootTemplateInstance.Finish(*this);
-
-	if (RootTemplateInstance.GetEntitySystemRunner().IsAttachedToLinker())
+	if (Runner->IsAttachedToLinker())
 	{
-		RootTemplateInstance.GetEntitySystemRunner().Flush();
+		Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), UE::MovieScene::ERunnerUpdateFlags::Finish);
+		Runner->Flush();
 	}
 
 	ActiveTemplateIDs.Reset();
@@ -986,7 +985,7 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 	ActiveTemplateStates.Reset();
 	ActiveTemplateStates.Add(true);
 
-	RootTemplateInstance.Initialize(NewSequence, *this, CompiledDataManager);
+	RootTemplateInstance.Initialize(NewSequence, *this, CompiledDataManager, Runner);
 	RootTemplateInstance.EnableGlobalPreAnimatedStateCapture();
 
 	RootToLocalTransform = FMovieSceneSequenceTransform();
@@ -3126,19 +3125,9 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	FMovieSceneContext Context = FMovieSceneContext(InRange, PlaybackState).SetIsSilent(SilentModeCount != 0);
 	Context.SetHasJumped(bHasJumped);
 
-	FMovieSceneSequenceID RootOverride = MovieSceneSequenceID::Root;
-	if (Settings->ShouldEvaluateSubSequencesInIsolation())
-	{
-		RootOverride = ActiveTemplateIDs.Top();
-	}
-
-	RootTemplateInstance.Evaluate(Context, *this);
+	
+	RootTemplateInstance.EvaluateSynchronousBlocking(Context, *this);
 	SuppressAutoEvalSignature.Reset();
-
-	if (RootTemplateInstance.GetEntitySystemRunner().IsAttachedToLinker())
-	{
-		RootTemplateInstance.GetEntitySystemRunner().Flush();
-	}
 
 	if (Settings->ShouldRerunConstructionScripts())
 	{

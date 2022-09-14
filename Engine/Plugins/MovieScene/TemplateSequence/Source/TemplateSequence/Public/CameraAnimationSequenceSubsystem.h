@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
-#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "UObject/ObjectMacros.h"
 #include "CameraAnimationSequenceSubsystem.generated.h"
+
+class UMovieSceneEntitySystemLinker;
+class FMovieSceneEntitySystemRunner;
 
 UCLASS()
 class UCameraAnimationSpawnableSystem : public UMovieSceneEntitySystem
@@ -76,8 +78,12 @@ public:
 	/** Gets the Sequencer linker owned by this sybsystem */
 	UMovieSceneEntitySystemLinker* GetLinker(bool bAutoCreate = true);
 
+	/** Get's this subsystem's camera anim runner */
+	TSharedPtr<FMovieSceneEntitySystemRunner> GetRunner() const;
+
 private:
 	// Begin USubsystem
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	// End USubsystem
 	
@@ -87,6 +93,6 @@ private:
 	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
 	/** The global Sequencer runner that runs all the shakes and camera animations */
-	FMovieSceneEntitySystemRunner Runner;
+	TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 };
 

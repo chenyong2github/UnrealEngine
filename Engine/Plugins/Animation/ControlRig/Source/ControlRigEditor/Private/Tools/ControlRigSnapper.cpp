@@ -133,7 +133,7 @@ static bool LocalGetControlRigControlTransforms(IMovieScenePlayer* Player, const
 				GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly(); //player evals in root time so need to go back to it.
 
 				FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Player->GetPlaybackStatus()).SetHasJumped(true);
-				Player->GetEvaluationTemplate().Evaluate(Context, *Player);
+				Player->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *Player);
 			}
 			ControlRig->Evaluate_AnyThread();
 			OutTransforms[Index] = ControlRig->GetControlGlobalTransform(ControlName) * ParentTransforms[Index];

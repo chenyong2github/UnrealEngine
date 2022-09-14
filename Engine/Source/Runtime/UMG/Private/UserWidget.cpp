@@ -709,6 +709,7 @@ void UUserWidget::OnAnimationFinishedPlaying(UUMGSequencePlayer& Player)
 
 	if ( Player.GetPlaybackStatus() == EMovieScenePlayerStatus::Stopped )
 	{
+		ensureAlways(!StoppedSequencePlayers.Contains(&Player));
 		StoppedSequencePlayers.Add(&Player);
 
 		if (AnimationTickManager)
@@ -1056,9 +1057,15 @@ bool UUserWidget::GetIsVisible() const
 
 void UUserWidget::SetVisibility(ESlateVisibility InVisibility)
 {
+	ESlateVisibility OldVisibility = GetVisibility();
+
 	Super::SetVisibility(InVisibility);
-	OnNativeVisibilityChanged.Broadcast(InVisibility);
-	OnVisibilityChanged.Broadcast(InVisibility);
+
+	if (OldVisibility != GetVisibility())
+	{
+		OnNativeVisibilityChanged.Broadcast(InVisibility);
+		OnVisibilityChanged.Broadcast(InVisibility);
+	}
 }
 
 bool UUserWidget::IsInViewport() const
@@ -1530,7 +1537,6 @@ void UUserWidget::TickActionsAndAnimation(float InDeltaTime)
 
 void UUserWidget::PostTickActionsAndAnimation(float InDeltaTime)
 {
-	ClearStoppedSequencePlayers();
 }
 
 void UUserWidget::FlushAnimations()

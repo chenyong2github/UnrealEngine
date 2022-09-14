@@ -103,7 +103,7 @@ public:
 	 * Retrieve the runner associated with the specified (resolved) tick interval.
 	 * @return The runner that flushes evaluations for the specified tick interval, or nullptr if there is none
 	 */
-	FMovieSceneEntitySystemRunner* GetRunner(const FMovieSceneSequenceTickInterval& TickInterval);
+	TSharedPtr<FMovieSceneEntitySystemRunner> GetRunner(const FMovieSceneSequenceTickInterval& TickInterval);
 
 	/**
 	 * Add an action that will be executed once all the pending evaluations in this tick manager have been flushed.
@@ -163,15 +163,21 @@ private:
 		/** The linker that owns all the entity data, systems and instances */
 		UMovieSceneEntitySystemLinker* Linker;
 		/** Runner responsible for evaluating each phase of the pipeline */
-		FMovieSceneEntitySystemRunner Runner;
+		TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 
 		/** The tick interval of this group, rounded to the nearest Sequencer.TickIntervalGroupingResolutionMs */
 		int32 RoundedTickIntervalMs = 0;
+
+		/** The frame budget for all linkers within this linker group in milliseconds */
+		float FrameBudgetMs = 0.f;
 
 		/** The value of UWorld::GetUnpausedTimeSeconds last time this group was evaluated */
 		float LastUnpausedTimeSeconds = -1;
 		/** The value of UWorld::GetTimeSeconds last time this group was evaluated */
 		float LastTimeSeconds = -1;
+
+		/** The number of times this group has been starved of frames for budgeted evaluation */
+		uint16 BudgetedStarvationCount = 0;
 
 		/** Total number of clients in this group */
 		uint16 NumClients = 0;

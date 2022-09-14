@@ -28,6 +28,7 @@ namespace MovieScene
 {
 
 	struct FComponentRegistry;
+	enum class ERunnerFlushState;
 	enum class EEntitySystemCategory : uint32;
 
 	enum class EAutoLinkRelevantSystems : uint8
@@ -156,10 +157,6 @@ public:
 		return InstanceRegistry.Get();
 	}
 
-	/** Tells the given instance to finish evaluating */
-	void FinishInstance(FInstanceHandle InstanceHandle);
-
-	/** Links a given type of system. Will assert if the system type isn't allowed on this linker */
 	template<typename SystemType>
 	SystemType* LinkSystem()
 	{
@@ -338,6 +335,7 @@ private:
 
 	UMovieSceneEntitySystem* LinkSystemImpl(TSubclassOf<UMovieSceneEntitySystem> InClassType);
 
+	void HandlePreGarbageCollection();
 	void HandlePostGarbageCollection();
 
 	void TagInvalidBoundObjects();
@@ -357,12 +355,8 @@ private:
 	TSparseArray<UMovieSceneEntitySystem*> EntitySystemsByGlobalGraphID;
 	TMap<UClass*, UMovieSceneEntitySystem*> EntitySystemsRecyclingPool;
 
-	struct FActiveRunnerInfo
-	{
-		FMovieSceneEntitySystemRunner* Runner;
-		bool bIsReentrancyAllowed;
-	};
-	TArray<FActiveRunnerInfo> ActiveRunners;
+	TArray<FMovieSceneEntitySystemRunner*> ActiveRunners;
+	TBitArray<> ActiveRunnerReentrancyFlags;
 
 	TSparseArray<void*> ExtensionsByID;
 
@@ -393,16 +387,4 @@ protected:
 	UE::MovieScene::EEntitySystemLinkerRole Role;
 	UE::MovieScene::EAutoLinkRelevantSystems AutoLinkMode;
 	UE::MovieScene::FSystemFilter SystemFilter;
-};
-
-/**
- * Structure for making it possible to make re-entrant evaluation on a linker.
- */
-struct FMovieSceneEntitySystemEvaluationReentrancyWindow
-{
-	UMovieSceneEntitySystemLinker& Linker;
-	int32 CurrentLevel;
-
-	FMovieSceneEntitySystemEvaluationReentrancyWindow(UMovieSceneEntitySystemLinker& InLinker);
-	~FMovieSceneEntitySystemEvaluationReentrancyWindow();
 };

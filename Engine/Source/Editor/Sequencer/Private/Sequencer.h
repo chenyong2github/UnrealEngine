@@ -1398,6 +1398,7 @@ private:
 	TRange<FFrameNumber> SubSequenceRange;
 
 	UMovieSceneCompiledDataManager* CompiledDataManager;
+	TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 
 	TMap<FName, TFunction<void()>> CleanupFunctions;
 

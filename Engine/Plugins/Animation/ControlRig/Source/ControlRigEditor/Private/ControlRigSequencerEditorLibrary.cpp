@@ -872,7 +872,7 @@ static bool LocalGetControlRigControlValues(IMovieScenePlayer* Player, UMovieSce
 			GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly();
 			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Player->GetPlaybackStatus()).SetHasJumped(true);
 
-			Player->GetEvaluationTemplate().Evaluate(Context, *Player);
+			Player->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *Player);
 			ControlRig->Evaluate_AnyThread();
 			OutValues[Index] = ControlRig->GetControlValue(ControlName);
 		}

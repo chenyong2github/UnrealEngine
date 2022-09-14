@@ -627,7 +627,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 			continue;
 		}
 
-		Runner->MarkForUpdate(SubData.Handle);
+		Runner->MarkForUpdate(SubData.Handle, ERunnerUpdateFlags::None);
 
 		if (!ActiveSequences.Contains(InstanceIt.Key()))
 		{
