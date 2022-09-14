@@ -255,6 +255,11 @@ namespace Horde.Build.Streams
 		public List<GetTemplateStepStateResponse>? StepStates { get; set; }
 
 		/// <summary>
+		/// List of queries for the default changelist
+		/// </summary>
+		public List<ChangeQueryConfig>? DefaultChange { get; set; }
+
+		/// <summary>
 		/// ACL for this template
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
@@ -279,6 +284,7 @@ namespace Horde.Build.Streams
 			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule) : null;
 			ChainedJobs = (templateRef.Config.ChainedJobs != null && templateRef.Config.ChainedJobs.Count > 0) ? templateRef.Config.ChainedJobs : null;
 			StepStates = stepStates;
+			DefaultChange = templateRef.Config.DefaultChange;
 			Acl = (bIncludeAcl && templateRef.Acl != null) ? new GetAclResponse(templateRef.Acl) : null;
 		}
 	}
