@@ -49,6 +49,7 @@ public:
 	TSharedRef<SWidget> OnGenerateNewJobFromAssetMenu();
 
 	TArray<TSharedPtr<IMoviePipelineQueueTreeItem>> GetSelectedItems() const { return TreeView->GetSelectedItems(); }
+	void SetSelectedJobs(const TArray<UMoviePipelineExecutorJob*>& InJobs) { PendingJobsToSelect = InJobs; }
 
 private:
 	// SWidget Interface

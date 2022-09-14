@@ -46,6 +46,8 @@
 #include "FrameNumberDetailsCustomization.h"
 #include "Editor.h"
 
+#include "MoviePipelineOutputSetting.h"
+
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 
 
@@ -64,10 +66,24 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
     
 	CheckForNewSettingsObject();
      
-	if (CachedPipelineConfig->GetUserSettings().Num() > 0)
+	// Automatically try to select the Output setting as it's the most commonly edited one.
+	// If that fails, we fall back to the first setting.
 	{
-		// Automatically try to select the first setting so there is something displayed.
-		SettingsWidget->SetSelectedSettings({ CachedPipelineConfig->GetUserSettings()[0] });
+		UMoviePipelineOutputSetting* OutputSetting = CachedPipelineConfig->FindSetting<UMoviePipelineOutputSetting>();
+		if (OutputSetting)
+		{
+			TArray<UMoviePipelineSetting*> SelectedSettings;
+			SelectedSettings.Add(OutputSetting);
+			SettingsWidget->SetSelectedSettings(SelectedSettings);
+		}
+		// Shot overrides may not have Output Settings.
+		else
+		{
+			if (CachedPipelineConfig->GetUserSettings().Num() > 0)
+			{
+				SettingsWidget->SetSelectedSettings({ CachedPipelineConfig->GetUserSettings()[0] });
+			}
+		}
 	}
 	ChildSlot
 	[

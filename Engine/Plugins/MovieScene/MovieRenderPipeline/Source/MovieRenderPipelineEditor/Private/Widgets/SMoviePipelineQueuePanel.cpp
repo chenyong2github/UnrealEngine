@@ -69,8 +69,22 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 		.OnPresetChosen(this, &SMoviePipelineQueuePanel::OnJobPresetChosen)
 		.OnJobSelectionChanged(this, &SMoviePipelineQueuePanel::OnSelectionChanged);
 
-	// Reset us to no selection.
-	OnSelectionChanged(TArray<UMoviePipelineExecutorJob*>());
+
+	{
+		// Automatically select the first job in the queue
+		UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+		check(Subsystem);
+
+		TArray<UMoviePipelineExecutorJob*> Jobs;
+		if (Subsystem->GetQueue()->GetJobs().Num() > 0)
+		{
+			Jobs.Add(Subsystem->GetQueue()->GetJobs()[0]);
+		}
+
+		// Go through the UI so it updates the UI selection too and then this will loop back
+		// around to OnSelectionChanged to update ourself.
+		PipelineQueueEditorWidget->SetSelectedJobs(Jobs);
+	}
 
 	ChildSlot
 	[
@@ -659,6 +673,17 @@ void SMoviePipelineQueuePanel::OnImportSavedQueueAssest(const FAssetData& InPres
 				}
 			}
 		}
+
+		// Automatically select the first job in the queue
+		TArray<UMoviePipelineExecutorJob*> Jobs;
+		if (Subsystem->GetQueue()->GetJobs().Num() > 0)
+		{
+			Jobs.Add(Subsystem->GetQueue()->GetJobs()[0]);
+		}
+
+		// Go through the UI so it updates the UI selection too and then this will loop back
+		// around to OnSelectionChanged to update ourself.
+		PipelineQueueEditorWidget->SetSelectedJobs(Jobs);
 	}
 }
 
