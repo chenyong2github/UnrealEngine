@@ -374,7 +374,15 @@ void USequencerToolsFunctionLibrary::ClearLinkedAnimSequences(ULevelSequence* Le
 					{
 						if (IInterface_AssetUserData* AnimAssetUserData = Cast< IInterface_AssetUserData >(AnimSequence))
 						{
-							AnimAssetUserData->RemoveUserDataOfClass(UAnimSequenceLevelSequenceLink::StaticClass());
+							UAnimSequenceLevelSequenceLink* AnimLevelLink = AnimAssetUserData->GetAssetUserData< UAnimSequenceLevelSequenceLink >();
+							if (AnimLevelLink)
+							{
+								ULevelSequence* AnimLevelSequence = AnimLevelLink->ResolveLevelSequence();
+								if (AnimLevelSequence && AnimLevelSequence == LevelSequence)
+								{
+									AnimAssetUserData->RemoveUserDataOfClass(UAnimSequenceLevelSequenceLink::StaticClass());
+								}
+							}
 						}
 					}
 				}
