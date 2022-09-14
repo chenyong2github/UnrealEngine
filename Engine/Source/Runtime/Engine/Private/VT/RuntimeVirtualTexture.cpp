@@ -122,7 +122,7 @@ public:
 	/** Getter for the virtual texture allocation. */
 	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const 
 	{
-		checkSlow(IsInRenderingThread());
+		checkSlow(IsInParallelRenderingThread());
 		return AdaptiveVirtualTexture != nullptr ? AdaptiveVirtualTexture->GetAllocatedVirtualTexture() : AllocatedVirtualTexture;
 	}
 
