@@ -282,7 +282,6 @@ void GetMaterialPayload(
 
 	const float3 CamVector = MaterialParameters.CameraVector;	
 	Payload.StrataData = InitialiseRWStrataMaterialContainer();
-	bool bForceSkipSSSData = false;
 	PackStrataOut(
 		Payload.StrataData,
 		Dither,
@@ -293,7 +292,7 @@ void GetMaterialPayload(
 		WorldBentNormal0,
 		bStrataSubsurfaceEnable, 
 		EmissiveLuminance,
-		SSSData, TopLayerData, OpaqueRoughRefractionData, bForceSkipSSSData
+		SSSData, TopLayerData, OpaqueRoughRefractionData
 	);
 
 	Payload.StrataData.PackedTopLayerData = StrataPackTopLayerData(TopLayerData);

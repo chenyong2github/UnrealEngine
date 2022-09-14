@@ -152,7 +152,6 @@ void WriteOutMaterial(
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 	FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(MaterialTextureArrayUAV);
-	bool bForceSkipSSSData = false;
 	PackStrataOut(
 		RWStrataMaterialContainer,
 		MaterialTextureArrayUAV,
@@ -160,7 +159,7 @@ void WriteOutMaterial(
 		Settings,
 		StrataAddressing,
 		StrataPixelHeader, StrataData, -RayDir, NormalizedNormal, bStrataSubsurfaceEnable, EmissiveLuminance,
-		SSSData, TopLayerData, OpaqueRoughRefractionData, bForceSkipSSSData);
+		SSSData, TopLayerData, OpaqueRoughRefractionData);
 
 	// Write out MRTs. Note: this only works for deferred with basepassvelocity off
 	OutGBufferA = 0;

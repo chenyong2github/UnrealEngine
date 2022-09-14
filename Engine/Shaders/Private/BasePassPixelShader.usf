@@ -1643,7 +1643,6 @@ void FPixelShaderInOut_MainPS(
 		// Generate the strata material data to write out
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
 		FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(StrataStruct.MaterialTextureArrayUAVWithoutRTs);
-		bool bForceSkipSSSData = false;
 		PackStrataOut(
 			RWStrataMaterialContainer,
 			StrataStruct.MaterialTextureArrayUAVWithoutRTs,
@@ -1651,7 +1650,7 @@ void FPixelShaderInOut_MainPS(
 			Settings,
 			StrataAddressing,
 			StrataPixelHeader, StrataData, MaterialParameters.CameraVector, WorldBentNormal0, bStrataSubsurfaceEnable, EmissiveLuminance,
-			SSSData, TopLayerData, OpaqueRoughRefractionData, bForceSkipSSSData
+			SSSData, TopLayerData, OpaqueRoughRefractionData
 	#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 			,MaterialParameters
 			,Interpolants
@@ -1687,7 +1686,7 @@ void FPixelShaderInOut_MainPS(
 
 		// Only write SSS data if needed
 		BRANCH
-		if(!bForceSkipSSSData && StrataSubSurfaceHeaderGetIsValid(SSSData.Header))
+		if(StrataSubSurfaceHeaderGetIsValid(SSSData.Header))
 		{
 			StrataStoreSubsurfaceHeader(StrataStruct.MaterialTextureArrayUAVWithoutRTs, StrataStruct.FirstSliceStoringStrataSSSDataWithoutMRT, PixelPos, SSSData.Header.Bytes);
 			if (StrataSubSurfaceHeaderHasExtras(SSSData.Header))

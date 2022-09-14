@@ -110,8 +110,7 @@ void PackStrataOut(
 	inout float3 EmissiveColor,
 	inout FStrataSubsurfaceData SSSData,
 	inout FStrataTopLayerData TopLayerData,
-	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData,
-	inout bool bForceSkipSSSData
+	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData
 #if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 	,
 	in FMaterialPixelParameters MaterialParameters,
@@ -354,7 +353,7 @@ void PackStrataOut(
 				else if ((OptimisedModeMask & SingleIsWrap) == SingleIsWrap)
 				{
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP;
-					bForceSkipSSSData = true;
+					SSSData.Header.Bytes = 0; // Force to skip SSSData writing
 				}
 			#undef BSDF
 			}
