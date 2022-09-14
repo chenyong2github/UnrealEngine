@@ -60,18 +60,18 @@ private:
 	//~ End UAudioGameplayVolumeMutator interface
 
 	// The desired LPF frequency cutoff (in hertz) of sounds outside the volume when the player is inside the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float ExteriorLPF = MAX_FILTER_FREQUENCY;
 
 	// The time over which to interpolate from the current LPF to the desired LPF of sounds outside the volume when the player enters the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float ExteriorLPFTime = 0.5f;
 
 	// The desired LPF frequency cutoff (in hertz) of sounds inside the volume when the player is outside the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float InteriorLPF = MAX_FILTER_FREQUENCY;
 
 	// The time over which to interpolate from the current LPF to the desired LPF of sounds inside the volume when the player enters the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float InteriorLPFTime = 0.5f;
 };

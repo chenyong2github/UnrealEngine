@@ -60,18 +60,18 @@ private:
 	//~ End UAudioGameplayVolumeMutator interface
 
 	// The desired volume of sounds outside the volume when the player is inside the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
 	float ExteriorVolume = 1.0f;
 
 	// The time over which to interpolate from the current volume to the desired volume of sounds outside the volume when the player enters the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
 	float ExteriorTime = 0.5f;
 
 	// The desired volume of sounds inside the volume when the player is outside the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
 	float InteriorVolume = 1.0f;
 
 	// The time over which to interpolate from the current volume to the desired volume of sounds inside the volume when the player enters the volume
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))
 	float InteriorTime = 0.5f;
 };
