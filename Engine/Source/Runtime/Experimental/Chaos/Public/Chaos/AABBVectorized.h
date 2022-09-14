@@ -75,12 +75,7 @@ namespace Chaos
 			//Outside of slab before entering another
 			IsFalse = VectorCompareGT(LatestStartTime, EarliestEndTime);
 
-			if (VectorMaskBits(IsFalse))
-			{
-				return false;
-			}
-
-			return true;
+			return VectorMaskBits(IsFalse) == 0;
 		}
 
 		FORCEINLINE_DEBUGGABLE bool Intersects(const FAABBVectorized& Other) const
@@ -98,6 +93,7 @@ namespace Chaos
 		}
 
 	private:
-		VectorRegister4Float Min, Max;
+		VectorRegister4Float Min;
+		VectorRegister4Float Max;
 	};
 }

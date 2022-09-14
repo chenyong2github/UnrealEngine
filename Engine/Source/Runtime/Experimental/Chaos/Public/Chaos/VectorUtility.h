@@ -96,3 +96,26 @@ FORCEINLINE VectorRegister4Float VectorBitwiseNotAnd(const VectorRegister4Float&
 #endif
 }
 
+FORCEINLINE VectorRegister4Double VectorBitwiseNotAnd(const VectorRegister4Double& A, const VectorRegister4Double& B)
+{
+	VectorRegister4Double Result;
+#if PLATFORM_ENABLE_VECTORINTRINSICS_NEON	
+	Result.XY = (VectorRegister2Double)vandq_u32(vmvnq_u32((VectorRegister2Double)A.XY), (VectorRegister2Double)B.XY);
+	Result.ZW = (VectorRegister2Double)vandq_u32(vmvnq_u32((VectorRegister2Double)A.ZW), (VectorRegister2Double)B.ZW);
+#elif PLATFORM_ENABLE_VECTORINTRINSICS
+#if !UE_PLATFORM_MATH_USE_AVX
+	Result.XY = _mm_cvtps_pd(_mm_andnot_ps(_mm_cvtpd_ps(A.XY), _mm_cvtpd_ps(B.XY)));
+	Result.ZW = _mm_cvtps_pd(_mm_andnot_ps(_mm_cvtpd_ps(A.ZW), _mm_cvtpd_ps(B.ZW)));
+#else
+	Result = _mm256_andnot_pd(A, B);
+#endif
+#else
+	Result = MakeVectorRegisterDouble(
+		uint64(~((uint64*)(A.V))[0] & ((uint64*)(B.V))[0]),
+		uint64(~((uint64*)(A.V))[1] & ((uint64*)(B.V))[1]),
+		uint64(~((uint64*)(A.V))[2] & ((uint64*)(B.V))[2]),
+		uint64(~((uint64*)(A.V))[3] & ((uint64*)(B.V))[3]));
+#endif
+	return Result;
+}
+

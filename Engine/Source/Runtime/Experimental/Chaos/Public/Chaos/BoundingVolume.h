@@ -322,10 +322,18 @@ public:
 		return RaycastImp(Start, CurData, Visitor, Dir, InvDir, bParallel);
 	}
 
+	template <typename SQVisitor>
+	bool RaycastFastSimd(const VectorRegister4Double& Start, FQueryFastData& CurData, SQVisitor& Visitor, const VectorRegister4Double& Dir, const VectorRegister4Double& InvDir, const VectorRegister4Double& Parallel, const VectorRegister4Double& Length) const
+	{
+		FVec3 StartReal;
+		VectorStoreDouble3(Start, &StartReal[0]);
+		return RaycastImp(StartReal, CurData, Visitor, CurData.Dir, CurData.InvDir, CurData.bParallel);
+	}
+
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T Length, SQVisitor& Visitor) const
 	{
-		FQueryFastData CurData(Dir, Length); 
+		FQueryFastData CurData(Dir, Length);
 		RaycastImp<SQVisitor, bPruneDuplicates>(Start, CurData, Visitor, CurData.Dir, CurData.InvDir, CurData.bParallel);
 	}
 
@@ -374,8 +382,8 @@ public:
 		return false;
 	}
 	
-	/** Set thye dirty flag onto the leaf 
-	* @param  bDirtyState Disrty flag to set 
+	/** Set the dirty flag onto the leaf 
+	* @param  bDirtyState Dirty flag to set 
 	*/
 	void SetDirtyState(const bool bDirtyState)
 	{}

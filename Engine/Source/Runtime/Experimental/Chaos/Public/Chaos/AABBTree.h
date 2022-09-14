@@ -3,6 +3,7 @@
 
 #include "Chaos/AABB.h"
 #include "Chaos/AABBVectorized.h"
+#include "Chaos/AABBVectorizedDouble.h"
 #include "Chaos/AABBTreeDirtyGridUtils.h"
 #include "Chaos/Defines.h"
 #include "Chaos/GeometryParticles.h"
@@ -276,9 +277,15 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 	}
 
 	template <typename TSQVisitor, typename TQueryFastData>
-	FORCEINLINE_DEBUGGABLE bool RaycastFast(const TVec3<T>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const TVec3<T>& Dir, const TVec3<T> InvDir, const bool bParallel[3]) const
+	FORCEINLINE_DEBUGGABLE bool RaycastFast(const TVec3<T>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const TVec3<T>& Dir, const TVec3<T>& InvDir, const bool bParallel[3]) const
 	{
 		return RaycastSweepImp</*bSweep=*/false>(Start, QueryFastData, TVec3<T>((T)0), Visitor, Dir, InvDir, bParallel);
+	}
+
+	template <typename TSQVisitor, typename TQueryFastData>
+	FORCEINLINE_DEBUGGABLE bool RaycastFastSimd(const VectorRegister4Double& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const VectorRegister4Double& Dir, const VectorRegister4Double& InvDir, const VectorRegister4Double& Parallel, const VectorRegister4Double& Length) const
+	{
+		return RaycastImpSimd(Start, QueryFastData, Visitor, InvDir, Parallel, Length);
 	}
 
 	template <typename TSQVisitor, typename TQueryFastData>
@@ -339,6 +346,33 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		}
 		return true;
 	}
+
+	template <typename TQueryFastData, typename TSQVisitor>
+	FORCEINLINE_DEBUGGABLE bool RaycastImpSimd(const VectorRegister4Double& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const VectorRegister4Double& InvDir, const VectorRegister4Double& Parallel, const VectorRegister4Double& Length) const
+	{
+		PHYSICS_CSV_CUSTOM_VERY_EXPENSIVE(PhysicsCounters, MaxLeafSize, Elems.Num(), ECsvCustomStatOp::Max);
+		VectorRegister4Double TOI;
+		for (const auto& Elem : Elems)
+		{
+			if (PrePreFilterHelper(Elem.Payload, Visitor))
+			{
+				continue;
+			}
+
+			const FAABBVectorizedDouble InstanceBounds(Elem.Bounds);
+			if (InstanceBounds.RaycastFast(Start, InvDir, Parallel, Length, TOI))
+			{
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, FAABB3(Elem.Bounds.Min(), Elem.Bounds.Max()));
+				const bool bContinue = Visitor.VisitRaycast(VisitData, QueryFastData);
+				if (!bContinue)
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 
 	void RemoveElement(TPayloadType Payload)
 	{
@@ -2641,6 +2675,22 @@ private:
 //		}
 //#endif
 
+
+		VectorRegister4Double StartSimd;
+		VectorRegister4Double DirSimd;
+		VectorRegister4Double Parallel;
+		VectorRegister4Double InvDirSimd;
+		VectorRegister4Double LengthSimd;
+
+		if constexpr (Query == EAABBQueryType::Raycast)
+		{
+			StartSimd = VectorLoadDouble3(&Start.X);
+			DirSimd = VectorLoadDouble3(&Dir.X);
+			Parallel = VectorCompareGT(GlobalVectorConstants::DoubleSmallNumber, VectorAbs(DirSimd));
+			InvDirSimd = VectorBitwiseNotAnd(Parallel, VectorDivide(VectorOne(), DirSimd));
+			LengthSimd = VectorSetDouble1(CurData.CurrentLength);
+		}
+
 		while (NodeStackNum)
 		{
 			PHYSICS_CSV_SCOPED_VERY_EXPENSIVE(PhysicsVerbose, QueryImp_NodeTraverse);
@@ -2680,7 +2730,7 @@ private:
 						return false;
 					}
 				}
-				else if (Leaf.RaycastFast(Start, CurData, Visitor, Dir, InvDir, bParallel) == false)
+				else if (Leaf.RaycastFastSimd(StartSimd, CurData, Visitor, DirSimd, InvDirSimd, Parallel, LengthSimd) == false)
 				{
 					return false;
 				}
@@ -2690,15 +2740,29 @@ private:
 				PHYSICS_CSV_SCOPED_VERY_EXPENSIVE(PhysicsVerbose, NodeTraverse_Branch);
 				int32 Idx = 0;
 				
-				if constexpr(Query != EAABBQueryType::Overlap)
+				if constexpr (Query != EAABBQueryType::Overlap)
 				{
-					FReal TOI0;
-					FAABB3 AABB0(Node.ChildrenBounds[0].Min(), Node.ChildrenBounds[0].Max());
-					bool bIntersect0 = TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI0, AABB0, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel);
+					bool bIntersect0, bIntersect1;
+					FReal TOI0, TOI1;
+					if constexpr (Query == EAABBQueryType::Raycast)
+					{
+						FAABBVectorizedDouble AABBVectorized(Node.ChildrenBounds[0]);
+						VectorRegister4Double TOISimd;
+						bIntersect0 = AABBVectorized.RaycastFast(StartSimd, InvDirSimd, Parallel, LengthSimd, TOISimd);
+						VectorStoreDouble1(TOISimd, &TOI0);
 
-					FReal TOI1;
-					FAABB3 AABB1(Node.ChildrenBounds[1].Min(), Node.ChildrenBounds[1].Max());
-					bool bIntersect1 = TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI1, AABB1, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel);
+						AABBVectorized = FAABBVectorizedDouble(Node.ChildrenBounds[1]);
+						bIntersect1 = AABBVectorized.RaycastFast(StartSimd, InvDirSimd, Parallel, LengthSimd, TOISimd);
+						VectorStoreDouble1(TOISimd, &TOI1);
+					}
+					else
+					{				
+						FAABB3 AABB0(Node.ChildrenBounds[0].Min(), Node.ChildrenBounds[0].Max());
+						bIntersect0 = TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI0, AABB0, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel);
+
+						FAABB3 AABB1(Node.ChildrenBounds[1].Min(), Node.ChildrenBounds[1].Max());
+						bIntersect1 = TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI1, AABB1, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel);
+					}
 					if (bIntersect0 && bIntersect1)
 					{
 						if (TOI1 > TOI0)
