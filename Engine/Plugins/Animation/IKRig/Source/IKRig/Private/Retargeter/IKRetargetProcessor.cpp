@@ -1122,7 +1122,7 @@ bool FRetargetChainPairFK::Initialize(
 	if (!bPoleVectorMatcherInitialized)
 	{
 		Log.LogWarning( FText::Format(
-			LOCTEXT("BadFKDecoder", "IK Retargeter failed to initialize pole matching for chain, '{0}', on Skeletal Mesh: '{1}'"),
+			LOCTEXT("BadPoleVectorMatcher", "IK Retargeter failed to initialize pole matching for chain, '{0}', on Skeletal Mesh: '{1}'"),
 			FText::FromName(TargetBoneChainName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 		return false;
 	}
