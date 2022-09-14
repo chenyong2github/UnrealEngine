@@ -45,8 +45,10 @@ public:
 	virtual void UnregisterRequestPreprocessor(const FDelegateHandle& RequestPreprocessorHandle) override;
 	virtual FOnWebServerStarted& OnHttpServerStarted() override { return OnHttpServerStartedDelegate; }
 	virtual FSimpleMulticastDelegate& OnHttpServerStopped() override { return OnHttpServerStoppedDelegate; }
+	virtual bool IsHttpServerRunning() override { return bIsHttpServerRunning; }
 	virtual FOnWebServerStarted& OnWebSocketServerStarted() override { return OnWebSocketServerStartedDelegate; }
 	virtual FSimpleMulticastDelegate& OnWebSocketServerStopped() override { return OnWebSocketServerStoppedDelegate; }
+	virtual bool IsWebSocketServerRunning() override { return WebSocketServer.IsRunning(); }
 	virtual FOnWebSocketConnectionClosed& OnWebSocketConnectionOpened() override { return WebSocketServer.OnConnectionOpened(); }
 	virtual FOnWebSocketConnectionClosed& OnWebSocketConnectionClosed() override { return WebSocketServer.OnConnectionClosed(); }
 	virtual void RegisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route) override;
@@ -184,6 +186,9 @@ private:
 
 	/** Holds the client currently making a request. */
 	FGuid ActingClientId;
+
+	/** Whether the HTTP server has been started and has not been stopped. */
+	bool bIsHttpServerRunning = false;
 
 	/** List of preprocessor delegates that need to be registered when the server is started. */
 	TMap<FDelegateHandle, FHttpRequestHandler> PreprocessorsToRegister;

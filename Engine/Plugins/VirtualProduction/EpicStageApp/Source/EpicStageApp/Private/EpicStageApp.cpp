@@ -10,7 +10,18 @@ void FEpicStageAppModule::StartupModule()
 
 	if (!IsRunningCommandlet())
 	{
-		StageAppBeaconReceiver.Startup();
+		if (WebRemoteControl.IsWebSocketServerRunning())
+		{
+			StartupBeaconReceiver();
+		}
+		else
+		{
+			// Wait for the WebSocket server to start
+			WebSocketServerStartedDelegate = WebRemoteControl.OnWebSocketServerStarted().AddLambda([this](uint32)
+			{
+				StartupBeaconReceiver();
+			});
+		}
 	}
 }
 
@@ -19,10 +30,30 @@ void FEpicStageAppModule::ShutdownModule()
 	if (IWebRemoteControlModule* WebRemoteControl = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl"))
 	{
 		RouteHandler.UnregisterRoutes(*WebRemoteControl);
+
+		if (WebSocketServerStartedDelegate.IsValid())
+		{
+			WebRemoteControl->OnWebSocketServerStarted().Remove(WebSocketServerStartedDelegate);
+		}
 	}
 
-	if (!IsRunningCommandlet())
+	ShutdownBeaconReceiver();
+}
+
+void FEpicStageAppModule::StartupBeaconReceiver()
+{
+	// Make sure it's not already running
+	ShutdownBeaconReceiver();
+
+	StageAppBeaconReceiver.Startup();
+	bIsBeaconReceiverRunning = true;
+}
+
+void FEpicStageAppModule::ShutdownBeaconReceiver()
+{
+	if (bIsBeaconReceiverRunning)
 	{
 		StageAppBeaconReceiver.Shutdown();
+		bIsBeaconReceiverRunning = false;
 	}
 }

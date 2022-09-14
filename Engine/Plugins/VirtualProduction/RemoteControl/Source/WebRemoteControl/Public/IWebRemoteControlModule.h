@@ -42,6 +42,11 @@ public:
 	 * Event triggered when the http server stops.
 	 */
 	virtual FSimpleMulticastDelegate& OnHttpServerStopped() = 0;
+
+	/**
+	 * Returns whether the http server is currently running.
+	 */
+	virtual bool IsHttpServerRunning() = 0;
 	
 	
 	/** 
@@ -53,6 +58,11 @@ public:
 	 * Event triggered when the websocket server stops.
 	 */
 	virtual FSimpleMulticastDelegate& OnWebSocketServerStopped() = 0;
+
+	/**
+	 * Returns whether the websocket server is currently running.
+	 */
+	virtual bool IsWebSocketServerRunning() = 0;
 
 	/**
 	 * Event triggered when a connection to the websocket server is opened.

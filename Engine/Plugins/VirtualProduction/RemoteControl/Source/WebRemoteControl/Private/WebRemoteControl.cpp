@@ -469,6 +469,7 @@ void FWebRemoteControlModule::StartHttpServer()
 
 		FHttpServerModule::Get().StartAllListeners();
 
+		bIsHttpServerRunning = true;
 		OnHttpServerStartedDelegate.Broadcast(HttpServerPort);
 	}
 }
@@ -494,6 +495,8 @@ void FWebRemoteControlModule::StopHttpServer()
 	}
 
 	HttpRouter.Reset();
+	bIsHttpServerRunning = false;
+
 	OnHttpServerStoppedDelegate.Broadcast();
 }
 
