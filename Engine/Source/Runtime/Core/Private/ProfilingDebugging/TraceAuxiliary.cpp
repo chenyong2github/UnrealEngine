@@ -717,9 +717,7 @@ static void TraceAuxiliaryFile(const TArray<FString>& Args)
 		return;
 	}
 
-	FTraceAuxiliary::Options Opts;
-	Opts.bNoWorkerThread = true;
-	if (FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::File, Filepath, Channels, &Opts, LogConsoleResponse))
+	if (FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::File, Filepath, Channels, nullptr, LogConsoleResponse))
 	{
 		TraceAuxiliaryConnectEpilogue();
 	}
