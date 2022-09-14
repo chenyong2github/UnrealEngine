@@ -583,6 +583,7 @@ private:
 	FNaniteRasterBinIndexTranslator BinIndexTranslator;
 	TArray<FNaniteVisibilityQuery*, TInlineAllocator<32>> VisibilityQueries;
 	PrimitiveMapType PrimitiveReferences;
+	TArray<FPrimitiveReferences, SceneRenderingAllocator> CapturedPrimitiveReferences;
 	uint8 bCalledBegin : 1;
 };
 
