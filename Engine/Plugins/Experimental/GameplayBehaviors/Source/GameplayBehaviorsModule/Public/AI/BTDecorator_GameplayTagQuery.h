@@ -17,6 +17,14 @@ class UBehaviorTreeComponent;
 class UBlackboardComponent;
 class UAbilitySystemComponent;
 
+struct FBTDecorator_GameplayTagQueryMemory
+{
+	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
+	
+	/** Array of handles for our gameplay tag query delegates */
+	TArray<TTuple<FGameplayTag, FDelegateHandle>> GameplayTagEventHandles;
+};
+
 /**
  * GameplayTagQuery decorator node.
  * A decorator node that bases its condition on matching a gameplay tag query.
@@ -49,17 +57,13 @@ protected:
 	UPROPERTY()
 	TArray<FGameplayTag> QueryTags;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
-	
-	/** Array of handles for our gameplay tag query delegates */
-	TArray<TTuple<FGameplayTag, FDelegateHandle>> GameplayTagEventHandles;
-
 	/** called when execution flow controller becomes active */
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 	/** called when execution flow controller becomes inactive */
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
+	virtual uint16 GetInstanceMemorySize() const override;
 
 #if WITH_EDITOR
 	/** Get the array of tags onto which we need to add delegates 

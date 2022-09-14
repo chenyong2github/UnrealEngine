@@ -62,7 +62,8 @@ FString UBTDecorator_GameplayTagQuery::GetStaticDescription() const
 
 void UBTDecorator_GameplayTagQuery::CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const
 {
-	ensureMsgf(GameplayTagEventHandles.Num() == 0, TEXT("Dangling gameplay tag event handles for decorator %s"), *GetStaticDescription());
+	const FBTDecorator_GameplayTagQueryMemory* MyMemory = CastInstanceNodeMemory<FBTDecorator_GameplayTagQueryMemory>(NodeMemory);
+	ensureMsgf(MyMemory->GameplayTagEventHandles.Num() == 0, TEXT("Dangling gameplay tag event handles for decorator %s"), *GetStaticDescription());
 }
 
 void UBTDecorator_GameplayTagQuery::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -81,36 +82,38 @@ void UBTDecorator_GameplayTagQuery::OnBecomeRelevant(UBehaviorTreeComponent& Own
 		return;
 	}
 
-	CachedAbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(SelectedActor);
-	if (CachedAbilitySystemComponent)
+	FBTDecorator_GameplayTagQueryMemory* MyMemory = CastInstanceNodeMemory<FBTDecorator_GameplayTagQueryMemory>(NodeMemory);
+	MyMemory->CachedAbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(SelectedActor);
+
+	if (MyMemory->CachedAbilitySystemComponent.IsValid())
 	{
 		for (const FGameplayTag& CurrentTag : QueryTags)
 		{
-			FDelegateHandle GameplayTagEventCallbackDelegate = CachedAbilitySystemComponent->RegisterGameplayTagEvent(CurrentTag, EGameplayTagEventType::Type::AnyCountChange).AddUObject(this, &UBTDecorator_GameplayTagQuery::OnGameplayTagInQueryChanged, TWeakObjectPtr<UBehaviorTreeComponent>(&OwnerComp), NodeMemory);
-			GameplayTagEventHandles.Emplace(CurrentTag, GameplayTagEventCallbackDelegate);
+			FDelegateHandle GameplayTagEventCallbackDelegate = MyMemory->CachedAbilitySystemComponent.Get()->RegisterGameplayTagEvent(CurrentTag, EGameplayTagEventType::Type::AnyCountChange).AddUObject(this, &UBTDecorator_GameplayTagQuery::OnGameplayTagInQueryChanged, TWeakObjectPtr<UBehaviorTreeComponent>(&OwnerComp), NodeMemory);
+			MyMemory->GameplayTagEventHandles.Emplace(CurrentTag, GameplayTagEventCallbackDelegate);
 		}
 	}
 }
 
 void UBTDecorator_GameplayTagQuery::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	const UBlackboardComponent* BlackboardComp = OwnerComp.GetBlackboardComponent();
-	if (!BlackboardComp)
-	{
-		// Not calling super here since it does nothing
-		return;
-	}
+	FBTDecorator_GameplayTagQueryMemory* MyMemory = CastInstanceNodeMemory<FBTDecorator_GameplayTagQueryMemory>(NodeMemory);
 
-	if (CachedAbilitySystemComponent)
+	if (MyMemory->CachedAbilitySystemComponent.IsValid())
 	{
-		for (const TTuple<FGameplayTag, FDelegateHandle>& GameplayTagEvent : GameplayTagEventHandles)
+		for (const TTuple<FGameplayTag, FDelegateHandle>& GameplayTagEvent : MyMemory->GameplayTagEventHandles)
 		{
-			CachedAbilitySystemComponent->RegisterGameplayTagEvent(GameplayTagEvent.Key, EGameplayTagEventType::Type::AnyCountChange).Remove(GameplayTagEvent.Value);
+			MyMemory->CachedAbilitySystemComponent.Get()->RegisterGameplayTagEvent(GameplayTagEvent.Key, EGameplayTagEventType::Type::AnyCountChange).Remove(GameplayTagEvent.Value);
 		}
 	}
 
-	GameplayTagEventHandles.Reset();
-	CachedAbilitySystemComponent = nullptr;
+	MyMemory->GameplayTagEventHandles.Reset();
+	MyMemory->CachedAbilitySystemComponent = nullptr;
+}
+
+uint16 UBTDecorator_GameplayTagQuery::GetInstanceMemorySize() const
+{
+	return sizeof(FBTDecorator_GameplayTagQueryMemory);
 }
 
 #if WITH_EDITOR
