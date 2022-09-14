@@ -381,6 +381,29 @@ void FRDGBuilder::AddSetupTask(TaskLambda&& Task)
 	}
 }
 
+template <typename TaskLambda>
+void FRDGBuilder::AddCommandListSetupTask(TaskLambda&& Task)
+{
+	if (bParallelExecuteEnabled)
+	{
+		FRHICommandList* RHICmdListTask = new FRHICommandList(FRHIGPUMask::All());
+
+		ParallelSetupEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Task = MoveTemp(Task), RHICmdListTask](ENamedThreads::Type, const FGraphEventRef&)
+		{
+			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			Task(*RHICmdListTask);
+
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
+
+		RHICmdList.QueueRenderThreadCommandListSubmit(ParallelSetupEvents.Last(), RHICmdListTask);
+	}
+	else
+	{
+		Task(RHICmdList);
+	}
+}
+
 inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateGetPooledTexture(Texture));

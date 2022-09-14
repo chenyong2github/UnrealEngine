@@ -209,6 +209,10 @@ public:
 	template <typename TaskLambda>
 	void AddSetupTask(TaskLambda&& Task);
 
+	/** Launches a task that is synced prior to graph execution. If parallel execution is not enabled, the lambda is run immediately. */
+	template <typename TaskLambda>
+	void AddCommandListSetupTask(TaskLambda&& Task);
+
 	/** Tells the builder to delete unused RHI resources. The behavior of this method depends on whether RDG immediate mode is enabled:
 	 *   Deferred:  RHI resource flushes are performed prior to execution.
 	 *   Immediate: RHI resource flushes are performed immediately.

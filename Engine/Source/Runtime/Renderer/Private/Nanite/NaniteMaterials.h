@@ -340,12 +340,51 @@ public:
 
 	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
 
-	void Begin(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
-	void* GetMaterialSlotPtr(uint32 PrimitiveIndex, uint32 EntryCount);
+	class FUploader
+	{
+	public:
+		void Lock(FRHICommandListBase& RHICmdList);
+
+		void* GetMaterialSlotPtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #if WITH_EDITOR
-	void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
+		void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #endif
-	void Finish(FRDGBuilder& GraphBuilder, FRDGExternalAccessQueue& ExternalAccessQueue);
+
+		void Unlock(FRHICommandListBase& RHICmdList);
+
+	private:
+		struct FMaterialUploadEntry
+		{
+			FMaterialUploadEntry() = default;
+			FMaterialUploadEntry(const FNaniteMaterialEntry& Entry)
+				: MaterialId(Entry.MaterialId)
+				, MaterialSlot(Entry.MaterialSlot)
+#if WITH_DEBUG_VIEW_MODES
+				, InstructionCount(Entry.InstructionCount)
+#endif
+			{}
+
+			uint32 MaterialId;
+			int32 MaterialSlot;
+#if WITH_DEBUG_VIEW_MODES
+			uint32 InstructionCount;
+#endif
+		};
+
+		TArray<FMaterialUploadEntry, FSceneRenderingArrayAllocator> DirtyMaterialEntries;
+
+		FRDGScatterUploader* MaterialSlotUploader = nullptr;
+		FRDGScatterUploader* HitProxyTableUploader = nullptr;
+		FRDGScatterUploader* MaterialDepthUploader = nullptr;
+		FRDGScatterUploader* MaterialEditorUploader = nullptr;
+		int32 MaxMaterials = 0;
+
+		friend FNaniteMaterialCommands;
+	};
+
+	FUploader* Begin(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
+
+	void Finish(FRDGBuilder& GraphBuilder, FRDGExternalAccessQueue& ExternalAccessQueue, FUploader* Uploader);
 
 #if WITH_EDITOR
 	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer->GetSRV(); }
@@ -371,22 +410,38 @@ private:
 	uint32 NumMaterialSlotUpdates = 0;
 	uint32 NumMaterialDepthUpdates = 0;
 
-	FRDGScatterUploadBuffer MaterialSlotUploadBuffer;
+	FRDGAsyncScatterUploadBuffer MaterialSlotUploadBuffer;
 	TRefCountPtr<FRDGPooledBuffer> MaterialSlotDataBuffer;
 
-	FRDGScatterUploadBuffer HitProxyTableUploadBuffer;
+	FRDGAsyncScatterUploadBuffer HitProxyTableUploadBuffer;
 	TRefCountPtr<FRDGPooledBuffer> HitProxyTableDataBuffer;
 
 	FGrowOnlySpanAllocator	MaterialSlotAllocator;
 
-	FRDGScatterUploadBuffer MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
+	FRDGAsyncScatterUploadBuffer MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
 	TRefCountPtr<FRDGPooledBuffer> MaterialDepthDataBuffer;
 
 #if WITH_DEBUG_VIEW_MODES
-	FRDGScatterUploadBuffer MaterialEditorUploadBuffer; // 1 uint per slot (VS and PS instruction count)
+	FRDGAsyncScatterUploadBuffer MaterialEditorUploadBuffer; // 1 uint per slot (VS and PS instruction count)
 	TRefCountPtr<FRDGPooledBuffer> MaterialEditorDataBuffer;
 #endif
 };
+
+inline void LockIfValid(FRHICommandListBase& RHICmdList, FNaniteMaterialCommands::FUploader* Uploader)
+{
+	if (Uploader)
+	{
+		Uploader->Lock(RHICmdList);
+	}
+}
+
+inline void UnlockIfValid(FRHICommandListBase& RHICmdList, FNaniteMaterialCommands::FUploader* Uploader)
+{
+	if (Uploader)
+	{
+		Uploader->Unlock(RHICmdList);
+	}
+}
 
 extern bool UseComputeDepthExport();
 

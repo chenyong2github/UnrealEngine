@@ -517,6 +517,30 @@ void FRDGScatterUploadBuffer::InitPreSized(FRDGBuilder& GraphBuilder, uint32 Num
 	NumScatters = NumElements;
 }
 
+struct FScatterUploadComputeConfig
+{
+	uint32 ThreadGroupSize;
+	uint32 NumBytesPerThread;
+	uint32 NumThreadsPerScatter;
+	uint32 NumThreads;
+	uint32 NumDispatches;
+	uint32 NumLoops;
+};
+
+FScatterUploadComputeConfig GetScatterUploadComputeConfig(uint32 NumScatters, uint32 NumBytesPerElement)
+{
+	constexpr uint32 ThreadGroupSize = 64u;
+
+	FScatterUploadComputeConfig Config;
+	Config.ThreadGroupSize = ThreadGroupSize;
+	Config.NumBytesPerThread = (NumBytesPerElement & 15) == 0 ? 16 : 4;
+	Config.NumThreadsPerScatter = NumBytesPerElement / Config.NumBytesPerThread;
+	Config.NumThreads = NumScatters * Config.NumThreadsPerScatter;
+	Config.NumDispatches = FMath::DivideAndRoundUp(Config.NumThreads, Config.ThreadGroupSize);
+	Config.NumLoops = FMath::DivideAndRoundUp(Config.NumDispatches, (uint32)GMaxComputeDispatchDimension);
+	return Config;
+}
+
 void FRDGScatterUploadBuffer::Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGScatterUploadBuffer::Init);
@@ -581,12 +605,7 @@ void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGVi
 		return;
 	}
 
-	constexpr uint32 ThreadGroupSize = 64u;
-	uint32 NumBytesPerThread = (NumBytesPerElement & 15) == 0 ? 16 : 4;
-	uint32 NumThreadsPerScatter = NumBytesPerElement / NumBytesPerThread;
-	uint32 NumThreads = NumScatters * NumThreadsPerScatter;
-	uint32 NumDispatches = FMath::DivideAndRoundUp(NumThreads, ThreadGroupSize);
-	uint32 NumLoops = FMath::DivideAndRoundUp(NumDispatches, (uint32)GMaxComputeDispatchDimension);
+	const FScatterUploadComputeConfig ComputeConfig = GetScatterUploadComputeConfig(NumScatters, NumBytesPerElement);
 
 	const EResourceType DstResourceType = GetResourceType(DstResource);
 	check(bFloat4Buffer != (DstResourceType == EResourceType::BYTEBUFFER));
@@ -594,7 +613,7 @@ void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGVi
 	EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
 
 	FRDGScatterCopyCS::FParameters Parameters;
-	Parameters.Common.Size = NumThreadsPerScatter;
+	Parameters.Common.Size = ComputeConfig.NumThreadsPerScatter;
 	Parameters.NumScatters = NumScatters;
 
 	FRDGBufferSRV* ScatterBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ScatterBuffer));
@@ -602,7 +621,7 @@ void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGVi
 
 	if (DstResourceType == EResourceType::BYTEBUFFER)
 	{
-		if (NumBytesPerThread == 16)
+		if (ComputeConfig.NumBytesPerThread == 16)
 		{
 			ResourceTypeEnum = EByteBufferResourceType::Uint4Aligned_Buffer;
 		}
@@ -645,11 +664,11 @@ void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGVi
 	PermutationVector.Set<FRDGByteBufferShader::ResourceTypeDim>((int)ResourceTypeEnum);
 	TShaderMapRef<FRDGScatterCopyCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-	for (uint32 LoopIdx = 0; LoopIdx < NumLoops; ++LoopIdx)
+	for (uint32 LoopIdx = 0; LoopIdx < ComputeConfig.NumLoops; ++LoopIdx)
 	{
-		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ThreadGroupSize;
+		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ComputeConfig.ThreadGroupSize;
 
-		uint32 LoopNumDispatch = FMath::Min(NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension);
+		uint32 LoopNumDispatch = FMath::Min(ComputeConfig.NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -667,6 +686,203 @@ void FRDGScatterUploadBuffer::Reset()
 	NumScatters = 0;
 	MaxScatters = 0;
 	NumBytesPerElement = 0;
+}
+
+void FRDGScatterUploader::Lock(FRHICommandListBase& RHICmdList)
+{
+	check(State == EState::Empty);
+	State = EState::Locked;
+	ScatterData = (uint32*)RHICmdList.LockBuffer(ScatterBuffer, 0, ScatterBytes, RLM_WriteOnly);
+	UploadData = (uint8*)RHICmdList.LockBuffer(UploadBuffer, 0, UploadBytes, RLM_WriteOnly);
+}
+
+void FRDGScatterUploader::Unlock(FRHICommandListBase& RHICmdList)
+{
+	check(State == EState::Locked);
+	State = EState::Unlocked;
+	RHICmdList.UnlockBuffer(ScatterBuffer);
+	RHICmdList.UnlockBuffer(UploadBuffer);
+}
+
+FRDGScatterUploader* FRDGAsyncScatterUploadBuffer::Begin(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGAsyncScatterUploadBuffer::Upload);
+
+	const EResourceType DstResourceType = GetResourceType(DstResource);
+	const EBufferUsageFlags Usage = DstResourceType == EResourceType::BYTEBUFFER ? BUF_ByteAddressBuffer : BUF_None;
+	const uint32 TypeSize = DstResourceType == EResourceType::BYTEBUFFER ? 4 : 16;
+
+	const uint32 ScatterNumBytesPerElement = sizeof(uint32);
+	const uint32 ScatterBytes = NumElements * ScatterNumBytesPerElement;
+	const uint32 ScatterBufferSize = (uint32)FMath::Min((uint64)FMath::RoundUpToPowerOfTwo(ScatterBytes), GetMaxBufferDimension() * sizeof(uint32));
+	check(ScatterBufferSize >= ScatterBytes);
+
+	const uint32 UploadNumBytesPerElement = TypeSize;
+	const uint32 UploadBytes = NumElements * NumBytesPerElement;
+	const uint32 UploadBufferSize = (uint32)FMath::Min((uint64)FMath::RoundUpToPowerOfTwo(UploadBytes), GetMaxBufferDimension() * TypeSize);
+	check(UploadBufferSize >= UploadBytes);
+
+	// Recreate buffers is they are already queued into RDG from a previous call.
+	if (IsRegistered(GraphBuilder, ScatterBuffer))
+	{
+		ScatterBuffer = nullptr;
+		UploadBuffer = nullptr;
+	}
+
+	if (!ScatterBuffer || ScatterBytes > ScatterBuffer->GetSize() || ScatterBufferSize < ScatterBuffer->GetSize() / 2)
+	{
+		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredUploadDesc(ScatterNumBytesPerElement, ScatterBufferSize / ScatterNumBytesPerElement);
+		Desc.Usage |= Usage;
+
+		AllocatePooledBuffer(Desc, ScatterBuffer, Name, ERDGPooledBufferAlignment::None);
+	}
+
+	if (!UploadBuffer || UploadBytes > UploadBuffer->GetSize() || UploadBufferSize < UploadBuffer->GetSize() / 2)
+	{
+		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredUploadDesc(TypeSize, UploadBufferSize / UploadNumBytesPerElement);
+		Desc.Usage |= Usage;
+
+		AllocatePooledBuffer(Desc, UploadBuffer, Name, ERDGPooledBufferAlignment::None);
+	}
+
+	FRDGScatterUploader* Uploader = GraphBuilder.AllocObject<FRDGScatterUploader>();
+	Uploader->MaxScatters = NumElements;
+	Uploader->NumBytesPerElement = NumBytesPerElement;
+	Uploader->DstResource = DstResource;
+	Uploader->ScatterBuffer = ScatterBuffer->GetRHI();
+	Uploader->UploadBuffer = UploadBuffer->GetRHI();
+	Uploader->ScatterBytes = ScatterBytes;
+	Uploader->UploadBytes = UploadBytes;
+	return Uploader;
+}
+
+FRDGScatterUploader* FRDGAsyncScatterUploadBuffer::BeginPreSized(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name)
+{
+	FRDGScatterUploader* Uploader = Begin(GraphBuilder, DstResource, NumElements, NumBytesPerElement, Name);
+	Uploader->NumScatters = NumElements;
+	Uploader->bNumScattersPreSized = true;
+	return Uploader;
+}
+
+void FRDGAsyncScatterUploadBuffer::End(FRDGBuilder& GraphBuilder, FRDGScatterUploader* Uploader)
+{
+	check(Uploader);
+	checkf(!FRDGBuilder::IsImmediateMode() || Uploader->State == FRDGScatterUploader::EState::Unlocked, TEXT("In immediate mode, you must fill the uploader prior to calling End."));
+
+	const uint32 NumScatters = Uploader->bNumScattersPreSized ? Uploader->NumScatters : Uploader->MaxScatters;
+
+	const FScatterUploadComputeConfig ComputeConfig = GetScatterUploadComputeConfig(NumScatters, Uploader->NumBytesPerElement);
+
+	FRDGScatterCopyCS::FParameters Parameters;
+	Parameters.Common.Size = ComputeConfig.NumThreadsPerScatter;
+	Parameters.NumScatters = NumScatters;
+
+	FRDGBufferSRV* ScatterBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ScatterBuffer));
+	FRDGBufferSRV* UploadBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(UploadBuffer));
+
+	FRDGViewableResource* DstResource = Uploader->DstResource;
+	const EResourceType DstResourceType = GetResourceType(DstResource);
+
+	EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
+
+	if (DstResourceType == EResourceType::BYTEBUFFER)
+	{
+		if (ComputeConfig.NumBytesPerThread == 16)
+		{
+			ResourceTypeEnum = EByteBufferResourceType::Uint4Aligned_Buffer;
+		}
+		else
+		{
+			ResourceTypeEnum = EByteBufferResourceType::Uint_Buffer;
+		}
+		Parameters.UploadByteAddressBuffer = UploadBufferSRV;
+		Parameters.ScatterByteAddressBuffer = ScatterBufferSRV;
+		Parameters.Common.DstByteAddressBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else if (DstResourceType == EResourceType::STRUCTURED_BUFFER)
+	{
+		ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
+
+		Parameters.UploadStructuredBuffer = UploadBufferSRV;
+		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
+		Parameters.Common.DstStructuredBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else if (DstResourceType == EResourceType::BUFFER)
+	{
+		ResourceTypeEnum = EByteBufferResourceType::Float4_Buffer;
+
+		Parameters.UploadStructuredBuffer = UploadBufferSRV;
+		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
+		Parameters.Common.DstBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else if (DstResourceType == EResourceType::TEXTURE)
+	{
+		ResourceTypeEnum = EByteBufferResourceType::Float4_Texture;
+
+		Parameters.UploadStructuredBuffer = UploadBufferSRV;
+		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
+		Parameters.Common.DstTexture = GraphBuilder.CreateUAV(GetAsTexture(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+		Parameters.Common.Float4sPerLine = CalculateFloat4sPerLine();
+	}
+
+	FRDGByteBufferShader::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRDGByteBufferShader::ResourceTypeDim>((int)ResourceTypeEnum);
+	TShaderMapRef<FRDGScatterCopyCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+
+	for (uint32 LoopIdx = 0; LoopIdx < ComputeConfig.NumLoops; ++LoopIdx)
+	{
+		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ComputeConfig.ThreadGroupSize;
+
+		FRDGScatterCopyCS::FParameters* PassParameters = GraphBuilder.AllocParameters(&Parameters);
+
+		if (Uploader->bNumScattersPreSized)
+		{
+			const uint32 LoopNumDispatch = FMath::Min(ComputeConfig.NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ScatterUpload[%d] (Resource: %s, Offset: %u, GroupSize: %u)", LoopIdx, DstResource->Name, Parameters.Common.SrcOffset, LoopNumDispatch),
+				ComputeShader,
+				PassParameters,
+				FIntVector(LoopNumDispatch, 1, 1));
+		}
+		else
+		{
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ScatterUpload[%d] (Resource: %s, Offset: %u)", LoopIdx, DstResource->Name, Parameters.Common.SrcOffset),
+				ComputeShader,
+				PassParameters,
+				[PassParameters, LoopIdx, NumBytesPerElement = Uploader->NumBytesPerElement, Uploader]
+			{
+				const uint32 NumScatters = Uploader->GetFinalNumScatters();
+				const FScatterUploadComputeConfig ComputeConfig = GetScatterUploadComputeConfig(NumScatters, NumBytesPerElement);
+
+				if (LoopIdx < ComputeConfig.NumLoops)
+				{
+					PassParameters->NumScatters = NumScatters;
+
+					return FIntVector(FMath::Min(ComputeConfig.NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension), 1, 1);
+				}
+				else
+				{
+					return FIntVector::ZeroValue;
+				}
+			});
+		}
+	}
+}
+
+void FRDGAsyncScatterUploadBuffer::Release()
+{
+	ScatterBuffer = nullptr;
+	UploadBuffer = nullptr;
+}
+
+uint32 FRDGAsyncScatterUploadBuffer::GetNumBytes() const
+{
+	return TryGetSize(ScatterBuffer) + TryGetSize(UploadBuffer);
 }
 
 template<typename ResourceType>

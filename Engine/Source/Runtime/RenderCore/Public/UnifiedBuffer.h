@@ -202,26 +202,21 @@ extern RENDERCORE_API FRDGBuffer* ResizeStructuredBufferIfNeeded(FRDGBuilder& Gr
 extern RENDERCORE_API FRDGBuffer* ResizeStructuredBufferSOAIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, const FResizeResourceSOAParams& Params, const TCHAR* DebugName);
 extern RENDERCORE_API FRDGBuffer* ResizeByteAddressBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, uint32 NumBytes, const TCHAR* Name);
 
-class RENDERCORE_API FRDGScatterUploadBuffer
+class FRDGAsyncScatterUploadBuffer;
+
+class FRDGScatterUploadBase
 {
 public:
-	enum { PrimitiveDataStrideInFloat4s = FScatterUploadBuffer::PrimitiveDataStrideInFloat4s };
+	void Add(TArrayView<const uint32> ElementScatterOffsets)
+	{
+		checkSlow(NumScatters + ElementScatterOffsets.Num() <= MaxScatters);
+		checkSlow(ScatterData != nullptr);
+		checkSlow(UploadData != nullptr);
 
-	/**
-	 * Init with presized num scatters, expecting each to be set at a later point. Requires the user to keep track of the offsets to use.
-	 */
-	void InitPreSized(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
-
-	/**
-	 * Init with pre-existing destination index data, performs a bulk-copy.
-	 */
-	void Init(FRDGBuilder& GraphBuilder, TArrayView<const uint32> ElementScatterOffsets, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
-
-	void Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 NumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name);
-
-	void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
-
-	void Release();
+		uint32* ScatterWriteData = ScatterData + NumScatters;
+		FMemory::ParallelMemcpy(ScatterWriteData, ElementScatterOffsets.GetData(), ElementScatterOffsets.Num() * ElementScatterOffsets.GetTypeSize(), EMemcpyCachePolicy::StoreUncached);
+		NumScatters += ElementScatterOffsets.Num();
+	}
 
 	void Add(uint32 Index, const void* Data, uint32 Num = 1)
 	{
@@ -271,6 +266,109 @@ public:
 		return UploadData + ElementIndex * NumBytesPerElement;
 	}
 
+protected:
+	uint32* ScatterData = nullptr;
+	uint8* UploadData = nullptr;
+	uint32 NumScatters = 0;
+	uint32 MaxScatters = 0;
+	uint32 NumBytesPerElement = 0;
+
+	friend FRDGAsyncScatterUploadBuffer;
+};
+
+class RENDERCORE_API FRDGScatterUploader
+	: public FRDGScatterUploadBase
+{
+public:
+	void Lock(FRHICommandListBase& RHICmdList);
+	void Unlock(FRHICommandListBase& RHICmdList);
+
+	FRDGViewableResource* GetDstResource() const
+	{
+		return DstResource;
+	}
+
+private:
+	uint32 GetFinalNumScatters() const
+	{
+		check(bNumScattersPreSized || State == EState::Unlocked);
+		return NumScatters;
+	}
+
+	FRDGViewableResource* DstResource = nullptr;
+	FRHIBuffer* ScatterBuffer = nullptr;
+	FRHIBuffer* UploadBuffer = nullptr;
+	uint32 ScatterBytes = 0;
+	uint32 UploadBytes = 0;
+	bool bNumScattersPreSized = false;
+
+	enum class EState : uint8
+	{
+		Empty,
+		Locked,
+		Unlocked
+	};
+
+	std::atomic<EState> State{ EState::Empty };
+
+	friend FRDGAsyncScatterUploadBuffer;
+};
+
+inline void LockIfValid(FRHICommandListBase& RHICmdList, FRDGScatterUploader* Uploader)
+{
+	if (Uploader)
+	{
+		Uploader->Lock(RHICmdList);
+	}
+}
+
+inline void UnlockIfValid(FRHICommandListBase& RHICmdList, FRDGScatterUploader* Uploader)
+{
+	if (Uploader)
+	{
+		Uploader->Unlock(RHICmdList);
+	}
+}
+
+class RENDERCORE_API FRDGAsyncScatterUploadBuffer
+{
+public:
+	FRDGScatterUploader* Begin(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name);
+	FRDGScatterUploader* BeginPreSized(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name);
+
+	void End(FRDGBuilder& GraphBuilder, FRDGScatterUploader* Uploader);
+
+	void Release();
+
+	uint32 GetNumBytes() const;
+
+private:
+	TRefCountPtr<FRDGPooledBuffer> ScatterBuffer;
+	TRefCountPtr<FRDGPooledBuffer> UploadBuffer;
+};
+
+class RENDERCORE_API FRDGScatterUploadBuffer
+	: public FRDGScatterUploadBase
+{
+public:
+	enum { PrimitiveDataStrideInFloat4s = FScatterUploadBuffer::PrimitiveDataStrideInFloat4s };
+
+	/**
+	 * Init with presized num scatters, expecting each to be set at a later point. Requires the user to keep track of the offsets to use.
+	 */
+	void InitPreSized(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
+
+	/**
+	 * Init with pre-existing destination index data, performs a bulk-copy.
+	 */
+	void Init(FRDGBuilder& GraphBuilder, TArrayView<const uint32> ElementScatterOffsets, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
+
+	void Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 NumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name);
+
+	void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
+
+	void Release();
+
 	uint32 GetNumBytes() const;
 
 private:
@@ -278,13 +376,6 @@ private:
 
 	TRefCountPtr<FRDGPooledBuffer> ScatterBuffer;
 	TRefCountPtr<FRDGPooledBuffer> UploadBuffer;
-
-	uint32* ScatterData = nullptr;
-	uint8* UploadData = nullptr;
-
-	uint32 	NumScatters = 0;
-	uint32 	MaxScatters = 0;
-	uint32	NumBytesPerElement = 0;
 
 	bool bFloat4Buffer = false;
 };

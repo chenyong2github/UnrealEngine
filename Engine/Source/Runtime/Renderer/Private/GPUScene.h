@@ -319,28 +319,29 @@ public:
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
-	TArray<int32>			PrimitivesToUpdate;
+	TArray<int32>                  PrimitivesToUpdate;
 
 	/** GPU mirror of Primitives */
 	TRefCountPtr<FRDGPooledBuffer> PrimitiveBuffer;
-	FRDGScatterUploadBuffer PrimitiveUploadBuffer;
+	FRDGAsyncScatterUploadBuffer   PrimitiveUploadBuffer;
 
 	/** GPU primitive instance list */
-	FGrowOnlySpanAllocator	InstanceSceneDataAllocator;
+	FGrowOnlySpanAllocator         InstanceSceneDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> InstanceSceneDataBuffer;
-	FRDGScatterUploadBuffer	InstanceSceneUploadBuffer;
-	uint32					InstanceSceneDataSOAStride;	// Distance between arrays in float4s
+	FRDGAsyncScatterUploadBuffer   InstanceSceneUploadBuffer;
+	uint32                         InstanceSceneDataSOAStride;	// Distance between arrays in float4s
 
-	FGrowOnlySpanAllocator	InstancePayloadDataAllocator;
+	FGrowOnlySpanAllocator         InstancePayloadDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> InstancePayloadDataBuffer;
-	FRDGScatterUploadBuffer	InstancePayloadUploadBuffer;
+	FRDGAsyncScatterUploadBuffer   InstancePayloadUploadBuffer;
 
 	TRefCountPtr<FRDGPooledBuffer> InstanceBVHBuffer;
+	FRDGAsyncScatterUploadBuffer   InstanceBVHUploadBuffer;
 
 	/** GPU light map data */
-	FGrowOnlySpanAllocator	LightmapDataAllocator;
+	FGrowOnlySpanAllocator         LightmapDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> LightmapDataBuffer;
-	FRDGScatterUploadBuffer	LightmapUploadBuffer;
+	FRDGAsyncScatterUploadBuffer        LightmapUploadBuffer;
 
 	struct FInstanceRange
 	{
