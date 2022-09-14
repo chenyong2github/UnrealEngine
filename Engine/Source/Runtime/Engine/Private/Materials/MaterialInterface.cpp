@@ -30,11 +30,14 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "ObjectCacheContext.h"
 #include "MaterialCachedData.h"
+#include "Misc/ScopedSlowTask.h"
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
 #include "MaterialCachedHLSLTree.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "MaterialInterface"
 
 /**
  * This is used to deprecate data that has been built with older versions.
@@ -1427,6 +1430,16 @@ void UMaterialInterface::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUse
 	}
 }
 
+void UMaterialInterface::EnsureIsComplete()
+{
+	if (!IsComplete())
+	{
+		FScopedSlowTask SlowTask(0.0f, LOCTEXT("CacheShaders", "Caching Shaders..."));
+		SlowTask.MakeDialog();
+		CacheShaders(EMaterialShaderPrecompileMode::Synchronous);
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 
 namespace MaterialInterface
@@ -1513,3 +1526,5 @@ void UMaterialInterfaceEditorOnlyData::Serialize(FArchive& Ar)
 		bLoadedCachedExpressionData = true;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE 

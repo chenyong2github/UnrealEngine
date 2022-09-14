@@ -3,7 +3,6 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "Misc/ScopedSlowTask.h"
 #include "Serialization/BufferArchive.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
@@ -178,12 +177,8 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 	}
 	else
 	{
-		if (!Material->IsComplete())
-		{
-			FScopedSlowTask SlowTask(0.0f, NSLOCTEXT("KismetRenderingLibrary", "CacheShaders", "Caching Shaders..."));
-			SlowTask.MakeDialog();
-			Material->CacheShaders(EMaterialShaderPrecompileMode::Synchronous);
-		}
+		// This is a user-facing function, so we'd rather make sure that shaders are ready by the time we render, in order to ensure we don't draw with a fallback material :
+		Material->EnsureIsComplete();
 
 		World->FlushDeferredParameterCollectionInstanceUpdates();
 
@@ -198,7 +193,6 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 			World->FeatureLevel);
 
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, &RenderCanvas);
-		Canvas->Update();
 
 		{
 			SCOPED_DRAW_EVENTF_GAMETHREAD(DrawMaterialToRenderTarget, *TextureRenderTarget->GetFName().ToString());
@@ -748,7 +742,6 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 			// Draw immediately so that interleaved SetVectorParameter (etc) function calls work as expected
 			FCanvas::CDM_ImmediateDrawing);
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, NewCanvas);
-		Canvas->Update();
 
 #if  WANTS_DRAW_MESH_EVENTS
 		Context.DrawEvent = new FDrawEvent();

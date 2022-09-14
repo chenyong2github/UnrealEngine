@@ -887,6 +887,17 @@ public:
 	*/
 	ENGINE_API virtual bool IsComplete() const { return true; }
 
+	/** @brief Checks to see if this material has all its shaders cached and if not, will perform a synchronous compilation of those.
+	*
+	* Materials are not guaranteed to have all their shaders compiled after loading and using this function before a draw will ensure that the material will not render until it's 
+	* ready to (and use a fallback material instead). This needs to be avoided in the common render path but can be useful in critical tools (e.g. landscape) that rely on the 
+	* material and cannot afford a fallback material. 
+	* In the editor, it will display a toast when waiting for the shaders to compile.
+	*
+	* @see CacheShaders
+	*/
+	ENGINE_API void EnsureIsComplete();
+
 #if WITH_EDITOR
 	/** Clears the shader cache and recompiles the shader for rendering. */
 	ENGINE_API virtual void ForceRecompileForRendering() {}
