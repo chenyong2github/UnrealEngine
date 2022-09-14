@@ -1426,6 +1426,7 @@ float FAnimationViewportClient::GetBoneDrawSize() const
 void FAnimationViewportClient::SetBoneDrawMode(EBoneDrawMode::Type AxesMode)
 {
 	ConfigOption->SetDefaultBoneDrawSelection(AxesMode);
+	RedrawRequested(Viewport);
 }
 
 bool FAnimationViewportClient::IsBoneDrawModeSet(EBoneDrawMode::Type AxesMode) const
