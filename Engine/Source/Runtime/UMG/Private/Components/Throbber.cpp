@@ -2,6 +2,7 @@
 
 #include "Components/Throbber.h"
 #include "SlateFwd.h"
+#include "SlateGlobals.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Styling/UMGCoreStyle.h"
 
@@ -19,6 +20,7 @@ static FSlateBrush* EditorThrobberBrush = nullptr;
 UThrobber::UThrobber(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	NumberOfPieces = 3;
 
 	bAnimateVertically = true;
@@ -52,6 +54,7 @@ UThrobber::UThrobber(const FObjectInitializer& ObjectInitializer)
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UThrobber::ReleaseSlateResources(bool bReleaseChildren)
@@ -63,11 +66,12 @@ void UThrobber::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UThrobber::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyThrobber = SNew(SThrobber)
 		.PieceImage(&Image)
 		.NumPieces(FMath::Clamp(NumberOfPieces, 1, 25))
 		.Animate(GetAnimation());
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return MyThrobber.ToSharedRef();
 }
 
@@ -75,10 +79,14 @@ void UThrobber::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MyThrobber->SetPieceImage(&Image);
 	MyThrobber->SetNumPieces(FMath::Clamp(NumberOfPieces, 1, 25));
 	MyThrobber->SetAnimate(GetAnimation());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 SThrobber::EAnimation UThrobber::GetAnimation() const
 {
 	const int32 AnimationParams = (bAnimateVertically ? SThrobber::Vertical : 0) |
@@ -90,11 +98,22 @@ SThrobber::EAnimation UThrobber::GetAnimation() const
 
 void UThrobber::SetNumberOfPieces(int32 InNumberOfPieces)
 {
-	NumberOfPieces = InNumberOfPieces;
+	int32 NewNumberOfPieces = FMath::Clamp(InNumberOfPieces, 1, 25);
+	if (NewNumberOfPieces != InNumberOfPieces)
+	{
+		UE_LOG(LogSlate, Warning, TEXT("The number of Pieces was clamped between 1 and 25"));
+	}
+
+	NumberOfPieces = NewNumberOfPieces;
 	if (MyThrobber.IsValid())
 	{
-		MyThrobber->SetNumPieces(FMath::Clamp(NumberOfPieces, 1, 25));
+		MyThrobber->SetNumPieces(NumberOfPieces);
 	}
+}
+
+int32 UThrobber::GetNumberOfPieces() const
+{
+	return NumberOfPieces;
 }
 
 void UThrobber::SetAnimateHorizontally(bool bInAnimateHorizontally)
@@ -106,6 +125,11 @@ void UThrobber::SetAnimateHorizontally(bool bInAnimateHorizontally)
 	}
 }
 
+bool UThrobber::IsAnimateHorizontally() const
+{
+	return bAnimateHorizontally;
+}
+
 void UThrobber::SetAnimateVertically(bool bInAnimateVertically)
 {
 	bAnimateVertically = bInAnimateVertically;
@@ -115,7 +139,12 @@ void UThrobber::SetAnimateVertically(bool bInAnimateVertically)
 	}
 }
 
-void UThrobber:: SetAnimateOpacity(bool bInAnimateOpacity)
+bool UThrobber::IsAnimateVertically() const
+{
+	return bAnimateVertically;
+}
+
+void UThrobber::SetAnimateOpacity(bool bInAnimateOpacity)
 {
 	bAnimateOpacity = bInAnimateOpacity;
 	if (MyThrobber.IsValid())
@@ -123,6 +152,28 @@ void UThrobber:: SetAnimateOpacity(bool bInAnimateOpacity)
 		MyThrobber->SetAnimate(GetAnimation());
 	}
 }
+
+bool UThrobber::IsAnimateOpacity() const
+{
+	return bAnimateOpacity;
+}
+
+void UThrobber::SetImage(const FSlateBrush& Brush)
+{
+	Image = Brush;
+	if (MyThrobber.IsValid())
+	{
+		// to force a new invalidation
+		MyThrobber->SetPieceImage(nullptr);
+		MyThrobber->SetPieceImage(&Image);
+	}
+}
+
+const FSlateBrush& UThrobber::GetImage() const
+{
+	return Image;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 
