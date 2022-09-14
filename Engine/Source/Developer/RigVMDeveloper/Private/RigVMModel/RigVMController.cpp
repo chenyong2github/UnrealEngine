@@ -3506,6 +3506,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 		for(URigVMNode* SubNode : SubNodes)
 		{
+			FRigVMControllerGraphGuard GraphGuard(this, SubNode->GetGraph(), false);
 			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(SubNode))
 			{
 				if (UnitNodeCreatedContext.IsValid())
