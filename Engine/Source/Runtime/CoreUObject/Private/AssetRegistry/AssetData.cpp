@@ -127,7 +127,7 @@ public:
 		uint32 Hash = 0;
 		for (int32 ChunkID : InEntry.ChunkArray)
 		{
-			Hash = HashCombineFast(Hash, GetTypeHash(ChunkID));
+			Hash = ::HashCombineFast(Hash, ::GetTypeHash(ChunkID));
 		}
 		return Hash;
 	}
