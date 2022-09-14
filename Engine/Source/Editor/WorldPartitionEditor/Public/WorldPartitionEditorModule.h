@@ -8,6 +8,7 @@ class FTabManager;
 class FLayoutExtender;
 class SDockTab;
 class FSpawnTabArgs;
+class SContentBundleBrowser;
 
 
 /**
@@ -62,6 +63,10 @@ public:
 	/** Return the commandlet execution event */
 	virtual FOnExecuteCommandlet& OnExecuteCommandlet() override { return OnExecuteCommandletEvent; }
 
+	/**
+	 * Creates a Content Bundle Browser widget
+	 */
+	TSharedRef<class SWidget> CreateContentBundleBrowser();
 private:
 	/** Called when the level editors map changes. We will determine if the new map is a valid world partition world and close world partition tabs if not */
 	void OnMapChanged(uint32 MapFlags);
@@ -78,6 +83,9 @@ private:
 	/** Spawns the world partition tab */
 	TSharedRef<SDockTab> SpawnWorldPartitionTab(const FSpawnTabArgs& Args);
 
+	/** Spawns the content bundle tab */
+	TSharedRef<SDockTab> SpawnContentBundleTab(const FSpawnTabArgs& Args);
+
 	bool BuildHLODs(const FString& InMapToProcess);
 	bool BuildMinimap(const FString& InMapToProcess);
 	bool BuildLandscapeSplineMeshes(UWorld* InWorld);
@@ -91,6 +99,10 @@ private:
 	TSharedPtr<class FHLODLayerAssetTypeActions> HLODLayerAssetTypeActions;
 
 	TWeakPtr<SDockTab> WorldPartitionTab;
+
+	TWeakPtr<SDockTab> ContentBundleTab;
+
+	TWeakPtr<SContentBundleBrowser> ContentBundleBrowser;
 
 	FWorldPartitionCreated WorldPartitionCreatedEvent;
 

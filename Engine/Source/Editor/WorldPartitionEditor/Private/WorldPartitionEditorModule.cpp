@@ -44,12 +44,18 @@
 #include "Widgets/Docking/SDockTab.h"
 
 #include "Styling/AppStyle.h"
+#include "WorldPartition/ContentBundle/SContentBundleBrowser.h"
+#include "Selection.h"
+#include "WorldPartition/ContentBundle/ContentBundleEditorSubsystem.h"
+#include "UObject/UObjectBase.h"
+#include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 
 IMPLEMENT_MODULE( FWorldPartitionEditorModule, WorldPartitionEditor );
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
 const FName WorldPartitionEditorTabId("WorldBrowserPartitionEditor");
+const FName ContentBundleBrowserTabId("ContentBundleBrowser");
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionEditor, All, All);
 
@@ -208,6 +214,14 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 {
 	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
+}
+
+TSharedRef<SWidget> FWorldPartitionEditorModule::CreateContentBundleBrowser()
+{
+	check(ContentBundleBrowser == nullptr);
+	TSharedRef<SContentBundleBrowser> NewDataLayerBrowser = SNew(SContentBundleBrowser);
+	ContentBundleBrowser = NewDataLayerBrowser;
+	return NewDataLayerBrowser;
 }
 
 int32 FWorldPartitionEditorModule::GetPlacementGridSize() const
@@ -612,6 +626,19 @@ TSharedRef<SDockTab> FWorldPartitionEditorModule::SpawnWorldPartitionTab(const F
 	return NewTab;
 }
 
+TSharedRef<SDockTab> FWorldPartitionEditorModule::SpawnContentBundleTab(const FSpawnTabArgs& Args)
+{
+	TSharedRef<SDockTab> NewTab =
+		SNew(SDockTab)
+		.Label(NSLOCTEXT("LevelEditor", "ContentBundleTabTitle", "Content Bundles"))
+		[
+			CreateContentBundleBrowser()
+		];
+
+	ContentBundleTab = NewTab;
+	return NewTab;
+}
+
 void FWorldPartitionEditorModule::RegisterWorldPartitionTabs(TSharedPtr<FTabManager> InTabManager)
 {
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
@@ -624,6 +651,15 @@ void FWorldPartitionEditorModule::RegisterWorldPartitionTabs(TSharedPtr<FTabMana
 		.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "WorldPartitionEditorTooltipText", "Open the World Partition Editor."))
 		.SetGroup(MenuStructure.GetLevelEditorWorldPartitionCategory())
 		.SetIcon(WorldPartitionIcon);
+
+	constexpr TCHAR PLACEHOLDER_ContentBundleIcon[] = TEXT("LevelEditor.Tabs.DataLayers"); // todo_ow: create placeholder icon for content bundle tab
+	const FSlateIcon DataLayersIcon(FAppStyle::GetAppStyleSetName(), PLACEHOLDER_ContentBundleIcon);
+	InTabManager->RegisterTabSpawner(ContentBundleBrowserTabId,
+		FOnSpawnTab::CreateRaw(this, &FWorldPartitionEditorModule::SpawnContentBundleTab))
+		.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorContentBundleBrowser", "Content Bundles Outliner"))
+		.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorContentBundleBrowserTooltipText", "Open the Content Bundles Outliner."))
+		.SetGroup(MenuStructure.GetLevelEditorWorldPartitionCategory())
+		.SetIcon(DataLayersIcon);
 }
 
 void FWorldPartitionEditorModule::RegisterWorldPartitionLayout(FLayoutExtender& Extender)

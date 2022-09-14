@@ -22,6 +22,7 @@ public class DataLayerEditor : ModuleRules
 				"SceneOutliner",
 				"ToolMenus",
 				"AssetTools",
+				"ContentBrowserData"
 			}
 		);
 	}

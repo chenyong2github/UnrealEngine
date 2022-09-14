@@ -25,6 +25,7 @@ public class WorldPartitionEditor : ModuleRules
 				"RenderCore",
 				"Renderer",
 				"RHI",
+				"SceneOutliner"
 			}
 		);
 
