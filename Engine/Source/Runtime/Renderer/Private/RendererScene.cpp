@@ -281,12 +281,15 @@ struct FSpeedTreeWindComputation
 
 FPersistentSkyAtmosphereData::FPersistentSkyAtmosphereData()
 	: bInitialised(false)
+	, CurrentScreenResolution(0)
+	, CurrentDepthResolution(0)
+	, CurrentTextureAerialLUTFormat(PF_Unknown)
 	, CameraAerialPerspectiveVolumeIndex(0)
 {
 }
 void FPersistentSkyAtmosphereData::InitialiseOrNextFrame(ERHIFeatureLevel::Type FeatureLevel, FPooledRenderTargetDesc& AerialPerspectiveDesc, FRHICommandListImmediate& RHICmdList)
 {
-	if (!bInitialised)
+	if (!bInitialised || (bInitialised && ((AerialPerspectiveDesc.Extent.X != CurrentScreenResolution) || (AerialPerspectiveDesc.Depth != CurrentDepthResolution) || (AerialPerspectiveDesc.Format != CurrentTextureAerialLUTFormat))))
 	{
 		CameraAerialPerspectiveVolumeCount = FeatureLevel == ERHIFeatureLevel::ES3_1 ? 2 : 1;
 		for (int i = 0; i < CameraAerialPerspectiveVolumeCount; ++i)
@@ -295,6 +298,9 @@ void FPersistentSkyAtmosphereData::InitialiseOrNextFrame(ERHIFeatureLevel::Type 
 				i==0 ? TEXT("SkyAtmosphere.CameraAPVolume0") : TEXT("SkyAtmosphere.CameraAPVolume1"));
 		}
 		bInitialised = true;
+		CurrentScreenResolution = AerialPerspectiveDesc.Extent.X;
+		CurrentDepthResolution = AerialPerspectiveDesc.Depth;
+		CurrentTextureAerialLUTFormat = AerialPerspectiveDesc.Format;
 	}
 
 	CameraAerialPerspectiveVolumeIndex = (CameraAerialPerspectiveVolumeIndex + 1) % CameraAerialPerspectiveVolumeCount;

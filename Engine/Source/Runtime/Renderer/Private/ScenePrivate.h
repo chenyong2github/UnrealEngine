@@ -605,6 +605,9 @@ struct FPersistentSkyAtmosphereData
 
 private:
 	bool bInitialised;
+	int32 CurrentScreenResolution;
+	int32 CurrentDepthResolution;
+	EPixelFormat CurrentTextureAerialLUTFormat;
 	TRefCountPtr<IPooledRenderTarget> CameraAerialPerspectiveVolumes[2];
 	uint8 CameraAerialPerspectiveVolumeCount;
 	uint8 CameraAerialPerspectiveVolumeIndex;
