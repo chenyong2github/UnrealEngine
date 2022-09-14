@@ -85,13 +85,23 @@ void FContentBundleEditor::DoInjectContent()
 		SetStatus(EContentBundleStatus::FailedToInject);
 	}
 
-
-	BroadcastChanged();
+	if (IContentBundleEditorSubsystemInterface* EditorSubsystem = IContentBundleEditorSubsystemInterface::Get())
+	{
+		EditorSubsystem->NotifyContentBundleInjectedContent(this);
+	}
 }
 
 void FContentBundleEditor::DoRemoveContent()
 {
 	UnreferenceAllActors();
+
+	if (IContentBundleEditorSubsystemInterface* EditorSubsystem = IContentBundleEditorSubsystemInterface::Get())
+	{
+		EditorSubsystem->NotifyContentBundleRemovedContent(this);
+	}
+
+	// Make sure the content bundle is no longer flagged as edited before unloading actors
+	check(!IsBeingEdited());
 
 	WorldDataLayersActorReference.Reset();
 
@@ -119,6 +129,8 @@ bool FContentBundleEditor::IsValid() const
 
 bool FContentBundleEditor::AddActor(AActor* InActor)
 {
+	check(GetStatus() == EContentBundleStatus::ContentInjected || GetStatus() == EContentBundleStatus::ReadyToInject);
+
 	if (InActor->GetWorld() != ActorDescContainer->GetWorld() || InActor->HasAllFlags(RF_Transient) || !InActor->IsMainPackageActor())
 	{
 		return false;

@@ -13,6 +13,8 @@ public:
 
 	virtual void NotifyContentBundleAdded(const FContentBundleEditor* ContentBundle) = 0;
 	virtual void NotifyContentBundleRemoved(const FContentBundleEditor* ContentBundle) = 0;
+	virtual void NotifyContentBundleInjectedContent(const FContentBundleEditor* ContentBundle) = 0;
+	virtual void NotifyContentBundleRemovedContent(const FContentBundleEditor* ContentBundle) = 0;
 	virtual void NotifyContentBundleChanged(const FContentBundleEditor* ContentBundle) = 0;
 
 protected:

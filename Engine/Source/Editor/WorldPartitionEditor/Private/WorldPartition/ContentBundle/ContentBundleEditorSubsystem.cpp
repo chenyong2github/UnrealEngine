@@ -215,6 +215,21 @@ UWorld* UContentBundleEditorSubsystem::GetWorld() const
 	return GEditor->GetEditorWorldContext().World();
 }
 
+void UContentBundleEditorSubsystem::NotifyContentBundleInjectedContent(const FContentBundleEditor* ContentBundle)
+{
+	NotifyContentBundleChanged(ContentBundle);
+}
+
+void UContentBundleEditorSubsystem::NotifyContentBundleRemovedContent(const FContentBundleEditor* ContentBundle)
+{
+	if (ContentBundle->IsBeingEdited())
+	{
+		GetEditionSubmodule()->DeactivateCurrentContentBundleEditing();
+	}
+
+	NotifyContentBundleChanged(ContentBundle);
+}
+
 TSharedPtr<FContentBundleEditor> UContentBundleEditorSubsystem::GetEditorContentBundleForActor(const AActor* Actor)
 {
 	for (TSharedPtr<FContentBundleEditor>& ContentBundle : GetEditorContentBundles())

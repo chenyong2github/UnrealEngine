@@ -94,6 +94,8 @@ public:
 	//~ Begin IContentBundleEditorSubsystemInterface interface
 	virtual void NotifyContentBundleAdded(const FContentBundleEditor* ContentBundle) override { OnContentBundleAdded().Broadcast(ContentBundle); }
 	virtual void NotifyContentBundleRemoved(const FContentBundleEditor* ContentBundle) override { OnContentBundleRemoved().Broadcast(ContentBundle); }
+	virtual void NotifyContentBundleInjectedContent(const FContentBundleEditor* ContentBundle) override;
+	virtual void NotifyContentBundleRemovedContent(const FContentBundleEditor* ContentBundle) override;
 	virtual void NotifyContentBundleChanged(const FContentBundleEditor* ContentBundle) override { OnContentBundleChanged().Broadcast(ContentBundle); }
 	//~ End IContentBundleEditorSubsystemInterface interface
 
