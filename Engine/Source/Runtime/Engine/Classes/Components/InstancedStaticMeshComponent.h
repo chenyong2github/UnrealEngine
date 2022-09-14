@@ -288,7 +288,9 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 
 	virtual void PostLoad() override;
 	virtual void OnRegister() override;
+	virtual void OnComponentCreated() override;
 	virtual bool SupportsRemoveSwap() const { return false; }
+
 
 #if WITH_EDITOR
 	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;

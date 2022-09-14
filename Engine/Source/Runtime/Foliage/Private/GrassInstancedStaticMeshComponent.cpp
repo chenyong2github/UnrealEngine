@@ -10,6 +10,14 @@ static TAutoConsoleVariable<bool> CVarEnableGrassInstancedWPOVelocity(
 	TEXT(" False")
 	);
 
+void UGrassInstancedStaticMeshComponent::OnComponentCreated()
+{
+	Super::OnComponentCreated();
+
+	// Grass instanced don't need hit proxies by default even when created in the editor manually by the user.
+	bHasPerInstanceHitProxies = false;
+}
+
 bool UGrassInstancedStaticMeshComponent::SupportsWorldPositionOffsetVelocity() const 
 { 
 	return CVarEnableGrassInstancedWPOVelocity.GetValueOnAnyThread();

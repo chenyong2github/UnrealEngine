@@ -4255,6 +4255,19 @@ void UInstancedStaticMeshComponent::OnRegister()
 	}
 }
 
+void UInstancedStaticMeshComponent::OnComponentCreated()
+{
+	Super::OnComponentCreated();
+
+	if ( CreationMethod == EComponentCreationMethod::SimpleConstructionScript
+		|| CreationMethod == EComponentCreationMethod::Instance
+		)
+	{
+		// If it the component is selectable in the level editor make sure that we generate hit proxies so that its instance are also selectable
+		bHasPerInstanceHitProxies = true;
+	}
+}
+
 #if WITH_EDITOR
 
 bool UInstancedStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
