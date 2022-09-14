@@ -14,6 +14,7 @@ using Horde.Build.Perforce;
 using Horde.Build.Projects;
 using Horde.Build.Jobs;
 using Microsoft.AspNetCore.DataProtection;
+using System.Linq;
 
 namespace Horde.Build.Streams
 {
@@ -439,25 +440,6 @@ namespace Horde.Build.Streams
 	}
 
 	/// <summary>
-	/// Returns the configuration data for a stream
-	/// </summary>
-	public class GetStreamConfigResponseV2
-	{
-		readonly IStream _stream;
-
-		/// <inheritdoc cref="IStream.ConfigRevision"/>
-		public string Revision => _stream.ConfigRevision;
-
-		/// <inheritdoc cref="IStream.Config"/>
-		public StreamConfig Config => _stream.Config;
-
-		internal GetStreamConfigResponseV2(IStream stream)
-		{
-			_stream = stream;
-		}
-	}
-
-	/// <summary>
 	/// Response describing a stream
 	/// </summary>
 	public class GetStreamResponseV2
@@ -473,8 +455,11 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="IStream.Name"/>
 		public string Name => _stream.Name;
 
-		/// <inheritdoc cref="IStream.Name"/>
+		/// <inheritdoc cref="IStream.ConfigRevision"/>
 		public string ConfigRevision => _stream.ConfigRevision;
+
+		/// <inheritdoc cref="IStream.Config"/>
+		public StreamConfig? Config { get; }
 
 		/// <inheritdoc cref="IStream.Deleted"/>
 		public bool Deleted => _stream.Deleted;
@@ -488,10 +473,16 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="IStream.PauseComment"/>
 		public string? PauseComment => _stream.PauseComment;
 
-		internal GetStreamResponseV2(IStream stream, List<GetTemplateRefResponseV2> templates)
+		internal GetStreamResponseV2(IStream stream, bool includeConfig)
 		{
 			_stream = stream;
-			Templates = templates;
+
+			Templates = stream.Templates.Values.Select(x => new GetTemplateRefResponseV2(x)).ToList();
+
+			if (includeConfig)
+			{
+				Config = stream.Config;
+			}
 		}
 	}
 
@@ -508,22 +499,9 @@ namespace Horde.Build.Streams
 		/// <inheritdoc cref="ITemplateRef.Hash"/>
 		public ContentHash Hash => _templateRef.Hash;
 
-		/// <inheritdoc cref="ITemplateRef.Schedule"/>
-		public GetTemplateScheduleResponseV2? Schedule { get; }
-
-		/// <inheritdoc cref="ITemplateRef.StepStates"/>
-		public List<GetTemplateStepResponseV2>? StepStates { get; }
-
-		internal GetTemplateRefResponseV2(ITemplateRef templateRef, List<GetTemplateStepResponseV2>? stepStates)
+		internal GetTemplateRefResponseV2(ITemplateRef templateRef)
 		{
 			_templateRef = templateRef;
-
-			StepStates = stepStates;
-
-			if (templateRef.Schedule != null)
-			{
-				Schedule = new GetTemplateScheduleResponseV2(templateRef.Schedule);
-			}
 		}
 	}
 
