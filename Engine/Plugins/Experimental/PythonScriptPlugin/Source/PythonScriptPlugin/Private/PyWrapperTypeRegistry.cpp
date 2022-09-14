@@ -781,14 +781,12 @@ void FPyWrapperTypeReinstancer::ProcessPending()
 			}
 		}
 
-		Py_BEGIN_ALLOW_THREADS
 		Reload->Reinstance();
 
 		ClassesToReinstance.Reset();
 		StructsToReinstance.Reset();
 
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-		Py_END_ALLOW_THREADS
 	}
 }
 
