@@ -245,7 +245,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates( FVertexFactoryInput I
 	// For clarity, store some information in local variables.
 	const float RelativeTime = PositionSample.w;
 	const float IsAlive = step( RelativeTime, 1.0f );
-	float3 ParticlePosition = LWCHackToFloat(MakeLWCVector3(EmitterDynamicUniforms.LWCTile, PositionSample.xyz));
 
 	// Put velocity in to world space.
 	float3 ParticleWorldVelocity = mul(VelocitySample.xyz, GetLocalToWorld3x3()).xyz;
@@ -311,7 +310,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates( FVertexFactoryInput I
 	Rotation = Rotation * 2.0f * 3.1415926535897932f;
 
 	// Transform position to (post-view-translation) world space.
-	float3 ParticleTranslatedWorldPosition = TransformLocalToTranslatedWorld(ParticlePosition.xyz).xyz;
+	FLWCVector3 LWCTileOffset = MakeLWCVector3(EmitterDynamicUniforms.LWCTile, 0);
+	FLWCVector3 ParticleWorldPosition = LWCAdd(LWCMultiply(PositionSample.xyz, GetPrimitiveDataFromUniformBuffer().LocalToWorld), LWCTileOffset);
+	float3 ParticleTranslatedWorldPosition = LWCToFloat(LWCAdd(ParticleWorldPosition, ResolvedView.PreViewTranslation));
 
 	// Compute tangents for the sprite.
 	float3 TangentUp, TangentRight;
