@@ -37,6 +37,12 @@
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
 			"PlatformAllowList" : [ "IOS", "Linux", "Mac", "TVOS", "Win64" ]
+		},
+		{
+			"Name" : "AvfMediaCapture",
+			"Type" : "RuntimeNoCommandlet",
+			"LoadingPhase" : "Default",
+			"PlatformAllowList" : [ "IOS", "Mac" ]
 		}
 	]
 }
