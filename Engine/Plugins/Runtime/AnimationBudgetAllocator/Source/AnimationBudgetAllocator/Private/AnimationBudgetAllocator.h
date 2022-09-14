@@ -175,7 +175,7 @@ protected:
 	int32 CalculateWorkDistributionAndQueue(float InDeltaSeconds, float& OutAverageTickRate);
 
 	/** Helper function for keeping handle indices in sync */
-	void RemoveHelper(int32 Index);
+	void RemoveHelper(int32 Index, USkeletalMeshComponentBudgeted* InExpectedComponent);
 
 	/** Helper function to enable/disable ticks */
 	void TickEnableHelper(USkeletalMeshComponent* InComponent, bool bInEnable);

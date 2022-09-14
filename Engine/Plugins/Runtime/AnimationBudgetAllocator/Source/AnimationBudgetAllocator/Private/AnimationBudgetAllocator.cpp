@@ -847,24 +847,29 @@ void FAnimationBudgetAllocator::OnHUDPostRender(AHUD* HUD, UCanvas* Canvas)
 }
 #endif
 
-void FAnimationBudgetAllocator::RemoveHelper(int32 Index)
+void FAnimationBudgetAllocator::RemoveHelper(int32 Index, USkeletalMeshComponentBudgeted* InExpectedComponent)
 {
-	if(AllComponentData.IsValidIndex(Index))
+	// Components are removed when they have been determined unreachable by GC, but may still attempt to unregister
+	// themselves redundantly during teardown, so make sure the index refers to the object we expect to remove
+	if (AllComponentData.IsValidIndex(Index))
 	{
-		if(AllComponentData[Index].Component != nullptr)
+		USkeletalMeshComponentBudgeted* const CurrentComponent = AllComponentData[Index].Component;
+		if (CurrentComponent == InExpectedComponent)
 		{
-			AllComponentData[Index].Component->SetAnimationBudgetHandle(INDEX_NONE);
-		}
-
-		AllComponentData.RemoveAtSwap(Index, 1, false);
-
-		// Update handle of swapped component
-		const int32 NumRemaining = AllComponentData.Num();
-		if(NumRemaining > 0 && Index != NumRemaining)
-		{
-			if(AllComponentData[Index].Component != nullptr)
+			if (CurrentComponent != nullptr)
 			{
-				AllComponentData[Index].Component->SetAnimationBudgetHandle(Index);
+				CurrentComponent->SetAnimationBudgetHandle(INDEX_NONE);
+			}
+
+			AllComponentData.RemoveAtSwap(Index, 1, false);
+
+			// Update handle of swapped component
+			if (AllComponentData.IsValidIndex(Index))
+			{
+				if (USkeletalMeshComponentBudgeted* SwappedComponent = AllComponentData[Index].Component)
+				{
+					SwappedComponent->SetAnimationBudgetHandle(Index);
+				}
 			}
 		}
 	}
@@ -931,9 +936,9 @@ void FAnimationBudgetAllocator::UnregisterComponent(USkeletalMeshComponentBudget
 	if (FAnimationBudgetAllocator::bCachedEnabled && bEnabled)
 	{
 		int32 ManagerHandle = InComponent->GetAnimationBudgetHandle();
-		if(ManagerHandle != INDEX_NONE)
+		if (ManagerHandle != INDEX_NONE)
 		{
-			RemoveHelper(ManagerHandle);
+			RemoveHelper(ManagerHandle, InComponent);
 
 			InComponent->bEnableUpdateRateOptimizations = true;
 			InComponent->EnableExternalTickRateControl(false);
@@ -969,22 +974,14 @@ void FAnimationBudgetAllocator::AddReferencedObjects(FReferenceCollector& Collec
 
 void FAnimationBudgetAllocator::HandlePostGarbageCollect()
 {
-	// Remove dead components, readjusting indices
-	bool bRemoved = false;
-	do
+	// Remove dead components backwards, readjusting indices
+	for (int32 DataIndex = AllComponentData.Num() - 1; DataIndex >= 0; --DataIndex)
 	{
-		bRemoved = false;
-		for(int32 DataIndex = 0; DataIndex < AllComponentData.Num(); ++DataIndex)
+		if (AllComponentData[DataIndex].Component == nullptr)
 		{
-			if(AllComponentData[DataIndex].Component == nullptr)
-			{
-				// We can remove while iterating here as we swap internally
-				RemoveHelper(DataIndex);
-				bRemoved = true;
-			}
+			RemoveHelper(DataIndex, nullptr);
 		}
 	}
-	while(bRemoved);
 }
 
 void FAnimationBudgetAllocator::SetGameThreadLastTickTimeMs(int32 InManagerHandle, float InGameThreadLastTickTimeMs)

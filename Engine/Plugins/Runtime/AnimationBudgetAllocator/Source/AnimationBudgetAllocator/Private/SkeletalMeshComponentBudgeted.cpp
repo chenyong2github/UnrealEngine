@@ -37,16 +37,11 @@ void USkeletalMeshComponentBudgeted::BeginPlay()
 
 void USkeletalMeshComponentBudgeted::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Dont unregister if we are in the process of being destroyed in a GC.
-	// As reciprocal ptrs are null, handles are all invalid.
-	if(!IsUnreachable())	
+	if (UWorld* LocalWorld = GetWorld())
 	{
-		if (UWorld* LocalWorld = GetWorld())
+		if (IAnimationBudgetAllocator* LocalAnimationBudgetAllocator = IAnimationBudgetAllocator::Get(LocalWorld))
 		{
-			if (IAnimationBudgetAllocator* LocalAnimationBudgetAllocator = IAnimationBudgetAllocator::Get(LocalWorld))
-			{
-				LocalAnimationBudgetAllocator->UnregisterComponent(this);
-			}
+			LocalAnimationBudgetAllocator->UnregisterComponent(this);
 		}
 	}
 
