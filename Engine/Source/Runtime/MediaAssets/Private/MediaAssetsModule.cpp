@@ -69,16 +69,17 @@ public:
 		GetPlayerFromObjectDelegates[DelegateID].Unbind();
 	}
 
-	virtual UMediaPlayer* GetPlayerFromObject(UObject* Object) override
+	virtual UMediaPlayer* GetPlayerFromObject(UObject* Object, UObject*& PlayerProxy) override
 	{
 		UMediaPlayer* Player = nullptr;
+		PlayerProxy = nullptr;
 
 		// Go through all our delegates.
 		for (FOnGetPlayerFromObject& Delegate : GetPlayerFromObjectDelegates)
 		{
 			if (Delegate.IsBound())
 			{
-				Player = Delegate.Execute(Object);
+				Player = Delegate.Execute(Object, PlayerProxy);
 				if (Player != nullptr)
 				{
 					break;

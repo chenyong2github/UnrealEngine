@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "MediaPlayerOptions.h"
+#include "MediaPlayerProxyInterface.h"
 #include "MediaSource.h"
 #include "MediaTextureTracker.h"
 
@@ -23,7 +24,8 @@ class UMediaTexture;
  * This is a component for AMediaPlate that can play and show media in the world.
  */
 UCLASS()
-class MEDIAPLATE_API UMediaPlateComponent : public UActorComponent
+class MEDIAPLATE_API UMediaPlateComponent : public UActorComponent,
+	public IMediaPlayerProxyInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -213,6 +215,9 @@ public:
 	 * Called from the media clock.
 	 */
 	void TickOutput();
+
+	//~ IMediaPlayerProxyInterface.
+	virtual bool IsExternalControlAllowed() override;
 
 private:
 	void RestartPlayer();

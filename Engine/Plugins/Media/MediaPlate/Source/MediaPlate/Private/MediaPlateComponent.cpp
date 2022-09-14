@@ -153,12 +153,11 @@ void UMediaPlateComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (bPlayOnlyWhenVisible)
+	if ((MediaPlayer != nullptr) && (bPlayOnlyWhenVisible))
 	{
-		bool bIsVisible = IsVisible();
-
-		if (MediaPlayer != nullptr)
+		if (MediaPlayer->GetRate() != 0.0f)
 		{
+			bool bIsVisible = IsVisible();
 			if (bIsVisible)
 			{
 				ResumeWhenVisible();
@@ -442,6 +441,12 @@ void UMediaPlateComponent::TickOutput()
 			}
 		}
 	}
+}
+
+bool UMediaPlateComponent::IsExternalControlAllowed()
+{
+	// Allow control if we always play, or are visible.
+	return (bPlayOnlyWhenVisible == false) || IsVisible();
 }
 
 void UMediaPlateComponent::RestartPlayer()

@@ -8,7 +8,7 @@
 
 DEFINE_LOG_CATEGORY(LogMediaPlate);
 
-UMediaPlayer* FMediaPlateModule::GetMediaPlayer(UObject* Object)
+UMediaPlayer* FMediaPlateModule::GetMediaPlayer(UObject* Object, UObject*& PlayerProxy)
 {
 	UMediaPlayer* MediaPlayer = nullptr;
 
@@ -20,6 +20,7 @@ UMediaPlayer* FMediaPlateModule::GetMediaPlayer(UObject* Object)
 		if (MediaPlateComponent != nullptr)
 		{
 			MediaPlayer = MediaPlateComponent->GetMediaPlayer();
+			PlayerProxy = MediaPlateComponent;
 		}
 	}
 

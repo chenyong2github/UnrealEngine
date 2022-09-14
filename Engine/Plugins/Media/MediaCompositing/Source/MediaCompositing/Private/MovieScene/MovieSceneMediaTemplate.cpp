@@ -6,6 +6,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
+#include "MediaPlayerProxyInterface.h"
 #include "MediaSoundComponent.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
@@ -72,10 +73,26 @@ struct FMediaSectionExecutionToken
 	{
 		FMovieSceneMediaData& SectionData = PersistentData.GetSectionData<FMovieSceneMediaData>();
 		UMediaPlayer* MediaPlayer = SectionData.GetMediaPlayer();
+		UObject* PlayerProxy = SectionData.GetPlayerProxy();
 
 		if (MediaPlayer == nullptr || MediaSource == nullptr)
 		{
 			return;
+		}
+
+		// Do we have a player proxy?
+		if (PlayerProxy != nullptr)
+		{
+			IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
+				(PlayerProxy);
+			if (PlayerProxyInterface != nullptr)
+			{
+				// Can we control the player?
+				if (PlayerProxyInterface->IsExternalControlAllowed() == false)
+				{
+					return;
+				}
+			}
 		}
 
 		// open the media source if necessary
@@ -285,6 +302,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 	{
 		// Are we overriding the media player?
 		UMediaPlayer* MediaPlayer = Params.MediaPlayer;
+		UObject* PlayerProxy = nullptr;
 		if (MediaPlayer == nullptr)
 		{
 			// Nope... do we have an object binding?
@@ -299,7 +317,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 						UObject* BoundObject = WeakObject.Get();
 						if (BoundObject != nullptr)
 						{
-							MediaPlayer = MediaAssetsModule->GetPlayerFromObject(BoundObject);
+							MediaPlayer = MediaAssetsModule->GetPlayerFromObject(BoundObject, PlayerProxy);
 							break;
 						}
 					}
@@ -309,7 +327,7 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 
 		// Add section data.
 		SectionData = &PersistentData.AddSectionData<FMovieSceneMediaData>();
-		SectionData->Setup(MediaPlayer);
+		SectionData->Setup(MediaPlayer, PlayerProxy);
 	}
 
 	if (!ensure(SectionData != nullptr))

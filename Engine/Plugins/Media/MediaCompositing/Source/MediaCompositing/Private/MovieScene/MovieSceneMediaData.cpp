@@ -4,6 +4,7 @@
 
 #include "IMediaEventSink.h"
 #include "MediaPlayer.h"
+#include "MediaPlayerProxyInterface.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -44,7 +45,7 @@ void FMovieSceneMediaData::SeekOnOpen(FTimespan Time)
 }
 
 
-void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer)
+void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy)
 {
 	// Ensure we don't already have a media player set. Setup should only be called once
 	check(!MediaPlayer);
@@ -62,6 +63,16 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer)
 	MediaPlayer->PlayOnOpen = false;
 	MediaPlayer->OnMediaEvent().AddRaw(this, &FMovieSceneMediaData::HandleMediaPlayerEvent);
 	MediaPlayer->AddToRoot();
+
+	// Do we have a valid proxy object?
+	if ((InPlayerProxy != nullptr) && (InPlayerProxy->Implements<UMediaPlayerProxyInterface>()))
+	{
+		PlayerProxy = InPlayerProxy;
+	}
+	else
+	{
+		PlayerProxy.Reset();
+	}
 }
 
 

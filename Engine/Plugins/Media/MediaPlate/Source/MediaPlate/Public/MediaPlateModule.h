@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 
 class AMediaPlate;
+class IMediaPlayerProxy;
 class UMaterialInterface;
 class UMediaPlayer;
 class UObject;
@@ -27,7 +28,7 @@ public:
 	/**
 	 * Call this to get the media player from a media plate object.
 	 */
-	UMediaPlayer* GetMediaPlayer(UObject* Object);
+	UMediaPlayer* GetMediaPlayer(UObject* Object, UObject*& PlayerProxy);
 
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;

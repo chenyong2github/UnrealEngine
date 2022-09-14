@@ -4,7 +4,9 @@
 
 #include "Misc/Timespan.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class IMediaPlayerProxy;
 class UMediaPlayer;
 enum class EMediaEvent;
 
@@ -31,6 +33,11 @@ public:
 	UMediaPlayer* GetMediaPlayer();
 
 	/**
+	 * Get the optional proxy object used by this persistent data.
+	 */
+	UObject* GetPlayerProxy() { return PlayerProxy.Get(); }
+
+	/**
 	 * Set the time to seek to after opening a media source has finished.
 	 *
 	 * @param Time The time to seek to.
@@ -38,7 +45,7 @@ public:
 	void SeekOnOpen(FTimespan Time);
 
 	/** Set up this persistent data object. */
-	void Setup(UMediaPlayer* OverrideMediaPlayer);
+	void Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InPlayerProxy);
 
 private:
 
@@ -50,6 +57,8 @@ private:
 
 	/** The media player used by this object. */
 	UMediaPlayer* MediaPlayer;
+	/** Optional proxy for the media player. */
+	TWeakObjectPtr<UObject> PlayerProxy;
 
 	/** The time to seek to after the media source is opened. */
 	FTimespan SeekOnOpenTime;

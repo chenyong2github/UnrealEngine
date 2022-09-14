@@ -16,7 +16,7 @@ class IMediaAssetsModule
 {
 public:
 	/** Delegate to get a player from a UObject. */
-	DECLARE_DELEGATE_RetVal_OneParam(UMediaPlayer*, FOnGetPlayerFromObject, UObject*);
+	DECLARE_DELEGATE_RetVal_TwoParams(UMediaPlayer*, FOnGetPlayerFromObject, UObject*, UObject*& /*PlayerProxy*/);
 
 	/**
 	 * Plugins should call this so they can provide a function to get a media player from an object.
@@ -34,13 +34,16 @@ public:
 	virtual void UnregisterGetPlayerFromObject(int32 DelegateID) = 0;
 
 	/**
-	 * Call this to get a media player from an object.
+	 * Call this to get a media player (and proxy object) from an object.
 	 * This will query any plugins that have called RegisterGetPlayerFromObject.
 	 * 
-	 * @param Object	Object to get the player from.
+	 * The proxy object will implement IMediaPlayerProxyInterface.
+	 * 
+	 * @param Object		Object to get the player from.
+	 * @param PlayerProxy	Will be set to the proxy object (or nullptr if none).
 	 * @return Media player, or nullptr if none found. 
 	 */
-	virtual UMediaPlayer* GetPlayerFromObject(UObject* Object) = 0;
+	virtual UMediaPlayer* GetPlayerFromObject(UObject* Object, UObject*& PlayerProxy) = 0;
 
 	/** Virtual destructor. */
 	virtual ~IMediaAssetsModule() { }
