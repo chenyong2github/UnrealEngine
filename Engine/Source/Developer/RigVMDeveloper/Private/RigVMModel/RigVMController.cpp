@@ -3524,7 +3524,6 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			{
 				if (!TemplateNode->IsSingleton())
 				{
-					FRigVMControllerGraphGuard GraphGuard(this, TemplateNode->GetGraph(), false);
 					TemplateNode->InitializeFilteredPermutations();
 					UpdateTemplateNodePinTypes(TemplateNode, false, false);					
 				}
