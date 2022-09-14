@@ -1157,7 +1157,7 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 	FTraceAuxiliary::EConnectionType Type = FTraceAuxiliary::EConnectionType::None;
 
 	// Setup options
-	FTraceAuxiliary::Options Opts;
+	FTraceAuxiliary::FOptions Opts;
 	Opts.bTruncateFile = FParse::Param(CommandLine, TEXT("tracefiletrunc"));
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("nothreading")) || FParse::Param(FCommandLine::Get(), TEXT("notracethreading")))
@@ -1219,7 +1219,7 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 FTraceAuxiliary::FOnConnection FTraceAuxiliary::OnConnection;
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, Options* Options, const FLogCategoryAlias& LogCategory)
+bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, FOptions* Options, const FLogCategoryAlias& LogCategory)
 {
 #if UE_TRACE_ENABLED
 	if (GTraceAuxiliary.IsParentProcessAndPreFork())
