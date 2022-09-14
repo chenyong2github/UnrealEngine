@@ -137,7 +137,10 @@ FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerI
 		if (Variable.Value.Num())
 		{
 			// Use the constant value.
-			FMemory::Memcpy(&ParameterData[Variable.Offset], Variable.Value.GetData(), Variable.Value.Num());
+			if (ensure(ParameterData.Num() >= Variable.Offset + Variable.Value.Num()))
+			{
+				FMemory::Memcpy(&ParameterData[Variable.Offset], Variable.Value.GetData(), Variable.Value.Num());
+			}
 		}
 		else
 		{
@@ -149,8 +152,10 @@ FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerI
 				{
 					if (Variable.ValueType == VariableValue->DataType->ShaderValueType && Variable.Name == VariableValue->VariableName.GetPlainNameString())
 					{
-						TArrayView<uint8> ParameterEntry(&ParameterData[Variable.Offset], VariableValue->DataType->ShaderValueSize);
-						VariableValue->DataType->ConvertPropertyValueToShader(VariableValue->ValueData, ParameterEntry);
+						if (ensure(ParameterData.Num() >= Variable.Offset + VariableValue->ValueData.Num()))
+						{
+							FMemory::Memcpy(&ParameterData[Variable.Offset], VariableValue->ValueData.GetData(), VariableValue->ValueData.Num());
+						}
 						break;
 					}
 				}

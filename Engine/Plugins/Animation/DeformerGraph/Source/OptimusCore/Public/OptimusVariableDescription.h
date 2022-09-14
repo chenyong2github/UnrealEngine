@@ -13,6 +13,7 @@
 
 
 class UOptimusDeformer;
+class UOptimusValueContainer;
 
 
 USTRUCT()
@@ -57,10 +58,6 @@ public:
 	UPROPERTY()
 	FGuid Guid;
 
-	/** The actual binary data of the value that was written (or the default value) */
-	UPROPERTY()
-	TArray<uint8> ValueData;
-	
 	/** Name of the variable */
 	UPROPERTY(EditAnywhere, Category = VariableDefinition)
 	FName VariableName;
@@ -68,6 +65,14 @@ public:
 	/** The data type of the variable */
 	UPROPERTY(EditAnywhere, Category = VariableDefinition, meta=(UseInVariable))
 	FOptimusDataTypeRef DataType;
+
+	/** The default value for the variable. */
+	UPROPERTY(EditAnywhere, Category = VariableDefinition, meta = (EditInLine))
+	TObjectPtr<UOptimusValueContainer> DefaultValue = nullptr;
+
+	/** Cached shader value binary data. */
+	UPROPERTY()
+	TArray<uint8> ValueData;
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

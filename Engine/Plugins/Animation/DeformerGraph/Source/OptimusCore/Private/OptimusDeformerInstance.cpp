@@ -350,16 +350,21 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	for (const UOptimusVariableDescription* VariableDescription : InDeformer->GetVariables())
 	{
 		if (!VariableDescription)
+		{
 			continue;
+		}
 		if (Visited.Contains(VariableDescription))
+		{
 			continue;
+		}
 		Visited.Add(VariableDescription);
+		
 		UOptimusVariableDescription* VariableDescriptionCopy = NewObject<UOptimusVariableDescription>();
 		VariableDescriptionCopy->Guid = VariableDescription->Guid;
 		VariableDescriptionCopy->VariableName = VariableDescription->VariableName;
 		VariableDescriptionCopy->DataType = VariableDescription->DataType;
+		VariableDescriptionCopy->DefaultValue = nullptr; // No need to copy the default value.
 		VariableDescriptionCopy->ValueData = VariableDescription->ValueData;
-		VariableDescriptionCopy->ResetValueDataSize();
 		Variables->Descriptions.Add(VariableDescriptionCopy);
 	}
 
@@ -373,6 +378,7 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 void UOptimusDeformerInstance::SetCanBeActive(bool bInCanBeActive)
 {
 	bCanBeActive = bInCanBeActive;
+
 }
 
 void UOptimusDeformerInstance::AllocateResources()

@@ -4,10 +4,13 @@
 
 #include "OptimusDeformer.h"
 #include "OptimusHelpers.h"
+#include "OptimusValueContainer.h"
 
 
 void UOptimusVariableDescription::ResetValueDataSize()
 {
+	DefaultValue = UOptimusValueContainer::MakeValueContainer(this, DataType);
+
 	if (DataType->CanCreateProperty())
 	{
 		// Create a temporary property from the type so that we can get the size of the
@@ -51,11 +54,16 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 		UOptimusDeformer* Deformer = GetOwningDeformer();
 		if (ensure(Deformer))
 		{
-			// Set the variable type again, so that we can remove any links that are now
-			// type-incompatible.
+			// Set the variable type again, so that we can remove any links that are now type-incompatible.
 			constexpr bool bForceChange = true;
 			Deformer->SetVariableDataType(this, DataType, bForceChange);
 		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UOptimusVariableDescription, DefaultValue))
+	{
+		// Store the default shader value.
+		FShaderValueType::FValue Value = DefaultValue->GetShaderValue();
+		ValueData = MoveTemp(Value.ShaderValue);
 	}
 }
 
