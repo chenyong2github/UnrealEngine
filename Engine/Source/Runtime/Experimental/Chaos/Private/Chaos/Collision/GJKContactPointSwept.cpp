@@ -8,8 +8,7 @@
 
 namespace Chaos
 {
-	template <typename GeometryA, typename GeometryB>
-	FContactPoint GJKContactPointSwept(const GeometryA& A, const FRigidTransform3& AStartTM, const FRigidTransform3& AEndTM, const GeometryB& B, const FRigidTransform3& BStartTM, const FRigidTransform3& BEndTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI)
+	FContactPoint GJKContactPointSwept(const FGeomGJKHelperSIMD& A, const FRigidTransform3& AStartTM, const FRigidTransform3& AEndTM, const FGeomGJKHelperSIMD& B, const FRigidTransform3& BStartTM, const FRigidTransform3& BEndTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI)
 	{
 		FContactPoint Contact;
 		/** B could be static or dynamic. In both cases, we compute contact point in B local space.  
