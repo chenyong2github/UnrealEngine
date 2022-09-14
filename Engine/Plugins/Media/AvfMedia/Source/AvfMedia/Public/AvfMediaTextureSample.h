@@ -8,6 +8,7 @@
 #include "Math/IntPoint.h"
 #include "Math/Range.h"
 #include "Misc/Timespan.h"
+#include "Containers/ResourceArray.h"
 
 #if WITH_ENGINE
 	#include "RHI.h"
