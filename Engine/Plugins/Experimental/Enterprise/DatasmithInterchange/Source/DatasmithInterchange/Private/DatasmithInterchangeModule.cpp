@@ -113,7 +113,20 @@ void FDatasmithInterchangeModule::ExtendDatasmitMenuOptions(FToolMenuSection& Su
 
 void FDatasmithInterchangeModule::OnImportInterchange()
 {
-	const TArray<FString> Formats = FDatasmithTranslatorManager::Get().GetSupportedFormats();
+	const TArray<FString> OldFormats = FDatasmithTranslatorManager::Get().GetSupportedFormats();
+	TArray<FString> Formats;
+	Formats.Reserve(OldFormats.Num());
+
+	for (const FString& Format : OldFormats)
+	{
+		if (Format.Contains(TEXT("gltf")) || Format.Contains(TEXT("glb")))
+		{
+			continue;
+		}
+
+		Formats.Add(Format);
+	}
+
 	FString FileTypes;
 	FString Extensions;
 
@@ -217,8 +230,12 @@ bool FDatasmithInterchangeModule::Import(const FString& FilePath, const FString&
 {
 	UE::Interchange::FScopedSourceData ScopedSourceData(FilePath);
 
-	if (!UInterchangeManager::GetInterchangeManager().CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+	UInterchangeTranslatorBase* InterchangeTranslator = UInterchangeManager::GetInterchangeManager().GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
+	if (!InterchangeTranslator || !InterchangeTranslator->IsA(UInterchangeDatasmithTranslator::StaticClass()))
 	{
+		const FString FileExtension = FPaths::GetExtension(FilePath);
+		UE_LOG(LogInterchangeDatasmith, Warning, TEXT("File extension \"%s\" is not supported by DatasmithInterchange"), *FileExtension);
+
 		return false;
 	}
 

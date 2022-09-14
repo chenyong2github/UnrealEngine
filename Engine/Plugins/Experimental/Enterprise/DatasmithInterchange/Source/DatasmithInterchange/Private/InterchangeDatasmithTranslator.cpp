@@ -42,7 +42,7 @@ bool UInterchangeDatasmithTranslator::CanImportSourceData(const UInterchangeSour
 
 	const FString FilePath = InSourceData->GetFilename();
 	const FString FileExtension = FPaths::GetExtension(FilePath);
-	if (FileExtension == TEXT("gltf") || FileExtension == TEXT("glb"))
+	if (FileExtension.Equals(TEXT("gltf"), ESearchCase::IgnoreCase) || FileExtension.Equals(TEXT("glb"), ESearchCase::IgnoreCase))
 	{
 		// Do not translate gltf since there is already a native gltf interchange translator. 
 		return false;
@@ -54,7 +54,6 @@ bool UInterchangeDatasmithTranslator::CanImportSourceData(const UInterchangeSour
 	return ExternalSource.IsValid() && ExternalSource->IsAvailable();
 }
 
-#pragma optimize("",off)
 bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
 	using namespace UE::DatasmithImporter;
@@ -317,7 +316,6 @@ bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& B
 
 	return true;
 }
-#pragma optimize("",on)
 
 void UInterchangeDatasmithTranslator::HandleDatasmithActor(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithActorElement>& ActorElement, const UInterchangeSceneNode* ParentNode) const
 {
