@@ -15,6 +15,7 @@
 #include "Kismet/BlueprintTypeConversions.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
+#include "KismetCompiler.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Optional.h"
 #include "Templates/Casts.h"
@@ -258,27 +259,36 @@ FConversion GetFloatingPointConversion(const UEdGraphPin& SourcePin, const UEdGr
 	}
 	else if ((SourcePin.PinType.PinCategory == UEdGraphSchema_K2::PC_Struct) && (DestinationPin.PinType.PinCategory == UEdGraphSchema_K2::PC_Struct))
 	{
-		UScriptStruct* SourceStruct = CastChecked<UScriptStruct>(SourcePin.PinType.PinSubCategoryObject.Get());
-		UScriptStruct* DestinationStruct = CastChecked<UScriptStruct>(DestinationPin.PinType.PinSubCategoryObject.Get());
+		UScriptStruct* SourceStruct = Cast<UScriptStruct>(SourcePin.PinType.PinSubCategoryObject.Get());
+		UScriptStruct* DestinationStruct = Cast<UScriptStruct>(DestinationPin.PinType.PinSubCategoryObject.Get());
 
-		if (TOptional<ConversionFunctionPairT> ConversionPair = FStructConversionTable::Get().GetConversionFunction(SourceStruct, DestinationStruct))
+		// Invalid BPs can have missing PinSubCategoryObject values if there was trouble loading the source struct
+		if (SourceStruct && DestinationStruct)
 		{
-			if (SourcePin.PinType.IsArray())
+			if (TOptional<ConversionFunctionPairT> ConversionPair = FStructConversionTable::Get().GetConversionFunction(SourceStruct, DestinationStruct))
 			{
-				return {FloatingPointCastType::Container, ArrayConversionFunction};
+				if (SourcePin.PinType.IsArray())
+				{
+					return { FloatingPointCastType::Container, ArrayConversionFunction };
+				}
+				else if (SourcePin.PinType.IsSet())
+				{
+					return { FloatingPointCastType::Container, SetConversionFunction };
+				}
+				else if (SourcePin.PinType.IsMap())
+				{
+					return { FloatingPointCastType::Container, MapConversionFunction };
+				}
+				else
+				{
+					return { FloatingPointCastType::Struct, ConversionPair->Get<1>() };
+				}
 			}
-			else if (SourcePin.PinType.IsSet())
-			{
-				return {FloatingPointCastType::Container, SetConversionFunction};
-			}
-			else if (SourcePin.PinType.IsMap())
-			{
-				return {FloatingPointCastType::Container, MapConversionFunction};
-			}
-			else
-			{
-				return {FloatingPointCastType::Struct, ConversionPair->Get<1>()};
-			}
+		}
+		else
+		{
+			UE_CLOG(!SourceStruct, LogK2Compiler, Warning, TEXT("Source pin '%s' had null struct object (%s)"), *SourcePin.GetName(), *SourcePin.GetOwningNode()->GetFullName());
+			UE_CLOG(!DestinationStruct, LogK2Compiler, Warning, TEXT("Destination pin '%s' had null struct object (%s)"), *DestinationPin.GetName(), *DestinationPin.GetOwningNode()->GetFullName());
 		}
 	}
 
