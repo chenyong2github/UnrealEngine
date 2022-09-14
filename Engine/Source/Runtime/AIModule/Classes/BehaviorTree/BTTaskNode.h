@@ -8,6 +8,12 @@
 
 class UBTService;
 
+struct FBTTaskMemory : public FBTInstancedNodeMemory
+{
+	float NextTickRemainingTime = 0.f;
+	float AccumulatedDeltaTime = 0.f;
+};
+
 /** 
  * Task are leaf nodes of behavior tree, which perform actual actions
  *
@@ -33,11 +39,16 @@ class AIMODULE_API UBTTaskNode : public UBTNode
 	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
+	virtual uint16 GetSpecialMemorySize() const override;
+
 protected:
 	/** aborts this task, should return Aborted or InProgress
 	 *  (use FinishLatentAbort() when returning InProgress)
 	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
+
+	/** sets next tick time */
+	void SetNextTickTime(uint8* NodeMemory, float RemainingTime) const;
 
 public:
 #if WITH_EDITOR
@@ -119,6 +130,9 @@ protected:
 		bNotifyTick = !TIsSame<decltype(&UBTTaskNode::TickTask), TickTask>::Value;
 		bNotifyTaskFinished = !TIsSame<decltype(&UBTTaskNode::OnTaskFinished), OnTaskFinished>::Value;
 	}
+
+	/** if set, conditional tick will use remaining time from node's memory */
+	uint8 bTickIntervals : 1;
 };
 
 #define INIT_TASK_NODE_NOTIFY_FLAGS() \

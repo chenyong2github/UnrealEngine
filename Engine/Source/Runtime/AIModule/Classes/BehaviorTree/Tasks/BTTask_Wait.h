@@ -8,8 +8,6 @@
 
 struct FBTWaitTaskMemory
 {
-	/** time left */
-	float RemainingWaitTime;
 };
 
 /**
@@ -30,7 +28,6 @@ class AIMODULE_API UBTTask_Wait : public UBTTaskNode
 	float RandomDeviation;
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual uint16 GetInstanceMemorySize() const override;
 	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
 	virtual FString GetStaticDescription() const override;
 

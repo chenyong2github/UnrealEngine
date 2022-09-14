@@ -6,27 +6,25 @@ UBTTask_Wait::UBTTask_Wait(const FObjectInitializer& ObjectInitializer) : Super(
 {
 	NodeName = "Wait";
 	WaitTime = 5.0f;
+	bTickIntervals = true;
 	INIT_TASK_NODE_NOTIFY_FLAGS();
 }
 
 EBTNodeResult::Type UBTTask_Wait::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FBTWaitTaskMemory* MyMemory = CastInstanceNodeMemory<FBTWaitTaskMemory>(NodeMemory);
-	MyMemory->RemainingWaitTime = FMath::FRandRange(FMath::Max(0.0f, WaitTime - RandomDeviation), (WaitTime + RandomDeviation));
+	const float RemainingWaitTime = FMath::FRandRange(FMath::Max(0.0f, WaitTime - RandomDeviation), (WaitTime + RandomDeviation));
+	SetNextTickTime(NodeMemory, RemainingWaitTime);
 	
 	return EBTNodeResult::InProgress;
 }
 
 void UBTTask_Wait::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FBTWaitTaskMemory* MyMemory = CastInstanceNodeMemory<FBTWaitTaskMemory>(NodeMemory);
-	MyMemory->RemainingWaitTime -= DeltaSeconds;
+	// Using the SetNextTickTime in ExecuteTask we are certain we are only getting ticked when the wait is finished
+	ensure(GetSpecialNodeMemory<FBTTaskMemory>(NodeMemory)->NextTickRemainingTime <= 0.f);
 
-	if (MyMemory->RemainingWaitTime <= 0.0f)
-	{
-		// continue execution from this node
-		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
-	}
+	// continue execution from this node
+	FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 }
 
 FString UBTTask_Wait::GetStaticDescription() const
@@ -45,16 +43,11 @@ void UBTTask_Wait::DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp
 {
 	Super::DescribeRuntimeValues(OwnerComp, NodeMemory, Verbosity, Values);
 
-	FBTWaitTaskMemory* MyMemory = CastInstanceNodeMemory<FBTWaitTaskMemory>(NodeMemory);
-	if (MyMemory->RemainingWaitTime)
+	FBTTaskMemory* TaskMemory = GetSpecialNodeMemory<FBTTaskMemory>(NodeMemory);
+	if (TaskMemory->NextTickRemainingTime)
 	{
-		Values.Add(FString::Printf(TEXT("remaining: %ss"), *FString::SanitizeFloat(MyMemory->RemainingWaitTime)));
+		Values.Add(FString::Printf(TEXT("remaining: %ss"), *FString::SanitizeFloat(TaskMemory->NextTickRemainingTime)));
 	}
-}
-
-uint16 UBTTask_Wait::GetInstanceMemorySize() const
-{
-	return sizeof(FBTWaitTaskMemory);
 }
 
 #if WITH_EDITOR
