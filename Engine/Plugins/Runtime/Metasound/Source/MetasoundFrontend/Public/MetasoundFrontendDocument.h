@@ -52,7 +52,11 @@ UENUM()
 enum class EMetasoundFrontendVertexAccessType
 {
 	Reference,	//< The vertex accesses data by reference.
-	Value 		//< The vertex accesses data by value.
+	Value,		//< The vertex accesses data by value.
+
+	Unset		//< The vertex access level is unset (ex. vertex on an unconnected reroute node).
+				//< Not reflected as a graph core access type as core does not deal with reroutes
+				//< or ambiguous accessor level (it is resolved during document pre-processing).
 };
 
 UENUM()

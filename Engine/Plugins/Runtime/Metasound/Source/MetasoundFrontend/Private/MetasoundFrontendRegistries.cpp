@@ -395,22 +395,36 @@ namespace Metasound
 		bool FRegistryContainerImpl::FindInputNodeRegistryKeyForDataType(const FName& InDataTypeName, const EMetasoundFrontendVertexAccessType InAccessType, FNodeRegistryKey& OutKey)
 		{
 			FMetasoundFrontendClass Class;
-			if (InAccessType == EMetasoundFrontendVertexAccessType::Reference)
+			switch (InAccessType)
 			{
-				if (IDataTypeRegistry::Get().GetFrontendInputClass(InDataTypeName, Class))
+				case EMetasoundFrontendVertexAccessType::Reference:
 				{
-					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
-					return true;
+					if (IDataTypeRegistry::Get().GetFrontendInputClass(InDataTypeName, Class))
+					{
+						OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+						return true;
+					}
 				}
-			}
-			else // InAccessType == EMetasoundFrontendVertexAccessType::Value
-			{
-				if (IDataTypeRegistry::Get().GetFrontendConstructorInputClass(InDataTypeName, Class))
+				break;
+
+				case EMetasoundFrontendVertexAccessType::Value:
 				{
-					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
-					return true;
+					if (IDataTypeRegistry::Get().GetFrontendConstructorInputClass(InDataTypeName, Class))
+					{
+						OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+						return true;
+					}
 				}
+				break;
+
+				default:
+				case EMetasoundFrontendVertexAccessType::Unset:
+				{
+					return false;
+				}
+				break;
 			}
+
 			return false;
 		}
 
@@ -434,21 +448,27 @@ namespace Metasound
 		bool FRegistryContainerImpl::FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, const EMetasoundFrontendVertexAccessType InAccessType, FNodeRegistryKey& OutKey)
 		{
 			FMetasoundFrontendClass Class;
-			if (InAccessType == EMetasoundFrontendVertexAccessType::Reference) 
+			switch (InAccessType)
 			{
-				if (IDataTypeRegistry::Get().GetFrontendOutputClass(InDataTypeName, Class))
+				case EMetasoundFrontendVertexAccessType::Reference:
 				{
-					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
-					return true;
+					if (IDataTypeRegistry::Get().GetFrontendOutputClass(InDataTypeName, Class))
+					{
+						OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+						return true;
+					}
 				}
-			}
-			else // InAccessType == EMetasoundFrontendVertexAccessType::Value
-			{
-				if (IDataTypeRegistry::Get().GetFrontendConstructorOutputClass(InDataTypeName, Class))
+				break;
+
+				case EMetasoundFrontendVertexAccessType::Value:
 				{
-					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
-					return true;
+					if (IDataTypeRegistry::Get().GetFrontendConstructorOutputClass(InDataTypeName, Class))
+					{
+						OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
+						return true;
+					}
 				}
+				break;
 			}
 
 			return false;

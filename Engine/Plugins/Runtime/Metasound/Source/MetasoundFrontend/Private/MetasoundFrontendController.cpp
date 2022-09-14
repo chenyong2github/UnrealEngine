@@ -4,6 +4,8 @@
 
 #include "MetasoundFrontendInvalidController.h"
 #include "MetasoundFrontendDocumentController.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
+
 
 namespace Metasound
 {
@@ -76,5 +78,93 @@ namespace Metasound
 		{
 			return InDocumentAccessor.ShareAccess();
 		}
-	}
-}
+
+		FConstOutputHandle FindReroutedOutput(FConstOutputHandle InOutputHandle)
+		{
+			using namespace Frontend;
+
+			if (InOutputHandle->IsValid())
+			{
+				FConstNodeHandle NodeHandle = InOutputHandle->GetOwningNode();
+				if (NodeHandle->IsValid())
+				{
+					if (NodeHandle->GetClassMetadata().GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						TArray<FConstInputHandle> Inputs = NodeHandle->GetConstInputs();
+						if (!Inputs.IsEmpty())
+						{
+							FConstInputHandle RerouteInputHandle = Inputs.Last();
+							if (RerouteInputHandle->IsValid())
+							{
+								FConstOutputHandle ConnectedOutputHandle = RerouteInputHandle->GetConnectedOutput();
+								return FindReroutedOutput(ConnectedOutputHandle);
+							}
+						}
+					}
+				}
+			}
+
+			return InOutputHandle;
+		}
+
+		void FindReroutedInputs(FConstInputHandle InHandleToCheck, TArray<FConstInputHandle>& InOutInputHandles)
+		{
+			using namespace Frontend;
+
+			if (InHandleToCheck->IsValid())
+			{
+				FConstNodeHandle NodeHandle = InHandleToCheck->GetOwningNode();
+				if (NodeHandle->IsValid())
+				{
+					if (NodeHandle->GetClassMetadata().GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						TArray<FConstOutputHandle> Outputs = NodeHandle->GetConstOutputs();
+						for (FConstOutputHandle& OutputHandle : Outputs)
+						{
+							TArray<FConstInputHandle> LinkedInputs = OutputHandle->GetConstConnectedInputs();
+							for (FConstInputHandle LinkedInput : LinkedInputs)
+							{
+								FindReroutedInputs(LinkedInput, InOutInputHandles);
+							}
+						}
+
+						return;
+					}
+
+					InOutInputHandles.Add(InHandleToCheck);
+				}
+
+			}
+		}
+
+		void IterateReroutedInputs(FConstInputHandle InHandleToCheck, TFunctionRef<void(FConstInputHandle)> Func)
+		{
+			using namespace Frontend;
+
+			if (InHandleToCheck->IsValid())
+			{
+				FConstNodeHandle NodeHandle = InHandleToCheck->GetOwningNode();
+				if (NodeHandle->IsValid())
+				{
+					if (NodeHandle->GetClassMetadata().GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						TArray<FConstOutputHandle> Outputs = NodeHandle->GetConstOutputs();
+						for (FConstOutputHandle& OutputHandle : Outputs)
+						{
+							TArray<FConstInputHandle> LinkedInputs = OutputHandle->GetConstConnectedInputs();
+							for (FConstInputHandle LinkedInput : LinkedInputs)
+							{
+								IterateReroutedInputs(LinkedInput, Func);
+							}
+						}
+
+						return;
+					}
+
+					Func(InHandleToCheck);
+				}
+
+			}
+		}
+	} // namespace Frontend
+} // namespace Metasound

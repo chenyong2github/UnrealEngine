@@ -529,7 +529,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(FromPin);
+	FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(FromPin);
 	if (!ensure(InputHandle->IsValid()))
 	{
 		return nullptr;
@@ -1069,13 +1069,13 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 
 	FActionClassFilters ClassFilters;
 	FConstGraphHandle GraphHandle = IGraphController::GetInvalidHandle();
-	bool bIsConstructorOutput = false;
+	EMetasoundFrontendVertexAccessType OutputAccessType = EMetasoundFrontendVertexAccessType::Unset;
 	if (const UEdGraphPin* FromPin = ContextMenuBuilder.FromPin)
 	{
 		if (FromPin->Direction == EGPD_Input)
 		{
 			FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(ContextMenuBuilder.FromPin);
-			bIsConstructorOutput = InputHandle->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Value;
+			OutputAccessType = InputHandle->GetVertexAccessType();
 
 			ClassFilters.OutputFilterFunction = [InputHandle](const FMetasoundFrontendClassOutput& InOutput)
 			{
@@ -1099,7 +1099,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 			ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToInput>());
 
 			// Constructor outputs cannot be promoted to variables
-			if (!bIsConstructorOutput)
+			if (OutputAccessType != EMetasoundFrontendVertexAccessType::Value)
 			{
 				ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode>());
 				ActionMenuBuilder.AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode>());
@@ -1162,7 +1162,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 	GetFunctionActions(ContextMenuBuilder, ClassFilters, true /* bShowSelectedActions */, GraphHandle);
 
 	// Variable and conversion actions are always by reference so are incompatible with constructor outputs 
-	if (!bIsConstructorOutput)
+	if (OutputAccessType != EMetasoundFrontendVertexAccessType::Value)
 	{
 		GetVariableActions(ContextMenuBuilder, ClassFilters, true /* bShowSelectedActions */, GraphHandle);
 		GetConversionActions(ContextMenuBuilder, ClassFilters);

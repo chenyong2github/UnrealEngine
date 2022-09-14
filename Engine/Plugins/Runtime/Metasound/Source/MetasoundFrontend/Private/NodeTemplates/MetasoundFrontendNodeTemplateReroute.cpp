@@ -14,63 +14,6 @@ namespace Metasound
 	{
 		namespace ReroutePrivate
 		{
-			FConstOutputHandle FindReroutedOutput(FConstOutputHandle InOutputHandle)
-			{
-				using namespace Frontend;
-
-				if (InOutputHandle->IsValid())
-				{
-					FConstNodeHandle NodeHandle = InOutputHandle->GetOwningNode();
-					if (NodeHandle->IsValid())
-					{
-						if (NodeHandle->GetClassMetadata().GetClassName() == FRerouteNodeTemplate::ClassName)
-						{
-							TArray<FConstInputHandle> Inputs = NodeHandle->GetConstInputs();
-							if (!Inputs.IsEmpty())
-							{
-								FConstInputHandle RerouteInputHandle = Inputs.Last();
-								if (RerouteInputHandle->IsValid())
-								{
-									FConstOutputHandle ConnectedOutputHandle = RerouteInputHandle->GetConnectedOutput();
-									return FindReroutedOutput(ConnectedOutputHandle);
-								}
-							}
-						}
-					}
-				}
-
-				return InOutputHandle;
-			}
-
-			void FindReroutedInputs(FConstInputHandle InHandleToCheck, TArray<FConstInputHandle>& InOutInputHandles)
-			{
-				using namespace Frontend;
-
-				if (InHandleToCheck->IsValid())
-				{
-					FConstNodeHandle NodeHandle = InHandleToCheck->GetOwningNode();
-					if (NodeHandle->IsValid())
-					{
-						if (NodeHandle->GetClassMetadata().GetClassName() == FRerouteNodeTemplate::ClassName)
-						{
-							TArray<FConstOutputHandle> Outputs = NodeHandle->GetConstOutputs();
-							for (FConstOutputHandle& OutputHandle : Outputs)
-							{
-								TArray<FConstInputHandle> LinkedInputs = OutputHandle->GetConstConnectedInputs();
-								for (FConstInputHandle LinkedInput : LinkedInputs)
-								{
-									FindReroutedInputs(LinkedInput, InOutInputHandles);
-								}
-							}
-
-							return;
-						}
-					}
-
-					InOutInputHandles.Add(InHandleToCheck);
-				}
-			}
-
 			class FRerouteNodeTemplatePreprocessTransform : public FNodeTemplatePreprocessTransformBase
 			{
 			public:
@@ -222,11 +165,12 @@ namespace Metasound
 		{
 			TArray<FConstOutputHandle> Outputs = InNodeHandle->GetConstOutputs();
 			TArray<FConstInputHandle> Inputs = InNodeHandle->GetConstInputs();
-			const bool bConnectedToNonRerouteOutputs = Algo::AnyOf(Outputs, [](const FConstOutputHandle& OutputHandle) { return ReroutePrivate::FindReroutedOutput(OutputHandle)->IsValid(); });
+
+			const bool bConnectedToNonRerouteOutputs = Algo::AnyOf(Outputs, [](const FConstOutputHandle& OutputHandle) { return Frontend::FindReroutedOutput(OutputHandle)->IsValid(); });
 			const bool bConnectedToNonRerouteInputs = Algo::AnyOf(Inputs, [](const FConstInputHandle& InputHandle)
 			{
 				TArray<FConstInputHandle> Inputs;
-				ReroutePrivate::FindReroutedInputs(InputHandle, Inputs);
+				Frontend::FindReroutedInputs(InputHandle, Inputs);
 				return !Inputs.IsEmpty();
 			});
 

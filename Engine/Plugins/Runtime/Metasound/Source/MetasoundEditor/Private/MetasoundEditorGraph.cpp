@@ -377,6 +377,8 @@ void UMetasoundEditorGraphVertex::SetVertexAccessType(EMetasoundFrontendVertexAc
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
+	ensureAlwaysMsgf(InNewAccessType != EMetasoundFrontendVertexAccessType::Unset, TEXT("Vertices do not support ambiguous access type."));
+
 	if (InNewAccessType == GetVertexAccessType())
 	{
 		return;

@@ -167,14 +167,19 @@ bool FMetasoundFrontendClassVertex::IsFunctionalEquivalent(const FMetasoundFront
 
 bool FMetasoundFrontendClassVertex::CanConnectVertexAccessTypes(EMetasoundFrontendVertexAccessType InFromType, EMetasoundFrontendVertexAccessType InToType)
 {
-	if (EMetasoundFrontendVertexAccessType::Value == InToType)
+	// Reroute nodes can have undefined access type, so if either is unset, then connection is valid.
+	if (EMetasoundFrontendVertexAccessType::Unset != InFromType && EMetasoundFrontendVertexAccessType::Unset != InToType)
 	{
-		// If the input vertex accesses by "Value" then the output vertex 
-		// must also access by "Value" to enforce unexpected consequences 
-		// of connecting data which varies over time to an input which only
-		// evaluates the data during operator initialization.
-		return (EMetasoundFrontendVertexAccessType::Value == InFromType);
+		if (EMetasoundFrontendVertexAccessType::Value == InToType)
+		{
+			// If the input vertex accesses by "Value" then the output vertex 
+			// must also access by "Value" to enforce unexpected consequences 
+			// of connecting data which varies over time to an input which only
+			// evaluates the data during operator initialization.
+			return (EMetasoundFrontendVertexAccessType::Value == InFromType);
+		}
 	}
+
 	return true;
 }
 
@@ -594,7 +599,10 @@ const TCHAR* LexToString(EMetasoundFrontendVertexAccessType InVertexAccess)
 			return TEXT("Value");
 			
 		case EMetasoundFrontendVertexAccessType::Reference:
-		default:
 			return TEXT("Reference");
+
+		case EMetasoundFrontendVertexAccessType::Unset:
+		default:
+			return TEXT("Unset");
 	}
 }

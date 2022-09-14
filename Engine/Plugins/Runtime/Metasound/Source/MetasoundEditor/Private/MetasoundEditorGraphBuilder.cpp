@@ -1179,7 +1179,9 @@ namespace Metasound
 			ClassInput.Name = GenerateUniqueNameByClassType(InMetaSound, EMetasoundFrontendClassType::Input, InNameBase ? InNameBase->ToString() : TEXT("Input"));
 			ClassInput.TypeName = InParams.DataType;
 			ClassInput.VertexID = VertexID;
-			ClassInput.AccessType = InParams.AccessType;
+
+			// Can be unset if attempting to mirror parameters from a reroute, so default to reference
+			ClassInput.AccessType = InParams.AccessType == EMetasoundFrontendVertexAccessType::Unset ? EMetasoundFrontendVertexAccessType::Reference : InParams.AccessType;
 
 			if (nullptr != InDefaultValue)
 			{
@@ -1212,7 +1214,9 @@ namespace Metasound
 			ClassOutput.Name = NewName;
 			ClassOutput.TypeName = InParams.DataType;
 			ClassOutput.VertexID = VertexID;
-			ClassOutput.AccessType = InParams.AccessType;
+
+			// Can be unset if attempting to mirror parameters from a reroute, so default to reference
+			ClassOutput.AccessType = InParams.AccessType == EMetasoundFrontendVertexAccessType::Unset ? EMetasoundFrontendVertexAccessType::Reference : InParams.AccessType;
 
 			return MetaSoundAsset->GetRootGraphHandle()->AddOutputVertex(ClassOutput);
 		}

@@ -10,6 +10,8 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 #include "MetasoundVertex.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/Tuple.h"
 
 
@@ -117,7 +119,6 @@ namespace Metasound
 			// Cached copy of registry class potentially referenced by added members
 			FMetasoundFrontendClass RegistryClass;
 		};
-
 
 		/** IDocumentAccessor describes an interface for various I*Controllers to interact with
 		 * each other without exposing that interface publicly or requiring friendship 
@@ -1118,5 +1119,9 @@ namespace Metasound
 			/** Exports the document to a json formatted string. */
 			virtual FString ExportToJSON() const = 0;
 		};
-	}
-}
+
+		METASOUNDFRONTEND_API FConstOutputHandle FindReroutedOutput(FConstOutputHandle InOutputHandle);
+		METASOUNDFRONTEND_API void FindReroutedInputs(FConstInputHandle InHandleToCheck, TArray<FConstInputHandle>& InOutInputHandles);
+		METASOUNDFRONTEND_API void IterateReroutedInputs(FConstInputHandle InHandleToCheck, TFunctionRef<void(FConstInputHandle)> Func);
+	} // namespace Frontend
+} // namespace Metasound

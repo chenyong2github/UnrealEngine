@@ -49,13 +49,23 @@ namespace Metasound
 			return Invalid::GetInvalidName();
 		}
 
-		EMetasoundFrontendVertexAccessType FBaseOutputController::GetVertexAccessType() const 
+		EMetasoundFrontendVertexAccessType FBaseOutputController::GetVertexAccessType() const
 		{
+			FConstOutputHandle ReroutedOutput = Frontend::FindReroutedOutput(AsShared());
+			if (ReroutedOutput->IsValid())
+			{
+				if (ReroutedOutput->GetOwningNodeID() != GetOwningNodeID() || ReroutedOutput->GetID() != GetID())
+				{
+					return ReroutedOutput->GetVertexAccessType();
+				}
+			}
+
 			if (const FMetasoundFrontendClassVertex* ClassOutput = ClassOutputPtr.Get())
 			{
 				return ClassOutput->AccessType;
 			}
-			return EMetasoundFrontendVertexAccessType::Reference;
+
+			return EMetasoundFrontendVertexAccessType::Unset;
 		}
 
 		FGuid FBaseOutputController::GetOwningNodeID() const

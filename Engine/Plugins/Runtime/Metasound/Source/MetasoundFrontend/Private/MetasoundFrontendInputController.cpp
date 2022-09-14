@@ -57,14 +57,39 @@ namespace Metasound
 			return Invalid::GetInvalidName();
 		}
 
-		EMetasoundFrontendVertexAccessType FBaseInputController::GetVertexAccessType() const 
+		EMetasoundFrontendVertexAccessType FBaseInputController::GetVertexAccessType() const
 		{
-			if (const FMetasoundFrontendClassVertex* ClassInput = ClassInputPtr.Get())
+			EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Unset;
+			bool bIsRerouted = false;
+
+			Frontend::IterateReroutedInputs(AsShared(), [this, &bIsRerouted, &AccessType](const FConstInputHandle& ReroutedInput)
 			{
-				return ClassInput->AccessType;
-			}
-			
-			return EMetasoundFrontendVertexAccessType::Reference;
+				bIsRerouted = true;
+
+				if (AccessType != EMetasoundFrontendVertexAccessType::Value)
+				{
+					if (ReroutedInput->IsValid())
+					{
+						// If ReroutedInput is top-level controller, iterator function is returning self, so just report if set to value.
+						if (ReroutedInput->GetID() == GetID() && ReroutedInput->GetOwningNodeID() == GetOwningNodeID())
+						{
+							if (const FMetasoundFrontendClassVertex* ClassInput = ClassInputPtr.Get())
+							{
+								AccessType = ClassInput->AccessType;
+								return;
+							}
+						}
+
+						const EMetasoundFrontendVertexAccessType RerouteAccessType = ReroutedInput->GetVertexAccessType();
+						if (RerouteAccessType == EMetasoundFrontendVertexAccessType::Value)
+						{
+							AccessType = RerouteAccessType;
+						}
+					}
+				}
+			});
+
+			return bIsRerouted ? AccessType : EMetasoundFrontendVertexAccessType::Reference;
 		}
 
 #if WITH_EDITOR

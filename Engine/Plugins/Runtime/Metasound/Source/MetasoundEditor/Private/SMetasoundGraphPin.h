@@ -211,7 +211,7 @@ namespace Metasound
 			virtual const FSlateBrush* GetPinIcon() const override
 			{
 				const bool bIsConnected = ParentPinType::IsConnected();
-				EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Reference;
+				EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Unset;
 
 				if (const UEdGraphPin* Pin = ParentPinType::GetPinObj())
 				{
