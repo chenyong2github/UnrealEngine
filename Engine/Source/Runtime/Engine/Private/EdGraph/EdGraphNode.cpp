@@ -599,38 +599,6 @@ FEdGraphNodeDeprecationResponse UEdGraphNode::GetDeprecationResponse(EEdGraphNod
 	return Response;
 }
 
-// Deprecated; implemented for backwards-compatibility.
-bool UEdGraphNode::ShouldWarnOnDeprecation() const
-{
-	if (IsDeprecated())
-	{
-		return GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeTypeIsDeprecated).MessageType == EEdGraphNodeDeprecationMessageType::Warning;
-	}
-	else if (HasDeprecatedReference())
-	{
-		return GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeHasDeprecatedReference).MessageType == EEdGraphNodeDeprecationMessageType::Warning;
-	}
-
-	return false;
-}
-
-// Deprecated; implemented for backwards-compatibility.
-FString UEdGraphNode::GetDeprecationMessage() const
-{
-	FText MessageText;
-
-	if (IsDeprecated())
-	{
-		MessageText = GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeTypeIsDeprecated).MessageText;
-	}
-	else if (HasDeprecatedReference())
-	{
-		MessageText = GetDeprecationResponse(EEdGraphNodeDeprecationType::NodeHasDeprecatedReference).MessageText;
-	}
-
-	return MessageText.ToString();
-}
-
 void UEdGraphNode::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	Super::AddReferencedObjects(InThis, Collector);

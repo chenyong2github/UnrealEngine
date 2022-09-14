@@ -845,14 +845,6 @@ public:
 	// Returns the response to use when reporting a deprecation
 	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const;
 
-	// Returns true if this node should produce a compiler warning on deprecation
-	UE_DEPRECATED(4.23, "Use GetDeprecationResponse instead.")
-	virtual bool ShouldWarnOnDeprecation() const;
-
-	// Returns the string to use when reporting the deprecation
-	UE_DEPRECATED(4.23, "Use GetDeprecationResponse instead.")
-	virtual FString GetDeprecationMessage() const;
-
 	// Returns the object that should be focused when double-clicking on this node
 	// (the object can be an actor, which selects it in the world, or a node/graph/pin)
 	virtual UObject* GetJumpTargetForDoubleClick() const;
