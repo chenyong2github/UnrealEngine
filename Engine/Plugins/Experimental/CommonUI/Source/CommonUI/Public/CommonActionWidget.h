@@ -4,6 +4,7 @@
 
 #include "CommonUITypes.h"
 #include "Input/UIActionBindingHandle.h"
+#include "Widgets/Layout/SScaleBox.h"
 
 #include "CommonActionWidget.generated.h"
 
@@ -68,6 +69,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget)
 	FSlateBrush IconRimBrush;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget)
+	TEnumAsByte<EStretch::Type> IconStretch = EStretch::UserSpecified;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget)
+	float UserSpecifiedScale = 1.0f;
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
@@ -112,6 +119,8 @@ protected:
 	TObjectPtr<UMaterialInstanceDynamic> ProgressDynamicMaterial;
 	
 	TSharedPtr<SBox> MyKeyBox;
+
+	TSharedPtr<SScaleBox> MyScaleBox;
 
 	TSharedPtr<SImage> MyIcon;
 
