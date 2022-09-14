@@ -154,7 +154,7 @@ namespace Metasound
 			void DuplicateNodes();
 
 			/** Forces all UX pertaining to the root graph's details panel to be refreshed. */
-			void RefreshDetails();
+			void RefreshDetails(bool bRefreshReferencedAssetEditors = false);
 			
 			/** Pastes node(s) from the clipboard to the graph */
 			void PasteNodes(const FVector2D* InLocation = nullptr);
@@ -168,7 +168,7 @@ namespace Metasound
 			void RefreshGraphMemberMenu();
 
 			/** Forces refresh of interfaces list. */
-			void RefreshInterfaces();
+			void RefreshInterfaces(bool bRefreshReferencedAssetEditors = false);
 
 			/** Updates selected node classes to highest class found in the MetaSound Class Registry. */
 			void UpdateSelectedNodeClasses();

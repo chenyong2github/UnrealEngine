@@ -536,12 +536,48 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 
 bool FMetasoundAssetBase::GetSynchronizationRequired() const
 {
-	return bSynchronizationRequired;
+	using namespace Metasound::Frontend;
+
+	if (bSynchronizationRequired)
+	{
+		return true;
+	}
+
+	TArray<FMetasoundAssetBase*> References;
+	ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
+	for (FMetasoundAssetBase* Reference : References)
+	{
+		const bool bReferenceSyncRequired = Reference->GetSynchronizationRequired();
+		if (bReferenceSyncRequired)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool FMetasoundAssetBase::GetSynchronizationUpdateDetails() const
 {
-	return bSynchronizationUpdateDetails;
+	using namespace Metasound::Frontend;
+
+	if (bSynchronizationUpdateDetails)
+	{
+		return true;
+	}
+
+	TArray<FMetasoundAssetBase*> References;
+	ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
+	for (FMetasoundAssetBase* Reference : References)
+	{
+		const bool bReferenceSyncRequired = Reference->GetSynchronizationUpdateDetails();
+		if (bReferenceSyncRequired)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FMetasoundAssetBase::SetSynchronizationRequired()

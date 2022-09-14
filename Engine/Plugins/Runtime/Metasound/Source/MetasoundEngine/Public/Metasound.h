@@ -38,6 +38,8 @@ public:
 	virtual bool GetVersionedOnLoad() const PURE_VIRTUAL(UMetasoundEditorGraphBase::GetVersionedOnLoad, return false; )
 	virtual void SetVersionedOnLoad() PURE_VIRTUAL(UMetasoundEditorGraphBase::SetVersionedOnLoad, )
 #endif // WITH_EDITORONLY_DATA
+
+	int32 GetHighestMessageSeverity() const;
 };
 
 

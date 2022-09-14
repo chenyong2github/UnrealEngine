@@ -2,8 +2,8 @@
 #include "Metasound.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "CoreMinimal.h"
 #include "Internationalization/Text.h"
+#include "Logging/TokenizedMessage.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundEngineArchetypes.h"
@@ -29,6 +29,23 @@
 #endif // WITH_EDITORONLY_DATA
 
 #define LOCTEXT_NAMESPACE "MetaSound"
+
+
+int32 UMetasoundEditorGraphBase::GetHighestMessageSeverity() const
+{
+	int32 HighestMessageSeverity = EMessageSeverity::Info;
+
+	for (const UEdGraphNode* Node : Nodes)
+	{
+		// Lower integer value is "higher severity"
+		if (Node->ErrorType < HighestMessageSeverity)
+		{
+			HighestMessageSeverity = Node->ErrorType;
+		}
+	}
+
+	return HighestMessageSeverity;
+}
 
 
 UMetaSoundPatch::UMetaSoundPatch(const FObjectInitializer& ObjectInitializer)

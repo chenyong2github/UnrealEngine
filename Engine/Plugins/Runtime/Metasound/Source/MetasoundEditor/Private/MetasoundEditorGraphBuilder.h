@@ -248,8 +248,10 @@ namespace Metasound
 			// Refreshes pin state from class FrontendClassVertexMetadata
 			static void RefreshPinMetadata(UEdGraphPin& InPin, const FMetasoundFrontendVertexMetadata& InMetadata);
 
-			// Adds and removes nodes, pins and connections so that the UEdGraph of the MetaSound matches the FMetasoundFrontendDocumentModel
+			// Adds and removes nodes, pins and connections so that the UEdGraph of the MetaSound matches the
+			// FMetasoundFrontendDocument model. Validates the graph (and those referenced recursively).
 			//
+			// @param InMetaSound - MetaSound to synchronize and optionally validate.
 			// @param bForceRefreshNodes - Refreshes all transient data stored on editor nodes & redraws them
 			// @return Highest MessageSeverity integer value listed on validated nodes post synchronization.
 			static int32 SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes = false);

@@ -79,6 +79,59 @@ namespace Metasound
 
 				return FName(*NewName);
 			}
+
+			bool SynchronizeGraphRecursively(UObject& InMetaSound, bool bForceRefreshNodes, bool bEditorGraphModified = false)
+			{
+				using namespace Frontend;
+
+				FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
+				check(MetaSoundAsset);
+
+				// Synchronize referenced graphs first to ensure all editor data
+				// is up-to-date prior to synchronizing this referencing graph.
+				TArray<FMetasoundAssetBase*> References;
+				ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*MetaSoundAsset, References));
+				for (FMetasoundAssetBase* Reference : References)
+				{
+					check(Reference);
+					SynchronizeGraphRecursively(*Reference->GetOwningAsset(), bForceRefreshNodes, bEditorGraphModified);
+				}
+
+				// If no graph is set, MetaSound has been created outside of asset factory, so initialize it here.
+				// TODO: Move factory initialization and this code to single builder function (in header so cannot move
+				// until 5.1+).
+				if (!MetaSoundAsset->GetGraph())
+				{
+					FString Author = UKismetSystemLibrary::GetPlatformUserName();
+					if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+					{
+						if (!EditorSettings->DefaultAuthor.IsEmpty())
+						{
+							Author = EditorSettings->DefaultAuthor;
+						}
+					}
+
+					FGraphBuilder::InitMetaSound(InMetaSound, Author);
+
+					// Initial graph generation is not something to be managed by the transaction
+					// stack, so don't track dirty state until after initial setup if necessary.
+					UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetaSound, FName(), RF_Transactional);
+					Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
+					MetaSoundAsset->SetGraph(Graph);
+				}
+
+				bEditorGraphModified |= FGraphBuilder::SynchronizeGraphMembers(InMetaSound);
+				bEditorGraphModified |= FGraphBuilder::SynchronizeNodeMembers(InMetaSound);
+				bEditorGraphModified |= FGraphBuilder::SynchronizeNodes(InMetaSound);
+				bEditorGraphModified |= FGraphBuilder::SynchronizeConnections(InMetaSound);
+
+				if (bEditorGraphModified)
+				{
+					InMetaSound.MarkPackageDirty();
+				}
+
+				return bEditorGraphModified;
+			}
 		} // namespace GraphBuilderPrivate
 
 		// Categories corresponding with POD DataTypes
@@ -2023,46 +2076,25 @@ namespace Metasound
 
 		int32 FGraphBuilder::SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes)
 		{
+			using namespace Frontend;
+
+			int32 HighestMessageSeverity = EMessageSeverity::Info;
+
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
-
-			// If no graph is set, MetaSound has been created outside of asset factory, so initialize it here.
-			// TODO: Move factory initialization and this code to single builder function (in header so cannot move
-			// until 5.1+).
-			if(!MetaSoundAsset->GetGraph())
+			if (MetaSoundAsset->GetSynchronizationRequired())
 			{
-				FString Author = UKismetSystemLibrary::GetPlatformUserName();
-				if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
-				{
-					if (!EditorSettings->DefaultAuthor.IsEmpty())
-					{
-						Author = EditorSettings->DefaultAuthor;
-					}
-				}
+				const bool bEditorGraphModified = GraphBuilderPrivate::SynchronizeGraphRecursively(InMetaSound, bForceRefreshNodes);
+				bForceRefreshNodes |= bEditorGraphModified;
+				HighestMessageSeverity = ValidateGraph(InMetaSound, bForceRefreshNodes);
 
-				FGraphBuilder::InitMetaSound(InMetaSound, Author);
-
-				// Initial graph generation is not something to be managed by the transaction
-				// stack, so don't track dirty state until after initial setup if necessary.
-				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetaSound, FName(), RF_Transactional);
-				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-				MetaSoundAsset->SetGraph(Graph);
+				MetaSoundAsset->ResetSynchronizationState();
 			}
-
-			bool bEditorGraphModified = SynchronizeGraphMembers(InMetaSound);
-			bEditorGraphModified |= SynchronizeNodeMembers(InMetaSound);
-			bEditorGraphModified |= SynchronizeNodes(InMetaSound);
-			bEditorGraphModified |= SynchronizeConnections(InMetaSound);
-
-			if (bEditorGraphModified)
+			else
 			{
-				InMetaSound.MarkPackageDirty();
+				const UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetaSoundAsset->GetGraph());
+				HighestMessageSeverity = Graph->GetHighestMessageSeverity();
 			}
-
-			bForceRefreshNodes |= bEditorGraphModified;
-			const int32 HighestMessageSeverity = FGraphBuilder::ValidateGraph(InMetaSound, bForceRefreshNodes);
-
-			MetaSoundAsset->ResetSynchronizationState();
 
 			return HighestMessageSeverity;
 		}

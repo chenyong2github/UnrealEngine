@@ -55,6 +55,7 @@
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
 #include "Stats/Stats.h"
+#include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -80,6 +81,30 @@ namespace Metasound
 			LOCTEXT("NodeSectionName_Outputs", "Outputs"),
 			LOCTEXT("NodeSectionName_Variables", "Variables")
 		};
+
+		namespace EditorPrivate
+		{
+			void ForEachReferencedMetaSoundEditor(const UObject& InObject, TFunctionRef<void(TSharedRef<FEditor>)> Func)
+			{
+				using namespace Frontend;
+
+				if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InObject))
+				{
+					TArray<FMetasoundAssetBase*> References;
+					ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*MetaSoundAsset, References));
+					for (FMetasoundAssetBase* Reference : References)
+					{
+						UObject* RefMetaSound = Reference->GetOwningAsset();
+						check(RefMetaSound);
+						TSharedPtr<FEditor> RefEditor = FGraphBuilder::GetEditorForMetasound(*RefMetaSound);
+						if (RefEditor.IsValid())
+						{
+							Func(RefEditor.ToSharedRef());
+						}
+					}
+				}
+			}
+		} // namespace EditorPrivate
 
 		class FMetasoundGraphMemberSchemaAction : public FEdGraphSchemaAction
 		{
@@ -2758,16 +2783,36 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::RefreshDetails()
+		void FEditor::RefreshDetails(bool bRefreshReferencedAssetEditors)
 		{
+			using namespace Frontend;
+
+			if (bRefreshReferencedAssetEditors && Metasound)
+			{
+				EditorPrivate::ForEachReferencedMetaSoundEditor(*Metasound, [bRefreshReferencedAssetEditors](TSharedRef<FEditor> RefEditor)
+				{
+					RefEditor->RefreshDetails(bRefreshReferencedAssetEditors);
+				});
+			}
+
 			if (MetasoundDetails.IsValid())
 			{
 				MetasoundDetails->ForceRefresh();
 			}
 		}
 
-		void FEditor::RefreshInterfaces()
+		void FEditor::RefreshInterfaces(bool bRefreshReferencedAssetEditors)
 		{
+			using namespace Frontend;
+
+			if (bRefreshReferencedAssetEditors && Metasound)
+			{
+				EditorPrivate::ForEachReferencedMetaSoundEditor(*Metasound, [bRefreshReferencedAssetEditors](TSharedRef<FEditor> RefEditor)
+				{
+					RefEditor->RefreshInterfaces(bRefreshReferencedAssetEditors);
+				});
+			}
+
 			if (InterfacesDetails.IsValid())
 			{
 				InterfacesDetails->ForceRefresh();
@@ -3297,17 +3342,14 @@ namespace Metasound
 
 				// Presets always update interfaces
 				const FMetasoundFrontendGraphClass& RootGraphClass = MetasoundAsset->GetDocumentHandle()->GetRootGraphClass();
-				const bool bIsPreset = RootGraphClass.PresetOptions.bIsPreset;
-				if (bIsPreset)
-				{
-					RefreshInterfaces();
-				}
 
+				const bool bIsPreset = RootGraphClass.PresetOptions.bIsPreset;
+				constexpr bool bRefreshReferencedAssets = true;
 				if (bShouldRefreshDetails || bIsPreset)
 				{
 					// TODO: Break up this synchronization flag
-					RefreshDetails();
-					RefreshInterfaces();
+					RefreshDetails(bRefreshReferencedAssets);
+					RefreshInterfaces(bRefreshReferencedAssets);
 				}
 				else
 				{
@@ -3324,7 +3366,7 @@ namespace Metasound
 
 					if (Algo::AnyOf(MetasoundDetails->GetSelectedObjects(), ShouldRefreshDetails))
 					{
-						RefreshDetails();
+						RefreshDetails(bRefreshReferencedAssets);
 					}
 				}
 			}
