@@ -5337,18 +5337,64 @@ int32 FHLSLMaterialTranslator::ActorWorldPosition()
 	return CastToNonLWCIfDisabled(Result);
 }
 
+// Compare two inputs and return true if they are either the same, or if they evaluate to equal constant expressions.
+static bool AreEqualExpressions(int32 A, int32 B, TArray<FShaderCodeChunk> const& InCurrentScopeChunks, FMaterial const& InMaterial)
+{
+	if (A == B)
+	{
+		return true;
+	}
+	if (A == -1 || B == -1)
+	{
+		return false;
+	}
+	
+	FShaderCodeChunk const& ChunkA = InCurrentScopeChunks[A];
+	FShaderCodeChunk const& ChunkB = InCurrentScopeChunks[B];
+
+	if (ChunkA.UniformExpression != nullptr && ChunkB.UniformExpression != nullptr)
+	{
+		if (ChunkA.UniformExpression == ChunkB.UniformExpression)
+		{
+			return true;
+		}
+		if (ChunkA.UniformExpression->IsConstant() && ChunkB.UniformExpression->IsConstant() && ChunkA.Type == ChunkB.Type)
+		{
+			FMaterialRenderContext DummyContext(nullptr, InMaterial, nullptr);
+			FLinearColor ValueA, ValueB;
+			ChunkA.UniformExpression->GetNumberValue(DummyContext, ValueA);
+			ChunkB.UniformExpression->GetNumberValue(DummyContext, ValueB);
+			if (ValueA == ValueB)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 int32 FHLSLMaterialTranslator::If(int32 A,int32 B,int32 AGreaterThanB,int32 AEqualsB,int32 ALessThanB,int32 ThresholdArg)
 {
+	if (A == INDEX_NONE || B == INDEX_NONE || AGreaterThanB == INDEX_NONE || ALessThanB == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (AreEqualExpressions(AGreaterThanB, ALessThanB, *CurrentScopeChunks, *Material))
+	{
+		if (AEqualsB == INDEX_NONE || AreEqualExpressions(AGreaterThanB, AEqualsB, *CurrentScopeChunks, *Material))
+		{
+			// All inputs are considered equal. So simply return one of them.
+			return AGreaterThanB;
+		}
+	}
+
 	if (IsAnalyticDerivEnabled())
 	{
 		return DerivativeAutogen.GenerateIfFunc(*this, A, B, AGreaterThanB, AEqualsB, ALessThanB, ThresholdArg);
 	}
 	
-	if(A == INDEX_NONE || B == INDEX_NONE || AGreaterThanB == INDEX_NONE || ALessThanB == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
 	if (AEqualsB != INDEX_NONE)
 	{
 		if (ThresholdArg == INDEX_NONE)
