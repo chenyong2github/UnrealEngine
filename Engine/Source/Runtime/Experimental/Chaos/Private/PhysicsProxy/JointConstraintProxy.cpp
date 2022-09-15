@@ -67,9 +67,9 @@ bool FJointConstraintPhysicsProxy::PullFromPhysicsState(const FDirtyJointConstra
 			Constraint_GT->GetOutputData().bIsBreaking = Buffer.OutputData.bIsBreaking;
 			Constraint_GT->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
 			Constraint_GT->GetOutputData().bDriveTargetChanged = Buffer.OutputData.bDriveTargetChanged;
-			Constraint_GT->GetOutputData().Force = Buffer.OutputData.Force;
-			Constraint_GT->GetOutputData().Torque = Buffer.OutputData.Torque;
 		}
+		Constraint_GT->GetOutputData().Force = Buffer.OutputData.Force;
+		Constraint_GT->GetOutputData().Torque = Buffer.OutputData.Torque;
 	}
 
 	return true;
