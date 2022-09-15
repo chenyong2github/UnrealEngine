@@ -1617,6 +1617,9 @@ void F3DTransformTrackEditor::ClearOutConstraintDelegates() const
 		return;
 	}
 
+	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+	
 	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
 	for (const FMovieSceneBinding& Binding : Bindings)
 	{
@@ -1634,6 +1637,12 @@ void F3DTransformTrackEditor::ClearOutConstraintDelegates() const
 					{
 						Channel.ActiveChannel.OnKeyMovedEvent().Clear();
 						Channel.ActiveChannel.OnKeyDeletedEvent().Clear();
+					}
+
+					if (CRSection->OnConstraintRemovedHandle.IsValid())
+					{
+						Controller.OnConstraintRemoved().Remove(CRSection->OnConstraintRemovedHandle);
+						CRSection->OnConstraintRemovedHandle.Reset();
 					}
 				}
 			}

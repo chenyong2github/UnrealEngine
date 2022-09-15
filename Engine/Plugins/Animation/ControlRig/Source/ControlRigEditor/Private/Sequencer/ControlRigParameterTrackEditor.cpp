@@ -2556,6 +2556,16 @@ void FControlRigParameterTrackEditor::ClearOutAllSpaceAndConstraintDelegates(con
 						Channel.ActiveChannel.OnKeyMovedEvent().Clear();
 						Channel.ActiveChannel.OnKeyDeletedEvent().Clear();							
 					}
+
+					if (CRSection->OnConstraintRemovedHandle.IsValid())
+					{
+						if (const UControlRig* ControlRig = CRSection->GetControlRig())
+						{
+							FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
+							Controller.OnConstraintRemoved().Remove(CRSection->OnConstraintRemovedHandle);
+							CRSection->OnConstraintRemovedHandle.Reset();
+						}
+					}
 				}
 			}
 		}
