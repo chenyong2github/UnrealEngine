@@ -1184,6 +1184,15 @@ static TAutoConsoleVariable<int32> CVarShadersValidation(
 	TEXT("Enabled shader compiler validation warnings and errors."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarShadersRemoveDeadCode(
+	TEXT("r.Shaders.RemoveDeadCode"),
+	0,
+	TEXT("EXPERIMENTAL: Run a preprocessing step that removes unreferenced code before compiling shaders.\n")
+	TEXT("This can improve the compilation speed for shaders which include many large utility headers.\n")
+	TEXT("\t0: Keep all input source code (Default).\n")
+	TEXT("\t1: Remove unreferenced code before compilation\n"),
+	ECVF_ReadOnly);
+
 extern bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
 
 #if ENABLE_COOK_STATS
@@ -6163,6 +6172,11 @@ void GlobalBeginCompileShader(
 			Input.Environment.CompilerFlags.Add(CFLAG_BindlessSamplers);
 			Input.Environment.SetDefine(TEXT("ENABLE_BINDLESS_SAMPLERS"), true);
 		}
+	}
+
+	if (CVarShadersRemoveDeadCode.GetValueOnAnyThread())
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_RemoveDeadCode);
 	}
 
 	{

@@ -123,6 +123,8 @@ enum ECompilerFlags
 	CFLAG_BindlessResources,
 	// Enabled if bindless samplers are enabled for the platform
 	CFLAG_BindlessSamplers,
+	// EXPERIMENTAL: Run the shader re-writer that removes any unused functions/resources/types from source code before compilation.
+	CFLAG_RemoveDeadCode,
 
 	CFLAG_Max,
 };

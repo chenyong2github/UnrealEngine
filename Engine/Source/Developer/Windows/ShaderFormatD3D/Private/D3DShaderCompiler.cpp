@@ -3,6 +3,7 @@
 #include "ShaderFormatD3D.h"
 #include "ShaderPreprocessor.h"
 #include "ShaderCompilerCommon.h"
+#include "ShaderMinifier.h"
 #include "ShaderParameterParser.h"
 #include "D3D11ShaderResources.h"
 #include "D3D12RHI.h"
@@ -1316,6 +1317,42 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 	// Process TEXT macro.
 	TransformStringIntoCharacterArray(PreprocessedShaderSource);
 
+	TArray<FString> FilteredErrors;
+
+	// Run the experimental shader minifier
+
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_RemoveDeadCode))
+	{
+		FString EntryMain;
+		FString EntryAnyHit;
+		FString EntryIntersection;
+		UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(EntryPointName, EntryMain, EntryAnyHit, EntryIntersection);
+
+		if (!EntryAnyHit.IsEmpty())
+		{
+			EntryMain += TEXT(";");
+			EntryMain += EntryAnyHit;
+		}
+
+		if (!EntryIntersection.IsEmpty())
+		{
+			EntryMain += TEXT(";");
+			EntryMain += EntryIntersection;
+		}
+
+		UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(PreprocessedShaderSource, EntryMain, 
+			UE::ShaderMinifier::EMinifyShaderFlags::OutputReasons | UE::ShaderMinifier::EMinifyShaderFlags::OutputStats);
+
+		if (Minified.Success())
+		{
+			Swap(PreprocessedShaderSource, Minified.Code);
+		}
+		else
+		{
+			FilteredErrors.Add(TEXT("Shader minification failed."));
+		}
+	}
+
 	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
 	uint32 CompileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY
 		// Unpack uniform matrices as row-major to match the CPU layout.
@@ -1347,7 +1384,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 			CompileFlags |= TranslateCompilerFlagD3D11((ECompilerFlags)Flag);
 		});
 
-	TArray<FString> FilteredErrors;
 	if (bUseDXC)
 	{
 		if (!CompileAndProcessD3DShaderDXC(PreprocessedShaderSource, CompileFlags, Input, ShaderParameterParser, EntryPointName, ShaderProfile, Language, false, FilteredErrors, Output))
