@@ -1464,6 +1464,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 		if (RequestID != INDEX_NONE)
 		{
+			UE_SCOPED_IO_ACTIVITY(*WriteToString<512>(TEXT("Sync "), PackagePath.GetDebugName()));
 			FlushAsyncLoading(RequestID);
 		}
 		GSyncLoadUsingAsyncLoaderCount--;

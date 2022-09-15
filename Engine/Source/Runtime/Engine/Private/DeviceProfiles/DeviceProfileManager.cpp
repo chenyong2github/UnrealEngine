@@ -59,6 +59,7 @@ UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 {
 	if (DeviceProfileManagerSingleton == nullptr)
 	{
+		UE_SCOPED_ENGINE_ACTIVITY("Loading Device Profiles");
 		static bool bEntered = false;
 		if (bEntered && bFromPostCDOContruct)
 		{

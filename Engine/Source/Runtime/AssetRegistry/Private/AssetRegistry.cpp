@@ -671,6 +671,8 @@ void FAssetRegistryImpl::LoadPremadeAssetRegistry(Impl::FEventContext& EventCont
 	Premade::ELoadResult LoadResult, FAssetRegistryState&& ARState, FAssetRegistryState::EInitializationMode Mode)
 {
 	SCOPED_BOOT_TIMING("LoadPremadeAssetRegistry");
+	UE_SCOPED_ENGINE_ACTIVITY("Loading premade asset registry");
+
 	if (SerializationOptions.bSerializeAssetRegistry)
 	{
 		if (LoadResult == Premade::ELoadResult::Succeeded)

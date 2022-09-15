@@ -1128,6 +1128,7 @@ bool FFileSystemCacheStore::RunSpeedTest(
 	double& OutWriteSpeedMBs)
 {
 	SCOPED_BOOT_TIMING("RunSpeedTest");
+	UE_SCOPED_ENGINE_ACTIVITY("Running IO speed test");
 
 	//  files of increasing size. Most DDC data falls within this range so we don't want to skew by reading
 	// large amounts of data. Ultimately we care most about latency anyway.
