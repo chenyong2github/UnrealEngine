@@ -11,11 +11,7 @@
 #include "ShaderCompilerCore.h"
 #include "DXCWrapper.h"
 #include "ShaderConductorContext.h"
-
-static FName NAME_VULKAN_ES3_1_ANDROID(TEXT("SF_VULKAN_ES31_ANDROID"));
-static FName NAME_VULKAN_ES3_1(TEXT("SF_VULKAN_ES31"));
-static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
-static FName NAME_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
+#include "RHIShaderFormatDefinitions.inl"
 
 class FShaderFormatVulkan : public IShaderFormat
 {
