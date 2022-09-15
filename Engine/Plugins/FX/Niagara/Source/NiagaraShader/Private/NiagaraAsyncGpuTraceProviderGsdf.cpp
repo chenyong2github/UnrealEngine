@@ -6,8 +6,6 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraSettings.h"
-#include "Renderer/Private/ScenePrivate.h"
-#include "Renderer/Private/SceneRendering.h"
 #include "SceneManagement.h"
 
 static int GNiagaraAsyncGpuTraceGsdfEnabled = 1;

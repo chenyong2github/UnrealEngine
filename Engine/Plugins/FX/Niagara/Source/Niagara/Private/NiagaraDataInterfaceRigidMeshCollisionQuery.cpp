@@ -4,7 +4,6 @@
 #include "Algo/ForEach.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Canvas.h"
-#include "Renderer/Private/DistanceFieldLightingShared.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "AnimationRuntime.h"
 #include "SkeletalRenderPublic.h"

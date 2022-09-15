@@ -8,7 +8,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "RenderGraphBuilder.h"
-#include "Runtime/Renderer/Private/ScreenPass.h"
+#include "RenderGraphUtils.h"
 
 //////////////////////////////////////////////////////////////////////////
 
