@@ -25,6 +25,7 @@ protected:
 		TSharedPtr<FUICommandInfo> ConvertSelectedRegionsToActors;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
 		TSharedPtr<FUICommandInfo> PlayFromHere;
+		TSharedPtr<FUICommandInfo> LoadFromHere;
 
 		/**
 		 * Initialize commands
@@ -45,6 +46,7 @@ protected:
 	void ConvertSelectedRegionsToActors();
 	void MoveCameraHere();
 	void PlayFromHere();
+	void LoadFromHere();
 
 	bool IsFollowPlayerInPIE() const;
 	bool IsInteractive() const;
