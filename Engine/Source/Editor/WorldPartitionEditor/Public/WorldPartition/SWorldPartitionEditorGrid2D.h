@@ -69,6 +69,9 @@ protected:
 	virtual uint32 PaintSelection(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, uint32 LayerId) const;
 	virtual int32 PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 	virtual int32 PaintMinimap(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+	virtual int32 PaintMeasureTool(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+
+	int32 DrawTextLabel(FSlateWindowElementList& OutDrawElements, int32 LayerId, const FGeometry& AllottedGeometry, const FString& Label, const FVector2D& Pos, const FLinearColor& Color, const FSlateFontInfo& Font) const;
 
 	virtual FReply FocusSelection();
 	virtual FReply FocusLoadedRegions();
@@ -102,6 +105,7 @@ protected:
 
 	bool bIsDragSelecting;
 	bool bIsPanning;
+	bool bIsMeasuring;
 	bool bShowActors;
 	bool bFollowPlayerInPIE;
 	FVector2D MouseCursorPos;
@@ -109,6 +113,8 @@ protected:
 	FVector2D LastMouseCursorPosWorldDrag;
 	FVector2D SelectionStart;
 	FVector2D SelectionEnd;
+	FVector2D MeasureStart;
+	FVector2D MeasureEnd;
 	FBox SelectBox;
 	FBox SelectBoxGridSnapped;
 	FSlateFontInfo SmallLayoutFont;
