@@ -3964,11 +3964,10 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 		
 		// First capture data we will use to generate endcoded data for a mobile renderer
 		bool bCapturingForMobile = true;
-		TArray<UTextureCube*> EncodedCaptures;
+		TArray<TArray<uint8>> EncodedCaptures;
 		EncodedCaptures.AddDefaulted(ReflectionCapturesToBuild.Num());
 		{
 			UReflectionCaptureComponent::UpdateReflectionCaptureContents(World, *UpdateReason, bVerifyOnlyCapturing, bCapturingForMobile);
-			bool bIsReflectionCaptureCompressionProjectSetting = (bool)IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ReflectionCaptureCompression"))->GetValueOnAnyThread();
 			for (int32 CaptureIndex = 0; CaptureIndex < ReflectionCapturesToBuild.Num(); CaptureIndex++)
 			{ 
 				UReflectionCaptureComponent* CaptureComponent = ReflectionCapturesToBuild[CaptureIndex];
@@ -3984,14 +3983,8 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 					{
 						ULevel* StorageLevel = LightingScenarios[LevelIndex] ? LightingScenarios[LevelIndex] : CaptureComponent->GetOwner()->GetLevel();
 						UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-						if (!CaptureComponent->bModifyMaxValueRGBM)
-						{
-							CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(ReadbackCaptureData.FullHDRCapturedData, ReadbackCaptureData.CubemapSize);
-						}
-						FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
-						TextureName += LexToString(CaptureComponent->MapBuildDataId);
-						GenerateEncodedHDRTextureCube(Registry, ReadbackCaptureData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
-						EncodedCaptures[CaptureIndex] = ReadbackCaptureData.EncodedCaptureData;
+
+						GenerateEncodedHDRData(ReadbackCaptureData.FullHDRCapturedData, ReadbackCaptureData.CubemapSize, EncodedCaptures[CaptureIndex]);
 					}
 				}
 			}
@@ -4021,7 +4014,7 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 					UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 					FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
 					(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
-					CaptureBuildData.EncodedCaptureData = EncodedCaptures[CaptureIndex];
+					CaptureBuildData.EncodedHDRCapturedData = MoveTemp(EncodedCaptures[CaptureIndex]);
 					CaptureBuildData.FinalizeLoad();
 					// Recreate capture render state now that we have valid BuildData
 					CaptureComponent->MarkRenderStateDirty();
