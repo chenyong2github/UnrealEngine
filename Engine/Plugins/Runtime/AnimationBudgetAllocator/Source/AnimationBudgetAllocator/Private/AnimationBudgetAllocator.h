@@ -158,13 +158,19 @@ public:
 		return TEXT("FAnimationBudgetAllocator");
 	}
 
+	// Registers a component for deferred registration (post begin play)
+	void RegisterComponentDeferred(USkeletalMeshComponentBudgeted* InComponent);
+	
 protected:
 	/** We tick before all actors in the world using this delegate */
 	void OnWorldPreActorTick(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
 
 	/** Clean up dead components post GC */
 	void HandlePostGarbageCollect();
- 
+
+	/** Handle when a world begins play */
+	void HandleWorldBeginPlay();
+	
 	/** First pass of the Update(). Queues component indices that want to tick into AllSortedComponentData. */
 	void QueueSortedComponentIndices(float InDeltaSeconds);
 
@@ -218,6 +224,9 @@ protected:
 	/** All non-rendered components we might tick */
 	TArray<int32> NonRenderedComponentData;
 
+	/** Component registrations for our world before beginplay was called */
+	TArray<USkeletalMeshComponentBudgeted*> DeferredRegistrations;
+	
 #if ENABLE_DRAW_DEBUG
 	/** Recorded debug times */
 	TArray<FVector2D> DebugTimes;
@@ -268,6 +277,9 @@ protected:
 	/** Handle used for debug drawing */
 	FDelegateHandle OnHUDPostRenderHandle;
 
+	/** Handle used to handle world begin play */
+	FDelegateHandle OnWorldBeginPlayHandle;
+	
 	/** Offset used to distribute component ticks */
 	uint32 CurrentFrameOffset;
 

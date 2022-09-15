@@ -155,4 +155,13 @@ struct FAnimationBudgetAllocatorParameters
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "Parameters")
 	float BudgetPressureBeforeEmergencyReducedWork = 2.5f;
+
+	/**
+	 * Range > 1.0.
+	 * Controls the distance at which auto-calculated significance for budgeted components bottoms out. Components
+	 * within the distance 1 -> Max will have significance mapped 1 -> 0, outside of MaxDistance significance will be zero.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "Parameters")
+	float AutoCalculatedSignificanceMaxDistance = 30000.0f;
+	float AutoCalculatedSignificanceMaxDistanceSqr = 30000.0f * 30000.0f;
 };

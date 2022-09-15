@@ -72,8 +72,11 @@ FAnimationBudgetAllocator::FAnimationBudgetAllocator(UWorld* InWorld)
 	, CurrentFrameOffset(0)
 	, bEnabled(false)
 {
+	FAnimationBudgetAllocator::bCachedEnabled = GAnimationBudgetEnabled == 1;
+	
 	SetParametersFromCVars();
 
+	OnWorldBeginPlayHandle = InWorld->OnWorldBeginPlay.AddRaw(this, &FAnimationBudgetAllocator::HandleWorldBeginPlay);
 	PostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FAnimationBudgetAllocator::HandlePostGarbageCollect);
 	OnWorldPreActorTickHandle = FWorldDelegates::OnWorldPreActorTick.AddRaw(this, &FAnimationBudgetAllocator::OnWorldPreActorTick);
 	OnCVarParametersChangedHandle = GOnCVarParametersChanged.AddRaw(this, &FAnimationBudgetAllocator::SetParametersFromCVars);
@@ -87,6 +90,10 @@ FAnimationBudgetAllocator::~FAnimationBudgetAllocator()
 #if ENABLE_DRAW_DEBUG
 	AHUD::OnHUDPostRender.Remove(OnHUDPostRenderHandle);
 #endif
+	if(World)
+	{
+		World->OnWorldBeginPlay.Remove(OnWorldBeginPlayHandle);
+	}
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGarbageCollectHandle);
 	FWorldDelegates::OnWorldPreActorTick.Remove(OnWorldPreActorTickHandle);
 	GOnCVarParametersChanged.Remove(OnCVarParametersChangedHandle);
@@ -164,7 +171,9 @@ void FAnimationBudgetAllocator::QueueSortedComponentIndices(float InDeltaSeconds
 	TotalEstimatedTickTimeMs = 0.0f;
 	NumWorkUnitsForAverage = 0.0f;
 
-	auto QueueComponentTick = [InDeltaSeconds, this](FAnimBudgetAllocatorComponentData& InComponentData, int32 InComponentIndex, bool bInOnScreen)
+	const bool bUseSignificanceDelegate = USkeletalMeshComponentBudgeted::OnCalculateSignificance().IsBound();
+
+	auto QueueComponentTick = [InDeltaSeconds, this, bUseSignificanceDelegate](FAnimBudgetAllocatorComponentData& InComponentData, int32 InComponentIndex, bool bInOnScreen)
 	{
 		InComponentData.AccumulatedDeltaTime += InDeltaSeconds;
 		InComponentData.bOnScreen = bInOnScreen;
@@ -191,9 +200,16 @@ void FAnimationBudgetAllocator::QueueSortedComponentIndices(float InDeltaSeconds
 		// Auto-calculate significance here if we are set to
 		if(InComponentData.bAutoCalculateSignificance)
 		{
-			check(USkeletalMeshComponentBudgeted::OnCalculateSignificance().IsBound());
-
-			const float Significance = USkeletalMeshComponentBudgeted::OnCalculateSignificance().Execute(InComponentData.Component);
+			float Significance;
+			if(bUseSignificanceDelegate)
+			{
+				Significance = USkeletalMeshComponentBudgeted::OnCalculateSignificance().Execute(InComponentData.Component);
+			}
+			else
+			{
+				Significance = InComponentData.Component->GetDefaultSignificance();
+			}
+			
 			SetComponentSignificance(InComponentData.Component, Significance);
 		}
 	};
@@ -1060,4 +1076,23 @@ void FAnimationBudgetAllocator::SetParameters(const FAnimationBudgetAllocatorPar
 void FAnimationBudgetAllocator::SetParametersFromCVars()
 {
 	Parameters = GBudgetParameters;
+}
+
+void FAnimationBudgetAllocator::RegisterComponentDeferred(USkeletalMeshComponentBudgeted* InComponent)
+{
+	DeferredRegistrations.Add(InComponent); 
+}
+
+void FAnimationBudgetAllocator::HandleWorldBeginPlay()
+{
+	// This will catch worlds in (e.g.) PIE that try to set the CVar on startup
+	FAnimationBudgetAllocator::bCachedEnabled = GAnimationBudgetEnabled == 1;
+
+	// Run thru all deferred registrations
+	for(USkeletalMeshComponentBudgeted* Component : DeferredRegistrations)
+	{
+		RegisterComponent(Component);
+	}
+
+	DeferredRegistrations.Empty();
 }

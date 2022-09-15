@@ -2,8 +2,11 @@
 
 #include "SkeletalMeshComponentBudgeted.h"
 #include "AnimationBudgetAllocator.h"
+#include "AnimationBudgetAllocatorCVars.h"
+#include "SkeletalRenderPublic.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "GameFramework/Controller.h"
 
 CSV_DECLARE_CATEGORY_EXTERN(AnimationBudget);
 
@@ -11,8 +14,6 @@ FOnCalculateSignificance USkeletalMeshComponentBudgeted::OnCalculateSignificance
 
 USkeletalMeshComponentBudgeted::USkeletalMeshComponentBudgeted(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, AnimationBudgetHandle(INDEX_NONE)
-	, AnimationBudgetAllocator(nullptr)
 	, bAutoRegisterWithBudgetAllocator(true)
 	, bAutoCalculateSignificance(false)
 	, bShouldUseActorRenderedFlag(false)
@@ -27,9 +28,18 @@ void USkeletalMeshComponentBudgeted::BeginPlay()
 	{
 		if (UWorld* LocalWorld = GetWorld())
 		{
-			if (IAnimationBudgetAllocator* LocalAnimationBudgetAllocator = IAnimationBudgetAllocator::Get(LocalWorld))
+			if (FAnimationBudgetAllocator* LocalAnimationBudgetAllocator = static_cast<FAnimationBudgetAllocator*>(IAnimationBudgetAllocator::Get(LocalWorld)))
 			{
-				LocalAnimationBudgetAllocator->RegisterComponent(this);
+				if(LocalWorld->HasBegunPlay())
+				{
+					// World is playing, so register 
+					LocalAnimationBudgetAllocator->RegisterComponent(this);
+				}
+				else
+				{
+					// World is not playing, so register deferred 
+					LocalAnimationBudgetAllocator->RegisterComponentDeferred(this);
+				}
 			}
 		}
 	}
@@ -84,7 +94,32 @@ void USkeletalMeshComponentBudgeted::TickComponent(float DeltaTime, enum ELevelT
 
 		Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-		AnimationBudgetAllocator->SetGameThreadLastTickTimeMs(AnimationBudgetHandle, FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime));
+		if(bAutoCalculateSignificance && !USkeletalMeshComponentBudgeted::OnCalculateSignificance().IsBound())
+		{
+			// Default auto-calculated significance is based on distance to each player viewpoint
+			AutoCalculatedSignificance = 0.0f;
+
+			const FVector WorldLocation = GetComponentTransform().GetLocation();
+			const UWorld* ComponentWorld = GetWorld();
+			for (FConstControllerIterator It = ComponentWorld->GetControllerIterator(); It; ++It)
+			{
+				if(const AController* PlayerController = It->Get())
+				{
+					FVector PlayerViewLocation = FVector::ZeroVector;
+					FRotator PlayerViewRotation = FRotator::ZeroRotator;
+					PlayerController->GetPlayerViewPoint(PlayerViewLocation, PlayerViewRotation);
+
+					const float DistanceSqr = (WorldLocation - PlayerViewLocation).SizeSquared();
+					const float Significance = FMath::Max(GBudgetParameters.AutoCalculatedSignificanceMaxDistanceSqr - DistanceSqr, 1.0f) / GBudgetParameters.AutoCalculatedSignificanceMaxDistanceSqr;
+					AutoCalculatedSignificance = FMath::Max(AutoCalculatedSignificance, Significance);
+				}
+			}
+		}
+		
+		if(AnimationBudgetAllocator)
+		{
+			AnimationBudgetAllocator->SetGameThreadLastTickTimeMs(AnimationBudgetHandle, FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime));
+		}
 	}
 	else
 	{
@@ -104,10 +139,18 @@ void USkeletalMeshComponentBudgeted::CompleteParallelAnimationEvaluation(bool bD
 
 		Super::CompleteParallelAnimationEvaluation(bDoPostAnimEvaluation);
 
-		AnimationBudgetAllocator->SetGameThreadLastCompletionTimeMs(AnimationBudgetHandle, FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime));
+		if(AnimationBudgetAllocator)
+		{
+			AnimationBudgetAllocator->SetGameThreadLastCompletionTimeMs(AnimationBudgetHandle, FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime));
+		}
 	}
 	else
 	{
 		Super::CompleteParallelAnimationEvaluation(bDoPostAnimEvaluation);
 	}
+}
+
+float USkeletalMeshComponentBudgeted::GetDefaultSignificance() const
+{
+	return AutoCalculatedSignificance;
 }

@@ -332,3 +332,16 @@ static FAutoConsoleVariableRef CVarSkelBatch_BudgetPressureBeforeEmergencyReduce
 		GOnCVarParametersChanged.Broadcast();
 	}),
 	ECVF_Scalability);
+
+static FAutoConsoleVariableRef CVarSkelBatch_AutoCalculatedSignificanceMaxDistance(
+	TEXT("a.Budget.AutoCalculatedSignificanceMaxDistance"),
+	GBudgetParameters.AutoCalculatedSignificanceMaxDistance,
+	TEXT("Range > 1.0, Default = 300.0\n")
+	TEXT("Controls the distance (in cm) at which auto-calculated significance for budgeted components bottoms out. Components within the distance 1 -> Max will have significance mapped 1 -> 0, outside of MaxDistance significance will be zero.\n"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		GBudgetParameters.AutoCalculatedSignificanceMaxDistance = FMath::Max(GBudgetParameters.AutoCalculatedSignificanceMaxDistance, 1.0f);
+		GBudgetParameters.AutoCalculatedSignificanceMaxDistanceSqr = GBudgetParameters.AutoCalculatedSignificanceMaxDistance * GBudgetParameters.AutoCalculatedSignificanceMaxDistance;
+		GOnCVarParametersChanged.Broadcast();
+	}),
+	ECVF_Scalability);

@@ -72,27 +72,37 @@ private:
 	/** Set the budget allocator that is tracking us */
 	void SetAnimationBudgetAllocator(IAnimationBudgetAllocator* InAnimationBudgetAllocator) { AnimationBudgetAllocator = InAnimationBudgetAllocator; }
 
+	/** Handles self-registration after actors have begun play */
+	void HandleWorldBeginPlay();
+
+	/** Gets the default significance value based on distance */
+	float GetDefaultSignificance() const;
+	
 private:
 	/** Delegate called to increase/decrease the amount of work a component performs */
 	FOnReduceWork OnReduceWorkDelegate;
 
 	/** Delegate called to calculate significance if bAutoCalculateSignificance = true */
 	static FOnCalculateSignificance OnCalculateSignificanceDelegate;
+	
+	/** Owning animation budget allocator */
+	IAnimationBudgetAllocator* AnimationBudgetAllocator = nullptr;
 
 	/** Handle used for identification */
-	int32 AnimationBudgetHandle;
+	int32 AnimationBudgetHandle = INDEX_NONE;
 
-	/** Owning animation budget allocator */
-	IAnimationBudgetAllocator* AnimationBudgetAllocator;
-
+	/** Cached calculated significance */
+	float AutoCalculatedSignificance = 1.0f;
+	
 	/** Whether this component should automatically register with the budget allocator in OnRegister/OnUnregister */
 	UPROPERTY(EditAnywhere, BlueprintSetter=SetAutoRegisterWithBudgetAllocator, Category = Budgeting)
 	uint8 bAutoRegisterWithBudgetAllocator : 1;
 
-	/** Whether this component should automatically register with the budget allocator in OnRegister/OnUnregister */
+	/** Whether this component should automatically calculate its significance (rather than some external system pushing the significance to it) */
 	UPROPERTY(EditAnywhere, Category = Budgeting)
 	uint8 bAutoCalculateSignificance : 1;
 
-	UPROPERTY(EditAnywhere, Category = Budgeting)
+	/** Whether this component should use its owning actor's rendered state to determine visibility. If this is not set then the component's visibility will be used */
+	UPROPERTY(EditAnywhere, Category = Budgeting, AdvancedDisplay)
 	uint8 bShouldUseActorRenderedFlag : 1;
 };
