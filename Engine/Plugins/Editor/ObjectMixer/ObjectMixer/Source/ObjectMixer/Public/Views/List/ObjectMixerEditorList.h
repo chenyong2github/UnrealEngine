@@ -36,17 +36,20 @@ public:
 	 */
 	void RefreshList() const;
 
+	void RequestSyncEditorSelectionToListSelection() const;
+
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
 
 	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true) const;
 
 	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel();
 
-	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow();
+	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows();
 
-	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
+	void AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
+	void RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
 
-	void ClearSoloRow();
+	void ClearSoloRows();
 
 private:
 

@@ -100,6 +100,12 @@ public:
 
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
+	
+	void RequestSyncEditorSelectionToListSelection()
+	{
+		bIsEditorToListSelectionSyncRequested = true;
+	}
+	void SyncEditorSelectionToListSelection();
 
 	void SetSelectedTreeViewItemActorsEditorVisible(const bool bNewIsVisible, const bool bIsRecursive = false);
 
@@ -113,11 +119,12 @@ public:
 		return TreeViewRootObjects.Num();
 	}
 	
-	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow();
+	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows();
 
-	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
+	void AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
+	void RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
 
-	void ClearSoloRow();
+	void ClearSoloRows();
 
 	FString GetSearchStringFromSearchInputField() const;
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
@@ -182,7 +189,7 @@ protected:
 	TSharedPtr<SHeaderRow> HeaderRow;
 	TSharedRef<SWidget> GenerateHeaderRowContextMenu() const;
 
-	bool bShouldRebuild = false;
+	bool bIsRebuildRequested = false;
 	
 	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing items.
@@ -217,7 +224,11 @@ protected:
 	void FindVisibleTreeViewObjects();
 	void FindVisibleObjectsAndRequestTreeRefresh();
 
-	void SelectedTreeItemsToSelectedInLevelEditor() const;
+	void SelectedTreeItemsToSelectedInLevelEditor();
+	
+	/** For two-way selection sync, we need to pause selection sync under certain circumstances to prevent infinite loops. */
+	bool bShouldPauseSyncSelection = false;
+	bool bIsEditorToListSelectionSyncRequested = false;
 	
 	void OnGetRowChildren(FObjectMixerEditorListRowPtr Row, TArray<FObjectMixerEditorListRowPtr>& OutChildren) const;
 	void OnRowChildExpansionChange(FObjectMixerEditorListRowPtr Row, const bool bIsExpanded, const bool bIsRecursive = false) const;
@@ -226,7 +237,17 @@ protected:
 
 	TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr;
 
-	TMap<FString, bool> TreeItemExpansionStateCache;
+	struct FTreeItemStateCache
+	{
+		uint32 UniqueId = -1;
+		FString RowName = "";
+		bool bIsExpanded = false;
+		bool bIsSelected = false;
+	};
+
+	TArray<FTreeItemStateCache> TreeItemStateCache;
+	
+	TMap<UObject*, FObjectMixerEditorListRowPtr> ObjectsToRowsCreated;
 
 	/** All Tree view objects */
 	TArray<FObjectMixerEditorListRowPtr> TreeViewRootObjects;

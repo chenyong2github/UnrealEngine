@@ -44,6 +44,14 @@ void FObjectMixerEditorMainPanel::RefreshList() const
 	}
 }
 
+void FObjectMixerEditorMainPanel::RequestSyncEditorSelectionToListSelection() const
+{
+	if (EditorListModel.IsValid())
+	{
+		EditorListModel->RequestSyncEditorSelectionToListSelection();
+	}
+}
+
 void FObjectMixerEditorMainPanel::RebuildCollectionSelector()
 {
 	MainPanelWidget->RebuildCollectionSelector();

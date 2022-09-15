@@ -71,6 +71,15 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	, DisplayNameOverride(InDisplayNameOverride)
 	{}
 
+	FObjectMixerEditorListRow(
+		const FName InFolderPath, const EObjectMixerEditorListRowType InRowType, 
+		const TSharedRef<SObjectMixerEditorList>& InListView, const FText& InDisplayNameOverride = FText::GetEmpty())
+	: FolderPath(InFolderPath)
+	, RowType(InRowType)
+	, ListViewPtr(InListView)
+	, DisplayNameOverride(InDisplayNameOverride)
+	{}
+
 	[[nodiscard]] UObject* GetObject() const
 	{
 		if (ObjectRef.IsValid())
@@ -79,6 +88,11 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 		}
 
 		return nullptr;
+	}
+
+	[[nodiscard]] FName GetFolderPath() const
+	{
+		return FolderPath;
 	}
 
 	UObjectMixerObjectFilter* GetObjectFilter() const;
@@ -161,16 +175,17 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	bool GetObjectVisibility();
 	void SetObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive = false);
 
-	bool IsThisRowSolo() const;
-	void SetThisAsSoloRow();
+	bool IsThisRowSolo();
+	void SetRowSoloState(const bool bNewSolo);
 
-	void ClearSoloRow();
+	void ClearSoloRows() const;
 
 private:
 
 	FObjectMixerEditorListRowPtr GetAsShared();
 
 	TWeakObjectPtr<UObject> ObjectRef;
+	FName FolderPath = NAME_None;
 	EObjectMixerEditorListRowType RowType = MatchingObject;
 	TArray<FObjectMixerEditorListRowPtr> ChildRows;
 	

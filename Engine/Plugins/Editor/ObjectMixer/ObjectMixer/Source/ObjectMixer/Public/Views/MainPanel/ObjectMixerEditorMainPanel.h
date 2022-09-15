@@ -39,6 +39,8 @@ public:
 	 */
 	void RefreshList() const;
 
+	void RequestSyncEditorSelectionToListSelection() const;
+
 	TWeakPtr<FObjectMixerEditorList> GetEditorListModel() const
 	{
 		return EditorListModel;
@@ -103,27 +105,35 @@ public:
 	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetShowFilters() const;
 
 	/**
-	 * Get the row that has solo visibility. All other rows should be set to temporarily invisible in editor.
+	 * Get the rows that have solo visibility. All other rows should be set to temporarily invisible in editor.
 	 */
-	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow()
+	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows()
 	{
-		return SoloRow;
+		return SoloRows;
 	}
 
 	/**
-	 * Set the row that has solo visibility. This does not set temporary editor invisibility for other rows.
+	 * Add a row that has solo visibility. This does not set temporary editor invisibility for other rows.
 	 */
-	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
+	void AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
 	{
-		SoloRow = InRow;
+		SoloRows.Add(InRow);
 	}
 
 	/**
-	 * Clear the row that has solo visibility. This does not remove temporary editor invisibility for other rows.
+	 * Remove a row that does not have solo visibility. This does not set temporary editor invisibility for other rows.
 	 */
-	void ClearSoloRow()
+	void RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
 	{
-		SoloRow = nullptr;
+		SoloRows.Remove(InRow);
+	}
+
+	/**
+	 * Clear the rows that have solo visibility. This does not remove temporary editor invisibility for other rows.
+	 */
+	void ClearSoloRows()
+	{
+		SoloRows.Empty();
 	}
 
 	TSubclassOf<UObjectMixerObjectFilter> GetObjectFilterClass() const
@@ -186,7 +196,7 @@ private:
 	 */
 	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::Folders;
 
-	TWeakPtr<FObjectMixerEditorListRow> SoloRow = nullptr;
+	TSet<TWeakPtr<FObjectMixerEditorListRow>> SoloRows = {};
 
 	FName ModuleName = NAME_None;
 

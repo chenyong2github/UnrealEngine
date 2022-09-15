@@ -38,6 +38,8 @@ public:
 	 * Useful for when the list state has gone stale but the variable count has not changed.
 	 */
 	virtual void RefreshList() const;
+	
+	void RequestSyncEditorSelectionToListSelection();
 
 	void RegisterMenuGroup();
 	void UnregisterMenuGroup();

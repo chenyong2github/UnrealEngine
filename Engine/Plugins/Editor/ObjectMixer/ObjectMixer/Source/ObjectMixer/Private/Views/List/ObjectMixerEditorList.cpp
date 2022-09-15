@@ -50,15 +50,29 @@ void FObjectMixerEditorList::RefreshList() const
 	}
 }
 
-void FObjectMixerEditorList::ExecuteListViewSearchOnAllRows(const FString& SearchString,
-	const bool bShouldRefreshAfterward)
+void FObjectMixerEditorList::RequestSyncEditorSelectionToListSelection() const
 {
-	ListWidget->ExecuteListViewSearchOnAllRows(SearchString, bShouldRefreshAfterward);
+	if (ListWidget.IsValid())
+	{
+		ListWidget->RequestSyncEditorSelectionToListSelection();
+	}
+}
+
+void FObjectMixerEditorList::ExecuteListViewSearchOnAllRows(const FString& SearchString,
+                                                            const bool bShouldRefreshAfterward)
+{
+	if (ListWidget.IsValid())
+	{
+		ListWidget->ExecuteListViewSearchOnAllRows(SearchString, bShouldRefreshAfterward);
+	}
 }
 
 void FObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward) const
 {
-	ListWidget->EvaluateIfRowsPassFilters();
+	if (ListWidget.IsValid())
+	{
+		ListWidget->EvaluateIfRowsPassFilters();
+	}
 }
 
 TWeakPtr<FObjectMixerEditorMainPanel> FObjectMixerEditorList::GetMainPanelModel()
@@ -66,17 +80,22 @@ TWeakPtr<FObjectMixerEditorMainPanel> FObjectMixerEditorList::GetMainPanelModel(
 	return MainPanelModelPtr;
 }
 
-TWeakPtr<FObjectMixerEditorListRow> FObjectMixerEditorList::GetSoloRow()
+TSet<TWeakPtr<FObjectMixerEditorListRow>> FObjectMixerEditorList::GetSoloRows()
 {
-	return GetMainPanelModel().Pin()->GetSoloRow();
+	return GetMainPanelModel().Pin()->GetSoloRows();
 }
 
-void FObjectMixerEditorList::SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
+void FObjectMixerEditorList::AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
 {
-	GetMainPanelModel().Pin()->SetSoloRow(InRow);
+	GetMainPanelModel().Pin()->AddSoloRow(InRow);
 }
 
-void FObjectMixerEditorList::ClearSoloRow()
+void FObjectMixerEditorList::RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
 {
-	GetMainPanelModel().Pin()->ClearSoloRow();
+	GetMainPanelModel().Pin()->RemoveSoloRow(InRow);
+}
+
+void FObjectMixerEditorList::ClearSoloRows()
+{
+	GetMainPanelModel().Pin()->ClearSoloRows();
 }

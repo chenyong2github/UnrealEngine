@@ -449,19 +449,26 @@ void FObjectMixerEditorListRow::SetObjectVisibility(const bool bNewIsVisible, co
 	}
 }
 
-bool FObjectMixerEditorListRow::IsThisRowSolo() const
+bool FObjectMixerEditorListRow::IsThisRowSolo()
 {
-	return GetListViewPtr().Pin()->GetSoloRow().HasSameObject(this);
+	return GetListViewPtr().Pin()->GetSoloRows().Contains(SharedThis(this));
 }
 
-void FObjectMixerEditorListRow::SetThisAsSoloRow()
+void FObjectMixerEditorListRow::SetRowSoloState(const bool bNewSolo)
 {
-	GetListViewPtr().Pin()->SetSoloRow(SharedThis(this));
+	if (bNewSolo)
+	{
+		GetListViewPtr().Pin()->AddSoloRow(SharedThis(this));
+	}
+	else
+	{
+		GetListViewPtr().Pin()->RemoveSoloRow(SharedThis(this));
+	}
 }
 
-void FObjectMixerEditorListRow::ClearSoloRow()
+void FObjectMixerEditorListRow::ClearSoloRows() const
 {
-	GetListViewPtr().Pin()->ClearSoloRow();
+	GetListViewPtr().Pin()->ClearSoloRows();
 }
 
 FObjectMixerEditorListRowPtr FObjectMixerEditorListRow::GetAsShared()

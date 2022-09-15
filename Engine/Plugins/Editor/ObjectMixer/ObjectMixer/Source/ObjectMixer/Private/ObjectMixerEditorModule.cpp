@@ -12,6 +12,7 @@
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "ObjectMixerEditorSerializedData.h"
+#include "Selection.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
@@ -135,6 +136,14 @@ void FObjectMixerEditorModule::RefreshList() const
 	if (MainPanel.IsValid())
 	{
 		MainPanel->RefreshList();
+	}
+}
+
+void FObjectMixerEditorModule::RequestSyncEditorSelectionToListSelection()
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->RequestSyncEditorSelectionToListSelection();
 	}
 }
 
@@ -269,23 +278,7 @@ TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnMainPanelTab()
 void FObjectMixerEditorModule::BindDelegates()
 {
 	check(GEngine && GEditor);
-	DelegateHandles.Add(GEngine->OnLevelActorFolderChanged().AddLambda([this] (const AActor*, FName)
-	{
-		RequestRebuildList();
-	}));
 	DelegateHandles.Add(GEngine->OnLevelActorListChanged().AddLambda([this] ()
-	{
-		RequestRebuildList();
-	}));
-	DelegateHandles.Add(GEngine->OnActorFolderAdded().AddLambda([this] (UActorFolder*)
-	{
-		RequestRebuildList();
-	}));
-	DelegateHandles.Add(GEngine->OnLevelActorDetached().AddLambda([this] (AActor*, const AActor*)
-	{
-		RequestRebuildList();
-	}));
-	DelegateHandles.Add(GEngine->OnLevelActorAttached().AddLambda([this] (AActor*, const AActor*)
 	{
 		RequestRebuildList();
 	}));
@@ -297,13 +290,33 @@ void FObjectMixerEditorModule::BindDelegates()
 	{
 		RequestRebuildList();
 	}));
+	DelegateHandles.Add(GEngine->OnLevelActorFolderChanged().AddLambda([this] (const AActor*, FName)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnLevelActorAttached().AddLambda([this] (AActor*, const AActor*)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnLevelActorDetached().AddLambda([this] (AActor*, const AActor*)
+	{
+		RequestRebuildList();
+	}));
 
 	DelegateHandles.Add(GEditor->OnBlueprintCompiled().AddLambda([this] ()
 	{
 		RequestRebuildList();
 	}));
+	DelegateHandles.Add(GEditor->OnLevelActorDeleted().AddLambda([this] (AActor*)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEditor->GetSelectedActors()->SelectionChangedEvent.AddLambda([this] (UObject*)
+	{
+		RequestSyncEditorSelectionToListSelection();
+	}));
 
-	DelegateHandles.Add(FEditorDelegates::MapChange.AddLambda([this](uint32 Index)
+	DelegateHandles.Add(FEditorDelegates::MapChange.AddLambda([this](uint32)
 	{
 		RequestRebuildList();
 	}));
@@ -318,7 +331,7 @@ void FObjectMixerEditorModule::BindDelegates()
 
 	DelegateHandles.Add(FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject*, const FTransactionObjectEvent& Event)
 	{
-		if (Event.GetEventType() == ETransactionObjectEventType::Finalized)
+		if (Event.GetEventType() == ETransactionObjectEventType::Finalized && Event.HasPropertyChanges())
 		{
 			RequestRebuildList();
 		}

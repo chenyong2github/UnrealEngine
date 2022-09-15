@@ -25,9 +25,7 @@
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
-const FText InsertFormatText = LOCTEXT("InsertAboveFormatText", "Insert {0} {1} {2}");
-const FText AboveText = LOCTEXT("AboveListItem", "above");
-const FText BelowText = LOCTEXT("BelowListItem", "below");
+const FText DropFormatText = LOCTEXT("DropFormatText", "{0} {1} {2} {3}");
 const FText MultiDragFormatText = LOCTEXT("MultiDragFormatText", "{0} Items");
 
 void SObjectMixerEditorListRow::Construct(
@@ -140,10 +138,8 @@ void SObjectMixerEditorListRow::HandleDragLeave(const FDragDropEvent& DragDropEv
 	}
 }
 
-TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent,
-                                                                             EItemDropZone DropZone,
-                                                                             FObjectMixerEditorListRowPtr
-                                                                             TargetItem)
+TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(
+	const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FObjectMixerEditorListRowPtr TargetItem)
 {
 	TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>();
@@ -153,34 +149,50 @@ TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(const FD
 		return TOptional<EItemDropZone>();
 	}
 
-	Operation->SetToolTip(
-		LOCTEXT("SortByCustomOrderDrgDropWarning", "Sort by custom order (\"#\") to drag & drop"),
-		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error")
-	);
+	const UObject* DropOnObject = TargetItem->GetObject();
+	const bool bIsDroppingOnFolderRow = TargetItem->GetRowType() == FObjectMixerEditorListRow::Folder;
 
-	const bool bIsDropDenied = false;
-
-	FString BoolAsString = bIsDropDenied ? "true" : "false";
+	const bool bIsDropDenied =
+		(!DropOnObject && !bIsDroppingOnFolderRow) ||
+		(DropOnObject && DropOnObject->IsA(UActorComponent::StaticClass())) ||
+		(
+			Operation->DraggedItems.Num() == 1 &&
+			Operation->DraggedItems[0]->GetObject() &&
+			Operation->DraggedItems[0]->GetObject()->IsA(UActorComponent::StaticClass())
+		) ||
+		(
+			Operation->DraggedItems.Num() == 1 &&
+			Operation->DraggedItems[0]->GetRowType() == FObjectMixerEditorListRow::Folder
+		)
+	;
 
 	if (bIsDropDenied)
 	{
-		Operation->ResetToDefaultToolTip();
+		Operation->SetToolTip(
+			LOCTEXT("ObjectMixerDragDropWarning", "Drop an actor row onto another actor row or folder to set attach parent or folder.\nDrop any row onto a collection button to assign a collection to the row."),
+			FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error")
+		);
 
 		return TOptional<EItemDropZone>();
 	}
 
-	FText ItemNameText = FText::FromString("Light Label");
+	FText ItemNameText = FText::GetEmpty();
 
-	if (Operation->DraggedItems.Num() > 1)
+	if (Operation->DraggedItems.Num() == 1)
+	{
+		ItemNameText = Operation->DraggedItems[0]->GetDisplayName();
+	}
+	else
 	{
 		ItemNameText = FText::Format(MultiDragFormatText, FText::AsNumber(Operation->DraggedItems.Num()));
 	}
 
 	const FText DropPermittedText =
-		FText::Format(InsertFormatText,
-		              ItemNameText,
-		              DropZone == EItemDropZone::BelowItem ? BelowText : AboveText,
-		              ItemNameText
+		FText::Format(DropFormatText,
+			bIsDroppingOnFolderRow ? LOCTEXT("DragDropMoveToFolderPrefix", "Move") : LOCTEXT("DragDropSetAttachParentPrefix", "Set"),
+			ItemNameText,
+			bIsDroppingOnFolderRow ? LOCTEXT("DragDropMoveToFolderMidfix", "into") : LOCTEXT("DragDropSetAttachParentMidfix", "AttachParent as"),
+			TargetItem->GetDisplayName()
 		);
 
 	Operation->SetToolTip(
@@ -189,7 +201,7 @@ TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(const FD
 	);
 
 	// We have no behaviour yet for dropping one item onto another, so we'll treat it like we dropped it above
-	return DropZone == EItemDropZone::OntoItem ? EItemDropZone::AboveItem : DropZone;
+	return EItemDropZone::OntoItem;
 }
 
 FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone,
@@ -203,39 +215,27 @@ FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDro
 		return FReply::Unhandled();
 	}
 
-	const TSharedPtr<SObjectMixerEditorList> ListView = Item.Pin()->GetListViewPtr().Pin();
+	UObject* DropOnObject = TargetItem->GetObject();
+	const bool bIsDroppingOnFolderRow = TargetItem->GetRowType() == FObjectMixerEditorListRow::Folder && TargetItem->GetFolderPath() != NAME_None;
+	FAttachmentTransformRules Rules(EAttachmentRule::KeepWorld, false);
 
-	TArray<FObjectMixerEditorListRowPtr> DraggedItems = Operation->DraggedItems;
+	FScopedTransaction DragDropTransaction(LOCTEXT("ObjectMixerDragDropTransaction","Object Mixer Drag & Drop"));
 
-	TArray<FObjectMixerEditorListRowPtr> AllTreeItemsCopy = ListView->GetTreeViewItems();
-
-	for (const FObjectMixerEditorListRowPtr& DraggedItem : DraggedItems)
+	for (const FObjectMixerEditorListRowPtr& DraggedItem : Operation->DraggedItems)
 	{
-		if (!DraggedItem.IsValid() || !AllTreeItemsCopy.Contains(DraggedItem))
+		if (AActor* ObjectAsActor = Cast<AActor>(DraggedItem->GetObject()))
 		{
-			continue;
-		}
-
-		AllTreeItemsCopy.Remove(DraggedItem);
-	}
-
-	const int32 TargetIndex = AllTreeItemsCopy.IndexOfByKey(TargetItem);
-
-	if (TargetIndex > -1)
-	{
-		for (int32 ItemIndex = DraggedItems.Num() - 1; ItemIndex >= 0; ItemIndex--)
-		{
-			const FObjectMixerEditorListRowPtr& DraggedItem = DraggedItems[ItemIndex];
-
-			if (!DraggedItem.IsValid() || AllTreeItemsCopy.Contains(DraggedItem))
+			if (bIsDroppingOnFolderRow)
 			{
-				continue;
+				ObjectAsActor->Modify();
+				ObjectAsActor->SetFolderPath(TargetItem->GetFolderPath());
 			}
-
-			AllTreeItemsCopy.Insert(DraggedItem, DropZone == EItemDropZone::AboveItem ? TargetIndex : TargetIndex + 1);
+			else if (AActor* DropOnObjectAsActor = Cast<AActor>(DropOnObject))
+			{
+				ObjectAsActor->Modify();
+				ObjectAsActor->AttachToActor(DropOnObjectAsActor, Rules);
+			}
 		}
-
-		ListView->SetTreeViewItems(AllTreeItemsCopy);
 	}
 
 	return FReply::Handled();
@@ -389,7 +389,7 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				.Visibility(EVisibility::SelfHitTestInvisible)
-				.Padding(0.f)
+				.Padding(FMargin(2,0,0,0))
 				[
 					SNew(SImage)
 					.ColorAndOpacity(this, &SObjectMixerEditorListRow::GetVisibilityIconForegroundColor)
@@ -429,18 +429,20 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 		}
 		
 		return SNew(SBox)
-				.HAlign(HAlign_Left)
+				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Visibility(EVisibility::SelfHitTestInvisible)
 				.Padding(0.f)
 				[
 					SNew(SImage)
 					.ColorAndOpacity(this, &SObjectMixerEditorListRow::GetSoloIconForegroundColor)
-					.Image(FAppStyle::Get().GetBrush("MediaAsset.AssetActions.Solo.Small"))
+					.Image(FObjectMixerEditorStyle::Get().GetBrush("ObjectMixer.Solo"))
 					.OnMouseButtonDown_Lambda(
-						[PinnedItem] (const FGeometry& MyGeometry, const FPointerEvent& Event)
+						[this] (const FGeometry& MyGeometry, const FPointerEvent& Event)
 						{
-							check (PinnedItem);
+							check (Item.IsValid());
+
+							const FObjectMixerEditorListRowPtr PinnedItem = Item.Pin();
 							
 							if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = PinnedItem->GetListViewPtr().Pin();
 								PinnedListView->GetTreeViewItemCount() > 0)
@@ -451,15 +453,13 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 									TreeItem->SetObjectVisibility(bIsRowSolo, true);
 								}
 
-								if (bIsRowSolo)
-								{
-									PinnedItem->ClearSoloRow();
-								}
-								else
+								if (!bIsRowSolo)
 								{
 									PinnedItem->SetObjectVisibility(true, true);
-									PinnedItem->SetThisAsSoloRow();
+									PinnedItem->ClearSoloRows();
 								}
+								
+								PinnedItem->SetRowSoloState(!bIsRowSolo);
 
 								return FReply::Handled();
 							}
@@ -526,7 +526,15 @@ void SObjectMixerEditorListRow::OnPropertyChanged(const FProperty* Property, voi
 					
 					for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : PinnedItem->GetSelectedTreeViewItems())
 					{
-						if (UObject* SelectedRowObject = SelectedRow->GetObject())
+						UObject* SelectedRowObject = SelectedRow->GetObject();
+						const int32 SelectedRowHybridIndex = SelectedRow->GetHybridRowIndex();
+
+						if (SelectedRowHybridIndex != -1 && SelectedRowHybridIndex < SelectedRow->GetChildCount())
+						{
+							SelectedRowObject = SelectedRow->GetChildRows()[SelectedRowHybridIndex]->GetObject();
+						}
+						
+						if (SelectedRowObject)
 						{
 							Property->SetValue_InContainer(SelectedRowObject, ValuePtr);
 						}
