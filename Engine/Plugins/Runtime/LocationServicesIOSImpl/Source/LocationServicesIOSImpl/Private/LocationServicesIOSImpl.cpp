@@ -15,6 +15,8 @@ DEFINE_LOG_CATEGORY(LogLocationServicesIOS);
 -(void)startUpdatingLocation;
 -(void)stopUpdatingLocation;
 -(CLLocation*)getLastKnownLocation;
+-(void)dealloc;
+
 @property CLLocationAccuracy Accuracy;
 @property CLLocationDistance DistanceFilter;
 @property(strong, nonatomic) CLLocationManager* LocManager;
@@ -67,6 +69,16 @@ DEFINE_LOG_CATEGORY(LogLocationServicesIOS);
     }
     
     return nil;
+}
+-(void)dealloc
+{
+	if (LocManager != nil)
+	{
+		LocManager.delegate = nil;
+		[LocManager release];
+		LocManager = nil;
+	}
+	[super dealloc];
 }
 /*
 * Callback from the LocationManager when there's an update to our location
