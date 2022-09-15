@@ -3089,6 +3089,8 @@ static bool CompressMipChain(
 // only useful for normal maps, fixed bad input (denormalized normals) and improved quality (quantization artifacts)
 static void NormalizeMip(FImage& InOutMip)
 {
+	const FVector NormalIfZero(0.f,0.f,1.f);
+
 	const uint32 NumPixels = InOutMip.SizeX * InOutMip.SizeY * InOutMip.NumSlices;
 	TArrayView64<FLinearColor> ImageColors = InOutMip.AsRGBA32F();
 	for(uint32 CurPixelIndex = 0; CurPixelIndex < NumPixels; ++CurPixelIndex)
@@ -3097,7 +3099,8 @@ static void NormalizeMip(FImage& InOutMip)
 
 		FVector Normal = FVector(Color.R * 2.0f - 1.0f, Color.G * 2.0f - 1.0f, Color.B * 2.0f - 1.0f);
 
-		Normal = Normal.GetSafeNormal();
+		// GetSafeNormal returns Vec(0,0,0) by default for tiny input, instead return flat/up
+		Normal = Normal.GetSafeNormal(UE_SMALL_NUMBER,NormalIfZero);
 
 		Color = FLinearColor(Normal.X * 0.5f + 0.5f, Normal.Y * 0.5f + 0.5f, Normal.Z * 0.5f + 0.5f, Color.A);
 	}
@@ -3370,6 +3373,7 @@ public:
 			// important to make accurate computation with normal length
 			//  note this normalizes the top mip *before* the gaussian blur
 			DefaultSettings.bRenormalizeTopMip = true;
+			DefaultSettings.bNormalizeNormals = false; // do not normalize after mip gen, we want shortening
 
 			// use new mip filter setting from build settings
 			DefaultSettings.bUseNewMipFilter = BuildSettings.bUseNewMipFilter;
@@ -3703,7 +3707,7 @@ private:
 		const bool bLinearize = bNeedLinearize || (GenerateCount > 0) || BuildSettings.bRenormalizeTopMip || (BuildSettings.Downscale > 1.f)
 			|| BuildSettings.bHasColorSpaceDefinition || BuildSettings.bComputeBokehAlpha || BuildSettings.bFlipGreenChannel
 			|| BuildSettings.bReplicateRed || BuildSettings.bReplicateAlpha || BuildSettings.bApplyYCoCgBlockScale
-			|| BuildSettings.SourceEncodingOverride != 0 || bNeedAdjustImageColors;
+			|| BuildSettings.SourceEncodingOverride != 0 || bNeedAdjustImageColors || BuildSettings.bNormalizeNormals;
 
 		for (int32 MipIndex = StartMip; MipIndex < StartMip + CopyCount; ++MipIndex)
 		{
@@ -3748,7 +3752,8 @@ private:
 					}
 					else
 					{
-						// if image is in BGRA8 format leave it, otherwise use original RGBA32F
+						// if image is in BGRA8 format leave it, otherwise convert to RGBA32F
+						//  we only support leaving images in source format if they are BGRA8 and require no processing (eg VT tiles)
 						ERawImageFormat::Type DestFormat = Image.Format == ERawImageFormat::BGRA8 ? ERawImageFormat::BGRA8 : ERawImageFormat::RGBA32F;
 						Image.CopyTo(*Mip, DestFormat, Image.GammaSpace);
 					}
@@ -3833,14 +3838,23 @@ private:
 		}
 
 		// Apply post-mip generation adjustments.
+		if ( BuildSettings.bNormalizeNormals )
+		{
+			for ( FImage& MipImage : OutMipChain )
+			{
+				NormalizeMip(MipImage);
+			}
+		}
+	
 		if (BuildSettings.bReplicateRed)
 		{
 			ReplicateRedChannel(OutMipChain);
 		}
-		else if (BuildSettings.bReplicateAlpha)
+		else if (BuildSettings.bReplicateAlpha) // @@CB why is this an else? 
 		{
 			ReplicateAlphaChannel(OutMipChain);
 		}
+
 		if (BuildSettings.bApplyYCoCgBlockScale)
 		{
 			ApplyYCoCgBlockScale(OutMipChain);

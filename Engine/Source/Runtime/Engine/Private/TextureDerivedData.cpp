@@ -275,9 +275,18 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 
 	// do not change key if old mip filter is used for old textures
 	// @todo SerializeForKey these can go away whenever we bump the overall ddc key
+	// instead just serialize bool 
 	if (Settings.bUseNewMipFilter)
 	{
 		TempGuid = FGuid(0x27B79A99, 0xE1A5458E, 0xAB619475, 0xCD01AD2A);
+		Ar << TempGuid;
+	}
+	
+	// @todo SerializeForKey these can go away whenever we bump the overall ddc key
+	// instead just serialize bool bNormalizeNormals
+	if ( Settings.bNormalizeNormals )
+	{
+		TempGuid = FGuid(0x0F5221F6,0x992344D3,0x9C3CCED9,0x4AF08FB8);
 		Ar << TempGuid;
 	}
 
@@ -832,6 +841,7 @@ static void GetTextureBuildSettings(
 
 	OutBuildSettings.CompressionCacheId = Texture.CompressionCacheId;
 	OutBuildSettings.bUseNewMipFilter = Texture.bUseNewMipFilter;
+	OutBuildSettings.bNormalizeNormals = Texture.bNormalizeNormals && Texture.IsNormalMap();
 	OutBuildSettings.bComputeBokehAlpha = (Texture.LODGroup == TEXTUREGROUP_Bokeh);
 	OutBuildSettings.bReplicateAlpha = false;
 	OutBuildSettings.bReplicateRed = false;

@@ -568,6 +568,8 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 			uint8* pInTexelsSwap = pInTexels + (y * InStride);
 			for (int x = 0; x < pInImage->SizeX; ++x)
 			{
+				// @@CB inconsistent : ISPCTexcomp is normalizing normals but nobody else does
+				//	 should remove this and do it at the TextureCompressorModule level so its consistent
 				FVector Normal = FVector(pInTexelsSwap[2] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[1] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[0] / 255.0f * 2.0f - 1.0f);
 				Normal = Normal.GetSafeNormal();
 				pInTexelsSwap[0] = 0;
@@ -589,6 +591,8 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 			uint8* pInTexelsSwap = pInTexels + (y * InStride);
 			for (int x = 0; x < pInImage->SizeX; ++x)
 			{
+				// @@CB inconsistent : ISPCTexcomp is normalizing normals but nobody else does
+				//	 should remove this and do it at the TextureCompressorModule level so its consistent
 				FVector Normal = FVector(pInTexelsSwap[2] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[1] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[0] / 255.0f * 2.0f - 1.0f);
 				Normal = Normal.GetSafeNormal();
 				pInTexelsSwap[0] = FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f);

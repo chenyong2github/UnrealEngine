@@ -1327,6 +1327,9 @@ public:
 	uint8 SRGB:1;
 
 #if WITH_EDITORONLY_DATA
+	/* Should Normals in Normal Maps be normalized after mip processing?  true gives better quality normals, but false is required to match legacy behavior. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="Normalize after making mips", EditCondition="CompressionSettings==1"), AdvancedDisplay)
+	uint8 bNormalizeNormals:1;
 
 	/** A flag for using the simplified legacy gamma space e.g pow(color,1/2.2) for converting from FColor to FLinearColor, if we're doing sRGB. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="sRGB Use Legacy Gamma", EditCondition="SRGB"), AdvancedDisplay)

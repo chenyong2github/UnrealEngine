@@ -137,6 +137,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	//	but it's hard to change now because of UPROPERTY writing deltas to default
 	CompositePower = 1.0f;
 	bUseLegacyGamma = false;
+	bNormalizeNormals = false;
 	bIsImporting = false;
 	bCustomPropertiesImported = false;
 	bDoScaleMipsForAlphaCoverage = false;
@@ -811,9 +812,9 @@ void UTexture::Serialize(FArchive& Ar)
 		Source.EnsureBlocksAreSorted();
 
 		if (Ar.UEVer() < VER_UE4_TEXTURE_LEGACY_GAMMA)
-	{
-		bUseLegacyGamma = true;
-	}
+		{
+			bUseLegacyGamma = true;
+		}
 	}
 
 	if (Ar.IsCooking() && VirtualTextureStreaming)

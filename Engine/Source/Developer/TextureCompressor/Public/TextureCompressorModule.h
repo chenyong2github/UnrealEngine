@@ -87,6 +87,8 @@ struct FTextureBuildSettings
 	FVector4f AlphaCoverageThresholds;
 	/** Use newer & faster mip generation filter */
 	bool bUseNewMipFilter;
+	/** Normalize normals after mip gen, before compression */
+	bool bNormalizeNormals;
 	/** The desired amount of mip sharpening. */
 	float MipSharpening;
 	/** For angular filtered cubemaps, the mip level which contains convolution with the diffuse cosine lobe. */
@@ -231,6 +233,7 @@ struct FTextureBuildSettings
 		: bDoScaleMipsForAlphaCoverage(false)
 		, AlphaCoverageThresholds(0, 0, 0, 0)
 		, bUseNewMipFilter(false)
+		, bNormalizeNormals(false)
 		, MipSharpening(0.0f)
 		, DiffuseConvolveMipLevel(0)
 		, SharpenMipKernelSize(2)
