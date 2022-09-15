@@ -322,7 +322,7 @@ public:
 		}
 
 
-		//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
+		//Note: This logic needs to stay in sync with UseDefaultMaterialForShadowDepth!
 		return (Parameters.MaterialParameters.bIsSpecialEngineMaterial
 			// Masked and WPO materials need their shaders but cannot be used with a position only stream.
 			|| ((!Parameters.MaterialParameters.bWritesEveryPixelShadowPass || Parameters.MaterialParameters.bMaterialMayModifyMeshPosition) && !bUsePositionOnlyStream))
@@ -440,7 +440,7 @@ public:
 
 		bool bModeRequiresPS = ShaderMode == PixelShadowDepth_PerspectiveCorrect || ShaderMode == PixelShadowDepth_VirtualShadowMap;
 
-		//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
+		//Note: This logic needs to stay in sync with UseDefaultMaterialForShadowDepth!
 		return (Parameters.MaterialParameters.bIsSpecialEngineMaterial
 			// Only compile for masked or lit translucent materials
 			|| !Parameters.MaterialParameters.bWritesEveryPixelShadowPass
@@ -487,42 +487,48 @@ IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_OnePassPointLight);
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_VirtualShadowMap);
 
 /**
-* Overrides a material used for shadow depth rendering with the default material when appropriate.
-* Overriding in this manner can reduce state switches and the number of shaders that have to be compiled.
-* This logic needs to stay in sync with shadow depth shader ShouldCache logic.
-*/
-void OverrideWithDefaultMaterialForShadowDepth(
-	const FMaterialRenderProxy*& InOutMaterialRenderProxy,
-	const FMaterial*& InOutMaterialResource,
-	ERHIFeatureLevel::Type InFeatureLevel)
+ * Check if default material can be used for shadow depth rendering 
+ * Overriding in this manner can reduce state switches and the number of shaders that have to be compiled.
+ * This logic needs to stay in sync with shadow depth shader ShouldCache logic.
+ */
+static bool UseDefaultMaterialForShadowDepth(
+	const FMaterial& Material,
+	bool MaterialModifiesMeshPosition)
 {
-	// Override with the default material when possible.
-	if (InOutMaterialResource->WritesEveryPixel(true) &&						// Don't override masked materials.
-		!InOutMaterialResource->MaterialModifiesMeshPosition_RenderThread())	// Don't override materials using world position offset.
-	{
-		const FMaterialRenderProxy* DefaultProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		const FMaterial* DefaultMaterialResource = DefaultProxy->GetMaterialNoFallback(InFeatureLevel);
-		check(DefaultMaterialResource);
-
-		// Override with the default material for opaque materials that don't modify mesh position.
-		InOutMaterialRenderProxy = DefaultProxy;
-		InOutMaterialResource = DefaultMaterialResource;
-	}
+	const bool bShadowPass = true;
+	return (Material.WritesEveryPixel(bShadowPass) &&
+		!MaterialModifiesMeshPosition);
 }
 
 bool GetShadowDepthPassShaders(
 	const FMaterial& Material,
-	const FVertexFactory* VertexFactory,
+	const FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	bool bDirectionalLight,
-	bool bOnePassPointLightShadow,
-	bool bPositionOnlyVS,
-	bool bUsePerspectiveCorrectShadowDepths,
-	bool bVirtualShadowMap,
+	FShadowDepthType ShadowDepthType,
+	bool bSupportsPositionAndNormalOnlyStream,
+	bool bMaterialModifiesMeshPosition,
+	EMeshPass::Type MeshPassType,
 	TShaderRef<FShadowDepthVS>& VertexShader,
 	TShaderRef<FShadowDepthBasePS>& PixelShader)
 {
-	const FVertexFactoryType* VFType = VertexFactory->GetType();
+	const bool bPositionOnlyVS =
+		bSupportsPositionAndNormalOnlyStream
+		&& Material.WritesEveryPixel(true)
+		&& !bMaterialModifiesMeshPosition;
+
+	// Use perspective correct shadow depths for shadow types which typically render low poly meshes into the shadow depth buffer.
+	// Depth will be interpolated to the pixel shader and written out, which disables HiZ and double speed Z.
+	// Directional light shadows use an ortho projection and can use the non-perspective correct path without artifacts.
+	// One pass point lights don't output a linear depth, so they are already perspective correct.
+	bool bUsePerspectiveCorrectShadowDepths = !ShadowDepthType.bDirectionalLight && !ShadowDepthType.bOnePassPointLightShadow;
+	bool bOnePassPointLightShadow = ShadowDepthType.bOnePassPointLightShadow;
+
+	bool bVirtualShadowMap = MeshPassType == EMeshPass::VSMShadowDepth;
+	if (bVirtualShadowMap)
+	{
+		bUsePerspectiveCorrectShadowDepths = false;
+		bOnePassPointLightShadow = false;
+	}
 
 	FMaterialShaderTypes ShaderTypes;
 
@@ -580,7 +586,7 @@ bool GetShadowDepthPassShaders(
 	}
 
 	// Pixel shaders
-	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bVirtualShadowMap && VertexFactory->SupportsNullPixelShader();
+	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bVirtualShadowMap && VertexFactoryType->SupportsNullPixelShader();
 	if (!bNullPixelShader)
 	{
 		if (bVirtualShadowMap)
@@ -602,7 +608,7 @@ bool GetShadowDepthPassShaders(
 	}
 
 	FMaterialShaders Shaders;
-	if (!Material.TryGetShaders(ShaderTypes, VFType, Shaders))
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
 	{
 		return false;
 	}
@@ -615,15 +621,6 @@ bool GetShadowDepthPassShaders(
 /*-----------------------------------------------------------------------------
 FProjectedShadowInfo
 -----------------------------------------------------------------------------*/
-
-static void CheckShadowDepthMaterials(const FMaterialRenderProxy* InRenderProxy, const FMaterial* InMaterial, ERHIFeatureLevel::Type InFeatureLevel)
-{
-	const FMaterialRenderProxy* RenderProxy = InRenderProxy;
-	const FMaterial* Material = InMaterial;
-	OverrideWithDefaultMaterialForShadowDepth(RenderProxy, Material, InFeatureLevel);
-	check(RenderProxy == InRenderProxy);
-	check(Material == InMaterial);
-}
 
 void FProjectedShadowInfo::ClearDepth(FRHICommandList& RHICmdList) const
 {
@@ -1924,6 +1921,82 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	bShadowDepthRenderCompleted = true;
 }
 
+ERasterizerCullMode SetupShadowCullMode(
+	ERHIFeatureLevel::Type FeatureLevel, 
+	EMeshPass::Type MeshPassTargetType, 
+	FShadowDepthType ShadowDepthType, 
+	const FMaterial& Material, 
+	const ERasterizerCullMode MeshCullMode,
+	bool bCastShadowAsTwoSided)
+{
+	const bool bTwoSided = Material.IsTwoSided() || bCastShadowAsTwoSided;
+
+	const bool bRenderSceneTwoSided = bTwoSided;
+	const bool bShadowReversesCulling = MeshPassTargetType == EMeshPass::VSMShadowDepth ? false : ShadowDepthType.bOnePassPointLightShadow;
+	const bool bReverseCullMode = bShadowReversesCulling;
+
+	return bRenderSceneTwoSided ? CM_None : bReverseCullMode ? FMeshPassProcessor::InverseCullMode(MeshCullMode) : MeshCullMode;
+}
+
+void FShadowDepthPassMeshProcessor::CollectPSOInitializersInternal(
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT MaterialResource,
+	const FShadowDepthType& InShadowDepthType,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	bool bSupportsPositionAndNormalOnlyStream,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	TMeshProcessorShaders<
+		FShadowDepthVS,
+		FShadowDepthBasePS> ShadowDepthPassShaders;
+	if (!GetShadowDepthPassShaders(
+		MaterialResource,
+		VertexFactoryType,
+		FeatureLevel,
+		InShadowDepthType,
+		bSupportsPositionAndNormalOnlyStream,
+		MaterialResource.MaterialModifiesMeshPosition_GameThread(),
+		MeshPassTargetType,
+		ShadowDepthPassShaders.VertexShader,
+		ShadowDepthPassShaders.PixelShader))
+	{
+		return;
+	}
+
+	const bool bUsePositionOnlyVS =
+		bSupportsPositionAndNormalOnlyStream
+		&& MaterialResource.WritesEveryPixel(true)
+		&& !MaterialResource.MaterialModifiesMeshPosition_GameThread();
+	
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;	
+	if (MeshPassType != EMeshPass::VSMShadowDepth)
+	{
+		ETextureCreateFlags ShadowMapCreateFlags = TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
+		ShadowMapCreateFlags |= GFastVRamConfig.ShadowPointLight;
+		if (InShadowDepthType.bOnePassPointLightShadow)
+		{
+			ShadowMapCreateFlags |= TexCreate_NoFastClear;
+		}
+
+		RenderTargetsInfo.NumSamples = 1;
+		SetupDepthStencilInfo(PF_ShadowDepth, ShadowMapCreateFlags, ERenderTargetLoadAction::ELoad,
+			ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop, RenderTargetsInfo);
+	}
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		MaterialResource,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		ShadowDepthPassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		PT_TriangleList,
+		bUsePositionOnlyVS ? EMeshPassFeatures::PositionAndNormalOnly : EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
 bool FShadowDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
@@ -1939,35 +2012,14 @@ bool FShadowDepthPassMeshProcessor::Process(
 	TMeshProcessorShaders<
 		FShadowDepthVS,
 		FShadowDepthBasePS> ShadowDepthPassShaders;
-
-	const bool bUsePositionOnlyVS =
-		   VertexFactory->SupportsPositionAndNormalOnlyStream()
-		&& MaterialResource.WritesEveryPixel(true)
-		&& !MaterialResource.MaterialModifiesMeshPosition_RenderThread();
-
-	// Use perspective correct shadow depths for shadow types which typically render low poly meshes into the shadow depth buffer.
-	// Depth will be interpolated to the pixel shader and written out, which disables HiZ and double speed Z.
-	// Directional light shadows use an ortho projection and can use the non-perspective correct path without artifacts.
-	// One pass point lights don't output a linear depth, so they are already perspective correct.
-	bool bUsePerspectiveCorrectShadowDepths = !ShadowDepthType.bDirectionalLight && !ShadowDepthType.bOnePassPointLightShadow;
-	bool bOnePassPointLightShadow = ShadowDepthType.bOnePassPointLightShadow;
-	
-	bool bVirtualShadowMap = MeshPassTargetType == EMeshPass::VSMShadowDepth;
-	if (bVirtualShadowMap)
-	{
-		bUsePerspectiveCorrectShadowDepths = false;
-		bOnePassPointLightShadow = false;
-	}
-
 	if (!GetShadowDepthPassShaders(
 		MaterialResource,
-		VertexFactory,
+		VertexFactory->GetType(),
 		FeatureLevel,
-		ShadowDepthType.bDirectionalLight,
-		bOnePassPointLightShadow,
-		bUsePositionOnlyVS,
-		bUsePerspectiveCorrectShadowDepths,
-		bVirtualShadowMap,
+		ShadowDepthType,
+		VertexFactory->SupportsPositionAndNormalOnlyStream(),
+		MaterialResource.MaterialModifiesMeshPosition_RenderThread(),
+		MeshPassTargetType,
 		ShadowDepthPassShaders.VertexShader,
 		ShadowDepthPassShaders.PixelShader))
 	{
@@ -1980,7 +2032,12 @@ bool FShadowDepthPassMeshProcessor::Process(
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(ShadowDepthPassShaders.VertexShader, ShadowDepthPassShaders.PixelShader);
 
 	const bool bUseGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) && VertexFactory->SupportsGPUScene(FeatureLevel);
-	
+
+	const bool bUsePositionOnlyVS =
+		VertexFactory->SupportsPositionAndNormalOnlyStream()
+		&& MaterialResource.WritesEveryPixel(true)
+		&& !MaterialResource.MaterialModifiesMeshPosition_RenderThread();
+
 	// Need to replicate for cube faces on host if GPU-scene is not available (for this draw).
 	const bool bPerformHostCubeFaceReplication = ShadowDepthType.bOnePassPointLightShadow && !bUseGpuSceneInstancing;
 	const uint32 InstanceFactor = bPerformHostCubeFaceReplication ? 6 : 1;
@@ -2021,19 +2078,8 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 
-	ERasterizerCullMode FinalCullMode;
-
-	{
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
-
-		const bool bTwoSided = Material.IsTwoSided() || PrimitiveSceneProxy->CastsShadowAsTwoSided();
-
-		const bool bRenderSceneTwoSided = bTwoSided;
-		const bool bShadowReversesCulling = MeshPassTargetType == EMeshPass::VSMShadowDepth ? false : ShadowDepthType.bOnePassPointLightShadow;
-		const bool bReverseCullMode = bShadowReversesCulling;
-
-		FinalCullMode = bRenderSceneTwoSided ? CM_None : bReverseCullMode ? InverseCullMode(MeshCullMode) : MeshCullMode;
-	}
+	const ERasterizerCullMode MeshCullMode = FMeshPassProcessor::ComputeMeshCullMode(Material, OverrideSettings);
+	ERasterizerCullMode FinalCullMode = SetupShadowCullMode(FeatureLevel, MeshPassTargetType, ShadowDepthType, Material, MeshCullMode, PrimitiveSceneProxy->CastsShadowAsTwoSided());
 
 	bool bResult = true;
 	if (bShouldCastShadow
@@ -2044,7 +2090,16 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 		const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
 		const FMaterial* EffectiveMaterial = &Material;
 
-		OverrideWithDefaultMaterialForShadowDepth(EffectiveMaterialRenderProxy, EffectiveMaterial, FeatureLevel);
+		if (UseDefaultMaterialForShadowDepth(Material, Material.MaterialModifiesMeshPosition_RenderThread()))
+		{
+			const FMaterialRenderProxy* DefaultProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			const FMaterial* DefaultMaterialResource = DefaultProxy->GetMaterialNoFallback(FeatureLevel);
+			check(DefaultMaterialResource);
+
+			// Override with the default material for opaque materials that don't modify mesh position.
+			EffectiveMaterialRenderProxy = DefaultProxy;
+			EffectiveMaterial = DefaultMaterialResource;
+		}
 
 		bResult = Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
 	}
@@ -2072,9 +2127,95 @@ void FShadowDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 	}
 }
 
+void FShadowDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	// Early out if possible
+	if (!Material.ShouldCastDynamicShadows() ||
+		!ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()) ||
+		!ShouldIncludeMaterialInDefaultOpaquePass(Material))
+	{
+		return;
+	}
+
+	// Are we currently collecting PSO's for the default material
+	if (Material.IsDefaultMaterial())
+	{
+		ERasterizerFillMode MeshFillMode = FM_Solid;
+		bool bCastShadowsAsTwoSided = false;
+
+		// Collect for each possible mesh cull mode	
+		CollectPSOInitializersForEachShadowDepthType(VertexFactoryType, Material, MeshFillMode, CM_None, bCastShadowsAsTwoSided, PSOInitializers);
+		CollectPSOInitializersForEachShadowDepthType(VertexFactoryType, Material, MeshFillMode, CM_CW, bCastShadowsAsTwoSided, PSOInitializers);
+		CollectPSOInitializersForEachShadowDepthType(VertexFactoryType, Material, MeshFillMode, CM_CCW, bCastShadowsAsTwoSided, PSOInitializers);
+	}
+	else if (PreCacheParams.bCastShadow && !UseDefaultMaterialForShadowDepth(Material, Material.MaterialModifiesMeshPosition_GameThread()))
+	{
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = FMeshPassProcessor::ComputeMeshCullMode(Material, OverrideSettings);
+		CollectPSOInitializersForEachShadowDepthType(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PreCacheParams.bCastShadowAsTwoSided, PSOInitializers);
+	}
+}
+
+void FShadowDepthPassMeshProcessor::CollectPSOInitializersForEachShadowDepthType(
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT Material,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	bool bCastShadowAsTwoSided,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	FShadowDepthType LocalShadowDepthType(true, false);
+
+	// Collect for directional shadows
+	{
+		LocalShadowDepthType.bDirectionalLight = true;
+		LocalShadowDepthType.bOnePassPointLightShadow = false;
+		ERasterizerCullMode FinalCullMode = SetupShadowCullMode(FeatureLevel, MeshPassTargetType, LocalShadowDepthType, Material, MeshCullMode, bCastShadowAsTwoSided);
+		CollectPSOInitializersForEachStreamSetup(VertexFactoryType, Material, LocalShadowDepthType, MeshFillMode, FinalCullMode, PSOInitializers);
+	}
+
+	// Collect for non-directional one pass point light shadows
+	{
+		LocalShadowDepthType.bDirectionalLight = false;
+		LocalShadowDepthType.bOnePassPointLightShadow = true;
+		ERasterizerCullMode FinalCullMode = SetupShadowCullMode(FeatureLevel, MeshPassTargetType, LocalShadowDepthType, Material, MeshCullMode, bCastShadowAsTwoSided);
+		CollectPSOInitializersForEachStreamSetup(VertexFactoryType, Material, LocalShadowDepthType, MeshFillMode, FinalCullMode, PSOInitializers);
+	}
+
+	// Collect for non-directional non-one pass point light shadows
+	{
+		LocalShadowDepthType.bDirectionalLight = false;
+		LocalShadowDepthType.bOnePassPointLightShadow = false;
+		ERasterizerCullMode FinalCullMode = SetupShadowCullMode(FeatureLevel, MeshPassTargetType, LocalShadowDepthType, Material, MeshCullMode, bCastShadowAsTwoSided);
+		CollectPSOInitializersForEachStreamSetup(VertexFactoryType, Material, LocalShadowDepthType, MeshFillMode, FinalCullMode, PSOInitializers);
+	}
+}
+
+void FShadowDepthPassMeshProcessor::CollectPSOInitializersForEachStreamSetup(
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT MaterialResource,
+	const FShadowDepthType& InShadowDepthType,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	SetStateForShadowDepth(InShadowDepthType.bOnePassPointLightShadow, InShadowDepthType.bDirectionalLight, PassDrawRenderState, MeshPassTargetType);
+
+	// Collect for when both use cases to be complete
+	// Ideally position and normal stream is always available or can be checked on VF to be always available to reduce PSO precache count
+	bool SupportsPositionAndNormalOnlyStream = true;
+	if (VertexFactoryType->SupportsPositionOnly())
+	{
+		CollectPSOInitializersInternal(VertexFactoryType, MaterialResource, InShadowDepthType, MeshFillMode, MeshCullMode, SupportsPositionAndNormalOnlyStream, PSOInitializers);
+	}
+	SupportsPositionAndNormalOnlyStream = false;
+	CollectPSOInitializersInternal(VertexFactoryType, MaterialResource, InShadowDepthType, MeshFillMode, MeshCullMode, SupportsPositionAndNormalOnlyStream, PSOInitializers);
+}
+
 FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	const FScene* Scene,
-	ERHIFeatureLevel::Type InFeatureLevel,
+	const ERHIFeatureLevel::Type InFeatureLevel,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FShadowDepthType InShadowDepthType,
 	FMeshPassDrawListContext* InDrawListContext,
@@ -2083,7 +2224,8 @@ FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	, ShadowDepthType(InShadowDepthType)
 	, MeshPassTargetType(InMeshPassTargetType)
 {
-	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
+	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
+	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
 	{
 		// set up mesh filtering.
 		MeshSelectionMask = MeshPassTargetType == EMeshPass::VSMShadowDepth ? EShadowMeshSelection::VSM : EShadowMeshSelection::SM;
@@ -2109,12 +2251,14 @@ FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(ERHIFeatureLevel::Type Fea
 		EMeshPass::CSMShadowDepth);
 }
 
-FRegisterPassProcessorCreateFunction RegisterCSMShadowDepthPass(&CreateCSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::CSMShadowDepth, EMeshPassFlags::CachedMeshCommands);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(CSMShadowDepthPass, CreateCSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::CSMShadowDepth, EMeshPassFlags::CachedMeshCommands);
 
 FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+
 	// Only create the mesh pass processor if VSMs are not enabled as this prevents wasting time caching the SM draw commands
-	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
+	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
 	{
 		return new FShadowDepthPassMeshProcessor(
 			Scene,
@@ -2127,7 +2271,6 @@ FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(ERHIFeatureLevel::Type Fea
 
 	return nullptr;
 }
-FRegisterPassProcessorCreateFunction RegisterVSMShadowDepthPass(&CreateVSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::VSMShadowDepth, EMeshPassFlags::CachedMeshCommands);
 
-
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(VSMShadowDepthPass, CreateVSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::VSMShadowDepth, EMeshPassFlags::CachedMeshCommands);
 FRegisterPassProcessorCreateFunction RegisterMobileCSMShadowDepthPass(&CreateCSMShadowDepthPassProcessor, EShadingPath::Mobile, EMeshPass::CSMShadowDepth, EMeshPassFlags::CachedMeshCommands);

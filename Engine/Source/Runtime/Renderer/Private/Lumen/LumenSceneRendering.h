@@ -77,6 +77,7 @@ struct FResampledCardCaptureAtlas
 };
 
 FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
+	ERHIFeatureLevel::Type FeatureLevel,
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext);

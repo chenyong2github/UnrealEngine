@@ -199,7 +199,7 @@ static bool IsTranslucencyWaitForTasksEnabled()
 	return IsParallelTranslucencyEnabled() && (CVarRHICmdFlushRenderThreadTasksTranslucentPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0);
 }
 
-static bool IsSeparateTranslucencyEnabled(ETranslucencyPass::Type TranslucencyPass, float DownsampleScale)
+bool IsSeparateTranslucencyEnabled(ETranslucencyPass::Type TranslucencyPass, float DownsampleScale)
 {
 	// Currently AfterDOF is rendered earlier in the frame and must be rendered in a separate texture.
 	if (TranslucencyPass == ETranslucencyPass::TPT_TranslucencyAfterDOF
@@ -724,6 +724,22 @@ void SetupPostMotionBlurTranslucencyViewParameters(const FViewInfo& View, FViewU
 	View.SetupUniformBufferParameters(ModifiedViewMatrices, ModifiedViewMatrices, VolumeBounds, TVC_MAX, Parameters);
 }
 
+const FRDGTextureDesc GetPostDOFTranslucentTextureDesc(
+	ETranslucencyPass::Type TranslucencyPass,
+	FSeparateTranslucencyDimensions& SeparateTranslucencyDimensions,
+	bool bIsModulate,
+	EShaderPlatform ShaderPlatform)
+{
+	const bool bNeedUAV = SeparateTranslucencyDimensions.NumSamples == 1 && OIT::IsEnabled(EOITSortingType::SortedPixels, ShaderPlatform);
+	return FRDGTextureDesc::Create2D(
+		SeparateTranslucencyDimensions.Extent,
+		bIsModulate ? PF_FloatR11G11B10 : PF_FloatRGBA,
+		bIsModulate ? FClearValueBinding::White : FClearValueBinding::Black,
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | (bNeedUAV ? TexCreate_UAV : TexCreate_None),
+		1,
+		SeparateTranslucencyDimensions.NumSamples);
+}
+
 FRDGTextureMSAA CreatePostDOFTranslucentTexture(
 	FRDGBuilder& GraphBuilder,
 	ETranslucencyPass::Type TranslucencyPass,
@@ -731,15 +747,7 @@ FRDGTextureMSAA CreatePostDOFTranslucentTexture(
 	bool bIsModulate,
 	EShaderPlatform ShaderPlatform)
 {
-	const bool bNeedUAV = SeparateTranslucencyDimensions.NumSamples == 1 && OIT::IsEnabled(EOITSortingType::SortedPixels, ShaderPlatform);
-	const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-		SeparateTranslucencyDimensions.Extent,
-		bIsModulate ? PF_FloatR11G11B10 : PF_FloatRGBA,
-		bIsModulate ? FClearValueBinding::White : FClearValueBinding::Black,
-		TexCreate_RenderTargetable | TexCreate_ShaderResource | (bNeedUAV ? TexCreate_UAV : TexCreate_None),
-		1,
-		SeparateTranslucencyDimensions.NumSamples);
-
+	const FRDGTextureDesc Desc = GetPostDOFTranslucentTextureDesc(TranslucencyPass, SeparateTranslucencyDimensions, bIsModulate, ShaderPlatform);
 	return CreateTextureMSAA(
 		GraphBuilder, Desc,
 		kTranslucencyColorTextureName[int32(TranslucencyPass)],

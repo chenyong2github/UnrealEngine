@@ -159,8 +159,9 @@ public:
 template <bool bPositionOnly>
 bool GetDepthPassShaders(
 	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
+	const FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
+	bool bMaterialUsesPixelDepthOffset,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
 	TShaderRef<FDepthOnlyPS>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline);
@@ -184,6 +185,7 @@ public:
 		const bool bShadowProjection = false);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 private:
 
@@ -200,6 +202,24 @@ private:
 		const FMaterial& RESTRICT MaterialResource,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode);
+
+	bool UseDefaultMaterial(const FMaterial& Material, bool bMaterialModifiesMeshPosition, bool bSupportPositionOnlyStream, bool& bPositionOnly);
+
+	void CollectDefaultMaterialPSOInitializers(
+		const FSceneTexturesConfig& SceneTexturesConfig, 
+		const FMaterial& Material, 
+		const FVertexFactoryType* VertexFactoryType, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
+
+	template<bool bPositionOnly>
+	void CollectPSOInitializersInternal(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		bool bDitheredLODTransition, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 

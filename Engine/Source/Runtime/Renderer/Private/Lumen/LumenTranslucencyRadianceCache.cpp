@@ -53,7 +53,7 @@ namespace Lumen
 		return GLumenTranslucencyRadianceCacheReflections != 0 && View.Family->EngineShowFlags.LumenReflections;
 	}
 
-	bool ShouldRenderInTranslucencyRadianceCacheMarkPass(const FPrimitiveSceneProxy& PrimitiveSceneProxy, const FMaterial& Material)
+	bool ShouldRenderInTranslucencyRadianceCacheMarkPass(bool bShouldRenderInMainPass, const FMaterial& Material)
 	{
 		const EBlendMode BlendMode = Material.GetBlendMode();
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
@@ -61,7 +61,7 @@ namespace Lumen
 
 		return bIsTranslucent
 			&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
-			&& PrimitiveSceneProxy.ShouldRenderInMainPass()
+			&& bShouldRenderInMainPass
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain());
 	}
 }
@@ -123,13 +123,14 @@ public:
 	FLumenTranslucencyRadianceCacheMarkMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
 bool GetLumenTranslucencyRadianceCacheMarkShaders(
 	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
+	const FVertexFactoryType* VertexFactoryType,
 	TShaderRef<FLumenTranslucencyRadianceCacheMarkVS>& VertexShader,
 	TShaderRef<FLumenTranslucencyRadianceCacheMarkPS>& PixelShader)
 {
@@ -157,7 +158,7 @@ bool CanMaterialRenderInLumenTranslucencyRadianceCacheMarkPass(
 	const FSceneView* View = ViewFamily.Views[0];
 	check(View);
 
-	return ShouldRenderLumenDiffuseGI(&Scene, *View) && Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(PrimitiveSceneProxy, Material);	
+	return ShouldRenderLumenDiffuseGI(&Scene, *View) && Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(PrimitiveSceneProxy.ShouldRenderInMainPass(), Material);
 }
 
 void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
@@ -178,7 +179,7 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 			{
 				auto TryAddMeshBatch = [this](const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material) -> bool
 				{
-					if (Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(*PrimitiveSceneProxy, Material))
+					if (Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(PrimitiveSceneProxy->ShouldRenderInMainPass(), Material))
 					{
 						const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 						FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
@@ -233,6 +234,46 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 	}
 }
 
+void FLumenTranslucencyRadianceCacheMarkMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+	
+	if (PreCacheParams.bRenderInMainPass && !Lumen::ShouldRenderInTranslucencyRadianceCacheMarkPass(PreCacheParams.bRenderInMainPass, Material))
+	{
+		return;
+	}
+
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+	TMeshProcessorShaders<
+		FLumenTranslucencyRadianceCacheMarkVS,
+		FLumenTranslucencyRadianceCacheMarkPS> PassShaders;
+
+	if (!GetLumenTranslucencyRadianceCacheMarkShaders(
+		Material,
+		VertexFactoryType,
+		PassShaders.VertexShader,
+		PassShaders.PixelShader))
+	{
+		return;
+	}
+
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		Material,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		PassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		(EPrimitiveType)PreCacheParams.PrimitiveType,
+		EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
 FLumenTranslucencyRadianceCacheMarkMeshProcessor::FLumenTranslucencyRadianceCacheMarkMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(EMeshPass::LumenTranslucencyRadianceCacheMark, Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
@@ -252,7 +293,7 @@ FMeshPassProcessor* CreateLumenTranslucencyRadianceCacheMarkPassProcessor(ERHIFe
 	return new FLumenTranslucencyRadianceCacheMarkMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterLumenTranslucencyRadianceCacheMarkPass(&CreateLumenTranslucencyRadianceCacheMarkPassProcessor, EShadingPath::Deferred, EMeshPass::LumenTranslucencyRadianceCacheMark, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenTranslucencyRadianceCacheMarkPass, CreateLumenTranslucencyRadianceCacheMarkPassProcessor, EShadingPath::Deferred, EMeshPass::LumenTranslucencyRadianceCacheMark, EMeshPassFlags::MainView);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)

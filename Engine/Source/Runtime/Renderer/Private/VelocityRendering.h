@@ -34,6 +34,9 @@ struct FVelocityRendering
 {
 	/** Returns the texture format for the velocity buffer. */
 	static EPixelFormat GetFormat(EShaderPlatform ShaderPlatform);
+
+	/** Returns the texture create flags for the velocity buffer. */
+	static ETextureCreateFlags GetCreateFlags(EShaderPlatform ShaderPlatform);
 	
 	/** Returns the render target description for the velocity buffer. */
 	static FRDGTextureDesc GetRenderTargetDesc(EShaderPlatform ShaderPlatform, FIntPoint Extent);
@@ -83,6 +86,14 @@ protected:
 		const FMaterial& RESTRICT MaterialResource,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode);
+
+	void CollectPSOInitializersInternal(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		TArray<FPSOPrecacheData>& PSOInitializers);
 };
 
 /**
@@ -100,6 +111,7 @@ public:
 
 	/** Returns true if the object is capable of having velocity for any frame. */
 	static bool PrimitiveCanHaveVelocity(EShaderPlatform ShaderPlatform, const FPrimitiveSceneProxy* PrimitiveSceneProxy);
+	static bool PrimitiveCanHaveVelocity(EShaderPlatform ShaderPlatform, bool bDrawVelocity, bool bHasStaticLighting);
 
 	/** Returns true if the primitive has velocity for the current frame. */
 	static bool PrimitiveHasVelocityForFrame(const FPrimitiveSceneProxy* PrimitiveSceneProxy);
@@ -118,6 +130,13 @@ private:
 		uint64 BatchElementMask,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		int32 StaticMeshId = -1) override final;
+
+	virtual void CollectPSOInitializers(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FMaterial& Material,
+		const FVertexFactoryType* VertexFactoryType,
+		const FPSOPrecacheParams& PreCacheParams,
+		TArray<FPSOPrecacheData>& PSOInitializers) override final;
 };
 
 /**
@@ -154,4 +173,11 @@ private:
 		uint64 BatchElementMask,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		int32 StaticMeshId = -1) override final;
+
+	virtual void CollectPSOInitializers(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FMaterial& Material, 
+		const FVertexFactoryType* VertexFactoryType, 
+		const FPSOPrecacheParams& PreCacheParams,
+		TArray<FPSOPrecacheData>& PSOInitializers) override final;
 };

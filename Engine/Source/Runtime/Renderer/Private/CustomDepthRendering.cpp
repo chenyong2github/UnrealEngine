@@ -48,7 +48,7 @@ ECustomDepthPassLocation GetCustomDepthPassLocation(EShaderPlatform Platform)
 
 ECustomDepthMode GetCustomDepthMode()
 {
-	switch (CVarCustomDepth.GetValueOnRenderThread())
+	switch (CVarCustomDepth.GetValueOnAnyThread())
 	{
 	case 1: // Fallthrough.
 	case 2: return ECustomDepthMode::Enabled;
@@ -212,6 +212,7 @@ public:
 	FCustomDepthPassMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 private:
 	bool TryAddMeshBatch(
@@ -232,6 +233,22 @@ private:
 		const FMaterial& RESTRICT MaterialResource,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode);
+
+	bool UseDefaultMaterial(const FMaterial& Material, bool bMaterialModifiesMeshPosition, bool bSupportPositionOnlyStream, bool& bPositionOnly);
+
+	void CollectDefaultMaterialPSOInitializers(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FMaterial& Material,
+		const FVertexFactoryType* VertexFactoryType,
+		TArray<FPSOPrecacheData>& PSOInitializers);
+
+	template<bool bPositionOnly>
+	void CollectPSOInitializers(
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
@@ -264,25 +281,10 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 	}
 }
 
-bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
-	const FMeshBatch& RESTRICT MeshBatch,
-	uint64 BatchElementMask,
-	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
-	int32 StaticMeshId,
-	const FMaterialRenderProxy& MaterialRenderProxy,
-	const FMaterial& Material)
+FRHIDepthStencilState* GetCustomDepthStencilState(bool bWriteCustomStencilValues, EStencilMask StencilWriteMask)
 {
-	// Determine the mesh's material and blend mode.
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil();
-
 	if (bWriteCustomStencilValues)
 	{
-		const uint32 CustomDepthStencilValue = PrimitiveSceneProxy->GetCustomDepthStencilValue();
 		static FRHIDepthStencilState* StencilStates[EStencilMask::SM_Count] =
 		{
 			TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace, false, CF_Always, SO_Keep, SO_Keep, SO_Keep, 255, 255>::GetRHI(),
@@ -297,44 +299,85 @@ bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
 			TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Replace, SO_Replace, false, CF_Always, SO_Keep, SO_Keep, SO_Keep, 255, 128>::GetRHI()
 		};
 		checkSlow(EStencilMask::SM_Count == UE_ARRAY_COUNT(StencilStates));
-
-		PassDrawRenderState.SetDepthStencilState(StencilStates[(int32)PrimitiveSceneProxy->GetStencilWriteMask()]);
-		PassDrawRenderState.SetStencilRef(CustomDepthStencilValue);
+		return StencilStates[(int32)StencilWriteMask];
 	}
 	else
 	{
-		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+		return TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
 	}
+}
 
-	bool bResult = true;
+bool FCustomDepthPassMeshProcessor::UseDefaultMaterial(const FMaterial& Material, bool bMaterialModifiesMeshPosition, bool bSupportPositionOnlyStream, bool& bPositionOnly)
+{
+	bool bUseDefaultMaterial = false;
+
+	const EBlendMode BlendMode = Material.GetBlendMode();
 	if (BlendMode == BLEND_Opaque
-		&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
-		&& !Material.MaterialModifiesMeshPosition_RenderThread()
+		&& bSupportPositionOnlyStream
+		&& !bMaterialModifiesMeshPosition
 		&& Material.WritesEveryPixel())
 	{
-		const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
-		bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode);
+		bUseDefaultMaterial = true;
+		bPositionOnly = true;
 	}
 	else if (!IsTranslucentBlendMode(BlendMode) || Material.IsTranslucencyWritingCustomDepth())
 	{
 		const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
-
-		const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
-		const FMaterial* EffectiveMaterial = &Material;
-
-		if (!bMaterialMasked && !Material.MaterialModifiesMeshPosition_RenderThread())
+		if (!bMaterialMasked && !bMaterialModifiesMeshPosition)
 		{
-			// Override with the default material for opaque materials that are not two sided
-			EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-			EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-			check(EffectiveMaterial);
+			bUseDefaultMaterial = true;
+			bPositionOnly = false;
 		}
-
-		bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 	}
 
-	return bResult;
+	return bUseDefaultMaterial;
+}
+
+bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material)
+{
+	// Setup the depth stencil state
+	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil();
+	PassDrawRenderState.SetDepthStencilState(GetCustomDepthStencilState(bWriteCustomStencilValues, PrimitiveSceneProxy->GetStencilWriteMask()));
+	if (bWriteCustomStencilValues)
+	{
+		const uint32 CustomDepthStencilValue = PrimitiveSceneProxy->GetCustomDepthStencilValue();
+		PassDrawRenderState.SetStencilRef(CustomDepthStencilValue);
+	}
+
+	// Using default material?
+	bool bPositionOnly = false;
+	bool bUseDefaultMaterial = UseDefaultMaterial(Material, Material.MaterialModifiesMeshPosition_RenderThread(), MeshBatch.VertexFactory->SupportsPositionOnlyStream(), bPositionOnly);
+
+	// Swap to default material
+	const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
+	const FMaterial* EffectiveMaterial = &Material;
+	if (bUseDefaultMaterial)
+	{
+		// Override with the default material
+		EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+		check(EffectiveMaterial);
+	}
+
+	// Get the fill & cull mode
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+	if (bPositionOnly)
+	{
+		return Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
+	}
+	else
+	{
+		return Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
+	}
 }
 
 template<bool bPositionOnly>
@@ -359,6 +402,7 @@ bool FCustomDepthPassMeshProcessor::Process(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
+		MaterialResource.MaterialUsesPixelDepthOffset_RenderThread(),
 		DepthPassShaders.VertexShader,
 		DepthPassShaders.PixelShader,
 		ShaderPipeline
@@ -389,10 +433,114 @@ bool FCustomDepthPassMeshProcessor::Process(
 	return true;
 }
 
+void FCustomDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	// Setup the depth stencil state to use
+	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil();
+	PassDrawRenderState.SetDepthStencilState(GetCustomDepthStencilState(bWriteCustomStencilValues, PreCacheParams.GetStencilWriteMask()));
+
+	// Are we currently collecting PSO's for the default material
+	if (Material.IsDefaultMaterial())
+	{		
+		CollectDefaultMaterialPSOInitializers(SceneTexturesConfig, Material, VertexFactoryType, PSOInitializers);
+		return;
+	}
+
+	// assume we can always do this when collecting PSO's for now (vertex factory instance might actually not support it)
+	bool bSupportPositionOnlyStream = VertexFactoryType->SupportsPositionOnly();
+
+	bool bPositionOnly = false;
+	bool bUseDefaultMaterial = UseDefaultMaterial(Material, Material.MaterialModifiesMeshPosition_GameThread(), bSupportPositionOnlyStream, bPositionOnly);
+	if (!bUseDefaultMaterial)
+	{
+		check(!bPositionOnly);
+
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+		CollectPSOInitializers<false>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+	}
+}
+
+void FCustomDepthPassMeshProcessor::CollectDefaultMaterialPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig, 
+	const FMaterial& Material, 
+	const FVertexFactoryType* VertexFactoryType, 
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	const ERasterizerFillMode MeshFillMode = FM_Solid;
+
+	// TODO: Should do this for each stencil write mask?
+	
+	// Collect PSOs for all possible default material combinations
+	{
+		ERasterizerCullMode MeshCullMode = CM_None;
+		CollectPSOInitializers<true>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+		CollectPSOInitializers<false>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+	}
+	{
+		ERasterizerCullMode MeshCullMode = CM_CW;
+		CollectPSOInitializers<true>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+		CollectPSOInitializers<false>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+	}
+	{
+		ERasterizerCullMode MeshCullMode = CM_CCW;
+		CollectPSOInitializers<true>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+		CollectPSOInitializers<false>(VertexFactoryType, Material, MeshFillMode, MeshCullMode, PSOInitializers);
+	}
+}
+
+template<bool bPositionOnly>
+void FCustomDepthPassMeshProcessor::CollectPSOInitializers(
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT MaterialResource,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode, 
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	TMeshProcessorShaders<
+		TDepthOnlyVS<bPositionOnly>,
+		FDepthOnlyPS> DepthPassShaders;
+
+	FShaderPipelineRef ShaderPipeline;
+	if (!GetDepthPassShaders<bPositionOnly>(
+		MaterialResource,
+		VertexFactoryType,
+		FeatureLevel,
+		MaterialResource.MaterialUsesPixelDepthOffset_GameThread(),
+		DepthPassShaders.VertexShader,
+		DepthPassShaders.PixelShader,
+		ShaderPipeline
+		))
+	{
+		return;
+	}
+
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	RenderTargetsInfo.NumSamples = 1;
+
+	ETextureCreateFlags CustomDepthStencilCreateFlags = GFastVRamConfig.CustomDepth | TexCreate_NoFastClear | TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
+	SetupDepthStencilInfo(PF_DepthStencil, CustomDepthStencilCreateFlags, ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite, RenderTargetsInfo);
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		MaterialResource,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		DepthPassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		PT_TriangleList,
+		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
 FMeshPassProcessor* CreateCustomDepthPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	return new FCustomDepthPassMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterCustomDepthPass(&CreateCustomDepthPassProcessor, EShadingPath::Deferred, EMeshPass::CustomDepth, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(RegisterCustomDepthPass, CreateCustomDepthPassProcessor, EShadingPath::Deferred, EMeshPass::CustomDepth, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterMobileCustomDepthPass(&CreateCustomDepthPassProcessor, EShadingPath::Mobile, EMeshPass::CustomDepth, EMeshPassFlags::MainView);

@@ -851,6 +851,28 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 	}
 }
 
+bool GetDistortionPassShaders(
+	const FMaterial& Material,
+	const FVertexFactoryType* VertexFactoryType,
+	ERHIFeatureLevel::Type FeatureLevel,
+	TShaderRef<FDistortionMeshVS>& VertexShader,
+	TShaderRef<FDistortionMeshPS>& PixelShader)
+{
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<FDistortionMeshVS>();
+	ShaderTypes.AddShaderType<FDistortionMeshPS>();
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetVertexShader(VertexShader);
+	Shaders.TryGetPixelShader(PixelShader);
+	return true;
+}
+
 void FDistortionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	if (MeshBatch.bUseForMaterial)
@@ -872,6 +894,63 @@ void FDistortionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 	}
 }
 
+static bool ShouldDraw(const FMaterial& Material)
+{
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	return (bIsTranslucent
+		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+		&& Material.IsDistorted());
+}
+
+void FDistortionMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	if (!ShouldDraw(Material))
+	{
+		return;
+	}
+
+	TMeshProcessorShaders<
+		FDistortionMeshVS,
+		FDistortionMeshPS> DistortionPassShaders;
+	if (!GetDistortionPassShaders(
+		Material,
+		VertexFactoryType,
+		FeatureLevel,
+		DistortionPassShaders.VertexShader,
+		DistortionPassShaders.PixelShader))
+	{
+		return;
+	}
+
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+		
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	RenderTargetsInfo.NumSamples = 1;
+	AddRenderTargetInfo(CVarRefractionOffsetQuality.GetValueOnAnyThread() > 0 ? PF_FloatRGBA : PF_B8G8R8A8, GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource, RenderTargetsInfo);
+	if (GetUseRoughRefraction())
+	{
+		AddRenderTargetInfo(PF_R16F, GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource, RenderTargetsInfo);
+	}
+	ETextureCreateFlags DepthStencilCreateFlags = SceneTexturesConfig.DepthCreateFlags;
+	SetupDepthStencilInfo(PF_DepthStencil, DepthStencilCreateFlags, ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite, RenderTargetsInfo);
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		Material,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		DistortionPassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		(EPrimitiveType)PreCacheParams.PrimitiveType,
+		EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
 bool FDistortionMeshProcessor::TryAddMeshBatch(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
@@ -880,45 +959,18 @@ bool FDistortionMeshProcessor::TryAddMeshBatch(
 	const FMaterialRenderProxy& MaterialRenderProxy,
 	const FMaterial& Material)
 {
-	// Determine the mesh's material and blend mode.
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-
 	bool bResult = true;
-	if (bIsTranslucent
-		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
-		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-		&& Material.IsDistorted())
+	if (ShouldDraw(Material)
+		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass()))
 	{
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
 		bResult = Process(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, MaterialRenderProxy, Material, MeshFillMode, MeshCullMode);
 	}
 
 	return bResult;
-}
-
-bool GetDistortionPassShaders(
-	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
-	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FDistortionMeshVS>& VertexShader,
-	TShaderRef<FDistortionMeshPS>& PixelShader)
-{
-	FMaterialShaderTypes ShaderTypes;
-	ShaderTypes.AddShaderType<FDistortionMeshVS>();
-	ShaderTypes.AddShaderType<FDistortionMeshPS>();
-
-	FMaterialShaders Shaders;
-	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
-	{
-		return false;
-	}
-
-	Shaders.TryGetVertexShader(VertexShader);
-	Shaders.TryGetPixelShader(PixelShader);
-	return true;
 }
 
 bool FDistortionMeshProcessor::Process(
@@ -1039,5 +1091,5 @@ FMeshPassProcessor* CreateMobileDistortionPassProcessor(ERHIFeatureLevel::Type F
 	return new FDistortionMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassState, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterDistortionPass(&CreateDistortionPassProcessor, EShadingPath::Deferred, EMeshPass::Distortion, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(DistortionPass, CreateDistortionPassProcessor, EShadingPath::Deferred, EMeshPass::Distortion, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterMobileDistortionPass(&CreateMobileDistortionPassProcessor, EShadingPath::Mobile, EMeshPass::Distortion, EMeshPassFlags::MainView);

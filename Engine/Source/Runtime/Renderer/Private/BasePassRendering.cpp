@@ -80,6 +80,15 @@ static TAutoConsoleVariable<int32> CVarClearGBufferDBeforeBasePass(
 	TEXT("Whether to clear GBuffer D before basepass"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarPSOPrecacheLightMapPolicyMode(
+	TEXT("r.PSOPrecache.LightMapPolicyMode"),
+	0,
+	TEXT("Defines which light map policies should be checked during PSO precaching of the base pass.\n") \
+	TEXT(" 0: All possible LMP will be checked (default).\n") \
+	TEXT(" 1: Only LMP_NO_LIGHTMAP will be precached.\n"),
+	ECVF_ReadOnly
+);
+
 // Scene color alpha is used during scene captures and planar reflections.  1 indicates background should be shown, 0 indicates foreground is fully present.
 static const float kSceneColorClearAlpha = 1.0f;
 
@@ -359,25 +368,16 @@ FMeshDrawCommandSortKey CalculateBasePassMeshStaticSortKey(EDepthDrawingMode Ear
 }
 
 void SetDepthStencilStateForBasePass(
-	const FSceneView* ViewIfDynamicMeshCommand,
 	FMeshPassProcessorRenderState& DrawRenderState,
 	ERHIFeatureLevel::Type FeatureLevel,
-	const FMeshBatch& Mesh,
-	int32 StaticMeshId,
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	bool bDitheredLODTransition,
 	const FMaterial& MaterialResource,
-	bool bEnableReceiveDecalOutput)
+	bool bEnableReceiveDecalOutput,
+	bool bForceEnableStencilDitherState)
 {
-	const bool bMaskedInEarlyPass = (MaterialResource.IsMasked() || Mesh.bDitheredLODTransition) && MaskedInEarlyPass(GShaderPlatformForFeatureLevel[FeatureLevel]);
-
+	const bool bMaskedInEarlyPass = (MaterialResource.IsMasked() || bDitheredLODTransition) && MaskedInEarlyPass(GShaderPlatformForFeatureLevel[FeatureLevel]);
 	if (bEnableReceiveDecalOutput)
 	{
-		// Set stencil value for this draw call
-		// This is effectively extending the GBuffer using the stencil bits
-		const uint8 StencilValue = GET_STENCIL_BIT_MASK(RECEIVE_DECAL, PrimitiveSceneProxy ? !!PrimitiveSceneProxy->ReceivesDecals() : 0x00)
-			| GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, PrimitiveSceneProxy ? PrimitiveSceneProxy->HasDistanceFieldRepresentation() : 0x00)
-			| STENCIL_LIGHTING_CHANNELS_MASK(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetLightingChannelStencilValue() : 0x00);
-
 		if (bMaskedInEarlyPass)
 		{
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
@@ -386,7 +386,6 @@ void SetDepthStencilStateForBasePass(
 				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 				0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
 			>::GetRHI());
-			DrawRenderState.SetStencilRef(StencilValue);
 		}
 		else if (DrawRenderState.GetDepthStencilAccess() & FExclusiveDepthStencil::DepthWrite)
 		{
@@ -396,7 +395,6 @@ void SetDepthStencilStateForBasePass(
 				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 				0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
 			>::GetRHI());
-			DrawRenderState.SetStencilRef(StencilValue);
 		}
 		else
 		{
@@ -406,7 +404,6 @@ void SetDepthStencilStateForBasePass(
 				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 				0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
 			>::GetRHI());
-			DrawRenderState.SetStencilRef(StencilValue);
 		}
 	}
 	else if (bMaskedInEarlyPass)
@@ -414,26 +411,15 @@ void SetDepthStencilStateForBasePass(
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
 	}
 
-	if (ViewIfDynamicMeshCommand && StaticMeshId >= 0 && Mesh.bDitheredLODTransition)
+	if (bForceEnableStencilDitherState)
 	{
-		checkSlow(ViewIfDynamicMeshCommand->bIsViewInfo);
-		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(ViewIfDynamicMeshCommand);
-
-		if (ViewInfo->bAllowStencilDither)
-		{
-			if (ViewInfo->StaticMeshFadeOutDitheredLODMap[StaticMeshId] || ViewInfo->StaticMeshFadeInDitheredLODMap[StaticMeshId])
-			{
-				const uint32 RestoreStencilRef = DrawRenderState.GetStencilRef();
-				DrawRenderState.SetDepthStencilState(
-					TStaticDepthStencilState<
-					false, CF_Equal,
-					true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
-					>::GetRHI());
-				DrawRenderState.SetStencilRef(RestoreStencilRef);
-			}
-		}
+		DrawRenderState.SetDepthStencilState(
+			TStaticDepthStencilState<
+			false, CF_Equal,
+			true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
+			>::GetRHI());
 	}
 }
 
@@ -479,7 +465,7 @@ void SetupBasePassState(FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 template <ELightMapPolicyType Policy>
 bool GetUniformBasePassShaders(
 	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
+	const FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
@@ -526,7 +512,7 @@ bool GetUniformBasePassShaders(
 template <>
 bool GetBasePassShaders<FUniformLightMapPolicy>(
 	const FMaterial& Material, 
-	FVertexFactoryType* VertexFactoryType, 
+	const FVertexFactoryType* VertexFactoryType, 
 	FUniformLightMapPolicy LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
@@ -1354,6 +1340,112 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 }
 
 template<typename LightMapPolicyType>
+void FBasePassMeshProcessor::CollectPSOInitializersForLMPolicy(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT MaterialResource,
+	EBlendMode BlendMode,
+	FMaterialShadingModelField ShadingModels,
+	const bool bRenderSkylight,
+	const bool bDitheredLODTransition,
+	const LightMapPolicyType& RESTRICT LightMapPolicy,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	EPrimitiveType PrimitiveType, 
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	// Get the shaders if possible for given vertex factory
+	TMeshProcessorShaders<
+		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
+		TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> BasePassShaders;
+	if (!GetBasePassShaders<LightMapPolicyType>(
+		MaterialResource,
+		VertexFactoryType,
+		LightMapPolicy,
+		FeatureLevel,
+		bRenderSkylight,
+		Get128BitRequirement(),
+		&BasePassShaders.VertexShader,
+		&BasePassShaders.PixelShader
+		))
+	{
+		return;
+	}
+
+	// Generate multiple PSO's for LOD transition support? Have to check runtime hit for this?
+	// Could do it only when hint is given from the PSOPrecacheParams
+	bool bForceEnableStencilDitherState = false;
+
+	// Setup the draw state
+	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
+	SetDepthStencilStateForBasePass(
+		DrawRenderState,
+		FeatureLevel,
+		bDitheredLODTransition,
+		MaterialResource,
+		bEnableReceiveDecalOutput,
+		bForceEnableStencilDitherState);
+	if (bTranslucentBasePass)
+	{
+		SetTranslucentRenderState(DrawRenderState, MaterialResource, GShaderPlatformForFeatureLevel[FeatureLevel], TranslucencyPassType);
+	}
+
+	// Setup the render target info for basepass
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	RenderTargetsInfo.NumSamples = 1;
+
+	// If translucent use different render target setup (see FDeferredShadingSceneRenderer::RenderTranslucencyInner)
+	if (bTranslucentBasePass)
+	{
+		// Extent & scale is not important for PSOs
+		FSeparateTranslucencyDimensions SeparateTranslucencyDimensions;
+		SeparateTranslucencyDimensions.NumSamples = RenderTargetsInfo.NumSamples;
+
+		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+		const float DownsampleScale = 1.0;
+		const bool bIsModulate = TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate;
+		const bool bDepthTest = TranslucencyPassType != ETranslucencyPass::TPT_TranslucencyAfterMotionBlur;
+		const bool bRenderInSeparateTranslucency = IsSeparateTranslucencyEnabled(TranslucencyPassType, SeparateTranslucencyDimensions.Scale);
+
+		if (bRenderInSeparateTranslucency)
+		{
+			const FRDGTextureDesc TextureDesc = GetPostDOFTranslucentTextureDesc(TranslucencyPassType, SeparateTranslucencyDimensions, bIsModulate, ShaderPlatform);
+			AddRenderTargetInfo(TextureDesc.Format, TextureDesc.Flags, RenderTargetsInfo);
+		}
+		else
+		{
+			EPixelFormat SceneColorFormat = SceneTexturesConfig.ColorFormat;
+			ETextureCreateFlags SceneColorCreateFlags = SceneTexturesConfig.ColorCreateFlags;
+			AddRenderTargetInfo(SceneColorFormat, SceneColorCreateFlags, RenderTargetsInfo);
+		}
+
+		if (bDepthTest)
+		{
+			ETextureCreateFlags DepthStencilCreateFlags = SceneTexturesConfig.DepthCreateFlags;
+			SetupDepthStencilInfo(PF_DepthStencil, DepthStencilCreateFlags, ERenderTargetLoadAction::ELoad,
+				ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite, RenderTargetsInfo);
+		}
+	}
+	else
+	{
+		// Regular base pass with gbuffer bindings
+		SetupGBufferRenderTargetInfo(SceneTexturesConfig, RenderTargetsInfo, true /*bSetupDepthStencil*/);
+	}
+		
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		MaterialResource,
+		DrawRenderState,
+		RenderTargetsInfo,
+		BasePassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		PrimitiveType,
+		EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
+template<typename LightMapPolicyType>
 bool FBasePassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
@@ -1393,15 +1485,37 @@ bool FBasePassMeshProcessor::Process(
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
+	bool bForceEnableStencilDitherState = false;
+	if (ViewIfDynamicMeshCommand && StaticMeshId >= 0 && MeshBatch.bDitheredLODTransition)
+	{
+		checkSlow(ViewIfDynamicMeshCommand->bIsViewInfo);
+		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(ViewIfDynamicMeshCommand);
+		if (ViewInfo->bAllowStencilDither)
+		{
+			if (ViewInfo->StaticMeshFadeOutDitheredLODMap[StaticMeshId] || ViewInfo->StaticMeshFadeInDitheredLODMap[StaticMeshId])
+			{
+				bForceEnableStencilDitherState = true;
+			}
+		}
+	}
+
 	SetDepthStencilStateForBasePass(
-		ViewIfDynamicMeshCommand,
 		DrawRenderState,
 		FeatureLevel,
-		MeshBatch,
-		StaticMeshId,
-		PrimitiveSceneProxy,
+		MeshBatch.bDitheredLODTransition,
 		MaterialResource,
-		bEnableReceiveDecalOutput);
+		bEnableReceiveDecalOutput,
+		bForceEnableStencilDitherState);
+	
+	if (bEnableReceiveDecalOutput)
+	{
+		// Set stencil value for this draw call
+		// This is effectively extending the GBuffer using the stencil bits
+		const uint8 StencilValue = GET_STENCIL_BIT_MASK(RECEIVE_DECAL, PrimitiveSceneProxy ? !!PrimitiveSceneProxy->ReceivesDecals() : 0x00)
+			| GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, PrimitiveSceneProxy ? PrimitiveSceneProxy->HasDistanceFieldRepresentation() : 0x00)
+			| STENCIL_LIGHTING_CHANNELS_MASK(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetLightingChannelStencilValue() : 0x00);
+		DrawRenderState.SetStencilRef(StencilValue);
+	}
 
 	if (bTranslucentBasePass)
 	{
@@ -1464,22 +1578,17 @@ void FBasePassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, 
 bool AllowStaticLighting()
 {
 	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-	return (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
+	return (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 }
 
-bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
+bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 {
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
-	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
-
+	
 	bool bShouldDraw = false;
-
 	if (bTranslucentBasePass)
 	{
 		if (bIsTranslucent && !Material.IsDeferredDecal())
@@ -1499,9 +1608,9 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly;
 				break;
 
-			// only dual blended or modulate surfaces need background modulation
+				// only dual blended or modulate surfaces need background modulation
 			case ETranslucencyPass::TPT_TranslucencyAfterDOFModulate:
-				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || 
+				bShouldDraw = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel))  || 
 					BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly);
 				break;
 
@@ -1520,6 +1629,21 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 		bShouldDraw = !bIsTranslucent;
 	}
 
+	return bShouldDraw;
+}
+
+bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
+{
+	// Determine the mesh's material and blend mode.
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+	bool bShouldDraw = ShouldDraw(Material);
+
 	// Only draw opaque materials.
 	bool bResult = true;
 	if (bShouldDraw
@@ -1534,10 +1658,6 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 		const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
 			? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel)
 			: FLightMapInteraction();
-
-		// force LQ lightmaps based on system settings
-		const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
-		const bool bAllowHighQualityLightMaps = bPlatformAllowsHighQualityLightMaps && LightMapInteraction.AllowsHighQualityLightmaps();
 
 		const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
 		const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
@@ -1619,203 +1739,274 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 		}
 		else
 		{
-			static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
-			const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
-
-			switch (LightMapInteraction.GetType())
-			{
-			case LMIT_Texture:
-				if (bAllowHighQualityLightMaps)
-				{
-					const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-						? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
-						: FShadowMapInteraction();
-
-					if (ShadowMapInteraction.GetType() == SMIT_Texture)
-					{
-						bResult = Process< FUniformLightMapPolicy >(
-							MeshBatch,
-							BatchElementMask,
-							StaticMeshId,
-							PrimitiveSceneProxy,
-							MaterialRenderProxy,
-							Material,
-							BlendMode,
-							ShadingModels,
-							FUniformLightMapPolicy(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP),
-							MeshBatch.LCI,
-							MeshFillMode,
-							MeshCullMode);
-					}
-					else
-					{
-						bResult = Process< FUniformLightMapPolicy >(
-							MeshBatch,
-							BatchElementMask,
-							StaticMeshId,
-							PrimitiveSceneProxy,
-							MaterialRenderProxy,
-							Material,
-							BlendMode,
-							ShadingModels,
-							FUniformLightMapPolicy(LMP_HQ_LIGHTMAP),
-							MeshBatch.LCI,
-							MeshFillMode,
-							MeshCullMode);
-					}
-				}
-				else if (bAllowLowQualityLightMaps)
-				{
-					bResult = Process< FUniformLightMapPolicy >(
-						MeshBatch,
-						BatchElementMask,
-						StaticMeshId,
-						PrimitiveSceneProxy,
-						MaterialRenderProxy,
-						Material,
-						BlendMode,
-						ShadingModels,
-						FUniformLightMapPolicy(LMP_LQ_LIGHTMAP),
-						MeshBatch.LCI,
-						MeshFillMode,
-						MeshCullMode);
-				}
-				else
-				{
-					bResult = Process< FUniformLightMapPolicy >(
-						MeshBatch,
-						BatchElementMask,
-						StaticMeshId,
-						PrimitiveSceneProxy,
-						MaterialRenderProxy,
-						Material,
-						BlendMode,
-						ShadingModels,
-						FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
-						MeshBatch.LCI,
-						MeshFillMode,
-						MeshCullMode);
-				}
-				break;
-			default:
-				if (bIsLitMaterial
-					&& bAllowStaticLighting
-					&& bUseVolumetricLightmap
-					&& PrimitiveSceneProxy
-					&& (PrimitiveSceneProxy->IsMovable()
-						|| PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting()
-						|| PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
-				{
-					bResult = Process< FUniformLightMapPolicy >(
-						MeshBatch,
-						BatchElementMask,
-						StaticMeshId,
-						PrimitiveSceneProxy,
-						MaterialRenderProxy,
-						Material,
-						BlendMode,
-						ShadingModels,
-						FUniformLightMapPolicy(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING),
-						MeshBatch.LCI,
-						MeshFillMode,
-						MeshCullMode);
-				}
-				else if (bIsLitMaterial
-					&& IsIndirectLightingCacheAllowed(FeatureLevel)
-					&& Scene
-					&& Scene->PrecomputedLightVolumes.Num() > 0
-					&& PrimitiveSceneProxy)
-				{
-					const FIndirectLightingCacheAllocation* IndirectLightingCacheAllocation = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->IndirectLightingCacheAllocation;
-					const bool bPrimitiveIsMovable = PrimitiveSceneProxy->IsMovable();
-					const bool bPrimitiveUsesILC = PrimitiveSceneProxy->GetIndirectLightingCacheQuality() != ILCQ_Off;
-
-					// Use the indirect lighting cache shaders if the object has a cache allocation
-					// This happens for objects with unbuilt lighting
-					if (bPrimitiveUsesILC &&
-						((IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
-							// Use the indirect lighting cache shaders if the object is movable, it may not have a cache allocation yet because that is done in InitViews
-							// And movable objects are sometimes rendered in the static draw lists
-							|| bPrimitiveIsMovable))
-					{
-						if (CanIndirectLightingCacheUseVolumeTexture(FeatureLevel)
-							// Translucency forces point sample for pixel performance
-							&& !bIsTranslucent
-							&& ((IndirectLightingCacheAllocation && !IndirectLightingCacheAllocation->bPointSample)
-								|| (bPrimitiveIsMovable && PrimitiveSceneProxy->GetIndirectLightingCacheQuality() == ILCQ_Volume)))
-						{
-							// Use a lightmap policy that supports reading indirect lighting from a volume texture for dynamic objects
-							bResult = Process< FUniformLightMapPolicy >(
-								MeshBatch,
-								BatchElementMask,
-								StaticMeshId,
-								PrimitiveSceneProxy,
-								MaterialRenderProxy,
-								Material,
-								BlendMode,
-								ShadingModels,
-								FUniformLightMapPolicy(LMP_CACHED_VOLUME_INDIRECT_LIGHTING),
-								MeshBatch.LCI,
-								MeshFillMode,
-								MeshCullMode);
-						}
-						else
-						{
-							// Use a lightmap policy that supports reading indirect lighting from a single SH sample
-							bResult = Process< FUniformLightMapPolicy >(
-								MeshBatch,
-								BatchElementMask,
-								StaticMeshId,
-								PrimitiveSceneProxy,
-								MaterialRenderProxy,
-								Material,
-								BlendMode,
-								ShadingModels,
-								FUniformLightMapPolicy(LMP_CACHED_POINT_INDIRECT_LIGHTING),
-								MeshBatch.LCI,
-								MeshFillMode,
-								MeshCullMode);
-						}
-					}
-					else
-					{
-						bResult = Process< FUniformLightMapPolicy >(
-							MeshBatch,
-							BatchElementMask,
-							StaticMeshId,
-							PrimitiveSceneProxy,
-							MaterialRenderProxy,
-							Material,
-							BlendMode,
-							ShadingModels,
-							FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
-							MeshBatch.LCI,
-							MeshFillMode,
-							MeshCullMode);
-					}
-				}
-				else
-				{
-					bResult = Process< FUniformLightMapPolicy >(
-						MeshBatch,
-						BatchElementMask,
-						StaticMeshId,
-						PrimitiveSceneProxy,
-						MaterialRenderProxy,
-						Material,
-						BlendMode,
-						ShadingModels,
-						FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
-						MeshBatch.LCI,
-						MeshFillMode,
-						MeshCullMode);
-				}
-				break;
-			};
+			ELightMapPolicyType UniformLightMapPolicyType = GetUniformLightMapPolicyType(MeshBatch, PrimitiveSceneProxy, Material);
+			bResult = Process< FUniformLightMapPolicy >(
+				MeshBatch,
+				BatchElementMask,
+				StaticMeshId,
+				PrimitiveSceneProxy,
+				MaterialRenderProxy,
+				Material,
+				BlendMode,
+				ShadingModels,
+				FUniformLightMapPolicy(UniformLightMapPolicyType),
+				MeshBatch.LCI,
+				MeshFillMode,
+				MeshCullMode);
 		}
 	}
 
 	return bResult;
+}
+
+ELightMapPolicyType FBasePassMeshProcessor::GetUniformLightMapPolicyType(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial& Material)
+{
+	// Check for a cached light-map.
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+	const bool bIsLitMaterial = ShadingModels.IsLit();
+	const bool bAllowStaticLighting = AllowStaticLighting();
+
+	const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
+		? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel)
+		: FLightMapInteraction();
+
+	// force LQ lightmaps based on system settings
+	const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
+	const bool bAllowHighQualityLightMaps = bPlatformAllowsHighQualityLightMaps && LightMapInteraction.AllowsHighQualityLightmaps();
+
+	const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
+	const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
+
+	static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
+	const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
+
+	ELightMapPolicyType LightMapPolicyType = LMP_DUMMY;
+	switch (LightMapInteraction.GetType())
+	{
+	case LMIT_Texture:
+		if (bAllowHighQualityLightMaps)
+		{
+			const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
+				? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
+				: FShadowMapInteraction();
+
+			if (ShadowMapInteraction.GetType() == SMIT_Texture)
+			{
+				LightMapPolicyType = LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP;
+			}
+			else
+			{
+				LightMapPolicyType = LMP_HQ_LIGHTMAP;
+			}
+		}
+		else if (bAllowLowQualityLightMaps)
+		{
+			LightMapPolicyType = LMP_LQ_LIGHTMAP;
+		}
+		else
+		{
+			LightMapPolicyType = LMP_NO_LIGHTMAP;
+		}
+		break;
+	default:
+		if (bIsLitMaterial
+			&& bAllowStaticLighting
+			&& bUseVolumetricLightmap
+			&& PrimitiveSceneProxy
+			&& (PrimitiveSceneProxy->IsMovable()
+				|| PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting()
+				|| PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
+		{
+			LightMapPolicyType = LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING;
+		}
+		else if (bIsLitMaterial
+			&& IsIndirectLightingCacheAllowed(FeatureLevel)
+			&& Scene
+			&& Scene->PrecomputedLightVolumes.Num() > 0
+			&& PrimitiveSceneProxy)
+		{
+			const FIndirectLightingCacheAllocation* IndirectLightingCacheAllocation = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->IndirectLightingCacheAllocation;
+			const bool bPrimitiveIsMovable = PrimitiveSceneProxy->IsMovable();
+			const bool bPrimitiveUsesILC = PrimitiveSceneProxy->GetIndirectLightingCacheQuality() != ILCQ_Off;
+
+			// Use the indirect lighting cache shaders if the object has a cache allocation
+			// This happens for objects with unbuilt lighting
+			if (bPrimitiveUsesILC &&
+				((IndirectLightingCacheAllocation && IndirectLightingCacheAllocation->IsValid())
+					// Use the indirect lighting cache shaders if the object is movable, it may not have a cache allocation yet because that is done in InitViews
+					// And movable objects are sometimes rendered in the static draw lists
+					|| bPrimitiveIsMovable))
+			{
+				if (CanIndirectLightingCacheUseVolumeTexture(FeatureLevel)
+					// Translucency forces point sample for pixel performance
+					&& !bIsTranslucent
+					&& ((IndirectLightingCacheAllocation && !IndirectLightingCacheAllocation->bPointSample)
+						|| (bPrimitiveIsMovable && PrimitiveSceneProxy->GetIndirectLightingCacheQuality() == ILCQ_Volume)))
+				{
+					// Use a lightmap policy that supports reading indirect lighting from a volume texture for dynamic objects
+					LightMapPolicyType = LMP_CACHED_VOLUME_INDIRECT_LIGHTING;
+				}
+				else
+				{
+					// Use a lightmap policy that supports reading indirect lighting from a single SH sample
+					LightMapPolicyType = LMP_CACHED_POINT_INDIRECT_LIGHTING;
+				}
+			}
+			else
+			{
+				LightMapPolicyType = LMP_NO_LIGHTMAP;
+			}
+		}
+		else
+		{
+			LightMapPolicyType = LMP_NO_LIGHTMAP;
+		}
+		break;
+	};
+
+	check(LightMapPolicyType != LMP_DUMMY);
+
+	return LightMapPolicyType;
+}
+
+
+void FBasePassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	// Check if material should be rendered
+	bool bShouldDraw = ShouldDraw(Material)
+		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+		&& ShouldIncludeMaterialInDefaultOpaquePass(Material);
+	if (!bShouldDraw || !PreCacheParams.bRenderInMainPass)
+	{
+		return;
+	}
+
+	// Determine the mesh's material and blend mode.
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+	bool bMovable = PreCacheParams.Mobility == EComponentMobility::Movable || PreCacheParams.Mobility == EComponentMobility::Stationary;
+	bool bDitheredLODTransition = !bMovable && Material.IsDitheredLODTransition() && !PreCacheParams.bForceLODModel;
+	
+	{
+		bool bRenderSkyLight = true; // generate for both skylight enabled/disabled? Or can this be known already at this point?
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition, MeshFillMode, MeshCullMode, (EPrimitiveType)PreCacheParams.PrimitiveType, PSOInitializers);
+		bRenderSkyLight = false;
+		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition, MeshFillMode, MeshCullMode, (EPrimitiveType)PreCacheParams.PrimitiveType, PSOInitializers);
+	}
+}
+
+void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT Material,
+	EBlendMode BlendMode,
+	FMaterialShadingModelField ShadingModels,
+	const bool bRenderSkyLight,
+	const bool bDitheredLODTransition,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	EPrimitiveType PrimitiveType, 
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsLitMaterial = ShadingModels.IsLit();
+	const bool bAllowStaticLighting = AllowStaticLighting();
+
+	const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
+	static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
+	const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
+
+	// Retrieve those values or have as global precache params?
+	const bool bAllowIndirectLightingCache = true;// Scene&& Scene->PrecomputedLightVolumes.Num() > 0;
+	const bool bUseVolumetricLightmap = true;// Scene&& Scene->VolumetricLightmapSceneData.HasData();
+
+	static const auto CVarSupportLightMapPolicyMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PSOPrecache.LightMapPolicyMode"));
+	const bool bNoLightMapOnlyMode = (CVarSupportLightMapPolicyMode && CVarSupportLightMapPolicyMode->GetValueOnGameThread() == 1);
+
+	if (!bNoLightMapOnlyMode && bIsLitMaterial && bIsTranslucent)
+	{
+		if (bAllowStaticLighting && bUseVolumetricLightmap)
+		{
+			CollectPSOInitializersForLMPolicy< FSelfShadowedVolumetricLightmapPolicy >(
+				SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+				FSelfShadowedVolumetricLightmapPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
+		}
+
+		if (IsIndirectLightingCacheAllowed(FeatureLevel) && bAllowIndirectLightingCache)
+		{
+			CollectPSOInitializersForLMPolicy< FSelfShadowedCachedPointIndirectLightingPolicy >(
+				SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+				FSelfShadowedCachedPointIndirectLightingPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
+		}
+
+		CollectPSOInitializersForLMPolicy< FSelfShadowedTranslucencyPolicy >(
+			SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+			FSelfShadowedTranslucencyPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
+	}
+
+	TArray<ELightMapPolicyType> UniformLightMapPolicyTypes;
+
+	// always add the fallback no lightmap mode
+	UniformLightMapPolicyTypes.Add(LMP_NO_LIGHTMAP);
+
+	if (!bNoLightMapOnlyMode)
+	{
+		// Simplified version of GetUniformLightMapPolicyType with worst case to collect all types which could be enabled at runtime	
+
+		// LightMapInterationType::LMIT_Texture
+		{
+			if (bPlatformAllowsHighQualityLightMaps)
+			{
+				// EShadowMapInteractionType::SMIT_Texture
+				if (bAllowStaticLighting && bIsLitMaterial)
+				{
+					UniformLightMapPolicyTypes.Add(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP);
+				}
+				// else
+				{
+					UniformLightMapPolicyTypes.Add(LMP_HQ_LIGHTMAP);
+				}
+			}
+			if (bAllowLowQualityLightMaps)
+			{
+				UniformLightMapPolicyTypes.Add(LMP_LQ_LIGHTMAP);
+			}
+		}
+		// else LightMapInterationType
+		{
+			if (bIsLitMaterial && bAllowStaticLighting && bUseVolumetricLightmap)
+			{
+				UniformLightMapPolicyTypes.Add(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING);
+			}
+
+			if (IsIndirectLightingCacheAllowed(FeatureLevel) && bAllowIndirectLightingCache)
+			{
+				if (CanIndirectLightingCacheUseVolumeTexture(FeatureLevel)
+					// Translucency forces point sample for pixel performance
+					&& !bIsTranslucent)
+				{
+					UniformLightMapPolicyTypes.Add(LMP_CACHED_VOLUME_INDIRECT_LIGHTING);
+				}
+				// else
+				{
+					UniformLightMapPolicyTypes.Add(LMP_CACHED_POINT_INDIRECT_LIGHTING);
+				}
+			}
+		}
+	}
+
+	for (ELightMapPolicyType LightMapPolicyType : UniformLightMapPolicyTypes)
+	{
+		CollectPSOInitializersForLMPolicy< FUniformLightMapPolicy >(
+			SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+			FUniformLightMapPolicy(LightMapPolicyType), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
+	}
 }
 
 FBasePassMeshProcessor::FBasePassMeshProcessor(
@@ -1839,8 +2030,10 @@ FBasePassMeshProcessor::FBasePassMeshProcessor(
 
 FMeshPassProcessor* CreateBasePassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
+	const FExclusiveDepthStencil::Type DefaultBasePassDepthStencilAccess = FScene::GetDefaultBasePassDepthStencilAccess(FeatureLevel);
+	
 	FMeshPassProcessorRenderState PassDrawRenderState;
-	SetupBasePassState(Scene->DefaultBasePassDepthStencilAccess, false, PassDrawRenderState);
+	SetupBasePassState(DefaultBasePassDepthStencilAccess, false, PassDrawRenderState);
 
 	const FBasePassMeshProcessor::EFlags Flags = FBasePassMeshProcessor::EFlags::CanUseDepthStencil;
 
@@ -1910,7 +2103,7 @@ FMeshPassProcessor* CreateTranslucencyAllPassProcessor(ERHIFeatureLevel::Type Fe
 
 FRegisterPassProcessorCreateFunction RegisterBasePass(&CreateBasePassProcessor, EShadingPath::Deferred, EMeshPass::BasePass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyStandardPass(&CreateTranslucencyStandardPassProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyStandard, EMeshPassFlags::MainView);
-FRegisterPassProcessorCreateFunction RegisterTranslucencyStandardModulatePass(&CreateTranslucencyStandardModulatePassProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyStandardModulate, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(TranslucencyStandardModulatePass, CreateTranslucencyStandardModulatePassProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyStandardModulate, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyAfterDOFPass(&CreateTranslucencyAfterDOFProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyAfterDOF, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyAfterDOFModulatePass(&CreateTranslucencyAfterDOFModulateProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyAfterDOFModulate, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterTranslucencyAfterMotionBlurPass(&CreateTranslucencyAfterMotionBlurProcessor, EShadingPath::Deferred, EMeshPass::TranslucencyAfterMotionBlur, EMeshPassFlags::MainView);

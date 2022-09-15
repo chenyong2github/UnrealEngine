@@ -154,8 +154,9 @@ static FORCEINLINE bool UseShaderPipelines(ERHIFeatureLevel::Type InFeatureLevel
 template <bool bPositionOnly>
 bool GetDepthPassShaders(
 	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
+	const FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
+	bool bMaterialUsesPixelDepthOffset,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
 	TShaderRef<FDepthOnlyPS>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline)
@@ -174,7 +175,7 @@ bool GetDepthPassShaders(
 	}
 	else
 	{
-		const bool bNeedsPixelShader = !Material.WritesEveryPixel() || Material.MaterialUsesPixelDepthOffset_RenderThread() || Material.IsTranslucencyWritingCustomDepth();
+		const bool bNeedsPixelShader = !Material.WritesEveryPixel() || bMaterialUsesPixelDepthOffset || Material.IsTranslucencyWritingCustomDepth();
 		if (bNeedsPixelShader)
 		{
 			ShaderTypes.AddShaderType<FDepthOnlyPS>();
@@ -201,8 +202,9 @@ bool GetDepthPassShaders(
 #define IMPLEMENT_GetDepthPassShaders( bPositionOnly ) \
 	template bool GetDepthPassShaders< bPositionOnly >( \
 		const FMaterial& Material, \
-		FVertexFactoryType* VertexFactoryType, \
+		const FVertexFactoryType* VertexFactoryType, \
 		ERHIFeatureLevel::Type FeatureLevel, \
+		bool bMaterialUsesPixelDepthOffset, \
 		TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader, \
 		TShaderRef<FDepthOnlyPS>& PixelShader, \
 		FShaderPipelineRef& ShaderPipeline \
@@ -210,6 +212,15 @@ bool GetDepthPassShaders(
 
 IMPLEMENT_GetDepthPassShaders( true );
 IMPLEMENT_GetDepthPassShaders( false );
+
+FDepthStencilStateRHIRef GetDitheredLODTransitionDepthStencilState()
+{
+	return TStaticDepthStencilState<true, CF_DepthNearOrEqual,
+		true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+		STENCIL_SANDBOX_MASK, STENCIL_SANDBOX_MASK
+		>::GetRHI();
+}
 
 void SetDepthPassDitheredLODTransitionState(const FSceneView* SceneView, const FMeshBatch& RESTRICT Mesh, int32 StaticMeshId, FMeshPassProcessorRenderState& DrawRenderState)
 {
@@ -222,22 +233,12 @@ void SetDepthPassDitheredLODTransitionState(const FSceneView* SceneView, const F
 		{
 			if (ViewInfo->StaticMeshFadeOutDitheredLODMap[StaticMeshId])
 			{
-				DrawRenderState.SetDepthStencilState(
-					TStaticDepthStencilState<true, CF_DepthNearOrEqual,
-					true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					STENCIL_SANDBOX_MASK, STENCIL_SANDBOX_MASK
-					>::GetRHI());
+				DrawRenderState.SetDepthStencilState(GetDitheredLODTransitionDepthStencilState());
 				DrawRenderState.SetStencilRef(STENCIL_SANDBOX_MASK);
 			}
 			else if (ViewInfo->StaticMeshFadeInDitheredLODMap[StaticMeshId])
 			{
-				DrawRenderState.SetDepthStencilState(
-					TStaticDepthStencilState<true, CF_DepthNearOrEqual,
-					true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					STENCIL_SANDBOX_MASK, STENCIL_SANDBOX_MASK
-					>::GetRHI());
+				DrawRenderState.SetDepthStencilState(GetDitheredLODTransitionDepthStencilState());
 			}
 		}
 	}
@@ -361,7 +362,7 @@ static void AddViewMeshElementsPass(const TIndirectArray<FMeshBatch>& MeshElemen
 		[&View, Scene, DrawRenderState, &MeshElements, bRespectUseAsOccluderFlag, DepthDrawingMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 		{
 			FDepthPassMeshProcessor PassMeshProcessor(
-				EMeshPass::Num,
+				EMeshPass::DepthPass,
 				View.Family->Scene->GetRenderScene(),
 				View.GetFeatureLevel(),
 				&View,
@@ -409,7 +410,7 @@ static void RenderPrePassEditorPrimitives(
 			DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				FDepthPassMeshProcessor PassMeshProcessor(
-					EMeshPass::Num,
+					EMeshPass::DepthPass,
 					View.Family->Scene->GetRenderScene(),
 					View.GetFeatureLevel(),
 					&View,
@@ -435,7 +436,7 @@ static void RenderPrePassEditorPrimitives(
 			DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				FDepthPassMeshProcessor PassMeshProcessor(
-					EMeshPass::Num,
+					EMeshPass::DepthPass,
 					View.Family->Scene->GetRenderScene(),
 					View.GetFeatureLevel(),
 					&View,
@@ -744,6 +745,7 @@ bool FDepthPassMeshProcessor::Process(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
+		MaterialResource.MaterialUsesPixelDepthOffset_RenderThread(),
 		DepthPassShaders.VertexShader,
 		DepthPassShaders.PixelShader,
 		ShaderPipeline))
@@ -786,49 +788,129 @@ bool FDepthPassMeshProcessor::Process(
 	return true;
 }
 
+template<bool bPositionOnly>
+void FDepthPassMeshProcessor::CollectPSOInitializersInternal(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT MaterialResource,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	bool bDitheredLODTransition, 
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	TMeshProcessorShaders<
+		TDepthOnlyVS<bPositionOnly>,
+		FDepthOnlyPS> DepthPassShaders;
+
+	FShaderPipelineRef ShaderPipeline;
+
+	if (!GetDepthPassShaders<bPositionOnly>(
+		MaterialResource,
+		VertexFactoryType,
+		FeatureLevel,
+		MaterialResource.MaterialUsesPixelDepthOffset_GameThread(),
+		DepthPassShaders.VertexShader,
+		DepthPassShaders.PixelShader,
+		ShaderPipeline))
+	{
+		return;
+	}
+
+	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
+
+	// If bDitheredLODTransition option is set, then swap to that depth stencil state (see logic in SetDepthPassDitheredLODTransitionState())
+	if (!bDitheredLODFadingOutMaskPass && !bShadowProjection && bDitheredLODTransition)
+	{
+		DrawRenderState.SetDepthStencilState(GetDitheredLODTransitionDepthStencilState());
+	}
+
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	RenderTargetsInfo.NumSamples = 1;
+
+	ETextureCreateFlags DepthStencilCreateFlags = SceneTexturesConfig.DepthCreateFlags;
+	SetupDepthStencilInfo(PF_DepthStencil, DepthStencilCreateFlags, ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite, RenderTargetsInfo);
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		MaterialResource,
+		DrawRenderState,
+		RenderTargetsInfo,
+		DepthPassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		PT_TriangleList,
+		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
+bool FDepthPassMeshProcessor::UseDefaultMaterial(const FMaterial& Material, bool bMaterialModifiesMeshPosition, bool bSupportPositionOnlyStream, bool& bPositionOnly)
+{
+	bool bUseDefaultMaterial = false;
+
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	if (BlendMode == BLEND_Opaque
+		&& EarlyZPassMode != DDM_MaskedOnly
+		&& bSupportPositionOnlyStream
+		&& !bMaterialModifiesMeshPosition
+		&& Material.WritesEveryPixel())
+	{
+		bUseDefaultMaterial = true;
+		bPositionOnly = true;
+	}
+	else
+	{
+		// still possible to use default material
+		const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
+		if ((!bMaterialMasked && EarlyZPassMode != DDM_MaskedOnly) || (bMaterialMasked && EarlyZPassMode != DDM_NonMaskedOnly))
+		{
+			if (!bMaterialMasked && !bMaterialModifiesMeshPosition)
+			{
+				bUseDefaultMaterial = true;
+				bPositionOnly = false;
+			}
+		}
+	}
+
+	return bUseDefaultMaterial;
+}
+
 bool FDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
 {
 	const EBlendMode BlendMode = Material.GetBlendMode();
-	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
-	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	bool ShouldRenderInDepthPass = (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass());
 
 	bool bResult = true;
 	if (!bIsTranslucent
-		&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass())
+		&& ShouldRenderInDepthPass
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
 		&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
 	{
-		if (BlendMode == BLEND_Opaque
-			&& EarlyZPassMode != DDM_MaskedOnly
-			&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
-			&& !Material.MaterialModifiesMeshPosition_RenderThread()
-			&& Material.WritesEveryPixel())
+		bool bPositionOnly = false;
+		bool bUseDefaultMaterial = UseDefaultMaterial(Material, Material.MaterialModifiesMeshPosition_RenderThread(), MeshBatch.VertexFactory->SupportsPositionOnlyStream(), bPositionOnly);
+
+		const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
+		const FMaterial* EffectiveMaterial = &Material;
+		if (bUseDefaultMaterial)
 		{
-			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
-			bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode);
+			// Override with the default material
+			EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+			check(EffectiveMaterial);
+		}
+
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+		if (bPositionOnly)
+		{
+			bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 		}
 		else
 		{
-			const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
-
-			if((!bMaterialMasked && EarlyZPassMode != DDM_MaskedOnly) || (bMaterialMasked && EarlyZPassMode != DDM_NonMaskedOnly))
-			{
-				const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
-				const FMaterial* EffectiveMaterial = &Material;
-
-				if (!bMaterialMasked && !Material.MaterialModifiesMeshPosition_RenderThread())
-				{
-					// Override with the default material for opaque materials that are not two sided
-					EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-					EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-					check(EffectiveMaterial);
-				}
-
-				bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
-			}
+			bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 		}
 	}
 
@@ -916,6 +998,97 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 	}
 }
 
+void FDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{		
+	// Are we currently collecting PSO's for the default material
+	if (Material.IsDefaultMaterial())
+	{
+		CollectDefaultMaterialPSOInitializers(SceneTexturesConfig, Material, VertexFactoryType, PSOInitializers);
+		return;
+	}
+
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+
+	// Early out if translucent or material shouldn't be used during this pass
+	if (bIsTranslucent ||
+		!PreCacheParams.bRenderInDepthPass ||
+		!ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()) || 
+		!ShouldIncludeMaterialInDefaultOpaquePass(Material))
+	{
+		return;
+	}
+
+	// assume we can always do this when collecting PSO's for now (vertex factory instance might actually not support it)
+	bool bSupportPositionOnlyStream = VertexFactoryType->SupportsPositionOnly();  
+
+	bool bPositionOnly = false;
+	bool bUseDefaultMaterial = UseDefaultMaterial(Material, Material.MaterialModifiesMeshPosition_GameThread(), bSupportPositionOnlyStream, bPositionOnly);
+	if (!bUseDefaultMaterial)
+	{
+		check(!bPositionOnly);
+
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+		bool bIsMoveable = PreCacheParams.IsMoveable();
+		const bool bAllowDitheredLODTransition = !bIsMoveable && Material.IsDitheredLODTransition();
+
+		bool bDitheredLODTransition = false;
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		if (bAllowDitheredLODTransition)
+		{
+			bDitheredLODTransition = true;
+			CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		}
+	}
+}
+
+void FDepthPassMeshProcessor::CollectDefaultMaterialPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material,
+	const FVertexFactoryType* VertexFactoryType,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	const ERasterizerFillMode MeshFillMode = FM_Solid;
+
+	// Collect PSOs for all possible default material combinations
+	{
+		ERasterizerCullMode MeshCullMode = CM_None;
+		bool bDitheredLODTransition = false;
+
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+
+		bDitheredLODTransition = true;
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+	}
+	{
+		ERasterizerCullMode MeshCullMode = CM_CW;
+		bool bDitheredLODTransition = false;
+
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+
+		bDitheredLODTransition = true;
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+	}
+	{
+		ERasterizerCullMode MeshCullMode = CM_CCW;
+		bool bDitheredLODTransition = false;
+
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+
+		bDitheredLODTransition = true;
+		CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+		CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, Material, MeshFillMode, MeshCullMode, bDitheredLODTransition, PSOInitializers);
+	}
+}
+
 FDepthPassMeshProcessor::FDepthPassMeshProcessor(
 	EMeshPass::Type InMeshPassType, 
 	const FScene* Scene,
@@ -940,16 +1113,25 @@ FDepthPassMeshProcessor::FDepthPassMeshProcessor(
 
 FMeshPassProcessor* CreateDepthPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
+	EDepthDrawingMode EarlyZPassMode;
+	bool bEarlyZPassMovable;
+	FScene::GetEarlyZPassMode(FeatureLevel, EarlyZPassMode, bEarlyZPassMovable);
+
 	FMeshPassProcessorRenderState DepthPassState;
 	SetupDepthPassState(DepthPassState);
-	return new FDepthPassMeshProcessor(EMeshPass::DepthPass, Scene, FeatureLevel, InViewIfDynamicMeshCommand, DepthPassState, true, Scene->EarlyZPassMode, Scene->bEarlyZPassMovable, false, InDrawListContext);
+		
+	return new FDepthPassMeshProcessor(EMeshPass::DepthPass, Scene, FeatureLevel, InViewIfDynamicMeshCommand, DepthPassState, true, EarlyZPassMode, bEarlyZPassMovable, false, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterDepthPass(&CreateDepthPassProcessor, EShadingPath::Deferred, EMeshPass::DepthPass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(DepthPass, CreateDepthPassProcessor, EShadingPath::Deferred, EMeshPass::DepthPass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterMobileDepthPass(&CreateDepthPassProcessor, EShadingPath::Mobile, EMeshPass::DepthPass, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
 
 FMeshPassProcessor* CreateDitheredLODFadingOutMaskPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
+	EDepthDrawingMode EarlyZPassMode;
+	bool bEarlyZPassMovable;
+	FScene::GetEarlyZPassMode(FeatureLevel, EarlyZPassMode, bEarlyZPassMovable);
+
 	FMeshPassProcessorRenderState DrawRenderState;
 
 	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
@@ -961,7 +1143,7 @@ FMeshPassProcessor* CreateDitheredLODFadingOutMaskPassProcessor(ERHIFeatureLevel
 		>::GetRHI());
 	DrawRenderState.SetStencilRef(STENCIL_SANDBOX_MASK);
 
-	return new FDepthPassMeshProcessor(EMeshPass::DitheredLODFadingOutMaskPass, Scene, FeatureLevel, InViewIfDynamicMeshCommand, DrawRenderState, true, Scene->EarlyZPassMode, Scene->bEarlyZPassMovable, true, InDrawListContext);
+	return new FDepthPassMeshProcessor(EMeshPass::DitheredLODFadingOutMaskPass, Scene, FeatureLevel, InViewIfDynamicMeshCommand, DrawRenderState, true, EarlyZPassMode, bEarlyZPassMovable, true, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterDitheredLODFadingOutMaskPass(&CreateDitheredLODFadingOutMaskPassProcessor, EShadingPath::Deferred, EMeshPass::DitheredLODFadingOutMaskPass, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(DitheredLODFadingOutMaskPass, CreateDitheredLODFadingOutMaskPassProcessor, EShadingPath::Deferred, EMeshPass::DitheredLODFadingOutMaskPass, EMeshPassFlags::MainView);

@@ -527,7 +527,7 @@ public:
 template <typename LightMapPolicyType>
 bool GetBasePassShaders(
 	const FMaterial& Material, 
-	FVertexFactoryType* VertexFactoryType, 
+	const FVertexFactoryType* VertexFactoryType, 
 	LightMapPolicyType LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
@@ -570,7 +570,7 @@ bool GetBasePassShaders(
 template <>
 bool GetBasePassShaders<FUniformLightMapPolicy>(
 	const FMaterial& Material, 
-	FVertexFactoryType* VertexFactoryType, 
+	const FVertexFactoryType* VertexFactoryType, 
 	FUniformLightMapPolicy LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
@@ -602,6 +602,7 @@ public:
 		ETranslucencyPass::Type InTranslucencyPassType = ETranslucencyPass::TPT_MAX);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 
@@ -618,6 +619,8 @@ public:
 private:
 
 	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
+	bool ShouldDraw(const FMaterial& Material);
+	ELightMapPolicyType GetUniformLightMapPolicyType(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial& Material);
 
 	template<typename LightMapPolicyType>
 	bool Process(
@@ -633,6 +636,34 @@ private:
 		const typename LightMapPolicyType::ElementDataType& RESTRICT LightMapElementData,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode);
+
+	void CollectPSOInitializersForSkyLight(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		EBlendMode BlendMode,
+		FMaterialShadingModelField ShadingModels,
+		const bool bRenderSkylight,
+		const bool bDitheredLODTransition,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		EPrimitiveType PrimitiveType, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
+
+	template<typename LightMapPolicyType>
+	void CollectPSOInitializersForLMPolicy(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		EBlendMode BlendMode,
+		FMaterialShadingModelField ShadingModels,
+		const bool bRenderSkylight,
+		const bool bDitheredLODTransition,
+		const LightMapPolicyType& RESTRICT LightMapPolicy,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode, 
+		EPrimitiveType PrimitiveType, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
 
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const bool bTranslucentBasePass;

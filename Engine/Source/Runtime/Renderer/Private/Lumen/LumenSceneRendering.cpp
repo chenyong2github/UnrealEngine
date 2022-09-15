@@ -562,6 +562,38 @@ public:
 	}
 };
 
+void SetupCardCaptureRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo)
+{
+	RenderTargetsInfo.NumSamples = 1;
+	RenderTargetsInfo.RenderTargetsEnabled = 3;
+
+	// Albedo
+	RenderTargetsInfo.RenderTargetFormats[0] = PF_R8G8B8A8;
+	RenderTargetsInfo.RenderTargetFlags[0] = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear;
+
+	// Normal
+	RenderTargetsInfo.RenderTargetFormats[1] = PF_R8G8B8A8;
+	RenderTargetsInfo.RenderTargetFlags[1] = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear;
+
+	// Emissive
+	RenderTargetsInfo.RenderTargetFormats[2] = PF_FloatR11G11B10;
+	RenderTargetsInfo.RenderTargetFlags[2] = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear;
+
+	// Setup depth stencil state
+	RenderTargetsInfo.DepthStencilTargetFormat = PF_DepthStencil;
+	RenderTargetsInfo.DepthStencilTargetFlag = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_NoFastClear;
+
+	// See setup of FDeferredShadingSceneRenderer::UpdateLumenScene (needs to be shared)
+	RenderTargetsInfo.DepthTargetLoadAction = ERenderTargetLoadAction::ELoad;
+	RenderTargetsInfo.StencilTargetLoadAction = ERenderTargetLoadAction::ENoAction;
+	RenderTargetsInfo.DepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilNop;
+
+	// Derive store actions
+	const ERenderTargetStoreAction StoreAction = EnumHasAnyFlags(RenderTargetsInfo.DepthStencilTargetFlag, TexCreate_Memoryless) ? ERenderTargetStoreAction::ENoAction : ERenderTargetStoreAction::EStore;
+	RenderTargetsInfo.DepthTargetStoreAction = RenderTargetsInfo.DepthStencilAccess.IsUsingDepth() ? StoreAction : ERenderTargetStoreAction::ENoAction;
+	RenderTargetsInfo.StencilTargetStoreAction = RenderTargetsInfo.DepthStencilAccess.IsUsingStencil() ? StoreAction : ERenderTargetStoreAction::ENoAction;
+}
+
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FLumenCardPS<false>, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FLumenCardPS<true>, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
 
@@ -572,13 +604,14 @@ public:
 	FLumenCardMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
 bool GetLumenCardShaders(
 	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
+	const FVertexFactoryType* VertexFactoryType,
 	TShaderRef<FLumenCardVS>& VertexShader,
 	TShaderRef<FLumenCardPS<false>>& PixelShader)
 {
@@ -674,6 +707,58 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 	}
 }
 
+void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+
+	if (!PreCacheParams.bRenderInMainPass || !PreCacheParams.bAffectDynamicIndirectLighting ||
+		!DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	{
+		return;
+	}
+
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+	if (!bIsTranslucent
+		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+	{
+		constexpr bool bMultiViewCapture = false;
+
+		TMeshProcessorShaders<
+			FLumenCardVS,
+			FLumenCardPS<bMultiViewCapture>> PassShaders;
+
+		if (!GetLumenCardShaders(
+			Material,
+			VertexFactoryType,
+			PassShaders.VertexShader,
+			PassShaders.PixelShader))
+		{
+			return;
+		}
+
+		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+		SetupCardCaptureRenderTargetsInfo(RenderTargetsInfo);
+
+		AddGraphicsPipelineStateInitializer(
+			VertexFactoryType,
+			Material,
+			PassDrawRenderState,
+			RenderTargetsInfo,
+			PassShaders,
+			MeshFillMode,
+			MeshCullMode,
+			(EPrimitiveType)PreCacheParams.PrimitiveType,
+			EMeshPassFeatures::Default, 
+			PSOInitializers);
+	}
+}
+
 FLumenCardMeshProcessor::FLumenCardMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(EMeshPass::LumenCardCapture, Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
@@ -693,7 +778,7 @@ FMeshPassProcessor* CreateLumenCardCapturePassProcessor(ERHIFeatureLevel::Type F
 	return new FLumenCardMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterLumenCardCapturePass(&CreateLumenCardCapturePassProcessor, EShadingPath::Deferred, EMeshPass::LumenCardCapture, EMeshPassFlags::CachedMeshCommands);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenCardCapturePass, CreateLumenCardCapturePassProcessor, EShadingPath::Deferred, EMeshPass::LumenCardCapture, EMeshPassFlags::CachedMeshCommands);
 
 class FLumenCardNaniteMeshProcessor : public FMeshPassProcessor
 {
@@ -702,6 +787,7 @@ public:
 	FLumenCardNaniteMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 
@@ -722,7 +808,7 @@ FLumenCardNaniteMeshProcessor::FLumenCardNaniteMeshProcessor(
 	const FMeshPassProcessorRenderState& InDrawRenderState,
 	FMeshPassDrawListContext* InDrawListContext
 ) :
-	FMeshPassProcessor(EMeshPass::Num, InScene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext),
+	FMeshPassProcessor(EMeshPass::LumenCardNanite, InScene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext),
 	PassDrawRenderState(InDrawRenderState)
 {
 }
@@ -810,7 +896,64 @@ bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
 	return true;
 }
 
+void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material, 
+	const FVertexFactoryType* VertexFactoryType, 
+	const FPSOPrecacheParams& PreCacheParams,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	// Make sure nanite rendering is supported
+	if (!SupportsNaniteRendering(VertexFactoryType, Material, FeatureLevel))
+	{
+		return;
+	}
+
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	if (!Nanite::IsSupportedBlendMode(BlendMode) || Material.GetMaterialDomain())
+	{
+		return;
+	}
+
+	const ERasterizerFillMode MeshFillMode = FM_Solid;
+	const ERasterizerCullMode MeshCullMode = CM_None;
+
+	TShaderMapRef<FNaniteMultiViewMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
+
+	FLumenCardNanitePassShaders PassShaders;
+	PassShaders.VertexShader = VertexShader;
+
+	constexpr bool bMultiViewCapture = true;
+
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<FLumenCardPS<bMultiViewCapture>>();
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return;
+	}
+
+	Shaders.TryGetPixelShader(PassShaders.PixelShader);
+
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	SetupCardCaptureRenderTargetsInfo(RenderTargetsInfo);
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		Material,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		PassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		(EPrimitiveType)PreCacheParams.PrimitiveType,
+		EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
 FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
+	ERHIFeatureLevel::Type FeatureLevel,
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext)
@@ -823,8 +966,10 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	PassState.SetStencilRef(STENCIL_SANDBOX_MASK);
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-	return new FLumenCardNaniteMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassState, InDrawListContext);
+	return new FLumenCardNaniteMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
+
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenCardNanitePass, CreateLumenCardNaniteMeshProcessor, EShadingPath::Deferred, EMeshPass::LumenCardNanite, EMeshPassFlags::None);
 
 FCardPageRenderData::FCardPageRenderData(
 	const FViewInfo& InMainView,
@@ -2350,30 +2495,35 @@ uint32 FLumenSceneData::GetCardCaptureRefreshNumPages() const
 
 void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAtlasSize, FCardCaptureAtlas& CardCaptureAtlas)
 {
+	// Collect info from SetupCardCaptureRenderTargetsInfo
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	SetupCardCaptureRenderTargetsInfo(RenderTargetsInfo);
+	check(RenderTargetsInfo.RenderTargetsEnabled == 3);
+
 	CardCaptureAtlas.Size = CardCaptureAtlasSize;
 
 	CardCaptureAtlas.Albedo = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
-			PF_R8G8B8A8,
+			(EPixelFormat)RenderTargetsInfo.RenderTargetFormats[0],
 			FClearValueBinding::Black,
-			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
+			RenderTargetsInfo.RenderTargetFlags[0]),
 		TEXT("Lumen.CardCaptureAlbedoAtlas"));
 
 	CardCaptureAtlas.Normal = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
-			PF_R8G8B8A8,
+			(EPixelFormat)RenderTargetsInfo.RenderTargetFormats[1],
 			FClearValueBinding::Black,
-			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
+			RenderTargetsInfo.RenderTargetFlags[1]),
 		TEXT("Lumen.CardCaptureNormalAtlas"));
 
 	CardCaptureAtlas.Emissive = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
-			PF_FloatR11G11B10,
+			(EPixelFormat)RenderTargetsInfo.RenderTargetFormats[2],
 			FClearValueBinding::Black,
-			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
+			RenderTargetsInfo.RenderTargetFlags[2]),
 		TEXT("Lumen.CardCaptureEmissiveAtlas"));
 
 	CardCaptureAtlas.DepthStencil = GraphBuilder.CreateTexture(
@@ -2381,7 +2531,7 @@ void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAt
 			CardCaptureAtlasSize,
 			PF_DepthStencil,
 			FClearValueBinding::DepthZero,
-			TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_NoFastClear),
+			RenderTargetsInfo.DepthStencilTargetFlag),
 		TEXT("Lumen.CardCaptureDepthStencilAtlas"));
 }
 

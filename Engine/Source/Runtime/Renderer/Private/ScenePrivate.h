@@ -3265,6 +3265,16 @@ public:
 	void UpdateEarlyZPassMode();
 
 	/**
+	 * Get the default base pass depth stencil access
+	 */
+	static FExclusiveDepthStencil::Type GetDefaultBasePassDepthStencilAccess(ERHIFeatureLevel::Type InFeatureLevel);
+
+	/**
+	 * Get the default base pass depth stencil access
+	 */
+	static void GetEarlyZPassMode(ERHIFeatureLevel::Type InFeatureLevel, EDepthDrawingMode& OutZPassMode, bool& bOutEarlyZPassMovable);
+
+	/**
 	 * Marks static mesh elements as needing an update if necessary.
 	 */
 	void ConditionalMarkStaticMeshElementsForUpdate();

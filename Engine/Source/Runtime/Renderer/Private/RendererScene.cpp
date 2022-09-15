@@ -4487,11 +4487,34 @@ void FScene::UpdateEarlyZPassMode()
 {
 	checkSlow(IsInGameThread());
 
-	DefaultBasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-	EarlyZPassMode = DDM_NonMaskedOnly;
-	bEarlyZPassMovable = false;
+	DefaultBasePassDepthStencilAccess = GetDefaultBasePassDepthStencilAccess(GetFeatureLevel());
+	GetEarlyZPassMode(GetFeatureLevel(), EarlyZPassMode, bEarlyZPassMovable);
+}
 
-	if (GetShadingPath(GetFeatureLevel()) == EShadingPath::Deferred)
+FExclusiveDepthStencil::Type FScene::GetDefaultBasePassDepthStencilAccess(ERHIFeatureLevel::Type InFeatureLevel)
+{
+	FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+
+	if (GetShadingPath(InFeatureLevel) == EShadingPath::Deferred)
+	{
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
+		if (ShouldForceFullDepthPass(ShaderPlatform)
+			&& CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnAnyThread() == 0)
+		{
+			BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
+		}
+	}
+
+	return BasePassDepthStencilAccess;
+}
+
+void FScene::GetEarlyZPassMode(ERHIFeatureLevel::Type InFeatureLevel, EDepthDrawingMode & OutZPassMode, bool& bOutEarlyZPassMovable)
+{
+	OutZPassMode = DDM_NonMaskedOnly;
+	bOutEarlyZPassMovable = false;
+
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
+	if (GetShadingPath(InFeatureLevel) == EShadingPath::Deferred)
 	{
 		// developer override, good for profiling, can be useful as project setting
 		{
@@ -4499,50 +4522,42 @@ void FScene::UpdateEarlyZPassMode()
 
 				switch (CVarValue)
 				{
-				case 0: EarlyZPassMode = DDM_None; break;
-				case 1: EarlyZPassMode = DDM_NonMaskedOnly; break;
-				case 2: EarlyZPassMode = DDM_AllOccluders; break;
+				case 0: OutZPassMode = DDM_None; break;
+				case 1: OutZPassMode = DDM_NonMaskedOnly; break;
+				case 2: OutZPassMode = DDM_AllOccluders; break;
 				case 3: break;	// Note: 3 indicates "default behavior" and does not specify an override
 				}
 		}
 
-		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
 		if (ShouldForceFullDepthPass(ShaderPlatform))
 		{
 			// DBuffer decals and stencil LOD dithering force a full prepass
-			const bool bDepthPassCanOutputVelocity = FVelocityRendering::DepthPassCanOutputVelocity(FeatureLevel);
-			EarlyZPassMode = bDepthPassCanOutputVelocity ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
-			bEarlyZPassMovable = bDepthPassCanOutputVelocity ? false : true;
-		}
-
-		if ((EarlyZPassMode == DDM_AllOpaque || EarlyZPassMode == DDM_AllOpaqueNoVelocity)
-			&& CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnAnyThread() == 0)
-		{
-			DefaultBasePassDepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
+			const bool bDepthPassCanOutputVelocity = FVelocityRendering::DepthPassCanOutputVelocity(InFeatureLevel);
+			OutZPassMode = bDepthPassCanOutputVelocity ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
+			bOutEarlyZPassMovable = bDepthPassCanOutputVelocity ? false : true;
 		}
 	}
-	else if (GetShadingPath(GetFeatureLevel()) == EShadingPath::Mobile)
+	else if (GetShadingPath(InFeatureLevel) == EShadingPath::Mobile)
 	{
-		EarlyZPassMode = DDM_None;
-
-		const EShaderPlatform ShaderPlatform = GetShaderPlatform();
+		OutZPassMode = DDM_None;
+				 
 		static const bool bMaskedInEarlyPass = MaskedInEarlyPass(ShaderPlatform);
 		if (bMaskedInEarlyPass)
 		{
-			EarlyZPassMode = DDM_MaskedOnly;
+			OutZPassMode = DDM_MaskedOnly;
 		}
 
 		const bool bIsMobileAmbientOcclusionEnabled = IsMobileAmbientOcclusionEnabled(ShaderPlatform);
 		const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(ShaderPlatform);
 		if (bIsMobileAmbientOcclusionEnabled || bMobileUsesShadowMaskTexture)
 		{
-			EarlyZPassMode = DDM_AllOpaque;
+			OutZPassMode = DDM_AllOpaque;
 		}
 
 		bool bMobileForceFullDepthPrepass = CVarMobileEarlyZPass.GetValueOnAnyThread() == 1;
 		if (bMobileForceFullDepthPrepass)
 		{
-			EarlyZPassMode = DDM_AllOpaque;
+			OutZPassMode = DDM_AllOpaque;
 		}
 	}
 }

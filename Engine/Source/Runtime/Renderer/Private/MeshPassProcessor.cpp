@@ -1805,6 +1805,18 @@ FMeshPassProcessor::FMeshPassProcessor(EMeshPass::Type InMeshPassType, const FSc
 {
 }
 
+FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings FMeshPassProcessor::ComputeMeshOverrideSettings(const FPSOPrecacheParams& PrecachePSOParams)
+{
+	FMeshDrawingPolicyOverrideSettings OverrideSettings;
+	OverrideSettings.MeshPrimitiveType = PT_TriangleList;
+
+	//OverrideSettings.MeshOverrideFlags |= Mesh.bDisableBackfaceCulling ? EDrawingPolicyOverrideFlags::TwoSided : EDrawingPolicyOverrideFlags::None;
+	//OverrideSettings.MeshOverrideFlags |= Mesh.bDitheredLODTransition ? EDrawingPolicyOverrideFlags::DitheredLODTransition : EDrawingPolicyOverrideFlags::None;
+	//OverrideSettings.MeshOverrideFlags |= Mesh.bWireframe ? EDrawingPolicyOverrideFlags::Wireframe : EDrawingPolicyOverrideFlags::None;
+	OverrideSettings.MeshOverrideFlags |= PrecachePSOParams.bReverseCulling ? EDrawingPolicyOverrideFlags::ReverseCullMode : EDrawingPolicyOverrideFlags::None;
+	return OverrideSettings;
+}
+
 FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings FMeshPassProcessor::ComputeMeshOverrideSettings(const FMeshBatch& Mesh)
 {
 	FMeshDrawingPolicyOverrideSettings OverrideSettings;

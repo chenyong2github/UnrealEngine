@@ -60,7 +60,7 @@ namespace Lumen
 			&& View.Family->EngineShowFlags.LumenReflections;
 	}
 
-	bool ShouldRenderInFrontLayerTranslucencyGBufferPass(const FPrimitiveSceneProxy& PrimitiveSceneProxy, const FMaterial& Material)
+	bool ShouldRenderInFrontLayerTranslucencyGBufferPass(bool bShouldRenderInMainPass, const FMaterial& Material)
 	{
 		const EBlendMode BlendMode = Material.GetBlendMode();
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
@@ -68,7 +68,7 @@ namespace Lumen
 
 		return bIsTranslucent
 			&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
-			&& PrimitiveSceneProxy.ShouldRenderInMainPass()
+			&& bShouldRenderInMainPass
 			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain());
 	}
 }
@@ -148,13 +148,14 @@ public:
 	FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
 bool GetLumenFrontLayerTranslucencyGBufferShaders(
 	const FMaterial& Material,
-	FVertexFactoryType* VertexFactoryType,
+	const FVertexFactoryType* VertexFactoryType,
 	TShaderRef<FLumenFrontLayerTranslucencyGBufferVS>& VertexShader,
 	TShaderRef<FLumenFrontLayerTranslucencyGBufferPS>& PixelShader)
 {
@@ -182,7 +183,7 @@ bool CanMaterialRenderInLumenFrontLayerTranslucencyGBufferPass(
 	const FSceneView* View = ViewFamily.Views[0];
 	check(View);
 
-	return ShouldRenderLumenDiffuseGI(&Scene, *View) && Lumen::ShouldRenderInFrontLayerTranslucencyGBufferPass(PrimitiveSceneProxy, Material);	
+	return ShouldRenderLumenDiffuseGI(&Scene, *View) && Lumen::ShouldRenderInFrontLayerTranslucencyGBufferPass(PrimitiveSceneProxy.ShouldRenderInMainPass(), Material);
 }
 
 void FLumenFrontLayerTranslucencyGBufferMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
@@ -203,7 +204,7 @@ void FLumenFrontLayerTranslucencyGBufferMeshProcessor::AddMeshBatch(const FMeshB
 			{
 				auto TryAddMeshBatch = [this](const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material) -> bool
 				{
-					if (Lumen::ShouldRenderInFrontLayerTranslucencyGBufferPass(*PrimitiveSceneProxy, Material))
+					if (Lumen::ShouldRenderInFrontLayerTranslucencyGBufferPass(PrimitiveSceneProxy->ShouldRenderInMainPass(), Material))
 					{
 						const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 						FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
@@ -258,7 +259,53 @@ void FLumenFrontLayerTranslucencyGBufferMeshProcessor::AddMeshBatch(const FMeshB
 	}
 }
 
-FLumenFrontLayerTranslucencyGBufferMeshProcessor::FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
+void FLumenFrontLayerTranslucencyGBufferMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+		
+	if (PreCacheParams.bRenderInMainPass && !Lumen::ShouldRenderInFrontLayerTranslucencyGBufferPass(PreCacheParams.bRenderInMainPass, Material))
+	{
+		return;
+	}
+
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+	TMeshProcessorShaders<
+		FLumenFrontLayerTranslucencyGBufferVS,
+		FLumenFrontLayerTranslucencyGBufferPS> PassShaders;
+
+	if (!GetLumenFrontLayerTranslucencyGBufferShaders(
+		Material,
+		VertexFactoryType,
+		PassShaders.VertexShader,
+		PassShaders.PixelShader))
+	{
+		return;
+	}
+
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	RenderTargetsInfo.NumSamples = 1;
+	AddRenderTargetInfo(PF_FloatRGBA, TexCreate_ShaderResource | TexCreate_RenderTargetable, RenderTargetsInfo);
+	ETextureCreateFlags DepthStencilCreateFlags = SceneTexturesConfig.DepthCreateFlags;
+	SetupDepthStencilInfo(PF_DepthStencil, DepthStencilCreateFlags, ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop, RenderTargetsInfo);
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		Material,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		PassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		(EPrimitiveType)PreCacheParams.PrimitiveType,
+		EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
+FLumenFrontLayerTranslucencyGBufferMeshProcessor::FLumenFrontLayerTranslucencyGBufferMeshProcessor(const FScene* Scene,	ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(EMeshPass::LumenFrontLayerTranslucencyGBuffer, Scene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
 {}
@@ -276,7 +323,7 @@ FMeshPassProcessor* CreateLumenFrontLayerTranslucencyGBufferPassProcessor(ERHIFe
 	return new FLumenFrontLayerTranslucencyGBufferMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
-FRegisterPassProcessorCreateFunction RegisterLumenFrontLayerTranslucencyGBufferPass(&CreateLumenFrontLayerTranslucencyGBufferPassProcessor, EShadingPath::Deferred, EMeshPass::LumenFrontLayerTranslucencyGBuffer, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(LumenFrontLayerTranslucencyGBufferPass, CreateLumenFrontLayerTranslucencyGBufferPassProcessor, EShadingPath::Deferred, EMeshPass::LumenFrontLayerTranslucencyGBuffer, EMeshPassFlags::MainView);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenFrontLayerTranslucencyGBufferPassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
