@@ -1410,7 +1410,9 @@ VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPi
 		}
 	}
 #endif
-	if(Result != VK_SUCCESS)
+	// Disabling 'V547: Expression is always true'
+	// The precompile code above can set Result to success on Android platforms.
+	if(Result != VK_SUCCESS)  //-V547
 	{
 		if (bWantPSOSize)
 		{
