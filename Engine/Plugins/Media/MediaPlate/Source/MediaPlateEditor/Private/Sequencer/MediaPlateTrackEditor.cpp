@@ -10,6 +10,7 @@
 #include "MediaPlateComponent.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
+#include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneMediaSection.h"
 #include "MovieSceneMediaTrack.h"
@@ -202,6 +203,22 @@ void FMediaPlateTrackEditor::AddTrackForComponent(UMediaPlateComponent* Componen
 					}
 				}
 			}
+		}
+	}
+
+	// Does the media plate have autoplay?
+	if (Component->bAutoPlay)
+	{
+		// Ask the user if it can be disabled.
+		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNo,
+			LOCTEXT("Prompt_DisableAutoplay", "Would you like to disable autoplay on the MediaPlate actor (recommended)?"));
+
+		switch (YesNoCancelReply)
+		{
+			case EAppReturnType::Yes:
+				Component->Modify();
+				Component->bAutoPlay = false;
+				break;
 		}
 	}
 }
