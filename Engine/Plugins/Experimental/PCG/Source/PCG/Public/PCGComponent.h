@@ -76,6 +76,7 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual void OnRegister() override;
 
 protected:
 	friend struct FPCGComponentInstanceData;
@@ -332,6 +333,10 @@ private:
 	FPCGTaskId CurrentGenerationTask = InvalidPCGTaskId;
 	FPCGTaskId CurrentCleanupTask = InvalidPCGTaskId;
 
+#if WITH_EDITOR
+	FPCGTaskId CurrentRefreshTask = InvalidPCGTaskId;
+#endif // WITH_EDITOR
+
 	UPROPERTY(VisibleAnywhere, Transient, Category = Properties, meta = (EditCondition = false, EditConditionHides))
 	bool bIsComponentLocal = false;
 
@@ -374,12 +379,19 @@ struct FPCGComponentInstanceData : public FActorComponentInstanceData
 	GENERATED_BODY()
 public:
 	FPCGComponentInstanceData() = default;
-	explicit FPCGComponentInstanceData(const UPCGComponent* SourceComponent);
+	explicit FPCGComponentInstanceData(const UPCGComponent* InSourceComponent);
 
 protected:
 	virtual bool ContainsData() const override;
 	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override;
 
+#if WITH_EDITOR
+	void DelayedRefresh(UPCGComponent* PCGComponent);
+#endif // WITH_EDITOR
+
 	UPROPERTY()
 	TArray<TObjectPtr<UPCGManagedResource>> GeneratedResources;
+
+	UPROPERTY()
+	TObjectPtr<const UPCGComponent> SourceComponent;
 };

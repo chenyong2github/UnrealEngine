@@ -292,12 +292,34 @@ void APCGPartitionActor::AddGraphInstance(UPCGComponent* OriginalComponent)
 	LocalToOriginalMap.Add(LocalComponent, OriginalComponent);
 }
 
+void APCGPartitionActor::RemapGraphInstance(const UPCGComponent* OldOriginalComponent, UPCGComponent* NewOriginalComponent)
+{
+	UPCGComponent* LocalComponent = GetLocalComponent(OldOriginalComponent);
+
+	if (!LocalComponent)
+	{
+		return;
+	}
+
+	Modify();
+
+	OriginalToLocalMap.Remove(OldOriginalComponent);
+	LocalToOriginalMap.Remove(LocalComponent);
+
+	LocalComponent->SetPropertiesFromOriginal(NewOriginalComponent);
+	OriginalToLocalMap.Add(NewOriginalComponent, LocalComponent);
+	LocalToOriginalMap.Add(LocalComponent, NewOriginalComponent);
+}
+
 bool APCGPartitionActor::RemoveGraphInstance(UPCGComponent* OriginalComponent)
 {
 	UPCGComponent* LocalComponent = GetLocalComponent(OriginalComponent);
 
 	if (!LocalComponent)
 	{
+		// If we don't have a local component, perhaps the original component is already dead,
+		// so do some clean up
+		CleanupDeadGraphInstances();
 		return false;
 	}
 

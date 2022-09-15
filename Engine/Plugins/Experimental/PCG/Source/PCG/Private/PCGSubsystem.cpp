@@ -99,6 +99,17 @@ void UPCGSubsystem::Tick(float DeltaSeconds)
 	{
 		GetLandscapeCache()->Tick(DeltaSeconds);
 	}
+
+	TSet<TObjectPtr<UPCGComponent>> ComponentToUnregister;
+	{
+		FScopeLock Lock(&DelayedComponentToUnregisterLock);
+		ComponentToUnregister = MoveTemp(DelayedComponentToUnregister);
+	}
+
+	for (UPCGComponent* Component : ComponentToUnregister)
+	{
+		UnregisterPCGComponent(Component, /*bForce=*/true);
+	}
 }
 
 APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
@@ -221,6 +232,12 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 		return GraphExecutor->ScheduleGeneric([ComponentPtr]() {
 			if (UPCGComponent* Component = ComponentPtr.Get())
 			{
+				// If the component is not valid anymore, just early out.
+				if (!IsValid(Component))
+				{
+					return true;
+				}
+
 				const FBox NewBounds = Component->GetGridBounds();
 				Component->PostProcessGraph(NewBounds, /*bGenerate=*/true);
 			}
@@ -279,6 +296,12 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 	{
 		if (UPCGComponent* Component = ComponentPtr.Get())
 		{
+			// If the component is not valid anymore, just early out
+			if (!IsValid(Component))
+			{
+				return true;
+			}
+
 			Component->PostCleanupGraph();
 
 #if WITH_EDITOR
@@ -402,8 +425,8 @@ bool UPCGSubsystem::RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, boo
 	// Just make sure that we don't register components that are from the PCG Partition Actor
 	check(InComponent && InComponent->GetOwner() && !InComponent->GetOwner()->IsA<APCGPartitionActor>());
 
-	// If the component is not partitioned, don't register/update it.
-	if (!InComponent->IsPartitioned())
+	// If the component is not partitioned nor valid, don't register/update it.
+	if (!InComponent->IsPartitioned() || !IsValid(InComponent))
 	{
 		return false;
 	}
@@ -431,6 +454,17 @@ bool UPCGSubsystem::RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, boo
 			FPCGComponentRef ComponentRef(InComponent, IdShared);
 			Bounds = ComponentRef.Bounds.GetBox();
 			check(Bounds.IsValid);
+
+			// If the Component is already generated, it probably mean we are in loading. The component bounds and last
+			// generated bounds should be the same.
+			// If the bounds depends on other components on the owner however, it might not be the same, because of the registration order.
+			// In this case, override the bounds by the last generated ones.
+			if (InComponent->bGenerated && !InComponent->LastGeneratedBounds.Equals(Bounds))
+			{
+				Bounds = InComponent->LastGeneratedBounds;
+				ComponentRef.Bounds = Bounds;
+			}
+
 			PCGComponentOctree.AddElement(ComponentRef);
 
 			bComponentHasChanged = true;
@@ -469,7 +503,13 @@ bool UPCGSubsystem::RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, boo
 	{
 		auto ScheduleTask = [](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) { return InvalidPCGTaskId; };
 
-		PCGSubsystem::ForEachIntersectingCell(GraphExecutor, InComponent->GetWorld(), Bounds, /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+		// We can't spawn actors if we are running constructions scripts, asserting when we try to get the actor with the WP API.
+		// We should never enter this if we are in a construction script. If the ensure is hit, we need to fix it.
+		UWorld* World = InComponent->GetWorld();
+		if (ensure(World && !World->bIsRunningConstructionScript))
+		{
+			PCGSubsystem::ForEachIntersectingCell(GraphExecutor, World, Bounds, /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+		}
 	}
 #endif // WITH_EDITOR
 
@@ -493,7 +533,88 @@ bool UPCGSubsystem::RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, boo
 	return bComponentHasChanged;
 }
 
-void UPCGSubsystem::UnregisterPCGComponent(UPCGComponent* InComponent)
+bool UPCGSubsystem::RemapPCGComponent(const UPCGComponent* OldComponent, UPCGComponent* NewComponent)
+{
+	check(OldComponent && NewComponent);
+
+	// First verification we have the old component registered
+	{
+		FReadScopeLock ReadLock(PCGVolumeOctreeLock);
+
+		FPCGComponentOctreeIDSharedRef* ElementIdPtr = ComponentToIdMap.Find(OldComponent);
+
+		if (!ElementIdPtr)
+		{
+			return false;
+		}
+	}
+
+	// If so, lock again in write and recheck if it has not been remapped already.
+	bool bBoundsChanged = false;
+	{
+		FWriteScopeLock WriteLock(PCGVolumeOctreeLock);
+
+		FPCGComponentOctreeIDSharedRef* ElementIdPtr = ComponentToIdMap.Find(OldComponent);
+
+		if (!ElementIdPtr)
+		{
+			// It was remapped, so return true there.
+			return true;
+		}
+
+		FPCGComponentOctreeIDSharedRef ElementId = *ElementIdPtr;
+
+		FPCGComponentRef ComponentRef = PCGComponentOctree.GetElementById(ElementId->Id);
+		FBox PreviousBounds = ComponentRef.Bounds.GetBox();
+		ComponentRef.Component = NewComponent;
+		ComponentRef.UpdateBounds();
+		FBox Bounds = ComponentRef.Bounds.GetBox();
+		check(Bounds.IsValid);
+
+		// If bounds changed, we need to update the mapping
+		bBoundsChanged = !Bounds.Equals(PreviousBounds);
+
+		PCGComponentOctree.RemoveElement((*ElementIdPtr)->Id);
+		PCGComponentOctree.AddElement(ComponentRef);
+		ComponentToIdMap.Remove(OldComponent);
+		ComponentToIdMap.Add(NewComponent, MoveTemp(ElementId));
+	}
+
+	// Remove it from the delayed
+	{
+		FScopeLock Lock(&DelayedComponentToUnregisterLock);
+		DelayedComponentToUnregister.Remove(OldComponent);
+	}
+
+	// Remap all previous instances
+	{
+		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
+		TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(OldComponent);
+
+		if (PartitionActorsPtr)
+		{
+			TSet<TObjectPtr<APCGPartitionActor>> PartitionActorsToRemap = MoveTemp(*PartitionActorsPtr);
+			ComponentToPartitionActorsMap.Remove(OldComponent);
+
+			for (APCGPartitionActor* Actor : PartitionActorsToRemap)
+			{
+				Actor->RemapGraphInstance(OldComponent, NewComponent);
+			}
+
+			ComponentToPartitionActorsMap.Add(NewComponent, MoveTemp(PartitionActorsToRemap));
+		}
+	}
+
+	// And update the mapping if bounds changed
+	if (bBoundsChanged)
+	{
+		UpdateMappingPCGComponentPartitionActor(NewComponent);
+	}
+
+	return true;
+}
+
+void UPCGSubsystem::UnregisterPCGComponent(UPCGComponent* InComponent, bool bForce)
 {
 	check(InComponent);
 
@@ -507,6 +628,18 @@ void UPCGSubsystem::UnregisterPCGComponent(UPCGComponent* InComponent)
 		{
 			return;
 		}
+	}
+
+	// We also need to check that our current PCG Component is not deleted while being reconstructed by a construction script.
+	// If so, it will be "re-created" at some point with the same properties.
+	// In this particular case, we don't remove the PCG component from the octree and we won't delete the mapping, but mark it to be removed
+	// at next Subsystem tick. If we call "RemapPCGComponent" before, we will re-connect everything correctly.
+	// Ignore this if we force (aka when we actually unregister the delayed one)
+	if (InComponent->IsCreatedByConstructionScript() && !bForce)
+	{
+		FScopeLock Lock(&DelayedComponentToUnregisterLock);
+		DelayedComponentToUnregister.Add(InComponent);
+		return;
 	}
 
 	// If so, lock in write and retry to find it (to avoid removing it twice)
@@ -524,18 +657,23 @@ void UPCGSubsystem::UnregisterPCGComponent(UPCGComponent* InComponent)
 		ComponentToIdMap.Remove(InComponent);
 	}
 
+	// Because of recursive component deletes actors that has components, we cannot do RemoveGraphInstance
+	// inside a lock. So copy the actors to clean up and release the lock before doing RemoveGraphInstance.
+	TSet<TObjectPtr<APCGPartitionActor>> PartitionActorsToCleanUp;
 	{
 		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
 		TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(InComponent);
+		
 		if (PartitionActorsPtr)
 		{
-			for (APCGPartitionActor* Actor : *PartitionActorsPtr)
-			{
-				Actor->RemoveGraphInstance(InComponent);
-			}
-
+			PartitionActorsToCleanUp = MoveTemp(*PartitionActorsPtr);
 			ComponentToPartitionActorsMap.Remove(InComponent);
 		}
+	}
+
+	for (APCGPartitionActor* Actor : PartitionActorsToCleanUp)
+	{
+		Actor->RemoveGraphInstance(InComponent);
 	}
 }
 
@@ -574,7 +712,9 @@ void UPCGSubsystem::RegisterPartitionActor(APCGPartitionActor* Actor, bool bDoCo
 				if (bDoComponentMapping || Component->bGenerated)
 				{
 					TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(Component);
-					if (ensure(PartitionActorsPtr))
+					// In editor we might load/create partition actors while the component is registering. Because of that,
+					// the mapping might not already exists, even if the component is marked generated.
+					if (PartitionActorsPtr)
 					{
 						Actor->AddGraphInstance(Component);
 						PartitionActorsPtr->Add(Actor);
@@ -678,6 +818,8 @@ void UPCGSubsystem::UpdateMappingPCGComponentPartitionActor(UPCGComponent* InCom
 		return;
 	}
 
+	TSet<TObjectPtr<APCGPartitionActor>> RemovedActors;
+
 	{
 		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
 
@@ -698,14 +840,15 @@ void UPCGSubsystem::UpdateMappingPCGComponentPartitionActor(UPCGComponent* InCom
 		});
 
 		// Find the ones that were removed
-		TSet<TObjectPtr<APCGPartitionActor>> RemovedActors = PartitionActorsPtr->Difference(NewMapping);
-
-		for (APCGPartitionActor* RemovedActor : RemovedActors)
-		{
-			RemovedActor->RemoveGraphInstance(InComponent);
-		}
+		RemovedActors = PartitionActorsPtr->Difference(NewMapping);
 
 		*PartitionActorsPtr = MoveTemp(NewMapping);
+	}
+
+	// No need to be locked to do this.
+	for (APCGPartitionActor* RemovedActor : RemovedActors)
+	{
+		RemovedActor->RemoveGraphInstance(InComponent);
 	}
 }
 
@@ -1037,7 +1180,7 @@ FPCGTaskId UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InB
 		UPCGComponent* Component = ComponentPtr.Get();
 		check(Component != nullptr && PCGActor != nullptr);
 
-		if (!PCGActor || !Component)
+		if (!PCGActor || !Component || !IsValid(Component))
 		{
 			return InvalidPCGTaskId;
 		}

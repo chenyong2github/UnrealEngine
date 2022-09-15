@@ -79,8 +79,11 @@ public:
 	/** Register a new PCG Component or update it, will be added to the octree if it doesn't exists yet. Returns true if it was added/updated. Thread safe */
 	bool RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, bool bDoActorMapping = true);
 
-	/** Unregister a PCG Component, will be removed from the octree. Thread safe */
-	void UnregisterPCGComponent(UPCGComponent* InComponent);
+	/** In case of BP Actors, we need to remap the old component destroyed by the construction script to the new one. Returns true if re-mapping succeeded. */
+	bool RemapPCGComponent(const UPCGComponent* OldComponent, UPCGComponent* NewComponent);
+
+	/** Unregister a PCG Component, will be removed from the octree. Can force it, if we have a delayed unregister. Thread safe */
+	void UnregisterPCGComponent(UPCGComponent* InComponent, bool bForce = false);
 
 	/** Register a new Partition actor, will be added to a map and will query all intersecting volume to bind to them if asked. Thread safe */
 	void RegisterPartitionActor(APCGPartitionActor* InActor, bool bDoComponentMapping = true);
@@ -170,4 +173,7 @@ private:
 
 	TMap<TObjectPtr<const UPCGComponent>, TSet<TObjectPtr<APCGPartitionActor>>> ComponentToPartitionActorsMap;
 	mutable FRWLock ComponentToPartitionActorsMapLock;
+
+	TSet<TObjectPtr<UPCGComponent>> DelayedComponentToUnregister;
+	mutable FCriticalSection DelayedComponentToUnregisterLock;
 };

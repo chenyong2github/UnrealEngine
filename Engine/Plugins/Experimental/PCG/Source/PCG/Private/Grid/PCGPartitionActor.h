@@ -26,12 +26,12 @@ public:
 	//~Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
-	virtual void Destroyed() override;
 	//~End UObject Interface
 
 	//~Begin AActor Interface
 	virtual void BeginPlay();
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Destroyed() override;
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	virtual void PostRegisterAllComponents() override;
 #if WITH_EDITOR
@@ -54,6 +54,7 @@ public:
 	bool IsUsing2DGrid() const { return bUse2DGrid; }
 
 	void AddGraphInstance(UPCGComponent* OriginalComponent);
+	void RemapGraphInstance(const UPCGComponent* OldOriginalComponent, UPCGComponent* NewOriginalComponent);
 	bool RemoveGraphInstance(UPCGComponent* OriginalComponent);
 	void CleanupDeadGraphInstances();
 

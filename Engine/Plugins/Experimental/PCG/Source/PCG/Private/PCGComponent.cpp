@@ -505,11 +505,6 @@ bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChil
 
 void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 {
-	if (!bGenerated || IsCleaningUp() || IsGenerating())
-	{
-		return;
-	}
-
 	TSet<TSoftObjectPtr<AActor>> ActorsToDelete;
 
 	{
@@ -567,6 +562,12 @@ FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray
 	{
 		if (UPCGComponent* ThisComponent = ThisComponentWeakPtr.Get())
 		{
+			// If the component is not valid anymore, just early out
+			if (!IsValid(ThisComponent))
+			{
+				return true;
+			}
+
 			FScopeLock ResourcesLock(&ThisComponent->GeneratedResourcesLock);
 
 			// Safeguard to track illegal modifications of the generated resources array while doing cleanup
@@ -680,11 +681,6 @@ void UPCGComponent::OnComponentCreated()
 
 #if WITH_EDITOR
 	SetupActorCallbacks();
-
-	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned() && GetSubsystem())
-	{
-		GetSubsystem()->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/bGenerated);
-	}
 #endif
 }
 
@@ -695,13 +691,7 @@ void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	// In the case of level change or exit, the subsystem will be null
 	if (UPCGSubsystem* Subsystem = GetSubsystem())
 	{
-		// The RF_BeginDestroyed flag is set when the object is being unloaded, but not in the editor-destroy context we're interested in.
-		if (!HasAnyFlags(RF_BeginDestroyed) && !IsUnreachable() && IsPartitioned() && !GetOwner()->GetWorld()->IsGameWorld())
-		{
-			Subsystem->CleanupPartitionActors(LastGeneratedBounds);
-		}
-
-		if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned())
+		if (!PCGHelpers::IsRuntimeOrPIE())
 		{
 			Subsystem->UnregisterPCGComponent(this);
 		}
@@ -772,22 +762,12 @@ void UPCGComponent::SetupCallbacksOnCreation()
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
-
-	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned() && GetSubsystem())
-	{
-		GetSubsystem()->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/bGenerated);
-	}
 }
 #endif
 
 void UPCGComponent::BeginDestroy()
 {
 #if WITH_EDITOR
-	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned() && GetSubsystem())
-	{
-		GetSubsystem()->UnregisterPCGComponent(this);
-	}
-
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
@@ -803,6 +783,28 @@ void UPCGComponent::BeginDestroy()
 #endif
 
 	Super::BeginDestroy();
+}
+
+void UPCGComponent::OnRegister()
+{
+	Super::OnRegister();
+
+#if WITH_EDITOR
+	// We can't register to the subsystem in OnRegister if we are at runtime because
+	// the landscape can be not loaded yet.
+	// It will be done in BeginPlay at runtime.
+	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned() && GetSubsystem())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			// We won't be able to spawn any actors if we are currently running a construction script.
+			if (!World->bIsRunningConstructionScript)
+			{
+				GetSubsystem()->RegisterOrUpdatePCGComponent(this, bGenerated);
+			}
+		}
+	}
+#endif //WITH_EDITOR
 }
 
 TStructOnScope<FActorComponentInstanceData> UPCGComponent::GetComponentInstanceData() const
@@ -898,8 +900,8 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	const FName PropName = PropertyChangedEvent.Property->GetFName();
 
-	// Important note: all property changes already go through the OnObjectPropertyChanged, 
-	// So there is no need to add cases that do simple Refresh() calls
+	// Important note: all property changes already go through the OnObjectPropertyChanged, and will be dirtied here.
+	// So where only a Refresh is needed, it goes through the "capture all" else case.
 	if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, bIsPartitioned))
 	{
 		if (CanPartition())
@@ -942,11 +944,6 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		Refresh();
 	}
 	// General properties that don't affect behavior
-	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, Seed))
-	{
-		DirtyGenerated();
-		Refresh();
-	}
 	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, ExcludedTags))
 	{
 		SetupTrackingCallbacks();
@@ -960,6 +957,10 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			DirtyGenerated(EPCGComponentDirtyFlag::Exclusions);
 			Refresh();
 		}
+	}
+	else
+	{
+		Refresh();
 	}
 }
 
@@ -1287,11 +1288,15 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 	bool bValueNotInteractive = (InEvent.ChangeType != EPropertyChangeType::Interactive);
 	// Special exception for actor tags, as we can't track otherwise an actor "losing" a tag
 	bool bActorTagChange = (InEvent.Property && InEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, Tags));
-	// Discard property changed if this is this component. They will be caught by the PostEditChangeProperty
-	bool bIsThisComponent = InObject == this;
-
-	if (bIsThisComponent || (!bValueNotInteractive && !bActorTagChange))
+	if (!bValueNotInteractive && !bActorTagChange)
 	{
+		return;
+	}
+
+	// If the object changed is this PCGComponent, dirty ourselves and exit. It will be picked up by PostEditChangeProperty
+	if (InObject == this)
+	{
+		DirtyGenerated();
 		return;
 	}
 
@@ -1420,8 +1425,6 @@ void UPCGComponent::ResetLastGeneratedBounds()
 {
 	LastGeneratedBounds = FBox(EForceInit::ForceInit);
 }
-
-#if WITH_EDITOR
 void UPCGComponent::DisableInspection()
 {
 	bIsInspecting = false;
@@ -1447,17 +1450,20 @@ const FPCGDataCollection* UPCGComponent::GetInspectionData(const UPCGNode* InNod
 {
 	return InspectionCache.Find(InNode);
 }
-#endif
 
 void UPCGComponent::Refresh()
 {
-#if WITH_EDITOR
 	// Disable auto-refreshing on preview actors until we have something more robust on the execution side.
 	if (GetOwner() && GetOwner()->bIsEditorPreviewActor)
 	{
 		return;
 	}
-#endif
+
+	// Discard any refresh if have already one scheduled.
+	if (CurrentRefreshTask != InvalidPCGTaskId)
+	{
+		return;
+	}
 
 	// Before doing a refresh, update the component to the subsystem if we are partitioned
 	// Only redo the mapping if we are generated
@@ -1482,7 +1488,7 @@ void UPCGComponent::Refresh()
 		}
 	}
 }
-#endif
+#endif // WITH_EDITOR
 
 UPCGData* UPCGComponent::GetPCGData()
 {
@@ -2150,8 +2156,9 @@ void UPCGComponent::GetManagedResources(TArray<TObjectPtr<UPCGManagedResource>>&
 	Resources = GeneratedResources;
 }
 
-FPCGComponentInstanceData::FPCGComponentInstanceData(const UPCGComponent* SourceComponent)
-	: FActorComponentInstanceData(SourceComponent)
+FPCGComponentInstanceData::FPCGComponentInstanceData(const UPCGComponent* InSourceComponent)
+	: FActorComponentInstanceData(InSourceComponent)
+	, SourceComponent(InSourceComponent)
 {
 	if (SourceComponent)
 	{
@@ -2189,22 +2196,75 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 			PCGComponent->SetManagedResources(DuplicatedResources);
 		}
 
-		// We need to make sure that the component is registered to the subsystem if it is partitioned
-		// or unregister it if it is not.
-		if (UPCGSubsystem* Subsystem = PCGComponent->GetSubsystem())
+		// Also remap if we are partitioned
+		UPCGSubsystem* Subsystem = PCGComponent->GetSubsystem();
+		if (Subsystem && PCGComponent->IsPartitioned() && SourceComponent)
 		{
-			if (PCGComponent->IsPartitioned())
-			{
-				// Mapping needs to be done if we are at runtime or previously generated
-				bool bDoActorMapping = PCGComponent->bGenerated || PCGHelpers::IsRuntimeOrPIE();
-				Subsystem->RegisterOrUpdatePCGComponent(PCGComponent, bDoActorMapping);
-			}
-			else
-			{
-				Subsystem->UnregisterPCGComponent(PCGComponent);
-			}
+			Subsystem->RemapPCGComponent(SourceComponent, PCGComponent);
+		}
+
+#if WITH_EDITOR
+		// Finally, start a delayed refresh task (if there is not one already), in editor only
+		// It is important to be delayed, because we cannot spawn Partition Actors within this scope,
+		// because we are in a construction script.
+		DelayedRefresh(PCGComponent);
+#endif // WITH_EDITOR
+	}
+}
+
+#if WITH_EDITOR
+void FPCGComponentInstanceData::DelayedRefresh(UPCGComponent* PCGComponent)
+{
+	if (UPCGSubsystem* Subsystem = PCGComponent->GetSubsystem())
+	{
+		if (PCGComponent->CurrentRefreshTask == InvalidPCGTaskId)
+		{
+			TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
+			PCGComponent->CurrentRefreshTask = Subsystem->ScheduleGeneric([ComponentPtr]()
+				{
+					UPCGComponent* Component = ComponentPtr.Get();
+					if (Component && IsValid(Component))
+					{
+						bool bWasGenerated = Component->bGenerated;
+						if (UPCGSubsystem* Subsystem = Component->GetSubsystem())
+						{
+							// Register/Unregister depending on the partition flag.
+							if (Component->IsPartitioned())
+							{
+								// If we are partitioned but we have resources, we need to force a cleanup
+								if (!Component->GeneratedResources.IsEmpty())
+								{
+									Component->CleanupLocalImmediate(true);
+								}
+
+								Subsystem->RegisterOrUpdatePCGComponent(Component, /*bDoActorMapping=*/bWasGenerated);
+							}
+							else
+							{
+								Subsystem->UnregisterPCGComponent(Component);
+							}
+						}
+
+						// Mark the refresh task invalid (since we check in Refresh if there is already a task scheduled)
+						Component->CurrentRefreshTask = InvalidPCGTaskId;
+
+						// If we had a cleanup, just generate.
+						if (bWasGenerated && !Component->bGenerated)
+						{
+							Component->GenerateLocal(/*bForce=*/false);
+						}
+						// Otherwise, only refresh if we are dirty.
+						else if (Component->bDirtyGenerated)
+						{
+							Component->Refresh();
+						}
+					}
+
+					return true;
+				}, {});
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
