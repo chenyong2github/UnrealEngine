@@ -111,7 +111,7 @@ void AWorldPartitionHLOD::PostLoad()
 			// Strip "WorldName_" from the cell name
 			FString CellName = SourceCellName.ToString();
 			bool bRemoved = CellName.RemoveFromStart(WorldName + TEXT("_"), ESearchCase::CaseSensitive);
-			if (ensure(bRemoved))
+			if (bRemoved)
 			{
 				SourceCellName = *CellName;
 			}
