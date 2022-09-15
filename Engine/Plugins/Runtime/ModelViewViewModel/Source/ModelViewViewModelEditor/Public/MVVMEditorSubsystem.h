@@ -62,6 +62,9 @@ public:
 	bool IsValidConversionFunction(const UFunction* Function, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const;
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	bool IsSimpleConversionFunction(const UFunction* Function) const;
+
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	UEdGraph* GetConversionFunctionGraph(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
