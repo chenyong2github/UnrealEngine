@@ -6,12 +6,14 @@
 #include "UI/RemoteControlPanelStyle.h"
 #include "Widgets/Layout/SBorder.h"
 
+class FDragDropOperation;
 struct FRCPanelStyle;
 class FRCControllerModel;
 class FRCLogicModeBase;
 class IPropertyRowGenerator;
 class ITableRow;
 class ITableBase;
+class SDropTarget;
 class SRCControllerPanel;
 class SRemoteControlPanel;
 class STableViewBase;
@@ -115,6 +117,29 @@ public:
 		Reset();
 	}
 
+	/** Drag-Drop validation delegate for the Controllers Panel List */
+	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+
+	/** Drag-Drop action delegate for the Controllers Panel List*/
+	FReply OnControllerListViewDragDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
+
+	/** Fetches the Remote Control preset associated with the parent panel */
+	virtual URemoteControlPreset* GetPreset() override;
+
+	/** Creates a Bind Behaviour for the given Controller and binds the given remote control property to it*/
+	void CreateBindBehaviourAndAssignTo(URCController* Controller, TSharedRef<const FRemoteControlProperty> InRemoteControlProperty, const bool bExecuteBind);
+
+	/** Whether the user's cursor is directly hovered over the List View*/
+	bool IsListViewHovered();
+
+	/** Flag that facilitates usage of two mutually exclusive drag-drop zones within a single panel 
+	* 
+	* The first drag-drop zone is empty panel space for "Bind To New Controller"
+	* The second drag-drop zone is the Controller name widget for "Bind To Existing Controller"
+	* 
+	* This flag is set if any Controller has active drag-drop focus, in which case we disable the first drag-drop zone. This is purely for visual clarity*/
+	bool bIsAnyControllerItemEligibleForDragDrop = false;
+
 private:
 
 	/** OnGenerateRow delegate for the Actions List View */
@@ -122,6 +147,9 @@ private:
 	
 	/** OnSelectionChanged delegate for Actions List View */
 	void OnTreeSelectionChanged(TSharedPtr<FRCControllerModel> InItem , ESelectInfo::Type);
+
+	/** Selects the Controller UI item corresponding to a given Controller UObject */
+	void SelectController(URCController* InController);
 
 	/** Responds to the selection of a newly created Controller. Resets UI state */
 	void OnControllerAdded(const FName& InNewPropertyName);
@@ -135,6 +163,9 @@ private:
 	* This is propagated to the corresponding Controller model (Virtual Property) for evaluating all associated Behaviours.
 	*/
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
+
+	/** Creates a new Controller for the given Remote Control Property and also binds to it */
+	void CreateAutoBindForProperty(TSharedPtr<const FRemoteControlProperty> RemoteControlProperty);
 
 	/** The row generator used to represent each Controller as a row, when used with SListView */
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
@@ -156,9 +187,6 @@ private:
 
 	/** Handles broadcasting of a successful remove item operation.*/
 	virtual void BroadcastOnItemRemoved() override;
-
-	/** Fetches the Remote Control preset associated with the parent panel */
-	virtual URemoteControlPreset* GetPreset() override;
 
 	/** Removes the given Controller UI model item from the list of UI models*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) override;

@@ -75,7 +75,7 @@ private:
 	void OnTreeSelectionChanged(TSharedPtr<FRCBehaviourModel> InItem , ESelectInfo::Type);
 
 	/** Responds to the selection of a newly created Behaviour. Resets UI state */
-	void OnBehaviourAdded(URCBehaviour* InBehaviour);
+	void OnBehaviourAdded(const URCBehaviour* InBehaviour);
 
 	/** Responds to the removal of all Behaviours. Rests UI state */
 	void OnEmptyBehaviours();

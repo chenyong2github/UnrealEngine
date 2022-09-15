@@ -181,7 +181,7 @@ void SRCBehaviourPanelList::OnTreeSelectionChanged(TSharedPtr<FRCBehaviourModel>
 	}
 }
 
-void SRCBehaviourPanelList::OnBehaviourAdded(URCBehaviour* InBehaviour)
+void SRCBehaviourPanelList::OnBehaviourAdded(const URCBehaviour* InBehaviour)
 {
 	Reset();
 }

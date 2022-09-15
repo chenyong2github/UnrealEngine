@@ -7,6 +7,7 @@
 #include "Action/Bind/RCPropertyBindAction.h"
 #include "Behaviour/Builtin/Bind/RCBehaviourBindNode.h"
 #include "Controller/RCController.h"
+#include "IRemoteControlPropertyHandle.h"
 #include "RemoteControlField.h"
 #include "RCVirtualProperty.h"
 
@@ -57,6 +58,11 @@ URCAction* URCBehaviourBind::AddAction(const TSharedRef<const FRemoteControlFiel
 
 bool URCBehaviourBind::CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const
 {
+	if (!InRemoteControlField.IsValid())
+	{
+		return false;
+	}
+
 	// Basic check (uniqueness)
 	if (ActionContainer->FindActionByFieldId(InRemoteControlField->GetId()))
 	{
@@ -64,96 +70,257 @@ bool URCBehaviourBind::CanHaveActionForField(const TSharedPtr<FRemoteControlFiel
 	}
 
 	// Advanced checks (by Controller type and Target type)
-	if(TSharedPtr<FRemoteControlProperty> RemoteControlEntityAsProperty = StaticCastSharedPtr<FRemoteControlProperty>(InRemoteControlField))
+	if (TSharedPtr<FRemoteControlProperty> RemoteControlEntityAsProperty = StaticCastSharedPtr<FRemoteControlProperty>(InRemoteControlField))
 	{
 		if (URCController* Controller = ControllerWeakPtr.Get())
 		{
-			const FProperty* ControllerAsProperty = Controller->GetProperty();
-			const FProperty* RemoteControlProperty = RemoteControlEntityAsProperty->GetProperty();
-			const FStructProperty* RemoteControlEntityAsStructProperty = CastField<FStructProperty>(RemoteControlProperty);
+			return URCBehaviourBind::CanHaveActionForField(Controller, RemoteControlEntityAsProperty.ToSharedRef(), bAllowNumericInputAsStrings);
+		}
+	}
 
-			bool IsNumericStruct = RemoteControlEntityAsStructProperty
-				&& (RemoteControlEntityAsStructProperty->Struct == TBaseStructure<FVector>::Get() ||
-					RemoteControlEntityAsStructProperty->Struct == TBaseStructure<FRotator>::Get() ||
-					RemoteControlEntityAsStructProperty->Struct == TBaseStructure<FColor>::Get() ||
-					RemoteControlEntityAsStructProperty->Struct == TBaseStructure<FLinearColor>::Get());
+	return false;
+}
 
-			// String Controller
-			if (ControllerAsProperty->IsA(FStrProperty::StaticClass()))
-			{
-				if(RemoteControlProperty->IsA(FStrProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FTextProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FNameProperty::StaticClass()))
-				{
-					return true; // Implicit / direct conversions are possible between these types
-				}
-				else if (RemoteControlProperty->IsA(FNumericProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FBoolProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FByteProperty::StaticClass()))
-				{
-					// Explicit conversion to numbers, governed by user set flag
-					return bAllowNumericInputAsStrings;
-				}
-			}
-			// Numeric Controller (Float/Int)
-			else if (ControllerAsProperty->IsA(FNumericProperty::StaticClass()))
-			{
-				if (RemoteControlProperty->IsA(FNumericProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FBoolProperty::StaticClass()) || 
-					RemoteControlProperty->IsA(FByteProperty::StaticClass()))
-				{
-					return true; // Numeric to Numeric - Implicit / direct conversion
+static bool EvaluateBindCompatibility(const TMap<FFieldClass*, TArray<FFieldClass*>>& BindingsMap, const FFieldClass* ControllerPropertyClass, const FFieldClass* InRemoteControlPropertyClass)
+{
+	TArray< FFieldClass*> Keys;
+	BindingsMap.GenerateKeyArray(Keys);
 
-					// Note: Numeric to Numeric struct conversion is not currently supported as it would ideally require Masking support (on the struct) for meaningful usage
-				}
-				else if (RemoteControlProperty->IsA(FStrProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FTextProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FNameProperty::StaticClass()))
-				{
-					// Explicit conversion to String/Name/Text, governed by user set flag
-					return bAllowNumericInputAsStrings;
-				}
-			}
-			// Boolean Controller
-			else if (ControllerAsProperty->IsA(FBoolProperty::StaticClass()))
+	for (const FFieldClass* PropertyType : Keys)
+	{
+		if (ControllerPropertyClass->IsChildOf(PropertyType))
+		{
+			const TArray<FFieldClass*>* SupportedBindings = BindingsMap.Find(PropertyType);
+
+			if (SupportedBindings)
 			{
-				if (RemoteControlProperty->IsA(FFloatProperty::StaticClass()) || // Note: FNumericPropery includes Enum, so we check explicitly for Float and Int here
-					RemoteControlProperty->IsA(FIntProperty::StaticClass()) ||
-					RemoteControlProperty->IsA(FBoolProperty::StaticClass()))
+				for (const FFieldClass* SupportedBinding : *SupportedBindings)
 				{
-					return true;
-				}
-				// Notes for explicit Bool conversions: 
-				// 1. Boolean to String/Text/Name is currently not deemed as a requirement, so hasn't been implemented here
-				// 2. Boolean to Struct is also not implemented. 
-			}
-			// Struct
-			else if (ControllerAsProperty->IsA(FStructProperty::StaticClass()))
-			{
-				if (const FStructProperty* StructProperty = CastField<FStructProperty>(ControllerAsProperty))
-				{
-					// FVector / FColor / FRotator
-					if (const FStructProperty* RCFieldStructProperty = CastField<FStructProperty>(RemoteControlProperty))
+					if (InRemoteControlPropertyClass->IsChildOf(SupportedBinding))
 					{
-						// Generally - A Struct Controller can only drive properties of the _same_ Struct type...
-						if (RCFieldStructProperty->Struct == StructProperty->Struct)
-						{
-							return true;
-						}
-						// ... with an exception for the following Struct conversions:
-						else
-						{
-							// FColor conversion:
-							if (StructProperty->Struct == TBaseStructure<FColor>::Get())
-							{
-								// To FLinearColor, is supported.
-								return RCFieldStructProperty->Struct == TBaseStructure<FLinearColor>::Get();
-							}
-						}
-
+						return true;
 					}
 				}
 			}
+		}
+	}
+
+	return false;
+}
+
+bool URCBehaviourBind::CanHaveActionForField(URCController* Controller, TSharedRef<const FRemoteControlField> InRemoteControlField, const bool bInAllowNumericInputAsStrings)
+{
+	// Bind behaviour is only relevant for Exposed Properties
+	if (InRemoteControlField->FieldType != EExposedFieldType::Property)
+	{
+		return false;
+	}
+
+	TSharedRef<const FRemoteControlProperty> RemoteControlEntityAsProperty = StaticCastSharedRef<const FRemoteControlProperty>(InRemoteControlField);
+
+	const FProperty* ControllerAsProperty = Controller->GetProperty();
+	const FProperty* RemoteControlProperty = RemoteControlEntityAsProperty->GetProperty();
+	const FStructProperty* RemoteControlEntityAsStructProperty = CastField<FStructProperty>(RemoteControlProperty);
+
+	// Indirect Binding (related types)
+	//
+	const static TMap<FFieldClass*, TArray<FFieldClass*>> SupportedIndirectBindsMap =
+	{
+		/* Controller Type */                           /* Supported Remote Control Property Types */
+
+		{ FStrProperty::StaticClass(),      /* --> */   { FTextProperty::StaticClass(),     FNameProperty::StaticClass()}},
+		{ FNumericProperty::StaticClass(),  /* --> */   { FNumericProperty::StaticClass(),  FBoolProperty::StaticClass(),  FByteProperty::StaticClass() } },
+		{ FBoolProperty::StaticClass(),     /* --> */   { FFloatProperty::StaticClass(),    FIntProperty::StaticClass(),   FBoolProperty::StaticClass() } }
+	};
+
+	// Indirect Binding (via numeric conversion)
+	//
+	const static TMap<FFieldClass*, TArray<FFieldClass*>> SupportedNumericConversionsMap =
+	{
+		/* Controller Type */                           /* Supported Remote Control Property Types */
+
+		{ FStrProperty::StaticClass(),      /* --> */   { FNumericProperty::StaticClass(), FBoolProperty::StaticClass(),  FByteProperty::StaticClass()  } },
+		{ FNumericProperty::StaticClass(),  /* --> */   { FStrProperty::StaticClass(),     FTextProperty::StaticClass(),  FNameProperty::StaticClass() } }
+	};
+
+	// Indirect Binding (for Structs)
+	//
+	const static TMap<UScriptStruct*, TArray<UScriptStruct*>> SupportedStructConversions =
+	{
+		/* Struct Type */                                 /* Supported Struct Types */
+
+		{ TBaseStructure<FColor>::Get(),      /* --> */   { TBaseStructure<FLinearColor>::Get()  } }
+	};
+
+	const FFieldClass* ControllerPropertyClass = ControllerAsProperty->GetClass();
+	const FFieldClass* RemoteControlPropertyClass = RemoteControlProperty->GetClass();
+	const bool bIsStructController = ControllerAsProperty->IsA(FStructProperty::StaticClass());
+
+	// Direct Binding (same type)
+	if (ControllerPropertyClass == RemoteControlPropertyClass && !bIsStructController) // For Structs we need to check the inner component as well
+	{
+		return true;
+	}
+	// Indirect Binding (related types)
+	else if(EvaluateBindCompatibility(SupportedIndirectBindsMap, ControllerPropertyClass, RemoteControlPropertyClass))
+	{
+		return true;
+	}
+	// Indirect Binding (Numeric Conversion)
+	else if (bInAllowNumericInputAsStrings)
+	{
+		if (EvaluateBindCompatibility(SupportedNumericConversionsMap, ControllerPropertyClass, RemoteControlPropertyClass))
+		{
+			return true;
+		}
+	}
+
+	// Structs:
+	if (bIsStructController)
+	{
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(ControllerAsProperty))
+		{
+			if (const FStructProperty* RCFieldStructProperty = CastField<FStructProperty>(RemoteControlProperty))
+			{
+				if (RCFieldStructProperty->Struct == StructProperty->Struct)
+				{
+					return true; // Binding via matching Struct
+				}
+				else
+				{
+					if (const TArray<UScriptStruct*>* SupportedConversions = SupportedStructConversions.Find(StructProperty->Struct))
+					{
+						if (SupportedConversions->Contains(RCFieldStructProperty->Struct))
+						{
+							return true; // Bind via explicit conversion
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false; // Unsupported types!
+}
+
+bool URCBehaviourBind::GetPropertyBagTypeFromFieldProperty(const FProperty* InProperty, EPropertyBagPropertyType& OutPropertyBagType, UObject*& OutStructObject)
+{
+	const static TMap<EPropertyBagPropertyType, TArray<FFieldClass*>> PropertyBagTypesMap =
+	{
+		/* Property Bag Type */                           /* Input - Remote Control Property Type */
+		{ EPropertyBagPropertyType::String,  /* --> */    { FStrProperty::StaticClass(),      FTextProperty::StaticClass(),     FNameProperty::StaticClass()}},
+		{ EPropertyBagPropertyType::Int32,   /* --> */    { FIntProperty::StaticClass(),      FInt64Property::StaticClass(),    FInt16Property::StaticClass(),   FUInt32Property::StaticClass(),
+														   FUInt64Property::StaticClass(),   FUInt16Property::StaticClass(),   FEnumProperty::StaticClass(),    FByteProperty::StaticClass() } },
+		{ EPropertyBagPropertyType::Float,   /* --> */    { FFloatProperty::StaticClass(),    FDoubleProperty::StaticClass() } },
+		{ EPropertyBagPropertyType::Bool,    /* --> */    { FBoolProperty::StaticClass() } },
+		{ EPropertyBagPropertyType::Struct,  /* --> */    { FStructProperty::StaticClass() } }
+	};
+
+	OutPropertyBagType = EPropertyBagPropertyType::None;
+
+	TArray<EPropertyBagPropertyType> Keys;
+	PropertyBagTypesMap.GenerateKeyArray(Keys);
+
+	for (const EPropertyBagPropertyType PropertyBagType : Keys)
+	{
+		if (PropertyBagTypesMap.Find(PropertyBagType)->Contains(InProperty->GetClass()))
+		{
+			OutPropertyBagType = PropertyBagType;
+		}
+	}
+
+	// Extract the inner Struct object if this is a Struct Property
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+	{
+		OutStructObject = StructProperty->Struct;
+	}
+
+	return OutPropertyBagType != EPropertyBagPropertyType::None;
+}
+
+bool URCBehaviourBind::CopyPropertyValueToController(URCController* InController, TSharedRef<const FRemoteControlProperty> InRemoteControlProperty)
+{
+	FProperty* ControllerAsProperty = InController->GetProperty();
+	FProperty* RemoteControlProperty = InRemoteControlProperty->GetProperty();
+	if (!ensure(ControllerAsProperty && RemoteControlProperty))
+	{
+		return false;
+	}
+
+	TSharedPtr<IRemoteControlPropertyHandle> PropertyHandle = InRemoteControlProperty->GetPropertyHandle();
+	if (!ensure(PropertyHandle))
+	{
+		return false;
+	}
+
+	// String Controller
+	if (ControllerAsProperty->IsA(FStrProperty::StaticClass()))
+	{
+		FString StringValue;
+		if (RemoteControlProperty->IsA(FStrProperty::StaticClass()) || RemoteControlProperty->IsA(FNameProperty::StaticClass()))
+		{
+			PropertyHandle->GetValue(StringValue);
+		}
+		else if (RemoteControlProperty->IsA(FTextProperty::StaticClass()))
+		{
+			FText TextValue;
+			PropertyHandle->GetValue(TextValue);
+			StringValue = TextValue.ToString();
+		}
+
+		InController->SetValueString(StringValue);
+
+		return true;
+	}
+	// Int32 Controller
+	else if (ControllerAsProperty->IsA(FIntProperty::StaticClass()))
+	{
+		int32 IntValue;
+		PropertyHandle->GetValue(IntValue);
+
+		InController->SetValueDouble(IntValue);
+
+		return true;
+	}
+	// Float Controller
+	else if (ControllerAsProperty->IsA(FFloatProperty::StaticClass()))
+	{
+		float FloatValue;
+		PropertyHandle->GetValue(FloatValue);
+
+		InController->SetValueFloat(FloatValue);
+
+		return true;
+	}
+	// Bool Controller
+	else if (ControllerAsProperty->IsA(FBoolProperty::StaticClass()))
+	{
+		bool BoolValue;
+		PropertyHandle->GetValue(BoolValue);
+
+		InController->SetValueBool(BoolValue);
+
+		return true;
+	}
+	else if (FStructProperty* ControllerAsStructProperty = CastField<FStructProperty>(ControllerAsProperty))
+	{
+		if (ControllerAsStructProperty->Struct == TBaseStructure<FVector>::Get())
+		{
+			FVector VectorValue;
+			PropertyHandle->GetValue(VectorValue);
+			InController->SetValueVector(VectorValue);
+		}
+		else if (ControllerAsStructProperty->Struct == TBaseStructure<FRotator>::Get())
+		{
+			FRotator RotatorValue;
+			PropertyHandle->GetValue(RotatorValue);
+			InController->SetValueRotator(RotatorValue);
+		}
+		else if (ControllerAsStructProperty->Struct == TBaseStructure<FColor>::Get())
+		{
+			FColor ColorValue;
+			PropertyHandle->GetValue(ColorValue);
+			InController->SetValueColor(ColorValue);
 		}
 	}
 

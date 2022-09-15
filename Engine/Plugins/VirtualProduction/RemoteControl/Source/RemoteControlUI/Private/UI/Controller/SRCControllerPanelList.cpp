@@ -2,14 +2,19 @@
 
 #include "SRCControllerPanelList.h"
 
+#include "Behaviour/Builtin/Bind/RCBehaviourBind.h"
+#include "Behaviour/Builtin/Bind/RCBehaviourBindNode.h"
 #include "Commands/RemoteControlCommands.h"
+#include "Controller/RCController.h"
 #include "Controller/RCControllerContainer.h"
 #include "IDetailTreeNode.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "IPropertyRowGenerator.h"
+#include "IRemoteControlModule.h"
 #include "RCControllerModel.h"
 #include "RCVirtualProperty.h"
 #include "RCVirtualPropertyContainer.h"
+#include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "SDropTarget.h"
 #include "SlateOptMacros.h"
@@ -31,6 +36,13 @@
 
 namespace UE::RCControllerPanelList
 {
+	enum class EDragDropSupportedModes : uint8
+	{
+		ReorderOnly,
+		All,
+		None
+	};
+
 	namespace Columns
 	{
 		const FName Name = TEXT("Controller Name");
@@ -74,7 +86,7 @@ namespace UE::RCControllerPanelList
 						.Widget(DragDropBorderWidget)
 					];
 
-				return WrapWithDropTarget(DragHandleWidget);
+				return WrapWithDropTarget(DragHandleWidget, EDragDropSupportedModes::ReorderOnly /*Allow reorder operation only*/);
 			}
 
 			return SNullWidget::NullWidget;
@@ -82,16 +94,31 @@ namespace UE::RCControllerPanelList
 
 		TSharedPtr<SBorder> DragDropBorderWidget;
 
+
+		void OnDragEnter(FGeometry const& MyGeometry, FDragDropEvent const& DragDropEvent) override
+		{
+			bIsDragActive = true;
+		}
+
+
+		void OnDragLeave(FDragDropEvent const& DragDropEvent) override
+		{
+			bIsDragActive = false;
+		}
+
+	protected:
+
 	private:
 
-		TSharedRef<SWidget> WrapWithDropTarget(const TSharedRef<SWidget> InWidget)
+		TSharedRef<SWidget> WrapWithDropTarget(const TSharedRef<SWidget> InWidget, const EDragDropSupportedModes SupportedMode = EDragDropSupportedModes::All)
 		{
 			return SNew(SDropTarget)
+				.ValidColor(FStyleColors::AccentOrange)
 				.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
 				.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
 				.OnDropped_Lambda([this](const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) { return SControllerItemListRow::OnControllerItemDragDrop(InDragDropEvent.GetOperation()); })
-				.OnAllowDrop(this, &SControllerItemListRow::OnAllowDrop)
-				.OnIsRecognized(this, &SControllerItemListRow::OnAllowDrop)
+				.OnAllowDrop(this, &SControllerItemListRow::OnAllowDrop, SupportedMode)
+				.OnIsRecognized(this, &SControllerItemListRow::OnAllowDrop, SupportedMode)
 				[
 					InWidget
 				];
@@ -99,6 +126,9 @@ namespace UE::RCControllerPanelList
 
 		FReply OnControllerItemDragDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 		{
+			bIsDragActive = false;
+			ControllerPanelList->bIsAnyControllerItemEligibleForDragDrop = false;
+
 			if (!DragDropOperation)
 			{
 				return FReply::Handled();
@@ -121,12 +151,36 @@ namespace UE::RCControllerPanelList
 					}
 				}
 			}
+			else if (DragDropOperation->IsOfType<FExposedEntityDragDrop>())
+			{
+				if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation))
+				{
+					// Fetch the Exposed Entity
+					const FGuid ExposedEntityId = DragDropOp->GetId();
+
+					if (URemoteControlPreset* Preset = ControllerPanelList->GetPreset())
+					{
+						if (TSharedPtr<const FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(ExposedEntityId).Pin())
+						{
+							if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
+							{
+								ControllerPanelList->CreateBindBehaviourAndAssignTo(Controller, RemoteControlProperty.ToSharedRef(), true);
+							}
+						}
+					}
+				}
+			}
 
 			return FReply::Handled();
 		}
 
-		bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+		bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation, const EDragDropSupportedModes SupportedMode)
 		{
+			if (!ensure(ControllerPanelList))
+			{
+				return false;
+			}
+
 			if (DragDropOperation && ControllerItem)
 			{
 				// Dragging Controllers onto Controllers (Reordering)
@@ -135,6 +189,40 @@ namespace UE::RCControllerPanelList
 					if (TSharedPtr<FRCControllerDragDrop> DragDropOp = StaticCastSharedPtr<FRCControllerDragDrop>(DragDropOperation))
 					{
 						return true;
+					}
+				}
+				else
+				{
+					if (SupportedMode == EDragDropSupportedModes::ReorderOnly)
+					{
+						return false; // This widget only supports Reordering operation as a drag-drop action
+					}
+
+					if (DragDropOperation->IsOfType<FExposedEntityDragDrop>())
+					{
+						if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation))
+						{
+							// Fetch the Exposed Entity
+							const FGuid ExposedEntityId = DragDropOp->GetId();
+
+							if (URemoteControlPreset* Preset = ControllerPanelList->GetPreset())
+							{
+								if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(ExposedEntityId).Pin())
+								{
+									if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
+									{
+										const bool bAllowNumericInputAsStrings = true;
+
+										const bool bAllowDrop = URCBehaviourBind::CanHaveActionForField(Controller, RemoteControlField.ToSharedRef(), bAllowNumericInputAsStrings);
+
+										ControllerPanelList->bIsAnyControllerItemEligibleForDragDrop |= (bAllowDrop && bIsDragActive);
+
+										return bAllowDrop;
+									}
+								}
+							}
+						}
+
 					}
 				}
 			}
@@ -156,6 +244,7 @@ namespace UE::RCControllerPanelList
 private:
 		TSharedPtr<FRCControllerModel> ControllerItem;
 		TSharedPtr<SRCControllerPanelList> ControllerPanelList;
+		bool bIsDragActive = false;
 	};
 } 
 
@@ -195,7 +284,15 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 
 	ChildSlot
 	[
-		ListView.ToSharedRef()
+		SNew(SDropTarget)
+		.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
+		.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
+		.OnDropped_Lambda([this](const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) { return SRCControllerPanelList::OnControllerListViewDragDrop(InDragDropEvent.GetOperation()); })
+		.OnAllowDrop(this, &SRCControllerPanelList::OnAllowDrop)
+		.OnIsRecognized(this, &SRCControllerPanelList::OnAllowDrop)
+		[
+			ListView.ToSharedRef()
+		]
 	];
 
 	// Add delegates
@@ -241,7 +338,7 @@ void SRCControllerPanelList::Reset()
 	TSharedPtr<SRCControllerPanel> ControllerPanel = ControllerPanelWeakPtr.Pin();
 	URemoteControlPreset* Preset = ControllerPanel->GetPreset();
 	TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ControllerPanel->GetRemoteControlPanel();
-
+	
 	check(Preset);
 
 	PropertyRowGenerator->SetStructure(Preset->GetControllerContainerStructOnScope());
@@ -260,7 +357,7 @@ void SRCControllerPanelList::Reset()
 		for (TSharedRef<IDetailTreeNode>& Child : Children)
 		{
 			FProperty* Property = Child->CreatePropertyHandle()->GetProperty();
-			check(Property);
+ 			check(Property);
 
 			if (URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(Property->GetFName()))
 			{
@@ -294,6 +391,22 @@ void SRCControllerPanelList::OnTreeSelectionChanged(TSharedPtr<FRCControllerMode
 				RemoteControlPanel->OnControllerSelectionChanged.Broadcast(InItem);
 				RemoteControlPanel->OnBehaviourSelectionChanged.Broadcast(InItem.IsValid() ? InItem->GetSelectedBehaviourModel() : nullptr);
 			}
+		}
+	}
+}
+
+void SRCControllerPanelList::SelectController(URCController* InController)
+{
+	for (TSharedPtr<FRCControllerModel> ControllerItem : ControllerItems)
+	{
+		if (!ensure(ControllerItem))
+		{
+			continue;
+		}
+
+		if (ControllerItem->GetVirtualProperty() == InController)
+		{
+			ListView->SetSelection(ControllerItem);
 		}
 	}
 }
@@ -450,6 +563,181 @@ void SRCControllerPanelList::ReorderControllerItem(TSharedRef<FRCControllerModel
 	}
 
 	ListView->RequestListRefresh();
+}
+
+static TSharedPtr<FExposedEntityDragDrop> GetExposedEntityDragDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	if (DragDropOperation)
+	{
+		if (DragDropOperation->IsOfType<FExposedEntityDragDrop>())
+		{
+			return StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation);
+		}
+	}
+
+	return nullptr;
+}
+
+bool SRCControllerPanelList::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	if (IsListViewHovered())
+	{
+		bIsAnyControllerItemEligibleForDragDrop = false;
+	}
+	// Ensures that this drop target is visually disabled whenever the user is attempting to drop onto an existing Controller (rather than the ListView's empty space)
+	else if (bIsAnyControllerItemEligibleForDragDrop)
+	{
+		return false;
+	}
+
+	if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = GetExposedEntityDragDrop(DragDropOperation))
+	{
+		// Fetch the Exposed Entity
+		const FGuid ExposedEntityId = DragDropOp->GetId();
+
+		if (URemoteControlPreset* Preset = GetPreset())
+		{
+			if (TSharedPtr<const FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(ExposedEntityId).Pin())
+			{
+				return RemoteControlField->FieldType == EExposedFieldType::Property;
+			}
+		}
+	}
+
+	return false;
+}
+
+FReply SRCControllerPanelList::OnControllerListViewDragDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+{
+	if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = GetExposedEntityDragDrop(DragDropOperation))
+	{
+		// Fetch the Exposed Entity
+		const FGuid ExposedEntityId = DragDropOp->GetId();
+
+		if (URemoteControlPreset* Preset = GetPreset())
+		{
+			if (TSharedPtr<const FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(ExposedEntityId).Pin())
+			{
+				CreateAutoBindForProperty(RemoteControlProperty);
+			}
+		}
+	}
+	
+	return FReply::Handled();
+}
+
+void SRCControllerPanelList::CreateAutoBindForProperty(TSharedPtr<const FRemoteControlProperty> RemoteControlProperty)
+{
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		// Derive the input data needed for creating a new Controller
+		FProperty* Property = RemoteControlProperty->GetProperty();
+		EPropertyBagPropertyType PropertyBagType = EPropertyBagPropertyType::None;
+		UObject* StructObject = nullptr;
+
+		// In the Logic realm we use a single type like (eg: String / Int) to represent various related types (String/Name/Text, Int32, Int64, etc)
+		// For this reason explicit mapping conversion is required between a given FProperty type and the desired Controller type
+		bool bSuccess = URCBehaviourBind::GetPropertyBagTypeFromFieldProperty(Property, PropertyBagType, StructObject);
+		if(bSuccess)
+		{
+			// Step 1. Create a Controller of matching type
+			URCController* NewController = Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), PropertyBagType, StructObject));
+			NewController->DisplayIndex = Preset->GetNumVirtualProperties() - 1;
+
+			// Transfer property value from Exposed Property to the New Controller.
+			// The goal is to keep values synced for a Controller newly created via "Auto Bind"
+			URCBehaviourBind::CopyPropertyValueToController(NewController, RemoteControlProperty.ToSharedRef());
+
+			// Step 2. Refresh UI
+			Reset();
+
+			// Step 3. Create Bind Behaviour and Bind to the property
+			CreateBindBehaviourAndAssignTo(NewController, RemoteControlProperty.ToSharedRef(), false);
+		}
+	}
+}
+
+void SRCControllerPanelList::CreateBindBehaviourAndAssignTo(URCController* Controller, TSharedRef<const FRemoteControlProperty> InRemoteControlProperty, const bool bExecuteBind)
+{
+	const URCBehaviourBind* BindBehaviour = nullptr;
+
+	bool bRequiresNumericConversion = false;
+	if (!URCBehaviourBind::CanHaveActionForField(Controller, InRemoteControlProperty, false))
+	{
+		if (URCBehaviourBind::CanHaveActionForField(Controller, InRemoteControlProperty, true))
+		{
+			bRequiresNumericConversion = true;
+		}
+		else
+		{
+			ensureAlwaysMsgf(false, TEXT("Incompatible property provided for Auto Bind!"));
+			return;
+		}
+	}
+
+	for (const URCBehaviour* Behaviour : Controller->Behaviours)
+	{
+		if (Behaviour && Behaviour->IsA(URCBehaviourBind::StaticClass()))
+		{
+			BindBehaviour = Cast<URCBehaviourBind>(Behaviour);
+
+			// In case numeric conversion is required we might have multiple Bind behaviours with different settings,
+			// so we do not break in case there is at least one Bind behaviour with a matching clause. If not, we will create a new Bind behaviour with the requried setting (see below)
+			if (!bRequiresNumericConversion || BindBehaviour->AreNumericInputsAllowedAsStrings())
+			{
+				break;
+			}
+		}
+	}
+
+	if (BindBehaviour)
+	{
+		if (bRequiresNumericConversion && !BindBehaviour->AreNumericInputsAllowedAsStrings())
+		{
+			// If the requested Bind operation requires numeric conversion but the existing Bind behaviour doesn't support this, then we prefer creating a new Bind behaviour to facilitate this operation.
+			// This allows the the user to successfully perform the Auto Bind as desired without disrupting the setting on the existing Bind behaviour
+			BindBehaviour = nullptr;
+		}
+		
+	}
+
+	if (!BindBehaviour)
+	{
+		URCBehaviourBind* NewBindBehaviour = Cast<URCBehaviourBind>(Controller->AddBehaviour(URCBehaviourBindNode::StaticClass()));
+
+		// If this is a new Bind Behaviour and we are attempting to link unrelated (but compatible types), via numeric conversion, then we apply the bAllowNumericInputAsStrings flag
+		NewBindBehaviour->SetAllowNumericInputAsStrings(bRequiresNumericConversion);
+
+		BindBehaviour = NewBindBehaviour;
+
+		// Broadcast new behaviour
+		if (const TSharedPtr<SRCControllerPanel> ControllerPanel = ControllerPanelWeakPtr.Pin())
+		{
+			if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ControllerPanel->GetRemoteControlPanel())
+			{
+				RemoteControlPanel->OnBehaviourAdded.Broadcast(BindBehaviour);
+			}
+		}
+	}
+
+	if (ensure(BindBehaviour))
+	{
+		URCBehaviourBind* BindBehaviourMutable = const_cast<URCBehaviourBind*>(BindBehaviour);
+		URCAction* BindAction = BindBehaviourMutable->AddPropertyBindAction(InRemoteControlProperty);
+
+		if (bExecuteBind)
+		{
+			BindAction->Execute();
+		}
+	}
+
+	// Update the UI selection to provide the user visual feedback indicating that a Bind behaviour has been created/updated
+	SelectController(Controller);
+}
+
+bool SRCControllerPanelList::IsListViewHovered()
+{
+	return ListView->IsDirectlyHovered();
 }
 
 #undef LOCTEXT_NAMESPACE
