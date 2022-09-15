@@ -41,7 +41,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		{
 			// When bForceOutputAllTiles, we generate tiles for all pixels.
 			fHair = true;
-			pHair = true;
+			pHair = false;
 		}
 		else if (bUintTexture)
 		{
