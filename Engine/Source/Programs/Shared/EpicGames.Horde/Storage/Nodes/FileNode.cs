@@ -74,7 +74,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// Chunks are pushed into a tree hierarchy as data is appended to the root, with nodes of the tree also split along content-aware boundaries with <see cref="IoHash.NumBytes"/> granularity.
 	/// Once a chunk has been written to storage, it is treated as immutable.
 	/// </summary>
-	[TreeSerializer(typeof(FileNodeSerializer))]
+	[TreeSerializer("478B5170-E0A0-42D0-BB32-305BBE55F38C", typeof(FileNodeSerializer))]
 	public abstract class FileNode : TreeNode
 	{
 		/// <summary>
@@ -293,7 +293,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IReadOnlyList<TreeNodeRef> GetReferences() => Array.Empty<TreeNodeRef>();
 
 		/// <inheritdoc/>
-		public override Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken) => Task.FromResult<ITreeBlob>(new NewTreeBlob(_writtenSequence, Array.Empty<ITreeBlobRef>()));
+		public override Task<NewTreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken) => Task.FromResult(new NewTreeBlob(_writtenSequence, Array.Empty<ITreeBlobRef>()));
 
 		/// <inheritdoc/>
 		public override ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
@@ -478,7 +478,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IReadOnlyList<TreeNodeRef> GetReferences() => _children;
 
 		/// <inheritdoc/>
-		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
+		public override async Task<NewTreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			byte[] data = new byte[1 + sizeof(uint) + VarInt.MeasureUnsigned((ulong)_length) + 1];
 			data[0] = TypeId;

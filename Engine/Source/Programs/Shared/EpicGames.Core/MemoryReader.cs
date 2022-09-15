@@ -199,6 +199,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads a GUID from the memory buffer
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		public static Guid ReadGuid(this IMemoryReader reader)
+		{
+			Guid guid = new Guid(reader.GetMemory(16).Slice(0, 16).Span);
+			reader.Advance(16);
+			return guid;
+		}
+
+		/// <summary>
 		/// Reads a sequence of bytes from the buffer
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>

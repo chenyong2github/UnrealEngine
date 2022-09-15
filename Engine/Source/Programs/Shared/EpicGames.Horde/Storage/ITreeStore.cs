@@ -15,6 +15,11 @@ namespace EpicGames.Horde.Storage
 	public interface ITreeBlob
 	{
 		/// <summary>
+		/// Unique id for the type of this node
+		/// </summary>
+		Guid TypeId { get; }
+
+		/// <summary>
 		/// Data for the node
 		/// </summary>
 		ReadOnlySequence<byte> Data { get; }
@@ -102,11 +107,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Adds a new node to this tree
 		/// </summary>
+		/// <param name="typeId">Unique identifier for the type of this node</param>
 		/// <param name="data">Data for the node</param>
 		/// <param name="refs">References to other nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Reference to the node that was added</returns>
-		Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
+		Task<ITreeBlobRef> WriteNodeAsync(Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Flushes the current state using a new ref name.
@@ -125,11 +131,13 @@ namespace EpicGames.Horde.Storage
 	{
 		class TreeBlobImpl : ITreeBlob
 		{
+			public Guid TypeId { get; }
 			public ReadOnlySequence<byte> Data { get; }
 			public IReadOnlyList<ITreeBlobRef> Refs { get; }
 
-			public TreeBlobImpl(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs)
+			public TreeBlobImpl(Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs)
 			{
+				TypeId = typeId;
 				Data = data;
 				Refs = refs;
 			}
@@ -138,9 +146,9 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Create a blob from the given parameters
 		/// </summary>
-		public static ITreeBlob Create(ReadOnlySequence<byte> Data, IReadOnlyList<ITreeBlobRef> Refs)
+		public static ITreeBlob Create(Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs)
 		{
-			return new TreeBlobImpl(Data, Refs);
+			return new TreeBlobImpl(typeId, data, refs);
 		}
 	}
 
@@ -189,14 +197,15 @@ namespace EpicGames.Horde.Storage
 		/// Writes a ref using the given root data
 		/// </summary>
 		/// <param name="writer">Writer to modify</param>
+		/// <param name="typeId">Type of the root object</param>
 		/// <param name="name">Name of the ref</param>
 		/// <param name="data">Data for the node</param>
 		/// <param name="refs">References to other nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Reference to the node that was added</returns>
-		public static async Task WriteRefAsync(this ITreeWriter writer, RefName name, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
+		public static async Task WriteRefAsync(this ITreeWriter writer, RefName name, Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
 		{
-			ITreeBlobRef root = await writer.WriteNodeAsync(data, refs, cancellationToken);
+			ITreeBlobRef root = await writer.WriteNodeAsync(typeId, data, refs, cancellationToken);
 			await writer.WriteRefAsync(name, root, cancellationToken);
 		}
 	}

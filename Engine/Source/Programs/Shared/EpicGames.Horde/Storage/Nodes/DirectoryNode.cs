@@ -224,7 +224,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// A directory node
 	/// </summary>
-	[TreeSerializer(typeof(DirectoryNodeSerializer))]
+	[TreeSerializer("9275090B-8731-4872-BD66-BD27EA3EEDF4", typeof(DirectoryNodeSerializer))]
 	public class DirectoryNode : TreeNode
 	{
 		internal const byte TypeId = (byte)'d';
@@ -517,7 +517,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		#endregion
 
 		/// <inheritdoc/>
-		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
+		public override async Task<NewTreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			List<ITreeBlobRef> refs = new List<ITreeBlobRef>();
 

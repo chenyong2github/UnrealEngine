@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
@@ -56,10 +55,10 @@ namespace Horde.Agent.Commands.Bundles
 			int refIdx = 0;
 			foreach (BundleImport import in header.Imports)
 			{
-				logger.LogInformation("  From blob {BlobId} ({NumExports}/{TotalExports} nodes)", import.BlobId, import.Exports.Count, import.ExportCount);
+				logger.LogInformation("  From blob {BlobId} ({NumExports}/{TotalExports} nodes)", import.Id, import.Exports.Count, import.ExportCount);
 				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
 				{
-					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.BlobId, exportIdx, exportHash);
+					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.Id, exportIdx, exportHash);
 					refIdx++;
 				}
 			}

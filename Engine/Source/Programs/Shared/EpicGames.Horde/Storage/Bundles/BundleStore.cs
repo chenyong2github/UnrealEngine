@@ -137,14 +137,16 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// </summary>
 		class ExportedNodeState : ImportedNodeState
 		{
+			public readonly Guid TypeId;
 			public readonly PacketInfo PacketInfo;
 			public readonly int Offset;
 			public readonly int Length;
 			public readonly IReadOnlyList<NodeInfo> References;
 
-			public ExportedNodeState(BundleInfo bundleInfo, int exportIdx, PacketInfo packetInfo, int offset, int length, IReadOnlyList<NodeInfo> references)
+			public ExportedNodeState(BundleInfo bundleInfo, int exportIdx, Guid typeId, PacketInfo packetInfo, int offset, int length, IReadOnlyList<NodeInfo> references)
 				: base(bundleInfo, exportIdx)
 			{
+				TypeId = typeId;
 				PacketInfo = packetInfo;
 				Offset = offset;
 				Length = length;
@@ -158,17 +160,20 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// </summary>
 		class InMemoryNodeState : NodeState, ITreeBlob
 		{
+			public readonly Guid TypeId;
 			public readonly ReadOnlySequence<byte> Data;
 			public readonly IReadOnlyList<NodeInfo> References;
 
 			public BundleWriter? _writer;
 			public bool _writing; // This node is currently being written asynchronously
 
+			Guid ITreeBlob.TypeId => TypeId;
 			ReadOnlySequence<byte> ITreeBlob.Data => Data;
 			IReadOnlyList<ITreeBlobRef> ITreeBlob.Refs => References;
 
-			public InMemoryNodeState(ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
+			public InMemoryNodeState(Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
 			{
+				TypeId = typeId;
 				Data = data;
 				References = references;
 			}
@@ -259,16 +264,16 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 
 			/// <inheritdoc/>
-			public Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
+			public Task<ITreeBlobRef> WriteNodeAsync(Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
 			{
 				IReadOnlyList<NodeInfo> typedRefs = refs.Select(x => (NodeInfo)x).ToList();
 
-				IoHash hash = ComputeHash(data, typedRefs);
+				IoHash hash = ComputeHash(typeId, data, typedRefs);
 
 				NodeInfo? node;
 				if (!HashToNode.TryGetValue(hash, out node))
 				{
-					InMemoryNodeState state = new InMemoryNodeState(data, typedRefs);
+					InMemoryNodeState state = new InMemoryNodeState(typeId, data, typedRefs);
 					NodeInfo newNode = new NodeInfo(_owner, hash, state);
 
 					// Try to add the node again. If we succeed, check if we need to flush the current bundle being built.
@@ -392,7 +397,7 @@ namespace EpicGames.Horde.Storage.Bundles
 					if (_queueNodes.Count == 0 || _queueNodes[^1] != root)
 					{
 						ITreeBlob blob = await root.GetTargetAsync(cancellationToken);
-						InMemoryNodeState state = new InMemoryNodeState(blob.Data, blob.Refs.ConvertAll(x => (NodeInfo)x));
+						InMemoryNodeState state = new InMemoryNodeState(blob.TypeId, blob.Data, blob.Refs.ConvertAll(x => (NodeInfo)x));
 						WriteNode(new NodeInfo(_owner, root.Hash, state));
 					}
 					last = await FlushInternalAsync(cancellationToken);
@@ -446,7 +451,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				BundleHeader header = bundle.Header;
 
 				// Write it to storage
-				BlobId blobId = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), _prefix, cancellationToken);
+				BlobId blobId = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => new BlobId(x.Id)).ToList(), _prefix, cancellationToken);
 				string cacheKey = GetBundleCacheKey(blobId);
 				_owner.AddBundleToCache(cacheKey, bundle);
 
@@ -470,7 +475,8 @@ namespace EpicGames.Horde.Storage.Bundles
 						InMemoryNodeState inMemoryState = (InMemoryNodeState)writeNodes[exportIdx].State;
 
 						BundleExport export = header.Exports[exportIdx];
-						writeNodes[exportIdx].SetState(new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, inMemoryState.References));
+						Guid typeId = header.TypeIds[export.TypeIndex];
+						writeNodes[exportIdx].SetState(new ExportedNodeState(bundleInfo, exportIdx, typeId, packetInfo, nodeOffset, export.Length, inMemoryState.References));
 
 						nodeOffset += header.Exports[exportIdx].Length;
 					}
@@ -549,11 +555,15 @@ namespace EpicGames.Horde.Storage.Bundles
 						ImportedNodeState importedNodeState = (ImportedNodeState)importedNode.State;
 						exportInfos[idx] = (importedNodeState.ExportIdx, importedNode.Hash);
 					}
-					imports.Add(new BundleImport(bundleInfo.BlobId, bundleInfo.Exports.Length, exportInfos));
+					imports.Add(new BundleImport(bundleInfo.BlobId.Inner, bundleInfo.Exports.Length, exportInfos));
 				}
 
 				// Preallocate data in the encoded buffer to reduce fragmentation if we have to resize
 				ByteArrayBuilder builder = new ByteArrayBuilder(options.MinCompressionPacketSize * 2);
+
+				// List of type ids for the bundle
+				List<Guid> typeIds = new List<Guid>(10);
+				Dictionary<Guid, int> typeIdToIndex = new Dictionary<Guid, int>(typeIds.Capacity);
 
 				// Create the export list
 				List<BundleExport> exports = new List<BundleExport>();
@@ -578,9 +588,18 @@ namespace EpicGames.Horde.Storage.Bundles
 						blockSize = 0;
 					}
 
+					// Get the type index
+					int typeIndex;
+					if (!typeIdToIndex.TryGetValue(nodeState.TypeId, out typeIndex))
+					{
+						typeIndex = typeIds.Count;
+						typeIds.Add(nodeState.TypeId);
+						typeIdToIndex.Add(nodeState.TypeId, typeIndex);
+					}
+
 					// Create the export for this node
 					int[] references = nodeState.References.Select(x => nodeToIndex[x]).ToArray();
-					BundleExport export = new BundleExport(node.Hash, (int)nodeData.Length, references);
+					BundleExport export = new BundleExport(node.Hash, typeIndex, (int)nodeData.Length, references);
 					exports.Add(export);
 					nodeToIndex[node] = nodeToIndex.Count;
 
@@ -597,7 +616,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				FlushPacket(options.CompressionFormat, blockSegments, blockSize, builder, packets);
 
 				// Flush the data
-				BundleHeader header = new BundleHeader(options.CompressionFormat, imports, exports, packets);
+				BundleHeader header = new BundleHeader(options.CompressionFormat, typeIds, imports, exports, packets);
 				return new Bundle(header, builder.AsSequence());
 			}
 
@@ -763,7 +782,7 @@ namespace EpicGames.Horde.Storage.Bundles
 					ReadOnlyMemory<byte> nodeData = decodedPacket.AsMemory(nodeOffset, export.Length);
 					List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
 
-					NodeInfo node = new NodeInfo(this, export.Hash, new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), nodeRefs));
+					NodeInfo node = new NodeInfo(this, export.Hash, new InMemoryNodeState(header.TypeIds[export.TypeIndex], new ReadOnlySequence<byte>(nodeData), nodeRefs));
 					nodes.Add(node);
 
 					nodeOffset += export.Length;
@@ -795,7 +814,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo.BlobId, exportedState.PacketInfo, bundle.Payload);
 			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportedState.Offset, exportedState.Length);
 
-			return new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), exportedState.References);
+			return new InMemoryNodeState(exportedState.TypeId, new ReadOnlySequence<byte>(nodeData), exportedState.References);
 		}
 
 		async ValueTask<ExportedNodeState> GetExportedStateAsync(NodeInfo node, CancellationToken cancellationToken)
@@ -930,7 +949,8 @@ namespace EpicGames.Horde.Storage.Bundles
 						BundleExport export = header.Exports[exportIdx];
 						List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
 
-						ExportedNodeState state = new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, nodeRefs);
+						Guid typeId = header.TypeIds[export.TypeIndex];
+						ExportedNodeState state = new ExportedNodeState(bundleInfo, exportIdx, typeId, packetInfo, nodeOffset, export.Length, nodeRefs);
 
 						NodeInfo? node = bundleInfo.Exports[exportIdx];
 						if (node == null)
@@ -959,7 +979,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			List<NodeInfo> indexedNodes = new List<NodeInfo>(header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count);
 			foreach (BundleImport import in header.Imports)
 			{
-				BundleInfo importBundle = context.FindOrAddBundle(import.BlobId, import.ExportCount);
+				BundleInfo importBundle = context.FindOrAddBundle(new BlobId(import.Id), import.ExportCount);
 				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
 				{
 					NodeInfo? node = importBundle.Exports[exportIdx];
@@ -1012,18 +1032,22 @@ namespace EpicGames.Horde.Storage.Bundles
 
 		#region Writing bundles
 
-		static IoHash ComputeHash(ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
+		static IoHash ComputeHash(Guid typeId, ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
 		{
-			byte[] buffer = new byte[IoHash.NumBytes * (references.Count + 1)];
+			byte[] buffer = new byte[16 + IoHash.NumBytes * (references.Count + 1)];
 
 			Span<byte> span = buffer;
+
+			typeId.TryWriteBytes(buffer.AsSpan(0, 16));
+			span = span[16..];
+
 			for (int idx = 0; idx < references.Count; idx++)
 			{
 				references[idx].Hash.CopyTo(span);
 				span = span[IoHash.NumBytes..];
 			}
-			IoHash.Compute(data).CopyTo(span);
 
+			IoHash.Compute(data).CopyTo(span);
 			return IoHash.Compute(buffer);
 		}
 

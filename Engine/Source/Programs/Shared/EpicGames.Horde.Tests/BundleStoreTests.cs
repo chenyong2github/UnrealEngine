@@ -49,13 +49,13 @@ namespace EpicGames.Horde.Tests
 			{
 				ITreeWriter writer = store.CreateTreeWriter("test");
 
-				ITreeBlobRef node1 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
-				ITreeBlobRef node2 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { node1 }, CancellationToken.None);
-				ITreeBlobRef node3 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { node2 }, CancellationToken.None);
-				ITreeBlobRef node4 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
+				ITreeBlobRef node1 = await writer.WriteNodeAsync(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
+				ITreeBlobRef node2 = await writer.WriteNodeAsync(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { node1 }, CancellationToken.None);
+				ITreeBlobRef node3 = await writer.WriteNodeAsync(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { node2 }, CancellationToken.None);
+				ITreeBlobRef node4 = await writer.WriteNodeAsync(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
 
-				ITreeBlob root = TreeBlob.Create(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { node4, node3 });
-				await writer.WriteRefAsync(new RefName("test"), root.Data, root.Refs);
+				ITreeBlob root = TreeBlob.Create(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { node4, node3 });
+				await writer.WriteRefAsync(new RefName("test"), Guid.Empty, root.Data, root.Refs);
 
 				await CheckTree(root);
 			}
@@ -232,13 +232,13 @@ namespace EpicGames.Horde.Tests
 				ITreeWriter writer = store.CreateTreeWriter();
 
 				ITreeWriter childWriter1 = writer.CreateChildWriter();
-				ITreeBlobRef childNode1 = await childWriter1.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4, 5, 6 }), Array.Empty<ITreeBlobRef>());
+				ITreeBlobRef childNode1 = await childWriter1.WriteNodeAsync(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 4, 5, 6 }), Array.Empty<ITreeBlobRef>());
 
 				ITreeWriter childWriter2 = writer.CreateChildWriter();
-				ITreeBlobRef childNode2 = await childWriter2.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 7, 8, 9 }), Array.Empty<ITreeBlobRef>());
+				ITreeBlobRef childNode2 = await childWriter2.WriteNodeAsync(Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 7, 8, 9 }), Array.Empty<ITreeBlobRef>());
 
 				RefName refName = new RefName("test");
-				await writer.WriteRefAsync(refName, new ReadOnlySequence<byte>(new byte[] { 1, 2, 3 }), new[] { childNode1, childNode2 });
+				await writer.WriteRefAsync(refName, Guid.Empty, new ReadOnlySequence<byte>(new byte[] { 1, 2, 3 }), new[] { childNode1, childNode2 });
 
 				Assert.AreEqual(3, blobStore.Blobs.Count);
 				Assert.AreEqual(1, blobStore.Refs.Count);

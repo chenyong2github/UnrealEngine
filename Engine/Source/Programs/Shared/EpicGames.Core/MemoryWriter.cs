@@ -14,6 +14,11 @@ namespace EpicGames.Core
 	public interface IMemoryWriter
 	{
 		/// <summary>
+		/// Length of the written data
+		/// </summary>
+		int Length { get; }
+
+		/// <summary>
 		/// Gets a block of memory with at least the given size
 		/// </summary>
 		/// <param name="minSize">Minimum size of the returned data</param>
@@ -35,7 +40,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The memory block to write to
 		/// </summary>
-		Memory<byte> _memory;
+		readonly Memory<byte> _memory;
+
+		/// <summary>
+		/// Length of the data that has been written
+		/// </summary>
+		int _length;
 
 		/// <summary>
 		/// Constructor
@@ -51,17 +61,20 @@ namespace EpicGames.Core
 		/// </summary>
 		public void CheckEmpty()
 		{
-			if (_memory.Length > 0)
+			if (_length < _memory.Length)
 			{
-				throw new Exception($"Serialization is not at expected offset within the output buffer ({_memory.Length} bytes unused)");
+				throw new Exception($"Serialization is not at expected offset within the output buffer ({_length}/{_memory.Length} bytes used)");
 			}
 		}
 
 		/// <inheritdoc/>
-		public Memory<byte> GetMemory(int length) => _memory;
+		public int Length => _length;
 
 		/// <inheritdoc/>
-		public void Advance(int length) => _memory = _memory.Slice(length);
+		public Memory<byte> GetMemory(int length) => _memory.Slice(_length);
+
+		/// <inheritdoc/>
+		public void Advance(int length) => _length += length;
 	}
 
 	/// <summary>
@@ -188,6 +201,21 @@ namespace EpicGames.Core
 		{
 			ulong encoded = ((ulong)value.Ticks << 2) | (ulong)value.Kind;
 			writer.WriteUnsignedVarInt(encoded);
+		}
+
+		/// <summary>
+		/// Writes a Guid to the memory writer
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void WriteGuid(this IMemoryWriter writer, Guid guid)
+		{
+			Memory<byte> buffer = writer.GetMemory(16);
+			if (!guid.TryWriteBytes(buffer.Slice(0, 16).Span))
+			{
+				throw new InvalidOperationException("Unable to write guid to buffer");
+			}
+			writer.Advance(16);
 		}
 
 		/// <summary>
