@@ -33,7 +33,16 @@
 		},
 		{
 			"Name": "InterchangeEditor",
-			"Enabled": true
+			"Enabled": true,
+			"PlatformAllowList": [
+				"Win64",
+				"Linux",
+				"Mac"
+			],
+			"TargetAllowList": [
+				"Editor",
+				"Program"
+			]
 		}
 	],
 	"IsExperimentalVersion": false
