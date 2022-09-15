@@ -29,6 +29,7 @@
 
 class ULocalPlayer;
 class SObjectWidget;
+class UGameViewportSubsystem;
 class UPanelSlot;
 class UPropertyBinding;
 class UUserWidget;
@@ -212,6 +213,8 @@ class UMG_API UWidget : public UVisual, public INotifyFieldValueChanged
 {
 	GENERATED_UCLASS_BODY()
 
+	friend UGameViewportSubsystem;
+
 public:
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN(UMG_API)
 		UE_FIELD_NOTIFICATION_DECLARE_FIELD(ToolTipText)
@@ -378,6 +381,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Performance")
 	uint8 bIsVolatile:1;
 
+	/** Cached value that indicate if the widget was added to the GameViewportSubsystem. */
+	uint8 bIsManagedByGameViewportSubsystem:1;
+
 public:
 #if WITH_EDITORONLY_DATA
 	/** Stores the design time flag setting if the widget is hidden inside the designer */
@@ -513,6 +519,10 @@ public:
 	/** Sets the current enabled status of the widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	virtual void SetIsEnabled(bool bInIsEnabled);
+
+	/* @return true if the widget was added to the viewport using AddToViewport or AddToPlayerScreen. */
+	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Appearance")
+	bool IsInViewport() const;
 
 	/** @return the tooltip text for the widget. */
 	FText GetToolTipText() const;
@@ -948,11 +958,12 @@ public:
 
 	static TSubclassOf<UPropertyBinding> FindBinderClassForDestination(FProperty* Property);
 
-	// Begin UObject
+	//~ Begin UObject
 	virtual UWorld* GetWorld() const override;
+	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-	// End UObject
+	//~ End UObject
 
 	FORCEINLINE bool CanSafelyRouteEvent()
 	{

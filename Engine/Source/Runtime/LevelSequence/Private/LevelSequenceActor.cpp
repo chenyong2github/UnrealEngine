@@ -302,7 +302,7 @@ void ALevelSequenceActor::RefreshBurnIn()
 {
 	if (BurnInInstance)
 	{
-		BurnInInstance->RemoveFromViewport();
+		BurnInInstance->RemoveFromParent();
 		BurnInInstance = nullptr;
 	}
 	

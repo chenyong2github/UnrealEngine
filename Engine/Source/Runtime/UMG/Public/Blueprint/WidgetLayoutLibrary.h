@@ -9,6 +9,7 @@
 #include "WidgetLayoutLibrary.generated.h"
 
 class APlayerController;
+class UGameViewportClient;
 class UCanvasPanelSlot;
 class UGridSlot;
 class UHorizontalBoxSlot;
@@ -54,12 +55,12 @@ public:
 	 * Gets the current DPI Scale being applied to the viewport and all the Widgets.
 	 */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Viewport", meta=( WorldContext="WorldContextObject" ))
-	static float GetViewportScale(UObject* WorldContextObject);
+	static float GetViewportScale(const UObject* WorldContextObject);
 
 	/**
 	 * Gets the current DPI Scale being applied to the viewport and all the Widgets.
 	 */
-	static float GetViewportScale(class UGameViewportClient* ViewportClient);
+	static float GetViewportScale(const UGameViewportClient* ViewportClient);
 
 	/**
 	 * Gets the size of the game viewport.

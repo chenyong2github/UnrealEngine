@@ -21,6 +21,7 @@
 #include "Binding/PropertyBinding.h"
 #include "Binding/WidgetFieldNotificationExtension.h"
 #include "Logging/MessageLog.h"
+#include "Blueprint/GameViewportSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/UserWidgetBlueprint.h"
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
@@ -179,6 +180,7 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsEnabled = true;
 	bIsVariable = true;
+	bIsManagedByGameViewportSubsystem = false;
 #if WITH_EDITOR
 	DesignerFlags = static_cast<uint8>(EWidgetDesignFlags::None);
 #endif
@@ -311,6 +313,18 @@ void UWidget::SetIsEnabled(bool bInIsEnabled)
 	{
 		SafeWidget->SetEnabled(bInIsEnabled);
 	}
+}
+
+bool UWidget::IsInViewport() const
+{
+	if (bIsManagedByGameViewportSubsystem)
+	{
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
+		{
+			return Subsystem->IsWidgetAdded(this);
+		}
+	}
+	return false;
 }
 
 EMouseCursor::Type UWidget::GetCursor() const
@@ -830,8 +844,14 @@ void UWidget::RemoveFromParent()
 {
 	if (!HasAnyFlags(RF_BeginDestroyed))
 	{
-		UPanelWidget* CurrentParent = GetParent();
-		if (CurrentParent)
+		if (bIsManagedByGameViewportSubsystem)
+		{
+			if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
+			{
+				Subsystem->RemoveWidget(this);
+			}
+		}
+		else if (UPanelWidget* CurrentParent = GetParent())
 		{
 			CurrentParent->RemoveChild(this);
 		}
@@ -1504,6 +1524,18 @@ UWorld* UWidget::GetWorld() const
 	}
 
 	return nullptr;
+}
+
+void UWidget::BeginDestroy()
+{
+	if (bIsManagedByGameViewportSubsystem)
+	{
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
+		{
+			Subsystem->RemoveWidget(this);
+		}
+	}
+	Super::BeginDestroy();
 }
 
 void UWidget::FinishDestroy()

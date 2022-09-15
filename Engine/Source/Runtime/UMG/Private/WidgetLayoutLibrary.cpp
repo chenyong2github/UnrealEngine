@@ -79,7 +79,7 @@ bool UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPositionWithDistance(APla
 	return false;
 }
 
-float UWidgetLayoutLibrary::GetViewportScale(UObject* WorldContextObject)
+float UWidgetLayoutLibrary::GetViewportScale(const UObject* WorldContextObject)
 {
 	static TFrameValue<float> ViewportScaleCache;
 
@@ -104,7 +104,7 @@ float UWidgetLayoutLibrary::GetViewportScale(UObject* WorldContextObject)
 	return ViewportScaleCache.GetValue();
 }
 
-float UWidgetLayoutLibrary::GetViewportScale(UGameViewportClient* ViewportClient)
+float UWidgetLayoutLibrary::GetViewportScale(const UGameViewportClient* ViewportClient)
 {
 	FVector2D ViewportSize;
 	ViewportClient->GetViewportSize(ViewportSize);

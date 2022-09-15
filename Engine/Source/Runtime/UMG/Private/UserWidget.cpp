@@ -22,8 +22,8 @@
 #include "Animation/WidgetAnimation.h"
 #include "MovieScene.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Blueprint/GameViewportSubsystem.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UMGPrivate.h"
 #include "UObject/ObjectSaveContext.h"
@@ -78,7 +78,6 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 	, bStoppingAllAnimations(false)
 	, TickFrequency(EWidgetTickFrequency::Auto)
 {
-	ViewportAnchors = FAnchors(0, 0, 1, 1);
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 
 	bIsFocusable = false;
@@ -483,14 +482,6 @@ void UUserWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 	{
 		UpdateCanTick();
 		CachedWidget->Invalidate(InvalidateReason);
-	}
-}
-
-void UUserWidget::InvalidateFullScreenWidget(EInvalidateWidgetReason InvalidateReason)
-{
-	if (TSharedPtr<SWidget> FullScreenWidgetPinned = FullScreenWidget.Pin())
-	{
-		FullScreenWidgetPinned->Invalidate(InvalidateReason);
 	}
 }
 
@@ -927,88 +918,39 @@ UWidget* UUserWidget::GetRootWidget() const
 
 void UUserWidget::AddToViewport(int32 ZOrder)
 {
-	AddToScreen(nullptr, ZOrder);
+	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
+	{
+		FGameViewportWidgetSlot ViewportSlot;
+		if (bIsManagedByGameViewportSubsystem)
+		{
+			ViewportSlot = Subsystem->GetWidgetSlot(this);
+		}
+		ViewportSlot.ZOrder = ZOrder;
+		Subsystem->AddWidget(this, ViewportSlot);
+	}
 }
 
 bool UUserWidget::AddToPlayerScreen(int32 ZOrder)
 {
-	if ( ULocalPlayer* LocalPlayer = GetOwningLocalPlayer() )
+	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 	{
-		AddToScreen(LocalPlayer, ZOrder);
-		return true;
-	}
-
-	FMessageLog("PIE").Error(LOCTEXT("AddToPlayerScreen_NoPlayer", "AddToPlayerScreen Failed.  No Owning Player!"));
-	return false;
-}
-
-void UUserWidget::AddToScreen(ULocalPlayer* Player, int32 ZOrder)
-{
-	if ( !FullScreenWidget.IsValid() )
-	{
-		if ( UPanelWidget* ParentPanel = GetParent() )
+		if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
 		{
-			FMessageLog("PIE").Error(FText::Format(LOCTEXT("WidgetAlreadyHasParent", "The widget '{0}' already has a parent widget.  It can't also be added to the viewport!"),
-				FText::FromString(GetClass()->GetName())));
-			return;
-		}
-
-		// First create and initialize the variable so that users calling this function twice don't
-		// attempt to add the widget to the viewport again.
-		TSharedRef<SConstraintCanvas> FullScreenCanvas = SNew(SConstraintCanvas);
-		FullScreenWidget = FullScreenCanvas;
-
-		TSharedRef<SWidget> UserSlateWidget = TakeWidget();
-
-		FullScreenCanvas->AddSlot()
-			.Offset(BIND_UOBJECT_ATTRIBUTE(FMargin, GetFullScreenOffset))
-			.Anchors(BIND_UOBJECT_ATTRIBUTE(FAnchors, GetAnchorsInViewport))
-			.Alignment(BIND_UOBJECT_ATTRIBUTE(FVector2D, GetAlignmentInViewport))
-			[
-				UserSlateWidget
-			];
-
-		// If this is a game world add the widget to the current worlds viewport.
-		UWorld* World = GetWorld();
-		if ( World && World->IsGameWorld() )
-		{
-			if ( UGameViewportClient* ViewportClient = World->GetGameViewport() )
+			FGameViewportWidgetSlot ViewportSlot;
+			if (bIsManagedByGameViewportSubsystem)
 			{
-				if ( Player )
-				{
-					ViewportClient->AddViewportWidgetForPlayer(Player, FullScreenCanvas, ZOrder);
-				}
-				else
-				{
-					// We add 10 to the zorder when adding to the viewport to avoid 
-					// displaying below any built-in controls, like the virtual joysticks on mobile builds.
-					ViewportClient->AddViewportWidgetContent(FullScreenCanvas, ZOrder + 10);
-				}
-
-				// Just in case we already hooked this delegate, remove the handler.
-				FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
-
-				// Widgets added to the viewport are automatically removed if the persistent level is unloaded.
-				FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UUserWidget::OnLevelRemovedFromWorld);
+				ViewportSlot = Subsystem->GetWidgetSlot(this);
 			}
+			ViewportSlot.ZOrder = ZOrder;
+			Subsystem->AddWidgetForPlayer(this, GetOwningLocalPlayer(), ViewportSlot);
+			return true;
+		}
+		else
+		{
+			FMessageLog("PIE").Error(LOCTEXT("AddToPlayerScreen_NoPlayer", "AddToPlayerScreen Failed.  No Owning Player!"));
 		}
 	}
-	else
-	{
-		FMessageLog("PIE").Warning(FText::Format(LOCTEXT("WidgetAlreadyOnScreen", "The widget '{0}' was already added to the screen."),
-			FText::FromString(GetClass()->GetName())));
-	}
-}
-
-void UUserWidget::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
-{
-	// If the InLevel is null, it's a signal that the entire world is about to disappear, so
-	// go ahead and remove this widget from the viewport, it could be holding onto too many
-	// dangerous actor references that won't carry over into the next world.
-	if ( InLevel == nullptr && InWorld == GetWorld() )
-	{
-		RemoveFromParent();
-	}
+	return false;
 }
 
 void UUserWidget::RemoveFromViewport()
@@ -1016,43 +958,9 @@ void UUserWidget::RemoveFromViewport()
 	RemoveFromParent();
 }
 
-void UUserWidget::RemoveFromParent()
-{
-	if (!HasAnyFlags(RF_BeginDestroyed))
-	{
-		if (FullScreenWidget.IsValid())
-		{
-			TSharedPtr<SWidget> WidgetHost = FullScreenWidget.Pin();
-
-			// If this is a game world remove the widget from the current world's viewport.
-			UWorld* World = GetWorld();
-			if (World && World->IsGameWorld())
-			{
-				if (UGameViewportClient* ViewportClient = World->GetGameViewport())
-				{
-					TSharedRef<SWidget> WidgetHostRef = WidgetHost.ToSharedRef();
-
-					ViewportClient->RemoveViewportWidgetContent(WidgetHostRef);
-					
-					// We may no longer have access to our owning player if the player controller was destroyed
-					// Passing nullptr to RemoveViewportWidgetForPlayer will search all player layers for this widget
-					ULocalPlayer* MaybeOwningLocalPlayer = GetOwningLocalPlayer();
-					ViewportClient->RemoveViewportWidgetForPlayer(MaybeOwningLocalPlayer, WidgetHostRef);
-
-					FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
-				}
-			}
-		}
-		else
-		{
-			Super::RemoveFromParent();
-		}
-	}
-}
-
 bool UUserWidget::GetIsVisible() const
 {
-	return FullScreenWidget.IsValid();
+	return IsInViewport();
 }
 
 void UUserWidget::SetVisibility(ESlateVisibility InVisibility)
@@ -1066,11 +974,6 @@ void UUserWidget::SetVisibility(ESlateVisibility InVisibility)
 		OnNativeVisibilityChanged.Broadcast(InVisibility);
 		OnVisibilityChanged.Broadcast(InVisibility);
 	}
-}
-
-bool UUserWidget::IsInViewport() const
-{
-	return FullScreenWidget.IsValid();
 }
 
 void UUserWidget::SetPlayerContext(const FLocalPlayerContext& InPlayerContext)
@@ -1146,82 +1049,120 @@ APlayerCameraManager* UUserWidget::GetOwningPlayerCameraManager() const
 	return nullptr;
 }
 
-void UUserWidget::SetPositionInViewport(FVector2D Position, bool bRemoveDPIScale )
+void UUserWidget::SetPositionInViewport(FVector2D Position, bool bRemoveDPIScale)
 {
-	if (bRemoveDPIScale)
+	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 	{
-		const float Scale = UWidgetLayoutLibrary::GetViewportScale(this);
-		Position /= Scale;
-	}
-
-	FAnchors Zero{ 0.f, 0.f };
-	if (ViewportOffsets.Left != Position.X
-		|| ViewportOffsets.Top != Position.Y
-		|| ViewportAnchors != Zero)
-	{
-		ViewportOffsets.Left = Position.X;
-		ViewportOffsets.Top = Position.Y;
-		ViewportAnchors = Zero;
-		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+		if (bIsManagedByGameViewportSubsystem)
+		{
+			FGameViewportWidgetSlot ViewportSlot = Subsystem->GetWidgetSlot(this);
+			ViewportSlot = UGameViewportSubsystem::SetWidgetSlotPosition(ViewportSlot, this, Position, bRemoveDPIScale);
+			Subsystem->SetWidgetSlot(this, ViewportSlot);
+		}
+		else
+		{
+			FGameViewportWidgetSlot ViewportSlot = UGameViewportSubsystem::SetWidgetSlotPosition(FGameViewportWidgetSlot(), this, Position, bRemoveDPIScale);
+			Subsystem->SetWidgetSlot(this, ViewportSlot);
+		}
 	}
 }
 
 void UUserWidget::SetDesiredSizeInViewport(FVector2D DesiredSize)
 {
-	FAnchors Zero{0.f, 0.f};
-	if (ViewportOffsets.Right != DesiredSize.X
-		|| ViewportOffsets.Bottom != DesiredSize.Y
-		|| ViewportAnchors != Zero)
+	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 	{
-		ViewportOffsets.Right = DesiredSize.X;
-		ViewportOffsets.Bottom = DesiredSize.Y;
-		ViewportAnchors = Zero;
-		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+		if (bIsManagedByGameViewportSubsystem)
+		{
+			FGameViewportWidgetSlot ViewportSlot = Subsystem->GetWidgetSlot(this);
+			ViewportSlot = UGameViewportSubsystem::SetWidgetSlotDesiredSize(ViewportSlot, DesiredSize);
+			Subsystem->SetWidgetSlot(this, ViewportSlot);
+		}
+		else
+		{
+			FGameViewportWidgetSlot ViewportSlot = UGameViewportSubsystem::SetWidgetSlotDesiredSize(FGameViewportWidgetSlot(), DesiredSize);
+			Subsystem->SetWidgetSlot(this, ViewportSlot);
+		}
 	}
-
 }
 
 void UUserWidget::SetAnchorsInViewport(FAnchors Anchors)
 {
-	if (ViewportAnchors != Anchors)
+	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 	{
-		ViewportAnchors = Anchors;
-		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+		if (bIsManagedByGameViewportSubsystem)
+		{
+			FGameViewportWidgetSlot ViewportSlot = Subsystem->GetWidgetSlot(this);
+			if (ViewportSlot.Anchors != Anchors)
+			{
+				ViewportSlot.Anchors = Anchors;
+				Subsystem->SetWidgetSlot(this, ViewportSlot);
+			}
+		}
+		else
+		{
+			FGameViewportWidgetSlot ViewportSlot;
+			ViewportSlot.Anchors = Anchors;
+			Subsystem->SetWidgetSlot(this, ViewportSlot);
+		}
 	}
 }
 
 void UUserWidget::SetAlignmentInViewport(FVector2D Alignment)
 {
-	if (ViewportAlignment != Alignment)
+	if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 	{
-		ViewportAlignment = Alignment;
-		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+		if (bIsManagedByGameViewportSubsystem)
+		{
+			FGameViewportWidgetSlot ViewportSlot = Subsystem->GetWidgetSlot(this);
+			if (ViewportSlot.Alignment != Alignment)
+			{
+				ViewportSlot.Alignment = Alignment;
+				Subsystem->SetWidgetSlot(this, ViewportSlot);
+			}
+		}
+		else
+		{
+			FGameViewportWidgetSlot ViewportSlot;
+			ViewportSlot.Alignment = Alignment;
+			Subsystem->SetWidgetSlot(this, ViewportSlot);
+		}
 	}
 }
 
 FMargin UUserWidget::GetFullScreenOffset() const
 {
-	// If the size is zero, and we're not stretched, then use the desired size.
-	FVector2D FinalSize = FVector2D(ViewportOffsets.Right, ViewportOffsets.Bottom);
-	if ( FinalSize.IsZero() && !ViewportAnchors.IsStretchedVertical() && !ViewportAnchors.IsStretchedHorizontal() )
+	if (bIsManagedByGameViewportSubsystem)
 	{
-		if (TSharedPtr<SWidget> CachedWidget = GetCachedWidget())
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 		{
-			FinalSize = CachedWidget->GetDesiredSize();
+			return Subsystem->GetWidgetSlot(this).Offsets;
 		}
 	}
-
-	return FMargin(ViewportOffsets.Left, ViewportOffsets.Top, FinalSize.X, FinalSize.Y);
+	return FGameViewportWidgetSlot().Offsets;
 }
 
 FAnchors UUserWidget::GetAnchorsInViewport() const
 {
-	return ViewportAnchors;
+	if (bIsManagedByGameViewportSubsystem)
+	{
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
+		{
+			return Subsystem->GetWidgetSlot(this).Anchors;
+		}
+	}
+	return FGameViewportWidgetSlot().Anchors;
 }
 
 FVector2D UUserWidget::GetAlignmentInViewport() const
 {
-	return ViewportAlignment;
+	if (bIsManagedByGameViewportSubsystem)
+	{
+		if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
+		{
+			return Subsystem->GetWidgetSlot(this).Alignment;
+		}
+	}
+	return FGameViewportWidgetSlot().Alignment;
 }
 
 void UUserWidget::RemoveObsoleteBindings(const TArray<FName>& NamedSlots)

@@ -192,8 +192,6 @@ enum class EDesignPreviewSizeMode : uint8
 
 #endif
 
-//TODO UMG If you want to host a widget that's full screen there may need to be a SWindow equivalent that you spawn it into.
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConstructEvent);
 
 DECLARE_DYNAMIC_DELEGATE( FOnInputAction );
@@ -277,14 +275,9 @@ public:
 	/**
 	 * Removes the widget from the viewport.
 	 */
+	UE_DEPRECATED(5.1, "RemoveFromViewport is deprecated. Use RemoveFromParent instead.")
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="User Interface|Viewport", meta=( DeprecatedFunction, DeprecationMessage="Use RemoveFromParent instead" ))
 	void RemoveFromViewport();
-
-	/**
-	 * Removes the widget from its parent widget.  If this widget was added to the player's screen or the viewport
-	 * it will also be removed from those containers.
-	 */
-	virtual void RemoveFromParent() override;
 
 	/**
 	 * Sets the widgets position in the viewport.
@@ -317,15 +310,12 @@ public:
 	FVector2D GetAlignmentInViewport() const;
 
 	/*  */
+	UE_DEPRECATED(5.1, "GetIsVisible is deprecated. Please use IsInViewport instead.")
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Appearance", meta=( DeprecatedFunction, DeprecationMessage="Use IsInViewport instead" ))
 	bool GetIsVisible() const;
 
 	/** Sets the visibility of the widget. */
 	virtual void SetVisibility(ESlateVisibility InVisibility) override;
-
-	/* @return true if the widget was added to the viewport using AddToViewport. */
-	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Appearance")
-	bool IsInViewport() const;
 
 	/** Sets the player context associated with this UI. */
 	void SetPlayerContext(const FLocalPlayerContext& InPlayerContext);
@@ -1281,23 +1271,11 @@ private:
 	uint8 bStoppingAllAnimations : 1;
 
 protected:
-
-	/** Adds the widget to the screen, either to the viewport or to the player's screen depending on if the LocalPlayer is null. */
-	virtual void AddToScreen(ULocalPlayer* LocalPlayer, int32 ZOrder);
-
-	/**
-	 * Called when a top level widget is in the viewport and the world is potentially coming to and end. When this occurs, 
-	 * it's not save to keep widgets on the screen.  We automatically remove them when this happens and mark them for pending kill.
-	 */
-	virtual void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
-
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void OnWidgetRebuilt() override;
 
+	UE_DEPRECATED(5.1, "GetFullScreenOffset is deprecated. Use the GameViewportSubsystem.")
 	FMargin GetFullScreenOffset() const;
-
-	//native SObjectWidget methods (see the corresponding BlueprintImplementableEvent declarations above for more info on each)
-	friend class SObjectWidget;
 
 	virtual void NativeOnInitialized();
 	virtual void NativePreConstruct();
@@ -1444,14 +1422,6 @@ protected:
 
 private:
 	static void OnLatentActionsChanged(UObject* ObjectWhichChanged, ELatentActionChangeType ChangeType);
-
-	void InvalidateFullScreenWidget(EInvalidateWidgetReason InvalidateReason);
-
-	FAnchors ViewportAnchors;
-	FMargin ViewportOffsets;
-	FVector2D ViewportAlignment;
-
-	TWeakPtr<SWidget> FullScreenWidget;
 
 	/** The player context that is associated with this UI.  Think of this as the owner of the UI. */
 	FLocalPlayerContext PlayerContext;
