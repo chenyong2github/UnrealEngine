@@ -249,7 +249,12 @@ public:
 
 	void SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant InField)
 	{
-		Paths.Reset();
+		ResetBasePropertyPath();
+		AppendBasePropertyPath(InField);
+	}
+
+	void AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant InField)
+	{
 		if (!InField.IsEmpty() && !InField.GetName().IsNone())
 		{
 			Paths.AddDefaulted_GetRef().SetBindingReference(InField);
