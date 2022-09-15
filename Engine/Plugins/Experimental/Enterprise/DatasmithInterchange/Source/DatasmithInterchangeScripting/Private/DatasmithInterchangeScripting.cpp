@@ -268,3 +268,5 @@ void UDatasmithInterchangeScripting::GetDatasmithOptionsForFile(const FString& F
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
