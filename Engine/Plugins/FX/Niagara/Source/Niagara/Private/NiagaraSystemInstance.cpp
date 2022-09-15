@@ -2180,6 +2180,12 @@ void FNiagaraSystemInstance::SimCacheTick_GameThread(UNiagaraSimCache* SimCache,
 		return;
 	}
 
+	// Early out if our age and desired age are virtually equal as there's nothing to do
+	if (FMath::IsNearlyEqual(Age, DesiredAge) )
+	{
+		return;
+	}
+
 	CachedDeltaSeconds = DeltaSeconds;
 	//FixedBounds_CNC = FixedBounds_GT;
 
