@@ -36,7 +36,7 @@ public:
 
 public:
 	/** Control whether the DynamicMeshPool will be created when requested via GetComputeMeshPool() */
-	UPROPERTY(Category = DynamicMeshActor, EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = "DynamicMeshActor|Advanced", EditAnywhere, BlueprintReadWrite)
 	bool bEnableComputeMeshPool = true;
 protected:
 	/** The internal Mesh Pool, for use in DynamicMeshActor BPs. Use GetComputeMeshPool() to access this, as it will only be created on-demand if bEnableComputeMeshPool = true */

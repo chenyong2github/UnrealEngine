@@ -35,13 +35,11 @@ void UEditorGeometryGenerationManager::Shutdown()
 
 void UEditorGeometryGenerationManager::RegisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor)
 {
-	ensure(ActiveGeneratedActors.Contains(Actor) == false);
 	ActiveGeneratedActors.Add(Actor);
 }
 
 void UEditorGeometryGenerationManager::UnregisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor)
 {
-	ensure(ActiveGeneratedActors.Contains(Actor));
 	ActiveGeneratedActors.Remove(Actor);
 }
 
@@ -80,18 +78,20 @@ void UEditorGeometryGenerationSubsystem::OnShutdown()
 
 
 
-void UEditorGeometryGenerationSubsystem::RegisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor)
+bool UEditorGeometryGenerationSubsystem::RegisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor)
 {
 	if (bIsShuttingDown || GEditor == nullptr)		// subsystem no longer exists
 	{
-		return;
+		return false;
 	}
 
 	UEditorGeometryGenerationSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEditorGeometryGenerationSubsystem>();
 	if (ensure(Subsystem))
 	{
 		Subsystem->GenerationManager->RegisterGeneratedMeshActor(Actor);
+		return true;
 	}
+	return false;
 }
 
 void UEditorGeometryGenerationSubsystem::UnregisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor)

@@ -23,7 +23,7 @@ class AGeneratedDynamicMeshActor;
  * 
  */
 UCLASS()
-class UEditorGeometryGenerationSubsystem : public UEditorSubsystem
+class GEOMETRYSCRIPTINGEDITOR_API UEditorGeometryGenerationSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
@@ -40,7 +40,7 @@ public:
 	// Static functions that simplify registration of an Actor w/ the Subsystem
 	//
 public:
-	static void RegisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor);
+	static bool RegisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor);
 	static void UnregisterGeneratedMeshActor(AGeneratedDynamicMeshActor* Actor);
 
 
@@ -60,7 +60,7 @@ private:
  * store registrations and provide a Tick()
  */
 UCLASS()
-class UEditorGeometryGenerationManager : public UObject, public FTickableEditorObject
+class GEOMETRYSCRIPTINGEDITOR_API UEditorGeometryGenerationManager : public UObject, public FTickableEditorObject
 {
 	GENERATED_BODY()
 
