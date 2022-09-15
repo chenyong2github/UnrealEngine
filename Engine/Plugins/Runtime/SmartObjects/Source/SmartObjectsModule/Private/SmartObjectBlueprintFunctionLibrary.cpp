@@ -4,6 +4,7 @@
 #include "SmartObjectSubsystem.h"
 #include "BlackboardKeyType_SOClaimHandle.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/BTFunctionLibrary.h"
 
 //----------------------------------------------------------------------//
 // USmartObjectBlueprintFunctionLibrary 
@@ -48,4 +49,18 @@ bool USmartObjectBlueprintFunctionLibrary::K2_SetSmartObjectEnabled(AActor* Smar
 
 	return bEnabled ? Subsystem->RegisterSmartObjectActor(*SmartObject)
 		: Subsystem->UnregisterSmartObjectActor(*SmartObject);
+}
+
+void USmartObjectBlueprintFunctionLibrary::SetBlackboardValueAsSOClaimHandle(UBTNode* NodeOwner, const FBlackboardKeySelector& Key, const FSmartObjectClaimHandle& Value)
+{
+	if (UBlackboardComponent* BlackboardComp = UBTFunctionLibrary::GetOwnersBlackboard(NodeOwner))
+	{
+		BlackboardComp->SetValue<UBlackboardKeyType_SOClaimHandle>(Key.SelectedKeyName, Value);
+	}
+}
+
+FSmartObjectClaimHandle USmartObjectBlueprintFunctionLibrary::GetBlackboardValueAsSOClaimHandle(UBTNode* NodeOwner, const FBlackboardKeySelector& Key)
+{
+	UBlackboardComponent* BlackboardComp = UBTFunctionLibrary::GetOwnersBlackboard(NodeOwner);
+	return BlackboardComp ? BlackboardComp->GetValue<UBlackboardKeyType_SOClaimHandle>(Key.SelectedKeyName) : FSmartObjectClaimHandle::InvalidHandle;
 }
