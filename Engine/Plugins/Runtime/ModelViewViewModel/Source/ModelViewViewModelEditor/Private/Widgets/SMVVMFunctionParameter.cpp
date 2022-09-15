@@ -172,7 +172,7 @@ FMVVMBlueprintPropertyPath SFunctionParameter::OnGetSelectedField() const
 	return EditorSubsystem->GetPathForConversionFunctionArgument(WidgetBlueprint.Get(), *Binding, ParameterName, bSourceToDestination);
 }
 
-void SFunctionParameter::OnFieldSelectionChanged(FMVVMBlueprintPropertyPath Selected)
+void SFunctionParameter::OnFieldSelectionChanged(const FMVVMBlueprintPropertyPath& Selected)
 {
 	UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 	EditorSubsystem->SetPathForConversionFunctionArgument(WidgetBlueprint.Get(), *Binding, ParameterName, Selected, bSourceToDestination);
