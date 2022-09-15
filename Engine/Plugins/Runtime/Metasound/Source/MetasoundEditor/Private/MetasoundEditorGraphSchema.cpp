@@ -1462,6 +1462,24 @@ void UMetasoundEditorGraphSchema::TrySetDefaultValue(UEdGraphPin& Pin, const FSt
 	return Super::TrySetDefaultValue(Pin, InNewDefaultValue, bInMarkAsModified);
 }
 
+bool UMetasoundEditorGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* InNodeToDelete) const
+{
+	using namespace Metasound::Editor;
+
+	if (!InNodeToDelete || !Graph || InNodeToDelete->GetGraph() != Graph)
+	{
+		return false;
+	}
+
+	if (UObject* MetaSound = Graph->GetOutermostObject())
+	{
+		MetaSound->Modify();
+	}
+	Graph->Modify();
+
+	return FGraphBuilder::DeleteNode(*InNodeToDelete);
+}
+
 bool UMetasoundEditorGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 {
 	using namespace Metasound::Editor;
