@@ -370,6 +370,8 @@ namespace Chaos
 		// @todo(chaos): remove (used by legacy RBAN collision solver)
 		FVec3 CalculateWorldContactLocation() const;
 
+		void SetModifierApplied() { Flags.bModifierApplied = true; }
+
 		void SetInvMassScale0(const FReal InInvMassScale) { Material.InvMassScale0 = FRealSingle(InInvMassScale); }
 		FReal GetInvMassScale0() const { return Material.InvMassScale0; }
 
@@ -419,10 +421,15 @@ namespace Chaos
 		*/
 		inline void ResetModifications()
 		{
-			Material.ResetMaterialModifications();
+			if (Flags.bModifierApplied)
+			{
+				Material.ResetMaterialModifications();
 
-			// Reset other properties which may have changed in contact modification last frame
-			Flags.bIsProbe = Flags.bIsProbeUnmodified;
+				// Reset other properties which may have changed in contact modification last frame
+				Flags.bIsProbe = Flags.bIsProbeUnmodified;
+
+				Flags.bModifierApplied = false;
+			}
 		}
 
 		/**
@@ -576,6 +583,15 @@ namespace Chaos
 		void ResetSolverResults()
 		{
 			ResetSavedManifoldPoints();
+		}
+
+		/**
+		 * Called after the simulation to reset any state that need to be reset before the next tick
+		 */
+		void EndTick()
+		{
+			// CCD state gets set each tick based on speed, size, etc
+			SetCCDEnabled(false);
 		}
 
 		/**
@@ -766,7 +782,8 @@ namespace Chaos
 				uint32 bIsQuadratic1 : 1;
 				uint32 bIsProbeUnmodified : 1;  // Is this constraint a probe pre-contact-modification
 				uint32 bIsProbe : 1;            // Is this constraint currently a probe
-				uint32 bCCDEnabled : 1;
+				uint32 bCCDEnabled : 1;			// Is CCD enabled for the current tick
+				uint32 bModifierApplied;		// Was a constraint modifier applied this tick
 			};
 			uint32 Bits;
 		} Flags;

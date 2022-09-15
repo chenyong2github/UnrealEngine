@@ -86,6 +86,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyTargetSeparation(FReal TargetSeparation, int32 ContactPointIdx)
 	{	
+		Constraint->SetModifierApplied();
+
 		FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ContactPointIdx);
 		ManifoldPoint.TargetPhi = FRealSingle(TargetSeparation);
 	}
@@ -102,6 +104,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyWorldNormal(const FVec3& Normal, int32 ContactPointIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		FVec3 WorldContactPoint0, WorldContactPoint1;
 		GetWorldContactLocations(ContactPointIdx, WorldContactPoint0, WorldContactPoint1);
 
@@ -119,6 +123,8 @@ namespace Chaos
 
 	void FContactPairModifier::GetWorldContactLocations(int32 ContactPointIdx, FVec3& OutLocation0, FVec3& OutLocation1) const
 	{
+		Constraint->SetModifierApplied();
+
 		const FRigidTransform3& ShapeTransform0 = Constraint->GetShapeWorldTransform0();
 		const FRigidTransform3& ShapeTransform1 = Constraint->GetShapeWorldTransform1();
 
@@ -137,6 +143,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyWorldContactLocations(const FVec3& Location0, const FVec3& Location1, int32 ContactPointIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 		FManifoldPoint& ManifoldPoint = ManifoldPoints[ContactPointIdx];
 
@@ -157,6 +165,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyRestitution(FReal Restitution)
 	{
+		Constraint->SetModifierApplied();
+
 		Constraint->SetRestitution(Restitution);
 	}
 
@@ -167,6 +177,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyRestitutionThreshold(FReal Threshold)
 	{
+		Constraint->SetModifierApplied();
+
 		Constraint->SetRestitutionThreshold(Threshold);
 	}
 
@@ -177,6 +189,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyDynamicFriction(FReal DynamicFriction)
 	{
+		Constraint->SetModifierApplied();
+
 		Constraint->SetDynamicFriction(DynamicFriction);
 	}
 
@@ -187,6 +201,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyStaticFriction(FReal StaticFriction)
 	{
+		Constraint->SetModifierApplied();
+
 		Constraint->SetStaticFriction(StaticFriction);
 	}
 
@@ -205,6 +221,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyParticleVelocity(FVec3 Velocity, int32 ParticleIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		FGeometryParticleHandle* Particle = Constraint->GetParticle(ParticleIdx);
 		FKinematicGeometryParticleHandle* KinematicHandle = Particle->CastToKinematicParticle();
 		if (!ensure(KinematicHandle))
@@ -242,6 +260,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyParticleAngularVelocity(FVec3 AngularVelocity, int32 ParticleIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		FGeometryParticleHandle* Particle = Constraint->GetParticle(ParticleIdx);
 		FKinematicGeometryParticleHandle* KinematicHandle = Particle->CastToKinematicParticle();
 		if (!ensure(KinematicHandle))
@@ -284,6 +304,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyParticlePosition(FVec3 Position, bool bMaintainVelocity, int32 ParticleIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		FGeometryParticleHandle* Particle = Constraint->GetParticle(ParticleIdx);
 
 		Modifier->MarkConstraintForManifoldUpdate(*Constraint);
@@ -347,6 +369,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyParticleRotation(FRotation3 Rotation, bool bMaintainVelocity, int32 ParticleIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		FGeometryParticleHandle* Particle = Constraint->GetParticle(ParticleIdx);
 
 		Modifier->MarkConstraintForManifoldUpdate(*Constraint);
@@ -399,6 +423,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyInvInertiaScale(FReal InInvInertiaScale, int32 ParticleIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		if (ParticleIdx == 0)
 		{
 			Constraint->SetInvInertiaScale0(InInvInertiaScale);
@@ -416,6 +442,8 @@ namespace Chaos
 
 	void FContactPairModifier::ModifyInvMassScale(FReal InInvMassScale, int32 ParticleIdx)
 	{
+		Constraint->SetModifierApplied();
+
 		if (ParticleIdx == 0)
 		{
 			Constraint->SetInvMassScale0(InInvMassScale);
@@ -473,16 +501,22 @@ namespace Chaos
 
 	void FCollisionContactModifier::DisableConstraint(FPBDCollisionConstraint& Constraint)
 	{
+		Constraint.SetModifierApplied();
+
 		Constraint.SetDisabled(true);
 	}
 
 	void FCollisionContactModifier::EnableConstraint(FPBDCollisionConstraint& Constraint)
 	{
+		Constraint.SetModifierApplied();
+
 		Constraint.SetDisabled(false);
 	}
 
 	void FCollisionContactModifier::ConvertToProbeConstraint(FPBDCollisionConstraint& Constraint)
 	{
+		Constraint.SetModifierApplied();
+
 		Constraint.SetIsProbe(true);
 	}
 

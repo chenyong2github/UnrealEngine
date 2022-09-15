@@ -154,6 +154,7 @@ namespace Chaos
 		Flags.bEnableManifoldUpdate = !bIsSphere0 && !bIsSphere1 && !bIsCapsule0 && !bIsCapsule1 && !bIsTriangle0 && !bIsTriangle1 && !bIsLevelSet;
 
 		// Mark probe flag now so we know which GenerateCollisions to use
+		// @todo(chaos): it looks like this can be changed by a collision modifier so we should not be caching it
 		Flags.bIsProbe = Shape0->GetIsProbe() || Shape1->GetIsProbe();
 	}
 
@@ -293,36 +294,29 @@ namespace Chaos
 		{
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraint);
 
-			const FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();
-			const FImplicitObject* Implicit1 = Shape1->GetLeafGeometry();
-			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(GetParticle0());
-			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(GetParticle1());
+			const FRigidTransform3 ShapeWorldTransform0 = Shape0->GetLeafWorldTransform(GetParticle0());
+			const FRigidTransform3 ShapeWorldTransform1 = Shape1->GetLeafWorldTransform(GetParticle1());
 			const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			const int32 LastEpoch = CurrentEpoch - 1;
 			const bool bWasUpdatedLastTick = IsUsedSince(LastEpoch);
 
 			// Update the world shape transforms on the constraint (we cannot just give it the PerShapeData 
 			// pointer because of Unions - see FMultiShapePairCollisionDetector)
-			// NOTE: these are not used by CCD which continuously moves the particles
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
-			Constraint->ResetModifications();
-			Constraint->SetCCDEnabled(false);
-
-			// If the constraint was not used last frame, it needs to be reset. 
-			// Otherwise we will try to reuse it below
+			// If the constraint was not used last frame, it needs to be reset, otherwise we will try to reuse
 			if (!bWasUpdatedLastTick || (Constraint->GetManifoldPoints().Num() == 0))
 			{
 				// Clear all manifold data including saved contact data
 				Constraint->ResetManifold();
 			}
-
+			
 			bool bWasManifoldRestored = false;
 			if (Context.GetSettings().bAllowManifoldReuse && Flags.bEnableManifoldUpdate && bWasUpdatedLastTick)
 			{
 				// Update the existing manifold. We can re-use as-is if none of the points have moved much and the bodies have not moved much
 				// NOTE: this can succeed in "restoring" even if we have no manifold points
-				// NOTE: this uses the previous world-space shape transforms, so we can only do this if we were updated last tick
+				// NOTE: this uses the transforms from SetLastShapeWorldTransforms, so we can only do this if we were updated last tick
 				bWasManifoldRestored = Constraint->UpdateAndTryRestoreManifold();
 			}
 			else
@@ -333,7 +327,7 @@ namespace Chaos
 
 			if (!bWasManifoldRestored)
 			{
-				// We will be updating the manifold, if only partially, so update the restore comparison transforms
+				// We will be updating the manifold so update transforms used to check for movement in UpdateAndTryRestoreManifold on future ticks
 				Constraint->SetLastShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
 				if (!Context.GetSettings().bDeferNarrowPhase)
@@ -344,11 +338,15 @@ namespace Chaos
 			}
 
 			// If we have a valid contact, add it to the active list
-			// We also add it to the active list if collision detection is deferred (which is if per-iteration collision detection is enabled like with RBAN)
+			// We also add it to the active list if collision detection is deferred because the data will be filled in later and we
+			// don't know in advance whether we will pass the Phi check (deferred narrow phase is used with RBAN)
 			if (Constraint->GetPhi() <= CullDistance || Context.GetSettings().bDeferNarrowPhase)
 			{
 				if (MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get()))
 				{
+					// If we had any mods last tick, undo them
+					Constraint->ResetModifications();
+
 					LastUsedEpoch = CurrentEpoch;
 					return 1;
 				}

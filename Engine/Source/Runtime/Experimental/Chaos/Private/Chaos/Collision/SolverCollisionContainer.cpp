@@ -371,6 +371,8 @@ namespace Chaos
 					FRealSingle(Dt));
 			}
 
+			Constraint->EndTick();
+
 			Unbind();
 		}
 
