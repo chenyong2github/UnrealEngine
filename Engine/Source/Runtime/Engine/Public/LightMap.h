@@ -611,17 +611,17 @@ public:
 	virtual void InitRHI();
 	virtual void ReleaseRHI();
 
-	void OverrideFeatureLevel(const FStaticFeatureLevel InFeatureLevel) { SetFeatureLevel(InFeatureLevel); }
+	void SetFeatureLevelAndInitialize(const FStaticFeatureLevel InFeatureLevel);
+	void TryInitializeUniformBuffer();
+	void UpdateUniformBuffer();
 	
-	void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
-	void UpdateUniformBuffer_RenderThread();
-
 	/**
 	 * Allocates virtual texture on demand and returns it, may return nullptr if not using virtual texture
 	 * 'const' method setting 'mutable' member is not amazing, but this is required to work around ordering of render commands submitted from main thread,
 	 * it's possible for commands that want to access AllocatedVT from here execute before this has a chance to run InitRHI()
 	 */
-	IAllocatedVirtualTexture* AcquireAllocatedVT() const;
+	const IAllocatedVirtualTexture* GetAllocatedVT() const;
+	void ConditionalCreateAllocatedVT();
 	void ReleaseAllocatedVT();
 	bool GetUseVirtualTexturing() const;
 

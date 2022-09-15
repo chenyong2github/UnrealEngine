@@ -978,7 +978,7 @@ static FRHISamplerState* GetTextureSamplerState(const UTexture* Texture, FRHISam
 void GetLightmapClusterResourceParameters(
 	ERHIFeatureLevel::Type FeatureLevel, 
 	const FLightmapClusterResourceInput& Input,
-	IAllocatedVirtualTexture* AllocatedVT,
+	const IAllocatedVirtualTexture* AllocatedVT,
 	FLightmapResourceClusterShaderParameters& Parameters)
 {
 	const bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);

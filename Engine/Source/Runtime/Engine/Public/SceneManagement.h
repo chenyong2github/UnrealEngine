@@ -829,7 +829,7 @@ public:
 ENGINE_API void GetLightmapClusterResourceParameters(
 	ERHIFeatureLevel::Type FeatureLevel, 
 	const FLightmapClusterResourceInput& Input,
-	IAllocatedVirtualTexture* AllocatedVT,
+	const IAllocatedVirtualTexture* AllocatedVT,
 	FLightmapResourceClusterShaderParameters& Parameters);
 
 class FDefaultLightmapResourceClusterUniformBuffer : public TUniformBuffer< FLightmapResourceClusterShaderParameters >

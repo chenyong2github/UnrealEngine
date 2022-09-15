@@ -227,9 +227,7 @@ void CreateLightmapPreviewVirtualTexture(FLightmapRenderStateRef LightmapRenderS
 		}
 	}
 				
-	LightmapRenderState->ResourceCluster->OverrideFeatureLevel(FeatureLevel);
-	LightmapRenderState->ResourceCluster->UpdateUniformBuffer_RenderThread();
-
+	LightmapRenderState->ResourceCluster->SetFeatureLevelAndInitialize(FeatureLevel);
 	LightmapRenderState->SetResourceCluster(nullptr);
 }
 

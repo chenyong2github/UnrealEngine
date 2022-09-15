@@ -101,7 +101,7 @@ void GetPrecomputedLightingParameters(
 			check(LCI); // If LCI was nullptr, LightMapInteraction.GetType() would be LMIT_None, not LMIT_Texture
 			const FLightmapResourceCluster* ResourceCluster = LCI->GetResourceCluster();
 			check(ResourceCluster);
-			IAllocatedVirtualTexture* AllocatedVT = ResourceCluster->AcquireAllocatedVT();
+			const IAllocatedVirtualTexture* AllocatedVT = ResourceCluster->GetAllocatedVT();
 			if (AllocatedVT)
 			{
 				AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0]);

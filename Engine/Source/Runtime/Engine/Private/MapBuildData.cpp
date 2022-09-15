@@ -408,14 +408,14 @@ void UMapBuildDataRegistry::HandleAssetPostCompileEvent(const TArray<FAssetCompi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UMapBuildDataRegistry::HandleAssetPostCompileEvent);
 
-		for (FLightmapResourceCluster* Cluster : ClustersToUpdate)
-		{
-			ENQUEUE_RENDER_COMMAND(UpdateClusterUniformBuffer)(
-				[Cluster](FRHICommandList& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(UpdateClusterUniformBuffer)(
+			[ClustersToUpdate = ClustersToUpdate](FRHICommandList& RHICmdList)
+			{
+				for (FLightmapResourceCluster* Cluster : ClustersToUpdate)
 				{
-					Cluster->UpdateUniformBuffer_RenderThread();
-				});
-		}
+					Cluster->UpdateRHI();
+				}
+			});
 
 		for (TObjectIterator<ULandscapeComponent> It; It; ++It)
 		{
@@ -1010,12 +1010,16 @@ void UMapBuildDataRegistry::InitializeClusterRenderingResources(ERHIFeatureLevel
 	check(bSetupResourceClusters || MeshBuildData.Num() == 0);
 	// If we have any mesh build data, we must have at least one resource cluster, otherwise clusters have not been setup properly.
 	check(LightmapResourceClusters.Num() > 0 || MeshBuildData.Num() == 0);
-
-	// At this point all lightmap cluster resources are initialized and we can update cluster uniform buffers.
-	for (FLightmapResourceCluster& Cluster : LightmapResourceClusters)
-	{
-		Cluster.UpdateUniformBuffer(InFeatureLevel);
-	}
+	
+	ENQUEUE_RENDER_COMMAND(SetFeatureLevelAndInitialize)(
+		[&LightmapResourceClusters = LightmapResourceClusters, InFeatureLevel](FRHICommandList& RHICmdList)
+		{
+			// At this point all lightmap cluster resources are initialized and we can update cluster uniform buffers.
+			for (FLightmapResourceCluster& Cluster : LightmapResourceClusters)
+			{
+				Cluster.SetFeatureLevelAndInitialize(InFeatureLevel);
+			}
+		});
 }
 
 void UMapBuildDataRegistry::ReleaseResources(const TSet<FGuid>* ResourcesToKeep)
