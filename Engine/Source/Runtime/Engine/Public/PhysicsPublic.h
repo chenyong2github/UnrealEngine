@@ -77,13 +77,16 @@ struct ENGINE_API FRigidBodyCollisionInfo
 	/** Name of bone if a PhysicsAsset */
 	FName									BoneName;
 
+	/** Amount by which the linear velocity at the center of mass of this body has changed in the frame of this contact */
+	FVector									DeltaVelocity;
+
 	FRigidBodyCollisionInfo() :
 		BodyIndex(INDEX_NONE),
 		BoneName(NAME_None)
 	{}
 
 	/** Utility to set up the body collision info from an FBodyInstance */
-	void SetFrom(const FBodyInstance* BodyInst);
+	void SetFrom(const FBodyInstance* BodyInst, const FVector& InDeltaVelocity = FVector::ZeroVector);
 	/** Get body instance */
 	FBodyInstance* GetBodyInstance() const;
 };

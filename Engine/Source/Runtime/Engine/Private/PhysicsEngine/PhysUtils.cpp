@@ -150,12 +150,13 @@ bool UBodySetup::CreateFromModel(UModel* InModel, bool bRemoveExisting)
 //////////////////////////////////////////////////////////////////////////
 // FRigidBodyCollisionInfo
 
-void FRigidBodyCollisionInfo::SetFrom(const FBodyInstance* BodyInst)
+void FRigidBodyCollisionInfo::SetFrom(const FBodyInstance* BodyInst, const FVector& InDeltaVelocity)
 {
 	if(BodyInst != NULL)
 	{
 		BodyIndex = BodyInst->InstanceBodyIndex;
 		BoneName = BodyInst->BodySetup.IsValid() ? BodyInst->BodySetup->BoneName : NAME_None;
+		DeltaVelocity = InDeltaVelocity;
 
 		if(BodyInst->OwnerComponent.IsValid())
 		{
@@ -169,6 +170,7 @@ void FRigidBodyCollisionInfo::SetFrom(const FBodyInstance* BodyInst)
 		Actor = NULL;
 		BodyIndex = INDEX_NONE;
 		BoneName = NAME_None;
+		DeltaVelocity = FVector::ZeroVector;
 	}
 }
 

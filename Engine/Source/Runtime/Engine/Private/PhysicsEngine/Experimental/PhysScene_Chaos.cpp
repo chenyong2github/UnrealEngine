@@ -756,15 +756,25 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 								NotifyInfo.bCallEvent0 = true;
 								// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
 
-								NotifyInfo.Info0.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy0));
-								NotifyInfo.Info1.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy1));
+								// Get swapped velocity deltas
+								const FVector& DeltaVelocity1 = bSwapOrder
+									? CollisionDataItem.DeltaVelocity2
+									: CollisionDataItem.DeltaVelocity1;
+								const FVector& DeltaVelocity2 = bSwapOrder
+									? CollisionDataItem.DeltaVelocity1
+									: CollisionDataItem.DeltaVelocity2;
+
+								NotifyInfo.Info0.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy0), DeltaVelocity1);
+								NotifyInfo.Info1.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy1), DeltaVelocity2);
 
 								FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
 								NewContact.ContactNormal = CollisionDataItem.Normal;
 								NewContact.ContactPosition = CollisionDataItem.Location;
 								NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
 								NewContact.bContactProbe = CollisionDataItem.bProbe;
-								NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold = CollisionDataItem.DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) && CollisionDataItem.DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
+								NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold =
+									DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) &&
+									DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
 								
 								Chaos::FChaosPhysicsMaterial* InternalMat1 = CollisionDataItem.Mat1.Get();
 								Chaos::FChaosPhysicsMaterial* InternalMat2 = CollisionDataItem.Mat2.Get();
