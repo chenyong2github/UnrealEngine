@@ -227,7 +227,7 @@ bool UActorFactory::CanCreateActorFrom( const FAssetData& AssetData, FText& OutE
 
 	if (!AssetData.IsValid())
 	{
-		return false;
+		return true;
 	}
 
 	UObject* DefaultActor = GetDefaultActor(AssetData);
@@ -235,8 +235,7 @@ bool UActorFactory::CanCreateActorFrom( const FAssetData& AssetData, FText& OutE
 	FSoftObjectPath DefaultActorClassPath(DefaultActor->GetClass());
 
 	// By Default we assume the factory can't work with existing asset data
-	return !AssetData.IsValid() || 
-		AssetData.GetSoftObjectPath() == DefaultActorPath || 
+	return AssetData.GetSoftObjectPath() == DefaultActorPath || 
 		AssetData.GetSoftObjectPath() == DefaultActorClassPath;
 }
 
