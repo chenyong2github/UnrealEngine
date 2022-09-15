@@ -20,6 +20,11 @@ void SVerticalBox::PrivateRegisterAttributes(FSlateAttributeInitializer& Attribu
 {
 }
 
+SLATE_IMPLEMENT_WIDGET(SStackBox)
+void SStackBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+}
+
 void SHorizontalBox::Construct( const SHorizontalBox::FArguments& InArgs )
 {
 	Children.Reserve(InArgs._Slots.Num());
@@ -37,6 +42,17 @@ void SHorizontalBox::Construct( const SHorizontalBox::FArguments& InArgs )
 }
 
 void SVerticalBox::Construct( const SVerticalBox::FArguments& InArgs )
+{
+	Children.Reserve(InArgs._Slots.Num());
+	for (const FSlot::FSlotArguments& Arg : InArgs._Slots)
+	{
+		const FSlotBase::FSlotArguments& ChilSlotArgument = static_cast<const FSlotBase::FSlotArguments&>(Arg);
+		const SBoxPanel::FSlot::FSlotArguments& BoxSlotArgument = static_cast<const SBoxPanel::FSlot::FSlotArguments&>(ChilSlotArgument);
+		Children.AddSlot(MoveTemp(const_cast<SBoxPanel::FSlot::FSlotArguments&>(BoxSlotArgument)));
+	}
+}
+
+void SStackBox::Construct(const SStackBox::FArguments& InArgs)
 {
 	Children.Reserve(InArgs._Slots.Num());
 	for (const FSlot::FSlotArguments& Arg : InArgs._Slots)
@@ -73,6 +89,20 @@ const SVerticalBox::FSlot& SVerticalBox::GetSlot(int32 SlotIndex) const
 	check(this->IsValidSlotIndex(SlotIndex));
 	const FSlotBase& BaseSlot = static_cast<const FSlotBase&>(Children[SlotIndex]);
 	return static_cast<const SVerticalBox::FSlot&>(BaseSlot);
+}
+
+SStackBox::FSlot& SStackBox::GetSlot(int32 SlotIndex)
+{
+	check(this->IsValidSlotIndex(SlotIndex));
+	FSlotBase& BaseSlot = static_cast<FSlotBase&>(Children[SlotIndex]);
+	return static_cast<SStackBox::FSlot&>(BaseSlot);
+}
+
+const SStackBox::FSlot& SStackBox::GetSlot(int32 SlotIndex) const
+{
+	check(this->IsValidSlotIndex(SlotIndex));
+	const FSlotBase& BaseSlot = static_cast<const FSlotBase&>(Children[SlotIndex]);
+	return static_cast<const SStackBox::FSlot&>(BaseSlot);
 }
 
 template<EOrientation Orientation, typename SlotType>
@@ -310,12 +340,29 @@ void SBoxPanel::ClearChildren()
 	Children.Empty();
 }
 
+void SBoxPanel::SetOrientation(EOrientation InOrientation)
+{
+	if (Orientation != InOrientation)
+	{
+		Orientation = InOrientation;
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
+}
+
+SBoxPanel::SBoxPanel()
+	: Children(this, GET_MEMBER_NAME_CHECKED(SBoxPanel, Children))
+	, Orientation(EOrientation::Orient_Horizontal)
+{
+
+}
+
 SBoxPanel::SBoxPanel( EOrientation InOrientation )
 	: Children(this, GET_MEMBER_NAME_CHECKED(SBoxPanel, Children))
 	, Orientation(InOrientation)
 {
 
 }
+
 
 void SDragAndDropVerticalBox::Construct(const FArguments& InArgs)
 {

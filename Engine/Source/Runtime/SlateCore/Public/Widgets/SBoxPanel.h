@@ -195,26 +195,33 @@ public:
 	/** @return if it's a valid index slot index. */
 	bool IsValidSlotIndex(int32 Index) const { return Children.IsValidIndex(Index); }
 
-public:
 	//~ Begin SWidget overrides.
+public:
 	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
 	virtual FChildren* GetChildren() override;
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End SWidget overrides.
 
-	/**
-	 * A Box Panel's orientation cannot be changed once it is constructed..
-	 *
-	 * @param InOrientation   The orientation of the Box Panel
-	 */
-	SBoxPanel( EOrientation InOrientation );
+protected:
+	SBoxPanel();
+	/** A Box Panel's orientation. */
+	SBoxPanel(EOrientation InOrientation);
 
+	/** Set the orientation of the Box. It will do a full invalidation of the widget. */
+	void SetOrientation(EOrientation InOrientation);
+	EOrientation GetOrientation() const
+	{
+		return Orientation;
+	}
+
+protected:
 	/** The Box Panel's children. */
 	TPanelChildren<FSlot> Children;
 
 	/** The Box Panel's orientation; determined at construct time. */
-	const EOrientation Orientation;
+	EOrientation Orientation;
 };
 
 
@@ -423,6 +430,86 @@ public:
 	 * @param	InArgs	The declaration data for this widget
 	 */
 	void Construct( const FArguments& InArgs );
+};
+
+/** A Stack Box Panel that stack vertically or horizontally. See SBoxPanel for more info. */
+class SLATECORE_API SStackBox : public SBoxPanel
+{
+	SLATE_DECLARE_WIDGET(SStackBox, SBoxPanel)
+public:
+	class FSlot : public SBoxPanel::TSlot<FSlot>
+	{
+	public:
+		SLATE_SLOT_BEGIN_ARGS(FSlot, SBoxPanel::TSlot<FSlot>)
+			/** The widget's DesiredSize will be used as the space required. */
+			FSlotArguments& AutoSize()
+			{
+				_SizeParam = FAuto();
+				return Me();
+			}
+			/** The available space will be distributed proportionately. */
+			FSlotArguments& FillSize(TAttribute<float> InStretchCoefficient)
+			{
+				_SizeParam = FStretch(MoveTemp(InStretchCoefficient));
+				return Me();
+			}
+			/** Set the max size in SlateUnit this slot can be. */
+			FSlotArguments& MaxSize(TAttribute<float> InMaxHeight)
+			{
+				_MaxSize = MoveTemp(InMaxHeight);
+				return Me();
+			}
+		SLATE_SLOT_END_ARGS()
+
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+		{
+			SBoxPanel::TSlot<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+		}
+	};
+
+	static FSlot::FSlotArguments Slot()
+	{
+		return FSlot::FSlotArguments(MakeUnique<FSlot>());
+	}
+
+
+	SLATE_BEGIN_ARGS(SStackBox)
+	{
+		_Visibility = EVisibility::SelfHitTestInvisible;
+	}
+		SLATE_ARGUMENT(EOrientation, Orientation)
+		SLATE_SLOT_ARGUMENT(SStackBox::FSlot, Slots)
+	SLATE_END_ARGS()
+
+	using FScopedWidgetSlotArguments = SBoxPanel::FScopedWidgetSlotArguments<SStackBox::FSlot>;
+	FScopedWidgetSlotArguments AddSlot()
+	{
+		return InsertSlot(INDEX_NONE);
+	}
+
+	FScopedWidgetSlotArguments InsertSlot(int32 Index = INDEX_NONE)
+	{
+		return FScopedWidgetSlotArguments(MakeUnique<FSlot>(), this->Children, Index);
+	}
+
+	FSlot& GetSlot(int32 SlotIndex);
+	const FSlot& GetSlot(int32 SlotIndex) const;
+
+	FORCENOINLINE SStackBox()
+	{
+		SetCanTick(false);
+		bCanSupportFocus = false;
+	}
+
+	/**
+	 * Construct this widget
+	 *
+	 * @param	InArgs	The declaration data for this widget
+	 */
+	void Construct(const FArguments& InArgs);
+
+	using SBoxPanel::SetOrientation;
+	using SBoxPanel::GetOrientation;
 };
 
 class FDragAndDropVerticalBoxOp : public FDragDropOperation

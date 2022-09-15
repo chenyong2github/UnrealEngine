@@ -30,6 +30,7 @@
 #include "Extensions/CanvasSlotExtension.h"
 #include "Extensions/GridSlotExtension.h"
 #include "Extensions/HorizontalSlotExtension.h"
+#include "Extensions/StackBoxSlotExtension.h"
 #include "Extensions/UniformGridSlotExtension.h"
 #include "Extensions/VerticalSlotExtension.h"
 #include "Designer/SPaintSurface.h"
@@ -1513,6 +1514,7 @@ void SDesignerView::RegisterExtensions()
 {
 	Register(MakeShareable(new FVerticalSlotExtension()));
 	Register(MakeShareable(new FHorizontalSlotExtension()));
+	Register(MakeShareable(new FStackBoxSlotExtension()));
 	Register(MakeShareable(new FCanvasSlotExtension()));
 	Register(MakeShareable(new FUniformGridSlotExtension()));
 	Register(MakeShareable(new FGridSlotExtension()));
