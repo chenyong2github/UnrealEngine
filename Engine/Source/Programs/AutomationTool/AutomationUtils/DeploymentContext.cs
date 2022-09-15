@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -301,7 +301,7 @@ public class DeploymentContext //: ProjectParams
 
 	/// <summary>
 	/// Set of config files which are denied from staging. By default, we warn for config files which are not well known to prevent internal data (eg. editor/server settings)
-	/// leaking in packaged builds. This list is read from the +DeniedConfigFiles=... array in the [Staging] section of *Game.ini files.
+	/// leaking in packaged builds. This list is read from the +DisallowedConfigFiles=... array in the [Staging] section of *Game.ini files.
 	/// </summary>
 	public HashSet<StagedFileReference> ConfigFilesDenyList = new HashSet<StagedFileReference>();
 
@@ -592,7 +592,7 @@ public class DeploymentContext //: ProjectParams
 
 		// Read the list of files which are allow listed to be staged
 		ReadConfigFileList(GameConfig, "Staging", "AllowedConfigFiles", ConfigFilesAllowList);
-		ReadConfigFileList(GameConfig, "Staging", "DeniedConfigFiles", ConfigFilesDenyList);
+		ReadConfigFileList(GameConfig, "Staging", "DisallowedConfigFiles", ConfigFilesDenyList);
 
 		// Grab the game ini data
 		String PackagingIniPath = "/Script/UnrealEd.ProjectPackagingSettings";
