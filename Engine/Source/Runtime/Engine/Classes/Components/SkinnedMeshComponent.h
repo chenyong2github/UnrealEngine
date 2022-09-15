@@ -1314,6 +1314,7 @@ public:
 	virtual bool UpdateLODStatus();
 
 	/** Get predicted LOD level. This value is usually calculated in UpdateLODStatus, but can be modified by skeletal mesh streaming. */
+	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
 	int32 GetPredictedLODLevel() const
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
