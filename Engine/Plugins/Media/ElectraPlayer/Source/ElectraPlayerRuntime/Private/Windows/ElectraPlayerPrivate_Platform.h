@@ -85,7 +85,8 @@ namespace Electra
 			Version9Win7,
 			Version11Win8,
 			Version11XB1,
-			Version12Win10
+			Version12Win10,
+			VersionNoneDxWin10
 		};
 
 		ED3DVersion								DxVersion;

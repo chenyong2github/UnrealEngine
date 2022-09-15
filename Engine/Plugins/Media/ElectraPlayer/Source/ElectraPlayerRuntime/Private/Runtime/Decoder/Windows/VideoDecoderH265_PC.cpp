@@ -9,6 +9,8 @@
 #include "Renderer/RendererVideo.h"
 #include "Player/PlayerSessionServices.h"
 #include "Utilities/StringHelpers.h"
+#include "Utilities/UtilsMPEGVideo.h"
+#include "Decoder/VideoDecoderHelpers.h"
 
 #if ELECTRA_PLATFORM_HAS_H265_DECODER
 
@@ -88,7 +90,7 @@ bool FVideoDecoderH265_PC::InternalDecoderCreate()
 		// Check if there is any reason for a "device lost" - if not we know all is stil well; otherwise we bail without creating a decoder
 		if (Electra::FDXDeviceInfo::s_DXDeviceInfo->DxDevice && (res = Electra::FDXDeviceInfo::s_DXDeviceInfo->DxDevice->GetDeviceRemovedReason()) != S_OK)
 		{
-			PostError(res, "Device lost detected.", ERRCODE_INTERNAL_COULD_NOT_SET_OUTPUT_DESIRED_MEDIA_TYPE);
+			PostError(res, "Device loss detected.", ERRCODE_INTERNAL_COULD_NOT_SET_OUTPUT_DESIRED_MEDIA_TYPE);
 			return false;
 		}
 	}
@@ -234,7 +236,7 @@ bool FVideoDecoderH265_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 			return false;
 		}
 	}
-	else if (FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::Version12Win10)
+	else if (FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::Version12Win10 || FDXDeviceInfo::s_DXDeviceInfo->DxVersion == FDXDeviceInfo::ED3DVersion::VersionNoneDxWin10)
 	{
 		TRefCountPtr<IMFMediaBuffer> Buffer;
 		CHECK_HR(Sample->GetBufferByIndex(0, Buffer.GetInitReference()));
@@ -247,9 +249,9 @@ bool FVideoDecoderH265_PC::CopyTexture(const TRefCountPtr<IMFSample>& Sample, El
 		CHECK_HR(DXGIBuffer->GetResource(IID_PPV_ARGS(Texture2D.GetInitReference())));
 		D3D11_TEXTURE2D_DESC TextureDesc;
 		Texture2D->GetDesc(&TextureDesc);
-		if (TextureDesc.Format != DXGI_FORMAT_NV12)
+		if (TextureDesc.Format != DXGI_FORMAT_NV12 && TextureDesc.Format != DXGI_FORMAT_P010)
 		{
-			LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH265::CopyTexture(): Decoded texture is not in NV12 format");
+			LogMessage(IInfoLog::ELevel::Error, "FVideoDecoderH265::CopyTexture(): Decoded texture is not in NV12 or P010 format");
 			return false;
 		}
 

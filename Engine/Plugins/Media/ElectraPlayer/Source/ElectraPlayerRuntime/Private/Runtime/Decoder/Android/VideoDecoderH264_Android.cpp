@@ -10,6 +10,7 @@
 #include "Player/PlayerSessionServices.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/UtilsMPEGVideo.h"
+#include "Decoder/VideoDecoderHelpers.h"
 #include "DecoderErrors_Android.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Android/AndroidPlatformMisc.h"
@@ -96,6 +97,7 @@ private:
 		int64			EndPTS = 0;
 		FTimeValue		AdjustedPTS;
 		FTimeValue		AdjustedDuration;
+		TArray<MPEG::FISO14496_10_seq_parameter_set_data> SPSs;
 
 		int32			TotalWidth = 0;
 		int32			TotalHeight = 0;
@@ -112,11 +114,44 @@ private:
 		void Reset()
 		{
 			CurrentCodecData.Reset();
+			ActiveCodecData.Reset();
 		}
 		bool IsDifferentFrom(TSharedPtrTS<FDecoderInput> AU);
 		void SetFrom(TSharedPtrTS<FDecoderInput> AU);
-
+		void UpdateFromCSD(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+		{
+			if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != ActiveCodecData.Get())
+			{
+				// Pointers are different. Is the content too?
+				bool bDifferent = !ActiveCodecData.IsValid() || (ActiveCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != ActiveCodecData->CodecSpecificData);
+				if (bDifferent)
+				{
+					SPSs.Empty();
+					TArray<MPEG::FNaluInfo>	NALUs;
+					const uint8* pD = AU->AccessUnit->AUCodecData->CodecSpecificData.GetData();
+					MPEG::ParseBitstreamForNALUs(NALUs, pD, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					for(int32 i=0; i<NALUs.Num(); ++i)
+					{
+						const uint8* NALU = (const uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset + NALUs[i].UnitLength);
+						uint8 nal_unit_type = *NALU & 0x1f;
+						// SPS?
+						if (nal_unit_type == 7)
+						{
+							MPEG::FISO14496_10_seq_parameter_set_data sps;
+							if (MPEG::ParseH264SPS(sps, NALU, NALUs[i].Size))
+							{
+								SPSs.Emplace(MoveTemp(sps));
+							}
+						}
+					}
+				}
+				ActiveCodecData = AU->AccessUnit->AUCodecData;
+			}
+		}
+		
 		TSharedPtrTS<const FAccessUnit::CodecData> CurrentCodecData;
+		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> ActiveCodecData;
+		TArray<MPEG::FISO14496_10_seq_parameter_set_data> SPSs;
 	};
 
 	struct FDecodedImage
@@ -242,6 +277,7 @@ private:
 	IDecoderOutputBufferListener*													ReadyBufferListener = nullptr;
 
 	FDecoderFormatInfo																CurrentStreamFormatInfo;
+	MPEG::FColorimetryHelper														Colorimetry;
 	TSharedPtrTS<IAndroidJavaH264VideoDecoder>										DecoderInstance;
 	IAndroidJavaH264VideoDecoder::FDecoderInformation								DecoderInfo;
 	TSharedPtrTS<FDecoderInput>														CurrentAccessUnit;
@@ -949,6 +985,10 @@ void FVideoDecoderH264::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 
 		if (!AU->AccessUnit->bIsDummyData)
 		{
+			// Take note of changes in codec specific data.
+			CurrentStreamFormatInfo.UpdateFromCSD(AU);
+			AU->SPSs = CurrentStreamFormatInfo.SPSs;
+
 			const FStreamCodecInformation::FResolution& res = AU->AccessUnit->AUCodecData->ParsedInfo.GetResolution();
 			const FStreamCodecInformation::FAspectRatio& ar = AU->AccessUnit->AUCodecData->ParsedInfo.GetAspectRatio();
 			const FStreamCodecInformation::FCrop& crop = AU->AccessUnit->AUCodecData->ParsedInfo.GetCrop();
@@ -1572,6 +1612,29 @@ FVideoDecoderH264::EOutputResult FVideoDecoderH264::ProcessOutput(const FDecoded
 					OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64)0));
 					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
 
+					// Set the bit depth and the colorimetry.
+					uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
+					uint8 video_full_range_flag=0, video_format=5;
+					uint8 num_bits = 8;
+					if (NextImage.SourceInfo.IsValid() && NextImage.SourceInfo->SPSs.Num())
+					{
+						check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
+						num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
+						if (NextImage.SourceInfo->SPSs[0].colour_description_present_flag)
+						{
+							colour_primaries = NextImage.SourceInfo->SPSs[0].colour_primaries;
+							transfer_characteristics = NextImage.SourceInfo->SPSs[0].transfer_characteristics;
+							matrix_coeffs = NextImage.SourceInfo->SPSs[0].matrix_coefficients;
+						}
+						if (NextImage.SourceInfo->SPSs[0].video_signal_type_present_flag)
+						{
+							video_full_range_flag = NextImage.SourceInfo->SPSs[0].video_full_range_flag;
+							video_format = NextImage.SourceInfo->SPSs[0].video_format;
+						}
+					}
+					Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
+					Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);
+
 					TSharedPtrTS<FElectraPlayerVideoDecoderOutputAndroid> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputAndroid>();
 					check(DecoderOutput);
 
@@ -1788,6 +1851,9 @@ bool FVideoDecoderH264::CheckForFlush()
 		OutputSurfaceTargetPTS.SequenceIndex = 0;
 		ReadyOutputBuffersToSurface.Empty();
 
+		CurrentStreamFormatInfo.Reset();
+		Colorimetry.Reset();
+
 		FlushDecoderSignal.Reset();
 		DecoderFlushedSignal.Signal();
 
@@ -1836,6 +1902,9 @@ void FVideoDecoderH264::WorkerThread()
 
 	bError = false;
 	bMustSendCSD = false;
+
+	CurrentStreamFormatInfo.Reset();
+	Colorimetry.Reset();
 
 	OutputSurfaceTargetPTS.Time = -1.0;
 	OutputSurfaceTargetPTS.SequenceIndex = 0;

@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
+					"RenderCore",
 					"MediaUtils",
 					"RHI",
 					"AnalyticsET",

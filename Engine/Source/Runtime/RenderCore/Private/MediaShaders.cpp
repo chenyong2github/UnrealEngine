@@ -81,8 +81,13 @@ namespace MediaShaders
 	);
 
 	const FVector YUVOffset8bits = FVector(0.06274509803921568627f, 0.5019607843137254902f, 0.5019607843137254902f);
+	const FVector YUVOffsetNoScale8bits = FVector(0.0f, 0.5019607843137254902f, 0.5019607843137254902f);
 
 	const FVector YUVOffset10bits = FVector(0.06256109481915933529f, 0.50048875855327468231f, 0.50048875855327468231f);
+	const FVector YUVOffsetNoScale10bits = FVector(0.0f, 0.50048875855327468231f, 0.50048875855327468231f);
+
+	const FVector YUVOffset16bits = FVector(4096.0f / 65535.0f, 32768.0f / 65535.0f, 32768.0f / 65535.0f);
+	const FVector YUVOffsetNoScale16bits = FVector(0.0f, 32768.0f / 65535.0f, 32768.0f / 65535.0f);
 
 	/** Setup YUV Offset in matrix */
 	FMatrix CombineColorTransformAndOffset(const FMatrix& InMatrix, const FVector& InYUVOffset)
@@ -265,6 +270,120 @@ void FNV21ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FR
 	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FNV21ConvertUB>(), Data);
 }
 
+/* FP010ConvertPS shader
+ *****************************************************************************/
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FP010ConvertUB, )
+SHADER_PARAMETER(FMatrix44f, ColorTransform)
+SHADER_PARAMETER(FMatrix44f, CSTransform)
+SHADER_PARAMETER(uint32, SrgbToLinear)
+SHADER_PARAMETER(FVector2f, UVScale)
+SHADER_PARAMETER_SRV(Texture2D, SRV_Y)
+SHADER_PARAMETER_SRV(Texture2D, SRV_UV)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerB)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FP010ConvertUB, "P010ConvertUB");
+IMPLEMENT_SHADER_TYPE(, FP010ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("P010ConvertPS"), SF_Pixel);
+
+void FP010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool SrgbToLinear)
+{
+	FP010ConvertUB UB;
+	{
+		UB.ColorTransform = ColorTransform;
+		UB.CSTransform = CSTransform;
+		UB.SamplerB = TStaticSamplerState<SF_Bilinear>::GetRHI();
+		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
+		UB.SrgbToLinear = SrgbToLinear;
+		UB.SRV_Y = SRV_Y;
+		UB.SRV_UV = SRV_UV;
+		UB.UVScale = FVector2f((float)OutputDimensions.X / (float)TexDim.X, (float)OutputDimensions.Y / (float)TexDim.Y);
+	}
+
+	TUniformBufferRef<FP010ConvertUB> Data = TUniformBufferRef<FP010ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FP010ConvertUB>(), Data);
+}
+
+/* FP010ConvertAsUINT16sPS shader (from G16 texture)
+ *****************************************************************************/
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FP010ConvertAsUINT16sUB, )
+SHADER_PARAMETER(FMatrix44f, ColorTransform)
+SHADER_PARAMETER(FMatrix44f, CSTransform)
+SHADER_PARAMETER(uint32, OutputWidth)
+SHADER_PARAMETER(uint32, SrgbToLinear)
+SHADER_PARAMETER(FVector2f, UVScale)
+SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerB)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FP010ConvertAsUINT16sUB, "P010ConvertAsUINT16sUB");
+IMPLEMENT_SHADER_TYPE(, FP010ConvertAsUINT16sPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("P010ConvertAsUINT16sPS"), SF_Pixel);
+
+void FP010ConvertAsUINT16sPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool SrgbToLinear)
+{
+	FP010ConvertAsUINT16sUB UB;
+	{
+		UB.ColorTransform = ColorTransform;
+		UB.CSTransform = CSTransform;
+		UB.OutputWidth = OutputDimensions.X;
+		UB.SamplerB = TStaticSamplerState<SF_Bilinear>::GetRHI();
+		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
+		UB.SrgbToLinear = SrgbToLinear;
+		UB.Texture = NV12Texture;
+		UB.UVScale = FVector2f((float)OutputDimensions.X / (float)TexDim.X, (float)OutputDimensions.Y / (float)TexDim.Y);
+	}
+
+	TUniformBufferRef<FP010ConvertAsUINT16sUB> Data = TUniformBufferRef<FP010ConvertAsUINT16sUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FP010ConvertAsUINT16sUB>(), Data);
+}
+
+/* FP010_2101010ConvertPS shader
+ *****************************************************************************/
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FP010_2101010ConvertUB, )
+SHADER_PARAMETER(FMatrix44f, ColorTransform)
+SHADER_PARAMETER(FMatrix44f, CSTransform)
+SHADER_PARAMETER(uint32, SrgbToLinear)
+SHADER_PARAMETER(FVector2f, UVScaleY)
+SHADER_PARAMETER(FVector2f, UVScaleUV)
+SHADER_PARAMETER_SRV(Texture2D, SRV_Y)
+SHADER_PARAMETER_SRV(Texture2D, SRV_U)
+SHADER_PARAMETER_SRV(Texture2D, SRV_V)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
+SHADER_PARAMETER(uint32, OutputWidthY)
+SHADER_PARAMETER(uint32, OutputWidthUV)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FP010_2101010ConvertUB, "P010_2101010ConvertUB");
+IMPLEMENT_SHADER_TYPE(, FP010_2101010ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("P010_2101010ConvertPS"), SF_Pixel);
+
+void FP010_2101010ConvertPS::SetParameters(FRHICommandList& CommandList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_U, FShaderResourceViewRHIRef SRV_V, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool SrgbToLinear)
+{
+	FP010_2101010ConvertUB UB;
+	{
+		UB.ColorTransform = ColorTransform;
+		UB.CSTransform = CSTransform;
+		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
+		UB.SrgbToLinear = SrgbToLinear;
+		UB.SRV_Y = SRV_Y;
+		UB.SRV_U = SRV_U;
+		UB.SRV_V = SRV_V;
+		// Output width used in shader needs to be aligned to the RGB triplets we store the data in
+		UB.OutputWidthY = ((OutputDimensions.X + 2) / 3) * 3;
+		UB.OutputWidthUV = ((OutputDimensions.X / 2) / 3) * 3;
+		// The scale contains both: a scale for any cropping (as in: get rid of lower, right) as well as a correction for non-3-texel aligned width of the 1010102 texture
+		float SX = float(OutputDimensions.X) / float(UB.OutputWidthY);
+		UB.UVScaleY = FVector2f(SX * ((float)OutputDimensions.X / (float)TexDim.X), (float)OutputDimensions.Y / (float)TexDim.Y);
+		SX = float(OutputDimensions.X / 2) / float(UB.OutputWidthUV);
+		UB.UVScaleUV = FVector2f(SX * ((float)OutputDimensions.X / (float)TexDim.X), (float)OutputDimensions.Y / (float)TexDim.Y);
+	}
+
+	TUniformBufferRef<FP010_2101010ConvertUB> Data = TUniformBufferRef<FP010_2101010ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FP010_2101010ConvertUB>(), Data);
+}
 
 /* FRGBConvertPS shader
  *****************************************************************************/

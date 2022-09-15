@@ -15,6 +15,7 @@
 #include "Utilities/Utilities.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/UtilsMPEGVideo.h"
+#include "Decoder/VideoDecoderHelpers.h"
 
 #if ELECTRA_PLATFORM_HAS_H265_DECODER
 
@@ -515,12 +516,13 @@ bool FVideoDecoderH265::DecoderSetOutputType()
 
 	// Supposedly calling GetOutputAvailableType() returns following output media subtypes:
 	// MFVideoFormat_NV12, MFVideoFormat_YV12, MFVideoFormat_IYUV, MFVideoFormat_I420, MFVideoFormat_YUY2
+	// For  >8 bit streams MFVideoFormat_P010 will be returned only after decoding the first access unit!
 	for(int32 TypeIndex=0; ; ++TypeIndex)
 	{
 		VERIFY_HR(DecoderTransform->GetOutputAvailableType(0, TypeIndex, OutputMediaType.GetInitReference()), "Failed to get video decoder available output type", ERRCODE_INTERNAL_COULD_NOT_GET_OUTPUT_MEDIA_TYPE);
 		VERIFY_HR(OutputMediaType->GetGUID(MF_MT_MAJOR_TYPE, &OutputMediaMajorType), "Failed to get video decoder available output media type", ERRCODE_INTERNAL_COULD_NOT_GET_OUTPUT_MEDIA_TYPE_MAJOR);
 		VERIFY_HR(OutputMediaType->GetGUID(MF_MT_SUBTYPE, &OutputMediaSubtype), "Failed to get video decoder available output media subtype", ERRCODE_INTERNAL_COULD_NOT_GET_OUTPUT_MEDIA_TYPE_SUBTYPE);
-		if (OutputMediaMajorType == MFMediaType_Video && OutputMediaSubtype == MFVideoFormat_NV12)
+		if (OutputMediaMajorType == MFMediaType_Video && (OutputMediaSubtype == MFVideoFormat_P010 || OutputMediaSubtype == MFVideoFormat_NV12))
 		{
 			VERIFY_HR(DecoderTransform->SetOutputType(0, OutputMediaType, 0), "Failed to set video decoder output type", ERRCODE_INTERNAL_COULD_NOT_SET_OUTPUT_MEDIA_TYPE);
 			CurrentOutputMediaType = OutputMediaType;
@@ -632,6 +634,12 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 
 		if (!AU->AccessUnit->bIsDummyData)
 		{
+			// Take note of changes in codec specific data.
+			CurrentStreamFormatInfo.UpdateFromCSD(AU);
+			AU->CSDPrefixSEIMessages = CurrentStreamFormatInfo.PrefixSEIMessages;
+			AU->CSDSuffixSEIMessages = CurrentStreamFormatInfo.SuffixSEIMessages;
+			AU->SPSs = CurrentStreamFormatInfo.SPSs;
+
 			// Process NALUs
 			AU->bIsDiscardable = false;
 			AU->bIsIDR = AU->AccessUnit->bIsSyncSample;
@@ -640,6 +648,7 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 			uint32* End  = (uint32*)Electra::AdvancePointer(NALU, AU->AccessUnit->AUSize);
 			while(NALU < End)
 			{
+				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU);
 				uint8 nut = *(const uint8 *)(NALU + 1);
 				nut >>= 1;
 				// IDR frame?
@@ -652,10 +661,14 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 				{
 					AU->bIsDiscardable = true;
 				}
+				// Prefix or suffix NUT?
+				else if (nut == 39 || nut == 40)
+				{
+					MPEG::ExtractSEIMessages(nut == 39 ? AU->PrefixSEIMessages : AU->SuffixSEIMessages, Electra::AdvancePointer(NALU, 6), naluLen-2, MPEG::ESEIStreamType::H265, nut == 39);
+				}
 
-				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU) + 4;
 				*NALU = MEDIA_TO_BIG_ENDIAN(0x00000001U);
-				NALU = Electra::AdvancePointer(NALU, naluLen);
+				NALU = Electra::AdvancePointer(NALU, naluLen+4);
 			}
 
 			// Is there codec specific data?
@@ -911,7 +924,47 @@ bool FVideoDecoderH265::ConvertDecodedImage(const TRefCountPtr<IMFSample>& Decod
 	OutputBufferSampleProperties->Set("aspect_w",     FVariantValue((int64) num));
 	OutputBufferSampleProperties->Set("aspect_h",     FVariantValue((int64) denom));
 
-	OutputBufferSampleProperties->Set("pixelfmt",	  FVariantValue((int64)EPixelFormat::PF_NV12));
+	// Get actual output format used right now.
+	GUID CurrentVideoFormatGUID;
+	if (SUCCEEDED(CurrentOutputMediaType->GetGUID(MF_MT_SUBTYPE, &CurrentVideoFormatGUID)))
+	{
+		check(CurrentVideoFormatGUID == MFVideoFormat_NV12 || CurrentVideoFormatGUID == MFVideoFormat_P010);
+	}
+	else
+	{
+		CurrentVideoFormatGUID = MFVideoFormat_NV12;
+	}
+	OutputBufferSampleProperties->Set("pixelfmt", CurrentVideoFormatGUID == MFVideoFormat_NV12 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_P010));
+
+	// Set the bit depth and the colorimetry.
+	uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
+	uint8 video_full_range_flag=0, video_format=5;
+	uint8 num_bits = 8;
+	if (MatchingInput.IsValid() && MatchingInput->SPSs.Num())
+	{
+		check(MatchingInput->SPSs[0].bit_depth_luma_minus8 == MatchingInput->SPSs[0].bit_depth_chroma_minus8);
+		num_bits = MatchingInput->SPSs[0].bit_depth_luma_minus8 + 8;
+		if (MatchingInput->SPSs[0].colour_description_present_flag)
+		{
+			colour_primaries = MatchingInput->SPSs[0].colour_primaries;
+			transfer_characteristics = MatchingInput->SPSs[0].transfer_characteristics;
+			matrix_coeffs = MatchingInput->SPSs[0].matrix_coeffs;
+		}
+		if (MatchingInput->SPSs[0].video_signal_type_present_flag)
+		{
+			video_full_range_flag = MatchingInput->SPSs[0].video_full_range_flag;
+			video_format = MatchingInput->SPSs[0].video_format;
+		}
+	}
+	OutputBufferSampleProperties->Set("bits_per", FVariantValue((int64)num_bits));
+	Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
+	Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);
+	// Extract HDR metadata from SEI messages
+	if (MatchingInput.IsValid())
+	{
+		HDR.Update(num_bits, Colorimetry, MatchingInput->CSDPrefixSEIMessages, MatchingInput->PrefixSEIMessages, false);
+	}
+	HDR.UpdateParamDict(*OutputBufferSampleProperties);
 
 	if (CurrentRenderOutputBuffer != nullptr)
 	{
@@ -1208,6 +1261,10 @@ void FVideoDecoderH265::WorkerThread()
 	bool bGotLastSequenceAU = false;
 	TOptional<int64> SequenceIndex;
 
+	CurrentStreamFormatInfo.Reset();
+	Colorimetry.Reset();
+	HDR.Reset();
+
 	while(!TerminateThreadSignal.IsSignaled())
 	{
 		// If in background, wait until we get activated again.
@@ -1400,6 +1457,9 @@ void FVideoDecoderH265::WorkerThread()
 			SequenceIndex.Reset();
 			CurrentSampleInfo.SetResolution(FStreamCodecInformation::FResolution(Align(Config.MaxFrameWidth, 16), Align(Config.MaxFrameHeight, 16)));
 			NewSampleInfo = CurrentSampleInfo;
+			CurrentStreamFormatInfo.Reset();
+			Colorimetry.Reset();
+			HDR.Reset();
 
 			// Reset done state.
 			bDone = false;

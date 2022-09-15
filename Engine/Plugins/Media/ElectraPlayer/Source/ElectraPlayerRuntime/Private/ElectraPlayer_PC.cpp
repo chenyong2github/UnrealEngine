@@ -112,8 +112,9 @@ bool CreateDirectXResources(const FParamDict& Params)
 		}
 		else
 		{
-			UE_LOG(LogElectraPlayer, Warning, TEXT("ElectraPlayer: Dynamic RHI is not for DX11 or DX12"));
-			return false;
+			UE_LOG(LogElectraPlayer, Warning, TEXT("ElectraPlayer: Dynamic RHI is not for DX11 or DX12, creating media DX11 device on default adapter"));
+			Electra::FDXDeviceInfo::s_DXDeviceInfo->DxVersion = Electra::FDXDeviceInfo::ED3DVersion::VersionNoneDxWin10;
+			DXGIAdapter = nullptr;
 		}
 
 #ifdef ELECTRA_HAVE_DX11
@@ -127,7 +128,7 @@ bool CreateDirectXResources(const FParamDict& Params)
 
 		CHECK_HR(D3D11CreateDevice(
 			DXGIAdapter,
-			D3D_DRIVER_TYPE_UNKNOWN,
+			DXGIAdapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
 			nullptr,
 			DeviceCreationFlags,
 			nullptr,

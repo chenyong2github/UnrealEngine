@@ -65,10 +65,14 @@ public:
 		return true;
 	}
 
-	virtual bool IsOutputSrgb() const override
-	{
-		return true;
-	}
+	virtual bool IsOutputSrgb() const override;
+	virtual const FMatrix& GetYUVToRGBMatrix() const override;
+	virtual bool GetFullRange() const override;
+
+	virtual FMatrix44f GetSampleToRGBMatrix() const override;
+	virtual FMatrix44f GetGamutToXYZMatrix() const override;
+	virtual FVector2f GetWhitePoint() const override;
+	virtual UE::Color::EEncoding GetEncodingType() const override;
 
 #if WITH_ENGINE
 	virtual FRHITexture* GetTexture() const override
@@ -101,6 +105,13 @@ private:
 
 	/** Output data from video decoder. */
 	TSharedPtr<FVideoDecoderOutputPC, ESPMode::ThreadSafe> VideoDecoderOutput;
+
+	/** Quick access for some HDR related info */
+	TWeakPtr<const IVideoDecoderHDRInformation, ESPMode::ThreadSafe> HDRInfo;
+	TWeakPtr<const IVideoDecoderColorimetry, ESPMode::ThreadSafe> Colorimetry;
+
+	/** YUV matrix, adjusted to compensate for decoder output specific scale */
+	FMatrix44f YuvToRgbMtx;
 };
 
 using FElectraTextureSamplePtr = TSharedPtr<FElectraTextureSample, ESPMode::ThreadSafe>;

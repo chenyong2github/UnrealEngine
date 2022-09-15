@@ -94,6 +94,8 @@ enum EPixelFormat : uint8
 	PF_R32G32B32_SINT = 81,
 	PF_R32G32B32F = 82,
 	PF_R8_SINT = 83,
-	PF_R64_UINT = 84
+	PF_R64_UINT = 84,
+	PF_R9G9B9EXP5 = 85,
+	PF_P010 = 86,
 };
 #endif

@@ -23,10 +23,10 @@ namespace Electra
 				WorkerThread.CoreAffinity = -1;
 
 				// Set default values to maximum permitted values.
-				StreamBufferConfigVideo.MaxDataSize = 16 << 20;
+				StreamBufferConfigVideo.MaxDataSize = 256 << 20;
 				StreamBufferConfigVideo.MaxDuration.SetFromSeconds(20.0);
 
-				StreamBufferConfigAudio.MaxDataSize = 2 << 20;
+				StreamBufferConfigAudio.MaxDataSize = 8 << 20;
 				StreamBufferConfigAudio.MaxDuration.SetFromSeconds(20.0);
 
 				// Subtitle streams tend to be sparse and each AU could potentially have

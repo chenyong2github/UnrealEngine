@@ -14,6 +14,11 @@
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
 
+#include "HDRHelper.h"
+#include "ColorManagementDefines.h"
+#include "ColorSpace.h"
+#include "MediaShaders.h"
+
 #if WITH_ENGINE
 	class FRHITexture;
 	class IMediaTextureSampleConverter;
@@ -74,6 +79,9 @@ enum class EMediaTextureSampleFormat
 	/** 4:4:4:4 AY'CbCr 16-bit little endian full range alpha, video range Y'CbCr. */
 	Y416,
 
+	/** NV12-style encoded monochrome texture with 16 bits per channel, with the upper 10 bits used. */
+	P010,
+
 	/** DXT1. */
 	DXT1,
 
@@ -85,6 +93,9 @@ enum class EMediaTextureSampleFormat
 
 	/** YCoCg colour space encoded in DXT5, with a separate alpha texture encoded in BC4. */
 	YCoCg_DXT5_Alpha_BC4,
+
+	/** 3 planes of RGB1010102 data representing Y, U & V at 4:2:0 sampling. */
+	P010_RGB1010102,
 };
 
 namespace MediaTextureSampleFormat
@@ -317,22 +328,68 @@ public:
 	/**
 	 * Get the YUV to RGB conversion matrix.
 	 *
-	 * Equivalent to MediaShaders::YuvToRgbRec709Scaled Matrix. NOTE: previously in UE4 this was YuvToRgbRec601Scaled
+	 * Default is equivalent to MediaShaders::YuvToRgbRec709Scaled Matrix. NOTE: previously in UE4 this was YuvToRgbRec601Scaled
 	 *
 	 * @return Conversion Matrix
 	 */
 	virtual const FMatrix& GetYUVToRGBMatrix() const
 	{
-		static const FMatrix DefaultMatrix(
-			FPlane(1.16438356164f, 0.000000000000f, 1.792652263418f, 0.000000f),
-			FPlane(1.16438356164f, -0.213237021569f, -0.533004040142f, 0.000000f),
-			FPlane(1.16438356164f, 2.112419281991f, 0.000000000000f, 0.000000f),
-			FPlane(0.000000f, 0.000000f, 0.000000f, 0.000000f)
-		);
-
-		return DefaultMatrix;
+		return MediaShaders::YuvToRgbRec709Scaled;
 	}
 
+	/*
+	* Get full range color flag
+	*/
+	virtual bool GetFullRange() const
+	{
+		return false;
+	}
+	
+	/**
+	* Get complete 4x4 matrix to apply to the sample's pixels to yield RGB data in the sample's gamut
+	 *
+	 * @return Conversion Matrix
+	*/
+	virtual FMatrix44f GetSampleToRGBMatrix() const
+	{
+		FMatrix Pre = FMatrix::Identity;
+		Pre.M[0][3] = -MediaShaders::YUVOffset8bits.X;
+		Pre.M[1][3] = -MediaShaders::YUVOffset8bits.Y;
+		Pre.M[2][3] = -MediaShaders::YUVOffset8bits.Z;
+		return FMatrix44f(MediaShaders::YuvToRgbRec709Scaled * Pre);
+	}
+
+	/**
+	 * Get Colorspace conversion matrix to convert to CIE1931 XYZ space
+	 * 
+	 * @return Conversion Matrix
+	 */
+	virtual FMatrix44f GetGamutToXYZMatrix() const
+	{
+		return GamutToXYZMatrix(EDisplayColorGamut::sRGB_D65);
+	}
+
+	/**
+	 * Get white point of color space of the data contain in the sample
+	 * 
+	 * @return White point
+	 */
+	virtual FVector2f GetWhitePoint() const
+	{
+		return FVector2f(UE::Color::GetWhitePoint(UE::Color::EWhitePoint::CIE1931_D65));
+	}
+
+	/**
+	 * Get EOTF / "Gamma" / encoding type of data
+	 */
+	virtual UE::Color::EEncoding GetEncodingType() const
+	{
+		return IsOutputSrgb() ? UE::Color::EEncoding::sRGB : UE::Color::EEncoding::Linear;
+	}
+
+	/**
+	 * Reset sample to empty state
+	 */
 	virtual void Reset() { }
 	
 public:

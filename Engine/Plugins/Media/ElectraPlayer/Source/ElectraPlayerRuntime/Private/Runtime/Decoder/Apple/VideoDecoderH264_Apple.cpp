@@ -13,6 +13,7 @@
 #include "Player/PlayerSessionServices.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/UtilsMPEGVideo.h"
+#include "Decoder/VideoDecoderHelpers.h"
 #include "DecoderErrors_Apple.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ElectraPlayerPrivate.h"
@@ -97,6 +98,7 @@ private:
 		int64			SequenceIndex = 0;
 		FTimeValue		AdjustedPTS;
 		FTimeValue		AdjustedDuration;
+		TArray<MPEG::FISO14496_10_seq_parameter_set_data> SPSs;
 
 		int32			Width = 0;
 		int32			Height = 0;
@@ -115,10 +117,43 @@ private:
 		void Reset()
 		{
 			CurrentCodecData.Reset();
+			ActiveCodecData.Reset();
 		}
 		bool IsDifferentFrom(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU);
+		void UpdateFromCSD(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+		{
+			if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != ActiveCodecData.Get())
+			{
+				// Pointers are different. Is the content too?
+				bool bDifferent = !ActiveCodecData.IsValid() || (ActiveCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != ActiveCodecData->CodecSpecificData);
+				if (bDifferent)
+				{
+					SPSs.Empty();
+					TArray<MPEG::FNaluInfo>	NALUs;
+					const uint8* pD = AU->AccessUnit->AUCodecData->CodecSpecificData.GetData();
+					MPEG::ParseBitstreamForNALUs(NALUs, pD, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					for(int32 i=0; i<NALUs.Num(); ++i)
+					{
+						const uint8* NALU = (const uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset + NALUs[i].UnitLength);
+						uint8 nal_unit_type = *NALU & 0x1f;
+						// SPS?
+						if (nal_unit_type == 7)
+						{
+							MPEG::FISO14496_10_seq_parameter_set_data sps;
+							if (MPEG::ParseH264SPS(sps, NALU, NALUs[i].Size))
+							{
+								SPSs.Emplace(MoveTemp(sps));
+							}
+						}
+					}
+				}
+				ActiveCodecData = AU->AccessUnit->AUCodecData;
+			}
+		}
 
 		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CurrentCodecData;
+		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> ActiveCodecData;
+		TArray<MPEG::FISO14496_10_seq_parameter_set_data> SPSs;
 	};
 
 	struct FDecoderHandle
@@ -301,9 +336,10 @@ private:
 	IDecoderOutputBufferListener*						ReadyBufferListener;
 
 	FDecoderFormatInfo									CurrentStreamFormatInfo;
+	MPEG::FColorimetryHelper							Colorimetry;
 	FDecoderHandle*										DecoderHandle;
 	FMediaCriticalSection								InDecoderInputMutex;
-	TArray<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>>					InDecoderInput;
+	TArray<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>>	InDecoderInput;
 
 	int32												MaxDecodeBufferSize;
 	bool												bError;
@@ -887,6 +923,10 @@ void FVideoDecoderH264::PrepareAU(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>
 
 		if (!AU->AccessUnit->bIsDummyData)
 		{
+			// Take note of changes in codec specific data.
+			CurrentStreamFormatInfo.UpdateFromCSD(AU);
+			AU->SPSs = CurrentStreamFormatInfo.SPSs;
+
 			// Process NALUs
 			AU->bIsDiscardable = true;
 			AU->bIsIDR = AU->AccessUnit->bIsSyncSample;
@@ -1410,6 +1450,9 @@ void FVideoDecoderH264::WorkerThread()
 
 	bError = false;
 
+	CurrentStreamFormatInfo.Reset();
+	Colorimetry.Reset();
+
 	// Create decoded image pool.
 	if (!CreateDecodedImagePool())
 	{
@@ -1625,6 +1668,8 @@ void FVideoDecoderH264::WorkerThread()
 			ReplayAccessUnits.Empty();
 			SequenceIndex.Reset();
 			CurrentAccessUnit.Reset();
+			CurrentStreamFormatInfo.Reset();
+			Colorimetry.Reset();
 
 			FlushDecoderSignal.Reset();
 			DecoderFlushedSignal.Signal();
@@ -1739,6 +1784,29 @@ void FVideoDecoderH264::ProcessOutput(bool bFlush)
 					OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64) 0 ));
 					OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64) 0 ));
 					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
+
+					// Set the bit depth and the colorimetry.
+					uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
+					uint8 video_full_range_flag=0, video_format=5;
+					uint8 num_bits = 8;
+					if (NextImage.SourceInfo.IsValid() && NextImage.SourceInfo->SPSs.Num())
+					{
+						check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
+						num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
+						if (NextImage.SourceInfo->SPSs[0].colour_description_present_flag)
+						{
+							colour_primaries = NextImage.SourceInfo->SPSs[0].colour_primaries;
+							transfer_characteristics = NextImage.SourceInfo->SPSs[0].transfer_characteristics;
+							matrix_coeffs = NextImage.SourceInfo->SPSs[0].matrix_coefficients;
+						}
+						if (NextImage.SourceInfo->SPSs[0].video_signal_type_present_flag)
+						{
+							video_full_range_flag = NextImage.SourceInfo->SPSs[0].video_full_range_flag;
+							video_format = NextImage.SourceInfo->SPSs[0].video_format;
+						}
+					}
+					Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
+					Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);
 				}
 				else
 				{

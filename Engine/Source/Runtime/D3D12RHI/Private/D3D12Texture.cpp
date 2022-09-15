@@ -487,6 +487,13 @@ void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture& Texture)
 
 bool FD3D12Texture::CanBe4KAligned(const FD3D12ResourceDesc& Desc, EPixelFormat UEFormat)
 {
+	// Exclude video related formats
+	if (UEFormat == PF_NV12 ||
+		UEFormat == PF_P010)
+	{
+		return false;
+	}
+
 	// 4KB alignment is only available for read only textures
 	if (!EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) &&
 		!Desc.NeedsUAVAliasWorkarounds() && // UAV aliased resources are secretly writable.
@@ -1452,7 +1459,8 @@ void FD3D12Texture::CreateViews()
 		bCreateShaderResource = false;
 	}
 
-	if (Desc.Format == PF_NV12)
+	if (Desc.Format == PF_NV12 ||
+		Desc.Format == PF_P010)
 	{
 		bCreateRTV = false;
 		bCreateShaderResource = false;

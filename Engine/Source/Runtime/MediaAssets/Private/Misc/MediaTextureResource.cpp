@@ -26,6 +26,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/Async.h"
 #include "RenderGraphUtils.h"
+#include "ColorSpace.h"
+#include "HDRHelper.h"
 
 #include "MediaTexture.h"
 
@@ -193,6 +195,12 @@ namespace MediaTextureResourceHelpers
 		case EMediaTextureSampleFormat::Y416:
 			return PF_A16B16G16R16;
 
+		case EMediaTextureSampleFormat::P010:
+			return PF_G16; // note: right now this case will be encountered only if CPU-side data in NV12/21 format is in sample -> in this case we cannot create a true P010 texture OR the platforms view it as U16s anyway 
+
+		case EMediaTextureSampleFormat::P010_RGB1010102:
+			return PF_A2B10G10R10;
+
 		default:
 			return PF_Unknown;
 		}
@@ -214,6 +222,9 @@ namespace MediaTextureResourceHelpers
 			// Float formats
 		case EMediaTextureSampleFormat::FloatRGB:
 		case EMediaTextureSampleFormat::FloatRGBA:
+		case EMediaTextureSampleFormat::Y416:
+		case EMediaTextureSampleFormat::P010:
+		case EMediaTextureSampleFormat::P010_RGB1010102:
 			return PF_FloatRGBA;
 			// Everything else maps to 8-bit RGB...
 		default:
@@ -863,11 +874,14 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 
 			FMatrix YUVToRGBMatrix = Sample->GetYUVToRGBMatrix();
-			FVector YUVOffset(MediaShaders::YUVOffset8bits);
-
+			FVector YUVOffset;
 			if (Sample->GetFormat() == EMediaTextureSampleFormat::YUVv210)
 			{
-				YUVOffset = MediaShaders::YUVOffset10bits;
+				YUVOffset = Sample->GetFullRange() ? MediaShaders::YUVOffsetNoScale10bits : MediaShaders::YUVOffset10bits;
+			}
+			else
+			{
+				YUVOffset = Sample->GetFullRange() ? MediaShaders::YUVOffsetNoScale8bits : MediaShaders::YUVOffset8bits;
 			}
 
 			bool bIsSampleOutputSrgb = Sample->IsOutputSrgb();
@@ -905,7 +919,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 						FIntPoint TexDim = InputTexture->GetSizeXY();
-						TempSRV0 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G8);
+						TempSRV0 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G8); // note: the types of the views select the correct planes (offset) "magically"
 						TempSRV1 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_R8G8);
 						ConvertShader->SetParameters(CommandList, TexDim, TempSRV0, TempSRV1, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 					}
@@ -990,11 +1004,61 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
+				case EMediaTextureSampleFormat::P010:
+				{
+					/*
+					For now we assume this data in the P010 surface:
+
+					- PQ EOTF (which should be fine for all, but HLG10)
+
+					Output is assumed to be wanted in the "working colorspace" & linear
+
+					*** Output into a 3D scene without HDR output might result in incorrect color representation (sRGB is expected, we deliver scRGB) ***
+					*/
+
+					// Get the complete matrix to convert sample data to RGB
+					auto YUVMtx = Sample->GetSampleToRGBMatrix();
+
+					// Setup conversion from Rec2020 to current working color space
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					if (1) //Working.IsSRGB()) // vvv seems UE does this for all colorspaces
+					{
+						// Add scale so we get a proper 1.0 at 80nits
+						ColorSpaceMtx = ColorSpaceMtx.ApplyScale(1.0f / 80.0f);
+					}
+
+					// We for now hard code this in the shaders!
+					// (skipping this assert as we might get dummy frames passing through here, that are not flagging this correctly)
+					//check(Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+
+					FIntPoint TexDim = InputTexture->GetSizeXY();
+					if (InputTexture->GetFormat() == PF_P010)
+					{
+						TShaderMapRef<FP010ConvertPS> ConvertShader(ShaderMap);
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+
+						FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16);
+						FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16R16);
+						ConvertShader->SetParameters(CommandList, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, bIsSampleOutputSrgb);
+					}
+					else
+					{
+						TShaderMapRef<FP010ConvertAsUINT16sPS> ConvertShader(ShaderMap);
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+
+						ConvertShader->SetParameters(CommandList, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, bIsSampleOutputSrgb);
+					}
+				}
+				break;
+
 				default:
 				{
 					// This should not happen in normal use: still - end the render pass to avoid any trouble with RHI
 					CommandList.EndRenderPass();
-					return; // unsupported format
+					return; // unsupported format (either illegal value or needing a custom converter)
 				}
 			}
 

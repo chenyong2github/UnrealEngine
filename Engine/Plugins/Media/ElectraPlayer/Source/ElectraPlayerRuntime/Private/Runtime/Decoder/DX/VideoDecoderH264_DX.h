@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Utilities/UtilsMPEGVideo.h"
+#include "Decoder/VideoDecoderHelpers.h"
+
 namespace Electra
 {
 	/**
@@ -106,6 +109,48 @@ namespace Electra
 			int64			EndPTS = 0;
 			FTimeValue		AdjustedPTS;
 			FTimeValue		AdjustedDuration;
+
+			TArray<MPEG::FISO14496_10_seq_parameter_set_data> SPSs;
+		};
+
+		struct FDecoderFormatInfo
+		{
+			void Reset()
+			{
+				CurrentCodecData.Reset();
+			}
+			void UpdateFromCSD(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+			{
+				if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get())
+				{
+					// Pointers are different. Is the content too?
+					bool bDifferent = !CurrentCodecData.IsValid() || (CurrentCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != CurrentCodecData->CodecSpecificData);
+					if (bDifferent)
+					{
+						SPSs.Empty();
+						TArray<MPEG::FNaluInfo>	NALUs;
+						const uint8* pD = AU->AccessUnit->AUCodecData->CodecSpecificData.GetData();
+						MPEG::ParseBitstreamForNALUs(NALUs, pD, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+						for(int32 i=0; i<NALUs.Num(); ++i)
+						{
+							const uint8* NALU = (const uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset + NALUs[i].UnitLength);
+							uint8 nal_unit_type = *NALU & 0x1f;
+							// SPS?
+							if (nal_unit_type == 7)
+							{
+								MPEG::FISO14496_10_seq_parameter_set_data sps;
+								if (MPEG::ParseH264SPS(sps, NALU, NALUs[i].Size))
+								{
+									SPSs.Emplace(MoveTemp(sps));
+								}
+							}
+						}
+					}
+					CurrentCodecData = AU->AccessUnit->AUCodecData;
+				}
+			}
+			TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CurrentCodecData;
+			TArray<MPEG::FISO14496_10_seq_parameter_set_data> SPSs;
 		};
 
 		void InternalDecoderDestroy();
@@ -188,6 +233,9 @@ namespace Electra
 		bool												bDecoderFlushPending;
 		bool												bError;
 		TArray<TSharedPtrTS<FDecoderInput>>					InDecoderInput;
+
+		FDecoderFormatInfo									CurrentStreamFormatInfo;
+		MPEG::FColorimetryHelper							Colorimetry;
 
 		TUniquePtr<FDecoderOutputBuffer>					CurrentDecoderOutputBuffer;
 		IMediaRenderer::IBuffer*							CurrentRenderOutputBuffer;

@@ -2,7 +2,8 @@
 
 #pragma once
 
-namespace Electra {
+namespace Electra
+{
 	/**
 	 * H265 video decoder class implementation.
 	**/
@@ -105,6 +106,63 @@ namespace Electra {
 			int64			EndPTS = 0;
 			FTimeValue		AdjustedPTS;
 			FTimeValue		AdjustedDuration;
+
+			TArray<MPEG::FSEIMessage> CSDPrefixSEIMessages;
+			TArray<MPEG::FSEIMessage> CSDSuffixSEIMessages;
+			TArray<MPEG::FSEIMessage> PrefixSEIMessages;
+			TArray<MPEG::FSEIMessage> SuffixSEIMessages;
+			TArray<MPEG::FISO23008_2_seq_parameter_set_data> SPSs;
+		};
+
+		struct FDecoderFormatInfo
+		{
+			void Reset()
+			{
+				CurrentCodecData.Reset();
+			}
+			void UpdateFromCSD(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+			{
+				if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get())
+				{
+					// Pointers are different. Is the content too?
+					bool bDifferent = !CurrentCodecData.IsValid() || (CurrentCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != CurrentCodecData->CodecSpecificData);
+					if (bDifferent)
+					{
+						PrefixSEIMessages.Empty();
+						SuffixSEIMessages.Empty();
+						SPSs.Empty();
+						// The CSD may contain SEI messages that apply to the stream as a whole.
+						// We need to parse the CSD to get them, if there are any.
+						TArray<MPEG::FNaluInfo>	NALUs;
+						const uint8* pD = AU->AccessUnit->AUCodecData->CodecSpecificData.GetData();
+						MPEG::ParseBitstreamForNALUs(NALUs, pD, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+						for(int32 i=0; i<NALUs.Num(); ++i)
+						{
+							const uint8* NALU = (const uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset + NALUs[i].UnitLength);
+							uint8 nut = *NALU >> 1;
+							// Prefix or suffix NUT?
+							if (nut == 39 || nut == 40)
+							{
+								MPEG::ExtractSEIMessages(nut == 39 ? PrefixSEIMessages : SuffixSEIMessages, Electra::AdvancePointer(NALU, 2), NALUs[i].Size - 2, MPEG::ESEIStreamType::H265, nut == 39);
+							}
+							// SPS nut?
+							else if (nut == 33)
+							{
+								MPEG::FISO23008_2_seq_parameter_set_data sps;
+								if (MPEG::ParseH265SPS(sps, NALU, NALUs[i].Size - 2))
+								{
+									SPSs.Emplace(MoveTemp(sps));
+								}
+							}
+						}
+					}
+					CurrentCodecData = AU->AccessUnit->AUCodecData;
+				}
+			}
+			TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CurrentCodecData;
+			TArray<MPEG::FSEIMessage> PrefixSEIMessages;
+			TArray<MPEG::FSEIMessage> SuffixSEIMessages;
+			TArray<MPEG::FISO23008_2_seq_parameter_set_data> SPSs;
 		};
 
 		void InternalDecoderDestroy();
@@ -183,6 +241,10 @@ namespace Electra {
 		int32												NumFramesInDecoder;
 		bool												bError;
 		TArray<TSharedPtrTS<FDecoderInput>>					InDecoderInput;
+
+		FDecoderFormatInfo									CurrentStreamFormatInfo;
+		MPEG::FColorimetryHelper							Colorimetry;
+		MPEG::FHDRHelper									HDR;
 
 		TUniquePtr<FDecoderOutputBuffer>					CurrentDecoderOutputBuffer;
 		IMediaRenderer::IBuffer*							CurrentRenderOutputBuffer;

@@ -472,6 +472,10 @@ ILibavDecoder::EOutputStatus FLibavDecoderVideoCommon::HaveOutput(ILibavDecoderV
 						{
 							PreferredFormat = pf;
 						}
+						if (pf == AV_PIX_FMT_P010LE)
+						{
+							PreferredFormat = pf;
+						}
 						if (pf == AV_PIX_FMT_NV12)
 						{
 							PreferredFormat = pf;
@@ -513,30 +517,30 @@ ILibavDecoder::EOutputStatus FLibavDecoderVideoCommon::HaveOutput(ILibavDecoderV
 				}
 			}
 
-			if (LastError == 0 && Frame->format == AV_PIX_FMT_NV12)
+			if (LastError == 0 && (Frame->format == AV_PIX_FMT_NV12 || Frame->format == AV_PIX_FMT_P010LE))
 			{
+				int32 bpp = Frame->format == AV_PIX_FMT_P010LE ? 2 : 1;
 				bIsSupportedOutputFormat = true;
 				CurrentOutputInfo.NumPlanes = 2;
 				// Y plane
 				CurrentOutputInfo.Planes[0].Content = FPlaneInfo::EContent::Luma;
-				CurrentOutputInfo.Planes[0].Width = Frame->linesize[0];
+				CurrentOutputInfo.Planes[0].Width = Frame->linesize[0] / bpp;
 				CurrentOutputInfo.Planes[0].Height = Plane0Height;
-				CurrentOutputInfo.Planes[0].BytesPerPixel = 1;
+				CurrentOutputInfo.Planes[0].BytesPerPixel = bpp;
 				CurrentOutputInfo.Planes[0].ByteOffsetToFirstPixel = 0;
-				CurrentOutputInfo.Planes[0].ByteOffsetBetweenPixels = 1;
+				CurrentOutputInfo.Planes[0].ByteOffsetBetweenPixels = bpp;
 				CurrentOutputInfo.Planes[0].ByteOffsetBetweenRows = Frame->linesize[0];
 				CurrentOutputInfo.Planes[0].Address = Frame->data[0];
 
 				// UV plane
 				CurrentOutputInfo.Planes[1].Content = FPlaneInfo::EContent::ChromaUV;
-				CurrentOutputInfo.Planes[1].Width = Frame->linesize[1];
+				CurrentOutputInfo.Planes[1].Width = Frame->linesize[1] / bpp;
 				CurrentOutputInfo.Planes[1].Height = Plane0Height / 2;
-				CurrentOutputInfo.Planes[1].BytesPerPixel = 1;
+				CurrentOutputInfo.Planes[1].BytesPerPixel = bpp;
 				CurrentOutputInfo.Planes[1].ByteOffsetToFirstPixel = 0;
-				CurrentOutputInfo.Planes[1].ByteOffsetBetweenPixels = 2;
-				CurrentOutputInfo.Planes[1].ByteOffsetBetweenRows = Frame->linesize[1] * 2;
+				CurrentOutputInfo.Planes[1].ByteOffsetBetweenPixels = 2 * bpp;
+				CurrentOutputInfo.Planes[1].ByteOffsetBetweenRows = Frame->linesize[1];
 				CurrentOutputInfo.Planes[1].Address = Frame->data[1];
-
 			}
 			else if (LastError == 0 && Frame->format == AV_PIX_FMT_YUV420P)
 			{
@@ -569,6 +573,40 @@ ILibavDecoder::EOutputStatus FLibavDecoderVideoCommon::HaveOutput(ILibavDecoderV
 				CurrentOutputInfo.Planes[2].BytesPerPixel = 1;
 				CurrentOutputInfo.Planes[2].ByteOffsetToFirstPixel = 0;
 				CurrentOutputInfo.Planes[2].ByteOffsetBetweenPixels = 1;
+				CurrentOutputInfo.Planes[2].ByteOffsetBetweenRows = Frame->linesize[2];
+				CurrentOutputInfo.Planes[2].Address = Frame->data[2];
+			}
+			else if (LastError == 0 && Frame->format == AV_PIX_FMT_YUV420P10LE)
+			{
+				bIsSupportedOutputFormat = true;
+				CurrentOutputInfo.NumPlanes = 3;
+				// Y plane
+				CurrentOutputInfo.Planes[0].Content = FPlaneInfo::EContent::Luma;
+				CurrentOutputInfo.Planes[0].Width = Frame->linesize[0] / 2;
+				CurrentOutputInfo.Planes[0].Height = Plane0Height;
+				CurrentOutputInfo.Planes[0].BytesPerPixel = 2;
+				CurrentOutputInfo.Planes[0].ByteOffsetToFirstPixel = 0;
+				CurrentOutputInfo.Planes[0].ByteOffsetBetweenPixels = 2;
+				CurrentOutputInfo.Planes[0].ByteOffsetBetweenRows = Frame->linesize[0];
+				CurrentOutputInfo.Planes[0].Address = Frame->data[0];
+
+				// U plane
+				CurrentOutputInfo.Planes[1].Content = FPlaneInfo::EContent::ChromaU;
+				CurrentOutputInfo.Planes[1].Width = Frame->linesize[1] / 2;
+				CurrentOutputInfo.Planes[1].Height = Plane0Height / 2;
+				CurrentOutputInfo.Planes[1].BytesPerPixel = 2;
+				CurrentOutputInfo.Planes[1].ByteOffsetToFirstPixel = 0;
+				CurrentOutputInfo.Planes[1].ByteOffsetBetweenPixels = 2;
+				CurrentOutputInfo.Planes[1].ByteOffsetBetweenRows = Frame->linesize[1];
+				CurrentOutputInfo.Planes[1].Address = Frame->data[1];
+
+				// V plane
+				CurrentOutputInfo.Planes[2].Content = FPlaneInfo::EContent::ChromaV;
+				CurrentOutputInfo.Planes[2].Width = Frame->linesize[2] / 2;
+				CurrentOutputInfo.Planes[2].Height = Plane0Height / 2;
+				CurrentOutputInfo.Planes[2].BytesPerPixel = 2;
+				CurrentOutputInfo.Planes[2].ByteOffsetToFirstPixel = 0;
+				CurrentOutputInfo.Planes[2].ByteOffsetBetweenPixels = 2;
 				CurrentOutputInfo.Planes[2].ByteOffsetBetweenRows = Frame->linesize[2];
 				CurrentOutputInfo.Planes[2].Address = Frame->data[2];
 			}

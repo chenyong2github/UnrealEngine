@@ -436,6 +436,81 @@ namespace Electra
 		//! Parses a H.265 (ISO/IEC 23008-2) SPS NALU.
 		bool ParseH265SPS(FISO23008_2_seq_parameter_set_data& OutSPS, const void* Data, int32 Size);
 
+
+
+		struct FSEIMessage
+		{
+			enum EPayloadType
+			{
+				PT_user_data_registered_itu_t_t35 = 4,
+				// PT_tone_mapping_info = 23,							// not expected to be used (application custom)
+				PT_mastering_display_colour_volume = 137,
+				// PT_chroma_resampling_filter_hint = 140,				// not expected to be used
+				// PT_knee_function_info = 141,							// not expected to be used (application custom)
+				// PT_colour_remapping_info = 142,						// not expected to be used (application custom)
+				PT_content_light_level_info = 144,
+				PT_alternative_transfer_characteristics = 147,
+				PT_ambient_viewing_environment = 148,
+				PT_content_colour_volume = 149
+			};
+			uint32 PayloadType = ~uint32(0);
+			TArray<uint8> Message;
+		};
+		enum class ESEIStreamType
+		{
+			H264,
+			H265
+		};
+		bool ExtractSEIMessages(TArray<FSEIMessage>& OutMessages, const void* InBitstream, uint64 InBitstreamLength, ESEIStreamType StreamType, bool bIsPrefixSEI);
+
+
+		struct FSEImastering_display_colour_volume
+		{
+			uint16 display_primaries_x[3] { 0 };
+			uint16 display_primaries_y[3] { 0 };
+			uint16 white_point_x = 0;
+			uint16 white_point_y = 0;
+			uint32 max_display_mastering_luminance = 0;
+			uint32 min_display_mastering_luminance = 0;
+			bool ParseFromMessage(const FSEIMessage& InMessage);
+		};
+
+		struct FSEIcontent_light_level_info
+		{
+			uint16 max_content_light_level = 0;
+			uint16 max_pic_average_light_level = 0;
+			bool ParseFromMessage(const FSEIMessage& InMessage);
+		};
+
+		struct FSEIalternative_transfer_characteristics
+		{
+			uint8 preferred_transfer_characteristics = 0;
+			bool ParseFromMessage(const FSEIMessage& InMessage);
+		};
+
+		struct FSEIambient_viewing_environment
+		{
+			uint32 ambient_illuminance = 0;
+			uint16 ambient_light_x = 0;
+			uint16 ambient_light_y = 0;
+		};
+
+		struct FSEIcontent_colour_volume
+		{
+			uint8 ccv_cancel_flag = 0;
+			uint8 ccv_persistence_flag = 0;
+			uint8 ccv_primaries_present_flag = 0;
+			uint8 ccv_min_luminance_value_present_flag = 0;
+			uint8 ccv_max_luminance_value_present_flag = 0;
+			uint8 ccv_avg_luminance_value_present_flag = 0;
+			int32 ccv_primaries_x[3] { 0 };
+			int32 ccv_primaries_y[3] { 0 };
+			uint32 ccv_min_luminance_value = 0;
+			uint32 ccv_max_luminance_value = 0;
+			uint32 ccv_avg_luminance_value = 0;
+		};
+
+
 	} // namespace MPEG
 } // namespace Electra
 

@@ -133,6 +133,10 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	FPixelFormatInfo(PF_R8_SINT,            TEXT("R8_SINT"),               1,          1,          1,          1,          1,              1),
 	FPixelFormatInfo(PF_R64_UINT,			TEXT("R64_UINT"),              1,          1,          1,          8,          1,              0),
 	FPixelFormatInfo(PF_R9G9B9EXP5,			TEXT("R9G9B9EXP5"),			   1,		   1,		   1,		   4,		   4,			   0),
+
+	// P010 contains 2 textures: R16 luminance plane followed by R16G16 1/4 size chrominance plane. (upper 10 bits used)
+	// BlockSize/BlockBytes/NumComponents values don't make much sense for this format, so set them all to one.
+	FPixelFormatInfo(PF_P010,				TEXT("P010"),				   1,		   1,		   1,		   2,		   1,			   0),
 };
 
 

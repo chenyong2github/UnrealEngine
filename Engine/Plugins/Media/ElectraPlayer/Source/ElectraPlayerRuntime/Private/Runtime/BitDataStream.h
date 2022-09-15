@@ -55,6 +55,18 @@ public:
 		return GetRemainingByteLength() * 8 + (BitPosition ? 8 - BitPosition : 0);
 	}
 
+	bool GetAlignedBytes(uint8* To, uint64 nBytes)
+	{
+		check(IsByteAligned());
+		if (IsByteAligned() && GetRemainingByteLength() >= nBytes)
+		{
+			FMemory::Memcpy(To, GetRemainingData(), nBytes);
+			BytePosition += nBytes;
+			return true;
+		}
+		return false;
+	}
+
 	void SkipBytes(uint64 nBytes)
 	{
 		BytePosition += nBytes;
@@ -218,7 +230,7 @@ namespace Electra
 
 	private:
 		const uint8* Data;
-		int64			NumBytesToGo;
+		int64 NumBytesToGo;
 	};
 
 } // namespace Electra

@@ -419,8 +419,10 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 						h265Cfg.Level = HighestStream.GetProfileLevel();
 						h265Cfg.MaxFrameWidth = HighestStream.GetResolution().Width;
 						h265Cfg.MaxFrameHeight = HighestStream.GetResolution().Height;
+						h265Cfg.MaxFrameRate = HighestStream.GetFrameRate().IsValid()? HighestStream.GetFrameRate().GetAsDouble() : 0.0;
+						h265Cfg.ProfileCompatibilityFlags = HighestStream.GetProfileCompatibilityFlags();
+						h265Cfg.GeneralConstraintBits48 = HighestStream.GetProfileConstraints();
 						h265Cfg.AdditionalOptions = HighestStream.GetExtras();
-
 						// Add in any player options that are for decoder use
 						TArray<FString> DecoderOptionKeys;
 						PlayerOptions.GetKeysStartingWith("videoDecoder", DecoderOptionKeys);

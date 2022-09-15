@@ -28,6 +28,9 @@ namespace Electra
 			int32								Tier = 0;						//!< Maximum tier level
 			int32								Profile = 0;					//!< Profile
 			int32								Level = 0;						//!< Level
+			double								MaxFrameRate = 0.0;				//!< Maximum framerate, if known.
+			uint32								ProfileCompatibilityFlags = 0;	//!<
+			uint64								GeneralConstraintBits48 = 0;	//!< All 48 contraint bits. Upper 16 bits not used.
 			uint32								MaxDecodedFrames = 0;			//!< Maximum number of decoded frames
 			FParamDict							AdditionalOptions;
 		};

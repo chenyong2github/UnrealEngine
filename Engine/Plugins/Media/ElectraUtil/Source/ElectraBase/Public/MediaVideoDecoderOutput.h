@@ -42,6 +42,68 @@ protected:
 };
 
 
+
+class IVideoDecoderColorimetry : public TSharedFromThis<IVideoDecoderColorimetry, ESPMode::ThreadSafe>
+{
+public:
+	struct FMPEGDefinition
+	{
+		uint8 ColourPrimaries = 2;
+		uint8 TransferCharacteristics = 2;
+		uint8 MatrixCoefficients = 2;
+		uint8 VideoFullRangeFlag = 0;
+		uint8 VideoFormat = 5;
+	};
+
+	virtual ~IVideoDecoderColorimetry() = default;
+	virtual FMPEGDefinition const* GetMPEGDefinition() const = 0;
+};
+
+
+
+struct FVideoDecoderHDRMetadata_mastering_display_colour_volume
+{
+	// Index 0=red, 1=green, 2=blue
+	float display_primaries_x[3];
+	float display_primaries_y[3];
+	float white_point_x;
+	float white_point_y;
+	float max_display_mastering_luminance;
+	float min_display_mastering_luminance;
+};
+
+struct FVideoDecoderHDRMetadata_content_light_level_info
+{
+	uint16 max_content_light_level = 0;			// MaxCLL
+	uint16 max_pic_average_light_level = 0;		// MaxFALL
+};
+
+
+
+class IVideoDecoderHDRInformation : public TSharedFromThis<IVideoDecoderHDRInformation, ESPMode::ThreadSafe>
+{
+public:
+	enum class EType
+	{
+		Unknown,
+		PQ10,				// 10 bit HDR, no metadata.
+		HDR10,				// 10 bit HDR, static metadata (mastering display colour volume + content light level info)
+		HLG10				// 10 bit HDR, static metadata (mastering display colour volume + content light level info) (HLG transfer characteristics)
+	};
+
+	virtual ~IVideoDecoderHDRInformation() = default;
+
+	// Returns the type of HDR in use.
+	virtual EType GetHDRType() const = 0;
+
+	// Get mastering display colour volume if available. Returns nullptr if information is not available.
+	virtual const FVideoDecoderHDRMetadata_mastering_display_colour_volume* GetMasteringDisplayColourVolume() const = 0;
+
+	// Get content light level info if available. Returns nullptr if information is not available.
+	virtual const FVideoDecoderHDRMetadata_content_light_level_info* GetContentLightLevelInfo() const = 0;
+};
+
+
 class FVideoDecoderOutput : public IDecoderOutput
 {
 public:
@@ -153,6 +215,34 @@ public:
 			Cached.Flags |= FCached::Valid_Orientation;
 		}
 		return Cached.Orientation;
+	}
+
+	virtual int32 GetBitsPerComponent() const
+	{
+		const int32 NumDefaultBits = 8;
+		if (ParamDict)
+		{
+			return (int32)ParamDict->GetValue("bits_per").SafeGetInt64((int64)NumDefaultBits);
+		}
+		return NumDefaultBits;
+	}
+
+	virtual TSharedPtr<const IVideoDecoderHDRInformation, ESPMode::ThreadSafe> GetHDRInformation() const
+	{
+		if (ParamDict && ParamDict->HaveKey("hdr_info"))
+		{
+			return ParamDict->GetValue("hdr_info").GetSharedPointer<const IVideoDecoderHDRInformation>();
+		}
+		return nullptr;
+	}
+
+	virtual TSharedPtr<const IVideoDecoderColorimetry, ESPMode::ThreadSafe> GetColorimetry() const
+	{
+		if (ParamDict && ParamDict->HaveKey("colorimetry"))
+		{
+			return ParamDict->GetValue("colorimetry").GetSharedPointer<const IVideoDecoderColorimetry>();
+		}
+		return nullptr;
 	}
 
 protected:

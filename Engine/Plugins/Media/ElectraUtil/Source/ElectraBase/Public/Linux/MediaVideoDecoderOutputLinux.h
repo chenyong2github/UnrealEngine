@@ -12,4 +12,5 @@ public:
 	virtual const TArray<uint8>& GetBuffer() const = 0;
 	virtual FIntPoint GetBufferDimensions() const = 0;
 	virtual uint32 GetStride() const = 0;
+	virtual bool GetIs10Bit() const = 0;
 };

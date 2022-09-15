@@ -68,6 +68,8 @@ const void* FElectraTextureSampleLinux::GetBuffer()
 
 EMediaTextureSampleFormat FElectraTextureSampleLinux::GetFormat() const
 {
+	int32 NumBits = VideoDecoderOutput && VideoDecoderOutput->GetIs10Bit() ? 10 : 8;
+	(void)NumBits;
 	return EMediaTextureSampleFormat::CharNV12;
 }
 

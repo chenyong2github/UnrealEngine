@@ -418,9 +418,9 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture2D(FRHITextureCreateDesc cons
 
 	ApplyBC7SoftwareAdapterWorkaround(Adapter.bSoftwareAdapter, TextureDesc);
 
-	// NV12 doesn't support SRV in NV12 format so don't create SRV for it.
+	// NV12/P010 doesn't support SRV in NV12 format so don't create SRV for it.
 	// Todo: add support for SRVs of underneath luminance & chrominance textures.
-	if (Format == PF_NV12)
+	if (Format == PF_NV12 || Format == PF_P010)
 	{
 		// JoeG - I moved this to below the bind flags because it is valid to bind R8 or B8G8 to this
 		// And creating a SRV afterward would fail because of the missing bind flags
@@ -483,7 +483,7 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture2D(FRHITextureCreateDesc cons
 	}
 	// NV12 doesn't support RTV in NV12 format so don't create RTV for it.
 	// Todo: add support for RTVs of underneath luminance & chrominance textures.
-	if (Format == PF_NV12)
+	if (Format == PF_NV12 || Format == PF_P010)
 	{
 		bCreateRTV = false;
 	}
@@ -1746,7 +1746,7 @@ FD3D11Texture* FD3D11DynamicRHI::CreateTextureFromResource(bool bTextureArray, b
 
 	// DXGI_FORMAT_NV12 allows us to create RTV and SRV but only with other formats, so we should block creation here.
 	// @todo: Should this be a check? Seems wrong to just silently change what the caller asked for.
-	if (Format == PF_NV12)
+	if (Format == PF_NV12 || Format == PF_P010)
 	{
 		bCreateRTV = false;
 		bCreateShaderResource = false;

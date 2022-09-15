@@ -19,7 +19,13 @@ namespace MediaTextureSampleFormat
 			case EMediaTextureSampleFormat::CharYVYU: return TEXT("CharYVYU");
 			case EMediaTextureSampleFormat::FloatRGB: return TEXT("FloatRGB");
 			case EMediaTextureSampleFormat::FloatRGBA: return TEXT("FloatRGBA");
-			case EMediaTextureSampleFormat::Undefined: 
+			case EMediaTextureSampleFormat::Y416: return TEXT("Y416");
+			case EMediaTextureSampleFormat::P010: return TEXT("P010");
+			case EMediaTextureSampleFormat::DXT1: return TEXT("DXT1");
+			case EMediaTextureSampleFormat::DXT5: return TEXT("DXT5");
+			case EMediaTextureSampleFormat::YCoCg_DXT5: return TEXT("YCoCg_DXT5");
+			case EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4: return TEXT("YCoCg_DXT5_Alpha_BC4");
+			case EMediaTextureSampleFormat::Undefined:
 			default: return TEXT("Undefined");
 		}
 	}

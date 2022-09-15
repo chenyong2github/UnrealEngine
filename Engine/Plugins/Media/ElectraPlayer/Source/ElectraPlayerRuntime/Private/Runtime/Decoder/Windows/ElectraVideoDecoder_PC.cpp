@@ -244,7 +244,7 @@ void FElectraPlayerVideoDecoderOutputPC::InitializeWithSharedTexture(const TRefC
 		TextureDesc.Height = SampleDim.Y;
 		TextureDesc.MipLevels = 1;
 		TextureDesc.ArraySize = 1;
-		TextureDesc.Format = DXGI_FORMAT_NV12;
+		TextureDesc.Format = (GetFormat() == PF_NV12) ? DXGI_FORMAT_NV12 : DXGI_FORMAT_P010;
 		TextureDesc.SampleDesc.Count = 1;
 		TextureDesc.SampleDesc.Quality = 0;
 		TextureDesc.Usage = D3D11_USAGE_DEFAULT;

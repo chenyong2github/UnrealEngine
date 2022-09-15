@@ -12,6 +12,8 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ElectraPlayerPrivate.h"
 #include "DecoderErrors_Linux.h"
+#include "Utilities/UtilsMPEGVideo.h"
+#include "Decoder/VideoDecoderHelpers.h"
 
 #include "Linux/MediaVideoDecoderOutputLinux.h"
 #include "Renderer/RendererVideo.h"
@@ -19,6 +21,8 @@
 
 #include "libav_Decoder_Common.h"
 #include "libav_Decoder_H265.h"
+
+#if ELECTRA_PLATFORM_HAS_H265_DECODER
 
 /***************************************************************************************************************************************************/
 
@@ -108,6 +112,12 @@ private:
 		int32			CropBottom = 0;
 		int32			AspectX = 0;
 		int32			AspectY = 0;
+
+		TArray<MPEG::FSEIMessage> CSDPrefixSEIMessages;
+		TArray<MPEG::FSEIMessage> CSDSuffixSEIMessages;
+		TArray<MPEG::FSEIMessage> PrefixSEIMessages;
+		TArray<MPEG::FSEIMessage> SuffixSEIMessages;
+		TArray<MPEG::FISO23008_2_seq_parameter_set_data> SPSs;
 	};
 
 	struct FDecoderFormatInfo
@@ -115,10 +125,70 @@ private:
 		void Reset()
 		{
 			CurrentCodecData.Reset();
+			CSD.Reset();
+			PrefixSEIMessages.Empty();
+			SuffixSEIMessages.Empty();
+			SPSs.Empty();
 		}
-		bool IsDifferentFrom(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU);
+
+		bool UpdateCurrentIfChanged(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+		{
+			if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get())
+			{
+				// Pointers are different. Is the content too?
+				bool bDifferent = !CurrentCodecData.IsValid() || (CurrentCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != CurrentCodecData->CodecSpecificData);
+				CurrentCodecData = AU->AccessUnit->AUCodecData;
+				return bDifferent;
+			}
+			return false;
+		}
+
+		void UpdateFromCSD(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+		{
+			if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CSD.Get())
+			{
+				// Pointers are different. Is the content too?
+				bool bDifferent = !CSD.IsValid() || (CSD.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != CSD->CodecSpecificData);
+				if (bDifferent)
+				{
+					PrefixSEIMessages.Empty();
+					SuffixSEIMessages.Empty();
+					SPSs.Empty();
+					// The CSD may contain SEI messages that apply to the stream as a whole.
+					// We need to parse the CSD to get them, if there are any.
+					TArray<MPEG::FNaluInfo>	NALUs;
+					const uint8* pD = AU->AccessUnit->AUCodecData->CodecSpecificData.GetData();
+					MPEG::ParseBitstreamForNALUs(NALUs, pD, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					for(int32 i=0; i<NALUs.Num(); ++i)
+					{
+						const uint8* NALU = (const uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset + NALUs[i].UnitLength);
+						uint8 nut = *NALU >> 1;
+						// Prefix or suffix NUT?
+						if (nut == 39 || nut == 40)
+						{
+							MPEG::ExtractSEIMessages(nut == 39 ? PrefixSEIMessages : SuffixSEIMessages, Electra::AdvancePointer(NALU, 2), NALUs[i].Size - 2, MPEG::ESEIStreamType::H265, nut == 39);
+						}
+						// SPS nut?
+						else if (nut == 33)
+						{
+							MPEG::FISO23008_2_seq_parameter_set_data sps;
+							if (MPEG::ParseH265SPS(sps, NALU, NALUs[i].Size - 2))
+							{
+								SPSs.Emplace(MoveTemp(sps));
+							}
+						}
+					}
+				}
+				CSD = AU->AccessUnit->AUCodecData;
+			}
+		}
 
 		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CurrentCodecData;
+
+		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CSD;
+		TArray<MPEG::FSEIMessage> PrefixSEIMessages;
+		TArray<MPEG::FSEIMessage> SuffixSEIMessages;
+		TArray<MPEG::FISO23008_2_seq_parameter_set_data> SPSs;
 	};
 
 	struct FDecodedImage
@@ -147,7 +217,7 @@ private:
 			return (SourceInfo->SequenceIndex < rhs.SourceInfo->SequenceIndex) || (SourceInfo->SequenceIndex == rhs.SourceInfo->SequenceIndex && SourceInfo->PTS < rhs.SourceInfo->PTS);
 		}
 
-		TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>	SourceInfo;
+		TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> SourceInfo;
 		TSharedPtr<ILibavDecoderDecodedImage, ESPMode::ThreadSafe> DecodedImage;
 		ILibavDecoderVideoCommon::FOutputInfo ImageInfo;
 	private:
@@ -188,7 +258,7 @@ private:
 	void PostError(int32_t ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
 
-	void ConvertDecodedImageToNV12(TArray<uint8>& OutNV12Buffer, FIntPoint OutBufDim, const FDecodedImage& InImage);
+	void ConvertDecodedImageToNV12(TArray<uint8>& OutNV12Buffer, FIntPoint OutBufDim, int32 NumBits, const FDecodedImage& InImage);
 
 	FInstanceConfiguration Config;
 
@@ -215,6 +285,8 @@ private:
 	IDecoderOutputBufferListener* ReadyBufferListener = nullptr;
 
 	FDecoderFormatInfo CurrentStreamFormatInfo;
+	MPEG::FColorimetryHelper Colorimetry;
+	MPEG::FHDRHelper HDR;
 	TSharedPtr<ILibavDecoderVideoCommon, ESPMode::ThreadSafe> DecoderInstance;
 	TArray<TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>> InDecoderInput;
 
@@ -243,11 +315,12 @@ bool IVideoDecoderH265::GetStreamDecodeCapability(FStreamDecodeCapability& OutRe
 	OutResult = InStreamParameter;
 	OutResult.DecoderSupportType = ILibavDecoderH265::IsAvailable() ? FStreamDecodeCapability::ESupported::HardAndSoftware : FStreamDecodeCapability::ESupported::NotSupported;
 
-	// For now we handle only 8 bit encodings. If Main-10 profile, or only Main-10 profile compatibility is signaled we refuse this stream.
+#if ELECTRA_PLATFORM_ENABLE_HDR == 0
 	if (InStreamParameter.Profile > 1 || (InStreamParameter.CompatibilityFlags & 0x60000000) == 0x20000000)
 	{
 		OutResult.DecoderSupportType = FStreamDecodeCapability::ESupported::NotSupported;
 	}
+#endif
 	return true;
 }
 
@@ -589,7 +662,7 @@ bool FVideoDecoderH265LinuxLibavcodec::InternalDecoderCreate()
 	if (ILibavDecoderH265::IsAvailable())
 	{
 		TMap<FString, FVariant> Options;
-		Options.Add(TEXT("hw_priority"), FVariant(FString("vdpau;cuda;vaapi")));
+		Options.Add(TEXT("hw_priority"), FVariant(FString("cuda;vdpau;vaapi")));
 		DecoderInstance = ILibavDecoderH265::Create(this, Options);
 		if (!DecoderInstance.IsValid() || DecoderInstance->GetLastLibraryError())
 		{
@@ -670,6 +743,12 @@ void FVideoDecoderH265LinuxLibavcodec::PrepareAU(TSharedPtr<FDecoderInput, ESPMo
 
 		if (!AU->AccessUnit->bIsDummyData)
 		{
+			// Take note of changes in codec specific data.
+			CurrentStreamFormatInfo.UpdateFromCSD(AU);
+			AU->CSDPrefixSEIMessages = CurrentStreamFormatInfo.PrefixSEIMessages;
+            AU->CSDSuffixSEIMessages = CurrentStreamFormatInfo.SuffixSEIMessages;
+			AU->SPSs = CurrentStreamFormatInfo.SPSs;
+
 			// Process NALUs
 			AU->bIsDiscardable = false;
 			AU->bIsIDR = AU->AccessUnit->bIsSyncSample;
@@ -677,6 +756,8 @@ void FVideoDecoderH265LinuxLibavcodec::PrepareAU(TSharedPtr<FDecoderInput, ESPMo
 			uint32* End  = (uint32 *)Electra::AdvancePointer(NALU, AU->AccessUnit->AUSize);
 			while(NALU < End)
 			{
+				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU);
+
 				uint8 nut = *(const uint8 *)(NALU + 1);
 				nut >>= 1;
 				// IDR frame?
@@ -689,10 +770,14 @@ void FVideoDecoderH265LinuxLibavcodec::PrepareAU(TSharedPtr<FDecoderInput, ESPMo
 				{
 					AU->bIsDiscardable = true;
 				}
+				// Prefix or suffix NUT?
+				else if (nut == 39 || nut == 40)
+				{
+					MPEG::ExtractSEIMessages(nut == 39 ? AU->PrefixSEIMessages : AU->SuffixSEIMessages, Electra::AdvancePointer(NALU, 6), naluLen-2, MPEG::ESEIStreamType::H265, nut == 39);
+				}
 
-				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU) + 4;
 				*NALU = MEDIA_TO_BIG_ENDIAN(0x00000001U);
-				NALU = Electra::AdvancePointer(NALU, naluLen);
+				NALU = Electra::AdvancePointer(NALU, naluLen+4);
 			}
 		}
 
@@ -903,26 +988,6 @@ void FVideoDecoderH265LinuxLibavcodec::FlushPendingImages()
 	ReadyImages.Empty();
 }
 
-//-----------------------------------------------------------------------------
-/**
- * Checks if the codec specific data has changed.
- *
- * @param AU
- *
- * @return false if the format is still the same, true if it has changed.
- */
-bool FVideoDecoderH265LinuxLibavcodec::FDecoderFormatInfo::IsDifferentFrom(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
-{
-	if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get())
-	{
-		// Pointers are different. Is the content too?
-		bool bDifferent = !CurrentCodecData.IsValid() || (CurrentCodecData.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != CurrentCodecData->CodecSpecificData);
-		CurrentCodecData = AU->AccessUnit->AUCodecData;
-		return bDifferent;
-	}
-	return false;
-}
-
 
 //-----------------------------------------------------------------------------
 /**
@@ -990,6 +1055,10 @@ void FVideoDecoderH265LinuxLibavcodec::WorkerThread()
     bool bGotLastSequenceAU = false;
 	bool bInDummyDecodeMode = false;
 
+	CurrentStreamFormatInfo.Reset();
+	Colorimetry.Reset();
+	HDR.Reset();
+
 	bError = false;
 
 	// Create decoded image pool.
@@ -1046,7 +1115,7 @@ void FVideoDecoderH265LinuxLibavcodec::WorkerThread()
 				{
 					bInDummyDecodeMode = false;
 
-					bool bStreamFormatChanged = CurrentStreamFormatInfo.IsDifferentFrom(CurrentAccessUnit) || bGotLastSequenceAU;
+					bool bStreamFormatChanged = CurrentStreamFormatInfo.UpdateCurrentIfChanged(CurrentAccessUnit) || bGotLastSequenceAU;
 					bool bNeedNewDecoder = false;
 
 					if (!SequenceIndex.IsSet())
@@ -1168,6 +1237,10 @@ void FVideoDecoderH265LinuxLibavcodec::WorkerThread()
 			NextAccessUnits.Empty();
 			SequenceIndex.Reset();
 			CurrentAccessUnit.Reset();
+
+			CurrentStreamFormatInfo.Reset();
+			Colorimetry.Reset();
+			HDR.Reset();
 
 			FlushDecoderSignal.Reset();
 			DecoderFlushedSignal.Signal();
@@ -1303,6 +1376,7 @@ void FVideoDecoderH265LinuxLibavcodec::ProcessOutput(bool bFlush)
 			FParamDict* OutputBufferSampleProperties = new FParamDict();
 			FIntPoint Dim(NextImage.SourceInfo->Width, NextImage.SourceInfo->Height);
 
+			uint8 num_bits = 8;
 			if (NextImage.DecodedImage.IsValid())
 			{
 				int32 ax = NextImage.ImageInfo.AspectNum;
@@ -1322,6 +1396,33 @@ void FVideoDecoderH265LinuxLibavcodec::ProcessOutput(bool bFlush)
 				OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64) 0 ));
 				OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64) 0 ));
 				OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_NV12));
+
+				// Set the bit depth and the colorimetry.
+				uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
+				uint8 video_full_range_flag=0, video_format=5;
+				if (NextImage.SourceInfo->SPSs.Num())
+				{
+					check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
+					num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
+					if (NextImage.SourceInfo->SPSs[0].colour_description_present_flag)
+					{
+						colour_primaries = NextImage.SourceInfo->SPSs[0].colour_primaries;
+						transfer_characteristics = NextImage.SourceInfo->SPSs[0].transfer_characteristics;
+						matrix_coeffs = NextImage.SourceInfo->SPSs[0].matrix_coeffs;
+					}
+					if (NextImage.SourceInfo->SPSs[0].video_signal_type_present_flag)
+					{
+						video_full_range_flag = NextImage.SourceInfo->SPSs[0].video_full_range_flag;
+						video_format = NextImage.SourceInfo->SPSs[0].video_format;
+					}
+				}
+			/// see above // OutputBufferSampleProperties->Set("pixelfmt", num_bits==8 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_PLATFORM_HDR_1));
+				OutputBufferSampleProperties->Set("bits_per", FVariantValue((int64)num_bits));
+				Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
+				Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);
+				// Extract HDR metadata from SEI messages
+				HDR.Update(num_bits, Colorimetry, NextImage.SourceInfo->CSDPrefixSEIMessages, NextImage.SourceInfo->PrefixSEIMessages, false);
+				HDR.UpdateParamDict(*OutputBufferSampleProperties);
 			}
 			else
 			{
@@ -1333,10 +1434,10 @@ void FVideoDecoderH265LinuxLibavcodec::ProcessOutput(bool bFlush)
 			bool bRender = NextImage.SourceInfo->AdjustedPTS.IsValid();
 			TSharedPtr<FElectraPlayerVideoDecoderOutputLinux, ESPMode::ThreadSafe> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputLinux>();
 			FIntPoint BufferDim(NextImage.ImageInfo.Planes[0].Width, NextImage.ImageInfo.Planes[0].Height);
-			if (DecoderOutput->InitializeForBuffer(BufferDim, EPixelFormat::PF_NV12, OutputBufferSampleProperties))
+			if (DecoderOutput->InitializeForBuffer(BufferDim, EPixelFormat::PF_NV12, num_bits, OutputBufferSampleProperties))
 			{
 				TArray<uint8>& ImgBuf = DecoderOutput->GetMutableBuffer();
-				ConvertDecodedImageToNV12(ImgBuf, DecoderOutput->GetBufferDimensions(), NextImage);
+				ConvertDecodedImageToNV12(ImgBuf, DecoderOutput->GetBufferDimensions(), num_bits, NextImage);
 				// Have the decoder output keep a reference to the decoded image in case it will
 				// shared data with it at some point.
 				DecoderOutput->SetDecodedImage(NextImage.DecodedImage);
@@ -1361,7 +1462,7 @@ void FVideoDecoderH265LinuxLibavcodec::ProcessOutput(bool bFlush)
 }
 
 
-void FVideoDecoderH265LinuxLibavcodec::ConvertDecodedImageToNV12(TArray<uint8>& OutNV12Buffer, FIntPoint OutBufDim, const FDecodedImage& InImage)
+void FVideoDecoderH265LinuxLibavcodec::ConvertDecodedImageToNV12(TArray<uint8>& OutNV12Buffer, FIntPoint OutBufDim, int32 NumBits, const FDecodedImage& InImage)
 {
 	if (OutNV12Buffer.GetData() && InImage.DecodedImage.IsValid())
 	{
@@ -1369,39 +1470,103 @@ void FVideoDecoderH265LinuxLibavcodec::ConvertDecodedImageToNV12(TArray<uint8>& 
 			InImage.ImageInfo.Planes[0].Content == ILibavDecoderVideoCommon::FPlaneInfo::EContent::Luma &&
 			InImage.ImageInfo.Planes[1].Content == ILibavDecoderVideoCommon::FPlaneInfo::EContent::ChromaUV)
 		{
-			const int32 w = InImage.ImageInfo.Planes[0].Width;
-			const int32 h = InImage.ImageInfo.Planes[0].Height;
-			const int32 aw = ((w + 1) / 2) * 2;
-			const int32 ah = ((h + 1) / 2) * 2;
-			uint8* DstY = OutNV12Buffer.GetData();
-			uint8* DstUV = DstY + aw * ah;
-			const uint8* SrcY = (const uint8*)InImage.ImageInfo.Planes[0].Address;
-			const uint8* SrcUV = (const uint8*)InImage.ImageInfo.Planes[1].Address;
-			// To simplify the conversion we require the output buffer to have the dimension of the planes.
-			check(OutBufDim.X == aw && OutBufDim.Y == ah);
-			if (!SrcY || !SrcUV || OutBufDim.X != aw || OutBufDim.Y != ah)
+			if (InImage.ImageInfo.Planes[0].BytesPerPixel == 1)
 			{
-				return;
+				const int32 w = InImage.ImageInfo.Planes[0].Width;
+				const int32 h = InImage.ImageInfo.Planes[0].Height;
+				const int32 aw = ((w + 1) / 2) * 2;
+				const int32 ah = ((h + 1) / 2) * 2;
+				uint8* DstY = OutNV12Buffer.GetData();
+				uint8* DstUV = DstY + aw * ah;
+				const uint8* SrcY = (const uint8*)InImage.ImageInfo.Planes[0].Address;
+				const uint8* SrcUV = (const uint8*)InImage.ImageInfo.Planes[1].Address;
+				// To simplify the conversion we require the output buffer to have the dimension of the planes.
+				check(OutBufDim.X == aw && OutBufDim.Y == ah);
+				if (!SrcY || !SrcUV || OutBufDim.X != aw || OutBufDim.Y != ah)
+				{
+					return;
+				}
+				if ((w & 1) == 0)
+				{
+					FMemory::Memcpy(DstY, SrcY, w*h);
+					FMemory::Memcpy(DstUV, SrcUV, w*h/2);
+				}
+				else
+				{
+					for(int32 y=0; y<h; ++y)
+					{
+						FMemory::Memcpy(DstY, SrcY, w);
+						DstY += aw;
+						SrcY += w;
+					}
+					for(int32 y=0; y<h/2; ++y)
+					{
+						FMemory::Memcpy(DstUV, SrcUV, w);
+						DstUV += aw;
+						SrcUV += w;
+					}
+				}
 			}
-			if ((w & 1) == 0)
+			else if (InImage.ImageInfo.Planes[0].BytesPerPixel == 2)
 			{
-				FMemory::Memcpy(DstY, SrcY, w*h);
-				FMemory::Memcpy(DstUV, SrcUV, w*h/2);
-			}
-			else
-			{
+				const int32 w = InImage.ImageInfo.Planes[0].Width;
+				const int32 h = InImage.ImageInfo.Planes[0].Height;
+				const int32 aw = ((w + 1) / 2) * 2;
+				const int32 ah = ((h + 1) / 2) * 2;
+				uint16* DstY = (uint16*)OutNV12Buffer.GetData();
+				uint16* DstUV = DstY + aw * ah;
+				const uint16* SrcY = (const uint16*)InImage.ImageInfo.Planes[0].Address;
+				const uint16* SrcUV = (const uint16*)InImage.ImageInfo.Planes[1].Address;
+				// To simplify the conversion we require the output buffer to have the dimension of the planes.
+				check(OutBufDim.X == aw && OutBufDim.Y == ah);
+				if (!SrcY || !SrcUV || OutBufDim.X != aw || OutBufDim.Y != ah)
+				{
+					return;
+				}
+#if 0
+				// Copy as 16 bits
+				if ((w & 1) == 0)
+				{
+					FMemory::Memcpy(DstY, SrcY, w*h*2);
+					FMemory::Memcpy(DstUV, SrcUV, w*h);
+				}
+				else
+				{
+					for(int32 y=0; y<h; ++y)
+					{
+						FMemory::Memcpy(DstY, SrcY, w*2);
+						DstY += aw;
+						SrcY += w;
+					}
+					for(int32 y=0; y<h/2; ++y)
+					{
+						FMemory::Memcpy(DstUV, SrcUV, w*2);
+						DstUV += aw;
+						SrcUV += w;
+					}
+				}
+#else
+				// Convert down to 8 bits
+				uint8* Dst8Y = OutNV12Buffer.GetData();
+				uint8* Dst8UV = Dst8Y + aw * ah;
 				for(int32 y=0; y<h; ++y)
 				{
-					FMemory::Memcpy(DstY, SrcY, w);
-					DstY += aw;
-					SrcY += w;
+					for(int32 x=0; x<w; ++x)
+					{
+						Dst8Y[x] = (*SrcY++) >> 8;
+					}
+					Dst8Y += aw;
 				}
 				for(int32 y=0; y<h/2; ++y)
 				{
-					FMemory::Memcpy(DstUV, SrcUV, w);
-					DstUV += aw;
-					SrcUV += w;
+					for(int32 u=0; u<w/2; ++u)
+					{
+						Dst8UV[u*2+0] = (*SrcUV++) >> 8;
+						Dst8UV[u*2+1] = (*SrcUV++) >> 8;
+					}
+					Dst8UV += aw;
 				}
+#endif
 			}
 		}
 		else if (InImage.ImageInfo.NumPlanes == 3 &&
@@ -1409,35 +1574,76 @@ void FVideoDecoderH265LinuxLibavcodec::ConvertDecodedImageToNV12(TArray<uint8>& 
 				 InImage.ImageInfo.Planes[1].Content == ILibavDecoderVideoCommon::FPlaneInfo::EContent::ChromaU &&
 				 InImage.ImageInfo.Planes[2].Content == ILibavDecoderVideoCommon::FPlaneInfo::EContent::ChromaV)
 		{
-			const int32 w = InImage.ImageInfo.Planes[0].Width;
-			const int32 h = InImage.ImageInfo.Planes[0].Height;
-			const int32 aw = ((w + 1) / 2) * 2;
-			const int32 ah = ((h + 1) / 2) * 2;
-			uint8* DstY = OutNV12Buffer.GetData();
-			uint8* DstUV = DstY + aw * ah;
-			const uint8* SrcY = (const uint8*)InImage.ImageInfo.Planes[0].Address;
-			const uint8* SrcU = (const uint8*)InImage.ImageInfo.Planes[1].Address;
-			const uint8* SrcV = (const uint8*)InImage.ImageInfo.Planes[2].Address;
-			// To simplify the conversion we require the output buffer to have the dimension of the planes.
-			check(OutBufDim.X == aw && OutBufDim.Y == ah);
-			if (!SrcY || !SrcU || !SrcV || OutBufDim.X != aw || OutBufDim.Y != ah)
+			if (InImage.ImageInfo.Planes[0].BytesPerPixel == 1)
 			{
-				return;
-			}
-			if ((w & 1) == 0)
-			{
-				FMemory::Memcpy(DstY, SrcY, w*h);
-				for(int32 i=0, iMax=w*h/4; i<iMax; ++i)
+				const int32 w = InImage.ImageInfo.Planes[0].Width;
+				const int32 h = InImage.ImageInfo.Planes[0].Height;
+				const int32 aw = ((w + 1) / 2) * 2;
+				const int32 ah = ((h + 1) / 2) * 2;
+				uint8* DstY = OutNV12Buffer.GetData();
+				uint8* DstUV = DstY + aw * ah;
+				const uint8* SrcY = (const uint8*)InImage.ImageInfo.Planes[0].Address;
+				const uint8* SrcU = (const uint8*)InImage.ImageInfo.Planes[1].Address;
+				const uint8* SrcV = (const uint8*)InImage.ImageInfo.Planes[2].Address;
+				// To simplify the conversion we require the output buffer to have the dimension of the planes.
+				check(OutBufDim.X == aw && OutBufDim.Y == ah);
+				if (!SrcY || !SrcU || !SrcV || OutBufDim.X != aw || OutBufDim.Y != ah)
 				{
-					*DstUV++ = *SrcU++;
-					*DstUV++ = *SrcV++;
+					return;
+				}
+				if ((w & 1) == 0)
+				{
+					FMemory::Memcpy(DstY, SrcY, w*h);
+					for(int32 i=0, iMax=w*h/4; i<iMax; ++i)
+					{
+						*DstUV++ = *SrcU++;
+						*DstUV++ = *SrcV++;
+					}
+				}
+				else
+				{
+					for(int32 y=0; y<h; ++y)
+					{
+						FMemory::Memcpy(DstY, SrcY, w);
+						DstY += aw;
+						SrcY += w;
+					}
+					int32 padUV = (aw - w) * 2;
+					for(int32 v=0; v<h/2; ++v)
+					{
+						for(int32 u=0; u<w/2; ++u)
+						{
+							*DstUV++ = *SrcU++;
+							*DstUV++ = *SrcV++;
+						}
+						DstUV += padUV;
+					}
 				}
 			}
-			else
+			else if (InImage.ImageInfo.Planes[0].BytesPerPixel == 2)
 			{
+				const int32 w = InImage.ImageInfo.Planes[0].Width;
+				const int32 h = InImage.ImageInfo.Planes[0].Height;
+				const int32 aw = ((w + 1) / 2) * 2;
+				const int32 ah = ((h + 1) / 2) * 2;
+			// The destination is 8 bits only!
+				uint8* DstY = OutNV12Buffer.GetData();
+				uint8* DstUV = DstY + aw * ah;
+				const uint16* SrcY = (const uint16*)InImage.ImageInfo.Planes[0].Address;
+				const uint16* SrcU = (const uint16*)InImage.ImageInfo.Planes[1].Address;
+				const uint16* SrcV = (const uint16*)InImage.ImageInfo.Planes[2].Address;
+				// To simplify the conversion we require the output buffer to have the dimension of the planes.
+				check(OutBufDim.X == aw && OutBufDim.Y == ah);
+				if (!SrcY || !SrcU || !SrcV || OutBufDim.X != aw || OutBufDim.Y != ah)
+				{
+					return;
+				}
 				for(int32 y=0; y<h; ++y)
 				{
-					FMemory::Memcpy(DstY, SrcY, w);
+					for(int32 x=0; x<w; ++x)
+					{
+						DstY[x] = SrcY[x] >> 2;
+					}
 					DstY += aw;
 					SrcY += w;
 				}
@@ -1446,8 +1652,8 @@ void FVideoDecoderH265LinuxLibavcodec::ConvertDecodedImageToNV12(TArray<uint8>& 
 				{
 					for(int32 u=0; u<w/2; ++u)
 					{
-						*DstUV++ = *SrcU++;
-						*DstUV++ = *SrcV++;
+						*DstUV++ = (*SrcU++) >> 2;
+						*DstUV++ = (*SrcV++) >> 2;
 					}
 					DstUV += padUV;
 				}
@@ -1458,3 +1664,5 @@ void FVideoDecoderH265LinuxLibavcodec::ConvertDecodedImageToNV12(TArray<uint8>& 
 
 
 } // namespace Electra
+
+#endif

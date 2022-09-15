@@ -14,6 +14,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Android/AndroidPlatformMisc.h"
 #include "ElectraPlayerPrivate.h"
+#include "Decoder/VideoDecoderHelpers.h"
 
 #include "VideoDecoderH265_JavaWrapper_Android.h"
 #include "MediaVideoDecoderOutputAndroid.h"
@@ -23,6 +24,7 @@
 #include "Android/AndroidPlatform.h"
 #include "Android/AndroidJava.h"
 
+#if ELECTRA_PLATFORM_HAS_H265_DECODER
 
 DECLARE_CYCLE_STAT(TEXT("FVideoDecoderH265::Decode()"), STAT_ElectraPlayer_VideoH265Decode, STATGROUP_ElectraPlayer);
 DECLARE_CYCLE_STAT(TEXT("FVideoDecoderH265::ConvertOutput()"), STAT_ElectraPlayer_VideoH265ConvertOutput, STATGROUP_ElectraPlayer);
@@ -105,6 +107,12 @@ private:
 		int32			CropBottom = 0;
 		int32			AspectX = 0;
 		int32			AspectY = 0;
+
+		TArray<MPEG::FSEIMessage> CSDPrefixSEIMessages;
+		TArray<MPEG::FSEIMessage> CSDSuffixSEIMessages;
+		TArray<MPEG::FSEIMessage> PrefixSEIMessages;
+		TArray<MPEG::FSEIMessage> SuffixSEIMessages;
+		TArray<MPEG::FISO23008_2_seq_parameter_set_data> SPSs;
 	};
 
 	struct FDecoderFormatInfo
@@ -112,11 +120,75 @@ private:
 		void Reset()
 		{
 			CurrentCodecData.Reset();
+			CSD.Reset();
 		}
-		bool IsDifferentFrom(TSharedPtrTS<FDecoderInput> AU);
-		void SetFrom(TSharedPtrTS<FDecoderInput> AU);
+		void Flushed()
+		{
+			CSD.Reset();
+		}
+		bool IsDifferentFrom(TSharedPtrTS<FDecoderInput> AU)
+		{
+			// If there is no current CSD set, set it initially.
+			if (!CurrentCodecData.IsValid())
+			{
+				SetFrom(AU);
+			}
+			return AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get();
+		}
 
-		TSharedPtrTS<const FAccessUnit::CodecData> CurrentCodecData;
+		void SetFrom(TSharedPtrTS<FDecoderInput> AU)
+		{
+			if (AU.IsValid() && AU->AccessUnit && AU->AccessUnit->AUCodecData.IsValid())
+			{
+				CurrentCodecData = AU->AccessUnit->AUCodecData;
+			}
+		}
+
+		void UpdateFromCSD(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe> AU)
+		{
+			if (AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CSD.Get())
+			{
+				// Pointers are different. Is the content too?
+				bool bDifferent = !CSD.IsValid() || (CSD.IsValid() && AU->AccessUnit->AUCodecData->CodecSpecificData != CSD->CodecSpecificData);
+				if (bDifferent)
+				{
+					PrefixSEIMessages.Empty();
+					SuffixSEIMessages.Empty();
+					SPSs.Empty();
+					// The CSD may contain SEI messages that apply to the stream as a whole.
+					// We need to parse the CSD to get them, if there are any.
+					TArray<MPEG::FNaluInfo>	NALUs;
+					const uint8* pD = AU->AccessUnit->AUCodecData->CodecSpecificData.GetData();
+					MPEG::ParseBitstreamForNALUs(NALUs, pD, AU->AccessUnit->AUCodecData->CodecSpecificData.Num());
+					for(int32 i=0; i<NALUs.Num(); ++i)
+					{
+						const uint8* NALU = (const uint8*)Electra::AdvancePointer(pD, NALUs[i].Offset + NALUs[i].UnitLength);
+						uint8 nut = *NALU >> 1;
+						// Prefix or suffix NUT?
+						if (nut == 39 || nut == 40)
+						{
+							MPEG::ExtractSEIMessages(nut == 39 ? PrefixSEIMessages : SuffixSEIMessages, Electra::AdvancePointer(NALU, 2), NALUs[i].Size - 2, MPEG::ESEIStreamType::H265, nut == 39);
+						}
+						// SPS nut?
+						else if (nut == 33)
+						{
+							MPEG::FISO23008_2_seq_parameter_set_data sps;
+							if (MPEG::ParseH265SPS(sps, NALU, NALUs[i].Size - 2))
+							{
+								SPSs.Emplace(MoveTemp(sps));
+							}
+						}
+					}
+				}
+				CSD = AU->AccessUnit->AUCodecData;
+			}
+		}
+		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CSD;
+		TArray<MPEG::FSEIMessage> PrefixSEIMessages;
+		TArray<MPEG::FSEIMessage> SuffixSEIMessages;
+		TArray<MPEG::FISO23008_2_seq_parameter_set_data> SPSs;
+
+		TSharedPtr<const FAccessUnit::CodecData, ESPMode::ThreadSafe> CurrentCodecData;
 	};
 
 	struct FDecodedImage
@@ -242,6 +314,9 @@ private:
 	IDecoderOutputBufferListener*													ReadyBufferListener = nullptr;
 
 	FDecoderFormatInfo																CurrentStreamFormatInfo;
+	MPEG::FColorimetryHelper														Colorimetry;
+	MPEG::FHDRHelper																HDR;
+
 	TSharedPtrTS<IAndroidJavaH265VideoDecoder>										DecoderInstance;
 	IAndroidJavaH265VideoDecoder::FDecoderInformation								DecoderInfo;
 	TSharedPtrTS<FDecoderInput>														CurrentAccessUnit;
@@ -285,6 +360,13 @@ void IVideoDecoderH265::Shutdown()
 
 bool IVideoDecoderH265::GetStreamDecodeCapability(FStreamDecodeCapability& OutResult, const FStreamDecodeCapability& InStreamParameter)
 {
+#if ELECTRA_PLATFORM_ENABLE_HDR == 0
+	if (InStreamParameter.Profile > 1 || (InStreamParameter.CompatibilityFlags & 0x60000000) == 0x20000000)
+	{
+		OutResult.DecoderSupportType = FStreamDecodeCapability::ESupported::NotSupported;
+		return true;
+	}
+#endif
 	return false;
 }
 
@@ -933,6 +1015,12 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 
 		if (!AU->AccessUnit->bIsDummyData)
 		{
+			// Take note of changes in codec specific data.
+			CurrentStreamFormatInfo.UpdateFromCSD(AU);
+			AU->CSDPrefixSEIMessages = CurrentStreamFormatInfo.PrefixSEIMessages;
+			AU->CSDSuffixSEIMessages = CurrentStreamFormatInfo.SuffixSEIMessages;
+			AU->SPSs = CurrentStreamFormatInfo.SPSs;
+
 			const FStreamCodecInformation::FResolution& res = AU->AccessUnit->AUCodecData->ParsedInfo.GetResolution();
 			const FStreamCodecInformation::FAspectRatio& ar = AU->AccessUnit->AUCodecData->ParsedInfo.GetAspectRatio();
 			const FStreamCodecInformation::FCrop& crop = AU->AccessUnit->AUCodecData->ParsedInfo.GetCrop();
@@ -953,6 +1041,7 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 			uint32* End  = (uint32*)Electra::AdvancePointer(NALU, AU->AccessUnit->AUSize);
 			while(NALU < End)
 			{
+				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU);
 				uint8 nut = *(const uint8 *)(NALU + 1);
 				nut >>= 1;
 				// IDR frame?
@@ -965,10 +1054,14 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 				{
 					AU->bIsDiscardable = true;
 				}
+				// Prefix or suffix NUT?
+				else if (nut == 39 || nut == 40)
+				{
+					MPEG::ExtractSEIMessages(nut == 39 ? AU->PrefixSEIMessages : AU->SuffixSEIMessages, Electra::AdvancePointer(NALU, 6), naluLen-2, MPEG::ESEIStreamType::H265, nut == 39);
+				}
 
-				uint32 naluLen = MEDIA_FROM_BIG_ENDIAN(*NALU) + 4;
 				*NALU = MEDIA_TO_BIG_ENDIAN(0x00000001U);
-				NALU = Electra::AdvancePointer(NALU, naluLen);
+				NALU = Electra::AdvancePointer(NALU, naluLen+4);
 			}
 		}
 
@@ -1128,35 +1221,6 @@ FVideoDecoderH265::EDecodeResult FVideoDecoderH265::DecodeDummy()
 }
 
 
-//-----------------------------------------------------------------------------
-/**
- * Checks if the codec specific data has changed.
- *
- * @return false if the format is still the same, true if it has changed.
- */
-bool FVideoDecoderH265::FDecoderFormatInfo::IsDifferentFrom(TSharedPtrTS<FDecoderInput> AU)
-{
-	// If there is no current CSD set, set it initially.
-	if (!CurrentCodecData.IsValid())
-	{
-		SetFrom(AU);
-	}
-	return AU->AccessUnit->AUCodecData.IsValid() && AU->AccessUnit->AUCodecData.Get() != CurrentCodecData.Get();
-}
-
-
-//-----------------------------------------------------------------------------
-/**
- * Sets the last used codec specific data.
- */
-void FVideoDecoderH265::FDecoderFormatInfo::SetFrom(TSharedPtrTS<FDecoderInput> AU)
-{
-	if (AU.IsValid() && AU->AccessUnit && AU->AccessUnit->AUCodecData.IsValid())
-	{
-		CurrentCodecData = AU->AccessUnit->AUCodecData;
-	}
-}
-
 
 //-----------------------------------------------------------------------------
 /**
@@ -1179,40 +1243,6 @@ FVideoDecoderH265::EDecodeResult FVideoDecoderH265::Decode()
 
 	int32 Result = -1;
 	int32 InputBufferIndex = -1;
-
-#if 0
-	// Do we need to send the CSD first?
-	if (bMustSendCSD)
-	{
-		InputBufferIndex = DecoderInstance->DequeueInputBuffer(0);
-		if (InputBufferIndex >= 0)
-		{
-			CurrentDecoderState = EDecoderState::IsActive;
-			Result = DecoderInstance->QueueCSDInputBuffer(InputBufferIndex, CurrentAccessUnit->AccessUnit->AUCodecData->CodecSpecificData.GetData(), CurrentAccessUnit->AccessUnit->AUCodecData->CodecSpecificData.Num(), CurrentAccessUnit->PTS);
-			check(Result == 0);
-			if (Result == 0)
-			{
-				CurrentStreamFormatInfo.SetFrom(CurrentAccessUnit);
-				bMustSendCSD = false;
-			}
-			else
-			{
-				PostError(Result, "Failed to submit decoder CSD input buffer", ERRCODE_INTERNAL_ANDROID_FAILED_TO_DECODE_VIDEO);
-				return EDecodeResult::Fail;
-			}
-		}
-		else if (InputBufferIndex == -1)
-		{
-			// No available input buffer. Try later.
-			return EDecodeResult::TryAgainLater;
-		}
-		else
-		{
-			PostError(InputBufferIndex, "Failed to get a decoder input buffer for CSD", ERRCODE_INTERNAL_ANDROID_COULD_NOT_GET_INPUT_BUFFER);
-			return EDecodeResult::Fail;
-		}
-	}
-#endif
 
 	// Send actual AU data now.
 	InputBufferIndex = DecoderInstance->DequeueInputBuffer(0);
@@ -1373,6 +1403,17 @@ bool FVideoDecoderH265::GetMatchingDecoderInput(TSharedPtrTS<FDecoderInput>& Out
 {
 	if (InDecoderInput.Num())
 	{
+/*
+		for(int32 i=0; i<InDecoderInput.Num(); ++i)
+		{
+			if (InDecoderInput[i]->PTS == InPTSFromDecoder)
+			{
+				OutMatchingInput = InDecoderInput[i];
+				InDecoderInput.RemoveAt(i);
+				return true;
+			}
+		}
+*/
 		OutMatchingInput = InDecoderInput[0];
 		if (OutMatchingInput->PTS != InPTSFromDecoder)
 		{
@@ -1543,6 +1584,37 @@ FVideoDecoderH265::EOutputResult FVideoDecoderH265::ProcessOutput(const FDecoded
 					OutputBufferSampleProperties->Set("fps_num", FVariantValue((int64)0));
 					OutputBufferSampleProperties->Set("fps_denom", FVariantValue((int64)0));
 					OutputBufferSampleProperties->Set("pixelfmt", FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
+
+					// Set the bit depth and the colorimetry.
+					uint8 colour_primaries=2, transfer_characteristics=2, matrix_coeffs=2;
+					uint8 video_full_range_flag=0, video_format=5;
+					uint8 num_bits = 8;
+					if (NextImage.SourceInfo->SPSs.Num())
+					{
+						check(NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 == NextImage.SourceInfo->SPSs[0].bit_depth_chroma_minus8);
+						num_bits = NextImage.SourceInfo->SPSs[0].bit_depth_luma_minus8 + 8;
+						if (NextImage.SourceInfo->SPSs[0].colour_description_present_flag)
+						{
+							colour_primaries = NextImage.SourceInfo->SPSs[0].colour_primaries;
+							transfer_characteristics = NextImage.SourceInfo->SPSs[0].transfer_characteristics;
+							matrix_coeffs = NextImage.SourceInfo->SPSs[0].matrix_coeffs;
+						}
+						if (NextImage.SourceInfo->SPSs[0].video_signal_type_present_flag)
+						{
+							video_full_range_flag = NextImage.SourceInfo->SPSs[0].video_full_range_flag;
+							video_format = NextImage.SourceInfo->SPSs[0].video_format;
+						}
+					}
+					/// see above // OutputBufferSampleProperties->Set("pixelfmt", num_bits==8 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_PLATFORM_HDR_1));
+					OutputBufferSampleProperties->Set("bits_per", FVariantValue((int64)num_bits));
+					Colorimetry.Update(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format);
+					Colorimetry.UpdateParamDict(*OutputBufferSampleProperties);
+					// Extract HDR metadata from SEI messages
+					if (NextImage.SourceInfo.IsValid())
+					{
+						HDR.Update(num_bits, Colorimetry, NextImage.SourceInfo->CSDPrefixSEIMessages, NextImage.SourceInfo->PrefixSEIMessages, false);
+					}
+					HDR.UpdateParamDict(*OutputBufferSampleProperties);
 
 					TSharedPtrTS<FElectraPlayerVideoDecoderOutputAndroid> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputAndroid>();
 					check(DecoderOutput);
@@ -1760,6 +1832,10 @@ bool FVideoDecoderH265::CheckForFlush()
 		OutputSurfaceTargetPTS.SequenceIndex = 0;
 		ReadyOutputBuffersToSurface.Empty();
 
+		CurrentStreamFormatInfo.Flushed();
+		Colorimetry.Reset();
+		HDR.Reset();
+
 		FlushDecoderSignal.Reset();
 		DecoderFlushedSignal.Signal();
 
@@ -1817,6 +1893,10 @@ void FVideoDecoderH265::WorkerThread()
 	{
 		bError = true;
 	}
+
+	CurrentStreamFormatInfo.Reset();
+	Colorimetry.Reset();
+	HDR.Reset();
 
 	EDecodeResult DecodeResult;
 	int64 TimeLast = MEDIAutcTime::CurrentMSec();
@@ -2232,3 +2312,5 @@ void FVideoDecoderH265::WorkerThread()
 }
 
 } // namespace Electra
+
+#endif

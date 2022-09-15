@@ -332,6 +332,123 @@ void YVYUConvertPS(
 	OutColor.w = 1.0f;
 }
 
+// shader to convert a P010 texture to RGBA (real P010 texture - DX11)
+void P010ConvertPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float2 ScaledUV = InUV * P010ConvertUB.UVScale;
+
+	float3 YUV;
+	YUV.x = P010ConvertUB.SRV_Y.Sample(P010ConvertUB.SamplerB, ScaledUV).x;
+	YUV.yz = P010ConvertUB.SRV_UV.Sample(P010ConvertUB.SamplerP, ScaledUV).xy;
+
+	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(P010ConvertUB.ColorTransform[0], YUV4);
+	Color.y = dot(P010ConvertUB.ColorTransform[1], YUV4);
+	Color.z = dot(P010ConvertUB.ColorTransform[2], YUV4);
+
+	// Go linear
+	Color = ST2084ToLinear(Color);
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(P010ConvertUB.CSTransform[0], Col4);
+	Color.y = dot(P010ConvertUB.CSTransform[1], Col4);
+	Color.z = dot(P010ConvertUB.CSTransform[2], Col4);
+
+	// Output with solid alpha
+	OutColor = float4(Color, 1.0f); 
+}
+
+// shader to convert a P010 texture to RGBA (P010 data, packed into a G16 texture; manually addressed)
+void P010ConvertAsUINT16sPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float2 ScaledUV = InUV * P010ConvertAsUINT16sUB.UVScale;
+
+	float3 YUV;
+
+	YUV.x = P010ConvertAsUINT16sUB.Texture.Sample(P010ConvertAsUINT16sUB.SamplerB, ScaledUV).x;
+
+	ScaledUV.y *= 0.5f;
+	ScaledUV.y += 2.0f / 3.0f;
+
+	uint UVOffs = uint(InUV.x * P010ConvertAsUINT16sUB.OutputWidth / 2.0f) * 2;
+	float UPos = (float(UVOffs * P010ConvertAsUINT16sUB.UVScale.x) + 0.5f) / P010ConvertAsUINT16sUB.OutputWidth;
+	float VPos = (float(UVOffs * P010ConvertAsUINT16sUB.UVScale.x) + 1.5f) / P010ConvertAsUINT16sUB.OutputWidth;
+
+	YUV.y = P010ConvertAsUINT16sUB.Texture.Sample(P010ConvertAsUINT16sUB.SamplerP, float2(UPos, ScaledUV.y)).x;
+	YUV.z = P010ConvertAsUINT16sUB.Texture.Sample(P010ConvertAsUINT16sUB.SamplerP, float2(VPos, ScaledUV.y)).x;
+
+	// YUV -> RGB (using a plain 4x3 matrix - not the common 3x3 & offset setup)
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(P010ConvertAsUINT16sUB.ColorTransform[0], YUV4);
+	Color.y = dot(P010ConvertAsUINT16sUB.ColorTransform[1], YUV4);
+	Color.z = dot(P010ConvertAsUINT16sUB.ColorTransform[2], YUV4);
+
+	// Go linear
+	Color = ST2084ToLinear(Color);
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(P010ConvertAsUINT16sUB.CSTransform[0], Col4);
+	Color.y = dot(P010ConvertAsUINT16sUB.CSTransform[1], Col4);
+	Color.z = dot(P010ConvertAsUINT16sUB.CSTransform[2], Col4);
+
+	// Output with solid alpha
+	OutColor = float4(Color, 1.0f); 
+}
+
+
+// shader to convert P010 data stored as 3 pane RGB_2101010 to RGBA
+void P010_2101010ConvertPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	// Adjust incoming UVs for Y / UV read
+	float2 ScaledUV_Y = InUV * P010_2101010ConvertUB.UVScaleY;
+	float2 ScaledUV_UV = InUV * P010_2101010ConvertUB.UVScaleUV;
+
+	// Find out which component of the read pixel we will need for Y and UV respectively
+	int2 Xint = int2(InUV.x * P010_2101010ConvertUB.OutputWidthY, InUV.x * P010_2101010ConvertUB.OutputWidthUV);
+	int2 Xlow = Xint % 3;
+	float3 SelY  = (Xlow.x == 0) ? float3(1,0,0) : ((Xlow.x == 1) ? float3(0,1,0) : float3(0,0,1));
+	float3 SelUV = (Xlow.y == 0) ? float3(1,0,0) : ((Xlow.y == 1) ? float3(0,1,0) : float3(0,0,1));
+
+	// Build YUV input value from the 3 textures
+	float3 YUV;
+	YUV.x = dot(P010_2101010ConvertUB.SRV_Y.Sample(P010_2101010ConvertUB.SamplerP, ScaledUV_Y).xyz,  SelY);
+	YUV.y = dot(P010_2101010ConvertUB.SRV_U.Sample(P010_2101010ConvertUB.SamplerP, ScaledUV_UV).xyz, SelUV);
+	YUV.z = dot(P010_2101010ConvertUB.SRV_V.Sample(P010_2101010ConvertUB.SamplerP, ScaledUV_UV).xyz, SelUV);
+
+	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(P010_2101010ConvertUB.ColorTransform[0], YUV4);
+	Color.y = dot(P010_2101010ConvertUB.ColorTransform[1], YUV4);
+	Color.z = dot(P010_2101010ConvertUB.ColorTransform[2], YUV4);
+
+	// Go linear
+	Color = ST2084ToLinear(Color);
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(P010_2101010ConvertUB.CSTransform[0], Col4);
+	Color.y = dot(P010_2101010ConvertUB.CSTransform[1], Col4);
+	Color.z = dot(P010_2101010ConvertUB.CSTransform[2], Col4);
+
+	// Output with solid alpha
+	OutColor = float4(Color, 1.0f); 
+}
+
 
 // shader to convert RGB to Y component of YUV
 void RGB8toY8ConvertPS(float4 InPosition : SV_POSITION,

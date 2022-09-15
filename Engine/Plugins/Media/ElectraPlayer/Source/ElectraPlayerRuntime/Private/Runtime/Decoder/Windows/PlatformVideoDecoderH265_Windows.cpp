@@ -85,12 +85,12 @@ namespace Electra
 				}
 				else
 				{
-					// For now we handle only 8 bit encodings. If Main-10 profile, or only Main-10 profile compatibility is signaled we refuse this stream.
+#if ELECTRA_PLATFORM_ENABLE_HDR == 0
 					if (InStreamParameter.Profile > 1 || (InStreamParameter.CompatibilityFlags & 0x60000000) == 0x20000000)
 					{
 						return true;
 					}
-
+#endif
 					// TBD - What limits should apply here, exactly?
 					if (InStreamParameter.FPS > 0.0 && InStreamParameter.FPS <= 60.0 &&
 						InStreamParameter.Level <= 153)		// Level 5.1

@@ -1047,6 +1047,139 @@ namespace Electra
 		}
 
 
+		bool ExtractSEIMessages(TArray<FSEIMessage>& OutMessages, const void* InBitstream, uint64 InBitstreamLength, ESEIStreamType StreamType, bool bIsPrefixSEI)
+		{
+			FScopedDataPtr<uint8> RBSP(FMemory::Malloc((uint32) InBitstreamLength));
+			int32 RBSPsize = EBSPtoRBSP(RBSP, static_cast<const uint8*>(InBitstream), (int32)InBitstreamLength);
+			FBitDataStream BitReader(RBSP, RBSPsize);
+
+			while(BitReader.GetRemainingByteLength() > 0)
+			{
+				uint32 next8;
+				uint32 payloadType = 0;
+				do
+				{
+					if (BitReader.GetRemainingByteLength() == 0)
+					{
+						return false;
+					}
+					next8 = BitReader.GetBits(8);
+					payloadType += next8;
+				}
+				while(next8 == 255);
+
+				uint32 payloadSize = 0;
+				do
+				{
+					if (BitReader.GetRemainingByteLength() == 0)
+					{
+						return false;
+					}
+					next8 = BitReader.GetBits(8);
+					payloadSize += next8;
+				}
+				while(next8 == 255);
+
+				check(BitReader.GetRemainingByteLength() >= payloadSize);
+				if (BitReader.GetRemainingByteLength() < payloadSize)
+				{
+					return false;
+				}
+				FSEIMessage &m = OutMessages.Emplace_GetRef();
+				m.PayloadType = payloadType;
+
+				m.Message.Reserve(payloadSize);
+				m.Message.SetNumUninitialized(payloadSize);
+				if (!BitReader.GetAlignedBytes(m.Message.GetData(), payloadSize))
+				{
+					return false;
+				}
+
+				/*
+					We do not parse the SEI messages here, we merely copy their entire payload.
+					Therefore, the current position in the bit reader will always be byte-aligned
+					with no yet-unhandled bytes remaining in the payload.
+					The following checks that are normally in place can therefore be ignored:
+
+						H.265:
+							if (more_data_in_payload())		// more_data_in_payload() return false if byte aligned AND all bits consumed, otherwise return true
+							{
+								if (payload_extension_present())
+								{
+									reserved_payload_extension_data	// u_v()
+								}
+								payload_bit_equal_to_one()
+								while(!byte_aligned())
+								{
+									payload_bit_equal_to_zero()
+								}
+							}
+					
+						H.264:
+							if (!byte_aligned())
+							{
+								bit_equal_to_one()
+								while(!byte_aligned())
+								{
+									bit_equal_to_zero()
+								}
+							}
+				*/
+
+				// Check for more_rbsp_data()
+				if (BitReader.GetRemainingByteLength() == 1 && BitReader.PeekBits(8) == 0x80)
+				{
+					break;
+				}
+			}
+			return true;
+		}
+
+
+		bool FSEImastering_display_colour_volume::ParseFromMessage(const FSEIMessage& InMessage)
+		{
+			if (InMessage.PayloadType == FSEIMessage::EPayloadType::PT_mastering_display_colour_volume && InMessage.Message.Num() >= 24)
+			{
+				FBitDataStream BitReader(InMessage.Message.GetData(), InMessage.Message.Num());
+				for(int32 i=0; i<3; ++i)
+				{
+					display_primaries_x[i] = BitReader.GetBits(16);
+					display_primaries_y[i] = BitReader.GetBits(16);
+				}
+				white_point_x = BitReader.GetBits(16);
+				white_point_y = BitReader.GetBits(16);
+				max_display_mastering_luminance = BitReader.GetBits(32);
+				min_display_mastering_luminance = BitReader.GetBits(32);
+				return true;
+			}
+			return false;
+		}
+
+		bool FSEIcontent_light_level_info::ParseFromMessage(const FSEIMessage& InMessage)
+		{
+			if (InMessage.PayloadType == FSEIMessage::EPayloadType::PT_content_light_level_info && InMessage.Message.Num() >= 4)
+			{
+				FBitDataStream BitReader(InMessage.Message.GetData(), InMessage.Message.Num());
+				max_content_light_level = BitReader.GetBits(16);
+				max_pic_average_light_level = BitReader.GetBits(16);
+				return true;
+			}
+			return false;
+		}
+
+		bool FSEIalternative_transfer_characteristics::ParseFromMessage(const FSEIMessage& InMessage)
+		{
+			if (InMessage.PayloadType == FSEIMessage::EPayloadType::PT_alternative_transfer_characteristics && InMessage.Message.Num() >= 1)
+			{
+				FBitDataStream BitReader(InMessage.Message.GetData(), InMessage.Message.Num());
+				preferred_transfer_characteristics = BitReader.GetBits(8);
+				return true;
+			}
+			return false;
+		}
+
+
+
 	} // namespace MPEG
 } // namespace Electra
 

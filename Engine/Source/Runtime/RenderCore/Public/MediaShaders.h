@@ -62,8 +62,20 @@ namespace MediaShaders
 	/** YUV Offset for 8 bit conversion (Computed as 16/255, 128/255, 128/255) */
 	RENDERCORE_API extern const FVector YUVOffset8bits;
 
+	/** YUV Offset for 8 bit conversion (Computed as 0/255, 128/255, 128/255) */
+	RENDERCORE_API extern const FVector YUVOffsetNoScale8bits;
+
 	/** YUV Offset for 10 bit conversion (Computed as 64/1023, 512/1023, 512/1023) */
 	RENDERCORE_API extern const FVector YUVOffset10bits;
+
+	/** YUV Offset for 10 bit conversion (Computed as 0/1023, 512/1023, 512/1023) */
+	RENDERCORE_API extern const FVector YUVOffsetNoScale10bits;
+
+	/** YUV Offset for 16 bit conversion (Computed as 4096/65535, 32768/65535, 32768/65535) */
+	RENDERCORE_API extern const FVector YUVOffset16bits;
+
+	/** YUV Offset for 16 bit conversion (Computed as 0/65535, 32768/65535, 32768/65535) */
+	RENDERCORE_API extern const FVector YUVOffsetNoScale16bits;
 
 	/** Combine color transform matrix with yuv offset in a single matrix */
 	RENDERCORE_API FMatrix CombineColorTransformAndOffset(const FMatrix& InMatrix, const FVector& InYUVOffset);
@@ -305,6 +317,77 @@ public:
 	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> NV21Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
+/**
+ * Pixel shader to convert a P010 frame to RGBA.
+ */
+class FP010ConvertPS
+	: public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FP010ConvertPS, Global, RENDERCORE_API);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	FP010ConvertPS() { }
+
+	FP010ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_UV, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool SrgbToLinear);
+};
+
+/**
+ * Pixel shader to convert a P010 frame inside a G16 texture to RGBA.
+ */
+class FP010ConvertAsUINT16sPS
+	: public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FP010ConvertAsUINT16sPS, Global, RENDERCORE_API);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	FP010ConvertAsUINT16sPS() { }
+
+	FP010ConvertAsUINT16sPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FIntPoint& TexDim, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool SrgbToLinear);
+};
+
+/**
+ * Pixel shader to convert a P010 frame stored as 3 plane RGB2101010 to RGBA.
+ */
+class FP010_2101010ConvertPS
+	: public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FP010_2101010ConvertPS, Global, RENDERCORE_API);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	FP010_2101010ConvertPS() { }
+
+	FP010_2101010ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FIntPoint& TexDim, FShaderResourceViewRHIRef SRV_Y, FShaderResourceViewRHIRef SRV_U, FShaderResourceViewRHIRef SRV_V, const FIntPoint& OutputDimensions, const FMatrix44f& ColorTransform, const FMatrix44f& CSTransform, bool SrgbToLinear);
+};
 
 /**
  * Pixel shader to resize an RGB texture.
