@@ -40,6 +40,10 @@ namespace UE::StateTree::Delegates
 	/** Called when compilation succeeds */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostCompile, const UStateTree& /*StateTree*/);
 	extern STATETREEMODULE_API FOnPostCompile OnPostCompile;
+
+	/** Request StateTree compilation. Works only in editor. */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnRequestCompile, UStateTree& /*StateTreeToCompile*/);
+	extern STATETREEMODULE_API FOnRequestCompile OnRequestCompile;
 #endif
 
 }; // UE::StateTree::Delegates

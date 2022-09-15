@@ -7,6 +7,8 @@
 #include "StateTreeEvaluatorBase.h"
 #include "AssetRegistry/AssetData.h"
 #include "Misc/ScopeRWLock.h"
+#include "StateTreeDelegates.h"
+#include "Logging/LogScopedVerbosityOverride.h"
 
 const FGuid FStateTreeCustomVersion::GUID(0x28E21331, 0x501F4723, 0x8110FA64, 0xEA10DA1E);
 FCustomVersionRegistration GRegisterStateTreeCustomVersion(FStateTreeCustomVersion::GUID, FStateTreeCustomVersion::LatestVersion, TEXT("StateTreeAsset"));
@@ -113,17 +115,27 @@ void UStateTree::PostLoad()
 	if (CurrentVersion < FStateTreeCustomVersion::LatestVersion)
 	{
 #if WITH_EDITOR
-		ResetCompiled();
-		UE_LOG(LogStateTree, Warning, TEXT("%s: StateTree compiled data in older format. Please resave the StateTree asset."), *GetPathName());
+		// Compiled data is in older format, try to compile the StateTree.
+		if (UE::StateTree::Delegates::OnRequestCompile.IsBound())
+		{
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogStateTree, ELogVerbosity::Log);
+			UE_LOG(LogStateTree, Log, TEXT("%s: compiled data is in older format. Trying to compile the asset..."), *GetFullName());
+			UE::StateTree::Delegates::OnRequestCompile.Execute(*this);
+		}
+		else
+		{
+			ResetCompiled();
+			UE_LOG(LogStateTree, Warning, TEXT("%s: compiled data is in older format. Please resave the StateTree asset."), *GetFullName());
+		}
 #else
-		UE_LOG(LogStateTree, Error, TEXT("%s: StateTree compiled data in older format. Please recompile the StateTree asset."), *GetPathName());
+		UE_LOG(LogStateTree, Error, TEXT("%s: compiled data is in older format. Please recompile the StateTree asset."), *GetFullName());
 #endif
 		return;
 	}
 	
 	if (!Link())
 	{
-		UE_LOG(LogStateTree, Error, TEXT("%s failed to link. Asset will not be usable at runtime."), *GetName());	
+		UE_LOG(LogStateTree, Error, TEXT("%s failed to link. Asset will not be usable at runtime."), *GetFullName());	
 	}
 }
 

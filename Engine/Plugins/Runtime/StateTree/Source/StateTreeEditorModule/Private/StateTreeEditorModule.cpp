@@ -24,7 +24,9 @@
 #include "Blueprint/StateTreeTaskBlueprintBase.h"
 #include "Blueprint/StateTreeConditionBlueprintBase.h"
 #include "StateTreeEditorCommands.h"
-
+#include "StateTreeDelegates.h"
+#include "StateTreeCompiler.h"
+#include "StateTreeCompilerLog.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -32,8 +34,46 @@ DEFINE_LOG_CATEGORY(LogStateTreeEditor);
 
 IMPLEMENT_MODULE(FStateTreeEditorModule, StateTreeEditorModule)
 
+namespace UE::StateTree::Editor
+{
+	// @todo Could we make this a IModularFeature?
+	static bool CompileStateTree(UStateTree& StateTree)
+	{
+		// Compile the StateTree asset.
+		UE::StateTree::Editor::ValidateAsset(StateTree);
+		const uint32 EditorDataHash = UE::StateTree::Editor::CalcAssetHash(StateTree);
+
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+
+		const bool bSuccess = Compiler.Compile(StateTree);
+
+		if (bSuccess)
+		{
+			// Success
+			StateTree.LastCompiledEditorDataHash = EditorDataHash;
+			UE::StateTree::Delegates::OnPostCompile.Broadcast(StateTree);
+			UE_LOG(LogStateTreeEditor, Log, TEXT("Compile StateTree '%s' succeeded."), *StateTree.GetFullName());
+		}
+		else
+		{
+			// Make sure not to leave stale data on failed compile.
+			StateTree.ResetCompiled();
+			StateTree.LastCompiledEditorDataHash = 0;
+
+			UE_LOG(LogStateTreeEditor, Error, TEXT("Failed to compile '%s', errors follow."), *StateTree.GetFullName());
+			Log.DumpToLog(LogStateTreeEditor);
+		}
+
+		return bSuccess;
+	}
+
+}; // UE::StateTree::Editor
+
 void FStateTreeEditorModule::StartupModule()
 {
+	UE::StateTree::Delegates::OnRequestCompile.BindStatic(&UE::StateTree::Editor::CompileStateTree);
+
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
@@ -66,6 +106,8 @@ void FStateTreeEditorModule::StartupModule()
 
 void FStateTreeEditorModule::ShutdownModule()
 {
+	UE::StateTree::Delegates::OnRequestCompile.Unbind();
+	
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 

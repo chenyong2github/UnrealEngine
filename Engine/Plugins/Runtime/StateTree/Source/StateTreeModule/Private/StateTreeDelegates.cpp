@@ -11,6 +11,7 @@ FOnSchemaChanged OnSchemaChanged;
 FOnParametersChanged OnParametersChanged;
 FOnStateParametersChanged OnStateParametersChanged;
 FOnPostCompile OnPostCompile;
+FOnRequestCompile OnRequestCompile;
 #endif
 	
 }; // UE::StateTree::Delegates

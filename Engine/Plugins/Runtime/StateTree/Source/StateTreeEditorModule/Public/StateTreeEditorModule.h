@@ -11,7 +11,7 @@ class IStateTreeEditor;
 class FAssetTypeActions_Base;
 struct FStateTreeNodeClassCache;
 
-STATETREEEDITORMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTreeEditor, Warning, All);
+STATETREEEDITORMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTreeEditor, Log, All);
 
 /**
 * The public interface to this module
