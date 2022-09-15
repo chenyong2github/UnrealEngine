@@ -117,6 +117,8 @@ class CONSTRAINTS_API UTransformableComponentHandle : public UTransformableHandl
 public:
 	
 	virtual ~UTransformableComponentHandle();
+
+	virtual void PostLoad() override;
 	
 	/** Sanity check to ensure that Component. */
 	virtual bool IsValid() const override;

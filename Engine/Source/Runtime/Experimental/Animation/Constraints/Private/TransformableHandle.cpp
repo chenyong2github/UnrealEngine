@@ -37,7 +37,15 @@ UTransformableHandle::FHandleModifiedEvent& UTransformableHandle::HandleModified
  */
 
 UTransformableComponentHandle::~UTransformableComponentHandle()
-{}
+{
+	UnregisterDelegates();
+}
+
+void UTransformableComponentHandle::PostLoad()
+{
+	Super::PostLoad();
+	RegisterDelegates();
+}
 
 bool UTransformableComponentHandle::IsValid() const
 {
@@ -236,7 +244,10 @@ void UTransformableComponentHandle::UnregisterDelegates() const
 {
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-	GEngine->OnActorMoving().RemoveAll(this);
+	if (GEngine)
+	{
+		GEngine->OnActorMoving().RemoveAll(this);
+	}
 #endif
 }
 
