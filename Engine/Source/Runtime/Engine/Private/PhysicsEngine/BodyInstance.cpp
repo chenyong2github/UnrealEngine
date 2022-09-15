@@ -2298,7 +2298,7 @@ void FBodyInstance::ApplyWeldOnChildren()
 	
 }
 
-void FBodyInstance::SetInstanceSimulatePhysics(bool bSimulate, bool bMaintainPhysicsBlending)
+void FBodyInstance::SetInstanceSimulatePhysics(bool bSimulate, bool bMaintainPhysicsBlending, bool bPreserveExistingAttachment)
 {
 	if (bSimulate)
 	{
@@ -2307,7 +2307,7 @@ void FBodyInstance::SetInstanceSimulatePhysics(bool bSimulate, bool bMaintainPhy
 		// If we are enabling simulation, and we are the root body of our component (or we are welded), we detach the component 
 		if (OwnerComponentInst && OwnerComponentInst->IsRegistered() && (OwnerComponentInst->GetBodyInstance() == this || OwnerComponentInst->IsWelded()))
 		{
-			if (OwnerComponentInst->GetAttachParent())
+			if (!bPreserveExistingAttachment && OwnerComponentInst->GetAttachParent())
 			{
 				OwnerComponentInst->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 			}
