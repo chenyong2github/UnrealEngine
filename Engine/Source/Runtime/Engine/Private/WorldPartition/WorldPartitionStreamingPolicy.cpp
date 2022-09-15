@@ -439,6 +439,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		
 		SortStreamingCells(StreamingSources, ToActivateCellsUnsorted, ToActivateCells);
 		SortStreamingCells(StreamingSources, ToLoadCellsUnsorted, ToLoadCells);
+		ToUnloadCells = ToUnloadCellsUnsorted.Array();
 	}
 
 	if(World->bMatchStarted)
