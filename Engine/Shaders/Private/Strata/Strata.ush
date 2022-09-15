@@ -344,7 +344,8 @@ struct FStrataBSDF
 #define SINGLE_OPTLEGACYMODE_CLEARCOAT			1
 #define SINGLE_OPTLEGACYMODE_CLOTH				2
 #define SINGLE_OPTLEGACYMODE_SSSWRAP			3
-// 6 more remains: Cloth, Subsurface, ProfileIdSSS, Also how to deal with Aniso?
+#define SINGLE_OPTLEGACYMODE_SSSPROFILE			4
+// 5 more remains: Also how to deal with Aniso?
 
 // Layout 0 (Fast)
 #define BSDF_FASTENCODING_BIT_COUNT				(0u)
@@ -3753,6 +3754,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			OutBSDF.State = 0;
 			OutBSDF.LuminanceWeightV = 1.0f;
 			OutBSDF.TransmittanceAboveAlongN = 1.0f;
+			SLAB_F90(OutBSDF) = 1.0f;
 
 			if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_CLEARCOAT)
 			{
@@ -3856,7 +3858,55 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
 			}
+			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE)
+			{
+			#if STRATA_DEFERRED_SHADING
+				uint Data0 = StrataHeader.SharedLocalBasesTypes_PackedHeader;
+				uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
+				uint Data2 = StrataLoadUint1(StrataBuffer, StrataAddressing);
 
+				const uint PackedDiffuse20Bits	= Data1 & 0x000FFFFF;
+				const uint PackedF020Bits		= Data2 & 0x000FFFFF;
+				
+				const float Roughness				= UnpackR8(Data0 >> 24);
+				const float SSSProfileRadiusScale	= UnpackR8(Data1 >> 24);
+				const float SSSProfileId			= UnpackR8(Data2 >> 24);
+
+				SLAB_DIFFUSEALBEDO(OutBSDF)			= UnpackR7G7B6Gamma2(PackedDiffuse20Bits);
+				SLAB_F0(OutBSDF)					= UnpackR7G7B6Gamma2(PackedF020Bits);
+				SLAB_ROUGHNESS(OutBSDF)				= Roughness;
+				SLAB_SSSPROFILEID(OutBSDF)			= SSSProfileId;
+				SLAB_SSSPROFILERADIUSSCALE(OutBSDF)	= SSSProfileRadiusScale;
+
+				// When loading Strata BSDF which have SSS enable, BaseColor and (optionally) Specular value can be overriden 
+				// based on the SSS method used (screen space SSS / checherboarded screen space SSS / ...)
+				#if STRATA_SSS_MATERIAL_OVERRIDE
+				{
+					const bool bChecker = CheckerFromPixelPos(StrataAddressing.PixelCoords);
+					float3 DiffuseAlbedo = SLAB_DIFFUSEALBEDO(OutBSDF);
+					float SpecularFactor = 1.0f;
+					AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(DiffuseAlbedo, SpecularFactor, bChecker);
+					SLAB_DIFFUSEALBEDO(OutBSDF) = DiffuseAlbedo;
+					SLAB_F0(OutBSDF)  *= SpecularFactor;
+					SLAB_F90(OutBSDF) *= SpecularFactor;
+				}
+				#endif
+			#endif
+
+				// Force a BSDF state to be a single layer on top.
+				BSDF_SETTYPE(OutBSDF, STRATA_BSDF_TYPE_SLAB);
+				BSDF_SETHASGREYWEIGHT_V(OutBSDF, 1);
+				BSDF_SETHASF90(OutBSDF, 0);
+				BSDF_SETHASANISOTROPY(OutBSDF, 0);
+				BSDF_SETISTOPLAYER(OutBSDF, 1);
+				BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_DIFFUSION_PROFILE);
+				BSDF_SETHASMFP(OutBSDF, 1);
+				BSDF_SETHASHAZINESS(OutBSDF, 0);
+				BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
+				BSDF_SETISTHIN(OutBSDF, 0);
+				BSDF_SETHASFUZZ(OutBSDF, 0);
+				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+			}
 			return OutBSDF;
 		}
 	}

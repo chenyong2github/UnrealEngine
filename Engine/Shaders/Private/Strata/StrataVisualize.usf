@@ -264,17 +264,21 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 
 			if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))
 			{
-
 				const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, StrataAddressing.PixelCoords);
 				const uint SSSType = StrataSubSurfaceHeaderGetSSSType(SSSHeader);
-				const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
 				Print(Context, TEXT(" SSS Type    "), FontBSDFPropName);	PrintSSSType(Context, SSSType, FontYellow);	Newline(Context, RectMax);
-				Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);	Newline(Context, RectMax);
-
+				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_WRAP)
+				{
+					const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
+					Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);	Newline(Context, RectMax);
+				}
 				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
 				{
-					Print(Context, TEXT(" SSS ID.     "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILEID(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
-					Print(Context, TEXT(" SSS Radius  "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILERADIUSSCALE(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
+					const uint ProfileId = StrataSubSurfaceHeaderGetProfileId(SSSHeader);
+					const float RadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
+
+					Print(Context, TEXT(" SSS ID.     "), FontBSDFPropName);	Print(Context, ProfileId, FontBSDFPropValu);	Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Radius  "), FontBSDFPropName);	Print(Context, RadiusScale, FontBSDFPropValu);	Newline(Context, RectMax);
 				}
 				else
 				{
@@ -456,7 +460,11 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 			else if (OptimisedLegacyMode ==SINGLE_OPTLEGACYMODE_SSSWRAP)
 			{
 				Print(Context, TEXT(" - Legecy SSS-Wrap"), FontLightRed);
-			}		
+			}
+			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE)
+			{
+				Print(Context, TEXT(" - Legecy SSS-Profile"), FontLightRed);
+			}
 		#endif
 		}
 		Newline(Context, RectMax);
@@ -510,7 +518,7 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		const bool bHasSSSData = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 
 		const uint TopLayerDataBytes = 4;	// bytes 
-		const uint SSSDataBytes = 8; // bIsSingleMaterial&& ? 0 : 8;	    // bytes  TODO accessor to OPT mode
+		const uint SSSDataBytes = 8;
 
 		const uint HeaderSize =  FootPrint_PostHeader - FootPrint_Start;
 		const uint BSDFsSize  =  FootPrint_PostBSDFs - FootPrint_PostHeader;

@@ -312,6 +312,7 @@ void PackStrataOut(
 				const uint SingleIsThin				= 0x08;
 				const uint SingleIsSimpleVolume		= 0x10;
 				const uint SingleIsWrap				= 0x20;
+				const uint SingleIsSSSProfile		= 0x40;
 				// No need to add anisotropy since it is not supported by the simple mode.
 
 				uint OptimisedModeMask = 0;
@@ -341,6 +342,10 @@ void PackStrataOut(
 				{
 					OptimisedModeMask |= SingleIsWrap;
 				}
+				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
+				{
+					OptimisedModeMask |= SingleIsSSSProfile;
+				}
 
 				if (((OptimisedModeMask & SingleHasClearCoat) == SingleHasClearCoat) || ((OptimisedModeMask & SingleHasClearCoat) == (SingleHasHaziness | SingleHasClearCoat)))
 				{
@@ -353,6 +358,11 @@ void PackStrataOut(
 				else if ((OptimisedModeMask & SingleIsWrap) == SingleIsWrap)
 				{
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP;
+					SSSData.Header.Bytes = 0; // Force to skip SSSData writing
+				}
+				else if ((OptimisedModeMask & SingleIsSSSProfile) == SingleIsSSSProfile)
+				{
+					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSPROFILE;
 					SSSData.Header.Bytes = 0; // Force to skip SSSData writing
 				}
 			#undef BSDF
@@ -587,6 +597,21 @@ void PackStrataOut(
 							STRATA_STORE_UINT1(PackedDiffuse20Bits  | (PackedSSSMFP12BitsA << 20));
 							// MRT2 24 PackedF0      and 8 low  bits from PackedClearCoat
 							STRATA_STORE_UINT1(PackedF020Bits		| (PackedSSSMFP12BitsB << 20));
+
+							// Ensure the rest of the BSDF is not stored with the regular path
+							BSDF.State = 0;
+						}
+						else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE)
+						{
+							const uint PackedDiffuse20Bits		= PackR7G7B6Gamma2(	SLAB_DIFFUSEALBEDO(BSDF)	, Dither);
+							const uint PackedF020Bits			= PackR7G7B6Gamma2(	SLAB_F0(BSDF)				, Dither);
+
+							// MRT0 
+							STRATA_STORE_UINT1(Out					| (PackR8(SLAB_ROUGHNESS(BSDF)) << 24));
+							// MRT1 20 PackedDiffuse and Profile radius scale
+							STRATA_STORE_UINT1(PackedDiffuse20Bits  | (PackR8(SLAB_SSSPROFILERADIUSSCALE(BSDF)) << 24));
+							// MRT2 24 PackedF0      and Profile ID
+							STRATA_STORE_UINT1(PackedF020Bits		| (PackR8(SLAB_SSSPROFILEID(BSDF)) << 24));
 
 							// Ensure the rest of the BSDF is not stored with the regular path
 							BSDF.State = 0;

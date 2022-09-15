@@ -102,18 +102,43 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsOpaqueRoughRefraction = OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled > 0.0f;
 	#endif
 
+		// Output/Patch SSS data for legacy encoding (this allows to save ALU & bandwidth during the base pass0
 		uint OptimisedLegacyMode = ((PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT)) & HEADER_SINGLE_OPTLEGACYMODE_BIT_MASK);
-		if (bIsSingle && OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP)
+		const bool bIsLegacyWrap = OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP;
+		const bool bIsLegacySSSProfile = OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE;
+		if (bIsSingle && (bIsLegacyWrap || bIsLegacySSSProfile))
 		{
 			bContainsScreenSpaceSubsurfaceScattering = true;
+			if (bIsLegacyWrap)
+			{
+				const uint PackedSSSWOpacity7bits = (PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) & 0x7F;
+				FStrataSubsurfaceHeader SSSHeader = (FStrataSubsurfaceHeader)0;
+				StrataSubSurfaceHeaderSetSSSType(SSSHeader, SSS_TYPE_WRAP);
+				StrataSubSurfaceHeaderSetWrapOpacity(SSSHeader, UnpackR7(PackedSSSWOpacity7bits));
+				StrataStoreSubsurfaceHeader(MaterialTextureArrayUAV, FirstSliceStoringStrataSSSData, PixelCoord, SSSHeader.Bytes);
+			}
+			else if (bIsLegacySSSProfile)
+			{
+				const bool bDebugEnable = all(PixelCoord == View.CursorPosition);
 
-			const uint PackedSSSWOpacity7bits = (PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) & 0x7F;
+				const uint Data1 = MaterialTextureArrayUAV[uint3(PixelCoord, 1)];
+				const uint Data2 = MaterialTextureArrayUAV[uint3(PixelCoord, 2)];
+				float  RadiusScale = UnpackR8(Data1 >> 24);
+				float  ProfileId   = UnpackR8(Data2 >> 24);
 
-			FStrataSubsurfaceHeader SSSHeader = (FStrataSubsurfaceHeader)0;
-			StrataSubSurfaceHeaderSetSSSType(SSSHeader, SSS_TYPE_WRAP);
-			StrataSubSurfaceHeaderSetWrapOpacity(SSSHeader, UnpackR7(PackedSSSWOpacity7bits));
+				const uint PackedDiffuse20Bits = (Data1 & 0xFFFFF);
+				const float3 BaseColor = UnpackR7G7B6Gamma2(PackedDiffuse20Bits);
 
-			StrataStoreSubsurfaceHeader(MaterialTextureArrayUAV, FirstSliceStoringStrataSSSData, PixelCoord, SSSHeader.Bytes);
+				FStrataSubsurfaceHeader SSSHeader = (FStrataSubsurfaceHeader)0;
+				StrataSubSurfaceHeaderSetSSSType(SSSHeader, SSS_TYPE_DIFFUSION_PROFILE);
+				StrataSubSurfaceHeaderSetProfile(SSSHeader, RadiusScale, StrataSubsurfaceProfileIdTo8bits(ProfileId));
+
+				FStrataSubsurfaceExtras SSSExtras = (FStrataSubsurfaceExtras)0;
+				StrataSubsurfaceExtrasSetBaseColor(SSSExtras, BaseColor);
+
+				StrataStoreSubsurfaceHeader(MaterialTextureArrayUAV, FirstSliceStoringStrataSSSData, PixelCoord, SSSHeader.Bytes);
+				StrataStoreSubsurfaceExtras(MaterialTextureArrayUAV, FirstSliceStoringStrataSSSData, PixelCoord, SSSExtras.Bytes);
+			}
 		}
 
 		// Fine grain test for clearing based on CMask data
