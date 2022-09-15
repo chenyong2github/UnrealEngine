@@ -217,6 +217,10 @@ void SReadOnlyHierarchyView::SetSelectedWidget(FName WidgetName)
 	{
 		TreeView->SetSelection(Found);
 	}
+	else
+	{
+		TreeView->ClearSelection();
+	}
 }
 
 TArray<FName> SReadOnlyHierarchyView::GetSelectedWidgets() const
@@ -235,6 +239,11 @@ TArray<FName> SReadOnlyHierarchyView::GetSelectedWidgets() const
 		});
 
 	return SelectedNames;
+}
+
+void SReadOnlyHierarchyView::ClearSelection()
+{
+	TreeView->ClearSelection();
 }
 
 void SReadOnlyHierarchyView::GetItemChildren(TSharedPtr<FItem> Item, TArray<TSharedPtr<FItem>>& OutChildren) const

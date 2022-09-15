@@ -52,6 +52,7 @@ public:
 	void SetRawFilterText(const FText& Text);
 
 	TArray<FName> GetSelectedWidgets() const;
+	void ClearSelection();
 
 private:
 
