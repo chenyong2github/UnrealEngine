@@ -247,8 +247,6 @@ void FTestRunner::GlobalTeardown() const
 	}
 
 	CleanupPlatform();
-
-	FCommandLine::Reset();
 }
 
 void FTestRunner::Terminate() const
