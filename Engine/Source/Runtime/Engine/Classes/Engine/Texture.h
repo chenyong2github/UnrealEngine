@@ -1778,11 +1778,6 @@ public:
 	 */
 	ENGINE_API static class UEnum* GetPixelFormatEnum();
 
-	/** Get the largest allowed dimension of non-VT texture
-	* this is not for the current RHI (which may have a lower limit), this is for a Texture in general
-	*/
-	ENGINE_API static int32 GetMaximumDimensionOfNonVT();
-
 	/** Returns the minimum number of mips that must be resident in memory (cannot be streamed). */
 	static FORCEINLINE int32 GetStaticMinTextureResidentMipCount()
 	{
@@ -1795,6 +1790,11 @@ public:
 #if WITH_EDITOR
 	/** Called by ULevel::MarkNoStreamableTexturesPrimitiveComponents when cooking level. */
 	bool IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPlatform) const;
+
+	/** Get the largest allowed dimension of non-VT texture
+	* this is not for the current RHI (which may have a lower limit), this is for a Texture in general
+	*/
+	ENGINE_API static int32 GetMaximumDimensionOfNonVT();
 #endif
 
 protected:
