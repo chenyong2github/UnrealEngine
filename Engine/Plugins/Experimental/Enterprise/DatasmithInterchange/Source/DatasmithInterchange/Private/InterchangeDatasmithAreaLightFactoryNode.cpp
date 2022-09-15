@@ -13,7 +13,7 @@ UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_
 UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomColorKey = UE::Interchange::FAttributeKey(TEXT("Color"));
 UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomTemperatureKey = UE::Interchange::FAttributeKey(TEXT("Temperature"));
 UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomIESTextureKey = UE::Interchange::FAttributeKey(TEXT("IESTexture"));
-UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomUseIESBrightnessKey = UE::Interchange::FAttributeKey(TEXT("UseIESBrightness"));
+UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustombUseIESBrightnessKey = UE::Interchange::FAttributeKey(TEXT("UseIESBrightness"));
 UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomIESBrightnessScaleKey = UE::Interchange::FAttributeKey(TEXT("IESBrightnessScale"));
 UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomRotationKey = UE::Interchange::FAttributeKey(TEXT("Rotation"));
 UE::Interchange::FAttributeKey UInterchangeDatasmithAreaLightFactoryNode::Macro_CustomSourceRadiusKey = UE::Interchange::FAttributeKey(TEXT("SourceRadius"));
@@ -136,12 +136,12 @@ bool UInterchangeDatasmithAreaLightFactoryNode::SetCustomIESTexture(const FStrin
 
 bool UInterchangeDatasmithAreaLightFactoryNode::GetCustomUseIESBrightness(bool& AttributeValue) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(UseIESBrightness, bool);
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(bUseIESBrightness, bool);
 }
 
 bool UInterchangeDatasmithAreaLightFactoryNode::SetCustomUseIESBrightness(const bool& AttributeValue, bool bAddApplyDelegate)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeDatasmithAreaLightFactoryNode, UseIESBrightness, bool, ADatasmithAreaLightActor);
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeDatasmithAreaLightFactoryNode, bUseIESBrightness, bool, ADatasmithAreaLightActor);
 }
 
 bool UInterchangeDatasmithAreaLightFactoryNode::GetCustomIESBrightnessScale(float& AttributeValue) const

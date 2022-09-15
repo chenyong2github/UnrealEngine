@@ -136,7 +136,7 @@ private:
 	static  UE::Interchange::FAttributeKey Macro_CustomColorKey;
 	static  UE::Interchange::FAttributeKey Macro_CustomTemperatureKey;
 	static  UE::Interchange::FAttributeKey Macro_CustomIESTextureKey;
-	static  UE::Interchange::FAttributeKey Macro_CustomUseIESBrightnessKey;
+	static  UE::Interchange::FAttributeKey Macro_CustombUseIESBrightnessKey;
 	static  UE::Interchange::FAttributeKey Macro_CustomIESBrightnessScaleKey;
 	static  UE::Interchange::FAttributeKey Macro_CustomRotationKey;
 	static  UE::Interchange::FAttributeKey Macro_CustomSourceRadiusKey;
