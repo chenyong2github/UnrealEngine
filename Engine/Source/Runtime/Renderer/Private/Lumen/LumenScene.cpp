@@ -96,7 +96,11 @@ public:
 		const float SizeInTexelsX = PageTableEntry.PhysicalAtlasRect.Max.X - PageTableEntry.PhysicalAtlasRect.Min.X;
 		const float SizeInTexelsY = PageTableEntry.PhysicalAtlasRect.Max.Y - PageTableEntry.PhysicalAtlasRect.Min.Y;
 
-		OutData[0] = FVector4f(*(float*)&PageTableEntry.CardIndex, *(float*)&ResLevelPageTableOffset, SizeInTexelsX, SizeInTexelsY);
+		OutData[0].X = *(float*)&PageTableEntry.CardIndex;
+		OutData[0].Y = *(float*)&ResLevelPageTableOffset;
+		OutData[0].Z = SizeInTexelsX;
+		OutData[0].W = SizeInTexelsY;
+
 		OutData[1] = PageTableEntry.CardUVRect;
 
 		OutData[2].X = PageTableEntry.PhysicalAtlasRect.Min.X * InvPhysicalAtlasSize.X;
@@ -110,7 +114,10 @@ public:
 		OutData[3].W = *(float*)&ResLevelSizeInTiles.Y;
 
 		const uint32 LastUpdateFrame = 0;
-		OutData[4] = FVector4f(*(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, 0.0f);
+		OutData[4].X = *(float*)&LastUpdateFrame;
+		OutData[4].Y = *(float*)&LastUpdateFrame;
+		OutData[4].Z = *(float*)&LastUpdateFrame;
+		OutData[4].W = 0.0f;
 
 		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
 	}
