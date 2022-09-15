@@ -1355,7 +1355,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ForceI
 				{
 					if (Script->Usage == OriginalScript->Usage && Script->GetUsageId() == OriginalScript->GetUsageId())
 					{
-						bAnyUpdated |= Script->SynchronizeExecutablesWithMaster(OriginalScript, RenameMap);
+						bAnyUpdated |= Script->SynchronizeExecutablesWithCompilation(OriginalScript, RenameMap);
 					}
 				}
 			}
