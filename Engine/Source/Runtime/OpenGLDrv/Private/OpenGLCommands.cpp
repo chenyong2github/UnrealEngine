@@ -511,22 +511,49 @@ void FOpenGLDynamicRHI::CachedSetupTextureStageInner(FOpenGLContextState& Contex
 		if (!bSameLimitMip || !bSameNumMips)
 		{
 			DETAILED_QUICK_SCOPE_CYCLE_COUNTER(STAT_CachedSetupTextureStage_TexParameter);
-			if (!bSameLimitMip)
+			
+			bool bBoundAsRenderTarget = false;
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
 			{
-				FOpenGL::TexParameter(Target, GL_TEXTURE_BASE_LEVEL, BaseMip);
+				if (PendingState.RenderTargets[RenderTargetIndex] == 0)
+				{
+					break;
+				}
+				else
+				{
+					if (PendingState.RenderTargets[RenderTargetIndex]->GetResource() == Resource)
+					{
+						bBoundAsRenderTarget = true;
+						break;
+					}
+				}
 			}
-			if (!bSameNumMips)
+
+			// If a SRV is bound as render target, skip the BASE_LEVEL and MAX_LEVEL settings because it would cause crash on some android devices.
+			if (!bBoundAsRenderTarget)
 			{
-				FOpenGL::TexParameter(Target, GL_TEXTURE_MAX_LEVEL, MaxMip);
-			}
-			if (MipLimits)
-			{
-				MipLimits->Key = BaseMip;
-				MipLimits->Value = MaxMip;
+				if (!bSameLimitMip)
+				{
+					FOpenGL::TexParameter(Target, GL_TEXTURE_BASE_LEVEL, BaseMip);
+				}
+				if (!bSameNumMips)
+				{
+					FOpenGL::TexParameter(Target, GL_TEXTURE_MAX_LEVEL, MaxMip);
+				}
+				if (MipLimits)
+				{
+					MipLimits->Key = BaseMip;
+					MipLimits->Value = MaxMip;
+				}
+				else
+				{
+					TextureMipLimits.Add(Resource, TPair<GLenum, GLenum>(BaseMip, MaxMip));
+				}
 			}
 			else
 			{
-				TextureMipLimits.Add(Resource, TPair<GLenum, GLenum>(BaseMip, MaxMip));
+				LimitMip = 0;
+				NumMips = 0;
 			}
 		}
 	}
