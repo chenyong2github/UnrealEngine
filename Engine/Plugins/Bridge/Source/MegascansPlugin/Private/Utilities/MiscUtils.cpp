@@ -211,7 +211,7 @@ void AssetUtils::DeleteDirectory(FString TargetDirectory)
 bool AssetUtils::DeleteAsset(const FString& AssetPath)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*AssetPath));
+	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(AssetPath));
 
 	if (AssetData.IsAssetLoaded())
 	{
@@ -256,7 +256,7 @@ TArray<UMaterialInstanceConstant*> AssetUtils::GetSelectedAssets(const FTopLevel
 	{
 		if (SelectedAsset.AssetClassPath == AssetClass)
 		{
-			ObjectArray.Add(CastChecked<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(SelectedAsset.ObjectPath.ToString())));
+			ObjectArray.Add(CastChecked<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(SelectedAsset.GetObjectPathString())));
 		}
 	}
 
@@ -269,7 +269,7 @@ void AssetUtils::AddFoliageTypesToLevel(TArray<FString> FoliageTypePaths)
 
 	for (FString FoliageTypePath : FoliageTypePaths)
 	{
-		FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*FoliageTypePath));
+		FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(FoliageTypePath));
 		if (!AssetData.IsValid()) return;
 
 		auto* CurrentWorld = GEditor->GetEditorWorldContext().World();

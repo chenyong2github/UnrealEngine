@@ -68,7 +68,9 @@ void UPrimaryAssetLabel::UpdateAssetBundleData()
 		TArray<FName> CollectionAssetPathNames;
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 		CollectionManager.GetAssetsInCollection(AssetCollection.CollectionName, ECollectionShareType::CST_All, CollectionAssetPathNames);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TArray<FSoftObjectPath> CollectionAssets = UE::SoftObjectPath::Private::ConvertObjectPathNames(CollectionAssetPathNames);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		for (int32 Index = 0; Index < CollectionAssets.Num(); ++Index)
 		{
 			FAssetData FoundAsset = Manager.GetAssetRegistry().GetAssetByObjectPath(CollectionAssets[Index]);

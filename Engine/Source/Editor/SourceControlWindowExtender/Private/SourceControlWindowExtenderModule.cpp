@@ -88,7 +88,7 @@ void FSourceControlWindowExtenderModule::GetAssetsFromFilenames(const TArray<FSt
 			const FAssetData& AssetData = OutAssets[0];
 			if (TSubclassOf<AActor> ActorClass = AssetData.GetClass())
 			{
-				if (CurrentWorld && AssetData.ObjectPath.ToString().StartsWith(CurrentWorld->GetPathName()))
+				if (CurrentWorld && AssetData.GetObjectPathString().StartsWith(CurrentWorld->GetPathName()))
 				{
 					if (AssetData.IsAssetLoaded())
 					{

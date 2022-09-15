@@ -230,7 +230,9 @@ TArray<FContentBrowserItemPath> UContentBrowserDataSource::GetAliasesForPath(con
 
 TArray<FContentBrowserItemPath> UContentBrowserDataSource::GetAliasesForPath(FName InInternalPath) const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GetAliasesForPath(FSoftObjectPath(InInternalPath));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UContentBrowserDataSource::IsDiscoveringItems(FText* OutStatus)
