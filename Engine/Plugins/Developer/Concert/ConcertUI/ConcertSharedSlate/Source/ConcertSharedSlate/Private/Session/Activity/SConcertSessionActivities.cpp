@@ -223,7 +223,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	GetTransactionEventFn = InArgs._OnGetTransactionEvent;
 	GetPackageEventFn = InArgs._OnGetPackageEvent;
 	MakeColumnOverlayWidgetFn = InArgs._OnMakeColumnOverlayWidget;
-
+	OnContextMenuOpening = InArgs._OnContextMenuOpening;
 	
 	HighlightText = InArgs._HighlightText;
 	
@@ -275,7 +275,19 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 					.OnListViewScrolled(this, &SConcertSessionActivities::OnListViewScrolled)
 					.OnSelectionChanged(this, &SConcertSessionActivities::OnListViewSelectionChanged)
 					.HeaderRow(HeaderRow)
-					.OnContextMenuOpening_Lambda([this](){ return UE::ConcertSharedSlate::MakeTableContextMenu(HeaderRow.ToSharedRef(), {}, true); })
+					.OnContextMenuOpening_Lambda([this]() -> TSharedPtr<SWidget>
+					{
+						if (ActivityView->GetSelectedItems().Num() == 0)
+						{
+							return UE::ConcertSharedSlate::MakeTableContextMenu(HeaderRow.ToSharedRef(), {}, true);
+						}
+
+						if (OnContextMenuOpening.IsBound())
+						{
+							return OnContextMenuOpening.Execute();
+						}
+						return {};
+					})
 				]
 			]
 

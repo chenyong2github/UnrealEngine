@@ -107,6 +107,9 @@ public:
 
 		/** If bound, invoked when generating a row to add an overlay to a column. */
 		SLATE_EVENT(FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget)
+
+		/** If bound, invoked when an item in the table is right-click and we are supposed to show a menu of actions. */
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 	
 		/** The columns to show for each activity; they are shown after date time */
 		SLATE_ARGUMENT(TArray<FActivityColumn>, Columns)
@@ -260,6 +263,9 @@ private:
 
 	/** Used to overlay a widget over a column widget (add an extra layer above the normal one) */
 	FMakeColumnOverlayWidgetFunc MakeColumnOverlayWidgetFn;
+
+	/** If bound, invoked when an item in the table is right-click and we are supposed to show a menu of actions. */
+	FOnContextMenuOpening OnContextMenuOpening;
 
 	/** Whether to darken muted activities */
 	bool bDarkenMutedActivities = true;

@@ -39,6 +39,8 @@ public:
 	
 		SLATE_EVENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
 		SLATE_EVENT(SConcertSessionActivities::FGetTransactionEvent, GetTransactionEvent)
+		/** If bound, invoked when an item in the table is right-click and we are supposed to show a menu of actions. */
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 	
 		/** Optional name for only displaying activities that affect certain packages */
 		SLATE_ARGUMENT(FName, PackageFilter)

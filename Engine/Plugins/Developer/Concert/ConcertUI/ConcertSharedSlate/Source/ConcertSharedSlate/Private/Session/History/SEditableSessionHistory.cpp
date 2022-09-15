@@ -3,6 +3,7 @@
 #include "Session/History/SEditableSessionHistory.h"
 
 #include "Algo/Transform.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
 #include "SNegativeActionButton.h"
 #include "Session/History/SSessionHistory.h"
@@ -28,21 +29,10 @@ void SEditableSessionHistory::Construct(const FArguments& InArgs)
 	SessionHistory = InArgs._MakeSessionHistory.Execute(
 		SSessionHistory::FArguments()
 		.SelectionMode(ESelectionMode::Multi)
+		.OnContextMenuOpening(this, &SEditableSessionHistory::OnContextMenuOpening)
 		.SearchButtonArea()
 		[
 			SNew(SHorizontalBox)
-
-			// Delete
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SNegativeActionButton)
-				.ActionButtonStyle(EActionButtonStyle::Error) // Red
-				.OnClicked(this, &SEditableSessionHistory::OnClickDeleteActivitiesButton)
-				.ToolTipText(this, &SEditableSessionHistory::GetDeleteActivitiesToolTip)
-				.IsEnabled(this, &SEditableSessionHistory::IsDeleteButtonEnabled)
-				.Icon(FAppStyle::GetBrush("Icons.Delete"))
-			]
 
 			// Mute
 			+SHorizontalBox::Slot()
@@ -89,6 +79,56 @@ FReply SEditableSessionHistory::OnKeyDown(const FGeometry& MyGeometry, const FKe
 	}
 	
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+TSharedPtr<SWidget> SEditableSessionHistory::OnContextMenuOpening()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("MuteMenuLabel", "Mute"),
+		FText::GetEmpty(),
+		FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.MuteActivities"),
+		FUIAction(
+		FExecuteAction::CreateLambda([this](){ OnClickMuteActivitesButton(); }),
+			FCanExecuteAction::CreateLambda([this] { return IsMuteButtonEnabled(); })
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+		);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("UnmuteMenuLabel", "Unmute"),
+		FText::GetEmpty(),
+		FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.UnmuteActivities"),
+		FUIAction(
+		FExecuteAction::CreateLambda([this](){ OnClickUnmuteActivitesButton(); }),
+			FCanExecuteAction::CreateLambda([this] { return IsUnmuteButtonEnabled(); })
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+		);
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("EditMenuLabel", "Edit"),
+		FText::GetEmpty(),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
+		{
+			SubMenuBuilder.AddMenuEntry(
+				LOCTEXT("DeleteMenuLabel", "Delete"),
+				FText::GetEmpty(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"),
+				FUIAction(
+				FExecuteAction::CreateLambda([this](){ OnClickDeleteActivitiesButton(); }),
+					FCanExecuteAction::CreateLambda([this] { return IsDeleteButtonEnabled(); })
+				),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}),
+		false,
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit")
+	);
+	
+	return MenuBuilder.MakeWidget();
 }
 
 FReply SEditableSessionHistory::OnClickDeleteActivitiesButton() const

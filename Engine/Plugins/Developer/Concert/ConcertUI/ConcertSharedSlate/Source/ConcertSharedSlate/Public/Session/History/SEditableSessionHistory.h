@@ -70,6 +70,8 @@ private:
 	FCanPerformActionOnActivities CanUnmuteActivitiesFunc;
 	FRequestActivitiesAction UnmuteActivitiesFunc;
 
+	TSharedPtr<SWidget> OnContextMenuOpening();
+	
 	FReply OnClickDeleteActivitiesButton() const;
 	FText GetDeleteActivitiesToolTip() const;
 	bool IsDeleteButtonEnabled() const;
