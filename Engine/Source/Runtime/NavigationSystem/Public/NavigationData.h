@@ -595,7 +595,11 @@ public:
 	
 	virtual void OnStreamingLevelAdded(ULevel* InLevel, UWorld* InWorld) {};
 	virtual void OnStreamingLevelRemoved(ULevel* InLevel, UWorld* InWorld) {};
-	
+
+#if WITH_EDITOR 
+	virtual double GetWorldPartitionNavigationDataBuilderOverlap() const { return 0; }
+#endif
+
 	//----------------------------------------------------------------------//
 	// Generation & data access                                                      
 	//----------------------------------------------------------------------//

@@ -153,6 +153,7 @@ namespace FNavigationSystem
 	
 	ENGINE_API const FNavDataConfig& GetDefaultSupportedAgent();
 	ENGINE_API const FNavDataConfig& GetBiggestSupportedAgent(const UWorld* World);
+	ENGINE_API double GetWorldPartitionNavigationDataBuilderOverlap(const UWorld& World);
 
 	ENGINE_API TSubclassOf<UNavAreaBase> GetDefaultWalkableArea();
 	ENGINE_API TSubclassOf<UNavAreaBase> GetDefaultObstacleArea();
@@ -203,6 +204,7 @@ namespace FNavigationSystem
 	DECLARE_DELEGATE_RetVal(TSubclassOf<UNavAreaBase>, FNavAreaBasedSignature);
 	DECLARE_DELEGATE_RetVal(const FNavDataConfig&, FNavDataConfigBasedSignature);
 	DECLARE_DELEGATE_RetVal_OneParam(const FNavDataConfig&, FNavDataConfigAndWorldSignature, const UWorld* /*World*/);
+	DECLARE_DELEGATE_RetVal_OneParam(double, FDoubleWorldBasedSignature, const UWorld& /*World*/);
 	DECLARE_DELEGATE_TwoParams(FWorldByteBasedSignature, UWorld& /*World*/, uint8 /*Flags*/);
 	DECLARE_DELEGATE_TwoParams(FActorBooleBasedSignature, AActor& /*Actor*/, bool /*bUpdateAttachedActors*/);
 	DECLARE_DELEGATE_ThreeParams(FComponentBoundsChangeSignature, UActorComponent& /*Comp*/, const FBox& /*NewBounds*/, const FBox& /*DirtyArea*/)
@@ -309,6 +311,7 @@ protected:
 	static FNavigationSystem::FNavigationAutoUpdateEnableSignature& SetNavigationAutoUpdateEnableDelegate();
 	static FNavigationSystem::FWorldByteBasedSignature& AddNavigationUpdateLockDelegate();
 	static FNavigationSystem::FWorldByteBasedSignature& RemoveNavigationUpdateLockDelegate();
+	static FNavigationSystem::FDoubleWorldBasedSignature& GetWorldPartitionNavigationDataBuilderOverlapDelegate();
 #endif // WITH_EDITOR
 };
 

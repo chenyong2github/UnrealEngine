@@ -689,6 +689,11 @@ public:
 
 	static const FNavDataConfig& GetDefaultSupportedAgent();
 	static const FNavDataConfig& GetBiggestSupportedAgent(const UWorld* World);
+	
+#if WITH_EDITOR
+	static double GetWorldPartitionNavigationDataBuilderOverlap(const UWorld& World);
+#endif
+	
 	const FNavDataConfig& GetDefaultSupportedAgentConfig() const;
 	FORCEINLINE const TArray<FNavDataConfig>& GetSupportedAgents() const { return SupportedAgents; }
 	void OverrideSupportedAgents(const TArray<FNavDataConfig>& NewSupportedAgents);

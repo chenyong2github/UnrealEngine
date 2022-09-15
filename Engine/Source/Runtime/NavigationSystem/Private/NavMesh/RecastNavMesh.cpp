@@ -2586,6 +2586,13 @@ void ARecastNavMesh::OnStreamingLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 	}
 }
 
+#if WITH_EDITOR
+double ARecastNavMesh::GetWorldPartitionNavigationDataBuilderOverlap() const
+{
+	return TileSizeUU;
+}
+#endif //WITH_EDITOR
+
 void ARecastNavMesh::DetachNavMeshDataChunk(URecastNavMeshDataChunk& NavDataChunk)
 {
 	const TArray<FNavTileRef> DetachedIndices = NavDataChunk.DetachTiles(*this);

@@ -160,6 +160,7 @@ namespace FNavigationSystem
 		FNavigationAutoUpdateEnableSignature SetNavigationAutoUpdateEnable;
 		FWorldByteBasedSignature AddNavigationUpdateLock;
 		FWorldByteBasedSignature RemoveNavigationUpdateLock;
+		FDoubleWorldBasedSignature GetWorldPartitionNavigationDataBuilderOverlap;
 #endif // WITH_EDITOR
 
 		FDelegates()
@@ -195,6 +196,7 @@ namespace FNavigationSystem
 			SetNavigationAutoUpdateEnable.BindLambda([](const bool, UNavigationSystemBase*) {});
 			AddNavigationUpdateLock.BindLambda([](UWorld&, uint8) {});
 			RemoveNavigationUpdateLock.BindLambda([](UWorld&, uint8) {});
+			GetWorldPartitionNavigationDataBuilderOverlap.BindLambda([](const UWorld&){ return 0; });
 #endif // WITH_EDITOR
 		}
 	};
@@ -221,7 +223,9 @@ namespace FNavigationSystem
 	bool HasComponentData(UActorComponent& Comp) { return Delegates.HasComponentData.Execute(Comp);	}
 	const FNavDataConfig& GetDefaultSupportedAgent() { return Delegates.GetDefaultSupportedAgent.Execute(); }
 	const FNavDataConfig& GetBiggestSupportedAgent(const UWorld* World) { return Delegates.GetBiggestSupportedAgent.Execute(World); }
-
+#if WITH_EDITOR	
+	double GetWorldPartitionNavigationDataBuilderOverlap(const UWorld& World) { return Delegates.GetWorldPartitionNavigationDataBuilderOverlap.Execute(World); }
+#endif	
 
 	TSubclassOf<UNavAreaBase> DefaultWalkableArea; 
 	TSubclassOf<UNavAreaBase> DefaultObstacleArea;
@@ -432,6 +436,7 @@ FNavigationSystem::FLevelBasedSignature& UNavigationSystemBase::UpdateLevelColli
 FNavigationSystem::FNavigationAutoUpdateEnableSignature& UNavigationSystemBase::SetNavigationAutoUpdateEnableDelegate() { return FNavigationSystem::Delegates.SetNavigationAutoUpdateEnable; }
 FNavigationSystem::FWorldByteBasedSignature& UNavigationSystemBase::AddNavigationUpdateLockDelegate() { return FNavigationSystem::Delegates.AddNavigationUpdateLock; }
 FNavigationSystem::FWorldByteBasedSignature& UNavigationSystemBase::RemoveNavigationUpdateLockDelegate() { return FNavigationSystem::Delegates.RemoveNavigationUpdateLock; }
+FNavigationSystem::FDoubleWorldBasedSignature& UNavigationSystemBase::GetWorldPartitionNavigationDataBuilderOverlapDelegate() { return FNavigationSystem::Delegates.GetWorldPartitionNavigationDataBuilderOverlap; }
 #endif // WITH_EDITOR
 //----------------------------------------------------------------------//
 // IPathFollowingManagerInterface

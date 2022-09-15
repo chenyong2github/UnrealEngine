@@ -965,6 +965,10 @@ public:
 	
 	virtual void OnStreamingLevelAdded(ULevel* InLevel, UWorld* InWorld) override;
 	virtual void OnStreamingLevelRemoved(ULevel* InLevel, UWorld* InWorld) override;
+
+#if WITH_EDITOR
+	virtual double GetWorldPartitionNavigationDataBuilderOverlap() const override;
+#endif
 	//~ End ANavigationData Interface
 
 	virtual void AttachNavMeshDataChunk(URecastNavMeshDataChunk& NavDataChunk);

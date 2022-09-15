@@ -552,6 +552,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 					NavSys->RemoveNavigationUpdateLock(Flags);
 				}
 			});
+			UNavigationSystemBase::GetWorldPartitionNavigationDataBuilderOverlapDelegate().BindStatic(&UNavigationSystemV1::GetWorldPartitionNavigationDataBuilderOverlap);
 #endif // WITH_EDITOR
 
 #if ENABLE_VISUAL_LOG
@@ -4868,6 +4869,30 @@ const FNavDataConfig& UNavigationSystemV1::GetBiggestSupportedAgent(const UWorld
 
 	return *BiggestAgent;
 }
+
+#if WITH_EDITOR
+double UNavigationSystemV1::GetWorldPartitionNavigationDataBuilderOverlap(const UWorld& World) 
+{
+	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(&World);
+	if (NavSys == nullptr)
+	{
+		// If no world is available, use the CDO.
+		NavSys = GetDefault<UNavigationSystemV1>();
+	}
+	check(NavSys);
+
+	double MaxOverlap = 0;
+	for (const ANavigationData* NavData : NavSys->NavDataSet)
+	{
+		if (NavData)
+		{
+			MaxOverlap = FMath::Max(MaxOverlap, NavData->GetWorldPartitionNavigationDataBuilderOverlap());
+		}
+	}
+
+	return MaxOverlap;
+}
+#endif //WITH_EDITOR
 
 const FNavDataConfig& UNavigationSystemV1::GetDefaultSupportedAgentConfig() const 
 { 
