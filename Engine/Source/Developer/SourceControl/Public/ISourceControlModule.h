@@ -98,7 +98,7 @@ public:
 	virtual void QueueStatusUpdate(const TArray<UPackage*>& InPackages) = 0;
 
 	/**
-	 * Queues a file to have its s7ource control status updated in the background.
+	 * Queues a file to have its source control status updated in the background.
 	 * @param	InFilenames	The files to queue.
 	 */
 	virtual void QueueStatusUpdate(const TArray<FString>& InFilenames) = 0;

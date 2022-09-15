@@ -1141,9 +1141,8 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 	// Build up a map of any other branch states
 	for (const FP4Record& ClientRecord : InRecords)
 	{
-		FString FileName = ClientRecord(TEXT("clientFile"));
-
-		if (FileName.Len())
+		const FString& ClientFile = ClientRecord(TEXT("clientFile"));
+		if (ClientFile.Len())
 		{
 			// Local workspace file, we're only interested in other branches here
 			continue;
@@ -1154,7 +1153,7 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 		const FString& OtherOpen = ClientRecord(TEXT("otherOpen"));
 
 		FString Branch;
-
+		FString FileName(ClientFile);
 		if (DepotFileName.Split(ContentRoot, &Branch, &FileName))
 		{
 			// Sanitize

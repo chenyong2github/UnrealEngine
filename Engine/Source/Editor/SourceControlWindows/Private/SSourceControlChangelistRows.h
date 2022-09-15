@@ -10,17 +10,56 @@
 #include "Input/DragAndDrop.h"
 #include "SSourceControlCommon.h"
 
-/** Lists the unique column IDs used in the list view displaying controlled/uncontrolled changelist files. */
-namespace SourceControlFileViewColumnId
+/** Lists the unique columns used in the list view displaying controlled/uncontrolled changelist files. */
+namespace SourceControlFileViewColumn
 {
-	/** The icon column id. */
-	extern const FName Icon;
-	/** The file/asset name column id. */
-	extern const FName Name;
-	/** The file/asset path column id. */
-	extern const FName Path;
-	/** The file/asset type column Id. */
-	extern const FName Type;
+	/** The icon column. */
+	namespace Icon
+	{
+		FName Id();
+		FText GetDisplayText();
+		FText GetToolTipText();
+	};
+
+	/** The file/asset name column. */
+	namespace Name
+	{
+		FName Id();
+		FText GetDisplayText();
+		FText GetToolTipText();
+	};
+	
+	/** The file/asset path column. */
+	namespace Path
+	{
+		FName Id();
+		FText GetDisplayText();
+		FText GetToolTipText();
+	};
+
+	/** The file/asset type column. */
+	namespace Type
+	{
+		FName Id();
+		FText GetDisplayText();
+		FText GetToolTipText();
+	};
+
+	/** The last time the file/asset was modified column. */
+	namespace LastModifiedTimestamp
+	{
+		FName Id();
+		FText GetDisplayText();
+		FText GetToolTipText();
+	}
+
+	/** The user that has a given file in checkout column. */
+	namespace CheckedOutByUser
+	{
+		FName Id();
+		FText GetDisplayText();
+		FText GetToolTipText();
+	}
 }
 
 
@@ -136,6 +175,8 @@ public:
 	FText GetDisplayPath() const;
 	FText GetDisplayType() const;
 	FSlateColor GetDisplayColor() const;
+	FText GetLastModifiedTimestamp() const;
+	FText GetCheckedOutByUser() const;
 
 	static void PopulateSearchString(const FFileTreeItem& Item, TArray<FString>& OutStrings);
 
@@ -208,6 +249,8 @@ public:
 	FText GetDisplayPath() const;
 	FText GetDisplayType() const;
 	FSlateColor GetDisplayColor() const;
+	FText GetLastModifiedTimestamp() const;
+	FText GetCheckedOutByUser() const;
 
 	static void PopulateSearchString(const FOfflineFileTreeItem& Item, TArray<FString>& OutStrings);
 

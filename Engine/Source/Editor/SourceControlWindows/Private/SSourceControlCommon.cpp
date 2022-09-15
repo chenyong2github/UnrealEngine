@@ -78,6 +78,16 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	RefreshAssetInformation();
 }
 
+FText FFileTreeItem::GetCheckedOutByUser() const
+{
+	FString Users;
+	if (FileState->IsCheckedOutOther(&Users))
+	{
+		return FText::FromString(Users);
+	}
+	return FText::GetEmpty();
+}
+
 void FFileTreeItem::RefreshAssetInformation()
 {
 	// Initialize display-related members

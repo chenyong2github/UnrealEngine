@@ -28,17 +28,20 @@
 #include "SourceControlHelpers.h"
 #include "SourceControlPreferences.h"
 #include "SourceControlMenuContext.h"
+#include "SourceControlSettings.h"
 #include "AssetToolsModule.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Algo/AnyOf.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/FileManager.h"
 #include "ToolMenus.h"
-
+#include "UObject/UObjectGlobals.h"
 #include "SSourceControlSubmit.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -97,6 +100,47 @@ FText UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult
 	}
 
 	return InChangelistDescription;
+}
+
+void UpdateLastModifiedTimestamp(IChangelistTreeItem& Item)
+{
+	auto GetTimestampText = [](const FString& Pathname)
+	{
+		if (IFileManager::Get().FileExists(*Pathname))
+		{
+			return FText::AsDateTime(IFileManager::Get().GetTimeStamp(*Pathname), EDateTimeStyle::Short);
+		}
+		return FText::GetEmpty();
+	};
+
+	switch (Item.GetTreeItemType())
+	{
+		// NOTE: We may not want to display the last saved timestamp for shelved files as this could lead users to think the file
+		//       was shelved at that time. Consider remove this case in the future if this is too confusing.
+		case IChangelistTreeItem::File:
+		case IChangelistTreeItem::ShelvedFile:
+		{
+			FFileTreeItem& FileItem = static_cast<FFileTreeItem&>(Item);
+			FileItem.SetLastModifiedTimestamp(GetTimestampText(FileItem.GetFileName().ToString()));
+			return;
+		}
+		break;
+
+		case IChangelistTreeItem::OfflineFile:
+		{
+			FOfflineFileTreeItem& OfflineItem = static_cast<FOfflineFileTreeItem&>(Item);
+			OfflineItem.SetLastModifiedTimestamp(GetTimestampText(OfflineItem.GetFilename()));
+			return;
+		}
+
+		case IChangelistTreeItem::Changelist:
+		case IChangelistTreeItem::UncontrolledChangelist:
+		case IChangelistTreeItem::ShelvedChangelist:
+			return; // We don't update timestamp for those nodes.
+
+		default:
+			checkNoEntry();
+	}
 }
 
 } // Anonymous namespace
@@ -307,7 +351,7 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged));
 	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged);
 
-	PrimarySortedColumn = SourceControlFileViewColumnId::Name;
+	PrimarySortedColumn = SourceControlFileViewColumn::Name::Id();
 
 	ChangelistTreeView = CreateChangelistTreeView(ChangelistTreeNodes);
 	UncontrolledChangelistTreeView = CreateChangelistTreeView(UncontrolledChangelistTreeNodes);
@@ -502,7 +546,7 @@ TSharedRef<SWidget> SSourceControlChangelistsWidget::MakeToolBar()
 
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(
-			FExecuteAction::CreateLambda([this]() { RequestRefresh(); })),
+			FExecuteAction::CreateLambda([this]() { RequestChangelistsRefresh(); })),
 			NAME_None,
 			LOCTEXT("SourceControl_RefreshButton", "Refresh"),
 			LOCTEXT("SourceControl_RefreshButton_Tooltip", "Refreshes changelists from source control provider."),
@@ -567,7 +611,7 @@ void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, co
 	{
 		if (ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 		{
-			RequestRefresh();
+			RequestChangelistsRefresh();
 		}
 		else
 		{
@@ -584,7 +628,7 @@ void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, co
 	}
 }
 
-void SSourceControlChangelistsWidget::RequestRefresh()
+void SSourceControlChangelistsWidget::RequestChangelistsRefresh()
 {
 	bool bAnyProviderAvailable = false;
 
@@ -615,6 +659,62 @@ void SSourceControlChangelistsWidget::RequestRefresh()
 	{
 		// No provider available, clear changelist tree
 		ClearChangelistsTree();
+	}
+}
+
+void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const IChangelistTreeItem& Changelist)
+{
+	TArray<FString> Pathnames;
+	if (Changelist.GetTreeItemType() == IChangelistTreeItem::Changelist)
+	{
+		const FChangelistTreeItem& ChangelistItem = static_cast<const FChangelistTreeItem&>(Changelist);
+		Algo::Transform(ChangelistItem.ChangelistState->GetFilesStates(), Pathnames, [](const TSharedRef<ISourceControlState>& FileState) { return FileState->GetFilename(); });
+	}
+	else if (Changelist.GetTreeItemType() == IChangelistTreeItem::ShelvedChangelist)
+	{
+		const FChangelistTreeItem& ChangelistItem = static_cast<const FChangelistTreeItem&>(Changelist);
+		Algo::Transform(ChangelistItem.ChangelistState->GetShelvedFilesStates(), Pathnames, [](const TSharedRef<ISourceControlState>& FileState) { return FileState->GetFilename(); });
+	}
+	else if (Changelist.GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+	{
+		const FUncontrolledChangelistTreeItem& ChangelistItem = static_cast<const FUncontrolledChangelistTreeItem&>(Changelist);
+		Algo::Transform(ChangelistItem.UncontrolledChangelistState->GetFilesStates(), Pathnames, [](const TSharedRef<ISourceControlState>& FileState) { return FileState->GetFilename(); });
+		Algo::Transform(ChangelistItem.UncontrolledChangelistState->GetOfflineFiles(), Pathnames, [](const FString& Pathname) { return Pathname; });
+	}
+
+	if (!Pathnames.IsEmpty())
+	{
+		// Fire an async task to get the latest files status from source control to get the 'Checked Out By' status.
+		RequestFileStatusRefresh(Pathnames);
+	}
+}
+
+void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const TArray<FString>& Pathnames)
+{
+	if (!ISourceControlModule::Get().IsEnabled())
+	{
+		return;
+	}
+
+	// If the changelist contains files.
+	if (!Pathnames.IsEmpty())
+	{
+		TSharedRef<FUpdateStatus> UpdateStatus = ISourceControlOperation::Create<FUpdateStatus>();
+
+		if (FUncontrolledChangelistsModule::Get().IsEnabled())
+		{
+			// Uncontrolled CL files are not opened in the P4 client view, force the status update of the files even if not opened to capture who has it in checked out.
+			UpdateStatus->SetForceUpdate(true);
+		}
+
+		OnStartSourceControlOperation(UpdateStatus, LOCTEXT("Updating_Changelist_Files_Status", "Updating changelist files status..."));
+
+		// Check if the source controlled states of those files changed outside the Editor. The Editor prevents a user from checking out assets that are out
+		// of date, but the user can checkout out from P4V directly. This request is meant to detect if a users checkout outdated assets outside the Editor. It will
+		// also detect non-exclusive files that are out of date (.ini files for example). That's an edge case and if this creates bottleneck, this can likely be disabled.
+		ISourceControlModule::Get().GetProvider().Execute(UpdateStatus, Pathnames, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SSourceControlChangelistsWidget::OnEndSourceControlOperation));
+
+		// NOTE: The updated status are expected to come from OnSourceControlStateChanged() that is invoked when the source control internal state changes.
 	}
 }
 
@@ -822,7 +922,7 @@ void SSourceControlChangelistsWidget::OnSourceControlProviderChanged(ISourceCont
 
 void SSourceControlChangelistsWidget::OnSourceControlStateChanged()
 {
-	// NOTE: No need to call RequestRefresh() to force the SCC to update internal states. We are being invoked because it was update, we just
+	// NOTE: No need to call RequestChangelistsRefresh() to force the SCC to update internal states. We are being invoked because it was update, we just
 	//       need to update the UI to reflect those state changes.
 	OnRefresh();
 }
@@ -831,7 +931,22 @@ void SSourceControlChangelistsWidget::OnChangelistsStatusUpdated(const TSharedRe
 {
 	// NOTE: This is invoked when the 'FUpdatePendingChangelistsStatus' completes. No need to refresh the tree views because OnSourceControlStateChanged() is also called.
 	OnEndSourceControlOperation(InOperation, InType);
-	EndRefreshStatus(); // TODO PL: Need to uniformize all operations status update. The 'Status Update' is different as it displays the time it takes.
+	EndRefreshStatus();
+
+	// Check if a changelist is selected.
+	TArray<TSharedPtr<IChangelistTreeItem>> SelectedChangelists = ChangelistTreeView->GetSelectedItems();
+	if (SelectedChangelists.Num() == 0)
+	{
+		// Check if an uncontrolled CL is selected. A changelist and an uncontrolled changelist cannot be selected at the same time.
+		SelectedChangelists = UncontrolledChangelistTreeView->GetSelectedItems();
+	}
+
+	// If there is a selected changelist (controlled or uncontrolled), refresh the file status with respect to the source control. The response will come
+	// as an update through OnSourceControlStateChanged() callback.
+	if (SelectedChangelists.Num() > 0)
+	{
+		RequestFileStatusRefresh(*SelectedChangelists[0]);
+	}
 }
 
 void SChangelistTree::Private_SetItemSelection(FChangelistTreeItemPtr TheItem, bool bShouldBeSelected, bool bWasUserDirected)
@@ -2365,7 +2480,21 @@ TSharedRef<SChangelistTree> SSourceControlChangelistsWidget::CreateChangelistTre
 
 TSharedRef<STreeView<FChangelistTreeItemPtr>> SSourceControlChangelistsWidget::CreateChangelistFilesView()
 {
-	return SNew(STreeView<FChangelistTreeItemPtr>)
+	USourceControlSettings* Settings = GetMutableDefault<USourceControlSettings>();
+	if (!Settings->bShowAssetTypeColumn)
+	{
+		FileViewHiddenColumnsList.Add(SourceControlFileViewColumn::Type::Id());
+	}
+	if (!Settings->bShowAssetLastModifiedTimeColumn)
+	{
+		FileViewHiddenColumnsList.Add(SourceControlFileViewColumn::LastModifiedTimestamp::Id());
+	}
+	if (!Settings->bShowAssetCheckedOutByColumn)
+	{
+		FileViewHiddenColumnsList.Add(SourceControlFileViewColumn::CheckedOutByUser::Id());
+	}
+
+	TSharedRef<STreeView<FChangelistTreeItemPtr>> FileView = SNew(STreeView<FChangelistTreeItemPtr>)
 		.ItemHeight(24.0f)
 		.TreeItemsSource(&FileTreeNodes)
 		.OnGenerateRow(this, &SSourceControlChangelistsWidget::OnGenerateRow)
@@ -2376,12 +2505,18 @@ TSharedRef<STreeView<FChangelistTreeItemPtr>> SSourceControlChangelistsWidget::C
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
-			+SHeaderRow::Column(SourceControlFileViewColumnId::Icon)
-			.DefaultLabel(FText::GetEmpty())
+			.CanSelectGeneratedColumn(true)
+			.HiddenColumnsList(FileViewHiddenColumnsList)
+			.OnHiddenColumnsListChanged(this, &SSourceControlChangelistsWidget::OnFileViewHiddenColumnsListChanged)
+
+			+SHeaderRow::Column(SourceControlFileViewColumn::Icon::Id())
+			.DefaultLabel(SourceControlFileViewColumn::Icon::GetDisplayText()) // Displayed in the drop down menu to show/hide columns
+			.DefaultTooltip(SourceControlFileViewColumn::Icon::GetToolTipText())
+			.ShouldGenerateWidget(true) // Ensure the column cannot be hidden (grayed out in the show/hide drop down menu)
 			.FillSized(18)
 			.HeaderContentPadding(FMargin(0))
-			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumnId::Icon)
-			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumnId::Icon)
+			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumn::Icon::Id())
+			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumn::Icon::Id())
 			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged)
 			[
 				SNew(SHorizontalBox)
@@ -2393,36 +2528,86 @@ TSharedRef<STreeView<FChangelistTreeItemPtr>> SSourceControlChangelistsWidget::C
 					.HeightOverride(16)
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
-					.Visibility_Lambda([this](){ return GetColumnSortMode(SourceControlFileViewColumnId::Icon) == EColumnSortMode::None ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([this](){ return GetColumnSortMode(SourceControlFileViewColumn::Icon::Id()) == EColumnSortMode::None ? EVisibility::Visible : EVisibility::Collapsed; })
 					[
 						SNew(SImage)
 						.Image(FAppStyle::Get().GetBrush("SourceControl.ChangelistsTab"))
-						.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 					]
 				]
 			]
 
-			+SHeaderRow::Column(SourceControlFileViewColumnId::Name)
-			.DefaultLabel(LOCTEXT("Name", "Name"))
-			.FillWidth(0.2f)
-			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumnId::Name)
-			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumnId::Name)
+			+SHeaderRow::Column(SourceControlFileViewColumn::Name::Id())
+			.DefaultLabel(SourceControlFileViewColumn::Name::GetDisplayText())
+			.DefaultTooltip(SourceControlFileViewColumn::Name::GetToolTipText())
+			.ShouldGenerateWidget(true) // Ensure the column cannot be hidden (grayed out in the show/hide drop down menu)
+			.FillWidth(1.5f)
+			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumn::Name::Id())
+			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumn::Name::Id())
 			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged)
 
-			+SHeaderRow::Column(SourceControlFileViewColumnId::Path)
-			.DefaultLabel(LOCTEXT("Path", "Path"))
-			.FillWidth(0.6f)
-			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumnId::Path)
-			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumnId::Path)
+			+SHeaderRow::Column(SourceControlFileViewColumn::Path::Id())
+			.DefaultLabel(SourceControlFileViewColumn::Path::GetDisplayText())
+			.DefaultTooltip(SourceControlFileViewColumn::Path::GetToolTipText())
+			.ShouldGenerateWidget(true) // Ensure the column cannot be hidden (grayed out in the show/hide drop down menu)
+			.FillWidth(3.5f)
+			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumn::Path::Id())
+			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumn::Path::Id())
 			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged)
 
-			+SHeaderRow::Column(SourceControlFileViewColumnId::Type)
-			.DefaultLabel(LOCTEXT("Type", "Type"))
-			.FillWidth(0.2f)
-			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumnId::Type)
-			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumnId::Type)
+			+SHeaderRow::Column(SourceControlFileViewColumn::Type::Id())
+			.DefaultLabel(SourceControlFileViewColumn::Type::GetDisplayText())
+			.DefaultTooltip(SourceControlFileViewColumn::Type::GetToolTipText())
+			.FillWidth(2.0f)
+			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumn::Type::Id())
+			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumn::Type::Id())
 			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged)
-		);
+
+			+SHeaderRow::Column(SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+			.DefaultLabel(SourceControlFileViewColumn::LastModifiedTimestamp::GetDisplayText())
+			.DefaultTooltip(SourceControlFileViewColumn::LastModifiedTimestamp::GetToolTipText())
+			.FillWidth(1.5f)
+			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged)
+
+			+SHeaderRow::Column(SourceControlFileViewColumn::CheckedOutByUser::Id())
+			.DefaultLabel(SourceControlFileViewColumn::CheckedOutByUser::GetDisplayText())
+			.DefaultTooltip(SourceControlFileViewColumn::CheckedOutByUser::GetToolTipText())
+			.FillWidth(1.0f)
+			.SortPriority(this, &SSourceControlChangelistsWidget::GetColumnSortPriority, SourceControlFileViewColumn::CheckedOutByUser::Id())
+			.SortMode(this, &SSourceControlChangelistsWidget::GetColumnSortMode, SourceControlFileViewColumn::CheckedOutByUser::Id())
+			.OnSort(this, &SSourceControlChangelistsWidget::OnColumnSortModeChanged));
+
+	return FileView;
+}
+
+void SSourceControlChangelistsWidget::OnFileViewHiddenColumnsListChanged()
+{
+	if (FileTreeView && FileTreeView->GetHeaderRow())
+	{
+		USourceControlSettings* Settings = GetMutableDefault<USourceControlSettings>();
+		Settings->bShowAssetTypeColumn = true;
+		Settings->bShowAssetCheckedOutByColumn = true;
+		Settings->bShowAssetLastModifiedTimeColumn = true;
+
+		for (const FName& ColumnId : FileTreeView->GetHeaderRow()->GetHiddenColumnIds())
+		{
+			if (ColumnId == SourceControlFileViewColumn::Type::Id())
+			{
+				Settings->bShowAssetTypeColumn = false;
+			}
+			else if (ColumnId == SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+			{
+				Settings->bShowAssetLastModifiedTimeColumn = false;
+			}
+			else if (ColumnId == SourceControlFileViewColumn::CheckedOutByUser::Id())
+			{
+				Settings->bShowAssetCheckedOutByColumn = false;
+			}
+		}
+		Settings->SaveConfig();
+	}
 }
 
 TSharedRef<ITableRow> SSourceControlChangelistsWidget::OnGenerateRow(TSharedPtr<IChangelistTreeItem> InTreeItem, const TSharedRef<STableViewBase>& OwnerTable)
@@ -2570,6 +2755,7 @@ void SSourceControlChangelistsWidget::OnChangelistSelectionChanged(TSharedPtr<IC
 			if (Child->GetTreeItemType() == DesiredChildrenType)
 			{
 				FileTreeNodes.Add(Child);
+				UpdateLastModifiedTimestamp(*Child);
 			}
 		}
 	};
@@ -2593,6 +2779,16 @@ void SSourceControlChangelistsWidget::OnChangelistSelectionChanged(TSharedPtr<IC
 
 			default:
 				break;
+		}
+
+		// If the user clicked the changelist himself (not a side effect of a refresh coming from a source control state change).
+		if (SelectionType != ESelectInfo::Direct)
+		{
+			// Fire a request to get more info about the  file status (checkout by, outdated, etc). This is expensive on the server to call periodically.
+			RequestFileStatusRefresh(*SelectedChangelist);
+
+			// Sort the view as it just changed.
+			SortFileView();
 		}
 	}
 
@@ -2733,23 +2929,57 @@ void SSourceControlChangelistsWidget::SortFileView()
 		}
 	};
 
+	auto GetModifiedTimestamp = [](IChangelistTreeItem* Item)  -> FString
+	{
+		switch (Item->GetTreeItemType())
+		{
+		case IChangelistTreeItem::File:
+		case IChangelistTreeItem::ShelvedFile:
+			return static_cast<FFileTreeItem*>(Item)->GetLastModifiedTimestamp().ToString();
+		case IChangelistTreeItem::OfflineFile:
+			return static_cast<FOfflineFileTreeItem*>(Item)->GetLastModifiedTimestamp().ToString();
+		default:
+			return FString();
+		}
+	};
+
+	auto GetCheckedOutByUser = [](IChangelistTreeItem* Item)  -> FString
+	{
+		switch (Item->GetTreeItemType())
+		{
+		case IChangelistTreeItem::File:
+		case IChangelistTreeItem::ShelvedFile:
+			return static_cast<FFileTreeItem*>(Item)->GetCheckedOutByUser().ToString();
+		default:
+			return FString();
+		}
+	};
+
 	auto Compare = [&](const TSharedPtr<IChangelistTreeItem>& Lhs, const TSharedPtr<IChangelistTreeItem>& Rhs, const FName& ColumnId, EColumnSortMode::Type SortMode) -> bool
 	{
-		if (ColumnId == SourceControlFileViewColumnId::Icon)
+		if (ColumnId == SourceControlFileViewColumn::Icon::Id())
 		{
 			return SortMode == EColumnSortMode::Ascending ? OperatorLessIcon(Lhs.Get(), Rhs.Get()) : OperatorLessIcon(Rhs.Get(), Lhs.Get());
 		}
-		else if (ColumnId == SourceControlFileViewColumnId::Name)
+		else if (ColumnId == SourceControlFileViewColumn::Name::Id())
 		{
 			return SortMode == EColumnSortMode::Ascending ? GetName(Lhs.Get()) < GetName(Rhs.Get()) : GetName(Lhs.Get()) > GetName(Rhs.Get());
 		}
-		else if (ColumnId == SourceControlFileViewColumnId::Path)
+		else if (ColumnId == SourceControlFileViewColumn::Path::Id())
 		{
 			return SortMode == EColumnSortMode::Ascending ? GetPath(Lhs.Get()) < GetPath(Rhs.Get()) : GetPath(Lhs.Get()) > GetPath(Rhs.Get());
 		}
-		else if (ColumnId == SourceControlFileViewColumnId::Type)
+		else if (ColumnId == SourceControlFileViewColumn::Type::Id())
 		{
 			return SortMode == EColumnSortMode::Ascending ? GetType(Lhs.Get()) < GetType(Rhs.Get()) : GetType(Lhs.Get()) > GetType(Rhs.Get());
+		}
+		else if (ColumnId == SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+		{
+			return SortMode == EColumnSortMode::Ascending ? GetModifiedTimestamp(Lhs.Get()) < GetModifiedTimestamp(Rhs.Get()) : GetModifiedTimestamp(Lhs.Get()) > GetModifiedTimestamp(Rhs.Get());
+		}
+		else if (ColumnId == SourceControlFileViewColumn::CheckedOutByUser::Id())
+		{
+			return SortMode == EColumnSortMode::Ascending ? GetCheckedOutByUser(Lhs.Get()) < GetCheckedOutByUser(Rhs.Get()) : GetCheckedOutByUser(Lhs.Get()) > GetCheckedOutByUser(Rhs.Get());
 		}
 		else
 		{

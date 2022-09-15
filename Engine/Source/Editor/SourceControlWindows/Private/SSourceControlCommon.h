@@ -159,6 +159,15 @@ struct FFileTreeItem : public IChangelistTreeItem
 	/** Returns the asset type color of the item */
 	FSlateColor GetAssetTypeColor() const { return FSlateColor(AssetTypeColor); }
 
+	/** Returns the last modification time of the file/asset. */
+	FText GetLastModifiedTimestamp() const { return LastModifiedTimestamp; }
+	
+	/** Set the last time the files was saved on disk. */
+	void SetLastModifiedTimestamp(const FText& Timestamp) { LastModifiedTimestamp = Timestamp; }
+
+	/** Returns the user that checked out the file/asset (if any). */
+	FText GetCheckedOutByUser() const;
+
 	/** Returns the package name of the item to display */
 	FText GetPackageName() const { return PackageName; }
 
@@ -226,6 +235,9 @@ private:
 	/** Cached package name to display */
 	FText PackageName;
 
+	/** The timestamp of the last modification to the file. */
+	FText LastModifiedTimestamp;
+
 	/** Matching asset(s) to facilitate Locate in content browser */
 	FAssetDataArrayPtr Assets;
 
@@ -268,6 +280,8 @@ public:
 	const FText& GetDisplayPath() const { return AssetPath; }
 	const FText& GetDisplayType() const { return AssetType; }
 	const FSlateColor& GetDisplayColor() const { return AssetTypeColor; }
+	FText GetLastModifiedTimestamp() const { return LastModifiedTimestamp; }
+	void SetLastModifiedTimestamp(const FText& Timestamp) { LastModifiedTimestamp = Timestamp; }
 
 private:
 	TArray<FAssetData> Assets;
@@ -277,6 +291,7 @@ private:
 	FText AssetPath;
 	FText AssetType;
 	FSlateColor AssetTypeColor;
+	FText LastModifiedTimestamp;
 };
 
 

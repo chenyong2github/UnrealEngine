@@ -12,11 +12,29 @@
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelistRow"
 
+FName SourceControlFileViewColumn::Icon::Id() { return TEXT("Icon"); }
+FText SourceControlFileViewColumn::Icon::GetDisplayText() {return LOCTEXT("Name_Icon", "Source Control Status"); }
+FText SourceControlFileViewColumn::Icon::GetToolTipText() { return LOCTEXT("Icon_Column_Tooltip", "Displays the asset/file status"); }
 
-const FName SourceControlFileViewColumnId::Icon = TEXT("Icon");
-const FName SourceControlFileViewColumnId::Name = TEXT("Name");
-const FName SourceControlFileViewColumnId::Path = TEXT("Path");
-const FName SourceControlFileViewColumnId::Type = TEXT("Type");
+FName SourceControlFileViewColumn::Name::Id() { return TEXT("Name"); }
+FText SourceControlFileViewColumn::Name::GetDisplayText() { return LOCTEXT("Name_Column", "Name"); }
+FText SourceControlFileViewColumn::Name::GetToolTipText() { return LOCTEXT("Name_Column_Tooltip", "Displays the asset/file name"); }
+
+FName SourceControlFileViewColumn::Path::Id() { return TEXT("Path"); }
+FText SourceControlFileViewColumn::Path::GetDisplayText() { return LOCTEXT("Path_Column", "Path"); }
+FText SourceControlFileViewColumn::Path::GetToolTipText() { return LOCTEXT("Path_Column_Tooltip", "Displays the asset/file path"); }
+
+FName SourceControlFileViewColumn::Type::Id() { return TEXT("Type"); }
+FText SourceControlFileViewColumn::Type::GetDisplayText() { return LOCTEXT("Type_Column", "Type"); }
+FText SourceControlFileViewColumn::Type::GetToolTipText() { return LOCTEXT("Type_Column_Tooltip", "Displays the asset type"); }
+
+FName SourceControlFileViewColumn::LastModifiedTimestamp::Id() { return TEXT("LastModifiedTimestamp"); }
+FText SourceControlFileViewColumn::LastModifiedTimestamp::GetDisplayText() {return LOCTEXT("LastModifiedTimestamp_Column", "Last Saved"); }
+FText SourceControlFileViewColumn::LastModifiedTimestamp::GetToolTipText() { return LOCTEXT("LastMofiedTimestamp_Column_Tooltip", "Displays the last time the file/asset was saved on user hard drive"); }
+
+FName SourceControlFileViewColumn::CheckedOutByUser::Id() { return TEXT("CheckedOutByUser"); }
+FText SourceControlFileViewColumn::CheckedOutByUser::GetDisplayText() { return LOCTEXT("CheckedOutByUser_Column", "User"); }
+FText SourceControlFileViewColumn::CheckedOutByUser::GetToolTipText() { return LOCTEXT("CheckedOutByUser_Column_Tooltip", "Displays the other user(s) that checked out the file/asset, if any"); }
 
 
 void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
@@ -231,7 +249,7 @@ void SFileTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableV
 
 TSharedRef<SWidget> SFileTableRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
-	if (ColumnId == SourceControlFileViewColumnId::Icon)
+	if (ColumnId == SourceControlFileViewColumn::Icon::Id())
 	{
 		return SNew(SBox)
 			.WidthOverride(16) // Small Icons are usually 16x16
@@ -240,25 +258,39 @@ TSharedRef<SWidget> SFileTableRow::GenerateWidgetForColumn(const FName& ColumnId
 				SSourceControlCommon::GetSCCFileWidget(TreeItem->FileState, TreeItem->IsShelved())
 			];
 	}
-	else if (ColumnId == SourceControlFileViewColumnId::Name)
+	else if (ColumnId == SourceControlFileViewColumn::Name::Id())
 	{
 		return SNew(STextBlock)
 			.Text(this, &SFileTableRow::GetDisplayName)
+			.ToolTipText(this, &SFileTableRow::GetDisplayName)
 			.HighlightText(HighlightText);
 	}
-	else if (ColumnId == SourceControlFileViewColumnId::Path)
+	else if (ColumnId == SourceControlFileViewColumn::Path::Id())
 	{
 		return SNew(STextBlock)
 			.Text(this, &SFileTableRow::GetDisplayPath)
 			.ToolTipText(this, &SFileTableRow::GetFilename)
 			.HighlightText(HighlightText);
 	}
-	else if (ColumnId == SourceControlFileViewColumnId::Type)
+	else if (ColumnId == SourceControlFileViewColumn::Type::Id())
 	{
 		return SNew(STextBlock)
 			.Text(this, &SFileTableRow::GetDisplayType)
+			.ToolTipText(this, &SFileTableRow::GetDisplayType)
 			.ColorAndOpacity(this, &SFileTableRow::GetDisplayColor)
 			.HighlightText(HighlightText);
+	}
+	else if (ColumnId == SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+	{
+		return SNew(STextBlock)
+			.ToolTipText(this, &SFileTableRow::GetLastModifiedTimestamp)
+			.Text(this, &SFileTableRow::GetLastModifiedTimestamp);
+	}
+	else if (ColumnId == SourceControlFileViewColumn::CheckedOutByUser::Id())
+	{
+		return SNew(STextBlock)
+			.ToolTipText(this, &SFileTableRow::GetCheckedOutByUser)
+			.Text(this, &SFileTableRow::GetCheckedOutByUser);
 	}
 	else
 	{
@@ -271,6 +303,8 @@ void SFileTableRow::PopulateSearchString(const FFileTreeItem& Item, TArray<FStri
 	OutStrings.Emplace(Item.GetAssetName().ToString()); // Name
 	OutStrings.Emplace(Item.GetAssetPath().ToString()); // Path
 	OutStrings.Emplace(Item.GetAssetType().ToString()); // Type
+	OutStrings.Emplace(Item.GetLastModifiedTimestamp().ToString());
+	OutStrings.Emplace(Item.GetCheckedOutByUser().ToString());
 }
 
 FText SFileTableRow::GetDisplayName() const
@@ -296,6 +330,16 @@ FText SFileTableRow::GetDisplayType() const
 FSlateColor SFileTableRow::GetDisplayColor() const
 {
 	return TreeItem->GetAssetTypeColor();
+}
+
+FText SFileTableRow::GetLastModifiedTimestamp() const
+{
+	return TreeItem->GetLastModifiedTimestamp();
+}
+
+FText SFileTableRow::GetCheckedOutByUser() const
+{
+	return TreeItem->GetCheckedOutByUser();
 }
 
 void SFileTableRow::OnDragEnter(FGeometry const& InGeometry, FDragDropEvent const& InDragDropEvent)
@@ -357,7 +401,7 @@ void SOfflineFileTableRow::Construct(const FArguments& InArgs, const TSharedRef<
 
 TSharedRef<SWidget> SOfflineFileTableRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
-	if (ColumnId == SourceControlFileViewColumnId::Icon)
+	if (ColumnId == SourceControlFileViewColumn::Icon::Id())
 	{
 		return SNew(SBox)
 			.WidthOverride(16) // Small Icons are usually 16x16
@@ -367,25 +411,38 @@ TSharedRef<SWidget> SOfflineFileTableRow::GenerateWidgetForColumn(const FName& C
 				.Image(FAppStyle::GetBrush(FName("SourceControl.OfflineFile_Small")))
 			];
 	}
-	else if (ColumnId == SourceControlFileViewColumnId::Name)
+	else if (ColumnId == SourceControlFileViewColumn::Name::Id())
 	{
 		return SNew(STextBlock)
+			.ToolTipText(this, &SOfflineFileTableRow::GetDisplayName)
 			.Text(this, &SOfflineFileTableRow::GetDisplayName)
 			.HighlightText(HighlightText);
 	}
-	else if (ColumnId == SourceControlFileViewColumnId::Path)
+	else if (ColumnId == SourceControlFileViewColumn::Path::Id())
 	{
 		return SNew(STextBlock)
 			.Text(this, &SOfflineFileTableRow::GetDisplayPath)
 			.ToolTipText(this, &SOfflineFileTableRow::GetFilename)
 			.HighlightText(HighlightText);
 	}
-	else if (ColumnId == SourceControlFileViewColumnId::Type)
+	else if (ColumnId == SourceControlFileViewColumn::Type::Id())
 	{
 		return SNew(STextBlock)
 			.Text(this, &SOfflineFileTableRow::GetDisplayType)
+			.ToolTipText(this, &SOfflineFileTableRow::GetDisplayType)
 			.ColorAndOpacity(this, &SOfflineFileTableRow::GetDisplayColor)
 			.HighlightText(HighlightText);
+	}
+	else if (ColumnId == SourceControlFileViewColumn::LastModifiedTimestamp::Id())
+	{
+		return SNew(STextBlock)
+			.ToolTipText(this, &SOfflineFileTableRow::GetLastModifiedTimestamp)
+			.Text(this, &SOfflineFileTableRow::GetLastModifiedTimestamp);
+	}
+	else if (ColumnId == SourceControlFileViewColumn::CheckedOutByUser::Id())
+	{
+		return SNew(STextBlock)
+			.Text(FText::GetEmpty());
 	}
 	else
 	{
@@ -398,6 +455,7 @@ void SOfflineFileTableRow::PopulateSearchString(const FOfflineFileTreeItem& Item
 	OutStrings.Emplace(Item.GetDisplayName().ToString()); // Name
 	OutStrings.Emplace(Item.GetDisplayPath().ToString()); // Path
 	OutStrings.Emplace(Item.GetDisplayType().ToString()); // Type
+	OutStrings.Emplace(Item.GetLastModifiedTimestamp().ToString());
 }
 
 FText SOfflineFileTableRow::GetDisplayName() const
@@ -424,5 +482,11 @@ FSlateColor SOfflineFileTableRow::GetDisplayColor() const
 {
 	return TreeItem->GetDisplayColor();
 }
+
+FText SOfflineFileTableRow::GetLastModifiedTimestamp() const
+{
+	return TreeItem->GetLastModifiedTimestamp();
+}
+
 
 #undef LOCTEXT_NAMESPACE

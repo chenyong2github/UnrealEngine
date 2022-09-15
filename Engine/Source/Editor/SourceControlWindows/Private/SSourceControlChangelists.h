@@ -14,6 +14,7 @@
 class FChangelistGroupTreeItem;
 class SExpandableChangelistArea;
 class SSearchBox;
+class USourceControlSettings;
 
 class SChangelistTree : public STreeView<FChangelistTreeItemPtr>
 {
@@ -55,6 +56,7 @@ private:
 	TSharedRef<ITableRow> OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnGetFileChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
 	void OnGetChangelistChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
+	void OnFileViewHiddenColumnsListChanged();
 
 	EColumnSortPriority::Type GetColumnSortPriority(const FName ColumnId) const;
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
@@ -68,7 +70,9 @@ private:
 
 	FReply OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
 
-	void RequestRefresh();
+	void RequestChangelistsRefresh();
+	void RequestFileStatusRefresh(const IChangelistTreeItem& Changelist);
+	void RequestFileStatusRefresh(const TArray<FString>& Pathnames);
 	void OnRefresh();
 	void ClearChangelistsTree();
 
@@ -189,6 +193,7 @@ private:
 
 	/** Display the list of files associated to the selected changelist, uncontrolled changelist or shelved node. */
 	TSharedPtr<STreeView<FChangelistTreeItemPtr>> FileTreeView;
+	TArray<FName> FileViewHiddenColumnsList;
 
 	/** Source control state changed delegate handle */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
