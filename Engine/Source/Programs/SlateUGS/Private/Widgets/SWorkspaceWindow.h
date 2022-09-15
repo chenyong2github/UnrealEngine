@@ -17,10 +17,11 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	FReply OnBrowseClicked();
-
 	FReply OnOkClicked();
 	FReply OnCancelClicked();
+
+	FReply OnBrowseClicked();
+	FReply OnNewClicked();
 
 	bool bIsLocalFileSelected = true;
 	TSharedPtr<SEditableTextBox> LocalFileText = nullptr;

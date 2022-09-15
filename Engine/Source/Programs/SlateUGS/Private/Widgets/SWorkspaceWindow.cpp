@@ -8,6 +8,7 @@
 
 #include "UGSTab.h"
 #include "SGameSyncTab.h"
+#include "SNewWorkspaceWindow.h"
 #include "SPopupTextWindow.h"
 #include "SPrimaryButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -97,7 +98,6 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SCheckBox).Style(FAppStyle::Get(), "RadioButton")
-						.IsEnabled(false) // Todo: enable after adding this functionality
 						.IsChecked_Lambda([this] () { return bIsLocalFileSelected ? ECheckBoxState::Unchecked : ECheckBoxState::Checked; })
 						.OnCheckStateChanged_Lambda( [this] (ECheckBoxState InState) { bIsLocalFileSelected = (!bIsLocalFileSelected && InState == ECheckBoxState::Checked); } )
 					]
@@ -136,6 +136,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 							SNew(SButton)
 							.HAlign(HAlign_Center)
 							.Text(LOCTEXT("NewText", "New..."))
+							.OnClicked(this, &SWorkspaceWindow::OnNewClicked)
 						]
 						+SHorizontalBox::Slot()
 						.Padding(10.0f, 0.0f, 0.0f, 0.0f)
@@ -259,6 +260,13 @@ FReply SWorkspaceWindow::OnBrowseClicked()
 			LocalFileText->SetText(FText::FromString(Path));
 		}
 	}
+
+	return FReply::Handled();
+}
+
+FReply SWorkspaceWindow::OnNewClicked()
+{
+	FSlateApplication::Get().AddModalWindow(SNew(SNewWorkspaceWindow).Tab(Tab), SharedThis(this), false);
 
 	return FReply::Handled();
 }
