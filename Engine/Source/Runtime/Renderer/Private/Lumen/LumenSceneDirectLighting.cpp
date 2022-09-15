@@ -1873,7 +1873,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Lights");
 
-			FRDGBufferSRVRef ShadowMaskTilesSRV = GraphBuilder.CreateSRV(ShadowMaskTiles);
+			FRDGBufferSRVRef ShadowMaskTilesSRV = GraphBuilder.CreateSRV(ShadowMaskTiles->HasBeenProduced() ? ShadowMaskTiles : GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32)));
 			FRDGBufferSRVRef LumenPackedLightsSRV = GraphBuilder.CreateSRV(LumenPackedLights);
 			FRDGBufferSRVRef CardTilesSRV = GraphBuilder.CreateSRV(CardTileUpdateContext.CardTiles);
 			FRDGBufferSRVRef LightTileOffsetNumPerCardTileSRV = GraphBuilder.CreateSRV(CullContext.LightTileOffsetNumPerCardTile);
