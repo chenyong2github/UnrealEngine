@@ -660,6 +660,25 @@ void FScene::LumenUpdatePrimitive(FPrimitiveSceneInfo* InPrimitive)
 	}
 }
 
+// Update function is a member of FScene, because it needs to update the primitive for all FLumenSceneData at once
+void FScene::LumenInvalidateSurfaceCacheForPrimitive(FPrimitiveSceneInfo* InPrimitive)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+
+	if (DefaultLumenSceneData->bTrackAllPrimitives
+		&& TrackPrimitiveForLumenScene(InPrimitive->Proxy)
+		&& InPrimitive->LumenPrimitiveGroupIndices.Num() > 0)
+	{
+		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
+		{
+			if (!LumenSceneData->PendingSurfaceCacheInvalidationOperations.Contains(InPrimitive))
+			{
+				LumenSceneData->PendingSurfaceCacheInvalidationOperations.Add(InPrimitive);
+			}
+		}
+	}
+}
+
 // Remove function is a member of FScene, because it needs to remove the primitive from all FLumenSceneData at once, mainly due to
 // the FLumenPrimitiveGroupRemoveInfo constructor needing access to LumenPrimitiveGroupIndices from FPrimitiveSceneInfo, before it
 // gets reset.
@@ -676,6 +695,7 @@ void FScene::LumenRemovePrimitive(FPrimitiveSceneInfo* InPrimitive, int32 Primit
 		{
 			LumenSceneData->PendingAddOperations.Remove(InPrimitive);
 			LumenSceneData->PendingUpdateOperations.Remove(InPrimitive);
+			LumenSceneData->PendingSurfaceCacheInvalidationOperations.Remove(InPrimitive);
 			LumenSceneData->PendingRemoveOperations.Add(FLumenPrimitiveGroupRemoveInfo(InPrimitive, PrimitiveIndex));
 		}
 
@@ -721,6 +741,8 @@ void FLumenSceneData::ResetAndConsolidate()
 	PendingRemoveOperations.Reset(1024);
 	PendingUpdateOperations.Reset();
 	PendingUpdateOperations.Reserve(1024);
+	PendingSurfaceCacheInvalidationOperations.Reset();
+	PendingSurfaceCacheInvalidationOperations.Reserve(64);
 
 	// Batch consolidate SparseSpanArrays
 	PrimitiveGroups.Consolidate();
@@ -738,7 +760,7 @@ void FLumenSceneData::UpdatePrimitiveInstanceOffset(int32 PrimitiveIndex)
 	}
 }
 
-void UpdateLumenScenePrimitives(FScene* Scene)
+void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLumenScenePrimitives);
@@ -1053,6 +1075,35 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		}
 	}
 
+	// InvalidateLumenSurfaceCacheForPrimitives
+	for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(InvalidateLumenSurfaceCacheForPrimitives);
+		QUICK_SCOPE_CYCLE_COUNTER(InvalidateLumenSurfaceCacheForPrimitives);
+
+		for (TSet<FPrimitiveSceneInfo*>::TIterator It(LumenSceneData->PendingSurfaceCacheInvalidationOperations); It; ++It)
+		{
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = *It;
+
+			if (PrimitiveSceneInfo->LumenPrimitiveGroupIndices.Num() > 0)
+			{
+				const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
+				const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+
+				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
+
+				for (int32 PrimitiveGroupIndex : PrimitiveSceneInfo->LumenPrimitiveGroupIndices)
+				{
+					const FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData->PrimitiveGroups[PrimitiveGroupIndex];
+					if (PrimitiveGroup.MeshCardsIndex >= 0)
+					{
+						LumenSceneData->InvalidateSurfaceCache(GPUMask, PrimitiveGroup.MeshCardsIndex);
+					}
+				}
+			}
+		}
+	}
+
 	for (FLumenSceneDataIterator LumenSceneData = Scene->GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 	{
 		LumenSceneData->ResetAndConsolidate();
@@ -1094,6 +1145,7 @@ bool FLumenSceneData::UpdateAtlasSize()
 		for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
 		{
 			LastCapturedPageHeap[GPUIndex].Clear();
+			PagesToRecaptureHeap[GPUIndex].Clear();
 		}
 
 		PhysicalAtlasCompression = NewCompression;
@@ -1150,6 +1202,7 @@ void FLumenSceneData::UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& 
 		for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
 		{
 			LastCapturedPageHeap[GPUIndex].Remove(PageIndex);
+			PagesToRecaptureHeap[GPUIndex].Remove(PageIndex);
 		}
 
 		if (!bLocked)

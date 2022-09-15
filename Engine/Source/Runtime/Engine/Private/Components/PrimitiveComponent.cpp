@@ -3709,6 +3709,11 @@ void UPrimitiveComponent::SetLightingChannels(bool bChannel0, bool bChannel1, bo
 	}
 }
 
+void UPrimitiveComponent::InvalidateLumenSurfaceCache()
+{
+	GetScene()->InvalidateLumenSurfaceCache_GameThread(this);
+}
+
 void UPrimitiveComponent::ClearComponentOverlaps(bool bDoNotifies, bool bSkipNotifySelf)
 {
 	if (OverlappingComponents.Num() > 0)

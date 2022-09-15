@@ -497,6 +497,7 @@ public:
 	bool bTrackAllPrimitives;
 	TSet<FPrimitiveSceneInfo*> PendingAddOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
+	TSet<FPrimitiveSceneInfo*> PendingSurfaceCacheInvalidationOperations;
 	TArray<FLumenPrimitiveGroupRemoveInfo> PendingRemoveOperations;
 
 	// Scale factor to adjust atlas size for tuning memory usage
@@ -518,6 +519,7 @@ public:
 
 	void AddMeshCards(int32 PrimitiveGroupIndex);
 	void UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCardsIndex, const FMeshCardsBuildData& MeshCardsBuildData);
+	void InvalidateSurfaceCache(FRHIGPUMask GPUMask, int32 MeshCardsIndex);
 	void RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup);
 
 	void RemoveCardFromAtlas(int32 CardIndex);
@@ -588,6 +590,7 @@ private:
 	void AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, FLumenPrimitiveGroup& PrimitiveGroup);
 
 	void UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& Page, int32 PageIndex);
+	bool RecaptureCardPage(const FViewInfo& MainView, FLumenCardRenderer& LumenCardRenderer, FLumenSurfaceCacheAllocator& CaptureAtlasAllocator, FRHIGPUMask GPUMask, int32 PageTableIndex);
 
 	// Frame index used to time-splice various surface cache update operations
 	// 0 is a special value, and means that surface contains default data
@@ -606,6 +609,10 @@ private:
 	// List of high res allocated physical pages which can be deallocated on demand, ordered by last used frame
 	// FeedbackFrameIndex, PageTableIndex
 	FBinaryHeap<uint32, uint32> UnlockedAllocationHeap;
+
+	// List of pages for forced recapture, ordered by request frame index
+	// RequestSurfaceCacheFrameIndex, PageTableIndex
+	FBinaryHeap<uint32, uint32> PagesToRecaptureHeap[MAX_NUM_GPUS];
 
 	// List of pages ordered by last captured frame used to periodically recapture pages, or for multi-GPU scenarios,
 	// to track that a page is uninitialized on a particular GPU, and needs to be captured for the first time (indicated

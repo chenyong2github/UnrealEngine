@@ -900,6 +900,43 @@ void FLumenSceneData::UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCar
 	}
 }
 
+void FLumenSceneData::InvalidateSurfaceCache(FRHIGPUMask GPUMask, int32 MeshCardsIndex)
+{
+	if (MeshCardsIndex >= 0)
+	{
+		FLumenMeshCards& MeshCardsInstance = MeshCards[MeshCardsIndex];
+		for (uint32 CardIndex = MeshCardsInstance.FirstCardIndex; CardIndex < MeshCardsInstance.FirstCardIndex + MeshCardsInstance.NumCards; ++CardIndex)
+		{
+			const FLumenCard& LumenCard = Cards[CardIndex];
+			for (int32 ResLevel = LumenCard.MinAllocatedResLevel; ResLevel <= LumenCard.MaxAllocatedResLevel; ++ResLevel)
+			{
+				const FLumenSurfaceMipMap& MipMap = LumenCard.GetMipMap(ResLevel);
+				if (MipMap.IsAllocated())
+				{
+					for (int32 LocalPageIndex = 0; LocalPageIndex < MipMap.SizeInPagesX * MipMap.SizeInPagesY; ++LocalPageIndex)
+					{
+						const int32 PageIndex = MipMap.GetPageTableIndex(LocalPageIndex);
+						if (GetPageTableEntry(PageIndex).IsMapped())
+						{
+							for (uint32 GPUIndex : GPUMask)
+							{
+								if (PagesToRecaptureHeap[GPUIndex].IsPresent(PageIndex))
+								{
+									PagesToRecaptureHeap[GPUIndex].Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
+								}
+								else
+								{
+									PagesToRecaptureHeap[GPUIndex].Add(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
+								}								
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void FLumenSceneData::RemoveCardFromAtlas(int32 CardIndex)
 {
 	FLumenCard& Card = Cards[CardIndex];

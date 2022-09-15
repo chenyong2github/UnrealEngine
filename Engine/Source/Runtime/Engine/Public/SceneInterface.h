@@ -232,6 +232,9 @@ public:
 	/** Mark scene as needing to restart path tracer accumulation. */
 	virtual void InvalidatePathTracedOutput() {}
 
+	/**  Invalidates Lumen surface cache and forces it to be refreshed. Useful to make material updates more responsive. */
+	virtual void InvalidateLumenSurfaceCache_GameThread(UPrimitiveComponent* Component) {}
+
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */

@@ -3624,6 +3624,23 @@ void FScene::InvalidatePathTracedOutput()
 	++PathTracingInvalidationCounter;
 }
 
+void FScene::InvalidateLumenSurfaceCache_GameThread(UPrimitiveComponent* Component)
+{
+	check(IsInGameThread());
+
+	if (Component->SceneProxy)
+	{
+		ENQUEUE_RENDER_COMMAND(InvalidateLumenSurfaceCacheCmd)(
+			[this, PrimitiveSceneProxy = Component->SceneProxy](FRHICommandList&)
+		{
+			if (PrimitiveSceneProxy && PrimitiveSceneProxy->GetPrimitiveSceneInfo())
+			{
+				LumenInvalidateSurfaceCacheForPrimitive(PrimitiveSceneProxy->GetPrimitiveSceneInfo());
+			}
+		});
+	}
+}
+
 void FScene::FlushDirtyRuntimeVirtualTextures()
 {
 	checkSlow(IsInRenderingThread());

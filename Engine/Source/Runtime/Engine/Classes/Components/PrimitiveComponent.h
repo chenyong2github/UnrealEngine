@@ -327,6 +327,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components")
 	void SetLightingChannels(bool bChannel0, bool bChannel1, bool bChannel2);
 
+	/** Invalidates Lumen surface cache and forces it to be refreshed. Useful to make material updates more responsive. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void InvalidateLumenSurfaceCache();
+
 private:
 	UPROPERTY(EditAnywhere, BlueprintGetter = GetGenerateOverlapEvents, BlueprintSetter = SetGenerateOverlapEvents, Category = Collision)
 	uint8 bGenerateOverlapEvents : 1;

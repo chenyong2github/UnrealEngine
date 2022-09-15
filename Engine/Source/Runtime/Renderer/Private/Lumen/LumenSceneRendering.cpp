@@ -127,6 +127,13 @@ TAutoConsoleVariable<float> CVarLumenSceneCardCaptureRefreshFraction(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarLumenSceneCardCaptureEnableInvalidation(
+	TEXT("r.LumenScene.SurfaceCache.CardCaptureEnableInvalidation"),
+	1,
+	TEXT("Whether to enable manual card recapture through InvalidateSurfaceCacheForPrimitive().\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenSceneCardCaptureMargin = 0.0f;
 FAutoConsoleVariableRef CVarLumenSceneCardCaptureMargin(
 	TEXT("r.LumenScene.SurfaceCache.CardCaptureMargin"),
@@ -1500,6 +1507,43 @@ bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
 	return bReadyToRender;
 }
 
+bool FLumenSceneData::RecaptureCardPage(const FViewInfo& MainView, FLumenCardRenderer& LumenCardRenderer, FLumenSurfaceCacheAllocator& CaptureAtlasAllocator, FRHIGPUMask GPUMask, int32 PageTableIndex)
+{
+	TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
+	FLumenPageTableEntry& PageTableEntry = GetPageTableEntry(PageTableIndex);
+	const FLumenCard& Card = Cards[PageTableEntry.CardIndex];
+	const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
+
+	// Can we fit this card into the temporary card capture allocator?
+	if (CaptureAtlasAllocator.IsSpaceAvailable(Card, PageTableEntry.ResLevel, /*bSinglePage*/ true))
+	{
+		// Allocate space in temporary allocation atlas
+		FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
+		CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
+		check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
+
+		CardPagesToRender.Add(FCardPageRenderData(
+			MainView,
+			Card,
+			PageTableEntry.CardUVRect,
+			CardCaptureAllocation.PhysicalAtlasRect,
+			PageTableEntry.PhysicalAtlasRect,
+			MeshCardsElement.PrimitiveGroupIndex,
+			PageTableEntry.CardIndex,
+			PageTableIndex,
+			/*bResampleLastLighting*/ true));
+
+		for (uint32 GPUIndex : GPUMask)
+		{
+			LastCapturedPageHeap[GPUIndex].Update(GetSurfaceCacheUpdateFrameIndex(), PageTableIndex);
+		}
+		LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Process a throttled number of Lumen surface cache add requests
  * It will make virtual and physical allocations, and evict old pages as required
@@ -1710,6 +1754,33 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 		}
 	}
 
+	// Process any surface cache page invalidation requests
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SceneCardCaptureInvalidation);
+
+		if (CVarLumenSceneCardCaptureEnableInvalidation.GetValueOnRenderThread() == 0)
+		{
+			for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
+			{
+				PagesToRecaptureHeap[GPUIndex].Clear();
+			}
+		}
+
+		FBinaryHeap<uint32, uint32>& PageHeap = PagesToRecaptureHeap[GPUMask.GetFirstIndex()];
+		while (PageHeap.Num() > 0)
+		{
+			const uint32 PageTableIndex = PageHeap.Top();
+			if (RecaptureCardPage(MainView, LumenCardRenderer, CaptureAtlasAllocator, GPUMask, PageTableIndex))
+			{
+				PageHeap.Pop();
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
 	// Finally process card refresh to capture any material updates, or render cards that need to be initialized for the first time on
 	// a given GPU in multi-GPU scenarios.  Uninitialized cards on a particular GPU will have a zero captured frame index set when the
 	// card was allocated.  A zero frame index otherwise can't occur on a card, because the constructor sets SurfaceCacheUpdateFrameIndex
@@ -1733,10 +1804,6 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 			const int32 FramesSinceLastUpdated = GetSurfaceCacheUpdateFrameIndex() - CapturedSurfaceCacheFrameIndex;
 			if (FramesSinceLastUpdated > 0)
 			{
-				FLumenPageTableEntry& PageTableEntry = GetPageTableEntry(PageTableIndex);
-				const FLumenCard& Card = Cards[PageTableEntry.CardIndex];
-				const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
-
 #if WITH_MGPU
 				// Limit number of re-captured texels and pages per frame, except always allow captures of uninitialized
 				// cards where the captured frame index is zero (don't count them against the throttled limits).
@@ -1746,6 +1813,8 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 				if ((CapturedSurfaceCacheFrameIndex != 0) || (GNumExplicitGPUsForRendering == 1))
 #endif
 				{
+					FLumenPageTableEntry& PageTableEntry = GetPageTableEntry(PageTableIndex);
+					const FLumenCard& Card = Cards[PageTableEntry.CardIndex];
 					FLumenMipMapDesc MipMapDesc;
 					Card.GetMipMapDesc(PageTableEntry.ResLevel, MipMapDesc);
 					NumTexelsLeftToRefresh -= MipMapDesc.PageResolution.X * MipMapDesc.PageResolution.Y;
@@ -1754,32 +1823,7 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 
 				if (NumTexelsLeftToRefresh >= 0 && NumPagesLeftToRefesh >= 0)
 				{
-					// Can we fit this card into the temporary card capture allocator?
-					if (CaptureAtlasAllocator.IsSpaceAvailable(Card, PageTableEntry.ResLevel, /*bSinglePage*/ true))
-					{
-						// Allocate space in temporary allocation atlas
-						FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
-						CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
-						check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
-
-						CardPagesToRender.Add(FCardPageRenderData(
-							MainView,
-							Card,
-							PageTableEntry.CardUVRect,
-							CardCaptureAllocation.PhysicalAtlasRect,
-							PageTableEntry.PhysicalAtlasRect,
-							MeshCardsElement.PrimitiveGroupIndex,
-							PageTableEntry.CardIndex,
-							PageTableIndex,
-							/*bResampleLastLighting*/ true));
-
-						for (uint32 GPUIndex : GPUMask)
-						{
-							LastCapturedPageHeap[GPUIndex].Update(GetSurfaceCacheUpdateFrameIndex(), PageTableIndex);
-						}
-						LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
-						bCanCapture = true;
-					}
+					bCanCapture = RecaptureCardPage(MainView, LumenCardRenderer, CaptureAtlasAllocator, GPUMask, PageTableIndex);
 				}
 			}
 		}
@@ -1970,7 +2014,7 @@ void UpdateSurfaceCacheMeshCards(
 	}
 }
 
-extern void UpdateLumenScenePrimitives(FScene* Scene);
+extern void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene);
 
 void AllocateResampledCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAtlasSize, FResampledCardCaptureAtlas& CardCaptureAtlas)
 {
@@ -2191,7 +2235,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		LumenSceneData.NumLockedCardsToUpdate = 0;
 		LumenSceneData.NumHiResPagesToAdd = 0;
 
-		UpdateLumenScenePrimitives(Scene);
+		UpdateLumenScenePrimitives(GraphBuilder.RHICmdList.GetGPUMask(), Scene);
 		UpdateDistantScene(Scene, Views[0]);
 
 		if (LumenSceneData.bDebugClearAllCachedState || bReallocateAtlas)
