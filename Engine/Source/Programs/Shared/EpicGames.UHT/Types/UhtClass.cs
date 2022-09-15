@@ -855,7 +855,6 @@ namespace EpicGames.UHT.Types
 							if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 							{
 								ClassExportFlags |= UhtClassExportFlags.SelfHasReplicatedProperties;
-								break;
 							}
 
 							if (!property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecifiedNone))
