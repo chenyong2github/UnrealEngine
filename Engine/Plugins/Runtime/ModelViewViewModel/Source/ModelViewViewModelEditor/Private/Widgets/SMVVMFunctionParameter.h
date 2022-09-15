@@ -44,13 +44,14 @@ private:
 	void OnBindArgumentChecked(ECheckBoxState Checked);
 	EVisibility OnGetVisibility(bool bDefaultValue) const;
 	FMVVMBlueprintPropertyPath OnGetSelectedField() const;
-	void OnSelectionChanged(const FMVVMBlueprintPropertyPath& Selected);
+	void OnFieldSelectionChanged(FMVVMBlueprintPropertyPath Selected);
 
 private:
 
 	TWeakObjectPtr<UWidgetBlueprint> WidgetBlueprint;
 	FMVVMBlueprintViewBinding* Binding = nullptr;
 	FName ParameterName;
+	/** This reference is just to keep the default value widget alive. */
 	TSharedPtr<SGraphPin> GraphPin;
 	TSharedPtr<UE::MVVM::SFieldSelector> FieldSelector;
 	bool bSourceToDestination = true;
