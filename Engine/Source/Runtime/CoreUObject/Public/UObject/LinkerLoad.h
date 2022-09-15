@@ -223,6 +223,9 @@ private:
 	/** The trailer for the package */
 	TUniquePtr<UE::FPackageTrailer> PackageTrailer;
 
+	/** Set of imports that require additional verification at creation time. */
+	TSet<int32> ImportsToVerifyOnCreate;
+
 	// Helper function to access the InstancingContext IsInstanced, 
 	bool IsContextInstanced() const;
 
