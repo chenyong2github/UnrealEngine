@@ -41,6 +41,7 @@ void FMovieSceneRootEvaluationTemplateInstance::BeginDestroy()
 		EntitySystemLinker->ResetActiveRunners();
 	}
 
+	RootInstanceHandle = UE::MovieScene::FRootInstanceHandle();
 	CompiledDataManager = nullptr;
 	EntitySystemLinker = nullptr;
 }
