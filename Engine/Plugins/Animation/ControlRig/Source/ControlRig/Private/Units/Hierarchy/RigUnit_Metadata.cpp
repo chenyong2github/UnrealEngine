@@ -442,7 +442,7 @@ FRigUnit_FindItemsWithMetadata_Execute()
 	{
 		if(Element->GetMetadata(Name, Type) != nullptr)
 		{
-			Items.Add(Element->GetKey());
+			Items.AddUnique(Element->GetKey());
 		}
 		bContinue = true;
 	});
@@ -577,7 +577,7 @@ FRigUnit_FindItemsWithMetadataTag_Execute()
 		{
 			if(Md->GetValue().Contains(Tag))
 			{
-				Items.Add(Element->GetKey());
+				Items.AddUnique(Element->GetKey());
 			}
 		}
 		bContinue = true;
@@ -606,7 +606,7 @@ FRigUnit_FindItemsWithMetadataTagArray_Execute()
 
 			if(bFoundAll)
 			{
-				Items.Add(Element->GetKey());
+				Items.AddUnique(Element->GetKey());
 			}
 		}
 		bContinue = true;
