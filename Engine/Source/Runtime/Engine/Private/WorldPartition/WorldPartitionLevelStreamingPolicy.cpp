@@ -71,11 +71,8 @@ TSubclassOf<UWorldPartitionRuntimeCell> UWorldPartitionLevelStreamingPolicy::Get
 
 void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 {
-	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
-	WorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bAllDataLayers*/ true);
-
 	// Build Actor-to-Cell remapping
-	for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
+	WorldPartition->RuntimeHash->ForEachStreamingCells([this](const UWorldPartitionRuntimeCell* Cell)
 	{
 		const UWorldPartitionRuntimeLevelStreamingCell* StreamingCell = Cast<const UWorldPartitionRuntimeLevelStreamingCell>(Cell);
 		check(StreamingCell);
@@ -99,7 +96,8 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 				SubObjectsToCellRemapping.Add(FName(*ActorPath.Mid(LastDotPos + 1)), StreamingCell->GetFName());
 			}
 		}
-	}
+		return true;
+	});
 }
 
 void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)

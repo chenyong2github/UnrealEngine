@@ -58,16 +58,23 @@ static FAutoConsoleVariableRef CVarBlockOnSlowStreaming(
 	GBlockOnSlowStreaming,
 	TEXT("Set if streaming needs to block when to slow to catchup."));
 
+static void SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, TArray<const UWorldPartitionRuntimeCell*>& OutSortedCells)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SortStreamingCellsByImportance);
+	OutSortedCells = InCells.Array();
+	Algo::Sort(OutSortedCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB) { return CellA->SortCompare(CellB) < 0; });
+}
+
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer) 
-, bCriticalPerformanceRequestedBlockTillOnWorld(false)
-, CriticalPerformanceBlockTillLevelStreamingCompletedEpoch(0)
-, DataLayersStatesServerEpoch(INT_MIN)
-, ServerStreamingEnabledEpoch(INT_MIN)
-, StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
+	: Super(ObjectInitializer) 
+	, bCriticalPerformanceRequestedBlockTillOnWorld(false)
+	, CriticalPerformanceBlockTillLevelStreamingCompletedEpoch(0)
+	, DataLayersStatesServerEpoch(INT_MIN)
+	, ServerStreamingEnabledEpoch(INT_MIN)
+	, StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
 #if !UE_BUILD_SHIPPING
-, OnScreenMessageStartTime(0.0)
-, OnScreenMessageStreamingPerformance(EWorldPartitionStreamingPerformance::Good)
+	, OnScreenMessageStartTime(0.0)
+	, OnScreenMessageStreamingPerformance(EWorldPartitionStreamingPerformance::Good)
 #endif
 {
 	if (!IsTemplate())
@@ -230,11 +237,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	TSet<FName> ClientVisibleLevelNames;
 	bool bUpdateEpoch = false;
 
-	TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells = FrameActivateCells.GetCells();
-	TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells = FrameLoadCells.GetCells();
-		
-	check(ActivateStreamingCells.IsEmpty());
-	check(LoadStreamingCells.IsEmpty());
+	check(FrameActivateCells.IsEmpty());
+	check(FrameLoadCells.IsEmpty());
 
 	ON_SCOPE_EXIT
 	{
@@ -250,16 +254,29 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsPlaybackEnabled(World))
 	{
 		// When world partition can't stream, all cells must be unloaded
-		if (WorldPartition->CanStream())
+		if (WorldPartition->CanStream() && WorldPartition->RuntimeHash)
 		{
 			UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
-			if (WorldPartition->RuntimeHash)
+
+			WorldPartition->RuntimeHash->ForEachStreamingCellsSources(StreamingSources, [this](const UWorldPartitionRuntimeCell* Cell, EStreamingSourceTargetState TargetState)
 			{
-				WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, FrameActivateCells, FrameLoadCells);
-			}
+				switch (TargetState)
+				{
+				case EStreamingSourceTargetState::Loaded:
+					FrameLoadCells.Add(Cell);
+					break;
+				case EStreamingSourceTargetState::Activated:
+					FrameActivateCells.Add(Cell);
+					break;
+				default:
+					check(0);
+				}
+
+				return true;
+			});
 
 			// Activation superseeds Loading
-			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
+			FrameLoadCells = FrameLoadCells.Difference(FrameActivateCells);
 		}
 	}
 
@@ -287,48 +304,142 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		}
 
 		if (!bIsServerStreamingEnabled)
-		{			
+		{
 			if (WorldPartition->RuntimeHash)
 			{
 				const UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+				const TSet<FName> EffectiveActiveDataLayerNames = DataLayerSubsystem->GetEffectiveActiveDataLayerNames();
+				const TSet<FName> EffectiveLoadedDataLayerNames = DataLayerSubsystem->GetEffectiveLoadedDataLayerNames();
 
-				// Non Data Layer Cells + Active Data Layers
-				WorldPartition->RuntimeHash->GetAllStreamingCells(ActivateStreamingCells, /*bAllDataLayers=*/ false, /*bDataLayersOnly=*/ false, DataLayerSubsystem->GetEffectiveActiveDataLayerNames());
-
-				// Loaded Data Layers Cells only
-				if (DataLayerSubsystem->GetEffectiveLoadedDataLayerNames().Num())
+				WorldPartition->RuntimeHash->ForEachStreamingCells([this, &EffectiveActiveDataLayerNames, &EffectiveLoadedDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
 				{
-					WorldPartition->RuntimeHash->GetAllStreamingCells(LoadStreamingCells, /*bAllDataLayers=*/ false, /*bDataLayersOnly=*/ true, DataLayerSubsystem->GetEffectiveLoadedDataLayerNames());
-				}
+					// Non Data Layer Cells + Active Data Layers
+					if (!Cell->HasDataLayers() || Cell->HasAnyDataLayer(EffectiveActiveDataLayerNames))
+					{
+						FrameActivateCells.Add(Cell);
+					}
+
+					// Loaded Data Layers Cells only
+					if (EffectiveLoadedDataLayerNames.Num())
+					{
+						if (Cell->HasDataLayers() && Cell->HasAnyDataLayer(EffectiveLoadedDataLayerNames))
+						{
+							FrameLoadCells.Add(Cell);
+						}
+					}
+
+					return true;
+				});
 			}
 		}
 	}
 
-	if (!UHLODSubsystem::IsHLODEnabled())
+	// Process cells to activate
+	auto ProcessCellsToActivate = [this](TSet<const UWorldPartitionRuntimeCell*>& Cells)
 	{
-		// Remove all HLOD cells from the Activate & Load cells
-		auto RemoveHLODCells = [](TSet<const UWorldPartitionRuntimeCell*>& Cells)
+		for (TSet<const UWorldPartitionRuntimeCell*>::TIterator It = Cells.CreateIterator(); It; ++It)
 		{
-			for (auto It = Cells.CreateIterator(); It; ++It)
+			const UWorldPartitionRuntimeCell* Cell = *It;
+
+			if (ShouldSkipCellForPerformance(Cell))
 			{
-				if ((*It)->GetIsHLOD())
+				It.RemoveCurrent();
+				continue;
+			}
+			
+			if (Cell->GetIsHLOD() && !UHLODSubsystem::IsHLODEnabled())
+			{
+				It.RemoveCurrent();
+				continue;
+			}
+
+			Cell->MergeStreamingSourceInfo();
+		}
+	};
+
+	// Process cells to load
+	auto ProcessCellsToLoad = [this, bIsServer, &ClientVisibleLevelNames, &bUpdateEpoch](TSet<const UWorldPartitionRuntimeCell*>& Cells)
+	{
+		for (TSet<const UWorldPartitionRuntimeCell*>::TIterator It = Cells.CreateIterator(); It; ++It)
+		{
+			const UWorldPartitionRuntimeCell* Cell = *It;
+
+			if (bIsServer)
+			{
+				if (ULevel* Level = Cell->GetLevel())
 				{
-					It.RemoveCurrent();
+					if (ClientVisibleLevelNames.Contains(Cell->GetLevel()->GetPackage()->GetFName()))
+					{
+						UE_CLOG(bUpdateEpoch, LogWorldPartition, Verbose, TEXT("Server epoch update delayed by client visibility"));
+						bUpdateEpoch = false;
+						It.RemoveCurrent();
+						continue;
+					}
 				}
 			}
-		};
-		RemoveHLODCells(ActivateStreamingCells);
-		RemoveHLODCells(LoadStreamingCells);
+
+			if (ShouldSkipCellForPerformance(Cell))
+			{
+				It.RemoveCurrent();
+				continue;
+			}
+			
+			if (Cell->GetIsHLOD() && !UHLODSubsystem::IsHLODEnabled())
+			{
+				It.RemoveCurrent();
+				continue;
+			}
+
+			Cell->MergeStreamingSourceInfo();
+		}
+	};
+
+	// Process cells to unload
+	auto ProcessCellsToUnload = [this, bIsServer, &ClientVisibleLevelNames, &bUpdateEpoch](TSet<const UWorldPartitionRuntimeCell*>& Cells)
+	{
+		if (bIsServer)
+		{	
+			for (TSet<const UWorldPartitionRuntimeCell*>::TIterator It = Cells.CreateIterator(); It; ++It)
+			{
+				const UWorldPartitionRuntimeCell* Cell = *It;
+
+				if (ULevel* Level = Cell->GetLevel())
+				{
+					if (ClientVisibleLevelNames.Contains(Cell->GetLevel()->GetPackage()->GetFName()))
+					{
+						UE_CLOG(bUpdateEpoch, LogWorldPartition, Verbose, TEXT("Server epoch update delayed by client visibility"));
+						bUpdateEpoch = false;
+						It.RemoveCurrent();
+						continue;
+					}
+				}
+			}
+		}
+	};
+
+	// Sort cells by importance
+	auto SortStreamingCells = [this](const TArray<FWorldPartitionStreamingSource>& Sources, const TSet<const UWorldPartitionRuntimeCell*>& InCells, TArray<const UWorldPartitionRuntimeCell*>& OutCells)
+	{
+		OutCells.Empty(InCells.Num());
+		SortStreamingCellsByImportance(InCells, OutCells);
+	};
+
+	// Determine cells to load/unload and sort by importance
+	TArray<const UWorldPartitionRuntimeCell*> ToActivateCells;
+	TArray<const UWorldPartitionRuntimeCell*> ToLoadCells;
+	TArray<const UWorldPartitionRuntimeCell*> ToUnloadCells;
+	{
+		TSet<const UWorldPartitionRuntimeCell*> ToActivateCellsUnsorted = FrameActivateCells.Difference(ActivatedCells);
+		TSet<const UWorldPartitionRuntimeCell*> ToLoadCellsUnsorted = FrameLoadCells.Difference(LoadedCells);
+		TSet<const UWorldPartitionRuntimeCell*> ToUnloadCellsUnsorted = ActivatedCells.Union(LoadedCells).Difference(FrameActivateCells.Union(FrameLoadCells));
+
+		ProcessCellsToActivate(ToActivateCellsUnsorted);
+		ProcessCellsToLoad(ToLoadCellsUnsorted);
+		ProcessCellsToUnload(ToUnloadCellsUnsorted);
+		
+		SortStreamingCells(StreamingSources, ToActivateCellsUnsorted, ToActivateCells);
+		SortStreamingCells(StreamingSources, ToLoadCellsUnsorted, ToLoadCells);
 	}
-
-	// Determine cells to load/unload
-	TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = ActivateStreamingCells.Difference(ActivatedCells);
-	TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = LoadStreamingCells.Difference(LoadedCells);
-	TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = ActivatedCells.Union(LoadedCells).Difference(ActivateStreamingCells.Union(LoadStreamingCells));
-
-#if !UE_BUILD_SHIPPING
-	UpdateDebugCellsStreamingPriority(ActivateStreamingCells, LoadStreamingCells);
-#endif
 
 	if(World->bMatchStarted)
 	{
@@ -338,44 +449,25 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	{
 		WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Log);
 	}
-		
-	// Remove cells state changes based on client visibility. If any cell gets removed, delay epoch change.
-	auto ProcessClientVisibility = [bIsServer, &ClientVisibleLevelNames, &bUpdateEpoch](TSet<const UWorldPartitionRuntimeCell*>& Cells)
-	{
-		if (bIsServer)
-		{
-			for (TSet<const UWorldPartitionRuntimeCell*>::TIterator It = Cells.CreateIterator(); It; ++It)
-			{
-				if (ULevel* Level = (*It)->GetLevel())
-				{
-					if (ClientVisibleLevelNames.Contains((*It)->GetLevel()->GetPackage()->GetFName()))
-					{
-						It.RemoveCurrent();
 
-						UE_CLOG(bUpdateEpoch, LogWorldPartition, Verbose, TEXT("Server epoch update delayed by client visibility"));
-						bUpdateEpoch = false;
-					}
-				}
-			}
-		}
-	};
+#if !UE_BUILD_SHIPPING
+	UpdateDebugCellsStreamingPriority(FrameActivateCells, FrameLoadCells);
+#endif
 
 	if (ToUnloadCells.Num() > 0)
 	{
-		ProcessClientVisibility(ToUnloadCells);
-		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Unloaded, ToUnloadCells);
+		SetCellsStateToUnloaded(ToUnloadCells);
 	}
 
 	// Do Activation State first as it is higher prio than Load State (if we have a limited number of loading cells per frame)
 	if (ToActivateCells.Num() > 0)
 	{
-		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Activated, ToActivateCells);
+		SetCellsStateToActivated(ToActivateCells);
 	}
 
 	if (ToLoadCells.Num() > 0)
 	{
-		ProcessClientVisibility(ToLoadCells);
-		SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
+		SetCellsStateToLoaded(ToLoadCells);
 	}
 
 	// Sort cells and update streaming priority 
@@ -389,10 +481,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 				AddToWorldCells.Add(ActivatedCell);
 			}
 		}
-		if (WorldPartition->RuntimeHash)
-		{
-			WorldPartition->RuntimeHash->SortStreamingCellsByImportance(AddToWorldCells, StreamingSources, SortedAddToWorldCells);
-		}
+
+		SortStreamingCells(StreamingSources, AddToWorldCells, SortedAddToWorldCells);
 
 		// Update level streaming priority so that UWorld::UpdateLevelStreaming will naturally process the levels in the correct order
 		const int32 MaxPrio = SortedAddToWorldCells.Num();
@@ -408,7 +498,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	}
 
 	// Evaluate streaming performance based on cells that should be activated
-	UpdateStreamingPerformance(ActivateStreamingCells);
+	UpdateStreamingPerformance(FrameActivateCells);
 	
 	// Update Epoch if we aren't waiting for clients anymore
 	if (bUpdateEpoch)
@@ -428,16 +518,14 @@ void UWorldPartitionStreamingPolicy::UpdateDebugCellsStreamingPriority(const TSe
 		CellsToSort.Append(ActivateStreamingCells);
 		CellsToSort.Append(LoadStreamingCells);
 
-		if (WorldPartition->RuntimeHash)
+		TArray<const UWorldPartitionRuntimeCell*> SortedCells;
+		SortStreamingCellsByImportance(CellsToSort, SortedCells);
+
+		const int32 CellCount = SortedCells.Num();
+		int32 CellPrio = 0;
+		for (const UWorldPartitionRuntimeCell* SortedCell : SortedCells)
 		{
-			TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedCells;
-			WorldPartition->RuntimeHash->SortStreamingCellsByImportance(CellsToSort, StreamingSources, SortedCells);
-			const int32 CellCount = SortedCells.Num();
-			int32 CellPrio = 0;
-			for (const UWorldPartitionRuntimeCell* SortedCell : SortedCells)
-			{
-				const_cast<UWorldPartitionRuntimeCell*>(SortedCell)->SetDebugStreamingPriority(float(CellPrio++) / CellCount);
-			}
+			const_cast<UWorldPartitionRuntimeCell*>(SortedCell)->SetDebugStreamingPriority(float(CellPrio++) / CellCount);
 		}
 	}
 }
@@ -545,46 +633,17 @@ int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
 	return MAX_int32;
 }
 
-void UWorldPartitionStreamingPolicy::SetTargetStateForCells(EWorldPartitionRuntimeCellState TargetState, const TSet<const UWorldPartitionRuntimeCell*>& Cells)
-{
-	switch (TargetState)
-	{
-	case EWorldPartitionRuntimeCellState::Unloaded:
-		SetCellsStateToUnloaded(Cells);
-		break;
-	case EWorldPartitionRuntimeCellState::Loaded:
-		SetCellsStateToLoaded(Cells);
-		break;
-	case EWorldPartitionRuntimeCellState::Activated:
-		SetCellsStateToActivated(Cells);
-		break;
-	default:
-		check(false);
-	}
-}
-
-void UWorldPartitionStreamingPolicy::SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells)
+void UWorldPartitionStreamingPolicy::SetCellsStateToLoaded(const TArray<const UWorldPartitionRuntimeCell*>& ToLoadCells)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::SetCellsStateToLoaded);
 
 	int32 MaxCellsToLoad = GetMaxCellsToLoad();
-	// Sort cells based on importance
-	TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedCells;
-
-	if (WorldPartition->RuntimeHash)
-	{
-		WorldPartition->RuntimeHash->SortStreamingCellsByImportance(ToLoadCells, StreamingSources, SortedCells);
-	}
 
 	// Trigger cell loading. Depending on actual state of cell limit loading.
-	for (const UWorldPartitionRuntimeCell* Cell : SortedCells)
+	for (const UWorldPartitionRuntimeCell* Cell : ToLoadCells)
 	{
-		if (ShouldSkipCellForPerformance(Cell))
-		{
-			continue;
-		}
-
 		UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy::LoadCells %s"), *Cell->GetName());
+
 		if (ActivatedCells.Contains(Cell))
 		{
 			Cell->Deactivate();
@@ -603,28 +662,17 @@ void UWorldPartitionStreamingPolicy::SetCellsStateToLoaded(const TSet<const UWor
 	}
 }
 
-void UWorldPartitionStreamingPolicy::SetCellsStateToActivated(const TSet<const UWorldPartitionRuntimeCell*>& ToActivateCells)
+void UWorldPartitionStreamingPolicy::SetCellsStateToActivated(const TArray<const UWorldPartitionRuntimeCell*>& ToActivateCells)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::SetCellsStateToActivated);
 
 	int32 MaxCellsToLoad = GetMaxCellsToLoad();
 
-	// Sort cells based on importance
-	TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedCells;
-	if (WorldPartition->RuntimeHash)
-	{	
-		WorldPartition->RuntimeHash->SortStreamingCellsByImportance(ToActivateCells, StreamingSources, SortedCells);
-	}
-
 	// Trigger cell activation. Depending on actual state of cell limit loading.
-	for (const UWorldPartitionRuntimeCell* Cell : SortedCells)
+	for (const UWorldPartitionRuntimeCell* Cell : ToActivateCells)
 	{
-		if (ShouldSkipCellForPerformance(Cell))
-		{
-			continue;
-		}
-
 		UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy::ActivateCells %s"), *Cell->GetName());
+
 		if (LoadedCells.Contains(Cell))
 		{
 			LoadedCells.Remove(Cell);
@@ -643,7 +691,7 @@ void UWorldPartitionStreamingPolicy::SetCellsStateToActivated(const TSet<const U
 	}
 }
 
-void UWorldPartitionStreamingPolicy::SetCellsStateToUnloaded(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells)
+void UWorldPartitionStreamingPolicy::SetCellsStateToUnloaded(const TArray<const UWorldPartitionRuntimeCell*>& ToUnloadCells)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::SetCellsStateToUnloaded);
 
@@ -691,14 +739,10 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntime
 	const UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
 	const bool bIsHLODEnabled = UHLODSubsystem::IsHLODEnabled();
 
+	bool bResult = true;
 	for (const FWorldPartitionStreamingQuerySource& QuerySource : QuerySources)
 	{
-		TSet<const UWorldPartitionRuntimeCell*> Cells;
-		if (WorldPartition->RuntimeHash)
-		{
-			WorldPartition->RuntimeHash->GetStreamingCells(QuerySource, Cells);
-		}
-		for (const UWorldPartitionRuntimeCell* Cell : Cells)
+		WorldPartition->RuntimeHash->ForEachStreamingCellsQuery(QuerySource, [QuerySource, QueryState, bExactState, bIsHLODEnabled, DataLayerSubsystem, &bResult](const UWorldPartitionRuntimeCell* Cell)
 		{
 			EWorldPartitionRuntimeCellState CellState = Cell->GetCurrentState();
 			if (CellState != QueryState)
@@ -726,13 +770,15 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntime
 								
 				if (!bSkipCell && (bExactState || CellState < QueryState))
 				{
+					bResult = false;
 					return false;
 				}
 			}
-		}	
-	}
 
-	return true;
+			return true;
+		});
+	}
+	return bResult;
 }
 
 FVector2D UWorldPartitionStreamingPolicy::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)

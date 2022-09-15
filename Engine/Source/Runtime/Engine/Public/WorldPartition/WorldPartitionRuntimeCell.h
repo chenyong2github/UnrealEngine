@@ -151,16 +151,6 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 {
 	GENERATED_UCLASS_BODY()
 
-	struct FStreamingSourceInfo
-	{
-		FStreamingSourceInfo(const FWorldPartitionStreamingSource& InSource, const FSphericalSector& InSourceShape)
-			: Source(InSource)
-			, SourceShape(InSourceShape)
-		{}
-		const FWorldPartitionStreamingSource& Source;
-		const FSphericalSector& SourceShape;
-	};
-
 	virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
 	virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
 	virtual bool CanUnload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanUnload, return true;);
@@ -182,8 +172,12 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
 	virtual FName GetGridName() const { return DebugInfo.GridName; }
 	virtual FGuid const& GetContentBundleID() const { return ContentBundleID; }
-	/** Caches information on streaming source that will be used later on to sort cell. Returns true if cache was reset, else returns false. */
-	virtual bool CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const;
+
+	/** Caches information on streaming source that will be used later on to sort cell. */
+	bool ShouldResetStreamingSourceInfo() const;
+	virtual void ResetStreamingSourceInfo() const;
+	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const;
+	virtual void MergeStreamingSourceInfo() const;
 
 	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
 

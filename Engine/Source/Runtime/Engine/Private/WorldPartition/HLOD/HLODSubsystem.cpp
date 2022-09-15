@@ -171,17 +171,15 @@ void UHLODSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartiti
 		check(!WorldPartitionsHLODRuntimeData.Contains(InWorldPartition));
 
 		FWorldPartitionHLODRuntimeData& WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Add(InWorldPartition, FWorldPartitionHLODRuntimeData());
-
-		TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
-		if (InWorldPartition->RuntimeHash)
-		{
-			InWorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bAllDataLayers*/ true);
-		}
-
+	
 		// Build cell to HLOD mapping
-		for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
+		if (InWorldPartition && InWorldPartition->RuntimeHash)
 		{
-			WorldPartitionHLODRuntimeData.CellsData.Emplace(Cell->GetFName());
+			InWorldPartition->RuntimeHash->ForEachStreamingCells([&WorldPartitionHLODRuntimeData](const UWorldPartitionRuntimeCell* Cell)
+			{
+				WorldPartitionHLODRuntimeData.CellsData.Emplace(Cell->GetFName());
+				return true;
+			});
 		}
 	}
 }

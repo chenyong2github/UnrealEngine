@@ -45,26 +45,29 @@ void UWorldPartitionRuntimeSpatialHashCell::PostDuplicate(bool bDuplicateForPIE)
 }
 #endif
 
-bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const
+void UWorldPartitionRuntimeSpatialHashCell::ResetStreamingSourceInfo() const
 {
-	const bool bWasCacheDirtied = Super::CacheStreamingSourceInfo(Info);
-	if (bWasCacheDirtied)
-	{
-		CachedIsBlockingSource = false;
-		CachedMinSquareDistanceToBlockingSource = MAX_dbl;
-		CachedMinSquareDistanceToSource = MAX_dbl;
-		CachedSourceModulatedDistances.Reset();
-	}
+	Super::ResetStreamingSourceInfo();
+
+	CachedIsBlockingSource = false;
+	CachedMinSquareDistanceToBlockingSource = MAX_dbl;
+	CachedMinSquareDistanceToSource = MAX_dbl;
+	CachedSourceModulatedDistances.Reset();
+}
+
+void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
+{
+	Super::AppendStreamingSourceInfo(Source, SourceShape);
 
 	float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
-	const double SquareDistance = FVector::DistSquared2D(Info.SourceShape.GetCenter(), Position);
+	const double SquareDistance = FVector::DistSquared2D(SourceShape.GetCenter(), Position);
 	float AngleFactor = 1.f;
 	if (!FMath::IsNearlyZero(AngleContribution))
 	{
 		const FBox Box(FVector(Position.X - Extent, Position.Y - Extent, 0.f), FVector(Position.X + Extent, Position.Y + Extent, 0.f));
-		const FVector2D SourcePos(Info.SourceShape.GetCenter());
+		const FVector2D SourcePos(SourceShape.GetCenter());
 		const FVector StartVert(SourcePos, 0.f);
-		const FVector EndVert(SourcePos + FVector2D(Info.SourceShape.GetScaledAxis()), 0.f);
+		const FVector EndVert(SourcePos + FVector2D(SourceShape.GetScaledAxis()), 0.f);
 
 		float Angle = 0.f;
 		if (!FMath::LineBoxIntersection(Box, StartVert, EndVert, EndVert - StartVert))
@@ -72,7 +75,7 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 			// Find smallest angle using 4 corners and center of cell bounds
 			const FVector2D Position2D(Position);
 			float MaxDot = 0.f;
-			FVector2D SourceForward(Info.SourceShape.GetAxis());
+			FVector2D SourceForward(SourceShape.GetAxis());
 			SourceForward.Normalize();
 			FVector2D CellPoints[5];
 			CellPoints[0] = Position2D + FVector2D(-Extent, -Extent);
@@ -91,17 +94,30 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 		const float NormalizedAngle = FMath::Clamp(Angle, UE_PI/180.f, 1.f);
 		AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
 	}
+
+	// Only consider blocking sources
+	if (Source.bBlockOnSlowLoading)
+	{
+		CachedIsBlockingSource = true;
+		CachedMinSquareDistanceToBlockingSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToBlockingSource);
+	}
+
+	CachedMinSquareDistanceToSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToSource);
+
 	// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)
 	const double SquareAngleFactor = AngleFactor * AngleFactor;
 	const double ModulatedSquareDistance = SquareDistance * SquareAngleFactor;
 	CachedSourceModulatedDistances.Add(ModulatedSquareDistance);
+}
+
+void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
+{
+	Super::MergeStreamingSourceInfo();
+
 	int32 Count = CachedSourceModulatedDistances.Num();
 	check(Count == CachedSourcePriorityWeights.Num());
-	if (Count == 1)
-	{
-		CachedSourceSortingDistance = ModulatedSquareDistance;
-	}
-	else
+
+	if (Count)
 	{
 		double TotalSourcePriorityWeight = 0.f;
 		for (int32 i = 0; i < Count; ++i)
@@ -127,16 +143,6 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 		// - the weighted modulated distance
 		CachedSourceSortingDistance = FMath::Min(CachedSourceModulatedDistances[HighestPrioMinDistIndex], WeightedModulatedDistance);
 	}
-	
-	// Only consider blocking sources
-	if (Info.Source.bBlockOnSlowLoading)
-	{
-		CachedIsBlockingSource = true;
-		CachedMinSquareDistanceToBlockingSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToBlockingSource);
-	}
-
-	CachedMinSquareDistanceToSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToSource);
-	return bWasCacheDirtied;
 }
 
 int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRuntimeCell* InOther) const

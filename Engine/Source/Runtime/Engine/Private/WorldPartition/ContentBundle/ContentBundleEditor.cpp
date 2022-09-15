@@ -298,7 +298,11 @@ void FContentBundleEditor::GenerateStreaming()
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
 	WorldPartition->GenerateContainerStreaming(ActorDescContainer.Get());
 
-	WorldPartition->RuntimeHash->GetAllStreamingCells(ContentBundleCells, true);
+	WorldPartition->RuntimeHash->ForEachStreamingCells([this](const UWorldPartitionRuntimeCell* Cell)
+	{
+		ContentBundleCells.Add(Cell);
+		return true;
+	});
 
 	FString ExternalStreamingObjectName = ObjectTools::SanitizeInvalidChars(GetDisplayName() + TEXT("_ExternalStreamingObject"), INVALID_LONGPACKAGE_CHARACTERS) ;
 	ExternalStreamingObject = WorldPartition->RuntimeHash->StoreToExternalStreamingObject(GetInjectedWorld()->ContentBundleManager, *ExternalStreamingObjectName);

@@ -12,15 +12,15 @@
 int32 UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch = 0;
 
 UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-, bIsAlwaysLoaded(false)
-, MinMaxZ(-HALF_WORLD_MAX, HALF_WORLD_MAX)
-, Priority(0)
-, CachedMinSourcePriority((uint8)EStreamingSourcePriority::Lowest)
-, CachedSourceInfoEpoch(INT_MIN)
+	: Super(ObjectInitializer)
+	, bIsAlwaysLoaded(false)
+	, MinMaxZ(-HALF_WORLD_MAX, HALF_WORLD_MAX)
+	, Priority(0)
+	, CachedMinSourcePriority((uint8)EStreamingSourcePriority::Lowest)
+	, CachedSourceInfoEpoch(INT_MIN)
 #if !UE_BUILD_SHIPPING
-, DebugStreamingPriority(-1.f)
-#endif
+	, DebugStreamingPriority(-1.f)
+#endif	
 {}
 
 #if WITH_EDITOR
@@ -96,23 +96,28 @@ void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar)
 
 #endif
 
-bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const
+bool UWorldPartitionRuntimeCell::ShouldResetStreamingSourceInfo() const
 {
-	bool bWasCacheDirtied = false;
-	if (CachedSourceInfoEpoch != UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch)
-	{
-		CachedSourceInfoEpoch = UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch;
-		bWasCacheDirtied = true;
-		CachedSourcePriorityWeights.Reset();
-	}
-
-	static_assert((uint8)EStreamingSourcePriority::Lowest == 255);
-	CachedSourcePriorityWeights.Add(1.f - ((float)Info.Source.Priority / 255.f));
-
-	// If cache was dirtied, use value, else use minimum with existing cached value
-	CachedMinSourcePriority = bWasCacheDirtied ? (uint8)Info.Source.Priority : FMath::Min((uint8)Info.Source.Priority, CachedMinSourcePriority);
-	return bWasCacheDirtied;
+	return CachedSourceInfoEpoch != StreamingSourceCacheEpoch;
 }
+
+void UWorldPartitionRuntimeCell::ResetStreamingSourceInfo() const
+{
+	check(ShouldResetStreamingSourceInfo());
+	CachedSourcePriorityWeights.Reset();
+	CachedMinSourcePriority = MAX_uint8;
+	CachedSourceInfoEpoch = StreamingSourceCacheEpoch;
+}
+
+void UWorldPartitionRuntimeCell::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
+{
+	static_assert((uint8)EStreamingSourcePriority::Lowest == 255);
+	CachedSourcePriorityWeights.Add(1.f - ((float)Source.Priority / 255.f));
+	CachedMinSourcePriority = FMath::Min((uint8)Source.Priority, CachedMinSourcePriority);
+}
+
+void UWorldPartitionRuntimeCell::MergeStreamingSourceInfo() const
+{}
 
 int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other) const
 {
@@ -133,8 +138,7 @@ bool UWorldPartitionRuntimeCell::IsDebugShown() const
 FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const
 {
 #if !UE_BUILD_SHIPPING
-	if ((CachedSourceInfoEpoch == UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch) &&
-		(DebugStreamingPriority >= 0.f && DebugStreamingPriority <= 1.f))
+	if (DebugStreamingPriority >= 0.f && DebugStreamingPriority <= 1.f)
 	{
 		return FWorldPartitionDebugHelper::GetHeatMapColor(1.f - DebugStreamingPriority);
 	}

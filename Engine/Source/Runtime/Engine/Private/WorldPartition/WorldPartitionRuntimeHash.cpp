@@ -38,6 +38,38 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	ModifiedActorDescListForPIE.Empty();
 }
 
+// In PIE, Always loaded cell is not generated. Instead, always loaded actors will be added to AlwaysLoadedActorsForPIE.
+// This will trigger loading/registration of these actors in the PersistentLevel (if not already loaded).
+// Then, duplication of world for PIE will duplicate only these actors. 
+// When stopping PIE, WorldPartition will release these FWorldPartitionReferences which 
+// will unload actors that were not already loaded in the non PIE world.
+bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(const FWorldPartitionActorDescView& ActorDescView, bool bIsMainWorldPartition, bool bIsMainContainer, bool bIsCellAlwaysLoaded)
+{
+	if (bIsMainWorldPartition && bIsMainContainer && bIsCellAlwaysLoaded && !IsRunningCookCommandlet())
+	{
+		// This will load the actor if it isn't already loaded
+		FWorldPartitionReference Reference(GetOuterUWorldPartition(), ActorDescView.GetGuid());
+
+		if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
+		{
+			AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
+
+			// Handle child actors
+			AlwaysLoadedActor->ForEachComponent<UChildActorComponent>(true, [this, &Reference](UChildActorComponent* ChildActorComponent)
+			{
+				if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+				{
+					AlwaysLoadedActorsForPIE.Emplace(Reference, ChildActor);
+				}
+			});
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void UWorldPartitionRuntimeHash::DumpStateLog(FHierarchicalLogArchive& Ar)
 {
 	Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
@@ -63,15 +95,70 @@ void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExt
 }
 #endif
 
-void UWorldPartitionRuntimeHash::SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const
+int32 UWorldPartitionRuntimeHash::GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells, bool bAllDataLayers, bool bDataLayersOnly, const TSet<FName>& InDataLayers) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeHash::SortStreamingCellsByImportance);
-
-	OutSortedCells = InCells.Array();
-	Algo::Sort(OutSortedCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB)
+	ForEachStreamingCells([&Cells, bAllDataLayers, bDataLayersOnly, InDataLayers](const UWorldPartitionRuntimeCell* Cell)
 	{
-		return CellA->SortCompare(CellB) < 0;
+		if (!bDataLayersOnly && !Cell->HasDataLayers())
+		{
+			Cells.Add(Cell);
+		}
+		else if (Cell->HasDataLayers() && (bAllDataLayers || Cell->HasAnyDataLayer(InDataLayers)))
+		{
+			Cells.Add(Cell);
+		}
+		return true;
 	});
+
+	return Cells.Num();
+}
+
+bool UWorldPartitionRuntimeHash::GetStreamingCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const
+{
+	ForEachStreamingCellsQuery(QuerySource, [QuerySource, &OutCells](const UWorldPartitionRuntimeCell* Cell)
+	{
+		OutCells.Add(Cell);
+		return true;
+	});
+
+	return !!OutCells.Num();
+}
+
+bool UWorldPartitionRuntimeHash::GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, FStreamingSourceCells& OutActivateCells, FStreamingSourceCells& OutLoadCells) const
+{
+	ForEachStreamingCellsSources(Sources, [&OutActivateCells, &OutLoadCells](const UWorldPartitionRuntimeCell* Cell, EStreamingSourceTargetState TargetState)
+	{
+		switch (TargetState)
+		{
+		case EStreamingSourceTargetState::Loaded:
+			OutLoadCells.GetCells().Add(Cell);
+			break;
+		case EStreamingSourceTargetState::Activated:
+			OutActivateCells.GetCells().Add(Cell);
+			break;
+		}
+		return true;
+	});
+
+	return !!(OutActivateCells.Num() + OutLoadCells.Num());
+}
+
+bool UWorldPartitionRuntimeHash::IsCellRelevantFor(bool bClientOnlyVisible) const
+{
+	if (bClientOnlyVisible)
+	{
+		const UWorld* World = GetWorld();
+		if (World->IsGameWorld())
+		{
+			// Dedicated server & listen server without server streaming won't consider client-only visible cells
+			const ENetMode NetMode = World->GetNetMode();
+			if ((NetMode == NM_DedicatedServer) || ((NetMode == NM_ListenServer) && !GetOuterUWorldPartition()->IsServerStreamingEnabled()))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate) const
@@ -104,9 +191,14 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerf
 	return StreamingPerformance;
 }
 
-void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* Cell, const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info)
+void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* Cell, const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape)
 {
-	Cell->CacheStreamingSourceInfo(Info);
+	if (Cell->ShouldResetStreamingSourceInfo())
+	{
+		Cell->ResetStreamingSourceInfo();
+	}
+
+	Cell->AppendStreamingSourceInfo(Source, SourceShape);
 	Cells.Add(Cell);
 }
 

@@ -88,6 +88,11 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailBuil
 				.DisplayName(LOCTEXT("RuntimeHash", "Runtime Hash"))
 				.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
 		}
+
+		if (!WorldPartition->RuntimeHash->SupportsHLODs())
+		{
+			InDetailBuilder.HideProperty(InDetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UWorldPartition, DefaultHLODLayer), UWorldPartition::StaticClass()));
+		}
 	}
 }
 

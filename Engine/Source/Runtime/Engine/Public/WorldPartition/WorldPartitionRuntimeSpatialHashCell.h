@@ -15,7 +15,10 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 #if WITH_EDITOR
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
-	virtual bool CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const override;
+	virtual void ResetStreamingSourceInfo() const override;
+	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const override;
+	virtual void MergeStreamingSourceInfo() const override;
+
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* InOther) const override;
 
 	UPROPERTY()
