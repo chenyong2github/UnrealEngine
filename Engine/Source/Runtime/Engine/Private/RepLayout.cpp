@@ -8378,6 +8378,8 @@ const TCHAR* LexToString(ERepLayoutFlags Flag)
 		return TEXT("NoReplicatedProperties");
 	case ERepLayoutFlags::FullPushProperties:
 		return TEXT("FullPushProperties");
+	case ERepLayoutFlags::HasInitialOnlyProperties:
+		return TEXT("HasInitialOnlyProperties");
 	default:
 		check(false);
 		return TEXT("Unknown");
