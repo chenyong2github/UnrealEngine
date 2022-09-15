@@ -591,40 +591,37 @@ namespace LevelInstanceMenuUtils
 
 		bool bSuccess = false;
 		UWorld* World = GEditor->GetEditorWorldContext().World();
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
+		ULevelInstanceSubsystem::ResetLoadersForWorldAsset(WorldAsset->GetPackage()->GetName());
+
+		FWorldPartitionConverter::FParameters Parameters;
+		Parameters.bConvertSubLevels = false;
+		Parameters.bEnableStreaming = false;
+		Parameters.bUseActorFolders = true;
+
+		if (FWorldPartitionConverter::Convert(WorldAsset, Parameters))
 		{
-			LevelInstanceSubsystem->ResetLoadersForWorldAsset(WorldAsset->GetPackage()->GetName());
+			TArray<UPackage*> PackagesToSave = WorldAsset->PersistentLevel->GetLoadedExternalObjectPackages();
+			TSet<UPackage*> PackagesToSaveSet(PackagesToSave);
 
-			FWorldPartitionConverter::FParameters Parameters;
-			Parameters.bConvertSubLevels = false;
-			Parameters.bEnableStreaming = false;
-			Parameters.bUseActorFolders = true;
+			PackagesToSaveSet.Add(WorldAsset->GetPackage());
 
-			if (FWorldPartitionConverter::Convert(WorldAsset, Parameters))
+			const bool bPromptUserToSave = false;
+			const bool bSaveMapPackages = true;
+			const bool bSaveContentPackages = true;
+			const bool bFastSave = false;
+			const bool bNotifyNoPackagesSaved = false;
+			const bool bCanBeDeclined = true;
+
+			if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr, [&PackagesToSaveSet](UPackage* PackageToSave) { return !PackagesToSaveSet.Contains(PackageToSave); }))
 			{
-				TArray<UPackage*> PackagesToSave = WorldAsset->PersistentLevel->GetLoadedExternalObjectPackages();
-				TSet<UPackage*> PackagesToSaveSet(PackagesToSave);
-
-				PackagesToSaveSet.Add(WorldAsset->GetPackage());
-
-				const bool bPromptUserToSave = false;
-				const bool bSaveMapPackages = true;
-				const bool bSaveContentPackages = true;
-				const bool bFastSave = false;
-				const bool bNotifyNoPackagesSaved = false;
-				const bool bCanBeDeclined = true;
-
-				if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr, [&PackagesToSaveSet](UPackage* PackageToSave) { return !PackagesToSaveSet.Contains(PackageToSave); }))
+				bSuccess = true;
+				for (UPackage* PackageToSave : PackagesToSave)
 				{
-					bSuccess = true;
-					for (UPackage* PackageToSave : PackagesToSave)
+					if (PackageToSave->IsDirty())
 					{
-						if (PackageToSave->IsDirty())
-						{
-							UE_LOG(LogLevelInstanceEditor, Error, TEXT("Package '%s' failed to save"), *PackageToSave->GetName());
-							bSuccess = false;
-							break;
-						}
+						UE_LOG(LogLevelInstanceEditor, Error, TEXT("Package '%s' failed to save"), *PackageToSave->GetName());
+						bSuccess = false;
+						break;
 					}
 				}
 			}

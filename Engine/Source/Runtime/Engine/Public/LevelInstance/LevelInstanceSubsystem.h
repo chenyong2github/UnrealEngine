@@ -37,6 +37,7 @@ public:
 		
 	//~ Begin USubsystem Interface.
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize();
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	//~ End USubsystem Interface.
 	
@@ -53,7 +54,6 @@ public:
 	bool IsLoaded(const ILevelInstanceInterface* LevelInstance) const;
 	void ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const;
 	ULevelStreamingLevelInstance* GetLevelInstanceLevelStreaming(const ILevelInstanceInterface* LevelInstance) const;
-	void ResetLoadersForWorldAsset(const FString& WorldAsset);
 
 #if WITH_EDITOR
 	void Tick();
@@ -122,6 +122,8 @@ public:
 	/** Editor-only event triggered when level instance is committed with changes */
 	DECLARE_EVENT_OneParam(ULevelInstanceSubsystem, FLevelInstanceChanged, FName);
 	FLevelInstanceChanged& OnLevelInstanceChanged() { return LevelInstanceChangedEvent; }
+
+	static void ResetLoadersForWorldAsset(const FString& WorldAsset);
 #endif
 
 private:
@@ -134,6 +136,9 @@ private:
 	void RegisterLoadedLevelStreamingLevelInstance(ULevelStreamingLevelInstance* LevelStreaming);
 
 #if WITH_EDITOR
+	void ResetLoadersForWorldAssetInternal(const FString& WorldAsset);
+	void OnAssetsPreDelete(const TArray<UObject*>& Objects);
+
 	void RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming);
 
 	void OnEditChild(const FLevelInstanceID& LevelInstanceID);

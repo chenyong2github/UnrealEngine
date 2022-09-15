@@ -90,7 +90,15 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (GEditor)
 	{
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		FEditorDelegates::OnAssetsPreDelete.AddUObject(this, &ULevelInstanceSubsystem::OnAssetsPreDelete);
 	}
+#endif
+}
+
+void ULevelInstanceSubsystem::Deinitialize()
+{
+#if WITH_EDITOR
+	FEditorDelegates::OnAssetsPreDelete.RemoveAll(this);
 #endif
 }
 
@@ -286,6 +294,25 @@ void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstance(ULevelSt
 }
 
 #if WITH_EDITOR
+
+void ULevelInstanceSubsystem::OnAssetsPreDelete(const TArray<UObject*>& Objects)
+{
+	for (UObject* Object : Objects)
+	{
+		if (IsValid(Object))
+		{
+			if (UPackage* Package = Object->GetPackage())
+			{
+				TArray<ILevelInstanceInterface*> LevelInstances = GetLevelInstances(Package->GetLoadedPath().GetPackageName());
+				for (ILevelInstanceInterface* LevelInstancePtr : LevelInstances)
+				{
+					UnloadLevelInstance(LevelInstancePtr->GetLevelInstanceID());
+				}
+			}
+		}
+	}
+}
+
 void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming)
 {
 	if (!bIsCreatingLevelInstance)
@@ -1954,6 +1981,21 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 }
 
 void ULevelInstanceSubsystem::ResetLoadersForWorldAsset(const FString& WorldAsset)
+{
+	for (TObjectIterator<UWorld> It(RF_ClassDefaultObject | RF_ArchetypeObject, true); It; ++It)
+	{
+		UWorld* CurrentWorld = *It;
+		if (IsValid(CurrentWorld))
+		{
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = CurrentWorld->GetSubsystem<ULevelInstanceSubsystem>())
+			{
+				LevelInstanceSubsystem->ResetLoadersForWorldAssetInternal(WorldAsset);
+			}
+		}
+	}
+}
+
+void ULevelInstanceSubsystem::ResetLoadersForWorldAssetInternal(const FString& WorldAsset)
 {
 	for (const auto& [LevelInstanceID, LoadedLevelInstance] : LoadedLevelInstances)
 	{

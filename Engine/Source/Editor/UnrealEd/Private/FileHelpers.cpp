@@ -80,6 +80,7 @@
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "PackageSourceControlHelper.h"
 #include "ActorFolder.h"
 #include "InterchangeManager.h"
@@ -771,6 +772,9 @@ static bool SaveWorld(UWorld* World,
 		{
 			if (bPackageNeedsRename)
 			{
+				// Reset Loaders before deleting existing packages
+				ULevelInstanceSubsystem::ResetLoadersForWorldAsset(NewPackageName);
+
 				// Delete files at destination
 				if (!DeleteExistingMapPackages(NewPackageName))
 				{
