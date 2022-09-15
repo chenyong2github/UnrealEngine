@@ -53,6 +53,7 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
 		static readonly Regex s_clangNotePattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*note:");
 		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)[\^~][\s\^~]*$");
+		static readonly Regex s_xcodeIDEWatchExtensionPattern = new Regex(@"xcodebuild.*Requested but did not find extension point with identifier.*for extension.*\.watchOS of plug-in com\.apple\.dt\.IDEWatchSupportCore");
 
 		static readonly string[] s_invalidExtensions =
 		{
@@ -163,6 +164,11 @@ namespace UnrealBuildTool.Matchers
 				{
 					return eventMatch;
 				}
+			}
+			else if (input.TryMatch(s_xcodeIDEWatchExtensionPattern, out Match? match))
+			{
+				LogEventBuilder builder = new LogEventBuilder(input);
+				return builder.ToMatch(LogEventPriority.Normal, LogLevel.Information, KnownLogEvents.Systemic_XCode);
 			}
 			return null;
 		}

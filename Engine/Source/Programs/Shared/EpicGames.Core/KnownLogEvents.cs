@@ -216,6 +216,11 @@ namespace EpicGames.Core
 		public static EventId Systemic_MSBuild { get; } = new EventId(750);
 
 		/// <summary>
+		/// A systemic event from XCode
+		/// </summary>
+		public static EventId Systemic_XCode { get; } = new EventId(755);
+
+		/// <summary>
 		/// Robomerge gate is locked
 		/// </summary>
 		public static EventId Systemic_RoboMergeGateLocked { get; } = new EventId(760);
