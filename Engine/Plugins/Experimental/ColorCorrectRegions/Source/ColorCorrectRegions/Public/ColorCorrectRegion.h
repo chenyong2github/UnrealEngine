@@ -187,6 +187,13 @@ public:
 		return StencilIds; 
 	};
 private:
+
+#if WITH_METADATA
+	/** Creates an icon for CCR/CCW to be clicked on in Editor. */
+	void CreateIcon();
+
+#endif // WITH_METADATA
+
 	/**
 	* AffectedActors property change could potentially invoke a Dialog Window, which should be displayed on Game Thread.
 	*/

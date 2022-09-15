@@ -44,6 +44,11 @@ public:
 #endif
 
 private:
+#if WITH_METADATA
+	void CreateIcon();
+#endif // WITH_METADATA
+
+	/** Swaps meshes for different CCW. */
 	void SetMeshVisibilityForWindowType();
 
 };

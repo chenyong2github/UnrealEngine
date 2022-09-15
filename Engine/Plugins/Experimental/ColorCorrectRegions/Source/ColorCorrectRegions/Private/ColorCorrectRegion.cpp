@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegion.h"
+#include "ColorCorrectWindow.h"
 #include "Components/BillboardComponent.h"
 #include "ColorCorrectRegionsSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
@@ -34,48 +35,12 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	RootComponent = ObjectInitializer.CreateDefaultSubobject<USceneComponent>(this, TEXT("Root"));
 	RootComponent->SetMobility(EComponentMobility::Movable);
 
-#if WITH_EDITOR
-
-	// Create billboard component
-
-	if (GIsEditor && !IsRunningCommandlet())
+#if WITH_METADATA
+	if (!Cast<AColorCorrectWindow>(this))
 	{
-		// Structure to hold one-time initialization
-	
-		struct FConstructorStatics
-		{
-			ConstructorHelpers::FObjectFinderOptional<UTexture2D> SpriteTextureObject;
-			FName ID_ColorCorrectRegion;
-			FText NAME_ColorCorrectRegion;
-
-			FConstructorStatics()
-				: SpriteTextureObject(TEXT("/ColorCorrectRegions/Icons/S_ColorCorrectRegionIcon"))
-				, ID_ColorCorrectRegion(TEXT("Color Correct Region"))
-				, NAME_ColorCorrectRegion(NSLOCTEXT("SpriteCategory", "ColorCorrectRegion", "Color Correct Region"))
-			{
-			}
-		};
-
-		static FConstructorStatics ConstructorStatics;
-
-		SpriteComponent = ObjectInitializer.CreateEditorOnlyDefaultSubobject<UBillboardComponent>(this, TEXT("Color Correct Region Icon"));
-
-		if (SpriteComponent)
-		{
-			SpriteComponent->Sprite = ConstructorStatics.SpriteTextureObject.Get();
-			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_ColorCorrectRegion;
-			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_ColorCorrectRegion;
-			SpriteComponent->SetIsVisualizationComponent(true);
-			SpriteComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
-			SpriteComponent->SetMobility(EComponentMobility::Movable);
-			SpriteComponent->bHiddenInGame = true;
-			SpriteComponent->bIsScreenSizeScaled = true;
-
-			SpriteComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		}
+		CreateIcon();
 	}
-
-#endif // WITH_EDITOR
+#endif
 }
 
 void AColorCorrectRegion::BeginPlay()
@@ -226,6 +191,50 @@ void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
 		}
 	}
 }
+
+#if WITH_METADATA
+void AColorCorrectRegion::CreateIcon()
+{
+	// Create billboard component
+	if (GIsEditor && !IsRunningCommandlet())
+	{
+		// Structure to hold one-time initialization
+
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> SpriteTextureObject;
+			FName ID_ColorCorrectRegion;
+			FText NAME_ColorCorrectRegion;
+
+			FConstructorStatics()
+				: SpriteTextureObject(TEXT("/ColorCorrectRegions/Icons/S_ColorCorrectRegionIcon"))
+				, ID_ColorCorrectRegion(TEXT("Color Correct Region"))
+				, NAME_ColorCorrectRegion(NSLOCTEXT("SpriteCategory", "ColorCorrectRegion", "Color Correct Region"))
+			{
+			}
+		};
+
+		static FConstructorStatics ConstructorStatics;
+
+		SpriteComponent = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Color Correct Region Icon"));
+
+		if (SpriteComponent)
+		{
+			SpriteComponent->Sprite = ConstructorStatics.SpriteTextureObject.Get();
+			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_ColorCorrectRegion;
+			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_ColorCorrectRegion;
+			SpriteComponent->SetIsVisualizationComponent(true);
+			SpriteComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			SpriteComponent->SetMobility(EComponentMobility::Movable);
+			SpriteComponent->bHiddenInGame = true;
+			SpriteComponent->bIsScreenSizeScaled = true;
+
+			SpriteComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		}
+	}
+
+}
+#endif 
 
 #if WITH_EDITOR
 void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
