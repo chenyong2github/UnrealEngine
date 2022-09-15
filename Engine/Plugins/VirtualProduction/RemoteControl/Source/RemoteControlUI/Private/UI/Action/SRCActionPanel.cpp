@@ -522,31 +522,25 @@ void SRCActionPanel::PasteItemFromClipboard()
 bool SRCActionPanel::CanPasteClipboardItem(UObject* InLogicClipboardItem)
 {
 	URCAction* LogicClipboardAction = Cast<URCAction>(InLogicClipboardItem);
-
-	URCBehaviour* BehaviourSource = nullptr;
-	URCBehaviour* BehaviourTarget = nullptr;
-
-	if (LogicClipboardAction)
+	if (!LogicClipboardAction)
 	{
-		BehaviourSource = LogicClipboardAction->GetParentBehaviour();
-		if (!BehaviourSource)
+		return false;
+	}
+
+	if (URCBehaviour* BehaviourSource = LogicClipboardAction->GetParentBehaviour())
+	{
+		if (TSharedPtr<FRCBehaviourModel> BehaviourItemTarget = SelectedBehaviourItemWeakPtr.Pin())
 		{
-			return false;
+			if (URCBehaviour* BehaviourTarget = BehaviourItemTarget->GetBehaviour())
+			{
+				// Copy-paste is allowed between compatible Behaviour types only
+				//
+				return BehaviourSource->GetClass() == BehaviourTarget->GetClass();
+			}
 		}
 	}
 
-	if (TSharedPtr<FRCBehaviourModel> BehaviourItemTarget = SelectedBehaviourItemWeakPtr.Pin())
-	{
-		BehaviourTarget = BehaviourItemTarget->GetBehaviour();
-		if (!BehaviourTarget)
-		{
-			return false;
-		}
-	}
-
-	// Copy-paste is allowed between compatible Behaviour types only
-	//
-	return BehaviourSource->GetClass() == BehaviourTarget->GetClass();
+	return false;
 }
 
 FText SRCActionPanel::GetPasteItemMenuEntrySuffix()
