@@ -32,7 +32,8 @@ enum class ECreateModelingObjectResult : uint8
 	Failed_InvalidWorld,
 	Failed_InvalidMesh,
 	Failed_InvalidTexture,
-	Failed_AssetCreationFailed
+	Failed_AssetCreationFailed,
+    Failed_ActorCreationFailed
 };
 
 /**
