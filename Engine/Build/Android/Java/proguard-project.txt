@@ -212,7 +212,7 @@
 	*;
 }
 
--keepclassmembers, allowoptimization class com.epicgames.unreal.psoservices.PSOServiceAccessor
+-keepclassmembers, allowoptimization class com.epicgames.unreal.psoservices.PSOProgramServiceAccessor
 {
     public static *** AndroidThunkJava_*(...);
 }
