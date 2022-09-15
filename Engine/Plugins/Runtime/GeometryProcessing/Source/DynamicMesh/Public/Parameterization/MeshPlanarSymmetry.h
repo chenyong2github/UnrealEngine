@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Quaternion.h"
+#include "Spatial/PointHashGrid3.h"
 
 namespace UE
 {
@@ -25,12 +26,30 @@ class DYNAMICMESH_API FMeshPlanarSymmetry
 {
 public:
 
+	// If true, symmetry-finding can return false if it detects a symmetry where all points are on the symmetry plane, rather than attempt to fit a symmetry plane in that case.
+	bool bCanIgnoreDegenerateSymmetries = true;
+
 	/**
 	 * Given a Mesh, an AABBTree, and a Symmetry Plane/Frame, detect any pairs of vertices with
 	 * planar/mirror-symmetry relationships, as well as "on plane" vertices
 	 * @return false if any non-on-plane vertex fails to find a match. 
 	 */
 	bool Initialize(FDynamicMesh3* Mesh, FDynamicMeshAABBTree3* Spatial, FFrame3d SymmetryFrameIn);
+	/**
+	 * Given a Mesh and its bounding box, and a Symmetry Plane/Frame, detect any pairs of vertices with
+	 * planar/mirror-symmetry relationships, as well as "on plane" vertices
+	 * @return false if any non-on-plane vertex fails to find a match.
+	 */
+	bool Initialize(FDynamicMesh3* Mesh, const FAxisAlignedBox3d& Bounds, FFrame3d SymmetryFrameIn);
+
+	/**
+	 * Given a Mesh and its bounding box, find a Symmetry Plane/Frame and detect any pairs of vertices with
+	 * planar/mirror-symmetry relationships, as well as "on plane" vertices
+	 * @param SymmetryFrameOut Returns the discovered symmetry frame by reference, if one was found.
+	 * @param PreferredNormals Optionally try to find a symmetry frame aligned to any normals passed in to this array. Tries the normals in order, so the first normal that fits (if any) will be used.
+	 * @return false if any non-on-plane vertex fails to find a match.
+	 */
+	bool FindPlaneAndInitialize(FDynamicMesh3* Mesh, const FAxisAlignedBox3d& Bounds, FFrame3d& SymmetryFrameOut, TArrayView<const FVector3d> PreferredNormals = TArrayView<const FVector3d>());
 
 	/**
 	 * @return the input Point mirrored across the Symmetry plane
@@ -117,6 +136,26 @@ protected:
 
 	void UpdateSourceVertex(int32 VertexID);
 	void UpdatePlaneVertex(int32 VertexID);
+
+private:
+
+	// Helper for computing + assigning symmetry matches
+	bool AssignMatches(const FDynamicMesh3* Mesh, const TPointHashGrid3d<int32>& VertexHash, const TArray<FVector3d>& InvariantFeatures, FFrame3d SymmetryFrameIn);
+	void ComputeMeshInfo(const FDynamicMesh3* Mesh, const FAxisAlignedBox3d& Bounds, TArray<FVector3d>& InvariantFeaturesOut, FVector3d& MeshCentroidOut);
+	bool Validate(const FDynamicMesh3* Mesh);
+
+	//
+	// Tolerances used for matching / hashing in symmetry-finding
+	//
+	
+	// Point must be within this distance from the symmetry plane to be considered "on" the plane.
+	// Note: Vertices can still be matched below this tolerance; this is just the distance at which a lack of match is considered a lack of symmetry
+	constexpr static double OnPlaneTolerance = (double)FMathf::ZeroTolerance * 10;
+	constexpr static double MatchVertexTolerance = OnPlaneTolerance * 10;
+	// Note performance of vertex hashing is much better when VertexHashCellSize is large enough that most hash lookups only need to look at a single cell
+	constexpr static double VertexHashCellSize = MatchVertexTolerance * 10;
+	constexpr static double MatchFeaturesTolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
+
 };
 
 

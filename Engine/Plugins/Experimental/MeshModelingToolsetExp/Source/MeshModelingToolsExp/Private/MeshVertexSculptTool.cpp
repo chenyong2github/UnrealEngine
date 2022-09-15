@@ -1307,46 +1307,21 @@ double UMeshVertexSculptTool::SampleBrushAlpha(const FSculptBrushStamp& Stamp, c
 
 void UMeshVertexSculptTool::TryToInitializeSymmetry()
 {
-	// Currently attempting to detect symmetry by checking both X and Y axes, preferring X. 
-	// This is an expensive way to detect symmetry, however it has the advantage of not depending
-	// on mesh topology/connectivity (ie it detects point-set-symmetry, not mesh-symmetry).
-	// In future it may be desirable to provide some control over this...
+	// Attempt to find symmetry, favoring the X axis, then Y axis, if a single symmetry plane is not immediately found
+	// Uses local mesh surface (angle sum, normal) to help disambiguate final matches, but does not require exact topology matches across the plane
 
-	FDynamicMeshAABBTree3 SculptMeshAABBTree(GetSculptMesh(), true);
+	FAxisAlignedBox3d Bounds = GetSculptMesh()->GetBounds(true);
 
-	TUniquePtr<FMeshPlanarSymmetry> SymmetryX = MakeUnique<FMeshPlanarSymmetry>();
-	bool bSymmetryXValid = false;
-	TUniquePtr<FMeshPlanarSymmetry> SymmetryY = MakeUnique<FMeshPlanarSymmetry>();
-	bool bSymmetryYValid = false;
+	TArray<FVector3d> PreferAxes;
+	PreferAxes.Add(this->InitialTargetTransform.GetRotation().AxisX());
+	PreferAxes.Add(this->InitialTargetTransform.GetRotation().AxisY());
 
-	TFuture<void> ComputeSymmetryX = Async(VertexSculptToolAsyncExecTarget, [this, &SculptMeshAABBTree, &SymmetryX, &bSymmetryXValid]()
-	{
-		// UMeshSculptToolBase::InitializeSculptMeshComponent() bakes the local-to-world rotation and scaling into the sculpt mesh so
-		// that we don't have to try to apply sculpting "through" these transforms (v hard). But when detecting symmetry we want to
-		// do it relative to local coordinates. InitialTargetTransform is the transform w/o translation, so use it's X and Y directions.
-		// (it may be better to do symmetry detection on the pre-baked-transform mesh, but then we need a copy...)
-		FVector3d BakedX = this->InitialTargetTransform.GetRotation().AxisX();
-		bSymmetryXValid = SymmetryX->Initialize( GetSculptMesh(), &SculptMeshAABBTree, FFrame3d(FVector3d::Zero(), BakedX) );
-	});
-	TFuture<void> ComputeSymmetryY = Async(VertexSculptToolAsyncExecTarget, [this, &SculptMeshAABBTree, &SymmetryY, &bSymmetryYValid]()
-	{
-		FVector3d BakedY = this->InitialTargetTransform.GetRotation().AxisY();
-		bSymmetryYValid = SymmetryY->Initialize( GetSculptMesh(), &SculptMeshAABBTree, FFrame3d(FVector3d::Zero(), BakedY) );
-	});
-	ComputeSymmetryX.Wait();
-	ComputeSymmetryY.Wait();
-
-	bMeshSymmetryIsValid = false;
-	if (bSymmetryXValid)
+	FMeshPlanarSymmetry FindSymmetry;
+	FFrame3d FoundPlane;
+	if (FindSymmetry.FindPlaneAndInitialize(GetSculptMesh(), Bounds, FoundPlane, PreferAxes))
 	{
 		Symmetry = MakePimpl<FMeshPlanarSymmetry>();
-		*Symmetry = MoveTemp(*SymmetryX);
-		bMeshSymmetryIsValid = true;
-	}
-	else if (bSymmetryYValid)
-	{
-		Symmetry = MakePimpl<FMeshPlanarSymmetry>();
-		*Symmetry = MoveTemp(*SymmetryY);
+		*Symmetry = MoveTemp(FindSymmetry);
 		bMeshSymmetryIsValid = true;
 	}
 }

@@ -230,9 +230,10 @@ namespace VectorUtil
 	 * Calculates one vector perpendicular to input Normal, as efficiently as possible.
 	 */
 	template <typename RealType>
-	inline void MakePerpVector(const TVector<RealType>& Normal, TVector<RealType>& OutPerp1)
+	inline TVector<RealType> MakePerpVector(const TVector<RealType>& Normal)
 	{
 		// Duff et al method, from https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+		TVector<RealType> OutPerp1;
 		if (Normal.Z < (RealType)0)
 		{
 			RealType A = (RealType)1 / ((RealType)1 - Normal.Z);
@@ -249,6 +250,16 @@ namespace VectorUtil
 			OutPerp1.Y = B;
 			OutPerp1.Z = -Normal.X;
 		}
+		return OutPerp1;
+	}
+
+	/**
+	 * Calculates one vector perpendicular to input Normal, as efficiently as possible.
+	 */
+	template <typename RealType>
+	inline void MakePerpVector(const TVector<RealType>& Normal, TVector<RealType>& OutPerp1)
+	{
+		OutPerp1 = MakePerpVector(Normal);
 	}
 
 

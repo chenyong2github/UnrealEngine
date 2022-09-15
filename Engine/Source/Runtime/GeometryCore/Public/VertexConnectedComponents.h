@@ -336,6 +336,31 @@ public:
 		return Contiguous;
 	}
 
+	/// Apply ProcessComponentFn() to each connected component, or until the function returns false
+	/// @param ContiguousComponentsArray	Must be the array returned by MakeContiguousComponentsArray()
+	/// @param ProcessComponentFn			Function of (ComponentID, Component Members). If the function returns false, enumeration will stop.
+	/// @return True if every component was processed, false if ProcessComponentFn returned false and the enumeration returned early.
+	bool EnumerateContiguousComponentsFromArray(const TArray<int32>& ContiguousComponentsArray, TFunctionRef<bool(int32, TArrayView<const int32>)> ProcessComponentFn)
+	{
+		for (int32 ContigStart = 0, NextStart = -1; ContigStart < ContiguousComponentsArray.Num(); ContigStart = NextStart)
+		{
+			int32 ComponentID = GetComponent(ContiguousComponentsArray[ContigStart]);
+			int32 ComponentSize = GetComponentSize(ComponentID);
+			NextStart = ContigStart + ComponentSize;
+			if (!ensure(NextStart <= ContiguousComponentsArray.Num()))
+			{
+				return false;
+			}
+			TArrayView<const int32> ComponentView(ContiguousComponentsArray.GetData() + ContigStart, ComponentSize);
+			bool bContinue = ProcessComponentFn(ComponentID, ComponentView);
+			if (!bContinue)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	inline int32 GetComponent(int32 VertexID)
 	{
 		return DisjointSet.Find(VertexID);
