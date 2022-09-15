@@ -208,9 +208,6 @@ protected:
 	
 	// true if DistanceField is enabled
 	bool bDistanceField;
-
-	// r.Mobile.Forward.EnableClusteredReflections value
-	bool bMobileForwardEnableClusteredReflections;
 	
 #if WITH_ENGINE
 	// Holds a cache of the target LOD settings.

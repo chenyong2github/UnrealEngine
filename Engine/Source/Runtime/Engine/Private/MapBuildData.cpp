@@ -307,6 +307,13 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 		Ar << Brightness;
 	}
 
+#if WITH_EDITOR
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ExcludeBrightnessFromEncodedHDRCubemap && Brightness != 1.0f)
+	{
+		ReflectionCaptureMapBuildData.bBrightnessBakedInEncodedHDRCubemap = true;
+	}
+#endif
+
 	static FName FullHDR(TEXT("FullHDR"));
 	static FName EncodedHDR(TEXT("EncodedHDR"));
 
@@ -328,24 +335,14 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 		Ar << StrippedData;
 	}
 
-	if (Ar.CustomVer(FMobileObjectVersion::GUID) >= FMobileObjectVersion::StoreReflectionCaptureCompressedMobile
-		&& Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::StoreReflectionCaptureEncodedHDRDataInRG11B10Format)
+	if (Ar.CustomVer(FMobileObjectVersion::GUID) >= FMobileObjectVersion::StoreReflectionCaptureCompressedMobile)
 	{
-		UTextureCube* EncodedCaptureData = nullptr;
-		Ar << EncodedCaptureData;
+		Ar << ReflectionCaptureMapBuildData.EncodedCaptureData;
 	}
 	else
 	{
-		if ((Formats.Num() == 0 || Formats.Contains(EncodedHDR))
-			&& Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::StoreReflectionCaptureEncodedHDRDataInRG11B10Format)
-		{
-			Ar << ReflectionCaptureMapBuildData.EncodedHDRCapturedData;
-		}
-		else
-		{
-			TArray<uint8> StrippedData;
-			Ar << StrippedData;
-		}
+		TArray<uint8> StrippedData;
+		Ar << StrippedData;
 	}
 
 	if (Ar.IsLoading())
@@ -363,13 +360,13 @@ FReflectionCaptureMapBuildData::~FReflectionCaptureMapBuildData()
 
 void FReflectionCaptureMapBuildData::FinalizeLoad()
 {
-	AllocatedSize = FullHDRCapturedData.GetAllocatedSize() + EncodedHDRCapturedData.GetAllocatedSize();
+	AllocatedSize = FullHDRCapturedData.GetAllocatedSize();
 	INC_DWORD_STAT_BY(STAT_ReflectionCaptureBuildData, AllocatedSize);
 }
 
 void FReflectionCaptureMapBuildData::AddReferencedObjects(FReferenceCollector& Collector)
 {
-
+	Collector.AddReferencedObject(EncodedCaptureData);
 }
 
 UMapBuildDataRegistry::UMapBuildDataRegistry(const FObjectInitializer& ObjectInitializer)
@@ -483,7 +480,7 @@ void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 			{
 				const FReflectionCaptureMapBuildData& CaptureBuildData = It.Value();
 				// Sanity check that every reflection capture entry has valid data for at least one format
-				check(CaptureBuildData.FullHDRCapturedData.Num() > 0 || CaptureBuildData.EncodedHDRCapturedData.Num() > 0);
+				check(CaptureBuildData.FullHDRCapturedData.Num() > 0 || CaptureBuildData.EncodedCaptureData != nullptr);
 			}
 		}
 
@@ -526,10 +523,10 @@ void UMapBuildDataRegistry::PostLoad()
 
 			if (!bEncodedDataRequired)
 			{
-				CaptureBuildData.EncodedHDRCapturedData.Empty();
+				CaptureBuildData.EncodedCaptureData = nullptr;
 			}
 
-			check(CaptureBuildData.EncodedHDRCapturedData.Num() > 0 || CaptureBuildData.FullHDRCapturedData.Num() > 0 || FApp::CanEverRender() == false);
+			check(CaptureBuildData.EncodedCaptureData != nullptr || CaptureBuildData.FullHDRCapturedData.Num() > 0 || FApp::CanEverRender() == false);
 		}
 	}
 
@@ -548,9 +545,11 @@ void UMapBuildDataRegistry::HandleLegacyEncodedCubemapData()
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
 		{
 			FReflectionCaptureMapBuildData& CaptureBuildData = It.Value();
-			if (CaptureBuildData.EncodedHDRCapturedData.Num() == 0 && CaptureBuildData.FullHDRCapturedData.Num() != 0)
+			if ((CaptureBuildData.EncodedCaptureData == nullptr || CaptureBuildData.bBrightnessBakedInEncodedHDRCubemap) && CaptureBuildData.FullHDRCapturedData.Num() != 0)
 			{
-				GenerateEncodedHDRData(CaptureBuildData.FullHDRCapturedData, CaptureBuildData.CubemapSize, CaptureBuildData.EncodedHDRCapturedData);
+				FString TextureName = TEXT("DeprecatedTexture");
+				TextureName += LexToString(It.Key());
+				GenerateEncodedHDRTextureCube(this, CaptureBuildData, TextureName, 16.0f);
 			}
 		}
 	}

@@ -257,7 +257,6 @@ FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient, const TCHAR* Fl
 	, DeviceDetection(nullptr)
 	, MobileShadingPath(0)
 	, bDistanceField(false)
-	, bMobileForwardEnableClusteredReflections(false)
 
 {
 #if WITH_ENGINE
@@ -265,7 +264,6 @@ FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient, const TCHAR* Fl
 	StaticMeshLODSettings.Initialize(this);
 	GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.DistanceFields"), bDistanceField, GEngineIni);
 	GetConfigSystem()->GetInt(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.ShadingPath"), MobileShadingPath, GEngineIni);
-	GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.Forward.EnableClusteredReflections"), bMobileForwardEnableClusteredReflections, GEngineIni);
 #endif
 
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FAndroidTargetPlatform::HandleTicker);
@@ -674,7 +672,7 @@ void FAndroidTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutForm
 {
 	const bool bMobileDeferredShading = (MobileShadingPath == 1);
 	
-	if (SupportsVulkanSM5() || bMobileDeferredShading || bMobileForwardEnableClusteredReflections)
+	if (SupportsVulkanSM5() || bMobileDeferredShading)
 	{
 		// use Full HDR with SM5 and Mobile Deferred
 		OutFormats.Add(FName(TEXT("FullHDR")));

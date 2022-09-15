@@ -288,7 +288,11 @@ half3 GetImageBasedReflectionLighting(half3 ReflectionVector
 	else
 	{
 		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ResolvedView.ReflectionCubemapMaxMip);
-		SpecularIBL = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ReflectionVector, AbsoluteSpecularMip).rgb;
+		half4 SpecularIBLSample = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ReflectionVector, AbsoluteSpecularMip);
+		
+		half MaxValue = MobileReflectionCapture.Params.z;
+		SpecularIBL = RGBMDecode(SpecularIBLSample, MaxValue);
+		SpecularIBL = SpecularIBL * SpecularIBL;
 
 		half ReflectionCaptureBrightness = MobileReflectionCapture.Params.w;
 		SpecularIBL = SpecularIBL * ReflectionCaptureBrightness;

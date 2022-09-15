@@ -283,9 +283,6 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Reintroducing AnimationDataModelInterface_BackedOut changes
 		ReintroduceAnimationDataModelInterface,
 
-		// Uses RG11B10 format to store the encoded reflection capture data on mobile
-		StoreReflectionCaptureEncodedHDRDataInRG11B10Format,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
