@@ -69,12 +69,13 @@ static inline bool IsDebugTextureSampleEnabled()
 
 bool Engine_IsStrataEnabled();
 
-static uint32 GetStrataBytePerPixel()
+static uint32 GetStrataBytePerPixel(EShaderPlatform InPlatform)
 {
-	static const auto CVarStrataBytePerPixel = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata.BytesPerPixel"));
-	check(CVarStrataBytePerPixel);
-	const uint32 StrataBytePerPixel = CVarStrataBytePerPixel ? CVarStrataBytePerPixel->GetValueOnAnyThread() : 0;
-	return StrataBytePerPixel;
+	// We enforce at least 20 bytes per pixel because this is the minimal Strata GBuffer footprint of the simplest material.
+	const uint32 MinStrataBytePerPixel = 20u;
+	const uint32 MaxStrataBytePerPixel = 256u;
+	static FShaderPlatformCachedIniValue<int32> CVarBudget(TEXT("r.Strata.BytesPerPixel"));
+	return FMath::Clamp(uint32(CVarBudget.Get(InPlatform)), MinStrataBytePerPixel, MaxStrataBytePerPixel);
 }
 
 /** @return the vector type containing a given number of components. */
@@ -1951,7 +1952,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		// Now write some feedback to the user
 		{
 			// Output some debug info as comment in code and in the material stat window
-			const uint32 StrataBytePerPixel = GetStrataBytePerPixel();
+			const uint32 StrataBytePerPixel = GetStrataBytePerPixel(InPlatform);
 
 			OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_BSDF_COUNT"), StrataMaterialBSDFCount);
 
@@ -9850,7 +9851,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 		}
 	}
 
-	const uint32 StrataBytePerPixel = GetStrataBytePerPixel();
+	const uint32 StrataBytePerPixel = GetStrataBytePerPixel(Platform);
 	do 
 	{
 		// Reset some data for simplifiucation iteration

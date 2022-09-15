@@ -918,15 +918,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bEnableStrata : 1;
 
 	/**
-	"Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."
-	*/
-	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
-		ConsoleVariable = "r.Strata.BytesPerPixel", DisplayName = "Strata bytes per pixel",
-		ToolTip = "Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented.",
-		ConfigRestartRequired = true))
-		uint32 StrataBytePerPixel;
-
-	/**
 	"Enable Strata opaque material rough refractions effect from top layers over layers below."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
