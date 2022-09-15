@@ -888,7 +888,7 @@ void SDataprepEditorViewport::InitializeDefaultMaterials()
 
 	if(!XRayMaterial.IsValid())
 	{
-		XRayMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("xray_master") );
+		XRayMaterial = TWeakObjectPtr<UMaterial>( CreateMaterialFunc("xray_material") );
 		check( XRayMaterial.IsValid() );
 
 		DataprepCorePrivateUtils::CompileMaterial(XRayMaterial.Get());
