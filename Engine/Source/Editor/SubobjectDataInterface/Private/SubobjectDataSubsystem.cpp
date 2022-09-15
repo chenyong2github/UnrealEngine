@@ -2417,6 +2417,13 @@ void USubobjectDataSubsystem::DuplicateSubobjects(const FSubobjectDataHandle& Co
 	NewSubobjectParams.BlueprintContext = BpContext;
 	NewSubobjectParams.ParentHandle = Context;
 	NewSubobjectParams.bConformTransformToParent = false;
+
+	// If we have a valid BP context, defer this step until after the AddNewSubobject() call, because we want
+	// to first fix up the template hierarchy (below) before we re-run construction scripts on any instances.
+	if (BpContext)
+	{
+		NewSubobjectParams.bSkipMarkBlueprintModified = true;
+	}
 	
 	FText FailedAddReason = FText::GetEmpty();
 	
@@ -2498,6 +2505,13 @@ void USubobjectDataSubsystem::DuplicateSubobjects(const FSubobjectDataHandle& Co
 				AttachSubobject(ParentHandle, NewData->GetHandle());
 			}
 		}
+	}
+
+	// Now that the hierarchy has been fixed up, we can go ahead and mark the BP as modified (if valid). This in turn will re-run
+	// construction scripts on any instances of the Blueprint, whose hierarchies will also now include the new (duplicate) subobject.
+	if (BpContext)
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BpContext);
 	}
 }
 
