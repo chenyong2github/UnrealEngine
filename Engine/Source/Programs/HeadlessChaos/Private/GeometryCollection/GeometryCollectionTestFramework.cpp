@@ -170,7 +170,6 @@ namespace GeometryCollectionTest
 			SimulationParams.DamageThreshold = Params.DamageThreshold;
 			SimulationParams.MaxClusterLevel = Params.MaxClusterLevel;
 			SimulationParams.ClusterConnectionMethod = Params.ClusterConnectionMethod;
-			SimulationParams.RemoveOnFractureEnabled = Params.RemoveOnFractureEnabled;
 			SimulationParams.CollisionGroup = Params.CollisionGroup;
 			SimulationParams.ClusterGroupIndex = Params.ClusterGroupIndex;
 			SimulationParams.LinearDamping = 0;

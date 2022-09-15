@@ -95,7 +95,6 @@ public:
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MPreObjectState);
 		TArrayCollection::AddArray(&MIslandIndex);
-		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MSleepType);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
@@ -124,7 +123,6 @@ public:
 		, MControlFlags(MoveTemp(Other.MControlFlags))
 		, MTransientFlags(MoveTemp(Other.MTransientFlags))
 		, MIslandIndex(MoveTemp(Other.MIslandIndex))
-		, MToBeRemovedOnFracture(MoveTemp(Other.MToBeRemovedOnFracture))
 		, MObjectState(MoveTemp(Other.MObjectState))
 		, MPreObjectState(MoveTemp(Other.MPreObjectState))
 		, MSleepType(MoveTemp(Other.MSleepType))
@@ -156,7 +154,6 @@ public:
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MPreObjectState);
 		TArrayCollection::AddArray(&MIslandIndex);
-		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MSleepType);
 	}
 
@@ -238,9 +235,6 @@ public:
 	// DisableParticle/EnableParticle on Evolution should be used. Don't disable particles with this.
     // Using this will break stuff. This is for solver's use only, and possibly some particle construction/copy code.
 	FORCEINLINE void SetDisabledLowLevel(const int32 Index, bool disabled) { MDisabled[Index] = disabled; }
-
-	FORCEINLINE const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
-	FORCEINLINE bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
 
 	FORCEINLINE const FRigidParticleControlFlags& ControlFlags(const int32 Index) const { return MControlFlags[Index]; }
 	FORCEINLINE FRigidParticleControlFlags& ControlFlags(const int32 Index) { return MControlFlags[Index]; }
@@ -370,7 +364,6 @@ private:
 	TArrayCollectionArray<FRigidParticleControlFlags> MControlFlags;
 	TArrayCollectionArray<FRigidParticleTransientFlags> MTransientFlags;
 	TArrayCollectionArray<int32> MIslandIndex;
-	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
 	TArrayCollectionArray<EObjectStateType> MObjectState;
 	TArrayCollectionArray<EObjectStateType> MPreObjectState;
 	TArrayCollectionArray<ESleepType> MSleepType;

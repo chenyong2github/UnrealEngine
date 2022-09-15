@@ -1061,26 +1061,6 @@ public:
 		}
 	}
 
-	bool ToBeRemovedOnFracture() const
-	{
-		VerifyContext();
-		if (const TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
-		{
-			return Rigid->ToBeRemovedOnFracture();
-		}
-
-		return false;
-	}
-	// TODO(stett): Make the setter private. It is public right now to provide access to proxies.
-	void SetToBeRemovedOnFracture(const bool InToBeRemovedOnFracture)
-	{
-		VerifyContext();
-		if (TPBDRigidParticle<FReal, 3>* Rigid = GetParticle_LowLevel()->CastToRigidParticle())
-		{
-			Rigid->SetToBeRemovedOnFracture(InToBeRemovedOnFracture);
-		}
-	}
-
 	void ClearEvents()
 	{
 		VerifyContext();

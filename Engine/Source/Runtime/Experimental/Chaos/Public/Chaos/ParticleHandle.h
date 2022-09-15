@@ -867,7 +867,6 @@ protected:
 		SetAngularAcceleration(TVector<T, d>(0));
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 		SetIslandIndex(INDEX_NONE);
-		SetToBeRemovedOnFracture(false);
 		SetSleepType(ESleepType::MaterialSleep);
 		SetInvIConditioning(TVec3<FRealSingle>(1));
 	}
@@ -1045,10 +1044,6 @@ public:
 	int32& IslandIndex() { return PBDRigidParticles->IslandIndex(ParticleIdx); }
 	void SetIslandIndex(const int32 InIslandIndex) { PBDRigidParticles->IslandIndex(ParticleIdx) = InIslandIndex; }
 	
-	bool ToBeRemovedOnFracture() const { return PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx); }
-	bool& ToBeRemovedOnFracture() { return PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx); }
-	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
-
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
 	EObjectStateType PreObjectState() const { return PBDRigidParticles->PreObjectState(ParticleIdx); }
 
@@ -1859,16 +1854,6 @@ public:
 		return MHandle->IsInConstraintGraph();
 	}
 
-	bool ToBeRemovedOnFracture() const 
-	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
-		{
-			return MHandle->CastToRigidParticle()->ToBeRemovedOnFracture();
-		}
-
-		return false;
-	}
-
 	const FShapesArray& ShapesArray() const { return MHandle->ShapesArray(); }
 
 	static constexpr EParticleType StaticType()
@@ -2570,7 +2555,6 @@ protected:
 	{
 		Type = EParticleType::Rigid;
 		MIsland = INDEX_NONE;
-		MToBeRemovedOnFracture = false;
 		PBDRigidParticleDefaultConstruct<T, d>(*this, DynamicParams);
 		ClearForces();
 		ClearTorques();
@@ -2591,7 +2575,10 @@ public:
 		Ar << MDynamics;
 
 		Ar << MIsland;
-		Ar << MToBeRemovedOnFracture;
+
+		// remove on fracture is deprecated and has been removed, so to avoid versioning let's just use a local variable instead
+		bool MToBeRemovedOnFracture_deprecated = false;
+		Ar << MToBeRemovedOnFracture_deprecated;
 	}
 
 	//const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const { return MCollisionParticles; }
@@ -2805,13 +2792,6 @@ public:
 		this->MIsland = InIsland;
 	}
 
-	bool ToBeRemovedOnFracture() const { return MToBeRemovedOnFracture; }
-	// TODO(stett): Make the setter private. It is public right now to provide access to proxies.
-	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture)
-	{
-		this->MToBeRemovedOnFracture = bToBeRemovedOnFracture;
-	}
-
 	EObjectStateType ObjectState() const { return MMiscData.Read().ObjectState(); }
 	void SetObjectState(const EObjectStateType InState, bool bAllowEvents=false, bool bInvalidate=true)
 	{
@@ -2880,7 +2860,6 @@ private:
 	TChaosProperty<FParticleDynamicMisc,EChaosProperty::DynamicMisc> MMiscData;
 
 	int32 MIsland;
-	bool MToBeRemovedOnFracture;
 	bool MInitialized;
 	EWakeEventEntry MWakeEvent;
 

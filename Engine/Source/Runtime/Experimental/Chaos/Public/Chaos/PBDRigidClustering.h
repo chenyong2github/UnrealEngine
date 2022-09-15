@@ -376,8 +376,6 @@ private:
 	FRigidEvolution& MEvolution;
 	FPBDRigidClusteredParticles& MParticles;
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*> TopLevelClusterParents;
-	TSet<Chaos::FPBDRigidParticleHandle*> MActiveRemovalIndices;
-
 
 	// Cluster data
 	FClusterMap MChildren;

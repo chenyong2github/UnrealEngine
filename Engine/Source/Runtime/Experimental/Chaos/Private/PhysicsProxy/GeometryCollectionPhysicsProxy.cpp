@@ -972,10 +972,6 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			}
 		}
 
-#if TODO_REIMPLEMENT_FRACTURE
-		InitializeRemoveOnFracture(Particles, DynamicState);
-#endif // TODO_REIMPLEMENT_FRACTURE
-
 		// #BG Temporary - don't cluster when playing back. Needs to be changed when kinematics are per-proxy to support
 		// kinematic to dynamic transition for clusters.
 		if (Parameters.EnableClustering)// && Parameters.CacheType != EGeometryCollectionCacheType::Play)
@@ -1873,30 +1869,6 @@ int32 FGeometryCollectionPhysicsProxy::CalculateAndSetLevel(int32 TransformGroup
 	}
 
 	return Levels[TransformGroupIndex];
-}
-
-void FGeometryCollectionPhysicsProxy::InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState)
-{
-	/*
-	@todo break everything
-	if (Parameters.DynamicCollection && Parameters.RemoveOnFractureEnabled)
-	{
-	//	TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = Parameters.DynamicCollection->BoneHierarchy;
-
-		for (int TransformGroupIndex = 0; TransformGroupIndex < RigidBodyID.Num(); TransformGroupIndex++)
-		{
-			if (RigidBodyID[TransformGroupIndex] != INDEX_NONE)
-			{
-				int32 RigidBodyIndex = RigidBodyID[TransformGroupIndex];
-
-				if (Parameters.DynamicCollection->StatusFlags[TransformGroupIndex] & FGeometryCollection::FS_RemoveOnFracture)
-				{
-					Particles.ToBeRemovedOnFracture(RigidBodyIndex) = true;
-				}
-			}
-		}
-	}
-	*/
 }
 
 void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver)
@@ -3568,51 +3540,6 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 			// Set level of TransformGroupIndex in Levels attribute.
 			CalculateAndSetLevel(TransformGroupIndex, Parent, Levels);
-		}
-
-		InitRemoveOnFracture(RestCollection, SharedParams);
-	}
-}
-
-void FGeometryCollectionPhysicsProxy::InitRemoveOnFracture(FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams)
-{
-	if (SharedParams.RemoveOnFractureIndices.Num() == 0)
-	{
-		return;
-	}
-
-	// Markup Node Hierarchy Status with FS_RemoveOnFracture flags where geometry is ALL glass
-	const int32 NumGeometries = RestCollection.NumElements(FGeometryCollection::GeometryGroup);
-	for (int32 Idx = 0; Idx < NumGeometries; Idx++)
-	{
-		const int32 TransformIndex = RestCollection.TransformIndex[Idx];
-		const int32 Start = RestCollection.FaceStart[Idx];
-		const int32 End = RestCollection.FaceCount[Idx];
-		bool IsToBeRemoved = true;
-		for (int32 Face = Start; Face < Start + End; Face++)
-		{
-			bool FoundMatch = false;
-			for (int32 MaterialIndex : SharedParams.RemoveOnFractureIndices)
-			{
-				if (RestCollection.MaterialID[Face] == MaterialIndex)
-				{
-					FoundMatch = true;
-					break;
-				}
-			}
-			if (!FoundMatch)
-			{
-				IsToBeRemoved = false;
-				break;
-			}
-		}
-		if (IsToBeRemoved)
-		{
-			RestCollection.SetFlags(TransformIndex, FGeometryCollection::FS_RemoveOnFracture);
-		}
-		else
-		{
-			RestCollection.ClearFlags(TransformIndex, FGeometryCollection::FS_RemoveOnFracture);
 		}
 	}
 }

@@ -663,14 +663,7 @@ namespace Chaos
 				// 1 entry at a time.
 				Children.RemoveAtSwap(ChildIdx, 1, false);
 
-				if (Child->ToBeRemovedOnFracture())
-				{
-					MActiveRemovalIndices.Add(Child);
-				}
-				else
-				{
-					SendBreakingEvent(Child);
-				}
+				SendBreakingEvent(Child);
 			}
 			if (bUseDamagePropagation)
 			{
@@ -836,21 +829,6 @@ namespace Chaos
 		FDurationTimer Timer(Time);
 		Timer.Start();
 
-		{
-			const FReal Threshold = (FReal)1.f;
-			TSet<Chaos::FPBDRigidParticleHandle*> RemovalIndicesCopy = MActiveRemovalIndices;
-			for (Chaos::FPBDRigidParticleHandle* Particle : RemovalIndicesCopy)
-			{
-				//if (MParticles.ToBeRemovedOnFracture(ParticleIdx) && MParticles.V(ParticleIdx).SizeSquared() > Threshold && MParticles.PreV(ParticleIdx).SizeSquared() > Threshold)
-				if (Particle->ToBeRemovedOnFracture() && 
-					Particle->V().SizeSquared() > Threshold && 
-					Particle->PreV().SizeSquared() > Threshold)
-				{
-					DisableParticleWithBreakEvent(Particle->CastToClustered());
-				}
-			}
-		}
-
 		if(MChildren.Num())
 		{
 			//
@@ -927,17 +905,6 @@ namespace Chaos
 			if (ClusteredParticle->ClusterIds().NumChildren)
 			{
 				ReleaseClusterParticles(ClusteredParticle);
-			}
-			else
-			{
-				// there's no children to break but we need to process whether this single piece is to be removed when damaged
-				if (ClusteredParticle->ToBeRemovedOnFracture())
-				{
-					if (ClusteredParticle->CollisionImpulses() >= ClusteredParticle->Strains())
-					{
-						DisableParticleWithBreakEvent(ClusteredParticle);
-					}
-				}
 			}
 		}
 	}
@@ -1268,7 +1235,6 @@ namespace Chaos
 		GetChildrenMap().Remove(ClusteredParticle);
 		ClusteredParticle->ClusterIds() = ClusterId();
 		ClusteredParticle->ClusterGroupIndex() = 0;
-		MActiveRemovalIndices.Remove(ClusteredParticle);
 	}
 
 	void FRigidClustering::DisableParticleWithBreakEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle)
@@ -1311,7 +1277,6 @@ namespace Chaos
 
 	// reset the structures
 		TopLevelClusterParents.Remove(ClusteredParticle);
-		MActiveRemovalIndices.Remove(ClusteredParticle);
 
 		// disconnect from the parents
 		if (ClusteredParticle->ClusterIds().Id)

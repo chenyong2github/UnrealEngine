@@ -2514,7 +2514,6 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.bGenerateRemovalsData = bNotifyRemovals;
 		SimulationParameters.bGenerateCrumblingData = bNotifyCrumblings;
 		SimulationParameters.bGenerateCrumblingChildrenData = bCrumblingEventIncludesChildren;
-		SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
 		SimulationParameters.EnableGravity = BodyInstance.bEnableGravity;
 		SimulationParameters.UseInertiaConditioning = BodyInstance.IsInertiaConditioningEnabled();
 		SimulationParameters.UseCCD = BodyInstance.bUseCCD;
@@ -2702,7 +2701,7 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 		}
 
 		// initialize the component per level damage threshold from the asset defaults 
-		DamageThreshold = RestCollection->DamageThreshold;
+		//DamageThreshold = RestCollection->DamageThreshold;
 
 		// initialize the component damage progataion data from the asset defaults 
 		DamagePropagationData = RestCollection->DamagePropagationData;

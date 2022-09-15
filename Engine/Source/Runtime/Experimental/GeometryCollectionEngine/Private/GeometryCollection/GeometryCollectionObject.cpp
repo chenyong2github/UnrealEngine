@@ -97,7 +97,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, RemovalDuration(2.5, 5.0)
 	, bSlowMovingAsSleeping(true)
 	, SlowMovingVelocityThreshold(1)
-	, EnableRemovePiecesOnFracture(false)
+	, EnableRemovePiecesOnFracture_DEPRECATED(false)
 	, GeometryCollection(new FGeometryCollection())
 {
 	PersistentGuid = FGuid::NewGuid();
@@ -346,35 +346,9 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 		FillSharedSimulationSizeSpecificData(OutParams.SizeSpecificData[Idx+1], SizeSpecificData[Idx]);
 	}
 
-	if (EnableRemovePiecesOnFracture)
-	{
-		FixupRemoveOnFractureMaterials(OutParams);
-	}
-
 	OutParams.bUseImportedCollisionImplicits = bImportCollisionFromSource;
 	
 	OutParams.SizeSpecificData.Sort();	//can we do this at editor time on post edit change?
-}
-
-void UGeometryCollection::FixupRemoveOnFractureMaterials(FSharedSimulationParameters& SharedParms) const
-{
-	// Match RemoveOnFracture materials with materials in model and record the material indices
-
-	int32 NumMaterials = Materials.Num();
-	for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; MaterialIndex++)
-	{
-		UMaterialInterface* MaterialInfo = Materials[MaterialIndex];
-
-		for (int32 ROFMaterialIndex = 0; ROFMaterialIndex < RemoveOnFractureMaterials.Num(); ROFMaterialIndex++)
-		{
-			if (MaterialInfo == RemoveOnFractureMaterials[ROFMaterialIndex])
-			{
-				SharedParms.RemoveOnFractureIndices.Add(MaterialIndex);
-				break;
-			}
-		}
-
-	}
 }
 
 void UGeometryCollection::Reset()

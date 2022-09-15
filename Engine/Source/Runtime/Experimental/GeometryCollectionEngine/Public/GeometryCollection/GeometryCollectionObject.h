@@ -435,7 +435,6 @@ public:
 
 	/** Fills params struct with parameters used for precomputing content. */
 	void GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const;
-	void FixupRemoveOnFractureMaterials(FSharedSimulationParameters& SharedParms) const;
 
 	/** Accessors for the two guids used to identify this collection */
 	FGuid GetIdGuid() const;
@@ -462,7 +461,7 @@ public:
 	/** compatibility check, when true, only cluster compute damage from parameters and propagate to direct children
 	 *  when false, each child will compute it's damage threshold allowing for more precise and intuitive destruction behavior
 	 */
-	UPROPERTY(EditAnywhere, Category = "Damage")
+	UPROPERTY(EditAnywhere, Category = "Compatibility")
 	bool PerClusterOnlyDamageThreshold;
 
 	/** Data about how damage propagation shoudl behave. */
@@ -622,14 +621,14 @@ public:
 	/**
 	* Enable remove pieces on fracture
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fracture")
-	bool EnableRemovePiecesOnFracture;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use remove on break feature instead ( Fracture editor tools )."))
+	bool EnableRemovePiecesOnFracture_DEPRECATED;
 
 	/**
 	* Materials relating to remove on fracture
 	*/
-	UPROPERTY(EditAnywhere, Category = "Fracture")
-	TArray<TObjectPtr<UMaterialInterface>> RemoveOnFractureMaterials;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use remove on break feature instead ( Fracture editor tools )."))
+	TArray<TObjectPtr<UMaterialInterface>> RemoveOnFractureMaterials_DEPRECATED;
 
 	FORCEINLINE const int32 GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
 

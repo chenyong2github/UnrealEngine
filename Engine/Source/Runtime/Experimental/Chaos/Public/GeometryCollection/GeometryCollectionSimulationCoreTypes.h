@@ -161,7 +161,6 @@ struct FSharedSimulationParameters
 	float MaximumVolumeClamp() const { return MaximumBoundingExtentClamp * MaximumBoundingExtentClamp * MaximumBoundingExtentClamp; }
 
 	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
-	TArray<int32> RemoveOnFractureIndices;
 	int32 MaximumCollisionParticleCount;
 	bool bUseImportedCollisionImplicits;
 };
@@ -200,7 +199,6 @@ struct FSimulationParameters
 		, bGenerateRemovalsData(false)
 		, bGenerateCrumblingData(false)
 		, bGenerateCrumblingChildrenData(false)
-		, RemoveOnFractureEnabled(false)
 		, EnableGravity(true)
 		, UseInertiaConditioning(true)
 		, UseCCD(false)
@@ -249,7 +247,6 @@ struct FSimulationParameters
 		, bGenerateCrumblingData(Other.bGenerateCrumblingData)
 		, bGenerateCrumblingChildrenData(Other.bGenerateCrumblingChildrenData)
 		, Shared(Other.Shared)
-		, RemoveOnFractureEnabled(Other.RemoveOnFractureEnabled)
 		, EnableGravity(Other.EnableGravity)
 		, UseInertiaConditioning(Other.UseInertiaConditioning)
 		, UseCCD(Other.UseCCD)
@@ -320,8 +317,6 @@ struct FSimulationParameters
 
 	FSharedSimulationParameters Shared;
 
-	bool RemoveOnFractureEnabled;
-	
 	bool EnableGravity;
 	bool UseInertiaConditioning;
 	bool UseCCD;

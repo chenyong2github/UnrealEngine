@@ -93,7 +93,6 @@ namespace GeometryCollectionTest
 		int32 MaxClusterLevel = 100;
 		TArray<float> DamageThreshold = { 1000.0 };
 		Chaos::FClusterCreationParameters::EConnectionMethod ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit;
-		bool RemoveOnFractureEnabled = false;
 		int32 CollisionGroup = 0;
 		int32 MinLevelSetResolution = 5;
 		int32 MaxLevelSetResolution = 10;
