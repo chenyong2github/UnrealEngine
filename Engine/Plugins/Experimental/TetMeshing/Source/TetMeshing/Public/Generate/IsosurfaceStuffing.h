@@ -111,6 +111,13 @@ public:
 		return *this;
 	}
 
+	virtual void Reset() override
+	{
+		TTetMeshGenerator<RealType>::Reset();
+		ComputedGridPts.Reset();
+		ComputedCutPts.Reset();
+	}
+
 protected:
 
 	struct FGridPt
@@ -154,7 +161,7 @@ protected:
 	{
 		if constexpr (RootMethod == ERootFindingMethod::Bisection)
 		{
-			checkSlow(FMath::Sign(AVal) != FMath::Sign(BVal)); // TODO: does not apply if multi-class?
+			checkSlow(FMath::Sign(AVal - IsoValue) != FMath::Sign(BVal - IsoValue)); // TODO: does not apply if multi-class?
 			if (AVal > BVal)
 			{
 				Swap(AVal, BVal);

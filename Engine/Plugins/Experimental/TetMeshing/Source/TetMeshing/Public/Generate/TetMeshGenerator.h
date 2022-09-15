@@ -52,7 +52,7 @@ public:
 
 
 	/** clear arrays so that Generate() can be run again */
-	void Reset()
+	virtual void Reset()
 	{
 		Vertices.Reset();
 		Tets.Reset();
