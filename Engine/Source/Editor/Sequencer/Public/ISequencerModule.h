@@ -105,6 +105,9 @@ struct FSequencerViewParams
 	/** Whether the sequencer is read-only */
 	bool bReadOnly;
 
+	/** Whether the playback range spin box should be visible in TimeRange widget */
+	bool bShowPlaybackRangeInTimeSlider;
+
 	/** Style of scrubber to use */
 	ESequencerScrubberStyle ScrubberStyle;
 
@@ -112,6 +115,7 @@ struct FSequencerViewParams
 		: OnGetPlaybackSpeeds(ISequencer::FOnGetPlaybackSpeeds::CreateLambda([]() { return TArray<float>{ 0.1f, 0.25f, 0.5f, 1.f, 2.f, 5.f, 10.f }; }))
 		, UniqueName(MoveTemp(InName))
 		, bReadOnly(false)
+		, bShowPlaybackRangeInTimeSlider(false)
 		, ScrubberStyle(ESequencerScrubberStyle::Vanilla)
 	{ }
 };

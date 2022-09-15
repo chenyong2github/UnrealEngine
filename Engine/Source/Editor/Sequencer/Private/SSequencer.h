@@ -283,6 +283,9 @@ public:
 		/** Selection handler to pass to outliner view */
 		SLATE_ATTRIBUTE( TSharedPtr<UE::Sequencer::IOutlinerSelectionHandler>, SelectionHandler )
 
+		/** Whether to display the playback range spin box in time range slider */
+		SLATE_ARGUMENT( bool, ShowPlaybackRangeInTimeSlider )
+
 	SLATE_END_ARGS()
 
 
