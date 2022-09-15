@@ -4,15 +4,14 @@ using System;
 using System.Threading.Tasks;
 using EpicGames.AspNet;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace Jupiter.Common
 {
     public class SuppressExceptionMiddleware
-	{
+    {
         private readonly ILogger _logger = Log.ForContext<SuppressExceptionMiddleware>();
-		private readonly RequestDelegate _next;
+        private readonly RequestDelegate _next;
 
         public SuppressExceptionMiddleware(RequestDelegate next)
         {
@@ -46,16 +45,6 @@ namespace Jupiter.Common
                     _logger.Warning(e, "Health check was cancelled. This can happen if multiple health checks happen at the same time");
                 }
             }
-        }
-    }
-
-	public static class SuppressExceptionMiddlewareCollectionExtensions
-	{
-        public static IServiceCollection AddSuppressExceptionsMiddleware(this IServiceCollection services)
-        {
-            services.AddSingleton<SuppressExceptionMiddleware>();
-
-            return services;
         }
     }
 }

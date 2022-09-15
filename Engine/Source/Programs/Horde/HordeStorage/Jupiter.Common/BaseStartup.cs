@@ -59,7 +59,6 @@ namespace Jupiter
             CbConvertersAspNet.AddAspnetConverters();
 
             services.AddServerTiming();
-            services.AddSuppressExceptionsMiddleware();
 
             // aws specific settings
             services.AddOptions<AWSCredentialsSettings>().Bind(Configuration.GetSection("AWSCredentials")).ValidateDataAnnotations();
@@ -355,7 +354,7 @@ namespace Jupiter
             app.UseAuthorization();
 
             app.UseMiddleware<SuppressExceptionMiddleware>();
-			app.UseMiddleware<ServerTimingMiddleware>();
+            app.UseMiddleware<ServerTimingMiddleware>();
 
             //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
