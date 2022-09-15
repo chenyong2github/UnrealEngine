@@ -377,13 +377,6 @@ struct FPerShapeDataStateBase
 	//helper functions for shape API
 	template <typename TParticle>
 	static const FCollisionFilterData& GetQueryData(const FPerShapeDataStateBase* State, const TParticle& Particle, int32 ShapeIdx) { return State && State->CollisionData.IsSet() ? State->CollisionData.Read().QueryData : Particle.ShapesArray()[ShapeIdx]->GetQueryData(); }
-	/*const FCollisionFilterData& GetSimData() const { return CollisionData.Read().SimData; }
-	
-	TSerializablePtr<FImplicitObject> GetGeometry() const { return Geometry; }
-	const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
-	const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
-	const TArray<uint32>& GetMaterialMaskMaps() const { return Materials.Read().MaterialMaskMaps; }
-	const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const { return Materials.Read().MaterialMaskMapMaterials; }*/
 };
 
 class FPerShapeDataState
@@ -1068,7 +1061,9 @@ private:
 		int32 DirtyDynamics = INDEX_NONE;	//Only used by particles, indicates the dirty properties was written to.
 		int32 LastDirtyFrame;	//Track how recently this was made dirty
 		int32 InitializedOnStep = INDEX_NONE;	//if not INDEX_NONE, it indicates we saw initialization during rewind history window
-		bool bResimAsSlave = true;	//Indicates the particle will always resim in the exact same way from game thread data
+		UE_DEPRECATED(5.1, TEXT("bResimAsSlave is deprecated - please use bResimAsFollower"))
+		bool bResimAsSlave = true;
+		bool bResimAsFollower = true;	//Indicates the particle will always resim in the exact same way from game thread data
 
 		TDirtyObjectInfo(FDirtyPropertiesPool& InPropertiesPool, TObj& InObj, const int32 CurFrame, const int32 NumFrames)
 			: History(NumFrames)
@@ -1084,7 +1079,7 @@ private:
 			, PropertiesPool(Other.PropertiesPool)
 			, LastDirtyFrame(Other.LastDirtyFrame)
 			, InitializedOnStep(Other.InitializedOnStep)
-			, bResimAsSlave(Other.bResimAsSlave)
+			, bResimAsFollower(Other.bResimAsFollower)
 		{
 			Other.PropertiesPool = nullptr;
 		}

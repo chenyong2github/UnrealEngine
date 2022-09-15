@@ -109,7 +109,7 @@ protected:
 	 * Fill FClothSimulData map for the clothing simulation. Should fill a map pair per-actor 
 	 * @param OutData - The simulation data to write to
 	 * @param InOwnerComponent - the component that owns the simulation
-	 * @param InOverrideComponent - An override component if bound to a master pose component
+	 * @param InOverrideComponent - An override component if bound to a leader pose component
 	 */
 	virtual void GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const = 0;
 

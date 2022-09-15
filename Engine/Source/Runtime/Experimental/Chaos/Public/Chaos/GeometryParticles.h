@@ -417,9 +417,10 @@ namespace Chaos
 
 	enum class EResimType : uint8
 	{
-		FullResim,	//fully re-run simulation and keep results (any forces must be applied again)
+		FullResim = 0,	//fully re-run simulation and keep results (any forces must be applied again)
 		//ResimWithPrevForces, //use previous forces and keep results (UNIMPLEMENTED)
-		ResimAsSlave //use previous forces and snap to previous results regardless of variation - used to push other objects away
+		ResimAsSlave UE_DEPRECATED(5.1, "EResimType::ResimAsSlave is deprecated, please use EResimType::ResimAsFollower") = 1,
+		ResimAsFollower = 1 //use previous forces and snap to previous results regardless of variation - used to push other objects away
 		//ResimAsKinematic //treat as kinematic (UNIMPLEMENTED)
 	};
 	

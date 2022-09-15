@@ -205,14 +205,14 @@ Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Cha
 	NewSolver->SetDebugName(NewDebugName);
 #endif
 
-	// Set up the material lists on the new solver, copying from the current master list
+	// Set up the material lists on the new solver, copying from the current primary list
 	{
 		FPhysicalMaterialManager& Manager =	Chaos::FPhysicalMaterialManager::Get();
 		FPhysicsSceneGuardScopedWrite ScopedWrite(NewSolver->GetExternalDataLock_External());
-		NewSolver->QueryMaterials_External = Manager.GetMasterMaterials_External();
-		NewSolver->QueryMaterialMasks_External = Manager.GetMasterMaterialMasks_External();
-		NewSolver->SimMaterials = Manager.GetMasterMaterials_External();
-		NewSolver->SimMaterialMasks = Manager.GetMasterMaterialMasks_External();
+		NewSolver->QueryMaterials_External = Manager.GetPrimaryMaterials_External();
+		NewSolver->QueryMaterialMasks_External = Manager.GetPrimaryMaterialMasks_External();
+		NewSolver->SimMaterials = Manager.GetPrimaryMaterials_External();
+		NewSolver->SimMaterialMasks = Manager.GetPrimaryMaterialMasks_External();
 	}
 
 	return NewSolver;

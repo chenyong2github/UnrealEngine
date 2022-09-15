@@ -1714,7 +1714,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 	if(InParams.bStatic)
 	{
 		Particle = FGeometryParticle::CreateParticle();
-		Particle->SetResimType(EResimType::ResimAsSlave);
+		Particle->SetResimType(EResimType::ResimAsFollower);
 	}
 	else
 	{
@@ -1734,7 +1734,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 		} else
 		{
 			Rigid->SetObjectState(EObjectStateType::Kinematic);
-			Rigid->SetResimType(EResimType::ResimAsSlave);	//for now kinematics are never changed during resim
+			Rigid->SetResimType(EResimType::ResimAsFollower);	//for now kinematics are never changed during resim
 		}
 		//Particle.Reset(Rigid.Release());
 		Particle = MoveTemp(Rigid);

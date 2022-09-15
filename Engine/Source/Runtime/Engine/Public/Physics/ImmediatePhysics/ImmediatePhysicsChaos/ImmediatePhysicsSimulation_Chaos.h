@@ -73,7 +73,7 @@ namespace ImmediatePhysics_Chaos
 			const FVector& AngularAcc);
 
 		void SetSimulationSpaceSettings(
-			const FReal MasterAlpha, 
+			const FReal Alpha, 
 			const FVector& ExternalLinearEtherDrag);
 
 		/** Set settings. Invalid (negative) values with leave that value unchanged from defaults */

@@ -76,20 +76,20 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateNode(const i
 		if (bValidNode && !bWasValidNode)
 		{
 			// @todo(chaos): we could just use the GraphNode.NodeIslands here if it were maintained internally
-			int32 MasterIsland = INDEX_NONE;
+			int32 PrimaryIsland = INDEX_NONE;
 			for (int32& EdgeIndex : GraphNode.NodeEdges)
 			{
 				FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
 
 				const bool bIsEdgeMoving = IsEdgeMoving(EdgeIndex);
-				ParentIslands(MasterIsland, GraphEdge.IslandIndex, bIsEdgeMoving);
+				ParentIslands(PrimaryIsland, GraphEdge.IslandIndex, bIsEdgeMoving);
 			
-				MasterIsland = GraphEdge.IslandIndex;
+				PrimaryIsland = GraphEdge.IslandIndex;
 			}
 
 			// Put the valid node into one of the islands - they will be merged anyway so doesn't matter which
 			// If we did not have an island (no edges), one will be assigned later
-			GraphNode.IslandIndex = MasterIsland;
+			GraphNode.IslandIndex = PrimaryIsland;
 		}
 
 		// If we are changing to invalid (Dynamic/Sleeping->Kinematic) wake the island

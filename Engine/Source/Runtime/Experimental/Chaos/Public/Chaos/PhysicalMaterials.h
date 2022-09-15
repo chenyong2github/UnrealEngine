@@ -134,9 +134,14 @@ namespace Chaos
 		void UpdateMaterial(FMaterialHandle InHandle);
 		void UpdateMaterialMask(FMaterialMaskHandle InHandle);
 
-		/** Gets the internal list of master materials representing the current user state of the material data */
+		/** Gets the internal list of primary materials representing the current user state of the material data */
+		UE_DEPRECATED(5.1, "GetMasterMaterials_External is deprecated, please use GetPrimaryMaterials_External instead")
 		const THandleArray<FChaosPhysicsMaterial>& GetMasterMaterials_External() const;
+		UE_DEPRECATED(5.1, "GetMasterMaterialMasks_External is deprecated, please use GetPrimaryMaterialMasks_External instead")
 		const THandleArray<FChaosPhysicsMaterialMask>& GetMasterMaterialMasks_External() const;
+
+		const THandleArray<FChaosPhysicsMaterial>& GetPrimaryMaterials_External() const;
+		const THandleArray<FChaosPhysicsMaterialMask>& GetPrimaryMaterialMasks_External() const;
 
 		/** Events */
 		FOnMaterialUpdated OnMaterialUpdated;

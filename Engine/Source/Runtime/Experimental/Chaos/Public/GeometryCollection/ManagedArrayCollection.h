@@ -409,7 +409,7 @@ public:
 	void RemoveDependencyFor(FName Group);
 
 	/**
-	* Copy an attribute. Will perform an implicit group sync. Attribute must exist in both MasterCollection and this collection
+	* Copy an attribute. Will perform an implicit group sync. Attribute must exist in both InCollection and this collection
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/

@@ -155,7 +155,7 @@ public:
 	 */
 	void DestroySolver(Chaos::FPhysicsSolverBase* InState);
 
-	/** Retrieve the master list of solvers. This contains all owned, unowned and standalone solvers */
+	/** Retrieve the list of all extant solvers. This contains all owned, unowned and standalone solvers */
 	const TArray<Chaos::FPhysicsSolverBase*>& GetAllSolvers() const;
 
 	/**

@@ -2245,7 +2245,7 @@ namespace ChaosTest {
 		});
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleportAsSlave)
+	GTEST_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleportAsFollower)
 	{
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
@@ -2256,7 +2256,7 @@ namespace ChaosTest {
 				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
 				Particle.SetGravityEnabled(true);
 				Particle.SetX(FVec3(0, 0, 100));
-				Particle.SetResimType(EResimType::ResimAsSlave);
+				Particle.SetResimType(EResimType::ResimAsFollower);
 
 				for (int Step = 0; Step <= LastGameStep; ++Step)
 				{
@@ -2294,7 +2294,7 @@ namespace ChaosTest {
 				else
 				{
 #if REWIND_DESYNC
-					//we'll see the teleport automatically because ResimAsSlave
+					//we'll see the teleport automatically because ResimAsFollower
 					//but it's done by solver so before tick teleport is not known
 					EXPECT_NEAR(Particle.X()[2], ExpectedXZ, 1e-4);
 					EXPECT_NEAR(Particle.V()[2], ExpectedVZ, 1e-4);
@@ -2921,7 +2921,7 @@ namespace ChaosTest {
 		}
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_ResimAsSlave)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsFollower)
 	{
 #if REWIND_DESYNC
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
@@ -2959,7 +2959,7 @@ namespace ChaosTest {
 				Dynamic.SetGravityEnabled(false);
 				Dynamic.SetV(FVec3(0, 0, -1));
 				Dynamic.SetObjectState(EObjectStateType::Dynamic);
-				Dynamic.SetResimType(EResimType::ResimAsSlave);
+				Dynamic.SetResimType(EResimType::ResimAsFollower);
 
 				Kinematic.SetX(FVec3(0, 0, 0));
 
@@ -2990,14 +2990,14 @@ namespace ChaosTest {
 
 			for (int Step = RewindStep; Step <= LastStep; ++Step)
 			{
-				//Resim but dynamic will take old path since it's marked as ResimAsSlave
+				//Resim but dynamic will take old path since it's marked as ResimAsFollower
 				TickSolverHelper(Solver);
 
 				EXPECT_VECTOR_FLOAT_EQ(Dynamic.X(), Xs[Step]);
 			}
 
 #if REWIND_DESYNC
-			//slave so dynamic in sync, kinematic desync
+			// follower - so dynamic in sync, kinematic desync
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
 			EXPECT_EQ(DesyncedParticles.Num(), 1);
 			EXPECT_EQ(DesyncedParticles[0].MostDesynced, ESyncState::HardDesync);
@@ -3107,7 +3107,7 @@ namespace ChaosTest {
 		}
 	}
 
-	GTEST_TEST(AllTraits, DISABLED_RewindTest_ResimAsSlaveFallIgnoreCollision)
+	GTEST_TEST(AllTraits, DISABLED_RewindTest_ResimAsFollowerFallIgnoreCollision)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
@@ -3143,7 +3143,7 @@ namespace ChaosTest {
 				Dynamic.SetGravityEnabled(false);
 				Dynamic.SetV(FVec3(0, 0, -1));
 				Dynamic.SetObjectState(EObjectStateType::Dynamic);
-				Dynamic.SetResimType(EResimType::ResimAsSlave);
+				Dynamic.SetResimType(EResimType::ResimAsFollower);
 
 				Kinematic.SetX(FVec3(0, 0, -1000));
 
@@ -3175,7 +3175,7 @@ namespace ChaosTest {
 
 			for (int Step = RewindStep; Step <= LastStep; ++Step)
 			{
-				//Resim ignores collision since it's ResimAsSlave
+				//Resim ignores collision since it's ResimAsFollower
 				TickSolverHelper(Solver);
 
 				EXPECT_VECTOR_FLOAT_EQ(Dynamic.X(), Xs[Step]);
@@ -3186,7 +3186,7 @@ namespace ChaosTest {
 			EXPECT_LE(Dynamic.X()[2], 6);
 
 #if REWIND_DESYNC
-			//dynamic slave so only kinematic desyncs
+			//dynamic follower so only kinematic desyncs
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
 			EXPECT_EQ(DesyncedParticles.Num(), 1);
 			EXPECT_EQ(DesyncedParticles[0].MostDesynced, ESyncState::HardDesync);
@@ -3197,7 +3197,7 @@ namespace ChaosTest {
 		}
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveWithForces)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsFollowerWithForces)
 	{
 #if REWIND_DESYNC
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
@@ -3214,37 +3214,37 @@ namespace ChaosTest {
 
 			// Make particles
 			auto FullSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
-			auto SlaveSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+			auto FollowerSimProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 			const int32 LastStep = 11;
 			TArray<FVec3> Xs;
 
 			{
 				auto& FullSim = FullSimProxy->GetGameThreadAPI();
-				auto& SlaveSim = SlaveSimProxy->GetGameThreadAPI();
+				auto& FollowerSim = FollowerSimProxy->GetGameThreadAPI();
 
 				FullSim.SetGeometry(Box);
 				FullSim.SetGravityEnabled(false);
 				Solver->RegisterObject(FullSimProxy);
 
-				SlaveSim.SetGeometry(Box);
-				SlaveSim.SetGravityEnabled(false);
-				Solver->RegisterObject(SlaveSimProxy);
+				FollowerSim.SetGeometry(Box);
+				FollowerSim.SetGravityEnabled(false);
+				Solver->RegisterObject(FollowerSimProxy);
 
 				FullSim.SetX(FVec3(0, 0, 20));
 				FullSim.SetObjectState(EObjectStateType::Dynamic);
 				FullSim.SetM(1);
 				FullSim.SetInvM(1);
 
-				SlaveSim.SetX(FVec3(0, 0, 0));
-				SlaveSim.SetResimType(EResimType::ResimAsSlave);
-				SlaveSim.SetM(1);
-				SlaveSim.SetInvM(1);
+				FollowerSim.SetX(FVec3(0, 0, 0));
+				FollowerSim.SetResimType(EResimType::ResimAsFollower);
+				FollowerSim.SetM(1);
+				FollowerSim.SetInvM(1);
 
-				ChaosTest::SetParticleSimDataToCollide({ FullSimProxy->GetParticle_LowLevel(),SlaveSimProxy->GetParticle_LowLevel() });
+				ChaosTest::SetParticleSimDataToCollide({ FullSimProxy->GetParticle_LowLevel(),FollowerSimProxy->GetParticle_LowLevel() });
 
 				for (int Step = 0; Step <= LastStep; ++Step)
 				{
-					SlaveSim.SetLinearImpulse(FVec3(0, 0, 0.5));
+					FollowerSim.SetLinearImpulse(FVec3(0, 0, 0.5));
 					TickSolverHelper(Solver);
 					Xs.Add(FullSim.X());
 				}
@@ -3253,21 +3253,21 @@ namespace ChaosTest {
 			FPhysicsThreadContextScope Scope(true);
 			const int RewindStep = 5;
 			auto& FullSim = *FullSimProxy->GetPhysicsThreadAPI();
-			auto& SlaveSim = *SlaveSimProxy->GetPhysicsThreadAPI();
+			auto& FollowerSim = *FollowerSimProxy->GetPhysicsThreadAPI();
 
 			FRewindData* RewindData = Solver->GetRewindData();
 			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 			for (int Step = RewindStep; Step <= LastStep; ++Step)
 			{
-				//resim - slave sim should have its impulses automatically added thus moving FullSim in the exact same way
+				//resim - follower sim should have its impulses automatically added thus moving FullSim in the exact same way
 				TickSolverHelper(Solver);
 
 				EXPECT_VECTOR_FLOAT_EQ(FullSim.X(), Xs[Step]);
 			}
 
 #if REWIND_DESYNC
-			//slave so no desync
+			//follower so no desync
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
 			EXPECT_EQ(DesyncedParticles.Num(), 0);
 #endif
@@ -3277,7 +3277,7 @@ namespace ChaosTest {
 #endif
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveWokenUp)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsFollowerWokenUp)
 	{
 #if REWIND_DESYNC
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
@@ -3315,13 +3315,13 @@ namespace ChaosTest {
 				ImpulsedObj.SetX(FVec3(0, 0, 20));
 				ImpulsedObj.SetM(1);
 				ImpulsedObj.SetInvM(1);
-				ImpulsedObj.SetResimType(EResimType::ResimAsSlave);
+				ImpulsedObj.SetResimType(EResimType::ResimAsFollower);
 				ImpulsedObj.SetObjectState(EObjectStateType::Sleeping);
 
 				HitObj.SetX(FVec3(0, 0, 0));
 				HitObj.SetM(1);
 				HitObj.SetInvM(1);
-				HitObj.SetResimType(EResimType::ResimAsSlave);
+				HitObj.SetResimType(EResimType::ResimAsFollower);
 				HitObj.SetObjectState(EObjectStateType::Sleeping);
 
 
@@ -3357,7 +3357,7 @@ namespace ChaosTest {
 			}
 
 #if REWIND_DESYNC
-			//slave so no desync
+			//follower so no desync
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
 			EXPECT_EQ(DesyncedParticles.Num(), 0);
 #endif
@@ -3367,7 +3367,7 @@ namespace ChaosTest {
 #endif
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveWokenUpNoHistory)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsFollowerWokenUpNoHistory)
 	{
 #if REWIND_DESYNC
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
@@ -3410,7 +3410,7 @@ namespace ChaosTest {
 				HitObj.SetX(FVec3(0, 0, 0));
 				HitObj.SetM(1);
 				HitObj.SetInvM(1);
-				HitObj.SetResimType(EResimType::ResimAsSlave);
+				HitObj.SetResimType(EResimType::ResimAsFollower);
 				HitObj.SetObjectState(EObjectStateType::Sleeping);
 
 
@@ -3441,12 +3441,12 @@ namespace ChaosTest {
 
 				TickSolverHelper(Solver);
 
-				//even though there's now a different collision in the sim, the final result of slave is the same as before
+				//even though there's now a different collision in the sim, the final result of follower is the same as before
 				EXPECT_VECTOR_FLOAT_EQ(HitObj.X(), Xs[Step]);
 			}
 
 #if REWIND_DESYNC
-			//only desync non-slave
+			//only desync non-follower
 			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
 			EXPECT_EQ(DesyncedParticles.Num(), 1);
 			EXPECT_EQ(DesyncedParticles[0].MostDesynced, ESyncState::HardDesync);

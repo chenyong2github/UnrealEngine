@@ -161,26 +161,26 @@ bool FRewindData::RewindToFrame(int32 Frame)
 	FFrameAndPhase RewindFrameAndPhase{ Frame, FFrameAndPhase::PostPushData };
 	FFrameAndPhase CurFrameAndPhase{ CurFrame, FFrameAndPhase::PrePushData };
 
-	auto RewindHelper = [RewindFrameAndPhase, CurFrameAndPhase, this](auto Obj, bool bResimAsSlave, auto& Property, const auto& RewindFunc) -> bool
+	auto RewindHelper = [RewindFrameAndPhase, CurFrameAndPhase, this](auto Obj, bool bResimAsFollower, auto& Property, const auto& RewindFunc) -> bool
 	{
-		if (bResimAsSlave)
+		if (bResimAsFollower)
 		{
-	//If we're rewinding a particle that doesn't need to save head (resim as slave never checks for desync so we don't care about head)
-		if (auto Val = Property.Read(RewindFrameAndPhase, PropertiesPool))
-		{
+			//If we're rewinding a particle that doesn't need to save head (resim as follower never checks for desync so we don't care about head)
+			if (auto Val = Property.Read(RewindFrameAndPhase, PropertiesPool))
+			{
 				RewindFunc(Obj, *Val);
 			}
 		}
 		else
-	{
-			//If we're rewinding an object that needs to save head (during resim when we get back to latest frame and phase we need to check for desync)
-		if (!Property.IsClean(RewindFrameAndPhase))
 		{
+			//If we're rewinding an object that needs to save head (during resim when we get back to latest frame and phase we need to check for desync)
+			if (!Property.IsClean(RewindFrameAndPhase))
+			{
 				CopyDataFromObject(Property.WriteAccessMonotonic(CurFrameAndPhase, PropertiesPool), *Obj);
 				RewindFunc(Obj, *Property.Read(RewindFrameAndPhase, PropertiesPool));
 
-			return true;
-		}
+				return true;
+			}
 		}
 
 		return false;
@@ -195,16 +195,16 @@ bool FRewindData::RewindToFrame(int32 Frame)
 		
 		FGeometryParticleStateBase& History = DirtyParticleInfo.AddFrame(CurFrame);	//non-const in case we need to record what's at head for a rewind (CurFrame has already been increased to the next frame)
 
-		const bool bResimAsSlave = DirtyParticleInfo.bResimAsSlave;
-		bool bAnyChange = RewindHelper(PTParticle, bResimAsSlave, History.ParticlePositionRotation, [](auto Particle, const auto& Data) {Particle->SetXR(Data); });
-		bAnyChange |= RewindHelper(PTParticle, bResimAsSlave, History.NonFrequentData, [](auto Particle, const auto& Data) {Particle->SetNonFrequentData(Data); });
-		bAnyChange |= RewindHelper(PTParticle->CastToKinematicParticle(), bResimAsSlave, History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
-		bAnyChange |= RewindHelper(PTParticle->CastToKinematicParticle(), bResimAsSlave, History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
-		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsSlave,  History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
-		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsSlave,  History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
-		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsSlave,  History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
+		const bool bResimAsFollower = DirtyParticleInfo.bResimAsFollower;
+		bool bAnyChange = RewindHelper(PTParticle, bResimAsFollower, History.ParticlePositionRotation, [](auto Particle, const auto& Data) {Particle->SetXR(Data); });
+		bAnyChange |= RewindHelper(PTParticle, bResimAsFollower, History.NonFrequentData, [](auto Particle, const auto& Data) {Particle->SetNonFrequentData(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToKinematicParticle(), bResimAsFollower, History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToKinematicParticle(), bResimAsFollower, History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsFollower,  History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsFollower,  History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
+		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsFollower,  History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
 
-		if (!bResimAsSlave)
+		if (!bResimAsFollower)
 		{
 			if (bAnyChange)
 			{
@@ -275,14 +275,15 @@ void FRewindData::FinishFrame()
 		auto FinishHelper = [this, FutureFrame](auto& DirtyObjs)
 		{
 			for (auto& Info : DirtyObjs)
-		{
-			if (Info.bResimAsSlave)
 			{
-				//resim as slave means always in sync and no cleanup needed
-				continue;
-			}
+				if (Info.bResimAsFollower)
+				{
+					//resim as follower means always in sync and no cleanup needed
+					continue;
+				}
 
-			auto& Handle = *Info.GetObjectPtr();
+				auto& Handle = *Info.GetObjectPtr();
+
 				if (Handle.ResimType() == EResimType::FullResim)
 				{
 					if (IsFinalResim())
@@ -370,9 +371,9 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 		{
 
 			auto Handle = Info.GetObjectPtr();
-			Info.bResimAsSlave = Handle->ResimType() == EResimType::ResimAsSlave;
+			Info.bResimAsFollower = Handle->ResimType() == EResimType::ResimAsFollower;
 
-			if (IsResim() && !Info.bResimAsSlave)
+			if (IsResim() && !Info.bResimAsFollower)
 			{
 					DesyncIfNecessary</*bSkipDynamics=*/false>(Info, FrameAndPhase);
 			}

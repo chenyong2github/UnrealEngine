@@ -35,7 +35,7 @@ namespace Chaos
 	 * should get passed into the simulation.
 	 * If all the Alpha values are set to 1, the simulation
 	 * should be the same as a world-space simulation.
-	 * Usually you would only change MasterAlpha, but it
+	 * Usually you would only change Alpha, but it
 	 * is also possible to manipulate the elements of the
 	 * phantom forces (like centrifugal force) if you know
 	 * what you are doing.
@@ -47,6 +47,7 @@ namespace Chaos
 	public:
 		FSimulationSpaceSettings()
 			: MasterAlpha(0)
+			, Alpha(0)
 			, LinearAccelerationAlpha(1)
 			, CoriolisAlpha(1)
 			, CentrifugalAlpha(1)
@@ -58,8 +59,11 @@ namespace Chaos
 		{
 		}
 
-		// Global multipler on the effects of simulation space movement
+		UE_DEPRECATED(5.1, TEXT("MasterAlpha is deprecated - please use Alpha"))
 		FReal MasterAlpha;
+
+		// Global multipler on the effects of simulation space movement
+		FReal Alpha;
 
 		// How much of the simulation frame's linear acceleration to pass onto the particles
 		FReal LinearAccelerationAlpha;
