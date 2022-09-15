@@ -208,11 +208,6 @@ public:
 
 private:
 	bool IsChildActorReplicated() const;
-
-	bool IsBeingRemovedFromLevel() const;
-
-	UFUNCTION()
-	void OnChildActorDestroyed(AActor* DestroyedActor);
 };
 
 struct FActorParentComponentSetter
