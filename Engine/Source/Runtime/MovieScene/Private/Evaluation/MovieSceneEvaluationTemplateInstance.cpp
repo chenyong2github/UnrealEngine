@@ -34,20 +34,11 @@ void FMovieSceneRootEvaluationTemplateInstance::BeginDestroy()
 	{
 		if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = WeakRunner.Pin())
 		{
-			// There's no way to know whether this instance is currently being included in the evaluation so if it is currently evaluating we
-			// just need to flush any current work. FlushOutstanding does nothing if it is not currently in the middle of an evaluation
-			Runner->FlushOutstanding();
+			Runner->DiscardQueuedUpdates(RootInstanceHandle);
+		}
 
-			const bool bRequiresFlush = Runner->QueueFinalUpdate(RootInstanceHandle, UE::MovieScene::ERunnerUpdateFlags::Destroy);
-			if (bRequiresFlush)
-			{
-			  Runner->Flush();
-			}
-		}
-		else
-		{
-			EntitySystemLinker->GetInstanceRegistry()->DestroyInstance(RootInstanceHandle);
-		}
+		EntitySystemLinker->GetInstanceRegistry()->DestroyInstance(RootInstanceHandle);
+		EntitySystemLinker->ResetActiveRunners();
 	}
 
 	CompiledDataManager = nullptr;

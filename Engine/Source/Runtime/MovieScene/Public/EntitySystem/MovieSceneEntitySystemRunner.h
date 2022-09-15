@@ -129,6 +129,11 @@ public:
 	 */
 	void ResetFlushState();
 
+	/**
+	 * Discard any queued updates for the specified sequence instance.
+	 */
+	void DiscardQueuedUpdates(FInstanceHandle Instance);
+
 	/** Access this runner's currently executing phase */
 	UE::MovieScene::ESystemPhase GetCurrentPhase() const
 	{

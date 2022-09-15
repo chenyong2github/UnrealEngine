@@ -436,6 +436,12 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 	InstanceRegistry->CleanupLinkerEntities(FreedEntities);
 
 	// If we have any runners part-way through an evaluation, we need to reset them so that they re-evaluate from the start
+	ResetActiveRunners();
+}
+
+void UMovieSceneEntitySystemLinker::ResetActiveRunners()
+{
+	// If we have any runners part-way through an evaluation, we need to reset them so that they re-evaluate from the start
 	for (int32 Index = ActiveRunners.Num()-1; Index >= 0; --Index)
 	{
 		ActiveRunners[Index]->ResetFlushState();

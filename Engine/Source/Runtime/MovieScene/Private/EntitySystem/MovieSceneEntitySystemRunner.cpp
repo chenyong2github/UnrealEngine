@@ -473,6 +473,34 @@ void FMovieSceneEntitySystemRunner::ResetFlushState()
 	}
 }
 
+void FMovieSceneEntitySystemRunner::DiscardQueuedUpdates(FInstanceHandle Instance)
+{
+	using namespace UE::MovieScene;
+
+	for (int32 Index = UpdateQueue.Num()-1; Index >= 0; --Index)
+	{
+		if (UpdateQueue[Index].Params.InstanceHandle == Instance)
+		{
+			UpdateQueue.RemoveAt(Index, 1, false);
+		}
+	}
+	for (int32 Index = DissectedUpdates.Num()-1; Index >= 0; --Index)
+	{
+		if (DissectedUpdates[Index].InstanceHandle == Instance)
+		{
+			DissectedUpdates.RemoveAt(Index, 1, false);
+		}
+	}
+
+	for (int32 Index = CurrentInstances.Num()-1; Index >= 0; --Index)
+	{
+		if (CurrentInstances[Index].InstanceHandle == Instance)
+		{
+			CurrentInstances.RemoveAt(Index, 1, false);
+		}
+	}
+}
+
 bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSceneEntitySystemLinker* Linker)
 {
 	using namespace UE::MovieScene;
