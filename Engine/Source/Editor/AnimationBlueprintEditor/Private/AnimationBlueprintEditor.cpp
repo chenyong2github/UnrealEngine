@@ -1712,7 +1712,10 @@ bool FAnimationBlueprintEditor::IsEditable(UEdGraph* InGraph) const
 {
 	bool bEditable = FBlueprintEditor::IsEditable(InGraph);
 
-	bEditable &= (InGraph->GetTypedOuter<UBlueprint>() == GetBlueprintObj());
+	if (InGraph)
+	{
+		bEditable &= (InGraph->GetTypedOuter<UBlueprint>() == GetBlueprintObj());
+	}
 
 	return bEditable;
 }
