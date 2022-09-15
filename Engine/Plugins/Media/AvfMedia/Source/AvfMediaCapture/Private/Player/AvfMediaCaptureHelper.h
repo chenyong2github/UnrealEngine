@@ -3,6 +3,7 @@
 #pragma once
 
 #import <AVFoundation/AVFoundation.h>
+#include "CoreTypes.h"
 
 enum class EAvfMediaCaptureAuthStatus : uint32
 {
