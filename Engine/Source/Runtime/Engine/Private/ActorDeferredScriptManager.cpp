@@ -78,6 +78,8 @@ void FActorDeferredScriptManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 			PendingConstructionScriptActors.PopLast();
 			if (AActor* Actor = WeakActor.Get(); Actor && Actor->GetWorld())
 			{
+				// Temporarily do not consider actor as initialized if they were when running deferred construction scripts
+				FGuardValue_Bitfield(Actor->bActorInitialized, false);
 				Actor->RerunConstructionScripts();
 			}
 			bHasTimeLeft = bLimitExecutionTime ? ((FPlatformTime::Seconds() - TickStartTime) < MaxSecondsPerFrame) : true;

@@ -436,6 +436,8 @@ protected:
 	uint8 bReplicateUsingRegisteredSubObjectList : 1;
 
 private:
+	friend class FActorDeferredScriptManager;
+
 	/** Whether FinishSpawning has been called for this Actor.  If it has not, the Actor is in a malformed state */
 	uint8 bHasFinishedSpawning:1;
 
