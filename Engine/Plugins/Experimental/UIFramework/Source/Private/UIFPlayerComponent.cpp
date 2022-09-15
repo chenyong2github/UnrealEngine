@@ -3,6 +3,7 @@
 #include "UIFPlayerComponent.h"
 #include "UIFLog.h"
 #include "UIFWidget.h"
+#include "Blueprint/GameViewportSubsystem.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Engine/ActorChannel.h"
@@ -24,11 +25,9 @@ void FUIFrameworkGameLayerSlotList::PostReplicatedChange(const TArrayView<int32>
 	for (int32 Index : ChangedIndices)
 	{
 		FUIFrameworkGameLayerSlot& Slot = Entries[Index];
-		if (Slot.GetWidget() && Slot.GetWidgetId() == Slot.LocalPreviousWidgetId && Slot.GetWidget()->LocalGetUMGWidget())
+		if (Slot.LocalIsAquiredWidgetValid())
 		{
-			// Remove and add the widget again
-			Slot.GetWidget()->LocalGetUMGWidget()->RemoveFromParent();
-			Owner->LocalAddChild(Slot.LocalPreviousWidgetId);
+			Owner->LocalAddChild(Slot.GetWidgetId());
 		}
 	}
 }
@@ -42,7 +41,7 @@ void FUIFrameworkGameLayerSlotList::AddEntry(FUIFrameworkGameLayerSlot Entry)
 bool FUIFrameworkGameLayerSlotList::RemoveEntry(UUIFrameworkWidget* Widget)
 {
 	check(Widget);
-	const int32 Index = Entries.IndexOfByPredicate([Widget](const FUIFrameworkGameLayerSlot& Entry){ return Entry.GetWidget() == Widget; });
+	const int32 Index = Entries.IndexOfByPredicate([Widget](const FUIFrameworkGameLayerSlot& Entry){ return Entry.AuthorityGetWidget() == Widget; });
 	if (Index != INDEX_NONE)
 	{
 		Entries.RemoveAt(Index);
@@ -79,9 +78,9 @@ void UUIFrameworkPlayerComponent::UninitializeComponent()
 	{
 		for (FUIFrameworkGameLayerSlot& Entry : RootList.Entries)
 		{
-			if (Entry.GetWidget())
+			if (UUIFrameworkWidget* ChildWidget = GetWidgetTree().FindWidgetById(Entry.GetWidgetId()))
 			{
-				Entry.GetWidget()->LocalDestroyUMGWidget();
+				ChildWidget->LocalDestroyUMGWidget();
 			}
 		}
 	}
@@ -109,21 +108,21 @@ void UUIFrameworkPlayerComponent::AddWidget(FUIFrameworkGameLayerSlot InEntry)
 	APlayerController* LocalOwner = GetPlayerController();
 	check(LocalOwner->HasAuthority());
 
-	if (InEntry.GetWidget() == nullptr)
+	if (InEntry.AuthorityGetWidget() == nullptr)
 	{
 		FFrame::KismetExecutionMessage(TEXT("The widget is invalid. It can't be added."), ELogVerbosity::Warning, "InvalidWidgetToAdd");
 	}
 	else
 	{
-		UUIFrameworkPlayerComponent* PreviousOwner = InEntry.GetWidget()->GetPlayerComponent();
+		UUIFrameworkPlayerComponent* PreviousOwner = InEntry.AuthorityGetWidget()->GetPlayerComponent();
 		if (PreviousOwner != nullptr && PreviousOwner != this)
 		{
 			FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be added."), ELogVerbosity::Warning, "InvalidPlayerParent");
 		}
 		else
 		{
-			InEntry.SetWidget(InEntry.GetWidget()); // to make sure the id is set
-			InEntry.GetWidget()->AuthoritySetParent(this, FUIFrameworkParentWidget(this));
+			InEntry.AuthoritySetWidget(InEntry.AuthorityGetWidget()); // to make sure the id is set
+			InEntry.AuthorityGetWidget()->AuthoritySetParent(this, FUIFrameworkParentWidget(this));
 			RootList.AddEntry(InEntry);
 		}
 	}
@@ -148,7 +147,7 @@ void UUIFrameworkPlayerComponent::RemoveWidget(UUIFrameworkWidget* Widget)
 		else
 		{
 			RootList.RemoveEntry(Widget);
-			Widget->AuthoritySetParent(nullptr, FUIFrameworkParentWidget());
+			Widget->AuthoritySetParent(this, FUIFrameworkParentWidget());
 		}
 	}
 }
@@ -181,13 +180,13 @@ void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick
 					}
 					else
 					{
-						Entry->Parent->LocalAddChild(Entry->Child);
+						Entry->Parent->LocalAddChild(Entry->ChildId);
 					}
 				}
 			}
 			else
 			{
-				ensureMsgf(false, TEXT("A widget would was added but couldn't be found anymore."));
+				UE_LOG(LogUIFramework, Verbose, TEXT("A widget would was added but couldn't be found anymore."));
 			}
 		}
 
@@ -199,7 +198,7 @@ void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick
 	}
 }
 
-void UUIFrameworkPlayerComponent::LocalAddWidget(const FUIFrameworkWidgetTreeEntry& Entry)
+void UUIFrameworkPlayerComponent::LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry)
 {
 	APlayerController* LocalOwner = GetPlayerController();
 	check(!LocalOwner->HasAuthority());
@@ -260,7 +259,7 @@ void UUIFrameworkPlayerComponent::LocalAddWidget(const FUIFrameworkWidgetTreeEnt
 	PrimaryComponentTick.SetTickFunctionEnable(NetReplicationPending.Num() > 0 || AddPending.Num() > 0 || ClassesToLoad.Num() > 0);
 }
 
-void UUIFrameworkPlayerComponent::LocalRemoveWidget(const FUIFrameworkWidgetTreeEntry& Entry)
+void UUIFrameworkPlayerComponent::LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry)
 {
 	APlayerController* LocalOwner = GetPlayerController();
 	check(!LocalOwner->HasAuthority());
@@ -315,23 +314,49 @@ void UUIFrameworkPlayerComponent::LocalOnClassLoaded(TSoftClassPtr<UWidget> Widg
 
 void UUIFrameworkPlayerComponent::LocalAddChild(FUIFrameworkWidgetId WidgetId)
 {
+	UUIFrameworkWidget* Widget = GetWidgetTree().FindWidgetById(WidgetId);
 	if (FUIFrameworkGameLayerSlot* LayerEntry = RootList.FindEntry(WidgetId))
 	{
-		if (LayerEntry->GetWidget() && LayerEntry->GetWidget()->LocalGetUMGWidget())
+		if (Widget)
 		{
-			LayerEntry->GetWidget()->LocalGetUMGWidget()->RemoveFromParent();
-			if (UUserWidget* UserWidget = Cast<UUserWidget>(LayerEntry->GetWidget()->LocalGetUMGWidget()))
+			UWidget* UMGWidget = Widget->LocalGetUMGWidget();
+			if (ensure(UMGWidget))
 			{
-				LayerEntry->LocalPreviousWidgetId = LayerEntry->GetWidgetId();
-				if (LayerEntry->Type == EUIFrameworkGameLayerType::Viewport)
+				UMGWidget->RemoveFromParent();
+				if (UGameViewportSubsystem* Subsystem = UGameViewportSubsystem::Get(GetWorld()))
 				{
-					UserWidget->AddToViewport(LayerEntry->ZOrder);
-				}
-				else
-				{
-					UserWidget->AddToPlayerScreen(LayerEntry->ZOrder);
+					LayerEntry->LocalAquireWidget();
+
+					FGameViewportWidgetSlot GameViewportWidgetSlot;
+					GameViewportWidgetSlot.ZOrder = LayerEntry->ZOrder;
+					if (LayerEntry->Type == EUIFrameworkGameLayerType::Viewport)
+					{
+						Subsystem->AddWidget(UMGWidget, GameViewportWidgetSlot);
+					}
+					else
+					{
+						APlayerController* LocalOwner = GetPlayerController();
+						check(LocalOwner);
+						Subsystem->AddWidgetForPlayer(UMGWidget, LocalOwner->GetLocalPlayer(), GameViewportWidgetSlot);
+					}
 				}
 			}
 		}
+		else
+		{
+			UE_LOG(LogUIFramework, Log, TEXT("The widget '%" INT64_FMT "' doesn't exist in the WidgetTree."), WidgetId.GetKey());
+			if (Widget && Widget->LocalGetUMGWidget())
+			{
+				Widget->LocalGetUMGWidget()->RemoveFromParent();
+			}
+		}
+	}
+	else
+	{
+		if (Widget && Widget->LocalGetUMGWidget())
+		{
+			Widget->LocalGetUMGWidget()->RemoveFromParent();
+		}
+		UE_LOG(LogUIFramework, Verbose, TEXT("The widget '%" INT64_FMT "' was not found in the RootList."), WidgetId.GetKey());
 	}
 }

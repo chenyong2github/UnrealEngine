@@ -16,7 +16,7 @@
 /**
  *
  */
-void FUIFrameworkSlotBase::SetWidget(UUIFrameworkWidget* InWidget)
+void FUIFrameworkSlotBase::AuthoritySetWidget(UUIFrameworkWidget* InWidget)
 {
 	Widget = InWidget;
 	WidgetId = Widget ? Widget->GetWidgetId() : FUIFrameworkWidgetId();

@@ -66,19 +66,6 @@ void UUIFrameworkWidget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Id, Params);
 }
 
-void UUIFrameworkWidget::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	if (UObjectInitialized() && LocalGetUMGWidget() != nullptr)
-	{
-		//if (UUIFrameworkManagerSubsystem* Subsystem = UUIFrameworkManagerSubsystem::Get(GetOuterAPlayerController()))
-		//{
-		//	Subsystem->LocalRemoveFromParent(GetLocalWidget());
-		//}
-	}
-}
-
 void UUIFrameworkWidget::AuthoritySetParent(UUIFrameworkPlayerComponent* NewOwner, FUIFrameworkParentWidget NewParent)
 {
 	const bool bDifferentOwner = NewOwner != OwnerPlayerComponent;
@@ -140,11 +127,19 @@ void UUIFrameworkWidget::SetParentPlayerOwnerRecursive()
 		});
 }
 
-void UUIFrameworkWidget::LocalAddChild(UUIFrameworkWidget* Child)
+void UUIFrameworkWidget::LocalAddChild(FUIFrameworkWidgetId ChildId)
 {
-	if (LocalUMGWidget)
+	// By default we should remove the widget from its previous parent.
+	//Adding a widget to a new slot will automaticly remove it from its previous parent.
+	if (OwnerPlayerComponent)
 	{
-		LocalUMGWidget->RemoveFromParent();
+		if (UUIFrameworkWidget* Widget = OwnerPlayerComponent->GetWidgetTree().FindWidgetById(ChildId))
+		{
+			if (UWidget* UMGWidget = Widget->LocalGetUMGWidget())
+			{
+				UMGWidget->RemoveFromParent();
+			}
+		}
 	}
 }
 

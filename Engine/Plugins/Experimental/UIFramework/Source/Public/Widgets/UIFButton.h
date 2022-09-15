@@ -11,11 +11,6 @@
 /**
  *
  */
-
-
-/**
- *
- */
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FUIFrameworkButtonClickEvent, UUIFrameworkButton, OnClick, FUIFrameworkClickEventArgument, Argument);
 
 /**
@@ -40,7 +35,7 @@ public:
 
 	virtual void AuthorityForEachChildren(const TFunctionRef<void(UUIFrameworkWidget*)>& Func) override;
 	virtual void AuthorityRemoveChild(UUIFrameworkWidget* Widget) override;
-	virtual void LocalAddChild(UUIFrameworkWidget* Child) override;
+	virtual void LocalAddChild(FUIFrameworkWidgetId ChildId) override;
 
 protected:
 	virtual void LocalOnUMGWidgetCreated() override;

@@ -50,6 +50,11 @@ public:
 	{
 		return Key != Other.Key;
 	}
+	
+	FORCEINLINE friend uint32 GetTypeHash(const FUIFrameworkWidgetId& Value)
+	{
+		return GetTypeHash(Value.Key);
+	}
 
 private:
 	UPROPERTY()

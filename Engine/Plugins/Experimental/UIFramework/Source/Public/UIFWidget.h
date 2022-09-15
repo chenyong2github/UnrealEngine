@@ -26,7 +26,6 @@ public:
 	}
 	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 	virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
-	virtual void BeginDestroy() override;
 	//~ End UObject
 
 	FUIFrameworkWidgetId GetWidgetId() const
@@ -61,7 +60,7 @@ public:
 	}
 
 	void LocalCreateUMGWidget(UUIFrameworkPlayerComponent* Owner);
-	virtual void LocalAddChild(UUIFrameworkWidget* Child);
+	virtual void LocalAddChild(FUIFrameworkWidgetId ChildId);
 	void LocalDestroyUMGWidget();
 
 protected:
@@ -76,11 +75,11 @@ protected:
 	TSoftClassPtr<UWidget> WidgetClass; // todo: make this private and use a constructor argument
 
 private:
-	//~ Authority and Client
+	//~ Authority and Local
 	UPROPERTY(Replicated, Transient, DuplicateTransient)
 	FUIFrameworkWidgetId Id = FUIFrameworkWidgetId::MakeNew();
 
-	//~ Authority and Client
+	//~ Authority and Local
 	UPROPERTY(Transient)
 	TObjectPtr<UUIFrameworkPlayerComponent> OwnerPlayerComponent = nullptr;
 

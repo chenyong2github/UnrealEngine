@@ -44,7 +44,28 @@ void FUIFrameworkWidgetTree::PreReplicatedRemove(const TArrayView<int32> Removed
 		FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
 		if (Entry.Child)
 		{
-			OwnerComponent->LocalRemoveWidget(Entry);
+			OwnerComponent->LocalWidgetRemovedFromTree(Entry);
+
+			// Was it remove but added by something else
+			{
+				int32 Count = 0;
+				for (const FUIFrameworkWidgetTreeEntry& Other : Entries)
+				{
+					if (Other.Child == Entry.Child)
+					{
+						++Count;
+						if (Count > 2)
+						{
+							break;
+						}
+					}
+				}
+				if (Count <= 1)
+				{
+					Entry.Child->LocalDestroyUMGWidget();
+					WidgetByIdMap.Remove(Entry.Child->GetWidgetId());
+				}
+			}
 		}
 	}
 }
@@ -56,7 +77,12 @@ void FUIFrameworkWidgetTree::PostReplicatedAdd(const TArrayView<int32> AddedIndi
 		FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
 		if (Entry.ParentId.IsValid() && Entry.ChildId.IsValid())
 		{
-			OwnerComponent->LocalAddWidget(Entry);
+			OwnerComponent->LocalWidgetWasAddedToTree(Entry);
+			WidgetByIdMap.FindOrAdd(Entry.ChildId) = Entry.Child;
+			if (!Entry.ParentId.IsRoot())
+			{
+				WidgetByIdMap.FindOrAdd(Entry.ParentId) = Entry.Parent;
+			}
 		}
 	}
 }
@@ -69,7 +95,12 @@ void FUIFrameworkWidgetTree::PostReplicatedChange(const TArrayView<int32>& Chang
 		FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
 		if (Entry.ParentId.IsValid() && Entry.ChildId.IsValid())
 		{
-			OwnerComponent->LocalAddWidget(Entry);
+			OwnerComponent->LocalWidgetWasAddedToTree(Entry);
+			WidgetByIdMap.FindOrAdd(Entry.ChildId) = Entry.Child;
+			if (!Entry.ParentId.IsRoot())
+			{
+				WidgetByIdMap.FindOrAdd(Entry.ParentId) = Entry.Parent;
+			}
 		}
 	}
 }
@@ -127,6 +158,7 @@ void FUIFrameworkWidgetTree::AddChildInternal(UUIFrameworkWidget* Parent, UUIFra
 	{
 		FUIFrameworkWidgetTreeEntry& NewEntry = Entries.Emplace_GetRef(Parent, Child);
 		MarkItemDirty(NewEntry);
+		WidgetByIdMap.FindOrAdd(Child->GetWidgetId()) = Child;
 		AddChildRecursiveInternal(Child);
 	}
 }
@@ -138,6 +170,7 @@ void FUIFrameworkWidgetTree::AddChildRecursiveInternal(UUIFrameworkWidget* Widge
 		{
 			FUIFrameworkWidgetTreeEntry& NewEntry = Self->Entries.Emplace_GetRef(Widget, ChildWidget);
 			Self->MarkItemDirty(NewEntry);
+			Self->WidgetByIdMap.FindOrAdd(ChildWidget->GetWidgetId()) = ChildWidget;
 			Self->AddChildRecursiveInternal(ChildWidget);
 		});
 }
@@ -154,6 +187,8 @@ void FUIFrameworkWidgetTree::RemoveWidget(UUIFrameworkWidget* Widget)
 		while (WidgetsToRemove.Num() > 0)
 		{
 			UUIFrameworkWidget* CurrentWidgetToRemove = WidgetsToRemove.Last();
+			WidgetByIdMap.Remove(CurrentWidgetToRemove->GetWidgetId());
+
 			WidgetsToRemove.RemoveAt(WidgetsToRemove.Num()-1);
 			for (int32 Index = Entries.Num() - 1; Index >= 0; --Index)
 			{
@@ -196,3 +231,13 @@ const FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::GetEntryByReplication
 	return const_cast<FUIFrameworkWidgetTree*>(this)->GetEntryByReplicationId(ReplicationId);
 }
 
+UUIFrameworkWidget* FUIFrameworkWidgetTree::FindWidgetById(FUIFrameworkWidgetId WidgetId)
+{
+	const TWeakObjectPtr<UUIFrameworkWidget>* Found = WidgetByIdMap.Find(WidgetId);
+	return Found ? Found->Get() : nullptr;
+}
+
+const UUIFrameworkWidget* FUIFrameworkWidgetTree::FindWidgetById(FUIFrameworkWidgetId WidgetId) const
+{
+	return const_cast<FUIFrameworkWidgetTree*>(this)->FindWidgetById(WidgetId);
+}

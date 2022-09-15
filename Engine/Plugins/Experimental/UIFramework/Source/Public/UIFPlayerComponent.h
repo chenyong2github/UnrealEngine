@@ -135,9 +135,8 @@ public:
 	//~ End UActorComponent
 
 	void AuthorityRemoveChild(UUIFrameworkWidget* Widget);
-	void LocalAddWidget(const FUIFrameworkWidgetTreeEntry& Entry);
-	void LocalRemoveWidget(const FUIFrameworkWidgetTreeEntry& Entry);
-
+	void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry);
+	void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry);
 
 private:
 	void LocalOnClassLoaded(TSoftClassPtr<UWidget> WidgetClass);

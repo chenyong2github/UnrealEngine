@@ -90,6 +90,10 @@ public:
 	FUIFrameworkWidgetTreeEntry* GetEntryByReplicationId(int32 ReplicationId);
 	const FUIFrameworkWidgetTreeEntry* GetEntryByReplicationId(int32 ReplicationId) const;
 
+	/** Find the widget by its unique Id. The widget needs to be in the Tree. */
+	UUIFrameworkWidget* FindWidgetById(FUIFrameworkWidgetId WidgetId);
+	const UUIFrameworkWidget* FindWidgetById(FUIFrameworkWidgetId WidgetId) const;
+
 private:
 	void AddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
 	void AddChildRecursiveInternal(UUIFrameworkWidget* Widget);
@@ -97,6 +101,9 @@ private:
 private:
 	UPROPERTY()
 	TArray<FUIFrameworkWidgetTreeEntry> Entries;
+
+	UPROPERTY(NotReplicated)
+	TMap<FUIFrameworkWidgetId, TWeakObjectPtr<UUIFrameworkWidget>> WidgetByIdMap;
 
 	UPROPERTY(NotReplicated, Transient)
 	TObjectPtr<UUIFrameworkPlayerComponent> OwnerComponent = nullptr;

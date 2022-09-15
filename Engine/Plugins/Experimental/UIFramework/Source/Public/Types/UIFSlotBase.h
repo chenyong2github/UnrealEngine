@@ -24,17 +24,34 @@ struct UIFRAMEWORK_API FUIFrameworkSlotBase : public FFastArraySerializerItem
 
 	FUIFrameworkSlotBase() = default;
 
-	UUIFrameworkWidget* GetWidget() const
+	UUIFrameworkWidget* AuthorityGetWidget() const
 	{
 		return Widget;
 	}
 
-	void SetWidget(UUIFrameworkWidget* Widget);
+	void AuthoritySetWidget(UUIFrameworkWidget* Widget);
 
 	FUIFrameworkWidgetId GetWidgetId() const
 	{
 		return WidgetId;
 	}
+
+	void LocalAquireWidget()
+	{
+		LocalPreviousWidgetId = WidgetId;
+	}
+
+	bool LocalIsAquiredWidgetValid() const
+	{
+		return LocalPreviousWidgetId == WidgetId;
+	}
+
+private:
+	UPROPERTY(BlueprintReadWrite, Category = "UI Framework", NotReplicated, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UUIFrameworkWidget> Widget = nullptr;
+
+	UPROPERTY()
+	FUIFrameworkWidgetId WidgetId;
 
 	/**
 	 * The widget that was previously added on the local UMG Widget.
@@ -42,13 +59,6 @@ struct UIFRAMEWORK_API FUIFrameworkSlotBase : public FFastArraySerializerItem
 	 */
 	UPROPERTY(NotReplicated)
 	FUIFrameworkWidgetId LocalPreviousWidgetId;
-
-private:
-	UPROPERTY(BlueprintReadWrite, Category = "UI Framework", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UUIFrameworkWidget> Widget = nullptr;
-
-	UPROPERTY()
-	FUIFrameworkWidgetId WidgetId;
 };
 
 

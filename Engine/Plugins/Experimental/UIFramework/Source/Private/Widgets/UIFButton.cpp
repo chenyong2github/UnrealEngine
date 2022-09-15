@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/UIFButton.h"
+#include "Types/UIFWidgetTree.h"
+#include "UIFLog.h"
 #include "UIFPlayerComponent.h"
 
 #include "Components/Button.h"
@@ -33,31 +35,32 @@ void UUIFrameworkButton::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 {
-	bool bWidgetIsDifferent = Slot.GetWidget() != InEntry.GetWidget();
+	bool bWidgetIsDifferent = Slot.AuthorityGetWidget() != InEntry.AuthorityGetWidget();
 	if (bWidgetIsDifferent)
 	{
-		if (Slot.GetWidget())
+		// Remove previous widget
+		if (Slot.AuthorityGetWidget())
 		{
-			Slot.GetWidget()->AuthoritySetParent(nullptr, FUIFrameworkParentWidget());
+			Slot.AuthorityGetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget());
 		}
 
-		if (InEntry.GetWidget())
+		if (InEntry.AuthorityGetWidget())
 		{
-			UUIFrameworkPlayerComponent* PreviousOwner = InEntry.GetWidget()->GetPlayerComponent();
+			UUIFrameworkPlayerComponent* PreviousOwner = InEntry.AuthorityGetWidget()->GetPlayerComponent();
 			if (PreviousOwner != nullptr && PreviousOwner != GetPlayerComponent())
 			{
-				Slot.SetWidget(nullptr);
+				Slot.AuthoritySetWidget(nullptr);
 				FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be added."), ELogVerbosity::Warning, "InvalidPlayerParent");
 			}
 		}
 	}
 
 	Slot = InEntry;
-	Slot.SetWidget(InEntry.GetWidget()); // to make sure the id is set
+	Slot.AuthoritySetWidget(InEntry.AuthorityGetWidget()); // to make sure the id is set
 
-	if (bWidgetIsDifferent && Slot.GetWidget())
+	if (bWidgetIsDifferent && Slot.AuthorityGetWidget())
 	{
-		Slot.GetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget(this));
+		Slot.AuthorityGetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget(this));
 	}
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Slot, this);
@@ -67,15 +70,15 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 void UUIFrameworkButton::AuthorityForEachChildren(const TFunctionRef<void(UUIFrameworkWidget*)>& Func)
 {
 	Super::AuthorityForEachChildren(Func);
-	Func(Slot.GetWidget());
+	Func(Slot.AuthorityGetWidget());
 }
 
 void UUIFrameworkButton::AuthorityRemoveChild(UUIFrameworkWidget* Widget)
 {
 	Super::AuthorityRemoveChild(Widget);
-	ensure(Widget == Slot.GetWidget());
+	ensure(Widget == Slot.AuthorityGetWidget());
 
-	Slot.SetWidget(nullptr);;
+	Slot.AuthoritySetWidget(nullptr);;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Slot, this);
 }
 
@@ -87,18 +90,31 @@ void UUIFrameworkButton::LocalOnUMGWidgetCreated()
 }
 
 
-void UUIFrameworkButton::LocalAddChild(UUIFrameworkWidget* Child)
+void UUIFrameworkButton::LocalAddChild(FUIFrameworkWidgetId ChildId)
 {
-	Super::LocalAddChild(Child);
-	if (ensure(Child && Child->GetWidgetId() == Slot.GetWidgetId()))
+	if (ChildId == Slot.GetWidgetId())
 	{
-		UWidget* ChildWidget = Child->LocalGetUMGWidget();
-		if (ensure(ChildWidget))
+		check(GetPlayerComponent());
+		if (UUIFrameworkWidget* ChildWidget = GetPlayerComponent()->GetWidgetTree().FindWidgetById(ChildId))
 		{
-			UButton* Button = CastChecked<UButton>(LocalGetUMGWidget());
-			Button->AddChild(ChildWidget);
-			Slot.LocalPreviousWidgetId = Slot.GetWidgetId();
+			UWidget* ChildUMGWidget = ChildWidget->LocalGetUMGWidget();
+			if (ensure(ChildUMGWidget))
+			{
+				Slot.LocalAquireWidget();
+
+				UButton* Button = CastChecked<UButton>(LocalGetUMGWidget());
+				Button->ClearChildren();
+				UButtonSlot* ButtonSlot = CastChecked<UButtonSlot>(Button->AddChild(ChildUMGWidget));
+				ButtonSlot->SetPadding(Slot.Padding);
+				ButtonSlot->SetHorizontalAlignment(Slot.HorizontalAlignment);
+				ButtonSlot->SetVerticalAlignment(Slot.VerticalAlignment);
+			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogUIFramework, Verbose, TEXT("The widget '%" INT64_FMT "' was not found in the Button Slots."), ChildId.GetKey());
+		Super::LocalAddChild(ChildId);
 	}
 }
 
@@ -115,12 +131,14 @@ void UUIFrameworkButton::ServerClick_Implementation()
 
 void UUIFrameworkButton::OnRep_Slot()
 {
-	if (LocalGetUMGWidget() && Slot.GetWidget() && Slot.GetWidgetId() == Slot.LocalPreviousWidgetId)
+	if (LocalGetUMGWidget() && Slot.LocalIsAquiredWidgetValid())
 	{
-		UButtonSlot* ButtonSlot = CastChecked<UButtonSlot>(LocalGetUMGWidget()->Slot);
-		ButtonSlot->SetPadding(Slot.Padding);
-		ButtonSlot->SetHorizontalAlignment(Slot.HorizontalAlignment);
-		ButtonSlot->SetVerticalAlignment(Slot.VerticalAlignment);
+		if (UButtonSlot* ButtonSlot = Cast<UButtonSlot>(LocalGetUMGWidget()->Slot))
+		{
+			ButtonSlot->SetPadding(Slot.Padding);
+			ButtonSlot->SetHorizontalAlignment(Slot.HorizontalAlignment);
+			ButtonSlot->SetVerticalAlignment(Slot.VerticalAlignment);
+		}
 	}
 	// else do not do anything, the slot was not added yet or it was modified but was not applied yet by the PlayerComponent
 }
