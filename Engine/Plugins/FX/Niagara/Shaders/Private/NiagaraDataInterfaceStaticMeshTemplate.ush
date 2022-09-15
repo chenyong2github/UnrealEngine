@@ -330,9 +330,39 @@ void GetFilteredSocketCount_{ParameterName}(out int Count)
 {
 	Count = {ParameterName}_SocketCounts.y;
 }
+
 void GetUnfilteredSocketCount_{ParameterName}(out int Count)
 {
 	Count = {ParameterName}_SocketCounts.z;
+}
+
+void RandomSocket_{ParameterName}(NiagaraRandInfo RandInfo, out int Index)
+{
+	Index = -1;
+	if ( {ParameterName}_SocketCounts.x > 0 )
+	{
+		Index = NiagaraRandomInt(RandInfo, {ParameterName}_SocketCounts.x);
+	}
+}
+
+void RandomFilteredSocket_{ParameterName}(NiagaraRandInfo RandInfo, out int Index)
+{
+	Index = -1;
+	if ( {ParameterName}_SocketCounts.y > 0 )
+	{
+		Index = NiagaraRandomInt(RandInfo, {ParameterName}_SocketCounts.y);
+		Index = {ParameterName}_FilteredAndUnfilteredSockets[Index];
+	}
+}
+
+void RandomUnfilteredSocket_{ParameterName}(NiagaraRandInfo RandInfo, out int Index)
+{
+	Index = -1;
+	if ( {ParameterName}_SocketCounts.z > 0 )
+	{
+		Index = {ParameterName}_SocketCounts.y + NiagaraRandomInt(RandInfo, {ParameterName}_SocketCounts.z);
+		Index = {ParameterName}_FilteredAndUnfilteredSockets[Index];
+	}
 }
 
 void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)

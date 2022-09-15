@@ -200,6 +200,9 @@ protected:
 	void VMGetSocketCount(FVectorVMExternalFunctionContext& Context);
 	void VMGetFilteredSocketCount(FVectorVMExternalFunctionContext& Context);
 	void VMGetUnfilteredSocketCount(FVectorVMExternalFunctionContext& Context);
+	void VMRandomSocket(FVectorVMExternalFunctionContext& Context);
+	void VMRandomFilteredSocket(FVectorVMExternalFunctionContext& Context);
+	void VMRandomUnfilteredSocket(FVectorVMExternalFunctionContext& Context);
 	template<typename TTransformHandler>
 	void VMGetSocketTransform(FVectorVMExternalFunctionContext& Context);
 	template<typename TTransformHandler>

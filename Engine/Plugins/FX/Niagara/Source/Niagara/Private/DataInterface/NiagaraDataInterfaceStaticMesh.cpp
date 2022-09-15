@@ -154,6 +154,9 @@ namespace NDIStaticMeshLocal
 	static const FName	GetSocketCountName("GetSocketCount");
 	static const FName	GetFilteredSocketCountName("GetFilteredSocketCount");
 	static const FName	GetUnfilteredSocketCountName("GetUnfilteredSocketCount");
+	static const FName	RandomSocketName("RandomSocket");
+	static const FName	RandomFilteredSocketName("RandomFilteredSocket");
+	static const FName	RandomUnfilteredSocketName("RandomUnfilteredSocket");
 	static const FName	GetSocketTransformName("GetSocketTransform");
 	static const FName	GetSocketTransformWSName("GetSocketTransformWS");
 	static const FName	GetFilteredSocketTransformName("GetFilteredSocketTransform");
@@ -1883,6 +1886,15 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 	}
 	{
 		FNiagaraFunctionSignature Sig = BaseSignature;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetRandInfoDef(), TEXT("RandomInfo"));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Index")));
+
+		OutFunctions.Add_GetRef(Sig).Name = RandomSocketName;
+		OutFunctions.Add_GetRef(Sig).Name = RandomFilteredSocketName;
+		OutFunctions.Add_GetRef(Sig).Name = RandomUnfilteredSocketName;
+	}
+	{
+		FNiagaraFunctionSignature Sig = BaseSignature;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Index")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
@@ -2355,6 +2367,18 @@ void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFun
 	else if (BindingInfo.Name == GetUnfilteredSocketCountName)
 	{
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetUnfilteredSocketCount(Context); });
+	}
+	else if (BindingInfo.Name == RandomSocketName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMRandomSocket);
+	}
+	else if (BindingInfo.Name == RandomFilteredSocketName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMRandomFilteredSocket);
+	}
+	else if (BindingInfo.Name == RandomUnfilteredSocketName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceStaticMesh::VMRandomUnfilteredSocket);
 	}
 	else if (BindingInfo.Name == GetSocketTransformName)
 	{
@@ -3681,6 +3705,70 @@ void UNiagaraDataInterfaceStaticMesh::VMGetUnfilteredSocketCount(FVectorVMExtern
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutCountParam.SetAndAdvance(NumUnfilteredSockets);
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::VMRandomSocket(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<NDIStaticMeshLocal::FInstanceData_GameThread> InstanceData(Context);
+	FNDIRandomHelper RandHelper(Context);
+	FNDIOutputParam<int32> OutSocket(Context);
+
+	const int32 SocketRandMax = InstanceData->CachedSockets.Num() - 1;
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+	{
+		RandHelper.GetAndAdvance();
+		OutSocket.SetAndAdvance(SocketRandMax >= 0 ? RandHelper.RandRange(i, 0, SocketRandMax) : -1);
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::VMRandomFilteredSocket(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<NDIStaticMeshLocal::FInstanceData_GameThread> InstanceData(Context);
+	FNDIRandomHelper RandHelper(Context);
+	FNDIOutputParam<int32> OutSocket(Context);
+
+	const int32 SocketRandMax = InstanceData->NumFilteredSockets - 1;
+	if (SocketRandMax >= 0)
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			RandHelper.GetAndAdvance();
+			const int32 SocketIndex = RandHelper.RandRange(i, 0, SocketRandMax);
+			OutSocket.SetAndAdvance(InstanceData->FilteredAndUnfilteredSockets[SocketIndex]);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutSocket.SetAndAdvance(-1);
+		}
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::VMRandomUnfilteredSocket(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<NDIStaticMeshLocal::FInstanceData_GameThread> InstanceData(Context);
+	FNDIRandomHelper RandHelper(Context);
+	FNDIOutputParam<int32> OutSocket(Context);
+
+	const int32 SocketRandMax = InstanceData->FilteredAndUnfilteredSockets.Num() - InstanceData->NumFilteredSockets - 1;
+	if (SocketRandMax >= 0)
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			RandHelper.GetAndAdvance();
+			const int32 SocketIndex = InstanceData->NumFilteredSockets + RandHelper.RandRange(i, 0, SocketRandMax);
+			OutSocket.SetAndAdvance(InstanceData->FilteredAndUnfilteredSockets[SocketIndex]);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutSocket.SetAndAdvance(-1);
+		}
 	}
 }
 
