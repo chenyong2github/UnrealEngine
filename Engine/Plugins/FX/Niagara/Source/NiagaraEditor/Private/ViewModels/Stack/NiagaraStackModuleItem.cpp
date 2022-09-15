@@ -223,7 +223,7 @@ const UNiagaraStackModuleItem::FCollectedUsageData& UNiagaraStackModuleItem::Get
 	if (CachedCollectedUsageData.IsSet() == false)
 	{
 		CachedCollectedUsageData = FCollectedUsageData();
-		if (FunctionCallNode && FunctionCallNode->IsA<UNiagaraNodeAssignment>())
+		if (FunctionCallNode && FunctionCallNode->IsA<UNiagaraNodeAssignment>() && IsSystemViewModelValid())
 		{
 			UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(FunctionCallNode);
 			TSharedRef<FNiagaraSystemViewModel> SystemVM = GetSystemViewModel();

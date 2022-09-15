@@ -568,6 +568,8 @@ protected:
 
 	mutable TOptional<FCollectedUsageData> CachedCollectedUsageData;
 
+	bool IsSystemViewModelValid() const { return SystemViewModel.IsValid(); }
+
 
 private:
 	void ChildStructureChanged(ENiagaraStructureChangedFlags Info);
