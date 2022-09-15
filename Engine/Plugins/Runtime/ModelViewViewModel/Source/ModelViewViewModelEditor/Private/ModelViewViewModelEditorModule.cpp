@@ -5,7 +5,6 @@
 #include "AssetToolsModule.h"
 #include "BlueprintModes/WidgetBlueprintApplicationMode.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
-#include "Customizations/MVVMBindPropertiesDetailView.h"
 #include "Customizations/MVVMPropertyBindingExtension.h"
 #include "EdGraphSchema_K2.h"
 #include "Framework/Docking/LayoutExtender.h"
@@ -19,7 +18,6 @@
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorCommands.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "PropertyEditorModule.h"
 #include "StatusBarSubsystem.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/SlateColor.h"
@@ -44,7 +42,6 @@ const FName AnimationTabSummonerTabID(TEXT("Animations"));
 void FModelViewViewModelEditorModule::StartupModule()
 {
 	FMVVMEditorStyle::CreateInstance();
-	BindDetailView = MakeUnique<FMVVMBindPropertiesDetailView>();
 
 	IUMGEditorModule& UMGEditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
 	UMGEditorModule.OnRegisterTabsForEditor().AddRaw(this, &FModelViewViewModelEditorModule::HandleRegisterBlueprintEditorTab);
@@ -58,9 +55,6 @@ void FModelViewViewModelEditorModule::StartupModule()
 
 	PropertyBindingExtension = MakeShared<FMVVMPropertyBindingExtension>();
 	UMGEditorModule.GetPropertyBindingExtensibilityManager()->AddExtension(PropertyBindingExtension.ToSharedRef());
-
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule.GetGlobalRowExtensionDelegate().AddRaw(BindDetailView.Get(), &FMVVMBindPropertiesDetailView::CreatePropertyRowExtension);
 
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddRaw(this, &FModelViewViewModelEditorModule::HandleRenameVariableReferences);
 
@@ -99,11 +93,6 @@ void FModelViewViewModelEditorModule::ShutdownModule()
 		AssetTools->Get().UnregisterAssetTypeActions(ViewModelBlueprintActions.ToSharedRef());
 	}
 
-	if (FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
-	{
-		PropertyEditorModule->GetGlobalRowExtensionDelegate().RemoveAll(BindDetailView.Get());
-	}
-	BindDetailView.Reset();
 	FMVVMEditorStyle::DestroyInstance();
 
 	FMVVMEditorCommands::Unregister();

@@ -37,7 +37,6 @@ private:
 	void HandleActivateMode(FWidgetBlueprintApplicationMode& InDesignerMode);
 
 private:
-	TUniquePtr<FMVVMBindPropertiesDetailView> BindDetailView;
 	TSharedPtr<FMVVMPropertyBindingExtension> PropertyBindingExtension;
 	TSharedPtr<UE::MVVM::FAssetTypeActions_ViewModelBlueprint> ViewModelBlueprintActions;
 };
