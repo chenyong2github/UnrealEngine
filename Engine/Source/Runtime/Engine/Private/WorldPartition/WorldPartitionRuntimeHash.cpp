@@ -50,7 +50,7 @@ bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(con
 		// This will load the actor if it isn't already loaded
 		FWorldPartitionReference Reference(GetOuterUWorldPartition(), ActorDescView.GetGuid());
 
-		if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
+		if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorSoftPath().ToString()))
 		{
 			AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
 
