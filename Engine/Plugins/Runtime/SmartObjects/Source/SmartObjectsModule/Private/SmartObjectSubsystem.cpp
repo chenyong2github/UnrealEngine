@@ -690,6 +690,13 @@ bool USmartObjectSubsystem::GetSlotTransform(const FSmartObjectClaimHandle& Clai
 	return OptionalTransform.IsSet();
 }
 
+bool USmartObjectSubsystem::GetSlotTransformFromRequestResult(const FSmartObjectRequestResult& RequestResult, FTransform& OutSlotTransform) const
+{
+	const TOptional<FTransform> OptionalTransform = GetSlotTransform(RequestResult);
+	OutSlotTransform = OptionalTransform.Get(FTransform::Identity);
+	return OptionalTransform.IsSet();
+}
+
 TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObjectSlotHandle SlotHandle) const
 {
 	TOptional<FTransform> Transform;

@@ -401,6 +401,15 @@ public:
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectRequestResult& Result) const {	return GetSlotTransform(Result.SlotHandle);	}
 
 	/**
+	 * Returns the transform (in world space) of the slot associated to the given RequestResult.
+	 * @param RequestResult Result returned by any of the Find Smart Object(s) methods.
+	 * @param OutSlotTransform Transform (in world space) of the slot associated to the RequestResult.
+	 * @return Whether the transform was found and assigned to 'OutSlotTransform'
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	bool GetSlotTransformFromRequestResult(const FSmartObjectRequestResult& RequestResult, FTransform& OutSlotTransform) const;
+
+	/**
 	 * Returns the transform (in world space) of the slot represented by the provided slot handle.
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return Transform (in world space) of the slot associated to SlotHandle.
