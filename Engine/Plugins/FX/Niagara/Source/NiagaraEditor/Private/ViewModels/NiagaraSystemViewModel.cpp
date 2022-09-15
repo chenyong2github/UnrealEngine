@@ -88,6 +88,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, bUpdatingSequencerFromEmitterDataChange(false)
 	, bUpdatingSystemSelectionFromSequencer(false)
 	, bUpdatingSequencerSelectionFromSystem(false)
+	, bResetingSequencerTracks(false)
 	, EditorSettings(GetMutableDefault<UNiagaraEditorSettings>())
 	, bResetRequestPending(false)
 	, bCompilePendingCompletion(false)
@@ -1686,6 +1687,7 @@ void FNiagaraSystemViewModel::ResetEmitterHandleViewModelsAndTracks()
 
 	if (NiagaraSequence)
 	{
+		TGuardValue<bool> UpdateGuard(bResetingSequencerTracks, true);
 		TArray<UMovieSceneTrack*> MasterTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
 		for (UMovieSceneTrack* MasterTrack : MasterTracks)
 		{
@@ -2462,7 +2464,7 @@ void FNiagaraSystemViewModel::SystemSelectionChanged()
 
 void FNiagaraSystemViewModel::SequencerTrackSelectionChanged(TArray<UMovieSceneTrack*> SelectedTracks)
 {
-	if (bUpdatingSequencerSelectionFromSystem == false)
+	if (bUpdatingSequencerSelectionFromSystem == false && bResetingSequencerTracks == false)
 	{
 		UpdateEmitterHandleSelectionFromSequencer();
 	}
@@ -2470,7 +2472,7 @@ void FNiagaraSystemViewModel::SequencerTrackSelectionChanged(TArray<UMovieSceneT
 
 void FNiagaraSystemViewModel::SequencerSectionSelectionChanged(TArray<UMovieSceneSection*> SelectedSections)
 {
-	if (bUpdatingSequencerSelectionFromSystem == false)
+	if (bUpdatingSequencerSelectionFromSystem == false && bResetingSequencerTracks == false)
 	{
 		UpdateEmitterHandleSelectionFromSequencer();
 	}

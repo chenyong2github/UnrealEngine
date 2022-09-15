@@ -661,6 +661,9 @@ private:
 	/** A flag for preventing reentrancy when synchronizing sequencer selection with system selection */
 	bool bUpdatingSequencerSelectionFromSystem;
 
+	/** A flag for preventing selection changes when resetting the sequencer tracks due to the emitter handles array changing. */
+	bool bResetingSequencerTracks;
+
 	TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::Handle RegisteredHandle;
 
 	/** Array of FNiagaraEmitterHandleViewModel representing emitters that are pinned in the stack UI*/
