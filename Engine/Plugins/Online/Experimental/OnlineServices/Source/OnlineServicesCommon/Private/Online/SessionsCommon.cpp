@@ -7,6 +7,7 @@
 
 namespace UE::Online {
 	/** FSessionCommon */
+
 	FSessionCommon& FSessionCommon::operator+=(const FSessionUpdate& SessionUpdate)
 	{
 		if (SessionUpdate.OwnerAccountId.IsSet())
@@ -31,7 +32,61 @@ namespace UE::Online {
 		return *this;
 	}
 
+	FString FSessionCommon::ToLogString() const
+	{
+		return FString::Printf(TEXT("ISession: SessionId [%s]"), *UE::Online::ToLogString(SessionInfo.SessionId));
+	}
+
+	void FSessionCommon::DumpState() const
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ISession]"));
+		DumpMemberData();
+		DumpSessionInfo();
+		DumpSessionSettings();
+	}
+
+	void FSessionCommon::DumpMemberData() const
+	{
+		UE_LOG(LogTemp, Log, TEXT("OwnerAccountId [%s]"), *UE::Online::ToLogString(OwnerAccountId));
+		UE_LOG(LogTemp, Log, TEXT("SessionMemberIdsSet:"));
+
+		for (const FAccountId& SessionMemberId : SessionMembers)
+		{
+			UE_LOG(LogTemp, Log, TEXT("	[%s]"), *UE::Online::ToLogString(SessionMemberId));
+		}
+	}
+
+	void FSessionCommon::DumpSessionInfo() const
+	{
+		UE_LOG(LogTemp, Log, TEXT("SessionInfo:"));
+		UE_LOG(LogTemp, Log, TEXT("	SessionId [%s]"), *UE::Online::ToLogString(SessionInfo.SessionId));
+		UE_LOG(LogTemp, Log, TEXT("	bAllowSanctionedPlayers [%d]"), SessionInfo.bAllowSanctionedPlayers);
+		UE_LOG(LogTemp, Log, TEXT("	bAntiCheatProtected [%d]"), SessionInfo.bAntiCheatProtected);
+		UE_LOG(LogTemp, Log, TEXT("	bIsDedicatedServerSession [%d]"), SessionInfo.bIsDedicatedServerSession);
+		UE_LOG(LogTemp, Log, TEXT("	bIsLANSession [%d]"), SessionInfo.bIsLANSession);
+		UE_LOG(LogTemp, Log, TEXT("	SessionIdOverride [%s]"), *SessionInfo.SessionIdOverride);
+	}
+
+	void FSessionCommon::DumpSessionSettings() const
+	{
+		UE_LOG(LogTemp, Log, TEXT("SessionSettings:"));
+		UE_LOG(LogTemp, Log, TEXT("	bAllowNewMembers [%d]"), SessionSettings.bAllowNewMembers);
+		UE_LOG(LogTemp, Log, TEXT("	JoinPolicy [%s]"), LexToString(SessionSettings.JoinPolicy));
+		UE_LOG(LogTemp, Log, TEXT("	NumMaxConnections [%d]"), SessionSettings.NumMaxConnections);
+		UE_LOG(LogTemp, Log, TEXT("	SchemaName [%s]"), *SessionSettings.SchemaName.ToString());
+		UE_LOG(LogTemp, Log, TEXT("	CustomSettings:"));
+
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : SessionSettings.CustomSettings)
+		{
+			UE_LOG(LogTemp, Log, TEXT("		Key: [%s]"), *Entry.Key.ToString());
+			UE_LOG(LogTemp, Log, TEXT("		Value:	Visibility [%s]"), LexToString(Entry.Value.Visibility));
+			UE_LOG(LogTemp, Log, TEXT("				ID [%d]"), Entry.Value.ID);
+			UE_LOG(LogTemp, Log, TEXT("				Data [%s]"), *LexToString(Entry.Value.Data));
+		}
+	}
+
 	/** FSessionsCommon */
+
 	FSessionsCommon::FSessionsCommon(FOnlineServicesCommon& InServices)
 		: TOnlineComponent(TEXT("Sessions"), InServices)
 	{
@@ -62,7 +117,8 @@ namespace UE::Online {
 		RegisterCommand(&FSessionsCommon::AddSessionMember);
 		RegisterCommand(&FSessionsCommon::RemoveSessionMember);
 		RegisterCommand(&FSessionsCommon::SendSessionInvite);
-		RegisterCommand(&FSessionsCommon::GetSessionInvites);
+		RegisterCommand(&FSessionsCommon::GetSessionInviteById);
+		RegisterCommand(&FSessionsCommon::GetAllSessionInvites);
 		RegisterCommand(&FSessionsCommon::RejectSessionInvite);
 	}
 
@@ -70,24 +126,20 @@ namespace UE::Online {
 	{
 		// TODO: Params and user login check
 
+		TArray<TSharedRef<const ISession>> Sessions;
+
 		if (const TArray<FName>* UserSessions = NamedSessionUserMap.Find(Params.LocalAccountId))
 		{
-			FGetAllSessions::Result Result;
-
 			for (const FName& SessionName : *UserSessions)
 			{
 				const FOnlineSessionId& SessionId = LocalSessionsByName.FindChecked(SessionName);
 				const TSharedRef<FSessionCommon>& Session = AllSessionsById.FindChecked(SessionId);
 
-				Result.Sessions.Add(Session);
+				Sessions.Add(Session);
 			}
+		}
 
-			return TOnlineResult<FGetAllSessions>(MoveTemp(Result));
-		}
-		else
-		{
-			return TOnlineResult<FGetAllSessions>(Errors::NotFound());
-		}
+		return TOnlineResult<FGetAllSessions>({ MoveTemp(Sessions) });
 	}
 
 	TOnlineResult<FGetSessionByName> FSessionsCommon::GetSessionByName(FGetSessionByName::Params&& Params) const
@@ -310,7 +362,26 @@ namespace UE::Online {
 		return Operation->GetHandle();
 	}
 
-	TOnlineResult<FGetSessionInvites> FSessionsCommon::GetSessionInvites(FGetSessionInvites::Params&& Params)
+	TOnlineResult<FGetSessionInviteById> FSessionsCommon::GetSessionInviteById(FGetSessionInviteById::Params&& Params)
+	{
+		if (const TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalAccountId))
+		{
+			if (const TSharedRef<FSessionInvite>* SessionInvite = UserMap->Find(Params.SessionInviteId))
+			{
+				return TOnlineResult<FGetSessionInviteById>({ *SessionInvite });
+			}
+			else
+			{
+				return TOnlineResult<FGetSessionInviteById>(Errors::NotFound());
+			}
+		}
+		else
+		{
+			return TOnlineResult<FGetSessionInviteById>(Errors::InvalidState());
+		}		
+	}
+
+	TOnlineResult<FGetAllSessionInvites> FSessionsCommon::GetAllSessionInvites(FGetAllSessionInvites::Params&& Params)
 	{
 		TArray<TSharedRef<const FSessionInvite>> SessionInvites;
 
@@ -321,12 +392,8 @@ namespace UE::Online {
 				SessionInvites.Add(Entry.Value);
 			}
 		}
-		else
-		{
-			return TOnlineResult<FGetSessionInvites>(Errors::NotFound());
-		}
 
-		return TOnlineResult<FGetSessionInvites>({ SessionInvites });
+		return TOnlineResult<FGetAllSessionInvites>({ MoveTemp(SessionInvites) });
 	}
 
 	TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsCommon::RejectSessionInvite(FRejectSessionInvite::Params&& Params)

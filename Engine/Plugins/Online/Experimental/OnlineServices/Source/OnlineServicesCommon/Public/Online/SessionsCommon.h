@@ -140,11 +140,18 @@ public:
 	virtual const uint32 GetNumOpenConnections() const override				{ return SessionSettings.NumMaxConnections - SessionMembers.Num(); }
 	virtual const FSessionInfo& GetSessionInfo() const override				{ return SessionInfo; }
 	virtual const FSessionSettings GetSessionSettings() const override		{ return SessionSettings; }
-	virtual const FSessionMembersSet& GetSessionMembers() const override	{ return SessionMembers; }
+	virtual const FSessionMemberIdsSet& GetSessionMembers() const override	{ return SessionMembers; }
 
 	virtual bool IsJoinable() const override								{ return GetNumOpenConnections() > 0 && SessionSettings.bAllowNewMembers; }
 
-	virtual FString ToLogString() const override							{ return FString::Printf(TEXT("[FSessionCommon: SessionId[%d]]"), SessionInfo.SessionId.GetHandle()); } // TODO: Expand with relevant information
+	virtual FString ToLogString() const override;
+
+	virtual void DumpState() const override;
+
+protected:
+	void DumpMemberData() const;
+	void DumpSessionInfo() const;
+	void DumpSessionSettings() const;
 
 public:
 	/** Session information that will remain constant throughout the session's lifetime */
@@ -159,7 +166,7 @@ public:
 	FSessionSettings SessionSettings;
 
 	/* Set containing user ids for all the session members */
-	FSessionMembersSet SessionMembers;
+	FSessionMemberIdsSet SessionMembers;
 
 	FSessionCommon& operator+=(const FSessionUpdate& SessionUpdate);
 };
@@ -248,7 +255,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FAddSessionMember> AddSessionMember(FAddSessionMember::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRemoveSessionMember> RemoveSessionMember(FRemoveSessionMember::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
-	virtual TOnlineResult<FGetSessionInvites> GetSessionInvites(FGetSessionInvites::Params&& Params) override;
+	virtual TOnlineResult<FGetSessionInviteById> GetSessionInviteById(FGetSessionInviteById::Params&& Params) override;
+	virtual TOnlineResult<FGetAllSessionInvites> GetAllSessionInvites(FGetAllSessionInvites::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
 
 	virtual TOnlineEvent<void(const FSessionJoined&)> OnSessionJoined() override;

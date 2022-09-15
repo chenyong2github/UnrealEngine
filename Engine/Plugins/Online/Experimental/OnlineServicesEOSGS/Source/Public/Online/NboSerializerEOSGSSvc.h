@@ -33,7 +33,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionId&
 	Ar.WriteBinary(Data.GetData(), Data.Num());
 }
 
-inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembersSet& SessionMembersSet)
+inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMemberIdsSet& SessionMembersSet)
 {
 	Packet << SessionMembersSet.Num();
 
@@ -63,7 +63,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionId& S
 	SessionId = FOnlineSessionIdRegistryEOSGS::Get().FromReplicationData(Data);
 }
 
-inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembersSet& SessionMembersSet)
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMemberIdsSet& SessionMembersSet)
 {
 	int32 NumEntries = 0;
 	Packet >> NumEntries;

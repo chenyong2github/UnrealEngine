@@ -269,6 +269,12 @@ const FOnlineSession& FSessionOSSAdapter::GetV1Session() const
 	return V1Session;
 }
 
+void FSessionOSSAdapter::DumpState() const
+{
+	FSessionCommon::DumpState();
+	UE_LOG(LogTemp, Log, TEXT("V1Session: SessionId [%s]"), *V1Session.GetSessionIdStr());
+}
+
 /** FSessionsOSSAdapter */ 
 
 FSessionsOSSAdapter::FSessionsOSSAdapter(FOnlineServicesOSSAdapter& InServices)
@@ -302,7 +308,7 @@ void FSessionsOSSAdapter::Initialize()
 
 		AddSessionInvite(SessionInvite, Session, SessionInvite->RecipientId);
 
-		FSessionInviteReceived Event{ ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared()), SessionInvite };
+		FSessionInviteReceived Event{ ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared()), SessionInvite->InviteId };
 
 		SessionEvents.OnSessionInviteReceived.Broadcast(Event);
 	}));

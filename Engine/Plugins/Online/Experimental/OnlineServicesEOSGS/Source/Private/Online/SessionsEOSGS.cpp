@@ -241,7 +241,7 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 
 					AddSessionInvite(SessionInviteRef, Session, ReceiverId);
 
-					FSessionInviteReceived Event = { ReceiverId, SessionInviteRef };
+					FSessionInviteReceived Event = { ReceiverId, SessionInviteId };
 
 					SessionEvents.OnSessionInviteReceived.Broadcast(Event);
 				}
@@ -431,6 +431,11 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 			NewSessionEOSGSRef->OwnerAccountId = OpParams.LocalAccountId;
 			NewSessionEOSGSRef->SessionSettings = OpParams.SessionSettings;
 			NewSessionEOSGSRef->SessionInfo.SessionId = CreateSessionId(Result.GetOkValue().NewSessionId);
+			NewSessionEOSGSRef->SessionInfo.bAllowSanctionedPlayers = OpParams.bAllowSanctionedPlayers;
+			NewSessionEOSGSRef->SessionInfo.bAntiCheatProtected = OpParams.bAntiCheatProtected;
+			NewSessionEOSGSRef->SessionInfo.bIsDedicatedServerSession = IsRunningDedicatedServer();
+			NewSessionEOSGSRef->SessionInfo.bIsLANSession = false;
+			NewSessionEOSGSRef->SessionInfo.SessionIdOverride = OpParams.SessionIdOverride;
 
 			AddSessionWithReferences(NewSessionEOSGSRef, OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
 
@@ -1214,8 +1219,6 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			}
 		});
 	});
-
-	// TODO: Call BuildSessionFromDetailsHandle as many times as we have details handles
 
 	Op->Enqueue(GetSerialQueue());
 

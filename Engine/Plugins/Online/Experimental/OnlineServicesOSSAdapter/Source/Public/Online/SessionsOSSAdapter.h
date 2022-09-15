@@ -44,6 +44,8 @@ public:
 
 	const FOnlineSession& GetV1Session() const;
 
+	virtual void DumpState() const override;
+
 private:
 	FOnlineSession V1Session;
 };

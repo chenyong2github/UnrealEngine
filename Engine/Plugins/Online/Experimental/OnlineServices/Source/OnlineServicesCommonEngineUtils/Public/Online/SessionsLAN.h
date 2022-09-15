@@ -30,6 +30,8 @@ public:
 	static FSessionLAN& Cast(FSessionCommon& InSession);
 	static const FSessionLAN& Cast(const ISession& InSession);
 
+	virtual void DumpState() const override;
+
 private:
 	void Initialize();
 

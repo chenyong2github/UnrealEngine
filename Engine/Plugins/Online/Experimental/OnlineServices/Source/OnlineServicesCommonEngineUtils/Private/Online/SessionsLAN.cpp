@@ -99,6 +99,12 @@ const FSessionLAN& FSessionLAN::Cast(const ISession& InSession)
 	return static_cast<const FSessionLAN&>(InSession);
 }
 
+void FSessionLAN::DumpState() const
+{
+	FSessionCommon::DumpState();
+	UE_LOG(LogTemp, Log, TEXT("OwnerInternetAddr [%s]"), *OwnerInternetAddr->ToString(true));
+}
+
 /** FSessionsLAN */
 
 FSessionsLAN::FSessionsLAN(FOnlineServicesCommon& InServices)
