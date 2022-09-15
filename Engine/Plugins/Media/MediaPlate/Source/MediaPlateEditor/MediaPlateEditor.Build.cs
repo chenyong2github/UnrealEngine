@@ -18,6 +18,7 @@ public class MediaPlateEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"CinematicCamera",
 				"CoreUObject",
 				"DesktopWidgets",
 				"EditorStyle",

@@ -100,9 +100,10 @@ private:
 	TSharedRef<SWidget> OnGetLetterboxAspectRatios();
 
 	/**
-	 * Returns menu options for all aspect ratio presets.
+	 * Adds menu options for all aspect ratio presets.
 	 */
-	void AddAspectRatiosToMenuBuilder(FMenuBuilder& MenuBuilder, FUIAction Actions[]);
+	void AddAspectRatiosToMenuBuilder(FMenuBuilder& MenuBuilder,
+		void (FMediaPlateCustomization::*Func)(float));
 
 	/**
 	 * Call this to see if auto aspect ratio is enabled.
