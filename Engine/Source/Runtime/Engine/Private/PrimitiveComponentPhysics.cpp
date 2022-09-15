@@ -807,13 +807,9 @@ void UPrimitiveComponent::UnWeldChildren()
 {
 	for (USceneComponent* ChildComponent : GetAttachChildren())
 	{
-		// Invalid children should be removed in UPrimitiveComponent::DestroyComponent so to check that you have correctly destroyed attached components.
-		if (ensure(IsValid(ChildComponent)))
+		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ChildComponent))
 		{
-			if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ChildComponent))
-			{
-				PrimComp->UnWeldFromParent();
-			}
+			PrimComp->UnWeldFromParent();
 		}
 	}
 }
