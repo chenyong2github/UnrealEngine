@@ -110,13 +110,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = Shape, meta = (DisplayName = "Plane", EditCondition = "Shape != EPatternToolShape::Line", EditConditionHides))
 	EPatternToolSinglePlane SinglePlane = EPatternToolSinglePlane::XYPlane;
 
-	/** Shape of the underlying Pattern */
+	/** Hide the source meshes when enabled */
 	UPROPERTY(EditAnywhere, Category = Shape)
 	bool bHideSources = true;
 
 	/** The seed used to introduce random transform variations when enabled */
 	UPROPERTY(EditAnywhere, Category = Shape)
 	int32 Seed = FMath::Rand();
+
+	/** Whether or not the pattern items should be projected along the negative Z axis of the plane mechanic */
+	UPROPERTY(EditAnywhere, Category = Shape)
+	bool bProjectElementsDown = false;
+
+	/** How much each pattern item should be moved along the negative Z axis of the plane mechanic if Project Elements Down is enabled */
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (EditCondition = "bProjectElementsDown == true", EditConditionHides))
+	float ProjectionOffset = 0.0f;
 };
 
 
@@ -465,6 +473,7 @@ protected:
 	void OnShapeUpdated();
 	void OnParametersUpdated();
 	void UpdatePattern();
+	void ComputeWorldTransform(FTransform& OutWorldTransform, const FTransform& InElementTransform, const FTransform& InPatternTransform) const;
 	void GetPatternTransforms_Linear(TArray<UE::Geometry::FTransformSRT3d>& TransformsOut);
 	void GetPatternTransforms_Grid(TArray<UE::Geometry::FTransformSRT3d>& TransformsOut);
 	void GetPatternTransforms_Radial(TArray<UE::Geometry::FTransformSRT3d>& TransformsOut);
@@ -495,7 +504,13 @@ protected:
 		TArray<UPrimitiveComponent*> Components;
 	};
 	TArray<FComponentSet> PreviewComponents;
+	
+	// This duplicates the data stored by PreviewComponents but it is necessary to have a simple
+	// TArray<UPrimitiveComponent*> of all preview components when raycasting, otherwise the raycasts
+	// will hit the preview components from the previous frame.
+	TArray<const UPrimitiveComponent*> AllPreviewComponents;			// This is passed to FindNearestVisibleObjectHit as ComponentsToIgnore
 
+protected:
 	UPROPERTY()
 	TSet<TObjectPtr<UPrimitiveComponent>> AllComponents;		// to keep components in FComponentSet alive
 
