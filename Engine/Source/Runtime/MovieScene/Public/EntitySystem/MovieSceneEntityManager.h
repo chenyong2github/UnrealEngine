@@ -861,6 +861,11 @@ public:
 private:
 	friend struct FEntityInitializer; 
 
+	enum class EMemoryType
+	{
+		Uninitialized,
+		DefaultConstructed
+	};
 	void OnStructureChanged();
 
 	FEntityAllocation* CreateEntityAllocation(const FComponentMask& EntityComponentMask, uint16 InitialCapacity, uint16 MaxCapacity, FEntityAllocation* MigrateComponentDataFrom = nullptr);
@@ -871,7 +876,7 @@ private:
 
 	void CopyComponents(int32 DestAllocationIndex, int32 DestEntityIndex, int32 SourceAllocationIndex, int32 SourceEntityIndex, const FComponentMask* OptionalMask = nullptr);
 
-	int32 AddEntityToAllocation(int32 AllocationIndex, FMovieSceneEntityID ID);
+	int32 AddEntityToAllocation(int32 AllocationIndex, FMovieSceneEntityID ID, EMemoryType MemoryType = EMemoryType::DefaultConstructed);
 	void RemoveEntityFromAllocation(int32 AllocationIndex, int32 SourceEntryIndexWithinAllocation);
 
 	FEntityAllocation* MigrateAllocation(int32 AllocationIndex, const FComponentMask& NewComponentMask);

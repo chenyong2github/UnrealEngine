@@ -137,6 +137,11 @@ struct FOverlappingMaterialParameterHandler
 				{
 					Linker->EntityManager.AddComponent(Input, BuiltInComponents->BlendChannelInput, Output->BlendChannelID);
 				}
+				else
+				{
+					// If the bound material changed, we might have been re-assigned a different blend channel so make sure it's up to date
+					Linker->EntityManager.WriteComponentChecked(Input, BuiltInComponents->BlendChannelInput, Output->BlendChannelID);
+				}
 			}
 		}
 		else
@@ -157,6 +162,7 @@ struct FOverlappingMaterialParameterHandler
 			{
 				Linker->EntityManager.RemoveComponent(Input, BuiltInComponents->BlendChannelInput);
 			}
+			Output->BlendChannelID = FMovieSceneBlendChannelID();
 		}
 
 		Output->NumContributors = NumContributors;
@@ -170,6 +176,12 @@ struct FOverlappingMaterialParameterHandler
 
 			Linker->EntityManager.AddComponent(Output->OutputEntityID, BuiltInComponents->Tags.NeedsUnlink);
 			Output->OutputEntityID = FMovieSceneEntityID();
+
+			if (System->DoubleBlenderSystem)
+			{
+				System->DoubleBlenderSystem->ReleaseBlendChannel(Output->BlendChannelID);
+			}
+			Output->BlendChannelID = FMovieSceneBlendChannelID();
 		}
 	}
 
