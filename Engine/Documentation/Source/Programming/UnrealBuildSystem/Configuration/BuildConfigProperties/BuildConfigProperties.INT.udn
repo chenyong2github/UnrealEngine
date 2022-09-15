@@ -214,7 +214,9 @@ $ bAllowHotReloadFromIDE : True if hot-reload from IDE is allowed.
 
 $ bForceDebugUnrealHeaderTool : If true, the Debug version of UnrealHeaderTool will be built and run instead of the Development version.
 
-$ bUseBuiltInUnrealHeaderTool : If true, use UHT internal to UBT
+$ bUseBuiltInUnrealHeaderTool : If true, use C# UHT internal to UBT
+
+$ bWarnOnCppUnrealHeaderTool : If true, generate warnings when C++ UHT is used
 
 ### WindowsPlatform
 
