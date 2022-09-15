@@ -468,15 +468,7 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 
-	bool bWithEditor = false;
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		bWithEditor = true;
-	}
-#endif
-
-	bool bEnableHDR = (IsHDRAllowed() && bUseHDRDisplayOutput && !bWithEditor);
+	bool bEnableHDR = (IsHDRAllowed() && bUseHDRDisplayOutput);
 
 	EnableHDRDisplayOutputInternal(bEnableHDR, HDRDisplayOutputNits, true);
 

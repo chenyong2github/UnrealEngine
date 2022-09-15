@@ -477,7 +477,7 @@ void FD3D11DynamicRHI::EnableHDR()
 		const EDisplayOutputFormat OutputDevice = HDRGetDefaultDisplayOutputFormat();
 		const EDisplayColorGamut DisplayGamut = HDRGetDefaultDisplayColorGamut();
 
-		const float DisplayMaxOutputNits = (OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
+		const float DisplayMaxOutputNits = HDRGetDisplayMaximumLuminance();
 		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
 		const float DisplayMaxCLL = 0.0f;			// Max content light level in lumens (0.0 == unknown)
 		const float DisplayFALL = 0.0f;				// Frame average light level (0.0 == unknown)

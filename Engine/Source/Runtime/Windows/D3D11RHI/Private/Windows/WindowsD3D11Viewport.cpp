@@ -185,6 +185,23 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			{
 				SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain.GetInitReference()));
 
+				RECT WindowRect = {};
+#if PLATFORM_WINDOWS
+				GetWindowRect(WindowHandle, &WindowRect);
+#endif
+				FVector2D WindowTopLeft((float)WindowRect.left, (float)WindowRect.top);
+				FVector2D WindowBottomRight((float)WindowRect.right, (float)WindowRect.bottom);
+				bool bHDREnabled = false;
+				EDisplayColorGamut LocalDisplayColorGamut = DisplayColorGamut;
+				EDisplayOutputFormat LocalDisplayOutputFormat = DisplayOutputFormat;
+
+				HDRGetMetaData(LocalDisplayOutputFormat, LocalDisplayColorGamut, bHDREnabled, WindowTopLeft, WindowBottomRight, (void*)WindowHandle);
+				if (bHDREnabled)
+				{
+					DisplayOutputFormat = LocalDisplayOutputFormat;
+					DisplayColorGamut = LocalDisplayColorGamut;
+				}
+
 				// See if we are running on a HDR monitor 
 				CheckHDRMonitorStatus();
 			}
@@ -330,7 +347,7 @@ inline void EnsureColorSpace(IDXGISwapChain* SwapChain, EDisplayColorGamut Displ
 		}
 		else
 		{
-			UE_LOG(LogD3D11RHI, Error, TEXT("Warning: unabled to set color space %s to the swapchain: verify EDisplayOutputFormat / swapchain format"), *ColorSpaceName);
+			UE_LOG(LogD3D11RHI, Error, TEXT("Warning: unable to set color space %s to the swapchain: verify EDisplayOutputFormat / swapchain format"), *ColorSpaceName);
 		}
 	}
 }
