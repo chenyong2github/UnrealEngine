@@ -62,7 +62,7 @@ const TSharedRef<SWidget> FContentBundleOutlinerEditingColumn::ConstructRowWidge
 								return LOCTEXT("ContentBundleOutlinerEditingActive", "Active");
 							}
 							
-							return LOCTEXT("", ""); 
+							return FText();
 						})
 					.ColorAndOpacity(MakeAttributeLambda([ContentBundleTreeItem] { return ContentBundleTreeItem->GetItemColor(); }))
 				];
