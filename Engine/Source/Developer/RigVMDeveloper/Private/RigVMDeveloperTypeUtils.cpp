@@ -590,7 +590,7 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 	{
 		if (UScriptStruct* Struct = Cast<UScriptStruct>(InPinType.PinSubCategoryObject))
 		{
-			OutCPPType = Prefix + *Struct->GetStructCPPName() + Suffix;
+			OutCPPType = Prefix + GetUniqueStructTypeName(Struct) + Suffix;
 			*OutCPPTypeObject = Struct;
 		}
 	}
