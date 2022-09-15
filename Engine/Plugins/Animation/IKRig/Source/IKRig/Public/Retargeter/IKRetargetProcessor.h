@@ -176,8 +176,11 @@ struct FRootRetargeter
 
 	FVector GetGlobalScaleVector() const
 	{
-		return FVector(Settings.ScaleHorizontal, Settings.ScaleHorizontal, Settings.ScaleVertical);
+		return GlobalScaleFactor * FVector(Settings.ScaleHorizontal, Settings.ScaleHorizontal, Settings.ScaleVertical);
 	}
+
+private:
+	FVector GlobalScaleFactor;
 };
 
 struct FPoleVectorMatcher

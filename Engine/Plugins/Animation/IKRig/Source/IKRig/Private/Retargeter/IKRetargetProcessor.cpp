@@ -1232,6 +1232,10 @@ bool FRootRetargeter::InitializeTarget(
 	Target.InitialHeight = TargetInitialTransform.GetTranslation().Z;
 	Target.InitialRotation = TargetInitialTransform.GetRotation();
 	Target.InitialPosition = TargetInitialTransform.GetTranslation();
+
+	// initialize the global scale factor
+	const float ScaleFactor = Source.InitialHeightInverse * Target.InitialHeight;
+	GlobalScaleFactor.Set(ScaleFactor, ScaleFactor, ScaleFactor);
 	
 	return true;
 }
