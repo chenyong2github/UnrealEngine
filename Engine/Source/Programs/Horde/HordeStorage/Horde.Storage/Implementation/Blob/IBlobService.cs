@@ -425,6 +425,11 @@ public class BlobService : IBlobService
         bool blobNotFound = false;
         bool deletedAtLeastOnce = false;
 
+        // remove the object from the tracking first, if this times out we do not want to end up with a inconsistent blob index
+        // if the blob store delete fails on the other hand we will still run a delete again during GC (as the blob is still orphaned at that point)
+        // this assumes that blob gc is based on scanning the root blob store
+        await _blobIndex.RemoveBlobFromRegion(ns, blob);
+
         foreach (IBlobStore store in _blobStores)
         {
             try
@@ -444,8 +449,6 @@ public class BlobService : IBlobService
                 blobNotFound = true;
             }
         }
-
-        await _blobIndex.RemoveBlobFromRegion(ns, blob);
 
         if (deletedAtLeastOnce)
         {
