@@ -8,7 +8,6 @@
 #include "Dataflow/GeometryCollectionNodes.h"
 #include "Dataflow/GeometryCollectionProcessingNodes.h"
 #include "Dataflow/GeometryCollectionSkeletalMeshNodes.h"
-#include "Dataflow/GeometryCollectionTetrahedralNodes.h"
 
 #define LOCTEXT_NAMESPACE "DataflowNodes"
 
@@ -18,7 +17,6 @@ void IGeometryCollectionNodesPlugin::StartupModule()
 	Dataflow::GeometryCollectionEngineAssetNodes();
 	Dataflow::GeometryCollectionProcessingNodes();
 	Dataflow::GeometryCollectionSkeletalMeshNodes();
-	Dataflow::GeometryCollectionTetrahedralNodes();
 }
 
 void IGeometryCollectionNodesPlugin::ShutdownModule()
