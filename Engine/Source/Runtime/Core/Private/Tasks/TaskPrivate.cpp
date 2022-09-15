@@ -11,6 +11,7 @@ namespace UE::Tasks
 {
 	namespace Private
 	{
+		FExecutableTaskAllocator SmallTaskAllocator;
 		FTaskEventBaseAllocator TaskEventBaseAllocator;
 
 		void FTaskBase::Schedule()

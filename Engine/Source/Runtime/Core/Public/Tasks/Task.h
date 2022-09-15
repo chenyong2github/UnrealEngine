@@ -180,35 +180,6 @@ namespace UE::Tasks
 				return IsValid() && Pimpl->IsAwaitable();
 			}
 
-			// Creates and returns a "task event" that can be used to wait for the task completion.
-			// Regular tasks are allocated by a fast allocator that doesn't handle well long-living tasks, as such tasks can keep an entire memory page alive, 
-			// thus pushing up total memory consumption. In most cases such tasks are stored as class members, or as global vars.
-			// hovewer, task events use a different allocator and doesn't cause this issue, and so can be used for long-living tasks.
-			// Make sure to profile and identify that you indeed have "long-living task" problem before using this function, 
-			// as otherwise it would be a needless overhead.
-			// Task events don't support execution result. if you do need execution result, most probably you can reset your task right after getting its execution
-			// result, so it's not long-living anymore. 
-			FTaskHandle CreateCompletionHandle()
-			{
-				if (!IsValid() || IsCompleted())
-				{
-					return {};
-				}
-
-				// `FTaskEventBase` uses an allocator that doesn't have an issue with long-living allocs
-				Private::FTaskEventBase* CompletionHandle{ Private::FTaskEventBase::Create(TEXT("CompletionHandle")) };
-				if (!CompletionHandle->AddPrerequisites(*Pimpl))
-				{
-					delete CompletionHandle;
-					return {}; // too late, the task is already completed
-				}
-
-				CompletionHandle->AddRef(); // internal reference that is released when the handle is completed
-				// trigger the completion handle so the only thing that holds it from signalling is the task itself
-				CompletionHandle->TryLaunch();
-				return FTaskHandle{ CompletionHandle };
-			}
-
 		protected:
 			TRefCountPtr<FTaskBase> Pimpl;
 		};

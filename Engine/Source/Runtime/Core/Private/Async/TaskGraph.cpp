@@ -2481,6 +2481,7 @@ bool FTaskGraphInterface::IsMultithread()
 #if TASKGRAPH_NEW_FRONTEND
 
 FGraphEventImplAllocator GraphEventImplAllocator;
+FGraphTaskAllocator SmallTaskAllocator;
 
 #else
 

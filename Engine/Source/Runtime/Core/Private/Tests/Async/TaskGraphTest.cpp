@@ -1434,20 +1434,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphCreateCompletionHandleTest, "System.Core.Async.TaskGraph.CreateCompletionHandle", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphTaskDestructionTest, "System.Core.Async.TaskGraph.TaskDestruction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
-	bool FTaskGraphCreateCompletionHandleTest::RunTest(const FString& Parameters)
+	bool FTaskGraphTaskDestructionTest::RunTest(const FString& Parameters)
 	{
-		FGraphEventRef UnblockTask = FGraphEvent::CreateGraphEvent(); // to block initially the following task
-		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, UnblockTask); // supposedly long-living task
-		FGraphEventRef CompletionHandle = Task->CreateCompletionHandle();
-		// check that the completion handle is not signalling as the task is blocked
-		FPlatformProcess::Sleep(0.1f);
-		check(!CompletionHandle->IsComplete());
-		// unblock the task
-		UnblockTask->DispatchSubsequents();
-		// wating for the completion handle instead of waiting for the task, should succeed
-		CompletionHandle->Wait();
+		struct FDestructionTest
+		{
+			explicit FDestructionTest(bool* bDestroyedIn)
+				: bDestroyed(bDestroyedIn)
+			{}
+
+			~FDestructionTest()
+			{
+				*bDestroyed = true;
+			}
+
+			bool* bDestroyed;
+		};
+
+		bool bDestroyed = false;
+
+		FFunctionGraphTask::CreateAndDispatchWhenReady([DestructionTest = FDestructionTest{ &bDestroyed }]{})->Wait();
+
+		check(bDestroyed);
 
 		return true;
 	}

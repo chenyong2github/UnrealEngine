@@ -641,32 +641,15 @@ public:
 
 		return (ENamedThreads::Type)ConversionMap[(int32)Priority - (int32)EExtendedTaskPriority::GameThreadNormalPri];
 	}
-
-	// see Tasks::FTaskHandle::CreateCompletionHandle description
-	FGraphEventRef CreateCompletionHandle()
-	{
-		if (IsCompleted())
-		{
-			return {};
-		}
-
-		// CreateGraphEvent() uses an allocator that doesn't have an issue with long-living allocs
-		FGraphEventRef CompletionHandle = FGraphEvent::CreateGraphEvent();
-		if (!CompletionHandle->AddPrerequisites(*this))
-		{
-			return {}; // too late, the task is already completed
-		}
-
-		// trigger the completion handle so the only thing that holds it from signalling is the task itself
-		CompletionHandle->DispatchSubsequents();
-
-		return CompletionHandle;
-	}
 };
+
+static constexpr int32 SmallTaskSize = 256;
+using FGraphTaskAllocator = TLockFreeFixedSizeAllocator_TLSCache<SmallTaskSize, PLATFORM_CACHE_LINE_SIZE>;
+CORE_API extern FGraphTaskAllocator SmallTaskAllocator;
 
 // the new task implementation integrated into the old task API
 template<typename TTask>
-class TGraphTask : public TConcurrentLinearObject<TGraphTask<TTask>, FTaskGraphBlockAllocationTag>, public FBaseGraphTask
+class TGraphTask : public FBaseGraphTask
 {
 public:
 	/**
@@ -732,10 +715,13 @@ public:
 		return FConstructor(Prerequisites);
 	}
 
-	virtual ~TGraphTask() override
+	FORCENOINLINE virtual ~TGraphTask() override
 	{
 		DestructItem(TaskStorage.GetTypedPtr());
 	}
+
+	static void* operator new(size_t Size);
+	static void operator delete(void* Ptr, size_t Size);
 
 private:
 	explicit TGraphTask(const FGraphEventArray* InPrerequisites)
@@ -766,6 +752,18 @@ private:
 private:
 	TTypeCompatibleBytes<TTask> TaskStorage;
 };
+
+template<typename TTask>
+void* TGraphTask<TTask>::operator new(size_t Size)
+{
+	return Size <= SmallTaskSize ? SmallTaskAllocator.Allocate() : GMalloc->Malloc(sizeof(TGraphTask), PLATFORM_CACHE_LINE_SIZE);
+}
+
+template<typename TTask>
+void TGraphTask<TTask>::operator delete(void* Ptr, size_t Size)
+{
+	Size <= SmallTaskSize ? SmallTaskAllocator.Free(Ptr) : GMalloc->Free(Ptr);
+}
 
 // an adaptation of FBaseGraphTask to be used as a standalone FGraphEvent
 class FGraphEventImpl : public FBaseGraphTask
@@ -808,6 +806,17 @@ inline FGraphEventRef FBaseGraphTask::CreateGraphEvent()
 }
 
 #else // TASKGRAPH_NEW_FRONTEND
+
+struct FTaskBlockAllocationTag : FDefaultBlockAllocationTag
+{
+	static constexpr uint32 BlockSize = 64 * 1024;
+	static constexpr bool AllowOversizedBlocks = false;
+	static constexpr bool RequiresAccurateSize = false;
+	static constexpr bool InlineBlockAllocation = true;
+	static constexpr const char* TagName = "TaskLinearAllocator";
+
+	using Allocator = TBlockAllocationCache<BlockSize, FAlignedAllocator>;
+};
 
 /** 
  *	Base class for all tasks. 
