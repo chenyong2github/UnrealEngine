@@ -20,7 +20,7 @@ namespace Dataflow
 
 		FLink() {}
 
-		FLink(FGuid InInputNode, FGuid InInput, FGuid InOutputNode, FGuid InOutput)
+		FLink(FGuid InOutputNode, FGuid InOutput, FGuid InInputNode, FGuid InInput)
 			: InputNode(InInputNode), Input(InInput)
 			, OutputNode(InOutputNode), Output(InOutput) {}
 
