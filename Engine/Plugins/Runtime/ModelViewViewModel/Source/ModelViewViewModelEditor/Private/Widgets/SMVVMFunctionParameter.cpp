@@ -94,7 +94,7 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 					.Visibility(this, &SFunctionParameter::OnGetVisibility, false)
 					.SelectedField(this, &SFunctionParameter::OnGetSelectedField)
 					.BindingMode_Lambda([this]() { return GetBindingModeDelegate.Execute(); })
-					.OnFieldSelectionChanged(this, &SFunctionParameter::OnFieldSelectionChanged)
+					.OnSelectionChanged(this, &SFunctionParameter::OnFieldSelectionChanged)
 					.AssignableTo(Property)
 				]
 			]
