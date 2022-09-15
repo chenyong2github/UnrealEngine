@@ -1,0 +1,52 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+#include "BroadcastHelper.ush"
+
+Buffer<float> LHSInput;
+Buffer<float> RHSInput;
+RWBuffer<float> Output;
+uint4 LHSInfo0;
+uint4 LHSInfo1;
+uint4 RHSInfo0;
+uint4 RHSInfo1;
+uint4 OutInfo0;
+uint4 OutInfo1;
+uint OutRank;
+uint Num;
+uint ThreadCountX;
+
+// See https://github.com/onnx/onnx/blob/main/docs/Operators.md#prelu
+float prelu(float x, float slope)
+{
+	return (x < 0.0f) ? (slope * x) : x;
+}
+
+[numthreads(THREADGROUP_SIZE_X, 1, 1)]
+void ElementWiseBinaryOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+{
+	const uint Index = DispatchThreadID.y * ThreadCountX + DispatchThreadID.x;
+	
+	if (Index < Num)
+	{
+	    const FTensorInfo LHSInfo = DecodeTensorInfo(LHSInfo0, LHSInfo1);
+		const FTensorInfo RHSInfo = DecodeTensorInfo(RHSInfo0, RHSInfo1);
+		const FTensorInfo OutInfo = DecodeTensorInfo(OutInfo0, OutInfo1);
+
+		uint LHSIndex = 0;
+		uint RHSIndex = 0;
+		uint Offset = Index;
+		for (uint dim = 0; dim < OutRank; ++dim)
+		{
+			uint Q, R;
+			DivMod(Offset, OutInfo.PaddedStrides[dim], Q, R);
+			LHSIndex += LHSInfo.PaddedStrides[dim] * Q;
+			RHSIndex += RHSInfo.PaddedStrides[dim] * Q;
+			Offset = R;
+		}
+
+		float X = LHSInput[LHSIndex];
+		float Y = RHSInput[RHSIndex];
+		Output[Index] = ELEMENTWISE_OP(X, Y);
+	}
+}

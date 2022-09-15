@@ -1,0 +1,50 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "GlobalShader.h"
+#include "NNXShaderParameters.h"
+
+enum class EGemmCScalar : uint8
+{
+	No = 0,
+	Yes,
+	NoBias,
+	MAX
+};
+
+enum class EGemmAlgorithm : uint8
+{
+	Simple8x8 = 0,
+	Simple16x16,
+	Simple32x32,
+	Simple256x1,
+	SharedMemory8x8,
+	SharedMemory16x16,
+	SharedMemory32x32,
+	MultiWrite1x16,
+	MultiWrite2x16,
+	MultiWrite1x32,
+	MultiWrite2x32,
+	MultiWrite4x32,
+	MultiWrite2x64,
+	MultiWrite4x64,
+	MultiWrite8x64,
+	MAX
+};
+
+class NNXHLSLSHADERS_API FMLGemmCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMLGemmCS);
+	SHADER_USE_PARAMETER_STRUCT(FMLGemmCS, FGlobalShader)
+
+	class FGemmCScalar : SHADER_PERMUTATION_ENUM_CLASS("C_SCALAR", EGemmCScalar);
+	class FGemmAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EGemmAlgorithm);
+	using FPermutationDomain = TShaderPermutationDomain<FGemmCScalar, FGemmAlgorithm>;
+
+public:
+	NNXRT_GEMM_PARAMETER_STRUCT()
+
+	static FIntVector GetGroupCount(const FMLGemmCS::FParameters& Parameters, EGemmAlgorithm Algorithm);
+	static EGemmAlgorithm GetAlgorithm(const FMLGemmCS::FParameters& Parameters);
+};

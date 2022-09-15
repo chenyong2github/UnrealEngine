@@ -1,0 +1,77 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+#include "BroadcastHelper.ush"
+
+#define BUFFER_TYPE float
+
+Buffer<BUFFER_TYPE> Input0;
+Buffer<BUFFER_TYPE> Input1;
+Buffer<BUFFER_TYPE> Input2;
+Buffer<BUFFER_TYPE> Input3;
+RWBuffer<BUFFER_TYPE> Output;
+uint4 Input0Info0;
+uint4 Input0Info1;
+uint4 Input1Info0;
+uint4 Input1Info1;
+uint4 Input2Info0;
+uint4 Input2Info1;
+uint4 Input3Info0;
+uint4 Input3Info1;
+uint4 OutInfo0;
+uint4 OutInfo1;
+uint OutRank;
+uint Num;
+uint ThreadCountX;
+float Scale;
+
+[numthreads(THREADGROUP_SIZE_X, 1, 1)]
+void ElementWiseVariadicOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+{
+	const uint Index = DispatchThreadID.y * ThreadCountX + DispatchThreadID.x;
+	
+	if (Index < Num)
+	{
+	    const FTensorInfo Info0 = DecodeTensorInfo(Input0Info0, Input0Info1);
+		const FTensorInfo Info1 = DecodeTensorInfo(Input1Info0, Input1Info1);
+		const FTensorInfo Info2 = DecodeTensorInfo(Input2Info0, Input2Info1);
+		const FTensorInfo Info3 = DecodeTensorInfo(Input3Info0, Input3Info1);
+		const FTensorInfo OutInfo = DecodeTensorInfo(OutInfo0, OutInfo1);
+
+		uint Input0Index = 0;
+		uint Input1Index = 0;
+		uint Input2Index = 0;
+		uint Input3Index = 0;
+		uint Offset = Index;
+		for (uint dim = 0; dim < OutRank; ++dim)
+		{
+			uint Q, R;
+			DivMod(Offset, OutInfo.PaddedStrides[dim], Q, R);
+			Input0Index += Info0.PaddedStrides[dim] * Q;
+			Input1Index += Info1.PaddedStrides[dim] * Q;
+			Input2Index += Info2.PaddedStrides[dim] * Q;
+			Input3Index += Info3.PaddedStrides[dim] * Q;
+			Offset = R;
+		}
+
+		BUFFER_TYPE Result = Input0[Input0Index];
+
+		 // Must correspond to EVariadicNumInput defined in NNXElementWiseVariadicCS.h
+		#if NUMINPUT >= 2
+			Result  = ELEMENTWISE_OP(Result, Input1[Input1Index]);
+		#endif
+		#if NUMINPUT >= 3
+			Result  = ELEMENTWISE_OP(Result, Input2[Input2Index]);
+		#endif
+		#if NUMINPUT >= 4
+			Result  = ELEMENTWISE_OP(Result, Input3[Input3Index]);
+		#endif
+
+		// Must correspond to EVariadicScale defined in NNXElementWiseVariadicCS.h
+		#if APPLYSCALE == 1 
+			Result  = (BUFFER_TYPE)(Result * Scale);
+		#endif
+
+		Output[Index] = Result;
+	}
+}

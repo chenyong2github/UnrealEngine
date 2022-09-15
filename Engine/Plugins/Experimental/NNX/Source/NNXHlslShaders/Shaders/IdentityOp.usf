@@ -1,0 +1,18 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+
+Buffer<float> Input;
+RWBuffer<float> Output;
+uint Num;
+
+[numthreads(THREADGROUP_SIZE_X, 1, 1)]
+void IdentityOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+{
+	const uint Index = DispatchThreadID.x;
+	
+	if (Index < Num)
+	{
+		Output[Index] = Input[Index];
+	}
+}
