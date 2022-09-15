@@ -503,7 +503,7 @@ TArray< TObjectPtr<UTickableConstraint> > FConstraintsManagerController::GetPare
 	TArray< TObjectPtr<UTickableConstraint> > FilteredConstraints =
 	Manager->Constraints.FilterByPredicate( [InTargetHash](const ConstraintPtr& Constraint)
 	{
-		return Constraint->GetTargetHash() == InTargetHash;
+		return IsValid(Constraint) && Constraint->GetTargetHash() == InTargetHash;
 	} );
 	
 	if (bSorted)

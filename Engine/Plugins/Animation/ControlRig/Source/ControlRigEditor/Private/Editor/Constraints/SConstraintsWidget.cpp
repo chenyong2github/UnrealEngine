@@ -94,7 +94,7 @@ TArray<AActor*> GetCurrentSelection()
 
 	return CurrentLevel->Actors.FilterByPredicate( [](const AActor* Actor)
 	{
-		return Actor && Actor->IsSelected();
+		return IsValid(Actor) && Actor->IsSelected();
 	});	
 }
 	
