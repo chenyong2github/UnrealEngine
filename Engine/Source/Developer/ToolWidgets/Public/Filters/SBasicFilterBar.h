@@ -470,7 +470,7 @@ protected:
 			{
 			case EFilterPillStyle::Basic:
 				ContentWidget = SAssignNew( ToggleButtonPtr, SFilterCheckBox )
-					.Style(FAppStyle::Get(), "DetailsView.SectionButton")
+					.Style(FAppStyle::Get(), "FilterBar.BasicFilterButton")
 					.ToolTipText(FilterToolTip)
 					.IsChecked(this, &SFilter::IsChecked)
 					.OnCheckStateChanged(this, &SFilter::FilterToggled)
@@ -487,7 +487,7 @@ protected:
 			default:
 				ContentWidget = SNew(SBorder)
 				 .Padding(1.0f)
-				 .BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FilterBackground"))
+				 .BorderImage(FAppStyle::Get().GetBrush("FilterBar.FilterBackground"))
 				 [
 					 SNew(SHorizontalBox)
 					 +SHorizontalBox::Slot()
@@ -495,7 +495,7 @@ protected:
 					 .AutoWidth()
 					 [
 						 SNew(SImage)
-						 .Image(FAppStyle::Get().GetBrush("ContentBrowser.FilterImage"))
+						 .Image(FAppStyle::Get().GetBrush("FilterBar.FilterImage"))
 						 .ColorAndOpacity(this, &SFilter::GetFilterImageColorAndOpacity)
 					 ]
 					 +SHorizontalBox::Slot()
@@ -503,7 +503,7 @@ protected:
 					 .VAlign(VAlign_Center)
 					 [
 						 SAssignNew( ToggleButtonPtr, SFilterCheckBox )
-						.Style(FAppStyle::Get(), "ContentBrowser.FilterButton")
+						.Style(FAppStyle::Get(), "FilterBar.FilterButton")
 						.ToolTipText(FilterToolTip)
 						.IsChecked(this, &SFilter::IsChecked)
 						.OnCheckStateChanged(this, &SFilter::FilterToggled)

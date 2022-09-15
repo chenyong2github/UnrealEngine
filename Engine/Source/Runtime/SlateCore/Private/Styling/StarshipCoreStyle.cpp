@@ -852,6 +852,52 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		FilterSearchBoxStyle.SetTextBoxStyle(FilterTextBoxStyle);
 
 		Style->Set("FilterBar.SearchBox", FilterSearchBoxStyle);
+		
+		const FCheckBoxStyle FilterButtonCheckBoxStyle = FCheckBoxStyle()
+			.SetUncheckedImage(FSlateNoResource())
+			.SetUncheckedHoveredImage(FSlateNoResource())
+			.SetUncheckedPressedImage(FSlateNoResource())
+			.SetCheckedImage(FSlateNoResource())
+			.SetCheckedHoveredImage(FSlateNoResource())
+			.SetCheckedPressedImage(FSlateNoResource())
+			.SetForegroundColor(FStyleColors::Foreground)
+			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedForegroundColor(FStyleColors::Foreground)
+			.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+			.SetPressedForegroundColor(FStyleColors::ForegroundHover);
+
+		Style->Set("FilterBar.FilterImage", new IMAGE_BRUSH_SVG("Starship/CoreWidgets/FilterBar/FilterColorSegment", FVector2D(8, 22)));
+		Style->Set("FilterBar.FilterBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 3.0f));
+
+		/* ... and add the new style */
+		Style->Set("FilterBar.FilterButton", FilterButtonCheckBoxStyle );
+		
+		Style->Set( "FilterBar.BasicFilterButton", FCheckBoxStyle( Style->GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+			.SetUncheckedImage(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Input, 1.0f))
+			.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Input, 1.0f))
+			.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Input, 1.0f))
+			.SetCheckedImage(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.0f, FStyleColors::Input, 1.0f))
+			.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.0f, FStyleColors::Input, 1.0f))
+			.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.0f, FStyleColors::Input, 1.0f))
+			.SetPadding(FMargin(16, 4))
+		);
+
+		// FilteBar implemented as toolbar
+		FToolBarStyle FilterToolBar = FToolBarStyle(Style->GetWidgetStyle<FToolBarStyle>("SlimToolBar"))
+			.SetIconSize(Icon16x16)
+			.SetBackground(FSlateNoResource())
+			.SetLabelPadding(FMargin(0))
+			.SetComboButtonPadding(FMargin(0))
+			.SetBlockPadding(FMargin(3, 0))
+			.SetIndentedBlockPadding(FMargin(0))
+			.SetBackgroundPadding(FMargin(0))
+			.SetButtonPadding(FMargin(0))
+			.SetCheckBoxPadding(FMargin(0))
+			.SetSeparatorBrush(FSlateNoResource())
+			.SetSeparatorPadding(FMargin(0));
+
+		Style->Set("FilterBar.FilterToolBar", FilterToolBar);
 	}
 	
 	// Project Launcher
