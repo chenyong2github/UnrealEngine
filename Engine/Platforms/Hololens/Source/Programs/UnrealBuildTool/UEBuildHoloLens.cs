@@ -262,6 +262,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			if (Target.HoloLensPlatform.Compiler.IsClang())
+			{
+				Logger.LogWarning("Buiding HoloLens with {ClangToolchain} is not supported. The default compiler will be used.", Target.HoloLensPlatform.Compiler);
+				Target.HoloLensPlatform.Compiler = WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture, Logger);
+			}
+
 			if (!Target.bGenerateProjectFiles)
 			{
 				Log.TraceInformationOnce("Using {0} architecture for deploying to HoloLens device", Architecture);
