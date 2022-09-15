@@ -115,7 +115,7 @@ public:
 
 	/** If set then start playing when this object is active. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
-	bool bAutoPlay;
+	bool bAutoPlay = true;
 
 	/** If set then enable audio. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
