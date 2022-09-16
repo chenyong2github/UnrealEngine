@@ -764,7 +764,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 			}
 
 			BasicAttrs.Color = SkinnedVertex.Color;
-			OutVertexBuffer[v].MasterVertIndex = v; // index of the closest vert w.r.t  SrcLODModel.GetVertices(SoftSkinVertices);
+			OutVertexBuffer[v].ClosestSrcVertIndex = v; // index of the closest vert w.r.t  SrcLODModel.GetVertices(SoftSkinVertices);
 			OutVertexBuffer[v].MaterialIndex   = 0; // default to be over-written
 			OutVertexBuffer[v].Position = SkinnedVertex.Position;
 
@@ -1478,14 +1478,14 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 			for (int32 VIdx = 0; VIdx < SkinnedMesh.NumVertices(); ++VIdx)
 			{
 				// The VerId in the Source Mesh that was closest to the simplified vertex
-				const int32 MasterVertId = SkinnedMesh.VertexBuffer[VIdx].MasterVertIndex;
+				const int32 ClosestSrcVertId = SkinnedMesh.VertexBuffer[VIdx].ClosestSrcVertIndex;
 
-				if (MasterVertId != INDEX_NONE)  // NB: MasterVerId should never be INDEX_NONE
+				if (ClosestSrcVertId != INDEX_NONE)  // NB: ClosestSrcVertId should never be INDEX_NONE
 				{
-					const FRawSkinWeight& SrcRawSkinWeight = SrcBonesAndWeights[MasterVertId];
+					const FRawSkinWeight& SrcRawSkinWeight = SrcBonesAndWeights[ClosestSrcVertId];
 
 					// Get the BoneMap that was used to encode these weights. 
-					const auto& BoneMap = SrcLODModel.Sections[SrcVertIdxToSectionMap[MasterVertId]].BoneMap;
+					const auto& BoneMap = SrcLODModel.Sections[SrcVertIdxToSectionMap[ClosestSrcVertId]].BoneMap;
 
 					// Add the non-zero weights 
 					for (int32 b = 0; b < MAX_TOTAL_INFLUENCES; ++b)

@@ -306,14 +306,14 @@ void SkeletalSimplifier::FMeshSimplifier::ComputeEdgeCollapseVertsAndFixBones(Si
 	const auto& ClosestSimpliferVert = (DstSqr1 < DstSqr0) ? Vert1->vert : Vert0->vert;
 
 	const auto& SrcBones         = ClosestSimpliferVert.GetSparseBones();
-	const int32 MasterVertIndex  = ClosestSimpliferVert.MasterVertIndex;
+	const int32 ClosestSrcVertIndex  = ClosestSimpliferVert.ClosestSrcVertIndex;
 	const int32 NumNewVerts      = EdgeAndNewVertArray.Num();
 
 	for (int32 i = 0; i < NumNewVerts; ++i)
 	{
 		MeshVertType& simpVert   = EdgeAndNewVertArray[i].Get<2>();
 		simpVert.SparseBones     = SrcBones;
-		simpVert.MasterVertIndex = MasterVertIndex;
+		simpVert.ClosestSrcVertIndex = ClosestSrcVertIndex;
 	}
 
 }
