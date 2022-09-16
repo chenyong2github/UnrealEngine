@@ -2337,27 +2337,33 @@ bool FSearchContext::GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseS
 	return false;
 }
 
-void FSearchContext::CacheCurrentResultFeatureVectors()
-{
-	if (!CurrentResultPoseVector.IsInitialized())
-	{
-		check(CurrentResult.IsValid());
-		const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();
-		check(SearchIndex);
-
-		CurrentResultPoseVector.Init(CurrentResult.Database->Schema);
-		CurrentResultPrevPoseVector.Init(CurrentResult.Database->Schema);
-		CurrentResultNextPoseVector.Init(CurrentResult.Database->Schema);
-
-		CurrentResultPoseVector.CopyFromSearchIndex(*SearchIndex, CurrentResult.PoseIdx);
-		CurrentResultPrevPoseVector.CopyFromSearchIndex(*SearchIndex, CurrentResult.PrevPoseIdx);
-		CurrentResultNextPoseVector.CopyFromSearchIndex(*SearchIndex, CurrentResult.NextPoseIdx);
-	}
-}
-
 bool FSearchContext::IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const
 {
 	return !bForceInterrupt && CurrentResult.IsValid() && CurrentResult.Database == Database;
+}
+
+TConstArrayView<const float> FSearchContext::GetCurrentResultPrevPoseVector() const
+{
+	check(CurrentResult.IsValid());
+	const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();
+	check(SearchIndex);
+	return SearchIndex->GetPoseValues(CurrentResult.PrevPoseIdx);
+}
+
+TConstArrayView<const float> FSearchContext::GetCurrentResultPoseVector() const
+{
+	check(CurrentResult.IsValid());
+	const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();
+	check(SearchIndex);
+	return SearchIndex->GetPoseValues(CurrentResult.PoseIdx);
+}
+
+TConstArrayView<const float> FSearchContext::GetCurrentResultNextPoseVector() const
+{
+	check(CurrentResult.IsValid());
+	const FPoseSearchIndex* SearchIndex = CurrentResult.Database->GetSearchIndex();
+	check(SearchIndex);
+	return SearchIndex->GetPoseValues(CurrentResult.NextPoseIdx);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2562,9 +2568,9 @@ void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffse
 	DataOffset += EncodeQuatCardinality;
 }
 
-void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue)
+void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue)
 {
-	FQuat Quat = DecodeQuatInternal(CurPrevValues, DataOffset);
+	FQuat Quat = DecodeQuatInternal(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
@@ -2575,7 +2581,7 @@ void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffse
 		}
 		else
 		{
-			Quat = FQuat::Slerp(Quat, DecodeQuatInternal(NextPrevValues, DataOffset), LerpValue);
+			Quat = FQuat::Slerp(Quat, DecodeQuatInternal(NextValues, DataOffset), LerpValue);
 		}
 	}
 	// @todo: do we need to add options for cubic interpolation?
@@ -2612,9 +2618,9 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 	DataOffset += EncodeVectorCardinality;
 }
 
-void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue, bool bNormalize)
+void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue, bool bNormalize)
 {
-	FVector Vector = DecodeVectorInternal(CurPrevValues, DataOffset);
+	FVector Vector = DecodeVectorInternal(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
@@ -2625,7 +2631,7 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 		}
 		else
 		{
-			Vector = FMath::Lerp(Vector, DecodeVectorInternal(NextPrevValues, DataOffset), LerpValue);
+			Vector = FMath::Lerp(Vector, DecodeVectorInternal(NextValues, DataOffset), LerpValue);
 		}
 	}
 	// @todo: do we need to add options for cubic interpolation?
@@ -2657,9 +2663,9 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataO
 	DataOffset += EncodeVector2DCardinality;
 }
 
-void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurPrevValues, TArrayView<const float> NextPrevValues, float LerpValue)
+void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue)
 {
-	FVector2D Vector2D = DecodeVector2DInternal(CurPrevValues, DataOffset);
+	FVector2D Vector2D = DecodeVector2DInternal(CurValues, DataOffset);
 
 	// linear interpolation
 	if (!FMath::IsNearlyZero(LerpValue))
@@ -2670,7 +2676,7 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataO
 		}
 		else
 		{
-			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DInternal(NextPrevValues, DataOffset), LerpValue);
+			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DInternal(NextValues, DataOffset), LerpValue);
 		}
 	}
 	// @todo: do we need to add options for cubic interpolation?

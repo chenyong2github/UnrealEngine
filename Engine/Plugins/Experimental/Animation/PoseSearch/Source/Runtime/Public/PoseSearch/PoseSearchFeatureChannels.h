@@ -8,6 +8,22 @@
 
 #include "PoseSearchFeatureChannels.generated.h"
 
+UENUM(BlueprintType)
+enum class InputQueryPose : uint8
+{
+	// use character pose to compose the query
+	UseCharacterPose,
+
+	// if available reuse continuing pose from the database to compose the query or else UseCharacterPose
+	UseContinuingPose,
+
+	// if available reuse and interpolate continuing pose from the database to compose the query or else UseCharacterPose
+	UseInterpolatedContinuingPose,
+
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
+};
+
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Position
 UCLASS(BlueprintType, EditInlineNew)
@@ -31,9 +47,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	int32 ColorPresetIndex = 0;
 
-	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseFeaturesFromContinuingPose = true;
+	InputQueryPose InputQueryPose = InputQueryPose::UseContinuingPose;
 
 	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
 	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
@@ -86,9 +101,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	int32 ColorPresetIndex = 0;
 
-	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseFeaturesFromContinuingPose = true;
+	InputQueryPose InputQueryPose = InputQueryPose::UseContinuingPose;
 
 	// if UseSampleTimeOffsetRootBone is true, this UPoseSearchFeatureChannel_Position will calculate the position of Bone from the pose SampleTimeOffset seconds away from the current time pose root bone
 	// if false the calculated position of Bone will be in component space from the pose SampleTimeOffset seconds away
@@ -125,9 +139,8 @@ public:
 	UPROPERTY()
 	TArray<int8> SchemaBoneIdx;
 
-	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseFeaturesFromContinuingPose = true;
+	InputQueryPose InputQueryPose = InputQueryPose::UseContinuingPose;
 
 	// UObject interface
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
