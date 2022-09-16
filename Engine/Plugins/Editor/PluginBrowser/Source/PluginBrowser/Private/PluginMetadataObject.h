@@ -112,6 +112,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Details)
 	bool bIsBetaVersion;
 
+	/** If true, the plugin will be enabled by default without needing to modify the project file. This cannot be changed while the editor is running */
+	UPROPERTY(VisibleAnywhere, Category = Details)
+	bool bIsEnabledByDefault;
+
+	/** If true, the plugin will not load at startup and must be explicitly loaded. This cannot be changed while the editor is running */
+	UPROPERTY(VisibleAnywhere, Category = Details)
+	bool bExplicitlyLoaded;
+
 	/** Plugins used by this plugin */
 	UPROPERTY(EditAnywhere, Category = Dependencies, meta=(TitleProperty=Name))
 	TArray<FPluginReferenceMetadata> Plugins;

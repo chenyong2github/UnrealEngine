@@ -32,13 +32,15 @@
 
 struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 {
-	FGameFeaturePluginTemplateDescription(FText InName, FText InDescription, FString InOnDiskPath, TSubclassOf<UGameFeatureData> GameFeatureDataClassOverride, FString GameFeatureDataNameOverride)
+	FGameFeaturePluginTemplateDescription(FText InName, FText InDescription, FString InOnDiskPath
+		, TSubclassOf<UGameFeatureData> GameFeatureDataClassOverride, FString GameFeatureDataNameOverride, EPluginEnabledByDefault InEnabledByDefault)
 		: FPluginTemplateDescription(InName, InDescription, InOnDiskPath, /*bCanContainContent=*/ true, EHostType::Runtime)
 	{
 		SortPriority = 10;
 		bCanBePlacedInEngine = false;
 		GameFeatureDataName = !GameFeatureDataNameOverride.IsEmpty() ? GameFeatureDataNameOverride : FString();
 		GameFeatureDataClass = GameFeatureDataClassOverride != nullptr ? GameFeatureDataClassOverride : TSubclassOf<UGameFeatureData>(UGameFeatureData::StaticClass());
+		PluginEnabledByDefault = InEnabledByDefault;
 	}
 
 	virtual bool ValidatePathForPlugin(const FString& ProposedAbsolutePluginPath, FText& OutErrorMessage) override
@@ -73,8 +75,8 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 		Descriptor.AdditionalFieldsToWrite.FindOrAdd(TEXT("BuiltInInitialFeatureState")) = MakeShared<FJsonValueString>(TEXT("Active"));
 		Descriptor.Category = TEXT("Game Features");
 
-		// Game features should be disabled by default, as they are managed by the game feature subsystem
-		Descriptor.EnabledByDefault = EPluginEnabledByDefault::Disabled;
+		// Game features should not be enabled by default if the game wants to strictly manage default settings in the target settings
+		Descriptor.EnabledByDefault = PluginEnabledByDefault;
 
 		if (Descriptor.Modules.Num() > 0)
 		{
@@ -136,6 +138,7 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 
 	TSubclassOf<UGameFeatureData> GameFeatureDataClass;
 	FString GameFeatureDataName;
+	EPluginEnabledByDefault PluginEnabledByDefault = EPluginEnabledByDefault::Disabled;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -226,7 +229,8 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 					PluginTemplate.Description,
 					PluginTemplate.Path.Path,
 					PluginTemplate.DefaultGameFeatureDataClass,
-					PluginTemplate.DefaultGameFeatureDataName)));
+					PluginTemplate.DefaultGameFeatureDataName,
+					PluginTemplate.bIsEnabledByDefault ? EPluginEnabledByDefault::Enabled : EPluginEnabledByDefault::Disabled)));
 			}
 		}
 	}

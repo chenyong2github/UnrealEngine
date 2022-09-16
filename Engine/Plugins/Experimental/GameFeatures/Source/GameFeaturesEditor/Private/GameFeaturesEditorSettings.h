@@ -40,6 +40,11 @@ struct FPluginTemplateData
 	/** The default name of the created game feature data assets. If empty, will use the plugin name. */
 	UPROPERTY(config, EditAnywhere, Category = Plugins)
 	FString DefaultGameFeatureDataName;
+
+	/** If true, the created plugin will be enabled by default without needing to be added to the project file. */
+	UPROPERTY(config, EditAnywhere, Category = Plugins)
+	bool bIsEnabledByDefault = false;
+
 };
 
 
