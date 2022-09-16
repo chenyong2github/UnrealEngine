@@ -53,5 +53,8 @@ namespace UE::PixelStreaming
 		// raw pointers here because the factory interface wants a unique_ptr here so we cant own the object.
 		TArray<FVideoEncoderSingleLayerH264*> ActiveEncoders;
 		FCriticalSection ActiveEncodersGuard;
+
+		// Init encoder guard
+		FCriticalSection InitEncoderGuard;
 	};
 } // namespace UE::PixelStreaming

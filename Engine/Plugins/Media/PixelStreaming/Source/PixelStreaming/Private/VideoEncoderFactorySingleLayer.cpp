@@ -149,7 +149,13 @@ namespace UE::PixelStreaming
 
 	FVideoEncoderWrapperHardware* FVideoEncoderFactorySingleLayer::GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate)
 	{
-		if (HardwareEncoder == nullptr)
+		FScopeLock InitLock(&InitEncoderGuard);
+
+		if (HardwareEncoder != nullptr)
+ 		{
+			return HardwareEncoder.Get();
+		}
+		else
 		{
 			// Make AVEncoder frame factory.
 			TUniquePtr<FEncoderFrameFactory> FrameFactory = MakeUnique<FEncoderFrameFactory>();
@@ -182,10 +188,6 @@ namespace UE::PixelStreaming
 				// We could not make the encoder, so indicate the id was not set successfully.
 				return nullptr;
 			}
-		}
-		else
-		{
-			return HardwareEncoder.Get();
 		}
 	}
 
