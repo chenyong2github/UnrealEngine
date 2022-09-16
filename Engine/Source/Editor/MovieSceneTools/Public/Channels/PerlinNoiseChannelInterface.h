@@ -2,19 +2,15 @@
 
 #pragma once
 
-#include "ISequencerChannelInterface.h"
-#include "Channels/IMovieSceneChannelOverrideProvider.h"
-#include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "CurveKeyEditors/SequencerKeyEditor.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Modules/ModuleManager.h"
+#include "ISequencerChannelInterface.h"
 #include "MovieSceneSection.h"
-#include "PropertyEditorModule.h"
 #include "TimeToPixel.h"
-#include "ToolMenus.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Text/STextBlock.h"
+
+class FMenuBuilder;
 
 template<typename ChannelType, typename NumericType>
 class SNumericTextBlockKeyEditor : public SCompoundWidget
@@ -46,76 +42,20 @@ class SNumericTextBlockKeyEditor : public SCompoundWidget
 	}
 };
 
-template<typename ChannelContainerType>
-struct TPerlinNoiseChannelSectionMenuExtension : TSharedFromThis<TPerlinNoiseChannelSectionMenuExtension<ChannelContainerType>>
+struct FPerlinNoiseChannelSectionMenuExtension : TSharedFromThis<FPerlinNoiseChannelSectionMenuExtension>
 {
-	using ChannelType = typename ChannelContainerType::ChannelType;
+	FPerlinNoiseChannelSectionMenuExtension(TArrayView<const FMovieSceneChannelHandle> InChannelHandles);
 
-	TPerlinNoiseChannelSectionMenuExtension(TArrayView<UMovieSceneSection* const> InSections)
-		: Sections(InSections)
-	{}
-
-	void ExtendMenu(FMenuBuilder& MenuBuilder)
-	{
-		TSharedRef<TPerlinNoiseChannelSectionMenuExtension<ChannelContainerType>> SharedThis = this->AsShared();
-
-		MenuBuilder.AddSubMenu(
-			NSLOCTEXT("PerlinNoiseChannelInterface", "PerlinNoiseChannelsMenu", "Perlin Noise Channels"),
-			NSLOCTEXT("PerlinNoiseChannelInterface", "PerlinNoiseChannelsMenuToolTip", "Edit parameters for Perlin Noise channels"),
-			FNewMenuDelegate::CreateLambda([SharedThis](FMenuBuilder& MenuBuilder) { SharedThis->BuildChannelOverrideParametersMenu(MenuBuilder); })
-		);
-	}
+	void ExtendMenu(FMenuBuilder& MenuBuilder);
 
 private:
 
-	void BuildChannelOverrideParametersMenu(FMenuBuilder& MenuBuilder)
-	{
-		FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-		FDetailsViewArgs DetailsViewArgs;
-		DetailsViewArgs.bAllowSearch = false;
-		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-		DetailsViewArgs.bHideSelectionTip = true;
-		DetailsViewArgs.bShowOptions = false;
-		DetailsViewArgs.bShowScrollBar = false;
-
-		TSharedRef<IDetailsView> DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
-
-		TArray<UObject*> Objects;
-		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
-		{
-			UMovieSceneSection* Section = WeakSection.Get();
-			if (!Section)
-			{
-				continue;
-			}
-
-			IMovieSceneChannelOverrideProvider* OverrideProvider = Cast<IMovieSceneChannelOverrideProvider>(Section);
-			if (!OverrideProvider)
-			{
-				continue;
-			}
-			
-			UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry = OverrideProvider->GetChannelOverrideRegistry(false);
-			if (!OverrideRegistry)
-			{
-				continue;
-			}
-	
-			TArray<ChannelContainerType*> ChannelContainers;
-			OverrideRegistry->GetChannels<ChannelContainerType>(ChannelContainers);
-			Objects.Append(ChannelContainers);
-		}
-
-		DetailsView->SetObjects(Objects, true);
-
-		MenuBuilder.AddWidget(DetailsView, FText(), true, false);
-	}
-
+	void BuildChannelsMenu(FMenuBuilder& MenuBuilder);
+	void BuildParametersMenu(FMenuBuilder& MenuBuilder, int32 ChannelHandleIndex);
 
 private:
 
-	TArray<TWeakObjectPtr<UMovieSceneSection>> Sections;
+	TArray<FMovieSceneChannelHandle> ChannelHandles;
 };
 
 template<typename ChannelContainerType>
@@ -169,8 +109,7 @@ struct TPerlinNoiseChannelInterface : ISequencerChannelInterface
 
 	virtual void ExtendSectionMenu_Raw(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, TArrayView<const FMovieSceneChannelHandle> Channels, TArrayView<UMovieSceneSection* const> Sections, TWeakPtr<ISequencer> InSequencer) const override
 	{
-		using MenuExtenderType = TPerlinNoiseChannelSectionMenuExtension<ChannelContainerType>;
-		TSharedRef<MenuExtenderType> Extension = MakeShared<MenuExtenderType>(Sections);
+		TSharedRef<FPerlinNoiseChannelSectionMenuExtension> Extension = MakeShared<FPerlinNoiseChannelSectionMenuExtension>(Channels);
 
 		MenuExtender->AddMenuExtension("SequencerChannels", EExtensionHook::First, nullptr, FMenuExtensionDelegate::CreateLambda([Extension](FMenuBuilder& MenuBuilder) { Extension->ExtendMenu(MenuBuilder); }));
 	}
