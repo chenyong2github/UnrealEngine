@@ -103,7 +103,7 @@ protected:
 	FReply OnSortFadersClicked();
 
 	/** Called when a fader send DMX check box state changes  */
-	void HandleMasterFaderChanged(uint8 NewValue);
+	void HandlePrimaryFaderChanged(uint8 NewValue);
 
 	/** Called when the add fader button is clicked */
 	FReply HandleAddFadersClicked();
@@ -117,8 +117,8 @@ protected:
 	/** Port selector */
 	TSharedPtr<SDMXOutputConsolePortSelector> PortSelector;
 
-	/** The master fader that controlls all faders */
-	TSharedPtr<SSpinBox<uint8>> MasterFader;
+	/** The primary fader that controlls all faders */
+	TSharedPtr<SSpinBox<uint8>> PrimaryFader;
 
 	/** The displayed fader widgets */
 	TArray<TSharedPtr<SDMXFader>> Faders;
