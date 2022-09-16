@@ -548,6 +548,85 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRevolvePath(
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSweepPolyline(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& PolylineVertices,
+	const TArray<FTransform>& SweepPath,
+	const TArray<float>& PolylineTexParamU,
+	const TArray<float>& SweepPathTexParamV,
+	bool bLoop,
+	float StartScale,
+	float EndScale,
+	float RotationAngleDeg,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_NullMesh", "AppendSweepPolyline: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PolylineVertices.Num() < 2)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidPolygon", "AppendSweepPolyline: Polyline array requires at least 2 positions"));
+		return TargetMesh;
+	}
+	if (SweepPath.Num() < 2)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidSweepPath", "AppendSweepPolyline: SweepPath array requires at least 2 positions"));
+		return TargetMesh;
+	}
+	if (PolylineTexParamU.Num() != 0 && PolylineTexParamU.Num() != PolylineVertices.Num())
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidTexParamU", "AppendSweepPolyline: Polyline Texture Parameter U array must be same length as PolylineVertices"));
+		return TargetMesh;
+	}
+	if (SweepPathTexParamV.Num() != 0 && SweepPathTexParamV.Num() != (SweepPath.Num() + (bLoop?1:0)) )
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolyline_InvalidTexParamU", "AppendSweepPolyline: SweepPath Texture Parameter V array must be same length as SweepPath, or (length+1) for a closed loop"));
+		return TargetMesh;
+	}
+
+	FMatrix2d Rotation2D = FMatrix2d::RotationDeg(-RotationAngleDeg);
+	FGeneralizedCylinderGenerator SweepGen;
+	for (const FVector2D& Point : PolylineVertices)
+	{
+		SweepGen.CrossSection.AppendVertex(Rotation2D * FVector2d(Point.X, Point.Y));
+	}
+	for (const FTransform& SweepXForm : SweepPath)
+	{
+		SweepGen.Path.Add(SweepXForm.GetLocation());
+		FQuaterniond Rotation(SweepXForm.GetRotation());
+		SweepGen.PathFrames.Add(
+			FFrame3d(SweepXForm.GetLocation(), Rotation.AxisY(), Rotation.AxisZ(), Rotation.AxisX())
+		);
+		FVector3d Scale = SweepXForm.GetScale3D();
+		SweepGen.PathScales.Add(FVector2d(Scale.Y, Scale.Z));
+	}
+
+	SweepGen.bProfileCurveIsClosed = false;
+	SweepGen.bLoop = bLoop;
+	if (PolylineTexParamU.Num() > 0)
+	{
+		SweepGen.CrossSectionTexCoord = PolylineTexParamU;
+	}
+	if (SweepPathTexParamV.Num() > 0)
+	{
+		SweepGen.PathTexCoord = SweepPathTexParamV;
+	}
+	SweepGen.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	SweepGen.InitialFrame = FFrame3d(SweepGen.Path[0]);
+	SweepGen.StartScale = StartScale;
+	SweepGen.EndScale = EndScale;
+
+	SweepGen.Generate();
+
+	AppendPrimitive(TargetMesh, &SweepGen, Transform, PrimitiveOptions);
+	return TargetMesh;
+}
+
+
 
 UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleExtrudePolygon(
 	UDynamicMesh* TargetMesh,
