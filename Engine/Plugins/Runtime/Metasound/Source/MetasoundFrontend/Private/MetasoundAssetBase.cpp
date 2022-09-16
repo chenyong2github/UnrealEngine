@@ -593,8 +593,17 @@ void FMetasoundAssetBase::SetUpdateDetailsOnSynchronization()
 
 void FMetasoundAssetBase::ResetSynchronizationState()
 {
+	using namespace Metasound::Frontend;
+
 	bSynchronizationUpdateDetails = false;
 	bSynchronizationRequired = false;
+
+	TArray<FMetasoundAssetBase*> References;
+	ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, References));
+	for (FMetasoundAssetBase* Reference : References)
+	{
+		Reference->ResetSynchronizationState();
+	}
 }
 #endif // WITH_EDITOR
 
