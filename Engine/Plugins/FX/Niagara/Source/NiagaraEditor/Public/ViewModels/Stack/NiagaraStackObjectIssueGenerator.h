@@ -4,6 +4,8 @@
 
 #include "ViewModels/Stack/NiagaraStackObject.h"
 
+struct FNiagaraPlatformSet;
+
 class INiagaraStackObjectIssueGenerator
 {
 public:
@@ -15,4 +17,6 @@ class FNiagaraPlatformSetIssueGenerator : public INiagaraStackObjectIssueGenerat
 {
 public:
 	virtual void GenerateIssues(void* Object, UNiagaraStackObject* StackObject, TArray<UNiagaraStackEntry::FStackIssue>& NewIssues)override;
+private:
+	static void FixIssue(FNiagaraPlatformSet* PlatformSet, TWeakObjectPtr<UObject> WeakObject, FName CVarName);
 };
