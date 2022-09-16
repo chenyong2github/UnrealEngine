@@ -341,7 +341,7 @@ namespace Chaos
 				{
 					continue;
 				}
-				if ((CollisionGroup1 != 0) && (CollisionGroup1 != 0) && (CollisionGroup1 != CollisionGroup2))
+				if ((CollisionGroup1 != 0) && (CollisionGroup2 != 0) && (CollisionGroup1 != CollisionGroup2))
 				{
 					continue;
 				}
