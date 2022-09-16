@@ -264,7 +264,7 @@ void FPalette::WindowChanged()
 	if (CurrentPalette != nullptr)
 	{
 		CurrentPalette->Window->IconSnapshot.SetStatus(bIs3DView);
-		CurrentPalette->Window->IconAutoSync.SetStatus(bIs3DView && FCommander::IsAutoSyncEnabled());
+		CurrentPalette->Window->IconAutoSync.SetStatus(bIs3DView);
 	}
 #endif
 }

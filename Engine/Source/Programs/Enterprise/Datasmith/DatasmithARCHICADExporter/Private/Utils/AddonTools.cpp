@@ -278,7 +278,11 @@ bool Is3DCurrenWindow()
 			return false;
 		}
 		UE_AC_DebugF("Is3DCurrenWindow - APIDb_GetCurrentWindowID error=%s\n", GetErrorName(GSErr));
+
+		// Something wrong happens. Might not be a 3D window. Not taking any chance
+		return false;
 	}
+
 	return WindowInfo.typeID == APIWind_3DModelID;
 }
 
