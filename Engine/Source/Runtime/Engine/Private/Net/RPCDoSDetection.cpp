@@ -378,7 +378,7 @@ void FRPCDoSDetection::InitConfig(FName NetDriverName)
 			NextTimeQuotaCheck = FPlatformTime::Seconds() + (CurConfigObj->InitialConnectToleranceMS / 1000.0);
 		}
 
-		RPCBlockAllowList = CurConfigObj->RPCBlockWhitelist;
+		RPCBlockAllowList = CurConfigObj->RPCBlockAllowlist;
 	}
 
 

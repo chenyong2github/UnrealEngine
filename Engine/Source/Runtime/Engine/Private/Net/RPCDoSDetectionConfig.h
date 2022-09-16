@@ -80,9 +80,13 @@ public:
 	UPROPERTY(config)
 	int32 InitialConnectToleranceMS;
 
-	/** List of RPC's which should never be blocked */
+	UE_DEPRECATED(5.1, "This property is no longer supported. Use RPCBlockAllowlist.")
 	UPROPERTY(config)
 	TArray<FName> RPCBlockWhitelist;
+
+	/** List of RPC's which should never be blocked */
+	UPROPERTY(config)
+	TArray<FName> RPCBlockAllowlist;
 
 	/** Custom thresholds for when specific RPC's should be included in analytics */
 	UPROPERTY(config)
