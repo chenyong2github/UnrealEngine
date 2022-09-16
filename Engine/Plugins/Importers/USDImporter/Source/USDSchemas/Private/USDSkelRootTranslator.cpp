@@ -679,6 +679,10 @@ namespace UsdSkelRootTranslatorImpl
 					IterateLODsLambda( pxr::UsdGeomMesh{ Stage->GetPrimAtPath( MeshPrimPath ) }, 0 );
 				}
 			}
+
+			// We only ever handle the first skeleton binding for now, so lets ignore material
+			// overrides on the others
+			break;
 		}
 
 		// Refresh reference to SkelRootPrim because variant switching potentially invalidated it
