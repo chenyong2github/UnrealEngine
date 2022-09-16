@@ -16,6 +16,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -23,6 +24,7 @@
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
+#include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 #include "ActorReferencesUtils.h"
 
@@ -115,6 +117,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	{
 		ParentActor = AttachParentActor->GetActorGuid();
 	}
+
+	ContentBundleGuid = InActor->GetContentBundleGuid();
 	
 	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences(const_cast<AActor*>(InActor));
 
@@ -315,6 +319,7 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescNativeBaseClassSerialization)
 	{
@@ -456,6 +461,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		Ar << Properties;
 	}
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeContentBundleGuid)
+	{
+		ContentBundleGuid = ContentBundlePaths::GetGuidFromPath(ActorPackage.ToString());
+	}
+	else
+	{
+		Ar << ContentBundleGuid;
+	}
 }
 
 FBox FWorldPartitionActorDesc::GetBounds() const
@@ -492,24 +506,9 @@ FName FWorldPartitionActorDesc::GetDisplayClassName() const
 	return BaseClass.IsNull() ? GetCleanClassName(NativeClass) : GetCleanClassName(BaseClass);
 }
 
-FGuid FWorldPartitionActorDesc::GetContentBundleUID() const
+FGuid FWorldPartitionActorDesc::GetContentBundleGuid() const
 {
-	constexpr TCHAR ContentBundleFolder[] = TEXT("/ContentBundle/");
-	FString ActorPackageString = ActorPackage.ToString();
-	int FoundIdx = ActorPackageString.Find(ContentBundleFolder, ESearchCase::IgnoreCase);
-	if (FoundIdx != INDEX_NONE)
-	{
-		uint32 StartUIDIdx = FoundIdx + FCString::Strlen(ContentBundleFolder);
-		uint32 EndUIDIdx = ActorPackageString.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, StartUIDIdx);
-		ActorPackageString.MidInline(StartUIDIdx, EndUIDIdx - StartUIDIdx);
-		
-		FGuid ContentBundleUID;
-		FGuid::Parse(ActorPackageString, ContentBundleUID);
-
-		return ContentBundleUID;
-	}
-
-	return FGuid();
+	return ContentBundleGuid;
 }
 
 void FWorldPartitionActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const

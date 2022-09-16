@@ -862,6 +862,12 @@ protected:
 	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
 	FGuid ActorGuid;
 
+	/**
+	 * The GUID for this actor's content bundle.
+	 */
+	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, TextExportTransient, NonTransactional)
+	FGuid ContentBundleGuid;
+
 	/** DataLayers the actor belongs to.*/
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = DataLayers)
 	TArray<FActorDataLayer> DataLayers;
@@ -904,7 +910,6 @@ public:
 
 	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
-
 	/** Returns this actor's current target runtime grid. */
 	virtual FName GetRuntimeGrid() const { return RuntimeGrid; }
 
@@ -914,8 +919,11 @@ public:
 	/** Gets the property name for RuntimeGrid. */
 	static const FName GetRuntimeGridPropertyName()	{ return GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid); }
 
-	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
+	/** Returns this actor's Guid. Actor Guids are only available in editor builds. */
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }
+
+	/** Returns this actor's content bundle Guid. */
+	inline const FGuid& GetContentBundleGuid() const { return ContentBundleGuid; }
 
 	/** Returns true if actor location should be locked. */
 	virtual bool IsLockLocation() const { return bLockLocation; }
@@ -3844,6 +3852,7 @@ private:
 
 	friend struct FSetActorHiddenInSceneOutliner;
 	friend struct FSetActorGuid;
+	friend struct FSetActorContentBundleGuid;
 	friend struct FSetActorSelectable;
 #endif
 
@@ -4098,6 +4107,16 @@ private:
 	friend class UEngine;
 	friend class UExternalActorsCommandlet;
 	friend class UWorldPartitionConvertCommandlet;
+};
+
+struct FSetActorContentBundleGuid
+{
+private:
+	FSetActorContentBundleGuid(AActor* InActor, const FGuid& InContentBundleGuid)
+	{
+		InActor->ContentBundleGuid = InContentBundleGuid;
+	}
+	friend class FContentBundleEditor;
 };
 #endif
 

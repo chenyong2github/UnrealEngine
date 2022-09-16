@@ -103,7 +103,7 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 	check(!ActorDescView.GetActorIsEditorOnly());
 	// Leaving this using deprecated functions until the serialization format of Packages is updated.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Packages.Emplace(ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), InContainerID, InContainerTransform, InContainer->GetContainerPackage(), GetWorld()->GetPackage()->GetFName(), ActorDescView.GetContentBundleUID());
+	Packages.Emplace(ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), InContainerID, InContainerTransform, InContainer->GetContainerPackage(), GetWorld()->GetPackage()->GetFName(), ActorDescView.GetContentBundleGuid());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 

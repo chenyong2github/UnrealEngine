@@ -55,7 +55,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FName GetActorName() const;
 	const FGuid& GetFolderGuid() const;
 
-	FGuid GetContentBundleUID() const;
+	FGuid GetContentBundleGuid() const;
 
 	bool IsContainerInstance() const;
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;

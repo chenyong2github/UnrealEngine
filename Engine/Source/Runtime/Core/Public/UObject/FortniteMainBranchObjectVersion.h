@@ -244,6 +244,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Changed how world partition streaming cells are named
 		WorldPartitionStreamingCellsNamingShortened,
 
+		// Serialize ContentBundleGuid in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeContentBundleGuid,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

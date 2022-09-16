@@ -7,26 +7,23 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "Engine/World.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditorSubsystemInterface.h"
+#include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
+#include "Engine/World.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
 #include "Editor.h"
-#include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 
 FContentBundleEditor::FContentBundleEditor(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
-	:FContentBundleBase(InClient, InWorld),
-	UnsavedActorMonitor(nullptr),
-	ExternalStreamingObject(nullptr),
-	Guid(FGuid::NewGuid()),
-	bIsBeingEdited(false)
-{
-
-}
-
+	: FContentBundleBase(InClient, InWorld)
+	, UnsavedActorMonitor(nullptr)
+	, ExternalStreamingObject(nullptr)
+	, Guid(FGuid::NewGuid())
+	, bIsBeingEdited(false)
+{}
 
 void FContentBundleEditor::DoInitialize()
 {
@@ -61,6 +58,9 @@ void FContentBundleEditor::DoInjectContent()
 		if (ActorDescContainer.IsValid())
 		{
 			UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] ExternalActors in %s found. %u actors were injected"), *GetDescriptor()->GetDisplayName(), *ActorDescContainer->GetExternalActorPath(), ActorDescContainer->GetActorDescCount());
+
+			check(GetDescriptor()->GetGuid().IsValid());
+			ActorDescContainer->SetContentBundleGuid(GetDescriptor()->GetGuid());
 
 			if (!ActorDescContainer->IsEmpty())
 			{
@@ -149,12 +149,14 @@ bool FContentBundleEditor::AddActor(AActor* InActor)
 
 	check(GetStatus() == EContentBundleStatus::ContentInjected);
 
+	// Assign the container guid to the actor
+	check(!InActor->GetContentBundleGuid().IsValid());
+	check(GetDescriptor()->GetGuid().IsValid());
+	FSetActorContentBundleGuid SetActorContentBundleGuid(InActor, GetDescriptor()->GetGuid());
+
+	// Rename the actor so it is saved in the content bundle location
 	FName ActorPackageNameInContentBundle(*ULevel::GetActorPackageName(ActorDescContainer->GetExternalActorPath(), EActorPackagingScheme::Reduced, InActor->GetName()));
-	FName ActorPackageName = InActor->GetPackage()->GetFName();
-	if (ActorPackageName != ActorPackageNameInContentBundle)
-	{
-		InActor->GetPackage()->Rename(*ActorPackageNameInContentBundle.ToString());
-	}
+	verify(InActor->GetPackage()->Rename(*ActorPackageNameInContentBundle.ToString()));
 
 	UnsavedActorMonitor->MonitorActor(InActor);
 

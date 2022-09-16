@@ -619,22 +619,45 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 	{
 		if (AActor* Actor = GEditor->GetSelectedActors()->GetTop<AActor>())
 		{
-			const FText ActorGuidText = FText::FromString(Actor->GetActorGuid().ToString());
-			ActorCategory.AddCustomRow( LOCTEXT("ActorGuid", "ActorGuid") )
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ActorGuid2", "Actor Guid"))
-					.ToolTipText(LOCTEXT("ActorGuid_ToolTip", "Actor Guid"))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				.ValueContent()
-				[
-					SNew(STextBlock)
-						.Text(ActorGuidText)
+			if (Actor->GetActorGuid().IsValid())
+			{
+				const FText ActorGuidText = FText::FromString(Actor->GetActorGuid().ToString());
+				ActorCategory.AddCustomRow( LOCTEXT("ActorGuid", "ActorGuid") )
+					.NameContent()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ActorGuid2", "Actor Guid"))
+						.ToolTipText(LOCTEXT("ActorGuid_ToolTip", "Actor Guid"))
 						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.IsEnabled(false)
-				];
+					]
+					.ValueContent()
+					[
+						SNew(STextBlock)
+							.Text(ActorGuidText)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.IsEnabled(false)
+					];
+			}
+
+			if (Actor->GetContentBundleGuid().IsValid())
+			{
+				const FText ActorContentBundleGuidText = FText::FromString(Actor->GetContentBundleGuid().ToString());
+				ActorCategory.AddCustomRow( LOCTEXT("ContentBundleGuid", "ContentBundleGuid") )
+					.NameContent()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ContentBundleGuid2", "Content Bundle Guid"))
+						.ToolTipText(LOCTEXT("ActorContentBundleGuid_ToolTip", "Actor Content BundleGuid"))
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					.ValueContent()
+					[
+						SNew(STextBlock)
+							.Text(ActorContentBundleGuidText)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+							.IsEnabled(false)
+					];
+			}
 		}
 	};
 

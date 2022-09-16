@@ -120,7 +120,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual FName GetLevelPackage() const { return NAME_None; }
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
-	FGuid GetContentBundleUID() const;
+	FGuid GetContentBundleGuid() const;
 
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
@@ -258,8 +258,8 @@ protected:
 	FPropertyPairsMap				Properties;
 	FName							FolderPath;
 	FGuid							FolderGuid;
-
 	FGuid							ParentActor; // Used to validate settings against parent (to warn on layer/placement compatibility issues)
+	FGuid							ContentBundleGuid;
 	
 	// Transient
 	mutable uint32					SoftRefCount;

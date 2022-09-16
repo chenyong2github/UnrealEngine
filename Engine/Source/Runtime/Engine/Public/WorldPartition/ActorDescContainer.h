@@ -32,8 +32,11 @@ public:
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
-	void SetContainerPackage(const FName& InContainerPackageName) { ContainerPackageName = InContainerPackageName;	}
-	
+	void SetContainerPackage(const FName& InContainerPackageName) { ContainerPackageName = InContainerPackageName; }
+
+	FGuid GetContentBundleGuid() const { return ContentBundleGuid; }
+	void SetContentBundleGuid(const FGuid& InGetContentBundleGuid) { ContentBundleGuid = InGetContentBundleGuid; }
+
 	bool IsMainPartitionContainer() const;
 
 	FString GetExternalActorPath() const;
@@ -85,6 +88,7 @@ protected:
 	bool bContainerInitialized;
 
 	FName ContainerPackageName;
+	FGuid ContentBundleGuid;
 #endif
 
 private:
