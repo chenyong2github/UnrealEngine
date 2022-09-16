@@ -79,6 +79,12 @@ static FAutoConsoleVariableRef CVarEnableServerStreaming(
 	GEnableServerStreaming,
 	TEXT("Set to 1 to enable server streaming, set to 2 to only enable it in PIE."));
 
+static bool GEnableServerStreamingOut = false;
+static FAutoConsoleVariableRef CVarEnableServerStreamingOut(
+	TEXT("wp.Runtime.EnableServerStreamingOut"),
+	GEnableServerStreamingOut,
+	TEXT("Turn on/off to allow or not the server to stream out levels (only relevant when server streaming is enabled)"));
+
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
 #if WITH_EDITOR
@@ -921,6 +927,11 @@ bool UWorldPartition::IsServerStreamingEnabled() const
 #endif
 	}
 	return false;
+}
+
+bool UWorldPartition::IsServerStreamingOutEnabled() const
+{
+	return IsServerStreamingEnabled() && GEnableServerStreamingOut;
 }
 
 bool UWorldPartition::IsSimulating()

@@ -214,6 +214,7 @@ public:
 	bool CanStream() const;
 	bool IsServer() const;
 	bool IsServerStreamingEnabled() const;
+	bool IsServerStreamingOutEnabled() const;
 
 	bool IsMainWorldPartition() const;
 
