@@ -3985,9 +3985,10 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UA
 		});
 
 	
-	FStartAnimationCB StartCallback = FStartAnimationCB::CreateLambda([&AnimationRecorder]
+	FStartAnimationCB StartCallback = FStartAnimationCB::CreateLambda([SkelMeshComp, &AnimationRecorder]
 	{
 		AnimationRecorder.BeginRecording();
+		SkelMeshComp->UpdateLODStatus();
 	});
 
 	FTickAnimationCB TickCallback = FTickAnimationCB::CreateLambda([&AnimationRecorder](float DeltaTime)
