@@ -104,6 +104,18 @@ protected:
 	static void CreateSampleConverterCallback
 		(FExrMediaTextureSampleConverter* SampleConverter, TSharedPtr<FSampleConverterParameters> ConverterParams);
 
+	/**
+	* A function that reads one mip level.
+	*/
+	EReadResult ReadMip
+		( const int32 CurrentMipLevel
+		, const FImgMediaTileSelection& CurrentTileSelection
+		, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame
+		, TSharedPtr<FSampleConverterParameters> ConverterParams
+		, FExrMediaTextureSampleConverter* SampleConverter
+		, const FString& ImagePath
+		, bool bHasTiles);
+
 public:
 
 	/** Typically we would need the (ImageResolution.x*y)*NumChannels*ChannelSize */

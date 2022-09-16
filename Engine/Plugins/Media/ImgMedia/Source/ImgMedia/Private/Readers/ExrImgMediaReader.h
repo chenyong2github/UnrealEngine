@@ -87,6 +87,9 @@ protected:
 
 		/** Indicates if mips stored in individual files.*/
 		bool bMipsInSeparateFiles;
+
+		/** A lower quality mip will be upscaled if value is 0 or above. At 0 highest quality mip will always be read fully. */
+		int32 UpscaleMip = -1;
 	};
 
 	/**
