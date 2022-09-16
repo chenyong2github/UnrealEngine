@@ -476,6 +476,26 @@ struct FPropertyAccessEditorSystem
 					}
 				}
 			}
+			else if (SrcProperty->IsA<FMapProperty>() && DestProperty->IsA<FMapProperty>())
+			{
+				const FMapProperty* SrcMapProperty = CastField<const FMapProperty>(SrcProperty);
+				const FMapProperty* DestMapProperty = CastField<const FMapProperty>(DestProperty);
+
+				if (SrcMapProperty->ValueProp->IsA<FFloatProperty>())
+				{
+					if (DestMapProperty->ValueProp->IsA<FDoubleProperty>())
+					{
+						return EPropertyAccessCopyType::PromoteMapValueFloatToDouble;
+					}
+				}
+				else if (SrcMapProperty->ValueProp->IsA<FDoubleProperty>())
+				{
+					if (DestMapProperty->ValueProp->IsA<FFloatProperty>())
+					{
+						return EPropertyAccessCopyType::DemoteMapValueDoubleToFloat;
+					}
+				}
+			}
 		}
 
 		OutErrorMessage = FText::Format(LOCTEXT("CopyTypeInvalidFormat", "@@ Cannot copy property ({0} -> {1})"), FText::FromString(SrcProperty->GetCPPType()), FText::FromString(DestProperty->GetCPPType()));
@@ -647,6 +667,47 @@ namespace PropertyAccess
 				else if (ArrayPropertyA->Inner->IsA<FDoubleProperty>())
 				{
 					if (ArrayPropertyB->Inner->IsA<FFloatProperty>())
+					{
+						return EPropertyAccessCompatibility::Promotable;
+					}
+				}
+			}
+			else if (InPropertyA->IsA<FSetProperty>() && InPropertyB->IsA<FSetProperty>())
+			{
+				const FSetProperty* SetPropertyA = CastField<const FSetProperty>(InPropertyA);
+				const FSetProperty* SetPropertyB = CastField<const FSetProperty>(InPropertyB);
+
+				if (SetPropertyA->ElementProp->IsA<FFloatProperty>())
+				{
+					if (SetPropertyB->ElementProp->IsA<FDoubleProperty>())
+					{
+						return EPropertyAccessCompatibility::Promotable;
+					}
+				}
+				else if (SetPropertyA->ElementProp->IsA<FDoubleProperty>())
+				{
+					if (SetPropertyB->ElementProp->IsA<FFloatProperty>())
+					{
+						return EPropertyAccessCompatibility::Promotable;
+					}
+				}
+			}
+			else if (InPropertyA->IsA<FMapProperty>() && InPropertyB->IsA<FMapProperty>())
+			{
+				// We only support promoting value properties of maps. Is there a case where float/double keys are useful?
+				const FMapProperty* MapPropertyA = CastField<const FMapProperty>(InPropertyA);
+				const FMapProperty* MapPropertyB = CastField<const FMapProperty>(InPropertyB);
+
+				if (MapPropertyA->ValueProp->IsA<FFloatProperty>())
+				{
+					if (MapPropertyB->ValueProp->IsA<FDoubleProperty>())
+					{
+						return EPropertyAccessCompatibility::Promotable;
+					}
+				}
+				else if (MapPropertyA->ValueProp->IsA<FDoubleProperty>())
+				{
+					if (MapPropertyB->ValueProp->IsA<FFloatProperty>())
 					{
 						return EPropertyAccessCompatibility::Promotable;
 					}

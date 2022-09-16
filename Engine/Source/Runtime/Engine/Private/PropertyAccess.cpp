@@ -396,6 +396,24 @@ struct FPropertyAccessSystem
 			CopyAndCastFloatingPointArray<double, float>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
 			break;
 		}
+		case EPropertyAccessCopyType::PromoteMapValueFloatToDouble:
+			{
+				checkSlow(InSrcProperty->IsA<FMapProperty>());
+				checkSlow(InDestProperty->IsA<FMapProperty>());
+				const FMapProperty* SrcMapProperty = ExactCastField<const FMapProperty>(InSrcProperty);
+				const FMapProperty* DestMapProperty = ExactCastField<const FMapProperty>(InDestProperty);
+				CopyAndCastFloatingPointMapValues<float, double>(SrcMapProperty, InSrcAddr, DestMapProperty, InDestAddr);
+				break;
+			}
+		case EPropertyAccessCopyType::DemoteMapValueDoubleToFloat:
+			{
+				checkSlow(InSrcProperty->IsA<FMapProperty>());
+				checkSlow(InDestProperty->IsA<FMapProperty>());
+				const FMapProperty* SrcMapProperty = ExactCastField<const FMapProperty>(InSrcProperty);
+				const FMapProperty* DestMapProperty = ExactCastField<const FMapProperty>(InDestProperty);
+				CopyAndCastFloatingPointMapValues<double, float>(SrcMapProperty, InSrcAddr, DestMapProperty, InDestAddr);
+				break;
+			}	
 		default:
 			check(false);
 			break;
@@ -629,6 +647,30 @@ struct FPropertyAccessSystem
 			*DestinationData = static_cast<DestinationType>(*SourceData);
 		}
 	}
+
+	template <typename SourceType, typename DestinationType>
+	static void CopyAndCastFloatingPointMapValues(const FMapProperty* SourceMapProperty,
+												  const void* SourceAddress,
+												  const FMapProperty* DestinationMapProperty,
+												  void* DestinationAddress)
+	{
+		checkSlow(SourceMapProperty);
+		checkSlow(SourceAddress);
+		checkSlow(DestinationMapProperty);
+		checkSlow(DestinationAddress);
+
+		FScriptMapHelper SourceMapHelper(SourceMapProperty, SourceAddress);
+		FScriptMapHelper DestinationMapHelper(DestinationMapProperty, DestinationAddress);
+
+		DestinationMapHelper.EmptyValues();
+		for (int32 i = 0; i < SourceMapHelper.Num(); ++i)
+		{
+			const void* KeyData = SourceMapHelper.GetKeyPtr(i);
+			const SourceType* SourceValueData = reinterpret_cast<const SourceType*>(SourceMapHelper.GetValuePtr(i));
+			DestinationType CastedType = static_cast<DestinationType>(*SourceValueData);
+			DestinationMapHelper.AddPair(KeyData, &CastedType);
+		}
+	}	
 };
 
 const FPropertyAccessLibrary& FPropertyAccessLibrary::operator =(const FPropertyAccessLibrary& Other)

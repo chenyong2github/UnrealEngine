@@ -345,6 +345,9 @@ enum class EPropertyAccessCopyType : uint8
 
 	PromoteArrayFloatToDouble,
 	DemoteArrayDoubleToFloat,
+
+	PromoteMapValueFloatToDouble,
+	DemoteMapValueDoubleToFloat,
 };
 
 // A property copy, represents a one-to-many copy operation
