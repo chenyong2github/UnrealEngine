@@ -346,7 +346,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Used to sort VC solution config names along with the config and platform values
 		/// </summary>
-		class VCSolutionConfigCombination
+		public class VCSolutionConfigCombination
 		{
 			/// <summary>
 			/// Visual Studio solution configuration name for this config+platform
@@ -386,7 +386,7 @@ namespace UnrealBuildTool
 		/// <param name="Configuration">The build configuration</param>
 		/// <param name="TargetType">The type of target being built</param>
 		/// <returns>The generated solution configuration name</returns>
-		string MakeSolutionConfigurationName(UnrealTargetConfiguration Configuration, TargetType TargetType)
+		static string MakeSolutionConfigurationName(UnrealTargetConfiguration Configuration, TargetType TargetType)
 		{
 			string SolutionConfigName = Configuration.ToString();
 
@@ -637,90 +637,19 @@ namespace UnrealBuildTool
 
 			// Solution configuration platforms.  This is just a list of all of the platforms and configurations that
 			// appear in Visual Studio's build configuration selector.
-			List<VCSolutionConfigCombination> SolutionConfigCombinations = new List<VCSolutionConfigCombination>();
+			List<VCSolutionConfigCombination> SolutionConfigCombinations;
 
 			// The "Global" section has source control, solution configurations, project configurations,
 			// preferences, and project hierarchy data
 			{
 				VCSolutionFileContent.AppendLine("Global");
 				{
-					HashSet<UnrealTargetPlatform> PlatformsValidForProjects = new HashSet<UnrealTargetPlatform>();
+					HashSet<UnrealTargetPlatform> PlatformsValidForProjects;
 					{
 						VCSolutionFileContent.AppendLine("	GlobalSection(SolutionConfigurationPlatforms) = preSolution");
 
-						Dictionary<string, Tuple<UnrealTargetConfiguration, TargetType>> SolutionConfigurationsValidForProjects = new Dictionary<string, Tuple<UnrealTargetConfiguration, TargetType>>();
-
-						foreach (UnrealTargetConfiguration CurConfiguration in SupportedConfigurations)
-						{
-							if (InstalledPlatformInfo.IsValidConfiguration(CurConfiguration, EProjectType.Code))
-							{
-								foreach (UnrealTargetPlatform CurPlatform in SupportedPlatforms)
-								{
-									if (InstalledPlatformInfo.IsValidPlatform(CurPlatform, EProjectType.Code))
-									{
-										foreach (ProjectFile CurProject in AllProjectFiles)
-										{
-											if (!CurProject.IsStubProject)
-											{
-												if (CurProject.ProjectTargets.Count == 0)
-												{
-													throw new BuildException("Expecting project '" + CurProject.ProjectFilePath + "' to have at least one ProjectTarget associated with it!");
-												}
-
-												// Figure out the set of valid target configuration names
-												foreach (Project ProjectTarget in CurProject.ProjectTargets)
-												{
-													if (VCProjectFile.IsValidProjectPlatformAndConfiguration(ProjectTarget, CurPlatform, CurConfiguration, Logger))
-													{
-														PlatformsValidForProjects.Add(CurPlatform);
-
-														// Default to a target configuration name of "Game", since that will collapse down to an empty string
-														TargetType TargetType = TargetType.Game;
-														if (ProjectTarget.TargetRules != null)
-														{
-															TargetType = ProjectTarget.TargetRules.Type;
-														}
-
-														string SolutionConfigName = MakeSolutionConfigurationName(CurConfiguration, TargetType);
-														SolutionConfigurationsValidForProjects[SolutionConfigName] = new Tuple<UnrealTargetConfiguration, TargetType>(CurConfiguration, TargetType);
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-
-						foreach (UnrealTargetPlatform CurPlatform in PlatformsValidForProjects)
-						{
-							foreach (KeyValuePair<string, Tuple<UnrealTargetConfiguration, TargetType>> SolutionConfigKeyValue in SolutionConfigurationsValidForProjects)
-							{
-								// e.g.  "Development|Win64 = Development|Win64"
-								string SolutionConfigName = SolutionConfigKeyValue.Key;
-								UnrealTargetConfiguration Configuration = SolutionConfigKeyValue.Value.Item1;
-								TargetType TargetType = SolutionConfigKeyValue.Value.Item2;
-
-								string SolutionPlatformName = CurPlatform.ToString();
-
-								string SolutionConfigAndPlatformPair = SolutionConfigName + "|" + SolutionPlatformName;
-								SolutionConfigCombinations.Add(
-										new VCSolutionConfigCombination(SolutionConfigAndPlatformPair)
-										{
-											Configuration = Configuration,
-											Platform = CurPlatform,
-											TargetConfigurationName = TargetType
-										}
-									);
-							}
-						}
-
-						// Sort the list of solution platform strings alphabetically (Visual Studio prefers it)
-						SolutionConfigCombinations.Sort(
-								new Comparison<VCSolutionConfigCombination>(
-									(x, y) => { return String.Compare(x.VCSolutionConfigAndPlatformName, y.VCSolutionConfigAndPlatformName, StringComparison.InvariantCultureIgnoreCase); }
-								)
-							);
+						CollectSolutionConfigurations(SupportedConfigurations, SupportedPlatforms, AllProjectFiles,
+							Logger, out PlatformsValidForProjects, out SolutionConfigCombinations);
 
 						HashSet<string> AppendedSolutionConfigAndPlatformNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 						foreach (VCSolutionConfigCombination SolutionConfigCombination in SolutionConfigCombinations)
@@ -920,6 +849,97 @@ namespace UnrealBuildTool
 			}
 
 			return bSuccess;
+		}
+
+		public static void CollectSolutionConfigurations(List<UnrealTargetConfiguration> AllConfigurations,
+			List<UnrealTargetPlatform> AllPlatforms, List<ProjectFile> AllProjectFiles, ILogger Logger,
+			out HashSet<UnrealTargetPlatform> OutValidPlatforms, out List<VCSolutionConfigCombination> OutSolutionConfigs)
+		{
+			OutValidPlatforms = new HashSet<UnrealTargetPlatform>();
+			OutSolutionConfigs = new List<VCSolutionConfigCombination>();
+			Dictionary<string, Tuple<UnrealTargetConfiguration, TargetType>> SolutionConfigurationsValidForProjects =
+				new Dictionary<string, Tuple<UnrealTargetConfiguration, TargetType>>();
+
+			foreach (UnrealTargetConfiguration CurConfiguration in AllConfigurations)
+			{
+				if (InstalledPlatformInfo.IsValidConfiguration(CurConfiguration, EProjectType.Code))
+				{
+					foreach (UnrealTargetPlatform CurPlatform in AllPlatforms)
+					{
+						if (InstalledPlatformInfo.IsValidPlatform(CurPlatform, EProjectType.Code))
+						{
+							foreach (ProjectFile CurProject in AllProjectFiles)
+							{
+								if (!CurProject.IsStubProject)
+								{
+									if (CurProject.ProjectTargets.Count == 0)
+									{
+										throw new BuildException("Expecting project '" + CurProject.ProjectFilePath +
+										                         "' to have at least one ProjectTarget associated with it!");
+									}
+
+									// Figure out the set of valid target configuration names
+									foreach (Project ProjectTarget in CurProject.ProjectTargets)
+									{
+										if (VCProjectFile.IsValidProjectPlatformAndConfiguration(ProjectTarget, CurPlatform,
+											    CurConfiguration, Logger))
+										{
+											OutValidPlatforms.Add(CurPlatform);
+
+											// Default to a target configuration name of "Game", since that will collapse down to an empty string
+											TargetType TargetType = TargetType.Game;
+											if (ProjectTarget.TargetRules != null)
+											{
+												TargetType = ProjectTarget.TargetRules.Type;
+											}
+
+											string SolutionConfigName =
+												MakeSolutionConfigurationName(CurConfiguration, TargetType);
+											SolutionConfigurationsValidForProjects[SolutionConfigName] =
+												new Tuple<UnrealTargetConfiguration, TargetType>(CurConfiguration, TargetType);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			foreach (UnrealTargetPlatform CurPlatform in OutValidPlatforms)
+			{
+				foreach (KeyValuePair<string, Tuple<UnrealTargetConfiguration, TargetType>> SolutionConfigKeyValue in
+				         SolutionConfigurationsValidForProjects)
+				{
+					// e.g.  "Development|Win64 = Development|Win64"
+					string SolutionConfigName = SolutionConfigKeyValue.Key;
+					UnrealTargetConfiguration Configuration = SolutionConfigKeyValue.Value.Item1;
+					TargetType TargetType = SolutionConfigKeyValue.Value.Item2;
+
+					string SolutionPlatformName = CurPlatform.ToString();
+
+					string SolutionConfigAndPlatformPair = SolutionConfigName + "|" + SolutionPlatformName;
+					OutSolutionConfigs.Add(
+						new VCSolutionConfigCombination(SolutionConfigAndPlatformPair)
+						{
+							Configuration = Configuration,
+							Platform = CurPlatform,
+							TargetConfigurationName = TargetType
+						}
+					);
+				}
+			}
+
+			// Sort the list of solution platform strings alphabetically (Visual Studio prefers it)
+			OutSolutionConfigs.Sort(
+				new Comparison<VCSolutionConfigCombination>(
+					(x, y) =>
+					{
+						return String.Compare(x.VCSolutionConfigAndPlatformName, y.VCSolutionConfigAndPlatformName,
+							StringComparison.InvariantCultureIgnoreCase);
+					}
+				)
+			);
 		}
 
 		protected override void WriteDebugSolutionFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, DirectoryReference IntermediateProjectFilesPath, ILogger Logger)

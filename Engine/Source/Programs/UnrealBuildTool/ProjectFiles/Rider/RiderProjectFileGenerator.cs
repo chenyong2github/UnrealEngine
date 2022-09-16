@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -24,8 +23,14 @@ namespace UnrealBuildTool
 		/// Don't generate project model for these platforms unless they are specified in "Platforms" console arguments. 
 		/// </summary>
 		/// <returns></returns>
-		private readonly HashSet<UnrealTargetPlatform> DeprecatedPlatforms = new HashSet<UnrealTargetPlatform> { };
+		private readonly HashSet<UnrealTargetPlatform> DeprecatedPlatforms = new HashSet<UnrealTargetPlatform>();
 
+		/// <summary>
+		/// When specified only primary project file (root.json) will be generated.
+		/// Normally project files for specific configurations are generated together with primary project file.
+		/// </summary>
+		[CommandLine("-OnlyPrimaryProjectFile")]
+		bool bOnlyPrimaryProjectFile = false;
 
 		/// <summary>
 		/// Platforms to generate project files for
@@ -87,13 +92,18 @@ namespace UnrealBuildTool
 
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			RiderProjectFile projectFile = new RiderProjectFile(InitFilePath, BaseDir,
-				RootPath: InitFilePath.Directory, Arguments: Arguments, TargetTypes: TargetTypes);
+			RiderProjectFile projectFile = new RiderProjectFile(InitFilePath, BaseDir, RootPath: InitFilePath.Directory,
+				Arguments: Arguments, TargetTypes: TargetTypes);
 			return projectFile;
 		}
 
 		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
+			if (bOnlyPrimaryProjectFile)
+			{
+				return true;
+			}
+
 			using (ProgressWriter Progress = new ProgressWriter("Writing project files...", true, Logger))
 			{
 				List<ProjectFile> ProjectsToGenerate = new List<ProjectFile>(GeneratedProjectFiles);
@@ -453,7 +463,12 @@ namespace UnrealBuildTool
 
 			GatherProjects(PlatformProjectGenerators, AllGameProjects, Logger);
 
-			WriteProjectFiles(PlatformProjectGenerators, Logger);
+			WritePrimaryProjectFile(UBTProject, PlatformProjectGenerators, Logger);
+			if (!bOnlyPrimaryProjectFile)
+			{
+				WriteProjectFiles(PlatformProjectGenerators, Logger);
+			}
+
 			Logger.LogDebug("Project generation complete ({NumGenerated} generated, {NumImported} imported)", GeneratedProjectFiles.Count,
 				OtherProjectFiles.Count);
 
@@ -493,6 +508,36 @@ namespace UnrealBuildTool
 		protected override bool WritePrimaryProjectFile(ProjectFile? ProjectFile,
 			PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
+			try
+			{
+				HashSet<UnrealTargetPlatform> ValidPlatforms;
+				List<VCProjectFileGenerator.VCSolutionConfigCombination> ValidSolutionConfigs;
+				VCProjectFileGenerator.CollectSolutionConfigurations(SupportedConfigurations,
+					SupportedPlatforms, AllProjectFiles, Logger, out ValidPlatforms, out ValidSolutionConfigs);
+				FileReference OutputFile = GetRiderProjectLocation("root.json");
+				DirectoryReference.CreateDirectory(OutputFile.Directory);
+				using (JsonWriter Writer = new JsonWriter(OutputFile))
+				{
+					Writer.WriteObjectStart();
+					Writer.WriteArrayStart("ConfigurationsAndPlatforms");
+					foreach (VCProjectFileGenerator.VCSolutionConfigCombination Config in ValidSolutionConfigs)
+					{
+						Writer.WriteObjectStart();
+						Writer.WriteValue("Configuration", Config.Configuration.ToString() );
+						Writer.WriteValue("Platform", Config.Platform.ToString());
+						Writer.WriteValue("Target", Config.TargetConfigurationName.ToString());
+						Writer.WriteObjectEnd();
+					}
+
+					Writer.WriteArrayEnd();
+					Writer.WriteObjectEnd();
+				}
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogWarning("Exception while writing Rider root project file: {Ex}", Ex.ToString());
+			}
+
 			return true;
 		}
 	}

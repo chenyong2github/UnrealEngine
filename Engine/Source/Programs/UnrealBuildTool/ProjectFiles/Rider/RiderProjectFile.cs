@@ -30,10 +30,10 @@ namespace UnrealBuildTool
 	internal class RiderProjectFile : ProjectFile
 	{
 		private static readonly XcrunRunner AppleHelper = new XcrunRunner();
-		
-		public DirectoryReference RootPath;
-		public HashSet<TargetType> TargetTypes;
-		public CommandLineArguments Arguments;
+
+		private readonly DirectoryReference RootPath;
+		private readonly HashSet<TargetType> TargetTypes;
+		private readonly CommandLineArguments Arguments;
 
 		private ToolchainInfo RootToolchainInfo = new ToolchainInfo();
 		private UEBuildTarget? CurrentTarget;
@@ -403,7 +403,7 @@ namespace UnrealBuildTool
 		/// <param name="Writer">Writer for the array data</param>
 		/// <param name="ArrayName">Name of the array property</param>
 		/// <param name="Strings">Sequence of strings to write. May be null.</param>
-		static void ExportJsonStringArray(JsonWriter Writer, string ArrayName, IEnumerable<string> Strings)
+		private static void ExportJsonStringArray(JsonWriter Writer, string ArrayName, IEnumerable<string> Strings)
 		{
 			if (Strings == null || !Strings.Any()) return;
 			
