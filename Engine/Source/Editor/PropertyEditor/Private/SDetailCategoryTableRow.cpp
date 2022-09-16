@@ -76,8 +76,6 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
-			.Padding(0)
 			[
 				SNew(SBorder)
 				.BorderImage(this, &SDetailCategoryTableRow::GetBackgroundImage)
@@ -86,7 +84,6 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 				[
 					SNew(SBox)
 					.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
-					.VAlign(VAlign_Center)
 					[
 						HeaderBox
 					]
@@ -94,8 +91,6 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Fill)
-			.Padding(0)
 			.AutoWidth()
 			[
 				SNew(SBorder)
