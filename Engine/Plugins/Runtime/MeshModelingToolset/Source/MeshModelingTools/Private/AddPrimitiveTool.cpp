@@ -537,6 +537,34 @@ UAddDiscPrimitiveTool::UAddDiscPrimitiveTool(const FObjectInitializer& ObjectIni
 	UInteractiveTool::SetToolDisplayName(LOCTEXT("DiscToolName", "Create Disc"));
 }
 
+void UAddDiscPrimitiveTool::Setup()
+{
+	Super::Setup();
+
+
+	// add watchers to ensure the hole radius is never larger than the disc radius when updating a punctured disc
+
+	UProceduralDiscToolProperties* DiscSettings = Cast<UProceduralDiscToolProperties>(ShapeSettings);
+
+	int32 HoleRadiusWatchID = DiscSettings->WatchProperty(DiscSettings->HoleRadius, 
+															[DiscSettings](float HR) 
+															{
+																if (DiscSettings->DiscType == EProceduralDiscType::PuncturedDisc)
+																{
+																	DiscSettings->HoleRadius = FMath::Min(DiscSettings->Radius, HR);
+																}
+															});
+	DiscSettings->WatchProperty(DiscSettings->Radius, 
+								[DiscSettings, HoleRadiusWatchID](float R) 
+								{
+									if (DiscSettings->DiscType == EProceduralDiscType::PuncturedDisc)
+									{
+										DiscSettings->HoleRadius = FMath::Min(DiscSettings->HoleRadius, R);
+										DiscSettings->SilentUpdateWatcherAtIndex(HoleRadiusWatchID);
+									}
+								});
+}
+
 void UAddDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	const UProceduralDiscToolProperties* DiscSettings = Cast<UProceduralDiscToolProperties>(ShapeSettings);
@@ -567,6 +595,7 @@ void UAddDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	}
 }
+
 
 
 UAddTorusPrimitiveTool::UAddTorusPrimitiveTool(const FObjectInitializer& ObjectInitializer)
