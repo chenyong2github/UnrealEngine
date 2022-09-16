@@ -515,7 +515,7 @@ void SAnimTimeline::OnCropAnimSequence( bool bFromStart, float CurrentTime )
 				const float TrimEnd = bFromStart ? CurrentTime : AnimSequence->GetPlayLength();
 
 				// Trim off the user-selected part of the raw anim data.
-				UE::Anim::AnimationData::Trim(AnimSequence, TrimStart, TrimEnd);
+				UE::Anim::AnimationData::Trim(AnimSequence, TrimStart, TrimEnd, !bFromStart);
 
 
 				//Resetting slider position to the first frame

@@ -130,10 +130,11 @@ namespace Anim {
 		* @param	InSequence		Animation Sequence to add the animated frame to
 		* @param	TrimStart		Time value at which to start removing frames
 		* @param	TrimEnd			Time value at which to stop removing frames
+		* @param	bInclusiveEnd   Whether or not the TrimEnd should be included in the trimming range
 		*
 		* @return Whether or not the operation was succesful
 		*/
-		ENGINE_API bool Trim(UAnimSequence* InSequence, float TrimStart, float TrimEnd);
+		ENGINE_API bool Trim(UAnimSequence* InSequence, float TrimStart, float TrimEnd, bool bInclusiveEnd=false);
 				
 		/**
 		* Insert duplicate key(s) for all tracks for the provided Animation Sequence
