@@ -23,7 +23,7 @@ FTableImportTask::~FTableImportTask()
 void FTableImportTask::operator()()
 {
 	TArray<FString> Lines;
-	FFileHelper::LoadFileToStringArray(Lines, *FilePath);
+	LoadFileToStringArray(FilePath, Lines);
 
 	if (FilePath.EndsWith(TEXT(".csv")))
 	{
@@ -188,6 +188,18 @@ void FTableImportTask::SplitLineIntoValues(const FString& InLine, TArray<FString
 
 	FString Value = InLine.Mid(Start, Index - Start);
 	OutValues.Add(Value.TrimQuotes());
+}
+
+bool FTableImportTask::LoadFileToStringArray(const FString &InFilePath, TArray<FString>& Lines)
+{
+	// We use this function instead of FFileHelper::LoadFileToArray because that one does not support very large files.
+
+	auto Visitor = [&Lines](FStringView Line)
+	{
+		Lines.Add(FString(Line));
+	};
+
+	return FFileHelper::LoadFileToStringWithLineVisitor(*FilePath, Visitor);
 }
 
 void FTableImportService::ImportTable(const FString& InPath, FName TableId, FTableImportService::TableImportCallback InCallback)

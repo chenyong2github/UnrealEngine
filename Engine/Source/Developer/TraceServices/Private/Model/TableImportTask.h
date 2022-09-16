@@ -60,6 +60,7 @@ public:
 
 private:
 	void SplitLineIntoValues(const FString& InLine, TArray<FString>& OutValues);
+	bool LoadFileToStringArray(const FString& InFilePath, TArray<FString>& Lines);
 
 	FTableImportService::TableImportCallback Callback;
 	TSharedPtr<TImportTable<FImportTableRow>> Table;
