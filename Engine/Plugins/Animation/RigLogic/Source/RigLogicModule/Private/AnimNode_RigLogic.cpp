@@ -10,7 +10,7 @@
 #include "SharedRigRuntimeContext.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Animation/MorphTarget.h"
+#include "Runtime/Engine/Classes/Animation/MorphTarget.h"
 
 LLM_DEFINE_TAG(Animation_RigLogic);
 DEFINE_LOG_CATEGORY(LogRigLogicAnimNode);

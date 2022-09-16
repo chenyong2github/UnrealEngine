@@ -13,6 +13,8 @@ namespace trimd {
 namespace avx {
 
 struct F256 {
+    using value_type = float;
+
     __m256 data;
 
     F256() : data{_mm256_setzero_ps()} {
@@ -43,18 +45,15 @@ struct F256 {
 
     #ifdef TRIMD_ENABLE_F16C
         static F256 fromAlignedSource(const std::uint16_t* source) {
-            __m128i halfFloats = _mm_load_si128(reinterpret_cast<const __m128i*>(source));
-            return F256{_mm256_cvtph_ps(halfFloats)};
+            return F256{_mm256_cvtph_ps(_mm_load_si128(reinterpret_cast<const __m128i*>(source)))};
         }
 
         static F256 fromUnalignedSource(const std::uint16_t* source) {
-            __m128i halfFloats = _mm_loadu_si128(reinterpret_cast<const __m128i*>(source));
-            return F256{_mm256_cvtph_ps(halfFloats)};
+            return F256{_mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<const __m128i*>(source)))};
         }
 
         static F256 loadSingleValue(const std::uint16_t* source) {
-            __m128i halfFloats = _mm_loadu_si16(source);
-            return F256{_mm256_cvtph_ps(halfFloats)};
+            return F256{_mm256_cvtph_ps(_mm_loadu_si16(source))};
         }
 
     #endif  // TRIMD_ENABLE_F16C
@@ -123,6 +122,44 @@ struct F256 {
         _mm256_storeu_ps(dest, data);
     }
 
+    #ifdef TRIMD_ENABLE_F16C
+    void alignedLoad(const std::uint16_t* source) {
+        data = _mm256_cvtph_ps(_mm_load_si128(reinterpret_cast<const __m128i*>(source)));
+    }
+
+    void unalignedLoad(const std::uint16_t* source) {
+        data = _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<const __m128i*>(source)));
+    }
+
+    void alignedStore(std::uint16_t* dest) const {
+        #if defined(__clang__) || defined(__GNUC__)
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wold-style-cast"
+            #if !defined(__clang__)
+                #pragma GCC diagnostic ignored "-Wuseless-cast"
+            #endif
+        #endif
+        _mm_store_si128(reinterpret_cast<__m128i*>(dest), _mm256_cvtps_ph(data, _MM_FROUND_CUR_DIRECTION));
+        #if defined(__clang__) || defined(__GNUC__)
+            #pragma GCC diagnostic pop
+        #endif
+    }
+
+    void unalignedStore(std::uint16_t* dest) const {
+        #if defined(__clang__) || defined(__GNUC__)
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wold-style-cast"
+            #if !defined(__clang__)
+                #pragma GCC diagnostic ignored "-Wuseless-cast"
+            #endif
+        #endif
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(dest), _mm256_cvtps_ph(data, _MM_FROUND_CUR_DIRECTION));
+        #if defined(__clang__) || defined(__GNUC__)
+            #pragma GCC diagnostic pop
+        #endif
+    }
+    #endif  // TRIMD_ENABLE_F16C
+
     float sum() const {
         // (data[3] + data[7], data[2] + data[6], data[1] + data[5], data[0] + data[4])
         const __m128 x128 = _mm_add_ps(_mm256_extractf128_ps(data, 1), _mm256_castps256_ps128(data));
@@ -153,6 +190,21 @@ struct F256 {
         return *this;
     }
 
+    F256& operator&=(const F256& rhs) {
+        data = _mm256_and_ps(data, rhs.data);
+        return *this;
+    }
+
+    F256& operator|=(const F256& rhs) {
+        data = _mm256_or_ps(data, rhs.data);
+        return *this;
+    }
+
+    F256& operator^=(const F256& rhs) {
+        data = _mm256_xor_ps(data, rhs.data);
+        return *this;
+    }
+
     static constexpr std::size_t size() {
         return sizeof(decltype(data)) / sizeof(float);
     }
@@ -163,12 +215,28 @@ struct F256 {
 
 };
 
-inline bool operator==(const F256& lhs, const F256& rhs) {
-    return _mm256_movemask_ps(_mm256_cmp_ps(lhs.data, rhs.data, _CMP_EQ_OQ)) == 0xFF;
+inline F256 operator==(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_cmp_ps(lhs.data, rhs.data, _CMP_EQ_OQ)};
 }
 
-inline bool operator!=(const F256& lhs, const F256& rhs) {
-    return !(lhs == rhs);
+inline F256 operator!=(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_cmp_ps(lhs.data, rhs.data, _CMP_NEQ_OQ)};
+}
+
+inline F256 operator<(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_cmp_ps(lhs.data, rhs.data, _CMP_LT_OQ)};
+}
+
+inline F256 operator<=(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_cmp_ps(lhs.data, rhs.data, _CMP_LE_OQ)};
+}
+
+inline F256 operator>(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_cmp_ps(lhs.data, rhs.data, _CMP_GT_OQ)};
+}
+
+inline F256 operator>=(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_cmp_ps(lhs.data, rhs.data, _CMP_GE_OQ)};
 }
 
 inline F256 operator+(const F256& lhs, const F256& rhs) {
@@ -185,6 +253,24 @@ inline F256 operator*(const F256& lhs, const F256& rhs) {
 
 inline F256 operator/(const F256& lhs, const F256& rhs) {
     return F256(lhs) /= rhs;
+}
+
+inline F256 operator&(const F256& lhs, const F256& rhs) {
+    return F256(lhs) &= rhs;
+}
+
+inline F256 operator|(const F256& lhs, const F256& rhs) {
+    return F256(lhs) |= rhs;
+}
+
+inline F256 operator^(const F256& lhs, const F256& rhs) {
+    return F256(lhs) ^= rhs;
+}
+
+inline F256 operator~(const F256& rhs) {
+    F256 result{};
+    result = (result == result);  // Generate register with all 1s
+    return (result ^= rhs);
 }
 
 inline void transpose(F256& row0, F256& row1, F256& row2, F256& row3, F256& row4, F256& row5, F256& row6, F256& row7) {
@@ -212,6 +298,15 @@ inline void transpose(F256& row0, F256& row1, F256& row2, F256& row3, F256& row4
     row5.data = _mm256_permute2f128_ps(tt1, tt5, 0x31);
     row6.data = _mm256_permute2f128_ps(tt2, tt6, 0x31);
     row7.data = _mm256_permute2f128_ps(tt3, tt7, 0x31);
+}
+
+inline F256 abs(const F256& rhs) {
+    const __m256 ABSMASK = _mm256_castsi256_ps(_mm256_set1_epi32(~(1 << 31)));
+    return F256{_mm256_and_ps(ABSMASK, rhs.data)};
+}
+
+inline F256 andnot(const F256& lhs, const F256& rhs) {
+    return F256{_mm256_andnot_ps(lhs.data, rhs.data)};
 }
 
 } // namespace avx

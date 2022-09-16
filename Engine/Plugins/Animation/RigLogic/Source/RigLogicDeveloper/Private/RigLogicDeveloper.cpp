@@ -2,7 +2,7 @@
 
 #include "RigLogicDeveloper.h"
 #include "Modules/ModuleManager.h"
-#include "MessageLogModule.h"
+#include "Developer/MessageLog/Public/MessageLogModule.h"
 
 #define LOCTEXT_NAMESPACE "RigLogicDeveloperModule"
 

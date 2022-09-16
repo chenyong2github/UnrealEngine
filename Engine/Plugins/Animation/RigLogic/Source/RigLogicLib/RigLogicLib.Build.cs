@@ -54,9 +54,7 @@ public class RigLogicLib : ModuleRules
             PrivateDefinitions.Add("TRIO_MMAP_AVAILABLE=1");
         }
 
-        if (Target.Platform == UnrealTargetPlatform.Win64 ||
-                Target.Platform == UnrealTargetPlatform.Linux ||
-                Target.Platform == UnrealTargetPlatform.Mac)
+        if (Target.Architecture.StartsWith("x86_64"))
         {
             PrivateDefinitions.Add("RL_BUILD_WITH_SSE=1");
         }
