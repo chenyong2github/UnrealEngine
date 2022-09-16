@@ -13,6 +13,7 @@
 #include "AnimationCustomTransitionSchema.h"
 #include "AnimationGraphSchema.h"
 #include "AnimationStateMachineGraph.h"
+#include "AnimationTransitionGraph.h"
 #include "AnimationTransitionSchema.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeBinder.h"
@@ -55,7 +56,9 @@ void UK2Node_AnimGetter::PostPasteNode()
 {
 	Super::PostPasteNode();
 
+	RestoreStateMachineState();
 	RestoreStateMachineNode();
+	UpdateCachedTitle();
 }
 
 void UK2Node_AnimGetter::AllocateDefaultPins()
@@ -153,12 +156,11 @@ void UK2Node_AnimGetter::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 						// Should always succeed
 						if(UAnimationAsset* NodeAsset = AssetNode->GetAnimationAsset())
 						{
-							FText Title = FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), FText::FromString(*NodeAsset->GetName()));
 							Params.SourceNode = AssetNode;
-							Params.CachedTitle = Title;
+							UpdateCachedTitle(Params);
 
 							UBlueprintNodeSpawner* Spawner = UBlueprintNodeSpawner::Create(UK2Node_AnimGetter::StaticClass(), /*AssetNode->GetGraph()*/nullptr, UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateUObject(const_cast<UK2Node_AnimGetter*>(this), &UK2Node_AnimGetter::PostSpawnNodeSetup, Params));
-							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Title);
+							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Params.CachedTitle);
 							ActionRegistrar.AddBlueprintAction(AnimBlueprint, Spawner);
 						}
 					}
@@ -179,12 +181,11 @@ void UK2Node_AnimGetter::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 								}
 							}
 
-							FText Title = FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), StateNode->GetNodeTitle(ENodeTitleType::ListView));
 							Params.SourceStateNode = StateNode;
-							Params.CachedTitle = Title;
+							UpdateCachedTitle(Params);
 
 							UBlueprintNodeSpawner* Spawner = UBlueprintNodeSpawner::Create(UK2Node_AnimGetter::StaticClass(), /*StateNode->GetGraph()*/nullptr, UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateUObject(const_cast<UK2Node_AnimGetter*>(this), &UK2Node_AnimGetter::PostSpawnNodeSetup, Params));
-							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Title);
+							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Params.CachedTitle);
 							ActionRegistrar.AddBlueprintAction(AnimBlueprint, Spawner);
 						}
 					}
@@ -201,12 +202,11 @@ void UK2Node_AnimGetter::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 								}
 							}
 
-							FText Title = FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), TransitionNode->GetNodeTitle(ENodeTitleType::ListView));
 							Params.SourceStateNode = TransitionNode;
-							Params.CachedTitle = Title;
+							UpdateCachedTitle(Params);
 
 							UBlueprintNodeSpawner* Spawner = UBlueprintNodeSpawner::Create(UK2Node_AnimGetter::StaticClass(), /*TransitionNode->GetGraph()*/nullptr, UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateUObject(const_cast<UK2Node_AnimGetter*>(this), &UK2Node_AnimGetter::PostSpawnNodeSetup, Params));
-							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Title);
+							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Params.CachedTitle);
 							ActionRegistrar.AddBlueprintAction(AnimBlueprint, Spawner);
 						}
 					}
@@ -215,12 +215,11 @@ void UK2Node_AnimGetter::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 						// Only requires the state machine
 						for(UAnimGraphNode_StateMachine* MachineNode : MachineNodes)
 						{
-							FText Title = FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), MachineNode->GetNodeTitle(ENodeTitleType::ListView));
 							Params.SourceNode = MachineNode;
-							Params.CachedTitle = Title;
+							UpdateCachedTitle(Params);
 
 							UBlueprintNodeSpawner* Spawner = UBlueprintNodeSpawner::Create(UK2Node_AnimGetter::StaticClass(), /*MachineNode*/nullptr, UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateUObject(const_cast<UK2Node_AnimGetter*>(this), &UK2Node_AnimGetter::PostSpawnNodeSetup, Params));
-							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Title);
+							Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Params.CachedTitle);
 							ActionRegistrar.AddBlueprintAction(AnimBlueprint, Spawner);
 						}
 					}
@@ -228,11 +227,10 @@ void UK2Node_AnimGetter::GetMenuActions(FBlueprintActionDatabaseRegistrar& Actio
 				else
 				{
 					// Doesn't operate on a node, only need one entry
-					FText Title = FText::Format(LOCTEXT("NodeTitleNoNode", "{0}"), Getter->GetDisplayNameText());
-					Params.CachedTitle = Title;
+					UpdateCachedTitle(Params);
 
 					UBlueprintNodeSpawner* Spawner = UBlueprintNodeSpawner::Create(UK2Node_AnimGetter::StaticClass(), nullptr, UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateUObject(const_cast<UK2Node_AnimGetter*>(this), &UK2Node_AnimGetter::PostSpawnNodeSetup, Params));
-					Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Title);
+					Spawner->DynamicUiSignatureGetter = UBlueprintNodeSpawner::FUiSpecOverrideDelegate::CreateStatic(UiSpecOverride, Params.CachedTitle);
 					ActionRegistrar.AddBlueprintAction(AnimBlueprint, Spawner);
 				}
 			}
@@ -346,6 +344,20 @@ bool UK2Node_AnimGetter::IsActionFilteredOut(FBlueprintActionFilter const& Filte
 	return true;
 }
 
+void UK2Node_AnimGetter::RestoreStateMachineState()
+{
+	if (SourceStateNode)
+	{
+		if (UAnimationTransitionGraph* TransitionGraph = Cast<UAnimationTransitionGraph>(GetOuter()))
+		{
+			if (UAnimStateTransitionNode* StateTransitionNode = Cast<UAnimStateTransitionNode>(TransitionGraph->GetOuter()))
+			{
+				SourceStateNode = StateTransitionNode->GetPreviousState();
+			}
+		}
+	}
+}
+
 void UK2Node_AnimGetter::RestoreStateMachineNode()
 {
 	if(SourceStateNode)
@@ -361,7 +373,7 @@ void UK2Node_AnimGetter::RestoreStateMachineNode()
 	}
 }
 
-bool UK2Node_AnimGetter::GetterRequiresParameter(const UFunction* Getter, FString ParamName) const
+bool UK2Node_AnimGetter::GetterRequiresParameter(const UFunction* Getter, FString ParamName)
 {
 	bool bRequiresParameter = false;
 
@@ -425,6 +437,43 @@ bool UK2Node_AnimGetter::IsContextValidForSchema(const UEdGraphSchema* Schema) c
 	}
 
 	return false;
+}
+
+void UK2Node_AnimGetter::UpdateCachedTitle(FNodeSpawnData& SpawnData)
+{
+	SpawnData.CachedTitle = GenerateTitle((UFunction*)SpawnData.Getter, SpawnData.SourceStateNode, SpawnData.SourceNode);
+}
+
+FText UK2Node_AnimGetter::GenerateTitle(UFunction* Getter, UAnimStateNodeBase* SourceStateNode, UAnimGraphNode_Base* SourceNode)
+{
+	if (GetterRequiresParameter(Getter, TEXT("AssetPlayerIndex")))
+	{
+		// Should always succeed
+		if (UAnimationAsset* NodeAsset = SourceNode->GetAnimationAsset())
+		{
+			return FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), FText::FromString(*NodeAsset->GetName()));
+		}
+	}
+	else if (GetterRequiresParameter(Getter, TEXT("MachineIndex")))
+	{
+		if (GetterRequiresParameter(Getter, TEXT("StateIndex")) || GetterRequiresParameter(Getter, TEXT("TransitionIndex")))
+		{
+			return  FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), SourceStateNode->GetNodeTitle(ENodeTitleType::ListView));
+		}
+		else
+		{
+			// Only requires the state machine
+			return FText::Format(LOCTEXT("NodeTitle", "{0} ({1})"), Getter->GetDisplayNameText(), SourceNode->GetNodeTitle(ENodeTitleType::ListView));
+		}
+	}
+
+	// Doesn't operate on a node, only need one entry
+	return Getter->GetDisplayNameText();
+}
+
+void UK2Node_AnimGetter::UpdateCachedTitle()
+{
+	CachedTitle = GenerateTitle(GetTargetFunction(), SourceStateNode, SourceNode);
 }
 
 FNodeSpawnData::FNodeSpawnData()

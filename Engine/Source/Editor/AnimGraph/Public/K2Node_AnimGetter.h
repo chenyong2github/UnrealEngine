@@ -113,15 +113,27 @@ protected:
 	
 	//UFunction* GetSourceBlueprintFunction() const;
 
+	// Fixes the SourceStateNode to be the state of the node's owner
+	void RestoreStateMachineState();
+
 	// Fixes the SourceNode to be the state machine owner of SourceStateNode (if it is not null)
 	void RestoreStateMachineNode();
 
 	/** Returns whether or not the provided UFunction requires the named parameter */
-	bool GetterRequiresParameter(const UFunction* Getter, FString ParamName) const;
+	static bool GetterRequiresParameter(const UFunction* Getter, FString ParamName);
 
 	/** Checks the cached context strings to make sure this getter is valid within the provided schema */
 	bool IsContextValidForSchema(const UEdGraphSchema* Schema) const;
 
 	/** Passed to blueprint spawners to configure spawned nodes */
 	void PostSpawnNodeSetup(UEdGraphNode* NewNode, bool bIsTemplateNode, FNodeSpawnData SpawnData);
+
+	/** Recache the title, used if the source node or source state changes */
+	void UpdateCachedTitle();
+
+	/** Sets CachedTitle for a new node to be created */
+	static void UpdateCachedTitle(FNodeSpawnData& SpawnData);
+
+	/** Generates a title for the node based on its function and the context it is in */
+	static FText GenerateTitle(UFunction* Getter, UAnimStateNodeBase* SourceStateNode, UAnimGraphNode_Base* SourceNode);
 };
