@@ -19,7 +19,8 @@ UClass* UInterchangeDatasmithAreaLightFactory::GetFactoryClass() const
 	UBlueprint* LightShapeBlueprint = Cast< UBlueprint >(LightShapeBlueprintRef.ResolveObject());
 
 	// LightShapeBlueprint should already be loaded at this point.
-	if (!ensure(LightShapeBlueprint))
+	//if (!ensure(LightShapeBlueprint))
+	if (!LightShapeBlueprint)
 	{
 		return nullptr;
 	}
