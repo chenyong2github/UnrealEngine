@@ -1,22 +1,22 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Behaviour/Builtin/RCBehaviourSetValueNode.h"
+#include "Behaviour/Builtin/RCBehaviourOnValueChangedNode.h"
 
 #include "PropertyBag.h"
 
-URCBehaviourSetValueNode::URCBehaviourSetValueNode()
+URCBehaviourOnValueChangedNode::URCBehaviourOnValueChangedNode()
 {
-	DisplayName = NSLOCTEXT("Remote Control Behaviour", "Behavior Name - Set Value", "Set Value");
-	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behavior Desc - Set Value", "Triggers an event when the associated property is modified");
+	DisplayName = NSLOCTEXT("Remote Control Behaviour", "Behavior Name - On Value Changed", "On Value Changed");
+	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behavior Desc - On Value Changed", "Triggers an event when the associated property is modified");
 }
 
 
-bool URCBehaviourSetValueNode::Execute_Implementation(URCBehaviour* InBehaviour) const
+bool URCBehaviourOnValueChangedNode::Execute_Implementation(URCBehaviour* InBehaviour) const
 {
 	return true;
 }
 
-bool URCBehaviourSetValueNode::IsSupported_Implementation(URCBehaviour* InBehaviour) const
+bool URCBehaviourOnValueChangedNode::IsSupported_Implementation(URCBehaviour* InBehaviour) const
 {
 	static TArray<TPair<EPropertyBagPropertyType, UObject*>> SupportedPropertyBagTypes =
 	{

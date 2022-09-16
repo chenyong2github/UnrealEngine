@@ -50,4 +50,12 @@ namespace UE::RCUIHelpers
 	* If the input widget is itself focusable, then we simply set the focus on it and return
 	*/
 	bool FindFocusableWidgetAndSetKeyboardFocus(const TSharedRef< SWidget> InWidget);
+
+	/**
+	* GetTypeColorWidget
+	*
+	* Generates a Type Color widget which provides a color coding guide for the user given a desired color
+	* Used to provide a consistent look for the type color widget across various Remote Control Logic panels
+	*/
+	TSharedRef<SWidget> GetTypeColorWidget(const FProperty* InProperty);
 }

@@ -3,19 +3,21 @@
 #pragma once
 
 #include "Behaviour/RCBehaviourNode.h"
-#include "RCBehaviourIsEqualNode.generated.h"
+#include "RCBehaviourOnValueChangedNode.generated.h"
 
 /**
- * Compares given property value with controller property value
+ * On Value Changed Behaviour Node
+ *
+ * This behaviour always returns true and thus executes all actions any time the Controller value is modified
  */
 UCLASS()
-class REMOTECONTROLLOGIC_API URCBehaviourIsEqualNode : public URCBehaviourNode
+class REMOTECONTROLLOGIC_API URCBehaviourOnValueChangedNode : public URCBehaviourNode
 {
 	GENERATED_BODY()
 
 public:
-	
-	URCBehaviourIsEqualNode();
+
+	URCBehaviourOnValueChangedNode();
 
 	//~ Begin URCBehaviourNode interface
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Remote Control Behaviour")
@@ -23,10 +25,5 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Remote Control Behaviour")
 	bool IsSupported(URCBehaviour* InBehaviour) const override;
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Remote Control Behaviour")
-	void OnPassed(URCBehaviour* InBehaviour) const;
-
-	UClass* GetBehaviourClass() const override;
 	//~ End URCBehaviourNode interface
 };

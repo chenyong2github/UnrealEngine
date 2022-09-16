@@ -46,27 +46,38 @@ FName UE::RCUIHelpers::GetFieldClassDisplayName(const FProperty* InProperty)
 			{
 				FieldClassDisplayName = *SubCategoryObject->GetName();
 			}
-			
-			FieldClassDisplayName  = PinType.PinCategory;
+			else
+			{
+				FieldClassDisplayName = PinType.PinCategory;
+			}
 		}
 	}
 
 	if (!FieldClassDisplayName.IsNone())
 	{
-		FString FieldClassNameStr = FieldClassDisplayName.ToString();
+		FString ResultString = FieldClassDisplayName.ToString();
 
-		if (FieldClassNameStr.StartsWith("Bool"))
+		if (ResultString.StartsWith("Bool"))
 		{
-			FieldClassDisplayName = "Boolean";
+			ResultString = "Boolean";
 		}
 
-		if (FieldClassNameStr.StartsWith("Int"))
+		if (ResultString.StartsWith("Int"))
 		{
-			FieldClassDisplayName = *FieldClassNameStr.Replace(TEXT("Int"), TEXT("Integer"));
+			ResultString = *ResultString.Replace(TEXT("Int"), TEXT("Integer"));
 		}
+
+		if (ResultString == "real")
+		{
+			ResultString = "Float";
+		}
+
+		ResultString[0] = FChar::ToUpper(ResultString[0]);
+
+		return *ResultString;
 	}
 
-	return FieldClassDisplayName;
+	return NAME_None;
 }
 
 TSharedPtr<IDetailTreeNode> UE::RCUIHelpers::GetDetailTreeNodeForVirtualProperty(TObjectPtr<URCVirtualPropertySelfContainer> InVirtualPropertySelfContainer, 
@@ -174,4 +185,31 @@ bool UE::RCUIHelpers::FindFocusableWidgetAndSetKeyboardFocus(const TSharedRef< S
 	}
 
 	return false; // No focusable widget found in the entire widget hierarchy
+}
+
+TSharedRef<SWidget> UE::RCUIHelpers::GetTypeColorWidget(const FProperty* InProperty)
+{
+	if (!ensure(InProperty))
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	const FLinearColor TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(InProperty);
+	const FText TooltipText = FText::FromName(UE::RCUIHelpers::GetFieldClassDisplayName(InProperty));
+
+	TSharedRef<SWidget> TypeColorWidget =
+			SNew(SBox)
+			.HeightOverride(5.f)
+			.HAlign(HAlign_Left)
+			.Padding(FMargin(5.f, 0.f))
+			.ToolTipText(TooltipText)
+			[
+				SNew(SBorder)
+				.Visibility(EVisibility::Visible)
+				.BorderImage(FAppStyle::Get().GetBrush("NumericEntrySpinBox.NarrowDecorator"))
+				.BorderBackgroundColor(TypeColor)
+				.Padding(FMargin(5.0f, 0.0f, 0.0f, 0.f))
+			];
+
+	return TypeColorWidget;
 }

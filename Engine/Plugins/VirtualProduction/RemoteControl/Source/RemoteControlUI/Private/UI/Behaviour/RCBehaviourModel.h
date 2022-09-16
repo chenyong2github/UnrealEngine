@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Behaviour/RCIsEqualBehaviour.h"
+#include "Behaviour/RCBehaviour.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 
 struct FRCPanelStyle;

@@ -22,6 +22,7 @@
 #include "Styling/RemoteControlStyles.h"
 #include "UI/Action/SRCActionPanelList.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
+#include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelExposedEntity.h"
 #include "UI/SRCPanelDragHandle.h"
@@ -45,6 +46,7 @@ namespace UE::RCControllerPanelList
 
 	namespace Columns
 	{
+		const FName TypeColor = TEXT("TypeColor");
 		const FName Name = TEXT("Controller Name");
 		const FName Value = TEXT("Controller Value");
 		const FName DragHandle = TEXT("Drag Handle");
@@ -65,7 +67,15 @@ namespace UE::RCControllerPanelList
 			if (!ensure(ControllerItem.IsValid()))
 				return SNullWidget::NullWidget;
 
-			if (ColumnName == UE::RCControllerPanelList::Columns::Name)
+
+			if (ColumnName == UE::RCControllerPanelList::Columns::TypeColor)
+			{
+				if (URCController* Controller = Cast< URCController>(ControllerItem->GetVirtualProperty()))
+				{
+					return UE::RCUIHelpers::GetTypeColorWidget(Controller->GetProperty());
+				}
+			}
+			else if (ColumnName == UE::RCControllerPanelList::Columns::Name)
 			{
 				return WrapWithDropTarget(ControllerItem->GetNameWidget());
 			}
@@ -266,9 +276,14 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 			SNew(SHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
 
+			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::TypeColor)
+			.DefaultLabel(LOCTEXT("ControllerNameColumnName", ""))
+			.FillWidth(0.03f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
 			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::DragHandle)
 			.DefaultLabel(FText::GetEmpty())
-			.FillWidth(0.1f)
+			.FillWidth(0.07f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::Name)

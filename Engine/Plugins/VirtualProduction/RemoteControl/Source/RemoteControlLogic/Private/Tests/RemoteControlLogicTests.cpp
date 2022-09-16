@@ -11,10 +11,11 @@
 #include "Action/RCFunctionAction.h"
 #include "Action/RCPropertyAction.h"
 #include "Behaviour/RCBehaviour.h"
-#include "Behaviour/RCIsEqualBehaviour.h"
-#include "Behaviour/Builtin/RCBehaviourIsEqualNode.h"
-#include "Behaviour/Builtin/RCBehaviourOnEmptyNode.h"
-#include "Behaviour/Builtin/RCBehaviourSetValueNode.h"
+#include "Behaviour/Builtin/Bind/RCBehaviourBind.h"
+#include "Behaviour/Builtin/Bind/RCBehaviourBindNode.h"
+#include "Behaviour/Builtin/Conditional/RCBehaviourConditional.h"
+#include "Behaviour/Builtin/Conditional/RCBehaviourConditionalNode.h"
+#include "Behaviour/Builtin/RCBehaviourOnValueChangedNode.h"
 #include "Controller/RCController.h"
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
@@ -70,18 +71,17 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Vectors should be the same"), VectorValue, OutVectorValue);
 	
 	// 4. Add Behaviour To Properties
-	// 4.1 Add Is Equal Behaviour
-	URCBehaviour* FloatControllerBehaviour = FloatController->AddBehaviour(URCBehaviourIsEqualNode::StaticClass());
-	const URCIsEqualBehaviour* IsEqualBehaviour = Cast<URCIsEqualBehaviour>(FloatControllerBehaviour);
+	// 4.1 Add Conditional Behaviour
+	URCBehaviour* FloatControllerBehaviour = FloatController->AddBehaviour(URCBehaviourConditionalNode::StaticClass());
+	const URCBehaviourConditional* ConditionalBehaviour = Cast<URCBehaviourConditional>(FloatControllerBehaviour);
 	float IsEqualBehaviourFloatValue = 0.f;
  
-	// 4.1 Get Is Equal behaviour Value
-	TestTrue(TEXT("Should Get Float"), IsEqualBehaviour->PropertySelfContainer->GetValueFloat(IsEqualBehaviourFloatValue));
-	TestEqual(TEXT("float controller value should be the same as a is equal behaviour"), IsEqualBehaviourFloatValue, FloatValue);
+	// @todo: Add Conditional Behaviour Unit Tests here.
+	// ...
  
 	// 4.2 Add Other behaviours
-	const URCBehaviour* IntControllerBehaviour = FloatController->AddBehaviour(URCBehaviourSetValueNode::StaticClass());
-	const URCBehaviour* StrControllerBehaviour = StrController->AddBehaviour(URCBehaviourOnEmptyNode::StaticClass());
+	const URCBehaviour* IntControllerBehaviour = FloatController->AddBehaviour(URCBehaviourOnValueChangedNode::StaticClass());
+	const URCBehaviour* StrControllerBehaviour = StrController->AddBehaviour(URCBehaviourBindNode::StaticClass());
  
 	// 5 Add actions
 	// 5.1 Add Float Controller Actions

@@ -300,9 +300,9 @@ TSharedRef<SWidget> SRCControllerPanel::GetControllerMenuContentWidget() const
 		FInstancedPropertyBag Bag;
 		Bag.AddProperty(DefaultName, Pair.Key, Pair.Value);
 		const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(DefaultName);
-		if (ensure(BagPropertyDesc))
+		if (!ensure(BagPropertyDesc))
 		{
-			TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(BagPropertyDesc->CachedProperty);
+			continue;
 		}
 
 		// Variable Color Bar
@@ -313,15 +313,7 @@ TSharedRef<SWidget> SRCControllerPanel::GetControllerMenuContentWidget() const
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SBox)
-				.HeightOverride(5.f)
-				[
-					SNew(SBorder)
-					.Visibility(EVisibility::HitTestInvisible)
-					.BorderImage(FAppStyle::Get().GetBrush("NumericEntrySpinBox.NarrowDecorator"))
-					.BorderBackgroundColor(TypeColor)
-					.Padding(FMargin(5.0f, 0.0f, 0.0f, 0.f))
-				]
+				UE::RCUIHelpers::GetTypeColorWidget(BagPropertyDesc->CachedProperty)
 			]
 		+ SHorizontalBox::Slot()
 			.AutoWidth()
