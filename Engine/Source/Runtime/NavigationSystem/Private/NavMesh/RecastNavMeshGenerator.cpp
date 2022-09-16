@@ -1012,6 +1012,23 @@ FORCEINLINE_DEBUGGABLE void ExportComponent(UActorComponent* Component, FRecastG
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+FORCEINLINE_DEBUGGABLE void ValidateGeometryExport(const FRecastGeometryExport& GeomExport)
+{
+	if (const UObject* Owner = GeomExport.Data->GetOwner())
+	{
+		if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Owner->GetWorld()))
+		{
+			UE_CLOG(NavSys->GeometryExportVertexCountWarningThreshold > 0 && GeomExport.VertexBuffer.Num() > NavSys->GeometryExportVertexCountWarningThreshold,
+				LogNavigation,
+				Warning, 
+				TEXT("Exporting geometry with too many verticies (%i). This might cause performance and memory issues. Simplify collision or change GeometryExportVertexCountWarningThreshold. See '%s'."), 
+				GeomExport.VertexBuffer.Num(), *GetFullNameSafe(Owner));
+		}
+	}
+}
+#endif //!UE_BUILD_SHIPPING
+	
 FORCEINLINE void TransformVertexSoupToRecast(const TArray<FVector>& VertexSoup, TNavStatArray<FVector>& Verts, TNavStatArray<int32>& Faces)
 {
 	if (VertexSoup.Num() == 0)
@@ -6432,6 +6449,11 @@ void FRecastNavMeshGenerator::ExportComponentGeometry(UActorComponent* Component
 {
 	FRecastGeometryExport GeomExport(Data);
 	RecastGeometryExport::ExportComponent(Component, GeomExport);
+
+#if !UE_BUILD_SHIPPING	
+	RecastGeometryExport::ValidateGeometryExport(GeomExport);
+#endif
+	
 	RecastGeometryExport::CovertCoordDataToRecast(GeomExport.VertexBuffer);
 	RecastGeometryExport::StoreCollisionCache(GeomExport);
 }
@@ -6440,6 +6462,11 @@ void FRecastNavMeshGenerator::ExportVertexSoupGeometry(const TArray<FVector>& Ve
 {
 	FRecastGeometryExport GeomExport(Data);
 	RecastGeometryExport::ExportVertexSoup(Verts, GeomExport.VertexBuffer, GeomExport.IndexBuffer, GeomExport.Data->Bounds);
+
+#if !UE_BUILD_SHIPPING	
+	RecastGeometryExport::ValidateGeometryExport(GeomExport);
+#endif
+	
 	RecastGeometryExport::StoreCollisionCache(GeomExport);
 }
 
