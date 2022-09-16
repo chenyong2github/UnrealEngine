@@ -176,8 +176,6 @@ private:
 	void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder, UMovieSceneChannelOverrideContainer::FOverrideCandidates OverrideCandidates);
 	void OverrideChannels(TSubclassOf<UMovieSceneChannelOverrideContainer> OverrideClass);
 	void RemoveChannelOverrides();
-	
-	void BuildChannelOverrideParametersMenu(FMenuBuilder& MenuBuilder, TArray<UMovieSceneChannelOverrideContainer*> ChannelParameters);
 
 protected:
 

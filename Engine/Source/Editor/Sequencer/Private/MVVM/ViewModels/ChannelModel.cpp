@@ -464,26 +464,6 @@ void FChannelGroupModel::BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder)
 		}
 	}
 
-	// Show channel parameters.
-	if (ExistingOverrides.Num() > 0)
-	{
-		MenuBuilder.BeginSection("ChannelParameters", LOCTEXT("ChannelGroupParameterMenuSectionName", "Channel Parameters"));
-
-		for (const TTuple<UClass*, TArray<UMovieSceneChannelOverrideContainer*>>& ExistingOverride : ExistingOverrides)
-		{
-			const FText ChannelOverrideClassName = ExistingOverride.Key->GetDisplayNameText();
-			MenuBuilder.AddSubMenu(
-				FText::Format(LOCTEXT("OverrideChannelParametersMenuLabel", "{0} Parameters"), ChannelOverrideClassName),
-				FText::Format(
-					LOCTEXT("OverrideChannelParametersMenuTooltip", "Edit parameters for all channels of type {0}"),
-					ChannelOverrideClassName),
-				FNewMenuDelegate::CreateSP(this, &FChannelGroupOutlinerModel::BuildChannelOverrideParametersMenu, ExistingOverride.Value)
-			);
-		}
-
-		MenuBuilder.EndSection();
-	}
-
 	// Add menu entries for overriding channels, with only types that are common among all sections.
 	TMap<TSubclassOf<UMovieSceneChannelOverrideContainer>, int32> CandidateCounts;
 	for (const UMovieSceneChannelOverrideContainer::FOverrideCandidates& CandidateOverrides : AllCandidateOverrides)
@@ -649,26 +629,6 @@ void FChannelGroupModel::RemoveChannelOverrides()
 	}
 
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
-}
-
-void FChannelGroupModel::BuildChannelOverrideParametersMenu(FMenuBuilder& MenuBuilder, TArray<UMovieSceneChannelOverrideContainer*> ChannelParameters)
-{
-	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bHideSelectionTip = true;
-	DetailsViewArgs.bShowOptions = false;
-	DetailsViewArgs.bShowScrollBar = false;
-
-	TSharedRef<IDetailsView> DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
-
-	TArray<UObject*> Objects;
-	Objects.Append(ChannelParameters);
-	DetailsView->SetObjects(Objects, true);
-
-	MenuBuilder.AddWidget(DetailsView, FText(), true, false);
 }
 
 FChannelGroupOutlinerModel::FChannelGroupOutlinerModel(FName InChannelName, const FText& InDisplayText)
