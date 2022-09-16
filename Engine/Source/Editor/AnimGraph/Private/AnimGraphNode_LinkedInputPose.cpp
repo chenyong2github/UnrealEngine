@@ -506,8 +506,17 @@ void UAnimGraphNode_LinkedInputPose::CustomizeDetails(IDetailLayoutBuilder& Deta
 		MakeNameWidget(DetailBuilder)
 	];
 
-	InputsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Inputs), GetClass())
-		.ShouldAutoExpand(true);
+	UEdGraph* Graph = GetGraph();
+	if(Graph && Graph->GetFName() != UEdGraphSchema_K2::GN_AnimGraph)
+	{
+		InputsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Inputs), GetClass())
+			.ShouldAutoExpand(true);
+	}
+	else
+	{
+		TSharedPtr<IPropertyHandle> InputsPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimGraphNode_LinkedInputPose, Inputs), GetClass());
+		InputsPropertyHandle->MarkHiddenByCustomization();
+	}
 }
 
 void UAnimGraphNode_LinkedInputPose::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
