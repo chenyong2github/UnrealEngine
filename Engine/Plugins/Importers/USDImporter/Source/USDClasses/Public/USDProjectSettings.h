@@ -33,6 +33,9 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowConfirmationWhenClearingLayers = true;
 
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
+	bool bShowConfirmationWhenMutingDirtyLayers = true;
+
 	// Whether to show the warning dialog when authoring opinions that could have no effect on the composed stage
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowOverriddenOpinionsWarning = true;
