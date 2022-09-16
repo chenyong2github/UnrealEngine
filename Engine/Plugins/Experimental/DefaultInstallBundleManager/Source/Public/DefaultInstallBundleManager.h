@@ -706,6 +706,7 @@ protected:
 	FInstallBundleSourceFactoryFunction InstallBundleSourceFactory;
 
 	TMap<FName, FBundleInfo> BundleInfoMap;
+	TSet<FName> BundlesInfosToPrune;
 
 	TMap<EInstallBundleSourceType, TSharedPtr<IInstallBundleSource>> BundleSources;
 	TMap<EInstallBundleSourceType, EInstallBundleSourceType> BundleSourceFallbacks;
