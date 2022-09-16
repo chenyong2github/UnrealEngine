@@ -21155,6 +21155,9 @@ int32 UMaterialExpressionVolumetricAdvancedMaterialOutput::Compile(class FMateri
 	else if (OutputIndex == 6)
 	{
 		CodeInput = ConservativeDensity.IsConnected() ? ConservativeDensity.Compile(Compiler) : Compiler->Constant3(1.0f, 1.0f, 1.0f);
+
+		// We force a cast to a float4 because that is what we use behind the scene and is needed by artists in some cases.
+		CodeInput = Compiler->ForceCast(CodeInput, MCT_Float4);
 	}
 
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
@@ -21216,7 +21219,8 @@ UMaterialExpressionVolumetricAdvancedMaterialInput::UMaterialExpressionVolumetri
 	bShowOutputNameOnPin = true;
 
 	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("ConservativeDensity")));
+	Outputs.Add(FExpressionOutput(TEXT("ConservativeDensity as Float3")));
+	Outputs.Add(FExpressionOutput(TEXT("ConservativeDensity as Float4")));
 #endif
 }
 
@@ -21224,6 +21228,10 @@ UMaterialExpressionVolumetricAdvancedMaterialInput::UMaterialExpressionVolumetri
 int32 UMaterialExpressionVolumetricAdvancedMaterialInput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if (OutputIndex == 0)
+	{
+		return Compiler->ForceCast(Compiler->GetVolumeSampleConservativeDensity(), MCT_Float3);
+	}
+	else if (OutputIndex == 1)
 	{
 		return Compiler->GetVolumeSampleConservativeDensity();
 	}
