@@ -37,7 +37,7 @@ const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 	// This is a version string that mimics the old versioning scheme. If you
 	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 	// return it here. Ex.
-	return TEXT("E29090F49C2348068642D5BEE76253B3");
+	return TEXT("FB8D0FF1ED0C4848951601EB6BB028F6");
 }
 
 FString FDerivedDataAnimationCompression::GetDebugContextString() const

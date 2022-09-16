@@ -25,9 +25,10 @@ FName UFKControlRig::GetControlName(const FName& InName, const ERigElementType& 
 {
 	if (InName != NAME_None)
 	{
-		static thread_local TMap<uint32, FName> NameToControlMapping;
-		const int32 Hash = HashCombine(GetTypeHash(InName), GetTypeHash(InType));
-		if (const FName* CachedName = NameToControlMapping.Find(Hash))
+		check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
+		static thread_local TMap<FName, FName> NameToControlMappings[2];
+		TMap<FName, FName>& NameToControlMapping = NameToControlMappings[InType == ERigElementType::Bone ? 0 : 1];
+		if (const FName* CachedName = NameToControlMapping.Find(InName))
 		{
 			return *CachedName;
 		}
@@ -47,7 +48,7 @@ FName UFKControlRig::GetControlName(const FName& InName, const ERigElementType& 
 			static FString ControlPostFix = TEXT("_CONTROL");
 		
 			ScratchString.Append(ControlPostFix);
-			return NameToControlMapping.Add(Hash, FName(*ScratchString));
+			return NameToControlMapping.Add(InName, FName(*ScratchString));
 		}
 	}
 
@@ -59,9 +60,10 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 {
 	if (InName != NAME_None)
 	{
-		static thread_local TMap<uint32, FName> NameToTargetMapping;
-		const int32 Hash = HashCombine(GetTypeHash(InName), GetTypeHash(InType));
-		if (const FName* CachedName = NameToTargetMapping.Find(Hash))
+		check(InType == ERigElementType::Bone || InType == ERigElementType::Curve);
+		static thread_local TMap<FName, FName> NameToTargetMappings[2];
+		TMap<FName, FName>& NameToTargetMapping = NameToTargetMappings[InType == ERigElementType::Bone ? 0 : 1];
+		if (const FName* CachedName = NameToTargetMapping.Find(InName))
 		{
 			return *CachedName;
 		}
@@ -85,7 +87,7 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 			}
 
 			const FStringView ControlTargetString(*ScratchString, StartPostFix != INDEX_NONE ? StartPostFix : ScratchString.Len());
-			return NameToTargetMapping.Add(Hash, FName(ControlTargetString));
+			return NameToTargetMapping.Add(InName, FName(ControlTargetString));
 		}
 	}
 
