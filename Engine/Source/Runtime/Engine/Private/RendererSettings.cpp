@@ -248,8 +248,7 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
 
-		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ReflectionCaptureResolution) ||
-			(PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bReflectionCaptureCompression))) &&
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ReflectionCaptureResolution) &&
 			PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
 			if (GEditor != nullptr)

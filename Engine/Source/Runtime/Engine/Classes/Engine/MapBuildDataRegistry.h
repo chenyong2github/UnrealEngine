@@ -187,22 +187,12 @@ public:
 	float AverageBrightness;
 
 	TArray<uint8> FullHDRCapturedData;
-	UTextureCube* EncodedCaptureData;
-
-#if WITH_EDITOR
-	/** Whether the brightness is baked in the EncodedHDRCubemap*/
-	bool bBrightnessBakedInEncodedHDRCubemap;
-#endif
+	TArray<uint8> EncodedHDRCapturedData;
 
 	FReflectionCaptureData() :
 		CubemapSize(0),
 		AverageBrightness(0.0f),
-		EncodedCaptureData(nullptr),
-#if WITH_EDITOR
-		bBrightnessBakedInEncodedHDRCubemap(false),
-#endif
 		bUploadedFinal(false)
-
 	{}
 
 	bool HasBeenUploadedFinal() const
@@ -218,6 +208,7 @@ public:
 		if (!GIsEditor)
 		{
 			FullHDRCapturedData.Empty();
+			EncodedHDRCapturedData.Empty();
 			CubemapSize = 0;
 			bUploadedFinal = true;
 		}

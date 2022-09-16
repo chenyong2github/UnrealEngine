@@ -124,6 +124,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Upgrade the BlendMasks array in existing LayeredBoneBlend nodes
 		AnimLayeredBoneBlendMasks,
 
+		// Uses RG11B10 format to store the encoded reflection capture data on mobile
+		StoreReflectionCaptureEncodedHDRDataInRG11B10Format,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
