@@ -1326,13 +1326,13 @@ public:
 				Ar << NewArrayNum;
 				Empty(NewArrayNum);
 				AddUninitialized(NewArrayNum);
-				Ar.Serialize(GetData(), NewArrayNum * SerializedElementSize);
+				Ar.Serialize(GetData(), (int64)NewArrayNum * (int64)SerializedElementSize);
 			}
 			else if (Ar.IsSaving())
 			{
 				SizeType ArrayCount = Num();
 				Ar << ArrayCount;
-				Ar.Serialize(GetData(), ArrayCount * SerializedElementSize);
+				Ar.Serialize(GetData(), (int64)ArrayCount * (int64)SerializedElementSize);
 			}
 		}
 	}
