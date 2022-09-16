@@ -45,7 +45,7 @@ static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityPrimitives(
 	TEXT("")
 );
 
-int32 GNaniteMaterialVisibilityInstances = 1;
+int32 GNaniteMaterialVisibilityInstances = 0;
 static FAutoConsoleVariableRef CVarNaniteMaterialVisibilityInstances(
 	TEXT("r.Nanite.MaterialVisibility.Instances"),
 	GNaniteMaterialVisibilityInstances,
