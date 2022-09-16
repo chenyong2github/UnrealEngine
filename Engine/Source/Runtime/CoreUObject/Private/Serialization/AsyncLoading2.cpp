@@ -3856,6 +3856,10 @@ bool FAsyncLoadEventQueue2::ExecuteSyncLoadEvents(FAsyncLoadingThreadState2& Thr
 		}
 		Node = Next;
 	}
+	if (!bDidSomething && ThreadState.bIsAsyncLoadingThread)
+	{
+		return PopAndExecute(ThreadState);
+	}
 	return bDidSomething;
 }
 
