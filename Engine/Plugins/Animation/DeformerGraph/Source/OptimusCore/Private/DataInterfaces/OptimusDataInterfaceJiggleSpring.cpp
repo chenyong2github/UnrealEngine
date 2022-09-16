@@ -290,12 +290,6 @@ UOptimusJiggleSpringDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefi
 		.AddReturnType(EShaderFundamentalType::Uint)
 		.AddParam(EShaderFundamentalType::Uint);
 
-	// DEPRECATED
-	OutFunctions.AddDefaulted_GetRef()
-		.SetName(TEXT("ReadNonZeroStiffnessNumber"))
-		.AddReturnType(EShaderFundamentalType::Uint)
-		.AddParam(EShaderFundamentalType::Uint);
-
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadMaxStretch"))
 		.AddReturnType(EShaderFundamentalType::Float)

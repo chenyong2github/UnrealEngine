@@ -83,19 +83,6 @@ DI_IMPL_READ(ReadBufferIndex, uint, uint VertexIndex)
 #endif
 }
 
-DI_IMPL_READ(ReadNonZeroStiffnessNumber, uint, uint VertexIndex)
-{
-	uint Count = 0;
-#if ENABLE_DEFORMER_JIGGLE_SPRING
-	for(uint i = 0; i <= VertexIndex; i++)
-    {
-		if(DI_LOCAL(ReadStiffness)(VertexIndex) > 0.) 
-			Count++;
-	}
-#endif
-	return Count;
-}
-
 DI_IMPL_READ(ReadMaxStretch, float, uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
