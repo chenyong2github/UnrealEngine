@@ -6083,6 +6083,10 @@ void GlobalBeginCompileShader(
 			static FShaderPlatformCachedIniValue<int32> CVarStrataTileCoord8Bits(TEXT("r.Strata.TileCoord8bits"));
 			const uint32 StrataTileCoord8Bits = CVarStrataTileCoord8Bits.Get(Target.GetPlatform());
 			Input.Environment.SetDefine(TEXT("USE_8BIT_TILE_COORD"), StrataTileCoord8Bits > 0 ? 1 : 0);
+
+			static FShaderPlatformCachedIniValue<int32> CVarStrataDBufferPass(TEXT("r.Strata.DBufferPass"));
+			const uint32 StrataDBufferPass = CVarStrataDBufferPass.Get(Target.GetPlatform());
+			Input.Environment.SetDefine(TEXT("STRATA_USE_DBUFFER_PASS"), StrataDBufferPass > 0 ? 1 : 0);
 		}
 
 		static IConsoleVariable* CVarBackCompatibility = IConsoleManager::Get().FindConsoleVariable(TEXT("r.StrataBackCompatibility"));

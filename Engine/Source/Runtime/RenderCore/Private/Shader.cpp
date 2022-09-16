@@ -1838,6 +1838,16 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += FString::Printf(TEXT("_BUDGET%u"), BytesPerPixel);
 		}
 
+		if (bStrataEnabled)
+		{
+			static FShaderPlatformCachedIniValue<int32> CVarDBufferPass(TEXT("r.Strata.DBufferPass"));
+			const int32 StrataDBufferPass = CVarDBufferPass.Get(Platform);
+			if (StrataDBufferPass>0)
+			{
+				KeyString += FString::Printf(TEXT("_DBUFFERPASS"));
+			}
+		}
+
 		static const auto CVarBackCompatibility = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StrataBackCompatibility"));
 		if (bStrataEnabled && CVarBackCompatibility && CVarBackCompatibility->GetValueOnAnyThread()>0)
 		{

@@ -1741,16 +1741,28 @@ void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrata
 ///////////////////////////////////////////////////////////////////////////////
 // Material buffer read
 
+#ifndef STRATA_MATERIALCONTAINER_IS_WRITABLE 
+#define STRATA_MATERIALCONTAINER_IS_WRITABLE 0
+#endif
+
 #if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
+#if STRATA_MATERIALCONTAINER_IS_WRITABLE
+#define FStrataMaterialContainer RWTexture2DArray<uint>
+#else
 #define FStrataMaterialContainer Texture2DArray<uint>
+#endif
 
 uint StrataLoadUint1(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
 	uint Data = 0;
   #if !COMPILER_SWITCH
+	#if STRATA_MATERIALCONTAINER_IS_WRITABLE
+	Data = StrataBuffer[uint3(StrataAddressing.PixelCoords, StrataAddressing.CurrentIndex)];
+	#else
 	const uint MipLevel = 0;
 	Data = StrataBuffer.mips[MipLevel][uint3(StrataAddressing.PixelCoords, StrataAddressing.CurrentIndex)];
+	#endif
 	StrataAddressing.CurrentIndex++;
 	StrataAddressing.ReadBytes += 4;
   #endif
@@ -1761,17 +1773,29 @@ uint StrataLoadUint1AtIndexOffset(in FStrataMaterialContainer StrataBuffer, in F
 {
 	uint Data = 0;
   #if !COMPILER_SWITCH
+	#if STRATA_MATERIALCONTAINER_IS_WRITABLE
+	Data = StrataBuffer[uint3(StrataAddressing.PixelCoords, IndexOffset)];
+	#else
 	const uint MipLevel = 0;
 	Data = StrataBuffer.mips[MipLevel][uint3(StrataAddressing.PixelCoords, IndexOffset)];
+	#endif
   #endif
 	return Data;
 }
 
+#if STRATA_MATERIALCONTAINER_IS_WRITABLE
+#define FStrataTopLayerDataContainer RWTexture2D<uint>
+#else
 #define FStrataTopLayerDataContainer Texture2D<uint>
+#endif
 
 uint StrataLoadTopLayerData(FStrataTopLayerDataContainer InTopLayerContainer, inout FStrataAddressing StrataAddressing)
 {
+	#if STRATA_MATERIALCONTAINER_IS_WRITABLE
+	return InTopLayerContainer[StrataAddressing.PixelCoords];
+	#else
 	return InTopLayerContainer.Load(uint3(StrataAddressing.PixelCoords, 0));
+	#endif
 }
 
 #else // STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE

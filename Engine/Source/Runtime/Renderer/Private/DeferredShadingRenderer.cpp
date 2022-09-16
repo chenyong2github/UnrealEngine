@@ -3056,6 +3056,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (Strata::IsStrataEnabled())
 	{
 		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
+		Strata::AddStrataDBufferPass(GraphBuilder, SceneTextures, DBufferTextures, Views);
 	}
 
 #if RHI_RAYTRACING

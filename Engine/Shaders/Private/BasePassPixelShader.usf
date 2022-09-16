@@ -44,6 +44,12 @@
 #define STRATA_ENABLED 0
 #endif
 
+// Is Strata is enabled, only use DBuffer pass after the base pass for simple and single material
+#if STRATA_ENABLED && STRATA_USE_DBUFFER_PASS && USE_DBUFFER && (STRATA_FASTPATH || STRATA_SINGLEPATH)
+#undef USE_DBUFFER
+#define USE_DBUFFER 0
+#endif
+
 // For the base pass STRATA_INLINE_SHADING is defined in BasePassRendering.h
 #include "SHCommon.ush"
 #include "/Engine/Generated/Material.ush"
@@ -975,33 +981,33 @@ void FPixelShaderInOut_MainPS(
 	float DBufferOpacity = 1.0f;
 #if USE_DBUFFER && MATERIALDECALRESPONSEMASK && !MATERIALBLENDING_ANY_TRANSLUCENT && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// apply decals from the DBuffer
-#if PC_D3D
+	#if PC_D3D
 	//Temporary workaround to avoid crashes on AMD, revert back to BRANCH
 	FLATTEN
-#else
+	#else
 	BRANCH
-#endif
-		if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
-		{
-			uint ValidDBufferTargetMask = GetDBufferTargetMask(uint2(In.SvPosition.xy)) & MATERIALDECALRESPONSEMASK;
+	#endif
+	if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
+	{
+		uint ValidDBufferTargetMask = GetDBufferTargetMask(uint2(In.SvPosition.xy)) & MATERIALDECALRESPONSEMASK;
 
-			BRANCH
-			if (ValidDBufferTargetMask)
-			{
-				float2 BufferUV = SvPositionToBufferUV(In.SvPosition);
-			#if STRATA_ENABLED 
-			   #if STRATA_INLINE_SHADING && !STRATA_OPTIMIZED_UNLIT
-				const FStrataDBuffer StrataBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
-				ApplyDBufferData(StrataBufferData, StrataPixelHeader, StrataData);
-				DBufferOpacity = StrataBufferData.Coverage;
-			   #endif
-			#else
-				FDBufferData DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
-				ApplyDBufferData(DBufferData, MaterialParameters.WorldNormal, SubsurfaceColor, Roughness, BaseColor, Metallic, Specular);
-				DBufferOpacity = (DBufferData.ColorOpacity + DBufferData.NormalOpacity + DBufferData.RoughnessOpacity) * (1.0f / 3.0f);
-			#endif // STRATA_ENABLED
-			}
+		BRANCH
+		if (ValidDBufferTargetMask)
+		{
+			float2 BufferUV = SvPositionToBufferUV(In.SvPosition);
+		#if STRATA_ENABLED 
+			#if STRATA_INLINE_SHADING && !STRATA_OPTIMIZED_UNLIT
+			const FStrataDBuffer StrataBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
+			ApplyDBufferData(StrataBufferData, StrataPixelHeader, StrataData);
+			DBufferOpacity = StrataBufferData.Coverage;
+			#endif
+		#else
+			FDBufferData DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
+			ApplyDBufferData(DBufferData, MaterialParameters.WorldNormal, SubsurfaceColor, Roughness, BaseColor, Metallic, Specular);
+			DBufferOpacity = (DBufferData.ColorOpacity + DBufferData.NormalOpacity + DBufferData.RoughnessOpacity) * (1.0f / 3.0f);
+		#endif // STRATA_ENABLED
 		}
+	}
 #endif
 
 	const float BaseMaterialCoverageOverWater = Opacity;
