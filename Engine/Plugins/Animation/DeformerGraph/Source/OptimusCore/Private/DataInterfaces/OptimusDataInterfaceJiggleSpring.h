@@ -23,9 +23,20 @@ struct FOptimusJiggleSpringParameters
 	UPROPERTY(EditAnywhere, Category = Deformer)
 	float BaselineStiffness = 100.0f;
 
-	/** Per vertex spring stiffness. */
-	UPROPERTY(EditAnywhere, Category = Deformer)
-	TArray<float> StiffnessWeights;
+	// Notes on stiffness and damping weights:
+	// Until we can transport TArray<float> to the shader via blueprints, we're stuck
+	// reading these values from standalone files.  These files contain values for all
+	// surfaces, and so we need a way to associate values to surface.  So we optionally
+	// match by name (which may be lost during surface export to file), and if that 
+	// fails, we match by vertex to value count.  At the point when we can set per
+	// skeletal mesh values via blueprints, the names arrays go away and the 
+	// TArray<TArray<float>> for values turn into TArray<float>, and is exposed as a
+	// UPROPERTY.
+
+	/** Per vertex spring stiffness surface names. */
+	TArray<FString> StiffnessWeightsNames;
+	//UPROPERTY(EditAnywhere, Category = Deformer)
+	TArray<TArray<float>> StiffnessWeights;
 
 	/** Stiffness weights file. */
 	UPROPERTY(EditAnywhere, Category = Deformer)
@@ -35,15 +46,35 @@ struct FOptimusJiggleSpringParameters
 	UPROPERTY(EditAnywhere, Category = Deformer)
 	float BaselineDamping = 10.0f;
 
-	/** Per vertex spring damping. */
-	UPROPERTY(EditAnywhere, Category = Deformer)
-	TArray<float> DampingWeights;
+	/** Per vertex spring damping surface names. */
+	TArray<FString> DampingWeightsNames;
+	//UPROPERTY(EditAnywhere, Category = Deformer)
+	TArray<TArray<float>> DampingWeights;
 
 	/** Damping weights file. */
 	UPROPERTY(EditAnywhere, Category = Deformer)
 	FFilePath DampingWeightsFile;
 
-	bool ReadWeightsFile(const FFilePath& FilePath, TArray<float>& Values) const;
+	/** Map render vertices to import indices. */
+	TArray<int32> VertexMap;
+
+	/** Multiplier on the max stretch distance per-vertex value if specified, 
+	 *  or the uniform max stretch value if no per-vertex map is specified. 
+	 */
+	UPROPERTY(EditAnywhere, Category = Deformer)
+	float MaxStretchMultiplier = 3.0f;
+
+	/** Use the per vertex average edge length as the max stretch distance map. */
+	UPROPERTY(EditAnywhere, Category = Deformer)
+	bool bUseAvgEdgeLengthForMaxStretchMap = true;
+
+	/** Per vertex maximum stretch distance. */
+	UPROPERTY(EditAnywhere, Category = Deformer)
+	TArray<float> MaxStretchWeights;
+
+	//bool ReadWeightsFile(const FFilePath& FilePath, TArray<TTuple<FString,TArray<float>>>& Values) const;
+	bool ReadWeightsFile(const FFilePath& FilePath, TArray<FString>& Names, TArray<TArray<float>>& Values) const;
+	bool ReadWeightsFile(const FFilePath& FilePath, TArray<FVector3f>& Positions, TArray<float>& Values) const;
 };
 
 
@@ -66,6 +97,7 @@ public:
 	FString GetDisplayName() const override;
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
+	void RegisterTypes() override;
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface
@@ -114,12 +146,23 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	USkinnedMeshComponent* SkinnedMeshComponent = nullptr;
 	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
 	FOptimusJiggleSpringParameters JiggleSpringParameters;
+
+	// If the stiffness and damping weights came from file, then they're divided into multiple sections;
+	// 1 section for each skeletal mesh.  This integer identifies which one we're currently using.
+	int32 SectionIndex = INDEX_NONE;
+
+	FRDGBuffer* VertexMapBuffer = nullptr;
+	FRDGBufferSRV* VertexMapBufferSRV = nullptr;
 	FRDGBuffer* StiffnessWeightsBuffer = nullptr;
 	FRDGBufferSRV* StiffnessWeightsBufferSRV = nullptr;
 	FRDGBuffer* DampingWeightsBuffer = nullptr;
 	FRDGBufferSRV* DampingWeightsBufferSRV = nullptr;
+	FRDGBuffer* MaxStretchWeightsBuffer = nullptr;
+	FRDGBufferSRV* MaxStretchWeightsBufferSRV = nullptr;
 	float NullFloatBuffer = 0.0f;
+	int32 NullIntBuffer = 0;
 };
 

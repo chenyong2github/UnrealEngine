@@ -3,13 +3,21 @@
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
 uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(BaseVertexIndex); // InputStreamStart
+
+uint DI_LOCAL(NumVertexMap);
 uint DI_LOCAL(NumStiffnessWeights);
 uint DI_LOCAL(NumDampingWeights);
+uint DI_LOCAL(NumMaxStretchWeights);
+
 float DI_LOCAL(Stiffness);
 float DI_LOCAL(Damping);
+float DI_LOCAL(MaxStretch);
+
 Buffer<float> DI_LOCAL(StiffnessWeightsBuffer);
 Buffer<float> DI_LOCAL(DampingWeightsBuffer);
-
+Buffer<uint> DI_LOCAL(VertexMapBuffer);
+Buffer<float> DI_LOCAL(MaxStretchWeightsBuffer);
 
 DI_IMPL_READ(ReadNumVertices, uint, )
 {
@@ -19,10 +27,21 @@ DI_IMPL_READ(ReadNumVertices, uint, )
 DI_IMPL_READ(ReadStiffness, float, uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
-	if(VertexIndex < DI_LOCAL(NumStiffnessWeights))
-		return DI_LOCAL(StiffnessWeightsBuffer)[VertexIndex] * DI_LOCAL(Stiffness);
+	if( //DI_LOCAL(NumStiffnessWeights) == DI_LOCAL(NumVertices) && 
+		VertexIndex < DI_LOCAL(NumStiffnessWeights))
+	{
+		uint BufferIndex = VertexIndex + DI_LOCAL(BaseVertexIndex);
+		return DI_LOCAL(StiffnessWeightsBuffer)[BufferIndex] * DI_LOCAL(Stiffness);
+	}
+	//else if(VertexIndex < DI_LOCAL(NumVertexMap))
+	//{
+	//	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(BaseVertexIndex)];
+	//	return DI_LOCAL(StiffnessWeightsBuffer)[BufferIndex] * DI_LOCAL(Stiffness);
+	//}
 	else
+	{
 		return DI_LOCAL(Stiffness);
+	}
 #else
 	return 0.0;
 #endif
@@ -31,12 +50,206 @@ DI_IMPL_READ(ReadStiffness, float, uint VertexIndex)
 DI_IMPL_READ(ReadDamping, float, uint VertexIndex)
 {
 #if ENABLE_DEFORMER_JIGGLE_SPRING
-	if(VertexIndex < DI_LOCAL(NumDampingWeights))
-		return DI_LOCAL(DampingWeightsBuffer)[VertexIndex] * DI_LOCAL(Damping);
+	if( //DI_LOCAL(NumStiffnessWeights) == DI_LOCAL(NumVertices) && 
+		VertexIndex < DI_LOCAL(NumStiffnessWeights))
+	{
+		uint BufferIndex = VertexIndex + DI_LOCAL(BaseVertexIndex);
+		return DI_LOCAL(DampingWeightsBuffer)[BufferIndex] * DI_LOCAL(Damping);
+	}
+	//else if(VertexIndex < DI_LOCAL(NumVertexMap))
+	//{
+	//	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(BaseVertexIndex)];
+	//	return DI_LOCAL(DampingWeightsBuffer)[BufferIndex] * DI_LOCAL(Damping);
+	//}
 	else
+	{
 		return DI_LOCAL(Damping);
+	}
 #else
 	return 0.0;
 #endif
 }
 
+DI_IMPL_READ(ReadBufferIndex, uint, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_JIGGLE_SPRING
+	if(VertexIndex < DI_LOCAL(NumVertexMap))
+	{
+		uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(BaseVertexIndex)];
+		return BufferIndex;
+	}
+#else
+	return 0;
+#endif
+}
+
+DI_IMPL_READ(ReadNonZeroStiffnessNumber, uint, uint VertexIndex)
+{
+	uint Count = 0;
+#if ENABLE_DEFORMER_JIGGLE_SPRING
+	for(uint i = 0; i <= VertexIndex; i++)
+    {
+		if(DI_LOCAL(ReadStiffness)(VertexIndex) > 0.) 
+			Count++;
+	}
+#endif
+	return Count;
+}
+
+DI_IMPL_READ(ReadMaxStretch, float, uint VertexIndex)
+{
+#if ENABLE_DEFORMER_JIGGLE_SPRING
+	if(VertexIndex < DI_LOCAL(NumMaxStretchWeights))
+	{
+		uint BufferIndex = VertexIndex + DI_LOCAL(BaseVertexIndex);
+		return abs(DI_LOCAL(MaxStretchWeightsBuffer[BufferIndex]) * DI_LOCAL(MaxStretch));
+	}
+	return abs(DI_LOCAL(MaxStretch));
+#else
+	return 100.0;
+#endif
+}
+
+
+struct FAnalyticSpring
+{
+	float Dt; // struct can't be empty, so we have this member
+	
+	// Advance analytic spring sim by Dt.
+	void
+	AdvanceAnalyticSpringSim(
+		uint Index,
+		float3 PrevSkinPos, 
+		float3 CurrSkinPos, 
+		float4 SkinnedTangentX, 
+		float4 SkinnedTangentZ, 
+		float3 PrevDynPos, 
+		float3 PrevDynVel,
+		out float3 OutX,
+		out float3 OutV,
+		out float4 OutTanX,
+		out float4 OutTanZ)
+	{
+#if ENABLE_DEFORMER_JIGGLE_SPRING
+		// Sim parameters
+		float K = DI_LOCAL(ReadStiffness)(Index);
+		float D = DI_LOCAL(ReadDamping)(Index);
+		if(K <= 0.0 || D <= 0.0)
+		{
+			// Set outputs to skinning
+			OutX = CurrSkinPos;
+			OutV = float3(0,0,0);
+			OutTanX = SkinnedTangentX;
+			OutTanZ = SkinnedTangentZ;
+			return;
+		}
+		if(D == sqrt(4*K)) // avoid critical damping case
+			D += .01;
+
+		// History
+		float3 X = PrevDynPos;
+		float3 V = PrevDynVel;
+
+		// Interpolate (linear)
+		float3 Q = { 0.f, 0.f, 0.f };
+		float3 A = { 0.f, 0.f, 0.f };
+		float3 B = (CurrSkinPos - PrevSkinPos) / Dt; // src: (Xn+1 - Xn) / dt - Ryan wrong Dt here?  Finite diff...
+		float3 C = CurrSkinPos;
+
+		// Precalculations
+		float _Dt2 = Dt * Dt;
+		float _Dt3 = _Dt2 * Dt;
+		float _D2 = D * D;
+		float _D2m4K = _D2 - 4*K;
+
+		float3 _6QdK = 6 * Q / K;
+		float3 _2AdK = 2 * A / K;
+		float3 _6QDdK2 = 6 * Q * D / (K * K);
+
+		// Do spring
+		//float3 DynamicX;
+		if(_D2m4K > 0) // Over damped
+		{
+			float Delta_sqrt = sqrt(_D2m4K);
+			float Root1 = (-D + Delta_sqrt) / 2;
+			float Root2 = (-D - Delta_sqrt) / 2;
+			float _ExpRoot1Dt = exp(Root1 * Dt);
+			float _ExpRoot2Dt = exp(Root2 * Dt);
+
+			float3 C1 = (V - B + _6QdK - Root2 * (X - C + _2AdK - _6QDdK2)) / Delta_sqrt;
+			float3 C2 =(-V + B - _6QdK + Root1 * (X - C + _2AdK - _6QDdK2)) / Delta_sqrt;
+			float3 _C1ExpRoot1Dt = C1 * _ExpRoot1Dt;
+			float3 _C2ExpRoot2Dt = C2 * _ExpRoot2Dt;
+
+			X = _C1ExpRoot1Dt + _C2ExpRoot2Dt + Q*_Dt3 + A*_Dt2 + (B-6*Q/K)*Dt + C-2*A/K + _6QDdK2;
+			V = _C1ExpRoot1Dt*Root1 + _C2ExpRoot2Dt*Root2 + 3*Q*_Dt2 + 2*A*Dt + B-_6QdK;
+		}
+		else //if(_D2m4K < 0) // Under damped
+		{
+			float Delta_sqrt = sqrt(4*K - _D2);
+			float Beta = Delta_sqrt / 2;
+			float Alpha = -D / 2;
+
+			float3 C1 = X - C + _2AdK - _6QDdK2;
+			float3 C2 = (2 * V - 2 * B + 12 * Q / K + D * C1) / Delta_sqrt;
+
+			float _ExpAlphaDt = exp(Alpha * Dt);
+			float _BetaDt = Beta * Dt;
+			float _CosBetaDt = cos(_BetaDt);
+			float _SinBetaDt = sin(_BetaDt);
+
+			X = _ExpAlphaDt * (C1 * _CosBetaDt + C2 * _SinBetaDt) +
+				Q * _Dt3 + 
+				A * _Dt2 + 
+				(B-6*Q/K)*Dt + 
+				C-_2AdK + 
+				_6QDdK2;
+			V = C1 * Alpha * _ExpAlphaDt * _CosBetaDt -
+				C1 * _ExpAlphaDt * Beta * sin(Beta * Dt) + 
+				C2 * _ExpAlphaDt * _SinBetaDt + 
+				C2 * _ExpAlphaDt * Beta * _CosBetaDt +
+				3 * Q * _Dt2 + 
+				2 * A * Dt + 
+				B - _6QdK;
+		}
+		//else // Critically damped (which should be rare)
+		//{
+		//    float Root = -D / 2;
+		//    float3 C1 = X - C + _2AdK - _6QDdK2;
+		//    float3 C2 = V - B + 6 * Q / K + D / 2 * C1;
+		//    float _ExpRootDt = exp(Root * Dt);
+		//    DynamicX = C1 * _ExpRootDt + C2 * Dt * _ExpRootDt + Q * _Dt3 + A * _Dt2 + (B-6*Q/K) * Dt + C - _2AdK + _6QDdK2;
+		//    V = C1 * Root * _ExpRootDt + C2 * _ExpRootDt + Dt * Root * _ExpRootDt + 3 * Q * _Dt2 + 2 * A * Dt + B - _6QdK;
+		//}
+
+		// Clamp deformation
+		float3 Dir = X - CurrSkinPos;
+		float DirLen = length(Dir);
+		float MaxLen = DI_LOCAL(ReadMaxStretch)(Index);
+		if(DirLen > MaxLen)
+		{
+			Dir /= DirLen;
+			Dir *= MaxLen;
+			X = CurrSkinPos + Dir;
+		}
+
+		OutX = X;
+		OutV = V;
+		OutTanX = SkinnedTangentX;
+		OutTanZ = SkinnedTangentZ;
+#else
+		// Set outputs to skinning
+		OutX = CurrSkinPos;
+		OutV = float3(0,0,0);
+		OutTanX = SkinnedTangentX;
+		OutTanZ = SkinnedTangentZ;
+#endif
+	}
+
+};
+
+DI_IMPL_READ(ReadAnalyticSpring, FAnalyticSpring, )
+{
+	FAnalyticSpring Spring;
+	return Spring;
+}
