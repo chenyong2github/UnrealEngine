@@ -65,6 +65,19 @@ FTextureResource* UTextureRenderTarget2D::CreateResource()
 	return Result;
 }
 
+uint32 UTextureRenderTarget2D::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
+{
+	// Calculate size based on format.  All mips are resident on render targets so we always return the same value.
+	EPixelFormat Format = GetFormat();
+	int32 BlockSizeX = GPixelFormats[Format].BlockSizeX;
+	int32 BlockSizeY = GPixelFormats[Format].BlockSizeY;
+	int32 BlockBytes = GPixelFormats[Format].BlockBytes;
+	int32 NumBlocksX = (SizeX + BlockSizeX - 1) / BlockSizeX;
+	int32 NumBlocksY = (SizeY + BlockSizeY - 1) / BlockSizeY;
+	int32 NumBytes = NumBlocksX * NumBlocksY * BlockBytes;
+	return NumBytes;
+}
+
 EMaterialValueType UTextureRenderTarget2D::GetMaterialType() const
 {
 	return MCT_Texture2D;
@@ -74,14 +87,7 @@ void UTextureRenderTarget2D::GetResourceSizeEx(FResourceSizeEx& CumulativeResour
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
 
-	// Calculate size based on format.
-	EPixelFormat Format = GetFormat();
-	int32 BlockSizeX	= GPixelFormats[Format].BlockSizeX;
-	int32 BlockSizeY	= GPixelFormats[Format].BlockSizeY;
-	int32 BlockBytes	= GPixelFormats[Format].BlockBytes;
-	int32 NumBlocksX	= (SizeX + BlockSizeX - 1) / BlockSizeX;
-	int32 NumBlocksY	= (SizeY + BlockSizeY - 1) / BlockSizeY;
-	int32 NumBytes	= NumBlocksX * NumBlocksY * BlockBytes;
+	int32 NumBytes = CalcTextureMemorySizeEnum(TMC_AllMips);
 
 	CumulativeResourceSize.AddUnknownMemoryBytes(NumBytes);
 }

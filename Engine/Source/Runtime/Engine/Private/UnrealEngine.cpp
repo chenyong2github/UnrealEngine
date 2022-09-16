@@ -74,6 +74,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/VolumeTexture.h"
 #include "ParticleHelper.h"
 #include "Particles/ParticleModule.h"
@@ -5967,6 +5968,7 @@ bool UEngine::HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		UTexture2D*			Texture2D			= Cast<UTexture2D>(Texture);
 		UTextureCube*		TextureCube			= Cast<UTextureCube>(Texture);
 		UVolumeTexture*		Texture3D			= Cast<UVolumeTexture>(Texture);
+		UTextureRenderTarget2D* RenderTexture	= Cast<UTextureRenderTarget2D>(Texture);
 
 		int32				LODGroup			= Texture->LODGroup;
 		int32				NumMips				= 0;
@@ -6044,6 +6046,21 @@ bool UEngine::HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			CurSizeX			= FMath::Max<int32>(Texture3D->GetSizeX() >> DroppedMips, 1);
 			CurSizeY			= FMath::Max<int32>(Texture3D->GetSizeY() >> DroppedMips, 1);
 			bIsUncompressed		= Texture3D->IsUncompressed();
+		}
+		else if (RenderTexture != nullptr)
+		{
+			NumMips = RenderTexture->GetNumMips();
+			MaxResLODBias = RenderTexture->GetCachedLODBias();
+			MaxAllowedSizeX = FMath::Max<int32>(RenderTexture->SizeX >> MaxResLODBias, 1);
+			MaxAllowedSizeY = FMath::Max<int32>(RenderTexture->SizeY >> MaxResLODBias, 1);
+			Format = RenderTexture->GetFormat();
+			DroppedMips = MaxResLODBias;
+			CurSizeX = FMath::Max<int32>(RenderTexture->SizeX >> DroppedMips, 1);
+			CurSizeY = FMath::Max<int32>(RenderTexture->SizeY >> DroppedMips, 1);
+			bIsStreamingTexture = RenderTexture->GetStreamingIndex() != INDEX_NONE;
+			bIsForced = RenderTexture->ShouldMipLevelsBeForcedResident() && bIsStreamingTexture;
+			bIsVirtual = RenderTexture->IsCurrentlyVirtualTextured();
+			bIsUncompressed = RenderTexture->IsUncompressed();
 		}
 
 		if (bListUnused && UsageCount != 0)

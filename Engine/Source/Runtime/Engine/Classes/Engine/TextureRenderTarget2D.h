@@ -203,6 +203,7 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 	ENGINE_API virtual FTextureResource* CreateResource() override;
 	ENGINE_API virtual EMaterialValueType GetMaterialType() const override;
+	virtual uint32 CalcTextureMemorySizeEnum(ETextureMipCount Enum) const override;
 	//~ End UTexture Interface.
 
 	//~ Begin UObject Interface
