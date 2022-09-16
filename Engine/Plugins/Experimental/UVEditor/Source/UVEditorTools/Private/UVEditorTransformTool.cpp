@@ -173,7 +173,7 @@ void UUVEditorTransformTool::Setup()
 		Factory->Settings = Settings;
 		Factory->TransformType = ToolMode.Get(EUVEditorUVTransformType::Transform);
 		Factory->OriginalMesh = Target.UnwrapCanonical;
-		Factory->GetSelectedUVChannel = [&Target]() { return Target.UVLayerIndex; };
+		Factory->GetSelectedUVChannel = [&Target]() { return 0; /*Since we're passing in the unwrap mesh, the UV index is always zero.*/ };
 		if (Selection)
 		{
 			// If we have a selection, it's in the unwrapped mesh. We need both triangles, which are 1:1 between them,

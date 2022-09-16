@@ -202,6 +202,7 @@ void FUVEditorUVTransformBaseOp::CalculateResult(FProgressCancel* Progress)
 
 	int UVLayerInput = UVLayerIndex;
 	ActiveUVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerInput);
+	ensure(ActiveUVLayer);
 
 	auto UVIslandPredicate = [this](int32 Triangle0, int32 Triangle1)
 	{
