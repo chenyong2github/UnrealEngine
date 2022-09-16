@@ -288,7 +288,7 @@ FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::FInvalidati
 				// TODO: Mark that we've done this buffer? Not really harmful to redo it
 			}
 
-			for (TConstSetBitIterator<> PrimitivesIt(Primitives); PrimitivesIt; ++PrimitivesIt)
+			for (TConstSetBitIterator<SceneRenderingAllocator> PrimitivesIt(Primitives); PrimitivesIt; ++PrimitivesIt)
 			{
 				const FPersistentPrimitiveIndex PersistentPrimitiveIndex = FPersistentPrimitiveIndex{PrimitivesIt.GetIndex()};
 				
