@@ -1688,7 +1688,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("      launchStyle = \"0\"" + ProjectFileGenerator.NewLine);
 			Content.Append("      useCustomWorkingDirectory = \"NO\"" + ProjectFileGenerator.NewLine);
 			Content.Append("      ignoresPersistentStateOnLaunch = \"NO\"" + ProjectFileGenerator.NewLine);
-			Content.Append("      debugDocumentVersioning = \"YES\"" + ProjectFileGenerator.NewLine);
+			Content.Append("      debugDocumentVersioning = \"NO\"" + ProjectFileGenerator.NewLine);
 			Content.Append("      debugServiceExtension = \"internal\"" + ProjectFileGenerator.NewLine);
 			Content.Append("      allowLocationSimulation = \"YES\">" + ProjectFileGenerator.NewLine);
 			Content.Append("      <BuildableProductRunnable" + ProjectFileGenerator.NewLine);
@@ -1740,7 +1740,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			Content.Append("      shouldUseLaunchSchemeArgsEnv = \"YES\"" + ProjectFileGenerator.NewLine);
 			Content.Append("      savedToolIdentifier = \"\"" + ProjectFileGenerator.NewLine);
 			Content.Append("      useCustomWorkingDirectory = \"NO\"" + ProjectFileGenerator.NewLine);
-			Content.Append("      debugDocumentVersioning = \"YES\">" + ProjectFileGenerator.NewLine);
+			Content.Append("      debugDocumentVersioning = \"NO\">" + ProjectFileGenerator.NewLine);
 			Content.Append("      <BuildableProductRunnable" + ProjectFileGenerator.NewLine);
 			Content.Append("         runnableDebuggingMode = \"0\">" + ProjectFileGenerator.NewLine);
 			Content.Append("            <BuildableReference" + ProjectFileGenerator.NewLine);

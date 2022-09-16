@@ -3013,7 +3013,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Content.WriteLine("      launchStyle = \"0\"");
 			Content.WriteLine("      useCustomWorkingDirectory = \"NO\"");
 			Content.WriteLine("      ignoresPersistentStateOnLaunch = \"NO\"");
-			Content.WriteLine("      debugDocumentVersioning = \"YES\"");
+			Content.WriteLine("      debugDocumentVersioning = \"NO\"");
 			Content.WriteLine("      debugServiceExtension = \"internal\"");
 			Content.WriteLine("      allowLocationSimulation = \"YES\">");
 			Content.WriteLine("      <BuildableProductRunnable");
@@ -3063,7 +3063,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Content.WriteLine("      shouldUseLaunchSchemeArgsEnv = \"YES\"");
 			Content.WriteLine("      savedToolIdentifier = \"\"");
 			Content.WriteLine("      useCustomWorkingDirectory = \"NO\"");
-			Content.WriteLine("      debugDocumentVersioning = \"YES\">");
+			Content.WriteLine("      debugDocumentVersioning = \"NO\">");
 			Content.WriteLine("      <BuildableProductRunnable");
 			Content.WriteLine("         runnableDebuggingMode = \"0\">");
 			Content.WriteLine("            <BuildableReference");
