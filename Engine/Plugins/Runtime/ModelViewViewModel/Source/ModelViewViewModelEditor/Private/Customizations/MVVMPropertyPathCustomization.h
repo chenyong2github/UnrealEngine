@@ -9,9 +9,9 @@
 
 namespace UE::MVVM
 {
- 
-struct FBindingSource;
+
 class SFieldSelector;
+struct FBindingSource;
 
 class FPropertyPathCustomization : public IPropertyTypeCustomization
 {
@@ -30,7 +30,7 @@ public:
 	}
 
 private:
-	void OnPropertySelectionChanged(const FMVVMBlueprintPropertyPath& Selected);
+	void OnFieldSelectionChanged(FMVVMBlueprintPropertyPath Selected);
 
 	void OnOtherPropertyChanged();
 

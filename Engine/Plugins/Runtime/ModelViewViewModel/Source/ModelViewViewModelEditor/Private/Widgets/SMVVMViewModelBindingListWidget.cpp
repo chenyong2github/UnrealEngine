@@ -58,7 +58,7 @@ TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) 
 			FMVVMFieldVariant FieldVariant = BindingHelper::FindFieldByName(Struct, Value.GetBindingName());
 			if (FieldVariant.IsFunction())
 			{
-				if (AssignableTo != nullptr && !BindingHelper::ArePropertiesCompatible(FieldVariant.GetFunction()->GetReturnProperty(), AssignableTo))
+				if (AssignableTo != nullptr && !BindingHelper::ArePropertiesCompatible(BindingHelper::GetReturnProperty(FieldVariant.GetFunction()), AssignableTo))
 				{
 					continue;
 				}
@@ -81,12 +81,13 @@ TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) 
 	{
 		const UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprint.Get();
 		TSubclassOf<UObject> AccessorClass = WidgetBlueprintPtr ? WidgetBlueprintPtr->GeneratedClass : nullptr;
-		AddResult(GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindings(const_cast<UClass*>(Class), AccessorClass));
-
+		TArray<FMVVMAvailableBinding> Bindings = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindings(const_cast<UClass*>(Class), AccessorClass);
+		AddResult(Bindings);
 	}
 	else if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(Struct))
 	{
-		AddResult(GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindingsForStruct(ScriptStruct));
+		TArray<FMVVMAvailableBinding> Bindings = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindingsForStruct(ScriptStruct);
+		AddResult(Bindings);
 	}
 
 	Result.Sort([](const FFieldVariant& A, const FFieldVariant& B)
@@ -130,9 +131,7 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 
 	OnDoubleClicked = InArgs._OnDoubleClicked;
 
-	ChildSlot
-	[
-		SAssignNew(PropertyViewer, SPropertyViewer)
+	PropertyViewer = SNew(SPropertyViewer)
 		.FieldIterator(FieldIterator.Get())
 		.PropertyVisibility(SPropertyViewer::EPropertyVisibility::Hidden)
 		.bShowFieldIcon(true)
@@ -140,13 +139,17 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 		.SelectionMode(InArgs._EnableSelection ? ESelectionMode::Single : ESelectionMode::None)
 		.bShowSearchBox(InArgs._ShowSearchBox)
 		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
-		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked)
-	];
+		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked);
 
 	if (InArgs._InitialSource.IsValid())
 	{
 		AddSources(MakeArrayView(&InArgs._InitialSource, 1));
 	}
+
+	ChildSlot
+	[
+		PropertyViewer.ToSharedRef()
+	];
 }
 
 void SSourceBindingList::Clear()
@@ -216,10 +219,13 @@ void SSourceBindingList::AddSource(const FBindingSource& InSource)
 
 void SSourceBindingList::AddSources(TArrayView<const FBindingSource> InSources)
 {
-	Algo::Transform(InSources, Sources, [](const FBindingSource& Source)
+	for (const FBindingSource& Source : InSources)
+	{
+		if (Source.Class != nullptr)
 		{
-			return TPair<FBindingSource, SPropertyViewer::FHandle>(Source, SPropertyViewer::FHandle());
-		});
+			Sources.Add(TPair<FBindingSource, SPropertyViewer::FHandle>(Source, SPropertyViewer::FHandle()));
+		}
+	}
 
 	if (PropertyViewer)
 	{
@@ -257,11 +263,9 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 		PropertyPath.ResetBasePropertyPath();
 	}
 
-	// TODO (sebastiann): FMVVMBlueprintPropertyPath doesn't support long paths yet
-	FFieldVariant LastField = FieldPath.Num() > 0 ? FieldPath.Last() : FFieldVariant();
-	if (LastField.IsValid())
+	for (const FFieldVariant& Field : FieldPath)
 	{
-		PropertyPath.SetBasePropertyPath(FMVVMConstFieldVariant(LastField));
+		PropertyPath.AppendBasePropertyPath(FMVVMConstFieldVariant(Field));
 	}
 
 	return PropertyPath;

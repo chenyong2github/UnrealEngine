@@ -104,7 +104,7 @@ void FPropertyPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InP
 		[
 			SAssignNew(FieldSelector, SFieldSelector, WidgetBlueprint, !bIsWidget)
 			.TextStyle(FAppStyle::Get(), "SmallText")
-			.OnSelectionChanged(this, &FPropertyPathCustomization::OnPropertySelectionChanged)
+			.OnFieldSelectionChanged(this, &FPropertyPathCustomization::OnFieldSelectionChanged)
 			.SelectedField(this, &FPropertyPathCustomization::OnGetSelectedField)
 			.BindingMode(this, &FPropertyPathCustomization::GetCurrentBindingMode)
 		];
@@ -127,7 +127,7 @@ EMVVMBindingMode FPropertyPathCustomization::GetCurrentBindingMode() const
 	return EMVVMBindingMode::OneWayToDestination;
 }
 
-void FPropertyPathCustomization::OnPropertySelectionChanged(const FMVVMBlueprintPropertyPath& Selected)
+void FPropertyPathCustomization::OnFieldSelectionChanged(FMVVMBlueprintPropertyPath Selected)
 {
 	if (bPropertySelectionChanging)
 	{
@@ -156,7 +156,7 @@ void FPropertyPathCustomization::OnPropertySelectionChanged(const FMVVMBlueprint
 
 void FPropertyPathCustomization::HandleBlueprintChanged(UBlueprint* Blueprint)
 {
-	FieldSelector->Refresh();
+	//FieldSelector->Refresh();
 }
 
 FBindingSource FPropertyPathCustomization::OnGetSelectedSource() const
@@ -217,6 +217,7 @@ FBindingSource FPropertyPathCustomization::OnGetSelectedSource() const
 
 FMVVMBlueprintPropertyPath FPropertyPathCustomization::OnGetSelectedField() const
 {
+	// TODO: This crashes when removing the viewmodel that the selected binding is pointed at
 	TArray<void*> RawData;
 	PropertyHandle->AccessRawData(RawData);
 

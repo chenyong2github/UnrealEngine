@@ -34,43 +34,49 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 	
 	Refresh();
 
-	TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+	MenuAnchor = SNew(SMenuAnchor)
+		.OnGetMenuContent(this, &SSourceSelector::OnGetMenuContent)
 		[
-			SAssignNew(MenuAnchor, SMenuAnchor)
-			.OnGetMenuContent(this, &SSourceSelector::OnGetMenuContent)
+			SNew(SButton)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton").ButtonStyle)
+			.OnClicked_Lambda([this]() 
+			{
+				MenuAnchor->SetIsOpen(true); 
+				return FReply::Handled(); 
+			})
 			[
-				SNew(SButton)
-				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton").ButtonStyle)
-				.OnClicked_Lambda([this]() 
-				{
-					MenuAnchor->SetIsOpen(true); 
-					return FReply::Handled(); 
-				})
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					[
-						SAssignNew(SelectedSourceWidget, SSourceEntry)
-						.Source(SelectedSource)
-						.TextStyle(TextStyle)
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(2, 0)
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("Icons.ChevronDown"))
-					]
+					SAssignNew(SelectedSourceWidget, SSourceEntry)
+					.Source(SelectedSource)
+					.TextStyle(TextStyle)
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(2, 0)
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.ChevronDown"))
 				]
 			]
 		];
+		
 
 	if (bShowClear)
 	{
-		HorizontalBox->AddSlot()
+		ChildSlot
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			[
+				MenuAnchor.ToSharedRef()
+			]
+			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -80,13 +86,16 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 				.ToolTipText(LOCTEXT("ClearField", "Clear source selection."))
 				.Visibility(this, &SSourceSelector::GetClearVisibility)
 				.OnClicked(this, &SSourceSelector::OnClearSource)
-			];
+			]
+		];
 	}
-
-	ChildSlot
-	[
-		HorizontalBox
-	];
+	else
+	{
+		ChildSlot
+		[
+			MenuAnchor.ToSharedRef()
+		];
+	}
 
 	OnSelectionChangedDelegate = Args._OnSelectionChanged;
 	check(OnSelectionChangedDelegate.IsBound());

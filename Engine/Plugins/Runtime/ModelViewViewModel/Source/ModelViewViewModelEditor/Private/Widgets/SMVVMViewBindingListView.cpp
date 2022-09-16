@@ -178,15 +178,15 @@ public:
 			STableRow<TSharedPtr<FBindingEntry>>::FArguments()
 			.Padding(1.0f)
 			[
-				SNew(SBox)
-				.HeightOverride(30)
-				.MinDesiredWidth(200)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(2, 1)
 				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Fill)
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(2, 1)
-					.VAlign(VAlign_Fill)
+					SNew(SBox)
+					.MinDesiredWidth(150)
 					[
 						SNew(SSourceSelector, InWidgetBlueprint)
 						.ShowClear(false)
@@ -195,17 +195,17 @@ public:
 						.SelectedSource(this, &SWidgetRow::GetSelectedWidget)
 						.OnSelectionChanged(this, &SWidgetRow::SetSelectedWidget)
 					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(SSimpleButton)
-						.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
-						.IsEnabled_Lambda([this]() { return !Entry->GetName().IsNone(); })
-						.OnClicked(this, &SWidgetRow::AddBinding)
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SSimpleButton)
+					.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+					.IsEnabled_Lambda([this]() { return !Entry->GetName().IsNone(); })
+					.OnClicked(this, &SWidgetRow::AddBinding)
 
-					]
 				]
 			],
 			OwnerTableView
@@ -311,14 +311,18 @@ public:
 				.AutoWidth()
 				[
 					SNew(SBox)
-					.MinDesiredWidth(200)
+					.MinDesiredWidth(150)
 					[
 						SNew(SFieldSelector, InWidgetBlueprint, false)
-						.SelectedField(this, &SBindingRow::GetSelectedWidgetProperty)
-						.OnSelectionChanged(this, &SBindingRow::OnWidgetPropertySelected)
 						.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
+						.SelectedField(this, &SBindingRow::GetSelectedWidgetProperty)
+						.OnFieldSelectionChanged(this, &SBindingRow::OnWidgetPropertySelected)
+						.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, false)
+						.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, false)
+						.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, false)
 						.ShowSource(false)
 						.Source(WidgetSource)
+						.AssignableTo(this, &SBindingRow::GetAssignableToProperty, false)
 					]
 				]
 
@@ -354,12 +358,16 @@ public:
 				.AutoWidth()
 				[
 					SNew(SBox)
-					.MinDesiredWidth(200)
+					.MinDesiredWidth(150)
 					[
 						SAssignNew(ViewModelFieldSelector, SFieldSelector, InWidgetBlueprint, true)
-						.SelectedField(this, &SBindingRow::GetSelectedViewModelProperty)
 						.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
-						.OnSelectionChanged(this, &SBindingRow::OnViewModelPropertySelected)
+						.SelectedField(this, &SBindingRow::GetSelectedViewModelProperty)
+						.OnFieldSelectionChanged(this, &SBindingRow::OnViewModelPropertySelected)
+						.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, true)
+						.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, true)
+						.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, true)
+						.AssignableTo(this, &SBindingRow::GetAssignableToProperty, true)
 					]
 				]
 
@@ -378,28 +386,6 @@ public:
 					.ContentPadding(FMargin(4, 0))
 					.OnEnumSelectionChanged(this, &SBindingRow::OnUpdateModeSelectionChanged)
 					.CurrentValue(this, &SBindingRow::GetUpdateModeValue)
-				]
-		
-				+ SHorizontalBox::Slot()
-				.Padding(2, 0)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					SNew(SMVVMConversionPath, InWidgetBlueprint, false)
-					.Bindings(this, &SBindingRow::GetThisViewBindingAsArray)
-					.OnFunctionChanged(this, &SBindingRow::OnConversionFunctionChanged, false)
-				]
-
-				+ SHorizontalBox::Slot()
-				.Padding(2, 0)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					SNew(SMVVMConversionPath, InWidgetBlueprint, true)
-					.Bindings(this, &SBindingRow::GetThisViewBindingAsArray)
-					.OnFunctionChanged(this, &SBindingRow::OnConversionFunctionChanged, true)
 				]
 			],
 			OwnerTableView
@@ -499,8 +485,61 @@ private:
 
 	EMVVMBindingMode GetCurrentBindingMode() const
 	{
-		const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding();
-		return ViewModelBinding->BindingType;
+		if (const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		{
+			return ViewModelBinding->BindingType;
+		}
+		return EMVVMBindingMode::OneWayToDestination;
+	}
+
+	bool ShouldShowConversionFunctions(bool bViewModel) const
+	{
+		EMVVMBindingMode Mode = GetCurrentBindingMode();
+		if (IsForwardBinding(Mode))
+		{
+			return bViewModel;
+		}
+		else if (IsBackwardBinding(Mode))
+		{
+			return !bViewModel;
+		}
+		
+		return false;
+	}
+
+	const FProperty* GetAssignableToProperty(bool bViewModel) const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			TArray<FMVVMConstFieldVariant> Fields;
+			if (bViewModel)
+			{
+				Fields = ViewBinding->WidgetPath.GetFields();
+			}
+			else
+			{
+				Fields = ViewBinding->ViewModelPath.GetFields();
+			}
+
+			if (Fields.Num() > 0)
+			{
+				FMVVMConstFieldVariant LastField = Fields.Last();
+				if (LastField.IsProperty())
+				{
+					return LastField.GetProperty();
+				}
+				else if (LastField.IsFunction())
+				{
+					const UFunction* Function = LastField.GetFunction();
+					if (Function != nullptr)
+					{
+						return BindingHelper::GetFirstArgumentProperty(Function);
+					}
+				}
+			}
+		}
+
+		return nullptr;
 	}
 
 	TSharedRef<ITableRow> OnGenerateErrorRow(TSharedPtr<FText> Text, const TSharedRef<STableViewBase>& TableView) const
@@ -555,7 +594,18 @@ private:
 		return FMVVMBlueprintPropertyPath();
 	}
 
-	void OnViewModelPropertySelected(const FMVVMBlueprintPropertyPath& SelectedField)
+	const UFunction* GetSelectedConversionFunction(bool bSourceToDest) const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			return EditorSubsystem->GetConversionFunction(WidgetBlueprintWeak.Get(), *ViewBinding, bSourceToDest);
+		}
+
+		return nullptr;
+	}
+
+	void OnViewModelPropertySelected(FMVVMBlueprintPropertyPath SelectedField)
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
@@ -567,7 +617,7 @@ private:
 		}
 	}
 
-	void OnWidgetPropertySelected(const FMVVMBlueprintPropertyPath& SelectedField)
+	void OnWidgetPropertySelected(FMVVMBlueprintPropertyPath SelectedField)
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
@@ -768,17 +818,36 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 		UMVVMBlueprintView* View = EditorSubsystem->GetView(InWidgetBlueprint);
 		FMVVMBlueprintViewBinding* Binding = Entry->GetBinding(View);
-		UEdGraphPin* Pin = EditorSubsystem->FindConversionFunctionArgumentPin(InWidgetBlueprint, *Binding, Entry->GetName(), UE::MVVM::IsForwardBinding(Binding->BindingType));
+		const bool bSourceToDestination = UE::MVVM::IsForwardBinding(Binding->BindingType);
 
 		FSlateColor PrimaryColor, SecondaryColor;
+		const FSlateBrush* PrimaryBrush = nullptr;
 		const FSlateBrush* SecondaryBrush = nullptr;
-		const FSlateBrush* PrimaryBrush = FBlueprintEditor::GetVarIconAndColorFromPinType(Pin->PinType, PrimaryColor, SecondaryBrush, SecondaryColor);
+		FText DisplayName, ToolTip;
+		
+		if (UEdGraphPin* Pin = EditorSubsystem->FindConversionFunctionArgumentPin(InWidgetBlueprint, *Binding, Entry->GetName(), bSourceToDestination))
+		{
+			PrimaryBrush = FBlueprintEditor::GetVarIconAndColorFromPinType(Pin->PinType, PrimaryColor, SecondaryBrush, SecondaryColor);
+			DisplayName = Pin->GetDisplayName();
+			ToolTip = FText::FromString(Pin->PinToolTip);
+		}
+		else if (const UFunction* Function = EditorSubsystem->GetConversionFunction(InWidgetBlueprint, *Binding, bSourceToDestination))
+		{
+			// no wrapper graph, this is a simple conversion function of the form: int32 Convert(float x)
+			if (const FProperty* Argument = BindingHelper::GetFirstArgumentProperty(Function))
+			{
+				PrimaryBrush = FBlueprintEditor::GetVarIconAndColorFromProperty(Argument, PrimaryColor, SecondaryBrush, SecondaryColor);
+				DisplayName = Argument->GetDisplayNameText();
+				ToolTip = Argument->GetToolTipText();
+			}
+		}
 
 		STableRow<TSharedPtr<FBindingEntry>>::Construct(
 			STableRow<TSharedPtr<FBindingEntry>>::FArguments()
 		[
 			SNew(SBox)
 			.HeightOverride(30)
+			.ToolTipText(ToolTip)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -804,7 +873,7 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 						+ SHorizontalBox::Slot()
 						[
 							SNew(STextBlock)
-							.Text(Pin->GetDisplayName())
+							.Text(DisplayName)
 						]
 					]
 				]
@@ -821,7 +890,7 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 						.WidgetBlueprint(InWidgetBlueprint)
 						.Binding(Binding)
 						.ParameterName(Entry->GetName())
-						.SourceToDestination(UE::MVVM::IsForwardBinding(Binding->BindingType))
+						.SourceToDestination(bSourceToDestination)
 					]
 				]
 			]
@@ -959,25 +1028,16 @@ void SBindingsList::Refresh()
 
 			// create entries for conversion function parameters
 			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			UEdGraph* Graph = EditorSubsystem->GetConversionFunctionGraph(MVVMExtensionPtr->GetWidgetBlueprint(), Binding, UE::MVVM::IsForwardBinding(Binding.BindingType));
-			if (Graph != nullptr)
+			const UFunction* Function = EditorSubsystem->GetConversionFunction(MVVMExtensionPtr->GetWidgetBlueprint(), Binding, UE::MVVM::IsForwardBinding(Binding.BindingType));
+			if (Function != nullptr)
 			{
-				TArray<UK2Node_CallFunction*> FunctionNodes;
-				Graph->GetNodesOfClass<UK2Node_CallFunction>(FunctionNodes);
-
-				if (FunctionNodes.Num() == 1)
+				TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = BindingHelper::TryGetArgumentsForConversionFunction(Function);
+				if (ArgumentsResult.HasValue())
 				{
-					UK2Node_CallFunction* CallFunctionNode = FunctionNodes[0];
-					for (UEdGraphPin* Pin : CallFunctionNode->Pins)
+					for (const FProperty* Argument : ArgumentsResult.GetValue())
 					{
-						// skip output and exec pins, the rest should be arguments
-						if (Pin->Direction != EGPD_Input || Pin->PinName == UEdGraphSchema_K2::PN_Execute || Pin->PinName == UEdGraphSchema_K2::PN_Self)
-						{
-							continue;
-						}
-
 						TSharedRef<FBindingEntry> NewArgumentEntry = MakeShared<FBindingEntry>();
-						NewArgumentEntry->SetParameterName(BindingIndex, Pin->PinName);
+						NewArgumentEntry->SetParameterName(BindingIndex, Argument->GetFName());
 						NewBindingEntry->AddChild(NewArgumentEntry);
 						ReselectIfRequired(NewArgumentEntry);
 					}

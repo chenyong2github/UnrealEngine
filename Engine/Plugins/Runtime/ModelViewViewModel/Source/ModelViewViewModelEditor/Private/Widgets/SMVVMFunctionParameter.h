@@ -44,7 +44,7 @@ private:
 	void OnBindArgumentChecked(ECheckBoxState Checked);
 	EVisibility OnGetVisibility(bool bDefaultValue) const;
 	FMVVMBlueprintPropertyPath OnGetSelectedField() const;
-	void OnFieldSelectionChanged(const FMVVMBlueprintPropertyPath& Selected);
+	void OnFieldSelectionChanged(FMVVMBlueprintPropertyPath Selected);
 
 private:
 

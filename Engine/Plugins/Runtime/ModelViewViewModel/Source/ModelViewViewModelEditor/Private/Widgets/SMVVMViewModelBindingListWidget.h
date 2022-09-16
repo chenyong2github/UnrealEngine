@@ -13,8 +13,8 @@
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 
 class UWidgetBlueprint;
+
 struct FMVVMBlueprintViewModelContext;
-class UWidgetBlueprint;
 
 namespace UE::MVVM
 {
@@ -57,7 +57,14 @@ namespace UE::MVVM
 			SLATE_ARGUMENT_DEFAULT(bool, ShowSearchBox) = false;
 			SLATE_ARGUMENT_DEFAULT(EFieldVisibility, FieldVisibilityFlags) = EFieldVisibility::All;
 			SLATE_ARGUMENT_DEFAULT(bool, EnableSelection) = true;
+
+			/** 
+			 * Show only properties that are assignable to the given property. 
+			 * This means that they are either the exact same type, or that they are trivially convertible to the target type. 
+			 * Eg. bool -> bool, int32 -> int64, float -> double
+			 */
 			SLATE_ARGUMENT_DEFAULT(const FProperty*, AssignableTo) = nullptr;
+
 			SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked)
 		SLATE_END_ARGS()
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/TVariant.h"
 #include "MVVMPropertyPath.h"
 #include "Styling/CoreStyle.h"
 #include "Templates/ValueOrError.h"
@@ -15,10 +16,12 @@
 #include "Widgets/SMVVMFieldEntry.h"
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STreeView.h"
 
 class SComboButton;
 class SSearchBox;
 class SReadOnlyHierarchyView;
+class STableViewBase;
 
 namespace UE::MVVM
 {
@@ -29,15 +32,24 @@ class SSourceBindingList;
 class SFieldSelector : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnSelectionChanged, const FMVVMBlueprintPropertyPath&);
+	DECLARE_DELEGATE_OneParam(FOnFieldSelectionChanged, FMVVMBlueprintPropertyPath);
+	DECLARE_DELEGATE_OneParam(FOnConversionFunctionSelectionChanged, const UFunction*);
 
 	SLATE_BEGIN_ARGS(SFieldSelector) :
-		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText")),
+		_ShowConversionFunctions(false)
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ATTRIBUTE(FMVVMBlueprintPropertyPath, SelectedField)
-		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+		
+		/** Handler for when a field is selected. Always required. */
+		SLATE_EVENT(FOnFieldSelectionChanged, OnFieldSelectionChanged)
+
+		SLATE_ATTRIBUTE(const UFunction*, SelectedConversionFunction)
+		
+		/** Handler for when a conversion function is selected. Required if ShowConversionFunctions is set. */
+		SLATE_EVENT(FOnConversionFunctionSelectionChanged, OnConversionFunctionSelectionChanged)
 		
 		/**
 		 * Get the binding mode for this field. 
@@ -50,14 +62,17 @@ public:
 		 * If this is set to false, then the Source attribute must be set.
 		 */
 		SLATE_ARGUMENT_DEFAULT(bool, ShowSource) = true;
+		
+		/** The source to use. Only used if ShowSource is false. */
+		SLATE_ARGUMENT(FBindingSource, Source)
 
 		/**
 		 * Only show properties assignable to the given property.
 		 */
-		SLATE_ARGUMENT_DEFAULT(const FProperty*, AssignableTo) = nullptr;
+		SLATE_ATTRIBUTE(const FProperty*, AssignableTo);
 
-		/** The source to use. Only used if ShowSource is false. */
-		SLATE_ARGUMENT(FBindingSource, Source)
+		/** Should we show all conversion functions with results compatible with the AssignableTo property? */
+		SLATE_ATTRIBUTE(bool, ShowConversionFunctions);
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInViewModelProperty);
@@ -65,40 +80,65 @@ public:
 
 private:
 	TSharedRef<SWidget> OnGenerateFieldWidget(FMVVMBlueprintPropertyPath Path) const;
+
+	TSharedRef<SWidget> CreateSourcePanel();
 	TSharedRef<SWidget> OnGetMenuContent();
 
-	TValueOrError<bool, FString> ValidateField(FMVVMBlueprintPropertyPath Field) const;
-
 	bool IsClearEnabled() const;
-	FReply OnClearBinding();
+	FReply OnClearClicked();
 
 	bool IsSelectEnabled() const;
-	FReply OnSelectProperty();
+	FReply OnSelectClicked();
 
-	FReply OnCancel();
+	FReply OnCancelClicked();
 
-	void SetSelection(const FMVVMBlueprintPropertyPath& SelectedPath);
+	void SetPropertySelection(const FMVVMBlueprintPropertyPath& SelectedPath);
 	EFieldVisibility GetFieldVisibilityFlags() const;
 
 	void OnViewModelSelected(FBindingSource ViewModel, ESelectInfo::Type);
-	TSharedRef<ITableRow> GenerateRowForViewModel(MVVM::FBindingSource ViewModel, const TSharedRef<STableViewBase>& OwnerTable) const;
+	TSharedRef<ITableRow> GenerateViewModelRow(MVVM::FBindingSource ViewModel, const TSharedRef<STableViewBase>& OwnerTable) const;
+	void FilterViewModels();
 
 	void OnWidgetSelected(FName WidgetName, ESelectInfo::Type);
 
-	void OnSearchTextChanged(const FText& NewText);
+	void OnSearchBoxTextChanged(const FText& NewText);
+
+	struct FConversionFunctionItem
+	{
+		FString CategoryName;
+		const UFunction* Function = nullptr;
+		TArray<TSharedPtr<FConversionFunctionItem>> Children;
+	};
+
+	TSharedPtr<FConversionFunctionItem> FindOrCreateItemForCategory(TArray<TSharedPtr<FConversionFunctionItem>>& Items, const FString& Name);
+	TSharedRef<ITableRow> GenerateConversionFunctionCategoryRow(TSharedPtr<FConversionFunctionItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void FilterConversionFunctionCategories();
+	/** Recursively filter the items in SourceArray and place them into DestArray. Returns true if any items were added. */
+	bool FilterConversionFunctionCategoryChildren(const TArray<FString>& FilterStrings, const TArray<TSharedPtr<FConversionFunctionItem>>& SourceArray, TArray<TSharedPtr<FConversionFunctionItem>>& OutDestArray);
+
+	void FilterConversionFunctions();
+
+	void OnConversionFunctionCategorySelected(TSharedPtr<FConversionFunctionItem> Item, ESelectInfo::Type);
+	void GetConversionFunctionCategoryChildren(TSharedPtr<FConversionFunctionItem> Item, TArray<TSharedPtr<FConversionFunctionItem>>& OutItems) const;
+	
+	void AddConversionFunctionChildrenRecursive(const TSharedPtr<FConversionFunctionItem>& Parent, TArray<const UFunction*>& OutFunctions);
+
+	void SetConversionFunctionSelection(const UFunction* SelectedFunction);
+
+	TSharedRef<ITableRow> GenerateConversionFunctionRow(const UFunction* Function, const TSharedRef<STableViewBase>& OwnerTable);
 
 private:
-	TAttribute<FMVVMBlueprintPropertyPath> SelectedField;
 	TAttribute<EMVVMBindingMode> BindingMode;
+
+	TAttribute<FMVVMBlueprintPropertyPath> SelectedField;
+	FMVVMBlueprintPropertyPath CachedSelectedField;
 
 	TSharedPtr<SFieldEntry> SelectedEntryWidget;
 	TSharedPtr<SSourceEntry> SelectedSourceWidget;
 
 	const FTextBlockStyle* TextStyle = nullptr;
 
-	FOnSelectionChanged OnSelectionChangedDelegate;
-
-	FMVVMBlueprintPropertyPath CachedSelectedField;
+	FOnFieldSelectionChanged OnFieldSelectionChangedDelegate;
 
 	TSharedPtr<SSourceBindingList> BindingList;
 	TSharedPtr<SSearchBox> SearchBox;
@@ -110,10 +150,29 @@ private:
 	bool bViewModelProperty = false;
 
 	TArray<FBindingSource> ViewModelSources;
+	TArray<FBindingSource> FilteredViewModelSources;
+
 	TSharedPtr<SListView<FBindingSource>> ViewModelList;
 	TSharedPtr<SReadOnlyHierarchyView> WidgetList;
 
-	const FProperty* AssignableTo = nullptr;
+	TAttribute<const FProperty*> AssignableTo;
+	TAttribute<bool> ShowConversionFunctions;
+
+	TAttribute<const UFunction*> SelectedConversionFunction;
+	const UFunction* CachedSelectedConversionFunction = nullptr;
+
+	FOnConversionFunctionSelectionChanged OnConversionFunctionSelectionChangedDelegate;
+
+	TSharedPtr<STreeView<TSharedPtr<FConversionFunctionItem>>> ConversionFunctionCategoryTree;
+	TArray<TSharedPtr<FConversionFunctionItem>> ConversionFunctionCategories;
+	TArray<TSharedPtr<FConversionFunctionItem>> FilteredConversionFunctionCategories;
+	TArray<TSharedPtr<FConversionFunctionItem>> ConversionFunctionCategoryRoot;
+
+	TSharedPtr<SListView<const UFunction*>> ConversionFunctionList;
+
+	TArray<const UFunction*> ConversionFunctions;
+	TArray<const UFunction*> FilteredConversionFunctions;
+
 }; 
 
 } // namespace UE::MVVM

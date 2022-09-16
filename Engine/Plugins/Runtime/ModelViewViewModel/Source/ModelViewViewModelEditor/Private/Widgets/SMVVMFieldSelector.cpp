@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SMVVMFieldSelector.h"
- 
+
+#include "Algo/Transform.h"
+#include "Bindings/MVVMBindingHelper.h"
 #include "ClassViewerModule.h"
 #include "Editor.h"
 #include "Hierarchy/SReadOnlyHierarchyView.h"
@@ -45,26 +47,39 @@ FBindingSource GetSourceFromPath(const UWidgetBlueprint* WidgetBlueprint, const 
 
 void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInViewModelProperty)
 {
-	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
-	check(OnSelectionChangedDelegate.IsBound());
-
 	WidgetBlueprint = InWidgetBlueprint;
 	check(WidgetBlueprint);
-
-	SelectedField = InArgs._SelectedField;
-	check(SelectedField.IsSet());
-	CachedSelectedField = SelectedField.Get();
-
+	
 	BindingMode = InArgs._BindingMode;
 	check(BindingMode.IsSet());
 
 	bViewModelProperty = bInViewModelProperty;
-
 	AssignableTo = InArgs._AssignableTo;
-
 	TextStyle = InArgs._TextStyle;
 
-	TSharedPtr<SHorizontalBox> HBox;
+	OnFieldSelectionChangedDelegate = InArgs._OnFieldSelectionChanged;
+	check(OnFieldSelectionChangedDelegate.IsBound());
+
+	SelectedField = InArgs._SelectedField;
+	check(SelectedField.IsSet());
+
+	CachedSelectedField = SelectedField.Get();
+
+	ShowConversionFunctions = InArgs._ShowConversionFunctions;
+
+	const UFunction* CurrentFunction = nullptr;
+	if (ShowConversionFunctions.Get(false))
+	{
+		SelectedConversionFunction = InArgs._SelectedConversionFunction;
+		check(SelectedConversionFunction.IsSet());
+
+		CachedSelectedConversionFunction = SelectedConversionFunction.Get(nullptr);
+
+		OnConversionFunctionSelectionChangedDelegate = InArgs._OnConversionFunctionSelectionChanged;
+		check(OnConversionFunctionSelectionChangedDelegate.IsBound());
+	}
+
+	TSharedPtr<SHorizontalBox> SourceEntryBox;
 
 	ChildSlot
 	[
@@ -77,9 +92,30 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 			SNew(SOverlay)
 			+ SOverlay::Slot()
 			[
-				SAssignNew(HBox, SHorizontalBox)
-				.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
-					
+				SAssignNew(SourceEntryBox, SHorizontalBox)
+				.Visibility_Lambda([this]() { return CachedSelectedConversionFunction == nullptr && !CachedSelectedField.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
+			+ SOverlay::Slot()
+			[
+				SNew(SHorizontalBox)
+				.Visibility_Lambda([this]() { return CachedSelectedConversionFunction != nullptr ? EVisibility::Visible : EVisibility::Collapsed; })
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(0, 0, 4.0f, 0)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.DesiredSizeOverride(FVector2D(16.0f, 16.0f))
+					.Image(FAppStyle::Get().GetBrush("GraphEditor.Function_16x"))
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]() { return CachedSelectedConversionFunction != nullptr ? CachedSelectedConversionFunction->GetDisplayNameText() : FText::GetEmpty(); })
+				]
 			]
 			+ SOverlay::Slot()
 			[
@@ -87,7 +123,7 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 				.Padding(FMargin(8, 0, 8, 0))
 				[
 					SNew(STextBlock)
-					.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() && CachedSelectedConversionFunction == nullptr ? EVisibility::Visible : EVisibility::Collapsed; })
 					.TextStyle(FAppStyle::Get(), "HintText")
 					.Text(LOCTEXT("None", "No field selected"))
 				]
@@ -97,7 +133,7 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 	
 	if (InArgs._ShowSource)
 	{
-		HBox->AddSlot()
+		SourceEntryBox->AddSlot()
 			.Padding(8, 0, 0, 0)
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
@@ -106,7 +142,7 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 				SAssignNew(SelectedSourceWidget, SSourceEntry)
 			];
 
-		HBox->AddSlot()
+		SourceEntryBox->AddSlot()
 			.Padding(8, 0)
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
@@ -121,7 +157,7 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 		FixedSource = InArgs._Source;
 	}
 
-	HBox->AddSlot()
+	SourceEntryBox->AddSlot()
 		.Padding(0, 0, 8, 0)
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
@@ -137,6 +173,7 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 void SFieldSelector::Refresh()
 {
 	CachedSelectedField = SelectedField.Get();
+	CachedSelectedConversionFunction = SelectedConversionFunction.Get(nullptr);
 
 	if (SelectedEntryWidget.IsValid())
 	{
@@ -161,33 +198,52 @@ bool SFieldSelector::IsSelectEnabled() const
 	if (BindingList.IsValid())
 	{
 		FMVVMBlueprintPropertyPath Path = BindingList->GetSelectedProperty();
-		return (Path.IsFromViewModel() || Path.IsFromWidget()) && !Path.GetBasePropertyPath().IsEmpty();
+		if ((Path.IsFromViewModel() || Path.IsFromWidget()) && !Path.GetBasePropertyPath().IsEmpty())
+		{
+			return true;
+		}
 	}
+
+	if (ConversionFunctionList.IsValid())
+	{
+		if (ConversionFunctionList->GetSelectedItems().Num() > 0)
+		{
+			return true;
+		}
+	}
+
 	return false;
 }
 
-FReply SFieldSelector::OnSelectProperty()
+FReply SFieldSelector::OnSelectClicked()
 {
 	if (BindingList.IsValid())
 	{
-		FMVVMBlueprintPropertyPath Path = BindingList->GetSelectedProperty();
-		SetSelection(Path);
+		SetPropertySelection(BindingList->GetSelectedProperty());
 	}
+
+	if (ConversionFunctionList.IsValid())
+	{
+		TArray<const UFunction*> Selection = ConversionFunctionList->GetSelectedItems();
+		SetConversionFunctionSelection(Selection.Num() > 0 ? Selection[0] : nullptr);
+	}
+
 	return FReply::Handled();
 }
 
 bool SFieldSelector::IsClearEnabled() const
 {
-	return !CachedSelectedField.IsEmpty();
+	return !CachedSelectedField.IsEmpty() || CachedSelectedConversionFunction != nullptr;
 }
 
-FReply SFieldSelector::OnClearBinding()
+FReply SFieldSelector::OnClearClicked()
 {
-	SetSelection(FMVVMBlueprintPropertyPath());
+	SetPropertySelection(FMVVMBlueprintPropertyPath());
+	SetConversionFunctionSelection(nullptr);
 	return FReply::Handled();
 }
 
-FReply SFieldSelector::OnCancel()
+FReply SFieldSelector::OnCancelClicked()
 {
 	if (ComboButton.IsValid())
 	{
@@ -197,20 +253,40 @@ FReply SFieldSelector::OnCancel()
 	return FReply::Handled();
 }
 
-void SFieldSelector::SetSelection(const FMVVMBlueprintPropertyPath& SelectedPath)
+void SFieldSelector::SetPropertySelection(const FMVVMBlueprintPropertyPath& SelectedPath)
 {
 	if (ComboButton.IsValid())
 	{
 		ComboButton->SetIsOpen(false);
 	}
 
-	OnSelectionChangedDelegate.Execute(SelectedPath);
+	OnFieldSelectionChangedDelegate.Execute(SelectedPath);
 	Refresh();
 }
 
-void SFieldSelector::OnSearchTextChanged(const FText& NewText)
+void SFieldSelector::OnSearchBoxTextChanged(const FText& NewText)
 {
-	BindingList->SetRawFilterText(NewText);
+	if (BindingList.IsValid())
+	{
+		BindingList->SetRawFilterText(NewText);
+	}
+
+	if (WidgetList.IsValid())
+	{
+		WidgetList->SetRawFilterText(NewText);
+	}
+
+	if (ConversionFunctionCategoryTree.IsValid())
+	{
+		FilterConversionFunctionCategories();
+		ConversionFunctionCategoryTree->RequestTreeRefresh();
+	}
+
+	if (ConversionFunctionList.IsValid())
+	{
+		FilterConversionFunctions();
+		ConversionFunctionList->RequestListRefresh();
+	}
 }
 
 void SFieldSelector::OnViewModelSelected(FBindingSource Source, ESelectInfo::Type)
@@ -221,6 +297,11 @@ void SFieldSelector::OnViewModelSelected(FBindingSource Source, ESelectInfo::Typ
 
 		BindingList->Clear();
 		BindingList->AddSources(Selection);
+	}
+
+	if (ConversionFunctionCategoryTree.IsValid())
+	{
+		ConversionFunctionCategoryTree->ClearSelection();
 	}
 }
 
@@ -233,9 +314,14 @@ void SFieldSelector::OnWidgetSelected(FName WidgetName, ESelectInfo::Type)
 		BindingList->Clear();
 		BindingList->AddSource(Source);
 	}
+
+	if (ConversionFunctionCategoryTree.IsValid())
+	{
+		ConversionFunctionCategoryTree->ClearSelection();
+	}
 }
 
-TSharedRef<ITableRow> SFieldSelector::GenerateRowForViewModel(FBindingSource ViewModel, const TSharedRef<STableViewBase>& OwnerTable) const
+TSharedRef<ITableRow> SFieldSelector::GenerateViewModelRow(FBindingSource ViewModel, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return SNew(STableRow<FBindingSource>, OwnerTable)
 		[
@@ -258,21 +344,285 @@ TSharedRef<ITableRow> SFieldSelector::GenerateRowForViewModel(FBindingSource Vie
 				SNew(STextBlock)
 				.Text(ViewModel.DisplayName)
 				.ColorAndOpacity(FSlateColor::UseForeground())
+				.HighlightText_Lambda([this]() { return SearchBox.IsValid() ? SearchBox->GetText() : FText::GetEmpty(); })
 			]
 		];
 }
 
-TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
+bool SFieldSelector::FilterConversionFunctionCategoryChildren(const TArray<FString>& FilterStrings, const TArray<TSharedPtr<FConversionFunctionItem>>& SourceArray, TArray<TSharedPtr<FConversionFunctionItem>>& OutDestArray)
 {
+	bool bAnyAdded = false;
+
+	for (const TSharedPtr<FConversionFunctionItem>& SourceItem : SourceArray)
+	{
+		TArray<TSharedPtr<FConversionFunctionItem>> FilteredChildren;
+
+		// check if our name matches the filters
+		bool bMatchesFilters = true;
+
+		const FString ItemName = SourceItem->Function != nullptr ? SourceItem->Function->GetName() : SourceItem->CategoryName;
+		
+		for (const FString& Filter : FilterStrings)
+		{
+			if (!ItemName.Contains(Filter))
+			{
+				bMatchesFilters = false;
+				break;
+			}
+		}
+
+		bool bChildrenMatch = false;
+
+		if (bMatchesFilters)
+		{
+			// if we match the filter, then we always want to add all our children
+			FilteredChildren = SourceItem->Children;
+		}
+		else
+		{
+			bChildrenMatch = FilterConversionFunctionCategoryChildren(FilterStrings, SourceItem->Children, FilteredChildren);
+		}
+
+		// then add this item to the destination array
+		if (bMatchesFilters || bChildrenMatch)
+		{
+			TSharedPtr<FConversionFunctionItem>& NewItem = OutDestArray.Add_GetRef(MakeShared<FConversionFunctionItem>());
+			NewItem->CategoryName = SourceItem->CategoryName;
+			NewItem->Function = SourceItem->Function;
+			NewItem->Children = FilteredChildren;
+
+			bAnyAdded = true;
+		}
+	}
+
+	return bAnyAdded;
+}
+
+void SFieldSelector::FilterConversionFunctionCategories()
+{
+	FilteredConversionFunctionCategories.Reset();
+
+	TArray<FString> FilterStrings;
+	if (SearchBox.IsValid())
+	{
+		SearchBox->GetText().ToString().ParseIntoArrayWS(FilterStrings);
+	}
+
+	if (FilterStrings.IsEmpty())
+	{
+		// don't bother filtering if we don't have any search terms
+		FilteredConversionFunctionCategories = ConversionFunctionCategories;
+		return;
+	}
+	
+	FilterConversionFunctionCategoryChildren(FilterStrings, ConversionFunctionCategories, FilteredConversionFunctionCategories);
+}
+
+void SFieldSelector::FilterViewModels()
+{
+	FilteredViewModelSources.Reset();
+
+	TArray<FString> FilterStrings;
+	if (SearchBox.IsValid())
+	{
+		SearchBox->GetText().ToString().ParseIntoArrayWS(FilterStrings);
+	}
+
+	if (FilterStrings.IsEmpty())
+	{
+		FilteredViewModelSources = ViewModelSources;
+		return;
+	}
+
+	for (const FBindingSource& ViewModel : ViewModelSources)
+	{
+		const FString DisplayName = ViewModel.DisplayName.ToString();
+		const FString ClassName = ViewModel.Class != nullptr ? ViewModel.Class->GetName() : FString();
+		const FString Name = ViewModel.Name.ToString();
+
+		bool bMatchesFilters = true;
+		
+		for (const FString& Filter : FilterStrings)
+		{
+			if (!DisplayName.Contains(Filter) && 
+				!ClassName.Contains(Filter) &&
+				!Name.Contains(Filter))
+			{
+				bMatchesFilters = false;
+				break;
+			}
+		}
+
+		if (bMatchesFilters)
+		{
+			FBindingSource& NewSource = FilteredViewModelSources.Add_GetRef(FBindingSource());
+			NewSource.Class = ViewModel.Class;
+			NewSource.Name = ViewModel.Name;
+			NewSource.DisplayName = ViewModel.DisplayName;
+			NewSource.ViewModelId = ViewModel.ViewModelId;
+		}
+	}
+}
+
+TSharedRef<SWidget> SFieldSelector::CreateSourcePanel()
+{
+	ConversionFunctionCategoryTree.Reset();
+	ConversionFunctionCategories.Reset();
 	ViewModelSources.Reset();
 	ViewModelList.Reset();
+	WidgetList.Reset();
 
-	BindingList = SNew(SSourceBindingList, WidgetBlueprint)
-		.ShowSearchBox(false)
-		.OnDoubleClicked(this, &SFieldSelector::SetSelection)
-		.FieldVisibilityFlags(GetFieldVisibilityFlags())
-		.AssignableTo(AssignableTo);
+	// show source picker
+	TSharedPtr<SWidget> SourcePicker;
+	if (bViewModelProperty)
+	{
+		FBindingSource SelectedSource;
 
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
+		{
+			const TArrayView<const FMVVMBlueprintViewModelContext> ViewModels = View->GetViewModels();
+			ViewModelSources.Reserve(ViewModels.Num());
+
+			for (const FMVVMBlueprintViewModelContext& ViewModel : ViewModels)
+			{
+				FBindingSource& Source = ViewModelSources.AddDefaulted_GetRef();
+				Source.Class = ViewModel.GetViewModelClass();
+				Source.Name = ViewModel.GetViewModelName();
+				Source.DisplayName = ViewModel.GetDisplayName();
+				Source.ViewModelId = ViewModel.GetViewModelId();
+
+				if (Source.ViewModelId == CachedSelectedField.GetViewModelId())
+				{
+					SelectedSource = Source;
+				}
+			}
+		}
+
+		FilterViewModels();
+
+		ViewModelList = SNew(SListView<FBindingSource>)
+			.ListItemsSource(&FilteredViewModelSources)
+			.OnGenerateRow(this, &SFieldSelector::GenerateViewModelRow)
+			.SelectionMode(ESelectionMode::Multi)
+			.OnSelectionChanged(this, &SFieldSelector::OnViewModelSelected);
+
+		if (SelectedSource.IsValid())
+		{
+			ViewModelList->SetItemSelection(SelectedSource, true);
+		}
+
+		SourcePicker = ViewModelList;
+	}
+	else
+	{
+		WidgetList = SNew(SReadOnlyHierarchyView, WidgetBlueprint)
+			.OnSelectionChanged(this, &SFieldSelector::OnWidgetSelected)
+			.SelectionMode(ESelectionMode::Multi)
+			.ShowSearch(false);
+
+		SourcePicker = WidgetList;
+	}
+
+	if (ShowConversionFunctions.Get(false))
+	{
+		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		TArray<UFunction*> AllConversionFunctions = Subsystem->GetAvailableConversionFunctions(WidgetBlueprint, FMVVMBlueprintPropertyPath(), FMVVMBlueprintPropertyPath());
+
+		// remove all incompatible conversion functions
+		for (int32 Idx = 0; Idx < AllConversionFunctions.Num(); ++Idx)
+		{
+			const UFunction* Function = AllConversionFunctions[Idx];
+			const FProperty* ReturnProperty = BindingHelper::GetReturnProperty(Function);
+			const FProperty* AssignToProperty = AssignableTo.Get(nullptr);
+
+			if (AssignToProperty != nullptr && !BindingHelper::ArePropertiesCompatible(ReturnProperty, AssignToProperty))
+			{
+				AllConversionFunctions.RemoveAt(Idx);
+				--Idx;
+			}
+		}
+
+		TSharedPtr<FConversionFunctionItem> CurrentSelectedItem;
+
+		TArray<FString> SubCategories;
+		TArray<TSharedPtr<FConversionFunctionItem>> PathToSelection;
+
+		for (const UFunction* Function : AllConversionFunctions)
+		{
+			FText CategoryName = Function->GetMetaDataText("Category");
+
+			SubCategories.Reset();
+			CategoryName.ToString().ParseIntoArray(SubCategories, TEXT("|"));
+
+			TArray<TSharedPtr<FConversionFunctionItem>>* CurrentItems = &ConversionFunctionCategories;
+			TSharedPtr<FConversionFunctionItem> ParentItem;
+
+			// create items for the entire category path
+			// eg. "Math|Boolean|AND" 
+			// Math 
+			//   > Boolean
+			//     > AND
+			for (const FString& SubCategory : SubCategories)
+			{
+				const FString Trimmed = SubCategory.TrimStartAndEnd();
+
+				ParentItem = FindOrCreateItemForCategory(*CurrentItems, Trimmed);
+				CurrentItems = &ParentItem->Children;
+
+				if (Function == CachedSelectedConversionFunction)
+				{
+					PathToSelection.Add(ParentItem);
+				}
+			}
+
+			TSharedPtr<FConversionFunctionItem> Item = CurrentItems->Add_GetRef(MakeShared<FConversionFunctionItem>());
+			Item->Function = Function;
+		}
+
+		FilterConversionFunctionCategories();
+
+		ConversionFunctionCategoryRoot.Reset();
+		TSharedPtr<FConversionFunctionItem> RootItem = ConversionFunctionCategoryRoot.Add_GetRef(MakeShared<FConversionFunctionItem>());
+		RootItem->CategoryName = TEXT("Conversion Functions");
+
+		TSharedRef<SWidget> StackedSourcePicker =
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SourcePicker.ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(ConversionFunctionCategoryTree, STreeView<TSharedPtr<FConversionFunctionItem>>)
+				.SelectionMode(ESelectionMode::Multi)
+				.TreeItemsSource(&ConversionFunctionCategoryRoot)
+				.OnGenerateRow(this, &SFieldSelector::GenerateConversionFunctionCategoryRow)
+				.OnSelectionChanged(this, &SFieldSelector::OnConversionFunctionCategorySelected)
+				.OnGetChildren(this, &SFieldSelector::GetConversionFunctionCategoryChildren)
+			];
+
+		if (PathToSelection.Num() > 0)
+		{
+			ConversionFunctionCategoryTree->SetItemExpansion(RootItem, true);
+
+			for (const TSharedPtr<FConversionFunctionItem>& ParentItem : PathToSelection)
+			{
+				ConversionFunctionCategoryTree->SetItemExpansion(ParentItem, true);
+			}
+			ConversionFunctionCategoryTree->SetItemSelection(PathToSelection.Last(), true);
+		}
+
+		SourcePicker = StackedSourcePicker;
+	}
+
+	return SourcePicker.ToSharedRef();
+}
+
+TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
+{
 	TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.HAlign(HAlign_Fill)
@@ -280,87 +630,85 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 		.Padding(0, 4, 0, 4)
 		.AutoHeight()
 		[
-			SNew(SSearchBox)
-			.OnTextChanged(this, &SFieldSelector::OnSearchTextChanged)
+			SAssignNew(SearchBox, SSearchBox)
+			.OnTextChanged(this, &SFieldSelector::OnSearchBoxTextChanged)
 		];
 
-	// single fixed source
+	// If we're showing conversion functions, we don't want to set the AssignableTo property of SSourceBindingList, because then it will only show exact matches, 
+	// and since we're also showing conversion functions we know that's not what the user wants.
+	// However, in the case we're not showing conversion functions, we want only exact matches.
+	const FProperty* AssignableToProperty = nullptr;
+	const bool bShowConversionFunctions = ShowConversionFunctions.Get(false);
+	if (!bShowConversionFunctions)
+	{
+		AssignableToProperty = AssignableTo.Get(nullptr);
+	}
+
+	BindingList = SNew(SSourceBindingList, WidgetBlueprint)
+		.ShowSearchBox(false)
+		.OnDoubleClicked(this, &SFieldSelector::SetPropertySelection)
+		.FieldVisibilityFlags(GetFieldVisibilityFlags())
+		.AssignableTo(AssignableToProperty);
+
 	if (FixedSource.IsSet())
 	{
+		// single fixed source, don't show the separate source panel
 		BindingList->AddSource(FixedSource.GetValue());
 
 		VBox->AddSlot()
 			[
 				BindingList.ToSharedRef()
 			];
-	}
+	} 
 	else
-	{ 
-		// show source picker
-		TSharedPtr<SWidget> SourcePicker;
-		if (bViewModelProperty)
-		{
-			FBindingSource SelectedSource;
-
-			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			if (const UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
-			{
-				const TArrayView<const FMVVMBlueprintViewModelContext> ViewModels = View->GetViewModels();
-				ViewModelSources.Reserve(ViewModels.Num());
-
-				for (const FMVVMBlueprintViewModelContext& ViewModel : ViewModels)
-				{
-					FBindingSource& Source = ViewModelSources.AddDefaulted_GetRef();
-					Source.Class = ViewModel.GetViewModelClass();
-					Source.Name = ViewModel.GetViewModelName();
-					Source.DisplayName = ViewModel.GetDisplayName();
-					Source.ViewModelId = ViewModel.GetViewModelId();
-
-					if (Source.ViewModelId == CachedSelectedField.GetViewModelId())
-					{
-						SelectedSource = Source;
-					}
-				}
-			}
-
-			ViewModelList = SNew(SListView<FBindingSource>)
-				.OnGenerateRow(this, &SFieldSelector::GenerateRowForViewModel)
-				.SelectionMode(ESelectionMode::Multi)
-				.ListItemsSource(&ViewModelSources)
-				.OnSelectionChanged(this, &SFieldSelector::OnViewModelSelected);
-
-			ViewModelList->SetItemSelection(SelectedSource, true);
-
-			SourcePicker = ViewModelList;
-		}
-		else
-		{
-			WidgetList = SNew(SReadOnlyHierarchyView, WidgetBlueprint)
-				.OnSelectionChanged(this, &SFieldSelector::OnWidgetSelected)
-				.SelectionMode(ESelectionMode::Multi)
-				.ShowSearch(false);
-
-			SourcePicker = WidgetList;
-		}
+	{
+		TSharedPtr<SVerticalBox> InnerVBox;
 
 		VBox->AddSlot()
 			.FillHeight(1.0f)
 			[
-				SNew(SSplitter)
-				.PhysicalSplitterHandleSize(4.0f)
-				+ SSplitter::Slot()
-				.Value(0.5f)
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
 				[
-					SourcePicker.ToSharedRef()
-				]
-				+ SSplitter::Slot()
-				.Value(0.5f)
-				[
-					BindingList.ToSharedRef()
+					SNew(SSplitter)
+					.PhysicalSplitterHandleSize(4.0f)
+					+ SSplitter::Slot()
+					.Value(0.5f)
+					[
+						CreateSourcePanel()
+					]
+					+ SSplitter::Slot()
+					.Value(0.5f)
+					[
+						SAssignNew(InnerVBox, SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							BindingList.ToSharedRef()
+						]
+					]
 				]
 			];
+
+		if (bShowConversionFunctions)
+		{
+			InnerVBox->AddSlot()
+				.AutoHeight()
+				[
+					 SAssignNew(ConversionFunctionList, SListView<const UFunction*>)
+					.SelectionMode(ESelectionMode::Single)
+					.ListItemsSource(&FilteredConversionFunctions)
+					.OnMouseButtonDoubleClick(this, &SFieldSelector::SetConversionFunctionSelection)
+					.OnGenerateRow(this, &SFieldSelector::GenerateConversionFunctionRow)
+				];
+
+			if (CachedSelectedConversionFunction != nullptr)
+			{
+				ConversionFunctionList->SetItemSelection(CachedSelectedConversionFunction, true);
+			}
+		}
 	}
-				
+
 	VBox->AddSlot()
 		.Padding(4, 4, 4, 0)
 		.HAlign(HAlign_Right)
@@ -371,7 +719,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 			.AutoWidth()
 			[
 				SNew(SPrimaryButton)
-				.OnClicked(this, &SFieldSelector::OnSelectProperty)
+				.OnClicked(this, &SFieldSelector::OnSelectClicked)
 				.IsEnabled(this, &SFieldSelector::IsSelectEnabled)
 				.Text(LOCTEXT("Select", "Select"))
 			]
@@ -380,7 +728,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.OnClicked(this, &SFieldSelector::OnClearBinding)
+				.OnClicked(this, &SFieldSelector::OnClearClicked)
 				.IsEnabled(this, &SFieldSelector::IsClearEnabled)
 				.HAlign(HAlign_Center)
 				[
@@ -393,7 +741,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.OnClicked(this, &SFieldSelector::OnCancel)
+				.OnClicked(this, &SFieldSelector::OnCancelClicked)
 				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
@@ -415,6 +763,7 @@ TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
 			]
 		];
 
+	ComboButton->SetMenuContentWidgetToFocus(SearchBox);
 	return MenuWidget;
 }
 
@@ -457,6 +806,230 @@ EFieldVisibility SFieldSelector::GetFieldVisibilityFlags() const
 	}
 
 	return Flags;
+}
+
+TSharedPtr<SFieldSelector::FConversionFunctionItem> SFieldSelector::FindOrCreateItemForCategory(TArray<TSharedPtr<FConversionFunctionItem>>& Items, const FString& Name)
+{
+	int32 Idx = 0;
+	for (; Idx < Items.Num(); ++Idx)
+	{
+		// found item
+		if (Items[Idx]->CategoryName == Name)
+		{
+			return Items[Idx];
+		}
+
+		// passed the place where it should have been, break out
+		if (Items[Idx]->CategoryName > Name)
+		{
+			break;
+		}
+	}
+
+	TSharedPtr<FConversionFunctionItem> NewItem = Items.Insert_GetRef(MakeShared<FConversionFunctionItem>(), Idx);
+	NewItem->CategoryName = Name;
+	return NewItem;
+}
+
+TSharedRef<ITableRow> SFieldSelector::GenerateConversionFunctionCategoryRow(TSharedPtr<FConversionFunctionItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return SNew(STableRow<TSharedPtr<FConversionFunctionItem>>, OwnerTable)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(0, 2.0f, 4.0f, 2.0f)
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.DesiredSizeOverride(FVector2D(16.0f, 16.0f))
+				.Image(FAppStyle::Get().GetBrush("GraphEditor.Function_16x"))
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(Item == ConversionFunctionCategoryRoot[0] ? FAppStyle::Get().GetFontStyle("NormalText") : FAppStyle::Get().GetFontStyle("BoldFont"))
+				.Text(FText::FromString(Item->CategoryName))
+				.HighlightText_Lambda([this]() { return SearchBox.IsValid() ? SearchBox->GetText() : FText::GetEmpty(); })
+			]
+		];
+}
+
+void SFieldSelector::GetConversionFunctionCategoryChildren(TSharedPtr<FConversionFunctionItem> Item, TArray<TSharedPtr<FConversionFunctionItem>>& OutItems) const
+{
+	if (ConversionFunctionCategoryRoot.Num() > 0)
+	{
+		if (Item == ConversionFunctionCategoryRoot[0])
+		{
+			Algo::TransformIf(FilteredConversionFunctionCategories, OutItems,
+				[](const TSharedPtr<FConversionFunctionItem>& Item)
+				{
+					return !Item->CategoryName.IsEmpty();
+				},
+				[](const TSharedPtr<FConversionFunctionItem>& Item)
+				{
+					return Item;
+				});
+			return;
+		}
+	}
+
+	Algo::TransformIf(Item->Children, OutItems,
+		[](const TSharedPtr<FConversionFunctionItem>& Item)
+		{
+			return !Item->CategoryName.IsEmpty();
+		},
+		[](const TSharedPtr<FConversionFunctionItem>& Item)
+		{
+			return Item;
+		});
+}
+
+TSharedRef<ITableRow> SFieldSelector::GenerateConversionFunctionRow(const UFunction* Function, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return SNew(STableRow<const UFunction*>, OwnerTable)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 4.0f, 0)
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.DesiredSizeOverride(FVector2D(16.0f, 16.0f))
+				.Image(FAppStyle::Get().GetBrush("GraphEditor.Function_16x"))
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(Function->GetDisplayNameText())
+				.HighlightText_Lambda([this]() { return SearchBox.IsValid() ? SearchBox->GetText() : FText::GetEmpty(); })
+			]
+		];
+}
+
+void SFieldSelector::AddConversionFunctionChildrenRecursive(const TSharedPtr<FConversionFunctionItem>& Parent, TArray<const UFunction*>& OutFunctions)
+{
+	for (const TSharedPtr<FConversionFunctionItem>& Item : Parent->Children)
+	{
+		if (Item->Function != nullptr)
+		{
+			int32 Index = 0;
+			for (; Index < OutFunctions.Num(); ++Index)
+			{
+				if (OutFunctions[Index]->GetName() > Item->Function->GetName())
+				{
+					break;
+				}
+			}
+
+			OutFunctions.Insert(Item->Function, Index);
+		}
+		else
+		{
+			AddConversionFunctionChildrenRecursive(Item, OutFunctions);
+		}
+	}
+}
+
+void SFieldSelector::FilterConversionFunctions()
+{
+	TArray<FString> FilterStrings;
+	if (SearchBox.IsValid())
+	{
+		SearchBox->GetText().ToString().ParseIntoArrayWS(FilterStrings);
+	}
+
+	if (FilterStrings.IsEmpty())
+	{
+		FilteredConversionFunctions = ConversionFunctions;
+		return;
+	}
+	
+	for (const UFunction* Function : ConversionFunctions)
+	{
+		const FString FunctionName = Function->GetName();
+
+		bool bMatches = true;
+		for (const FString& Filter : FilterStrings)
+		{
+			if (!FunctionName.Contains(Filter))
+			{
+				bMatches = false;
+				break;
+			}
+		}
+
+		if (bMatches)
+		{
+			FilteredConversionFunctions.Add(Function);
+		}
+	}
+}
+
+void SFieldSelector::OnConversionFunctionCategorySelected(TSharedPtr<FConversionFunctionItem> SelectedItem, ESelectInfo::Type)
+{
+	ConversionFunctions.Reset();
+	FilteredConversionFunctions.Reset();
+
+	if (BindingList.IsValid())
+	{
+		BindingList->Clear();
+	}
+
+	if (ViewModelList.IsValid())
+	{
+		ViewModelList->ClearSelection();
+	}
+
+	if (WidgetList.IsValid())
+	{
+		WidgetList->ClearSelection();
+	}
+
+	TArray<TSharedPtr<FConversionFunctionItem>> SelectedItems = ConversionFunctionCategoryTree->GetSelectedItems();
+	if (SelectedItems.Num() == 0)
+	{
+		return;
+	}
+
+	if (SelectedItems.Contains(ConversionFunctionCategoryRoot[0]))
+	{ 
+		for (const TSharedPtr<FConversionFunctionItem>& Item : FilteredConversionFunctionCategories)
+		{
+			AddConversionFunctionChildrenRecursive(Item, ConversionFunctions);
+		}
+		return;
+	}
+
+	for (const TSharedPtr<FConversionFunctionItem>& Item : SelectedItems)
+	{
+		AddConversionFunctionChildrenRecursive(Item, ConversionFunctions);
+	}
+
+	FilterConversionFunctions();
+
+	if (ConversionFunctionList.IsValid())
+	{
+		ConversionFunctionList->RequestListRefresh();
+	}
+}
+
+void SFieldSelector::SetConversionFunctionSelection(const UFunction* SelectedFunction)
+{
+	if (ComboButton.IsValid())
+	{
+		ComboButton->SetIsOpen(false);
+	}
+
+	OnConversionFunctionSelectionChangedDelegate.ExecuteIfBound(SelectedFunction);
+	Refresh();
 }
 
 } // namespace UE::MVVM
