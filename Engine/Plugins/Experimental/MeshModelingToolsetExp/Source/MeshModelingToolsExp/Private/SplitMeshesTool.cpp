@@ -112,7 +112,7 @@ void USplitMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 
 			if (OutputTypeProperties->OutputType == UCreateMeshObjectTypeProperties::AutoIdentifier)
 			{
-				UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[0], BaseMeshObjectParams);
+				UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[ti], BaseMeshObjectParams);
 			}
 			else
 			{
