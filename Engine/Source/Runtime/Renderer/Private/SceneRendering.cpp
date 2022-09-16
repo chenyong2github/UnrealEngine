@@ -1564,6 +1564,13 @@ void FViewInfo::SetupUniformBufferParameters(
 			TemporalJitterPixels.Y);
 	}
 
+	{
+		float ResolutionFraction = float(ViewRect.Width()) / float(UnscaledViewRect.Width());
+
+		ViewUniformShaderParameters.ResolutionFractionAndInv.X = ResolutionFraction;
+		ViewUniformShaderParameters.ResolutionFractionAndInv.Y = 1.0f / ResolutionFraction;
+	}
+
 	uint32 FrameIndex = 0;
 	if (ViewState)
 	{

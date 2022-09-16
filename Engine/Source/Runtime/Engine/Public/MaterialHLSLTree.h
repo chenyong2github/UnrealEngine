@@ -132,6 +132,8 @@ enum class EExternalInput : uint8
 	RuntimeVirtualTextureOutputLevel,
 	RuntimeVirtualTextureOutputDerivative,
 	RuntimeVirtualTextureMaxLevel,
+	ResolutionFraction,
+	RcpResolutionFraction,
 
 	CameraVector,
 	CameraWorldPosition,

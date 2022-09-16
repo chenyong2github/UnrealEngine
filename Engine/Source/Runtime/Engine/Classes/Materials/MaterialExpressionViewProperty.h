@@ -39,6 +39,8 @@ enum EMaterialExposedViewProperty
 	MEVP_PreExposure UMETA(DisplayName = "Pre-Exposure"),
 	/** Maximum mip level of Runtime Virtual Texture that Runtime Virtual Texture Output is rendering to. */
 	MEVP_RuntimeVirtualTextureMaxLevel UMETA(DisplayName = "Virtual Texture Max Level"),
+	/** Screen percentage at which the rendering resolution happens, to allow tech-art to remain consistent with dynamic resolution. */
+	MEVP_ResolutionFraction UMETA(DisplayName = "ScreenPercentage / 100"),
 
 	MEVP_MAX,
 };

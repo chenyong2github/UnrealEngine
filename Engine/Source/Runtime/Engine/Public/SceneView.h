@@ -651,6 +651,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4f, BufferBilinearUVMinMax) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4f, ScreenToViewSpace) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector2f, BufferToSceneTextureScale) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FVector2f, ResolutionFractionAndInv) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, NumSceneColorMSAASamples) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, SeparateWaterMainDirLightLuminance) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, PreExposure) \
