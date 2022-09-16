@@ -2472,27 +2472,65 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieS
 	FbxAnimCurve* FbxCurveScaleY = FbxNode->LclScaling.GetCurve(BaseLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 	FbxAnimCurve* FbxCurveScaleZ = FbxNode->LclScaling.GetCurve(BaseLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
-	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	FMovieSceneChannelProxy& SectionChannelProxy = TransformSection->GetChannelProxy();
+	TMovieSceneChannelHandle<FMovieSceneDoubleChannel> DoubleChannels[] = {
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Z"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Z"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Z")
+	};
 
 	// Translation
-	ExportChannelToFbxCurve(*FbxCurveTransX, *DoubleChannels[0], TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
-	ExportChannelToFbxCurve(*FbxCurveTransY, *DoubleChannels[1], TickResolution, ERichCurveValueMode::Default, true, RootToLocalTransform);
-	ExportChannelToFbxCurve(*FbxCurveTransZ, *DoubleChannels[2], TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+	if (DoubleChannels[0].Get())
+	{
+		ExportChannelToFbxCurve(*FbxCurveTransX, *DoubleChannels[0].Get(), TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+	}
+	if (DoubleChannels[1].Get())
+	{
+		ExportChannelToFbxCurve(*FbxCurveTransY, *DoubleChannels[1].Get(), TickResolution, ERichCurveValueMode::Default, true, RootToLocalTransform);
+	}
+	if (DoubleChannels[2].Get())
+	{
+		ExportChannelToFbxCurve(*FbxCurveTransZ, *DoubleChannels[2].Get(), TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+	}
 
 	// Scale - don't generate scale keys for cameras
 	if (!bIsCameraActor)
 	{
-		ExportChannelToFbxCurve(*FbxCurveScaleX, *DoubleChannels[6], TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
-		ExportChannelToFbxCurve(*FbxCurveScaleY, *DoubleChannels[7], TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
-		ExportChannelToFbxCurve(*FbxCurveScaleZ, *DoubleChannels[8], TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+		if (DoubleChannels[6].Get())
+		{
+			ExportChannelToFbxCurve(*FbxCurveScaleX, *DoubleChannels[6].Get(), TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+		}
+		if (DoubleChannels[7].Get())
+		{
+			ExportChannelToFbxCurve(*FbxCurveScaleY, *DoubleChannels[7].Get(), TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+		}
+		if (DoubleChannels[8].Get())
+		{
+			ExportChannelToFbxCurve(*FbxCurveScaleZ, *DoubleChannels[8].Get(), TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+		}
 	}
 
 	// Rotation - bake rotation for cameras and lights
 	if (!bBakeRotations)
 	{
-		ExportChannelToFbxCurve(*FbxCurveRotX, *DoubleChannels[3], TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
-		ExportChannelToFbxCurve(*FbxCurveRotY, *DoubleChannels[4], TickResolution, ERichCurveValueMode::Default, true, RootToLocalTransform);
-		ExportChannelToFbxCurve(*FbxCurveRotZ, *DoubleChannels[5], TickResolution, ERichCurveValueMode::Default, true, RootToLocalTransform);
+		if (DoubleChannels[3].Get())
+		{
+			ExportChannelToFbxCurve(*FbxCurveRotX, *DoubleChannels[3].Get(), TickResolution, ERichCurveValueMode::Default, false, RootToLocalTransform);
+		}
+		if (DoubleChannels[4].Get())
+		{
+			ExportChannelToFbxCurve(*FbxCurveRotY, *DoubleChannels[4].Get(), TickResolution, ERichCurveValueMode::Default, true, RootToLocalTransform);
+		}
+		if (DoubleChannels[5].Get())
+		{
+			ExportChannelToFbxCurve(*FbxCurveRotZ, *DoubleChannels[5].Get(), TickResolution, ERichCurveValueMode::Default, true, RootToLocalTransform);
+		}
 	}
 	else
 	{
@@ -2523,19 +2561,46 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieS
 			FFrameTime LocalTime = FFrameRate::TransformTime(FFrameTime(LocalFrame), DisplayRate, TickResolution);
 
 			FVector3f Trans = FVector3f::ZeroVector;
-			DoubleChannels[0]->Evaluate(LocalTime, Trans.X);
-			DoubleChannels[1]->Evaluate(LocalTime, Trans.Y);
-			DoubleChannels[2]->Evaluate(LocalTime, Trans.Z);
+			if (DoubleChannels[0].Get())
+			{
+				DoubleChannels[0].Get()->Evaluate(LocalTime, Trans.X);
+			}
+			if (DoubleChannels[1].Get())
+			{
+				DoubleChannels[1].Get()->Evaluate(LocalTime, Trans.Y);
+			}
+			if (DoubleChannels[2].Get())
+			{
+				DoubleChannels[2].Get()->Evaluate(LocalTime, Trans.Z);
+			}
 
 			FRotator Rotator;
-			DoubleChannels[3]->Evaluate(LocalTime, Rotator.Roll);
-			DoubleChannels[4]->Evaluate(LocalTime, Rotator.Pitch);
-			DoubleChannels[5]->Evaluate(LocalTime, Rotator.Yaw);
+			if (DoubleChannels[3].Get())
+			{
+				DoubleChannels[3].Get()->Evaluate(LocalTime, Rotator.Roll);
+			}
+			if (DoubleChannels[4].Get())
+			{
+				DoubleChannels[4].Get()->Evaluate(LocalTime, Rotator.Pitch);
+			}
+			if (DoubleChannels[5].Get())
+			{
+				DoubleChannels[5].Get()->Evaluate(LocalTime, Rotator.Yaw);
+			}
 
 			FVector3f Scale;
-			DoubleChannels[6]->Evaluate(LocalTime, Scale.X);
-			DoubleChannels[7]->Evaluate(LocalTime, Scale.Y);
-			DoubleChannels[8]->Evaluate(LocalTime, Scale.Z);
+			if (DoubleChannels[6].Get())
+			{
+				DoubleChannels[6].Get()->Evaluate(LocalTime, Scale.X);
+			}
+			if (DoubleChannels[7].Get())
+			{
+				DoubleChannels[7].Get()->Evaluate(LocalTime, Scale.Y);
+			}
+			if (DoubleChannels[8].Get())
+			{
+				DoubleChannels[8].Get()->Evaluate(LocalTime, Scale.Z);
+			}
 
 			FTransform RelativeTransform;
 			RelativeTransform.SetTranslation((FVector)Trans);

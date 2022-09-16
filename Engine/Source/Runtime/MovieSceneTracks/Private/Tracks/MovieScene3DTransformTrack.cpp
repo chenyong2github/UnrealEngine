@@ -178,39 +178,48 @@ TArray<FTrajectoryKey> UMovieScene3DTransformTrack::GetTrajectoryData(FFrameNumb
 		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Section);
 		if (TransformSection && MovieSceneHelpers::IsSectionKeyable(TransformSection))
 		{
-			TArrayView<FMovieSceneDoubleChannel*>        DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-			TArrayView<const FMovieSceneChannelMetaData> MetaData      = TransformSection->GetChannelProxy().GetMetaData<FMovieSceneDoubleChannel>();
+			FMovieSceneChannelProxy& SectionChannelProxy = TransformSection->GetChannelProxy();
+			TMovieSceneChannelHandle<FMovieSceneDoubleChannel> ChannelHandles[] = {
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.X"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Y"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Z"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.X"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Y"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Z"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.X"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Y"),
+				SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Z")
+			};
 
-			EMovieSceneTransformChannel Mask = TransformSection->GetMask().GetChannels();
-			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::TranslationX))
+			if (ChannelHandles[0].Get())
 			{
-				ForwardIters.Emplace(TransformSection, DoubleChannels[0], MetaData[0].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, DoubleChannels[0], MetaData[0].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, ChannelHandles[0].Get(), TEXT("Location.X"), Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, ChannelHandles[0].Get(), TEXT("Location.X"), Time, ViewRange);
 			}
-			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::TranslationY))
+			if (ChannelHandles[1].Get())
 			{
-				ForwardIters.Emplace(TransformSection, DoubleChannels[1], MetaData[1].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, DoubleChannels[1], MetaData[1].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, ChannelHandles[1].Get(), TEXT("Location.Y"), Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, ChannelHandles[1].Get(), TEXT("Location.Y"), Time, ViewRange);
 			}
-			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::TranslationZ))
+			if (ChannelHandles[2].Get())
 			{
-				ForwardIters.Emplace(TransformSection, DoubleChannels[2], MetaData[2].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, DoubleChannels[2], MetaData[2].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, ChannelHandles[2].Get(), TEXT("Location.Z"), Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, ChannelHandles[2].Get(), TEXT("Location.Z"), Time, ViewRange);
 			}
-			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::RotationX))
+			if (ChannelHandles[3].Get())
 			{
-				ForwardIters.Emplace(TransformSection, DoubleChannels[3], MetaData[3].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, DoubleChannels[3], MetaData[3].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, ChannelHandles[3].Get(), TEXT("Rotation.X"), Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, ChannelHandles[3].Get(), TEXT("Rotation.X"), Time, ViewRange);
 			}
-			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::RotationY))
+			if (ChannelHandles[4].Get())
 			{
-				ForwardIters.Emplace(TransformSection, DoubleChannels[4], MetaData[4].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, DoubleChannels[4], MetaData[4].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, ChannelHandles[4].Get(), TEXT("Rotation.Y"), Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, ChannelHandles[4].Get(), TEXT("Rotation.Y"), Time, ViewRange);
 			}
-			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::RotationZ))
+			if (ChannelHandles[5].Get())
 			{
-				ForwardIters.Emplace(TransformSection, DoubleChannels[5], MetaData[5].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, DoubleChannels[5], MetaData[5].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, ChannelHandles[5].Get(), TEXT("Rotation.Z"), Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, ChannelHandles[5].Get(), TEXT("Rotation.Z"), Time, ViewRange);
 			}
 		}
 	}

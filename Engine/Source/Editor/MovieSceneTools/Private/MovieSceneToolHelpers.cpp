@@ -2789,32 +2789,68 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	}
 
 	FVector Location = DefaultTransform.GetLocation(), Rotation = DefaultTransform.GetRotation().Euler(), Scale3D = DefaultTransform.GetScale3D();
+	
+	FMovieSceneChannelProxy& SectionChannelProxy = TransformSection->GetChannelProxy();
+	TMovieSceneChannelHandle<FMovieSceneDoubleChannel> DoubleChannels[] = {
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Z"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Z"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Z")
+	};
 
-	TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	if (DoubleChannels[0].Get())
+	{
+		DoubleChannels[0].Get()->SetDefault(Location.X);
+		ImportTransformChannelToDouble(Translation[0], DoubleChannels[0].Get(), FrameRate, false, true);
+	}
 
-	Channels[0]->SetDefault(Location.X);
-	Channels[1]->SetDefault(Location.Y);
-	Channels[2]->SetDefault(Location.Z);
+	if (DoubleChannels[1].Get())
+	{
+		DoubleChannels[1].Get()->SetDefault(Location.Y);
+		ImportTransformChannelToDouble(Translation[1], DoubleChannels[1].Get(), FrameRate, false, true);
+	}
+	if (DoubleChannels[2].Get())
+	{
+		DoubleChannels[2].Get()->SetDefault(Location.Z);
+		ImportTransformChannelToDouble(Translation[2], DoubleChannels[2].Get(), FrameRate, false, true);
+	}
 
-	Channels[3]->SetDefault(Rotation.X);
-	Channels[4]->SetDefault(Rotation.Y);
-	Channels[5]->SetDefault(Rotation.Z);
+	if (DoubleChannels[3].Get())
+	{
+		DoubleChannels[3].Get()->SetDefault(Rotation.X);
+		ImportTransformChannelToDouble(EulerRotation[0], DoubleChannels[3].Get(), FrameRate, false, true);
+	}
+	if (DoubleChannels[4].Get())
+	{
+		DoubleChannels[4].Get()->SetDefault(Rotation.Y);
+		ImportTransformChannelToDouble(EulerRotation[1], DoubleChannels[4].Get(), FrameRate, false, true);
+	}
+	if (DoubleChannels[5].Get())
+	{
+		DoubleChannels[5].Get()->SetDefault(Rotation.Z);
+		ImportTransformChannelToDouble(EulerRotation[2], DoubleChannels[5].Get(), FrameRate, false, true);
+	}
 
-	Channels[6]->SetDefault(Scale3D.X);
-	Channels[7]->SetDefault(Scale3D.Y);
-	Channels[8]->SetDefault(Scale3D.Z);
-
-	ImportTransformChannelToDouble(Translation[0],   Channels[0], FrameRate, false, true);
-	ImportTransformChannelToDouble(Translation[1],   Channels[1], FrameRate, false, true);
-	ImportTransformChannelToDouble(Translation[2],   Channels[2], FrameRate, false, true);
-
-	ImportTransformChannelToDouble(EulerRotation[0], Channels[3], FrameRate, false, true);
-	ImportTransformChannelToDouble(EulerRotation[1], Channels[4], FrameRate, false, true);
-	ImportTransformChannelToDouble(EulerRotation[2], Channels[5], FrameRate, false, true);
-
-	ImportTransformChannelToDouble(Scale[0],         Channels[6], FrameRate, false, true);
-	ImportTransformChannelToDouble(Scale[1],         Channels[7], FrameRate, false, true);
-	ImportTransformChannelToDouble(Scale[2],         Channels[8], FrameRate, false, true);
+	if (DoubleChannels[6].Get())
+	{
+		DoubleChannels[6].Get()->SetDefault(Scale3D.X);
+		ImportTransformChannelToDouble(Scale[0], DoubleChannels[6].Get(), FrameRate, false, true);
+	}
+	if (DoubleChannels[7].Get())
+	{
+		DoubleChannels[7].Get()->SetDefault(Scale3D.Y);
+		ImportTransformChannelToDouble(Scale[1], DoubleChannels[7].Get(), FrameRate, false, true);
+	}
+	if (DoubleChannels[8].Get())
+	{
+		DoubleChannels[8].Get()->SetDefault(Scale3D.Z);
+		ImportTransformChannelToDouble(Scale[2], DoubleChannels[8].Get(), FrameRate, false, true);
+	}
 
 	return true;
 }
@@ -4624,17 +4660,55 @@ UMovieScene3DTransformSection* MovieSceneToolHelpers::GetTransformSection(
 		const FRotator Rotation0 = InDefaultTransform.GetRotation().Rotator();
 		const FVector Scale3D0 = InDefaultTransform.GetScale3D();
 
-		const TArrayView<FMovieSceneDoubleChannel*> Channels =
-			TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-		Channels[0]->SetDefault(Location0.X);
-		Channels[1]->SetDefault(Location0.Y);
-		Channels[2]->SetDefault(Location0.Z);
-		Channels[3]->SetDefault(Rotation0.Roll);
-		Channels[4]->SetDefault(Rotation0.Pitch);
-		Channels[5]->SetDefault(Rotation0.Yaw);
-		Channels[6]->SetDefault(Scale3D0.X);
-		Channels[7]->SetDefault(Scale3D0.Y);
-		Channels[8]->SetDefault(Scale3D0.Z);
+		FMovieSceneChannelProxy& SectionChannelProxy = TransformSection->GetChannelProxy();
+		TMovieSceneChannelHandle<FMovieSceneDoubleChannel> DoubleChannels[] = {
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.X"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Y"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Z"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.X"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Y"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Z"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.X"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Y"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Z")
+		};
+
+		if (DoubleChannels[0].Get())
+		{
+			DoubleChannels[0].Get()->SetDefault(Location0.X);
+		}
+		if (DoubleChannels[1].Get())
+		{
+			DoubleChannels[1].Get()->SetDefault(Location0.Y);
+		}
+		if (DoubleChannels[2].Get())
+		{
+			DoubleChannels[2].Get()->SetDefault(Location0.Z);
+		}
+		if (DoubleChannels[3].Get())
+		{
+			DoubleChannels[3].Get()->SetDefault(Rotation0.Roll);
+		}
+		if (DoubleChannels[4].Get())
+		{
+			DoubleChannels[4].Get()->SetDefault(Rotation0.Pitch);
+		}
+		if (DoubleChannels[5].Get())
+		{
+			DoubleChannels[5].Get()->SetDefault(Rotation0.Yaw);
+		}
+		if (DoubleChannels[6].Get())
+		{
+			DoubleChannels[6].Get()->SetDefault(Scale3D0.X);
+		}
+		if (DoubleChannels[7].Get())
+		{
+			DoubleChannels[7].Get()->SetDefault(Scale3D0.Y);
+		}
+		if (DoubleChannels[8].Get())
+		{
+			DoubleChannels[8].Get()->SetDefault(Scale3D0.Z);
+		}
 	}
 
 	return TransformSection;
@@ -4703,8 +4777,18 @@ bool MovieSceneToolHelpers::AddTransformKeys(
 		ChannelsIndexToKey.Append({ 6,7,8 });
 	}
 
-	const TArrayView<FMovieSceneDoubleChannel*> Channels =
-		InTransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	FMovieSceneChannelProxy& SectionChannelProxy = InTransformSection->GetChannelProxy();
+	TMovieSceneChannelHandle<FMovieSceneDoubleChannel> DoubleChannels[] = {
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Z"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Rotation.Z"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.X"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Y"),
+		SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Scale.Z")
+	};
 
 	// set default
 	const FTransform& LocalTransform0 = InLocalTransforms[0];
@@ -4714,10 +4798,13 @@ bool MovieSceneToolHelpers::AddTransformKeys(
 
 	for (int32 ChannelIndex = 0; ChannelIndex < 9; ChannelIndex++)
 	{
-		if (!Channels[ChannelIndex]->GetDefault().IsSet())
+		if (DoubleChannels[ChannelIndex].Get())
 		{
-			const double Value = GetValue(ChannelIndex, Location0, Rotation0, Scale3D0);
-			Channels[ChannelIndex]->SetDefault(Value);
+			if (!DoubleChannels[ChannelIndex].Get()->GetDefault().IsSet())
+			{
+				const double Value = GetValue(ChannelIndex, Location0, Rotation0, Scale3D0);
+				DoubleChannels[ChannelIndex].Get()->SetDefault(Value);
+			}
 		}
 	}
 
@@ -4733,16 +4820,22 @@ bool MovieSceneToolHelpers::AddTransformKeys(
 
 		for (const int32 ChannelIndex : ChannelsIndexToKey)
 		{
-			const double Value = GetValue(ChannelIndex, Location, Rotation, Scale3D);
-			TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[ChannelIndex]->GetData();
-			MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Value);
+			if (DoubleChannels[ChannelIndex].Get())
+			{
+				const double Value = GetValue(ChannelIndex, Location, Rotation, Scale3D);
+				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = DoubleChannels[ChannelIndex].Get()->GetData();
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Value);
+			}
 		}
 	}
 
 	//now we need to set auto tangents
 	for (const int32 ChannelIndex : ChannelsIndexToKey)
 	{
-		Channels[ChannelIndex]->AutoSetTangents();
+		if (DoubleChannels[ChannelIndex].Get())
+		{
+			DoubleChannels[ChannelIndex].Get()->AutoSetTangents();
+		}
 	}
 
 	return true;

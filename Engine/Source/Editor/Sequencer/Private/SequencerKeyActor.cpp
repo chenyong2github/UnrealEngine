@@ -85,12 +85,26 @@ void ASequencerKeyActor::PropagateKeyChange()
 		FFrameRate   TickResolution  = TrackSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 		FFrameNumber FrameNumber     = (KeyTime * TickResolution).RoundToFrame();
 
-		TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TrackSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+		FMovieSceneChannelProxy& SectionChannelProxy = TrackSection->GetChannelProxy();
+		TMovieSceneChannelHandle<FMovieSceneDoubleChannel> DoubleChannels[] = {
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.X"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Y"),
+			SectionChannelProxy.GetChannelByName<FMovieSceneDoubleChannel>("Location.Z")
+		};
 
 		const FVector Translation = GetActorTransform().GetLocation();
-		DoubleChannels[0]->GetData().UpdateOrAddKey(FrameNumber, FMovieSceneDoubleValue(Translation.X));
-		DoubleChannels[1]->GetData().UpdateOrAddKey(FrameNumber, FMovieSceneDoubleValue(Translation.Y));
-		DoubleChannels[2]->GetData().UpdateOrAddKey(FrameNumber, FMovieSceneDoubleValue(Translation.Z));
+		if (DoubleChannels[0].Get())
+		{
+			DoubleChannels[0].Get()->GetData().UpdateOrAddKey(FrameNumber, FMovieSceneDoubleValue(Translation.X));
+		}
+		if (DoubleChannels[1].Get())
+		{
+			DoubleChannels[1].Get()->GetData().UpdateOrAddKey(FrameNumber, FMovieSceneDoubleValue(Translation.Y));
+		}
+		if (DoubleChannels[2].Get())
+		{
+			DoubleChannels[2].Get()->GetData().UpdateOrAddKey(FrameNumber, FMovieSceneDoubleValue(Translation.Z));
+		}
 
 		// Draw a single transform track based on the data from this key
 		FEditorViewportClient* ViewportClient = StaticCast<FEditorViewportClient*>(GEditor->GetActiveViewport()->GetClient());
