@@ -120,15 +120,12 @@ bool FPackageItem::GetTypeNameAndColor(FText& OutName, FColor& OutColor) const
 				OutColor = FColor::White;
 				OutName = LOCTEXT("MultipleAssets", "Multiple Assets");
 			}
-			else
+			else // Just one asset in the package.
 			{
 				OutColor = !IsValidChecked(ObjectPtr) ? FColor::Red : AssetTypeActions->GetTypeColor();
 
-				OutName = AssetTypeActions->GetDisplayNameFromAssetData(FAssetData(ObjectPtr));
-				if (OutName.IsEmpty())
-				{
-					OutName = AssetTypeActions->GetName();
-				}
+				FAssetData AssetData(ObjectPtr);
+				OutName = FText::FromString(AssetData.AssetClassPath.ToString());
 			}
 			return true;
 		}

@@ -208,7 +208,7 @@ FText FSourceControlMenuHelpers::GetSourceControlStatusText()
 		}
 		else
 		{
-			return LOCTEXT("SourceControlStatus_Error_Off", "Source Control Off");
+			return LOCTEXT("SourceControlStatus_Error_Off", "Source Control"); // Relies on the icon on the status bar widget to know if the source control is on or off.
 		}
 	}
 }
