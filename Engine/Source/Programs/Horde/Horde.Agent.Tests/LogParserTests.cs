@@ -88,8 +88,8 @@ namespace Horde.Agent.Tests
 			string[] lines =
 			{
 				@"Took 620.820352s to run UE4Editor-Cmd.exe, ExitCode=777003",
-				@"Editor terminated with exit code 777003 while running GenerateSkinSwapDetections for D:\Build\++UE5\Sync\FortniteGame\FortniteGame.uproject; see log D:\Build\++UE5\Sync\Engine\Programs\AutomationTool\Saved\Logs\GenerateSkinSwapDetections-2020.08.18-21.47.07.txt",
-				@"Error executing D:\build\++Fortnite\Sync\Engine\Build\Windows\link - filter\link - filter.exe(tool returned code: STATUS_ACCESS_VIOLATION)",
+				@"Editor terminated with exit code 777003 while running GenerateSkinSwapDetections for D:\Build\++UE5\Sync\ShooterGame\ShooterGame.uproject; see log D:\Build\++UE5\Sync\Engine\Programs\AutomationTool\Saved\Logs\GenerateSkinSwapDetections-2020.08.18-21.47.07.txt",
+				@"Error executing D:\build\++ShooterGame\Sync\Engine\Build\Windows\link - filter\link - filter.exe(tool returned code: STATUS_ACCESS_VIOLATION)",
 				@"Error executing C:\Windows\system32\cmd.exe (tool returned code: 1)",
 				@"AutomationTool exiting with ExitCode=1 (Error_Unknown)",
 				@"BUILD FAILED"
@@ -491,7 +491,7 @@ namespace Horde.Agent.Tests
 			string[] lines =
 			{
 				@"  <-- Suspend Log Parsing -->",
-				@"  Error: File Copy failed with Could not find a part of the path 'P:\Builds\Automation\Fortnite\Logs\++Fortnite+Release-14.60\CL-14584315\FortTest.QuickSmokeAthena_(XboxOne_Development_Client)\Client\Saved\Settings\FortniteGame\Saved\Config\CrashReportClient\UE4CC-XboxOne-C4477473430A2DD50ABDD297FF7811CD\CrashReportClient.ini'..",
+				@"  Error: File Copy failed with Could not find a part of the path 'P:\Builds\Automation\ShooterGame\Logs\++ShooterGame+Release-14.60\CL-14584315\ShooterGame.QuickSmokeAthena_(Win64_Development_Client)\Client\Saved\Settings\ShooterGame\Saved\Config\CrashReportClient\UE4CC-Win64-C4477473430A2DD50ABDD297FF7811CD\CrashReportClient.ini'..",
 				@"  <-- Resume Log Parsing -->"
 			};
 
@@ -697,7 +697,7 @@ namespace Horde.Agent.Tests
 			string[] lines =
 			{
 				@"Execution of commandlet took:  749.68 seconds",
-				@"LogFort: Error: Serialized Class /Script/Engine.AnimSequence for a property of Class /Script/Engine.BlendSpace. Reference will be nullptred.",
+				@"LogShooterGAme: Error: Serialized Class /Script/Engine.AnimSequence for a property of Class /Script/Engine.BlendSpace. Reference will be nullptred.",
 				@"    Property = ObjectProperty /Game/Animation/Game/Enemies/HuskHusky/HuskyHusk_AnimBlueprint.HuskyHusk_AnimBlueprint_C:AnimBlueprintGeneratedConstantData:ObjectProperty_358",
 				@"    Item = AnimSequence /Game/Animation/Game/Enemies/HuskyHusk_Riot/Locomotion/Idle/Idle_Shield.Idle_Shield",
 				@"LogDataAssetDirectoryExporter: Display: 'Platform' property is of type: string",
