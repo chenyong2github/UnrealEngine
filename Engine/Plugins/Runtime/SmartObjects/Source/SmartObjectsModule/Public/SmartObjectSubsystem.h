@@ -330,6 +330,27 @@ public:
 		return Cast<const DefinitionType>(GetBehaviorDefinition(ClaimHandle, DefinitionType::StaticClass()));
 	}
 
+	/**
+	 * Return the behavior definition of a given type from a request result.
+	 * @param RequestResult A request result returned by any of the Find methods.
+	 * @param DefinitionClass The type of behavior definition.
+	 * @return The base class pointer of the requested behavior definition class associated to the request result
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	const USmartObjectBehaviorDefinition* GetBehaviorDefinitionByRequestResult(const FSmartObjectRequestResult& RequestResult, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+
+	/**
+	 * Return the behavior definition of a given type from a claimed object.
+	 * @param RequestResult A request result returned by any of the Find methods.
+	 * @return The requested behavior definition class pointer associated to the request result
+	 */
+	template <typename DefinitionType>
+	const DefinitionType* GetBehaviorDefinition(const FSmartObjectRequestResult& RequestResult)
+	{
+		static_assert(TIsDerivedFrom<DefinitionType, USmartObjectBehaviorDefinition>::IsDerived, "DefinitionType must derive from USmartObjectBehaviorDefinition");
+		return Cast<const DefinitionType>(GetBehaviorDefinition(RequestResult, DefinitionType::StaticClass()));
+	}
+	
 	ESmartObjectSlotState GetSlotState(const FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
@@ -533,7 +554,7 @@ protected:
 	/** Applies filter on provided definition and fills OutValidIndices with indices of all valid slots. */
 	static void FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices);
 
-	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectSlotHandle SlotHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 

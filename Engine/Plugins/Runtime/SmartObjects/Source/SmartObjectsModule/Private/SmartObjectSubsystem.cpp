@@ -588,14 +588,20 @@ bool USmartObjectSubsystem::IsSlotValidVerbose(const FSmartObjectSlotHandle Slot
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
 	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(ClaimHandle.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
-	return SmartObjectRuntime != nullptr ? GetBehaviorDefinition(*SmartObjectRuntime, ClaimHandle, DefinitionClass) : nullptr;
+	return SmartObjectRuntime != nullptr ? GetBehaviorDefinition(*SmartObjectRuntime, ClaimHandle.SlotHandle, DefinitionClass) : nullptr;
 }
 
-const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinitionByRequestResult(const FSmartObjectRequestResult& RequestResult, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
+{
+	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(RequestResult.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
+	return SmartObjectRuntime != nullptr ? GetBehaviorDefinition(*SmartObjectRuntime, RequestResult.SlotHandle, DefinitionClass) : nullptr;
+}
+
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectSlotHandle SlotHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
 
-	const FSmartObjectSlotIndex SlotIndex(SmartObjectRuntime.SlotHandles.IndexOfByKey(ClaimHandle.SlotHandle));
+	const FSmartObjectSlotIndex SlotIndex(SmartObjectRuntime.SlotHandles.IndexOfByKey(SlotHandle));
 	return Definition.GetBehaviorDefinition(SlotIndex, DefinitionClass);
 }
 
@@ -615,7 +621,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObj
 		return nullptr;
 	}
 
-	const USmartObjectBehaviorDefinition* BehaviorDefinition = GetBehaviorDefinition(SmartObjectRuntime, ClaimHandle, DefinitionClass);
+	const USmartObjectBehaviorDefinition* BehaviorDefinition = GetBehaviorDefinition(SmartObjectRuntime, ClaimHandle.SlotHandle, DefinitionClass);
 	if (BehaviorDefinition == nullptr)
 	{
 		const UClass* ClassPtr = DefinitionClass.Get();
