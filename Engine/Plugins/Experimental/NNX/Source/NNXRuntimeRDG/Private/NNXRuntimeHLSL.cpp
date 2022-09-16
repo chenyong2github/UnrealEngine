@@ -65,6 +65,12 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 		return false;
 	}
 
+	if (Format.Operators.Num() > 1)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Failed to create inference model, currently on single layer models are supported"));
+		return false;
+	}
+
 	// Loop over all operators in the model and create them
 	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 	{

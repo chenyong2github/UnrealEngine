@@ -1022,6 +1022,12 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 		return false;
 	}
 
+	if (Format.Operators.Num() > 1)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Failed to create inference model, currently on single layer models are supported"));
+		return false;
+	}
+
 	DevCtx = InDevCtx;
 
 	// Loop over all operators in the model and create them
