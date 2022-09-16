@@ -1617,7 +1617,7 @@ FTransform FAnimNode_FootPlacement::SolvePelvis(const UE::Anim::FootPlacement::F
 		}
 
 		// Remove the vertical component
-		OffsetAverage -= OffsetAverage * Context.ApproachDirCS;
+		OffsetAverage += OffsetAverage * Context.ApproachDirCS;
 
 		PelvisOffsetDelta += OffsetAverage * PelvisSettings.HorizontalRebalancingWeight;
 	}
