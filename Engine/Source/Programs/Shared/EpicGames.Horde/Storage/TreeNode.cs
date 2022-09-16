@@ -2,7 +2,6 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -47,45 +46,14 @@ namespace EpicGames.Horde.Storage
 		static class SerializerInstance<T> where T : TreeNode
 		{
 			static readonly TreeSerializerAttribute _attribute = typeof(T).GetCustomAttribute<TreeSerializerAttribute>()!;
-			public static TreeNodeSerializer<T> Serializer { get; } = (TreeNodeSerializer<T>)Activator.CreateInstance(_attribute.SerializerType)!;
-		}
-
-		/// <summary>
-		/// Static cache of type ids for known types
-		/// </summary>
-		static readonly ConcurrentDictionary<Type, Guid> s_typeToTypeId = new ConcurrentDictionary<Type, Guid>();
-
-		/// <summary>
-		/// Gets the type id for a type, using the <see cref="TreeSerializerAttribute"/> declared on it.
-		/// </summary>
-		/// <returns></returns>
-		public Guid GetTypeId() => GetTypeId(GetType());
-
-		/// <summary>
-		/// Gets the type id for a type, using the <see cref="TreeSerializerAttribute"/> declared on it.
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		public static Guid GetTypeId(Type type)
-		{
-			Guid typeId;
-			if (!s_typeToTypeId.TryGetValue(type, out typeId))
-			{
-				TreeSerializerAttribute? attribute = type.GetCustomAttribute<TreeSerializerAttribute>();
-				if (attribute == null)
-				{
-					throw new InvalidOperationException($"Missing {nameof(TreeSerializerAttribute)} from type {type.Name}");
-				}
-				typeId = s_typeToTypeId.GetOrAdd(type, new Guid(attribute.Type));
-			}
-			return typeId;
+			public static TreeNodeSerializer<T> Serializer { get; } = (TreeNodeSerializer<T>)Activator.CreateInstance(_attribute.Type)!;
 		}
 
 		/// <summary>
 		/// Serialize a node to a block of memory
 		/// </summary>
 		/// <returns>New data to be stored into a blob</returns>
-		public abstract Task<NewTreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken);
+		public abstract Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Deserialize a node from data
@@ -102,7 +70,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Data to be stored in a tree blob
 	/// </summary>
-	public struct NewTreeBlob
+	public struct NewTreeBlob : ITreeBlob
 	{
 		/// <summary>
 		/// The opaque data payload
@@ -158,23 +126,14 @@ namespace EpicGames.Horde.Storage
 	public sealed class TreeSerializerAttribute : Attribute
 	{
 		/// <summary>
-		/// The type guid
+		/// The factory type. Should be derived from <see cref="TreeNodeSerializer{T}"/>
 		/// </summary>
-		public string Type { get; }
-
-		/// <summary>
-		/// The serializer type. Should be derived from <see cref="TreeNodeSerializer{T}"/>
-		/// </summary>
-		public Type SerializerType { get; }
+		public Type Type { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TreeSerializerAttribute(string type, Type serializerType)
-		{
-			Type = type;
-			SerializerType = serializerType;
-		}
+		public TreeSerializerAttribute(Type type) => Type = type;
 	}
 
 	/// <summary>
@@ -190,9 +149,8 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static async Task<ITreeBlobRef> WriteNodeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
 		{
-			NewTreeBlob blob = await node.SerializeAsync(writer, cancellationToken);
-			Guid typeId = TreeNode.GetTypeId(node.GetType());
-			return await writer.WriteNodeAsync(typeId, blob.Data, blob.Refs, cancellationToken);
+			ITreeBlob blob = await node.SerializeAsync(writer, cancellationToken);
+			return await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
 		}
 
 		/// <summary>

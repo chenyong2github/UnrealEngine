@@ -62,7 +62,7 @@ namespace Horde.Build.Perforce
 	/// <summary>
 	/// Root node for a commit snapshot
 	/// </summary>
-	[TreeSerializer("17F251FB-6D62-48D9-B243-0F06B61BCC74", typeof(ReplicationNodeSerializer))]
+	[TreeSerializer(typeof(ReplicationNodeSerializer))]
 	public class ReplicationNode : TreeNode
 	{
 		/// <summary>
@@ -99,7 +99,7 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public override async Task<NewTreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
+		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			List<ITreeBlobRef> references = new List<ITreeBlobRef>();
 			references.Add(await Contents.CollapseAsync(writer, cancellationToken));

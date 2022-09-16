@@ -181,9 +181,8 @@ namespace EpicGames.Horde.Storage
 			ITreeBlobRef? target = _target;
 			if (target == null)
 			{
-				NewTreeBlob blob = await Node!.SerializeAsync(writer, cancellationToken);
-				Guid typeId = Node!.GetTypeId();
-				target = await writer.WriteNodeAsync(typeId, blob.Data, blob.Refs, cancellationToken);
+				ITreeBlob blob = await Node!.SerializeAsync(writer, cancellationToken);
+				target = await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
 				MarkAsClean(target);
 			}
 			return target;
@@ -241,7 +240,7 @@ namespace EpicGames.Horde.Storage
 			{
 				throw new InvalidOperationException($"No serializer is defined for {typeof(T).Name}");
 			}
-			return (TreeNodeSerializer<T>)Activator.CreateInstance(attribute.SerializerType)!;
+			return (TreeNodeSerializer<T>)Activator.CreateInstance(attribute.Type)!;
 		}
 
 		/// <summary>

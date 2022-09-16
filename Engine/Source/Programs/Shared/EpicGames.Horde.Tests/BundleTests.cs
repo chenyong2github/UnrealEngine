@@ -107,18 +107,18 @@ namespace EpicGames.Horde.Tests
 			BundleHeader oldHeader;
 			{
 				List<BundleImport> imports = new List<BundleImport>();
-				imports.Add(new BundleImport("import1", 10, new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
-				imports.Add(new BundleImport("import2", 20, new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
+				imports.Add(new BundleImport(new BlobId("import1"), 10, new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
+				imports.Add(new BundleImport(new BlobId("import2"), 20, new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
 
 				List<BundleExport> exports = new List<BundleExport>();
-				exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 0, 2, new int[] { 1, 2 }));
-				exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 0, 3, new int[] { 3 }));
+				exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, new int[] { 1, 2 }));
+				exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 3, new int[] { 3 }));
 
 				List<BundlePacket> packets = new List<BundlePacket>();
 				packets.Add(new BundlePacket(20, 40));
 				packets.Add(new BundlePacket(10, 20));
 
-				oldHeader = new BundleHeader(BundleCompressionFormat.LZ4, new Guid[1], imports, exports, packets);
+				oldHeader = new BundleHeader(BundleCompressionFormat.LZ4, imports, exports, packets);
 			}
 
 			ByteArrayBuilder writer = new ByteArrayBuilder();
@@ -133,7 +133,7 @@ namespace EpicGames.Horde.Tests
 				BundleImport oldImport = oldHeader.Imports[idx];
 				BundleImport newImport = newHeader.Imports[idx];
 
-				Assert.AreEqual(oldImport.Id, newImport.Id);
+				Assert.AreEqual(oldImport.BlobId, newImport.BlobId);
 				Assert.AreEqual(oldImport.ExportCount, newImport.ExportCount);
 				Assert.AreEqual(oldImport.Exports.Count, newImport.Exports.Count);
 
