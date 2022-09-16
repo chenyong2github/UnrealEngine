@@ -23,7 +23,6 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprint.h"
-#include "SkeletalRender.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "SkinnedAssetCompiler.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -4157,30 +4156,6 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 	OnBoneTransformsFinalizedMC.Broadcast();
 
 	TRACE_SKELETAL_MESH_COMPONENT(this);
-}
-
-void USkeletalMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocals, int32 InLodIdx) const
-{
-	USkeletalMesh* SkelMesh = GetSkeletalMeshAsset();
-	if(SkelMesh)
-	{
-		FSkeletalMeshRenderData* RenderData = SkelMesh->GetResourceForRendering();
-		if (ensureMsgf(RenderData->LODRenderData.IsValidIndex(InLodIdx),
-			TEXT("GetCurrentRefToLocalMatrices (SkelMesh :%s) input LODIndex (%d) doesn't match with render data size (%d)."),
-			*SkelMesh->GetPathName(), InLodIdx, RenderData->LODRenderData.Num()))
-		{
-			UpdateRefToLocalMatrices(OutRefToLocals, this, RenderData, InLodIdx, nullptr);
-		}
-		else
-		{
-			const FReferenceSkeleton& RefSkeleton = SkelMesh->GetRefSkeleton();
-			OutRefToLocals.AddUninitialized(RefSkeleton.GetNum());
-			for (int32 Index = 0; Index < OutRefToLocals.Num(); ++Index)
-			{
-				OutRefToLocals[Index] = FMatrix44f::Identity;
-			}
-		}
-	}
 }
 
 bool USkeletalMeshComponent::ShouldUpdatePostProcessInstance() const

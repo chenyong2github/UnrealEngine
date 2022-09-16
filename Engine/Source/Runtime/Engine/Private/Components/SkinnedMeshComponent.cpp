@@ -30,6 +30,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/SkinWeightProfileManager.h"
 #include "GPUSkinCache.h"
+#include "SkeletalRender.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
 
@@ -3107,6 +3108,30 @@ void USkinnedMeshComponent::CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefTo
 		for (int32 MatrixIdx = 0; MatrixIdx < OutRefToLocal.Num(); ++MatrixIdx)
 		{
 			OutRefToLocal[MatrixIdx] = GetSkinnedAsset()->GetRefBasesInvMatrix()[MatrixIdx];
+		}
+	}
+}
+
+void USkinnedMeshComponent::GetCurrentRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocals, int32 InLodIdx) const
+{
+	if (const USkinnedAsset* const Asset = GetSkinnedAsset())
+	{
+		const FSkeletalMeshRenderData* const RenderData = Asset->GetResourceForRendering();
+		
+		if (ensureMsgf(RenderData->LODRenderData.IsValidIndex(InLodIdx),
+			TEXT("GetCurrentRefToLocalMatrices (SkelMesh :%s) input LODIndex (%d) doesn't match with render data size (%d)."),
+			*Asset->GetPathName(), InLodIdx, RenderData->LODRenderData.Num()))
+		{
+			UpdateRefToLocalMatrices(OutRefToLocals, this, RenderData, InLodIdx, nullptr);
+		}
+		else
+		{
+			const FReferenceSkeleton& RefSkeleton = Asset->GetRefSkeleton();
+			OutRefToLocals.AddUninitialized(RefSkeleton.GetNum());
+			for (int32 Index = 0; Index < OutRefToLocals.Num(); ++Index)
+			{
+				OutRefToLocals[Index] = FMatrix44f::Identity;
+			}
 		}
 	}
 }

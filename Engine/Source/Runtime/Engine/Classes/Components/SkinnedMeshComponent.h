@@ -1157,6 +1157,9 @@ public:
 	/** Caches the RefToLocal matrices. */
 	void CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocal) const;
 
+	/** Return the skinning matrices used for rendering. */
+	void GetCurrentRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocals, int32 InLodIdx) const;
+
 	FORCEINLINE	const USkinnedMeshComponent* GetBaseComponent()const
 	{
 		return LeaderPoseComponent.IsValid() ? LeaderPoseComponent.Get() : this;
