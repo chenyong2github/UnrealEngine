@@ -1519,10 +1519,15 @@ bool FBasePassMeshProcessor::Process(
 		uint8 StencilValue = 0;
 		if (bStrataDufferPassEnabled)
 		{
-			const uint32 DecalResponse = MaterialResource.GetMaterialDecalResponse();
-			const bool bNormalResponse		= DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorNormal		|| DecalResponse == MDR_NormalRoughness || DecalResponse == MDR_Normal;
-			const bool bRoughnessResponse	= DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorRoughness	|| DecalResponse == MDR_NormalRoughness || DecalResponse == MDR_Roughness;
-			const bool bColorResponse		= DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorNormal		|| DecalResponse == MDR_ColorRoughness	|| DecalResponse == MDR_Color;
+			// Set material's decal responsness through stencil bit. This is only used when Strata DBuffer pass is enabled.
+			// This 'stencil marking' allows Strata's DBuffer pass to blend decal appropriately. It is only used for Simple 
+			// and Single materials, as other materials (Complex, ...) get decal applied during the base pass.
+			const uint8 StrataMaterialType	= MaterialResource.MaterialGetStrataMaterialType_RenderThread();
+			const uint32 DecalResponse		= MaterialResource.GetMaterialDecalResponse();
+			const bool bSupportDBufferPass	= StrataMaterialType == 0 || StrataMaterialType == 1; // Simple or single
+			const bool bRoughnessResponse	= bSupportDBufferPass && (DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorRoughness	|| DecalResponse == MDR_NormalRoughness || DecalResponse == MDR_Roughness);
+			const bool bColorResponse		= bSupportDBufferPass && (DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorNormal		|| DecalResponse == MDR_ColorRoughness	|| DecalResponse == MDR_Color);
+			const bool bNormalResponse		= bSupportDBufferPass && (DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorNormal		|| DecalResponse == MDR_NormalRoughness || DecalResponse == MDR_Normal);
 
 			StencilValue =
 			  GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_NORMAL, bNormalResponse ? 0x1 : 0x0)
