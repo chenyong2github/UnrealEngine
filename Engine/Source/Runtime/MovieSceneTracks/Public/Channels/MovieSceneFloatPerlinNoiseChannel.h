@@ -15,7 +15,7 @@ struct MOVIESCENETRACKS_API FMovieSceneFloatPerlinNoiseChannel : public FMovieSc
 	using CurveValueType = float;
 
 	FMovieSceneFloatPerlinNoiseChannel();
-	FMovieSceneFloatPerlinNoiseChannel(const FFloatPerlinNoiseParams& InFloatPerlinNoiseParams);
+	FMovieSceneFloatPerlinNoiseChannel(const FPerlinNoiseParams& InFloatPerlinNoiseParams);
 
 	/**
 	* Evaluate this channel with the frame resolution
@@ -25,17 +25,19 @@ struct MOVIESCENETRACKS_API FMovieSceneFloatPerlinNoiseChannel : public FMovieSc
 	*/
 	float Evaluate(double InSeconds) const;
 
+	/**
+	 * Evaluate this channel at the given time
+	 *
+	 * @param InSection  The section that contains this channel, used to lookup the sequence's tick resolution
+	 * @param InTime     The time, in ticks, to evaluate at
+	 * @param OutValue   The evaluated noise value
+	 * @return           Whether the noise was successfully evaluated
+	 */
 	bool Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, float& OutValue) const;
 
-	FFloatPerlinNoiseParams& GetParams() { return PerlinNoiseParams; }
-	const FFloatPerlinNoiseParams& GetParams() const { return PerlinNoiseParams; }
-
-private:
-
+	/** The noise parameters */
 	UPROPERTY(EditAnywhere, Category="Perlin Noise")
-	FFloatPerlinNoiseParams PerlinNoiseParams;
-
-	friend class FMovieSceneFloatPerlinNoiseChannelDetailsCustomization;
+	FPerlinNoiseParams PerlinNoiseParams;
 };
 
 template<>

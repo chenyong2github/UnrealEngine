@@ -768,26 +768,15 @@ FMovieSceneTracksComponentTypes* FMovieSceneTracksComponentTypes::Get()
 } // namespace MovieScene
 } // namespace UE
 
-FFloatPerlinNoiseParams::FFloatPerlinNoiseParams()
+FPerlinNoiseParams::FPerlinNoiseParams()
 	: Frequency(4.0f)
 	, Amplitude(1.0f)
 {
 }
 
-FFloatPerlinNoiseParams::FFloatPerlinNoiseParams(float InFrequency, float InAmplitude)
+FPerlinNoiseParams::FPerlinNoiseParams(float InFrequency, double InAmplitude)
 	: Frequency(InFrequency)
 	, Amplitude(InAmplitude)
 {
 }
 
-FDoublePerlinNoiseParams::FDoublePerlinNoiseParams()
-	: Frequency(4.0)
-	, Amplitude(1.0)
-{
-}
-
-FDoublePerlinNoiseParams::FDoublePerlinNoiseParams(double InFrequency, double InAmplitude)
-	: Frequency(InFrequency)
-	, Amplitude(InAmplitude)
-{
-}

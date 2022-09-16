@@ -22,7 +22,7 @@ void UMovieSceneDoublePerlinNoiseChannelContainer::ImportEntityImpl(const FMovie
 
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.Add(TracksComponents->DoublePerlinNoiseChannel, PerlinNoiseChannel.GetParams())
+		.Add(TracksComponents->DoublePerlinNoiseChannel, PerlinNoiseChannel.PerlinNoiseParams)
 		.Add(ResultComponent, TNumericLimits<double>::Max())
 	);
 }

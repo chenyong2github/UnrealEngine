@@ -204,7 +204,7 @@ struct TPerlinNoiseChannelInterface : ISequencerChannelInterface
 		TArray<FVector2D> CurvePoints;
 		CurvePoints.Reserve(PaintArgs.Geometry.Size.X / 2.0);
 
-		const double Amplitude = TypedChannel->GetParams().Amplitude;
+		const double Amplitude = TypedChannel->PerlinNoiseParams.Amplitude;
 		const double YOffset = PaintArgs.Geometry.Size.Y / 2.0;
 		const double YScale = (Amplitude != 0) ? (PaintArgs.Geometry.Size.Y / Amplitude / 2.0) : 1;
 

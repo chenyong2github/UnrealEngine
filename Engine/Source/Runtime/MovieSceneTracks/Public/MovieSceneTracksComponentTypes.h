@@ -21,9 +21,9 @@ class UMovieSceneLevelVisibilitySection;
 struct FMovieSceneObjectBindingID;
 
 
-/** Component data for the Float Perlin Noise Channel */
+/** Component data for Perlin Noise channels */
 USTRUCT()
-struct MOVIESCENETRACKS_API FFloatPerlinNoiseParams
+struct MOVIESCENETRACKS_API FPerlinNoiseParams
 {
 	GENERATED_BODY()
 
@@ -33,28 +33,10 @@ struct MOVIESCENETRACKS_API FFloatPerlinNoiseParams
 
 	/** The amplitude of the noise, which will vary between [-Amplitude, +Amplitude] */
 	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
-	float Amplitude;
-
-	FFloatPerlinNoiseParams();
-	FFloatPerlinNoiseParams(float InFrequency, float InAmplitude);
-};
-
-/** Component data for the Float Perlin Noise Channel */
-USTRUCT()
-struct MOVIESCENETRACKS_API FDoublePerlinNoiseParams
-{
-	GENERATED_BODY()
-
-	/** The frequency of the noise, i.e. how many times per second does the noise peak */
-	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
-	double Frequency;
-
-	/** The amplitude of the noise, which will vary between [-Amplitude, +Amplitude] */
-	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
 	double Amplitude;
 
-	FDoublePerlinNoiseParams();
-	FDoublePerlinNoiseParams(double InFrequency, double InAmplitude);
+	FPerlinNoiseParams();
+	FPerlinNoiseParams(float InFrequency, double InAmplitude);
 };
 
 /** Component data for the level visibility system */
@@ -430,8 +412,8 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<USceneComponent*> AttachParent;
 	TComponentTypeID<FAttachmentComponent> AttachComponent;
 	TComponentTypeID<FMovieSceneObjectBindingID> AttachParentBinding;
-	TComponentTypeID<FFloatPerlinNoiseParams> FloatPerlinNoiseChannel;
-	TComponentTypeID<FDoublePerlinNoiseParams> DoublePerlinNoiseChannel;
+	TComponentTypeID<FPerlinNoiseParams> FloatPerlinNoiseChannel;
+	TComponentTypeID<FPerlinNoiseParams> DoublePerlinNoiseChannel;
 
 	TComponentTypeID<int32> ComponentMaterialIndex;
 

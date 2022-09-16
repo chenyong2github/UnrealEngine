@@ -15,27 +15,29 @@ struct MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel : public FMovieS
 	using CurveValueType = double;
 
 	FMovieSceneDoublePerlinNoiseChannel();
-	FMovieSceneDoublePerlinNoiseChannel(const FDoublePerlinNoiseParams& InDoublePerlinNoiseParams);
+	FMovieSceneDoublePerlinNoiseChannel(const FPerlinNoiseParams& InDoublePerlinNoiseParams);
 
 	/**
-	* Evaluate this channel with the frame resolution
+	* Evaluate this channel at the given time
 	*
-	* @param InSeconds  The Frame second to evaluate at
+	* @param InSeconds  The time, in seconds, to evaluate at
 	* @return A value to receive the PerlinNoise result
 	*/
 	double Evaluate(double InSeconds) const;
 
+	/**
+	 * Evaluate this channel at the given time
+	 *
+	 * @param InSection  The section that contains this channel, used to lookup the sequence's tick resolution
+	 * @param InTime     The time, in ticks, to evaluate at
+	 * @param OutValue   The evaluated noise value
+	 * @return           Whether the noise was successfully evaluated
+	 */
 	bool Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, double& OutValue) const;
 
-	const FDoublePerlinNoiseParams& GetParams() const { return PerlinNoiseParams; }
-	FDoublePerlinNoiseParams& GetParams() { return PerlinNoiseParams; }
-
-private:
-
+	/** The noise parameters */
 	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
-	FDoublePerlinNoiseParams PerlinNoiseParams;
-
-	friend class FMovieSceneDoublePerlinNoiseChannelDetailsCustomization;
+	FPerlinNoiseParams PerlinNoiseParams;
 };
 
 template<>

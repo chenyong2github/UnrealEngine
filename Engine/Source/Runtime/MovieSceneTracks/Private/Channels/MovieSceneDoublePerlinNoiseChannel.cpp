@@ -9,7 +9,7 @@ FMovieSceneDoublePerlinNoiseChannel::FMovieSceneDoublePerlinNoiseChannel()
 {
 }
 
-FMovieSceneDoublePerlinNoiseChannel::FMovieSceneDoublePerlinNoiseChannel(const FDoublePerlinNoiseParams& InPerlinNoiseParams)
+FMovieSceneDoublePerlinNoiseChannel::FMovieSceneDoublePerlinNoiseChannel(const FPerlinNoiseParams& InPerlinNoiseParams)
 	: PerlinNoiseParams{ InPerlinNoiseParams }
 {
 }
