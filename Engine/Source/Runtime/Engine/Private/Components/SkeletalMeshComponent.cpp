@@ -893,6 +893,8 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 
 				if (AnimScriptInstance)
 				{
+					ResetLinkedAnimInstances();
+				
 					AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 					bInitializedMainInstance = true;
 				}
@@ -947,6 +949,8 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 
 		if (AnimScriptInstance && !bInitializedMainInstance && bForceReinit)
 		{
+			ResetLinkedAnimInstances();
+		
 			AnimScriptInstance->InitializeAnimation(bInDeferRootNodeInitialization);
 			bInitializedMainInstance = true;
 		}
