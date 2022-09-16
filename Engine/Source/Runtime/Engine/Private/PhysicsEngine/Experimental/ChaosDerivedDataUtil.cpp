@@ -71,7 +71,7 @@ namespace Chaos
 				}
 			}
 		}
-		UE_CLOG(NumBadTris > 0, LogChaos, Warning, TEXT("Input trimesh contains %d bad triangles."), NumBadTris);
+		UE_CLOG(NumBadTris > 0, LogChaos, Display, TEXT("Input trimesh contains %d bad triangles."), NumBadTris);
 
 		float WeldThresholdSq = 0.0f;// SMALL_NUMBER * SMALL_NUMBER;
 
