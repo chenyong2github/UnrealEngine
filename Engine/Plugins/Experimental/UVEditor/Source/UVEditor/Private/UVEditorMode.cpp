@@ -306,19 +306,29 @@ void UUVEditorMode::Enter()
 {
 	Super::Enter();
 
-	BeginPIEDelegateHandle = FEditorDelegates::PreBeginPIE.AddLambda([this](bool bSimulating)
-	{	
+	bPIEModeActive = false;
+	if (GEditor->PlayWorld != NULL || GEditor->bIsSimulatingInEditor)
+	{
+		bPIEModeActive = true;
 		SetSimulationWarning(true);
+	}
+
+	BeginPIEDelegateHandle = FEditorDelegates::PreBeginPIE.AddLambda([this](bool bSimulating)
+	{
+		bPIEModeActive = true;
+        SetSimulationWarning(true);
 	});
 
 	EndPIEDelegateHandle = FEditorDelegates::EndPIE.AddLambda([this](bool bSimulating)
 	{
+		bPIEModeActive = false;
 		ActivateDefaultTool();
 		SetSimulationWarning(false);
 	});
 
 	CancelPIEDelegateHandle = FEditorDelegates::CancelPIE.AddLambda([this]()
 	{
+		bPIEModeActive = false;
 		ActivateDefaultTool();
 		SetSimulationWarning(false);
 	});
@@ -533,6 +543,11 @@ void UUVEditorMode::RegisterActions()
 
 bool UUVEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
 {
+	if (bPIEModeActive)
+	{
+		return false;
+	}
+
 	// For now we've decided to disallow switch-away on accept/cancel tools in the UV editor.
 	if (GetInteractiveToolsContext()->ActiveToolHasAccept())
 	{
@@ -644,7 +659,10 @@ void UUVEditorMode::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 
 void UUVEditorMode::ActivateDefaultTool()
 {
-	GetInteractiveToolsContext()->StartTool(DefaultToolIdentifier);
+	if (!bPIEModeActive)
+	{
+		GetInteractiveToolsContext()->StartTool(DefaultToolIdentifier);
+	}
 }
 
 bool UUVEditorMode::IsDefaultToolActive()
@@ -1070,10 +1088,16 @@ void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniq
 	GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(TargetObject, MoveTemp(Change), Description);
 }
 
-bool UUVEditorMode::HaveUnappliedChanges()
+bool UUVEditorMode::HaveUnappliedChanges() const
 {
 	return ModifiedAssetIDs.Num() > 0;
 }
+
+bool UUVEditorMode::CanApplyChanges() const
+{
+	return !bPIEModeActive && HaveUnappliedChanges();
+}
+
 
 void UUVEditorMode::GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut)
 {

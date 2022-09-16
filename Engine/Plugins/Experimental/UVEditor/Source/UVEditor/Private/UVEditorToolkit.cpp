@@ -229,8 +229,29 @@ bool FUVEditorToolkit::OnRequestClose()
 		return true; 
 	}
 
+	bool bHasUnappliedChanges = UVMode->HaveUnappliedChanges();
+	bool bCanApplyChanges = UVMode->CanApplyChanges();
+
+	// Warn the user if there are unapplied changes *but* we can't currently save them.
+	if (bHasUnappliedChanges && !bCanApplyChanges)
+	{
+		EAppReturnType::Type YesNoReply = FMessageDialog::Open(EAppMsgType::YesNo,
+			NSLOCTEXT("UVEditor", "Prompt_UVEditorCloseCannotSave", "At least one of the assets has unapplied changes, however the UV Editor cannot currently apply changes due to current editor conditions. Do you still want to exit the UV Editor? (Selecting 'Yes' will cause all yet unapplied changes to be lost!)"));
+
+		switch (YesNoReply)
+		{
+		case EAppReturnType::Yes:
+			// exit without applying changes
+			break;
+
+		case EAppReturnType::No:
+			// don't exit
+			return false;
+		}
+	}
+
 	// Warn the user of any unapplied changes.
-	if (UVMode->HaveUnappliedChanges())
+	if (bHasUnappliedChanges && bCanApplyChanges)
 	{
 		TArray<TObjectPtr<UObject>> UnappliedAssets;
 		UVMode->GetAssetsWithUnappliedChanges(UnappliedAssets);
@@ -288,6 +309,19 @@ void FUVEditorToolkit::SaveAsset_Execute()
 
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
+
+bool FUVEditorToolkit::CanSaveAsset() const 
+{
+	UUVEditorMode* UVMode = Cast<UUVEditorMode>(EditorModeManager->GetActiveScriptableMode(UUVEditorMode::EM_UVEditorModeId));
+	check(UVMode);
+	return UVMode->CanApplyChanges();
+}
+
+bool FUVEditorToolkit::CanSaveAssetAs() const 
+{
+	return CanSaveAsset();
+}
+
 
 TSharedRef<SDockTab> FUVEditorToolkit::SpawnTab_LivePreview(const FSpawnTabArgs& Args)
 {
@@ -426,7 +460,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	ToolkitCommands->MapAction(
 		FUVEditorCommands::Get().ApplyChanges,
 		FExecuteAction::CreateUObject(UVMode, &UUVEditorMode::ApplyChanges),
-		FCanExecuteAction::CreateUObject(UVMode, &UUVEditorMode::HaveUnappliedChanges));
+		FCanExecuteAction::CreateUObject(UVMode, &UUVEditorMode::CanApplyChanges));
 	FName ParentToolbarName;
 	const FName ToolBarName = GetToolMenuToolbarName(ParentToolbarName);
 	UToolMenu* AssetToolbar = UToolMenus::Get()->ExtendMenu(ToolBarName);

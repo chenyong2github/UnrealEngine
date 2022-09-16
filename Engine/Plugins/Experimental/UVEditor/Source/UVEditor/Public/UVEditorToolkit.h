@@ -51,6 +51,8 @@ public:
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
 	virtual bool OnRequestClose() override;
 	virtual void SaveAsset_Execute() override;
+	virtual bool CanSaveAsset() const override;
+	virtual bool CanSaveAssetAs() const override;
 	void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
 	void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 

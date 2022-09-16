@@ -195,7 +195,8 @@ public:
 	void EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description);
 
 	// Asset management
-	bool HaveUnappliedChanges();
+	bool HaveUnappliedChanges() const;
+	bool CanApplyChanges() const;
 	void GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut);
 	void ApplyChanges();
 
@@ -363,6 +364,7 @@ protected:
 	static FDateTime AnalyticsLastStartTimestamp;
 
 	// Holds references to PIE callbacks to handle logic when the PIE session starts & shuts down
+	bool bPIEModeActive;
 	FDelegateHandle BeginPIEDelegateHandle;
 	FDelegateHandle EndPIEDelegateHandle;
 	FDelegateHandle CancelPIEDelegateHandle;
