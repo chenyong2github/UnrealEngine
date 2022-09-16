@@ -1457,7 +1457,11 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		}
 
 		GSyncLoadUsingAsyncLoaderCount++;
-		constexpr EPackageFlags PackageFlags = PKG_None;
+		EPackageFlags PackageFlags = PKG_None;
+		if ((!FApp::IsGame() || GIsEditor) && (LoadFlags & LOAD_PackageForPIE) != 0)
+		{
+			PackageFlags |= PKG_PlayInEditor;
+		}
 		constexpr int32 PIEInstanceID = INDEX_NONE;
 		constexpr int32 Priority = INT32_MAX;
 		int32 RequestID = LoadPackageAsync(PackagePath, PackageName, FLoadPackageAsyncDelegate(), PackageFlags, PIEInstanceID, Priority, InstancingContext);
