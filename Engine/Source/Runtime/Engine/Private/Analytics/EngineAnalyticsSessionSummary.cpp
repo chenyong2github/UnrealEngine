@@ -153,9 +153,9 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 	Store->Set(TEXT("Platform"), FString(FPlatformProperties::IniPlatformName()));
 #if PLATFORM_MAC
 #if PLATFORM_MAC_ARM64
-    Store->Set(TEXT("UEBuildArch"), TEXT("AppleSilicon"));
+    Store->Set(TEXT("UEBuildArch"), FString(TEXT("AppleSilicon")));
 #else
-    Store->Set(TEXT("UEBuildArch"), TEXT("Intel(Mac)"));
+    Store->Set(TEXT("UEBuildArch"), FString(TEXT("Intel(Mac)")));
 #endif
 #endif
 	Store->Set(TEXT("OSMajor"), OSMajor);

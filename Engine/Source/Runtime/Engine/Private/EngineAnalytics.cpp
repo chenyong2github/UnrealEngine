@@ -139,6 +139,13 @@ void FEngineAnalytics::Initialize()
 			StartSessionAttributes.Emplace(TEXT("OSMinor"), OSMinor);
 			StartSessionAttributes.Emplace(TEXT("OSVersion"), FPlatformMisc::GetOSVersion());
 			StartSessionAttributes.Emplace(TEXT("Is64BitOS"), FPlatformMisc::Is64bitOperatingSystem());
+#if PLATFORM_MAC
+#if PLATFORM_MAC_ARM64
+            StartSessionAttributes.Emplace(TEXT("UEBuildArch"), FString(TEXT("AppleSilicon")));
+#else
+            StartSessionAttributes.Emplace(TEXT("UEBuildArch"), FString(TEXT("Intel(Mac)")));
+#endif
+#endif
 
 			// allow editor events to be correlated to StudioAnalytics events (if there is a studio analytics provider)
 			if (FStudioAnalytics::IsAvailable())
