@@ -39,6 +39,49 @@ FGeometryCollection::FGeometryCollection()
 	Construct();
 }
 
+void FGeometryCollection::DefineGeometryScheam(FManagedArrayCollection& InCollection)
+{
+	FTransformCollection::DefineTransformSchema(InCollection);
+
+	FManagedArrayCollection::FConstructionParameters TransformDependency(FTransformCollection::TransformGroup);
+	FManagedArrayCollection::FConstructionParameters VerticesDependency(FGeometryCollection::VerticesGroup);
+	FManagedArrayCollection::FConstructionParameters FacesDependency(FGeometryCollection::FacesGroup);
+
+	// Transform Group
+	InCollection.AddAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<int32>("SimulationType", FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<int32>("StatusFlags", FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<int32>("InitialDynamicState", FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<int32>("ExemplarIndex", FTransformCollection::TransformGroup);
+
+	// Vertices Group
+	InCollection.AddAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+	InCollection.AddAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup);
+	InCollection.AddAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
+	InCollection.AddAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup);
+	InCollection.AddAttribute<FVector3f>("TangentU", FGeometryCollection::VerticesGroup);
+	InCollection.AddAttribute<FVector3f>("TangentV", FGeometryCollection::VerticesGroup);
+	InCollection.AddAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup, TransformDependency);
+
+	// Faces Group
+	InCollection.AddAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup, VerticesDependency);
+	InCollection.AddAttribute<bool>("Visible", FGeometryCollection::FacesGroup);
+	InCollection.AddAttribute<int32>("MaterialIndex", FGeometryCollection::FacesGroup);
+	InCollection.AddAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
+
+	// Geometry Group
+	InCollection.AddAttribute<int32>("TransformIndex", FGeometryCollection::GeometryGroup, TransformDependency);
+	InCollection.AddAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+	InCollection.AddAttribute<float>("InnerRadius", FGeometryCollection::GeometryGroup);
+	InCollection.AddAttribute<float>("OuterRadius", FGeometryCollection::GeometryGroup);
+	InCollection.AddAttribute<int32>("VertexStart", FGeometryCollection::GeometryGroup, VerticesDependency);
+	InCollection.AddAttribute<int32>("VertexCount", FGeometryCollection::GeometryGroup);
+	InCollection.AddAttribute<int32>("FaceStart", FGeometryCollection::GeometryGroup, FacesDependency);
+	InCollection.AddAttribute<int32>("FaceCount", FGeometryCollection::GeometryGroup);
+
+	// Material Group
+	InCollection.AddAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup, FacesDependency);
+}
 
 void FGeometryCollection::Construct()
 {
@@ -365,24 +408,42 @@ void FGeometryCollection::ReindexExemplarIndices(TArray<int32>& SortedRemovedInd
 // This will rebuild all mesh sections
 void FGeometryCollection::ReindexMaterials()
 {
+	FGeometryCollection::ReindexMaterials(*this);
+}
+
+void FGeometryCollection::ReindexMaterials(FManagedArrayCollection& InCollection)
+{
+
+	if (!InCollection.HasAttribute("MaterialID", FGeometryCollection::FacesGroup) ||
+		!InCollection.HasAttribute("Sections", FGeometryCollection::MaterialGroup) ||
+		!InCollection.HasAttribute("MaterialIndex", FGeometryCollection::FacesGroup))
+	{
+		return;
+	}
+
+	TManagedArray<int32>& MaterialID = InCollection.ModifyAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
+	TManagedArray<FGeometryCollectionSection>& Sections = InCollection.ModifyAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup);
+	TManagedArray<int32>& MaterialIndex = InCollection.ModifyAttribute<int32>("MaterialIndex", FGeometryCollection::FacesGroup);
+
 	// clear all sections	
 	TArray<int32> DelSections;
-	GeometryCollectionAlgo::ContiguousArray(DelSections, NumElements(FGeometryCollection::MaterialGroup));
-	Super::RemoveElements(FGeometryCollection::MaterialGroup, DelSections);
+	GeometryCollectionAlgo::ContiguousArray(DelSections, InCollection.NumElements(FGeometryCollection::MaterialGroup));
+	InCollection.RemoveElements(FGeometryCollection::MaterialGroup, DelSections);
 	DelSections.Reset(0);
 
 
 	// rebuild sections		
 
 	// count the number of triangles for each material section, adding a new section if the material ID is higher than the current number of sections
-	for (int FaceElement = 0, nf = NumElements(FGeometryCollection::FacesGroup) ; FaceElement < nf ; ++FaceElement)
+	
+	for (int FaceElement = 0, nf = InCollection.NumElements(FGeometryCollection::FacesGroup); FaceElement < nf ; ++FaceElement)
 	{
 		int32 Section = MaterialID[FaceElement];
 
-		while (Section + 1 > NumElements(FGeometryCollection::MaterialGroup))
+		while (Section + 1 > InCollection.NumElements(FGeometryCollection::MaterialGroup))
 		{
 			// add a new material section
-			int32 Element = AddElements(1, FGeometryCollection::MaterialGroup);
+			int32 Element = InCollection.AddElements(1, FGeometryCollection::MaterialGroup);
 
 			Sections[Element].MaterialID = Element;
 			Sections[Element].FirstIndex = -1;
@@ -395,7 +456,7 @@ void FGeometryCollection::ReindexMaterials()
 	}
 
 	// fixup the section FirstIndex and MaxVertexIndex
-	for (int SectionElement = 0; SectionElement < NumElements(FGeometryCollection::MaterialGroup); SectionElement++)
+	for (int SectionElement = 0; SectionElement < InCollection.NumElements(FGeometryCollection::MaterialGroup); SectionElement++)
 	{
 		if (SectionElement == 0)
 		{
@@ -408,7 +469,7 @@ void FGeometryCollection::ReindexMaterials()
 			Sections[SectionElement].FirstIndex = Sections[SectionElement - 1].FirstIndex + Sections[SectionElement - 1].NumTriangles * 3;
 		}
 
-		Sections[SectionElement].MaxVertexIndex = NumElements(FGeometryCollection::VerticesGroup) - 1;
+		Sections[SectionElement].MaxVertexIndex = InCollection.NumElements(FGeometryCollection::VerticesGroup) - 1;
 
 		// if a material group no longer has any triangles in it then add material section for removal
 		if (Sections[SectionElement].NumTriangles == 0)
@@ -419,9 +480,9 @@ void FGeometryCollection::ReindexMaterials()
 
 	// remap indices so the materials appear to be grouped
 	int Idx = 0;
-	for (int Section=0; Section < NumElements(FGeometryCollection::MaterialGroup); Section++)
+	for (int Section=0; Section < InCollection.NumElements(FGeometryCollection::MaterialGroup); Section++)
 	{
-		for (int FaceElement = 0; FaceElement < NumElements(FGeometryCollection::FacesGroup); FaceElement++)
+		for (int FaceElement = 0; FaceElement < InCollection.NumElements(FGeometryCollection::FacesGroup); FaceElement++)
 		{
 			int32 ID = (MaterialID)[FaceElement];
 	
@@ -435,7 +496,7 @@ void FGeometryCollection::ReindexMaterials()
 	// delete unused material sections
 	if (DelSections.Num())
 	{
-		Super::RemoveElements(FGeometryCollection::MaterialGroup, DelSections);
+		InCollection.RemoveElements(FGeometryCollection::MaterialGroup, DelSections);
 	}
 }
 
@@ -920,6 +981,25 @@ bool FGeometryCollection::HasVisibleGeometry() const
 
 void FGeometryCollection::UpdateBoundingBox()
 {
+	FGeometryCollection::UpdateBoundingBox(*this, /*bSkipCheck*/ true);
+}
+
+void FGeometryCollection::UpdateBoundingBox(FManagedArrayCollection& InCollection, bool bSkipCheck)
+{
+	if (!bSkipCheck && (
+		!InCollection.HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup) ||
+		!InCollection.HasAttribute("Vertex", FGeometryCollection::VerticesGroup) ||
+		!InCollection.HasAttribute("BoneMap", FGeometryCollection::VerticesGroup) ||
+		!InCollection.HasAttribute("TransformToGeometryIndex", FTransformCollection::TransformGroup))) 
+	{
+		return;
+	}
+
+	TManagedArray<FBox>& BoundingBox = InCollection.ModifyAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+	const TManagedArray<FVector3f>& Vertex = InCollection.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+	const TManagedArray<int32>& BoneMap = InCollection.GetAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
+	const TManagedArray<int32>& TransformToGeometryIndex = InCollection.GetAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup);
+
 	if (BoundingBox.Num())
 	{
 		// Initialize BoundingBox
@@ -936,6 +1016,7 @@ void FGeometryCollection::UpdateBoundingBox()
 		}
 	}
 }
+
 
 FBoxSphereBounds FGeometryCollection::GetBoundingBox() const 
 {

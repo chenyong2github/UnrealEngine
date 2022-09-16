@@ -24,7 +24,6 @@ public:
 	FTransformCollection(FTransformCollection&&) = default;
 	FTransformCollection& operator=(FTransformCollection&&) = default;
 
-
 	/***
 	*  Attribute Groups
 	*
@@ -50,6 +49,10 @@ public:
 	static const FName ParentAttribute;
 	static const FName ChildrenAttribute;
 	static const FName ParticlesAttribute;
+
+	/** Schema */
+	static void DefineTransformSchema(FManagedArrayCollection&);
+
 
 	/** Serialize */
 	virtual void Serialize(Chaos::FChaosArchive& Ar) override;

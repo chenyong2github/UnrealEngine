@@ -10,6 +10,7 @@ class UGeometryCollection;
 class UMaterialInterface;
 class UGeometryCollectionComponent;
 class FGeometryCollection;
+struct FManagedArrayCollection;
 class UBodySetup;
 class FSkeletalMeshLODRenderData;
 struct FMeshDescription;
@@ -103,7 +104,7 @@ public:
 	*  @param SkeletalMeshTransform : Mesh transform.
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
-	static bool AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, int32 MaterialStartIndex, const FTransform& SkeletalMeshTransform, FGeometryCollection* GeometryCollection, bool bReindexMaterials = true);
+	static bool AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, int32 MaterialStartIndex, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection, bool bReindexMaterials = true);
 
 	/**
 	*  Appends a skeletal mesh to a GeometryCollectionComponent.

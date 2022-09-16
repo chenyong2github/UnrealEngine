@@ -14,7 +14,7 @@ namespace GeometryCollection
 	*/
 	void
 	CHAOS_API
-	AddGeometryProperties(FGeometryCollection* Collection);
+	AddGeometryProperties(FManagedArrayCollection* Collection);
 
 	/****
 	* MakeMeshElement

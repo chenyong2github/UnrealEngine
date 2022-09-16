@@ -131,6 +131,7 @@ public:
 	 */
 	static FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
 	static void Init(FGeometryCollection* Collection, const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
+	static void DefineGeometryScheam(FManagedArrayCollection&);
 
 	/**
 	* Create a GeometryCollection from Vertex, Indices, BoneMap, Transform, BoneHierarchy arrays
@@ -192,6 +193,7 @@ public:
 	*  Update bounding box entries for the geometry
 	*/
 	void UpdateBoundingBox();
+	static void UpdateBoundingBox(FManagedArrayCollection&, bool bSkipCheck=false);
 
 	/**  
 	* GetBoundingBox 
@@ -207,7 +209,8 @@ public:
 	* Reindex sections to keep polys with same materials together to reduce the number of draw calls
 	*/
 	void ReindexMaterials();
-		
+	static void ReindexMaterials(FManagedArrayCollection&);
+
 	/**
 	* Builds mesh sections for a given index buffer that could be a subset.
 	* Currently, this call assumes that the indices are ordered by MaterialID

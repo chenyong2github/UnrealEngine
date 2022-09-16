@@ -275,33 +275,33 @@ namespace GeometryCollection
 		OutOuterRadius = FMath::Sqrt(OutOuterRadius);
 	}
 	
-	void AddGeometryProperties(FGeometryCollection * Collection)
+	void AddGeometryProperties(FManagedArrayCollection* InCollection)
 	{
-		if (Collection)
+		if (InCollection)
 		{
-			if (!Collection->NumElements(FGeometryCollection::GeometryGroup))
+			if (!InCollection->NumElements(FGeometryCollection::GeometryGroup))
 			{
-				int32 NumVertices = Collection->Vertex.Num();
+				int32 NumVertices = InCollection->NumElements(FGeometryCollection::VerticesGroup);
 				if (NumVertices)
 				{
 					// transforms group
-					TManagedArray<FTransform>& Transform = Collection->Transform;
-					TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
+					TManagedArray<FTransform>& Transform = InCollection->ModifyAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
+					TManagedArray<int32>& TransformToGeometryIndex = InCollection->ModifyAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup);
 					// vertices group
-					TManagedArray<int32> & BoneMap = Collection->BoneMap;
-					TManagedArray<FVector3f> & Vertex = Collection->Vertex;
+					TManagedArray<int32>& BoneMap = InCollection->ModifyAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
+					TManagedArray<FVector3f>& Vertex = InCollection->ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
 					// faces
-					TManagedArray<FIntVector> & FaceIndices = Collection->Indices;
+					TManagedArray<FIntVector>& FaceIndices = InCollection->ModifyAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
 
 					// geometry group
-					TManagedArray<int32>& TransformIndex = Collection->TransformIndex;
-					TManagedArray<FBox>& BoundingBox = Collection->BoundingBox;
-					TManagedArray<float>& InnerRadius = Collection->InnerRadius;
-					TManagedArray<float>& OuterRadius = Collection->OuterRadius;
-					TManagedArray<int32>& VertexCount = Collection->VertexCount;
-					TManagedArray<int32>& VertexStart = Collection->VertexStart;
-					TManagedArray<int32>& FaceCount = Collection->FaceCount;
-					TManagedArray<int32>& FaceStart = Collection->FaceStart;
+					TManagedArray<int32>& TransformIndex = InCollection->ModifyAttribute<int32>("TransformIndex", FGeometryCollection::GeometryGroup);
+					TManagedArray<FBox>& BoundingBox = InCollection->ModifyAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+					TManagedArray<float>& InnerRadius = InCollection->ModifyAttribute<float>("InnerRadius", FGeometryCollection::GeometryGroup);
+					TManagedArray<float>& OuterRadius = InCollection->ModifyAttribute<float>("OuterRadius", FGeometryCollection::GeometryGroup);
+					TManagedArray<int32>& VertexCount = InCollection->ModifyAttribute<int32>("VertexCount", FGeometryCollection::GeometryGroup);
+					TManagedArray<int32>& VertexStart = InCollection->ModifyAttribute<int32>("VertexStart", FGeometryCollection::GeometryGroup);
+					TManagedArray<int32>& FaceCount = InCollection->ModifyAttribute<int32>("FaceCount", FGeometryCollection::GeometryGroup);
+					TManagedArray<int32>& FaceStart = InCollection->ModifyAttribute<int32>("FaceStart", FGeometryCollection::GeometryGroup);
 
 					// gather unique geometries
 					TSet<int32> TransformIndexOfGeometry;
@@ -314,7 +314,7 @@ namespace GeometryCollection
 					TArray<int32> ReverseMap;
 					ReverseMap.Init(FGeometryCollection::Invalid, Transform.Num());
 
-					Collection->AddElements(TransformIndexOfGeometry.Num(), FGeometryCollection::GeometryGroup);
+					InCollection->AddElements(TransformIndexOfGeometry.Num(), FGeometryCollection::GeometryGroup);
 					TArray<int32> GeometryIndices = TransformIndexOfGeometry.Array();
 					for (int32 Index = 0; Index < GeometryIndices.Num(); Index++)
 					{
@@ -440,7 +440,7 @@ namespace GeometryCollection
 					}
 				}
 
-				Collection->UpdateBoundingBox();
+				FGeometryCollection::UpdateBoundingBox(*InCollection);
 			}
 		}
 	}

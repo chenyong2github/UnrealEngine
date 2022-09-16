@@ -13,11 +13,20 @@ const FName FTransformCollection::ParentAttribute = "Parent";
 const FName FTransformCollection::ChildrenAttribute = "Children";
 const FName FTransformCollection::ParticlesAttribute = "Particles";
 
-
 FTransformCollection::FTransformCollection()
 	: FManagedArrayCollection()
 {
 	Construct();
+}
+
+void FTransformCollection::DefineTransformSchema(FManagedArrayCollection& InCollection)
+{
+	// Hierarchy Group
+	InCollection.AddAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<FString>("BoneName", FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<FLinearColor>("BoneColor", FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
+	InCollection.AddAttribute<TSet<int32>>(FTransformCollection::ChildrenAttribute, FTransformCollection::TransformGroup);
 }
 
 void FTransformCollection::Construct()
