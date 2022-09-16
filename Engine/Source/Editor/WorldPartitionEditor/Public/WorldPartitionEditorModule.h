@@ -55,7 +55,7 @@ public:
 	/**
 	 * Run a world partition builder for the current map. Will display a dialog to specify options for the generation.
 	 */
-	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> WorldPartitionBuilder, UWorld* InWorld) override;
+	virtual bool RunBuilder(const FRunBuilderParams& InParams) override;
 
 	/** Return the world added event. */
 	virtual FWorldPartitionCreated& OnWorldPartitionCreated() override { return WorldPartitionCreatedEvent; }
@@ -86,8 +86,9 @@ private:
 	/** Spawns the content bundle tab */
 	TSharedRef<SDockTab> SpawnContentBundleTab(const FSpawnTabArgs& Args);
 
-	bool BuildHLODs(const FString& InMapToProcess);
-	bool BuildMinimap(const FString& InMapToProcess);
+	bool Build(const FRunBuilderParams& InParams);
+	bool BuildMinimap(const FRunBuilderParams& InParams);
+	bool BuildHLODs(const FRunBuilderParams& InParams);
 	bool BuildLandscapeSplineMeshes(UWorld* InWorld);
 
 private:

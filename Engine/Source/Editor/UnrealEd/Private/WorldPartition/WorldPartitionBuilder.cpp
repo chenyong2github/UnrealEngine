@@ -20,7 +20,7 @@
 #include "UObject/SavePackage.h"
 #include "Algo/Transform.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, All, All);
 
 namespace FWorldPartitionBuilderLog
 {

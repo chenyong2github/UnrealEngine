@@ -19,8 +19,17 @@ public:
 
 	UE_DEPRECATED(5.1, "Use RunBuilder with UWorld* instead.")
 	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, const FString& InLongPackageName) { return false; }
+		
+	struct FRunBuilderParams
+	{
+		TSubclassOf<UWorldPartitionBuilder> BuilderClass;
+		UWorld* World;
+		FString ExtraArgs;
+		FText OperationDescription;
+	};
 
-	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* InWorld) = 0;
+	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* InWorld);
+	virtual bool RunBuilder(const FRunBuilderParams& Params) = 0;
 
 	virtual int32 GetPlacementGridSize() const = 0;
 	virtual int32 GetInstancedFoliageGridSize() const = 0;
