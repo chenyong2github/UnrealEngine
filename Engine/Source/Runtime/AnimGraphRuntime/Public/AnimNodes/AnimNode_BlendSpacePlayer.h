@@ -165,11 +165,11 @@ private:
 	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (DefaultValue = "0.f", PinHiddenByDefault, FoldProperty))
 	float StartPosition = 0.0f;
+#endif
 
 	// The blendspace asset to play
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	TObjectPtr<UBlendSpace> BlendSpace = nullptr;
-#endif
 
 public:
 

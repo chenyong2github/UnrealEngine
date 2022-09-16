@@ -301,18 +301,8 @@ bool FAnimNode_BlendSpacePlayer::SetResetPlayTimeWhenBlendSpaceChanges(bool bInR
 
 bool FAnimNode_BlendSpacePlayer::SetBlendSpace(UBlendSpace* InBlendSpace)
 {
-#if WITH_EDITORONLY_DATA
 	BlendSpace = InBlendSpace;
-	GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace) = InBlendSpace;
-#endif
-
-	if (TObjectPtr<UBlendSpace>* BlendSpacePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TObjectPtr<UBlendSpace>, BlendSpace))
-	{
-		*BlendSpacePtr = InBlendSpace;
-		return true;
-	}
-
-	return false;
+	return true;
 }
 
 FVector FAnimNode_BlendSpacePlayer::GetPosition() const
@@ -397,5 +387,5 @@ float FAnimNode_BlendSpacePlayer::GetStartPosition() const
 
 UBlendSpace* FAnimNode_BlendSpacePlayer::GetBlendSpace() const
 {
-	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace);
+	return BlendSpace;
 }
