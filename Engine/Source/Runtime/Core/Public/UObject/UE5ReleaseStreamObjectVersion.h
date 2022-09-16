@@ -126,6 +126,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Uses RG11B10 format to store the encoded reflection capture data on mobile
 		StoreReflectionCaptureEncodedHDRDataInRG11B10Format,
+		
+		// Add WithSerializer type trait and implementation for FRawAnimSequenceTrack
+		RawAnimSequenceTrackSerializer,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

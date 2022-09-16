@@ -10,6 +10,7 @@
 #include "Animation/AnimEnums.h"
 #include "Misc/SecureHash.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "AnimTypes.generated.h"
 
 struct FMarkerPair;
@@ -905,9 +906,29 @@ struct ENGINE_API FRawAnimSequenceTrack
 		bContainsNaN = CheckForNan(ScaleKeys);
 
 		return bContainsNaN;
-	}	
+	}
+
+	bool Serialize(FArchive& Ar)
+	{
+		Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID); 
+
+		// Previously generated content was saved without bulk array serialization, so have to rely on UProperty serialization until resaved
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RawAnimSequenceTrackSerializer)
+		{
+			return false;
+		}
+ 
+		Ar << *this;
+ 
+		return true;
+	}
 
 	static const uint32 SingleKeySize = sizeof(FVector3f) + sizeof(FQuat4f) + sizeof(FVector3f);
+};
+
+template<> struct TStructOpsTypeTraits<FRawAnimSequenceTrack> : public TStructOpsTypeTraitsBase2<FRawAnimSequenceTrack>
+{
+	enum { WithSerializer = true };
 };
 
 UCLASS()
