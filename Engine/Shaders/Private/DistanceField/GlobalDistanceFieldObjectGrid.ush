@@ -46,7 +46,7 @@ FObjectGridCellIndex UnpackObjectGridCellIndex(uint PackedIndex)
 // Unordered add to a grid cell
 void AddToObjectGridCell(inout FObjectGridCell ObjectGridCell, uint GPUSceneInstanceIndex, float Distance, float ObjectGridCellWorldExtent, float MaxQueryDistance)
 {
-	if (Distance < MaxQueryDistance)
+	if (abs(Distance) < MaxQueryDistance)
 	{
 		uint PackedIndexToInsert = PackObjectGridCellIndex(GPUSceneInstanceIndex, Distance, ObjectGridCellWorldExtent, MaxQueryDistance);
 
