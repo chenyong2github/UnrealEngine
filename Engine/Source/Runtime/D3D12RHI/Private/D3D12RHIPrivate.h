@@ -245,12 +245,6 @@ struct FD3D12WorkaroundFlags
 	* This is less efficient and can also trigger another known issue with D3D12 Agility version <= 4.
 	*/
 	bool bAllowGetShaderIdentifierOnCollectionSubObject = true;
-
-	/**
-	* Some machine configurations have known issues when transient resource aliasing is used.
-	* If we detect such configuration, we can fall back to non-aliasing code path which is much less efficient.
-	*/
-	bool bAllowTransientResourceAllocator = true;
 };
 
 extern FD3D12WorkaroundFlags GD3D12WorkaroundFlags;

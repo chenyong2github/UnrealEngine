@@ -1283,29 +1283,6 @@ void FD3D12DynamicRHI::Init()
 				TEXT("Please update to NVIDIA driver version 466.11 or newer."));
 		}
 
-		// Enable a workaround for a known driver bug affecting Ampere GPUs on Windows 11 (Jira UE-132964)
-		// As of 2022-02-09, there is no expected fix date or driver version.
-		if (FPlatformMisc::VerifyWindowsVersion(10, 0, 22000) // Win11 is build number is 22000+
-			&& IsNvidiaAmpereGPU(AdapterDesc.DeviceId))
-		{
-			int32 TransientAllocatorValue = 0;
-			const bool bForceTransientAllocatorState = FParse::Value(FCommandLine::Get(), TEXT("rdgtransientallocator="), TransientAllocatorValue);
-			if (bForceTransientAllocatorState && TransientAllocatorValue == 1)
-			{
-				UE_LOG(LogD3D12RHI, Warning,
-					TEXT("Current machine configuration is known to be affected by a driver bug triggered by memory aliasing. ")
-					TEXT("Transient resource allocator will still be used because it is explicitly requested using '-rdgtransientallocator=1' command line."));
-			}
-			else
-			{
-				GD3D12WorkaroundFlags.bAllowTransientResourceAllocator = false;
-				UE_LOG(LogD3D12RHI, Warning, 
-					TEXT("GD3D12WorkaroundFlags.bAllowTransientResourceAllocator is disabled due to a known issue with current GPU, driver and OS version. ")
-					TEXT("This workaround can be bypassed using '-rdgtransientallocator=1' command line.")
-				);
-			}
-		}
-
 		if (GRHISupportsRayTracing
 			&& IsRayTracingEmulated(AdapterDesc.DeviceId))
 		{

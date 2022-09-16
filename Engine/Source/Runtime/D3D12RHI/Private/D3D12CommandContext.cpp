@@ -1053,15 +1053,7 @@ void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
 
 IRHITransientResourceAllocator* FD3D12DynamicRHI::RHICreateTransientResourceAllocator()
 {
-	// Some machine configurations have known issues when transient resource aliasing is used.
-	if (GD3D12WorkaroundFlags.bAllowTransientResourceAllocator)
-	{
-		return new FD3D12TransientResourceHeapAllocator(GetAdapter().GetOrCreateTransientHeapCache());
-	}
-	else
-	{
-		return nullptr;
-	}
+	return new FD3D12TransientResourceHeapAllocator(GetAdapter().GetOrCreateTransientHeapCache());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
