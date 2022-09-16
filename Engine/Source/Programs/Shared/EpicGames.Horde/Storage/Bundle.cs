@@ -283,12 +283,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Indexes of referenced nodes exported from this bundle
 		/// </summary>
-		public IReadOnlyList<(int, IoHash)> Exports { get; }
+		public IReadOnlyList<int> Exports { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImport(BlobId blobId, int exportCount, IReadOnlyList<(int, IoHash)> exports)
+		public BundleImport(BlobId blobId, int exportCount, IReadOnlyList<int> exports)
 		{
 			BlobId = blobId;
 			ExportCount = exportCount;
@@ -307,12 +307,10 @@ namespace EpicGames.Horde.Storage
 
 			int count = (int)reader.ReadUnsignedVarInt();
 
-			(int, IoHash)[] exports = new (int, IoHash)[count];
+			int[] exports = new int[count];
 			for (int idx = 0; idx < count; idx++)
 			{
-				int index = (int)reader.ReadUnsignedVarInt();
-				IoHash hash = reader.ReadIoHash();
-				exports[idx] = (index, hash);
+				exports[idx] = (int)reader.ReadUnsignedVarInt();
 			}
 			Exports = exports;
 		}
@@ -329,9 +327,7 @@ namespace EpicGames.Horde.Storage
 			writer.WriteUnsignedVarInt(Exports.Count);
 			for(int idx = 0; idx < Exports.Count; idx++)
 			{
-				(int index, IoHash hash) = Exports[idx];
-				writer.WriteUnsignedVarInt(index);
-				writer.WriteIoHash(hash);
+				writer.WriteUnsignedVarInt(Exports[idx]);
 			}
 		}
 	}
@@ -389,11 +385,6 @@ namespace EpicGames.Horde.Storage
 	public class BundleExport
 	{
 		/// <summary>
-		/// Hash of the node
-		/// </summary>
-		public IoHash Hash { get; }
-
-		/// <summary>
 		/// Uncompressed length of this node
 		/// </summary>
 		public int Length { get; }
@@ -408,9 +399,8 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(IoHash hash, int length, IReadOnlyList<int> references)
+		public BundleExport(int length, IReadOnlyList<int> references)
 		{
-			Hash = hash;
 			Length = length;
 			References = references;
 		}
@@ -421,7 +411,6 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader">Reader to deserialize from</param>
 		public BundleExport(IMemoryReader reader)
 		{
-			Hash = reader.ReadIoHash();
 			Length = (int)reader.ReadUnsignedVarInt();
 
 			int numReferences = (int)reader.ReadUnsignedVarInt();
@@ -441,7 +430,6 @@ namespace EpicGames.Horde.Storage
 		/// <param name="writer">Writer to serialize to</param>
 		public void Write(IMemoryWriter writer)
 		{
-			writer.WriteIoHash(Hash);
 			writer.WriteUnsignedVarInt(Length);
 
 			writer.WriteUnsignedVarInt(References.Count);

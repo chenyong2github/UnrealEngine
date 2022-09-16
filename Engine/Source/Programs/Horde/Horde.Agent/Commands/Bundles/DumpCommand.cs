@@ -57,9 +57,9 @@ namespace Horde.Agent.Commands.Bundles
 			foreach (BundleImport import in header.Imports)
 			{
 				logger.LogInformation("  From blob {BlobId} ({NumExports}/{TotalExports} nodes)", import.BlobId, import.Exports.Count, import.ExportCount);
-				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
+				foreach (int exportIdx in import.Exports)
 				{
-					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.BlobId, exportIdx, exportHash);
+					logger.LogInformation("    [{Index}] IMP {BlobId}@{ExportIdx}", refIdx, import.BlobId, exportIdx);
 					refIdx++;
 				}
 			}
@@ -72,7 +72,7 @@ namespace Horde.Agent.Commands.Bundles
 			foreach (BundleExport export in header.Exports)
 			{
 				string refs = (export.References.Count == 0) ? "[ ]" : $"[ {String.Join(", ", export.References.Select(x => x.ToString()))} ]";
-				logger.LogInformation("  [{Index}] EXP {ExportHash} (length: {NumBytes:n0}, packet: {PacketIdx}, refs: {Refs})", refIdx, export.Hash, export.Length, packetIdx, refs);
+				logger.LogInformation("  [{Index}] EXP (length: {NumBytes:n0}, packet: {PacketIdx}, refs: {Refs})", refIdx, export.Length, packetIdx, refs);
 				refIdx++;
 
 				packetOffset += export.Length;

@@ -31,11 +31,6 @@ namespace EpicGames.Horde.Storage
 	public interface ITreeBlobRef
 	{
 		/// <summary>
-		/// Hash of the target
-		/// </summary>
-		IoHash Hash { get; }
-
-		/// <summary>
 		/// Gets the target of a reference
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
