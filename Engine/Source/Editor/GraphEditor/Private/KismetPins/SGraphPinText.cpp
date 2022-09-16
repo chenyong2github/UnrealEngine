@@ -96,10 +96,6 @@ namespace
 		}
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-		virtual void RequestRefresh() override
-		{
-		}
-
 	private:
 		FEdGraphPinReference GraphPinObjRef;
 	};

@@ -92,9 +92,6 @@ public:
 	virtual void GetStableTextId(const int32 InIndex, const ETextPropertyEditAction InEditAction, const FString& InTextSource, const FString& InProposedNamespace, const FString& InProposedKey, FString& OutStableNamespace, FString& OutStableKey) const = 0;
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-	/** Request a refresh of the property UI (eg, due to a size change) */
-	virtual void RequestRefresh() = 0;
-
 protected:
 #if USE_STABLE_LOCALIZATION_KEYS
 	/** Get the localization ID we should use for the given object, and the given text instance */
@@ -208,7 +205,6 @@ public:
 	void Construct(const FArguments& Arguments, const TSharedRef<IEditableTextProperty>& InEditableTextProperty);
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	void GetDesiredWidth(float& OutMinDesiredWidth, float& OutMaxDesiredWidth);
@@ -257,9 +253,7 @@ private:
 
 	TSharedPtr<SEditableTextBox> KeyEditableTextBox;
 
-	TOptional<float> PreviousHeight;
-
-	bool bIsMultiLine;
+	bool bIsMultiLine = false;
 
 	static FText MultipleValuesText;
 };

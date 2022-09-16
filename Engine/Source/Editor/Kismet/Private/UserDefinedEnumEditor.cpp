@@ -114,10 +114,6 @@ public:
 	}
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-	virtual void RequestRefresh() override
-	{
-	}
-
 	bool CausedChange() const
 	{
 		return bCausedChange;
@@ -205,10 +201,6 @@ public:
 		return StaticStableTextId(TargetEnum, InEditAction, InTextSource, InProposedNamespace, InProposedKey, OutStableNamespace, OutStableKey);
 	}
 #endif // USE_STABLE_LOCALIZATION_KEYS
-
-	virtual void RequestRefresh() override
-	{
-	}
 
 	bool CausedChange() const
 	{

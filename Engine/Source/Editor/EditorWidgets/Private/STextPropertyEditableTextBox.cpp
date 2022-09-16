@@ -953,16 +953,6 @@ FReply STextPropertyEditableTextBox::OnFocusReceived(const FGeometry& MyGeometry
 	return FReply::Handled().SetUserFocus(PrimaryWidget.ToSharedRef(), InFocusEvent.GetCause());
 }
 
-void STextPropertyEditableTextBox::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	const float CurrentHeight = AllottedGeometry.GetLocalSize().Y;
-	if (bIsMultiLine && PreviousHeight.IsSet() && PreviousHeight.GetValue() != CurrentHeight)
-	{
-		EditableTextProperty->RequestRefresh();
-	}
-	PreviousHeight = CurrentHeight;
-}
-
 bool STextPropertyEditableTextBox::CanEdit() const
 {
 	const bool bIsReadOnly = FTextLocalizationManager::Get().IsLocalizationLocked() || EditableTextProperty->IsReadOnly();

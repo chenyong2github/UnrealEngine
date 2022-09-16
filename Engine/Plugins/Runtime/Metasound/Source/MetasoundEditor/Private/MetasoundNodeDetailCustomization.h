@@ -61,7 +61,6 @@ namespace Metasound
 			virtual bool IsReadOnly() const override { return false; }
 			virtual int32 GetNumTexts() const override { return 1; }
 			virtual bool IsValidText(const FText& InText, FText& OutErrorMsg) const override { return true; }
-			virtual void RequestRefresh() override { }
 
 			virtual FText GetToolTipText() const override
 			{

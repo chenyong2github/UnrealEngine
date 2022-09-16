@@ -102,14 +102,6 @@ namespace
 		}
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-		virtual void RequestRefresh() override
-		{
-			if (PropertyUtilities.IsValid())
-			{
-				PropertyUtilities->RequestRefresh();
-			}
-		}
-
 	private:
 		TSharedRef<IPropertyHandle> PropertyHandle;
 		TSharedPtr<IPropertyUtilities> PropertyUtilities;
