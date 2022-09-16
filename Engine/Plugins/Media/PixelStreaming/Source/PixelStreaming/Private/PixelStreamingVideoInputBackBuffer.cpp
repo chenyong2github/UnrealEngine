@@ -12,6 +12,12 @@
 
 TSharedPtr<FPixelStreamingVideoInputBackBuffer> FPixelStreamingVideoInputBackBuffer::Create()
 {
+	// this was added to fix packaging
+	if (!FSlateApplication::IsInitialized())
+	{
+		return nullptr;
+	}
+
 	TSharedPtr<FPixelStreamingVideoInputBackBuffer> NewInput = TSharedPtr<FPixelStreamingVideoInputBackBuffer>(new FPixelStreamingVideoInputBackBuffer());
 	TWeakPtr<FPixelStreamingVideoInputBackBuffer> WeakInput = NewInput;
 
