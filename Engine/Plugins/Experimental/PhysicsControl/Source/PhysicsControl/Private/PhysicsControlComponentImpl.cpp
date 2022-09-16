@@ -70,11 +70,12 @@ FPhysicsControl* FPhysicsControlComponentImpl::FindControl(const FName Name)
 
 //======================================================================================================================
 bool FPhysicsControlComponentImpl::DetectTeleport(
-	const FTransform& OldComponentTM, const FTransform& NewComponentTM) const
+	const FVector& OldPosition, const FQuat& OldOrientation,
+	const FVector& NewPosition, const FQuat& NewOrientation) const
 {
 	if (Owner->TeleportDistanceThreshold > 0)
 	{
-		double Distance = FVector::Distance(OldComponentTM.GetTranslation(), NewComponentTM.GetTranslation());
+		double Distance = FVector::Distance(OldPosition, NewPosition);
 		if (Distance > Owner->TeleportDistanceThreshold)
 		{
 			return true;
@@ -82,7 +83,7 @@ bool FPhysicsControlComponentImpl::DetectTeleport(
 	}
 	if (Owner->TeleportRotationThreshold > 0)
 	{
-		double Radians = OldComponentTM.GetRotation().AngularDistance(NewComponentTM.GetRotation());
+		double Radians = OldOrientation.AngularDistance(NewOrientation);
 		if (FMath::RadiansToDegrees(Radians) > Owner->TeleportRotationThreshold)
 		{
 			return true;
@@ -91,6 +92,11 @@ bool FPhysicsControlComponentImpl::DetectTeleport(
 	return false;
 }
 
+//======================================================================================================================
+bool FPhysicsControlComponentImpl::DetectTeleport(const FTransform& OldTM, const FTransform& NewTM) const
+{
+	return DetectTeleport(OldTM.GetTranslation(), OldTM.GetRotation(), NewTM.GetTranslation(), NewTM.GetRotation());
+}
 
 //======================================================================================================================
 void FPhysicsControlComponentImpl::UpdateCachedSkeletalBoneData(float Dt)
@@ -154,18 +160,20 @@ void FPhysicsControlComponentImpl::ResetControls(bool bKeepControlRecords)
 //======================================================================================================================
 void FPhysicsControlComponentImpl::ApplyKinematicTarget(const FPhysicsBodyModifier& BodyModifier) const
 {
-	FBodyInstance* BodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
-		BodyModifier.MeshComponent, BodyModifier.BoneName);
-	if (!BodyInstance)
-	{
-		return;
-	}
-
 	// Seems like static and skeletal meshes need to be handled differently
-	FTransform TM = BodyInstance->GetUnrealWorldTransform();
-	FTransform KinematicTarget(BodyModifier.KinematicTargetOrientation, BodyModifier.KinematicTargetPosition);
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BodyModifier.MeshComponent.Get()))
 	{
+		FBodyInstance* BodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
+			BodyModifier.MeshComponent, BodyModifier.BoneName);
+		if (!BodyInstance)
+		{
+			return;
+		}
+
+		FTransform TM = BodyInstance->GetUnrealWorldTransform();
+		FTransform KinematicTarget = TM;
+		KinematicTarget.SetRotation(BodyModifier.KinematicTargetOrientation);
+		KinematicTarget.SetTranslation(BodyModifier.KinematicTargetPosition);
 		if (BodyModifier.bUseSkeletalAnimation)
 		{
 			FCachedSkeletalMeshData::FBoneData BoneData;
@@ -180,8 +188,14 @@ void FPhysicsControlComponentImpl::ApplyKinematicTarget(const FPhysicsBodyModifi
 	}
 	else
 	{
-		ETeleportType TT = DetectTeleport(TM, KinematicTarget) ? ETeleportType::ResetPhysics : ETeleportType::None;
-		BodyModifier.MeshComponent->SetWorldTransform(KinematicTarget, false, nullptr, TT);
+		FTransform TM = BodyModifier.MeshComponent->GetComponentToWorld();
+		ETeleportType TT = DetectTeleport(
+			TM.GetTranslation(), TM.GetRotation(), 
+			BodyModifier.KinematicTargetPosition, BodyModifier.KinematicTargetOrientation) 
+			? ETeleportType::ResetPhysics : ETeleportType::None;
+		// Note that calling BodyInstance->SetBodyTransform moves the physics, but not the mesh
+		BodyModifier.MeshComponent->SetWorldLocationAndRotation(
+			BodyModifier.KinematicTargetPosition, BodyModifier.KinematicTargetOrientation, false, nullptr, TT);
 	}
 }
 

@@ -48,7 +48,15 @@ public:
 	 * @return true if the difference between the old and new TMs exceeds the teleport
 	 * translation/rotation thresholds
 	 */
-	bool DetectTeleport(const FTransform& OldComponentTM, const FTransform& NewComponentTM) const;
+	bool DetectTeleport(const FTransform& OldTM, const FTransform& NewTM) const;
+
+	/**
+	 * @return true if the difference between the old and new TMs exceeds the teleport
+	 * translation/rotation thresholds
+	 */
+	bool DetectTeleport(
+		const FVector& OldPosition, const FQuat& OldOrientation,
+		const FVector& NewPosition, const FQuat& NewOrientation) const;
 
 	/**
 	 * Terminates the underlying physical constraints, resets our internal stored state for each control,

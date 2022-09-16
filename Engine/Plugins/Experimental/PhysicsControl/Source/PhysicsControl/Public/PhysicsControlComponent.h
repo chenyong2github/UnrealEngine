@@ -331,7 +331,7 @@ public:
 	 * 
 	 * @param ControlData The new control data
 	 * 
-	 * @param bEnableControl Enables/disables the control
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 * 
 	 * @return Returns true if the control was found and modified, false if not
 	 */
@@ -346,7 +346,7 @@ public:
 	 *
 	 * @param ControlData The new control data
 	 *
-	 * @param bEnableControl Enables/disables the controls
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	void SetAllControlDatas(const TArray<FName>& Names, FPhysicsControlData ControlData, bool bEnableControl = true);
@@ -359,7 +359,7 @@ public:
 	 *
 	 * @param ControlMultipliers The new control multipliers
 	 *
-	 * @param bEnableControl Enables/disables the control
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 *
 	 * @return Returns true if the control was found and modified, false if not
 	 */
@@ -374,7 +374,7 @@ public:
 	 *
 	 * @param ControlMultipliers The new control multipliers
 	 *
-	 * @param bEnableControl Enables/disables the control
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	void SetAllControlMultipliers(
@@ -396,8 +396,8 @@ public:
 	 *
 	 * @param MaxForce The maximum force used to drive the linear motion. Zero indicates no limit.
 	 *
-	 * @param bEnableControl Enables/disables the control
-	 * 
+	 * @param bEnableControl Enables the control if it is currently disabled
+	 *
 	 * @return Returns true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
@@ -423,7 +423,7 @@ public:
 	 *
 	 * @param MaxTorque The maximum torque used to drive the angular motion. Zero indicates no limit.
 	 * 
-	 * @param bEnableControl Enables/disables the control
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 *
 	 * @return Returns true if the control was found and modified, false if not
 	 */
@@ -465,8 +465,8 @@ public:
 	 * 
 	 * @param ControlTarget The new target for the control
 	 * 
-	 * @param bEnableControl Enables/disables the control
-	 * 
+	 * @param bEnableControl Enables the control if it is currently disabled
+	 *
 	 * @return Returns true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
@@ -480,7 +480,7 @@ public:
 	 *
 	 * @param ControlTarget The new target for the controls
 	 * 
-	 * @param bEnableControl Enables/disables the controls
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	void SetAllControlTargets(
@@ -493,30 +493,32 @@ public:
 	 * Modifies an existing control target - i.e. what it is driving towards, relative to the parent object
 	 *
 	 * @param Name The name of the control to modify. If blank, then this will access the first
-	 *             control, whatever its name.
+	 *        control, whatever its name.
 	 *
-	 * @param Transform The new transform target for the control
+	 * @param Position The new position target for the control
 	 * 
+	 * @param Orientation The new orientation target for the control
+	 *
 	 * @param VelocityDeltaTime If non-zero, the target velocity will be calculated using the current target 
-	 *                          position. If zero, the target velocity will be set to zero.    
+	 *        position. If zero, the target velocity will be set to zero.    
 	 *
-	 * @param bEnableControl Enables/disables the control
-	 * 
+	 * @param bEnableControl Enables the control if it is currently disabled
+	 *
 	 * @param bApplyControlPointToTarget If true, then the target position/orientation is treated as
-	 *                                   a "virtual" object, where the system attempts to move the object
-	 *                                   to match the pose of this "virtual" object that has been placed at
-	 *                                   the target transform. Use this when you want to specify the target
-	 *                                   transform for the object as a whole. If false, then the target transform
-	 *                                   is used as is, and the system drives the control point towards this
-	 *                                   transform.
+	 *        a "virtual" object, where the system attempts to move the object to match the pose of 
+	 *        this "virtual" object that has been placed at the target transform. Use this when you 
+	 *        want to specify the target transform for the object as a whole. If false, then the 
+	 *        target transform is used as is, and the system drives the control point towards this
+	 *        transform.
 	 *
 	 * @return                  Returns true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
-	bool SetControlTargetTransform(
+	bool SetControlTargetPositionAndOrientation(
 		FName            Name,
-		const FTransform Transform, 
-		float            VelocityDeltaTime, 
+		const FVector    Position,
+		const FRotator   Orientation,
+		float            VelocityDeltaTime,
 		bool             bEnableControl = true,
 		bool             bApplyControlPointToTarget = true);
 
@@ -531,8 +533,8 @@ public:
 	 * @param VelocityDeltaTime If non-zero, the target velocity will be calculated using the current target 
 	 *                          position. If zero, the target velocity will be set to zero.    
 	 *
-	 * @param bEnableControl    Enables/disables the control
-	 * 
+	 * @param bEnableControl Enables the control if it is currently disabled
+	 *
 	 * @param bApplyControlPointToTarget If true, then the target position/orientation is treated as
 	 *                                   a "virtual" object, where the system attempts to move the object
 	 *                                   to match the pose of this "virtual" object that has been placed at
@@ -562,7 +564,7 @@ public:
 	 * @param AngularVelocityDeltaTime  If non-zero, the target angular velocity will be calculated using the current 
 	 *                                  target position. If zero, the target velocity will be set to zero.
 	 * 
-	 * @param bEnableControl Enables/disables the control
+	 * @param bEnableControl Enables the control if it is currently disabled
 	 *
 	 * @param bApplyControlPointToTarget If true, then the target position/orientation is treated as
 	 *                                   a "virtual" object, where the system attempts to move the object
@@ -600,8 +602,8 @@ public:
 	 * @param VelocityDeltaTime If non-zero, the target velocity will be calculated using the current target
 	 *                          position. If zero, the target velocity will be set to zero.    
 	 *
-	 * @param bEnableControl Enables/disables the control
-	 * 
+	 * @param bEnableControl    Enables the control if it is currently disabled
+	 *
 	 * @return                  Returns true if the control was found and modified, false if not
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)

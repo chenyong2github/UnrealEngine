@@ -148,7 +148,7 @@ void UPhysicsControlComponent::TickComponent(
 			Implementation->ApplyKinematicTarget(BodyModifier);
 			break;
 		case EPhysicsMovementType::Simulated:
-			BodyInstance->SetInstanceSimulatePhysics(true);
+			BodyInstance->SetInstanceSimulatePhysics(true, false, true);
 			break;
 		default:
 			UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Invalid movement type %d"), BodyModifier.MovementType);
@@ -762,7 +762,10 @@ bool UPhysicsControlComponent::SetControlData(
 	if (Record)
 	{
 		Record->PhysicsControl.ControlData = ControlData;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -792,7 +795,10 @@ bool UPhysicsControlComponent::SetControlMultipliers(
 	if (Record)
 	{
 		Record->PhysicsControl.ControlMultipliers = ControlMultipliers;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -822,7 +828,10 @@ bool UPhysicsControlComponent::SetControlLinearData(
 		Record->PhysicsControl.ControlData.LinearDampingRatio = DampingRatio;
 		Record->PhysicsControl.ControlData.LinearExtraDamping = ExtraDamping;
 		Record->PhysicsControl.ControlData.MaxForce = MaxForce;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -839,7 +848,10 @@ bool UPhysicsControlComponent::SetControlAngularData(
 		Record->PhysicsControl.ControlData.AngularDampingRatio = DampingRatio;
 		Record->PhysicsControl.ControlData.AngularExtraDamping = ExtraDamping;
 		Record->PhysicsControl.ControlData.MaxTorque = MaxTorque;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -880,7 +892,10 @@ bool UPhysicsControlComponent::SetControlTarget(
 	if (Record)
 	{
 		Record->PhysicsControl.ControlTarget = ControlTarget;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -899,17 +914,17 @@ void UPhysicsControlComponent::SetAllControlTargets(
 }
 
 //======================================================================================================================
-bool UPhysicsControlComponent::SetControlTargetTransform(
-	const FName Name, const FTransform Transform, float VelocityDeltaTime, 
+bool UPhysicsControlComponent::SetControlTargetPositionAndOrientation(
+	const FName Name, const FVector Position, const FRotator Orientation, float VelocityDeltaTime, 
 	bool bEnableControl, bool bApplyControlPointToTarget)
 {
 	FPhysicsControlRecord* Record = Implementation->FindControlRecord(Name);
 	if (Record)
 	{
 		SetControlTargetPosition(
-			Name, Transform.GetTranslation(), VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
+			Name, Position, VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
 		SetControlTargetOrientation(
-			Name, Transform.GetRotation().Rotator(), VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
+			Name, Orientation, VelocityDeltaTime, bEnableControl, bApplyControlPointToTarget);
 	}
 	return false;
 
@@ -934,7 +949,10 @@ bool UPhysicsControlComponent::SetControlTargetPosition(
 		}
 		Record->PhysicsControl.ControlTarget.TargetPosition = Position;
 		Record->PhysicsControl.ControlTarget.bApplyControlPointToTarget = bApplyControlPointToTarget;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -964,7 +982,10 @@ bool UPhysicsControlComponent::SetControlTargetOrientation(
 		}
 		Record->PhysicsControl.ControlTarget.TargetOrientation = Orientation;
 		Record->PhysicsControl.ControlTarget.bApplyControlPointToTarget = bApplyControlPointToTarget;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
@@ -1007,7 +1028,10 @@ bool UPhysicsControlComponent::SetControlTargetPoses(
 		Record->PhysicsControl.ControlTarget.TargetOrientation = OrientationQ.Rotator();
 		Record->PhysicsControl.ControlTarget.TargetPosition = Position;
 		Record->PhysicsControl.ControlTarget.bApplyControlPointToTarget = true;
-		Record->PhysicsControlState.bEnabled = bEnableControl;
+		if (bEnableControl)
+		{
+			Record->PhysicsControlState.bEnabled = true;
+		}
 		return true;
 	}
 	return false;
