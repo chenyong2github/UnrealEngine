@@ -35,4 +35,10 @@ public:
 		ToolTip = "Whether to enable OCIO V1's legacy gpu processor.",
 		ConfigRestartRequired = true))
 	uint8 bUseLegacyProcessor : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Transform, meta = (
+		DisplayName = "32-bit float LUTs",
+		ToolTip = "Whether to create lookup table texture resources in 32-bit float format (higher performance requirements).",
+		ConfigRestartRequired = true))
+	uint8 bUse32fLUT : 1;
 };

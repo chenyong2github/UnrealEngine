@@ -4,6 +4,7 @@
 
 UOpenColorIOSettings::UOpenColorIOSettings()
 	: bUseLegacyProcessor(false)
+	, bUse32fLUT(false)
 {
 
 }
