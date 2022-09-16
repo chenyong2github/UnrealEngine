@@ -808,15 +808,15 @@ namespace UnrealBuildTool
 						bool bPreview = Catalog != null && Catalog.IsPrerelease();
 
 						string ProductId = Instance.GetProduct().GetId();
-						bool bExpress = ProductId.Equals("Microsoft.VisualStudio.Product.WDExpress", StringComparison.Ordinal);
+						bool bCommunity = ProductId.Equals("Microsoft.VisualStudio.Product.Community", StringComparison.Ordinal);
 
 						DirectoryReference BaseDir = new DirectoryReference(Instance.GetInstallationPath());
-						Installations.Add(new VisualStudioInstallation(Compiler, Version, BaseDir, bExpress, bPreview));
+						Installations.Add(new VisualStudioInstallation(Compiler, Version, BaseDir, bCommunity, bPreview));
 
 						Logger.LogDebug("Found Visual Studio installation: {BaseDir} (Product={ProductId}, Version={Version})", BaseDir, ProductId, Version);
 					}
 
-					Installations = Installations.OrderBy(x => x.bExpress).ThenBy(x => x.bPreview).ThenByDescending(x => x.Version).ToList();
+					Installations = Installations.OrderBy(x => x.bCommunity).ThenBy(x => x.bPreview).ThenByDescending(x => x.Version).ToList();
 				}
 				catch (Exception Ex)
 				{

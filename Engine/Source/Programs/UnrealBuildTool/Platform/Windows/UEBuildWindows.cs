@@ -754,9 +754,9 @@ namespace UnrealBuildTool
 		public DirectoryReference BaseDir { get; }
 
 		/// <summary>
-		/// Whether it's an express edition of Visual Studio. These versions do not contain a 64-bit compiler.
+		/// Whether it's a community edition of Visual Studio.
 		/// </summary>
-		public bool bExpress { get; }
+		public bool bCommunity { get; }
 
 		/// <summary>
 		/// Whether it's a pre-release version of the IDE.
@@ -766,12 +766,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public VisualStudioInstallation(WindowsCompiler Compiler, VersionNumber Version, DirectoryReference BaseDir, bool bExpress, bool bPreview)
+		public VisualStudioInstallation(WindowsCompiler Compiler, VersionNumber Version, DirectoryReference BaseDir, bool bCommunity, bool bPreview)
 		{
 			this.Compiler = Compiler;
 			this.Version = Version;
 			this.BaseDir = BaseDir;
-			this.bExpress = bExpress;
+			this.bCommunity = bCommunity;
 			this.bPreview = bPreview;
 		}
 	}
