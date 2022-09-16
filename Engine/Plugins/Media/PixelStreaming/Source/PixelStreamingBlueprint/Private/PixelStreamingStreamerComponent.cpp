@@ -84,14 +84,29 @@ void UPixelStreamingStreamerComponent::OnPostEngineInit()
 void UPixelStreamingStreamerComponent::CreateStreamer()
 {
 	Streamer = IPixelStreamingModule::Get().CreateStreamer(StreamerId);
-	Streamer->OnStreamingStarted().AddLambda([&](IPixelStreamingStreamer*) { OnStreamingStarted.Broadcast(); });
-	Streamer->OnStreamingStopped().AddLambda([&](IPixelStreamingStreamer*) { OnStreamingStopped.Broadcast(); });
-	Streamer->OnInputReceived.AddLambda([&](FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data) { OnInputReceived.Broadcast(PlayerId, Type, Data); });
+	Streamer->OnStreamingStarted().AddUObject(this, &UPixelStreamingStreamerComponent::StreamingStarted);
+	Streamer->OnStreamingStopped().AddUObject(this, &UPixelStreamingStreamerComponent::StreamingStopped);
+	Streamer->OnInputReceived.AddUObject(this, &UPixelStreamingStreamerComponent::StreamingInput);
 
 	if (bEngineStarted)
 	{
 		SetupStreamerInput();
 	}
+}
+
+void UPixelStreamingStreamerComponent::StreamingStarted(IPixelStreamingStreamer*)
+{
+	OnStreamingStarted.Broadcast();
+}
+
+void UPixelStreamingStreamerComponent::StreamingStopped(IPixelStreamingStreamer*)
+{
+	OnStreamingStopped.Broadcast();
+}
+
+void UPixelStreamingStreamerComponent::StreamingInput(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data)
+{
+	OnInputReceived.Broadcast(PlayerId, Type, Data);
 }
 
 void UPixelStreamingStreamerComponent::SetupStreamerInput()

@@ -72,4 +72,8 @@ private:
 	void OnPostEngineInit();
 	void CreateStreamer();
 	void SetupStreamerInput();
+
+	void StreamingStarted(IPixelStreamingStreamer*);
+	void StreamingStopped(IPixelStreamingStreamer*);
+	void StreamingInput(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
 };
