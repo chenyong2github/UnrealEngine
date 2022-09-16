@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -828,6 +828,14 @@ namespace UnrealBuildTool
 					// Copy it into place
 					AppendMacLine(FinalizeAppBundleScript, FormatCopyCommand(TempInfoPlist, String.Format("{0}.app/Contents/Info.plist", ExeName)));
 					AppendMacLine(FinalizeAppBundleScript, "chmod 644 \"{0}.app/Contents/Info.plist\"", ExeName);
+
+					// Also copy it to where Xcode will look for it, now that Xcode 14 requireswe have one set up - it can't point into the .app because that
+					// is where it will copy to, so it will error with reading and writing to the same location
+					string IntermediateDirectory = (ProjectFile == null ? Unreal.EngineDirectory : ProjectFile.Directory) + "/Intermediate/Mac";
+					string XcodeInputPListFile = IntermediateDirectory + "/" + ExeName + "-Info.plist";
+					AppendMacLine(FinalizeAppBundleScript, FormatCopyCommand(TempInfoPlist, XcodeInputPListFile));
+					AppendMacLine(FinalizeAppBundleScript, "chmod 644 \"{0}\"", XcodeInputPListFile);
+
 
 					// Generate PkgInfo file
 					string TempPkgInfo = "$TMPDIR/TempPkgInfo";
