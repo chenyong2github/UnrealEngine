@@ -53,6 +53,19 @@ TSharedPtr<IDNAReader> ReadDNAFromBuffer(TArray<uint8>* DNABuffer, EDNADataLayer
 	return ReadDNAStream(MoveTemp(DNAStreamReader));
 }
 
+TArray<uint8> ReadStreamFromDNA(const IDNAReader* Reader, EDNADataLayer Layer)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+	TArray<char> DNABuffer;
+	auto DeltaDnaStream = rl4::makeScoped<trio::MemoryStream>();
+	auto DNAStreamWriter = rl4::makeScoped<dna::StreamWriter>(DeltaDnaStream.get(), FMemoryResource::Instance());
+	DNAStreamWriter->setFrom(Reader->Unwrap(), static_cast<dna::DataLayer>(Layer), FMemoryResource::Instance());
+	DNAStreamWriter->write();
+	DNABuffer.AddZeroed(DeltaDnaStream->size());
+	DeltaDnaStream->read(DNABuffer.GetData(), DeltaDnaStream->size());
+	return TArray<uint8>(DNABuffer);
+}
+
 void WriteDNAToFile(const IDNAReader* Reader, EDNADataLayer Layer, const FString& Path)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
