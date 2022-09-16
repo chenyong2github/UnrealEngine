@@ -68,6 +68,7 @@ void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, boo
 	bVisibleInRayTracing = Template->bVisibleInRayTracing;
 	bConsiderForActorPlacementWhenHidden = Template->bConsiderForActorPlacementWhenHidden;
 	bEvaluateWorldPositionOffset = Template->bEvaluateWorldPositionOffset;
+	bIsLocalToWorldDeterminantNegative = Template->GetRenderMatrix().Determinant() < 0;
 
 	if (const UInstancedStaticMeshComponent* ISMTemplate = Cast<UInstancedStaticMeshComponent>(Template))
 	{
@@ -133,6 +134,7 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	bVisibleInRayTracing == Other.bVisibleInRayTracing &&
 	bConsiderForActorPlacementWhenHidden == Other.bConsiderForActorPlacementWhenHidden &&
 	bEvaluateWorldPositionOffset == Other.bEvaluateWorldPositionOffset &&
+	bIsLocalToWorldDeterminantNegative == Other.bIsLocalToWorldDeterminantNegative &&
 	BodyInstance.GetCollisionEnabled() == Other.BodyInstance.GetCollisionEnabled() && 
 	BodyInstance.GetCollisionResponse() == Other.BodyInstance.GetCollisionResponse() &&
 	BodyInstance.DoesUseCollisionProfile() == Other.BodyInstance.DoesUseCollisionProfile() &&
@@ -211,6 +213,7 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 	ISMComponent->bVisibleInRayTracing = bVisibleInRayTracing;
 	ISMComponent->bConsiderForActorPlacementWhenHidden = bConsiderForActorPlacementWhenHidden;
 	ISMComponent->bEvaluateWorldPositionOffset = bEvaluateWorldPositionOffset;
+	ISMComponent->bReverseCulling = bIsLocalToWorldDeterminantNegative;
 
 	// HISM Specific
 	if (UHierarchicalInstancedStaticMeshComponent* HISMComponent = Cast<UHierarchicalInstancedStaticMeshComponent>(ISMComponent))
