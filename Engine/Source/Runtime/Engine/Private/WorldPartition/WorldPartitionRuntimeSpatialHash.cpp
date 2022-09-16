@@ -1439,20 +1439,23 @@ void UWorldPartitionRuntimeSpatialHash::ForEachStreamingGrid(TFunctionRef<void(F
 	}
 }
 
-void UWorldPartitionRuntimeSpatialHash::ForEachStreamingGrid(TFunctionRef<void(const FSpatialHashStreamingGrid&)> Func) const
+void UWorldPartitionRuntimeSpatialHash::ForEachStreamingGrid(TFunctionRef<void(const FSpatialHashStreamingGrid&)> Func, bool bIncludeExternalStreamingObjects) const
 {
 	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
 		Func(StreamingGrid);
 	}
 
-	for (const TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>& StreamingObject : ExternalStreamingObjects)
+	if (bIncludeExternalStreamingObjects)
 	{
-		if (StreamingObject.IsValid())
+		for (const TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>& StreamingObject : ExternalStreamingObjects)
 		{
-			for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingObject->StreamingGrids)
+			if (StreamingObject.IsValid())
 			{
-				Func(StreamingGrid);
+				for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingObject->StreamingGrids)
+				{
+					Func(StreamingGrid);
+				}
 			}
 		}
 	}
@@ -1646,7 +1649,7 @@ TArray<const FSpatialHashStreamingGrid*> UWorldPartitionRuntimeSpatialHash::GetF
 				FilteredStreamingGrids.Add(&StreamingGrid);
 			}
 		}
-	});
+	}, !FWorldPartitionDebugHelper::GetDebugFilterOutContentBundles());
 
 	return FilteredStreamingGrids;
 }

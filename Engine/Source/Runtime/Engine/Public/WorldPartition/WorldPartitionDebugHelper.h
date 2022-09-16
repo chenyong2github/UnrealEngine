@@ -24,6 +24,7 @@ public:
 	static void DrawLegendItem(UCanvas* Canvas, const FString& Text, const UFont* Font, const FColor& Color, const FColor& TextColor, FVector2D& Pos, float* MaxItemWidth = nullptr);
 	static FLinearColor GetHeatMapColor(float Value);
 	FORCEINLINE static bool IsRuntimeSpatialHashCellStreamingPriorityShown() { return bShowRuntimeSpatialHashCellStreamingPriority; }
+	FORCEINLINE static bool GetDebugFilterOutContentBundles() { return bDebugFilterOutContentBundles; }
 
 private:
 	static FAutoConsoleCommand DebugFilterByStreamingStatusCommand;
@@ -40,4 +41,7 @@ private:
 
 	static FAutoConsoleVariableRef ShowRuntimeSpatialHashCellStreamingPriorityCommand;
 	static bool bShowRuntimeSpatialHashCellStreamingPriority;
+
+	static FAutoConsoleVariableRef DebugFilterOutContentBundlesCommand;
+	static bool bDebugFilterOutContentBundles;
 };

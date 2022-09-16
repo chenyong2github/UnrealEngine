@@ -12,6 +12,12 @@
 #include "Algo/AnyOf.h"
 #include "Algo/AllOf.h"
 
+bool FWorldPartitionDebugHelper::bDebugFilterOutContentBundles = true;
+FAutoConsoleVariableRef FWorldPartitionDebugHelper::DebugFilterOutContentBundlesCommand(
+	TEXT("wp.Runtime.DebugFilterOutContentBundles"),
+	FWorldPartitionDebugHelper::bDebugFilterOutContentBundles,
+	TEXT("Filter content bundle from world partition debug display."));
+
 TSet<FName> FWorldPartitionDebugHelper::DebugRuntimeHashFilter;
 FAutoConsoleCommand FWorldPartitionDebugHelper::DebugFilterByRuntimeHashGridNameCommand(
 	TEXT("wp.Runtime.DebugFilterByRuntimeHashGridName"),
