@@ -892,6 +892,30 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 	
 	TSharedRef<IDetailsView> DetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
 
+	// manage properties visibility
+	const bool bIsLookAtConstraint = Constraint->GetClass() == UTickableLookAtConstraint::StaticClass();
+	FIsPropertyVisible PropertyVisibility = FIsPropertyVisible::CreateLambda(
+		[bIsLookAtConstraint](const FPropertyAndParent& InPropertyAndParent)
+		{
+			if (!bIsLookAtConstraint)
+			{
+				return true;
+			}
+
+			// hide offset properties for look at constraints
+			static const FName MaintainOffsetPropName = GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bMaintainOffset);
+			static const FName DynamicOffsetPropName = GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bDynamicOffset);
+						
+			const FName PropertyName = InPropertyAndParent.Property.GetFName();
+			if (PropertyName == MaintainOffsetPropName || PropertyName == DynamicOffsetPropName)
+			{
+				return false;
+			}
+
+			return true;
+		});
+	DetailsView->SetIsPropertyVisibleDelegate(PropertyVisibility);
+	
 	TArray<TWeakObjectPtr<UObject>> ConstrainsToEdit;
 	ConstrainsToEdit.Add(Constraint);
 	
@@ -957,32 +981,35 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 		{
 			return TransformConstraint->bDynamicOffset;
 		});
-	
-		MenuBuilder.BeginSection("KeyConstraint", LOCTEXT("KeyConstraintHeader", "Keys"));
-		{
-			MenuBuilder.AddMenuEntry(
-			LOCTEXT("CompensateKeyLabel", "Compensate Key"),
-			FText::Format(LOCTEXT("CompensateKeyTooltip", "Compensate transform key for {0}."), ConstraintLabel),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
-			{
-				FConstraintChannelHelper::Compensate(TransformConstraint);
-			}), IsCompensationEnabled),
-			NAME_None,
-			EUserInterfaceActionType::Button);
 
-			MenuBuilder.AddMenuEntry(
-			LOCTEXT("CompensateAllKeysLabel", "Compensate All Keys"),
-			FText::Format(LOCTEXT("CompensateAllKeysTooltip", "Compensate all transform keys for {0}."), ConstraintLabel),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
+		if (!bIsLookAtConstraint)
+		{
+			MenuBuilder.BeginSection("KeyConstraint", LOCTEXT("KeyConstraintHeader", "Keys"));
 			{
-				FConstraintChannelHelper::Compensate(TransformConstraint, true);
-			}), IsCompensationEnabled),
-			NAME_None,
-			EUserInterfaceActionType::Button);
+				MenuBuilder.AddMenuEntry(
+				LOCTEXT("CompensateKeyLabel", "Compensate Key"),
+				FText::Format(LOCTEXT("CompensateKeyTooltip", "Compensate transform key for {0}."), ConstraintLabel),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
+				{
+					FConstraintChannelHelper::Compensate(TransformConstraint);
+				}), IsCompensationEnabled),
+				NAME_None,
+				EUserInterfaceActionType::Button);
+
+				MenuBuilder.AddMenuEntry(
+				LOCTEXT("CompensateAllKeysLabel", "Compensate All Keys"),
+				FText::Format(LOCTEXT("CompensateAllKeysTooltip", "Compensate all transform keys for {0}."), ConstraintLabel),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([TransformConstraint]()
+				{
+					FConstraintChannelHelper::Compensate(TransformConstraint, true);
+				}), IsCompensationEnabled),
+				NAME_None,
+				EUserInterfaceActionType::Button);
+			}
+			MenuBuilder.EndSection();
 		}
-		MenuBuilder.EndSection();
 	}
 
 	return MenuBuilder.MakeWidget();

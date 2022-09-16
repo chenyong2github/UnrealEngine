@@ -528,6 +528,33 @@ UTickableScaleConstraint::UTickableScaleConstraint()
 	Type = ETransformConstraintType::Scale;
 }
 
+#if WITH_EDITOR
+
+void UTickableScaleConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bDynamicOffset))
+	{
+		if (bDynamicOffset)
+		{
+			Cache.CachedInputHash = CalculateInputHash();
+			
+			const FVector ParentScale = GetParentGlobalTransform().GetScale3D();
+			OffsetScale = GetChildGlobalTransform().GetScale3D();
+			OffsetScale[0] = FMath::Abs(ParentScale[0]) > KINDA_SMALL_NUMBER ? OffsetScale[0] / ParentScale[0] : 0.f;
+			OffsetScale[1] = FMath::Abs(ParentScale[1]) > KINDA_SMALL_NUMBER ? OffsetScale[1] / ParentScale[1] : 0.f;
+			OffsetScale[2] = FMath::Abs(ParentScale[2]) > KINDA_SMALL_NUMBER ? OffsetScale[2] / ParentScale[2] : 0.f;
+			
+			Evaluate();
+		}
+		return;
+	}
+}
+
+#endif
+
 void UTickableScaleConstraint::ComputeOffset()
 {
 	const FTransform InitParentTransform = GetParentGlobalTransform();
@@ -570,6 +597,65 @@ FConstraintTickFunction::ConstraintFunction UTickableScaleConstraint::GetFunctio
 			
 		SetChildGlobalTransform(Transform);
 	};
+}
+
+void UTickableScaleConstraint::OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent)
+{
+	Super::OnHandleModified(InHandle, InEvent);
+	
+	if (!Active || !bDynamicOffset)
+	{
+		return;
+	}
+	
+	if (!InHandle || InHandle != ChildTRSHandle)
+	{
+		return;
+	}
+
+	const bool bUpdateFromGlobal = (InEvent == EHandleEvent::GlobalTransformUpdated);
+	const bool bUpdateTransform = InEvent == EHandleEvent::LocalTransformUpdated || bUpdateFromGlobal;
+	if (!bUpdateTransform)
+	{
+		return;
+	}
+
+	const uint32 InputHash = CalculateInputHash();
+	
+	// update dynamic offset
+	if (InputHash != Cache.CachedInputHash)
+	{
+		Cache.CachedInputHash = InputHash;
+
+		if (bUpdateFromGlobal)
+		{
+			const FVector ParentScale = GetParentGlobalTransform().GetScale3D();
+			OffsetScale = GetChildGlobalTransform().GetScale3D();
+			OffsetScale[0] = FMath::Abs(ParentScale[0]) > KINDA_SMALL_NUMBER ? OffsetScale[0] / ParentScale[0] : 0.f;
+			OffsetScale[1] = FMath::Abs(ParentScale[1]) > KINDA_SMALL_NUMBER ? OffsetScale[1] / ParentScale[1] : 0.f;
+			OffsetScale[2] = FMath::Abs(ParentScale[2]) > KINDA_SMALL_NUMBER ? OffsetScale[2] / ParentScale[2] : 0.f;
+		}
+		else
+		{
+			const FTransform ChildLocalTransform = GetChildLocalTransform();
+			OffsetScale = ChildLocalTransform.GetScale3D();
+		}
+	}
+}
+
+uint32 UTickableScaleConstraint::CalculateInputHash() const
+{
+	uint32 Hash = 0;
+
+	// local scale hash
+	const FTransform ChildLocalTransform = GetChildLocalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetScale3D() ));
+
+	// global scale hash
+	const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetScale3D() ));
+	
+	return Hash;
 }
 
 /** 
@@ -727,11 +813,16 @@ void UTickableParentConstraint::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 UTickableLookAtConstraint::UTickableLookAtConstraint()
 {
+	bMaintainOffset = false;
+	bDynamicOffset = false;
 	Type = ETransformConstraintType::LookAt;
 }
 
 void UTickableLookAtConstraint::ComputeOffset()
-{}
+{
+	bMaintainOffset = false;
+	bDynamicOffset = false;
+}
 
 FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFunction() const
 {

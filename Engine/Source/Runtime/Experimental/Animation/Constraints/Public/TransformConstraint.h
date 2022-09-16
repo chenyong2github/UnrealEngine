@@ -50,7 +50,7 @@ public:
 	TObjectPtr<UTransformableHandle> ChildTRSHandle;
 
 	/** Should that constraint maintain the default offset.  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="Type!=ETransformConstraintType::LookAt"))
 	bool bMaintainOffset = true;
 
 	/** Defines how much the constraint will be applied. */
@@ -60,7 +60,7 @@ public:
 	float Weight = 1.f;
 
 	/** Should the child be able to change it's offset dynamically. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="(Type!=ETransformConstraintType::LookAt) && bMaintainOffset"))
 	bool bDynamicOffset = false;
 
 	/** Returns the constraint type (Position, Parent, Aim...). */
@@ -232,13 +232,31 @@ public:
 	/** Returns the scale constraint function that the tick function will evaluate. */
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
+	/** Updates the dynamic offset based on external child's transform changes. */
+	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
+	
 protected:
 	/** Computes the child's local scale offset in the parent space. */
 	virtual void ComputeOffset() override;
 
+	/** Cache data structure to store last child local/global transform. */
+	struct FDynamicCache
+	{
+		uint32 CachedInputHash = 0;
+	};
+	mutable FDynamicCache Cache;
+	uint32 CalculateInputHash() const;
+	
 	/** Defines the local child's scale offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetScale = FVector::OneVector;
+
+#if WITH_EDITOR
+public:
+	// UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
+#endif
 };
 
 /** 
