@@ -173,6 +173,8 @@ void FAnimationEditor::InitAnimationEditor(const EToolkitMode::Type Mode, const 
 	RegenerateMenusAndToolbars();
 
 	OpenNewAnimationDocumentTab(AnimationAsset);
+
+	PersonaToolkit->GetPreviewScene()->SetAllowMeshHitProxies(false);
 }
 
 FName FAnimationEditor::GetToolkitFName() const

@@ -1617,7 +1617,7 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 			HHitProxy* HitProxy = InViewport->GetHitProxy(X,Y);
 
 			// Change the mouse cursor if the user is hovering over something they can interact with.
-			if( HitProxy && !bUsingOrbitCamera )
+			if( HitProxy && !IsTracking() )
 			{
 				MouseCursor = HitProxy->GetMouseCursor();
 				bShouldCheckHitProxy = true;

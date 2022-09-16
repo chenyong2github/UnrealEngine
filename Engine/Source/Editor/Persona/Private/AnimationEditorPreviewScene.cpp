@@ -1138,6 +1138,12 @@ bool FAnimationEditorPreviewScene::AllowMeshHitProxies() const
 void FAnimationEditorPreviewScene::SetAllowMeshHitProxies(bool bState)
 {
 	bEnableMeshHitProxies = bState;
+
+	if (GetPreviewMeshComponent())
+	{
+		GetPreviewMeshComponent()->bSelectable = bEnableMeshHitProxies;
+		GetPreviewMeshComponent()->MarkRenderStateDirty();
+	}
 }
 
 void FAnimationEditorPreviewScene::FlagTickable()
