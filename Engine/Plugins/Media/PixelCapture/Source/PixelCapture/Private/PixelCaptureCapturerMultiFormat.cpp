@@ -124,7 +124,7 @@ TSharedPtr<IPixelCaptureOutputFrame> FPixelCaptureCapturerMultiFormat::WaitForFo
 	if (FEvent* Event = GetEventForFormat(Format))
 	{
 		Event->Wait(MaxWaitTime);
-		FreeEvent(Event);
+		FreeEvent(Format, Event);
 		return RequestFormat(Format, LayerIndex);
 	}
 	return nullptr;
@@ -169,8 +169,10 @@ void FPixelCaptureCapturerMultiFormat::CheckFormatEvent(int32 Format)
 	}
 }
 
-void FPixelCaptureCapturerMultiFormat::FreeEvent(FEvent* Event)
+void FPixelCaptureCapturerMultiFormat::FreeEvent(int32 Format, FEvent* Event)
 {
+	FScopeLock Lock(&EventMutex);
+	FormatEvents.Remove(Format);
 	FPlatformProcess::ReturnSynchEventToPool(Event);
 }
 

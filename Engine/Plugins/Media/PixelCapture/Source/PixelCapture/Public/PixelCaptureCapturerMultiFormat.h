@@ -93,7 +93,7 @@ protected:
 	
 	FEvent* GetEventForFormat(int32 Format);
 	void CheckFormatEvent(int32 Format);
-	void FreeEvent(FEvent* Event);
+	void FreeEvent(int32 Format, FEvent* Event);
 	void FlushWaitingEvents();
 
 	IPixelCaptureCapturerSource* CapturerSource;
