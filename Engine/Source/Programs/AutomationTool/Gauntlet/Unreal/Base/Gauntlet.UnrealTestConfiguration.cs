@@ -891,7 +891,7 @@ namespace Gauntlet
 
 			if (Attended == false)
 			{
-				AppConfig.CommandLine += " -unattended";
+				AppConfig.CommandLine += " -unattended -nosplash";
 
 				// if we are unattended but still may need access to Vulkan passing renderoffscreen to allow not depending on
 				// the X11/Wayland display server to be around and use a dummy/offscreen rendering mode
