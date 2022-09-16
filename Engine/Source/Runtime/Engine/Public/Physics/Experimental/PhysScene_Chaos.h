@@ -159,7 +159,7 @@ public:
 
 	/** Given a physics proxy, returns its associated body instance if any */
 	FBodyInstance* GetBodyInstanceFromProxy(const IPhysicsProxyBase* PhysicsProxy) const;
-
+	const FBodyInstance* GetBodyInstanceFromProxyAndShape(IPhysicsProxyBase* InProxy, int32 InShapeIndex) const;
 	/**
 	 * Callback when a world ends, to mark updated packages dirty. This can't be done in final
 	 * sync as the editor will ignore packages being dirtied in PIE. Also used to clean up any other references

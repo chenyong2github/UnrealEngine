@@ -682,6 +682,24 @@ FBodyInstance* FPhysScene_Chaos::GetBodyInstanceFromProxy(const IPhysicsProxyBas
 	return BodyInstance;
 }
 
+const FBodyInstance* FPhysScene_Chaos::GetBodyInstanceFromProxyAndShape(IPhysicsProxyBase* InProxy, int32 InShapeIndex) const
+{
+	const FBodyInstance* ProxyInstance = GetBodyInstanceFromProxy(InProxy);
+
+	if(ProxyInstance && InShapeIndex != INDEX_NONE)
+	{
+		PhysicsInterfaceTypes::FInlineShapeArray ShapeHandles;
+		FPhysicsInterface::GetAllShapes_AssumedLocked(ProxyInstance->GetPhysicsActorHandle(), ShapeHandles);
+
+		if(ShapeHandles.IsValidIndex(InShapeIndex))
+		{
+			ProxyInstance = ProxyInstance->GetOriginalBodyInstance(ShapeHandles[InShapeIndex]);
+		}
+	}
+
+	return ProxyInstance;
+}
+
 FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry)
 {
 	const FUniqueContactPairKey Key = { P0, P1 };
@@ -763,9 +781,9 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 								const FVector& DeltaVelocity2 = bSwapOrder
 									? CollisionDataItem.DeltaVelocity1
 									: CollisionDataItem.DeltaVelocity2;
-
-								NotifyInfo.Info0.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy0), DeltaVelocity1);
-								NotifyInfo.Info1.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy1), DeltaVelocity2);
+									
+								NotifyInfo.Info0.SetFrom(GetBodyInstanceFromProxyAndShape(PhysicsProxy0, CollisionDataItem.ShapeIndex1), DeltaVelocity1);
+								NotifyInfo.Info1.SetFrom(GetBodyInstanceFromProxyAndShape(PhysicsProxy1, CollisionDataItem.ShapeIndex2), DeltaVelocity2);
 
 								FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
 								NewContact.ContactNormal = CollisionDataItem.Normal;

@@ -217,6 +217,8 @@ namespace Chaos
 								const FPerShapeData* Shape0 = Constraint.GetShape0();
 								const FPerShapeData* Shape1 = Constraint.GetShape1();
 
+								Data.ShapeIndex1 = Shape0 ? Shape0->GetShapeIndex() : INDEX_NONE;
+								Data.ShapeIndex2 = Shape1 ? Shape1->GetShapeIndex() : INDEX_NONE;
 								Data.Mat1 = ResolveMaterial(Shape0, Constraint);
 								Data.Mat2 = ResolveMaterial(Shape1, Constraint);
 
