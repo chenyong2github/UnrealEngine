@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Serialization;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -13,7 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EpicGames.Horde.Storage.Bundles
+namespace EpicGames.Horde.Storage
 {
 	/// <summary>
 	/// Bundle version number
