@@ -41,7 +41,7 @@
 #include "Animation/MorphTarget.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "UnrealWidget.h"
-#include "Engine/PoseWatch.h"
+#include "Engine/PoseWatchRenderData.h"
 
 namespace {
 	static const float AnimationEditorViewport_RotateSpeed = 0.02f;
@@ -1582,19 +1582,16 @@ void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshCo
 {
 	if (UAnimBlueprintGeneratedClass* AnimBPGenClass = Cast<UAnimBlueprintGeneratedClass>(MeshComponent->AnimClass))
 	{
-		USkeleton* TargetSkeleton = AnimBPGenClass->GetTargetSkeleton();
-		if (TargetSkeleton)
+		if (UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(AnimBPGenClass->ClassGeneratedBy))
 		{
-			if (UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(AnimBPGenClass->ClassGeneratedBy))
+			if (Blueprint->GetObjectBeingDebugged() && MeshComponent)
 			{
-				if (Blueprint->GetObjectBeingDebugged() && MeshComponent)
+				FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
+				DebugData.ForEachActiveVisiblePoseWatchPoseElement([PDI, MeshComponent](FAnimNodePoseWatch& PoseWatch)
 				{
-					const FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
-					DebugData.ForEachActiveVisiblePoseWatchPoseElement([PDI, MeshComponent](const FAnimNodePoseWatch& PoseWatch)
-					{
-						SkeletalDebugRendering::DrawBonesFromPoseWatch(PDI, PoseWatch, MeshComponent->GetReferenceSkeleton(), /*bUseWorldTransform*/false);
-					});
-				}
+					PoseWatch.CopyPoseWatchData(MeshComponent->GetReferenceSkeleton());
+					SkeletalDebugRendering::DrawBonesFromPoseWatch(PDI, PoseWatch, /*bUseWorldTransform*/false);
+				});
 			}
 		}
 	}

@@ -75,7 +75,8 @@
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
 #include "Engine/RendererSettings.h"
-
+#include "Engine/PoseWatchRenderData.h"
+#include "SkeletalDebugRendering.h"
 #endif // #if WITH_EDITOR
 
 #include "UnrealEngine.h"
@@ -5649,6 +5650,10 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	check(SkeletalMeshRenderData);
 	check(SkeletalMeshForDebug);
 
+#if WITH_EDITOR
+	PoseWatchDynamicData = nullptr;
+#endif
+
 	// Skeletal meshes DO deform internally, unless bRenderStatic is used to force static mesh behaviour.
 	bHasDeformableMesh = !bRenderStatic;
 
@@ -6686,12 +6691,11 @@ void FSkeletalMeshSceneProxy::DebugDrawPoseWatchSkeletons(int32 ViewIndex, FMesh
 {
 	FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
 
-	if (Owner)
+	if (PoseWatchDynamicData)
 	{
-		USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Owner->GetComponentByClass(USkeletalMeshComponent::StaticClass()));
-		if (SkeletalMeshComp)
+		for (const FAnimNodePoseWatch& PoseWatch : PoseWatchDynamicData->PoseWatches)
 		{
-			SkeletalMeshComp->DebugDrawPoseWatches(PDI);
+			SkeletalDebugRendering::DrawBonesFromPoseWatch(PDI, PoseWatch, true);
 		}
 	}
 }

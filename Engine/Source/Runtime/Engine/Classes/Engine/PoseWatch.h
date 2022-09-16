@@ -8,59 +8,10 @@
 #include "BoneIndices.h"
 #include "PoseWatch.generated.h"
 
-
 struct FCompactHeapPose;
 class UAnimBlueprint;
 class UBlendProfile;
 struct FSlateIcon;
-
-struct FAnimNodePoseWatch
-{
-public:
-	// Object (anim instance) that this pose came from
-	TWeakObjectPtr<const UObject>			Object;
-	TWeakObjectPtr<UPoseWatch>				PoseWatch;
-	TWeakObjectPtr<UPoseWatchPoseElement>	PoseWatchPoseElement;
-	int32									NodeID;
-
-	template<class TAllocator>
-	bool SetPose(const TArray<FBoneIndexType>& InRequiredBones, const TArray<FTransform, TAllocator>& InBoneTransforms)
-	{
-		RequiredBones = InRequiredBones;
-		BoneTransforms = InBoneTransforms;
-		return true;
-	}
-
-	void SetWorldTransform(const FTransform& InWorldTransform)
-	{
-		WorldTransform = InWorldTransform;
-	}
-
-	const TArray<FBoneIndexType>& GetRequiredBones() const
-	{
-		return RequiredBones;
-	}
-
-	const TArray<FTransform>& GetBoneTransforms() const
-	{
-		return BoneTransforms;
-	}
-
-	const FTransform& GetWorldTransform() const
-	{
-		return WorldTransform;
-	}
-
-	bool IsValid() const
-	{
-		return Object.IsValid() && PoseWatch.IsValid();
-	}
-
-private:
-	FTransform WorldTransform;
-	TArray<FBoneIndexType> RequiredBones;
-	TArray<FTransform> BoneTransforms;
-};
 
 namespace PoseWatchUtil
 {

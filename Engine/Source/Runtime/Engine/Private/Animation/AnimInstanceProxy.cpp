@@ -28,6 +28,10 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimStateMachineTypes.h"
 #include "Animation/AnimTrace.h"
+#if WITH_EDITOR
+#include "Engine/PoseWatchRenderData.h"
+#include "Engine/PoseWatch.h"
+#endif
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
 #include "Animation/AnimMTStats.h"
@@ -496,11 +500,7 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 		FAnimBlueprintDebugData* DebugData = AnimBP->GetDebugData();
 		if (DebugData)
 		{
-			PoseWatchEntriesForThisFrame = DebugData->AnimNodePoseWatch;
-			for (FAnimNodePoseWatch& PoseWatch : PoseWatchEntriesForThisFrame)
-			{
-				PoseWatch.PoseWatch.Get()->SetIsNodeEnabled(false);
-			}
+			DebugData->DisableAllPoseWatches();
 		}
 	}
 #endif
@@ -576,18 +576,16 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 		DebugData->RecordNodeVisitArray(UpdatedNodesThisFrame);
 		DebugData->RecordNodeAttributeMaps(NodeInputAttributesThisFrame, NodeOutputAttributesThisFrame);
 		DebugData->RecordNodeSyncsArray(NodeSyncsThisFrame);
-		DebugData->AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
 	}
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UAnimBlueprint* AnimBP = GetAnimBlueprint();
 	if (bIsBeingDebugged)
 	{
-		FAnimBlueprintDebugData* DebugData = AnimBP->GetDebugData();
+		FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData();
 		if (DebugData)
 		{
-			for (const FAnimNodePoseWatch& PoseWatch : PoseWatchEntriesForThisFrame)
+			for (const FAnimNodePoseWatch& PoseWatch : DebugData->AnimNodePoseWatch)
 			{
 				if (!PoseWatch.PoseWatchPoseElement->GetIsEnabled())
 				{
@@ -3181,22 +3179,26 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCompactPose& Pose, int32 Lin
 {
 	if (bIsBeingDebugged)
 	{
-		if (USkeletalMeshComponent* SkelMeshComponent = GetSkelMeshComponent())
+		FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData();
+		if (DebugData)
 		{
-			for (FAnimNodePoseWatch& PoseWatch : PoseWatchEntriesForThisFrame)
+			if (USkeletalMeshComponent* SkelMeshComponent = GetSkelMeshComponent())
 			{
-				if (PoseWatch.PoseWatch.IsValid() && PoseWatch.NodeID == LinkID)
+				for (FAnimNodePoseWatch& PoseWatch : DebugData->AnimNodePoseWatch)
 				{
-					PoseWatch.Object = GetAnimInstanceObject();
-					PoseWatch.PoseWatch->SetIsNodeEnabled(true);
+					if (PoseWatch.PoseWatch && PoseWatch.NodeID == LinkID)
+					{
+						PoseWatch.Object = GetAnimInstanceObject();
+						PoseWatch.PoseWatch->SetIsNodeEnabled(true);
 
-					const TArray<FTransform, FAnimStackAllocator>& BoneTransforms = Pose.GetBones();
-					const TArray<FBoneIndexType>& TmpRequiredBones = Pose.GetBoneContainer().GetBoneIndicesArray();
-					PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
-					PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
+						const TArray<FTransform, FAnimStackAllocator>& BoneTransforms = Pose.GetBones();
+						const TArray<FBoneIndexType>& TmpRequiredBones = Pose.GetBoneContainer().GetBoneIndicesArray();
+						PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
+						PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
 
-					TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), true);
-					break;
+						TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), true);
+						break;
+					}
 				}
 			}
 		}
@@ -3207,24 +3209,28 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, 
 {
 	if (bIsBeingDebugged)
 	{
-		if (USkeletalMeshComponent* SkelMeshComponent = GetSkelMeshComponent())
+		FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData();
+		if (DebugData)
 		{
-			for (FAnimNodePoseWatch& PoseWatch : PoseWatchEntriesForThisFrame)
+			if (USkeletalMeshComponent* SkelMeshComponent = GetSkelMeshComponent())
 			{
-				if (PoseWatch.PoseWatch.IsValid() && PoseWatch.NodeID == LinkID)
+				for (FAnimNodePoseWatch& PoseWatch : DebugData->AnimNodePoseWatch)
 				{
-					FCompactPose TempPose;
-					FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(Pose, TempPose);
-					PoseWatch.Object = GetAnimInstanceObject();
-					PoseWatch.PoseWatch->SetIsNodeEnabled(true);
+					if (PoseWatch.PoseWatch && PoseWatch.NodeID == LinkID)
+					{
+						FCompactPose TempPose;
+						FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(Pose, TempPose);
+						PoseWatch.Object = GetAnimInstanceObject();
+						PoseWatch.PoseWatch->SetIsNodeEnabled(true);
 
-					const TArray<FTransform, FAnimStackAllocator>& BoneTransforms = TempPose.GetBones();
-					const TArray<FBoneIndexType>& TmpRequiredBones = TempPose.GetBoneContainer().GetBoneIndicesArray();
-					PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
-					PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
+						const TArray<FTransform, FAnimStackAllocator>& BoneTransforms = TempPose.GetBones();
+						const TArray<FBoneIndexType>& TmpRequiredBones = TempPose.GetBoneContainer().GetBoneIndicesArray();
+						PoseWatch.SetPose(TmpRequiredBones, BoneTransforms);
+						PoseWatch.SetWorldTransform(SkelMeshComponent->GetComponentTransform());
 
-					TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), true);
-					break;
+						TRACE_ANIM_POSE_WATCH(*this, PoseWatch.NodeID, PoseWatch.GetBoneTransforms(), PoseWatch.GetRequiredBones(), PoseWatch.GetWorldTransform(), true);
+						break;
+					}
 				}
 			}
 		}

@@ -979,9 +979,6 @@ private:
 
 	/** Map of node syncs this frame - maps from player node index to graph-determined group name */
 	TMap<int32, FName> NodeSyncsThisFrame;
-
-	/** Array of nodes to watch this frame */
-	TArray<FAnimNodePoseWatch> PoseWatchEntriesForThisFrame;
 #endif
 
 #if ENABLE_ANIM_LOGGING

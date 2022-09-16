@@ -26,6 +26,9 @@
 #include "ClothCollisionPrim.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Animation/AttributesRuntime.h"
+#if WITH_ENGINE
+#include "Engine/PoseWatchRenderData.h"
+#endif
 
 #include "SkeletalMeshComponent.generated.h"
 
@@ -1613,7 +1616,8 @@ public:
 	void DebugDrawClothingTexts(FCanvas* Canvas, const FSceneView* SceneView);
 
 #if WITH_EDITOR
-	void DebugDrawPoseWatches(FPrimitiveDrawInterface* PDI);
+	void UpdatePoseWatches();
+	TArray<FAnimNodePoseWatch> PoseWatches;
 #endif
 
 	/** Changes the value of bNotifyRigidBodyCollision
@@ -1686,6 +1690,7 @@ protected:
 	virtual bool ShouldCreatePhysicsState() const override;
 	virtual void OnCreatePhysicsState() override;
 	virtual void OnDestroyPhysicsState() override;
+	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void RegisterComponentTickFunctions(bool bRegister) override;
 public:
 	virtual void InitializeComponent() override;
@@ -2613,6 +2618,17 @@ public:
 	// Are we currently within PostAnimEvaluation
 	bool IsPostEvaluatingAnimation() const { return bPostEvaluatingAnimation; }
 };
+
+#if WITH_EDITOR
+struct FPoseWatchDynamicData
+{
+public:
+
+	FPoseWatchDynamicData(USkeletalMeshComponent* InComponent);
+
+	TArray<FAnimNodePoseWatch> PoseWatches;
+};
+#endif
 
 struct FLinkedInstancesAdapter
 {

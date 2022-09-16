@@ -4,8 +4,8 @@
 #include "DrawDebugHelpers.h"
 #include "SceneManagement.h"
 #include "Engine/PoseWatch.h"
+#include "Engine/PoseWatchRenderData.h"
 #include "BonePose.h"
-#include "Animation/BlendProfile.h"
 #include "HitProxies.h"
 
 
@@ -170,20 +170,13 @@ void DrawRootCone(
 #endif
 }
 
+#if WITH_EDITOR
 void DrawBonesFromPoseWatch(
 	FPrimitiveDrawInterface* PDI,
 	const FAnimNodePoseWatch& PoseWatch,
-	const FReferenceSkeleton& RefSkeleton,
 	const bool bUseWorldTransform
 )
 {
-#if WITH_EDITOR
-	if (!PoseWatch.PoseWatchPoseElement.IsValid())
-	{
-		return;
-	}
-	const FLinearColor BoneColor = FLinearColor(PoseWatch.PoseWatchPoseElement->GetColor());
-
 	const TArray<FTransform>& InBoneTransforms = PoseWatch.GetBoneTransforms();
 	const TArray<FBoneIndexType>& InRequiredBones = PoseWatch.GetRequiredBones();
 	if (InRequiredBones.Num() == 0 || InBoneTransforms.Num() < InRequiredBones.Num())
@@ -191,26 +184,26 @@ void DrawBonesFromPoseWatch(
 		return;
 	}
 
-	const UBlendProfile* ViewportMask = PoseWatch.PoseWatchPoseElement->ViewportMask;
 	const FTransform WorldTransform = bUseWorldTransform ? PoseWatch.GetWorldTransform() : FTransform::Identity;
-	const FVector RelativeOffset = WorldTransform.GetRotation().RotateVector(PoseWatch.PoseWatchPoseElement->ViewportOffset);
+	const FVector RelativeOffset = WorldTransform.GetRotation().RotateVector(PoseWatch.GetViewportOffset());
 
 	TArray<FTransform> UseWorldTransforms;
-	UseWorldTransforms.AddDefaulted(RefSkeleton.GetNum());
+	UseWorldTransforms.AddDefaulted(InRequiredBones.Num());
 	
 	TArray<FBoneIndexType> UseRequiredBones;
 	UseRequiredBones.Reserve(InRequiredBones.Num());
+
+	TArray<int32> ViewportMaskAllowList = PoseWatch.GetViewportAllowList();
+	TArray<int32> ParentIndices = PoseWatch.GetParentIndices();
 	
 	for (int32 Index = 0; Index < InRequiredBones.Num(); ++Index)
 	{
 		const FBoneIndexType& BoneIndex = InRequiredBones[Index];
-		if (!RefSkeleton.IsValidIndex(BoneIndex))
-		{
-			continue;
-		}
 
-		const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
-		if (!RefSkeleton.IsValidIndex(ParentIndex))
+		check(ParentIndices.IsValidIndex(BoneIndex));
+		const int32 ParentIndex = ParentIndices[BoneIndex];
+
+		if (ParentIndex == INDEX_NONE)
 		{
 			UseWorldTransforms[BoneIndex] = InBoneTransforms[Index] * WorldTransform;
 			UseWorldTransforms[BoneIndex].AddToTranslation(RelativeOffset);
@@ -220,19 +213,15 @@ void DrawBonesFromPoseWatch(
 			UseWorldTransforms[BoneIndex] = InBoneTransforms[Index] * UseWorldTransforms[ParentIndex];
 		}
 
-		if (ViewportMask)
+		if (!ViewportMaskAllowList.Contains(BoneIndex))
 		{
-			const FName& BoneName = RefSkeleton.GetBoneName(BoneIndex);
-			const bool bBoneBlendScaleMeetsThreshold = ViewportMask->GetBoneBlendScale(BoneName) > PoseWatch.PoseWatchPoseElement->BlendScaleThreshold;
-			const bool bBoneRequired = (!PoseWatch.PoseWatchPoseElement->bInvertViewportMask && bBoneBlendScaleMeetsThreshold) || (PoseWatch.PoseWatchPoseElement->bInvertViewportMask && !bBoneBlendScaleMeetsThreshold);
-			if (!bBoneRequired)
-			{
-				continue;
-			}
+			continue;
 		}
 
 		UseRequiredBones.Add(BoneIndex);
 	}
+
+	const FLinearColor BoneColor = PoseWatch.GetBoneColor();
 
 	FSkelDebugDrawConfig DrawConfig;
 	DrawConfig.BoneDrawMode = EBoneDrawMode::All;
@@ -244,19 +233,18 @@ void DrawBonesFromPoseWatch(
 	DrawConfig.SelectedBoneColor = BoneColor;
 	DrawConfig.ParentOfSelectedBoneColor = BoneColor;
 
-	SkeletalDebugRendering::DrawBones(
+	SkeletalDebugRendering::DrawBonesInternal(
 		PDI,
 		WorldTransform.GetLocation() + RelativeOffset,
 		UseRequiredBones,
-		RefSkeleton,
+		ParentIndices,
 		UseWorldTransforms,
 		/*SelectedBones*/TArray<int32>(),
 		/*BoneColors*/TArray<FLinearColor>(),
 		/*HitProxies*/TArray<TRefCountPtr<HHitProxy>>(),
-		DrawConfig
-	);
-#endif
+		DrawConfig);
 }
+#endif
 
 void DrawBones(
 	FPrimitiveDrawInterface* PDI,
@@ -269,8 +257,49 @@ void DrawBones(
 	const TArray<TRefCountPtr<HHitProxy>>& HitProxies,
 	const FSkelDebugDrawConfig& DrawConfig)
 {
+	TArray<int32> ParentIndices;
+	ParentIndices.AddUninitialized(RefSkeleton.GetNum());
+
+	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+	{
+		ParentIndices[BoneIndex] = RefSkeleton.GetParentIndex(BoneIndex);
+	}
+
+	SkeletalDebugRendering::DrawBonesInternal(
+		PDI,
+		ComponentOrigin,
+		RequiredBones,
+		ParentIndices,
+		WorldTransforms,
+		InSelectedBones,
+		BoneColors,
+		HitProxies,
+		DrawConfig);
+}
+
+void DrawBonesInternal(
+	FPrimitiveDrawInterface* PDI,
+	const FVector& ComponentOrigin,
+	const TArray<FBoneIndexType>& RequiredBones,
+	const TArray<int32>& ParentIndices,
+	const TArray<FTransform>& WorldTransforms,
+	const TArray<int32>& InSelectedBones,
+	const TArray<FLinearColor>& BoneColors,
+	const TArray<TRefCountPtr<HHitProxy>>& HitProxies,
+	const FSkelDebugDrawConfig& DrawConfig)
+{
+	const auto GetParentIndex = [ParentIndices](const int32 InBoneIndex) -> int32
+	{
+		if (ParentIndices.IsValidIndex(InBoneIndex))
+		{
+			return ParentIndices[InBoneIndex];
+		}
+		return INDEX_NONE;
+	};
+
 	// first determine which bones to draw, and which to filter out
-	TBitArray<> BonesToDraw(false, RefSkeleton.GetNum());
+	const int32 NumBones = ParentIndices.Num();
+	TBitArray<> BonesToDraw(false, NumBones);
 	const bool bDrawSelected = DrawConfig.BoneDrawMode == EBoneDrawMode::Selected;
 	const bool bDrawSelectedAndParents = DrawConfig.BoneDrawMode == EBoneDrawMode::SelectedAndParents;
 	const bool bDrawSelectedAndChildren = DrawConfig.BoneDrawMode == EBoneDrawMode::SelectedAndChildren;
@@ -291,9 +320,9 @@ void DrawBones(
 	// add children of selected
 	if (bDrawSelectedAndChildren || bDrawSelectedAndParentsAndChildren)
 	{
-		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 		{
-			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
+			const int32 ParentIndex = GetParentIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE && BonesToDraw[ParentIndex])
 			{
 				BonesToDraw[BoneIndex] = true;
@@ -308,7 +337,7 @@ void DrawBones(
 		{
 			if (BoneIndex != INDEX_NONE)
 			{
-				for (int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = RefSkeleton.GetParentIndex(ParentIndex))
+				for (int32 ParentIndex = GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = GetParentIndex(ParentIndex))
 				{
 					BonesToDraw[ParentIndex] = true;
 				}
@@ -317,10 +346,10 @@ void DrawBones(
 	}
 
 	// determine which bones are "affected" (these are ALL children of selected bones)
-	TBitArray<> AffectedBones(false, RefSkeleton.GetNum());
-	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+	TBitArray<> AffectedBones(false, NumBones);
+	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 	{
-		for (int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = RefSkeleton.GetParentIndex(ParentIndex))
+		for (int32 ParentIndex = GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = GetParentIndex(ParentIndex))
 		{
 			if (InSelectedBones.Contains(ParentIndex))
 			{
@@ -362,9 +391,9 @@ void DrawBones(
 		// but use a different color if this bone is NOT selected, but the child IS selected
 		TArray<FVector> ChildPositions;
 		TArray<FLinearColor> ChildColors;
-		for (int32 ChildIndex = 0; ChildIndex < RefSkeleton.GetNum(); ++ChildIndex)
+		for (int32 ChildIndex = 0; ChildIndex < NumBones; ++ChildIndex)
 		{
-			const int32 ParentIndex = RefSkeleton.GetParentIndex(ChildIndex);
+			const int32 ParentIndex = GetParentIndex(ChildIndex);
 			if (ParentIndex >= WorldTransforms.Num())
 			{
 				continue;
@@ -394,7 +423,7 @@ void DrawBones(
 			SDPG_Foreground,
 			BoneRadius,
 			bDrawAxesInsideBone);
-		if (RefSkeleton.GetParentIndex(BoneIndex) == INDEX_NONE)
+		if (GetParentIndex(BoneIndex) == INDEX_NONE)
 		{
 			SkeletalDebugRendering::DrawRootCone(PDI, BoneTransform, ComponentOrigin, BoneRadius);
 		}

@@ -13,6 +13,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimInstance.h"
+#include "Engine/PoseWatchRenderData.h"
 #include "Engine/PoseWatch.h"
 #include "ObjectTrace.h"
 
@@ -41,7 +42,7 @@ FPoseWatchTrack::FPoseWatchTrack(uint64 InObjectId, const FPoseWatchTrack::FPose
 				{
 					if (PoseWatch.NodeID == PostWatchTrackId.NameId)
 					{
-						PoseWatchOwner = PoseWatch.PoseWatchPoseElement.Get();
+						PoseWatchOwner = PoseWatch.PoseWatchPoseElement;
 						break;
 					}
 				}

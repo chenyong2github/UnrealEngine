@@ -262,16 +262,27 @@ void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
 	}
 }
 
-void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(const FAnimNodePoseWatch&)>& InFunction) const
+void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(FAnimNodePoseWatch&)>& InFunction)
 {
-	for (const FAnimNodePoseWatch& PoseWatchNode : AnimNodePoseWatch)
+	for (FAnimNodePoseWatch& PoseWatchNode : AnimNodePoseWatch)
 	{
-		if (const UPoseWatchPoseElement* PoseWatchPoseElement = PoseWatchNode.PoseWatchPoseElement.Get())
+		if (const UPoseWatchPoseElement* PoseWatchPoseElement = PoseWatchNode.PoseWatchPoseElement)
 		{
 			if (PoseWatchPoseElement->GetIsEnabled() && PoseWatchPoseElement->GetIsVisible())
 			{
 				InFunction(PoseWatchNode);
 			}
+		}
+	}
+}
+
+void FAnimBlueprintDebugData::DisableAllPoseWatches()
+{
+	for (FAnimNodePoseWatch& PoseWatchNode : AnimNodePoseWatch)
+	{
+		if (PoseWatchNode.PoseWatch)
+		{
+			PoseWatchNode.PoseWatch->SetIsNodeEnabled(false);
 		}
 	}
 }

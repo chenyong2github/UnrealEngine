@@ -12,7 +12,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/ExposedValueHandler.h"
-#include "Engine/PoseWatch.h"
+#include "Engine/PoseWatchRenderData.h"
 
 #include "AnimBlueprintGeneratedClass.generated.h"
 
@@ -314,7 +314,8 @@ public:
 
 	void AddPoseWatch(int32 NodeID, UPoseWatchPoseElement* const InPoseWatchPoseElement);
 	void RemovePoseWatch(int32 NodeID);
-	void ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(const FAnimNodePoseWatch&)>& InFunction) const;
+	void ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(FAnimNodePoseWatch&)>& InFunction);
+	void DisableAllPoseWatches();
 
 	TArrayView<const FName> GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const;
 #endif

@@ -45,6 +45,10 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "HAL/IConsoleManager.h"
+#if WITH_EDITOR
+#include "Engine/PoseWatchRenderData.h"
+#include "Engine/PoseWatch.h"
+#endif
 
 LLM_DEFINE_TAG(SkeletalMesh_TransformData);
 
@@ -3566,6 +3570,22 @@ FRootMotionMovementParams USkeletalMeshComponent::ConsumeRootMotion()
 	return ConsumeRootMotion_Internal(InterpAlpha);
 }
 
+#if WITH_EDITOR
+FPoseWatchDynamicData::FPoseWatchDynamicData(USkeletalMeshComponent* InComponent)
+{
+	check(InComponent);
+	if (InComponent->GetSkeletalMeshAsset())
+	{
+		PoseWatches = InComponent->PoseWatches;
+
+		for (FAnimNodePoseWatch& PoseWatch : PoseWatches)
+		{
+			PoseWatch.CopyPoseWatchData(InComponent->GetSkeletalMeshAsset()->GetRefSkeleton());
+		}
+	}
+}
+#endif
+
 FRootMotionMovementParams USkeletalMeshComponent::ConsumeRootMotion_Internal(float InAlpha)
 {
 	FRootMotionMovementParams RootMotion;
@@ -3899,6 +3919,33 @@ void USkeletalMeshComponent::RefreshMorphTargets()
 	}
 	
 	UpdateMorphTargetOverrideCurves();
+}
+
+void USkeletalMeshComponent::SendRenderDynamicData_Concurrent()
+{
+	Super::SendRenderDynamicData_Concurrent();
+
+#if WITH_EDITOR
+	if (SceneProxy)
+	{
+		UpdatePoseWatches();
+		FPoseWatchDynamicData* NewDynamicData = new FPoseWatchDynamicData(this);
+
+		FSkeletalMeshSceneProxy* TargetProxy = (FSkeletalMeshSceneProxy*)SceneProxy;
+
+		ENQUEUE_RENDER_COMMAND(PoseWatchDynamicDataCommand)(
+			[TargetProxy, NewDynamicData](FRHICommandListImmediate& RHICommandList)
+			{
+				if (TargetProxy->PoseWatchDynamicData)
+				{
+					delete TargetProxy->PoseWatchDynamicData;
+				}
+
+				TargetProxy->PoseWatchDynamicData = NewDynamicData;
+			}
+		);
+	}
+#endif
 }
 
 void USkeletalMeshComponent::ParallelAnimationEvaluation() 
@@ -4566,8 +4613,9 @@ TArray<FTransform> USkeletalMeshComponent::GetBoneSpaceTransforms()
 }
 
 #if WITH_EDITOR
-void USkeletalMeshComponent::DebugDrawPoseWatches(FPrimitiveDrawInterface* PDI)
+void USkeletalMeshComponent::UpdatePoseWatches()
 {
+	PoseWatches.Empty();
 	UAnimInstance* AnimInstance = GetAnimInstance();
 	if (AnimInstance)
 	{
@@ -4578,11 +4626,17 @@ void USkeletalMeshComponent::DebugDrawPoseWatches(FPrimitiveDrawInterface* PDI)
 			{
 				if (USkeletalMesh* TmpSkeletalMesh = GetSkeletalMeshAsset())
 				{
-					const FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
-					DebugData.ForEachActiveVisiblePoseWatchPoseElement([PDI, TmpSkeletalMesh](const FAnimNodePoseWatch& PoseWatch)
+					FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
+					for (FAnimNodePoseWatch& PoseWatch : DebugData.AnimNodePoseWatch)
 					{
-						SkeletalDebugRendering::DrawBonesFromPoseWatch(PDI, PoseWatch, TmpSkeletalMesh->GetRefSkeleton(), /*bUseWorldTransform*/true);
-					});
+						if (const UPoseWatchPoseElement* PoseWatchPoseElement = PoseWatch.PoseWatchPoseElement)
+						{
+							if (PoseWatchPoseElement->GetIsEnabled() && PoseWatchPoseElement->GetIsVisible())
+							{
+								PoseWatches.Add(PoseWatch); // Copy
+							}
+						}
+					}
 				}
 			}
 		}

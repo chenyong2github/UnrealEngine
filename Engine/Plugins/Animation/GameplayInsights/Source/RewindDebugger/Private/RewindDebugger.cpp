@@ -812,13 +812,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 															DebugData.ResetNodeVisitSites();
 														}
 
-														for (FAnimNodePoseWatch& PoseWatchNode : DebugData.AnimNodePoseWatch)
-														{
-															if (PoseWatchNode.PoseWatch.IsValid())
-															{
-																PoseWatchNode.PoseWatch->SetIsNodeEnabled(false);
-															}
-														}
+														DebugData.DisableAllPoseWatches();
 							
 														AnimGraphTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [Id, AnimationProvider, GameplayProvider, &DebugData, NodeCount](double InGraphStartTime, double InGraphEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 														{
@@ -917,6 +911,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 																		{
 																			InPoseWatchTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
 																				{
+#if WITH_EDITOR
 																					for (FAnimNodePoseWatch& PoseWatch : DebugData.AnimNodePoseWatch)
 																					{
 																						if (PoseWatch.NodeID == InMessage.PoseWatchId)
@@ -932,6 +927,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 																							break;
 																						}
 																					}
+#endif //WITH_EDITOR
 																					return TraceServices::EEventEnumerate::Continue;
 																				});
 																		});

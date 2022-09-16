@@ -338,6 +338,11 @@ protected:
 	uint8 GetCurrentFirstLODIdx_Internal() const;
 private:
 	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const;
+
+public:
+#if WITH_EDITORONLY_DATA
+	struct FPoseWatchDynamicData* PoseWatchDynamicData;
+#endif
 };
 
 /** Used to recreate all skinned mesh components for a given skeletal mesh */

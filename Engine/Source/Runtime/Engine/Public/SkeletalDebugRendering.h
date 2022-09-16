@@ -110,22 +110,31 @@ ENGINE_API	void DrawRootCone(
 	const FVector& ComponentOrigin,
 	const float SphereRadius);
 
-
+#if WITH_EDITOR
 ENGINE_API void DrawBonesFromPoseWatch(
 	FPrimitiveDrawInterface* PDI,
 	const FAnimNodePoseWatch& PoseWatch,
-	const FReferenceSkeleton& RefSkeleton,
 	const bool bUseWorldTransform);
+#endif
 
 
-/**
- * Draw skeleton bones. If BoneColors is empty, the DefaultBoneColor in the draw config will be used.
- */
 ENGINE_API void DrawBones(
 	FPrimitiveDrawInterface* PDI,
 	const FVector& ComponentOrigin,
 	const TArray<FBoneIndexType>& RequiredBones,
 	const FReferenceSkeleton& RefSkeleton,
+	const TArray<FTransform>& WorldTransforms,
+	const TArray<int32>& InSelectedBones,
+	const TArray<FLinearColor>& BoneColors,
+	const TArray<TRefCountPtr<HHitProxy>>& HitProxies,
+	const FSkelDebugDrawConfig& DrawConfig);
+
+
+void DrawBonesInternal(
+	FPrimitiveDrawInterface* PDI,
+	const FVector& ComponentOrigin,
+	const TArray<FBoneIndexType>& RequiredBones,
+	const TArray<int32>& ParentIndices,
 	const TArray<FTransform>& WorldTransforms,
 	const TArray<int32>& InSelectedBones,
 	const TArray<FLinearColor>& BoneColors,
