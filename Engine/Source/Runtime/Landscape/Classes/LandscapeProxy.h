@@ -1091,7 +1091,7 @@ public:
 	LANDSCAPE_API void CheckGenerateMobilePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
 	/** Update Nanite representation if it's missing or outdated */
-	LANDSCAPE_API void UpdateNaniteRepresentation();
+	LANDSCAPE_API void UpdateNaniteRepresentation(const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** 
 	* Invalidate and disable Nanite representation until a subsequent rebuild occurs

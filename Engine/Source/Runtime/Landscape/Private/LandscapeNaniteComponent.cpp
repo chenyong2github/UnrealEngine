@@ -18,6 +18,8 @@
 #include "NaniteBuilder.h"
 #include "Rendering/NaniteResources.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshCompiler.h"
+#include "LandscapePrivate.h"
 #endif
 
 ULandscapeNaniteComponent::ULandscapeNaniteComponent(const FObjectInitializer& ObjectInitializer)
@@ -89,7 +91,7 @@ void ULandscapeNaniteComponent::SetEnabled(bool bValue)
 
 #if WITH_EDITOR
 
-void ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)
+void ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, const ITargetPlatform* TargetPlatform)
 {
 	UStaticMesh* NaniteStaticMesh = NewObject<UStaticMesh>(this /* Outer */, TEXT("LandscapeNaniteMesh"), RF_Transactional);
 
@@ -172,6 +174,29 @@ void ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 	UStaticMesh::BatchBuild({ NaniteStaticMesh });
 
 	ProxyContentId = NewProxyContentId;
+
+
+	// This is a workaround. IsCachedCookedPlatformDataLoaded needs to return true to ensure that StreamablePages are loaded from DDC
+	if (TargetPlatform)
+	{
+		NaniteStaticMesh->BeginCacheForCookedPlatformData(TargetPlatform);
+		FStaticMeshCompilingManager::Get().FinishCompilation({ NaniteStaticMesh });
+
+		const double StartTime = FPlatformTime::Seconds();
+		
+		while (!NaniteStaticMesh->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+		{
+			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
+			FPlatformProcess::Sleep(0.01);
+
+			constexpr double MaxWaitSeconds = 240.0;
+			if (FPlatformTime::Seconds() - StartTime > MaxWaitSeconds)
+			{
+				UE_LOG(LogLandscape, Error, TEXT("ULandscapeNaniteComponent::InitializeForLandscape waited more than %f seconds for IsCachedCookedPlatformDataLoaded to return true"), MaxWaitSeconds);
+				break;
+			}
+		}
+	}
 }
 
 #endif

@@ -319,7 +319,7 @@ void ALandscapeProxy::CheckGenerateMobilePlatformData(bool bIsCooking, const ITa
 	}
 }
 
-void ALandscapeProxy::UpdateNaniteRepresentation()
+void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPlatform)
 {
 	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
 	{
@@ -344,7 +344,7 @@ void ALandscapeProxy::UpdateNaniteRepresentation()
 			FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
 			ProgressDialog.MakeDialog();
 
-			NaniteComponent->InitializeForLandscape(this, NaniteContentId);
+			NaniteComponent->InitializeForLandscape(this, NaniteContentId, TargetPlatform);
 		}
 
 		NaniteComponent->UpdatedSharedPropertiesFromActor();
@@ -2839,7 +2839,7 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			});
 		}
 
-		UpdateNaniteRepresentation();
+		UpdateNaniteRepresentation(ObjectSaveContext.GetTargetPlatform());
 		UpdateRenderingMethod();
 	}
 
