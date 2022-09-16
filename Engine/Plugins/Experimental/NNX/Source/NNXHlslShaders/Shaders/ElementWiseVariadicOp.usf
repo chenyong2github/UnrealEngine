@@ -67,8 +67,11 @@ void ElementWiseVariadicOp(in const uint3 DispatchThreadID : SV_DispatchThreadID
 			Result  = ELEMENTWISE_OP(Result, Input3[Input3Index]);
 		#endif
 
-		// Must correspond to EVariadicScale defined in NNXElementWiseVariadicCS.h
-		#if APPLYSCALE == 1 
+		#if OUTPUTASINPUT
+			Result  = ELEMENTWISE_OP(Result, Output[Index]);
+		#endif
+
+		#if APPLYSCALE
 			Result  = (BUFFER_TYPE)(Result * Scale);
 		#endif
 

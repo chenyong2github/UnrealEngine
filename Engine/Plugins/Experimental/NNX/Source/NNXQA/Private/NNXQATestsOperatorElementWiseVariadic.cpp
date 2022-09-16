@@ -23,8 +23,8 @@ namespace Test
 		TArray<FString> AutomationExcludedRuntime;
 		EMLTensorDataType TensorType = EMLTensorDataType::Float;
 
-		//TODO Remove when HLSL support is added. Just to verify test are green using ORT for now.
-		AutomationExcludedRuntime.Emplace(TEXT("NNXRuntimeHlsl"));
+		//Variadic op not yet implemented on Dml
+		AutomationExcludedRuntime.Emplace(TEXT("NNXRuntimeDml"));
 
 		FString TestSuffix;
 		for (auto&& ShapeInput: ShapeInputs)
