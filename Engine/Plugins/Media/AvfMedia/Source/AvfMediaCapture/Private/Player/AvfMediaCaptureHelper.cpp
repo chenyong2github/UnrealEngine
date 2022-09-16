@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#import <Foundation/Foundation.h>
-#import <AVFoundation/AVFoundation.h>
-
 #include "AvfMediaCaptureHelper.h"
 
 // Steps to try if permissions are not working correctly in macOS

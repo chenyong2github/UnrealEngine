@@ -2,8 +2,14 @@
 
 #pragma once
 
-#import <AVFoundation/AVFoundation.h>
 #include "CoreTypes.h"
+
+#import <Foundation/Foundation.h>
+#import <AVFoundation/AVFoundation.h>
+
+#if PLATFORM_MAC
+	#import <Appkit/Appkit.h>
+#endif
 
 enum class EAvfMediaCaptureAuthStatus : uint32
 {
