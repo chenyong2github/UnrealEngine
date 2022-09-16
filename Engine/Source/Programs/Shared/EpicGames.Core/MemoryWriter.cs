@@ -207,7 +207,7 @@ namespace EpicGames.Core
 		/// Writes a Guid to the memory writer
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
-		/// <param name="value">Value to write</param>
+		/// <param name="guid">Value to write</param>
 		public static void WriteGuid(this IMemoryWriter writer, Guid guid)
 		{
 			Memory<byte> buffer = writer.GetMemory(16);
