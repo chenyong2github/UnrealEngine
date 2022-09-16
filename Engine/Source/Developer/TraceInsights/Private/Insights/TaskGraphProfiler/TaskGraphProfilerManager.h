@@ -133,6 +133,8 @@ public:
 
 	int32 GetDepthOfTaskExecution(double TaskStartedTime, double TaskFinishedTime, uint32 ThreadId);
 
+	void SelectTaskInTaskTable(TaskTrace::FId);
+
 private:
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);

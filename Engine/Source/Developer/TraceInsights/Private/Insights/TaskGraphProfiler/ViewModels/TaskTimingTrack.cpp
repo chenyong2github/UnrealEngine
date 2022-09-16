@@ -847,6 +847,7 @@ void FTaskTimingTrack::OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSe
 	if (Task != nullptr)
 	{
 		TaskId = Task->Id;
+		FTaskGraphProfilerManager::Get()->SelectTaskInTaskTable(TaskId);
 	}
 	else
 	{

@@ -81,6 +81,26 @@ public:
 	virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const = 0;
 };
 
+class FTableTaskCancellationToken
+{
+public:
+	FTableTaskCancellationToken()
+		: bCancel(false)
+	{}
+
+	bool ShouldCancel() { return bCancel.load(); }
+	void Cancel() { bCancel.store(true); }
+
+private:
+	std::atomic<bool> bCancel;
+};
+
+struct FTableTaskInfo
+{
+	FGraphEventRef Event;
+	TSharedPtr< FTableTaskCancellationToken> CancellationToken;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * A custom widget used to display the list of tree nodes.
@@ -91,6 +111,8 @@ class STableTreeView : public SCompoundWidget, public IAsyncOperationStatusProvi
 	friend class FTableTreeViewSortAsyncTask;
 	friend class FTableTreeViewGroupAsyncTask;
 	friend class FTableTreeViewAsyncCompleteTask;
+	friend class FSearchForItemToSelectTask;
+	friend class FSelectNodeByTableRowIndexTask;
 
 public:
 	/** Default constructor. */
@@ -451,6 +473,23 @@ protected:
 	FText ViewPreset_GetSelectedText() const;
 	FText ViewPreset_GetSelectedToolTipText() const;
 
+	virtual void SearchForItem(TSharedPtr<FTableTaskCancellationToken> CancellationToken) {};
+
+	// Table data tasks should be tasks that operate read only operations on the data from the Table
+	// They should not operate on the tree nodes because they will run concurrently with the populated table UI.
+	template<typename T, typename... TArgs>
+	TSharedPtr<FTableTaskInfo> StartTableDataTask(TArgs&&... Args)
+	{
+		TSharedPtr<FTableTaskInfo> Info = MakeShared<FTableTaskInfo>();
+		Info->CancellationToken = MakeShared<FTableTaskCancellationToken>();
+		Info->Event = TGraphTask<T>::CreateTask().ConstructAndDispatchWhenReady(Info->CancellationToken, Forward<TArgs>(Args)...);
+		DataTaskInfos.Add(Info);
+
+		return Info;
+	}
+
+	void StopAllTableDataTasks(bool bWait = true);
+
 protected:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
@@ -561,6 +600,7 @@ protected:
 	FFilterConfigurator* CurrentAsyncOpFilterConfigurator = nullptr;
 	FAsyncOperationProgress AsyncOperationProgress;
 	FGraphEventRef DispatchEvent;
+	TArray<TSharedPtr<FTableTaskInfo>> DataTaskInfos;
 	TArray<FTableTreeNodePtr> NodesToExpand;
 
 	//////////////////////////////////////////////////
@@ -699,5 +739,60 @@ public:
 private:
 	TSharedPtr<STableTreeView> TableTreeViewPtr;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FSearchForItemToSelectTask
+{
+public:
+	FSearchForItemToSelectTask(TSharedPtr<FTableTaskCancellationToken> InToken, TSharedPtr<STableTreeView> InPtr)
+		: CancellationToken(InToken)
+		, TableTreeViewPtr(InPtr)
+	{}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FSearchForItemToSelectTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::AnyThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		TableTreeViewPtr->SearchForItem(CancellationToken);
+	}
+
+private:
+	TSharedPtr<FTableTaskCancellationToken> CancellationToken;
+	TSharedPtr<STableTreeView> TableTreeViewPtr;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FSelectNodeByTableRowIndexTask
+{
+public:
+	FSelectNodeByTableRowIndexTask(TSharedPtr<FTableTaskCancellationToken> InToken, TSharedPtr<STableTreeView> InPtr, uint32 InRowIndex)
+		: CancellationToken(InToken)
+		, TableTreeViewPtr(InPtr)
+		, RowIndex(InRowIndex)
+		{}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FSelectNodeByTableRowIndexTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::GameThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (!CancellationToken->ShouldCancel())
+		{
+			TableTreeViewPtr->SelectNodeByTableRowIndex(RowIndex);
+		}
+	}
+
+private:
+	TSharedPtr< FTableTaskCancellationToken> CancellationToken;
+	TSharedPtr<STableTreeView> TableTreeViewPtr;
+	uint32 RowIndex;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights

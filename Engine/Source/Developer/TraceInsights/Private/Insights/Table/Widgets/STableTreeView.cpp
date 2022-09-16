@@ -2762,11 +2762,23 @@ void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 	if (RowIndex >= 0 && RowIndex < TableTreeNodes.Num())
 	{
 		FTableTreeNodePtr NodePtr = TableTreeNodes[RowIndex];
-		if (ensure(NodePtr))
+		ensure(NodePtr);
+
+		if (!NodePtr)
 		{
-			TreeView->SetSelection(NodePtr);
-			TreeView->RequestScrollIntoView(NodePtr);
+			return;
 		}
+
+		FBaseTreeNodePtr GroupNode = NodePtr->GetGroupPtr().Pin();
+		while (GroupNode.IsValid())
+		{
+			TreeView->SetItemExpansion(StaticCastSharedPtr<FTableTreeNode>(GroupNode), true);
+			GroupNode = GroupNode->GetGroupPtr().Pin();
+
+		}
+
+		TreeView->SetSelection(NodePtr);
+		TreeView->RequestScrollIntoView(NodePtr);
 	}
 }
 
@@ -3638,6 +3650,28 @@ FText STableTreeView::ViewPreset_GetSelectedText() const
 FText STableTreeView::ViewPreset_GetSelectedToolTipText() const
 {
 	return SelectedViewPreset ? SelectedViewPreset->GetToolTip() : LOCTEXT("CustomPreset_ToolTip", "Custom Preset");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::StopAllTableDataTasks(bool bWait)
+{
+	DataTaskInfos.RemoveAllSwap([](TSharedPtr<FTableTaskInfo> Data) { return Data->Event->IsComplete(); });
+	
+	for (int32 Index = 0; Index < DataTaskInfos.Num(); ++Index)
+	{
+		DataTaskInfos[Index]->CancellationToken->Cancel();
+	}
+
+	if (bWait)
+	{
+		for (int32 Index = 0; Index < DataTaskInfos.Num(); ++Index)
+		{
+			DataTaskInfos[Index]->Event->Wait();
+		}
+
+		DataTaskInfos.Empty();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

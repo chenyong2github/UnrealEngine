@@ -167,11 +167,13 @@ void STaskTableTreeView::RebuildTree(bool bResync)
 
 	if (NewQueryStartTime != QueryStartTime || NewQueryEndTime != QueryEndTime)
 	{
+		StopAllTableDataTasks();
+
 		QueryStartTime = NewQueryStartTime;
 		QueryEndTime = NewQueryEndTime;
 		TSharedPtr<FTaskTable> TaskTable = GetTaskTable();
-		TArray<FTaskEntry>& Allocs = TaskTable->GetTaskEntries();
-		Allocs.Empty();
+		TArray<FTaskEntry>& Tasks = TaskTable->GetTaskEntries();
+		Tasks.Empty();
 		TableTreeNodes.Empty();
 
 		if (QueryStartTime < QueryEndTime && Session.IsValid())
@@ -186,10 +188,10 @@ void STaskTableTreeView::RebuildTree(bool bResync)
 
 				TArray<FTableTreeNodePtr>* Nodes = &TableTreeNodes;
 
-				TasksProvider->EnumerateTasks(QueryStartTime, QueryEndTime, [&Allocs, &TaskTable, &BaseNodeName, Nodes](const TraceServices::FTaskInfo& TaskInfo)
+				TasksProvider->EnumerateTasks(QueryStartTime, QueryEndTime, [&Tasks, &TaskTable, &BaseNodeName, Nodes](const TraceServices::FTaskInfo& TaskInfo)
 					{
-						Allocs.Emplace(TaskInfo);
-						uint32 Index = Allocs.Num() - 1;
+						Tasks.Emplace(TaskInfo);
+						uint32 Index = Tasks.Num() - 1;
 						FName NodeName(BaseNodeName, TaskInfo.Id + 1);
 						FTaskNodePtr NodePtr = MakeShared<FTaskNode>(NodeName, TaskTable, Index);
 						Nodes->Add(NodePtr);
@@ -567,6 +569,37 @@ void STaskTableTreeView::TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr Tre
 	}
 
 	STableTreeView::TreeView_OnMouseButtonDoubleClick(TreeNode);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::SelectTaskEntry(TaskTrace::FId InId)
+{
+	TaskIdToSelect = InId;
+	StartTableDataTask<FSearchForItemToSelectTask>(SharedThis(this));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::SearchForItem(TSharedPtr<FTableTaskCancellationToken> CancellationToken)
+{
+	TSharedPtr<FTaskTable> TaskTable = GetTaskTable();
+	TArray<FTaskEntry>& Tasks = TaskTable->GetTaskEntries();
+	
+	uint32 NumEntries = (uint32)Tasks.Num();
+	for (uint32 Index = 0; Index < NumEntries; ++Index)
+	{
+		if (CancellationToken->ShouldCancel())
+		{
+			break;
+		}
+
+		if (Tasks[Index].Id == TaskIdToSelect)
+		{
+			TGraphTask<FSelectNodeByTableRowIndexTask>::CreateTask().ConstructAndDispatchWhenReady(CancellationToken, SharedThis(this), Index);
+			break;
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

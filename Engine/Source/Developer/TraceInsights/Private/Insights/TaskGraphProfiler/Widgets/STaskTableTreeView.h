@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Async/TaskTrace.h"
 #include "TraceServices/Model/TasksProfiler.h"
 
 // Insights
@@ -85,10 +85,14 @@ public:
 
 	virtual void TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode) override;
 
+	void SelectTaskEntry(TaskTrace::FId InId);
+
 protected:
 	virtual void InternalCreateGroupings() override;
 
 	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
+
+	virtual void SearchForItem(TSharedPtr<FTableTaskCancellationToken> CancellationToken) override;
 
 private:
 	void AddCommmands();
@@ -113,6 +117,8 @@ private:
 
 	ETimestampOptions SelectedTimestampOption = ETimestampOptions::RelativeToPrevious;
 	TArray<TSharedPtr<ETimestampOptions>> AvailableTimestampOptions;
+
+	TaskTrace::FId TaskIdToSelect;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

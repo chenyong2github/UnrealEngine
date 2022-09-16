@@ -805,6 +805,16 @@ double FTaskGraphProfilerManager::GetRelationsOnCriticalPathDescendingRec(const 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTaskGraphProfilerManager::SelectTaskInTaskTable(TaskTrace::FId InId)
+{
+	if (TaskTableTreeView.IsValid())
+	{
+		TaskTableTreeView->SelectTaskEntry(InId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
 
 #undef LOCTEXT_NAMESPACE
