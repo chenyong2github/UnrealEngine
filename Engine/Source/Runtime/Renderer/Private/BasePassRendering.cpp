@@ -367,6 +367,30 @@ FMeshDrawCommandSortKey CalculateBasePassMeshStaticSortKey(EDepthDrawingMode Ear
 	return SortKey;
 }
 
+template<bool bDepthTest, ECompareFunction CompareFunction, uint32 StencilWriteMask>
+void SetDepthStencilStateForBasePass_Internal(FMeshPassProcessorRenderState& InDrawRenderState)
+{
+	InDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+		bDepthTest, CompareFunction,
+		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+		0xFF, StencilWriteMask>::GetRHI());
+}
+
+template<bool bDepthTest, ECompareFunction CompareFunction>
+void SetDepthStencilStateForBasePass_Internal(FMeshPassProcessorRenderState& InDrawRenderState)
+{	
+	const static bool bStrataDufferPassEnabled = Strata::IsStrataEnabled() && Strata::IsStrataDbufferPassEnabled();
+	if (bStrataDufferPassEnabled)
+	{
+		SetDepthStencilStateForBasePass_Internal<bDepthTest, CompareFunction, GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_NORMAL, 1) | GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_DIFFUSE, 1) | GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_ROUGHNESS, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)>(InDrawRenderState);
+	}
+	else
+	{
+		SetDepthStencilStateForBasePass_Internal<bDepthTest, CompareFunction, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)>(InDrawRenderState);
+	}
+}
+
 void SetDepthStencilStateForBasePass(
 	FMeshPassProcessorRenderState& DrawRenderState,
 	ERHIFeatureLevel::Type FeatureLevel,
@@ -380,30 +404,15 @@ void SetDepthStencilStateForBasePass(
 	{
 		if (bMaskedInEarlyPass)
 		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
-				false, CF_Equal,
-				true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-				0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
-			>::GetRHI());
+			SetDepthStencilStateForBasePass_Internal<false, CF_Equal>(DrawRenderState);
 		}
 		else if (DrawRenderState.GetDepthStencilAccess() & FExclusiveDepthStencil::DepthWrite)
 		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
-				true, CF_GreaterEqual,
-				true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-				0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
-			>::GetRHI());
+			SetDepthStencilStateForBasePass_Internal<true, CF_GreaterEqual>(DrawRenderState);
 		}
 		else
 		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
-				false, CF_GreaterEqual,
-				true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-				0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
-			>::GetRHI());
+			SetDepthStencilStateForBasePass_Internal<false, CF_GreaterEqual>(DrawRenderState);
 		}
 	}
 	else if (bMaskedInEarlyPass)
@@ -413,13 +422,7 @@ void SetDepthStencilStateForBasePass(
 
 	if (bForceEnableStencilDitherState)
 	{
-		DrawRenderState.SetDepthStencilState(
-			TStaticDepthStencilState<
-			false, CF_Equal,
-			true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-			0xFF, GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)
-			>::GetRHI());
+		SetDepthStencilStateForBasePass_Internal<false, CF_Equal>(DrawRenderState);
 	}
 }
 
@@ -1509,11 +1512,32 @@ bool FBasePassMeshProcessor::Process(
 	
 	if (bEnableReceiveDecalOutput)
 	{
+		static const bool bStrataDufferPassEnabled = Strata::IsStrataEnabled() && Strata::IsStrataDbufferPassEnabled();
+
 		// Set stencil value for this draw call
 		// This is effectively extending the GBuffer using the stencil bits
-		const uint8 StencilValue = GET_STENCIL_BIT_MASK(RECEIVE_DECAL, PrimitiveSceneProxy ? !!PrimitiveSceneProxy->ReceivesDecals() : 0x00)
+		uint8 StencilValue = 0;
+		if (bStrataDufferPassEnabled)
+		{
+			const uint32 DecalResponse = MaterialResource.GetMaterialDecalResponse();
+			const bool bNormalResponse		= DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorNormal		|| DecalResponse == MDR_NormalRoughness || DecalResponse == MDR_Normal;
+			const bool bRoughnessResponse	= DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorRoughness	|| DecalResponse == MDR_NormalRoughness || DecalResponse == MDR_Roughness;
+			const bool bColorResponse		= DecalResponse == MDR_ColorNormalRoughness || DecalResponse == MDR_ColorNormal		|| DecalResponse == MDR_ColorRoughness	|| DecalResponse == MDR_Color;
+
+			StencilValue =
+			  GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_NORMAL, bNormalResponse ? 0x1 : 0x0)
+			| GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_DIFFUSE, bColorResponse ? 0x1 : 0x0)
+			| GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_ROUGHNESS, bRoughnessResponse ? 0x1 : 0x0)
 			| GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, PrimitiveSceneProxy ? PrimitiveSceneProxy->HasDistanceFieldRepresentation() : 0x00)
 			| STENCIL_LIGHTING_CHANNELS_MASK(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetLightingChannelStencilValue() : 0x00);
+		}
+		else
+		{
+			StencilValue = 
+			  GET_STENCIL_BIT_MASK(RECEIVE_DECAL, PrimitiveSceneProxy ? !!PrimitiveSceneProxy->ReceivesDecals() : 0x00)
+			| GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, PrimitiveSceneProxy ? PrimitiveSceneProxy->HasDistanceFieldRepresentation() : 0x00)
+			| STENCIL_LIGHTING_CHANNELS_MASK(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetLightingChannelStencilValue() : 0x00);
+		}
 		DrawRenderState.SetStencilRef(StencilValue);
 	}
 

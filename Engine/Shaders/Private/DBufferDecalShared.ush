@@ -6,17 +6,20 @@
 
 #pragma once
 
+#ifndef DBUFFER_BASEPASS_RESOURCE
+#define DBUFFER_BASEPASS_RESOURCE 1
+#endif
 
-#if SUPPORTS_INDEPENDENT_SAMPLERS
-// Share samplers to give artists more
-#define OpaqueBasePassDBufferATextureSampler OpaqueBasePass.DBufferATextureSampler
-#define OpaqueBasePassDBufferBTextureSampler OpaqueBasePass.DBufferATextureSampler
-#define OpaqueBasePassDBufferCTextureSampler OpaqueBasePass.DBufferATextureSampler
-#else
+#if DBUFFER_BASEPASS_RESOURCE
+#define OpaqueBasePassDBufferATexture OpaqueBasePass.DBufferATexture
+#define OpaqueBasePassDBufferBTexture OpaqueBasePass.DBufferBTexture
+#define OpaqueBasePassDBufferCTexture OpaqueBasePass.DBufferCTexture
+#define OpaqueBasePassDBufferRenderMask OpaqueBasePass.DBufferRenderMask
+
 #define OpaqueBasePassDBufferATextureSampler OpaqueBasePass.DBufferATextureSampler
 #define OpaqueBasePassDBufferBTextureSampler OpaqueBasePass.DBufferBTextureSampler
 #define OpaqueBasePassDBufferCTextureSampler OpaqueBasePass.DBufferCTextureSampler
-#endif
+#endif // DBUFFER_BASEPASS_RESOURCE
 
 // Returns a bitmask of DBuffer targets that contain valid data for this pixel.
 // @param BufferUV - UV space in the DBuffer textures
@@ -25,9 +28,9 @@ uint GetDBufferTargetMask(uint2 PixelPos)
 #if USE_DBUFFER && ENABLE_DBUFFER_TEXTURES && !RAYHITGROUPSHADER && !LUMEN_CARD_CAPTURE
 
 #if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-	return DecodeRTWriteMask(PixelPos, OpaqueBasePass.DBufferRenderMask, 3);
+	return DecodeRTWriteMask(PixelPos, OpaqueBasePassDBufferRenderMask, 3);
 #elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
-	uint Mask = OpaqueBasePass.DBufferRenderMask.Load(uint3(PixelPos, 0));
+	uint Mask = OpaqueBasePassDBufferRenderMask.Load(uint3(PixelPos, 0));
 	return Mask > 0 ? 0x07 : 0x00;
 #else
 	return 0x07;
@@ -74,11 +77,11 @@ FStrataDBuffer GetDBufferData(float2 BufferUV, uint RTMaskBit)
 
 #if USE_DBUFFER && ENABLE_DBUFFER_TEXTURES && !RAYHITGROUPSHADER && !LUMEN_CARD_CAPTURE
 	BRANCH
-	if (RTMaskBit & 0x1) { DBufferA = Texture2DSampleLevel(OpaqueBasePass.DBufferATexture, OpaqueBasePassDBufferATextureSampler, BufferUV, 0);	}
+	if (RTMaskBit & 0x1) { DBufferA = Texture2DSampleLevel(OpaqueBasePassDBufferATexture, OpaqueBasePassDBufferATextureSampler, BufferUV, 0);	}
 	BRANCH
-	if (RTMaskBit & 0x2) { DBufferB = Texture2DSampleLevel(OpaqueBasePass.DBufferBTexture, OpaqueBasePassDBufferBTextureSampler, BufferUV, 0);	}
+	if (RTMaskBit & 0x2) { DBufferB = Texture2DSampleLevel(OpaqueBasePassDBufferBTexture, OpaqueBasePassDBufferBTextureSampler, BufferUV, 0);	}
 	BRANCH
-	if (RTMaskBit & 0x4) { DBufferC = Texture2DSampleLevel(OpaqueBasePass.DBufferCTexture, OpaqueBasePassDBufferCTextureSampler, BufferUV, 0);	}
+	if (RTMaskBit & 0x4) { DBufferC = Texture2DSampleLevel(OpaqueBasePassDBufferCTexture, OpaqueBasePassDBufferCTextureSampler, BufferUV, 0);	}
 #endif
 	return StrataUnpackDBuffer(DBufferA, DBufferB, DBufferC);
 }
@@ -92,9 +95,13 @@ FStrataDBuffer GetDBufferData(float2 BufferUV, uint RTMaskBit)
 #define STRATA_DBUFFER_BLENDING_MODE STRATA_DBUFFER_LEGACY
 
 // Define which DBuffers are valid to read from, for this material
-#define STRATA_DBUFFER_RESPONSE_BASECOLOR (MATERIALDECALRESPONSEMASK & 0x1)
-#define STRATA_DBUFFER_RESPONSE_NORMAL    (MATERIALDECALRESPONSEMASK & 0x2)
-#define STRATA_DBUFFER_RESPONSE_ROUGHNESS (MATERIALDECALRESPONSEMASK & 0x4)
+#define STRATA_DBUFFER_RESPONSE_BASECOLOR_BIT_OFFSET 0
+#define STRATA_DBUFFER_RESPONSE_NORMAL_BIT_OFFSET    1
+#define STRATA_DBUFFER_RESPONSE_ROUGHNESS_BIT_OFFSET 2
+
+#define STRATA_DBUFFER_RESPONSE_BASECOLOR (MATERIALDECALRESPONSEMASK & (1<<STRATA_DBUFFER_RESPONSE_BASECOLOR_BIT_OFFSET))
+#define STRATA_DBUFFER_RESPONSE_NORMAL    (MATERIALDECALRESPONSEMASK & (1<<STRATA_DBUFFER_RESPONSE_NORMAL_BIT_OFFSET))
+#define STRATA_DBUFFER_RESPONSE_ROUGHNESS (MATERIALDECALRESPONSEMASK & (1<<STRATA_DBUFFER_RESPONSE_ROUGHNESS_BIT_OFFSET))
 
 #if MATERIAL_IS_STRATA
 void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHeader StrataPixelHeader, inout FStrataData StrataData)

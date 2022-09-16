@@ -18,16 +18,20 @@
 *
 * After deferred decals, stencil is cleared to 0 and no longer packed in this way, to ensure use of fast hardware clears and HiStencil.
 */
-#define STENCIL_SANDBOX_BIT_ID				0
+#define STENCIL_SANDBOX_BIT_ID							0
 // Must match usf
-#define STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID 2
-#define STENCIL_TEMPORAL_RESPONSIVE_AA_BIT_ID 3
-#define STENCIL_LIGHTING_CHANNELS_BIT_ID	4
-#define STENCIL_RECEIVE_DECAL_BIT_ID		7
+#define STENCIL_DISTANCE_FIELD_REPRESENTATION_BIT_ID	2
+#define STENCIL_TEMPORAL_RESPONSIVE_AA_BIT_ID			3
+#define STENCIL_LIGHTING_CHANNELS_BIT_ID				4
+#define STENCIL_RECEIVE_DECAL_BIT_ID					7
 // Used only during the lighting pass - alias/reuse light channels (which copied from stencil to a texture prior to lighting pass)
-#define STENCIL_STRATA_FASTPATH				4 
-#define STENCIL_STRATA_SINGLEPATH			5
-#define STENCIL_STRATA_COMPLEX				6
+#define STENCIL_STRATA_FASTPATH							4 
+#define STENCIL_STRATA_SINGLEPATH						5
+#define STENCIL_STRATA_COMPLEX							6
+// Used only by Strata during the base pass when bUseDBufferPass is enabled (to mark material STRATA_DBUFFER_RESPONSE_xxx Normal/BaseColor/Roughness)
+#define STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID	1
+#define STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID	3
+#define STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID	7
 
 // Outputs a compile-time constant stencil's bit mask ready to be used
 // in TStaticDepthStencilState<> template parameter. It also takes care

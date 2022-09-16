@@ -674,6 +674,7 @@ class FStrataDBufferPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, TopLayerTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAV)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, SceneStencilTexture)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -684,8 +685,17 @@ class FStrataDBufferPassCS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		const uint32 StrataStencilDbufferMask 
+			= GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_NORMAL, 1) 
+			| GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_DIFFUSE, 1) 
+			| GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_ROUGHNESS, 1);
+
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_DBUFFER"), 1);
+		OutEnvironment.SetDefine(TEXT("STRATA_STENCIL_DBUFFER_MASK"), StrataStencilDbufferMask);
+		OutEnvironment.SetDefine(TEXT("STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID"), STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID);
+		OutEnvironment.SetDefine(TEXT("STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID"), STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID);
+		OutEnvironment.SetDefine(TEXT("STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID"), STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FStrataDBufferPassCS, "/Engine/Private/Strata/StrataDBuffer.usf", "MainCS", SF_Compute);
@@ -1241,6 +1251,7 @@ void AddStrataDBufferPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures
 			PassParameters->TopLayerTexture = GraphBuilder.CreateUAV(StrataSceneData->TopLayerTexture);
 			PassParameters->MaterialTextureArrayUAV = StrataSceneData->MaterialTextureArrayUAV;
 			PassParameters->FirstSliceStoringStrataSSSData = StrataSceneData->FirstSliceStoringStrataSSSData;
+			PassParameters->SceneStencilTexture = SceneTextures.Stencil;
 
 			PassParameters->TileListBuffer = StrataViewData->ClassificationTileListBufferSRV[TileType];
 			PassParameters->TileIndirectBuffer = StrataViewData->ClassificationTileDispatchIndirectBuffer;

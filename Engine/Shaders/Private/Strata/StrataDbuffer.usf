@@ -18,10 +18,8 @@
 #define STRATA_INLINE_SHADING 0
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 #include "/Engine/Private/Strata/Strata.ush"
-
-#define MATERIALDECALRESPONSEMASK 0x7
-#include "../DBufferDecalShared.ush"
 #include "StrataTile.ush"
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Post Dbuffer application
@@ -35,6 +33,35 @@ SamplerState DBufferATextureSampler;
 SamplerState DBufferBTextureSampler;
 SamplerState DBufferCTextureSampler;
 
+#ifndef STRATA_STENCIL_DBUFFER_MASK
+#error STRATA_STENCIL_DBUFFER_MASK needs to be defined
+#endif
+#ifndef STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID
+#error STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID needs to be defined
+#endif
+#ifndef STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID
+#error STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID needs to be defined
+#endif
+#ifndef STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID
+#error STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID needs to be defined
+#endif
+
+#define MATERIALDECALRESPONSEMASK 0x7
+#define USE_DBUFFER 1
+#define ENABLE_DBUFFER_TEXTURES 1
+#define DBUFFER_BASEPASS_RESOURCE 0
+
+#define OpaqueBasePassDBufferATexture DBufferATexture
+#define OpaqueBasePassDBufferBTexture DBufferBTexture
+#define OpaqueBasePassDBufferCTexture DBufferCTexture
+#define OpaqueBasePassDBufferRenderMask DBufferRenderMask
+
+#define OpaqueBasePassDBufferBTextureSampler DBufferBTextureSampler
+#define OpaqueBasePassDBufferATextureSampler DBufferATextureSampler
+#define OpaqueBasePassDBufferCTextureSampler DBufferCTextureSampler
+
+#include "../DBufferDecalShared.ush"
+
 int2 ViewResolution;
 uint MaxBytesPerPixel;
 uint FirstSliceStoringStrataSSSData;
@@ -45,38 +72,8 @@ Buffer<uint> TileListBuffer;
 Buffer<uint> TileIndirectBuffer;
 
 // TODO
-// * Respect material decal response
 // * Add support Eye, Hair, Water, ... ?
 // * Refactor encoding to share code between strata export
-
-uint StrataGetDBufferTargetMask(uint2 PixelPos)
-{
-#if PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
-	return DecodeRTWriteMask(PixelPos, DBufferRenderMask, 3);
-#elif PLATFORM_SUPPORTS_PER_PIXEL_DBUFFER_MASK
-	uint Mask = DBufferRenderMask.Load(uint3(PixelPos, 0));
-	return Mask > 0 ? 0x07 : 0x00;
-#else
-	return 0x07;
-#endif
-}
-
-// @param BufferUV - UV space in the DBuffer textures
-FStrataDBuffer StrataGetDBufferData(float2 BufferUV, uint RTMaskBit)
-{
-	// Setup default values, which mean that no decals are present in DBuffer
-	float4 DBufferA = float4(0.0, 0.0, 0.0, 1.0);
-	float4 DBufferB = float4(128.0f / 255.0f, 128.f / 255.5f, 128.f / 255.5f, 1.0);
-	float4 DBufferC = float4(0.0, 0.0, 0.0, 1.0);
-
-	BRANCH
-	if (RTMaskBit & 0x1) { DBufferA = Texture2DSampleLevel(DBufferATexture, DBufferATextureSampler, BufferUV, 0); }
-	BRANCH
-	if (RTMaskBit & 0x2) { DBufferB = Texture2DSampleLevel(DBufferBTexture, DBufferBTextureSampler, BufferUV, 0); }
-	BRANCH
-	if (RTMaskBit & 0x4) { DBufferC = Texture2DSampleLevel(DBufferCTexture, DBufferCTextureSampler, BufferUV, 0); }
-	return StrataUnpackDBuffer(DBufferA, DBufferB, DBufferC);
-}
 
 [numthreads(STRATA_TILE_SIZE, STRATA_TILE_SIZE, 1)]
 void MainCS(
@@ -97,15 +94,25 @@ void MainCS(
 		return;
 	}
 
-	uint ValidDBufferTargetMask = StrataGetDBufferTargetMask(PixelCoord);
+	// Early out of no decal has been written or if the pixel has no 'decal responseness'
+	const uint ResponseMask = SceneStencilTexture.Load(uint3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;
+	uint ValidDBufferTargetMask = GetDBufferTargetMask(PixelCoord);
 	BRANCH
-	if (!ValidDBufferTargetMask)
+	if (!ValidDBufferTargetMask || (ResponseMask & STRATA_STENCIL_DBUFFER_MASK) == 0)
 	{
 		return;
 	}
 
+	// Load Dbuffer data only attributes for which the material has some 'responseness'
+	ValidDBufferTargetMask = ValidDBufferTargetMask & 
+	(
+		(((ResponseMask >> STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID)   & 0x1) << STRATA_DBUFFER_RESPONSE_BASECOLOR_BIT_OFFSET) |
+		(((ResponseMask >> STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID)    & 0x1) << STRATA_DBUFFER_RESPONSE_NORMAL_BIT_OFFSET)    |
+		(((ResponseMask >> STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID) & 0x1) << STRATA_DBUFFER_RESPONSE_ROUGHNESS_BIT_OFFSET)
+	);
+
 	const float2 BufferUV = SvPositionToBufferUV(float4(PixelCoord + 0.5f, 0, 0));
-	const FStrataDBuffer DBufferData = StrataGetDBufferData(BufferUV, ValidDBufferTargetMask);
+	const FStrataDBuffer DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
 
 	// Early out if DBuffer has no coverage
 	BRANCH
