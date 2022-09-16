@@ -3948,7 +3948,7 @@ void USkeletalMeshComponent::SendRenderDynamicData_Concurrent()
 				TargetProxy->PoseWatchDynamicData = NewDynamicData;
 			}
 		);
-	}
+	} //-V773
 #endif
 }
 
