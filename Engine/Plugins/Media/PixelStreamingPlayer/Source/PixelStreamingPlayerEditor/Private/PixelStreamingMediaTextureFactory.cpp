@@ -5,7 +5,7 @@
 #include <AssetTypeCategories.h>
 #include "PixelStreamingMediaTexture.h"
 
-#define LOCTEXT_NAMESPACE "PixelStreamingPlayerEditorMediaTextureFactory"
+#define LOCTEXT_NAMESPACE "PixelStreaming"
 
 UPixelStreamingMediaTextureFactory::UPixelStreamingMediaTextureFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,7 +18,7 @@ UPixelStreamingMediaTextureFactory::UPixelStreamingMediaTextureFactory(const FOb
 
 FText UPixelStreamingMediaTextureFactory::GetDisplayName() const
 {
-	return LOCTEXT("PixelStreamingMediaTextureFactoryDisplayName", "Pixel Streaming Media Texture");
+	return LOCTEXT("MediaTextureFactoryDisplayName", "Pixel Streaming Media Texture");
 }
 
 uint32 UPixelStreamingMediaTextureFactory::GetMenuCategories() const

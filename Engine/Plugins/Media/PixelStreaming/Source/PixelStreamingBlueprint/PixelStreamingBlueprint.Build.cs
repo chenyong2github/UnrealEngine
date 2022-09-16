@@ -7,10 +7,13 @@ using EpicGames.Core;
 
 namespace UnrealBuildTool.Rules
 {
-	public class PixelStreamingPlayerEditor : ModuleRules
+	public class PixelStreamingBlueprint : ModuleRules
 	{
-		public PixelStreamingPlayerEditor(ReadOnlyTargetRules Target) : base(Target)
+		public PixelStreamingBlueprint(ReadOnlyTargetRules Target) : base(Target)
 		{
+			//PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+			//PrivatePCHHeaderFile = "Private/PCH.h";
+
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 			PublicIncludePaths.AddRange(
@@ -29,9 +32,8 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
+					"Engine",
 					"PixelStreaming",
-					"PixelStreamingPlayer",
-					"UnrealEd"
 				});
 		}
 	}

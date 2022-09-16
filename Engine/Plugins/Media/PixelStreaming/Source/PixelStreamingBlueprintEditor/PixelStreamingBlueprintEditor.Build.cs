@@ -7,9 +7,9 @@ using EpicGames.Core;
 
 namespace UnrealBuildTool.Rules
 {
-	public class PixelStreamingPlayerEditor : ModuleRules
+	public class PixelStreamingBlueprintEditor : ModuleRules
 	{
-		public PixelStreamingPlayerEditor(ReadOnlyTargetRules Target) : base(Target)
+		public PixelStreamingBlueprintEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"PixelStreaming",
-					"PixelStreamingPlayer",
+					"PixelStreamingBlueprint",
 					"UnrealEd"
 				});
 		}
