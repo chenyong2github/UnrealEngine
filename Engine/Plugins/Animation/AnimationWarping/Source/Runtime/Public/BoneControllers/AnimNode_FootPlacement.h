@@ -38,8 +38,7 @@ namespace UE::Anim::FootPlacement
 		// Helper struct to store values used across the evaluation
 		struct FInputPoseData
 		{
-			FTransform IKTransformCS = FTransform::Identity;
-			FTransform FKTransformCS = FTransform::Identity;
+			FTransform FootTransformCS = FTransform::Identity;
 			FTransform BallTransformCS = FTransform::Identity;
 			FTransform HipTransformCS = FTransform::Identity;
 			FTransform BallToFoot = FTransform::Identity;
