@@ -122,6 +122,36 @@ void UNiagaraStackEventHandlerPropertiesItem::RefreshChildrenInternal(const TArr
 		EmitterObject->SetOnSelectRootNodes(UNiagaraStackObject::FOnSelectRootNodes::CreateUObject(this, &UNiagaraStackEventHandlerPropertiesItem::SelectEmitterStackObjectRootTreeNodes));
 	}
 
+	FVersionedNiagaraEmitterData* EmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData();
+	if (EmitterData && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim))
+	{
+		TArray<FStackIssueFix> IssueFixes;
+		IssueFixes.Emplace(
+			LOCTEXT("SetCpuSimulationFix", "Set CPU simulation"),
+			FStackIssueFixDelegate::CreateLambda(
+				[WeakEmitter = GetEmitterViewModel()->GetEmitter().ToWeakPtr()]()
+		{
+			if (WeakEmitter.IsValid())
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetCpuSimulation", "Set Cpu Simulation"));
+				WeakEmitter.Emitter.Get()->Modify();
+				WeakEmitter.GetEmitterData()->SimTarget = ENiagaraSimTarget::CPUSim;
+				UNiagaraSystem::RequestCompileForEmitter(WeakEmitter.ResolveWeakPtr());
+			}
+		}
+		)
+		);
+
+		NewIssues.Emplace(
+			EStackIssueSeverity::Error,
+			LOCTEXT("EventHandlersNotSupportedOnCPU", "Event Handlers are not supported on GPU"),
+			LOCTEXT("EventHandlersNotSupportedOnCPULong", "Event Handlers are currently not supported on GPU, please disable or remove."),
+			GetStackEditorDataKey(),
+			false,
+			IssueFixes
+		);
+	}
+
 	NewChildren.Add(EmitterObject);
 
 	bCanResetToBaseCache.Reset();

@@ -1676,14 +1676,11 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 		CompileResults.bComputeSucceeded = false;
 		if (CompileResults.bVMSucceeded)
 		{
+			//Clear out current contents of compile results.
 			*(CompileResults.Data) = CompilationJob->TranslatorOutput.ScriptData;
 			CompileResults.Data->ByteCode.Reset();
 			CompileResults.bComputeSucceeded = true;
 		}
-		CompileResults.Data->LastHlslTranslationGPU = TranslatedHLSL;
-		CompileResults.Data->CompileTags = InTranslateResults.CompileTags;
-		DumpDebugInfo(CompileResults, Input, true);
-		CompilationJob->CompileResults = CompileResults;
 	}
 
 	CompileResults.AppendCompileEvents(MakeArrayView(InTranslateResults.CompileEvents));
@@ -1692,8 +1689,12 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	CompileResults.Data->CompileTags = InTranslateResults.CompileTags;
 
 	// Early out if compiling a GPU particle script as we do not need to submit a CPU compile request.
+	// This must be done after we add in the translator errors etc so tha they are passed to the compile job correctly.
 	if (bCompilingGPUParticleScript)
 	{
+		CompileResults.Data->LastHlslTranslationGPU = TranslatedHLSL;
+		DumpDebugInfo(CompileResults, Input, true);
+		CompilationJob->CompileResults = CompileResults;
 		return JobID;
 	}
 
