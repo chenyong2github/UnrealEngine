@@ -55,6 +55,7 @@ namespace UnrealBuildTool.Rules
 						"MaterialEditor",
 						"MDLImporter",
 						"MeshUtilities",
+						"PhysicsUtilities", // For generating UPhysicsAssets for SkeletalMeshes
 						"PropertyEditor",
 						"UnrealEd",
 					}

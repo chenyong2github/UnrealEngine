@@ -1219,6 +1219,13 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 			ImportData = Cast<UUsdAssetImportData>( SkMesh->GetAssetImportData() );
 		}
 	}
+	else if ( UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>( Asset ) )
+	{
+		if ( USkeletalMesh* SkMesh = PhysicsAsset->GetPreviewMesh() )
+		{
+			ImportData = Cast<UUsdAssetImportData>( SkMesh->GetAssetImportData() );
+		}
+	}
 	else if ( UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>( Asset ) )
 	{
 		// We will always have a skeleton, but not necessarily we will have a preview mesh directly

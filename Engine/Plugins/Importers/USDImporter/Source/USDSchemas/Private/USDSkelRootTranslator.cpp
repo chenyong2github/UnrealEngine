@@ -33,7 +33,8 @@
 #include "GroomComponent.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "UObject/StrongObjectPtr.h"
+#include "ObjectTools.h"
+#include "PhysicsAssetUtils.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Serialization/BufferArchive.h"
 
@@ -62,6 +63,12 @@
 #include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "UsdSkelRoot"
+
+static bool bGeneratePhysicsAssets = true;
+static FAutoConsoleVariableRef CVarGeneratePhysicsAssets(
+	TEXT( "USD.GeneratePhysicsAssets" ),
+	bGeneratePhysicsAssets,
+	TEXT( "Whether to automatically generate and assign PhysicsAssets to generated SkeletalMeshes." ) );
 
 namespace UsdSkelRootTranslatorImpl
 {
@@ -763,6 +770,38 @@ namespace UsdSkelRootTranslatorImpl
 		return false;
 	}
 
+	UPhysicsAsset* GenerateAndAssignPhysicsAsset( USkeletalMesh* SkeletalMesh, EObjectFlags Flags )
+	{
+		FName AssetName = MakeUniqueObjectName(
+			GetTransientPackage(),
+			UPhysicsAsset::StaticClass(),
+			*FPaths::GetBaseFilename( TEXT( "PHYS_" ) + SkeletalMesh->GetName() )
+		);
+
+		UPhysicsAsset* Result = NewObject< UPhysicsAsset >(
+			GetTransientPackage(),
+			AssetName,
+			Flags | EObjectFlags::RF_Public
+		);
+
+		FPhysAssetCreateParams NewBodyData;
+		FText CreationErrorMessage;
+		bool bSuccess = FPhysicsAssetUtils::CreateFromSkeletalMesh( Result, SkeletalMesh, NewBodyData, CreationErrorMessage );
+		if ( !bSuccess )
+		{
+			UE_LOG( LogUsd, Error, TEXT( "Couldn't create PhysicsAsset for SkeletalMesh '%s': %s" ),
+				*SkeletalMesh->GetName(),
+				*CreationErrorMessage.ToString()
+			);
+
+			ensure( ObjectTools::DeleteSingleObject( Result ) );
+
+			Result = nullptr;
+		}
+
+		return Result;
+	}
+
 	class FSkelRootCreateAssetsTaskChain : public FUsdSchemaTranslatorTaskChain
 	{
 	public:
@@ -859,8 +898,9 @@ namespace UsdSkelRootTranslatorImpl
 			{
 				FString SkelRootPath = PrimPath.GetString();
 				FSHAHash SkeletalMeshHash = UsdSkelRootTranslatorImpl::ComputeSHAHash( LODIndexToSkeletalMeshImportData, SkeletonBones );
+				const FString SkeletalMeshHashString = SkeletalMeshHash.ToString();
 
-				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache->GetCachedAsset( SkeletalMeshHash.ToString() ) );
+				USkeletalMesh* SkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache->GetCachedAsset( SkeletalMeshHashString ) );
 
 				bool bIsNew = false;
 				if ( !SkeletalMesh )
@@ -893,8 +933,32 @@ namespace UsdSkelRootTranslatorImpl
 						ImportData->PrimPath = SkelRootPath;
 						SkeletalMesh->SetAssetImportData(ImportData);
 
-						Context->AssetCache->CacheAsset( SkeletalMeshHash.ToString(), SkeletalMesh );
-						Context->AssetCache->CacheAsset( SkeletalMeshHash.ToString() + TEXT( "_Skeleton" ), SkeletalMesh->GetSkeleton() );
+						Context->AssetCache->CacheAsset( SkeletalMeshHashString, SkeletalMesh );
+						Context->AssetCache->CacheAsset( SkeletalMeshHashString + TEXT( "_Skeleton" ), SkeletalMesh->GetSkeleton() );
+					}
+
+					if ( bGeneratePhysicsAssets )
+					{
+						if ( !SkeletalMesh->GetPhysicsAsset() )
+						{
+							UPhysicsAsset* PhysicsAsset = UsdSkelRootTranslatorImpl::GenerateAndAssignPhysicsAsset(
+								SkeletalMesh,
+								Context->ObjectFlags
+							);
+
+							if ( PhysicsAsset )
+							{
+								Context->AssetCache->CacheAsset(
+									SkeletalMeshHashString + TEXT( "_PhysicsAsset" ),
+									PhysicsAsset
+								);
+							}
+						}
+					}
+					else
+					{
+						// Actively clear this so that if we toggle the cvar and reload we'll clear our physics assets
+						SkeletalMesh->SetPhysicsAsset( nullptr );
 					}
 
 					Context->AssetCache->LinkAssetToPrim( SkelRootPath, SkeletalMesh );

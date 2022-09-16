@@ -458,11 +458,16 @@ namespace UsdStageImporterImpl
 		else if (USkeletalMesh* SkMesh = Cast<USkeletalMesh>(Asset))
 		{
 			AssetPrefix = TEXT("SK_");
-
 		}
 		else if (USkeleton* Skeleton = Cast<USkeleton>(Asset))
 		{
 			AssetSuffix = TEXT("_Skeleton");
+
+			// Note that UsdUtils::GetAssetImportData fetches the AssetImportData of the PreviewMesh
+		}
+		else if ( UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>( Asset ) )
+		{
+			AssetPrefix = TEXT( "PHYS_" );
 
 			// Note that UsdUtils::GetAssetImportData fetches the AssetImportData of the PreviewMesh
 		}
@@ -711,7 +716,12 @@ namespace UsdStageImporterImpl
 				{
 					// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
 					// as we'll always have at least the skeletal mesh and the skeleton
-					if ( Asset->IsA( USkeletalMesh::StaticClass() ) || Asset->IsA( USkeleton::StaticClass() ) || Asset->IsA( UAnimSequence::StaticClass() ) || Asset->IsA( UAnimBlueprint::StaticClass() ) )
+					if ( Asset->IsA( USkeletalMesh::StaticClass() ) ||
+						 Asset->IsA( USkeleton::StaticClass() ) ||
+						 Asset->IsA( UPhysicsAsset::StaticClass() ) ||
+						 Asset->IsA( UAnimSequence::StaticClass() ) ||
+						 Asset->IsA( UAnimBlueprint::StaticClass() )
+					)
 					{
 						AssetTypeFolder = ImportData->PrimPath;
 					}
@@ -733,13 +743,19 @@ namespace UsdStageImporterImpl
 				}
 				else if (Asset->IsA(UGeometryCache::StaticClass()))
 				{
-					AssetTypeFolder = "GeometryCaches";
+					AssetTypeFolder = TEXT("GeometryCaches");
 				}
 				else if (Asset->IsA(UTexture::StaticClass()))
 				{
 					AssetTypeFolder = TEXT("Textures");
 				}
-				else if (Asset->IsA(USkeletalMesh::StaticClass()) || Asset->IsA(USkeleton::StaticClass()) || Asset->IsA(UAnimSequence::StaticClass()) || Asset->IsA(UAnimBlueprint::StaticClass()))
+				else if (
+					Asset->IsA( USkeletalMesh::StaticClass() ) ||
+					Asset->IsA( USkeleton::StaticClass() ) ||
+					Asset->IsA( UPhysicsAsset::StaticClass() ) ||
+					Asset->IsA( UAnimSequence::StaticClass() ) ||
+					Asset->IsA( UAnimBlueprint::StaticClass() )
+				)
 				{
 					AssetTypeFolder = TEXT("SkeletalMeshes");
 				}
@@ -1020,7 +1036,8 @@ namespace UsdStageImporterImpl
 
 			// Assign even if ExistingSkeletalMesh has nullptr skeleton because we must be able to cleanup the
 			// abandoned Skeleton in the transient package
-			NewSkeletalMesh->SetSkeleton(ExistingSkeletalMesh->GetSkeleton());
+			NewSkeletalMesh->SetSkeleton( ExistingSkeletalMesh->GetSkeleton() );
+			NewSkeletalMesh->SetPhysicsAsset( ExistingSkeletalMesh->GetPhysicsAsset() );
 		}
 
 		UAnimSequence* ExistingAnimSequence = Cast<UAnimSequence>( ExistingAsset );
@@ -1195,6 +1212,14 @@ namespace UsdStageImporterImpl
 						}
 					}
 
+					if ( UPhysicsAsset* PhysicsAsset = SkeletalMesh->GetPhysicsAsset() )
+					{
+						if ( ImportContext.AssetCache->IsAssetOwnedByCache( PhysicsAsset ) )
+						{
+							OutAssetsAndDependencies.Add( PhysicsAsset );
+						}
+					}
+
 					AssetQueue.Reserve( AssetQueue.Num() + SkeletalMesh->GetMaterials().Num() );
 					for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
 					{
@@ -1247,6 +1272,10 @@ namespace UsdStageImporterImpl
 				else if ( USkeleton* Skeleton = Cast<USkeleton>( Asset ) )
 				{
 					// Do nothing. Skeletons have no additional dependencies
+				}
+				else if ( UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>( Asset ) )
+				{
+					// Do nothing. PhysicsAssets have no additional dependencies
 				}
 				else if ( UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>( Asset ) )
 				{
@@ -1434,7 +1463,13 @@ namespace UsdStageImporterImpl
 			}
 
 			if (
-				( !ImportContext.ImportOptions->bImportGeometry && ( Asset->IsA<UStaticMesh>() || Asset->IsA<USkeletalMesh>() || Asset->IsA<USkeleton>() || Asset->IsA<UGeometryCache>() ) ) ||
+				( !ImportContext.ImportOptions->bImportGeometry && (
+					Asset->IsA<UStaticMesh>() ||
+					Asset->IsA<USkeletalMesh>() ||
+					Asset->IsA<USkeleton>() ||
+					Asset->IsA<UPhysicsAsset>() ||
+					Asset->IsA<UGeometryCache>()
+				) ) ||
 				( !bImportSkeletalAnimations && ( Asset->IsA<UAnimSequence>() ) ) ||
 				( !ImportContext.ImportOptions->bImportLevelSequences && ( Asset->IsA<ULevelSequence>() ) ) ||
 				( !ImportContext.ImportOptions->bImportMaterials && ( Asset->IsA<UMaterialInterface>() || Asset->IsA<UTexture>() ) )
