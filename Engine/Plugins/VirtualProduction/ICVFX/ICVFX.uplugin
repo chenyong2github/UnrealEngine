@@ -111,11 +111,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "VirtualProductionUtilities",
+			"Name": "ConsoleVariables",
 			"Enabled": true
 		},
 		{
-			"Name": "ConsoleVariables",
+			"Name": "VirtualProductionUtilities",
 			"Enabled": true
 		},
 		{
