@@ -84,13 +84,13 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 		const float2 SceneNoWaterUV = clamp(BufferUV, EffectiveSceneNoWaterMinMaxUV.xy, EffectiveSceneNoWaterMinMaxUV.zw);
 
-		float OpaqueDepth = WaterSampleSceneDepthWithoutWater(
+		float OpaqueDeviceZ = WaterSampleSceneDepthWithoutWater(
 			SceneNoWaterDepthTexture,
 			SceneNoWaterDepthSampler,
 			SceneNoWaterUV,
 			SceneNoWaterTextureSize,
-			SceneNoWaterInvTextureSize)
-			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+			SceneNoWaterInvTextureSize);
+		float OpaqueDepth = ConvertFromDeviceZ(OpaqueDeviceZ);
 
 		float WaterDepth = SceneDepth;
 
@@ -173,13 +173,13 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	{
 		const float2 SceneNoWaterUV = clamp(BufferUV, EffectiveSceneNoWaterMinMaxUV.xy, EffectiveSceneNoWaterMinMaxUV.zw);
 
-		float OpaqueDepth = WaterSampleSceneDepthWithoutWater(
+		float OpaqueDeviceZ = WaterSampleSceneDepthWithoutWater(
 			SceneNoWaterDepthTexture,
 			SceneNoWaterDepthSampler,
 			SceneNoWaterUV,
 			SceneNoWaterTextureSize,
-			SceneNoWaterInvTextureSize)
-			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+			SceneNoWaterInvTextureSize);
+		float OpaqueDepth = ConvertFromDeviceZ(OpaqueDeviceZ);
 
 		float WaterDepth = GBuffer.Depth;
 
@@ -484,7 +484,7 @@ void WaterRefractionCopyPS(
 #else
 	DeviceDepthZ = Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).x;
 #endif
-	OutSceneDepth = ConvertFromDeviceZ(DeviceDepthZ) / SINGLE_LAYER_WATER_DEPTH_SCALE;
+	OutSceneDepth = DeviceDepthZ;
 
 #if METAL_PROFILE
 	// Clamp on iOS to avoid #inf

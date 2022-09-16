@@ -436,14 +436,13 @@ void ComposeVolumetricRTOverScenePS(
 
 #elif (PERMUTATION_UPSAMPLINGMODE==4 || PERMUTATION_UPSAMPLINGMODE==3 || PERMUTATION_UPSAMPLINGMODE==2)
 
-	const float UseWaterLinearDepthTexture = 100.0f;	// This must match SINGLE_LAYER_WATER_DEPTH_SCALE from SingleLayerWaterCommon.ush and SingleLayerWaterComposite.usf
 #if PERMUTATION_RENDER_UNDERWATER_BUFFER
 	// Adapt the UV to the relative water buffer size
 	float2 WaterVolumeUV = VolumeUV * FullResolutionToWaterBufferScale.y;
 	// Offset the uv to the view buffer region and take into account dynamic resolution scaling.
 	float2 WaterDepthScreenUV = SceneWithoutSingleLayerWaterViewRect.xy + WaterVolumeUV * (View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw);
 
-	float PixelLinearDepth = WaterLinearDepthTexture.SampleLevel(WaterLinearDepthSampler, WaterDepthScreenUV, 0).r * UseWaterLinearDepthTexture;
+	float PixelLinearDepth = ConvertFromDeviceZ(WaterLinearDepthTexture.SampleLevel(WaterLinearDepthSampler, WaterDepthScreenUV, 0).r);
 
 	float3 WorldPosition = LWCHackToFloat(SvPositionToWorld(float4(SVPos.xy, 0.5, 1.0)));
 	WorldPosition = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) * PixelLinearDepth + LWCHackToFloat(PrimaryView.WorldCameraOrigin);
@@ -472,7 +471,7 @@ void ComposeVolumetricRTOverScenePS(
 #if PERMUTATION_RENDER_CAMERA_UNDERWATER
 	// Now check that we are compositing a pixel that is not "water" to avoid applying clouds twice (they are already composited with the behind water layer scene).
 	// We also lack depth information behind the water surface now so the composition would be wrong anyway.
-	float WaterTestPixelLinearDepth = WaterLinearDepthTexture.SampleLevel(WaterLinearDepthSampler, ScreenUV, 0).r * UseWaterLinearDepthTexture;
+	float WaterTestPixelLinearDepth = ConvertFromDeviceZ(WaterLinearDepthTexture.SampleLevel(WaterLinearDepthSampler, ScreenUV, 0).r);
 	if (WaterTestPixelLinearDepth > PixelDistanceFromView)
 	{
 		// This pixel contains water, so skip it because clouds have already been composited in the "behind water scene color".
@@ -578,15 +577,11 @@ void ComposeVolumetricRTOverScenePS(
 		float4 DataAcc = 0.0f;
 		const float CloudFrontDepthTinyOffset = 0.001;
 
-		// When this pixel is at a distance further than what the water depth buffer can represent, trivially accept all neighboorinjg pixels containing clouds.
-		// This makes sure that clouds around the distant horizon are also composited and not skip by "depth buffer is further than the cloud front depth" test.
-		const bool ISWaterFarDepthBuffer = PixelDistanceFromViewKm >= UseWaterLinearDepthTexture * Max10BitsFloat;
-
 		// We are testing if the depth buffer is further than the cloud front depth and that the cloud front depth is actually in front of traced depth.
-		if (PixelDistanceFromViewKm > (VolumeFrontDepth0.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth0.x < (VolumeFrontDepth0.y)) { DataAcc += VolumeRGBT0; ValidSampleCount += 1.0f; }
-		if (PixelDistanceFromViewKm > (VolumeFrontDepth1.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth1.x < (VolumeFrontDepth1.y)) { DataAcc += VolumeRGBT1; ValidSampleCount += 1.0f; }
-		if (PixelDistanceFromViewKm > (VolumeFrontDepth2.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth2.x < (VolumeFrontDepth2.y)) { DataAcc += VolumeRGBT2; ValidSampleCount += 1.0f; }
-		if (PixelDistanceFromViewKm > (VolumeFrontDepth3.x - CloudFrontDepthTinyOffset || ISWaterFarDepthBuffer) && VolumeFrontDepth3.x < (VolumeFrontDepth3.y)) { DataAcc += VolumeRGBT3; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth0.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth0.x < (VolumeFrontDepth0.y)) { DataAcc += VolumeRGBT0; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth1.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth1.x < (VolumeFrontDepth1.y)) { DataAcc += VolumeRGBT1; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth2.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth2.x < (VolumeFrontDepth2.y)) { DataAcc += VolumeRGBT2; ValidSampleCount += 1.0f; }
+		if (PixelDistanceFromViewKm > (VolumeFrontDepth3.x - CloudFrontDepthTinyOffset) && VolumeFrontDepth3.x < (VolumeFrontDepth3.y)) { DataAcc += VolumeRGBT3; ValidSampleCount += 1.0f; }
 		if (ValidSampleCount > 0.0f)
 		{
 			OutputRt0 = DataAcc / ValidSampleCount;

@@ -72,15 +72,14 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 #if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
 
-		float PixelSceneDepth = WaterSampleSceneDepthWithoutWater(
+		float PixelSceneDeviceZ = WaterSampleSceneDepthWithoutWater(
 			SceneDepthWithoutSingleLayerWaterTexture,
 			SceneDepthWithoutSingleLayerWaterSampler,
 			ViewportUV,
 			SceneDepthWithoutSingleLayerWaterTextureSize,
-			SceneDepthWithoutSingleLayerWaterTextureInvSize)
-			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+			SceneDepthWithoutSingleLayerWaterTextureInvSize);
 
-		float PixelSceneDeviceZ = ConvertToDeviceZ(PixelSceneDepth);
+		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
 #else
 		float PixelSceneDeviceZ = LookupDeviceZ(ViewportUV);
 		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
@@ -96,13 +95,14 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 		ViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
-		float PixelSceneDepth = WaterSampleSceneDepthWithoutWater(
-			SceneDepthWithoutSingleLayerWaterTexture, 
-			SceneDepthWithoutSingleLayerWaterSampler, 
-			ViewportUV, 
-			SceneDepthWithoutSingleLayerWaterTextureSize, 
-			SceneDepthWithoutSingleLayerWaterTextureInvSize) 
-			* SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float PixelSceneDeviceZ = WaterSampleSceneDepthWithoutWater(
+			SceneDepthWithoutSingleLayerWaterTexture,
+			SceneDepthWithoutSingleLayerWaterSampler,
+			ViewportUV,
+			SceneDepthWithoutSingleLayerWaterTextureSize,
+			SceneDepthWithoutSingleLayerWaterTextureInvSize);
+
+		float PixelSceneDepth = ConvertFromDeviceZ(PixelSceneDeviceZ);
 		
 		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
@@ -117,21 +117,23 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 		// Gather the four depth samples that would be used for bilinear interpolation. We need to know if any of these are invalid (above the water). If so, we have to discard this distorted sample and fall back. Otherwise we end up sampling foreground color from the bilinear color sample.
 		// This is only guaranteed to be artifact free if the input depth/color resolution is the same as the output. If the input is downsampled, this will still do the right thing but might still sample leaking color
-		float4 SceneDepth4 = SceneDepthWithoutSingleLayerWaterTexture.Gather(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV) * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float4 SceneDeviceZ4 = SceneDepthWithoutSingleLayerWaterTexture.Gather(SceneDepthWithoutSingleLayerWaterSampler, DistortedUV);
+		float4 SceneDepth4 = float4(ConvertFromDeviceZ(SceneDeviceZ4.x), ConvertFromDeviceZ(SceneDeviceZ4.y), ConvertFromDeviceZ(SceneDeviceZ4.z), ConvertFromDeviceZ(SceneDeviceZ4.w));
 		
-		float SceneDepth = 0.0;
+		float SceneDepth = 0.0f;
+		float SceneDeviceZ = 0.0f;
 		if(any(SceneDepth4 < WaterDepth))
 		{
 			SceneDepth = PixelSceneDepth; // The pixel we try to sample is closer than the water pixel: fallback to no distortion
+			SceneDeviceZ = PixelSceneDeviceZ;
 		}
 		else
 		{
 			// We can use bilinear interpolation here because all depth samples are guaranteed to be farther away than the water surface depth.
-			SceneDepth = GetBilinearInterpolation(GetBilinearSampleLevelInfos(DistortedUV, SceneDepthWithoutSingleLayerWaterTextureSize, SceneDepthWithoutSingleLayerWaterTextureInvSize), SceneDepth4.wzxy);
+			SceneDeviceZ = GetBilinearInterpolation(GetBilinearSampleLevelInfos(DistortedUV, SceneDepthWithoutSingleLayerWaterTextureSize, SceneDepthWithoutSingleLayerWaterTextureInvSize), SceneDeviceZ4.wzxy);
+			SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
 			ViewportUV = DistortedUV;
 		}
-
-		const float SceneDeviceZ = ConvertToDeviceZ(SceneDepth);
 
 #endif // !SIMPLE_SINGLE_LAYER_WATER
 

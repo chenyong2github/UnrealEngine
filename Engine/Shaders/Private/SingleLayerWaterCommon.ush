@@ -3,12 +3,6 @@
 #pragma once
 #include "TextureSampling.ush" // GetBilinearSampleLevelInfos() and GetBilinearInterpolation()
 
-// Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
-// Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
-// Originally used to work around precision issues with a float16 linear depth buffer.
-// TODO: Do we still need this?
-#define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
-
 #ifndef SIMPLE_SINGLE_LAYER_WATER
 #define SIMPLE_SINGLE_LAYER_WATER 0
 #endif

@@ -124,12 +124,12 @@ class FExponentialHeightFogPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OcclusionTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, OcclusionSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LinearDepthTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, LinearDepthSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, WaterDepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, WaterDepthSampler)
 		SHADER_PARAMETER(float, bOnlyOnRenderedOpaque)
-		SHADER_PARAMETER(float, bUseLinearDepthTexture)
+		SHADER_PARAMETER(uint32, bUseWaterDepthTexture)
 		SHADER_PARAMETER(float, UpsampleJitterMultiplier)
-		SHADER_PARAMETER(FVector4f, LinearDepthTextureMinMaxUV)
+		SHADER_PARAMETER(FVector4f, WaterDepthTextureMinMaxUV)
 		SHADER_PARAMETER(FVector4f, OcclusionTextureMinMaxUV)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -265,13 +265,13 @@ static FFogPassParameters* CreateDefaultFogPassParameters(
 	PassParameters->PS.FogUniformBuffer = FogUniformBuffer;
 	PassParameters->PS.OcclusionTexture = LightShaftOcclusionTexture != nullptr ? LightShaftOcclusionTexture : GSystemTextures.GetWhiteDummy(GraphBuilder);
 	PassParameters->PS.OcclusionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->PS.LinearDepthTexture = GSystemTextures.GetDepthDummy(GraphBuilder);
-	PassParameters->PS.LinearDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->PS.WaterDepthTexture = GSystemTextures.GetDepthDummy(GraphBuilder);
+	PassParameters->PS.WaterDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->PS.OcclusionTextureMinMaxUV = FVector4f(LightShaftParameters.UVViewportBilinearMin, LightShaftParameters.UVViewportBilinearMax);
-	PassParameters->PS.LinearDepthTextureMinMaxUV = FVector4f::Zero();
+	PassParameters->PS.WaterDepthTextureMinMaxUV = FVector4f::Zero();
 	PassParameters->PS.UpsampleJitterMultiplier = CVarUpsampleJitterMultiplier.GetValueOnRenderThread() * GVolumetricFogGridPixelSize;
 	PassParameters->PS.bOnlyOnRenderedOpaque = View.bFogOnlyOnRenderedOpaque;
-	PassParameters->PS.bUseLinearDepthTexture = 0.0f;
+	PassParameters->PS.bUseWaterDepthTexture = false;
 	return PassParameters;
 }
 
@@ -410,13 +410,10 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(
 		RDG_EVENT_SCOPE(GraphBuilder, "SLW::ExponentialHeightFog");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Fog);
 
-		FRDGTextureRef LinearDepthTexture = SceneWithoutWaterTextures.DepthTexture;
-		check(LinearDepthTexture);
+		FRDGTextureRef WaterDepthTexture = SceneWithoutWaterTextures.DepthTexture;
+		check(WaterDepthTexture);
 
 		const bool bShouldRenderVolumetricFog = ShouldRenderVolumetricFog();
-
-		// This must match SINGLE_LAYER_WATER_DEPTH_SCALE from SingleLayerWaterCommon.ush and SingleLayerWaterComposite.usf.
-		const float kSingleLayerWaterDepthScale = 100.0f;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -435,9 +432,9 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(
 				FScreenPassTextureViewportParameters LightShaftParameters = FScreenPassTextureViewportParameters();
 
 				FFogPassParameters* PassParameters = CreateDefaultFogPassParameters(GraphBuilder, View, SceneTexturesWithDepth, FogUniformBuffer, LightShaftOcclusionTexture, LightShaftParameters);
-				PassParameters->PS.LinearDepthTexture = LinearDepthTexture;
-				PassParameters->PS.bUseLinearDepthTexture = kSingleLayerWaterDepthScale;
-				PassParameters->PS.LinearDepthTextureMinMaxUV = SceneWithoutWaterView.MinMaxUV;
+				PassParameters->PS.WaterDepthTexture = WaterDepthTexture;
+				PassParameters->PS.bUseWaterDepthTexture = true;
+				PassParameters->PS.WaterDepthTextureMinMaxUV = SceneWithoutWaterView.MinMaxUV;
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneWithoutWaterTextures.ColorTexture, ERenderTargetLoadAction::ELoad);
 
 				GraphBuilder.AddPass(RDG_EVENT_NAME("FogBehindWater"), PassParameters, ERDGPassFlags::Raster, [this, &View, SceneWithoutWaterView, PassParameters, bShouldRenderVolumetricFog](FRHICommandList& RHICmdList)

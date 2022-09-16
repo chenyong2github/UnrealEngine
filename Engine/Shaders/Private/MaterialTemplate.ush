@@ -96,7 +96,7 @@
 	#include "/Engine/Private/SkyAtmosphereCommon.ush"
 #endif
 
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || POST_PROCESS_MATERIAL // For WaterSampleSceneDepthWithoutWater() and SINGLE_LAYER_WATER_DEPTH_SCALE
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || POST_PROCESS_MATERIAL // For WaterSampleSceneDepthWithoutWater()
 // This is currently included for post processing materials even if the SceneDepthWithoutWater texture is not sampled.
 // It might be worth it to add a switch to only include it if the texture is actually required by the material.
 	#include "/Engine/Private/SingleLayerWaterCommon.ush"
@@ -1688,14 +1688,16 @@ float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float Fallback
 {
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !SCENE_TEXTURES_DISABLED && (!SIMPLE_SINGLE_LAYER_WATER || SINGLE_LAYER_WATER_SIMPLE_FORWARD)
 	const float2 ClampedViewportUV = clamp(ViewportUV, SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy, SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.zw);
-	return WaterSampleSceneDepthWithoutWater(SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 
-		SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize, SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize) * SINGLE_LAYER_WATER_DEPTH_SCALE;
+	float WaterDeviceZ = WaterSampleSceneDepthWithoutWater(SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 
+		SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize, SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize);
+	return ConvertFromDeviceZ(WaterDeviceZ);
 #elif POST_PROCESS_MATERIAL
 	if (bSceneDepthWithoutWaterTextureAvailable)
 	{
 		const float2 ClampedViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinMaxUV.xy, SceneWithoutSingleLayerWaterMinMaxUV.zw);
-		return WaterSampleSceneDepthWithoutWater(SceneDepthWithoutSingleLayerWaterTexture, SceneDepthWithoutSingleLayerWaterSampler, ClampedViewportUV, 
-			SceneWithoutSingleLayerWaterTextureSize, SceneWithoutSingleLayerWaterInvTextureSize) * SINGLE_LAYER_WATER_DEPTH_SCALE;
+		float WaterDeviceZ = WaterSampleSceneDepthWithoutWater(SceneDepthWithoutSingleLayerWaterTexture, SceneDepthWithoutSingleLayerWaterSampler, ClampedViewportUV,
+			SceneWithoutSingleLayerWaterTextureSize, SceneWithoutSingleLayerWaterInvTextureSize);
+		return ConvertFromDeviceZ(WaterDeviceZ);
 	}
 	else
 	{

@@ -13,16 +13,16 @@
 float UpsampleJitterMultiplier;
 
 float bOnlyOnRenderedOpaque;
-float bUseLinearDepthTexture;
+uint bUseWaterDepthTexture;
 
-float4 LinearDepthTextureMinMaxUV;
+float4 WaterDepthTextureMinMaxUV;
 float4 OcclusionTextureMinMaxUV;
 
 Texture2D OcclusionTexture;
 SamplerState OcclusionSampler;
 
-Texture2D LinearDepthTexture;
-SamplerState LinearDepthSampler;
+Texture2D WaterDepthTexture;
+SamplerState WaterDepthSampler;
 
 void ExponentialPixelMain(
 	float2 TexCoord : TEXCOORD0,
@@ -33,11 +33,11 @@ void ExponentialPixelMain(
 {
 	float SceneDepth;
 	float DeviceZ;
-	if (bUseLinearDepthTexture > 0.0f)
+	if (bUseWaterDepthTexture)
 	{
-		float2 SampleUV = clamp(TexCoord, LinearDepthTextureMinMaxUV.xy, LinearDepthTextureMinMaxUV.zw);
-		SceneDepth = Texture2DSampleLevel(LinearDepthTexture, LinearDepthSampler, SampleUV, 0).r * bUseLinearDepthTexture; // bUseLinearDepthTexture is also a scale to get depth in correct range
-		DeviceZ = ConvertToDeviceZ(SceneDepth);
+		float2 SampleUV = clamp(TexCoord, WaterDepthTextureMinMaxUV.xy, WaterDepthTextureMinMaxUV.zw);
+		DeviceZ = Texture2DSampleLevel(WaterDepthTexture, WaterDepthSampler, SampleUV, 0).r;
+		SceneDepth = ConvertFromDeviceZ(DeviceZ);
 	}
 	else
 	{
