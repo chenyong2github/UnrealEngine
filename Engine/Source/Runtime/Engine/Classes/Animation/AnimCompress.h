@@ -505,10 +505,11 @@ public:
 		bool IncludeKeyTable = false);
 
 #if WITH_EDITOR
-	void PopulateDDCKeyArchive(FArchive& Ar) { PopulateDDCKey(Ar); }
+	UE_DEPRECATED(5.1, "PopulateDDCKeyArchive has been deprecated")
+	void PopulateDDCKeyArchive(FArchive& Ar) {}
 
 protected:
-	virtual void PopulateDDCKey(FArchive& Ar);
+	virtual void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar) override;
 #endif // WITH_EDITOR
 
 	/**

@@ -33,7 +33,7 @@ protected:
 	//~ Begin UAnimCompress Interface
 #if WITH_EDITOR
 	virtual bool DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
-	virtual void PopulateDDCKey(FArchive& Ar) override;
+	virtual void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar) override;
 #endif // WITH_EDITOR
 	//~ Begin UAnimCompress Interface
 };

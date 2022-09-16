@@ -6,6 +6,7 @@
 #include "AnimBoneCompressionSettings.generated.h"
 
 class UAnimBoneCompressionCodec;
+class UAnimSequenceBase;
 struct FCompressibleAnimData;
 struct FCompressibleAnimDataResult;
 
@@ -50,7 +51,11 @@ class ENGINE_API UAnimBoneCompressionSettings : public UObject
 	 */
 	bool Compress(const FCompressibleAnimData& AnimSeq, FCompressibleAnimDataResult& OutCompressedData) const;
 
+	/** Generates a DDC key that takes into account the current settings, selected codec, and input anim sequence. */
+	void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar);
+
 	/** Generates a DDC key that takes into account the current settings and selected codec. */
+	UE_DEPRECATED(5.1, "This function has been deprecated. Override the one above instead.")
 	void PopulateDDCKey(FArchive& Ar);
 #endif
 };

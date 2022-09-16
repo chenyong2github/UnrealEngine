@@ -59,9 +59,9 @@ bool UAnimCompress_RemoveEverySecondKey::DoReduction(const FCompressibleAnimData
 	return true;
 }
 
-void UAnimCompress_RemoveEverySecondKey::PopulateDDCKey(FArchive& Ar)
+void UAnimCompress_RemoveEverySecondKey::PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar)
 {
-	Super::PopulateDDCKey(Ar);
+	Super::PopulateDDCKey(AnimSeq, Ar);
 	Ar << MinKeys;
 	bool bVal = bStartAtSecondKey;
 	Ar << bVal;

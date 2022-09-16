@@ -703,9 +703,9 @@ void UAnimCompress::DecompressBone(FAnimSequenceDecompressionContext& DecompCont
 
 #if WITH_EDITOR
 
-void UAnimCompress::PopulateDDCKey(FArchive& Ar)
+void UAnimCompress::PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar)
 {
-	Super::PopulateDDCKey(Ar);
+	Super::PopulateDDCKey(AnimSeq, Ar);
 
 	uint8 TCF, RCF, SCF;
 	TCF = (uint8)TranslationCompressionFormat.GetValue();

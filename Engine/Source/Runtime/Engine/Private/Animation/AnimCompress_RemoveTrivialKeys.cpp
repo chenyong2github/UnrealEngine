@@ -53,9 +53,9 @@ bool UAnimCompress_RemoveTrivialKeys::DoReduction(const FCompressibleAnimData& C
 	return true;
 }
 
-void UAnimCompress_RemoveTrivialKeys::PopulateDDCKey(FArchive& Ar)
+void UAnimCompress_RemoveTrivialKeys::PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar)
 {
-	Super::PopulateDDCKey(Ar);
+	Super::PopulateDDCKey(AnimSeq, Ar);
 	Ar << MaxPosDiff;
 	Ar << MaxAngleDiff;
 	Ar << MaxScaleDiff;

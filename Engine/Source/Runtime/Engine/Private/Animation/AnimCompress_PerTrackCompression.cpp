@@ -1594,9 +1594,9 @@ void WriteEnumArrayToKey(FArchive& Ar, TArray<TEnumAsByte<enum AnimationCompress
 		Ar << Val;
 	}
 }
-void UAnimCompress_PerTrackCompression::PopulateDDCKey(FArchive& Ar)
+void UAnimCompress_PerTrackCompression::PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar)
 {
-	Super::PopulateDDCKey(Ar);
+	Super::PopulateDDCKey(AnimSeq, Ar);
 
 	Ar << MaxZeroingThreshold;
 	Ar << MaxPosDiffBitwise;

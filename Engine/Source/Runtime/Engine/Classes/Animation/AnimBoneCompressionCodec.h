@@ -34,9 +34,16 @@ class ENGINE_API UAnimBoneCompressionCodec : public UObject
 	virtual bool Compress(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) PURE_VIRTUAL(UAnimCurveCompressionCodec::Compress, return false;);
 
 	/*
+	 * Called to generate a unique DDC key for this codec instance and input anim sequence.
+	 * A suitable key should be generated from: the InstanceGuid, a codec version, and all relevant properties that drive the behavior.
+	 */
+	virtual void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar);
+
+	/*
 	 * Called to generate a unique DDC key for this codec instance.
 	 * A suitable key should be generated from: the InstanceGuid, a codec version, and all relevant properties that drive the behavior.
 	 */
+	UE_DEPRECATED(5.1, "This function has been deprecated. Override the one above instead.")
 	virtual void PopulateDDCKey(FArchive& Ar);
 #endif
 
@@ -67,7 +74,11 @@ class ENGINE_API UAnimBoneCompressionCodec : public UObject
 	 */
 	virtual void ByteSwapOut(ICompressedAnimData& AnimData, TArrayView<uint8> CompressedData, FMemoryWriter& MemoryStream) const PURE_VIRTUAL(UAnimCurveCompressionCodec::ByteSwapOut, );
 
-	/** Decompresses all the specified bone tracks. */
+	/**
+	 * Decompresses all the specified bone tracks.
+	 * The caller is responsible for pre-filling the output pose with sensible values (e.g. reference/bind/additive identity pose) as
+	 * the codec will only decompress and write out tracks that are contained in the compressed data.
+	 */
 	virtual void DecompressPose(FAnimSequenceDecompressionContext& DecompContext, const BoneTrackArray& RotationPairs, const BoneTrackArray& TranslationPairs, const BoneTrackArray& ScalePairs, TArrayView<FTransform>& OutAtoms) const PURE_VIRTUAL(UAnimCurveCompressionCodec::DecompressPose, );
 
 	/** Decompress a single bone. */
