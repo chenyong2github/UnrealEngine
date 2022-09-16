@@ -1366,7 +1366,7 @@ void UUserWidget::NativeConstruct()
 	}
 
 	// Extension can add other extensions.
-	check(bAreExtensionsConstructed == false);
+	//check(bAreExtensionsConstructed == false);
 	bAreExtensionsConstructed = true;
 	if (Extensions.Num() > 0)
 	{
