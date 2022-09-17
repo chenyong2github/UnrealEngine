@@ -60,7 +60,10 @@ public:
 		checkf(IsUniformBufferStaticSlotValid(Slot), TEXT("Attempted to set a global uniform buffer %s with an invalid slot."), *Layout.GetDebugName());
 
 #if VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS
-		ensureMsgf(INDEX_NONE == Slots.Find(Slot), TEXT("Uniform Buffer %s was added twice to the binding array."), *Layout.GetDebugName());
+		if (int32 SlotIndex = Slots.Find(Slot); SlotIndex != INDEX_NONE)
+		{
+			checkf(UniformBuffers[SlotIndex] == UniformBuffer, TEXT("Uniform Buffer %s was added multiple times to the binding array but with different values."), *Layout.GetDebugName());
+		}
 #endif
 
 		Slots.Add(Slot);

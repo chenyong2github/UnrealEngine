@@ -733,7 +733,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 			FWaterCompositeParameters* PassParameters = GraphBuilder.AllocParameters<FWaterCompositeParameters>();
 
-			PassParameters->VS.ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
+			PassParameters->VS.ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->VS.TileListData = TiledScreenSpaceReflection.TileListDataBufferSRV;
 
 			SetCommonParameters(PassParameters->PS.CommonParameters);
