@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Experimental/ConcurrentLinearAllocator.h"
+
 #if ENABLE_RHI_VALIDATION
 extern RHI_API bool GRHIValidationEnabled;
 #else
@@ -23,7 +25,7 @@ static inline bool IsStencilFormat(EPixelFormat Format);
 
 namespace RHIValidation
 {
-	struct FGlobalUniformBuffers
+	struct FStaticUniformBuffers
 	{
 		TArray<FRHIUniformBuffer*> Bindings;
 		bool bInSetPipelineStateCall{};
@@ -582,7 +584,9 @@ namespace RHIValidation
 		Signal,
 		Wait,
 		AllUAVsOverlap,
-		SpecificUAVOverlap
+		SpecificUAVOverlap,
+		PushBreadcrumb,
+		PopBreadcrumb
 	};
 
 	struct FUniformBufferResource
@@ -595,7 +599,9 @@ namespace RHIValidation
 		void InitLifetimeTracking(uint64 FrameID, const void* Contents, EUniformBufferUsage Usage);
 		void UpdateAllocation(uint64 FrameID);
 		void ValidateLifeTime();
-	};	
+	};
+
+	using FBreadcrumbStack = TArray<const TCHAR*, FConcurrentLinearArrayAllocator>;
 
 	struct FOperation
 	{
@@ -680,9 +686,14 @@ namespace RHIValidation
 				FResourceIdentity Identity;
 				bool bAllow;
 			} Data_SpecificUAVOverlap;
+
+			struct
+			{
+				TCHAR* Breadcrumb;
+			} Data_PushBreadcrumb;
 		};
 
-		RHI_API EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap) const;
+		RHI_API EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, FBreadcrumbStack& Breadcrumbs) const;
 
 		static inline FOperation BeginTransitionResource(FResourceIdentity Identity, FState PreviousState, FState NextState, EResourceTransitionFlags Flags, void* CreateBacktrace)
 		{
@@ -787,12 +798,7 @@ namespace RHIValidation
 			FOperation Op;
 			Op.Type = EOpType::Rename;
 			Op.Data_Rename.Resource = Resource;
-
-			int32 NameLen = FCString::Strlen(NewName);
-			Op.Data_Rename.DebugName = new TCHAR[NameLen + 1];
-			FMemory::Memcpy(Op.Data_Rename.DebugName, NewName, NameLen * sizeof(TCHAR));
-			Op.Data_Rename.DebugName[NameLen] = 0;
-
+			AllocStringCopy(Op.Data_Rename.DebugName, NewName);
 			Op.Data_Rename.Suffix = Suffix;
 			return MoveTemp(Op);
 		}
@@ -833,19 +839,45 @@ namespace RHIValidation
 			Op.Data_SpecificUAVOverlap.bAllow = bAllow;
 			return MoveTemp(Op);
 		}
+
+		static inline FOperation PushBreadcrumb(const TCHAR* Breadcrumb)
+		{
+			FOperation Op;
+			Op.Type = EOpType::PushBreadcrumb;
+			AllocStringCopy(Op.Data_PushBreadcrumb.Breadcrumb, Breadcrumb);
+			return Op;
+		}
+
+		static inline FOperation PopBreadcrumb()
+		{
+			FOperation Op;
+			Op.Type = EOpType::PopBreadcrumb;
+			return Op;
+		}
+
+	private:
+		static inline void AllocStringCopy(TCHAR*& OutString, const TCHAR* InString)
+		{
+			int32 Len = FCString::Strlen(InString);
+			OutString = new TCHAR[Len + 1];
+			FMemory::Memcpy(OutString, InString, Len * sizeof(TCHAR));
+			OutString[Len] = 0;
+		}
 	};
 
 	struct FOperationsList
 	{
-		TArray<FOperation> Operations;
+		using ListType = TArray<FOperation, FConcurrentLinearArrayAllocator>;
+
+		ListType Operations;
 		int32 OperationPos = 0;
 
-		inline EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap)
+		inline EReplayStatus Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, FBreadcrumbStack& Breadcrumbs)
 		{
 			EReplayStatus Status = EReplayStatus::Normal;
 			for (; OperationPos < Operations.Num(); ++OperationPos)
 			{
-				Status |= Operations[OperationPos].Replay(Pipeline, bAllowAllUAVsOverlap);
+				Status |= Operations[OperationPos].Replay(Pipeline, bAllowAllUAVsOverlap, Breadcrumbs);
 				if (EnumHasAllFlags(Status, EReplayStatus::Waiting))
 				{
 					break;
@@ -952,7 +984,7 @@ namespace RHIValidation
 
 		inline void AddOp(const FOperation& Op);
 
-		inline void AddOps(const TArray<FOperation>& Ops)
+		inline void AddOps(const FOperationsList::ListType& Ops)
 		{
 			for (const FOperation& Op : Ops)
 			{
@@ -967,6 +999,16 @@ namespace RHIValidation
 		FOperationsList Finalize()
 		{
 			return MoveTemp(CurrentList);
+		}
+
+		inline void PushBreadcrumb(const TCHAR* Breadcrumb)
+		{
+			AddOp(FOperation::PushBreadcrumb(Breadcrumb));
+		}
+
+		inline void PopBreadcrumb()
+		{
+			AddOp(FOperation::PopBreadcrumb());
 		}
 
 		inline void SetTrackedAccess(FResource* Resource, ERHIAccess Access)
@@ -1066,6 +1108,8 @@ namespace RHIValidation
 			bool bAllowAllUAVsOverlap = false;
 
 			FOperationsList Ops;
+			TArray<const TCHAR*, FConcurrentLinearArrayAllocator> Breadcrumbs;
+
 		} static RHI_API OpQueues[int32(ERHIPipeline::Num)];
 	};
 

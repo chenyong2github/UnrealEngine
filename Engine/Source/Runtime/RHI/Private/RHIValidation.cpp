@@ -426,13 +426,54 @@ void* FValidationRHI::RHILockBufferMGPU(class FRHICommandListBase& RHICmdList, F
 	return RHI->RHILockBufferMGPU(RHICmdList, Buffer, GPUIndex, Offset, SizeRHI, LockMode);
 }
 
+class FRHIValidationBreadcrumbScope
+{
+public:
+	FRHIValidationBreadcrumbScope(TConstArrayView<const TCHAR*> InBreadcrumbs)
+	{
+		Breadcrumbs = InBreadcrumbs;
+	}
+
+	~FRHIValidationBreadcrumbScope()
+	{
+		Breadcrumbs = {};
+	}
+
+	thread_local static TConstArrayView<const TCHAR*> Breadcrumbs;
+};
+
+thread_local TConstArrayView<const TCHAR*> FRHIValidationBreadcrumbScope::Breadcrumbs;
+
 void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 {
+	FString Message;
+
+	if (!FRHIValidationBreadcrumbScope::Breadcrumbs.IsEmpty())
+	{
+		FString BreadcrumbMessage;
+
+		for (int32 Index = 0; Index < FRHIValidationBreadcrumbScope::Breadcrumbs.Num() - 1; ++Index)
+		{
+			BreadcrumbMessage += (FRHIValidationBreadcrumbScope::Breadcrumbs[Index] + FString(TEXT("/")));
+		}
+
+		BreadcrumbMessage += FRHIValidationBreadcrumbScope::Breadcrumbs.Last();
+		Message = FString::Printf(
+			TEXT("%s")
+			TEXT("Breadcrumbs: %s\n")
+			TEXT("--------------------------------------------------------------------\n"),
+			InMessage, *BreadcrumbMessage);
+	}
+	else
+	{
+		Message = InMessage;
+	}
+
 	// Report failures only once per session, since many of them will happen repeatedly. This is similar to what ensure() does, but
 	// ensure() looks at the source location to determine if it's seen the error before. We want to look at the actual message, since
 	// all failures of a given kind will come from the same place, but (hopefully) the error message contains the name of the resource
 	// and a description of the state, so it should be unique for each failure.
-	uint32 Hash = FCrc::StrCrc32<TCHAR>(InMessage);
+	uint32 Hash = FCrc::StrCrc32<TCHAR>(*Message);
 	
 	SeenFailureHashesMutex.Lock();
 	bool bIsAlreadyInSet;
@@ -444,13 +485,13 @@ void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 		return;
 	}
 
-	UE_LOG(LogRHI, Error, TEXT("%s"), InMessage);
+	UE_LOG(LogRHI, Error, TEXT("%s"), *Message);
 
 	if (FPlatformMisc::IsDebuggerPresent() && RHIValidation::GBreakOnTransitionError)
 	{
 		// Print the message again using the debug output function, because UE_LOG doesn't always reach
 		// the VS output window before the breakpoint is triggered, despite the log flush call below.
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), InMessage);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Message);
 		GLog->Flush();
 		PLATFORM_BREAK();
 	}
@@ -468,7 +509,7 @@ void FValidationComputeContext::FState::Reset()
 	ComputePassName.Reset();
 	bComputePSOSet = false;
 	TrackerInstance.ResetAllUAVState();
-	GlobalUniformBuffers.Reset();
+	StaticUniformBuffers.Reset();
 }
 
 FValidationContext::FValidationContext(EType InType)
@@ -552,18 +593,18 @@ void FValidationContext::FState::Reset()
 	ComputePassName.Reset();
 	bComputePSOSet = false;
 	TrackerInstance.ResetAllUAVState();
-	GlobalUniformBuffers.Reset();
+	StaticUniformBuffers.Reset();
 }
 
 namespace RHIValidation
 {
-	void FGlobalUniformBuffers::Reset()
+	void FStaticUniformBuffers::Reset()
 	{
 		Bindings.Reset();
 		check(!bInSetPipelineStateCall);
 	}
 
-	void FGlobalUniformBuffers::ValidateSetShaderUniformBuffer(FRHIUniformBuffer* UniformBuffer)
+	void FStaticUniformBuffers::ValidateSetShaderUniformBuffer(FRHIUniformBuffer* UniformBuffer)
 	{
 		check(UniformBuffer);
 		UniformBuffer->ValidateLifeTime();
@@ -1402,8 +1443,25 @@ namespace RHIValidation
 		}
 	}
 
-	RHI_API EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap) const
+	RHI_API EReplayStatus FOperation::Replay(ERHIPipeline Pipeline, bool& bAllowAllUAVsOverlap, FBreadcrumbStack& Breadcrumbs) const
 	{
+		switch (Type)
+		{
+		case EOpType::PushBreadcrumb:
+			Breadcrumbs.Push(Data_PushBreadcrumb.Breadcrumb);
+			return EReplayStatus::Normal;
+
+		case EOpType::PopBreadcrumb:
+			if (!Breadcrumbs.IsEmpty())
+			{
+				delete[] Breadcrumbs.Last();
+				Breadcrumbs.Pop();
+			}
+			return EReplayStatus::Normal;
+		}
+
+		FRHIValidationBreadcrumbScope BreadcrumbScope(Breadcrumbs);
+
 		switch (Type)
 		{
 		case EOpType::Rename:
@@ -1547,13 +1605,13 @@ namespace RHIValidation
 				FOpQueueState& CurrentQueue = OpQueues[CurrentIndex];
 				if (CurrentQueue.bWaiting)
 				{
-					Status = CurrentQueue.Ops.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap);
+					Status = CurrentQueue.Ops.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap, CurrentQueue.Breadcrumbs);
 					if (!EnumHasAllFlags(Status, EReplayStatus::Waiting))
 					{
 						CurrentQueue.Ops.Reset();
 						if (CurrentIndex == DstOpQueueIndex && InOpsList.Incomplete())
 						{
-							Status |= InOpsList.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap);
+							Status |= InOpsList.Replay(CurrentPipeline, CurrentQueue.bAllowAllUAVsOverlap, CurrentQueue.Breadcrumbs);
 							CurrentQueue.bWaiting = InOpsList.Incomplete();
 						}
 						else

@@ -28,9 +28,9 @@ public:
 		// Reset the compute UAV tracker since the renderer must re-bind all resources after changing a shader.
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Compute);
 
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = true;
 		RHIContext->RHISetComputePipelineState(ComputePipelineState);
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) override final
@@ -170,7 +170,7 @@ public:
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
-		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
+		State.StaticUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
@@ -182,17 +182,19 @@ public:
 
 	virtual void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
 	{
-		InUniformBuffers.Bind(State.GlobalUniformBuffers.Bindings);
+		InUniformBuffers.Bind(State.StaticUniformBuffers.Bindings);
 		RHIContext->RHISetStaticUniformBuffers(InUniformBuffers);
 	}
 
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) override final
 	{
+		Tracker->PushBreadcrumb(Name);
 		RHIContext->RHIPushEvent(Name, Color);
 	}
 
 	virtual void RHIPopEvent() override final
 	{
+		Tracker->PopBreadcrumb();
 		RHIContext->RHIPopEvent();
 	}
 
@@ -237,7 +239,7 @@ protected:
 	struct FState
 	{
 		RHIValidation::FTracker TrackerInstance{ ERHIPipeline::AsyncCompute };
-		RHIValidation::FGlobalUniformBuffers GlobalUniformBuffers;
+		RHIValidation::FStaticUniformBuffers StaticUniformBuffers;
 
 		FString ComputePassName;
 		bool bComputePSOSet{};
@@ -277,9 +279,9 @@ public:
 		// Reset the compute UAV tracker since the renderer must re-bind all resources after changing a shader.
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Compute);
 
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = true;
 		RHIContext->RHISetComputePipelineState(ComputePipelineState);
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) override final
@@ -572,9 +574,9 @@ public:
 		// Setting a new PSO unbinds all previous bound resources
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Graphics);
 
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = true;
 		RHIContext->RHISetGraphicsPipelineState(GraphicsState, StencilRef, bApplyAdditionalState);
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
 #if PLATFORM_USE_FALLBACK_PSO
@@ -589,9 +591,9 @@ public:
 		// Setting a new PSO unbinds all previous bound resources
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Graphics);
 
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = true;
 		RHIContext->RHISetGraphicsPipelineState(PsoInit, StencilRef, bApplyAdditionalState);
-		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
+		State.StaticUniformBuffers.bInSetPipelineStateCall = false;
 	}
 #endif
 
@@ -701,14 +703,14 @@ public:
 	virtual void RHISetShaderUniformBuffer(FRHIGraphicsShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
-		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
+		State.StaticUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
 		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
-		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
+		State.StaticUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
@@ -726,7 +728,7 @@ public:
 
 	virtual void RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) override final
 	{
-		InUniformBuffers.Bind(State.GlobalUniformBuffers.Bindings);
+		InUniformBuffers.Bind(State.StaticUniformBuffers.Bindings);
 		RHIContext->RHISetStaticUniformBuffers(InUniformBuffers);
 	}
 
@@ -826,11 +828,13 @@ public:
 
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) override final
 	{
+		Tracker->PushBreadcrumb(Name);
 		RHIContext->RHIPushEvent(Name, Color);
 	}
 
 	virtual void RHIPopEvent() override final
 	{
+		Tracker->PopBreadcrumb();
 		RHIContext->RHIPopEvent();
 	}
 
@@ -1113,7 +1117,7 @@ protected:
 	struct FState
 	{
 		RHIValidation::FTracker TrackerInstance{ ERHIPipeline::Graphics };
-		RHIValidation::FGlobalUniformBuffers GlobalUniformBuffers;
+		RHIValidation::FStaticUniformBuffers StaticUniformBuffers;
 
 		void* PreviousBeginFrame = nullptr;
 		void* PreviousEndFrame = nullptr;
