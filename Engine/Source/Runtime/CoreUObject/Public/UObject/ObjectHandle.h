@@ -300,7 +300,7 @@ namespace ObjectHandle_Private
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FObjectHandleReferenceResolvedEvent, const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FObjectHandleReferenceLoadedEvent, const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
 
-	COREUOBJECT_API struct FObjectHandleEvents
+	struct FObjectHandleEvents
 	{
 		FObjectHandleReadEvent ObjectHandleReadEvent;
 		FClassReferenceResolvedEvent ClassReferenceResolvedEvent;
