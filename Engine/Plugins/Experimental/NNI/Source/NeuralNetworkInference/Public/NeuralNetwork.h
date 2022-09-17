@@ -117,6 +117,13 @@ public:
 	 */
 	bool IsLoaded() const;
 
+
+	/**
+	 *  Save ONNX network to disk. 
+	 * @return whether the network was successfully saved.
+	 */
+	bool Save(const FString& OutModelFilePath) const;
+
 	/**
 	 * Getter and setter functions for DeviceType, InputDeviceType, and OutputDeviceType:
 	 * - GetDeviceType() returns DeviceType.

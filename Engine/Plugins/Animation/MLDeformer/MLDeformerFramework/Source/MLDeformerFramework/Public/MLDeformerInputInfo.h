@@ -141,7 +141,7 @@ public:
 	 * @param SkelMeshComponent The skeletal mesh component to sample from.
 	 * @param OutValues The array to write the values to. This array will be reset/resized by this method.
 	 */
-	void ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const;
+	virtual void ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const;
 
 	/**
 	 * Extract bone space rotations, as a float array.
@@ -150,7 +150,7 @@ public:
 	 * @param SkelMeshComponent The skeletal mesh component to sample from.
 	 * @param OutRotations The output rotation values. This array will be resized internally.
 	 */
-	void ExtractBoneRotations(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutRotations) const;
+	virtual void ExtractBoneRotations(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutRotations) const;
 
 	/**
 	 * Get the number of imported vertices in the base mesh, which is the linear skinned skeletal mesh.

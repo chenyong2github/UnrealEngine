@@ -45,6 +45,9 @@ namespace UE::MLDeformer
 		 */
 		FMLDeformerGetGeomCacheEvent& OnGetGeometryCache()			{ return GetGeometryCacheEvent; }
 
+		UGeometryCacheComponent* GetGeometryCacheComponent() { return GeometryCacheComponent; }
+		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeometryCacheComponent; }
+
 	protected:
 		/**
 		 * Calculate the vertex deltas between the linear skinned mesh (skeletal mesh) and geometry cache.

@@ -99,6 +99,17 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 	return Load();
 }
 
+bool UNeuralNetwork::Save(const FString& OutModelFilePath) const
+{
+	const FString OutPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*OutModelFilePath);
+	if (!FFileHelper::SaveArrayToFile(ModelReadFromFileInBytes, *OutPath))
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Save(): Error saving model \"%s\"."), *OutPath);
+		return false;
+	}
+	return true;
+}
+
 
 bool UNeuralNetwork::Load(TArray<uint8>& InModelReadFromFileInBytes)
 {

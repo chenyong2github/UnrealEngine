@@ -154,7 +154,7 @@ protected:
 	 * @param StartIndex The index where we want to start writing the transformations to.
 	 * @return The new start index into the output buffer, to be used when you write more data after this.
 	 */
-	int64 SetBoneTransforms(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex);
+	virtual int64 SetBoneTransforms(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex);
 
 	/**
 	 * Set the animation curve values inside a given output buffer, starting from a given StartIndex.
@@ -163,7 +163,7 @@ protected:
 	 * @param StartIndex The index where we want to start writing the weights to.
 	 * @return The new start index into the output buffer, to be used when you write more data after this.
 	 */
-	int64 SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex);
+	virtual int64 SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex);
 
 	/**
 	 * Updates the bone transforms array.

@@ -53,7 +53,7 @@ public:
 	 * This is automatically called by the editor.
 	 * @param InEditorModel The pointer to the editor model that this is a training model for.
 	 */
-	void Init(UE::MLDeformer::FMLDeformerEditorModel* InEditorModel);
+	virtual void Init(UE::MLDeformer::FMLDeformerEditorModel* InEditorModel);
 
 	/** Get the runtime ML Deformer model object. */
 	UFUNCTION(BlueprintPure, Category = "Training Data")

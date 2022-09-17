@@ -82,6 +82,7 @@ namespace UE::MLDeformer
 
 		/** Calculate the memory usage of the sampler. */
 		SIZE_T CalcMemUsagePerFrameInBytes() const;
+		UDebugSkelMeshComponent* GetSkeletalMeshComponent() { return SkeletalMeshComponent; }
 
 	protected:
 		/** Create the actors used for sampling. This creates two actors, one for the base skeletal mesh and one for the target mesh. */
