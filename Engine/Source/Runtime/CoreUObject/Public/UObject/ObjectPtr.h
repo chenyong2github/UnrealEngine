@@ -142,6 +142,10 @@ public:
 
 	FORCEINLINE bool IsResolved() const { return IsObjectHandleResolved(Handle); }
 
+	// Gets the PathName of the object without resolving the object reference.
+	// @TODO OBJPTR: Deprecate this.
+	FString GetPath() const { return GetPathName(); }
+
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	// Gets the PathName of the object without resolving the object reference.
 	COREUOBJECT_API FString GetPathName() const;

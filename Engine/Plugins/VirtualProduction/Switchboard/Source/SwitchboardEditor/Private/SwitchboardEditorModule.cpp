@@ -224,7 +224,7 @@ bool FSwitchboardEditorModule::CreateNewConfig(const FSwitchboardNewConfigUserOp
 	if (const UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr)
 	{
 		FString ClassName, PackageName, ObjectName, SubObjectName;
-		FPackageName::SplitFullObjectPath(World->PersistentLevel.GetPath(), ClassName, PackageName, ObjectName, SubObjectName, true);
+		FPackageName::SplitFullObjectPath(World->PersistentLevel.GetPathName(), ClassName, PackageName, ObjectName, SubObjectName, true);
 		ScriptArgs.Map = PackageName;
 	}
 
