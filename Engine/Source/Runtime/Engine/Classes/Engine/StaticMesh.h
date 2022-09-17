@@ -2039,6 +2039,11 @@ private:
 	// Filled at CommitDescription time and reused during build
 	TOptional<FBoxSphereBounds> CachedMeshDescriptionBounds;
 
+	// Notification about missing Nanite required shader models.
+	TWeakPtr<class SNotificationItem> ShaderModelNotificationPtr;
+
+	void CheckForMissingShaderModels();
+
 	FOnPreMeshBuild PreMeshBuild;
 	FOnPostMeshBuild PostMeshBuild;
 

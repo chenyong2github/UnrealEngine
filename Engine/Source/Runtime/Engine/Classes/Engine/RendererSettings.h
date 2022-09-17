@@ -562,6 +562,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired=true))
 	float DistanceFieldVoxelDensity;
 
+	UPROPERTY(config, EditAnywhere, Category = Nanite, meta = (
+		ConsoleVariable = "r.Nanite.ProjectEnabled",
+		ToolTip = "Whether to enable Nanite rendering.",
+		ConfigRestartRequired = true))
+	uint32 bNanite : 1;
+
 	UPROPERTY(config, EditAnywhere, Category=MiscLighting, meta=(
 		ConsoleVariable="r.AllowStaticLighting",
 		ToolTip="Whether to allow any static lighting to be generated and used, like lightmaps and shadowmaps. Games that only use dynamic lighting should set this to 0 to save some static lighting overhead. Disabling allows Material AO and Material BentNormal to work with Lumen Global Illumination.  Changing this setting requires restarting the editor.",
@@ -1157,6 +1163,11 @@ private:
 #if WITH_EDITOR
 	/** shadow copy saved before effects of PostEditChange() to provide option to roll back edit. */
 	int32 PreEditReflectionCaptureResolution = 128;
+
+	// Notification about missing required shader models.
+	TWeakPtr<class SNotificationItem> ShaderModelNotificationPtr;
+
+	void CheckForMissingShaderModels();
 #endif // WITH_EDITOR
 
 	void SanatizeReflectionCaptureResolution();

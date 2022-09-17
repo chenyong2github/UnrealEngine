@@ -81,6 +81,9 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataValue.h"
 #include "Compression/OodleDataCompression.h"
+
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Docking/TabManager.h"
 #endif // #if WITH_EDITOR
 
 #include "Engine/StaticMeshSocket.h"
@@ -3837,6 +3840,11 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		}
 	}
 
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, NaniteSettings))
+	{
+		CheckForMissingShaderModels();
+	}
+
 	UStaticMesh::FBuildParameters BuildParameters;
 	BuildParameters.bInSilent = true;
 	BuildParameters.bInRebuildUVChannelData = true;
@@ -5674,6 +5682,8 @@ void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
 	// before trying to access it from multiple threads
 	GetStaticMeshDerivedDataVersion();
 
+	CheckForMissingShaderModels();
+
 	// Lock all properties that should not be modified/accessed during async post-load
 	AcquireAsyncProperty();
 
@@ -6197,6 +6207,62 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 	ReleaseAsyncProperty(EStaticMeshAsyncProperties::HiResSourceModel);
 #endif // #if WITH_EDITOR
 }
+
+#if WITH_EDITOR
+void UStaticMesh::CheckForMissingShaderModels()
+{
+	static bool bWarnedAboutMissingShaderModel = false;
+	if (GIsEditor && NaniteSettings.bEnabled && !bWarnedAboutMissingShaderModel)
+	{
+		TArray<FString> D3D11TargetedShaderFormats;
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D11TargetedShaderFormats"), D3D11TargetedShaderFormats, GEngineIni);
+
+		TArray<FString> D3D12TargetedShaderFormats;
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D12TargetedShaderFormats"), D3D12TargetedShaderFormats, GEngineIni);
+
+		const bool bProjectUsesD3D = (D3D11TargetedShaderFormats.Num() + D3D12TargetedShaderFormats.Num()) > 0;
+
+		if (bProjectUsesD3D && !D3D12TargetedShaderFormats.Contains(TEXT("PCD3D_SM6")))
+		{
+			bWarnedAboutMissingShaderModel = true;
+
+			auto DismissNotification = [this]()
+			{
+				if (TSharedPtr<SNotificationItem> NotificationPin = ShaderModelNotificationPtr.Pin())
+				{
+					NotificationPin->SetCompletionState(SNotificationItem::CS_None);
+					NotificationPin->ExpireAndFadeout();
+					ShaderModelNotificationPtr.Reset();
+				}
+			};
+
+			auto OpenProjectSettings = []()
+			{
+				FGlobalTabmanager::Get()->TryInvokeTab(FName("ProjectSettings"));
+			};
+
+			FNotificationInfo Info(LOCTEXT("NeedProjectSettings", "Missing Project Settings!"));
+			Info.bFireAndForget = false;
+			Info.FadeOutDuration = 0.0f;
+			Info.ExpireDuration = 0.0f;
+			Info.WidthOverride = FOptionalSize();
+
+			Info.ButtonDetails.Add(FNotificationButtonInfo(
+				LOCTEXT("GuidelineDismiss", "Dismiss"),
+				LOCTEXT("GuidelineDismissTT", "Dismiss this notification."),
+				FSimpleDelegate::CreateLambda(DismissNotification),
+				SNotificationItem::CS_None));
+
+			Info.Text = LOCTEXT("NeedProjectSettings", "Missing Project Settings!");
+			Info.SubText = LOCTEXT("NaniteNeedsSM6Setting", "Shader Model 6 (SM6) is required to use Nanite assets. Please enable this in:\n  Project Settings -> Platforms -> Windows -> D3D12 Targeted Shader Formats\nNanite assets will not display properly until this is enabled.");
+			Info.HyperlinkText = LOCTEXT("ProjectSettingsHyperlinkText", "Open Project Settings");
+			Info.Hyperlink = FSimpleDelegate::CreateLambda(OpenProjectSettings);
+
+			ShaderModelNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+		}
+	}
+}
+#endif
 
 void UStaticMesh::FinishPostLoadInternal(FStaticMeshPostLoadContext& Context)
 {

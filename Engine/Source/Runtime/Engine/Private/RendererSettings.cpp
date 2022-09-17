@@ -14,6 +14,10 @@
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
 
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Docking/TabManager.h"
+
 /** The editor object. */
 extern UNREALED_API class UEditorEngine* GEditor;
 #endif // #if WITH_EDITOR
@@ -98,6 +102,8 @@ void URendererSettings::PostInitProperties()
 	UpdateWorkingColorSpaceAndChromaticities();
 
 #if WITH_EDITOR
+	CheckForMissingShaderModels();
+
 	if (IsTemplate())
 	{
 		ImportConsoleVariableValues();
@@ -287,6 +293,11 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		{
 			UpdateWorkingColorSpaceAndChromaticities();
 		}
+
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ShadowMapMethod))
+		{
+			CheckForMissingShaderModels();
+		}
 	}
 }
 
@@ -330,6 +341,57 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 	}
 
 	return true;
+}
+
+void URendererSettings::CheckForMissingShaderModels()
+{
+	if (GIsEditor && ShadowMapMethod == EShadowMapMethod::VirtualShadowMaps)
+	{
+		TArray<FString> D3D11TargetedShaderFormats;
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D11TargetedShaderFormats"), D3D11TargetedShaderFormats, GEngineIni);
+
+		TArray<FString> D3D12TargetedShaderFormats;
+		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("D3D12TargetedShaderFormats"), D3D12TargetedShaderFormats, GEngineIni);
+
+		const bool bProjectUsesD3D = (D3D11TargetedShaderFormats.Num() + D3D12TargetedShaderFormats.Num()) > 0;
+
+		if (bProjectUsesD3D && !D3D12TargetedShaderFormats.Contains(TEXT("PCD3D_SM6")))
+		{
+			auto DismissNotification = [this]()
+			{
+				if (TSharedPtr<SNotificationItem> NotificationPin = ShaderModelNotificationPtr.Pin())
+				{
+					NotificationPin->SetCompletionState(SNotificationItem::CS_None);
+					NotificationPin->ExpireAndFadeout();
+					ShaderModelNotificationPtr.Reset();
+				}
+			};
+
+			auto OpenProjectSettings = []()
+			{
+				FGlobalTabmanager::Get()->TryInvokeTab(FName("ProjectSettings"));
+			};
+
+			FNotificationInfo Info(LOCTEXT("NeedProjectSettings", "Missing Project Settings!"));
+			Info.bFireAndForget = false;
+			Info.FadeOutDuration = 0.0f;
+			Info.ExpireDuration = 0.0f;
+			Info.WidthOverride = FOptionalSize();
+
+			Info.ButtonDetails.Add(FNotificationButtonInfo(
+				LOCTEXT("GuidelineDismiss", "Dismiss"),
+				LOCTEXT("GuidelineDismissTT", "Dismiss this notification."),
+				FSimpleDelegate::CreateLambda(DismissNotification),
+				SNotificationItem::CS_None));
+
+			Info.Text = LOCTEXT("NeedProjectSettings", "Missing Project Settings!");
+			Info.SubText = LOCTEXT("VirtualShadowMapsNeedsSM6Setting", "Shader Model 6 (SM6) is required to use Virtual Shadow Maps. Please enable this in:\n  Project Settings -> Platforms -> Windows -> D3D12 Targeted Shader Formats\nVirtual shadow maps will not work until this is enabled.");
+			Info.HyperlinkText = LOCTEXT("ProjectSettingsHyperlinkText", "Open Project Settings");
+			Info.Hyperlink = FSimpleDelegate::CreateLambda(OpenProjectSettings);
+
+			ShaderModelNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+		}
+	}
 }
 #endif // #if WITH_EDITOR
 

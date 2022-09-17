@@ -5392,7 +5392,10 @@ void FNaniteSettingsLayout::ApplyChanges()
 
 		StaticMesh->Modify();
 		StaticMesh->NaniteSettings = NaniteSettings;
-		StaticMesh->PostEditChange();
+
+		FProperty* ChangedProperty = FindFProperty<FProperty>(UStaticMesh::StaticClass(), GET_MEMBER_NAME_CHECKED(UStaticMesh, NaniteSettings));
+		FPropertyChangedEvent Event(ChangedProperty);
+		StaticMesh->PostEditChangeProperty(Event);
 	}
 
 
