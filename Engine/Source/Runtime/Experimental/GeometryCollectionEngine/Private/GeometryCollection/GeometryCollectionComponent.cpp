@@ -2702,6 +2702,7 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 
 		// initialize the component per level damage threshold from the asset defaults 
 		DamageThreshold = RestCollection->DamageThreshold;
+		bUseSizeSpecificDamageThreshold = RestCollection->bUseSizeSpecificDamageThreshold;
 
 		// initialize the component damage progataion data from the asset defaults 
 		DamagePropagationData = RestCollection->DamagePropagationData;

@@ -455,8 +455,12 @@ public:
 	int32 MaxClusterLevel;
 
 	/** Damage threshold for clusters at different levels. */
-	UPROPERTY(EditAnywhere, Category = "Damage")
+	UPROPERTY(EditAnywhere, Category = "Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold"))
 	TArray<float> DamageThreshold;
+
+	/** whether to use size specific damage threshold instead of level based ones ( see Size Specific Data array ). */
+	UPROPERTY(EditAnywhere, Category = "Damage")
+	bool bUseSizeSpecificDamageThreshold;
 
 	/** compatibility check, when true, only cluster compute damage from parameters and propagate to direct children
 	 *  when false, each child will compute it's damage threshold allowing for more precise and intuitive destruction behavior
