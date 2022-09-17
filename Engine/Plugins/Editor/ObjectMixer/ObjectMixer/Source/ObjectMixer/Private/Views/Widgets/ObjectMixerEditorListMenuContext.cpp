@@ -118,8 +118,8 @@ void UObjectMixerEditorListMenuContext::RegisterObjectMixerContextMenu()
 					return;
 				}
 	
-				FToolMenuSection& Section = InMenu->FindOrAddSection("Collections");
-				Section.Label = LOCTEXT("CollectionsSectionName", "Collections");
+				FToolMenuSection& Section = InMenu->FindOrAddSection("ObjectMixerCollections");
+				Section.Label = LOCTEXT("ObjectMixerCollectionsSectionName", "Mixer Collections");
 				
 				FObjectMixerEditorListMenuContextData& ContextData = Context->Data;
 			
@@ -183,8 +183,9 @@ void UObjectMixerEditorListMenuContext::RegisterObjectMixerContextMenu()
 						}
 					)
 				);
-			}
-		));
+			}),
+			FToolMenuInsert(NAME_None,EToolMenuInsertType::First)
+		);
 	}
 }
 
