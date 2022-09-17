@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Bundles;
 using EpicGames.Horde.Storage.Git;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Perforce;
@@ -51,7 +50,7 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Options for how objects are packed together
 		/// </summary>
-		public BundleOptions Bundle { get; set; } = new BundleOptions();
+		public TreeOptions Bundle { get; set; } = new TreeOptions();
 
 		/// <summary>
 		/// Options for how objects are sliced

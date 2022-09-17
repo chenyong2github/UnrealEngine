@@ -15,12 +15,12 @@ using EpicGames.Core;
 using K4os.Compression.LZ4;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace EpicGames.Horde.Storage.Bundles
+namespace EpicGames.Horde.Storage
 {
 	/// <summary>
 	/// Options for configuring a bundle serializer
 	/// </summary>
-	public class BundleOptions
+	public class TreeOptions
 	{
 		/// <summary>
 		/// Maximum payload size fo a blob
@@ -57,7 +57,7 @@ namespace EpicGames.Horde.Storage.Bundles
 	/// Implementation of <see cref="ITreeStore"/> which packs nodes together into <see cref="Bundle"/> objects, then stores them
 	/// in a <see cref="IBlobStore"/>.
 	/// </summary>
-	public class BundleStore : ITreeStore, IDisposable
+	public class TreeStore : ITreeStore, IDisposable
 	{
 		/// <summary>
 		/// Information about a node within a bundle.
@@ -65,13 +65,13 @@ namespace EpicGames.Horde.Storage.Bundles
 		[DebuggerDisplay("{Hash}")]
 		sealed class NodeInfo : ITreeBlobRef
 		{
-			public readonly BundleStore Owner;
+			public readonly TreeStore Owner;
 			public readonly IoHash Hash;
 			public NodeState State { get; private set; }
 
 			IoHash ITreeBlobRef.Hash => Hash;
 
-			public NodeInfo(BundleStore owner, IoHash hash, NodeState state)
+			public NodeInfo(TreeStore owner, IoHash hash, NodeState state)
 			{
 				Owner = owner;
 				Hash = hash;
@@ -214,7 +214,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		{
 			readonly object _lockObject = new object();
 
-			readonly BundleStore _owner;
+			readonly TreeStore _owner;
 			readonly BundleContext _context;
 			readonly BundleWriter? _parent;
 			readonly Utf8String _prefix;
@@ -239,7 +239,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			public BundleWriter(BundleStore owner, BundleContext context, BundleWriter? parent, Utf8String prefix)
+			public BundleWriter(TreeStore owner, BundleContext context, BundleWriter? parent, Utf8String prefix)
 			{
 				_owner = owner;
 				_context = context;
@@ -503,7 +503,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			/// </summary>
 			Bundle CreateBundle(NodeInfo[] nodes)
 			{
-				BundleOptions options = _owner._options;
+				TreeOptions options = _owner._options;
 
 				// Create a set from the nodes to be written. We use this to determine references that are imported.
 				HashSet<NodeInfo> nodeSet = new HashSet<NodeInfo>(nodes);
@@ -684,12 +684,12 @@ namespace EpicGames.Horde.Storage.Bundles
 		// so that other threads can also await it.
 		readonly Dictionary<string, Task<Bundle>> _readTasks = new Dictionary<string, Task<Bundle>>();
 
-		readonly BundleOptions _options;
+		readonly TreeOptions _options;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleStore(IBlobStore blobStore, BundleOptions options)
+		public TreeStore(IBlobStore blobStore, TreeOptions options)
 		{
 			_blobStore = blobStore;
 			_options = options;

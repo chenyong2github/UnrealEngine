@@ -3,7 +3,6 @@
 using System;
 using System.Linq;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Bundles;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Storage.Backends;
@@ -101,7 +100,7 @@ namespace Horde.Build
 		/// <summary>
 		/// Options for creating bundles
 		/// </summary>
-		BundleOptions Bundle { get; }
+		TreeOptions Bundle { get; }
 
 		/// <summary>
 		/// Options for chunking content
@@ -115,7 +114,7 @@ namespace Horde.Build
 	public class TreeStoreOptions : BlobStoreOptions, ITreeStoreOptions
 	{
 		/// <inheritdoc/>
-		public BundleOptions Bundle { get; set; } = new BundleOptions();
+		public TreeOptions Bundle { get; set; } = new TreeOptions();
 
 		/// <inheritdoc/>
 		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();

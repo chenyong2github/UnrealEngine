@@ -3,15 +3,9 @@
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
-using EpicGames.Horde.Storage.Bundles;
-using EpicGames.Horde.Storage.Impl;
 using EpicGames.Horde.Storage.Nodes;
-using EpicGames.Serialization;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Buffers;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,7 +23,7 @@ namespace EpicGames.Horde.Tests
 		public BundleTests()
 		{
 			_blobStore = new InMemoryBlobStore();
-			_treeStore = new BundleStore(_blobStore, new BundleOptions());
+			_treeStore = new TreeStore(_blobStore, new TreeOptions());
 		}
 
 		public void Dispose()
@@ -172,7 +166,7 @@ namespace EpicGames.Horde.Tests
 		public async Task BasicTestDirectory()
 		{
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
-			using ITreeStore treeStore = new BundleStore(blobStore, new BundleOptions());
+			using ITreeStore treeStore = new TreeStore(blobStore, new TreeOptions());
 
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 			DirectoryNode node = root.AddDirectory("hello");
@@ -211,11 +205,11 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task DedupTests()
 		{
-			BundleOptions options = new BundleOptions();
+			TreeOptions options = new TreeOptions();
 			options.MaxBlobSize = 1;
 
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
-			using ITreeStore treeStore = new BundleStore(blobStore, options);
+			using ITreeStore treeStore = new TreeStore(blobStore, options);
 
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 			root.AddDirectory("node1");
@@ -235,14 +229,14 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task ReloadTests()
 		{
-			BundleOptions options = new BundleOptions();
+			TreeOptions options = new TreeOptions();
 			options.MaxBlobSize = 1;
 
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 
 			RefName refName = new RefName("ref");
 
-			using (ITreeStore oldBundle = new BundleStore(blobStore, options))
+			using (ITreeStore oldBundle = new TreeStore(blobStore, options))
 			{
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 
@@ -257,7 +251,7 @@ namespace EpicGames.Horde.Tests
 				Assert.AreEqual(5, blobStore.Blobs.Count);
 			}
 
-			using (ITreeStore newBundle = new BundleStore(blobStore, options))
+			using (ITreeStore newBundle = new TreeStore(blobStore, options))
 			{
 				DirectoryNode root = await newBundle.ReadTreeAsync<DirectoryNode>(refName);
 
@@ -443,10 +437,10 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task SpillTestAsync()
 		{
-			BundleOptions options = new BundleOptions();
+			TreeOptions options = new TreeOptions();
 			options.MaxBlobSize = 1;
 
-			using BundleStore treeStore = new BundleStore(_blobStore, options);
+			using TreeStore treeStore = new TreeStore(_blobStore, options);
 
 			RefName refName = new RefName("ref");
 			ITreeWriter writer = treeStore.CreateTreeWriter(refName.Text);

@@ -57,7 +57,6 @@ using Horde.Build.Logs.Storage;
 using Horde.Build.Tasks;
 using Horde.Build.Auditing;
 using Horde.Build.Storage.Backends;
-using EpicGames.Horde.Storage.Bundles;
 using Horde.Build.Compute;
 using Horde.Build.Devices;
 
@@ -242,7 +241,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ITreeStore<CommitService>>(sp =>
 			{
 				IBlobStore blobStore = new BasicBlobStore(sp.GetRequiredService<MongoService>(), new TransientStorageBackend(), sp.GetRequiredService<IMemoryCache>(), sp.GetRequiredService<ILogger<BasicBlobStore>>());
-				return new BundleStore(blobStore, new BundleOptions()).ForType<CommitService>();
+				return new TreeStore(blobStore, new TreeOptions()).ForType<CommitService>();
 			});
 
 			services.AddSingleton<IStorageClient, BasicStorageClient>();

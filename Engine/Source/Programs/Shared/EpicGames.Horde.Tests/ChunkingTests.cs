@@ -10,7 +10,6 @@ using System.IO;
 using System.Threading;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
-using EpicGames.Horde.Storage.Bundles;
 
 namespace EpicGames.Horde.Tests
 {
@@ -49,7 +48,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task BasicChunkingTests()
 		{
-			using BundleStore store = new BundleStore(new InMemoryBlobStore(), new BundleOptions());
+			using TreeStore store = new TreeStore(new InMemoryBlobStore(), new TreeOptions());
 			ITreeWriter writer = store.CreateTreeWriter("test");
 
 			ChunkingOptions options = new ChunkingOptions();
@@ -105,7 +104,7 @@ namespace EpicGames.Horde.Tests
 
 		static async Task TestChunkingAsync(ChunkingOptions options)
 		{
-			using BundleStore store = new BundleStore(new InMemoryBlobStore(), new BundleOptions());
+			using TreeStore store = new TreeStore(new InMemoryBlobStore(), new TreeOptions());
 			ITreeWriter writer = store.CreateTreeWriter();
 
 			byte[] data = new byte[4096];

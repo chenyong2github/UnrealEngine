@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Bundles;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -131,7 +130,7 @@ namespace Horde.Agent.Commands.Bundles
 		protected ITreeStore CreateTreeStore(ILogger logger)
 		{
 			IBlobStore blobStore = CreateBlobStore(logger);
-			return new BundleStore(blobStore, new BundleOptions());
+			return new TreeStore(blobStore, new TreeOptions());
 		}
 	}
 

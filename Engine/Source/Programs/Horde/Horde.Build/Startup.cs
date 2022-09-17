@@ -92,7 +92,6 @@ using Horde.Build.Auditing;
 using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Server.Notices;
 using Horde.Build.Notifications.Sinks;
-using EpicGames.Horde.Storage.Bundles;
 using StatusCode = Grpc.Core.StatusCode;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -285,7 +284,7 @@ namespace Horde.Build
 		static ITreeStore CreateTreeStore(IServiceProvider sp, TreeStoreOptions options)
 		{
 			IBlobStore store = CreateBlobStore(sp, options);
-			return new BundleStore(store, options.Bundle);
+			return new TreeStore(store, options.Bundle);
 		}
 
 		public Startup(IConfiguration configuration)
