@@ -58,8 +58,8 @@ void FLevelSnapshotsEditorModule::StartupModule()
 			DataMangementSettingsSectionPtr = SettingsModule.RegisterSettings("Project", "Plugins", "Level Snapshots Editor",
 				NSLOCTEXT("LevelSnapshots", "LevelSnapshotsEditorSettingsCategoryDisplayName", "Level Snapshots Editor"),
 				NSLOCTEXT("LevelSnapshots", "LevelSnapshotsEditorSettingsDescription", "Configure the Level Snapshots Editor settings"),
-				GetMutableDefault<ULevelSnapshotsEditorSettings>());
-			DataMangementSettingsSectionPtr->OnModified().BindRaw(this, &FLevelSnapshotsEditorModule::HandleModifiedProjectSettings);
+				GetMutableDefault<ULevelSnapshotsEditorSettings>()
+				);
 		}
 	});
 }
@@ -146,16 +146,6 @@ void FLevelSnapshotsEditorModule::OpenLevelSnapshotsDialogWithAssetSelected(cons
 void FLevelSnapshotsEditorModule::OpenSnapshotsEditor()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(LevelSnapshotsEditor::LevelSnapshotsTabName);
-}
-
-bool FLevelSnapshotsEditorModule::HandleModifiedProjectSettings()
-{
-	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::GetMutable();
-	Settings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
-	Settings->SanitizeAllProjectSettingsPaths(true);
-		
-	Settings->SaveConfig();
-	return true;
 }
 
 void FLevelSnapshotsEditorModule::RegisterEditorToolbar()

@@ -31,7 +31,7 @@ namespace UE::LevelSnapshots::Editor
 {
 	TAutoConsoleVariable<bool> CVarSaveAsync(TEXT("LevelSnapshots.SnapshotFormUsesSaveAsync"), true, TEXT("Set whether the Take Snapshot Form, opened by pressing the toolbar icon, saves snapshots using the SAVE_Async flag."));
 	
-	static void HandleFormReply(const FText& InDescription, bool bShouldUseOverrides)
+	static void HandleFormReply(const FText& InDescription, const FString& SnapshotName)
 	{
 		UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
 		if (!ensure(World))
@@ -39,22 +39,19 @@ namespace UE::LevelSnapshots::Editor
 			return;
 		}
 		
-		ULevelSnapshotsEditorSettings* DataManagementSettings = ULevelSnapshotsEditorSettings::GetMutable();
-		DataManagementSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
+		ULevelSnapshotsEditorSettings* DataManagementSettings = ULevelSnapshotsEditorSettings::Get();
 		DataManagementSettings->SanitizeAllProjectSettingsPaths(true);
 
-		const FText& NewSnapshotDir = ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
+		const FText NewSnapshotDir = ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
 			FText::FromString(FPaths::Combine(DataManagementSettings->RootLevelSnapshotSaveDir.Path, DataManagementSettings->LevelSnapshotSaveDir)),
 			World->GetName()
 			);
-		const FString& DescriptionString = bShouldUseOverrides && DataManagementSettings->IsNameOverridden() ?	DataManagementSettings->GetNameOverride() : DataManagementSettings->DefaultLevelSnapshotName;
-		const FText& NewSnapshotName = ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
-				FText::FromString(DescriptionString),
+		const FText NewSnapshotName = ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
+				FText::FromString(SnapshotName),
 				World->GetName()
 				);
 
-		const FString& ValidatedName = FPaths::MakeValidFileName(NewSnapshotName.ToString());
-
+		const FString ValidatedName = FPaths::MakeValidFileName(NewSnapshotName.ToString());
 		const bool bSaveAsync = CVarSaveAsync.GetValueOnAnyThread();
 		SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(World, ValidatedName, NewSnapshotDir.ToString(), InDescription.ToString(), false, bSaveAsync);
 	}
@@ -70,54 +67,45 @@ namespace UE::LevelSnapshots::Editor
 
 void SnapshotEditor::TakeSnapshotWithOptionalForm()
 {
-	FLevelSnapshotsEditorModule& Module = FLevelSnapshotsEditorModule::Get();
 	if (ULevelSnapshotsEditorSettings::Get()->bUseCreationForm)
 	{
-		TSharedRef<SWidget> CreationForm = SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
-			FCloseCreationFormDelegate::CreateLambda([](const FText& Description)
-			{
-				UE::LevelSnapshots::Editor::HandleFormReply(Description, true);
-			}));
+		SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(FCloseCreationFormDelegate::CreateStatic(UE::LevelSnapshots::Editor::HandleFormReply));
 	}
 	else
 	{
-		UE::LevelSnapshots::Editor::HandleFormReply(FText::GetEmpty(), false);
+		UE::LevelSnapshots::Editor::HandleFormReply(FText::GetEmpty(), ULevelSnapshotsEditorSettings::Get()->DefaultLevelSnapshotName);
 	}
 }
 
 ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, const FString& FileName, const FString& FolderPath, const FString& Description, bool bShouldCreateUniqueFileName, bool bSaveAsync)
 {
 	SCOPED_SNAPSHOT_EDITOR_TRACE(CreateSnapshotPackage);
+	
 	FString AssetName = FileName;
-    	
-    FString BasePackageName = FPaths::Combine(FolderPath, FileName);
-
-    BasePackageName.RemoveFromStart(TEXT("/"));
-    BasePackageName.RemoveFromStart(TEXT("Content/"));
-    BasePackageName.StartsWith(TEXT("Game/")) == true ? BasePackageName.InsertAt(0, TEXT("/")) : BasePackageName.InsertAt(0, TEXT("/Game/"));
-
-    FString PackageName = BasePackageName;
-
+    FString PackageName = FPaths::Combine(FolderPath, AssetName);
     if (bShouldCreateUniqueFileName)
     {
     	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-    	
-    	AssetTools.CreateUniqueAssetName(BasePackageName, TEXT(""), PackageName, AssetName);
+    	AssetTools.CreateUniqueAssetName(PackageName, TEXT(""), PackageName, AssetName);
     }
 
-    const FString& PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
-    const bool bPathIsValid = FPaths::ValidatePath(PackageFileName);
-
-    bool bProceedWithSave = bPathIsValid;
-
+	FString PackageFileName;
+	FPackageName::TryConvertLongPackageNameToFilename(PackageName, PackageFileName, FPackageName::GetAssetPackageExtension());
+	
+    bool bProceedWithSave = FPaths::ValidatePath(PackageFileName);
     if (bProceedWithSave && !bShouldCreateUniqueFileName)
     {
     	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-    	FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*(BasePackageName + "." + FileName)));
-    	if ( ExistingAsset.IsValid() && ExistingAsset.AssetClassPath == ULevelSnapshot::StaticClass()->GetClassPathName() )
+    	FAssetData ExistingAsset = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*(PackageName + "." + FileName)));
+    	if (ExistingAsset.IsValid() && ExistingAsset.AssetClassPath == ULevelSnapshot::StaticClass()->GetClassPathName())
     	{
     		EAppReturnType::Type ShouldReplace = FMessageDialog::Open( EAppMsgType::YesNo, FText::Format(LOCTEXT("ReplaceAssetMessage", "{0} already exists. Do you want to replace it?"), FText::FromString(FileName)) );
     		bProceedWithSave = (ShouldReplace == EAppReturnType::Yes);
+    	}
+    	else if (ExistingAsset.IsValid())
+    	{
+    		UE_LOG(LogLevelSnapshots, Error, TEXT("Asset %s already exists and is not a snapshot. Aborting."))
+    		return nullptr;
     	}
     }
 
@@ -141,17 +129,18 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
     	UPackage* SavePackage = CreatePackage(*PackageName);
     	const EObjectFlags AssetFlags = RF_Public | RF_Standalone;
     	ULevelSnapshot* SnapshotAsset = NewObject<ULevelSnapshot>(SavePackage, *AssetName, AssetFlags, nullptr);
-
-    	check(SavePackage && SnapshotAsset);
+    	if (!ensure(SavePackage && SnapshotAsset))
+    	{
+    		return nullptr;
+    	}
     	
     	SnapshotAsset->SetSnapshotName(*FileName);
     	SnapshotAsset->SetSnapshotDescription(Description);
-
         const bool bSuccessful = SnapshotAsset->SnapshotWorld(World);
         if (!bSuccessful)
         {
             // Package and snapshot need to be destroyed again
-            UE::LevelSnapshots::Editor:: DestroySnapshot(SnapshotAsset);
+            UE::LevelSnapshots::Editor::DestroySnapshot(SnapshotAsset);
             ObjectTools::DeleteObjectsUnchecked({ SavePackage });
             
             NotificationItem->SetText(
@@ -160,8 +149,8 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
             NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
             return nullptr;
         }
+    	
     	SnapshotAsset->MarkPackageDirty();
-
     	FAssetRegistryModule::AssetCreated(SnapshotAsset);
     	GenerateThumbnailForSnapshotAsset(SnapshotAsset);
 
@@ -177,7 +166,7 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
     	}
     	
     	// Notify the user of the outcome
-    	if (bPathIsValid && bSavingSuccessful)
+    	if (bSavingSuccessful)
     	{
     		NotificationItem->SetText(
     			FText::Format(

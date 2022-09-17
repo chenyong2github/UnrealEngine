@@ -29,7 +29,7 @@ public:
 	//~ End IModuleInterface Interface
 
 	static bool GetUseCreationForm() { return ULevelSnapshotsEditorSettings::Get()->bUseCreationForm; }
-	static void SetUseCreationForm(bool bInUseCreationForm) { ULevelSnapshotsEditorSettings::GetMutable()->bUseCreationForm = bInUseCreationForm; }
+	static void SetUseCreationForm(bool bInUseCreationForm) { ULevelSnapshotsEditorSettings::Get()->bUseCreationForm = bInUseCreationForm; }
 	static void ToggleUseCreationForm() { SetUseCreationForm(!GetUseCreationForm()); }
 
 	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData);
@@ -42,8 +42,6 @@ private:
 
 	TSharedRef<SDockTab> SpawnLevelSnapshotsTab(const FSpawnTabArgs& SpawnTabArgs);
 	ULevelSnapshotsEditorData* AllocateTransientPreset();
-	
-	bool HandleModifiedProjectSettings();
 	
 	void RegisterEditorToolbar();
 	void MapEditorToolbarActions();

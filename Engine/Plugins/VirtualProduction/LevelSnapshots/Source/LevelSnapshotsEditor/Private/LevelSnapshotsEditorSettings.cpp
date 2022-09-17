@@ -6,35 +6,21 @@
 #include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-const ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::Get()
-{
-	return GetDefault<ULevelSnapshotsEditorSettings>();
-}
-
-ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::GetMutable()
+ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::Get()
 {
 	return GetMutableDefault<ULevelSnapshotsEditorSettings>();
 }
 
-ULevelSnapshotsEditorSettings::ULevelSnapshotsEditorSettings(const FObjectInitializer& ObjectInitializer)
+ULevelSnapshotsEditorSettings::ULevelSnapshotsEditorSettings()
 {
-	RootLevelSnapshotSaveDir.Path = "/Game/LevelSnapshots";
-	LevelSnapshotSaveDir = "{map}/{year}-{month}-{day}";
-	DefaultLevelSnapshotName = "{map}_{user}_{time}";
-
-	bEnableLevelSnapshotsToolbarButton = true;
-	bUseCreationForm = true;
-	
-	const FVector2D DefaultClientSize = FVector2D(400.f, 400.f);
-
 	float DPIScale = 1.0f;
-
 	if (FSlateApplicationBase::IsInitialized())
 	{
 		const FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
 		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WorkAreaRect.Left, WorkAreaRect.Top);
 	}
 
+	const FVector2D DefaultClientSize = FVector2D(400.f, 400.f);
 	PreferredCreationFormWindowWidth = DefaultClientSize.X * DPIScale;
 	PreferredCreationFormWindowHeight = DefaultClientSize.Y * DPIScale;
 }
@@ -48,25 +34,6 @@ void ULevelSnapshotsEditorSettings::SetLastCreationWindowSize(const FVector2D In
 {
 	PreferredCreationFormWindowWidth = InLastSize.X;
 	PreferredCreationFormWindowHeight = InLastSize.Y;
-}
-
-const FString& ULevelSnapshotsEditorSettings::GetNameOverride() const
-{
-	return LevelSnapshotNameOverride.IsSet() ? LevelSnapshotNameOverride.Get() : DefaultLevelSnapshotName;
-}
-
-void ULevelSnapshotsEditorSettings::SetNameOverride(const FString& InName)
-{
-	LevelSnapshotNameOverride = InName;
-}
-
-void ULevelSnapshotsEditorSettings::ValidateRootLevelSnapshotSaveDirAsGameContentRelative()
-{
-	// Enforce Game Content Dir
-	if (!RootLevelSnapshotSaveDir.Path.StartsWith("/Game/"))
-	{
-		RootLevelSnapshotSaveDir.Path = "/Game/";
-	}
 }
 
 void ULevelSnapshotsEditorSettings::SanitizePathInline(FString& InPath, const bool bSkipForwardSlash)
@@ -89,41 +56,56 @@ void ULevelSnapshotsEditorSettings::SanitizePathInline(FString& InPath, const bo
 
 void ULevelSnapshotsEditorSettings::SanitizeAllProjectSettingsPaths(const bool bSkipForwardSlash)
 {
+	FString Dummy;
+	const FString PackagePath = FPaths::Combine(RootLevelSnapshotSaveDir.Path, FGuid::NewGuid().ToString());
+	// If you enter a path that's not in /Game/ nor in any plugin, this returns false.
+	if (!FPackageName::TryConvertLongPackageNameToFilename(PackagePath, Dummy, FPackageName::GetAssetPackageExtension()))
+	{
+		RootLevelSnapshotSaveDir.Path = TEXT("/Game/LevelSnapshots"); 
+	}
+	
 	SanitizePathInline(RootLevelSnapshotSaveDir.Path, bSkipForwardSlash);
 	SanitizePathInline(LevelSnapshotSaveDir, bSkipForwardSlash);
 	SanitizePathInline(DefaultLevelSnapshotName, bSkipForwardSlash);
 }
 
-FFormatNamedArguments ULevelSnapshotsEditorSettings::GetFormatNamedArguments(const FString& InWorldName)
+namespace UE::LevelSnapshots::Editor
 {
-	FNumberFormattingOptions IntOptions;
-	IntOptions.MinimumIntegralDigits = 2;
+	static FFormatNamedArguments GetFormatNamedArguments(const FString& InWorldName)
+	{
+		FNumberFormattingOptions IntOptions;
+		IntOptions.MinimumIntegralDigits = 2;
 
-	const FDateTime& LocalNow = FDateTime::Now();
+		const FDateTime& LocalNow = FDateTime::Now();
 
-	FFormatNamedArguments FormatArguments;
-	FormatArguments.Add("map", FText::FromString(InWorldName));
-	FormatArguments.Add("user", FText::FromString(FPlatformProcess::UserName()));
-	FormatArguments.Add("year", FText::FromString(FString::FromInt(LocalNow.GetYear())));
-	FormatArguments.Add("month", FText::AsNumber(LocalNow.GetMonth(), &IntOptions));
-	FormatArguments.Add("day", FText::AsNumber(LocalNow.GetDay(), &IntOptions));
-	FormatArguments.Add("date", FText::Format(FText::FromString("{0}-{1}-{2}"), FormatArguments["year"], FormatArguments["month"], FormatArguments["day"]));
-	FormatArguments.Add("time",
-		FText::Format(
-			FText::FromString("{0}-{1}-{2}"),
-			FText::AsNumber(LocalNow.GetHour(), &IntOptions), FText::AsNumber(LocalNow.GetMinute(), &IntOptions), FText::AsNumber(LocalNow.GetSecond(), &IntOptions)));
+		FFormatNamedArguments FormatArguments;
+		FormatArguments.Add("map", FText::FromString(InWorldName));
+		FormatArguments.Add("user", FText::FromString(FPlatformProcess::UserName()));
+		FormatArguments.Add("year", FText::FromString(FString::FromInt(LocalNow.GetYear())));
+		FormatArguments.Add("month", FText::AsNumber(LocalNow.GetMonth(), &IntOptions));
+		FormatArguments.Add("day", FText::AsNumber(LocalNow.GetDay(), &IntOptions));
+		FormatArguments.Add("date", FText::Format(FText::FromString("{0}-{1}-{2}"), FormatArguments["year"], FormatArguments["month"], FormatArguments["day"]));
+		FormatArguments.Add("time",
+			FText::Format(
+				FText::FromString("{0}-{1}-{2}"),
+				FText::AsNumber(LocalNow.GetHour(), &IntOptions), FText::AsNumber(LocalNow.GetMinute(), &IntOptions), FText::AsNumber(LocalNow.GetSecond(), &IntOptions)));
 
-	return FormatArguments;
+		return FormatArguments;
+	}
 }
 
 FText ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(const FText& InTextToParse, const FString& InWorldName)
 {
-	const FFormatNamedArguments& FormatArguments = GetFormatNamedArguments(InWorldName);
-
+	const FFormatNamedArguments FormatArguments = UE::LevelSnapshots::Editor::GetFormatNamedArguments(InWorldName);
 	return FText::Format(InTextToParse, FormatArguments);
 }
 
-bool ULevelSnapshotsEditorSettings::IsNameOverridden() const
+#if WITH_EDITOR
+void ULevelSnapshotsEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	return LevelSnapshotNameOverride.IsSet();
+	UObject::PostEditChangeProperty(PropertyChangedEvent);
+
+	SanitizeAllProjectSettingsPaths(true);
+	SaveConfig();
 }
+#endif

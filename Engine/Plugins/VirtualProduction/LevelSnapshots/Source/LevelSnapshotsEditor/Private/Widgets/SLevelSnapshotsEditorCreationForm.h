@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "Dialog/SCustomDialog.h"
 
-DECLARE_DELEGATE_OneParam(FCloseCreationFormDelegate, const FText& /* Description */);
+DECLARE_DELEGATE_TwoParams(FCloseCreationFormDelegate, const FText& /*Description*/, const FString& /*SnapshotName*/);
 
 class ULevelSnapshotsSettings;
 class ULevelSnapshotsEditorSettings;
 class SWindow;
 
-class SLevelSnapshotsEditorCreationForm : public SCustomDialog
+class SLevelSnapshotsEditorCreationForm : public SCompoundWidget
 {
 public:
 
@@ -21,18 +21,9 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(
-		const FArguments& InArgs,
-		TWeakPtr<SWindow> InWidgetWindow,
-		const FCloseCreationFormDelegate& CallOnClose
-		);
-
-	~SLevelSnapshotsEditorCreationForm();
-
-	TSharedRef<SWidget> MakeDataManagementSettingsDetailsWidget() const;
-
+	void Construct(const FArguments& InArgs, TWeakPtr<SWindow> InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose);
+	
 	FText GetNameOverrideText() const;
-
 	void SetNameOverrideText(const FText& InNewText, ETextCommit::Type InCommitType);
 	void SetDescriptionText(const FText& InNewText, ETextCommit::Type InCommitType);
 
@@ -41,17 +32,14 @@ public:
 	FReply OnResetNameClicked();
 	FReply OnCreateButtonPressed();
 
-	void OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const;
-
 private:
 	
-	TWeakPtr< SWindow > WidgetWindow;
-	TSharedPtr<SWidget> ResetPathButton;
-
-	bool bNameDiffersFromDefault = false;
-	bool bWasCreateSnapshotPressed = false;
+	TWeakPtr<SWindow> WidgetWindow;
 
 	FText DescriptionText;
-
+	TOptional<FString> NameOverride;
 	FCloseCreationFormDelegate CallOnCloseDelegate;
+	
+	TSharedRef<SWidget> MakeDataManagementSettingsDetailsWidget() const;
+	void OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const;
 };
