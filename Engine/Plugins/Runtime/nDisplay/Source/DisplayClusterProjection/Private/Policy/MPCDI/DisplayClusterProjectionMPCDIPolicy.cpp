@@ -323,6 +323,9 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 					ShaderICVFX.UVLightCardMap = LightCardManager->GetUVLightCardMap_RenderThread();
 				}
 
+				// cleanup camera list for render
+				ShaderICVFX.CleanupCamerasForRender();
+
 				// Initialize shader input data
 				FDisplayClusterShaderParameters_WarpBlend WarpBlendParameters;
 

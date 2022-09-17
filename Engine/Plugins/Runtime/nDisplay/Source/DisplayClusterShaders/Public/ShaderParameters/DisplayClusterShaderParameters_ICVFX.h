@@ -228,6 +228,23 @@ public:
 		int32 RenderOrder = -1;
 	};
 
+	// Remove unused cameras from render
+	bool CleanupCamerasForRender()
+	{
+		const TArray<FCameraSettings> InCameras = Cameras;
+		Cameras.Empty();
+
+		for (const FCameraSettings& CameraIt : InCameras)
+		{
+			if (CameraIt.IsUsed())
+			{
+				Cameras.Add(CameraIt);
+			}
+		}
+
+		return Cameras.Num() == InCameras.Num();
+	}
+
 	TArray<FCameraSettings> Cameras;
 
 	// Lightcard settings
