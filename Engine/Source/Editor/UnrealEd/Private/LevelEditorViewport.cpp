@@ -538,7 +538,7 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture(UTexture* Un
 		if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
 		{
 			const FString EditorWorldPackageName = EditorWorld->GetPackage()->GetName();
-			if (!EditorWorldPackageName.StartsWith(TEXT("/Temp/")))
+			if (!FPackageName::IsTempPackage(EditorWorldPackageName))
 			{
 				NewPackageFolder = FPackageName::GetLongPackagePath(EditorWorldPackageName);
 				if (!AssetTools.GetWritableFolderPermissionList()->PassesStartsWithFilter(NewPackageFolder))
