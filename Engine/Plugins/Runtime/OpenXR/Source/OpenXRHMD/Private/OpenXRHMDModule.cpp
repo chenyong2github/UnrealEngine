@@ -528,6 +528,14 @@ bool FOpenXRHMDModule::InitInstance()
 		GetProcAddr = GetDefaultLoader();
 	}
 
+	for (IOpenXRExtensionPlugin* Plugin : ExtModules)
+	{
+		if (Plugin->InsertOpenXRAPILayer(GetProcAddr))
+		{
+			UE_LOG(LogHMD, Log, TEXT("IOpenXRExtensionPlugin API layer enabled: %s"), *Plugin->GetDisplayName());
+		}
+	}
+
 	if (!PreInitOpenXRCore(GetProcAddr))
 	{
 		UE_LOG(LogHMD, Log, TEXT("Failed to initialize core functions. Please check that you have a valid OpenXR runtime installed."));

@@ -142,9 +142,19 @@ public:
 	}
 
 	/**
-	* Optionally provide a custom loader for the OpenXR plugin.
+	* Optionally use a custom loader (via GetInstanceProcAddr) for the OpenXR plugin.
 	*/
 	virtual bool GetCustomLoader(PFN_xrGetInstanceProcAddr* OutGetProcAddr)
+	{
+		return false;
+	}
+
+	/**
+	* Experimental: Optionally hand off the loader/plugin GetInstanceProcAddr to an extension plugin
+	* to support API layering. Returns true if plugin is wrapping API. Layers can chain by using
+	* received GetProcAddr to hand off API calls.
+	*/
+	virtual bool InsertOpenXRAPILayer(PFN_xrGetInstanceProcAddr& InOutGetProcAddr)
 	{
 		return false;
 	}
