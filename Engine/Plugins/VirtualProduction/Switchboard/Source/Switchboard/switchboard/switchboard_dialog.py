@@ -1764,9 +1764,11 @@ class SwitchboardDialog(QtCore.QObject):
         if not CONFIG.P4_ENABLED.get_value():
             return
 
+        sync_method = CONFIG.ENGINE_SYNC_METHOD.get_value()
+
         changelists = None
         # If we're syncing 'Precompiled Binaries', then that implies that we should be using UGS:
-        if CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Sync_PCBs.value:
+        if sync_method == EngineSyncMethod.Sync_PCBs.value or sync_method == EngineSyncMethod.Sync_From_UGS.value:
             LOGGER.info("Using UnrealGameSync to refresh project changelists.")
             changelists = ugs_utils.latest_chagelists(Path(CONFIG.UPROJECT_PATH.get_value()), client=CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
             if not changelists:

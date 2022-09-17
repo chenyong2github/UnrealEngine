@@ -1045,8 +1045,11 @@ class DeviceUnreal(Device):
         project_path = CONFIG.UPROJECT_PATH.get_value(self.name)
         engine_dir = CONFIG.ENGINE_DIR.get_value(self.name)
         workspace = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
-        build_engine = CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Build_Engine.value
-        sync_precompiled_bins = CONFIG.ENGINE_SYNC_METHOD.get_value() == EngineSyncMethod.Sync_PCBs.value
+
+        sync_method = CONFIG.ENGINE_SYNC_METHOD.get_value()
+        generate_proj_files = sync_method == EngineSyncMethod.Build_Engine.value
+        sync_precompiled_bins = sync_method == EngineSyncMethod.Sync_PCBs.value
+        sync_using_ugs = sync_precompiled_bins or sync_method == EngineSyncMethod.Sync_From_UGS.value
 
         project_name = os.path.basename(os.path.dirname(project_path))
         LOGGER.info(
@@ -1085,14 +1088,17 @@ class DeviceUnreal(Device):
             sync_args += f' --project-cl={project_cl} --clobber-project'
             self.inflight_project_cl = project_cl
 
-        if build_engine:
+        if generate_proj_files:
             sync_args += ' --generate'
 
-        if sync_precompiled_bins:
-            sync_args += ' --use-pcbs'
+        if sync_using_ugs:
+            sync_args += ' --use-ugs'
             if self.unrealgamesync_lib_dir_setting:
                 sync_args += f' --ugs-lib-dir={self.unrealgamesync_lib_dir_setting}'
-
+        
+        if sync_precompiled_bins:
+            sync_args += ' --use-pcbs'
+            
             # If we're syncing 'Precompiled Binaries' one of those binaries may be the SwitchboardListener executable
             # which means (on Windows atleast) we need to move the executable to make way for the new one
             _, msg = message_protocol.create_free_listener_bin_message()

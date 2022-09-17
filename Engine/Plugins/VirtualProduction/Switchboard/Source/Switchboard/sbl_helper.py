@@ -680,6 +680,9 @@ class SbListenerHelper:
             '--generate', action='store_true',
             help='Run GenerateProjectFiles after syncing')
         sync_parser.add_argument(
+            '--use-ugs', action='store_true',
+            help="Specifies that UnrealGameSync should be used to sync the project and engine together.")
+        sync_parser.add_argument(
             '--use-pcbs', action='store_true',
             help="Specifies that precompiled binaries should be sync'd along with the project (requires syncing via UnrealGameSync).")
         sync_parser.add_argument(
@@ -973,13 +976,15 @@ class SbListenerHelper:
 
         self.sync_engine_cl = options.engine_cl
         self.sync_project_cl = options.project_cl
-        self.generate_after_sync = options.generate
+        self.use_ugs = options.use_ugs
+        self.generate_after_sync = options.generate and not self.use_ugs # UGS will generate the project files by default (no need to duplicate work)
         self.sync_pcbs = options.use_pcbs
+
+        if self.sync_pcbs and not self.use_ugs:
+            self.parser.error('`--use-pcbs` requires `--use-ugs`.')
         
-        if self.sync_pcbs:
-            if self.sync_engine_cl:
-                self.parser.error('`--use-pcbs` was specified along with `--engine-cl`; these arguments are mutally exclusive and should not be used together.')
-        self.use_ugs = self.sync_pcbs
+        if self.use_ugs and self.sync_engine_cl:
+            self.parser.error('`--use-ugs` was specified along with `--engine-cl`; these arguments are mutally exclusive and should not be used together.')
 
         if options.project:
             try:

@@ -1872,6 +1872,7 @@ class EngineSyncMethod(Enum):
     Use_Existing = "Use Existing (do not sync/build)"
     Build_Engine = "Build Engine"
     Sync_PCBs = "Sync Precompiled Binaries (requires UnrealGameSync)"
+    Sync_From_UGS = "Sync engine and project together using UnrealGameSync"
 
 class Config(object):
 
