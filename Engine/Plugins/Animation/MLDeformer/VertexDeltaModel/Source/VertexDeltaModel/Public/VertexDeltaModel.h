@@ -28,6 +28,7 @@ public:
 	// UMLDeformerModel overrides.
 	virtual FString GetDisplayName() const override			{ return "Vertex Delta Model"; }
 	virtual bool IsNeuralNetworkOnGPU() const override		{ return true; }	// GPU neural network.
+	FString GetDefaultDeformerGraphAssetPath() const override;
 	// ~END UMLDeformerModel overrides.
 
 #if WITH_EDITORONLY_DATA

@@ -73,7 +73,7 @@ FComputeDataProviderRenderProxy* UMLDeformerGraphDataProvider::GetRenderProxy()
 
 bool UMLDeformerGraphDataProvider::IsValid() const
 {
-	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr)
+	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr || DeformerComponent->GetModelInstance() == nullptr)
 	{
 		return false;
 	}
@@ -96,7 +96,7 @@ namespace UE::MLDeformer
 			SkeletalMeshObject = ModelInstance->GetSkeletalMeshComponent()->MeshObject;
 			NeuralNetwork = Model->GetNeuralNetwork();
 			NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();
-			bCanRunNeuralNet = ModelInstance->IsCompatible();
+			bCanRunNeuralNet = ModelInstance->IsCompatible() && Model->IsNeuralNetworkOnGPU();
 			Weight = DeformerComponent->GetWeight();
 			VertexMapBufferSRV = Model->GetVertexMapBuffer().ShaderResourceViewRHI;
 		}

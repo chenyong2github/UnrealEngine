@@ -41,7 +41,7 @@ protected:
 	 * This only can be used after you trained, in the same editor session directly after training.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.001", ClampMax = "1.0", ForceUnits="cm"))
-	float MorphTargetDeltaThreshold = 0.0025f;
+	float MorphTargetDeltaThreshold = 0.01f;
 
 	/**
 	 * Specify whether we want to debug draw the morph targets.

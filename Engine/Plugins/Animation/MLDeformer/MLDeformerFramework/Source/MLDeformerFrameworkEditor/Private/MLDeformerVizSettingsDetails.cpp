@@ -131,8 +131,9 @@ namespace UE::MLDeformer
 		TSharedRef<IPropertyHandle> DeformerGraphProperty = DetailBuilder.GetProperty(UMLDeformerVizSettings::GetDeformerGraphPropertyName(), UMLDeformerVizSettings::StaticClass());
 		if (DeformerGraphProperty->GetValue(Graph) == FPropertyAccess::Result::Success)
 		{
+			const bool bShowError = (Graph == nullptr) && !Model->GetDefaultDeformerGraphAssetPath().IsEmpty();
 			FDetailWidgetRow& GraphErrorRow = TestAssetsCategory->AddCustomRow(FText::FromString("GraphError"))
-				.Visibility((Graph == nullptr) ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(bShowError ? EVisibility::Visible : EVisibility::Collapsed)
 				.WholeRowContent()
 				[
 					SNew(SBox)
@@ -140,7 +141,7 @@ namespace UE::MLDeformer
 					[
 						SNew(SWarningOrErrorBox)
 						.MessageStyle(EMessageStyle::Warning)
-						.Message(FText::FromString("Please select a deformer graph.\nOtherwise only linear skinning is used."))
+						.Message(LOCTEXT("GraphErrorText", "This model requires a deformer graph.\nWithout it linear skinning is used."))
 					]
 				];
 		}
@@ -197,7 +198,8 @@ namespace UE::MLDeformer
 		PropertyHandle->GetValue(CurrentGraph);
 		if (CurrentGraph == nullptr)
 		{
-			return true;
+			const FString DefaultPath = Model->GetDefaultDeformerGraphAssetPath();
+			return !DefaultPath.IsEmpty();
 		}
 
 		if (EditorModel)
@@ -205,7 +207,7 @@ namespace UE::MLDeformer
 			// Check if we already assigned the default asset.
 			const FAssetData CurrentGraphAssetData(CurrentGraph);
 			const FString CurrentPath = CurrentGraphAssetData.ObjectPath.ToString();
-			const FString DefaultPath = EditorModel->GetDefaultDeformerGraphAssetPath();
+			const FString DefaultPath = Model->GetDefaultDeformerGraphAssetPath();
 			return (DefaultPath != CurrentPath);
 		}
 

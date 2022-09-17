@@ -187,6 +187,7 @@ namespace UE::MLDeformer
 		// Create the ML Deformer component.
 		UMLDeformerAsset* DeformerAsset = Model->GetDeformerAsset();
 		UMLDeformerComponent* MLDeformerComponent = NewObject<UMLDeformerComponent>(Actor);
+		MLDeformerComponent->SetSuppressMeshDeformerLogWarnings(true);
 		MLDeformerComponent->SetDeformerAsset(DeformerAsset);
 		MLDeformerComponent->RegisterComponent();
 		MLDeformerComponent->SetupComponent(DeformerAsset, SkelMeshComponent);
@@ -1390,21 +1391,25 @@ namespace UE::MLDeformer
 		UpdateDeformerGraph();
 	}
 
-	UMeshDeformer* FMLDeformerEditorModel::LoadDefaultDeformerGraph()
+	UMeshDeformer* FMLDeformerEditorModel::LoadDefaultDeformerGraph() const
 	{
-		const FString GraphAssetPath = GetDefaultDeformerGraphAssetPath();
-		UObject* Object = StaticLoadObject(UMeshDeformer::StaticClass(), nullptr, *GraphAssetPath);
-		UMeshDeformer* DeformerGraph = Cast<UMeshDeformer>(Object);
-		if (DeformerGraph == nullptr)
+		const FString GraphAssetPath = Model->GetDefaultDeformerGraphAssetPath();
+		if (!GraphAssetPath.IsEmpty())
 		{
-			UE_LOG(LogMLDeformer, Warning, TEXT("Failed to load default ML Deformer compute graph from: %s"), *GraphAssetPath);
-		}
-		else
-		{
-			UE_LOG(LogMLDeformer, Verbose, TEXT("Loaded default ML Deformer compute graph from: %s"), *GraphAssetPath);
+			UObject* Object = StaticLoadObject(UMeshDeformer::StaticClass(), nullptr, *GraphAssetPath);
+			UMeshDeformer* DeformerGraph = Cast<UMeshDeformer>(Object);
+			if (DeformerGraph == nullptr)
+			{
+				UE_LOG(LogMLDeformer, Warning, TEXT("Failed to load default Mesh Deformer from: %s"), *GraphAssetPath);
+			}
+			else
+			{
+				UE_LOG(LogMLDeformer, Verbose, TEXT("Loaded default Mesh Deformer from: %s"), *GraphAssetPath);
+			}
+			return DeformerGraph;
 		}
 
-		return DeformerGraph;
+		return nullptr;
 	}
 
 	void FMLDeformerEditorModel::SetDefaultDeformerGraphIfNeeded()
@@ -1682,7 +1687,7 @@ namespace UE::MLDeformer
 		OutMorphBuffers.InitMorphResources
 		(
 			GMaxRHIShaderPlatform,
-			TArray<FSkelMeshRenderSection>(),	// Empty array, as we don't need tangents, since we recalculate them in the shader.
+			RenderData->LODRenderData[LOD].RenderSections,
 			MorphTargets,
 			NumRenderVertices,
 			LOD,
@@ -1753,11 +1758,6 @@ namespace UE::MLDeformer
 	FString FMLDeformerEditorModel::GetHeatMapDeformerGraphPath() const
 	{
 		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel_HeatMap.DG_MLDeformerModel_HeatMap"));
-	}
-
-	FString FMLDeformerEditorModel::GetDefaultDeformerGraphAssetPath() const
-	{
-		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel.DG_MLDeformerModel"));
 	}
 
 	const UAnimSequence* FMLDeformerEditorModel::GetAnimSequence() const

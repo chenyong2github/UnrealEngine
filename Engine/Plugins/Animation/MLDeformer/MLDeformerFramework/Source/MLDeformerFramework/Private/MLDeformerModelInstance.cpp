@@ -17,6 +17,11 @@ void UMLDeformerModelInstance::BeginDestroy()
 
 void UMLDeformerModelInstance::Release()
 {
+	// Wait for the render commands to finish, because some neural network might still be executing, using the inference handle
+	// that we are about to delete.
+	RenderCommandFence.BeginFence();
+	RenderCommandFence.Wait();
+
 	// Destroy the neural network instance.
 	UNeuralNetwork* NeuralNetwork = Model.Get() ? Model->GetNeuralNetwork() : nullptr;
 	if (NeuralNetwork && NeuralNetworkInferenceHandle != -1)

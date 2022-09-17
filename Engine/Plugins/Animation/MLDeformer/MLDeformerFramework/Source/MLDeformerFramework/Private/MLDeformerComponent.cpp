@@ -5,6 +5,8 @@
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerModel.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/MeshDeformer.h"
+#include "Animation/MeshDeformerInstance.h"
 
 UMLDeformerComponent::UMLDeformerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -60,6 +62,25 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 	RemoveNeuralNetworkModifyDelegate();
 	Init();
 	AddNeuralNetworkModifyDelegate();
+
+	// Verify that a mesh deformer has been setup when the used ML model requires one.
+	if (!bSuppressMeshDeformerLogWarnings && DeformerAsset && ModelInstance && ModelInstance->GetModel() && SkelMeshComponent)
+	{
+		const FString DefaultGraph = ModelInstance->GetModel()->GetDefaultDeformerGraphAssetPath();
+		if (!DefaultGraph.IsEmpty() && !SkelMeshComponent->HasMeshDeformer())
+		{
+			UE_LOG(LogMLDeformer,
+				Warning, 
+				TEXT("ML Deformer Asset '%s' used with skel mesh component '%s' on actor '%s' uses model type '%s', which requires a deformer graph (default='%s'). " \
+					"No Mesh Deformer has been set on the mesh or skel mesh component, so linear skinning will be used."),
+					*DeformerAsset->GetName(),
+					*SkelMeshComponent->GetName(),
+					*SkelMeshComponent->GetOuter()->GetName(),
+					*ModelInstance->GetModel()->GetDisplayName(),
+					*ModelInstance->GetModel()->GetDefaultDeformerGraphAssetPath()
+			);
+		}
+	}
 }
 
 void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
@@ -174,6 +195,9 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, DeformerAsset))
 		{
+			RenderCommandFence.BeginFence();
+			RenderCommandFence.Wait();
+
 			RemoveNeuralNetworkModifyDelegate();
 			Init();
 			AddNeuralNetworkModifyDelegate();

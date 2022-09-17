@@ -72,6 +72,15 @@ void UMLDeformerModel::Serialize(FArchive& Archive)
 	#endif
 
 	Super::Serialize(Archive);
+
+	#if WITH_EDITOR
+		// Reinitialize the vertex map after loading its contents.
+		// Because our skeletal mesh asset could have changed vertex counts.
+		if (Archive.IsLoading())
+		{
+			InitVertexMap();
+		}
+	#endif
 }
 
 UMLDeformerAsset* UMLDeformerModel::GetDeformerAsset() const

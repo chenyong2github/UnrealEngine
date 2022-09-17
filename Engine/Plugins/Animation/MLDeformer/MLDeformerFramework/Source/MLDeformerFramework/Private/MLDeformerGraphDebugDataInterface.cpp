@@ -96,7 +96,7 @@ UComputeDataProvider* UMLDeformerGraphDebugDataInterface::CreateDataProvider(TOb
 bool UMLDeformerGraphDebugDataProvider::IsValid() const
 {
 #if WITH_EDITORONLY_DATA
-	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr)
+	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr || DeformerComponent->GetModelInstance() == nullptr)
 	{
 		return false;
 	}

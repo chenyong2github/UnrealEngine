@@ -128,7 +128,7 @@ protected:
 	 * A value of 0 will result in the highest quality morph targets, at the cost of higher runtime memory usage.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Morph Targets", meta = (ClampMin = "0.0", ClampMax = "1.0", ForceUnits="cm"))
-	float MorphTargetDeltaThreshold = 0.0025f;
+	float MorphTargetDeltaThreshold = 0.01f;
 
 	/** The morph target error tolerance. Higher values result in larger compression, but could result in visual artifacts. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Morph Targets", meta = (ClampMin = "0.01", ClampMax = "500"))

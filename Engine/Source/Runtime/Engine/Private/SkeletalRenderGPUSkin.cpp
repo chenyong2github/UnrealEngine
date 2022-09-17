@@ -1032,7 +1032,8 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 															bool bGPUSkinCacheEnabled, FMorphVertexBuffer& MorphVertexBuffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_UpdateMorphBuffer);
-	if (UseGPUMorphTargets(FeatureLevel))
+	
+	if (UseGPUMorphTargets(FeatureLevel) && IsValidRef(MorphVertexBuffer.VertexBufferRHI))
 	{
 		const int32 NumMorphSets = CalcNumActiveGPUMorphSets(MorphVertexBuffer, DynamicData->ExternalMorphSets);
 		int32 MorphSetIndex = 0;
@@ -1057,7 +1058,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 			RHICmdList, 
 			DynamicData->MorphTargetWeights, 
 			LODData.MorphTargetVertexInfoBuffers, 
-			DynamicData->SectionIdsUseByActiveMorphTargets, 
+			DynamicData->SectionIdsUseByActiveMorphTargets,
 			GetDebugName(), 
 			Mode, 
 			MorphVertexBuffer, 
@@ -1080,7 +1081,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 				LOD.UpdateMorphVertexBufferGPU(
 					RHICmdList, WeightData->Weights,
 					CompressedBuffers,
-					TArray<int32>(),
+					DynamicData->SectionIdsUseByActiveMorphTargets,
 					GetDebugName(),
 					Mode,
 					MorphVertexBuffer,
@@ -1211,6 +1212,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
 		}
 
+		if (MorphTargetVertexInfoBuffers.GetNumMorphs() > 0)
 		{
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateScatter, TEXT("Scatter"));
@@ -2465,7 +2467,18 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 		MeshComponentSpaceTransforms.Append(InMeshComponent->GetComponentSpaceTransforms());
 	}	
 #endif
-	SectionIdsUseByActiveMorphTargets.Empty();
+	SectionIdsUseByActiveMorphTargets.Reset();
+
+	// If we have external morph targets, just include all sections.
+	if (ExternalMorphWeightData.HasActiveMorphs())
+	{
+		const FSkeletalMeshLODRenderData& LOD = InSkeletalMeshRenderData->LODRenderData[LODIndex];
+		SectionIdsUseByActiveMorphTargets.SetNumUninitialized(LOD.RenderSections.Num(), false);
+		for (int32 Index = 0; Index < LOD.RenderSections.Num(); ++Index)
+		{
+			SectionIdsUseByActiveMorphTargets[Index] = Index;
+		}
+	}
 
 	// find number of morphs that are currently weighted and will affect the mesh
 	ActiveMorphTargets.Reserve(InActiveMorphTargets.Num());

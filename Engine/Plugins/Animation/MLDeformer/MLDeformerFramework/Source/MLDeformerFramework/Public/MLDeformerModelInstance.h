@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MLDeformerModule.h"
 #include "UObject/ObjectPtr.h"
+#include "RenderCommandFence.h"
 #include "MLDeformerModelInstance.generated.h"
 
 class UMLDeformerModel;
@@ -171,6 +172,9 @@ protected:
 	void UpdateBoneTransforms();
 
 protected:
+	/** The fence that let's us wait for all render commands to finish, before we continue. */
+	FRenderCommandFence RenderCommandFence;
+
 	/** The ML Deformer model that this is an instance of. */
 	UPROPERTY(Transient)
 	TObjectPtr<UMLDeformerModel> Model = nullptr;

@@ -26,4 +26,9 @@ UVertexDeltaModel::UVertexDeltaModel(const FObjectInitializer& ObjectInitializer
 #endif
 }
 
+FString UVertexDeltaModel::GetDefaultDeformerGraphAssetPath() const 
+{ 
+	return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel.DG_MLDeformerModel"));
+}
+
 #undef LOCTEXT_NAMESPACE

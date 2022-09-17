@@ -60,11 +60,6 @@ namespace UE::MLDeformer
 		return Cast<UMLDeformerMorphModelVizSettings>(GetMorphModel()->GetVizSettings());
 	}
 
-	FString FMLDeformerMorphModelEditorModel::GetDefaultDeformerGraphAssetPath() const
-	{						 
-		return FString(TEXT("/DeformerGraph/Deformers/DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals.DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals"));
-	}
-
 	FString FMLDeformerMorphModelEditorModel::GetHeatMapDeformerGraphPath() const
 	{
 		return FString(TEXT("/MLDeformerFramework/Deformers/DG_MLDeformerModel_GPUMorph_HeatMap.DG_MLDeformerModel_GPUMorph_HeatMap"));

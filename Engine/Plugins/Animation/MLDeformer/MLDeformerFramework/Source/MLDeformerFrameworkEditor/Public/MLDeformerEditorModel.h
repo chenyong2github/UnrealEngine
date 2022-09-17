@@ -485,7 +485,7 @@ namespace UE::MLDeformer
 		 * Load the default Optimus deformer graph to use on the skeletal mesh when using this model.
 		 * @return The mesh deformer graph.
 		 */
-		virtual UMeshDeformer* LoadDefaultDeformerGraph();
+		virtual UMeshDeformer* LoadDefaultDeformerGraph() const;
 
 		/**
 		 * This makes sure that the deformer graph selected in the visualization settings is not a nullptr.
@@ -548,13 +548,6 @@ namespace UE::MLDeformer
 		 * @return The path to the heat map deformer graph asset.
 		 */
 		virtual FString GetHeatMapDeformerGraphPath() const;
-
-		/**
-		 * Getthe path to the default deformer graph asset.
-		 * This is the deformer graph used when not in heat map mode.
-		 * @return The path to the default deformer graph asset.
-		 */
-		virtual FString GetDefaultDeformerGraphAssetPath() const;
 
 		/** Get the current view range. */
 		TRange<double> GetViewRange() const;

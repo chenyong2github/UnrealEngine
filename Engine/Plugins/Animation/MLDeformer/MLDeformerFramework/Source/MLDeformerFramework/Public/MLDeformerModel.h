@@ -132,6 +132,13 @@ public:
 	 */
 	virtual bool IsNeuralNetworkOnGPU() const				{ return false; }	// CPU neural network.
 
+	/**
+	 * Get the default deformer graph asset path that this model uses, or an empty string if it doesn't require any deformer graph.
+	 * An example is some string like: "/DeformerGraph/Deformers/DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals.DG_LinearBlendSkin_Morph_Cloth_RecomputeNormals".
+	 * @return The asset path of the deformer graph that should be used on default. This can return an empty string when no deformer graph is required.
+	 */
+	virtual FString GetDefaultDeformerGraphAssetPath() const	{ return FString(); }
+
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Check whether this model currently has a training mesh setup or not.

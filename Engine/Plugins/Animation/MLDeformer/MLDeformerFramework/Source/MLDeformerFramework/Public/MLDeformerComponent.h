@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Components/ActorComponent.h"
+#include "RenderCommandFence.h"
 #include "MLDeformerComponent.generated.h"
 
 class UMLDeformerAsset;
@@ -91,6 +92,13 @@ public:
 	 */
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const	{ return SkelMeshComponent.Get(); }
 
+	/**
+	 * Suppress logging warnings about mesh deformers not being set.
+	 * A warning is logged when an ML Deformer is used that requires a deformer graph, but the skeletal mesh has no deformer graph setup.
+	 * @param bSuppress Set to true to silent warnings about deformer graphs not being set, while the active ML Model needs one.
+	 */
+	void SetSuppressMeshDeformerLogWarnings(bool bSuppress)		{ bSuppressMeshDeformerLogWarnings = bSuppress; }
+
 	// Get property names.
 	static FName GetDeformerAssetPropertyName()					{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, DeformerAsset); }
 	static FName GetWeightPropertyName()						{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, Weight); }
@@ -115,6 +123,9 @@ protected:
 	void RemoveNeuralNetworkModifyDelegate();
 
 protected:
+	/** Render command fence that let's us wait for all other commands to finish. */
+	FRenderCommandFence RenderCommandFence;
+
 	/** 
 	 * The skeletal mesh component we want to grab the bone transforms etc from. 
 	 * This can be a nullptr. When it is a nullptr then it will internally try to find the first skeletal mesh component on the actor.
@@ -124,6 +135,9 @@ protected:
 
 	/** DelegateHandle for NeuralNetwork modification. */
 	FDelegateHandle NeuralNetworkModifyDelegateHandle;
+
+	/** Suppress mesh deformer logging warnings? This is used by the ML Deformer editor, as we don't want to show some warnings when using that. */
+	bool bSuppressMeshDeformerLogWarnings = false;
 
 	/** The deformer asset to use. */
 	UPROPERTY(EditAnywhere, DisplayName = "ML Deformer Asset", Category = "ML Deformer")
