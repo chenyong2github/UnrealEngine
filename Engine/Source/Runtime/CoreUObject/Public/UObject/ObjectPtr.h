@@ -382,6 +382,7 @@ public:
 	using FObjectPtr::IsResolved;
 	using FObjectPtr::GetFName;
 	using FObjectPtr::GetName;
+	using FObjectPtr::GetPath;
 	using FObjectPtr::GetPathName;
 	using FObjectPtr::GetFullName;
 	using FObjectPtr::GetHandle;
