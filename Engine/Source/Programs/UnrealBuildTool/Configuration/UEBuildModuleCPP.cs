@@ -562,6 +562,27 @@ namespace UnrealBuildTool
 					}
 				}
 
+				if (!Target.bDisableInliningGenCpps)
+				{
+					// Remove any generated files from the compile list if they are inlined
+					foreach (FileItem CPPFileItem in CPPFiles)
+					{
+						var ListOfInlinedGenCpps = ModuleCompileEnvironment.MetadataCache.GetListOfInlinedGeneratedCppFiles(CPPFileItem);
+						foreach (string ListOfInlinedGenCppsItem in ListOfInlinedGenCpps)
+						{
+							string? FoundGenCppFile = GeneratedFiles.FirstOrDefault((file) => String.Compare(Path.GetFileName(file), ListOfInlinedGenCppsItem + ".gen.cpp", StringComparison.InvariantCultureIgnoreCase) == 0);
+							if (FoundGenCppFile != null)
+							{
+								GeneratedFiles.Remove(FoundGenCppFile);
+							}
+							else
+							{
+								Logger.LogError("Could not find a UObject marked up header file named '{HeaderFile}'", ListOfInlinedGenCppsItem);
+							}
+						}
+					}
+				}
+
 				if (GeneratedFiles.Count > 0)
 				{
 					bool bMergeUnityFiles = Target.bMergeModuleAndGeneratedUnityFiles && Rules.bMergeUnityFiles;
@@ -1530,6 +1551,15 @@ namespace UnrealBuildTool
 				Result.Definitions.Add("UE_IS_ENGINE_MODULE=0");
 			}
 
+			if (Target.bDisableInliningGenCpps)
+			{
+				Result.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=1");
+			}
+			else
+			{
+				Result.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=0");
+			}
+
 			Result.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));
 
 			// For game modules, set the define for the project and target names, which will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
@@ -1585,6 +1615,15 @@ namespace UnrealBuildTool
 			else
 			{
 				CompileEnvironment.Definitions.Add("UE_IS_ENGINE_MODULE=0");
+			}
+
+			if (Rules.Target.bDisableInliningGenCpps)
+			{
+				CompileEnvironment.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=1");
+			}
+			else
+			{
+				CompileEnvironment.Definitions.Add("UE_DISABLE_INLINE_GEN_CPP=0");
 			}
 
 			CompileEnvironment.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));

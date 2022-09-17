@@ -679,6 +679,14 @@ struct COREUOBJECT_API FReferencerInformationList
 #define UDELEGATE(...)
 #define RIGVM_METHOD(...)
 
+// Used to inline generated cpp files from UObject headers
+#define UE_INLINE_STRINGIFY(name) #name
+#if UE_DISABLE_INLINE_GEN_CPP
+	#define UE_INLINE_GENERATED_CPP_BY_NAME(name) UE_INLINE_STRINGIFY(CoreTypes.h)
+#else
+	#define UE_INLINE_GENERATED_CPP_BY_NAME(name) UE_INLINE_STRINGIFY(name.gen.cpp)
+#endif
+
 // This pair of macros is used to help implement GENERATED_BODY() and GENERATED_USTRUCT_BODY()
 #define BODY_MACRO_COMBINE_INNER(A,B,C,D) A##B##C##D
 #define BODY_MACRO_COMBINE(A,B,C,D) BODY_MACRO_COMBINE_INNER(A,B,C,D)

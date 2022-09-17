@@ -54,9 +54,25 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Information about whether a file contains the inline gen.cpp macro
+		/// </summary>
+		class InlineReflectionInfo
+		{
+			/// <summary>
+			/// Last write time of the file when the data was cached
+			/// </summary>
+			public long LastWriteTimeUtc;
+
+			/// <summary>
+			/// List of files this particular file is inlining
+			/// </summary>
+			public List<string> InlinedFileNames = new List<string>();
+		}
+
+		/// <summary>
 		/// The current file version
 		/// </summary>
-		public const int CurrentVersion = 3;
+		public const int CurrentVersion = 4;
 
 		/// <summary>
 		/// Location of this dependency cache
@@ -84,6 +100,11 @@ namespace UnrealBuildTool
 		ConcurrentDictionary<FileItem, ReflectionInfo> FileToReflectionInfo = new ConcurrentDictionary<FileItem, ReflectionInfo>();
 
 		/// <summary>
+		/// Map from file item to inline info
+		/// </summary>
+		ConcurrentDictionary<FileItem, InlineReflectionInfo> FileToInlineReflectionInfo = new ConcurrentDictionary<FileItem, InlineReflectionInfo>();
+
+		/// <summary>
 		/// Map from file item to source file info
 		/// </summary>
 		ConcurrentDictionary<FileItem, SourceFile> FileToSourceFile = new ConcurrentDictionary<FileItem, SourceFile>();
@@ -102,6 +123,11 @@ namespace UnrealBuildTool
 		/// Regex that matches C++ code with UObject declarations which we will need to generated code for.
 		/// </summary>
 		static readonly Regex ReflectionMarkupRegex = new Regex("^\\s*U(CLASS|STRUCT|ENUM|INTERFACE|DELEGATE)\\b", RegexOptions.Compiled | RegexOptions.Multiline);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		static readonly Regex InlineReflectionMarkupRegex = new Regex(@"UE_INLINE_GENERATED_CPP_BY_NAME\((.+)\)", RegexOptions.Compiled | RegexOptions.Multiline);
 
 		/// <summary>
 		/// Regex that matches #include statements.
@@ -234,6 +260,37 @@ namespace UnrealBuildTool
 					bModified = true;
 				}
 				return ReflectionInfo.bContainsMarkup;
+			}
+		}
+
+
+		/// <summary>
+		/// Returns a list of inlined generated cpps that this source file contains.
+		/// </summary>
+		/// <param name="SourceFile">The source file to parse</param>
+		/// <returns>List of marked files this source file contains</returns>
+		public IList<string> GetListOfInlinedGeneratedCppFiles(FileItem SourceFile)
+		{
+			if (Parent != null && !SourceFile.Location.IsUnderDirectory(BaseDirectory))
+			{
+				return Parent.GetListOfInlinedGeneratedCppFiles(SourceFile);
+			}
+			else
+			{
+				InlineReflectionInfo? InlineReflectionInfo;
+				if (!FileToInlineReflectionInfo.TryGetValue(SourceFile, out InlineReflectionInfo) || SourceFile.LastWriteTimeUtc.Ticks > InlineReflectionInfo.LastWriteTimeUtc)
+				{
+					InlineReflectionInfo = new InlineReflectionInfo();
+					InlineReflectionInfo.LastWriteTimeUtc = SourceFile.LastWriteTimeUtc.Ticks;
+					MatchCollection FileMatches = InlineReflectionMarkupRegex.Matches(FileReference.ReadAllText(SourceFile.Location));
+					foreach (Match Match in FileMatches)
+					{
+						InlineReflectionInfo.InlinedFileNames.Add(Match.Groups[1].Value);
+					}
+					FileToInlineReflectionInfo[SourceFile] = InlineReflectionInfo;
+					bModified = true;
+				}
+				return InlineReflectionInfo.InlinedFileNames;
 			}
 		}
 
@@ -389,6 +446,18 @@ namespace UnrealBuildTool
 
 						FileToReflectionInfo[File] = ReflectionInfo;
 					}
+
+					int FileToInlineMarkupFlagCount = Reader.ReadInt();
+					for (int Idx = 0; Idx < FileToInlineMarkupFlagCount; Idx++)
+					{
+						FileItem File = Reader.ReadCompactFileItem();
+
+						InlineReflectionInfo InlineReflectionInfo = new InlineReflectionInfo();
+						InlineReflectionInfo.LastWriteTimeUtc = Reader.ReadLong();
+						InlineReflectionInfo.InlinedFileNames = Reader.ReadList(() => Reader.ReadString())!;
+
+						FileToInlineReflectionInfo[File] = InlineReflectionInfo;
+					}
 				}
 			}
 			catch(Exception Ex)
@@ -424,6 +493,14 @@ namespace UnrealBuildTool
 						Writer.WriteCompactFileItem(Pair.Key);
 						Writer.WriteLong(Pair.Value.LastWriteTimeUtc);
 						Writer.WriteBool(Pair.Value.bContainsMarkup);
+					}
+
+					Writer.WriteInt(FileToInlineReflectionInfo.Count);
+					foreach (KeyValuePair<FileItem, InlineReflectionInfo> Pair in FileToInlineReflectionInfo)
+					{
+						Writer.WriteCompactFileItem(Pair.Key);
+						Writer.WriteLong(Pair.Value.LastWriteTimeUtc);
+						Writer.WriteList(Pair.Value.InlinedFileNames, Item => Writer.WriteString(Item));
 					}
 				}
 			}
