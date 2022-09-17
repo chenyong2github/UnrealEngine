@@ -83,11 +83,13 @@ void FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(FRDGBuilder& Gr
 		ObjectShaderParameters.SceneHeightfieldObjectData = DefaultVector4;
 		ObjectShaderParameters.NumSceneHeightfieldObjects = 0;
 
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 		AtlasShaderParameters.SceneDistanceFieldAssetData = DefaultVector4;
 		AtlasShaderParameters.DistanceFieldIndirectionTable = DefaultUInt32;
 		AtlasShaderParameters.DistanceFieldIndirection2Table = DefaultVector4;
-		AtlasShaderParameters.DistanceFieldIndirectionAtlas = FRDGSystemTextures::Get(GraphBuilder).VolumetricBlack;
-		AtlasShaderParameters.DistanceFieldBrickTexture = GBlackVolumeTexture->GetTextureRHI();
+		AtlasShaderParameters.DistanceFieldIndirectionAtlas = SystemTextures.VolumetricBlack;
+		AtlasShaderParameters.DistanceFieldBrickTexture = SystemTextures.Black;
 		AtlasShaderParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 		AtlasShaderParameters.DistanceFieldBrickSize = FVector3f::ZeroVector;
 		AtlasShaderParameters.DistanceFieldUniqueDataBrickSize = FVector3f::ZeroVector;
