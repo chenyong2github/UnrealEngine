@@ -550,13 +550,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 
 #if PLATFORM_MAC
-    static auto CVarSGShadowQuality = IConsoleManager::Get().FindConsoleVariable((TEXT("sg.ShadowQuality")));
-    if (CVarSGShadowQuality && CVarSGShadowQuality->GetInt() != 0)
-    {
-        CVarSGShadowQuality->Set(0);
-    }
-
-	if (bIsIntelHaswell)
+    if (bIsIntelHaswell)
 	{
 		static auto CVarForceDisableVideoPlayback = IConsoleManager::Get().FindConsoleVariable((TEXT("Fort.ForceDisableVideoPlayback")));
 		if (CVarForceDisableVideoPlayback && CVarForceDisableVideoPlayback->GetInt() != 1)
