@@ -335,6 +335,20 @@ SDisplayClusterLightCardEditorViewport::~SDisplayClusterLightCardEditorViewport(
 		ViewportClient->Viewport = nullptr;
 		ViewportClient.Reset();
 	}
+
+	if (PreviewScene.IsValid())
+	{
+		if (UWorld* PreviewWorld = PreviewScene->GetWorld())
+		{
+			// Call DestroyWorld first so OnWorldCleanup is broadcasted while actors still have a valid world.
+			// Then mark as garbage to prevent AddReferencedObjects from continuing to be called.
+			PreviewWorld->DestroyWorld(true);
+			
+			PreviewWorld->MarkObjectsPendingKill();
+			PreviewWorld->MarkAsGarbage();
+		}
+		PreviewScene.Reset();
+	}
 }
 
 TSharedRef<SEditorViewport> SDisplayClusterLightCardEditorViewport::GetViewportWidget()

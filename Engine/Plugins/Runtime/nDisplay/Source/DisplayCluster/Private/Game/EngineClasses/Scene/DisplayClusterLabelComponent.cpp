@@ -5,6 +5,7 @@
 #include "DisplayClusterLabelWidget.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterWidgetComponent.h"
 
 #include "EngineUtils.h"
 #include "Components/TextRenderComponent.h"
@@ -15,7 +16,7 @@ UDisplayClusterLabelComponent::UDisplayClusterLabelComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	
-	WidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("LabelWidget"));
+	WidgetComponent = CreateDefaultSubobject<UDisplayClusterWidgetComponent>(TEXT("LabelWidget"));
 	
 	// Keeps this visible even if its clipping through the owner.
 	// Requires the owner have a transparent blend mode on its material.
@@ -121,7 +122,8 @@ void UDisplayClusterLabelComponent::UpdateWidgetComponent()
 		LabelString = TEXT("Label");
 	}
 
-	if (WidgetComponent->GetWidgetClass() != WidgetClass.Get())
+	if (WidgetComponent->GetWidgetClass() != WidgetClass.Get() ||
+		(WidgetClass.IsValid() && WidgetComponent->GetWidget() == nullptr))
 	{
 		WidgetComponent->SetWidgetClass(WidgetClass.Get());
 		WidgetComponent->InitWidget();

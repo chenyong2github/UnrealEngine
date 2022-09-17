@@ -56,7 +56,7 @@ private:
 	
 	/** The widget component to display for this label */
 	UPROPERTY(VisibleAnywhere, Category=LabelText)
-	TObjectPtr<UWidgetComponent> WidgetComponent;
+	TObjectPtr<class UDisplayClusterWidgetComponent> WidgetComponent;
 
 	/** The widget class to apply to the widget component */
 	UPROPERTY(EditAnywhere, Category=LabelText)
