@@ -21,6 +21,11 @@ bool FGrid3DCollectionAttributeHelper::ShouldUseRGBAGrid(const int TotalChannels
 	return TotalNumAttributes == 1 && TotalChannels <= 4 && GNiagaraGrid3DUseRGBAGrid != 0;
 }
 
+bool FGrid3DCollectionAttributeHelper::SupportsRGBAGrid()
+{
+	return GNiagaraGrid3DUseRGBAGrid == 1;
+}
+
 FGrid3DCollectionAttributeHelper::FGrid3DCollectionAttributeHelper(const FNiagaraDataInterfaceGPUParamInfo& InParamInfo, TArray<FText>* OutWarnings /*= nullptr*/) : ParamInfo(InParamInfo)
 {
 	AttributeInfos.Reserve(ParamInfo.GeneratedFunctions.Num());

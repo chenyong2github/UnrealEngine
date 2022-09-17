@@ -10,6 +10,7 @@ struct FGrid3DCollectionAttributeHelper
 
 	// only support rgba textures when we have a single attribute that contains up to 4 channels
 	static bool ShouldUseRGBAGrid(const int TotalChannels, const int TotalNumAttributes);
+	static bool SupportsRGBAGrid();
 
 	static TArray<FString> Channels;
 
