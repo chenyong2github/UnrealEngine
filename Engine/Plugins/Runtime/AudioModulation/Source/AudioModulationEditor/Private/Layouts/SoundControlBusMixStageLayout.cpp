@@ -63,6 +63,12 @@ namespace AudioModulationEditorUtils
 					UnitValueHandle->SetValue(UnitValue, EPropertyValueSetFlags::NotTransactable);
 				}
 			}
+			else
+			{
+				float NormalizedValue = 1.0f;
+				NormalizedValueHandle->GetValue(NormalizedValue);
+				UnitValueHandle->SetValue(NormalizedValue);
+			}
 		}
 	}
 
@@ -78,6 +84,12 @@ namespace AudioModulationEditorUtils
 					const float NormalizedValue = Parameter->ConvertUnitToNormalized(UnitValue);
 					NormalizedValueHandle->SetValue(NormalizedValue);
 				}
+			}
+			else
+			{
+				float UnitValue = 1.0f;
+				UnitValueHandle->GetValue(UnitValue);
+				NormalizedValueHandle->SetValue(UnitValue);
 			}
 		}
 	}
@@ -184,7 +196,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 					.Text(TAttribute<FText>::Create([BusHandle]()
 					{
 						USoundModulationParameter* Parameter = AudioModulationEditorUtils::GetParameterFromBus(BusHandle);
-						if (Parameter && Parameter->RequiresUnitConversion())
+						if (Parameter)
 						{
 							return Parameter->Settings.UnitDisplayName;
 						}
@@ -213,7 +225,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 	{
 		if (USoundModulationParameter* Parameter = AudioModulationEditorUtils::GetParameterFromBus(BusHandle))
 		{
-			return Parameter->RequiresUnitConversion() ? EVisibility::Visible : EVisibility::Hidden;
+			return !Parameter->Settings.UnitDisplayName.IsEmpty() ? EVisibility::Visible : EVisibility::Hidden;
 		}
 
 		return EVisibility::Hidden;
@@ -224,7 +236,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 	{
 		if (USoundModulationParameter* Parameter = AudioModulationEditorUtils::GetParameterFromBus(BusHandle))
 		{
-			return Parameter->RequiresUnitConversion() ? EVisibility::Hidden : EVisibility::Visible;
+			return !Parameter->Settings.UnitDisplayName.IsEmpty() ? EVisibility::Hidden : EVisibility::Visible;
 		}
 
 		return EVisibility::Visible;
