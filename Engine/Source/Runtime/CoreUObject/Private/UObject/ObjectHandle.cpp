@@ -16,6 +16,67 @@
 
 DEFINE_LOG_CATEGORY(LogObjectHandle);
 
+FName FObjectRef::GetFName() const
+{
+	if (PackageName == NAME_None)
+	{
+		return NAME_None;
+	}
+
+	FObjectPathId::ResolvedNameContainerType ResolvedNames;
+	ObjectPath.Resolve(ResolvedNames);
+
+	if (ResolvedNames.Num() > 0)
+	{
+		const FName& Name = ResolvedNames[ResolvedNames.Num() - 1];
+		return Name;
+	}
+
+	return NAME_None;
+}
+
+void FObjectRef::AppendClassPathName(FStringBuilderBase& OutClassPathNameBuilder, EObjectFullNameFlags Flags) const
+{
+	if (EnumHasAllFlags(Flags, EObjectFullNameFlags::IncludeClassPackage))
+	{
+		ClassPackageName.AppendString(OutClassPathNameBuilder);
+		OutClassPathNameBuilder << TEXT(".");
+	}
+
+	ClassName.AppendString(OutClassPathNameBuilder);
+}
+
+void FObjectRef::AppendPathName(FStringBuilderBase& OutPathNameBuilder) const
+{
+	if (PackageName == NAME_None)
+	{
+		OutPathNameBuilder.Append(TEXT("None"));
+		return;
+	}
+
+	PackageName.ToString(OutPathNameBuilder);
+
+	FObjectPathId::ResolvedNameContainerType ResolvedNames;
+	ObjectPath.Resolve(ResolvedNames);
+
+	for (int Index = 0; Index < ResolvedNames.Num(); ++Index)
+	{
+		if (Index == 1)
+		{
+			OutPathNameBuilder << SUBOBJECT_DELIMITER_CHAR;
+		}
+		else
+		{
+			OutPathNameBuilder << TEXT(".");
+		}
+
+		const FName& Name = ResolvedNames[Index];
+		Name.AppendString(OutPathNameBuilder);
+	}
+}
+
+//===========================================================================
+
 bool operator==(const FObjectHandleDataClassDescriptor& Lhs, const FObjectHandleDataClassDescriptor& Rhs)
 {
 	return (Lhs.PackageName == Rhs.PackageName) && (Lhs.ClassName == Rhs.ClassName);
@@ -365,8 +426,10 @@ FPackedObjectRef MakePackedObjectRef(const FObjectRef& ObjectRef)
 	return ObjectHandle_Private::MakePackedObjectRef(ObjectRef.PackageName, ObjectRef.ClassPackageName, ObjectRef.ClassName, ObjectRef.ObjectPath);
 }
 
-static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags)
+static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags, OUT bool& bWasPackageLoaded)
 {
+	bWasPackageLoaded = false;
+
 	// @TODO: OBJPTR: Want to replicate the functional path of an import here.  See things like FindImportFast in BlueprintSupport.cpp
 	// 		 for additional behavior that we're not handling here yet.
 	FName* ScriptPackageName = FPackageName::FindScriptPackageName(PackageName);
@@ -387,6 +450,7 @@ static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags)
 		}
 		LoadFlags |= LOAD_NoWarn | LOAD_NoVerify; //This does nothing? | LOAD_DisableDependencyPreloading;
 		TargetPackage = LoadPackage(nullptr, *PackageName.ToString(), LoadFlags);
+		bWasPackageLoaded = true;
 	}
 	return TargetPackage;
 }
@@ -398,7 +462,8 @@ UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= 
 	UPackage* ClassPackage = nullptr;
 	if (!ObjectRef.ClassPackageName.IsNone())
 	{
-		ClassPackage = FindOrLoadPackage(ObjectRef.ClassPackageName, LoadFlags);
+		bool bWasPackageLoaded = false;
+		ClassPackage = FindOrLoadPackage(ObjectRef.ClassPackageName, LoadFlags, bWasPackageLoaded);
 
 		if (!ObjectRef.ClassName.IsNone())
 		{
@@ -458,7 +523,9 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 
 	ResolveObjectRefClass(ObjectRef, LoadFlags);
 
-	UPackage* TargetPackage = FindOrLoadPackage(ObjectRef.PackageName, LoadFlags);
+	bool bWasObjectOrPackageLoaded = false;
+
+	UPackage* TargetPackage = FindOrLoadPackage(ObjectRef.PackageName, LoadFlags, bWasObjectOrPackageLoaded);
 
 	if (!TargetPackage)
 	{
@@ -488,12 +555,14 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 			if (IsInAsyncLoadingThread() || IsInGameThread())
 			{
 				TargetPackage->GetLinker()->LoadAllObjects(true);
+				bWasObjectOrPackageLoaded = true;
 			}
 			else
 			{
 				// Shunt the load request to happen on the game thread and block on its completion.  This is a deadlock risk!  The game thread may be blocked waiting on this thread.
 				UE_LOG(LogObjectHandle, Warning, TEXT("Resolve of object in package '%s' from a non-game thread was shunted to the game thread."), *ObjectRef.PackageName.ToString());
 				TGraphTask<FFullyLoadPackageOnHandleResolveTask>::CreateTask().ConstructAndDispatchWhenReady(TargetPackage)->Wait();
+				bWasObjectOrPackageLoaded = true;
 			}
 
 			CurrentObject = StaticFindObjectFastInternal(nullptr, PreviousOuter, ResolvedNames[ObjectPathIndex]);
@@ -519,15 +588,22 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 		if (IsInAsyncLoadingThread() || IsInGameThread())
 		{
 			TargetPackage->GetLinker()->LoadAllObjects(true);
+			bWasObjectOrPackageLoaded = true;
 		}
 		else
 		{
 			// Shunt the load request to happen on the game thread and block on its completion.  This is a deadlock risk!  The game thread may be blocked waiting on this thread.
 			UE_LOG(LogObjectHandle, Warning, TEXT("Resolve of object in package '%s' from a non-game thread was shunted to the game thread."), *ObjectRef.PackageName.ToString());
 			TGraphTask<FFullyLoadPackageOnHandleResolveTask>::CreateTask().ConstructAndDispatchWhenReady(TargetPackage)->Wait();
+			bWasObjectOrPackageLoaded = true;
 		}
 	}
 	ObjectHandle_Private::OnReferenceResolved(ObjectRef, TargetPackage, CurrentObject);
+
+	if (bWasObjectOrPackageLoaded)
+	{
+		ObjectHandle_Private::OnReferenceLoaded(ObjectRef, TargetPackage, CurrentObject);
+	}
 
 	return CurrentObject;
 }
@@ -543,22 +619,91 @@ UObject* ResolvePackedObjectRef(FPackedObjectRef PackedObjectRef, uint32 LoadFla
 }
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-COREUOBJECT_API ObjectHandleReadFunction* ObjectHandle_Private::ObjectHandleReadCallback = nullptr;
-COREUOBJECT_API ObjectHandleClassResolvedFunction* ObjectHandle_Private::ObjectHandleClassResolvedCallback = nullptr;
-COREUOBJECT_API ObjectHandleReferenceResolvedFunction* ObjectHandle_Private::ObjectHandleReferenceResolvedCallback = nullptr;
 
-ObjectHandleReadFunction* SetObjectHandleReadCallback(ObjectHandleReadFunction* Function)
+COREUOBJECT_API std::atomic<int32> ObjectHandle_Private::ObjectHandleEventIndex;
+COREUOBJECT_API ObjectHandle_Private::FObjectHandleEvents ObjectHandle_Private::ObjectHandleEvents[2];
+
+ObjectHandle_Private::FObjectHandleEvents& BeginWritingEvents()
 {
-	return (ObjectHandleReadFunction*)FPlatformAtomics::InterlockedExchangePtr((void**)&ObjectHandle_Private::ObjectHandleReadCallback, (void*)Function);
+	// We only allow adding/removing the callbacks from a single thread.
+	check(IsInGameThread());
+
+	// Get what the last and new index will be.
+	const int32 LastIndex = ObjectHandle_Private::ObjectHandleEventIndex;
+	const int32 NewIndex = LastIndex == 0 ? 1 : 0;
+
+	// Make sure we're not still using the events, this should definitely not be true, because
+	// we spin lock at the end of any of these functions to make sure all using has stopped.
+	check(!ObjectHandle_Private::ObjectHandleEvents[NewIndex].IsUsing());
+
+	// We need to take whatever delegates are setup on the previous index and copy them over to new set.
+	ObjectHandle_Private::ObjectHandleEvents[NewIndex].ObjectHandleReadEvent = ObjectHandle_Private::ObjectHandleEvents[LastIndex].ObjectHandleReadEvent;
+	ObjectHandle_Private::ObjectHandleEvents[NewIndex].ClassReferenceResolvedEvent = ObjectHandle_Private::ObjectHandleEvents[LastIndex].ClassReferenceResolvedEvent;
+	ObjectHandle_Private::ObjectHandleEvents[NewIndex].ObjectHandleReferenceResolvedEvent = ObjectHandle_Private::ObjectHandleEvents[LastIndex].ObjectHandleReferenceResolvedEvent;
+	ObjectHandle_Private::ObjectHandleEvents[NewIndex].ObjectHandleReferenceLoadedEvent = ObjectHandle_Private::ObjectHandleEvents[LastIndex].ObjectHandleReferenceLoadedEvent;
+
+	// Now toggle which buffer we're using.
+	ObjectHandle_Private::ObjectHandleEventIndex = NewIndex;
+
+	// Ok, now we need to spin lock until nobody is using the LastIndex, this will prevent us from
+	// calling this function right after this one and assuming the previous set isn't being used,
+	// similarly while we were doing this, the BeginReadingEvents() function spun lock after marked
+	// that they were using the event set, so now that we've set the new event index, if we spin lock
+	// here, that should ensure that any existing readers finish up what they were doing.
+	while (ObjectHandle_Private::ObjectHandleEvents[LastIndex].IsUsing())
+	{
+		// Spin!
+	}
+
+	return ObjectHandle_Private::ObjectHandleEvents[NewIndex];
 }
 
-ObjectHandleClassResolvedFunction* SetObjectHandleClassResolvedCallback(ObjectHandleClassResolvedFunction* Function)
+FDelegateHandle AddObjectHandleReadCallback(FObjectHandleReadDelegate Callback)
 {
-	return (ObjectHandleClassResolvedFunction*)FPlatformAtomics::InterlockedExchangePtr((void**)&ObjectHandle_Private::ObjectHandleClassResolvedCallback, (void*)Function);
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	return Events.ObjectHandleReadEvent.Add(Callback);
 }
 
-ObjectHandleReferenceResolvedFunction* SetObjectHandleReferenceResolvedCallback(ObjectHandleReferenceResolvedFunction* Function)
+void RemoveObjectHandleReadCallback(FDelegateHandle DelegateHandle)
 {
-	return (ObjectHandleReferenceResolvedFunction*)FPlatformAtomics::InterlockedExchangePtr((void**)&ObjectHandle_Private::ObjectHandleReferenceResolvedCallback, (void*)Function);
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	Events.ObjectHandleReadEvent.Remove(DelegateHandle);
 }
+
+FDelegateHandle AddObjectHandleClassResolvedCallback(FObjectHandleClassResolvedDelegate Callback)
+{
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	return Events.ClassReferenceResolvedEvent.Add(Callback);
+}
+
+void RemoveObjectHandleClassResolvedCallback(FDelegateHandle DelegateHandle)
+{
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	Events.ClassReferenceResolvedEvent.Remove(DelegateHandle);
+}
+
+FDelegateHandle AddObjectHandleReferenceResolvedCallback(FObjectHandleReferenceResolvedDelegate Callback)
+{
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	return Events.ObjectHandleReferenceResolvedEvent.Add(Callback);
+}
+
+void RemoveObjectHandleReferenceResolvedCallback(FDelegateHandle DelegateHandle)
+{
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	Events.ObjectHandleReferenceResolvedEvent.Remove(DelegateHandle);
+}
+
+FDelegateHandle AddObjectHandleReferenceLoadedCallback(FObjectHandleReferenceLoadedDelegate Callback)
+{
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	return Events.ObjectHandleReferenceLoadedEvent.Add(Callback);
+}
+
+void RemoveObjectHandleReferenceLoadedCallback(FDelegateHandle DelegateHandle)
+{
+	ObjectHandle_Private::FObjectHandleEvents& Events = BeginWritingEvents();
+	Events.ObjectHandleReferenceLoadedEvent.Remove(DelegateHandle);
+}
+
 #endif // UE_WITH_OBJECT_HANDLE_TRACKING

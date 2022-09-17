@@ -142,7 +142,48 @@ public:
 
 	FORCEINLINE bool IsResolved() const { return IsObjectHandleResolved(Handle); }
 
-	FORCEINLINE FString GetPath() const { return Get()->GetPathName(); }
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	// Gets the PathName of the object without resolving the object reference.
+	COREUOBJECT_API FString GetPathName() const;
+
+	// Gets the FName of the object without resolving the object reference.
+	COREUOBJECT_API FName GetFName() const;
+
+	// Gets the string name of the object without resolving the object reference.
+	FString GetName() const
+	{
+		return GetFName().ToString();
+	}
+
+	/** Returns the full name for the object in the form: Class ObjectPath */
+	COREUOBJECT_API FString GetFullName(EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const;
+#else
+	FString GetPathName() const
+	{
+		return Get()->GetPathName();
+	}
+
+	FName GetFName() const
+	{
+		const UObject* ResolvedObject = Get();
+		return ResolvedObject ? ResolvedObject->GetFName() : NAME_None;
+	}
+
+	FString GetName() const
+	{
+		return GetFName().ToString();
+	}
+
+	/**
+	 * Returns the fully qualified pathname for this object as well as the name of the class, in the format:
+	 * 'ClassName Outermost.[Outer:]Name'.
+	 */
+	FString GetFullName(EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const
+	{
+		// UObjectBaseUtility::GetFullName is safe to call on null objects.
+		return Get()->GetFullName(nullptr, Flags);
+	}
+#endif
 
 	FORCEINLINE FObjectHandle GetHandle() const { return Handle; }
 	FORCEINLINE FObjectHandle& GetHandleRef() const { return Handle; }
@@ -151,10 +192,12 @@ public:
 	{
 		checkfSlow(SomeBase, TEXT("IsA(NULL) cannot yield meaningful results"));
 
-		const UClass* ThisClass = GetClass();
-		checkfSlow(ThisClass, TEXT("Object pointer class did not resolve to a non-null value"));
+		if (const UClass* ThisClass = GetClass())
+		{
+			return ThisClass->IsChildOf(SomeBase);
+		}
 
-		return ThisClass->IsChildOf(SomeBase);
+		return false;
 	}
 
 	template <typename T>
@@ -333,7 +376,10 @@ public:
 	using FObjectPtr::operator!;
 	using FObjectPtr::operator bool;
 	using FObjectPtr::IsResolved;
-	using FObjectPtr::GetPath;
+	using FObjectPtr::GetFName;
+	using FObjectPtr::GetName;
+	using FObjectPtr::GetPathName;
+	using FObjectPtr::GetFullName;
 	using FObjectPtr::GetHandle;
 
 	using FObjectPtr::IsA;

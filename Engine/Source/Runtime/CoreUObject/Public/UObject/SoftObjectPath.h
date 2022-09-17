@@ -87,17 +87,25 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	// UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This constructor should be used only temporarily to fix up old codepaths that produce an FName.")
 	FSoftObjectPath(FName InAssetPathName, FString InSubPathString);
 	
-	/** Construct from an existing object in memory */
-	FSoftObjectPath(const UObject* InObject);
-
-	FSoftObjectPath(FObjectPtr InObject)
-		: FSoftObjectPath(InObject.Get())
-	{}
-
 	template <typename T>
 	FSoftObjectPath(const TObjectPtr<T>& InObject)
-		: FSoftObjectPath(InObject.Get())
-	{}
+	{
+		SetPath(InObject.GetPathName());
+	}
+
+	FSoftObjectPath(const FObjectPtr& InObject)
+	{
+		SetPath(InObject.GetPathName());
+	}
+
+	/** Construct from an existing object in memory */
+	FSoftObjectPath(const UObject* InObject)
+	{
+		if (InObject)
+		{
+			SetPath(InObject->GetPathName());
+		}
+	}
 
 	~FSoftObjectPath() {}
 PRAGMA_DISABLE_DEPRECATION_WARNINGS	

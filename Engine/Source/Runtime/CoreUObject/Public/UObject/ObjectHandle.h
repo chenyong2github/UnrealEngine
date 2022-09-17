@@ -40,6 +40,66 @@ struct FObjectRef
 	{
 		return (PackageName == Other.PackageName) && (ObjectPath == Other.ObjectPath) && (ClassPackageName == Other.ClassPackageName) && (ClassName == Other.ClassName);
 	}
+
+	/** Returns the path to the class for this object. */
+	FString GetClassPathName(EObjectFullNameFlags Flags = EObjectFullNameFlags::IncludeClassPackage) const
+	{
+		TStringBuilder<FName::StringBufferSize> Result;
+		AppendClassPathName(Result, Flags);
+		return FString(Result);
+	}
+
+	/** Appends the path to the class for this object to the builder, does not reset builder. */
+	COREUOBJECT_API void AppendClassPathName(FStringBuilderBase& OutClassPathNameBuilder, EObjectFullNameFlags Flags = EObjectFullNameFlags::IncludeClassPackage) const;
+
+	/** Returns the name of the object in the form: ObjectName */
+	COREUOBJECT_API FName GetFName() const;
+
+	/** Returns the full path for the object in the form: ObjectPath */
+	FString GetPathName() const
+	{
+		TStringBuilder<FName::StringBufferSize> Result;
+		AppendPathName(Result);
+		return FString(Result);
+	}
+
+	/** Appends the path to the object to the builder, does not reset builder. */
+	COREUOBJECT_API void AppendPathName(FStringBuilderBase& OutPathNameBuilder) const;
+
+	/** Returns the full name for the object in the form: Class ObjectPath */
+	FString GetFullName(EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const
+	{
+		TStringBuilder<256> FullName;
+		GetFullName(FullName, Flags);
+		return FString(FullName);
+	}
+
+	/** Populates OutFullNameBuilder with the full name for the object in the form: Class ObjectPath */
+	void GetFullName(FStringBuilderBase& OutFullNameBuilder, EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const
+	{
+		OutFullNameBuilder.Reset();
+		AppendClassPathName(OutFullNameBuilder, Flags);
+		OutFullNameBuilder.AppendChar(TEXT(' '));
+		AppendPathName(OutFullNameBuilder);
+	}
+
+	/** Returns the name for the asset in the form: Class'ObjectPath' */
+	FString GetExportTextName() const
+	{
+		TStringBuilder<256> ExportTextName;
+		GetExportTextName(ExportTextName);
+		return FString(ExportTextName);
+	}
+
+	/** Populates OutExportTextNameBuilder with the name for the object in the form: Class'ObjectPath' */
+	void GetExportTextName(FStringBuilderBase& OutExportTextNameBuilder) const
+	{
+		OutExportTextNameBuilder.Reset();
+		AppendClassPathName(OutExportTextNameBuilder);
+		OutExportTextNameBuilder.AppendChar(TEXT('\''));
+		AppendPathName(OutExportTextNameBuilder);
+		OutExportTextNameBuilder.AppendChar(TEXT('\''));
+	}
 };
 
 inline bool IsObjectRefNull(const FObjectRef& ObjectRef) { return ObjectRef.PackageName.IsNone() && ObjectRef.ObjectPath.IsNone(); }
@@ -131,13 +191,14 @@ inline FPackedObjectRef MakePackedObjectRef(FObjectHandle Handle);
  * 4) high performance (ie: will be called many times)
  */
 #if UE_WITH_OBJECT_HANDLE_TRACKING
+
  /**
   * Callback notifying when an object value is read from a handle.  Fired regardless of whether the handle
   * was resolved as part of the read operation or not and whether the object being read is null or not.
   *
   * @param ReadObject	The object that was read from a handle.
   */
-using ObjectHandleReadFunction = void(UObject* ReadObject);
+DECLARE_DELEGATE_OneParam(FObjectHandleReadDelegate, UObject* ReadObject);
 
 /**
  * Callback notifying when a class is resolved from an object handle or object reference.
@@ -147,42 +208,63 @@ using ObjectHandleReadFunction = void(UObject* ReadObject);
  * @param ClassPackage	The package containing the resolved class.
  * @param Class			The resolved class.
  */
-using ObjectHandleClassResolvedFunction = void(const FObjectRef& SourceRef, UPackage* ClassPackage, UClass* Class);
+DECLARE_DELEGATE_ThreeParams(FObjectHandleClassResolvedDelegate, const FObjectRef& SourceRef, UPackage* ObjectPackage, UClass* Class);
+
+ /**
+  * Callback notifying when a object handle is resolved.
+  *
+  * @param SourceRef		The object reference (either user provided or internally computed from a handle) from which the class was resolved.
+  * @param ClassPackage	The package containing the resolved class.
+  * @param Class			The resolved class.
+  */
+DECLARE_DELEGATE_ThreeParams(FObjectHandleReferenceResolvedDelegate, const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
 
 /**
- * Callback notifying when an object is resolved from an object handle or object reference.
+ * Callback notifying when an object was loaded through an object handle.  Will not notify you about global object loads, just ones that occur
+ * as the byproduct of resolving an ObjectHandle.
  *
- * @param SourceRef		The object reference (either user provided or internally computed from a handle) from which the object was resolved.
- * @param ObjectPackage	The package containing the resolved object.
- * @param Object		The resolved object.
+ * @param SourceRef		The object reference (either user provided or internally computed from a handle) from which the class was resolved.
+ * @param ClassPackage	The package containing the resolved class.
+ * @param Class			The resolved class.
  */
-using ObjectHandleReferenceResolvedFunction = void(const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
+DECLARE_DELEGATE_ThreeParams(FObjectHandleReferenceLoadedDelegate, const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
 
 /**
  * Installs a new callback for notifications that an object value has been read from a handle.
  *
  * @param Function		The new handle read callback to install.
- * @return				The previous handle read callback (or nullptr).  The caller is expected to store this and call in their own handle read callback.
+ * @return				The DelegateHandle so that you can remove the callback at a later date.
  */
-COREUOBJECT_API /*UE_NODISCARD*/ ObjectHandleReadFunction* SetObjectHandleReadCallback(ObjectHandleReadFunction* Function);
+COREUOBJECT_API FDelegateHandle AddObjectHandleReadCallback(FObjectHandleReadDelegate Delegate);
+COREUOBJECT_API void RemoveObjectHandleReadCallback(FDelegateHandle DelegateHandle);
 
 /**
  * Installs a new callback for notifications that a class has been resolved from an object handle or object reference.
  *
  * @param Function		The new class resolved callback to install.
- * @return				The previous object resolved callback (or nullptr).  The caller is expected to store this and call in their own class resolved callback.
+ * @return				The DelegateHandle so that you can remove the callback at a later date.
  */
-COREUOBJECT_API /*UE_NODISCARD*/ ObjectHandleClassResolvedFunction* SetObjectHandleClassResolvedCallback(ObjectHandleClassResolvedFunction* Function);
+COREUOBJECT_API FDelegateHandle AddObjectHandleClassResolvedCallback(FObjectHandleClassResolvedDelegate Callback);
+COREUOBJECT_API void RemoveObjectHandleClassResolvedCallback(FDelegateHandle DelegateHandle);
 
 /**
  * Installs a new callback for notifications that an object has been resolved from an object handle or object reference.
  *
  * @param Function		The new object resolved callback to install.
- * @return				The previous object resolved callback (or nullptr).  The caller is expected to store this and call in their own object resolved callback.
+ * @return				The DelegateHandle so that you can remove the callback at a later date.
  */
-COREUOBJECT_API /*UE_NODISCARD*/ ObjectHandleReferenceResolvedFunction* SetObjectHandleReferenceResolvedCallback(ObjectHandleReferenceResolvedFunction* Function);
-#endif
+COREUOBJECT_API FDelegateHandle AddObjectHandleReferenceResolvedCallback(FObjectHandleReferenceResolvedDelegate Callback);
+COREUOBJECT_API void RemoveObjectHandleReferenceResolvedCallback(FDelegateHandle DelegateHandle);
 
+/**
+ * Installs a new callback for notifications that an object has been loaded from an object handle or object reference.
+ *
+ * @param Function		The new object resolved callback to install.
+ * @return				The DelegateHandle so that you can remove the callback at a later date.
+ */
+COREUOBJECT_API FDelegateHandle AddObjectHandleReferenceLoadedCallback(FObjectHandleReferenceLoadedDelegate Callback);
+COREUOBJECT_API void RemoveObjectHandleReferenceLoadedCallback(FDelegateHandle DelegateHandle);
+#endif
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,37 +295,83 @@ namespace ObjectHandle_Private
 	constexpr uint32 PackageIdMask = 0x7FFF'FFFF;
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	extern COREUOBJECT_API ObjectHandleReadFunction* ObjectHandleReadCallback;
-	extern COREUOBJECT_API ObjectHandleClassResolvedFunction* ObjectHandleClassResolvedCallback;
-	extern COREUOBJECT_API ObjectHandleReferenceResolvedFunction* ObjectHandleReferenceResolvedCallback;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FObjectHandleReadEvent, UObject* Object);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FClassReferenceResolvedEvent, const FObjectRef& ObjectRef, UPackage* Package, UClass* Class);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FObjectHandleReferenceResolvedEvent, const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FObjectHandleReferenceLoadedEvent, const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object);
+
+	COREUOBJECT_API struct FObjectHandleEvents
+	{
+		FObjectHandleReadEvent ObjectHandleReadEvent;
+		FClassReferenceResolvedEvent ClassReferenceResolvedEvent;
+		FObjectHandleReferenceResolvedEvent ObjectHandleReferenceResolvedEvent;
+		FObjectHandleReferenceLoadedEvent ObjectHandleReferenceLoadedEvent;
+
+		inline void BeginUsing() { UsingCount++; }
+		inline void EndUsing() { --UsingCount; }
+		inline bool IsUsing() const { return UsingCount > 0; }
+
+	private:
+		std::atomic<int32> UsingCount;
+	};
+
+	extern COREUOBJECT_API std::atomic<int32> ObjectHandleEventIndex;
+	extern COREUOBJECT_API FObjectHandleEvents ObjectHandleEvents[2];
+
+	inline FObjectHandleEvents& BeginReadingEvents()
+	{
+		// Quick spin lock to try and begin using the events, normally this wont actually spin, in like 99.999% of the time.
+		while (true)
+		{
+			// Start by getting the current event index from the double buffer.
+			const int32 InitialEventIndex = ObjectHandleEventIndex;
+			// Grab the event set at that index.
+			FObjectHandleEvents& Events = ObjectHandleEvents[InitialEventIndex];
+			// Begin using the events, this will signal we're using them.
+			Events.BeginUsing();
+			// Ok - now we're going to check that we're *still* using the same index.  If we are
+			// then we know that it didn't change out from under us in between getting Events, and calling BeginUsing().
+			if (InitialEventIndex == ObjectHandleEventIndex)
+			{
+				return Events;
+			}
+			// If the check above failed, then we need to cease using the events, because we're about to try this again.
+			Events.EndUsing();
+		}
+	}
 
 	inline void OnHandleRead(UObject* Object)
 	{
-		if (ObjectHandleReadFunction* Callback = ObjectHandleReadCallback)
-		{
-			Callback(Object);
-		}
+		FObjectHandleEvents& Events = BeginReadingEvents();
+		Events.ObjectHandleReadEvent.Broadcast(Object);
+		Events.EndUsing();
 	}
 	
 	inline void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class)
 	{
-		if (ObjectHandleClassResolvedFunction* Callback = ObjectHandleClassResolvedCallback)
-		{
-			Callback(ObjectRef, Package, Class);
-		}
+		FObjectHandleEvents& Events = BeginReadingEvents();
+		Events.ClassReferenceResolvedEvent.Broadcast(ObjectRef, Package, Class);
+		Events.EndUsing();
 	}
 
 	inline void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object)
 	{
-		if (ObjectHandleReferenceResolvedFunction* Callback = ObjectHandleReferenceResolvedCallback)
-		{
-			Callback(ObjectRef, Package, Object);
-		}
+		FObjectHandleEvents& Events = BeginReadingEvents();
+		Events.ObjectHandleReferenceResolvedEvent.Broadcast(ObjectRef, Package, Object);
+		Events.EndUsing();
+	}
+
+	inline void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object)
+	{
+		FObjectHandleEvents& Events = BeginReadingEvents();
+		Events.ObjectHandleReferenceLoadedEvent.Broadcast(ObjectRef, Package, Object);
+		Events.EndUsing();
 	}
 #else
 	inline void OnHandleRead(UObject* Object) {}
 	inline void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class) {}
 	inline void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object) {}
+	inline void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object) {}
 #endif
 }
 

@@ -14,14 +14,6 @@
 #include "Misc/AutomationTest.h"
 #include "String/Find.h"
 
-FSoftObjectPath::FSoftObjectPath(const UObject* InObject)
-{
-	if (InObject)
-	{
-		SetPath(InObject->GetPathName());
-	}
-}
-
 // Deprecated constructor
 FSoftObjectPath::FSoftObjectPath(FName InAssetPathName, FString InSubPathString)
 {

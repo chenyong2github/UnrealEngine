@@ -56,20 +56,15 @@ TArray<FBuildDependencyAccessData> FPackageBuildDependencyTracker::GetAccessData
 
 FPackageBuildDependencyTracker::FPackageBuildDependencyTracker()
 {
-	PreviousObjectHandleReadFunction = SetObjectHandleReadCallback(StaticOnObjectHandleRead);
+	ObjectHandleReadHandle = AddObjectHandleReadCallback(FObjectHandleReadDelegate::CreateStatic(StaticOnObjectHandleRead));
+}
+
+FPackageBuildDependencyTracker::~FPackageBuildDependencyTracker()
+{
+	RemoveObjectHandleReadCallback(ObjectHandleReadHandle);
 }
 
 void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObject)
-{
-	StaticOnObjectHandleReadInternal(ReadObject);
-
-	if (Singleton.PreviousObjectHandleReadFunction)
-	{
-		Singleton.PreviousObjectHandleReadFunction(ReadObject);
-	}
-}
-
-void FPackageBuildDependencyTracker::StaticOnObjectHandleReadInternal(UObject* ReadObject)
 {
 	if (!ReadObject)
 	{

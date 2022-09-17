@@ -86,19 +86,10 @@ private:
 		{
 			NumFailedResolves++;
 		}
-
-		if (PrevResolvedFunc)
-		{
-			PrevResolvedFunc(ObjectRef, Pkg, Obj);
-		}
 	}
 	static void OnRefRead(UObject* Obj)
 	{
 		NumReads++;
-		if (PrevReadFunc)
-		{
-			PrevReadFunc(Obj);
-		}
 	}
 #endif
 	
@@ -116,16 +107,18 @@ private:
 		if (!bCallbacksInstalled)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			PrevResolvedFunc = SetObjectHandleReferenceResolvedCallback(OnRefResolved);
-			PrevReadFunc = SetObjectHandleReadCallback(OnRefRead);
+			ResolvedCallbackHandle = AddObjectHandleReferenceResolvedCallback(FObjectHandleReferenceResolvedDelegate::CreateStatic(OnRefResolved));
+			HandleReadCallbackHandle = AddObjectHandleReadCallback(FObjectHandleReadDelegate::CreateStatic(OnRefRead));
+			// TODO We should unhook these handles somewhere, but i don't want to refactor the test, it's not as if they were
+			// being unhooked before.  So...
 #endif
 			bCallbacksInstalled = true;
 		}
 	}
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	static ObjectHandleReferenceResolvedFunction* PrevResolvedFunc;
-	static ObjectHandleReadFunction* PrevReadFunc;
+	static FDelegateHandle ResolvedCallbackHandle;
+	static FDelegateHandle HandleReadCallbackHandle;
 #endif
 	static thread_local uint32 NumResolves;
 	static thread_local uint32 NumFailedResolves;
