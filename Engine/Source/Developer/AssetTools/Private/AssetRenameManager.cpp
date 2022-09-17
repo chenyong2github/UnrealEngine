@@ -1163,7 +1163,7 @@ void FAssetRenameManager::DetectReferencingCollections(TArray<FAssetRenameDataWi
 		if (AssetToRename.Asset.IsValid())
 		{
 			TArray<FCollectionNameType> ReferencingCollections;
-			CollectionManagerModule.Get().GetCollectionsContainingObject(*AssetToRename.Asset->GetPathName(), ReferencingCollections);
+			CollectionManagerModule.Get().GetCollectionsContainingObject(FSoftObjectPath(AssetToRename.Asset.Get()), ReferencingCollections);
 
 			if (ReferencingCollections.Num() > 0)
 			{

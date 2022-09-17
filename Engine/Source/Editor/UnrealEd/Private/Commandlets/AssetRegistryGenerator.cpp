@@ -1150,7 +1150,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 	}
 
 	// Build the list of collections we should tag for each asset
-	TMap<FName, TArray<FName>> AssetPathNamesToCollectionTags;
+	TMap<FSoftObjectPath, TArray<FName>> AssetPathsToCollectionTags;
 	{
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
@@ -1171,17 +1171,17 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 			});
 		}
 		
-		TArray<FName> TmpAssetPathNames;
+		TArray<FSoftObjectPath> TmpAssetPaths;
 		for (const FCollectionNameType& CollectionNameToTag : CollectionNamesToTag)
 		{
 			const FName CollectionTagName = *FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *CollectionNameToTag.Name.ToString());
 
-			TmpAssetPathNames.Reset();
-			CollectionManager.GetAssetsInCollection(CollectionNameToTag.Name, CollectionNameToTag.Type, TmpAssetPathNames);
+			TmpAssetPaths.Reset();
+			CollectionManager.GetAssetsInCollection(CollectionNameToTag.Name, CollectionNameToTag.Type, TmpAssetPaths);
 
-			for (const FName& AssetPathName : TmpAssetPathNames)
+			for (const FSoftObjectPath& AssetPath : TmpAssetPaths)
 			{
-				TArray<FName>& CollectionTagsForAsset = AssetPathNamesToCollectionTags.FindOrAdd(AssetPathName);
+				TArray<FName>& CollectionTagsForAsset = AssetPathsToCollectionTags.FindOrAdd(AssetPath);
 				CollectionTagsForAsset.AddUnique(CollectionTagName);
 			}
 		}
@@ -1191,12 +1191,12 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 	// Collection tags are queried only by the existence of the key, the value is never used. But Tag Values are not allowed
 	// to be empty. Set the value for each tag to an arbitrary field, something short to avoid wasting memory. We use 1 (aka "true") for now.
 	FStringView CollectionValue(TEXTVIEW("1"));
-	for (const TPair<FName, TArray<FName>>& AssetPathNameToCollectionTagsPair : AssetPathNamesToCollectionTags)
+	for (const TPair<FSoftObjectPath, TArray<FName>>& AssetPathToCollectionTagsPair : AssetPathsToCollectionTags)
 	{
-		const FName AssetPathName = AssetPathNameToCollectionTagsPair.Key;
-		const TArray<FName>& CollectionTagsForAsset = AssetPathNameToCollectionTagsPair.Value;
+		const FSoftObjectPath& AssetPath = AssetPathToCollectionTagsPair.Key;
+		const TArray<FName>& CollectionTagsForAsset = AssetPathToCollectionTagsPair.Value;
 
-		const FAssetData* AssetData = State.GetAssetByObjectPath(FSoftObjectPath(WriteToString<FName::StringBufferSize>(AssetPathName)));
+		const FAssetData* AssetData = State.GetAssetByObjectPath(AssetPath);
 		if (AssetData)
 		{
 			FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
@@ -2412,10 +2412,10 @@ void FAssetRegistryGenerator::WriteCollection(FName CollectionName, const TArray
 {
 	if (CreateOrEmptyCollection(CollectionName))
 	{
-		TArray<FName> AssetNames = PackageNames;
+		TArray<FSoftObjectPath> AssetPaths;
 
 		// Convert package names to asset names
-		for (FName& Name : AssetNames)
+		for (const FName& Name : PackageNames)
 		{
 			FString PackageName = Name.ToString();
 			int32 LastPathDelimiter;
@@ -2423,12 +2423,12 @@ void FAssetRegistryGenerator::WriteCollection(FName CollectionName, const TArray
 			{
 				const FString AssetName = PackageName.Mid(LastPathDelimiter + 1);
 				PackageName = PackageName + FString(TEXT(".")) + AssetName;
-				Name = *PackageName;
 			}
+			AssetPaths.Add(FSoftObjectPath(PackageName));
 		}
 
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-		CollectionManager.AddToCollection(CollectionName, ECollectionShareType::CST_Local, AssetNames);
+		CollectionManager.AddToCollection(CollectionName, ECollectionShareType::CST_Local, AssetPaths);
 
 		UE_LOG(LogAssetRegistryGenerator, Log, TEXT("Updated collection %s"), *CollectionName.ToString());
 	}

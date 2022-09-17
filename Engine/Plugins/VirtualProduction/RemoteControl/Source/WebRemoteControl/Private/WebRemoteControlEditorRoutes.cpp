@@ -95,7 +95,7 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	FARFilter Filter;
-	Filter.ObjectPaths.Add(*GetThumbnailRequest.ObjectPath);
+	Filter.SoftObjectPaths.Add(GetThumbnailRequest.ObjectPath);
 
 	TArray<FAssetData> Assets;
 	AssetRegistryModule.Get().GetAssets(Filter, Assets);
@@ -122,7 +122,7 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 			Builder.Append(LastSegment);
 
 			FARFilter FallbackFilter;
-			FallbackFilter.ObjectPaths.Add(Builder.ToString());
+			FallbackFilter.SoftObjectPaths.Add(FSoftObjectPath(Builder.ToView()));
 			AssetRegistryModule.Get().GetAssets(FallbackFilter, Assets);
 		}
 	}

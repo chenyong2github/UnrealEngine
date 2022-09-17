@@ -488,12 +488,12 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 					continue;
 				}
 
-				TArray<FName> FoundAssets;
+				TArray<FSoftObjectPath> FoundAssets;
 				CollectionManager.GetAssetsInCollection(*CollectionName, ECollectionShareType::CST_All, FoundAssets, ECollectionRecursionFlags::SelfAndChildren);
 				Tokens.Reserve(Tokens.Num() + FoundAssets.Num());
-				for (FName AssetName : FoundAssets)
+				for (const FSoftObjectPath& AssetPath : FoundAssets)
 				{
-					CommandLinePackageNames.Add(FPackageName::ObjectPathToPackageName(AssetName.ToString()));
+					CommandLinePackageNames.Add(AssetPath.GetLongPackageName());
 				}
 			}
 		}

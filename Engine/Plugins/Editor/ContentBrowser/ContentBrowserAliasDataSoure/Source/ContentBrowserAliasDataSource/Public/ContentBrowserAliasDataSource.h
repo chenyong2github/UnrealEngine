@@ -82,7 +82,7 @@ public:
 	virtual bool AppendItemReference(const FContentBrowserItemData& InItem, FString& InOutStr) override;
 	virtual bool UpdateThumbnail(const FContentBrowserItemData& InItem, FAssetThumbnail& InThumbnail) override;
 
-	virtual bool TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId) override;
+	virtual bool TryGetCollectionId(const FContentBrowserItemData& InItem, FSoftObjectPath& OutCollectionId) override;
 
 	// Legacy functions seem necessary for FrontendFilters to work
 	virtual bool Legacy_TryGetPackagePath(const FContentBrowserItemData& InItem, FName& OutPackagePath) override;
@@ -143,9 +143,7 @@ private:
 			PathBuilder << InAssetData.AssetName;
 			PackageName = FName(PathBuilder.ToView());
 
-			PathBuilder << TEXT('.');
-			PathBuilder << InAssetData.AssetName;
-			ObjectPath = FName(PathBuilder.ToView());
+			ObjectPath = FSoftObjectPath(PackageName, InAssetData.AssetName, {});
 		}
 
 		/** The source asset for this alias */
@@ -155,7 +153,7 @@ private:
 		/** PackagePath/SourceAssetName, /MyAliases/SomeAsset  */
 		FName PackageName;
 		/** PackageName.SourceAssetName, /MyAliases/SomeAsset.SomeAsset */
-		FName ObjectPath;
+		FSoftObjectPath ObjectPath;
 		/** A non-unique display name for this alias */
 		FName AliasName;
 		/** Whether this alias was generated from package metadata or manually through the C++ interface */

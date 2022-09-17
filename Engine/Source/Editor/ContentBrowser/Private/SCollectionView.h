@@ -254,10 +254,10 @@ private:
 	void HandleCollectionUpdated( const FCollectionNameType& Collection );
 
 	/** Handles assets being added to a collection */
-	void HandleAssetsAddedToCollection( const FCollectionNameType& Collection, const TArray<FName>& AssetsAdded );
+	void HandleAssetsAddedToCollection( const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> AssetsAdded );
 
 	/** Handles assets being removed from a collection */
-	void HandleAssetsRemovedFromCollection( const FCollectionNameType& Collection, const TArray<FName>& AssetsRemoved );
+	void HandleAssetsRemovedFromCollection( const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> AssetsRemoved );
 
 	/** Handles the source control provider changing */
 	void HandleSourceControlProviderChanged(class ISourceControlProvider& OldProvider, class ISourceControlProvider& NewProvider);

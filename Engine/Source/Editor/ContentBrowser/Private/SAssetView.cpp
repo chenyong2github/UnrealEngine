@@ -208,8 +208,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 	ContentBrowserData->OnItemDataDiscoveryComplete().AddSP(this, &SAssetView::HandleItemDataDiscoveryComplete);
 
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-	CollectionManagerModule.Get().OnAssetsAdded().AddSP( this, &SAssetView::OnAssetsAddedToCollection );
-	CollectionManagerModule.Get().OnAssetsRemoved().AddSP( this, &SAssetView::OnAssetsRemovedFromCollection );
+	CollectionManagerModule.Get().OnAssetsAddedToCollection().AddSP( this, &SAssetView::OnAssetsAddedToCollection );
+	CollectionManagerModule.Get().OnAssetsRemovedFromCollection().AddSP( this, &SAssetView::OnAssetsRemovedFromCollection );
 	CollectionManagerModule.Get().OnCollectionRenamed().AddSP( this, &SAssetView::OnCollectionRenamed );
 	CollectionManagerModule.Get().OnCollectionUpdated().AddSP( this, &SAssetView::OnCollectionUpdated );
 
@@ -1413,13 +1413,13 @@ FReply SAssetView::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 	}
 	else if (HasSingleCollectionSource())
 	{
-		TArray<FName> NewCollectionItems;
+		TArray<FSoftObjectPath> NewCollectionItems;
 
 		if (TSharedPtr<FContentBrowserDataDragDropOp> ContentDragDropOp = DragDropEvent.GetOperationAs<FContentBrowserDataDragDropOp>())
 		{
 			for (const FContentBrowserItem& DraggedItem : ContentDragDropOp->GetDraggedFiles())
 			{
-				FName CollectionItemId;
+				FSoftObjectPath CollectionItemId;
 				if (DraggedItem.TryGetCollectionId(CollectionItemId))
 				{
 					NewCollectionItems.Add(CollectionItemId);
@@ -1429,20 +1429,20 @@ FReply SAssetView::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 		else
 		{
 			const TArray<FAssetData> AssetDatas = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
-			Algo::Transform(AssetDatas, NewCollectionItems, &FAssetData::ObjectPath);
+			Algo::Transform(AssetDatas, NewCollectionItems, &FAssetData::GetSoftObjectPath);
 		}
 
 		if (NewCollectionItems.Num() > 0)
 		{
 			if (TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>())
 			{
-				TArray< FName > ObjectPaths;
+				TArray<FSoftObjectPath> ObjectPaths;
 				FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 				const FCollectionNameType& Collection = SourcesData.Collections[0];
 				CollectionManagerModule.Get().GetObjectsInCollection(Collection.Name, Collection.Type, ObjectPaths);
 
 				bool IsValidDrop = false;
-				for (const FName& NewCollectionItem : NewCollectionItems)
+				for (const FSoftObjectPath& NewCollectionItem : NewCollectionItems)
 				{
 					if (!ObjectPaths.Contains(NewCollectionItem))
 					{
@@ -1493,13 +1493,13 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 	}
 	else if (HasSingleCollectionSource())
 	{
-		TArray<FName> NewCollectionItems;
+		TArray<FSoftObjectPath> NewCollectionItems;
 
 		if (TSharedPtr<FContentBrowserDataDragDropOp> ContentDragDropOp = DragDropEvent.GetOperationAs<FContentBrowserDataDragDropOp>())
 		{
 			for (const FContentBrowserItem& DraggedItem : ContentDragDropOp->GetDraggedFiles())
 			{
-				FName CollectionItemId;
+				FSoftObjectPath CollectionItemId;
 				if (DraggedItem.TryGetCollectionId(CollectionItemId))
 				{
 					NewCollectionItems.Add(CollectionItemId);
@@ -1509,7 +1509,7 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 		else
 		{
 			const TArray<FAssetData> AssetDatas = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
-			Algo::Transform(AssetDatas, NewCollectionItems, &FAssetData::ObjectPath);
+			Algo::Transform(AssetDatas, NewCollectionItems, &FAssetData::GetSoftObjectPath);
 		}
 
 		if (NewCollectionItems.Num() > 0)
@@ -2264,7 +2264,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 	}
 }
 
-void SAssetView::OnAssetsAddedToCollection( const FCollectionNameType& Collection, const TArray< FName >& ObjectPaths )
+void SAssetView::OnAssetsAddedToCollection( const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> ObjectPaths )
 {
 	if ( !SourcesData.Collections.Contains( Collection ) )
 	{
@@ -2274,7 +2274,7 @@ void SAssetView::OnAssetsAddedToCollection( const FCollectionNameType& Collectio
 	RequestSlowFullListRefresh();
 }
 
-void SAssetView::OnAssetsRemovedFromCollection( const FCollectionNameType& Collection, const TArray< FName >& ObjectPaths )
+void SAssetView::OnAssetsRemovedFromCollection( const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> ObjectPaths )
 {
 	if ( !SourcesData.Collections.Contains( Collection ) )
 	{

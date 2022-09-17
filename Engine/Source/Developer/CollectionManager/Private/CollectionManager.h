@@ -36,7 +36,7 @@ struct FObjectCollectionInfo
 
 typedef TMap<FCollectionNameType, TSharedRef<FCollection>> FAvailableCollectionsMap;
 typedef TMap<FGuid, FCollectionNameType> FGuidToCollectionNamesMap;
-typedef TMap<FName, TArray<FObjectCollectionInfo>> FCollectionObjectsMap;
+typedef TMap<FSoftObjectPath, TArray<FObjectCollectionInfo>> FCollectionObjectsMap;
 typedef TMap<FGuid, TArray<FGuid>> FCollectionHierarchyMap;
 typedef TArray<FLinearColor> FCollectionColorArray;
 
@@ -115,6 +115,103 @@ public:
 	virtual ~FCollectionManager();
 
 	// ICollectionManager implementation
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	virtual bool GetAssetsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& AssetPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		TArray<FSoftObjectPath> Temp;
+		if (GetAssetsInCollection(CollectionName, ShareType, Temp, RecursionMode))
+		{
+			AssetPaths.Append(UE::SoftObjectPath::Private::ConvertSoftObjectPaths(Temp));
+			return true;
+		}
+		return false;
+	}
+	virtual bool GetObjectsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& ObjectPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		TArray<FSoftObjectPath> Temp;
+		if (GetObjectsInCollection(CollectionName, ShareType, Temp, RecursionMode))
+		{
+			ObjectPaths.Append(UE::SoftObjectPath::Private::ConvertSoftObjectPaths(Temp));
+			return true;
+		}
+		return false;
+	}
+	virtual bool GetClassesInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& ClassPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		TArray<FTopLevelAssetPath> Temp;
+		if (GetClassesInCollection(CollectionName, ShareType, Temp, RecursionMode))
+		{
+			for (FTopLevelAssetPath Path : Temp)
+			{
+				ClassPaths.Add(Path.ToFName());
+			}
+		
+			return true;
+		}
+		return false;
+	}
+	virtual void GetCollectionsContainingObject(FName ObjectPath, ECollectionShareType::Type ShareType, TArray<FName>& OutCollectionNames, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		GetCollectionsContainingObject(FSoftObjectPath(ObjectPath), ShareType, OutCollectionNames, RecursionMode);
+	}
+	virtual void GetCollectionsContainingObject(FName ObjectPath, TArray<FCollectionNameType>& OutCollections, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		GetCollectionsContainingObject(FSoftObjectPath(ObjectPath), OutCollections, RecursionMode);
+	}
+	virtual void GetCollectionsContainingObjects(const TArray<FName>& ObjectPathNames, TMap<FCollectionNameType, TArray<FName>>& OutCollectionsAndMatchedObjects, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		TArray<FSoftObjectPath> Paths = UE::SoftObjectPath::Private::ConvertObjectPathNames(ObjectPathNames);
+		TMap<FCollectionNameType, TArray<FSoftObjectPath>> TmpMap;
+		GetCollectionsContainingObjects(Paths, TmpMap, RecursionMode);
+		for (const TPair<FCollectionNameType, TArray<FSoftObjectPath>>& Pair : TmpMap)
+		{
+			TArray<FName>& Names = OutCollectionsAndMatchedObjects.FindOrAdd(Pair.Key);
+			Names.Append(UE::SoftObjectPath::Private::ConvertSoftObjectPaths(Pair.Value));
+		}
+	}
+	virtual FString GetCollectionsStringForObject(FName ObjectPath, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self, bool bFullPaths = true) const override
+	{
+		return GetCollectionsStringForObject(FSoftObjectPath(ObjectPath), ShareType, RecursionMode, bFullPaths);
+	}
+	virtual bool AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ObjectPath) override
+	{
+		return AddToCollection(CollectionName, ShareType, FSoftObjectPath(ObjectPath));
+	}
+	virtual bool AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& ObjectPaths, int32* OutNumAdded = nullptr) override
+	{
+		return AddToCollection(CollectionName, ShareType, UE::SoftObjectPath::Private::ConvertObjectPathNames(ObjectPaths), OutNumAdded);
+	}
+	virtual bool RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ObjectPath) override
+	{
+		return RemoveFromCollection(CollectionName, ShareType, FSoftObjectPath(ObjectPath));
+	}
+	virtual bool RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& ObjectPaths, int32* OutNumRemoved = nullptr) override
+	{
+		return RemoveFromCollection(CollectionName, ShareType, UE::SoftObjectPath::Private::ConvertObjectPathNames(ObjectPaths), OutNumRemoved);
+	}
+	virtual bool IsObjectInCollection(FName ObjectPath, FName CollectionName, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override
+	{
+		return IsObjectInCollection(FSoftObjectPath(ObjectPath), CollectionName, ShareType, RecursionMode);
+	}
+	virtual bool HandleRedirectorDeleted(const FName& ObjectPath) override
+	{
+		return HandleRedirectorDeleted(FSoftObjectPath(ObjectPath));
+	}
+	virtual void HandleObjectRenamed(const FName& OldObjectPath, const FName& NewObjectPath) override
+	{
+		return HandleObjectRenamed(FSoftObjectPath(OldObjectPath), FSoftObjectPath(NewObjectPath));
+	}
+	virtual void HandleObjectDeleted(const FName& ObjectPath) override
+	{
+		return HandleObjectDeleted(FSoftObjectPath(ObjectPath));
+	}
+	DECLARE_DERIVED_EVENT( FCollectionManager, ICollectionManager::FAssetsAddedEvent, FAssetsAddedEvent ); 
+	virtual FAssetsAddedEvent& OnAssetsAdded() override { return AssetsAddedEvent; }
+
+	DECLARE_DERIVED_EVENT( FCollectionManager, ICollectionManager::FAssetsRemovedEvent, FAssetsRemovedEvent );
+	virtual FAssetsRemovedEvent& OnAssetsRemoved() override { return AssetsRemovedEvent; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	virtual bool HasCollections() const override;
 	virtual void GetCollections(TArray<FCollectionNameType>& OutCollections) const override;
 	virtual void GetCollections(FName CollectionName, TArray<FCollectionNameType>& OutCollections) const override;
@@ -125,23 +222,23 @@ public:
 	virtual void GetChildCollectionNames(FName CollectionName, ECollectionShareType::Type ShareType, ECollectionShareType::Type ChildShareType, TArray<FName>& CollectionNames) const override;
 	virtual TOptional<FCollectionNameType> GetParentCollection(FName CollectionName, ECollectionShareType::Type ShareType) const override;
 	virtual bool CollectionExists(FName CollectionName, ECollectionShareType::Type ShareType) const override;
-	virtual bool GetAssetsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& AssetPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
-	virtual bool GetObjectsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& ObjectPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
-	virtual bool GetClassesInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& ClassPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
-	virtual void GetCollectionsContainingObject(FName ObjectPath, ECollectionShareType::Type ShareType, TArray<FName>& OutCollectionNames, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
-	virtual void GetCollectionsContainingObject(FName ObjectPath, TArray<FCollectionNameType>& OutCollections, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
-	virtual void GetCollectionsContainingObjects(const TArray<FName>& ObjectPaths, TMap<FCollectionNameType, TArray<FName>>& OutCollectionsAndMatchedObjects, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
-	virtual FString GetCollectionsStringForObject(FName ObjectPath, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self, bool bFullPaths = true) const override;
+	virtual bool GetAssetsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FSoftObjectPath>& AssetPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual bool GetObjectsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FSoftObjectPath>& ObjectPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual bool GetClassesInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FTopLevelAssetPath>& ClassPaths, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual void GetCollectionsContainingObject(const FSoftObjectPath& ObjectPath, ECollectionShareType::Type ShareType, TArray<FName>& OutCollectionNames, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual void GetCollectionsContainingObject(const FSoftObjectPath& ObjectPath, TArray<FCollectionNameType>& OutCollections, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual void GetCollectionsContainingObjects(const TArray<FSoftObjectPath>& ObjectPaths, TMap<FCollectionNameType, TArray<FSoftObjectPath>>& OutCollectionsAndMatchedObjects, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual FString GetCollectionsStringForObject(const FSoftObjectPath& ObjectPath, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self, bool bFullPaths = true) const override;
 	virtual void CreateUniqueCollectionName(const FName& BaseName, ECollectionShareType::Type ShareType, FName& OutCollectionName) const override;
 	virtual bool IsValidCollectionName(const FString& CollectionName, ECollectionShareType::Type ShareType) const override;
 	virtual bool CreateCollection(FName CollectionName, ECollectionShareType::Type ShareType, ECollectionStorageMode::Type StorageMode) override;
 	virtual bool RenameCollection(FName CurrentCollectionName, ECollectionShareType::Type CurrentShareType, FName NewCollectionName, ECollectionShareType::Type NewShareType) override;
 	virtual bool ReparentCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ParentCollectionName, ECollectionShareType::Type ParentShareType) override;
 	virtual bool DestroyCollection(FName CollectionName, ECollectionShareType::Type ShareType) override;
-	virtual bool AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ObjectPath) override;
-	virtual bool AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& ObjectPaths, int32* OutNumAdded = nullptr) override;
-	virtual bool RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ObjectPath) override;
-	virtual bool RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& ObjectPaths, int32* OutNumRemoved = nullptr) override;
+	virtual bool AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, const FSoftObjectPath& ObjectPath) override;
+	virtual bool AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, TConstArrayView<FSoftObjectPath> ObjectPaths, int32* OutNumAdded = nullptr) override;
+	virtual bool RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, const FSoftObjectPath& ObjectPath) override;
+	virtual bool RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, TConstArrayView<FSoftObjectPath> ObjectPaths, int32* OutNumRemoved = nullptr) override;
 	virtual bool SetDynamicQueryText(FName CollectionName, ECollectionShareType::Type ShareType, const FString& InQueryText) override;
 	virtual bool GetDynamicQueryText(FName CollectionName, ECollectionShareType::Type ShareType, FString& OutQueryText) const override;
 	virtual bool TestDynamicQuery(FName CollectionName, ECollectionShareType::Type ShareType, const ITextFilterExpressionContext& InContext, bool& OutResult) const override;
@@ -153,13 +250,13 @@ public:
 	virtual bool GetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, TOptional<FLinearColor>& OutColor) const override;
 	virtual bool SetCollectionColor(FName CollectionName, ECollectionShareType::Type ShareType, const TOptional<FLinearColor>& NewColor) override;
 	virtual bool GetCollectionStorageMode(FName CollectionName, ECollectionShareType::Type ShareType, ECollectionStorageMode::Type& OutStorageMode) const override;
-	virtual bool IsObjectInCollection(FName ObjectPath, FName CollectionName, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
+	virtual bool IsObjectInCollection(const FSoftObjectPath& ObjectPath, FName CollectionName, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode = ECollectionRecursionFlags::Self) const override;
 	virtual bool IsValidParentCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ParentCollectionName, ECollectionShareType::Type ParentShareType) const override;
 	virtual FText GetLastError() const override { return LastError; }
 	virtual void HandleFixupRedirectors(ICollectionRedirectorFollower& InRedirectorFollower) override;
-	virtual bool HandleRedirectorDeleted(const FName& ObjectPath) override;
-	virtual void HandleObjectRenamed(const FName& OldObjectPath, const FName& NewObjectPath) override;
-	virtual void HandleObjectDeleted(const FName& ObjectPath) override;
+	virtual bool HandleRedirectorDeleted(const FSoftObjectPath& ObjectPath) override;
+	virtual void HandleObjectRenamed(const FSoftObjectPath& OldObjectPath, const FSoftObjectPath& NewObjectPath) override;
+	virtual void HandleObjectDeleted(const FSoftObjectPath& ObjectPath) override;
 
 	/** Event for when collections are created */
 	DECLARE_DERIVED_EVENT( FCollectionManager, ICollectionManager::FCollectionCreatedEvent, FCollectionCreatedEvent );
@@ -170,12 +267,10 @@ public:
 	virtual FCollectionDestroyedEvent& OnCollectionDestroyed() override { return CollectionDestroyedEvent; }
 
 	/** Event for when assets are added to a collection */
-	DECLARE_DERIVED_EVENT( FCollectionManager, ICollectionManager::FAssetsAddedEvent, FAssetsAddedEvent ); 
-	virtual FAssetsAddedEvent& OnAssetsAdded() override { return AssetsAddedEvent; }
+	virtual FOnAssetsAddedToCollection& OnAssetsAddedToCollection() override { return AssetsAddedToCollectionDelegate; }
 
-	/** Event for when assets are removed to a collection */
-	DECLARE_DERIVED_EVENT( FCollectionManager, ICollectionManager::FAssetsRemovedEvent, FAssetsRemovedEvent );
-	virtual FAssetsRemovedEvent& OnAssetsRemoved() override { return AssetsRemovedEvent; }
+	/** Event for when assets are removed from a collection */
+	virtual FOnAssetsRemovedFromCollection& OnAssetsRemovedFromCollection() override { return AssetsRemovedFromCollectionDelegate; }
 
 	/** Event for when collections are renamed */
 	DECLARE_DERIVED_EVENT( FCollectionManager, ICollectionManager::FCollectionRenamedEvent, FCollectionRenamedEvent );
@@ -213,10 +308,10 @@ private:
 	bool RemoveCollection(const TSharedRef<FCollection>& CollectionRef, ECollectionShareType::Type ShareType);
 
 	/** Removes an object from any collections that contain it */
-	void RemoveObjectFromCollections(const FName& ObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections);
+	void RemoveObjectFromCollections(const FSoftObjectPath& ObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections);
 
 	/** Replaces an object with another in any collections that contain it */
-	void ReplaceObjectInCollections(const FName& OldObjectPath, const FName& NewObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections);
+	void ReplaceObjectInCollections(const FSoftObjectPath& OldObjectPath, const FSoftObjectPath& NewObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections);
 
 	/** Internal common functionality for saving a collection */
 	bool InternalSaveCollection(const TSharedRef<FCollection>& CollectionRef, FText& OutError);
@@ -244,9 +339,15 @@ private:
 	mutable FText LastError;
 
 	/** Event for when assets are added to a collection */
+	FOnAssetsAddedToCollection AssetsAddedToCollectionDelegate;
+
+	UE_DEPRECATED(5.1, "This event has been replaced by AssetsAddedToCollectionEvent")
 	FAssetsAddedEvent AssetsAddedEvent;
 
 	/** Event for when assets are removed from a collection */
+	FOnAssetsRemovedFromCollection AssetsRemovedFromCollectionDelegate;
+
+	UE_DEPRECATED(5.1, "This event has been replaced by AssetsRemovedFromCollectionEvent")
 	FAssetsRemovedEvent AssetsRemovedEvent;
 
 	/** Event for when collections are renamed */

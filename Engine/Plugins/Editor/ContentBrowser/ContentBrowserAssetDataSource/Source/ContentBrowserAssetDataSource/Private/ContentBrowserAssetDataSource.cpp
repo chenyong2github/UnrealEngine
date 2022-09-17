@@ -1581,13 +1581,11 @@ bool UContentBrowserAssetDataSource::HandleDragDropOnItem(const FContentBrowserI
 	return false;
 }
 
-bool UContentBrowserAssetDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId)
+bool UContentBrowserAssetDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FSoftObjectPath& OutCollectionId)
 {
 	if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InItem))
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OutCollectionId = AssetPayload->GetAssetData().ObjectPath;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		OutCollectionId = AssetPayload->GetAssetData().GetSoftObjectPath();
 		return true;
 	}
 	return false;
@@ -1661,14 +1659,9 @@ bool UContentBrowserAssetDataSource::GetObjectPathsForCollections(ICollectionMan
 	{
 		const ECollectionRecursionFlags::Flags CollectionRecursionMode = bIncludeChildCollections ? ECollectionRecursionFlags::SelfAndChildren : ECollectionRecursionFlags::Self;
 		
-		TArray<FName> TempNames;
 		for (const FCollectionNameType& CollectionNameType : InCollections)
 		{
-			TempNames.Reset();
-			CollectionManager->GetObjectsInCollection(CollectionNameType.Name, CollectionNameType.Type, TempNames, CollectionRecursionMode);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			OutObjectPaths.Append(UE::SoftObjectPath::Private::ConvertObjectPathNames(TempNames));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			CollectionManager->GetObjectsInCollection(CollectionNameType.Name, CollectionNameType.Type, OutObjectPaths, CollectionRecursionMode);
 		}
 
 		return true;

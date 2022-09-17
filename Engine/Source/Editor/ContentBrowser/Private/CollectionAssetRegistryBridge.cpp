@@ -36,9 +36,9 @@ public:
 	{
 	}
 
-	virtual bool FixupObject(const FName& InObjectPath, FName& OutNewObjectPath) override
+	virtual bool FixupObject(const FSoftObjectPath& InObjectPath, FSoftObjectPath& OutNewObjectPath) override
 	{
-		OutNewObjectPath = NAME_None;
+		OutNewObjectPath = FSoftObjectPath();
 
 		FString InObjectPathString = InObjectPath.ToString();
 		if (!InObjectPathString.StartsWith(TEXT("/")))
@@ -52,6 +52,7 @@ public:
 					const FString NewClassName = FLinkerLoad::FindNewPathNameForClass(ClassPathStr, false);
 					if (!NewClassName.IsEmpty())
 					{
+						check(FPackageName::IsValidObjectPath(NewClassName));
 						// Our new class name might be lacking the path, so try and find it so we can use the full path in the collection
 						UClass* FoundClass = FindObject<UClass>(nullptr, *NewClassName);
 						if (FoundClass)
@@ -133,7 +134,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
-		return OutNewObjectPath != NAME_None && InObjectPath != OutNewObjectPath;
+		return OutNewObjectPath.IsValid() && InObjectPath != OutNewObjectPath;
 	}
 
 private:
@@ -183,9 +184,7 @@ void FCollectionAssetRegistryBridge::OnAssetRenamed(const FAssetData& AssetData,
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
 	// Notify the collections manager that an asset has been renamed
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	CollectionManagerModule.Get().HandleObjectRenamed(*OldObjectPath, AssetData.ObjectPath);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	CollectionManagerModule.Get().HandleObjectRenamed(FSoftObjectPath(OldObjectPath), AssetData.GetSoftObjectPath());
 }
 
 void FCollectionAssetRegistryBridge::OnAssetRemoved(const FAssetData& AssetData)
@@ -196,16 +195,12 @@ void FCollectionAssetRegistryBridge::OnAssetRemoved(const FAssetData& AssetData)
 	{
 		// Notify the collections manager that a redirector has been removed
 		// This will attempt to re-save any collections that still have a reference to this redirector in their on-disk collection data
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CollectionManagerModule.Get().HandleRedirectorDeleted(AssetData.ObjectPath);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().HandleRedirectorDeleted(AssetData.GetSoftObjectPath());
 	}
 	else
 	{
 		// Notify the collections manager that an asset has been removed
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CollectionManagerModule.Get().HandleObjectDeleted(AssetData.ObjectPath);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().HandleObjectDeleted(AssetData.GetSoftObjectPath());
 	}
 }
 

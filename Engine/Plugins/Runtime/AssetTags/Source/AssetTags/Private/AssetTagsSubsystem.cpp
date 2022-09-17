@@ -170,13 +170,6 @@ bool UAssetTagsSubsystem::EmptyCollection(const FName Name)
 
 bool UAssetTagsSubsystem::K2_AddAssetToCollection(const FName Name, const FSoftObjectPath& AssetPath)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return AddAssetToCollection(Name, AssetPath.ToFName());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-bool UAssetTagsSubsystem::AddAssetToCollection(const FName Name, const FName AssetPathName)
-{
 	ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
 	const FCollectionNameType ResolvedNameAndType = AssetTagsSubsystemUtil::FindCollectionByName(CollectionManager, Name);
@@ -185,7 +178,7 @@ bool UAssetTagsSubsystem::AddAssetToCollection(const FName Name, const FName Ass
 		return false;
 	}
 
-	if (!CollectionManager.AddToCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPathName))
+	if (!CollectionManager.AddToCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPath))
 	{
 		AssetTagsSubsystemUtil::LogLastCollectionManagerError(CollectionManager);
 		return false;
@@ -194,11 +187,16 @@ bool UAssetTagsSubsystem::AddAssetToCollection(const FName Name, const FName Ass
 	return true;
 }
 
-bool UAssetTagsSubsystem::AddAssetDataToCollection(const FName Name, const FAssetData& AssetData)
+bool UAssetTagsSubsystem::AddAssetToCollection(const FName Name, const FName AssetPathName)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return AddAssetToCollection(Name, AssetData.ObjectPath);
+	return K2_AddAssetToCollection(Name, FSoftObjectPath(AssetPathName));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+bool UAssetTagsSubsystem::AddAssetDataToCollection(const FName Name, const FAssetData& AssetData)
+{
+	return K2_AddAssetToCollection(Name, AssetData.GetSoftObjectPath());
 }
 
 bool UAssetTagsSubsystem::AddAssetPtrToCollection(const FName Name, const UObject* AssetPtr)
@@ -210,64 +208,53 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UAssetTagsSubsystem::K2_AddAssetsToCollection(const FName Name, const TArray<FSoftObjectPath>& AssetPaths)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return AddAssetsToCollection(Name, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(AssetPaths));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
+
+	const FCollectionNameType ResolvedNameAndType = AssetTagsSubsystemUtil::FindCollectionByName(CollectionManager, Name);
+	if (ResolvedNameAndType.Name.IsNone())
+	{
+		return false;
+	}
+
+	if (!CollectionManager.AddToCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPaths))
+	{
+		AssetTagsSubsystemUtil::LogLastCollectionManagerError(CollectionManager);
+		return false;
+	}
+
+	return true;
 }
 
 bool UAssetTagsSubsystem::AddAssetsToCollection(const FName Name, const TArray<FName>& AssetPathNames)
 {
-	ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-
-	const FCollectionNameType ResolvedNameAndType = AssetTagsSubsystemUtil::FindCollectionByName(CollectionManager, Name);
-	if (ResolvedNameAndType.Name.IsNone())
-	{
-		return false;
-	}
-
-	if (!CollectionManager.AddToCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPathNames))
-	{
-		AssetTagsSubsystemUtil::LogLastCollectionManagerError(CollectionManager);
-		return false;
-	}
-
-	return true;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return K2_AddAssetsToCollection(Name, UE::SoftObjectPath::Private::ConvertObjectPathNames(AssetPathNames));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UAssetTagsSubsystem::AddAssetDatasToCollection(const FName Name, const TArray<FAssetData>& AssetDatas)
 {
-	TArray<FName> AssetPathNames;
-	AssetPathNames.Reserve(AssetDatas.Num());
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Reserve(AssetDatas.Num());
 	for (const FAssetData& AssetData : AssetDatas)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		AssetPathNames.Add(AssetData.ObjectPath);
+		AssetPaths.Add(AssetData.GetSoftObjectPath());
 	}
-	return AddAssetsToCollection(Name, AssetPathNames);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return K2_AddAssetsToCollection(Name, AssetPaths);
 }
 
 bool UAssetTagsSubsystem::AddAssetPtrsToCollection(const FName Name, const TArray<UObject*>& AssetPtrs)
 {
-	TArray<FName> AssetPathNames;
-	AssetPathNames.Reserve(AssetPtrs.Num());
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Reserve(AssetPtrs.Num());
 	for (const UObject* AssetPtr : AssetPtrs)
 	{
-		AssetPathNames.Add(AssetPtr ? FName(*AssetPtr->GetPathName()) : NAME_None);
+		AssetPaths.Add(FSoftObjectPath(AssetPtr));
 	}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return AddAssetsToCollection(Name, AssetPathNames);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return K2_AddAssetsToCollection(Name, AssetPaths);
 }
 
 bool UAssetTagsSubsystem::K2_RemoveAssetFromCollection(const FName Name, const FSoftObjectPath& AssetPath)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RemoveAssetFromCollection(Name, AssetPath.ToFName());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-bool UAssetTagsSubsystem::RemoveAssetFromCollection(const FName Name, const FName AssetPathName)
 {
 	ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
@@ -277,7 +264,7 @@ bool UAssetTagsSubsystem::RemoveAssetFromCollection(const FName Name, const FNam
 		return false;
 	}
 
-	if (!CollectionManager.RemoveFromCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPathName))
+	if (!CollectionManager.RemoveFromCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPath))
 	{
 		AssetTagsSubsystemUtil::LogLastCollectionManagerError(CollectionManager);
 		return false;
@@ -286,11 +273,16 @@ bool UAssetTagsSubsystem::RemoveAssetFromCollection(const FName Name, const FNam
 	return true;
 }
 
-bool UAssetTagsSubsystem::RemoveAssetDataFromCollection(const FName Name, const FAssetData& AssetData)
+bool UAssetTagsSubsystem::RemoveAssetFromCollection(const FName Name, const FName AssetPathName)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RemoveAssetFromCollection(Name, AssetData.ObjectPath);
+	return K2_RemoveAssetFromCollection(Name, FSoftObjectPath(AssetPathName));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+bool UAssetTagsSubsystem::RemoveAssetDataFromCollection(const FName Name, const FAssetData& AssetData)
+{
+	return K2_RemoveAssetFromCollection(Name, AssetData.GetSoftObjectPath());
 }
 
 bool UAssetTagsSubsystem::RemoveAssetPtrFromCollection(const FName Name, const UObject* AssetPtr)
@@ -302,13 +294,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UAssetTagsSubsystem::K2_RemoveAssetsFromCollection(const FName Name, const TArray<FSoftObjectPath>& AssetPaths)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RemoveAssetsFromCollection(Name, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(AssetPaths));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-bool UAssetTagsSubsystem::RemoveAssetsFromCollection(const FName Name, const TArray<FName>& AssetPathNames)
-{
 	ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
 	const FCollectionNameType ResolvedNameAndType = AssetTagsSubsystemUtil::FindCollectionByName(CollectionManager, Name);
@@ -317,7 +302,7 @@ bool UAssetTagsSubsystem::RemoveAssetsFromCollection(const FName Name, const TAr
 		return false;
 	}
 
-	if (!CollectionManager.RemoveFromCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPathNames))
+	if (!CollectionManager.RemoveFromCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPaths))
 	{
 		AssetTagsSubsystemUtil::LogLastCollectionManagerError(CollectionManager);
 		return false;
@@ -326,30 +311,33 @@ bool UAssetTagsSubsystem::RemoveAssetsFromCollection(const FName Name, const TAr
 	return true;
 }
 
+bool UAssetTagsSubsystem::RemoveAssetsFromCollection(const FName Name, const TArray<FName>& AssetPathNames)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return K2_RemoveAssetsFromCollection(Name, UE::SoftObjectPath::Private::ConvertObjectPathNames(AssetPathNames));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 bool UAssetTagsSubsystem::RemoveAssetDatasFromCollection(const FName Name, const TArray<FAssetData>& AssetDatas)
 {
-	TArray<FName> AssetPathNames;
-	AssetPathNames.Reserve(AssetDatas.Num());
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Reserve(AssetDatas.Num());
 	for (const FAssetData& AssetData : AssetDatas)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		AssetPathNames.Add(AssetData.ObjectPath);
+		AssetPaths.Add(AssetData.GetSoftObjectPath());
 	}
-	return RemoveAssetsFromCollection(Name, AssetPathNames);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return K2_RemoveAssetsFromCollection(Name, AssetPaths);
 }
 
 bool UAssetTagsSubsystem::RemoveAssetPtrsFromCollection(const FName Name, const TArray<UObject*>& AssetPtrs)
 {
-	TArray<FName> AssetPathNames;
-	AssetPathNames.Reserve(AssetPtrs.Num());
+	TArray<FSoftObjectPath> AssetPaths;
+	AssetPaths.Reserve(AssetPtrs.Num());
 	for (const UObject* AssetPtr : AssetPtrs)
 	{
-		AssetPathNames.Add(AssetPtr ? FName(*AssetPtr->GetPathName()) : NAME_None);
+		AssetPaths.Add(FSoftObjectPath(AssetPtr));
 	}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return RemoveAssetsFromCollection(Name, AssetPathNames);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return K2_RemoveAssetsFromCollection(Name, AssetPaths);
 }
 
 #endif	// WITH_EDITOR
@@ -428,12 +416,8 @@ TArray<FAssetData> UAssetTagsSubsystem::GetAssetsInCollection(const FName Name)
 		const FCollectionNameType ResolvedNameAndType = AssetTagsSubsystemUtil::FindCollectionByName(CollectionManager, Name);
 		if (!ResolvedNameAndType.Name.IsNone())
 		{
-			TArray<FName> AssetPathNames;
-			CollectionManager.GetAssetsInCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPathNames);
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			TArray<FSoftObjectPath> AssetPaths = UE::SoftObjectPath::Private::ConvertObjectPathNames(AssetPathNames);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			TArray<FSoftObjectPath> AssetPaths;
+			CollectionManager.GetAssetsInCollection(ResolvedNameAndType.Name, ResolvedNameAndType.Type, AssetPaths);
 			Assets.Reserve(AssetPaths.Num());
 			for (const FSoftObjectPath& AssetPath : AssetPaths)
 			{
@@ -463,13 +447,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TArray<FName> UAssetTagsSubsystem::K2_GetCollectionsContainingAsset(const FSoftObjectPath& AssetPath)
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GetCollectionsContainingAsset(AssetPath.ToFName());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAsset(const FName AssetPathName)
-{
 	TArray<FName> CollectionNames;
 
 #if WITH_EDITOR
@@ -477,7 +454,7 @@ TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAsset(const FName Ass
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
 
 		TArray<FCollectionNameType> CollectionNamesAndTypes;
-		CollectionManager.GetCollectionsContainingObject(AssetPathName, CollectionNamesAndTypes);
+		CollectionManager.GetCollectionsContainingObject(AssetPath, CollectionNamesAndTypes);
 
 		CollectionNames.Reserve(CollectionNamesAndTypes.Num());
 		for (const FCollectionNameType& CollectionNameAndType : CollectionNamesAndTypes)
@@ -490,7 +467,7 @@ TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAsset(const FName Ass
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 
 		const bool bIncludeOnlyOnDiskAssets = true; // Collection tags are added at cook-time, so we *must* search the on-disk version of the tags (from the asset registry)
-		const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPathName, bIncludeOnlyOnDiskAssets);
+		const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(AssetPath, bIncludeOnlyOnDiskAssets);
 		if (AssetData.IsValid())
 		{
 			const TCHAR* CollectionTagPrefix = FAssetData::GetCollectionTagPrefix();
@@ -513,22 +490,25 @@ TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAsset(const FName Ass
 	return CollectionNames;
 }
 
+TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAsset(const FName AssetPathName)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return K2_GetCollectionsContainingAsset(FSoftObjectPath(AssetPathName));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAssetData(const FAssetData& AssetData)
 {
-	// Note: Use the path name version as the common implementation as:
-	//  1) The path name is always required for the collection manager implementation
+	// Note: Use the path version as the common implementation as:
+	//  1) The path is always required for the collection manager implementation
 	//  2) The FAssetData for the asset registry implementation *must* come from the asset registry (as the tags are added at cook-time, and missing if FAssetData is generated from a UObject* at runtime)
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GetCollectionsContainingAsset(AssetData.ObjectPath);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return K2_GetCollectionsContainingAsset(AssetData.GetSoftObjectPath());
 }
 
 TArray<FName> UAssetTagsSubsystem::GetCollectionsContainingAssetPtr(const UObject* AssetPtr)
 {
-	// Note: Use the path name version as the common implementation as:
-	//  1) The path name is always required for the collection manager implementation
+	// Note: Use the path version as the common implementation as:
+	//  1) The path is always required for the collection manager implementation
 	//  2) The FAssetData for the asset registry implementation *must* come from the asset registry (as the tags are added at cook-time, and missing if FAssetData is generated from a UObject* at runtime)
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GetCollectionsContainingAsset(AssetPtr ? FName(*AssetPtr->GetPathName()) : NAME_None);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return K2_GetCollectionsContainingAsset(FSoftObjectPath(AssetPtr));
 }

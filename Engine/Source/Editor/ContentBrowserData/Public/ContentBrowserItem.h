@@ -394,6 +394,9 @@ public:
 	 *
 	 * @return True if the ID was retrieved, false otherwise.
 	 */
+	bool TryGetCollectionId(FSoftObjectPath& OutCollectionId) const;
+
+	UE_DEPRECATED(5.1, "FNames containing full object paths are deprecated. Use FSoftObjectPath instead.")
 	bool TryGetCollectionId(FName & OutCollectionId) const;
 
 	/**

@@ -138,7 +138,7 @@ public:
 
 		FName CollectionName = FName(*Args[0]);
 		FString ShareStr = Args[1];
-		FName ObjectPath = FName(*Args[2]);
+		FSoftObjectPath ObjectPath(Args[2]);
 		ECollectionShareType::Type Type;
 
 		if ( ShareStr == TEXT("LOCAL") )
@@ -179,7 +179,7 @@ public:
 
 		FName CollectionName = FName(*Args[0]);
 		FString ShareStr = Args[1];
-		FName ObjectPath = FName(*Args[2]);
+		FSoftObjectPath ObjectPath(Args[2]);
 
 		ECollectionShareType::Type Type;
 

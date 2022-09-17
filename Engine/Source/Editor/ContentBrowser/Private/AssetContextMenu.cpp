@@ -750,18 +750,16 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 	{
 		TSharedRef<FCollectionAssetManagement> QuickAssetManagement = MakeShared<FCollectionAssetManagement>();
 
-		TArray<FName> SelectedItemCollectionIds;
+		TArray<FSoftObjectPath> SelectedItemCollectionIds;
 		for (const FContentBrowserItem& SelectedItem : SelectedFiles)
 		{
-			FName ItemCollectionId;
+			FSoftObjectPath ItemCollectionId;
 			if (SelectedItem.TryGetCollectionId(ItemCollectionId))
 			{
 				SelectedItemCollectionIds.Add(ItemCollectionId);
 			}
 		}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		QuickAssetManagement->SetCurrentAssetPaths(UE::SoftObjectPath::Private::ConvertObjectPathNames(SelectedItemCollectionIds));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		QuickAssetManagement->SetCurrentAssetPaths(SelectedItemCollectionIds);
 
 		Section.AddSubMenu(
 			"ManageCollections",
@@ -1111,10 +1109,10 @@ void FAssetContextMenu::ExecuteRemoveFromCollection()
 {
 	if ( ensure(SourcesData.Collections.Num() == 1) )
 	{
-		TArray<FName> SelectedItemCollectionIds;
+		TArray<FSoftObjectPath> SelectedItemCollectionIds;
 		for (const FContentBrowserItem& SelectedItem : SelectedFiles)
 		{
-			FName ItemCollectionId;
+			FSoftObjectPath ItemCollectionId;
 			if (SelectedItem.TryGetCollectionId(ItemCollectionId))
 			{
 				SelectedItemCollectionIds.Add(ItemCollectionId);

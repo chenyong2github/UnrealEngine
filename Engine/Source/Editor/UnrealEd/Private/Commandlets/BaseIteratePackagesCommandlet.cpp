@@ -984,7 +984,7 @@ int32 UBaseIteratePackagesCommandlet::Main( const FString& Params )
 	if (!FilterByCollection.IsEmpty())
 	{
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-		TArray<FName> CollectionAssets;
+		TArray<FSoftObjectPath> CollectionAssets;
 		if (!CollectionManager.GetAssetsInCollection(FName(*FilterByCollection), ECollectionShareType::CST_All, CollectionAssets))
 		{
 			UE_LOG(LogIteratePackagesCommandlet, Warning, TEXT("Could not get assets in collection '%s'. Skipping filter."), *FilterByCollection);
@@ -992,9 +992,9 @@ int32 UBaseIteratePackagesCommandlet::Main( const FString& Params )
 		else
 		{
 			//insert all of the collection names into the set for fast filter checks
-			for (const FName &AssetName : CollectionAssets)
+			for (const FSoftObjectPath& AssetPath : CollectionAssets)
 			{
-				CollectionFilter.Add(FName(*FPackageName::ObjectPathToPackageName(AssetName.ToString())));
+				CollectionFilter.Add(AssetPath.GetLongPackageFName());
 			}
 		}
 	}

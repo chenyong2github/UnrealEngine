@@ -22,10 +22,10 @@
 
 struct FCollectionUtils
 {
-	static void AppendCollectionToArray(const TSet<FName>& InObjectSet, TArray<FName>& OutObjectArray)
+	static void AppendCollectionToArray(const TSet<FSoftObjectPath>& InObjectSet, TArray<FSoftObjectPath>& OutObjectArray)
 	{
 		OutObjectArray.Reserve(OutObjectArray.Num() + InObjectSet.Num());
-		for (const FName& ObjectName : InObjectSet)
+		for (const FSoftObjectPath& ObjectName : InObjectSet)
 		{
 			OutObjectArray.Add(ObjectName);
 		}
@@ -127,26 +127,26 @@ bool FCollection::Load(FText& OutError)
 	{
 		const int32 NamesNum = FileContents.Num() - LineIndex;
 
-		TArray<FName> FNames;
-		FNames.SetNum(NamesNum);
+		TArray<FSoftObjectPath> Paths;
+		Paths.SetNum(NamesNum);
 
 		// Name hashing to register new FName takes time
 		// Process as much as possible in multiple threads
 		ParallelFor(
 			NamesNum,
-			[this, &FileContents, &LineIndex, &FNames](int32 LocalLineIndex)
+			[this, &FileContents, &LineIndex, &Paths](int32 LocalLineIndex)
 			{
 				FStringView Line(FileContents[LineIndex + LocalLineIndex]);
-				FNames[LocalLineIndex] = FName(Line.TrimStartAndEnd());
+				Paths[LocalLineIndex] = FSoftObjectPath(Line.TrimStartAndEnd());
 			},
 			// Do not pay for scheduling cost if number of items is too low
 			NamesNum < 1000 ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None
 		);
 
 		// Static collection, a flat list of asset paths
-		for (FName& Name : FNames)
+		for (FSoftObjectPath& Path : Paths)
 		{
-			AddObjectToCollection(Name);
+			AddObjectToCollection(Path);
 		}
 	}
 	else
@@ -208,11 +208,11 @@ bool FCollection::Save(const TArray<FText>& AdditionalChangelistText, FText& Out
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
 		// Write out the set as a sorted array to keep things in a known order for diffing
-		TArray<FName> ObjectList = ObjectSet.Array();
-		ObjectList.Sort(FNameLexicalLess());
+		TArray<FSoftObjectPath> ObjectList = ObjectSet.Array();
+		ObjectList.Sort([](FSoftObjectPath A, FSoftObjectPath B){ return A.LexicalLess(B); });
 
 		// Static collection. Save a flat list of all objects in the collection.
-		for (const FName& ObjectName : ObjectList)
+		for (const FSoftObjectPath& ObjectName : ObjectList)
 		{
 			FileOutput += ObjectName.ToString() + LINE_TERMINATOR;
 		}
@@ -411,9 +411,9 @@ void FCollection::Empty()
 	DiskSnapshot.TakeSnapshot(*this);
 }
 
-bool FCollection::AddObjectToCollection(FName ObjectPath)
+bool FCollection::AddObjectToCollection(const FSoftObjectPath& ObjectPath)
 {
-	if (ObjectPath.IsNone())
+	if (ObjectPath.IsNull())
 	{
 		return false;
 	}
@@ -428,9 +428,9 @@ bool FCollection::AddObjectToCollection(FName ObjectPath)
 	return false;
 }
 
-bool FCollection::RemoveObjectFromCollection(FName ObjectPath)
+bool FCollection::RemoveObjectFromCollection(const FSoftObjectPath& ObjectPath)
 {
-	if (ObjectPath.IsNone())
+	if (ObjectPath.IsNull())
 	{
 		return false;
 	}
@@ -443,13 +443,13 @@ bool FCollection::RemoveObjectFromCollection(FName ObjectPath)
 	return false;
 }
 
-void FCollection::GetAssetsInCollection(TArray<FName>& Assets) const
+void FCollection::GetAssetsInCollection(TArray<FSoftObjectPath>& Assets) const
 {
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
-		for (const FName& ObjectName : ObjectSet)
+		for (const FSoftObjectPath& ObjectName : ObjectSet)
 		{
-			if (!ObjectName.ToString().StartsWith(TEXT("/Script/")))
+			if (!ObjectName.GetLongPackageName().StartsWith(TEXT("/Script/")))
 			{
 				Assets.Add(ObjectName);
 			}
@@ -457,21 +457,21 @@ void FCollection::GetAssetsInCollection(TArray<FName>& Assets) const
 	}
 }
 
-void FCollection::GetClassesInCollection(TArray<FName>& Classes) const
+void FCollection::GetClassesInCollection(TArray<FTopLevelAssetPath>& Classes) const
 {
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
-		for (const FName& ObjectName : ObjectSet)
+		for (const FSoftObjectPath& ObjectName : ObjectSet)
 		{
-			if (ObjectName.ToString().StartsWith(TEXT("/Script/")))
+			if (ObjectName.GetLongPackageName().StartsWith(TEXT("/Script/")))
 			{
-				Classes.Add(ObjectName);
+				Classes.Add(ObjectName.GetAssetPath());
 			}
 		}
 	}
 }
 
-void FCollection::GetObjectsInCollection(TArray<FName>& Objects) const
+void FCollection::GetObjectsInCollection(TArray<FSoftObjectPath>& Objects) const
 {
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
@@ -479,7 +479,7 @@ void FCollection::GetObjectsInCollection(TArray<FName>& Objects) const
 	}
 }
 
-bool FCollection::IsObjectInCollection(FName ObjectPath) const
+bool FCollection::IsObjectInCollection(const FSoftObjectPath& ObjectPath) const
 {
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
@@ -489,7 +489,7 @@ bool FCollection::IsObjectInCollection(FName ObjectPath) const
 	return false;
 }
 
-bool FCollection::IsRedirectorInCollection(FName ObjectPath) const
+bool FCollection::IsRedirectorInCollection(const FSoftObjectPath& ObjectPath) const
 {
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
@@ -576,8 +576,8 @@ bool FCollection::IsDirty() const
 
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
-		TArray<FName> ObjectsAdded;
-		TArray<FName> ObjectsRemoved;
+		TArray<FSoftObjectPath> ObjectsAdded;
+		TArray<FSoftObjectPath> ObjectsRemoved;
 		GetObjectDifferencesFromDisk(ObjectsAdded, ObjectsRemoved);
 
 		bHasChanges = ObjectsAdded.Num() != 0 || ObjectsRemoved.Num() != 0;
@@ -610,10 +610,10 @@ void FCollection::PrintCollection() const
 		UE_LOG(LogCollectionManager, Log, TEXT("    ============================="));
 
 		// Print the set as a sorted array to keep things in a sane order
-		TArray<FName> ObjectList = ObjectSet.Array();
-		ObjectList.Sort(FNameLexicalLess());
+		TArray<FSoftObjectPath> ObjectList = ObjectSet.Array();
+		ObjectList.Sort([](const FSoftObjectPath& A, const FSoftObjectPath& B){ return A.LexicalLess(B); });
 
-		for (const FName& ObjectName : ObjectList)
+		for (const FSoftObjectPath& ObjectName : ObjectList)
 		{
 			UE_LOG(LogCollectionManager, Log, TEXT("        %s"), *ObjectName.ToString());
 		}
@@ -709,8 +709,8 @@ bool FCollection::MergeWithCollection(const FCollection& Other)
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
 		// Work out whether we have any changes compared to the other collection
-		TArray<FName> ObjectsAdded;
-		TArray<FName> ObjectsRemoved;
+		TArray<FSoftObjectPath> ObjectsAdded;
+		TArray<FSoftObjectPath> ObjectsRemoved;
 		GetObjectDifferences(ObjectSet, Other.ObjectSet, ObjectsAdded, ObjectsRemoved);
 
 		bHasChanges = bHasChanges || ObjectsAdded.Num() > 0 || ObjectsRemoved.Num() > 0;
@@ -726,13 +726,13 @@ bool FCollection::MergeWithCollection(const FCollection& Other)
 			ObjectSet = Other.ObjectSet;
 
 			// Add the objects that were added before the merge
-			for (const FName& AddedObjectName : ObjectsAdded)
+			for (const FSoftObjectPath& AddedObjectName : ObjectsAdded)
 			{
 				ObjectSet.Add(AddedObjectName);
 			}
 
 			// Remove the objects that were removed before the merge
-			for (const FName& RemovedObjectName : ObjectsRemoved)
+			for (const FSoftObjectPath& RemovedObjectName : ObjectsRemoved)
 			{
 				ObjectSet.Remove(RemovedObjectName);
 			}
@@ -749,10 +749,10 @@ bool FCollection::MergeWithCollection(const FCollection& Other)
 	return bHasChanges;
 }
 
-void FCollection::GetObjectDifferences(const TSet<FName>& BaseSet, const TSet<FName>& NewSet, TArray<FName>& ObjectsAdded, TArray<FName>& ObjectsRemoved)
+void FCollection::GetObjectDifferences(const TSet<FSoftObjectPath>& BaseSet, const TSet<FSoftObjectPath>& NewSet, TArray<FSoftObjectPath>& ObjectsAdded, TArray<FSoftObjectPath>& ObjectsRemoved)
 {
 	// Find the objects that were removed compared to the base set
-	for (const FName& BaseObjectName : BaseSet)
+	for (const FSoftObjectPath& BaseObjectName : BaseSet)
 	{
 		if (!NewSet.Contains(BaseObjectName))
 		{
@@ -769,7 +769,7 @@ void FCollection::GetObjectDifferences(const TSet<FName>& BaseSet, const TSet<FN
 	}
 
 	// Find the objects that were added compare to the base set
-	for (const FName& NewObjectName : NewSet)
+	for (const FSoftObjectPath& NewObjectName : NewSet)
 	{
 		if (!BaseSet.Contains(NewObjectName))
 		{
@@ -778,7 +778,7 @@ void FCollection::GetObjectDifferences(const TSet<FName>& BaseSet, const TSet<FN
 	}
 }
 
-void FCollection::GetObjectDifferencesFromDisk(TArray<FName>& ObjectsAdded, TArray<FName>& ObjectsRemoved) const
+void FCollection::GetObjectDifferencesFromDisk(TArray<FSoftObjectPath>& ObjectsAdded, TArray<FSoftObjectPath>& ObjectsRemoved) const
 {
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
@@ -952,18 +952,18 @@ bool FCollection::CheckinCollection(const TArray<FText>& AdditionalChangelistTex
 		if (StorageMode == ECollectionStorageMode::Static)
 		{
 			// Gather differences from disk
-			TArray<FName> ObjectsAdded;
-			TArray<FName> ObjectsRemoved;
+			TArray<FSoftObjectPath> ObjectsAdded;
+			TArray<FSoftObjectPath> ObjectsRemoved;
 			GetObjectDifferencesFromDisk(ObjectsAdded, ObjectsRemoved);
 
-			ObjectsAdded.Sort(FNameLexicalLess());
-			ObjectsRemoved.Sort(FNameLexicalLess());
+			ObjectsAdded.Sort([](FSoftObjectPath A, FSoftObjectPath B){ return A.LexicalLess(B); });
+			ObjectsRemoved.Sort([](FSoftObjectPath A, FSoftObjectPath B) { return A.LexicalLess(B); });
 
 			// Report added files
 			FFormatNamedArguments Args;
-			Args.Add(TEXT("FirstObjectAdded"), ObjectsAdded.Num() > 0 ? FText::FromName(ObjectsAdded[0]) : NSLOCTEXT("Core", "None", "None"));
+			Args.Add(TEXT("FirstObjectAdded"), ObjectsAdded.Num() > 0 ? FText::FromString(ObjectsAdded[0].ToString()) : NSLOCTEXT("Core", "None", "None"));
 			Args.Add(TEXT("NumberAdded"), FText::AsNumber(ObjectsAdded.Num()));
-			Args.Add(TEXT("FirstObjectRemoved"), ObjectsRemoved.Num() > 0 ? FText::FromName(ObjectsRemoved[0]) : NSLOCTEXT("Core", "None", "None"));
+			Args.Add(TEXT("FirstObjectRemoved"), ObjectsRemoved.Num() > 0 ? FText::FromString(ObjectsRemoved[0].ToString()) : NSLOCTEXT("Core", "None", "None"));
 			Args.Add(TEXT("NumberRemoved"), FText::AsNumber(ObjectsRemoved.Num()));
 			Args.Add(TEXT("CollectionName"), CollectionNameText);
 
@@ -976,9 +976,9 @@ bool FCollection::CheckinCollection(const TArray<FText>& AdditionalChangelistTex
 				ChangelistDescBuilder.AppendLineFormat(LOCTEXT("CollectionAddedMultipleDesc", "Added {NumberAdded} objects to collection '{CollectionName}':"), Args);
 
 				ChangelistDescBuilder.Indent();
-				for (const FName& AddedObjectName : ObjectsAdded)
+				for (const FSoftObjectPath& AddedObjectName : ObjectsAdded)
 				{
-					ChangelistDescBuilder.AppendLine(FText::FromName(AddedObjectName));
+					ChangelistDescBuilder.AppendLine(FText::FromString(AddedObjectName.ToString()));
 				}
 				ChangelistDescBuilder.Unindent();
 			}
@@ -992,9 +992,9 @@ bool FCollection::CheckinCollection(const TArray<FText>& AdditionalChangelistTex
 				ChangelistDescBuilder.AppendLineFormat(LOCTEXT("CollectionRemovedMultipleDesc", "Removed {NumberRemoved} objects from collection '{CollectionName}'"), Args);
 
 				ChangelistDescBuilder.Indent();
-				for (const FName& RemovedObjectName : ObjectsRemoved)
+				for (const FSoftObjectPath& RemovedObjectName : ObjectsRemoved)
 				{
-					ChangelistDescBuilder.AppendLine(FText::FromName(RemovedObjectName));
+					ChangelistDescBuilder.AppendLine(FText::FromString(RemovedObjectName.ToString()));
 				}
 				ChangelistDescBuilder.Unindent();
 			}

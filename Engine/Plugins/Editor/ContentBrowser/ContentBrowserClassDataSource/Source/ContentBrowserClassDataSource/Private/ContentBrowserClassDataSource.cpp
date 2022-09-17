@@ -285,10 +285,10 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 
 		if (ChildClassObjects.Num() > 0)
 		{
-			TSet<FName> ClassPathsToInclude;
+			TSet<FTopLevelAssetPath> ClassPathsToInclude;
 			if (CollectionFilter)
 			{
-				TArray<FName> ClassPathsForCollections;
+				TArray<FTopLevelAssetPath> ClassPathsForCollections;
 				if (GetClassPathsForCollections(CollectionFilter->SelectedCollections, CollectionFilter->bIncludeChildCollections, ClassPathsForCollections) && ClassPathsForCollections.Num() == 0)
 				{
 					// If we had collections but they contained no classes then we can bail as nothing will pass the filter
@@ -300,7 +300,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 
 			for (UClass* ChildClassObject : ChildClassObjects)
 			{
-				const bool bPassesInclusiveFilter = ClassPathsToInclude.Num() == 0 || ClassPathsToInclude.Contains(*ChildClassObject->GetPathName());
+				const bool bPassesInclusiveFilter = ClassPathsToInclude.Num() == 0 || ClassPathsToInclude.Contains(FTopLevelAssetPath(ChildClassObject));
 				const bool bPassesPermissionCheck = !ClassPermissionList || ClassPermissionList->PassesFilter(ChildClassObject->GetClassPathName().ToString());
 
 				if (bPassesInclusiveFilter && bPassesPermissionCheck)
@@ -512,13 +512,11 @@ bool UContentBrowserClassDataSource::UpdateThumbnail(const FContentBrowserItemDa
 	return ContentBrowserClassData::UpdateItemThumbnail(this, InItem, InThumbnail);
 }
 
-bool UContentBrowserClassDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId)
+bool UContentBrowserClassDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FSoftObjectPath& OutCollectionId)
 {
 	if (TSharedPtr<const FContentBrowserClassFileItemDataPayload> ClassPayload = GetClassFileItemPayload(InItem))
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		OutCollectionId = ClassPayload->GetAssetData().ObjectPath;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		OutCollectionId = FSoftObjectPath(ClassPayload->GetAssetData().GetSoftObjectPath());
 		return true;
 	}
 	return false;
@@ -564,7 +562,7 @@ bool UContentBrowserClassDataSource::IsKnownClassPath(const FName InPackagePath)
 	return FStringView(PackagePathStr).StartsWith(TEXT("/Classes_"));
 }
 
-bool UContentBrowserClassDataSource::GetClassPathsForCollections(TArrayView<const FCollectionNameType> InCollections, const bool bIncludeChildCollections, TArray<FName>& OutClassPaths)
+bool UContentBrowserClassDataSource::GetClassPathsForCollections(TArrayView<const FCollectionNameType> InCollections, const bool bIncludeChildCollections, TArray<FTopLevelAssetPath>& OutClassPaths)
 {
 	if (InCollections.Num() > 0)
 	{

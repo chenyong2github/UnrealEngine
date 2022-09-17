@@ -485,7 +485,7 @@ bool UContentBrowserDataSource::HandleDragDropOnItem(const FContentBrowserItemDa
 	return false;
 }
 
-bool UContentBrowserDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId)
+bool UContentBrowserDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FSoftObjectPath& OutCollectionId)
 {
 	return false;
 }

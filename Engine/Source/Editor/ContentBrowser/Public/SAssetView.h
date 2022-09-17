@@ -465,10 +465,10 @@ private:
 	void SetMajorityAssetType(FName NewMajorityAssetType);
 
 	/** Handler for when an asset is added to a collection */
-	void OnAssetsAddedToCollection( const FCollectionNameType& Collection, const TArray< FName >& ObjectPaths );
+	void OnAssetsAddedToCollection( const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> ObjectPaths );
 
 	/** Handler for when an asset is removed from a collection */
-	void OnAssetsRemovedFromCollection( const FCollectionNameType& Collection, const TArray< FName >& ObjectPaths );
+	void OnAssetsRemovedFromCollection( const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> ObjectPaths );
 
 	/** Handler for when a collection is renamed */
 	void OnCollectionRenamed( const FCollectionNameType& OriginalCollection, const FCollectionNameType& NewCollection );

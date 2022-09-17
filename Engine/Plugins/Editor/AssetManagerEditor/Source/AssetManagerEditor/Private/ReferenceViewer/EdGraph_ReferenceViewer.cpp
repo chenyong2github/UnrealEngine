@@ -181,12 +181,12 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::ConstructNodes(const TArray<FA
 		if (ShouldFilterByCollection())
 		{
 			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-			TArray<FName> AssetPaths;
+			TArray<FSoftObjectPath> AssetPaths;
 			CollectionManagerModule.Get().GetAssetsInCollection(CurrentCollectionFilter, ECollectionShareType::CST_All, AssetPaths);
 			CurrentCollectionPackages.Reserve(AssetPaths.Num());
-			for (FName AssetPath : AssetPaths)
+			for (const FSoftObjectPath& AssetPath  : AssetPaths)
 			{
-				CurrentCollectionPackages.Add(FName(*FPackageName::ObjectPathToPackageName(AssetPath.ToString())));
+				CurrentCollectionPackages.Add(AssetPath.GetLongPackageFName());
 			}
 		}
 

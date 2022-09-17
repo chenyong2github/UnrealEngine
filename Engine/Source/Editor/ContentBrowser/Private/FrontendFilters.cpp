@@ -306,7 +306,7 @@ public:
 
 		if (CollectionManager)
 		{
-			FName ItemCollectionId;
+			FSoftObjectPath ItemCollectionId;
 			if (AssetPtr->TryGetCollectionId(ItemCollectionId))
 			{
 				CollectionManager->GetCollectionsContainingObject(ItemCollectionId, ECollectionShareType::CST_All, AssetCollectionNames, ECollectionRecursionFlags::SelfAndChildren);

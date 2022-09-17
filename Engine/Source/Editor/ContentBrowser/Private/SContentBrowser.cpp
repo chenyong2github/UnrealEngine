@@ -2895,19 +2895,17 @@ void SContentBrowser::OnItemSelectionChanged(const FContentBrowserItem& Selected
 		AssetContextMenu->SetSelectedItems(SelectedItems);
 
 		{
-			TArray<FName> SelectedCollectionItems;
+			TArray<FSoftObjectPath> SelectedCollectionItems;
 			for (const FContentBrowserItem& SelectedAssetItem : SelectedItems)
 			{
-				FName CollectionItemId;
+				FSoftObjectPath CollectionItemId;
 				if (SelectedAssetItem.TryGetCollectionId(CollectionItemId))
 				{
 					SelectedCollectionItems.Add(CollectionItemId);
 				}
 			}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			CollectionViewPtr->SetSelectedAssetPaths(UE::SoftObjectPath::Private::ConvertObjectPathNames(SelectedCollectionItems));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			CollectionViewPtr->SetSelectedAssetPaths(SelectedCollectionItems);
 		}
 
 		if (AssetSelectionChangedDelegate.IsBound())

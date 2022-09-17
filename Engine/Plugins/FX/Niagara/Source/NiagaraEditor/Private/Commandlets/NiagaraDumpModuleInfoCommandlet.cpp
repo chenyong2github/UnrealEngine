@@ -85,9 +85,7 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraParameterDefinitions()
 	if (!FilterCollection.IsEmpty())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CollectionManagerModule.Get().GetObjectsInCollection(FName(*FilterCollection), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().GetObjectsInCollection(FName(*FilterCollection), ECollectionShareType::CST_All, Filter.SoftObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
 	}
 
 	TArray<FAssetData> AssetList;
@@ -189,9 +187,7 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraScripts()
 	if (!FilterCollection.IsEmpty())
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CollectionManagerModule.Get().GetObjectsInCollection(FName(*FilterCollection), ECollectionShareType::CST_All, Filter.ObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().GetObjectsInCollection(FName(*FilterCollection), ECollectionShareType::CST_All, Filter.SoftObjectPaths, ECollectionRecursionFlags::SelfAndChildren);
 	}
 
 	TArray<FAssetData> AssetList;

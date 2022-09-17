@@ -730,13 +730,13 @@ bool UContentBrowserAliasDataSource::UpdateThumbnail(const FContentBrowserItemDa
 	return ContentBrowserAssetData::UpdateItemThumbnail(this, InItem, InThumbnail);
 }
 
-bool UContentBrowserAliasDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId)
+bool UContentBrowserAliasDataSource::TryGetCollectionId(const FContentBrowserItemData& InItem, FSoftObjectPath& OutCollectionId)
 {
 	if (TSharedPtr<const FContentBrowserAliasItemDataPayload> AliasPayload = StaticCastSharedPtr<const FContentBrowserAliasItemDataPayload>(InItem.GetPayload()))
 	{
 		if (const FAliasData* AliasData = AllAliases.Find(AliasPayload->Alias))
 		{
-			OutCollectionId = AliasData->ObjectPath;
+			OutCollectionId = FSoftObjectPath(AliasData->ObjectPath);
 			return true;
 		}
 	}
@@ -794,7 +794,9 @@ FContentBrowserItemData UContentBrowserAliasDataSource::CreateAssetFileItem(cons
 	if (AliasData)
 	{
 		FName VirtualizedPath;
-		TryConvertInternalPathToVirtual(AliasData->ObjectPath, VirtualizedPath);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TryConvertInternalPathToVirtual(AliasData->ObjectPath.ToFName(), VirtualizedPath);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Since AliasID is PackagePath/AssetName, AssetName should also be passed as the ItemName here. This provides the functionality of
 		// being able to have multiple aliases with the same display name, while still showing their original asset name in the tooltip.

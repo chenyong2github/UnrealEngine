@@ -667,11 +667,25 @@ public:
 	 * Attempt to retrieve the identifier that should be used when storing a reference to the given item within a collection.
 	 *
 	 * @param InItem The item to query.
-	 * @param InOutStr The collection ID to fill.
+	 * @param OutCollectionId The collection ID to fill.
 	 *
 	 * @return True if the ID was retrieved, false otherwise.
 	 */
-	virtual bool TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId);
+	virtual bool TryGetCollectionId(const FContentBrowserItemData& InItem, FSoftObjectPath& OutCollectionId);
+
+	UE_DEPRECATED(5.1, "FNames containing full object paths are deprecated. Use FSoftObjectPath instead.")
+	bool TryGetCollectionId(const FContentBrowserItemData& InItem, FName& OutCollectionId)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FSoftObjectPath Temp;
+		if (TryGetCollectionId(InItem, Temp))
+		{
+			OutCollectionId = Temp.ToFName();
+			return true;
+		}
+		return false;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/**
 	 * Attempt to retrieve the package path associated with the given item.

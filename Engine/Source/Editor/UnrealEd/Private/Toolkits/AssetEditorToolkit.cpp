@@ -398,7 +398,7 @@ FText FAssetEditorToolkit::GetToolTipTextForObject(const UObject* InObject)
 
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-		const FString CollectionNames = CollectionManagerModule.Get().GetCollectionsStringForObject(*InObject->GetPathName(), ECollectionShareType::CST_All);
+		const FString CollectionNames = CollectionManagerModule.Get().GetCollectionsStringForObject(FSoftObjectPath(InObject), ECollectionShareType::CST_All);
 		if (!CollectionNames.IsEmpty())
 		{
 			ToolTipString += TEXT("\n");

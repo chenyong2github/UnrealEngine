@@ -1142,7 +1142,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	if (!FilterByCollection.IsEmpty())
 	{
 		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-		TArray<FName> CollectionAssets;
+		TArray<FSoftObjectPath> CollectionAssets;
 		if (!CollectionManager.GetAssetsInCollection(FName(*FilterByCollection), ECollectionShareType::CST_All, CollectionAssets))
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT("Could not get assets in collection '%s'. Skipping filter."), *FilterByCollection);
@@ -1150,9 +1150,9 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		else
 		{
 			//insert all of the collection names into the set for fast filter checks
-			for (const FName &AssetName : CollectionAssets)
+			for (const FSoftObjectPath& AssetPath: CollectionAssets)
 			{
-				CollectionFilter.Add(FName(*FPackageName::ObjectPathToPackageName(AssetName.ToString())));
+				CollectionFilter.Add(AssetPath.GetLongPackageFName());
 			}
 		}
 	}
@@ -2604,7 +2604,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 		if (CollectionsToFullyLoadSection)
 		{
 			ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
-			TArray<FName> CollectionAssets;
+			TArray<FSoftObjectPath> CollectionAssets;
 			
 			for (FConfigSectionMap::TConstIterator CollectionIt(*CollectionsToFullyLoadSection); CollectionIt; ++CollectionIt)
 			{
@@ -2617,9 +2617,9 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				else
 				{
 					//insert all of the collection names into the set for fast filter checks
-					for (const FName &AssetName : CollectionAssets)
+					for (const FSoftObjectPath& AssetPath : CollectionAssets)
 					{
-						PackagesToFullyLoad.Add(TEXT("Package"), FPackageName::ObjectPathToPackageName(AssetName.ToString()));
+						PackagesToFullyLoad.Add(TEXT("Package"), AssetPath.GetLongPackageName());
 					}
 				}
 			}
@@ -3654,7 +3654,7 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 
 			if (bGenerateCollections)
 			{
-				CollectionManager.AddToCollection(Pair.Key, ECollectionShareType::CST_Local, FName(*Info.Paths[i]));
+				CollectionManager.AddToCollection(Pair.Key, ECollectionShareType::CST_Local, FSoftObjectPath(Info.Paths[i]));
 			}
 		}
 

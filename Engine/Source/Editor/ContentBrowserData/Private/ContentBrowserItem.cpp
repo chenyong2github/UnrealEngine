@@ -548,9 +548,16 @@ bool FContentBrowserItem::UpdateThumbnail(FAssetThumbnail& InThumbnail) const
 	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, UpdateThumbnail), InThumbnail);
 }
 
-bool FContentBrowserItem::TryGetCollectionId(FName& OutCollectionId) const
+bool FContentBrowserItem::TryGetCollectionId(FSoftObjectPath& OutCollectionId) const
 {
 	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, TryGetCollectionId), OutCollectionId);
+}
+
+bool FContentBrowserItem::TryGetCollectionId(FName& OutCollectionId) const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return FContentBrowserItemHelper::CallDataSourceImpl<UContentBrowserDataSource>(*this, UE_PROJECTION_MEMBER(UContentBrowserDataSource, TryGetCollectionId), OutCollectionId);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FContentBrowserItem::Legacy_TryGetPackagePath(FName& OutPackagePath) const

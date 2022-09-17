@@ -18,8 +18,8 @@ FCollectionAssetManagement::FCollectionAssetManagement()
 	OnCollectionRenamedHandle = CollectionManagerModule.Get().OnCollectionRenamed().AddRaw(this, &FCollectionAssetManagement::HandleCollectionRenamed);
 	OnCollectionDestroyedHandle = CollectionManagerModule.Get().OnCollectionDestroyed().AddRaw(this, &FCollectionAssetManagement::HandleCollectionDestroyed);
 	OnCollectionUpdatedHandle = CollectionManagerModule.Get().OnCollectionUpdated().AddRaw(this, &FCollectionAssetManagement::HandleCollectionUpdated);
-	OnAssetsAddedHandle = CollectionManagerModule.Get().OnAssetsAdded().AddRaw(this, &FCollectionAssetManagement::HandleAssetsAddedToCollection);
-	OnAssetsRemovedHandle = CollectionManagerModule.Get().OnAssetsRemoved().AddRaw(this, &FCollectionAssetManagement::HandleAssetsRemovedFromCollection);
+	OnAssetsAddedHandle = CollectionManagerModule.Get().OnAssetsAddedToCollection().AddRaw(this, &FCollectionAssetManagement::HandleAssetsAddedToCollection);
+	OnAssetsRemovedHandle = CollectionManagerModule.Get().OnAssetsRemovedFromCollection().AddRaw(this, &FCollectionAssetManagement::HandleAssetsRemovedFromCollection);
 }
 
 FCollectionAssetManagement::~FCollectionAssetManagement()
@@ -32,8 +32,8 @@ FCollectionAssetManagement::~FCollectionAssetManagement()
 		CollectionManagerModule.Get().OnCollectionRenamed().Remove(OnCollectionRenamedHandle);
 		CollectionManagerModule.Get().OnCollectionDestroyed().Remove(OnCollectionDestroyedHandle);
 		CollectionManagerModule.Get().OnCollectionUpdated().Remove(OnCollectionUpdatedHandle);
-		CollectionManagerModule.Get().OnAssetsAdded().Remove(OnAssetsAddedHandle);
-		CollectionManagerModule.Get().OnAssetsRemoved().Remove(OnAssetsRemovedHandle);
+		CollectionManagerModule.Get().OnAssetsAddedToCollection().Remove(OnAssetsAddedHandle);
+		CollectionManagerModule.Get().OnAssetsRemovedFromCollection().Remove(OnAssetsRemovedHandle);
 	}
 }
 
@@ -60,9 +60,7 @@ void FCollectionAssetManagement::AddCurrentAssetsToCollection(FCollectionNameTyp
 {
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const TArray<FName> ObjectPaths = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(CurrentAssetPaths.Array());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	const TArray<FSoftObjectPath> ObjectPaths = CurrentAssetPaths.Array();
 
 	FText ResultText;
 	bool bSuccess = false;
@@ -101,9 +99,7 @@ void FCollectionAssetManagement::RemoveCurrentAssetsFromCollection(FCollectionNa
 {
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const TArray<FName> ObjectPaths = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(CurrentAssetPaths.Array());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	const TArray<FSoftObjectPath> ObjectPaths = CurrentAssetPaths.Array();
 
 	FText ResultText;
 	bool bSuccess = false;
@@ -173,9 +169,7 @@ void FCollectionAssetManagement::UpdateAssetManagementState()
 	if (CurrentAssetPaths.Num() == 1)
 	{
 		TArray<FCollectionNameType> MatchedCollections;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CollectionManagerModule.Get().GetCollectionsContainingObject(CurrentAssetPaths.CreateConstIterator()->ToFName(), MatchedCollections, ECollectionRecursionFlags::Self);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().GetCollectionsContainingObject(*CurrentAssetPaths.CreateConstIterator(), MatchedCollections, ECollectionRecursionFlags::Self);
 
 		for (const FCollectionNameType& CollectionKey : MatchedCollections)
 		{
@@ -183,9 +177,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		MatchedCollections.Reset();
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CollectionManagerModule.Get().GetCollectionsContainingObject(CurrentAssetPaths.CreateConstIterator()->ToFName(), MatchedCollections, ECollectionRecursionFlags::Children);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		CollectionManagerModule.Get().GetCollectionsContainingObject(*CurrentAssetPaths.CreateConstIterator(), MatchedCollections, ECollectionRecursionFlags::Children);
 
 		for (const FCollectionNameType& CollectionKey : MatchedCollections)
 		{
@@ -197,17 +189,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		const TArray<FName> ObjectPaths = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(CurrentAssetPaths.Array());
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-		TMap<FCollectionNameType, TArray<FName>> CollectionsAndMatchedObjects;
+		const TArray<FSoftObjectPath> ObjectPaths = CurrentAssetPaths.Array();
+		TMap<FCollectionNameType, TArray<FSoftObjectPath>> CollectionsAndMatchedObjects;
 		CollectionManagerModule.Get().GetCollectionsContainingObjects(ObjectPaths, CollectionsAndMatchedObjects);
 
-		for (const auto& MatchedCollection : CollectionsAndMatchedObjects)
+		for (const TPair<FCollectionNameType, TArray<FSoftObjectPath>>& MatchedCollection : CollectionsAndMatchedObjects)
 		{
 			const FCollectionNameType& CollectionKey = MatchedCollection.Key;
-			const TArray<FName>& MatchedObjects = MatchedCollection.Value;
+			const TArray<FSoftObjectPath>& MatchedObjects = MatchedCollection.Value;
 
 			// Collections that contain all of the selected assets are shown as checked, collections that only contain some of the selected assets are shown as undetermined
 			AssetManagementState.Add(
@@ -238,15 +227,13 @@ void FCollectionAssetManagement::HandleCollectionDestroyed(const FCollectionName
 	AssetManagementState.Remove(Collection);
 }
 
-void FCollectionAssetManagement::HandleAssetsAddedToCollection(const FCollectionNameType& Collection, const TArray<FName>& AssetsAdded)
+void FCollectionAssetManagement::HandleAssetsAddedToCollection(const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> AssetsAdded)
 {
 	// Only need to update if one of the added assets belongs to our current selection set
 	bool bNeedsUpdate = false;
-	for (const FName& AssetPath : AssetsAdded)
+	for (const FSoftObjectPath& AssetPath : AssetsAdded)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (CurrentAssetPaths.Contains(FSoftObjectPath(AssetPath)))
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		if (CurrentAssetPaths.Contains(AssetPath))
 		{
 			bNeedsUpdate = true;
 			break;
@@ -259,15 +246,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
-void FCollectionAssetManagement::HandleAssetsRemovedFromCollection(const FCollectionNameType& Collection, const TArray<FName>& AssetsRemoved)
+void FCollectionAssetManagement::HandleAssetsRemovedFromCollection(const FCollectionNameType& Collection, TConstArrayView<FSoftObjectPath> AssetsRemoved)
 {
 	// Only need to update if one of the removed assets belongs to our current selection set
 	bool bNeedsUpdate = false;
-	for (const FName& AssetPath : AssetsRemoved)
+	for (const FSoftObjectPath& AssetPath : AssetsRemoved)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (CurrentAssetPaths.Contains(FSoftObjectPath(AssetPath)))
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		if (CurrentAssetPaths.Contains(AssetPath))
 		{
 			bNeedsUpdate = true;
 			break;

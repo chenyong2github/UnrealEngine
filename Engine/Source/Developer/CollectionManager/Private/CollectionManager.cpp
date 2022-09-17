@@ -80,7 +80,7 @@ const FCollectionObjectsMap& FCollectionManagerCache::GetCachedObjects() const
 			const FCollectionNameType& CollectionKey = AvailableCollection.Key;
 			const TSharedRef<FCollection>& Collection = AvailableCollection.Value;
 
-			TArray<FName> ObjectsInCollection;
+			TArray<FSoftObjectPath> ObjectsInCollection;
 			Collection->GetObjectsInCollection(ObjectsInCollection);
 
 			if (ObjectsInCollection.Num() > 0)
@@ -104,9 +104,9 @@ const FCollectionObjectsMap& FCollectionManagerCache::GetCachedObjects() const
 						break;
 					}
 
-					for (const FName& ObjectPath : ObjectsInCollection)
+					for (const FSoftObjectPath& ObjectPath : ObjectsInCollection)
 					{
-						auto& ObjectCollectionInfos = CachedObjects_Internal.FindOrAdd(ObjectPath);
+						TArray<FObjectCollectionInfo>& ObjectCollectionInfos = CachedObjects_Internal.FindOrAdd(ObjectPath);
 						FObjectCollectionInfo* ObjectInfoPtr = ObjectCollectionInfos.FindByPredicate([&](const FObjectCollectionInfo& InCollectionInfo) { return InCollectionInfo.CollectionKey == InCollectionKey; });
 						if (ObjectInfoPtr)
 						{
@@ -300,10 +300,12 @@ FCollectionManager::FCollectionManager()
 	TickFileCacheDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCollectionManager::TickFileCache), 1.0f);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCollectionManager::~FCollectionManager()
 {
 	FTSTicker::GetCoreTicker().RemoveTicker(TickFileCacheDelegateHandle);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool FCollectionManager::HasCollections() const
 {
@@ -499,7 +501,7 @@ bool FCollectionManager::CollectionExists(FName CollectionName, ECollectionShare
 	}
 }
 
-bool FCollectionManager::GetAssetsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& AssetsPaths, ECollectionRecursionFlags::Flags RecursionMode) const
+bool FCollectionManager::GetAssetsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FSoftObjectPath>& AssetsPaths, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	bool bFoundAssets = false;
 
@@ -530,7 +532,7 @@ bool FCollectionManager::GetAssetsInCollection(FName CollectionName, ECollection
 	return bFoundAssets;
 }
 
-bool FCollectionManager::GetClassesInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& ClassPaths, ECollectionRecursionFlags::Flags RecursionMode) const
+bool FCollectionManager::GetClassesInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FTopLevelAssetPath>& ClassPaths, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	bool bFoundClasses = false;
 
@@ -561,7 +563,7 @@ bool FCollectionManager::GetClassesInCollection(FName CollectionName, ECollectio
 	return bFoundClasses;
 }
 
-bool FCollectionManager::GetObjectsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FName>& ObjectPaths, ECollectionRecursionFlags::Flags RecursionMode) const
+bool FCollectionManager::GetObjectsInCollection(FName CollectionName, ECollectionShareType::Type ShareType, TArray<FSoftObjectPath>& ObjectPaths, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	bool bFoundObjects = false;
 
@@ -592,7 +594,7 @@ bool FCollectionManager::GetObjectsInCollection(FName CollectionName, ECollectio
 	return bFoundObjects;
 }
 
-void FCollectionManager::GetCollectionsContainingObject(FName ObjectPath, ECollectionShareType::Type ShareType, TArray<FName>& OutCollectionNames, ECollectionRecursionFlags::Flags RecursionMode) const
+void FCollectionManager::GetCollectionsContainingObject(const FSoftObjectPath& ObjectPath, ECollectionShareType::Type ShareType, TArray<FName>& OutCollectionNames, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 
@@ -609,7 +611,7 @@ void FCollectionManager::GetCollectionsContainingObject(FName ObjectPath, EColle
 	}
 }
 
-void FCollectionManager::GetCollectionsContainingObject(FName ObjectPath, TArray<FCollectionNameType>& OutCollections, ECollectionRecursionFlags::Flags RecursionMode) const
+void FCollectionManager::GetCollectionsContainingObject(const FSoftObjectPath& ObjectPath, TArray<FCollectionNameType>& OutCollections, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 
@@ -627,11 +629,11 @@ void FCollectionManager::GetCollectionsContainingObject(FName ObjectPath, TArray
 	}
 }
 
-void FCollectionManager::GetCollectionsContainingObjects(const TArray<FName>& ObjectPaths, TMap<FCollectionNameType, TArray<FName>>& OutCollectionsAndMatchedObjects, ECollectionRecursionFlags::Flags RecursionMode) const
+void FCollectionManager::GetCollectionsContainingObjects(const TArray<FSoftObjectPath>& ObjectPaths, TMap<FCollectionNameType, TArray<FSoftObjectPath>>& OutCollectionsAndMatchedObjects, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 
-	for (const FName& ObjectPath : ObjectPaths)
+	for (const FSoftObjectPath& ObjectPath : ObjectPaths)
 	{
 		const auto* ObjectCollectionInfosPtr = CachedObjects.Find(ObjectPath);
 		if (ObjectCollectionInfosPtr)
@@ -640,7 +642,7 @@ void FCollectionManager::GetCollectionsContainingObjects(const TArray<FName>& Ob
 			{
 				if ((RecursionMode & ObjectCollectionInfo.Reason) != 0)
 				{
-					TArray<FName>& MatchedObjects = OutCollectionsAndMatchedObjects.FindOrAdd(ObjectCollectionInfo.CollectionKey);
+					TArray<FSoftObjectPath>& MatchedObjects = OutCollectionsAndMatchedObjects.FindOrAdd(ObjectCollectionInfo.CollectionKey);
 					MatchedObjects.Add(ObjectPath);
 				}
 			}
@@ -648,7 +650,7 @@ void FCollectionManager::GetCollectionsContainingObjects(const TArray<FName>& Ob
 	}
 }
 
-FString FCollectionManager::GetCollectionsStringForObject(FName ObjectPath, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode, bool bFullPaths) const
+FString FCollectionManager::GetCollectionsStringForObject(const FSoftObjectPath& ObjectPath, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode, bool bFullPaths) const
 {
 	const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 
@@ -991,14 +993,14 @@ bool FCollectionManager::DestroyCollection(FName CollectionName, ECollectionShar
 	}
 }
 
-bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ObjectPath)
+bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, const FSoftObjectPath& ObjectPath)
 {
-	TArray<FName> Paths;
+	TArray<FSoftObjectPath> Paths;
 	Paths.Add(ObjectPath);
 	return AddToCollection(CollectionName, ShareType, Paths);
 }
 
-bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& ObjectPaths, int32* OutNumAdded)
+bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareType::Type ShareType, TConstArrayView<FSoftObjectPath> ObjectPaths, int32* OutNumAdded)
 {
 	if (OutNumAdded)
 	{
@@ -1028,7 +1030,7 @@ bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareT
 	}
 
 	int32 NumAdded = 0;
-	for (const FName& ObjectPath : ObjectPaths)
+	for (const FSoftObjectPath& ObjectPath : ObjectPaths)
 	{
 		if ((*CollectionRefPtr)->AddObjectToCollection(ObjectPath))
 		{
@@ -1049,13 +1051,19 @@ bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareT
 			}
 
 			CollectionCache.HandleCollectionChanged();
-			AssetsAddedEvent.Broadcast(CollectionKey, ObjectPaths);
+			AssetsAddedToCollectionDelegate.Broadcast(CollectionKey, ObjectPaths);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if (AssetsAddedEvent.IsBound()) // Avoid conversion if nothing is bound 
+			{
+				AssetsAddedEvent.Broadcast(CollectionKey, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(ObjectPaths));
+			}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return true;
 		}
 		else
 		{
 			// Added but not saved, revert the add
-			for (const FName& ObjectPath : ObjectPaths)
+			for (const FSoftObjectPath& ObjectPath : ObjectPaths)
 			{
 				(*CollectionRefPtr)->RemoveObjectFromCollection(ObjectPath);
 			}
@@ -1070,14 +1078,14 @@ bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareT
 	}
 }
 
-bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, FName ObjectPath)
+bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, const FSoftObjectPath& ObjectPath)
 {
-	TArray<FName> Paths;
+	TArray<FSoftObjectPath> Paths;
 	Paths.Add(ObjectPath);
 	return RemoveFromCollection(CollectionName, ShareType, Paths);
 }
 
-bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& ObjectPaths, int32* OutNumRemoved)
+bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionShareType::Type ShareType, TConstArrayView<FSoftObjectPath> ObjectPaths, int32* OutNumRemoved)
 {
 	if (OutNumRemoved)
 	{
@@ -1106,8 +1114,8 @@ bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionS
 		return false;
 	}
 
-	TArray<FName> RemovedAssets;
-	for (const FName& ObjectPath : ObjectPaths)
+	TArray<FSoftObjectPath> RemovedAssets;
+	for (const FSoftObjectPath& ObjectPath : ObjectPaths)
 	{
 		if ((*CollectionRefPtr)->RemoveObjectFromCollection(ObjectPath))
 		{
@@ -1133,13 +1141,19 @@ bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionS
 		}
 
 		CollectionCache.HandleCollectionChanged();
-		AssetsRemovedEvent.Broadcast(CollectionKey, ObjectPaths);
+		AssetsRemovedFromCollectionDelegate.Broadcast(CollectionKey, ObjectPaths);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (AssetsRemovedEvent.IsBound())
+		{
+			AssetsRemovedEvent.Broadcast(CollectionKey, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(ObjectPaths));
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 	else
 	{
 		// Removed but not saved, revert the remove
-		for (const FName& RemovedAssetName : RemovedAssets)
+		for (const FSoftObjectPath& RemovedAssetName : RemovedAssets)
 		{
 			(*CollectionRefPtr)->AddObjectToCollection(RemovedAssetName);
 		}
@@ -1462,7 +1476,7 @@ bool FCollectionManager::GetCollectionStorageMode(FName CollectionName, ECollect
 	return false;
 }
 
-bool FCollectionManager::IsObjectInCollection(FName ObjectPath, FName CollectionName, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode) const
+bool FCollectionManager::IsObjectInCollection(const FSoftObjectPath& ObjectPath, FName CollectionName, ECollectionShareType::Type ShareType, ECollectionRecursionFlags::Flags RecursionMode) const
 {
 	if (!ensure(ShareType < ECollectionShareType::CST_All))
 	{
@@ -1554,14 +1568,14 @@ void FCollectionManager::HandleFixupRedirectors(ICollectionRedirectorFollower& I
 
 	const double LoadStartTime = FPlatformTime::Seconds();
 
-	TArray<TPair<FName, FName>> ObjectsToRename;
+	TArray<TPair<FSoftObjectPath, FSoftObjectPath>> ObjectsToRename;
 
 	// Build up the list of redirected object into rename pairs
 	{
 		const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 		for (const auto& CachedObjectInfo : CachedObjects)
 		{
-			FName NewObjectPath;
+			FSoftObjectPath NewObjectPath;
 			if (InRedirectorFollower.FixupObject(CachedObjectInfo.Key, NewObjectPath))
 			{
 				ObjectsToRename.Emplace(CachedObjectInfo.Key, NewObjectPath);
@@ -1571,14 +1585,14 @@ void FCollectionManager::HandleFixupRedirectors(ICollectionRedirectorFollower& I
 
 	TArray<FCollectionNameType> UpdatedCollections;
 
-	TArray<FName> AddedObjects;
+	TArray<FSoftObjectPath> AddedObjects;
 	AddedObjects.Reserve(ObjectsToRename.Num());
 
-	TArray<FName> RemovedObjects;
+	TArray<FSoftObjectPath> RemovedObjects;
 	RemovedObjects.Reserve(ObjectsToRename.Num());
 
 	// Handle the rename for each redirected object
-	for (const auto& ObjectToRename : ObjectsToRename)
+	for (const TPair<FSoftObjectPath, FSoftObjectPath>& ObjectToRename : ObjectsToRename)
 	{
 		AddedObjects.Add(ObjectToRename.Value);
 		RemovedObjects.Add(ObjectToRename.Key);
@@ -1593,9 +1607,22 @@ void FCollectionManager::HandleFixupRedirectors(ICollectionRedirectorFollower& I
 		// Notify every collection that changed
 		for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
 		{
-			AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjects);
-			AssetsAddedEvent.Broadcast(UpdatedCollection, AddedObjects);
+			AssetsRemovedFromCollectionDelegate.Broadcast(UpdatedCollection, RemovedObjects);
+			AssetsAddedToCollectionDelegate.Broadcast(UpdatedCollection, AddedObjects);
 		}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (AssetsRemovedEvent.IsBound() || AssetsAddedEvent.IsBound())
+		{
+			TArray<FName> RemovedObjectPathNames = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(RemovedObjects);
+			TArray<FName> AddedObjectPathNames = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(AddedObjects);
+			for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
+			{
+				AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjectPathNames);
+				AssetsAddedEvent.Broadcast(UpdatedCollection, AddedObjectPathNames);
+			}
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	UE_LOG(LogCollectionManager, Log, TEXT( "Fixed up redirectors for %d collections in %0.6f seconds (updated %d objects)" ), AvailableCollections.Num(), FPlatformTime::Seconds() - LoadStartTime, ObjectsToRename.Num());
@@ -1606,7 +1633,7 @@ void FCollectionManager::HandleFixupRedirectors(ICollectionRedirectorFollower& I
 	}
 }
 
-bool FCollectionManager::HandleRedirectorDeleted(const FName& ObjectPath)
+bool FCollectionManager::HandleRedirectorDeleted(const FSoftObjectPath& ObjectPath)
 {
 	bool bSavedAllCollections = true;
 
@@ -1637,14 +1664,25 @@ bool FCollectionManager::HandleRedirectorDeleted(const FName& ObjectPath)
 		}
 	}
 
-	TArray<FName> RemovedObjects;
+	TArray<FSoftObjectPath> RemovedObjects;
 	RemovedObjects.Add(ObjectPath);
 
 	// Notify every collection that changed
 	for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
 	{
-		AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjects);
+		AssetsRemovedFromCollectionDelegate.Broadcast(UpdatedCollection, RemovedObjects);
 	}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if( AssetsRemovedEvent.IsBound())
+	{
+		TArray<FName> RemovedObjectPathNames = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(RemovedObjects);
+		for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
+		{
+			AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjectPathNames);
+		}
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (!bSavedAllCollections)
 	{
@@ -1654,15 +1692,15 @@ bool FCollectionManager::HandleRedirectorDeleted(const FName& ObjectPath)
 	return bSavedAllCollections;
 }
 
-void FCollectionManager::HandleObjectRenamed(const FName& OldObjectPath, const FName& NewObjectPath)
+void FCollectionManager::HandleObjectRenamed(const FSoftObjectPath& OldObjectPath, const FSoftObjectPath& NewObjectPath)
 {
-	TArray<FCollectionNameType> UpdatedCollections;
+	TArray<FCollectionNameType> UpdatedCollections; 
 	ReplaceObjectInCollections(OldObjectPath, NewObjectPath, UpdatedCollections);
 
-	TArray<FName> AddedObjects;
+	TArray<FSoftObjectPath> AddedObjects;
 	AddedObjects.Add(NewObjectPath);
 
-	TArray<FName> RemovedObjects;
+	TArray<FSoftObjectPath> RemovedObjects;
 	RemovedObjects.Add(OldObjectPath);
 
 	if (UpdatedCollections.Num() > 0)
@@ -1672,18 +1710,31 @@ void FCollectionManager::HandleObjectRenamed(const FName& OldObjectPath, const F
 		// Notify every collection that changed
 		for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
 		{
-			AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjects);
-			AssetsAddedEvent.Broadcast(UpdatedCollection, AddedObjects);
+			AssetsRemovedFromCollectionDelegate.Broadcast(UpdatedCollection, RemovedObjects);
+			AssetsAddedToCollectionDelegate.Broadcast(UpdatedCollection, AddedObjects);
 		}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if( AssetsAddedEvent.IsBound() || AssetsRemovedEvent.IsBound())
+		{
+			TArray<FName> RemovedObjectPathNames = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(RemovedObjects);
+			TArray<FName> AddedObjectPathNames = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(AddedObjects);
+			for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
+			{
+				AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjectPathNames);
+				AssetsAddedEvent.Broadcast(UpdatedCollection, AddedObjectPathNames);
+			}
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
-void FCollectionManager::HandleObjectDeleted(const FName& ObjectPath)
+void FCollectionManager::HandleObjectDeleted(const FSoftObjectPath& ObjectPath)
 {
 	TArray<FCollectionNameType> UpdatedCollections;
 	RemoveObjectFromCollections(ObjectPath, UpdatedCollections);
 
-	TArray<FName> RemovedObjects;
+	TArray<FSoftObjectPath> RemovedObjects;
 	RemovedObjects.Add(ObjectPath);
 
 	if (UpdatedCollections.Num() > 0)
@@ -1693,8 +1744,19 @@ void FCollectionManager::HandleObjectDeleted(const FName& ObjectPath)
 		// Notify every collection that changed
 		for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
 		{
-			AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjects);
+			AssetsRemovedFromCollectionDelegate.Broadcast(UpdatedCollection, RemovedObjects);
 		}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (AssetsRemovedEvent.IsBound())
+		{
+			TArray<FName> RemovedObjectPathNames = UE::SoftObjectPath::Private::ConvertSoftObjectPaths(RemovedObjects);
+			for (const FCollectionNameType& UpdatedCollection : UpdatedCollections)
+			{
+				AssetsRemovedEvent.Broadcast(UpdatedCollection, RemovedObjectPathNames);
+			}
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -1929,7 +1991,7 @@ bool FCollectionManager::RemoveCollection(const TSharedRef<FCollection>& Collect
 	return false;
 }
 
-void FCollectionManager::RemoveObjectFromCollections(const FName& ObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections)
+void FCollectionManager::RemoveObjectFromCollections(const FSoftObjectPath& ObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections)
 {
 	const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 
@@ -1956,7 +2018,7 @@ void FCollectionManager::RemoveObjectFromCollections(const FName& ObjectPath, TA
 	}
 }
 
-void FCollectionManager::ReplaceObjectInCollections(const FName& OldObjectPath, const FName& NewObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections)
+void FCollectionManager::ReplaceObjectInCollections(const FSoftObjectPath& OldObjectPath, const FSoftObjectPath& NewObjectPath, TArray<FCollectionNameType>& OutUpdatedCollections)
 {
 	const FCollectionObjectsMap& CachedObjects = CollectionCache.GetCachedObjects();
 
