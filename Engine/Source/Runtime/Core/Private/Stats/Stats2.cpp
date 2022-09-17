@@ -1219,6 +1219,12 @@ FThreadStatsPool::FThreadStatsPool()
 	}
 }
 
+FThreadStatsPool& FThreadStatsPool::Get()
+{
+	static FThreadStatsPool Singleton;
+	return Singleton;
+}
+
 FThreadStats* FThreadStatsPool::GetFromPool()
 {
 	LLM_SCOPE(ELLMTag::Stats);

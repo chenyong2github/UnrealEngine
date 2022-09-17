@@ -1273,11 +1273,7 @@ public:
 	CORE_API FThreadStatsPool();
 
 	/** Singleton accessor. */
-	CORE_API static FThreadStatsPool& Get()
-	{
-		static FThreadStatsPool Singleton;
-		return Singleton;
-	}
+	CORE_API static FThreadStatsPool& Get();
 
 	/** Gets an instance from the pool and call the default constructor on it. */
 	CORE_API FThreadStats* GetFromPool();
