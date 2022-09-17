@@ -1233,6 +1233,7 @@ private:
 	friend struct FRigVMInjectNodeIntoPinAction;
 	friend class FRigVMParserAST;
 	friend class FRigVMControllerCompileBracketScope;
+	friend class FRigVMControllerGraphGuard;
 };
 
 class FRigVMControllerGraphGuard
@@ -1244,10 +1245,17 @@ public:
 		, bUndo(bSetupUndoRedo)
 	{
 		Controller->PushGraph(InGraph, bUndo);
+		NumGraphs = Controller->Graphs.Num();
 	}
 
 	~FRigVMControllerGraphGuard()
 	{
+		// an action can be cancelled in the middle of a graph guard,
+		// in that case CancelAction should have already popped the graph
+		if (Controller->Graphs.Num() < NumGraphs)
+		{
+			return;
+		}
 		Controller->PopGraph(bUndo);
 	}
 
@@ -1255,6 +1263,8 @@ private:
 
 	URigVMController* Controller;
 	bool bUndo;
+
+	int32 NumGraphs;
 };
 
 USTRUCT()

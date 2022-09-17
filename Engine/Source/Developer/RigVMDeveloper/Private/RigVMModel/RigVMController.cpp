@@ -18204,7 +18204,9 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	}
 
 	const FRigVMTemplateArgumentType Type(*InCPPType, InCPPTypeObject);
-	const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().GetTypeIndex(Type);
+	// pin types are chosen from the graph pin type menu so it is not guaranteed that the chosen type
+	// is registered, hence the use of FindOrAddType
+	const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().FindOrAddType(Type);
 	return ChangePinType(InPin, TypeIndex, bSetupUndoRedo, bSetupOrphanPins, bBreakLinks, bRemoveSubPins, bInitializeDefaultValue);
 }
 
