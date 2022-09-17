@@ -237,6 +237,11 @@ UObject* FSoftObjectProperty::LoadObjectPropertyValue(const void* PropertyValueA
 	return GetPropertyValue(PropertyValueAddress).LoadSynchronous();
 }
 
+TObjectPtr<UObject> FSoftObjectProperty::GetObjectPtrPropertyValue(const void* PropertyValueAddress) const
+{
+	return TObjectPtr<UObject>(GetPropertyValue(PropertyValueAddress).Get());
+}
+
 UObject* FSoftObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
 	return GetPropertyValue(PropertyValueAddress).Get();

@@ -3974,8 +3974,8 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 			// The iterator will recursively loop through all structs in structs too.
 			for (TPropertyValueIterator<FObjectProperty> It(This->SparseClassDataStruct, This->SparseClassData); It; ++It)
 			{
-				UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(It.Value()));
-				Collector.AddReferencedObject(*ObjectPtr);
+				// @TODO: OBJPTR: 
+				Collector.AddReferencedObject(It.Key()->GetObjectPtrPropertyValueRef(It.Value()));
 			}
 		}
 	}

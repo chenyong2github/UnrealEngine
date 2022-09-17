@@ -55,7 +55,8 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(Value);
-	UObject* CurrentValue = IsObjectHandleResolved(ObjectPtr->GetHandle()) ? ObjectPtr->Get() : nullptr;
+	const bool IsHandleResolved = IsObjectHandleResolved(ObjectPtr->GetHandle());
+	UObject* CurrentValue = IsHandleResolved ? ObjectPtr->Get() : nullptr;
 
 	if (UnderlyingArchive.IsObjectReferenceCollector())
 	{
@@ -143,9 +144,14 @@ FObjectPtr& FObjectPtrProperty::GetObjectPropertyValueAsPtr(const void* Property
 	return (FObjectPtr&)GetPropertyValue(PropertyValueAddress);
 }
 
+TObjectPtr<UObject> FObjectPtrProperty::GetObjectPtrPropertyValue(const void* PropertyValueAddress) const
+{
+	return GetPropertyValue(PropertyValueAddress);
+}
+
 UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
-	return ((FObjectPtr&)GetPropertyValue(PropertyValueAddress)).Get();
+	return GetPropertyValue(PropertyValueAddress).Get();
 }
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex) const

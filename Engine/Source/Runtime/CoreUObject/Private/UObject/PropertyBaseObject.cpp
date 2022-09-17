@@ -184,7 +184,7 @@ FString FObjectPropertyBase::GetExportPath(FTopLevelAssetPath ClassPathName, con
 	return FString::Printf(TEXT("%s.%s'%s'"), *ClassPathName.GetPackageName().ToString(), *ClassPathName.GetAssetName().ToString(), *ObjectPathName);
 }
 
-FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject* Parent /*= nullptr*/, const UObject* ExportRootScope /*= nullptr*/, const uint32 PortFlags /*= PPF_None*/)
+FString FObjectPropertyBase::GetExportPath(const TObjectPtr<const UObject>& Object, const UObject* Parent /*= nullptr*/, const UObject* ExportRootScope /*= nullptr*/, const uint32 PortFlags /*= PPF_None*/)
 {
 	bool bExportFullyQualified = true;
 
@@ -220,19 +220,19 @@ FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject*
 
 	// Take the path name relative to the stopping point outermost ptr.
 	// This is so that cases like a component referencing a component in another actor work correctly when pasted
-	FString PathName = Object->GetPathName(StopOuter);
+	FString PathName = StopOuter ? Object->GetPathName(StopOuter) : Object.GetPathName();
 	// Object names that contain invalid characters and paths that contain spaces must be put into quotes to be handled correctly
 	if (PortFlags & PPF_Delimited)
 	{
 		PathName = FString::Printf(TEXT("\"%s\""), *PathName.ReplaceQuotesWithEscapedQuotes());
 	}
-	FTopLevelAssetPath ClassPathName = Object->GetClass()->GetClassPathName();
+	const FTopLevelAssetPath ClassPathName = Object.GetClass()->GetClassPathName();
 	return GetExportPath(ClassPathName, *PathName);
 }
 
 void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	UObject* Temp = nullptr;
+	TObjectPtr<UObject> Temp;
 
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
@@ -240,7 +240,7 @@ void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* Pr
 	}
 	else
 	{
-		Temp = GetObjectPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
+		Temp = GetObjectPtrPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
 	}
 
 	if (0 != (PortFlags & PPF_ExportCpp))
@@ -254,31 +254,38 @@ void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* Pr
 		return;
 	}
 
-	if( Temp != nullptr )
+	if (Temp.IsNullNoResolve())
+	{
+		ValueStr += TEXT("None");
+	}
+	else
 	{
 		if (PortFlags & PPF_DebugDump)
 		{
-			ValueStr += Temp->GetFullName();
+			ValueStr += Temp ? Temp->GetFullName() : TEXT("None");
 		}
-		else if (Parent && !Parent->HasAnyFlags(RF_ClassDefaultObject) && Temp->IsDefaultSubobject())
+		else if (
+		         Parent && !Parent->HasAnyFlags(RF_ClassDefaultObject)
+				 // @NOTE: OBJPTR: In the event that we're trying to handle a default subobject, the requirement would 
+				 // be that it's inside the package we are currently in, which means the Temp pointer should be resolved 
+				 // already.  So don't move forward with the check unless it's resolved, we don't want to force a deferred
+				 // loaded asset if we don't have to with this check.
+				 && Temp.IsResolved() && Temp && Temp->IsDefaultSubobject()
+				)
 		{
 			if (PortFlags & PPF_Delimited)
 			{
-				ValueStr += FString::Printf(TEXT("\"%s\""), *Temp->GetName().ReplaceQuotesWithEscapedQuotes());
+				ValueStr += Temp ? FString::Printf(TEXT("\"%s\""), *Temp->GetName().ReplaceQuotesWithEscapedQuotes()) : TEXT("None");
 			}
 			else
 			{
-				ValueStr += Temp->GetName();
+				ValueStr += Temp.GetName();
 			}
 		}
 		else
 		{
 			ValueStr += GetExportPath(Temp, Parent, ExportRootScope, PortFlags);
 		}
-	}
-	else
-	{
-		ValueStr += TEXT("None");
 	}
 }
 
@@ -571,6 +578,12 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 FName FObjectPropertyBase::GetID() const
 {
 	return NAME_ObjectProperty;
+}
+
+TObjectPtr<UObject> FObjectPropertyBase::GetObjectPtrPropertyValue(const void* PropertyValueAddress) const
+{
+	checkf(false, TEXT("%s is missing implementation of GetObjectPtrPropertyValue"), *GetFullName());
+	return TObjectPtr<UObject>();
 }
 
 UObject* FObjectPropertyBase::GetObjectPropertyValue(const void* PropertyValueAddress) const

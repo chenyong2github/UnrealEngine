@@ -36,8 +36,7 @@ typename TEnableIf< TIsSame<decltype(T::StaticStruct()), decltype(T::StaticStruc
 {
 	for (TPropertyValueIterator<const FObjectProperty> It(T::StaticStruct(), Component); It; ++It)
 	{
-		UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(It.Value()));
-		ReferenceCollector->AddReferencedObject(*ObjectPtr);
+		ReferenceCollector->AddReferencedObject(It.Key()->GetObjectPtrPropertyValueRef(It.Value()));
 	}
 }
 

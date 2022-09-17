@@ -4484,8 +4484,8 @@ void FReferenceCollector::AddReferencedObjects(const UScriptStruct*& ScriptStruc
 	// Iterate through all object properties within the struct (will also search through structs within the struct)
 	for (TPropertyValueIterator<const FObjectProperty> ObjectPropertyIter(ScriptStruct, StructMemory); ObjectPropertyIter; ++ObjectPropertyIter)
 	{
-		UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(ObjectPropertyIter.Value()));
-		AddReferencedObject(*ObjectPtr, ReferencingObject, ReferencingProperty);
+		TObjectPtr<UObject>& ObjectPtrRef = ObjectPropertyIter.Key()->GetObjectPtrPropertyValueRef(ObjectPropertyIter.Value());
+		AddReferencedObject(ObjectPtrRef, ReferencingObject, ReferencingProperty);
 	}
 }
 

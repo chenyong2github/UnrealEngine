@@ -124,8 +124,7 @@ void FChunkedStructBuffer::AddStructReferencedObjects(class FReferenceCollector&
 				// The iterator will recursively loop through all structs in structs too.
 				for (TPropertyValueIterator<const FObjectProperty> It(ScriptStruct, StructMemory); It; ++It)
 				{
-					UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(It.Value()));
-					Collector.AddReferencedObject(*ObjectPtr);
+					Collector.AddReferencedObject(It.Key()->GetObjectPtrPropertyValueRef(It.Value()));
 				}
 			}
 		}
