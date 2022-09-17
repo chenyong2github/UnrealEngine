@@ -26,7 +26,8 @@ public class VCamInput : ModuleRules
 				"Engine",
 				"InputCore",
 				"Slate",
-				"SlateCore"
+				"SlateCore",
+				"DeveloperSettings"
 			}
 			);
 	}

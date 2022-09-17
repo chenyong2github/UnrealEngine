@@ -2,18 +2,28 @@
 
 #include "UI/VCamWidget.h"
 
+void UVCamWidget::BeginDestroy()
+{
+	Super::BeginDestroy();
+	
+	if (VCamComponent)
+	{
+		VCamComponent->UnregisterObjectForInput(this);
+	}
+}
+
 void UVCamWidget::InitializeConnections(UVCamComponent* VCam)
 {
 	VCamComponent = VCam;
 
-	const bool bDidSuccessfullyInitialize = ReinitializeConnections();
-	
 	// Register for input with the VCam Component if desired
-	if (bDidSuccessfullyInitialize && bRegisterForInput)
+	if (VCamComponent && bRegisterForInput)
 	{
 		VCamComponent->RegisterObjectForInput(this);
 		VCamComponent->AddInputMappingContext(InputMappingContext, InputContextPriority);
 	}
+
+	ReinitializeConnections();
 }
 
 bool UVCamWidget::ReinitializeConnections()
@@ -47,6 +57,7 @@ bool UVCamWidget::ReinitializeConnections()
 		OnConnectionUpdated(ConnectionName, bDidConnectSuccessfully, VCamConnection.ConnectionTargetSettings.TargetConnectionPoint, VCamConnection.ConnectedModifier, VCamConnection.ConnectedAction);
 	}
 
+	PostConnectionsInitialized();
 	return true;
 }
 

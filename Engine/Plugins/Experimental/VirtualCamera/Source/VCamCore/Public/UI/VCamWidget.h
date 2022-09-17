@@ -30,6 +30,8 @@ class VCAMCORE_API UVCamWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
+	virtual void BeginDestroy() override;
+	
 	/*
 	 * The VCam Connections associated with this Widget
 	 * 
@@ -67,6 +69,12 @@ public:
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category="VCam Connections")
 	void OnConnectionUpdated(FName ConnectionName, bool bDidConnectSuccessfully, FName ModifierConnectionPointName, UVCamModifier* ConnectedModifier, UInputAction* ConnectedAction);
+
+	/*
+	 * Event called after all connections have been initialized or reinitialized
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category="VCam Connections")
+	void PostConnectionsInitialized();
 
 	/*
 	 * Iterate all VCam Connections within the widget and attempt to connect them using the provided VCam Component

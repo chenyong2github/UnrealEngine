@@ -31,7 +31,9 @@ public class VCamCoreEditor : ModuleRules
 				"EnhancedInput",
 				"PropertyEditor",
 				"UMG", 
-				"UMGEditor"
+				"UMGEditor",
+				"InputCore",
+				"VCamInput"
 			}
 		);
 	}

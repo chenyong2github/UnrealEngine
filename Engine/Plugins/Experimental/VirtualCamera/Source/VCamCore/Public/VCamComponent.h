@@ -6,6 +6,7 @@
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystemInterface.h"
 #include "VCamTypes.h"
+#include "VCamInputSettings.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "VCamOutputProviderBase.h"
 #include "GameplayTagContainer.h"
@@ -55,6 +56,8 @@ public:
 
 	virtual void OnAttachmentChanged() override;
 
+	virtual void PostLoad() override;
+
 	TSharedPtr<FSceneViewport> GetTargetSceneViewport() const;
 	TWeakPtr<SWindow> GetTargetInputWindow() const;
 
@@ -88,6 +91,32 @@ public:
 
 	// Adds and explicitly provided Input Mapping Context to the input system
 	void AddInputMappingContext(UInputMappingContext* Context, int32 Priority);
+
+	// Attempts to apply key mapping settings from an input profile defined in VCam Input Settings
+	// Returns whether the profile was found and able to be applied
+	UFUNCTION(BlueprintCallable, Category = "VCam Input")
+	bool SetInputProfileFromName(const FName ProfileName);
+
+	// Tries to add a new Input Profile to the VCam Input Settings and populates it with any currently active player mappable keys
+	// Note: The set of currently active player mappable keys may be larger than the set of mappings in this component's Input Profile
+	//
+	// Optionally this function can update an existing profile, this will only add any mappable keys that don't currently exist in the profile but will not remove any existing mappings
+	// Returns whether the profile was successfully added or updated
+	UFUNCTION(BlueprintCallable, Category="VCam Input", meta=(ReturnDisplayName = "Success"))
+	bool AddInputProfileWithCurrentlyActiveMappings(const FName ProfileName, bool bUpdateIfProfileAlreadyExists = true);
+
+	// Saves the current input profile settings to the VCam Input Settings using the provided Profile Name
+	UFUNCTION(BlueprintCallable, Category="VCam Input", meta=(ReturnDisplayName = "Success"))
+	bool SaveCurrentInputProfileToSettings(const FName ProfileName) const;
+	
+	// Searches the currently active input system for all registered key mappings that are marked as Player Mappable.
+	UFUNCTION(BlueprintCallable, Category="VCam Input", meta=(ReturnDisplayName = "PlayerMappableActionKeyMappings"))
+	TArray<FEnhancedActionKeyMapping> GetAllPlayerMappableActionKeyMappings() const;
+
+	// Searches the currently active input system for the current key mapped to a given input mapping
+	// If there is not a player mapped key, then this will return EKeys::Invalid.
+	UFUNCTION(BlueprintCallable, Category="VCam Input", meta=(ReturnDisplayName = "Key"))
+	FKey GetPlayerMappedKey(const FName MappingName) const;
 
 	// Sets if the VCamComponent will update every frame or not
 	UFUNCTION(BlueprintSetter)
@@ -253,6 +282,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera")
 	EVCamTargetViewportID TargetViewport = EVCamTargetViewportID::CurrentlySelected;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetInputProfile, Category = "VirtualCamera")
+	FVCamInputProfile InputProfile;
+
+	// Call this after modifying the InputProfile in code to update the player mapped keys
+	void ApplyInputProfile();
+	
+	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly, Category="VirtualCamera")
+	void SetInputProfile(const FVCamInputProfile& NewInputProfile);
+
 	// List of Output Providers (executed in order)
 	UPROPERTY(EditAnywhere, Instanced, Category="VirtualCamera")
 	TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders;
@@ -268,21 +306,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void RegisterObjectForInput(UObject* Object);
 
+	void UnregisterObjectForInput(UObject* Object) const;
+
 	/**
 	 * Returns a list of all player mappable keys that have been registered
 	 */
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	TArray<FEnhancedActionKeyMapping> GetPlayerMappableKeys() const;
-
-	/**
-	 * Replace any currently applied mappings to this key mapping with the given new one.
-	 * Requests a rebuild of the player mappings.
-	 * This function will automatically switch between Editor based and Player based input systems as needed
-	 *
-	 * @return The number of mappings that have been replaced
-	 */
-	UFUNCTION(BlueprintCallable, Category = "VirtualCamera", meta=(AutoCreateRefTerm = "Options"))
-	int32 AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options = FModifyContextOptions()) const;
 
 	/**
 	* Injects an input action. 
@@ -297,7 +327,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera", meta = (AutoCreateRefTerm = "Modifiers,Triggers"))
 	virtual void InjectInputVectorForAction(const UInputAction* Action, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
-private:
+private:	
 	static void CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent);
 
 	float GetDeltaTime();

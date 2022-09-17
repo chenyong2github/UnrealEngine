@@ -90,6 +90,12 @@ UVCamComponent::UVCamComponent()
 			}
 		}
 #endif
+
+		// Apply the Default Input profile if possible
+		if (const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>())
+		{
+			SetInputProfileFromName(VCamInputSettings->DefaultInputProfile);
+		}
 		
 	}
 }
@@ -237,6 +243,14 @@ void UVCamComponent::OnAttachmentChanged()
 #endif
 }
 
+void UVCamComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	// Ensure the input profile is applied when this component is loaded
+	ApplyInputProfile();
+}
+
 #if WITH_EDITOR
 
 void UVCamComponent::CheckForErrors()
@@ -301,6 +315,7 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
 		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
 		static FName NAME_TargetViewport = GET_MEMBER_NAME_CHECKED(UVCamComponent, TargetViewport);
+		static FName NAME_InputProfile = GET_MEMBER_NAME_CHECKED(UVCamComponent, InputProfile);
 
 		const FName PropertyName = Property->GetFName();
 
@@ -333,6 +348,10 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 					SetActorLock(true);
 				}
 			}
+		}
+		else if (PropertyName == NAME_InputProfile)
+		{
+			ApplyInputProfile();
 		}
 
 		for (const UVCamOutputProviderBase* OutputProvider : OutputProviders)
@@ -431,6 +450,104 @@ void UVCamComponent::AddInputMappingContext(UInputMappingContext* Context, int32
 			EnhancedInputSubsystemInterface->AddMappingContext(Context, Priority);
 		}
 	}
+}
+
+bool UVCamComponent::SetInputProfileFromName(const FName ProfileName)
+{
+	if (const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>())
+	{
+		if (const FVCamInputProfile* NewInputProfile = VCamInputSettings->InputProfiles.Find(ProfileName))
+		{
+			InputProfile = *NewInputProfile;
+			ApplyInputProfile();
+		}
+	}
+	return false;
+}
+
+bool UVCamComponent::AddInputProfileWithCurrentlyActiveMappings(const FName ProfileName, bool bUpdateIfProfileAlreadyExists)
+{
+	UVCamInputSettings* VCamInputSettings = GetMutableDefault<UVCamInputSettings>();
+
+	// If we don't have a valid settings object then early out
+	if (!VCamInputSettings)
+	{
+		return false;
+	}
+	
+	FVCamInputProfile* TargetInputProfile = VCamInputSettings->InputProfiles.Find(ProfileName);
+
+	// An Input Profile with this name already exists
+	if (TargetInputProfile)
+	{
+		if (!bUpdateIfProfileAlreadyExists)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		TargetInputProfile = &VCamInputSettings->InputProfiles.Add(ProfileName);
+	}
+
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		const TArray<FEnhancedActionKeyMapping> PlayerMappableActionKeyMappings = EnhancedInputSubsystemInterface->GetAllPlayerMappableActionKeyMappings();
+		for (const FEnhancedActionKeyMapping& PlayerMappableActionKeyMapping : PlayerMappableActionKeyMappings)
+		{
+			const FName MappingName = PlayerMappableActionKeyMapping.PlayerMappableOptions.Name;
+
+			// Prefer to use the current mapped key but fallback to the default if no key is mapped
+			FKey CurrentKey = EnhancedInputSubsystemInterface->GetPlayerMappedKey(MappingName);
+			if (!CurrentKey.IsValid())
+			{
+				CurrentKey = PlayerMappableActionKeyMapping.Key;
+			}
+
+			if (!TargetInputProfile->MappableKeyOverrides.Contains(MappingName))
+			{
+				TargetInputProfile->MappableKeyOverrides.Add(MappingName, CurrentKey);
+			}
+		}
+	}
+	
+	VCamInputSettings->SaveConfig();
+	return true;
+}
+
+bool UVCamComponent::SaveCurrentInputProfileToSettings(const FName ProfileName) const
+{
+	UVCamInputSettings* VCamInputSettings = GetMutableDefault<UVCamInputSettings>();
+
+	// If we don't have a valid settings object then early out
+	if (!VCamInputSettings)
+	{
+		return false;
+	}
+
+	FVCamInputProfile& SettingsInputProfile = VCamInputSettings->InputProfiles.FindOrAdd(ProfileName);
+	SettingsInputProfile = InputProfile;
+	VCamInputSettings->SaveConfig();
+
+	return true;
+}
+
+TArray<FEnhancedActionKeyMapping> UVCamComponent::GetAllPlayerMappableActionKeyMappings() const
+{
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		return EnhancedInputSubsystemInterface->GetAllPlayerMappableActionKeyMappings();
+	}
+	return TArray<FEnhancedActionKeyMapping>();
+}
+
+FKey UVCamComponent::GetPlayerMappedKey(const FName MappingName) const
+{
+	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		return EnhancedInputSubsystemInterface->GetPlayerMappedKey(MappingName);
+	}
+	return EKeys::Invalid;
 }
 
 
@@ -844,6 +961,12 @@ void UVCamComponent::GetOutputProvidersByClass(TSubclassOf<UVCamOutputProviderBa
 	}
 }
 
+void UVCamComponent::SetInputProfile(const FVCamInputProfile& NewInputProfile)
+{
+	InputProfile = NewInputProfile;
+	ApplyInputProfile();
+}
+
 void UVCamComponent::GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData& LiveLinkData)
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
@@ -887,6 +1010,14 @@ void UVCamComponent::RegisterObjectForInput(UObject* Object)
 	}
 }
 
+void UVCamComponent::UnregisterObjectForInput(UObject* Object) const
+{
+	if (IsValid(InputComponent) && Object)
+	{
+		InputComponent->ClearBindingsForObject(Object);
+	}
+}
+
 TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
 {
 	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
@@ -894,17 +1025,6 @@ TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
 		return EnhancedInputSubsystemInterface->GetAllPlayerMappableActionKeyMappings();
 	}
 	return {};
-}
-
-int32 UVCamComponent::AddPlayerMappedKey(const FName MappingName, const FKey NewKey,
-	const FModifyContextOptions& Options) const
-{
-	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
-	{
-		return EnhancedInputSubsystemInterface->AddPlayerMappedKey(MappingName, NewKey, Options);
-	}
-
-	return 0;
 }
 
 void UVCamComponent::InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
@@ -920,6 +1040,26 @@ void UVCamComponent::InjectInputVectorForAction(const UInputAction* Action, FVec
 	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
 	{
 		EnhancedInputSubsystemInterface->InjectInputVectorForAction(Action, Value, Modifiers, Triggers);
+	}
+}
+
+void UVCamComponent::ApplyInputProfile()
+{
+	IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface();
+	if (EnhancedInputSubsystemInterface)
+	{
+		EnhancedInputSubsystemInterface->RemoveAllPlayerMappedKeys();
+		for (const TPair<FName, FKey>& MappableKeyOverride : InputProfile.MappableKeyOverrides)
+		{
+			const FName& MappingName = MappableKeyOverride.Key;
+			const FKey& NewKey = MappableKeyOverride.Value;
+			
+			// Ensure we have a valid name to map
+			if (MappingName != NAME_None)
+			{
+				EnhancedInputSubsystemInterface->AddPlayerMappedKey(MappingName, NewKey);
+			}
+		}
 	}
 }
 

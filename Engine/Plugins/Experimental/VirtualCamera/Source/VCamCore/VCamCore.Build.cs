@@ -28,7 +28,8 @@ public class VCamCore : ModuleRules
 				"Composure",
 				"Core",
 				"VPUtilities",
-				"EnhancedInput"
+				"EnhancedInput",
+				"VCamInput"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -48,7 +49,7 @@ public class VCamCore : ModuleRules
 				"MediaIOCore",
 				"RemoteSession",
 				"InputCore",
-				"VPRoles",
+				"VPRoles"
 				// ... add private dependencies that you statically link with here ...
 			}
 			);
