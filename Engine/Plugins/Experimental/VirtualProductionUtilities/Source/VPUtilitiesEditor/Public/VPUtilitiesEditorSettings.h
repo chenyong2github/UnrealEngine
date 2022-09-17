@@ -80,4 +80,7 @@ public:
 	/** GestureManager class to use by the ScoutingSubsystem */
 	UPROPERTY(config)
 	TArray<FSoftClassPath> AdditionnalClassToLoad;
+
+	UPROPERTY(config, meta = (AllowedClasses = "/Script/Engine.StaticMesh"))
+	FSoftObjectPath VPSplinePreviewMeshPath;
 };
