@@ -31,9 +31,16 @@ float3 DecodeSurfaceCacheNormal(FLumenCardData Card, float2 EncodedNormal)
 }
 #endif
 
+float DiffuseColorBoost;
+
 float3 DecodeSurfaceCacheAlbedo(float3 EncodedAlbedo)
 {
-	return EncodedAlbedo * EncodedAlbedo;
+	float3 Albedo = EncodedAlbedo * EncodedAlbedo;
+
+	// Optionally boost albedo, but don't allow it to reach 1 as multi-bounce would explode
+	Albedo = min(saturate(pow(Albedo, DiffuseColorBoost)), 0.99f);
+
+	return Albedo;
 }
 
 struct FLumenSurfaceCacheData

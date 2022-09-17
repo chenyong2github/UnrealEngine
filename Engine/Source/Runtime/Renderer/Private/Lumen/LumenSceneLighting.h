@@ -133,12 +133,12 @@ class FCopyCardCaptureLightingToAtlasPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER(float, DiffuseColorBoost)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoCardCaptureAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveCardCaptureAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingCardCaptureAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityCardCaptureAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityNumFramesAccumulatedCardCaptureAtlas)
-		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FIndirectLighting : SHADER_PERMUTATION_BOOL("INDIRECT_LIGHTING");
@@ -246,9 +246,4 @@ namespace LumenSceneDirectLighting
 	float GetHardwareRayTracingShadowRayBias();
 	bool UseVirtualShadowMaps();
 	bool AllowShadowMaps(const FEngineShowFlags& EngineShowFlags);
-}
-
-namespace LumenSurfaceCache
-{
-	float GetDiffuseReflectivityOverride();
 }

@@ -27,18 +27,6 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheCompress(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<float> CVarLumenSurfaceCacheDiffuseReflectivityOverride(
-	TEXT("r.LumenScene.SurfaceCache.DiffuseReflectivityOverride"),
-	0.0f,
-	TEXT("Override captured material diffuse for debugging. 0 disables override."),
-	ECVF_RenderThreadSafe
-);
-
-float LumenSurfaceCache::GetDiffuseReflectivityOverride()
-{
-	return FMath::Clamp<float>(CVarLumenSurfaceCacheDiffuseReflectivityOverride.GetValueOnRenderThread(), 0.0f, 1.0f);
-}
-
 enum class ELumenSurfaceCacheLayer : uint8
 {
 	Depth,
@@ -435,12 +423,12 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 		PassParameters->RenderTargets[3] = FRenderTargetBinding(FrameTemporaries.RadiosityNumFramesAccumulatedAtlas, ERenderTargetLoadAction::ELoad, 0);
 
 		PassParameters->PS.View = View.ViewUniformBuffer;
+		PassParameters->PS.DiffuseColorBoost = 1.0f / FMath::Max(View.FinalPostProcessSettings.LumenDiffuseColorBoost, 1.0f);
 		PassParameters->PS.AlbedoCardCaptureAtlas = CardCaptureAtlas.Albedo;
 		PassParameters->PS.EmissiveCardCaptureAtlas = CardCaptureAtlas.Emissive;
 		PassParameters->PS.DirectLightingCardCaptureAtlas = ResampledCardCaptureAtlas.DirectLighting;
 		PassParameters->PS.RadiosityCardCaptureAtlas = ResampledCardCaptureAtlas.IndirectLighting;
 		PassParameters->PS.RadiosityNumFramesAccumulatedCardCaptureAtlas = ResampledCardCaptureAtlas.NumFramesAccumulated;
-		PassParameters->PS.DiffuseReflectivityOverride = LumenSurfaceCache::GetDiffuseReflectivityOverride();
 
 		FCopyCardCaptureLightingToAtlasPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FCopyCardCaptureLightingToAtlasPS::FIndirectLighting>(bRadiosityEnabled);

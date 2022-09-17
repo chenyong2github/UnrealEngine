@@ -72,6 +72,7 @@ void GetLumenCardTracingParameters(
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 	
+	TracingParameters.DiffuseColorBoost = 1.0f / FMath::Max(View.FinalPostProcessSettings.LumenDiffuseColorBoost, 1.0f);
 	TracingParameters.SkylightLeaking = View.FinalPostProcessSettings.LumenSkylightLeaking;
 	TracingParameters.SkylightLeakingRoughness = GLumenSkylightLeakingRoughness;
 	TracingParameters.InvFullSkylightLeakingDistance = 1.0f / FMath::Clamp<float>(View.FinalPostProcessSettings.LumenFullSkylightLeakingDistance, .1f, Lumen::GetMaxTraceDistance(View));

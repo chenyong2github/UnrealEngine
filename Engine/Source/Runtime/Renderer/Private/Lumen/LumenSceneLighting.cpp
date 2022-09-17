@@ -133,7 +133,9 @@ class FLumenCardCombineLightingCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgsBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER(float, DiffuseColorBoost)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
@@ -142,7 +144,6 @@ class FLumenCardCombineLightingCS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, BilinearClampedSampler)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardTiles)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWFinalLightingAtlas)
-		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 		SHADER_PARAMETER(FVector2f, IndirectLightingAtlasHalfTexelSize)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -170,7 +171,9 @@ void Lumen::CombineLumenSceneLighting(
 
 	FLumenCardCombineLightingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardCombineLightingCS::FParameters>();
 	PassParameters->IndirectArgsBuffer = CardTileUpdateContext.DispatchCardTilesIndirectArgs;
+	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+	PassParameters->DiffuseColorBoost = 1.0f / FMath::Max(View.FinalPostProcessSettings.LumenDiffuseColorBoost, 1.0f);
 	PassParameters->AlbedoAtlas = TracingInputs.AlbedoAtlas;
 	PassParameters->OpacityAtlas = TracingInputs.OpacityAtlas;
 	PassParameters->EmissiveAtlas = TracingInputs.EmissiveAtlas;
@@ -179,7 +182,6 @@ void Lumen::CombineLumenSceneLighting(
 	PassParameters->BilinearClampedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->CardTiles = GraphBuilder.CreateSRV(CardTileUpdateContext.CardTiles);
 	PassParameters->RWFinalLightingAtlas = GraphBuilder.CreateUAV(TracingInputs.FinalLightingAtlas);
-	PassParameters->DiffuseReflectivityOverride = LumenSurfaceCache::GetDiffuseReflectivityOverride();
 	const FIntPoint IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 	PassParameters->IndirectLightingAtlasHalfTexelSize = FVector2f(0.5f / IndirectLightingAtlasSize.X, 0.5f / IndirectLightingAtlasSize.Y);
 

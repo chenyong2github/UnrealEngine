@@ -455,17 +455,9 @@ void RasterizeToCardsVS(
 	}
 }
 
-float DiffuseReflectivityOverride;
-
 float3 CombineFinalLighting(float3 Albedo, float3 Emissive, float3 DirectLighting, float3 IndirectLighting)
 {
 	Albedo = DecodeSurfaceCacheAlbedo(Albedo);
-
-	if (DiffuseReflectivityOverride > 0.0f)
-	{
-		float AlbedoMaxComponent = max(Albedo.x, max(Albedo.y, Albedo.z));
-		Albedo = saturate(Albedo * max(AlbedoMaxComponent / max(AlbedoMaxComponent, .0001f), 1.0f));
-	}
 
 	float3 FinalLighting = (DirectLighting + IndirectLighting) * Diffuse_Lambert(Albedo) + Emissive;
 
