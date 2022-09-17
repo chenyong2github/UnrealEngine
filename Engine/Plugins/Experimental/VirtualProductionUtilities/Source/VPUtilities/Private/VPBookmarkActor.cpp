@@ -13,6 +13,8 @@
 #include "VPBookmark.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/Material.h"
+#include "VPSettings.h"
+#include "UObject/UObjectGlobals.h"
 
 
 AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
@@ -26,19 +28,17 @@ AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
 	BookmarkMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BookmarkMesh"));
 	SetRootComponent(BookmarkMesh);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> BookmarkStaticMesh(TEXT("/VirtualProductionUtilities/Bookmark/BookmarkVPMesh.BookmarkVPMesh"));
-	if (BookmarkStaticMesh.Succeeded())
-	{
-		FoundMesh = BookmarkStaticMesh.Object;
-	}
+	FSoftObjectPath BookmarkMeshAssetPath = GetDefault<UVPBookmarkSettings>()->BookmarkMeshPath;
 
-	BookmarkMesh->SetStaticMesh(FoundMesh);
+	UStaticMesh* BookmarkStaticMesh = LoadObject<UStaticMesh>(nullptr, *BookmarkMeshAssetPath.ToString(), nullptr, LOAD_None, nullptr);
+	
+	BookmarkMesh->SetStaticMesh(BookmarkStaticMesh);
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BookmarkMaterialInstance(TEXT("/VirtualProductionUtilities/Bookmark/MI_BookmarkVPNoUser.MI_BookmarkVPNoUser"));
-	if (BookmarkStaticMesh.Succeeded())
-	{
-		BookmarkMaterial = BookmarkMaterialInstance.Object;
-	}
+	FSoftObjectPath BookmarkMaterialAssetPath = GetDefault<UVPBookmarkSettings>()->BookmarkMaterialPath;
+
+	UMaterialInterface* BookmarkMaterialInstance = LoadObject<UMaterialInterface>(nullptr, *BookmarkMaterialAssetPath.ToString(), nullptr, LOAD_None, nullptr);
+
+	BookmarkMaterial = BookmarkMaterialInstance;
 		
 	BookmarkColor = FLinearColor(0.817708f, 0.107659f, 0.230336f);
 
@@ -48,21 +48,18 @@ AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
 	SplineMesh->SetupAttachment(BookmarkMesh);
 	SplineMesh->SetVisibility(false);
 
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> SplineStaticMesh(TEXT("/Engine/VREditor/FloatingText/LineSegmentCylinder.LineSegmentCylinder"));
-	if (SplineStaticMesh.Succeeded())
-	{
-		FoundMesh = SplineStaticMesh.Object;
-	};
-	SplineMesh->SetStaticMesh(FoundMesh);
+	FSoftObjectPath SplineMeshAssetPath = GetDefault<UVPBookmarkSettings>()->BookmarkSplineMeshPath;
 
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LaserMaterial(TEXT("/Engine/VREditor/LaserPointer/LaserPointerMaterialInst.LaserPointerMaterialInst"));
-	if (LaserMaterial.Succeeded())
-	{
-		SplineMaterial = LaserMaterial.Object;
-	}
-	SplineMesh->SetMaterial(0, SplineMaterial);
+	UStaticMesh* SplineStaticMesh = LoadObject<UStaticMesh>(nullptr, *SplineMeshAssetPath.ToString(), nullptr, LOAD_None, nullptr);
+
+	SplineMesh->SetStaticMesh(SplineStaticMesh);
+
+	FSoftObjectPath SplineMaterialPath = GetDefault<UVPBookmarkSettings>()->BookmarkSplineMeshMaterialPath;
+
+	UMaterialInterface* SplineMaterialInstance = LoadObject<UMaterialInterface>(nullptr, *SplineMaterialPath.ToString(), nullptr, LOAD_None, nullptr);
+
+	SplineMesh->SetMaterial(0, SplineMaterialInstance);
 	
-
 	//Text Render
 	NameTextRender = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTextRender"));
 	NameTextRender->SetupAttachment(BookmarkMesh);
@@ -70,12 +67,11 @@ AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
 	NameTextRender->AddRelativeLocation(FVector(0.f, 0.f, 70.f));
 	NameTextRender->HorizontalAlignment = EHorizTextAligment(EHTA_Center);
 
-	static ConstructorHelpers::FObjectFinder<UMaterial> FoundMaterial(TEXT("/VirtualProductionUtilities/Bookmark/CameraFacingTextMaterial.CameraFacingTextMaterial"));
-	if (FoundMaterial.Succeeded())
-	{
-		TextMaterial = FoundMaterial.Object;
-	}
-	NameTextRender->SetMaterial(0, TextMaterial);
+	FSoftObjectPath LabelMaterialPath = GetDefault<UVPBookmarkSettings>()->BookmarkLabelMaterialPath;
+
+	UMaterialInterface* LabelMaterialInstance = LoadObject<UMaterialInterface>(nullptr, *LabelMaterialPath.ToString(), nullptr, LOAD_None, nullptr);
+
+	NameTextRender->SetMaterial(0, LabelMaterialInstance);
 
 }
 
@@ -163,25 +159,30 @@ void AVPBookmarkActor::OnActorDroppedFromTransform_Implementation()
 
 void AVPBookmarkActor::UpdateBookmarkColor(FLinearColor Color)
 {
-
-	UMaterialInterface* Material = BookmarkMesh->GetMaterial(0);
-
-	if (Material && !Material->IsA<UMaterialInstanceDynamic>())
+	if (BookmarkMesh->GetStaticMesh() != nullptr)
 	{
-		UMaterialInstanceDynamic* BookmarkMaterialInstance = UMaterialInstanceDynamic::Create(Material, BookmarkMaterial, TEXT("BookmarkMaterial"));
+		UMaterialInterface* Material = BookmarkMesh->GetMaterial(0);
 
-		BookmarkMaterialInstance->ClearParameterValues();
-		BookmarkMaterialInstance->SetVectorParameterValue(TEXT("UserColor"), Color);
-
-		for (int32 i = 0; i < BookmarkMesh->GetNumMaterials(); i++)
+		if (BookmarkMaterial != nullptr)
 		{
-			BookmarkMesh->SetMaterial(i, BookmarkMaterialInstance);
+			if (Material && !Material->IsA<UMaterialInstanceDynamic>())
+			{
+				UMaterialInstanceDynamic* BookmarkMaterialInstance = UMaterialInstanceDynamic::Create(Material, BookmarkMaterial, TEXT("BookmarkMaterial"));
+
+				BookmarkMaterialInstance->ClearParameterValues();
+				BookmarkMaterialInstance->SetVectorParameterValue(TEXT("UserColor"), Color);
+
+				for (int32 i = 0; i < BookmarkMesh->GetNumMaterials(); i++)
+				{
+					BookmarkMesh->SetMaterial(i, BookmarkMaterialInstance);
+				}
+			}
+			else //If DMIs are already setup set the color value
+			{
+				DynamicMaterial = Cast<UMaterialInstanceDynamic>(Material);
+				DynamicMaterial->SetVectorParameterValue(TEXT("UserColor"), Color);
+			}
 		}
-	}
-	else //If DMIs are already setup set the color value
-	{
-		DynamicMaterial = Cast<UMaterialInstanceDynamic>(Material);
-		DynamicMaterial->SetVectorParameterValue(TEXT("UserColor"), Color);
 	}
 }
 #if WITH_EDITOR
