@@ -320,6 +320,8 @@ $ bParseTimingInfoForTracing (Boolean): Whether to parse timing data into a trac
 
 $ bPublicSymbolsByDefault (Boolean): Whether to expose all symbols as public by default on POSIX platforms
 
+$ bDisableInliningGenCpps (Boolean): Disable supports for inlining gen.cpps
+
 $ ToolChainName (String): Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
 
 $ bDisableUnverifiedCertificates (Boolean): Whether to allow engine configuration to determine if we can load unverified certificates.

@@ -246,6 +246,10 @@ $ bCompilerTrace : Outputs compile timing information so that it can be analyzed
 
 $ bShowIncludes : Print out files that are included by each source file
 
+### TargetRules
+
+$ bDisableInliningGenCpps : Disable supports for inlining gen.cpps
+
 ### ModuleConfiguration
 
 $ DisableUnityBuild : List of modules to disable unity builds for
@@ -253,6 +257,10 @@ $ DisableUnityBuild : List of modules to disable unity builds for
 $ EnableOptimizeCode : List of modules to enable optimizations for
 
 $ DisableOptimizeCode : List of modules to disable optimizations for
+
+### TestTargetRules
+
+$ bDisableInliningGenCpps : Disable supports for inlining gen.cpps
 
 ### FASTBuild
 
