@@ -47,11 +47,15 @@ void SConcertLiveSessionTabView::Construct(const FArguments& InArgs, const FRequ
 
 TSharedRef<SWidget> SConcertLiveSessionTabView::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FRequiredWidgets& InRequiredArgs)
 {
+	const TSharedRef<FWorkspaceItem> WorkspaceItem = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("ArchiveSession", "Live Session"));
+	
 	InTabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertLiveSessionTabView::SpawnActivityHistory, InRequiredArgs.SessionHistory))
-		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"));
+		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"))
+		.SetGroup(WorkspaceItem);
 	
 	InTabManager->RegisterTabSpawner(SessionContentTabId, FOnSpawnTab::CreateSP(this, &SConcertLiveSessionTabView::SpawnSessionContent, InRequiredArgs.PackageViewer))
-		.SetDisplayName(LOCTEXT("SessionContentLabel", "Session Content"));
+		.SetDisplayName(LOCTEXT("SessionContentLabel", "Session Content"))
+		.SetGroup(WorkspaceItem);
 
 	InLayout->AddArea
 	(
@@ -62,12 +66,13 @@ TSharedRef<SWidget> SConcertLiveSessionTabView::CreateTabs(const TSharedRef<FTab
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.5f)
 				->AddTab(HistoryTabId, ETabState::OpenedTab)
+				->SetHideTabWell(true)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.5f)
-				->AddTab(SessionContentTabId, ETabState::OpenedTab)
+				->AddTab(SessionContentTabId, ETabState::ClosedTab)
 			)
 	);
 

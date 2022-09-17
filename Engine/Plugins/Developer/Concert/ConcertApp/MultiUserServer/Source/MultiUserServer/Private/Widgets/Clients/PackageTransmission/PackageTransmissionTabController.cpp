@@ -16,6 +16,7 @@ namespace UE::MultiUserServer
 	FPackageTransmissionTabController::FPackageTransmissionTabController(
 			FName TabId,
 			TSharedRef<FTabManager> OwningTabManager,
+			TSharedRef<FWorkspaceItem> WorkspaceItem,
 			TSharedRef<FPackageTransmissionModel> TransmissionModel,
 			TSharedRef<FEndpointToUserNameCache> EndpointToUserNameCache,
 			FCanScrollToLog CanScrollToLogDelegate,
@@ -31,7 +32,8 @@ namespace UE::MultiUserServer
 	{
 		OwningTabManager->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &FPackageTransmissionTabController::SpawnTab))
 			// In the future we may create multiple FPackageTransmissionTabController and may want to change this name to depend on some parameter
-			.SetDisplayName(LOCTEXT("PackageTabLabel", "Packages"));
+			.SetDisplayName(LOCTEXT("PackageTabLabel", "Packages"))
+			.SetGroup(WorkspaceItem);
 	}
 
 	FPackageTransmissionTabController::~FPackageTransmissionTabController()
@@ -42,7 +44,7 @@ namespace UE::MultiUserServer
 
 	TSharedRef<SDockTab> FPackageTransmissionTabController::SpawnTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
-		return SAssignNew(DockTab, SDockTab)
+		return SNew(SDockTab)
 			.Label(LOCTEXT("PackageTabLabel", "Packages"))
 			.TabRole(PanelTab)
 			[

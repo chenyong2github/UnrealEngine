@@ -12,30 +12,65 @@
 #include "Window/ModalWindowManager.h"
 
 #include "Dialog/SMessageDialog.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertServerSessionBrowser"
 
 namespace UE::MultiUserServer
 {
+	const FName SConcertServerSessionBrowser::SessionBrowserTabId("SessionBrowserTabId");
+
 	void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController)
 	{
 		Controller = InController;
-		SConcertTabViewBase::Construct(
-			SConcertTabViewBase::FArguments()
-			.Content()
-			[
-				MakeSessionTableView(InArgs)
-			],
+		SConcertTabViewWithManagerBase::Construct(
+			SConcertTabViewWithManagerBase::FArguments()
+			.ConstructUnderWindow(InArgs._ConstructUnderWindow)
+			.ConstructUnderMajorTab(InArgs._ConstructUnderMajorTab)
+			.CreateTabs(FCreateTabs::CreateLambda([this, &InArgs](const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout)
+			{
+				CreateTabs(InTabManager, InLayout, InArgs);
+			}))
+			.LayoutName("ConcertSessionBrowserTabView_v0.1"),
 			ConcertServerTabs::GetSessionBrowserTabId()
 			);
 	}
 
-	TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FArguments& InArgs)
+	void SConcertServerSessionBrowser::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs)
+	{
+		const TSharedRef<FWorkspaceItem> WorkspaceItem = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("SessionBrowser", "Session Browser"));
+		
+		InTabManager->RegisterTabSpawner(SessionBrowserTabId, FOnSpawnTab::CreateSP(this, &SConcertServerSessionBrowser::SpawnSessionBrowserTab, InArgs._DoubleClickLiveSession, InArgs._DoubleClickArchivedSession))
+			.SetDisplayName(LOCTEXT("SessionBrowserTabLabel", "Sessions"))
+			.SetGroup(WorkspaceItem);
+
+		InLayout->AddArea
+		(
+			FTabManager::NewPrimaryArea()->Split
+			(
+				FTabManager::NewStack()
+				->AddTab(SessionBrowserTabId, ETabState::OpenedTab)
+				->SetHideTabWell(true)
+			)
+		);
+	}
+
+	TSharedRef<SDockTab> SConcertServerSessionBrowser::SpawnSessionBrowserTab(const FSpawnTabArgs& InTabArgs, FSessionDelegate DoubleClickLiveSession, FSessionDelegate DoubleClickArchivedSession)
+	{
+		return SNew(SDockTab)
+			.Label(LOCTEXT("SessionBrowserTabLabel", "Sessions"))
+			.TabRole(PanelTab)
+			[
+				MakeSessionTableView(MoveTemp(DoubleClickLiveSession), MoveTemp(DoubleClickArchivedSession))
+			]; 
+	}
+
+	TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(FSessionDelegate DoubleClickLiveSession, FSessionDelegate DoubleClickArchivedSession)
 	{
 		SearchText = MakeShared<FText>();
 		return SAssignNew(SessionBrowser, SConcertSessionBrowser, Controller.Pin().ToSharedRef(), SearchText)
-			.OnLiveSessionDoubleClicked(InArgs._DoubleClickLiveSession)
-			.OnArchivedSessionDoubleClicked(InArgs._DoubleClickArchivedSession)
+			.OnLiveSessionDoubleClicked(MoveTemp(DoubleClickLiveSession))
+			.OnArchivedSessionDoubleClicked(MoveTemp(DoubleClickArchivedSession))
 			.PostRequestedDeleteSession(this, &SConcertServerSessionBrowser::RequestDeleteSession)
 			// Pretend a modal dialog said no - RequestDeleteSession will show non-modal dialog
 			.AskUserToDeleteSessions_Lambda([](auto) { return false; })

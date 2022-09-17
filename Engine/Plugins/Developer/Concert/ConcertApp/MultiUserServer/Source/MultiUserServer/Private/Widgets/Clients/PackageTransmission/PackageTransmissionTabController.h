@@ -8,6 +8,7 @@
 class FEndpointToUserNameCache;
 class FSpawnTabArgs;
 class FTabManager;
+class FWorkspaceItem;
 class IConcertSyncServer;
 class SDockTab;
 
@@ -16,7 +17,7 @@ namespace UE::MultiUserServer
 	class FPackageTransmissionEntryTokenizer;
 	class FPackageTransmissionModel;
 
-	/** Manages a tab that displays a package transmission model. The model */
+	/** Manages a tab that displays a package transmission model */
 	class FPackageTransmissionTabController
 	{
 	public:
@@ -24,6 +25,7 @@ namespace UE::MultiUserServer
 		FPackageTransmissionTabController(
 			FName TabId,
 			TSharedRef<FTabManager> OwningTabManager,
+			TSharedRef<FWorkspaceItem> WorkspaceItem,
 			TSharedRef<FPackageTransmissionModel> TransmissionModel,
 			TSharedRef<FEndpointToUserNameCache> EndpointToUserNameCache,
 			FCanScrollToLog CanScrollToLogDelegate,
@@ -42,7 +44,6 @@ namespace UE::MultiUserServer
 		FScrollToLog ScrollToLogDelegate;
 		
 		TSharedRef<FPackageTransmissionEntryTokenizer> Tokenizer;
-		TSharedPtr<SDockTab> DockTab;
 
 		TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& SpawnTabArgs);
 	};

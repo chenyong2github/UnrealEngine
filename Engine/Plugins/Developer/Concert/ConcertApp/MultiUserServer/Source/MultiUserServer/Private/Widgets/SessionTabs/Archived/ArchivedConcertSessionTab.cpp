@@ -37,8 +37,10 @@ void FArchivedConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& I
 {
 	SEditableSessionHistory::FMakeSessionHistory MakeSessionHistory = SEditableSessionHistory::FMakeSessionHistory::CreateLambda([this](SSessionHistory::FArguments Arguments)
 	{
-		checkf(!HistoryController.IsValid(), TEXT("Called more than once"));
-		HistoryController = UE::MultiUserServer::CreateForInspector(InspectedSessionID, SyncServer, MoveTemp(Arguments));
+		if (!HistoryController)
+		{
+			HistoryController = UE::MultiUserServer::CreateForInspector(InspectedSessionID, SyncServer, MoveTemp(Arguments));
+		}
 		return HistoryController->GetSessionHistory();
 	});
 	

@@ -28,6 +28,8 @@ void SConcertArchivedSessionTabView::Construct(const FArguments& InArgs, FName I
 
 void SConcertArchivedSessionTabView::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs)
 {
+	const TSharedRef<FWorkspaceItem> WorkspaceItem = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("ArchiveSession", "Archived Session"));
+	
 	InTabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertArchivedSessionTabView::SpawnActivityHistory,
 		InArgs._MakeSessionHistory,
 		InArgs._CanDeleteActivities,
@@ -37,7 +39,8 @@ void SConcertArchivedSessionTabView::CreateTabs(const TSharedRef<FTabManager>& I
 		InArgs._CanUnmuteActivities,
 		InArgs._UnmuteActivities
 		))
-		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"));
+		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"))
+		.SetGroup(WorkspaceItem);
 	InLayout->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -47,6 +50,7 @@ void SConcertArchivedSessionTabView::CreateTabs(const TSharedRef<FTabManager>& I
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.5f)
 					->AddTab(HistoryTabId, ETabState::OpenedTab)
+					->SetHideTabWell(true)
 				)
 		);
 }

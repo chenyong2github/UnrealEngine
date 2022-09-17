@@ -64,7 +64,7 @@ namespace UE::MultiUserServer
 
 		TSharedPtr<SConcertServerSessionBrowser> ConcertBrowser;
 
-		TSharedRef<SDockTab> SpawnSessionBrowserTab(const FSpawnTabArgs& Args);
+		TSharedRef<SDockTab> SpawnSessionBrowserTab(const FSpawnTabArgs& Args, TSharedPtr<SWindow> RootWindow);
 
 		// Update view when session list changes
 		void OnLiveSessionCreated(bool, const IConcertServer&, TSharedRef<IConcertServerSession>) { RefreshSessionList(); }

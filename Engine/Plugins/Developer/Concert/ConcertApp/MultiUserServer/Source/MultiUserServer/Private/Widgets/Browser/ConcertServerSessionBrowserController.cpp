@@ -42,7 +42,7 @@ namespace UE::MultiUserServer
 		
 		FGlobalTabmanager::Get()->RegisterTabSpawner(
 				ConcertServerTabs::GetSessionBrowserTabId(),
-				FOnSpawnTab::CreateRaw(this, &FConcertServerSessionBrowserController::SpawnSessionBrowserTab)
+				FOnSpawnTab::CreateRaw(this, &FConcertServerSessionBrowserController::SpawnSessionBrowserTab, Params.WindowController->GetRootWindow())
 			)
 			.SetDisplayName(LOCTEXT("SessionBrowserTabTitleLong", "Session Browser"))
 			.SetTooltipText(LOCTEXT("SessionBrowserTooltipText", "A section to browse, start, archive, and restore server sessions."))
@@ -247,17 +247,20 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowserTab(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowserTab(const FSpawnTabArgs& Args, TSharedPtr<SWindow> RootWindow)
 	{
 		const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 			.Label(LOCTEXT("SessionBrowserTabTitle", "Sessions"))
 			.TabRole(MajorTab)
-			.OnCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([](){ return false; }))
-			[
-				SAssignNew(ConcertBrowser, SConcertServerSessionBrowser, SharedThis(this))
-					.DoubleClickLiveSession(this, &FConcertServerSessionBrowserController::OpenSession)
-					.DoubleClickArchivedSession(this, &FConcertServerSessionBrowserController::OpenSession)
-			];
+			.CanEverClose(false);
+
+		DockTab->SetContent(
+			SAssignNew(ConcertBrowser, SConcertServerSessionBrowser, SharedThis(this))
+				.ConstructUnderMajorTab(DockTab)
+				.ConstructUnderWindow(RootWindow)
+				.DoubleClickLiveSession(this, &FConcertServerSessionBrowserController::OpenSession)
+				.DoubleClickArchivedSession(this, &FConcertServerSessionBrowserController::OpenSession)
+			);
 
 		return DockTab;
 	}

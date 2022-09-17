@@ -140,19 +140,24 @@ namespace UE::MultiUserServer
 
 	void SConcertClientsTabView::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs)
 	{
-		MainPackageTransmissionTab = MakeShared<UE::MultiUserServer::FPackageTransmissionTabController>(
+		const TSharedRef<FWorkspaceItem> WorkspaceItem = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("ClientBrowser", "Client Browser"));
+		
+		MainPackageTransmissionTab = MakeShared<FPackageTransmissionTabController>(
 			PackageTransmissionTabId,
 			InTabManager,
+			WorkspaceItem,
 			PackageTransmissionModel.ToSharedRef(),
 			ClientInfoCache.ToSharedRef(),
-			UE::MultiUserServer::FCanScrollToLog::CreateSP(this, &SConcertClientsTabView::CanScrollToLog),
-			UE::MultiUserServer::FScrollToLog::CreateSP(this, &SConcertClientsTabView::ScrollToLog)
+			FCanScrollToLog::CreateSP(this, &SConcertClientsTabView::CanScrollToLog),
+			FScrollToLog::CreateSP(this, &SConcertClientsTabView::ScrollToLog)
 			);
-		
 		InTabManager->RegisterTabSpawner(ClientBrowserTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnClientBrowserTab))
-			.SetDisplayName(LOCTEXT("ClientBrowserTabLabel", "Clients"));
+			.SetDisplayName(LOCTEXT("ClientBrowserTabLabel", "Clients"))
+			.SetGroup(WorkspaceItem);
 		InTabManager->RegisterTabSpawner(GlobalLogTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnGlobalLogTab))
-			.SetDisplayName(LOCTEXT("ServerLogTabLabel", "Server Log"));
+			.SetDisplayName(LOCTEXT("ServerLogTabLabel", "Server Log"))
+			.SetGroup(WorkspaceItem);
+		
 		InLayout->AddArea
 			(
 				FTabManager::NewPrimaryArea()

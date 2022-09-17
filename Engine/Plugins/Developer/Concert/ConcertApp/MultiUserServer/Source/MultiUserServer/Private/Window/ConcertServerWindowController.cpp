@@ -20,7 +20,7 @@
 
 #include "Widgets/SWindow.h"
 
-#define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
+#define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FConcertServerWindowController"
 
 namespace UE::MultiUserServer
 {
@@ -37,6 +37,7 @@ namespace UE::MultiUserServer
 
 	FConcertServerWindowController::~FConcertServerWindowController()
 	{
+		FGlobalTabmanager::Get()->SaveAllVisualState();
 		UnregisterFromSessionDestructionEvents();
 	}
 
@@ -46,7 +47,7 @@ namespace UE::MultiUserServer
 		FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
 		const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
 
-		const bool bEmbedTitleAreaContent = false;
+		constexpr bool bEmbedTitleAreaContent = true;
 		const FVector2D ClientSize(1000.0f * DPIScaleFactor, 800.0f * DPIScaleFactor);
 		TSharedRef<SWindow> RootWindowRef = SNew(SWindow)
 			.Title(LOCTEXT("WindowTitle", "Unreal Multi User Server"))
@@ -61,7 +62,7 @@ namespace UE::MultiUserServer
 			.AdjustInitialSizeAndPositionForDPIScale(false);
 		RootWindow = RootWindowRef;
 			
-		const bool bShowRootWindowImmediately = false;
+		constexpr bool bShowRootWindowImmediately = false;
 		FSlateApplication::Get().AddWindow(RootWindowRef, bShowRootWindowImmediately);
 		FGlobalTabmanager::Get()->SetRootWindow(RootWindowRef);
 		FGlobalTabmanager::Get()->SetAllowWindowMenuBar(true);
