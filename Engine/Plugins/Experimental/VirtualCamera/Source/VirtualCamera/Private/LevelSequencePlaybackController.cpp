@@ -56,7 +56,7 @@ void ULevelSequencePlaybackController::GetLevelSequences(TArray<FLevelSequenceDa
 		);
 
 		FLevelSequenceData NewSequenceData = FLevelSequenceData(
-			LevelSequence.ObjectPath.ToString(),
+			LevelSequence.GetObjectPathString(),
 			LevelSequence.AssetName.ToString(),
 			FileManager.GetTimeStamp(*LevelSequenceFile)
 		);

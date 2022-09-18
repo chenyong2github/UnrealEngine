@@ -21,7 +21,7 @@ UClass* FClassTypeActions_EditorTutorial::GetSupportedClass() const
 
 TSharedPtr<SWidget> FClassTypeActions_EditorTutorial::GetThumbnailOverlay(const FAssetData& AssetData) const
 {
-	const FString FullTutorialAssetPath = AssetData.ObjectPath.ToString();
+	const FString FullTutorialAssetPath = AssetData.GetObjectPathString();
 	auto OnLaunchTutorialClicked = [FullTutorialAssetPath]() -> FReply
 	{
 		if (IIntroTutorials::IsAvailable())

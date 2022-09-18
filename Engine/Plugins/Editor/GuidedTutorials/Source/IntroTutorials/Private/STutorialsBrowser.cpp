@@ -768,7 +768,7 @@ void STutorialsBrowser::RebuildTutorials(TSharedPtr<FTutorialListEntry_Category>
 
 	for (const auto& TutorialAsset : AssetData)
 	{
-		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *TutorialAsset.ObjectPath.ToString());
+		UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *TutorialAsset.GetObjectPathString());
 		if (Blueprint && Blueprint->GeneratedClass && Blueprint->BlueprintType == BPTYPE_Normal)
 		{
 			UEditorTutorial* Tutorial = NewObject<UEditorTutorial>(GetTransientPackage(), Blueprint->GeneratedClass);

@@ -206,7 +206,7 @@ namespace UE::MLDeformer
 		{
 			// Check if we already assigned the default asset.
 			const FAssetData CurrentGraphAssetData(CurrentGraph);
-			const FString CurrentPath = CurrentGraphAssetData.ObjectPath.ToString();
+			const FString CurrentPath = CurrentGraphAssetData.GetObjectPathString();
 			const FString DefaultPath = Model->GetDefaultDeformerGraphAssetPath();
 			return (DefaultPath != CurrentPath);
 		}

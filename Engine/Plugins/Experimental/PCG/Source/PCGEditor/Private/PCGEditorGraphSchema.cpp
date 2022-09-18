@@ -274,7 +274,9 @@ void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& A
 			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
 
 			TSharedPtr<FPCGEditorGraphSchemaAction_NewSubgraphElement> NewSubgraphAction(new FPCGEditorGraphSchemaAction_NewSubgraphElement(Category, MenuDesc, Description, 0));
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			NewSubgraphAction->SubgraphObjectPath = AssetData.ObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ActionMenuBuilder.AddAction(NewSubgraphAction);
 		}
 	}
@@ -304,7 +306,9 @@ void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Asset
 			if (Asset->IsA<UPCGGraph>())
 			{
 				FPCGEditorGraphSchemaAction_NewSubgraphElement NewSubgraphAction;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				NewSubgraphAction.SubgraphObjectPath = AssetData.ObjectPath;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				NewSubgraphAction.PerformAction(Graph, NullFromPin, GraphPositionOffset);
 				GraphPositionOffset.Y += PositionOffsetIncrementY;
 			}

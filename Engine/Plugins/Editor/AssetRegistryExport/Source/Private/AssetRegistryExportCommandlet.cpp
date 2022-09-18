@@ -242,7 +242,7 @@ int32 UAssetRegistryExportCommandlet::Main(const FString& CmdLineParams)
 	bool bGotCompressedSize = false;
 	AssetRegistry.EnumerateAllAssets(TSet<FName>(), [&](const FAssetData& AssetData)
 	{
-		FString AssetObjectPath = AssetData.ObjectPath.ToString();
+		FString AssetObjectPath = AssetData.GetObjectPathString();
 
 		// Add to the 'Assets' table.
 		{

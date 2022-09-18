@@ -99,7 +99,7 @@ void UMockRootMotionSourceClassMap::BuildClassMap_Internal()
 
 	for (FAssetData& AssetData : AssetDataList)
 	{
-		FString ClassPathString = AssetData.ObjectPath.ToString() + TEXT("_c");
+		FString ClassPathString = AssetData.GetObjectPathString() + TEXT("_c");
 		FSoftObjectPath SoftObjPath(ClassPathString);
 		SourceList.Add(TSoftClassPtr<UMockRootMotionSource>(SoftObjPath));
 	}
