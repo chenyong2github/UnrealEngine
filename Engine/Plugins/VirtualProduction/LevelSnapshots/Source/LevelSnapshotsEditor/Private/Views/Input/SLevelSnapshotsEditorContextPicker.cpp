@@ -80,7 +80,7 @@ UWorld* SLevelSnapshotsEditorContextPicker::GetSelectedWorld() const
 {
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-	return Cast<UWorld>(AssetRegistryModule.Get().GetAssetByObjectPath(FName(SelectedWorldPath.GetAssetPathString())).GetAsset());
+	return Cast<UWorld>(AssetRegistryModule.Get().GetAssetByObjectPath(SelectedWorldPath.GetWithoutSubPath()).GetAsset());
 }
 
 FSoftObjectPath SLevelSnapshotsEditorContextPicker::GetSelectedWorldSoftPath() const

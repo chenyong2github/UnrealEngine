@@ -53,7 +53,7 @@ TOptional<FSoftObjectPath> UE::LevelSnapshots::Private::ExtractActorFromPath(con
 		OriginalObjectPath
 		:
 		// Converts /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent to /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42
-		FSoftObjectPath(OriginalObjectPath.GetAssetPathName(), SubPathString.Left(DotAfterActorNameIndex));
+		FSoftObjectPath(OriginalObjectPath.GetAssetPath(), SubPathString.Left(DotAfterActorNameIndex));
 }
 
 bool UE::LevelSnapshots::Private::IsPathToWorldObject(const FSoftObjectPath& OriginalObjectPath)
@@ -113,5 +113,5 @@ FSoftObjectPath UE::LevelSnapshots::Private::SetActorInPath(AActor* NewActor, co
 	const FSoftObjectPath PathToNewActor(NewActor);
 	// PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes .StaticMeshComponent
 	const FString PathAfterOriginalActor = SubPathString.Right(SubPathString.Len() - DotAfterActorNameIndex); 
-	return FSoftObjectPath(PathToNewActor.GetAssetPathName(), PathToNewActor.GetSubPathString() + PathAfterOriginalActor);
+	return FSoftObjectPath(PathToNewActor.GetAssetPath(), PathToNewActor.GetSubPathString() + PathAfterOriginalActor);
 }

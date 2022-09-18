@@ -225,7 +225,7 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildCameraPickerWidget()
 			if (ACameraActor* Camera = CalibrationStepsController.Pin()->GetCamera())
 			{
 				FAssetData AssetData(Camera, true);
-				return AssetData.ObjectPath.ToString();
+				return AssetData.GetObjectPathString();
 			}
 
 			return TEXT("");

@@ -690,7 +690,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevic
 				if (AActor* TheCalibrator = GetCalibrator())
 				{
 					FAssetData AssetData(TheCalibrator, true);
-					return AssetData.ObjectPath.ToString();
+					return AssetData.GetObjectPathString();
 				}
 
 				return TEXT("");

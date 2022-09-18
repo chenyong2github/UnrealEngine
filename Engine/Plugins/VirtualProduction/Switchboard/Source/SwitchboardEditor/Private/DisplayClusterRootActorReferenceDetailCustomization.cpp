@@ -105,7 +105,7 @@ void FDisplayClusterRootActorReferenceDetailCustomization::CustomizeHeader(TShar
 				if (DCRAReference && DCRAReference->DCRA.IsValid())
 				{
 					FAssetData AssetData(DCRAReference->DCRA.Get(), true);
-					return AssetData.ObjectPath.ToString();
+					return AssetData.GetObjectPathString();
 				}
 
 				return TEXT("");

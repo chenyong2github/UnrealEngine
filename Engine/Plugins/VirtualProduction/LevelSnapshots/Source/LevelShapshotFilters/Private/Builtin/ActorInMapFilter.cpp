@@ -10,7 +10,7 @@ namespace UE::LevelSnapshotsFilters::Private
 {
 	static bool IsActorInMap(const FSoftObjectPath& Actor, const FSoftObjectPath& MapNameToCheck)
 	{
-		return Actor.GetAssetPathName() == MapNameToCheck.GetAssetPathName();
+		return Actor.GetAssetPath() == MapNameToCheck.GetAssetPath();
 	}
 
 	static EFilterResult::Type IsActorAllowed(const FSoftObjectPath& Actor, const TArray<TSoftObjectPtr<UWorld>>& AllowedLevels)

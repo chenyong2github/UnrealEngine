@@ -270,7 +270,7 @@ const FAssetData& SAssetPickerButton::GetAssetData() const
 {
 	if (UObject* Object = CurrentAssetValue.Get().Get())
 	{
-		if (!Object->GetPathName().Equals(CachedAssetData.ObjectPath.ToString(), ESearchCase::CaseSensitive))
+		if (FSoftObjectPath(Object) != CachedAssetData.GetSoftObjectPath())
 		{
 			// This always uses the exact object pointed at
 			CachedAssetData = FAssetData(Object, true);
