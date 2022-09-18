@@ -70,7 +70,7 @@ struct FConstraint
 /**
  *	Constraint node to parent or world transform for rotation/translation
  */
-USTRUCT(Experimental)
+USTRUCT()
 struct ANIMGRAPHRUNTIME_API FAnimNode_Constraint : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_USTRUCT_BODY()
