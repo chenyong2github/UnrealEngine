@@ -1044,7 +1044,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 						const FString StructName = TypeHandle->ToString();
 						if (!StructsSeen.Contains(StructName))
 						{
-							Structs.Add(TypeHandle->GetTypeDeclaration(FriendlyNameMap) + TEXT(";\n\n"));
+							Structs.Add(TypeHandle->GetTypeDeclaration(FriendlyNameMap, true) + TEXT(";\n\n"));
 							StructsSeen.Add(StructName);
 						}	
 					}

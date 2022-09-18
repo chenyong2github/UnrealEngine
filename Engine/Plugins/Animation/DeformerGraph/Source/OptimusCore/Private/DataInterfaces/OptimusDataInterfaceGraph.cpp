@@ -5,10 +5,10 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "OptimusHelpers.h"
 #include "OptimusDeformerInstance.h"
 #include "OptimusVariableDescription.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "ComputeFramework/ComputeMetadataBuilder.h"
 
 void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> const& InVariables)
 {
@@ -19,7 +19,7 @@ void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> c
 	TArray<FShaderParametersMetadata*> NestedStructMetadatas; 
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		Optimus::AddParamForType(Builder, *Variable.Name, Variable.ValueType, NestedStructMetadatas);
+		ComputeFramework::AddParamForType(Builder, *Variable.Name, Variable.ValueType, NestedStructMetadatas);
 	}
 	
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UGraphDataInterface"));
@@ -60,7 +60,7 @@ void UOptimusGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderPa
 	TArray<FShaderParametersMetadata*> NestedStructs;
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		Optimus::AddParamForType(Builder, *Variable.Name, Variable.ValueType, NestedStructs);
+		ComputeFramework::AddParamForType(Builder, *Variable.Name, Variable.ValueType, NestedStructs);
 	}
 
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UGraphDataInterface"));

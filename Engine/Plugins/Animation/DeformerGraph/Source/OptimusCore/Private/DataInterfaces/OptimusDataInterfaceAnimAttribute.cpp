@@ -4,7 +4,6 @@
 
 #include "OptimusDataDomain.h"
 #include "OptimusDataTypeRegistry.h"
-#include "OptimusHelpers.h"
 #include "OptimusValueContainer.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphResources.h"
@@ -14,6 +13,7 @@
 #include "Animation/BuiltInAttributeTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "ComputeFramework/ComputeMetadataBuilder.h"
 #include "Engine/UserDefinedStruct.h"
 
 #include "Serialization/MemoryReader.h"
@@ -206,7 +206,7 @@ void UOptimusAnimAttributeDataInterface::GetShaderParameters(TCHAR const* UID, F
 	for (int32 Index = 0; Index < AttributeArray.Num(); Index++)
 	{
 		const FOptimusAnimAttributeDescription& Attribute = AttributeArray[Index];
-		Optimus::AddParamForType(Builder, *Attribute.HlslId, Attribute.DataType->ShaderValueType, NestedStructs);
+		ComputeFramework::AddParamForType(Builder, *Attribute.HlslId, Attribute.DataType->ShaderValueType, NestedStructs);
 	}
 
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UAnimAttributeDataInterface"));
@@ -574,7 +574,7 @@ void UOptimusAnimAttributeDataProvider::Init(
 	TArray<FShaderParametersMetadata*> NestedStructs;
 	for (FOptimusAnimAttributeDescription& Attribute : InAttributeArray)
 	{
-		Optimus::AddParamForType(Builder, *Attribute.Name, Attribute.DataType->ShaderValueType, NestedStructs);
+		ComputeFramework::AddParamForType(Builder, *Attribute.Name, Attribute.DataType->ShaderValueType, NestedStructs);
 	}
 
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UAnimAttributeDataInterface"));

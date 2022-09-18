@@ -209,7 +209,7 @@ struct COMPUTEFRAMEWORK_API FShaderValueType
 	FString ToString(const FName& InStructTypeNameOverride = {}) const;
 
 	/** Returns the type declaration if this type is a struct, or the empty string if not. */
-	FString GetTypeDeclaration(const TMap<FName, FName>& InNamesToReplace = {}) const;
+	FString GetTypeDeclaration(const TMap<FName, FName>& InNamesToReplace = {}, bool bCommentPaddings = false) const;
 
 	/** Returns the all the struct types used in this type if the type is a struct. */
 	TArray<FShaderValueTypeHandle> GetMemberStructTypes() const;

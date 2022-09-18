@@ -11,6 +11,7 @@
 #include "Animation/BuiltInAttributeTypes.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "ComputeFramework/ComputeMetadataBuilder.h"
 
 #include "Engine/Classes/Engine/UserDefinedStruct.h"
 
@@ -609,7 +610,7 @@ bool FOptimusDataTypeRegistry::RegisterStructType(UScriptStruct* InStructType)
 		TArray<FArrayMetadata> ArrayMetadata;
 		
 
-		Optimus::FTypeMetaData TypeMetaData(ShaderValueType);
+		ComputeFramework::FTypeMetaData TypeMetaData(ShaderValueType);
 		ExpectedShaderValueSize = TypeMetaData.Metadata->GetSize();
 		int32 ExpectedPropertySize = 
 			InStructType->GetCppStructOps() ? 

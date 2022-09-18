@@ -16,6 +16,7 @@
 #include "OptimusDeformerInstance.h"
 #include "OptimusEditorStyle.h"
 #include "OptimusExpressionEvaluator.h"
+#include "OptimusHelpers.h"
 #include "OptimusHLSLSyntaxHighlighter.h"
 #include "OptimusNode.h"
 #include "OptimusResourceDescription.h"
@@ -26,6 +27,7 @@
 #include "PropertyEditor/Private/PropertyNode.h"
 #include "PropertyEditor/Public/IPropertyUtilities.h"
 #include "ScopedTransaction.h"
+#include "Engine/UserDefinedStruct.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Input/SButton.h"
@@ -192,11 +194,25 @@ FText FOptimusDataTypeRefCustomization::GetDeclarationText() const
 
 	if (DataType.IsValid() && DataType->ShaderValueType.IsValid())
 	{
-		const FShaderValueType* ValueType = DataType->ShaderValueType.ValueTypePtr;
+		const FShaderValueTypeHandle& ValueType = DataType->ShaderValueType;
 		FText Declaration;
 		if (ValueType->Type == EShaderFundamentalType::Struct)
 		{
-			return FText::FromString(ValueType->GetTypeDeclaration());
+			TArray<FShaderValueTypeHandle> StructTypes = ValueType->GetMemberStructTypes();
+			StructTypes.Add(ValueType);
+
+			// Collect all friendly names
+			TMap<FName, FName> FriendlyNameMap;
+			for (const FShaderValueTypeHandle& TypeHandle : StructTypes )
+			{
+				const FOptimusDataTypeHandle DataTypeHandle = FOptimusDataTypeRegistry::Get().FindType(TypeHandle->Name);
+				if (UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(DataTypeHandle->TypeObject))
+				{
+					FriendlyNameMap.Add(TypeHandle->Name) = Optimus::GetTypeName(Struct, false);
+				}
+			}
+	
+			return FText::FromString(ValueType->GetTypeDeclaration(FriendlyNameMap, true));
 		}
 		else
 		{

@@ -72,8 +72,6 @@ namespace Optimus
 
 	FName GetSanitizedNameForHlsl(FName InName);
 
-	void AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType, TArray<FShaderParametersMetadata*>& OutNestedStructs);
-
 	FORCEINLINE_DEBUGGABLE FMatrix44f ConvertFTransformToFMatrix44f(const FTransform& InTransform)
 	{
 		return TransformConverter<FMatrix44f>::Convert<FMatrix44d>(InTransform.ToMatrixWithScale());	
@@ -85,19 +83,6 @@ namespace Optimus
 		to collect them */
 	TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage);
 
-	/** Helper struct to convert shader value type to shader parameter metadata */
-	struct FTypeMetaData
-	{
-		FTypeMetaData(FShaderValueTypeHandle InType);
-		FTypeMetaData(const FTypeMetaData& InOther) = delete;
-		FTypeMetaData& operator=(const FTypeMetaData& InOther) = delete;
-		~FTypeMetaData();
-
-		const FShaderParametersMetadata* Metadata;
-		
-		TArray<FShaderParametersMetadata*> AllocatedMetadatas;
-	};
-	
 	/** Return the unique type name for registry and kernel code generation if the bInShouldGetUniqueNameForUserDefinedStruct = true
 		Otherise, it returns the friendly name for user-facing shader text display*/
 	OPTIMUSCORE_API FName GetTypeName(UScriptStruct* InStruct, bool bInShouldGetUniqueNameForUserDefinedStruct = true);

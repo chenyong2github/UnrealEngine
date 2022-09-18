@@ -2,7 +2,9 @@
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
+#include "ShaderParameterMetadataBuilder.h"
 #include "Algo/Find.h"
+#include "ComputeFramework/ComputeMetadataBuilder.h"
 #include "ComputeFramework/ComputeFrameworkObjectVersion.h"
 #include "Internationalization/Regex.h"
 #include "Misc/DefaultValueHelper.h"
@@ -377,7 +379,7 @@ FString FShaderValueType::ToString(const FName& InStructTypeNameOverride) const
 	return BaseName;
 }
 
-FString FShaderValueType::GetTypeDeclaration(const TMap<FName, FName>& InTypeNamesToReplace) const
+FString FShaderValueType::GetTypeDeclaration(const TMap<FName, FName>& InTypeNamesToReplace, bool bCommentPaddings) const
 {
 	// FIXME: Cache on create?
 	if (Type != EShaderFundamentalType::Struct)
@@ -385,10 +387,83 @@ FString FShaderValueType::GetTypeDeclaration(const TMap<FName, FName>& InTypeNam
 		return {};
 	}
 
+	FShaderValueTypeHandle TypeHandle;
+	TypeHandle.ValueTypePtr = this;
+	
+	if (bIsDynamicArray)
+	{
+		FShaderValueType ElementType = *this;
+		ElementType.bIsDynamicArray = false;
+		TypeHandle = GetOrCreate(MoveTemp(ElementType));
+	}
+	
+	ComputeFramework::FTypeMetaData TypeMetaData(TypeHandle);
+	const TArray<FShaderParametersMetadata::FMember>& MemberDatas = TypeMetaData.Metadata->GetMembers();
+	
+	if (!ensure(MemberDatas.Num() == StructElements.Num()))
+	{
+		return {};
+	}
+
+	// Record where each padding starts	
+	TArray<int32> PadOffsets;
+	PadOffsets.Reserve(MemberDatas.Num());
+	
+	// Total allocated size includes member size + per member padding
+	TArray<int32> MemberTotalSizes;
+	MemberTotalSizes.Reserve(MemberDatas.Num());
+	
+	for (int32 Index = 0; Index < MemberDatas.Num(); Index++)
+	{
+		if (Index + 1 < MemberDatas.Num())
+		{
+			MemberTotalSizes.Add(MemberDatas[Index + 1].GetOffset() - MemberDatas[Index].GetOffset());
+		}
+		else
+		{
+			MemberTotalSizes.Add(TypeMetaData.Metadata->GetSize() - MemberDatas[Index].GetOffset());
+		}
+
+		// Initialize the pad offsets to be the member offset
+		PadOffsets.Add(MemberDatas[Index].GetOffset());
+	}
+
+	// Calculate the padding size, should be in multiples of 4
+	TArray<int32> Pads;
+	Pads.Reserve(MemberDatas.Num());
+	for (int32 Index = 0; Index < StructElements.Num(); Index++)
+	{
+		const FStructElement& StructElement = StructElements[Index];
+		int32 InlineSize = 0;
+		if (StructElement.Type->bIsDynamicArray)
+		{
+			// Array pointers are always of size SHADER_PARAMETER_POINTER_ALIGNMENT
+			InlineSize = SHADER_PARAMETER_POINTER_ALIGNMENT;
+		}
+		else if (StructElement.Type->StructElements.Num() > 0)
+		{
+			// Struct type does not need external padding
+			// it should be padded internally to align to 16 byte boundary 
+			InlineSize = MemberTotalSizes[Index];
+		}
+		else
+		{
+			InlineSize = StructElement.Type->GetResourceElementSize();
+		}
+
+		// Padding starting position = Member starting position + member size;
+		PadOffsets[Index] += InlineSize;
+		
+		int32 Pad = MemberTotalSizes[Index] - InlineSize;
+		Pads.Add(Pad);
+	}
+
 	TArray<FString> Elements;
 	Elements.Reserve(StructElements.Num());
-	for (const FStructElement& StructElement : StructElements)
+	for (int32 Index = 0; Index < StructElements.Num(); Index++)
 	{
+		const FStructElement& StructElement = StructElements[Index];
+		
 		FName MemberTypeNameToUse = StructElement.Type->Name;
 		if (const FName* Replacement = InTypeNamesToReplace.Find(StructElement.Type->Name))
 		{
@@ -397,10 +472,24 @@ FString FShaderValueType::GetTypeDeclaration(const TMap<FName, FName>& InTypeNam
 		
 		Elements.Add(FString::Printf(TEXT("    %s %s;\n"), *StructElement.Type.ValueTypePtr->ToString(MemberTypeNameToUse), *StructElement.Name.ToString()));
 
-		if (StructElement.Type->bIsDynamicArray)
+		// Add padding elements
+		if (Pads[Index] > 0)
 		{
-			FString ElementType = StructElement.Type.ValueTypePtr->ToString();
-			ElementType = ElementType.Replace(TEXT("StructuredBuffer"),TEXT("")).Replace(TEXT("<"), TEXT("")).Replace(TEXT(">"), TEXT(""));
+			if (ensure(Pads[Index] % 4 == 0))
+			{
+				const int32 NumPads = Pads[Index] / 4;
+
+				const FString CommentPrefix = bCommentPaddings ? TEXT("// ") : TEXT("");
+				
+				if (NumPads == 1)
+				{
+					Elements.Add(FString::Printf(TEXT("    %sfloat Padding_%s_%d;\n"), *CommentPrefix, *StructElement.Name.ToString(), PadOffsets[Index]));
+				}
+				else
+				{
+					Elements.Add(FString::Printf(TEXT("    %sfloat Padding_%s_%d[%d];\n"), *CommentPrefix, *StructElement.Name.ToString(), PadOffsets[Index], NumPads));
+				}
+			}
 		}
 	}
 
