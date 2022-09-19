@@ -82,6 +82,36 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Create a unique blob id, optionally including a prefix
+		/// </summary>
+		/// <param name="prefix">Prefix for blob ids.</param>
+		/// <returns>New content id</returns>
+		public static BlobId CreateNew(Utf8String prefix = default)
+		{
+			if (prefix.Length == 0)
+			{
+				DateTime now = DateTime.UtcNow.Date;
+				prefix = $"_by_date_/{now.Year}-{now.Month:D2}/{now.Day:D2}";
+			}
+			else
+			{
+				ValidateArgument(nameof(prefix), prefix);
+			}
+
+			byte[] buffer = new byte[prefix.Length + 1 + 24];
+			Span<byte> span = buffer;
+
+			prefix.Span.CopyTo(span);
+			span = span.Slice(prefix.Length);
+
+			span[0] = (byte)'/';
+			span = span.Slice(1);
+
+			GenerateUniqueId(span);
+			return new BlobId(new Utf8String(buffer), Sanitize.None);
+		}
+
+		/// <summary>
 		/// Creates a new identifier in the given buffer.
 		/// </summary>
 		/// <param name="output">Buffer to receive the output. The first 24 bytes will be written to.</param>

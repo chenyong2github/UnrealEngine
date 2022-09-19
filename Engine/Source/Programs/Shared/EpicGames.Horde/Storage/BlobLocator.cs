@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.ComponentModel;
 using System.Globalization;
@@ -74,6 +75,29 @@ namespace EpicGames.Horde.Storage
 		{
 			Inner = inner;
 			ValidateArgument(nameof(inner), inner);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="hostId"></param>
+		/// <param name="blobId"></param>
+		public BlobLocator(HostId hostId, BlobId blobId)
+		{
+			if (hostId.IsValid())
+			{
+				byte[] buffer = new byte[hostId.Inner.Length + 1 + blobId.Inner.Length];
+
+				hostId.Inner.Span.CopyTo(buffer);
+				buffer[hostId.Inner.Length] = (byte)':';
+				blobId.Inner.Span.CopyTo(buffer.AsSpan(hostId.Inner.Length + 1));
+
+				Inner = new Utf8String(buffer);
+			}
+			else
+			{
+				Inner = blobId.Inner;
+			}
 		}
 
 		/// <summary>
