@@ -37,6 +37,11 @@ class FIoBuffer;
 class FIoChunkId;
 class UObject;
 
+#if WITH_EDITOR
+class FCbFieldView;
+class FCbWriter;
+#endif
+
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {
 	FSHAHash Shaders[SF_NumGraphicsFrequencies];
@@ -161,8 +166,14 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	{
 		return Key.KeyHash;
 	}
-
 };
+#if WITH_EDITOR
+RENDERCORE_API void WriteToCompactBinary(FCbWriter& Writer, const FStableShaderKeyAndValue& Key, 
+	const TMap<FSHAHash, int32>& HashToIndex);
+RENDERCORE_API bool LoadFromCompactBinary(FCbFieldView Field, FStableShaderKeyAndValue& Key,
+	const TArray<FSHAHash>& IndexToHash);
+#endif
+
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FSharedShaderCodeRequest, const FSHAHash&, FArchive*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FSharedShaderCodeRelease, const FSHAHash&);
@@ -281,6 +292,14 @@ struct RENDERCORE_API FShaderLibraryCooker
 
 	// At cook time, add shader code to collection
 	static bool AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets);
+
+#if WITH_EDITOR
+	/** Called from a CookWorker to send all contents of the ShaderLibrary to the CookDirector */
+	static void CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData);
+
+	/** Called On the CookDirector to receive ShaderLibrary contents from a CookWorker */
+	static bool AppendFromCompactBinary(FCbFieldView Field);
+#endif
 
 	// We check this early in the callstack to avoid creating a bunch of FName and keys and things we will never save anyway. 
 	// Pass the shader platform to check or EShaderPlatform::SP_NumPlatforms to check if any of the registered types require

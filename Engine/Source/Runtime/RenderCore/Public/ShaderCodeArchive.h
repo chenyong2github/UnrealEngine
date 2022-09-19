@@ -25,6 +25,11 @@
 #include "Templates/RefCounting.h"
 #include "UObject/NameTypes.h"
 
+#if WITH_EDITOR
+class FCbFieldView;
+class FCbWriter;
+#endif
+
 // enable visualization in the desktop Development builds only as it has a memory hit and writes files
 #define UE_SCA_VISUALIZE_SHADER_USAGE			(!WITH_EDITOR && UE_BUILD_DEVELOPMENT && PLATFORM_DESKTOP)
 
@@ -192,6 +197,8 @@ public:
 	void CreateAsChunkFrom(const FSerializedShaderArchive& Parent, const TSet<FName>& PackagesInChunk, TArray<int32>& OutShaderCodeEntriesNeeded);
 	void CollectStatsAndDebugInfo(FDebugStats& OutDebugStats, FExtendedDebugStats* OutExtendedDebugStats);
 	void DumpContentsInPlaintext(FString& OutText) const;
+	RENDERCORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FSerializedShaderArchive& Archive);
+	RENDERCORE_API friend bool LoadFromCompactBinary(FCbFieldView Field, FSerializedShaderArchive& OutArchive);
 #endif
 
 	friend FArchive& operator<<(FArchive& Ar, FSerializedShaderArchive& Ref)

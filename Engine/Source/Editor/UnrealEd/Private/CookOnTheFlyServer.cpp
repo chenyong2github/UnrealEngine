@@ -7807,21 +7807,61 @@ const FString UCookOnTheFlyServer::GetCookedAssetRegistryFilename(const FString&
 	return CookedAssetRegistryFilename;
 }
 
+namespace UE::Cook
+{
+
+/** CookMultiprocess collector for ShaderLibrary data. */
+class FShaderLibraryCollector : public IMPCollector
+{
+public:
+	virtual FGuid GetMessageType() override { return MessageType; }
+	virtual const TCHAR* GetDebugName() override { return TEXT("FShaderLibraryCollector"); }
+
+	virtual void ClientTick(FClientContext& Context) override;
+	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
+
+	static FGuid MessageType;
+};
+FGuid FShaderLibraryCollector::MessageType(TEXT("4DF3B36BBA2F4E04A846E894E24EB2C4"));
+
+void FShaderLibraryCollector::ClientTick(FClientContext& Context)
+{
+	FCbWriter Writer;
+	bool bHasData;
+	Writer.BeginObject();
+	Writer.SetName("S");
+	FShaderLibraryCooker::CopyToCompactBinaryAndClear(Writer, bHasData);
+	if (bHasData)
+	{
+		Writer.EndObject();
+		Context.AddMessage(Writer.Save().AsObject());
+	}
+}
+
+void FShaderLibraryCollector::ReceiveMessage(FServerContext& Context, FCbObjectView Message)
+{
+	bool bSuccessful = FShaderLibraryCooker::AppendFromCompactBinary(Message["S"]);
+	UE_CLOG(!bSuccessful, LogCook, Error,
+		TEXT("Corrupt message received from CookWorker when replicating ShaderLibrary. Shaders will be missing from the cook."));
+}
+
+}
+
 void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& BeginContext)
 {
-    const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 	if (bCacheShaderLibraries)
 	{
 		FShaderLibraryCooker::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
-        
+
 		bool bAllPlatformsNeedStableKeys = false;
 		// support setting without Hungarian prefix for the compatibility, but allow newer one to override
 		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("NeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
 		GConfig->GetBool(TEXT("DevOptions.Shaders"), TEXT("bNeedsShaderStableKeys"), bAllPlatformsNeedStableKeys, GEngineIni);
 
-        for (const ITargetPlatform* TargetPlatform : BeginContext.TargetPlatforms)
-        {
+ 		for (const ITargetPlatform* TargetPlatform : BeginContext.TargetPlatforms)
+ 		{
 			// Find out if this platform requires stable shader keys, by reading the platform setting file.
 			// Stable shader keys are needed if we are going to create a PSO cache.
 			bool bNeedShaderStableKeys = bAllPlatformsNeedStableKeys;
@@ -7835,8 +7875,8 @@ void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& Beg
 			FConfigCacheIni::LoadLocalIniFile(PlatformGameIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
 			PlatformGameIniFile.GetBool(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("bDeterministicShaderCodeOrder"), bNeedsDeterministicOrder);
 
-            TArray<FName> ShaderFormats;
-            TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+ 			TArray<FName> ShaderFormats;
+ 			TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
 			TArray<FShaderLibraryCooker::FShaderFormatDescriptor> ShaderFormatsWithStableKeys;
 			for (FName& Format : ShaderFormats)
 			{
@@ -7847,12 +7887,21 @@ void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& Beg
 				ShaderFormatsWithStableKeys.Push(NewDesc);
 			}
 
-            if (ShaderFormats.Num() > 0)
+			if (ShaderFormats.Num() > 0)
 			{
 				FShaderLibraryCooker::CookShaderFormats(ShaderFormatsWithStableKeys);
 			}
-        }
-    }
+		}
+
+		if (CookDirector)
+		{
+			CookDirector->Register(new UE::Cook::FShaderLibraryCollector());
+		}
+		else if (CookWorkerClient)
+		{
+			CookWorkerClient->Register(new UE::Cook::FShaderLibraryCollector());
+		}
+	}
 
 	if (!IsCookWorkerMode())
 	{
@@ -7876,10 +7925,8 @@ void UCookOnTheFlyServer::BeginCookFinishShaderCodeLibrary(FBeginCookContext& Be
 
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
 	FString LibraryName = GetProjectShaderLibraryName();
-	if (LibraryName.Len() > 0)
-	{
-		OpenShaderLibrary(LibraryName);
-	}
+	check(!LibraryName.IsEmpty());
+	OpenShaderLibrary(LibraryName);
 }
 
 
@@ -9270,7 +9317,6 @@ void UCookOnTheFlyServer::StartCookAsCookWorker()
 	CookWorkerClient->DoneWithInitialSettings();
 
 	// Initialize systems referenced by later stages or that need to start early for async performance
-	// MPCOOKTODO: Need to send information from ShaderCodeLibrary to director
 	if (IsDirectorCookByTheBook())
 	{
 		BeginCookStartShaderCodeLibrary(BeginContext); // start shader code library cooking asynchronously; we block on it later

@@ -13,11 +13,15 @@
 #include "RHIShaderFormatDefinitions.inl"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "ShaderCodeLibrary.h"
 #include "Stats/Stats.h"
 
 #if WITH_EDITOR
+#include "Misc/Optional.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Templates/Greater.h"
 #endif
 
@@ -26,7 +30,6 @@
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
 #endif // UE_SCA_VISUALIZE_SHADER_USAGE
-
 
 int32 GShaderCodeLibraryAsyncLoadingPriority = int32(AIOP_Normal);
 static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
@@ -147,6 +150,83 @@ bool FSerializedShaderArchive::FindOrAddShader(const FSHAHash& Hash, int32& OutI
 
 	return false;
 }
+
+#if WITH_EDITOR
+FCbWriter& operator<<(FCbWriter& Writer, const FSerializedShaderArchive& Archive)
+{
+	TArray64<uint8> SerializedBytes;
+	{
+		FMemoryWriter64 SerializeArchive(SerializedBytes);
+		const_cast<FSerializedShaderArchive&>(Archive).Serialize(SerializeArchive);
+	}
+
+	Writer.BeginObject();
+	{
+		Writer << "SerializedBytes";
+		Writer.AddBinary(FMemoryView(SerializedBytes.GetData(), SerializedBytes.Num()));
+		SerializedBytes.Empty();
+
+		// Serialize is meant for runtime fields only, so copy the editor-only fields separately
+		Writer.BeginArray("ShaderCodeToAssets");
+		for (const TPair<FSHAHash, FShaderMapAssetPaths>& Pair : Archive.ShaderCodeToAssets)
+		{
+			Writer << Pair.Key;
+			Writer.BeginArray();
+			for (FName AssetName : Pair.Value)
+			{
+				Writer << AssetName;
+			}
+			Writer.EndArray();
+		}
+		Writer.EndArray();
+	}
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FSerializedShaderArchive& OutArchive)
+{
+	FMemoryView SerializedBytes = Field["SerializedBytes"].AsBinaryView();
+	{
+		FMemoryReaderView SerializeArchive(SerializedBytes);
+		OutArchive.Serialize(SerializeArchive);
+		if (SerializeArchive.IsError())
+		{
+			OutArchive = FSerializedShaderArchive();
+			return false;
+		}
+	}
+
+	FCbFieldView ShaderCodeToAssetsField = Field["ShaderCodeToAssets"];
+	// Map size is array size divided by two because pairs are written as successive elements
+	int32 NumShaderCodeToAssets = ShaderCodeToAssetsField.AsArrayView().Num()/2;
+	bool bOk = !ShaderCodeToAssetsField.HasError();
+	OutArchive.ShaderCodeToAssets.Empty(NumShaderCodeToAssets);
+	FCbFieldViewIterator It = ShaderCodeToAssetsField.CreateViewIterator();
+	while (It)
+	{
+		FSHAHash ShaderMapHash;
+		if (!LoadFromCompactBinary(*It++, ShaderMapHash))
+		{
+			bOk = false;
+			continue;
+		}
+		FShaderMapAssetPaths& Paths = OutArchive.ShaderCodeToAssets.FindOrAdd(ShaderMapHash);
+		FCbFieldView AssetNameArrayField = *It++;
+		Paths.Reserve((*It).AsArrayView().Num());
+		bOk = !AssetNameArrayField.HasError() & bOk;
+		for (FCbFieldView AssetNameField : AssetNameArrayField)
+		{
+			FName AssetName;
+			bOk = LoadFromCompactBinary(AssetNameField, AssetName) & bOk;
+			Paths.Add(AssetName);
+		}
+	}
+
+	return bOk;
+}
+#endif
+
 
 #if UE_SCA_VISUALIZE_SHADER_USAGE
 void FShaderUsageVisualizer::Initialize(const int32 InNumShaders)
