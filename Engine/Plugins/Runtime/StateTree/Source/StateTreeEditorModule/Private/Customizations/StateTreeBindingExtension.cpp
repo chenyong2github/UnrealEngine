@@ -68,49 +68,23 @@ void GetStructPropertyPath(TSharedPtr<IPropertyHandle> InPropertyHandle, FStateT
 	}
 }
 
-	
-EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InPropertyHandle)
-{
-	static const FName CategoryName(TEXT("Category"));
-	
-	FString Category = InPropertyHandle->GetMetaData(CategoryName);
-	if (Category.IsEmpty())
-	{
-		if (const FString* InstanceMetaData = InPropertyHandle->GetInstanceMetaData(CategoryName))
-		{
-			Category = *InstanceMetaData;
-		}
-	}
-	
-	if (Category == TEXT("Input"))
-	{
-		return EStateTreePropertyUsage::Input;
-	}
-	if (Category == TEXT("Output"))
-	{
-		return EStateTreePropertyUsage::Output;
-	}
-
-	return EStateTreePropertyUsage::Parameter;
-}
-
 FText GetSectionNameFromDataSource(const EStateTreeBindableStructSource Source)
 {
 	switch (Source)
 	{
-		case EStateTreeBindableStructSource::Task:
-			return LOCTEXT("Tasks", "Tasks");
-		case EStateTreeBindableStructSource::Evaluator:
-			return LOCTEXT("Evaluators", "Evaluators");
-		case EStateTreeBindableStructSource::TreeData:
-			return LOCTEXT("Tree Data", "Tree Data");
-		case EStateTreeBindableStructSource::StateParameter:
-			return LOCTEXT("State Parameter", "State Parameter");
-		case EStateTreeBindableStructSource::TreeParameter:
-			return LOCTEXT("Tree Parameter", "Tree Parameter");
+	case EStateTreeBindableStructSource::Context:
+		return LOCTEXT("Context", "Context");
+	case EStateTreeBindableStructSource::Parameter:
+		return LOCTEXT("Parameters", "Parameters");
+	case EStateTreeBindableStructSource::Evaluator:
+		return LOCTEXT("Evaluators", "Evaluators");
+	case EStateTreeBindableStructSource::State:
+		return LOCTEXT("StateParameters", "State");
+	case EStateTreeBindableStructSource::Task:
+		return LOCTEXT("Tasks", "Tasks");
+	default:
+		return FText::GetEmpty();
 	}
-
-	return FText::GetEmpty();
 }
 
 
@@ -127,8 +101,8 @@ bool FStateTreeBindingExtension::IsPropertyExtendable(const UClass* InObjectClas
 	}
 
 	// Only inputs and parameters are bindable.
-	const EStateTreePropertyUsage Usage = UE::StateTree::PropertyBinding::ParsePropertyUsage(PropertyHandle.AsShared());
-	return Usage == EStateTreePropertyUsage::Input || Usage == EStateTreePropertyUsage::Parameter;
+	const EStateTreePropertyUsage Usage = UE::StateTree::Compiler::GetUsageFromMetaData(PropertyHandle.GetProperty());
+	return Usage == EStateTreePropertyUsage::Input || Usage == EStateTreePropertyUsage::Context || Usage == EStateTreePropertyUsage::Parameter;
 }
 
 

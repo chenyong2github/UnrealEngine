@@ -30,6 +30,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		IndexTypes,
 		// Added events.
 		AddedEvents,
+		// Added events.
+		AddedFoo,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -87,8 +89,8 @@ public:
 	/** @return List of external data required by the state tree */
 	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
 
-	/** @return List of named external data enforced by the schema that must be provided through the execution context. */
-	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const { return NamedExternalDataDescs; }
+	/** @return List of context data enforced by the schema that must be provided through the execution context. */
+	TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const { return ContextDataDescs; }
 
 	/** @return List of default parameters of the state tree. Default parameter values can be overridden at runtime by the execution context. */
 	const FInstancedPropertyBag& GetDefaultParameters() const { return Parameters; }
@@ -172,7 +174,7 @@ private:
 	
 	/** List of names external data enforced by the schema, created at compilation. */
 	UPROPERTY()
-	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
+	TArray<FStateTreeExternalDataDesc> ContextDataDescs;
 
 	UPROPERTY()
 	FStateTreePropertyBindings PropertyBindings;

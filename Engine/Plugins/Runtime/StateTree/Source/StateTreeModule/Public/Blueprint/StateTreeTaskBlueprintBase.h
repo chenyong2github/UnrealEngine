@@ -20,27 +20,32 @@ class STATETREEMODULE_API UStateTreeTaskBlueprintBase : public UStateTreeNodeBlu
 {
 	GENERATED_BODY()
 public:
+	UStateTreeTaskBlueprintBase(const FObjectInitializer& ObjectInitializer);
 
-	UFUNCTION(BlueprintNativeEvent, meta = (DisplayName = "EnterState"))
-	EStateTreeRunStatus ReceiveEnterState(AActor* OwnerActor, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
+	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "EnterState"))
+	EStateTreeRunStatus ReceiveEnterState(const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "ExitState"))
-	void ReceiveExitState(AActor* OwnerActor, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
+	void ReceiveExitState(const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "StateCompleted"))
-	void ReceiveStateCompleted(AActor* OwnerActor, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates CompletedActiveStates);
+	void ReceiveStateCompleted(const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates CompletedActiveStates);
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Tick"))
-	EStateTreeRunStatus ReceiveTick(AActor* OwnerActor, const float DeltaTime);
+	EStateTreeRunStatus ReceiveTick(const float DeltaTime);
 
-	
+protected:
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
-
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition);
-
 	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates);
-
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime);
+
+	uint8 bHasEnterState : 1;
+	uint8 bHasExitState : 1;
+	uint8 bHasStateCompleted : 1;
+	uint8 bHasTick : 1;
+
+	friend struct FStateTreeBlueprintTaskWrapper;
 };
 
 /**
@@ -52,7 +57,6 @@ struct STATETREEMODULE_API FStateTreeBlueprintTaskWrapper : public FStateTreeTas
 	GENERATED_BODY()
 
 	virtual const UStruct* GetInstanceDataType() const override { return TaskClass; };
-	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates) const override;
@@ -60,6 +64,4 @@ struct STATETREEMODULE_API FStateTreeBlueprintTaskWrapper : public FStateTreeTas
 
 	UPROPERTY()
 	TSubclassOf<UStateTreeTaskBlueprintBase> TaskClass = nullptr;
-
-	TArray<FStateTreeBlueprintExternalDataHandle> ExternalDataHandles;
 };

@@ -52,7 +52,7 @@ private:
 
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;
-	UStateTreeEditorData* TreeData = nullptr;
+	UStateTreeEditorData* EditorData = nullptr;
 	TMap<FGuid, int32> IDToState;
 	TArray<UStateTreeState*> SourceStates;
 
@@ -139,5 +139,13 @@ namespace UE::StateTree::Compiler
 	 * @return Script struct defined by the BaseStruct or nullptr if not found.
 	 */
 	const UScriptStruct* GetBaseStructFromMetaData(const FProperty* Property, FString& OutBaseStructName);
+
+	/**
+	 * Returns property usage based on the Category metadata of given property.
+	 * @param Property Handle to property where value is got from.
+	 * @return found usage type, or EStateTreePropertyUsage::Invalid if not found.
+	 */
+	EStateTreePropertyUsage GetUsageFromMetaData(const FProperty* Property);
+
 
 }; // UE::StateTree::Compiler

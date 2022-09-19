@@ -104,7 +104,7 @@ bool FStateTreeExecutionContext::AreExternalDataViewsValid() const
 		}
 	}
 
-	for (const FStateTreeExternalDataDesc& DataDesc : StateTree->GetNamedExternalDataDescs())
+	for (const FStateTreeExternalDataDesc& DataDesc : StateTree->GetContextDataDescs())
 	{
 		const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex.Get()];
 
@@ -279,7 +279,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeInstanceData* Ext
 	TickEvaluators(InstanceData, 0.0f);
 
 	// Exit states if still in some valid state.
-	if (!Exec.ActiveStates.IsEmpty() && (Exec.ActiveStates.Last() != FStateTreeStateHandle::Succeeded || Exec.ActiveStates.Last() != FStateTreeStateHandle::Failed))
+	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running && !Exec.ActiveStates.IsEmpty())
 	{
 		// Transition to Succeeded state.
 		FStateTreeTransitionResult Transition;
@@ -291,6 +291,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeInstanceData* Ext
 		ExitState(InstanceData, Transition);
 
 		Exec.TreeRunStatus = EStateTreeRunStatus::Succeeded;
+		Exec.ActiveStates.Reset();
 	}
 	else
 	{
@@ -389,6 +390,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 			{
 				// Transition to a terminal state (succeeded/failed), or default transition failed.
 				Exec->TreeRunStatus = Transition.NextActiveStates.Last() == FStateTreeStateHandle::Succeeded ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
+				Exec->ActiveStates.Reset();
 				return Exec->TreeRunStatus;
 			}
 

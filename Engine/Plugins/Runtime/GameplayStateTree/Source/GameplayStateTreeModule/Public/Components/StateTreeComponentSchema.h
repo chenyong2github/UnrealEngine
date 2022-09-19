@@ -25,7 +25,7 @@ protected:
 	virtual bool IsClassAllowed(const UClass* InScriptStruct) const override;
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const override;
 	
-	virtual TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const;
+	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const;
 
 	virtual void PostLoad() override;
 

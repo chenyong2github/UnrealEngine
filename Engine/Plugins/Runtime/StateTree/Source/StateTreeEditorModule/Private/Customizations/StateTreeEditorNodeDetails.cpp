@@ -35,24 +35,67 @@
 #include "StateTreeEditorModule.h"
 #include "StateTreeNodeClassCache.h"
 #include "Styling/StyleColors.h"
+#include "ObjectEditorUtils.h"
+#include "StateTreeCompiler.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
 namespace UE::StateTreeEditor::Internal
 {
-	void ModifyRow(IDetailPropertyRow& ChildRow, const FGuid& ID, FStateTreeEditorPropertyBindings* EditorPropBindings)
+	/** @return text describing the pin type, matches SPinTypeSelector. */
+	FText GetPinTypeText(const FEdGraphPinType& PinType)
 	{
+		const FName PinSubCategory = PinType.PinSubCategory;
+		const UObject* PinSubCategoryObject = PinType.PinSubCategoryObject.Get();
+		if (PinSubCategory != UEdGraphSchema_K2::PSC_Bitmask && PinSubCategoryObject)
+		{
+			if (const UField* Field = Cast<const UField>(PinSubCategoryObject))
+			{
+				return Field->GetDisplayNameText();
+			}
+			return FText::FromString(PinSubCategoryObject->GetName());
+		}
+
+		return UEdGraphSchema_K2::GetCategoryText(PinType.PinCategory, NAME_None, true);
+	}
+
+	/** @return UClass or UScriptStruct of class or struct property, nullptr for others. */
+	UStruct* GetPropertyStruct(TSharedPtr<IPropertyHandle> PropHandle)
+	{
+		if (!PropHandle.IsValid())
+		{
+			return nullptr;
+		}
+
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(PropHandle->GetProperty()))
+		{
+			return StructProperty->Struct;
+		}
+		
+		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(PropHandle->GetProperty()))
+		{
+			return ObjectProperty->PropertyClass;
+		}
+
+		return nullptr;
+	}
+
+	void ModifyRow(IDetailPropertyRow& ChildRow, const FGuid& ID, UStateTreeEditorData* EditorData)
+	{
+		FStateTreeEditorPropertyBindings* EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
 		if (!EditorPropBindings)
 		{
 			return;
 		}
 		
 		TSharedPtr<IPropertyHandle> ChildPropHandle = ChildRow.GetPropertyHandle();
-		const EStateTreePropertyUsage Category = UE::StateTree::PropertyBinding::ParsePropertyUsage(ChildPropHandle);
+		check(ChildPropHandle.IsValid());
+		
+		const EStateTreePropertyUsage Usage = UE::StateTree::Compiler::GetUsageFromMetaData(ChildPropHandle->GetProperty());
 		const FProperty* Property = ChildPropHandle->GetProperty();
 		
 		// Conditionally control visibility of the value field of bound properties.
-		if (Category != EStateTreePropertyUsage::Invalid && ID.IsValid())
+		if (Usage != EStateTreePropertyUsage::Invalid && ID.IsValid())
 		{
 			// Pass the node ID to binding extension. Since the properties are added using AddChildStructure(), we break the hierarchy and cannot access parent.
 			ChildPropHandle->SetInstanceMetaData(UE::StateTree::PropertyBinding::StateTreeNodeIDName, LexToString(ID));
@@ -68,26 +111,102 @@ namespace UE::StateTreeEditor::Internal
 					return EditorPropBindings->HasPropertyBinding(Path) ? EVisibility::Collapsed : EVisibility::Visible;
 				});
 
-			if (Category == EStateTreePropertyUsage::Input || Category == EStateTreePropertyUsage::Output)
+			if (Usage == EStateTreePropertyUsage::Input || Usage == EStateTreePropertyUsage::Output || Usage == EStateTreePropertyUsage::Context)
 			{
 				FEdGraphPinType PinType;
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 				Schema->ConvertPropertyToPinType(Property, PinType);
+				
 				const FSlateBrush* Icon = FBlueprintEditorUtils::GetIconFromPin(PinType, true);
-				FText Label = Category == EStateTreePropertyUsage::Input ? LOCTEXT("Input", "Input") : LOCTEXT("Output", "Output");
-				FText Tooltip = FText::FromString(Property->GetCPPType());
-				const FLinearColor Color = Schema->GetPinTypeColor(PinType);
+				FText Text = GetPinTypeText(PinType);
+				
+				FText ToolTip; 
+				FLinearColor IconColor = Schema->GetPinTypeColor(PinType);
+				FText Label;
+				FText LabelToolTip;
 
+				if (Usage == EStateTreePropertyUsage::Input)
+				{
+					Label = LOCTEXT("LabelInput", "IN");
+					LabelToolTip = LOCTEXT("InputToolTip", "This is Input property. It is always expected to be bound to some other property.");
+				}
+				else if (Usage == EStateTreePropertyUsage::Output)
+				{
+					Label = LOCTEXT("LabelOutput", "OUT");
+					LabelToolTip = LOCTEXT("OutputToolTip", "This is Output property. The node will always set it's value, other nodes can bind to it.");
+				}
+				else if (Usage == EStateTreePropertyUsage::Context)
+				{
+					Label = LOCTEXT("LabelContext", "CONTEXT");
+					LabelToolTip = LOCTEXT("ContextObjectToolTip", "This is Context property. It is automatically connected to one of the Contex objects, or can be overridden with property binding.");
+
+					if (UStruct* Struct = GetPropertyStruct(ChildPropHandle))
+					{
+						const FStateTreeBindableStructDesc Desc = EditorData->FindContextData(Struct, ChildPropHandle->GetProperty()->GetName());
+						if (Desc.IsValid())
+						{
+							// Show as connected.
+							Icon = FCoreStyle::Get().GetBrush("Icons.Link");
+							Text = FText::FromName(Desc.Name);
+							
+							ToolTip = FText::Format(
+								LOCTEXT("ToolTipConnected", "Connected to Context {0}."),
+									FText::FromName(Desc.Name));
+						}
+						else
+						{
+							// Show as unconnected.
+							Icon = FCoreStyle::Get().GetBrush("Icons.Warning");
+							ToolTip = LOCTEXT("ToolTipNotConnected", "Could not connect Context property automatically.");
+						}
+					}
+					else
+					{
+						// Mismatching type.
+						Text = LOCTEXT("ContextObjectInvalidType", "Invalid type");
+						ToolTip = LOCTEXT("ContextObjectInvalidTypeTooltip", "Context properties must be Object references or Structs.");
+						Icon = FCoreStyle::Get().GetBrush("Icons.ErrorWithColor");
+						IconColor = FLinearColor::White;
+					}
+				}
+				
 				ChildRow
 					.CustomWidget(/*bShowChildren*/false)
 					.NameContent()
 					[
-						NameWidget.ToSharedRef()
+						SNew(SHorizontalBox)
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							NameWidget.ToSharedRef()
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f, 0.0f)
+						[
+							SNew(SBorder)
+							.Padding(FMargin(6, 1))
+							.BorderImage(new FSlateRoundedBoxBrush(FStyleColors::Hover, 6))
+							.Visibility(Label.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible)
+							[
+								SNew(STextBlock)
+								.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Node.Operand")
+								.ColorAndOpacity(FStyleColors::Foreground)
+								.Text(Label)
+								.ToolTipText(LabelToolTip)
+							]
+						]
+
 					]
 					.ValueContent()
 					[
 						SNew(SHorizontalBox)
 						.Visibility(IsValueVisible)
+
 						+SHorizontalBox::Slot()
 						.AutoWidth()
 						.VAlign(VAlign_Center)
@@ -95,15 +214,18 @@ namespace UE::StateTreeEditor::Internal
 						[
 							SNew(SImage)
 							.Image(Icon)
-							.ColorAndOpacity(Color)
+							.ColorAndOpacity(IconColor)
+							.ToolTipText(ToolTip)
 						]
+
 						+SHorizontalBox::Slot()
+						.AutoWidth()
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
 							.Font(IDetailLayoutBuilder::GetDetailFont())
-							.Text(Label)
-							.ToolTipText(Tooltip)
+							.Text(Text)
+							.ToolTipText(ToolTip)
 						]
 					];
 			}
@@ -137,17 +259,15 @@ public:
 		: FInstancedStructDataDetails(InStructProperty)
 		, EditorData(InEditorData)
 	{
-		EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
 		ID = InID;
 	}
 
 	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow)
 	{
-		UE::StateTreeEditor::Internal::ModifyRow(ChildRow, ID, EditorPropBindings);
+		UE::StateTreeEditor::Internal::ModifyRow(ChildRow, ID, EditorData);
 	}
 
 	UStateTreeEditorData* EditorData;
-	FStateTreeEditorPropertyBindings* EditorPropBindings;
 	FGuid ID;
 };
 
@@ -390,8 +510,6 @@ void FStateTreeEditorNodeDetails::ResetToDefault(TSharedPtr<IPropertyHandle> Pro
 
 void FStateTreeEditorNodeDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	FStateTreeEditorPropertyBindings* EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
-
 	FGuid ID;
 	UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IDProperty, ID);
 
@@ -407,23 +525,43 @@ void FStateTreeEditorNodeDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 	TSharedPtr<IPropertyHandle> InstanceObjectValueProperty = GetInstancedObjectValueHandle(InstanceObjectProperty);
 	if (InstanceObjectValueProperty.IsValid())
 	{
-		static const FName CategoryName(TEXT("Category"));
-
 		uint32 NumChildren = 0;
 		InstanceObjectValueProperty->GetNumChildren(NumChildren);
+
+		// Find visible child properties and sort them so in order: Context, Input, Param, Output.
+		struct FSortedChild
+		{
+			TSharedPtr<IPropertyHandle> PropertyHandle;
+			EStateTreePropertyUsage Usage = EStateTreePropertyUsage::Invalid;
+		};
+		
+		TArray<FSortedChild> SortedChildren;
 		for (uint32 Index = 0; Index < NumChildren; Index++)
 		{
-			TSharedPtr<IPropertyHandle> Child = InstanceObjectValueProperty->GetChildHandle(Index);
-			
-			if (!Child.IsValid()
-				|| Child->GetProperty()->HasAllPropertyFlags(CPF_DisableEditOnInstance)
-				|| Child->GetMetaData(CategoryName) == TEXT("ExternalData"))
+			if (TSharedPtr<IPropertyHandle> ChildHandle = InstanceObjectValueProperty->GetChildHandle(Index); ChildHandle.IsValid())
 			{
-				continue;
+				FSortedChild Child;
+				Child.PropertyHandle = ChildHandle;
+				Child.Usage = UE::StateTree::Compiler::GetUsageFromMetaData(Child.PropertyHandle->GetProperty());
+
+				// If the property is set to one of these usages, display it even if it is not edit on instance.
+				// It is a common mistake to forget to set the "eye" on these properties it and wonder why it does not show up.
+				const bool bShouldShowByUsage = Child.Usage == EStateTreePropertyUsage::Input || Child.Usage == EStateTreePropertyUsage::Output || Child.Usage == EStateTreePropertyUsage::Context;
+        		const bool bIsEditable = !Child.PropertyHandle->GetProperty()->HasAllPropertyFlags(CPF_DisableEditOnInstance);
+
+				if (bShouldShowByUsage || bIsEditable)
+				{
+					SortedChildren.Add(Child);
+				}
 			}
-			
-			IDetailPropertyRow& ChildRow = StructBuilder.AddProperty(Child.ToSharedRef());
-			UE::StateTreeEditor::Internal::ModifyRow(ChildRow, ID, EditorPropBindings);
+		}
+
+		SortedChildren.Sort([](const FSortedChild& LHS, const FSortedChild& RHS) { return LHS.Usage < RHS.Usage; });
+
+		for (FSortedChild& Child : SortedChildren)
+		{
+			IDetailPropertyRow& ChildRow = StructBuilder.AddProperty(Child.PropertyHandle.ToSharedRef());
+			UE::StateTreeEditor::Internal::ModifyRow(ChildRow, ID, EditorData);
 		}
 	}
 }

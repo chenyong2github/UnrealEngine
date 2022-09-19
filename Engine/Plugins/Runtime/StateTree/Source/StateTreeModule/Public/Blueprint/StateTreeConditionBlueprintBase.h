@@ -4,9 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "StateTreeTypes.h"
 #include "StateTreeConditionBase.h"
-#include "StateTreePropertyBindings.h"
 #include "StateTreeNodeBlueprintBase.h"
 #include "StateTreeConditionBlueprintBase.generated.h"
 
@@ -20,11 +18,17 @@ class STATETREEMODULE_API UStateTreeConditionBlueprintBase : public UStateTreeNo
 {
 	GENERATED_BODY()
 public:
+	UStateTreeConditionBlueprintBase(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintImplementableEvent)
-	bool ReceiveTestCondition(AActor* OwnerActor) const;
+	bool ReceiveTestCondition() const;
 
+protected:
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const;
+
+	friend struct FStateTreeBlueprintConditionWrapper;
+
+	uint8 bHasTestCondition : 1;
 };
 
 /**
@@ -36,11 +40,8 @@ struct STATETREEMODULE_API FStateTreeBlueprintConditionWrapper : public FStateTr
 	GENERATED_BODY()
 
 	virtual const UStruct* GetInstanceDataType() const override { return ConditionClass; };
-	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
 	UPROPERTY()
 	TSubclassOf<UStateTreeConditionBlueprintBase> ConditionClass = nullptr;
-
-	TArray<FStateTreeBlueprintExternalDataHandle> ExternalDataHandles;
 };

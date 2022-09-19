@@ -5,6 +5,7 @@
 #include "StateTreeDelegates.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
+#include "Algo/LevenshteinDistance.h"
 
 void UStateTreeEditorData::PostInitProperties()
 {
@@ -87,15 +88,15 @@ void UStateTreeEditorData::GetAccessibleStructs(const TConstArrayView<const USta
 	// All parameters are accessible
 	if (const UScriptStruct* PropertyBagStruct = RootParameters.Parameters.GetPropertyBagStruct())
 	{
-		OutStructDescs.Emplace(TEXT("Parameters"), PropertyBagStruct, EStateTreeBindableStructSource::TreeParameter, RootParameters.ID);
+		OutStructDescs.Emplace(TEXT("Parameters"), PropertyBagStruct, EStateTreeBindableStructSource::Parameter, RootParameters.ID);
 	}
 
-	// All named external data items declared by the schema are accessible
+	// All named context objects declared by the schema are accessible
 	if (Schema != nullptr)
 	{
-		for (const FStateTreeExternalDataDesc& Desc : Schema->GetNamedExternalDataDescs())
+		for (const FStateTreeExternalDataDesc& Desc : Schema->GetContextDataDescs())
 		{
-			OutStructDescs.Emplace(Desc.Name, Desc.Struct, EStateTreeBindableStructSource::TreeData, Desc.ID);
+			OutStructDescs.Emplace(Desc.Name, Desc.Struct, EStateTreeBindableStructSource::Context, Desc.ID);
 		}	
 	}
 
@@ -107,7 +108,7 @@ void UStateTreeEditorData::GetAccessibleStructs(const TConstArrayView<const USta
 	{
 		if (const UScriptStruct* PropertyBagStruct = RootState->Parameters.Parameters.GetPropertyBagStruct())
 		{
-			OutStructDescs.Emplace(RootState->Name, PropertyBagStruct, EStateTreeBindableStructSource::StateParameter, RootState->Parameters.ID);
+			OutStructDescs.Emplace(RootState->Name, PropertyBagStruct, EStateTreeBindableStructSource::State, RootState->Parameters.ID);
 		}
 	}
 
@@ -179,6 +180,65 @@ void UStateTreeEditorData::GetAccessibleStructs(const TConstArrayView<const USta
 	});
 }
 
+FStateTreeBindableStructDesc UStateTreeEditorData::FindContextData(const UStruct* ObjectType, const FString ObjectNameHint) const
+{
+	if (Schema == nullptr)
+	{
+		return FStateTreeBindableStructDesc();
+	}
+
+	// Find candidates based on type.
+	TArray<FStateTreeBindableStructDesc> Candidates;
+	for (const FStateTreeExternalDataDesc& Desc : Schema->GetContextDataDescs())
+	{
+		if (Desc.Struct->IsChildOf(ObjectType))
+		{
+			Candidates.Emplace(Desc.Name, Desc.Struct, EStateTreeBindableStructSource::Context, Desc.ID);
+		}
+	}
+
+	// Handle trivial cases.
+	if (Candidates.IsEmpty())
+	{
+		return FStateTreeBindableStructDesc();
+	}
+
+	if (Candidates.Num() == 1)
+	{
+		return Candidates[0];
+	}
+	
+	check(!Candidates.IsEmpty());
+	
+	// Multiple candidates, pick one that is closest match based on name.
+	auto CalculateScore = [](const FString& Name, const FString& CandidateName)
+	{
+		if (CandidateName.IsEmpty())
+		{
+			return 1.0f;
+		}
+		const float WorstCase = Name.Len() + CandidateName.Len();
+		return 1.0f - (Algo::LevenshteinDistance(Name, CandidateName) / WorstCase);
+	};
+	
+	const FString ObjectNameLowerCase = ObjectNameHint.ToLower();
+	
+	int32 HighestScoreIndex = 0;
+	float HighestScore = CalculateScore(ObjectNameLowerCase, Candidates[0].Name.ToString().ToLower());
+	
+	for (int32 Index = 1; Index < Candidates.Num(); Index++)
+	{
+		const float Score = CalculateScore(ObjectNameLowerCase, Candidates[Index].Name.ToString().ToLower());
+		if (Score > HighestScore)
+		{
+			HighestScore = Score;
+			HighestScoreIndex = Index;
+		}
+	}
+	
+	return Candidates[HighestScoreIndex];
+}
+
 bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindableStructDesc& OutStructDesc) const
 {
 	bool bResult = false;
@@ -247,7 +307,7 @@ void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStruc
 	// All named external data items declared by the schema
 	if (Schema != nullptr)
 	{
-		for (const FStateTreeExternalDataDesc& Desc : Schema->GetNamedExternalDataDescs())
+		for (const FStateTreeExternalDataDesc& Desc : Schema->GetContextDataDescs())
 		{
 			AllStructs.Emplace(Desc.ID, Desc.Struct);
 		}	

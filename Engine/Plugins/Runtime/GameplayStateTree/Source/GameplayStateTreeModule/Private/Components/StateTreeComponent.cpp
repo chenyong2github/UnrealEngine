@@ -139,7 +139,7 @@ bool UStateTreeComponent::SetContextRequirements(bool bLogErrors)
 	}
 	
 	const FName ActorName(TEXT("Actor"));
-	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetNamedExternalDataDescs())
+	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetContextDataDescs())
 	{
 		if (ItemDesc.Name == ActorName)
 		{

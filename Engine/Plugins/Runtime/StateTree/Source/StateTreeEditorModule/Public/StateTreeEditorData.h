@@ -71,6 +71,13 @@ public:
 	 */
 	void GetAccessibleStructs(const TConstArrayView<const UStateTreeState*> Path, const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const;
 
+	/**
+	 * Finds a bindable context struct based on name and type.
+	 * @param ObjectType Object type to match
+	 * @param ObjectNameHint Name to use if multiple context objects of same type are found. 
+	 */
+	FStateTreeBindableStructDesc FindContextData(const UStruct* ObjectType, const FString ObjectNameHint) const;
+	
 	// StateTree Builder API
 
 	/**
@@ -127,7 +134,7 @@ public:
 	TObjectPtr<UStateTreeSchema> Schema = nullptr;
 
 	/** Public parameters that could be used for bindings within the Tree. */
-	UPROPERTY(EditDefaultsOnly, Category = Common)
+	UPROPERTY(EditDefaultsOnly, Category = Parameters)
 	FStateTreeStateParameters RootParameters;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeEvaluatorBase", BaseClass = "/Script/StateTreeModule.StateTreeEvaluatorBlueprintBase"))

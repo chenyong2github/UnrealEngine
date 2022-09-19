@@ -79,7 +79,7 @@ bool FGameplayInteractionContext::SetContextRequirements()
 		return false;
 	}
 	
-	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetNamedExternalDataDescs())
+	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetContextDataDescs())
 	{
 		if (ItemDesc.Name == UE::GameplayInteraction::Names::InteractableActor)
 		{

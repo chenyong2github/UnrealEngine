@@ -62,11 +62,13 @@ struct FStateTreeLinker
 	 */
 	void LinkExternalData(FStateTreeExternalDataHandle& Handle, const UStruct* Struct, const EStateTreeExternalDataRequirement Requirement)
 	{
-		if (!ensureMsgf(Schema == nullptr || Schema->IsExternalItemAllowed(*Struct),
+		if (Schema != nullptr && !Schema->IsExternalItemAllowed(*Struct))
+		{
+			UE_LOG(LogStateTree, Error,
 				TEXT("External data of type '%s' used by current node is not allowed by schema '%s' (i.e. rejected by IsExternalItemAllowed)"),
 				*Struct->GetName(),
-				*Schema->GetClass()->GetName()))
-		{
+				*Schema->GetClass()->GetName());
+
 			Handle = FStateTreeExternalDataHandle();
 			Status = EStateTreeLinkerStatus::Failed;
 			return;

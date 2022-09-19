@@ -3,65 +3,67 @@
 #include "Blueprint/StateTreeTaskBlueprintBase.h"
 #include "CoreMinimal.h"
 #include "StateTreeExecutionContext.h"
+#include "BlueprintNodeHelpers.h"
 
 //----------------------------------------------------------------------//
 //  UStateTreeTaskBlueprintBase
 //----------------------------------------------------------------------//
 
-EStateTreeRunStatus UStateTreeTaskBlueprintBase::ReceiveEnterState_Implementation(AActor* OwnerActor, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
+UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-	return EStateTreeRunStatus::Running;
+	bHasEnterState = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveEnterState"), *this, *StaticClass());
+	bHasExitState = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveExitState"), *this, *StaticClass());
+	bHasStateCompleted = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveStateCompleted"), *this, *StaticClass());
+	bHasTick = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveTick"), *this, *StaticClass());
 }
 
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
-	FScopedCurrentContext(*this, Context);
-	AActor* OwnerActor = GetOwnerActor(Context);
-	return ReceiveEnterState(OwnerActor, ChangeType, Transition);
+	if (bHasEnterState)
+	{
+		FScopedCurrentContext(*this, Context);
+		return ReceiveEnterState(ChangeType, Transition);
+	}
+	return EStateTreeRunStatus::Running;
 }
 
 void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition)
 {
-	FScopedCurrentContext(*this, Context);
-	AActor* OwnerActor = GetOwnerActor(Context);
-	ReceiveExitState(OwnerActor, ChangeType, Transition);
+	if (bHasExitState)
+	{
+		FScopedCurrentContext(*this, Context);
+		ReceiveExitState(ChangeType, Transition);
+	}
 }
 
 void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)
 {
-	FScopedCurrentContext(*this, Context);
-	AActor* OwnerActor = GetOwnerActor(Context);
-	ReceiveStateCompleted(OwnerActor, CompletionStatus, CompletedActiveStates);
+	if (bHasStateCompleted)
+	{
+		FScopedCurrentContext(*this, Context);
+		ReceiveStateCompleted(CompletionStatus, CompletedActiveStates);
+	}
 }
 
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
 {
-	FScopedCurrentContext(*this, Context);
-	AActor* OwnerActor = GetOwnerActor(Context);
-	return ReceiveTick(OwnerActor, DeltaTime);
+	if (bHasTick)
+	{
+		FScopedCurrentContext(*this, Context);
+		return ReceiveTick(DeltaTime);
+	}
+	return EStateTreeRunStatus::Running;
 }
 
 //----------------------------------------------------------------------//
 //  FStateTreeBlueprintTaskWrapper
 //----------------------------------------------------------------------//
 
-bool FStateTreeBlueprintTaskWrapper::Link(FStateTreeLinker& Linker)
-{
-	const UStateTreeTaskBlueprintBase* TaskCDO = TaskClass ? TaskClass->GetDefaultObject<UStateTreeTaskBlueprintBase>() : nullptr;
-	if (TaskCDO != nullptr)
-	{
-		TaskCDO->LinkExternalData(Linker, ExternalDataHandles);
-	}
-	
-	return true;
-}
-
 EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	
-	Instance->CopyExternalData(Context, ExternalDataHandles);
 	return Instance->EnterState(Context, ChangeType, Transition);
 }
 
@@ -69,8 +71,6 @@ void FStateTreeBlueprintTaskWrapper::ExitState(FStateTreeExecutionContext& Conte
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	
-	Instance->CopyExternalData(Context, ExternalDataHandles);
 	Instance->ExitState(Context, ChangeType, Transition);
 }
 
@@ -78,8 +78,6 @@ void FStateTreeBlueprintTaskWrapper::StateCompleted(FStateTreeExecutionContext& 
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	
-	Instance->CopyExternalData(Context, ExternalDataHandles);
 	Instance->StateCompleted(Context, CompletionStatus, CompletedActiveStates);
 }
 
@@ -87,7 +85,5 @@ EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::Tick(FStateTreeExecutionCont
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	
-	Instance->CopyExternalData(Context, ExternalDataHandles);
 	return Instance->Tick(Context, DeltaTime);
 }

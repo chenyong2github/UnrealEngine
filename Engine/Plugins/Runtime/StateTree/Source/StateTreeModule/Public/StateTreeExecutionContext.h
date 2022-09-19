@@ -163,10 +163,10 @@ public:
 	}
 
 	/** @return Array view to named external data descriptors associated with this context. Note: Init() must be called before calling this method. */
-	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const
+	TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const
 	{
 		check(StateTree);
-		return StateTree->GetNamedExternalDataDescs();
+		return StateTree->GetContextDataDescs();
 	}
 
 	/** @return True if all required external data pointers are set. */ 

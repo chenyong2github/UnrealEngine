@@ -15,13 +15,6 @@
 /**
  * FContextualAnimStateTreeTask
  */
-bool FContextualAnimStateTreeTask::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkExternalData(InteractorActorHandle);
-	
-	return true;
-}
-
 EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (!bEnabled)
@@ -30,13 +23,14 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 	}
 
 	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	
 	const UContextualAnimSceneAsset* SceneAsset = InstanceData.ContextualAnimAsset;
 	if (SceneAsset == nullptr)
 	{
 		ST_ANIM_TASK_LOG(Error, TEXT("ContextualAnimSceneAsset required."));
 		return EStateTreeRunStatus::Failed;
 	}
-	AActor& Interactor = Context.GetExternalData(InteractorActorHandle);
+	AActor* Interactor = InstanceData.Actor;
 	AActor* InteractableObject = InstanceData.InteractableObject;
 	if (InteractableObject == nullptr)
 	{
@@ -48,7 +42,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 	TObjectPtr<UGameplayTask_PlayContextualAnim>& Task = InstanceData.Task;
 
 	Task = UGameplayTask_PlayContextualAnim::PlayContextualAnim(
-		&Interactor,
+		Interactor,
 		InstanceData.InteractorRole,
 		InteractableObject,
 		InstanceData.InteractableObjectRole,

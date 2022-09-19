@@ -624,10 +624,10 @@ UENUM()
 enum class EStateTreePropertyUsage : uint8
 {
 	Invalid,
+	Context,
 	Input,
 	Parameter,
 	Output,
-	Internal,
 };
 
 

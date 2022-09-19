@@ -34,7 +34,7 @@ bool UStateTreeComponentSchema::IsExternalItemAllowed(const UStruct& InStruct) c
 			|| InStruct.IsChildOf(UWorldSubsystem::StaticClass());
 }
 
-TConstArrayView<FStateTreeExternalDataDesc> UStateTreeComponentSchema::GetNamedExternalDataDescs() const
+TConstArrayView<FStateTreeExternalDataDesc> UStateTreeComponentSchema::GetContextDataDescs() const
 {
 	return MakeArrayView(&ContextActorDataDesc, 1);
 }

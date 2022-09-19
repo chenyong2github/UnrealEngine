@@ -148,11 +148,17 @@ protected:
 UENUM()
 enum class EStateTreeBindableStructSource : uint8
 {
-	TreeData,
-	TreeParameter,
-	StateParameter,
-	Task,
+	/** Source is StateTree context object */
+	Context,
+	/** Source is StateTree parameter */
+	Parameter,
+	/** Source is StateTree evaluator */
 	Evaluator,
+	/** Source is State parameter */
+	State,
+	/** Source is State task */
+	Task,
+	/** Source is State condition */
 	Condition,
 };
 
@@ -179,6 +185,8 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 	}
 #endif
 
+	bool IsValid() const { return Struct != nullptr; }
+	
 	/** The type of the struct or class. */
 	UPROPERTY()
 	TObjectPtr<const UStruct> Struct = nullptr;
@@ -188,7 +196,7 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 	FName Name;
 
 	UPROPERTY()
-	EStateTreeBindableStructSource DataSource = EStateTreeBindableStructSource::TreeData;
+	EStateTreeBindableStructSource DataSource = EStateTreeBindableStructSource::Context;
 	
 #if WITH_EDITORONLY_DATA
 	/** Unique identifier of the struct. */

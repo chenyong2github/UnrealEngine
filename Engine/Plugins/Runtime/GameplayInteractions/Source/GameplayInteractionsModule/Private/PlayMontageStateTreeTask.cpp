@@ -10,16 +10,6 @@ struct FDataRegistryLookup;
 struct FDataRegistryId;
 struct FMassEntityHandle;
 
-bool FPlayMontageStateTreeTask::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(ComputedDurationHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, ComputedDuration));
-	Linker.LinkInstanceDataProperty(TimeHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, Time));
-
-	Linker.LinkExternalData(InteractorActorHandle);
-	
-	return true;
-}
-
 EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const
 {
 	if (Montage == nullptr)
@@ -27,19 +17,19 @@ EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionCon
 		return EStateTreeRunStatus::Failed;
 	}
 
-	AActor* Interactor = Context.GetExternalDataPtr(InteractorActorHandle);
-	ACharacter* Character = Cast<ACharacter>(Interactor);
+	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+
+	ACharacter* Character = Cast<ACharacter>(InstanceData.Actor);
 	if (Character == nullptr)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 
-	float& Time = Context.GetInstanceData(TimeHandle);
-	Time = 0.f;
+	
+	InstanceData.Time = 0.f;
 
 	// Grab the task duration from the montage.
-	float& ComputedDuration = Context.GetInstanceData(ComputedDurationHandle);
-	ComputedDuration = Montage->GetPlayLength();
+	InstanceData.ComputedDuration = Montage->GetPlayLength();
 
 	Character->PlayAnimMontage(Montage);
 	// @todo: listen anim completed event
@@ -49,9 +39,8 @@ EStateTreeRunStatus FPlayMontageStateTreeTask::EnterState(FStateTreeExecutionCon
 
 EStateTreeRunStatus FPlayMontageStateTreeTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	const float ComputedDuration = Context.GetInstanceData(ComputedDurationHandle);
-	float& Time = Context.GetInstanceData(TimeHandle);
+	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
 
-	Time += DeltaTime;
-	return ComputedDuration <= 0.0f ? EStateTreeRunStatus::Running : (Time < ComputedDuration ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Succeeded);
+	InstanceData.Time += DeltaTime;
+	return InstanceData.ComputedDuration <= 0.0f ? EStateTreeRunStatus::Running : (InstanceData.Time < InstanceData.ComputedDuration ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Succeeded);
 }

@@ -68,7 +68,7 @@ void UStateTree::ResetCompiled()
 	Nodes.Reset();
 	DefaultInstanceData.Reset();
 	SharedInstanceData.Reset();
-	NamedExternalDataDescs.Reset();
+	ContextDataDescs.Reset();
 	PropertyBindings.Reset();
 	Parameters.Reset();
 

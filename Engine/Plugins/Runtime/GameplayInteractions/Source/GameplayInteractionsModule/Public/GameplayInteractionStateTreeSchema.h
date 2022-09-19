@@ -20,9 +20,9 @@ protected:
 	virtual bool IsClassAllowed(const UClass* InScriptStruct) const override;
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const override;
 
-	virtual TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const override { return NamedExternalDataDescs; }
+	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const override { return NamedExternalDataDescs; }
 
 	/** List of named external data required by schema and provided to the state tree through the execution context. */
-	UPROPERTY(VisibleAnywhere, Category = "Defaults")
+	UPROPERTY()
 	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
 };

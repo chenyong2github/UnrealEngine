@@ -37,8 +37,8 @@ public:
 	 */
 	bool IsChildOfBlueprintBase(const UClass* InClass) const;
 
-	/** @return List of named external data enforced by the schema. They must be provided at runtime through the execution context. */
-	virtual TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const { return {}; }
+	/** @return List of context objects (UObjects or UScriptStructs) enforced by the schema. They must be provided at runtime through the execution context. */
+	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const { return {}; }
 
 #if WITH_EDITOR
 	

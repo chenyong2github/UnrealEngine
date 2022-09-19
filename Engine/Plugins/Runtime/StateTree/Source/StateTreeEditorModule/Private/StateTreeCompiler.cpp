@@ -38,13 +38,48 @@ namespace UE::StateTree::Compiler
 		return Result;
 	}
 
+	EStateTreePropertyUsage GetUsageFromMetaData(const FProperty* Property)
+	{
+		static const FName CategoryName(TEXT("Category"));
+
+		if (Property == nullptr)
+		{
+			return EStateTreePropertyUsage::Invalid;
+		}
+		
+		const FString Category = Property->GetMetaData(CategoryName);
+
+		if (Category == TEXT("Input"))
+		{
+			return EStateTreePropertyUsage::Input;
+		}
+		if (Category == TEXT("Inputs"))
+		{
+			return EStateTreePropertyUsage::Input;
+		}
+		if (Category == TEXT("Output"))
+		{
+			return EStateTreePropertyUsage::Output;
+		}
+		if (Category == TEXT("Outputs"))
+		{
+			return EStateTreePropertyUsage::Output;
+		}
+		if (Category == TEXT("Context"))
+		{
+			return EStateTreePropertyUsage::Context;
+		}
+
+		return EStateTreePropertyUsage::Parameter;
+	}
+
 }; // UE::StateTree::Compiler
 
 bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 {
 	StateTree = &InStateTree;
-	TreeData = Cast<UStateTreeEditorData>(StateTree->EditorData);
-	if (!TreeData)
+	EditorData = Cast<UStateTreeEditorData>(StateTree->EditorData);
+	if (!EditorData)
 	{
 		return false;
 	}
@@ -59,17 +94,17 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 	}
 
 	// Copy schema the EditorData
-	StateTree->Schema = DuplicateObject(TreeData->Schema, StateTree);
+	StateTree->Schema = DuplicateObject(EditorData->Schema, StateTree);
 
 	// Copy parameters from EditorData	
-	StateTree->Parameters = TreeData->RootParameters.Parameters;
+	StateTree->Parameters = EditorData->RootParameters.Parameters;
 	
 	// Mark parameters as binding source
 	const FStateTreeBindableStructDesc ParametersDesc = {
 			TEXT("Parameters"),
 			StateTree->Parameters.GetPropertyBagStruct(),
-			EStateTreeBindableStructSource::TreeParameter,
-			TreeData->RootParameters.ID
+			EStateTreeBindableStructSource::Parameter,
+			EditorData->RootParameters.ID
 		};
 	const int32 ParametersDataViewIndex = BindingsCompiler.AddSourceStruct(ParametersDesc);
 
@@ -83,13 +118,13 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 	// Mark all named external values as binding source
 	if (StateTree->Schema)
 	{
-		StateTree->NamedExternalDataDescs = StateTree->Schema->GetNamedExternalDataDescs();
-		for (FStateTreeExternalDataDesc& Desc : StateTree->NamedExternalDataDescs)
+		StateTree->ContextDataDescs = StateTree->Schema->GetContextDataDescs();
+		for (FStateTreeExternalDataDesc& Desc : StateTree->ContextDataDescs)
 		{
 			const FStateTreeBindableStructDesc ExtDataDesc = {
 					Desc.Name,
 					Desc.Struct,
-					EStateTreeBindableStructSource::TreeData,
+					EStateTreeBindableStructSource::Context,
 					Desc.ID
 				};
 			const int32 ExternalStructIndex = BindingsCompiler.AddSourceStruct(ExtDataDesc);
@@ -169,7 +204,7 @@ bool FStateTreeCompiler::CreateStates()
 	InstanceStructs.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
 
 	// Create main tree (omit subtrees)
-	for (UStateTreeState* SubTree : TreeData->SubTrees)
+	for (UStateTreeState* SubTree : EditorData->SubTrees)
 	{
 		if (SubTree != nullptr)
 		{
@@ -181,7 +216,7 @@ bool FStateTreeCompiler::CreateStates()
 	}
 
 	// Create Subtrees
-	for (UStateTreeState* SubTree : TreeData->SubTrees)
+	for (UStateTreeState* SubTree : EditorData->SubTrees)
 	{
 		TArray<UStateTreeState*> Stack;
 		Stack.Push(SubTree);
@@ -282,7 +317,7 @@ bool FStateTreeCompiler::CreateEvaluators()
 	}
 	StateTree->EvaluatorsBegin = uint16(EvaluatorsBegin);
 
-	for (FStateTreeEditorNode& EvalNode : TreeData->Evaluators)
+	for (FStateTreeEditorNode& EvalNode : EditorData->Evaluators)
 	{
 		if (!CreateEvaluator(EvalNode))
 		{
@@ -336,7 +371,7 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 				const FStateTreeBindableStructDesc SubtreeParamsDesc = {
 						SourceState->Name,
 						SourceState->Parameters.Parameters.GetPropertyBagStruct(),
-						EStateTreeBindableStructSource::StateParameter,
+						EStateTreeBindableStructSource::State,
 						SourceState->Parameters.ID
 					};
 				const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(SubtreeParamsDesc);
@@ -353,7 +388,7 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 				FStateTreeBindableStructDesc LinkedParamsDesc = {
 						SourceState->Name,
 						SourceState->Parameters.Parameters.GetPropertyBagStruct(),
-						EStateTreeBindableStructSource::StateParameter,
+						EStateTreeBindableStructSource::State,
 						SourceState->Parameters.ID
 					};
 
@@ -997,9 +1032,11 @@ bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& S
 
 bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
 {
+	check(TargetStruct.Struct != nullptr);
+	
 	OutBindings.Reset();
 	
-	for (const FStateTreeEditorPropertyBinding& Binding : TreeData->EditorBindings.GetBindings())
+	for (const FStateTreeEditorPropertyBinding& Binding : EditorData->EditorBindings.GetBindings())
 	{
 		if (Binding.TargetPath.StructID != TargetStruct.ID)
 		{
@@ -1020,7 +1057,7 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 
 		// Source must be accessible by the target struct via all execution paths.
 		TArray<FStateTreeBindableStructDesc> AccessibleStructs;
-		TreeData->GetAccessibleStructs(Binding.TargetPath.StructID, AccessibleStructs);
+		EditorData->GetAccessibleStructs(Binding.TargetPath.StructID, AccessibleStructs);
 
 		const bool bSourceAccessible = AccessibleStructs.ContainsByPredicate([SourceStructID](const FStateTreeBindableStructDesc& Structs)
 			{
@@ -1067,5 +1104,84 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		}
 	}
 
-	return true;
+
+	auto IsPropertyBound = [&OutBindings](const FString& PropertyName)
+	{
+		return OutBindings.ContainsByPredicate([&PropertyName](const FStateTreeEditorPropertyBinding& Binding)
+			{
+				// We're looping over just the first level of properties on the struct, so we assume that the path is just one item.
+				return Binding.TargetPath.Path.Num() == 1 && Binding.TargetPath.Path[0] == PropertyName;
+			});
+	};
+
+	bool bResult = true;
+	
+	// Validate that Input and Context bindings
+	for (TFieldIterator<FProperty> It(TargetStruct.Struct, EFieldIterationFlags::None); It; ++It)
+	{
+		const FProperty* Property = *It;
+		const FString PropertyName = Property->GetName();
+		const EStateTreePropertyUsage Usage = UE::StateTree::Compiler::GetUsageFromMetaData(Property);
+		if (Usage == EStateTreePropertyUsage::Input)
+		{
+			// Make sure that an Input property is bound.
+			if (!IsPropertyBound(PropertyName))
+			{
+				Log.Reportf(EMessageSeverity::Error, TargetStruct,
+					TEXT("Input property '%s:%s' is expected to have a binding."),
+					*TargetStruct.Name.ToString(), *PropertyName);
+				bResult = false;
+			}
+		}
+		else if (Usage == EStateTreePropertyUsage::Context)
+		{
+			// Make sure that an Context property is manually or automatically bound. 
+			const UStruct* ContextObjectType = nullptr; 
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			{
+				ContextObjectType = StructProperty->Struct;
+			}		
+			else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+			{
+				ContextObjectType = ObjectProperty->PropertyClass;
+			}
+
+			if (ContextObjectType == nullptr)
+			{
+				Log.Reportf(EMessageSeverity::Error, TargetStruct,
+					TEXT("Context property '%s:%s' type is expected to be Object Reference or Struct."),
+					*TargetStruct.Name.ToString(), *PropertyName);
+				bResult = false;
+				continue;
+			}
+
+			const bool bIsBound = IsPropertyBound(PropertyName);
+
+			if (!bIsBound)
+			{
+				const FStateTreeBindableStructDesc Desc = EditorData->FindContextData(ContextObjectType, PropertyName);
+
+				if (Desc.IsValid())
+				{
+					// Add automatic binding to Context data.
+					FStateTreeEditorPropertyBinding Binding;
+					Binding.SourcePath.StructID = Desc.ID;
+
+					Binding.TargetPath.StructID = TargetStruct.ID;
+					Binding.TargetPath.Path.Add(PropertyName);
+
+					OutBindings.Add(Binding);
+				}
+				else
+				{
+					Log.Reportf(EMessageSeverity::Error, TargetStruct,
+						TEXT("Cound not find matching Context object for Context property '%s:%s'. Property must have munual binding."),
+						*TargetStruct.Name.ToString(), *PropertyName);
+					bResult = false;
+				}
+			}
+		}
+	}
+
+	return bResult;
 }
