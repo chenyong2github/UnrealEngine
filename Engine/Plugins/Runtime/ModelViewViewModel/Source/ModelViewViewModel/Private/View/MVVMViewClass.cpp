@@ -165,7 +165,7 @@ FString FMVVMViewClass_CompiledBinding::ToString() const
 // 
 ///////////////////////////////////////////////////////////////////////
 
-void UMVVMViewClass::Construct(UUserWidget* UserWidget)
+void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
 {
 	ensure(UserWidget->GetExtension<UMVVMView>() == nullptr);
 	UMVVMView* View = UserWidget->AddExtension<UMVVMView>();
@@ -179,12 +179,6 @@ void UMVVMViewClass::Construct(UUserWidget* UserWidget)
 
 		View->ConstructView(this);
 	}
-}
-
-
-void UMVVMViewClass::Destruct(UUserWidget* UserWidget)
-{
-	UserWidget->RemoveExtensions<UMVVMView>();
 }
 
 #undef LOCTEXT_NAMESPACE

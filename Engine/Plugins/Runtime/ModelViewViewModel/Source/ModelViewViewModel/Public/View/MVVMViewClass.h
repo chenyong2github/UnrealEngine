@@ -194,8 +194,7 @@ class MODELVIEWVIEWMODEL_API UMVVMViewClass : public UWidgetBlueprintGeneratedCl
 
 public:
 	//~ Begin UWidgetBlueprintGeneratedClassExtension
-	virtual void Construct(UUserWidget* UserWidget) override;
-	virtual void Destruct(UUserWidget* UserWidget) override;
+	virtual void Initialize(UUserWidget* UserWidget) override;
 	//~ End UWidgetBlueprintGeneratedClassExtension
 
 public:
