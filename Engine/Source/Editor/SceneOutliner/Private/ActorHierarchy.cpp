@@ -29,6 +29,9 @@
 #include "ActorFolder.h"
 #include "ActorMode.h"
 
+// [jonathan.bard] Disable optimization, remove : 
+PRAGMA_DISABLE_OPTIMIZATION
+
 TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
 	FActorHierarchy* Hierarchy = new FActorHierarchy(Mode, World);
@@ -833,3 +836,6 @@ void FActorHierarchy::OnLevelActorFolderChanged(const AActor* InActor, FName Old
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
+
+// [jonathan.bard] Disable optimization, remove : 
+PRAGMA_ENABLE_OPTIMIZATION
