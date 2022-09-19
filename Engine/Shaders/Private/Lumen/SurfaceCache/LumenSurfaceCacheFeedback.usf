@@ -50,12 +50,11 @@ bool HashTableAdd(uint Key, inout uint Index)
 {
 	// Just skip add if search gets too long
 	const uint MaxLinearProbingSteps = 32;
-	const uint MaxIndex = (Key + MaxLinearProbingSteps) & HashTableIndexWrapMask;
 
 	LOOP
-	for (Index = Key; Index != MaxIndex; ++Index)
+	for (uint LinearProbingStep = 0; LinearProbingStep < MaxLinearProbingSteps; ++LinearProbingStep)
 	{
-		Index &= HashTableIndexWrapMask;
+		Index = (Key + LinearProbingStep) & HashTableIndexWrapMask;
 
 		uint StoredKey = RWHashTableKeys[Index];
 		if (StoredKey != Key)
