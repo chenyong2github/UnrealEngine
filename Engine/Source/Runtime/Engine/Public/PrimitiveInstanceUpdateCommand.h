@@ -70,4 +70,5 @@ struct FInstanceUpdateCmdBuffer
 	int32 NumCustomFloatUpdates;
 	int32 NumRemoves;
 	int32 NumEdits;
+	int32 NumEditInstances;
 };
