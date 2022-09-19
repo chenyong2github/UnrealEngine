@@ -83,6 +83,11 @@ namespace UE::MultiUserServer
 
 	void SConcertServerSessionBrowser::RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionTreeItem>>& SessionItems) 
 	{
+		if (SessionItems.Num() == 0)
+		{
+			return;
+		}
+		
 		const FText Message = [this, &SessionItems]()
 		{
 			if (SessionItems.Num() > 1)

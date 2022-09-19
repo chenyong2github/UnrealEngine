@@ -1226,6 +1226,11 @@ void SConcertSessionBrowser::RequestRenameSession(const TSharedPtr<FConcertSessi
 
 void SConcertSessionBrowser::RequestDeleteSessions(const TArray<TSharedPtr<FConcertSessionTreeItem>>& ItemsToDelete)
 {
+	if (ItemsToDelete.Num() == 0)
+	{
+		return;
+	}
+	
 	if (!AskUserToDeleteSessions.IsBound() || AskUserToDeleteSessions.Execute(ItemsToDelete))
 	{
 		ConcertBrowserUtils::RequestItemDeletion(*GetController().Get(), ItemsToDelete);
