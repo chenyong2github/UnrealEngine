@@ -57,6 +57,11 @@ namespace UE::MultiUserServer
 		ConcertServerEvents::OnArchivedSessionDestroyed().AddSP(this, &FConcertServerSessionBrowserController::OnArchivedSessionDestroyed);
 	}
 
+	void FConcertServerSessionBrowserController::OpenTab()
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(ConcertServerTabs::GetSessionBrowserTabId());
+	}
+
 	TArray<FConcertServerInfo> FConcertServerSessionBrowserController::GetServers() const
 	{
 		return { ServerInstance->GetConcertServer()->GetServerInfo() };

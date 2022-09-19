@@ -34,6 +34,8 @@ namespace UE::MultiUserServer
 		virtual void Init(const FConcertComponentInitParams& Params) override;
 		//~ End IConcertComponent Interface
 
+		void OpenTab();
+
 		//~ Begin IConcertSessionBrowserController Interface
 		virtual TArray<FConcertServerInfo> GetServers() const override;
 		virtual TArray<FActiveSessionInfo> GetActiveSessions() const override;

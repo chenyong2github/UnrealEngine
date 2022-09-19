@@ -85,6 +85,7 @@ namespace UE::MultiUserServer
 		RootWindow->BringToFront(bForceWindowToFront);
 
 		RegisterForSessionDestructionEvents();
+		SessionBrowserController->OpenTab();
 		return RootWindowRef;
 	}
 
