@@ -17,7 +17,7 @@ namespace Horde.Agent.Commands.Bundles
 		public RefName RefName { get; set; } = DefaultRefName;
 
 		[CommandLine("-Blob=")]
-		public BlobId? BlobId { get; set; }
+		public BlobLocator? BlobId { get; set; }
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
@@ -35,10 +35,10 @@ namespace Horde.Agent.Commands.Bundles
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 
-			IReadOnlyList<BlobId> references = blob.References;
+			IReadOnlyList<BlobLocator> references = blob.References;
 			logger.LogInformation("");
 			logger.LogInformation("BlobRefs: {NumRefs}", references.Count);
-			foreach (BlobId reference in references)
+			foreach (BlobLocator reference in references)
 			{
 				logger.LogInformation("  {BlobId}", reference);
 			}
@@ -54,10 +54,10 @@ namespace Horde.Agent.Commands.Bundles
 			int refIdx = 0;
 			foreach (BundleImport import in header.Imports)
 			{
-				logger.LogInformation("  From blob {BlobId} ({NumExports}/{TotalExports} nodes)", import.BlobId, import.Exports.Count, import.ExportCount);
+				logger.LogInformation("  From blob {BlobId} ({NumExports}/{TotalExports} nodes)", import.Locator, import.Exports.Count, import.ExportCount);
 				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
 				{
-					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.BlobId, exportIdx, exportHash);
+					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.Locator, exportIdx, exportHash);
 					refIdx++;
 				}
 			}

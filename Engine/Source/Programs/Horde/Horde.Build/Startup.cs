@@ -807,16 +807,16 @@ namespace Horde.Build
 				}
 		*/
 
-		public sealed class BlobIdBsonSerializer : SerializerBase<BlobId>
+		public sealed class BlobIdBsonSerializer : SerializerBase<BlobLocator>
 		{
 			/// <inheritdoc/>
-			public override BlobId Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+			public override BlobLocator Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 			{
-				return new BlobId(context.Reader.ReadString());
+				return new BlobLocator(context.Reader.ReadString());
 			}
 
 			/// <inheritdoc/>
-			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, BlobId value)
+			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, BlobLocator value)
 			{
 				context.Writer.WriteString(value.ToString());
 			}

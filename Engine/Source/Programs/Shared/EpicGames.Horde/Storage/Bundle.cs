@@ -273,7 +273,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Blob containing the bundle data.
 		/// </summary>
-		public BlobId BlobId { get; }
+		public BlobLocator Locator { get; }
 
 		/// <summary>
 		/// Number of exports from this blob.
@@ -288,9 +288,9 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImport(BlobId blobId, int exportCount, IReadOnlyList<(int, IoHash)> exports)
+		public BundleImport(BlobLocator locator, int exportCount, IReadOnlyList<(int, IoHash)> exports)
 		{
-			BlobId = blobId;
+			Locator = locator;
 			ExportCount = exportCount;
 			Exports = exports;
 		}
@@ -301,7 +301,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader">Reader to deserialize from</param>
 		internal BundleImport(IMemoryReader reader)
 		{
-			BlobId = reader.ReadBlobId();
+			Locator = reader.ReadBlobLocator();
 
 			ExportCount = (int)reader.ReadUnsignedVarInt();
 
@@ -323,7 +323,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="writer">Writer to serialize to</param>
 		public void Write(IMemoryWriter writer)
 		{
-			writer.WriteBlobId(BlobId);
+			writer.WriteBlobLocator(Locator);
 			writer.WriteUnsignedVarInt(ExportCount);
 
 			writer.WriteUnsignedVarInt(Exports.Count);

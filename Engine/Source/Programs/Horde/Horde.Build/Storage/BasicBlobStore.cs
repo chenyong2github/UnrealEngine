@@ -24,15 +24,15 @@ namespace Horde.Build.Storage
 		{
 			[BsonId]
 			public RefName Name { get; set; }
-			public BlobId Value { get; set; }
+			public BlobLocator Value { get; set; }
 
 			public RefDocument()
 			{
 				Name = RefName.Empty;
-				Value = BlobId.Empty;
+				Value = BlobLocator.Empty;
 			}
 
-			public RefDocument(RefName name, BlobId value)
+			public RefDocument(RefName name, BlobLocator value)
 			{
 				Name = name;
 				Value = value;
@@ -42,10 +42,10 @@ namespace Horde.Build.Storage
 		class CachedRefValue
 		{
 			public RefName Name { get; }
-			public BlobId Value { get; }
+			public BlobLocator Value { get; }
 			public DateTime Time { get; }
 
-			public CachedRefValue(RefName name, BlobId value)
+			public CachedRefValue(RefName name, BlobLocator value)
 			{
 				Name = name;
 				Value = value;
@@ -53,7 +53,7 @@ namespace Horde.Build.Storage
 			}
 		}
 
-		readonly ServerId _serverId = ServerId.Empty;
+		readonly HostId _serverId = HostId.Empty;
 
 		readonly IMongoCollection<RefDocument> _refs;
 		readonly IStorageBackend _backend;
@@ -78,10 +78,10 @@ namespace Horde.Build.Storage
 
 		#region Blobs
 
-		static string GetBlobPath(BlobId id) => $"{id.GetContentId()}.blob";
+		static string GetBlobPath(BlobLocator id) => $"{id.BlobId}.blob";
 
 		/// <inheritdoc/>
-		public async Task<IBlob> ReadBlobAsync(BlobId id, CancellationToken cancellationToken = default)
+		public async Task<IBlob> ReadBlobAsync(BlobLocator id, CancellationToken cancellationToken = default)
 		{
 			string path = GetBlobPath(id);
 
@@ -95,9 +95,9 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public async Task<BlobLocator> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
-			BlobId id = BlobId.Create(_serverId, prefix);
+			BlobLocator id = BlobLocator.Create(_serverId, prefix);
 			string path = GetBlobPath(id);
 
 			ReadOnlySequence<byte> sequence = Blob.Serialize(data, references);
@@ -112,7 +112,7 @@ namespace Horde.Build.Storage
 
 		#region Refs
 
-		CachedRefValue AddRefToCache(RefName name, BlobId value)
+		CachedRefValue AddRefToCache(RefName name, BlobLocator value)
 		{
 			CachedRefValue cacheValue = new CachedRefValue(name, value);
 			using (ICacheEntry newEntry = _cache.CreateEntry(name))
@@ -128,54 +128,54 @@ namespace Horde.Build.Storage
 		public async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
 		{
 			await _refs.DeleteOneAsync(x => x.Name == name, cancellationToken);
-			AddRefToCache(name, BlobId.Empty);
+			AddRefToCache(name, BlobLocator.Empty);
 		}
 
 		/// <inheritdoc/>
 		public async Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			BlobId blobId = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (blobId.IsValid())
+			BlobLocator locator = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (locator.IsValid())
 			{
 				try
 				{
-					return await ReadBlobAsync(blobId, cancellationToken);
+					return await ReadBlobAsync(locator, cancellationToken);
 				}
 				catch (Exception ex)
 				{
-					_logger.LogWarning(ex, "Unable to read blob {BlobId} referenced by ref {RefName}", blobId, name);
+					_logger.LogWarning(ex, "Unable to read blob {BlobId} referenced by ref {RefName}", locator, name);
 				}
 			}
 			return null;
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobId> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			CachedRefValue entry;
 			if (!_cache.TryGetValue(name, out entry) || entry.Time < cacheTime)
 			{
 				RefDocument? refDocument = await _refs.Find(x => x.Name == name).FirstOrDefaultAsync(cancellationToken);
-				BlobId value = (refDocument == null) ? BlobId.Empty : refDocument.Value;
+				BlobLocator value = (refDocument == null) ? BlobLocator.Empty : refDocument.Value;
 				entry = AddRefToCache(name, value);
 			}
 			return entry.Value;
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+		public async Task<BlobLocator> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, CancellationToken cancellationToken = default)
 		{
-			BlobId blobId = await WriteBlobAsync(data, references, name.Text, cancellationToken);
+			BlobLocator blobId = await WriteBlobAsync(data, references, name.Text, cancellationToken);
 			await WriteRefTargetAsync(name, blobId, cancellationToken);
 			return blobId;
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteRefTargetAsync(RefName name, BlobId blobId, CancellationToken cancellationToken = default)
+		public async Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
 		{
-			RefDocument refDocument = new RefDocument(name, blobId);
+			RefDocument refDocument = new RefDocument(name, locator);
 			await _refs.ReplaceOneAsync(x => x.Name == name, refDocument, new ReplaceOptions { IsUpsert = true }, cancellationToken);
-			AddRefToCache(name, blobId);
+			AddRefToCache(name, locator);
 		}
 
 		#endregion

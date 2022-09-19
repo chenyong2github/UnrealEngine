@@ -30,7 +30,7 @@ namespace Horde.Agent.Commands.Bundles
 			}
 
 			FileReference GetRefFile(RefName name) => FileReference.Combine(_rootDir, name.ToString() + ".ref");
-			FileReference GetBlobFile(BlobId id) => FileReference.Combine(_rootDir, id.Inner.ToString() + ".blob");
+			FileReference GetBlobFile(BlobLocator id) => FileReference.Combine(_rootDir, id.Inner.ToString() + ".blob");
 
 			static async Task WriteAsync(FileReference file, ReadOnlySequence<byte> sequence, CancellationToken cancellationToken)
 			{
@@ -45,7 +45,7 @@ namespace Horde.Agent.Commands.Bundles
 
 			#region Blobs
 
-			public async Task<IBlob> ReadBlobAsync(BlobId id, CancellationToken cancellationToken = default)
+			public async Task<IBlob> ReadBlobAsync(BlobLocator id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetBlobFile(id);
 				_logger.LogInformation("Reading {File}", file);
@@ -53,9 +53,9 @@ namespace Horde.Agent.Commands.Bundles
 				return Blob.Deserialize(id, bytes);
 			}
 
-			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
+			public async Task<BlobLocator> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
-				BlobId id = BlobId.Create(ServerId.Empty, prefix);
+				BlobLocator id = BlobLocator.Create(HostId.Empty, prefix);
 				FileReference file = GetBlobFile(id);
 				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
@@ -75,7 +75,7 @@ namespace Horde.Agent.Commands.Bundles
 
 			public async Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 			{
-				BlobId id = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+				BlobLocator id = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 				if (!id.IsValid())
 				{
 					return null;
@@ -83,27 +83,27 @@ namespace Horde.Agent.Commands.Bundles
 				return await ReadBlobAsync(id, cancellationToken);
 			}
 
-			public async Task<BlobId> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+			public async Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				if(!FileReference.Exists(file))
 				{
-					return BlobId.Empty;
+					return BlobLocator.Empty;
 				}
 
 				_logger.LogInformation("Reading {File}", file);
 				string text = await FileReference.ReadAllTextAsync(file, cancellationToken);
-				return new BlobId(text.Trim());
+				return new BlobLocator(text.Trim());
 			}
 
-			public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+			public async Task<BlobLocator> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, CancellationToken cancellationToken = default)
 			{
-				BlobId blobId = await WriteBlobAsync(data, references, name.Text, cancellationToken);
-				await WriteRefTargetAsync(name, blobId, cancellationToken);
-				return blobId;
+				BlobLocator locator = await WriteBlobAsync(data, references, name.Text, cancellationToken);
+				await WriteRefTargetAsync(name, locator, cancellationToken);
+				return locator;
 			}
 
-			public async Task WriteRefTargetAsync(RefName name, BlobId id, CancellationToken cancellationToken = default)
+			public async Task WriteRefTargetAsync(RefName name, BlobLocator id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(name);
 				DirectoryReference.CreateDirectory(file.Directory);

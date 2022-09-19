@@ -56,9 +56,9 @@ namespace Horde.Build.Tests
 
 			byte[] input = CreateTestData(256, 0);
 
-			BlobId blobId = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input), Array.Empty<BlobId>());
+			BlobLocator locator = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input), Array.Empty<BlobLocator>());
 
-			IBlob blob = await store.ReadBlobAsync(blobId);
+			IBlob blob = await store.ReadBlobAsync(locator);
 			Assert.IsTrue(blob.Data.Span.SequenceEqual(input));
 		}
 
@@ -68,41 +68,41 @@ namespace Horde.Build.Tests
 			IBlobStore store = CreateBlobStore();
 
 			byte[] input1 = CreateTestData(256, 1);
-			BlobId blobId1 = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input1), Array.Empty<BlobId>());
-			IBlob blob1 = await store.ReadBlobAsync(blobId1);
+			BlobLocator locator1 = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input1), Array.Empty<BlobLocator>());
+			IBlob blob1 = await store.ReadBlobAsync(locator1);
 			Assert.IsTrue(blob1.Data.Span.SequenceEqual(input1));
-			Assert.IsTrue(blob1.References.SequenceEqual(Array.Empty<BlobId>()));
+			Assert.IsTrue(blob1.References.SequenceEqual(Array.Empty<BlobLocator>()));
 
 			byte[] input2 = CreateTestData(256, 2);
-			BlobId blobId2 = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input2), new BlobId[] { blob1.Id });
-			IBlob blob2 = await store.ReadBlobAsync(blobId2);
+			BlobLocator locator2 = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input2), new BlobLocator[] { blob1.Id });
+			IBlob blob2 = await store.ReadBlobAsync(locator2);
 			Assert.IsTrue(blob2.Data.Span.SequenceEqual(input2));
-			Assert.IsTrue(blob2.References.SequenceEqual(new BlobId[] { blob1.Id }));
+			Assert.IsTrue(blob2.References.SequenceEqual(new BlobLocator[] { blob1.Id }));
 
 			byte[] input3 = CreateTestData(256, 3);
-			BlobId blobId3 = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input3), new BlobId[] { blob1.Id, blob2.Id, blob1.Id });
-			IBlob blob3 = await store.ReadBlobAsync(blobId3);
+			BlobLocator locator3 = await store.WriteBlobAsync(new ReadOnlySequence<byte>(input3), new BlobLocator[] { blob1.Id, blob2.Id, blob1.Id });
+			IBlob blob3 = await store.ReadBlobAsync(locator3);
 			Assert.IsTrue(blob3.Data.Span.SequenceEqual(input3));
-			Assert.IsTrue(blob3.References.SequenceEqual(new BlobId[] { blob1.Id, blob2.Id, blob1.Id }));
+			Assert.IsTrue(blob3.References.SequenceEqual(new BlobLocator[] { blob1.Id, blob2.Id, blob1.Id }));
 
 			for(int idx = 0; idx < 2; idx++)
 			{
 				RefName refName = new RefName("hello");
 				await store.WriteRefTargetAsync(refName, blob3.Id);
-				BlobId refTargetId = await store.ReadRefTargetAsync(refName);
+				BlobLocator refTargetId = await store.ReadRefTargetAsync(refName);
 				Assert.AreEqual(blob3.Id, refTargetId);
 			}
 
 			RefName refName2 = new RefName("hello2");
 
-			BlobId refTargetId2 = await store.WriteRefAsync(refName2, new ReadOnlySequence<byte>(input3), new BlobId[] { blob1.Id, blob2.Id });
+			BlobLocator refTargetId2 = await store.WriteRefAsync(refName2, new ReadOnlySequence<byte>(input3), new BlobLocator[] { blob1.Id, blob2.Id });
 			IBlob refTarget2 = await store.ReadBlobAsync(refTargetId2);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
-			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobId[] { blob1.Id, blob2.Id }));
+			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { blob1.Id, blob2.Id }));
 
 			refTarget2 = await store.ReadRefAsync(refName2);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
-			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobId[] { blob1.Id, blob2.Id }));
+			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { blob1.Id, blob2.Id }));
 		}
 	}
 }

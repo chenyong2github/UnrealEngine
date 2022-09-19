@@ -101,8 +101,8 @@ namespace EpicGames.Horde.Tests
 			BundleHeader oldHeader;
 			{
 				List<BundleImport> imports = new List<BundleImport>();
-				imports.Add(new BundleImport(new BlobId("import1"), 10, new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
-				imports.Add(new BundleImport(new BlobId("import2"), 20, new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
+				imports.Add(new BundleImport(new BlobLocator("import1"), 10, new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
+				imports.Add(new BundleImport(new BlobLocator("import2"), 20, new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
 
 				List<BundleExport> exports = new List<BundleExport>();
 				exports.Add(new BundleExport(IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, new int[] { 1, 2 }));
@@ -127,7 +127,7 @@ namespace EpicGames.Horde.Tests
 				BundleImport oldImport = oldHeader.Imports[idx];
 				BundleImport newImport = newHeader.Imports[idx];
 
-				Assert.AreEqual(oldImport.BlobId, newImport.BlobId);
+				Assert.AreEqual(oldImport.Locator, newImport.Locator);
 				Assert.AreEqual(oldImport.ExportCount, newImport.ExportCount);
 				Assert.AreEqual(oldImport.Exports.Count, newImport.Exports.Count);
 

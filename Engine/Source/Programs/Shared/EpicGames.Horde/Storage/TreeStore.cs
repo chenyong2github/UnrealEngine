@@ -179,9 +179,9 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		class BundleContext
 		{
-			readonly ConcurrentDictionary<BlobId, BundleInfo> _blobIdToBundle = new ConcurrentDictionary<BlobId, BundleInfo>();
+			readonly ConcurrentDictionary<BlobLocator, BundleInfo> _blobIdToBundle = new ConcurrentDictionary<BlobLocator, BundleInfo>();
 
-			public BundleInfo FindOrAddBundle(BlobId blobId, int exportCount)
+			public BundleInfo FindOrAddBundle(BlobLocator blobId, int exportCount)
 			{
 				BundleInfo bundleInfo = _blobIdToBundle.GetOrAdd(blobId, new BundleInfo(this, blobId, exportCount));
 				Debug.Assert(bundleInfo.Exports.Length == exportCount);
@@ -196,16 +196,16 @@ namespace EpicGames.Horde.Storage
 		class BundleInfo
 		{
 			public readonly BundleContext Context;
-			public readonly BlobId BlobId;
+			public readonly BlobLocator Locator;
 			public readonly NodeInfo?[] Exports;
 
 			public bool Mounted;
 			public Task MountTask = Task.CompletedTask;
 
-			public BundleInfo(BundleContext context, BlobId blobId, int exportCount)
+			public BundleInfo(BundleContext context, BlobLocator locator, int exportCount)
 			{
 				Context = context;
-				BlobId = blobId;
+				Locator = locator;
 				Exports = new NodeInfo?[exportCount];
 			}
 		}
@@ -400,7 +400,7 @@ namespace EpicGames.Horde.Storage
 
 				// Write a reference to the blob containing this node
 				ImportedNodeState importedState = (ImportedNodeState)last.State;
-				await _owner._blobStore.WriteRefTargetAsync(refName, importedState.BundleInfo.BlobId, cancellationToken);
+				await _owner._blobStore.WriteRefTargetAsync(refName, importedState.BundleInfo.Locator, cancellationToken);
 			}
 
 			async Task<NodeInfo> FlushInternalAsync(CancellationToken cancellationToken)
@@ -446,12 +446,12 @@ namespace EpicGames.Horde.Storage
 				BundleHeader header = bundle.Header;
 
 				// Write it to storage
-				BlobId blobId = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), _prefix, cancellationToken);
-				string cacheKey = GetBundleCacheKey(blobId);
+				BlobLocator locator = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.Locator).ToList(), _prefix, cancellationToken);
+				string cacheKey = GetBundleCacheKey(locator);
 				_owner.AddBundleToCache(cacheKey, bundle);
 
 				// Create a BundleInfo for it
-				BundleInfo bundleInfo = _context.FindOrAddBundle(blobId, writeNodes.Length);
+				BundleInfo bundleInfo = _context.FindOrAddBundle(locator, writeNodes.Length);
 				for (int idx = 0; idx < writeNodes.Length; idx++)
 				{
 					bundleInfo.Exports[idx] = writeNodes[idx];
@@ -549,7 +549,7 @@ namespace EpicGames.Horde.Storage
 						ImportedNodeState importedNodeState = (ImportedNodeState)importedNode.State;
 						exportInfos[idx] = (importedNodeState.ExportIdx, importedNode.Hash);
 					}
-					imports.Add(new BundleImport(bundleInfo.BlobId, bundleInfo.Exports.Length, exportInfos));
+					imports.Add(new BundleImport(bundleInfo.Locator, bundleInfo.Exports.Length, exportInfos));
 				}
 
 				// Preallocate data in the encoded buffer to reduce fragmentation if we have to resize
@@ -766,8 +766,8 @@ namespace EpicGames.Horde.Storage
 
 			ExportedNodeState exportedState = await GetExportedStateAsync(node, cancellationToken);
 
-			Bundle bundle = await ReadBundleAsync(exportedState.BundleInfo.BlobId, cancellationToken);
-			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo.BlobId, exportedState.PacketInfo, bundle.Payload);
+			Bundle bundle = await ReadBundleAsync(exportedState.BundleInfo.Locator, cancellationToken);
+			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo.Locator, exportedState.PacketInfo, bundle.Payload);
 			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportedState.Offset, exportedState.Length);
 
 			return new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), exportedState.References);
@@ -790,12 +790,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reads a bundle from the given blob id, or retrieves it from the cache
 		/// </summary>
-		/// <param name="blobId"></param>
+		/// <param name="locator"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		async Task<Bundle> ReadBundleAsync(BlobId blobId, CancellationToken cancellationToken = default)
+		async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
-			string cacheKey = GetBundleCacheKey(blobId);
+			string cacheKey = GetBundleCacheKey(locator);
 			if (_cache == null || !_cache.TryGetValue<Bundle>(cacheKey, out Bundle? bundle))
 			{
 				Task<Bundle>? readTask;
@@ -803,7 +803,7 @@ namespace EpicGames.Horde.Storage
 				{
 					if (!_readTasks.TryGetValue(cacheKey, out readTask))
 					{
-						readTask = Task.Run(() => ReadBundleInternalAsync(cacheKey, blobId, cancellationToken), cancellationToken);
+						readTask = Task.Run(() => ReadBundleInternalAsync(cacheKey, locator, cancellationToken), cancellationToken);
 						_readTasks.Add(cacheKey, readTask);
 					}
 				}
@@ -812,7 +812,7 @@ namespace EpicGames.Horde.Storage
 			return bundle;
 		}
 
-		async Task<Bundle> ReadBundleInternalAsync(string cacheKey, BlobId blobId, CancellationToken cancellationToken)
+		async Task<Bundle> ReadBundleInternalAsync(string cacheKey, BlobLocator blobId, CancellationToken cancellationToken)
 		{
 			// Perform another (sequenced) check whether an object has been added to the cache, to counteract the race between a read task being added and a task completing.
 			lock (_lockObject)
@@ -848,7 +848,7 @@ namespace EpicGames.Horde.Storage
 			return bundle;
 		}
 
-		static string GetBundleCacheKey(BlobId blobId) => $"bundle:{blobId}";
+		static string GetBundleCacheKey(BlobLocator blobId) => $"bundle:{blobId}";
 
 		void AddBundleToCache(string cacheKey, Bundle bundle)
 		{
@@ -885,7 +885,7 @@ namespace EpicGames.Horde.Storage
 			// If it didn't succeed, try again
 			if (!bundleInfo.Mounted)
 			{
-				Bundle bundle = await ReadBundleAsync(bundleInfo.BlobId, cancellationToken);
+				Bundle bundle = await ReadBundleAsync(bundleInfo.Locator, cancellationToken);
 				MountBundle(bundleInfo, bundle);
 			}
 		}
@@ -938,7 +938,7 @@ namespace EpicGames.Horde.Storage
 			List<NodeInfo> indexedNodes = new List<NodeInfo>(header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count);
 			foreach (BundleImport import in header.Imports)
 			{
-				BundleInfo importBundle = context.FindOrAddBundle(import.BlobId, import.ExportCount);
+				BundleInfo importBundle = context.FindOrAddBundle(import.Locator, import.ExportCount);
 				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
 				{
 					NodeInfo? node = importBundle.Exports[exportIdx];
@@ -955,11 +955,11 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Gets a decoded block from the store
 		/// </summary>
-		/// <param name="blobId">Information about the bundle</param>
+		/// <param name="locator">Information about the bundle</param>
 		/// <param name="packetInfo">The decoded block location and size</param>
 		/// <param name="payload">The bundle payload</param>
 		/// <returns>The decoded data</returns>
-		ReadOnlyMemory<byte> DecodePacket(BlobId blobId, PacketInfo packetInfo, ReadOnlySequence<byte> payload)
+		ReadOnlyMemory<byte> DecodePacket(BlobLocator locator, PacketInfo packetInfo, ReadOnlySequence<byte> payload)
 		{
 			if (_cache == null)
 			{
@@ -967,7 +967,7 @@ namespace EpicGames.Horde.Storage
 			}
 			else
 			{
-				string cacheKey = $"bundle-packet:{blobId}@{packetInfo.Offset}";
+				string cacheKey = $"bundle-packet:{locator.BlobId}@{packetInfo.Offset}";
 				return _cache.GetOrCreate<ReadOnlyMemory<byte>>(cacheKey, entry =>
 				{
 					ReadOnlyMemory<byte> decodedPacket = DecodePacketUncached(packetInfo, payload);
