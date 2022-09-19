@@ -16,6 +16,7 @@
 #include "UObject/LinkerSave.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/ObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/SavePackage.h"
@@ -1917,7 +1918,19 @@ void FEditorBulkData::SetCompressionOptions(ECompressedBufferCompressor Compress
 
 FCustomVersionContainer FEditorBulkData::GetCustomVersions(FArchive& InlineArchive)
 {
-	return InlineArchive.GetCustomVersions();
+	FPackageFileVersion OutUEVersion;
+	int32 OutLicenseeUEVersion;
+	FCustomVersionContainer OutCustomVersions;
+	GetBulkDataVersions(InlineArchive, OutUEVersion, OutLicenseeUEVersion, OutCustomVersions);
+	return OutCustomVersions;
+}
+
+void FEditorBulkData::GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion,
+	int32& OutLicenseeUEVersion, FCustomVersionContainer& OutCustomVersions) const
+{
+	OutUEVersion = InlineArchive.UEVer();
+	OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
+	OutCustomVersions = InlineArchive.GetCustomVersions();
 }
 
 void FEditorBulkData::UpdatePayloadId()
