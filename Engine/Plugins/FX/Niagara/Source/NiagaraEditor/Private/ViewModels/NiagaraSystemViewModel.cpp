@@ -1416,7 +1416,7 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 {
 	// Checking the compile status is expensive which is why it's updated on tick, and multiple scripts
 	// are time sliced across multiple frames.
-	if (System->HasOutstandingCompilationRequests())
+	if (WaitingOnCompilation())
 	{
 		// When compiling the compile status is always unknown.
 		InvalidateCachedCompileStatus();
