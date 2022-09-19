@@ -1456,6 +1456,9 @@ void FNiagaraDataInterfaceBindingCustomization::CustomizeHeader(TSharedRef<IProp
 	PropertyHandle = InPropertyHandle;
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
+
+	PropertyHandle->MarkResetToDefaultCustomized(true);
+
 	bool bAddDefault = true;
 	if (Objects.Num() == 1)
 	{
@@ -1472,17 +1475,42 @@ void FNiagaraDataInterfaceBindingCustomization::CustomizeHeader(TSharedRef<IProp
 			.ValueContent()
 			.MaxDesiredWidth(250.f)
 			[
-				SNew(SComboButton)
-				.OnGetMenuContent(this, &FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent)
-				.ContentPadding(1)
-				.ToolTipText(this, &FNiagaraDataInterfaceBindingCustomization::GetTooltipText)
-				.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
-				.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
-				.ButtonContent()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 				[
-					SNew(SNiagaraParameterName)
-					.ParameterName(this, &FNiagaraDataInterfaceBindingCustomization::GetVariableName)
-					.IsReadOnly(true)
+					SNew(SComboButton)
+					.OnGetMenuContent(this, &FNiagaraDataInterfaceBindingCustomization::OnGetMenuContent)
+					.ContentPadding(1)
+					.ToolTipText(this, &FNiagaraDataInterfaceBindingCustomization::GetTooltipText)
+					.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ButtonContent()
+					[
+						SNew(SNiagaraParameterName)
+						.ParameterName(this, &FNiagaraDataInterfaceBindingCustomization::GetVariableName)
+						.IsReadOnly(true)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(2, 1)
+				[
+					SNew(SButton)
+					.IsFocusable(false)
+					.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+					.ButtonStyle(FAppStyle::Get(), "NoBorder")
+					.ContentPadding(0)
+					.Visibility(this, &FNiagaraDataInterfaceBindingCustomization::IsResetToDefaultsVisible)
+					.OnClicked(this, &FNiagaraDataInterfaceBindingCustomization::OnResetToDefaultsClicked)
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
 				]
 			];
 			bAddDefault = false;
@@ -1505,6 +1533,18 @@ void FNiagaraDataInterfaceBindingCustomization::CustomizeHeader(TSharedRef<IProp
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 	}
+}
+
+EVisibility FNiagaraDataInterfaceBindingCustomization::IsResetToDefaultsVisible() const
+{
+	return TargetDataInterfaceBinding->BoundVariable.IsValid() ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+FReply FNiagaraDataInterfaceBindingCustomization::OnResetToDefaultsClicked()
+{
+	ChangeSource(NAME_None);
+
+	return FReply::Handled();
 }
 
 ////////////////////////

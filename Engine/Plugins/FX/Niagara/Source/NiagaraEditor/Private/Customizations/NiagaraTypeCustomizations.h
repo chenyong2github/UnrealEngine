@@ -298,6 +298,9 @@ private:
 	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
 	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
 
+	EVisibility IsResetToDefaultsVisible() const;
+	FReply OnResetToDefaultsClicked();
+
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	class UNiagaraSimulationStageBase* BaseStage;
 	struct FNiagaraVariableDataInterfaceBinding* TargetDataInterfaceBinding;

@@ -979,12 +979,19 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			[
 				PropertyRowWidgets.WholeRowWidget.ToSharedRef()
 			];
-			RowBox->AddSlot()
-			.AutoWidth()
-			.Padding(3, 0, 0, 0)
-			[
-				SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle())
-			];
+
+			// do not add reset widget if it is customized
+			TSharedPtr<IPropertyHandle> PropertyHandle = PropertyRow->GetDetailTreeNode()->CreatePropertyHandle();
+			if (PropertyHandle.IsValid() && !(PropertyHandle->IsResetToDefaultCustomized() || PropertyHandle->HasMetaData(TEXT("NoResetToDefault"))))
+			{
+				RowBox->AddSlot()
+				.AutoWidth()
+				.Padding(3, 0, 0, 0)
+				[
+					SNew(SResetToDefaultPropertyEditor, PropertyHandle)
+				];
+			}
+
 			return FRowWidgets(RowBox); 
 		}
 		else
@@ -1015,18 +1022,24 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 				NameWidget = PropertyRowWidgets.NameWidget;
 			}
 
-			TSharedRef<SWidget> ValueWidget = SNew(SHorizontalBox)
+			TSharedRef<SHorizontalBox> ValueWidget = SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			[
 				PropertyRowWidgets.ValueWidget.ToSharedRef()
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(3, 0, 0, 0)
-			[
-				SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle())
 			];
+
+			// do not add reset widget if it is customized
+			TSharedPtr<IPropertyHandle> PropertyHandle = PropertyRow->GetDetailTreeNode()->CreatePropertyHandle();
+			if (PropertyHandle.IsValid() && !(PropertyHandle->IsResetToDefaultCustomized() || PropertyHandle->HasMetaData(TEXT("NoResetToDefault"))))
+			{
+				ValueWidget->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(3, 0, 0, 0)
+				[
+					SNew(SResetToDefaultPropertyEditor, PropertyHandle)
+				];
+			}
 
 			return FRowWidgets(NameWidget.ToSharedRef(), ValueWidget);
 		}
