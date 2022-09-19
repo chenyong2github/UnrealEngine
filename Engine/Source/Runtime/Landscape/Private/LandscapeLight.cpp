@@ -752,7 +752,10 @@ void ULandscapeComponent::GetLightAndShadowMapMemoryUsage( int32& LightMapMemory
 
 void ULandscapeComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly)
 {
-	GetLandscapeInfo()->ModifyObject(this);
+	if (ULandscapeInfo* Info = GetLandscapeInfo())
+	{
+		Info->ModifyObject(this);
+	}
 
 	FComponentReregisterContext ReregisterContext(this);
 
