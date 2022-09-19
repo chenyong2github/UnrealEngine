@@ -4,9 +4,9 @@ using System;
 using System.IO;
 using UnrealBuildTool;
 
-public class ONNXRuntimeMLAS_2022_7_12 : ModuleRules
+public class NNX_ONNXRuntimeMLAS_2022_7_12 : ModuleRules
 {
-	public ONNXRuntimeMLAS_2022_7_12(ReadOnlyTargetRules Target) : base(Target)
+	public NNX_ONNXRuntimeMLAS_2022_7_12(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 		// Win64, Linux and PS5

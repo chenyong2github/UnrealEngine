@@ -75,7 +75,7 @@ extern "C" {
 #define ORT_ALL_ARGS_NONNULL
 #endif
 
-#define ORT_EXPORT ONNXRUNTIME_API // WITH_UE
+#define ORT_EXPORT NNX_ONNXRUNTIME_API // WITH_UE
 #ifdef _WIN32
 // Define ORT_DLL_IMPORT if your program is dynamically linked to Ort.
 // dllexport is not used, we use a .def file.

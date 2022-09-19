@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class ONNXRuntime : ModuleRules
+public class NNX_ONNXRuntime : ModuleRules
 {
-	public ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
+	public NNX_ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
 		ShortName = "ORT"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
@@ -59,9 +59,9 @@ public class ONNXRuntime : ModuleRules
 			(
 			new string[] {
 				"FlatBuffers",
-				"ONNX_1_11_0",
-				"ONNXRuntimeProto_1_11_0",
-				"ONNXRuntimeMLAS_2022_7_12",
+				"NNX_ONNX_1_11_0",
+				"NNX_ONNXRuntimeProto_1_11_0",
+				"NNX_ONNXRuntimeMLAS_2022_7_12",
 				//"AbseilCpp",
 				"ORTHelper"
 			}

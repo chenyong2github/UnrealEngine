@@ -83,7 +83,7 @@ struct GraphTensorInfo {
     static constexpr int cMaxDim = 8;
 
     const char*         name;
-    int64_t             shape[cMaxDim];
+    int32_t             shape[cMaxDim];
     int                 shapeLen;
 
     GraphTensorDataType dataType;

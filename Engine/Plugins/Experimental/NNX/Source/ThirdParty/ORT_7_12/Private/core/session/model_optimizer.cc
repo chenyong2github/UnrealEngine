@@ -57,7 +57,7 @@ public:
 	{}
 
 	virtual void SendImpl(const Timestamp& timestamp, const std::string& logger_id, const Capture& message) override {
-		timestamp;
+		//timestamp;
 
 		if (callback_) {
 			
@@ -103,7 +103,7 @@ bool ReadFieldData(const RepeatedFieldT& field, T* data, size_t count) {
 bool ReadTensorData(const ONNX_NAMESPACE::TensorProto& tensor, void* data, size_t size, size_t offset = 0) {
   
 	//auto dataName = ONNX_NAMESPACE::TensorProto::DataType_Name(tensor.data_type());
-	offset;
+	//offset;
 
 	if (tensor.has_raw_data()) {
 		
@@ -242,7 +242,7 @@ struct GraphNodeImpl {
 				// TODO: Check if attribute type is supported
                 
 				GraphAttributeValue value = GetAttributeValue(index);
-				value;
+				//value;
 				
 				int dbg;
 				dbg = 0;
@@ -375,7 +375,7 @@ public:
 			const auto& proto = *it.second;
 			
 			auto status = utils::GetSizeInBytesFromTensorProto<0>(proto, &initializer.dataSize);
-			status;
+			//status;
 
 			tensorInitializers_.push_back(initializer);
 		}
@@ -715,7 +715,12 @@ extern "C" ORT_EXPORT OrtStatusPtr OrtValidateModelFromMemory(const void* data, 
 	}
 	ORT_CATCH(const std::exception & ex) {
 
+#if WITH_EDITOR
 		return OrtApis::CreateStatus(ORT_FAIL, ex.what());
+#else
+		return OrtApis::CreateStatus(ORT_FAIL, "Internal error");
+#endif
+
 	}
 	
 	return nullptr;

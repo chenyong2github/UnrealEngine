@@ -1069,6 +1069,7 @@ bool InitProvidersSharedLibrary() try {
   return false;
 }
 #else 
+/*
 #ifndef __PROSPERO__
 bool InitProvidersSharedLibrary() try {
   s_library_shared.Ensure();
@@ -1082,6 +1083,11 @@ bool InitProvidersSharedLibrary() {
   return true;
 }
 #endif
+*/
+bool InitProvidersSharedLibrary() {
+  s_library_shared.Ensure();
+  return true;
+}
 #endif // WITH_UE
 
 struct ProviderLibrary {
