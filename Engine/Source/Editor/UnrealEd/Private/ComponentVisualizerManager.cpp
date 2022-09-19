@@ -218,6 +218,25 @@ bool FComponentVisualizerManager::GetCustomInputCoordinateSystem(const FEditorVi
 	return false;
 }
 
+void FComponentVisualizerManager::TrackingStarted(FEditorViewportClient* InViewportClient)
+{
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	if (EditedVisualizer.IsValid())
+	{
+		return EditedVisualizer->TrackingStarted(InViewportClient);
+	}
+}
+
+void FComponentVisualizerManager::TrackingStopped(FEditorViewportClient* InViewportClient, bool bInDidMove)
+{
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	if (EditedVisualizer.IsValid())
+	{
+		return EditedVisualizer->TrackingStopped(InViewportClient, bInDidMove);
+	}
+}
 
 TSharedPtr<SWidget> FComponentVisualizerManager::GenerateContextMenuForComponentVis() const
 {

@@ -580,7 +580,8 @@ bool FWaterSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Vi
 					WaterSplineComp->UpdateSpline();
 					WaterSplineComp->bSplineHasBeenEdited = true;
 
-					NotifyPropertyModified(WaterSplineComp, SplineCurvesProperty);
+					// Transform the spline keys using an EPropertyChangeType::Interactive change. Later on, at the end of mouse tracking, a non-interactive change will be notified via void TrackingStopped :
+					NotifyPropertyModified(WaterSplineComp, SplineCurvesProperty, EPropertyChangeType::Interactive);
 
 					GEditor->RedrawLevelEditingViewports(true);
 

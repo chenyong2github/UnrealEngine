@@ -81,12 +81,21 @@ class WATER_API IWaterBrushActorInterface
 	 */
 	struct FWaterBrushActorChangedEventParams
 	{
-		FWaterBrushActorChangedEventParams(IWaterBrushActorInterface* InWaterBrushActor)
+		FWaterBrushActorChangedEventParams(IWaterBrushActorInterface* InWaterBrushActor, const FPropertyChangedEvent& InPropertyChangedEvent = FPropertyChangedEvent(/*InProperty = */nullptr))
 			: WaterBrushActor(InWaterBrushActor)
+			, PropertyChangedEvent(InPropertyChangedEvent)
 		{}
 
+		/** The water brush actor that has changed */
 		IWaterBrushActorInterface* WaterBrushActor = nullptr;
+
+		/** Provides some additional context about how the water brush actor data has changed (property, type of change...) */
+		FPropertyChangedEvent PropertyChangedEvent;
+
+		/** Indicates that property related to the water brush actor's visual shape has changed */
 		bool bShapeOrPositionChanged = false;
+
+		/** Indicates that a property affecting the terrain weightmaps has changed */
 		bool bWeightmapSettingsChanged = false;
 	};
 

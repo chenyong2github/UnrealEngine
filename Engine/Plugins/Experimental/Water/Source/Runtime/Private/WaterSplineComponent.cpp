@@ -42,7 +42,7 @@ void UWaterSplineComponent::PostLoad()
 /*
 	if (bAnythingChanged)
 	{
-		SplineDataChangedEvent.Broadcast();
+		WaterSplineDataChangedEvent.Broadcast();
 	}*/
 #endif
 }
@@ -56,7 +56,7 @@ void UWaterSplineComponent::PostDuplicate(bool bDuplicateForPie)
 	{
 		SynchronizeWaterProperties();
 
-		SplineDataChangedEvent.Broadcast();
+		WaterSplineDataChangedEvent.Broadcast(FOnWaterSplineDataChangedParams());
 	}
 #endif // WITH_EDITOR
 }
@@ -142,7 +142,7 @@ void UWaterSplineComponent::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	SplineDataChangedEvent.Broadcast();
+	WaterSplineDataChangedEvent.Broadcast(FOnWaterSplineDataChangedParams());
 }
 
 void UWaterSplineComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -151,7 +151,7 @@ void UWaterSplineComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 	SynchronizeWaterProperties();
 
-	SplineDataChangedEvent.Broadcast();
+	WaterSplineDataChangedEvent.Broadcast(FOnWaterSplineDataChangedParams(PropertyChangedEvent));
 }
 
 void UWaterSplineComponent::PostEditImport()
@@ -160,7 +160,7 @@ void UWaterSplineComponent::PostEditImport()
 
 	SynchronizeWaterProperties();
 
-	SplineDataChangedEvent.Broadcast();
+	WaterSplineDataChangedEvent.Broadcast(FOnWaterSplineDataChangedParams());
 }
 
 void UWaterSplineComponent::ResetSpline(const TArray<FVector>& Points)
@@ -175,7 +175,7 @@ void UWaterSplineComponent::ResetSpline(const TArray<FVector>& Points)
 
 	UpdateSpline();
 	SynchronizeWaterProperties();
-	SplineDataChangedEvent.Broadcast();
+	WaterSplineDataChangedEvent.Broadcast(FOnWaterSplineDataChangedParams());
 }
 
 bool UWaterSplineComponent::SynchronizeWaterProperties()

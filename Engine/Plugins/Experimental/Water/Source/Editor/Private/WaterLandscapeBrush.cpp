@@ -26,7 +26,8 @@
 #include "Components/BillboardComponent.h"
 #include "Modules/ModuleManager.h"
 #include "WaterModule.h"
-#include "LandscapeModule.h"
+#include "WaterEditorSettings.h"
+"LandscapeModule.h"
 #include "LandscapeEditorServices.h"
 
 #define LOCTEXT_NAMESPACE "WaterLandscapeBrush"
@@ -165,13 +166,17 @@ void AWaterLandscapeBrush::UpdateActors(bool bInTriggerEvents)
 	}
 }
 
-void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettingsChanged, bool bRebuildWaterMesh)
+void AWaterLandscapeBrush::OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams)
 {
-	bool bAffectsLandscape = IsActorAffectingLandscape(Actor);
-	IWaterBrushActorInterface* WaterBrushActor = CastChecked<IWaterBrushActorInterface>(Actor);
-	int32 ActorIndex = ActorsAffectingLandscape.IndexOfByKey(TWeakInterfacePtr<IWaterBrushActorInterface>(WaterBrushActor));
+	AActor* Actor = CastChecked<AActor>(InParams.WaterBrushActor);
+	bool bAffectsLandscape = InParams.WaterBrushActor->AffectsLandscape();
+	bool bAffectsWaterMesh = InParams.WaterBrushActor->AffectsWaterMesh();
+
+	int32 ActorIndex = ActorsAffectingLandscape.IndexOfByKey(InParams.WaterBrushActor);
 	// if the actor went from affecting landscape to non-affecting landscape (and vice versa), update the brush
 	bool bForceUpdateBrush = false;
+	bool bForceUpdateWaterMesh = false;
+	
 	if (bAffectsLandscape != (ActorIndex != INDEX_NONE))
 	{
 		if (bAffectsLandscape)
@@ -184,35 +189,34 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 		}
 
 		// Force rebuild the mesh if a water body actor has been added or removed (islands don't affect the water mesh so it's not necessary for them): 
-		bRebuildWaterMesh = WaterBrushActor->CanEverAffectWaterMesh();
+		bForceUpdateWaterMesh = InParams.WaterBrushActor->CanEverAffectWaterMesh();
 		bForceUpdateBrush = true;
 	}
 
-	if (bWeightmapSettingsChanged)
+	if (InParams.bWeightmapSettingsChanged)
 	{
 		UpdateAffectedWeightmaps();
 	}
 
 	BlueprintWaterBodyChanged(Actor);
 
-	if (bAffectsLandscape || bForceUpdateBrush)
+	const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
+	check(WaterEditorSettings != nullptr);
+
+	bool bAllowLandscapeUpdate = (InParams.PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive) || WaterEditorSettings->GetUpdateLandscapeDuringInteractiveChanges();
+	if (bForceUpdateBrush || (bAffectsLandscape && bAllowLandscapeUpdate))
 	{
 		RequestLandscapeUpdate();
 	}
 
-	if (bRebuildWaterMesh)
+	bool bAllowWaterMeshUpdate = (InParams.PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive) || WaterEditorSettings->GetUpdateWaterMeshDuringInteractiveChanges();
+	if (bForceUpdateWaterMesh || (bAffectsWaterMesh && bAllowWaterMeshUpdate))
 	{
 		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 		{
 			WaterSubsystem->MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags::UpdateWaterMesh);
 		}
 	}
-}
-
-void AWaterLandscapeBrush::OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams)
-{
-	AActor* Actor = CastChecked<AActor>(InParams.WaterBrushActor);
-	OnActorChanged(Actor, /* bWeightmapSettingsChanged = */InParams.bWeightmapSettingsChanged, /* bRebuildWaterMesh = */InParams.WaterBrushActor->AffectsWaterMesh());
 }
 
 void AWaterLandscapeBrush::OnActorsAffectingLandscapeChanged()
@@ -283,14 +287,6 @@ void AWaterLandscapeBrush::PostInitProperties()
 		}
 #endif // WITH_EDITOR
 
-		OnActorMovedHandle = GEngine->OnActorMoved().AddLambda([this](AActor* Actor)
-		{
-			if (IsActorAffectingLandscape(Actor))
-			{
-				OnActorChanged(Actor, /* bWeightmapSettingsChanged */ false, /* bRebuildWaterMesh */ true);
-			}
-		});
-
 		IWaterBrushActorInterface::GetOnWaterBrushActorChangedEvent().AddUObject(this, &AWaterLandscapeBrush::OnWaterBrushActorChanged);
 	}
 
@@ -351,9 +347,6 @@ void AWaterLandscapeBrush::BeginDestroy()
 
 		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedHandle);
 		OnLevelActorDeletedHandle.Reset();
-
-		GEngine->OnActorMoved().Remove(OnActorMovedHandle);
-		OnActorMovedHandle.Reset();
 
 #if WITH_EDITOR
 		// Unregister callbacks

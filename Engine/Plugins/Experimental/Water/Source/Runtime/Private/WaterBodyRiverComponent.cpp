@@ -517,12 +517,12 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 }
 
 #if WITH_EDITOR
-void UWaterBodyRiverComponent::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged)
+void UWaterBodyRiverComponent::OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams)
 {
-	Super::OnPostEditChangeProperty(PropertyChangedEvent, bShapeOrPositionChanged, bWeightmapSettingsChanged);
+	Super::OnPostEditChangeProperty(InOutOnWaterBodyChangedParams);
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyRiverComponent, LakeTransitionMaterial) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyRiverComponent, OceanTransitionMaterial))
+	if (InOutOnWaterBodyChangedParams.PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyRiverComponent, LakeTransitionMaterial) ||
+		InOutOnWaterBodyChangedParams.PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyRiverComponent, OceanTransitionMaterial))
 	{
 		UpdateMaterialInstances();
 	}

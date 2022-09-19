@@ -8,6 +8,19 @@
 #include "WaterSplineMetadata.h"
 #include "WaterSplineComponent.generated.h"
 
+#if WITH_EDITOR
+struct FOnWaterSplineDataChangedParams
+{
+	FOnWaterSplineDataChangedParams(const FPropertyChangedEvent& InPropertyChangedEvent = FPropertyChangedEvent(/*InProperty = */nullptr)) 
+		: PropertyChangedEvent(InPropertyChangedEvent)
+	{}
+
+	/** Provides some additional context about how the water brush actor data has changed (property, type of change...) */
+	FPropertyChangedEvent PropertyChangedEvent;
+};
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWaterSplineDataChanged, const FOnWaterSplineDataChangedParams&);
+#endif // WITH_EDITOR
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class WATER_API UWaterSplineComponent : public USplineComponent
 {
@@ -38,8 +51,13 @@ public:
 	virtual bool AllowsSplinePointScaleEditing() const override { return false; }
 
 #if WITH_EDITOR
-	DECLARE_EVENT(UWaterSplineComponent, FOnSplineDataChanged);
-	FOnSplineDataChanged& OnSplineDataChanged() { return SplineDataChangedEvent; }
+	DECLARE_EVENT(UWaterSplineComponent, UE_DEPRECATED(5.1, "Use FOnWaterSplineDataChanged") FOnSplineDataChanged);
+	UE_DEPRECATED(5.1, "Use OnWaterSplineDataChanged")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FOnSplineDataChanged& OnSplineDataChanged() { static FOnSplineDataChanged DeprecatedEvent; return DeprecatedEvent; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	FOnWaterSplineDataChanged& OnWaterSplineDataChanged() { return WaterSplineDataChangedEvent; }
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditUndo() override;
@@ -48,13 +66,13 @@ public:
 	
 	void ResetSpline(const TArray<FVector>& Points);
 	bool SynchronizeWaterProperties();
-#endif
+#endif // WITH_EDITOR
 
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual void Serialize(FArchive& Ar) override;
 
 private:
 #if WITH_EDITOR
-	FOnSplineDataChanged SplineDataChangedEvent;
-#endif
+	FOnWaterSplineDataChanged WaterSplineDataChangedEvent;
+#endif // WITH_EDITOR
 };

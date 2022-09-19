@@ -39,7 +39,7 @@ protected:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 
 #if WITH_EDITOR
-	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged) override;
+	virtual void OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams) override;
 
 	virtual const TCHAR* GetWaterSpriteTextureName() const override;
 #endif

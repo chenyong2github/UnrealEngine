@@ -12,9 +12,31 @@
 #include "WaterBodyIslandActor.generated.h"
 
 class UWaterSplineComponent;
+struct FOnWaterSplineDataChangedParams;
 class USplineMeshComponent;
 class UBillboardComponent;
 class AWaterBody;
+
+// ----------------------------------------------------------------------------------
+
+struct FOnWaterBodyIslandChangedParams
+{
+	FOnWaterBodyIslandChangedParams(const FPropertyChangedEvent& InPropertyChangedEvent = FPropertyChangedEvent(/*InProperty = */nullptr))
+		: PropertyChangedEvent(InPropertyChangedEvent)
+	{}
+
+	/** Provides some additional context about how the water body island data has changed (property, type of change...) */
+	FPropertyChangedEvent PropertyChangedEvent;
+
+	/** Indicates that property related to the water body island's visual shape has changed */
+	bool bShapeOrPositionChanged = false;
+
+	/** Indicates that a property affecting the terrain weightmaps has changed */
+	bool bWeightmapSettingsChanged = false;
+};
+
+
+// ----------------------------------------------------------------------------------
 
 UCLASS(Blueprintable)
 class WATER_API AWaterBodyIsland : public AActor, public IWaterBrushActorInterface
@@ -72,9 +94,19 @@ protected:
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
-	void UpdateAll();
-	void OnSplineDataChanged();
-	void OnWaterBodyIslandChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged);
+	UE_DEPRECATED(5.1, "Use the version of this function taking FOnWaterBodyIslandChangedParams in parameter")
+	void UpdateAll() {}
+	void UpdateAll(const FOnWaterBodyIslandChangedParams& InParams);
+	
+	void OnWaterSplineDataChanged(const FOnWaterSplineDataChangedParams& InParams);
+	void OnWaterBodyIslandChanged(const FOnWaterBodyIslandChangedParams& InParams);
+
+	UE_DEPRECATED(5.1, "Use OnWaterSplineDataChanged")
+	void OnSplineDataChanged() {}
+
+	UE_DEPRECATED(5.1, "Use the version of this function taking a FOnWaterBodyIslandChangedParams in parameter")
+	void OnWaterBodyIslandChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged) {}
+
 #endif
 
 protected:

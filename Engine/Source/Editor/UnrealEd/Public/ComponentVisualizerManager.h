@@ -55,6 +55,12 @@ public:
 	/** Get custom widget coordinate system from active visualizer */
 	bool GetCustomInputCoordinateSystem(const FEditorViewportClient* InViewportClient, FMatrix& OutMatrix) const;
 
+	/** Gets called when the mouse tracking has started (dragging behavior) */
+	void TrackingStarted(FEditorViewportClient* InViewportClient);
+
+	/** Gets called when the mouse tracking has stopped (dragging behavior) */
+	void TrackingStopped(FEditorViewportClient* InViewportClient, bool bInDidMove);
+
 	/** Generate context menu for the component visualizer */
 	TSharedPtr<SWidget> GenerateContextMenuForComponentVis() const;
 

@@ -109,14 +109,17 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 {
 	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterMesh))
 	{
+		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::MarkForRebuild (UpdateWaterMesh)"));
 		WaterMesh->MarkWaterMeshGridDirty();
 	}
 	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterInfoTexture))
 	{
+		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::MarkForRebuild (UpdateWaterInfoTexture)"));
 		bNeedsWaterInfoRebuild = true;
 	}
 	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterBodyLODSections))
 	{
+		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::MarkForRebuild (UpdateWaterBodyLODSections)"));
 		ForEachWaterBodyComponent([](UWaterBodyComponent* WaterBodyComponent)
 		{
 			WaterBodyComponent->UpdateNonTessellatedMeshSections();

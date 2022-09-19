@@ -3203,6 +3203,8 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 			// Suspend actor/component modification during each delta step to avoid recording unnecessary overhead into the transaction buffer
 			GEditor->DisableDeltaModification(true);
 		}
+
+		GUnrealEd->ComponentVisManager.TrackingStarted(this);
 	}
 }
 
@@ -3262,6 +3264,8 @@ void FLevelEditorViewportClient::TrackingStopped()
 		{
 			GUnrealEd->UpdatePivotLocationForSelection();
 		}
+
+		GUnrealEd->ComponentVisManager.TrackingStopped(this, bDidMove);
 	}
 
 	if (bNeedToRestoreComponentBeingMovedFlag)

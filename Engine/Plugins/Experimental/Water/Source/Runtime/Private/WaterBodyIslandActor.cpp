@@ -35,7 +35,7 @@ AWaterBodyIsland::AWaterBodyIsland(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBodyIsland::OnSplineDataChanged);
+		SplineComp->OnWaterSplineDataChanged().AddUObject(this, &AWaterBodyIsland::OnWaterSplineDataChanged);
 	}
 
 	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyIslandSprite"));
@@ -231,30 +231,42 @@ void AWaterBodyIsland::PostEditMove(bool bFinished)
 {
 	Super::PostEditMove(bFinished);
 
-	UpdateAll();
+	FOnWaterBodyIslandChangedParams Params;
+	Params.PropertyChangedEvent.ChangeType = bFinished ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive;
+	Params.bShapeOrPositionChanged = true;
+	UpdateAll(Params);
 }
 
 void AWaterBodyIsland::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	UpdateAll();
+	FOnWaterBodyIslandChangedParams Params;
+	Params.bShapeOrPositionChanged = true;
+	Params.bWeightmapSettingsChanged = true;
+	UpdateAll(Params);
 }
 
 void AWaterBodyIsland::PostEditImport()
 {
 	Super::PostEditImport();
 
-	UpdateAll();
+	FOnWaterBodyIslandChangedParams Params;
+	Params.bShapeOrPositionChanged = true;
+	Params.bWeightmapSettingsChanged = true;
+	UpdateAll(Params);
 }
 
-void AWaterBodyIsland::UpdateAll()
+void AWaterBodyIsland::UpdateAll(const FOnWaterBodyIslandChangedParams& InParams)
 {
 	UpdateHeight();
 
-	UpdateOverlappingWaterBodyComponents();
+	if (InParams.bShapeOrPositionChanged)
+	{
+		UpdateOverlappingWaterBodyComponents();
+	}
 
-	OnWaterBodyIslandChanged(/*bShapeOrPositionChanged*/true, /*bWeightmapSettingsChanged*/true);
+	OnWaterBodyIslandChanged(InParams);
 
 	UpdateActorIcon();
 }
@@ -281,30 +293,34 @@ void AWaterBodyIsland::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	bool bWeightmapSettingsChanged = false;
+	FOnWaterBodyIslandChangedParams Params(PropertyChangedEvent);
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, LayerWeightmapSettings))
 	{
-		bWeightmapSettingsChanged = true;
+		Params.bWeightmapSettingsChanged = true;
 	}
 
-	OnWaterBodyIslandChanged(/*bShapeOrPositionChanged*/false, bWeightmapSettingsChanged);
+	OnWaterBodyIslandChanged(Params);
 
 	UpdateActorIcon();
 }
 
-void AWaterBodyIsland::OnSplineDataChanged()
+void AWaterBodyIsland::OnWaterSplineDataChanged(const FOnWaterSplineDataChangedParams& InParams)
 {
 	UpdateOverlappingWaterBodyComponents();
 
-	OnWaterBodyIslandChanged(/* bShapeOrPositionChanged = */true, /* bWeightmapSettingsChanged = */false);
+	// Transfer the FOnWaterSplineDataChangedParams parameters to FOnWaterBodyIslandChangedParams :
+	FOnWaterBodyIslandChangedParams Params(InParams.PropertyChangedEvent);
+	Params.bShapeOrPositionChanged = true;
+	OnWaterBodyIslandChanged(Params);
 }
 
-void AWaterBodyIsland::OnWaterBodyIslandChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged)
+void AWaterBodyIsland::OnWaterBodyIslandChanged(const FOnWaterBodyIslandChangedParams& InParams)
 {
 #if WITH_EDITOR
-	FWaterBrushActorChangedEventParams Params(this);
-	Params.bShapeOrPositionChanged = bShapeOrPositionChanged;
-	Params.bWeightmapSettingsChanged = bWeightmapSettingsChanged;
+	// Transfer the FOnWaterBodyIslandChangedParams parameters to FWaterBrushActorChangedEventParams :
+	FWaterBrushActorChangedEventParams Params(this, InParams.PropertyChangedEvent);
+	Params.bShapeOrPositionChanged = InParams.bShapeOrPositionChanged;
+	Params.bWeightmapSettingsChanged = InParams.bWeightmapSettingsChanged;
 	BroadcastWaterBrushActorChangedEvent(Params);
 #endif
 }

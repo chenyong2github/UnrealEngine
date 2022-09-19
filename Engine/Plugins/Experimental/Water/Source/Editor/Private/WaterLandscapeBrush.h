@@ -119,7 +119,6 @@ private:
 
 	void OnFullHeightmapRenderDone(UTextureRenderTarget2D* HeightmapRenderTarget);
 	void OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams);
-	void OnActorChanged(AActor* Actor, bool bWeightmapSettingsChanged, bool bRebuildMesh);
 	void OnActorsAffectingLandscapeChanged();
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);

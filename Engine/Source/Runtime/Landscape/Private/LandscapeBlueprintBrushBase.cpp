@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "LandscapeProxy.h"
 #include "Landscape.h"
+#include "LandscapePrivate.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
 #include "Logging/MessageLog.h"
@@ -59,6 +60,7 @@ void ALandscapeBlueprintBrushBase::Initialize_Implementation(const FTransform& I
 void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
 {
 #if WITH_EDITORONLY_DATA
+	UE_LOG(LogLandscape, Verbose, TEXT("ALandscapeBlueprintBrushBase::RequestLandscapeUpdate"));
 	if (OwningLandscape)
 	{
 		uint32 ModeMask = 0;

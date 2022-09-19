@@ -104,7 +104,10 @@ void AWaterBody::PreInitializeComponents()
 
 	check(WaterBodyComponent != nullptr);
 	// some water bodies are dynamic (e.g. Ocean) and thus need to be regenerated at runtime :
-	WaterBodyComponent->UpdateAll(true);
+	FOnWaterBodyChangedParams Params;
+	Params.bShapeOrPositionChanged = true;
+	Params.bWeightmapSettingsChanged = true;
+	WaterBodyComponent->UpdateAll(Params);
 }
 
 #if WITH_EDITOR
@@ -117,7 +120,10 @@ void AWaterBody::PostEditMove(bool bFinished)
 		WaterBodyComponent->UpdateWaterHeight();
 	}
 
-	WaterBodyComponent->OnWaterBodyChanged(bFinished);
+	FOnWaterBodyChangedParams Params;
+	Params.PropertyChangedEvent.ChangeType = bFinished ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive;
+	Params.bShapeOrPositionChanged = true;
+	WaterBodyComponent->OnWaterBodyChanged(Params);
 }
 
 void AWaterBody::PreEditChange(FProperty* PropertyThatWillChange)
@@ -147,8 +153,10 @@ void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 		WaterBodyComponent->RequestGPUWaveDataUpdate();
 
+		FOnWaterBodyChangedParams Params;
 		// Waves data affect the navigation : 
-		WaterBodyComponent->OnWaterBodyChanged(/* bShapeOrPositionChanged */ true, /* bWeightMapSettingsChanged */ false);
+		Params.bShapeOrPositionChanged = true;
+		WaterBodyComponent->OnWaterBodyChanged(Params);
 	}
 }
 
@@ -179,8 +187,10 @@ void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves)
 
 		WaterBodyComponent->RequestGPUWaveDataUpdate();
 
+		FOnWaterBodyChangedParams Params;
 		// Waves data can affect the navigation: 
-		WaterBodyComponent->OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+		Params.bShapeOrPositionChanged = true;
+		WaterBodyComponent->OnWaterBodyChanged(Params);
 	}
 }
 
@@ -531,7 +541,10 @@ void AWaterBody::PostRegisterAllComponents()
 
 	if (IsValid(WaterBodyComponent))
 	{
-		WaterBodyComponent->UpdateAll(true);
+		FOnWaterBodyChangedParams Params;
+		Params.bShapeOrPositionChanged = true;
+		Params.bWeightmapSettingsChanged = true;
+		WaterBodyComponent->UpdateAll(Params);
 		WaterBodyComponent->UpdateMaterialInstances();
 
 #if WITH_EDITOR

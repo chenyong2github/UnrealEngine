@@ -25,6 +25,7 @@
 #include "WaterBodyComponent.generated.h"
 
 class UWaterSplineComponent;
+struct FOnWaterSplineDataChangedParams;
 class AWaterBodyIsland;
 class AWaterBodyExclusionVolume;
 class AWaterZone;
@@ -104,6 +105,26 @@ public:
 	FBox2D SectionBounds;
 };
 
+
+// ----------------------------------------------------------------------------------
+
+struct FOnWaterBodyChangedParams
+{
+	FOnWaterBodyChangedParams(const FPropertyChangedEvent& InPropertyChangedEvent = FPropertyChangedEvent(/*InProperty = */nullptr))
+		: PropertyChangedEvent(InPropertyChangedEvent)
+	{}
+
+	/** Provides some additional context about how the water body data has changed (property, type of change...) */
+	FPropertyChangedEvent PropertyChangedEvent;
+
+	/** Indicates that property related to the water body's visual shape has changed */
+	bool bShapeOrPositionChanged = false;
+
+	/** Indicates that a property affecting the terrain weightmaps has changed */
+	bool bWeightmapSettingsChanged = false;
+};
+
+
 // ----------------------------------------------------------------------------------
 
 UCLASS(Abstract, HideCategories = (Tags, Activation, Cooking, Physics, Replication, Input, AssetUserData, Mesh))
@@ -119,7 +140,9 @@ public:
 	virtual bool AffectsWaterInfo() const;
 	virtual bool CanEverAffectWaterMesh() const { return true; }
 
-	void UpdateAll(bool bShapeOrPositionChanged);
+	UE_DEPRECATED(5.1, "Use the version of this function taking FOnWaterBodyChangedParams in parameter")
+	void UpdateAll(bool bShapeOrPositionChanged) {}
+	void UpdateAll(const FOnWaterBodyChangedParams& InParams);
 
 #if WITH_EDITOR
 	const FWaterCurveSettings& GetWaterCurveSettings() const { return CurveSettings; }
@@ -380,6 +403,7 @@ public:
 	
 	UE_DEPRECATED(5.1, "Renamed to CanEverAffectWaterMesh")
 	virtual bool CanAffectWaterMesh() const { return true; }
+
 protected:
 	//~ Begin UActorComponent interface.
 	virtual bool IsHLODRelevant() const override;
@@ -416,10 +440,12 @@ protected:
 	/** Returns navigation area class */
 	TSubclassOf<UNavAreaBase> GetNavAreaClass() const { return WaterNavAreaClass; }
 
+	/** Copies the relevant collision settings from the water body component to the component passed in parameter (useful when using external components for collision) */
 	void CopySharedCollisionSettingsToComponent(UPrimitiveComponent* InComponent);
+
+	/** Copies the relevant navigation settings from the water body component to the component passed in parameter (useful when using external components for navigation) */
 	void CopySharedNavigationSettingsToComponent(UPrimitiveComponent* InComponent);
 
-protected:
 	/** Computes the raw wave perturbation of the water height/normal */
 	virtual float GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const;
 
@@ -431,7 +457,9 @@ protected:
 
 #if WITH_EDITOR
 	/** Called by UWaterBodyComponent::PostEditChangeProperty. */
-	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged);
+	UE_DEPRECATED(5.1, "Use the version of the function taking FOnWaterBodyChangedParams")
+	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged) {}
+	virtual void OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams);
 
 	/** Validates this component's data */
 	virtual void CheckForErrors() override;
@@ -463,6 +491,7 @@ protected:
 	void RebuildWaterBodyInfoMesh();
 	void RebuildWaterBodyLODSections();
 	void OnTessellatedWaterMeshBoundsChanged();
+	void OnWaterBodyChanged(const FOnWaterBodyChangedParams& InParams);
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
@@ -477,7 +506,9 @@ protected:
 	virtual void PostEditUndo() override;
 	virtual void PostEditImport() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OnSplineDataChanged();
+	UE_DEPRECATED(5.1, "Use OnWaterSplineDataChanged")
+	void OnSplineDataChanged() {}
+	void OnWaterSplineDataChanged(const FOnWaterSplineDataChangedParams& InParams);
 	void RegisterOnUpdateWavesData(UWaterWavesBase* InWaterWaves, bool bRegister);
 	void OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPropertyChangeType::Type InChangeType);
 	void OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent);

@@ -241,6 +241,8 @@ public:
 	virtual bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) override;
 	/** Pass snap input to active visualizer */
 	virtual bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination) override;
+	/** Gets called when the mouse tracking has stopped (dragging behavior) */
+	virtual void TrackingStopped(FEditorViewportClient* InViewportClient, bool bInDidMove) override;
 	/** Get currently edited component, this is needed to reset the active visualizer after undo/redo */
 	virtual UActorComponent* GetEditedComponent() const override;
 	virtual TSharedPtr<SWidget> GenerateContextMenu() const override;
@@ -284,10 +286,10 @@ protected:
 	void SelectSplinePoint(int32 SelectIndex, bool bAddToSelection);
 
 	/** Transforms selected tangent by given translation */
-	bool TransformSelectedTangent(const FVector& DeltaTranslate);
+	bool TransformSelectedTangent(EPropertyChangeType::Type InPropertyChangeType, const FVector& InDeltaTranslate);
 
 	/** Transforms selected tangent by given translate, rotate and scale */
-	bool TransformSelectedKeys(const FVector& DeltaTranslate, const FRotator& DeltaRotate = FRotator::ZeroRotator, const FVector& DeltaScale = FVector::ZeroVector);
+	bool TransformSelectedKeys(EPropertyChangeType::Type InPropertyChangeType, const FVector& InDeltaTranslate, const FRotator& InDeltaRotate = FRotator::ZeroRotator, const FVector& InDeltaScale = FVector::ZeroVector);
 
 	/** Update the key selection state of the visualizer */
 	virtual void ChangeSelectionState(int32 Index, bool bIsCtrlHeld);

@@ -253,7 +253,7 @@ void FComponentVisualizer::NotifyPropertiesModified(UActorComponent* Component, 
 
 	for (FProperty* Property : Properties)
 	{
-		FPropertyChangedEvent PropertyChangedEvent(Property);
+		FPropertyChangedEvent PropertyChangedEvent(Property, PropertyChangeType);
 		Component->PostEditChangeProperty(PropertyChangedEvent);
 	}
 

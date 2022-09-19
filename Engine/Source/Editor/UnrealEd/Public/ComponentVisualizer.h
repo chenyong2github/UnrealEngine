@@ -182,6 +182,10 @@ public:
 	virtual bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) { return false; }
 	/** Pass snap input to active visualizer */
 	virtual bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination) { return false;  }
+	/** Gets called when the mouse tracking has started (dragging behavior) */
+	virtual void TrackingStarted(FEditorViewportClient* InViewportClient) {}
+	/** Gets called when the mouse tracking has stopped (dragging behavior) */
+	virtual void TrackingStopped(FEditorViewportClient* InViewportClient, bool bInDidMove) {}
 	/** Get currently edited component, this is needed to reset the active visualizer after undo/redo */
 	virtual UActorComponent* GetEditedComponent() const { return nullptr;  }
 

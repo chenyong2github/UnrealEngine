@@ -61,7 +61,9 @@ void UWaterBodyOceanComponent::SetHeightOffset(float InHeightOffset)
 		HeightOffset = ClampedHeightOffset;
 
 		// the physics volume needs to be adjusted : 
-		OnWaterBodyChanged(true);
+		FOnWaterBodyChangedParams Params;
+		Params.bShapeOrPositionChanged = true;
+		OnWaterBodyChanged(Params);
 	}
 }
 
@@ -87,18 +89,19 @@ void UWaterBodyOceanComponent::BeginUpdateWaterBody()
 }
 
 #if WITH_EDITOR
-void UWaterBodyOceanComponent::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged)
+void UWaterBodyOceanComponent::OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams)
 {
-	Super::OnPostEditChangeProperty(PropertyChangedEvent, bShapeOrPositionChanged, bWeightmapSettingsChanged);
+	Super::OnPostEditChangeProperty(InOutOnWaterBodyChangedParams);
 
+	const FPropertyChangedEvent& PropertyChangedEvent = InOutOnWaterBodyChangedParams.PropertyChangedEvent;
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, CollisionExtents))
 	{
 		// Affects the physics shape
-		bShapeOrPositionChanged = true;
+		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, VisualExtents))
 	{
-		bShapeOrPositionChanged = true;
+		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
 	}
 }
 const TCHAR* UWaterBodyOceanComponent::GetWaterSpriteTextureName() const

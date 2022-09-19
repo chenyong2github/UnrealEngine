@@ -419,7 +419,10 @@ void UWaterBodyComponent::PostDuplicate(bool bDuplicateForPie)
 		// After duplication due to copy-pasting, UWaterSplineMetadata might have been edited without the spline component being made aware of that (for some reason, USplineComponent::PostDuplicate isn't called)::
 		GetWaterSpline()->SynchronizeWaterProperties();
 
-		OnWaterBodyChanged(/*bShapeOrPositionChanged*/true, /*bWeightmapSettingsChanged*/true);
+		FOnWaterBodyChangedParams Params;
+		Params.bShapeOrPositionChanged = true;
+		Params.bWeightmapSettingsChanged = true;
+		OnWaterBodyChanged(Params);
 	}
 
 	RegisterOnUpdateWavesData(GetWaterWaves(), /* bRegister = */true);
@@ -974,7 +977,10 @@ void UWaterBodyComponent::PostEditUndo()
 	// Ensure we only trigger updates if this component is registered.
 	if (IsRegistered())
 	{
-		OnWaterBodyChanged(/*bShapeOrPositionChanged*/true, /*bWeightmapSettingsChanged*/true);
+		FOnWaterBodyChangedParams Params;
+		Params.bShapeOrPositionChanged = true;
+		Params.bWeightmapSettingsChanged = true;
+		OnWaterBodyChanged(Params);
 
 		// On undo, when PostEditChangeProperty is called, PropertyChangedEvent is fake so we need to register to the new object here :
 		RegisterOnUpdateWavesData(GetWaterWaves(), /*bRegister = */true);
@@ -987,17 +993,21 @@ void UWaterBodyComponent::PostEditImport()
 {
 	Super::PostEditImport();
 
-	OnWaterBodyChanged(/*bShapeOrPositionChanged*/true, /*bWeightmapSettingsChanged*/true);
+	FOnWaterBodyChangedParams Params;
+	Params.bShapeOrPositionChanged = true;
+	Params.bWeightmapSettingsChanged = true;
+	OnWaterBodyChanged(Params);
 
 	RequestGPUWaveDataUpdate();
 }
 
-void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged)
+void UWaterBodyComponent::OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams)
 {
+	const FPropertyChangedEvent& PropertyChangedEvent = InOutOnWaterBodyChangedParams.PropertyChangedEvent;
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, LayerWeightmapSettings))
 	{
-		bWeightmapSettingsChanged = true;
+		InOutOnWaterBodyChangedParams.bWeightmapSettingsChanged = true;
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, WaterMaterial)) ||
 			(PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, UnderwaterPostProcessMaterial)) ||
@@ -1011,7 +1021,8 @@ void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& Proper
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, MaxWaveHeightOffset))
 	{
-		bShapeOrPositionChanged = true;
+		// Waves data affect the navigation :
+		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
 	}
 	else if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("RelativeScale3D")))
 	{
@@ -1022,6 +1033,7 @@ void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& Proper
 			Scale.Z = 1.f;
 			SetRelativeScale3D(Scale);
 		}
+		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
 	}
 }
 
@@ -1066,22 +1078,23 @@ void UWaterBodyComponent::CheckForErrors()
 
 void UWaterBodyComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	bool bShapeOrPositionChanged = false;
-	bool bWeightmapSettingsChanged = false;
-
-	OnPostEditChangeProperty(PropertyChangedEvent, bShapeOrPositionChanged, bWeightmapSettingsChanged);
+	FOnWaterBodyChangedParams Params(PropertyChangedEvent);
+	OnPostEditChangeProperty(Params);
 	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	if (!IsTemplate())
 	{
-		OnWaterBodyChanged(bShapeOrPositionChanged, bWeightmapSettingsChanged);
+		OnWaterBodyChanged(Params);
 	}
 }
 
-void UWaterBodyComponent::OnSplineDataChanged()
+void UWaterBodyComponent::OnWaterSplineDataChanged(const FOnWaterSplineDataChangedParams& InParams)
 {
-	OnWaterBodyChanged(/*bShapeOrPositionChanged*/true);
+	// Transfer the FOnWaterSplineDataChangedParams parameters to FOnWaterBodyChangedParams :
+	FOnWaterBodyChangedParams Params(InParams.PropertyChangedEvent);
+	Params.bShapeOrPositionChanged = true;
+	OnWaterBodyChanged(Params);
 }
 
 void UWaterBodyComponent::RegisterOnUpdateWavesData(UWaterWavesBase* InWaterWaves, bool bRegister)
@@ -1103,8 +1116,11 @@ void UWaterBodyComponent::OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPro
 {
 	RequestGPUWaveDataUpdate();
 
-	// Waves data affect the navigation : 
-	OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+	FOnWaterBodyChangedParams Params;
+	// Waves data affect the navigation :
+	Params.PropertyChangedEvent.ChangeType = InChangeType;
+	Params.bShapeOrPositionChanged = true;
+	OnWaterBodyChanged(Params);
 }
 
 void UWaterBodyComponent::OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent)
@@ -1138,11 +1154,11 @@ void UWaterBodyComponent::RegisterOnChangeWaterSplineData(bool bRegister)
 	{
 		if (bRegister)
 		{
-			WaterSpline->OnSplineDataChanged().AddUObject(this, &UWaterBodyComponent::OnSplineDataChanged);
+			WaterSpline->OnWaterSplineDataChanged().AddUObject(this, &UWaterBodyComponent::OnWaterSplineDataChanged);
 		}
 		else
 		{
-			WaterSpline->OnSplineDataChanged().RemoveAll(this);
+			WaterSpline->OnWaterSplineDataChanged().RemoveAll(this);
 		}
 	}
 
@@ -1246,12 +1262,14 @@ void UWaterBodyComponent::UpdateWaterBody(bool bWithExclusionVolumes)
 	}
 }
 
-void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
+void UWaterBodyComponent::UpdateAll(const FOnWaterBodyChangedParams& InParams)
 {
 	BeginUpdateWaterBody();
 
 	AWaterBody* WaterBodyOwner = GetWaterBodyActor();
 	check(WaterBodyOwner);
+
+	bool bShapeOrPositionChanged = InParams.bShapeOrPositionChanged;
 	
 	if (GIsEditor || IsBodyDynamic())
 	{
@@ -1316,16 +1334,24 @@ void UWaterBodyComponent::UpdateSplineComponent()
 
 void UWaterBodyComponent::OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged)
 {
+	FOnWaterBodyChangedParams Params;
+	Params.bShapeOrPositionChanged = bShapeOrPositionChanged;
+	Params.bWeightmapSettingsChanged = bWeightmapSettingsChanged;
+	OnWaterBodyChanged(Params);
+}
+
+void UWaterBodyComponent::OnWaterBodyChanged(const FOnWaterBodyChangedParams& InParams)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWaterBodyComponent::OnWaterBodyChanged)
 	// It's possible to get called without a water spline after the Redo of a water body deletion (i.e. the water body actor gets deleted again, hence its SplineComp is restored to nullptr)
 	//  This is a very-edgy case that needs to be checked everywhere that UpdateAll might hook into so it's simpler to just skip it all. The actor is in limbo by then anyway (it only survives because
 	//  of the editor transaction) :
 	if (GetWaterSpline())
 	{
-		UpdateAll(bShapeOrPositionChanged);
+		UpdateAll(InParams);
 
 		// Some of the spline parameters need to be transferred to the underwater post process MID, if any : 
-		if (bShapeOrPositionChanged)
+		if (InParams.bShapeOrPositionChanged)
 		{
 			SetDynamicParametersOnUnderwaterPostProcessMID(UnderwaterPostProcessMID);
 		}
@@ -1333,9 +1359,10 @@ void UWaterBodyComponent::OnWaterBodyChanged(bool bShapeOrPositionChanged, bool 
 
 #if WITH_EDITOR
 	AWaterBody* const WaterBodyActor = GetWaterBodyActor();
-	IWaterBrushActorInterface::FWaterBrushActorChangedEventParams Params(WaterBodyActor);
-	Params.bShapeOrPositionChanged = bShapeOrPositionChanged;
-	Params.bWeightmapSettingsChanged = bWeightmapSettingsChanged;
+	// Transfer the FOnWaterBodyChangedParams parameters to FWaterBrushActorChangedEventParams :
+	IWaterBrushActorInterface::FWaterBrushActorChangedEventParams Params(WaterBodyActor, InParams.PropertyChangedEvent);
+	Params.bShapeOrPositionChanged = InParams.bShapeOrPositionChanged;
+	Params.bWeightmapSettingsChanged = InParams.bWeightmapSettingsChanged;
 	WaterBodyActor->BroadcastWaterBrushActorChangedEvent(Params);
 #endif
 }
