@@ -240,47 +240,6 @@ void FReplicationSystemUtil::SetActorComponentNetCondition(const UActorComponent
 	}
 }
 
-void FReplicationSystemUtil::SetPropertyCustomCondition(const UObject* Object, uint16 RepIndex, bool bIsActive)
-{
-	// If this is an actor component we can get the proper bridge through its owner, regardless of whether it's a default replicated component or not.
-	if (const UActorComponent* ActorComponent = Cast<UActorComponent>(Object))
-	{
-		const AActor* Owner = ActorComponent->GetOwner();
-		const UActorReplicationBridge* Bridge = GetActorReplicationBridge(Owner);
-		if (Bridge == nullptr)
-		{
-			return;
-		}
-
-		// Try to get a handle for the component. This can fail if we incorporate default components in the protocol for the actor.
-		FNetHandle NetHandle = Bridge->GetReplicatedHandle(Object);
-		if (!NetHandle.IsValid())
-		{
-			NetHandle = Bridge->GetReplicatedHandle(Owner);
-			if (!NetHandle.IsValid())
-			{
-				return;
-			}
-		}
-
-		Net::GetReplicationSystem(NetHandle.GetReplicationSystemId())->SetPropertyCustomCondition(NetHandle, Object, RepIndex, bIsActive);
-	}
-	else if (const AActor* Actor = Cast<AActor>(Object))
-	{
-		FNetHandle NetHandle = GetNetHandle(Actor);
-		if (!NetHandle.IsValid())
-		{
-			return;
-		}
-
-		Net::GetReplicationSystem(NetHandle.GetReplicationSystemId())->SetPropertyCustomCondition(NetHandle, Object, RepIndex, bIsActive);
-	}
-	else
-	{
-		checkf(false, TEXT("Unexpected class %s trying to set custom condition."), ToCStr(Object->GetFName().GetPlainNameString()));
-	}
-}
-
 void FReplicationSystemUtil::BeginReplicationForActorsInWorld(UWorld* World)
 {
 	// We only do this if the world already is initialized

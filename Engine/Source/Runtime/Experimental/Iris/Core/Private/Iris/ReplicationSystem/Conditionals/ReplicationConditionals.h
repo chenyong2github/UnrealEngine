@@ -57,6 +57,7 @@ public:
 	bool SetCondition(FInternalNetHandle ObjectIndex, EReplicationCondition Condition, bool bEnable);
 
 	// For property custom conditions only
+	void InitPropertyCustomConditions(FInternalNetHandle ObjectIndex);
 	bool SetPropertyCustomCondition(FInternalNetHandle ObjectIndex, const void* Owner, uint16 RepIndex, bool bIsActive);
 
 	void Update();

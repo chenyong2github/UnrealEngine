@@ -32,6 +32,8 @@ public:
 
 	void LogMemory(FOutputDevice& Ar);
 
+	static void SetPropertyActiveOverride(IRepChangedPropertyTracker& Tracker, UObject* OwningObject, const uint16 RepIndex, const bool bIsActive);
+
 private:
 	void PostGarbageCollect();
 

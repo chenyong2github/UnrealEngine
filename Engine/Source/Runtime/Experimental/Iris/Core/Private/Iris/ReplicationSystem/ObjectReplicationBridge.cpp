@@ -10,6 +10,7 @@
 
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/Trace/NetDebugName.h"
+#include "Net/Core/PropertyConditions/PropertyConditionsDelegates.h"
 
 #include "Iris/ReplicationSystem/LegacyPushModel.h"
 #include "Iris/ReplicationSystem/ObjectPollFrequencyLimiter.h"
@@ -121,10 +122,29 @@ void UObjectReplicationBridge::Initialize(UReplicationSystem* InReplicationSyste
 	GarbageCollectionAffectedObjects.Init(MaxActiveObjectCount);
 
 	LoadConfig();
+
+	// Hookup delegate when a property custom conditions is changed
+	OnCustomConditionChangedHandle = UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().AddLambda([this, InReplicationSystem](const UObject* Owner, uint16 RepIndex, bool bEnable)
+	{
+		using namespace UE::Net;
+		using namespace UE::Net::Private;
+
+		const FNetHandle Handle = this->GetReplicatedHandle(Owner);
+		if (Handle.IsValid())
+		{
+			FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
+			const FNetHandleManager& LocalNetHandleManager = ReplicationSystemInternal->GetNetHandleManager();
+			FReplicationConditionals& Conditionals = ReplicationSystemInternal->GetConditionals();
+
+			Conditionals.SetPropertyCustomCondition(LocalNetHandleManager.GetInternalIndex(Handle), Owner, RepIndex, bEnable);
+		}
+	});
 }
 
 void UObjectReplicationBridge::Deinitialize()
 {
+	UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().Remove(OnCustomConditionChangedHandle);
+	OnCustomConditionChangedHandle.Reset();
 	PollFrequencyLimiter->Deinit();
 	Super::Deinitialize();
 }
@@ -198,8 +218,7 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 
 	const FReplicationFragments& RegisteredFragments = FFragmentRegistrationContextPrivateAccessor::GetReplicationFragments(FragmentRegistrationContext);
 
-	// We currently identify protocols by local archetype or CDO pointer and verified the protocol id received from server
-	// We also should verify the default state that we use for delta compression https://jira.it.epicgames.com/browse/UE-131344
+	// We currently identify protocols by local archetype or CDO pointer and verified the protocol id received from server and the hash of the default state
 	const UObject* ArchetypeOrCDOUsedAsKey = Instance->GetArchetype();
 
 	// Create Protocols
@@ -235,8 +254,12 @@ UE::Net::FNetHandle UObjectReplicationBridge::BeginReplication(UObject* Instance
 			// Attach the instance and Bind the Instance protocol to dirty tracking
 			constexpr bool bBindInstanceProtocol = true;
 			InternalAttachInstanceToNetHandle(Handle, bBindInstanceProtocol, InstanceProtocol.Get(), Instance);
-
+			
 			const FInternalNetHandle InternalReplicationIndex = NetHandleManager->GetInternalIndex(Handle);
+
+			// Initialize conditionals
+			FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
+			ReplicationSystemInternal->GetConditionals().InitPropertyCustomConditions(InternalReplicationIndex);
 
 			// Keep track of handles with object references for garbage collection's sake.
 			ObjectsWithObjectReferences.SetBitValue(InternalReplicationIndex, EnumHasAnyFlags(InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::HasObjectReference));

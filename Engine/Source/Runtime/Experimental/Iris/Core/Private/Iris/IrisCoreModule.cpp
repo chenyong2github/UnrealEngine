@@ -11,37 +11,9 @@
 
 #include "Misc/CommandLine.h"
 
-// $IRIS: $TODO: Remove when UE-158358 is completed
-#include "Iris/ReplicationSystem/ReplicationSystem.h"
-#include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
-#include "Net/Core/PropertyConditions/RepChangedPropertyTracker.h"
-// End Remove when UE-158358 is completed
-
 class FIrisCoreModule : public IModuleInterface
 {
 private:
-
-	// $IRIS: $TODO: Make proper impl of support for SetPropertyCustomCondition - UE-158358
-	static void SetPropertyCustomCondition(const UObject* Owner, uint16 RepIndex, bool bEnable)
-	{
-		using namespace UE::Net;
-		// See if we can find the instance in any replication system
-		for (uint32 RepSystemIt = 0; RepSystemIt < FReplicationSystemFactory::MaxReplicationSystemCount; ++RepSystemIt)
-		{
-			UReplicationSystem* ReplicationSystem = GetReplicationSystem(RepSystemIt);
-			if (ReplicationSystem)
-			{
-				if (const UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
-				{
-					const FNetHandle Handle = Bridge->GetReplicatedHandle(Owner);
-					if (Handle.IsValid())
-					{
-						ReplicationSystem->SetPropertyCustomCondition(Handle, Owner, RepIndex, bEnable);
-					}
-				}
-			}
-		}
-	}
 
 	void RegisterPropertyNetSerializerSelectorTypes()
 	{
@@ -73,8 +45,6 @@ private:
 		RegisterPropertyNetSerializerSelectorTypes();
 
 		UE_NET_IRIS_INIT_LEGACY_PUSH_MODEL();
-
-		UE::Net::Private::SetIrisSetPropertyCustomConditionDelegate(UE::Net::Private::FIrisSetPropertyCustomCondition::CreateStatic(&FIrisCoreModule::SetPropertyCustomCondition));
 		
 		ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FIrisCoreModule::OnModulesChanged);
 	}
@@ -87,8 +57,6 @@ private:
 			ModulesChangedHandle.Reset();
 		}
 	
-		UE::Net::Private::SetIrisSetPropertyCustomConditionDelegate({});
-
 		UE_NET_IRIS_SHUTDOWN_LEGACY_PUSH_MODEL();
 	}
 

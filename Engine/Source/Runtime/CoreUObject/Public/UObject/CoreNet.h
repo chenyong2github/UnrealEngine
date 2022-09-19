@@ -54,6 +54,11 @@ namespace UE::Net
 	struct FReplicationStateDescriptor;
 	typedef FReplicationFragment* (*CreateAndRegisterReplicationFragmentFunc)(UObject* Owner, const FReplicationStateDescriptor* Descriptor, FFragmentRegistrationContext& Context);
 #endif
+
+	namespace Private
+	{
+		class FNetPropertyConditionManager;
+	};
 }
 
 
@@ -536,6 +541,7 @@ public:
 	IRepChangedPropertyTracker() { }
 	virtual ~IRepChangedPropertyTracker() { }
 
+	UE_DEPRECATED(5.3, "Please use FPropertyConditions::SetActiveOverride instead.")
 	virtual void SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive) = 0;
 
 	UE_DEPRECATED(5.0, "Please use UReplaySubsystem::SetExternalDataForObject instead.")
@@ -546,6 +552,13 @@ public:
 	* This should include the dynamically allocated data, as well as the classes size.
 	*/
 	virtual void CountBytes(FArchive& Ar) const {};
+
+private:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	void CallSetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive) { SetCustomIsActiveOverride(OwningObject, RepIndex, bIsActive); }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	friend UE::Net::Private::FNetPropertyConditionManager;
 };
 
 class FCustomPropertyConditionState

@@ -8,6 +8,7 @@
 #include "Iris/ReplicationSystem/ReplicationBridge.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Iris/ReplicationSystem/ReplicationFragment.h"
+#include "Delegates/IDelegateInstance.h"
 
 #include "ObjectReplicationBridge.generated.h"
 
@@ -287,6 +288,8 @@ private:
 	UE::Net::FNetBitArray GarbageCollectionAffectedObjects;
 
 	UE::Net::FNetObjectFilterHandle DefaultSpatialFilterHandle;
+
+	FDelegateHandle OnCustomConditionChangedHandle;
 
 	bool bHasPollOverrides = false;
 	bool bHasDirtyClassesInPollPeriodOverrides = false;

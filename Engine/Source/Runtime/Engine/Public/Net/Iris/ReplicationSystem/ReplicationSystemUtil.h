@@ -106,11 +106,6 @@ struct FReplicationSystemUtil
 
 	/** Trigger replication of dirty state for actor wanting to be dormant. */
 	ENGINE_API static void FlushNetDormancy(AActor* Actor, bool bWasDormInitial);
-
-private:
-	friend FRepChangedPropertyTracker;
-
-	ENGINE_API static void SetPropertyCustomCondition(const UObject* Object, uint16 RepIndex, bool bIsActive);
 };
 
 }

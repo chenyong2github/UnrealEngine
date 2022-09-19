@@ -511,9 +511,6 @@ private:
 	IRISCORE_API void NotifyStreamingLevelUnload(const UObject* Level);
 
 private:
-	friend UE::Net::FReplicationSystemUtil;
-	friend class FIrisCoreModule;
-	IRISCORE_API bool SetPropertyCustomCondition(FNetHandle Handle, const void* Owner, uint16 RepIndex, bool bEnable);
 
 	void PostGarbageCollection();
 	void CollectGarbage();

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/Core/PropertyConditions/RepChangedPropertyTracker.h"
+#include "Net/Core/PropertyConditions/PropertyConditionsDelegates.h"
 #include "Net/Core/PushModel/PushModel.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -15,18 +16,6 @@ FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, c
 {}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-namespace UE::Net::Private
-{
-#if UE_WITH_IRIS
-static FIrisSetPropertyCustomCondition IrisSetPropertyCustomConditionDelegate;
-
-void SetIrisSetPropertyCustomConditionDelegate(const FIrisSetPropertyCustomCondition& Delegate)
-{
-	IrisSetPropertyCustomConditionDelegate = Delegate;
-}
-#endif // UE_WITH_IRIS
-}
-
 void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
 {
 	const bool bOldActive = ActiveState.GetActiveState(RepIndex);
@@ -40,9 +29,9 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 #endif
 
 #if UE_WITH_IRIS
-	if (bOldActive != bIsActive && UE::Net::Private::IrisSetPropertyCustomConditionDelegate.IsBound())
+	if (bOldActive != bIsActive && UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().IsBound())
 	{
-		UE::Net::Private::IrisSetPropertyCustomConditionDelegate.Execute(OwningObject, RepIndex, bIsActive);
+		UE::Net::Private::FPropertyConditionDelegates::GetOnPropertyCustomConditionChangedDelegate().Broadcast(OwningObject, RepIndex, bIsActive);
 	}
 #endif // UE_WITH_IRIS
 }

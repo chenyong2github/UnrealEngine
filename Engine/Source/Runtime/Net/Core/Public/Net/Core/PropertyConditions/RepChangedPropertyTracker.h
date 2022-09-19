@@ -43,6 +43,7 @@ public:
 		* @param RepIndex		Replication index for the Property.
 		* @param bIsActive		The new Active state.
 		*/
+	UE_DEPRECATED(5.3, "Please use FNetPropertyConditionManager::SetPropertyActiveOverride instead.")
 	virtual void SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive) override;
 
 	/**
@@ -83,12 +84,3 @@ public:
 	UE_DEPRECATED(5.0, "No longer used, see UReplaySubsystem::SetExternalDataForObject")
 	uint32 ExternalDataNumBits;
 };
-
-namespace UE::Net::Private
-{
-#if UE_WITH_IRIS
-DECLARE_DELEGATE_ThreeParams(FIrisSetPropertyCustomCondition, const UObject*, const uint16, const bool);
-NETCORE_API void SetIrisSetPropertyCustomConditionDelegate(const FIrisSetPropertyCustomCondition& Delegate);
-#endif
-}
-

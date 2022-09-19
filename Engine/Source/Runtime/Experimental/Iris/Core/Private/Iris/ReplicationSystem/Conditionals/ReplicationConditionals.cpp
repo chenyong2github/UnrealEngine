@@ -14,6 +14,8 @@
 #include "Iris/ReplicationSystem/Filtering/ReplicationFiltering.h"
 #include "Containers/ArrayView.h"
 #include "UObject/CoreNetTypes.h"
+#include "Net/Core/PropertyConditions/RepChangedPropertyTracker.h"
+#include "Net/Core/PropertyConditions/PropertyConditions.h"
 
 namespace UE::Net::Private
 {
@@ -106,6 +108,83 @@ bool FReplicationConditionals::SetCondition(FInternalNetHandle ObjectIndex, ERep
 
 	ensureMsgf(false, TEXT("Unhandled EReplicationCondition '%u'"), uint32(Condition));
 	return false;
+}
+
+void FReplicationConditionals::InitPropertyCustomConditions(FInternalNetHandle ObjectIndex)
+{
+	IRIS_PROFILER_SCOPE(FReplicationConditionals_InitPropertyCustomConditions);
+
+	const FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
+	const FReplicationProtocol* Protocol = ReplicatedObjectData.Protocol;
+
+	if (NetHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex) == nullptr || !EnumHasAnyFlags(Protocol->ProtocolTraits, EReplicationProtocolTraits::HasLifetimeConditionals))
+	{
+		return;
+	}
+
+	// Set up fragment owner collector once, currently we only support a single owner
+	constexpr uint32 MaxFragmentOwnerCount = 1U;
+	UObject* FragmentOwners[MaxFragmentOwnerCount] = {};
+	FReplicationStateOwnerCollector FragmentOwnerCollector(FragmentOwners, MaxFragmentOwnerCount);
+
+	FReplicationFragment* const * Fragments = ReplicatedObjectData.InstanceProtocol->Fragments;
+	const FReplicationInstanceProtocol* InstanceProtocol = ReplicatedObjectData.InstanceProtocol;
+	const uint32 FragmentCount = InstanceProtocol->FragmentCount;
+	const SIZE_T FirstRelevantStateIndex = Protocol->FirstLifetimeConditionalsStateIndex;
+
+	const UObject* LastOwner = nullptr;
+	for (const FReplicationStateDescriptor*& StateDescriptor : MakeArrayView(Protocol->ReplicationStateDescriptors + FirstRelevantStateIndex, Protocol->ReplicationStateCount - FirstRelevantStateIndex))
+	{
+		if (EnumHasAnyFlags(StateDescriptor->Traits, EReplicationStateTraits::HasLifetimeConditionals))
+		{
+			const SIZE_T StateIndex = &StateDescriptor - Protocol->ReplicationStateDescriptors;
+
+			// Get Owner
+			const FReplicationFragment* ReplicationFragment = InstanceProtocol->Fragments[StateIndex];
+			FragmentOwnerCollector.Reset();
+			ReplicationFragment->CollectOwner(&FragmentOwnerCollector);
+			if (FragmentOwnerCollector.GetOwnerCount() == 0U)
+			{
+				// We have no owner
+				continue;
+			}
+
+			const UObject* CurrentOwner = FragmentOwnerCollector.GetOwners()[0];
+			TSharedPtr<FRepChangedPropertyTracker> ChangedPropertyTracker;
+			if (CurrentOwner != LastOwner)
+			{				
+				ChangedPropertyTracker = FNetPropertyConditionManager::Get().FindOrCreatePropertyTracker(CurrentOwner);
+			}
+
+			const FReplicationInstanceProtocol::FFragmentData& Fragment = InstanceProtocol->FragmentData[StateIndex];
+			FNetBitArrayView ConditionalChangeMask = GetMemberConditionalChangeMask(Fragment.ExternalSrcBuffer, StateDescriptor);
+
+			// Initialize conditionals based on the state of the ChangedPropertyTracker
+			const FRepChangedPropertyTracker* Tracker = ChangedPropertyTracker.Get();
+			for (const FReplicationStateMemberLifetimeConditionDescriptor& MemberLifeTimeConditionDescriptor : MakeArrayView(StateDescriptor->MemberLifetimeConditionDescriptors, StateDescriptor->MemberCount))
+			{
+				if (MemberLifeTimeConditionDescriptor.Condition == ELifetimeCondition::COND_Custom)
+				{
+					const SIZE_T MemberIndex = &MemberLifeTimeConditionDescriptor - StateDescriptor->MemberLifetimeConditionDescriptors;
+					const uint16 RepIndex = StateDescriptor->MemberProperties[MemberIndex]->RepIndex;
+					if (!Tracker->IsParentActive(RepIndex))
+					{
+						const FReplicationStateMemberChangeMaskDescriptor& MemberChangeMaskDescriptor = StateDescriptor->MemberChangeMaskDescriptors[MemberIndex];
+						ConditionalChangeMask.ClearBits(MemberChangeMaskDescriptor.BitOffset, MemberChangeMaskDescriptor.BitCount);
+					}
+				}
+				else
+				{
+					const SIZE_T MemberIndex = &MemberLifeTimeConditionDescriptor - StateDescriptor->MemberLifetimeConditionDescriptors;
+					const uint16 RepIndex = StateDescriptor->MemberProperties[MemberIndex]->RepIndex;
+					if (!Tracker->IsParentActive(RepIndex))
+					{
+						UE_LOG(LogIris, Warning, TEXT("Trying to change non-existing custom conditional for RepIndex %u in protocol %s"), RepIndex, ToCStr(Protocol->DebugName));
+					}
+				}
+			}
+		}
+	}
 }
 
 // N.B. Calls can come for properties that have been disabled. We must handle such cases gracefully.
@@ -210,7 +289,6 @@ bool FReplicationConditionals::SetPropertyCustomCondition(FInternalNetHandle Obj
 				const FReplicationInstanceProtocol::FFragmentData& Fragment = InstanceProtocol->FragmentData[StateIndex];
 
 				const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = StateDescriptor->MemberChangeMaskDescriptors[RepIndexToMemberIndexDescriptor.MemberIndex];
-				checkSlow(ChangeMaskDescriptor.BitCount == 1);
 				FNetBitArrayView ConditionalChangeMask = GetMemberConditionalChangeMask(Fragment.ExternalSrcBuffer, StateDescriptor);
 
 				if (bIsActive)

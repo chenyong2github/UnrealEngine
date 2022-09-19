@@ -1107,21 +1107,6 @@ bool UReplicationSystem::SetReplicationCondition(FNetHandle Handle, UE::Net::ERe
 	return Conditionals.SetCondition(ObjectInternalIndex, Condition, bEnable);
 }
 
-bool UReplicationSystem::SetPropertyCustomCondition(FNetHandle Handle, const void* Owner, uint16 RepIndex, bool bEnable)
-{
-	using namespace UE::Net::Private;
-
-	FNetHandleManager& NetHandleManager = Impl->ReplicationSystemInternal.GetNetHandleManager();
-	const uint32 ObjectInternalIndex = NetHandleManager.GetInternalIndex(Handle);
-	if (ObjectInternalIndex == FNetHandleManager::InvalidInternalIndex)
-	{
-		return false;
-	}
-
-	FReplicationConditionals& Conditionals = Impl->ReplicationSystemInternal.GetConditionals();
-	return Conditionals.SetPropertyCustomCondition(ObjectInternalIndex, Owner, RepIndex, bEnable);
-}
-
 void UReplicationSystem::SetDeltaCompressionStatus(FNetHandle Handle, UE::Net::ENetObjectDeltaCompressionStatus Status)
 {
 	using namespace UE::Net::Private;

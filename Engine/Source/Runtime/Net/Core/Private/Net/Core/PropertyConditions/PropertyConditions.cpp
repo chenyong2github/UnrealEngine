@@ -2,6 +2,7 @@
 
 #include "Net/Core/PropertyConditions/PropertyConditions.h"
 #include "Net/Core/PropertyConditions/RepChangedPropertyTracker.h"
+#include "Net/Core/PropertyConditions/PropertyConditionsDelegates.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Serialization/ArchiveCountMem.h"
@@ -11,6 +12,9 @@ DECLARE_CYCLE_STAT(TEXT("PropertyConditions PostGarbageCollect"), STAT_PropertyC
 
 namespace UE::Net::Private
 {
+#if UE_WITH_IRIS
+FPropertyConditionDelegates::FOnPropertyCustomConditionChanged FPropertyConditionDelegates::OnPropertyCustomConditionChangedDelegate;
+#endif // UE_WITH_IRIS
 
 FNetPropertyConditionManager::FNetPropertyConditionManager()
 {
@@ -33,7 +37,7 @@ void FNetPropertyConditionManager::SetPropertyActive(const FObjectKey ObjectKey,
 	TSharedPtr<FRepChangedPropertyTracker> Tracker = FindPropertyTracker(ObjectKey);
 	if (Tracker.IsValid())
 	{
-		Tracker->SetCustomIsActiveOverride(ObjectKey.ResolveObjectPtr(), RepIndex, bActive);
+		Tracker->CallSetCustomIsActiveOverride(ObjectKey.ResolveObjectPtr(), RepIndex, bActive);
 	}
 }
 
@@ -106,6 +110,11 @@ void FNetPropertyConditionManager::LogMemory(FOutputDevice& Ar)
 	const int32 CountBytes = sizeof(*this) + CountAr.GetNum();
 
 	Ar.Logf(TEXT("  Property Condition Memory: %u"), CountBytes);
+}
+
+void FNetPropertyConditionManager::SetPropertyActiveOverride(IRepChangedPropertyTracker& Tracker, UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
+{
+	Tracker.CallSetCustomIsActiveOverride(OwningObject, RepIndex, bIsActive);
 }
 
 }; // UE::Net::Private
