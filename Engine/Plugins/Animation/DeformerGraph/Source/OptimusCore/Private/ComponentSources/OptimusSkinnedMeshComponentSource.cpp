@@ -29,10 +29,17 @@ TArray<FName> UOptimusSkinnedMeshComponentSource::GetExecutionDomains() const
 	return {Domains::Vertex, Domains::Triangle};
 }
 
+int32 UOptimusSkinnedMeshComponentSource::GetLodIndex(const UActorComponent* InComponent) const
+{
+	const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(InComponent);
+	const FSkeletalMeshObject* SkeletalMeshObject = SkinnedMeshComponent ? SkinnedMeshComponent->MeshObject : nullptr;
+	return SkeletalMeshObject ? SkeletalMeshObject->GetLOD() : 0;
+}
 
 bool UOptimusSkinnedMeshComponentSource::GetComponentElementCountsForExecutionDomain(
 	FName InDomainName,
 	const UActorComponent* InComponent,
+	int32 InLodIndex,
 	TArray<int32>& OutInvocationElementCounts
 	) const
 {
@@ -43,9 +50,8 @@ bool UOptimusSkinnedMeshComponentSource::GetComponentElementCountsForExecutionDo
 	}
 
 	const FSkeletalMeshObject* SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
-	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[InLodIndex];
 
 	OutInvocationElementCounts.Reset();
 #if 0

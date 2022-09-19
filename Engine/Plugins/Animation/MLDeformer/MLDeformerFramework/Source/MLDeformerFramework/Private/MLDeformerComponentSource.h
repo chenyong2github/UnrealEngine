@@ -23,5 +23,6 @@ public:
 	FName GetBindingName() const override { return FName("MLDeformer"); }
 	TSubclassOf<UActorComponent> GetComponentClass() const override;
 	TArray<FName> GetExecutionDomains() const override;
-	bool GetComponentElementCountsForExecutionDomain(FName InDomainName, const UActorComponent* InComponent, TArray<int32>& OutElementCounts) const override;
+	int32 GetLodIndex(const UActorComponent* InComponent) const override;
+	bool GetComponentElementCountsForExecutionDomain(FName InDomainName, const UActorComponent* InComponent, int32 InLodIndex, TArray<int32>& OutElementCounts) const override;
 };

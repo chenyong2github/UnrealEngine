@@ -37,12 +37,19 @@ public:
 	virtual TArray<FName> GetExecutionDomains() const
 	PURE_VIRTUAL(UOptimusComponentSource::GetExecutionContexts, return {}; );
 
-	/** For a given execution domain, return the range of the domain as given by the component that is associated
-	 *  with this source.
+	/** Returns the current LOD index associated with a component associated with this source. */
+	virtual int32 GetLodIndex(const UActorComponent* InComponent) const
+	{
+		return 0;
+	}
+
+	/** For a given execution domain, and component LOD index, return the range of the domain as given by 
+	 *  the component that is associated with this source.
 	 */
 	virtual bool GetComponentElementCountsForExecutionDomain(
 		FName InDomainName,
 		const UActorComponent* InComponent,
+		int32 InLodIndex,
 		TArray<int32>& OutInvocationElementCounts
 		) const
 	{

@@ -332,7 +332,6 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 			if (UOptimusPersistentBufferDataProvider* PersistentBufferProvider = Cast<UOptimusPersistentBufferDataProvider>(DataProvider))
 			{
 				PersistentBufferProvider->BufferPool = BufferPool;
-				PersistentBufferProvider->LODIndex = LODIndex;
 			}
 		}
 

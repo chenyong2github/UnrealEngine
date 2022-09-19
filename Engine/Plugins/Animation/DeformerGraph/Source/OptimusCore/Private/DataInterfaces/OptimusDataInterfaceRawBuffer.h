@@ -149,7 +149,8 @@ public:
 	 *  object and a data domain. Uses the execution domains to compute the information. Returns false if the
 	 *  data domain is not valid for computation.
 	 */
-	bool GetInvocationElementCounts(
+	bool GetLodAndInvocationElementCounts(
+		int32& OutLodIndex,
 		TArray<int32>& OutInvocationElementCounts
 		) const;
 	
@@ -201,9 +202,6 @@ public:
 	 *  created
 	 */
 	TSharedPtr<FOptimusPersistentBufferPool> BufferPool;
-
-	/** LOD Index of the primary mesh */
-	int32 LODIndex = 0;
 
 	/** The resource this buffer is provider to */
 	FName ResourceName;

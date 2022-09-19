@@ -238,7 +238,8 @@ bool UOptimusRawBufferDataProvider::IsValid() const
 }
 
 
-bool UOptimusRawBufferDataProvider::GetInvocationElementCounts(
+bool UOptimusRawBufferDataProvider::GetLodAndInvocationElementCounts(
+	int32& OutLodIndex,
 	TArray<int32>& OutInvocationElementCounts
 	) const
 {
@@ -254,12 +255,14 @@ bool UOptimusRawBufferDataProvider::GetInvocationElementCounts(
 		return false;
 	}
 
+	OutLodIndex = ComponentSourcePtr->GetLodIndex(ComponentPtr);
+
 	switch(DataDomain.Type)
 	{
 	case EOptimusDataDomainType::Dimensional:
 		{
 			const FName ExecutionDomain = !DataDomain.DimensionNames.IsEmpty() ? DataDomain.DimensionNames[0] : NAME_None;
-			if (ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, OutInvocationElementCounts))
+			if (ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, OutLodIndex, OutInvocationElementCounts))
 			{
 				if (DataDomain.DimensionNames.Num() == 1)
 				{
@@ -283,7 +286,7 @@ bool UOptimusRawBufferDataProvider::GetInvocationElementCounts(
 				EngineConstants.Add(ExecutionDomain, 0);
 
 				TArray<int32>& ElementCounts = ElementCountsPerDomain.FindOrAdd(ExecutionDomain);
-				if (!ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, ElementCounts))
+				if (!ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, OutLodIndex, ElementCounts))
 				{
 					return false;
 				}
@@ -321,8 +324,9 @@ bool UOptimusRawBufferDataProvider::GetInvocationElementCounts(
 
 FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderProxy()
 {
+	int32 LodIndex;
 	TArray<int32> InvocationCounts;
-	GetInvocationElementCounts(InvocationCounts);
+	GetLodAndInvocationElementCounts(LodIndex, InvocationCounts);
 	
 	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride);
 }
@@ -341,10 +345,11 @@ bool UOptimusPersistentBufferDataProvider::IsValid() const
 
 FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRenderProxy()
 {
+	int32 LodIndex = 0;
 	TArray<int32> InvocationCounts;
-	GetInvocationElementCounts(InvocationCounts);
+	GetLodAndInvocationElementCounts(LodIndex, InvocationCounts);
 	
-	return new FOptimusPersistentBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride, BufferPool, ResourceName, LODIndex);
+	return new FOptimusPersistentBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride, BufferPool, ResourceName, LodIndex);
 }
 
 

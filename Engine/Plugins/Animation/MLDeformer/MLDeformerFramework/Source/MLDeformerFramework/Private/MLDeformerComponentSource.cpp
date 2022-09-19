@@ -33,9 +33,20 @@ TArray<FName> UMLDeformerComponentSource::GetExecutionDomains() const
 }
 
 
+int32 UMLDeformerComponentSource::GetLodIndex(const UActorComponent* InComponent) const
+{
+	const UMLDeformerComponent* DeformerComponent = Cast<UMLDeformerComponent>(InComponent);
+	const UMLDeformerModelInstance* ModelInstance = DeformerComponent ? DeformerComponent->GetModelInstance() : nullptr;
+	const USkeletalMeshComponent* SkeletalMeshComponent = ModelInstance ? ModelInstance->GetSkeletalMeshComponent() : nullptr;
+	const FSkeletalMeshObject* SkeletalMeshObject = SkeletalMeshComponent ? SkeletalMeshComponent->MeshObject : nullptr;
+	return SkeletalMeshObject ? SkeletalMeshObject->GetLOD() : 0;
+}
+
+
 bool UMLDeformerComponentSource::GetComponentElementCountsForExecutionDomain(
 	FName InDomainName,
 	const UActorComponent* InComponent,
+	int32 InLodIndex,
 	TArray<int32>& OutElementCounts
 	) const
 {
@@ -61,9 +72,8 @@ bool UMLDeformerComponentSource::GetComponentElementCountsForExecutionDomain(
 	{
 		return false;
 	}
-	const int32 LodIndex = SkeletalMeshObject->GetLOD();
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[InLodIndex];
 		
 	OutElementCounts.Reset(LodRenderData->RenderSections.Num());
 	for (FSkelMeshRenderSection const& RenderSection: LodRenderData->RenderSections)
