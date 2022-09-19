@@ -23,30 +23,21 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			IBlobStore blobStore = CreateBlobStore(logger);
 
-			IBlob blob;
+			Bundle blob;
 			if (BlobId != null)
 			{
-				blob = await blobStore.ReadBlobAsync(BlobId.Value);
+				blob = await blobStore.ReadBundleAsync(BlobId.Value);
 				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
 			}
 			else
 			{
-				blob = await blobStore.ReadRefAsync(RefName);
+				blob = (await blobStore.ReadRefAsync(RefName)).Bundle;
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 
-			IReadOnlyList<BlobLocator> references = blob.References;
-			logger.LogInformation("");
-			logger.LogInformation("BlobRefs: {NumRefs}", references.Count);
-			foreach (BlobLocator reference in references)
-			{
-				logger.LogInformation("  {BlobId}", reference);
-			}
-
-			ReadOnlyMemory<byte> data = blob.Data;
-			MemoryReader reader = new MemoryReader(data);
-			BundleHeader header = new BundleHeader(reader);
-			int packetStart = data.Length - reader.Memory.Length;
+			ReadOnlyMemory<byte> data = blob.Payload.AsSingleSegment();
+			BundleHeader header = blob.Header;
+			int packetStart = 0;
 
 			logger.LogInformation("");
 			logger.LogInformation("Imports: {NumImports}", header.Imports.Count);

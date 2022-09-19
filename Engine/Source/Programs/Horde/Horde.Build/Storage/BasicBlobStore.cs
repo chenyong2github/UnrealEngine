@@ -78,12 +78,12 @@ namespace Horde.Build.Storage
 
 		#region Blobs
 
-		static string GetBlobPath(BlobLocator id) => $"{id.BlobId}.blob";
+		static string GetBlobPath(BlobId id) => $"{id}.blob";
 
 		/// <inheritdoc/>
-		public async Task<IBlob> ReadBlobAsync(BlobLocator id, CancellationToken cancellationToken = default)
+		public async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
-			string path = GetBlobPath(id);
+			string path = GetBlobPath(locator.BlobId);
 
 			ReadOnlyMemory<byte>? data = await _backend.ReadBytesAsync(path, cancellationToken);
 			if (data == null)
@@ -91,21 +91,22 @@ namespace Horde.Build.Storage
 				throw new KeyNotFoundException($"Unable to read data from {path}");
 			}
 
-			return Blob.Deserialize(id, data.Value);
+			return new Bundle(new MemoryReader(data.Value));
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
-			BlobLocator id = BlobLocator.Create(_serverId, prefix);
+			BlobId id = BlobId.CreateNew(prefix);
 			string path = GetBlobPath(id);
 
-			ReadOnlySequence<byte> sequence = Blob.Serialize(data, references);
+			ReadOnlySequence<byte> sequence = bundle.AsSequence();
 			using (ReadOnlySequenceStream stream = new ReadOnlySequenceStream(sequence))
 			{
 				await _backend.WriteAsync(path, stream, cancellationToken);
 			}
-			return id;
+
+			return new BlobLocator(_serverId, id);
 		}
 
 		#endregion
@@ -132,18 +133,20 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public async Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (locator.IsValid())
 			{
 				try
 				{
-					return await ReadBlobAsync(locator, cancellationToken);
+					Bundle? bundle = await ReadBundleAsync(locator, cancellationToken);
+					return new BundleRef(locator, bundle);
 				}
 				catch (Exception ex)
 				{
 					_logger.LogWarning(ex, "Unable to read blob {BlobId} referenced by ref {RefName}", locator, name);
+					return null;
 				}
 			}
 			return null;
@@ -163,11 +166,11 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, CancellationToken cancellationToken = default)
+		public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, CancellationToken cancellationToken = default)
 		{
-			BlobLocator blobId = await WriteBlobAsync(data, references, name.Text, cancellationToken);
-			await WriteRefTargetAsync(name, blobId, cancellationToken);
-			return blobId;
+			BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
+			await WriteRefTargetAsync(name, locator, cancellationToken);
+			return locator;
 		}
 
 		/// <inheritdoc/>

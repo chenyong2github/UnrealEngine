@@ -446,7 +446,7 @@ namespace EpicGames.Horde.Storage
 				BundleHeader header = bundle.Header;
 
 				// Write it to storage
-				BlobLocator locator = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.Locator).ToList(), _prefix, cancellationToken);
+				BlobLocator locator = await _owner._blobStore.WriteBundleAsync(bundle, _prefix, cancellationToken);
 				string cacheKey = GetBundleCacheKey(locator);
 				_owner.AddBundleToCache(cacheKey, bundle);
 
@@ -733,8 +733,8 @@ namespace EpicGames.Horde.Storage
 		public async Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default)
 		{
 			// Read the blob referenced by this ref
-			IBlob? blob = await _blobStore.TryReadRefAsync(name, maxAge, cancellationToken);
-			if (blob == null)
+			BundleRef? bundleRef = await _blobStore.TryReadRefAsync(name, maxAge, cancellationToken);
+			if (bundleRef == null)
 			{
 				return null;
 			}
@@ -743,9 +743,8 @@ namespace EpicGames.Horde.Storage
 			BundleContext context = new BundleContext();
 
 			// Add the new bundle to it
-			Bundle bundle = Bundle.FromBlob(blob);
-			BundleInfo bundleInfo = context.FindOrAddBundle(blob.Id, bundle.Header.Exports.Count);
-			MountBundle(bundleInfo, bundle);
+			BundleInfo bundleInfo = context.FindOrAddBundle(bundleRef.Locator, bundleRef.Bundle.Header.Exports.Count);
+			MountBundle(bundleInfo, bundleRef.Bundle);
 
 			// Return the last node from the bundle as the root
 			return await GetNodeAsync(bundleInfo.Exports[^1]!, cancellationToken);
@@ -812,7 +811,7 @@ namespace EpicGames.Horde.Storage
 			return bundle;
 		}
 
-		async Task<Bundle> ReadBundleInternalAsync(string cacheKey, BlobLocator blobId, CancellationToken cancellationToken)
+		async Task<Bundle> ReadBundleInternalAsync(string cacheKey, BlobLocator locator, CancellationToken cancellationToken)
 		{
 			// Perform another (sequenced) check whether an object has been added to the cache, to counteract the race between a read task being added and a task completing.
 			lock (_lockObject)
@@ -830,7 +829,7 @@ namespace EpicGames.Horde.Storage
 			Bundle bundle;
 			try
 			{
-				bundle = Bundle.FromBlob(await _blobStore.ReadBlobAsync(blobId, cancellationToken));
+				bundle = await _blobStore.ReadBundleAsync(locator, cancellationToken);
 			}
 			finally
 			{

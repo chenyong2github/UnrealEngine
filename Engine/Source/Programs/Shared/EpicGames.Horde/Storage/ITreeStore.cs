@@ -51,7 +51,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Creates a new context for reading trees.
 		/// </summary>
-		/// <param name="prefix">Prefix for blobs. See <see cref="IBlobStore.WriteBlobAsync(ReadOnlySequence{Byte}, IReadOnlyList{BlobLocator}, Utf8String, CancellationToken)"/></param>
+		/// <param name="prefix">Prefix for blobs. See <see cref="IBlobStore.WriteBundleAsync(Bundle, Utf8String, CancellationToken)"/></param>
 		/// <returns>New context instance</returns>
 		ITreeWriter CreateTreeWriter(Utf8String prefix = default);
 

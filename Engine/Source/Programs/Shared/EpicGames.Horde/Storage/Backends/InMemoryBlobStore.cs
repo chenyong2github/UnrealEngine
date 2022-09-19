@@ -18,7 +18,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Map of blob id to blob data
 		/// </summary>
-		readonly ConcurrentDictionary<BlobLocator, IBlob> _blobs = new ConcurrentDictionary<BlobLocator, IBlob>();
+		readonly ConcurrentDictionary<BlobLocator, Bundle> _blobs = new ConcurrentDictionary<BlobLocator, Bundle>();
 
 		/// <summary>
 		/// Map of ref name to ref data
@@ -26,7 +26,7 @@ namespace EpicGames.Horde.Storage.Backends
 		readonly ConcurrentDictionary<RefName, BlobLocator> _refs = new ConcurrentDictionary<RefName, BlobLocator>();
 
 		/// <inheritdoc cref="_blobs"/>
-		public IReadOnlyDictionary<BlobLocator, IBlob> Blobs => _blobs;
+		public IReadOnlyDictionary<BlobLocator, Bundle> Blobs => _blobs;
 
 		/// <inheritdoc cref="_refs"/>
 		public IReadOnlyDictionary<RefName, BlobLocator> Refs => _refs;
@@ -34,20 +34,17 @@ namespace EpicGames.Horde.Storage.Backends
 		#region Blobs
 
 		/// <inheritdoc/>
-		public Task<IBlob> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		public Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			return Task.FromResult(_blobs[locator]);
 		}
 
 		/// <inheritdoc/>
-		public Task<BlobLocator> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
-			BlobLocator blobId = BlobLocator.Create(HostId.Empty, prefix);
-
-			IBlob blob = Blob.FromMemory(blobId, data.ToArray(), references);
-			_blobs[blobId] = blob;
-
-			return Task.FromResult(blobId);
+			BlobLocator locator = BlobLocator.Create(HostId.Empty, prefix);
+			_blobs[locator] = bundle;
+			return Task.FromResult(locator);
 		}
 
 		#endregion
@@ -58,25 +55,22 @@ namespace EpicGames.Horde.Storage.Backends
 		public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(name, out _));
 
 		/// <inheritdoc/>
-		public Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.ContainsKey(name));
-
-		/// <inheritdoc/>
-		public Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		public Task<BundleRef?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			IBlob? blob = null;
-			if (_refs.TryGetValue(name, out BlobLocator locator))
+			BundleRef? result = null;
+			if (_refs.TryGetValue(name, out BlobLocator locator) && _blobs.TryGetValue(locator, out Bundle? bundle))
 			{
-				_blobs.TryGetValue(locator, out blob);
+				result = new BundleRef(locator, bundle);
 			}
-			return Task.FromResult(blob);
+			return Task.FromResult(result);
 		}
 
 		/// <inheritdoc/>
 		public Task<BlobLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			if (_refs.TryGetValue(name, out BlobLocator blobId))
+			if (_refs.TryGetValue(name, out BlobLocator locator))
 			{
-				return Task.FromResult(blobId);
+				return Task.FromResult(locator);
 			}
 			else
 			{
@@ -85,17 +79,17 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobLocator> references, CancellationToken cancellationToken)
+		public async Task<BlobLocator> WriteRefAsync(RefName name, Bundle bundle, CancellationToken cancellationToken)
 		{
-			BlobLocator locator = await WriteBlobAsync(data, references, name.Text, cancellationToken);
+			BlobLocator locator = await WriteBundleAsync(bundle, name.Text, cancellationToken);
 			_refs[name] = locator;
 			return locator;
 		}
 
 		/// <inheritdoc/>
-		public Task WriteRefTargetAsync(RefName name, BlobLocator blobId, CancellationToken cancellationToken = default)
+		public Task WriteRefTargetAsync(RefName name, BlobLocator locator, CancellationToken cancellationToken = default)
 		{
-			_refs[name] = blobId;
+			_refs[name] = locator;
 			return Task.CompletedTask;
 		}
 

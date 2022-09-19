@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,26 +71,6 @@ namespace EpicGames.Horde.Storage
 			Header = new BundleHeader(reader);
 			int length = (int)reader.ReadUnsignedVarInt();
 			Payload = new ReadOnlySequence<byte>(reader.ReadFixedLengthBytes(length));
-		}
-
-		/// <summary>
-		/// Create a bundle from a blob
-		/// </summary>
-		/// <param name="blob">Blob to parse from</param>
-		/// <returns>Bundle parsed from the given blob</returns>
-		[return: NotNullIfNotNull("blob")]
-		public static Bundle? FromBlob(IBlob? blob)
-		{
-			if (blob == null)
-			{
-				return null;
-			}
-
-			ReadOnlyMemory<byte> data = blob.Data;
-			MemoryReader reader = new MemoryReader(data);
-			Bundle bundle = new Bundle(reader);
-			reader.CheckEmpty();
-			return bundle;
 		}
 
 		/// <summary>
