@@ -20,6 +20,7 @@
 #undef NNXRT_RDG_BUFFER_SRV
 #undef NNXRT_RDG_BUFFER_UAV
 
+#include "HAL/FileManager.h"
 
 // NOTE: For now we only have DML on Windows, we should add support for XSX
 #if PLATFORM_WINDOWS
