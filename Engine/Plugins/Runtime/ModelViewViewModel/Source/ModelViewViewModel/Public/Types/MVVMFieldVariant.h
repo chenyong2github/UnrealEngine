@@ -157,12 +157,12 @@ namespace UE::MVVM
 
 		friend int32 GetTypeHash(const TMVVMFieldVariant<bConst>& Variant)
 		{
-			switch (Type)
+			switch (Variant.Type)
 			{
 				case EVariantType::Function:
-					return GetTypeHash(Binding.Function);
+					return GetTypeHash(Variant.Binding.Function);
 				case EVariantType::Property:
-					return GetTypeHash(Binding.Property);
+					return GetTypeHash(Variant.Binding.Property);
 			}
 			return 0;
 		}
