@@ -27,9 +27,7 @@ extension VideoViewController : StreamingConnectionDelegate {
         DispatchQueue.main.async {
 
             if self.dismissOnDisconnect {
-                self.streamingConnection?.delegate = nil
-                self.streamingConnection = nil
-                self.presentingViewController?.dismiss(animated: true, completion: nil)
+                self.forceDisconnectAndDismiss()
             } else {
                 self.showReconnecting(true, animated: true)
             }

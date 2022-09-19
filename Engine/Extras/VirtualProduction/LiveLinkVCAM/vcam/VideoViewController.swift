@@ -36,6 +36,7 @@ class VideoViewController : BaseViewController {
 
     weak var liveLink : LiveLinkProvider?
     var dismissOnDisconnect = false
+    var forceDisconnectTimer : Timer?
     
     var statsTimer : Timer?
     
@@ -237,8 +238,7 @@ class VideoViewController : BaseViewController {
             dismissOnDisconnect = true
             disconnect()
         } else {
-            disconnect()
-            self.presentingViewController?.dismiss(animated: true, completion: nil)
+            self.forceDisconnectAndDismiss()
         }
     }
     
@@ -247,8 +247,19 @@ class VideoViewController : BaseViewController {
     }
     
     func disconnect() {
+        self.forceDisconnectTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false, block: { timer in
+            Log.info("Forcing disconnect due to timeout.")
+            self.forceDisconnectAndDismiss()
+        })
         self.streamingConnection?.disconnect()
-        
+    }
+    
+    func forceDisconnectAndDismiss() {
+        self.forceDisconnectTimer?.invalidate()
+        self.forceDisconnectTimer = nil
+        self.streamingConnection?.delegate = nil
+        self.streamingConnection = nil
+        self.presentingViewController?.dismiss(animated: true, completion: nil)
     }
     
     func updateStreamingStats() {
