@@ -43,6 +43,8 @@ struct MASSENTITY_API FMassEntityManager : public TSharedFromThis<FMassEntityMan
 	friend FMassEntityQuery;
 	friend FMassDebugger;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewArchetypeDelegate, const FMassArchetypeHandle&);
+
 private:
 	// Index 0 is reserved so we can treat that index as an invalid entity handle
 	constexpr static int32 NumReservedEntities = 1;
@@ -379,6 +381,7 @@ public:
 
 	FMassObserverManager& GetObserverManager() { return ObserverManager; }
 
+	FOnNewArchetypeDelegate& GetOnNewArchetypeEvent() { return OnNewArchetypeEvent; }
 	/** 
 	 * Fetches the world associated with the Owner. 
 	 * @note that it's ok for a given EntityManager to not have an owner or the owner not being part of a UWorld, depending on the use case
@@ -470,6 +473,8 @@ private:
 #endif // WITH_MASSENTITY_DEBUG
 
 	TWeakObjectPtr<UObject> Owner;
+
+	FOnNewArchetypeDelegate OnNewArchetypeEvent;
 
 	bool bInitialized = false;
 };
