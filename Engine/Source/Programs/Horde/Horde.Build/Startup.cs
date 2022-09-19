@@ -14,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.CloudWatch;
+using Amazon.EC2;
 using Amazon.Extensions.NETCore.Setup;
 using EpicGames.AspNet;
 using EpicGames.Core;
@@ -474,6 +475,7 @@ namespace Horde.Build
 			}
 			
 			services.AddAWSService<IAmazonCloudWatch>();
+			services.AddAWSService<IAmazonEC2>();
 
 			ConfigureLogStorage(services);
 

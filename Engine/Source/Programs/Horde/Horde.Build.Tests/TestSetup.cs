@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Amazon.EC2;
 using Datadog.Trace;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
@@ -59,6 +60,7 @@ using Horde.Build.Auditing;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Compute;
 using Horde.Build.Devices;
+using Moq;
 
 namespace Horde.Build.Tests
 {
@@ -198,6 +200,9 @@ namespace Horde.Build.Tests
 			services.AddSingleton<FakeClock>();
 			services.AddSingleton<IClock>(sp => sp.GetRequiredService<FakeClock>());
 			services.AddSingleton<IHostApplicationLifetime, AppLifetimeStub>();
+			
+			// Empty mocked object to satisfy basic test runs
+			services.AddSingleton<IAmazonEC2>(sp => new Mock<IAmazonEC2>().Object);
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();
