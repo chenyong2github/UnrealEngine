@@ -929,7 +929,7 @@ void SerializeLOD(
 			static float MarginZ = 10.0f;
 			ClusterBoundsMin.X = FMath::Max(ClusterBoundsMin.X, LocalMeshCardsBounds.Min.X);
 			ClusterBoundsMin.Y = FMath::Max(ClusterBoundsMin.Y, LocalMeshCardsBounds.Min.Y);
-			ClusterBoundsMin.Z = FMath::Min(ClusterBoundsMax.Z, LocalMeshCardsBounds.Min.Z - MarginZ);
+			ClusterBoundsMin.Z = FMath::Max(ClusterBoundsMin.Z, LocalMeshCardsBounds.Min.Z - MarginZ);
 			ClusterBoundsMax.X = FMath::Min(ClusterBoundsMax.X, LocalMeshCardsBounds.Max.X);
 			ClusterBoundsMax.Y = FMath::Min(ClusterBoundsMax.Y, LocalMeshCardsBounds.Max.Y);
 			ClusterBoundsMax.Z = FMath::Min(ClusterBoundsMax.Z, LocalMeshCardsBounds.Max.Z + MarginZ);
