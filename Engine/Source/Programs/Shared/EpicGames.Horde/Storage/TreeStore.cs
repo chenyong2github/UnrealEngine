@@ -732,8 +732,9 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public async Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default)
 		{
-			Bundle? bundle = Bundle.FromBlob(await _blobStore.TryReadRefAsync(name, maxAge, cancellationToken));
-			if (bundle == null)
+			// Read the blob referenced by this ref
+			IBlob? blob = await _blobStore.TryReadRefAsync(name, maxAge, cancellationToken);
+			if (blob == null)
 			{
 				return null;
 			}
@@ -741,39 +742,13 @@ namespace EpicGames.Horde.Storage
 			// Create a new context for this bundle and its references
 			BundleContext context = new BundleContext();
 
-			// Create all the imports for the root bundle
-			BundleHeader header = bundle.Header;
-			List<NodeInfo> nodes = CreateImports(context, header);
+			// Add the new bundle to it
+			Bundle bundle = Bundle.FromBlob(blob);
+			BundleInfo bundleInfo = context.FindOrAddBundle(blob.Id, bundle.Header.Exports.Count);
+			MountBundle(bundleInfo, bundle);
 
-			// Decompress the bundle data and mount all the nodes in memory
-			int exportIdx = 0;
-			int packetOffset = 0;
-			foreach (BundlePacket packet in header.Packets)
-			{
-				ReadOnlyMemory<byte> encodedPacket = bundle.Payload.Slice(packetOffset, packet.EncodedLength).AsSingleSegment();
-
-				byte[] decodedPacket = new byte[packet.DecodedLength];
-				Decode(header.CompressionFormat, encodedPacket.Span, decodedPacket);
-
-				int nodeOffset = 0;
-				for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
-				{
-					BundleExport export = header.Exports[exportIdx];
-
-					ReadOnlyMemory<byte> nodeData = decodedPacket.AsMemory(nodeOffset, export.Length);
-					List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
-
-					NodeInfo node = new NodeInfo(this, export.Hash, new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), nodeRefs));
-					nodes.Add(node);
-
-					nodeOffset += export.Length;
-				}
-
-				packetOffset += packet.EncodedLength;
-			}
-
-			// Return the last node as the root
-			return (InMemoryNodeState)nodes[^1].State;
+			// Return the last node from the bundle as the root
+			return await GetNodeAsync(bundleInfo.Exports[^1]!, cancellationToken);
 		}
 
 		/// <summary>
@@ -910,48 +885,52 @@ namespace EpicGames.Horde.Storage
 			// If it didn't succeed, try again
 			if (!bundleInfo.Mounted)
 			{
-				// Read the bundle data
 				Bundle bundle = await ReadBundleAsync(bundleInfo.BlobId, cancellationToken);
-				BundleHeader header = bundle.Header;
+				MountBundle(bundleInfo, bundle);
+			}
+		}
 
-				// Create all the imported nodes
-				List<NodeInfo> nodes = CreateImports(bundleInfo.Context, header);
+		void MountBundle(BundleInfo bundleInfo, Bundle bundle)
+		{
+			BundleHeader header = bundle.Header;
 
-				// Create the exported nodes, or update the state of any imported nodes to exported
-				int exportIdx = 0;
-				int packetOffset = 0;
-				foreach (BundlePacket packet in header.Packets)
+			// Create all the imported nodes
+			List<NodeInfo> nodes = CreateImports(bundleInfo.Context, header);
+
+			// Create the exported nodes, or update the state of any imported nodes to exported
+			int exportIdx = 0;
+			int packetOffset = 0;
+			foreach (BundlePacket packet in header.Packets)
+			{
+				PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
+
+				int nodeOffset = 0;
+				for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
 				{
-					PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
+					BundleExport export = header.Exports[exportIdx];
+					List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
 
-					int nodeOffset = 0;
-					for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
+					ExportedNodeState state = new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, nodeRefs);
+
+					NodeInfo? node = bundleInfo.Exports[exportIdx];
+					if (node == null)
 					{
-						BundleExport export = header.Exports[exportIdx];
-						List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
-
-						ExportedNodeState state = new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, nodeRefs);
-
-						NodeInfo? node = bundleInfo.Exports[exportIdx];
-						if (node == null)
-						{
-							node = bundleInfo.Exports[exportIdx] = new NodeInfo(this, export.Hash, state);
-						}
-						else
-						{
-							node.SetState(state);
-						}
-						nodes.Add(node);
-
-						nodeOffset += export.Length;
+						node = bundleInfo.Exports[exportIdx] = new NodeInfo(this, export.Hash, state);
 					}
+					else
+					{
+						node.SetState(state);
+					}
+					nodes.Add(node);
 
-					packetOffset += packet.EncodedLength;
+					nodeOffset += export.Length;
 				}
 
-				// Mark the bundle as mounted
-				bundleInfo.Mounted = true;
+				packetOffset += packet.EncodedLength;
 			}
+
+			// Mark the bundle as mounted
+			bundleInfo.Mounted = true;
 		}
 
 		List<NodeInfo> CreateImports(BundleContext context, BundleHeader header)

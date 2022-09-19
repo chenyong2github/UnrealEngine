@@ -89,7 +89,7 @@ namespace Horde.Build.Tests
 			{
 				RefName refName = new RefName("hello");
 				await store.WriteRefTargetAsync(refName, blob3.Id);
-				BlobId refTargetId = await store.ReadRefIdAsync(refName);
+				BlobId refTargetId = await store.ReadRefTargetAsync(refName);
 				Assert.AreEqual(blob3.Id, refTargetId);
 			}
 
