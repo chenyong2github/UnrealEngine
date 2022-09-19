@@ -225,6 +225,7 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
     func signalClientDidDisconnect(_ signalClient: SignalingClient, error: Error?) {
         self.signalingConnected = false
         Log.info("Disconnected from signaling server")
+        self.delegate?.streamingConnection(self, didDisconnectWithError: error)
     }
     
     func signalClientDidReceiveError(_ signalClient: SignalingClient, error: Error?) {
