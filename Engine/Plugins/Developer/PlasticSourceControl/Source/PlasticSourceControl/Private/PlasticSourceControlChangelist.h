@@ -22,6 +22,11 @@ public:
 
 	FPlasticSourceControlChangelist(const FPlasticSourceControlChangelist& InOther) = default;
 
+	virtual bool CanDelete() const override
+	{
+		return !IsDefault();
+	}
+
 	bool operator==(const FPlasticSourceControlChangelist& InOther) const
 	{
 		return ChangelistName == InOther.ChangelistName;
