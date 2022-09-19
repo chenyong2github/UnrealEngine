@@ -292,6 +292,8 @@ void SetupMobileDirectionalLightUniformParameters(
 					OutShadowIndex++;
 				}
 			}
+
+			Params.DirectionalLightShadowMapNumCascades = SceneView.MaxShadowCascades;
 		}
 	}
 }

@@ -301,12 +301,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bMobileSupportGPUScene : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
-		ConsoleVariable = "r.Shadow.CSM.MaxMobileCascades", DisplayName = "Maximum number of CSM cascades to render", ClampMin = 1, ClampMax = 4,
-		ToolTip = "The maximum number of cascades with which to render dynamic directional light shadows when using the mobile renderer.",
-		ConfigRestartRequired = true))
-	int32 MaxMobileCascades;
-
-	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.AntiAliasing", DisplayName = "Mobile Anti-Aliasing Method",
 		ToolTip = "The mobile default anti-aliasing method."))
 	TEnumAsByte<EMobileAntiAliasingMethod::Type> MobileAntiAliasing;

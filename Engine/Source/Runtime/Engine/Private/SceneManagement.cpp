@@ -728,6 +728,7 @@ FMobileDirectionalLightShaderParameters::FMobileDirectionalLightShaderParameters
 	DirectionalLightColor = FLinearColor::Black;
 	DirectionalLightDirectionAndShadowTransition = FVector4f(EForceInit::ForceInitToZero);
 	DirectionalLightShadowMapChannelMask = 0xFF;
+	DirectionalLightShadowMapNumCascades = 0;
 
 	// white texture should act like a shadowmap cleared to the farplane.
 	DirectionalLightShadowTexture = GWhiteTexture->TextureRHI;
