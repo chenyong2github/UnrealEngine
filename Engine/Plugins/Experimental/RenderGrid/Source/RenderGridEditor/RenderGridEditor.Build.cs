@@ -22,6 +22,7 @@ public class RenderGridEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AppFramework",
 				"AssetTools",
 				"DesktopPlatform",
 				"EditorStyle",

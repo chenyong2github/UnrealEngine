@@ -36,7 +36,8 @@ void UE::RenderGrid::Private::SRenderGridProps::Construct(const FArguments& InAr
 		.BorderImage(new FSlateNoResource());
 
 	Refresh();
-	InBlueprintEditor->OnRenderGridChanged().AddSP(this, &SRenderGridProps::Refresh);
+	//InBlueprintEditor->OnRenderGridChanged().AddSP(this, &SRenderGridProps::Refresh);
+	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridProps::Refresh);
 	InBlueprintEditor->OnRenderGridBatchRenderingStarted().AddSP(this, &SRenderGridProps::OnBatchRenderingStarted);
 	InBlueprintEditor->OnRenderGridBatchRenderingFinished().AddSP(this, &SRenderGridProps::OnBatchRenderingFinished);
 

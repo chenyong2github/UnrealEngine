@@ -31,15 +31,17 @@ namespace UE::RenderGrid::Private
 		void Construct(const FArguments& InArgs, TSharedPtr<IRenderGridEditor> InBlueprintEditor, URenderGridPropsSourceRemoteControl* InPropsSource);
 
 		/** Obtain the latest prop values and refreshes the content of this widget. */
-		void UpdateStoredValuesAndRefresh();
+		void UpdateStoredValuesAndRefresh(const bool bForce = false);
 
 		/** Refreshes the content of this widget. */
-		void Refresh();
+		void Refresh(const bool bForce = false);
 
 	private:
-		void OnRemoteControlEntitiesExposed(URemoteControlPreset* Preset, const FGuid& EntityId) { UpdateStoredValuesAndRefresh(); }
-		void OnRemoteControlEntitiesUnexposed(URemoteControlPreset* Preset, const FGuid& EntityId) { UpdateStoredValuesAndRefresh(); }
+		void OnRenderGridJobsSelectionChanged() { Refresh(true); }
+		void OnRemoteControlEntitiesExposed(URemoteControlPreset* Preset, const FGuid& EntityId) { UpdateStoredValuesAndRefresh(true); }
+		void OnRemoteControlEntitiesUnexposed(URemoteControlPreset* Preset, const FGuid& EntityId) { UpdateStoredValuesAndRefresh(true); }
 		void OnRemoteControlEntitiesUpdated(URemoteControlPreset* Preset, const TSet<FGuid>& ModifiedEntities) { UpdateStoredValuesAndRefresh(); }
+		void OnRemoteControlPresetLayoutModified(URemoteControlPreset* Preset) { UpdateStoredValuesAndRefresh(true); }
 		void OnRemoteControlExposedPropertiesModified(URemoteControlPreset* Preset, const TSet<FGuid>& ModifiedProperties);
 
 	private:

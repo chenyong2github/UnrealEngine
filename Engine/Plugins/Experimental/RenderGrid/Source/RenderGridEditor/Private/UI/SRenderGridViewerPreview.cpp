@@ -13,6 +13,7 @@
 #include "Sections/MovieSceneSubSection.h"
 #include "Styles/RenderGridEditorStyle.h"
 #include "Tracks/MovieSceneSubTrack.h"
+#include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -304,7 +305,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 
 void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreviewOfRenderGridJob(URenderGridJob* Job)
 {
-	if (GetTickSpaceGeometry().Size.X <= 0)
+	if ((GetTickSpaceGeometry().Size.X <= 0) || (IsPreviewWidget() && (GetColorPicker() != nullptr)))
 	{
 		// don't render, try again next frame
 		RenderNewPreview();

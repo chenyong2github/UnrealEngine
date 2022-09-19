@@ -13,17 +13,27 @@ bool /*URenderGridPropRemoteControl::*/GetObjectRef(const TSharedPtr<FRemoteCont
 	{
 		return false;
 	}
-	if (UObject* FieldBoundObject = Field->GetBoundObject(); IsValid(FieldBoundObject))
+
+	if (const UScriptStruct* PropertyStruct = Field->GetStruct())
 	{
-		FRCObjectReference ObjectRef;
-		FString* ErrorText = nullptr;
-		if (IRemoteControlModule::Get().ResolveObjectProperty(Access, FieldBoundObject, Field->FieldPathInfo, ObjectRef, ErrorText))
+		if (PropertyStruct->IsChildOf(FRemoteControlProperty::StaticStruct()))
 		{
-			OutObjectRef = ObjectRef;
-			return true;
+			if (UObject* FieldBoundObject = Field->GetBoundObject(); IsValid(FieldBoundObject))
+			{
+				FRCObjectReference ObjectRef;
+				FString* ErrorText = nullptr;
+
+				if (IRemoteControlModule::Get().ResolveObjectProperty(Access, FieldBoundObject, Field->FieldPathInfo, ObjectRef, ErrorText))
+				{
+					OutObjectRef = ObjectRef;
+					return true;
+				}
+
+				UE_LOG(LogRenderGrid, Warning, TEXT("Couldn\'t resolve object property \"%s\" in object \"%s\": %s"), *Field->FieldName.ToString(), *FieldBoundObject->GetPathName(), (ErrorText ? **ErrorText : TEXT("unknown")));
+			}
 		}
-		UE_LOG(LogRenderGrid, Warning, TEXT("Couldn\'t resolve object property \"%s\" in object \"%s\": %s"), *Field->FieldName.ToString(), *FieldBoundObject->GetPathName(), (ErrorText ? **ErrorText : TEXT("unknown")));
 	}
+
 	return false;
 }
 

@@ -301,6 +301,8 @@ public:
 	static TArray<FString> GetBlueprintImplementableEvents()
 	{
 		return {
+			TEXT("ReceiveBeginEditor"),
+			TEXT("ReceiveEndEditor"),
 			TEXT("ReceiveBeginBatchRender"),
 			TEXT("ReceiveEndBatchRender"),
 			TEXT("ReceiveBeginJobRender"),
@@ -311,6 +313,22 @@ public:
 	}
 
 protected:
+	/**
+	 * Event for when this asset is opened in the editor. The asset will also be closed and reopened during a blueprint compile.
+	 * 
+	 * In here, you could for example obtain jobs from an external source and replace the current jobs of this render grid asset with those.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="BeginEditor"))
+	void ReceiveBeginEditor();
+
+	/**
+	 * Event for when this asset is closed in the editor. The asset will also be closed and reopened during a blueprint compile.
+	 * 
+	 * In here, you could do any cleanup required at the end of editing this render grid asset.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="EndEditor"))
+	void ReceiveEndEditor();
+
 	/**
 	 * Event for when batch rendering begins.
 	 * 
@@ -366,6 +384,12 @@ protected:
 	void ReceiveEndViewportRender(URenderGridJob* Job);
 
 public:
+	/** Overridable native event for when this asset is opened in the editor. The asset will also be closed and reopened during a blueprint compile. */
+	virtual void BeginEditor();
+
+	/** Overridable native event for when this asset is closed in the editor. The asset will also be closed and reopened during a blueprint compile. */
+	virtual void EndEditor();
+
 	/** Overridable native event for when batch rendering begins. */
 	virtual void BeginBatchRender(URenderGridQueue* Queue);
 
@@ -515,7 +539,7 @@ private:
 
 
 	/** The type of the properties that a job in this grid can have. */
-	UPROPERTY(EditInstanceOnly, Category="Render Grid|Grid", Meta=(DisplayName="Properties Type", AllowPrivateAccess="true"))
+	UPROPERTY(/*EditInstanceOnly, Category="Render Grid|Grid", Meta=(DisplayName="Properties Type", AllowPrivateAccess="true")*/)
 	ERenderGridPropsSourceType PropsSourceType;
 
 	/** The remote control properties that a job in this grid can have, only use this if PropsSourceType is ERenderGridPropsSourceType::RemoteControl. */

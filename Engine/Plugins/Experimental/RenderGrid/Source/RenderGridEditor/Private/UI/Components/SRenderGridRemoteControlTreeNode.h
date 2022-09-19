@@ -45,11 +45,12 @@ namespace UE::RenderGrid::Private
 		TObjectPtr<URemoteControlPreset> Preset = nullptr;
 		FRenderGridRemoteControlColumnSizeData ColumnSizeData;
 		TSharedPtr<FRemoteControlEntity> Entity = nullptr;
+		FName EntityFieldLabel;
 
 		bool operator!=(const FRenderGridRemoteControlGenerateWidgetArgs& RHS) const { return !(*this == RHS); }
 		bool operator==(const FRenderGridRemoteControlGenerateWidgetArgs& RHS) const
 		{
-			return (Preset == RHS.Preset) && (ColumnSizeData == RHS.ColumnSizeData) && (Entity == RHS.Entity);
+			return (Preset == RHS.Preset) && (ColumnSizeData == RHS.ColumnSizeData) && (Entity == RHS.Entity) && (EntityFieldLabel == RHS.EntityFieldLabel);
 		}
 	};
 

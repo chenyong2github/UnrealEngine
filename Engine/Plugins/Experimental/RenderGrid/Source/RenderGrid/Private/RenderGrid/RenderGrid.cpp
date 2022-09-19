@@ -461,7 +461,7 @@ bool URenderGridJob::SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity
 
 URenderGrid::URenderGrid()
 	: Guid(FGuid::NewGuid())
-	, PropsSourceType(ERenderGridPropsSourceType::Local)
+	, PropsSourceType(ERenderGridPropsSourceType::RemoteControl)
 	, PropsSourceOrigin_RemoteControl(nullptr)
 	, bExecutingBlueprintEvent(false)
 	, CachedPropsSource(nullptr)
@@ -527,6 +527,25 @@ void URenderGrid::PostLoad()
 {
 	Super::PostLoad();
 	LoadValuesFromCDO();
+
+	if (PropsSourceType == ERenderGridPropsSourceType::Local)
+	{
+		PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
+	}
+}
+
+void URenderGrid::BeginEditor()
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveBeginEditor();
+	bExecutingBlueprintEvent = false;
+}
+
+void URenderGrid::EndEditor()
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveEndEditor();
+	bExecutingBlueprintEvent = false;
 }
 
 void URenderGrid::BeginBatchRender(URenderGridQueue* Queue)
@@ -622,14 +641,11 @@ void URenderGrid::SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, U
 {
 	if (InPropsSourceType == ERenderGridPropsSourceType::RemoteControl)
 	{
-		if (URemoteControlPreset* InPropsSourceOrigin_RemoteControl = Cast<URemoteControlPreset>(InPropsSourceOrigin))
-		{
-			PropsSourceType = InPropsSourceType;
-			PropsSourceOrigin_RemoteControl = InPropsSourceOrigin_RemoteControl;
-			return;
-		}
+		PropsSourceType = InPropsSourceType;
+		PropsSourceOrigin_RemoteControl = Cast<URemoteControlPreset>(InPropsSourceOrigin);
+		return;
 	}
-	PropsSourceType = ERenderGridPropsSourceType::Local;
+	PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
 }
 
 URenderGridPropsSourceBase* URenderGrid::GetPropsSource() const

@@ -20,9 +20,9 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Construct(const FAr
 	PropsSource = InPropsSource;
 
 	SAssignNew(RowWidgetsContainer, SVerticalBox);
-	UpdateStoredValuesAndRefresh();
+	UpdateStoredValuesAndRefresh(true);
 
-	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridPropsRemoteControl::Refresh);
+	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridPropsRemoteControl::OnRenderGridJobsSelectionChanged);
 	if (IsValid(PropsSource))
 	{
 		if (TObjectPtr<URemoteControlPreset> Preset = PropsSource->GetProps()->GetRemoteControlPreset())
@@ -30,6 +30,7 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Construct(const FAr
 			Preset->OnEntityExposed().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlEntitiesExposed);
 			Preset->OnEntityUnexposed().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlEntitiesUnexposed);
 			Preset->OnEntitiesUpdated().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlEntitiesUpdated);
+			Preset->OnPresetLayoutModified().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlPresetLayoutModified);
 			Preset->OnExposedPropertiesModified().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlExposedPropertiesModified);
 		}
 	}
@@ -48,16 +49,16 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Construct(const FAr
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::UpdateStoredValuesAndRefresh()
+void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::UpdateStoredValuesAndRefresh(const bool bForce)
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
 		IRenderGridModule::Get().GetManager().UpdateRenderGridJobsPropValues(BlueprintEditor->GetInstance());
-		Refresh();
+		Refresh(bForce);
 	}
 }
 
-void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Refresh()
+void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Refresh(const bool bForce)
 {
 	if (!RowWidgetsContainer.IsValid())
 	{
@@ -92,9 +93,11 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Refresh()
 
 				if (URemoteControlPreset* Preset = Props->GetRemoteControlPreset(); IsValid(Preset))
 				{
+					TSharedPtr<FRemoteControlField> EntityField = StaticCastSharedPtr<FRemoteControlField>(Prop->GetRemoteControlEntity());
 					FRenderGridRemoteControlGenerateWidgetArgs Args;
 					Args.Preset = Preset;
 					Args.Entity = Prop->GetRemoteControlEntity();
+					Args.EntityFieldLabel = EntityField.IsValid() ? EntityField->GetLabel() : FName();
 					Args.ColumnSizeData.LeftColumnWidth = 0.3;
 					Args.ColumnSizeData.RightColumnWidth = 0.7;
 					NewRowWidgetsArgs.Add(Args);
@@ -102,7 +105,7 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Refresh()
 			}
 		}
 
-		if (RowWidgetsArgs != NewRowWidgetsArgs)
+		if (bForce || (RowWidgetsArgs != NewRowWidgetsArgs))
 		{
 			RowWidgetsArgs = NewRowWidgetsArgs;
 			RowWidgetsContainer->ClearChildren();

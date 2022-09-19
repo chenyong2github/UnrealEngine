@@ -189,47 +189,35 @@ void UE::RenderGrid::Private::SRenderGridJobList::OnRenderGridJobCreated(URender
 
 void UE::RenderGrid::Private::SRenderGridJobList::OnHeaderCheckboxToggled(ECheckBoxState State)
 {
-	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	bool bRefresh = false;
+
+	for (URenderGridJob* Job : RenderGridJobs)
 	{
-		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
-		{
-			bool bRefresh = false;
+		Job->SetIsEnabled(State == ECheckBoxState::Checked);
+		bRefresh = true;
+	}
 
-			for (URenderGridJob* Job : Grid->GetRenderGridJobs())
-			{
-				Job->SetIsEnabled(State == ECheckBoxState::Checked);
-				bRefresh = true;
-			}
-
-			if (bRefresh)
-			{
-				Refresh();
-			}
-		}
+	if (bRefresh)
+	{
+		Refresh();
 	}
 }
 
 ECheckBoxState UE::RenderGrid::Private::SRenderGridJobList::GetDesiredHeaderEnabledCheckboxState()
 {
 	ECheckBoxState State = ECheckBoxState::Checked;
-	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	bool bFirstJob = true;
+	for (URenderGridJob* Job : RenderGridJobs)
 	{
-		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+		ECheckBoxState JobState = (Job->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
+		if (bFirstJob)
 		{
-			bool bFirstJob = true;
-			for (URenderGridJob* Job : Grid->GetRenderGridJobs())
-			{
-				ECheckBoxState JobState = (Job->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
-				if (bFirstJob)
-				{
-					State = JobState;
-					bFirstJob = false;
-				}
-				else if (State != JobState)
-				{
-					return ECheckBoxState::Undetermined;
-				}
-			}
+			State = JobState;
+			bFirstJob = false;
+		}
+		else if (State != JobState)
+		{
+			return ECheckBoxState::Undetermined;
 		}
 	}
 	return State;

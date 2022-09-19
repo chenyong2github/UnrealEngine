@@ -90,6 +90,7 @@ UE::RenderGrid::Private::FRenderGridEditor::FRenderGridEditor()
 	, bRunRenderNewBatch(false)
 	, BatchRenderQueue(nullptr)
 	, PreviewRenderQueue(nullptr)
+	, DebuggingTimeInSecondsRemaining(0)
 	, bIsDebugging(false)
 {}
 
@@ -581,7 +582,13 @@ void UE::RenderGrid::Private::FRenderGridEditor::DestroyInstance()
 {
 	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
 	{
+		// Execute the blueprint event
+		Instance->EndEditor();
+
+		// Store the data
 		Instance->OnClose();
+
+		// Garbage collection
 		RenderGridWeakPtr.Reset();
 		Instance->MarkAsGarbage();
 	}
@@ -617,6 +624,9 @@ void UE::RenderGrid::Private::FRenderGridEditor::UpdateInstance(UBlueprint* InBl
 		// Broadcast the events
 		OnRenderGridChanged().Broadcast();
 		OnRenderGridJobsSelectionChanged().Broadcast();
+
+		// Execute the blueprint event
+		RenderGrid->BeginEditor();
 	}
 }
 

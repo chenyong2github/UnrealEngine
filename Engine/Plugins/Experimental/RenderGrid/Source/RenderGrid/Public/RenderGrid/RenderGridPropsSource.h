@@ -17,7 +17,7 @@
 UENUM(BlueprintType)
 enum class ERenderGridPropsSourceType : uint8
 {
-	Local = 0 UMETA(DisplayName = "Local Source"),
+	Local = 0 UMETA(Hidden, DisplayName = "Local Source"),
 	RemoteControl = 1 UMETA(DisplayName = "Remote Control Preset")
 };
 
