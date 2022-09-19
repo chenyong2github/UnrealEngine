@@ -660,6 +660,9 @@ namespace Horde.Build.Notifications.Sinks
 
 			IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
 
+			bool notifyOwner = true;
+			bool notifySuspects = issue.Promoted || details.Spans.Any(x => x.LastFailure.Annotations.NotifySubmitters ?? false);
+
 			WorkflowConfig? workflow = null;
 			if (details.Spans.Count > 0)
 			{
@@ -669,15 +672,13 @@ namespace Horde.Build.Notifications.Sinks
 				if (workflowId != null)
 				{
 					IStream? stream = await _streamService.GetStreamAsync(span.StreamId);
-					if (stream != null && stream.Config.TryGetWorkflow(workflowId.Value, out workflow))
+					if (stream != null && stream.Config.TryGetWorkflow(workflowId.Value, out workflow) && workflow.TriageChannel != null)
 					{
-						await CreateOrUpdateWorkflowThreadAsync(issue, span, details.Spans, workflow);
+						await CreateOrUpdateWorkflowThreadAsync(workflow.TriageChannel, issue, span, details.Spans, workflow);
+						notifyOwner = notifySuspects = false;
 					}
 				}
 			}
-
-			bool notifyOwner = workflow?.TriageChannel == null;
-			bool notifySuspects = issue.Promoted || details.Spans.Any(x => x.LastFailure.Annotations.NotifySubmitters ?? false);
 
 			HashSet<UserId> userIds = new HashSet<UserId>();
 			if (notifySuspects)
@@ -788,292 +789,288 @@ namespace Horde.Build.Notifications.Sinks
 
 		static string GetTriageThreadEventId(int issueId) => $"issue_triage_{issueId}";
 
-		async Task CreateOrUpdateWorkflowThreadAsync(IIssue issue, IIssueSpan span, IReadOnlyList<IIssueSpan> spans, WorkflowConfig workflow)
+		async Task CreateOrUpdateWorkflowThreadAsync(string triageChannel, IIssue issue, IIssueSpan span, IReadOnlyList<IIssueSpan> spans, WorkflowConfig workflow)
 		{
-			string? triageChannel = workflow.TriageChannel;
-			if (triageChannel != null)
+			Uri issueUrl = GetIssueUrl(issue, span.FirstFailure);
+
+			string eventId = GetTriageThreadEventId(issue.Id);
+
+			string prefix = workflow.TriagePrefix ?? String.Empty;
+			if (issue.Severity == IssueSeverity.Error && (span.LastFailure.Annotations.BuildBlocker ?? false))
 			{
-				Uri issueUrl = GetIssueUrl(issue, span.FirstFailure);
+				prefix = $"{prefix}*[BUILD BLOCKER]* ";
+			}
 
-				string eventId = GetTriageThreadEventId(issue.Id);
+			string issueSummary = issue.UserSummary ?? issue.Summary;
+			string text = $"{workflow.TriagePrefix}{GetSeverityPrefix(issue.Severity)}Issue <{issueUrl}|{issue.Id}>: {issueSummary}{workflow.TriageSuffix}";
+			bool closed = !spans.Any(x => x.NextSuccess == null && x.LastFailure.Annotations.WorkflowId != null);
+			if (closed) // Thread may be shared by multiple workflows
+			{
+				text = $"~{text}~";
+			}
 
-				string prefix = workflow.TriagePrefix ?? String.Empty;
-				if (issue.Severity == IssueSeverity.Error && (span.LastFailure.Annotations.BuildBlocker ?? false))
+			// Get the suspects for the issue
+			List<IIssueSuspect> suspects = await _issueService.Collection.FindSuspectsAsync(issue);
+
+			(MessageStateDocument state, bool isNew) = await SendOrUpdateMessageAsync(triageChannel, eventId, null, text);
+			SlackMessageId threadId = state.MessageId;
+
+			if (isNew)
+			{
+				// Create the summary text
+				List<ILogEvent> events = new List<ILogEvent>();
+				List<ILogEventData> eventDataItems = new List<ILogEventData>();
+
+				if (span.FirstFailure.LogId != null)
 				{
-					prefix = $"{prefix}*[BUILD BLOCKER]* ";
-				}
-
-				string issueSummary = issue.UserSummary ?? issue.Summary;
-				string text = $"{workflow.TriagePrefix}{GetSeverityPrefix(issue.Severity)}Issue <{issueUrl}|{issue.Id}>: {issueSummary}{workflow.TriageSuffix}";
-				bool closed = !spans.Any(x => x.NextSuccess == null && x.LastFailure.Annotations.WorkflowId != null);
-				if (closed) // Thread may be shared by multiple workflows
-				{
-					text = $"~{text}~";
-				}
-
-				// Get the suspects for the issue
-				List<IIssueSuspect> suspects = await _issueService.Collection.FindSuspectsAsync(issue);
-
-				(MessageStateDocument state, bool isNew) = await SendOrUpdateMessageAsync(triageChannel, eventId, null, text);
-				SlackMessageId threadId = state.MessageId;
-
-				if (isNew)
-				{
-					// Create the summary text
-					List<ILogEvent> events = new List<ILogEvent>();
-					List<ILogEventData> eventDataItems = new List<ILogEventData>();
-
-					if (span.FirstFailure.LogId != null)
+					LogId logId = span.FirstFailure.LogId.Value;
+					ILogFile? logFile = await _logFileService.GetLogFileAsync(logId);
+					if (logFile != null)
 					{
-						LogId logId = span.FirstFailure.LogId.Value;
-						ILogFile? logFile = await _logFileService.GetLogFileAsync(logId);
-						if (logFile != null)
+						events = await _logFileService.FindEventsAsync(logFile, span.Id, 0, 50);
+						if (events.Any(x => x.Severity == EventSeverity.Error))
 						{
-							events = await _logFileService.FindEventsAsync(logFile, span.Id, 0, 50);
-							if (events.Any(x => x.Severity == EventSeverity.Error))
-							{
-								events.RemoveAll(x => x.Severity == EventSeverity.Warning);
-							}
-
-							List<string> eventStrings = new List<string>();
-							for (int idx = 0; idx < Math.Min(events.Count, 3); idx++)
-							{
-								ILogEventData data = await _logFileService.GetEventDataAsync(logFile, events[idx].LineIndex, events[idx].LineCount);
-								eventDataItems.Add(data);
-							}
-						}
-					}
-
-					SlackMessage message = new SlackMessage();
-
-					message.Blocks.Add(new SectionBlock(new TextObject($"From {FormatJobStep(span.FirstFailure, span.NodeName)}:")));
-					foreach (ILogEventData eventDataItem in eventDataItems)
-					{
-						message.Blocks.Add(new SectionBlock(new TextObject(QuoteText(eventDataItem.Message, MaxLineLength))));
-					}
-					if (events.Count > eventDataItems.Count)
-					{
-						message.Blocks.Add(new SectionBlock(new TextObject("```...```")));
-					}
-
-					SlackMessageId summaryId = await _slackClient.PostMessageToThreadAsync(threadId, message);
-
-					// Permalink to the summary text so we link inside the thread rather than just to the original message
-					string? permalink = await _slackClient.GetPermalinkAsync(summaryId);
-					await UpdateMessageStateAsync(state.Id, state.MessageId, permalink);
-				}
-
-				// Post a message containing the controls and status
-				{
-					SlackMessage message = new SlackMessage();
-
-					if (workflow.TriageInstructions != null)
-					{
-						message.AddSection(workflow.TriageInstructions);
-					}
-
-					if (!closed)
-					{
-						ActionsBlock actions = message.AddActions();
-						actions.AddButton("Assign to Me", value: $"issue_{issue.Id}_ack", style: ButtonStyle.Primary);
-						actions.AddButton("Not Me", value: $"issue_{issue.Id}_decline", style: ButtonStyle.Danger);
-						actions.AddButton("Mark Fixed", value: $"issue_{issue.Id}_markfixed");
-
-						string? context = null;
-						if (issue.OwnerId != null)
-						{
-							string user = await FormatNameAsync(issue.OwnerId.Value);
-							if (issue.AcknowledgedAt == null)
-							{
-								context = $"Assigned to {user} (unacknowledged).";
-							}
-							else
-							{
-								context = $"Acknowledged by {user}.";
-							}
-						}
-						else if (suspects.Any(x => x.DeclinedAt != null))
-						{
-							HashSet<UserId> userIds = new HashSet<UserId>();
-							foreach (IIssueSuspect suspect in suspects)
-							{
-								if (suspect.DeclinedAt != null)
-								{
-									userIds.Add(suspect.AuthorId);
-								}
-							}
-
-							List<string> users = new List<string>();
-							foreach (UserId userId in userIds)
-							{
-								users.Add(await FormatNameAsync(userId));
-							}
-							users.Sort(StringComparer.OrdinalIgnoreCase);
-
-							context = $"Declined by {StringUtils.FormatList(users)}.";
+							events.RemoveAll(x => x.Severity == EventSeverity.Warning);
 						}
 
-						if (context != null)
+						List<string> eventStrings = new List<string>();
+						for (int idx = 0; idx < Math.Min(events.Count, 3); idx++)
 						{
-							message.AddContext(context);
+							ILogEventData data = await _logFileService.GetEventDataAsync(logFile, events[idx].LineIndex, events[idx].LineCount);
+							eventDataItems.Add(data);
 						}
 					}
-
-					await SendOrUpdateMessageToThreadAsync(triageChannel, $"{eventId}_buttons", null, threadId, message);
 				}
 
-				bool notifyTriageAlias = false;
-				if (isNew)
+				SlackMessage message = new SlackMessage();
+
+				message.Blocks.Add(new SectionBlock(new TextObject($"From {FormatJobStep(span.FirstFailure, span.NodeName)}:")));
+				foreach (ILogEventData eventDataItem in eventDataItems)
 				{
-					// If it has an owner, show that
-					HashSet<UserId> inviteUserIds = new HashSet<UserId>();
+					message.Blocks.Add(new SectionBlock(new TextObject(QuoteText(eventDataItem.Message, MaxLineLength))));
+				}
+				if (events.Count > eventDataItems.Count)
+				{
+					message.Blocks.Add(new SectionBlock(new TextObject("```...```")));
+				}
+
+				SlackMessageId summaryId = await _slackClient.PostMessageToThreadAsync(threadId, message);
+
+				// Permalink to the summary text so we link inside the thread rather than just to the original message
+				string? permalink = await _slackClient.GetPermalinkAsync(summaryId);
+				await UpdateMessageStateAsync(state.Id, state.MessageId, permalink);
+			}
+
+			// Post a message containing the controls and status
+			{
+				SlackMessage message = new SlackMessage();
+
+				if (workflow.TriageInstructions != null)
+				{
+					message.AddSection(workflow.TriageInstructions);
+				}
+
+				if (!closed)
+				{
+					ActionsBlock actions = message.AddActions();
+					actions.AddButton("Assign to Me", value: $"issue_{issue.Id}_ack", style: ButtonStyle.Primary);
+					actions.AddButton("Not Me", value: $"issue_{issue.Id}_decline", style: ButtonStyle.Danger);
+					actions.AddButton("Mark Fixed", value: $"issue_{issue.Id}_markfixed");
+
+					string? context = null;
 					if (issue.OwnerId != null)
 					{
-						string mention = await FormatMentionAsync(issue.OwnerId.Value, workflow.AllowMentions);
-
-						string changes = String.Join(", ", suspects.Where(x => x.AuthorId == issue.OwnerId).Select(x => FormatChange(x.Change)));
-						if (changes.Length > 0)
+						string user = await FormatNameAsync(issue.OwnerId.Value);
+						if (issue.AcknowledgedAt == null)
 						{
-							mention += $" ({changes})";
-						}
-
-						await _slackClient.PostMessageToThreadAsync(threadId, $"Assigned to {mention}");
-						inviteUserIds.Add(issue.OwnerId.Value);
-					}
-					else
-					{
-						IGrouping<UserId, IIssueSuspect>[] suspectGroups = suspects.GroupBy(x => x.AuthorId).ToArray();
-						if (suspectGroups.Length > 0 && suspectGroups.Length <= workflow.MaxMentions)
-						{
-							List<string> suspectList = new List<string>();
-							foreach (IGrouping<UserId, IIssueSuspect> suspectGroup in suspectGroups)
-							{
-								string mention = await FormatMentionAsync(suspectGroup.Key, workflow.AllowMentions);
-								string changes = String.Join(", ", suspectGroup.Select(x => FormatChange(x.Change)));
-								suspectList.Add($"{mention} ({changes})");
-								inviteUserIds.Add(suspectGroup.Key);
-							}
-
-							string suspectMessage = $"Possibly {StringUtils.FormatList(suspectList, "or")}.";
-							await _slackClient.PostMessageToThreadAsync(threadId, suspectMessage);
+							context = $"Assigned to {user} (unacknowledged).";
 						}
 						else
 						{
-							notifyTriageAlias = true;
+							context = $"Acknowledged by {user}.";
 						}
 					}
-
-					if (_environment.IsProduction() && workflow.AllowMentions)
+					else if (suspects.Any(x => x.DeclinedAt != null))
 					{
-						await InviteUsersAsync(state.Channel, inviteUserIds);
+						HashSet<UserId> userIds = new HashSet<UserId>();
+						foreach (IIssueSuspect suspect in suspects)
+						{
+							if (suspect.DeclinedAt != null)
+							{
+								userIds.Add(suspect.AuthorId);
+							}
+						}
+
+						List<string> users = new List<string>();
+						foreach (UserId userId in userIds)
+						{
+							users.Add(await FormatNameAsync(userId));
+						}
+						users.Sort(StringComparer.OrdinalIgnoreCase);
+
+						context = $"Declined by {StringUtils.FormatList(users)}.";
+					}
+
+					if (context != null)
+					{
+						message.AddContext(context);
 					}
 				}
 
-				if (workflow.EscalateAlias != null && workflow.EscalateTimes.Count > 0)
-				{
-					DateTime escalateTime = _clock.UtcNow + TimeSpan.FromMinutes(workflow.EscalateTimes[0]);
-					if (await _escalateIssues.AddAsync(issue.Id, (escalateTime - DateTime.UnixEpoch).TotalSeconds, StackExchange.Redis.When.NotExists))
-					{
-						_logger.LogInformation("First escalation time for issue {IssueId} is {Time}", issue.Id, escalateTime);
-					}
-				}
+				await SendOrUpdateMessageToThreadAsync(triageChannel, $"{eventId}_buttons", null, threadId, message);
+			}
 
-				if ((workflow.TriageAlias != null || workflow.TriageTypeAliases != null) && issue.OwnerId == null && (suspects.All(x => x.DeclinedAt != null) || notifyTriageAlias) && !closed)
+			bool notifyTriageAlias = false;
+			if (isNew)
+			{
+				// If it has an owner, show that
+				HashSet<UserId> inviteUserIds = new HashSet<UserId>();
+				if (issue.OwnerId != null)
 				{
-					string? triageAlias;
-					
-					if (workflow.TriageTypeAliases == null || issue.Fingerprints.Count == 0 || !workflow.TriageTypeAliases.TryGetValue(issue.Fingerprints[0].Type, out triageAlias))
+					string mention = await FormatMentionAsync(issue.OwnerId.Value, workflow.AllowMentions);
+
+					string changes = String.Join(", ", suspects.Where(x => x.AuthorId == issue.OwnerId).Select(x => FormatChange(x.Change)));
+					if (changes.Length > 0)
 					{
-						triageAlias = workflow.TriageAlias;
+						mention += $" ({changes})";
 					}
 
-					if (triageAlias != null)
-					{
-						string triageMessage = $"(cc {FormatUserOrGroupMention(triageAlias)} for triage).";
-						await SendOrUpdateMessageToThreadAsync(triageChannel, eventId + "_triage", null, threadId, triageMessage);
-					}
-				}
-
-				if (issue.AcknowledgedAt != null)
-				{
-					await _slackClient.AddReactionAsync(threadId, "eyes");
+					await _slackClient.PostMessageToThreadAsync(threadId, $"Assigned to {mention}");
+					inviteUserIds.Add(issue.OwnerId.Value);
 				}
 				else
 				{
-					await _slackClient.RemoveReactionAsync(threadId, "eyes");
-				}
-
-				if (issue.QuarantinedByUserId != null)
-				{
-					await _slackClient.AddReactionAsync(threadId, "mask");
-				}
-				else
-				{
-					await _slackClient.RemoveReactionAsync(threadId, "mask");
-				}
-
-				IIssueSpan? fixFailedSpan = null;
-				if (issue.FixChange != null)
-				{
-					fixFailedSpan = GetFixFailedSpan(issue, spans);
-
-					if (fixFailedSpan == null)
+					IGrouping<UserId, IIssueSuspect>[] suspectGroups = suspects.GroupBy(x => x.AuthorId).ToArray();
+					if (suspectGroups.Length > 0 && suspectGroups.Length <= workflow.MaxMentions)
 					{
-						string fixedEventId = $"issue_{issue.Id}_fixed_{issue.FixChange}";
-						string fixedMessage = $"Marked as fixed in {FormatChange(issue.FixChange.Value)}";
-						await PostSingleMessageToThreadAsync(triageChannel, fixedEventId, threadId, fixedMessage);
+						List<string> suspectList = new List<string>();
+						foreach (IGrouping<UserId, IIssueSuspect> suspectGroup in suspectGroups)
+						{
+							string mention = await FormatMentionAsync(suspectGroup.Key, workflow.AllowMentions);
+							string changes = String.Join(", ", suspectGroup.Select(x => FormatChange(x.Change)));
+							suspectList.Add($"{mention} ({changes})");
+							inviteUserIds.Add(suspectGroup.Key);
+						}
+
+						string suspectMessage = $"Possibly {StringUtils.FormatList(suspectList, "or")}.";
+						await _slackClient.PostMessageToThreadAsync(threadId, suspectMessage);
 					}
 					else
 					{
-						string fixFailedEventId = $"issue_{issue.Id}_fixfailed_{issue.FixChange}";
-						string fixFailedMessage = $"Issue not fixed by {FormatChange(issue.FixChange.Value)}; see {FormatJobStep(fixFailedSpan.LastFailure, fixFailedSpan.NodeName)} at CL {fixFailedSpan.LastFailure.Change} in {fixFailedSpan.StreamName}.";
-						if (issue.OwnerId.HasValue)
-						{
-							string mention = await FormatMentionAsync(issue.OwnerId.Value, workflow.AllowMentions);
-							fixFailedMessage += $" ({mention})";
-						}
-						await PostSingleMessageToThreadAsync(triageChannel, fixFailedEventId, threadId, fixFailedMessage);
+						notifyTriageAlias = true;
 					}
+				}
 
-					if (fixFailedSpan == null)
+				if (_environment.IsProduction() && workflow.AllowMentions)
+				{
+					await InviteUsersAsync(state.Channel, inviteUserIds);
+				}
+			}
+
+			if (workflow.EscalateAlias != null && workflow.EscalateTimes.Count > 0)
+			{
+				DateTime escalateTime = _clock.UtcNow + TimeSpan.FromMinutes(workflow.EscalateTimes[0]);
+				if (await _escalateIssues.AddAsync(issue.Id, (escalateTime - DateTime.UnixEpoch).TotalSeconds, StackExchange.Redis.When.NotExists))
+				{
+					_logger.LogInformation("First escalation time for issue {IssueId} is {Time}", issue.Id, escalateTime);
+				}
+			}
+
+			if ((workflow.TriageAlias != null || workflow.TriageTypeAliases != null) && issue.OwnerId == null && (suspects.All(x => x.DeclinedAt != null) || notifyTriageAlias) && !closed)
+			{
+				string? triageAlias;
+					
+				if (workflow.TriageTypeAliases == null || issue.Fingerprints.Count == 0 || !workflow.TriageTypeAliases.TryGetValue(issue.Fingerprints[0].Type, out triageAlias))
+				{
+					triageAlias = workflow.TriageAlias;
+				}
+
+				if (triageAlias != null)
+				{
+					string triageMessage = $"(cc {FormatUserOrGroupMention(triageAlias)} for triage).";
+					await SendOrUpdateMessageToThreadAsync(triageChannel, eventId + "_triage", null, threadId, triageMessage);
+				}
+			}
+
+			if (issue.AcknowledgedAt != null)
+			{
+				await _slackClient.AddReactionAsync(threadId, "eyes");
+			}
+			else
+			{
+				await _slackClient.RemoveReactionAsync(threadId, "eyes");
+			}
+
+			if (issue.QuarantinedByUserId != null)
+			{
+				await _slackClient.AddReactionAsync(threadId, "mask");
+			}
+			else
+			{
+				await _slackClient.RemoveReactionAsync(threadId, "mask");
+			}
+
+			IIssueSpan? fixFailedSpan = null;
+			if (issue.FixChange != null)
+			{
+				fixFailedSpan = GetFixFailedSpan(issue, spans);
+
+				if (fixFailedSpan == null)
+				{
+					string fixedEventId = $"issue_{issue.Id}_fixed_{issue.FixChange}";
+					string fixedMessage = $"Marked as fixed in {FormatChange(issue.FixChange.Value)}";
+					await PostSingleMessageToThreadAsync(triageChannel, fixedEventId, threadId, fixedMessage);
+				}
+				else
+				{
+					string fixFailedEventId = $"issue_{issue.Id}_fixfailed_{issue.FixChange}";
+					string fixFailedMessage = $"Issue not fixed by {FormatChange(issue.FixChange.Value)}; see {FormatJobStep(fixFailedSpan.LastFailure, fixFailedSpan.NodeName)} at CL {fixFailedSpan.LastFailure.Change} in {fixFailedSpan.StreamName}.";
+					if (issue.OwnerId.HasValue)
 					{
-						foreach (IIssueStream stream in issue.Streams)
+						string mention = await FormatMentionAsync(issue.OwnerId.Value, workflow.AllowMentions);
+						fixFailedMessage += $" ({mention})";
+					}
+					await PostSingleMessageToThreadAsync(triageChannel, fixFailedEventId, threadId, fixFailedMessage);
+				}
+
+				if (fixFailedSpan == null)
+				{
+					foreach (IIssueStream stream in issue.Streams)
+					{
+						if ((stream.MergeOrigin ?? false) && !(stream.ContainsFix ?? false))
 						{
-							if ((stream.MergeOrigin ?? false) && !(stream.ContainsFix ?? false))
-							{
-								string streamName = spans.FirstOrDefault(x => x.StreamId == stream.StreamId)?.StreamName ?? stream.StreamId.ToString();
-								string missingEventId = $"issue_{issue.Id}_fixmissing_{issue.FixChange}_{stream.StreamId}";
-								string missingMessage = $"Note: Fix may need manually merging to {streamName}";
-								await PostSingleMessageToThreadAsync(triageChannel, missingEventId, threadId, missingMessage);
-							}
+							string streamName = spans.FirstOrDefault(x => x.StreamId == stream.StreamId)?.StreamName ?? stream.StreamId.ToString();
+							string missingEventId = $"issue_{issue.Id}_fixmissing_{issue.FixChange}_{stream.StreamId}";
+							string missingMessage = $"Note: Fix may need manually merging to {streamName}";
+							await PostSingleMessageToThreadAsync(triageChannel, missingEventId, threadId, missingMessage);
 						}
 					}
 				}
+			}
 
-				if (fixFailedSpan != null)
-				{
-					await _slackClient.AddReactionAsync(threadId, "x");
-				}
-				else
-				{
-					await _slackClient.RemoveReactionAsync(threadId, "x");
-				}
+			if (fixFailedSpan != null)
+			{
+				await _slackClient.AddReactionAsync(threadId, "x");
+			}
+			else
+			{
+				await _slackClient.RemoveReactionAsync(threadId, "x");
+			}
 
-				if (issue.ResolvedAt != null && fixFailedSpan == null)
-				{
-					await _slackClient.AddReactionAsync(threadId, "tick");
-				}
-				else
-				{
-					await _slackClient.RemoveReactionAsync(threadId, "tick");
-				}
+			if (issue.ResolvedAt != null && fixFailedSpan == null)
+			{
+				await _slackClient.AddReactionAsync(threadId, "tick");
+			}
+			else
+			{
+				await _slackClient.RemoveReactionAsync(threadId, "tick");
+			}
 
-				if (issue.ExternalIssueKey != null)
-				{
-					string extIssueEventId = $"issue_{issue.Id}_ext_{issue.ExternalIssueKey}";
-					string extIssueMessage = $"Linked to issue {FormatExternalIssue(issue.ExternalIssueKey)}";
-					await PostSingleMessageToThreadAsync(triageChannel, extIssueEventId, threadId, extIssueMessage);
-				}
+			if (issue.ExternalIssueKey != null)
+			{
+				string extIssueEventId = $"issue_{issue.Id}_ext_{issue.ExternalIssueKey}";
+				string extIssueMessage = $"Linked to issue {FormatExternalIssue(issue.ExternalIssueKey)}";
+				await PostSingleMessageToThreadAsync(triageChannel, extIssueEventId, threadId, extIssueMessage);
 			}
 		}
 
