@@ -743,8 +743,8 @@ namespace EpicGames.Horde.Storage
 			BundleContext context = new BundleContext();
 
 			// Add the new bundle to it
-			BundleInfo bundleInfo = context.FindOrAddBundle(bundleRef.Locator, bundleRef.Bundle.Header.Exports.Count);
-			MountBundle(bundleInfo, bundleRef.Bundle);
+			BundleInfo bundleInfo = context.FindOrAddBundle(bundleRef.Locator, bundleRef.Header.Exports.Count);
+			MountBundle(bundleInfo, bundleRef);
 
 			// Return the last node from the bundle as the root
 			return await GetNodeAsync(bundleInfo.Exports[^1]!, cancellationToken);

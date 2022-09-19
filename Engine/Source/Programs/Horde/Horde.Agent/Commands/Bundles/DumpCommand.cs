@@ -31,7 +31,7 @@ namespace Horde.Agent.Commands.Bundles
 			}
 			else
 			{
-				blob = (await blobStore.ReadRefAsync(RefName)).Bundle;
+				blob = await blobStore.ReadRefAsync(RefName);
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 

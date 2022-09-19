@@ -34,7 +34,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Value for a ref
 	/// </summary>
-	public class BundleRef
+	public class BundleRef : Bundle
 	{
 		/// <summary>
 		/// Location of the blob
@@ -42,17 +42,12 @@ namespace EpicGames.Horde.Storage
 		public BlobLocator Locator { get; }
 
 		/// <summary>
-		/// Bundle stored for this ref
-		/// </summary>
-		public Bundle Bundle { get; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		public BundleRef(BlobLocator locator, Bundle bundle)
+			: base(bundle.Header, bundle.Payload)
 		{
 			Locator = locator;
-			Bundle = bundle;
 		}
 	}
 
