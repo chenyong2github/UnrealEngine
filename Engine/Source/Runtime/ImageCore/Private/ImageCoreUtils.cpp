@@ -131,3 +131,38 @@ ENUM_SUPPORTED_FORMATS(DECL_FORMAT_NAME);
 		return FName();
 	}
 }
+
+IMAGECORE_API ETextureSourceFormat FImageCoreUtils::GetCommonSourceFormat(ETextureSourceFormat Format1, ETextureSourceFormat Format2)
+{
+	if (Format1 == Format2)
+	{
+		return Format1;
+	}
+
+	// calculation is based on the following oriented graph, where formats A and B are linked if conversion from A to B is considered to be acceptable, specifically:
+	// TSF_G8 -> TSF_BGRA8 -> TSF_RGBA16
+	// TSF_G8 -> TSF_G16 -> TSF_RGBA16
+	// TSF_RGBA16 -> TSF_RGBA32F
+	// TSF_R16F -> TSF_RGBA16F -> TSF_RGBA32F
+	// TSF_R16F -> TSF_R32F -> TSF_RGBA32F
+	// TSF_BGRE8 -> TSF_RGBA32F
+	// the function returns the lowest possible parent node for two input nodes
+
+	switch (Format1)
+	{
+	case TSF_G8:
+		return !UE::TextureDefines::IsHDR(Format2) ? Format2 : TSF_RGBA32F;
+	case TSF_G16:
+	case TSF_BGRA8:
+		return Format2 == TSF_G8 ? Format1 : !UE::TextureDefines::IsHDR(Format2) ? TSF_RGBA16 : TSF_RGBA32F;
+	case TSF_RGBA16:
+		return !UE::TextureDefines::IsHDR(Format2) ? Format1 : TSF_RGBA32F;
+	case TSF_R16F:
+		return Format2 == TSF_R32F || Format2 == TSF_RGBA16F ? Format2 : TSF_RGBA32F;
+	case TSF_R32F:
+	case TSF_RGBA16F:
+		return Format2 == TSF_R16F ? Format1 : TSF_RGBA32F;
+	default:
+		return TSF_RGBA32F;
+	}
+}

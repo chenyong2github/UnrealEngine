@@ -37,4 +37,12 @@ namespace FImageCoreUtils
 							
 	IMAGECORE_API FName ConvertToUncompressedTextureFormatName(ERawImageFormat::Type Format);
 
+	/**
+	 * Returns ETextureSourceFormat which can be used to efficiently store data encoded in both input formats.
+	 * Can be used in cases when multiple sources need to be mixed together (i.e. in a texture array or UDIM)
+	 * @param Format1 - First source format.
+	 * @param Format2 - Second source format.
+	 */
+	IMAGECORE_API ETextureSourceFormat GetCommonSourceFormat(ETextureSourceFormat Format1, ETextureSourceFormat Format2);
+
 };

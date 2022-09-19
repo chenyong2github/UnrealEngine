@@ -23,6 +23,7 @@
 #include "Engine/Public/ImageUtils.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
+#include "ImageCoreUtils.h"
 
 #define LOCTEXT_NAMESPACE "UTexture2DArray"
 
@@ -366,12 +367,6 @@ ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 			UE_LOG(LogTexture, Warning, TEXT("Texture2DArray creation failed. Textures %s and %s have different aspect ratios."), *SourceTextures[TextureIndex]->GetFName().ToString(), *BaseTextureName);
 			return false;
 		}
-
-		if (SourceTextures[TextureIndex]->Source.GetFormat() != BaseTextureSource.GetFormat())
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Texture2DArray creation failed. Textures %s and %s have incompatible pixel formats."), *SourceTextures[TextureIndex]->GetFName().ToString(), *BaseTextureName);
-			return false;
-		}
 	}
 
 	return true;
@@ -389,6 +384,10 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 	{
 		Modify();
 
+		ETextureSourceFormat SourceFormat = SourceTextures[0]->Source.Format;
+		bool bUseSRGBSource = SourceTextures[0]->Source.GetGammaSpace(0) == EGammaSpace::sRGB;
+		bool bMismatchedFormats = false;
+		bool bMismatchedGammaSpace = false;
 		int32 InitialSourceTextureIndex = 0;
 		for (int32 SourceTextureIndex = 1; SourceTextureIndex < SourceTextures.Num(); ++SourceTextureIndex)
 		{
@@ -398,12 +397,33 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 			{
 				InitialSourceTextureIndex = SourceTextureIndex;
 			}
+
+			if ((SourceTextures[SourceTextureIndex]->Source.GetGammaSpace(0) == EGammaSpace::sRGB) != bUseSRGBSource)
+			{
+				bMismatchedGammaSpace = true;
+				bUseSRGBSource = false;
+				SourceFormat = TSF_RGBA32F;
+			}
+
+			if (SourceFormat != SourceTextures[SourceTextureIndex]->Source.Format)
+			{
+				bMismatchedFormats = true;
+				SourceFormat = FImageCoreUtils::GetCommonSourceFormat(SourceFormat, SourceTextures[SourceTextureIndex]->Source.Format);
+			}
+		}
+
+		if (bMismatchedGammaSpace)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Mismatched source gamma spaces, converting all to RGBA32F/Linear ..."));
+		}
+		else if (bMismatchedFormats)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Mismatched source pixel formats, converting all to %s/%s ..."),
+				ERawImageFormat::GetName(FImageCoreUtils::ConvertToRawImageFormat(SourceFormat)), bUseSRGBSource ? TEXT("sRGB") : TEXT("Linear"));
 		}
 
 		FTextureSource& InitialSource = SourceTextures[InitialSourceTextureIndex]->Source;
-		// Format and format size.
-		ETextureSourceFormat Format = InitialSource.GetFormat();
-		int32 FormatDataSize = InitialSource.GetBytesPerPixel();
+		int32 FormatDataSize = FTextureSource::GetBytesPerPixel(SourceFormat);
 		// X,Y,Z size of the array. Switched to use Source sizes - previously would use PlatformData sizes which caused an error in headless commandlet MHC export.
 		int32 SizeX = InitialSource.GetSizeX();
 		int32 SizeY = InitialSource.GetSizeY();
@@ -416,13 +436,14 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 			MipGenSettings = TMGS_NoMipmaps;
 			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
 			LODGroup = SourceTextures[0]->LODGroup;
-			SRGB = SourceTextures[0]->SRGB;
 			NeverStream = true;
 		}
 
+		SRGB = bUseSRGBSource;
+
 		// Create the source texture for this Texture2DArray.
 		// Currently only single-mip Texture2DArray's are supported, therefore only the first mip is copied from each element source.
-		Source.Init(SizeX, SizeY, ArraySize, 1, Format);
+		Source.Init(SizeX, SizeY, ArraySize, 1, SourceFormat);
 
 		uint8* DestMipData = Source.LockMip(0);
 		int64 MipSizeBytes = Source.CalcMipSize(0) / ArraySize;
@@ -431,7 +452,7 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 		{
 			FTextureSource& TextureSource = SourceTextures[SourceTexIndex]->Source;
 			void* DestSliceData = DestMipData + MipSizeBytes * SourceTexIndex;
-			if (TextureSource.SizeX == SizeX && TextureSource.SizeY == SizeY)
+			if (TextureSource.SizeX == SizeX && TextureSource.SizeY == SizeY && TextureSource.Format == SourceFormat)
 			{
 				void* SourceData = TextureSource.LockMip(0);
 				check(TextureSource.CalcMipSize(0) == MipSizeBytes);
@@ -442,10 +463,24 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 			{
 				FImage SourceImage;
 				SourceTextures[SourceTexIndex]->Source.GetMipImage(SourceImage, 0);
-				FImage ResizedSourceImage;
-				SourceImage.ResizeTo(ResizedSourceImage, SizeX, SizeY, SourceImage.Format, SourceImage.GammaSpace);
-				check(ResizedSourceImage.RawData.Num() == MipSizeBytes);
-				FMemory::Memcpy(DestSliceData, ResizedSourceImage.RawData.GetData(), MipSizeBytes);
+
+				if (TextureSource.Format != SourceFormat)
+				{
+					// note: there is no need to check if the gamma space is different, because in such case we would fallback to TSF_RGBA32F, which is always linear
+					FImage ConvertedSourceImage;
+					SourceImage.CopyTo(ConvertedSourceImage, FImageCoreUtils::ConvertToRawImageFormat(SourceFormat), bUseSRGBSource ? EGammaSpace::sRGB : EGammaSpace::Linear);
+					ConvertedSourceImage.Swap(SourceImage);
+				}
+
+				if (TextureSource.SizeX != SizeX || TextureSource.SizeY != SizeY)
+				{
+					FImage ResizedSourceImage;
+					SourceImage.ResizeTo(ResizedSourceImage, SizeX, SizeY, SourceImage.Format, SourceImage.GammaSpace);
+					ResizedSourceImage.Swap(SourceImage);
+				}
+				
+				check(SourceImage.RawData.Num() == MipSizeBytes);
+				FMemory::Memcpy(DestSliceData, SourceImage.RawData.GetData(), MipSizeBytes);
 			}
 		}
 
