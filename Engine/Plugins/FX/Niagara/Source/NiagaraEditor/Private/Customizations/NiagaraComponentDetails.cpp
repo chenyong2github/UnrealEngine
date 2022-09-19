@@ -212,11 +212,11 @@ public:
 				}
 				else if(ParameterValue.GetMode() == ENiagaraVariantMode::DataInterface)
 				{
-					System->GetExposedParameters().OnInterfaceChange();
+					System->GetExposedParameters().SetDataInterface(ParameterValue.GetDataInterface(), ParameterKey);
 				}
 				else if(ParameterValue.GetMode() == ENiagaraVariantMode::Object)
 				{
-					System->GetExposedParameters().OnUObjectChange();
+					System->GetExposedParameters().SetUObject(ParameterValue.GetUObject(), ParameterKey);
 				}
 
 				for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
