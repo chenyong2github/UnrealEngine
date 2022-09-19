@@ -128,6 +128,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 {
 	explicit FUsdSchemaTranslationContext( const UE::FUsdStage& InStage, UUsdAssetCache& InAssetCache );
 
+	/** True if we're a context created by the USDStageImporter to fully import to persistent assets and actors */
+	bool bIsImporting = false;
+
 	/** pxr::UsdStage we're translating from */
 	UE::FUsdStage Stage;
 

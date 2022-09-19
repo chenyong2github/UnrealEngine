@@ -425,13 +425,14 @@ namespace UsdStageImporterImpl
 		}
 
 		FString AssetPrefix;
-		FString AssetSuffix;
-		FString AssetPath = Asset->GetName();
 
+		FString AssetPath = Asset->GetName();
 		if (UUsdAssetImportData* AssetImportData = UsdUtils::GetAssetImportData(Asset))
 		{
 			AssetPath = AssetImportData->PrimPath;
 		}
+
+		FString AssetName = FPaths::GetBaseFilename( AssetPath );
 
 		if (UStaticMesh* Mesh = Cast<UStaticMesh>(Asset))
 		{
@@ -450,6 +451,7 @@ namespace UsdStageImporterImpl
 						if ( PrimName.IsNumeric() )
 						{
 							AssetPath = FPaths::GetPath( AssetPath );
+							AssetName = FPaths::GetBaseFilename( AssetPath );
 						}
 					}
 				}
@@ -461,52 +463,86 @@ namespace UsdStageImporterImpl
 		}
 		else if (USkeleton* Skeleton = Cast<USkeleton>(Asset))
 		{
-			AssetSuffix = TEXT("_Skeleton");
-
-			// Note that UsdUtils::GetAssetImportData fetches the AssetImportData of the PreviewMesh
+			// Skeletons don't have asset import data, so we can't store the prim that originated them, but we do
+			// name the actual assets after the prims, so unlike for the other asset types we want to use the actual
+			// asset name here
+			AssetName = Asset->GetFName().GetPlainNameString();
+			AssetPrefix = TEXT("SKEL_");
 		}
 		else if ( UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>( Asset ) )
 		{
-			AssetPrefix = TEXT( "PHYS_" );
+			// See comments above on the case for USkeleton
+			FString TempName = Asset->GetFName().GetPlainNameString();
 
-			// Note that UsdUtils::GetAssetImportData fetches the AssetImportData of the PreviewMesh
+			// The asset is named after the SkelRoot prim. If we're importing back a scene that was originally exported,
+			// we should clean up these prefixes or else we may end up with something like "PHYS_SK_PrimName"
+			TempName.RemoveFromStart( TEXT( "PHYS_" ), ESearchCase::CaseSensitive );
+			TempName.RemoveFromStart( TEXT( "SK_" ), ESearchCase::CaseSensitive );
+			if ( !TempName.IsEmpty() )
+			{
+				AssetName = TempName;
+			}
+
+			AssetPrefix = TEXT( "PHYS_" );
 		}
 		else if ( UAnimSequence* AnimSequence = Cast<UAnimSequence>( Asset ) )
 		{
-			AssetPrefix = TEXT( "Anim_" );
+			AssetPrefix = TEXT( "AS_" );
 		}
 		else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
 		{
-			AssetPrefix = TEXT("M_");
+			if ( Material->IsA<UMaterialInstance>() )
+			{
+				AssetPrefix = TEXT( "MI_" );
+			}
+			else
+			{
+				AssetPrefix = TEXT( "M_" );
+			}
 
 			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Material->AssetImportData))
 			{
 				// The only materials with no prim path are our auto-generated displayColor materials
 				AssetPath = AssetImportData->PrimPath.IsEmpty()? TEXT("DisplayColor") : AssetImportData->PrimPath;
+				AssetName = FPaths::GetBaseFilename( AssetPath );
 			}
 		}
 		else if (UTexture* Texture = Cast<UTexture>(Asset))
 		{
 			AssetPrefix = TEXT("T_");
 		}
-
-		FString FinalName = FPaths::GetBaseFilename(AssetPath);
-		if ( !FinalName.StartsWith( AssetPrefix ) )
+		else if ( ULevelSequence* LevelSequence = Cast<ULevelSequence>( Asset ) )
 		{
-			FinalName = AssetPrefix + FinalName;
+			AssetPrefix = TEXT( "LS_" );
 		}
-		if ( !FinalName.EndsWith( AssetSuffix ) )
+		else if ( UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>( Asset ) )
 		{
-			FinalName = FinalName + AssetSuffix;
+			FString TempName = AssetName;
+
+			// The asset is named after the SkelRoot prim. If we're importing back a scene that was originally exported,
+			// we should clean up these prefixes or else we may end up with something like "ABP_SK_PrimName"
+			TempName.RemoveFromStart( TEXT( "ABP_" ), ESearchCase::CaseSensitive );
+			TempName.RemoveFromStart( TEXT( "SK_" ), ESearchCase::CaseSensitive );
+			if ( !TempName.IsEmpty() )
+			{
+				AssetName = TempName;
+			}
+
+			AssetPrefix = TEXT( "ABP_" );
+		}
+
+		if ( !AssetName.StartsWith( AssetPrefix ) )
+		{
+			AssetName = AssetPrefix + AssetName;
 		}
 
 		// We don't care if our assets overwrite something in the final destination package (that conflict will be
 		// handled according to EReplaceAssetPolicy). But we do want these assets to have unique names amongst themselves
 		// or else they will overwrite each other when publishing
-		FinalName = UsdUtils::GetUniqueName( ObjectTools::SanitizeObjectName( FinalName ), UniqueAssetNames );
-		UniqueAssetNames.Add(FinalName);
+		AssetName = UsdUtils::GetUniqueName( ObjectTools::SanitizeObjectName( AssetName ), UniqueAssetNames );
+		UniqueAssetNames.Add(AssetName);
 
-		return FinalName;
+		return AssetName;
 	}
 
 	void UpdateAssetImportData( UObject* Asset, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions )
@@ -1580,6 +1616,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext;
 
 	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>( ImportContext.Stage, *ImportContext.AssetCache );
+	TranslationContext->bIsImporting = true;
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
 	TranslationContext->Time = static_cast< float >( UsdUtils::GetDefaultTimeCode() );
@@ -1680,6 +1717,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext;
 
 	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>( ImportContext.Stage, *ImportContext.AssetCache );
+	TranslationContext->bIsImporting = true;
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
 	TranslationContext->Time = static_cast< float >( UsdUtils::GetDefaultTimeCode() );
