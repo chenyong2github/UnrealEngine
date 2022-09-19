@@ -48,7 +48,7 @@ UOptimusClipboardContent* UOptimusClipboardContent::Create(
 				ClipboardLink.NodeOutputPinName = Link->GetNodeOutputPin()->GetUniqueName().ToString();
 			
 				ClipboardLink.NodeInputIndex = NodeIndexMap[InputNode];
-				ClipboardLink.NodeInputPinName = Link->GetNodeOutputPin()->GetUniqueName().ToString();
+				ClipboardLink.NodeInputPinName = Link->GetNodeInputPin()->GetUniqueName().ToString();
 
 				Content->NodeLinks.Add(ClipboardLink);
 			}
