@@ -436,7 +436,7 @@ static FAutoConsoleVariableRef GDelayTrimMemoryDuringMapLoadModeCVar(
 	ECVF_Default
 );
 
-bool GVerifyLoadMapWorldCleanupEnabled = !UE_BUILD_SHIPPING;
+static bool GVerifyLoadMapWorldCleanupEnabled = !UE_BUILD_SHIPPING;
 static FAutoConsoleVariableRef GVerifyLoadMapWorldCleanupEnabledCVar(
 	TEXT("Engine.VerifyLoadMapWorldCleanupEnabled"),
 	GVerifyLoadMapWorldCleanupEnabled,
