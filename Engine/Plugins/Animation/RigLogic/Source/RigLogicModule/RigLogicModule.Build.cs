@@ -30,8 +30,9 @@ namespace UnrealBuildTool.Rules
                     "RigLogicLib",
                     "RigVM",
                     "Projects"
-                }
+				}
             );
+
 
             if (Target.Type == TargetType.Editor)
             {
@@ -42,9 +43,12 @@ namespace UnrealBuildTool.Rules
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
-                {
-                    "AnimationCore"
-                }
+				{
+					"AnimationCore",
+					"SkeletalMeshUtilitiesCommon",
+					"RHI",
+					"RenderCore",
+				}
             );
         }
     }
