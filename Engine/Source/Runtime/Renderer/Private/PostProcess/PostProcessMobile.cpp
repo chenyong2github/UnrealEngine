@@ -1743,6 +1743,9 @@ class FMobileTAAPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FMobileTAAPS);
 	SHADER_USE_PARAMETER_STRUCT(FMobileTAAPS, FGlobalShader);
 
+	class FUseStandaloneTAA : SHADER_PERMUTATION_BOOL("MOBILE_USE_STANDALONE_TAA");
+	using FPermutationDomain = TShaderPermutationDomain<FUseStandaloneTAA>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(float, AaBlendAmount)
@@ -1757,6 +1760,13 @@ class FMobileTAAPS : public FGlobalShader
 	{
 		return IsMobilePlatform(Parameters.Platform);
 	}
+
+	static FPermutationDomain BuildPermutationVector(bool bUseStandaloneTAA)
+	{
+		FPermutationDomain PermutationVector;
+		PermutationVector.Set<FUseStandaloneTAA>(bUseStandaloneTAA);
+		return PermutationVector;
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FMobileTAAPS, "/Engine/Private/PostProcessMobile.usf", "AaPS_Mobile", SF_Pixel);
@@ -1767,6 +1777,9 @@ public:
 	DECLARE_GLOBAL_SHADER(FMobileTAAVS);
 	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FMobileTAAVS, FGlobalShader);
 
+	class FUseStandaloneTAA : SHADER_PERMUTATION_BOOL("MOBILE_USE_STANDALONE_TAA");
+	using FPermutationDomain = TShaderPermutationDomain<FUseStandaloneTAA>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
@@ -1775,6 +1788,13 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsMobilePlatform(Parameters.Platform);
+	}
+
+	static FPermutationDomain BuildPermutationVector(bool bUseStandaloneTAA)
+	{
+		FPermutationDomain PermutationVector;
+		PermutationVector.Set<FUseStandaloneTAA>(bUseStandaloneTAA);
+		return PermutationVector;
 	}
 };
 
@@ -1793,7 +1813,9 @@ FScreenPassTexture AddMobileTAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& 
 		TAAOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(TAADesc, TEXT("TAA")), Inputs.SceneColor.ViewRect, View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 	}
 
-	TShaderMapRef<FMobileTAAVS> VertexShader(View.ShaderMap);
+	auto VSShaderPermutationVector = FMobileTAAVS::BuildPermutationVector(Inputs.bUseStandaloneTAA);
+	TShaderMapRef<FMobileTAAVS> VertexShader(View.ShaderMap, VSShaderPermutationVector);
+
 
 	FMobileTAAVS::FParameters VSShaderParameters;
 
@@ -1857,7 +1879,8 @@ FScreenPassTexture AddMobileTAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& 
 		}
 	}
 
-	TShaderMapRef<FMobileTAAPS> PixelShader(View.ShaderMap);
+	auto PSShaderPermutationVector = FMobileTAAPS::BuildPermutationVector(Inputs.bUseStandaloneTAA);
+	TShaderMapRef<FMobileTAAPS> PixelShader(View.ShaderMap, PSShaderPermutationVector);
 
 	FMobileTAAPS::FParameters* PSShaderParameters = GraphBuilder.AllocParameters<FMobileTAAPS::FParameters>();
 	PSShaderParameters->RenderTargets[0] = TAAOutput.GetRenderTargetBinding();

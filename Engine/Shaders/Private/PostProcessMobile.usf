@@ -1180,6 +1180,10 @@ void AaVS_Mobile(
 	OutUV[3] = InTexCoord.xy + (Aa1 + float2( 0.0, 0.75)) * BufferSizeAndInvSize.zw;
 	OutUV[4] = InTexCoord.xy + (Aa1 + float2( 0.75, 0.0)) * BufferSizeAndInvSize.zw;
 	OutUV[5] = InTexCoord.xy + Aa2 * BufferSizeAndInvSize.zw;
+
+#if MOBILE_USE_STANDALONE_TAA
+	OutUV[2] = InTexCoord.xy;
+#endif
 }
 
 void AaPS_Mobile(
@@ -1187,6 +1191,11 @@ void AaPS_Mobile(
 	out half4 OutColor : SV_Target0
 	)
 {
+#if MOBILE_USE_STANDALONE_TAA
+	OutColor = SceneColorTexture.Sample(SceneColorSampler, UV[2].xy);
+	return;
+#endif
+
 	//   N
 	// w M E            P = previous middle
 	//   S

@@ -97,6 +97,14 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	TEXT("Only available for testing in non-shipping builds."),
 	ECVF_RenderThreadSafe);
 #endif
+
+TAutoConsoleVariable<int32> CVarMobileUseStandaloneTAA(
+	TEXT("r.Mobile.UseStandaloneTAA"),
+	0,
+	TEXT("Whether to use standalone temporal AA on mobile platforms."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 } //! namespace
 
 bool IsPostProcessingWithComputeEnabled(ERHIFeatureLevel::Type FeatureLevel)
@@ -1970,7 +1978,49 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 				GraphBuilder.QueueTextureExtraction(SceneColor.Texture, &View.ViewState->PrevFrameViewInfo.MobileAaColor);
 			}
 
+			bool bUseStandaloneTAA = MobileUseStandaloneTAA(View.GetShaderPlatform());
+			if (bUseStandaloneTAA)
+			{
+				int32 UpscaleMode = ITemporalUpscaler::GetTemporalUpscalerMode();
+
+				const ITemporalUpscaler* DefaultTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
+				const ITemporalUpscaler* UpscalerToUse = (UpscaleMode == 0 || !View.Family->GetTemporalUpscalerInterface()) ? DefaultTemporalUpscaler : View.Family->GetTemporalUpscalerInterface();
+
+				const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
+
+				// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
+				RDG_EVENT_SCOPE_CONDITIONAL(
+					GraphBuilder,
+					UpscalerToUse != DefaultTemporalUpscaler,
+					"ThirdParty %s %dx%d -> %dx%d",
+					UpscalerToUse->GetDebugName(),
+					View.ViewRect.Width(), View.ViewRect.Height(),
+					View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
+
+				ITemporalUpscaler::FPassInputs UpscalerPassInputs;
+
+				UpscalerPassInputs.bAllowDownsampleSceneColor = false;
+				UpscalerPassInputs.DownsampleOverrideFormat = PF_FloatRGB;
+				UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
+				UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
+				UpscalerPassInputs.SceneVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+				UpscalerPassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+
+				FScreenPassTexture HalfResolutionSceneColor;
+				FIntRect SecondaryViewRect = View.ViewRect;
+
+				UpscalerToUse->AddPasses(
+					GraphBuilder,
+					View,
+					UpscalerPassInputs,
+					&SceneColor.Texture,
+					&SecondaryViewRect,
+					&HalfResolutionSceneColor.Texture,
+					&HalfResolutionSceneColor.ViewRect);
+			}
+
 			FMobileTAAInputs TAAInputs;
+			TAAInputs.bUseStandaloneTAA = bUseStandaloneTAA;
 			PassSequence.AcceptOverrideIfLastPass(EPass::TAA, TAAInputs.OverrideOutput);
 			TAAInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 			TAAInputs.SceneColor = SceneColor;

@@ -1048,6 +1048,12 @@ RENDERCORE_API bool MobileSupportVolumetricFog(const FStaticShaderPlatform Platf
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
 }
 
+RENDERCORE_API bool MobileUseStandaloneTAA(const FStaticShaderPlatform Platform)
+{
+	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseStandaloneTAA"));
+	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
+}
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),

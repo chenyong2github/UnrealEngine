@@ -4,7 +4,11 @@
 
 #include "../Common.ush"
 #include "../Random.ush"
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 #include "../EyeAdaptationCommon.ush"
+#endif
+
 #include "../TextureSampling.ush"
 #include "../MonteCarlo.ush"
 
@@ -2235,7 +2239,11 @@ void MainCS(
 	}
 	#endif
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	float FrameExposureScale = EyeAdaptationLookup();
+#else
+	float FrameExposureScale = 1;
+#endif
 	FTAAHistoryPayload OutputPayload = TemporalAASample(GroupId, GroupThreadId, GroupThreadIndex, ViewportUV, FrameExposureScale);
 
 	float4 OutColor0 = 0;

@@ -165,6 +165,8 @@ struct FMobileTAAInputs
 	FScreenPassRenderTarget OverrideOutput;
 	FScreenPassTexture SceneColor;
 	FScreenPassTexture LastFrameSceneColor;
+
+	bool bUseStandaloneTAA = false;
 };
 
 FScreenPassTexture AddMobileTAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileTAAInputs& Inputs);
