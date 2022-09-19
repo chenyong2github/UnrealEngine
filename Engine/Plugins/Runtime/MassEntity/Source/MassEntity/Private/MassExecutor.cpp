@@ -177,8 +177,6 @@ private:
 
 FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext, TFunction<void()> OnDoneNotification)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
-
 	if (!ProcessingContext.EntityManager)
 	{
 		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntityManager is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
