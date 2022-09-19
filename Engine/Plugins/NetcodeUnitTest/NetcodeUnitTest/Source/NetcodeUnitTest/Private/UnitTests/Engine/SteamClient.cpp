@@ -97,7 +97,7 @@ void USteamClient::NotifyProcessLog(TWeakPtr<FUnitTestProcess> InProcess, const 
 {
 	Super::NotifyProcessLog(InProcess, InLogLines);
 
-	const TCHAR* ServerAddrLog = TEXT("LogOnline: Verbose: STEAM: Master Server Data (P2PADDR, ");
+	const TCHAR* ServerAddrLog = TEXT(" Data (P2PADDR, ");
 
 	if (InProcess.HasSameObject(ServerHandle.Pin().Get()))
 	{
