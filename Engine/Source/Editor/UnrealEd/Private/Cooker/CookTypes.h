@@ -485,3 +485,5 @@ LLM_DECLARE_TAG(Cooker);
 constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")
 extern float GCookProgressWarnBusyTime;
+
+constexpr float TickCookableObjectsFrameTime = .100f;

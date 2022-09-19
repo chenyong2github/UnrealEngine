@@ -2619,18 +2619,18 @@ TArray<FPendingCookedPlatformData>& FPackageDatas::GetPendingCookedPlatformDatas
 	return PendingCookedPlatformDatas;
 }
 
-void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce)
+void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCookableObjectTickTime)
 {
 	if (PendingCookedPlatformDatas.Num() == 0)
 	{
 		return;
 	}
 
+	double CurrentTime = FPlatformTime::Seconds();
 	if (!bForce)
 	{
 		// ProcessAsyncResults and IsCachedCookedPlatformDataLoaded can be expensive to call
 		// Cap the frequency at which we call them.
-		double CurrentTime = FPlatformTime::Seconds();
 		if (CurrentTime < LastPollAsyncTime + GPollAsyncPeriod)
 		{
 			return;
@@ -2641,6 +2641,12 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce)
 	GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */,
 		false /* bBlockOnGlobalShaderCompletion */);
 	FAssetCompilingManager::Get().ProcessAsyncTasks(true);
+	if (LastCookableObjectTickTime + TickCookableObjectsFrameTime <= CurrentTime)
+	{
+		UE_SCOPED_COOKTIMER(TickCookableObjects);
+		FTickableCookObject::TickObjects(CurrentTime - LastCookableObjectTickTime, false /* bTickComplete */);
+		LastCookableObjectTickTime = CurrentTime;
+	}
 
 	FPendingCookedPlatformData* Datas = PendingCookedPlatformDatas.GetData();
 	for (int Index = 0; Index < PendingCookedPlatformDatas.Num();)

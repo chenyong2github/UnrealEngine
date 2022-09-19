@@ -1178,7 +1178,7 @@ public:
 	 * Iterate over all elements in PendingCookedPlatformDatas and check whether they have completed,
 	 * releasing their resources and pending count if so.
 	 */
-	void PollPendingCookedPlatformDatas(bool bForce);
+	void PollPendingCookedPlatformDatas(bool bForce, double& LastCookableObjectTickTime);
 
 	/** RangedFor methods for iterating over all FPackageData managed by this FPackageDatas */
 	TArray<FPackageData*>::RangedForIteratorType begin();
