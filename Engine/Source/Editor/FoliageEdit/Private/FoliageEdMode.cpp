@@ -1907,50 +1907,7 @@ void FEdModeFoliage::ApplySelection(UWorld* InWorld, bool bApply)
 void FEdModeFoliage::UpdateInstancePartitioning(UWorld* InWorld)
 {
 	check(!bMoving);
-	UActorPartitionSubsystem* ActorPartitionSubsystem = InWorld->GetSubsystem<UActorPartitionSubsystem>();
-	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
-	{
-		AInstancedFoliageActor* IFA = *It;
-		IFA->ForEachFoliageInfo([InWorld, IFA, ActorPartitionSubsystem](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
-		{
-			if (FoliageInfo.Type == EFoliageImplType::Actor && 
-				ActorPartitionSubsystem->IsLevelPartition())
-			{
-				return true; // Actors are handled through the Partitioning code
-			}
-
-			AInstancedFoliageActor* TargetIFA = nullptr;
-			bool bMovedInstances = false;
-			// Loop here because SelectedIndices will change on MoveInstancesToLevel so we need to process the modified remaining SelectedIndices
-			do
-			{
-				TargetIFA = nullptr;
-				bMovedInstances = false;
-				TSet<int32> InstancesToMove;
-
-				for (int32 SelectedInstanceIdx : FoliageInfo.SelectedIndices)
-				{
-					FFoliageInstance& Instance = FoliageInfo.Instances[SelectedInstanceIdx];
-					AInstancedFoliageActor* NewIFA = AInstancedFoliageActor::Get(InWorld, true, IFA->GetLevel(), Instance.Location);
-					if ((TargetIFA == nullptr || TargetIFA == NewIFA) && NewIFA != IFA)
-					{
-						TargetIFA = NewIFA;
-						InstancesToMove.Add(SelectedInstanceIdx);
-					}
-				}
-
-				if (InstancesToMove.Num())
-				{
-					// TargetIFA can be null (if target is unloaded cell). Meaning instances will be deleted.
-					FoliageInfo.MoveInstances(TargetIFA, InstancesToMove, true);
-					bMovedInstances = true;
-				}
-
-			} while (bMovedInstances && FoliageInfo.SelectedIndices.Num() > 0);
-
-			return true; // continue iteration
-		});
-	}
+	AInstancedFoliageActor::UpdateInstancePartitioning(InWorld);
 }
 
 void FEdModeFoliage::PostTransformSelectedInstances(UWorld* InWorld)

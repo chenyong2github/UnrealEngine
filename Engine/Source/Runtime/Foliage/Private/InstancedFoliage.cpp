@@ -3134,6 +3134,62 @@ void AInstancedFoliageActor::MoveInstancesForMovedOwnedActors(AActor* InActor)
 	}
 }
 
+namespace FoliagePartitioningUtils
+{
+	static void Update(AInstancedFoliageActor* SourceIFA, FFoliageInfo& FoliageInfo, TFunctionRef<TSet<int32>* ()> GetInstanceSet)
+	{
+		UActorPartitionSubsystem* ActorPartitionSubsystem = SourceIFA->GetWorld()->GetSubsystem<UActorPartitionSubsystem>();
+		if (FoliageInfo.Type == EFoliageImplType::Actor && ActorPartitionSubsystem->IsLevelPartition())
+		{
+			return; // Actors are handled through the Partitioning code
+		}
+
+		bool bMovedInstances = true;
+		AInstancedFoliageActor* TargetIFA = nullptr;
+
+		TSet<int32>* InstanceSet = GetInstanceSet();
+		while (InstanceSet && InstanceSet->Num() > 0 && bMovedInstances)
+		{
+			TargetIFA = nullptr;
+			bMovedInstances = false;
+			TSet<int32> InstancesToMove;
+
+			for (int32 InstanceIdx : *InstanceSet)
+			{
+				FFoliageInstance& Instance = FoliageInfo.Instances[InstanceIdx];
+				AInstancedFoliageActor* NewIFA = AInstancedFoliageActor::Get(SourceIFA->GetWorld(), true, SourceIFA->GetLevel(), Instance.Location);
+				if ((TargetIFA == nullptr || TargetIFA == NewIFA) && NewIFA != SourceIFA)
+				{
+					TargetIFA = NewIFA;
+					InstancesToMove.Add(InstanceIdx);
+				}
+			}
+
+			if (InstancesToMove.Num())
+			{
+				// TargetIFA can be null (if target is unloaded cell). Meaning instances will be deleted.
+				FoliageInfo.MoveInstances(TargetIFA, InstancesToMove, true);
+				bMovedInstances = true;
+			}
+
+			InstanceSet = GetInstanceSet();
+		}
+	}
+}
+
+void AInstancedFoliageActor::UpdateInstancePartitioning(UWorld* InWorld)
+{
+	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
+	{
+		AInstancedFoliageActor* IFA = *It;
+		IFA->ForEachFoliageInfo([IFA](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
+        {
+			FoliagePartitioningUtils::Update(IFA, FoliageInfo, [&]() { return &FoliageInfo.SelectedIndices; });
+			return true; // continue iteration
+        });
+	}
+}
+
 void AInstancedFoliageActor::MoveInstancesForMovedComponent(UActorComponent* InComponent)
 {
 	// We don't want to handle this case when applying level transform
@@ -3206,6 +3262,8 @@ void AInstancedFoliageActor::MoveInstancesForMovedComponent(UActorComponent* InC
 
 			Info.Implementation->EndUpdate();
 			Info.Refresh(true, false);
+
+			FoliagePartitioningUtils::Update(this, Info, [&]() { return Info.ComponentHash.Find(BaseId); });
 		}
 	}
 }

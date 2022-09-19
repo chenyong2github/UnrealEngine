@@ -126,6 +126,7 @@ FFoliageInstanceBaseId FFoliageInstanceBaseCache::AddInstanceBaseId(UActorCompon
 	if (InComponent && !InComponent->IsCreatedByConstructionScript())
 	{
 		BaseId = GetInstanceBaseId(InComponent);
+		FFoliageInstanceBaseInfo BaseInfo(InComponent);
 		if (BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
 		{
 			// generate next unique ID for base component
@@ -134,8 +135,6 @@ FFoliageInstanceBaseId FFoliageInstanceBaseCache::AddInstanceBaseId(UActorCompon
 				BaseId = NextBaseId++;
 			}
 			while (InstanceBaseMap.Contains(BaseId));
-			
-			FFoliageInstanceBaseInfo BaseInfo(InComponent);
 			
 			// more info for UE-30878
 			if (InstanceBaseInvMap.Contains(BaseInfo.BasePtr))
@@ -158,6 +157,11 @@ FFoliageInstanceBaseId FFoliageInstanceBaseCache::AddInstanceBaseId(UActorCompon
 					InstanceBaseLevelMap.FindOrAdd(WorldKey).Add(BaseInfo.BasePtr);
 				}
 			}
+		}
+		else
+		{
+			// Update BaseInfo
+			InstanceBaseMap[BaseId] = MoveTemp(BaseInfo);
 		}
 	}
 
