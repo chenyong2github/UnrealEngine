@@ -369,7 +369,7 @@ ESocketConnectionState FSocketBSD::GetConnectionState(void)
 	ESocketConnectionState CurrentState = SCS_ConnectionError;
 
 	// look for an existing error
-	if (HasState(ESocketBSDParam::HasError) == ESocketBSDReturn::No)
+	if (Socket != INVALID_SOCKET && HasState(ESocketBSDParam::HasError) == ESocketBSDReturn::No)
 	{
 		if (FPlatformTime::Seconds() - LastActivityTime > 5.0)
 		{
