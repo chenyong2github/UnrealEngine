@@ -483,18 +483,20 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 	}
 }
 
-void FUncontrolledChangelistsModule::CreateUncontrolledChangelist(const FText& InDescription)
+TOptional<FUncontrolledChangelist> FUncontrolledChangelistsModule::CreateUncontrolledChangelist(const FText& InDescription)
 {
 	if (!IsEnabled())
 	{
-		return;
+		return TOptional<FUncontrolledChangelist>();
 	}
 
 	// Default constructor will generate a new GUID.
 	FUncontrolledChangelist NewUncontrolledChangelist;
-	UncontrolledChangelistsStateCache.Emplace(MoveTemp(NewUncontrolledChangelist), MakeShared<FUncontrolledChangelistState>(NewUncontrolledChangelist, InDescription));
+	UncontrolledChangelistsStateCache.Emplace(NewUncontrolledChangelist, MakeShared<FUncontrolledChangelistState>(NewUncontrolledChangelist, InDescription));
 
 	OnStateChanged();
+
+	return NewUncontrolledChangelist;
 }
 
 void FUncontrolledChangelistsModule::EditUncontrolledChangelist(const FUncontrolledChangelist& InUncontrolledChangelist, const FText& InNewDescription)

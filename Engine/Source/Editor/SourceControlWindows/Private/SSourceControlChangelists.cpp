@@ -2077,6 +2077,7 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 	}
 
 	const bool bAddNewChangelistEntry = true;
+	const bool bAddNewUncontrolledChangelistEntry = AreUncontrolledChangelistsEnabled();
 
 	// Build selection list for changelists
 	TArray<SSourceControlDescriptionItem> Items;
@@ -2088,6 +2089,15 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 		Items.Emplace(
 			LOCTEXT("SourceControl_NewChangelistText", "New Changelist"),
 			LOCTEXT("SourceControl_NewChangelistDescription", "<enter description here>"),
+			/*bCanEditDescription=*/true);
+	}
+
+	if (bAddNewUncontrolledChangelistEntry)
+	{
+		// Second item in the 'Move To' list is 'new uncontrolled changelist' (if enabled)
+		Items.Emplace(
+			LOCTEXT("SourceControl_NewUncontrolledChangelistText", "New Uncontrolled Changelist"),
+			LOCTEXT("SourceControl_NewUncontrolledChangelistDescription", "<enter description here>"),
 			/*bCanEditDescription=*/true);
 	}
 
@@ -2154,11 +2164,39 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 				}
 			}));
 	}
+	else if ((bAddNewUncontrolledChangelistEntry && bAddNewChangelistEntry && PickedItem == 1) || (bAddNewUncontrolledChangelistEntry && !bAddNewChangelistEntry && PickedItem == 0)) // Move files to a new uncontrolled changelist
+	{
+		ExecuteUncontrolledChangelistOperation(LOCTEXT("Moving_Files_New_Uncontrolled_Changelist", "Moving file(s) to a new uncontrolled changelist..."), [&]()
+		{
+			TArray<FSourceControlStateRef> SelectedControlledFileStates;
+			TArray<FSourceControlStateRef> SelectedUnControlledFileStates;
+			FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();
+
+			GetSelectedFileStates(SelectedControlledFileStates, SelectedUnControlledFileStates);
+
+			TOptional<FUncontrolledChangelist> NewUncontrolledChangelist = UncontrolledChangelistsModule.CreateUncontrolledChangelist(ChangelistDescription);
+
+			if (!NewUncontrolledChangelist.IsSet())
+			{
+				SSourceControlCommon::DisplaySourceControlOperationNotification(LOCTEXT("Move_Files_New_Uncontrolled_Changelist_Failed", "Failed to create a new uncontrolled changelist."), SNotificationItem::CS_Fail);
+			}
+			else if (!SelectedControlledFileStates.IsEmpty() || !SelectedUnControlledFileStates.IsEmpty())
+			{
+				UncontrolledChangelistsModule.MoveFilesToUncontrolledChangelist(SelectedControlledFileStates, SelectedUnControlledFileStates, NewUncontrolledChangelist.GetValue());
+			}
+		});
+	}
 	else // Move files to an existing changelist or uncontrolled changelist.
 	{
 		// NOTE: The combo box indices are in this order: New changelist, existing changelist(s), existing uncontrolled changelist(s)
 		FChangelistTreeItemPtr MoveDestination;
-		const int32 ChangelistIndex = (bAddNewChangelistEntry ? PickedItem - 1 : PickedItem);
+		int32 ChangelistIndex = (bAddNewChangelistEntry ? PickedItem - 1 : PickedItem);
+
+		if (bAddNewUncontrolledChangelistEntry)
+		{
+			--ChangelistIndex;
+			check(ChangelistIndex >= 0);
+		}
 
 		if (ChangelistIndex < ChangelistTreeNodes.Num()) // Move files to a changelist
 		{

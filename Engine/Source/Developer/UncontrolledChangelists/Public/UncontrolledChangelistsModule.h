@@ -129,8 +129,9 @@ public:
 	/**
 	 * Creates a new Uncontrolled Changelist.
 	 * @param	InDescription	The description of the newly created Uncontrolled Changelist.
+	 * return	TOptional<FUncontrolledChangelist> set with the new Uncontrolled Changelist key if succeeded.
 	 */
-	void CreateUncontrolledChangelist(const FText& InDescription);
+	TOptional<FUncontrolledChangelist> CreateUncontrolledChangelist(const FText& InDescription);
 	
 	/**
      * Edits an Uncontrolled Changelist's description
